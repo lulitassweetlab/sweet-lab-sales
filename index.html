@@ -555,29 +555,49 @@
         // Funciones de GitHub API
         async function getFileFromGitHub(filename) {
             try {
+                console.log(`Intentando obtener ${filename} de GitHub...`);
+                
                 const response = await fetch(`https://api.github.com/repos/${GITHUB_CONFIG.username}/${GITHUB_CONFIG.repo}/contents/${filename}`, {
+                    method: 'GET',
                     headers: {
-                        'Authorization': `token ${GITHUB_CONFIG.token}`,
-                        'Accept': 'application/vnd.github.v3+json'
+                        'Authorization': `Bearer ${GITHUB_CONFIG.token}`,
+                        'Accept': 'application/vnd.github+json',
+                        'X-GitHub-Api-Version': '2022-11-28'
                     }
                 });
                 
-                if (response.ok) {
-                    const data = await response.json();
-                    return {
-                        content: JSON.parse(atob(data.content)),
-                        sha: data.sha
-                    };
+                console.log(`Respuesta de GitHub para ${filename}:`, response.status, response.statusText);
+                
+                if (response.status === 404) {
+                    // Archivo no existe, esto es normal la primera vez
+                    console.log(`${filename} no existe todavía, será creado en el primer guardado`);
+                    return null;
                 }
-                return null;
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error(`Error al obtener ${filename}:`, response.status, errorText);
+                    throw new Error(`GitHub API Error: ${response.status} - ${errorText}`);
+                }
+                
+                const data = await response.json();
+                const content = JSON.parse(atob(data.content));
+                console.log(`${filename} cargado exitosamente desde GitHub`);
+                
+                return {
+                    content: content,
+                    sha: data.sha
+                };
             } catch (error) {
-                console.error(`Error al obtener ${filename} de GitHub:`, error);
-                return null;
+                console.error(`Error completo al obtener ${filename}:`, error);
+                throw error;
             }
         }
 
         async function saveFileToGitHub(filename, data, sha = null) {
             try {
+                console.log(`Intentando guardar ${filename} en GitHub...`);
+                
                 const content = btoa(JSON.stringify(data, null, 2));
                 const body = {
                     message: `Actualizar ${filename} - ${new Date().toLocaleString()}`,
@@ -589,19 +609,66 @@
                     body.sha = sha;
                 }
 
+                console.log(`Enviando datos a GitHub para ${filename}...`);
+                
                 const response = await fetch(`https://api.github.com/repos/${GITHUB_CONFIG.username}/${GITHUB_CONFIG.repo}/contents/${filename}`, {
                     method: 'PUT',
                     headers: {
-                        'Authorization': `token ${GITHUB_CONFIG.token}`,
-                        'Accept': 'application/vnd.github.v3+json',
-                        'Content-Type': 'application/json'
+                        'Authorization': `Bearer ${GITHUB_CONFIG.token}`,
+                        'Accept': 'application/vnd.github+json',
+                        'Content-Type': 'application/json',
+                        'X-GitHub-Api-Version': '2022-11-28'
                     },
                     body: JSON.stringify(body)
                 });
 
-                return response.ok;
+                console.log(`Respuesta de guardado para ${filename}:`, response.status, response.statusText);
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error(`Error al guardar ${filename}:`, response.status, errorText);
+                    throw new Error(`GitHub API Error: ${response.status} - ${errorText}`);
+                }
+
+                console.log(`${filename} guardado exitosamente en GitHub`);
+                return true;
+                
             } catch (error) {
-                console.error(`Error al guardar ${filename} en GitHub:`, error);
+                console.error(`Error completo al guardar ${filename}:`, error);
+                throw error;
+            }
+        }
+
+        // Función de prueba para verificar configuración
+        async function testGitHubConnection() {
+            try {
+                console.log('Probando conexión con GitHub...');
+                console.log('Configuración:', {
+                    username: GITHUB_CONFIG.username,
+                    repo: GITHUB_CONFIG.repo,
+                    token: GITHUB_CONFIG.token ? `${GITHUB_CONFIG.token.substring(0, 8)}...` : 'NO CONFIGURADO'
+                });
+                
+                const response = await fetch(`https://api.github.com/repos/${GITHUB_CONFIG.username}/${GITHUB_CONFIG.repo}`, {
+                    headers: {
+                        'Authorization': `Bearer ${GITHUB_CONFIG.token}`,
+                        'Accept': 'application/vnd.github+json',
+                        'X-GitHub-Api-Version': '2022-11-28'
+                    }
+                });
+                
+                if (response.ok) {
+                    const repo = await response.json();
+                    console.log('✅ Conexión exitosa con GitHub');
+                    console.log('Repositorio:', repo.full_name, repo.private ? '(Privado)' : '(Público)');
+                    return true;
+                } else {
+                    const errorText = await response.text();
+                    console.error('❌ Error de conexión con GitHub:', response.status, errorText);
+                    return false;
+                }
+            } catch (error) {
+                console.error('❌ Error de red al conectar con GitHub:', error);
                 return false;
             }
         }
@@ -611,39 +678,60 @@
             try {
                 showStatus('Cargando datos...', 'info');
                 
+                // Probar conexión primero
                 if (GITHUB_CONFIG.token !== 'TU_TOKEN_AQUI' && isOnline) {
-                    // Cargar desde GitHub si está configurado y hay conexión
-                    const [sellersData, salesData] = await Promise.all([
-                        getFileFromGitHub('sellers.json'),
-                        getFileFromGitHub('sales.json')
-                    ]);
+                    const connected = await testGitHubConnection();
                     
-                    if (sellersData) {
-                        sellers = sellersData.content || [];
-                    }
-                    if (salesData) {
-                        sales = salesData.content || [];
-                    }
-                } else {
-                    // Cargar desde localStorage como fallback
-                    const localSellers = localStorage.getItem('sweetlab_sellers');
-                    const localSales = localStorage.getItem('sweetlab_sales');
-                    
-                    if (localSellers) {
-                        sellers = JSON.parse(localSellers);
-                    }
-                    if (localSales) {
-                        sales = JSON.parse(localSales);
+                    if (connected) {
+                        // Cargar desde GitHub si está configurado y conectado
+                        try {
+                            const [sellersData, salesData] = await Promise.all([
+                                getFileFromGitHub('sellers.json'),
+                                getFileFromGitHub('sales.json')
+                            ]);
+                            
+                            if (sellersData && Array.isArray(sellersData.content)) {
+                                sellers = sellersData.content;
+                            }
+                            if (salesData && Array.isArray(salesData.content)) {
+                                sales = salesData.content;
+                            }
+                            
+                            renderSellers();
+                            showStatus('✅ Datos cargados desde GitHub', 'success');
+                            return;
+                            
+                        } catch (error) {
+                            console.error('Error al cargar desde GitHub:', error);
+                            showStatus(`❌ Error de GitHub: ${error.message}`, 'error');
+                        }
+                    } else {
+                        showStatus('❌ No se pudo conectar a GitHub - revisa tu token', 'error');
                     }
                 }
                 
+                // Cargar desde localStorage como fallback
+                const localSellers = localStorage.getItem('sweetlab_sellers');
+                const localSales = localStorage.getItem('sweetlab_sales');
+                
+                if (localSellers) {
+                    sellers = JSON.parse(localSellers);
+                }
+                if (localSales) {
+                    sales = JSON.parse(localSales);
+                }
+                
                 renderSellers();
-                showStatus(isOnline && GITHUB_CONFIG.token !== 'TU_TOKEN_AQUI' ? 
-                    'Datos cargados desde GitHub' : 'Datos cargados localmente', 'success');
+                
+                if (GITHUB_CONFIG.token === 'TU_TOKEN_AQUI') {
+                    showStatus('⚠️ Configurar token de GitHub para sincronización', 'info');
+                } else {
+                    showStatus('📱 Datos cargados localmente', 'info');
+                }
                     
             } catch (error) {
                 console.error('Error al cargar datos:', error);
-                showStatus('Error al cargar datos', 'error');
+                showStatus('❌ Error al cargar datos', 'error');
             }
         }
 
@@ -655,30 +743,42 @@
                 
                 // Guardar en GitHub si está configurado y hay conexión
                 if (GITHUB_CONFIG.token !== 'TU_TOKEN_AQUI' && isOnline) {
-                    const [sellersFile, salesFile] = await Promise.all([
-                        getFileFromGitHub('sellers.json'),
-                        getFileFromGitHub('sales.json')
-                    ]);
-                    
-                    const [sellersSaved, salesSaved] = await Promise.all([
-                        saveFileToGitHub('sellers.json', sellers, sellersFile?.sha),
-                        saveFileToGitHub('sales.json', sales, salesFile?.sha)
-                    ]);
-                    
-                    if (sellersSaved && salesSaved) {
-                        showStatus('Datos sincronizados con GitHub ✓', 'success');
-                    } else {
-                        showStatus('Guardado localmente - Error al sincronizar', 'error');
+                    try {
+                        showStatus('🔄 Sincronizando con GitHub...', 'info');
+                        
+                        // Obtener versiones actuales para evitar conflictos
+                        const [sellersFile, salesFile] = await Promise.all([
+                            getFileFromGitHub('sellers.json'),
+                            getFileFromGitHub('sales.json')
+                        ]);
+                        
+                        // Guardar ambos archivos
+                        const [sellersSaved, salesSaved] = await Promise.all([
+                            saveFileToGitHub('sellers.json', sellers, sellersFile?.sha),
+                            saveFileToGitHub('sales.json', sales, salesFile?.sha)
+                        ]);
+                        
+                        if (sellersSaved && salesSaved) {
+                            showStatus('✅ Datos sincronizados con GitHub', 'success');
+                        } else {
+                            throw new Error('Falló el guardado de algunos archivos');
+                        }
+                        
+                    } catch (error) {
+                        console.error('Error al sincronizar con GitHub:', error);
+                        showStatus(`❌ Error de sincronización: ${error.message}`, 'error');
                     }
                 } else {
-                    showStatus(GITHUB_CONFIG.token === 'TU_TOKEN_AQUI' ? 
-                        'Guardado localmente - Configurar token de GitHub' : 
-                        'Guardado localmente - Sin conexión', 'info');
+                    if (GITHUB_CONFIG.token === 'TU_TOKEN_AQUI') {
+                        showStatus('📱 Guardado localmente - Configurar token de GitHub', 'info');
+                    } else {
+                        showStatus('📱 Guardado localmente - Sin conexión', 'info');
+                    }
                 }
                 
             } catch (error) {
                 console.error('Error al guardar datos:', error);
-                showStatus('Error al guardar datos', 'error');
+                showStatus('❌ Error al guardar datos', 'error');
             }
         }
 
