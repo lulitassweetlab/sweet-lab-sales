@@ -1,7 +1,6 @@
 const API = {
 	Sellers: '/api/sellers',
-	Sales: '/api/sales',
-	Days: '/api/days'
+	Sales: '/api/sales'
 };
 
 const PRICES = {
@@ -17,8 +16,6 @@ const fmtNo = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 });
 const state = {
 	currentSeller: null,
 	sellers: [],
-	saleDays: [],
-	selectedDayId: null,
 	sales: [],
 };
 
@@ -75,11 +72,8 @@ async function enterSeller(id) {
 	if (!seller) return;
 	state.currentSeller = seller;
 	$('#current-seller').textContent = seller.name;
-	state.saleDays = [];
-	state.selectedDayId = null;
-	state.sales = [];
 	switchView('#view-sales');
-	await loadDays();
+	await loadSales();
 }
 
 function switchView(id) {
@@ -93,49 +87,6 @@ function calcRowTotal(q) {
 	const mara = Number(q.mara || 0);
 	const oreo = Number(q.oreo || 0);
 	return arco * PRICES.arco + melo * PRICES.melo + mara * PRICES.mara + oreo * PRICES.oreo;
-}
-
-async function loadDays() {
-	const sellerId = state.currentSeller.id;
-	state.saleDays = await api('GET', `${API.Days}?seller_id=${encodeURIComponent(sellerId)}`);
-	renderDays();
-	// Auto-select most recent day if exists
-	if (state.saleDays.length > 0) {
-		selectDay(state.saleDays[0].id);
-	}
-}
-
-function renderDays() {
-	const list = $('#dates-list');
-	list.innerHTML = '';
-	for (const d of state.saleDays) {
-		const label = new Date(d.day).toISOString().slice(0,10);
-		const btn = el('button', { class: `date-button${state.selectedDayId === d.id ? ' active' : ''}`, onclick: () => selectDay(d.id) }, label);
-		list.appendChild(btn);
-	}
-}
-
-async function addDate() {
-	const sellerId = state.currentSeller.id;
-	let day = $('#new-date').value;
-	if (!day) {
-		const now = new Date();
-		day = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())).toISOString().slice(0,10);
-	}
-	const created = await api('POST', API.Days, { seller_id: sellerId, day });
-	// Re-load days and select the new one
-	await loadDays();
-	selectDay(created.id);
-}
-
-async function selectDay(dayId) {
-	state.selectedDayId = dayId;
-	document.querySelectorAll('.date-button').forEach(btn => btn.classList.remove('active'));
-	// Re-render to set active
-	renderDays();
-	$('#sales-wrapper').classList.remove('hidden');
-	$('#add-row').classList.remove('hidden');
-	await loadSales();
 }
 
 function renderTable() {
@@ -154,7 +105,7 @@ function renderTable() {
 			el('td', { class: 'col-melo' }, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_melo ? String(sale.qty_melo) : '', placeholder: '', oninput: debounce(() => saveRow(tr, sale.id), 400) })),
 			el('td', { class: 'col-mara' }, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_mara ? String(sale.qty_mara) : '', placeholder: '', oninput: debounce(() => saveRow(tr, sale.id), 400) })),
 			el('td', { class: 'col-oreo' }, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_oreo ? String(sale.qty_oreo) : '', placeholder: '', oninput: debounce(() => saveRow(tr, sale.id), 400) })),
-			el('td', { class: 'total col-total' }, fmtNo.format(total)),
+			el('td', { class: 'total col-total' }, fmt.format(total)),
 			el('td', { class: 'col-actions' }, el('button', { class: 'row-delete', title: 'Eliminar', onclick: async () => { await deleteRow(sale.id); } }, 'x')),
 		);
 		tr.dataset.id = String(sale.id);
@@ -163,17 +114,27 @@ function renderTable() {
 	updateSummary();
 }
 
+function readRow(tr) {
+	const [clientEl, arcoEl, meloEl, maraEl, oreoEl] = tr.querySelectorAll('input');
+	const data = {
+		client_name: clientEl.value.trim(),
+		qty_arco: arcoEl.value === '' ? 0 : Number(arcoEl.value),
+		qty_melo: meloEl.value === '' ? 0 : Number(meloEl.value),
+		qty_mara: maraEl.value === '' ? 0 : Number(maraEl.value),
+		qty_oreo: oreoEl.value === '' ? 0 : Number(oreoEl.value),
+	};
+	return data;
+}
+
 async function loadSales() {
 	const sellerId = state.currentSeller.id;
-	const params = new URLSearchParams({ seller_id: String(sellerId) });
-	if (state.selectedDayId) params.set('sale_day_id', String(state.selectedDayId));
-	state.sales = await api('GET', `${API.Sales}?${params.toString()}`);
+	state.sales = await api('GET', `${API.Sales}?seller_id=${encodeURIComponent(sellerId)}`);
 	renderTable();
 }
 
 async function addRow() {
 	const sellerId = state.currentSeller.id;
-	const sale = await api('POST', API.Sales, { seller_id: sellerId, sale_day_id: state.selectedDayId });
+	const sale = await api('POST', API.Sales, { seller_id: sellerId });
 	state.sales.push(sale);
 	renderTable();
 }
@@ -186,7 +147,7 @@ async function saveRow(tr, id) {
 	if (idx !== -1) state.sales[idx] = updated;
 	const totalCell = tr.querySelector('.total');
 	const total = calcRowTotal({ arco: updated.qty_arco, melo: updated.qty_melo, mara: updated.qty_mara, oreo: updated.qty_oreo });
-	totalCell.textContent = fmtNo.format(total);
+	totalCell.textContent = fmt.format(total);
 	updateSummary();
 }
 
@@ -217,17 +178,6 @@ function updateSummary() {
 	$('#sum-grand').textContent = fmtNo.format(grand);
 }
 
-function readRow(tr) {
-	const [clientEl, arcoEl, meloEl, maraEl, oreoEl] = tr.querySelectorAll('input');
-	return {
-		client_name: clientEl.value.trim(),
-		qty_arco: arcoEl.value === '' ? 0 : Number(arcoEl.value),
-		qty_melo: meloEl.value === '' ? 0 : Number(meloEl.value),
-		qty_mara: maraEl.value === '' ? 0 : Number(maraEl.value),
-		qty_oreo: oreoEl.value === '' ? 0 : Number(oreoEl.value),
-	};
-}
-
 function debounce(fn, ms) {
 	let t;
 	return (...args) => {
@@ -248,12 +198,8 @@ function bindEvents() {
 	$('#go-home').addEventListener('click', () => {
 		state.currentSeller = null;
 		state.sales = [];
-		state.saleDays = [];
-		state.selectedDayId = null;
 		switchView('#view-select-seller');
 	});
-
-	$('#add-date').addEventListener('click', addDate);
 }
 
 (async function init() {
