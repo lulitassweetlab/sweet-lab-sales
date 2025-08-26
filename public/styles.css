@@ -367,3 +367,16 @@ tfoot td { font-weight: 700; }
 /* Sticky header offset below toolbar */
 :root { --toolbarH: 48px; }
 #sales-table thead th { top: var(--toolbarH); z-index: 20; }
+
+/* Sticky composite header (toolbar + columns) */
+.header-sticky { position: sticky; top: 0; z-index: 15; background: var(--surface); }
+.columns-bar { display: grid; grid-template-columns: var(--w-client,1fr) var(--w-qty,1fr) var(--w-qty,1fr) var(--w-qty,1fr) var(--w-qty,1fr) var(--w-total,1fr) var(--w-actions,auto); gap: 0; border-bottom: 1px solid var(--border); padding: 4px 6px; background: #0b1022; }
+.columns-bar .col { text-align: center; font-weight: 700; font-size: 12px; }
+.columns-bar .c-client { text-align: left; }
+
+/* Map CSS variables to colgroup widths for alignment */
+:root { --w-client: 34%; --w-qty: 11%; --w-total: 17%; --w-actions: 5%; }
+@media (max-width: 600px) { :root { --w-client: 32%; --w-qty: 11%; --w-total: 19%; --w-actions: 5%; } }
+
+/* Hide native thead to prevent overlap */
+#sales-table thead { display: none; }
