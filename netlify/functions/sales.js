@@ -34,7 +34,7 @@ export async function handler(event) {
 					const iso = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())).toISOString().slice(0,10);
 					saleDayId = await getOrCreateDayId(sellerId, iso);
 				}
-				const [row] = await sql`INSERT INTO sales (seller_id, sale_day_id, is_paid) VALUES (${sellerId}, ${saleDayId}, false) RETURNING id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, is_paid, total_cents, created_at`;
+				const [row] = await sql`INSERT INTO sales (seller_id, sale_day_id) VALUES (${sellerId}, ${saleDayId}) RETURNING id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, is_paid, total_cents, created_at`;
 				return json(row, 201);
 			}
 			case 'PUT': {
