@@ -324,3 +324,9 @@ tfoot td { font-weight: 700; }
 
 /* Utility */
 .hidden { display: none !important; }
+
+/* Ensure vertical centering for total text and delete X */
+#sales-table td { vertical-align: middle; }
+.col-total { vertical-align: middle; }
+.col-actions { vertical-align: middle; display: grid; place-items: center; }
+.col-actions .row-delete { vertical-align: middle; }
