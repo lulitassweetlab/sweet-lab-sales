@@ -28,33 +28,6 @@
 				<button id="add-row">Agregar venta</button>
 			</div>
 
-			<div id="summary" class="summary">
-				<div class="summary-item">
-					<span class="label">Arco</span>
-					<span class="qty" id="sum-arco-qty">0</span>
-					<span class="amt" id="sum-arco-amt">$0</span>
-				</div>
-				<div class="summary-item">
-					<span class="label">Melo</span>
-					<span class="qty" id="sum-melo-qty">0</span>
-					<span class="amt" id="sum-melo-amt">$0</span>
-				</div>
-				<div class="summary-item">
-					<span class="label">Mara</span>
-					<span class="qty" id="sum-mara-qty">0</span>
-					<span class="amt" id="sum-mara-amt">$0</span>
-				</div>
-				<div class="summary-item">
-					<span class="label">Oreo</span>
-					<span class="qty" id="sum-oreo-qty">0</span>
-					<span class="amt" id="sum-oreo-amt">$0</span>
-				</div>
-				<div class="summary-item total-all">
-					<span class="label">Total ventas</span>
-					<span class="amt" id="sum-grand">$0</span>
-				</div>
-			</div>
-
 			<div class="table-wrapper">
 				<table id="sales-table">
 					<thead>
@@ -69,10 +42,27 @@
 						</tr>
 					</thead>
 					<tbody id="sales-tbody"></tbody>
+					<tfoot>
+						<tr class="tfoot-qty">
+							<td class="col-client label" rowspan="2">Totales</td>
+							<td><span id="sum-arco-qty">0</span></td>
+							<td><span id="sum-melo-qty">0</span></td>
+							<td><span id="sum-mara-qty">0</span></td>
+							<td><span id="sum-oreo-qty">0</span></td>
+							<td><span id="sum-total-qty"> </span></td>
+							<td></td>
+						</tr>
+						<tr class="tfoot-amt">
+							<td><span id="sum-arco-amt">$0</span></td>
+							<td><span id="sum-melo-amt">$0</span></td>
+							<td><span id="sum-mara-amt">$0</span></td>
+							<td><span id="sum-oreo-amt">$0</span></td>
+							<td><span id="sum-grand">$0</span></td>
+							<td></td>
+						</tr>
+					</tfoot>
 				</table>
 			</div>
-
-			<div id="cards-list" class="cards-list"></div>
 		</section>
 	</main>
 
