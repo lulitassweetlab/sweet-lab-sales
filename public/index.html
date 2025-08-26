@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Sweet Lab - Ventas</title>
+	<link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+	<header class="app-header">
+		<h1>Sweet Lab - Registro de ventas</h1>
+	</header>
+
+	<main id="app">
+		<section id="view-select-seller" class="view">
+			<h2>Selecciona vendedor</h2>
+			<div class="seller-controls">
+				<select id="seller-select" aria-label="Vendedor"></select>
+				<button id="enter-seller">Entrar</button>
+			</div>
+			<div class="seller-add">
+				<input id="new-seller-name" type="text" inputmode="text" autocomplete="name" placeholder="Agregar nuevo vendedor" />
+				<button id="add-seller">Agregar</button>
+			</div>
+		</section>
+
+		<section id="view-sales" class="view hidden">
+			<div class="toolbar">
+				<button id="go-home" class="secondary">Inicio</button>
+				<h2 id="current-seller"></h2>
+				<button id="add-row">Agregar venta</button>
+			</div>
+
+			<div class="table-wrapper">
+				<table id="sales-table">
+					<thead>
+						<tr>
+							<th class="col-client">Cliente</th>
+							<th>Arco<br><span class="price">$8.500</span></th>
+							<th>Melo<br><span class="price">$9.500</span></th>
+							<th>Mara<br><span class="price">$10.500</span></th>
+							<th>Oreo<br><span class="price">$10.500</span></th>
+							<th>Total</th>
+							<th></th>
+						</tr>
+					</thead>
+					<tbody id="sales-tbody"></tbody>
+				</table>
+			</div>
+		</section>
+	</main>
+
+	<footer class="app-footer">
+		<small>Datos sincronizados con Netlify + Neon</small>
+	</footer>
+
+	<script src="/app.js" type="module"></script>
+</body>
+</html>
