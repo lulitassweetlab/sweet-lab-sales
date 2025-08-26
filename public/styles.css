@@ -103,7 +103,8 @@ tfoot td { font-weight: 700; }
 .row-delete { color: var(--danger); font-weight: 900; }
 
 /* Toolbar */
-.toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; position: sticky; top: 0; z-index: 10; background: var(--surface); padding-top: 8px; padding-bottom: 8px; }
+.toolbar button { pointer-events: auto; }
 
 /* Show cards list on small screens while hiding table */
 .cards-list { display: none; }
@@ -269,3 +270,6 @@ tfoot td { font-weight: 700; }
 	.w-total { width: 19%; }
 	.w-actions { width: 5%; }
 }
+
+/* Utility */
+.hidden { display: none !important; }
