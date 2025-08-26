@@ -131,52 +131,25 @@ th, td { border-bottom: 1px solid var(--border); padding: 6px 6px; text-align: c
 .input-qty { width: 44px; font-size: 14px; padding: 4px; }
 .total { font-size: 16px; }
 
-/* Mobile: no horizontal scroll, compact row layout (not cards) */
+/* Remove mobile stacking and enforce compact fixed layout on phones */
 @media (max-width: 600px) {
-	/* Hide header and remove min-width so no horizontal scroll */
-	.table-wrapper { overflow-x: visible; border-radius: 8px; }
+	.table-wrapper { overflow-x: hidden; border-radius: 8px; }
+	table { width: 100%; min-width: 0; table-layout: fixed; }
 	#sales-table thead { display: table-header-group; }
-	table { width: 100%; min-width: 0; }
+	#sales-table thead th { position: sticky; top: 0; }
 
-	/* Turn each row into a compact, wrapping block */
-	#sales-table tr { display: block; padding: 8px 6px; }
-	#sales-table td { display: inline-block; border-bottom: 0; padding: 4px 4px; vertical-align: middle; }
-	#sales-table td.col-client { display: block; width: 100%; padding: 6px 4px; }
-	#sales-table td.col-arco,
-	#sales-table td.col-melo,
-	#sales-table td.col-mara,
-	#sales-table td.col-oreo,
-	#sales-table td.col-total,
-	#sales-table td.col-actions { display: inline-flex; align-items: center; gap: 6px; }
+	/* Compact spacing and fonts */
+	th, td { padding: 3px 2px; }
+	th { font-size: 11px; }
+	.total { font-size: 13px; }
 
-	/* Inputs compact */
-	.client-input { font-size: 14px; min-width: 0; }
-	.input-qty { width: 40px; font-size: 13px; padding: 4px; }
-	.total { font-size: 14px; }
-
-	/* Let quantities wrap to next line if needed; keep total to the end */
-	#sales-table td.col-total { margin-left: auto; }
-	#sales-table td.col-actions { margin-left: 6px; }
-
-	/* Footer totals stacked compact */
-	tfoot { display: block; }
-	tfoot tr { display: flex; flex-wrap: wrap; gap: 6px 10px; padding: 6px; }
-	tfoot .tfoot-qty td, tfoot .tfoot-amt td { display: inline-flex; align-items: baseline; padding: 2px 4px; }
-	tfoot .label { width: 100%; font-weight: 700; margin-bottom: 2px; }
-
-	/* Keep table header visible and compact */
-	th { font-size: 12px; }
-	.price { font-size: 10px; }
-
-	/* Shrink columns to avoid horizontal scroll */
-	.w-client { width: 24%; }
-	.w-qty { width: 12%; }
+	/* Column widths tuned to fit */
+	.w-client { width: 22%; }
+	.w-qty { width: 13%; }
 	.w-total { width: 20%; }
 	.w-actions { width: 6%; }
 
-	/* Smaller fonts */
-	.client-input { font-size: 14px; }
-	.input-qty { width: 38px; font-size: 12px; padding: 3px; }
-	.total { font-size: 14px; }
-	th, td { padding: 4px; }
+	/* Inputs tiny */
+	.client-input { font-size: 13px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+	.input-qty { width: 34px; font-size: 12px; padding: 2px; }
 }
