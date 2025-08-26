@@ -405,6 +405,6 @@ tfoot td { font-weight: 700; }
 	border-radius: 0;
 }
 
-@media (max-width: 600px) {
-	.col-paid input[type="checkbox"] { width: 11px; height: 11px; }
-}
+/* Smaller visual scale for checkbox in $. column */
+.col-paid input[type="checkbox"] { transform: scale(0.85); transform-origin: center; }
+@media (max-width: 600px) { .col-paid input[type="checkbox"] { transform: scale(0.8); } }
