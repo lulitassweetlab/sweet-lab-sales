@@ -153,3 +153,26 @@ th, td { border-bottom: 1px solid var(--border); padding: 6px 6px; text-align: c
 	.client-input { font-size: 13px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 	.input-qty { width: 34px; font-size: 12px; padding: 2px; }
 }
+
+/* Footer totals responsive sizing */
+tfoot td { font-weight: 700; }
+.tfoot-qty td { color: var(--text); }
+.tfoot-amt td { color: var(--accent); }
+.tfoot-qty .label { text-align: left; }
+
+@media (max-width: 600px) {
+	/* Footer totals scale with screen to avoid overlap */
+	tfoot td { font-size: clamp(9px, 2.6vw, 12px); line-height: 1.15; white-space: normal; }
+	tfoot .label { font-size: clamp(10px, 2.8vw, 12px); }
+
+	/* Inputs even smaller to fit full row */
+	.client-input { font-size: 12px; }
+	.input-qty { width: 30px; font-size: 11px; padding: 2px; }
+	.total { font-size: 12px; }
+
+	/* Delete icon not clipped */
+	.row-delete { font-size: 14px; width: 18px; height: 18px; line-height: 18px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+
+	/* Tighter spacing */
+	th, td { padding: 2px; }
+}
