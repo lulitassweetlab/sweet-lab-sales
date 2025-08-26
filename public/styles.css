@@ -327,7 +327,7 @@ tfoot td { font-weight: 700; }
 
 /* Fix delete X vertical alignment without shifting column */
 #sales-table td { vertical-align: middle; }
-.col-total { vertical-align: middle; }
+.col-total { text-align: right; vertical-align: middle; }
 .col-actions { vertical-align: middle; display: table-cell; }
 .col-actions .row-delete,
 .row-delete {
