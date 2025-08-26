@@ -48,23 +48,31 @@ async function api(method, url, body) {
 
 async function loadSellers() {
 	state.sellers = await api('GET', API.Sellers);
-	renderSellerSelect();
+	renderSellerButtons();
 }
 
-function renderSellerSelect() {
-	const select = $('#seller-select');
-	select.innerHTML = '';
+function renderSellerButtons() {
+	const list = $('#seller-list');
+	list.innerHTML = '';
 	for (const s of state.sellers) {
-		const opt = el('option', { value: String(s.id) }, s.name);
-		select.appendChild(opt);
+		const btn = el('button', { class: 'seller-button', onclick: async () => { await enterSeller(s.id); } }, s.name);
+		list.appendChild(btn);
 	}
 }
 
 async function addSeller(name) {
 	const seller = await api('POST', API.Sellers, { name });
 	state.sellers.push(seller);
-	renderSellerSelect();
-	$('#seller-select').value = String(seller.id);
+	renderSellerButtons();
+}
+
+async function enterSeller(id) {
+	const seller = state.sellers.find(s => s.id === id);
+	if (!seller) return;
+	state.currentSeller = seller;
+	$('#current-seller').textContent = seller.name;
+	switchView('#view-sales');
+	await loadSales();
 }
 
 function switchView(id) {
@@ -83,25 +91,44 @@ function calcRowTotal(q) {
 function renderTable() {
 	const tbody = $('#sales-tbody');
 	tbody.innerHTML = '';
+	const isMobileCard = window.matchMedia('(max-width: 420px)').matches;
 	for (const sale of state.sales) {
 		const total = calcRowTotal({ arco: sale.qty_arco, melo: sale.qty_melo, mara: sale.qty_mara, oreo: sale.qty_oreo });
-		const tr = el('tr', {},
-			el('td', { class: 'col-client' }, el('input', {
-				class: 'input-cell client-input',
-				value: sale.client_name || '',
-				placeholder: '',
-				oninput: debounce(() => saveRow(tr, sale.id), 400),
-			})),
-			el('td', {}, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_arco ? String(sale.qty_arco) : '', placeholder: '', oninput: debounce(() => saveRow(tr, sale.id), 400) })),
-			el('td', {}, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_melo ? String(sale.qty_melo) : '', placeholder: '', oninput: debounce(() => saveRow(tr, sale.id), 400) })),
-			el('td', {}, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_mara ? String(sale.qty_mara) : '', placeholder: '', oninput: debounce(() => saveRow(tr, sale.id), 400) })),
-			el('td', {}, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_oreo ? String(sale.qty_oreo) : '', placeholder: '', oninput: debounce(() => saveRow(tr, sale.id), 400) })),
-			el('td', { class: 'total' }, fmt.format(total)),
-			el('td', {}, el('button', { class: 'row-delete', title: 'Eliminar', onclick: async () => { await deleteRow(sale.id); } }, '🗑️')),
-		);
-		tr.dataset.id = String(sale.id);
-		tbody.appendChild(tr);
+		if (!isMobileCard) {
+			const tr = el('tr', {},
+				el('td', { class: 'col-client' }, el('input', {
+					class: 'input-cell client-input',
+					value: sale.client_name || '',
+					placeholder: '',
+					oninput: debounce(() => saveRow(tr, sale.id), 400),
+				})),
+				el('td', {}, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_arco ? String(sale.qty_arco) : '', placeholder: '', oninput: debounce(() => saveRow(tr, sale.id), 400) })),
+				el('td', {}, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_melo ? String(sale.qty_melo) : '', placeholder: '', oninput: debounce(() => saveRow(tr, sale.id), 400) })),
+				el('td', {}, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_mara ? String(sale.qty_mara) : '', placeholder: '', oninput: debounce(() => saveRow(tr, sale.id), 400) })),
+				el('td', {}, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_oreo ? String(sale.qty_oreo) : '', placeholder: '', oninput: debounce(() => saveRow(tr, sale.id), 400) })),
+				el('td', { class: 'total' }, fmt.format(total)),
+				el('td', {}, el('button', { class: 'row-delete', title: 'Eliminar', onclick: async () => { await deleteRow(sale.id); } }, '🗑️')),
+			);
+			tr.dataset.id = String(sale.id);
+			tbody.appendChild(tr);
+		} else {
+			const card = el('div', { class: 'sale-card' },
+				el('div', { class: 'full' },
+					el('label', {}, 'Cliente'),
+					el('input', { class: 'input-cell client-input', value: sale.client_name || '', placeholder: '', oninput: debounce(() => saveCard(card, sale.id), 400) })
+				),
+				el('div', {}, el('label', {}, 'Arco'), el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_arco ? String(sale.qty_arco) : '', placeholder: '', oninput: debounce(() => saveCard(card, sale.id), 400) })),
+				el('div', {}, el('label', {}, 'Melo'), el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_melo ? String(sale.qty_melo) : '', placeholder: '', oninput: debounce(() => saveCard(card, sale.id), 400) })),
+				el('div', {}, el('label', {}, 'Mara'), el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_mara ? String(sale.qty_mara) : '', placeholder: '', oninput: debounce(() => saveCard(card, sale.id), 400) })),
+				el('div', {}, el('label', {}, 'Oreo'), el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_oreo ? String(sale.qty_oreo) : '', placeholder: '', oninput: debounce(() => saveCard(card, sale.id), 400) })),
+				el('div', { class: 'full total' }, `${fmt.format(total)}`),
+				el('div', { class: 'row-actions full' }, el('button', { class: 'row-delete', title: 'Eliminar', onclick: async () => { await deleteRow(sale.id); } }, '🗑️'))
+			);
+			card.dataset.id = String(sale.id);
+			tbody.appendChild(card);
+		}
 	}
+	updateSummary();
 }
 
 function readRow(tr) {
@@ -114,6 +141,18 @@ function readRow(tr) {
 		qty_oreo: oreoEl.value === '' ? 0 : Number(oreoEl.value),
 	};
 	return data;
+}
+
+function readCard(card) {
+	const inputs = card.querySelectorAll('input');
+	const [clientEl, arcoEl, meloEl, maraEl, oreoEl] = inputs;
+	return {
+		client_name: clientEl.value.trim(),
+		qty_arco: arcoEl.value === '' ? 0 : Number(arcoEl.value),
+		qty_melo: meloEl.value === '' ? 0 : Number(meloEl.value),
+		qty_mara: maraEl.value === '' ? 0 : Number(maraEl.value),
+		qty_oreo: oreoEl.value === '' ? 0 : Number(oreoEl.value),
+	};
 }
 
 async function loadSales() {
@@ -135,16 +174,48 @@ async function saveRow(tr, id) {
 	const updated = await api('PUT', API.Sales, body);
 	const idx = state.sales.findIndex(s => s.id === id);
 	if (idx !== -1) state.sales[idx] = updated;
-	// Update total cell
 	const totalCell = tr.querySelector('.total');
 	const total = calcRowTotal({ arco: updated.qty_arco, melo: updated.qty_melo, mara: updated.qty_mara, oreo: updated.qty_oreo });
 	totalCell.textContent = fmt.format(total);
+	updateSummary();
+}
+
+async function saveCard(card, id) {
+	const body = readCard(card);
+	body.id = id;
+	const updated = await api('PUT', API.Sales, body);
+	const idx = state.sales.findIndex(s => s.id === id);
+	if (idx !== -1) state.sales[idx] = updated;
+	const totalEl = card.querySelector('.total');
+	const total = calcRowTotal({ arco: updated.qty_arco, melo: updated.qty_melo, mara: updated.qty_mara, oreo: updated.qty_oreo });
+	totalEl.textContent = fmt.format(total);
+	updateSummary();
 }
 
 async function deleteRow(id) {
 	await api('DELETE', `${API.Sales}?id=${encodeURIComponent(id)}`);
 	state.sales = state.sales.filter(s => s.id !== id);
 	renderTable();
+}
+
+function updateSummary() {
+	let qa = 0, qm = 0, qma = 0, qo = 0, grand = 0;
+	for (const s of state.sales) {
+		qa += Number(s.qty_arco || 0);
+		qm += Number(s.qty_melo || 0);
+		qma += Number(s.qty_mara || 0);
+		qo += Number(s.qty_oreo || 0);
+		grand += calcRowTotal({ arco: s.qty_arco, melo: s.qty_melo, mara: s.qty_mara, oreo: s.qty_oreo });
+	}
+	$('#sum-arco-qty').textContent = String(qa);
+	$('#sum-melo-qty').textContent = String(qm);
+	$('#sum-mara-qty').textContent = String(qma);
+	$('#sum-oreo-qty').textContent = String(qo);
+	$('#sum-arco-amt').textContent = fmt.format(qa * PRICES.arco);
+	$('#sum-melo-amt').textContent = fmt.format(qm * PRICES.melo);
+	$('#sum-mara-amt').textContent = fmt.format(qma * PRICES.mara);
+	$('#sum-oreo-amt').textContent = fmt.format(qo * PRICES.oreo);
+	$('#sum-grand').textContent = fmt.format(grand);
 }
 
 function debounce(fn, ms) {
@@ -156,17 +227,6 @@ function debounce(fn, ms) {
 }
 
 function bindEvents() {
-	$('#enter-seller').addEventListener('click', async () => {
-		const select = $('#seller-select');
-		const id = Number(select.value);
-		const seller = state.sellers.find(s => s.id === id);
-		if (!seller) return;
-		state.currentSeller = seller;
-		$('#current-seller').textContent = seller.name;
-		switchView('#view-sales');
-		await loadSales();
-	});
-
 	$('#add-seller').addEventListener('click', async () => {
 		const name = $('#new-seller-name').value.trim();
 		if (!name) return;
@@ -180,6 +240,9 @@ function bindEvents() {
 		state.sales = [];
 		switchView('#view-select-seller');
 	});
+
+	// Re-render on viewport change to switch table/card layouts
+	window.matchMedia('(max-width: 420px)').addEventListener('change', () => renderTable());
 }
 
 (async function init() {

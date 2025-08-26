@@ -31,7 +31,19 @@ main { padding: 16px; }
 
 .view.hidden { display: none; }
 
-.seller-controls, .seller-add { display: flex; gap: 8px; align-items: center; margin: 8px 0; }
+.seller-list { display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0 14px; }
+.seller-button {
+	padding: 10px 14px;
+	border: 1px solid var(--border);
+	background: #0b1022;
+	color: var(--text);
+	border-radius: 999px;
+	cursor: pointer;
+	font-weight: 600;
+}
+.seller-button:hover { filter: brightness(1.1); }
+
+.seller-add { display: flex; gap: 8px; align-items: center; margin: 8px 0; }
 
 select, input[type="text"], button {
 	padding: 10px 12px;
@@ -45,6 +57,13 @@ select, input[type="text"], button {
 button { cursor: pointer; }
 button.secondary { background: #0b1220; color: var(--muted); }
 button:hover { filter: brightness(1.1); }
+
+.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; margin: 8px 0 14px; }
+.summary-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: #0b1022; }
+.summary-item .label { color: var(--muted); font-weight: 600; }
+.summary-item .qty { font-weight: 700; }
+.summary-item .amt { font-weight: 700; color: var(--accent); }
+.summary-item.total-all { grid-column: 1 / -1; justify-content: flex-end; }
 
 .table-wrapper { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; }
 
@@ -101,7 +120,24 @@ th.col-client, td.col-client { text-align: left; }
 .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
 
 @media (max-width: 640px) {
-	.client-input { font-size: 18px; min-width: 460px; }
+	/* Make the table fully usable on phones with horizontal scroll */
+	.table-wrapper { overflow-x: auto; }
+	table { min-width: 620px; }
+	.client-input { font-size: 18px; min-width: 480px; }
 	.input-qty { width: 70px; }
 	th, td { padding: 8px; }
+}
+
+/* Card layout for very small screens */
+@media (max-width: 420px) {
+	.table-wrapper { border: none; }
+	table { display: none; }
+	#sales-tbody { display: block; }
+	.sale-card { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px 12px; margin-bottom: 10px; border: 1px solid var(--border); border-radius: 10px; background: #0b1022; }
+	.sale-card .full { grid-column: 1 / -1; }
+	.sale-card label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+	.sale-card .input-cell { width: 100%; font-size: 16px; padding: 10px; }
+	.sale-card .client-input { font-size: 18px; }
+	.sale-card .total { text-align: right; }
+	.sale-card .row-actions { display: flex; justify-content: flex-end; }
 }
