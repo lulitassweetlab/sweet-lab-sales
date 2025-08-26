@@ -1,4 +1,4 @@
-import { ensureSchema, sql, recalcTotalForId } from './_db.js';
+import { ensureSchema, sql, recalcTotalForId, getOrCreateDayId } from './_db.js';
 
 function json(body, status = 200) {
 	return { statusCode: status, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
@@ -12,16 +12,29 @@ export async function handler(event) {
 			case 'GET': {
 				const params = new URLSearchParams(event.rawQuery || event.queryStringParameters ? event.rawQuery || '' : '');
 				const sellerIdParam = params.get('seller_id') || (event.queryStringParameters && event.queryStringParameters.seller_id);
+				const dayIdParam = params.get('sale_day_id') || (event.queryStringParameters && event.queryStringParameters.sale_day_id);
 				const sellerId = Number(sellerIdParam);
+				const saleDayId = dayIdParam ? Number(dayIdParam) : null;
 				if (!sellerId) return json({ error: 'seller_id requerido' }, 400);
-				const rows = await sql`SELECT id, seller_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, total_cents, created_at FROM sales WHERE seller_id = ${sellerId} ORDER BY created_at ASC, id ASC`;
+				let rows;
+				if (saleDayId) {
+					rows = await sql`SELECT id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, total_cents, created_at FROM sales WHERE seller_id = ${sellerId} AND sale_day_id=${saleDayId} ORDER BY created_at ASC, id ASC`;
+				} else {
+					rows = await sql`SELECT id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, total_cents, created_at FROM sales WHERE seller_id = ${sellerId} ORDER BY created_at ASC, id ASC`;
+				}
 				return json(rows);
 			}
 			case 'POST': {
 				const data = JSON.parse(event.body || '{}');
 				const sellerId = Number(data.seller_id);
+				let saleDayId = data.sale_day_id ? Number(data.sale_day_id) : null;
 				if (!sellerId) return json({ error: 'seller_id requerido' }, 400);
-				const [row] = await sql`INSERT INTO sales (seller_id) VALUES (${sellerId}) RETURNING id, seller_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, total_cents, created_at`;
+				if (!saleDayId) {
+					const now = new Date();
+					const iso = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())).toISOString().slice(0,10);
+					saleDayId = await getOrCreateDayId(sellerId, iso);
+				}
+				const [row] = await sql`INSERT INTO sales (seller_id, sale_day_id) VALUES (${sellerId}, ${saleDayId}) RETURNING id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, total_cents, created_at`;
 				return json(row, 201);
 			}
 			case 'PUT': {
