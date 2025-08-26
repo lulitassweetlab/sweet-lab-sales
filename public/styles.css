@@ -363,3 +363,7 @@ tfoot td { font-weight: 700; }
 @media (max-width: 600px) {
 	#sales-table tfoot .tfoot-amt td { font-size: clamp(6px, 1.8vw, 9px); padding-left: 1px; padding-right: 1px; }
 }
+
+/* Sticky header offset below toolbar */
+:root { --toolbarH: 48px; }
+#sales-table thead th { top: var(--toolbarH); z-index: 20; }
