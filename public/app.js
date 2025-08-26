@@ -105,14 +105,64 @@ async function loadDays() {
 	}
 }
 
+function formatDateButton(isoDate) {
+	const d = new Date(isoDate + 'T00:00:00Z');
+	const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+	const weekdays = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+	return `${months[d.getUTCMonth()]}- ${weekdays[d.getUTCDay()]} ${d.getUTCDate()}`;
+}
+
 function renderDays() {
 	const list = $('#dates-list');
 	list.innerHTML = '';
 	for (const d of state.saleDays) {
-		const label = new Date(d.day).toISOString().slice(0,10);
+		const label = formatDateButton(d.day);
 		const btn = el('button', { class: `date-button${state.selectedDayId === d.id ? ' active' : ''}`, onclick: () => selectDay(d.id) }, label);
 		list.appendChild(btn);
 	}
+}
+
+function openDateModal() {
+	// Populate month/day wheels
+	const monthSel = $('#month-select');
+	const daySel = $('#day-select');
+	monthSel.innerHTML = '';
+	daySel.innerHTML = '';
+	const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+	months.forEach((m, i) => monthSel.appendChild(el('option', { value: String(i) }, m)));
+	// Default to today
+	const now = new Date();
+	monthSel.value = String(now.getMonth());
+	rebuildDaysWheel();
+	daySel.value = String(now.getDate());
+	$('#date-modal').classList.remove('hidden');
+}
+
+function closeDateModal() {
+	$('#date-modal').classList.add('hidden');
+}
+
+function rebuildDaysWheel() {
+	const monthSel = $('#month-select');
+	const daySel = $('#day-select');
+	daySel.innerHTML = '';
+	const year = new Date().getFullYear();
+	const month = Number(monthSel.value);
+	const last = new Date(year, month + 1, 0).getDate();
+	for (let d = 1; d <= last; d++) daySel.appendChild(el('option', { value: String(d) }, String(d)));
+}
+
+async function continueDateModal() {
+	const monthSel = $('#month-select');
+	const daySel = $('#day-select');
+	const year = new Date().getFullYear();
+	const month = Number(monthSel.value);
+	const day = Number(daySel.value);
+	const iso = new Date(Date.UTC(year, month, day)).toISOString().slice(0,10);
+	closeDateModal();
+	const created = await api('POST', API.Days, { seller_id: state.currentSeller.id, day: iso });
+	await loadDays();
+	selectDay(created.id);
 }
 
 async function addDate() {
@@ -254,6 +304,10 @@ function bindEvents() {
 	});
 
 	$('#add-date').addEventListener('click', addDate);
+	$('#open-date-modal').addEventListener('click', openDateModal);
+	$('#date-cancel').addEventListener('click', closeDateModal);
+	$('#date-continue').addEventListener('click', continueDateModal);
+	$('#month-select').addEventListener('change', rebuildDaysWheel);
 }
 
 (async function init() {
