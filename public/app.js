@@ -1,7 +1,6 @@
 const API = {
 	Sellers: '/api/sellers',
-	Sales: '/api/sales',
-	Days: '/api/days'
+	Sales: '/api/sales'
 };
 
 const PRICES = {
@@ -11,14 +10,11 @@ const PRICES = {
 	oreo: 10500,
 };
 
-const fmt = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
 const fmtNo = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 });
 
 const state = {
 	currentSeller: null,
 	sellers: [],
-	saleDays: [],
-	selectedDayId: null,
 	sales: [],
 };
 
@@ -75,11 +71,8 @@ async function enterSeller(id) {
 	if (!seller) return;
 	state.currentSeller = seller;
 	$('#current-seller').textContent = seller.name;
-	state.saleDays = [];
-	state.selectedDayId = null;
-	state.sales = [];
 	switchView('#view-sales');
-	await loadDays();
+	await loadSales();
 }
 
 function switchView(id) {
@@ -93,99 +86,6 @@ function calcRowTotal(q) {
 	const mara = Number(q.mara || 0);
 	const oreo = Number(q.oreo || 0);
 	return arco * PRICES.arco + melo * PRICES.melo + mara * PRICES.mara + oreo * PRICES.oreo;
-}
-
-async function loadDays() {
-	const sellerId = state.currentSeller.id;
-	state.saleDays = await api('GET', `${API.Days}?seller_id=${encodeURIComponent(sellerId)}`);
-	renderDays();
-	// Auto-select most recent day if exists
-	if (state.saleDays.length > 0) {
-		selectDay(state.saleDays[0].id);
-	}
-}
-
-function formatDateButton(isoDate) {
-	const d = new Date(isoDate + 'T00:00:00Z');
-	const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-	const weekdays = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-	return `${months[d.getUTCMonth()]}- ${weekdays[d.getUTCDay()]} ${d.getUTCDate()}`;
-}
-
-function renderDays() {
-	const list = $('#dates-list');
-	list.innerHTML = '';
-	for (const d of state.saleDays) {
-		const label = formatDateButton(d.day);
-		const btn = el('button', { class: `date-button${state.selectedDayId === d.id ? ' active' : ''}`, onclick: () => selectDay(d.id) }, label);
-		list.appendChild(btn);
-	}
-}
-
-function openDateModal() {
-	// Populate month/day wheels
-	const monthSel = $('#month-select');
-	const daySel = $('#day-select');
-	monthSel.innerHTML = '';
-	daySel.innerHTML = '';
-	const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-	months.forEach((m, i) => monthSel.appendChild(el('option', { value: String(i) }, m)));
-	// Default to today
-	const now = new Date();
-	monthSel.value = String(now.getMonth());
-	rebuildDaysWheel();
-	daySel.value = String(now.getDate());
-	$('#date-modal').classList.remove('hidden');
-}
-
-function closeDateModal() {
-	$('#date-modal').classList.add('hidden');
-}
-
-function rebuildDaysWheel() {
-	const monthSel = $('#month-select');
-	const daySel = $('#day-select');
-	daySel.innerHTML = '';
-	const year = new Date().getFullYear();
-	const month = Number(monthSel.value);
-	const last = new Date(year, month + 1, 0).getDate();
-	for (let d = 1; d <= last; d++) daySel.appendChild(el('option', { value: String(d) }, String(d)));
-}
-
-async function continueDateModal() {
-	const monthSel = $('#month-select');
-	const daySel = $('#day-select');
-	const year = new Date().getFullYear();
-	const month = Number(monthSel.value);
-	const day = Number(daySel.value);
-	const iso = new Date(Date.UTC(year, month, day)).toISOString().slice(0,10);
-	closeDateModal();
-	const created = await api('POST', API.Days, { seller_id: state.currentSeller.id, day: iso });
-	await loadDays();
-	selectDay(created.id);
-}
-
-async function addDate() {
-	const sellerId = state.currentSeller.id;
-	let day = $('#new-date').value;
-	if (!day) {
-		const now = new Date();
-		day = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())).toISOString().slice(0,10);
-	}
-	const created = await api('POST', API.Days, { seller_id: sellerId, day });
-	// Re-load days and select the new one
-	await loadDays();
-	selectDay(created.id);
-}
-
-async function selectDay(dayId) {
-	state.selectedDayId = dayId;
-	document.querySelectorAll('.date-button').forEach(btn => btn.classList.remove('active'));
-	// Re-render to set active
-	renderDays();
-	$('#sales-wrapper').classList.remove('hidden');
-	$('#add-row').classList.remove('hidden');
-	await loadSales();
 }
 
 function renderTable() {
@@ -215,15 +115,13 @@ function renderTable() {
 
 async function loadSales() {
 	const sellerId = state.currentSeller.id;
-	const params = new URLSearchParams({ seller_id: String(sellerId) });
-	if (state.selectedDayId) params.set('sale_day_id', String(state.selectedDayId));
-	state.sales = await api('GET', `${API.Sales}?${params.toString()}`);
+	state.sales = await api('GET', `${API.Sales}?seller_id=${encodeURIComponent(sellerId)}`);
 	renderTable();
 }
 
 async function addRow() {
 	const sellerId = state.currentSeller.id;
-	const sale = await api('POST', API.Sales, { seller_id: sellerId, sale_day_id: state.selectedDayId });
+	const sale = await api('POST', API.Sales, { seller_id: sellerId });
 	state.sales.push(sale);
 	renderTable();
 }
@@ -298,16 +196,8 @@ function bindEvents() {
 	$('#go-home').addEventListener('click', () => {
 		state.currentSeller = null;
 		state.sales = [];
-		state.saleDays = [];
-		state.selectedDayId = null;
 		switchView('#view-select-seller');
 	});
-
-	$('#add-date').addEventListener('click', addDate);
-	$('#open-date-modal').addEventListener('click', openDateModal);
-	$('#date-cancel').addEventListener('click', closeDateModal);
-	$('#date-continue').addEventListener('click', continueDateModal);
-	$('#month-select').addEventListener('change', rebuildDaysWheel);
 }
 
 (async function init() {

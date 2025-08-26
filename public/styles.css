@@ -201,32 +201,54 @@ tfoot td { font-weight: 700; }
 /* Table actions */
 .table-actions { display: flex; justify-content: flex-end; padding: 6px 6px 0; }
 
-/* Dates bar */
-.dates-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
-.dates-list { display: flex; flex-wrap: wrap; gap: 6px; }
-.date-button { padding: 6px 10px; border: 1px solid var(--border); background: #0b1022; color: var(--text); border-radius: 999px; cursor: pointer; font-size: 14px; }
-.date-button.active { background: #1a2244; }
+/* Remove date bar and modal styles (cleanup) */
+.dates-bar, .dates-list, .date-button, .modal, .modal-content, .date-wheel, .modal-actions { display: none; }
 
-/* Modal */
-.modal { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 100; }
-.modal.hidden { display: none; }
-.modal-content { width: min(520px, 92vw); background: #0b1022; border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
-.modal-content h3 { margin-top: 0; }
-.date-wheel { display: flex; gap: 12px; margin: 12px 0; }
-.date-wheel select { width: 100%; padding: 10px; border-radius: 10px; border: 1px solid var(--border); background: #0a0f20; color: var(--text); font-size: 18px; }
-.modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+/* Column widths */
+.w-client { width: 32%; }
+.w-qty { width: 11%; }
+.w-total { width: 18%; }
+.w-actions { width: 6%; }
 
-/* Center delete x */
-.col-actions { vertical-align: middle; }
-.col-actions .row-delete { display: inline-flex; align-items: center; justify-content: center; }
+/* Sticky header */
+#sales-table thead th { position: sticky; top: 0; background: #0b1022; z-index: 2; }
 
+/* Compact rows */
+th, td { border-bottom: 1px solid var(--border); padding: 6px 6px; text-align: center; }
+
+/* Column widths base */
+.w-client { width: 26%; }
+.w-qty { width: 12%; }
+.w-total { width: 18%; }
+.w-actions { width: 6%; }
+
+/* Inputs compact */
+.input-cell { padding: 8px 10px; font-size: 16px; }
+.client-input { font-size: 16px; min-width: 0; }
+.input-qty { width: 44px; font-size: 14px; padding: 4px; }
+.total { font-size: 16px; }
+
+/* Remove mobile stacking and enforce compact fixed layout on phones */
 @media (max-width: 600px) {
-	.date-button { font-size: 12px; padding: 4px 8px; }
-	.modal-content { width: 100vw; height: 100vh; border-radius: 0; display: flex; flex-direction: column; }
-	.modal-content h3 { font-size: 18px; }
-	.date-wheel { flex: 1; align-items: center; justify-content: center; flex-direction: column; }
-	.date-wheel select { font-size: 20px; padding: 12px; }
-	.modal-actions { padding-top: 8px; }
+	.table-wrapper { overflow-x: hidden; border-radius: 8px; }
+	table { width: 100%; min-width: 0; table-layout: fixed; }
+	#sales-table thead { display: table-header-group; }
+	#sales-table thead th { position: sticky; top: 0; }
+
+	/* Compact spacing and fonts */
+	th, td { padding: 3px 2px; }
+	th { font-size: 11px; }
+	.total { font-size: 13px; }
+
+	/* Column widths tuned to fit */
+	.w-client { width: 22%; }
+	.w-qty { width: 13%; }
+	.w-total { width: 20%; }
+	.w-actions { width: 6%; }
+
+	/* Inputs tiny */
+	.client-input { font-size: 13px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+	.input-qty { width: 34px; font-size: 12px; padding: 2px; }
 }
 
 /* Footer totals responsive sizing */
