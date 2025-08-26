@@ -86,22 +86,50 @@ function renderTable() {
 	for (const sale of state.sales) {
 		const total = calcRowTotal({ arco: sale.qty_arco, melo: sale.qty_melo, mara: sale.qty_mara, oreo: sale.qty_oreo });
 		const tr = el('tr', {},
-			el('td', { class: 'col-client' }, el('input', {
+			el('td', { class: 'col-client', 'data-label': 'Cliente' }, el('input', {
 				class: 'input-cell client-input',
 				value: sale.client_name || '',
 				placeholder: '',
 				oninput: debounce(() => saveRow(tr, sale.id), 400),
 			})),
-			el('td', {}, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_arco ? String(sale.qty_arco) : '', placeholder: '', oninput: debounce(() => saveRow(tr, sale.id), 400) })),
-			el('td', {}, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_melo ? String(sale.qty_melo) : '', placeholder: '', oninput: debounce(() => saveRow(tr, sale.id), 400) })),
-			el('td', {}, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_mara ? String(sale.qty_mara) : '', placeholder: '', oninput: debounce(() => saveRow(tr, sale.id), 400) })),
-			el('td', {}, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_oreo ? String(sale.qty_oreo) : '', placeholder: '', oninput: debounce(() => saveRow(tr, sale.id), 400) })),
-			el('td', { class: 'total' }, fmt.format(total)),
-			el('td', {}, el('button', { class: 'row-delete', title: 'Eliminar', onclick: async () => { await deleteRow(sale.id); } }, '🗑️')),
+			el('td', { 'data-label': 'Arco' }, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_arco ? String(sale.qty_arco) : '', placeholder: '', oninput: debounce(() => saveRow(tr, sale.id), 400) })),
+			el('td', { 'data-label': 'Melo' }, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_melo ? String(sale.qty_melo) : '', placeholder: '', oninput: debounce(() => saveRow(tr, sale.id), 400) })),
+			el('td', { 'data-label': 'Mara' }, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_mara ? String(sale.qty_mara) : '', placeholder: '', oninput: debounce(() => saveRow(tr, sale.id), 400) })),
+			el('td', { 'data-label': 'Oreo' }, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_oreo ? String(sale.qty_oreo) : '', placeholder: '', oninput: debounce(() => saveRow(tr, sale.id), 400) })),
+			el('td', { class: 'total', 'data-label': 'Total' }, fmt.format(total)),
+			el('td', { 'data-label': 'Acciones' }, el('button', { class: 'row-delete', title: 'Eliminar', onclick: async () => { await deleteRow(sale.id); } }, '🗑️')),
 		);
 		tr.dataset.id = String(sale.id);
 		tbody.appendChild(tr);
 	}
+	renderTotalsFooter();
+}
+
+function computeTotals() {
+	let qty_arco = 0, qty_melo = 0, qty_mara = 0, qty_oreo = 0, totalValue = 0;
+	for (const sale of state.sales) {
+		qty_arco += Number(sale.qty_arco || 0);
+		qty_melo += Number(sale.qty_melo || 0);
+		qty_mara += Number(sale.qty_mara || 0);
+		qty_oreo += Number(sale.qty_oreo || 0);
+		totalValue += calcRowTotal({ arco: sale.qty_arco, melo: sale.qty_melo, mara: sale.qty_mara, oreo: sale.qty_oreo });
+	}
+	return { qty_arco, qty_melo, qty_mara, qty_oreo, totalValue };
+}
+
+function renderTotalsFooter() {
+	const tfootArco = $('#total-arco');
+	const tfootMelo = $('#total-melo');
+	const tfootMara = $('#total-mara');
+	const tfootOreo = $('#total-oreo');
+	const tfootAll = $('#total-all');
+	if (!tfootArco || !tfootMelo || !tfootMara || !tfootOreo || !tfootAll) return;
+	const totals = computeTotals();
+	tfootArco.textContent = String(totals.qty_arco);
+	tfootMelo.textContent = String(totals.qty_melo);
+	tfootMara.textContent = String(totals.qty_mara);
+	tfootOreo.textContent = String(totals.qty_oreo);
+	tfootAll.textContent = fmt.format(totals.totalValue);
 }
 
 function readRow(tr) {
@@ -139,6 +167,7 @@ async function saveRow(tr, id) {
 	const totalCell = tr.querySelector('.total');
 	const total = calcRowTotal({ arco: updated.qty_arco, melo: updated.qty_melo, mara: updated.qty_mara, oreo: updated.qty_oreo });
 	totalCell.textContent = fmt.format(total);
+	renderTotalsFooter();
 }
 
 async function deleteRow(id) {
