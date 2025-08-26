@@ -271,5 +271,34 @@ tfoot td { font-weight: 700; }
 	.w-actions { width: 5%; }
 }
 
+/* Final tweaks per user request */
+/* Wider client column (~+6 chars) and adjusted others */
+.w-client { width: 34%; }
+.w-qty { width: 11%; }
+.w-total { width: 17%; }
+.w-actions { width: 5%; }
+
+/* Center the delete X vertically */
+.col-actions { vertical-align: middle; }
+.col-actions .row-delete { display: inline-flex; align-items: center; justify-content: center; }
+
+/* Footer: more top space and slightly larger row */
+#sales-table tfoot tr { height: 38px; }
+#sales-table tfoot .tfoot-qty td { padding-top: 12px; }
+#sales-table tfoot .tfoot-amt td { padding-top: 8px; padding-bottom: 10px; }
+
+@media (max-width: 600px) {
+	/* Wider client column on phones */
+	.w-client { width: 36%; }
+	.w-qty { width: 10%; }
+	.w-total { width: 16%; }
+	.w-actions { width: 4%; }
+
+	/* Footer row slightly taller on phones too */
+	#sales-table tfoot tr { height: 34px; }
+	#sales-table tfoot .tfoot-qty td { padding-top: 10px; }
+	#sales-table tfoot .tfoot-amt td { padding-top: 8px; padding-bottom: 8px; }
+}
+
 /* Utility */
 .hidden { display: none !important; }
