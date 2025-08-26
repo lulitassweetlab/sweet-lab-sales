@@ -90,8 +90,10 @@ function calcRowTotal(q) {
 
 function renderTable() {
 	const tbody = $('#sales-tbody');
+	const cardsList = $('#cards-list');
 	tbody.innerHTML = '';
-	const isMobileCard = window.matchMedia('(max-width: 420px)').matches;
+	cardsList.innerHTML = '';
+	const isMobileCard = window.matchMedia('(max-width: 600px)').matches;
 	for (const sale of state.sales) {
 		const total = calcRowTotal({ arco: sale.qty_arco, melo: sale.qty_melo, mara: sale.qty_mara, oreo: sale.qty_oreo });
 		if (!isMobileCard) {
@@ -125,7 +127,7 @@ function renderTable() {
 				el('div', { class: 'row-actions full' }, el('button', { class: 'row-delete', title: 'Eliminar', onclick: async () => { await deleteRow(sale.id); } }, '🗑️'))
 			);
 			card.dataset.id = String(sale.id);
-			tbody.appendChild(card);
+			cardsList.appendChild(card);
 		}
 	}
 	updateSummary();
@@ -242,7 +244,7 @@ function bindEvents() {
 	});
 
 	// Re-render on viewport change to switch table/card layouts
-	window.matchMedia('(max-width: 420px)').addEventListener('change', () => renderTable());
+	window.matchMedia('(max-width: 600px)').addEventListener('change', () => renderTable());
 }
 
 (async function init() {
