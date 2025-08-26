@@ -22,9 +22,17 @@ function $(sel) { return document.querySelector(sel); }
 function el(tag, attrs = {}, ...children) {
 	const node = document.createElement(tag);
 	for (const [k, v] of Object.entries(attrs)) {
-		if (k === 'class') node.className = v;
-		else if (k.startsWith('on') && typeof v === 'function') node.addEventListener(k.substring(2).toLowerCase(), v);
-		else if (v !== undefined && v !== null) node.setAttribute(k, v);
+		if (k === 'class') {
+			node.className = v;
+		} else if (k === 'checked') {
+			node.checked = !!v;
+		} else if (k === 'value') {
+			node.value = v;
+		} else if (k.startsWith('on') && typeof v === 'function') {
+			node.addEventListener(k.substring(2).toLowerCase(), v);
+		} else if (v !== undefined && v !== null) {
+			node.setAttribute(k, v);
+		}
 	}
 	for (const c of children) {
 		if (c == null) continue;
@@ -93,8 +101,9 @@ function renderTable() {
 	tbody.innerHTML = '';
 	for (const sale of state.sales) {
 		const total = calcRowTotal({ arco: sale.qty_arco, melo: sale.qty_melo, mara: sale.qty_mara, oreo: sale.qty_oreo });
+		const isPaid = !!sale.is_paid;
 		const tr = el('tr', {},
-			el('td', { class: 'col-paid' }, el('input', { type: 'checkbox', checked: !!sale.is_paid, onchange: async (e) => { await savePaid(tr, sale.id, e.target.checked); } })),
+			el('td', { class: 'col-paid' }, el('input', { type: 'checkbox', checked: isPaid, onchange: async (e) => { await savePaid(tr, sale.id, e.target.checked); } })),
 			el('td', { class: 'col-client' }, el('input', {
 				class: 'input-cell client-input',
 				value: sale.client_name || '',
