@@ -25,15 +25,18 @@
 			<div class="toolbar">
 				<button id="go-home" class="secondary">Inicio</button>
 				<h2 id="current-seller"></h2>
-				<button id="open-date-modal">Agregar fecha</button>
+				<button id="add-row" class="hidden">Agregar venta</button>
 			</div>
 
 			<div id="dates-bar" class="dates-bar">
 				<div id="dates-list" class="dates-list"></div>
+				<div class="dates-add">
+					<input id="new-date" type="date" />
+					<button id="add-date">Agregar fecha</button>
+				</div>
 			</div>
 
 			<div class="table-wrapper hidden" id="sales-wrapper">
-				<div class="table-actions"><button id="add-row">Agregar venta</button></div>
 				<table id="sales-table">
 					<colgroup>
 						<col class="w-client" />
@@ -79,21 +82,6 @@
 			</div>
 		</section>
 	</main>
-
-	<!-- Fullscreen Date Modal -->
-	<div id="date-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="date-modal-title">
-		<div class="modal-content">
-			<h3 id="date-modal-title">Selecciona fecha</h3>
-			<div class="date-wheel">
-				<select id="month-select" aria-label="Mes"></select>
-				<select id="day-select" aria-label="Día"></select>
-			</div>
-			<div class="modal-actions">
-				<button id="date-cancel" class="secondary">Cancelar</button>
-				<button id="date-continue">Continuar</button>
-			</div>
-		</div>
-	</div>
 
 	<footer class="app-footer">
 		<small>Datos sincronizados con Netlify + Neon</small>

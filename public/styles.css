@@ -197,75 +197,21 @@ tfoot td { font-weight: 700; }
 	.w-actions { width: 5%; }
 }
 
-/* Table actions */
-.table-actions { display: flex; justify-content: flex-end; padding: 6px 6px 0; }
-
 /* Dates bar */
 .dates-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
 .dates-list { display: flex; flex-wrap: wrap; gap: 6px; }
 .date-button { padding: 6px 10px; border: 1px solid var(--border); background: #0b1022; color: var(--text); border-radius: 999px; cursor: pointer; font-size: 14px; }
 .date-button.active { background: #1a2244; }
+.dates-add input[type="date"] { padding: 6px 8px; }
 
-/* Modal */
-.modal { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 100; }
-.modal.hidden { display: none; }
-.modal-content { width: min(520px, 92vw); background: #0b1022; border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
-.modal-content h3 { margin-top: 0; }
-.date-wheel { display: flex; gap: 12px; margin: 12px 0; }
-.date-wheel select { width: 100%; padding: 10px; border-radius: 10px; border: 1px solid var(--border); background: #0a0f20; color: var(--text); font-size: 18px; }
-.modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
-
-/* Center delete x */
-.col-actions { vertical-align: middle; }
-.col-actions .row-delete { display: inline-flex; align-items: center; justify-content: center; }
+/* Footer spacing and size */
+tfoot { border-top: 1px solid var(--border); }
+.tfoot-qty { margin-top: 4px; }
+#sales-table tfoot tr { height: 34px; }
+#sales-table tfoot tr td { padding-top: 8px; padding-bottom: 8px; }
 
 @media (max-width: 600px) {
 	.date-button { font-size: 12px; padding: 4px 8px; }
-	.modal-content { width: 100vw; height: 100vh; border-radius: 0; display: flex; flex-direction: column; }
-	.modal-content h3 { font-size: 18px; }
-	.date-wheel { flex: 1; align-items: center; justify-content: center; flex-direction: column; }
-	.date-wheel select { font-size: 20px; padding: 12px; }
-	.modal-actions { padding-top: 8px; }
-}
-
-/* Footer totals responsive sizing */
-tfoot td { font-weight: 700; }
-.tfoot-qty td { color: var(--text); }
-.tfoot-amt td { color: var(--accent); }
-.tfoot-qty .label { text-align: left; }
-
-@media (max-width: 600px) {
-	/* Footer totals scale with screen to avoid overlap (reduced by ~2px) */
-	tfoot td { font-size: clamp(7px, 2.2vw, 10px); line-height: 1.15; white-space: normal; }
-	tfoot .label { font-size: clamp(8px, 2.4vw, 10px); }
-
-	/* Inputs even smaller to fit full row (-2px) */
-	.client-input { font-size: 10px; }
-	.input-qty { width: 30px; font-size: 9px; padding: 2px; }
-	.total { font-size: 10px; }
-
-	/* Delete icon smaller and not clipped */
-	.row-delete { font-size: 10px; width: 14px; height: 14px; line-height: 14px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
-
-	/* Tighter spacing */
-	th, td { padding: 1px; }
-
-	/* Keep rows single-line: adjust column widths to widen Client by ~10ch */
-	.w-client { width: 28%; }
-	.w-qty { width: 12%; }
-	.w-total { width: 18%; }
-	.w-actions { width: 6%; }
-
-	/* Smaller red x */
-	.row-delete { font-size: 9px; width: 12px; height: 12px; line-height: 12px; }
-
-	/* Reduce padding between qty inputs; shift space to client */
-	.input-qty { width: 28px; font-size: 9px; padding: 1px; margin: 0; }
-	.client-input { font-size: 8px; }
-
-	/* Rebalance columns: more space to client, less to qty */
-	.w-client { width: 32%; }
-	.w-qty { width: 11%; }
-	.w-total { width: 19%; }
-	.w-actions { width: 5%; }
+	#sales-table tfoot tr { height: 30px; }
+	#sales-table tfoot tr td { padding-top: 10px; padding-bottom: 10px; }
 }
