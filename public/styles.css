@@ -370,9 +370,10 @@ tfoot td { font-weight: 700; }
 
 /* Sticky composite header (toolbar + columns) */
 .header-sticky { position: sticky; top: 0; z-index: 15; background: var(--surface); }
-.columns-bar { display: grid; grid-template-columns: var(--w-client,1fr) var(--w-qty,1fr) var(--w-qty,1fr) var(--w-qty,1fr) var(--w-qty,1fr) var(--w-total,1fr) var(--w-actions,auto); gap: 0; border-bottom: 1px solid var(--border); padding: 4px 6px; background: #0b1022; }
-.columns-bar .col { text-align: center; font-weight: 700; font-size: 12px; }
+.columns-bar { box-sizing: border-box; display: grid; grid-template-columns: var(--w-client,1fr) var(--w-qty,1fr) var(--w-qty,1fr) var(--w-qty,1fr) var(--w-qty,1fr) var(--w-total,1fr) var(--w-actions,auto); gap: 0; border-bottom: 1px solid var(--border); background: #0b1022; padding: 0; border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
+.columns-bar .col { text-align: center; font-weight: 700; font-size: 12px; padding: 6px; }
 .columns-bar .c-client { text-align: left; }
+.columns-bar .c-total { text-align: right; }
 
 /* Map CSS variables to colgroup widths for alignment */
 :root { --w-client: 34%; --w-qty: 11%; --w-total: 17%; --w-actions: 5%; }
@@ -380,3 +381,9 @@ tfoot td { font-weight: 700; }
 
 /* Hide native thead to prevent overlap */
 #sales-table thead { display: none; }
+
+/* Sync table colgroup widths with columns bar variables */
+#sales-table col.w-client { width: var(--w-client); }
+#sales-table col.w-qty { width: var(--w-qty); }
+#sales-table col.w-total { width: var(--w-total); }
+#sales-table col.w-actions { width: var(--w-actions); }
