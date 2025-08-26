@@ -351,7 +351,7 @@ tfoot td { font-weight: 700; }
 
 /* Ensure orange footer totals fit within their column */
 #sales-table tfoot .tfoot-amt td {
-	font-size: clamp(7px, 1.0vw, 10px); /* ~4px smaller baseline, grows on large screens */
+	font-size: clamp(7px, 0.9vw, 16px); /* keep small minimum, allow larger on wide screens */
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
