@@ -344,3 +344,15 @@ tfoot td { font-weight: 700; }
 @media (max-width: 600px) {
 	.row-delete { font-size: 10px; }
 }
+
+/* Unified row alignment for all cells */
+:root { --rowh: 28px; }
+#sales-table td { vertical-align: middle; }
+.input-cell { height: var(--rowh); line-height: var(--rowh); padding: 0 8px; }
+.total { display: inline-block; height: var(--rowh); line-height: var(--rowh); }
+.row-delete { width: var(--rowh); height: var(--rowh); line-height: var(--rowh); }
+
+@media (max-width: 600px) {
+	:root { --rowh: 22px; }
+	.input-cell { padding: 0 6px; }
+}
