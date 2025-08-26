@@ -348,3 +348,16 @@ tfoot td { font-weight: 700; }
 /* Remove unified row-height enforcement */
 .input-cell { height: auto; line-height: normal; }
 .total { height: auto; line-height: normal; }
+
+/* Ensure orange footer totals fit within their column */
+#sales-table tfoot .tfoot-amt td {
+	font-size: clamp(11px, 1.2vw, 14px);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+#sales-table tfoot .tfoot-amt td span { display: inline-block; max-width: 100%; }
+
+@media (max-width: 600px) {
+	#sales-table tfoot .tfoot-amt td { font-size: clamp(8px, 2.0vw, 10px); }
+}
