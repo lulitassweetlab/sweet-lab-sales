@@ -73,6 +73,11 @@ thead th { position: sticky; top: 0; background: #0b1022; z-index: 1; }
 
 th, td { border-bottom: 1px solid var(--border); padding: 10px; text-align: center; }
 
+tfoot td { font-weight: 700; }
+.tfoot-qty td { color: var(--text); }
+.tfoot-amt td { color: var(--accent); }
+.tfoot-qty .label { text-align: left; }
+
 th.col-client, td.col-client { text-align: left; }
 
 .price { color: var(--muted); font-size: 12px; }
@@ -123,14 +128,13 @@ th.col-client, td.col-client { text-align: left; }
 .cards-list { display: none; }
 
 @media (max-width: 600px) {
-	.table-wrapper { border: none; }
-	table { display: none; }
-	.cards-list { display: block; }
-	.sale-card { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px 12px; margin-bottom: 10px; border: 1px solid var(--border); border-radius: 10px; background: #0b1022; }
-	.sale-card .full { grid-column: 1 / -1; }
-	.sale-card label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
-	.sale-card .input-cell { width: 100%; font-size: 16px; padding: 10px; }
-	.sale-card .client-input { font-size: 18px; }
-	.sale-card .total { text-align: right; }
-	.sale-card .row-actions { display: flex; justify-content: flex-end; }
+	h1, h2 { font-size: 18px; }
+	.price { font-size: 11px; }
+	.input-cell { font-size: 16px; padding: 8px 10px; }
+	.client-input { font-size: 18px; min-width: 280px; }
+	.input-qty { width: 64px; }
+	th, td { padding: 6px; font-size: 14px; }
+	.total { font-size: 16px; }
+	.table-wrapper { overflow-x: auto; }
+	table { min-width: 560px; }
 }
