@@ -107,11 +107,17 @@ tfoot td { font-weight: 700; }
 /* Show cards list on small screens while hiding table */
 .cards-list { display: none; }
 
+/* Column widths */
+.w-client { width: 32%; }
+.w-qty { width: 11%; }
+.w-total { width: 18%; }
+.w-actions { width: 6%; }
+
 /* Mobile: no horizontal scroll, compact row layout (not cards) */
 @media (max-width: 600px) {
 	/* Hide header and remove min-width so no horizontal scroll */
 	.table-wrapper { overflow-x: visible; border-radius: 8px; }
-	#sales-table thead { display: none; }
+	#sales-table thead { display: table-header-group; }
 	table { width: 100%; min-width: 0; }
 
 	/* Turn each row into a compact, wrapping block */
@@ -126,9 +132,9 @@ tfoot td { font-weight: 700; }
 	#sales-table td.col-actions { display: inline-flex; align-items: center; gap: 6px; }
 
 	/* Inputs compact */
-	.client-input { font-size: 16px; min-width: 0; }
-	.input-qty { width: 44px; font-size: 14px; padding: 6px; }
-	.total { font-size: 16px; }
+	.client-input { font-size: 14px; min-width: 0; }
+	.input-qty { width: 40px; font-size: 13px; padding: 4px; }
+	.total { font-size: 14px; }
 
 	/* Let quantities wrap to next line if needed; keep total to the end */
 	#sales-table td.col-total { margin-left: auto; }
@@ -139,4 +145,16 @@ tfoot td { font-weight: 700; }
 	tfoot tr { display: flex; flex-wrap: wrap; gap: 6px 10px; padding: 6px; }
 	tfoot .tfoot-qty td, tfoot .tfoot-amt td { display: inline-flex; align-items: baseline; padding: 2px 4px; }
 	tfoot .label { width: 100%; font-weight: 700; margin-bottom: 2px; }
+
+	/* Keep table header visible and compact */
+	th { font-size: 12px; }
+	.price { font-size: 10px; }
+
+	/* Fit all columns without horizontal scroll by shrinking widths and fonts */
+	.w-client { width: 28%; }
+	.w-qty { width: 12%; }
+	.w-total { width: 20%; }
+	.w-actions { width: 6%; }
+
+	th, td { padding: 4px; }
 }
