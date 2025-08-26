@@ -65,23 +65,23 @@ button:hover { filter: brightness(1.1); }
 .summary-item .amt { font-weight: 700; color: var(--accent); }
 .summary-item.total-all { grid-column: 1 / -1; justify-content: flex-end; }
 
+/* Table base */
 .table-wrapper { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; }
 
-table { width: 100%; border-collapse: collapse; min-width: 720px; }
+table { width: 100%; border-collapse: collapse; }
 
-thead th { position: sticky; top: 0; background: #0b1022; z-index: 1; }
-
+/* Cells */
 th, td { border-bottom: 1px solid var(--border); padding: 10px; text-align: center; }
 
+th.col-client, td.col-client { text-align: left; }
+
+/* Footer totals */
 tfoot td { font-weight: 700; }
 .tfoot-qty td { color: var(--text); }
 .tfoot-amt td { color: var(--accent); }
 .tfoot-qty .label { text-align: left; }
 
-th.col-client, td.col-client { text-align: left; }
-
-.price { color: var(--muted); font-size: 12px; }
-
+/* Inputs */
 .input-cell {
 	width: 100%;
 	border: 1px solid var(--border);
@@ -92,49 +92,51 @@ th.col-client, td.col-client { text-align: left; }
 	font-size: 18px;
 }
 
-.input-qty {
-	width: 82px;
-	text-align: center;
-	-moz-appearance: textfield;
-}
+.input-qty { width: 82px; text-align: center; -moz-appearance: textfield; }
 .input-qty::-webkit-outer-spin-button, .input-qty::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 
-.client-input {
-	min-width: 380px;
-	max-width: 100%;
-	width: 100%;
-	font-size: 20px;
-	font-weight: 600;
-	letter-spacing: 0.2px;
-}
+.client-input { min-width: 380px; max-width: 100%; width: 100%; font-size: 20px; font-weight: 600; letter-spacing: 0.2px; }
 
-.total {
-	font-weight: 700;
-	color: var(--accent);
-	white-space: nowrap;
-}
+.total { font-weight: 700; color: var(--accent); white-space: nowrap; }
 
-.row-delete {
-	border: none;
-	background: transparent;
-	color: var(--danger);
-	font-size: 20px;
-	padding: 4px 8px;
-}
+.row-delete { border: none; background: transparent; color: var(--danger); font-size: 20px; padding: 4px 8px; }
 
+/* Toolbar */
 .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
 
 /* Show cards list on small screens while hiding table */
 .cards-list { display: none; }
 
+/* Mobile: no horizontal scroll, compact row layout (not cards) */
 @media (max-width: 600px) {
-	h1, h2 { font-size: 18px; }
-	.price { font-size: 11px; }
-	.input-cell { font-size: 16px; padding: 8px 10px; }
-	.client-input { font-size: 18px; min-width: 280px; }
-	.input-qty { width: 64px; }
-	th, td { padding: 6px; font-size: 14px; }
+	/* Hide header and remove min-width so no horizontal scroll */
+	.table-wrapper { overflow-x: visible; border-radius: 8px; }
+	#sales-table thead { display: none; }
+	table { width: 100%; min-width: 0; }
+
+	/* Turn each row into a compact, wrapping block */
+	#sales-table tr { display: block; padding: 8px 6px; }
+	#sales-table td { display: inline-block; border-bottom: 0; padding: 4px 4px; vertical-align: middle; }
+	#sales-table td.col-client { display: block; width: 100%; padding: 6px 4px; }
+	#sales-table td.col-arco,
+	#sales-table td.col-melo,
+	#sales-table td.col-mara,
+	#sales-table td.col-oreo,
+	#sales-table td.col-total,
+	#sales-table td.col-actions { display: inline-flex; align-items: center; gap: 6px; }
+
+	/* Inputs compact */
+	.client-input { font-size: 16px; min-width: 0; }
+	.input-qty { width: 44px; font-size: 14px; padding: 6px; }
 	.total { font-size: 16px; }
-	.table-wrapper { overflow-x: auto; }
-	table { min-width: 560px; }
+
+	/* Let quantities wrap to next line if needed; keep total to the end */
+	#sales-table td.col-total { margin-left: auto; }
+	#sales-table td.col-actions { margin-left: 6px; }
+
+	/* Footer totals stacked compact */
+	tfoot { display: block; }
+	tfoot tr { display: flex; flex-wrap: wrap; gap: 6px 10px; padding: 6px; }
+	tfoot .tfoot-qty td, tfoot .tfoot-amt td { display: inline-flex; align-items: baseline; padding: 2px 4px; }
+	tfoot .label { width: 100%; font-weight: 700; margin-bottom: 2px; }
 }
