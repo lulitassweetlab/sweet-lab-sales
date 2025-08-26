@@ -325,8 +325,22 @@ tfoot td { font-weight: 700; }
 /* Utility */
 .hidden { display: none !important; }
 
-/* Ensure vertical centering for total text and delete X */
+/* Fix delete X vertical alignment without shifting column */
 #sales-table td { vertical-align: middle; }
 .col-total { vertical-align: middle; }
-.col-actions { vertical-align: middle; display: grid; place-items: center; }
-.col-actions .row-delete { vertical-align: middle; }
+.col-actions { vertical-align: middle; display: table-cell; }
+.col-actions .row-delete,
+.row-delete {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 1em;
+	height: 1em;
+	line-height: 1;
+	padding: 0;
+	margin: 0;
+}
+
+@media (max-width: 600px) {
+	.row-delete { font-size: 10px; }
+}
