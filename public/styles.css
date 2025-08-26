@@ -408,3 +408,11 @@ tfoot td { font-weight: 700; }
 /* Smaller visual scale for checkbox in $. column */
 .col-paid input[type="checkbox"] { transform: scale(0.85); transform-origin: center; }
 @media (max-width: 600px) { .col-paid input[type="checkbox"] { transform: scale(0.8); } }
+
+/* Slightly larger checkbox and delete x */
+.col-paid input[type="checkbox"] { transform: scale(0.95); }
+.row-delete { font-size: 12px; width: 1.2em; height: 1.2em; }
+@media (max-width: 600px) {
+	.col-paid input[type="checkbox"] { transform: scale(0.9); }
+	.row-delete { font-size: 11px; width: 1.1em; height: 1.1em; }
+}
