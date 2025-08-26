@@ -123,6 +123,8 @@ async function loadSales() {
 async function addRow() {
 	const sellerId = state.currentSeller.id;
 	const sale = await api('POST', API.Sales, { seller_id: sellerId });
+	// Ensure checkbox starts unchecked regardless of server defaults
+	sale.is_paid = false;
 	state.sales.push(sale);
 	renderTable();
 }
