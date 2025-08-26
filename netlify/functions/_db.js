@@ -25,16 +25,23 @@ export async function ensureSchema() {
 		qty_melo INTEGER NOT NULL DEFAULT 0,
 		qty_mara INTEGER NOT NULL DEFAULT 0,
 		qty_oreo INTEGER NOT NULL DEFAULT 0,
+		is_paid BOOLEAN NOT NULL DEFAULT false,
 		total_cents INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMPTZ DEFAULT now()
 	)`;
-	// Ensure column sale_day_id exists for older deployments
+	// Ensure columns exist for older deployments
 	await sql`DO $$ BEGIN
 		IF NOT EXISTS (
 			SELECT 1 FROM information_schema.columns
 			WHERE table_name = 'sales' AND column_name = 'sale_day_id'
 		) THEN
 			ALTER TABLE sales ADD COLUMN sale_day_id INTEGER REFERENCES sale_days(id) ON DELETE CASCADE;
+		END IF;
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'sales' AND column_name = 'is_paid'
+		) THEN
+			ALTER TABLE sales ADD COLUMN is_paid BOOLEAN NOT NULL DEFAULT false;
 		END IF;
 	END $$;`;
 	schemaEnsured = true;

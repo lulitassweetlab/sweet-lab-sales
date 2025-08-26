@@ -94,6 +94,7 @@ function renderTable() {
 	for (const sale of state.sales) {
 		const total = calcRowTotal({ arco: sale.qty_arco, melo: sale.qty_melo, mara: sale.qty_mara, oreo: sale.qty_oreo });
 		const tr = el('tr', {},
+			el('td', { class: 'col-paid' }, el('input', { type: 'checkbox', checked: !!sale.is_paid, onchange: async (e) => { await savePaid(tr, sale.id, e.target.checked); } })),
 			el('td', { class: 'col-client' }, el('input', {
 				class: 'input-cell client-input',
 				value: sale.client_name || '',
@@ -142,6 +143,15 @@ async function deleteRow(id) {
 	await api('DELETE', `${API.Sales}?id=${encodeURIComponent(id)}`);
 	state.sales = state.sales.filter(s => s.id !== id);
 	renderTable();
+}
+
+async function savePaid(tr, id, isPaid) {
+	const body = readRow(tr);
+	body.id = id;
+	body.is_paid = !!isPaid;
+	const updated = await api('PUT', API.Sales, body);
+	const idx = state.sales.findIndex(s => s.id === id);
+	if (idx !== -1) state.sales[idx] = updated;
 }
 
 function updateSummary() {

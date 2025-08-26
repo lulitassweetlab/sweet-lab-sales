@@ -29,6 +29,7 @@
 					<button id="add-row">Agregar venta</button>
 				</div>
 				<div class="columns-bar">
+					<div class="col c-paid">Pago</div>
 					<div class="col c-client">Cliente</div>
 					<div class="col c-arco">Arco</div>
 					<div class="col c-melo">Melo</div>
@@ -42,6 +43,7 @@
 			<div class="table-wrapper" id="sales-wrapper">
 				<table id="sales-table">
 					<colgroup>
+						<col class="w-paid" />
 						<col class="w-client" />
 						<col class="w-qty" />
 						<col class="w-qty" />
@@ -52,6 +54,7 @@
 					</colgroup>
 					<thead>
 						<tr>
+							<th class="col-paid">Pago</th>
 							<th class="col-client">Cliente</th>
 							<th class="col-arco">Arco</th>
 							<th class="col-melo">Melo</th>
@@ -64,6 +67,7 @@
 					<tbody id="sales-tbody"></tbody>
 					<tfoot>
 						<tr class="tfoot-qty">
+							<td class="col-paid"></td>
 							<td class="col-client label" rowspan="2">Totales</td>
 							<td class="col-arco"><span id="sum-arco-qty">0</span></td>
 							<td class="col-melo"><span id="sum-melo-qty">0</span></td>
@@ -73,6 +77,7 @@
 							<td class="col-actions"></td>
 						</tr>
 						<tr class="tfoot-amt">
+							<td class="col-paid"></td>
 							<td class="col-arco"><span id="sum-arco-amt">0</span></td>
 							<td class="col-melo"><span id="sum-melo-amt">0</span></td>
 							<td class="col-mara"><span id="sum-mara-amt">0</span></td>
