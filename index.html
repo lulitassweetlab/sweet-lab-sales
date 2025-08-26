@@ -569,9 +569,15 @@
                 console.log(`Respuesta de GitHub para ${filename}:`, response.status, response.statusText);
                 
                 if (response.status === 404) {
-                    // Archivo no existe, esto es normal la primera vez
-                    console.log(`${filename} no existe todavía, será creado en el primer guardado`);
-                    return null;
+                    // Archivo no existe, crear uno vacío
+                    console.log(`${filename} no existe, creando archivo vacío...`);
+                    const created = await saveFileToGitHub(filename, [], null);
+                    if (created) {
+                        console.log(`${filename} creado exitosamente`);
+                        return { content: [], sha: null };
+                    } else {
+                        throw new Error(`No se pudo crear ${filename}`);
+                    }
                 }
                 
                 if (!response.ok) {
@@ -600,7 +606,7 @@
                 
                 const content = btoa(JSON.stringify(data, null, 2));
                 const body = {
-                    message: `Actualizar ${filename} - ${new Date().toLocaleString()}`,
+                    message: `${sha ? 'Actualizar' : 'Crear'} ${filename} - ${new Date().toLocaleString()}`,
                     content: content,
                     branch: GITHUB_CONFIG.branch
                 };
@@ -673,16 +679,49 @@
             }
         }
 
+        // Función para inicializar archivos en GitHub si no existen
+        async function initializeGitHubFiles() {
+            try {
+                console.log('Inicializando archivos en GitHub...');
+                
+                // Verificar si los archivos existen, si no, crearlos
+                const files = [
+                    { name: 'sellers.json', data: [] },
+                    { name: 'sales.json', data: [] }
+                ];
+                
+                for (const file of files) {
+                    try {
+                        await getFileFromGitHub(file.name);
+                    } catch (error) {
+                        if (error.message.includes('404')) {
+                            console.log(`Creando ${file.name}...`);
+                            await saveFileToGitHub(file.name, file.data, null);
+                        }
+                    }
+                }
+                
+                console.log('✅ Archivos inicializados correctamente');
+                return true;
+            } catch (error) {
+                console.error('❌ Error al inicializar archivos:', error);
+                return false;
+            }
+        }
+
         // Funciones de gestión de datos
         async function loadData() {
             try {
                 showStatus('Cargando datos...', 'info');
                 
                 // Probar conexión primero
-                if (GITHUB_CONFIG.token !== 'TU_TOKEN_AQUI' && isOnline) {
+                if (GITHUB_CONFIG.token !== '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' && isOnline) {
                     const connected = await testGitHubConnection();
                     
                     if (connected) {
+                        // Inicializar archivos si no existen
+                        await initializeGitHubFiles();
+                        
                         // Cargar desde GitHub si está configurado y conectado
                         try {
                             const [sellersData, salesData] = await Promise.all([
@@ -723,7 +762,7 @@
                 
                 renderSellers();
                 
-                if (GITHUB_CONFIG.token === 'TU_TOKEN_AQUI') {
+                if (GITHUB_CONFIG.token === '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') {
                     showStatus('⚠️ Configurar token de GitHub para sincronización', 'info');
                 } else {
                     showStatus('📱 Datos cargados localmente', 'info');
@@ -769,7 +808,7 @@
                         showStatus(`❌ Error de sincronización: ${error.message}`, 'error');
                     }
                 } else {
-                    if (GITHUB_CONFIG.token === 'TU_TOKEN_AQUI') {
+                    if (GITHUB_CONFIG.token === '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') {
                         showStatus('📱 Guardado localmente - Configurar token de GitHub', 'info');
                     } else {
                         showStatus('📱 Guardado localmente - Sin conexión', 'info');
@@ -783,7 +822,7 @@
         }
 
         async function syncWithGitHub() {
-            if (GITHUB_CONFIG.token !== 'TU_TOKEN_AQUI' && isOnline) {
+            if (GITHUB_CONFIG.token !== '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' && isOnline) {
                 showStatus('Sincronizando con GitHub...', 'info');
                 await loadData();
                 if (currentSeller) {
@@ -1049,14 +1088,14 @@
                 saveData();
             }
             // Recargar datos desde GitHub cada 60 segundos para mantener sincronización
-            if (GITHUB_CONFIG.token !== 'TU_TOKEN_AQUI' && isOnline) {
+            if (GITHUB_CONFIG.token !== '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' && isOnline) {
                 syncWithGitHub();
             }
         }, 30000);
 
         // Recargar datos al enfocar la ventana (cuando cambias de pestaña y regresas)
         window.addEventListener('focus', () => {
-            if (GITHUB_CONFIG.token !== 'TU_TOKEN_AQUI' && isOnline) {
+            if (GITHUB_CONFIG.token !== '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' && isOnline) {
                 syncWithGitHub();
             }
         });
