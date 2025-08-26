@@ -410,9 +410,9 @@ tfoot td { font-weight: 700; }
 @media (max-width: 600px) { .col-paid input[type="checkbox"] { transform: scale(0.8); } }
 
 /* Slightly larger checkbox and delete x */
-.col-paid input[type="checkbox"] { transform: scale(0.95); }
-.row-delete { font-size: 12px; width: 1.2em; height: 1.2em; }
+.col-paid input[type="checkbox"] { transform: scale(1.1); }
+.row-delete { font-size: 14px; width: 1.4em; height: 1.4em; }
 @media (max-width: 600px) {
-	.col-paid input[type="checkbox"] { transform: scale(0.9); }
-	.row-delete { font-size: 11px; width: 1.1em; height: 1.1em; }
+	.col-paid input[type="checkbox"] { transform: scale(1.0); }
+	.row-delete { font-size: 12px; width: 1.2em; height: 1.2em; }
 }
