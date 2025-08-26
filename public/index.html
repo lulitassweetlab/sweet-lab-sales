@@ -30,35 +30,44 @@
 
 			<div class="table-wrapper">
 				<table id="sales-table">
+					<colgroup>
+						<col class="w-client" />
+						<col class="w-qty" />
+						<col class="w-qty" />
+						<col class="w-qty" />
+						<col class="w-qty" />
+						<col class="w-total" />
+						<col class="w-actions" />
+					</colgroup>
 					<thead>
 						<tr>
 							<th class="col-client">Cliente</th>
-							<th>Arco<br><span class="price">$8.500</span></th>
-							<th>Melo<br><span class="price">$9.500</span></th>
-							<th>Mara<br><span class="price">$10.500</span></th>
-							<th>Oreo<br><span class="price">$10.500</span></th>
-							<th>Total</th>
-							<th></th>
+							<th class="col-arco">Arco<br><span class="price">$8.500</span></th>
+							<th class="col-melo">Melo<br><span class="price">$9.500</span></th>
+							<th class="col-mara">Mara<br><span class="price">$10.500</span></th>
+							<th class="col-oreo">Oreo<br><span class="price">$10.500</span></th>
+							<th class="col-total">Total</th>
+							<th class="col-actions"></th>
 						</tr>
 					</thead>
 					<tbody id="sales-tbody"></tbody>
 					<tfoot>
 						<tr class="tfoot-qty">
 							<td class="col-client label" rowspan="2">Totales</td>
-							<td><span id="sum-arco-qty">0</span></td>
-							<td><span id="sum-melo-qty">0</span></td>
-							<td><span id="sum-mara-qty">0</span></td>
-							<td><span id="sum-oreo-qty">0</span></td>
-							<td><span id="sum-total-qty"> </span></td>
-							<td></td>
+							<td class="col-arco"><span id="sum-arco-qty">0</span></td>
+							<td class="col-melo"><span id="sum-melo-qty">0</span></td>
+							<td class="col-mara"><span id="sum-mara-qty">0</span></td>
+							<td class="col-oreo"><span id="sum-oreo-qty">0</span></td>
+							<td class="col-total"><span id="sum-total-qty"> </span></td>
+							<td class="col-actions"></td>
 						</tr>
 						<tr class="tfoot-amt">
-							<td><span id="sum-arco-amt">$0</span></td>
-							<td><span id="sum-melo-amt">$0</span></td>
-							<td><span id="sum-mara-amt">$0</span></td>
-							<td><span id="sum-oreo-amt">$0</span></td>
-							<td><span id="sum-grand">$0</span></td>
-							<td></td>
+							<td class="col-arco"><span id="sum-arco-amt">$0</span></td>
+							<td class="col-melo"><span id="sum-melo-amt">$0</span></td>
+							<td class="col-mara"><span id="sum-mara-amt">$0</span></td>
+							<td class="col-oreo"><span id="sum-oreo-amt">$0</span></td>
+							<td class="col-total"><span id="sum-grand">$0</span></td>
+							<td class="col-actions"></td>
 						</tr>
 					</tfoot>
 				</table>
