@@ -161,18 +161,24 @@ tfoot td { font-weight: 700; }
 .tfoot-qty .label { text-align: left; }
 
 @media (max-width: 600px) {
-	/* Footer totals scale with screen to avoid overlap */
-	tfoot td { font-size: clamp(9px, 2.6vw, 12px); line-height: 1.15; white-space: normal; }
-	tfoot .label { font-size: clamp(10px, 2.8vw, 12px); }
+	/* Footer totals scale with screen to avoid overlap (reduced by ~2px) */
+	tfoot td { font-size: clamp(7px, 2.2vw, 10px); line-height: 1.15; white-space: normal; }
+	tfoot .label { font-size: clamp(8px, 2.4vw, 10px); }
 
-	/* Inputs even smaller to fit full row */
-	.client-input { font-size: 12px; }
-	.input-qty { width: 30px; font-size: 11px; padding: 2px; }
-	.total { font-size: 12px; }
+	/* Inputs even smaller to fit full row (-2px) */
+	.client-input { font-size: 10px; }
+	.input-qty { width: 30px; font-size: 9px; padding: 2px; }
+	.total { font-size: 10px; }
 
-	/* Delete icon not clipped */
-	.row-delete { font-size: 14px; width: 18px; height: 18px; line-height: 18px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+	/* Delete icon smaller and not clipped */
+	.row-delete { font-size: 10px; width: 14px; height: 14px; line-height: 14px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
 
 	/* Tighter spacing */
-	th, td { padding: 2px; }
+	th, td { padding: 1px; }
+
+	/* Keep rows single-line: adjust column widths to widen Client by ~10ch */
+	.w-client { width: 28%; }
+	.w-qty { width: 12%; }
+	.w-total { width: 18%; }
+	.w-actions { width: 6%; }
 }
