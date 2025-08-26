@@ -351,13 +351,15 @@ tfoot td { font-weight: 700; }
 
 /* Ensure orange footer totals fit within their column */
 #sales-table tfoot .tfoot-amt td {
-	font-size: clamp(11px, 1.2vw, 14px);
+	font-size: clamp(7px, 1.0vw, 10px); /* ~4px smaller baseline, grows on large screens */
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
+	padding-left: 1px; /* ensure at least 1px margin each side */
+	padding-right: 1px;
 }
 #sales-table tfoot .tfoot-amt td span { display: inline-block; max-width: 100%; }
 
 @media (max-width: 600px) {
-	#sales-table tfoot .tfoot-amt td { font-size: clamp(8px, 2.0vw, 10px); }
+	#sales-table tfoot .tfoot-amt td { font-size: clamp(6px, 1.8vw, 9px); padding-left: 1px; padding-right: 1px; }
 }
