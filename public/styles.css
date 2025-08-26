@@ -113,6 +113,24 @@ tfoot td { font-weight: 700; }
 .w-total { width: 18%; }
 .w-actions { width: 6%; }
 
+/* Sticky header */
+#sales-table thead th { position: sticky; top: 0; background: #0b1022; z-index: 2; }
+
+/* Compact rows */
+th, td { border-bottom: 1px solid var(--border); padding: 6px 6px; text-align: center; }
+
+/* Column widths base */
+.w-client { width: 26%; }
+.w-qty { width: 12%; }
+.w-total { width: 18%; }
+.w-actions { width: 6%; }
+
+/* Inputs compact */
+.input-cell { padding: 8px 10px; font-size: 16px; }
+.client-input { font-size: 16px; min-width: 0; }
+.input-qty { width: 44px; font-size: 14px; padding: 4px; }
+.total { font-size: 16px; }
+
 /* Mobile: no horizontal scroll, compact row layout (not cards) */
 @media (max-width: 600px) {
 	/* Hide header and remove min-width so no horizontal scroll */
@@ -150,11 +168,15 @@ tfoot td { font-weight: 700; }
 	th { font-size: 12px; }
 	.price { font-size: 10px; }
 
-	/* Fit all columns without horizontal scroll by shrinking widths and fonts */
-	.w-client { width: 28%; }
+	/* Shrink columns to avoid horizontal scroll */
+	.w-client { width: 24%; }
 	.w-qty { width: 12%; }
 	.w-total { width: 20%; }
 	.w-actions { width: 6%; }
 
+	/* Smaller fonts */
+	.client-input { font-size: 14px; }
+	.input-qty { width: 38px; font-size: 12px; padding: 3px; }
+	.total { font-size: 14px; }
 	th, td { padding: 4px; }
 }
