@@ -176,13 +176,17 @@ function updateSummary() {
 }
 
 function readRow(tr) {
-	const [clientEl, arcoEl, meloEl, maraEl, oreoEl] = tr.querySelectorAll('input');
+	const clientEl = tr.querySelector('td.col-client .client-input');
+	const arcoEl = tr.querySelector('td.col-arco input');
+	const meloEl = tr.querySelector('td.col-melo input');
+	const maraEl = tr.querySelector('td.col-mara input');
+	const oreoEl = tr.querySelector('td.col-oreo input');
 	return {
-		client_name: clientEl.value.trim(),
-		qty_arco: arcoEl.value === '' ? 0 : Number(arcoEl.value),
-		qty_melo: meloEl.value === '' ? 0 : Number(meloEl.value),
-		qty_mara: maraEl.value === '' ? 0 : Number(maraEl.value),
-		qty_oreo: oreoEl.value === '' ? 0 : Number(oreoEl.value),
+		client_name: clientEl ? clientEl.value.trim() : '',
+		qty_arco: arcoEl && arcoEl.value !== '' ? Number(arcoEl.value) : 0,
+		qty_melo: meloEl && meloEl.value !== '' ? Number(meloEl.value) : 0,
+		qty_mara: maraEl && maraEl.value !== '' ? Number(maraEl.value) : 0,
+		qty_oreo: oreoEl && oreoEl.value !== '' ? Number(oreoEl.value) : 0,
 	};
 }
 
