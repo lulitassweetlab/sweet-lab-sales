@@ -416,3 +416,7 @@ tfoot td { font-weight: 700; }
 	.col-paid input[type="checkbox"] { transform: scale(1.0); }
 	.row-delete { font-size: 12px; width: 1.2em; height: 1.2em; }
 }
+
+/* Make columns bar stick inside the table wrapper for perfect alignment */
+.table-wrapper { position: relative; }
+.columns-bar { position: sticky; top: 0; z-index: 12; }
