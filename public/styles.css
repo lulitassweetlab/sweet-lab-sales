@@ -196,3 +196,22 @@ tfoot td { font-weight: 700; }
 	.w-total { width: 19%; }
 	.w-actions { width: 5%; }
 }
+
+/* Dates bar */
+.dates-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
+.dates-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.date-button { padding: 6px 10px; border: 1px solid var(--border); background: #0b1022; color: var(--text); border-radius: 999px; cursor: pointer; font-size: 14px; }
+.date-button.active { background: #1a2244; }
+.dates-add input[type="date"] { padding: 6px 8px; }
+
+/* Footer spacing and size */
+tfoot { border-top: 1px solid var(--border); }
+.tfoot-qty { margin-top: 4px; }
+#sales-table tfoot tr { height: 34px; }
+#sales-table tfoot tr td { padding-top: 8px; padding-bottom: 8px; }
+
+@media (max-width: 600px) {
+	.date-button { font-size: 12px; padding: 4px 8px; }
+	#sales-table tfoot tr { height: 30px; }
+	#sales-table tfoot tr td { padding-top: 10px; padding-bottom: 10px; }
+}
