@@ -11,6 +11,7 @@ const PRICES = {
 };
 
 const fmt = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
+const fmtNo = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 });
 
 const state = {
 	currentSeller: null,
@@ -105,7 +106,7 @@ function renderTable() {
 			el('td', { class: 'col-mara' }, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_mara ? String(sale.qty_mara) : '', placeholder: '', oninput: debounce(() => saveRow(tr, sale.id), 400) })),
 			el('td', { class: 'col-oreo' }, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_oreo ? String(sale.qty_oreo) : '', placeholder: '', oninput: debounce(() => saveRow(tr, sale.id), 400) })),
 			el('td', { class: 'total col-total' }, fmt.format(total)),
-			el('td', { class: 'col-actions' }, el('button', { class: 'row-delete', title: 'Eliminar', onclick: async () => { await deleteRow(sale.id); } }, '🗑️')),
+			el('td', { class: 'col-actions' }, el('button', { class: 'row-delete', title: 'Eliminar', onclick: async () => { await deleteRow(sale.id); } }, 'x')),
 		);
 		tr.dataset.id = String(sale.id);
 		tbody.appendChild(tr);
@@ -170,11 +171,11 @@ function updateSummary() {
 	$('#sum-mara-qty').textContent = String(qma);
 	$('#sum-oreo-qty').textContent = String(qo);
 	$('#sum-total-qty').textContent = '';
-	$('#sum-arco-amt').textContent = fmt.format(qa * PRICES.arco);
-	$('#sum-melo-amt').textContent = fmt.format(qm * PRICES.melo);
-	$('#sum-mara-amt').textContent = fmt.format(qma * PRICES.mara);
-	$('#sum-oreo-amt').textContent = fmt.format(qo * PRICES.oreo);
-	$('#sum-grand').textContent = fmt.format(grand);
+	$('#sum-arco-amt').textContent = fmtNo.format(qa * PRICES.arco);
+	$('#sum-melo-amt').textContent = fmtNo.format(qm * PRICES.melo);
+	$('#sum-mara-amt').textContent = fmtNo.format(qma * PRICES.mara);
+	$('#sum-oreo-amt').textContent = fmtNo.format(qo * PRICES.oreo);
+	$('#sum-grand').textContent = fmtNo.format(grand);
 }
 
 function debounce(fn, ms) {

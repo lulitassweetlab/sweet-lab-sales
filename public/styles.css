@@ -99,7 +99,8 @@ tfoot td { font-weight: 700; }
 
 .total { font-weight: 700; color: var(--accent); white-space: nowrap; }
 
-.row-delete { border: none; background: transparent; color: var(--danger); font-size: 20px; padding: 4px 8px; }
+/* Delete button as red x */
+.row-delete { color: var(--danger); font-weight: 900; }
 
 /* Toolbar */
 .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
@@ -181,4 +182,17 @@ tfoot td { font-weight: 700; }
 	.w-qty { width: 12%; }
 	.w-total { width: 18%; }
 	.w-actions { width: 6%; }
+
+	/* Smaller red x */
+	.row-delete { font-size: 9px; width: 12px; height: 12px; line-height: 12px; }
+
+	/* Reduce padding between qty inputs; shift space to client */
+	.input-qty { width: 28px; font-size: 9px; padding: 1px; margin: 0; }
+	.client-input { font-size: 8px; }
+
+	/* Rebalance columns: more space to client, less to qty */
+	.w-client { width: 32%; }
+	.w-qty { width: 11%; }
+	.w-total { width: 19%; }
+	.w-actions { width: 5%; }
 }
