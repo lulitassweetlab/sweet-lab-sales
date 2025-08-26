@@ -1,0 +1,15 @@
+{
+  "name": "sweet-lab-app",
+  "version": "1.0.0",
+  "description": "Ventas de postres - Sweet Lab (Netlify + Neon)",
+  "type": "module",
+  "scripts": {
+    "dev": "npx netlify dev",
+    "build": "echo 'Static site'",
+    "start": "npx netlify dev"
+  },
+  "dependencies": {
+    "@netlify/neon": "^0.1.0"
+  },
+  "devDependencies": {}
+}
