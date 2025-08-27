@@ -507,14 +507,20 @@
                         </div>
                     </div>
 
+                    <!-- BOTÓN DE EXPORTAR EXCEL - SIEMPRE VISIBLE -->
+                    <div style="margin: 30px 0; text-align: center; background: linear-gradient(135deg, #e8f5e8 0%, #f0fdf4 100%); border: 3px solid #22c55e; border-radius: 15px; padding: 25px; box-shadow: 0 8px 25px rgba(34, 197, 94, 0.2);">
+                        <div style="margin-bottom: 15px;">
+                            <h3 style="color: #16a34a; margin: 0; font-size: 20px;">📊 Exportar Reportes</h3>
+                            <p style="color: #4b5563; margin: 5px 0 0 0; font-size: 14px;">Descarga un archivo Excel con todas las ventas de todos los vendedores</p>
+                        </div>
+                        <button onclick="exportAllSalesToExcel()" style="background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%); color: white; border: none; padding: 18px 35px; border-radius: 12px; font-weight: 700; font-size: 18px; cursor: pointer; box-shadow: 0 6px 20px rgba(34, 197, 94, 0.4); transition: all 0.3s ease; display: inline-flex; align-items: center; gap: 10px;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 25px rgba(34, 197, 94, 0.5)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 6px 20px rgba(34, 197, 94, 0.4)'">
+                            <span style="font-size: 22px;">📥</span>
+                            EXPORTAR TODAS LAS VENTAS A EXCEL
+                        </button>
+                    </div>
+
                     <div id="sellersContainer">
                         <h3>👥 Vendedores Registrados</h3>
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                            <div></div>
-                            <button onclick="exportAllSalesToExcel()" class="btn btn-success" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); border: none; padding: 12px 20px; border-radius: 8px; font-weight: 600; box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);">
-                                📊 Exportar Todas las Ventas a Excel
-                            </button>
-                        </div>
                         <div class="sellers-grid" id="sellersGrid">
                             <!-- Los vendedores se cargarán aquí dinámicamente -->
                         </div>
