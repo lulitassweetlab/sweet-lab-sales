@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TEST - Botón Excel</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body style="padding: 50px; font-family: Arial, sans-serif;">
+    <h1>PRUEBA - ¿Puedes ver esto?</h1>
+    
+    <div style="background: red; color: white; padding: 30px; margin: 20px 0; text-align: center; font-size: 24px; border: 5px solid black;">
+        ⚠️ CAJA ROJA DE PRUEBA - SI VES ESTO, EL ARCHIVO SE CARGA CORRECTAMENTE ⚠️
+    </div>
+    
+    <div style="background: linear-gradient(135deg, #e8f5e8 0%, #f0fdf4 100%); border: 3px solid #22c55e; border-radius: 15px; padding: 25px; text-align: center; margin: 20px 0;">
+        <h2 style="color: #16a34a;">📊 BOTÓN DE EXPORTAR EXCEL</h2>
+        <button onclick="testExport()" style="background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%); color: white; border: none; padding: 20px 40px; border-radius: 12px; font-weight: 700; font-size: 20px; cursor: pointer;">
+            📥 EXPORTAR TODAS LAS VENTAS A EXCEL
+        </button>
+    </div>
+
+    <script>
+        function testExport() {
+            alert('¡El botón funciona! La función fue llamada correctamente.');
+            
+            // Crear un Excel de prueba
+            const testData = [
+                { Cliente: 'Cliente 1', Producto: 'Arco', Cantidad: 5, Total: 42500 },
+                { Cliente: 'Cliente 2', Producto: 'Melo', Cantidad: 3, Total: 28500 }
+            ];
+            
+            const ws = XLSX.utils.json_to_sheet(testData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Prueba');
+            
+            XLSX.writeFile(wb, 'Prueba_Excel.xlsx');
+            alert('¡Excel generado exitosamente!');
+        }
+    </script>
+</body>
+</html>
