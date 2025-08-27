@@ -509,6 +509,12 @@
 
                     <div id="sellersContainer">
                         <h3>👥 Vendedores Registrados</h3>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <div></div>
+                            <button onclick="exportAllSalesToExcel()" class="btn btn-success" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); border: none; padding: 12px 20px; border-radius: 8px; font-weight: 600; box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);">
+                                📊 Exportar Todas las Ventas a Excel
+                            </button>
+                        </div>
                         <div class="sellers-grid" id="sellersGrid">
                             <!-- Los vendedores se cargarán aquí dinámicamente -->
                         </div>
@@ -1116,6 +1122,174 @@
                 return;
             }
             exportSellerToExcel(currentSeller.id);
+        }
+
+        function exportAllSalesToExcel() {
+            if (sales.length === 0) {
+                showStatus('❌ No hay ventas para exportar', 'error');
+                return;
+            }
+
+            try {
+                // Crear datos para el Excel con todas las ventas
+                const allExcelData = [];
+                
+                // Agregar header con información general
+                allExcelData.push({
+                    'Vendedor': 'REPORTE COMPLETO DE VENTAS',
+                    'Cliente': `Fecha: ${new Date().toLocaleDateString('es-ES')}`,
+                    'Arco ($8,500)': '',
+                    'Melo ($9,500)': '',
+                    'Mara ($10,500)': '',
+                    'Oreo ($10,500)': '',
+                    'Total': '',
+                    'Fecha': '',
+                    'Hora': ''
+                });
+
+                // Separador
+                allExcelData.push({
+                    'Vendedor': '',
+                    'Cliente': '',
+                    'Arco ($8,500)': '',
+                    'Melo ($9,500)': '',
+                    'Mara ($10,500)': '',
+                    'Oreo ($10,500)': '',
+                    'Total': '',
+                    'Fecha': '',
+                    'Hora': ''
+                });
+
+                // Agrupar ventas por vendedor
+                const salesBySeller = {};
+                sales.forEach(sale => {
+                    if (!salesBySeller[sale.sellerId]) {
+                        salesBySeller[sale.sellerId] = [];
+                    }
+                    salesBySeller[sale.sellerId].push(sale);
+                });
+
+                let grandTotalArco = 0, grandTotalMelo = 0, grandTotalMara = 0, grandTotalOreo = 0, grandTotalAmount = 0;
+
+                // Procesar cada vendedor
+                Object.keys(salesBySeller).forEach(sellerId => {
+                    const seller = sellers.find(s => s.id === sellerId);
+                    const sellerName = seller ? seller.name : 'Vendedor Desconocido';
+                    const sellerSales = salesBySeller[sellerId];
+
+                    // Header del vendedor
+                    allExcelData.push({
+                        'Vendedor': `=== ${sellerName.toUpperCase()} ===`,
+                        'Cliente': '',
+                        'Arco ($8,500)': '',
+                        'Melo ($9,500)': '',
+                        'Mara ($10,500)': '',
+                        'Oreo ($10,500)': '',
+                        'Total': '',
+                        'Fecha': '',
+                        'Hora': ''
+                    });
+
+                    // Ventas del vendedor
+                    let sellerTotalArco = 0, sellerTotalMelo = 0, sellerTotalMara = 0, sellerTotalOreo = 0, sellerTotalAmount = 0;
+                    
+                    sellerSales.forEach(sale => {
+                        const total = (sale.arco * PRICES.arco) + (sale.melo * PRICES.melo) + 
+                                     (sale.mara * PRICES.mara) + (sale.oreo * PRICES.oreo);
+                        
+                        allExcelData.push({
+                            'Vendedor': sellerName,
+                            'Cliente': sale.client || 'Sin nombre',
+                            'Arco ($8,500)': sale.arco || 0,
+                            'Melo ($9,500)': sale.melo || 0,
+                            'Mara ($10,500)': sale.mara || 0,
+                            'Oreo ($10,500)': sale.oreo || 0,
+                            'Total': total,
+                            'Fecha': new Date(sale.createdAt).toLocaleDateString('es-ES'),
+                            'Hora': new Date(sale.createdAt).toLocaleTimeString('es-ES')
+                        });
+
+                        sellerTotalArco += sale.arco || 0;
+                        sellerTotalMelo += sale.melo || 0;
+                        sellerTotalMara += sale.mara || 0;
+                        sellerTotalOreo += sale.oreo || 0;
+                        sellerTotalAmount += total;
+                    });
+
+                    // Subtotal del vendedor
+                    allExcelData.push({
+                        'Vendedor': `SUBTOTAL ${sellerName}`,
+                        'Cliente': '',
+                        'Arco ($8,500)': sellerTotalArco,
+                        'Melo ($9,500)': sellerTotalMelo,
+                        'Mara ($10,500)': sellerTotalMara,
+                        'Oreo ($10,500)': sellerTotalOreo,
+                        'Total': sellerTotalAmount,
+                        'Fecha': '',
+                        'Hora': ''
+                    });
+
+                    // Separador
+                    allExcelData.push({
+                        'Vendedor': '',
+                        'Cliente': '',
+                        'Arco ($8,500)': '',
+                        'Melo ($9,500)': '',
+                        'Mara ($10,500)': '',
+                        'Oreo ($10,500)': '',
+                        'Total': '',
+                        'Fecha': '',
+                        'Hora': ''
+                    });
+
+                    grandTotalArco += sellerTotalArco;
+                    grandTotalMelo += sellerTotalMelo;
+                    grandTotalMara += sellerTotalMara;
+                    grandTotalOreo += sellerTotalOreo;
+                    grandTotalAmount += sellerTotalAmount;
+                });
+
+                // Total general
+                allExcelData.push({
+                    'Vendedor': '🏆 TOTAL GENERAL',
+                    'Cliente': '',
+                    'Arco ($8,500)': grandTotalArco,
+                    'Melo ($9,500)': grandTotalMelo,
+                    'Mara ($10,500)': grandTotalMara,
+                    'Oreo ($10,500)': grandTotalOreo,
+                    'Total': grandTotalAmount,
+                    'Fecha': '',
+                    'Hora': ''
+                });
+
+                // Crear el workbook y worksheet
+                const ws = XLSX.utils.json_to_sheet(allExcelData);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, 'Todas las Ventas');
+
+                // Configurar el ancho de las columnas
+                const colWidths = [
+                    { wch: 25 }, // Vendedor
+                    { wch: 20 }, // Cliente
+                    { wch: 12 }, // Arco
+                    { wch: 12 }, // Melo
+                    { wch: 12 }, // Mara
+                    { wch: 12 }, // Oreo
+                    { wch: 15 }, // Total
+                    { wch: 12 }, // Fecha
+                    { wch: 10 }  // Hora
+                ];
+                ws['!cols'] = colWidths;
+
+                // Generar el archivo y descargarlo
+                const fileName = `Todas_las_Ventas_${new Date().toISOString().split('T')[0]}.xlsx`;
+                XLSX.writeFile(wb, fileName);
+
+                showStatus('✅ Archivo Excel con todas las ventas generado exitosamente', 'success');
+            } catch (error) {
+                console.error('Error al generar Excel completo:', error);
+                showStatus('❌ Error al generar el archivo Excel', 'error');
+            }
         }
 
         function goHome() {
