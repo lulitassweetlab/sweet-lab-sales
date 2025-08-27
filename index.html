@@ -583,7 +583,9 @@
         // Inicialización
         document.addEventListener('DOMContentLoaded', function() {
             loadConfig();
-            loadData();
+            loadData().then(() => {
+                renderSellers(); // Forzar renderizado después de cargar datos
+            });
             updateConnectionStatus();
             
             // Event listener para Enter en el input de nuevo vendedor
@@ -1309,6 +1311,16 @@
                 testConnection();
             }
         }, 2000);
+
+        // Función global para forzar actualización de la interfaz
+        window.forceUpdate = function() {
+            renderSellers();
+            if (currentSeller) {
+                renderSales();
+                calculateTotal();
+            }
+            showStatus('🔄 Interfaz actualizada', 'success');
+        };
     </script>
 </body>
 </html>
