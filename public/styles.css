@@ -451,3 +451,9 @@ tfoot td { font-weight: 700; }
 
 /* Offset content so sticky header doesn't cover rows */
 .table-wrapper { padding-top: var(--stickyHeadH, 0px); }
+
+/* FINAL OVERRIDES: ensure header visible and non-sticky */
+#sales-table thead { display: table-header-group !important; }
+#sales-table thead th { position: static !important; top: auto !important; z-index: auto !important; }
+.sticky-head { display: none !important; }
+.table-wrapper { padding-top: 0 !important; overflow-y: visible !important; }
