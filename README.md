@@ -42,3 +42,4 @@ npx netlify dev
 ```
 
 - Define `NETLIFY_DATABASE_URL` en tu entorno local para probar.
+
