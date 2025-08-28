@@ -293,28 +293,31 @@ function exportTableToExcel() {
 }
 
 async function exportConsolidatedForDate(dayIso) {
-	// Load sellers
 	const sellers = await api('GET', API.Sellers);
-	const wb = XLSX.utils.book_new();
+	const rows = [['Vendedor', '$', 'Cliente', 'Arco', 'Melo', 'Mara', 'Oreo', 'Total']];
 	for (const s of sellers) {
-		const params = new URLSearchParams({ seller_id: String(s.id), sale_day_id: '' });
-		// Resolve sale_day_id for this seller/day
 		const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(s.id)}`);
 		const day = (days || []).find(d => (String(d.day).slice(0,10) === String(dayIso).slice(0,10)));
 		if (!day) continue;
-		params.set('sale_day_id', String(day.id));
+		const params = new URLSearchParams({ seller_id: String(s.id), sale_day_id: String(day.id) });
 		const sales = await api('GET', `${API.Sales}?${params.toString()}`);
-		const rows = [['$', 'Cliente', 'Arco', 'Melo', 'Mara', 'Oreo', 'Total']];
 		for (const r of (sales || [])) {
-			rows.push([r.is_paid ? '✓' : '', r.client_name || '', r.qty_arco || 0, r.qty_melo || 0, r.qty_mara || 0, r.qty_oreo || 0, r.total_cents || 0]);
-		}
-		if (rows.length > 1) {
-			const ws = XLSX.utils.aoa_to_sheet(rows);
-			ws['!cols'] = [ {wch:3},{wch:24},{wch:6},{wch:6},{wch:6},{wch:6},{wch:10} ];
-			const sheetName = (s.name || 'Vendedor').substring(0, 28);
-			XLSX.utils.book_append_sheet(wb, ws, sheetName);
+			rows.push([
+				s.name || '',
+				r.is_paid ? '✓' : '',
+				r.client_name || '',
+				r.qty_arco || 0,
+				r.qty_melo || 0,
+				r.qty_mara || 0,
+				r.qty_oreo || 0,
+				r.total_cents || 0,
+			]);
 		}
 	}
+	const ws = XLSX.utils.aoa_to_sheet(rows);
+	ws['!cols'] = [ {wch:18},{wch:3},{wch:24},{wch:6},{wch:6},{wch:6},{wch:6},{wch:10} ];
+	const wb = XLSX.utils.book_new();
+	XLSX.utils.book_append_sheet(wb, ws, 'Consolidado');
 	const dateLabel = formatDayLabel(String(dayIso).slice(0,10)).replace(/\s+/g, '_');
 	XLSX.writeFile(wb, `Consolidado_${dateLabel}.xlsx`);
 }
