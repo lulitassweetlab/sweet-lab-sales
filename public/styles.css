@@ -374,8 +374,13 @@ tfoot td { font-weight: 700; }
 #sales-table thead { display: table-header-group !important; }
 #sales-table thead th { position: static !important; top: auto !important; }
 
-/* Ensure the table wrapper does not trap vertical scroll */
-.table-wrapper { overflow-x: auto; overflow-y: visible; max-height: none; }
+/* Revert sticky clone styles */
+#sales-table thead { display: table-header-group !important; }
+#sales-table thead th { position: static !important; top: auto !important; }
+.sticky-head { display: none !important; }
+
+/* Restore wrapper scroll behavior */
+.table-wrapper { overflow-x: auto; overflow-y: visible; max-height: none; padding-top: 0; }
 
 /* Sticky header offset below toolbar */
 :root { --toolbarH: 48px; }
