@@ -441,4 +441,5 @@ tfoot td { font-weight: 700; }
 
 /* Progressive sticky: hide native thead and use sticky clone */
 #sales-table thead { display: none !important; }
-.sticky-head { position: sticky; top: var(--toolbarH, 56px); z-index: 25; background: #0b1022; border-bottom: 1px solid var(--border); display: grid; grid-auto-flow: column; grid-auto-columns: min-content; gap: 0; }
+/* Progressive sticky header clone aligned by CSS vars */
+.sticky-head { position: sticky; top: var(--toolbarH, 56px); z-index: 25; background: #0b1022; border-bottom: 1px solid var(--border); display: grid; grid-template-columns: var(--w-paid) var(--w-client) var(--w-qty) var(--w-qty) var(--w-qty) var(--w-qty) var(--w-total) var(--w-actions); gap: 0; }
