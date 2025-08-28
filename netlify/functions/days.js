@@ -30,6 +30,14 @@ export async function handler(event) {
 				const id = await getOrCreateDayId(sellerId, day);
 				return json({ id, day }, 201);
 			}
+			case 'PUT': {
+				const data = JSON.parse(event.body || '{}');
+				const id = Number(data.id);
+				const day = (data.day || '').toString();
+				if (!id || !day) return json({ error: 'id y day requeridos' }, 400);
+				const [row] = await sql`UPDATE sale_days SET day=${day} WHERE id=${id} RETURNING id, day`;
+				return json(row || { id, day });
+			}
 			case 'DELETE': {
 				const params = new URLSearchParams(event.rawQuery || event.queryStringParameters ? event.rawQuery || '' : '');
 				const idParam = params.get('id') || (event.queryStringParameters && event.queryStringParameters.id);

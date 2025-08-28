@@ -482,3 +482,8 @@ tfoot td { font-weight: 700; }
 .date-item .date-button { border: none; background: transparent; color: inherit; padding: 8px 6px; }
 .date-item .date-delete { border: none; background: transparent; color: var(--danger); font-size: 14px; padding: 4px 6px; cursor: pointer; }
 .date-item .date-delete:hover { filter: brightness(1.2); }
+
+/* Date item edit icon */
+.date-item .date-edit { border: none; background: transparent; color: var(--muted); font-size: 14px; padding: 4px 6px; cursor: pointer; }
+.date-item .date-edit:hover { filter: brightness(1.2); }
+.date-item { gap: 2px; }
