@@ -468,3 +468,7 @@ tfoot td { font-weight: 700; }
 .dates-list { display: flex; flex-wrap: wrap; gap: 8px; }
 .date-button { padding: 8px 12px; border: 1px solid var(--border); background: #0b1022; color: var(--text); border-radius: 999px; cursor: pointer; }
 .date-button:hover { filter: brightness(1.1); }
+
+/* Dates controls */
+.dates-controls { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+.dates-controls input[type="date"] { padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: #0b1022; color: var(--text); }

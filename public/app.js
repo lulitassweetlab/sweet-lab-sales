@@ -146,14 +146,17 @@ function renderTable() {
 
 async function loadSales() {
 	const sellerId = state.currentSeller.id;
-	state.sales = await api('GET', `${API.Sales}?seller_id=${encodeURIComponent(sellerId)}`);
+	const params = new URLSearchParams({ seller_id: String(sellerId) });
+	if (state.selectedDayId) params.set('sale_day_id', String(state.selectedDayId));
+	state.sales = await api('GET', `${API.Sales}?${params.toString()}`);
 	renderTable();
 }
 
 async function addRow() {
 	const sellerId = state.currentSeller.id;
-	const sale = await api('POST', API.Sales, { seller_id: sellerId });
-	// Ensure checkbox starts unchecked regardless of server defaults
+	const payload = { seller_id: sellerId };
+	if (state.selectedDayId) payload.sale_day_id = state.selectedDayId;
+	const sale = await api('POST', API.Sales, payload);
 	sale.is_paid = false;
 	state.sales.push(sale);
 	renderTable();
@@ -350,6 +353,67 @@ function updateStickyHeadOffset() {
 }
 
 window.addEventListener('resize', updateStickyHeadOffset);
+
+async function loadDaysForSeller() {
+	const sellerId = state.currentSeller.id;
+	const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(sellerId)}`);
+	state.saleDays = days;
+	renderDaysList();
+}
+
+function formatDayLabel(iso) {
+	const d = new Date(iso + 'T00:00:00Z');
+	const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+	const weekdays = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+	return `${weekdays[d.getUTCDay()]}, ${months[d.getUTCMonth()]} ${d.getUTCDate()}`;
+}
+
+function renderDaysList() {
+	const list = document.getElementById('dates-list');
+	if (!list) return;
+	list.innerHTML = '';
+	for (const d of state.saleDays) {
+		const btn = document.createElement('button');
+		btn.className = 'date-button';
+		btn.textContent = formatDayLabel(d.day);
+		btn.addEventListener('click', async () => {
+			state.selectedDayId = d.id;
+			document.getElementById('sales-wrapper').classList.remove('hidden');
+			await loadSales();
+		});
+		list.appendChild(btn);
+	}
+}
+
+async function addNewDate() {
+	const sellerId = state.currentSeller.id;
+	let day = document.getElementById('new-date')?.value;
+	if (!day) {
+		const now = new Date();
+		day = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())).toISOString().slice(0,10);
+	}
+	await api('POST', '/api/days', { seller_id: sellerId, day });
+	await loadDaysForSeller();
+}
+
+// Extend state to include saleDays and selectedDayId if not present
+if (!('saleDays' in state)) state.saleDays = [];
+if (!('selectedDayId' in state)) state.selectedDayId = null;
+
+// Enhance events
+(function enhanceDateEvents(){
+	const addBtn = document.getElementById('add-date');
+	addBtn?.addEventListener('click', addNewDate);
+})();
+
+// Update enterSeller to load dates
+(async function patchEnterSeller(){
+	const origEnter = enterSeller;
+	enterSeller = async function(id) {
+		await origEnter(id);
+		await loadDaysForSeller();
+	};
+})();
 
 
 (async function init() {
