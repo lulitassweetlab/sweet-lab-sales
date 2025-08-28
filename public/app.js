@@ -396,26 +396,55 @@ async function addNewDate() {
 	await loadDaysForSeller();
 }
 
-async function selectDefaultDate() {
-	// Use or create a day via API with a fixed label date stub (today as example)
-	const now = new Date();
-	const iso = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())).toISOString().slice(0,10);
-	const sellerId = state.currentSeller.id;
-	const created = await api('POST', '/api/days', { seller_id: sellerId, day: iso });
-	state.selectedDayId = created.id;
-	document.getElementById('sales-wrapper').classList.remove('hidden');
-	await loadSales();
-}
-
-function openNewDatePicker() {
+function openDatePickerAndGetISO(onPicked) {
 	const input = document.getElementById('new-date');
 	if (!input) return;
 	input.classList.remove('hidden');
+	input.value = '';
 	input.focus();
-	input.onchange = async () => {
-		await addNewDate();
+	const handler = async () => {
+		const day = input.value;
 		input.classList.add('hidden');
+		input.removeEventListener('change', handler);
+		if (day && typeof onPicked === 'function') onPicked(day);
 	};
+	input.addEventListener('change', handler);
+}
+
+async function selectDefaultDate() {
+	openDatePickerAndGetISO(async (iso) => {
+		const sellerId = state.currentSeller.id;
+		const created = await api('POST', '/api/days', { seller_id: sellerId, day: iso });
+		state.selectedDayId = created.id;
+		const btn = document.getElementById('date-default');
+		if (btn) btn.textContent = formatDayLabel(iso);
+		document.getElementById('sales-wrapper').classList.remove('hidden');
+		await loadSales();
+	});
+}
+
+function openNewDatePicker() {
+	openDatePickerAndGetISO(async (iso) => {
+		const sellerId = state.currentSeller.id;
+		const created = await api('POST', '/api/days', { seller_id: sellerId, day: iso });
+		// Create a new date button
+		const list = document.getElementById('dates-list');
+		if (list) {
+			const btn = document.createElement('button');
+			btn.className = 'date-button';
+			btn.textContent = formatDayLabel(iso);
+			btn.addEventListener('click', async () => {
+				state.selectedDayId = created.id;
+				document.getElementById('sales-wrapper').classList.remove('hidden');
+				await loadSales();
+			});
+			list.appendChild(btn);
+		}
+		// Select it and show table
+		state.selectedDayId = created.id;
+		document.getElementById('sales-wrapper').classList.remove('hidden');
+		await loadSales();
+	});
 }
 
 // Extend state to include saleDays and selectedDayId if not present
