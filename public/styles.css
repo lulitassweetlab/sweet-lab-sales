@@ -476,3 +476,9 @@ tfoot td { font-weight: 700; }
 /* Dates controls */
 .dates-controls { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
 .dates-controls input[type="date"] { padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: #0b1022; color: var(--text); }
+
+/* Date item with delete */
+.date-item { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); background: #0b1022; color: var(--text); border-radius: 999px; padding: 0 6px; }
+.date-item .date-button { border: none; background: transparent; color: inherit; padding: 8px 6px; }
+.date-item .date-delete { border: none; background: transparent; color: var(--danger); font-size: 14px; padding: 4px 6px; cursor: pointer; }
+.date-item .date-delete:hover { filter: brightness(1.2); }
