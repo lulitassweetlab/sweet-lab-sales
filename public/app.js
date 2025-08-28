@@ -82,6 +82,7 @@ async function enterSeller(id) {
 	$('#current-seller').textContent = seller.name;
 	switchView('#view-sales');
 	updateToolbarOffset();
+	buildStickyHead();
 	await loadSales();
 }
 
@@ -123,7 +124,7 @@ function renderTable() {
 		tbody.appendChild(tr);
 	}
 	updateSummary();
-	// Removed requestAnimationFrame(() => syncColumnsBarWidths());
+	requestAnimationFrame(syncStickyHeadWidths);
 }
 
 async function loadSales() {
@@ -238,6 +239,43 @@ function updateToolbarOffset() {
 }
 
 window.addEventListener('resize', updateToolbarOffset);
+
+function buildStickyHead() {
+	const table = document.getElementById('sales-table');
+	const sticky = document.getElementById('sticky-head');
+	if (!table || !sticky) return;
+	const theadRow = table.tHead && table.tHead.rows[0];
+	if (!theadRow) return;
+	// Clear and rebuild
+	sticky.innerHTML = '';
+	const cells = Array.from(theadRow.cells);
+	for (const th of cells) {
+		const div = document.createElement('div');
+		div.className = `hcell ${th.className || ''}`;
+		div.textContent = th.textContent;
+		sticky.appendChild(div);
+	}
+	sticky.classList.remove('hidden');
+	syncStickyHeadWidths();
+}
+
+function syncStickyHeadWidths() {
+	const table = document.getElementById('sales-table');
+	const sticky = document.getElementById('sticky-head');
+	if (!table || !sticky) return;
+	let refRow = table.tBodies[0] && table.tBodies[0].rows[0];
+	if (!refRow) refRow = table.tHead && table.tHead.rows[0];
+	if (!refRow) return;
+	const bodyCells = Array.from(refRow.cells);
+	const headCells = Array.from(sticky.children);
+	if (bodyCells.length !== headCells.length) return;
+	for (let i = 0; i < bodyCells.length; i++) {
+		const w = Math.round(bodyCells[i].getBoundingClientRect().width);
+		headCells[i].style.width = w + 'px';
+	}
+}
+
+window.addEventListener('resize', () => requestAnimationFrame(syncStickyHeadWidths));
 
 
 (async function init() {
