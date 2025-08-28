@@ -512,8 +512,8 @@ if (!('selectedDayId' in state)) state.selectedDayId = null;
 })();
 
 (function enhanceStaticButtons(){
-	document.getElementById('date-default')?.addEventListener('click', selectDefaultDate);
-	document.getElementById('date-new')?.addEventListener('click', openNewDatePicker);
+	const newBtn = document.getElementById('date-new');
+	newBtn?.addEventListener('click', openNewDatePicker);
 })();
 
 
