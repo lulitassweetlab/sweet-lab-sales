@@ -374,17 +374,7 @@ function renderDaysList() {
 	const list = document.getElementById('dates-list');
 	if (!list) return;
 	list.innerHTML = '';
-	// Static default and new buttons
-	const defItem = document.createElement('div');
-	defItem.className = 'date-item';
-	const defBtn = document.createElement('button');
-	defBtn.id = 'date-default';
-	defBtn.className = 'date-button';
-	defBtn.textContent = 'Viernes, Agosto 29';
-	defBtn.addEventListener('click', selectDefaultDate);
-	defItem.appendChild(defBtn);
-	list.appendChild(defItem);
-
+	// Only "Nueva fecha" button
 	const newItem = document.createElement('div');
 	newItem.className = 'date-item';
 	const newBtn = document.createElement('button');
@@ -408,6 +398,17 @@ function renderDaysList() {
 			document.getElementById('sales-wrapper').classList.remove('hidden');
 			await loadSales();
 		});
+		const edit = document.createElement('button');
+		edit.className = 'date-edit';
+		edit.title = 'Editar fecha';
+		edit.textContent = '✏️';
+		edit.addEventListener('click', (e) => {
+			e.stopPropagation();
+			openDatePickerAndGetISO(async (iso) => {
+				await api('PUT', '/api/days', { id: d.id, day: iso });
+				await loadDaysForSeller();
+			});
+		});
 		const del = document.createElement('button');
 		del.className = 'date-delete';
 		del.title = 'Eliminar fecha';
@@ -415,7 +416,6 @@ function renderDaysList() {
 		del.addEventListener('click', async (e) => {
 			e.stopPropagation();
 			await api('DELETE', `/api/days?id=${encodeURIComponent(d.id)}`);
-			// If deleting selected date, clear table
 			if (state.selectedDayId === d.id) {
 				state.selectedDayId = null;
 				state.sales = [];
@@ -424,6 +424,7 @@ function renderDaysList() {
 			await loadDaysForSeller();
 		});
 		item.appendChild(btn);
+		item.appendChild(edit);
 		item.appendChild(del);
 		list.appendChild(item);
 	}
