@@ -509,6 +509,10 @@ if (!('selectedDayId' in state)) state.selectedDayId = null;
 	newBtn?.addEventListener('click', openNewDatePicker);
 })();
 
+(function bindBottomAdd(){
+	document.getElementById('add-row-bottom')?.addEventListener('click', addRow);
+})();
+
 
 (async function init() {
 	bindEvents();
