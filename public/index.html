@@ -18,23 +18,30 @@
 			<div id="seller-list" class="seller-list"></div>
 			<div class="seller-add">
 				<input id="new-seller-name" type="text" inputmode="text" autocomplete="name" placeholder="Agregar nuevo vendedor" />
-				<button id="add-seller">Agregar</button>
+				<button id="add-seller" class="press-btn">Agregar</button>
+			</div>
+			<div id="global-dates-section" class="dates-section">
+				<div class="dates-header">
+					<h3>Fechas</h3>
+					<!-- No nueva fecha aquí; solo botones para reporte consolidado -->
+				</div>
+				<div id="global-dates-list" class="dates-list"></div>
 			</div>
 		</section>
 
 		<section id="view-sales" class="view hidden">
 			<div class="header-sticky">
 				<div class="toolbar">
-					<button id="go-home" class="secondary">Inicio</button>
+					<button id="go-home" class="secondary press-btn">Inicio</button>
 					<h2 id="current-seller"></h2>
-					<button id="add-row">Agregar venta</button>
+					<button id="add-row" class="press-btn">Agregar venta</button>
 				</div>
 			</div>
 
 			<div id="dates-section" class="dates-section">
 				<div class="dates-header">
 					<h3>Fechas</h3>
-					<button id="date-new" class="date-button">Nueva fecha</button>
+					<button id="date-new" class="date-button press-btn">Nueva fecha</button>
 				</div>
 				<div class="dates-list" id="dates-list"></div>
 				<input id="new-date" type="date" class="hidden" />
@@ -88,10 +95,10 @@
 					</tfoot>
 				</table>
 				<div class="table-actions end">
-					<button id="export-excel" class="excel-btn">Excel</button>
+					<button id="export-excel" class="excel-btn press-btn">Excel</button>
 				</div>
 				<div class="table-actions end">
-					<button id="add-row-bottom" class="excel-btn">Agregar venta</button>
+					<button id="add-row-bottom" class="excel-btn press-btn">Agregar venta</button>
 				</div>
 			</div>
 		</section>
