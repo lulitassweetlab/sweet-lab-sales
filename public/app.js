@@ -214,10 +214,9 @@ function debounce(fn, ms) {
 }
 
 function exportTableToExcel() {
-	const rows = [];
-	// Header row
-	rows.push(['$', 'Cliente', 'Arco', 'Melo', 'Mara', 'Oreo', 'Total']);
-	// Body rows
+	// Build SheetJS worksheet from rows
+	const header = ['$', 'Cliente', 'Arco', 'Melo', 'Mara', 'Oreo', 'Total'];
+	const data = [header];
 	const tbody = document.getElementById('sales-tbody');
 	if (tbody) {
 		for (const tr of Array.from(tbody.rows)) {
@@ -228,47 +227,32 @@ function exportTableToExcel() {
 			const mara = tr.querySelector('td.col-mara input')?.value ?? '';
 			const oreo = tr.querySelector('td.col-oreo input')?.value ?? '';
 			const total = tr.querySelector('td.col-total')?.textContent?.trim() ?? '';
-			rows.push([paid, client, arco, melo, mara, oreo, total]);
+			data.push([paid, client, arco, melo, mara, oreo, total]);
 		}
 	}
-	// Footer totals (quantities and amounts)
-	const qtyRow = [ '', 'Totales (cant.)',
+	data.push(['', 'Totales (cant.)',
 		document.getElementById('sum-arco-qty')?.textContent ?? '',
 		document.getElementById('sum-melo-qty')?.textContent ?? '',
 		document.getElementById('sum-mara-qty')?.textContent ?? '',
 		document.getElementById('sum-oreo-qty')?.textContent ?? '',
 		document.getElementById('sum-total-qty')?.textContent ?? ''
-	];
-	rows.push(qtyRow);
-	const amtRow = [ '', 'Totales (valor)',
+	]);
+	data.push(['', 'Totales (valor)',
 		document.getElementById('sum-arco-amt')?.textContent ?? '',
 		document.getElementById('sum-melo-amt')?.textContent ?? '',
 		document.getElementById('sum-mara-amt')?.textContent ?? '',
 		document.getElementById('sum-oreo-amt')?.textContent ?? '',
 		document.getElementById('sum-grand')?.textContent ?? ''
-	];
-	rows.push(amtRow);
+	]);
 
-	// Build CSV content (Excel-compatible)
-	const csv = rows.map(r => r.map(cell => {
-		const s = String(cell ?? '');
-		if (s.includes('"') || s.includes(',') || s.includes('\n')) {
-			return '"' + s.replace(/"/g, '""') + '"';
-		}
-		return s;
-	}).join(',')).join('\n');
-
-	const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-	const url = URL.createObjectURL(blob);
-	const a = document.createElement('a');
+	const ws = XLSX.utils.aoa_to_sheet(data);
+	// Autofit: set column widths roughly based on header text length
+	ws['!cols'] = header.map(h => ({ wch: Math.max(8, h.length + 2) }));
+	const wb = XLSX.utils.book_new();
+	XLSX.utils.book_append_sheet(wb, ws, 'Ventas');
 	const sellerName = state.currentSeller?.name?.replace(/[^\w\-]+/g, '_') || 'ventas';
 	const dateStr = new Date().toISOString().slice(0,10);
-	a.href = url;
-	a.download = `${sellerName}_${dateStr}.xlsx`;
-	document.body.appendChild(a);
-	a.click();
-	document.body.removeChild(a);
-	URL.revokeObjectURL(url);
+	XLSX.writeFile(wb, `${sellerName}_${dateStr}.xlsx`);
 }
 
 function bindEvents() {
