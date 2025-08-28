@@ -68,6 +68,12 @@ button:hover { filter: brightness(1.1); }
 /* Table base */
 .table-wrapper { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; }
 
+/* Make table wrapper the scroll container so sticky thead works reliably */
+.table-wrapper { position: relative; max-height: calc(100vh - var(--toolbarH, 56px) - 24px); overflow-y: auto; overflow-x: auto; }
+
+/* Sticky native thead at top of the scroll container */
+#sales-table thead th { position: sticky; top: 0; background: #0b1022; z-index: 20; }
+
 table { width: 100%; border-collapse: collapse; }
 
 /* Cells */
