@@ -1,18 +1,18 @@
 :root {
-	--bg: #0f172a;
-	--surface: #111827;
-	--text: #e5e7eb;
-	--muted: #9ca3af;
+	--bg: #ffffff;
+	--surface: #f7f7f8;
+	--text: #0f172a;
+	--muted: #475569;
 	--accent: #f59e0b;
 	--danger: #ef4444;
-	--border: #1f2937;
+	--border: #e5e7eb;
 }
 
 * { box-sizing: border-box; }
 
 body {
 	margin: 0;
-	font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+	font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial, "Apple Color Emoji", "Segoe UI Emoji";
 	background: var(--bg);
 	color: var(--text);
 }
@@ -21,6 +21,7 @@ body {
 	padding: 12px 16px;
 	background: var(--surface);
 	border-bottom: 1px solid var(--border);
+	box-shadow: 0 1px 2px rgba(0,0,0,0.06);
 }
 
 .app-footer { border-top: 1px solid var(--border); border-bottom: none; }
@@ -35,49 +36,51 @@ main { padding: 16px; }
 .seller-button {
 	padding: 10px 14px;
 	border: 1px solid var(--border);
-	background: #0b1022;
+	background: #ffffff;
 	color: var(--text);
 	border-radius: 999px;
 	cursor: pointer;
 	font-weight: 600;
+	box-shadow: 0 1px 2px rgba(0,0,0,0.06);
 }
-.seller-button:hover { filter: brightness(1.1); }
+.seller-button:hover { filter: brightness(0.98); box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
 
 .seller-add { display: flex; gap: 8px; align-items: center; margin: 8px 0; }
 
 select, input[type="text"], button {
 	padding: 10px 12px;
-	border-radius: 8px;
+	border-radius: 12px;
 	border: 1px solid var(--border);
-	background: #0b1022;
+	background: #ffffff;
 	color: var(--text);
 	font-size: 16px;
+	box-shadow: 0 1px 2px rgba(0,0,0,0.06);
 }
 
 button { cursor: pointer; }
-button.secondary { background: #0b1220; color: var(--muted); }
+button.secondary { background: #f3f4f6; color: var(--muted); }
 button:hover { filter: brightness(1.1); }
 
 .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; margin: 8px 0 14px; }
-.summary-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: #0b1022; }
+.summary-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: #ffffff; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
 .summary-item .label { color: var(--muted); font-weight: 600; }
 .summary-item .qty { font-weight: 700; }
 .summary-item .amt { font-weight: 700; color: var(--accent); }
 .summary-item.total-all { grid-column: 1 / -1; justify-content: flex-end; }
 
 /* Table base */
-.table-wrapper { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; }
+.table-wrapper { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; background: #ffffff; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
 
 /* Make table wrapper the scroll container so sticky thead works reliably */
 .table-wrapper { position: relative; max-height: calc(100vh - var(--toolbarH, 56px) - 24px); overflow-y: auto; overflow-x: auto; }
 
 /* Sticky native thead at top of the scroll container */
-#sales-table thead th { position: sticky; top: 0; background: #0b1022; z-index: 20; }
+#sales-table thead th { position: sticky; top: 0; background: #ffffff; z-index: 20; }
 
 table { width: 100%; border-collapse: collapse; }
 
 /* Cells */
-th, td { border-bottom: 1px solid var(--border); padding: 10px; text-align: center; }
+th, td { border-bottom: 1px solid var(--border); padding: 10px; text-align: center; background: #ffffff; }
 
 th.col-client, td.col-client { text-align: left; }
 
@@ -91,9 +94,9 @@ tfoot td { font-weight: 700; }
 .input-cell {
 	width: 100%;
 	border: 1px solid var(--border);
-	background: #0a0f20;
+	background: #ffffff;
 	color: var(--text);
-	border-radius: 8px;
+	border-radius: 12px;
 	padding: 10px 12px;
 	font-size: 18px;
 }
@@ -122,7 +125,7 @@ tfoot td { font-weight: 700; }
 .w-actions { width: 6%; }
 
 /* Sticky header */
-#sales-table thead th { position: sticky; top: 0; background: #0b1022; z-index: 2; }
+#sales-table thead th { position: sticky; top: 0; background: #ffffff; z-index: 2; }
 
 /* Compact rows */
 th, td { border-bottom: 1px solid var(--border); padding: 6px 6px; text-align: center; }
@@ -464,7 +467,7 @@ tfoot td { font-weight: 700; }
 
 /* Excel button placement */
 .table-actions.end { display: flex; justify-content: flex-end; padding: 8px; }
-.excel-btn { padding: 8px 12px; border: 1px solid var(--border); background: #0b1022; color: var(--text); border-radius: 8px; cursor: pointer; }
+.excel-btn { padding: 8px 12px; border: 1px solid var(--border); background: #ffffff; color: var(--text); border-radius: 12px; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
 .excel-btn:hover { filter: brightness(1.1); }
 
 /* Dates section */
@@ -478,7 +481,7 @@ tfoot td { font-weight: 700; }
 .dates-controls input[type="date"] { padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: #0b1022; color: var(--text); }
 
 /* Date item with delete */
-.date-item { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); background: #0b1022; color: var(--text); border-radius: 999px; padding: 0 6px; }
+.date-item { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); background: #ffffff; color: var(--text); border-radius: 999px; padding: 0 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
 .date-item .date-button { border: none; background: transparent; color: inherit; padding: 8px 6px; }
 .date-item .date-delete { border: none; background: transparent; color: var(--danger); font-size: 14px; padding: 4px 6px; cursor: pointer; }
 .date-item .date-delete:hover { filter: brightness(1.2); }
@@ -495,13 +498,13 @@ tfoot td { font-weight: 700; }
 /* Button visuals and press feedback */
 .date-button, .excel-btn, .date-delete {
 	border: 1px solid var(--border);
-	border-radius: 8px;
-	background: #0b1022;
+	border-radius: 12px;
+	background: #ffffff;
 	color: var(--text);
-	box-shadow: 0 2px 0 rgba(0,0,0,0.6);
+	box-shadow: 0 1px 2px rgba(0,0,0,0.06);
 	transition: transform 80ms ease, filter 80ms ease, box-shadow 80ms ease;
 }
-.date-button:hover, .excel-btn:hover, .date-delete:hover { filter: brightness(1.08); }
+.date-button:hover, .excel-btn:hover, .date-delete:hover { filter: brightness(0.98); box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
 .date-button:active, .excel-btn:active, .date-delete:active {
 	transform: translateY(1px);
 	box-shadow: 0 1px 0 rgba(0,0,0,0.6);
@@ -520,49 +523,43 @@ tfoot td { font-weight: 700; }
 	box-shadow: 0 2px 0 rgba(0,0,0,0.6);
 	transition: transform 80ms ease, box-shadow 80ms ease;
 }
-.date-item:active { transform: translateY(1px); box-shadow: 0 1px 0 rgba(0,0,0,0.6); }
+.date-item:active { transform: translateY(1px); box-shadow: 0 1px 0 rgba(0,0,0,0.08); }
 
 /* Ensure inner date-button inside date-item looks seamless */
 .date-item .date-button { border: none; background: transparent; padding: 6px 8px; box-shadow: none; }
 
 /* Click/active feedback */
-.date-button:active, .excel-btn:active, .row-delete:active { transform: scale(0.98); filter: brightness(0.9); }
+.date-button:active, .excel-btn:active, .row-delete:active { transform: scale(0.98); filter: brightness(0.98); }
 
 /* Date button background and relief */
-.date-button {
-	background: linear-gradient(180deg, #0f1632, #0b1022);
-}
-.date-button:hover { background: linear-gradient(180deg, #141c40, #0d1328); }
-.date-button:active {
-	transform: translateY(1px);
-	box-shadow: inset 0 2px 4px rgba(0,0,0,0.6), 0 1px 0 rgba(0,0,0,0.6);
-	background: linear-gradient(180deg, #0b1022, #0f1632);
-}
+.date-button { background: #ffffff; }
+.date-button:hover { background: #fcfcfd; }
+.date-button:active { transform: translateY(1px); box-shadow: inset 0 2px 4px rgba(0,0,0,0.08), 0 1px 0 rgba(0,0,0,0.08); }
 
 /* Date chip (date-item) relief */
-.date-item { background: linear-gradient(180deg, #101737, #0b1022); }
+.date-item { background: linear-gradient(180deg, #ffffff, #ffffff); }
 .date-item:active { box-shadow: inset 0 2px 4px rgba(0,0,0,0.6), 0 1px 0 rgba(0,0,0,0.6); }
 
 /* Inline add row at end of table */
 .add-row-line td { padding: 8px 6px; text-align: left; }
-.inline-add-btn { padding: 8px 12px; border: 1px dashed var(--border); background: #0b1022; color: var(--text); border-radius: 8px; box-shadow: 0 2px 0 rgba(0,0,0,0.6); }
+.inline-add-btn { padding: 8px 12px; border: 1px dashed var(--border); background: #ffffff; color: var(--text); border-radius: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
 .inline-add-btn:hover { filter: brightness(1.15); }
 .inline-add-btn:active { transform: translateY(1px); box-shadow: 0 1px 0 rgba(0,0,0,0.6); }
 
 /* Brighter hover for date buttons */
-.date-button:hover { background: linear-gradient(180deg, #1a255a, #0f1632); }
+.date-button:hover { background: #fcfcfd; }
 
 /* General press button style */
 .press-btn {
 	border: 1px solid var(--border);
-	border-radius: 8px;
-	background: linear-gradient(180deg, #0f1632, #0b1022);
+	border-radius: 12px;
+	background: #ffffff;
 	color: var(--text);
-	box-shadow: 0 2px 0 rgba(0,0,0,0.6);
+	box-shadow: 0 1px 2px rgba(0,0,0,0.06);
 	transition: transform 80ms ease, filter 80ms ease, box-shadow 80ms ease;
 }
-.press-btn:hover { filter: brightness(1.08); }
-.press-btn:active { transform: translateY(1px); box-shadow: inset 0 2px 4px rgba(0,0,0,0.6), 0 1px 0 rgba(0,0,0,0.6); }
+.press-btn:hover { filter: brightness(0.98); box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
+.press-btn:active { transform: translateY(1px); box-shadow: inset 0 2px 4px rgba(0,0,0,0.08), 0 1px 0 rgba(0,0,0,0.08); }
 
 /* Seller buttons hover/press */
 .seller-button { border: 1px solid var(--border); border-radius: 8px; background: linear-gradient(180deg, #0f1632, #0b1022); color: var(--text); box-shadow: 0 2px 0 rgba(0,0,0,0.6); transition: transform 80ms ease, filter 80ms ease, box-shadow 80ms ease; }
