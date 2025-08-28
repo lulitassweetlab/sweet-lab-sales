@@ -462,3 +462,9 @@ tfoot td { font-weight: 700; }
 .table-actions.end { display: flex; justify-content: flex-end; padding: 8px; }
 .excel-btn { padding: 8px 12px; border: 1px solid var(--border); background: #0b1022; color: var(--text); border-radius: 8px; cursor: pointer; }
 .excel-btn:hover { filter: brightness(1.1); }
+
+/* Dates section */
+.dates-section { margin: 8px 0 12px; }
+.dates-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.date-button { padding: 8px 12px; border: 1px solid var(--border); background: #0b1022; color: var(--text); border-radius: 999px; cursor: pointer; }
+.date-button:hover { filter: brightness(1.1); }

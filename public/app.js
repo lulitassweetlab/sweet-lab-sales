@@ -81,8 +81,9 @@ async function enterSeller(id) {
 	state.currentSeller = seller;
 	$('#current-seller').textContent = seller.name;
 	switchView('#view-sales');
-	updateToolbarOffset();
-	buildStickyHead();
+	// Show dates section, hide table until click
+	document.getElementById('dates-section').classList.remove('hidden');
+	document.getElementById('sales-wrapper').classList.add('hidden');
 	await loadSales();
 }
 
@@ -271,6 +272,10 @@ function bindEvents() {
 	});
 
 	document.getElementById('export-excel')?.addEventListener('click', exportTableToExcel);
+	// Static date button toggles table visibility
+	document.getElementById('date-static')?.addEventListener('click', () => {
+		document.getElementById('sales-wrapper').classList.remove('hidden');
+	});
 }
 
 // Reverted: removed sticky header clone logic to return to visible non-sticky thead state.
