@@ -341,6 +341,21 @@ async function exportConsolidatedForDate(dayIso) {
 	}
 })();
 
+(function wireReportButton(){
+	const reportBtn = document.getElementById('report-button');
+	const input = document.getElementById('report-date');
+	if (!reportBtn || !input) return;
+	reportBtn.addEventListener('click', () => {
+		// Open date picker
+		input.classList.remove('hidden');
+		const cleanup = () => { input.classList.add('hidden'); input.removeEventListener('change', handler); };
+		const handler = async () => { const iso = input.value; cleanup(); if (iso) await exportConsolidatedForDate(iso); };
+		input.addEventListener('change', handler);
+		if (typeof input.showPicker === 'function') { try { input.showPicker(); return; } catch {} }
+		input.focus(); input.click();
+	});
+})();
+
 function bindEvents() {
 	$('#add-seller').addEventListener('click', async () => {
 		const name = $('#new-seller-name').value.trim();
