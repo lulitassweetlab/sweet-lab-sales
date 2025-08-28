@@ -396,6 +396,28 @@ async function addNewDate() {
 	await loadDaysForSeller();
 }
 
+async function selectDefaultDate() {
+	// Use or create a day via API with a fixed label date stub (today as example)
+	const now = new Date();
+	const iso = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())).toISOString().slice(0,10);
+	const sellerId = state.currentSeller.id;
+	const created = await api('POST', '/api/days', { seller_id: sellerId, day: iso });
+	state.selectedDayId = created.id;
+	document.getElementById('sales-wrapper').classList.remove('hidden');
+	await loadSales();
+}
+
+function openNewDatePicker() {
+	const input = document.getElementById('new-date');
+	if (!input) return;
+	input.classList.remove('hidden');
+	input.focus();
+	input.onchange = async () => {
+		await addNewDate();
+		input.classList.add('hidden');
+	};
+}
+
 // Extend state to include saleDays and selectedDayId if not present
 if (!('saleDays' in state)) state.saleDays = [];
 if (!('selectedDayId' in state)) state.selectedDayId = null;
@@ -413,6 +435,11 @@ if (!('selectedDayId' in state)) state.selectedDayId = null;
 		await origEnter(id);
 		await loadDaysForSeller();
 	};
+})();
+
+(function enhanceStaticButtons(){
+	document.getElementById('date-default')?.addEventListener('click', selectDefaultDate);
+	document.getElementById('date-new')?.addEventListener('click', openNewDatePicker);
 })();
 
 
