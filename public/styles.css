@@ -562,10 +562,17 @@ tfoot td { font-weight: 700; }
 .press-btn:hover { filter: brightness(0.98); box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
 .press-btn:active { transform: translateY(1px); box-shadow: inset 0 2px 4px rgba(0,0,0,0.08), 0 1px 0 rgba(0,0,0,0.08); }
 
-/* Seller buttons hover/press */
-.seller-button { border: 1px solid var(--border); border-radius: 8px; background: linear-gradient(180deg, #0f1632, #0b1022); color: var(--text); box-shadow: 0 2px 0 rgba(0,0,0,0.6); transition: transform 80ms ease, filter 80ms ease, box-shadow 80ms ease; }
-.seller-button:hover { filter: brightness(1.08); }
-.seller-button:active { transform: translateY(1px); box-shadow: inset 0 2px 4px rgba(0,0,0,0.6), 0 1px 0 rgba(0,0,0,0.6); }
+/* Seller buttons hover/press - light theme */
+.seller-button {
+	border: 1px solid var(--border);
+	border-radius: 16px;
+	background: #ffffff;
+	color: var(--text);
+	box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+	transition: transform 80ms ease, filter 80ms ease, box-shadow 80ms ease;
+}
+.seller-button:hover { filter: brightness(0.98); box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
+.seller-button:active { transform: translateY(1px); box-shadow: inset 0 2px 4px rgba(0,0,0,0.08), 0 1px 0 rgba(0,0,0,0.08); }
 
 /* Report button alignment */
 #report-button { padding: 8px 12px; }
