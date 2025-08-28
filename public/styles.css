@@ -28,24 +28,25 @@ body {
 
 h1, h2 { margin: 8px 0; font-weight: 700; }
 
-main { padding: 16px; }
+main { padding: 24px; max-width: 1024px; margin: 0 auto; }
 
 .view.hidden { display: none; }
 
-.seller-list { display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0 14px; }
+.seller-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin: 16px 0 18px; }
 .seller-button {
-	padding: 10px 14px;
+	padding: 16px 18px;
 	border: 1px solid var(--border);
 	background: #ffffff;
 	color: var(--text);
-	border-radius: 999px;
+	border-radius: 16px;
 	cursor: pointer;
 	font-weight: 600;
+	font-size: 16px;
 	box-shadow: 0 1px 2px rgba(0,0,0,0.06);
 }
 .seller-button:hover { filter: brightness(0.98); box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
 
-.seller-add { display: flex; gap: 8px; align-items: center; margin: 8px 0; }
+.seller-add { display: flex; gap: 8px; align-items: center; margin: 12px 0; padding: 12px; background: #ffffff; border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
 
 select, input[type="text"], button {
 	padding: 10px 12px;
