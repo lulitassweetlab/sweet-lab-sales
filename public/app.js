@@ -374,23 +374,32 @@ function renderDaysList() {
 	const list = document.getElementById('dates-list');
 	if (!list) return;
 	list.innerHTML = '';
-	// Static default date button
+	// Static default and new buttons
+	const defItem = document.createElement('div');
+	defItem.className = 'date-item';
 	const defBtn = document.createElement('button');
 	defBtn.id = 'date-default';
 	defBtn.className = 'date-button';
 	defBtn.textContent = 'Viernes, Agosto 29';
 	defBtn.addEventListener('click', selectDefaultDate);
-	list.appendChild(defBtn);
-	// Static new date button
+	defItem.appendChild(defBtn);
+	list.appendChild(defItem);
+
+	const newItem = document.createElement('div');
+	newItem.className = 'date-item';
 	const newBtn = document.createElement('button');
 	newBtn.id = 'date-new';
 	newBtn.className = 'date-button';
 	newBtn.textContent = 'Nueva fecha';
 	newBtn.addEventListener('click', openNewDatePicker);
-	list.appendChild(newBtn);
-	// Append API-provided days (skip invalid)
+	newItem.appendChild(newBtn);
+	list.appendChild(newItem);
+
+	// API-provided days
 	for (const d of (state.saleDays || [])) {
 		if (!d || !d.day) continue;
+		const item = document.createElement('div');
+		item.className = 'date-item';
 		const btn = document.createElement('button');
 		btn.className = 'date-button';
 		btn.textContent = formatDayLabel(d.day);
@@ -399,7 +408,24 @@ function renderDaysList() {
 			document.getElementById('sales-wrapper').classList.remove('hidden');
 			await loadSales();
 		});
-		list.appendChild(btn);
+		const del = document.createElement('button');
+		del.className = 'date-delete';
+		del.title = 'Eliminar fecha';
+		del.textContent = '🗑️';
+		del.addEventListener('click', async (e) => {
+			e.stopPropagation();
+			await api('DELETE', `/api/days?id=${encodeURIComponent(d.id)}`);
+			// If deleting selected date, clear table
+			if (state.selectedDayId === d.id) {
+				state.selectedDayId = null;
+				state.sales = [];
+				document.getElementById('sales-wrapper').classList.add('hidden');
+			}
+			await loadDaysForSeller();
+		});
+		item.appendChild(btn);
+		item.appendChild(del);
+		list.appendChild(item);
 	}
 }
 

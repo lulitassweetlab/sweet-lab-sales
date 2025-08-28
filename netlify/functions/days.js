@@ -30,6 +30,14 @@ export async function handler(event) {
 				const id = await getOrCreateDayId(sellerId, day);
 				return json({ id, day }, 201);
 			}
+			case 'DELETE': {
+				const params = new URLSearchParams(event.rawQuery || event.queryStringParameters ? event.rawQuery || '' : '');
+				const idParam = params.get('id') || (event.queryStringParameters && event.queryStringParameters.id);
+				const id = Number(idParam);
+				if (!id) return json({ error: 'id requerido' }, 400);
+				await sql`DELETE FROM sale_days WHERE id=${id}`;
+				return json({ ok: true });
+			}
 			default:
 				return json({ error: 'Método no permitido' }, 405);
 		}
