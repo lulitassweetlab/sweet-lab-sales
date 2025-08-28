@@ -79,6 +79,8 @@ async function enterSeller(id) {
 	const seller = state.sellers.find(s => s.id === id);
 	if (!seller) return;
 	state.currentSeller = seller;
+	state.saleDays = [];
+	state.selectedDayId = null;
 	$('#current-seller').textContent = seller.name;
 	switchView('#view-sales');
 	// Show dates section, hide table until click
@@ -372,7 +374,23 @@ function renderDaysList() {
 	const list = document.getElementById('dates-list');
 	if (!list) return;
 	list.innerHTML = '';
-	for (const d of state.saleDays) {
+	// Static default date button
+	const defBtn = document.createElement('button');
+	defBtn.id = 'date-default';
+	defBtn.className = 'date-button';
+	defBtn.textContent = 'Viernes, Agosto 29';
+	defBtn.addEventListener('click', selectDefaultDate);
+	list.appendChild(defBtn);
+	// Static new date button
+	const newBtn = document.createElement('button');
+	newBtn.id = 'date-new';
+	newBtn.className = 'date-button';
+	newBtn.textContent = 'Nueva fecha';
+	newBtn.addEventListener('click', openNewDatePicker);
+	list.appendChild(newBtn);
+	// Append API-provided days (skip invalid)
+	for (const d of (state.saleDays || [])) {
+		if (!d || !d.day) continue;
 		const btn = document.createElement('button');
 		btn.className = 'date-button';
 		btn.textContent = formatDayLabel(d.day);
