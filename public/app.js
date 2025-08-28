@@ -292,6 +292,55 @@ function exportTableToExcel() {
 	XLSX.writeFile(wb, `${sellerName}_${dateStr}.xlsx`);
 }
 
+async function exportConsolidatedForDate(dayIso) {
+	// Load sellers
+	const sellers = await api('GET', API.Sellers);
+	const wb = XLSX.utils.book_new();
+	for (const s of sellers) {
+		const params = new URLSearchParams({ seller_id: String(s.id), sale_day_id: '' });
+		// Resolve sale_day_id for this seller/day
+		const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(s.id)}`);
+		const day = (days || []).find(d => (String(d.day).slice(0,10) === String(dayIso).slice(0,10)));
+		if (!day) continue;
+		params.set('sale_day_id', String(day.id));
+		const sales = await api('GET', `${API.Sales}?${params.toString()}`);
+		const rows = [['$', 'Cliente', 'Arco', 'Melo', 'Mara', 'Oreo', 'Total']];
+		for (const r of (sales || [])) {
+			rows.push([r.is_paid ? '✓' : '', r.client_name || '', r.qty_arco || 0, r.qty_melo || 0, r.qty_mara || 0, r.qty_oreo || 0, r.total_cents || 0]);
+		}
+		if (rows.length > 1) {
+			const ws = XLSX.utils.aoa_to_sheet(rows);
+			ws['!cols'] = [ {wch:3},{wch:24},{wch:6},{wch:6},{wch:6},{wch:6},{wch:10} ];
+			const sheetName = (s.name || 'Vendedor').substring(0, 28);
+			XLSX.utils.book_append_sheet(wb, ws, sheetName);
+		}
+	}
+	const dateLabel = formatDayLabel(String(dayIso).slice(0,10)).replace(/\s+/g, '_');
+	XLSX.writeFile(wb, `Consolidado_${dateLabel}.xlsx`);
+}
+
+(function wireGlobalDates(){
+	const globalList = document.getElementById('global-dates-list');
+	if (!globalList) return;
+	// Load unique dates across sellers by querying one seller (or better: consolidate server-side). Here, we’ll show last 7 days from today.
+	const today = new Date();
+	const days = [];
+	for (let i=0;i<7;i++) {
+		const d = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()-i));
+		days.push(d.toISOString().slice(0,10));
+	}
+	for (const iso of days) {
+		const item = document.createElement('div');
+		item.className = 'date-item';
+		const btn = document.createElement('button');
+		btn.className = 'date-button';
+		btn.textContent = formatDayLabel(iso);
+		btn.addEventListener('click', async () => { await exportConsolidatedForDate(iso); });
+		item.appendChild(btn);
+		globalList.appendChild(item);
+	}
+})();
+
 function bindEvents() {
 	$('#add-seller').addEventListener('click', async () => {
 		const name = $('#new-seller-name').value.trim();
