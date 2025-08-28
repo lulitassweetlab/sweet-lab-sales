@@ -366,10 +366,10 @@ tfoot td { font-weight: 700; }
 
 /* Sticky header offset below toolbar */
 :root { --toolbarH: 48px; }
-#sales-table thead th { top: var(--toolbarH); z-index: 20; }
-
-/* Use native sticky table header under toolbar */
 #sales-table thead th { position: sticky; top: var(--toolbarH, 0px); background: #0b1022; z-index: 20; }
+
+/* Ensure thead is visible */
+#sales-table thead { display: table-header-group; }
 
 /* Remove custom columns bar styles */
 .columns-bar { display: none; }
