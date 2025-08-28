@@ -57,7 +57,7 @@ async function api(method, url, body) {
 async function loadSellers() {
 	state.sellers = await api('GET', API.Sellers);
 	renderSellerButtons();
-	syncColumnsBarWidths();
+	// Removed syncColumnsBarWidths();
 }
 
 function renderSellerButtons() {
@@ -122,7 +122,7 @@ function renderTable() {
 		tbody.appendChild(tr);
 	}
 	updateSummary();
-	requestAnimationFrame(() => syncColumnsBarWidths());
+	// Removed requestAnimationFrame(() => syncColumnsBarWidths());
 }
 
 async function loadSales() {
@@ -227,26 +227,7 @@ function bindEvents() {
 	});
 }
 
-function syncColumnsBarWidths() {
-	const table = document.getElementById('sales-table');
-	const bar = document.querySelector('.columns-bar');
-	if (!table || !bar) return;
-	// Pick a reference row to measure: first body row, else first tfoot row
-	let refRow = table.tBodies[0] && table.tBodies[0].rows[0];
-	if (!refRow) refRow = table.tFoot && table.tFoot.rows[0];
-	if (!refRow) return;
-	const cells = Array.from(refRow.cells);
-	const barCols = Array.from(bar.children);
-	// If refRow has fewer/more cells, bail
-	if (cells.length !== barCols.length) return;
-	for (let i = 0; i < cells.length; i++) {
-		const w = Math.round(cells[i].getBoundingClientRect().width);
-		barCols[i].style.width = w + 'px';
-	}
-}
-
-// Re-sync on layout changes
-window.addEventListener('resize', () => syncColumnsBarWidths());
+// Removed syncColumnsBarWidths and related calls; native sticky thead aligns columns automatically.
 
 
 (async function init() {

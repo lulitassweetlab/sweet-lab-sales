@@ -368,12 +368,11 @@ tfoot td { font-weight: 700; }
 :root { --toolbarH: 48px; }
 #sales-table thead th { top: var(--toolbarH); z-index: 20; }
 
-/* Sticky composite header (toolbar + columns) */
-.header-sticky { position: sticky; top: 0; z-index: 20; background: var(--surface); }
-.columns-bar { box-sizing: border-box; display: grid; gap: 0; border-bottom: 1px solid var(--border); background: #0b1022; padding: 0; position: sticky; top: var(--toolbarH, 0px); z-index: 19; }
-.columns-bar .col { text-align: center; font-weight: 700; font-size: 12px; padding: 6px; }
-.columns-bar .c-client { text-align: left; }
-.columns-bar .c-total { text-align: right; }
+/* Use native sticky table header under toolbar */
+#sales-table thead th { position: sticky; top: var(--toolbarH, 0px); background: #0b1022; z-index: 20; }
+
+/* Remove custom columns bar styles */
+.columns-bar { display: none; }
 
 /* Map CSS variables to colgroup widths for alignment */
 /* Widths including new Paid column */
