@@ -246,7 +246,6 @@ function buildStickyHead() {
 	if (!table || !sticky) return;
 	const theadRow = table.tHead && table.tHead.rows[0];
 	if (!theadRow) return;
-	// Clear and rebuild
 	sticky.innerHTML = '';
 	const cells = Array.from(theadRow.cells);
 	for (const th of cells) {
@@ -255,8 +254,12 @@ function buildStickyHead() {
 		div.textContent = th.textContent;
 		sticky.appendChild(div);
 	}
-	sticky.classList.remove('hidden');
-	syncStickyHeadWidths();
+	if (table.tBodies[0] && table.tBodies[0].rows.length > 0) {
+		sticky.classList.remove('hidden');
+		syncStickyHeadWidths();
+	} else {
+		sticky.classList.add('hidden');
+	}
 }
 
 function syncStickyHeadWidths() {
