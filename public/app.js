@@ -81,6 +81,7 @@ async function enterSeller(id) {
 	state.currentSeller = seller;
 	$('#current-seller').textContent = seller.name;
 	switchView('#view-sales');
+	updateToolbarOffset();
 	await loadSales();
 }
 
@@ -229,8 +230,18 @@ function bindEvents() {
 
 // Removed syncColumnsBarWidths and related calls; native sticky thead aligns columns automatically.
 
+function updateToolbarOffset() {
+	const toolbar = document.querySelector('.toolbar');
+	if (!toolbar) return;
+	const h = Math.ceil(toolbar.getBoundingClientRect().height);
+	document.documentElement.style.setProperty('--toolbarH', h + 'px');
+}
+
+window.addEventListener('resize', updateToolbarOffset);
+
 
 (async function init() {
 	bindEvents();
+	updateToolbarOffset();
 	await loadSellers();
 })();
