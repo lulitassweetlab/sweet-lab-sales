@@ -393,17 +393,6 @@ function renderDaysList() {
 			document.getElementById('sales-wrapper').classList.remove('hidden');
 			await loadSales();
 		});
-		const edit = document.createElement('button');
-		edit.className = 'date-edit';
-		edit.title = 'Editar fecha';
-		edit.textContent = '✏️';
-		edit.addEventListener('click', (e) => {
-			e.stopPropagation();
-			openDatePickerAndGetISO(async (iso) => {
-				await api('PUT', '/api/days', { id: d.id, day: iso });
-				await loadDaysForSeller();
-			});
-		});
 		const del = document.createElement('button');
 		del.className = 'date-delete';
 		del.title = 'Eliminar fecha';
@@ -419,7 +408,6 @@ function renderDaysList() {
 			await loadDaysForSeller();
 		});
 		item.appendChild(btn);
-		item.appendChild(edit);
 		item.appendChild(del);
 		list.appendChild(item);
 	}

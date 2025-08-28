@@ -487,3 +487,10 @@ tfoot td { font-weight: 700; }
 .date-item .date-edit { border: none; background: transparent; color: var(--muted); font-size: 14px; padding: 4px 6px; cursor: pointer; }
 .date-item .date-edit:hover { filter: brightness(1.2); }
 .date-item { gap: 2px; }
+
+/* Dates header with right-aligned 'Nueva fecha' */
+.dates-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.dates-header .date-button { padding: 6px 10px; }
+
+/* Click/active feedback */
+.date-button:active, .excel-btn:active, .row-delete:active { transform: scale(0.98); filter: brightness(0.9); }
