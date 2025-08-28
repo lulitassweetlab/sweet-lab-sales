@@ -363,42 +363,24 @@ async function loadDaysForSeller() {
 	renderDaysList();
 }
 
-function formatDayLabel(iso) {
-	// Accept YYYY-MM-DD; fallback to raw string if invalid
-	const valid = /^\d{4}-\d{2}-\d{2}$/.test(iso);
-	if (!valid) return String(iso || 'Fecha');
+function formatDayLabel(input) {
+	if (!input) return 'Fecha';
+	// Accept YYYY-MM-DD or ISO datetime; normalize to YYYY-MM-DD
+	let iso = String(input);
+	if (/^\d{4}-\d{2}-\d{2}T/.test(iso)) iso = iso.slice(0, 10);
+	if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return String(input);
 	const d = new Date(iso + 'T00:00:00Z');
-	if (isNaN(d.getTime())) return String(iso);
-	try {
-		const fmt = new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
-		let s = fmt.format(d);
-		// Capitaliza primera letra del mes/día
-		s = s.charAt(0).toUpperCase() + s.slice(1);
-		// Formato: Viernes, Agosto 29
-		const parts = s.replace(/ de /g, ' ').split(' ');
-		if (parts.length >= 3) return `${parts[0]}, ${parts[2]} ${parts[1]}`;
-		return s;
-	} catch {
-		return String(iso);
-	}
+	if (isNaN(d.getTime())) return iso;
+	const weekdays = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+	const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+	return `${weekdays[d.getUTCDay()]} ${months[d.getUTCMonth()]} ${d.getUTCDate()}`;
 }
 
 function renderDaysList() {
 	const list = document.getElementById('dates-list');
 	if (!list) return;
 	list.innerHTML = '';
-	// Only "Nueva fecha" button
-	const newItem = document.createElement('div');
-	newItem.className = 'date-item';
-	const newBtn = document.createElement('button');
-	newBtn.id = 'date-new';
-	newBtn.className = 'date-button';
-	newBtn.textContent = 'Nueva fecha';
-	newBtn.addEventListener('click', openNewDatePicker);
-	newItem.appendChild(newBtn);
-	list.appendChild(newItem);
-
-	// API-provided days
+	// Render API-provided days only (Nueva fecha button is next to Excel)
 	for (const d of (state.saleDays || [])) {
 		if (!d || !d.day) continue;
 		const item = document.createElement('div');
