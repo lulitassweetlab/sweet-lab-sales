@@ -122,7 +122,7 @@ function renderTable() {
 		tbody.appendChild(tr);
 	}
 	updateSummary();
-	syncColumnsBarWidths();
+	requestAnimationFrame(() => syncColumnsBarWidths());
 }
 
 async function loadSales() {
