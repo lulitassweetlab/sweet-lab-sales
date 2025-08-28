@@ -527,3 +527,18 @@ tfoot td { font-weight: 700; }
 
 /* Click/active feedback */
 .date-button:active, .excel-btn:active, .row-delete:active { transform: scale(0.98); filter: brightness(0.9); }
+
+/* Date button background and relief */
+.date-button {
+	background: linear-gradient(180deg, #0f1632, #0b1022);
+}
+.date-button:hover { background: linear-gradient(180deg, #141c40, #0d1328); }
+.date-button:active {
+	transform: translateY(1px);
+	box-shadow: inset 0 2px 4px rgba(0,0,0,0.6), 0 1px 0 rgba(0,0,0,0.6);
+	background: linear-gradient(180deg, #0b1022, #0f1632);
+}
+
+/* Date chip (date-item) relief */
+.date-item { background: linear-gradient(180deg, #101737, #0b1022); }
+.date-item:active { box-shadow: inset 0 2px 4px rgba(0,0,0,0.6), 0 1px 0 rgba(0,0,0,0.6); }
