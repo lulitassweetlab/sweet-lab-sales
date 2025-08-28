@@ -210,6 +210,10 @@ tfoot td { font-weight: 700; }
 /* Remove date bar and modal styles (cleanup) */
 .dates-bar, .dates-list, .date-button, .modal, .modal-content, .date-wheel, .modal-actions { display: none; }
 
+/* Override old cleanup that hid dates UI */
+.dates-list { display: flex !important; flex-wrap: wrap; gap: 8px; }
+.date-button { display: inline-block !important; }
+
 /* Column widths */
 .w-client { width: 32%; }
 .w-qty { width: 11%; }
