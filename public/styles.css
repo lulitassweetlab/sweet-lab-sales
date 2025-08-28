@@ -457,3 +457,8 @@ tfoot td { font-weight: 700; }
 #sales-table thead th { position: static !important; top: auto !important; z-index: auto !important; }
 .sticky-head { display: none !important; }
 .table-wrapper { padding-top: 0 !important; overflow-y: visible !important; }
+
+/* Excel button placement */
+.table-actions.end { display: flex; justify-content: flex-end; padding: 8px; }
+.excel-btn { padding: 8px 12px; border: 1px solid var(--border); background: #0b1022; color: var(--text); border-radius: 8px; cursor: pointer; }
+.excel-btn:hover { filter: brightness(1.1); }

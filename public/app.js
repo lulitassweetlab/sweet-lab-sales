@@ -213,6 +213,64 @@ function debounce(fn, ms) {
 	};
 }
 
+function exportTableToExcel() {
+	const rows = [];
+	// Header row
+	rows.push(['$', 'Cliente', 'Arco', 'Melo', 'Mara', 'Oreo', 'Total']);
+	// Body rows
+	const tbody = document.getElementById('sales-tbody');
+	if (tbody) {
+		for (const tr of Array.from(tbody.rows)) {
+			const paid = tr.querySelector('td.col-paid input[type="checkbox"]').checked ? '✓' : '';
+			const client = tr.querySelector('td.col-client input')?.value ?? '';
+			const arco = tr.querySelector('td.col-arco input')?.value ?? '';
+			const melo = tr.querySelector('td.col-melo input')?.value ?? '';
+			const mara = tr.querySelector('td.col-mara input')?.value ?? '';
+			const oreo = tr.querySelector('td.col-oreo input')?.value ?? '';
+			const total = tr.querySelector('td.col-total')?.textContent?.trim() ?? '';
+			rows.push([paid, client, arco, melo, mara, oreo, total]);
+		}
+	}
+	// Footer totals (quantities and amounts)
+	const qtyRow = [ '', 'Totales (cant.)',
+		document.getElementById('sum-arco-qty')?.textContent ?? '',
+		document.getElementById('sum-melo-qty')?.textContent ?? '',
+		document.getElementById('sum-mara-qty')?.textContent ?? '',
+		document.getElementById('sum-oreo-qty')?.textContent ?? '',
+		document.getElementById('sum-total-qty')?.textContent ?? ''
+	];
+	rows.push(qtyRow);
+	const amtRow = [ '', 'Totales (valor)',
+		document.getElementById('sum-arco-amt')?.textContent ?? '',
+		document.getElementById('sum-melo-amt')?.textContent ?? '',
+		document.getElementById('sum-mara-amt')?.textContent ?? '',
+		document.getElementById('sum-oreo-amt')?.textContent ?? '',
+		document.getElementById('sum-grand')?.textContent ?? ''
+	];
+	rows.push(amtRow);
+
+	// Build CSV content (Excel-compatible)
+	const csv = rows.map(r => r.map(cell => {
+		const s = String(cell ?? '');
+		if (s.includes('"') || s.includes(',') || s.includes('\n')) {
+			return '"' + s.replace(/"/g, '""') + '"';
+		}
+		return s;
+	}).join(',')).join('\n');
+
+	const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+	const url = URL.createObjectURL(blob);
+	const a = document.createElement('a');
+	const sellerName = state.currentSeller?.name?.replace(/[^\w\-]+/g, '_') || 'ventas';
+	const dateStr = new Date().toISOString().slice(0,10);
+	a.href = url;
+	a.download = `${sellerName}_${dateStr}.xlsx`;
+	document.body.appendChild(a);
+	a.click();
+	document.body.removeChild(a);
+	URL.revokeObjectURL(url);
+}
+
 function bindEvents() {
 	$('#add-seller').addEventListener('click', async () => {
 		const name = $('#new-seller-name').value.trim();
@@ -227,6 +285,8 @@ function bindEvents() {
 		state.sales = [];
 		switchView('#view-select-seller');
 	});
+
+	document.getElementById('export-excel')?.addEventListener('click', exportTableToExcel);
 }
 
 // Reverted: removed sticky header clone logic to return to visible non-sticky thead state.
