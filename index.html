@@ -4,8 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lulitas Sweet Lab - Sistema de Ventas</title>
-    <!-- SheetJS library for Excel export -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -152,15 +150,7 @@
             transform: translateY(-2px);
         }
 
-        .btn-success {
-            background: #28a745;
-            color: white;
-        }
 
-        .btn-success:hover {
-            background: #218838;
-            transform: translateY(-2px);
-        }
 
         .btn-sm {
             padding: 8px 16px;
@@ -547,7 +537,6 @@
                     </div>
                     <div>
                         <button onclick="addSale()" class="add-sale-btn">➕ Nueva Venta</button>
-                        <button onclick="exportCurrentSellerToExcel()" class="btn btn-success" style="margin-left: 15px;">📄 Exportar Excel</button>
                         <button onclick="goHome()" class="btn btn-secondary" style="margin-left: 15px;">🏠 Inicio</button>
                     </div>
                 </div>
@@ -606,9 +595,7 @@
         // Inicialización
         document.addEventListener('DOMContentLoaded', function() {
             loadConfig();
-            loadData().then(() => {
-                renderSellers(); // Forzar renderizado después de cargar datos
-            });
+            loadData();
             updateConnectionStatus();
             
             // Event listener para Enter en el input de nuevo vendedor
@@ -1001,9 +988,6 @@
                         <button onclick="selectSeller('${seller.id}')" class="btn btn-primary btn-sm">
                             📊 Ver Ventas
                         </button>
-                        <button onclick="exportSellerToExcel('${seller.id}')" class="btn btn-success btn-sm">
-                            📄 Excel
-                        </button>
                         <button onclick="editSeller('${seller.id}')" class="btn btn-secondary btn-sm">
                             ✏️ Editar
                         </button>
@@ -1051,95 +1035,7 @@
             }
         }
 
-        function exportSellerToExcel(sellerId) {
-            const seller = sellers.find(s => s.id === sellerId);
-            if (!seller) {
-                showStatus('❌ Vendedor no encontrado', 'error');
-                return;
-            }
 
-            const sellerSales = sales.filter(s => s.sellerId === sellerId);
-            
-            if (sellerSales.length === 0) {
-                showStatus('❌ No hay ventas para exportar', 'error');
-                return;
-            }
-
-            try {
-                // Crear datos para el Excel
-                const excelData = sellerSales.map(sale => {
-                    const total = (sale.arco * PRICES.arco) + (sale.melo * PRICES.melo) + 
-                                 (sale.mara * PRICES.mara) + (sale.oreo * PRICES.oreo);
-                    
-                    return {
-                        'Cliente': sale.client || 'Sin nombre',
-                        'Arco ($8,500)': sale.arco || 0,
-                        'Melo ($9,500)': sale.melo || 0,
-                        'Mara ($10,500)': sale.mara || 0,
-                        'Oreo ($10,500)': sale.oreo || 0,
-                        'Total': total,
-                        'Fecha': new Date(sale.createdAt).toLocaleDateString('es-ES'),
-                        'Hora': new Date(sale.createdAt).toLocaleTimeString('es-ES')
-                    };
-                });
-
-                // Agregar fila de totales
-                const totalArco = sellerSales.reduce((sum, sale) => sum + (sale.arco || 0), 0);
-                const totalMelo = sellerSales.reduce((sum, sale) => sum + (sale.melo || 0), 0);
-                const totalMara = sellerSales.reduce((sum, sale) => sum + (sale.mara || 0), 0);
-                const totalOreo = sellerSales.reduce((sum, sale) => sum + (sale.oreo || 0), 0);
-                const grandTotal = sellerSales.reduce((sum, sale) => {
-                    return sum + (sale.arco * PRICES.arco) + (sale.melo * PRICES.melo) + 
-                           (sale.mara * PRICES.mara) + (sale.oreo * PRICES.oreo);
-                }, 0);
-
-                excelData.push({
-                    'Cliente': 'TOTALES',
-                    'Arco ($8,500)': totalArco,
-                    'Melo ($9,500)': totalMelo,
-                    'Mara ($10,500)': totalMara,
-                    'Oreo ($10,500)': totalOreo,
-                    'Total': grandTotal,
-                    'Fecha': '',
-                    'Hora': ''
-                });
-
-                // Crear el workbook y worksheet
-                const ws = XLSX.utils.json_to_sheet(excelData);
-                const wb = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(wb, ws, 'Ventas');
-
-                // Configurar el ancho de las columnas
-                const colWidths = [
-                    { wch: 20 }, // Cliente
-                    { wch: 12 }, // Arco
-                    { wch: 12 }, // Melo
-                    { wch: 12 }, // Mara
-                    { wch: 12 }, // Oreo
-                    { wch: 15 }, // Total
-                    { wch: 12 }, // Fecha
-                    { wch: 10 }  // Hora
-                ];
-                ws['!cols'] = colWidths;
-
-                // Generar el archivo y descargarlo
-                const fileName = `Ventas_${seller.name}_${new Date().toISOString().split('T')[0]}.xlsx`;
-                XLSX.writeFile(wb, fileName);
-
-                showStatus('✅ Archivo Excel generado exitosamente', 'success');
-            } catch (error) {
-                console.error('Error al generar Excel:', error);
-                showStatus('❌ Error al generar el archivo Excel', 'error');
-            }
-        }
-
-        function exportCurrentSellerToExcel() {
-            if (!currentSeller) {
-                showStatus('❌ No hay vendedor seleccionado', 'error');
-                return;
-            }
-            exportSellerToExcel(currentSeller.id);
-        }
 
         function exportAllSalesToExcel() {
             if (sales.length === 0) {
@@ -1503,15 +1399,7 @@
             }
         }, 2000);
 
-        // Función global para forzar actualización de la interfaz
-        window.forceUpdate = function() {
-            renderSellers();
-            if (currentSeller) {
-                renderSales();
-                calculateTotal();
-            }
-            showStatus('🔄 Interfaz actualizada', 'success');
-        };
+
     </script>
 </body>
 </html>

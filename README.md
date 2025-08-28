@@ -43,15 +43,3 @@ npx netlify dev
 
 - Define `NETLIFY_DATABASE_URL` en tu entorno local para probar.
 
-## Funcionalidades
-
-### Exportación a Excel
-- **Botón "📄 Excel" en cada vendedor**: Permite exportar todas las ventas del vendedor a un archivo Excel.
-- **Botón "📄 Exportar Excel" en la página de ventas**: Exporta las ventas del vendedor actual.
-- **Contenido del archivo Excel**:
-  - Cliente
-  - Cantidad de cada producto (Arco, Melo, Mara, Oreo)
-  - Total por venta
-  - Fecha y hora de la venta
-  - Fila de totales al final
-- **Nombre del archivo**: `Ventas_[NombreVendedor]_[Fecha].xlsx`
