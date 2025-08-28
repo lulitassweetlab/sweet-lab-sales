@@ -364,10 +364,23 @@ async function loadDaysForSeller() {
 }
 
 function formatDayLabel(iso) {
+	// Accept YYYY-MM-DD; fallback to raw string if invalid
+	const valid = /^\d{4}-\d{2}-\d{2}$/.test(iso);
+	if (!valid) return String(iso || 'Fecha');
 	const d = new Date(iso + 'T00:00:00Z');
-	const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-	const weekdays = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-	return `${weekdays[d.getUTCDay()]}, ${months[d.getUTCMonth()]} ${d.getUTCDate()}`;
+	if (isNaN(d.getTime())) return String(iso);
+	try {
+		const fmt = new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+		let s = fmt.format(d);
+		// Capitaliza primera letra del mes/día
+		s = s.charAt(0).toUpperCase() + s.slice(1);
+		// Formato: Viernes, Agosto 29
+		const parts = s.replace(/ de /g, ' ').split(' ');
+		if (parts.length >= 3) return `${parts[0]}, ${parts[2]} ${parts[1]}`;
+		return s;
+	} catch {
+		return String(iso);
+	}
 }
 
 function renderDaysList() {
@@ -445,15 +458,34 @@ function openDatePickerAndGetISO(onPicked) {
 	const input = document.getElementById('new-date');
 	if (!input) return;
 	input.classList.remove('hidden');
+	// Ensure it's visible for iOS pickers
+	input.style.position = 'fixed';
+	input.style.left = '50%';
+	input.style.top = '50%';
+	input.style.transform = 'translate(-50%, -50%)';
+	input.style.zIndex = '100';
 	input.value = '';
-	input.focus();
+	const cleanup = () => {
+		input.classList.add('hidden');
+		input.style.position = '';
+		input.style.left = '';
+		input.style.top = '';
+		input.style.transform = '';
+		input.style.zIndex = '';
+		input.removeEventListener('change', handler);
+	};
 	const handler = async () => {
 		const day = input.value;
-		input.classList.add('hidden');
-		input.removeEventListener('change', handler);
+		cleanup();
 		if (day && typeof onPicked === 'function') onPicked(day);
 	};
 	input.addEventListener('change', handler);
+	// Open picker programmatically
+	if (typeof input.showPicker === 'function') {
+		try { input.showPicker(); return; } catch {}
+	}
+	input.focus();
+	input.click();
 }
 
 async function selectDefaultDate() {
@@ -471,24 +503,15 @@ async function selectDefaultDate() {
 function openNewDatePicker() {
 	openDatePickerAndGetISO(async (iso) => {
 		const sellerId = state.currentSeller.id;
-		const created = await api('POST', '/api/days', { seller_id: sellerId, day: iso });
-		// Create a new date button
-		const list = document.getElementById('dates-list');
-		if (list) {
-			const btn = document.createElement('button');
-			btn.className = 'date-button';
-			btn.textContent = formatDayLabel(iso);
-			btn.addEventListener('click', async () => {
-				state.selectedDayId = created.id;
-				document.getElementById('sales-wrapper').classList.remove('hidden');
-				await loadSales();
-			});
-			list.appendChild(btn);
+		await api('POST', '/api/days', { seller_id: sellerId, day: iso });
+		await loadDaysForSeller();
+		// Auto-select newly added date
+		const added = (state.saleDays || []).find(d => d.day === iso);
+		if (added) {
+			state.selectedDayId = added.id;
+			document.getElementById('sales-wrapper').classList.remove('hidden');
+			await loadSales();
 		}
-		// Select it and show table
-		state.selectedDayId = created.id;
-		document.getElementById('sales-wrapper').classList.remove('hidden');
-		await loadSales();
 	});
 }
 
