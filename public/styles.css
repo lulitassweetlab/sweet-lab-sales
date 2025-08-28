@@ -542,3 +542,12 @@ tfoot td { font-weight: 700; }
 /* Date chip (date-item) relief */
 .date-item { background: linear-gradient(180deg, #101737, #0b1022); }
 .date-item:active { box-shadow: inset 0 2px 4px rgba(0,0,0,0.6), 0 1px 0 rgba(0,0,0,0.6); }
+
+/* Inline add row at end of table */
+.add-row-line td { padding: 8px 6px; text-align: left; }
+.inline-add-btn { padding: 8px 12px; border: 1px dashed var(--border); background: #0b1022; color: var(--text); border-radius: 8px; box-shadow: 0 2px 0 rgba(0,0,0,0.6); }
+.inline-add-btn:hover { filter: brightness(1.15); }
+.inline-add-btn:active { transform: translateY(1px); box-shadow: 0 1px 0 rgba(0,0,0,0.6); }
+
+/* Brighter hover for date buttons */
+.date-button:hover { background: linear-gradient(180deg, #1a255a, #0f1632); }

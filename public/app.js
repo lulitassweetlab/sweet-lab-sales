@@ -142,8 +142,23 @@ function renderTable() {
 		tr.dataset.id = String(sale.id);
 		tbody.appendChild(tr);
 	}
+	// Inline add row line just below last sale
+	const colCount = document.querySelectorAll('#sales-table thead th').length || 8;
+	const addTr = document.createElement('tr');
+	addTr.className = 'add-row-line';
+	const td = document.createElement('td');
+	td.colSpan = colCount;
+	const btn = document.createElement('button');
+	btn.className = 'inline-add-btn';
+	btn.textContent = 'Agregar venta';
+	btn.addEventListener('click', addRow);
+	td.appendChild(btn);
+	addTr.appendChild(td);
+	tbody.appendChild(addTr);
+
 	updateSummary();
-	requestAnimationFrame(() => { syncStickyHeadWidths(); updateStickyHeadOffset(); });
+	// Remove old bottom add button if present
+	document.getElementById('add-row-bottom')?.closest('.table-actions')?.remove();
 }
 
 async function loadSales() {
