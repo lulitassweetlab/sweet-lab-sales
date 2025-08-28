@@ -370,6 +370,13 @@ tfoot td { font-weight: 700; }
 	#sales-table tfoot .tfoot-amt td { font-size: clamp(6px, 1.8vw, 9px); padding-left: 1px; padding-right: 1px; }
 }
 
+/* Revert header to non-sticky but visible and aligned across devices */
+#sales-table thead { display: table-header-group !important; }
+#sales-table thead th { position: static !important; top: auto !important; }
+
+/* Ensure the table wrapper does not trap vertical scroll */
+.table-wrapper { overflow-x: auto; overflow-y: visible; max-height: none; }
+
 /* Sticky header offset below toolbar */
 :root { --toolbarH: 48px; }
 #sales-table thead th { position: sticky; top: var(--toolbarH, 0px); background: #0b1022; z-index: 20; }
