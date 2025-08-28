@@ -254,12 +254,8 @@ function buildStickyHead() {
 		div.textContent = th.textContent;
 		sticky.appendChild(div);
 	}
-	if (table.tBodies[0] && table.tBodies[0].rows.length > 0) {
-		sticky.classList.remove('hidden');
-		syncStickyHeadWidths();
-	} else {
-		sticky.classList.add('hidden');
-	}
+	sticky.classList.remove('hidden');
+	syncStickyHeadWidths();
 }
 
 function syncStickyHeadWidths() {
