@@ -229,7 +229,7 @@ function bindEvents() {
 	});
 }
 
-// Removed syncColumnsBarWidths and related calls; native sticky thead aligns columns automatically.
+// Reverted: removed sticky header clone logic to return to visible non-sticky thead state.
 
 function updateToolbarOffset() {
 	const toolbar = document.querySelector('.toolbar');
