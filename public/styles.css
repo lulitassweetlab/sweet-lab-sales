@@ -488,9 +488,42 @@ tfoot td { font-weight: 700; }
 .date-item .date-edit:hover { filter: brightness(1.2); }
 .date-item { gap: 2px; }
 
-/* Dates header with right-aligned 'Nueva fecha' */
-.dates-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
-.dates-header .date-button { padding: 6px 10px; }
+/* Dates header with left-aligned 'Nueva fecha' next to title */
+.dates-header { display: flex; align-items: center; justify-content: flex-start; gap: 8px; margin-bottom: 8px; }
+.dates-header .date-button { padding: 8px 12px; }
+
+/* Button visuals and press feedback */
+.date-button, .excel-btn, .date-delete {
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	background: #0b1022;
+	color: var(--text);
+	box-shadow: 0 2px 0 rgba(0,0,0,0.6);
+	transition: transform 80ms ease, filter 80ms ease, box-shadow 80ms ease;
+}
+.date-button:hover, .excel-btn:hover, .date-delete:hover { filter: brightness(1.08); }
+.date-button:active, .excel-btn:active, .date-delete:active {
+	transform: translateY(1px);
+	box-shadow: 0 1px 0 rgba(0,0,0,0.6);
+}
+
+/* Make each date item feel clickable as a whole */
+.date-item {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	border: 1px solid var(--border);
+	background: #0b1022;
+	color: var(--text);
+	border-radius: 999px;
+	padding: 4px 6px;
+	box-shadow: 0 2px 0 rgba(0,0,0,0.6);
+	transition: transform 80ms ease, box-shadow 80ms ease;
+}
+.date-item:active { transform: translateY(1px); box-shadow: 0 1px 0 rgba(0,0,0,0.6); }
+
+/* Ensure inner date-button inside date-item looks seamless */
+.date-item .date-button { border: none; background: transparent; padding: 6px 8px; box-shadow: none; }
 
 /* Click/active feedback */
 .date-button:active, .excel-btn:active, .row-delete:active { transform: scale(0.98); filter: brightness(0.9); }
