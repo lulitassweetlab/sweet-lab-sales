@@ -282,7 +282,7 @@ tfoot td { font-weight: 700; }
 .w-actions { width: 6%; }
 
 /* Sticky header */
-#sales-table thead th { position: sticky; top: 0; background: #0b1022; z-index: 2; }
+#sales-table thead th { position: sticky; top: 0; background: #ffffff; z-index: 2; }
 
 /* Compact rows */
 th, td { border-bottom: 1px solid var(--border); padding: 6px 6px; text-align: center; }
@@ -449,7 +449,7 @@ tfoot td { font-weight: 700; }
 
 /* Sticky header offset below toolbar */
 :root { --toolbarH: 48px; }
-#sales-table thead th { position: sticky; top: var(--toolbarH, 0px); background: #0b1022; z-index: 20; }
+#sales-table thead th { position: sticky; top: var(--toolbarH, 0px); background: #ffffff; z-index: 20; }
 
 /* Ensure thead is visible */
 #sales-table thead { display: table-header-group; }
@@ -503,7 +503,7 @@ tfoot td { font-weight: 700; }
 }
 
 /* Progressive sticky header clone */
-.sticky-head { position: sticky; top: 0; z-index: 25; background: #0b1022; border-bottom: 1px solid var(--border); display: grid; grid-auto-flow: column; grid-auto-columns: min-content; gap: 0; }
+.sticky-head { position: sticky; top: 0; z-index: 25; background: #ffffff; border-bottom: 1px solid var(--border); display: grid; grid-auto-flow: column; grid-auto-columns: min-content; gap: 0; }
 .sticky-head.hidden { display: none; }
 .sticky-head .hcell { padding: 6px; font-weight: 400; text-align: center; font-size: 10px; border-right: 1px solid var(--border); white-space: nowrap; }
 .sticky-head .hcell.c-client { text-align: left; }
@@ -512,7 +512,7 @@ tfoot td { font-weight: 700; }
 /* Progressive sticky: hide native thead and use sticky clone */
 #sales-table thead { display: none !important; }
 /* Progressive sticky header clone aligned by CSS vars */
-.sticky-head { position: sticky; top: var(--toolbarH, 56px); z-index: 25; background: #0b1022; border-bottom: 1px solid var(--border); display: grid; grid-template-columns: var(--w-paid) var(--w-client) var(--w-qty) var(--w-qty) var(--w-qty) var(--w-qty) var(--w-total) var(--w-actions); gap: 0; }
+.sticky-head { position: sticky; top: var(--toolbarH, 56px); z-index: 25; background: #ffffff; border-bottom: 1px solid var(--border); display: grid; grid-template-columns: var(--w-paid) var(--w-client) var(--w-qty) var(--w-qty) var(--w-qty) var(--w-qty) var(--w-total) var(--w-actions); gap: 0; }
 
 /* Offset content so sticky header doesn't cover rows */
 .table-wrapper { padding-top: var(--stickyHeadH, 0px); }
@@ -548,12 +548,12 @@ tfoot td { font-weight: 700; }
 .report-btn { background: var(--pink-btn); color: #fff; border-color: transparent; }
 .report-btn:hover { filter: none; background: var(--pink-btn-hover); box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
 .dates-list { display: flex; flex-wrap: wrap; gap: 8px; }
-.date-button { padding: 8px 12px; border: 1px solid var(--border); background: #0b1022; color: var(--text); border-radius: 999px; cursor: pointer; }
+.date-button { padding: 8px 12px; border: 1px solid var(--border); background: #ffffff; color: var(--text); border-radius: 999px; cursor: pointer; }
 .date-button:hover { filter: brightness(1.1); }
 
 /* Dates controls */
 .dates-controls { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
-.dates-controls input[type="date"] { padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: #0b1022; color: var(--text); }
+.dates-controls input[type="date"] { padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: #ffffff; color: var(--text); }
 
 /* Date item with delete */
 .date-item { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); background: #ffffff; color: var(--text); border-radius: 999px; padding: 0 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
