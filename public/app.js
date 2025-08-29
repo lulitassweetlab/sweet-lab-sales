@@ -361,10 +361,9 @@ async function exportConsolidatedForDate(dayIso) {
 
 function bindEvents() {
 	$('#add-seller').addEventListener('click', async () => {
-		const name = $('#new-seller-name').value.trim();
+		const name = (prompt('Nombre del nuevo vendedor:') || '').trim();
 		if (!name) return;
 		await addSeller(name);
-		$('#new-seller-name').value = '';
 	});
 
 	$('#add-row').addEventListener('click', addRow);
