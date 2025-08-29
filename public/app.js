@@ -506,52 +506,46 @@ async function addNewDate() {
 }
 
 function openDatePickerAndGetISO(onPicked, anchorX, anchorY) {
-	const input = document.getElementById('new-date');
-	if (!input) return;
-	input.classList.remove('hidden');
-	// Position near trigger, keep invisible to avoid placeholder artifacts
+	// Create a temporary date input positioned at the desired coordinates
+	const input = document.createElement('input');
+	input.type = 'date';
+	input.autocomplete = 'off';
+	input.setAttribute('aria-hidden', 'true');
 	input.style.position = 'fixed';
 	const x = (typeof anchorX === 'number') ? anchorX : (window.innerWidth / 2);
 	const y = (typeof anchorY === 'number') ? anchorY : (window.innerHeight / 2);
 	input.style.left = x + 'px';
 	input.style.top = y + 'px';
-	input.style.transform = 'translate(0, 0)';
-	input.style.zIndex = '100';
+	input.style.transform = 'translate(-50%, 0)';
+	input.style.zIndex = '1000';
 	input.style.width = '1px';
 	input.style.height = '1px';
 	input.style.opacity = '0';
 	input.style.background = 'transparent';
 	input.style.border = '0';
-	input.value = '';
-	let outsideClickHandler;
+	document.body.appendChild(input);
+	let outsideHandler;
 	const cleanup = () => {
-		input.classList.add('hidden');
-		input.style.position = '';
-		input.style.left = '';
-		input.style.top = '';
-		input.style.transform = '';
-		input.style.zIndex = '';
-		input.style.width = '';
-		input.style.height = '';
-		input.style.opacity = '';
-		input.style.background = '';
-		input.style.border = '';
-		input.removeEventListener('change', handler);
-		if (outsideClickHandler) document.removeEventListener('mousedown', outsideClickHandler, true), document.removeEventListener('touchstart', outsideClickHandler, true);
+		input.removeEventListener('change', handleChange);
+		if (outsideHandler) {
+			document.removeEventListener('mousedown', outsideHandler, true);
+			document.removeEventListener('touchstart', outsideHandler, true);
+		}
+		if (input.parentNode) input.parentNode.removeChild(input);
 	};
-	const handler = async () => {
+	const handleChange = () => {
 		const day = input.value;
 		cleanup();
 		if (day && typeof onPicked === 'function') onPicked(day);
 	};
-	input.addEventListener('change', handler);
-	// Dismiss when clicking outside
+	input.addEventListener('change', handleChange);
+	// Dismiss if clicking elsewhere without choosing
 	setTimeout(() => {
-		outsideClickHandler = (ev) => { if (ev.target !== input) cleanup(); };
-		document.addEventListener('mousedown', outsideClickHandler, true);
-		document.addEventListener('touchstart', outsideClickHandler, true);
+		outsideHandler = (ev) => { if (ev.target !== input) cleanup(); };
+		document.addEventListener('mousedown', outsideHandler, true);
+		document.addEventListener('touchstart', outsideHandler, true);
 	}, 0);
-	// Open picker programmatically
+	// Open native picker
 	if (typeof input.showPicker === 'function') {
 		try { input.showPicker(); return; } catch {}
 	}
@@ -598,7 +592,7 @@ if (!('selectedDayId' in state)) state.selectedDayId = null;
 	newBtn?.addEventListener('click', (ev) => {
 		const rect = ev.currentTarget.getBoundingClientRect();
 		const cx = rect.left + rect.width / 2;
-		const cy = rect.bottom + 8; // a little below the button
+		const cy = rect.bottom + 8;
 		openNewDatePicker({ clientX: cx, clientY: cy });
 	});
 })();
