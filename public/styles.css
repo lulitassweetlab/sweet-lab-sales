@@ -130,7 +130,7 @@ button:hover { filter: brightness(1.1); }
 .table-wrapper { position: relative; max-height: calc(100vh - var(--toolbarH, 56px) - 24px); overflow-y: auto; overflow-x: auto; }
 
 /* Sticky native thead at top of the scroll container */
-#sales-table thead th { position: sticky; top: 0; background: #e9dfd0; z-index: 20; font-weight: 400; }
+#sales-table thead th { position: sticky; top: 0; background: #ffffff; z-index: 20; font-weight: 400; }
 
 table { width: 100%; border-collapse: collapse; }
 table { border: none; }
@@ -183,7 +183,7 @@ tfoot td { font-weight: 400; }
 .w-actions { width: 6%; }
 
 /* Sticky header */
-#sales-table thead th { position: sticky; top: 0; background: #e9dfd0; z-index: 2; font-weight: 400; }
+#sales-table thead th { position: sticky; top: 0; background: #ffffff; z-index: 2; font-weight: 400; }
 
 /* Compact rows */
 th, td { border-bottom: 1px solid var(--border); padding: 6px 6px; text-align: center; }
