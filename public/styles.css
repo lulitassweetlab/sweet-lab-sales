@@ -96,7 +96,7 @@ main { padding: 24px; max-width: 1024px; margin: 0 auto; }
 	font-size: 18px;
 	box-shadow: 0 1px 2px rgba(0,0,0,0.06);
 }
-.seller-button:hover { background: #f0a4b3; color: #ffffff; box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
+.seller-button:hover { background: var(--hover-primary-pink); color: #ffffff; box-shadow: 0 8px 24px var(--hover-shadow-pink); }
 
 .seller-add { margin: 12px 0; padding: 0; background: transparent; border: none; box-shadow: none; }
 .add-seller-wide { display: block; width: 100%; padding: 14px 16px; border-radius: 16px; background: #fbf7f0; border: 1px solid var(--border); color: var(--text); font-weight: 400; font-size: 16px; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
@@ -649,3 +649,33 @@ tfoot td { font-weight: 700; }
 
 /* Report button alignment */
 #report-button { padding: 8px 12px; }
+
+/* Themed button variants using design tokens */
+.btn-primary {
+	background-color: var(--primary);
+	color: var(--primary-foreground);
+	border-color: transparent;
+}
+.btn-primary:hover {
+	background-color: var(--hover-primary-pink);
+	box-shadow: 0 8px 24px var(--hover-shadow-pink);
+}
+.btn-primary:active {
+	background-color: var(--hover-primary-pink-intense);
+	box-shadow: 0 4px 12px var(--hover-shadow-pink);
+}
+
+.btn-accent {
+	background-color: var(--accent);
+	color: var(--accent-foreground);
+	border-color: transparent;
+}
+.btn-accent:hover {
+	background-color: var(--hover-accent-gold);
+	color: #ffffff;
+	box-shadow: 0 8px 24px var(--hover-shadow-gold);
+}
+.btn-accent:active {
+	background-color: var(--hover-accent-gold-intense);
+	box-shadow: 0 4px 12px var(--hover-shadow-gold);
+}
