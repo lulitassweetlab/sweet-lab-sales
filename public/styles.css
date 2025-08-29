@@ -77,7 +77,7 @@ h1, h2 { margin: 8px 0; font-weight: 400; }
 main { padding: 24px; max-width: 1024px; margin: 0 auto; }
 .sellers-panel { background: #ffffff; border: 1px solid var(--border); border-radius: 16px; box-shadow: none; overflow: hidden; margin-bottom: 24px; }
 .sellers-panel .panel-header { background: #e9dfd0; padding: 12px 16px; border-bottom: 1px solid var(--border); }
-.sellers-panel .panel-header h3 { margin: 0; font-size: 14px; font-weight: 400; letter-spacing: -0.01em; }
+.sellers-panel .panel-header h3 { margin: 0; font-size: 10px; font-weight: 400; letter-spacing: -0.01em; }
 .sellers-panel .panel-body { padding: 16px; }
 
 .view.hidden { display: none; }
@@ -93,13 +93,13 @@ main { padding: 24px; max-width: 1024px; margin: 0 auto; }
 	border-radius: 18px;
 	cursor: pointer;
 	font-weight: 400;
-	font-size: 14px;
+	font-size: 10px;
 	box-shadow: 0 1px 2px rgba(0,0,0,0.06);
 }
 .seller-button:hover { background: var(--hover-primary-pink); color: #ffffff; box-shadow: 0 8px 24px var(--hover-shadow-pink); }
 
 .seller-add { margin: 12px 0; padding: 0; background: transparent; border: none; box-shadow: none; }
-.add-seller-wide { display: block; width: 100%; padding: 14px 16px; border-radius: 16px; background: #fbf7f0; border: 1px solid var(--border); color: var(--text); font-weight: 400; font-size: 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
+.add-seller-wide { display: block; width: 100%; padding: 14px 16px; border-radius: 16px; background: #fbf7f0; border: 1px solid var(--border); color: var(--text); font-weight: 400; font-size: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
 .add-seller-wide:hover { background: #f2e2d3; }
 
 select, input[type="text"], button {
@@ -199,10 +199,10 @@ th, td { border-bottom: 1px solid var(--border); padding: 6px 6px; text-align: c
 .w-actions { width: 6%; }
 
 /* Inputs compact */
-.input-cell { padding: 6px 8px; font-size: 14px; }
-.client-input { font-size: 14px; min-width: 0; }
-.input-qty { width: 44px; font-size: 12px; padding: 4px; }
-.total { font-size: 14px; }
+.input-cell { padding: 6px 8px; font-size: 12px; }
+.client-input { font-size: 12px; min-width: 0; }
+.input-qty { width: 44px; font-size: 8px; padding: 4px; }
+.total { font-size: 12px; }
 
 /* Remove mobile stacking and enforce compact fixed layout on phones */
 @media (max-width: 600px) {
@@ -213,8 +213,8 @@ th, td { border-bottom: 1px solid var(--border); padding: 6px 6px; text-align: c
 
 	/* Compact spacing and fonts */
 	th, td { padding: 3px 2px; }
-	th { font-size: 10px; }
-	.total { font-size: 11px; }
+	th { font-size: 8px; }
+	.total { font-size: 9px; }
 
 	/* Column widths tuned to fit */
 	.w-client { width: 22%; }
@@ -223,8 +223,8 @@ th, td { border-bottom: 1px solid var(--border); padding: 6px 6px; text-align: c
 	.w-actions { width: 6%; }
 
 	/* Inputs tiny */
-	.client-input { font-size: 12px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-	.input-qty { width: 34px; font-size: 10px; padding: 2px; }
+	.client-input { font-size: 10px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+	.input-qty { width: 34px; font-size: 8px; padding: 2px; }
 }
 
 /* Footer totals responsive sizing */
@@ -547,8 +547,8 @@ tfoot td { font-weight: 700; }
 	padding: 16px;
 }
 .report-card-content { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-.report-title { margin: 0; font-size: 14px; font-weight: 400; letter-spacing: -0.01em; }
-.report-subtitle { margin: 0; color: #6b7280; font-size: 10px; }
+.report-title { margin: 0; font-size: 10px; font-weight: 400; letter-spacing: -0.01em; }
+.report-subtitle { margin: 0; color: #6b7280; font-size: 8px; }
 .report-btn { background: var(--pink-btn); color: #fff; border-color: transparent; }
 .report-btn:hover { filter: none; background: var(--pink-btn-hover); box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
 .dates-list { display: flex; flex-wrap: wrap; gap: 8px; }
