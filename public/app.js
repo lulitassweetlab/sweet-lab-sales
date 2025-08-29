@@ -515,7 +515,7 @@ function openDatePickerAndGetISO(onPicked, anchorX, anchorY) {
 	const y = (typeof anchorY === 'number') ? anchorY : window.innerHeight / 2;
 	input.style.left = x + 'px';
 	input.style.top = y + 'px';
-	input.style.transform = 'translate(-50%, -50%)';
+	input.style.transform = 'translate(0, 0)';
 	input.style.zIndex = '100';
 	input.style.width = '1px';
 	input.style.height = '1px';
