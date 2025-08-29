@@ -149,13 +149,14 @@ tfoot td { font-weight: 400; }
 /* Inputs */
 .input-cell {
 	width: 100%;
-	border: 1px solid var(--border);
-	background: #ffffff;
+	border: none;
+	background: transparent;
 	color: var(--text);
 	border-radius: 12px;
 	padding: 10px 12px;
 	font-size: 18px;
 }
+.input-cell:focus { outline: none; box-shadow: none; }
 
 .input-qty { width: 82px; text-align: center; -moz-appearance: textfield; }
 .input-qty::-webkit-outer-spin-button, .input-qty::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
@@ -195,7 +196,7 @@ th, td { border-bottom: 1px solid var(--border); padding: 6px 6px; text-align: c
 .w-actions { width: 6%; }
 
 /* Inputs compact */
-.input-cell { padding: 8px 10px; font-size: 14px; }
+.input-cell { padding: 6px 8px; font-size: 14px; }
 .client-input { font-size: 14px; min-width: 0; }
 .input-qty { width: 44px; font-size: 12px; padding: 4px; }
 .total { font-size: 14px; }
