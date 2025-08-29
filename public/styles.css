@@ -7,9 +7,9 @@
 	--danger: #ef4444;
 	--border: #e5e7eb;
 	/* Figma pinks */
-	--pink-bg: #ffe8f1;
-	--pink-btn: #ff4f93;
-	--pink-btn-hover: #ff2a7a;
+	--pink-bg: #ffffff;
+	--pink-btn: #f0a4b3;
+	--pink-btn-hover: #ea8da0;
 }
 
 * { box-sizing: border-box; }
