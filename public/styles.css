@@ -45,7 +45,7 @@ main { padding: 24px; max-width: 1024px; margin: 0 auto; }
 .seller-button {
 	padding: 20px 22px;
 	border: 1px solid var(--border);
-	background: #ffffff;
+	background: #fbf4f8;
 	color: var(--text);
 	border-radius: 18px;
 	cursor: pointer;
@@ -53,7 +53,7 @@ main { padding: 24px; max-width: 1024px; margin: 0 auto; }
 	font-size: 18px;
 	box-shadow: 0 1px 2px rgba(0,0,0,0.06);
 }
-.seller-button:hover { filter: brightness(0.98); box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
+.seller-button:hover { background: #f0a4b3; color: #ffffff; box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
 
 .seller-add { display: flex; gap: 8px; align-items: center; margin: 12px 0; padding: 12px; background: #ffffff; border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
 
