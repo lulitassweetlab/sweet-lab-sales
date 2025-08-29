@@ -11,7 +11,7 @@
 	--pink-btn: #f0a4b3;
 	--pink-btn-hover: #ea8da0;
 	/* Lulitas tokens */
-	--font-size: 10px;
+	--font-size: 12px;
 	--background: var(--bg);
 	--foreground: #2a2a2a;
 	--card: #ffffff;
@@ -58,7 +58,7 @@ body {
 	background: var(--background);
 	color: var(--foreground);
 }
-html, body, button, input, select, textarea, th, td, h1, h2, h3, h4, p, small, label { font-size: 10px !important; }
+html, body, button, input, select, textarea, th, td, h1, h2, h3, h4, p, small, label { font-size: 12px !important; }
 
 .app-header, .app-footer {
 	padding: 12px 16px;
