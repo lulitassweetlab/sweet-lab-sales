@@ -511,8 +511,8 @@ function openDatePickerAndGetISO(onPicked, anchorX, anchorY) {
 	input.classList.remove('hidden');
 	// Position near trigger, keep invisible to avoid placeholder artifacts
 	input.style.position = 'fixed';
-	const x = (typeof anchorX === 'number') ? anchorX : window.innerWidth / 2;
-	const y = (typeof anchorY === 'number') ? anchorY : window.innerHeight / 2;
+	const x = (typeof anchorX === 'number') ? anchorX : (window.innerWidth / 2);
+	const y = (typeof anchorY === 'number') ? anchorY : (window.innerHeight / 2);
 	input.style.left = x + 'px';
 	input.style.top = y + 'px';
 	input.style.transform = 'translate(0, 0)';
@@ -548,7 +548,8 @@ function openDatePickerAndGetISO(onPicked, anchorX, anchorY) {
 	// Dismiss when clicking outside
 	setTimeout(() => {
 		outsideClickHandler = (ev) => { if (ev.target !== input) cleanup(); };
-		document.addEventListener('click', outsideClickHandler, true);
+		document.addEventListener('mousedown', outsideClickHandler, true);
+		document.addEventListener('touchstart', outsideClickHandler, true);
 	}, 0);
 	// Open picker programmatically
 	if (typeof input.showPicker === 'function') {
