@@ -537,7 +537,7 @@ function openDatePickerAndGetISO(onPicked, anchorX, anchorY) {
 		input.style.background = '';
 		input.style.border = '';
 		input.removeEventListener('change', handler);
-		if (outsideClickHandler) document.removeEventListener('click', outsideClickHandler, true);
+		if (outsideClickHandler) document.removeEventListener('mousedown', outsideClickHandler, true), document.removeEventListener('touchstart', outsideClickHandler, true);
 	};
 	const handler = async () => {
 		const day = input.value;
@@ -595,7 +595,12 @@ if (!('selectedDayId' in state)) state.selectedDayId = null;
 
 (function enhanceStaticButtons(){
 	const newBtn = document.getElementById('date-new');
-	newBtn?.addEventListener('click', openNewDatePicker);
+	newBtn?.addEventListener('click', (ev) => {
+		const rect = ev.currentTarget.getBoundingClientRect();
+		const cx = rect.left + rect.width / 2;
+		const cy = rect.bottom + 8; // a little below the button
+		openNewDatePicker({ clientX: cx, clientY: cy });
+	});
 })();
 
 (function bindBottomAdd(){
