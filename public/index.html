@@ -17,11 +17,17 @@
 
 	<main id="app">
 		<section id="view-select-seller" class="view">
-			<h2>Selecciona vendedor</h2>
-			<div id="seller-list" class="seller-list"></div>
-			<div class="seller-add">
-				<input id="new-seller-name" type="text" inputmode="text" autocomplete="name" placeholder="Agregar nuevo vendedor" />
-				<button id="add-seller" class="press-btn">Agregar</button>
+			<div class="sellers-panel">
+				<div class="panel-header">
+					<h3>Vendedores activos</h3>
+				</div>
+				<div class="panel-body">
+					<div id="seller-list" class="seller-list"></div>
+					<div class="seller-add">
+						<input id="new-seller-name" type="text" inputmode="text" autocomplete="name" placeholder="Agregar nuevo vendedor" />
+						<button id="add-seller" class="press-btn">Agregar</button>
+					</div>
+				</div>
 			</div>
 			<div id="global-dates-section" class="dates-section">
 				<div class="report-card">
