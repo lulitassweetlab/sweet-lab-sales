@@ -680,3 +680,8 @@ tfoot td { font-weight: 700; }
 	background-color: var(--hover-accent-gold-intense);
 	box-shadow: 0 4px 12px var(--hover-shadow-gold);
 }
+
+/* Gold solid button variant for Excel export */
+.btn-gold { background-color: #d4a574; color: #ffffff; border-color: transparent; }
+.btn-gold:hover { background-color: var(--hover-accent-gold); color: #ffffff; box-shadow: 0 8px 24px var(--hover-shadow-gold); }
+.btn-gold:active { background-color: var(--hover-accent-gold-intense); box-shadow: 0 4px 12px var(--hover-shadow-gold); }
