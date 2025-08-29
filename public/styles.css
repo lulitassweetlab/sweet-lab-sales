@@ -75,7 +75,7 @@ body {
 h1, h2 { margin: 8px 0; font-weight: 400; }
 
 main { padding: 24px; max-width: 1024px; margin: 0 auto; }
-.sellers-panel { background: #ffffff; border: 1px solid var(--border); border-radius: 16px; box-shadow: none; overflow: hidden; }
+.sellers-panel { background: #ffffff; border: 1px solid var(--border); border-radius: 16px; box-shadow: none; overflow: hidden; margin-bottom: 24px; }
 .sellers-panel .panel-header { background: #e9dfd0; padding: 12px 16px; border-bottom: 1px solid var(--border); }
 .sellers-panel .panel-header h3 { margin: 0; font-size: 14px; font-weight: 400; letter-spacing: -0.01em; }
 .sellers-panel .panel-body { padding: 16px; }
@@ -529,7 +529,7 @@ tfoot td { font-weight: 700; }
 .excel-btn:hover { filter: brightness(1.1); }
 
 /* Dates section */
-.dates-section { margin: 8px 0 12px; }
+.dates-section { margin: 24px 0 12px; }
 .sales-panel { background: #ffffff; border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 1px 2px rgba(0,0,0,0.06); overflow: hidden; margin-top: 8px; }
 .sales-panel .panel-header { background: #e9dfd0; padding: 8px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .sales-panel .panel-header h3 { margin: 0; font-size: 18px; font-weight: 400; letter-spacing: -0.01em; }
