@@ -10,6 +10,44 @@
 	--pink-bg: #ffffff;
 	--pink-btn: #f0a4b3;
 	--pink-btn-hover: #ea8da0;
+	/* Lulitas tokens */
+	--font-size: 14px;
+	--background: var(--bg);
+	--foreground: #2a2a2a;
+	--card: #ffffff;
+	--card-foreground: #2a2a2a;
+	--popover: #ffffff;
+	--popover-foreground: #2a2a2a;
+	--primary: #f4a6b7;
+	--primary-foreground: #ffffff;
+	--secondary: #f5e6e8;
+	--secondary-foreground: #2a2a2a;
+	--muted-foreground: #5a5a5a;
+	--muted-bg: #f8f1f2;
+	--accent-foreground: #2a2a2a;
+	--destructive: #dc2626;
+	--destructive-foreground: #ffffff;
+	--ring: #f4a6b7;
+	--chart-1: #f4a6b7;
+	--chart-2: #e8d5b7;
+	--chart-3: #d4a574;
+	--chart-4: #f5e6e8;
+	--chart-5: #c48b9f;
+	--radius: 10px;
+	--sidebar: #fdf7f8;
+	--sidebar-foreground: #2a2a2a;
+	--sidebar-primary: #f4a6b7;
+	--sidebar-primary-foreground: #ffffff;
+	--sidebar-accent: #f5e6e8;
+	--sidebar-accent-foreground: #2a2a2a;
+	--sidebar-border: #f4a6b7;
+	--sidebar-ring: #f4a6b7;
+	--hover-primary-pink: #e27a90;
+	--hover-primary-pink-intense: #d4567a;
+	--hover-shadow-pink: rgba(244, 166, 183, 0.6);
+	--hover-accent-gold: #d4a574;
+	--hover-accent-gold-intense: #c2925a;
+	--hover-shadow-gold: rgba(212, 165, 116, 0.6);
 }
 
 * { box-sizing: border-box; }
@@ -17,8 +55,8 @@
 body {
 	margin: 0;
 	font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial, "Apple Color Emoji", "Segoe UI Emoji";
-	background: var(--bg);
-	color: var(--text);
+	background: var(--background);
+	color: var(--foreground);
 }
 
 .app-header, .app-footer {
