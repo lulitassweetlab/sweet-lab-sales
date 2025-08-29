@@ -178,6 +178,7 @@ tfoot td { font-weight: 400; }
 .toolbar #date-new { margin-right: 12px; }
 .toolbar-left { display: inline-flex; align-items: center; gap: 8px; }
 .toolbar-logo { height: 28px; width: auto; }
+.toolbar-actions { display: inline-flex; align-items: center; gap: 6px; }
 
 /* Show cards list on small screens while hiding table */
 .cards-list { display: none; }

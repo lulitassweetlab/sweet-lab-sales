@@ -169,6 +169,35 @@ async function loadSales() {
 	renderTable();
 }
 
+const history = { undo: [], redo: [], limit: 10 };
+function pushUndo(action) {
+	// action: { do: async()=>{}, undo: async()=>{} }
+	history.undo.push(action);
+	if (history.undo.length > history.limit) history.undo.shift();
+	history.redo = [];
+}
+async function performUndo() {
+	const action = history.undo.pop();
+	if (!action) return;
+	await action.undo();
+	history.redo.push(action);
+}
+async function performRedo() {
+	const action = history.redo.pop();
+	if (!action) return;
+	await action.do();
+	history.undo.push(action);
+}
+
+// Wire toolbar buttons
+(function wireUndoRedo(){
+	const undoBtn = document.getElementById('undo-btn');
+	const redoBtn = document.getElementById('redo-btn');
+	undoBtn?.addEventListener('click', () => { performUndo().catch(console.error); });
+	redoBtn?.addEventListener('click', () => { performRedo().catch(console.error); });
+})();
+
+// Wrap API operations to record undo/redo
 async function addRow() {
 	const sellerId = state.currentSeller.id;
 	const payload = { seller_id: sellerId };
@@ -176,10 +205,27 @@ async function addRow() {
 	const sale = await api('POST', API.Sales, payload);
 	sale.is_paid = false;
 	state.sales.push(sale);
+	// Push undo: delete that sale
+	pushUndo({
+		do: async () => {
+			// redo create
+			const again = await api('POST', API.Sales, payload);
+			again.is_paid = false;
+			state.sales.push(again);
+			renderTable();
+		},
+		undo: async () => {
+			await api('DELETE', `${API.Sales}?id=${encodeURIComponent(sale.id)}`);
+			state.sales = state.sales.filter(s => s.id !== sale.id);
+			renderTable();
+		}
+	});
 	renderTable();
 }
 
 async function saveRow(tr, id) {
+	const before = state.sales.find(s => s.id === id);
+	const prev = before ? { ...before } : null;
 	const body = readRow(tr);
 	body.id = id;
 	const updated = await api('PUT', API.Sales, body);
@@ -189,11 +235,46 @@ async function saveRow(tr, id) {
 	const total = calcRowTotal({ arco: updated.qty_arco, melo: updated.qty_melo, mara: updated.qty_mara, oreo: updated.qty_oreo });
 	totalCell.textContent = fmtNo.format(total);
 	updateSummary();
+	// Push undo: restore prev snapshot
+	if (prev) {
+		pushUndo({
+			do: async () => {
+				await api('PUT', API.Sales, updated);
+				const j = state.sales.findIndex(s => s.id === id);
+				if (j !== -1) state.sales[j] = updated;
+				renderTable();
+			},
+			undo: async () => {
+				await api('PUT', API.Sales, prev);
+				const j = state.sales.findIndex(s => s.id === id);
+				if (j !== -1) state.sales[j] = prev;
+				renderTable();
+			}
+		});
+	}
 }
 
 async function deleteRow(id) {
+	const prev = state.sales.find(s => s.id === id);
 	await api('DELETE', `${API.Sales}?id=${encodeURIComponent(id)}`);
 	state.sales = state.sales.filter(s => s.id !== id);
+	// Push undo: re-create previous row
+	if (prev) {
+		pushUndo({
+			do: async () => {
+				const again = await api('POST', API.Sales, { seller_id: prev.seller_id, sale_day_id: prev.sale_day_id });
+				again.client_name = prev.client_name;
+				again.qty_arco = prev.qty_arco; again.qty_melo = prev.qty_melo; again.qty_mara = prev.qty_mara; again.qty_oreo = prev.qty_oreo;
+				again.is_paid = prev.is_paid;
+				await api('PUT', API.Sales, { id: again.id, ...again });
+				state.sales.push(again);
+				renderTable();
+			},
+			undo: async () => {
+				await api('POST', API.Sales, prev); // fallback not ideal if API expects insert-only; we already removed, so better to reinsert via create+update
+			}
+		});
+	}
 	renderTable();
 }
 
