@@ -505,17 +505,25 @@ async function addNewDate() {
 	await loadDaysForSeller();
 }
 
-function openDatePickerAndGetISO(onPicked) {
+function openDatePickerAndGetISO(onPicked, anchorX, anchorY) {
 	const input = document.getElementById('new-date');
 	if (!input) return;
 	input.classList.remove('hidden');
-	// Ensure it's visible for iOS pickers
+	// Position near trigger, keep invisible to avoid placeholder artifacts
 	input.style.position = 'fixed';
-	input.style.left = '50%';
-	input.style.top = '50%';
+	const x = (typeof anchorX === 'number') ? anchorX : window.innerWidth / 2;
+	const y = (typeof anchorY === 'number') ? anchorY : window.innerHeight / 2;
+	input.style.left = x + 'px';
+	input.style.top = y + 'px';
 	input.style.transform = 'translate(-50%, -50%)';
 	input.style.zIndex = '100';
+	input.style.width = '1px';
+	input.style.height = '1px';
+	input.style.opacity = '0';
+	input.style.background = 'transparent';
+	input.style.border = '0';
 	input.value = '';
+	let outsideClickHandler;
 	const cleanup = () => {
 		input.classList.add('hidden');
 		input.style.position = '';
@@ -523,7 +531,13 @@ function openDatePickerAndGetISO(onPicked) {
 		input.style.top = '';
 		input.style.transform = '';
 		input.style.zIndex = '';
+		input.style.width = '';
+		input.style.height = '';
+		input.style.opacity = '';
+		input.style.background = '';
+		input.style.border = '';
 		input.removeEventListener('change', handler);
+		if (outsideClickHandler) document.removeEventListener('click', outsideClickHandler, true);
 	};
 	const handler = async () => {
 		const day = input.value;
@@ -531,6 +545,11 @@ function openDatePickerAndGetISO(onPicked) {
 		if (day && typeof onPicked === 'function') onPicked(day);
 	};
 	input.addEventListener('change', handler);
+	// Dismiss when clicking outside
+	setTimeout(() => {
+		outsideClickHandler = (ev) => { if (ev.target !== input) cleanup(); };
+		document.addEventListener('click', outsideClickHandler, true);
+	}, 0);
 	// Open picker programmatically
 	if (typeof input.showPicker === 'function') {
 		try { input.showPicker(); return; } catch {}
@@ -539,19 +558,7 @@ function openDatePickerAndGetISO(onPicked) {
 	input.click();
 }
 
-async function selectDefaultDate() {
-	openDatePickerAndGetISO(async (iso) => {
-		const sellerId = state.currentSeller.id;
-		const created = await api('POST', '/api/days', { seller_id: sellerId, day: iso });
-		state.selectedDayId = created.id;
-		const btn = document.getElementById('date-default');
-		if (btn) btn.textContent = formatDayLabel(iso);
-		document.getElementById('sales-wrapper').classList.remove('hidden');
-		await loadSales();
-	});
-}
-
-function openNewDatePicker() {
+function openNewDatePicker(ev) {
 	openDatePickerAndGetISO(async (iso) => {
 		const sellerId = state.currentSeller.id;
 		await api('POST', '/api/days', { seller_id: sellerId, day: iso });
@@ -563,7 +570,7 @@ function openNewDatePicker() {
 			document.getElementById('sales-wrapper').classList.remove('hidden');
 			await loadSales();
 		}
-	});
+	}, ev?.clientX, ev?.clientY);
 }
 
 // Extend state to include saleDays and selectedDayId if not present
