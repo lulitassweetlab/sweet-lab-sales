@@ -139,7 +139,7 @@ table { border: none; }
 th, td { border-bottom: 1px solid var(--border); padding: 8px; text-align: center; background: #ffffff; }
 
 /* Subtle dividers between client rows using page background color */
-#sales-table tbody td { border-bottom: 0.5px solid rgba(243,234,222,0.35); }
+#sales-table tbody td { border-bottom: 0.8px solid rgba(243,234,222,0.5); }
 
 th.col-client, td.col-client { text-align: left; }
 
