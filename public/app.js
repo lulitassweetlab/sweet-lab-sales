@@ -149,8 +149,8 @@ function renderTable() {
 	const td = document.createElement('td');
 	td.colSpan = colCount;
 	const btn = document.createElement('button');
-	btn.className = 'inline-add-btn';
-	btn.textContent = 'Agregar venta';
+	btn.className = 'inline-add-btn btn-primary';
+	btn.textContent = '+ Nueva Venta';
 	btn.addEventListener('click', addRow);
 	td.appendChild(btn);
 	addTr.appendChild(td);
