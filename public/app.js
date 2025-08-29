@@ -568,6 +568,78 @@ function openNewDatePicker(ev) {
 	}, ev?.clientX, ev?.clientY);
 }
 
+function openCalendarPopover(onPicked, anchorX, anchorY) {
+	// Build popover
+	const pop = document.createElement('div');
+	pop.className = 'date-popover';
+	pop.style.position = 'fixed';
+	pop.style.left = (anchorX || (window.innerWidth / 2)) + 'px';
+	pop.style.top = ((anchorY || (window.innerHeight / 2)) + 8) + 'px';
+	pop.style.transform = 'translate(-50%, 0)';
+	pop.style.zIndex = '1000';
+	pop.setAttribute('role', 'dialog');
+	
+	const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+	let view = new Date();
+	view.setDate(1);
+	
+	const header = document.createElement('div');
+	header.className = 'date-popover-header';
+	const prev = document.createElement('button'); prev.className = 'date-nav'; prev.textContent = '‹';
+	const label = document.createElement('div'); label.className = 'date-label';
+	const next = document.createElement('button'); next.className = 'date-nav'; next.textContent = '›';
+	header.append(prev, label, next);
+	
+	const grid = document.createElement('div');
+	grid.className = 'date-grid';
+	
+	const weekdays = ['L','M','X','J','V','S','D'];
+	const wk = document.createElement('div'); wk.className = 'date-weekdays';
+	for (const w of weekdays) { const c = document.createElement('div'); c.textContent = w; wk.appendChild(c); }
+	
+	function isoUTC(y, m, d) { return new Date(Date.UTC(y, m, d)).toISOString().slice(0,10); }
+	function render() {
+		label.textContent = months[view.getMonth()] + ' ' + view.getFullYear();
+		grid.innerHTML = '';
+		const year = view.getFullYear();
+		const month = view.getMonth();
+		const firstDay = (new Date(Date.UTC(year, month, 1)).getUTCDay() + 6) % 7; // Monday=0
+		const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+		for (let i = 0; i < firstDay; i++) {
+			const cell = document.createElement('button');
+			cell.className = 'date-cell disabled';
+			cell.disabled = true;
+			grid.appendChild(cell);
+		}
+		for (let d = 1; d <= daysInMonth; d++) {
+			const cell = document.createElement('button');
+			cell.className = 'date-cell';
+			cell.textContent = String(d);
+			cell.addEventListener('click', () => {
+				cleanup();
+				if (typeof onPicked === 'function') onPicked(isoUTC(year, month, d));
+			});
+			grid.appendChild(cell);
+		}
+	}
+	
+	function cleanup() {
+		document.removeEventListener('mousedown', outside, true);
+		document.removeEventListener('touchstart', outside, true);
+		if (pop.parentNode) pop.parentNode.removeChild(pop);
+	}
+	function outside(ev) { if (!pop.contains(ev.target)) cleanup(); }
+	
+	prev.addEventListener('click', () => { view.setMonth(view.getMonth() - 1); render(); });
+	next.addEventListener('click', () => { view.setMonth(view.getMonth() + 1); render(); });
+	
+	pop.append(header, wk, grid);
+	document.body.appendChild(pop);
+	document.addEventListener('mousedown', outside, true);
+	document.addEventListener('touchstart', outside, true);
+	render();
+}
+
 // Extend state to include saleDays and selectedDayId if not present
 if (!('saleDays' in state)) state.saleDays = [];
 if (!('selectedDayId' in state)) state.selectedDayId = null;
@@ -587,13 +659,24 @@ if (!('selectedDayId' in state)) state.selectedDayId = null;
 	};
 })();
 
+// Update '+ Nueva Fecha' to use the custom calendar
 (function enhanceStaticButtons(){
 	const newBtn = document.getElementById('date-new');
 	newBtn?.addEventListener('click', (ev) => {
 		const rect = ev.currentTarget.getBoundingClientRect();
 		const cx = rect.left + rect.width / 2;
-		const cy = rect.bottom + 8;
-		openNewDatePicker({ clientX: cx, clientY: cy });
+		const cy = rect.bottom;
+		openCalendarPopover(async (iso) => {
+			const sellerId = state.currentSeller.id;
+			await api('POST', '/api/days', { seller_id: sellerId, day: iso });
+			await loadDaysForSeller();
+			const added = (state.saleDays || []).find(d => d.day === iso);
+			if (added) {
+				state.selectedDayId = added.id;
+				document.getElementById('sales-wrapper').classList.remove('hidden');
+				await loadSales();
+			}
+		}, cx, cy);
 	});
 })();
 

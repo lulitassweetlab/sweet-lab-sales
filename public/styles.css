@@ -540,6 +540,24 @@ tfoot td { font-weight: 700; }
 .sales-panel .panel-header h3 { margin: 0; font-size: 18px; font-weight: 400; letter-spacing: -0.01em; }
 .sales-panel .panel-header .panel-actions { display: inline-flex; gap: 8px; align-items: center; }
 .sales-panel .panel-body { padding: 16px 12px 0; }
+
+/* Custom date popover */
+.date-popover {
+	background: #ffffff;
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+	padding: 8px;
+}
+.date-popover .date-popover-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.date-popover .date-label { font-weight: 400; }
+.date-popover .date-nav { border: 1px solid var(--border); background: #fff; border-radius: 6px; padding: 2px 6px; cursor: pointer; }
+.date-popover .date-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 4px; opacity: 0.7; }
+.date-popover .date-weekdays > div { text-align: center; }
+.date-popover .date-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.date-popover .date-cell { border: 1px solid var(--border); background: #fff; border-radius: 6px; padding: 4px 0; cursor: pointer; }
+.date-popover .date-cell.disabled { opacity: 0; pointer-events: none; }
+.date-popover .date-cell:hover { background: var(--secondary); }
 .report-card {
 	background: var(--pink-bg);
 	border: 1px solid var(--border);
