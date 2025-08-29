@@ -64,7 +64,16 @@
 				<input id="new-date" type="date" class="hidden" />
 			</div>
 
-			<div class="table-wrapper hidden" id="sales-wrapper">
+			<div class="sales-panel">
+				<div class="panel-header">
+					<h3>Registro de Ventas de Postres</h3>
+					<div class="panel-actions">
+						<button id="add-row" class="press-btn">+ Nueva venta</button>
+						<button id="export-excel" class="excel-btn press-btn">⬇ Descargar Excel</button>
+					</div>
+				</div>
+				<div class="panel-body">
+					<div class="table-wrapper hidden" id="sales-wrapper">
 				<table id="sales-table">
 					<colgroup>
 						<col class="w-paid" />
@@ -112,7 +121,7 @@
 					</tfoot>
 				</table>
 				<div class="table-actions end">
-					<button id="export-excel" class="excel-btn press-btn">Excel</button>
+					
 				</div>
 				<div class="table-actions end">
 					<button id="add-row-bottom" class="excel-btn press-btn">Agregar venta</button>
