@@ -462,10 +462,10 @@ function updateSummary() {
 	$('#sum-mara-amt').textContent = vma;
 	$('#sum-oreo-amt').textContent = vo;
 	// stacked rows on small screens
-	document.getElementById('sum-arco-amt-2')?.textContent = va;
-	document.getElementById('sum-melo-amt-2')?.textContent = vm;
-	document.getElementById('sum-mara-amt-2')?.textContent = vma;
-	document.getElementById('sum-oreo-amt-2')?.textContent = vo;
+	const elAr = document.getElementById('sum-arco-amt-2'); if (elAr) elAr.textContent = va;
+	const elMe = document.getElementById('sum-melo-amt-2'); if (elMe) elMe.textContent = vm;
+	const elMa = document.getElementById('sum-mara-amt-2'); if (elMa) elMa.textContent = vma;
+	const elOr = document.getElementById('sum-oreo-amt-2'); if (elOr) elOr.textContent = vo;
 	$('#sum-grand').textContent = fmtNo.format(grand);
 }
 
