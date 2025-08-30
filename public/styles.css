@@ -997,3 +997,23 @@ tfoot td { font-weight: 700; }
 	.row-delete { width: 14px !important; height: 14px !important; }
 	.row-delete::before { background-size: 90% 90% !important; }
 }
+
+/* Undo/Redo FINAL: common arrow glyphs, less-rounded buttons */
+#undo-btn, #redo-btn { border-radius: 6px !important; }
+#undo-btn { font-size: 0; }
+#redo-btn { font-size: 0; }
+#undo-btn::before, #redo-btn::before {
+	content: '';
+	display: inline-block;
+	vertical-align: middle;
+	width: auto;
+	height: auto;
+	-webkit-mask: none !important;
+	mask: none !important;
+	background: none !important;
+	color: currentColor;
+	line-height: 1;
+}
+#undo-btn::before { content: '←'; font-size: 22px; }
+#redo-btn::before { content: '→'; font-size: 22px; }
+@media (max-width: 600px) { #undo-btn::before, #redo-btn::before { font-size: 20px; } }
