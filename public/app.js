@@ -770,8 +770,6 @@ function openPayMenu(anchorEl, selectEl) {
 	const menu = document.createElement('div');
 	menu.className = 'pay-menu';
 	menu.style.position = 'fixed';
-	menu.style.left = (rect.left + rect.width / 2) + 'px';
-	menu.style.top = (rect.bottom + 6) + 'px';
 	menu.style.transform = 'translateX(-50%)';
 	menu.style.zIndex = '1000';
 	const items = [
@@ -793,6 +791,15 @@ function openPayMenu(anchorEl, selectEl) {
 		menu.appendChild(btn);
 	}
 	document.body.appendChild(menu);
+	// Position menu above the dash by default; fallback below if not enough space
+	const gap = 2;
+	let left = rect.left + rect.width / 2;
+	let top = rect.top - menu.offsetHeight - gap;
+	const half = menu.offsetWidth / 2;
+	left = Math.min(Math.max(left, half + 6), window.innerWidth - half - 6);
+	if (top < 6) top = rect.bottom + gap;
+	menu.style.left = left + 'px';
+	menu.style.top = top + 'px';
 	function outside(e) { if (!menu.contains(e.target)) cleanup(); }
 	function cleanup() {
 		document.removeEventListener('mousedown', outside, true);
