@@ -852,6 +852,20 @@ tfoot td { font-weight: 700; }
 /* Undo/Redo buttons: larger, squarer */
 #undo-btn, #redo-btn { border-radius: 4px; min-width: 48px; height: 40px; font-size: 16px; padding: 8px 14px; }
 
+/* Undo/Redo icon styling: larger and less rounded (hook arrows) */
+#undo-btn, #redo-btn { font-size: 0; }
+#undo-btn::before, #redo-btn::before {
+	content: '';
+	display: inline-block;
+	line-height: 1;
+	color: inherit;
+}
+#undo-btn::before { content: '↩'; font-size: 24px; }
+#redo-btn::before { content: '↪'; font-size: 24px; }
+@media (max-width: 600px) {
+	#undo-btn::before, #redo-btn::before { font-size: 22px; }
+}
+
 /* Gold solid button variant for Excel export */
 .btn-gold { background-color: #fbf7f0; color: var(--text); border-color: transparent; }
 .btn-gold:hover { background-color: #f2e2d3; color: var(--text); box-shadow: 0 8px 24px rgba(0,0,0,0.06); }
