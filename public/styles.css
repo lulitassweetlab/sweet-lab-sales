@@ -856,3 +856,24 @@ tfoot td { font-weight: 700; }
 .pay-menu-item.menu-efectivo { background:url('/icons/bill.svg') no-repeat center / contain; }
 .pay-menu-item.menu-transf { background:url('/icons/bank.svg') no-repeat center / contain; }
 .pay-menu-item.menu-clear { width:auto; height:auto; padding:2px 6px; border:1px solid var(--border); border-radius:6px; font-size:10px; }
+
+/* Hide quantities footer row globally (we show totals money rows instead) */
+#sales-table tfoot .tfoot-qty { display: none; }
+
+#sales-table tfoot .tfoot-amt-stack { display: none; }
+#sales-table tfoot .t-am-grand td { text-align: right; }
+
+@media (max-width: 600px) {
+	/* On small screens: show only stacked rows (4 desserts); hide single-row totals and grand line */
+	#sales-table tfoot .tfoot-amt { display: none !important; }
+	#sales-table tfoot .t-am-grand { display: none !important; }
+	#sales-table tfoot .tfoot-amt-stack { display: table-row; }
+
+	#sales-table tfoot .tfoot-amt-stack .col-client { text-align: left; color: var(--muted); padding-right: 14px; display: grid; grid-template-columns: 1fr auto auto; align-items: baseline; gap: 8px; }
+	/* Left align name, center qty, right align amount */
+	#sales-table tfoot .tfoot-amt-stack .st-name { font-weight: 400; line-height: 1.4; }
+	#sales-table tfoot .tfoot-amt-stack .st-qty { text-align: center; min-width: 3ch; line-height: 1.4; }
+	#sales-table tfoot .tfoot-amt-stack .st-amt { text-align: right; color: var(--accent); line-height: 1.4; }
+	/* Preserve explicit spaces in spans if any */
+	#sales-table tfoot .tfoot-amt-stack .col-client span { white-space: pre; }
+}
