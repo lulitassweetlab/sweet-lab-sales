@@ -518,6 +518,7 @@ tfoot td { font-weight: 700; }
 	/* Stack per-dessert amount rows to avoid overlap */
 	#sales-table tfoot .tfoot-amt { display: none; }
 	#sales-table tfoot .tfoot-amt-stack { display: table-row; }
+	#sales-table tfoot .tfoot-amt-stack .col-client { text-align: left; color: var(--muted); }
 }
 
 /* Revert header to non-sticky but visible and aligned across devices */
