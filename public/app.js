@@ -462,10 +462,14 @@ function updateSummary() {
 	$('#sum-mara-amt').textContent = vma;
 	$('#sum-oreo-amt').textContent = vo;
 	// stacked rows on small screens
-	const elAr = document.getElementById('sum-arco-amt-2'); if (elAr) elAr.textContent = va;
-	const elMe = document.getElementById('sum-melo-amt-2'); if (elMe) elMe.textContent = vm;
-	const elMa = document.getElementById('sum-mara-amt-2'); if (elMa) elMa.textContent = vma;
-	const elOr = document.getElementById('sum-oreo-amt-2'); if (elOr) elOr.textContent = vo;
+	const qva = String(qa);
+	const qvm = String(qm);
+	const qvma = String(qma);
+	const qvo = String(qo);
+	const elAr = document.getElementById('sum-arco-combo-2'); if (elAr) elAr.textContent = `Cantidad total: ${qva} · Total: ${va}`;
+	const elMe = document.getElementById('sum-melo-combo-2'); if (elMe) elMe.textContent = `Cantidad total: ${qvm} · Total: ${vm}`;
+	const elMa = document.getElementById('sum-mara-combo-2'); if (elMa) elMa.textContent = `Cantidad total: ${qvma} · Total: ${vma}`;
+	const elOr = document.getElementById('sum-oreo-combo-2'); if (elOr) elOr.textContent = `Cantidad total: ${qvo} · Total: ${vo}`;
 	$('#sum-grand').textContent = fmtNo.format(grand);
 	// Decide whether to stack totals to avoid overlap on small screens
 	requestAnimationFrame(() => {
