@@ -642,9 +642,9 @@ tfoot td { font-weight: 700; }
 }
 
 /* Enlarge click/touch target without changing visual size */
-.col-actions .row-delete { padding: 6px; margin: -6px; border-radius: 0; background: transparent; border: none; }
+.col-actions .row-delete { padding: 4px; margin: 0; border-radius: 0; background: transparent; border: none; }
 @media (max-width: 600px) {
-	.col-actions .row-delete { padding: 8px; margin: -8px; border-radius: 0; background: transparent; }
+	.col-actions .row-delete { padding: 6px; margin: 0; border-radius: 0; background: transparent; }
 }
 
 /* Progressive sticky header clone */
