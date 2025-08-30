@@ -466,27 +466,27 @@ function updateSummary() {
 	const qvm = String(qm);
 	const qvma = String(qma);
 	const qvo = String(qo);
-	const elAr = document.getElementById('sum-arco-combo-2'); if (elAr) elAr.textContent = `Cantidad total: ${qva} · Total: ${va}`;
-	const elMe = document.getElementById('sum-melo-combo-2'); if (elMe) elMe.textContent = `Cantidad total: ${qvm} · Total: ${vm}`;
-	const elMa = document.getElementById('sum-mara-combo-2'); if (elMa) elMa.textContent = `Cantidad total: ${qvma} · Total: ${vma}`;
-	const elOr = document.getElementById('sum-oreo-combo-2'); if (elOr) elOr.textContent = `Cantidad total: ${qvo} · Total: ${vo}`;
-	$('#sum-grand').textContent = fmtNo.format(grand);
-	// Decide whether to stack totals to avoid overlap on small screens
-	requestAnimationFrame(() => {
-		const table = document.getElementById('sales-table');
-		if (!table) return;
-		const isSmall = window.matchMedia('(max-width: 600px)').matches;
-		let overlap = false;
-		if (isSmall) {
-			const ids = ['sum-arco-amt', 'sum-melo-amt', 'sum-mara-amt', 'sum-oreo-amt'];
-			for (const id of ids) {
-				const el = document.getElementById(id);
-				if (!el) continue;
-				if (el.scrollWidth > el.clientWidth) { overlap = true; break; }
-			}
+	const elAr = document.getElementById('sum-arco-line-2'); if (elAr) elAr.textContent = `Arco · Cantidad total: ${qva} · Total: ${va}`;
+const elMe = document.getElementById('sum-melo-line-2'); if (elMe) elMe.textContent = `Melo · Cantidad total: ${qvm} · Total: ${vm}`;
+const elMa = document.getElementById('sum-mara-line-2'); if (elMa) elMa.textContent = `Mara · Cantidad total: ${qvma} · Total: ${vma}`;
+const elOr = document.getElementById('sum-oreo-line-2'); if (elOr) elOr.textContent = `Oreo · Cantidad total: ${qvo} · Total: ${vo}`;
+$('#sum-grand').textContent = fmtNo.format(grand);
+// Decide whether to stack totals to avoid overlap on small screens
+requestAnimationFrame(() => {
+	const table = document.getElementById('sales-table');
+	if (!table) return;
+	const isSmall = window.matchMedia('(max-width: 600px)').matches;
+	let overlap = false;
+	if (isSmall) {
+		const ids = ['sum-arco-amt', 'sum-melo-amt', 'sum-mara-amt', 'sum-oreo-amt'];
+		for (const id of ids) {
+			const el = document.getElementById(id);
+			if (!el) continue;
+			if (el.scrollWidth > el.clientWidth) { overlap = true; break; }
 		}
-		if (isSmall && overlap) table.classList.add('totals-stacked'); else table.classList.remove('totals-stacked');
-	});
+	}
+	if (isSmall && overlap) table.classList.add('totals-stacked'); else table.classList.remove('totals-stacked');
+});
 }
 
 function readRow(tr) {
