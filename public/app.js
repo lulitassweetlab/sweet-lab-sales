@@ -919,6 +919,9 @@ async function openConfirmPopover(message, anchorX, anchorY) {
 		pop.style.top = (baseY + 6) + 'px';
 		pop.style.transform = 'translate(-50%, 0)';
 		pop.style.zIndex = '1000';
+		// Constrain width to viewport with padding
+		pop.style.maxWidth = 'min(92vw, 320px)';
+		pop.style.wordBreak = 'break-word';
 		const text = document.createElement('div');
 		text.className = 'confirm-text';
 		text.textContent = message || '¿Confirmar?';
@@ -934,6 +937,10 @@ async function openConfirmPopover(message, anchorX, anchorY) {
 			const margin = 8; // small padding from edges
 			const rect = pop.getBoundingClientRect();
 			let leftPx = baseX - rect.width / 2;
+			// Extra left shift on very small screens for right-edge clicks
+			if (window.innerWidth <= 600 && baseX > window.innerWidth * 0.6) {
+				leftPx -= 12;
+			}
 			if (leftPx < margin) leftPx = margin;
 			const maxLeft = window.innerWidth - rect.width - margin;
 			if (leftPx > maxLeft) leftPx = Math.max(margin, maxLeft);
