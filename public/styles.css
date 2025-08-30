@@ -533,8 +533,12 @@ tfoot td { font-weight: 700; }
 	mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2l9 6H3l9-6zM5 10h14v10H5V10z"/></svg>') no-repeat center / contain;
 }
 
-/* Hover row */
-#sales-table tbody tr:hover { background: #f3f4f6; }
+/* Hosted SVG icons for pay methods */
+.col-paid .pay-select.method-efectivo::after { content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 16px; height: 12px; background: url('/icons/bill.svg') no-repeat center / contain; }
+.col-paid .pay-select.method-transf::after { content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 16px; height: 14px; background: url('/icons/bank.svg') no-repeat center / contain; }
+
+/* Stronger hover specificity */
+#sales-table tbody tr:hover td { background: #f3f4f6 !important; }
 
 /* Smaller visual scale for checkbox in $. column */
 .col-paid input[type="checkbox"] { transform: scale(0.85); transform-origin: center; }
