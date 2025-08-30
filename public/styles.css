@@ -511,11 +511,10 @@ tfoot td { font-weight: 700; }
 	padding-left: 1px; /* ensure at least 1px margin each side */
 	padding-right: 1px;
 }
+#sales-table tfoot .tfoot-amt-stack { display: none; }
 #sales-table tfoot .tfoot-amt td span { display: inline-block; max-width: 100%; }
 
 @media (max-width: 600px) {
-	#sales-table tfoot .tfoot-amt td { font-size: clamp(6px, 1.8vw, 9px); padding-left: 1px; padding-right: 1px; }
-	/* Stack rows only when class is present */
 	#sales-table.totals-stacked tfoot .tfoot-amt { display: none; }
 	#sales-table.totals-stacked tfoot .tfoot-amt-stack { display: table-row; }
 	#sales-table.totals-stacked tfoot .tfoot-amt-stack .col-client { text-align: left; color: var(--muted); }

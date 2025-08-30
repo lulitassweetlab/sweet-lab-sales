@@ -471,14 +471,17 @@ function updateSummary() {
 	requestAnimationFrame(() => {
 		const table = document.getElementById('sales-table');
 		if (!table) return;
-		const ids = ['sum-arco-amt', 'sum-melo-amt', 'sum-mara-amt', 'sum-oreo-amt'];
+		const isSmall = window.matchMedia('(max-width: 600px)').matches;
 		let overlap = false;
-		for (const id of ids) {
-			const el = document.getElementById(id);
-			if (!el) continue;
-			if (el.scrollWidth > el.clientWidth) { overlap = true; break; }
+		if (isSmall) {
+			const ids = ['sum-arco-amt', 'sum-melo-amt', 'sum-mara-amt', 'sum-oreo-amt'];
+			for (const id of ids) {
+				const el = document.getElementById(id);
+				if (!el) continue;
+				if (el.scrollWidth > el.clientWidth) { overlap = true; break; }
+			}
 		}
-		if (overlap) table.classList.add('totals-stacked'); else table.classList.remove('totals-stacked');
+		if (isSmall && overlap) table.classList.add('totals-stacked'); else table.classList.remove('totals-stacked');
 	});
 }
 
