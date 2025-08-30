@@ -141,10 +141,16 @@ function renderTable() {
 					if (current === o.v) opt.selected = true;
 					sel.appendChild(opt);
 				}
-				if (!sale.pay_method) sel.classList.add('placeholder');
+				function applyPayClass() {
+					sel.classList.remove('placeholder','method-efectivo','method-transf');
+					if (!sel.value) sel.classList.add('placeholder');
+					else if (sel.value === 'efectivo') sel.classList.add('method-efectivo');
+					else if (sel.value === 'transf') sel.classList.add('method-transf');
+				}
+				applyPayClass();
 				sel.addEventListener('change', async () => {
 					await savePayMethod(tr, sale.id, sel.value);
-					if (sel.value) sel.classList.remove('placeholder'); else sel.classList.add('placeholder');
+					applyPayClass();
 				});
 				return sel;
 			})()),
