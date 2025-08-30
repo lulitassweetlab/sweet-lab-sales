@@ -524,6 +524,8 @@ tfoot td { font-weight: 700; }
 	#sales-table.totals-stacked tfoot .tfoot-amt-stack .col-oreo { text-align: left; padding-left: 14px; white-space: normal; }
 	/* Hide the 'Totales' cell to free the label column in stacked mode */
 	#sales-table.totals-stacked tfoot .tfoot-qty .label { display: none; }
+	/* Preserve spacing inside stacked total lines */
+	#sales-table.totals-stacked tfoot .tfoot-amt-stack .col-client span { white-space: pre; }
 }
 
 /* Revert header to non-sticky but visible and aligned across devices */
