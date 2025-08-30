@@ -824,8 +824,8 @@ tfoot td { font-weight: 700; }
 	box-shadow: 0 4px 12px var(--hover-shadow-gold);
 }
 
-/* Undo/Redo buttons: less rounded and a bit larger */
-#undo-btn, #redo-btn { border-radius: 8px; min-width: 38px; height: 34px; font-size: 14px; padding: 6px 10px; }
+/* Undo/Redo buttons: larger, squarer */
+#undo-btn, #redo-btn { border-radius: 4px; min-width: 48px; height: 40px; font-size: 16px; padding: 8px 14px; }
 
 /* Gold solid button variant for Excel export */
 .btn-gold { background-color: #fbf7f0; color: var(--text); border-color: transparent; }
