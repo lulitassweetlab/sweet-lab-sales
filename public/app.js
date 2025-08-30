@@ -80,6 +80,13 @@ function bindLogin() {
 			if (seller) enterSeller(seller.id);
 		}
 	});
+	const logoutBtn = document.getElementById('logout-btn');
+	logoutBtn?.addEventListener('click', () => {
+		state.currentUser = null;
+		try { localStorage.removeItem('authUser'); } catch {}
+		applyAuthVisibility();
+		renderSellerButtons();
+	});
 }
 
 function $(sel) { return document.querySelector(sel); }
@@ -128,7 +135,11 @@ async function loadSellers() {
 function renderSellerButtons() {
 	const list = $('#seller-list');
 	list.innerHTML = '';
+	const currentUserName = (state.currentUser?.name || '').toLowerCase();
+	const isAdminUser = !!state.currentUser?.isAdmin;
 	for (const s of state.sellers) {
+		const sellerName = String(s.name || '').toLowerCase();
+		if (!isAdminUser && sellerName !== currentUserName) continue;
 		const btn = el('button', { class: 'seller-button', onclick: async () => { await enterSeller(s.id); } }, s.name);
 		list.appendChild(btn);
 	}
@@ -184,8 +195,12 @@ function applyAuthVisibility() {
 	if (isAuthed) {
 		loginView.classList.add('hidden');
 		sellerView.classList.remove('hidden');
+		const logoutBtn = document.getElementById('logout-btn');
+		if (logoutBtn) logoutBtn.style.display = 'inline-flex';
 	} else {
 		switchView('#view-login');
+		const logoutBtn = document.getElementById('logout-btn');
+		if (logoutBtn) logoutBtn.style.display = 'none';
 	}
 }
 

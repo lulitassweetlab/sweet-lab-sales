@@ -128,6 +128,7 @@ html, body, button, input, select, textarea, th, td, h1, h2, h3, h4, p, small, l
 .header-row { display: flex; align-items: center; gap: 12px; justify-content: space-between; }
 .header-left { display: inline-flex; align-items: center; gap: 12px; }
 .header-actions { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; }
+.header-actions #logout-btn { display: none; }
 .app-logo { height: 48px; width: auto; display: block; }
 .toolbar-logo { height: 36px; width: auto; }
 
