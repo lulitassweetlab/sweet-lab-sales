@@ -912,8 +912,11 @@ async function openConfirmPopover(message, anchorX, anchorY) {
 		const pop = document.createElement('div');
 		pop.className = 'confirm-popover';
 		pop.style.position = 'fixed';
-		pop.style.left = (anchorX || (window.innerWidth / 2)) + 'px';
-		pop.style.top = ((anchorY || (window.innerHeight / 2)) + 6) + 'px';
+		// Initial position near the click
+		const baseX = (typeof anchorX === 'number') ? anchorX : (window.innerWidth / 2);
+		const baseY = (typeof anchorY === 'number') ? anchorY : (window.innerHeight / 2);
+		pop.style.left = baseX + 'px';
+		pop.style.top = (baseY + 6) + 'px';
 		pop.style.transform = 'translate(-50%, 0)';
 		pop.style.zIndex = '1000';
 		const text = document.createElement('div');
@@ -926,6 +929,21 @@ async function openConfirmPopover(message, anchorX, anchorY) {
 		actions.append(noBtn, yesBtn);
 		pop.append(text, actions);
 		document.body.appendChild(pop);
+		// After mount, clamp within viewport so it never gets cut off (esp. on mobile)
+		requestAnimationFrame(() => {
+			const margin = 8; // small padding from edges
+			const rect = pop.getBoundingClientRect();
+			let leftPx = baseX - rect.width / 2;
+			if (leftPx < margin) leftPx = margin;
+			const maxLeft = window.innerWidth - rect.width - margin;
+			if (leftPx > maxLeft) leftPx = Math.max(margin, maxLeft);
+			let topPx = baseY + 6;
+			const maxTop = window.innerHeight - rect.height - margin;
+			if (topPx > maxTop) topPx = Math.max(margin, maxTop);
+			pop.style.left = leftPx + 'px';
+			pop.style.top = topPx + 'px';
+			pop.style.transform = 'none';
+		});
 		function cleanup() {
 			document.removeEventListener('mousedown', outside, true);
 			document.removeEventListener('touchstart', outside, true);
