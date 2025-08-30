@@ -534,9 +534,9 @@ tfoot td { font-weight: 700; }
 }
 
 /* Hosted SVG icons for pay methods */
-.col-paid .pay-wrap { display: inline-block; position: relative; padding-left: 18px; }
-.col-paid .pay-wrap.method-efectivo::before { content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 16px; height: 12px; background: url('/icons/bill.svg') no-repeat center / contain; }
-.col-paid .pay-wrap.method-transf::before { content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 16px; height: 14px; background: url('/icons/bank.svg') no-repeat center / contain; }
+.col-paid .pay-wrap { display: inline-block; position: relative; width: 18px; height: 16px; padding-left: 0; }
+.col-paid .pay-wrap.method-efectivo::before { content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 16px; height: 12px; background: url('/icons/bill.svg') no-repeat center / contain; }
+.col-paid .pay-wrap.method-transf::before { content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 16px; height: 14px; background: url('/icons/bank.svg') no-repeat center / contain; }
 
 /* Stronger hover specificity */
 #sales-table tbody tr:hover td { background: #f3f4f6 !important; }
