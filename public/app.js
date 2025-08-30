@@ -154,6 +154,7 @@ function renderTable() {
 					await savePayMethod(tr, sale.id, sel.value);
 					applyPayClass();
 				});
+				wrap.addEventListener('click', (e) => { e.stopPropagation(); openPayMenu(wrap, sel); });
 				wrap.appendChild(sel);
 				return wrap;
 			})()),
@@ -760,6 +761,45 @@ function openCalendarPopover(onPicked, anchorX, anchorY) {
 	document.addEventListener('mousedown', outside, true);
 	document.addEventListener('touchstart', outside, true);
 	render();
+}
+
+function openPayMenu(anchorEl, selectEl) {
+	const rect = anchorEl.getBoundingClientRect();
+	const menu = document.createElement('div');
+	menu.className = 'pay-menu';
+	menu.style.position = 'fixed';
+	menu.style.left = (rect.left + rect.width / 2) + 'px';
+	menu.style.top = (rect.bottom + 6) + 'px';
+	menu.style.transform = 'translateX(-50%)';
+	menu.style.zIndex = '1000';
+	const items = [
+		{ v: 'efectivo', cls: 'menu-efectivo' },
+		{ v: 'transf', cls: 'menu-transf' },
+		{ v: '', cls: 'menu-clear' }
+	];
+	for (const it of items) {
+		const btn = document.createElement('button');
+		btn.type = 'button';
+		btn.className = 'pay-menu-item ' + it.cls;
+		btn.addEventListener('click', async (e) => {
+			e.stopPropagation();
+			selectEl.value = it.v;
+			selectEl.dispatchEvent(new Event('change'));
+			cleanup();
+		});
+		menu.appendChild(btn);
+	}
+	document.body.appendChild(menu);
+	function outside(e) { if (!menu.contains(e.target)) cleanup(); }
+	function cleanup() {
+		document.removeEventListener('mousedown', outside, true);
+		document.removeEventListener('touchstart', outside, true);
+		if (menu.parentNode) menu.parentNode.removeChild(menu);
+	}
+	setTimeout(() => {
+		document.addEventListener('mousedown', outside, true);
+		document.addEventListener('touchstart', outside, true);
+	}, 0);
 }
 
 // Extend state to include saleDays and selectedDayId if not present

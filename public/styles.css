@@ -754,3 +754,9 @@ tfoot td { font-weight: 700; }
 .btn-gold { background-color: #fbf7f0; color: var(--text); border-color: transparent; }
 .btn-gold:hover { background-color: #f2e2d3; color: var(--text); box-shadow: 0 8px 24px rgba(0,0,0,0.06); }
 .btn-gold:active { background-color: #e8d6c6; box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
+
+.pay-menu { background:#fff; border:1px solid var(--border); border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,0.12); padding:6px; display:inline-flex; gap:8px; }
+.pay-menu-item { width:20px; height:16px; border:none; background:transparent; cursor:pointer; }
+.pay-menu-item.menu-efectivo { background:url('/icons/bill.svg') no-repeat center / contain; }
+.pay-menu-item.menu-transf { background:url('/icons/bank.svg') no-repeat center / contain; }
+.pay-menu-item.menu-clear { width:auto; height:auto; padding:2px 6px; border:1px solid var(--border); border-radius:6px; font-size:10px; }
