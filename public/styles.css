@@ -619,12 +619,12 @@ tfoot td { font-weight: 700; }
 
 /* Excel button placement */
 .table-actions.end { display: flex; justify-content: flex-end; padding: 8px; }
-.excel-btn { padding: 8px 12px; border: 1px solid var(--border); background: #ffffff; color: var(--text); border-radius: 12px; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
+.excel-btn { padding: 8px 12px; border: 1px solid var(--border); background: var(--card); color: var(--text); border-radius: 12px; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
 .excel-btn:hover { filter: brightness(1.1); }
 
 /* Dates section */
 .dates-section { margin: 24px 0 12px; }
-.sales-panel { background: #ffffff; border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 1px 2px rgba(0,0,0,0.06); overflow: hidden; margin-top: 8px; }
+.sales-panel { background: var(--card); border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 1px 2px rgba(0,0,0,0.06); overflow: hidden; margin-top: 8px; }
 .sales-panel .panel-header { background: #e9dfd0; padding: 8px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .sales-panel .panel-header h3 { margin: 0; font-size: 18px; font-weight: 400; letter-spacing: -0.01em; }
 .sales-panel .panel-header .panel-actions { display: inline-flex; gap: 8px; align-items: center; }
@@ -632,7 +632,7 @@ tfoot td { font-weight: 700; }
 
 /* Custom date popover */
 .date-popover {
-	background: #ffffff;
+	background: var(--card);
 	border: 1px solid var(--border);
 	border-radius: 10px;
 	box-shadow: 0 8px 24px rgba(0,0,0,0.12);
@@ -640,11 +640,11 @@ tfoot td { font-weight: 700; }
 }
 .date-popover .date-popover-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
 .date-popover .date-label { font-weight: 400; }
-.date-popover .date-nav { border: 1px solid var(--border); background: #fff; border-radius: 6px; padding: 2px 6px; cursor: pointer; }
+.date-popover .date-nav { border: 1px solid var(--border); background: var(--card); border-radius: 6px; padding: 2px 6px; cursor: pointer; }
 .date-popover .date-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 4px; opacity: 0.7; }
 .date-popover .date-weekdays > div { text-align: center; }
 .date-popover .date-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
-.date-popover .date-cell { border: 1px solid var(--border); background: #fff; border-radius: 6px; padding: 4px 0; cursor: pointer; }
+.date-popover .date-cell { border: 1px solid var(--border); background: var(--card); border-radius: 6px; padding: 4px 0; cursor: pointer; }
 .date-popover .date-cell.disabled { opacity: 0; pointer-events: none; }
 .date-popover .date-cell:hover { background: var(--secondary); }
 .report-card {
@@ -660,15 +660,15 @@ tfoot td { font-weight: 700; }
 .report-btn { background: var(--pink-btn); color: #fff; border-color: transparent; }
 .report-btn:hover { filter: none; background: var(--pink-btn-hover); box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
 .dates-list { display: flex; flex-wrap: wrap; gap: 8px; }
-.date-button { padding: 8px 12px; border: 1px solid var(--border); background: #ffffff; color: var(--text); border-radius: 999px; cursor: pointer; }
+.date-button { padding: 8px 12px; border: 1px solid var(--border); background: var(--card); color: var(--text); border-radius: 999px; cursor: pointer; }
 .date-button:hover { filter: brightness(1.1); }
 
 /* Dates controls */
 .dates-controls { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
-.dates-controls input[type="date"] { padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: #ffffff; color: var(--text); }
+.dates-controls input[type="date"] { padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--card); color: var(--text); }
 
 /* Date item with delete */
-.date-item { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); background: #ffffff; color: var(--text); border-radius: 999px; padding: 0 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
+.date-item { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); background: var(--card); color: var(--text); border-radius: 999px; padding: 0 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
 .date-item .date-button { border: none; background: transparent; color: inherit; padding: 8px 6px; }
 .date-item .date-delete { border: none; background: transparent; color: var(--danger); font-size: 12px; padding: 4px 6px; cursor: pointer; }
 .date-item .date-delete:hover { filter: brightness(1.2); }
@@ -686,7 +686,7 @@ tfoot td { font-weight: 700; }
 .date-button, .excel-btn, .date-delete {
 	border: 1px solid var(--border);
 	border-radius: 12px;
-	background: #ffffff;
+	background: var(--card);
 	color: var(--text);
 	box-shadow: 0 1px 2px rgba(0,0,0,0.06);
 	transition: transform 80ms ease, filter 80ms ease, box-shadow 80ms ease;
@@ -740,7 +740,7 @@ tfoot td { font-weight: 700; }
 .press-btn {
 	border: 1px solid var(--border);
 	border-radius: 12px;
-	background: #ffffff;
+	background: var(--card);
 	color: var(--text);
 	box-shadow: 0 1px 2px rgba(0,0,0,0.06);
 	transition: transform 80ms ease, filter 80ms ease, box-shadow 80ms ease;
@@ -752,7 +752,7 @@ tfoot td { font-weight: 700; }
 .seller-button {
 	border: 1px solid var(--border);
 	border-radius: 16px;
-	background: #ffffff;
+	background: var(--card);
 	color: var(--text);
 	box-shadow: 0 1px 2px rgba(0,0,0,0.06);
 	transition: transform 80ms ease, filter 80ms ease, box-shadow 80ms ease;
