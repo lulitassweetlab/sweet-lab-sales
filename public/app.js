@@ -131,8 +131,8 @@ function renderTable() {
 				const current = (sale.pay_method || '').replace(/\.$/, '');
 				const options = [
 					{ v: '', label: '-' },
-					{ v: 'efectivo', label: 'efectivo' },
-					{ v: 'transf', label: 'transf' }
+					{ v: 'efectivo', label: '' },
+					{ v: 'transf', label: '' }
 				];
 				for (const o of options) {
 					const opt = document.createElement('option');
