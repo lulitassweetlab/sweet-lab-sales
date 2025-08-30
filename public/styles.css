@@ -116,7 +116,7 @@ html, body, button, input, select, textarea, th, td, h1, h2, h3, h4, p, small, l
 h1, h2 { margin: 8px 0; font-weight: 400; }
 
 main { padding: 24px; max-width: 1024px; margin: 0 auto; }
-.sellers-panel { background: #ffffff; border: 1px solid var(--border); border-radius: 16px; box-shadow: none; overflow: hidden; margin-bottom: 24px; }
+.sellers-panel { background: var(--card); border: 1px solid var(--border); border-radius: 16px; box-shadow: none; overflow: hidden; margin-bottom: 24px; }
 .sellers-panel .panel-header { background: #e9dfd0; padding: 12px 16px; border-bottom: 1px solid var(--border); }
 .sellers-panel .panel-header h3 { margin: 0; font-size: 10px; font-weight: 400; letter-spacing: -0.01em; }
 .sellers-panel .panel-body { padding: 16px; }
@@ -147,7 +147,7 @@ select, input[type="text"], button {
 	padding: 10px 12px;
 	border-radius: 12px;
 	border: 1px solid var(--border);
-	background: #ffffff;
+	background: var(--card);
 	color: var(--text);
 	font-size: 16px;
 	box-shadow: 0 1px 2px rgba(0,0,0,0.06);
@@ -158,7 +158,7 @@ button.secondary { background: #f3f4f6; color: var(--muted); }
 button:hover { filter: brightness(1.1); }
 
 .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; margin: 8px 0 14px; }
-.summary-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: #ffffff; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
+.summary-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--card); box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
 .summary-item .label { color: var(--muted); font-weight: 400; }
 .summary-item .qty { font-weight: 400; }
 .summary-item .amt { font-weight: 400; color: var(--accent); }
@@ -177,7 +177,7 @@ table { width: 100%; border-collapse: collapse; }
 table { border: none; }
 
 /* Cells */
-th, td { border-bottom: 1px solid var(--border); padding: 8px; text-align: center; background: #ffffff; }
+th, td { border-bottom: 1px solid var(--border); padding: 8px; text-align: center; background: var(--card); }
 
 /* Subtle dividers between client rows using page background color */
 #sales-table tbody td { border-bottom: 1.2px solid rgba(243,234,222,0.12); }
@@ -239,7 +239,7 @@ tfoot td { font-weight: 400; }
 .w-actions { width: 6%; }
 
 /* Sticky header */
-#sales-table thead th { position: sticky; top: 0; background: #ffffff; z-index: 2; font-weight: 400; }
+#sales-table thead th { position: sticky; top: 0; background: var(--card); z-index: 2; font-weight: 400; }
 
 /* Compact rows */
 th, td { border-bottom: 1px solid var(--border); padding: 6px 6px; text-align: center; }
@@ -339,7 +339,7 @@ tfoot td { font-weight: 700; }
 .w-actions { width: 6%; }
 
 /* Sticky header */
-#sales-table thead th { position: sticky; top: 0; background: #ffffff; z-index: 2; }
+#sales-table thead th { position: sticky; top: 0; background: var(--card); z-index: 2; }
 
 /* Compact rows */
 th, td { border-bottom: 1px solid var(--border); padding: 6px 6px; text-align: center; }
@@ -506,7 +506,7 @@ tfoot td { font-weight: 700; }
 
 /* Sticky header offset below toolbar */
 :root { --toolbarH: 48px; }
-#sales-table thead th { position: sticky; top: var(--toolbarH, 0px); background: #ffffff; z-index: 20; }
+#sales-table thead th { position: sticky; top: var(--toolbarH, 0px); background: var(--card); z-index: 20; }
 
 /* Ensure thead is visible */
 #sales-table thead { display: table-header-group; }
@@ -597,7 +597,7 @@ tfoot td { font-weight: 700; }
 }
 
 /* Progressive sticky header clone */
-.sticky-head { position: sticky; top: 0; z-index: 25; background: #ffffff; border-bottom: 1px solid var(--border); display: grid; grid-auto-flow: column; grid-auto-columns: min-content; gap: 0; }
+.sticky-head { position: sticky; top: 0; z-index: 25; background: var(--card); border-bottom: 1px solid var(--border); display: grid; grid-auto-flow: column; grid-auto-columns: min-content; gap: 0; }
 .sticky-head.hidden { display: none; }
 .sticky-head .hcell { padding: 6px; font-weight: 400; text-align: center; font-size: 10px; border-right: 1px solid var(--border); white-space: nowrap; }
 .sticky-head .hcell.c-client { text-align: left; }
@@ -606,7 +606,7 @@ tfoot td { font-weight: 700; }
 /* Progressive sticky: hide native thead and use sticky clone */
 #sales-table thead { display: none !important; }
 /* Progressive sticky header clone aligned by CSS vars */
-.sticky-head { position: sticky; top: var(--toolbarH, 56px); z-index: 25; background: #ffffff; border-bottom: 1px solid var(--border); display: grid; grid-template-columns: var(--w-paid) var(--w-client) var(--w-qty) var(--w-qty) var(--w-qty) var(--w-qty) var(--w-total) var(--w-actions); gap: 0; }
+.sticky-head { position: sticky; top: var(--toolbarH, 56px); z-index: 25; background: var(--card); border-bottom: 1px solid var(--border); display: grid; grid-template-columns: var(--w-paid) var(--w-client) var(--w-qty) var(--w-qty) var(--w-qty) var(--w-qty) var(--w-total) var(--w-actions); gap: 0; }
 
 /* Offset content so sticky header doesn't cover rows */
 .table-wrapper { padding-top: var(--stickyHeadH, 0px); }
@@ -719,17 +719,17 @@ tfoot td { font-weight: 700; }
 .date-button:active, .excel-btn:active, .row-delete:active { transform: scale(0.98); filter: brightness(0.98); }
 
 /* Date button background and relief */
-.date-button { background: #ffffff; }
+.date-button { background: var(--card); }
 .date-button:hover { background: #fcfcfd; }
 .date-button:active { transform: translateY(1px); box-shadow: inset 0 2px 4px rgba(0,0,0,0.08), 0 1px 0 rgba(0,0,0,0.08); }
 
 /* Date chip (date-item) relief */
-.date-item { background: linear-gradient(180deg, #ffffff, #ffffff); }
+.date-item { background: linear-gradient(180deg, var(--card), var(--card)); }
 .date-item:active { box-shadow: inset 0 2px 4px rgba(0,0,0,0.6), 0 1px 0 rgba(0,0,0,0.6); }
 
 /* Inline add row at end of table */
 .add-row-line td { padding: 8px 6px; text-align: left; }
-.inline-add-btn { padding: 8px 12px; border: 1px dashed var(--border); background: #ffffff; color: var(--text); border-radius: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
+.inline-add-btn { padding: 8px 12px; border: 1px dashed var(--border); background: var(--card); color: var(--text); border-radius: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
 .inline-add-btn:hover { filter: brightness(1.15); }
 .inline-add-btn:active { transform: translateY(1px); box-shadow: 0 1px 0 rgba(0,0,0,0.6); }
 
