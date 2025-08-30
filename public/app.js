@@ -126,6 +126,8 @@ function renderTable() {
 		const isPaid = !!sale.is_paid;
 		const tr = el('tr', {},
 			el('td', { class: 'col-paid' }, (function(){
+				const wrap = document.createElement('span');
+				wrap.className = 'pay-wrap';
 				const sel = document.createElement('select');
 				sel.className = 'input-cell pay-select';
 				const current = (sale.pay_method || '').replace(/\.$/, '');
@@ -142,17 +144,18 @@ function renderTable() {
 					sel.appendChild(opt);
 				}
 				function applyPayClass() {
-					sel.classList.remove('placeholder','method-efectivo','method-transf');
-					if (!sel.value) sel.classList.add('placeholder');
-					else if (sel.value === 'efectivo') sel.classList.add('method-efectivo');
-					else if (sel.value === 'transf') sel.classList.add('method-transf');
+					wrap.classList.remove('placeholder','method-efectivo','method-transf');
+					if (!sel.value) wrap.classList.add('placeholder');
+					else if (sel.value === 'efectivo') wrap.classList.add('method-efectivo');
+					else if (sel.value === 'transf') wrap.classList.add('method-transf');
 				}
 				applyPayClass();
 				sel.addEventListener('change', async () => {
 					await savePayMethod(tr, sale.id, sel.value);
 					applyPayClass();
 				});
-				return sel;
+				wrap.appendChild(sel);
+				return wrap;
 			})()),
 			el('td', { class: 'col-client' }, el('input', {
 				class: 'input-cell client-input',
