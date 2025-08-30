@@ -641,6 +641,12 @@ tfoot td { font-weight: 700; }
 	.row-delete { font-size: 14px; width: 1.4em; height: 1.4em; }
 }
 
+/* Enlarge click/touch target without changing visual size */
+.col-actions .row-delete { padding: 6px; margin: -6px; border-radius: 8px; }
+@media (max-width: 600px) {
+	.col-actions .row-delete { padding: 8px; margin: -8px; }
+}
+
 /* Progressive sticky header clone */
 .sticky-head { position: sticky; top: 0; z-index: 25; background: var(--card); border-bottom: 1px solid var(--border); display: grid; grid-auto-flow: column; grid-auto-columns: min-content; gap: 0; }
 .sticky-head.hidden { display: none; }
