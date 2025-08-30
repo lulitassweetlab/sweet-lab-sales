@@ -518,7 +518,7 @@ tfoot td { font-weight: 700; }
 	#sales-table.totals-stacked tfoot .tfoot-amt { display: none; }
 	#sales-table.totals-stacked tfoot .tfoot-qty { display: none; }
 	#sales-table.totals-stacked tfoot .tfoot-amt-stack { display: table-row; }
-	#sales-table.totals-stacked tfoot .tfoot-amt-stack .col-client { text-align: left; color: var(--muted); padding-right: 14px; display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 8px; }
+	#sales-table.totals-stacked tfoot .tfoot-amt-stack .col-client { text-align: left; color: var(--muted); padding-right: 14px; display: grid; grid-template-columns: 1fr auto auto; align-items: baseline; gap: 8px; }
 	#sales-table.totals-stacked tfoot .tfoot-amt-stack .col-arco,
 	#sales-table.totals-stacked tfoot .tfoot-amt-stack .col-melo,
 	#sales-table.totals-stacked tfoot .tfoot-amt-stack .col-mara,
@@ -527,6 +527,12 @@ tfoot td { font-weight: 700; }
 	#sales-table.totals-stacked tfoot .tfoot-qty .label { display: none; }
 	/* Preserve spacing inside stacked total lines */
 	#sales-table.totals-stacked tfoot .tfoot-amt-stack .col-client span { white-space: pre; }
+	/* Visual separation before grand total */
+	#sales-table.totals-stacked tfoot .t-am-grand td { padding-top: 10px; border-top: 1px solid var(--border); }
+	/* 3-column-like alignment */
+	#sales-table.totals-stacked tfoot .tfoot-amt-stack .st-name { font-weight: 400; }
+	#sales-table.totals-stacked tfoot .tfoot-amt-stack .st-qty { text-align: center; min-width: 2ch; }
+	#sales-table.totals-stacked tfoot .tfoot-amt-stack .st-amt { text-align: right; color: var(--accent); }
 }
 
 /* Revert header to non-sticky but visible and aligned across devices */
