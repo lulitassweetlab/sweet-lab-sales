@@ -487,8 +487,8 @@ requestAnimationFrame(() => {
 		}
 	}
 	if (isSmall && overlap) table.classList.add('totals-stacked'); else table.classList.remove('totals-stacked');
-	const grandLine = document.getElementById('sum-grand-line-2');
-	if (grandLine) grandLine.textContent = `Total a pagar: ${grandStr}`;
+	const grandLine = document.getElementById('sum-grand-2');
+	if (grandLine) grandLine.textContent = grandStr;
 });
 }
 
