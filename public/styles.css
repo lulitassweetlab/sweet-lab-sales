@@ -476,8 +476,8 @@ tfoot td { font-weight: 700; }
 
 /* Map CSS variables to colgroup widths for alignment */
 /* Widths including new Paid column */
-:root { --w-paid: 6%; --w-client: 42%; --w-qty: 8%; --w-total: 16%; --w-actions: 4%; }
-@media (max-width: 600px) { :root { --w-paid: 7%; --w-client: 42%; --w-qty: 6.5%; --w-total: 16%; --w-actions: 5.5%; } }
+:root { --w-paid: 6%; --w-client: 40%; --w-qty: 9%; --w-total: 16%; --w-actions: 4%; }
+@media (max-width: 600px) { :root { --w-paid: 7%; --w-client: 45%; --w-qty: 6.5%; --w-total: 15.5%; --w-actions: 6%; } }
 
 /* Hide native thead to prevent overlap */
 #sales-table thead { display: none; }
@@ -485,7 +485,7 @@ tfoot td { font-weight: 700; }
 /* Sync table col widths exactly */
 #sales-table { table-layout: fixed; width: 100%; }
 #sales-table col.w-paid { width: var(--w-paid); }
-#sales-table col.w-client { width: var(--w-client); }
+#sales-table col.w-client { width: max(25ch, var(--w-client)); }
 #sales-table col.w-qty { width: var(--w-qty); }
 #sales-table col.w-total { width: var(--w-total); }
 #sales-table col.w-actions { width: var(--w-actions); }
@@ -493,8 +493,8 @@ tfoot td { font-weight: 700; }
 #sales-table thead { display: none; }
 
 /* Rebalance widths to include Paid without overflow */
-:root { --w-paid: 6%; --w-client: 45%; --w-qty: 7%; --w-total: 15%; --w-actions: 5%; }
-@media (max-width: 600px) { :root { --w-paid: 7%; --w-client: 42%; --w-qty: 6.5%; --w-total: 16%; --w-actions: 5.5%; } }
+:root { --w-paid: 6%; --w-client: 40%; --w-qty: 9%; --w-total: 16%; --w-actions: 5%; }
+@media (max-width: 600px) { :root { --w-paid: 7%; --w-client: 45%; --w-qty: 6.5%; --w-total: 15.5%; --w-actions: 6%; } }
 
 /* Revert Pago checkbox custom styles */
 .col-paid input[type="checkbox"] {
