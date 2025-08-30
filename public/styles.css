@@ -145,6 +145,10 @@ main { padding: 24px; max-width: 1024px; margin: 0 auto; }
 
 .seller-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 16px 0 18px; }
 
+/* Login */
+.login-form { display: grid; gap: 10px; max-width: 360px; margin: 12px auto; }
+.login-error { color: var(--danger); font-size: 10px; }
+.hidden { display: none !important; }
 
 .seller-button {
 	padding: 20px 22px;

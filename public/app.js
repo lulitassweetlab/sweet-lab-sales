@@ -16,6 +16,7 @@ const state = {
 	currentSeller: null,
 	sellers: [],
 	sales: [],
+	currentUser: null,
 };
 
 // Theme management
@@ -49,6 +50,36 @@ const state = {
 function updateThemeButton(btn){
 	const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
 	btn.title = isDark ? 'Modo claro' : 'Modo oscuro';
+}
+
+// Auth
+function computePasswordFor(user) {
+	return (String(user || '') + 'sweet').toLowerCase();
+}
+
+function isAdmin(user) {
+	const u = String(user || '').toLowerCase();
+	return u === 'jorge' || u === 'marcela';
+}
+
+function bindLogin() {
+	const btn = document.getElementById('login-btn');
+	btn?.addEventListener('click', () => {
+		const user = document.getElementById('login-user')?.value?.trim();
+		const pass = document.getElementById('login-pass')?.value ?? '';
+		const err = document.getElementById('login-error');
+		if (!user) { if (err) { err.textContent = 'Ingresa el usuario'; err.classList.remove('hidden'); } return; }
+		if (pass !== computePasswordFor(user)) { if (err) { err.textContent = 'Usuario o contraseña inválidos'; err.classList.remove('hidden'); } return; }
+		if (err) err.classList.add('hidden');
+		state.currentUser = { name: user, isAdmin: isAdmin(user) };
+		try { localStorage.setItem('authUser', JSON.stringify(state.currentUser)); } catch {}
+		applyAuthVisibility();
+		// If not admin, auto-enter seller if exists
+		if (!state.currentUser.isAdmin) {
+			const seller = (state.sellers || []).find(s => String(s.name).toLowerCase() === String(user).toLowerCase());
+			if (seller) enterSeller(seller.id);
+		}
+	});
 }
 
 function $(sel) { return document.querySelector(sel); }
@@ -91,6 +122,7 @@ async function loadSellers() {
 	state.sellers = await api('GET', API.Sellers);
 	renderSellerButtons();
 	// Removed syncColumnsBarWidths();
+	applyAuthVisibility();
 }
 
 function renderSellerButtons() {
@@ -141,6 +173,20 @@ async function enterSeller(id) {
 function switchView(id) {
 	document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
 	$(id).classList.remove('hidden');
+}
+
+function applyAuthVisibility() {
+	const loginView = document.getElementById('view-login');
+	const sellerView = document.getElementById('view-select-seller');
+	const salesView = document.getElementById('view-sales');
+	const isAuthed = !!state.currentUser;
+	if (!loginView || !sellerView || !salesView) return;
+	if (isAuthed) {
+		loginView.classList.add('hidden');
+		sellerView.classList.remove('hidden');
+	} else {
+		switchView('#view-login');
+	}
 }
 
 function calcRowTotal(q) {
@@ -953,5 +999,7 @@ if (!('selectedDayId' in state)) state.selectedDayId = null;
 (async function init() {
 	bindEvents();
 	updateToolbarOffset();
+	try { const saved = localStorage.getItem('authUser'); if (saved) state.currentUser = JSON.parse(saved); } catch {}
 	await loadSellers();
+	bindLogin();
 })();
