@@ -235,12 +235,12 @@ tfoot td { font-weight: 400; }
 .total { font-weight: 400; color: var(--accent); white-space: nowrap; }
 
 /* Delete button as red x */
-.row-delete { color: var(--danger); font-weight: 400; position: relative; width: 1.2em; height: 1.2em; }
+.row-delete { color: var(--danger); font-weight: 400; position: relative; width: 2em; height: 2em; }
 .row-delete::before {
 	content: '';
 	display: inline-block;
-	width: 1em;
-	height: 1em;
+	width: 1.4em;
+	height: 1.4em;
 	background-color: var(--danger);
 	-webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="%23000" d="M7 4h10l-1 2h4v2H4V6h4l-1-2zm-1 6h12l-1 10H7L6 10zm3 2v6h2v-6H9zm4 0v6h2v-6h-2z"/></svg>') no-repeat center / contain;
 	mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="%23000" d="M7 4h10l-1 2h4v2H4V6h4l-1-2zm-1 6h12l-1 10H7L6 10zm3 2v6h2v-6H9zm4 0v6h2v-6h-2z"/></svg>') no-repeat center / contain;
@@ -495,7 +495,7 @@ tfoot td { font-weight: 700; }
 }
 
 @media (max-width: 600px) {
-	.row-delete { font-size: 10px; }
+	.row-delete { font-size: 12px; width: 1.8em; height: 1.8em; line-height: 14px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
 }
 
 /* Remove unified row-height enforcement */
