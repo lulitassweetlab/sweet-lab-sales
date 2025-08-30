@@ -876,6 +876,9 @@ tfoot td { font-weight: 700; }
 	#sales-table tfoot .tfoot-amt-stack td { vertical-align: bottom; padding-top: 12px; padding-bottom: 0; }
 	#sales-table tfoot .tfoot-amt-stack .col-paid, 
 	#sales-table tfoot .tfoot-amt-stack .col-actions { display: none; }
+	/* But keep side cells visible for grand total row so it sits in Total column */
+	#sales-table tfoot .t-am-grand .col-paid,
+	#sales-table tfoot .t-am-grand .col-actions { display: table-cell !important; }
 
 	#sales-table tfoot .tfoot-amt-stack .col-client { text-align: left; color: var(--muted); padding-right: 14px; display: grid; grid-template-columns: 1fr auto auto; align-items: end; align-content: end; gap: 8px; padding-bottom: 0; }
 	#sales-table tfoot .tfoot-amt-stack .col-client > * { align-self: end; line-height: 1; }
