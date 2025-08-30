@@ -1017,3 +1017,16 @@ tfoot td { font-weight: 700; }
 #undo-btn::before { content: '←'; font-size: 22px; }
 #redo-btn::before { content: '→'; font-size: 22px; }
 @media (max-width: 600px) { #undo-btn::before, #redo-btn::before { font-size: 20px; } }
+
+/* Undo/Redo icons: slightly rounded background on icon only */
+#undo-btn::before, #redo-btn::before {
+	padding: 2px 6px;
+	border-radius: 6px;
+	background-color: rgba(0,0,0,0.06);
+	transition: background-color 140ms ease;
+}
+[data-theme="dark"] #undo-btn::before,
+[data-theme="dark"] #redo-btn::before { background-color: rgba(255,255,255,0.08); }
+#undo-btn:hover::before, #redo-btn:hover::before { background-color: rgba(0,0,0,0.12); }
+[data-theme="dark"] #undo-btn:hover::before,
+[data-theme="dark"] #redo-btn:hover::before { background-color: rgba(255,255,255,0.16); }
