@@ -18,9 +18,9 @@ export async function handler(event) {
 				if (!sellerId) return json({ error: 'seller_id requerido' }, 400);
 				let rows;
 				if (saleDayId) {
-					rows = await sql`SELECT id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, is_paid, total_cents, created_at FROM sales WHERE seller_id = ${sellerId} AND sale_day_id=${saleDayId} ORDER BY created_at ASC, id ASC`;
+					rows = await sql`SELECT id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, is_paid, pay_method, total_cents, created_at FROM sales WHERE seller_id = ${sellerId} AND sale_day_id=${saleDayId} ORDER BY created_at ASC, id ASC`;
 				} else {
-					rows = await sql`SELECT id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, is_paid, total_cents, created_at FROM sales WHERE seller_id = ${sellerId} ORDER BY created_at ASC, id ASC`;
+					rows = await sql`SELECT id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, is_paid, pay_method, total_cents, created_at FROM sales WHERE seller_id = ${sellerId} ORDER BY created_at ASC, id ASC`;
 				}
 				return json(rows);
 			}
@@ -34,7 +34,7 @@ export async function handler(event) {
 					const iso = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())).toISOString().slice(0,10);
 					saleDayId = await getOrCreateDayId(sellerId, iso);
 				}
-				const [row] = await sql`INSERT INTO sales (seller_id, sale_day_id) VALUES (${sellerId}, ${saleDayId}) RETURNING id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, is_paid, total_cents, created_at`;
+				const [row] = await sql`INSERT INTO sales (seller_id, sale_day_id) VALUES (${sellerId}, ${saleDayId}) RETURNING id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, is_paid, pay_method, total_cents, created_at`;
 				return json(row, 201);
 			}
 			case 'PUT': {
@@ -47,7 +47,8 @@ export async function handler(event) {
 				const qma = Number(data.qty_mara ?? 0) || 0;
 				const qo = Number(data.qty_oreo ?? 0) || 0;
 				const paid = data.is_paid === true || data.is_paid === 'true';
-				await sql`UPDATE sales SET client_name=${client}, qty_arco=${qa}, qty_melo=${qm}, qty_mara=${qma}, qty_oreo=${qo}, is_paid=${paid} WHERE id=${id}`;
+				const payMethod = (data.pay_method ?? null);
+				await sql`UPDATE sales SET client_name=${client}, qty_arco=${qa}, qty_melo=${qm}, qty_mara=${qma}, qty_oreo=${qo}, is_paid=${paid}, pay_method=${payMethod} WHERE id=${id}`;
 				const row = await recalcTotalForId(id);
 				return json(row);
 			}

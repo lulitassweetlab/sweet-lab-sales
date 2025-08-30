@@ -125,7 +125,21 @@ function renderTable() {
 		const total = calcRowTotal({ arco: sale.qty_arco, melo: sale.qty_melo, mara: sale.qty_mara, oreo: sale.qty_oreo });
 		const isPaid = !!sale.is_paid;
 		const tr = el('tr', {},
-			el('td', { class: 'col-paid' }, el('input', { type: 'checkbox', checked: isPaid, onchange: async (e) => { await savePaid(tr, sale.id, e.target.checked); } })),
+			el('td', { class: 'col-paid' }, (function(){
+				const sel = document.createElement('select');
+				sel.className = 'input-cell pay-select';
+				['', 'efectivo', 'transf.'].forEach(v => {
+					const opt = document.createElement('option');
+					opt.value = v;
+					opt.textContent = v || '';
+					if ((sale.pay_method || '') === v) opt.selected = true;
+					sel.appendChild(opt);
+				});
+				sel.addEventListener('change', async () => {
+					await savePayMethod(tr, sale.id, sel.value);
+				});
+				return sel;
+			})()),
 			el('td', { class: 'col-client' }, el('input', {
 				class: 'input-cell client-input',
 				value: sale.client_name || '',
@@ -285,6 +299,16 @@ async function savePaid(tr, id, isPaid) {
 	const updated = await api('PUT', API.Sales, body);
 	const idx = state.sales.findIndex(s => s.id === id);
 	if (idx !== -1) state.sales[idx] = updated;
+}
+
+async function savePayMethod(tr, id, method) {
+	const body = readRow(tr);
+	body.id = id;
+	body.pay_method = method || null;
+	await api('PUT', API.Sales, body);
+	// Update local state
+	const idx = state.sales.findIndex(s => s.id === id);
+	if (idx !== -1) state.sales[idx].pay_method = method || null;
 }
 
 function updateSummary() {
