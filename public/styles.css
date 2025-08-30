@@ -515,10 +515,10 @@ tfoot td { font-weight: 700; }
 
 @media (max-width: 600px) {
 	#sales-table tfoot .tfoot-amt td { font-size: clamp(6px, 1.8vw, 9px); padding-left: 1px; padding-right: 1px; }
-	/* Stack per-dessert amount rows to avoid overlap */
-	#sales-table tfoot .tfoot-amt { display: none; }
-	#sales-table tfoot .tfoot-amt-stack { display: table-row; }
-	#sales-table tfoot .tfoot-amt-stack .col-client { text-align: left; color: var(--muted); }
+	/* Stack rows only when class is present */
+	#sales-table.totals-stacked tfoot .tfoot-amt { display: none; }
+	#sales-table.totals-stacked tfoot .tfoot-amt-stack { display: table-row; }
+	#sales-table.totals-stacked tfoot .tfoot-amt-stack .col-client { text-align: left; color: var(--muted); }
 }
 
 /* Revert header to non-sticky but visible and aligned across devices */
