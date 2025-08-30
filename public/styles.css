@@ -601,8 +601,9 @@ tfoot td { font-weight: 700; }
 /* Placeholder dash when no selection */
 .col-paid .pay-wrap.placeholder::before { content: '-'; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-size: 12px; line-height: 1; color: var(--text); opacity: 0.7; }
 
-/* Stronger hover specificity */
+/* Row hover */
 #sales-table tbody tr:hover td { background: #f3f4f6 !important; }
+[data-theme="dark"] #sales-table tbody tr:hover td { background: #1a1a1a !important; }
 
 /* Smaller visual scale for checkbox in $. column */
 .col-paid input[type="checkbox"] { transform: scale(0.85); transform-origin: center; }
