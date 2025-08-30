@@ -204,7 +204,18 @@ function renderTable() {
 			el('td', { class: 'col-mara' }, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_mara ? String(sale.qty_mara) : '', placeholder: '', oninput: debounce(() => saveRow(tr, sale.id), 400) })),
 			el('td', { class: 'col-oreo' }, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_oreo ? String(sale.qty_oreo) : '', placeholder: '', oninput: debounce(() => saveRow(tr, sale.id), 400) })),
 			el('td', { class: 'total col-total' }, fmtNo.format(total)),
-			el('td', { class: 'col-actions' }, el('button', { class: 'row-delete', title: 'Eliminar', onclick: async () => { await deleteRow(sale.id); } }, '')),
+			el('td', { class: 'col-actions' }, (function(){
+				const b = document.createElement('button');
+				b.className = 'row-delete';
+				b.title = 'Eliminar';
+				b.addEventListener('click', async (ev) => {
+					ev.stopPropagation();
+					const ok = await openConfirmPopover('¿Seguro que quieres eliminar esta fila?', ev.clientX, ev.clientY);
+					if (!ok) return;
+					await deleteRow(sale.id);
+				});
+				return b;
+			})()),
 		);
 		tr.dataset.id = String(sale.id);
 		tbody.appendChild(tr);
@@ -323,7 +334,6 @@ async function saveRow(tr, id) {
 
 async function deleteRow(id) {
 	const prev = state.sales.find(s => s.id === id);
-	if (!confirm('¿Seguro que quieres eliminar esta fila?')) return;
 	await api('DELETE', `${API.Sales}?id=${encodeURIComponent(id)}`);
 	state.sales = state.sales.filter(s => s.id !== id);
 	// Push undo: re-create previous row
@@ -339,7 +349,9 @@ async function deleteRow(id) {
 				renderTable();
 			},
 			undo: async () => {
-				await api('POST', API.Sales, prev); // fallback not ideal if API expects insert-only; we already removed, so better to reinsert via create+update
+				await api('DELETE', `${API.Sales}?id=${encodeURIComponent(prev.id)}`);
+				state.sales = state.sales.filter(s => s.id !== prev.id);
+				renderTable();
 			}
 		});
 	}
@@ -639,7 +651,8 @@ function renderDaysList() {
 		del.textContent = '🗑️';
 		del.addEventListener('click', async (e) => {
 			e.stopPropagation();
-			if (!confirm('¿Seguro que quieres eliminar esta fecha?')) return;
+			const ok = await openConfirmPopover('¿Eliminar esta fecha?', e.clientX, e.clientY);
+			if (!ok) return;
 			await api('DELETE', `/api/days?id=${encodeURIComponent(d.id)}`);
 			if (state.selectedDayId === d.id) {
 				state.selectedDayId = null;
@@ -798,6 +811,40 @@ function openCalendarPopover(onPicked, anchorX, anchorY) {
 	document.addEventListener('mousedown', outside, true);
 	document.addEventListener('touchstart', outside, true);
 	render();
+}
+
+async function openConfirmPopover(message, anchorX, anchorY) {
+	return new Promise((resolve) => {
+		const pop = document.createElement('div');
+		pop.className = 'confirm-popover';
+		pop.style.position = 'fixed';
+		pop.style.left = (anchorX || (window.innerWidth / 2)) + 'px';
+		pop.style.top = ((anchorY || (window.innerHeight / 2)) + 6) + 'px';
+		pop.style.transform = 'translate(-50%, 0)';
+		pop.style.zIndex = '1000';
+		const text = document.createElement('div');
+		text.className = 'confirm-text';
+		text.textContent = message || '¿Confirmar?';
+		const actions = document.createElement('div');
+		actions.className = 'confirm-actions';
+		const noBtn = document.createElement('button'); noBtn.className = 'press-btn'; noBtn.textContent = 'Cancelar';
+		const yesBtn = document.createElement('button'); yesBtn.className = 'press-btn btn-primary'; yesBtn.textContent = 'Eliminar';
+		actions.append(noBtn, yesBtn);
+		pop.append(text, actions);
+		document.body.appendChild(pop);
+		function cleanup() {
+			document.removeEventListener('mousedown', outside, true);
+			document.removeEventListener('touchstart', outside, true);
+			if (pop.parentNode) pop.parentNode.removeChild(pop);
+		}
+		function outside(ev) { if (!pop.contains(ev.target)) { cleanup(); resolve(false); } }
+		setTimeout(() => {
+			document.addEventListener('mousedown', outside, true);
+			document.addEventListener('touchstart', outside, true);
+		}, 0);
+		noBtn.addEventListener('click', () => { cleanup(); resolve(false); });
+		yesBtn.addEventListener('click', () => { cleanup(); resolve(true); });
+	});
 }
 
 function openPayMenu(anchorEl, selectEl) {
