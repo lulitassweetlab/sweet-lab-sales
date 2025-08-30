@@ -128,11 +128,12 @@ function renderTable() {
 			el('td', { class: 'col-paid' }, (function(){
 				const sel = document.createElement('select');
 				sel.className = 'input-cell pay-select';
-				['', 'efectivo', 'transf.'].forEach(v => {
+				const current = (sale.pay_method || '').replace(/\.$/, '');
+				['', 'efectivo', 'transf'].forEach(v => {
 					const opt = document.createElement('option');
 					opt.value = v;
 					opt.textContent = v || '';
-					if ((sale.pay_method || '') === v) opt.selected = true;
+					if (current === v) opt.selected = true;
 					sel.appendChild(opt);
 				});
 				if (!sale.pay_method) sel.classList.add('placeholder');
