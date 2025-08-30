@@ -170,7 +170,7 @@ tfoot td { font-weight: 400; }
 .total { font-weight: 400; color: var(--accent); white-space: nowrap; }
 
 /* Delete button as red x */
-.row-delete { color: var(--danger); font-weight: 400; position: relative; width: 1em; height: 1em; }
+.row-delete { color: var(--danger); font-weight: 400; position: relative; width: 1.2em; height: 1.2em; }
 .row-delete::before {
 	content: '';
 	display: inline-block;
@@ -507,7 +507,17 @@ tfoot td { font-weight: 700; }
 }
 
 /* Style for payment select */
-.pay-select { min-width: 70px; background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 2px 6px; }
+.pay-select { min-width: 84px; background: #fff; border: 1px solid var(--border); border-radius: 16px; padding: 2px 24px 2px 6px; position: relative; appearance: none; -webkit-appearance: none; }
+.pay-select.placeholder { background-image: linear-gradient(180deg, transparent, transparent); }
+.pay-select {
+	background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="%23999" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>');
+	background-repeat: no-repeat;
+	background-position: center right 6px;
+	background-size: 12px 12px;
+}
+.pay-select:not(.placeholder) {
+	background-image: none;
+}
 
 /* Smaller visual scale for checkbox in $. column */
 .col-paid input[type="checkbox"] { transform: scale(0.85); transform-origin: center; }

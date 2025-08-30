@@ -135,8 +135,10 @@ function renderTable() {
 					if ((sale.pay_method || '') === v) opt.selected = true;
 					sel.appendChild(opt);
 				});
+				if (!sale.pay_method) sel.classList.add('placeholder');
 				sel.addEventListener('change', async () => {
 					await savePayMethod(tr, sale.id, sel.value);
+					if (sel.value) sel.classList.remove('placeholder'); else sel.classList.add('placeholder');
 				});
 				return sel;
 			})()),
