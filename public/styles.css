@@ -868,6 +868,11 @@ tfoot td { font-weight: 700; }
 	#sales-table tfoot .tfoot-amt { display: none !important; }
 	#sales-table tfoot .t-am-grand { display: none !important; }
 	#sales-table tfoot .tfoot-amt-stack { display: table-row; }
+	/* Make stacked rows draw an uninterrupted line across the table */
+	#sales-table tfoot .tfoot-amt-stack { border-bottom: 1px solid var(--border); }
+	#sales-table tfoot .tfoot-amt-stack td { border-bottom: 0; }
+	#sales-table tfoot .tfoot-amt-stack .col-paid, 
+	#sales-table tfoot .tfoot-amt-stack .col-actions { display: none; }
 
 	#sales-table tfoot .tfoot-amt-stack .col-client { text-align: left; color: var(--muted); padding-right: 14px; display: grid; grid-template-columns: 1fr auto auto; align-items: baseline; gap: 8px; }
 	/* Left align name, center qty, right align amount */
