@@ -155,6 +155,8 @@ function renderTable() {
 					applyPayClass();
 				});
 				wrap.addEventListener('click', (e) => { e.stopPropagation(); openPayMenu(wrap, sel); });
+				wrap.tabIndex = 0;
+				wrap.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPayMenu(wrap, sel); } });
 				wrap.appendChild(sel);
 				return wrap;
 			})()),
