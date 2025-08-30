@@ -272,7 +272,7 @@ function renderTable() {
 				b.title = 'Eliminar';
 				b.addEventListener('click', async (ev) => {
 					ev.stopPropagation();
-					const ok = await openConfirmPopover('¿Seguro que quieres eliminar esta fila?', ev.clientX, ev.clientY);
+					const ok = await openConfirmPopover('¿Seguro que quieres eliminar este pedido?', ev.clientX, ev.clientY);
 					if (!ok) return;
 					await deleteRow(sale.id);
 				});
