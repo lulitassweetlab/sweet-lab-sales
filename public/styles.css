@@ -864,9 +864,9 @@ tfoot td { font-weight: 700; }
 #sales-table tfoot .t-am-grand td { text-align: right; }
 
 @media (max-width: 600px) {
-	/* On small screens: show only stacked rows (4 desserts); hide single-row totals and grand line */
+	/* On small screens: show grand total (stacked) plus 4 stacked rows; hide single-row totals */
 	#sales-table tfoot .tfoot-amt { display: none !important; }
-	#sales-table tfoot .t-am-grand { display: none !important; }
+	#sales-table tfoot .t-am-grand { display: table-row !important; }
 	#sales-table tfoot .tfoot-amt-stack { display: table-row; }
 	/* Make stacked rows draw an uninterrupted line across the table, same thickness as table rows */
 	#sales-table tfoot .tfoot-amt-stack { border-bottom: 1.2px solid rgba(243,234,222,0.5); }
