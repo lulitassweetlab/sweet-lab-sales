@@ -774,8 +774,8 @@ function openPayMenu(anchorEl, selectEl) {
 	menu.style.zIndex = '1000';
 	const items = [
 		{ v: 'efectivo', cls: 'menu-efectivo' },
-		{ v: 'transf', cls: 'menu-transf' },
-		{ v: '', cls: 'menu-clear' }
+		{ v: '', cls: 'menu-clear' },
+		{ v: 'transf', cls: 'menu-transf' }
 	];
 	for (const it of items) {
 		const btn = document.createElement('button');
@@ -790,16 +790,27 @@ function openPayMenu(anchorEl, selectEl) {
 		});
 		menu.appendChild(btn);
 	}
+	// Position so the '-' option aligns exactly where the user clicked (anchor center)
+	menu.style.left = '0px';
+	menu.style.top = '0px';
+	menu.style.visibility = 'hidden';
+	menu.style.pointerEvents = 'none';
 	document.body.appendChild(menu);
-	// Position menu above the dash by default; fallback below if not enough space
-	const gap = 2;
-	let left = rect.left + rect.width / 2;
-	let top = rect.top - menu.offsetHeight - gap;
+	const dashBtn = menu.querySelector('.menu-clear');
+	const menuRect = menu.getBoundingClientRect();
+	const dashRect = dashBtn ? dashBtn.getBoundingClientRect() : menuRect;
+	const anchorCx = rect.left + rect.width / 2;
+	const anchorCy = rect.top + rect.height / 2;
+	const offsetYWithinMenu = (dashRect.top - menuRect.top) + (dashRect.height / 2);
+	let left = anchorCx;
+	let top = anchorCy - offsetYWithinMenu;
 	const half = menu.offsetWidth / 2;
 	left = Math.min(Math.max(left, half + 6), window.innerWidth - half - 6);
-	if (top < 6) top = rect.bottom + gap;
+	top = Math.max(6, Math.min(top, window.innerHeight - menu.offsetHeight - 6));
 	menu.style.left = left + 'px';
 	menu.style.top = top + 'px';
+	menu.style.visibility = '';
+	menu.style.pointerEvents = '';
 	function outside(e) { if (!menu.contains(e.target)) cleanup(); }
 	function cleanup() {
 		document.removeEventListener('mousedown', outside, true);
