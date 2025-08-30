@@ -887,7 +887,7 @@ tfoot td { font-weight: 700; }
 	/* Preserve explicit spaces in spans if any */
 	#sales-table tfoot .tfoot-amt-stack .col-client span { white-space: pre; }
 	/* Grand total number all the way to the right */
-	#sales-table tfoot .t-am-grand .col-client { display: block; text-align: right; padding-right: 14px; }
+	#sales-table tfoot .t-am-grand .col-client { display: table-cell; text-align: right; padding-right: 14px; }
 }
 
 @media (min-width: 601px) {
