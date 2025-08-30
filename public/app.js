@@ -22,7 +22,11 @@ const state = {
 (function initTheme(){
 	try {
 		const saved = localStorage.getItem('theme');
-		if (saved === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+		if (saved === 'light') {
+			document.documentElement.removeAttribute('data-theme');
+		} else {
+			document.documentElement.setAttribute('data-theme', 'dark');
+		}
 	} catch {}
 	document.addEventListener('DOMContentLoaded', () => {
 		const btn = document.getElementById('theme-toggle');
