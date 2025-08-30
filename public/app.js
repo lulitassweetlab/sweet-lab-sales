@@ -745,7 +745,7 @@ function renderDaysList() {
 		del.textContent = '🗑️';
 		del.addEventListener('click', async (e) => {
 			e.stopPropagation();
-			const ok = await openConfirmPopover('¿Eliminar esta fecha?', e.clientX, e.clientY);
+			const ok = await openConfirmPopover('¿Seguro que quieres eliminar esta fecha?', e.clientX, e.clientY);
 			if (!ok) return;
 			await api('DELETE', `/api/days?id=${encodeURIComponent(d.id)}`);
 			if (state.selectedDayId === d.id) {
