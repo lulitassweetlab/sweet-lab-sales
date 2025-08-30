@@ -193,9 +193,9 @@ tfoot td { font-weight: 400; }
 .cards-list { display: none; }
 
 /* Column widths */
-.w-client { width: 40%; }
+.w-client { width: 38%; }
 .w-qty { width: 9%; }
-.w-total { width: 17%; }
+.w-total { width: 18%; }
 .w-actions { width: 6%; }
 
 /* Sticky header */
@@ -205,9 +205,9 @@ tfoot td { font-weight: 400; }
 th, td { border-bottom: 1px solid var(--border); padding: 6px 6px; text-align: center; }
 
 /* Column widths base */
-.w-client { width: 36%; }
+.w-client { width: 35%; }
 .w-qty { width: 9%; }
-.w-total { width: 17%; }
+.w-total { width: 18%; }
 .w-actions { width: 6%; }
 
 /* Inputs compact */
@@ -263,9 +263,9 @@ tfoot td { font-weight: 700; }
 	th, td { padding: 1px; }
 
 	/* Keep rows single-line: adjust column widths to widen Client by ~10ch */
-	.w-client { width: 34%; }
-	.w-qty { width: 10%; }
-	.w-total { width: 17%; }
+	.w-client { width: 40%; }
+	.w-qty { width: 9%; }
+	.w-total { width: 16%; }
 	.w-actions { width: 6%; }
 
 	/* Smaller red x */
@@ -276,9 +276,9 @@ tfoot td { font-weight: 700; }
 	.client-input { font-size: 8px; }
 
 	/* Rebalance columns: more space to client, less to qty */
-	.w-client { width: 38%; }
-	.w-qty { width: 9%; }
-	.w-total { width: 18%; }
+	.w-client { width: 42%; }
+	.w-qty { width: 8.5%; }
+	.w-total { width: 16%; }
 	.w-actions { width: 5%; }
 }
 
@@ -476,8 +476,8 @@ tfoot td { font-weight: 700; }
 
 /* Map CSS variables to colgroup widths for alignment */
 /* Widths including new Paid column */
-:root { --w-paid: 6%; --w-client: 44%; --w-qty: 8%; --w-total: 17%; --w-actions: 5%; }
-@media (max-width: 600px) { :root { --w-paid: 7%; --w-client: 40%; --w-qty: 7.5%; --w-total: 18%; --w-actions: 5.5%; } }
+:root { --w-paid: 6%; --w-client: 42%; --w-qty: 8%; --w-total: 16%; --w-actions: 4%; }
+@media (max-width: 600px) { :root { --w-paid: 7%; --w-client: 42%; --w-qty: 6.5%; --w-total: 16%; --w-actions: 5.5%; } }
 
 /* Hide native thead to prevent overlap */
 #sales-table thead { display: none; }
@@ -489,12 +489,12 @@ tfoot td { font-weight: 700; }
 #sales-table col.w-qty { width: var(--w-qty); }
 #sales-table col.w-total { width: var(--w-total); }
 #sales-table col.w-actions { width: var(--w-actions); }
-#sales-table th, #sales-table td { box-sizing: border-box; padding-left: 2px; padding-right: 2px; }
+#sales-table th, #sales-table td { box-sizing: border-box; padding-left: 1px; padding-right: 1px; }
 #sales-table thead { display: none; }
 
 /* Rebalance widths to include Paid without overflow */
-:root { --w-paid: 6%; --w-client: 46%; --w-qty: 7%; --w-total: 16%; --w-actions: 5%; }
-@media (max-width: 600px) { :root { --w-paid: 7%; --w-client: 40%; --w-qty: 7%; --w-total: 18%; --w-actions: 5.5%; } }
+:root { --w-paid: 6%; --w-client: 45%; --w-qty: 7%; --w-total: 15%; --w-actions: 5%; }
+@media (max-width: 600px) { :root { --w-paid: 7%; --w-client: 42%; --w-qty: 6.5%; --w-total: 16%; --w-actions: 5.5%; } }
 
 /* Revert Pago checkbox custom styles */
 .col-paid input[type="checkbox"] {
