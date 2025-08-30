@@ -323,6 +323,7 @@ async function saveRow(tr, id) {
 
 async function deleteRow(id) {
 	const prev = state.sales.find(s => s.id === id);
+	if (!confirm('¿Seguro que quieres eliminar esta fila?')) return;
 	await api('DELETE', `${API.Sales}?id=${encodeURIComponent(id)}`);
 	state.sales = state.sales.filter(s => s.id !== id);
 	// Push undo: re-create previous row
@@ -638,6 +639,7 @@ function renderDaysList() {
 		del.textContent = '🗑️';
 		del.addEventListener('click', async (e) => {
 			e.stopPropagation();
+			if (!confirm('¿Seguro que quieres eliminar esta fecha?')) return;
 			await api('DELETE', `/api/days?id=${encodeURIComponent(d.id)}`);
 			if (state.selectedDayId === d.id) {
 				state.selectedDayId = null;
