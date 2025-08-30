@@ -515,6 +515,9 @@ tfoot td { font-weight: 700; }
 
 @media (max-width: 600px) {
 	#sales-table tfoot .tfoot-amt td { font-size: clamp(6px, 1.8vw, 9px); padding-left: 1px; padding-right: 1px; }
+	/* Stack per-dessert amount rows to avoid overlap */
+	#sales-table tfoot .tfoot-amt { display: none; }
+	#sales-table tfoot .tfoot-amt-stack { display: table-row; }
 }
 
 /* Revert header to non-sticky but visible and aligned across devices */

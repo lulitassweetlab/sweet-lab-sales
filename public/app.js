@@ -453,10 +453,19 @@ function updateSummary() {
 	$('#sum-mara-qty').textContent = String(qma);
 	$('#sum-oreo-qty').textContent = String(qo);
 	$('#sum-total-qty').textContent = '';
-	$('#sum-arco-amt').textContent = fmtNo.format(qa * PRICES.arco);
-	$('#sum-melo-amt').textContent = fmtNo.format(qm * PRICES.melo);
-	$('#sum-mara-amt').textContent = fmtNo.format(qma * PRICES.mara);
-	$('#sum-oreo-amt').textContent = fmtNo.format(qo * PRICES.oreo);
+	const va = fmtNo.format(qa * PRICES.arco);
+	const vm = fmtNo.format(qm * PRICES.melo);
+	const vma = fmtNo.format(qma * PRICES.mara);
+	const vo = fmtNo.format(qo * PRICES.oreo);
+	$('#sum-arco-amt').textContent = va;
+	$('#sum-melo-amt').textContent = vm;
+	$('#sum-mara-amt').textContent = vma;
+	$('#sum-oreo-amt').textContent = vo;
+	// stacked rows on small screens
+	document.getElementById('sum-arco-amt-2')?.textContent = va;
+	document.getElementById('sum-melo-amt-2')?.textContent = vm;
+	document.getElementById('sum-mara-amt-2')?.textContent = vma;
+	document.getElementById('sum-oreo-amt-2')?.textContent = vo;
 	$('#sum-grand').textContent = fmtNo.format(grand);
 }
 
