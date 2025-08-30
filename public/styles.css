@@ -518,7 +518,7 @@ tfoot td { font-weight: 700; }
 	#sales-table.totals-stacked tfoot .tfoot-amt { display: none; }
 	#sales-table.totals-stacked tfoot .tfoot-qty { display: none; }
 	#sales-table.totals-stacked tfoot .tfoot-amt-stack { display: table-row; }
-	#sales-table.totals-stacked tfoot .tfoot-amt-stack .col-client { text-align: left; color: var(--muted); padding-right: 14px; }
+	#sales-table.totals-stacked tfoot .tfoot-amt-stack .col-client { text-align: left; color: var(--muted); padding-right: 14px; display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 8px; }
 	#sales-table.totals-stacked tfoot .tfoot-amt-stack .col-arco,
 	#sales-table.totals-stacked tfoot .tfoot-amt-stack .col-melo,
 	#sales-table.totals-stacked tfoot .tfoot-amt-stack .col-mara,

@@ -466,10 +466,10 @@ function updateSummary() {
 	const qvm = String(qm);
 	const qvma = String(qma);
 	const qvo = String(qo);
-	const elAr = document.getElementById('sum-arco-line-2'); if (elAr) elAr.textContent = `Arco: ${qva}     ${va}`;
-const elMe = document.getElementById('sum-melo-line-2'); if (elMe) elMe.textContent = `Melo: ${qvm}     ${vm}`;
-const elMa = document.getElementById('sum-mara-line-2'); if (elMa) elMa.textContent = `Mara: ${qvma}     ${vma}`;
-const elOr = document.getElementById('sum-oreo-line-2'); if (elOr) elOr.textContent = `Oreo: ${qvo}     ${vo}`;
+	const elAr = document.getElementById('sum-arco-qty-2'); if (elAr) elAr.textContent = qva; const elArAmt = document.getElementById('sum-arco-amt-2'); if (elArAmt) elArAmt.textContent = va;
+const elMe = document.getElementById('sum-melo-qty-2'); if (elMe) elMe.textContent = qvm; const elMeAmt = document.getElementById('sum-melo-amt-2'); if (elMeAmt) elMeAmt.textContent = vm;
+const elMa = document.getElementById('sum-mara-qty-2'); if (elMa) elMa.textContent = qvma; const elMaAmt = document.getElementById('sum-mara-amt-2'); if (elMaAmt) elMaAmt.textContent = vma;
+const elOr = document.getElementById('sum-oreo-qty-2'); if (elOr) elOr.textContent = qvo; const elOrAmt = document.getElementById('sum-oreo-amt-2'); if (elOrAmt) elOrAmt.textContent = vo;
 const grandStr = fmtNo.format(grand);
 $('#sum-grand').textContent = grandStr;
 // Decide whether to stack totals to avoid overlap on small screens
