@@ -74,6 +74,7 @@ function bindLogin() {
 		state.currentUser = { name: user, isAdmin: isAdmin(user) };
 		try { localStorage.setItem('authUser', JSON.stringify(state.currentUser)); } catch {}
 		applyAuthVisibility();
+		renderSellerButtons();
 		// If not admin, auto-enter seller if exists
 		if (!state.currentUser.isAdmin) {
 			const seller = (state.sellers || []).find(s => String(s.name).toLowerCase() === String(user).toLowerCase());
