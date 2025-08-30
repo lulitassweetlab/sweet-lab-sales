@@ -871,11 +871,15 @@ tfoot td { font-weight: 700; }
 	/* Make stacked rows draw an uninterrupted line across the table, same thickness as table rows */
 	#sales-table tfoot .tfoot-amt-stack { border-bottom: 1.2px solid rgba(243,234,222,0.5); }
 	#sales-table tfoot .tfoot-amt-stack td { border-bottom: 0; }
+	/* Force bottom alignment within each stacked row */
+	#sales-table tfoot .tfoot-amt-stack { height: 32px; }
+	#sales-table tfoot .tfoot-amt-stack td { vertical-align: bottom; padding-top: 6px; padding-bottom: 4px; }
 	#sales-table tfoot .tfoot-amt-stack td { vertical-align: bottom; }
 	#sales-table tfoot .tfoot-amt-stack .col-paid, 
 	#sales-table tfoot .tfoot-amt-stack .col-actions { display: none; }
 
 	#sales-table tfoot .tfoot-amt-stack .col-client { text-align: left; color: var(--muted); padding-right: 14px; display: grid; grid-template-columns: 1fr auto auto; align-items: end; gap: 8px; }
+	#sales-table tfoot .tfoot-amt-stack .col-client > * { align-self: end; }
 	/* Left align name, center qty, right align amount */
 	#sales-table tfoot .tfoot-amt-stack .st-name { font-weight: 400; line-height: 1.4; }
 	#sales-table tfoot .tfoot-amt-stack .st-qty { text-align: center; min-width: 3ch; line-height: 1.4; }
