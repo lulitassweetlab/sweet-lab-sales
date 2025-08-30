@@ -906,25 +906,29 @@ tfoot td { font-weight: 700; }
 
 /* FINAL delete icon overrides: much larger and no borders */
 .row-delete {
-	font-size: 24px;
-	width: 2.4em;
-	height: 2.4em;
+	font-size: 28px !important;
+	width: 2.6em !important;
+	height: 2.6em !important;
 	border: none !important;
+	outline: none !important;
+	appearance: none !important;
+	-webkit-appearance: none !important;
 	background: transparent !important;
 	border-radius: 0 !important;
+	padding: 0 !important;
 }
 .row-delete::before {
-	width: 1.6em;
-	height: 1.6em;
+	width: 1.8em !important;
+	height: 1.8em !important;
 }
 @media (max-width: 600px) {
 	.row-delete {
-		font-size: 20px;
-		width: 2.2em;
-		height: 2.2em;
+		font-size: 26px !important;
+		width: 2.4em !important;
+		height: 2.4em !important;
 	}
 	.row-delete::before {
-		width: 1.5em;
-		height: 1.5em;
+		width: 1.6em !important;
+		height: 1.6em !important;
 	}
 }
