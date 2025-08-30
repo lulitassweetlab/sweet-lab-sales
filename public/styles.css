@@ -515,7 +515,7 @@ tfoot td { font-weight: 700; }
 #sales-table tfoot .tfoot-amt td span { display: inline-block; max-width: 100%; }
 
 @media (max-width: 600px) {
-	#sales-table tfoot .tfoot-amt { display: none !important; }
+	#sales-table.totals-stacked tfoot .tfoot-amt { display: none; }
 	/* Keep the quantities row visible so only amounts are moved to stacked lines */
 	/* #sales-table.totals-stacked tfoot .tfoot-qty { display: none; } */
 	#sales-table.totals-stacked tfoot .tfoot-amt-stack { display: table-row; }
