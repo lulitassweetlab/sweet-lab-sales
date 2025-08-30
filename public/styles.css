@@ -873,12 +873,11 @@ tfoot td { font-weight: 700; }
 	#sales-table tfoot .tfoot-amt-stack td { border-bottom: 0; }
 	/* Force bottom alignment within each stacked row */
 	#sales-table tfoot .tfoot-amt-stack { height: 40px; }
-	#sales-table tfoot .tfoot-amt-stack td { vertical-align: bottom; padding-top: 10px; padding-bottom: 2px; }
-	#sales-table tfoot .tfoot-amt-stack td { vertical-align: bottom; }
+	#sales-table tfoot .tfoot-amt-stack td { vertical-align: bottom; padding-top: 12px; padding-bottom: 0; }
 	#sales-table tfoot .tfoot-amt-stack .col-paid, 
 	#sales-table tfoot .tfoot-amt-stack .col-actions { display: none; }
 
-	#sales-table tfoot .tfoot-amt-stack .col-client { text-align: left; color: var(--muted); padding-right: 14px; display: grid; grid-template-columns: 1fr auto auto; align-items: end; align-content: end; gap: 8px; padding-bottom: 2px; }
+	#sales-table tfoot .tfoot-amt-stack .col-client { text-align: left; color: var(--muted); padding-right: 14px; display: grid; grid-template-columns: 1fr auto auto; align-items: end; align-content: end; gap: 8px; padding-bottom: 0; }
 	#sales-table tfoot .tfoot-amt-stack .col-client > * { align-self: end; line-height: 1; }
 	/* Left align name, center qty, right align amount */
 	#sales-table tfoot .tfoot-amt-stack .st-name { font-weight: 400; line-height: 1.4; }
