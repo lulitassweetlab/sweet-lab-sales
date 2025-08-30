@@ -18,6 +18,35 @@ const state = {
 	sales: [],
 };
 
+// Theme management
+(function initTheme(){
+	try {
+		const saved = localStorage.getItem('theme');
+		if (saved === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+	} catch {}
+	document.addEventListener('DOMContentLoaded', () => {
+		const btn = document.getElementById('theme-toggle');
+		if (!btn) return;
+		updateThemeButton(btn);
+		btn.addEventListener('click', () => {
+			const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+			if (isDark) {
+				document.documentElement.removeAttribute('data-theme');
+				try { localStorage.setItem('theme', 'light'); } catch {}
+			} else {
+				document.documentElement.setAttribute('data-theme', 'dark');
+				try { localStorage.setItem('theme', 'dark'); } catch {}
+			}
+			updateThemeButton(btn);
+		});
+	});
+})();
+
+function updateThemeButton(btn){
+	const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+	btn.title = isDark ? 'Modo claro' : 'Modo oscuro';
+}
+
 function $(sel) { return document.querySelector(sel); }
 function el(tag, attrs = {}, ...children) {
 	const node = document.createElement(tag);
