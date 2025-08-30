@@ -874,6 +874,20 @@ tfoot td { font-weight: 700; }
 	#undo-btn::before, #redo-btn::before { width: 20px; height: 20px; }
 }
 
+/* Undo/Redo: sharper arrow icons, rounder button borders, stronger hover */
+#undo-btn, #redo-btn { border-radius: 999px; }
+#undo-btn::before, #redo-btn::before { width: 24px; height: 24px; }
+#undo-btn::before {
+	-webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="%23000" d="M10 5H4v4H2l5 5 5-5H10V7h6V5h-8z"/></svg>') no-repeat center / contain;
+	mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="%23000" d="M10 5H4v4H2l5 5 5-5H10V7h6V5h-8z"/></svg>') no-repeat center / contain;
+}
+#redo-btn::before {
+	-webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="%23000" d="M14 5h8v2h-6v2h-2l5 5 5-5h-2V5h-8z"/></svg>') no-repeat center / contain;
+	mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="%23000" d="M14 5h8v2h-6v2h-2l5 5 5-5h-2V5h-8z"/></svg>') no-repeat center / contain;
+}
+#undo-btn:hover, #redo-btn:hover { background: var(--secondary); box-shadow: 0 3px 10px rgba(0,0,0,0.18); filter: none; }
+@media (max-width: 600px) { #undo-btn::before, #redo-btn::before { width: 22px; height: 22px; } }
+
 /* Gold solid button variant for Excel export */
 .btn-gold { background-color: #fbf7f0; color: var(--text); border-color: transparent; }
 .btn-gold:hover { background-color: #f2e2d3; color: var(--text); box-shadow: 0 8px 24px rgba(0,0,0,0.06); }
