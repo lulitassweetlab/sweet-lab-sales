@@ -635,16 +635,16 @@ tfoot td { font-weight: 700; }
 
 /* Slightly larger checkbox and delete x */
 .col-paid input[type="checkbox"] { transform: scale(1.1); }
-.row-delete { font-size: 16px; width: 1.6em; height: 1.6em; }
+.row-delete { font-size: 16px; width: 1.6em; height: 1.6em; display: inline-flex; align-items: center; justify-content: center; }
 @media (max-width: 600px) {
 	.col-paid input[type="checkbox"] { transform: scale(1.0); }
 	.row-delete { font-size: 14px; width: 1.4em; height: 1.4em; }
 }
 
 /* Enlarge click/touch target without changing visual size */
-.col-actions .row-delete { padding: 6px; margin: -6px; border-radius: 8px; }
+.col-actions .row-delete { padding: 6px; margin: -6px; border-radius: 0; background: transparent; border: none; }
 @media (max-width: 600px) {
-	.col-actions .row-delete { padding: 8px; margin: -8px; }
+	.col-actions .row-delete { padding: 8px; margin: -8px; border-radius: 0; background: transparent; }
 }
 
 /* Progressive sticky header clone */
