@@ -130,9 +130,9 @@ function renderTable() {
 				sel.className = 'input-cell pay-select';
 				const current = (sale.pay_method || '').replace(/\.$/, '');
 				const options = [
-					{ v: '', label: '' },
-					{ v: 'efectivo', label: '💵' },
-					{ v: 'transf', label: '🏦' }
+					{ v: '', label: '-' },
+					{ v: 'efectivo', label: 'efectivo' },
+					{ v: 'transf', label: 'transf' }
 				];
 				for (const o of options) {
 					const opt = document.createElement('option');
