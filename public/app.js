@@ -470,7 +470,8 @@ function updateSummary() {
 const elMe = document.getElementById('sum-melo-line-2'); if (elMe) elMe.textContent = `Melo: ${qvm}     ${vm}`;
 const elMa = document.getElementById('sum-mara-line-2'); if (elMa) elMa.textContent = `Mara: ${qvma}     ${vma}`;
 const elOr = document.getElementById('sum-oreo-line-2'); if (elOr) elOr.textContent = `Oreo: ${qvo}     ${vo}`;
-$('#sum-grand').textContent = fmtNo.format(grand);
+const grandStr = fmtNo.format(grand);
+$('#sum-grand').textContent = grandStr;
 // Decide whether to stack totals to avoid overlap on small screens
 requestAnimationFrame(() => {
 	const table = document.getElementById('sales-table');
@@ -486,6 +487,8 @@ requestAnimationFrame(() => {
 		}
 	}
 	if (isSmall && overlap) table.classList.add('totals-stacked'); else table.classList.remove('totals-stacked');
+	const grandLine = document.getElementById('sum-grand-line-2');
+	if (grandLine) grandLine.textContent = `Total a pagar: ${grandStr}`;
 });
 }
 

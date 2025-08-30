@@ -516,6 +516,7 @@ tfoot td { font-weight: 700; }
 
 @media (max-width: 600px) {
 	#sales-table.totals-stacked tfoot .tfoot-amt { display: none; }
+	#sales-table.totals-stacked tfoot .tfoot-qty { display: none; }
 	#sales-table.totals-stacked tfoot .tfoot-amt-stack { display: table-row; }
 	#sales-table.totals-stacked tfoot .tfoot-amt-stack .col-client { text-align: left; color: var(--muted); padding-right: 14px; }
 	#sales-table.totals-stacked tfoot .tfoot-amt-stack .col-arco,
