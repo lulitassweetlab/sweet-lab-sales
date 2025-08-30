@@ -935,8 +935,8 @@ tfoot td { font-weight: 700; }
 
 /* ABSOLUTE FINAL OVERRIDES: large trash icon using SVG background, no masks */
 .row-delete {
-	width: 36px !important;
-	height: 36px !important;
+	width: 18px !important;
+	height: 18px !important;
 	padding: 0 !important;
 	border: none !important;
 	outline: none !important;
@@ -958,6 +958,6 @@ tfoot td { font-weight: 700; }
 	mask: none !important;
 }
 @media (max-width: 600px) {
-	.row-delete { width: 32px !important; height: 32px !important; }
+	.row-delete { width: 16px !important; height: 16px !important; }
 	.row-delete::before { background-size: 90% 90% !important; }
 }
