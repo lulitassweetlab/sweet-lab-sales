@@ -783,6 +783,7 @@ function openPayMenu(anchorEl, selectEl) {
 		const btn = document.createElement('button');
 		btn.type = 'button';
 		btn.className = 'pay-menu-item ' + it.cls;
+		if (it.v === '') btn.textContent = '-';
 		btn.addEventListener('click', async (e) => {
 			e.stopPropagation();
 			selectEl.value = it.v;
