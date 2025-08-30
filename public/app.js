@@ -129,13 +129,18 @@ function renderTable() {
 				const sel = document.createElement('select');
 				sel.className = 'input-cell pay-select';
 				const current = (sale.pay_method || '').replace(/\.$/, '');
-				['', 'efectivo', 'transf'].forEach(v => {
+				const options = [
+					{ v: '', label: '' },
+					{ v: 'efectivo', label: '💵' },
+					{ v: 'transf', label: '🏦' }
+				];
+				for (const o of options) {
 					const opt = document.createElement('option');
-					opt.value = v;
-					opt.textContent = v || '';
-					if (current === v) opt.selected = true;
+					opt.value = o.v;
+					opt.textContent = o.label;
+					if (current === o.v) opt.selected = true;
 					sel.appendChild(opt);
-				});
+				}
 				if (!sale.pay_method) sel.classList.add('placeholder');
 				sel.addEventListener('change', async () => {
 					await savePayMethod(tr, sale.id, sel.value);

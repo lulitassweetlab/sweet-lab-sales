@@ -236,7 +236,8 @@ th, td { border-bottom: 1px solid var(--border); padding: 6px 6px; text-align: c
 
 	/* Inputs tiny */
 	.client-input { font-size: 10px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-	.input-qty { width: 34px; font-size: 8px; padding: 2px; }
+	.input-qty { width: 32px; font-size: 8px; padding: 2px; }
+	.pay-select { max-width: 56px; }
 }
 
 /* Footer totals responsive sizing */
