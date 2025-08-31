@@ -1193,3 +1193,28 @@ button.secondary.press-btn:active {
 		text-align: center;
 	}
 }
+
+/* Mobile ALIGNMENT: center vertical dessert labels within their qty columns */
+@media (max-width: 600px) {
+	#sales-table thead th.col-arco,
+	#sales-table thead th.col-melo,
+	#sales-table thead th.col-mara,
+	#sales-table thead th.col-oreo {
+		display: flex !important;
+		align-items: flex-end !important;
+		justify-content: center !important;
+		height: 72px !important;
+		padding: 0 2px 4px !important;
+		text-align: center !important;
+	}
+	#sales-table thead th.col-arco .v-label,
+	#sales-table thead th.col-melo .v-label,
+	#sales-table thead th.col-mara .v-label,
+	#sales-table thead th.col-oreo .v-label {
+		writing-mode: vertical-rl !important;
+		text-orientation: mixed !important;
+		transform: none !important;
+		margin: 0 auto !important;
+		white-space: nowrap !important;
+	}
+}
