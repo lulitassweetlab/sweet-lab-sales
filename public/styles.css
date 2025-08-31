@@ -1603,3 +1603,26 @@ button.secondary.press-btn:active {
 	#sales-table thead th.col-mara .v-label,
 	#sales-table thead th.col-oreo .v-label { display: inline-block !important; }
 }
+
+/* Desktop: rotate dessert header labels vertically and raise */
+@media (min-width: 601px) {
+	#sales-table thead th.col-arco,
+	#sales-table thead th.col-melo,
+	#sales-table thead th.col-mara,
+	#sales-table thead th.col-oreo {
+		position: relative;
+		vertical-align: bottom;
+		text-align: center;
+	}
+	#sales-table thead th.col-arco .v-label,
+	#sales-table thead th.col-melo .v-label,
+	#sales-table thead th.col-mara .v-label,
+	#sales-table thead th.col-oreo .v-label {
+		display: inline-block !important;
+		writing-mode: vertical-rl;
+		text-orientation: mixed;
+		line-height: 1;
+		position: relative;
+		top: -12px;
+	}
+}
