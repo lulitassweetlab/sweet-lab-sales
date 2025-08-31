@@ -1412,5 +1412,5 @@ button.secondary.press-btn:active {
 	#sales-table tfoot td.col-arco,
 	#sales-table tfoot td.col-melo,
 	#sales-table tfoot td.col-mara,
-	#sales-table tfoot td.col-oreo { padding-right: 2px !important; }
+	#sales-table tfoot td.col-oreo { padding-right: 4px !important; }
 }
