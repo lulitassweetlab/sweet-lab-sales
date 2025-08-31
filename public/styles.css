@@ -1379,23 +1379,4 @@ button.secondary.press-btn:active {
 [data-theme="dark"] #sales-table tbody tr:hover td.col-melo,
 [data-theme="dark"] #sales-table tbody tr:hover td.col-oreo { background-color: #151515 !important; }
 
-/* Mobile DEFINITIVE: force visible vertical labels with explicit content */
-@media (max-width: 600px) {
-	#sales-table thead { display: table-header-group !important; }
-	#sales-table thead th { position: static !important; }
-	#sales-table thead tr > th.col-arco::after { content: 'Arco' !important; writing-mode: vertical-rl; text-orientation: mixed; }
-	#sales-table thead tr > th.col-melo::after { content: 'Melo' !important; writing-mode: vertical-rl; text-orientation: mixed; }
-	#sales-table thead tr > th.col-mara::after { content: 'Mara' !important; writing-mode: vertical-rl; text-orientation: mixed; }
-	#sales-table thead tr > th.col-oreo::after { content: 'Oreo' !important; writing-mode: vertical-rl; text-orientation: mixed; }
-	#sales-table thead tr > th.col-arco::after,
-	#sales-table thead tr > th.col-melo::after,
-	#sales-table thead tr > th.col-mara::after,
-	#sales-table thead tr > th.col-oreo::after {
-		position: relative;
-		display: inline-block;
-		vertical-align: bottom;
-		line-height: 1;
-		font-size: 10px;
-		color: inherit;
-	}
-}
+/* Revert previous override: keep earlier working vertical labels */
