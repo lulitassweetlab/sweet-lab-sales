@@ -1380,3 +1380,18 @@ button.secondary.press-btn:active {
 [data-theme="dark"] #sales-table tbody tr:hover td.col-oreo { background-color: #151515 !important; }
 
 /* Revert previous override: keep earlier working vertical labels */
+
+/* Center-align dessert quantity columns */
+#sales-table tbody td.col-arco,
+#sales-table tbody td.col-melo,
+#sales-table tbody td.col-mara,
+#sales-table tbody td.col-oreo { text-align: center; }
+#sales-table tbody td.col-arco .input-qty,
+#sales-table tbody td.col-melo .input-qty,
+#sales-table tbody td.col-mara .input-qty,
+#sales-table tbody td.col-oreo .input-qty { text-align: center; margin: 0 auto; }
+/* Keep footer qty centered for consistency */
+#sales-table tfoot td.col-arco,
+#sales-table tfoot td.col-melo,
+#sales-table tfoot td.col-mara,
+#sales-table tfoot td.col-oreo { text-align: center; }
