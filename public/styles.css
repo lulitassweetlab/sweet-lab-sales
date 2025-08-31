@@ -1444,3 +1444,13 @@ button.secondary.press-btn:active {
 #sales-table tbody td.col-melo .input-qty,
 #sales-table tbody td.col-mara .input-qty,
 #sales-table tbody td.col-oreo .input-qty { margin: 0 !important; }
+
+/* FINAL: restore table-cell and center qty inputs cleanly */
+#sales-table tbody td.col-arco,
+#sales-table tbody td.col-melo,
+#sales-table tbody td.col-mara,
+#sales-table tbody td.col-oreo { display: table-cell !important; text-align: center !important; }
+#sales-table tbody td.col-arco .input-qty,
+#sales-table tbody td.col-melo .input-qty,
+#sales-table tbody td.col-mara .input-qty,
+#sales-table tbody td.col-oreo .input-qty { display: block !important; margin: 0 auto !important; text-align: center !important; }
