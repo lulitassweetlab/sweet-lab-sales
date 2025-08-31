@@ -1398,3 +1398,19 @@ button.secondary.press-btn:active {
 	#sales-table tbody td.col-mara,
 	#sales-table tbody td.col-oreo { padding-right: 1px; }
 }
+
+/* Mobile tweak v2: 2px right padding on dessert columns (all sections) */
+@media (max-width: 600px) {
+	#sales-table thead th.col-arco,
+	#sales-table thead th.col-melo,
+	#sales-table thead th.col-mara,
+	#sales-table thead th.col-oreo,
+	#sales-table tbody td.col-arco,
+	#sales-table tbody td.col-melo,
+	#sales-table tbody td.col-mara,
+	#sales-table tbody td.col-oreo,
+	#sales-table tfoot td.col-arco,
+	#sales-table tfoot td.col-melo,
+	#sales-table tfoot td.col-mara,
+	#sales-table tfoot td.col-oreo { padding-right: 2px !important; }
+}
