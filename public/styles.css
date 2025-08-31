@@ -1395,3 +1395,21 @@ button.secondary.press-btn:active {
 #sales-table tfoot td.col-melo,
 #sales-table tfoot td.col-mara,
 #sales-table tfoot td.col-oreo { text-align: center; }
+
+/* Enforce centering: make qty inputs block and auto-center */
+#sales-table tbody td.col-arco .input-qty,
+#sales-table tbody td.col-melo .input-qty,
+#sales-table tbody td.col-mara .input-qty,
+#sales-table tbody td.col-oreo .input-qty {
+	display: inline-block;
+	text-align: center !important;
+	margin-left: auto !important;
+	margin-right: auto !important;
+}
+/* Remove left padding in stacked totals to avoid visual shift */
+@media (max-width: 600px) {
+	#sales-table.totals-stacked tfoot .tfoot-amt-stack .col-arco,
+	#sales-table.totals-stacked tfoot .tfoot-amt-stack .col-melo,
+	#sales-table.totals-stacked tfoot .tfoot-amt-stack .col-mara,
+	#sales-table.totals-stacked tfoot .tfoot-amt-stack .col-oreo { padding-left: 0; }
+}
