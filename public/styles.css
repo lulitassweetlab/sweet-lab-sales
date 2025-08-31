@@ -1018,15 +1018,23 @@ tfoot td { font-weight: 700; }
 #redo-btn::before { content: '→'; font-size: 22px; }
 @media (max-width: 600px) { #undo-btn::before, #redo-btn::before { font-size: 20px; } }
 
-/* Undo/Redo icons: slightly rounded background on icon only */
+/* Undo/Redo icons: slightly rounded arrow shapes via stroked SVG */
 #undo-btn::before, #redo-btn::before {
-	padding: 2px 6px;
-	border-radius: 6px;
-	background-color: rgba(0,0,0,0.06);
-	transition: background-color 140ms ease;
+	-webkit-mask: none !important;
+	mask: none !important;
+	background: none !important;
+	width: 24px;
+	height: 24px;
+	background-repeat: no-repeat !important;
+	background-position: center !important;
+	background-size: 100% 100% !important;
 }
-[data-theme="dark"] #undo-btn::before,
-[data-theme="dark"] #redo-btn::before { background-color: rgba(255,255,255,0.08); }
-#undo-btn:hover::before, #redo-btn:hover::before { background-color: rgba(0,0,0,0.12); }
-[data-theme="dark"] #undo-btn:hover::before,
-[data-theme="dark"] #redo-btn:hover::before { background-color: rgba(255,255,255,0.16); }
+#undo-btn::before {
+	content: '';
+	background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 12c0-4.418-3.582-8-8-8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M8 8l-4 4 4 4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>');
+}
+#redo-btn::before {
+	content: '';
+	background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 12c0-4.418 3.582-8 8-8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M16 8l4 4-4 4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>');
+}
+@media (max-width: 600px) { #undo-btn::before, #redo-btn::before { width: 22px; height: 22px; } }
