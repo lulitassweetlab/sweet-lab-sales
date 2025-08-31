@@ -1662,3 +1662,27 @@ button.secondary.press-btn:active {
 		top: 18px !important;
 	}
 }
+
+/* Desktop FINAL v3: place vertical labels at bottom of header cell */
+@media (min-width: 601px) {
+	#sales-table thead th.col-arco,
+	#sales-table thead th.col-melo,
+	#sales-table thead th.col-mara,
+	#sales-table thead th.col-oreo {
+		position: relative !important;
+		height: 56px !important;
+		padding-bottom: 6px !important;
+	}
+	#sales-table thead th.col-arco .v-label,
+	#sales-table thead th.col-melo .v-label,
+	#sales-table thead th.col-mara .v-label,
+	#sales-table thead th.col-oreo .v-label {
+		display: inline-block !important;
+		position: absolute !important;
+		left: 50% !important;
+		bottom: 2px !important;
+		transform: translateX(-50%) rotate(-90deg) !important;
+		transform-origin: center center !important;
+		top: auto !important;
+	}
+}
