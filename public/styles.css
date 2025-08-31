@@ -1136,3 +1136,24 @@ button.secondary.press-btn:active {
 }
 #undo-btn::before { content: '<'; font-size: 18px; }
 #redo-btn::before { content: '>'; font-size: 18px; }
+
+/* Mobile: rotate dessert column headers 90deg to avoid overlap */
+@media (max-width: 600px) {
+	#sales-table thead th.col-arco,
+	#sales-table thead th.col-melo,
+	#sales-table thead th.col-mara,
+	#sales-table thead th.col-oreo {
+		vertical-align: bottom;
+		height: 56px;
+		padding: 0 2px 4px;
+	}
+	#sales-table thead th.col-arco > *,
+	#sales-table thead th.col-melo > *,
+	#sales-table thead th.col-mara > *,
+	#sales-table thead th.col-oreo > * {
+		display: inline-block;
+		transform: rotate(-90deg);
+		transform-origin: bottom left;
+		white-space: nowrap;
+	}
+}
