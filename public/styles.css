@@ -1430,3 +1430,17 @@ button.secondary.press-btn:active {
 	margin-left: auto !important;
 	margin-right: auto !important;
 }
+
+/* Force center via flex on dessert body cells */
+#sales-table tbody td.col-arco,
+#sales-table tbody td.col-melo,
+#sales-table tbody td.col-mara,
+#sales-table tbody td.col-oreo {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+#sales-table tbody td.col-arco .input-qty,
+#sales-table tbody td.col-melo .input-qty,
+#sales-table tbody td.col-mara .input-qty,
+#sales-table tbody td.col-oreo .input-qty { margin: 0 !important; }
