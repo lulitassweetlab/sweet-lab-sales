@@ -1413,3 +1413,20 @@ button.secondary.press-btn:active {
 	#sales-table.totals-stacked tfoot .tfoot-amt-stack .col-mara,
 	#sales-table.totals-stacked tfoot .tfoot-amt-stack .col-oreo { padding-left: 0; }
 }
+
+/* Strong centering for dessert qty columns */
+#sales-table tbody td.col-arco,
+#sales-table tbody td.col-melo,
+#sales-table tbody td.col-mara,
+#sales-table tbody td.col-oreo { text-align: center !important; }
+#sales-table tbody td.col-arco .input-qty,
+#sales-table tbody td.col-melo .input-qty,
+#sales-table tbody td.col-mara .input-qty,
+#sales-table tbody td.col-oreo .input-qty {
+	text-align: center !important;
+	display: inline-block !important;
+	width: auto;
+	min-width: 28px;
+	margin-left: auto !important;
+	margin-right: auto !important;
+}
