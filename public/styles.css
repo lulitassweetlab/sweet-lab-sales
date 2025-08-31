@@ -1390,3 +1390,11 @@ button.secondary.press-btn:active {
 /* Revert: remove flex centering altogether */
 
 /* Revert: drop final centering block; restore previous behavior */
+
+/* Mobile tweak: slight right padding on dessert columns for visual centering */
+@media (max-width: 600px) {
+	#sales-table tbody td.col-arco,
+	#sales-table tbody td.col-melo,
+	#sales-table tbody td.col-mara,
+	#sales-table tbody td.col-oreo { padding-right: 1px; }
+}
