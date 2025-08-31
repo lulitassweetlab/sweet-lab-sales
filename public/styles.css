@@ -1237,3 +1237,29 @@ button.secondary.press-btn:active {
 		text-orientation: mixed !important;
 	}
 }
+
+/* Mobile FINAL-ALIGN: absolute position each vertical label per its own header cell */
+@media (max-width: 600px) {
+	#sales-table thead th.col-arco,
+	#sales-table thead th.col-melo,
+	#sales-table thead th.col-mara,
+	#sales-table thead th.col-oreo {
+		position: relative !important;
+		height: 76px !important;
+		padding: 0 2px 6px !important;
+		overflow: visible !important;
+		text-align: center !important;
+	}
+	#sales-table thead th.col-arco .v-label,
+	#sales-table thead th.col-melo .v-label,
+	#sales-table thead th.col-mara .v-label,
+	#sales-table thead th.col-oreo .v-label {
+		position: absolute !important;
+		left: 50% !important;
+		bottom: 2px !important;
+		transform: translateX(-50%) rotate(-90deg) !important;
+		transform-origin: center center !important;
+		white-space: nowrap !important;
+		margin: 0 !important;
+	}
+}
