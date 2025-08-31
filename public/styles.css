@@ -1157,3 +1157,19 @@ button.secondary.press-btn:active {
 		white-space: nowrap;
 	}
 }
+
+/* Mobile FINAL: force dessert headers vertical to avoid overlap */
+@media (max-width: 600px) {
+	#sales-table thead th.col-arco,
+	#sales-table thead th.col-melo,
+	#sales-table thead th.col-mara,
+	#sales-table thead th.col-oreo {
+		writing-mode: vertical-rl !important;
+		text-orientation: mixed !important;
+		white-space: nowrap !important;
+		height: 72px !important;
+		padding: 4px 0 6px !important;
+		vertical-align: bottom !important;
+		text-align: center !important;
+	}
+}
