@@ -1289,3 +1289,33 @@ button.secondary.press-btn:active {
 		white-space: nowrap !important;
 	}
 }
+
+/* Mobile ULTIMATE FIX: visible vertical labels per column using writing-mode */
+@media (max-width: 600px) {
+	#sales-table thead { display: table-header-group !important; }
+	#sales-table thead tr > th.col-arco,
+	#sales-table thead tr > th.col-melo,
+	#sales-table thead tr > th.col-mara,
+	#sales-table thead tr > th.col-oreo {
+		display: table-cell !important;
+		position: static !important;
+		vertical-align: bottom !important;
+		text-align: center !important;
+		height: 76px !important;
+		padding: 0 2px 6px !important;
+		overflow: visible !important;
+		font-size: 10px !important;
+	}
+	#sales-table thead tr > th.col-arco .v-label,
+	#sales-table thead tr > th.col-melo .v-label,
+	#sales-table thead tr > th.col-mara .v-label,
+	#sales-table thead tr > th.col-oreo .v-label {
+		display: inline-block !important;
+		writing-mode: vertical-rl !important;
+		text-orientation: mixed !important;
+		transform: none !important;
+		margin: 0 auto !important;
+		white-space: nowrap !important;
+		line-height: 1 !important;
+	}
+}
