@@ -1453,3 +1453,14 @@ button.secondary.press-btn:active {
 		bottom: 4px !important;
 	}
 }
+
+/* Desktop: nudge dessert header labels up by 2px */
+@media (min-width: 601px) {
+	#sales-table thead th.col-arco .v-label,
+	#sales-table thead th.col-melo .v-label,
+	#sales-table thead th.col-mara .v-label,
+	#sales-table thead th.col-oreo .v-label {
+		position: relative;
+		top: -2px;
+	}
+}
