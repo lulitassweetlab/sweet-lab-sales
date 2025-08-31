@@ -1218,3 +1218,22 @@ button.secondary.press-btn:active {
 		white-space: nowrap !important;
 	}
 }
+
+/* Mobile FINAL-FIX: keep vertical text only on span, not on th */
+@media (max-width: 600px) {
+	#sales-table thead th.col-arco,
+	#sales-table thead th.col-melo,
+	#sales-table thead th.col-mara,
+	#sales-table thead th.col-oreo {
+		writing-mode: initial !important;
+		text-orientation: initial !important;
+		overflow: hidden !important;
+	}
+	#sales-table thead th.col-arco .v-label,
+	#sales-table thead th.col-melo .v-label,
+	#sales-table thead th.col-mara .v-label,
+	#sales-table thead th.col-oreo .v-label {
+		writing-mode: vertical-rl !important;
+		text-orientation: mixed !important;
+	}
+}
