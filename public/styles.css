@@ -1686,3 +1686,19 @@ button.secondary.press-btn:active {
 		top: auto !important;
 	}
 }
+
+/* Desktop FIX: visible vertical labels lower, without absolute positioning */
+@media (min-width: 601px) {
+	#sales-table thead th.col-arco .v-label,
+	#sales-table thead th.col-melo .v-label,
+	#sales-table thead th.col-mara .v-label,
+	#sales-table thead th.col-oreo .v-label {
+		position: relative !important;
+		left: auto !important;
+		bottom: auto !important;
+		transform: none !important;
+		writing-mode: vertical-rl !important;
+		text-orientation: mixed !important;
+		top: 16px !important;
+	}
+}
