@@ -1539,3 +1539,23 @@ button.secondary.press-btn:active {
 		line-height: 1 !important;
 	}
 }
+
+/* Desktop ULTRA: raise dessert names even higher */
+@media (min-width: 601px) {
+	#sales-table thead tr > th.col-arco,
+	#sales-table thead tr > th.col-melo,
+	#sales-table thead tr > th.col-mara,
+	#sales-table thead tr > th.col-oreo {
+		padding-top: 0 !important;
+		padding-bottom: 0 !important;
+		height: 18px !important;
+		line-height: 1 !important;
+	}
+	#sales-table thead tr > th.col-arco .v-label,
+	#sales-table thead tr > th.col-melo .v-label,
+	#sales-table thead tr > th.col-mara .v-label,
+	#sales-table thead tr > th.col-oreo .v-label {
+		position: relative !important;
+		top: -22px !important;
+	}
+}
