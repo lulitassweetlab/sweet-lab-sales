@@ -1450,7 +1450,7 @@ button.secondary.press-btn:active {
 	#sales-table thead tr > th.col-melo::after,
 	#sales-table thead tr > th.col-mara::after,
 	#sales-table thead tr > th.col-oreo::after {
-		bottom: 4px !important;
+		bottom: 6px !important;
 	}
 }
 
@@ -1461,6 +1461,6 @@ button.secondary.press-btn:active {
 	#sales-table thead th.col-mara .v-label,
 	#sales-table thead th.col-oreo .v-label {
 		position: relative;
-		top: -2px;
+		top: -4px;
 	}
 }
