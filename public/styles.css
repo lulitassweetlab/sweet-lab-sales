@@ -1626,3 +1626,21 @@ button.secondary.press-btn:active {
 		top: -4px;
 	}
 }
+
+/* Desktop FINAL position: lower vertical dessert labels */
+@media (min-width: 601px) {
+	#sales-table thead th.col-arco,
+	#sales-table thead th.col-melo,
+	#sales-table thead th.col-mara,
+	#sales-table thead th.col-oreo {
+		height: 34px !important;
+		padding-bottom: 6px !important;
+	}
+	#sales-table thead th.col-arco .v-label,
+	#sales-table thead th.col-melo .v-label,
+	#sales-table thead th.col-mara .v-label,
+	#sales-table thead th.col-oreo .v-label {
+		position: relative !important;
+		top: 8px !important;
+	}
+}
