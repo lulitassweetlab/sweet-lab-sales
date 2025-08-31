@@ -1478,3 +1478,21 @@ button.secondary.press-btn:active {
 	#sales-table thead th.col-mara .v-label,
 	#sales-table thead th.col-oreo .v-label { position: relative; top: -8px !important; }
 }
+
+/* FINAL RAISE 2: move dessert names higher */
+@media (max-width: 600px) {
+	#sales-table thead tr > th.col-arco::after,
+	#sales-table thead tr > th.col-melo::after,
+	#sales-table thead tr > th.col-mara::after,
+	#sales-table thead tr > th.col-oreo::after { bottom: 14px !important; }
+}
+@media (min-width: 601px) {
+	#sales-table thead th.col-arco,
+	#sales-table thead th.col-melo,
+	#sales-table thead th.col-mara,
+	#sales-table thead th.col-oreo { padding-bottom: 0 !important; }
+	#sales-table thead th.col-arco .v-label,
+	#sales-table thead th.col-melo .v-label,
+	#sales-table thead th.col-mara .v-label,
+	#sales-table thead th.col-oreo .v-label { position: relative; top: -12px !important; }
+}
