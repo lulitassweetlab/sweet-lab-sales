@@ -1057,3 +1057,10 @@ tfoot td { font-weight: 700; }
 #undo-btn::before { content: '←'; font-size: 22px; }
 #redo-btn::before { content: '→'; font-size: 22px; }
 @media (max-width: 600px) { #undo-btn::before, #redo-btn::before { font-size: 20px; } }
+
+/* Undo/Redo FINAL OVERRIDE: use angle brackets < > */
+#undo-btn::before { content: '<'; font-size: 22px !important; }
+#redo-btn::before { content: '>'; font-size: 22px !important; }
+@media (max-width: 600px) {
+	#undo-btn::before, #redo-btn::before { font-size: 20px !important; }
+}
