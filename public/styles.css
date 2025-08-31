@@ -1496,3 +1496,24 @@ button.secondary.press-btn:active {
 	#sales-table thead th.col-mara .v-label,
 	#sales-table thead th.col-oreo .v-label { position: relative; top: -12px !important; }
 }
+
+/* Desktop FINAL: raise dessert names and tighten header height */
+@media (min-width: 601px) {
+	#sales-table thead th.col-arco,
+	#sales-table thead th.col-melo,
+	#sales-table thead th.col-mara,
+	#sales-table thead th.col-oreo {
+		padding-top: 0 !important;
+		padding-bottom: 0 !important;
+		height: 28px !important;
+		line-height: 1 !important;
+	}
+	#sales-table thead th.col-arco .v-label,
+	#sales-table thead th.col-melo .v-label,
+	#sales-table thead th.col-mara .v-label,
+	#sales-table thead th.col-oreo .v-label {
+		display: inline-block;
+		position: relative;
+		top: -16px !important;
+	}
+}
