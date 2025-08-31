@@ -1559,3 +1559,47 @@ button.secondary.press-btn:active {
 		top: -22px !important;
 	}
 }
+
+/* Mobile scoped: use ::after and hide span labels only on mobile */
+@media (max-width: 600px) {
+	#sales-table thead tr > th.col-arco,
+	#sales-table thead tr > th.col-melo,
+	#sales-table thead tr > th.col-mara,
+	#sales-table thead tr > th.col-oreo {
+		position: relative !important;
+		vertical-align: bottom !important;
+		text-align: center !important;
+		height: 36px !important;
+		padding: 0 2px 2px !important;
+	}
+	#sales-table thead tr > th.col-arco .v-label,
+	#sales-table thead tr > th.col-melo .v-label,
+	#sales-table thead tr > th.col-mara .v-label,
+	#sales-table thead tr > th.col-oreo .v-label { display: none !important; }
+	#sales-table thead tr > th.col-arco::after,
+	#sales-table thead tr > th.col-melo::after,
+	#sales-table thead tr > th.col-mara::after,
+	#sales-table thead tr > th.col-oreo::after {
+		content: attr(data-label);
+		position: absolute !important;
+		left: 50% !important;
+		bottom: 14px !important;
+		transform: translateX(-50%) rotate(-90deg) !important;
+		transform-origin: center center !important;
+		white-space: nowrap !important;
+		line-height: 1 !important;
+		font-size: 9px !important;
+		color: inherit !important;
+	}
+}
+/* Desktop: ensure only span labels are shown; disable ::after */
+@media (min-width: 601px) {
+	#sales-table thead th.col-arco::after,
+	#sales-table thead th.col-melo::after,
+	#sales-table thead th.col-mara::after,
+	#sales-table thead th.col-oreo::after { content: none !important; }
+	#sales-table thead th.col-arco .v-label,
+	#sales-table thead th.col-melo .v-label,
+	#sales-table thead th.col-mara .v-label,
+	#sales-table thead th.col-oreo .v-label { display: inline-block !important; }
+}
