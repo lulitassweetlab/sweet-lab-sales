@@ -1173,3 +1173,23 @@ button.secondary.press-btn:active {
 		text-align: center !important;
 	}
 }
+
+@media (max-width: 600px) {
+	#sales-table thead th.col-arco .v-label,
+	#sales-table thead th.col-melo .v-label,
+	#sales-table thead th.col-mara .v-label,
+	#sales-table thead th.col-oreo .v-label {
+		display: inline-block;
+		transform: rotate(-90deg);
+		transform-origin: left bottom;
+		white-space: nowrap;
+	}
+	#sales-table thead th.col-arco,
+	#sales-table thead th.col-melo,
+	#sales-table thead th.col-mara,
+	#sales-table thead th.col-oreo {
+		height: 64px;
+		vertical-align: bottom;
+		text-align: center;
+	}
+}
