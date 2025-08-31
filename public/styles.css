@@ -1517,3 +1517,25 @@ button.secondary.press-btn:active {
 		top: -16px !important;
 	}
 }
+
+/* Desktop FINAL++: raise dessert names higher with tighter header */
+@media (min-width: 601px) {
+	#sales-table thead tr > th.col-arco,
+	#sales-table thead tr > th.col-melo,
+	#sales-table thead tr > th.col-mara,
+	#sales-table thead tr > th.col-oreo {
+		padding-top: 0 !important;
+		padding-bottom: 0 !important;
+		height: 22px !important;
+		line-height: 1 !important;
+	}
+	#sales-table thead tr > th.col-arco .v-label,
+	#sales-table thead tr > th.col-melo .v-label,
+	#sales-table thead tr > th.col-mara .v-label,
+	#sales-table thead tr > th.col-oreo .v-label {
+		display: inline-block !important;
+		position: relative !important;
+		top: -18px !important;
+		line-height: 1 !important;
+	}
+}
