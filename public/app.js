@@ -1190,7 +1190,16 @@ async function openHistoryPopover(saleId, field, anchorX, anchorY) {
 			const item = document.createElement('div');
 			item.className = 'history-item';
 			const when = new Date(e.created_at || e.time);
-			item.textContent = `[${when.toLocaleString()}] ${String(e.old_value ?? e.oldValue ?? '')} → ${String(e.new_value ?? e.newValue ?? '')}`;
+			const oldV = String(e.old_value ?? e.oldValue ?? '');
+			const newV = String(e.new_value ?? e.newValue ?? '');
+			const f = (e.field || '').toString();
+			if (f === 'qty_arco' || f === 'qty_melo' || f === 'qty_mara' || f === 'qty_oreo') {
+				const label = f === 'qty_arco' ? 'Arco' : f === 'qty_melo' ? 'Melo' : f === 'qty_mara' ? 'Mara' : 'Oreo';
+				item.textContent = `[${when.toLocaleString()}] ${label}: ${oldV} → ${newV}`;
+			} else {
+				// client_name u otros: sin etiqueta de campo
+				item.textContent = `[${when.toLocaleString()}] ${oldV} → ${newV}`;
+			}
 			list.appendChild(item);
 		}
 	}
