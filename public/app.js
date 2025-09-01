@@ -481,7 +481,7 @@ function openCommentDialog(anchorEl, initial = '', anchorX, anchorY) {
 		pop.style.zIndex = '1000';
 		// Ensure larger size regardless of cached CSS
 		pop.style.minWidth = '520px';
-		const ta = document.createElement('textarea'); ta.className = 'comment-input'; ta.placeholder = 'comentario'; ta.value = initial || ''; ta.style.minHeight = '320px';
+		const ta = document.createElement('textarea'); ta.className = 'comment-input'; ta.placeholder = 'comentario'; ta.value = initial || ''; ta.style.minHeight = '160px';
 		const actions = document.createElement('div'); actions.className = 'confirm-actions';
 		const cancel = document.createElement('button'); cancel.className = 'press-btn'; cancel.textContent = 'Cancelar';
 		const save = document.createElement('button'); save.className = 'press-btn btn-primary'; save.textContent = 'Guardar';

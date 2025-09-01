@@ -709,9 +709,9 @@ tfoot td { font-weight: 700; }
 .col-client { position: relative; }
 .col-client .comment-marker { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); }
 .col-client .client-input { padding-right: 22px; }
-.comment-popover { background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 12px; padding: 14px; min-width: 460px; max-width: 95vw; }
-.comment-input { width: 100%; min-height: 260px; resize: vertical; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; line-height: 1.4; font-size: 14px; }
-.comment-input:focus { outline: 2px solid var(--primary); outline-offset: 0; }
+.comment-popover { background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 12px; padding: 14px; min-width: 460px; max-width: 95vw; }
+.comment-input { width: 100%; min-height: 160px; resize: vertical; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; line-height: 1.4; font-size: 14px; }
+.comment-input:focus { outline: none; box-shadow: none; border-color: var(--border); }
 .comment-popover .confirm-actions { gap: 10px; }
 	border: 1px solid var(--border);
 	border-radius: 16px;
