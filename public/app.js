@@ -449,13 +449,12 @@ function openCommentDialog(anchorEl, initial = '') {
 		pop.style.top = (rect.bottom + 6) + 'px';
 		pop.style.transform = 'translate(-50%, 0)';
 		pop.style.zIndex = '1000';
-		const title = document.createElement('div'); title.className = 'comment-title'; title.textContent = 'Comentario:';
-		const ta = document.createElement('textarea'); ta.className = 'comment-input'; ta.placeholder = 'Escribe tu comentario...'; ta.value = initial || '';
+		const ta = document.createElement('textarea'); ta.className = 'comment-input'; ta.placeholder = 'comentario'; ta.value = initial || '';
 		const actions = document.createElement('div'); actions.className = 'confirm-actions';
 		const cancel = document.createElement('button'); cancel.className = 'press-btn'; cancel.textContent = 'Cancelar';
 		const save = document.createElement('button'); save.className = 'press-btn btn-primary'; save.textContent = 'Guardar';
 		actions.append(cancel, save);
-		pop.append(title, ta, actions);
+		pop.append(ta, actions);
 		document.body.appendChild(pop);
 		function cleanup() {
 			document.removeEventListener('mousedown', outside, true);
