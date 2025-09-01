@@ -1182,11 +1182,7 @@ async function openHistoryPopover(saleId, field, anchorX, anchorY) {
 			const item = document.createElement('div');
 			item.className = 'history-item';
 			const when = new Date(e.created_at || e.time);
-			if ((e.field || '').toString() === 'client_name') {
-				item.textContent = `[${when.toLocaleString()}] ${String(e.old_value ?? e.oldValue ?? '')} → ${String(e.new_value ?? e.newValue ?? '')}`;
-			} else {
-				item.textContent = `[${when.toLocaleString()}] ${e.field} \u0009 ${String(e.old_value ?? e.oldValue ?? '')} → ${String(e.new_value ?? e.newValue ?? '')}`;
-			}
+			item.textContent = `[${when.toLocaleString()}] ${String(e.old_value ?? e.oldValue ?? '')} → ${String(e.new_value ?? e.newValue ?? '')}`;
 			list.appendChild(item);
 		}
 	}
