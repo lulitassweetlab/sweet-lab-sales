@@ -626,7 +626,7 @@ function bindEvents() {
 	});
 
 	document.getElementById('export-excel')?.addEventListener('click', exportTableToExcel);
-})();
+}
 
 // Reverted: removed sticky header clone logic to return to visible non-sticky thead state.
 
