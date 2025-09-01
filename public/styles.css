@@ -709,9 +709,9 @@ tfoot td { font-weight: 700; }
 .col-client { position: relative; }
 .col-client .comment-marker { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); }
 .col-client .client-input { padding-right: 22px; }
-.comment-popover { background: #FAF4ED; color: var(--text); border: 1px solid var(--border); border-radius: 12px; padding: 14px; min-width: 460px; max-width: 95vw; }
-.comment-input { width: 100%; min-height: 160px; resize: vertical; background: #F5EDE6; color: var(--text); border: 1px solid #E6D8C8; border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; line-height: 1.4; font-size: 14px; -webkit-appearance: none; }
-.comment-input:focus { outline: none; box-shadow: none; border-color: #DCCBB9; }
+.comment-popover { background: #F2E8DE; color: var(--text); border: 1px solid var(--border); border-radius: 12px; padding: 14px; min-width: 460px; max-width: 95vw; }
+.comment-input { width: 100%; min-height: 160px; resize: vertical; background: #EBDCCF; color: var(--text); border: 1px solid #D9C7B6; border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; line-height: 1.4; font-size: 14px; -webkit-appearance: none; }
+.comment-input:focus { outline: none; box-shadow: none; border-color: #CFB8A4; }
 .comment-input:focus-visible { outline: none; }
 .comment-popover .confirm-actions { gap: 10px; }
 	border: 1px solid var(--border);
