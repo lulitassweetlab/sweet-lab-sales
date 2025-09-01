@@ -87,6 +87,7 @@ export async function handler(event) {
 				await write('qty_melo', current.qty_melo ?? 0, qm ?? 0);
 				await write('qty_mara', current.qty_mara ?? 0, qma ?? 0);
 				await write('qty_oreo', current.qty_oreo ?? 0, qo ?? 0);
+				await write('pay_method', current.pay_method ?? '', payMethod ?? '');
 				const row = await recalcTotalForId(id);
 				return json(row);
 			}

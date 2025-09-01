@@ -1196,6 +1196,9 @@ async function openHistoryPopover(saleId, field, anchorX, anchorY) {
 			if (f === 'qty_arco' || f === 'qty_melo' || f === 'qty_mara' || f === 'qty_oreo') {
 				const label = f === 'qty_arco' ? 'Arco' : f === 'qty_melo' ? 'Melo' : f === 'qty_mara' ? 'Mara' : 'Oreo';
 				item.textContent = `[${when.toLocaleString()}] ${label}: ${oldV} → ${newV}`;
+			} else if (f === 'pay_method') {
+				const fmt = (v) => v === 'efectivo' ? 'Efectivo' : v === 'transf' ? 'Transferencia' : '-';
+				item.textContent = `[${when.toLocaleString()}] Pago: ${fmt(oldV)} → ${fmt(newV)}`;
 			} else {
 				// client_name u otros: sin etiqueta de campo
 				item.textContent = `[${when.toLocaleString()}] ${oldV} → ${newV}`;
