@@ -79,6 +79,8 @@ function bindLogin() {
 		if (!state.currentUser.isAdmin) {
 			const seller = (state.sellers || []).find(s => String(s.name).toLowerCase() === String(user).toLowerCase());
 			if (seller) enterSeller(seller.id);
+		} else {
+			switchView('#view-select-seller');
 		}
 	});
 	const logoutBtn = document.getElementById('logout-btn');
@@ -87,6 +89,7 @@ function bindLogin() {
 		try { localStorage.removeItem('authUser'); } catch {}
 		applyAuthVisibility();
 		renderSellerButtons();
+		switchView('#view-login');
 	});
 }
 
@@ -1072,6 +1075,15 @@ if (!('selectedDayId' in state)) state.selectedDayId = null;
 	try { const saved = localStorage.getItem('authUser'); if (saved) state.currentUser = JSON.parse(saved); } catch {}
 	await loadSellers();
 	bindLogin();
+	// Route initial view
+	if (!state.currentUser) {
+		switchView('#view-login');
+	} else if (state.currentUser.isAdmin) {
+		switchView('#view-select-seller');
+	} else {
+		const me = (state.sellers || []).find(s => String(s.name).toLowerCase() === String(state.currentUser.name || '').toLowerCase());
+		if (me) enterSeller(me.id); else switchView('#view-select-seller');
+	}
 	window.addEventListener('resize', debounce(updateSummary, 150));
 })();
 
