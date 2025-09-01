@@ -1194,12 +1194,21 @@ async function openHistoryPopover(saleId, field, anchorX, anchorY) {
 			const newV = String(e.new_value ?? e.newValue ?? '');
 			const f = (e.field || '').toString();
 			const lower = f.toLowerCase();
-			if (lower.includes('arco') || lower.includes('melo') || lower.includes('mara') || lower.includes('oreo')) {
-				const label = lower.includes('arco') ? 'Arco' : lower.includes('melo') ? 'Melo' : lower.includes('mara') ? 'Mara' : 'Oreo';
-				item.textContent = `[${when.toLocaleString()}] ${label}: ${oldV} → ${newV}`;
-			} else if (lower === 'pay_method') {
+			// Map labels explicitly
+			let label = '';
+			if (lower.startsWith('qty_')) {
+				const suffix = lower.slice(4);
+				if (suffix === 'arco') label = 'Arco';
+				else if (suffix === 'melo') label = 'Melo';
+				else if (suffix === 'mara') label = 'Mara';
+				else if (suffix === 'oreo') label = 'Oreo';
+			}
+			if (lower === 'client_name') label = 'Cliente';
+			if (lower === 'pay_method') {
 				const fmt = (v) => v === 'efectivo' ? 'Efectivo' : v === 'transf' ? 'Transferencia' : '-';
 				item.textContent = `[${when.toLocaleString()}] Pago: ${fmt(oldV)} → ${fmt(newV)}`;
+			} else if (label) {
+				item.textContent = `[${when.toLocaleString()}] ${label}: ${oldV} → ${newV}`;
 			} else {
 				item.textContent = `[${when.toLocaleString()}] ${oldV} → ${newV}`;
 			}
