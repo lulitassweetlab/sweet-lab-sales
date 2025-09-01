@@ -1757,3 +1757,27 @@ button.secondary.press-btn:active {
 		line-height: normal !important;
 	}
 }
+
+/* Desktop ABSOLUTE RESET: dessert names horizontal (wins over all above) */
+@media (min-width: 601px) {
+	#sales-table thead th.col-arco,
+	#sales-table thead th.col-melo,
+	#sales-table thead th.col-mara,
+	#sales-table thead th.col-oreo { height: auto !important; padding: 0 !important; position: static !important; }
+	#sales-table thead th.col-arco::after,
+	#sales-table thead th.col-melo::after,
+	#sales-table thead th.col-mara::after,
+	#sales-table thead th.col-oreo::after { content: none !important; }
+	#sales-table thead th.col-arco .v-label,
+	#sales-table thead th.col-melo .v-label,
+	#sales-table thead th.col-mara .v-label,
+	#sales-table thead th.col-oreo .v-label {
+		display: inline !important;
+		position: static !important;
+		left: auto !important; right: auto !important; top: auto !important; bottom: auto !important;
+		transform: none !important;
+		writing-mode: initial !important;
+		text-orientation: initial !important;
+		line-height: normal !important;
+	}
+}
