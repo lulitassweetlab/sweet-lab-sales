@@ -1702,3 +1702,28 @@ button.secondary.press-btn:active {
 		top: 16px !important;
 	}
 }
+
+/* Desktop FINAL OVERRIDE: lower vertical dessert labels clearly */
+@media (min-width: 601px) {
+	#sales-table thead tr > th.col-arco,
+	#sales-table thead tr > th.col-melo,
+	#sales-table thead tr > th.col-mara,
+	#sales-table thead tr > th.col-oreo {
+		height: 56px !important;
+		padding-bottom: 8px !important;
+		position: relative !important;
+	}
+	#sales-table thead tr > th.col-arco .v-label,
+	#sales-table thead tr > th.col-melo .v-label,
+	#sales-table thead tr > th.col-mara .v-label,
+	#sales-table thead tr > th.col-oreo .v-label {
+		display: inline-block !important;
+		position: relative !important;
+		left: auto !important;
+		bottom: auto !important;
+		transform: none !important;
+		writing-mode: vertical-rl !important;
+		text-orientation: mixed !important;
+		top: 24px !important;
+	}
+}
