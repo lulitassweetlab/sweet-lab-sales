@@ -467,9 +467,11 @@ function openCommentDialog(anchorEl, initial = '', anchorX, anchorY) {
 		pop.style.position = 'fixed';
 		const rect = anchorEl.getBoundingClientRect();
 		if (typeof anchorX === 'number' && typeof anchorY === 'number') {
+			// Place the popover so its left edge starts exactly where the * was typed,
+			// and align vertically with the top of the input (feels inline, no jump)
 			pop.style.left = anchorX + 'px';
-			pop.style.top = anchorY + 'px';
-			pop.style.transform = 'translate(-50%, 0)';
+			pop.style.top = rect.top + 'px';
+			pop.style.transform = 'none';
 		} else {
 			// Fallback: open to the right of the input at same row height
 			pop.style.left = (rect.right + 8) + 'px';
@@ -492,6 +494,7 @@ function openCommentDialog(anchorEl, initial = '', anchorX, anchorY) {
 			let top = r.top;
 			if (r.right > window.innerWidth - margin) left = Math.max(margin, window.innerWidth - margin - r.width);
 			if (left < margin) left = margin;
+			// Keep top aligned to input unless it would go out below; then clamp up
 			if (r.bottom > window.innerHeight - margin) top = Math.max(margin, window.innerHeight - margin - r.height);
 			if (top < margin) top = margin;
 			pop.style.left = left + 'px';
