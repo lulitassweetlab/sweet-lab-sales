@@ -1119,23 +1119,24 @@ function addMarkersFromLogs() {
 		const id = Number(idStr);
 		const tr = document.querySelector(`#sales-tbody tr[data-id="${id}"]`);
 		if (!tr) continue;
-		const map = {
-			'client_name': tr.querySelector('.col-client'),
-			'qty_arco': tr.querySelector('.col-arco'),
-			'qty_melo': tr.querySelector('.col-melo'),
-			'qty_mara': tr.querySelector('.col-mara'),
-			'qty_oreo': tr.querySelector('.col-oreo'),
-		};
-		for (const [field, td] of Object.entries(map)) {
-			if (!td) continue;
-			td.querySelector('.change-marker')?.remove();
-			const fieldLogs = (logs || []).filter(l => (l.field || '').toString() === field).sort((a,b) => new Date(a.created_at || a.time) - new Date(b.created_at || b.time));
-			if (fieldLogs.length === 0) continue;
-			const firstOld = String(fieldLogs[0].old_value ?? fieldLogs[0].oldValue ?? '');
-			const lastNew = String(fieldLogs[fieldLogs.length - 1].new_value ?? fieldLogs[fieldLogs.length - 1].newValue ?? '');
-			if (lastNew === firstOld) continue; // net revert → no marker
-			renderChangeMarkerIfNeeded(td, id, field);
+		// Determine if there is a net change in any field
+		const byField = {};
+		for (const l of (logs || [])) {
+			const f = (l.field || '').toString();
+			if (!byField[f]) byField[f] = [];
+			byField[f].push(l);
 		}
+		let hasNet = false;
+		for (const arr of Object.values(byField)) {
+			const sorted = arr.sort((a,b) => new Date(a.created_at || a.time) - new Date(b.created_at || b.time));
+			const firstOld = String(sorted[0].old_value ?? sorted[0].oldValue ?? '');
+			const lastNew = String(sorted[sorted.length - 1].new_value ?? sorted[sorted.length - 1].newValue ?? '');
+			if (lastNew !== firstOld) { hasNet = true; break; }
+		}
+		// Render asterisk only in client name cell if any net change exists
+		const tdClient = tr.querySelector('.col-client');
+		tr.querySelectorAll('.change-marker').forEach(n => n.remove());
+		if (hasNet && tdClient) renderChangeMarkerIfNeeded(tdClient, id, null);
 	}
 }
 
@@ -1154,7 +1155,7 @@ function preloadChangeLogsForCurrentTable() {
 
 async function openHistoryPopover(saleId, field, anchorX, anchorY) {
 	const all = await fetchLogsForSale(saleId);
-	const entries = all.filter(l => l.field === field).slice().reverse();
+	const entries = field ? all.filter(l => l.field === field).slice().reverse() : all.slice().reverse();
 	const pop = document.createElement('div');
 	pop.className = 'history-popover';
 	pop.style.position = 'fixed';
@@ -1202,7 +1203,6 @@ async function openHistoryPopover(saleId, field, anchorX, anchorY) {
 
 function renderChangeMarkerIfNeeded(tdEl, saleId, field) {
 	if (!state.currentUser?.isAdmin) return;
-	// Caller ensures this field has logs from backend
 	const mark = document.createElement('span');
 	mark.className = 'change-marker';
 	mark.textContent = '*';
