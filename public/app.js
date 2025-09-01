@@ -1118,6 +1118,8 @@ async function fetchLogsForSale(saleId) {
 function clearAllMarkers() {
 	const marks = document.querySelectorAll('#sales-tbody .change-marker');
 	marks.forEach(m => m.remove());
+	const changed = document.querySelectorAll('#sales-tbody td.cell-changed');
+	changed.forEach(td => td.classList.remove('cell-changed'));
 }
 
 function addMarkersFromLogs() {
@@ -1137,7 +1139,7 @@ function addMarkersFromLogs() {
 		for (const [field, td] of Object.entries(map)) {
 			if (!td) continue;
 			td.querySelector('.change-marker')?.remove();
-			if (fieldsWithLogs.has(field)) renderChangeMarkerIfNeeded(td, id, field);
+			if (fieldsWithLogs.has(field)) { renderChangeMarkerIfNeeded(td, id, field); td.classList.add('cell-changed'); }
 		}
 	}
 }
