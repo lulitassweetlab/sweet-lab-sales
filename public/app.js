@@ -1128,7 +1128,6 @@ function addMarkersFromLogs() {
 		const id = Number(idStr);
 		const tr = document.querySelector(`#sales-tbody tr[data-id="${id}"]`);
 		if (!tr) continue;
-		const fieldsWithLogs = new Set((logs || []).map(l => l.field));
 		const map = {
 			'client_name': tr.querySelector('.col-client'),
 			'qty_arco': tr.querySelector('.col-arco'),
@@ -1139,7 +1138,14 @@ function addMarkersFromLogs() {
 		for (const [field, td] of Object.entries(map)) {
 			if (!td) continue;
 			td.querySelector('.change-marker')?.remove();
-			if (fieldsWithLogs.has(field)) { renderChangeMarkerIfNeeded(td, id, field); td.classList.add('cell-changed'); }
+			td.classList.remove('cell-changed');
+			const fieldLogs = (logs || []).filter(l => (l.field || '').toString() === field).sort((a,b) => new Date(a.created_at || a.time) - new Date(b.created_at || b.time));
+			if (fieldLogs.length === 0) continue;
+			const firstOld = String(fieldLogs[0].old_value ?? fieldLogs[0].oldValue ?? '');
+			const lastNew = String(fieldLogs[fieldLogs.length - 1].new_value ?? fieldLogs[fieldLogs.length - 1].newValue ?? '');
+			if (lastNew === firstOld) continue; // net revert → no highlight
+			renderChangeMarkerIfNeeded(td, id, field);
+			td.classList.add('cell-changed');
 		}
 	}
 }
