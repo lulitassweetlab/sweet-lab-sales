@@ -1886,3 +1886,14 @@ button.secondary.press-btn:active {
 .history-title { font-weight: 700; margin-bottom: 6px; }
 .history-list { display: grid; gap: 6px; max-height: 50vh; overflow: auto; }
 .history-item { font-size: 11px; white-space: pre-wrap; word-break: break-word; }
+
+/* Position change markers visibly at top-right of the cell */
+#sales-table td { position: relative; }
+#sales-table td .change-marker {
+	position: absolute;
+	right: 2px;
+	top: 2px;
+	font-weight: 700;
+	color: var(--accent);
+	background: transparent;
+}

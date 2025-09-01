@@ -309,6 +309,7 @@ async function loadSales() {
 	if (state.selectedDayId) params.set('sale_day_id', String(state.selectedDayId));
 	state.sales = await api('GET', `${API.Sales}?${params.toString()}`);
 	renderTable();
+	preloadChangeLogsForCurrentTable();
 }
 
 const history = { undo: [], redo: [], limit: 10 };
