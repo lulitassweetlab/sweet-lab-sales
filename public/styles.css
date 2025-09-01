@@ -1819,3 +1819,11 @@ button.secondary.press-btn:active {
 	#sales-table thead tr > th.col-mara::after,
 	#sales-table thead tr > th.col-oreo::after { bottom: 12px !important; }
 }
+
+/* Mobile: increase dessert names font size */
+@media (max-width: 600px) {
+	#sales-table thead tr > th.col-arco::after,
+	#sales-table thead tr > th.col-melo::after,
+	#sales-table thead tr > th.col-mara::after,
+	#sales-table thead tr > th.col-oreo::after { font-size: 14px !important; }
+}
