@@ -1207,8 +1207,7 @@ async function openHistoryPopover(saleId, field, anchorX, anchorY) {
 
 function renderChangeMarkerIfNeeded(tdEl, saleId, field) {
 	if (!state.currentUser?.isAdmin) return;
-	const logs = getLogsFor(saleId, field);
-	if (!logs || logs.length === 0) return;
+	// Caller ensures this field has logs from backend
 	const mark = document.createElement('span');
 	mark.className = 'change-marker';
 	mark.textContent = '*';
