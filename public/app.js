@@ -188,21 +188,11 @@ function switchView(id) {
 }
 
 function applyAuthVisibility() {
-	const loginView = document.getElementById('view-login');
-	const sellerView = document.getElementById('view-select-seller');
-	const salesView = document.getElementById('view-sales');
-	const isAuthed = !!state.currentUser;
-	if (!loginView || !sellerView || !salesView) return;
-	if (isAuthed) {
-		loginView.classList.add('hidden');
-		sellerView.classList.remove('hidden');
-		const logoutBtn = document.getElementById('logout-btn');
-		if (logoutBtn) logoutBtn.style.display = 'inline-flex';
-	} else {
-		switchView('#view-login');
-		const logoutBtn = document.getElementById('logout-btn');
-		if (logoutBtn) logoutBtn.style.display = 'none';
-	}
+	const isAdminUser = !!state.currentUser?.isAdmin;
+	const logoutBtn = document.getElementById('logout-btn');
+	if (logoutBtn) logoutBtn.style.display = state.currentUser ? 'inline-flex' : 'none';
+	const addSellerWrap = document.querySelector('.seller-add');
+	if (addSellerWrap) addSellerWrap.style.display = isAdminUser ? 'block' : 'none';
 }
 
 function calcRowTotal(q) {
