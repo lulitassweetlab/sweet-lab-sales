@@ -706,9 +706,11 @@ tfoot td { font-weight: 700; }
 .report-card {
 	background: var(--card);
 .comment-marker { color: var(--primary); margin-left: 6px; cursor: pointer; user-select: none; font-weight: 700; }
-.comment-popover { background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.24); padding: 10px; min-width: 260px; max-width: 80vw; }
-.comment-title { font-weight: 700; margin-bottom: 6px; }
-.comment-input { width: 100%; min-height: 80px; resize: vertical; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 8px; margin-bottom: 8px; }
+.comment-popover { background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 12px 28px rgba(0,0,0,0.28); padding: 14px; min-width: 320px; max-width: 90vw; }
+.comment-title { font-weight: 700; margin-bottom: 8px; font-size: 14px; opacity: 0.95; }
+.comment-input { width: 100%; min-height: 110px; resize: vertical; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; line-height: 1.4; font-size: 14px; }
+.comment-input:focus { outline: 2px solid var(--primary); outline-offset: 0; }
+.comment-popover .confirm-actions { gap: 10px; }
 	border: 1px solid var(--border);
 	border-radius: 16px;
 	box-shadow: 0 1px 2px rgba(0,0,0,0.06);

@@ -449,8 +449,8 @@ function openCommentDialog(anchorEl, initial = '') {
 		pop.style.top = (rect.bottom + 6) + 'px';
 		pop.style.transform = 'translate(-50%, 0)';
 		pop.style.zIndex = '1000';
-		const title = document.createElement('div'); title.className = 'comment-title'; title.textContent = 'Nota del pedido';
-		const ta = document.createElement('textarea'); ta.className = 'comment-input'; ta.value = initial || '';
+		const title = document.createElement('div'); title.className = 'comment-title'; title.textContent = 'Comentario:';
+		const ta = document.createElement('textarea'); ta.className = 'comment-input'; ta.placeholder = 'Escribe tu comentario...'; ta.value = initial || '';
 		const actions = document.createElement('div'); actions.className = 'confirm-actions';
 		const cancel = document.createElement('button'); cancel.className = 'press-btn'; cancel.textContent = 'Cancelar';
 		const save = document.createElement('button'); save.className = 'press-btn btn-primary'; save.textContent = 'Guardar';
