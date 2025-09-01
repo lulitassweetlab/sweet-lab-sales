@@ -61,7 +61,12 @@ export async function handler(event) {
 				const actor = (data._actor_name ?? '').toString();
 				async function write(field, oldVal, newVal) {
 					if (String(oldVal) === String(newVal)) return;
-					await sql`INSERT INTO change_logs (sale_id, field, old_value, new_value, user_name) VALUES (${id}, ${field}, ${oldVal?.toString() ?? ''}, ${newVal?.toString() ?? ''}, ${actor})`;
+					const recent = await sql`SELECT id, created_at FROM change_logs WHERE sale_id=${id} AND field=${field} AND user_name=${actor} ORDER BY created_at DESC LIMIT 1`;
+					if (recent.length && (new Date() - new Date(recent[0].created_at)) < 5000) {
+						await sql`UPDATE change_logs SET new_value=${newVal?.toString() ?? ''}, created_at=now() WHERE id=${recent[0].id}`;
+					} else {
+						await sql`INSERT INTO change_logs (sale_id, field, old_value, new_value, user_name) VALUES (${id}, ${field}, ${oldVal?.toString() ?? ''}, ${newVal?.toString() ?? ''}, ${actor})`;
+					}
 				}
 				await write('client_name', current.client_name ?? '', client ?? '');
 				await write('qty_arco', current.qty_arco ?? 0, qa ?? 0);
