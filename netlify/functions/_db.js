@@ -51,6 +51,15 @@ export async function ensureSchema() {
 			ALTER TABLE sales ADD COLUMN pay_method TEXT;
 		END IF;
 	END $$;`;
+	await sql`CREATE TABLE IF NOT EXISTS change_logs (
+		id SERIAL PRIMARY KEY,
+		sale_id INTEGER NOT NULL REFERENCES sales(id) ON DELETE CASCADE,
+		field TEXT NOT NULL,
+		old_value TEXT,
+		new_value TEXT,
+		user_name TEXT,
+		created_at TIMESTAMPTZ DEFAULT now()
+	)`;
 	schemaEnsured = true;
 }
 

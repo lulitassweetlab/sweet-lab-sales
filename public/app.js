@@ -369,6 +369,7 @@ async function saveRow(tr, id) {
 	const prev = before ? { ...before } : null;
 	const body = readRow(tr);
 	body.id = id;
+	body._actor_name = state.currentUser?.name || '';
 	const updated = await api('PUT', API.Sales, body);
 	const idx = state.sales.findIndex(s => s.id === id);
 	if (idx !== -1) state.sales[idx] = updated;

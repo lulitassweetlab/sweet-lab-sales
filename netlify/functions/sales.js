@@ -11,6 +11,13 @@ export async function handler(event) {
 		switch (event.httpMethod) {
 			case 'GET': {
 				const params = new URLSearchParams(event.rawQuery || event.queryStringParameters ? event.rawQuery || '' : '');
+				const historyFor = params.get('history_for');
+				if (historyFor) {
+					const saleId = Number(historyFor);
+					if (!saleId) return json({ error: 'history_for inválido' }, 400);
+					const rows = await sql`SELECT id, sale_id, field, old_value, new_value, user_name, created_at FROM change_logs WHERE sale_id=${saleId} ORDER BY created_at DESC, id DESC`;
+					return json(rows);
+				}
 				const sellerIdParam = params.get('seller_id') || (event.queryStringParameters && event.queryStringParameters.seller_id);
 				const dayIdParam = params.get('sale_day_id') || (event.queryStringParameters && event.queryStringParameters.sale_day_id);
 				const sellerId = Number(sellerIdParam);
@@ -41,6 +48,7 @@ export async function handler(event) {
 				const data = JSON.parse(event.body || '{}');
 				const id = Number(data.id);
 				if (!id) return json({ error: 'id requerido' }, 400);
+				const current = (await sql`SELECT client_name, qty_arco, qty_melo, qty_mara, qty_oreo FROM sales WHERE id=${id}`)[0] || {};
 				const client = (data.client_name ?? '').toString();
 				const qa = Number(data.qty_arco ?? 0) || 0;
 				const qm = Number(data.qty_melo ?? 0) || 0;
@@ -49,6 +57,17 @@ export async function handler(event) {
 				const paid = data.is_paid === true || data.is_paid === 'true';
 				const payMethod = (data.pay_method ?? null);
 				await sql`UPDATE sales SET client_name=${client}, qty_arco=${qa}, qty_melo=${qm}, qty_mara=${qma}, qty_oreo=${qo}, is_paid=${paid}, pay_method=${payMethod} WHERE id=${id}`;
+				// write change logs
+				const actor = (data._actor_name ?? '').toString();
+				async function write(field, oldVal, newVal) {
+					if (String(oldVal) === String(newVal)) return;
+					await sql`INSERT INTO change_logs (sale_id, field, old_value, new_value, user_name) VALUES (${id}, ${field}, ${oldVal?.toString() ?? ''}, ${newVal?.toString() ?? ''}, ${actor})`;
+				}
+				await write('client_name', current.client_name ?? '', client ?? '');
+				await write('qty_arco', current.qty_arco ?? 0, qa ?? 0);
+				await write('qty_melo', current.qty_melo ?? 0, qm ?? 0);
+				await write('qty_mara', current.qty_mara ?? 0, qma ?? 0);
+				await write('qty_oreo', current.qty_oreo ?? 0, qo ?? 0);
 				const row = await recalcTotalForId(id);
 				return json(row);
 			}
