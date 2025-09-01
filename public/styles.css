@@ -705,7 +705,10 @@ tfoot td { font-weight: 700; }
 .confirm-actions { display: flex; gap: 8px; justify-content: flex-end; }
 .report-card {
 	background: var(--card);
-.comment-marker { color: var(--primary); margin-left: 6px; cursor: pointer; user-select: none; font-weight: 700; }
+.comment-marker { color: var(--primary); margin-left: 6px; cursor: pointer; user-select: none; font-weight: 700; font-size: 11px; line-height: 1; }
+.col-client { position: relative; }
+.col-client .comment-marker { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); }
+.col-client .client-input { padding-right: 22px; }
 .comment-popover { background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 12px; padding: 14px; min-width: 460px; max-width: 95vw; }
 .comment-input { width: 100%; min-height: 180px; resize: vertical; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; line-height: 1.4; font-size: 14px; }
 .comment-input:focus { outline: 2px solid var(--primary); outline-offset: 0; }
