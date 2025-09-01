@@ -1104,3 +1104,93 @@ if (!('selectedDayId' in state)) state.selectedDayId = null;
 	document.addEventListener('DOMContentLoaded', apply);
 	apply();
 })();
+
+// Change log helpers (local persistence)
+function getChangeLogs() {
+	try { return JSON.parse(localStorage.getItem('changeLogs') || '{}'); } catch { return {}; }
+}
+function setChangeLogs(logs) {
+	try { localStorage.setItem('changeLogs', JSON.stringify(logs)); } catch {}
+}
+function logChange(saleId, field, oldValue, newValue) {
+	if (String(oldValue) === String(newValue)) return;
+	const logs = getChangeLogs();
+	const key = String(saleId);
+	if (!logs[key]) logs[key] = [];
+	logs[key].push({
+		field,
+		oldValue: oldValue == null ? '' : String(oldValue),
+		newValue: newValue == null ? '' : String(newValue),
+		user: state.currentUser?.name || 'desconocido',
+		time: new Date().toISOString()
+	});
+	setChangeLogs(logs);
+}
+function getLogsFor(saleId, field) {
+	const logs = getChangeLogs();
+	const key = String(saleId);
+	const arr = Array.isArray(logs[key]) ? logs[key] : [];
+	return field ? arr.filter(l => l.field === field) : arr;
+}
+
+function openHistoryPopover(saleId, field, anchorX, anchorY) {
+	const entries = getLogsFor(saleId, field).slice().reverse();
+	const pop = document.createElement('div');
+	pop.className = 'history-popover';
+	pop.style.position = 'fixed';
+	pop.style.left = (anchorX || (window.innerWidth / 2)) + 'px';
+	pop.style.top = ((anchorY || (window.innerHeight / 2)) + 6) + 'px';
+	pop.style.transform = 'translate(-50%, 0)';
+	pop.style.zIndex = '1000';
+	const title = document.createElement('div');
+	title.className = 'history-title';
+	title.textContent = 'Historial';
+	const list = document.createElement('div');
+	list.className = 'history-list';
+	if (entries.length === 0) {
+		const empty = document.createElement('div');
+		empty.className = 'history-item';
+		empty.textContent = 'Sin cambios';
+		list.appendChild(empty);
+	} else {
+		for (const e of entries) {
+			const item = document.createElement('div');
+			item.className = 'history-item';
+			const when = new Date(e.time);
+			item.textContent = `[${when.toLocaleString()}] ${e.user}: ${e.field} 	 ${e.oldValue} → ${e.newValue}`;
+			list.appendChild(item);
+		}
+	}
+	const actions = document.createElement('div');
+	actions.className = 'confirm-actions';
+	const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn'; closeBtn.textContent = 'Cerrar';
+	actions.append(closeBtn);
+	pop.append(title, list, actions);
+	document.body.appendChild(pop);
+	function cleanup() {
+		document.removeEventListener('mousedown', outside, true);
+		document.removeEventListener('touchstart', outside, true);
+		if (pop.parentNode) pop.parentNode.removeChild(pop);
+	}
+	function outside(ev) { if (!pop.contains(ev.target)) cleanup(); }
+	setTimeout(() => {
+		document.addEventListener('mousedown', outside, true);
+		document.addEventListener('touchstart', outside, true);
+	}, 0);
+	closeBtn.addEventListener('click', cleanup);
+}
+
+function renderChangeMarkerIfNeeded(tdEl, saleId, field) {
+	if (!state.currentUser?.isAdmin) return;
+	const logs = getLogsFor(saleId, field);
+	if (!logs || logs.length === 0) return;
+	const mark = document.createElement('span');
+	mark.className = 'change-marker';
+	mark.textContent = '*';
+	mark.title = 'Ver historial';
+	mark.addEventListener('click', (ev) => {
+		ev.stopPropagation();
+		openHistoryPopover(saleId, field, ev.clientX, ev.clientY);
+	});
+	tdEl.appendChild(mark);
+}

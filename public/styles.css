@@ -1879,3 +1879,10 @@ button.secondary.press-btn:active {
 @media (max-width: 600px) {
 	.client-input { text-overflow: clip !important; white-space: normal !important; }
 }
+
+/* Change marker and history popover (admin only visible) */
+.change-marker { color: var(--accent); margin-left: 4px; cursor: pointer; user-select: none; }
+.history-popover { background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.24); padding: 10px; min-width: 240px; max-width: 80vw; }
+.history-title { font-weight: 700; margin-bottom: 6px; }
+.history-list { display: grid; gap: 6px; max-height: 50vh; overflow: auto; }
+.history-item { font-size: 11px; white-space: pre-wrap; word-break: break-word; }
