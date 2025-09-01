@@ -1870,3 +1870,8 @@ button.secondary.press-btn:active {
 @media (max-width: 600px) {
 	#date-new { height: 32px !important; padding: 0 12px !important; display: inline-flex; align-items: center; }
 }
+
+/* Mobile: make '+ Nueva venta' match 'Exportar Excel' height */
+@media (max-width: 600px) {
+	#add-row { padding: 8px 12px !important; display: inline-flex; align-items: center; }
+}
