@@ -300,6 +300,7 @@ function renderTable() {
 	updateSummary();
 	// Remove old bottom add button if present
 	document.getElementById('add-row-bottom')?.closest('.table-actions')?.remove();
+	preloadChangeLogsForCurrentTable();
 }
 
 async function loadSales() {
@@ -1106,36 +1107,56 @@ if (!('selectedDayId' in state)) state.selectedDayId = null;
 	apply();
 })();
 
-// Change log helpers (local persistence)
-function getChangeLogs() {
-	try { return JSON.parse(localStorage.getItem('changeLogs') || '{}'); } catch { return {}; }
-}
-function setChangeLogs(logs) {
-	try { localStorage.setItem('changeLogs', JSON.stringify(logs)); } catch {}
-}
-function logChange(saleId, field, oldValue, newValue) {
-	if (String(oldValue) === String(newValue)) return;
-	const logs = getChangeLogs();
-	const key = String(saleId);
-	if (!logs[key]) logs[key] = [];
-	logs[key].push({
-		field,
-		oldValue: oldValue == null ? '' : String(oldValue),
-		newValue: newValue == null ? '' : String(newValue),
-		user: state.currentUser?.name || 'desconocido',
-		time: new Date().toISOString()
-	});
-	setChangeLogs(logs);
-}
-function getLogsFor(saleId, field) {
-	const logs = getChangeLogs();
-	const key = String(saleId);
-	const arr = Array.isArray(logs[key]) ? logs[key] : [];
-	return field ? arr.filter(l => l.field === field) : arr;
+// Change log state and helpers
+state.changeLogsBySale = {};
+
+async function fetchLogsForSale(saleId) {
+	try { return await api('GET', `${API.Sales}?history_for=${encodeURIComponent(saleId)}`); } catch { return []; }
 }
 
-function openHistoryPopover(saleId, field, anchorX, anchorY) {
-	const entries = getLogsFor(saleId, field).slice().reverse();
+function clearAllMarkers() {
+	const marks = document.querySelectorAll('#sales-tbody .change-marker');
+	marks.forEach(m => m.remove());
+}
+
+function addMarkersFromLogs() {
+	if (!state.currentUser?.isAdmin) return;
+	for (const [idStr, logs] of Object.entries(state.changeLogsBySale || {})) {
+		const id = Number(idStr);
+		const tr = document.querySelector(`#sales-tbody tr[data-id="${id}"]`);
+		if (!tr) continue;
+		const fieldsWithLogs = new Set((logs || []).map(l => l.field));
+		const map = {
+			'client_name': tr.querySelector('.col-client'),
+			'qty_arco': tr.querySelector('.col-arco'),
+			'qty_melo': tr.querySelector('.col-melo'),
+			'qty_mara': tr.querySelector('.col-mara'),
+			'qty_oreo': tr.querySelector('.col-oreo'),
+		};
+		for (const [field, td] of Object.entries(map)) {
+			if (!td) continue;
+			td.querySelector('.change-marker')?.remove();
+			if (fieldsWithLogs.has(field)) renderChangeMarkerIfNeeded(td, id, field);
+		}
+	}
+}
+
+function preloadChangeLogsForCurrentTable() {
+	if (!state.currentUser?.isAdmin) return;
+	const ids = (state.sales || []).map(s => s.id);
+	Promise.all(ids.map(id => fetchLogsForSale(id).then(rows => [id, rows])))
+		.then(pairs => {
+			const map = {};
+			for (const [id, rows] of pairs) map[id] = rows;
+			state.changeLogsBySale = map;
+			clearAllMarkers();
+			addMarkersFromLogs();
+		}).catch(() => {});
+}
+
+async function openHistoryPopover(saleId, field, anchorX, anchorY) {
+	const all = await fetchLogsForSale(saleId);
+	const entries = all.filter(l => l.field === field).slice().reverse();
 	const pop = document.createElement('div');
 	pop.className = 'history-popover';
 	pop.style.position = 'fixed';
@@ -1157,8 +1178,8 @@ function openHistoryPopover(saleId, field, anchorX, anchorY) {
 		for (const e of entries) {
 			const item = document.createElement('div');
 			item.className = 'history-item';
-			const when = new Date(e.time);
-			item.textContent = `[${when.toLocaleString()}] ${e.user}: ${e.field} 	 ${e.oldValue} → ${e.newValue}`;
+			const when = new Date(e.created_at || e.time);
+			item.textContent = `[${when.toLocaleString()}] ${e.user_name || e.user}: ${e.field} \u0009 ${String(e.old_value ?? e.oldValue ?? '')} → ${String(e.new_value ?? e.newValue ?? '')}`;
 			list.appendChild(item);
 		}
 	}
