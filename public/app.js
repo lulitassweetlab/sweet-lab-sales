@@ -1077,3 +1077,29 @@ if (!('selectedDayId' in state)) state.selectedDayId = null;
 	bindLogin();
 	window.addEventListener('resize', debounce(updateSummary, 150));
 })();
+
+(function enforceDesktopHeaderHorizontal(){
+	function apply() {
+		const isDesktop = window.matchMedia('(min-width: 601px)').matches;
+		const labels = document.querySelectorAll('#sales-table thead th.col-arco .v-label, #sales-table thead th.col-melo .v-label, #sales-table thead th.col-mara .v-label, #sales-table thead th.col-oreo .v-label');
+		labels.forEach((el) => {
+			if (!(el instanceof HTMLElement)) return;
+			if (isDesktop) {
+				el.style.writingMode = 'initial';
+				el.style.textOrientation = 'initial';
+				el.style.transform = 'none';
+				el.style.position = 'static';
+				el.style.top = 'auto';
+			} else {
+				el.style.writingMode = '';
+				el.style.textOrientation = '';
+				el.style.transform = '';
+				el.style.position = '';
+				el.style.top = '';
+			}
+		});
+	}
+	window.addEventListener('resize', apply);
+	document.addEventListener('DOMContentLoaded', apply);
+	apply();
+})();
