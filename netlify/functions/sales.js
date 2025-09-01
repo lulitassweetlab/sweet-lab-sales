@@ -48,7 +48,9 @@ export async function handler(event) {
 				const data = JSON.parse(event.body || '{}');
 				const id = Number(data.id);
 				if (!id) return json({ error: 'id requerido' }, 400);
-				const current = (await sql`SELECT client_name, qty_arco, qty_melo, qty_mara, qty_oreo, is_paid, pay_method FROM sales WHERE id=${id}`)[0] || {};
+				const current = (await sql`SELECT client_name, qty_arco, qty_melo, qty_mara, qty_oreo, is_paid, pay_method, created_at FROM sales WHERE id=${id}`)[0] || {};
+				const createdAt = current.created_at ? new Date(current.created_at) : null;
+				const withinGrace = createdAt ? ((new Date()) - createdAt) < 120000 : false; // 2 minutes
 				const client = (data.client_name ?? '').toString();
 				const qa = Number(data.qty_arco ?? 0) || 0;
 				const qm = Number(data.qty_melo ?? 0) || 0;
@@ -61,28 +63,9 @@ export async function handler(event) {
 				const actor = (data._actor_name ?? '').toString();
 				async function write(field, oldVal, newVal) {
 					if (String(oldVal) === String(newVal)) return;
-					// Skip if the field had not been used before
-					if (field === 'client_name') {
-						const prevName = (oldVal ?? '').toString().trim();
-						if (prevName === '') return; // don't log first-time name entry
-						// If there are no prior logs for this field and prev is still too short, treat as initial typing and skip
-						const prior = await sql`SELECT 1 FROM change_logs WHERE sale_id=${id} AND field=${field} LIMIT 1`;
-						if (prior.length === 0 && prevName.length < 4) return;
-						const newName = (newVal ?? '').toString().trim();
-						if (prevName === '' && newName.length < 4) return; // avoid partial short typing
-					} else if (field === 'qty_arco' || field === 'qty_melo' || field === 'qty_mara' || field === 'qty_oreo') {
-						const prevQty = Number(oldVal ?? 0) || 0;
-						const newQty = Number(newVal ?? 0) || 0;
-						// Determine if the row was previously unused (no client and all qty 0)
-						const rowWasEmpty = ((current.client_name ?? '').toString().trim() === ''
-							&& Number(current.qty_arco ?? 0) === 0
-							&& Number(current.qty_melo ?? 0) === 0
-							&& Number(current.qty_mara ?? 0) === 0
-							&& Number(current.qty_oreo ?? 0) === 0);
-						// Skip only if this is the very first entry in an otherwise empty row
-						if (prevQty === 0 && newQty > 0 && rowWasEmpty) return;
-					}
-					// Coalesce rapid edits (10s)
+					// Suppress all logs during initial grace period after row creation
+					if (withinGrace) return;
+					// Coalesce rapid edits (20s)
 					const recent = await sql`SELECT id, created_at FROM change_logs WHERE sale_id=${id} AND field=${field} AND user_name=${actor} ORDER BY created_at DESC LIMIT 1`;
 					if (recent.length && (new Date() - new Date(recent[0].created_at)) < 20000) {
 						await sql`UPDATE change_logs SET new_value=${newVal?.toString() ?? ''}, created_at=now() WHERE id=${recent[0].id}`;
