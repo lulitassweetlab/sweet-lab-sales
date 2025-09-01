@@ -71,7 +71,7 @@ export async function handler(event) {
 					}
 					// Coalesce rapid edits (10s)
 					const recent = await sql`SELECT id, created_at FROM change_logs WHERE sale_id=${id} AND field=${field} AND user_name=${actor} ORDER BY created_at DESC LIMIT 1`;
-					if (recent.length && (new Date() - new Date(recent[0].created_at)) < 10000) {
+					if (recent.length && (new Date() - new Date(recent[0].created_at)) < 20000) {
 						await sql`UPDATE change_logs SET new_value=${newVal?.toString() ?? ''}, created_at=now() WHERE id=${recent[0].id}`;
 					} else {
 						await sql`INSERT INTO change_logs (sale_id, field, old_value, new_value, user_name) VALUES (${id}, ${field}, ${oldVal?.toString() ?? ''}, ${newVal?.toString() ?? ''}, ${actor})`;
