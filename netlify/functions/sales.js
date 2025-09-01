@@ -61,6 +61,15 @@ export async function handler(event) {
 				const actor = (data._actor_name ?? '').toString();
 				async function write(field, oldVal, newVal) {
 					if (String(oldVal) === String(newVal)) return;
+					// Skip if the field had not been used before
+					if (field === 'client_name') {
+						const prevName = (oldVal ?? '').toString().trim();
+						if (prevName === '') return; // don't log first-time name entry
+					} else if (field === 'qty_arco' || field === 'qty_melo' || field === 'qty_mara' || field === 'qty_oreo') {
+						const prevQty = Number(oldVal ?? 0) || 0;
+						if (prevQty === 0) return; // don't log first-time non-zero quantity
+					}
+					// Coalesce rapid edits (10s)
 					const recent = await sql`SELECT id, created_at FROM change_logs WHERE sale_id=${id} AND field=${field} AND user_name=${actor} ORDER BY created_at DESC LIMIT 1`;
 					if (recent.length && (new Date() - new Date(recent[0].created_at)) < 10000) {
 						await sql`UPDATE change_logs SET new_value=${newVal?.toString() ?? ''}, created_at=now() WHERE id=${recent[0].id}`;
