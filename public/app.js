@@ -379,6 +379,8 @@ async function saveRow(tr, id) {
 	const total = calcRowTotal({ arco: updated.qty_arco, melo: updated.qty_melo, mara: updated.qty_mara, oreo: updated.qty_oreo });
 	totalCell.textContent = fmtNo.format(total);
 	updateSummary();
+	// Refresh markers from backend logs only
+	preloadChangeLogsForCurrentTable();
 	// Push undo: restore prev snapshot
 	if (prev) {
 		pushUndo({

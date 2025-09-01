@@ -65,6 +65,8 @@ export async function handler(event) {
 					if (field === 'client_name') {
 						const prevName = (oldVal ?? '').toString().trim();
 						if (prevName === '') return; // don't log first-time name entry
+						const newName = (newVal ?? '').toString().trim();
+						if (prevName === '' && newName.length < 4) return; // avoid partial short typing
 					} else if (field === 'qty_arco' || field === 'qty_melo' || field === 'qty_mara' || field === 'qty_oreo') {
 						const prevQty = Number(oldVal ?? 0) || 0;
 						if (prevQty === 0) return; // don't log first-time non-zero quantity
