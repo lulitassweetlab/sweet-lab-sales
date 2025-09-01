@@ -1875,3 +1875,7 @@ button.secondary.press-btn:active {
 @media (max-width: 600px) {
 	#add-row { padding: 8px 12px !important; display: inline-flex; align-items: center; }
 }
+
+@media (max-width: 600px) {
+	.client-input { text-overflow: clip !important; white-space: normal !important; }
+}
