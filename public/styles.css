@@ -1799,3 +1799,15 @@ button.secondary.press-btn:active {
 	#sales-table thead tr:where(:not(.foo)) > th.col-mara::after,
 	#sales-table thead tr:where(:not(.foo)) > th.col-oreo::after { content: none !important; }
 }
+
+/* Desktop ULTIMATE RESET: force horizontal dessert names (last rule) */
+@media (min-width: 601px) {
+	#sales-table thead th.col-arco .v-label,
+	#sales-table thead th.col-melo .v-label,
+	#sales-table thead th.col-mara .v-label,
+	#sales-table thead th.col-oreo .v-label { writing-mode: unset !important; text-orientation: initial !important; transform: none !important; display: inline !important; position: static !important; }
+	#sales-table thead th.col-arco::after,
+	#sales-table thead th.col-melo::after,
+	#sales-table thead th.col-mara::after,
+	#sales-table thead th.col-oreo::after { content: none !important; }
+}
