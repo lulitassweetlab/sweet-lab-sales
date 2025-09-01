@@ -72,7 +72,15 @@ export async function handler(event) {
 						if (prevName === '' && newName.length < 4) return; // avoid partial short typing
 					} else if (field === 'qty_arco' || field === 'qty_melo' || field === 'qty_mara' || field === 'qty_oreo') {
 						const prevQty = Number(oldVal ?? 0) || 0;
-						if (prevQty === 0) return; // don't log first-time non-zero quantity
+						const newQty = Number(newVal ?? 0) || 0;
+						// Determine if the row was previously unused (no client and all qty 0)
+						const rowWasEmpty = ((current.client_name ?? '').toString().trim() === ''
+							&& Number(current.qty_arco ?? 0) === 0
+							&& Number(current.qty_melo ?? 0) === 0
+							&& Number(current.qty_mara ?? 0) === 0
+							&& Number(current.qty_oreo ?? 0) === 0);
+						// Skip only if this is the very first entry in an otherwise empty row
+						if (prevQty === 0 && newQty > 0 && rowWasEmpty) return;
 					}
 					// Coalesce rapid edits (10s)
 					const recent = await sql`SELECT id, created_at FROM change_logs WHERE sale_id=${id} AND field=${field} AND user_name=${actor} ORDER BY created_at DESC LIMIT 1`;
