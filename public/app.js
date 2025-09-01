@@ -239,6 +239,7 @@ function renderTable() {
 				class: 'input-cell client-input',
 				value: sale.client_name || '',
 				placeholder: '',
+				oninput: (e) => { const v = (e.target.value || '').trim(); if (/\*$/.test(v)) { saveClientWithCommentFlow(tr, sale.id); } },
 				onblur: () => saveClientWithCommentFlow(tr, sale.id),
 				onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); saveClientWithCommentFlow(tr, sale.id); } },
 			})),
