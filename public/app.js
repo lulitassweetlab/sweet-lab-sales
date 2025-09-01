@@ -1193,14 +1193,14 @@ async function openHistoryPopover(saleId, field, anchorX, anchorY) {
 			const oldV = String(e.old_value ?? e.oldValue ?? '');
 			const newV = String(e.new_value ?? e.newValue ?? '');
 			const f = (e.field || '').toString();
-			if (f === 'qty_arco' || f === 'qty_melo' || f === 'qty_mara' || f === 'qty_oreo') {
-				const label = f === 'qty_arco' ? 'Arco' : f === 'qty_melo' ? 'Melo' : f === 'qty_mara' ? 'Mara' : 'Oreo';
+			const lower = f.toLowerCase();
+			if (lower.includes('arco') || lower.includes('melo') || lower.includes('mara') || lower.includes('oreo')) {
+				const label = lower.includes('arco') ? 'Arco' : lower.includes('melo') ? 'Melo' : lower.includes('mara') ? 'Mara' : 'Oreo';
 				item.textContent = `[${when.toLocaleString()}] ${label}: ${oldV} → ${newV}`;
-			} else if (f === 'pay_method') {
+			} else if (lower === 'pay_method') {
 				const fmt = (v) => v === 'efectivo' ? 'Efectivo' : v === 'transf' ? 'Transferencia' : '-';
 				item.textContent = `[${when.toLocaleString()}] Pago: ${fmt(oldV)} → ${fmt(newV)}`;
 			} else {
-				// client_name u otros: sin etiqueta de campo
 				item.textContent = `[${when.toLocaleString()}] ${oldV} → ${newV}`;
 			}
 			list.appendChild(item);
