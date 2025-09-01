@@ -445,9 +445,10 @@ function openCommentDialog(anchorEl, initial = '') {
 		pop.className = 'comment-popover';
 		pop.style.position = 'fixed';
 		const rect = anchorEl.getBoundingClientRect();
-		pop.style.left = (rect.left + rect.width / 2) + 'px';
-		pop.style.top = (rect.bottom + 6) + 'px';
-		pop.style.transform = 'translate(-50%, 0)';
+		// Open to the right of the input at same row height
+		pop.style.left = (rect.right + 8) + 'px';
+		pop.style.top = (rect.top) + 'px';
+		pop.style.transform = 'none';
 		pop.style.zIndex = '1000';
 		const ta = document.createElement('textarea'); ta.className = 'comment-input'; ta.placeholder = 'comentario'; ta.value = initial || '';
 		const actions = document.createElement('div'); actions.className = 'confirm-actions';
@@ -456,6 +457,19 @@ function openCommentDialog(anchorEl, initial = '') {
 		actions.append(cancel, save);
 		pop.append(ta, actions);
 		document.body.appendChild(pop);
+		// Clamp within viewport after mount so it stays visible
+		requestAnimationFrame(() => {
+			const margin = 8;
+			const r = pop.getBoundingClientRect();
+			let left = r.left;
+			let top = r.top;
+			if (r.right > window.innerWidth - margin) left = Math.max(margin, window.innerWidth - margin - r.width);
+			if (left < margin) left = margin;
+			if (r.bottom > window.innerHeight - margin) top = Math.max(margin, window.innerHeight - margin - r.height);
+			if (top < margin) top = margin;
+			pop.style.left = left + 'px';
+			pop.style.top = top + 'px';
+		});
 		function cleanup() {
 			document.removeEventListener('mousedown', outside, true);
 			document.removeEventListener('touchstart', outside, true);
