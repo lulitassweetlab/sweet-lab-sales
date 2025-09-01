@@ -743,7 +743,7 @@ function renderDaysList() {
 		const del = document.createElement('button');
 		del.className = 'date-delete';
 		del.title = 'Eliminar fecha';
-		del.textContent = '🗑️';
+		del.textContent = '';
 		del.addEventListener('click', async (e) => {
 			e.stopPropagation();
 			const ok = await openConfirmPopover('¿Seguro que quieres eliminar esta fecha?', e.clientX, e.clientY);
