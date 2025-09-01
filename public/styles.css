@@ -1898,6 +1898,5 @@ button.secondary.press-btn:active {
 	background: transparent;
 }
 
-/* Admin: highlight changed cells and enlarge asterisk */
-.cell-changed { background-color: #ffd6e7 !important; }
-.change-marker { font-size: 16px; }
+/* Admin: remove background highlight; keep asterisk only */
+.cell-changed { background-color: transparent !important; }
