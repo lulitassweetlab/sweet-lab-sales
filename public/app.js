@@ -239,8 +239,8 @@ function renderTable() {
 				class: 'input-cell client-input',
 				value: sale.client_name || '',
 				placeholder: '',
-				onblur: () => saveRow(tr, sale.id),
-				onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); saveRow(tr, sale.id); } },
+				onblur: () => saveClientWithCommentFlow(tr, sale.id),
+				onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); saveClientWithCommentFlow(tr, sale.id); } },
 			})),
 			el('td', { class: 'col-arco' }, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_arco ? String(sale.qty_arco) : '', placeholder: '', onblur: () => saveRow(tr, sale.id), onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); saveRow(tr, sale.id); } }, onfocus: (e) => e.target.select(), onmouseup: (e) => e.preventDefault() })),
 			el('td', { class: 'col-melo' }, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_melo ? String(sale.qty_melo) : '', placeholder: '', onblur: () => saveRow(tr, sale.id), onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); saveRow(tr, sale.id); } }, onfocus: (e) => e.target.select(), onmouseup: (e) => e.preventDefault() })),
@@ -263,6 +263,8 @@ function renderTable() {
 		);
 		tr.dataset.id = String(sale.id);
 		tbody.appendChild(tr);
+		// Render comment marker (distinct from admin change marker)
+		renderCommentMarkerForRow(tr);
 	}
 	// Inline add row line just below last sale
 	const colCount = document.querySelectorAll('#sales-table thead th').length || 8;
@@ -379,6 +381,95 @@ async function saveRow(tr, id) {
 			}
 		});
 	}
+}
+
+// Comment flow: detect trailing * on client name to open comment dialog
+async function saveClientWithCommentFlow(tr, id) {
+	const input = tr.querySelector('td.col-client .client-input');
+	if (!input) { await saveRow(tr, id); return; }
+	const raw = input.value || '';
+	const hasTrigger = /\*$/.test(raw.trim());
+	if (!hasTrigger) { await saveRow(tr, id); return; }
+	// Remove trailing * from client name before saving
+	input.value = raw.replace(/\*+\s*$/, '').trim();
+	await saveRow(tr, id);
+	// Open comment dialog
+	const comment = await openCommentDialog(input);
+	if (comment == null) { renderCommentMarkerForRow(tr); return; }
+	// Persist comment
+	await saveComment(id, comment);
+	// Update local state and UI
+	const idx = state.sales.findIndex(s => s.id === id);
+	if (idx !== -1) state.sales[idx].comment_text = comment;
+	renderCommentMarkerForRow(tr);
+}
+
+async function saveComment(id, text) {
+	const sale = state.sales.find(s => s.id === id);
+	if (!sale) return;
+	const payload = { id, client_name: sale.client_name || '', qty_arco: sale.qty_arco||0, qty_melo: sale.qty_melo||0, qty_mara: sale.qty_mara||0, qty_oreo: sale.qty_oreo||0, is_paid: !!sale.is_paid, pay_method: sale.pay_method ?? null, comment_text: text, _actor_name: state.currentUser?.name || '' };
+	const updated = await api('PUT', API.Sales, payload);
+	const idx = state.sales.findIndex(s => s.id === id);
+	if (idx !== -1) state.sales[idx] = updated;
+}
+
+function renderCommentMarkerForRow(tr) {
+	const id = Number(tr.dataset.id);
+	const sale = state.sales.find(s => s.id === id);
+	const td = tr.querySelector('td.col-client');
+	if (!td) return;
+	// Remove existing comment markers
+	td.querySelectorAll('.comment-marker').forEach(n => n.remove());
+	if (!sale || !sale.comment_text) return;
+	const mark = document.createElement('span');
+	mark.className = 'comment-marker';
+	mark.textContent = '✱';
+	mark.title = 'Ver nota';
+	mark.addEventListener('click', async (ev) => {
+		ev.stopPropagation();
+		const next = await openCommentDialog(mark, sale.comment_text);
+		if (next == null) return;
+		await saveComment(id, next);
+		const idx = state.sales.findIndex(s => s.id === id);
+		if (idx !== -1) state.sales[idx].comment_text = next;
+	});
+	// Insert after the input
+	const inp = td.querySelector('.client-input');
+	if (inp && inp.parentNode) inp.parentNode.appendChild(mark);
+}
+
+function openCommentDialog(anchorEl, initial = '') {
+	return new Promise((resolve) => {
+		const pop = document.createElement('div');
+		pop.className = 'comment-popover';
+		pop.style.position = 'fixed';
+		const rect = anchorEl.getBoundingClientRect();
+		pop.style.left = (rect.left + rect.width / 2) + 'px';
+		pop.style.top = (rect.bottom + 6) + 'px';
+		pop.style.transform = 'translate(-50%, 0)';
+		pop.style.zIndex = '1000';
+		const title = document.createElement('div'); title.className = 'comment-title'; title.textContent = 'Nota del pedido';
+		const ta = document.createElement('textarea'); ta.className = 'comment-input'; ta.value = initial || '';
+		const actions = document.createElement('div'); actions.className = 'confirm-actions';
+		const cancel = document.createElement('button'); cancel.className = 'press-btn'; cancel.textContent = 'Cancelar';
+		const save = document.createElement('button'); save.className = 'press-btn btn-primary'; save.textContent = 'Guardar';
+		actions.append(cancel, save);
+		pop.append(title, ta, actions);
+		document.body.appendChild(pop);
+		function cleanup() {
+			document.removeEventListener('mousedown', outside, true);
+			document.removeEventListener('touchstart', outside, true);
+			if (pop.parentNode) pop.parentNode.removeChild(pop);
+		}
+		function outside(ev) { if (!pop.contains(ev.target)) { cleanup(); resolve(null); } }
+		setTimeout(() => {
+			document.addEventListener('mousedown', outside, true);
+			document.addEventListener('touchstart', outside, true);
+		}, 0);
+		cancel.addEventListener('click', () => { cleanup(); resolve(null); });
+		save.addEventListener('click', () => { const v = ta.value.trim(); cleanup(); resolve(v); });
+		ta.focus();
+	});
 }
 
 async function deleteRow(id) {
