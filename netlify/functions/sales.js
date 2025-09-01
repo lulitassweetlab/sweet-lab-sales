@@ -65,6 +65,9 @@ export async function handler(event) {
 					if (field === 'client_name') {
 						const prevName = (oldVal ?? '').toString().trim();
 						if (prevName === '') return; // don't log first-time name entry
+						// If there are no prior logs for this field and prev is still too short, treat as initial typing and skip
+						const prior = await sql`SELECT 1 FROM change_logs WHERE sale_id=${id} AND field=${field} LIMIT 1`;
+						if (prior.length === 0 && prevName.length < 4) return;
 						const newName = (newVal ?? '').toString().trim();
 						if (prevName === '' && newName.length < 4) return; // avoid partial short typing
 					} else if (field === 'qty_arco' || field === 'qty_melo' || field === 'qty_mara' || field === 'qty_oreo') {
