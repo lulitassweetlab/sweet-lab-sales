@@ -163,26 +163,13 @@ async function enterSeller(id) {
 	state.selectedDayId = null;
 	$('#current-seller').textContent = seller.name;
 	switchView('#view-sales');
-	// Show dates section, hide table until click
+	// Show dates section, hide table until a date is selected, then load real dates
 	const datesSection = document.getElementById('dates-section');
 	const datesList = document.querySelector('#dates-section .dates-list');
 	const salesWrapper = document.getElementById('sales-wrapper');
 	if (datesSection) datesSection.classList.remove('hidden');
 	if (salesWrapper) salesWrapper.classList.add('hidden');
-	// Ensure the date button exists
-	let dateBtn = document.getElementById('date-static');
-	if (!dateBtn && datesList) {
-		dateBtn = document.createElement('button');
-		dateBtn.id = 'date-static';
-		dateBtn.className = 'date-button';
-		dateBtn.textContent = 'Viernes, Agosto 29';
-		datesList.appendChild(dateBtn);
-	}
-	// Bind click to reveal table
-	dateBtn?.addEventListener('click', () => {
-		salesWrapper?.classList.remove('hidden');
-	});
-	await loadSales();
+	await loadDaysForSeller();
 }
 
 function switchView(id) {
@@ -639,11 +626,7 @@ function bindEvents() {
 	});
 
 	document.getElementById('export-excel')?.addEventListener('click', exportTableToExcel);
-	// Static date button toggles table visibility
-	document.getElementById('date-static')?.addEventListener('click', () => {
-		document.getElementById('sales-wrapper').classList.remove('hidden');
-	});
-}
+})();
 
 // Reverted: removed sticky header clone logic to return to visible non-sticky thead state.
 
