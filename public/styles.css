@@ -1727,3 +1727,33 @@ button.secondary.press-btn:active {
 		top: 24px !important;
 	}
 }
+
+/* Desktop RESET: keep dessert names horizontal on desktop */
+@media (min-width: 601px) {
+	#sales-table thead th.col-arco,
+	#sales-table thead th.col-melo,
+	#sales-table thead th.col-mara,
+	#sales-table thead th.col-oreo {
+		height: auto !important;
+		padding-top: 0 !important;
+		padding-bottom: 0 !important;
+	}
+	#sales-table thead th.col-arco::after,
+	#sales-table thead th.col-melo::after,
+	#sales-table thead th.col-mara::after,
+	#sales-table thead th.col-oreo::after { content: none !important; }
+	#sales-table thead th.col-arco .v-label,
+	#sales-table thead th.col-melo .v-label,
+	#sales-table thead th.col-mara .v-label,
+	#sales-table thead th.col-oreo .v-label {
+		display: inline-block !important;
+		position: static !important;
+		left: auto !important;
+		bottom: auto !important;
+		top: auto !important;
+		transform: none !important;
+		writing-mode: initial !important;
+		text-orientation: initial !important;
+		line-height: normal !important;
+	}
+}
