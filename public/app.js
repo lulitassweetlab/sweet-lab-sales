@@ -390,12 +390,17 @@ async function saveClientWithCommentFlow(tr, id) {
 	if (!input) { await saveRow(tr, id); return; }
 	const raw = input.value || '';
 	const hasTrigger = /\*$/.test(raw.trim());
+	let anchorX, anchorY;
+	if (hasTrigger) {
+		const pos = getInputEndCoords(input, raw);
+		anchorX = pos.x; anchorY = pos.y;
+	}
 	if (!hasTrigger) { await saveRow(tr, id); return; }
 	// Remove trailing * from client name before saving
 	input.value = raw.replace(/\*+\s*$/, '').trim();
 	await saveRow(tr, id);
 	// Open comment dialog
-	const comment = await openCommentDialog(input);
+	const comment = await openCommentDialog(input, '', anchorX, anchorY);
 	if (comment == null) { renderCommentMarkerForRow(tr); return; }
 	// Persist comment
 	await saveComment(id, comment);
@@ -439,16 +444,38 @@ function renderCommentMarkerForRow(tr) {
 	if (inp && inp.parentNode) inp.parentNode.appendChild(mark);
 }
 
-function openCommentDialog(anchorEl, initial = '') {
+function getInputEndCoords(inputEl, currentRawValue) {
+	const rect = inputEl.getBoundingClientRect();
+	const cs = getComputedStyle(inputEl);
+	const canvas = getInputEndCoords._canvas || (getInputEndCoords._canvas = document.createElement('canvas'));
+	const ctx = canvas.getContext('2d');
+	const font = `${cs.fontStyle} ${cs.fontVariant} ${cs.fontWeight} ${cs.fontSize} / ${cs.lineHeight} ${cs.fontFamily}`;
+	ctx.font = font;
+	const text = (currentRawValue || inputEl.value || '').replace(/\*+\s*$/, '').trim();
+	const width = ctx.measureText(text).width;
+	const padL = parseFloat(cs.paddingLeft) || 0;
+	const bordL = parseFloat(cs.borderLeftWidth) || 0;
+	const x = Math.round(rect.left + padL + bordL + width + 2);
+	const y = Math.round(rect.bottom + 6);
+	return { x, y };
+}
+
+function openCommentDialog(anchorEl, initial = '', anchorX, anchorY) {
 	return new Promise((resolve) => {
 		const pop = document.createElement('div');
 		pop.className = 'comment-popover';
 		pop.style.position = 'fixed';
 		const rect = anchorEl.getBoundingClientRect();
-		// Open to the right of the input at same row height
-		pop.style.left = (rect.right + 8) + 'px';
-		pop.style.top = (rect.top) + 'px';
-		pop.style.transform = 'none';
+		if (typeof anchorX === 'number' && typeof anchorY === 'number') {
+			pop.style.left = anchorX + 'px';
+			pop.style.top = anchorY + 'px';
+			pop.style.transform = 'translate(-50%, 0)';
+		} else {
+			// Fallback: open to the right of the input at same row height
+			pop.style.left = (rect.right + 8) + 'px';
+			pop.style.top = (rect.top) + 'px';
+			pop.style.transform = 'none';
+		}
 		pop.style.zIndex = '1000';
 		const ta = document.createElement('textarea'); ta.className = 'comment-input'; ta.placeholder = 'comentario'; ta.value = initial || '';
 		const actions = document.createElement('div'); actions.className = 'confirm-actions';
