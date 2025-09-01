@@ -1781,3 +1781,21 @@ button.secondary.press-btn:active {
 		line-height: normal !important;
 	}
 }
+
+/* Desktop ABS RESET 2: guarantee horizontal labels using high-specificity */
+@media (min-width: 601px) {
+	#sales-table thead tr:where(:not(.foo)) > th.col-arco .v-label,
+	#sales-table thead tr:where(:not(.foo)) > th.col-melo .v-label,
+	#sales-table thead tr:where(:not(.foo)) > th.col-mara .v-label,
+	#sales-table thead tr:where(:not(.foo)) > th.col-oreo .v-label {
+		writing-mode: initial !important;
+		text-orientation: initial !important;
+		transform: none !important;
+		display: inline !important;
+		position: static !important;
+	}
+	#sales-table thead tr:where(:not(.foo)) > th.col-arco::after,
+	#sales-table thead tr:where(:not(.foo)) > th.col-melo::after,
+	#sales-table thead tr:where(:not(.foo)) > th.col-mara::after,
+	#sales-table thead tr:where(:not(.foo)) > th.col-oreo::after { content: none !important; }
+}
