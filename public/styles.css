@@ -1825,5 +1825,5 @@ button.secondary.press-btn:active {
 	#sales-table thead tr > th.col-arco::after,
 	#sales-table thead tr > th.col-melo::after,
 	#sales-table thead tr > th.col-mara::after,
-	#sales-table thead tr > th.col-oreo::after { font-size: 13px !important; }
+	#sales-table thead tr > th.col-oreo::after { font-size: 12px !important; }
 }
