@@ -703,6 +703,7 @@ tfoot td { font-weight: 700; }
 .confirm-popover { background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.24); padding: 10px; min-width: 180px; }
 .confirm-text { font-size: 12px; margin-bottom: 8px; }
 .confirm-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.receipt-popover { background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.24); padding: 10px; max-width: 90vw; }
 .report-card {
 	background: var(--card);
 }

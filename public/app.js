@@ -237,12 +237,20 @@ function renderTable() {
 				});
 				wrap.addEventListener('click', (e) => { e.stopPropagation(); openPayMenu(wrap, sel); });
 				// If clicking the bank icon and current value is 'transf', open upload page
-				wrap.addEventListener('click', (e) => {
+				wrap.addEventListener('click', async (e) => {
 					if (sel.value === 'transf') {
 						e.stopPropagation();
 						const trEl = wrap.closest('tr');
 						const saleId = Number(trEl?.dataset?.id);
-						if (saleId) openReceiptUploadPage(saleId);
+						if (!saleId) return;
+						try {
+							const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(saleId)}`);
+							if (Array.isArray(recs) && recs.length) {
+								openReceiptViewerPopover(recs[0].image_base64, saleId, e.clientX, e.clientY);
+							} else {
+								openReceiptUploadPage(saleId);
+							}
+						} catch { openReceiptUploadPage(saleId); }
 					}
 				}, true);
 				wrap.tabIndex = 0;
@@ -1255,6 +1263,44 @@ function openReceiptUploadPage(saleId) {
 		if (!id) return;
 		window.location.href = `/receipt.html?sale_id=${encodeURIComponent(id)}`;
 	} catch {}
+}
+
+function openReceiptViewerPopover(imageBase64, saleId, anchorX, anchorY) {
+	const pop = document.createElement('div');
+	pop.className = 'receipt-popover';
+	pop.style.position = 'fixed';
+	const x = typeof anchorX === 'number' ? anchorX : (window.innerWidth / 2);
+	const y = typeof anchorY === 'number' ? anchorY : (window.innerHeight / 2);
+	pop.style.left = x + 'px';
+	pop.style.top = (y + 8) + 'px';
+	pop.style.transform = 'translate(-50%, 0)';
+	pop.style.zIndex = '1000';
+	const img = document.createElement('img');
+	img.src = imageBase64;
+	img.alt = 'Comprobante';
+	img.style.maxWidth = '80vw';
+	img.style.maxHeight = '60vh';
+	img.style.display = 'block';
+	img.style.borderRadius = '8px';
+	const actions = document.createElement('div');
+	actions.className = 'confirm-actions';
+	const replaceBtn = document.createElement('button'); replaceBtn.className = 'press-btn btn-primary'; replaceBtn.textContent = 'Reemplazar foto';
+	const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn'; closeBtn.textContent = 'Cerrar';
+	actions.append(replaceBtn, closeBtn);
+	pop.append(img, actions);
+	document.body.appendChild(pop);
+	function cleanup() {
+		document.removeEventListener('mousedown', outside, true);
+		document.removeEventListener('touchstart', outside, true);
+		if (pop.parentNode) pop.parentNode.removeChild(pop);
+	}
+	function outside(ev) { if (!pop.contains(ev.target)) cleanup(); }
+	setTimeout(() => {
+		document.addEventListener('mousedown', outside, true);
+		document.addEventListener('touchstart', outside, true);
+	}, 0);
+	replaceBtn.addEventListener('click', () => { cleanup(); openReceiptUploadPage(saleId); });
+	closeBtn.addEventListener('click', cleanup);
 }
 
 
