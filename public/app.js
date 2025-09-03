@@ -52,6 +52,40 @@ function updateThemeButton(btn){
 	btn.title = isDark ? 'Modo claro' : 'Modo oscuro';
 }
 
+// New: place a light-grey asterisk trigger at the end of the client input
+function wireCommentTriggerForRow(tr, currentValueOptional) {
+	const id = Number(tr.dataset.id);
+	const sale = state.sales.find(s => s.id === id);
+	const td = tr.querySelector('td.col-client');
+	if (!td) return;
+	// Remove existing trigger first
+	const prior = td.querySelector('.comment-trigger');
+	if (prior) prior.remove();
+	const input = td.querySelector('.client-input');
+	if (!input) return;
+	const raw = (typeof currentValueOptional === 'string') ? currentValueOptional : (input.value || '');
+	// Always show asterisk if there's any text (after trimming) or if there is an existing comment
+	const shouldShow = (raw.trim().length > 0) || !!(sale && sale.comment_text);
+	if (!shouldShow) return;
+	const trig = document.createElement('button');
+	trig.type = 'button';
+	trig.className = 'comment-trigger';
+	trig.title = sale && sale.comment_text ? 'Editar nota' : 'Agregar nota';
+	trig.textContent = '*';
+	trig.addEventListener('click', async (ev) => {
+		ev.stopPropagation();
+		const pos = getInputEndCoords(input, input.value);
+		const next = await openCommentDialog(input, sale?.comment_text || '', pos.x, pos.y);
+		if (next == null) return;
+		await saveComment(id, next);
+		const idx = state.sales.findIndex(s => s.id === id);
+		if (idx !== -1) state.sales[idx].comment_text = next;
+		wireCommentTriggerForRow(tr);
+	});
+	// Place visually at the far right inside the client cell (absolutely positioned)
+	input.parentNode.appendChild(trig);
+}
+
 // Auth
 function computePasswordFor(user) {
 	return (String(user || '') + 'sweet').toLowerCase();
@@ -239,7 +273,7 @@ function renderTable() {
 				class: 'input-cell client-input',
 				value: sale.client_name || '',
 				placeholder: '',
-				oninput: (e) => { const v = (e.target.value || '').trim(); if (/\*$/.test(v)) { saveClientWithCommentFlow(tr, sale.id); } },
+				oninput: (e) => { const v = (e.target.value || ''); wireCommentTriggerForRow(tr, v); if (/\*$/.test(v.trim())) { saveClientWithCommentFlow(tr, sale.id); } },
 				onblur: () => saveClientWithCommentFlow(tr, sale.id),
 				onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); saveClientWithCommentFlow(tr, sale.id); } },
 			})),
@@ -264,8 +298,8 @@ function renderTable() {
 		);
 		tr.dataset.id = String(sale.id);
 		tbody.appendChild(tr);
-		// Render comment marker (distinct from admin change marker)
-		renderCommentMarkerForRow(tr);
+		// Add interactive comment trigger next to client name text
+		wireCommentTriggerForRow(tr);
 	}
 	// Inline add row line just below last sale
 	const colCount = document.querySelectorAll('#sales-table thead th').length || 8;
@@ -389,25 +423,25 @@ async function saveClientWithCommentFlow(tr, id) {
 	const input = tr.querySelector('td.col-client .client-input');
 	if (!input) { await saveRow(tr, id); return; }
 	const raw = input.value || '';
-	const hasTrigger = /\*$/.test(raw.trim());
-	let anchorX, anchorY;
-	if (hasTrigger) {
-		const pos = getInputEndCoords(input, raw);
-		anchorX = pos.x; anchorY = pos.y;
+	const hadEndingStar = /\*$/.test(raw.trim());
+	if (hadEndingStar) {
+		// Remove trailing * then save; dialog will be opened via trigger
+		input.value = raw.replace(/\*+\s*$/, '').trim();
 	}
-	if (!hasTrigger) { await saveRow(tr, id); return; }
-	// Remove trailing * from client name before saving
-	input.value = raw.replace(/\*+\s*$/, '').trim();
 	await saveRow(tr, id);
-	// Open comment dialog
-	const comment = await openCommentDialog(input, '', anchorX, anchorY);
-	if (comment == null) { renderCommentMarkerForRow(tr); return; }
+	// Refresh/update the trigger after saving
+	wireCommentTriggerForRow(tr);
+	// If the user purposely typed *, open dialog immediately after save
+	if (!hadEndingStar) return;
+	const pos = getInputEndCoords(input, input.value);
+	const comment = await openCommentDialog(input, '', pos.x, pos.y);
+	if (comment == null) { wireCommentTriggerForRow(tr); return; }
 	// Persist comment
 	await saveComment(id, comment);
 	// Update local state and UI
 	const idx = state.sales.findIndex(s => s.id === id);
 	if (idx !== -1) state.sales[idx].comment_text = comment;
-	renderCommentMarkerForRow(tr);
+	wireCommentTriggerForRow(tr);
 }
 
 async function saveComment(id, text) {
@@ -420,28 +454,8 @@ async function saveComment(id, text) {
 }
 
 function renderCommentMarkerForRow(tr) {
-	const id = Number(tr.dataset.id);
-	const sale = state.sales.find(s => s.id === id);
-	const td = tr.querySelector('td.col-client');
-	if (!td) return;
-	// Remove existing comment markers
-	td.querySelectorAll('.comment-marker').forEach(n => n.remove());
-	if (!sale || !sale.comment_text) return;
-	const mark = document.createElement('span');
-	mark.className = 'comment-marker';
-	mark.textContent = '✱';
-	mark.title = 'Ver nota';
-	mark.addEventListener('click', async (ev) => {
-		ev.stopPropagation();
-		const next = await openCommentDialog(mark, sale.comment_text);
-		if (next == null) return;
-		await saveComment(id, next);
-		const idx = state.sales.findIndex(s => s.id === id);
-		if (idx !== -1) state.sales[idx].comment_text = next;
-	});
-	// Insert after the input
-	const inp = td.querySelector('.client-input');
-	if (inp && inp.parentNode) inp.parentNode.appendChild(mark);
+	// Deprecated in favor of wireCommentTriggerForRow
+	return;
 }
 
 function getInputEndCoords(inputEl, currentRawValue) {
@@ -456,7 +470,7 @@ function getInputEndCoords(inputEl, currentRawValue) {
 	const padL = parseFloat(cs.paddingLeft) || 0;
 	const bordL = parseFloat(cs.borderLeftWidth) || 0;
 	const x = Math.round(rect.left + padL + bordL + width + 2);
-	const y = Math.round(rect.bottom + 6);
+	const y = Math.round(rect.top + (rect.height / 2));
 	return { x, y };
 }
 
@@ -484,6 +498,7 @@ function openCommentDialog(anchorEl, initial = '', anchorX, anchorY) {
 		pop.style.minWidth = isSmallScreen ? 'min(90vw, 320px)' : '520px';
 		pop.style.maxWidth = isSmallScreen ? '94vw' : '640px';
 		const ta = document.createElement('textarea'); ta.className = 'comment-input'; ta.placeholder = 'comentario'; ta.value = initial || ''; ta.style.minHeight = isSmallScreen ? '120px' : '160px';
+		ta.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); save.click(); } });
 		const actions = document.createElement('div'); actions.className = 'confirm-actions';
 		const cancel = document.createElement('button'); cancel.className = 'press-btn'; cancel.textContent = 'Cancelar';
 		const save = document.createElement('button'); save.className = 'press-btn btn-primary'; save.textContent = 'Guardar';
