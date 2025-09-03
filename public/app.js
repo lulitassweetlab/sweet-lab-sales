@@ -73,6 +73,11 @@ function wireCommentTriggerForRow(tr, currentValueOptional) {
 	trig.tabIndex = 0;
 	trig.title = sale && sale.comment_text ? 'Editar nota' : 'Agregar nota';
 	trig.textContent = '*';
+	if (sale && sale.comment_text && String(sale.comment_text).trim().length > 0) {
+		trig.classList.add('has-comment');
+	} else {
+		trig.classList.add('no-comment');
+	}
 	// Position exactly after the visible text inside the input
 	const tdRect = td.getBoundingClientRect();
 	const inRect = input.getBoundingClientRect();

@@ -731,6 +731,10 @@ tfoot td { font-weight: 700; }
 	border-radius: 0 !important;
 }
 [data-theme="dark"] .comment-trigger { color: rgba(255,255,255,0.5); }
+.comment-trigger.no-comment { color: rgba(0,0,0,0.35); }
+.comment-trigger.has-comment { color: rgba(0,0,0,0.7); }
+[data-theme="dark"] .comment-trigger.no-comment { color: rgba(255,255,255,0.5); }
+[data-theme="dark"] .comment-trigger.has-comment { color: rgba(255,255,255,0.85); }
 .comment-trigger:hover { filter: brightness(1.1); background: transparent !important; box-shadow: none !important; }
 .comment-trigger:active { transform: scale(0.96); background: transparent !important; box-shadow: none !important; }
 .comment-trigger:focus, .comment-trigger:focus-visible { outline: none !important; box-shadow: none !important; border: 0 !important; }
