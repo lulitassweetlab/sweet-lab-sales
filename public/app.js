@@ -467,10 +467,10 @@ function openCommentDialog(anchorEl, initial = '', anchorX, anchorY) {
 		pop.style.position = 'fixed';
 		const rect = anchorEl.getBoundingClientRect();
 		if (typeof anchorX === 'number' && typeof anchorY === 'number') {
-			// Place the popover so its left edge starts exactly where the * was typed,
-			// and align vertically with the top of the input (feels inline, no jump)
+			// Place the popover so its left edge starts exactly where the * was typed
+			// and align vertically at the caret Y position
 			pop.style.left = anchorX + 'px';
-			pop.style.top = rect.top + 'px';
+			pop.style.top = anchorY + 'px';
 			pop.style.transform = 'none';
 		} else {
 			// Fallback: open to the right of the input at same row height
@@ -479,8 +479,9 @@ function openCommentDialog(anchorEl, initial = '', anchorX, anchorY) {
 			pop.style.transform = 'none';
 		}
 		pop.style.zIndex = '1000';
-		// Ensure larger size regardless of cached CSS
-		pop.style.minWidth = '520px';
+		// Size: generous on desktop, fluid on small screens
+		const isSmallScreen = window.matchMedia('(max-width: 600px)').matches;
+		pop.style.minWidth = isSmallScreen ? 'min(92vw, 360px)' : '520px';
 		const ta = document.createElement('textarea'); ta.className = 'comment-input'; ta.placeholder = 'comentario'; ta.value = initial || ''; ta.style.minHeight = '160px';
 		const actions = document.createElement('div'); actions.className = 'confirm-actions';
 		const cancel = document.createElement('button'); cancel.className = 'press-btn'; cancel.textContent = 'Cancelar';
@@ -488,17 +489,26 @@ function openCommentDialog(anchorEl, initial = '', anchorX, anchorY) {
 		actions.append(cancel, save);
 		pop.append(ta, actions);
 		document.body.appendChild(pop);
-		// Clamp within viewport after mount so it stays visible
+		// Clamp within the visible viewport (accounts for on-screen keyboard via visualViewport)
 		requestAnimationFrame(() => {
 			const margin = 8;
+			const vv = window.visualViewport;
+			const viewW = (vv && typeof vv.width === 'number') ? vv.width : window.innerWidth;
+			const viewH = (vv && typeof vv.height === 'number') ? vv.height : window.innerHeight;
+			const viewLeft = (vv && typeof vv.offsetLeft === 'number') ? vv.offsetLeft : 0;
+			const viewTop = (vv && typeof vv.offsetTop === 'number') ? vv.offsetTop : 0;
 			const r = pop.getBoundingClientRect();
-			let left = r.left;
-			let top = r.top;
-			if (r.right > window.innerWidth - margin) left = Math.max(margin, window.innerWidth - margin - r.width);
-			if (left < margin) left = margin;
-			// Keep top aligned to input unless it would go out below; then clamp up
-			if (r.bottom > window.innerHeight - margin) top = Math.max(margin, window.innerHeight - margin - r.height);
-			if (top < margin) top = margin;
+			let left = parseFloat(pop.style.left || String(r.left));
+			let top = parseFloat(pop.style.top || String(r.top));
+			// Prefer to keep below the caret; if it overflows, clamp into view
+			const maxLeft = viewLeft + viewW - margin - r.width;
+			const minLeft = viewLeft + margin;
+			if (left > maxLeft) left = Math.max(minLeft, maxLeft);
+			if (left < minLeft) left = minLeft;
+			const maxTop = viewTop + viewH - margin - r.height;
+			const minTop = viewTop + margin;
+			if (top > maxTop) top = Math.max(minTop, maxTop);
+			if (top < minTop) top = minTop;
 			pop.style.left = left + 'px';
 			pop.style.top = top + 'px';
 		});
