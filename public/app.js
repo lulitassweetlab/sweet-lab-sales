@@ -752,6 +752,7 @@ function exportTableToExcel() {
 async function exportConsolidatedForDate(dayIso) {
 	const sellers = await api('GET', API.Sellers);
 	const rows = [['Vendedor', '$', 'Pago', 'Cliente', 'Arco', 'Melo', 'Mara', 'Oreo', 'Total']];
+	let tQa = 0, tQm = 0, tQma = 0, tQo = 0, tGrand = 0;
 	for (const s of sellers) {
 		const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(s.id)}`);
 		const day = (days || []).find(d => (String(d.day).slice(0,10) === String(dayIso).slice(0,10)));
@@ -766,6 +767,7 @@ async function exportConsolidatedForDate(dayIso) {
 			const tot = r.total_cents || 0;
 			const pm = (r.pay_method || '').toString();
 			const pay = pm === 'efectivo' ? 'Efectivo' : pm === 'transf' ? 'Transf' : '-';
+			tQa += qa; tQm += qm; tQma += qma; tQo += qo; tGrand += (tot || 0);
 			rows.push([
 				s.name || '',
 				r.is_paid ? '✓' : '',
@@ -779,8 +781,11 @@ async function exportConsolidatedForDate(dayIso) {
 			]);
 		}
 	}
+	// Append totals at end (blank if zeros to match convention)
+	rows.push(['', '', 'Totales (cant.)', tQa || '', tQm || '', tQma || '', tQo || '', '']);
+	rows.push(['', '', 'Totales (valor)', '', '', '', '', tGrand || '']);
 	const ws = XLSX.utils.aoa_to_sheet(rows);
-	ws['!cols'] = [ {wch:18},{wch:3},{wch:24},{wch:6},{wch:6},{wch:6},{wch:6},{wch:10} ];
+	ws['!cols'] = [ {wch:18},{wch:3},{wch:24},{wch:24},{wch:6},{wch:6},{wch:6},{wch:6},{wch:10} ];
 	const wb = XLSX.utils.book_new();
 	XLSX.utils.book_append_sheet(wb, ws, 'Consolidado');
 	const dateLabel = formatDayLabel(String(dayIso).slice(0,10)).replace(/\s+/g, '_');
