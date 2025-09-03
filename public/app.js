@@ -477,7 +477,9 @@ function getInputEndCoords(inputEl, currentRawValue) {
 	const width = ctx.measureText(text).width;
 	const padL = parseFloat(cs.paddingLeft) || 0;
 	const bordL = parseFloat(cs.borderLeftWidth) || 0;
-	const x = Math.round(rect.left + padL + bordL + width + 2);
+	// account for horizontal scroll within input
+	const scrollX = inputEl.scrollLeft || 0;
+	const x = Math.round(rect.left + padL + bordL + width - scrollX + 2);
 	const y = Math.round(rect.top + (rect.height / 2));
 	return { x, y };
 }

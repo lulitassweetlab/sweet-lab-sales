@@ -727,10 +727,14 @@ tfoot td { font-weight: 700; }
 	appearance: none;
 	-webkit-appearance: none;
 	background-clip: padding-box;
+	-webkit-tap-highlight-color: transparent;
+	border-radius: 0 !important;
 }
 [data-theme="dark"] .comment-trigger { color: rgba(255,255,255,0.5); }
-.comment-trigger:hover { filter: brightness(1.1); }
-.comment-trigger:active { transform: scale(0.96); }
+.comment-trigger:hover { filter: brightness(1.1); background: transparent !important; box-shadow: none !important; }
+.comment-trigger:active { transform: scale(0.96); background: transparent !important; box-shadow: none !important; }
+.comment-trigger:focus, .comment-trigger:focus-visible { outline: none !important; box-shadow: none !important; }
+.comment-trigger::-moz-focus-inner { border: 0; }
 .comment-popover { background: #F2E8DE; color: var(--text); border: 1px solid var(--border); border-radius: 12px; padding: 14px; min-width: 460px; max-width: 95vw; }
 .comment-input { width: 100%; min-height: 160px; resize: vertical; background: #EBDCCF; color: var(--text); border: 1px solid #D9C7B6; border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; line-height: 1.4; font-size: 14px; -webkit-appearance: none; }
 .comment-input { outline: none !important; -webkit-tap-highlight-color: transparent; }
