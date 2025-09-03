@@ -705,45 +705,11 @@ tfoot td { font-weight: 700; }
 .confirm-actions { display: flex; gap: 8px; justify-content: flex-end; }
 .report-card {
 	background: var(--card);
+}
 .comment-marker { color: var(--primary); margin-left: 6px; cursor: pointer; user-select: none; font-weight: 700; font-size: 11px; line-height: 1; }
 .col-client { position: relative; }
 .col-client .client-input { padding-right: 22px; }
-/* New interactive asterisk trigger */
-.comment-trigger {
-	position: absolute;
-	/* left/top set inline to sit right after the text */
-	background: transparent !important;
-	border: 0 !important;
-	outline: none !important;
-	box-shadow: none !important;
-	padding: 0 !important;
-	margin: 0 !important;
-	line-height: 1;
-	font-size: 12px;
-	font-weight: 700;
-	color: rgba(0,0,0,0.35);
-	cursor: pointer;
-	user-select: none;
-	appearance: none;
-	-webkit-appearance: none;
-	background-clip: padding-box;
-	-webkit-tap-highlight-color: transparent;
-	border-radius: 0 !important;
-}
-[data-theme="dark"] .comment-trigger { color: rgba(255,255,255,0.5); }
-.comment-trigger.no-comment { color: #D3D3D3; }
-.comment-trigger.has-comment { color: rgba(0,0,0,0.7); }
-[data-theme="dark"] .comment-trigger.no-comment { color: #D3D3D3; }
-[data-theme="dark"] .comment-trigger.has-comment { color: rgba(255,255,255,0.85); }
-.comment-trigger:hover { filter: brightness(1.1); background: transparent !important; box-shadow: none !important; }
-.comment-trigger:active { transform: scale(0.96); background: transparent !important; box-shadow: none !important; }
-.comment-trigger:focus, .comment-trigger:focus-visible { outline: none !important; box-shadow: none !important; border: 0 !important; }
-.comment-trigger::-moz-focus-inner { border: 0 !important; padding: 0 !important; }
-[data-theme="dark"] .comment-trigger { color: rgba(255,255,255,0.5); }
-.comment-trigger:hover { filter: brightness(1.1); background: transparent !important; box-shadow: none !important; }
-.comment-trigger:active { transform: scale(0.96); background: transparent !important; box-shadow: none !important; }
-.comment-trigger:focus, .comment-trigger:focus-visible { outline: none !important; box-shadow: none !important; }
-.comment-trigger::-moz-focus-inner { border: 0; }
+/* comment-trigger UI removed */
 .comment-popover { background: #F2E8DE; color: var(--text); border: 1px solid var(--border); border-radius: 12px; padding: 14px; min-width: 460px; max-width: 95vw; }
 .comment-input { width: 100%; min-height: 160px; resize: vertical; background: #EBDCCF; color: var(--text); border: 1px solid #D9C7B6; border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; line-height: 1.4; font-size: 14px; -webkit-appearance: none; }
 .comment-input { outline: none !important; -webkit-tap-highlight-color: transparent; }
@@ -753,78 +719,6 @@ tfoot td { font-weight: 700; }
 .comment-input::-moz-focusring { outline: none !important; }
 .comment-popover:focus, .comment-popover:focus-within { outline: none !important; box-shadow: none !important; }
 .comment-popover .confirm-actions { gap: 10px; }
-	border: 1px solid var(--border);
-	border-radius: 16px;
-	box-shadow: 0 1px 2px rgba(0,0,0,0.06);
-	padding: 16px;
-}
-.report-card-content { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-.report-title { margin: 0; font-size: 10px; font-weight: 400; letter-spacing: -0.01em; }
-.report-subtitle { margin: 0; color: var(--muted); font-size: 8px; }
-.report-btn { background: var(--primary); color: var(--primary-foreground); border-color: transparent; }
-.report-btn:hover { filter: none; background: #3a3a3a; box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
-.dates-list { display: flex; flex-wrap: wrap; gap: 8px; }
-.date-button { padding: 8px 12px; border: 1px solid var(--border); background: var(--card); color: var(--text); border-radius: 999px; cursor: pointer; }
-.date-button:hover { filter: brightness(1.1); }
-
-/* Dates controls */
-.dates-controls { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
-.dates-controls input[type="date"] { padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--card); color: var(--text); }
-
-/* Date item with delete */
-.date-item { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); background: var(--card); color: var(--text); border-radius: 999px; padding: 0 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
-.date-item .date-button { border: none; background: transparent; color: inherit; padding: 8px 6px; }
-.date-item .date-delete {
-	font-size: 0; /* hide emoji content */
-	width: 1.2em;
-	height: 1.2em;
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	padding: 0;
-	margin: 0;
-	border: none !important;
-	background: transparent !important;
-	color: var(--danger);
-	cursor: pointer;
-}
-.date-item .date-delete::before {
-	content: '';
-	display: inline-block;
-	width: 1em;
-	height: 1em;
-	background-color: var(--danger);
-	-webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="%23000" d="M7 4h10l-1 2h4v2H4V6h4l-1-2zm-1 6h12l-1 10H7L6 10zm3 2v6h2v-6H9zm4 0v6h2v-6h-2z"/></svg>') no-repeat center / contain;
-	mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="%23000" d="M7 4h10l-1 2h4v2H4V6h4l-1-2zm-1 6h12l-1 10H7L6 10zm3 2v6h2v-6H9zm4 0v6h2v-6h-2z"/></svg>') no-repeat center / contain;
-}
-@media (max-width: 600px) {
-	.date-item .date-delete { width: 1.1em; height: 1.1em; }
-	.date-item .date-delete::before { width: 0.95em; height: 0.95em; }
-}
-
-/* Date item edit icon */
-.date-item .date-edit { border: none; background: transparent; color: var(--muted); font-size: 14px; padding: 4px 6px; cursor: pointer; }
-.date-item .date-edit:hover { filter: brightness(1.2); }
-.date-item { gap: 2px; }
-
-/* Dates header with left-aligned 'Nueva fecha' next to title */
-.dates-header { display: flex; align-items: center; justify-content: flex-start; gap: 8px; margin-bottom: 8px; }
-.dates-header .date-button { padding: 8px 12px; }
-
-/* Button visuals and press feedback */
-.date-button, .excel-btn, .date-delete {
-	border: 1px solid var(--border);
-	border-radius: 12px;
-	background: var(--card);
-	color: var(--text);
-	box-shadow: 0 1px 2px rgba(0,0,0,0.06);
-	transition: transform 80ms ease, filter 80ms ease, box-shadow 80ms ease;
-}
-.date-button:hover, .excel-btn:hover, .date-delete:hover { filter: brightness(0.98); box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
-.date-button:active, .excel-btn:active, .date-delete:active {
-	transform: translateY(1px);
-	box-shadow: 0 1px 0 rgba(0,0,0,0.6);
-}
 
 /* Make each date item feel clickable as a whole */
 .date-item {

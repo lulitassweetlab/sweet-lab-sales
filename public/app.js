@@ -54,69 +54,8 @@ function updateThemeButton(btn){
 
 // New: place a light-grey asterisk trigger at the end of the client input
 function wireCommentTriggerForRow(tr, currentValueOptional) {
-	const id = Number(tr.dataset.id);
-	const sale = state.sales.find(s => s.id === id);
-	const td = tr.querySelector('td.col-client');
-	if (!td) return;
-	// Remove existing trigger first
-	const prior = td.querySelector('.comment-trigger');
-	if (prior) prior.remove();
-	const input = td.querySelector('.client-input');
-	if (!input) return;
-	const raw = (typeof currentValueOptional === 'string') ? currentValueOptional : (input.value || '');
-	// Always show asterisk if there's any text (after trimming) or if there is an existing comment
-	const shouldShow = (raw.trim().length > 0) || !!(sale && sale.comment_text);
-	if (!shouldShow) return;
-	const trig = document.createElement('span');
-	trig.className = 'comment-trigger';
-	trig.setAttribute('role', 'button');
-	trig.tabIndex = 0;
-	trig.title = sale && sale.comment_text ? 'Editar nota' : 'Agregar nota';
-	trig.textContent = '*';
-	if (sale && sale.comment_text && String(sale.comment_text).trim().length > 0) {
-		trig.classList.add('has-comment');
-	} else {
-		trig.classList.add('no-comment');
-	}
-	// Position exactly after the visible text inside the input, with one-space gap on mobile
-	const place = () => {
-		const tdRect = td.getBoundingClientRect();
-		const inRect = input.getBoundingClientRect();
-		const pos = getInputEndCoords(input, input.value);
-		const isSmall = window.matchMedia('(max-width: 600px)').matches;
-		const spaceW = isSmall ? getSpaceWidthForInput(input) : 0;
-		trig.style.left = Math.max(4, Math.round(pos.x - tdRect.left + spaceW)) + 'px';
-		trig.style.top = (inRect.top - tdRect.top + (inRect.height / 2)) + 'px';
-	};
-	trig.style.position = 'absolute';
-	trig.style.transform = 'translateY(-50%)';
-	place();
-	trig.addEventListener('click', async (ev) => {
-		ev.stopPropagation();
-		const pos = getInputEndCoords(input, input.value);
-		const next = await openCommentDialog(input, sale?.comment_text || '', pos.x, pos.y);
-		if (next == null) return;
-		await saveComment(id, next);
-		const idx = state.sales.findIndex(s => s.id === id);
-		if (idx !== -1) state.sales[idx].comment_text = next;
-		wireCommentTriggerForRow(tr);
-	});
-	trig.addEventListener('keydown', async (e) => {
-		if (e.key === 'Enter' || e.key === ' ') {
-			e.preventDefault();
-			trig.click();
-		}
-	});
-	input.parentNode.appendChild(trig);
-	// Reposition when input scrolls or resizes
-	if (!input._commentTrigScrollBound) {
-		input.addEventListener('scroll', place, { passive: true });
-		input._commentTrigScrollBound = true;
-	}
-	if (!input._commentTrigInputBound) {
-		input.addEventListener('input', place);
-		input._commentTrigInputBound = true;
-	}
+	// Removed: comment asterisk trigger UI per user request
+	return;
 }
 
 // Auth
@@ -306,7 +245,7 @@ function renderTable() {
 				class: 'input-cell client-input',
 				value: sale.client_name || '',
 				placeholder: '',
-				oninput: (e) => { const v = (e.target.value || ''); wireCommentTriggerForRow(tr, v); if (/\*$/.test(v.trim())) { saveClientWithCommentFlow(tr, sale.id); } },
+				oninput: (e) => { const v = (e.target.value || ''); if (/\*$/.test(v.trim())) { saveClientWithCommentFlow(tr, sale.id); } },
 				onblur: () => saveClientWithCommentFlow(tr, sale.id),
 				onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); saveClientWithCommentFlow(tr, sale.id); } },
 			})),
@@ -331,8 +270,7 @@ function renderTable() {
 		);
 		tr.dataset.id = String(sale.id);
 		tbody.appendChild(tr);
-		// Add interactive comment trigger next to client name text
-		wireCommentTriggerForRow(tr);
+		// Comment trigger removed per request
 	}
 	// Inline add row line just below last sale
 	const colCount = document.querySelectorAll('#sales-table thead th').length || 8;
@@ -462,19 +400,18 @@ async function saveClientWithCommentFlow(tr, id) {
 		input.value = raw.replace(/\*+\s*$/, '').trim();
 	}
 	await saveRow(tr, id);
-	// Refresh/update the trigger after saving
-	wireCommentTriggerForRow(tr);
+	// Trigger removed per request
 	// If the user purposely typed *, open dialog immediately after save
 	if (!hadEndingStar) return;
 	const pos = getInputEndCoords(input, input.value);
 	const comment = await openCommentDialog(input, '', pos.x, pos.y);
-	if (comment == null) { wireCommentTriggerForRow(tr); return; }
+	if (comment == null) { return; }
 	// Persist comment
 	await saveComment(id, comment);
 	// Update local state and UI
 	const idx = state.sales.findIndex(s => s.id === id);
 	if (idx !== -1) state.sales[idx].comment_text = comment;
-	wireCommentTriggerForRow(tr);
+	// trigger removed
 }
 
 async function saveComment(id, text) {
