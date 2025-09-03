@@ -1166,6 +1166,9 @@ function openPayMenu(anchorEl, selectEl) {
 		{ v: '', cls: 'menu-clear' },
 		{ v: 'transf', cls: 'menu-transf' }
 	];
+	// Find current sale id for upload flow when choosing 'transf'
+	const trEl = anchorEl.closest('tr');
+	const currentSaleId = Number(trEl?.dataset?.id);
 	for (const it of items) {
 		const btn = document.createElement('button');
 		btn.type = 'button';
@@ -1175,6 +1178,10 @@ function openPayMenu(anchorEl, selectEl) {
 			e.stopPropagation();
 			selectEl.value = it.v;
 			selectEl.dispatchEvent(new Event('change'));
+			// If selecting 'transf' from the menu, open upload page right away
+			if (it.v === 'transf' && currentSaleId) {
+				try { openReceiptUploadPage(currentSaleId); } catch {}
+			}
 			cleanup();
 		});
 		menu.appendChild(btn);
