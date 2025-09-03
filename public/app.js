@@ -481,8 +481,9 @@ function openCommentDialog(anchorEl, initial = '', anchorX, anchorY) {
 		pop.style.zIndex = '1000';
 		// Size: generous on desktop, fluid on small screens
 		const isSmallScreen = window.matchMedia('(max-width: 600px)').matches;
-		pop.style.minWidth = isSmallScreen ? 'min(92vw, 360px)' : '520px';
-		const ta = document.createElement('textarea'); ta.className = 'comment-input'; ta.placeholder = 'comentario'; ta.value = initial || ''; ta.style.minHeight = '160px';
+		pop.style.minWidth = isSmallScreen ? 'min(90vw, 320px)' : '520px';
+		pop.style.maxWidth = isSmallScreen ? '94vw' : '640px';
+		const ta = document.createElement('textarea'); ta.className = 'comment-input'; ta.placeholder = 'comentario'; ta.value = initial || ''; ta.style.minHeight = isSmallScreen ? '120px' : '160px';
 		const actions = document.createElement('div'); actions.className = 'confirm-actions';
 		const cancel = document.createElement('button'); cancel.className = 'press-btn'; cancel.textContent = 'Cancelar';
 		const save = document.createElement('button'); save.className = 'press-btn btn-primary'; save.textContent = 'Guardar';
@@ -490,31 +491,74 @@ function openCommentDialog(anchorEl, initial = '', anchorX, anchorY) {
 		pop.append(ta, actions);
 		document.body.appendChild(pop);
 		// Clamp within the visible viewport (accounts for on-screen keyboard via visualViewport)
-		requestAnimationFrame(() => {
+		const reclamp = () => {
 			const margin = 8;
 			const vv = window.visualViewport;
 			const viewW = (vv && typeof vv.width === 'number') ? vv.width : window.innerWidth;
 			const viewH = (vv && typeof vv.height === 'number') ? vv.height : window.innerHeight;
 			const viewLeft = (vv && typeof vv.offsetLeft === 'number') ? vv.offsetLeft : 0;
 			const viewTop = (vv && typeof vv.offsetTop === 'number') ? vv.offsetTop : 0;
-			const r = pop.getBoundingClientRect();
+			// Make popover height fit within the visible viewport
+			pop.style.maxHeight = Math.max(140, viewH - 2 * margin) + 'px';
+			pop.style.overflow = 'auto';
+			const actionsH = (pop.querySelector('.confirm-actions')?.getBoundingClientRect().height) || 44;
+			const ta = pop.querySelector('textarea.comment-input');
+			if (ta) {
+				const extra = 24; // padding/margins inside pop
+				const maxTa = Math.max(64, viewH - 2 * margin - actionsH - extra);
+				ta.style.maxHeight = maxTa + 'px';
+			}
+			let r = pop.getBoundingClientRect();
 			let left = parseFloat(pop.style.left || String(r.left));
 			let top = parseFloat(pop.style.top || String(r.top));
-			// Prefer to keep below the caret; if it overflows, clamp into view
 			const maxLeft = viewLeft + viewW - margin - r.width;
 			const minLeft = viewLeft + margin;
+			// Horizontal clamping relative to viewport
 			if (left > maxLeft) left = Math.max(minLeft, maxLeft);
 			if (left < minLeft) left = minLeft;
-			const maxTop = viewTop + viewH - margin - r.height;
+			// Vertical positioning: prefer below caret; flip above if not enough space
+			let maxTop = viewTop + viewH - margin - r.height;
 			const minTop = viewTop + margin;
-			if (top > maxTop) top = Math.max(minTop, maxTop);
-			if (top < minTop) top = minTop;
+			if (typeof anchorY === 'number') {
+				const spaceBelow = (viewTop + viewH) - anchorY - margin;
+				if (spaceBelow < r.height && (anchorY - r.height - 8) >= minTop) {
+					// Flip above the caret, keeping it near where the * was typed
+					top = Math.max(minTop, anchorY - r.height - 8);
+				} else {
+					// Keep below but clamp if needed
+					top = Math.min(maxTop, Math.max(minTop, top));
+				}
+			} else {
+				// No caret Y available; simple clamp
+				top = Math.min(maxTop, Math.max(minTop, top));
+			}
+			// If popover still taller than viewport (maxTop < minTop), stick it to bottom of visible area
+			if (maxTop < minTop) {
+				// Recompute after forced maxHeight, then place at bottom
+				r = pop.getBoundingClientRect();
+				maxTop = viewTop + viewH - margin - r.height;
+				top = Math.max(minTop, maxTop);
+			}
 			pop.style.left = left + 'px';
 			pop.style.top = top + 'px';
-		});
+		};
+		requestAnimationFrame(reclamp);
+		// Re-clamp on viewport changes caused by keyboard or zoom/pan
+		let detachViewport;
+		if (window.visualViewport) {
+			const vv = window.visualViewport;
+			const onVV = () => reclamp();
+			vv.addEventListener('resize', onVV);
+			vv.addEventListener('scroll', onVV);
+			detachViewport = () => { vv.removeEventListener('resize', onVV); vv.removeEventListener('scroll', onVV); };
+		}
+		const onWinScroll = () => reclamp();
+		window.addEventListener('scroll', onWinScroll, { passive: true });
 		function cleanup() {
 			document.removeEventListener('mousedown', outside, true);
 			document.removeEventListener('touchstart', outside, true);
+			if (typeof detachViewport === 'function') detachViewport();
+			window.removeEventListener('scroll', onWinScroll, { passive: true });
 			if (pop.parentNode) pop.parentNode.removeChild(pop);
 		}
 		function outside(ev) { if (!pop.contains(ev.target)) { cleanup(); resolve(null); } }
