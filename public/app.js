@@ -235,7 +235,7 @@ function renderTable() {
 					await savePayMethod(tr, sale.id, sel.value);
 					applyPayClass();
 				});
-				wrap.addEventListener('click', (e) => { e.stopPropagation(); openPayMenu(wrap, sel); });
+				wrap.addEventListener('click', (e) => { e.stopPropagation(); openPayMenu(wrap, sel, e.clientX, e.clientY); });
 				wrap.tabIndex = 0;
 				wrap.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPayMenu(wrap, sel); } });
 				wrap.appendChild(sel);
@@ -1137,7 +1137,7 @@ async function openConfirmPopover(message, anchorX, anchorY) {
 	});
 }
 
-function openPayMenu(anchorEl, selectEl) {
+function openPayMenu(anchorEl, selectEl, clickX, clickY) {
 	const rect = anchorEl.getBoundingClientRect();
 	const menu = document.createElement('div');
 	menu.className = 'pay-menu';
@@ -1185,8 +1185,8 @@ function openPayMenu(anchorEl, selectEl) {
 	const dashBtn = menu.querySelector('.menu-clear');
 	const menuRect = menu.getBoundingClientRect();
 	const dashRect = dashBtn ? dashBtn.getBoundingClientRect() : menuRect;
-	const anchorCx = rect.left + rect.width / 2;
-	const anchorCy = rect.top + rect.height / 2;
+	const anchorCx = (typeof clickX === 'number') ? clickX : (rect.left + rect.width / 2);
+	const anchorCy = (typeof clickY === 'number') ? clickY : (rect.top + rect.height / 2);
 	const offsetYWithinMenu = (dashRect.top - menuRect.top) + (dashRect.height / 2);
 	let left = anchorCx;
 	let top = anchorCy - offsetYWithinMenu;
