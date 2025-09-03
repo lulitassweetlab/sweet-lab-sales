@@ -79,15 +79,18 @@ function wireCommentTriggerForRow(tr, currentValueOptional) {
 		trig.classList.add('no-comment');
 	}
 	// Position exactly after the visible text inside the input, with one-space gap on mobile
-	const tdRect = td.getBoundingClientRect();
-	const inRect = input.getBoundingClientRect();
-	const pos = getInputEndCoords(input, raw);
-	const isSmall = window.matchMedia('(max-width: 600px)').matches;
-	const spaceW = isSmall ? getSpaceWidthForInput(input) : 0;
+	const place = () => {
+		const tdRect = td.getBoundingClientRect();
+		const inRect = input.getBoundingClientRect();
+		const pos = getInputEndCoords(input, input.value);
+		const isSmall = window.matchMedia('(max-width: 600px)').matches;
+		const spaceW = isSmall ? getSpaceWidthForInput(input) : 0;
+		trig.style.left = Math.max(4, Math.round(pos.x - tdRect.left + spaceW)) + 'px';
+		trig.style.top = (inRect.top - tdRect.top + (inRect.height / 2)) + 'px';
+	};
 	trig.style.position = 'absolute';
-	trig.style.left = Math.max(4, pos.x - tdRect.left + spaceW) + 'px';
-	trig.style.top = (inRect.top - tdRect.top + (inRect.height / 2)) + 'px';
 	trig.style.transform = 'translateY(-50%)';
+	place();
 	trig.addEventListener('click', async (ev) => {
 		ev.stopPropagation();
 		const pos = getInputEndCoords(input, input.value);
@@ -104,12 +107,15 @@ function wireCommentTriggerForRow(tr, currentValueOptional) {
 			trig.click();
 		}
 	});
-	// Place visually at the far right inside the client cell (absolutely positioned)
 	input.parentNode.appendChild(trig);
-	// Reposition when input scrolls horizontally (no text change)
+	// Reposition when input scrolls or resizes
 	if (!input._commentTrigScrollBound) {
-		input.addEventListener('scroll', () => { wireCommentTriggerForRow(tr); }, { passive: true });
+		input.addEventListener('scroll', place, { passive: true });
 		input._commentTrigScrollBound = true;
+	}
+	if (!input._commentTrigInputBound) {
+		input.addEventListener('input', place);
+		input._commentTrigInputBound = true;
 	}
 }
 
@@ -492,7 +498,8 @@ function getInputEndCoords(inputEl, currentRawValue) {
 	const ctx = canvas.getContext('2d');
 	const font = `${cs.fontStyle} ${cs.fontVariant} ${cs.fontWeight} ${cs.fontSize} / ${cs.lineHeight} ${cs.fontFamily}`;
 	ctx.font = font;
-	const text = (currentRawValue || inputEl.value || '').replace(/\*+\s*$/, '').trim();
+	// Do not trim spaces; only strip trailing asterisks used as trigger
+	const text = (currentRawValue || inputEl.value || '').replace(/\*+$/, '');
 	const width = ctx.measureText(text).width;
 	const padL = parseFloat(cs.paddingLeft) || 0;
 	const bordL = parseFloat(cs.borderLeftWidth) || 0;
