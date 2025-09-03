@@ -818,7 +818,7 @@ async function exportConsolidatedForDate(dayIso) {
 	const input = document.getElementById('report-date');
 	if (!reportBtn || !input) return;
 	reportBtn.addEventListener('click', (ev) => {
-		openDatePickerAndGetISO(async (iso) => { if (iso) await exportConsolidatedForDate(iso); }, ev.clientX, ev.clientY);
+		openCalendarPopover(async (iso) => { if (iso) await exportConsolidatedForDate(iso); }, ev.clientX, ev.clientY);
 	});
 })();
 
