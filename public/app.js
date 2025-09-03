@@ -246,7 +246,7 @@ function renderTable() {
 						try {
 							const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(saleId)}`);
 							if (Array.isArray(recs) && recs.length) {
-								openReceiptViewerPopover(recs[0].image_base64, saleId, e.clientX, e.clientY);
+								openReceiptViewerPopover(recs[0].image_base64, saleId, recs[0].created_at, e.clientX, e.clientY);
 							} else {
 								openReceiptUploadPage(saleId);
 							}
@@ -1265,7 +1265,7 @@ function openReceiptUploadPage(saleId) {
 	} catch {}
 }
 
-function openReceiptViewerPopover(imageBase64, saleId, anchorX, anchorY) {
+function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, anchorY) {
 	const pop = document.createElement('div');
 	pop.className = 'receipt-popover';
 	pop.style.position = 'fixed';
@@ -1282,12 +1282,21 @@ function openReceiptViewerPopover(imageBase64, saleId, anchorX, anchorY) {
 	img.style.maxHeight = '60vh';
 	img.style.display = 'block';
 	img.style.borderRadius = '8px';
+	const meta = document.createElement('div');
+	meta.className = 'receipt-meta';
+	if (createdAt) {
+		const when = new Date(createdAt);
+		meta.textContent = 'Subido: ' + (isNaN(when.getTime()) ? String(createdAt) : when.toLocaleString());
+		meta.style.fontSize = '12px';
+		meta.style.opacity = '0.75';
+		meta.style.marginTop = '6px';
+	}
 	const actions = document.createElement('div');
 	actions.className = 'confirm-actions';
 	const replaceBtn = document.createElement('button'); replaceBtn.className = 'press-btn btn-primary'; replaceBtn.textContent = 'Reemplazar foto';
 	const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn'; closeBtn.textContent = 'Cerrar';
 	actions.append(replaceBtn, closeBtn);
-	pop.append(img, actions);
+	pop.append(img, meta, actions);
 	document.body.appendChild(pop);
 	function cleanup() {
 		document.removeEventListener('mousedown', outside, true);
