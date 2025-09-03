@@ -67,6 +67,13 @@ export async function ensureSchema() {
 		user_name TEXT,
 		created_at TIMESTAMPTZ DEFAULT now()
 	)`;
+	// Optional receipt storage (base64) per sale
+	await sql`CREATE TABLE IF NOT EXISTS sale_receipts (
+		id SERIAL PRIMARY KEY,
+		sale_id INTEGER NOT NULL REFERENCES sales(id) ON DELETE CASCADE,
+		image_base64 TEXT NOT NULL,
+		created_at TIMESTAMPTZ DEFAULT now()
+	)`;
 	schemaEnsured = true;
 }
 

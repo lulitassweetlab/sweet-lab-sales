@@ -18,6 +18,13 @@ export async function handler(event) {
 					const rows = await sql`SELECT id, sale_id, field, old_value, new_value, user_name, created_at FROM change_logs WHERE sale_id=${saleId} ORDER BY created_at DESC, id DESC`;
 					return json(rows);
 				}
+				const receiptFor = params.get('receipt_for');
+				if (receiptFor) {
+					const saleId = Number(receiptFor);
+					if (!saleId) return json({ error: 'receipt_for inválido' }, 400);
+					const rows = await sql`SELECT id, sale_id, image_base64, created_at FROM sale_receipts WHERE sale_id=${saleId} ORDER BY created_at DESC, id DESC`;
+					return json(rows);
+				}
 				const sellerIdParam = params.get('seller_id') || (event.queryStringParameters && event.queryStringParameters.seller_id);
 				const dayIdParam = params.get('sale_day_id') || (event.queryStringParameters && event.queryStringParameters.sale_day_id);
 				const sellerId = Number(sellerIdParam);
@@ -33,6 +40,14 @@ export async function handler(event) {
 			}
 			case 'POST': {
 				const data = JSON.parse(event.body || '{}');
+				// Receipt upload flow
+				if (data && data._upload_receipt_for) {
+					const sid = Number(data._upload_receipt_for);
+					const img = (data.image_base64 || '').toString();
+					if (!sid || !img) return json({ error: 'sale_id e imagen requeridos' }, 400);
+					const [row] = await sql`INSERT INTO sale_receipts (sale_id, image_base64) VALUES (${sid}, ${img}) RETURNING id, sale_id, created_at`;
+					return json(row, 201);
+				}
 				const sellerId = Number(data.seller_id);
 				let saleDayId = data.sale_day_id ? Number(data.sale_day_id) : null;
 				if (!sellerId) return json({ error: 'seller_id requerido' }, 400);

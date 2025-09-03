@@ -236,6 +236,15 @@ function renderTable() {
 					applyPayClass();
 				});
 				wrap.addEventListener('click', (e) => { e.stopPropagation(); openPayMenu(wrap, sel); });
+				// If clicking the bank icon and current value is 'transf', open upload page
+				wrap.addEventListener('click', (e) => {
+					if (sel.value === 'transf') {
+						e.stopPropagation();
+						const trEl = wrap.closest('tr');
+						const saleId = Number(trEl?.dataset?.id);
+						if (saleId) openReceiptUploadPage(saleId);
+					}
+				}, true);
 				wrap.tabIndex = 0;
 				wrap.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPayMenu(wrap, sel); } });
 				wrap.appendChild(sel);
@@ -1238,6 +1247,15 @@ if (!('selectedDayId' in state)) state.selectedDayId = null;
 (function bindBottomAdd(){
 	document.getElementById('add-row-bottom')?.addEventListener('click', addRow);
 })();
+
+// Open a dedicated page to upload a receipt image for the given sale id
+function openReceiptUploadPage(saleId) {
+	try {
+		const id = Number(saleId);
+		if (!id) return;
+		window.location.href = `/receipt.html?sale_id=${encodeURIComponent(id)}`;
+	} catch {}
+}
 
 
 (async function init() {
