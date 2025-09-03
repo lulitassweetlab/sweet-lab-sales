@@ -818,14 +818,8 @@ async function exportConsolidatedForDate(dayIso) {
 	const reportBtn = document.getElementById('report-button');
 	const input = document.getElementById('report-date');
 	if (!reportBtn || !input) return;
-	reportBtn.addEventListener('click', () => {
-		// Open date picker
-		input.classList.remove('hidden');
-		const cleanup = () => { input.classList.add('hidden'); input.removeEventListener('change', handler); };
-		const handler = async () => { const iso = input.value; cleanup(); if (iso) await exportConsolidatedForDate(iso); };
-		input.addEventListener('change', handler);
-		if (typeof input.showPicker === 'function') { try { input.showPicker(); return; } catch {} }
-		input.focus(); input.click();
+	reportBtn.addEventListener('click', (ev) => {
+		openDatePickerAndGetISO(async (iso) => { if (iso) await exportConsolidatedForDate(iso); }, ev.clientX, ev.clientY);
 	});
 })();
 
@@ -984,7 +978,7 @@ function openDatePickerAndGetISO(onPicked, anchorX, anchorY) {
 	const y = (typeof anchorY === 'number') ? anchorY : (window.innerHeight / 2);
 	input.style.left = x + 'px';
 	input.style.top = y + 'px';
-	input.style.transform = 'translate(-50%, 0)';
+	input.style.transform = 'translate(-50%, -50%)';
 	input.style.zIndex = '1000';
 	input.style.width = '1px';
 	input.style.height = '1px';
