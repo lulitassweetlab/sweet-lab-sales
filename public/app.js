@@ -236,23 +236,6 @@ function renderTable() {
 					applyPayClass();
 				});
 				wrap.addEventListener('click', (e) => { e.stopPropagation(); openPayMenu(wrap, sel); });
-				// If clicking the bank icon and current value is 'transf', open upload page
-				wrap.addEventListener('click', async (e) => {
-					if (sel.value === 'transf') {
-						e.stopPropagation();
-						const trEl = wrap.closest('tr');
-						const saleId = Number(trEl?.dataset?.id);
-						if (!saleId) return;
-						try {
-							const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(saleId)}`);
-							if (Array.isArray(recs) && recs.length) {
-								openReceiptViewerPopover(recs[0].image_base64, saleId, recs[0].created_at, e.clientX, e.clientY);
-							} else {
-								openReceiptUploadPage(saleId);
-							}
-						} catch { openReceiptUploadPage(saleId); }
-					}
-				}, true);
 				wrap.tabIndex = 0;
 				wrap.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPayMenu(wrap, sel); } });
 				wrap.appendChild(sel);
