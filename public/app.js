@@ -215,6 +215,7 @@ function renderTable() {
 				const options = [
 					{ v: '', label: '-' },
 					{ v: 'efectivo', label: '' },
+					{ v: 'marce', label: '' },
 					{ v: 'transf', label: '' }
 				];
 				for (const o of options) {
@@ -225,10 +226,11 @@ function renderTable() {
 					sel.appendChild(opt);
 				}
 				function applyPayClass() {
-					wrap.classList.remove('placeholder','method-efectivo','method-transf');
+					wrap.classList.remove('placeholder','method-efectivo','method-transf','method-marce');
 					if (!sel.value) wrap.classList.add('placeholder');
 					else if (sel.value === 'efectivo') wrap.classList.add('method-efectivo');
 					else if (sel.value === 'transf') wrap.classList.add('method-transf');
+					else if (sel.value === 'marce') wrap.classList.add('method-marce');
 				}
 				applyPayClass();
 				sel.addEventListener('change', async () => {
@@ -1194,6 +1196,7 @@ function openPayMenu(anchorEl, selectEl, clickX, clickY) {
 	menu.style.zIndex = '1000';
 	const items = [
 		{ v: 'efectivo', cls: 'menu-efectivo' },
+		{ v: 'marce', cls: 'menu-marce' },
 		{ v: '', cls: 'menu-clear' },
 		{ v: 'transf', cls: 'menu-transf' }
 	];
