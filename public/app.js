@@ -67,9 +67,10 @@ function wireCommentTriggerForRow(tr, currentValueOptional) {
 	// Always show asterisk if there's any text (after trimming) or if there is an existing comment
 	const shouldShow = (raw.trim().length > 0) || !!(sale && sale.comment_text);
 	if (!shouldShow) return;
-	const trig = document.createElement('button');
-	trig.type = 'button';
+	const trig = document.createElement('span');
 	trig.className = 'comment-trigger';
+	trig.setAttribute('role', 'button');
+	trig.tabIndex = 0;
 	trig.title = sale && sale.comment_text ? 'Editar nota' : 'Agregar nota';
 	trig.textContent = '*';
 	// Position exactly after the visible text inside the input
@@ -90,8 +91,19 @@ function wireCommentTriggerForRow(tr, currentValueOptional) {
 		if (idx !== -1) state.sales[idx].comment_text = next;
 		wireCommentTriggerForRow(tr);
 	});
+	trig.addEventListener('keydown', async (e) => {
+		if (e.key === 'Enter' || e.key === ' ') {
+			e.preventDefault();
+			trig.click();
+		}
+	});
 	// Place visually at the far right inside the client cell (absolutely positioned)
 	input.parentNode.appendChild(trig);
+	// Reposition when input scrolls horizontally (no text change)
+	if (!input._commentTrigScrollBound) {
+		input.addEventListener('scroll', () => { wireCommentTriggerForRow(tr); }, { passive: true });
+		input._commentTrigScrollBound = true;
+	}
 }
 
 // Auth
