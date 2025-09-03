@@ -1161,9 +1161,16 @@ function openPayMenu(anchorEl, selectEl) {
 			e.stopPropagation();
 			selectEl.value = it.v;
 			selectEl.dispatchEvent(new Event('change'));
-			// If selecting 'transf' from the menu, open upload page right away
+			// If selecting 'transf' from the menu, show existing receipt if any; otherwise open upload
 			if (it.v === 'transf' && currentSaleId) {
-				try { openReceiptUploadPage(currentSaleId); } catch {}
+				try {
+					const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(currentSaleId)}`);
+					if (Array.isArray(recs) && recs.length) {
+						openReceiptViewerPopover(recs[0].image_base64, currentSaleId, recs[0].created_at, rect.left + rect.width / 2, rect.bottom);
+					} else {
+						openReceiptUploadPage(currentSaleId);
+					}
+				} catch { openReceiptUploadPage(currentSaleId); }
 			}
 			cleanup();
 		});
