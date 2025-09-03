@@ -72,6 +72,14 @@ function wireCommentTriggerForRow(tr, currentValueOptional) {
 	trig.className = 'comment-trigger';
 	trig.title = sale && sale.comment_text ? 'Editar nota' : 'Agregar nota';
 	trig.textContent = '*';
+	// Position exactly after the visible text inside the input
+	const tdRect = td.getBoundingClientRect();
+	const inRect = input.getBoundingClientRect();
+	const pos = getInputEndCoords(input, raw);
+	trig.style.position = 'absolute';
+	trig.style.left = Math.max(4, pos.x - tdRect.left + 2) + 'px';
+	trig.style.top = (inRect.top - tdRect.top + (inRect.height / 2)) + 'px';
+	trig.style.transform = 'translateY(-50%)';
 	trig.addEventListener('click', async (ev) => {
 		ev.stopPropagation();
 		const pos = getInputEndCoords(input, input.value);
