@@ -699,28 +699,41 @@ function exportTableToExcel() {
 		for (const tr of Array.from(tbody.rows)) {
 			const paid = tr.querySelector('td.col-paid input[type="checkbox"]').checked ? '✓' : '';
 			const client = tr.querySelector('td.col-client input')?.value ?? '';
-			const arco = tr.querySelector('td.col-arco input')?.value ?? '';
-			const melo = tr.querySelector('td.col-melo input')?.value ?? '';
-			const mara = tr.querySelector('td.col-mara input')?.value ?? '';
-			const oreo = tr.querySelector('td.col-oreo input')?.value ?? '';
+			let arco = tr.querySelector('td.col-arco input')?.value ?? '';
+			let melo = tr.querySelector('td.col-melo input')?.value ?? '';
+			let mara = tr.querySelector('td.col-mara input')?.value ?? '';
+			let oreo = tr.querySelector('td.col-oreo input')?.value ?? '';
+			if (arco === '0') arco = '';
+			if (melo === '0') melo = '';
+			if (mara === '0') mara = '';
+			if (oreo === '0') oreo = '';
 			let total = tr.querySelector('td.col-total')?.textContent?.trim() ?? '';
 			if (total === '0') total = '';
 			data.push([paid, client, arco, melo, mara, oreo, total]);
 		}
 	}
+	const tAr = (document.getElementById('sum-arco-qty')?.textContent ?? '').trim();
+	const tMe = (document.getElementById('sum-melo-qty')?.textContent ?? '').trim();
+	const tMa = (document.getElementById('sum-mara-qty')?.textContent ?? '').trim();
+	const tOr = (document.getElementById('sum-oreo-qty')?.textContent ?? '').trim();
 	data.push(['', 'Totales (cant.)',
-		document.getElementById('sum-arco-qty')?.textContent ?? '',
-		document.getElementById('sum-melo-qty')?.textContent ?? '',
-		document.getElementById('sum-mara-qty')?.textContent ?? '',
-		document.getElementById('sum-oreo-qty')?.textContent ?? '',
-		document.getElementById('sum-total-qty')?.textContent ?? ''
+		tAr === '0' ? '' : tAr,
+		tMe === '0' ? '' : tMe,
+		tMa === '0' ? '' : tMa,
+		tOr === '0' ? '' : tOr,
+		''
 	]);
+	const vAr = (document.getElementById('sum-arco-amt')?.textContent ?? '').trim();
+	const vMe = (document.getElementById('sum-melo-amt')?.textContent ?? '').trim();
+	const vMa = (document.getElementById('sum-mara-amt')?.textContent ?? '').trim();
+	const vOr = (document.getElementById('sum-oreo-amt')?.textContent ?? '').trim();
+	const vGr = (document.getElementById('sum-grand')?.textContent ?? '').trim();
 	data.push(['', 'Totales (valor)',
-		document.getElementById('sum-arco-amt')?.textContent ?? '',
-		document.getElementById('sum-melo-amt')?.textContent ?? '',
-		document.getElementById('sum-mara-amt')?.textContent ?? '',
-		document.getElementById('sum-oreo-amt')?.textContent ?? '',
-		document.getElementById('sum-grand')?.textContent ?? ''
+		vAr === '0' ? '' : vAr,
+		vMe === '0' ? '' : vMe,
+		vMa === '0' ? '' : vMa,
+		vOr === '0' ? '' : vOr,
+		vGr === '0' ? '' : vGr
 	]);
 
 	const ws = XLSX.utils.aoa_to_sheet(data);
