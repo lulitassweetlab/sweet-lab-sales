@@ -781,11 +781,11 @@ async function exportConsolidatedForDate(dayIso) {
 			]);
 		}
 	}
-	// Append totals at end (blank if zeros to match convention)
-	rows.push(['', '', 'Totales (cant.)', tQa || '', tQm || '', tQma || '', tQo || '', '']);
-	rows.push(['', '', 'Totales (valor)', '', '', '', '', tGrand || '']);
+	// Append totals at end (place values under their corresponding columns)
+	rows.push(['', '', '', 'Totales (cant.)', tQa || '', tQm || '', tQma || '', tQo || '', '']);
+	rows.push(['', '', '', 'Totales (valor)', '', '', '', '', tGrand || '']);
 	const ws = XLSX.utils.aoa_to_sheet(rows);
-	ws['!cols'] = [ {wch:18},{wch:3},{wch:24},{wch:24},{wch:6},{wch:6},{wch:6},{wch:6},{wch:10} ];
+	ws['!cols'] = [ {wch:18},{wch:3},{wch:10},{wch:24},{wch:6},{wch:6},{wch:6},{wch:6},{wch:10} ];
 	const wb = XLSX.utils.book_new();
 	XLSX.utils.book_append_sheet(wb, ws, 'Consolidado');
 	const dateLabel = formatDayLabel(String(dayIso).slice(0,10)).replace(/\s+/g, '_');
