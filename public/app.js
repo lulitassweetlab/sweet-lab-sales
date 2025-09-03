@@ -692,12 +692,15 @@ function debounce(fn, ms) {
 
 function exportTableToExcel() {
 	// Build SheetJS worksheet from rows
-	const header = ['$', 'Cliente', 'Arco', 'Melo', 'Mara', 'Oreo', 'Total'];
+	const header = ['$', 'Pago', 'Cliente', 'Arco', 'Melo', 'Mara', 'Oreo', 'Total'];
 	const data = [header];
 	const tbody = document.getElementById('sales-tbody');
 	if (tbody) {
 		for (const tr of Array.from(tbody.rows)) {
 			const paid = tr.querySelector('td.col-paid input[type="checkbox"]').checked ? '✓' : '';
+			const paySel = tr.querySelector('td.col-paid select.pay-select');
+			const payRaw = paySel ? paySel.value : '';
+			const pay = payRaw === 'efectivo' ? 'Efectivo' : payRaw === 'transf' ? 'Transf' : '-';
 			const client = tr.querySelector('td.col-client input')?.value ?? '';
 			let arco = tr.querySelector('td.col-arco input')?.value ?? '';
 			let melo = tr.querySelector('td.col-melo input')?.value ?? '';
@@ -709,14 +712,14 @@ function exportTableToExcel() {
 			if (oreo === '0') oreo = '';
 			let total = tr.querySelector('td.col-total')?.textContent?.trim() ?? '';
 			if (total === '0') total = '';
-			data.push([paid, client, arco, melo, mara, oreo, total]);
+			data.push([paid, pay, client, arco, melo, mara, oreo, total]);
 		}
 	}
 	const tAr = (document.getElementById('sum-arco-qty')?.textContent ?? '').trim();
 	const tMe = (document.getElementById('sum-melo-qty')?.textContent ?? '').trim();
 	const tMa = (document.getElementById('sum-mara-qty')?.textContent ?? '').trim();
 	const tOr = (document.getElementById('sum-oreo-qty')?.textContent ?? '').trim();
-	data.push(['', 'Totales (cant.)',
+	data.push(['', '', 'Totales (cant.)',
 		tAr === '0' ? '' : tAr,
 		tMe === '0' ? '' : tMe,
 		tMa === '0' ? '' : tMa,
@@ -728,7 +731,7 @@ function exportTableToExcel() {
 	const vMa = (document.getElementById('sum-mara-amt')?.textContent ?? '').trim();
 	const vOr = (document.getElementById('sum-oreo-amt')?.textContent ?? '').trim();
 	const vGr = (document.getElementById('sum-grand')?.textContent ?? '').trim();
-	data.push(['', 'Totales (valor)',
+	data.push(['', '', 'Totales (valor)',
 		vAr === '0' ? '' : vAr,
 		vMe === '0' ? '' : vMe,
 		vMa === '0' ? '' : vMa,
@@ -748,7 +751,7 @@ function exportTableToExcel() {
 
 async function exportConsolidatedForDate(dayIso) {
 	const sellers = await api('GET', API.Sellers);
-	const rows = [['Vendedor', '$', 'Cliente', 'Arco', 'Melo', 'Mara', 'Oreo', 'Total']];
+	const rows = [['Vendedor', '$', 'Pago', 'Cliente', 'Arco', 'Melo', 'Mara', 'Oreo', 'Total']];
 	for (const s of sellers) {
 		const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(s.id)}`);
 		const day = (days || []).find(d => (String(d.day).slice(0,10) === String(dayIso).slice(0,10)));
@@ -761,9 +764,12 @@ async function exportConsolidatedForDate(dayIso) {
 			const qma = r.qty_mara || 0;
 			const qo = r.qty_oreo || 0;
 			const tot = r.total_cents || 0;
+			const pm = (r.pay_method || '').toString();
+			const pay = pm === 'efectivo' ? 'Efectivo' : pm === 'transf' ? 'Transf' : '-';
 			rows.push([
 				s.name || '',
 				r.is_paid ? '✓' : '',
+				pay,
 				r.client_name || '',
 				qa === 0 ? '' : qa,
 				qm === 0 ? '' : qm,
