@@ -1552,30 +1552,4 @@ function renderChangeMarkerIfNeeded(tdEl, saleId, field) {
 	tdEl.appendChild(mark);
 }
 
-(function limitMobileBounce(){
-	const isSmall = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 600px)').matches;
-	if (!isSmall) return;
-	let lastY = 0;
-	let atTop = false, atBottom = false;
-	window.addEventListener('touchstart', (e) => {
-		lastY = e.touches && e.touches[0] ? e.touches[0].clientY : 0;
-		const scrollTop = document.scrollingElement ? document.scrollingElement.scrollTop : document.documentElement.scrollTop || document.body.scrollTop || 0;
-		const max = (document.scrollingElement?.scrollHeight || document.body.scrollHeight) - window.innerHeight;
-		atTop = scrollTop <= 0;
-		atBottom = scrollTop >= max - 1;
-	}, { passive: true });
-	window.addEventListener('touchmove', (e) => {
-		const y = e.touches && e.touches[0] ? e.touches[0].clientY : lastY;
-		const dy = y - lastY;
-		lastY = y;
-		const scrollTop = document.scrollingElement ? document.scrollingElement.scrollTop : document.documentElement.scrollTop || document.body.scrollTop || 0;
-		const max = (document.scrollingElement?.scrollHeight || document.body.scrollHeight) - window.innerHeight;
-		if ((atTop && dy > 0) || (atBottom && dy < 0)) {
-			// Allow a tiny elastic feel by nudging scroll then stopping further propagation
-			const nudge = dy * 0.1; // very soft
-			if (document.scrollingElement) document.scrollingElement.scrollTop = Math.min(Math.max(0, scrollTop - nudge), max);
-			// Prevent multi-bounce
-			e.preventDefault();
-		}
-	}, { passive: false });
-})();
+// (mobile bounce limiter removed per user preference)
