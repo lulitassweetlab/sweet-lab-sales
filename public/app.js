@@ -1274,7 +1274,7 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 		pop.style.left = '50%';
 		pop.style.top = '50%';
 		pop.style.transform = 'translate(-50%, -50%)';
-		pop.style.width = '90vw';
+		pop.style.width = 'auto';
 		pop.style.maxWidth = '90vw';
 		pop.style.maxHeight = '82vh';
 	} else {
@@ -1292,11 +1292,11 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 	img.src = imageBase64;
 	img.alt = 'Comprobante';
 	img.style.display = 'block';
-	img.style.width = isSmall ? '100%' : 'auto';
-	img.style.maxWidth = isSmall ? '100%' : '80vw';
+	img.style.width = isSmall ? 'auto' : 'auto';
+	img.style.maxWidth = isSmall ? '88vw' : '80vw';
 	img.style.height = 'auto';
 	img.style.maxHeight = isSmall ? '72vh' : '60vh';
-	img.style.display = 'block';
+	img.style.margin = '0 auto';
 	img.style.borderRadius = '8px';
 	const meta = document.createElement('div');
 	meta.className = 'receipt-meta';
