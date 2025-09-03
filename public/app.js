@@ -703,7 +703,8 @@ function exportTableToExcel() {
 			const melo = tr.querySelector('td.col-melo input')?.value ?? '';
 			const mara = tr.querySelector('td.col-mara input')?.value ?? '';
 			const oreo = tr.querySelector('td.col-oreo input')?.value ?? '';
-			const total = tr.querySelector('td.col-total')?.textContent?.trim() ?? '';
+			let total = tr.querySelector('td.col-total')?.textContent?.trim() ?? '';
+			if (total === '0') total = '';
 			data.push([paid, client, arco, melo, mara, oreo, total]);
 		}
 	}
@@ -742,15 +743,20 @@ async function exportConsolidatedForDate(dayIso) {
 		const params = new URLSearchParams({ seller_id: String(s.id), sale_day_id: String(day.id) });
 		const sales = await api('GET', `${API.Sales}?${params.toString()}`);
 		for (const r of (sales || [])) {
+			const qa = r.qty_arco || 0;
+			const qm = r.qty_melo || 0;
+			const qma = r.qty_mara || 0;
+			const qo = r.qty_oreo || 0;
+			const tot = r.total_cents || 0;
 			rows.push([
 				s.name || '',
 				r.is_paid ? '✓' : '',
 				r.client_name || '',
-				r.qty_arco || 0,
-				r.qty_melo || 0,
-				r.qty_mara || 0,
-				r.qty_oreo || 0,
-				r.total_cents || 0,
+				qa === 0 ? '' : qa,
+				qm === 0 ? '' : qm,
+				qma === 0 ? '' : qma,
+				qo === 0 ? '' : qo,
+				tot === 0 ? '' : tot,
 			]);
 		}
 	}
