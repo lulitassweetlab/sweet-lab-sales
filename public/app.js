@@ -1034,8 +1034,10 @@ function openCalendarPopover(onPicked, anchorX, anchorY) {
 	const pop = document.createElement('div');
 	pop.className = 'date-popover';
 	pop.style.position = 'fixed';
-	pop.style.left = (anchorX || (window.innerWidth / 2)) + 'px';
-	pop.style.top = ((anchorY || (window.innerHeight / 2)) + 8) + 'px';
+	const baseX = (typeof anchorX === 'number') ? anchorX : (window.innerWidth / 2);
+	const baseY = (typeof anchorY === 'number') ? anchorY : (window.innerHeight / 2);
+	pop.style.left = baseX + 'px';
+	pop.style.top = (baseY + 8) + 'px';
 	pop.style.transform = 'translate(-50%, 0)';
 	pop.style.zIndex = '1000';
 	pop.setAttribute('role', 'dialog');
@@ -1096,6 +1098,29 @@ function openCalendarPopover(onPicked, anchorX, anchorY) {
 	
 	pop.append(header, wk, grid);
 	document.body.appendChild(pop);
+	// Positioning/clamping: ensure visible; on mobile, prefer above if near bottom
+	requestAnimationFrame(() => {
+		const margin = 8;
+		const vv = window.visualViewport;
+		const viewW = (vv && typeof vv.width === 'number') ? vv.width : window.innerWidth;
+		const viewH = (vv && typeof vv.height === 'number') ? vv.height : window.innerHeight;
+		const viewLeft = (vv && typeof vv.offsetLeft === 'number') ? vv.offsetLeft : 0;
+		const viewTop = (vv && typeof vv.offsetTop === 'number') ? vv.offsetTop : 0;
+		const isSmall = window.matchMedia('(max-width: 600px)').matches;
+		const r = pop.getBoundingClientRect();
+		let left = baseX;
+		let top = baseY + 8;
+		// Prefer placing above if near bottom on small screens
+		if (isSmall && baseY > (viewTop + viewH * 0.6)) {
+			top = baseY - 8 - r.height;
+		}
+		// Clamp within viewport
+		left = Math.min(Math.max(left, viewLeft + margin), viewLeft + viewW - margin);
+		if (top + r.height > viewTop + viewH - margin) top = Math.max(viewTop + margin, viewTop + viewH - margin - r.height);
+		if (top < viewTop + margin) top = viewTop + margin;
+		pop.style.left = left + 'px';
+		pop.style.top = top + 'px';
+	});
 	document.addEventListener('mousedown', outside, true);
 	document.addEventListener('touchstart', outside, true);
 	render();
