@@ -1274,9 +1274,9 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 		pop.style.left = '50%';
 		pop.style.top = '50%';
 		pop.style.transform = 'translate(-50%, -50%)';
-		pop.style.width = '96vw';
-		pop.style.maxWidth = '96vw';
-		pop.style.maxHeight = '90vh';
+		pop.style.width = '90vw';
+		pop.style.maxWidth = '90vw';
+		pop.style.maxHeight = '82vh';
 	} else {
 		const x = typeof anchorX === 'number' ? anchorX : (window.innerWidth / 2);
 		const y = typeof anchorY === 'number' ? anchorY : (window.innerHeight / 2);
@@ -1295,7 +1295,7 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 	img.style.width = isSmall ? '100%' : 'auto';
 	img.style.maxWidth = isSmall ? '100%' : '80vw';
 	img.style.height = 'auto';
-	img.style.maxHeight = isSmall ? '80vh' : '60vh';
+	img.style.maxHeight = isSmall ? '72vh' : '60vh';
 	img.style.display = 'block';
 	img.style.borderRadius = '8px';
 	const meta = document.createElement('div');
