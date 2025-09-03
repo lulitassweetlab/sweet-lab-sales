@@ -78,12 +78,14 @@ function wireCommentTriggerForRow(tr, currentValueOptional) {
 	} else {
 		trig.classList.add('no-comment');
 	}
-	// Position exactly after the visible text inside the input
+	// Position exactly after the visible text inside the input, with one-space gap on mobile
 	const tdRect = td.getBoundingClientRect();
 	const inRect = input.getBoundingClientRect();
 	const pos = getInputEndCoords(input, raw);
+	const isSmall = window.matchMedia('(max-width: 600px)').matches;
+	const spaceW = isSmall ? getSpaceWidthForInput(input) : 0;
 	trig.style.position = 'absolute';
-	trig.style.left = Math.max(4, pos.x - tdRect.left + 2) + 'px';
+	trig.style.left = Math.max(4, pos.x - tdRect.left + spaceW) + 'px';
 	trig.style.top = (inRect.top - tdRect.top + (inRect.height / 2)) + 'px';
 	trig.style.transform = 'translateY(-50%)';
 	trig.addEventListener('click', async (ev) => {
@@ -499,6 +501,15 @@ function getInputEndCoords(inputEl, currentRawValue) {
 	const x = Math.round(rect.left + padL + bordL + width - scrollX + 2);
 	const y = Math.round(rect.top + (rect.height / 2));
 	return { x, y };
+}
+
+function getSpaceWidthForInput(inputEl) {
+	const cs = getComputedStyle(inputEl);
+	const canvas = getSpaceWidthForInput._canvas || (getSpaceWidthForInput._canvas = document.createElement('canvas'));
+	const ctx = canvas.getContext('2d');
+	const font = `${cs.fontStyle} ${cs.fontVariant} ${cs.fontWeight} ${cs.fontSize} / ${cs.lineHeight} ${cs.fontFamily}`;
+	ctx.font = font;
+	return ctx.measureText(' ').width || 4;
 }
 
 function openCommentDialog(anchorEl, initial = '', anchorX, anchorY) {
