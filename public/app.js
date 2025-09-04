@@ -783,8 +783,8 @@ async function exportConsolidatedForDate(dayIso) {
 			]);
 		}
 	}
-	// Append a single totals row under corresponding columns
-	rows.push(['', '', '', 'Totales', tQa || '', tQm || '', tQma || '', tQo || '', tGrand || '']);
+	// Append a single totals row aligned under corresponding columns
+	rows.push(['', '', '', '', tQa || '', tQm || '', tQma || '', tQo || '', tGrand || '']);
 	const ws = XLSX.utils.aoa_to_sheet(rows);
 	ws['!cols'] = [ {wch:18},{wch:3},{wch:10},{wch:24},{wch:6},{wch:6},{wch:6},{wch:6},{wch:10} ];
 	const wb = XLSX.utils.book_new();
@@ -820,7 +820,7 @@ async function exportConsolidatedForDates(isoList) {
 			}
 		}
 	}
-	rows.push(['', '', '', 'Totales', tQa || '', tQm || '', tQma || '', tQo || '', tGrand || '']);
+	rows.push(['', '', '', '', tQa || '', tQm || '', tQma || '', tQo || '', tGrand || '']);
 	const ws = XLSX.utils.aoa_to_sheet(rows);
 	ws['!cols'] = [ {wch:10},{wch:18},{wch:3},{wch:10},{wch:24},{wch:6},{wch:6},{wch:6},{wch:6},{wch:10} ];
 	const wb = XLSX.utils.book_new();
