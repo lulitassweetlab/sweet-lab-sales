@@ -697,6 +697,7 @@ tfoot td { font-weight: 700; }
 .date-popover .date-weekdays > div { text-align: center; }
 .date-popover .date-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
 .date-popover .date-cell { border: 1px solid var(--border); background: var(--card); border-radius: 6px; padding: 4px 0; cursor: pointer; }
+.date-popover .date-cell.selected { background: var(--secondary); border-color: var(--primary); color: var(--text); font-weight: 600; }
 .date-popover .date-cell.disabled { opacity: 0; pointer-events: none; }
 .date-popover .date-cell:hover { background: var(--secondary); }
 

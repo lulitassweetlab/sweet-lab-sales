@@ -793,6 +793,41 @@ async function exportConsolidatedForDate(dayIso) {
 	XLSX.writeFile(wb, `Consolidado_${dateLabel}.xlsx`);
 }
 
+async function exportConsolidatedForDates(isoList) {
+	const unique = Array.from(new Set((isoList || []).map(iso => String(iso).slice(0,10))));
+	const sellers = await api('GET', API.Sellers);
+	const rows = [['Fecha','Vendedor', '$', 'Pago', 'Cliente', 'Arco', 'Melo', 'Mara', 'Oreo', 'Total']];
+	let tQa = 0, tQm = 0, tQma = 0, tQo = 0, tGrand = 0;
+	for (const iso of unique) {
+		for (const s of sellers) {
+			const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(s.id)}`);
+			const day = (days || []).find(d => (String(d.day).slice(0,10) === iso));
+			if (!day) continue;
+			const params = new URLSearchParams({ seller_id: String(s.id), sale_day_id: String(day.id) });
+			const sales = await api('GET', `${API.Sales}?${params.toString()}`);
+			for (const r of (sales || [])) {
+				const qa = r.qty_arco || 0;
+				const qm = r.qty_melo || 0;
+				const qma = r.qty_mara || 0;
+				const qo = r.qty_oreo || 0;
+				const tot = r.total_cents || 0;
+				const pm = (r.pay_method || '').toString();
+				const pay = pm === 'efectivo' ? 'Efectivo' : pm === 'transf' ? 'Transf' : '-';
+				tQa += qa; tQm += qm; tQma += qma; tQo += qo; tGrand += (tot || 0);
+				rows.push([iso, s.name || '', r.is_paid ? '✓' : '', pay,
+					r.client_name || '', qa === 0 ? '' : qa, qm === 0 ? '' : qm,
+					qma === 0 ? '' : qma, qo === 0 ? '' : qo, tot === 0 ? '' : tot]);
+			}
+		}
+	}
+	rows.push(['', '', '', 'Totales', tQa || '', tQm || '', tQma || '', tQo || '', tGrand || '']);
+	const ws = XLSX.utils.aoa_to_sheet(rows);
+	ws['!cols'] = [ {wch:10},{wch:18},{wch:3},{wch:10},{wch:24},{wch:6},{wch:6},{wch:6},{wch:6},{wch:10} ];
+	const wb = XLSX.utils.book_new();
+	XLSX.utils.book_append_sheet(wb, ws, 'Consolidado');
+	XLSX.writeFile(wb, `Consolidado_varios_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
 (function wireGlobalDates(){
 	const globalList = document.getElementById('global-dates-list');
 	if (!globalList) return;
@@ -820,7 +855,10 @@ async function exportConsolidatedForDate(dayIso) {
 	const input = document.getElementById('report-date');
 	if (!reportBtn || !input) return;
 	reportBtn.addEventListener('click', (ev) => {
-		openCalendarPopover(async (iso) => { if (iso) await exportConsolidatedForDate(iso); }, ev.clientX, ev.clientY);
+		openMultiCalendarPopover(async (isoList) => {
+			if (!isoList || !isoList.length) return;
+			await exportConsolidatedForDates(isoList);
+		}, ev.clientX, ev.clientY);
 	});
 })();
 
@@ -1125,6 +1163,87 @@ function openCalendarPopover(onPicked, anchorX, anchorY) {
 	});
 	document.addEventListener('mousedown', outside, true);
 	document.addEventListener('touchstart', outside, true);
+	render();
+}
+
+function openMultiCalendarPopover(onPickedList, anchorX, anchorY) {
+	const pop = document.createElement('div');
+	pop.className = 'date-popover';
+	pop.style.position = 'fixed';
+	const baseX = (typeof anchorX === 'number') ? anchorX : (window.innerWidth / 2);
+	const baseY = (typeof anchorY === 'number') ? anchorY : (window.innerHeight / 2);
+	pop.style.left = baseX + 'px';
+	pop.style.top = (baseY + 8) + 'px';
+	pop.style.transform = 'translate(-50%, 0)';
+	pop.style.zIndex = '1000';
+	pop.setAttribute('role', 'dialog');
+	
+	const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+	let view = new Date(); view.setDate(1);
+	const selected = new Set();
+	
+	const header = document.createElement('div'); header.className = 'date-popover-header';
+	const prev = document.createElement('button'); prev.className = 'date-nav'; prev.textContent = '‹';
+	const label = document.createElement('div'); label.className = 'date-label';
+	const next = document.createElement('button'); next.className = 'date-nav'; next.textContent = '›';
+	header.append(prev, label, next);
+	
+	const grid = document.createElement('div'); grid.className = 'date-grid';
+	const weekdays = ['L','M','X','J','V','S','D'];
+	const wk = document.createElement('div'); wk.className = 'date-weekdays';
+	for (const w of weekdays) { const c = document.createElement('div'); c.textContent = w; wk.appendChild(c); }
+	
+	function isoUTC(y, m, d) { return new Date(Date.UTC(y, m, d)).toISOString().slice(0,10); }
+	
+	function render() {
+		label.textContent = months[view.getMonth()] + ' ' + view.getFullYear();
+		grid.innerHTML = '';
+		const year = view.getFullYear();
+		const month = view.getMonth();
+		const firstDay = (new Date(Date.UTC(year, month, 1)).getUTCDay() + 6) % 7;
+		const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+		for (let i = 0; i < firstDay; i++) { const cell = document.createElement('button'); cell.className = 'date-cell disabled'; cell.disabled = true; grid.appendChild(cell); }
+		for (let d = 1; d <= daysInMonth; d++) {
+			const iso = isoUTC(year, month, d);
+			const cell = document.createElement('button');
+			cell.className = 'date-cell' + (selected.has(iso) ? ' selected' : '');
+			cell.textContent = String(d);
+			cell.addEventListener('click', () => { if (selected.has(iso)) selected.delete(iso); else selected.add(iso); render(); });
+			grid.appendChild(cell);
+		}
+	}
+	
+	function cleanup() { document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); if (pop.parentNode) pop.parentNode.removeChild(pop); }
+	function outside(ev) { if (!pop.contains(ev.target)) cleanup(); }
+	
+	const actions = document.createElement('div'); actions.style.display = 'flex'; actions.style.justifyContent = 'space-between'; actions.style.marginTop = '8px';
+	const clearBtn = document.createElement('button'); clearBtn.className = 'date-nav'; clearBtn.textContent = 'Limpiar';
+	const applyBtn = document.createElement('button'); applyBtn.className = 'date-nav'; applyBtn.textContent = 'Aplicar';
+	clearBtn.addEventListener('click', () => { selected.clear(); render(); });
+	applyBtn.addEventListener('click', () => { const list = Array.from(selected); cleanup(); if (typeof onPickedList === 'function') onPickedList(list); });
+	actions.append(clearBtn, applyBtn);
+	
+	prev.addEventListener('click', () => { view.setMonth(view.getMonth() - 1); render(); });
+	next.addEventListener('click', () => { view.setMonth(view.getMonth() + 1); render(); });
+	
+	pop.append(header, wk, grid, actions);
+	document.body.appendChild(pop);
+	
+	requestAnimationFrame(() => {
+		const margin = 8;
+		const vv = window.visualViewport;
+		const viewW = (vv && typeof vv.width === 'number') ? vv.width : window.innerWidth;
+		const viewH = (vv && typeof vv.height === 'number') ? vv.height : window.innerHeight;
+		const viewLeft = (vv && typeof vv.offsetLeft === 'number') ? vv.offsetLeft : 0;
+		const viewTop = (vv && typeof vv.offsetTop === 'number') ? vv.offsetTop : 0;
+		const isSmall = window.matchMedia('(max-width: 600px)').matches;
+		const r = pop.getBoundingClientRect();
+		let left = baseX; let top = baseY + 8;
+		if (isSmall && baseY > (viewTop + viewH * 0.6)) { top = baseY - 8 - r.height; }
+		left = Math.min(Math.max(left, viewLeft + margin), viewLeft + viewW - margin);
+		top = Math.min(Math.max(top, viewTop + margin), viewTop + viewH - margin);
+		pop.style.left = left + 'px'; pop.style.top = top + 'px';
+	});
 	render();
 }
 
