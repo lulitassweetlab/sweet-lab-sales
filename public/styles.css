@@ -900,7 +900,7 @@ tfoot td { font-weight: 700; }
 .pay-menu-item { width:22px; height:18px; border:none; background:transparent; cursor:pointer; }
 .pay-menu-item.menu-efectivo { background:url('/icons/bill.svg') no-repeat center / contain; }
 .pay-menu-item.menu-transf { background:url('/icons/bank.svg') no-repeat center / contain; }
-.pay-menu-item.menu-marce { background:url('/icons/marcebill.png') no-repeat center / contain; }
+.pay-menu-item.menu-marce { background: url('/icons/marcebill.png') no-repeat center / contain, url('/icons/bill.svg') no-repeat center / contain; }
 .pay-menu-item.menu-clear { width:auto; height:auto; padding:2px 6px; border:1px solid var(--border); border-radius:6px; font-size:10px; }
 
 /* Hide quantities footer row on mobile only; restore on desktop below */
