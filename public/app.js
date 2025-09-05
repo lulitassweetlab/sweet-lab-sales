@@ -629,7 +629,8 @@ function updateSummary() {
 	$('#sum-melo-qty').textContent = String(qm);
 	$('#sum-mara-qty').textContent = String(qma);
 	$('#sum-oreo-qty').textContent = String(qo);
-	$('#sum-total-qty').textContent = '';
+	const totalQty = qa + qm + qma + qo;
+	$('#sum-total-qty').textContent = String(totalQty);
 	const va = fmtNo.format(qa * PRICES.arco);
 	const vm = fmtNo.format(qm * PRICES.melo);
 	const vma = fmtNo.format(qma * PRICES.mara);
@@ -721,12 +722,13 @@ function exportTableToExcel() {
 	const tMe = (document.getElementById('sum-melo-qty')?.textContent ?? '').trim();
 	const tMa = (document.getElementById('sum-mara-qty')?.textContent ?? '').trim();
 	const tOr = (document.getElementById('sum-oreo-qty')?.textContent ?? '').trim();
+	const tSum = [tAr, tMe, tMa, tOr].map(v => parseInt(v || '0', 10) || 0).reduce((a, b) => a + b, 0);
 	data.push(['', '', 'Totales (cant.)',
 		tAr === '0' ? '' : tAr,
 		tMe === '0' ? '' : tMe,
 		tMa === '0' ? '' : tMa,
 		tOr === '0' ? '' : tOr,
-		''
+		tSum === 0 ? '' : String(tSum)
 	]);
 	const vAr = (document.getElementById('sum-arco-amt')?.textContent ?? '').trim();
 	const vMe = (document.getElementById('sum-melo-amt')?.textContent ?? '').trim();
@@ -783,8 +785,11 @@ async function exportConsolidatedForDate(dayIso) {
 			]);
 		}
 	}
-	// Append a single totals row with label under 'Cliente' and numbers aligned to columns
+	// Append totals row (cantidades por sabor) y monto total
 	rows.push(['', '', '', 'Totales', tQa || '', tQm || '', tQma || '', tQo || '', tGrand || '']);
+	// Add total count of all desserts
+	const tSumAll = (tQa || 0) + (tQm || 0) + (tQma || 0) + (tQo || 0);
+	rows.push(['', '', '', 'Total postres', '', '', '', '', tSumAll || '']);
 	const ws = XLSX.utils.aoa_to_sheet(rows);
 	ws['!cols'] = [ {wch:18},{wch:3},{wch:10},{wch:24},{wch:6},{wch:6},{wch:6},{wch:6},{wch:10} ];
 	const wb = XLSX.utils.book_new();
@@ -821,6 +826,9 @@ async function exportConsolidatedForDates(isoList) {
 		}
 	}
 	rows.push(['', '', '', '', 'Totales', tQa || '', tQm || '', tQma || '', tQo || '', tGrand || '']);
+	// Add total count of all desserts across selected dates
+	const tSumAll = (tQa || 0) + (tQm || 0) + (tQma || 0) + (tQo || 0);
+	rows.push(['', '', '', '', 'Total postres', '', '', '', '', tSumAll || '']);
 	const ws = XLSX.utils.aoa_to_sheet(rows);
 	ws['!cols'] = [ {wch:10},{wch:18},{wch:3},{wch:10},{wch:24},{wch:6},{wch:6},{wch:6},{wch:6},{wch:10} ];
 	const wb = XLSX.utils.book_new();
