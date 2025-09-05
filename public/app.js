@@ -785,8 +785,11 @@ async function exportConsolidatedForDate(dayIso) {
 			]);
 		}
 	}
-	// Append a single totals row with label under 'Cliente' and numbers aligned to columns
+	// Append totals row (cantidades por sabor) y monto total
 	rows.push(['', '', '', 'Totales', tQa || '', tQm || '', tQma || '', tQo || '', tGrand || '']);
+	// Add total count of all desserts
+	const tSumAll = (tQa || 0) + (tQm || 0) + (tQma || 0) + (tQo || 0);
+	rows.push(['', '', '', 'Total postres', '', '', '', '', tSumAll || '']);
 	const ws = XLSX.utils.aoa_to_sheet(rows);
 	ws['!cols'] = [ {wch:18},{wch:3},{wch:10},{wch:24},{wch:6},{wch:6},{wch:6},{wch:6},{wch:10} ];
 	const wb = XLSX.utils.book_new();
@@ -823,6 +826,9 @@ async function exportConsolidatedForDates(isoList) {
 		}
 	}
 	rows.push(['', '', '', '', 'Totales', tQa || '', tQm || '', tQma || '', tQo || '', tGrand || '']);
+	// Add total count of all desserts across selected dates
+	const tSumAll = (tQa || 0) + (tQm || 0) + (tQma || 0) + (tQo || 0);
+	rows.push(['', '', '', '', 'Total postres', '', '', '', '', tSumAll || '']);
 	const ws = XLSX.utils.aoa_to_sheet(rows);
 	ws['!cols'] = [ {wch:10},{wch:18},{wch:3},{wch:10},{wch:24},{wch:6},{wch:6},{wch:6},{wch:6},{wch:10} ];
 	const wb = XLSX.utils.book_new();
