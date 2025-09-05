@@ -645,29 +645,31 @@ function updateSummary() {
 	const qvma = String(qma);
 	const qvo = String(qo);
 	const elAr = document.getElementById('sum-arco-qty-2'); if (elAr) elAr.textContent = qva; const elArAmt = document.getElementById('sum-arco-amt-2'); if (elArAmt) elArAmt.textContent = va;
-const elMe = document.getElementById('sum-melo-qty-2'); if (elMe) elMe.textContent = qvm; const elMeAmt = document.getElementById('sum-melo-amt-2'); if (elMeAmt) elMeAmt.textContent = vm;
-const elMa = document.getElementById('sum-mara-qty-2'); if (elMa) elMa.textContent = qvma; const elMaAmt = document.getElementById('sum-mara-amt-2'); if (elMaAmt) elMaAmt.textContent = vma;
-const elOr = document.getElementById('sum-oreo-qty-2'); if (elOr) elOr.textContent = qvo; const elOrAmt = document.getElementById('sum-oreo-amt-2'); if (elOrAmt) elOrAmt.textContent = vo;
-const grandStr = fmtNo.format(grand);
-$('#sum-grand').textContent = grandStr;
-// Decide whether to stack totals to avoid overlap on small screens
-requestAnimationFrame(() => {
-	const table = document.getElementById('sales-table');
-	if (!table) return;
-	const isSmall = window.matchMedia('(max-width: 600px)').matches;
-	let overlap = false;
-	if (isSmall) {
-		const ids = ['sum-arco-amt', 'sum-melo-amt', 'sum-mara-amt', 'sum-oreo-amt'];
-		for (const id of ids) {
-			const el = document.getElementById(id);
-			if (!el) continue;
-			if (el.scrollWidth > el.clientWidth) { overlap = true; break; }
+	const elMe = document.getElementById('sum-melo-qty-2'); if (elMe) elMe.textContent = qvm; const elMeAmt = document.getElementById('sum-melo-amt-2'); if (elMeAmt) elMeAmt.textContent = vm;
+	const elMa = document.getElementById('sum-mara-qty-2'); if (elMa) elMa.textContent = qvma; const elMaAmt = document.getElementById('sum-mara-amt-2'); if (elMaAmt) elMaAmt.textContent = vma;
+	const elOr = document.getElementById('sum-oreo-qty-2'); if (elOr) elOr.textContent = qvo; const elOrAmt = document.getElementById('sum-oreo-amt-2'); if (elOrAmt) elOrAmt.textContent = vo;
+	const grandStr = fmtNo.format(grand);
+	$('#sum-grand').textContent = grandStr;
+	// Decide whether to stack totals to avoid overlap on small screens
+	requestAnimationFrame(() => {
+		const table = document.getElementById('sales-table');
+		if (!table) return;
+		const isSmall = window.matchMedia('(max-width: 600px)').matches;
+		let overlap = false;
+		if (isSmall) {
+			const ids = ['sum-arco-amt', 'sum-melo-amt', 'sum-mara-amt', 'sum-oreo-amt'];
+			for (const id of ids) {
+				const el = document.getElementById(id);
+				if (!el) continue;
+				if (el.scrollWidth > el.clientWidth) { overlap = true; break; }
+			}
 		}
-	}
-	if (isSmall && overlap) table.classList.add('totals-stacked'); else table.classList.remove('totals-stacked');
-	const grandLine = document.getElementById('sum-grand-2');
-	if (grandLine) grandLine.textContent = grandStr;
-});
+		if (isSmall && overlap) table.classList.add('totals-stacked'); else table.classList.remove('totals-stacked');
+		const grandLine = document.getElementById('sum-grand-2');
+		if (grandLine) grandLine.textContent = grandStr;
+		const commLine = document.getElementById('sum-comm-2');
+		if (commLine) commLine.textContent = fmtNo.format(totalQty * 1000);
+	});
 }
 
 function readRow(tr) {
