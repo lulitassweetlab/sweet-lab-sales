@@ -748,7 +748,8 @@ function exportTableToExcel() {
 	// Vendedor y Comisiones (total postres * 1000)
 	data.push([]);
 	data.push(['Vendedor', state.currentSeller?.name || '']);
-	data.push(['Comisiones', String(tSum * 1000)]);
+	const comm = (tSum * 1000);
+	data.push(['Comisiones', fmtNo.format(comm)]);
 
 	const ws = XLSX.utils.aoa_to_sheet(data);
 	// Autofit: set column widths roughly based on header text length
