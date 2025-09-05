@@ -338,14 +338,14 @@ async function addRow() {
 	if (state.selectedDayId) payload.sale_day_id = state.selectedDayId;
 	const sale = await api('POST', API.Sales, payload);
 	sale.is_paid = false;
-	state.sales.push(sale);
+	state.sales.unshift(sale);
 	// Push undo: delete that sale
 	pushUndo({
 		do: async () => {
 			// redo create
 			const again = await api('POST', API.Sales, payload);
 			again.is_paid = false;
-			state.sales.push(again);
+			state.sales.unshift(again);
 			renderTable();
 		},
 		undo: async () => {
