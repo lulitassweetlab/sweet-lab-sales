@@ -19,6 +19,7 @@
 			</div>
 			<div class="header-actions">
 				<button id="theme-toggle" class="press-btn theme-toggle" title="Modo oscuro" aria-label="Cambiar tema"></button>
+				<button id="notif-toggle" class="press-btn" title="Notificaciones" aria-label="Activar notificaciones">🔔</button>
 				<button id="logout-btn" class="press-btn" title="Cerrar sesión" style="display:none">Salir</button>
 			</div>
 		</div>
@@ -193,6 +194,9 @@
 	<footer class="app-footer">
 		<small>Datos sincronizados con Netlify + Neon</small>
 	</footer>
+
+	<!-- Toast container -->
+	<div id="toast-container" aria-live="polite" aria-atomic="true"></div>
 
 	<script src="/app.js" type="module"></script>
 </body>

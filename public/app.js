@@ -19,6 +19,63 @@ const state = {
 	currentUser: null,
 };
 
+// Toasts and Notifications
+const notify = (() => {
+	const container = () => document.getElementById('toast-container');
+	function render(type, message, timeoutMs = 3000) {
+		const c = container();
+		if (!c) return;
+		const n = document.createElement('div');
+		n.className = 'toast toast-' + (type || 'info');
+		const msg = document.createElement('div'); msg.className = 'toast-msg'; msg.textContent = String(message || '');
+		const close = document.createElement('button'); close.className = 'toast-close'; close.type = 'button'; close.textContent = '×';
+		close.addEventListener('click', () => dismiss(n));
+		n.append(msg, close);
+		c.appendChild(n);
+		if (timeoutMs > 0) setTimeout(() => dismiss(n), timeoutMs);
+	}
+	function dismiss(node) {
+		if (!node || !node.parentNode) return;
+		node.style.animation = 'toast-out 140ms ease-in forwards';
+		setTimeout(() => { if (node.parentNode) node.parentNode.removeChild(node); }, 140);
+	}
+	async function ensurePermission() {
+		if (!('Notification' in window)) return 'unsupported';
+		if (Notification.permission === 'granted') return 'granted';
+		if (Notification.permission === 'denied') return 'denied';
+		try { return await Notification.requestPermission(); } catch { return 'denied'; }
+	}
+	function showBrowser(title, body) {
+		if (!('Notification' in window) || Notification.permission !== 'granted') return;
+		try { new Notification(String(title || 'Sweet Lab'), { body: String(body || ''), icon: '/logo.png' }); } catch {}
+	}
+	function initToggle() {
+		document.addEventListener('DOMContentLoaded', async () => {
+			const btn = document.getElementById('notif-toggle');
+			if (!btn) return;
+			const refresh = () => {
+				const ok = ('Notification' in window) && Notification.permission === 'granted';
+				btn.classList.toggle('enabled', !!ok);
+				btn.title = ok ? 'Notificaciones activas' : 'Activar notificaciones';
+			};
+			refresh();
+			btn.addEventListener('click', async () => {
+				const res = await ensurePermission();
+				if (res === 'granted') {
+					render('success', 'Notificaciones activadas');
+					showBrowser('Sweet Lab', 'Notificaciones activadas');
+				} else if (res === 'denied') {
+					render('error', 'Permiso de notificaciones denegado');
+				} else {
+					render('info', 'Notificaciones no disponibles en este navegador');
+				}
+				refresh();
+			});
+		});
+	}
+	return { info: (m,t)=>render('info',m,t), success: (m,t)=>render('success',m,t), error: (m,t)=>render('error',m,t), showBrowser, ensurePermission, initToggle };
+})();
+
 // Theme management
 (function initTheme(){
 	try {
@@ -81,6 +138,7 @@ function bindLogin() {
 		try { localStorage.setItem('authUser', JSON.stringify(state.currentUser)); } catch {}
 		applyAuthVisibility();
 		renderSellerButtons();
+		notify.success('Bienvenido ' + user);
 		// If not admin, auto-enter seller if exists
 		if (!state.currentUser.isAdmin) {
 			const seller = (state.sellers || []).find(s => String(s.name).toLowerCase() === String(user).toLowerCase());
@@ -159,6 +217,7 @@ async function addSeller(name) {
 	const seller = await api('POST', API.Sellers, { name });
 	state.sellers.push(seller);
 	renderSellerButtons();
+	notify.success('Vendedor agregado');
 }
 
 async function enterSeller(id) {
@@ -355,6 +414,7 @@ async function addRow() {
 		}
 	});
 	renderTable();
+	notify.success('Venta creada');
 }
 
 async function saveRow(tr, id) {
@@ -595,6 +655,7 @@ async function deleteRow(id) {
 		});
 	}
 	renderTable();
+	notify.info('Venta eliminada');
 }
 
 async function savePaid(tr, id, isPaid) {
@@ -753,6 +814,7 @@ function exportTableToExcel() {
 	const sellerName = state.currentSeller?.name?.replace(/[^\w\-]+/g, '_') || 'ventas';
 	const dateStr = new Date().toISOString().slice(0,10);
 	XLSX.writeFile(wb, `${sellerName}_${dateStr}.xlsx`);
+	try { notify.success('Excel exportado'); } catch {}
 }
 
 async function exportConsolidatedForDate(dayIso) {
@@ -998,6 +1060,7 @@ function renderDaysList() {
 				document.getElementById('sales-wrapper').classList.add('hidden');
 			}
 			await loadDaysForSeller();
+			notify.info('Fecha eliminada');
 		});
 		item.appendChild(btn);
 		item.appendChild(del);
@@ -1014,6 +1077,7 @@ async function addNewDate() {
 	}
 	await api('POST', '/api/days', { seller_id: sellerId, day });
 	await loadDaysForSeller();
+	notify.success('Fecha agregada');
 }
 
 function openDatePickerAndGetISO(onPicked, anchorX, anchorY) {
@@ -1508,6 +1572,7 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 
 (async function init() {
 	bindEvents();
+	notify.initToggle();
 	updateToolbarOffset();
 	try { const saved = localStorage.getItem('authUser'); if (saved) state.currentUser = JSON.parse(saved); } catch {}
 	await loadSellers();

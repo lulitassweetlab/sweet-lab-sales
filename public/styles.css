@@ -50,6 +50,52 @@
 	--hover-shadow-gold: rgba(212, 165, 116, 0.6);
 }
 
+/* Toasts */
+#toast-container {
+	position: fixed;
+	bottom: 16px;
+	right: 16px;
+	z-index: 10000;
+	display: grid;
+	gap: 8px;
+	pointer-events: none;
+}
+.toast {
+	background: var(--card);
+	color: var(--text);
+	border: 1px solid var(--border);
+	border-radius: 12px;
+	box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+	padding: 10px 12px;
+	min-width: 240px;
+	max-width: min(92vw, 420px);
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	pointer-events: auto;
+	animation: toast-in 160ms ease-out;
+}
+.toast-success { border-color: #16a34a; }
+.toast-error { border-color: var(--danger); }
+.toast-info { border-color: var(--accent); }
+.toast .toast-msg { flex: 1; }
+.toast .toast-close {
+	background: transparent;
+	border: none;
+	color: inherit;
+	cursor: pointer;
+	padding: 4px;
+	border-radius: 6px;
+}
+@keyframes toast-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes toast-out { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(6px); } }
+
+/* Bell button subtle state */
+#notif-toggle { position: relative; }
+#notif-toggle.enabled { color: #16a34a; }
+#notif-toggle::after { content: ''; position: absolute; top: -2px; right: -2px; width: 8px; height: 8px; border-radius: 999px; background: #a1a1aa; display: none; }
+#notif-toggle.enabled::after { display: block; background: #16a34a; }
+
 /* Dark theme variables */
 [data-theme="dark"] {
 	--bg: #000000;
