@@ -45,7 +45,7 @@ const notify = (() => {
 		const n = document.createElement('div');
 		n.className = 'toast toast-' + (type || 'info');
 		const actorName = String((state?.currentSeller?.name || state?.currentUser?.name || '') || '');
-		const finalMsg = actorName ? `${String(message || '')} — ${actorName}` : String(message || '');
+		const finalMsg = actorName ? `${String(message || '')} (${actorName})` : String(message || '');
 		const msg = document.createElement('div'); msg.className = 'toast-msg'; msg.textContent = finalMsg;
 		const close = document.createElement('button'); close.className = 'toast-close'; close.type = 'button'; close.textContent = '×';
 		close.addEventListener('click', () => dismiss(n));
@@ -69,7 +69,7 @@ const notify = (() => {
 		if (!('Notification' in window) || Notification.permission !== 'granted') return;
 		try {
 			const actorName = String((state?.currentSeller?.name || state?.currentUser?.name || '') || '');
-			const finalBody = actorName ? `${String(body || '')} — ${actorName}` : String(body || '');
+			const finalBody = actorName ? `${String(body || '')} (${actorName})` : String(body || '');
 			new Notification(String(title || 'Sweet Lab'), { body: finalBody, icon: '/logo.png' });
 		} catch {}
 	}
