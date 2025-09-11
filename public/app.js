@@ -324,6 +324,19 @@ function calcRowTotal(q) {
 	return arco * PRICES.arco + melo * PRICES.melo + mara * PRICES.mara + oreo * PRICES.oreo;
 }
 
+// Build compact sale summary: "Cliente + 2 arco + 1 melo"
+function formatSaleSummary(sale) {
+	if (!sale) return '';
+	const name = (sale.client_name || '').trim() || 'Cliente';
+	const parts = [];
+	const qAr = Number(sale.qty_arco || 0); if (qAr) parts.push(`${qAr} arco`);
+	const qMe = Number(sale.qty_melo || 0); if (qMe) parts.push(`${qMe} melo`);
+	const qMa = Number(sale.qty_mara || 0); if (qMa) parts.push(`${qMa} mara`);
+	const qOr = Number(sale.qty_oreo || 0); if (qOr) parts.push(`${qOr} oreo`);
+	const suffix = parts.length ? (' + ' + parts.join(' + ')) : '';
+	return name + suffix;
+}
+
 function renderTable() {
 	const tbody = $('#sales-tbody');
 	tbody.innerHTML = '';
@@ -496,6 +509,19 @@ async function saveRow(tr, id) {
 	const total = calcRowTotal({ arco: updated.qty_arco, melo: updated.qty_melo, mara: updated.qty_mara, oreo: updated.qty_oreo });
 	totalCell.textContent = fmtNo.format(total);
 	updateSummary();
+	// Notify with row summary when the row changes
+	try {
+		const changed = !prev || prev.client_name !== updated.client_name ||
+			Number(prev.qty_arco||0) !== Number(updated.qty_arco||0) ||
+			Number(prev.qty_melo||0) !== Number(updated.qty_melo||0) ||
+			Number(prev.qty_mara||0) !== Number(updated.qty_mara||0) ||
+			Number(prev.qty_oreo||0) !== Number(updated.qty_oreo||0);
+		if (changed) {
+			const summary = formatSaleSummary(updated);
+			notify.success(summary);
+			notify.showBrowser('Venta', summary);
+		}
+	} catch {}
 	// Refresh markers from backend logs only
 	preloadChangeLogsForCurrentTable();
 	// Push undo: restore prev snapshot
@@ -721,7 +747,13 @@ async function deleteRow(id) {
 		});
 	}
 	renderTable();
-	notify.info('Venta eliminada');
+	try {
+		if (prev) {
+			const summary = formatSaleSummary(prev);
+			notify.info('Eliminada: ' + summary);
+			notify.showBrowser('Venta eliminada', summary);
+		}
+	} catch {}
 }
 
 async function savePaid(tr, id, isPaid) {
