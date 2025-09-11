@@ -116,7 +116,7 @@ const notify = (() => {
 				const item = document.createElement('div'); item.className = 'notif-item';
 				const when = document.createElement('div'); when.className = 'when';
 				const d = new Date(it.when); when.textContent = isNaN(d.getTime()) ? String(it.when) : d.toLocaleString();
-				const who = document.createElement('div'); who.className = 'when'; who.textContent = 'Vendedor: ' + String(it.actor || '');
+				const who = document.createElement('div'); who.className = 'when'; who.textContent = String(it.actor || '');
 				const text = document.createElement('div'); text.className = 'text'; text.textContent = String(it.text || '');
 				item.append(when, who, text);
 				list.appendChild(item);
