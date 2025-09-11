@@ -74,6 +74,17 @@ export async function ensureSchema() {
 		image_base64 TEXT NOT NULL,
 		created_at TIMESTAMPTZ DEFAULT now()
 	)`;
+	await sql`CREATE TABLE IF NOT EXISTS notifications (
+		id SERIAL PRIMARY KEY,
+		type TEXT NOT NULL,
+		seller_id INTEGER REFERENCES sellers(id) ON DELETE SET NULL,
+		sale_id INTEGER REFERENCES sales(id) ON DELETE SET NULL,
+		sale_day_id INTEGER REFERENCES sale_days(id) ON DELETE SET NULL,
+		message TEXT NOT NULL,
+		actor_name TEXT,
+		created_at TIMESTAMPTZ DEFAULT now(),
+		read_at TIMESTAMPTZ
+	)`;
 	schemaEnsured = true;
 }
 
@@ -97,6 +108,11 @@ export async function getOrCreateDayId(sellerId, day) {
 	if (rows.length) return rows[0].id;
 	const [created] = await sql`INSERT INTO sale_days (seller_id, day) VALUES (${sellerId}, ${d}) RETURNING id`;
 	return created.id;
+}
+
+export async function notify({ type, sellerId = null, saleId = null, saleDayId = null, message = '', actorName = '' }) {
+	await ensureSchema();
+	await sql`INSERT INTO notifications (type, seller_id, sale_id, sale_day_id, message, actor_name) VALUES (${type}, ${sellerId}, ${saleId}, ${saleDayId}, ${message}, ${actorName})`;
 }
 
 export { sql };
