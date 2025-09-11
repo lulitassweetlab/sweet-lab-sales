@@ -23,6 +23,31 @@ const state = {
 const notify = (() => {
 	const container = () => document.getElementById('toast-container');
 	const STORAGE_KEY = 'notify_log_v1';
+	let notifIcon = '/logo.png';
+	function buildPinkIcon() {
+		try {
+			const size = 128;
+			const c = document.createElement('canvas'); c.width = size; c.height = size;
+			const ctx = c.getContext('2d');
+			// background
+			ctx.fillStyle = '#ffffff';
+			ctx.fillRect(0, 0, size, size);
+			// pink rounded border
+			const r = 18; const pad = 6;
+			ctx.strokeStyle = '#d4567a';
+			ctx.lineWidth = 12;
+			ctx.beginPath();
+			const x=pad, y=pad, w=size-pad*2, h=size-pad*2;
+			ctx.moveTo(x+r, y);
+			ctx.arcTo(x+w, y, x+w, y+h, r);
+			ctx.arcTo(x+w, y+h, x, y+h, r);
+			ctx.arcTo(x, y+h, x, y, r);
+			ctx.arcTo(x, y, x+w, y, r);
+			ctx.closePath();
+			ctx.stroke();
+			notifIcon = c.toDataURL('image/png');
+		} catch {}
+	}
 	function readLog() {
 		try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
 	}
@@ -80,11 +105,12 @@ const notify = (() => {
 		if (!('Notification' in window) || Notification.permission !== 'granted') return;
 		try {
 			const finalBody = String(body || '');
-			new Notification(String(title || 'Sweet Lab'), { body: finalBody, icon: '/logo.png' });
+			new Notification(String(title || 'Sweet Lab'), { body: finalBody, icon: notifIcon });
 		} catch {}
 	}
 	function initToggle() {
 		document.addEventListener('DOMContentLoaded', async () => {
+			buildPinkIcon();
 			const btn = document.getElementById('notif-toggle');
 			if (!btn) return;
 			const refresh = () => {
