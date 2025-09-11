@@ -568,22 +568,22 @@ async function saveRow(tr, id) {
 			if (newAr !== prevAr) {
 				const prevNote = prevAr > 0 ? ` (antes ${prevAr})` : '';
 				const msg = `${client} + ${newAr} arco${prevNote}` + (seller ? ` - ${seller}` : '');
-				notify.success(msg); notify.showBrowser('Venta', msg);
+				notify.success(msg);
 			}
 			if (newMe !== prevMe) {
 				const prevNote = prevMe > 0 ? ` (antes ${prevMe})` : '';
 				const msg = `${client} + ${newMe} melo${prevNote}` + (seller ? ` - ${seller}` : '');
-				notify.success(msg); notify.showBrowser('Venta', msg);
+				notify.success(msg);
 			}
 			if (newMa !== prevMa) {
 				const prevNote = prevMa > 0 ? ` (antes ${prevMa})` : '';
 				const msg = `${client} + ${newMa} mara${prevNote}` + (seller ? ` - ${seller}` : '');
-				notify.success(msg); notify.showBrowser('Venta', msg);
+				notify.success(msg);
 			}
 			if (newOr !== prevOr) {
 				const prevNote = prevOr > 0 ? ` (antes ${prevOr})` : '';
 				const msg = `${client} + ${newOr} oreo${prevNote}` + (seller ? ` - ${seller}` : '');
-				notify.success(msg); notify.showBrowser('Venta', msg);
+				notify.success(msg);
 			}
 		}
 	} catch {}
