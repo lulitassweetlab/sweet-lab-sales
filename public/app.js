@@ -516,22 +516,22 @@ async function saveRow(tr, id) {
 			const prevMa = Number(prev.qty_mara||0), newMa = Number(updated.qty_mara||0);
 			const prevOr = Number(prev.qty_oreo||0), newOr = Number(updated.qty_oreo||0);
 			const seller = String((state?.currentSeller?.name || state?.currentUser?.name || '') || '');
-			if (newAr > 0 && newAr !== prevAr) {
+			if (newAr !== prevAr) {
 				const prevNote = prevAr > 0 ? ` (antes ${prevAr})` : '';
 				const msg = `${client} + ${newAr} arco${prevNote}` + (seller ? ` - ${seller}` : '');
 				notify.success(msg); notify.showBrowser('Venta', msg);
 			}
-			if (newMe > 0 && newMe !== prevMe) {
+			if (newMe !== prevMe) {
 				const prevNote = prevMe > 0 ? ` (antes ${prevMe})` : '';
 				const msg = `${client} + ${newMe} melo${prevNote}` + (seller ? ` - ${seller}` : '');
 				notify.success(msg); notify.showBrowser('Venta', msg);
 			}
-			if (newMa > 0 && newMa !== prevMa) {
+			if (newMa !== prevMa) {
 				const prevNote = prevMa > 0 ? ` (antes ${prevMa})` : '';
 				const msg = `${client} + ${newMa} mara${prevNote}` + (seller ? ` - ${seller}` : '');
 				notify.success(msg); notify.showBrowser('Venta', msg);
 			}
-			if (newOr > 0 && newOr !== prevOr) {
+			if (newOr !== prevOr) {
 				const prevNote = prevOr > 0 ? ` (antes ${prevOr})` : '';
 				const msg = `${client} + ${newOr} oreo${prevNote}` + (seller ? ` - ${seller}` : '');
 				notify.success(msg); notify.showBrowser('Venta', msg);
