@@ -493,7 +493,6 @@ async function addRow() {
 		}
 	});
 	renderTable();
-	notify.success('Venta creada');
 }
 
 async function saveRow(tr, id) {
@@ -509,17 +508,18 @@ async function saveRow(tr, id) {
 	const total = calcRowTotal({ arco: updated.qty_arco, melo: updated.qty_melo, mara: updated.qty_mara, oreo: updated.qty_oreo });
 	totalCell.textContent = fmtNo.format(total);
 	updateSummary();
-	// Notify with row summary when the row changes
+	// Notify only when quantities change; one notification per dessert type
 	try {
-		const changed = !prev || prev.client_name !== updated.client_name ||
-			Number(prev.qty_arco||0) !== Number(updated.qty_arco||0) ||
-			Number(prev.qty_melo||0) !== Number(updated.qty_melo||0) ||
-			Number(prev.qty_mara||0) !== Number(updated.qty_mara||0) ||
-			Number(prev.qty_oreo||0) !== Number(updated.qty_oreo||0);
-		if (changed) {
-			const summary = formatSaleSummary(updated);
-			notify.success(summary);
-			notify.showBrowser('Venta', summary);
+		if (prev) {
+			const client = (updated.client_name || '').trim() || 'Cliente';
+			const prevAr = Number(prev.qty_arco||0), newAr = Number(updated.qty_arco||0);
+			const prevMe = Number(prev.qty_melo||0), newMe = Number(updated.qty_melo||0);
+			const prevMa = Number(prev.qty_mara||0), newMa = Number(updated.qty_mara||0);
+			const prevOr = Number(prev.qty_oreo||0), newOr = Number(updated.qty_oreo||0);
+			if (newAr !== prevAr && newAr > 0) { const msg = `${client} + ${newAr} arco`; notify.success(msg); notify.showBrowser('Venta', msg); }
+			if (newMe !== prevMe && newMe > 0) { const msg = `${client} + ${newMe} melo`; notify.success(msg); notify.showBrowser('Venta', msg); }
+			if (newMa !== prevMa && newMa > 0) { const msg = `${client} + ${newMa} mara`; notify.success(msg); notify.showBrowser('Venta', msg); }
+			if (newOr !== prevOr && newOr > 0) { const msg = `${client} + ${newOr} oreo`; notify.success(msg); notify.showBrowser('Venta', msg); }
 		}
 	} catch {}
 	// Refresh markers from backend logs only
