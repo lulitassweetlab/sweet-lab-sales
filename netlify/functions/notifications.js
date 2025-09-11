@@ -19,7 +19,6 @@ export async function handler(event) {
 			rows = await sql`SELECT id, type, seller_id, sale_id, sale_day_id, message, actor_name, created_at FROM notifications WHERE created_at > ${new Date(sinceParam)} ORDER BY created_at ASC, id ASC LIMIT 100`;
 		} else {
 			rows = await sql`SELECT id, type, seller_id, sale_id, sale_day_id, message, actor_name, created_at FROM notifications ORDER BY id DESC LIMIT 20`;
-			rows = rows.reverse();
 		}
 		return json(rows);
 	} catch (e) {
