@@ -44,13 +44,15 @@ const notify = (() => {
 		if (!c) return;
 		const n = document.createElement('div');
 		n.className = 'toast toast-' + (type || 'info');
-		const msg = document.createElement('div'); msg.className = 'toast-msg'; msg.textContent = String(message || '');
+		const actorName = String((state?.currentSeller?.name || state?.currentUser?.name || '') || '');
+		const finalMsg = actorName ? `${String(message || '')} — ${actorName}` : String(message || '');
+		const msg = document.createElement('div'); msg.className = 'toast-msg'; msg.textContent = finalMsg;
 		const close = document.createElement('button'); close.className = 'toast-close'; close.type = 'button'; close.textContent = '×';
 		close.addEventListener('click', () => dismiss(n));
 		n.append(msg, close);
 		c.appendChild(n);
 		if (timeoutMs > 0) setTimeout(() => dismiss(n), timeoutMs);
-		pushLog({ type, text: message });
+		pushLog({ type, text: finalMsg, actor: actorName });
 	}
 	function dismiss(node) {
 		if (!node || !node.parentNode) return;
@@ -65,7 +67,11 @@ const notify = (() => {
 	}
 	function showBrowser(title, body) {
 		if (!('Notification' in window) || Notification.permission !== 'granted') return;
-		try { new Notification(String(title || 'Sweet Lab'), { body: String(body || ''), icon: '/logo.png' }); } catch {}
+		try {
+			const actorName = String((state?.currentSeller?.name || state?.currentUser?.name || '') || '');
+			const finalBody = actorName ? `${String(body || '')} — ${actorName}` : String(body || '');
+			new Notification(String(title || 'Sweet Lab'), { body: finalBody, icon: '/logo.png' });
+		} catch {}
 	}
 	function initToggle() {
 		document.addEventListener('DOMContentLoaded', async () => {
@@ -110,8 +116,9 @@ const notify = (() => {
 				const item = document.createElement('div'); item.className = 'notif-item';
 				const when = document.createElement('div'); when.className = 'when';
 				const d = new Date(it.when); when.textContent = isNaN(d.getTime()) ? String(it.when) : d.toLocaleString();
+				const who = document.createElement('div'); who.className = 'when'; who.textContent = 'Vendedor: ' + String(it.actor || '');
 				const text = document.createElement('div'); text.className = 'text'; text.textContent = String(it.text || '');
-				item.append(when, text);
+				item.append(when, who, text);
 				list.appendChild(item);
 			}
 		}
