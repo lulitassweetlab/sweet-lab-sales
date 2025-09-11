@@ -22,6 +22,23 @@ const state = {
 // Toasts and Notifications
 const notify = (() => {
 	const container = () => document.getElementById('toast-container');
+	const STORAGE_KEY = 'notify_log_v1';
+	function readLog() {
+		try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
+	}
+	function writeLog(items) {
+		try { localStorage.setItem(STORAGE_KEY, JSON.stringify(items.slice(-200))); } catch {}
+	}
+	function pushLog(entry) {
+		const list = readLog();
+		list.push({
+			id: Date.now() + '-' + Math.random().toString(36).slice(2),
+			when: new Date().toISOString(),
+			type: entry?.type || 'info',
+			text: String(entry?.text || '')
+		});
+		writeLog(list);
+	}
 	function render(type, message, timeoutMs = 3000) {
 		const c = container();
 		if (!c) return;
@@ -33,6 +50,7 @@ const notify = (() => {
 		n.append(msg, close);
 		c.appendChild(n);
 		if (timeoutMs > 0) setTimeout(() => dismiss(n), timeoutMs);
+		pushLog({ type, text: message });
 	}
 	function dismiss(node) {
 		if (!node || !node.parentNode) return;
@@ -59,21 +77,62 @@ const notify = (() => {
 				btn.title = ok ? 'Notificaciones activas' : 'Activar notificaciones';
 			};
 			refresh();
-			btn.addEventListener('click', async () => {
-				const res = await ensurePermission();
-				if (res === 'granted') {
-					render('success', 'Notificaciones activadas');
-					showBrowser('Sweet Lab', 'Notificaciones activadas');
-				} else if (res === 'denied') {
-					render('error', 'Permiso de notificaciones denegado');
-				} else {
-					render('info', 'Notificaciones no disponibles en este navegador');
-				}
-				refresh();
+			btn.addEventListener('click', async (ev) => {
+				openDialog(ev?.clientX, ev?.clientY);
 			});
 		});
 	}
-	return { info: (m,t)=>render('info',m,t), success: (m,t)=>render('success',m,t), error: (m,t)=>render('error',m,t), showBrowser, ensurePermission, initToggle };
+	function openDialog(anchorX, anchorY) {
+		const backdrop = document.createElement('div');
+		backdrop.className = 'notif-dialog-backdrop';
+		const dlg = document.createElement('div');
+		dlg.className = 'notif-dialog';
+		const header = document.createElement('div'); header.className = 'notif-header';
+		const title = document.createElement('div'); title.className = 'notif-title'; title.textContent = 'Notificaciones';
+		const actions = document.createElement('div'); actions.className = 'notif-actions';
+		const permBtn = document.createElement('button'); permBtn.className = 'notif-btn'; permBtn.textContent = 'Pedir permiso';
+		const clearBtn = document.createElement('button'); clearBtn.className = 'notif-btn'; clearBtn.textContent = 'Limpiar';
+		const closeBtn = document.createElement('button'); closeBtn.className = 'notif-close'; closeBtn.textContent = '✕';
+		actions.append(permBtn, clearBtn, closeBtn);
+		header.append(title, actions);
+		const body = document.createElement('div'); body.className = 'notif-body';
+		const toolbar = document.createElement('div'); toolbar.className = 'notif-toolbar';
+		const info = document.createElement('div'); info.style.fontSize = '12px'; info.style.opacity = '0.8'; info.textContent = 'Últimas 200 notificaciones';
+		toolbar.append(info);
+		const list = document.createElement('div'); list.className = 'notif-list';
+		function renderList() {
+			list.innerHTML = '';
+			const data = readLog().slice().reverse();
+			if (data.length === 0) {
+				const empty = document.createElement('div'); empty.className = 'notif-empty'; empty.textContent = 'Sin notificaciones'; list.appendChild(empty); return;
+			}
+			for (const it of data) {
+				const item = document.createElement('div'); item.className = 'notif-item';
+				const when = document.createElement('div'); when.className = 'when';
+				const d = new Date(it.when); when.textContent = isNaN(d.getTime()) ? String(it.when) : d.toLocaleString();
+				const text = document.createElement('div'); text.className = 'text'; text.textContent = String(it.text || '');
+				item.append(when, text);
+				list.appendChild(item);
+			}
+		}
+		body.append(toolbar, list);
+		dlg.append(header, body);
+		backdrop.appendChild(dlg);
+		document.body.appendChild(backdrop);
+		renderList();
+		function cleanup(){ if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop); }
+		backdrop.addEventListener('click', (e) => { if (e.target === backdrop) cleanup(); });
+		closeBtn.addEventListener('click', cleanup);
+		clearBtn.addEventListener('click', () => { writeLog([]); renderList(); });
+		permBtn.addEventListener('click', async () => {
+			const res = await ensurePermission();
+			if (res === 'granted') { render('success', 'Notificaciones activadas'); showBrowser('Sweet Lab', 'Notificaciones activadas'); }
+			else if (res === 'denied') { render('error', 'Permiso de notificaciones denegado'); }
+			else { render('info', 'Notificaciones no disponibles'); }
+			const btn = document.getElementById('notif-toggle'); if (btn) { const ok = ('Notification' in window) && Notification.permission === 'granted'; btn.classList.toggle('enabled', !!ok); }
+		});
+	}
+	return { info: (m,t)=>render('info',m,t), success: (m,t)=>render('success',m,t), error: (m,t)=>render('error',m,t), showBrowser, ensurePermission, initToggle, openDialog };
 })();
 
 // Theme management
