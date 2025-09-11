@@ -129,6 +129,9 @@ html, body, button, input, select, textarea, th, td, h1, h2, h3, h4, p, small, l
 .header-left { display: inline-flex; align-items: center; gap: 12px; }
 .header-actions { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; }
 .header-actions #logout-btn { display: none; }
+.notif-btn { position: relative; width: 32px; height: 32px; border: 1px solid var(--border); border-radius: 12px; background: var(--card); }
+.notif-btn::before { content: ''; width: 18px; height: 18px; display: inline-block; background-color: currentColor; -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 21a2 2 0 0 0 4 0m8-3H2l2-2V9a8 8 0 1 1 16 0v7l2 2z"/></svg>') no-repeat center / contain; mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 21a2 2 0 0 0 4 0m8-3H2l2-2V9a8 8 0 1 1 16 0v7l2 2z"/></svg>') no-repeat center / contain; }
+.notif-dot { position: absolute; right: 4px; top: 4px; width: 8px; height: 8px; background: #ef4444; border-radius: 999px; box-shadow: 0 0 0 2px var(--card); }
 .app-logo { height: 48px; width: auto; display: block; }
 .toolbar-logo { height: 36px; width: auto; }
 

@@ -1,4 +1,4 @@
-import { ensureSchema, sql, recalcTotalForId, getOrCreateDayId } from './_db.js';
+import { ensureSchema, sql, recalcTotalForId, getOrCreateDayId, notify } from './_db.js';
 
 function json(body, status = 200) {
 	return { statusCode: status, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
@@ -57,13 +57,20 @@ export async function handler(event) {
 					saleDayId = await getOrCreateDayId(sellerId, iso);
 				}
 				const [row] = await sql`INSERT INTO sales (seller_id, sale_day_id) VALUES (${sellerId}, ${saleDayId}) RETURNING id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, is_paid, pay_method, comment_text, total_cents, created_at`;
+				try {
+					const seller = (await sql`SELECT name FROM sellers WHERE id=${sellerId}`)[0];
+					const dayRow = (await sql`SELECT day FROM sale_days WHERE id=${saleDayId}`)[0];
+					const sellerName = seller?.name || '';
+					const dayIso = (dayRow?.day || '').toString().slice(0,10);
+					await notify({ type: 'sale_created', sellerId, saleId: row.id, saleDayId: saleDayId, message: `Nueva venta para ${sellerName} (${dayIso})`, actorName: (data._actor_name || '').toString() });
+				} catch {}
 				return json(row, 201);
 			}
 			case 'PUT': {
 				const data = JSON.parse(event.body || '{}');
 				const id = Number(data.id);
 				if (!id) return json({ error: 'id requerido' }, 400);
-				const current = (await sql`SELECT client_name, qty_arco, qty_melo, qty_mara, qty_oreo, is_paid, pay_method, comment_text, created_at FROM sales WHERE id=${id}`)[0] || {};
+				const current = (await sql`SELECT seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, is_paid, pay_method, comment_text, created_at FROM sales WHERE id=${id}`)[0] || {};
 				const createdAt = current.created_at ? new Date(current.created_at) : null;
 				const withinGrace = createdAt ? ((new Date()) - createdAt) < 120000 : false; // 2 minutes
 				const client = (data.client_name ?? '').toString();
@@ -96,6 +103,23 @@ export async function handler(event) {
 				await write('qty_oreo', current.qty_oreo ?? 0, qo ?? 0);
 				await write('pay_method', current.pay_method ?? '', payMethod ?? '');
 				const row = await recalcTotalForId(id);
+				try {
+					if (!withinGrace) {
+						const seller = (await sql`SELECT name FROM sellers WHERE id=${current.seller_id}`)[0];
+						const dayRow = (await sql`SELECT day FROM sale_days WHERE id=${current.sale_day_id}`)[0];
+						const sellerName = seller?.name || '';
+						const dayIso = (dayRow?.day || '').toString().slice(0,10);
+						const changes = [];
+						if (String(current.client_name ?? '') !== String(client ?? '')) changes.push('Cliente');
+						if ((current.qty_arco ?? 0) !== (qa ?? 0)) changes.push('Arco');
+						if ((current.qty_melo ?? 0) !== (qm ?? 0)) changes.push('Melo');
+						if ((current.qty_mara ?? 0) !== (qma ?? 0)) changes.push('Mara');
+						if ((current.qty_oreo ?? 0) !== (qo ?? 0)) changes.push('Oreo');
+						if (String(current.pay_method ?? '') !== String(payMethod ?? '')) changes.push('Pago');
+						const summary = changes.length ? `Cambios: ${changes.join(', ')}` : 'Actualización de venta';
+						await notify({ type: 'sale_updated', sellerId: current.seller_id, saleId: id, saleDayId: current.sale_day_id, message: `${summary} para ${sellerName} (${dayIso}) por ${(data._actor_name || '').toString()}`, actorName: (data._actor_name || '').toString() });
+					}
+				} catch {}
 				return json(row);
 			}
 			case 'DELETE': {

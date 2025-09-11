@@ -1,6 +1,8 @@
 const API = {
 	Sellers: '/api/sellers',
-	Sales: '/api/sales'
+	Sales: '/api/sales',
+	Notifications: '/api/notifications',
+	Days: '/api/days'
 };
 
 const PRICES = {
@@ -17,6 +19,7 @@ const state = {
 	sellers: [],
 	sales: [],
 	currentUser: null,
+	notifications: { unreadCount: 0, items: [], timer: null }
 };
 
 // Theme management
@@ -334,7 +337,7 @@ async function performRedo() {
 // Wrap API operations to record undo/redo
 async function addRow() {
 	const sellerId = state.currentSeller.id;
-	const payload = { seller_id: sellerId };
+	const payload = { seller_id: sellerId, _actor_name: state.currentUser?.name || '' };
 	if (state.selectedDayId) payload.sale_day_id = state.selectedDayId;
 	const sale = await api('POST', API.Sales, payload);
 	sale.is_paid = false;
@@ -887,6 +890,8 @@ function bindEvents() {
 	});
 
 	document.getElementById('export-excel')?.addEventListener('click', exportTableToExcel);
+	const nbtn = document.getElementById('notif-btn');
+	nbtn?.addEventListener('click', (ev) => { openNotificationsPopover(ev.clientX, ev.clientY); });
 }
 
 // Reverted: removed sticky header clone logic to return to visible non-sticky thead state.
@@ -1522,6 +1527,7 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 		if (me) enterSeller(me.id); else switchView('#view-select-seller');
 	}
 	window.addEventListener('resize', debounce(updateSummary, 150));
+	startNotificationsPolling();
 })();
 
 (function enforceDesktopHeaderHorizontal(){
@@ -1685,3 +1691,67 @@ function renderChangeMarkerIfNeeded(tdEl, saleId, field) {
 }
 
 // (mobile bounce limiter removed per user preference)
+// Notifications UI and polling
+async function fetchNotifications() {
+	try {
+		const params = new URLSearchParams();
+		if (state.currentSeller?.id) params.set('seller_id', String(state.currentSeller.id));
+		const items = await api('GET', `${API.Notifications}?${params.toString()}`);
+		state.notifications.items = items;
+		const unread = (items || []).filter(n => !n.read_at);
+		state.notifications.unreadCount = unread.length;
+		const dot = document.getElementById('notif-dot');
+		if (dot) { if (unread.length) dot.classList.remove('hidden'); else dot.classList.add('hidden'); }
+	} catch {}
+}
+
+function startNotificationsPolling() {
+	stopNotificationsPolling();
+	fetchNotifications();
+	state.notifications.timer = setInterval(fetchNotifications, 15000);
+}
+
+function stopNotificationsPolling() { if (state.notifications.timer) { clearInterval(state.notifications.timer); state.notifications.timer = null; } }
+
+async function markAllNotificationsRead() {
+	const body = {};
+	if (state.currentSeller?.id) body.seller_id = state.currentSeller.id;
+	body.mark_all = true;
+	await api('PUT', API.Notifications, body);
+	await fetchNotifications();
+}
+
+function openNotificationsPopover(anchorX, anchorY) {
+	const pop = document.createElement('div');
+	pop.className = 'history-popover';
+	pop.style.position = 'fixed';
+	pop.style.left = (anchorX || (window.innerWidth - 16)) + 'px';
+	pop.style.top = ((anchorY || 56) + 6) + 'px';
+	pop.style.transform = 'translate(-100%, 0)';
+	pop.style.zIndex = '1000';
+	const title = document.createElement('div'); title.className = 'history-title'; title.textContent = 'Notificaciones';
+	const list = document.createElement('div'); list.className = 'history-list';
+	const items = state.notifications.items || [];
+	if (!items.length) {
+		const empty = document.createElement('div'); empty.className = 'history-item'; empty.textContent = 'Sin notificaciones'; list.appendChild(empty);
+	} else {
+		for (const n of items) {
+			const line = document.createElement('div'); line.className = 'history-item';
+			const when = new Date(n.created_at);
+			const ts = isNaN(when.getTime()) ? '' : `[${when.toLocaleString()}] `;
+			line.textContent = ts + (n.message || '');
+			list.appendChild(line);
+		}
+	}
+	const actions = document.createElement('div'); actions.className = 'confirm-actions';
+	const markBtn = document.createElement('button'); markBtn.className = 'press-btn'; markBtn.textContent = 'Marcar leídas';
+	const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn'; closeBtn.textContent = 'Cerrar';
+	actions.append(markBtn, closeBtn);
+	pop.append(title, list, actions);
+	document.body.appendChild(pop);
+	function cleanup() { document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); if (pop.parentNode) pop.parentNode.removeChild(pop); }
+	function outside(ev) { if (!pop.contains(ev.target)) cleanup(); }
+	setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
+	markBtn.addEventListener('click', async () => { await markAllNotificationsRead(); cleanup(); });
+	closeBtn.addEventListener('click', cleanup);
+}

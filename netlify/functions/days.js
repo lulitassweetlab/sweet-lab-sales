@@ -1,4 +1,4 @@
-import { ensureSchema, sql, getOrCreateDayId } from './_db.js';
+import { ensureSchema, sql, getOrCreateDayId, notify } from './_db.js';
 
 function json(body, status = 200) {
 	return { statusCode: status, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
@@ -28,6 +28,11 @@ export async function handler(event) {
 					day = iso;
 				}
 				const id = await getOrCreateDayId(sellerId, day);
+				try {
+					const seller = (await sql`SELECT name FROM sellers WHERE id=${sellerId}`)[0];
+					const sellerName = seller?.name || '';
+					await notify({ type: 'day_created', sellerId, saleDayId: id, message: `Nueva fecha ${day} para ${sellerName}`, actorName: (data._actor_name || '').toString() });
+				} catch {}
 				return json({ id, day }, 201);
 			}
 			case 'PUT': {
