@@ -28,6 +28,7 @@ const notify = (() => {
 	}
 	function writeLog(items) {
 		try { localStorage.setItem(STORAGE_KEY, JSON.stringify(items.slice(-200))); } catch {}
+		refreshUnreadDot();
 	}
 	function pushLog(entry) {
 		const list = readLog();
@@ -35,9 +36,18 @@ const notify = (() => {
 			id: Date.now() + '-' + Math.random().toString(36).slice(2),
 			when: new Date().toISOString(),
 			type: entry?.type || 'info',
-			text: String(entry?.text || '')
+			text: String(entry?.text || ''),
+			read: false
 		});
 		writeLog(list);
+	}
+	function refreshUnreadDot() {
+		try {
+			const btn = document.getElementById('notif-toggle');
+			if (!btn) return;
+			const anyUnread = readLog().some(it => it && it.read === false);
+			btn.classList.toggle('has-unread', !!anyUnread);
+		} catch {}
 	}
 	function render(type, message, timeoutMs = 3000) {
 		const c = container();
@@ -86,6 +96,7 @@ const notify = (() => {
 			btn.addEventListener('click', async (ev) => {
 				openDialog(ev?.clientX, ev?.clientY);
 			});
+			refreshUnreadDot();
 		});
 	}
 	function openDialog(anchorX, anchorY) {
@@ -126,6 +137,13 @@ const notify = (() => {
 		backdrop.appendChild(dlg);
 		document.body.appendChild(backdrop);
 		renderList();
+		// mark all as read
+		try {
+			const data = readLog();
+			let changed = false;
+			for (const it of data) { if (it && it.read === false) { it.read = true; changed = true; } }
+			if (changed) writeLog(data);
+		} catch {}
 		function cleanup(){ if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop); }
 		backdrop.addEventListener('click', (e) => { if (e.target === backdrop) cleanup(); });
 		closeBtn.addEventListener('click', cleanup);
