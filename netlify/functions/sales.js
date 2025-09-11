@@ -1,4 +1,4 @@
-import { ensureSchema, sql, recalcTotalForId, getOrCreateDayId } from './_db.js';
+import { ensureSchema, sql, recalcTotalForId, getOrCreateDayId, notify as notifyDb } from './_db.js';
 
 function json(body, status = 200) {
 	return { statusCode: status, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
@@ -95,6 +95,17 @@ export async function handler(event) {
 				await write('qty_mara', current.qty_mara ?? 0, qma ?? 0);
 				await write('qty_oreo', current.qty_oreo ?? 0, qo ?? 0);
 				await write('pay_method', current.pay_method ?? '', payMethod ?? '');
+				// emit realtime notifications for qty changes
+				async function emitQty(name, prev, next) {
+					if (String(prev) === String(next)) return;
+					const prevNote = (Number(prev||0) > 0) ? ` (antes ${prev})` : '';
+					const msg = `${client || 'Cliente'} + ${next} ${name}${prevNote}` + (actor ? ` - ${actor}` : '');
+					await notifyDb({ type: 'qty', sellerId: Number(data.seller_id||0)||null, saleId: id, saleDayId: Number(data.sale_day_id||0)||null, message: msg, actorName: actor });
+				}
+				await emitQty('arco', current.qty_arco ?? 0, qa ?? 0);
+				await emitQty('melo', current.qty_melo ?? 0, qm ?? 0);
+				await emitQty('mara', current.qty_mara ?? 0, qma ?? 0);
+				await emitQty('oreo', current.qty_oreo ?? 0, qo ?? 0);
 				const row = await recalcTotalForId(id);
 				return json(row);
 			}

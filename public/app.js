@@ -1731,6 +1731,29 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 (async function init() {
 	bindEvents();
 	notify.initToggle();
+	// Realtime polling of backend notifications
+	(function startRealtime(){
+		let lastId = 0;
+		async function tick() {
+			try {
+				const url = lastId ? `/api/notifications?after_id=${encodeURIComponent(lastId)}` : '/api/notifications';
+				const res = await fetch(url);
+				if (res.ok) {
+					const rows = await res.json();
+					if (Array.isArray(rows) && rows.length) {
+						for (const r of rows) {
+							lastId = Math.max(lastId, Number(r.id||0));
+							const msg = String(r.message || '');
+							notify.info(msg);
+							notify.showBrowser('Venta', msg);
+						}
+					}
+				}
+			} catch {}
+			setTimeout(tick, 2500);
+		}
+		tick();
+	})();
 	updateToolbarOffset();
 	try { const saved = localStorage.getItem('authUser'); if (saved) state.currentUser = JSON.parse(saved); } catch {}
 	await loadSellers();
