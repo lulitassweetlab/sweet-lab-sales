@@ -963,6 +963,12 @@ function exportTableToExcel() {
 		vGr === '0' ? '' : vGr
 	]);
 
+	// Vendedor y Comisiones (total postres * 1000)
+	data.push([]);
+	data.push(['Vendedor', state.currentSeller?.name || '']);
+	const comm = (tSum * 1000);
+	data.push(['Comisiones', fmtNo.format(comm)]);
+
 	const ws = XLSX.utils.aoa_to_sheet(data);
 	// Autofit: set column widths roughly based on header text length
 	ws['!cols'] = header.map(h => ({ wch: Math.max(8, h.length + 2) }));
