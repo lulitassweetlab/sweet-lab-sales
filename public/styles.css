@@ -79,6 +79,7 @@
 .toast-error { border-color: var(--danger); }
 .toast-info { border-color: var(--accent); }
 .toast .toast-msg { flex: 1; }
+.toast .toast-msg .actor { opacity: 0.8; font-style: italic; }
 .toast .toast-close {
 	background: transparent;
 	border: none;
