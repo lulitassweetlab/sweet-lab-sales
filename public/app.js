@@ -47,15 +47,7 @@ const notify = (() => {
 		const actorName = String((state?.currentSeller?.name || state?.currentUser?.name || '') || '');
 		const msg = document.createElement('div');
 		msg.className = 'toast-msg';
-		const textSpan = document.createElement('span');
-		textSpan.textContent = String(message || '');
-		msg.appendChild(textSpan);
-		if (actorName) {
-			const actorEl = document.createElement('em');
-			actorEl.className = 'actor';
-			actorEl.textContent = ' ' + actorName;
-			msg.appendChild(actorEl);
-		}
+		msg.textContent = String(message || '');
 		const close = document.createElement('button'); close.className = 'toast-close'; close.type = 'button'; close.textContent = '×';
 		close.addEventListener('click', () => dismiss(n));
 		n.append(msg, close);
@@ -77,8 +69,7 @@ const notify = (() => {
 	function showBrowser(title, body) {
 		if (!('Notification' in window) || Notification.permission !== 'granted') return;
 		try {
-			const actorName = String((state?.currentSeller?.name || state?.currentUser?.name || '') || '');
-			const finalBody = actorName ? `${String(body || '')} ${actorName}` : String(body || '');
+			const finalBody = String(body || '');
 			new Notification(String(title || 'Sweet Lab'), { body: finalBody, icon: '/logo.png' });
 		} catch {}
 	}
@@ -125,9 +116,8 @@ const notify = (() => {
 				const item = document.createElement('div'); item.className = 'notif-item';
 				const when = document.createElement('div'); when.className = 'when';
 				const d = new Date(it.when); when.textContent = isNaN(d.getTime()) ? String(it.when) : d.toLocaleString();
-				const who = document.createElement('div'); who.className = 'when'; who.innerHTML = it.actor ? `<em>${String(it.actor)}</em>` : '';
 				const text = document.createElement('div'); text.className = 'text'; text.textContent = String(it.text || '');
-				item.append(when, who, text);
+				item.append(when, text);
 				list.appendChild(item);
 			}
 		}
@@ -525,10 +515,27 @@ async function saveRow(tr, id) {
 			const prevMe = Number(prev.qty_melo||0), newMe = Number(updated.qty_melo||0);
 			const prevMa = Number(prev.qty_mara||0), newMa = Number(updated.qty_mara||0);
 			const prevOr = Number(prev.qty_oreo||0), newOr = Number(updated.qty_oreo||0);
-			if (newAr !== prevAr && newAr > 0) { const msg = `${client} + ${newAr} arco`; notify.success(msg); notify.showBrowser('Venta', msg); }
-			if (newMe !== prevMe && newMe > 0) { const msg = `${client} + ${newMe} melo`; notify.success(msg); notify.showBrowser('Venta', msg); }
-			if (newMa !== prevMa && newMa > 0) { const msg = `${client} + ${newMa} mara`; notify.success(msg); notify.showBrowser('Venta', msg); }
-			if (newOr !== prevOr && newOr > 0) { const msg = `${client} + ${newOr} oreo`; notify.success(msg); notify.showBrowser('Venta', msg); }
+			const seller = String((state?.currentSeller?.name || state?.currentUser?.name || '') || '');
+			if (newAr > 0 && newAr !== prevAr) {
+				const prevNote = prevAr > 0 ? ` (antes ${prevAr})` : '';
+				const msg = `${client} + ${newAr} arco${prevNote}` + (seller ? ` - ${seller}` : '');
+				notify.success(msg); notify.showBrowser('Venta', msg);
+			}
+			if (newMe > 0 && newMe !== prevMe) {
+				const prevNote = prevMe > 0 ? ` (antes ${prevMe})` : '';
+				const msg = `${client} + ${newMe} melo${prevNote}` + (seller ? ` - ${seller}` : '');
+				notify.success(msg); notify.showBrowser('Venta', msg);
+			}
+			if (newMa > 0 && newMa !== prevMa) {
+				const prevNote = prevMa > 0 ? ` (antes ${prevMa})` : '';
+				const msg = `${client} + ${newMa} mara${prevNote}` + (seller ? ` - ${seller}` : '');
+				notify.success(msg); notify.showBrowser('Venta', msg);
+			}
+			if (newOr > 0 && newOr !== prevOr) {
+				const prevNote = prevOr > 0 ? ` (antes ${prevOr})` : '';
+				const msg = `${client} + ${newOr} oreo${prevNote}` + (seller ? ` - ${seller}` : '');
+				notify.success(msg); notify.showBrowser('Venta', msg);
+			}
 		}
 	} catch {}
 	// Refresh markers from backend logs only
