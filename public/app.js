@@ -812,13 +812,6 @@ async function deleteRow(id) {
 		});
 	}
 	renderTable();
-	try {
-		if (prev) {
-			const summary = formatSaleSummary(prev);
-			notify.info('Eliminada: ' + summary);
-			notify.showBrowser('Venta eliminada', summary);
-		}
-	} catch {}
 }
 
 async function savePaid(tr, id, isPaid) {

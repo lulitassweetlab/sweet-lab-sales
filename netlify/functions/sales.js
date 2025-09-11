@@ -114,7 +114,21 @@ export async function handler(event) {
 				const idParam = params.get('id') || (event.queryStringParameters && event.queryStringParameters.id);
 				const id = Number(idParam);
 				if (!id) return json({ error: 'id requerido' }, 400);
+				// fetch previous data for notification content
+				const prev = (await sql`SELECT seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo FROM sales WHERE id=${id}`)[0] || null;
 				await sql`DELETE FROM sales WHERE id=${id}`;
+				// emit deletion notification with client and quantities
+				if (prev) {
+					const name = (prev.client_name || '') || 'Cliente';
+					const parts = [];
+					const ar = Number(prev.qty_arco||0); if (ar) parts.push(`${ar} arco`);
+					const me = Number(prev.qty_melo||0); if (me) parts.push(`${me} melo`);
+					const ma = Number(prev.qty_mara||0); if (ma) parts.push(`${ma} mara`);
+					const or = Number(prev.qty_oreo||0); if (or) parts.push(`${or} oreo`);
+					const suffix = parts.length ? (' + ' + parts.join(' + ')) : '';
+					const msg = `Eliminada: ${name}${suffix}`;
+					await notifyDb({ type: 'delete', sellerId: Number(prev.seller_id||0)||null, saleId: id, saleDayId: Number(prev.sale_day_id||0)||null, message: msg, actorName: '' });
+				}
 				return json({ ok: true });
 			}
 			default:
