@@ -143,17 +143,21 @@ const notify = (() => {
 		const info = document.createElement('div'); info.style.fontSize = '12px'; info.style.opacity = '0.8'; info.textContent = 'Últimas 200 notificaciones';
 		toolbar.append(info);
 		const list = document.createElement('div'); list.className = 'notif-list';
-		function renderList() {
+		async function renderList() {
 			list.innerHTML = '';
-			const data = readLog().slice().reverse();
-			if (data.length === 0) {
+			let data = [];
+			try {
+				const res = await fetch('/api/notifications');
+				if (res.ok) data = await res.json();
+			} catch {}
+			if (!Array.isArray(data) || data.length === 0) {
 				const empty = document.createElement('div'); empty.className = 'notif-empty'; empty.textContent = 'Sin notificaciones'; list.appendChild(empty); return;
 			}
 			for (const it of data) {
 				const item = document.createElement('div'); item.className = 'notif-item';
 				const when = document.createElement('div'); when.className = 'when';
-				const d = new Date(it.when); when.textContent = isNaN(d.getTime()) ? String(it.when) : d.toLocaleString();
-				const text = document.createElement('div'); text.className = 'text'; text.textContent = String(it.text || '');
+				const d = new Date(it.created_at || it.when); when.textContent = isNaN(d.getTime()) ? String(it.created_at || it.when) : d.toLocaleString();
+				const text = document.createElement('div'); text.className = 'text'; text.textContent = String(it.message || it.text || '');
 				item.append(when, text);
 				list.appendChild(item);
 			}
