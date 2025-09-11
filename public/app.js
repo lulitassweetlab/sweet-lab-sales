@@ -153,6 +153,13 @@ const notify = (() => {
 			if (!Array.isArray(data) || data.length === 0) {
 				const empty = document.createElement('div'); empty.className = 'notif-empty'; empty.textContent = 'Sin notificaciones'; list.appendChild(empty); return;
 			}
+			// Mostrar más recientes primero
+			data.sort((a, b) => {
+				const ta = new Date(a.created_at || a.when).getTime() || 0;
+				const tb = new Date(b.created_at || b.when).getTime() || 0;
+				if (tb !== ta) return tb - ta;
+				return (Number(b.id||0) - Number(a.id||0));
+			});
 			for (const it of data) {
 				const item = document.createElement('div'); item.className = 'notif-item';
 				const when = document.createElement('div'); when.className = 'when';
