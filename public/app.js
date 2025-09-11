@@ -790,7 +790,8 @@ function openCommentDialog(anchorEl, initial = '', anchorX, anchorY) {
 
 async function deleteRow(id) {
 	const prev = state.sales.find(s => s.id === id);
-	await api('DELETE', `${API.Sales}?id=${encodeURIComponent(id)}`);
+	const actor = encodeURIComponent(state.currentUser?.name || '');
+	await api('DELETE', `${API.Sales}?id=${encodeURIComponent(id)}&actor=${actor}`);
 	state.sales = state.sales.filter(s => s.id !== id);
 	// Push undo: re-create previous row
 	if (prev) {

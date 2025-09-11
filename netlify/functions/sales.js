@@ -112,6 +112,7 @@ export async function handler(event) {
 			case 'DELETE': {
 				const params = new URLSearchParams(event.rawQuery || event.queryStringParameters ? event.rawQuery || '' : '');
 				const idParam = params.get('id') || (event.queryStringParameters && event.queryStringParameters.id);
+				const actor = (params.get('actor') || '').toString();
 				const id = Number(idParam);
 				if (!id) return json({ error: 'id requerido' }, 400);
 				// fetch previous data for notification content
@@ -127,7 +128,7 @@ export async function handler(event) {
 					const or = Number(prev.qty_oreo||0); if (or) parts.push(`${or} oreo`);
 					const suffix = parts.length ? (' + ' + parts.join(' + ')) : '';
 					const msg = `Eliminada: ${name}${suffix}`;
-					await notifyDb({ type: 'delete', sellerId: Number(prev.seller_id||0)||null, saleId: id, saleDayId: Number(prev.sale_day_id||0)||null, message: msg, actorName: '' });
+					await notifyDb({ type: 'delete', sellerId: Number(prev.seller_id||0)||null, saleId: id, saleDayId: Number(prev.sale_day_id||0)||null, message: msg, actorName: actor });
 				}
 				return json({ ok: true });
 			}
