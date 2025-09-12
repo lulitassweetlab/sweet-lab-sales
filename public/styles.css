@@ -651,7 +651,7 @@ tfoot td { font-weight: 700; }
 
 /* Sync table col widths exactly */
 #sales-table { table-layout: fixed; width: 100%; }
-#sales-table caption { caption-side: top; text-align: left; padding-bottom: 2px; }
+#sales-table caption { caption-side: top; text-align: center; padding-bottom: 4px; }
 #sales-table caption strong { font-size: calc(1em + 2px); font-weight: 700; }
 #sales-table col.w-paid { width: var(--w-paid); }
 #sales-table col.w-client { width: max(25ch, var(--w-client)); }
