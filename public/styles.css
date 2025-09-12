@@ -3812,3 +3812,11 @@ button.secondary.press-btn:active {
 		color: inherit !important;
 	}
 }
+
+/* FINAL MOBILE ALIGN: make Nute header match other dessert names */
+@media (max-width: 600px) {
+	#sales-table thead tr > th.col-nute::after {
+		bottom: 12px !important;
+		font-size: 12px !important;
+	}
+}
