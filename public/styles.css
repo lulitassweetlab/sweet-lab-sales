@@ -382,7 +382,7 @@ th, td { border-bottom: 1px solid var(--border); padding: 6px 6px; text-align: c
 	.w-actions { width: 6%; }
 
 	/* Inputs tiny */
-	.client-input { font-size: 10px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+	.client-input { font-size: 8px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 	.input-qty { width: 32px; font-size: 8px; padding: 2px; }
 	.pay-select { max-width: 56px; }
 }
@@ -399,8 +399,8 @@ tfoot td { font-weight: 700; }
 	tfoot .label { font-size: clamp(8px, 2.4vw, 10px); }
 
 	/* Inputs even smaller to fit full row (-2px) */
-	.client-input { font-size: 10px; }
-	.input-qty { width: 30px; font-size: 9px; padding: 2px; }
+	.client-input { font-size: 6px; }
+	.input-qty { width: 28px; font-size: 9px; padding: 1px; margin: 0; }
 	.total { font-size: 10px; }
 
 	/* Delete icon smaller and not clipped */
@@ -498,8 +498,8 @@ tfoot td { font-weight: 700; }
 	tfoot .label { font-size: clamp(8px, 2.4vw, 10px); }
 
 	/* Inputs even smaller to fit full row (-2px) */
-	.client-input { font-size: 10px; }
-	.input-qty { width: 30px; font-size: 9px; padding: 2px; }
+	.client-input { font-size: 6px; }
+	.input-qty { width: 28px; font-size: 9px; padding: 1px; margin: 0; }
 	.total { font-size: 10px; }
 
 	/* Delete icon smaller and not clipped */
