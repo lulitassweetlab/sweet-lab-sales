@@ -92,13 +92,13 @@ function ensureNuteColumnInTable() {
     th.className = 'col-nute';
     th.setAttribute('data-label', 'Nute');
     const span = document.createElement('span'); span.className = 'v-label'; span.textContent = 'Nute'; th.appendChild(span);
-    const before = theadRow.querySelector('th.col-extra');
+    const before = theadRow.querySelector('th.col-total');
     theadRow.insertBefore(th, before || null);
   }
   if (colgroup && !colgroup.querySelector('col.col-nute')) {
     const col = document.createElement('col');
     col.className = 'w-qty col-nute';
-    const before = colgroup.querySelector('col.w-extra');
+    const before = colgroup.querySelector('col.w-total');
     colgroup.insertBefore(col, before || null);
   }
   if (tfoot) {
@@ -109,36 +109,36 @@ function ensureNuteColumnInTable() {
       const td = document.createElement('td'); td.className = 'col-nute';
       const span = document.createElement('span'); span.id = 'sum-nute-qty'; span.textContent = '0';
       td.appendChild(span);
-      const before = qRow.querySelector('.col-extra');
+      const before = qRow.querySelector('.col-total');
       qRow.insertBefore(td, before || null);
     }
     if (aRow && !aRow.querySelector('.col-nute')) {
       const td = document.createElement('td'); td.className = 'col-nute';
       const span = document.createElement('span'); span.id = 'sum-nute-amt'; span.textContent = '0';
       td.appendChild(span);
-      const before = aRow.querySelector('.col-extra');
+      const before = aRow.querySelector('.col-total');
       aRow.insertBefore(td, before || null);
     }
     if (cRow && !cRow.querySelector('.col-nute')) {
       const td = document.createElement('td'); td.className = 'col-nute';
-      const before = cRow.querySelector('.col-extra');
+      const before = cRow.querySelector('.col-total');
       cRow.insertBefore(td, before || null);
     }
     // Adjust stacked rows colspans because there is one more dessert column now
     const gRow = tfoot.querySelector('tr.t-am-grand');
     if (gRow) {
       const td = gRow.querySelector('.col-client');
-      if (td) td.colSpan = 7; // was 6
+      if (td) td.colSpan = 6; // base 5, +1 for Nute
     }
     tfoot.querySelectorAll('.tfoot-amt-stack .col-client').forEach((td) => {
       if (!(td instanceof HTMLTableCellElement)) return;
-      td.colSpan = 8; // was 7
+      td.colSpan = 7; // base 6, +1 for Nute
     });
     // Add stacked Nute row if missing
     if (!tfoot.querySelector('tr.t-am-nute')) {
       const tr = document.createElement('tr'); tr.className = 'tfoot-amt-stack t-am-nute';
       const tdPaid = document.createElement('td'); tdPaid.className = 'col-paid';
-      const tdClient = document.createElement('td'); tdClient.className = 'col-client'; tdClient.colSpan = 8;
+      const tdClient = document.createElement('td'); tdClient.className = 'col-client'; tdClient.colSpan = 7;
       const name = document.createElement('span'); name.className = 'st-name'; name.textContent = 'Nute';
       const qty = document.createElement('span'); qty.className = 'st-qty'; qty.id = 'sum-nute-qty-2';
       const amt = document.createElement('span'); amt.className = 'st-amt'; amt.id = 'sum-nute-amt-2';
