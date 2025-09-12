@@ -118,11 +118,6 @@ const notify = (() => {
 			new Notification(String(title || 'Sweet Lab'), { body: finalBody, icon: notifIcon });
 		} catch {}
 	}
-	function uniqueBrowser(title, message) {
-		const key = `browser:${String(message || '')}`;
-		if (!_shouldShow(key)) return;
-		showBrowser(title, message);
-	}
 	function unique(title, message, type = 'info') {
 		const key = String(message || '');
 		if (!_shouldShow(key)) return;
@@ -208,7 +203,7 @@ const notify = (() => {
 			const btn = document.getElementById('notif-toggle'); if (btn) { const ok = ('Notification' in window) && Notification.permission === 'granted'; btn.classList.toggle('enabled', !!ok); }
 		});
 	}
-	return { info: (m,t)=>render('info',m,t), success: (m,t)=>render('success',m,t), error: (m,t)=>render('error',m,t), showBrowser, unique, uniqueBrowser, ensurePermission, initToggle, openDialog };
+	return { info: (m,t)=>render('info',m,t), success: (m,t)=>render('success',m,t), error: (m,t)=>render('error',m,t), showBrowser, unique, ensurePermission, initToggle, openDialog };
 })();
 
 // Theme management
@@ -811,7 +806,6 @@ async function deleteRow(id) {
 			const who = (state.currentUser?.name || '').trim();
 			const msg = `Eliminada: ${formatSaleSummary(prev)}` + (who ? ` - ${who}` : '');
 			notify.unique('Venta', msg, 'error');
-			notify.uniqueBrowser('Venta', msg);
 		}
 	} catch {}
 	// Push undo: re-create previous row
