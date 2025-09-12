@@ -3822,11 +3822,17 @@ button.secondary.press-btn:active {
 	#sales-table thead th.col-nute .v-label { position: relative !important; top: 12px !important; }
 }
 
-/* FINAL MOBILE WIDTHS: set Total to 13% and Actions to 2% */
+/* FINAL MOBILE WIDTHS: set Total to 13% and Actions to 2%; enlarge Client */
 @media (max-width: 600px) {
-	:root { --w-total: 13%; --w-actions: 2%; }
+	:root { --w-paid: 6%; --w-client: 55%; --w-qty: 6%; --w-total: 13%; --w-actions: 2%; }
 	#sales-table col.w-total { width: var(--w-total); }
 	#sales-table col.w-actions { width: var(--w-actions); }
+	#sales-table col.w-paid { width: var(--w-paid); }
+	#sales-table col.w-client { width: max(25ch, var(--w-client)); }
+	#sales-table col.w-qty { width: var(--w-qty); }
 	.w-total { width: 13%; }
 	.w-actions { width: 2%; }
+	.w-paid { width: 6%; }
+	.w-client { width: 55%; }
+	.w-qty { width: 6%; }
 }
