@@ -20,6 +20,27 @@ export async function handler(event) {
 				const [row] = await sql`INSERT INTO sellers (name) VALUES (${name}) ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name RETURNING id, name`;
 				return json(row, 201);
 			}
+			case 'DELETE': {
+				const params = new URLSearchParams(event.rawQuery || event.queryStringParameters ? event.rawQuery || '' : '');
+				const idParam = params.get('id');
+				const nameParam = params.get('name');
+				if (!idParam && !nameParam) return json({ error: 'id o name requerido' }, 400);
+				if (idParam) {
+					const id = Number(idParam);
+					if (!id) return json({ error: 'id inválido' }, 400);
+					await sql`DELETE FROM sellers WHERE id=${id}`;
+					return json({ ok: true, deleted_id: id });
+				}
+				// If deleting by name, keep the oldest (smallest id) and delete the rest (case-insensitive)
+				const nm = (nameParam || '').toString();
+				if (!nm.trim()) return json({ error: 'name inválido' }, 400);
+				const rows = await sql`SELECT id, name FROM sellers WHERE lower(name)=lower(${nm}) ORDER BY id ASC`;
+				if (rows.length <= 1) return json({ ok: true, kept_id: rows[0]?.id || null, deleted: 0 });
+				const keepId = rows[0].id;
+				const toDelete = rows.slice(1).map(r => r.id);
+				await sql`DELETE FROM sellers WHERE id = ANY(${toDelete})`;
+				return json({ ok: true, kept_id: keepId, deleted: toDelete.length });
+			}
 			default:
 				return json({ error: 'Método no permitido' }, 405);
 		}
