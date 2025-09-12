@@ -392,6 +392,20 @@ function formatSaleSummary(sale) {
 
 function renderTable() {
 	const tbody = $('#sales-tbody');
+	// Update caption with selected date label
+	try {
+		const cap = document.getElementById('sales-caption');
+		if (cap) {
+			const strong = cap.querySelector('strong') || document.createElement('strong');
+			let label = '';
+			if (state && Array.isArray(state.saleDays) && state.selectedDayId) {
+				const day = (state.saleDays || []).find(d => d && d.id === state.selectedDayId);
+				if (day && day.day) label = formatDayLabel(String(day.day).slice(0,10));
+			}
+			strong.textContent = label || '';
+			if (!cap.contains(strong)) cap.appendChild(strong);
+		}
+	} catch {}
 	tbody.innerHTML = '';
 	for (const sale of state.sales) {
 		const total = calcRowTotal({ arco: sale.qty_arco, melo: sale.qty_melo, mara: sale.qty_mara, oreo: sale.qty_oreo, nute: sale.qty_nute });
