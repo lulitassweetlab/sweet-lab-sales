@@ -127,7 +127,7 @@ export async function handler(event) {
 					const ma = Number(prev.qty_mara||0); if (ma) parts.push(`${ma} mara`);
 					const or = Number(prev.qty_oreo||0); if (or) parts.push(`${or} oreo`);
 					const suffix = parts.length ? (' + ' + parts.join(' + ')) : '';
-					const msg = `Eliminada: ${name}${suffix}` + (actor ? ` - ${actor}` : '');
+					const msg = `Eliminada: ${name}${suffix}`;
 					await notifyDb({ type: 'delete', sellerId: Number(prev.seller_id||0)||null, saleId: id, saleDayId: Number(prev.sale_day_id||0)||null, message: msg, actorName: actor });
 				}
 				return json({ ok: true });
