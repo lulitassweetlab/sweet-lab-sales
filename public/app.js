@@ -166,39 +166,20 @@ const notify = (() => {
 		const list = document.createElement('div'); list.className = 'notif-list';
 		async function renderList() {
 			list.innerHTML = '';
-			let server = [];
+			let data = [];
 			try {
 				const res = await fetch('/api/notifications');
-				if (res.ok) server = await res.json();
+				if (res.ok) data = await res.json();
 			} catch {}
-			let local = [];
-			try { local = readLog(); } catch {}
-			const merged = [];
-			for (const r of (Array.isArray(server)?server:[])) merged.push({ id: r.id?String(r.id):'', message: String(r.message||''), created_at: String(r.created_at||''), type: String(r.type||'') });
-			for (const r of (Array.isArray(local)?local:[])) merged.push({ id: r.id?String(r.id):'', message: String(r.text||''), created_at: String(r.when||''), type: String(r.type||'') });
-			const seen = new Set();
-			const unique = [];
-			for (const r of merged) {
-				const key = r.id?`id:${r.id}`:`mc:${r.message}|${r.created_at}`;
-				if (seen.has(key)) continue;
-				seen.add(key);
-				unique.push(r);
-			}
-			unique.sort((a,b)=>{
-				const ta = new Date(a.created_at).getTime()||0;
-				const tb = new Date(b.created_at).getTime()||0;
-				if (tb!==ta) return tb-ta;
-				const ai=parseInt(a.id||'0',10), bi=parseInt(b.id||'0',10);
-				return (isFinite(bi)&&isFinite(ai))?(bi-ai):0;
-			});
-			if (unique.length===0) {
+			if (!Array.isArray(data) || data.length === 0) {
 				const empty = document.createElement('div'); empty.className = 'notif-empty'; empty.textContent = 'Sin notificaciones'; list.appendChild(empty); return;
 			}
-			for (const it of unique) {
+			// Mostrar más recientes primero, confiando en orden del backend (id DESC)
+			for (const it of data) {
 				const item = document.createElement('div'); item.className = 'notif-item';
 				const when = document.createElement('div'); when.className = 'when';
-				const d = new Date(it.created_at); when.textContent = isNaN(d.getTime()) ? String(it.created_at) : d.toLocaleString();
-				const text = document.createElement('div'); text.className = 'text'; text.textContent = String(it.message||'');
+				const d = new Date(it.created_at || it.when); when.textContent = isNaN(d.getTime()) ? String(it.created_at || it.when) : d.toLocaleString();
+				const text = document.createElement('div'); text.className = 'text'; text.textContent = String(it.message || it.text || '');
 				item.append(when, text);
 				list.appendChild(item);
 			}
