@@ -1430,6 +1430,12 @@ button.secondary.press-btn:active {
 #sales-table tfoot td.col-oreo {
 	background-color: rgba(0,0,0,0.10) !important;
 }
+/* Apply same subtle background to preview Nute column */
+#sales-table thead th.col-nute,
+#sales-table tbody td.col-nute,
+#sales-table tfoot td.col-nute {
+	background-color: rgba(0,0,0,0.10) !important;
+}
 /* Keep darker shade on hover as well (light theme) */
 #sales-table tbody tr:hover td.col-melo,
 #sales-table tbody tr:hover td.col-oreo { background-color: rgba(0,0,0,0.14) !important; }
@@ -1445,6 +1451,11 @@ button.secondary.press-btn:active {
 }
 [data-theme="dark"] #sales-table tbody tr:hover td.col-melo,
 [data-theme="dark"] #sales-table tbody tr:hover td.col-oreo { background-color: #202327 !important; }
+/* Dark theme styling for preview Nute column */
+[data-theme="dark"] #sales-table thead th.col-nute,
+[data-theme="dark"] #sales-table tbody td.col-nute,
+[data-theme="dark"] #sales-table tfoot td.col-nute { background-color: #191b1f !important; }
+[data-theme="dark"] #sales-table tbody tr:hover td.col-nute { background-color: #202327 !important; }
 
 /* Revert previous override: keep earlier working vertical labels */
 
