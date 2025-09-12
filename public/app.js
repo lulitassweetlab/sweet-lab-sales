@@ -1484,6 +1484,11 @@ async function openConfirmPopover(message, anchorX, anchorY) {
 		actions.className = 'confirm-actions';
 		const noBtn = document.createElement('button'); noBtn.className = 'press-btn'; noBtn.textContent = 'Cancelar';
 		const yesBtn = document.createElement('button'); yesBtn.className = 'press-btn btn-primary'; yesBtn.textContent = 'Eliminar';
+		// Prevent outside-capture handlers from firing when tapping buttons (mobile)
+		noBtn.addEventListener('mousedown', (e) => e.stopPropagation(), true);
+		yesBtn.addEventListener('mousedown', (e) => e.stopPropagation(), true);
+		noBtn.addEventListener('touchstart', (e) => e.stopPropagation(), true);
+		yesBtn.addEventListener('touchstart', (e) => e.stopPropagation(), true);
 		actions.append(noBtn, yesBtn);
 		pop.append(text, actions);
 		document.body.appendChild(pop);
@@ -1511,7 +1516,12 @@ async function openConfirmPopover(message, anchorX, anchorY) {
 			document.removeEventListener('touchstart', outside, true);
 			if (pop.parentNode) pop.parentNode.removeChild(pop);
 		}
-		function outside(ev) { if (!pop.contains(ev.target)) { cleanup(); resolve(false); } }
+		function outside(ev) {
+			// Ignore if click/tap happens inside popover actions (buttons), to avoid immediate cancel
+			const t = ev.target;
+			if (pop.contains(t)) return;
+			cleanup(); resolve(false);
+		}
 		setTimeout(() => {
 			document.addEventListener('mousedown', outside, true);
 			document.addEventListener('touchstart', outside, true);
