@@ -41,20 +41,7 @@ function togglePreviewNute() {
   notify.info(state.previewNuteEnabled ? 'Preview Nute activado' : 'Preview Nute desactivado');
 }
 
-function addPreviewToggleButtonIfAdmin() {
-  document.addEventListener('DOMContentLoaded', () => {
-    const actions = document.querySelector('.toolbar .toolbar-actions');
-    if (!actions) return;
-    const btn = document.createElement('button');
-    btn.id = 'toggle-nute-preview';
-    btn.className = 'secondary press-btn';
-    btn.title = 'Vista previa columna Nute';
-    const label = () => btn.textContent = state.previewNuteEnabled ? 'Nute preview: ON' : 'Nute preview: OFF';
-    label();
-    btn.addEventListener('click', () => { togglePreviewNute(); label(); });
-    actions.insertBefore(btn, actions.firstChild);
-  });
-}
+// Removed: preview toggle button per request
 
 function ensureNuteColumnInTable() {
   const table = document.getElementById('sales-table');
@@ -1927,7 +1914,6 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 	bindEvents();
 	notify.initToggle();
 	detectPreviewFlags();
-	addPreviewToggleButtonIfAdmin();
 	// Realtime polling of backend notifications
 	(function startRealtime(){
 		let lastId = 0;
