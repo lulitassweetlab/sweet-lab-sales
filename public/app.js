@@ -838,12 +838,21 @@ async function savePayMethod(tr, id, method) {
 
 function updateSummary() {
 	let qa = 0, qm = 0, qma = 0, qo = 0, grand = 0;
+	let paidQa = 0, paidQm = 0, paidQma = 0, paidQo = 0;
 	for (const s of state.sales) {
-		qa += Number(s.qty_arco || 0);
-		qm += Number(s.qty_melo || 0);
-		qma += Number(s.qty_mara || 0);
-		qo += Number(s.qty_oreo || 0);
+		const arco = Number(s.qty_arco || 0);
+		const melo = Number(s.qty_melo || 0);
+		const mara = Number(s.qty_mara || 0);
+		const oreo = Number(s.qty_oreo || 0);
+		qa += arco;
+		qm += melo;
+		qma += mara;
+		qo += oreo;
 		grand += calcRowTotal({ arco: s.qty_arco, melo: s.qty_melo, mara: s.qty_mara, oreo: s.qty_oreo });
+		const pm = (s.pay_method || '').toString();
+		if (pm === 'transf' || pm === 'marce') {
+			paidQa += arco; paidQm += melo; paidQma += mara; paidQo += oreo;
+		}
 	}
 	$('#sum-arco-qty').textContent = String(qa);
 	$('#sum-melo-qty').textContent = String(qm);
@@ -870,8 +879,9 @@ function updateSummary() {
 	const elOr = document.getElementById('sum-oreo-qty-2'); if (elOr) elOr.textContent = qvo; const elOrAmt = document.getElementById('sum-oreo-amt-2'); if (elOrAmt) elOrAmt.textContent = vo;
 	const grandStr = fmtNo.format(grand);
 	$('#sum-grand').textContent = grandStr;
-	// Commissions: total desserts * 1000
-	const commStr = fmtNo.format(totalQty * 1000);
+	// Commissions: only paid desserts * 1000
+	const paidTotalQty = paidQa + paidQm + paidQma + paidQo;
+	const commStr = fmtNo.format(paidTotalQty * 1000);
 	const commEl = document.getElementById('sum-comm');
 	if (commEl) commEl.textContent = commStr;
 	// Decide whether to stack totals to avoid overlap on small screens
