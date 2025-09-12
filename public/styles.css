@@ -3324,6 +3324,5 @@ button.secondary.press-btn:active {
 
 /* Responsive tweak: widen Total column on small tablets (601–700px) */
 @media (min-width: 601px) and (max-width: 700px) {
-	:root { --w-paid: 6%; --w-client: 35%; --w-qty: 7%; --w-total: 20%; --w-actions: 4%; }
-	#sales-table col.w-client { width: var(--w-client) !important; }
+	:root { --w-paid: 6%; --w-client: 36%; --w-qty: 8%; --w-total: 20%; --w-actions: 6%; }
 }
