@@ -272,7 +272,7 @@ button:hover { filter: brightness(1.1); }
 .summary-item.total-all { grid-column: 1 / -1; justify-content: flex-end; }
 
 /* Table base */
-.table-wrapper { overflow-x: auto; border: none; border-radius: 12px; background: var(--card); box-shadow: none; }
+.table-wrapper { overflow-x: auto; border: none; border-radius: 12px; background: var(--card); box-shadow: none; -webkit-overflow-scrolling: touch; }
 
 /* Make table wrapper the scroll container so sticky thead works reliably */
 .table-wrapper { position: relative; max-height: calc(100vh - var(--toolbarH, 56px) - 24px); overflow-y: auto; overflow-x: auto; }
@@ -465,8 +465,8 @@ th, td { border-bottom: 1px solid var(--border); padding: 6px 6px; text-align: c
 
 /* Remove mobile stacking and enforce compact fixed layout on phones */
 @media (max-width: 600px) {
-	.table-wrapper { overflow-x: hidden; border-radius: 8px; }
-	table { width: 100%; min-width: 0; table-layout: fixed; }
+	.table-wrapper { overflow-x: auto; border-radius: 8px; -webkit-overflow-scrolling: touch; }
+	table { width: 100%; min-width: 720px; table-layout: fixed; }
 	#sales-table thead { display: table-header-group; }
 	#sales-table thead th { position: sticky; top: 0; }
 
@@ -475,7 +475,7 @@ th, td { border-bottom: 1px solid var(--border); padding: 6px 6px; text-align: c
 	th { font-size: 11px; }
 	.total { font-size: 13px; }
 
-	/* Column widths tuned to fit */
+	/* Ensure horizontal scroll available by enforcing a min table width */
 	.w-client { width: 22%; }
 	.w-qty { width: 13%; }
 	.w-total { width: 20%; }
@@ -790,7 +790,7 @@ tfoot td { font-weight: 700; }
 .receipt-popover { background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.24); padding: 10px; max-width: 90vw; }
 @media (max-width: 600px) {
 	/* Deja el rebote nativo del body (suave) */
-	html, body { overscroll-behavior-y: auto; touch-action: pan-y; }
+	html, body { overscroll-behavior-y: auto; touch-action: pan-x pan-y; }
 	body { -webkit-overflow-scrolling: touch; }
 	/* Evita encadenamiento de scroll desde contenedores internos que genera múltiples rebotes */
 	.table-wrapper,
