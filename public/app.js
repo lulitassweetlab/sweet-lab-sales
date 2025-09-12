@@ -198,7 +198,11 @@ const notify = (() => {
 				const item = document.createElement('div'); item.className = 'notif-item';
 				const when = document.createElement('div'); when.className = 'when';
 				const d = new Date(it.created_at); when.textContent = isNaN(d.getTime()) ? String(it.created_at) : d.toLocaleString();
-				const text = document.createElement('div'); text.className = 'text'; text.textContent = String(it.message||'');
+				const text = document.createElement('div'); text.className = 'text';
+				let msg = String(it.message||'');
+				const isDelete = String(it.type||'').toLowerCase() === 'delete' || /^eliminad[oa]/i.test(msg);
+				if (isDelete && !/^eliminad[oa]/i.test(msg)) { msg = 'Eliminada: ' + msg; }
+				text.textContent = msg;
 				item.append(when, text);
 				list.appendChild(item);
 			}
