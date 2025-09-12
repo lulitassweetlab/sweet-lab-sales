@@ -1,16 +1,7 @@
 import { ensureSchema, sql } from './_db.js';
 
 function json(body, status = 200) {
-	return {
-		statusCode: status,
-		headers: {
-			'Content-Type': 'application/json',
-			'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-			'Pragma': 'no-cache',
-			'Expires': '0'
-		},
-		body: JSON.stringify(body)
-	};
+	return { statusCode: status, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
 }
 
 export async function handler(event) {
