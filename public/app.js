@@ -488,7 +488,7 @@ function renderTable() {
 	td.colSpan = colCount;
 	const btn = document.createElement('button');
 	btn.className = 'inline-add-btn btn-primary';
-	btn.textContent = '+ Nueva Venta';
+	btn.textContent = 'Nuevo pedido';
 	btn.addEventListener('click', addRow);
 	td.appendChild(btn);
 	addTr.appendChild(td);
