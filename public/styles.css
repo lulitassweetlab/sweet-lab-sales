@@ -3835,4 +3835,13 @@ button.secondary.press-btn:active {
 	.w-paid { width: 6%; }
 	.w-client { width: 55%; }
 	.w-qty { width: 6%; }
+	/* Ensure actions column remains visible at 2%: add a practical min-width and trim padding */
+	#sales-table thead th.col-actions,
+	#sales-table tbody td.col-actions,
+	#sales-table tfoot td.col-actions { width: var(--w-actions) !important; min-width: 22px; padding-left: 0; padding-right: 0; }
+	#sales-table thead th.col-total,
+	#sales-table tbody td.col-total,
+	#sales-table tfoot td.col-total { width: var(--w-total) !important; }
+	/* Slightly smaller delete icon so it fits within min-width */
+	.row-delete { width: 12px !important; height: 12px !important; }
 }
