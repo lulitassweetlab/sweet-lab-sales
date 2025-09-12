@@ -800,14 +800,6 @@ async function deleteRow(id) {
 	// Robust local removal and refresh from server to avoid stale UI
 	state.sales = state.sales.filter(s => Number(s.id) !== Number(id));
 	await loadSales();
-	// Local immediate notification (deduped against backend feed)
-	try {
-		if (prev) {
-			const who = (state.currentUser?.name || '').trim();
-			const msg = `Eliminada: ${formatSaleSummary(prev)}` + (who ? ` - ${who}` : '');
-			notify.unique('Venta', msg, 'error');
-		}
-	} catch {}
 	// Push undo: re-create previous row
 	if (prev) {
 		pushUndo({
