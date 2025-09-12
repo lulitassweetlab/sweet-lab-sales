@@ -3825,3 +3825,8 @@ button.secondary.press-btn:active {
 @media (min-width: 601px) {
 	#sales-table thead th.col-nute .v-label { position: relative !important; top: 8px !important; }
 }
+
+/* FINAL DESKTOP ALIGN tweak: lower Nute label a bit more */
+@media (min-width: 601px) {
+	#sales-table thead th.col-nute .v-label { position: relative !important; top: 12px !important; }
+}
