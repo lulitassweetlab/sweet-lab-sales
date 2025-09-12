@@ -19,6 +19,151 @@ const state = {
 	currentUser: null,
 };
 
+// Preview features
+state.previewNuteEnabled = false;
+state.previewNuteBySale = {}; // { [saleId:number]: number }
+
+function detectPreviewFlags() {
+  try {
+    const params = new URLSearchParams(location.search);
+    const viaQuery = params.get('preview') === 'nute' || params.get('nutePreview') === '1' || params.get('nute') === '1';
+    const viaStorage = localStorage.getItem('preview_nute') === '1';
+    state.previewNuteEnabled = !!(viaQuery || viaStorage);
+  } catch { state.previewNuteEnabled = false; }
+}
+
+function togglePreviewNute() {
+  state.previewNuteEnabled = !state.previewNuteEnabled;
+  try { localStorage.setItem('preview_nute', state.previewNuteEnabled ? '1' : '0'); } catch {}
+  // Rebuild table structure to add/remove column
+  ensureNuteColumnInTable();
+  renderTable();
+  notify.info(state.previewNuteEnabled ? 'Preview Nute activado' : 'Preview Nute desactivado');
+}
+
+function addPreviewToggleButtonIfAdmin() {
+  document.addEventListener('DOMContentLoaded', () => {
+    const actions = document.querySelector('.toolbar .toolbar-actions');
+    if (!actions) return;
+    const btn = document.createElement('button');
+    btn.id = 'toggle-nute-preview';
+    btn.className = 'secondary press-btn';
+    btn.title = 'Vista previa columna Nute';
+    const label = () => btn.textContent = state.previewNuteEnabled ? 'Nute preview: ON' : 'Nute preview: OFF';
+    label();
+    btn.addEventListener('click', () => { togglePreviewNute(); label(); });
+    actions.insertBefore(btn, actions.firstChild);
+  });
+}
+
+function ensureNuteColumnInTable() {
+  const table = document.getElementById('sales-table');
+  if (!table) return;
+  const theadRow = table.tHead && table.tHead.rows[0];
+  const colgroup = table.querySelector('colgroup');
+  const tfoot = table.tFoot;
+  // Remove if disabled
+  if (!state.previewNuteEnabled) {
+    // Remove header cell
+    if (theadRow) {
+      const thNute = theadRow.querySelector('th.col-nute');
+      if (thNute) thNute.parentNode.removeChild(thNute);
+    }
+    // Remove colgroup col
+    if (colgroup) {
+      const colN = colgroup.querySelector('col.w-qty.col-nute');
+      if (colN) colN.parentNode.removeChild(colN);
+    }
+    // Remove tfoot cells/rows and restore colspans
+    if (tfoot) {
+      const qRow = tfoot.querySelector('tr.tfoot-qty');
+      const aRow = tfoot.querySelector('tr.tfoot-amt');
+      const cRow = tfoot.querySelector('tr.tfoot-comm');
+      const gRow = tfoot.querySelector('tr.t-am-grand');
+      qRow?.querySelector('.col-nute')?.remove();
+      aRow?.querySelector('.col-nute')?.remove();
+      cRow?.querySelector('.col-nute')?.remove();
+      // stacked preview row
+      tfoot.querySelector('tr.t-am-nute')?.remove();
+      // restore colspans (one fewer column now)
+      if (gRow) {
+        const td = gRow.querySelector('.col-client');
+        if (td) td.colSpan = 6; // original value
+      }
+      // stacked rows colspans
+      tfoot.querySelectorAll('.tfoot-amt-stack .col-client').forEach((td) => {
+        if (!(td instanceof HTMLTableCellElement)) return;
+        // original was 7
+        td.colSpan = 7;
+      });
+    }
+    return;
+  }
+  // Enabled: add header, col, tfoot entries if missing
+  if (theadRow && !theadRow.querySelector('th.col-nute')) {
+    const th = document.createElement('th');
+    th.className = 'col-nute';
+    th.setAttribute('data-label', 'Nute');
+    const span = document.createElement('span'); span.className = 'v-label'; span.textContent = 'Nute'; th.appendChild(span);
+    const before = theadRow.querySelector('th.col-extra');
+    theadRow.insertBefore(th, before || null);
+  }
+  if (colgroup && !colgroup.querySelector('col.col-nute')) {
+    const col = document.createElement('col');
+    col.className = 'w-qty col-nute';
+    const before = colgroup.querySelector('col.w-extra');
+    colgroup.insertBefore(col, before || null);
+  }
+  if (tfoot) {
+    const qRow = tfoot.querySelector('tr.tfoot-qty');
+    const aRow = tfoot.querySelector('tr.tfoot-amt');
+    const cRow = tfoot.querySelector('tr.tfoot-comm');
+    if (qRow && !qRow.querySelector('.col-nute')) {
+      const td = document.createElement('td'); td.className = 'col-nute';
+      const span = document.createElement('span'); span.id = 'sum-nute-qty'; span.textContent = '0';
+      td.appendChild(span);
+      const before = qRow.querySelector('.col-extra');
+      qRow.insertBefore(td, before || null);
+    }
+    if (aRow && !aRow.querySelector('.col-nute')) {
+      const td = document.createElement('td'); td.className = 'col-nute';
+      const span = document.createElement('span'); span.id = 'sum-nute-amt'; span.textContent = '0';
+      td.appendChild(span);
+      const before = aRow.querySelector('.col-extra');
+      aRow.insertBefore(td, before || null);
+    }
+    if (cRow && !cRow.querySelector('.col-nute')) {
+      const td = document.createElement('td'); td.className = 'col-nute';
+      const before = cRow.querySelector('.col-extra');
+      cRow.insertBefore(td, before || null);
+    }
+    // Adjust stacked rows colspans because there is one more dessert column now
+    const gRow = tfoot.querySelector('tr.t-am-grand');
+    if (gRow) {
+      const td = gRow.querySelector('.col-client');
+      if (td) td.colSpan = 7; // was 6
+    }
+    tfoot.querySelectorAll('.tfoot-amt-stack .col-client').forEach((td) => {
+      if (!(td instanceof HTMLTableCellElement)) return;
+      td.colSpan = 8; // was 7
+    });
+    // Add stacked Nute row if missing
+    if (!tfoot.querySelector('tr.t-am-nute')) {
+      const tr = document.createElement('tr'); tr.className = 'tfoot-amt-stack t-am-nute';
+      const tdPaid = document.createElement('td'); tdPaid.className = 'col-paid';
+      const tdClient = document.createElement('td'); tdClient.className = 'col-client'; tdClient.colSpan = 8;
+      const name = document.createElement('span'); name.className = 'st-name'; name.textContent = 'Nute';
+      const qty = document.createElement('span'); qty.className = 'st-qty'; qty.id = 'sum-nute-qty-2';
+      const amt = document.createElement('span'); amt.className = 'st-amt'; amt.id = 'sum-nute-amt-2';
+      tdClient.append(name, document.createTextNode(' '), qty, document.createTextNode(' '), amt);
+      const tdActions = document.createElement('td'); tdActions.className = 'col-actions';
+      tr.append(tdPaid, tdClient, tdActions);
+      const before = tfoot.querySelector('tr.t-am-oreo');
+      if (before && before.nextSibling) before.parentNode.insertBefore(tr, before.nextSibling); else tfoot.appendChild(tr);
+    }
+  }
+}
+
 // Toasts and Notifications
 const notify = (() => {
 	const container = () => document.getElementById('toast-container');
@@ -383,6 +528,9 @@ function formatSaleSummary(sale) {
 	const qMe = Number(sale.qty_melo || 0); if (qMe) parts.push(`${qMe} melo`);
 	const qMa = Number(sale.qty_mara || 0); if (qMa) parts.push(`${qMa} mara`);
 	const qOr = Number(sale.qty_oreo || 0); if (qOr) parts.push(`${qOr} oreo`);
+	if (state.previewNuteEnabled) {
+		const qNu = Number(state.previewNuteBySale[sale.id] || 0); if (qNu) parts.push(`${qNu} nute (preview)`);
+	}
 	const suffix = parts.length ? (' + ' + parts.join(' + ')) : '';
 	return name + suffix;
 }
@@ -390,10 +538,12 @@ function formatSaleSummary(sale) {
 function renderTable() {
 	const tbody = $('#sales-tbody');
 	tbody.innerHTML = '';
+    // Ensure preview columns exist or are removed accordingly
+    ensureNuteColumnInTable();
 	for (const sale of state.sales) {
 		const total = calcRowTotal({ arco: sale.qty_arco, melo: sale.qty_melo, mara: sale.qty_mara, oreo: sale.qty_oreo });
 		const isPaid = !!sale.is_paid;
-		const tr = el('tr', {},
+		const cells = [
 			el('td', { class: 'col-paid' }, (function(){
 				const wrap = document.createElement('span');
 				wrap.className = 'pay-wrap';
@@ -443,9 +593,31 @@ function renderTable() {
 			el('td', { class: 'col-melo' }, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_melo ? String(sale.qty_melo) : '', placeholder: '', onblur: () => saveRow(tr, sale.id), onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); saveRow(tr, sale.id); } }, onfocus: (e) => e.target.select(), onmouseup: (e) => e.preventDefault() })),
 			el('td', { class: 'col-mara' }, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_mara ? String(sale.qty_mara) : '', placeholder: '', onblur: () => saveRow(tr, sale.id), onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); saveRow(tr, sale.id); } }, onfocus: (e) => e.target.select(), onmouseup: (e) => e.preventDefault() })),
 			el('td', { class: 'col-oreo' }, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_oreo ? String(sale.qty_oreo) : '', placeholder: '', onblur: () => saveRow(tr, sale.id), onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); saveRow(tr, sale.id); } }, onfocus: (e) => e.target.select(), onmouseup: (e) => e.preventDefault() })),
-			el('td', { class: 'col-extra' }),
-			el('td', { class: 'total col-total' }, fmtNo.format(total)),
-			el('td', { class: 'col-actions' }, (function(){
+		];
+        // Inject preview Nute cell before extra
+        let tr; // forward declaration for closures above
+        if (state.previewNuteEnabled) {
+          const current = Number(state.previewNuteBySale[sale.id] || 0);
+          cells.push(el('td', { class: 'col-nute' }, el('input', {
+            class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric',
+            value: current ? String(current) : '', placeholder: '',
+            onfocus: (e) => e.target.select(), onmouseup: (e) => e.preventDefault(),
+            onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); } },
+            onblur: (e) => {
+              const val = e.target.value === '' ? 0 : Math.max(0, parseInt(e.target.value, 10) || 0);
+              state.previewNuteBySale[sale.id] = val;
+              try {
+                const client = (sale.client_name || '').trim() || 'Cliente';
+                notify.info(`${client} + ${val} nute (preview)`);
+              } catch {}
+              updateSummary();
+            }
+          })));
+        }
+        cells.push(
+          el('td', { class: 'col-extra' }),
+          el('td', { class: 'total col-total' }, fmtNo.format(total)),
+          el('td', { class: 'col-actions' }, (function(){
 				const b = document.createElement('button');
 				b.className = 'row-delete';
 				b.title = 'Eliminar';
@@ -456,8 +628,9 @@ function renderTable() {
 					await deleteRow(sale.id);
 				});
 				return b;
-			})()),
-		);
+			})())
+        );
+        tr = el('tr', {}, ...cells);
 		tr.dataset.id = String(sale.id);
 		tbody.appendChild(tr);
 		// Comment trigger removed per request
@@ -587,6 +760,7 @@ async function saveRow(tr, id) {
 				const msg = `${client} + ${newOr} oreo${prevNote}` + (seller ? ` - ${seller}` : '');
 				notify.success(msg);
 			}
+			// Nute is preview only; notify on local change when input loses focus handled in onblur
 		}
 	} catch {}
 	// Refresh markers from backend logs only
@@ -838,12 +1012,17 @@ async function savePayMethod(tr, id, method) {
 
 function updateSummary() {
 	let qa = 0, qm = 0, qma = 0, qo = 0, grand = 0;
+	let qn = 0; // preview nute qty (does not affect grand)
 	for (const s of state.sales) {
 		qa += Number(s.qty_arco || 0);
 		qm += Number(s.qty_melo || 0);
 		qma += Number(s.qty_mara || 0);
 		qo += Number(s.qty_oreo || 0);
 		grand += calcRowTotal({ arco: s.qty_arco, melo: s.qty_melo, mara: s.qty_mara, oreo: s.qty_oreo });
+		if (state.previewNuteEnabled) {
+			const add = Number(state.previewNuteBySale[s.id] || 0);
+			if (!isNaN(add)) qn += add;
+		}
 	}
 	$('#sum-arco-qty').textContent = String(qa);
 	$('#sum-melo-qty').textContent = String(qm);
@@ -859,6 +1038,14 @@ function updateSummary() {
 	$('#sum-melo-amt').textContent = vm;
 	$('#sum-mara-amt').textContent = vma;
 	$('#sum-oreo-amt').textContent = vo;
+	// Preview Nute summary (qty only; amount shows '-')
+	if (state.previewNuteEnabled) {
+		const elQ = document.getElementById('sum-nute-qty'); if (elQ) elQ.textContent = String(qn);
+		const elA = document.getElementById('sum-nute-amt'); if (elA) elA.textContent = qn ? '-' : '0';
+	} else {
+		const elQ = document.getElementById('sum-nute-qty'); if (elQ) elQ.textContent = '';
+		const elA = document.getElementById('sum-nute-amt'); if (elA) elA.textContent = '';
+	}
 	// stacked rows on small screens
 	const qva = String(qa);
 	const qvm = String(qm);
@@ -868,6 +1055,13 @@ function updateSummary() {
 	const elMe = document.getElementById('sum-melo-qty-2'); if (elMe) elMe.textContent = qvm; const elMeAmt = document.getElementById('sum-melo-amt-2'); if (elMeAmt) elMeAmt.textContent = vm;
 	const elMa = document.getElementById('sum-mara-qty-2'); if (elMa) elMa.textContent = qvma; const elMaAmt = document.getElementById('sum-mara-amt-2'); if (elMaAmt) elMaAmt.textContent = vma;
 	const elOr = document.getElementById('sum-oreo-qty-2'); if (elOr) elOr.textContent = qvo; const elOrAmt = document.getElementById('sum-oreo-amt-2'); if (elOrAmt) elOrAmt.textContent = vo;
+	if (state.previewNuteEnabled) {
+		const elNQ = document.getElementById('sum-nute-qty-2'); if (elNQ) elNQ.textContent = String(qn);
+		const elNA = document.getElementById('sum-nute-amt-2'); if (elNA) elNA.textContent = qn ? '-' : '';
+	} else {
+		const elNQ = document.getElementById('sum-nute-qty-2'); if (elNQ) elNQ.textContent = '';
+		const elNA = document.getElementById('sum-nute-amt-2'); if (elNA) elNA.textContent = '';
+	}
 	const grandStr = fmtNo.format(grand);
 	$('#sum-grand').textContent = grandStr;
 	// Commissions: total desserts * 1000
@@ -1736,6 +1930,8 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 (async function init() {
 	bindEvents();
 	notify.initToggle();
+	detectPreviewFlags();
+	addPreviewToggleButtonIfAdmin();
 	// Realtime polling of backend notifications
 	(function startRealtime(){
 		let lastId = 0;
