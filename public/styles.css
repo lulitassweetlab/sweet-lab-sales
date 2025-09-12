@@ -1399,7 +1399,7 @@ button.secondary.press-btn:active {
 		content: attr(data-label);
 		position: absolute !important;
 		left: 50% !important;
-		bottom: 4px !important;
+		bottom: 6px !important;
 		transform: translateX(-50%) rotate(-90deg) !important;
 		transform-origin: center center !important;
 		white-space: nowrap !important;
