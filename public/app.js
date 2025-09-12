@@ -24,6 +24,16 @@ const notify = (() => {
 	const container = () => document.getElementById('toast-container');
 	const STORAGE_KEY = 'notify_log_v1';
 	let notifIcon = '/logo.png';
+	const _recent = new Map();
+	function _shouldShow(key) {
+		try {
+			const now = Date.now();
+			const last = _recent.get(key) || 0;
+			if (now - last < 4000) return false;
+			_recent.set(key, now);
+			return true;
+		} catch { return true; }
+	}
 	function buildPinkIcon() {
 		try {
 			const size = 128;
@@ -108,6 +118,12 @@ const notify = (() => {
 			new Notification(String(title || 'Sweet Lab'), { body: finalBody, icon: notifIcon });
 		} catch {}
 	}
+	function unique(title, message, type = 'info') {
+		const key = String(message || '');
+		if (!_shouldShow(key)) return;
+		if (type === 'success') render('success', message); else if (type === 'error') render('error', message); else render('info', message);
+		showBrowser(title, message);
+	}
 	function initToggle() {
 		document.addEventListener('DOMContentLoaded', async () => {
 			buildPinkIcon();
@@ -187,7 +203,7 @@ const notify = (() => {
 			const btn = document.getElementById('notif-toggle'); if (btn) { const ok = ('Notification' in window) && Notification.permission === 'granted'; btn.classList.toggle('enabled', !!ok); }
 		});
 	}
-	return { info: (m,t)=>render('info',m,t), success: (m,t)=>render('success',m,t), error: (m,t)=>render('error',m,t), showBrowser, ensurePermission, initToggle, openDialog };
+	return { info: (m,t)=>render('info',m,t), success: (m,t)=>render('success',m,t), error: (m,t)=>render('error',m,t), showBrowser, unique, ensurePermission, initToggle, openDialog };
 })();
 
 // Theme management
@@ -1745,8 +1761,7 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 						for (const r of rows) {
 							lastId = Math.max(lastId, Number(r.id||0));
 							const msg = String(r.message || '');
-							notify.info(msg);
-							notify.showBrowser('Venta', msg);
+							notify.unique('Venta', msg, r.type === 'delete' ? 'error' : 'info');
 						}
 					}
 				}
