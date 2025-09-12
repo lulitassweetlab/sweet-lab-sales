@@ -776,7 +776,9 @@ async function deleteRow(id) {
 	const prev = state.sales.find(s => s.id === id);
 	const actor = encodeURIComponent(state.currentUser?.name || '');
 	await api('DELETE', `${API.Sales}?id=${encodeURIComponent(id)}&actor=${actor}`);
-	state.sales = state.sales.filter(s => s.id !== id);
+	// Robust local removal and refresh from server to avoid stale UI
+	state.sales = state.sales.filter(s => Number(s.id) !== Number(id));
+	await loadSales();
 	// Push undo: re-create previous row
 	if (prev) {
 		pushUndo({
