@@ -1440,36 +1440,37 @@ button.secondary.press-btn:active {
 	}
 }
 
-/* Slightly darken Melo and Oreo columns (all sections) */
-#sales-table thead th.col-melo,
-#sales-table tbody td.col-melo,
-#sales-table tfoot td.col-melo,
-#sales-table thead th.col-oreo,
-#sales-table tbody td.col-oreo,
-#sales-table tfoot td.col-oreo,
+/* Slightly darken Arco, Mara and Nute columns (all sections) */
+#sales-table thead th.col-arco,
+#sales-table tbody td.col-arco,
+#sales-table tfoot td.col-arco,
+#sales-table thead th.col-mara,
+#sales-table tbody td.col-mara,
+#sales-table tfoot td.col-mara,
 #sales-table thead th.col-nute,
 #sales-table tbody td.col-nute,
 #sales-table tfoot td.col-nute {
 	background-color: rgba(0,0,0,0.10) !important;
 }
 /* Keep darker shade on hover as well (light theme) */
-#sales-table tbody tr:hover td.col-melo,
-#sales-table tbody tr:hover td.col-oreo,
+#sales-table tbody tr:hover td.col-arco,
+#sales-table tbody tr:hover td.col-mara,
 #sales-table tbody tr:hover td.col-nute { background-color: rgba(0,0,0,0.14) !important; }
 
 /* Dark theme: slightly darker than base card */
-[data-theme="dark"] #sales-table tbody td.col-melo,
-[data-theme="dark"] #sales-table tfoot td.col-melo,
-[data-theme="dark"] #sales-table thead th.col-oreo,
-[data-theme="dark"] #sales-table tbody td.col-oreo,
-[data-theme="dark"] #sales-table tfoot td.col-oreo,
+[data-theme="dark"] #sales-table thead th.col-arco,
+[data-theme="dark"] #sales-table tbody td.col-arco,
+[data-theme="dark"] #sales-table tfoot td.col-arco,
+[data-theme="dark"] #sales-table thead th.col-mara,
+[data-theme="dark"] #sales-table tbody td.col-mara,
+[data-theme="dark"] #sales-table tfoot td.col-mara,
 [data-theme="dark"] #sales-table thead th.col-nute,
 [data-theme="dark"] #sales-table tbody td.col-nute,
 [data-theme="dark"] #sales-table tfoot td.col-nute {
 	background-color: #191b1f !important;
 }
-[data-theme="dark"] #sales-table tbody tr:hover td.col-melo,
-[data-theme="dark"] #sales-table tbody tr:hover td.col-oreo,
+[data-theme="dark"] #sales-table tbody tr:hover td.col-arco,
+[data-theme="dark"] #sales-table tbody tr:hover td.col-mara,
 [data-theme="dark"] #sales-table tbody tr:hover td.col-nute { background-color: #202327 !important; }
 
 /* Revert previous override: keep earlier working vertical labels */
