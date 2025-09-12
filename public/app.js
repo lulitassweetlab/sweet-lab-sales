@@ -774,11 +774,6 @@ function openCommentDialog(anchorEl, initial = '', anchorX, anchorY) {
 
 async function deleteRow(id) {
 	const prev = state.sales.find(s => s.id === id);
-	// Optimistic: remove the row element immediately to avoid lingering UI
-	try {
-		const trEl = document.querySelector(`#sales-tbody tr[data-id="${id}"]`);
-		if (trEl && trEl.parentNode) trEl.parentNode.removeChild(trEl);
-	} catch {}
 	const actor = encodeURIComponent(state.currentUser?.name || '');
 	await api('DELETE', `${API.Sales}?id=${encodeURIComponent(id)}&actor=${actor}`);
 	// Robust local removal and refresh from server to avoid stale UI
