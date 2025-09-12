@@ -8,9 +8,23 @@ export async function handler(event) {
 	try {
 		await ensureSchema();
 		if (event.httpMethod === 'OPTIONS') return json({ ok: true });
+		function getParams() {
+			let search = '';
+			if (typeof event.rawQuery === 'string' && event.rawQuery) search = event.rawQuery;
+			else if (typeof event.rawUrl === 'string') {
+				try { const u = new URL(event.rawUrl); if (u.search) search = u.search.slice(1); } catch {}
+			}
+			const p = new URLSearchParams(search);
+			if (!search && event.queryStringParameters) {
+				for (const [k, v] of Object.entries(event.queryStringParameters)) {
+					if (v != null) p.set(k, String(v));
+				}
+			}
+			return p;
+		}
 		switch (event.httpMethod) {
 			case 'GET': {
-				const params = new URLSearchParams(event.rawQuery || event.queryStringParameters ? event.rawQuery || '' : '');
+				const params = getParams();
 				const historyFor = params.get('history_for');
 				if (historyFor) {
 					const saleId = Number(historyFor);
@@ -25,8 +39,8 @@ export async function handler(event) {
 					const rows = await sql`SELECT id, sale_id, image_base64, created_at FROM sale_receipts WHERE sale_id=${saleId} ORDER BY created_at DESC, id DESC`;
 					return json(rows);
 				}
-				const sellerIdParam = params.get('seller_id') || (event.queryStringParameters && event.queryStringParameters.seller_id);
-				const dayIdParam = params.get('sale_day_id') || (event.queryStringParameters && event.queryStringParameters.sale_day_id);
+				const sellerIdParam = params.get('seller_id');
+				const dayIdParam = params.get('sale_day_id');
 				const sellerId = Number(sellerIdParam);
 				const saleDayId = dayIdParam ? Number(dayIdParam) : null;
 				if (!sellerId) return json({ error: 'seller_id requerido' }, 400);
@@ -110,8 +124,8 @@ export async function handler(event) {
 				return json(row);
 			}
 			case 'DELETE': {
-				const params = new URLSearchParams(event.rawQuery || event.queryStringParameters ? event.rawQuery || '' : '');
-				const idParam = params.get('id') || (event.queryStringParameters && event.queryStringParameters.id);
+				const params = getParams();
+				const idParam = params.get('id');
 				const actor = (params.get('actor') || '').toString();
 				const id = Number(idParam);
 				if (!id) return json({ error: 'id requerido' }, 400);
