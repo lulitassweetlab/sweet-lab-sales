@@ -1239,6 +1239,26 @@ function renderDaysList() {
 		item.appendChild(del);
 		list.appendChild(item);
 	}
+	// Preview: auto-open the most recent date when entering seller view
+	try {
+		if (!state.selectedDayId) {
+			const days = Array.isArray(state.saleDays) ? state.saleDays.slice() : [];
+			if (days.length) {
+				let latest = days[0];
+				let latestTs = Date.parse(String(latest.day).slice(0,10));
+				for (let i = 1; i < days.length; i++) {
+					const ts = Date.parse(String(days[i].day).slice(0,10));
+					if (!isNaN(ts) && (isNaN(latestTs) || ts > latestTs)) { latest = days[i]; latestTs = ts; }
+				}
+				if (latest && latest.id) {
+					state.selectedDayId = latest.id;
+					const wrap = document.getElementById('sales-wrapper');
+					if (wrap) wrap.classList.remove('hidden');
+					loadSales().catch(()=>{});
+				}
+			}
+		}
+	} catch {}
 }
 
 async function addNewDate() {
