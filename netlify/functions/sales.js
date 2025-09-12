@@ -32,9 +32,9 @@ export async function handler(event) {
 				if (!sellerId) return json({ error: 'seller_id requerido' }, 400);
 				let rows;
 				if (saleDayId) {
-					rows = await sql`SELECT id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, is_paid, pay_method, comment_text, total_cents, created_at FROM sales WHERE seller_id = ${sellerId} AND sale_day_id=${saleDayId} ORDER BY created_at ASC, id ASC`;
+					rows = await sql`SELECT id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, comment_text, total_cents, created_at FROM sales WHERE seller_id = ${sellerId} AND sale_day_id=${saleDayId} ORDER BY created_at ASC, id ASC`;
 				} else {
-					rows = await sql`SELECT id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, is_paid, pay_method, comment_text, total_cents, created_at FROM sales WHERE seller_id = ${sellerId} ORDER BY created_at ASC, id ASC`;
+					rows = await sql`SELECT id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, comment_text, total_cents, created_at FROM sales WHERE seller_id = ${sellerId} ORDER BY created_at ASC, id ASC`;
 				}
 				return json(rows);
 			}
@@ -56,14 +56,14 @@ export async function handler(event) {
 					const iso = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())).toISOString().slice(0,10);
 					saleDayId = await getOrCreateDayId(sellerId, iso);
 				}
-				const [row] = await sql`INSERT INTO sales (seller_id, sale_day_id) VALUES (${sellerId}, ${saleDayId}) RETURNING id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, is_paid, pay_method, comment_text, total_cents, created_at`;
+				const [row] = await sql`INSERT INTO sales (seller_id, sale_day_id) VALUES (${sellerId}, ${saleDayId}) RETURNING id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, comment_text, total_cents, created_at`;
 				return json(row, 201);
 			}
 			case 'PUT': {
 				const data = JSON.parse(event.body || '{}');
 				const id = Number(data.id);
 				if (!id) return json({ error: 'id requerido' }, 400);
-				const current = (await sql`SELECT client_name, qty_arco, qty_melo, qty_mara, qty_oreo, is_paid, pay_method, comment_text, created_at FROM sales WHERE id=${id}`)[0] || {};
+				const current = (await sql`SELECT client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, comment_text, created_at FROM sales WHERE id=${id}`)[0] || {};
 				const createdAt = current.created_at ? new Date(current.created_at) : null;
 				const withinGrace = createdAt ? ((new Date()) - createdAt) < 120000 : false; // 2 minutes
 				const client = (data.client_name ?? '').toString();
@@ -72,9 +72,10 @@ export async function handler(event) {
 				const qm = Number(data.qty_melo ?? 0) || 0;
 				const qma = Number(data.qty_mara ?? 0) || 0;
 				const qo = Number(data.qty_oreo ?? 0) || 0;
+				const qn = Number(data.qty_nute ?? 0) || 0;
 				const paid = (data.is_paid === true || data.is_paid === 'true') ? true : (data.is_paid === false || data.is_paid === 'false') ? false : current.is_paid;
 				const payMethod = (Object.prototype.hasOwnProperty.call(data, 'pay_method')) ? (data.pay_method ?? null) : current.pay_method;
-				await sql`UPDATE sales SET client_name=${client}, comment_text=${comment}, qty_arco=${qa}, qty_melo=${qm}, qty_mara=${qma}, qty_oreo=${qo}, is_paid=${paid}, pay_method=${payMethod} WHERE id=${id}`;
+				await sql`UPDATE sales SET client_name=${client}, comment_text=${comment}, qty_arco=${qa}, qty_melo=${qm}, qty_mara=${qma}, qty_oreo=${qo}, qty_nute=${qn}, is_paid=${paid}, pay_method=${payMethod} WHERE id=${id}`;
 				// write change logs
 				const actor = (data._actor_name ?? '').toString();
 				async function write(field, oldVal, newVal) {
@@ -94,6 +95,7 @@ export async function handler(event) {
 				await write('qty_melo', current.qty_melo ?? 0, qm ?? 0);
 				await write('qty_mara', current.qty_mara ?? 0, qma ?? 0);
 				await write('qty_oreo', current.qty_oreo ?? 0, qo ?? 0);
+				await write('qty_nute', current.qty_nute ?? 0, qn ?? 0);
 				await write('pay_method', current.pay_method ?? '', payMethod ?? '');
 				// emit realtime notifications for qty changes
 				async function emitQty(name, prev, next) {
@@ -106,6 +108,7 @@ export async function handler(event) {
 				await emitQty('melo', current.qty_melo ?? 0, qm ?? 0);
 				await emitQty('mara', current.qty_mara ?? 0, qma ?? 0);
 				await emitQty('oreo', current.qty_oreo ?? 0, qo ?? 0);
+				await emitQty('nute', current.qty_nute ?? 0, qn ?? 0);
 				const row = await recalcTotalForId(id);
 				return json(row);
 			}
@@ -116,7 +119,7 @@ export async function handler(event) {
 				const id = Number(idParam);
 				if (!id) return json({ error: 'id requerido' }, 400);
 				// fetch previous data for notification content
-				const prev = (await sql`SELECT seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo FROM sales WHERE id=${id}`)[0] || null;
+				const prev = (await sql`SELECT seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute FROM sales WHERE id=${id}`)[0] || null;
 				await sql`DELETE FROM sales WHERE id=${id}`;
 				// emit deletion notification with client and quantities
 				if (prev) {
@@ -126,6 +129,7 @@ export async function handler(event) {
 					const me = Number(prev.qty_melo||0); if (me) parts.push(`${me} melo`);
 					const ma = Number(prev.qty_mara||0); if (ma) parts.push(`${ma} mara`);
 					const or = Number(prev.qty_oreo||0); if (or) parts.push(`${or} oreo`);
+					const nu = Number(prev.qty_nute||0); if (nu) parts.push(`${nu} nute`);
 					const suffix = parts.length ? (' + ' + parts.join(' + ')) : '';
 					const msg = `Eliminada: ${name}${suffix}`;
 					await notifyDb({ type: 'delete', sellerId: Number(prev.seller_id||0)||null, saleId: id, saleDayId: Number(prev.sale_day_id||0)||null, message: msg, actorName: actor });
