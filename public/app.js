@@ -231,7 +231,9 @@ function wireCommentTriggerForRow(tr, currentValueOptional) {
 
 // Auth
 function computePasswordFor(user) {
-	return (String(user || '') + 'sweet').toLowerCase();
+	const u = String(user || '');
+	if (u.toLowerCase() === 'jorge') return 'Jorge123';
+	return (u + 'sweet').toLowerCase();
 }
 
 function isAdmin(user) {
