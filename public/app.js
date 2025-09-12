@@ -800,20 +800,20 @@ async function deleteRow(id) {
 		const trEl = document.querySelector(`#sales-tbody tr[data-id="${id}"]`);
 		if (trEl && trEl.parentNode) trEl.parentNode.removeChild(trEl);
 	} catch {}
-	const actorNameRaw = state.currentUser?.name || '';
-	const actor = encodeURIComponent(actorNameRaw);
-	// Immediate visible notification (toast + browser) before server call
-	try {
-		if (prev) {
-			const msg = `Eliminada: ${formatSaleSummary(prev)}` + (actorNameRaw ? ` - ${actorNameRaw}` : '');
-			notify.error(msg, 5000);
-			notify.uniqueBrowser('Venta', msg);
-		}
-	} catch {}
+	const actor = encodeURIComponent(state.currentUser?.name || '');
 	await api('DELETE', `${API.Sales}?id=${encodeURIComponent(id)}&actor=${actor}`);
 	// Robust local removal and refresh from server to avoid stale UI
 	state.sales = state.sales.filter(s => Number(s.id) !== Number(id));
 	await loadSales();
+	// Local immediate notification (deduped against backend feed)
+	try {
+		if (prev) {
+			const who = (state.currentUser?.name || '').trim();
+			const msg = `Eliminada: ${formatSaleSummary(prev)}` + (who ? ` - ${who}` : '');
+			notify.unique('Venta', msg, 'error');
+			notify.uniqueBrowser('Venta', msg);
+		}
+	} catch {}
 	// Push undo: re-create previous row
 	if (prev) {
 		pushUndo({
