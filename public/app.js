@@ -238,7 +238,7 @@ function computePasswordFor(user) {
 
 function isAdmin(user) {
 	const u = String(user || '').toLowerCase();
-	return u === 'jorge' || u === 'marcela';
+	return u === 'jorge' || u === 'marcela' || u === 'aleja';
 }
 
 function bindLogin() {
