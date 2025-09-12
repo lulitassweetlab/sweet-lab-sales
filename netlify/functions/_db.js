@@ -25,6 +25,7 @@ export async function ensureSchema() {
 		qty_melo INTEGER NOT NULL DEFAULT 0,
 		qty_mara INTEGER NOT NULL DEFAULT 0,
 		qty_oreo INTEGER NOT NULL DEFAULT 0,
+		qty_nute INTEGER NOT NULL DEFAULT 0,
 		is_paid BOOLEAN NOT NULL DEFAULT false,
 		pay_method TEXT,
 		comment_text TEXT DEFAULT '',
@@ -56,6 +57,12 @@ export async function ensureSchema() {
 			WHERE table_name = 'sales' AND column_name = 'comment_text'
 		) THEN
 			ALTER TABLE sales ADD COLUMN comment_text TEXT DEFAULT '';
+		END IF;
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'sales' AND column_name = 'qty_nute'
+		) THEN
+			ALTER TABLE sales ADD COLUMN qty_nute INTEGER NOT NULL DEFAULT 0;
 		END IF;
 	END $$;`;
 	await sql`CREATE TABLE IF NOT EXISTS change_logs (
@@ -89,13 +96,13 @@ export async function ensureSchema() {
 }
 
 export function prices() {
-	return { arco: 8500, melo: 9500, mara: 10500, oreo: 10500 };
+	return { arco: 8500, melo: 9500, mara: 10500, oreo: 10500, nute: 11500 };
 }
 
 export async function recalcTotalForId(id) {
 	const p = prices();
 	const [row] = await sql`
-		UPDATE sales SET total_cents = qty_arco * ${p.arco} + qty_melo * ${p.melo} + qty_mara * ${p.mara} + qty_oreo * ${p.oreo}
+		UPDATE sales SET total_cents = qty_arco * ${p.arco} + qty_melo * ${p.melo} + qty_mara * ${p.mara} + qty_oreo * ${p.oreo} + qty_nute * ${p.nute}
 		WHERE id = ${id}
 		RETURNING *
 	`;

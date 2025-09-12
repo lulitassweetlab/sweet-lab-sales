@@ -8,6 +8,7 @@ const PRICES = {
 	melo: 9500,
 	mara: 10500,
 	oreo: 10500,
+	nute: 11500,
 };
 
 const fmtNo = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 });
@@ -371,7 +372,8 @@ function calcRowTotal(q) {
 	const melo = Number(q.melo || 0);
 	const mara = Number(q.mara || 0);
 	const oreo = Number(q.oreo || 0);
-	return arco * PRICES.arco + melo * PRICES.melo + mara * PRICES.mara + oreo * PRICES.oreo;
+	const nute = Number(q.nute || 0);
+	return arco * PRICES.arco + melo * PRICES.melo + mara * PRICES.mara + oreo * PRICES.oreo + nute * PRICES.nute;
 }
 
 // Build compact sale summary: "Cliente + 2 arco + 1 melo"
@@ -383,6 +385,7 @@ function formatSaleSummary(sale) {
 	const qMe = Number(sale.qty_melo || 0); if (qMe) parts.push(`${qMe} melo`);
 	const qMa = Number(sale.qty_mara || 0); if (qMa) parts.push(`${qMa} mara`);
 	const qOr = Number(sale.qty_oreo || 0); if (qOr) parts.push(`${qOr} oreo`);
+	const qNu = Number(sale.qty_nute || 0); if (qNu) parts.push(`${qNu} nute`);
 	const suffix = parts.length ? (' + ' + parts.join(' + ')) : '';
 	return name + suffix;
 }
@@ -391,7 +394,7 @@ function renderTable() {
 	const tbody = $('#sales-tbody');
 	tbody.innerHTML = '';
 	for (const sale of state.sales) {
-		const total = calcRowTotal({ arco: sale.qty_arco, melo: sale.qty_melo, mara: sale.qty_mara, oreo: sale.qty_oreo });
+		const total = calcRowTotal({ arco: sale.qty_arco, melo: sale.qty_melo, mara: sale.qty_mara, oreo: sale.qty_oreo, nute: sale.qty_nute });
 		const isPaid = !!sale.is_paid;
 		const tr = el('tr', {},
 			el('td', { class: 'col-paid' }, (function(){
@@ -443,6 +446,7 @@ function renderTable() {
 			el('td', { class: 'col-melo' }, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_melo ? String(sale.qty_melo) : '', placeholder: '', onblur: () => saveRow(tr, sale.id), onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); saveRow(tr, sale.id); } }, onfocus: (e) => e.target.select(), onmouseup: (e) => e.preventDefault() })),
 			el('td', { class: 'col-mara' }, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_mara ? String(sale.qty_mara) : '', placeholder: '', onblur: () => saveRow(tr, sale.id), onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); saveRow(tr, sale.id); } }, onfocus: (e) => e.target.select(), onmouseup: (e) => e.preventDefault() })),
 			el('td', { class: 'col-oreo' }, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_oreo ? String(sale.qty_oreo) : '', placeholder: '', onblur: () => saveRow(tr, sale.id), onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); saveRow(tr, sale.id); } }, onfocus: (e) => e.target.select(), onmouseup: (e) => e.preventDefault() })),
+			el('td', { class: 'col-nute' }, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_nute ? String(sale.qty_nute) : '', placeholder: '', onblur: () => saveRow(tr, sale.id), onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); saveRow(tr, sale.id); } }, onfocus: (e) => e.target.select(), onmouseup: (e) => e.preventDefault() })),
 			el('td', { class: 'col-extra' }),
 			el('td', { class: 'total col-total' }, fmtNo.format(total)),
 			el('td', { class: 'col-actions' }, (function(){
@@ -555,7 +559,7 @@ async function saveRow(tr, id) {
 	const idx = state.sales.findIndex(s => s.id === id);
 	if (idx !== -1) state.sales[idx] = updated;
 	const totalCell = tr.querySelector('.total');
-	const total = calcRowTotal({ arco: updated.qty_arco, melo: updated.qty_melo, mara: updated.qty_mara, oreo: updated.qty_oreo });
+	const total = calcRowTotal({ arco: updated.qty_arco, melo: updated.qty_melo, mara: updated.qty_mara, oreo: updated.qty_oreo, nute: updated.qty_nute });
 	totalCell.textContent = fmtNo.format(total);
 	updateSummary();
 	// Notify only when quantities change; one notification per dessert type
@@ -566,6 +570,7 @@ async function saveRow(tr, id) {
 			const prevMe = Number(prev.qty_melo||0), newMe = Number(updated.qty_melo||0);
 			const prevMa = Number(prev.qty_mara||0), newMa = Number(updated.qty_mara||0);
 			const prevOr = Number(prev.qty_oreo||0), newOr = Number(updated.qty_oreo||0);
+			const prevNu = Number(prev.qty_nute||0), newNu = Number(updated.qty_nute||0);
 			const seller = String((state?.currentSeller?.name || state?.currentUser?.name || '') || '');
 			if (newAr !== prevAr) {
 				const prevNote = prevAr > 0 ? ` (antes ${prevAr})` : '';
@@ -585,6 +590,11 @@ async function saveRow(tr, id) {
 			if (newOr !== prevOr) {
 				const prevNote = prevOr > 0 ? ` (antes ${prevOr})` : '';
 				const msg = `${client} + ${newOr} oreo${prevNote}` + (seller ? ` - ${seller}` : '');
+				notify.success(msg);
+			}
+			if (newNu !== prevNu) {
+				const prevNote = prevNu > 0 ? ` (antes ${prevNu})` : '';
+				const msg = `${client} + ${newNu} nute${prevNote}` + (seller ? ` - ${seller}` : '');
 				notify.success(msg);
 			}
 		}
@@ -638,7 +648,7 @@ async function saveClientWithCommentFlow(tr, id) {
 async function saveComment(id, text) {
 	const sale = state.sales.find(s => s.id === id);
 	if (!sale) return;
-	const payload = { id, client_name: sale.client_name || '', qty_arco: sale.qty_arco||0, qty_melo: sale.qty_melo||0, qty_mara: sale.qty_mara||0, qty_oreo: sale.qty_oreo||0, is_paid: !!sale.is_paid, pay_method: sale.pay_method ?? null, comment_text: text, _actor_name: state.currentUser?.name || '' };
+	const payload = { id, client_name: sale.client_name || '', qty_arco: sale.qty_arco||0, qty_melo: sale.qty_melo||0, qty_mara: sale.qty_mara||0, qty_oreo: sale.qty_oreo||0, qty_nute: sale.qty_nute||0, is_paid: !!sale.is_paid, pay_method: sale.pay_method ?? null, comment_text: text, _actor_name: state.currentUser?.name || '' };
 	const updated = await api('PUT', API.Sales, payload);
 	const idx = state.sales.findIndex(s => s.id === id);
 	if (idx !== -1) state.sales[idx] = updated;
@@ -837,50 +847,57 @@ async function savePayMethod(tr, id, method) {
 }
 
 function updateSummary() {
-	let qa = 0, qm = 0, qma = 0, qo = 0, grand = 0;
-	let paidQa = 0, paidQm = 0, paidQma = 0, paidQo = 0;
+	let qa = 0, qm = 0, qma = 0, qo = 0, qn = 0, grand = 0;
+	let paidQa = 0, paidQm = 0, paidQma = 0, paidQo = 0, paidQn = 0;
 	for (const s of state.sales) {
 		const arco = Number(s.qty_arco || 0);
 		const melo = Number(s.qty_melo || 0);
 		const mara = Number(s.qty_mara || 0);
 		const oreo = Number(s.qty_oreo || 0);
+		const nute = Number(s.qty_nute || 0);
 		qa += arco;
 		qm += melo;
 		qma += mara;
 		qo += oreo;
-		grand += calcRowTotal({ arco: s.qty_arco, melo: s.qty_melo, mara: s.qty_mara, oreo: s.qty_oreo });
+		qn += nute;
+		grand += calcRowTotal({ arco: s.qty_arco, melo: s.qty_melo, mara: s.qty_mara, oreo: s.qty_oreo, nute: s.qty_nute });
 		const pm = (s.pay_method || '').toString();
 		if (pm === 'transf' || pm === 'marce') {
-			paidQa += arco; paidQm += melo; paidQma += mara; paidQo += oreo;
+			paidQa += arco; paidQm += melo; paidQma += mara; paidQo += oreo; paidQn += nute;
 		}
 	}
 	$('#sum-arco-qty').textContent = String(qa);
 	$('#sum-melo-qty').textContent = String(qm);
 	$('#sum-mara-qty').textContent = String(qma);
 	$('#sum-oreo-qty').textContent = String(qo);
-	const totalQty = qa + qm + qma + qo;
+	const elNq = document.getElementById('sum-nute-qty'); if (elNq) elNq.textContent = String(qn);
+	const totalQty = qa + qm + qma + qo + qn;
 	$('#sum-total-qty').textContent = String(totalQty);
 	const va = fmtNo.format(qa * PRICES.arco);
 	const vm = fmtNo.format(qm * PRICES.melo);
 	const vma = fmtNo.format(qma * PRICES.mara);
 	const vo = fmtNo.format(qo * PRICES.oreo);
+	const vn = fmtNo.format(qn * PRICES.nute);
 	$('#sum-arco-amt').textContent = va;
 	$('#sum-melo-amt').textContent = vm;
 	$('#sum-mara-amt').textContent = vma;
 	$('#sum-oreo-amt').textContent = vo;
+	const elNa = document.getElementById('sum-nute-amt'); if (elNa) elNa.textContent = vn;
 	// stacked rows on small screens
 	const qva = String(qa);
 	const qvm = String(qm);
 	const qvma = String(qma);
 	const qvo = String(qo);
+	const qvn = String(qn);
 	const elAr = document.getElementById('sum-arco-qty-2'); if (elAr) elAr.textContent = qva; const elArAmt = document.getElementById('sum-arco-amt-2'); if (elArAmt) elArAmt.textContent = va;
 	const elMe = document.getElementById('sum-melo-qty-2'); if (elMe) elMe.textContent = qvm; const elMeAmt = document.getElementById('sum-melo-amt-2'); if (elMeAmt) elMeAmt.textContent = vm;
 	const elMa = document.getElementById('sum-mara-qty-2'); if (elMa) elMa.textContent = qvma; const elMaAmt = document.getElementById('sum-mara-amt-2'); if (elMaAmt) elMaAmt.textContent = vma;
 	const elOr = document.getElementById('sum-oreo-qty-2'); if (elOr) elOr.textContent = qvo; const elOrAmt = document.getElementById('sum-oreo-amt-2'); if (elOrAmt) elOrAmt.textContent = vo;
+	const elNu = document.getElementById('sum-nute-qty-2'); if (elNu) elNu.textContent = qvn; const elNuAmt = document.getElementById('sum-nute-amt-2'); if (elNuAmt) elNuAmt.textContent = vn;
 	const grandStr = fmtNo.format(grand);
 	$('#sum-grand').textContent = grandStr;
 	// Commissions: only paid desserts * 1000
-	const paidTotalQty = paidQa + paidQm + paidQma + paidQo;
+	const paidTotalQty = paidQa + paidQm + paidQma + paidQo + paidQn;
 	const commStr = fmtNo.format(paidTotalQty * 1000);
 	const commEl = document.getElementById('sum-comm');
 	if (commEl) commEl.textContent = commStr;
@@ -891,7 +908,7 @@ function updateSummary() {
 		const isSmall = window.matchMedia('(max-width: 600px)').matches;
 		let overlap = false;
 		if (isSmall) {
-			const ids = ['sum-arco-amt', 'sum-melo-amt', 'sum-mara-amt', 'sum-oreo-amt'];
+			const ids = ['sum-arco-amt', 'sum-melo-amt', 'sum-mara-amt', 'sum-oreo-amt', 'sum-nute-amt'];
 			for (const id of ids) {
 				const el = document.getElementById(id);
 				if (!el) continue;
@@ -912,12 +929,14 @@ function readRow(tr) {
 	const meloEl = tr.querySelector('td.col-melo input');
 	const maraEl = tr.querySelector('td.col-mara input');
 	const oreoEl = tr.querySelector('td.col-oreo input');
+	const nuteEl = tr.querySelector('td.col-nute input');
 	return {
 		client_name: clientEl ? clientEl.value.trim() : '',
 		qty_arco: arcoEl && arcoEl.value !== '' ? Number(arcoEl.value) : 0,
 		qty_melo: meloEl && meloEl.value !== '' ? Number(meloEl.value) : 0,
 		qty_mara: maraEl && maraEl.value !== '' ? Number(maraEl.value) : 0,
 		qty_oreo: oreoEl && oreoEl.value !== '' ? Number(oreoEl.value) : 0,
+		qty_nute: nuteEl && nuteEl.value !== '' ? Number(nuteEl.value) : 0,
 	};
 }
 
@@ -931,7 +950,7 @@ function debounce(fn, ms) {
 
 function exportTableToExcel() {
 	// Build SheetJS worksheet from rows
-	const header = ['$', 'Pago', 'Cliente', 'Arco', 'Melo', 'Mara', 'Oreo', 'Total'];
+	const header = ['$', 'Pago', 'Cliente', 'Arco', 'Melo', 'Mara', 'Oreo', 'Nute', 'Total'];
 	const data = [header];
 	const tbody = document.getElementById('sales-tbody');
 	if (tbody) {
@@ -945,20 +964,23 @@ function exportTableToExcel() {
 			let melo = tr.querySelector('td.col-melo input')?.value ?? '';
 			let mara = tr.querySelector('td.col-mara input')?.value ?? '';
 			let oreo = tr.querySelector('td.col-oreo input')?.value ?? '';
+			let nute = tr.querySelector('td.col-nute input')?.value ?? '';
 			if (arco === '0') arco = '';
 			if (melo === '0') melo = '';
 			if (mara === '0') mara = '';
 			if (oreo === '0') oreo = '';
+			if (nute === '0') nute = '';
 			let total = tr.querySelector('td.col-total')?.textContent?.trim() ?? '';
 			if (total === '0') total = '';
-			data.push([paid, pay, client, arco, melo, mara, oreo, total]);
+			data.push([paid, pay, client, arco, melo, mara, oreo, nute, total]);
 		}
 	}
 	const tAr = (document.getElementById('sum-arco-qty')?.textContent ?? '').trim();
 	const tMe = (document.getElementById('sum-melo-qty')?.textContent ?? '').trim();
 	const tMa = (document.getElementById('sum-mara-qty')?.textContent ?? '').trim();
 	const tOr = (document.getElementById('sum-oreo-qty')?.textContent ?? '').trim();
-	const tSum = [tAr, tMe, tMa, tOr].map(v => parseInt(v || '0', 10) || 0).reduce((a, b) => a + b, 0);
+	const tNu = (document.getElementById('sum-nute-qty')?.textContent ?? '').trim();
+	const tSum = [tAr, tMe, tMa, tOr, tNu].map(v => parseInt(v || '0', 10) || 0).reduce((a, b) => a + b, 0);
 	data.push(['', '', 'Totales (cant.)',
 		tAr === '0' ? '' : tAr,
 		tMe === '0' ? '' : tMe,
@@ -976,6 +998,7 @@ function exportTableToExcel() {
 		vMe === '0' ? '' : vMe,
 		vMa === '0' ? '' : vMa,
 		vOr === '0' ? '' : vOr,
+		(document.getElementById('sum-nute-amt')?.textContent ?? '').trim() || '',
 		vGr === '0' ? '' : vGr
 	]);
 
@@ -992,8 +1015,8 @@ function exportTableToExcel() {
 
 async function exportConsolidatedForDate(dayIso) {
 	const sellers = await api('GET', API.Sellers);
-	const rows = [['Vendedor', '$', 'Pago', 'Cliente', 'Arco', 'Melo', 'Mara', 'Oreo', 'Total']];
-	let tQa = 0, tQm = 0, tQma = 0, tQo = 0, tGrand = 0;
+	const rows = [['Vendedor', '$', 'Pago', 'Cliente', 'Arco', 'Melo', 'Mara', 'Oreo', 'Nute', 'Total']];
+	let tQa = 0, tQm = 0, tQma = 0, tQo = 0, tQn = 0, tGrand = 0;
 	for (const s of sellers) {
 		const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(s.id)}`);
 		const day = (days || []).find(d => (String(d.day).slice(0,10) === String(dayIso).slice(0,10)));
@@ -1005,10 +1028,11 @@ async function exportConsolidatedForDate(dayIso) {
 			const qm = r.qty_melo || 0;
 			const qma = r.qty_mara || 0;
 			const qo = r.qty_oreo || 0;
+			const qn = r.qty_nute || 0;
 			const tot = r.total_cents || 0;
 			const pm = (r.pay_method || '').toString();
 			const pay = pm === 'efectivo' ? 'Efectivo' : pm === 'transf' ? 'Transf' : '-';
-			tQa += qa; tQm += qm; tQma += qma; tQo += qo; tGrand += (tot || 0);
+			tQa += qa; tQm += qm; tQma += qma; tQo += qo; tQn += qn; tGrand += (tot || 0);
 			rows.push([
 				s.name || '',
 				r.is_paid ? '✓' : '',
@@ -1018,17 +1042,18 @@ async function exportConsolidatedForDate(dayIso) {
 				qm === 0 ? '' : qm,
 				qma === 0 ? '' : qma,
 				qo === 0 ? '' : qo,
+				qn === 0 ? '' : qn,
 				tot === 0 ? '' : tot,
 			]);
 		}
 	}
 	// Append totals row (cantidades por sabor) y monto total
-	rows.push(['', '', '', 'Totales', tQa || '', tQm || '', tQma || '', tQo || '', tGrand || '']);
+	rows.push(['', '', '', 'Totales', tQa || '', tQm || '', tQma || '', tQo || '', tQn || '', tGrand || '']);
 	// Add total count of all desserts
-	const tSumAll = (tQa || 0) + (tQm || 0) + (tQma || 0) + (tQo || 0);
-	rows.push(['', '', '', 'Total postres', '', '', '', '', tSumAll || '']);
+	const tSumAll = (tQa || 0) + (tQm || 0) + (tQma || 0) + (tQo || 0) + (tQn || 0);
+	rows.push(['', '', '', 'Total postres', '', '', '', '', '', tSumAll || '']);
 	const ws = XLSX.utils.aoa_to_sheet(rows);
-	ws['!cols'] = [ {wch:18},{wch:3},{wch:10},{wch:24},{wch:6},{wch:6},{wch:6},{wch:6},{wch:10} ];
+	ws['!cols'] = [ {wch:18},{wch:3},{wch:10},{wch:24},{wch:6},{wch:6},{wch:6},{wch:6},{wch:6},{wch:10} ];
 	const wb = XLSX.utils.book_new();
 	XLSX.utils.book_append_sheet(wb, ws, 'Consolidado');
 	const dateLabel = formatDayLabel(String(dayIso).slice(0,10)).replace(/\s+/g, '_');
@@ -1038,8 +1063,8 @@ async function exportConsolidatedForDate(dayIso) {
 async function exportConsolidatedForDates(isoList) {
 	const unique = Array.from(new Set((isoList || []).map(iso => String(iso).slice(0,10))));
 	const sellers = await api('GET', API.Sellers);
-	const rows = [['Fecha','Vendedor', '$', 'Pago', 'Cliente', 'Arco', 'Melo', 'Mara', 'Oreo', 'Total']];
-	let tQa = 0, tQm = 0, tQma = 0, tQo = 0, tGrand = 0;
+	const rows = [['Fecha','Vendedor', '$', 'Pago', 'Cliente', 'Arco', 'Melo', 'Mara', 'Oreo', 'Nute', 'Total']];
+	let tQa = 0, tQm = 0, tQma = 0, tQo = 0, tQn = 0, tGrand = 0;
 	for (const iso of unique) {
 		for (const s of sellers) {
 			const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(s.id)}`);
@@ -1052,22 +1077,23 @@ async function exportConsolidatedForDates(isoList) {
 				const qm = r.qty_melo || 0;
 				const qma = r.qty_mara || 0;
 				const qo = r.qty_oreo || 0;
+				const qn = r.qty_nute || 0;
 				const tot = r.total_cents || 0;
 				const pm = (r.pay_method || '').toString();
 				const pay = pm === 'efectivo' ? 'Efectivo' : pm === 'transf' ? 'Transf' : '-';
-				tQa += qa; tQm += qm; tQma += qma; tQo += qo; tGrand += (tot || 0);
+				tQa += qa; tQm += qm; tQma += qma; tQo += qo; tQn += qn; tGrand += (tot || 0);
 				rows.push([iso, s.name || '', r.is_paid ? '✓' : '', pay,
 					r.client_name || '', qa === 0 ? '' : qa, qm === 0 ? '' : qm,
-					qma === 0 ? '' : qma, qo === 0 ? '' : qo, tot === 0 ? '' : tot]);
+					qma === 0 ? '' : qma, qo === 0 ? '' : qo, qn === 0 ? '' : qn, tot === 0 ? '' : tot]);
 			}
 		}
 	}
-	rows.push(['', '', '', '', 'Totales', tQa || '', tQm || '', tQma || '', tQo || '', tGrand || '']);
+	rows.push(['', '', '', '', 'Totales', tQa || '', tQm || '', tQma || '', tQo || '', tQn || '', tGrand || '']);
 	// Add total count of all desserts across selected dates
-	const tSumAll = (tQa || 0) + (tQm || 0) + (tQma || 0) + (tQo || 0);
-	rows.push(['', '', '', '', 'Total postres', '', '', '', '', tSumAll || '']);
+	const tSumAll = (tQa || 0) + (tQm || 0) + (tQma || 0) + (tQo || 0) + (tQn || 0);
+	rows.push(['', '', '', '', 'Total postres', '', '', '', '', '', tSumAll || '']);
 	const ws = XLSX.utils.aoa_to_sheet(rows);
-	ws['!cols'] = [ {wch:10},{wch:18},{wch:3},{wch:10},{wch:24},{wch:6},{wch:6},{wch:6},{wch:6},{wch:10} ];
+	ws['!cols'] = [ {wch:10},{wch:18},{wch:3},{wch:10},{wch:24},{wch:6},{wch:6},{wch:6},{wch:6},{wch:6},{wch:10} ];
 	const wb = XLSX.utils.book_new();
 	XLSX.utils.book_append_sheet(wb, ws, 'Consolidado');
 	XLSX.writeFile(wb, `Consolidado_varios_${new Date().toISOString().slice(0,10)}.xlsx`);
