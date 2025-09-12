@@ -870,6 +870,10 @@ function updateSummary() {
 	const elOr = document.getElementById('sum-oreo-qty-2'); if (elOr) elOr.textContent = qvo; const elOrAmt = document.getElementById('sum-oreo-amt-2'); if (elOrAmt) elOrAmt.textContent = vo;
 	const grandStr = fmtNo.format(grand);
 	$('#sum-grand').textContent = grandStr;
+	// Commissions: total desserts * 1000
+	const commStr = fmtNo.format(totalQty * 1000);
+	const commEl = document.getElementById('sum-comm');
+	if (commEl) commEl.textContent = commStr;
 	// Decide whether to stack totals to avoid overlap on small screens
 	requestAnimationFrame(() => {
 		const table = document.getElementById('sales-table');
@@ -888,7 +892,7 @@ function updateSummary() {
 		const grandLine = document.getElementById('sum-grand-2');
 		if (grandLine) grandLine.textContent = grandStr;
 		const commLine = document.getElementById('sum-comm-2');
-		if (commLine) commLine.textContent = fmtNo.format(totalQty * 1000);
+		if (commLine) commLine.textContent = commStr;
 	});
 }
 
