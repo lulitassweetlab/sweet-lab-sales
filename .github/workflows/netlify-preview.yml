@@ -1,0 +1,58 @@
+name: Netlify Deploy Preview
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  deploy-preview:
+    name: Deploy Preview to Netlify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Deploy draft preview to Netlify
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+        run: |
+          npx netlify-cli@latest deploy \
+            --site $NETLIFY_SITE_ID \
+            --auth $NETLIFY_AUTH_TOKEN \
+            --dir=public \
+            --functions=netlify/functions \
+            --message "PR #${{ github.event.pull_request.number }} @ ${{ github.sha }}" \
+            --alias pr-${{ github.event.pull_request.number }} \
+            --draft \
+            --json > netlify-output.json
+          echo "Netlify output:" >> $GITHUB_STEP_SUMMARY
+          cat netlify-output.json >> $GITHUB_STEP_SUMMARY
+
+      - name: Extract preview URL and comment on PR
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          URL=$(node -e "const o=require('./netlify-output.json'); console.log(o.deploy_url||o.url||o.draft_url||'');")
+          if [ -n "$URL" ]; then
+            echo "Preview: $URL" >> $GITHUB_STEP_SUMMARY
+            echo "::notice title=Netlify Preview::$URL"
+            node -e "
+              const {Octokit} = require('@octokit/rest');
+              const ok = new Octokit({ auth: process.env.GITHUB_TOKEN });
+              const [owner, repo] = process.env.GITHUB_REPOSITORY.split('/');
+              const issue_number = Number(process.env.PR_NUMBER||process.env.GITHUB_REF_NAME||0) || ${'{'}{ github.event.pull_request.number }{'}'};
+              ok.issues.createComment({ owner, repo, issue_number, body: `Netlify Preview: ${URL}` }).catch(()=>{});
+            "
+          else
+            echo "No preview URL found" >> $GITHUB_STEP_SUMMARY
+          fi
