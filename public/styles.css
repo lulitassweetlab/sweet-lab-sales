@@ -3824,7 +3824,7 @@ button.secondary.press-btn:active {
 
 /* FINAL MOBILE WIDTHS: set Total to 13% and Actions to 2%; enlarge Client */
 @media (max-width: 600px) {
-	:root { --w-paid: 6%; --w-client: 55%; --w-qty: 6%; --w-total: 13%; --w-actions: 2%; }
+	:root { --w-paid: 6%; --w-client: 54%; --w-qty: 6%; --w-total: 13%; --w-actions: 2%; }
 	#sales-table col.w-paid { width: var(--w-paid) !important; }
 	#sales-table col.w-client { width: var(--w-client) !important; }
 	#sales-table col.w-qty { width: var(--w-qty) !important; }
@@ -3833,7 +3833,7 @@ button.secondary.press-btn:active {
 	.w-total { width: 13%; }
 	.w-actions { width: 2%; }
 	.w-paid { width: 6%; }
-	.w-client { width: 55%; }
+	.w-client { width: 54%; }
 	.w-qty { width: 6%; }
 	/* Ensure actions column remains visible at 2%: add a practical min-width and trim padding */
 	#sales-table thead th.col-actions,
@@ -3844,4 +3844,10 @@ button.secondary.press-btn:active {
 	#sales-table tfoot td.col-total { width: var(--w-total) !important; }
 	/* Slightly smaller delete icon so it fits within min-width */
 	.row-delete { width: 12px !important; height: 12px !important; }
+	/* Improve Total column readability on small width */
+	#sales-table thead th.col-total,
+	#sales-table tbody td.col-total,
+	#sales-table tfoot td.col-total { text-align: center !important; padding-left: 0; padding-right: 0; }
+	#sales-table tfoot td.col-total { white-space: nowrap; overflow: visible; text-overflow: clip; }
+	.total.col-total { font-size: 11px; }
 }
