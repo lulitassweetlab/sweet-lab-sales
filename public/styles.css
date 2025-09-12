@@ -1906,7 +1906,18 @@ button.secondary.press-btn:active {
 	#sales-table thead tr > th.col-oreo::after { font-size: 12px !important; }
 }
 
-/* Removed unused extra spacer column */
+/* Extra column width */
+#sales-table col.w-extra { width: 6%; }
+@media (max-width: 600px) {
+	#sales-table thead th.col-extra,
+	#sales-table tbody td.col-extra,
+	#sales-table tfoot td.col-extra { display: table-cell; }
+}
+@media (min-width: 601px) {
+	#sales-table thead th.col-extra,
+	#sales-table tbody td.col-extra,
+	#sales-table tfoot td.col-extra { display: none; }
+}
 
 /* Mobile: make '+ Nueva Fecha' match Inicio button height */
 @media (max-width: 600px) {
