@@ -1736,7 +1736,8 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 		let lastId = 0;
 		async function tick() {
 			try {
-				const url = lastId ? `/api/notifications?after_id=${encodeURIComponent(lastId)}` : '/api/notifications';
+				const nocache = `t=${Date.now()}`;
+				const url = lastId ? `/api/notifications?after_id=${encodeURIComponent(lastId)}&${nocache}` : `/api/notifications?${nocache}`;
 				const res = await fetch(url);
 				if (res.ok) {
 					const rows = await res.json();
