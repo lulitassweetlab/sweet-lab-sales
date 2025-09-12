@@ -2053,3 +2053,36 @@ button.secondary.press-btn:active {
 .report-subtitle { margin: 0; color: var(--muted); font-size: 12px; }
 .report-btn { background: var(--primary); color: var(--primary-foreground); border-color: transparent; }
 .report-btn:hover { filter: none; background: var(--hover-primary-pink); box-shadow: 0 8px 24px var(--hover-shadow-pink); }
+
+/* Slightly darken Arco, Mara and Nute columns (all sections) */
+#sales-table thead th.col-arco,
+#sales-table tbody td.col-arco,
+#sales-table tfoot td.col-arco,
+#sales-table thead th.col-mara,
+#sales-table tbody td.col-mara,
+#sales-table tfoot td.col-mara,
+#sales-table thead th.col-nute,
+#sales-table tbody td.col-nute,
+#sales-table tfoot td.col-nute {
+	background-color: rgba(0,0,0,0.10) !important;
+}
+/* Keep darker shade on hover as well (light theme) */
+#sales-table tbody tr:hover td.col-arco,
+#sales-table tbody tr:hover td.col-mara,
+#sales-table tbody tr:hover td.col-nute { background-color: rgba(0,0,0,0.14) !important; }
+
+/* Dark theme: slightly darker than base card */
+[data-theme="dark"] #sales-table thead th.col-arco,
+[data-theme="dark"] #sales-table tbody td.col-arco,
+[data-theme="dark"] #sales-table tfoot td.col-arco,
+[data-theme="dark"] #sales-table thead th.col-mara,
+[data-theme="dark"] #sales-table tbody td.col-mara,
+[data-theme="dark"] #sales-table tfoot td.col-mara,
+[data-theme="dark"] #sales-table thead th.col-nute,
+[data-theme="dark"] #sales-table tbody td.col-nute,
+[data-theme="dark"] #sales-table tfoot td.col-nute {
+	background-color: #191b1f !important;
+}
+[data-theme="dark"] #sales-table tbody tr:hover td.col-arco,
+[data-theme="dark"] #sales-table tbody tr:hover td.col-mara,
+[data-theme="dark"] #sales-table tbody tr:hover td.col-nute { background-color: #202327 !important; }
