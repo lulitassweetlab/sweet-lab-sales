@@ -3821,3 +3821,12 @@ button.secondary.press-btn:active {
 @media (min-width: 601px) {
 	#sales-table thead th.col-nute .v-label { position: relative !important; top: 12px !important; }
 }
+
+/* FINAL MOBILE WIDTHS: set Total to 13% and Actions to 2% */
+@media (max-width: 600px) {
+	:root { --w-total: 13%; --w-actions: 2%; }
+	#sales-table col.w-total { width: var(--w-total); }
+	#sales-table col.w-actions { width: var(--w-actions); }
+	.w-total { width: 13%; }
+	.w-actions { width: 2%; }
+}
