@@ -1733,6 +1733,7 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 	// Realtime polling of backend notifications
 	(function startRealtime(){
 		let lastId = 0;
+		let initialized = false;
 		async function tick() {
 			try {
 				const url = lastId ? `/api/notifications?after_id=${encodeURIComponent(lastId)}` : '/api/notifications';
@@ -1742,10 +1743,15 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 					if (Array.isArray(rows) && rows.length) {
 						for (const r of rows) {
 							lastId = Math.max(lastId, Number(r.id||0));
+							if (!initialized) continue; // skip showing notifications on first load
 							const msg = String(r.message || '');
 							notify.info(msg);
 							notify.showBrowser('Venta', msg);
 						}
+						initialized = true;
+					} else if (!initialized) {
+						// no rows on first load; mark as initialized to show future events
+						initialized = true;
 					}
 				}
 			} catch {}
