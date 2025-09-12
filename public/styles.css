@@ -3820,3 +3820,8 @@ button.secondary.press-btn:active {
 		font-size: 12px !important;
 	}
 }
+
+/* FINAL DESKTOP ALIGN: lower Nute label to match other dessert headers */
+@media (min-width: 601px) {
+	#sales-table thead th.col-nute .v-label { position: relative !important; top: 8px !important; }
+}
