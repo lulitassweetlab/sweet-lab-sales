@@ -819,6 +819,13 @@ async function deleteRow(id) {
 	const actor = encodeURIComponent(state.currentUser?.name || '');
 	await api('DELETE', `${API.Sales}?id=${encodeURIComponent(id)}&actor=${actor}`);
 	state.sales = state.sales.filter(s => s.id !== id);
+	// Show immediate local toast for feedback; global notification will also arrive via polling
+	if (prev) {
+		try {
+			const msg = 'Eliminada: ' + formatSaleSummary(prev);
+			notify.info(msg);
+		} catch {}
+	}
 	// Push undo: re-create previous row
 	if (prev) {
 		pushUndo({
