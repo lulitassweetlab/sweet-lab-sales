@@ -96,7 +96,7 @@ export async function ensureSchema() {
 }
 
 export function prices() {
-	return { arco: 8500, melo: 9500, mara: 10500, oreo: 10500, nute: 11500 };
+	return { arco: 8500, melo: 9500, mara: 10500, oreo: 10500, nute: 13000 };
 }
 
 export async function recalcTotalForId(id) {
