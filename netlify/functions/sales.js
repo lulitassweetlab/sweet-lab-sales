@@ -132,7 +132,8 @@ export async function handler(event) {
 					const nu = Number(prev.qty_nute||0); if (nu) parts.push(`${nu} nute`);
 					const suffix = parts.length ? (' + ' + parts.join(' + ')) : '';
 					const msg = `Eliminada: ${name}${suffix}`;
-					await notifyDb({ type: 'delete', sellerId: Number(prev.seller_id||0)||null, saleId: id, saleDayId: Number(prev.sale_day_id||0)||null, message: msg, actorName: actor });
+					// Do not reference deleted sale_id to avoid FK violation
+					await notifyDb({ type: 'delete', sellerId: Number(prev.seller_id||0)||null, saleId: null, saleDayId: Number(prev.sale_day_id||0)||null, message: msg, actorName: actor });
 				}
 				return json({ ok: true });
 			}
