@@ -822,7 +822,13 @@ async function deleteRow(id) {
 	// Show immediate local toast for feedback; global notification will also arrive via polling
 	if (prev) {
 		try {
-			const msg = 'Eliminada: ' + formatSaleSummary(prev);
+			let sellerName = '';
+			try {
+				const match = (state.sellers || []).find(s => s && s.id === prev.seller_id);
+				sellerName = match && match.name ? String(match.name) : '';
+			} catch {}
+			const tail = sellerName ? (' - ' + sellerName) : '';
+			const msg = 'Eliminada: ' + formatSaleSummary(prev) + tail;
 			notify.info(msg);
 		} catch {}
 	}
