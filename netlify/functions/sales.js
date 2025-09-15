@@ -121,7 +121,7 @@ export async function handler(event) {
 				// fetch previous data for notification content
 				const prev = (await sql`SELECT seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute FROM sales WHERE id=${id}`)[0] || null;
 				await sql`DELETE FROM sales WHERE id=${id}`;
-				// emit deletion notification with client and quantities
+				// emit deletion notification with client, quantities, and seller name
 				if (prev) {
 					const name = (prev.client_name || '') || 'Cliente';
 					const parts = [];
@@ -131,8 +131,15 @@ export async function handler(event) {
 					const or = Number(prev.qty_oreo||0); if (or) parts.push(`${or} oreo`);
 					const nu = Number(prev.qty_nute||0); if (nu) parts.push(`${nu} nute`);
 					const suffix = parts.length ? (' + ' + parts.join(' + ')) : '';
-					const msg = `Eliminada: ${name}${suffix}`;
-					await notifyDb({ type: 'delete', sellerId: Number(prev.seller_id||0)||null, saleId: id, saleDayId: Number(prev.sale_day_id||0)||null, message: msg, actorName: actor });
+					let sellerName = '';
+					try {
+						const s = await sql`SELECT name FROM sellers WHERE id=${Number(prev.seller_id||0)}`;
+						sellerName = (s && s[0] && s[0].name) ? String(s[0].name) : '';
+					} catch {}
+					const tail = sellerName ? ` - ${sellerName}` : '';
+					const msg = `Eliminada: ${name}${suffix}${tail}`;
+					// Do not reference deleted sale_id to avoid FK violation
+					await notifyDb({ type: 'delete', sellerId: Number(prev.seller_id||0)||null, saleId: null, saleDayId: Number(prev.sale_day_id||0)||null, message: msg, actorName: actor });
 				}
 				return json({ ok: true });
 			}
