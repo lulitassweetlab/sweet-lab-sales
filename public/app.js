@@ -20,6 +20,10 @@ const state = {
 	currentUser: null,
 };
 
+// Recurrent clients snapshot for current seller
+state.allSalesForSeller = [];
+state.recurrentClients = new Set();
+
 // Toasts and Notifications
 const notify = (() => {
 	const container = () => document.getElementById('toast-container');
@@ -352,6 +356,11 @@ async function enterSeller(id) {
 	if (datesSection) datesSection.classList.remove('hidden');
 	if (salesWrapper) salesWrapper.classList.add('hidden');
 	await loadDaysForSeller();
+	// Also load complete sales snapshot for recurrent detection for this seller
+	try {
+		state.allSalesForSeller = await api('GET', `${API.Sales}?seller_id=${encodeURIComponent(seller.id)}`);
+		recomputeRecurrentClients();
+	} catch {}
 }
 
 function switchView(id) {
@@ -448,14 +457,30 @@ function renderTable() {
 				wrap.appendChild(sel);
 				return wrap;
 			})()),
-			el('td', { class: 'col-client' }, el('input', {
+			el('td', { class: 'col-client' },
+				el('input', {
 				class: 'input-cell client-input',
 				value: sale.client_name || '',
 				placeholder: '',
 				oninput: (e) => { const v = (e.target.value || ''); if (/\*$/.test(v.trim())) { saveClientWithCommentFlow(tr, sale.id); } },
 				onblur: () => saveClientWithCommentFlow(tr, sale.id),
 				onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); saveClientWithCommentFlow(tr, sale.id); } },
-			})),
+				}),
+				(function(){
+					const raw = (sale.client_name || '').toString();
+					const name = raw.trim();
+					if (!isRecurrentClient(name)) return null;
+					const badge = document.createElement('span');
+					badge.className = 'recurrent-badge';
+					badge.textContent = '®';
+					badge.title = 'Cliente recurrente: ver historial';
+					badge.addEventListener('click', (ev) => {
+						ev.stopPropagation();
+						openClientHistoryView(name);
+					});
+					return badge;
+				})()
+			),
 			el('td', { class: 'col-arco' }, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_arco ? String(sale.qty_arco) : '', placeholder: '', onblur: () => saveRow(tr, sale.id), onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); saveRow(tr, sale.id); } }, onfocus: (e) => e.target.select(), onmouseup: (e) => e.preventDefault() })),
 			el('td', { class: 'col-melo' }, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_melo ? String(sale.qty_melo) : '', placeholder: '', onblur: () => saveRow(tr, sale.id), onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); saveRow(tr, sale.id); } }, onfocus: (e) => e.target.select(), onmouseup: (e) => e.preventDefault() })),
 			el('td', { class: 'col-mara' }, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_mara ? String(sale.qty_mara) : '', placeholder: '', onblur: () => saveRow(tr, sale.id), onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); saveRow(tr, sale.id); } }, onfocus: (e) => e.target.select(), onmouseup: (e) => e.preventDefault() })),
@@ -505,6 +530,11 @@ async function loadSales() {
 	const params = new URLSearchParams({ seller_id: String(sellerId) });
 	if (state.selectedDayId) params.set('sale_day_id', String(state.selectedDayId));
 	state.sales = await api('GET', `${API.Sales}?${params.toString()}`);
+	// Refresh recurrent clients snapshot for this seller
+	try {
+		state.allSalesForSeller = await api('GET', `${API.Sales}?seller_id=${encodeURIComponent(sellerId)}`);
+		recomputeRecurrentClients();
+	} catch {}
 	renderTable();
 	preloadChangeLogsForCurrentTable();
 }
@@ -545,6 +575,8 @@ async function addRow() {
 	const sale = await api('POST', API.Sales, payload);
 	sale.is_paid = false;
 	state.sales.unshift(sale);
+    // Update snapshot and recurrent set
+    try { state.allSalesForSeller.unshift(sale); recomputeRecurrentClients(); } catch {}
 	// Push undo: delete that sale
 	pushUndo({
 		do: async () => {
@@ -552,11 +584,13 @@ async function addRow() {
 			const again = await api('POST', API.Sales, payload);
 			again.is_paid = false;
 			state.sales.unshift(again);
+            try { state.allSalesForSeller.unshift(again); recomputeRecurrentClients(); } catch {}
 			renderTable();
 		},
 		undo: async () => {
 			await api('DELETE', `${API.Sales}?id=${encodeURIComponent(sale.id)}`);
 			state.sales = state.sales.filter(s => s.id !== sale.id);
+            try { state.allSalesForSeller = (state.allSalesForSeller || []).filter(s => s.id !== sale.id); recomputeRecurrentClients(); } catch {}
 			renderTable();
 		}
 	});
@@ -576,6 +610,12 @@ async function saveRow(tr, id) {
 	const total = calcRowTotal({ arco: updated.qty_arco, melo: updated.qty_melo, mara: updated.qty_mara, oreo: updated.qty_oreo, nute: updated.qty_nute });
 	totalCell.textContent = fmtNo.format(total);
 	updateSummary();
+    // Update snapshot list and recompute recurrent clients
+    try {
+        const j = (state.allSalesForSeller || []).findIndex(s => s.id === id);
+        if (j !== -1) state.allSalesForSeller[j] = { ...(state.allSalesForSeller[j]||{}), ...updated };
+        recomputeRecurrentClients();
+    } catch {}
 	// Notify only when quantities change; one notification per dessert type
 	try {
 		if (prev) {
@@ -819,6 +859,7 @@ async function deleteRow(id) {
 	const actor = encodeURIComponent(state.currentUser?.name || '');
 	await api('DELETE', `${API.Sales}?id=${encodeURIComponent(id)}&actor=${actor}`);
 	state.sales = state.sales.filter(s => s.id !== id);
+    try { state.allSalesForSeller = (state.allSalesForSeller || []).filter(s => s.id !== id); recomputeRecurrentClients(); } catch {}
 	// Show immediate local toast for feedback; global notification will also arrive via polling
 	if (prev) {
 		try {
@@ -842,11 +883,13 @@ async function deleteRow(id) {
 				again.is_paid = prev.is_paid;
 				await api('PUT', API.Sales, { id: again.id, ...again });
 				state.sales.push(again);
+                try { (state.allSalesForSeller || (state.allSalesForSeller = [])).push(again); recomputeRecurrentClients(); } catch {}
 				renderTable();
 			},
 			undo: async () => {
 				await api('DELETE', `${API.Sales}?id=${encodeURIComponent(prev.id)}`);
 				state.sales = state.sales.filter(s => s.id !== prev.id);
+                try { state.allSalesForSeller = (state.allSalesForSeller || []).filter(s => s.id !== prev.id); recomputeRecurrentClients(); } catch {}
 				renderTable();
 			}
 		});
@@ -1864,6 +1907,16 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 	window.addEventListener('resize', debounce(updateSummary, 150));
 })();
 
+// Wire back button for client history view
+(function wireClientHistoryBack(){
+	const back = document.getElementById('client-history-back');
+	if (!back) return;
+	back.addEventListener('click', () => {
+		// Return to previous appropriate view; prefer sales view
+		switchView('#view-sales');
+	});
+})();
+
 (function enforceDesktopHeaderHorizontal(){
 	function apply() {
 		const isDesktop = window.matchMedia('(min-width: 601px)').matches;
@@ -2025,3 +2078,62 @@ function renderChangeMarkerIfNeeded(tdEl, saleId, field) {
 }
 
 // (mobile bounce limiter removed per user preference)
+
+// === Recurrent clients computation and popover ===
+function recomputeRecurrentClients() {
+	try {
+		const counts = new Map();
+		for (const s of (state.allSalesForSeller || [])) {
+			const name = (s?.client_name || '').toString().trim();
+			if (!name) continue;
+			counts.set(name, (counts.get(name) || 0) + 1);
+		}
+		const rec = new Set();
+		for (const [name, cnt] of counts.entries()) { if (cnt > 1) rec.add(name); }
+		state.recurrentClients = rec;
+	} catch { state.recurrentClients = new Set(); }
+}
+
+function isRecurrentClient(name) {
+	if (!name) return false;
+	try { return state.recurrentClients && state.recurrentClients.has(String(name).trim()); } catch { return false; }
+}
+
+function openClientHistoryPopover(clientName) { openClientHistoryView(clientName); }
+
+function openClientHistoryView(clientName) {
+	// Fill header
+	const h2 = document.getElementById('client-history-name'); if (h2) h2.textContent = clientName || '';
+	const cap = document.getElementById('client-history-caption'); if (cap) { const strong = cap.querySelector('strong') || document.createElement('strong'); strong.textContent = clientName || ''; if (!cap.contains(strong)) cap.appendChild(strong); }
+	// Build rows
+	const tbody = document.getElementById('client-history-tbody'); if (tbody) tbody.innerHTML = '';
+	const rows = (state.allSalesForSeller || []).filter(s => (s?.client_name || '').toString().trim() === String(clientName).trim())
+		.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+	let qa=0,qm=0,qma=0,qo=0,qn=0,grand=0;
+	for (const s of rows) {
+		const tr = document.createElement('tr');
+		const isPaid = !!s.is_paid;
+		const paidTd = document.createElement('td'); paidTd.className = 'col-paid'; paidTd.textContent = isPaid ? '✓' : '';
+		const clientTd = document.createElement('td'); clientTd.className = 'col-client'; clientTd.textContent = s.client_name || '';
+		const arTd = document.createElement('td'); arTd.className = 'col-arco'; arTd.textContent = s.qty_arco ? String(s.qty_arco) : '';
+		const meTd = document.createElement('td'); meTd.className = 'col-melo'; meTd.textContent = s.qty_melo ? String(s.qty_melo) : '';
+		const maTd = document.createElement('td'); maTd.className = 'col-mara'; maTd.textContent = s.qty_mara ? String(s.qty_mara) : '';
+		const orTd = document.createElement('td'); orTd.className = 'col-oreo'; orTd.textContent = s.qty_oreo ? String(s.qty_oreo) : '';
+		const nuTd = document.createElement('td'); nuTd.className = 'col-nute'; nuTd.textContent = s.qty_nute ? String(s.qty_nute) : '';
+		const exTd = document.createElement('td'); exTd.className = 'col-extra'; exTd.textContent = '';
+		const tot = Number(s.total_cents || 0); grand += tot;
+		qa += Number(s.qty_arco || 0); qm += Number(s.qty_melo || 0); qma += Number(s.qty_mara || 0); qo += Number(s.qty_oreo || 0); qn += Number(s.qty_nute || 0);
+		const totTd = document.createElement('td'); totTd.className = 'col-total'; totTd.textContent = tot ? fmtNo.format(tot) : '';
+		const actTd = document.createElement('td'); actTd.className = 'col-actions'; actTd.textContent = '';
+		tr.append(paidTd, clientTd, arTd, meTd, maTd, orTd, nuTd, exTd, totTd, actTd);
+		if (tbody) tbody.appendChild(tr);
+	}
+	// Totals
+	const setText = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = String(v); };
+	setText('h-sum-arco-qty', qa); setText('h-sum-melo-qty', qm); setText('h-sum-mara-qty', qma); setText('h-sum-oreo-qty', qo); setText('h-sum-nute-qty', qn);
+	setText('h-sum-total-qty', qa+qm+qma+qo+qn);
+	setText('h-sum-arco-amt', fmtNo.format(qa*PRICES.arco)); setText('h-sum-melo-amt', fmtNo.format(qm*PRICES.melo)); setText('h-sum-mara-amt', fmtNo.format(qma*PRICES.mara)); setText('h-sum-oreo-amt', fmtNo.format(qo*PRICES.oreo)); setText('h-sum-nute-amt', fmtNo.format(qn*PRICES.nute));
+	setText('h-sum-grand', fmtNo.format(grand));
+	// Show view
+	switchView('#view-client-history');
+}
