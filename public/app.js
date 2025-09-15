@@ -478,6 +478,20 @@ function renderTable() {
 		);
 		tr.dataset.id = String(sale.id);
 		tbody.appendChild(tr);
+		// Recurring badge: append ® for known recurring names
+		try {
+			const tdClient = tr.querySelector('td.col-client');
+			if (tdClient) {
+				const nm = (sale.client_name || '').trim().toLowerCase();
+				if (nm && state.recurringNames && state.recurringNames.has(nm)) {
+					const mark = document.createElement('span');
+					mark.className = 'client-recurring-mark';
+					mark.textContent = '®';
+					mark.title = 'Cliente recurrente';
+					tdClient.appendChild(mark);
+				}
+			}
+		} catch {}
 		// Comment trigger removed per request
 	}
 	// Inline add row line just below last sale
@@ -505,6 +519,8 @@ async function loadSales() {
 	const params = new URLSearchParams({ seller_id: String(sellerId) });
 	if (state.selectedDayId) params.set('sale_day_id', String(state.selectedDayId));
 	state.sales = await api('GET', `${API.Sales}?${params.toString()}`);
+	// Preload recurring clients for current seller (non-blocking)
+	preloadRecurringClientsForSeller().catch(()=>{});
 	renderTable();
 	preloadChangeLogsForCurrentTable();
 }
@@ -1702,6 +1718,7 @@ function openPayMenu(anchorEl, selectEl, clickX, clickY) {
 // Extend state to include saleDays and selectedDayId if not present
 if (!('saleDays' in state)) state.saleDays = [];
 if (!('selectedDayId' in state)) state.selectedDayId = null;
+if (!('recurringNames' in state)) state.recurringNames = new Set();
 
 // Enhance events
 (function enhanceDateEvents(){
@@ -1955,15 +1972,52 @@ async function openHistoryPopover(saleId, field, anchorX, anchorY) {
 	const title = document.createElement('div');
 	title.className = 'history-title';
 	title.textContent = 'Historial';
+	// Payments filter + inline selector for current payment
+	const tools = document.createElement('div');
+	tools.style.display = 'flex';
+	tools.style.alignItems = 'center';
+	tools.style.gap = '8px';
+	tools.style.margin = '4px 0 6px 0';
+	const filterLbl = document.createElement('label');
+	filterLbl.style.fontSize = '12px';
+	filterLbl.style.opacity = '0.9';
+	const chk = document.createElement('input');
+	chk.type = 'checkbox';
+	chk.style.marginRight = '4px';
+	filterLbl.append(chk, document.createTextNode('Solo pagos'));
+	const sel = document.createElement('select');
+	sel.className = 'input-cell';
+	sel.style.minWidth = '120px';
+	[{v:'',t:'- Pago actual -'},{v:'efectivo',t:'Efectivo'},{v:'marce',t:'Marce'},{v:'transf',t:'Transferencia'}].forEach(o=>{ const op=document.createElement('option'); op.value=o.v; op.textContent=o.t; sel.appendChild(op); });
+	try {
+		const tr = document.querySelector(`#sales-tbody tr[data-id="${saleId}"]`);
+		const paySel = tr?.querySelector('select.pay-select');
+		if (paySel) sel.value = paySel.value || '';
+	} catch {}
+	sel.addEventListener('change', async () => {
+		try {
+			const tr = document.querySelector(`#sales-tbody tr[data-id="${saleId}"]`);
+			await savePayMethod(tr, saleId, sel.value);
+			// reflect in-row UI
+			const inRowSel = tr?.querySelector('select.pay-select');
+			if (inRowSel) { inRowSel.value = sel.value; inRowSel.dispatchEvent(new Event('change')); }
+		} catch {}
+	});
+	tools.append(filterLbl, sel);
 	const list = document.createElement('div');
 	list.className = 'history-list';
-	if (entries.length === 0) {
-		const empty = document.createElement('div');
-		empty.className = 'history-item';
-		empty.textContent = 'Sin cambios';
-		list.appendChild(empty);
-	} else {
-		for (const e of entries) {
+
+	function renderList() {
+		list.innerHTML = '';
+		const filtered = chk.checked ? entries.filter(e => String(e.field||'').toLowerCase() === 'pay_method') : entries;
+		if (filtered.length === 0) {
+			const empty = document.createElement('div');
+			empty.className = 'history-item';
+			empty.textContent = 'Sin cambios';
+			list.appendChild(empty);
+			return;
+		}
+		for (const e of filtered) {
 			const item = document.createElement('div');
 			item.className = 'history-item';
 			const when = new Date(e.created_at || e.time);
@@ -1971,7 +2025,6 @@ async function openHistoryPopover(saleId, field, anchorX, anchorY) {
 			const newV = String(e.new_value ?? e.newValue ?? '');
 			const f = (e.field || '').toString();
 			const lower = f.toLowerCase();
-			// Map labels explicitly
 			let label = '';
 			if (lower.startsWith('qty_')) {
 				const suffix = lower.slice(4);
@@ -1982,7 +2035,7 @@ async function openHistoryPopover(saleId, field, anchorX, anchorY) {
 			}
 			if (lower === 'client_name') label = 'Cliente';
 			if (lower === 'pay_method') {
-				const fmt = (v) => v === 'efectivo' ? 'Efectivo' : v === 'transf' ? 'Transferencia' : '-';
+				const fmt = (v) => v === 'efectivo' ? 'Efectivo' : v === 'transf' ? 'Transferencia' : v === 'marce' ? 'Marce' : '-';
 				item.textContent = `[${when.toLocaleString()}] Pago: ${fmt(oldV)} → ${fmt(newV)}`;
 			} else if (label) {
 				item.textContent = `[${when.toLocaleString()}] ${label}: ${oldV} → ${newV}`;
@@ -1992,11 +2045,17 @@ async function openHistoryPopover(saleId, field, anchorX, anchorY) {
 			list.appendChild(item);
 		}
 	}
+
+	chk.addEventListener('change', renderList);
+		const empty = document.createElement('div');
+		empty.className = 'history-item';
+		empty.textContent = 'Sin cambios';
+	renderList();
 	const actions = document.createElement('div');
 	actions.className = 'confirm-actions';
 	const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn'; closeBtn.textContent = 'Cerrar';
 	actions.append(closeBtn);
-	pop.append(title, list, actions);
+	pop.append(title, tools, list, actions);
 	document.body.appendChild(pop);
 	function cleanup() {
 		document.removeEventListener('mousedown', outside, true);
@@ -2025,3 +2084,25 @@ function renderChangeMarkerIfNeeded(tdEl, saleId, field) {
 }
 
 // (mobile bounce limiter removed per user preference)
+
+// Recurring clients: compute by counting occurrences across seller sales
+async function preloadRecurringClientsForSeller() {
+	try {
+		const sellerId = state.currentSeller?.id;
+		if (!sellerId) return;
+		// Fetch without day filter to inspect past names (limit to recent 500 for perf)
+		const params = new URLSearchParams({ seller_id: String(sellerId) });
+		const rows = await api('GET', `${API.Sales}?${params.toString()}`);
+		const counts = new Map();
+		for (const r of (rows || [])) {
+			const nm = String(r.client_name || '').trim().toLowerCase();
+			if (!nm) continue;
+			counts.set(nm, (counts.get(nm) || 0) + 1);
+		}
+		const recurring = new Set();
+		for (const [nm, c] of counts.entries()) { if (c >= 3) recurring.add(nm); }
+		state.recurringNames = recurring;
+		// Refresh badges in current table if visible
+		try { renderTable(); } catch {}
+	} catch {}
+}

@@ -2008,6 +2008,15 @@ button.secondary.press-btn:active {
 .history-list { display: grid; gap: 6px; max-height: 50vh; overflow: auto; }
 .history-item { font-size: 11px; white-space: pre-wrap; word-break: break-word; }
 
+/* Recurrent client badge */
+.client-recurring-mark {
+	margin-left: 6px;
+	font-size: 18px;
+	line-height: 1;
+	vertical-align: middle;
+	opacity: 0.85;
+}
+
 /* Position change markers visibly at top-right of the cell */
 #sales-table td { position: relative; }
 #sales-table td .change-marker {
