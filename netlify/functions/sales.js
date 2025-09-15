@@ -32,9 +32,9 @@ export async function handler(event) {
 				if (!sellerId) return json({ error: 'seller_id requerido' }, 400);
 				let rows;
 				if (saleDayId) {
-					rows = await sql`SELECT id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, comment_text, total_cents, created_at FROM sales WHERE seller_id = ${sellerId} AND sale_day_id=${saleDayId} ORDER BY created_at ASC, id ASC`;
+					rows = await sql`SELECT id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, comment_text, total_cents, created_at FROM sales WHERE seller_id = ${sellerId} AND sale_day_id=${saleDayId} ORDER BY created_at DESC, id DESC`;
 				} else {
-					rows = await sql`SELECT id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, comment_text, total_cents, created_at FROM sales WHERE seller_id = ${sellerId} ORDER BY created_at ASC, id ASC`;
+					rows = await sql`SELECT id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, comment_text, total_cents, created_at FROM sales WHERE seller_id = ${sellerId} ORDER BY created_at DESC, id DESC`;
 				}
 				return json(rows);
 			}
