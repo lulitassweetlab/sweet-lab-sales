@@ -2009,7 +2009,7 @@ button.secondary.press-btn:active {
 .history-item { font-size: 11px; white-space: pre-wrap; word-break: break-word; }
 
 /* Recurrent client badge and client history popover */
-.recurrent-badge { margin-left: 6px; font-weight: 700; color: var(--primary); cursor: pointer; user-select: none; }
+.recurrent-badge { margin-left: 6px; font-weight: 700; color: var(--primary); cursor: pointer; user-select: none; font-size: calc(1em + 3px); display: inline-block; vertical-align: middle; line-height: 1; }
 .recurrent-badge:hover { text-decoration: underline; }
 .client-history-popover { background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.24); padding: 10px; min-width: 320px; max-width: 90vw; max-height: 70vh; overflow: auto; }
 .client-history-title { font-weight: 700; margin-bottom: 8px; }
