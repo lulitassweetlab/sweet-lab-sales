@@ -8,7 +8,7 @@ const PRICES = {
 	melo: 9500,
 	mara: 10500,
 	oreo: 10500,
-	nute: 11500,
+	nute: 13000,
 };
 
 const fmtNo = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 });
