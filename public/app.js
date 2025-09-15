@@ -476,7 +476,7 @@ function renderTable() {
 					badge.title = 'Cliente recurrente: ver historial';
 					badge.addEventListener('click', (ev) => {
 						ev.stopPropagation();
-						openClientHistoryPopover(name, ev.clientX, ev.clientY);
+						openClientHistoryView(name);
 					});
 					return badge;
 				})()
@@ -1907,6 +1907,16 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 	window.addEventListener('resize', debounce(updateSummary, 150));
 })();
 
+// Wire back button for client history view
+(function wireClientHistoryBack(){
+	const back = document.getElementById('client-history-back');
+	if (!back) return;
+	back.addEventListener('click', () => {
+		// Return to previous appropriate view; prefer sales view
+		switchView('#view-sales');
+	});
+})();
+
 (function enforceDesktopHeaderHorizontal(){
 	function apply() {
 		const isDesktop = window.matchMedia('(min-width: 601px)').matches;
@@ -2089,51 +2099,41 @@ function isRecurrentClient(name) {
 	try { return state.recurrentClients && state.recurrentClients.has(String(name).trim()); } catch { return false; }
 }
 
-function openClientHistoryPopover(clientName, anchorX, anchorY) {
-	const list = (state.allSalesForSeller || []).filter(s => (s?.client_name || '').toString().trim() === String(clientName).trim());
-	const pop = document.createElement('div');
-	pop.className = 'client-history-popover';
-	pop.style.position = 'fixed';
-	const x = (typeof anchorX === 'number') ? anchorX : (window.innerWidth / 2);
-	const y = (typeof anchorY === 'number') ? anchorY : (window.innerHeight / 2);
-	pop.style.left = x + 'px';
-	pop.style.top = (y + 8) + 'px';
-	pop.style.transform = 'translate(-50%, 0)';
-	pop.style.zIndex = '1000';
+function openClientHistoryPopover(clientName) { openClientHistoryView(clientName); }
 
-	const title = document.createElement('div'); title.className = 'client-history-title'; title.textContent = `Historial de ${clientName}`;
-	const table = document.createElement('table'); table.className = 'client-history-table';
-	const thead = document.createElement('thead');
-	const thr = document.createElement('tr');
-	['Fecha', 'Arco', 'Melo', 'Mara', 'Oreo', 'Nute', 'Total'].forEach(h => { const th = document.createElement('th'); th.textContent = h; thr.appendChild(th); });
-	thead.appendChild(thr);
-	const tbody = document.createElement('tbody');
-	const sorted = list.slice().sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
-	for (const s of sorted) {
+function openClientHistoryView(clientName) {
+	// Fill header
+	const h2 = document.getElementById('client-history-name'); if (h2) h2.textContent = clientName || '';
+	const cap = document.getElementById('client-history-caption'); if (cap) { const strong = cap.querySelector('strong') || document.createElement('strong'); strong.textContent = clientName || ''; if (!cap.contains(strong)) cap.appendChild(strong); }
+	// Build rows
+	const tbody = document.getElementById('client-history-tbody'); if (tbody) tbody.innerHTML = '';
+	const rows = (state.allSalesForSeller || []).filter(s => (s?.client_name || '').toString().trim() === String(clientName).trim())
+		.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+	let qa=0,qm=0,qma=0,qo=0,qn=0,grand=0;
+	for (const s of rows) {
 		const tr = document.createElement('tr');
-		const d = new Date(s.created_at);
-		const cells = [
-			isNaN(d.getTime()) ? String(s.created_at || '') : d.toLocaleString(),
-			String(s.qty_arco || 0),
-			String(s.qty_melo || 0),
-			String(s.qty_mara || 0),
-			String(s.qty_oreo || 0),
-			String(s.qty_nute || 0),
-			fmtNo.format(Number(s.total_cents || 0))
-		];
-		for (const c of cells) { const td = document.createElement('td'); td.textContent = c; tr.appendChild(td); }
-		tbody.appendChild(tr);
+		const isPaid = !!s.is_paid;
+		const paidTd = document.createElement('td'); paidTd.className = 'col-paid'; paidTd.textContent = isPaid ? '✓' : '';
+		const clientTd = document.createElement('td'); clientTd.className = 'col-client'; clientTd.textContent = s.client_name || '';
+		const arTd = document.createElement('td'); arTd.className = 'col-arco'; arTd.textContent = s.qty_arco ? String(s.qty_arco) : '';
+		const meTd = document.createElement('td'); meTd.className = 'col-melo'; meTd.textContent = s.qty_melo ? String(s.qty_melo) : '';
+		const maTd = document.createElement('td'); maTd.className = 'col-mara'; maTd.textContent = s.qty_mara ? String(s.qty_mara) : '';
+		const orTd = document.createElement('td'); orTd.className = 'col-oreo'; orTd.textContent = s.qty_oreo ? String(s.qty_oreo) : '';
+		const nuTd = document.createElement('td'); nuTd.className = 'col-nute'; nuTd.textContent = s.qty_nute ? String(s.qty_nute) : '';
+		const exTd = document.createElement('td'); exTd.className = 'col-extra'; exTd.textContent = '';
+		const tot = Number(s.total_cents || 0); grand += tot;
+		qa += Number(s.qty_arco || 0); qm += Number(s.qty_melo || 0); qma += Number(s.qty_mara || 0); qo += Number(s.qty_oreo || 0); qn += Number(s.qty_nute || 0);
+		const totTd = document.createElement('td'); totTd.className = 'col-total'; totTd.textContent = tot ? fmtNo.format(tot) : '';
+		const actTd = document.createElement('td'); actTd.className = 'col-actions'; actTd.textContent = '';
+		tr.append(paidTd, clientTd, arTd, meTd, maTd, orTd, nuTd, exTd, totTd, actTd);
+		if (tbody) tbody.appendChild(tr);
 	}
-	if (sorted.length === 0) {
-		const tr = document.createElement('tr'); const td = document.createElement('td'); td.colSpan = 7; td.textContent = 'Sin compras registradas'; tr.appendChild(td); tbody.appendChild(tr);
-	}
-	table.append(thead, tbody);
-	const actions = document.createElement('div'); actions.className = 'confirm-actions';
-	const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn'; closeBtn.textContent = 'Cerrar'; actions.appendChild(closeBtn);
-	pop.append(title, table, actions);
-	document.body.appendChild(pop);
-	function cleanup(){ document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); if (pop.parentNode) pop.parentNode.removeChild(pop); }
-	function outside(ev){ if (!pop.contains(ev.target)) cleanup(); }
-	setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
-	closeBtn.addEventListener('click', cleanup);
+	// Totals
+	const setText = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = String(v); };
+	setText('h-sum-arco-qty', qa); setText('h-sum-melo-qty', qm); setText('h-sum-mara-qty', qma); setText('h-sum-oreo-qty', qo); setText('h-sum-nute-qty', qn);
+	setText('h-sum-total-qty', qa+qm+qma+qo+qn);
+	setText('h-sum-arco-amt', fmtNo.format(qa*PRICES.arco)); setText('h-sum-melo-amt', fmtNo.format(qm*PRICES.melo)); setText('h-sum-mara-amt', fmtNo.format(qma*PRICES.mara)); setText('h-sum-oreo-amt', fmtNo.format(qo*PRICES.oreo)); setText('h-sum-nute-amt', fmtNo.format(qn*PRICES.nute));
+	setText('h-sum-grand', fmtNo.format(grand));
+	// Show view
+	switchView('#view-client-history');
 }

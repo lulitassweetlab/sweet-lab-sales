@@ -201,6 +201,85 @@
 				</div>
 			</div>
 		</section>
+
+		<section id="view-client-history" class="view hidden">
+			<div class="header-sticky">
+				<div class="toolbar">
+					<div class="toolbar-left">
+						<img src="/logo.png" alt="Lulitas Logo" class="app-logo toolbar-logo" />
+						<button id="client-history-back" class="secondary press-btn">Volver</button>
+					</div>
+					<h2 id="client-history-name"></h2>
+					<div class="toolbar-actions"></div>
+				</div>
+			</div>
+
+			<div class="sales-panel">
+				<div class="panel-header">
+					<h3>Historial de compras</h3>
+				</div>
+				<div class="panel-body">
+					<div class="table-wrapper" id="client-history-wrapper">
+						<table id="client-history-table">
+							<caption id="client-history-caption"><strong></strong></caption>
+							<colgroup>
+								<col class="w-paid" />
+								<col class="w-client" />
+								<col class="w-qty" />
+								<col class="w-qty" />
+								<col class="w-qty" />
+								<col class="w-qty" />
+								<col class="w-qty" />
+								<col class="w-extra" />
+								<col class="w-total" />
+								<col class="w-actions" />
+							</colgroup>
+							<thead>
+								<tr>
+									<th class="col-paid">$</th>
+									<th class="col-client">Cliente</th>
+									<th class="col-arco" data-label="Arco"><span class="v-label">Arco</span></th>
+									<th class="col-melo" data-label="Melo"><span class="v-label">Melo</span></th>
+									<th class="col-mara" data-label="Mara"><span class="v-label">Mara</span></th>
+									<th class="col-oreo" data-label="Oreo"><span class="v-label">Oreo</span></th>
+									<th class="col-nute" data-label="Nute"><span class="v-label">Nute</span></th>
+									<th class="col-extra"></th>
+									<th class="col-total">Total</th>
+									<th class="col-actions"></th>
+								</tr>
+							</thead>
+							<tbody id="client-history-tbody"></tbody>
+							<tfoot>
+								<tr class="tfoot-qty">
+									<td class="col-paid"></td>
+									<td class="col-client label">Totales</td>
+									<td class="col-arco"><span id="h-sum-arco-qty">0</span></td>
+									<td class="col-melo"><span id="h-sum-melo-qty">0</span></td>
+									<td class="col-mara"><span id="h-sum-mara-qty">0</span></td>
+									<td class="col-oreo"><span id="h-sum-oreo-qty">0</span></td>
+									<td class="col-nute"><span id="h-sum-nute-qty">0</span></td>
+									<td class="col-extra"></td>
+									<td class="col-total"><span id="h-sum-total-qty"></span></td>
+									<td class="col-actions"></td>
+								</tr>
+								<tr class="tfoot-amt">
+									<td class="col-paid"></td>
+									<td class="col-client label"></td>
+									<td class="col-arco"><span id="h-sum-arco-amt">0</span></td>
+									<td class="col-melo"><span id="h-sum-melo-amt">0</span></td>
+									<td class="col-mara"><span id="h-sum-mara-amt">0</span></td>
+									<td class="col-oreo"><span id="h-sum-oreo-amt">0</span></td>
+									<td class="col-nute"><span id="h-sum-nute-amt">0</span></td>
+									<td class="col-extra"></td>
+									<td class="col-total"><span id="h-sum-grand">0</span></td>
+									<td class="col-actions"></td>
+								</tr>
+							</tfoot>
+						</table>
+					</div>
+				</div>
+			</div>
+		</section>
 	</main>
 
 	<footer class="app-footer">
