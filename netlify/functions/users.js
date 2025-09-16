@@ -88,7 +88,12 @@ export async function handler(event) {
 					const role = (data.role || '').toString();
 					if (!role || !['user','admin','superadmin'].includes(role)) return json({ error: 'Rol inválido' }, 400);
 					const rows = await sql`SELECT id FROM users WHERE lower(username) = ${username} LIMIT 1`;
-					if (!rows.length) return json({ error: 'Usuario no encontrado' }, 404);
+					if (!rows.length) {
+						// Create user with default password and set role
+						const defaultPass = username === 'jorge' ? 'Jorge123' : (username + 'sweet');
+						await sql`INSERT INTO users (username, password_hash, role) VALUES (${data.username}, ${defaultPass}, ${role})`;
+						return json({ ok: true, created: true });
+					}
 					await sql`UPDATE users SET role=${role} WHERE id=${rows[0].id}`;
 					return json({ ok: true });
 				}

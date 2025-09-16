@@ -1390,26 +1390,28 @@ async function exportConsolidatedForDates(isoList) {
 			await exportConsolidatedForDates(isoList);
 		}, ev.clientX, ev.clientY);
 	});
-	usersBtn?.addEventListener('click', async () => {
+	usersBtn?.addEventListener('click', async (ev) => {
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 		if (!isSuper) { notify.error('Solo el superadministrador'); return; }
-		openUsersMenu();
+		openUsersMenu(ev.clientX, ev.clientY);
 	});
 })();
 
-function openUsersMenu() {
+function openUsersMenu(anchorX, anchorY) {
 	const pop = document.createElement('div');
 	pop.className = 'confirm-popover';
 	pop.style.position = 'fixed';
-	pop.style.left = (window.innerWidth / 2) + 'px';
-	pop.style.top = (window.innerHeight / 2 + 6) + 'px';
+	const baseX = (typeof anchorX === 'number') ? anchorX : (window.innerWidth / 2);
+	const baseY = (typeof anchorY === 'number') ? anchorY : (window.innerHeight / 2);
+	pop.style.left = baseX + 'px';
+	pop.style.top = (baseY + 6) + 'px';
 	pop.style.transform = 'translate(-50%, 0)';
 	pop.style.zIndex = '1000';
 	const title = document.createElement('div'); title.className = 'history-title'; title.textContent = 'Usuarios';
 	const list = document.createElement('div'); list.className = 'history-list';
-	const b1 = document.createElement('button'); b1.className = 'press-btn btn-primary'; b1.textContent = 'Excel de usuarios';
-	const b2 = document.createElement('button'); b2.className = 'press-btn'; b2.textContent = 'Cambiar contraseña';
-	const b3 = document.createElement('button'); b3.className = 'press-btn'; b3.textContent = 'Cambiar rol';
+	const b1 = document.createElement('button'); b1.className = 'press-btn btn-primary'; b1.textContent = 'Reporte';
+	const b2 = document.createElement('button'); b2.className = 'press-btn'; b2.textContent = 'Cambiar contraseñas';
+	const b3 = document.createElement('button'); b3.className = 'press-btn'; b3.textContent = 'Asignar roles';
 	list.appendChild(b1); list.appendChild(b2); list.appendChild(b3);
 	const actions = document.createElement('div'); actions.className = 'confirm-actions';
 	const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn'; closeBtn.textContent = 'Cerrar'; actions.appendChild(closeBtn);
