@@ -2017,6 +2017,20 @@ button.secondary.press-btn:active {
 	opacity: 0.85;
 }
 
+/* Keep ® on same line and clickable inside client cell */
+#sales-table td.col-client { position: relative; }
+.col-client .client-input { padding-right: 26px; }
+.col-client .client-recurring-mark {
+	position: absolute;
+	right: 6px;
+	top: 50%;
+	transform: translateY(-50%);
+	font-size: 26px;
+	cursor: pointer;
+	user-select: none;
+	z-index: 1;
+}
+
 /* Position change markers visibly at top-right of the cell */
 #sales-table td { position: relative; }
 #sales-table td .change-marker {

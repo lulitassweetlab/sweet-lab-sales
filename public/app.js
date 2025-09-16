@@ -488,6 +488,10 @@ function renderTable() {
 					mark.className = 'client-recurring-mark';
 					mark.textContent = '®';
 					mark.title = 'Cliente recurrente';
+					mark.addEventListener('click', (ev) => {
+						ev.stopPropagation();
+						openHistoryPopover(sale.id, 'client_name', ev.clientX, ev.clientY);
+					});
 					tdClient.appendChild(mark);
 				}
 			}
