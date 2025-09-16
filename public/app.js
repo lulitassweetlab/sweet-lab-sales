@@ -109,10 +109,11 @@ function renderClientDetailTable(rows) {
 		for (const o of opts) { const opt = document.createElement('option'); opt.value = o.v; opt.textContent = o.label; if (current === o.v) opt.selected = true; sel.appendChild(opt); }
 		function applyPayClass() {
 			wrap.classList.remove('placeholder','method-efectivo','method-transf','method-marce');
-			if (!sel.value) wrap.classList.add('placeholder');
-			else if (sel.value === 'efectivo') wrap.classList.add('method-efectivo');
-			else if (sel.value === 'transf') wrap.classList.add('method-transf');
-			else if (sel.value === 'marce') wrap.classList.add('method-marce');
+			const val = sel.value || current;
+			if (!val) wrap.classList.add('placeholder');
+			else if (val === 'efectivo') wrap.classList.add('method-efectivo');
+			else if (val === 'transf') wrap.classList.add('method-transf');
+			else if (val === 'marce') wrap.classList.add('method-marce');
 		}
 		applyPayClass();
 		// Mirror behavior from sales: clicking the wrap opens the custom menu
@@ -643,10 +644,11 @@ function renderTable() {
 				}
 				function applyPayClass() {
 					wrap.classList.remove('placeholder','method-efectivo','method-transf','method-marce');
-					if (!sel.value) wrap.classList.add('placeholder');
-					else if (sel.value === 'efectivo') wrap.classList.add('method-efectivo');
-					else if (sel.value === 'transf') wrap.classList.add('method-transf');
-					else if (sel.value === 'marce') wrap.classList.add('method-marce');
+					const val = sel.value || current;
+					if (!val) wrap.classList.add('placeholder');
+					else if (val === 'efectivo') wrap.classList.add('method-efectivo');
+					else if (val === 'transf') wrap.classList.add('method-transf');
+					else if (val === 'marce') wrap.classList.add('method-marce');
 				}
 				applyPayClass();
 				sel.addEventListener('change', async () => {
