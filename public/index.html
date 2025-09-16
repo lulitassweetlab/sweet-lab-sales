@@ -42,6 +42,16 @@
 				</div>
 			</div>
 		</section>
+
+		<div id="transfers-sheet" class="transfers-sheet" aria-hidden="true">
+			<div class="transfers-header">
+				<h3 class="transfers-title">Transferencias</h3>
+				<button id="close-transfers" class="transfers-close">Cerrar</button>
+			</div>
+			<div class="transfers-body">
+				<div id="transfers-content" class="transfers-loading">Cargando…</div>
+			</div>
+		</div>
 		<section id="view-select-seller" class="view">
 			<div class="sellers-panel">
 				<div class="panel-header">
@@ -200,7 +210,7 @@
 					</tfoot>
 				</table>
 				<div class="table-actions end">
-					
+					<button id="open-transfers" class="press-btn">Transferencias</button>
 				</div>
 				<div class="table-actions end">
 					<button id="add-row-bottom" class="press-btn btn-primary">Nuevo pedido</button>

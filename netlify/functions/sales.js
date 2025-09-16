@@ -11,6 +11,22 @@ export async function handler(event) {
 		switch (event.httpMethod) {
 			case 'GET': {
 				const params = new URLSearchParams(event.rawQuery || event.queryStringParameters ? event.rawQuery || '' : '');
+				// List all receipts for a given seller and sale_day (to show transfers sheet)
+				const receiptsForDay = params.get('receipts_for_day');
+				if (receiptsForDay) {
+					const sellerIdParam = params.get('seller_id') || (event.queryStringParameters && event.queryStringParameters.seller_id);
+					const dayIdParam = params.get('sale_day_id') || (event.queryStringParameters && event.queryStringParameters.sale_day_id);
+					const sellerId = Number(sellerIdParam);
+					const saleDayId = dayIdParam ? Number(dayIdParam) : null;
+					if (!sellerId) return json({ error: 'seller_id requerido' }, 400);
+					let rows;
+					if (saleDayId) {
+						rows = await sql`SELECT r.id, r.sale_id, r.image_base64, r.note_text, r.created_at FROM sale_receipts r JOIN sales s ON s.id = r.sale_id WHERE s.seller_id = ${sellerId} AND s.sale_day_id = ${saleDayId} ORDER BY r.created_at DESC, r.id DESC`;
+					} else {
+						rows = await sql`SELECT r.id, r.sale_id, r.image_base64, r.note_text, r.created_at FROM sale_receipts r JOIN sales s ON s.id = r.sale_id WHERE s.seller_id = ${sellerId} ORDER BY r.created_at DESC, r.id DESC`;
+					}
+					return json(rows);
+				}
 				const historyFor = params.get('history_for');
 				if (historyFor) {
 					const saleId = Number(historyFor);
