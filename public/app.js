@@ -558,6 +558,8 @@ function applyAuthVisibility() {
 	if (addSellerWrap) addSellerWrap.style.display = isSuper ? 'block' : 'none';
 	const usersBtn = document.getElementById('users-button');
 	if (usersBtn) usersBtn.style.display = isSuper ? 'inline-block' : 'none';
+	const carteraBtn = document.getElementById('cartera-button');
+	if (carteraBtn) carteraBtn.style.display = isSuper ? 'inline-block' : 'none';
 }
 
 function calcRowTotal(q) {
@@ -1357,6 +1359,52 @@ async function exportConsolidatedForDates(isoList) {
 	XLSX.writeFile(wb, `Consolidado_varios_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
 
+(async function exportHelpers(){})();
+
+async function exportCarteraExcel(startIso, endIso) {
+	// Normalize
+	const start = String(startIso).slice(0,10);
+	const end = String(endIso).slice(0,10);
+	const sellers = await api('GET', API.Sellers);
+	const rows = [['Fecha','Vendedor','Cliente','Pago','$','Arco','Melo','Mara','Oreo','Nute','Total']];
+	let totalGrand = 0;
+	for (const s of sellers) {
+		const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(s.id)}`);
+		const within = (days || []).filter(d => {
+			const iso = String(d.day).slice(0,10);
+			return iso >= start && iso <= end;
+		});
+		for (const d of within) {
+			const params = new URLSearchParams({ seller_id: String(s.id), sale_day_id: String(d.id) });
+			const sales = await api('GET', `${API.Sales}?${params.toString()}`);
+			for (const r of (sales || [])) {
+				const pm = (r.pay_method || '').toString();
+				// Keep sales that do NOT have efectivo, transf, or marce
+				if (pm === 'efectivo' || pm === 'transf' || pm === 'marce') continue;
+				const qa = r.qty_arco || 0;
+				const qm = r.qty_melo || 0;
+				const qma = r.qty_mara || 0;
+				const qo = r.qty_oreo || 0;
+				const qn = r.qty_nute || 0;
+				const tot = r.total_cents || 0;
+				totalGrand += (tot || 0);
+				const payLabel = pm === '' ? '-' : (pm === 'marce' ? 'Marce' : pm);
+				rows.push([
+					String(d.day).slice(0,10), s.name || '', r.client_name || '', payLabel,
+					r.is_paid ? '✓' : '',
+					qa || '', qm || '', qma || '', qo || '', qn || '', tot || ''
+				]);
+			}
+		}
+	}
+	rows.push(['','','','','Totales','','','','','', totalGrand || '']);
+	const ws = XLSX.utils.aoa_to_sheet(rows);
+	ws['!cols'] = [ {wch:10},{wch:18},{wch:24},{wch:10},{wch:3},{wch:6},{wch:6},{wch:6},{wch:6},{wch:6},{wch:10} ];
+	const wb = XLSX.utils.book_new();
+	XLSX.utils.book_append_sheet(wb, ws, 'Cartera');
+	XLSX.writeFile(wb, `Cartera_${start}_a_${end}.xlsx`);
+}
+
 (function wireGlobalDates(){
 	const globalList = document.getElementById('global-dates-list');
 	if (!globalList) return;
@@ -1382,6 +1430,7 @@ async function exportConsolidatedForDates(isoList) {
 (function wireReportButton(){
 	const reportBtn = document.getElementById('report-button');
 	const usersBtn = document.getElementById('users-button');
+	const carteraBtn = document.getElementById('cartera-button');
 	const input = document.getElementById('report-date');
 	if (!reportBtn || !input) return;
 	reportBtn.addEventListener('click', (ev) => {
@@ -1389,6 +1438,14 @@ async function exportConsolidatedForDates(isoList) {
 			if (!isoList || !isoList.length) return;
 			await exportConsolidatedForDates(isoList);
 		}, ev.clientX, ev.clientY);
+	});
+	carteraBtn?.addEventListener('click', async (ev) => {
+		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+		if (!isSuper) { notify.error('Solo el superadministrador'); return; }
+		openRangeCalendarPopover(async (range) => {
+			if (!range || !range.start || !range.end) return;
+			await exportCarteraExcel(range.start, range.end);
+		}, ev.clientX, ev.clientY, { preferUp: true });
 	});
 	usersBtn?.addEventListener('click', async (ev) => {
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
@@ -1950,6 +2007,114 @@ function openMultiCalendarPopover(onPickedList, anchorX, anchorY) {
 		top = Math.min(Math.max(top, viewTop + margin), viewTop + viewH - margin);
 		pop.style.left = left + 'px'; pop.style.top = top + 'px';
 	});
+	render();
+}
+
+function openRangeCalendarPopover(onPickedRange, anchorX, anchorY, opts) {
+	const pop = document.createElement('div');
+	pop.className = 'date-popover';
+	pop.style.position = 'fixed';
+	const baseX = (typeof anchorX === 'number') ? anchorX : (window.innerWidth / 2);
+	const baseY = (typeof anchorY === 'number') ? anchorY : (window.innerHeight / 2);
+	pop.style.left = baseX + 'px';
+	pop.style.top = (baseY + 8) + 'px';
+	pop.style.transform = 'translate(-50%, 0)';
+	pop.style.zIndex = '1000';
+	pop.setAttribute('role', 'dialog');
+
+	const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+	let view = new Date(); view.setDate(1);
+	let startIso = null; let endIso = null;
+
+	const header = document.createElement('div'); header.className = 'date-popover-header';
+	const prev = document.createElement('button'); prev.className = 'date-nav'; prev.textContent = '‹';
+	const label = document.createElement('div'); label.className = 'date-label';
+	const next = document.createElement('button'); next.className = 'date-nav'; next.textContent = '›';
+	header.append(prev, label, next);
+
+	const grid = document.createElement('div'); grid.className = 'date-grid';
+	const weekdays = ['L','M','X','J','V','S','D'];
+	const wk = document.createElement('div'); wk.className = 'date-weekdays';
+	for (const w of weekdays) { const c = document.createElement('div'); c.textContent = w; wk.appendChild(c); }
+
+	function isoUTC(y, m, d) { return new Date(Date.UTC(y, m, d)).toISOString().slice(0,10); }
+	function isBetween(x, a, b) { return x >= a && x <= b; }
+
+	function render() {
+		label.textContent = months[view.getMonth()] + ' ' + view.getFullYear();
+		grid.innerHTML = '';
+		const year = view.getFullYear();
+		const month = view.getMonth();
+		const firstDay = (new Date(Date.UTC(year, month, 1)).getUTCDay() + 6) % 7;
+		const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+		for (let i = 0; i < firstDay; i++) { const cell = document.createElement('button'); cell.className = 'date-cell disabled'; cell.disabled = true; grid.appendChild(cell); }
+		for (let d = 1; d <= daysInMonth; d++) {
+			const iso = isoUTC(year, month, d);
+			const cell = document.createElement('button');
+			let cls = 'date-cell';
+			if (startIso && !endIso && iso === startIso) cls += ' range-start selected';
+			if (startIso && endIso) {
+				if (iso === startIso) cls += ' range-start selected';
+				else if (iso === endIso) cls += ' range-end selected';
+				else if (isBetween(iso, startIso, endIso)) cls += ' in-range';
+			}
+			cell.className = cls;
+			cell.textContent = String(d);
+			cell.addEventListener('click', () => {
+				if (!startIso) { startIso = iso; endIso = null; render(); return; }
+				if (!endIso) {
+					if (iso < startIso) { endIso = startIso; startIso = iso; } else { endIso = iso; }
+					render();
+					return;
+				}
+				// If both set, restart selection
+				startIso = iso; endIso = null; render();
+			});
+			grid.appendChild(cell);
+		}
+	}
+
+	function cleanup() { document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); if (pop.parentNode) pop.parentNode.removeChild(pop); }
+	function outside(ev) { if (!pop.contains(ev.target)) cleanup(); }
+
+	prev.addEventListener('click', () => { view.setMonth(view.getMonth() - 1); render(); });
+	next.addEventListener('click', () => { view.setMonth(view.getMonth() + 1); render(); });
+
+	const actions = document.createElement('div'); actions.style.display = 'flex'; actions.style.justifyContent = 'space-between'; actions.style.marginTop = '8px';
+	const clearBtn = document.createElement('button'); clearBtn.className = 'date-nav'; clearBtn.textContent = 'Limpiar';
+	const genBtn = document.createElement('button'); genBtn.className = 'date-nav'; genBtn.textContent = 'Generar'; genBtn.disabled = true;
+	clearBtn.addEventListener('click', () => { startIso = null; endIso = null; genBtn.disabled = true; render(); });
+	genBtn.addEventListener('click', () => { if (startIso && endIso && typeof onPickedRange === 'function') { cleanup(); onPickedRange({ start: startIso, end: endIso }); } });
+	actions.append(clearBtn, genBtn);
+
+	function updateActions() { genBtn.disabled = !(startIso && endIso); }
+
+	// wrap original render to update actions
+	const origRender = render;
+	render = function(){ origRender(); updateActions(); };
+
+	pop.append(header, wk, grid, actions);
+	document.body.appendChild(pop);
+
+	requestAnimationFrame(() => {
+		const margin = 8;
+		const vv = window.visualViewport;
+		const viewW = (vv && typeof vv.width === 'number') ? vv.width : window.innerWidth;
+		const viewH = (vv && typeof vv.height === 'number') ? vv.height : window.innerHeight;
+		const viewLeft = (vv && typeof vv.offsetLeft === 'number') ? vv.offsetLeft : 0;
+		const viewTop = (vv && typeof vv.offsetTop === 'number') ? vv.offsetTop : 0;
+		const r = pop.getBoundingClientRect();
+		let left = baseX;
+		let top = baseY + 8;
+		if (opts && opts.preferUp) top = baseY - 8 - r.height;
+		left = Math.min(Math.max(left, viewLeft + margin), viewLeft + viewW - margin);
+		if (top + r.height > viewTop + viewH - margin) top = Math.max(viewTop + margin, viewTop + viewH - margin - r.height);
+		if (top < viewTop + margin) top = viewTop + margin;
+		pop.style.left = left + 'px';
+		pop.style.top = top + 'px';
+	});
+	document.addEventListener('mousedown', outside, true);
+	document.addEventListener('touchstart', outside, true);
 	render();
 }
 

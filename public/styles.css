@@ -784,6 +784,8 @@ tfoot td { font-weight: 700; }
 .date-popover .date-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
 .date-popover .date-cell { border: 1px solid var(--border); background: var(--card); border-radius: 6px; padding: 4px 0; cursor: pointer; }
 .date-popover .date-cell.selected { background: var(--secondary); border-color: var(--primary); color: var(--text); font-weight: 600; }
+.date-popover .date-cell.in-range { background: rgba(255, 0, 128, 0.08); }
+.date-popover .date-cell.range-start, .date-popover .date-cell.range-end { background: var(--secondary); border-color: var(--primary); font-weight: 600; }
 .date-popover .date-cell.disabled { opacity: 0; pointer-events: none; }
 .date-popover .date-cell:hover { background: var(--secondary); }
 .clients-popover { background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.24); padding: 10px; min-width: 260px; max-width: 90vw; max-height: 70vh; overflow: auto; }
@@ -2119,6 +2121,9 @@ button.secondary.press-btn:active {
 .report-subtitle { margin: 0; color: var(--muted); font-size: 12px; }
 .report-btn { background: var(--primary); color: var(--primary-foreground); border-color: transparent; }
 .report-btn:hover { filter: none; background: var(--hover-primary-pink); box-shadow: 0 8px 24px var(--hover-shadow-pink); }
+/* Cartera button should look like other report buttons */
+#cartera-button { background: var(--primary); color: var(--primary-foreground); border-color: transparent; }
+#cartera-button:hover { filter: none; background: var(--hover-primary-pink); box-shadow: 0 8px 24px var(--hover-shadow-pink); }
 
 /* Slightly darken Arco, Mara and Nute columns (all sections) */
 #sales-table thead th.col-arco,
