@@ -93,6 +93,7 @@ function renderClientDetailTable(rows) {
 		const total = calcRowTotal({ arco: r.qty_arco, melo: r.qty_melo, mara: r.qty_mara, oreo: r.qty_oreo, nute: r.qty_nute });
 		const tdTot = document.createElement('td'); tdTot.textContent = fmtNo.format(total);
 		tr.append(tdPay, tdDate, tdAr, tdMe, tdMa, tdOr, tdNu, tdTot);
+		tr.addEventListener('mousedown', () => { tr.classList.add('row-highlight'); setTimeout(() => tr.classList.remove('row-highlight'), 500); });
 		tbody.appendChild(tr);
 	}
 }
@@ -1889,6 +1890,7 @@ function renderClientsTable(rows) {
 		const tdN = document.createElement('td'); tdN.textContent = r.name;
 		const tdC = document.createElement('td'); tdC.textContent = String(r.count); tdC.style.textAlign = 'right';
 		tr.append(tdN, tdC);
+		tr.addEventListener('mousedown', () => { tr.classList.add('row-highlight'); setTimeout(() => tr.classList.remove('row-highlight'), 500); });
 		tr.addEventListener('click', async () => { await openClientDetailView(r.name); });
 		tbody.appendChild(tr);
 	}
