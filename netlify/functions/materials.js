@@ -29,15 +29,65 @@ export async function handler(event) {
 						WHERE COALESCE(sd.day, s.created_at::date) BETWEEN ${start} AND ${end}
 					`;
 					const totals = qtyRows && qtyRows[0] ? qtyRows[0] : { sum_arco: 0, sum_melo: 0, sum_mara: 0, sum_oreo: 0, sum_nute: 0 };
-					const formulas = await sql`SELECT id, ingredient, unit, per_arco, per_melo, per_mara, per_oreo, per_nute FROM ingredient_formulas ORDER BY ingredient ASC`;
-					const out = (formulas || []).map(r => {
-						const total = Number(r.per_arco||0) * Number(totals.sum_arco||0)
-							+ Number(r.per_melo||0) * Number(totals.sum_melo||0)
-							+ Number(r.per_mara||0) * Number(totals.sum_mara||0)
-							+ Number(r.per_oreo||0) * Number(totals.sum_oreo||0)
-							+ Number(r.per_nute||0) * Number(totals.sum_nute||0);
-						return { ingredient: r.ingredient, unit: r.unit || 'g', total_needed: total };
-					});
+					// Prefer recipes if present; otherwise fall back to ingredient_formulas
+					const haveRecipes = (await sql`SELECT COUNT(*)::int AS c FROM dessert_recipes`)[0]?.c > 0;
+					let out = [];
+					if (haveRecipes) {
+						// Build per-dessert ingredient maps
+						const steps = await sql`SELECT id, dessert FROM dessert_recipes ORDER BY dessert ASC, position ASC`;
+						const stepIds = steps.map(s => s.id);
+						let items = [];
+						if (stepIds.length) items = await sql`SELECT recipe_id, ingredient, unit, qty_per_unit FROM dessert_recipe_items WHERE recipe_id = ANY(${stepIds})`;
+						const byDessert = new Map();
+						for (const s of steps) {
+							if (!byDessert.has(s.dessert)) byDessert.set(s.dessert, new Map());
+						}
+						for (const it of items) {
+							const step = steps.find(s => s.id === it.recipe_id);
+							if (!step) continue;
+							const dmap = byDessert.get(step.dessert);
+							const key = (it.ingredient || '').toString();
+							const prev = dmap.get(key) || { unit: it.unit || 'g', qty: 0 };
+							prev.qty += Number(it.qty_per_unit || 0);
+							prev.unit = it.unit || prev.unit || 'g';
+							dmap.set(key, prev);
+						}
+						// Add extras
+						const extras = await sql`SELECT ingredient, unit, qty_per_unit FROM extras_items`;
+						const dessertsTotals = { arco: Number(totals.sum_arco||0), melo: Number(totals.sum_melo||0), mara: Number(totals.sum_mara||0), oreo: Number(totals.sum_oreo||0), nute: Number(totals.sum_nute||0) };
+						const aggregate = new Map();
+						function addToAggregate(name, unit, qty) {
+							const key = name;
+							const prev = aggregate.get(key) || { unit: unit || 'g', total_needed: 0 };
+							prev.total_needed += Number(qty || 0);
+							prev.unit = unit || prev.unit || 'g';
+							aggregate.set(key, prev);
+						}
+						for (const [dessert, dmap] of byDessert.entries()) {
+							const mult = dessert.toLowerCase() === 'arco' ? dessertsTotals.arco
+								: dessert.toLowerCase() === 'melo' ? dessertsTotals.melo
+								: dessert.toLowerCase() === 'mara' ? dessertsTotals.mara
+								: dessert.toLowerCase() === 'oreo' ? dessertsTotals.oreo
+								: dessert.toLowerCase() === 'nute' ? dessertsTotals.nute : 0;
+							if (!mult) continue;
+							for (const [ing, rec] of dmap.entries()) addToAggregate(ing, rec.unit, rec.qty * mult);
+						}
+						for (const ex of (extras || [])) {
+							const totalUnits = dessertsTotals.arco + dessertsTotals.melo + dessertsTotals.mara + dessertsTotals.oreo + dessertsTotals.nute;
+							addToAggregate(ex.ingredient, ex.unit, Number(ex.qty_per_unit || 0) * totalUnits);
+						}
+						out = Array.from(aggregate.entries()).map(([ingredient, v]) => ({ ingredient, unit: v.unit, total_needed: v.total_needed }));
+					} else {
+						const formulas = await sql`SELECT id, ingredient, unit, per_arco, per_melo, per_mara, per_oreo, per_nute FROM ingredient_formulas ORDER BY ingredient ASC`;
+						out = (formulas || []).map(r => {
+							const total = Number(r.per_arco||0) * Number(totals.sum_arco||0)
+								+ Number(r.per_melo||0) * Number(totals.sum_melo||0)
+								+ Number(r.per_mara||0) * Number(totals.sum_mara||0)
+								+ Number(r.per_oreo||0) * Number(totals.sum_oreo||0)
+								+ Number(r.per_nute||0) * Number(totals.sum_nute||0);
+							return { ingredient: r.ingredient, unit: r.unit || 'g', total_needed: total };
+						});
+					}
 					return json({ range: { start, end }, desserts: totals, materials: out });
 				}
 				// default: list formulas

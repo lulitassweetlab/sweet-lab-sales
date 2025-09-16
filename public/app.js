@@ -172,7 +172,8 @@ const API = {
 	Sellers: '/api/sellers',
 	Sales: '/api/sales',
 	Users: '/api/users',
-	Materials: '/api/materials'
+	Materials: '/api/materials',
+	Recipes: '/api/recipes'
 };
 
 const PRICES = {
@@ -1566,7 +1567,7 @@ async function exportCarteraExcel(startIso, endIso) {
 	materialsBtn?.addEventListener('click', async (ev) => {
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 		if (!isSuper) { notify.error('Solo el superadministrador'); return; }
-		openMaterialsMenu(ev.clientX, ev.clientY);
+		openIngredientsView();
 	});
 })();
 
@@ -1724,6 +1725,11 @@ function bindEvents() {
 	// (botón de reporte eliminado)
 
 	document.getElementById('export-excel')?.addEventListener('click', exportTableToExcel);
+
+	const backIngredients = document.getElementById('ingredients-back');
+	backIngredients?.addEventListener('click', () => {
+		switchView('#view-select-seller');
+	});
 }
 
 function openIngredientsManager(anchorX, anchorY) {
@@ -1856,6 +1862,137 @@ function openMaterialsReport(data, anchorX, anchorY) {
 	function outside(ev){ if (!pop.contains(ev.target)) cleanup(); }
 	setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
 	close.addEventListener('click', cleanup);
+}
+
+async function openIngredientsView() {
+	switchView('#view-ingredients');
+	await renderIngredientsView();
+}
+
+async function renderIngredientsView() {
+	const root = document.getElementById('ingredients-content');
+	if (!root) return;
+	root.innerHTML = '';
+	let desserts = [];
+	try { desserts = await api('GET', API.Recipes); } catch { desserts = []; }
+	const grid = document.createElement('div'); grid.className = 'ingredients-grid';
+	for (const name of (desserts || [])) {
+		const card = await buildDessertCard(name);
+		grid.appendChild(card);
+	}
+	root.appendChild(grid);
+	// Top actions
+	const addDessertBtn = document.getElementById('ingredients-add-dessert');
+	addDessertBtn?.addEventListener('click', async () => {
+		const name = (prompt('Nombre del postre:') || '').trim(); if (!name) return;
+		await api('POST', API.Recipes, { kind: 'step.upsert', dessert: name, step_name: null, position: 0 });
+		await renderIngredientsView();
+	});
+	const extrasBtn = document.getElementById('ingredients-add-extras');
+	extrasBtn?.addEventListener('click', async () => { openExtrasEditor(); });
+}
+
+async function buildDessertCard(dessertName) {
+	const data = await api('GET', `${API.Recipes}?dessert=${encodeURIComponent(dessertName)}&include_extras=1`);
+	const card = document.createElement('div'); card.className = 'dessert-card';
+	const head = document.createElement('div'); head.className = 'dessert-header';
+	const title = document.createElement('h3'); title.textContent = dessertName;
+	const addStep = document.createElement('button'); addStep.className = 'press-btn'; addStep.textContent = '+ Paso';
+	head.append(title, addStep);
+	const steps = document.createElement('div'); steps.className = 'steps-list';
+	for (const s of (data.steps || [])) steps.appendChild(buildStepCard(dessertName, s));
+	addStep.addEventListener('click', async () => {
+		const name = prompt('Nombre del paso (o vacío para sin paso):');
+		await api('POST', API.Recipes, { kind: 'step.upsert', dessert: dessertName, step_name: name || null, position: (data.steps?.length || 0) + 1 });
+		const fresh = await buildDessertCard(dessertName); card.replaceWith(fresh);
+	});
+	card.append(head, steps);
+	return card;
+}
+
+function buildStepCard(dessertName, step) {
+	const box = document.createElement('div'); box.className = 'step-card';
+	const head = document.createElement('div'); head.className = 'step-header';
+	const label = document.createElement('div'); label.textContent = step.step_name || 'Sin nombre';
+	const actions = document.createElement('div'); actions.className = 'items-actions';
+	const add = document.createElement('button'); add.className = 'press-btn'; add.textContent = '+ Ingrediente';
+	const del = document.createElement('button'); del.className = 'press-btn'; del.textContent = 'Eliminar paso';
+	actions.append(add, del);
+	head.append(label, actions);
+	const table = document.createElement('table'); table.className = 'items-table';
+	const thead = document.createElement('thead'); const hr = document.createElement('tr');
+	['Ingrediente','Unidad','Cantidad por unidad',''].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
+	thead.appendChild(hr);
+	const tbody = document.createElement('tbody');
+	for (const it of (step.items || [])) tbody.appendChild(buildItemRow(step.id, it));
+	table.append(thead, tbody);
+	box.append(head, table);
+	add.addEventListener('click', async () => {
+		const ing = (prompt('Ingrediente:') || '').trim(); if (!ing) return;
+		const unit = (prompt('Unidad (g, ml, unidad):') || 'g').trim();
+		const qty = Number(prompt('Cantidad por unidad:') || '0') || 0;
+		const row = await api('POST', API.Recipes, { kind: 'item.upsert', recipe_id: step.id, ingredient: ing, unit, qty_per_unit: qty, position: (step.items?.length||0)+1 });
+		tbody.appendChild(buildItemRow(step.id, row));
+	});
+	del.addEventListener('click', async () => {
+		const ok = confirm('¿Eliminar este paso y sus ingredientes?'); if (!ok) return;
+		await api('DELETE', `${API.Recipes}?kind=step&id=${encodeURIComponent(step.id)}`);
+		box.remove();
+	});
+	return box;
+}
+
+function buildItemRow(stepId, item) {
+	const tr = document.createElement('tr');
+	const tdN = document.createElement('td'); const inN = document.createElement('input'); inN.type = 'text'; inN.value = item.ingredient; tdN.appendChild(inN);
+	const tdU = document.createElement('td'); const inU = document.createElement('input'); inU.type = 'text'; inU.value = item.unit || 'g'; inU.style.width = '70px'; tdU.appendChild(inU);
+	const tdQ = document.createElement('td'); const inQ = document.createElement('input'); inQ.type = 'number'; inQ.step = '0.01'; inQ.value = String(item.qty_per_unit || 0); tdQ.appendChild(inQ);
+	const tdA = document.createElement('td'); const del = document.createElement('button'); del.className = 'press-btn'; del.textContent = '×'; tdA.appendChild(del);
+	tr.append(tdN, tdU, tdQ, tdA);
+	async function save() {
+		try { await api('POST', API.Recipes, { kind: 'item.upsert', id: item.id, recipe_id: stepId, ingredient: inN.value, unit: inU.value || 'g', qty_per_unit: Number(inQ.value || 0) || 0, position: item.position || 0 }); }
+		catch { notify.error('No se pudo guardar'); }
+	}
+	[inN, inU, inQ].forEach(el => { el.addEventListener('change', save); el.addEventListener('blur', save); });
+	del.addEventListener('click', async () => { await api('DELETE', `${API.Recipes}?kind=item&id=${encodeURIComponent(item.id)}`); tr.remove(); });
+	return tr;
+}
+
+async function openExtrasEditor() {
+	const data = await api('GET', `${API.Recipes}?dessert=${encodeURIComponent('dummy')}&include_extras=1`);
+	const extras = Array.isArray(data?.extras) ? data.extras : [];
+	const pop = document.createElement('div'); pop.className = 'confirm-popover'; pop.style.position = 'fixed';
+	pop.style.left = (window.innerWidth/2) + 'px'; pop.style.top = '12%'; pop.style.transform = 'translate(-50%, 0)';
+	const title = document.createElement('h4'); title.textContent = 'Extras por unidad'; title.style.margin = '0 0 8px 0';
+	const table = document.createElement('table'); table.className = 'items-table';
+	const thead = document.createElement('thead'); const hr = document.createElement('tr');
+	['Ingrediente','Unidad','Cantidad',''].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); }); thead.appendChild(hr);
+	const tbody = document.createElement('tbody');
+	for (const it of extras) tbody.appendChild(buildExtrasRow(it, tbody));
+	const tfoot = document.createElement('tfoot'); const fr = document.createElement('tr'); const td = document.createElement('td'); td.colSpan = 4; const add = document.createElement('button'); add.className = 'press-btn'; add.textContent = '+ Extra'; td.appendChild(add); fr.appendChild(td); tfoot.appendChild(fr);
+	const actions = document.createElement('div'); actions.className = 'confirm-actions'; const close = document.createElement('button'); close.className = 'press-btn'; close.textContent = 'Cerrar'; actions.appendChild(close);
+	add.addEventListener('click', async () => {
+		const ing = (prompt('Ingrediente:') || '').trim(); if (!ing) return;
+		const unit = (prompt('Unidad (g, ml, unidad):') || 'unidad').trim();
+		const qty = Number(prompt('Cantidad por unidad:') || '1') || 0;
+		const row = await api('POST', API.Recipes, { kind: 'extras.upsert', ingredient: ing, unit, qty_per_unit: qty, position: (extras.length||0)+1 });
+		tbody.appendChild(buildExtrasRow(row, tbody));
+	});
+	close.addEventListener('click', () => { if (pop.parentNode) pop.parentNode.removeChild(pop); });
+	pop.append(title, table, actions); table.append(thead, tbody, tfoot); document.body.appendChild(pop); pop.classList.add('aladdin-pop');
+}
+
+function buildExtrasRow(item, tbody) {
+	const tr = document.createElement('tr');
+	const tdN = document.createElement('td'); const inN = document.createElement('input'); inN.type = 'text'; inN.value = item.ingredient; tdN.appendChild(inN);
+	const tdU = document.createElement('td'); const inU = document.createElement('input'); inU.type = 'text'; inU.value = item.unit || 'unidad'; inU.style.width = '70px'; tdU.appendChild(inU);
+	const tdQ = document.createElement('td'); const inQ = document.createElement('input'); inQ.type = 'number'; inQ.step = '0.01'; inQ.value = String(item.qty_per_unit || 0); tdQ.appendChild(inQ);
+	const tdA = document.createElement('td'); const del = document.createElement('button'); del.className = 'press-btn'; del.textContent = '×'; tdA.appendChild(del);
+	tr.append(tdN, tdU, tdQ, tdA);
+	async function save() { try { await api('POST', API.Recipes, { kind: 'extras.upsert', id: item.id, ingredient: inN.value, unit: inU.value || 'unidad', qty_per_unit: Number(inQ.value || 0) || 0, position: item.position || 0 }); } catch { notify.error('No se pudo guardar'); } }
+	[inN, inU, inQ].forEach(el => { el.addEventListener('change', save); el.addEventListener('blur', save); });
+	del.addEventListener('click', async () => { await api('DELETE', `${API.Recipes}?kind=extras&id=${encodeURIComponent(item.id)}`); if (tr.parentNode === tbody) tbody.removeChild(tr); });
+	return tr;
 }
 
 async function buildRestoreReport() {

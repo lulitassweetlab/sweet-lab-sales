@@ -165,6 +165,35 @@ export async function ensureSchema() {
 			ALTER TABLE ingredient_formulas ADD COLUMN unit TEXT NOT NULL DEFAULT 'g';
 		END IF;
 	END $$;`;
+
+	// Recipes schema: steps and items per dessert + global extras
+	await sql`CREATE TABLE IF NOT EXISTS dessert_recipes (
+		id SERIAL PRIMARY KEY,
+		dessert TEXT NOT NULL,
+		step_name TEXT,
+		position INTEGER NOT NULL DEFAULT 0,
+		created_at TIMESTAMPTZ DEFAULT now(),
+		updated_at TIMESTAMPTZ DEFAULT now()
+	)`;
+	await sql`CREATE TABLE IF NOT EXISTS dessert_recipe_items (
+		id SERIAL PRIMARY KEY,
+		recipe_id INTEGER NOT NULL REFERENCES dessert_recipes(id) ON DELETE CASCADE,
+		ingredient TEXT NOT NULL,
+		unit TEXT NOT NULL DEFAULT 'g',
+		qty_per_unit NUMERIC NOT NULL DEFAULT 0,
+		position INTEGER NOT NULL DEFAULT 0,
+		created_at TIMESTAMPTZ DEFAULT now(),
+		updated_at TIMESTAMPTZ DEFAULT now()
+	)`;
+	await sql`CREATE TABLE IF NOT EXISTS extras_items (
+		id SERIAL PRIMARY KEY,
+		ingredient TEXT NOT NULL,
+		unit TEXT NOT NULL DEFAULT 'g',
+		qty_per_unit NUMERIC NOT NULL DEFAULT 0,
+		position INTEGER NOT NULL DEFAULT 0,
+		created_at TIMESTAMPTZ DEFAULT now(),
+		updated_at TIMESTAMPTZ DEFAULT now()
+	)`;
 	// Seed default users if table is empty
 	const existing = await sql`SELECT COUNT(*)::int AS c FROM users`;
 	if ((existing[0]?.c || 0) === 0) {

@@ -775,6 +775,19 @@ tfoot td { font-weight: 700; }
 .sales-panel .panel-header .panel-actions { display: inline-flex; gap: 8px; align-items: center; }
 .sales-panel .panel-body { padding: 16px 12px 0; }
 
+/* Ingredients full-screen view */
+#view-ingredients .sales-panel { margin-top: 16px; }
+.ingredients-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+.dessert-card { border: 1px solid var(--border); border-radius: 12px; padding: 12px; background: var(--card); }
+.dessert-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.steps-list { display: flex; flex-direction: column; gap: 10px; }
+.step-card { border: 1px solid var(--border); border-radius: 10px; padding: 10px; background: var(--secondary); }
+.step-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.items-table { width: 100%; border-collapse: collapse; }
+.items-table th, .items-table td { border-bottom: 1px solid var(--border); padding: 6px 8px; text-align: left; }
+.items-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
+.extras-card { border: 1px dashed var(--border); border-radius: 12px; padding: 12px; background: var(--card); }
+
 /* Custom date popover */
 .date-popover {
 	background: var(--card);
