@@ -441,7 +441,10 @@ function bindLogin() {
 				try { localStorage.setItem('authUser', JSON.stringify(state.currentUser)); } catch {}
 				applyAuthVisibility();
 				renderSellerButtons();
-				notify.success('Bienvenido ' + res.username);
+				const usernameLower = String(res.username || '').toLowerCase();
+				const feminineUsers = new Set(['marcela', 'aleja']);
+				const welcome = feminineUsers.has(usernameLower) ? 'Bienvenida ' : 'Bienvenido ';
+				notify.success(welcome + res.username);
 				if (!state.currentUser.isAdmin) {
 					const seller = (state.sellers || []).find(s => String(s.name).toLowerCase() === String(res.username).toLowerCase());
 					if (seller) enterSeller(seller.id);
