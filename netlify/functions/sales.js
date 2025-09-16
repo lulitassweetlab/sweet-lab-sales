@@ -10,7 +10,14 @@ export async function handler(event) {
 		if (event.httpMethod === 'OPTIONS') return json({ ok: true });
 		switch (event.httpMethod) {
 			case 'GET': {
-				const params = new URLSearchParams(event.rawQuery || event.queryStringParameters ? event.rawQuery || '' : '');
+				// Robust query parsing (supports both rawQuery and queryStringParameters)
+				const params = (() => {
+					const raw = event.rawQuery;
+					if (raw && typeof raw === 'string') return new URLSearchParams(raw);
+					const obj = event.queryStringParameters;
+					if (obj && typeof obj === 'object') return new URLSearchParams(obj);
+					return new URLSearchParams('');
+				})();
 				// List all receipts for a given seller and sale_day (to show transfers sheet)
 				const receiptsForDay = params.get('receipts_for_day');
 				if (receiptsForDay) {
@@ -44,7 +51,7 @@ export async function handler(event) {
 							FROM sale_receipts r
 							JOIN sales s ON s.id = r.sale_id
 							LEFT JOIN sale_days sd ON sd.id = s.sale_day_id
-							WHERE sd.day BETWEEN ${start} AND ${end} AND s.seller_id = ${sellerId}
+							WHERE COALESCE(sd.day, DATE(r.created_at)) BETWEEN ${start} AND ${end} AND s.seller_id = ${sellerId}
 							ORDER BY r.created_at DESC, r.id DESC`;
 					} else {
 						rows = await sql`
@@ -52,7 +59,7 @@ export async function handler(event) {
 							FROM sale_receipts r
 							JOIN sales s ON s.id = r.sale_id
 							LEFT JOIN sale_days sd ON sd.id = s.sale_day_id
-							WHERE sd.day BETWEEN ${start} AND ${end}
+							WHERE COALESCE(sd.day, DATE(r.created_at)) BETWEEN ${start} AND ${end}
 							ORDER BY r.created_at DESC, r.id DESC`;
 					}
 					return json(rows);
