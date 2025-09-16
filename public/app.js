@@ -1174,6 +1174,12 @@ function bindEvents() {
 		switchView('#view-select-seller');
 	});
 
+	// Back from Clients view
+	const backBtn = document.getElementById('clients-back');
+	backBtn?.addEventListener('click', () => {
+		if (state.currentSeller) switchView('#view-sales'); else switchView('#view-select-seller');
+	});
+
 	document.getElementById('export-excel')?.addEventListener('click', exportTableToExcel);
 }
 
@@ -1739,91 +1745,71 @@ if (!('selectedDayId' in state)) state.selectedDayId = null;
 	});
 })();
 
-// Open Clients popover listing all unique client names for the current table/day
-function openClientsPopover(anchorX, anchorY) {
-	const names = [];
-	try {
-		for (const s of (state.sales || [])) {
-			const n = (s?.client_name || '').trim();
-			if (!n) continue;
-			names.push(n);
+// Load and render Clients view listing all unique client names across all dates for the current seller
+async function openClientsView() {
+	if (!state.currentSeller) return;
+	await loadClientsForSeller();
+	switchView('#view-clients');
+}
+
+async function loadClientsForSeller() {
+	const sellerId = state.currentSeller.id;
+	const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(sellerId)}`);
+	const nameToCount = new Map();
+	for (const d of (days || [])) {
+		const params = new URLSearchParams({ seller_id: String(sellerId), sale_day_id: String(d.id) });
+		let sales = [];
+		try { sales = await api('GET', `${API.Sales}?${params.toString()}`); } catch { sales = []; }
+		for (const s of (sales || [])) {
+			const raw = (s?.client_name || '').trim();
+			if (!raw) continue;
+			const key = raw.toLowerCase();
+			if (!nameToCount.has(key)) nameToCount.set(key, { name: raw, count: 0 });
+			nameToCount.get(key).count++;
 		}
-	} catch {}
-	const unique = Array.from(new Set(names.map(n => n.toLowerCase())));
-	const byLower = {};
-	for (const s of (state.sales || [])) {
-		const n = (s?.client_name || '').trim();
-		if (!n) continue;
-		const lower = n.toLowerCase();
-		if (!byLower[lower]) byLower[lower] = { name: n, count: 0 };
-		byLower[lower].count++;
 	}
-	const rows = unique.map(l => byLower[l]).sort((a,b) => a.name.localeCompare(b.name, 'es'));
-	const pop = document.createElement('div');
-	pop.className = 'clients-popover';
-	pop.style.position = 'fixed';
-	const baseX = (typeof anchorX === 'number') ? anchorX : (window.innerWidth / 2);
-	const baseY = (typeof anchorY === 'number') ? anchorY : (window.innerHeight / 2);
-	pop.style.left = baseX + 'px';
-	pop.style.top = (baseY + 8) + 'px';
-	pop.style.transform = 'translate(-50%, 0)';
-	pop.style.zIndex = '1000';
-	const title = document.createElement('div');
-	title.className = 'clients-title';
-	title.textContent = 'Clientes';
-	const tableWrap = document.createElement('div');
-	tableWrap.className = 'clients-table-wrap';
-	const table = document.createElement('table');
-	table.className = 'clients-table';
-	const thead = document.createElement('thead');
-	const thRow = document.createElement('tr');
-	const th1 = document.createElement('th'); th1.textContent = 'Nombre';
-	const th2 = document.createElement('th'); th2.textContent = '#'; th2.style.textAlign = 'right';
-	thRow.append(th1, th2); thead.appendChild(thRow);
-	const tbody = document.createElement('tbody');
-	if (rows.length === 0) {
+	const rows = Array.from(nameToCount.values()).sort((a,b) => a.name.localeCompare(b.name, 'es'));
+	renderClientsTable(rows);
+}
+
+function renderClientsTable(rows) {
+	const tbody = document.getElementById('clients-tbody');
+	if (!tbody) return;
+	tbody.innerHTML = '';
+	if (!rows || rows.length === 0) {
 		const tr = document.createElement('tr');
 		const td = document.createElement('td'); td.colSpan = 2; td.textContent = 'Sin clientes'; td.style.opacity = '0.8';
-		tr.appendChild(td); tbody.appendChild(tr);
-	} else {
-		for (const r of rows) {
-			const tr = document.createElement('tr'); tr.className = 'clients-row';
-			const tdN = document.createElement('td'); tdN.textContent = r.name;
-			const tdC = document.createElement('td'); tdC.textContent = String(r.count); tdC.style.textAlign = 'right';
-			tr.append(tdN, tdC);
-			tr.addEventListener('click', () => {
-				cleanup();
-				focusClientRow(r.name);
-			});
-			tbody.appendChild(tr);
-		}
+		tr.appendChild(td); tbody.appendChild(tr); return;
 	}
-	table.append(thead, tbody);
-	tableWrap.appendChild(table);
-	const actions = document.createElement('div'); actions.className = 'confirm-actions';
-	const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn'; closeBtn.textContent = 'Cerrar';
-	actions.append(closeBtn);
-	pop.append(title, tableWrap, actions);
-	document.body.appendChild(pop);
-	function cleanup(){ document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); if (pop.parentNode) pop.parentNode.removeChild(pop); }
-	function outside(ev){ if (!pop.contains(ev.target)) cleanup(); }
-	setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
-	closeBtn.addEventListener('click', cleanup);
-	// Clamp within viewport
-	requestAnimationFrame(() => {
-		const margin = 8;
-		const vv = window.visualViewport;
-		const viewW = (vv && typeof vv.width === 'number') ? vv.width : window.innerWidth;
-		const viewH = (vv && typeof vv.height === 'number') ? vv.height : window.innerHeight;
-		const viewLeft = (vv && typeof vv.offsetLeft === 'number') ? vv.offsetLeft : 0;
-		const viewTop = (vv && typeof vv.offsetTop === 'number') ? vv.offsetTop : 0;
-		const r = pop.getBoundingClientRect();
-		let left = baseX; let top = baseY + 8;
-		if (top + r.height > viewTop + viewH - margin) top = Math.max(viewTop + margin, viewTop + viewH - margin - r.height);
-		if (top < viewTop + margin) top = viewTop + margin;
-		left = Math.min(Math.max(left, viewLeft + margin), viewLeft + viewW - margin);
-		pop.style.left = left + 'px'; pop.style.top = top + 'px';
-	});
+	for (const r of rows) {
+		const tr = document.createElement('tr'); tr.className = 'clients-row';
+		const tdN = document.createElement('td'); tdN.textContent = r.name;
+		const tdC = document.createElement('td'); tdC.textContent = String(r.count); tdC.style.textAlign = 'right';
+		tr.append(tdN, tdC);
+		tr.addEventListener('click', async () => {
+			// Go back to sales view and focus client in current selected day (if any). If none selected, auto-open latest day.
+			switchView('#view-sales');
+			if (!state.selectedDayId) {
+				await loadDaysForSeller();
+				try {
+					const days = Array.isArray(state.saleDays) ? state.saleDays.slice() : [];
+					if (days.length) {
+						let latest = days[0];
+						let latestTs = Date.parse(String(latest.day).slice(0,10));
+						for (let i = 1; i < days.length; i++) {
+							const ts = Date.parse(String(days[i].day).slice(0,10));
+							if (!isNaN(ts) && (isNaN(latestTs) || ts > latestTs)) { latest = days[i]; latestTs = ts; }
+						}
+						if (latest && latest.id) { state.selectedDayId = latest.id; await loadSales(); }
+					}
+				} catch {}
+			} else {
+				await loadSales();
+			}
+			focusClientRow(r.name);
+		});
+		tbody.appendChild(tr);
+	}
 }
 
 function focusClientRow(name) {
@@ -1853,11 +1839,8 @@ function focusClientRow(name) {
 (function wireClientsButton(){
 	const btn = document.getElementById('clients-button');
 	if (!btn) return;
-	btn.addEventListener('click', (ev) => {
-		const rect = ev.currentTarget.getBoundingClientRect();
-		const cx = rect.left + rect.width / 2;
-		const cy = rect.bottom;
-		openClientsPopover(cx, cy);
+	btn.addEventListener('click', async () => {
+		await openClientsView();
 	});
 })();
 
