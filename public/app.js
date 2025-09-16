@@ -2090,9 +2090,11 @@ function openTransfersRangePopover(onPickedRange, anchorX, anchorY) {
             cell.className = cls;
             cell.textContent = String(d);
             cell.addEventListener('click', () => {
-                if (!startIso || (startIso && endIso)) { startIso = iso; endIso = null; }
-                else if (iso < startIso) { endIso = startIso; startIso = iso; }
+                if (!startIso || (startIso && endIso)) { startIso = iso; endIso = null; render(); return; }
+                if (iso < startIso) { endIso = startIso; startIso = iso; }
                 else { endIso = iso; }
+                // Auto-apply on second click
+                if (startIso && endIso) { const a = startIso; const b = endIso; cleanup(); if (typeof onPickedRange === 'function') onPickedRange(a, b); return; }
                 render();
             });
             grid.appendChild(cell);
