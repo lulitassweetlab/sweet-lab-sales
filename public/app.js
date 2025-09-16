@@ -1656,7 +1656,7 @@ function openPayMenu(anchorEl, selectEl, clickX, clickY) {
 				try {
 					const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(currentSaleId)}`);
 					if (Array.isArray(recs) && recs.length) {
-						openReceiptViewerPopover(recs[0].image_base64, currentSaleId, recs[0].created_at, rect.left + rect.width / 2, rect.bottom);
+						openReceiptViewerPopover(recs[0].image_base64, currentSaleId, recs[0].created_at, rect.left + rect.width / 2, rect.bottom, recs[0].note_text || '', recs[0].id);
 					} else {
 						openReceiptUploadPage(currentSaleId);
 					}
@@ -1752,7 +1752,7 @@ function openReceiptUploadPage(saleId) {
 	} catch {}
 }
 
-function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, anchorY) {
+function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, anchorY, noteText, receiptId) {
 	const pop = document.createElement('div');
 	pop.className = 'receipt-popover';
 	pop.style.position = 'fixed';
@@ -1789,16 +1789,25 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 	meta.className = 'receipt-meta';
 	if (createdAt) {
 		const when = new Date(createdAt);
-		meta.textContent = 'Subido: ' + (isNaN(when.getTime()) ? String(createdAt) : when.toLocaleString());
+		const whenStr = isNaN(when.getTime()) ? String(createdAt) : when.toLocaleString();
+		meta.textContent = 'Subido: ' + whenStr;
 		meta.style.fontSize = '12px';
 		meta.style.opacity = '0.75';
 		meta.style.marginTop = '6px';
 	}
+	if (noteText) {
+		const note = document.createElement('div');
+		note.textContent = 'Nota: ' + String(noteText || '');
+		note.style.fontSize = '13px';
+		note.style.marginTop = '4px';
+		meta.appendChild(note);
+	}
 	const actions = document.createElement('div');
 	actions.className = 'confirm-actions';
 	const replaceBtn = document.createElement('button'); replaceBtn.className = 'press-btn btn-primary'; replaceBtn.textContent = 'Reemplazar foto';
+	const deleteBtn = document.createElement('button'); deleteBtn.className = 'press-btn'; deleteBtn.textContent = 'Eliminar';
 	const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn'; closeBtn.textContent = 'Cerrar';
-	actions.append(replaceBtn, closeBtn);
+	actions.append(replaceBtn, deleteBtn, closeBtn);
 	pop.append(img, meta, actions);
 	document.body.appendChild(pop);
 	function cleanup() {
@@ -1812,6 +1821,15 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 		document.addEventListener('touchstart', outside, true);
 	}, 0);
 	replaceBtn.addEventListener('click', () => { cleanup(); openReceiptUploadPage(saleId); });
+	deleteBtn.addEventListener('click', async () => {
+		try {
+			const ok = await openConfirmPopover('¿Eliminar el comprobante?', anchorX, anchorY);
+			if (!ok) return;
+			if (!receiptId) return;
+			await fetch(`/api/sales?receipt_id=${encodeURIComponent(receiptId)}`, { method: 'DELETE' });
+			cleanup();
+		} catch {}
+	});
 	closeBtn.addEventListener('click', cleanup);
 }
 
