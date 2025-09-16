@@ -75,6 +75,14 @@ function renderClientDetailTable(rows) {
 		receiptBtn.style.marginLeft = '6px';
 		receiptBtn.style.display = (sel.value === 'transf') ? 'inline-flex' : 'none';
 		receiptBtn.addEventListener('click', async () => { await showOrUploadReceiptForSale(r.id, receiptBtn); });
+		// Mirror behavior from sales: clicking the wrap opens the custom menu
+		wrap.addEventListener('click', async (e) => {
+			e.stopPropagation();
+			const rect = wrap.getBoundingClientRect();
+			openPayMenu(wrap, sel, rect.left + rect.width / 2, rect.bottom);
+		});
+		wrap.tabIndex = 0;
+		wrap.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); const rect = wrap.getBoundingClientRect(); openPayMenu(wrap, sel, rect.left + rect.width / 2, rect.bottom); } });
 		sel.addEventListener('change', async () => {
 			await api('PUT', API.Sales, { id: r.id, pay_method: sel.value || null });
 			applyPayClass();
