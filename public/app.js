@@ -19,7 +19,7 @@ async function loadClientDetailRows(clientName) {
 		for (const s of (sales || [])) {
 			const n = (s?.client_name || '').trim();
 			if (!n) continue;
-			if (n.toLowerCase() !== String(clientName||'').trim().toLowerCase()) continue;
+			if (normalizeClientName(n) !== normalizeClientName(clientName)) continue;
 			allRows.push({
 				id: s.id,
 				dayIso: String(d.day).slice(0,10),
@@ -1976,6 +1976,19 @@ if (!('selectedDayId' in state)) state.selectedDayId = null;
 })();
 
 // Load and render Clients view listing all unique client names across all dates for the current seller
+function normalizeClientName(value) {
+	try {
+		return String(value || '')
+			.trim()
+			.normalize('NFD')
+			// Remove accents (acute, diaeresis, grave, circumflex, macron) but keep tilde (ñ)
+			.replace(/[\u0301\u0308\u0300\u0302\u0304]/g, '')
+			.toLowerCase();
+	} catch {
+		return String(value || '').trim().toLowerCase();
+	}
+}
+
 async function openClientsView() {
 	if (!state.currentSeller) return;
 	await loadClientsForSeller();
@@ -1993,7 +2006,7 @@ async function loadClientsForSeller() {
 		for (const s of (sales || [])) {
 			const raw = (s?.client_name || '').trim();
 			if (!raw) continue;
-			const key = raw.toLowerCase();
+			const key = normalizeClientName(raw);
 			if (!nameToCount.has(key)) nameToCount.set(key, { name: raw, count: 0 });
 			nameToCount.get(key).count++;
 		}
