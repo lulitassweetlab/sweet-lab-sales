@@ -63,7 +63,14 @@
 					const res = await fetch('/api/sales', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _upload_receipt_for: saleId, image_base64: base64 }) });
 					if (!res.ok) { alert('Error al subir comprobante'); uploadBtn.disabled = false; return; }
 					alert('Comprobante subido');
-					history.length > 1 ? history.back() : (location.href = '/');
+					// Volver a historial de cliente si venimos desde allí
+					const ref = document.referrer || '';
+					if (ref.includes('/index.html') || ref.endsWith('/')) {
+						// best effort: regresar
+						history.length > 1 ? history.back() : (location.href = '/');
+					} else {
+						location.href = '/';
+					}
 				};
 				reader.readAsDataURL(f);
 			} catch (e) {
