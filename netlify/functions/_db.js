@@ -5,6 +5,14 @@ let schemaEnsured = false;
 
 export async function ensureSchema() {
 	if (schemaEnsured) return;
+	// Basic users table for authentication
+	await sql`CREATE TABLE IF NOT EXISTS users (
+		id SERIAL PRIMARY KEY,
+		username TEXT UNIQUE NOT NULL,
+		password_hash TEXT NOT NULL,
+		role TEXT NOT NULL DEFAULT 'user',
+		created_at TIMESTAMPTZ DEFAULT now()
+	)`;
 	await sql`CREATE TABLE IF NOT EXISTS sellers (
 		id SERIAL PRIMARY KEY,
 		name TEXT UNIQUE NOT NULL,
@@ -102,6 +110,14 @@ export async function ensureSchema() {
 		created_at TIMESTAMPTZ DEFAULT now(),
 		read_at TIMESTAMPTZ
 	)`;
+	// Seed default users if table is empty
+	const existing = await sql`SELECT COUNT(*)::int AS c FROM users`;
+	if ((existing[0]?.c || 0) === 0) {
+		// Default simple passwords; in production you'd hash. Here we store as plain for simplicity in this demo.
+		await sql`INSERT INTO users (username, password_hash, role) VALUES ('jorge', 'Jorge123', 'superadmin') ON CONFLICT (username) DO NOTHING`;
+		await sql`INSERT INTO users (username, password_hash, role) VALUES ('marcela', 'marcelasweet', 'admin') ON CONFLICT (username) DO NOTHING`;
+		await sql`INSERT INTO users (username, password_hash, role) VALUES ('aleja', 'alejasweet', 'admin') ON CONFLICT (username) DO NOTHING`;
+	}
 	schemaEnsured = true;
 }
 

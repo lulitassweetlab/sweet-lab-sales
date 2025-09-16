@@ -155,7 +155,8 @@ function renderClientDetailTable(rows) {
 
 const API = {
 	Sellers: '/api/sellers',
-	Sales: '/api/sales'
+	Sales: '/api/sales',
+	Users: '/api/users'
 };
 
 const PRICES = {
@@ -398,6 +399,17 @@ function isAdmin(user) {
 	return u === 'jorge' || u === 'marcela' || u === 'aleja';
 }
 
+function getRole(user) {
+	const u = String(user || '').toLowerCase();
+	if (u === 'jorge') return 'superadmin';
+	if (u === 'marcela' || u === 'aleja') return 'admin';
+	return 'user';
+}
+
+function isSuperAdmin(user) {
+	return getRole(user) === 'superadmin';
+}
+
 function bindLogin() {
 	const btn = document.getElementById('login-btn');
 	btn?.addEventListener('click', () => {
@@ -405,19 +417,40 @@ function bindLogin() {
 		const pass = document.getElementById('login-pass')?.value ?? '';
 		const err = document.getElementById('login-error');
 		if (!user) { if (err) { err.textContent = 'Ingresa el usuario'; err.classList.remove('hidden'); } return; }
-		if (pass !== computePasswordFor(user)) { if (err) { err.textContent = 'Usuario o contraseña inválidos'; err.classList.remove('hidden'); } return; }
-		if (err) err.classList.add('hidden');
-		state.currentUser = { name: user, isAdmin: isAdmin(user) };
-		try { localStorage.setItem('authUser', JSON.stringify(state.currentUser)); } catch {}
-		applyAuthVisibility();
-		renderSellerButtons();
-		notify.success('Bienvenido ' + user);
-		// If not admin, auto-enter seller if exists
-		if (!state.currentUser.isAdmin) {
-			const seller = (state.sellers || []).find(s => String(s.name).toLowerCase() === String(user).toLowerCase());
-			if (seller) enterSeller(seller.id);
-		} else {
-			switchView('#view-select-seller');
+		(async () => {
+			try {
+				const res = await api('POST', API.Users, { username: user, password: pass });
+				if (err) err.classList.add('hidden');
+				state.currentUser = { name: res.username, isAdmin: res.role === 'admin' || res.role === 'superadmin', role: res.role, isSuperAdmin: res.role === 'superadmin' };
+				try { localStorage.setItem('authUser', JSON.stringify(state.currentUser)); } catch {}
+				applyAuthVisibility();
+				renderSellerButtons();
+				notify.success('Bienvenido ' + res.username);
+				if (!state.currentUser.isAdmin) {
+					const seller = (state.sellers || []).find(s => String(s.name).toLowerCase() === String(res.username).toLowerCase());
+					if (seller) enterSeller(seller.id);
+				} else {
+					switchView('#view-select-seller');
+				}
+			} catch (e) {
+				if (err) { err.textContent = 'Usuario o contraseña inválidos'; err.classList.remove('hidden'); }
+			}
+		})();
+	});
+	// Change password from login screen
+	const changeBtn = document.getElementById('login-change-pass');
+	changeBtn?.addEventListener('click', async () => {
+		const user = (document.getElementById('login-user')?.value || '').toString().trim();
+		if (!user) { const err = document.getElementById('login-error'); if (err) { err.textContent = 'Ingresa el usuario para cambiar la contraseña'; err.classList.remove('hidden'); } return; }
+		const current = prompt('Contraseña actual:') ?? '';
+		if (!current) return;
+		const next = prompt('Nueva contraseña (mín 6 caracteres):') ?? '';
+		if (!next) return;
+		try {
+			await api('PUT', API.Users, { username: user, currentPassword: current, newPassword: next });
+			notify.success('Contraseña actualizada');
+		} catch (e) {
+			notify.error('No se pudo actualizar la contraseña');
 		}
 	});
 	const logoutBtn = document.getElementById('logout-btn');
@@ -518,10 +551,13 @@ function switchView(id) {
 
 function applyAuthVisibility() {
 	const isAdminUser = !!state.currentUser?.isAdmin;
+	const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 	const logoutBtn = document.getElementById('logout-btn');
 	if (logoutBtn) logoutBtn.style.display = state.currentUser ? 'inline-flex' : 'none';
 	const addSellerWrap = document.querySelector('.seller-add');
-	if (addSellerWrap) addSellerWrap.style.display = isAdminUser ? 'block' : 'none';
+	if (addSellerWrap) addSellerWrap.style.display = isSuper ? 'block' : 'none';
+	const usersBtn = document.getElementById('users-button');
+	if (usersBtn) usersBtn.style.display = isSuper ? 'inline-block' : 'none';
 }
 
 function calcRowTotal(q) {
@@ -1345,6 +1381,7 @@ async function exportConsolidatedForDates(isoList) {
 
 (function wireReportButton(){
 	const reportBtn = document.getElementById('report-button');
+	const usersBtn = document.getElementById('users-button');
 	const input = document.getElementById('report-date');
 	if (!reportBtn || !input) return;
 	reportBtn.addEventListener('click', (ev) => {
@@ -1353,10 +1390,71 @@ async function exportConsolidatedForDates(isoList) {
 			await exportConsolidatedForDates(isoList);
 		}, ev.clientX, ev.clientY);
 	});
+	usersBtn?.addEventListener('click', async (ev) => {
+		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+		if (!isSuper) { notify.error('Solo el superadministrador'); return; }
+		openUsersMenu(ev.clientX, ev.clientY);
+	});
 })();
 
+function openUsersMenu(anchorX, anchorY) {
+	const pop = document.createElement('div');
+	pop.className = 'confirm-popover';
+	pop.style.position = 'fixed';
+	const baseX = (typeof anchorX === 'number') ? anchorX : (window.innerWidth / 2);
+	const baseY = (typeof anchorY === 'number') ? anchorY : (window.innerHeight / 2);
+	pop.style.left = baseX + 'px';
+	pop.style.top = (baseY + 6) + 'px';
+	pop.style.transform = 'translate(-50%, 0)';
+	pop.style.zIndex = '1000';
+	const title = document.createElement('div'); title.className = 'history-title'; title.textContent = 'Usuarios';
+	const list = document.createElement('div'); list.className = 'history-list';
+	const b1 = document.createElement('button'); b1.className = 'press-btn btn-primary'; b1.textContent = 'Reporte';
+	const b2 = document.createElement('button'); b2.className = 'press-btn'; b2.textContent = 'Cambiar contraseñas';
+	const b3 = document.createElement('button'); b3.className = 'press-btn'; b3.textContent = 'Asignar roles';
+	list.appendChild(b1); list.appendChild(b2); list.appendChild(b3);
+	const actions = document.createElement('div'); actions.className = 'confirm-actions';
+	const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn'; closeBtn.textContent = 'Cerrar'; actions.appendChild(closeBtn);
+	pop.append(title, list, actions);
+	document.body.appendChild(pop);
+	function cleanup(){ document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); if (pop.parentNode) pop.parentNode.removeChild(pop); }
+	function outside(ev){ if (!pop.contains(ev.target)) cleanup(); }
+	setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
+	closeBtn.addEventListener('click', cleanup);
+	b1.addEventListener('click', async () => { await exportUsersExcel(); cleanup(); });
+	b2.addEventListener('click', async () => {
+		const username = prompt('Usuario a modificar:'); if (!username) return;
+		const newPass = prompt('Nueva contraseña (mín 6 caracteres):'); if (!newPass) return;
+		try { await api('PATCH', API.Users, { action: 'setPassword', username, newPassword: newPass }); notify.success('Contraseña actualizada'); cleanup(); }
+		catch { notify.error('No se pudo actualizar'); }
+	});
+	b3.addEventListener('click', async () => {
+		const username = prompt('Usuario a modificar rol:'); if (!username) return;
+		const role = prompt('Nuevo rol (user, admin, superadmin):'); if (!role) return;
+		try { await api('PATCH', API.Users, { action: 'setRole', username, role }); notify.success('Rol actualizado'); cleanup(); }
+		catch { notify.error('No se pudo actualizar'); }
+	});
+}
+
+async function exportUsersExcel() {
+	try {
+		const users = await api('GET', API.Users);
+		const rows = (users || []).map(u => ({ Usuario: u.username, Contraseña: u.password_hash }));
+		const ws = XLSX.utils.json_to_sheet(rows);
+		const wb = XLSX.utils.book_new();
+		XLSX.utils.book_append_sheet(wb, ws, 'Usuarios');
+		XLSX.writeFile(wb, `Usuarios_${new Date().toISOString().slice(0,10)}.xlsx`);
+		notify.success('Excel de usuarios generado');
+	} catch (e) {
+		notify.error('No se pudo generar el reporte de usuarios');
+	}
+}
+
 function bindEvents() {
+	// No header password button; handled in login view
 	$('#add-seller').addEventListener('click', async () => {
+		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+		if (!isSuper) { notify.error('Solo Jorge puede agregar vendedores'); return; }
 		const name = (prompt('Nombre del nuevo vendedor:') || '').trim();
 		if (!name) return;
 		await addSeller(name);
@@ -2241,6 +2339,14 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 	})();
 	updateToolbarOffset();
 	try { const saved = localStorage.getItem('authUser'); if (saved) state.currentUser = JSON.parse(saved); } catch {}
+	// Backfill role fields if missing from older sessions
+	if (state.currentUser && !state.currentUser.role) {
+		const name = state.currentUser.name;
+		state.currentUser.role = getRole(name);
+		state.currentUser.isSuperAdmin = isSuperAdmin(name);
+		state.currentUser.isAdmin = isAdmin(name);
+		try { localStorage.setItem('authUser', JSON.stringify(state.currentUser)); } catch {}
+	}
 	await loadSellers();
 	bindLogin();
 	// Route initial view
