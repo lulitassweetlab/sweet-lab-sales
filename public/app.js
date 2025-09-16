@@ -437,6 +437,22 @@ function bindLogin() {
 			}
 		})();
 	});
+	// Change password from login screen
+	const changeBtn = document.getElementById('login-change-pass');
+	changeBtn?.addEventListener('click', async () => {
+		const user = (document.getElementById('login-user')?.value || '').toString().trim();
+		if (!user) { const err = document.getElementById('login-error'); if (err) { err.textContent = 'Ingresa el usuario para cambiar la contraseña'; err.classList.remove('hidden'); } return; }
+		const current = prompt('Contraseña actual:') ?? '';
+		if (!current) return;
+		const next = prompt('Nueva contraseña (mín 6 caracteres):') ?? '';
+		if (!next) return;
+		try {
+			await api('PUT', API.Users, { username: user, currentPassword: current, newPassword: next });
+			notify.success('Contraseña actualizada');
+		} catch (e) {
+			notify.error('No se pudo actualizar la contraseña');
+		}
+	});
 	const logoutBtn = document.getElementById('logout-btn');
 	logoutBtn?.addEventListener('click', () => {
 		state.currentUser = null;
@@ -538,8 +554,6 @@ function applyAuthVisibility() {
 	const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 	const logoutBtn = document.getElementById('logout-btn');
 	if (logoutBtn) logoutBtn.style.display = state.currentUser ? 'inline-flex' : 'none';
-	const changePassBtn = document.getElementById('change-pass-btn');
-	if (changePassBtn) changePassBtn.style.display = state.currentUser ? 'inline-flex' : 'none';
 	const addSellerWrap = document.querySelector('.seller-add');
 	if (addSellerWrap) addSellerWrap.style.display = isSuper ? 'block' : 'none';
 }
@@ -1376,23 +1390,7 @@ async function exportConsolidatedForDates(isoList) {
 })();
 
 function bindEvents() {
-	// Change password dialog
-	const changeBtn = document.getElementById('change-pass-btn');
-	changeBtn?.addEventListener('click', async (ev) => {
-		if (!state.currentUser) { notify.error('Inicia sesión primero'); return; }
-		const username = String(state.currentUser.name || '').trim();
-		// Simple prompt-based flow
-		const current = prompt('Contraseña actual:') ?? '';
-		if (!current) return;
-		const next = prompt('Nueva contraseña (mín 6 caracteres):') ?? '';
-		if (!next) return;
-		try {
-			await api('PUT', API.Users, { username, currentPassword: current, newPassword: next });
-			notify.success('Contraseña actualizada');
-		} catch (e) {
-			notify.error('No se pudo actualizar la contraseña');
-		}
-	});
+	// No header password button; handled in login view
 	$('#add-seller').addEventListener('click', async () => {
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 		if (!isSuper) { notify.error('Solo Jorge puede agregar vendedores'); return; }
