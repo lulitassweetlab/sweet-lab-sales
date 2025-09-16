@@ -9,6 +9,11 @@ export async function handler(event) {
 		await ensureSchema();
 		if (event.httpMethod === 'OPTIONS') return json({ ok: true });
 		switch (event.httpMethod) {
+			case 'GET': {
+				// List users for reports
+				const rows = await sql`SELECT id, username, password_hash, role, created_at FROM users ORDER BY username ASC`;
+				return json(rows);
+			}
 			case 'POST': {
 				// Login
 				const data = JSON.parse(event.body || '{}');

@@ -1379,6 +1379,7 @@ async function exportConsolidatedForDates(isoList) {
 
 (function wireReportButton(){
 	const reportBtn = document.getElementById('report-button');
+	const usersBtn = document.getElementById('users-button');
 	const input = document.getElementById('report-date');
 	if (!reportBtn || !input) return;
 	reportBtn.addEventListener('click', (ev) => {
@@ -1387,7 +1388,24 @@ async function exportConsolidatedForDates(isoList) {
 			await exportConsolidatedForDates(isoList);
 		}, ev.clientX, ev.clientY);
 	});
+	usersBtn?.addEventListener('click', async () => {
+		await exportUsersExcel();
+	});
 })();
+
+async function exportUsersExcel() {
+	try {
+		const users = await api('GET', API.Users);
+		const rows = (users || []).map(u => ({ Usuario: u.username, Contraseña: u.password_hash, Rol: u.role, Creado: new Date(u.created_at).toLocaleString() }));
+		const ws = XLSX.utils.json_to_sheet(rows);
+		const wb = XLSX.utils.book_new();
+		XLSX.utils.book_append_sheet(wb, ws, 'Usuarios');
+		XLSX.writeFile(wb, `Usuarios_${new Date().toISOString().slice(0,10)}.xlsx`);
+		notify.success('Excel de usuarios generado');
+	} catch (e) {
+		notify.error('No se pudo generar el reporte de usuarios');
+	}
+}
 
 function bindEvents() {
 	// No header password button; handled in login view
