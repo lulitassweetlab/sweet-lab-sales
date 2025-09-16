@@ -16,8 +16,18 @@ export async function ensureSchema() {
 	await sql`CREATE TABLE IF NOT EXISTS sellers (
 		id SERIAL PRIMARY KEY,
 		name TEXT UNIQUE NOT NULL,
+		bill_color TEXT,
 		created_at TIMESTAMPTZ DEFAULT now()
 	)`;
+	// Ensure bill_color exists for older deployments
+	await sql`DO $$ BEGIN
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'sellers' AND column_name = 'bill_color'
+		) THEN
+			ALTER TABLE sellers ADD COLUMN bill_color TEXT;
+		END IF;
+	END $$;`;
 	await sql`CREATE TABLE IF NOT EXISTS sale_days (
 		id SERIAL PRIMARY KEY,
 		seller_id INTEGER NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
@@ -118,6 +128,8 @@ export async function ensureSchema() {
 		await sql`INSERT INTO users (username, password_hash, role) VALUES ('marcela', 'marcelasweet', 'admin') ON CONFLICT (username) DO NOTHING`;
 		await sql`INSERT INTO users (username, password_hash, role) VALUES ('aleja', 'alejasweet', 'admin') ON CONFLICT (username) DO NOTHING`;
 	}
+	// Ensure Marcela has a default yellow bill color if seller exists and not set
+	await sql`UPDATE sellers SET bill_color=${'#fdd835'} WHERE lower(name)='marcela' AND (bill_color IS NULL OR bill_color='')`;
 	schemaEnsured = true;
 }
 
