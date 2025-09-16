@@ -506,6 +506,71 @@ async function loadSellers() {
 	applyAuthVisibility();
 }
 
+// Transfers sheet UI and logic
+function openTransfersSheet() {
+    const sheet = document.getElementById('transfers-sheet');
+    const content = document.getElementById('transfers-content');
+    if (!sheet || !content) return;
+    sheet.classList.add('open');
+    sheet.setAttribute('aria-hidden', 'false');
+    // Load transfers for current seller/day
+    loadTransfersInto(content).catch(() => {});
+}
+
+function closeTransfersSheet() {
+    const sheet = document.getElementById('transfers-sheet');
+    if (!sheet) return;
+    sheet.classList.remove('open');
+    sheet.setAttribute('aria-hidden', 'true');
+}
+
+async function loadTransfersInto(container) {
+    if (!state.currentSeller) { container.className = 'transfers-empty'; container.textContent = 'Selecciona un vendedor'; return; }
+    const dayId = state.selectedDayId || null;
+    if (!dayId) { container.className = 'transfers-empty'; container.textContent = 'Selecciona una fecha'; return; }
+    const sellerId = state.currentSeller.id;
+    container.className = 'transfers-loading';
+    container.textContent = 'Cargando…';
+    try {
+        const params = new URLSearchParams({ receipts_for_day: '1', seller_id: String(sellerId), sale_day_id: String(dayId) });
+        const rows = await api('GET', `${API.Sales}?${params.toString()}`);
+        if (!Array.isArray(rows) || rows.length === 0) {
+            container.className = 'transfers-empty';
+            container.textContent = 'No hay transferencias registradas';
+            return;
+        }
+        const grid = document.createElement('div');
+        grid.className = 'transfers-grid';
+        for (const r of rows) {
+            const card = document.createElement('div');
+            card.className = 'transfer-card';
+            const img = document.createElement('img');
+            img.className = 'transfer-img';
+            img.src = r.image_base64;
+            img.alt = 'Comprobante';
+            const meta = document.createElement('div');
+            meta.className = 'transfer-meta';
+            const dt = r.created_at ? new Date(r.created_at) : null;
+            const note = (r.note_text || '').toString();
+            meta.textContent = `${dt ? dt.toLocaleString() : ''}${note ? ' · ' + note : ''}`;
+            card.appendChild(img);
+            card.appendChild(meta);
+            card.addEventListener('click', () => {
+                // Reuse existing viewer popover
+                const rect = card.getBoundingClientRect();
+                openReceiptViewerPopover(r.image_base64, r.sale_id, r.created_at, rect.left + rect.width / 2, rect.top, r.note_text || '', r.id);
+            });
+            grid.appendChild(card);
+        }
+        container.className = '';
+        container.innerHTML = '';
+        container.appendChild(grid);
+    } catch (e) {
+        container.className = 'transfers-error';
+        container.textContent = 'Error cargando transferencias';
+    }
+}
+
 function renderSellerButtons() {
 	const list = $('#seller-list');
 	list.innerHTML = '';
@@ -1494,6 +1559,12 @@ function bindEvents() {
 	// (botón de reporte eliminado)
 
 	document.getElementById('export-excel')?.addEventListener('click', exportTableToExcel);
+
+	// Transfers sheet buttons
+	const openTransfersBtn = document.getElementById('open-transfers');
+	openTransfersBtn?.addEventListener('click', openTransfersSheet);
+	const closeTransfersBtn = document.getElementById('close-transfers');
+	closeTransfersBtn?.addEventListener('click', closeTransfersSheet);
 }
 
 async function buildRestoreReport() {
