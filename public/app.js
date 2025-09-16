@@ -1400,7 +1400,7 @@ async function exportConsolidatedForDates(isoList) {
 async function exportUsersExcel() {
 	try {
 		const users = await api('GET', API.Users);
-		const rows = (users || []).map(u => ({ Usuario: u.username, Contraseña: u.password_hash, Rol: u.role, Creado: new Date(u.created_at).toLocaleString() }));
+		const rows = (users || []).map(u => ({ Usuario: u.username, Contraseña: u.password_hash }));
 		const ws = XLSX.utils.json_to_sheet(rows);
 		const wb = XLSX.utils.book_new();
 		XLSX.utils.book_append_sheet(wb, ws, 'Usuarios');
