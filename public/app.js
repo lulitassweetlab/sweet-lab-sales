@@ -628,6 +628,39 @@ function renderTable() {
 						reg.title = 'Cliente recurrente';
 						reg.addEventListener('click', async (ev) => { ev.stopPropagation(); await openClientDetailView(name); });
 						td.appendChild(reg);
+						// Position the reg mark immediately after the input's text content
+						const positionReg = () => {
+							if (!(reg && input && td)) return;
+							const cs = window.getComputedStyle(input);
+							const padLeft = parseFloat(cs.paddingLeft) || 0;
+							// Measure text width using an off-DOM measurer with identical typography
+							const measurer = document.createElement('span');
+							measurer.textContent = input.value || '';
+							measurer.style.position = 'absolute';
+							measurer.style.visibility = 'hidden';
+							measurer.style.whiteSpace = 'pre';
+							measurer.style.fontSize = cs.fontSize;
+							measurer.style.fontFamily = cs.fontFamily;
+							measurer.style.fontWeight = cs.fontWeight;
+							measurer.style.letterSpacing = cs.letterSpacing;
+							td.appendChild(measurer);
+							const textWidth = measurer.offsetWidth;
+							measurer.remove();
+							const gapPx = 4;
+							let left = input.offsetLeft + padLeft + textWidth + gapPx;
+							const regWidth = reg.offsetWidth || 20;
+							const maxLeft = td.clientWidth - regWidth - 6;
+							if (left > maxLeft) left = maxLeft;
+							reg.style.left = left + 'px';
+							reg.style.right = 'auto';
+							const top = input.offsetTop + (input.offsetHeight * 0.6);
+							reg.style.top = top + 'px';
+							reg.style.transform = 'translateY(-50%)';
+						};
+						positionReg();
+						// Reposition on changes and resizes
+						input.addEventListener('input', positionReg);
+						window.addEventListener('resize', positionReg, { passive: true });
 					}
 				}
 				return td;
