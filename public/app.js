@@ -49,7 +49,6 @@ function renderClientDetailTable(rows) {
 	}
 	for (const r of rows) {
 		const tr = document.createElement('tr');
-		const tdDate = document.createElement('td'); tdDate.textContent = formatDayLabel(r.dayIso);
 		const tdPay = document.createElement('td');
 		const wrap = document.createElement('span'); wrap.className = 'pay-wrap';
 		const sel = document.createElement('select'); sel.className = 'input-cell pay-select';
@@ -91,6 +90,9 @@ function renderClientDetailTable(rows) {
 		});
 		wrap.appendChild(sel); tdPay.appendChild(wrap);
 		tdPay.appendChild(receiptBtn);
+		// Add a visible dash '-' like the main table when no method, using CSS class 'placeholder'
+		if (!sel.value) { /* wrap already has placeholder class to show '-' via styles */ }
+		const tdDate = document.createElement('td'); tdDate.textContent = formatDayLabel(r.dayIso);
 		const tdAr = document.createElement('td'); tdAr.textContent = r.qty_arco ? String(r.qty_arco) : '';
 		const tdMe = document.createElement('td'); tdMe.textContent = r.qty_melo ? String(r.qty_melo) : '';
 		const tdMa = document.createElement('td'); tdMa.textContent = r.qty_mara ? String(r.qty_mara) : '';
@@ -98,7 +100,7 @@ function renderClientDetailTable(rows) {
 		const tdNu = document.createElement('td'); tdNu.textContent = r.qty_nute ? String(r.qty_nute) : '';
 		const total = calcRowTotal({ arco: r.qty_arco, melo: r.qty_melo, mara: r.qty_mara, oreo: r.qty_oreo, nute: r.qty_nute });
 		const tdTot = document.createElement('td'); tdTot.textContent = fmtNo.format(total);
-		tr.append(tdDate, tdPay, tdAr, tdMe, tdMa, tdOr, tdNu, tdTot);
+		tr.append(tdPay, tdDate, tdAr, tdMe, tdMa, tdOr, tdNu, tdTot);
 		tbody.appendChild(tr);
 	}
 }
