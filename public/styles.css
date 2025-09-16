@@ -949,7 +949,7 @@ tfoot td { font-weight: 700; }
 .seller-button:active { transform: translateY(1px); box-shadow: inset 0 2px 4px rgba(0,0,0,0.08), 0 1px 0 rgba(0,0,0,0.08); }
 
 /* Report buttons: unify dimensions across Ventas, Cartera, Usuarios */
-.report-btn { padding: 8px 12px; width: 120px; text-align: center; }
+.report-btn { padding: 8px 12px; min-width: 120px; text-align: center; }
 
 /* Themed button variants using design tokens */
 .btn-primary {
