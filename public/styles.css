@@ -796,7 +796,7 @@ tfoot td { font-weight: 700; }
 .col-client.has-reg { position: relative; }
 .client-reg-large {
 	position: absolute;
-	left: 6px;
+	right: 6px;
 	top: 60%;
 	transform: translateY(-50%);
 	font-size: 28px;
@@ -805,7 +805,7 @@ tfoot td { font-weight: 700; }
 	color: var(--primary);
 	cursor: pointer;
 }
-.col-client.has-reg .client-input { padding-left: 36px; }
+.col-client.has-reg .client-input { padding-right: 36px; }
 .clients-row { cursor: pointer; }
 .clients-table tbody tr:hover td { background: #f3f4f6 !important; }
 [data-theme="dark"] .clients-table tbody tr:hover td { background: #1a1a1a !important; }
