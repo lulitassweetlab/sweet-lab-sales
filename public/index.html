@@ -201,6 +201,58 @@
 				</div>
 			</div>
 		</section>
+
+		<section id="view-client-history" class="view hidden">
+			<div class="header-sticky">
+				<div class="toolbar">
+					<div class="toolbar-left">
+						<img src="/logo.png" alt="Lulitas Logo" class="app-logo toolbar-logo" />
+						<button id="client-history-back" class="secondary press-btn">Volver</button>
+					</div>
+					<h2 id="client-history-title"></h2>
+					<div class="toolbar-actions"></div>
+				</div>
+			</div>
+			<div class="sales-panel">
+				<div class="panel-header">
+					<h3>Historial del cliente</h3>
+				</div>
+				<div class="panel-body">
+					<div class="table-wrapper" id="client-history-wrapper">
+						<table id="client-history-table">
+							<thead>
+								<tr>
+									<th>Fecha</th>
+									<th>Pago</th>
+									<th>Arco</th>
+									<th>Melo</th>
+									<th>Mara</th>
+									<th>Oreo</th>
+									<th>Nute</th>
+									<th>Total</th>
+									<th>Comprobante</th>
+									<th>Comentario</th>
+								</tr>
+							</thead>
+							<tbody id="client-history-tbody"></tbody>
+							<tfoot>
+								<tr>
+									<td class="label" colspan="2">Totales</td>
+									<td id="ch-sum-arco">0</td>
+									<td id="ch-sum-melo">0</td>
+									<td id="ch-sum-mara">0</td>
+									<td id="ch-sum-oreo">0</td>
+									<td id="ch-sum-nute">0</td>
+									<td id="ch-sum-total">0</td>
+									<td></td>
+									<td></td>
+								</tr>
+							</tfoot>
+						</table>
+					</div>
+				</div>
+			</div>
+		</section>
 	</main>
 
 	<footer class="app-footer">

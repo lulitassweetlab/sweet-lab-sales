@@ -2008,6 +2008,29 @@ button.secondary.press-btn:active {
 .history-list { display: grid; gap: 6px; max-height: 50vh; overflow: auto; }
 .history-item { font-size: 11px; white-space: pre-wrap; word-break: break-word; }
 
+/* Recurrent client badge */
+.client-recurring-mark {
+	margin-left: 6px;
+	font-size: 18px;
+	line-height: 1;
+	vertical-align: middle;
+	opacity: 0.85;
+}
+
+/* Keep ® on same line and clickable inside client cell */
+#sales-table td.col-client { position: relative; }
+.col-client .client-input { padding-right: 26px; }
+.col-client .client-recurring-mark {
+	position: absolute;
+	right: 6px;
+	top: 50%;
+	transform: translateY(-50%);
+	font-size: 26px;
+	cursor: pointer;
+	user-select: none;
+	z-index: 1;
+}
+
 /* Position change markers visibly at top-right of the cell */
 #sales-table td { position: relative; }
 #sales-table td .change-marker {
@@ -2021,6 +2044,16 @@ button.secondary.press-btn:active {
 
 /* Admin: remove background highlight; keep asterisk only */
 .cell-changed { background-color: transparent !important; }
+
+/* Client history table */
+#client-history-wrapper { overflow: auto; }
+#client-history-table { width: 100%; border-collapse: collapse; }
+#client-history-table th, #client-history-table td { border-bottom: 1px solid var(--border); padding: 6px 8px; text-align: right; }
+#client-history-table th:nth-child(1), #client-history-table td:nth-child(1) { text-align: left; }
+#client-history-table th:nth-child(2), #client-history-table td:nth-child(2) { text-align: center; }
+#client-history-table th:nth-last-child(1), #client-history-table td:nth-last-child(1) { text-align: left; }
+#client-history-table th:nth-last-child(2), #client-history-table td:nth-last-child(2) { text-align: center; }
+#client-history-table tfoot td.label { text-align: right; font-weight: 700; }
 
 /* Date item with delete */
 .date-item .date-delete {

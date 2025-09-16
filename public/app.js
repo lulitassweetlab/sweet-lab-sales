@@ -478,6 +478,24 @@ function renderTable() {
 		);
 		tr.dataset.id = String(sale.id);
 		tbody.appendChild(tr);
+		// Recurring badge: append ® for known recurring names
+		try {
+			const tdClient = tr.querySelector('td.col-client');
+			if (tdClient) {
+				const nm = (sale.client_name || '').trim().toLowerCase();
+				if (nm && state.recurringNames && state.recurringNames.has(nm)) {
+					const mark = document.createElement('span');
+					mark.className = 'client-recurring-mark';
+					mark.textContent = '®';
+					mark.title = 'Cliente recurrente';
+					mark.addEventListener('click', (ev) => {
+						ev.stopPropagation();
+						openClientHistoryView((sale.client_name || '').trim());
+					});
+					tdClient.appendChild(mark);
+				}
+			}
+		} catch {}
 		// Comment trigger removed per request
 	}
 	// Inline add row line just below last sale
@@ -505,6 +523,8 @@ async function loadSales() {
 	const params = new URLSearchParams({ seller_id: String(sellerId) });
 	if (state.selectedDayId) params.set('sale_day_id', String(state.selectedDayId));
 	state.sales = await api('GET', `${API.Sales}?${params.toString()}`);
+	// Preload recurring clients for current seller (non-blocking)
+	preloadRecurringClientsForSeller().catch(()=>{});
 	renderTable();
 	preloadChangeLogsForCurrentTable();
 }
@@ -871,6 +891,24 @@ async function savePayMethod(tr, id, method) {
 	// Update local state
 	const idx = state.sales.findIndex(s => s.id === id);
 	if (idx !== -1) state.sales[idx].pay_method = method || null;
+}
+
+// Update only pay_method using a known snapshot of the sale (to avoid overwriting other fields)
+async function savePayMethodSnapshot(snapshot, newMethod) {
+	if (!snapshot || !snapshot.id) return;
+	const payload = {
+		id: snapshot.id,
+		client_name: snapshot.client_name || '',
+		qty_arco: snapshot.qty_arco || 0,
+		qty_melo: snapshot.qty_melo || 0,
+		qty_mara: snapshot.qty_mara || 0,
+		qty_oreo: snapshot.qty_oreo || 0,
+		qty_nute: snapshot.qty_nute || 0,
+		is_paid: !!snapshot.is_paid,
+		pay_method: newMethod || null,
+		_actor_name: state.currentUser?.name || ''
+	};
+	await api('PUT', API.Sales, payload);
 }
 
 function updateSummary() {
@@ -1702,6 +1740,7 @@ function openPayMenu(anchorEl, selectEl, clickX, clickY) {
 // Extend state to include saleDays and selectedDayId if not present
 if (!('saleDays' in state)) state.saleDays = [];
 if (!('selectedDayId' in state)) state.selectedDayId = null;
+if (!('recurringNames' in state)) state.recurringNames = new Set();
 
 // Enhance events
 (function enhanceDateEvents(){
@@ -1973,15 +2012,52 @@ async function openHistoryPopover(saleId, field, anchorX, anchorY) {
 	const title = document.createElement('div');
 	title.className = 'history-title';
 	title.textContent = 'Historial';
+	// Payments filter + inline selector for current payment
+	const tools = document.createElement('div');
+	tools.style.display = 'flex';
+	tools.style.alignItems = 'center';
+	tools.style.gap = '8px';
+	tools.style.margin = '4px 0 6px 0';
+	const filterLbl = document.createElement('label');
+	filterLbl.style.fontSize = '12px';
+	filterLbl.style.opacity = '0.9';
+	const chk = document.createElement('input');
+	chk.type = 'checkbox';
+	chk.style.marginRight = '4px';
+	filterLbl.append(chk, document.createTextNode('Solo pagos'));
+	const sel = document.createElement('select');
+	sel.className = 'input-cell';
+	sel.style.minWidth = '120px';
+	[{v:'',t:'- Pago actual -'},{v:'efectivo',t:'Efectivo'},{v:'marce',t:'Marce'},{v:'transf',t:'Transferencia'}].forEach(o=>{ const op=document.createElement('option'); op.value=o.v; op.textContent=o.t; sel.appendChild(op); });
+	try {
+		const tr = document.querySelector(`#sales-tbody tr[data-id="${saleId}"]`);
+		const paySel = tr?.querySelector('select.pay-select');
+		if (paySel) sel.value = paySel.value || '';
+	} catch {}
+	sel.addEventListener('change', async () => {
+		try {
+			const tr = document.querySelector(`#sales-tbody tr[data-id="${saleId}"]`);
+			await savePayMethod(tr, saleId, sel.value);
+			// reflect in-row UI
+			const inRowSel = tr?.querySelector('select.pay-select');
+			if (inRowSel) { inRowSel.value = sel.value; inRowSel.dispatchEvent(new Event('change')); }
+		} catch {}
+	});
+	tools.append(filterLbl, sel);
 	const list = document.createElement('div');
 	list.className = 'history-list';
-	if (entries.length === 0) {
-		const empty = document.createElement('div');
-		empty.className = 'history-item';
-		empty.textContent = 'Sin cambios';
-		list.appendChild(empty);
-	} else {
-		for (const e of entries) {
+
+	function renderList() {
+		list.innerHTML = '';
+		const filtered = chk.checked ? entries.filter(e => String(e.field||'').toLowerCase() === 'pay_method') : entries;
+		if (filtered.length === 0) {
+			const empty = document.createElement('div');
+			empty.className = 'history-item';
+			empty.textContent = 'Sin cambios';
+			list.appendChild(empty);
+			return;
+		}
+		for (const e of filtered) {
 			const item = document.createElement('div');
 			item.className = 'history-item';
 			const when = new Date(e.created_at || e.time);
@@ -1989,7 +2065,6 @@ async function openHistoryPopover(saleId, field, anchorX, anchorY) {
 			const newV = String(e.new_value ?? e.newValue ?? '');
 			const f = (e.field || '').toString();
 			const lower = f.toLowerCase();
-			// Map labels explicitly
 			let label = '';
 			if (lower.startsWith('qty_')) {
 				const suffix = lower.slice(4);
@@ -2000,7 +2075,7 @@ async function openHistoryPopover(saleId, field, anchorX, anchorY) {
 			}
 			if (lower === 'client_name') label = 'Cliente';
 			if (lower === 'pay_method') {
-				const fmt = (v) => v === 'efectivo' ? 'Efectivo' : v === 'transf' ? 'Transferencia' : '-';
+				const fmt = (v) => v === 'efectivo' ? 'Efectivo' : v === 'transf' ? 'Transferencia' : v === 'marce' ? 'Marce' : '-';
 				item.textContent = `[${when.toLocaleString()}] Pago: ${fmt(oldV)} → ${fmt(newV)}`;
 			} else if (label) {
 				item.textContent = `[${when.toLocaleString()}] ${label}: ${oldV} → ${newV}`;
@@ -2010,11 +2085,17 @@ async function openHistoryPopover(saleId, field, anchorX, anchorY) {
 			list.appendChild(item);
 		}
 	}
+
+	chk.addEventListener('change', renderList);
+		const empty = document.createElement('div');
+		empty.className = 'history-item';
+		empty.textContent = 'Sin cambios';
+	renderList();
 	const actions = document.createElement('div');
 	actions.className = 'confirm-actions';
 	const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn'; closeBtn.textContent = 'Cerrar';
 	actions.append(closeBtn);
-	pop.append(title, list, actions);
+	pop.append(title, tools, list, actions);
 	document.body.appendChild(pop);
 	function cleanup() {
 		document.removeEventListener('mousedown', outside, true);
@@ -2043,3 +2124,138 @@ function renderChangeMarkerIfNeeded(tdEl, saleId, field) {
 }
 
 // (mobile bounce limiter removed per user preference)
+
+// Client history view: navigate and render all orders for a specific client across dates
+function openClientHistoryView(rawName) {
+	const name = String(rawName || '').trim();
+	if (!name) return;
+	state._returnView = '#view-sales';
+	state._clientHistoryName = name;
+	switchView('#view-client-history');
+	// If returning from receipt upload, refresh once
+	try {
+		const flag = localStorage.getItem('refresh_client_history');
+		if (flag === '1') { localStorage.removeItem('refresh_client_history'); setTimeout(()=>loadClientHistory(name).catch(()=>{}), 50); }
+	} catch {}
+	const back = document.getElementById('client-history-back');
+	back?.addEventListener('click', () => {
+		state._clientHistoryName = '';
+		switchView(state._returnView || '#view-sales');
+	}, { once: true });
+	const title = document.getElementById('client-history-title');
+	if (title) title.textContent = name;
+	loadClientHistory(name).catch(()=>{});
+}
+
+async function loadClientHistory(rawName) {
+	const name = String(rawName || '').trim();
+	if (!name) return;
+	const sellerId = state.currentSeller?.id;
+	if (!sellerId) return;
+	const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(sellerId)}`);
+	const list = [];
+	for (const d of (days || [])) {
+		const params = new URLSearchParams({ seller_id: String(sellerId), sale_day_id: String(d.id) });
+		const rows = await api('GET', `${API.Sales}?${params.toString()}`);
+		for (const r of (rows || [])) {
+			const nm = String(r.client_name || '').trim();
+			if (nm.toLowerCase() !== name.toLowerCase()) continue;
+			const total = calcRowTotal({ arco: r.qty_arco, melo: r.qty_melo, mara: r.qty_mara, oreo: r.qty_oreo, nute: r.qty_nute });
+			list.push({
+				day: String(d.day).slice(0,10),
+				pay: (r.pay_method || ''),
+				arco: r.qty_arco||0,
+				melo: r.qty_melo||0,
+				mara: r.qty_mara||0,
+				oreo: r.qty_oreo||0,
+				nute: r.qty_nute||0,
+				total,
+				saleId: r.id,
+				comment: String(r.comment_text || ''),
+			});
+		}
+	}
+	renderClientHistory(list);
+}
+
+function renderClientHistory(rows) {
+	const tbody = document.getElementById('client-history-tbody');
+	if (!tbody) return;
+	tbody.innerHTML = '';
+	let qa=0,qm=0,qma=0,qo=0,qn=0,grand=0;
+	for (const r of (rows||[])) {
+		const tr = document.createElement('tr');
+		// Payment selector UI similar to main table
+		const payWrap = document.createElement('span'); payWrap.className = 'pay-wrap';
+		const paySel = document.createElement('select'); paySel.className = 'input-cell pay-select';
+		[{v:'',t:'-'},{v:'efectivo',t:''},{v:'marce',t:''},{v:'transf',t:''}].forEach(o=>{ const op=document.createElement('option'); op.value=o.v; op.textContent=o.t; if ((r.pay||'')===o.v) op.selected = true; paySel.appendChild(op); });
+		function applyPayCls(){ payWrap.classList.remove('placeholder','method-efectivo','method-transf','method-marce'); if(!paySel.value) payWrap.classList.add('placeholder'); else if(paySel.value==='efectivo') payWrap.classList.add('method-efectivo'); else if(paySel.value==='transf') payWrap.classList.add('method-transf'); else if(paySel.value==='marce') payWrap.classList.add('method-marce'); }
+		applyPayCls();
+		paySel.addEventListener('change', async () => { await savePayMethodSnapshot({ id: r.saleId, client_name: state._clientHistoryName, qty_arco: r.arco, qty_melo: r.melo, qty_mara: r.mara, qty_oreo: r.oreo, qty_nute: r.nute, is_paid: false }, paySel.value); r.pay = paySel.value; applyPayCls(); });
+		payWrap.addEventListener('click', async (e) => {
+			e.stopPropagation();
+			if (paySel.value === 'transf') {
+				try {
+					const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(r.saleId)}`);
+					if (Array.isArray(recs) && recs.length) {
+						openReceiptViewerPopover(recs[0].image_base64, r.saleId, recs[0].created_at, e.clientX, e.clientY);
+					} else {
+						openReceiptUploadPage(r.saleId);
+					}
+				} catch {}
+			}
+		});
+		payWrap.tabIndex = 0; payWrap.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); if(paySel.value==='transf'){ payWrap.click(); } } });
+		payWrap.appendChild(paySel);
+		const receiptTd = document.createElement('td');
+		const viewBtn = document.createElement('button'); viewBtn.className = 'press-btn'; viewBtn.textContent = 'Ver';
+		viewBtn.addEventListener('click', async (ev) => {
+			try {
+				const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(r.saleId)}`);
+				if (Array.isArray(recs) && recs.length) openReceiptViewerPopover(recs[0].image_base64, r.saleId, recs[0].created_at, ev.clientX, ev.clientY); else openReceiptUploadPage(r.saleId);
+			} catch { openReceiptUploadPage(r.saleId); }
+		});
+		receiptTd.appendChild(viewBtn);
+		const commentTd = document.createElement('td'); commentTd.textContent = (r.comment || '').trim();
+		tr.innerHTML = `<td>${formatDayLabel(r.day)}</td>`;
+		const payTd = document.createElement('td'); payTd.appendChild(payWrap);
+		tr.appendChild(payTd);
+		tr.insertAdjacentHTML('beforeend', `<td>${r.arco||0}</td><td>${r.melo||0}</td><td>${r.mara||0}</td><td>${r.oreo||0}</td><td>${r.nute||0}</td><td>${fmtNo.format(r.total||0)}</td>`);
+		tr.appendChild(receiptTd);
+		tr.appendChild(commentTd);
+		tbody.appendChild(tr);
+		qa+=r.arco||0; qm+=r.melo||0; qma+=r.mara||0; qo+=r.oreo||0; qn+=r.nute||0; grand+=(r.total||0);
+	}
+	const s = (id,v)=>{ const el=document.getElementById(id); if (el) el.textContent = String(v); };
+	s('ch-sum-arco', qa); s('ch-sum-melo', qm); s('ch-sum-mara', qma); s('ch-sum-oreo', qo); s('ch-sum-nute', qn); s('ch-sum-total', fmtNo.format(grand));
+}
+
+// Recurring clients: compute by counting occurrences across seller sales
+async function preloadRecurringClientsForSeller() {
+	try {
+		const sellerId = state.currentSeller?.id;
+		if (!sellerId) return;
+		// Fetch without day filter to inspect past names (limit to recent 500 for perf)
+		const params = new URLSearchParams({ seller_id: String(sellerId) });
+		const rows = await api('GET', `${API.Sales}?${params.toString()}`);
+		const counts = new Map();
+		for (const r of (rows || [])) {
+			const nm = String(r.client_name || '').trim().toLowerCase();
+			if (!nm) continue;
+			counts.set(nm, (counts.get(nm) || 0) + 1);
+		}
+		const recurring = new Set();
+		for (const [nm, c] of counts.entries()) { if (c >= 3) recurring.add(nm); }
+		state.recurringNames = recurring;
+		// Refresh badges in current table if visible
+		try { renderTable(); } catch {}
+	} catch {}
+}
+
+// Open a focused table for a given client name (filters current table to that cliente)
+function openClientTable(rawName, anchorX, anchorY) {
+	try {
+		// replaced by openClientHistoryView
+		openClientHistoryView(rawName);
+	} catch {}
+}
