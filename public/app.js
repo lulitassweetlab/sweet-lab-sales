@@ -1437,7 +1437,7 @@ async function exportCarteraExcel(startIso, endIso) {
 		openMultiCalendarPopover(async (isoList) => {
 			if (!isoList || !isoList.length) return;
 			await exportConsolidatedForDates(isoList);
-		}, ev.clientX, ev.clientY);
+		}, ev.clientX, ev.clientY, { preferUp: true });
 	});
 	carteraBtn?.addEventListener('click', async (ev) => {
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
@@ -1929,7 +1929,7 @@ function openCalendarPopover(onPicked, anchorX, anchorY) {
 	render();
 }
 
-function openMultiCalendarPopover(onPickedList, anchorX, anchorY) {
+function openMultiCalendarPopover(onPickedList, anchorX, anchorY, opts) {
 	const pop = document.createElement('div');
 	pop.className = 'date-popover';
 	pop.style.position = 'fixed';
@@ -1991,6 +1991,8 @@ function openMultiCalendarPopover(onPickedList, anchorX, anchorY) {
 	
 	pop.append(header, wk, grid, actions);
 	document.body.appendChild(pop);
+	// Aladdin style animation
+	pop.classList.add('aladdin-pop');
 	
 	requestAnimationFrame(() => {
 		const margin = 8;
@@ -2002,7 +2004,7 @@ function openMultiCalendarPopover(onPickedList, anchorX, anchorY) {
 		const isSmall = window.matchMedia('(max-width: 600px)').matches;
 		const r = pop.getBoundingClientRect();
 		let left = baseX; let top = baseY + 8;
-		if (isSmall && baseY > (viewTop + viewH * 0.6)) { top = baseY - 8 - r.height; }
+		if ((opts && opts.preferUp) || (isSmall && baseY > (viewTop + viewH * 0.6))) { top = baseY - 8 - r.height; }
 		left = Math.min(Math.max(left, viewLeft + margin), viewLeft + viewW - margin);
 		top = Math.min(Math.max(top, viewTop + margin), viewTop + viewH - margin);
 		pop.style.left = left + 'px'; pop.style.top = top + 'px';
@@ -2095,6 +2097,8 @@ function openRangeCalendarPopover(onPickedRange, anchorX, anchorY, opts) {
 
 	pop.append(header, wk, grid, actions);
 	document.body.appendChild(pop);
+	// Aladdin style animation
+	pop.classList.add('aladdin-pop');
 
 	requestAnimationFrame(() => {
 		const margin = 8;
