@@ -102,9 +102,11 @@ function renderClientDetailTable(rows) {
 		const opts = [
 			{ v: '', label: '-' },
 			{ v: 'efectivo', label: '' },
-			{ v: 'seller', label: '' },
-			{ v: 'transf', label: '' }
+			{ v: 'seller', label: '' }
 		];
+		const isMarcela = String(state.currentUser?.name || '').toLowerCase() === 'marcela';
+		if (isMarcela) opts.push({ v: 'marce', label: '' });
+		opts.push({ v: 'transf', label: '' });
 		for (const o of opts) { const opt = document.createElement('option'); opt.value = o.v; opt.textContent = o.label; if (current === o.v) opt.selected = true; sel.appendChild(opt); }
 		function applyPayClass() {
 			wrap.classList.remove('placeholder','method-efectivo','method-transf','method-marce','method-seller');
@@ -112,6 +114,7 @@ function renderClientDetailTable(rows) {
 			else if (sel.value === 'efectivo') wrap.classList.add('method-efectivo');
 			else if (sel.value === 'transf') wrap.classList.add('method-transf');
 			else if (sel.value === 'seller') wrap.classList.add('method-seller');
+			else if (sel.value === 'marce') wrap.classList.add('method-marce');
 		}
 		applyPayClass();
 		// Mirror behavior from sales: clicking the wrap opens the custom menu
@@ -635,9 +638,11 @@ function renderTable() {
 				const options = [
 					{ v: '', label: '-' },
 					{ v: 'efectivo', label: '' },
-					{ v: 'seller', label: '' },
-					{ v: 'transf', label: '' }
+					{ v: 'seller', label: '' }
 				];
+				const isMarcela = String(state.currentUser?.name || '').toLowerCase() === 'marcela';
+				if (isMarcela) options.push({ v: 'marce', label: '' });
+				options.push({ v: 'transf', label: '' });
 				for (const o of options) {
 					const opt = document.createElement('option');
 					opt.value = o.v;
@@ -646,11 +651,12 @@ function renderTable() {
 					sel.appendChild(opt);
 				}
 				function applyPayClass() {
-					wrap.classList.remove('placeholder','method-efectivo','method-transf','method-seller');
+					wrap.classList.remove('placeholder','method-efectivo','method-transf','method-seller','method-marce');
 					if (!sel.value) wrap.classList.add('placeholder');
 					else if (sel.value === 'efectivo') wrap.classList.add('method-efectivo');
 					else if (sel.value === 'transf') wrap.classList.add('method-transf');
 					else if (sel.value === 'seller') wrap.classList.add('method-seller');
+					else if (sel.value === 'marce') wrap.classList.add('method-marce');
 				}
 				applyPayClass();
 				sel.addEventListener('change', async () => {
@@ -2323,10 +2329,12 @@ function openPayMenu(anchorEl, selectEl, clickX, clickY) {
 	menu.style.zIndex = '1000';
 	const items = [
 		{ v: 'efectivo', cls: 'menu-efectivo' },
-		{ v: 'seller', cls: 'menu-seller' },
-		{ v: '', cls: 'menu-clear' },
-		{ v: 'transf', cls: 'menu-transf' }
+		{ v: 'seller', cls: 'menu-seller' }
 	];
+	if (String(state.currentUser?.name || '').toLowerCase() === 'marcela') {
+		items.push({ v: 'marce', cls: 'menu-marce' });
+	}
+	items.push({ v: '', cls: 'menu-clear' }, { v: 'transf', cls: 'menu-transf' });
 	// Find current sale id for upload flow when choosing 'transf'
 	const trEl = anchorEl.closest('tr');
 	const currentSaleId = Number(trEl?.dataset?.id);
