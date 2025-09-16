@@ -38,6 +38,50 @@ async function loadClientDetailRows(clientName) {
 	renderClientDetailTable(allRows);
 }
 
+// Attempt to restore sales that were overwritten to zeros by re-applying last non-zero values from change logs
+async function restoreBuggedSalesForSeller() {
+	const sellerId = state.currentSeller?.id;
+	if (!sellerId) return 0;
+	let restored = 0;
+	// Load all days for seller
+	const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(sellerId)}`);
+	for (const d of (days || [])) {
+		const params = new URLSearchParams({ seller_id: String(sellerId), sale_day_id: String(d.id) });
+		let sales = [];
+		try { sales = await api('GET', `${API.Sales}?${params.toString()}`); } catch { sales = []; }
+		for (const s of (sales || [])) {
+			const isAllZero = !Number(s.qty_arco||0) && !Number(s.qty_melo||0) && !Number(s.qty_mara||0) && !Number(s.qty_oreo||0) && !Number(s.qty_nute||0);
+			if (!isAllZero) continue;
+			// Fetch history for this sale id to find last non-zero per qty field
+			let logs = [];
+			try { logs = await api('GET', `${API.Sales}?history_for=${encodeURIComponent(s.id)}`); } catch { logs = []; }
+			const byField = { qty_arco: 0, qty_melo: 0, qty_mara: 0, qty_oreo: 0, qty_nute: 0 };
+			for (const f of Object.keys(byField)) {
+				const history = logs.filter(l => l.field === f);
+				for (const h of history) {
+					const prev = Number(h.new_value ?? h.newValue ?? 0) || 0;
+					if (prev > 0) { byField[f] = prev; }
+				}
+			}
+			const any = Object.values(byField).some(v => Number(v||0) > 0);
+			if (!any) continue;
+			await api('PUT', API.Sales, {
+				id: s.id,
+				client_name: s.client_name || '',
+				qty_arco: byField.qty_arco || 0,
+				qty_melo: byField.qty_melo || 0,
+				qty_mara: byField.qty_mara || 0,
+				qty_oreo: byField.qty_oreo || 0,
+				qty_nute: byField.qty_nute || 0,
+				pay_method: s.pay_method || null,
+				_actor_name: state.currentUser?.name || ''
+			});
+			restored++;
+		}
+	}
+	return restored;
+}
+
 function renderClientDetailTable(rows) {
 	const tbody = document.getElementById('client-detail-tbody');
 	if (!tbody) return;
@@ -1293,6 +1337,23 @@ function bindEvents() {
 	// Back from Client Detail view
 	const detailBackBtn = document.getElementById('client-detail-back');
 	detailBackBtn?.addEventListener('click', () => { switchView('#view-clients'); });
+
+	// Admin-only: Restore bugged sales
+	const restoreBtn = document.getElementById('clients-restore');
+	restoreBtn?.addEventListener('click', async () => {
+		if (!state.currentUser?.isAdmin) { notify.error('Solo admin'); return; }
+		try {
+			restoreBtn.disabled = true;
+			restoreBtn.textContent = 'Restaurando...';
+			const fixed = await restoreBuggedSalesForSeller();
+			notify.success(`Restauradas ${fixed} ventas`);
+		} catch (e) {
+			notify.error('Error al restaurar');
+		} finally {
+			restoreBtn.disabled = false;
+			restoreBtn.textContent = 'Restaurar';
+		}
+	});
 
 	document.getElementById('export-excel')?.addEventListener('click', exportTableToExcel);
 }
