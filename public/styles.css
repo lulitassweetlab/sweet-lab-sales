@@ -777,9 +777,11 @@ tfoot td { font-weight: 700; }
 
 /* Ingredients full-screen view */
 #view-ingredients .sales-panel { margin-top: 16px; }
-.ingredients-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
-.dessert-card { border: 1px solid var(--border); border-radius: 12px; padding: 12px; background: var(--card); }
-.dessert-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.ingredients-grid { display: grid; grid-template-columns: 1fr; gap: 24px; }
+.dessert-card { border: 1px solid var(--border); border-radius: 16px; padding: 16px; background: var(--card); }
+.dessert-header { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 12px; }
+.dessert-header h3 { margin: 0; font-size: 22px; letter-spacing: -0.01em; text-align: center; }
+.dessert-header .press-btn { margin-left: auto; }
 .steps-list { display: flex; flex-direction: column; gap: 10px; }
 .step-card { border: 1px solid var(--border); border-radius: 10px; padding: 10px; background: var(--secondary); }
 .step-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }

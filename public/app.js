@@ -1853,8 +1853,9 @@ function openMaterialsReport(data, anchorX, anchorY) {
 	trf.appendChild(tdL); tfoot.appendChild(trf);
 	table.append(thead, tbody, tfoot);
 	const actions = document.createElement('div'); actions.className = 'confirm-actions';
+	const exportBtn = document.createElement('button'); exportBtn.className = 'press-btn btn-gold'; exportBtn.textContent = 'Exportar Excel';
 	const close = document.createElement('button'); close.className = 'press-btn'; close.textContent = 'Cerrar';
-	actions.appendChild(close);
+	actions.append(exportBtn, close);
 	pop.append(h, small, table, actions);
 	document.body.appendChild(pop);
 	const rect = pop.getBoundingClientRect();
@@ -1864,6 +1865,16 @@ function openMaterialsReport(data, anchorX, anchorY) {
 	function outside(ev){ if (!pop.contains(ev.target)) cleanup(); }
 	setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
 	close.addEventListener('click', cleanup);
+	exportBtn.addEventListener('click', () => {
+		try {
+			const rows = (data?.materials || []).map(m => ({ Ingrediente: m.ingredient, Unidad: m.unit || 'g', Cantidad: Number(m.total_needed || 0) }));
+			const ws = XLSX.utils.json_to_sheet(rows);
+			const wb = XLSX.utils.book_new();
+			XLSX.utils.book_append_sheet(wb, ws, 'Materiales');
+			const label = `${(data?.range?.start||'').replaceAll('-','')}_${(data?.range?.end||'').replaceAll('-','')}`;
+			XLSX.writeFile(wb, `Materiales_${label}.xlsx`);
+		} catch { notify.error('No se pudo exportar'); }
+	});
 }
 
 async function openIngredientsView() {
