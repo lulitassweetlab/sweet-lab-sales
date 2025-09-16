@@ -861,6 +861,19 @@ tfoot td { font-weight: 700; }
 	background-color: var(--hover-primary-pink-intense);
 	box-shadow: 0 4px 12px var(--hover-shadow-pink);
 }
+.materials-menu .history-list { display: flex; flex-direction: column; gap: 8px; }
+.materials-menu .press-btn { width: 100%; justify-content: center; }
+.ingredients-popover { background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.24); padding: 12px; min-width: 320px; max-width: 95vw; }
+.ingredients-popover h4 { margin: 0 0 8px 0; }
+.ingredients-list { max-height: 360px; overflow: auto; margin-top: 8px; border-top: 1px solid var(--border); }
+.ingredients-row { display: grid; grid-template-columns: 1.2fr .6fr repeat(5, .7fr) auto; gap: 6px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.ingredients-row input { width: 100%; }
+.ingredients-header { font-weight: 600; position: sticky; top: 0; background: inherit; padding: 6px 0; z-index: 1; }
+.ingredients-actions { display: flex; justify-content: space-between; gap: 8px; margin-top: 10px; }
+.materials-report { min-width: 320px; }
+.materials-report table { width: 100%; border-collapse: collapse; }
+.materials-report th, .materials-report td { border-bottom: 1px solid var(--border); padding: 6px 8px; text-align: left; }
+.materials-report tfoot td { font-weight: 600; }
 @media (max-width: 600px) {
 	/* Deja el rebote nativo del body (suave) */
 	html, body { overscroll-behavior-y: auto; touch-action: pan-y; }

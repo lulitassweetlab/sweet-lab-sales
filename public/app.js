@@ -171,7 +171,8 @@ function renderClientDetailTable(rows) {
 const API = {
 	Sellers: '/api/sellers',
 	Sales: '/api/sales',
-	Users: '/api/users'
+	Users: '/api/users',
+	Materials: '/api/materials'
 };
 
 const PRICES = {
@@ -1527,6 +1528,7 @@ async function exportCarteraExcel(startIso, endIso) {
 	const reportBtn = document.getElementById('report-button');
 	const transfersBtn = document.getElementById('transfers-button');
 	const usersBtn = document.getElementById('users-button');
+	const materialsBtn = document.getElementById('materials-button');
 	const carteraBtn = document.getElementById('cartera-button');
 	const input = document.getElementById('report-date');
 	if (!reportBtn || !input) return;
@@ -1560,6 +1562,11 @@ async function exportCarteraExcel(startIso, endIso) {
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 		if (!isSuper) { notify.error('Solo el superadministrador'); return; }
 		openUsersMenu(ev.clientX, ev.clientY);
+	});
+	materialsBtn?.addEventListener('click', async (ev) => {
+		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+		if (!isSuper) { notify.error('Solo el superadministrador'); return; }
+		openMaterialsMenu(ev.clientX, ev.clientY);
 	});
 })();
 
@@ -1634,6 +1641,39 @@ function openUsersMenu(anchorX, anchorY) {
 	// Removed Assign Icons
 }
 
+function openMaterialsMenu(anchorX, anchorY) {
+	const pop = document.createElement('div');
+	pop.className = 'confirm-popover materials-menu';
+	pop.style.position = 'fixed';
+	const baseX = (typeof anchorX === 'number') ? anchorX : (window.innerWidth / 2);
+	const baseY = (typeof anchorY === 'number') ? anchorY : (window.innerHeight / 2);
+	pop.style.left = baseX + 'px';
+	pop.style.top = '-9999px';
+	pop.style.transform = 'translate(-50%, 0)';
+	pop.style.zIndex = '1000';
+	const list = document.createElement('div'); list.className = 'history-list';
+	const b1 = document.createElement('button'); b1.className = 'press-btn'; b1.textContent = 'Ingredientes';
+	const b2 = document.createElement('button'); b2.className = 'press-btn'; b2.textContent = 'Necesarios';
+	list.appendChild(b1); list.appendChild(b2);
+	pop.append(list);
+	document.body.appendChild(pop);
+
+	const rect = pop.getBoundingClientRect();
+	const popHeight = rect.height;
+	const desiredBottomY = baseY;
+	let topY = desiredBottomY - popHeight;
+	const minTop = 8;
+	if (topY < minTop) topY = minTop;
+	pop.style.top = topY + 'px';
+	pop.classList.add('aladdin-pop');
+	function cleanup(){ document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); if (pop.parentNode) pop.parentNode.removeChild(pop); }
+	function outside(ev){ if (!pop.contains(ev.target)) cleanup(); }
+	setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
+
+	b1.addEventListener('click', async () => { cleanup(); openIngredientsManager(baseX, desiredBottomY); });
+	b2.addEventListener('click', async () => { cleanup(); openMaterialsNeededFlow(baseX, desiredBottomY); });
+}
+
 // Removed openAssignIconsDialog
 
 async function exportUsersExcel() {
@@ -1684,6 +1724,138 @@ function bindEvents() {
 	// (botón de reporte eliminado)
 
 	document.getElementById('export-excel')?.addEventListener('click', exportTableToExcel);
+}
+
+function openIngredientsManager(anchorX, anchorY) {
+	const pop = document.createElement('div');
+	pop.className = 'ingredients-popover';
+	pop.style.position = 'fixed';
+	pop.style.left = (typeof anchorX === 'number' ? anchorX : window.innerWidth / 2) + 'px';
+	pop.style.top = (typeof anchorY === 'number' ? anchorY : window.innerHeight / 2) + 'px';
+	pop.style.transform = 'translate(-50%, 0)';
+	const title = document.createElement('h4'); title.textContent = 'Ingredientes por sabor (por 1 unidad)';
+	const header = document.createElement('div'); header.className = 'ingredients-row ingredients-header';
+	['Ingrediente','Unidad','Arco','Melo','Mara','Oreo','Nute',''].forEach(t => { const d = document.createElement('div'); d.textContent = t; header.appendChild(d); });
+	const list = document.createElement('div'); list.className = 'ingredients-list';
+	list.appendChild(header);
+	const actions = document.createElement('div'); actions.className = 'ingredients-actions';
+	const addBtn = document.createElement('button'); addBtn.className = 'press-btn'; addBtn.textContent = '+ Agregar';
+	const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn'; closeBtn.textContent = 'Cerrar';
+	actions.append(addBtn, closeBtn);
+	pop.append(title, list, actions);
+	document.body.appendChild(pop);
+	pop.classList.add('aladdin-pop');
+	function cleanup(){ document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); if (pop.parentNode) pop.parentNode.removeChild(pop); }
+	function outside(ev){ if (!pop.contains(ev.target)) cleanup(); }
+	setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
+	closeBtn.addEventListener('click', cleanup);
+
+	async function loadRows() {
+		list.querySelectorAll('.ingredients-row.item')?.forEach(n => n.remove());
+		let rows = [];
+		try { rows = await api('GET', API.Materials); } catch { rows = []; }
+		for (const r of (rows || [])) {
+			appendRow(r);
+		}
+	}
+
+	function appendRow(r) {
+		const row = document.createElement('div'); row.className = 'ingredients-row item';
+		const inName = document.createElement('input'); inName.type = 'text'; inName.value = r?.ingredient || '';
+		const inUnit = document.createElement('input'); inUnit.type = 'text'; inUnit.value = r?.unit || 'g'; inUnit.style.width = '64px';
+		const inArco = document.createElement('input'); inArco.type = 'number'; inArco.step = '0.01'; inArco.value = String(r?.per_arco ?? 0);
+		const inMelo = document.createElement('input'); inMelo.type = 'number'; inMelo.step = '0.01'; inMelo.value = String(r?.per_melo ?? 0);
+		const inMara = document.createElement('input'); inMara.type = 'number'; inMara.step = '0.01'; inMara.value = String(r?.per_mara ?? 0);
+		const inOreo = document.createElement('input'); inOreo.type = 'number'; inOreo.step = '0.01'; inOreo.value = String(r?.per_oreo ?? 0);
+		const inNute = document.createElement('input'); inNute.type = 'number'; inNute.step = '0.01'; inNute.value = String(r?.per_nute ?? 0);
+		const del = document.createElement('button'); del.className = 'press-btn'; del.textContent = '×';
+		row.append(inName, inUnit, inArco, inMelo, inMara, inOreo, inNute, del);
+		list.appendChild(row);
+		del.addEventListener('click', async () => {
+			const name = (inName.value || '').trim();
+			if (!name) { row.remove(); return; }
+			try { await api('DELETE', `${API.Materials}?ingredient=${encodeURIComponent(name)}`); row.remove(); }
+			catch { notify.error('No se pudo eliminar'); }
+		});
+		async function save() {
+			const payload = {
+				ingredient: (inName.value || '').trim(),
+				unit: (inUnit.value || 'g').trim() || 'g',
+				per_arco: Number(inArco.value || 0) || 0,
+				per_melo: Number(inMelo.value || 0) || 0,
+				per_mara: Number(inMara.value || 0) || 0,
+				per_oreo: Number(inOreo.value || 0) || 0,
+				per_nute: Number(inNute.value || 0) || 0,
+			};
+			if (!payload.ingredient) { notify.error('Nombre requerido'); return; }
+			try { await api('POST', API.Materials, payload); }
+			catch { notify.error('No se pudo guardar'); }
+		}
+		[inName, inUnit, inArco, inMelo, inMara, inOreo, inNute].forEach(el => {
+			el.addEventListener('change', save);
+			el.addEventListener('blur', save);
+		});
+	}
+
+	addBtn.addEventListener('click', () => appendRow({ ingredient: '', unit: 'g', per_arco: 0, per_melo: 0, per_mara: 0, per_oreo: 0, per_nute: 0 }));
+	loadRows();
+}
+
+function openMaterialsNeededFlow(anchorX, anchorY) {
+	openRangeCalendarPopover(async (range) => {
+		if (!range || !range.start || !range.end) return;
+		try {
+			const res = await api('GET', `${API.Materials}?compute_start=${encodeURIComponent(range.start)}&compute_end=${encodeURIComponent(range.end)}`);
+			openMaterialsReport(res, anchorX, anchorY);
+		} catch {
+			notify.error('No se pudo calcular materiales');
+		}
+	}, anchorX, anchorY, { preferUp: true });
+}
+
+function openMaterialsReport(data, anchorX, anchorY) {
+	const pop = document.createElement('div');
+	pop.className = 'confirm-popover materials-report';
+	pop.style.position = 'fixed';
+	const baseX = (typeof anchorX === 'number') ? anchorX : (window.innerWidth / 2);
+	const baseY = (typeof anchorY === 'number') ? anchorY : (window.innerHeight / 2);
+	pop.style.left = baseX + 'px';
+	pop.style.top = '-9999px';
+	pop.style.transform = 'translate(-50%, 0)';
+	const h = document.createElement('h4'); h.textContent = 'Materiales necesarios'; h.style.margin = '0 0 8px 0';
+	const small = document.createElement('div'); small.style.opacity = '0.7'; small.style.marginBottom = '8px';
+	small.textContent = `Rango: ${data?.range?.start || ''} a ${data?.range?.end || ''}`;
+	const table = document.createElement('table');
+	const thead = document.createElement('thead');
+	const trh = document.createElement('tr');
+	['Ingrediente','Unidad','Cantidad total'].forEach(t => { const th = document.createElement('th'); th.textContent = t; trh.appendChild(th); });
+	thead.appendChild(trh);
+	const tbody = document.createElement('tbody');
+	for (const m of (data?.materials || [])) {
+		const tr = document.createElement('tr');
+		const tdN = document.createElement('td'); tdN.textContent = m.ingredient;
+		const tdU = document.createElement('td'); tdU.textContent = m.unit || 'g';
+		const tdT = document.createElement('td'); tdT.textContent = String(Number(m.total_needed || 0));
+		tr.append(tdN, tdU, tdT);
+		tbody.appendChild(tr);
+	}
+	const tfoot = document.createElement('tfoot');
+	const trf = document.createElement('tr');
+	const tdL = document.createElement('td'); tdL.colSpan = 3; tdL.textContent = 'Fin del reporte';
+	trf.appendChild(tdL); tfoot.appendChild(trf);
+	table.append(thead, tbody, tfoot);
+	const actions = document.createElement('div'); actions.className = 'confirm-actions';
+	const close = document.createElement('button'); close.className = 'press-btn'; close.textContent = 'Cerrar';
+	actions.appendChild(close);
+	pop.append(h, small, table, actions);
+	document.body.appendChild(pop);
+	const rect = pop.getBoundingClientRect();
+	const popHeight = rect.height; let topY = baseY - popHeight; const minTop = 8; if (topY < minTop) topY = minTop; pop.style.top = topY + 'px';
+	pop.classList.add('aladdin-pop');
+	function cleanup(){ document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); if (pop.parentNode) pop.parentNode.removeChild(pop); }
+	function outside(ev){ if (!pop.contains(ev.target)) cleanup(); }
+	setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
+	close.addEventListener('click', cleanup);
 }
 
 async function buildRestoreReport() {

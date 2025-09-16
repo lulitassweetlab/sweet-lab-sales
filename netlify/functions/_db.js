@@ -137,6 +137,34 @@ export async function ensureSchema() {
 			ALTER TABLE notifications ADD COLUMN pay_method TEXT;
 		END IF;
 	END $$;`;
+	// Materials: per-flavor ingredient formulas
+	await sql`CREATE TABLE IF NOT EXISTS ingredient_formulas (
+		id SERIAL PRIMARY KEY,
+		ingredient TEXT UNIQUE NOT NULL,
+		unit TEXT NOT NULL DEFAULT 'g',
+		per_arco NUMERIC NOT NULL DEFAULT 0,
+		per_melo NUMERIC NOT NULL DEFAULT 0,
+		per_mara NUMERIC NOT NULL DEFAULT 0,
+		per_oreo NUMERIC NOT NULL DEFAULT 0,
+		per_nute NUMERIC NOT NULL DEFAULT 0,
+		created_at TIMESTAMPTZ DEFAULT now(),
+		updated_at TIMESTAMPTZ DEFAULT now()
+	)`;
+	// Ensure all per_* columns exist for older deployments
+	await sql`DO $$ BEGIN
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'ingredient_formulas' AND column_name = 'per_nute'
+		) THEN
+			ALTER TABLE ingredient_formulas ADD COLUMN per_nute NUMERIC NOT NULL DEFAULT 0;
+		END IF;
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'ingredient_formulas' AND column_name = 'unit'
+		) THEN
+			ALTER TABLE ingredient_formulas ADD COLUMN unit TEXT NOT NULL DEFAULT 'g';
+		END IF;
+	END $$;`;
 	// Seed default users if table is empty
 	const existing = await sql`SELECT COUNT(*)::int AS c FROM users`;
 	if ((existing[0]?.c || 0) === 0) {
