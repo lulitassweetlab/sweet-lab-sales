@@ -1139,7 +1139,7 @@ async function deleteRow(id) {
 				sellerName = match && match.name ? String(match.name) : '';
 			} catch {}
 			const tail = sellerName ? (' - ' + sellerName) : '';
-			const msg = 'Eliminada: ' + formatSaleSummary(prev) + tail;
+			const msg = 'Eliminado: ' + formatSaleSummary(prev) + tail;
 			const pay = (prev?.pay_method || '').toString();
 			notify.info(msg, pay ? { payMethod: pay } : undefined);
 		} catch {}

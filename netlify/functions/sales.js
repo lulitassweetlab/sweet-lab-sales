@@ -153,7 +153,10 @@ export async function handler(event) {
 				return json(row);
 			}
 			case 'DELETE': {
-				const params = new URLSearchParams(event.rawQuery || event.queryStringParameters ? event.rawQuery || '' : '');
+				const rawQs = (typeof event.rawQuery === 'string' && event.rawQuery.length)
+					? event.rawQuery
+					: (event.queryStringParameters ? new URLSearchParams(event.queryStringParameters).toString() : '');
+				const params = new URLSearchParams(rawQs);
 				const idParam = params.get('id') || (event.queryStringParameters && event.queryStringParameters.id);
 				const actor = (params.get('actor') || '').toString();
 				const id = Number(idParam);
@@ -184,7 +187,7 @@ export async function handler(event) {
 						sellerName = (s && s[0] && s[0].name) ? String(s[0].name) : '';
 					} catch {}
 					const tail = sellerName ? ` - ${sellerName}` : '';
-					const msg = `Eliminada: ${name}${suffix}${tail}`;
+					const msg = `Eliminado: ${name}${suffix}${tail}`;
 					const pm = (current?.pay_method || prev?.pay_method || '').toString();
 					const iconUrl = pm === 'efectivo' ? '/icons/bill.svg' : pm === 'transf' ? '/icons/bank.svg' : pm === 'marce' ? '/icons/marce7.svg?v=1' : null;
 					// Do not reference deleted sale_id to avoid FK violation
