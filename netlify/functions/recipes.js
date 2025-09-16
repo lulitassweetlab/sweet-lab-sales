@@ -14,6 +14,11 @@ export async function handler(event) {
 				const params = new URLSearchParams(raw);
 				const dessert = params.get('dessert');
 				const includeExtras = params.get('include_extras') === '1' || params.get('include_extras') === 'true';
+				const seed = params.get('seed') === '1' || params.get('seed') === 'true';
+				if (seed) {
+					await seedDefaults();
+					return json({ ok: true });
+				}
 				if (dessert) {
 					const steps = await sql`SELECT id, dessert, step_name, position FROM dessert_recipes WHERE lower(dessert)=lower(${dessert}) ORDER BY position ASC, id ASC`;
 					const stepIds = steps.map(s => s.id);
@@ -94,5 +99,125 @@ export async function handler(event) {
 	} catch (err) {
 		return json({ error: String(err) }, 500);
 	}
+}
+
+async function seedDefaults() {
+	// Seed the five desserts with provided recipes and extras; idempotent-ish by clearing first
+	await sql`DELETE FROM dessert_recipe_items`;
+	await sql`DELETE FROM dessert_recipes`;
+	await sql`DELETE FROM extras_items`;
+	function step(dessert, stepName, position) {
+		return sql`INSERT INTO dessert_recipes (dessert, step_name, position) VALUES (${dessert}, ${stepName}, ${position}) RETURNING id`;
+	}
+	async function items(recipeId, arr) {
+		for (let i=0;i<arr.length;i++) {
+			const it = arr[i];
+			await sql`INSERT INTO dessert_recipe_items (recipe_id, ingredient, unit, qty_per_unit, position) VALUES (${recipeId}, ${it.ingredient}, ${it.unit}, ${it.qty}, ${i+1})`;
+		}
+	}
+	// Arco (single step)
+	{
+		const [s] = await step('Arco', null, 1);
+		await items(s.id, [
+			{ ingredient: 'Gelatina amarilla', unit: 'g', qty: 4.7 },
+			{ ingredient: 'Gelatina roja', unit: 'g', qty: 4.7 },
+			{ ingredient: 'Gelatina morada', unit: 'g', qty: 4.7 },
+			{ ingredient: 'Lechera', unit: 'g', qty: 84.51 },
+			{ ingredient: 'Crema de leche Alpina', unit: 'g', qty: 84.51 },
+			{ ingredient: 'Leche Colanta', unit: 'g', qty: 105.63 },
+			{ ingredient: 'Gelatina sin sabor', unit: 'g', qty: 4.23 },
+			{ ingredient: 'Agua', unit: 'g', qty: 21.13 },
+		]);
+	}
+	// Melo
+	{
+		const [s] = await step('Melo', null, 1);
+		await items(s.id, [
+			{ ingredient: 'Lechera', unit: 'g', qty: 81.46 },
+			{ ingredient: 'Crema de leche Alpina', unit: 'g', qty: 81.46 },
+			{ ingredient: 'Leche Colanta', unit: 'g', qty: 122.18 },
+			{ ingredient: 'Gelatina sin sabor', unit: 'g', qty: 4.36 },
+			{ ingredient: 'Agua', unit: 'g', qty: 20.36 },
+			{ ingredient: 'Melocotón', unit: 'g', qty: 60 },
+			{ ingredient: 'Almíbar', unit: 'g', qty: 10.18 },
+		]);
+	}
+	// Mara (4 steps)
+	{
+		const [s1] = await step('Mara', 'Fondo', 1);
+		await items(s1.id, [
+			{ ingredient: 'Galletas', unit: 'unidad', qty: 2 },
+			{ ingredient: 'Lechera', unit: 'g', qty: 9 },
+			{ ingredient: 'Crema de leche Alpina', unit: 'g', qty: 9 },
+			{ ingredient: 'Leche Alquería', unit: 'g', qty: 22.5 },
+			{ ingredient: 'Vainilla', unit: 'g', qty: 0.1 },
+		]);
+		const [s2] = await step('Mara', 'Mezcla', 2);
+		await items(s2.id, [
+			{ ingredient: 'Lechera', unit: 'g', qty: 11 },
+			{ ingredient: 'Puré de mango', unit: 'g', qty: 30.4 },
+			{ ingredient: 'Gelatina sin sabor', unit: 'g', qty: 0.8 },
+			{ ingredient: 'Agua', unit: 'g', qty: 3.6 },
+			{ ingredient: 'Crema de leche Colanta', unit: 'g', qty: 19 },
+		]);
+		const [s3] = await step('Mara', 'Mascarpone', 3);
+		await items(s3.id, [
+			{ ingredient: 'Queso crema', unit: 'g', qty: 38 },
+			{ ingredient: 'Crema de leche Colanta', unit: 'g', qty: 9.5 },
+			{ ingredient: 'Mantequilla', unit: 'g', qty: 2.28 },
+		]);
+		const [s4] = await step('Mara', 'Cubierta', 4);
+		await items(s4.id, [
+			{ ingredient: 'Puré de maracuyá', unit: 'g', qty: 20 },
+			{ ingredient: 'Agua', unit: 'g', qty: 6 },
+			{ ingredient: 'Crema de leche Alpina', unit: 'g', qty: 11 },
+			{ ingredient: 'Lechera', unit: 'g', qty: 3 },
+			{ ingredient: 'Gelatina sin sabor', unit: 'g', qty: 0.8 },
+		]);
+	}
+	// Oreo (4 steps)
+	{
+		const [s1] = await step('Oreo', 'Fondo', 1);
+		await items(s1.id, [
+			{ ingredient: 'Galleta Oreo molida', unit: 'g', qty: 26 },
+			{ ingredient: 'Mantequilla', unit: 'g', qty: 6 },
+		]);
+		const [s2] = await step('Oreo', 'Crema de vainilla', 2);
+		await items(s2.id, [
+			{ ingredient: 'Crema de leche Colanta', unit: 'g', qty: 20 },
+			{ ingredient: 'Chocolate blanco', unit: 'g', qty: 7 },
+			{ ingredient: 'Agua', unit: 'g', qty: 6.5 },
+			{ ingredient: 'Gelatina sin sabor', unit: 'g', qty: 1.3 },
+			{ ingredient: 'Esencia de vainilla', unit: 'g', qty: 0.3 },
+			{ ingredient: 'Lechera', unit: 'g', qty: 30 },
+			{ ingredient: 'Galleta Oreo molida', unit: 'g', qty: 2 },
+		]);
+		const [s3] = await step('Oreo', 'Mezcla', 3);
+		await items(s3.id, [
+			{ ingredient: 'Crema de leche Colanta', unit: 'g', qty: 45 },
+			{ ingredient: 'Queso crema', unit: 'g', qty: 40 },
+		]);
+		const [s4] = await step('Oreo', 'Cubierta', 4);
+		await items(s4.id, [
+			{ ingredient: 'Oreo fino', unit: 'g', qty: 2.5 },
+		]);
+	}
+	// Nute (single step, with Nutella split as three items)
+	{
+		const [s] = await step('Nute', null, 1);
+		await items(s.id, [
+			{ ingredient: 'Chips Ahoy', unit: 'unidad', qty: 2 },
+			{ ingredient: 'Crema de leche Colanta', unit: 'g', qty: 80 },
+			{ ingredient: 'Agua', unit: 'g', qty: 2 },
+			{ ingredient: 'Gelatina sin sabor', unit: 'g', qty: 0.5 },
+			{ ingredient: 'Queso crema', unit: 'g', qty: 35 },
+			{ ingredient: 'Nutella (Sides)', unit: 'g', qty: 1 },
+			{ ingredient: 'Nutella (Top)', unit: 'g', qty: 1 },
+			{ ingredient: 'Nutella (Relleno)', unit: 'g', qty: 18 },
+			{ ingredient: 'Ferrero', unit: 'unidad', qty: 1 },
+		]);
+	}
+	// Extras
+	await sql`INSERT INTO extras_items (ingredient, unit, qty_per_unit, position) VALUES ('Cuchara', 'unidad', 1, 1), ('Bolsa cuchara', 'unidad', 1, 2), ('Contenedor 8 oz', 'unidad', 1, 3), ('Sticker', 'unidad', 1, 4)`;
 }
 

@@ -640,6 +640,8 @@ function applyAuthVisibility() {
 	if (usersBtn) usersBtn.style.display = isSuper ? 'inline-block' : 'none';
 	const carteraBtn = document.getElementById('cartera-button');
 	if (carteraBtn) carteraBtn.style.display = isSuper ? 'inline-block' : 'none';
+	const materialsBtn = document.getElementById('materials-button');
+	if (materialsBtn) materialsBtn.style.display = isSuper ? 'inline-block' : 'none';
 }
 
 function calcRowTotal(q) {
@@ -1567,7 +1569,7 @@ async function exportCarteraExcel(startIso, endIso) {
 	materialsBtn?.addEventListener('click', async (ev) => {
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 		if (!isSuper) { notify.error('Solo el superadministrador'); return; }
-		openIngredientsView();
+		openMaterialsMenu(ev.clientX, ev.clientY);
 	});
 })();
 
@@ -1671,7 +1673,7 @@ function openMaterialsMenu(anchorX, anchorY) {
 	function outside(ev){ if (!pop.contains(ev.target)) cleanup(); }
 	setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
 
-	b1.addEventListener('click', async () => { cleanup(); openIngredientsManager(baseX, desiredBottomY); });
+	b1.addEventListener('click', async () => { cleanup(); openIngredientsView(); });
 	b2.addEventListener('click', async () => { cleanup(); openMaterialsNeededFlow(baseX, desiredBottomY); });
 }
 
@@ -1875,6 +1877,10 @@ async function renderIngredientsView() {
 	root.innerHTML = '';
 	let desserts = [];
 	try { desserts = await api('GET', API.Recipes); } catch { desserts = []; }
+	if (!desserts || desserts.length === 0) {
+		try { await api('GET', `${API.Recipes}?seed=1`); desserts = await api('GET', API.Recipes); }
+		catch {}
+	}
 	const grid = document.createElement('div'); grid.className = 'ingredients-grid';
 	for (const name of (desserts || [])) {
 		const card = await buildDessertCard(name);
