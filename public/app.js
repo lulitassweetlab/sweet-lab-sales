@@ -1012,6 +1012,7 @@ async function savePaid(tr, id, isPaid) {
 	const body = readRow(tr);
 	body.id = id;
 	body.is_paid = !!isPaid;
+	body._actor_name = state.currentUser?.name || '';
 	const updated = await api('PUT', API.Sales, body);
 	const idx = state.sales.findIndex(s => s.id === id);
 	if (idx !== -1) state.sales[idx] = updated;
@@ -1021,6 +1022,7 @@ async function savePayMethod(tr, id, method) {
 	const body = readRow(tr);
 	body.id = id;
 	body.pay_method = method || null;
+	body._actor_name = state.currentUser?.name || '';
 	await api('PUT', API.Sales, body);
 	// Update local state
 	const idx = state.sales.findIndex(s => s.id === id);
