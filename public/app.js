@@ -2176,6 +2176,8 @@ function renderClientHistory(rows) {
 					const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(r.saleId)}`);
 					if (Array.isArray(recs) && recs.length) {
 						openReceiptViewerPopover(recs[0].image_base64, r.saleId, recs[0].created_at, e.clientX, e.clientY);
+					} else {
+						openReceiptUploadPage(r.saleId);
 					}
 				} catch {}
 			}
@@ -2187,8 +2189,8 @@ function renderClientHistory(rows) {
 		viewBtn.addEventListener('click', async (ev) => {
 			try {
 				const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(r.saleId)}`);
-				if (Array.isArray(recs) && recs.length) openReceiptViewerPopover(recs[0].image_base64, r.saleId, recs[0].created_at, ev.clientX, ev.clientY); else notify.info('Sin comprobante');
-			} catch { notify.info('Sin comprobante'); }
+				if (Array.isArray(recs) && recs.length) openReceiptViewerPopover(recs[0].image_base64, r.saleId, recs[0].created_at, ev.clientX, ev.clientY); else openReceiptUploadPage(r.saleId);
+			} catch { openReceiptUploadPage(r.saleId); }
 		});
 		receiptTd.appendChild(viewBtn);
 		const commentTd = document.createElement('td'); commentTd.textContent = (r.comment || '').trim();
