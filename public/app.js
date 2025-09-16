@@ -490,7 +490,7 @@ function renderTable() {
 					mark.title = 'Cliente recurrente';
 					mark.addEventListener('click', (ev) => {
 						ev.stopPropagation();
-						openHistoryPopover(sale.id, 'client_name', ev.clientX, ev.clientY);
+						openClientTable((sale.client_name || '').trim(), ev.clientX, ev.clientY);
 					});
 					tdClient.appendChild(mark);
 				}
@@ -2108,5 +2108,47 @@ async function preloadRecurringClientsForSeller() {
 		state.recurringNames = recurring;
 		// Refresh badges in current table if visible
 		try { renderTable(); } catch {}
+	} catch {}
+}
+
+// Open a focused table for a given client name (filters current table to that cliente)
+function openClientTable(rawName, anchorX, anchorY) {
+	try {
+		const name = String(rawName || '').trim().toLowerCase();
+		if (!name) return;
+		// Clear current selection UI and only show rows for this client
+		const tbody = document.getElementById('sales-tbody');
+		if (!tbody) return;
+		const allRows = Array.from(tbody.querySelectorAll('tr'));
+		let any = false;
+		for (const tr of allRows) {
+			const inp = tr.querySelector('td.col-client .client-input');
+			const nm = String(inp?.value || '').trim().toLowerCase();
+			const match = nm && (nm === name);
+			tr.style.display = match || tr.classList.contains('add-row-line') ? '' : 'none';
+			if (match) any = true;
+		}
+		// Provide a tiny popover to reset filter
+		const pop = document.createElement('div');
+		pop.className = 'confirm-popover';
+		pop.style.position = 'fixed';
+		const x = (typeof anchorX === 'number') ? anchorX : (window.innerWidth/2);
+		const y = (typeof anchorY === 'number') ? anchorY : (window.innerHeight/2);
+		pop.style.left = x + 'px';
+		pop.style.top = (y + 6) + 'px';
+		pop.style.transform = 'translate(-50%, 0)';
+		pop.style.zIndex = '1000';
+		const text = document.createElement('div'); text.className = 'confirm-text'; text.textContent = any ? `Filtrando por: ${rawName}` : `Sin filas para: ${rawName}`;
+		const actions = document.createElement('div'); actions.className = 'confirm-actions';
+		const clearBtn = document.createElement('button'); clearBtn.className = 'press-btn'; clearBtn.textContent = 'Quitar filtro';
+		const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn btn-primary'; closeBtn.textContent = 'OK';
+		actions.append(clearBtn, closeBtn);
+		pop.append(text, actions);
+		document.body.appendChild(pop);
+		function cleanup(){ document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); if (pop.parentNode) pop.parentNode.removeChild(pop); }
+		function outside(ev){ if (!pop.contains(ev.target)) cleanup(); }
+		setTimeout(()=>{ document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); },0);
+		clearBtn.addEventListener('click', () => { allRows.forEach(tr => tr.style.display = ''); cleanup(); });
+		closeBtn.addEventListener('click', cleanup);
 	} catch {}
 }
