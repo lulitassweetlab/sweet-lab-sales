@@ -2,6 +2,7 @@ async function openClientDetailView(clientName) {
 	if (!state.currentSeller) return;
 	const name = String(clientName || '').trim();
 	state._clientDetailName = name;
+	state._clientDetailFrom = document.querySelector('#view-sales')?.classList.contains('hidden') ? 'clients' : 'sales';
 	const title = document.getElementById('client-detail-title'); if (title) title.textContent = name || 'Cliente';
 	const subtitle = document.getElementById('client-detail-subtitle'); if (subtitle) subtitle.textContent = 'Historial de compras';
 	await loadClientDetailRows(name);
@@ -19,7 +20,7 @@ async function loadClientDetailRows(clientName) {
 		for (const s of (sales || [])) {
 			const n = (s?.client_name || '').trim();
 			if (!n) continue;
-			if (n.toLowerCase() !== String(clientName||'').trim().toLowerCase()) continue;
+			if (normalizeClientName(n) !== normalizeClientName(clientName)) continue;
 			allRows.push({
 				id: s.id,
 				dayIso: String(d.day).slice(0,10),
@@ -172,6 +173,7 @@ const state = {
 	sellers: [],
 	sales: [],
 	currentUser: null,
+	clientCounts: new Map(),
 };
 
 // Toasts and Notifications
@@ -497,6 +499,7 @@ async function enterSeller(id) {
 	state.currentSeller = seller;
 	state.saleDays = [];
 	state.selectedDayId = null;
+	state.clientCounts = new Map();
 	$('#current-seller').textContent = seller.name;
 	switchView('#view-sales');
 	// Show dates section, hide table until a date is selected, then load real dates
@@ -602,14 +605,33 @@ function renderTable() {
 				wrap.appendChild(sel);
 				return wrap;
 			})()),
-			el('td', { class: 'col-client' }, el('input', {
-				class: 'input-cell client-input',
-				value: sale.client_name || '',
-				placeholder: '',
-				oninput: (e) => { const v = (e.target.value || ''); if (/\*$/.test(v.trim())) { saveClientWithCommentFlow(tr, sale.id); } },
-				onblur: () => saveClientWithCommentFlow(tr, sale.id),
-				onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); saveClientWithCommentFlow(tr, sale.id); } },
-			})),
+			(function(){
+				const td = document.createElement('td');
+				td.className = 'col-client';
+				const input = document.createElement('input');
+				input.className = 'input-cell client-input';
+				input.value = sale.client_name || '';
+				input.placeholder = '';
+				input.addEventListener('input', (e) => { const v = (e.target.value || ''); if (/\*$/.test(v.trim())) { saveClientWithCommentFlow(tr, sale.id); } });
+				input.addEventListener('blur', () => saveClientWithCommentFlow(tr, sale.id));
+				input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); saveClientWithCommentFlow(tr, sale.id); } });
+				td.appendChild(input);
+				const name = (sale.client_name || '').trim();
+				if (name) {
+					const key = normalizeClientName(name);
+					const count = (state.clientCounts && typeof state.clientCounts.get === 'function') ? (state.clientCounts.get(key) || 0) : 0;
+					if (count > 1) {
+						td.classList.add('has-reg');
+						const reg = document.createElement('span');
+						reg.className = 'client-reg-large';
+						reg.textContent = '®';
+						reg.title = 'Cliente recurrente';
+						reg.addEventListener('click', async (ev) => { ev.stopPropagation(); await openClientDetailView(name); });
+						td.appendChild(reg);
+					}
+				}
+				return td;
+			})(),
 			el('td', { class: 'col-arco' }, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_arco ? String(sale.qty_arco) : '', placeholder: '', onblur: () => saveRow(tr, sale.id), onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); saveRow(tr, sale.id); } }, onfocus: (e) => e.target.select(), onmouseup: (e) => e.preventDefault() })),
 			el('td', { class: 'col-melo' }, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_melo ? String(sale.qty_melo) : '', placeholder: '', onblur: () => saveRow(tr, sale.id), onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); saveRow(tr, sale.id); } }, onfocus: (e) => e.target.select(), onmouseup: (e) => e.preventDefault() })),
 			el('td', { class: 'col-mara' }, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_mara ? String(sale.qty_mara) : '', placeholder: '', onblur: () => saveRow(tr, sale.id), onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); saveRow(tr, sale.id); } }, onfocus: (e) => e.target.select(), onmouseup: (e) => e.preventDefault() })),
@@ -659,6 +681,23 @@ async function loadSales() {
 	const params = new URLSearchParams({ seller_id: String(sellerId) });
 	if (state.selectedDayId) params.set('sale_day_id', String(state.selectedDayId));
 	state.sales = await api('GET', `${API.Sales}?${params.toString()}`);
+	// Build recurrence counts across all dates for this seller
+	try {
+		const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(sellerId)}`);
+		const counts = new Map();
+		for (const d of (days || [])) {
+			const p = new URLSearchParams({ seller_id: String(sellerId), sale_day_id: String(d.id) });
+			let sales = [];
+			try { sales = await api('GET', `${API.Sales}?${p.toString()}`); } catch { sales = []; }
+			for (const s of (sales || [])) {
+				const raw = (s?.client_name || '').trim();
+				if (!raw) continue;
+				const key = normalizeClientName(raw);
+				counts.set(key, (counts.get(key) || 0) + 1);
+			}
+		}
+		state.clientCounts = counts;
+	} catch { state.clientCounts = new Map(); }
 	renderTable();
 	preloadChangeLogsForCurrentTable();
 }
@@ -1338,7 +1377,10 @@ function bindEvents() {
 
 	// Back from Client Detail view
 	const detailBackBtn = document.getElementById('client-detail-back');
-	detailBackBtn?.addEventListener('click', () => { switchView('#view-clients'); });
+	detailBackBtn?.addEventListener('click', () => {
+		if (state._clientDetailFrom === 'sales') switchView('#view-sales');
+		else switchView('#view-clients');
+	});
 
 	// Admin-only: Restore bugged sales
 	// (botón de reporte eliminado)
@@ -1976,6 +2018,19 @@ if (!('selectedDayId' in state)) state.selectedDayId = null;
 })();
 
 // Load and render Clients view listing all unique client names across all dates for the current seller
+function normalizeClientName(value) {
+	try {
+		return String(value || '')
+			.trim()
+			.normalize('NFD')
+			// Remove accents (acute, diaeresis, grave, circumflex, macron) but keep tilde (ñ)
+			.replace(/[\u0301\u0308\u0300\u0302\u0304]/g, '')
+			.toLowerCase();
+	} catch {
+		return String(value || '').trim().toLowerCase();
+	}
+}
+
 async function openClientsView() {
 	if (!state.currentSeller) return;
 	await loadClientsForSeller();
@@ -1993,7 +2048,7 @@ async function loadClientsForSeller() {
 		for (const s of (sales || [])) {
 			const raw = (s?.client_name || '').trim();
 			if (!raw) continue;
-			const key = raw.toLowerCase();
+			const key = normalizeClientName(raw);
 			if (!nameToCount.has(key)) nameToCount.set(key, { name: raw, count: 0 });
 			nameToCount.get(key).count++;
 		}
@@ -2013,8 +2068,10 @@ function renderClientsTable(rows) {
 	}
 	for (const r of rows) {
 		const tr = document.createElement('tr'); tr.className = 'clients-row';
-		const tdN = document.createElement('td'); tdN.textContent = r.name;
-		const tdC = document.createElement('td'); tdC.textContent = String(r.count); tdC.style.textAlign = 'right';
+		const tdN = document.createElement('td');
+		tdN.textContent = r.name;
+		// No marker in clients list per request
+		const tdC = document.createElement('td'); tdC.textContent = String(r.count); tdC.style.textAlign = 'center';
 		tr.append(tdN, tdC);
 		tr.addEventListener('mousedown', () => { tr.classList.add('row-highlight'); setTimeout(() => tr.classList.remove('row-highlight'), 500); });
 		tr.addEventListener('click', async () => { await openClientDetailView(r.name); });
