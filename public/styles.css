@@ -825,6 +825,33 @@ tfoot td { font-weight: 700; }
 .confirm-text { font-size: 12px; margin-bottom: 8px; }
 .confirm-actions { display: flex; gap: 8px; justify-content: flex-end; }
 .receipt-popover { background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.24); padding: 10px; max-width: 90vw; }
+/* Aladdin upward animation for popovers aligned at click bottom */
+@keyframes aladdinUp {
+	0% { transform: translate(-50%, 8px) scale(0.96); opacity: 0; }
+	60% { transform: translate(-50%, -4px) scale(1.02); opacity: 1; }
+	100% { transform: translate(-50%, 0) scale(1); opacity: 1; }
+}
+.aladdin-pop { animation: aladdinUp 220ms cubic-bezier(0.2, 0.8, 0.2, 1); will-change: transform, opacity; }
+
+/* Users popover: unify button base/hover styles */
+.users-menu .history-list .press-btn,
+.users-menu .confirm-actions .press-btn {
+	background: var(--card);
+	color: var(--text);
+	border: 1px solid var(--border);
+}
+.users-menu .history-list .press-btn:hover,
+.users-menu .confirm-actions .press-btn:hover {
+	background-color: var(--hover-primary-pink);
+	box-shadow: 0 8px 24px var(--hover-shadow-pink);
+	filter: none;
+	color: #ffffff;
+}
+.users-menu .history-list .press-btn:active,
+.users-menu .confirm-actions .press-btn:active {
+	background-color: var(--hover-primary-pink-intense);
+	box-shadow: 0 4px 12px var(--hover-shadow-pink);
+}
 @media (max-width: 600px) {
 	/* Deja el rebote nativo del body (suave) */
 	html, body { overscroll-behavior-y: auto; touch-action: pan-y; }
