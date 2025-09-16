@@ -57,7 +57,8 @@
 			rangeLabel.textContent = `${formatDay(start)} — ${formatDay(end)}`;
 			grid.innerHTML = '';
 			empty.style.display = 'none';
-			const res = await fetch(`/api/sales?receipts_start=${encodeURIComponent(start)}&receipts_end=${encodeURIComponent(end)}`);
+			const url = `/api/sales?receipts_start=${encodeURIComponent(start)}&receipts_end=${encodeURIComponent(end)}`;
+			const res = await fetch(url);
 			if (!res.ok) { countLabel.textContent = `Error ${res.status} cargando (${start} a ${end})`; return; }
 			const rows = await res.json();
 			countLabel.textContent = `${rows.length} comprobante(s) · ${start} — ${end}`;

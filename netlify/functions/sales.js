@@ -10,38 +10,43 @@ export async function handler(event) {
 		if (event.httpMethod === 'OPTIONS') return json({ ok: true });
 		switch (event.httpMethod) {
 			case 'GET': {
-				const params = new URLSearchParams(event.rawQuery || event.queryStringParameters ? event.rawQuery || '' : '');
+				// Robust query parsing: support both rawQuery and queryStringParameters
+				let raw = '';
+				if (event.rawQuery && typeof event.rawQuery === 'string') raw = event.rawQuery;
+				else if (event.queryStringParameters && typeof event.queryStringParameters === 'object') {
+					raw = Object.entries(event.queryStringParameters)
+						.map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v ?? '')}`)
+						.join('&');
+				}
+				const params = new URLSearchParams(raw);
 				// New: list receipts across date range
-				const receiptsRangeStart = params.get('receipts_start');
-				const receiptsRangeEnd = params.get('receipts_end');
+				const receiptsRangeStart = params.get('receipts_start') || (event.queryStringParameters && event.queryStringParameters.receipts_start) || null;
+				const receiptsRangeEnd = params.get('receipts_end') || (event.queryStringParameters && event.queryStringParameters.receipts_end) || null;
 				if (receiptsRangeStart && receiptsRangeEnd) {
 					const start = receiptsRangeStart.toString().slice(0,10);
 					const end = receiptsRangeEnd.toString().slice(0,10);
 					const rows = await sql`
 						SELECT sr.id, sr.sale_id, sr.image_base64, sr.note_text, sr.created_at,
 						       s.seller_id, s.sale_day_id, s.client_name, s.pay_method, s.total_cents,
-						       sd.day AS sale_day, se.name AS seller_name
+						       sd.day AS sale_day, se.name AS seller_name,
+						       COALESCE(sd.day, sr.created_at::date, s.created_at::date) AS effective_day
 						FROM sale_receipts sr
 						JOIN sales s ON s.id = sr.sale_id
 						LEFT JOIN sale_days sd ON sd.id = s.sale_day_id
 						LEFT JOIN sellers se ON se.id = s.seller_id
-						WHERE (sd.day BETWEEN ${start} AND ${end})
-						   OR (sr.created_at::date BETWEEN ${start} AND ${end})
-						   OR (s.created_at::date BETWEEN ${start} AND ${end})
-						   OR ((sr.created_at AT TIME ZONE 'America/Bogota')::date BETWEEN ${start} AND ${end})
-						   OR ((s.created_at AT TIME ZONE 'America/Bogota')::date BETWEEN ${start} AND ${end})
+						WHERE COALESCE(sd.day, sr.created_at::date, s.created_at::date) BETWEEN ${start} AND ${end}
 						ORDER BY sr.created_at DESC, sr.id DESC
 					`;
 					return json(rows);
 				}
-				const historyFor = params.get('history_for');
+				const historyFor = params.get('history_for') || (event.queryStringParameters && event.queryStringParameters.history_for);
 				if (historyFor) {
 					const saleId = Number(historyFor);
 					if (!saleId) return json({ error: 'history_for inválido' }, 400);
 					const rows = await sql`SELECT id, sale_id, field, old_value, new_value, user_name, created_at FROM change_logs WHERE sale_id=${saleId} ORDER BY created_at DESC, id DESC`;
 					return json(rows);
 				}
-				const receiptFor = params.get('receipt_for');
+				const receiptFor = params.get('receipt_for') || (event.queryStringParameters && event.queryStringParameters.receipt_for);
 				if (receiptFor) {
 					const saleId = Number(receiptFor);
 					if (!saleId) return json({ error: 'receipt_for inválido' }, 400);
