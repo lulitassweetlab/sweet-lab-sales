@@ -233,6 +233,9 @@ main { padding: 24px; max-width: 1024px; margin: 0 auto; }
 .login-error { color: var(--danger); font-size: 10px; }
 .hidden { display: none !important; }
 
+/* Ensure both Usuario and Contraseña have borders in login */
+#view-login .input-cell { border: 1px solid var(--border); background: var(--card); }
+
 .seller-button {
 	padding: 20px 22px;
 	border: 1px solid var(--border);
