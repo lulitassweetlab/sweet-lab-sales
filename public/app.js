@@ -1,3 +1,90 @@
+async function openClientDetailView(clientName) {
+	if (!state.currentSeller) return;
+	const name = String(clientName || '').trim();
+	state._clientDetailName = name;
+	const title = document.getElementById('client-detail-title'); if (title) title.textContent = name || 'Cliente';
+	const subtitle = document.getElementById('client-detail-subtitle'); if (subtitle) subtitle.textContent = 'Historial de compras';
+	await loadClientDetailRows(name);
+	switchView('#view-client-detail');
+}
+
+async function loadClientDetailRows(clientName) {
+	const sellerId = state.currentSeller.id;
+	const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(sellerId)}`);
+	const allRows = [];
+	for (const d of (days || [])) {
+		const params = new URLSearchParams({ seller_id: String(sellerId), sale_day_id: String(d.id) });
+		let sales = [];
+		try { sales = await api('GET', `${API.Sales}?${params.toString()}`); } catch { sales = []; }
+		for (const s of (sales || [])) {
+			const n = (s?.client_name || '').trim();
+			if (!n) continue;
+			if (n.toLowerCase() !== String(clientName||'').trim().toLowerCase()) continue;
+			allRows.push({
+				id: s.id,
+				dayIso: String(d.day).slice(0,10),
+				qty_arco: Number(s.qty_arco||0),
+				qty_melo: Number(s.qty_melo||0),
+				qty_mara: Number(s.qty_mara||0),
+				qty_oreo: Number(s.qty_oreo||0),
+				qty_nute: Number(s.qty_nute||0),
+				pay_method: s.pay_method || '',
+				is_paid: !!s.is_paid
+			});
+		}
+	}
+	// Sort by date descending
+	allRows.sort((a,b) => (a.dayIso < b.dayIso ? 1 : a.dayIso > b.dayIso ? -1 : 0));
+	renderClientDetailTable(allRows);
+}
+
+function renderClientDetailTable(rows) {
+	const tbody = document.getElementById('client-detail-tbody');
+	if (!tbody) return;
+	tbody.innerHTML = '';
+	if (!rows || rows.length === 0) {
+		const tr = document.createElement('tr');
+		const td = document.createElement('td'); td.colSpan = 8; td.textContent = 'Sin compras'; td.style.opacity = '0.8';
+		tr.appendChild(td); tbody.appendChild(tr); return;
+	}
+	for (const r of rows) {
+		const tr = document.createElement('tr');
+		const tdDate = document.createElement('td'); tdDate.textContent = formatDayLabel(r.dayIso);
+		const tdPay = document.createElement('td');
+		const wrap = document.createElement('span'); wrap.className = 'pay-wrap';
+		const sel = document.createElement('select'); sel.className = 'input-cell pay-select';
+		const current = (r.pay_method || '').replace(/\.$/, '');
+		const opts = [
+			{ v: '', label: '-' },
+			{ v: 'efectivo', label: '' },
+			{ v: 'marce', label: '' },
+			{ v: 'transf', label: '' }
+		];
+		for (const o of opts) { const opt = document.createElement('option'); opt.value = o.v; opt.textContent = o.label; if (current === o.v) opt.selected = true; sel.appendChild(opt); }
+		function applyPayClass() {
+			wrap.classList.remove('placeholder','method-efectivo','method-transf','method-marce');
+			if (!sel.value) wrap.classList.add('placeholder');
+			else if (sel.value === 'efectivo') wrap.classList.add('method-efectivo');
+			else if (sel.value === 'transf') wrap.classList.add('method-transf');
+			else if (sel.value === 'marce') wrap.classList.add('method-marce');
+		}
+		applyPayClass();
+		sel.addEventListener('change', async () => {
+			await api('PUT', API.Sales, { id: r.id, pay_method: sel.value || null });
+			applyPayClass();
+		});
+		wrap.appendChild(sel); tdPay.appendChild(wrap);
+		const tdAr = document.createElement('td'); tdAr.textContent = r.qty_arco ? String(r.qty_arco) : '';
+		const tdMe = document.createElement('td'); tdMe.textContent = r.qty_melo ? String(r.qty_melo) : '';
+		const tdMa = document.createElement('td'); tdMa.textContent = r.qty_mara ? String(r.qty_mara) : '';
+		const tdOr = document.createElement('td'); tdOr.textContent = r.qty_oreo ? String(r.qty_oreo) : '';
+		const tdNu = document.createElement('td'); tdNu.textContent = r.qty_nute ? String(r.qty_nute) : '';
+		const total = calcRowTotal({ arco: r.qty_arco, melo: r.qty_melo, mara: r.qty_mara, oreo: r.qty_oreo, nute: r.qty_nute });
+		const tdTot = document.createElement('td'); tdTot.textContent = fmtNo.format(total);
+		tr.append(tdDate, tdPay, tdAr, tdMe, tdMa, tdOr, tdNu, tdTot);
+		tbody.appendChild(tr);
+	}
+}
 const API = {
 	Sellers: '/api/sellers',
 	Sales: '/api/sales'
@@ -1180,6 +1267,10 @@ function bindEvents() {
 		if (state.currentSeller) switchView('#view-sales'); else switchView('#view-select-seller');
 	});
 
+	// Back from Client Detail view
+	const detailBackBtn = document.getElementById('client-detail-back');
+	detailBackBtn?.addEventListener('click', () => { switchView('#view-clients'); });
+
 	document.getElementById('export-excel')?.addEventListener('click', exportTableToExcel);
 }
 
@@ -1786,28 +1877,7 @@ function renderClientsTable(rows) {
 		const tdN = document.createElement('td'); tdN.textContent = r.name;
 		const tdC = document.createElement('td'); tdC.textContent = String(r.count); tdC.style.textAlign = 'right';
 		tr.append(tdN, tdC);
-		tr.addEventListener('click', async () => {
-			// Go back to sales view and focus client in current selected day (if any). If none selected, auto-open latest day.
-			switchView('#view-sales');
-			if (!state.selectedDayId) {
-				await loadDaysForSeller();
-				try {
-					const days = Array.isArray(state.saleDays) ? state.saleDays.slice() : [];
-					if (days.length) {
-						let latest = days[0];
-						let latestTs = Date.parse(String(latest.day).slice(0,10));
-						for (let i = 1; i < days.length; i++) {
-							const ts = Date.parse(String(days[i].day).slice(0,10));
-							if (!isNaN(ts) && (isNaN(latestTs) || ts > latestTs)) { latest = days[i]; latestTs = ts; }
-						}
-						if (latest && latest.id) { state.selectedDayId = latest.id; await loadSales(); }
-					}
-				} catch {}
-			} else {
-				await loadSales();
-			}
-			focusClientRow(r.name);
-		});
+		tr.addEventListener('click', async () => { await openClientDetailView(r.name); });
 		tbody.appendChild(tr);
 	}
 }
