@@ -69,18 +69,6 @@ function renderClientDetailTable(rows) {
 			else if (sel.value === 'marce') wrap.classList.add('method-marce');
 		}
 		applyPayClass();
-		const receiptBtn = document.createElement('button');
-		receiptBtn.className = 'press-btn';
-		receiptBtn.textContent = '';
-		receiptBtn.title = 'Comprobante';
-		receiptBtn.style.marginLeft = '6px';
-		receiptBtn.style.width = '22px';
-		receiptBtn.style.height = '22px';
-		receiptBtn.style.minWidth = '22px';
-		receiptBtn.style.padding = '0';
-		receiptBtn.style.background = "url('/icons/bank.svg') no-repeat center / 16px 14px";
-		receiptBtn.style.display = (sel.value === 'transf') ? 'inline-flex' : 'none';
-		receiptBtn.addEventListener('click', async () => { await showOrUploadReceiptForSale(r.id, receiptBtn); });
 		// Mirror behavior from sales: clicking the wrap opens the custom menu
 		wrap.addEventListener('click', async (e) => {
 			e.stopPropagation();
@@ -92,11 +80,8 @@ function renderClientDetailTable(rows) {
 		sel.addEventListener('change', async () => {
 			await api('PUT', API.Sales, { id: r.id, pay_method: sel.value || null });
 			applyPayClass();
-			receiptBtn.style.display = (sel.value === 'transf') ? 'inline-flex' : 'none';
-			if (sel.value === 'transf') { await showOrUploadReceiptForSale(r.id, receiptBtn); }
 		});
 		wrap.appendChild(sel); tdPay.appendChild(wrap);
-		tdPay.appendChild(receiptBtn);
 		// Add a visible dash '-' like the main table when no method, using CSS class 'placeholder'
 		if (!sel.value) { /* wrap already has placeholder class to show '-' via styles */ }
 		const tdDate = document.createElement('td'); tdDate.textContent = formatDayLabel(r.dayIso);
@@ -112,21 +97,6 @@ function renderClientDetailTable(rows) {
 	}
 }
 
-async function showOrUploadReceiptForSale(saleId, anchorEl) {
-	try {
-		const rect = anchorEl && typeof anchorEl.getBoundingClientRect === 'function' ? anchorEl.getBoundingClientRect() : null;
-		const cx = rect ? (rect.left + rect.width / 2) : (window.innerWidth / 2);
-		const cy = rect ? rect.bottom : (window.innerHeight / 2);
-		const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(saleId)}`);
-		if (Array.isArray(recs) && recs.length) {
-			openReceiptViewerPopover(recs[0].image_base64, saleId, recs[0].created_at, cx, cy);
-		} else {
-			openReceiptUploadPage(saleId);
-		}
-	} catch {
-		openReceiptUploadPage(saleId);
-	}
-}
 const API = {
 	Sellers: '/api/sellers',
 	Sales: '/api/sales'
