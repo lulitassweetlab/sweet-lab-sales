@@ -155,7 +155,8 @@ function renderClientDetailTable(rows) {
 
 const API = {
 	Sellers: '/api/sellers',
-	Sales: '/api/sales'
+	Sales: '/api/sales',
+	Users: '/api/users'
 };
 
 const PRICES = {
@@ -416,20 +417,25 @@ function bindLogin() {
 		const pass = document.getElementById('login-pass')?.value ?? '';
 		const err = document.getElementById('login-error');
 		if (!user) { if (err) { err.textContent = 'Ingresa el usuario'; err.classList.remove('hidden'); } return; }
-		if (pass !== computePasswordFor(user)) { if (err) { err.textContent = 'Usuario o contraseña inválidos'; err.classList.remove('hidden'); } return; }
-		if (err) err.classList.add('hidden');
-		state.currentUser = { name: user, isAdmin: isAdmin(user), role: getRole(user), isSuperAdmin: isSuperAdmin(user) };
-		try { localStorage.setItem('authUser', JSON.stringify(state.currentUser)); } catch {}
-		applyAuthVisibility();
-		renderSellerButtons();
-		notify.success('Bienvenido ' + user);
-		// If not admin, auto-enter seller if exists
-		if (!state.currentUser.isAdmin) {
-			const seller = (state.sellers || []).find(s => String(s.name).toLowerCase() === String(user).toLowerCase());
-			if (seller) enterSeller(seller.id);
-		} else {
-			switchView('#view-select-seller');
-		}
+		(async () => {
+			try {
+				const res = await api('POST', API.Users, { username: user, password: pass });
+				if (err) err.classList.add('hidden');
+				state.currentUser = { name: res.username, isAdmin: res.role === 'admin' || res.role === 'superadmin', role: res.role, isSuperAdmin: res.role === 'superadmin' };
+				try { localStorage.setItem('authUser', JSON.stringify(state.currentUser)); } catch {}
+				applyAuthVisibility();
+				renderSellerButtons();
+				notify.success('Bienvenido ' + res.username);
+				if (!state.currentUser.isAdmin) {
+					const seller = (state.sellers || []).find(s => String(s.name).toLowerCase() === String(res.username).toLowerCase());
+					if (seller) enterSeller(seller.id);
+				} else {
+					switchView('#view-select-seller');
+				}
+			} catch (e) {
+				if (err) { err.textContent = 'Usuario o contraseña inválidos'; err.classList.remove('hidden'); }
+			}
+		})();
 	});
 	const logoutBtn = document.getElementById('logout-btn');
 	logoutBtn?.addEventListener('click', () => {
@@ -532,6 +538,8 @@ function applyAuthVisibility() {
 	const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 	const logoutBtn = document.getElementById('logout-btn');
 	if (logoutBtn) logoutBtn.style.display = state.currentUser ? 'inline-flex' : 'none';
+	const changePassBtn = document.getElementById('change-pass-btn');
+	if (changePassBtn) changePassBtn.style.display = state.currentUser ? 'inline-flex' : 'none';
 	const addSellerWrap = document.querySelector('.seller-add');
 	if (addSellerWrap) addSellerWrap.style.display = isSuper ? 'block' : 'none';
 }
@@ -1368,6 +1376,23 @@ async function exportConsolidatedForDates(isoList) {
 })();
 
 function bindEvents() {
+	// Change password dialog
+	const changeBtn = document.getElementById('change-pass-btn');
+	changeBtn?.addEventListener('click', async (ev) => {
+		if (!state.currentUser) { notify.error('Inicia sesión primero'); return; }
+		const username = String(state.currentUser.name || '').trim();
+		// Simple prompt-based flow
+		const current = prompt('Contraseña actual:') ?? '';
+		if (!current) return;
+		const next = prompt('Nueva contraseña (mín 6 caracteres):') ?? '';
+		if (!next) return;
+		try {
+			await api('PUT', API.Users, { username, currentPassword: current, newPassword: next });
+			notify.success('Contraseña actualizada');
+		} catch (e) {
+			notify.error('No se pudo actualizar la contraseña');
+		}
+	});
 	$('#add-seller').addEventListener('click', async () => {
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 		if (!isSuper) { notify.error('Solo Jorge puede agregar vendedores'); return; }
