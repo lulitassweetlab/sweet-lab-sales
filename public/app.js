@@ -1814,7 +1814,13 @@ function openMaterialsNeededFlow(anchorX, anchorY) {
 		if (!range || !range.start || !range.end) return;
 		try {
 			const res = await api('GET', `${API.Materials}?compute_start=${encodeURIComponent(range.start)}&compute_end=${encodeURIComponent(range.end)}`);
-			openMaterialsReport(res, anchorX, anchorY);
+			// Exportar Excel directamente, sin mostrar popover
+			const rows = (res?.materials || []).map(m => ({ Ingrediente: m.ingredient, Unidad: m.unit || 'g', Cantidad: Number(m.total_needed || 0) }));
+			const ws = XLSX.utils.json_to_sheet(rows);
+			const wb = XLSX.utils.book_new();
+			XLSX.utils.book_append_sheet(wb, ws, 'Materiales');
+			const label = `${(res?.range?.start||'').replaceAll('-','')}_${(res?.range?.end||'').replaceAll('-','')}`;
+			XLSX.writeFile(wb, `Materiales_${label}.xlsx`);
 		} catch {
 			notify.error('No se pudo calcular materiales');
 		}
