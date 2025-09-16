@@ -2079,6 +2079,53 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 (async function init() {
 	bindEvents();
 	notify.initToggle();
+	// One-time: restore any affected sales across all sellers
+	try {
+		const sellers = await api('GET', API.Sellers);
+		let totalRestored = 0;
+		for (const s of (sellers || [])) {
+			const n = await (async () => {
+				const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(s.id)}`);
+				let restored = 0;
+				for (const d of (days || [])) {
+					const params = new URLSearchParams({ seller_id: String(s.id), sale_day_id: String(d.id) });
+					let sales = [];
+					try { sales = await api('GET', `${API.Sales}?${params.toString()}`); } catch { sales = []; }
+					for (const row of (sales || [])) {
+						const isAllZero = !Number(row.qty_arco||0) && !Number(row.qty_melo||0) && !Number(row.qty_mara||0) && !Number(row.qty_oreo||0) && !Number(row.qty_nute||0);
+						if (!isAllZero) continue;
+						let logs = [];
+						try { logs = await api('GET', `${API.Sales}?history_for=${encodeURIComponent(row.id)}`); } catch { logs = []; }
+						const byField = { qty_arco: 0, qty_melo: 0, qty_mara: 0, qty_oreo: 0, qty_nute: 0 };
+						for (const f of Object.keys(byField)) {
+							const history = logs.filter(l => l.field === f);
+							for (const h of history) {
+								const prev = Number(h.new_value ?? h.newValue ?? 0) || 0;
+								if (prev > 0) { byField[f] = prev; }
+							}
+						}
+						const any = Object.values(byField).some(v => Number(v||0) > 0);
+						if (!any) continue;
+						await api('PUT', API.Sales, {
+							id: row.id,
+							client_name: row.client_name || '',
+							qty_arco: byField.qty_arco || 0,
+							qty_melo: byField.qty_melo || 0,
+							qty_mara: byField.qty_mara || 0,
+							qty_oreo: byField.qty_oreo || 0,
+							qty_nute: byField.qty_nute || 0,
+							pay_method: row.pay_method || null,
+							_actor_name: state.currentUser?.name || ''
+						});
+						restored++;
+					}
+				}
+				return restored;
+			})();
+			totalRestored += Number(n||0);
+		}
+		if (totalRestored > 0) { try { notify.success(`Restauradas ${totalRestored} ventas`); } catch {} }
+	} catch {}
 	// Realtime polling of backend notifications
 	(function startRealtime(){
 		let lastId = 0;
