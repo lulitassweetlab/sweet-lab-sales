@@ -58,9 +58,9 @@
 			grid.innerHTML = '';
 			empty.style.display = 'none';
 			const res = await fetch(`/api/sales?receipts_start=${encodeURIComponent(start)}&receipts_end=${encodeURIComponent(end)}`);
-			if (!res.ok) { countLabel.textContent = 'Error cargando'; return; }
+			if (!res.ok) { countLabel.textContent = `Error ${res.status} cargando (${start} a ${end})`; return; }
 			const rows = await res.json();
-			countLabel.textContent = `${rows.length} comprobante(s)`;
+			countLabel.textContent = `${rows.length} comprobante(s) · ${start} — ${end}`;
 			if (!rows.length) { empty.style.display = ''; return; }
 			for (const r of rows) {
 				const card = document.createElement('div'); card.className = 'transfer-card';
