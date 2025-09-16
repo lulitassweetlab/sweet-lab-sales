@@ -1434,10 +1434,12 @@ async function exportCarteraExcel(startIso, endIso) {
 	const input = document.getElementById('report-date');
 	if (!reportBtn || !input) return;
 	reportBtn.addEventListener('click', (ev) => {
-		openMultiCalendarPopover(async (isoList) => {
-			if (!isoList || !isoList.length) return;
-			await exportConsolidatedForDates(isoList);
-		}, ev.clientX, ev.clientY);
+		openRangeCalendarPopover(async (range) => {
+			if (!range || !range.start || !range.end) return;
+			const dates = buildIsoListFromRange(range.start, range.end);
+			if (!dates.length) return;
+			await exportConsolidatedForDates(dates);
+		}, ev.clientX, ev.clientY, { preferUp: true });
 	});
 	carteraBtn?.addEventListener('click', async (ev) => {
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
@@ -1453,6 +1455,27 @@ async function exportCarteraExcel(startIso, endIso) {
 		openUsersMenu(ev.clientX, ev.clientY);
 	});
 })();
+
+// Build list of ISO dates (YYYY-MM-DD) from inclusive range using UTC arithmetic
+function buildIsoListFromRange(startIso, endIso) {
+    if (!startIso || !endIso) return [];
+    const parseIso = (iso) => {
+        const parts = String(iso).split('-').map(v => parseInt(v, 10));
+        if (parts.length !== 3 || parts.some(n => Number.isNaN(n))) return null;
+        return new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+    };
+    let start = parseIso(startIso);
+    let end = parseIso(endIso);
+    if (!start || !end) return [];
+    if (start > end) { const tmp = start; start = end; end = tmp; }
+    const out = [];
+    const cur = new Date(start.getTime());
+    while (cur <= end) {
+        out.push(cur.toISOString().slice(0, 10));
+        cur.setUTCDate(cur.getUTCDate() + 1);
+    }
+    return out;
+}
 
 function openUsersMenu(anchorX, anchorY) {
 	const pop = document.createElement('div');
@@ -1929,7 +1952,7 @@ function openCalendarPopover(onPicked, anchorX, anchorY) {
 	render();
 }
 
-function openMultiCalendarPopover(onPickedList, anchorX, anchorY) {
+function openMultiCalendarPopover(onPickedList, anchorX, anchorY, opts) {
 	const pop = document.createElement('div');
 	pop.className = 'date-popover';
 	pop.style.position = 'fixed';
@@ -1991,6 +2014,8 @@ function openMultiCalendarPopover(onPickedList, anchorX, anchorY) {
 	
 	pop.append(header, wk, grid, actions);
 	document.body.appendChild(pop);
+	// Aladdin style animation
+	pop.classList.add('aladdin-pop');
 	
 	requestAnimationFrame(() => {
 		const margin = 8;
@@ -2002,7 +2027,7 @@ function openMultiCalendarPopover(onPickedList, anchorX, anchorY) {
 		const isSmall = window.matchMedia('(max-width: 600px)').matches;
 		const r = pop.getBoundingClientRect();
 		let left = baseX; let top = baseY + 8;
-		if (isSmall && baseY > (viewTop + viewH * 0.6)) { top = baseY - 8 - r.height; }
+		if ((opts && opts.preferUp) || (isSmall && baseY > (viewTop + viewH * 0.6))) { top = baseY - 8 - r.height; }
 		left = Math.min(Math.max(left, viewLeft + margin), viewLeft + viewW - margin);
 		top = Math.min(Math.max(top, viewTop + margin), viewTop + viewH - margin);
 		pop.style.left = left + 'px'; pop.style.top = top + 'px';
@@ -2095,6 +2120,8 @@ function openRangeCalendarPopover(onPickedRange, anchorX, anchorY, opts) {
 
 	pop.append(header, wk, grid, actions);
 	document.body.appendChild(pop);
+	// Aladdin style animation
+	pop.classList.add('aladdin-pop');
 
 	requestAnimationFrame(() => {
 		const margin = 8;
