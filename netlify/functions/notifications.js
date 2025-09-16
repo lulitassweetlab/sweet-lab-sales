@@ -14,11 +14,11 @@ export async function handler(event) {
 		const sinceParam = params.get('since');
 		let rows;
 		if (afterId) {
-			rows = await sql`SELECT id, type, seller_id, sale_id, sale_day_id, message, actor_name, created_at FROM notifications WHERE id > ${afterId} ORDER BY id ASC LIMIT 100`;
+			rows = await sql`SELECT id, type, seller_id, sale_id, sale_day_id, message, actor_name, icon_url, pay_method, created_at FROM notifications WHERE id > ${afterId} ORDER BY id ASC LIMIT 100`;
 		} else if (sinceParam) {
-			rows = await sql`SELECT id, type, seller_id, sale_id, sale_day_id, message, actor_name, created_at FROM notifications WHERE created_at > ${new Date(sinceParam)} ORDER BY created_at ASC, id ASC LIMIT 100`;
+			rows = await sql`SELECT id, type, seller_id, sale_id, sale_day_id, message, actor_name, icon_url, pay_method, created_at FROM notifications WHERE created_at > ${new Date(sinceParam)} ORDER BY created_at ASC, id ASC LIMIT 100`;
 		} else {
-			rows = await sql`SELECT id, type, seller_id, sale_id, sale_day_id, message, actor_name, created_at FROM notifications ORDER BY id DESC LIMIT 20`;
+			rows = await sql`SELECT id, type, seller_id, sale_id, sale_day_id, message, actor_name, icon_url, pay_method, created_at FROM notifications ORDER BY id DESC LIMIT 20`;
 		}
 		return json(rows);
 	} catch (e) {

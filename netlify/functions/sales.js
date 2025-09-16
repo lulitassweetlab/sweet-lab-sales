@@ -145,7 +145,8 @@ export async function handler(event) {
 					if (prevPm !== nextPm) {
 						const fmt = (v) => v === 'efectivo' ? 'Efectivo' : v === 'transf' ? 'Transferencia' : v === 'marce' ? 'Marce' : '-';
 						const msg = `${client || 'Cliente'} pago: ${fmt(prevPm)} → ${fmt(nextPm)}` + (actor ? ` - ${actor}` : '');
-						await notifyDb({ type: 'pay', sellerId: Number(data.seller_id||0)||null, saleId: id, saleDayId: Number(data.sale_day_id||0)||null, message: msg, actorName: actor });
+						const iconUrl = nextPm === 'efectivo' ? '/icons/bill.svg' : nextPm === 'transf' ? '/icons/bank.svg' : nextPm === 'marce' ? '/icons/marce7.svg?v=1' : null;
+						await notifyDb({ type: 'pay', sellerId: Number(data.seller_id||0)||null, saleId: id, saleDayId: Number(data.sale_day_id||0)||null, message: msg, actorName: actor, iconUrl, payMethod: nextPm });
 					}
 				} catch {}
 				const row = await recalcTotalForId(id);
@@ -184,8 +185,10 @@ export async function handler(event) {
 					} catch {}
 					const tail = sellerName ? ` - ${sellerName}` : '';
 					const msg = `Eliminada: ${name}${suffix}${tail}`;
+					const pm = (current?.pay_method || prev?.pay_method || '').toString();
+					const iconUrl = pm === 'efectivo' ? '/icons/bill.svg' : pm === 'transf' ? '/icons/bank.svg' : pm === 'marce' ? '/icons/marce7.svg?v=1' : null;
 					// Do not reference deleted sale_id to avoid FK violation
-					await notifyDb({ type: 'delete', sellerId: Number(prev.seller_id||0)||null, saleId: null, saleDayId: Number(prev.sale_day_id||0)||null, message: msg, actorName: actor });
+					await notifyDb({ type: 'delete', sellerId: Number(prev.seller_id||0)||null, saleId: null, saleDayId: Number(prev.sale_day_id||0)||null, message: msg, actorName: actor, iconUrl, payMethod: pm });
 				}
 				return json({ ok: true });
 			}

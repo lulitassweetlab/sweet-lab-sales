@@ -349,7 +349,24 @@ const notify = (() => {
 				const item = document.createElement('div'); item.className = 'notif-item';
 				const when = document.createElement('div'); when.className = 'when';
 				const d = new Date(it.created_at || it.when); when.textContent = isNaN(d.getTime()) ? String(it.created_at || it.when) : d.toLocaleString();
-				const text = document.createElement('div'); text.className = 'text'; text.textContent = String(it.message || it.text || '');
+				const text = document.createElement('div'); text.className = 'text';
+				// prepend icon if present or if pay_method provided
+				try {
+					let url = it.icon_url || null;
+					const pm = (it.pay_method || '').toString();
+					if (!url && pm) {
+						url = pm === 'efectivo' ? '/icons/bill.svg' : pm === 'transf' ? '/icons/bank.svg' : pm === 'marce' ? '/icons/marce7.svg?v=1' : null;
+					}
+					if (url) {
+						const icon = document.createElement('span');
+						icon.className = 'notif-icon';
+						icon.style.backgroundImage = `url('${url}')`;
+						text.appendChild(icon);
+					}
+				} catch {}
+				const txt = document.createElement('span');
+				txt.textContent = String(it.message || it.text || '');
+				text.appendChild(txt);
 				item.append(when, text);
 				list.appendChild(item);
 			}
@@ -2605,7 +2622,9 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 							lastId = Math.max(lastId, Number(r.id||0));
 							if (!initialized) continue; // skip showing notifications on first load
 							const msg = String(r.message || '');
-							notify.info(msg);
+							const pm = (r.pay_method || '').toString();
+							const iconUrl = r.icon_url || (pm === 'efectivo' ? '/icons/bill.svg' : pm === 'transf' ? '/icons/bank.svg' : pm === 'marce' ? '/icons/marce7.svg?v=1' : null);
+							notify.info(msg, iconUrl || pm ? { iconUrl, payMethod: pm } : undefined);
 							notify.showBrowser('Venta', msg);
 						}
 						initialized = true;
