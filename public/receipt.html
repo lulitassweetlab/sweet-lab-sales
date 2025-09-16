@@ -25,6 +25,8 @@
 		<div id="sale-info" class="note"></div>
 		<label for="file">Foto del comprobante</label>
 		<input id="file" type="file" accept="image/*" />
+		<label for="note">Nota (opcional)</label>
+		<textarea id="note" rows="3" placeholder="Escribe una nota..." style="width:100%; resize: vertical;"></textarea>
 		<div class="preview" id="preview">
 			<img id="img" alt="Vista previa" />
 		</div>
@@ -60,7 +62,8 @@
 				const reader = new FileReader();
 				reader.onload = async () => {
 					const base64 = reader.result;
-					const res = await fetch('/api/sales', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _upload_receipt_for: saleId, image_base64: base64 }) });
+					const note = (document.getElementById('note').value || '').toString();
+					const res = await fetch('/api/sales', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _upload_receipt_for: saleId, image_base64: base64, note_text: note }) });
 					if (!res.ok) { alert('Error al subir comprobante'); uploadBtn.disabled = false; return; }
 					alert('Comprobante subido');
 					history.length > 1 ? history.back() : (location.href = '/');

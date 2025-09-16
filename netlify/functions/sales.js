@@ -22,7 +22,7 @@ export async function handler(event) {
 				if (receiptFor) {
 					const saleId = Number(receiptFor);
 					if (!saleId) return json({ error: 'receipt_for inválido' }, 400);
-					const rows = await sql`SELECT id, sale_id, image_base64, created_at FROM sale_receipts WHERE sale_id=${saleId} ORDER BY created_at DESC, id DESC`;
+					const rows = await sql`SELECT id, sale_id, image_base64, note_text, created_at FROM sale_receipts WHERE sale_id=${saleId} ORDER BY created_at DESC, id DESC`;
 					return json(rows);
 				}
 				const sellerIdParam = params.get('seller_id') || (event.queryStringParameters && event.queryStringParameters.seller_id);
@@ -44,8 +44,9 @@ export async function handler(event) {
 				if (data && data._upload_receipt_for) {
 					const sid = Number(data._upload_receipt_for);
 					const img = (data.image_base64 || '').toString();
+					const note = (data.note_text || '').toString();
 					if (!sid || !img) return json({ error: 'sale_id e imagen requeridos' }, 400);
-					const [row] = await sql`INSERT INTO sale_receipts (sale_id, image_base64) VALUES (${sid}, ${img}) RETURNING id, sale_id, created_at`;
+					const [row] = await sql`INSERT INTO sale_receipts (sale_id, image_base64, note_text) VALUES (${sid}, ${img}, ${note}) RETURNING id, sale_id, note_text, created_at`;
 					return json(row, 201);
 				}
 				const sellerId = Number(data.seller_id);
@@ -117,6 +118,13 @@ export async function handler(event) {
 				const idParam = params.get('id') || (event.queryStringParameters && event.queryStringParameters.id);
 				const actor = (params.get('actor') || '').toString();
 				const id = Number(idParam);
+				const receiptIdParam = params.get('receipt_id');
+				if (receiptIdParam) {
+					const receiptId = Number(receiptIdParam);
+					if (!receiptId) return json({ error: 'receipt_id requerido' }, 400);
+					await sql`DELETE FROM sale_receipts WHERE id=${receiptId}`;
+					return json({ ok: true });
+				}
 				if (!id) return json({ error: 'id requerido' }, 400);
 				// fetch previous data for notification content
 				const prev = (await sql`SELECT seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute FROM sales WHERE id=${id}`)[0] || null;
