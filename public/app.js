@@ -2114,6 +2114,11 @@ function openClientHistoryView(rawName) {
 	state._returnView = '#view-sales';
 	state._clientHistoryName = name;
 	switchView('#view-client-history');
+	// If returning from receipt upload, refresh once
+	try {
+		const flag = localStorage.getItem('refresh_client_history');
+		if (flag === '1') { localStorage.removeItem('refresh_client_history'); setTimeout(()=>loadClientHistory(name).catch(()=>{}), 50); }
+	} catch {}
 	const back = document.getElementById('client-history-back');
 	back?.addEventListener('click', () => {
 		state._clientHistoryName = '';
