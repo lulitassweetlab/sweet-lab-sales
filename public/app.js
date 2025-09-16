@@ -1379,8 +1379,8 @@ async function exportCarteraExcel(startIso, endIso) {
 			const sales = await api('GET', `${API.Sales}?${params.toString()}`);
 			for (const r of (sales || [])) {
 				const pm = (r.pay_method || '').toString();
-				// Keep sales that do NOT have efectivo or transf
-				if (pm === 'efectivo' || pm === 'transf') continue;
+				// Keep sales that do NOT have efectivo, transf, or marce
+				if (pm === 'efectivo' || pm === 'transf' || pm === 'marce') continue;
 				const qa = r.qty_arco || 0;
 				const qm = r.qty_melo || 0;
 				const qma = r.qty_mara || 0;
@@ -2071,7 +2071,20 @@ function openRangeCalendarPopover(onPickedRange, anchorX, anchorY, opts) {
 	prev.addEventListener('click', () => { view.setMonth(view.getMonth() - 1); render(); });
 	next.addEventListener('click', () => { view.setMonth(view.getMonth() + 1); render(); });
 
-	pop.append(header, wk, grid);
+	const actions = document.createElement('div'); actions.style.display = 'flex'; actions.style.justifyContent = 'space-between'; actions.style.marginTop = '8px';
+	const clearBtn = document.createElement('button'); clearBtn.className = 'date-nav'; clearBtn.textContent = 'Limpiar';
+	const genBtn = document.createElement('button'); genBtn.className = 'date-nav'; genBtn.textContent = 'Generar'; genBtn.disabled = true;
+	clearBtn.addEventListener('click', () => { startIso = null; endIso = null; genBtn.disabled = true; render(); });
+	genBtn.addEventListener('click', () => { if (startIso && endIso && typeof onPickedRange === 'function') { cleanup(); onPickedRange({ start: startIso, end: endIso }); } });
+	actions.append(clearBtn, genBtn);
+
+	function updateActions() { genBtn.disabled = !(startIso && endIso); }
+
+	// wrap original render to update actions
+	const origRender = render;
+	render = function(){ origRender(); updateActions(); };
+
+	pop.append(header, wk, grid, actions);
 	document.body.appendChild(pop);
 
 	requestAnimationFrame(() => {
