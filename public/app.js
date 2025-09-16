@@ -111,7 +111,7 @@ function renderClientDetailTable(rows) {
 		for (const o of opts) { const opt = document.createElement('option'); opt.value = o.v; opt.textContent = o.label; if (current === o.v) opt.selected = true; sel.appendChild(opt); }
 		function applyPayClass() {
 			wrap.classList.remove('placeholder','method-efectivo','method-transf','method-marce','method-jorge');
-			const val = sel.value || current;
+			const val = sel.value;
 			if (!val) wrap.classList.add('placeholder');
 			else if (val === 'efectivo') wrap.classList.add('method-efectivo');
 			else if (val === 'transf') wrap.classList.add('method-transf');
@@ -655,7 +655,7 @@ function renderTable() {
 				}
 				function applyPayClass() {
 					wrap.classList.remove('placeholder','method-efectivo','method-transf','method-marce','method-jorge');
-					const val = sel.value || current;
+					const val = sel.value;
 					if (!val) wrap.classList.add('placeholder');
 					else if (val === 'efectivo') wrap.classList.add('method-efectivo');
 					else if (val === 'transf') wrap.classList.add('method-transf');
