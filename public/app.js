@@ -556,6 +556,8 @@ function applyAuthVisibility() {
 	if (logoutBtn) logoutBtn.style.display = state.currentUser ? 'inline-flex' : 'none';
 	const addSellerWrap = document.querySelector('.seller-add');
 	if (addSellerWrap) addSellerWrap.style.display = isSuper ? 'block' : 'none';
+	const usersBtn = document.getElementById('users-button');
+	if (usersBtn) usersBtn.style.display = isSuper ? 'inline-block' : 'none';
 }
 
 function calcRowTotal(q) {
@@ -1389,6 +1391,8 @@ async function exportConsolidatedForDates(isoList) {
 		}, ev.clientX, ev.clientY);
 	});
 	usersBtn?.addEventListener('click', async () => {
+		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+		if (!isSuper) { notify.error('Solo el superadministrador puede ver este reporte'); return; }
 		await exportUsersExcel();
 	});
 })();
