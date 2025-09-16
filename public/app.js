@@ -508,10 +508,7 @@ async function loadSellers() {
 		if (fresh) {
 			state.currentSeller = fresh;
 			const letter = (fresh.name || '').trim().charAt(0).toUpperCase();
-			const color = fresh.bill_color || '#fdd835';
-			const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 40"><rect x="1" y="1" width="62" height="38" rx="4" fill="${color}"/><circle cx="32" cy="20" r="9" fill="rgba(255,255,255,0.85)"/><text x="32" y="24" text-anchor="middle" font-family="ui-sans-serif, -apple-system, Segoe UI, Roboto, Arial" font-size="16" fill="#000" font-weight="800">${letter}</text></svg>`;
-			const url = `url('data:image/svg+xml;utf8,${encodeURIComponent(svg)}')`;
-			document.documentElement.style.setProperty('--seller-bill-url', url);
+			// seller-specific icon removed
 		}
 	}
 	renderSellerButtons();
@@ -546,10 +543,7 @@ async function enterSeller(id) {
 	// Apply seller bill icon CSS var
 	try {
 		const letter = (seller.name || '').trim().charAt(0).toUpperCase();
-		const color = seller.bill_color || '#fdd835';
-		const svg = `<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 40\"><rect x=\"1\" y=\"1\" width=\"62\" height=\"38\" rx=\"4\" fill=\"${color}\"/><circle cx=\"32\" cy=\"20\" r=\"9\" fill=\"rgba(255,255,255,0.85)\"/><text x=\"32\" y=\"24\" text-anchor=\"middle\" font-family=\"ui-sans-serif, -apple-system, Segoe UI, Roboto, Arial\" font-size=\"16\" fill=\"#000\" font-weight=\"800\">${letter}</text></svg>`;
-		const url = `url('data:image/svg+xml;utf8,${encodeURIComponent(svg)}')`;
-		document.documentElement.style.setProperty('--seller-bill-url', url);
+		// seller-specific icon removed
 	} catch {}
 	state.saleDays = [];
 	state.selectedDayId = null;
@@ -1144,7 +1138,7 @@ function updateSummary() {
 		qn += nute;
 		grand += calcRowTotal({ arco: s.qty_arco, melo: s.qty_melo, mara: s.qty_mara, oreo: s.qty_oreo, nute: s.qty_nute });
 		const pm = (s.pay_method || '').toString();
-		if (pm === 'transf' || pm === 'seller' || pm === 'efectivo') {
+		if (pm === 'transf' || pm === 'marce') {
 			paidQa += arco; paidQm += melo; paidQma += mara; paidQo += oreo; paidQn += nute;
 		}
 	}
@@ -1401,8 +1395,8 @@ async function exportCarteraExcel(startIso, endIso) {
 			const sales = await api('GET', `${API.Sales}?${params.toString()}`);
 			for (const r of (sales || [])) {
 				const pm = (r.pay_method || '').toString();
-				// Keep sales that do NOT have efectivo, transf, or seller
-				if (pm === 'efectivo' || pm === 'transf' || pm === 'seller') continue;
+				// Keep sales that do NOT have efectivo, transf, or marce
+				if (pm === 'efectivo' || pm === 'transf' || pm === 'marce') continue;
 				const qa = r.qty_arco || 0;
 				const qm = r.qty_melo || 0;
 				const qma = r.qty_mara || 0;
@@ -1410,7 +1404,7 @@ async function exportCarteraExcel(startIso, endIso) {
 				const qn = r.qty_nute || 0;
 				const tot = r.total_cents || 0;
 				totalGrand += (tot || 0);
-				const payLabel = pm === '' ? '-' : (pm === 'seller' ? 'Vendedor' : pm);
+				const payLabel = pm === '' ? '-' : pm;
 				rows.push([
 					String(d.day).slice(0,10), s.name || '', r.client_name || '', payLabel,
 					r.is_paid ? '✓' : '',
@@ -1514,8 +1508,7 @@ function openUsersMenu(anchorX, anchorY) {
 	const b1 = document.createElement('button'); b1.className = 'press-btn'; b1.textContent = 'Reporte';
 	const b2 = document.createElement('button'); b2.className = 'press-btn'; b2.textContent = 'Cambiar contraseñas';
 	const b3 = document.createElement('button'); b3.className = 'press-btn'; b3.textContent = 'Asignar roles';
-	const b4 = document.createElement('button'); b4.className = 'press-btn'; b4.textContent = 'Asignar iconos';
-	list.appendChild(b1); list.appendChild(b2); list.appendChild(b3); list.appendChild(b4);
+	list.appendChild(b1); list.appendChild(b2); list.appendChild(b3);
 	pop.append(list);
 	document.body.appendChild(pop);
 
@@ -1547,96 +1540,10 @@ function openUsersMenu(anchorX, anchorY) {
 		try { await api('PATCH', API.Users, { action: 'setRole', username, role }); notify.success('Rol actualizado'); cleanup(); }
 		catch { notify.error('No se pudo actualizar'); }
 	});
-	b4.addEventListener('click', async (ev) => { await openAssignIconsDialog(ev.clientX, ev.clientY); cleanup(); });
+	// Removed Assign Icons
 }
 
-async function openAssignIconsDialog(anchorX, anchorY) {
-    try {
-        const sellers = await api('GET', API.Sellers);
-        const pop = document.createElement('div');
-        pop.className = 'confirm-popover';
-        pop.style.position = 'fixed';
-        const baseX = (typeof anchorX === 'number') ? anchorX : (window.innerWidth / 2);
-        const baseY = (typeof anchorY === 'number') ? anchorY : (window.innerHeight / 2);
-        pop.style.left = baseX + 'px'; pop.style.top = (baseY + 6) + 'px'; pop.style.transform = 'translate(-50%, 0)'; pop.style.zIndex = '1000';
-        pop.style.maxWidth = 'min(92vw, 520px)'; pop.style.wordBreak = 'break-word';
-        const title = document.createElement('div'); title.className = 'history-title'; title.textContent = 'Asignar iconos';
-        const form = document.createElement('div'); form.style.display = 'grid'; form.style.gridTemplateColumns = '1fr'; form.style.gap = '8px';
-        const sellerSel = document.createElement('select'); sellerSel.className = 'input-cell';
-        for (const s of (sellers || [])) {
-            const opt = document.createElement('option'); opt.value = String(s.id); opt.textContent = s.name || '';
-            sellerSel.appendChild(opt);
-        }
-        const palette = [
-            '#00c853', '#2e7d32', '#43a047', '#66bb6a', '#a5d6a7',
-            '#1e88e5', '#3949ab', '#8e24aa', '#d81b60', '#fdd835',
-            '#ff8f00', '#6d4c41', '#00897b', '#0097a7', '#7cb342'
-        ];
-        const grid = document.createElement('div'); grid.style.display = 'grid'; grid.style.gridTemplateColumns = 'repeat(5, 1fr)'; grid.style.gap = '6px';
-        let selectedColor = null;
-        function makeBillSvg(color, letter) {
-            const l = (letter || '').toUpperCase().slice(0,1) || 'S';
-            const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 40">
-  <rect x="1" y="1" width="62" height="38" rx="4" fill="${color}"/>
-  <circle cx="32" cy="20" r="9" fill="rgba(255,255,255,0.85)"/>
-  <text x="32" y="24" text-anchor="middle" font-family="ui-sans-serif, -apple-system, Segoe UI, Roboto, Arial" font-size="16" fill="#000" font-weight="800">${l}</text>
-</svg>`;
-            return `url('data:image/svg+xml;utf8,${encodeURIComponent(svg)}')`;
-        }
-        function renderGrid() {
-            grid.innerHTML = '';
-            const seller = (sellers || []).find(s => String(s.id) === sellerSel.value);
-            const letter = (seller?.name || '').trim().charAt(0).toUpperCase() || 'S';
-            for (const c of palette) {
-                const btn = document.createElement('button');
-                btn.type = 'button'; btn.className = 'press-btn';
-                btn.style.width = '64px'; btn.style.height = '40px'; btn.style.padding = '0'; btn.style.borderRadius = '6px';
-                btn.style.background = makeBillSvg(c, letter);
-                btn.title = c;
-                btn.addEventListener('click', () => { selectedColor = c; updatePreview(); });
-                grid.appendChild(btn);
-            }
-        }
-        const preview = document.createElement('div'); preview.style.display = 'flex'; preview.style.gap = '8px'; preview.style.alignItems = 'center';
-        const prevBox = document.createElement('div'); prevBox.style.width = '64px'; prevBox.style.height = '40px'; prevBox.style.borderRadius = '6px'; prevBox.style.border = '1px solid var(--border)';
-        const info = document.createElement('div'); info.textContent = 'Vista previa'; preview.append(prevBox, info);
-        function updatePreview() {
-            const seller = (sellers || []).find(s => String(s.id) === sellerSel.value);
-            const letter = (seller?.name || '').trim().charAt(0).toUpperCase() || 'S';
-            const color = selectedColor || seller?.bill_color || '#fdd835';
-            prevBox.style.background = makeBillSvg(color, letter);
-        }
-        sellerSel.addEventListener('change', () => { selectedColor = null; renderGrid(); updatePreview(); });
-        renderGrid(); updatePreview();
-        form.append(sellerSel, preview, grid);
-        const actions = document.createElement('div'); actions.className = 'confirm-actions';
-        const cancelBtn = document.createElement('button'); cancelBtn.className = 'press-btn'; cancelBtn.textContent = 'Cancelar';
-        const saveBtn = document.createElement('button'); saveBtn.className = 'press-btn btn-primary'; saveBtn.textContent = 'Guardar';
-        actions.append(cancelBtn, saveBtn);
-        pop.append(title, form, actions);
-        document.body.appendChild(pop);
-        function cleanup(){ document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); if (pop.parentNode) pop.parentNode.removeChild(pop); }
-        function outside(ev){ if (!pop.contains(ev.target)) cleanup(); }
-        setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
-        cancelBtn.addEventListener('click', cleanup);
-        saveBtn.addEventListener('click', async () => {
-            const seller = (sellers || []).find(s => String(s.id) === sellerSel.value);
-            if (!seller) return;
-            const color = selectedColor || seller.bill_color || '#fdd835';
-            await api('PATCH', API.Sellers, { id: seller.id, bill_color: color });
-            // Update local cache
-            seller.bill_color = color;
-            // If current seller matches, set CSS var for dynamic icon
-            if (state.currentSeller && state.currentSeller.id === seller.id) {
-                document.documentElement.style.setProperty('--seller-bill-url', makeBillSvg(color, (seller.name||'').trim().charAt(0).toUpperCase()));
-            }
-            notify.success('Icono asignado');
-            cleanup();
-        });
-    } catch {
-        notify.error('No se pudo abrir asignar iconos');
-    }
-}
+// Removed openAssignIconsDialog
 
 async function exportUsersExcel() {
 	try {
