@@ -104,7 +104,8 @@
 					if (Array.isArray(recs) && recs.length) {
 						const r = recs[0];
 						const card = document.createElement('div'); card.className = 'transfer-card';
-						const img = document.createElement('img'); img.alt = 'Comprobante'; img.src = r.image_base64;
+						const img = document.createElement('img'); img.alt = 'Comprobante'; img.src = r.image_base64; img.addEventListener('click', () => openLightbox(r.image_base64));
+						const img = document.createElement('img'); img.alt = 'Comprobante'; img.src = r.image_base64; img.addEventListener('click', () => openLightbox(r.image_base64));
 						const meta = document.createElement('div'); meta.className = 'transfer-meta';
 						const l1 = document.createElement('div'); l1.className = 'line'; l1.innerHTML = `<span>${(seller.name||'').toString()}</span><span>${String(day.day).slice(0,10)}</span>`;
 						const l2 = document.createElement('div'); l2.className = 'line'; l2.innerHTML = `<span>${(sale.client_name||'').toString()}</span><span>${(sale.total_cents||0)}</span>`;
@@ -147,6 +148,23 @@
 				pop.append(header, wk, grid, actions); document.body.appendChild(pop); pop.classList.add('aladdin-pop');
 				document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); render();
 			};
+		}
+
+		function openLightbox(src){
+			const backdrop = document.createElement('div'); backdrop.className = 'lightbox-backdrop';
+			const box = document.createElement('div'); box.className = 'lightbox';
+			const img = document.createElement('img'); img.src = src; img.alt = 'Comprobante';
+			const actions = document.createElement('div'); actions.className = 'lightbox-actions';
+			const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn'; closeBtn.textContent = 'Cerrar';
+			const downBtn = document.createElement('button'); downBtn.className = 'press-btn'; downBtn.textContent = 'Descargar';
+			closeBtn.addEventListener('click', cleanup);
+			downBtn.addEventListener('click', () => {
+				const a = document.createElement('a'); a.href = src; a.download = `comprobante_${Date.now()}.jpg`; document.body.appendChild(a); a.click(); a.remove();
+			});
+			function outside(e){ if (!box.contains(e.target)) cleanup(); }
+			function cleanup(){ document.removeEventListener('mousedown', outside, true); if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop); }
+			actions.append(closeBtn, downBtn); box.append(img, actions); backdrop.appendChild(box); document.body.appendChild(backdrop);
+			setTimeout(() => document.addEventListener('mousedown', outside, true), 0);
 		}
 
 		load();

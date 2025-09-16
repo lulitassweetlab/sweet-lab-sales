@@ -2127,7 +2127,12 @@ button.secondary.press-btn:active {
 .transfers-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; position: sticky; top: 0; background: var(--background, #fff); padding: 8px 0; z-index: 10; }
 .transfers-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-top: 12px; }
 .transfer-card { border: 1px solid var(--border, #e5e7eb); border-radius: 10px; overflow: hidden; background: var(--card, #fff); display: flex; flex-direction: column; }
-.transfer-card img { display: block; width: 100%; height: 200px; object-fit: cover; background: #f3f4f6; }
+.transfer-card img { display: block; width: 100%; height: auto; object-fit: contain; background: #f3f4f6; cursor: zoom-in; }
+.lightbox-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.lightbox { position: relative; max-width: 96vw; max-height: 92vh; }
+.lightbox img { display: block; max-width: 96vw; max-height: 92vh; width: auto; height: auto; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+.lightbox-actions { position: absolute; top: -44px; right: 0; display: flex; gap: 8px; }
+.lightbox-actions .press-btn { background: #fff; color: #111; border-color: transparent; }
 .transfer-meta { padding: 8px 10px; font-size: 12px; color: #374151; }
 .transfer-meta .line { display: flex; justify-content: space-between; gap: 8px; }
 .transfer-meta .note { color: #6b7280; margin-top: 4px; white-space: pre-wrap; }
