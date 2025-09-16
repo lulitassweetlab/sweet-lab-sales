@@ -2055,7 +2055,6 @@ function openRangeCalendarPopover(onPickedRange, anchorX, anchorY, opts) {
 				if (!endIso) {
 					if (iso < startIso) { endIso = startIso; startIso = iso; } else { endIso = iso; }
 					render();
-					if (typeof onPickedRange === 'function') { cleanup(); onPickedRange({ start: startIso, end: endIso }); }
 					return;
 				}
 				// If both set, restart selection
