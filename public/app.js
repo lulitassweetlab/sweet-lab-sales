@@ -1392,10 +1392,47 @@ async function exportConsolidatedForDates(isoList) {
 	});
 	usersBtn?.addEventListener('click', async () => {
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
-		if (!isSuper) { notify.error('Solo el superadministrador puede ver este reporte'); return; }
-		await exportUsersExcel();
+		if (!isSuper) { notify.error('Solo el superadministrador'); return; }
+		openUsersMenu();
 	});
 })();
+
+function openUsersMenu() {
+	const pop = document.createElement('div');
+	pop.className = 'confirm-popover';
+	pop.style.position = 'fixed';
+	pop.style.left = (window.innerWidth / 2) + 'px';
+	pop.style.top = (window.innerHeight / 2 + 6) + 'px';
+	pop.style.transform = 'translate(-50%, 0)';
+	pop.style.zIndex = '1000';
+	const title = document.createElement('div'); title.className = 'history-title'; title.textContent = 'Usuarios';
+	const list = document.createElement('div'); list.className = 'history-list';
+	const b1 = document.createElement('button'); b1.className = 'press-btn btn-primary'; b1.textContent = 'Excel de usuarios';
+	const b2 = document.createElement('button'); b2.className = 'press-btn'; b2.textContent = 'Cambiar contraseña';
+	const b3 = document.createElement('button'); b3.className = 'press-btn'; b3.textContent = 'Cambiar rol';
+	list.appendChild(b1); list.appendChild(b2); list.appendChild(b3);
+	const actions = document.createElement('div'); actions.className = 'confirm-actions';
+	const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn'; closeBtn.textContent = 'Cerrar'; actions.appendChild(closeBtn);
+	pop.append(title, list, actions);
+	document.body.appendChild(pop);
+	function cleanup(){ document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); if (pop.parentNode) pop.parentNode.removeChild(pop); }
+	function outside(ev){ if (!pop.contains(ev.target)) cleanup(); }
+	setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
+	closeBtn.addEventListener('click', cleanup);
+	b1.addEventListener('click', async () => { await exportUsersExcel(); cleanup(); });
+	b2.addEventListener('click', async () => {
+		const username = prompt('Usuario a modificar:'); if (!username) return;
+		const newPass = prompt('Nueva contraseña (mín 6 caracteres):'); if (!newPass) return;
+		try { await api('PATCH', API.Users, { action: 'setPassword', username, newPassword: newPass }); notify.success('Contraseña actualizada'); cleanup(); }
+		catch { notify.error('No se pudo actualizar'); }
+	});
+	b3.addEventListener('click', async () => {
+		const username = prompt('Usuario a modificar rol:'); if (!username) return;
+		const role = prompt('Nuevo rol (user, admin, superadmin):'); if (!role) return;
+		try { await api('PATCH', API.Users, { action: 'setRole', username, role }); notify.success('Rol actualizado'); cleanup(); }
+		catch { notify.error('No se pudo actualizar'); }
+	});
+}
 
 async function exportUsersExcel() {
 	try {

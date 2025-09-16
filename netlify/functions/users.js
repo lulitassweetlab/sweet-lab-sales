@@ -66,6 +66,34 @@ export async function handler(event) {
 				await sql`INSERT INTO users (username, password_hash, role) VALUES (${rawUsername}, ${newPassword}, 'user') ON CONFLICT (username) DO UPDATE SET password_hash=EXCLUDED.password_hash`;
 				return json({ ok: true });
 			}
+			case 'PATCH': {
+				// Admin actions: set password or set role
+				// Body: { action: 'setPassword'|'setRole', username, newPassword?, role? }
+				const data = JSON.parse(event.body || '{}');
+				const action = (data.action || '').toString();
+				const rawUsername = (data.username || '').toString().trim();
+				const username = rawUsername.toLowerCase();
+				if (!action || !username) return json({ error: 'Datos incompletos' }, 400);
+				if (action === 'setPassword') {
+					const newPassword = (data.newPassword || '').toString();
+					if (!newPassword || newPassword.length < 6) return json({ error: 'Nueva contraseña inválida' }, 400);
+					const rows = await sql`SELECT id FROM users WHERE lower(username) = ${username} LIMIT 1`;
+					if (rows.length) {
+						await sql`UPDATE users SET password_hash=${newPassword} WHERE id=${rows[0].id}`;
+						return json({ ok: true, updated: true });
+					}
+					await sql`INSERT INTO users (username, password_hash, role) VALUES (${rawUsername}, ${newPassword}, 'user')`;
+					return json({ ok: true, created: true });
+				} else if (action === 'setRole') {
+					const role = (data.role || '').toString();
+					if (!role || !['user','admin','superadmin'].includes(role)) return json({ error: 'Rol inválido' }, 400);
+					const rows = await sql`SELECT id FROM users WHERE lower(username) = ${username} LIMIT 1`;
+					if (!rows.length) return json({ error: 'Usuario no encontrado' }, 404);
+					await sql`UPDATE users SET role=${role} WHERE id=${rows[0].id}`;
+					return json({ ok: true });
+				}
+				return json({ error: 'Acción inválida' }, 400);
+			}
 			default:
 				return json({ error: 'Método no permitido' }, 405);
 		}
