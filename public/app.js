@@ -412,6 +412,12 @@ function isSuperAdmin(user) {
 
 function bindLogin() {
 	const btn = document.getElementById('login-btn');
+	// Allow pressing Enter in user or password inputs to trigger login
+	const userInput = document.getElementById('login-user');
+	const passInput = document.getElementById('login-pass');
+	function triggerLoginOnEnter(e) { if (e.key === 'Enter') { e.preventDefault(); btn?.click(); } }
+	userInput?.addEventListener('keydown', triggerLoginOnEnter);
+	passInput?.addEventListener('keydown', triggerLoginOnEnter);
 	btn?.addEventListener('click', () => {
 		const user = document.getElementById('login-user')?.value?.trim();
 		const pass = document.getElementById('login-pass')?.value ?? '';
