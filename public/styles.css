@@ -778,6 +778,8 @@ tfoot td { font-weight: 700; }
 .date-popover .date-cell.selected { background: var(--secondary); border-color: var(--primary); color: var(--text); font-weight: 600; }
 .date-popover .date-cell.disabled { opacity: 0; pointer-events: none; }
 .date-popover .date-cell:hover { background: var(--secondary); }
+.date-popover .date-cell.in-range { background: rgba(252, 231, 243, 0.6); }
+.date-popover .date-cell.range-start, .date-popover .date-cell.range-end { background: var(--secondary); border-color: var(--primary); font-weight: 600; }
 .clients-popover { background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.24); padding: 10px; min-width: 260px; max-width: 90vw; max-height: 70vh; overflow: auto; }
 .clients-title { font-weight: 600; margin-bottom: 8px; }
 .clients-table { width: 100%; border-collapse: collapse; }

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Transferencias</title>
+	<link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+	<header class="app-header">
+		<div class="header-row">
+			<div class="header-left">
+				<img src="/logo.png" alt="Lulitas Logo" class="app-logo" />
+				<h1>Transferencias</h1>
+			</div>
+			<div class="header-actions">
+				<a href="/" class="press-btn">Volver</a>
+			</div>
+		</div>
+	</header>
+	<main id="report-app" style="padding: 16px;">
+		<div id="range-label" style="margin-bottom: 12px; font-weight: 500;"></div>
+		<div id="report-content" class="transfers-loading">Cargando…</div>
+	</main>
+	<script>
+	(function(){
+		function qs(p){ return new URLSearchParams(location.search).get(p); }
+		const start = qs('start');
+		const end = qs('end');
+		const sellerId = qs('seller_id');
+		const label = document.getElementById('range-label');
+		if (start && end) {
+			const s = new Date(start); const e = new Date(end);
+			label.textContent = `Rango: ${isNaN(s)?start:s.toLocaleDateString()} → ${isNaN(e)?end:e.toLocaleDateString()}`;
+		}
+		const container = document.getElementById('report-content');
+		async function run(){
+			container.className = 'transfers-loading'; container.textContent = 'Cargando…';
+			try {
+				const params = new URLSearchParams({ receipts_range: '1', start, end });
+				if (sellerId) params.set('seller_id', sellerId);
+				const res = await fetch('/api/sales?' + params.toString());
+				if (!res.ok) throw new Error('HTTP ' + res.status);
+				const rows = await res.json();
+				if (!Array.isArray(rows) || rows.length === 0) { container.className = 'transfers-empty'; container.textContent = 'Sin transferencias en el rango'; return; }
+				const grid = document.createElement('div'); grid.className = 'transfers-grid';
+				for (const r of rows) {
+					const card = document.createElement('div'); card.className = 'transfer-card';
+					const img = document.createElement('img'); img.className = 'transfer-img'; img.src = r.image_base64; img.alt = 'Comprobante';
+					const meta = document.createElement('div'); meta.className = 'transfer-meta';
+					const when = r.created_at ? new Date(r.created_at) : null;
+					meta.textContent = `${when ? when.toLocaleString() : ''}${r.note_text ? ' · ' + r.note_text : ''}`;
+					card.append(img, meta);
+					grid.appendChild(card);
+				}
+				container.className = '';
+				container.innerHTML = '';
+				container.appendChild(grid);
+			} catch (e) { container.className = 'transfers-error'; container.textContent = 'Error cargando transferencias'; }
+		}
+		run();
+	})();
+	</script>
+</body>
+</html>

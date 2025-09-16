@@ -27,6 +27,36 @@ export async function handler(event) {
 					}
 					return json(rows);
 				}
+				// List receipts by date range (inclusive) optionally filtered by seller_id
+				const receiptsRange = params.get('receipts_range');
+				if (receiptsRange) {
+					const start = (params.get('start') || '').toString();
+					const end = (params.get('end') || '').toString();
+					const sellerIdParam = params.get('seller_id');
+					if (!start || !end) return json({ error: 'start y end requeridos (YYYY-MM-DD)' }, 400);
+					// Build inclusive range over sale_days.day
+					let rows;
+					if (sellerIdParam) {
+						const sellerId = Number(sellerIdParam);
+						if (!sellerId) return json({ error: 'seller_id inválido' }, 400);
+						rows = await sql`
+							SELECT r.id, r.sale_id, r.image_base64, r.note_text, r.created_at, sd.day, s.seller_id
+							FROM sale_receipts r
+							JOIN sales s ON s.id = r.sale_id
+							LEFT JOIN sale_days sd ON sd.id = s.sale_day_id
+							WHERE sd.day BETWEEN ${start} AND ${end} AND s.seller_id = ${sellerId}
+							ORDER BY r.created_at DESC, r.id DESC`;
+					} else {
+						rows = await sql`
+							SELECT r.id, r.sale_id, r.image_base64, r.note_text, r.created_at, sd.day, s.seller_id
+							FROM sale_receipts r
+							JOIN sales s ON s.id = r.sale_id
+							LEFT JOIN sale_days sd ON sd.id = s.sale_day_id
+							WHERE sd.day BETWEEN ${start} AND ${end}
+							ORDER BY r.created_at DESC, r.id DESC`;
+					}
+					return json(rows);
+				}
 				const historyFor = params.get('history_for');
 				if (historyFor) {
 					const saleId = Number(historyFor);

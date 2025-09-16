@@ -623,6 +623,8 @@ function applyAuthVisibility() {
 	if (addSellerWrap) addSellerWrap.style.display = isSuper ? 'block' : 'none';
 	const usersBtn = document.getElementById('users-button');
 	if (usersBtn) usersBtn.style.display = isSuper ? 'inline-block' : 'none';
+	const transfersReportBtn = document.getElementById('transfers-report-button');
+	if (transfersReportBtn) transfersReportBtn.style.display = isSuper ? 'inline-block' : 'none';
 }
 
 function calcRowTotal(q) {
@@ -1565,6 +1567,18 @@ function bindEvents() {
 	openTransfersBtn?.addEventListener('click', openTransfersSheet);
 	const closeTransfersBtn = document.getElementById('close-transfers');
 	closeTransfersBtn?.addEventListener('click', closeTransfersSheet);
+
+	// Superadmin Transfers report button
+	const transfersReportBtn = document.getElementById('transfers-report-button');
+	transfersReportBtn?.addEventListener('click', (ev) => {
+		openTransfersRangePopover((startIso, endIso) => {
+			if (!startIso || !endIso) return;
+			const params = new URLSearchParams({ start: startIso, end: endIso });
+			// Optional: filter by current seller if present and not in admin home
+			if (state.currentSeller?.id) params.set('seller_id', String(state.currentSeller.id));
+			window.location.href = `/transfers.html?${params.toString()}`;
+		}, ev?.clientX, ev?.clientY);
+	});
 }
 
 async function buildRestoreReport() {
@@ -2022,6 +2036,90 @@ function openMultiCalendarPopover(onPickedList, anchorX, anchorY) {
 		pop.style.left = left + 'px'; pop.style.top = top + 'px';
 	});
 	render();
+}
+
+function openTransfersRangePopover(onPickedRange, anchorX, anchorY) {
+    // Aladdin-like animated popover
+    const pop = document.createElement('div');
+    pop.className = 'date-popover aladdin-pop';
+    pop.style.position = 'fixed';
+    const baseX = (typeof anchorX === 'number') ? anchorX : (window.innerWidth / 2);
+    const baseY = (typeof anchorY === 'number') ? anchorY : (window.innerHeight / 2);
+    pop.style.left = baseX + 'px';
+    pop.style.top = (baseY + 8) + 'px';
+    pop.style.transform = 'translate(-50%, 0)';
+    pop.style.zIndex = '1000';
+    pop.setAttribute('role', 'dialog');
+
+    const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    let view = new Date(); view.setDate(1);
+    let startIso = null;
+    let endIso = null;
+
+    const header = document.createElement('div'); header.className = 'date-popover-header';
+    const prev = document.createElement('button'); prev.className = 'date-nav'; prev.textContent = '‹';
+    const label = document.createElement('div'); label.className = 'date-label';
+    const next = document.createElement('button'); next.className = 'date-nav'; next.textContent = '›';
+    const clearBtn = document.createElement('button'); clearBtn.className = 'date-nav'; clearBtn.textContent = 'Limpiar';
+    const applyBtn = document.createElement('button'); applyBtn.className = 'date-nav'; applyBtn.textContent = 'Generar';
+    header.append(prev, label, next, clearBtn, applyBtn);
+
+    const grid = document.createElement('div'); grid.className = 'date-grid';
+    const weekdays = ['L','M','X','J','V','S','D'];
+    const wk = document.createElement('div'); wk.className = 'date-weekdays';
+    for (const w of weekdays) { const c = document.createElement('div'); c.textContent = w; wk.appendChild(c); }
+
+    function isoUTC(y, m, d) { return new Date(Date.UTC(y, m, d)).toISOString().slice(0,10); }
+    function isInRange(iso) { if (!startIso || !endIso) return false; return iso >= startIso && iso <= endIso; }
+
+    function render() {
+        label.textContent = months[view.getMonth()] + ' ' + view.getFullYear();
+        grid.innerHTML = '';
+        const year = view.getFullYear();
+        const month = view.getMonth();
+        const firstDay = (new Date(Date.UTC(year, month, 1)).getUTCDay() + 6) % 7; // Monday=0
+        const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+        for (let i = 0; i < firstDay; i++) { const cell = document.createElement('button'); cell.className = 'date-cell disabled'; cell.disabled = true; grid.appendChild(cell); }
+        for (let d = 1; d <= daysInMonth; d++) {
+            const iso = isoUTC(year, month, d);
+            const cell = document.createElement('button');
+            let cls = 'date-cell';
+            if (startIso === iso) cls += ' range-start selected';
+            else if (endIso === iso) cls += ' range-end selected';
+            else if (isInRange(iso)) cls += ' in-range';
+            cell.className = cls;
+            cell.textContent = String(d);
+            cell.addEventListener('click', () => {
+                if (!startIso || (startIso && endIso)) { startIso = iso; endIso = null; }
+                else if (iso < startIso) { endIso = startIso; startIso = iso; }
+                else { endIso = iso; }
+                render();
+            });
+            grid.appendChild(cell);
+        }
+    }
+
+    function cleanup() { document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); if (pop.parentNode) pop.parentNode.removeChild(pop); }
+    function outside(ev) { if (!pop.contains(ev.target)) cleanup(); }
+
+    prev.addEventListener('click', () => { view.setMonth(view.getMonth() - 1); render(); });
+    next.addEventListener('click', () => { view.setMonth(view.getMonth() + 1); render(); });
+    clearBtn.addEventListener('click', () => { startIso = null; endIso = null; render(); });
+    applyBtn.addEventListener('click', () => { if (startIso && endIso) { const a = startIso; const b = endIso; cleanup(); if (typeof onPickedRange === 'function') onPickedRange(a, b); } });
+
+    pop.append(header, wk, grid);
+    document.body.appendChild(pop);
+    requestAnimationFrame(() => {
+        const margin = 8; const r = pop.getBoundingClientRect(); let left = baseX; let top = baseY + 8;
+        const vv = window.visualViewport; const vw = vv?.width || window.innerWidth; const vh = vv?.height || window.innerHeight; const vl = vv?.offsetLeft || 0; const vt = vv?.offsetTop || 0; const isSmall = window.matchMedia('(max-width: 600px)').matches;
+        if (isSmall && baseY > (vt + vh * 0.6)) top = baseY - 8 - r.height;
+        left = Math.min(Math.max(left, vl + margin), vl + vw - margin);
+        top = Math.min(Math.max(top, vt + margin), vt + vh - margin);
+        pop.style.left = left + 'px'; pop.style.top = top + 'px';
+    });
+    document.addEventListener('mousedown', outside, true);
+    document.addEventListener('touchstart', outside, true);
+    render();
 }
 
 async function openConfirmPopover(message, anchorX, anchorY) {
