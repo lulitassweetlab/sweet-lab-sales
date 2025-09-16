@@ -136,6 +136,14 @@ function renderClientDetailTable(rows) {
 				pay_method: sel.value || null,
 				_actor_name: state.currentUser?.name || ''
 			});
+			try {
+				const val = (sel.value || '').toString();
+				const fmt = (v) => v === 'efectivo' ? 'Efectivo' : v === 'transf' ? 'Transferencia' : v === 'marce' ? 'Marce' : '-';
+				const client = (state._clientDetailName || '').toString().trim() || 'Cliente';
+				const seller = String((state?.currentSeller?.name || state?.currentUser?.name || '') || '');
+				const msg = `${client} pago: ${fmt(val)}` + (seller ? ` - ${seller}` : '');
+				notify.info(msg);
+			} catch {}
 			applyPayClass();
 		});
 		wrap.appendChild(sel); tdPay.appendChild(wrap);
@@ -659,6 +667,14 @@ function renderTable() {
 				applyPayClass();
 				sel.addEventListener('change', async () => {
 					await savePayMethod(tr, sale.id, sel.value);
+					try {
+						const val = (sel.value || '').toString();
+						const fmt = (v) => v === 'efectivo' ? 'Efectivo' : v === 'transf' ? 'Transferencia' : v === 'marce' ? 'Marce' : '-';
+						const client = (tr.querySelector('td.col-client input')?.value || '').trim() || 'Cliente';
+						const seller = String((state?.currentSeller?.name || state?.currentUser?.name || '') || '');
+						const msg = `${client} pago: ${fmt(val)}` + (seller ? ` - ${seller}` : '');
+						notify.info(msg);
+					} catch {}
 					applyPayClass();
 				});
 				wrap.addEventListener('click', (e) => { e.stopPropagation(); openPayMenu(wrap, sel, e.clientX, e.clientY); });

@@ -138,6 +138,16 @@ export async function handler(event) {
 				await emitQty('mara', current.qty_mara ?? 0, qma ?? 0);
 				await emitQty('oreo', current.qty_oreo ?? 0, qo ?? 0);
 				await emitQty('nute', current.qty_nute ?? 0, qn ?? 0);
+				// emit notification for payment method change
+				try {
+					const prevPm = (current.pay_method || '').toString();
+					const nextPm = (payMethod || '').toString();
+					if (prevPm !== nextPm) {
+						const fmt = (v) => v === 'efectivo' ? 'Efectivo' : v === 'transf' ? 'Transferencia' : v === 'marce' ? 'Marce' : '-';
+						const msg = `${client || 'Cliente'} pago: ${fmt(prevPm)} → ${fmt(nextPm)}` + (actor ? ` - ${actor}` : '');
+						await notifyDb({ type: 'pay', sellerId: Number(data.seller_id||0)||null, saleId: id, saleDayId: Number(data.sale_day_id||0)||null, message: msg, actorName: actor });
+					}
+				} catch {}
 				const row = await recalcTotalForId(id);
 				return json(row);
 			}
