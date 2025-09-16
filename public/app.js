@@ -398,6 +398,17 @@ function isAdmin(user) {
 	return u === 'jorge' || u === 'marcela' || u === 'aleja';
 }
 
+function getRole(user) {
+	const u = String(user || '').toLowerCase();
+	if (u === 'jorge') return 'superadmin';
+	if (u === 'marcela' || u === 'aleja') return 'admin';
+	return 'user';
+}
+
+function isSuperAdmin(user) {
+	return getRole(user) === 'superadmin';
+}
+
 function bindLogin() {
 	const btn = document.getElementById('login-btn');
 	btn?.addEventListener('click', () => {
@@ -407,7 +418,7 @@ function bindLogin() {
 		if (!user) { if (err) { err.textContent = 'Ingresa el usuario'; err.classList.remove('hidden'); } return; }
 		if (pass !== computePasswordFor(user)) { if (err) { err.textContent = 'Usuario o contraseña inválidos'; err.classList.remove('hidden'); } return; }
 		if (err) err.classList.add('hidden');
-		state.currentUser = { name: user, isAdmin: isAdmin(user) };
+		state.currentUser = { name: user, isAdmin: isAdmin(user), role: getRole(user), isSuperAdmin: isSuperAdmin(user) };
 		try { localStorage.setItem('authUser', JSON.stringify(state.currentUser)); } catch {}
 		applyAuthVisibility();
 		renderSellerButtons();
@@ -518,10 +529,11 @@ function switchView(id) {
 
 function applyAuthVisibility() {
 	const isAdminUser = !!state.currentUser?.isAdmin;
+	const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 	const logoutBtn = document.getElementById('logout-btn');
 	if (logoutBtn) logoutBtn.style.display = state.currentUser ? 'inline-flex' : 'none';
 	const addSellerWrap = document.querySelector('.seller-add');
-	if (addSellerWrap) addSellerWrap.style.display = isAdminUser ? 'block' : 'none';
+	if (addSellerWrap) addSellerWrap.style.display = isSuper ? 'block' : 'none';
 }
 
 function calcRowTotal(q) {
@@ -1357,6 +1369,8 @@ async function exportConsolidatedForDates(isoList) {
 
 function bindEvents() {
 	$('#add-seller').addEventListener('click', async () => {
+		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+		if (!isSuper) { notify.error('Solo Jorge puede agregar vendedores'); return; }
 		const name = (prompt('Nombre del nuevo vendedor:') || '').trim();
 		if (!name) return;
 		await addSeller(name);
@@ -2241,6 +2255,14 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 	})();
 	updateToolbarOffset();
 	try { const saved = localStorage.getItem('authUser'); if (saved) state.currentUser = JSON.parse(saved); } catch {}
+	// Backfill role fields if missing from older sessions
+	if (state.currentUser && !state.currentUser.role) {
+		const name = state.currentUser.name;
+		state.currentUser.role = getRole(name);
+		state.currentUser.isSuperAdmin = isSuperAdmin(name);
+		state.currentUser.isAdmin = isAdmin(name);
+		try { localStorage.setItem('authUser', JSON.stringify(state.currentUser)); } catch {}
+	}
 	await loadSellers();
 	bindLogin();
 	// Route initial view
