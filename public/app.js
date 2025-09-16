@@ -1403,8 +1403,9 @@ function openUsersMenu(anchorX, anchorY) {
 	pop.style.position = 'fixed';
 	const baseX = (typeof anchorX === 'number') ? anchorX : (window.innerWidth / 2);
 	const baseY = (typeof anchorY === 'number') ? anchorY : (window.innerHeight / 2);
+	// Temporarily position offscreen to measure height, then bottom-align to click (Aladdin up)
 	pop.style.left = baseX + 'px';
-	pop.style.top = (baseY + 6) + 'px';
+	pop.style.top = '-9999px';
 	pop.style.transform = 'translate(-50%, 0)';
 	pop.style.zIndex = '1000';
 	const title = document.createElement('div'); title.className = 'history-title'; title.textContent = 'Usuarios';
@@ -1417,6 +1418,19 @@ function openUsersMenu(anchorX, anchorY) {
 	const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn'; closeBtn.textContent = 'Cerrar'; actions.appendChild(closeBtn);
 	pop.append(title, list, actions);
 	document.body.appendChild(pop);
+
+	// Measure and position so bottom edge sits exactly at click Y, animate upward
+	const rect = pop.getBoundingClientRect();
+	const popHeight = rect.height;
+	const desiredBottomY = baseY; // bottom aligned with click
+	let topY = desiredBottomY - popHeight; // place upward
+	// Keep within viewport (min 8px from top)
+	const minTop = 8;
+	if (topY < minTop) topY = minTop;
+	// If clamped, bottom will be below click; attempt to shift left/right if needed remains centered
+	pop.style.top = topY + 'px';
+	// Trigger animation class
+	pop.classList.add('aladdin-pop');
 	function cleanup(){ document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); if (pop.parentNode) pop.parentNode.removeChild(pop); }
 	function outside(ev){ if (!pop.contains(ev.target)) cleanup(); }
 	setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
