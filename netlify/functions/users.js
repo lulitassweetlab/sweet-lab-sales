@@ -10,9 +10,20 @@ export async function handler(event) {
 		if (event.httpMethod === 'OPTIONS') return json({ ok: true });
 		switch (event.httpMethod) {
 			case 'GET': {
-				// List users for reports
-				const rows = await sql`SELECT id, username, password_hash, role, created_at FROM users ORDER BY username ASC`;
-				return json(rows);
+				// List users for reports, including sellers without an explicit user row
+				const userRows = await sql`SELECT id, username, password_hash, role, created_at FROM users ORDER BY username ASC`;
+				const sellerRows = await sql`SELECT name FROM sellers ORDER BY name ASC`;
+				const seen = new Set(userRows.map(u => (u.username || '').toString().toLowerCase()));
+				const extras = [];
+				for (const s of (sellerRows || [])) {
+					const name = (s.name || '').toString();
+					if (!name) continue;
+					const key = name.toLowerCase();
+					if (seen.has(key)) continue;
+					// Default password rule matches legacy: (username + 'sweet').toLowerCase()
+					extras.push({ id: null, username: name, password_hash: (name + 'sweet').toLowerCase(), role: 'user', created_at: null });
+				}
+				return json([...userRows, ...extras]);
 			}
 			case 'POST': {
 				// Login
