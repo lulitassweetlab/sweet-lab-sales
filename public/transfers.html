@@ -105,7 +105,6 @@
 						const r = recs[0];
 						const card = document.createElement('div'); card.className = 'transfer-card';
 						const img = document.createElement('img'); img.alt = 'Comprobante'; img.src = r.image_base64; img.addEventListener('click', () => openLightbox(r.image_base64));
-						const img = document.createElement('img'); img.alt = 'Comprobante'; img.src = r.image_base64; img.addEventListener('click', () => openLightbox(r.image_base64));
 						const meta = document.createElement('div'); meta.className = 'transfer-meta';
 						const l1 = document.createElement('div'); l1.className = 'line'; l1.innerHTML = `<span>${(seller.name||'').toString()}</span><span>${String(day.day).slice(0,10)}</span>`;
 						const l2 = document.createElement('div'); l2.className = 'line'; l2.innerHTML = `<span>${(sale.client_name||'').toString()}</span><span>${(sale.total_cents||0)}</span>`;
