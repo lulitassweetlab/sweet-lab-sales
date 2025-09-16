@@ -2129,6 +2129,8 @@ async function loadClientHistory(rawName) {
 				oreo: r.qty_oreo||0,
 				nute: r.qty_nute||0,
 				total,
+				saleId: r.id,
+				comment: String(r.comment_text || ''),
 			});
 		}
 	}
@@ -2143,7 +2145,23 @@ function renderClientHistory(rows) {
 	for (const r of (rows||[])) {
 		const tr = document.createElement('tr');
 		const pay = r.pay === 'efectivo' ? 'Efectivo' : r.pay === 'transf' ? 'Transf' : r.pay === 'marce' ? 'Marce' : '-';
+		const receiptTd = document.createElement('td');
+		const btn = document.createElement('button'); btn.className = 'press-btn'; btn.textContent = 'Ver';
+		btn.addEventListener('click', async (ev) => {
+			try {
+				const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(r.saleId)}`);
+				if (Array.isArray(recs) && recs.length) {
+					openReceiptViewerPopover(recs[0].image_base64, r.saleId, recs[0].created_at, ev.clientX, ev.clientY);
+				} else {
+					notify.info('Sin comprobante');
+				}
+			} catch { notify.info('Sin comprobante'); }
+		});
+		receiptTd.appendChild(btn);
+		const commentTd = document.createElement('td'); commentTd.textContent = (r.comment || '').trim();
 		tr.innerHTML = `<td>${formatDayLabel(r.day)}</td><td>${pay}</td><td>${r.arco||0}</td><td>${r.melo||0}</td><td>${r.mara||0}</td><td>${r.oreo||0}</td><td>${r.nute||0}</td><td>${fmtNo.format(r.total||0)}</td>`;
+		tr.appendChild(receiptTd);
+		tr.appendChild(commentTd);
 		tbody.appendChild(tr);
 		qa+=r.arco||0; qm+=r.melo||0; qma+=r.mara||0; qo+=r.oreo||0; qn+=r.nute||0; grand+=(r.total||0);
 	}
@@ -2176,41 +2194,7 @@ async function preloadRecurringClientsForSeller() {
 // Open a focused table for a given client name (filters current table to that cliente)
 function openClientTable(rawName, anchorX, anchorY) {
 	try {
-		const name = String(rawName || '').trim().toLowerCase();
-		if (!name) return;
-		// Clear current selection UI and only show rows for this client
-		const tbody = document.getElementById('sales-tbody');
-		if (!tbody) return;
-		const allRows = Array.from(tbody.querySelectorAll('tr'));
-		let any = false;
-		for (const tr of allRows) {
-			const inp = tr.querySelector('td.col-client .client-input');
-			const nm = String(inp?.value || '').trim().toLowerCase();
-			const match = nm && (nm === name);
-			tr.style.display = match || tr.classList.contains('add-row-line') ? '' : 'none';
-			if (match) any = true;
-		}
-		// Provide a tiny popover to reset filter
-		const pop = document.createElement('div');
-		pop.className = 'confirm-popover';
-		pop.style.position = 'fixed';
-		const x = (typeof anchorX === 'number') ? anchorX : (window.innerWidth/2);
-		const y = (typeof anchorY === 'number') ? anchorY : (window.innerHeight/2);
-		pop.style.left = x + 'px';
-		pop.style.top = (y + 6) + 'px';
-		pop.style.transform = 'translate(-50%, 0)';
-		pop.style.zIndex = '1000';
-		const text = document.createElement('div'); text.className = 'confirm-text'; text.textContent = any ? `Filtrando por: ${rawName}` : `Sin filas para: ${rawName}`;
-		const actions = document.createElement('div'); actions.className = 'confirm-actions';
-		const clearBtn = document.createElement('button'); clearBtn.className = 'press-btn'; clearBtn.textContent = 'Quitar filtro';
-		const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn btn-primary'; closeBtn.textContent = 'OK';
-		actions.append(clearBtn, closeBtn);
-		pop.append(text, actions);
-		document.body.appendChild(pop);
-		function cleanup(){ document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); if (pop.parentNode) pop.parentNode.removeChild(pop); }
-		function outside(ev){ if (!pop.contains(ev.target)) cleanup(); }
-		setTimeout(()=>{ document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); },0);
-		clearBtn.addEventListener('click', () => { allRows.forEach(tr => tr.style.display = ''); cleanup(); });
-		closeBtn.addEventListener('click', cleanup);
+		// replaced by openClientHistoryView
+		openClientHistoryView(rawName);
 	} catch {}
 }

@@ -2051,6 +2051,8 @@ button.secondary.press-btn:active {
 #client-history-table th, #client-history-table td { border-bottom: 1px solid var(--border); padding: 6px 8px; text-align: right; }
 #client-history-table th:nth-child(1), #client-history-table td:nth-child(1) { text-align: left; }
 #client-history-table th:nth-child(2), #client-history-table td:nth-child(2) { text-align: center; }
+#client-history-table th:nth-last-child(1), #client-history-table td:nth-last-child(1) { text-align: left; }
+#client-history-table th:nth-last-child(2), #client-history-table td:nth-last-child(2) { text-align: center; }
 #client-history-table tfoot td.label { text-align: right; font-weight: 700; }
 
 /* Date item with delete */
