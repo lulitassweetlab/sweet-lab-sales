@@ -1341,12 +1341,7 @@ function bindEvents() {
 	detailBackBtn?.addEventListener('click', () => { switchView('#view-clients'); });
 
 	// Admin-only: Restore bugged sales
-	// (el botón de restauración ha sido eliminado)
-	const reportBtn = document.getElementById('clients-report');
-	reportBtn?.addEventListener('click', async (ev) => {
-		const data = await buildRestoreReport();
-		openRestoreReportDialog(data, ev?.clientX, ev?.clientY);
-	});
+	// (botón de reporte eliminado)
 
 	document.getElementById('export-excel')?.addEventListener('click', exportTableToExcel);
 }
