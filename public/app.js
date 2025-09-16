@@ -242,9 +242,19 @@ const notify = (() => {
 			btn.classList.toggle('has-unread', !!anyUnread);
 		} catch {}
 	}
-	function render(type, message, timeoutMs = 3000) {
+	function render(type, message, optsOrTimeout) {
 		const c = container();
 		if (!c) return;
+		let timeoutMs = 3000;
+		let iconUrl = null;
+		let payMethod = null;
+		if (typeof optsOrTimeout === 'number') {
+			timeoutMs = optsOrTimeout;
+		} else if (optsOrTimeout && typeof optsOrTimeout === 'object') {
+			if (typeof optsOrTimeout.timeoutMs === 'number') timeoutMs = optsOrTimeout.timeoutMs;
+			iconUrl = optsOrTimeout.iconUrl || null;
+			payMethod = optsOrTimeout.payMethod || null;
+		}
 		const n = document.createElement('div');
 		n.className = 'toast toast-' + (type || 'info');
 		const actorName = String((state?.currentSeller?.name || state?.currentUser?.name || '') || '');
@@ -254,6 +264,19 @@ const notify = (() => {
 		const close = document.createElement('button'); close.className = 'toast-close'; close.type = 'button'; close.textContent = '×';
 		close.addEventListener('click', () => dismiss(n));
 		n.append(msg, close);
+		// Optional icon support (e.g., payment method)
+		try {
+			let url = iconUrl;
+			if (!url && payMethod) {
+				url = payMethod === 'efectivo' ? '/icons/bill.svg' : payMethod === 'transf' ? '/icons/bank.svg' : payMethod === 'marce' ? '/icons/marce7.svg?v=1' : null;
+			}
+			if (url) {
+				const icon = document.createElement('span');
+				icon.className = 'toast-icon';
+				icon.style.backgroundImage = `url('${url}')`;
+				n.insertBefore(icon, msg);
+			}
+		} catch {}
 		c.appendChild(n);
 		if (timeoutMs > 0) setTimeout(() => dismiss(n), timeoutMs);
 		pushLog({ type, text: String(message || ''), actor: actorName });
@@ -1100,7 +1123,8 @@ async function deleteRow(id) {
 			} catch {}
 			const tail = sellerName ? (' - ' + sellerName) : '';
 			const msg = 'Eliminada: ' + formatSaleSummary(prev) + tail;
-			notify.info(msg);
+			const pay = (prev?.pay_method || '').toString();
+			notify.info(msg, pay ? { payMethod: pay } : undefined);
 		} catch {}
 	}
 	// Push undo: re-create previous row
