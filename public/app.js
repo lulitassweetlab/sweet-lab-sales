@@ -2027,16 +2027,15 @@ function renderClientsTable(rows) {
 	for (const r of rows) {
 		const tr = document.createElement('tr'); tr.className = 'clients-row';
 		const tdN = document.createElement('td');
+		tdN.textContent = r.name;
 		if (Number(r.count || 0) > 1) {
 			const reg = document.createElement('span');
 			reg.textContent = '®';
 			reg.className = 'client-reg';
 			reg.title = 'Cliente recurrente';
 			reg.addEventListener('click', async (ev) => { ev.stopPropagation(); await openClientDetailView(r.name); });
+			tdN.appendChild(document.createTextNode(' '));
 			tdN.appendChild(reg);
-			tdN.appendChild(document.createTextNode(' ' + r.name));
-		} else {
-			tdN.textContent = r.name;
 		}
 		const tdC = document.createElement('td'); tdC.textContent = String(r.count); tdC.style.textAlign = 'center';
 		tr.append(tdN, tdC);

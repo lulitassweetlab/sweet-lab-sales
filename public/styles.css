@@ -791,7 +791,7 @@ tfoot td { font-weight: 700; }
 .clients-table { width: 100%; border-collapse: collapse; }
 .clients-table th, .clients-table td { padding: 6px 8px; border-bottom: 1px solid var(--border); }
 .clients-table th.col-qty { text-align: center; }
-.client-reg { font-size: 1em; line-height: 1; vertical-align: baseline; cursor: pointer; }
+.client-reg { font-size: 1em; line-height: 1; vertical-align: baseline; cursor: pointer; margin-left: 6px; font-weight: 700; color: var(--primary); }
 .clients-row { cursor: pointer; }
 .clients-table tbody tr:hover td { background: #f3f4f6 !important; }
 [data-theme="dark"] .clients-table tbody tr:hover td { background: #1a1a1a !important; }
