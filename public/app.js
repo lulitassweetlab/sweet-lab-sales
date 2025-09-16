@@ -69,11 +69,20 @@ function renderClientDetailTable(rows) {
 			else if (sel.value === 'marce') wrap.classList.add('method-marce');
 		}
 		applyPayClass();
+		const receiptBtn = document.createElement('button');
+		receiptBtn.className = 'press-btn';
+		receiptBtn.textContent = 'Comprobante';
+		receiptBtn.style.marginLeft = '6px';
+		receiptBtn.style.display = (sel.value === 'transf') ? 'inline-flex' : 'none';
+		receiptBtn.addEventListener('click', async () => { await showOrUploadReceiptForSale(r.id, receiptBtn); });
 		sel.addEventListener('change', async () => {
 			await api('PUT', API.Sales, { id: r.id, pay_method: sel.value || null });
 			applyPayClass();
+			receiptBtn.style.display = (sel.value === 'transf') ? 'inline-flex' : 'none';
+			if (sel.value === 'transf') { await showOrUploadReceiptForSale(r.id, receiptBtn); }
 		});
 		wrap.appendChild(sel); tdPay.appendChild(wrap);
+		tdPay.appendChild(receiptBtn);
 		const tdAr = document.createElement('td'); tdAr.textContent = r.qty_arco ? String(r.qty_arco) : '';
 		const tdMe = document.createElement('td'); tdMe.textContent = r.qty_melo ? String(r.qty_melo) : '';
 		const tdMa = document.createElement('td'); tdMa.textContent = r.qty_mara ? String(r.qty_mara) : '';
@@ -83,6 +92,22 @@ function renderClientDetailTable(rows) {
 		const tdTot = document.createElement('td'); tdTot.textContent = fmtNo.format(total);
 		tr.append(tdDate, tdPay, tdAr, tdMe, tdMa, tdOr, tdNu, tdTot);
 		tbody.appendChild(tr);
+	}
+}
+
+async function showOrUploadReceiptForSale(saleId, anchorEl) {
+	try {
+		const rect = anchorEl && typeof anchorEl.getBoundingClientRect === 'function' ? anchorEl.getBoundingClientRect() : null;
+		const cx = rect ? (rect.left + rect.width / 2) : (window.innerWidth / 2);
+		const cy = rect ? rect.bottom : (window.innerHeight / 2);
+		const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(saleId)}`);
+		if (Array.isArray(recs) && recs.length) {
+			openReceiptViewerPopover(recs[0].image_base64, saleId, recs[0].created_at, cx, cy);
+		} else {
+			openReceiptUploadPage(saleId);
+		}
+	} catch {
+		openReceiptUploadPage(saleId);
 	}
 }
 const API = {
