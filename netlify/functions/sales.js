@@ -169,7 +169,7 @@ export async function handler(event) {
 				}
 				if (!id) return json({ error: 'id requerido' }, 400);
 				// fetch previous data for notification content
-				const prev = (await sql`SELECT seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute FROM sales WHERE id=${id}`)[0] || null;
+				const prev = (await sql`SELECT seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, pay_method FROM sales WHERE id=${id}`)[0] || null;
 				await sql`DELETE FROM sales WHERE id=${id}`;
 				// emit deletion notification with client, quantities, and seller name
 				if (prev) {
@@ -188,7 +188,7 @@ export async function handler(event) {
 					} catch {}
 					const tail = sellerName ? ` - ${sellerName}` : '';
 					const msg = `Eliminado: ${name}${suffix}${tail}`;
-					const pm = (current?.pay_method || prev?.pay_method || '').toString();
+					const pm = (prev?.pay_method || '').toString();
 					const iconUrl = pm === 'efectivo' ? '/icons/bill.svg' : pm === 'transf' ? '/icons/bank.svg' : pm === 'marce' ? '/icons/marce7.svg?v=1' : null;
 					// Do not reference deleted sale_id to avoid FK violation
 					await notifyDb({ type: 'delete', sellerId: Number(prev.seller_id||0)||null, saleId: null, saleDayId: Number(prev.sale_day_id||0)||null, message: msg, actorName: actor, iconUrl, payMethod: pm });
