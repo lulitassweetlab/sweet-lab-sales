@@ -25,7 +25,9 @@ export async function handler(event) {
 						JOIN sales s ON s.id = sr.sale_id
 						LEFT JOIN sale_days sd ON sd.id = s.sale_day_id
 						LEFT JOIN sellers se ON se.id = s.seller_id
-						WHERE sd.day BETWEEN ${start} AND ${end}
+						WHERE (sd.day BETWEEN ${start} AND ${end})
+						   OR (DATE(sr.created_at) BETWEEN ${start} AND ${end})
+						   OR (DATE(s.created_at) BETWEEN ${start} AND ${end})
 						ORDER BY sr.created_at DESC, sr.id DESC
 					`;
 					return json(rows);
