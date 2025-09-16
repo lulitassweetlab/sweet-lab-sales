@@ -105,15 +105,18 @@ function renderClientDetailTable(rows) {
 		];
 		const isMarcela = String(state.currentUser?.name || '').toLowerCase() === 'marcela';
 		if (isMarcela) opts.push({ v: 'marce', label: '' });
+		const isJorge = String(state.currentUser?.name || '').toLowerCase() === 'jorge';
+		if (isJorge) opts.push({ v: 'jorge', label: '' });
 		opts.push({ v: 'transf', label: '' });
 		for (const o of opts) { const opt = document.createElement('option'); opt.value = o.v; opt.textContent = o.label; if (current === o.v) opt.selected = true; sel.appendChild(opt); }
 		function applyPayClass() {
-			wrap.classList.remove('placeholder','method-efectivo','method-transf','method-marce');
+			wrap.classList.remove('placeholder','method-efectivo','method-transf','method-marce','method-jorge');
 			const val = sel.value || current;
 			if (!val) wrap.classList.add('placeholder');
 			else if (val === 'efectivo') wrap.classList.add('method-efectivo');
 			else if (val === 'transf') wrap.classList.add('method-transf');
 			else if (val === 'marce') wrap.classList.add('method-marce');
+			else if (val === 'jorge') wrap.classList.add('method-jorge');
 		}
 		applyPayClass();
 		// Mirror behavior from sales: clicking the wrap opens the custom menu
@@ -640,6 +643,8 @@ function renderTable() {
 				];
 				const isMarcela = String(state.currentUser?.name || '').toLowerCase() === 'marcela';
 				if (isMarcela) options.push({ v: 'marce', label: '' });
+				const isJorge = String(state.currentUser?.name || '').toLowerCase() === 'jorge';
+				if (isJorge) options.push({ v: 'jorge', label: '' });
 				options.push({ v: 'transf', label: '' });
 				for (const o of options) {
 					const opt = document.createElement('option');
@@ -649,12 +654,13 @@ function renderTable() {
 					sel.appendChild(opt);
 				}
 				function applyPayClass() {
-					wrap.classList.remove('placeholder','method-efectivo','method-transf','method-marce');
+					wrap.classList.remove('placeholder','method-efectivo','method-transf','method-marce','method-jorge');
 					const val = sel.value || current;
 					if (!val) wrap.classList.add('placeholder');
 					else if (val === 'efectivo') wrap.classList.add('method-efectivo');
 					else if (val === 'transf') wrap.classList.add('method-transf');
 					else if (val === 'marce') wrap.classList.add('method-marce');
+					else if (val === 'jorge') wrap.classList.add('method-jorge');
 				}
 				applyPayClass();
 				sel.addEventListener('change', async () => {
@@ -1146,7 +1152,7 @@ function updateSummary() {
 		qn += nute;
 		grand += calcRowTotal({ arco: s.qty_arco, melo: s.qty_melo, mara: s.qty_mara, oreo: s.qty_oreo, nute: s.qty_nute });
 		const pm = (s.pay_method || '').toString();
-		if (pm === 'transf' || pm === 'marce') {
+		if (pm === 'transf' || pm === 'marce' || pm === 'jorge') {
 			paidQa += arco; paidQm += melo; paidQma += mara; paidQo += oreo; paidQn += nute;
 		}
 	}
@@ -1403,8 +1409,8 @@ async function exportCarteraExcel(startIso, endIso) {
 			const sales = await api('GET', `${API.Sales}?${params.toString()}`);
 			for (const r of (sales || [])) {
 				const pm = (r.pay_method || '').toString();
-				// Keep sales that do NOT have efectivo, transf, or marce
-				if (pm === 'efectivo' || pm === 'transf' || pm === 'marce') continue;
+				// Keep sales that do NOT have efectivo, transf, marce, or jorge
+				if (pm === 'efectivo' || pm === 'transf' || pm === 'marce' || pm === 'jorge') continue;
 				const qa = r.qty_arco || 0;
 				const qm = r.qty_melo || 0;
 				const qma = r.qty_mara || 0;
@@ -2255,6 +2261,9 @@ function openPayMenu(anchorEl, selectEl, clickX, clickY) {
 	];
 	if (String(state.currentUser?.name || '').toLowerCase() === 'marcela') {
 		items.push({ v: 'marce', cls: 'menu-marce' });
+	}
+	if (String(state.currentUser?.name || '').toLowerCase() === 'jorge') {
+		items.push({ v: 'jorge', cls: 'menu-jorge' });
 	}
 	items.push({ v: '', cls: 'menu-clear' }, { v: 'transf', cls: 'menu-transf' });
 	// Find current sale id for upload flow when choosing 'transf'
