@@ -1896,20 +1896,6 @@ if (!('selectedDayId' in state)) state.selectedDayId = null;
 	enterSeller = async function(id) {
 		await origEnter(id);
 		await loadDaysForSeller();
-		// Auto-restore once per seller per session if any rows were zeroed
-		try {
-			if (state && state.currentSeller && state.currentSeller.id === id) {
-				if (state._autoRestoredForSeller !== id) {
-					const restored = await restoreBuggedSalesForSeller();
-					state._autoRestoredForSeller = id;
-					if (restored > 0) {
-						try { notify.success(`Restauradas ${restored} ventas`); } catch {}
-						await loadDaysForSeller();
-						if (state.selectedDayId) { await loadSales(); }
-					}
-				}
-			}
-		} catch {}
 	};
 })();
 
