@@ -790,6 +790,7 @@ tfoot td { font-weight: 700; }
 .clients-title { font-weight: 600; margin-bottom: 8px; }
 .clients-table { width: 100%; border-collapse: collapse; }
 .clients-table th, .clients-table td { padding: 6px 8px; border-bottom: 1px solid var(--border); }
+.clients-table th.col-qty { text-align: center; }
 .clients-row { cursor: pointer; }
 .clients-table tbody tr:hover td { background: #f3f4f6 !important; }
 [data-theme="dark"] .clients-table tbody tr:hover td { background: #1a1a1a !important; }

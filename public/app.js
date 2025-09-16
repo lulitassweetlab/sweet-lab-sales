@@ -2014,7 +2014,7 @@ function renderClientsTable(rows) {
 	for (const r of rows) {
 		const tr = document.createElement('tr'); tr.className = 'clients-row';
 		const tdN = document.createElement('td'); tdN.textContent = r.name;
-		const tdC = document.createElement('td'); tdC.textContent = String(r.count); tdC.style.textAlign = 'right';
+		const tdC = document.createElement('td'); tdC.textContent = String(r.count); tdC.style.textAlign = 'center';
 		tr.append(tdN, tdC);
 		tr.addEventListener('mousedown', () => { tr.classList.add('row-highlight'); setTimeout(() => tr.classList.remove('row-highlight'), 500); });
 		tr.addEventListener('click', async () => { await openClientDetailView(r.name); });
