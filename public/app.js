@@ -49,7 +49,8 @@ function renderClientDetailTable(rows) {
 	}
 	for (const r of rows) {
 		const tr = document.createElement('tr');
-		const tdPay = document.createElement('td');
+		tr.dataset.id = String(r.id);
+		const tdPay = document.createElement('td'); tdPay.className = 'col-paid';
 		const wrap = document.createElement('span'); wrap.className = 'pay-wrap';
 		const sel = document.createElement('select'); sel.className = 'input-cell pay-select';
 		const current = (r.pay_method || '').replace(/\.$/, '');
@@ -70,8 +71,14 @@ function renderClientDetailTable(rows) {
 		applyPayClass();
 		const receiptBtn = document.createElement('button');
 		receiptBtn.className = 'press-btn';
-		receiptBtn.textContent = 'Comprobante';
+		receiptBtn.textContent = '';
+		receiptBtn.title = 'Comprobante';
 		receiptBtn.style.marginLeft = '6px';
+		receiptBtn.style.width = '22px';
+		receiptBtn.style.height = '22px';
+		receiptBtn.style.minWidth = '22px';
+		receiptBtn.style.padding = '0';
+		receiptBtn.style.background = "url('/icons/bank.svg') no-repeat center / 16px 14px";
 		receiptBtn.style.display = (sel.value === 'transf') ? 'inline-flex' : 'none';
 		receiptBtn.addEventListener('click', async () => { await showOrUploadReceiptForSale(r.id, receiptBtn); });
 		// Mirror behavior from sales: clicking the wrap opens the custom menu
