@@ -893,6 +893,24 @@ async function savePayMethod(tr, id, method) {
 	if (idx !== -1) state.sales[idx].pay_method = method || null;
 }
 
+// Update only pay_method using a known snapshot of the sale (to avoid overwriting other fields)
+async function savePayMethodSnapshot(snapshot, newMethod) {
+	if (!snapshot || !snapshot.id) return;
+	const payload = {
+		id: snapshot.id,
+		client_name: snapshot.client_name || '',
+		qty_arco: snapshot.qty_arco || 0,
+		qty_melo: snapshot.qty_melo || 0,
+		qty_mara: snapshot.qty_mara || 0,
+		qty_oreo: snapshot.qty_oreo || 0,
+		qty_nute: snapshot.qty_nute || 0,
+		is_paid: !!snapshot.is_paid,
+		pay_method: newMethod || null,
+		_actor_name: state.currentUser?.name || ''
+	};
+	await api('PUT', API.Sales, payload);
+}
+
 function updateSummary() {
 	let qa = 0, qm = 0, qma = 0, qo = 0, qn = 0, grand = 0;
 	let paidQa = 0, paidQm = 0, paidQma = 0, paidQo = 0, paidQn = 0;
@@ -2144,22 +2162,40 @@ function renderClientHistory(rows) {
 	let qa=0,qm=0,qma=0,qo=0,qn=0,grand=0;
 	for (const r of (rows||[])) {
 		const tr = document.createElement('tr');
-		const pay = r.pay === 'efectivo' ? 'Efectivo' : r.pay === 'transf' ? 'Transf' : r.pay === 'marce' ? 'Marce' : '-';
+		// Payment selector UI similar to main table
+		const payWrap = document.createElement('span'); payWrap.className = 'pay-wrap';
+		const paySel = document.createElement('select'); paySel.className = 'input-cell pay-select';
+		[{v:'',t:'-'},{v:'efectivo',t:''},{v:'marce',t:''},{v:'transf',t:''}].forEach(o=>{ const op=document.createElement('option'); op.value=o.v; op.textContent=o.t; if ((r.pay||'')===o.v) op.selected = true; paySel.appendChild(op); });
+		function applyPayCls(){ payWrap.classList.remove('placeholder','method-efectivo','method-transf','method-marce'); if(!paySel.value) payWrap.classList.add('placeholder'); else if(paySel.value==='efectivo') payWrap.classList.add('method-efectivo'); else if(paySel.value==='transf') payWrap.classList.add('method-transf'); else if(paySel.value==='marce') payWrap.classList.add('method-marce'); }
+		applyPayCls();
+		paySel.addEventListener('change', async () => { await savePayMethodSnapshot({ id: r.saleId, client_name: state._clientHistoryName, qty_arco: r.arco, qty_melo: r.melo, qty_mara: r.mara, qty_oreo: r.oreo, qty_nute: r.nute, is_paid: false }, paySel.value); r.pay = paySel.value; applyPayCls(); });
+		payWrap.addEventListener('click', async (e) => {
+			e.stopPropagation();
+			if (paySel.value === 'transf') {
+				try {
+					const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(r.saleId)}`);
+					if (Array.isArray(recs) && recs.length) {
+						openReceiptViewerPopover(recs[0].image_base64, r.saleId, recs[0].created_at, e.clientX, e.clientY);
+					}
+				} catch {}
+			}
+		});
+		payWrap.tabIndex = 0; payWrap.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); if(paySel.value==='transf'){ payWrap.click(); } } });
+		payWrap.appendChild(paySel);
 		const receiptTd = document.createElement('td');
-		const btn = document.createElement('button'); btn.className = 'press-btn'; btn.textContent = 'Ver';
-		btn.addEventListener('click', async (ev) => {
+		const viewBtn = document.createElement('button'); viewBtn.className = 'press-btn'; viewBtn.textContent = 'Ver';
+		viewBtn.addEventListener('click', async (ev) => {
 			try {
 				const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(r.saleId)}`);
-				if (Array.isArray(recs) && recs.length) {
-					openReceiptViewerPopover(recs[0].image_base64, r.saleId, recs[0].created_at, ev.clientX, ev.clientY);
-				} else {
-					notify.info('Sin comprobante');
-				}
+				if (Array.isArray(recs) && recs.length) openReceiptViewerPopover(recs[0].image_base64, r.saleId, recs[0].created_at, ev.clientX, ev.clientY); else notify.info('Sin comprobante');
 			} catch { notify.info('Sin comprobante'); }
 		});
-		receiptTd.appendChild(btn);
+		receiptTd.appendChild(viewBtn);
 		const commentTd = document.createElement('td'); commentTd.textContent = (r.comment || '').trim();
-		tr.innerHTML = `<td>${formatDayLabel(r.day)}</td><td>${pay}</td><td>${r.arco||0}</td><td>${r.melo||0}</td><td>${r.mara||0}</td><td>${r.oreo||0}</td><td>${r.nute||0}</td><td>${fmtNo.format(r.total||0)}</td>`;
+		tr.innerHTML = `<td>${formatDayLabel(r.day)}</td>`;
+		const payTd = document.createElement('td'); payTd.appendChild(payWrap);
+		tr.appendChild(payTd);
+		tr.insertAdjacentHTML('beforeend', `<td>${r.arco||0}</td><td>${r.melo||0}</td><td>${r.mara||0}</td><td>${r.oreo||0}</td><td>${r.nute||0}</td><td>${fmtNo.format(r.total||0)}</td>`);
 		tr.appendChild(receiptTd);
 		tr.appendChild(commentTd);
 		tbody.appendChild(tr);
