@@ -11,6 +11,25 @@ export async function handler(event) {
 		switch (event.httpMethod) {
 			case 'GET': {
 				const params = new URLSearchParams(event.rawQuery || event.queryStringParameters ? event.rawQuery || '' : '');
+				// New: list receipts across date range
+				const receiptsRangeStart = params.get('receipts_start');
+				const receiptsRangeEnd = params.get('receipts_end');
+				if (receiptsRangeStart && receiptsRangeEnd) {
+					const start = receiptsRangeStart.toString().slice(0,10);
+					const end = receiptsRangeEnd.toString().slice(0,10);
+					const rows = await sql`
+						SELECT sr.id, sr.sale_id, sr.image_base64, sr.note_text, sr.created_at,
+						       s.seller_id, s.sale_day_id, s.client_name, s.pay_method, s.total_cents,
+						       sd.day AS sale_day, se.name AS seller_name
+						FROM sale_receipts sr
+						JOIN sales s ON s.id = sr.sale_id
+						LEFT JOIN sale_days sd ON sd.id = s.sale_day_id
+						LEFT JOIN sellers se ON se.id = s.seller_id
+						WHERE sd.day BETWEEN ${start} AND ${end}
+						ORDER BY sr.created_at DESC, sr.id DESC
+					`;
+					return json(rows);
+				}
 				const historyFor = params.get('history_for');
 				if (historyFor) {
 					const saleId = Number(historyFor);

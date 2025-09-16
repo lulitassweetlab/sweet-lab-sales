@@ -1427,8 +1427,10 @@ async function exportCarteraExcel(startIso, endIso) {
 	}
 })();
 
+
 (function wireReportButton(){
 	const reportBtn = document.getElementById('report-button');
+	const transfersBtn = document.getElementById('transfers-button');
 	const usersBtn = document.getElementById('users-button');
 	const carteraBtn = document.getElementById('cartera-button');
 	const input = document.getElementById('report-date');
@@ -1447,6 +1449,16 @@ async function exportCarteraExcel(startIso, endIso) {
 		openRangeCalendarPopover(async (range) => {
 			if (!range || !range.start || !range.end) return;
 			await exportCarteraExcel(range.start, range.end);
+		}, ev.clientX, ev.clientY, { preferUp: true });
+	});
+
+	transfersBtn?.addEventListener('click', (ev) => {
+		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+		if (!isSuper) { notify.error('Solo el superadministrador'); return; }
+		openRangeCalendarPopover((range) => {
+			if (!range || !range.start || !range.end) return;
+			const url = `/transfers.html?start=${encodeURIComponent(range.start)}&end=${encodeURIComponent(range.end)}`;
+			window.location.href = url;
 		}, ev.clientX, ev.clientY, { preferUp: true });
 	});
 	usersBtn?.addEventListener('click', async (ev) => {

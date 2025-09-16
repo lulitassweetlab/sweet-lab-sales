@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Transferencias - Comprobantes</title>
+	<link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+	<header class="app-header">
+		<div class="header-row">
+			<div class="header-left">
+				<img src="/logo.png" alt="Lulitas Logo" class="app-logo" />
+				<h1>Transferencias</h1>
+			</div>
+			<div class="header-actions">
+				<button id="back-btn" class="press-btn">Volver</button>
+			</div>
+		</div>
+	</header>
+
+	<main class="transfers-container">
+		<div class="transfers-header">
+			<div>
+				<strong id="range-label"></strong>
+				<div id="count-label" style="opacity:.8; font-size:12px"></div>
+			</div>
+			<div style="display:flex; gap:8px; align-items:center;">
+				<button id="change-range" class="press-btn">Cambiar fechas</button>
+			</div>
+		</div>
+		<div id="grid" class="transfers-grid"></div>
+		<div id="empty" class="transfers-empty" style="display:none">No hay comprobantes en este rango</div>
+	</main>
+
+	<script type="module">
+	(function(){
+		const qs = new URLSearchParams(location.search);
+		let start = (qs.get('start') || '').slice(0,10);
+		let end = (qs.get('end') || '').slice(0,10);
+		const rangeLabel = document.getElementById('range-label');
+		const countLabel = document.getElementById('count-label');
+		const grid = document.getElementById('grid');
+		const empty = document.getElementById('empty');
+		const backBtn = document.getElementById('back-btn');
+		const changeBtn = document.getElementById('change-range');
+
+		function formatDay(iso){
+			if (!iso) return '';
+			const d = new Date(iso + 'T00:00:00Z');
+			const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+			return `${d.getUTCDate()} ${months[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+		}
+
+		async function load(){
+			if (!start || !end) return;
+			rangeLabel.textContent = `${formatDay(start)} — ${formatDay(end)}`;
+			grid.innerHTML = '';
+			empty.style.display = 'none';
+			const res = await fetch(`/api/sales?receipts_start=${encodeURIComponent(start)}&receipts_end=${encodeURIComponent(end)}`);
+			if (!res.ok) { countLabel.textContent = 'Error cargando'; return; }
+			const rows = await res.json();
+			countLabel.textContent = `${rows.length} comprobante(s)`;
+			if (!rows.length) { empty.style.display = ''; return; }
+			for (const r of rows) {
+				const card = document.createElement('div'); card.className = 'transfer-card';
+				const img = document.createElement('img'); img.alt = 'Comprobante'; img.src = r.image_base64;
+				const meta = document.createElement('div'); meta.className = 'transfer-meta';
+				const l1 = document.createElement('div'); l1.className = 'line'; l1.innerHTML = `<span>${(r.seller_name||'').toString()}</span><span>${(r.sale_day||'').toString().slice(0,10)}</span>`;
+				const l2 = document.createElement('div'); l2.className = 'line'; l2.innerHTML = `<span>${(r.client_name||'').toString()}</span><span>${(r.total_cents||0)}</span>`;
+				const note = document.createElement('div'); note.className = 'note'; note.textContent = (r.note_text||'').toString();
+				meta.append(l1, l2, note);
+				card.append(img, meta);
+				grid.appendChild(card);
+			}
+		}
+
+		backBtn.addEventListener('click', () => { location.href = '/'; });
+		changeBtn.addEventListener('click', (ev) => {
+			openRangeCalendarPopover((range) => {
+				if (!range || !range.start || !range.end) return;
+				start = range.start; end = range.end;
+				history.replaceState(null, '', `?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`);
+				load();
+			}, ev.clientX, ev.clientY, { preferUp: true });
+		});
+
+		// Lightweight embed of openRangeCalendarPopover from app.js if not present
+		if (typeof window.openRangeCalendarPopover !== 'function') {
+			window.openRangeCalendarPopover = function(onPickedRange, anchorX, anchorY, opts){
+				const pop = document.createElement('div'); pop.className = 'date-popover'; pop.style.position = 'fixed'; const baseX = anchorX||window.innerWidth/2; const baseY = anchorY||window.innerHeight/2; pop.style.left = baseX+'px'; pop.style.top=(baseY+8)+'px'; pop.style.transform='translate(-50%,0)'; pop.style.zIndex='1000';
+				const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']; let view = new Date(); view.setDate(1); let startIso=null, endIso=null;
+				const header=document.createElement('div'); header.className='date-popover-header'; const prev=document.createElement('button'); prev.className='date-nav'; prev.textContent='‹'; const label=document.createElement('div'); label.className='date-label'; const next=document.createElement('button'); next.className='date-nav'; next.textContent='›'; header.append(prev,label,next);
+				const grid=document.createElement('div'); grid.className='date-grid'; const weekdays=['L','M','X','J','V','S','D']; const wk=document.createElement('div'); wk.className='date-weekdays'; for (const w of weekdays){ const c=document.createElement('div'); c.textContent=w; wk.appendChild(c);} 
+				function isoUTC(y,m,d){ return new Date(Date.UTC(y,m,d)).toISOString().slice(0,10); }
+				function isBetween(x,a,b){ return x>=a && x<=b; }
+				function render(){ label.textContent = months[view.getMonth()] + ' ' + view.getFullYear(); grid.innerHTML=''; const year=view.getFullYear(); const month=view.getMonth(); const firstDay=(new Date(Date.UTC(year,month,1)).getUTCDay()+6)%7; const daysInMonth=new Date(Date.UTC(year,month+1,0)).getUTCDate(); for (let i=0;i<firstDay;i++){ const cell=document.createElement('button'); cell.className='date-cell disabled'; cell.disabled=true; grid.appendChild(cell);} for (let d=1; d<=daysInMonth; d++){ const iso=isoUTC(year,month,d); const cell=document.createElement('button'); let cls='date-cell'; if (startIso && !endIso && iso===startIso) cls+=' range-start selected'; if (startIso && endIso){ if (iso===startIso) cls+=' range-start selected'; else if (iso===endIso) cls+=' range-end selected'; else if (isBetween(iso,startIso,endIso)) cls+=' in-range'; } cell.className=cls; cell.textContent=String(d); cell.addEventListener('click',()=>{ if(!startIso){ startIso=iso; endIso=null; render(); return; } if(!endIso){ if(iso<startIso){ endIso=startIso; startIso=iso; } else { endIso=iso; } render(); return; } startIso=iso; endIso=null; render(); }); grid.appendChild(cell);} }
+				function cleanup(){ document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); if(pop.parentNode) pop.parentNode.removeChild(pop);} function outside(ev){ if(!pop.contains(ev.target)) cleanup(); }
+				prev.addEventListener('click',()=>{ view.setMonth(view.getMonth()-1); render(); }); next.addEventListener('click',()=>{ view.setMonth(view.getMonth()+1); render(); });
+				const actions=document.createElement('div'); actions.style.display='flex'; actions.style.justifyContent='space-between'; actions.style.marginTop='8px'; const clearBtn=document.createElement('button'); clearBtn.className='date-nav'; clearBtn.textContent='Limpiar'; const genBtn=document.createElement('button'); genBtn.className='date-nav'; genBtn.textContent='Generar'; genBtn.disabled=true; clearBtn.addEventListener('click',()=>{ startIso=null; endIso=null; genBtn.disabled=true; render(); }); genBtn.addEventListener('click',()=>{ if(startIso && endIso && typeof onPickedRange==='function'){ cleanup(); onPickedRange({ start:startIso, end:endIso }); } }); actions.append(clearBtn, genBtn);
+				const origRender = render; render = function(){ origRender(); genBtn.disabled = !(startIso && endIso); };
+				pop.append(header, wk, grid, actions); document.body.appendChild(pop); pop.classList.add('aladdin-pop');
+				document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); render();
+			};
+		}
+
+		load();
+	})();
+	</script>
+</body>
+</html>
+

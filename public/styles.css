@@ -2121,6 +2121,17 @@ button.secondary.press-btn:active {
 .report-subtitle { margin: 0; color: var(--muted); font-size: 12px; }
 .report-btn { background: var(--primary); color: var(--primary-foreground); border-color: transparent; }
 .report-btn:hover { filter: none; background: var(--hover-primary-pink); box-shadow: 0 8px 24px var(--hover-shadow-pink); }
+
+/* Transfers gallery */
+.transfers-container { max-width: 1100px; margin: 0 auto; padding: 16px; }
+.transfers-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; position: sticky; top: 0; background: var(--background, #fff); padding: 8px 0; z-index: 10; }
+.transfers-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-top: 12px; }
+.transfer-card { border: 1px solid var(--border, #e5e7eb); border-radius: 10px; overflow: hidden; background: var(--card, #fff); display: flex; flex-direction: column; }
+.transfer-card img { display: block; width: 100%; height: 200px; object-fit: cover; background: #f3f4f6; }
+.transfer-meta { padding: 8px 10px; font-size: 12px; color: #374151; }
+.transfer-meta .line { display: flex; justify-content: space-between; gap: 8px; }
+.transfer-meta .note { color: #6b7280; margin-top: 4px; white-space: pre-wrap; }
+.transfers-empty { padding: 32px; text-align: center; color: #6b7280; border: 1px dashed #e5e7eb; border-radius: 10px; }
 /* Cartera button should look like other report buttons */
 #cartera-button { background: var(--primary); color: var(--primary-foreground); border-color: transparent; }
 #cartera-button:hover { filter: none; background: var(--hover-primary-pink); box-shadow: 0 8px 24px var(--hover-shadow-pink); }
