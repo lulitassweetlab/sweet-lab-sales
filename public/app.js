@@ -2,6 +2,7 @@ async function openClientDetailView(clientName) {
 	if (!state.currentSeller) return;
 	const name = String(clientName || '').trim();
 	state._clientDetailName = name;
+	state._clientDetailFrom = document.querySelector('#view-sales')?.classList.contains('hidden') ? 'clients' : 'sales';
 	const title = document.getElementById('client-detail-title'); if (title) title.textContent = name || 'Cliente';
 	const subtitle = document.getElementById('client-detail-subtitle'); if (subtitle) subtitle.textContent = 'Historial de compras';
 	await loadClientDetailRows(name);
@@ -1376,7 +1377,10 @@ function bindEvents() {
 
 	// Back from Client Detail view
 	const detailBackBtn = document.getElementById('client-detail-back');
-	detailBackBtn?.addEventListener('click', () => { switchView('#view-clients'); });
+	detailBackBtn?.addEventListener('click', () => {
+		if (state._clientDetailFrom === 'sales') switchView('#view-sales');
+		else switchView('#view-clients');
+	});
 
 	// Admin-only: Restore bugged sales
 	// (botón de reporte eliminado)
