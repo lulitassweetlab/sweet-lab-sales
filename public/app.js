@@ -442,7 +442,7 @@ function bindLogin() {
 				applyAuthVisibility();
 				renderSellerButtons();
 				const usernameLower = String(res.username || '').toLowerCase();
-				const feminineUsers = new Set(['marcela', 'aleja']);
+				const feminineUsers = new Set(['marcela', 'aleja', 'kate', 'stefa', 'mariana', 'janeth']);
 				const welcome = feminineUsers.has(usernameLower) ? 'Bienvenida ' : 'Bienvenido ';
 				notify.success(welcome + res.username);
 				if (!state.currentUser.isAdmin) {
