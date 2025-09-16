@@ -2110,11 +2110,11 @@ function openTransfersRangePopover(onPickedRange, anchorX, anchorY) {
     pop.append(header, wk, grid);
     document.body.appendChild(pop);
     requestAnimationFrame(() => {
-        const margin = 8; const r = pop.getBoundingClientRect(); let left = baseX; let top = baseY + 8;
+        const margin = 8; const r = pop.getBoundingClientRect(); let left = baseX; let top = baseY - 8 - r.height;
         const vv = window.visualViewport; const vw = vv?.width || window.innerWidth; const vh = vv?.height || window.innerHeight; const vl = vv?.offsetLeft || 0; const vt = vv?.offsetTop || 0; const isSmall = window.matchMedia('(max-width: 600px)').matches;
-        if (isSmall && baseY > (vt + vh * 0.6)) top = baseY - 8 - r.height;
         left = Math.min(Math.max(left, vl + margin), vl + vw - margin);
-        top = Math.min(Math.max(top, vt + margin), vt + vh - margin);
+        // Always place above; clamp to at least margin from top
+        if (top < vt + margin) top = vt + margin;
         pop.style.left = left + 'px'; pop.style.top = top + 'px';
     });
     document.addEventListener('mousedown', outside, true);
