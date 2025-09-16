@@ -1,3 +1,157 @@
+async function openClientDetailView(clientName) {
+	if (!state.currentSeller) return;
+	const name = String(clientName || '').trim();
+	state._clientDetailName = name;
+	const title = document.getElementById('client-detail-title'); if (title) title.textContent = name || 'Cliente';
+	const subtitle = document.getElementById('client-detail-subtitle'); if (subtitle) subtitle.textContent = 'Historial de compras';
+	await loadClientDetailRows(name);
+	switchView('#view-client-detail');
+}
+
+async function loadClientDetailRows(clientName) {
+	const sellerId = state.currentSeller.id;
+	const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(sellerId)}`);
+	const allRows = [];
+	for (const d of (days || [])) {
+		const params = new URLSearchParams({ seller_id: String(sellerId), sale_day_id: String(d.id) });
+		let sales = [];
+		try { sales = await api('GET', `${API.Sales}?${params.toString()}`); } catch { sales = []; }
+		for (const s of (sales || [])) {
+			const n = (s?.client_name || '').trim();
+			if (!n) continue;
+			if (n.toLowerCase() !== String(clientName||'').trim().toLowerCase()) continue;
+			allRows.push({
+				id: s.id,
+				dayIso: String(d.day).slice(0,10),
+				qty_arco: Number(s.qty_arco||0),
+				qty_melo: Number(s.qty_melo||0),
+				qty_mara: Number(s.qty_mara||0),
+				qty_oreo: Number(s.qty_oreo||0),
+				qty_nute: Number(s.qty_nute||0),
+				pay_method: s.pay_method || '',
+				is_paid: !!s.is_paid
+			});
+		}
+	}
+	// Sort by date descending
+	allRows.sort((a,b) => (a.dayIso < b.dayIso ? 1 : a.dayIso > b.dayIso ? -1 : 0));
+	renderClientDetailTable(allRows);
+}
+
+// Attempt to restore sales that were overwritten to zeros by re-applying last non-zero values from change logs
+async function restoreBuggedSalesForSeller() {
+	const sellerId = state.currentSeller?.id;
+	if (!sellerId) return 0;
+	let restored = 0;
+	// Load all days for seller
+	const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(sellerId)}`);
+	for (const d of (days || [])) {
+		const params = new URLSearchParams({ seller_id: String(sellerId), sale_day_id: String(d.id) });
+		let sales = [];
+		try { sales = await api('GET', `${API.Sales}?${params.toString()}`); } catch { sales = []; }
+		for (const s of (sales || [])) {
+			const isAllZero = !Number(s.qty_arco||0) && !Number(s.qty_melo||0) && !Number(s.qty_mara||0) && !Number(s.qty_oreo||0) && !Number(s.qty_nute||0);
+			if (!isAllZero) continue;
+			// Fetch history for this sale id to find last non-zero per qty field
+			let logs = [];
+			try { logs = await api('GET', `${API.Sales}?history_for=${encodeURIComponent(s.id)}`); } catch { logs = []; }
+			const byField = { qty_arco: 0, qty_melo: 0, qty_mara: 0, qty_oreo: 0, qty_nute: 0 };
+			for (const f of Object.keys(byField)) {
+				const history = logs.filter(l => l.field === f);
+				for (const h of history) {
+					const prev = Number(h.new_value ?? h.newValue ?? 0) || 0;
+					if (prev > 0) { byField[f] = prev; }
+				}
+			}
+			const any = Object.values(byField).some(v => Number(v||0) > 0);
+			if (!any) continue;
+			await api('PUT', API.Sales, {
+				id: s.id,
+				client_name: s.client_name || '',
+				qty_arco: byField.qty_arco || 0,
+				qty_melo: byField.qty_melo || 0,
+				qty_mara: byField.qty_mara || 0,
+				qty_oreo: byField.qty_oreo || 0,
+				qty_nute: byField.qty_nute || 0,
+				pay_method: s.pay_method || null,
+				_actor_name: state.currentUser?.name || ''
+			});
+			restored++;
+		}
+	}
+	return restored;
+}
+
+function renderClientDetailTable(rows) {
+	const tbody = document.getElementById('client-detail-tbody');
+	if (!tbody) return;
+	tbody.innerHTML = '';
+	if (!rows || rows.length === 0) {
+		const tr = document.createElement('tr');
+		const td = document.createElement('td'); td.colSpan = 8; td.textContent = 'Sin compras'; td.style.opacity = '0.8';
+		tr.appendChild(td); tbody.appendChild(tr); return;
+	}
+	for (const r of rows) {
+		const tr = document.createElement('tr');
+		tr.dataset.id = String(r.id);
+		const tdPay = document.createElement('td'); tdPay.className = 'col-paid';
+		const wrap = document.createElement('span'); wrap.className = 'pay-wrap';
+		const sel = document.createElement('select'); sel.className = 'input-cell pay-select';
+		const current = (r.pay_method || '').replace(/\.$/, '');
+		const opts = [
+			{ v: '', label: '-' },
+			{ v: 'efectivo', label: '' },
+			{ v: 'marce', label: '' },
+			{ v: 'transf', label: '' }
+		];
+		for (const o of opts) { const opt = document.createElement('option'); opt.value = o.v; opt.textContent = o.label; if (current === o.v) opt.selected = true; sel.appendChild(opt); }
+		function applyPayClass() {
+			wrap.classList.remove('placeholder','method-efectivo','method-transf','method-marce');
+			if (!sel.value) wrap.classList.add('placeholder');
+			else if (sel.value === 'efectivo') wrap.classList.add('method-efectivo');
+			else if (sel.value === 'transf') wrap.classList.add('method-transf');
+			else if (sel.value === 'marce') wrap.classList.add('method-marce');
+		}
+		applyPayClass();
+		// Mirror behavior from sales: clicking the wrap opens the custom menu
+		wrap.addEventListener('click', async (e) => {
+			e.stopPropagation();
+			const rect = wrap.getBoundingClientRect();
+			openPayMenu(wrap, sel, rect.left + rect.width / 2, rect.bottom);
+		});
+		wrap.tabIndex = 0;
+		wrap.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); const rect = wrap.getBoundingClientRect(); openPayMenu(wrap, sel, rect.left + rect.width / 2, rect.bottom); } });
+		sel.addEventListener('change', async () => {
+			await api('PUT', API.Sales, {
+				id: r.id,
+				client_name: (state._clientDetailName || '').toString(),
+				qty_arco: Number(r.qty_arco||0),
+				qty_melo: Number(r.qty_melo||0),
+				qty_mara: Number(r.qty_mara||0),
+				qty_oreo: Number(r.qty_oreo||0),
+				qty_nute: Number(r.qty_nute||0),
+				pay_method: sel.value || null,
+				_actor_name: state.currentUser?.name || ''
+			});
+			applyPayClass();
+		});
+		wrap.appendChild(sel); tdPay.appendChild(wrap);
+		// Add a visible dash '-' like the main table when no method, using CSS class 'placeholder'
+		if (!sel.value) { /* wrap already has placeholder class to show '-' via styles */ }
+		const tdDate = document.createElement('td'); tdDate.textContent = formatDayLabel(r.dayIso);
+		const tdAr = document.createElement('td'); tdAr.textContent = r.qty_arco ? String(r.qty_arco) : '';
+		const tdMe = document.createElement('td'); tdMe.textContent = r.qty_melo ? String(r.qty_melo) : '';
+		const tdMa = document.createElement('td'); tdMa.textContent = r.qty_mara ? String(r.qty_mara) : '';
+		const tdOr = document.createElement('td'); tdOr.textContent = r.qty_oreo ? String(r.qty_oreo) : '';
+		const tdNu = document.createElement('td'); tdNu.textContent = r.qty_nute ? String(r.qty_nute) : '';
+		const total = calcRowTotal({ arco: r.qty_arco, melo: r.qty_melo, mara: r.qty_mara, oreo: r.qty_oreo, nute: r.qty_nute });
+		const tdTot = document.createElement('td'); tdTot.textContent = fmtNo.format(total);
+		tr.append(tdPay, tdDate, tdAr, tdMe, tdMa, tdOr, tdNu, tdTot);
+		tr.addEventListener('mousedown', () => { tr.classList.add('row-highlight'); setTimeout(() => tr.classList.remove('row-highlight'), 500); });
+		tbody.appendChild(tr);
+	}
+}
+
 const API = {
 	Sellers: '/api/sellers',
 	Sales: '/api/sales'
@@ -858,6 +1012,7 @@ async function savePaid(tr, id, isPaid) {
 	const body = readRow(tr);
 	body.id = id;
 	body.is_paid = !!isPaid;
+	body._actor_name = state.currentUser?.name || '';
 	const updated = await api('PUT', API.Sales, body);
 	const idx = state.sales.findIndex(s => s.id === id);
 	if (idx !== -1) state.sales[idx] = updated;
@@ -867,6 +1022,7 @@ async function savePayMethod(tr, id, method) {
 	const body = readRow(tr);
 	body.id = id;
 	body.pay_method = method || null;
+	body._actor_name = state.currentUser?.name || '';
 	await api('PUT', API.Sales, body);
 	// Update local state
 	const idx = state.sales.findIndex(s => s.id === id);
@@ -1174,7 +1330,87 @@ function bindEvents() {
 		switchView('#view-select-seller');
 	});
 
+	// Back from Clients view
+	const backBtn = document.getElementById('clients-back');
+	backBtn?.addEventListener('click', () => {
+		if (state.currentSeller) switchView('#view-sales'); else switchView('#view-select-seller');
+	});
+
+	// Back from Client Detail view
+	const detailBackBtn = document.getElementById('client-detail-back');
+	detailBackBtn?.addEventListener('click', () => { switchView('#view-clients'); });
+
+	// Admin-only: Restore bugged sales
+	// (botón de reporte eliminado)
+
 	document.getElementById('export-excel')?.addEventListener('click', exportTableToExcel);
+}
+
+async function buildRestoreReport() {
+	const sellers = await api('GET', API.Sellers);
+	const report = [];
+	for (const s of (sellers || [])) {
+		const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(s.id)}`);
+		for (const d of (days || [])) {
+			const params = new URLSearchParams({ seller_id: String(s.id), sale_day_id: String(d.id) });
+			let sales = [];
+			try { sales = await api('GET', `${API.Sales}?${params.toString()}`); } catch { sales = []; }
+			for (const row of (sales || [])) {
+				const isAllZero = !Number(row.qty_arco||0) && !Number(row.qty_melo||0) && !Number(row.qty_mara||0) && !Number(row.qty_oreo||0) && !Number(row.qty_nute||0);
+				if (!isAllZero) continue;
+				let logs = [];
+				try { logs = await api('GET', `${API.Sales}?history_for=${encodeURIComponent(row.id)}`); } catch { logs = []; }
+				const restored = { arco: 0, melo: 0, mara: 0, oreo: 0, nute: 0 };
+				for (const key of Object.keys(restored)) {
+					const field = 'qty_' + key;
+					const history = logs.filter(l => l.field === field);
+					for (const h of history) {
+						const prev = Number(h.new_value ?? h.newValue ?? 0) || 0;
+						if (prev > 0) { restored[key] = prev; }
+					}
+				}
+				const any = Object.values(restored).some(v => Number(v||0) > 0);
+				if (!any) continue;
+				report.push({
+					seller: s.name,
+					date: String(d.day).slice(0,10),
+					client: row.client_name || '',
+					qtys: restored
+				});
+			}
+		}
+	}
+	return report;
+}
+
+function openRestoreReportDialog(items, anchorX, anchorY) {
+	const pop = document.createElement('div');
+	pop.className = 'confirm-popover';
+	pop.style.position = 'fixed';
+	const baseX = (typeof anchorX === 'number') ? anchorX : (window.innerWidth / 2);
+	const baseY = (typeof anchorY === 'number') ? anchorY : (window.innerHeight / 2);
+	pop.style.left = baseX + 'px'; pop.style.top = (baseY + 6) + 'px'; pop.style.transform = 'translate(-50%, 0)'; pop.style.zIndex = '1000';
+	pop.style.maxWidth = 'min(92vw, 520px)'; pop.style.wordBreak = 'break-word';
+	const title = document.createElement('div'); title.className = 'history-title'; title.textContent = 'Ventas restaurables';
+	const list = document.createElement('div'); list.className = 'history-list'; list.style.maxHeight = '60vh'; list.style.overflow = 'auto';
+	if (!items || items.length === 0) {
+		const empty = document.createElement('div'); empty.className = 'history-item'; empty.textContent = 'No hay ventas para restaurar'; list.appendChild(empty);
+	} else {
+		for (const it of items) {
+			const row = document.createElement('div'); row.className = 'history-item';
+			row.textContent = `${it.seller} | ${it.date} | ${it.client} → Ar:${it.qtys.arco} Me:${it.qtys.melo} Ma:${it.qtys.mara} Or:${it.qtys.oreo} Nu:${it.qtys.nute}`;
+			list.appendChild(row);
+		}
+	}
+	const actions = document.createElement('div'); actions.className = 'confirm-actions';
+	const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn'; closeBtn.textContent = 'Cerrar';
+	actions.append(closeBtn);
+	pop.append(title, list, actions);
+	document.body.appendChild(pop);
+	function cleanup(){ document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); if (pop.parentNode) pop.parentNode.removeChild(pop); }
+	function outside(ev){ if (!pop.contains(ev.target)) cleanup(); }
+	setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
+	closeBtn.addEventListener('click', cleanup);
 }
 
 // Reverted: removed sticky header clone logic to return to visible non-sticky thead state.
@@ -1739,6 +1975,85 @@ if (!('selectedDayId' in state)) state.selectedDayId = null;
 	});
 })();
 
+// Load and render Clients view listing all unique client names across all dates for the current seller
+async function openClientsView() {
+	if (!state.currentSeller) return;
+	await loadClientsForSeller();
+	switchView('#view-clients');
+}
+
+async function loadClientsForSeller() {
+	const sellerId = state.currentSeller.id;
+	const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(sellerId)}`);
+	const nameToCount = new Map();
+	for (const d of (days || [])) {
+		const params = new URLSearchParams({ seller_id: String(sellerId), sale_day_id: String(d.id) });
+		let sales = [];
+		try { sales = await api('GET', `${API.Sales}?${params.toString()}`); } catch { sales = []; }
+		for (const s of (sales || [])) {
+			const raw = (s?.client_name || '').trim();
+			if (!raw) continue;
+			const key = raw.toLowerCase();
+			if (!nameToCount.has(key)) nameToCount.set(key, { name: raw, count: 0 });
+			nameToCount.get(key).count++;
+		}
+	}
+	const rows = Array.from(nameToCount.values()).sort((a,b) => a.name.localeCompare(b.name, 'es'));
+	renderClientsTable(rows);
+}
+
+function renderClientsTable(rows) {
+	const tbody = document.getElementById('clients-tbody');
+	if (!tbody) return;
+	tbody.innerHTML = '';
+	if (!rows || rows.length === 0) {
+		const tr = document.createElement('tr');
+		const td = document.createElement('td'); td.colSpan = 2; td.textContent = 'Sin clientes'; td.style.opacity = '0.8';
+		tr.appendChild(td); tbody.appendChild(tr); return;
+	}
+	for (const r of rows) {
+		const tr = document.createElement('tr'); tr.className = 'clients-row';
+		const tdN = document.createElement('td'); tdN.textContent = r.name;
+		const tdC = document.createElement('td'); tdC.textContent = String(r.count); tdC.style.textAlign = 'right';
+		tr.append(tdN, tdC);
+		tr.addEventListener('mousedown', () => { tr.classList.add('row-highlight'); setTimeout(() => tr.classList.remove('row-highlight'), 500); });
+		tr.addEventListener('click', async () => { await openClientDetailView(r.name); });
+		tbody.appendChild(tr);
+	}
+}
+
+function focusClientRow(name) {
+	try {
+		const wrap = document.getElementById('sales-wrapper');
+		if (wrap && wrap.classList.contains('hidden')) wrap.classList.remove('hidden');
+		const tbody = document.getElementById('sales-tbody');
+		if (!tbody) return;
+		const targetLower = String(name || '').trim().toLowerCase();
+		let targetTr = null;
+		for (const tr of Array.from(tbody.rows)) {
+			const input = tr.querySelector('td.col-client .client-input');
+			const v = (input?.value || '').trim().toLowerCase();
+			if (!v) continue;
+			if (v === targetLower) { targetTr = tr; break; }
+			if (!targetTr && v.includes(targetLower)) { targetTr = tr; }
+		}
+		if (!targetTr) { try { notify.info('Cliente no encontrado en esta fecha'); } catch {} return; }
+		const input = targetTr.querySelector('td.col-client .client-input');
+		if (input) { input.focus(); }
+		targetTr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+		targetTr.classList.add('row-highlight');
+		setTimeout(() => targetTr.classList.remove('row-highlight'), 1500);
+	} catch {}
+}
+
+(function wireClientsButton(){
+	const btn = document.getElementById('clients-button');
+	if (!btn) return;
+	btn.addEventListener('click', async () => {
+		await openClientsView();
+	});
+})();
+
 (function bindBottomAdd(){
 	document.getElementById('add-row-bottom')?.addEventListener('click', addRow);
 })();
@@ -1837,6 +2152,7 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 (async function init() {
 	bindEvents();
 	notify.initToggle();
+	// (la restauración automática fue removida; se mantiene reporte bajo demanda)
 	// Realtime polling of backend notifications
 	(function startRealtime(){
 		let lastId = 0;

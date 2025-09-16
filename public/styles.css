@@ -785,6 +785,20 @@ tfoot td { font-weight: 700; }
 .date-popover .date-cell.selected { background: var(--secondary); border-color: var(--primary); color: var(--text); font-weight: 600; }
 .date-popover .date-cell.disabled { opacity: 0; pointer-events: none; }
 .date-popover .date-cell:hover { background: var(--secondary); }
+.clients-popover { background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.24); padding: 10px; min-width: 260px; max-width: 90vw; max-height: 70vh; overflow: auto; }
+.clients-title { font-weight: 600; margin-bottom: 8px; }
+.clients-table { width: 100%; border-collapse: collapse; }
+.clients-table th, .clients-table td { padding: 6px 8px; border-bottom: 1px solid var(--border); }
+.clients-row { cursor: pointer; }
+.clients-table tbody tr:hover td { background: #f3f4f6 !important; }
+[data-theme="dark"] .clients-table tbody tr:hover td { background: #1a1a1a !important; }
+.clients-row:hover { background: var(--secondary); }
+.row-highlight { animation: rowPulse 1.4s ease-in-out 1; }
+@keyframes rowPulse { 0% { background: #fff6; } 50% { background: var(--secondary); } 100% { background: transparent; } }
+
+/* Hover effect for client detail table */
+#client-detail-table tbody tr:hover td { background: #f3f4f6 !important; }
+[data-theme="dark"] #client-detail-table tbody tr:hover td { background: #1a1a1a !important; }
 
 /* Confirm popover */
 .confirm-popover { background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.24); padding: 10px; min-width: 180px; }

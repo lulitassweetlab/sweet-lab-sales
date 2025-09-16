@@ -80,6 +80,7 @@
 			</div>
 
 			<div id="dates-section" class="dates-section">
+				<div class="clients-actions"><button id="clients-button" class="press-btn">Clientes</button></div>
 				<div class="dates-list" id="dates-list"></div>
 				<input id="new-date" type="date" class="hidden" />
 			</div>
@@ -198,6 +199,73 @@
 				</div>
 				<div class="table-actions end">
 					<button id="add-row-bottom" class="press-btn btn-primary">Nuevo pedido</button>
+				</div>
+			</div>
+		</section>
+
+		<section id="view-clients" class="view hidden">
+			<div class="header-sticky">
+				<div class="toolbar">
+					<div class="toolbar-left">
+						<img src="/logo.png" alt="Lulitas Logo" class="app-logo toolbar-logo" />
+						<button id="clients-back" class="secondary press-btn">Volver</button>
+					</div>
+					<h2>Clientes</h2>
+					<div class="toolbar-actions"></div>
+				</div>
+			</div>
+			<div class="sales-panel">
+				<div class="panel-header">
+					<h3>Todos los clientes</h3>
+				</div>
+				<div class="panel-body">
+					<div class="table-wrapper" id="clients-wrapper">
+						<table id="clients-table" class="clients-table">
+							<thead>
+								<tr>
+									<th>Cliente</th>
+									<th class="col-qty"># Registros</th>
+								</tr>
+							</thead>
+							<tbody id="clients-tbody"></tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+		</section>
+
+		<section id="view-client-detail" class="view hidden">
+			<div class="header-sticky">
+				<div class="toolbar">
+					<div class="toolbar-left">
+						<img src="/logo.png" alt="Lulitas Logo" class="app-logo toolbar-logo" />
+						<button id="client-detail-back" class="secondary press-btn">Volver</button>
+					</div>
+					<h2 id="client-detail-title">Cliente</h2>
+				</div>
+			</div>
+			<div class="sales-panel">
+				<div class="panel-header">
+					<h3 id="client-detail-subtitle">Historial de compras</h3>
+				</div>
+				<div class="panel-body">
+					<div class="table-wrapper" id="client-detail-wrapper">
+						<table id="client-detail-table">
+							<thead>
+								<tr>
+									<th class="col-paid">$</th>
+									<th class="col-date">Fecha</th>
+									<th class="col-arco">Arco</th>
+									<th class="col-melo">Melo</th>
+									<th class="col-mara">Mara</th>
+									<th class="col-oreo">Oreo</th>
+									<th class="col-nute">Nute</th>
+									<th class="col-total">Total</th>
+								</tr>
+							</thead>
+							<tbody id="client-detail-tbody"></tbody>
+						</table>
+					</div>
 				</div>
 			</div>
 		</section>
