@@ -78,7 +78,17 @@ function renderClientDetailTable(rows) {
 		wrap.tabIndex = 0;
 		wrap.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); const rect = wrap.getBoundingClientRect(); openPayMenu(wrap, sel, rect.left + rect.width / 2, rect.bottom); } });
 		sel.addEventListener('change', async () => {
-			await api('PUT', API.Sales, { id: r.id, pay_method: sel.value || null });
+			await api('PUT', API.Sales, {
+				id: r.id,
+				client_name: (state._clientDetailName || '').toString(),
+				qty_arco: Number(r.qty_arco||0),
+				qty_melo: Number(r.qty_melo||0),
+				qty_mara: Number(r.qty_mara||0),
+				qty_oreo: Number(r.qty_oreo||0),
+				qty_nute: Number(r.qty_nute||0),
+				pay_method: sel.value || null,
+				_actor_name: state.currentUser?.name || ''
+			});
 			applyPayClass();
 		});
 		wrap.appendChild(sel); tdPay.appendChild(wrap);
