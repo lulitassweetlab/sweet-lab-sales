@@ -1434,9 +1434,11 @@ async function exportCarteraExcel(startIso, endIso) {
 	const input = document.getElementById('report-date');
 	if (!reportBtn || !input) return;
 	reportBtn.addEventListener('click', (ev) => {
-		openMultiCalendarPopover(async (isoList) => {
-			if (!isoList || !isoList.length) return;
-			await exportConsolidatedForDates(isoList);
+		openRangeCalendarPopover(async (range) => {
+			if (!range || !range.start || !range.end) return;
+			const dates = buildIsoListFromRange(range.start, range.end);
+			if (!dates.length) return;
+			await exportConsolidatedForDates(dates);
 		}, ev.clientX, ev.clientY, { preferUp: true });
 	});
 	carteraBtn?.addEventListener('click', async (ev) => {
@@ -1453,6 +1455,27 @@ async function exportCarteraExcel(startIso, endIso) {
 		openUsersMenu(ev.clientX, ev.clientY);
 	});
 })();
+
+// Build list of ISO dates (YYYY-MM-DD) from inclusive range using UTC arithmetic
+function buildIsoListFromRange(startIso, endIso) {
+    if (!startIso || !endIso) return [];
+    const parseIso = (iso) => {
+        const parts = String(iso).split('-').map(v => parseInt(v, 10));
+        if (parts.length !== 3 || parts.some(n => Number.isNaN(n))) return null;
+        return new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+    };
+    let start = parseIso(startIso);
+    let end = parseIso(endIso);
+    if (!start || !end) return [];
+    if (start > end) { const tmp = start; start = end; end = tmp; }
+    const out = [];
+    const cur = new Date(start.getTime());
+    while (cur <= end) {
+        out.push(cur.toISOString().slice(0, 10));
+        cur.setUTCDate(cur.getUTCDate() + 1);
+    }
+    return out;
+}
 
 function openUsersMenu(anchorX, anchorY) {
 	const pop = document.createElement('div');
