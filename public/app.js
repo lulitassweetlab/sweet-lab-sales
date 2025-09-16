@@ -101,17 +101,19 @@ function renderClientDetailTable(rows) {
 		const current = (r.pay_method || '').replace(/\.$/, '');
 		const opts = [
 			{ v: '', label: '-' },
-			{ v: 'efectivo', label: '' },
-			{ v: 'marce', label: '' },
-			{ v: 'transf', label: '' }
+			{ v: 'efectivo', label: '' }
 		];
+		const isMarcela = String(state.currentUser?.name || '').toLowerCase() === 'marcela';
+		if (isMarcela) opts.push({ v: 'marce', label: '' });
+		opts.push({ v: 'transf', label: '' });
 		for (const o of opts) { const opt = document.createElement('option'); opt.value = o.v; opt.textContent = o.label; if (current === o.v) opt.selected = true; sel.appendChild(opt); }
 		function applyPayClass() {
 			wrap.classList.remove('placeholder','method-efectivo','method-transf','method-marce');
-			if (!sel.value) wrap.classList.add('placeholder');
-			else if (sel.value === 'efectivo') wrap.classList.add('method-efectivo');
-			else if (sel.value === 'transf') wrap.classList.add('method-transf');
-			else if (sel.value === 'marce') wrap.classList.add('method-marce');
+			const val = sel.value || current;
+			if (!val) wrap.classList.add('placeholder');
+			else if (val === 'efectivo') wrap.classList.add('method-efectivo');
+			else if (val === 'transf') wrap.classList.add('method-transf');
+			else if (val === 'marce') wrap.classList.add('method-marce');
 		}
 		applyPayClass();
 		// Mirror behavior from sales: clicking the wrap opens the custom menu
@@ -501,6 +503,15 @@ async function api(method, url, body) {
 
 async function loadSellers() {
 	state.sellers = await api('GET', API.Sellers);
+	// Update dynamic seller icon for current seller if available
+	if (state.currentSeller) {
+		const fresh = (state.sellers || []).find(s => s.id === state.currentSeller.id);
+		if (fresh) {
+			state.currentSeller = fresh;
+			const letter = (fresh.name || '').trim().charAt(0).toUpperCase();
+			// seller-specific icon removed
+		}
+	}
 	renderSellerButtons();
 	// Removed syncColumnsBarWidths();
 	applyAuthVisibility();
@@ -530,6 +541,11 @@ async function enterSeller(id) {
 	const seller = state.sellers.find(s => s.id === id);
 	if (!seller) return;
 	state.currentSeller = seller;
+	// Apply seller bill icon CSS var
+	try {
+		const letter = (seller.name || '').trim().charAt(0).toUpperCase();
+		// seller-specific icon removed
+	} catch {}
 	state.saleDays = [];
 	state.selectedDayId = null;
 	state.clientCounts = new Map();
@@ -614,10 +630,11 @@ function renderTable() {
 				const current = (sale.pay_method || '').replace(/\.$/, '');
 				const options = [
 					{ v: '', label: '-' },
-					{ v: 'efectivo', label: '' },
-					{ v: 'marce', label: '' },
-					{ v: 'transf', label: '' }
+					{ v: 'efectivo', label: '' }
 				];
+				const isMarcela = String(state.currentUser?.name || '').toLowerCase() === 'marcela';
+				if (isMarcela) options.push({ v: 'marce', label: '' });
+				options.push({ v: 'transf', label: '' });
 				for (const o of options) {
 					const opt = document.createElement('option');
 					opt.value = o.v;
@@ -627,10 +644,11 @@ function renderTable() {
 				}
 				function applyPayClass() {
 					wrap.classList.remove('placeholder','method-efectivo','method-transf','method-marce');
-					if (!sel.value) wrap.classList.add('placeholder');
-					else if (sel.value === 'efectivo') wrap.classList.add('method-efectivo');
-					else if (sel.value === 'transf') wrap.classList.add('method-transf');
-					else if (sel.value === 'marce') wrap.classList.add('method-marce');
+					const val = sel.value || current;
+					if (!val) wrap.classList.add('placeholder');
+					else if (val === 'efectivo') wrap.classList.add('method-efectivo');
+					else if (val === 'transf') wrap.classList.add('method-transf');
+					else if (val === 'marce') wrap.classList.add('method-marce');
 				}
 				applyPayClass();
 				sel.addEventListener('change', async () => {
@@ -1388,7 +1406,7 @@ async function exportCarteraExcel(startIso, endIso) {
 				const qn = r.qty_nute || 0;
 				const tot = r.total_cents || 0;
 				totalGrand += (tot || 0);
-				const payLabel = pm === '' ? '-' : (pm === 'marce' ? 'Marce' : pm);
+				const payLabel = pm === '' ? '-' : pm;
 				rows.push([
 					String(d.day).slice(0,10), s.name || '', r.client_name || '', payLabel,
 					r.is_paid ? '✓' : '',
@@ -1536,7 +1554,10 @@ function openUsersMenu(anchorX, anchorY) {
 		try { await api('PATCH', API.Users, { action: 'setRole', username, role }); notify.success('Rol actualizado'); cleanup(); }
 		catch { notify.error('No se pudo actualizar'); }
 	});
+	// Removed Assign Icons
 }
+
+// Removed openAssignIconsDialog
 
 async function exportUsersExcel() {
 	try {
@@ -2224,11 +2245,12 @@ function openPayMenu(anchorEl, selectEl, clickX, clickY) {
 	menu.style.transform = 'translateX(-50%)';
 	menu.style.zIndex = '1000';
 	const items = [
-		{ v: 'efectivo', cls: 'menu-efectivo' },
-		{ v: 'marce', cls: 'menu-marce' },
-		{ v: '', cls: 'menu-clear' },
-		{ v: 'transf', cls: 'menu-transf' }
+		{ v: 'efectivo', cls: 'menu-efectivo' }
 	];
+	if (String(state.currentUser?.name || '').toLowerCase() === 'marcela') {
+		items.push({ v: 'marce', cls: 'menu-marce' });
+	}
+	items.push({ v: '', cls: 'menu-clear' }, { v: 'transf', cls: 'menu-transf' });
 	// Find current sale id for upload flow when choosing 'transf'
 	const trEl = anchorEl.closest('tr');
 	const currentSaleId = Number(trEl?.dataset?.id);
