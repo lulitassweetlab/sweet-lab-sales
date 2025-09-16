@@ -490,7 +490,7 @@ function renderTable() {
 					mark.title = 'Cliente recurrente';
 					mark.addEventListener('click', (ev) => {
 						ev.stopPropagation();
-						openClientTable((sale.client_name || '').trim(), ev.clientX, ev.clientY);
+						openClientHistoryView((sale.client_name || '').trim());
 					});
 					tdClient.appendChild(mark);
 				}
@@ -2088,6 +2088,68 @@ function renderChangeMarkerIfNeeded(tdEl, saleId, field) {
 }
 
 // (mobile bounce limiter removed per user preference)
+
+// Client history view: navigate and render all orders for a specific client across dates
+function openClientHistoryView(rawName) {
+	const name = String(rawName || '').trim();
+	if (!name) return;
+	state._returnView = '#view-sales';
+	state._clientHistoryName = name;
+	switchView('#view-client-history');
+	const back = document.getElementById('client-history-back');
+	back?.addEventListener('click', () => {
+		state._clientHistoryName = '';
+		switchView(state._returnView || '#view-sales');
+	}, { once: true });
+	const title = document.getElementById('client-history-title');
+	if (title) title.textContent = name;
+	loadClientHistory(name).catch(()=>{});
+}
+
+async function loadClientHistory(rawName) {
+	const name = String(rawName || '').trim();
+	if (!name) return;
+	const sellerId = state.currentSeller?.id;
+	if (!sellerId) return;
+	const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(sellerId)}`);
+	const list = [];
+	for (const d of (days || [])) {
+		const params = new URLSearchParams({ seller_id: String(sellerId), sale_day_id: String(d.id) });
+		const rows = await api('GET', `${API.Sales}?${params.toString()}`);
+		for (const r of (rows || [])) {
+			const nm = String(r.client_name || '').trim();
+			if (nm.toLowerCase() !== name.toLowerCase()) continue;
+			const total = calcRowTotal({ arco: r.qty_arco, melo: r.qty_melo, mara: r.qty_mara, oreo: r.qty_oreo, nute: r.qty_nute });
+			list.push({
+				day: String(d.day).slice(0,10),
+				pay: (r.pay_method || ''),
+				arco: r.qty_arco||0,
+				melo: r.qty_melo||0,
+				mara: r.qty_mara||0,
+				oreo: r.qty_oreo||0,
+				nute: r.qty_nute||0,
+				total,
+			});
+		}
+	}
+	renderClientHistory(list);
+}
+
+function renderClientHistory(rows) {
+	const tbody = document.getElementById('client-history-tbody');
+	if (!tbody) return;
+	tbody.innerHTML = '';
+	let qa=0,qm=0,qma=0,qo=0,qn=0,grand=0;
+	for (const r of (rows||[])) {
+		const tr = document.createElement('tr');
+		const pay = r.pay === 'efectivo' ? 'Efectivo' : r.pay === 'transf' ? 'Transf' : r.pay === 'marce' ? 'Marce' : '-';
+		tr.innerHTML = `<td>${formatDayLabel(r.day)}</td><td>${pay}</td><td>${r.arco||0}</td><td>${r.melo||0}</td><td>${r.mara||0}</td><td>${r.oreo||0}</td><td>${r.nute||0}</td><td>${fmtNo.format(r.total||0)}</td>`;
+		tbody.appendChild(tr);
+		qa+=r.arco||0; qm+=r.melo||0; qma+=r.mara||0; qo+=r.oreo||0; qn+=r.nute||0; grand+=(r.total||0);
+	}
+	const s = (id,v)=>{ const el=document.getElementById(id); if (el) el.textContent = String(v); };
+	s('ch-sum-arco', qa); s('ch-sum-melo', qm); s('ch-sum-mara', qma); s('ch-sum-oreo', qo); s('ch-sum-nute', qn); s('ch-sum-total', fmtNo.format(grand));
+}
 
 // Recurring clients: compute by counting occurrences across seller sales
 async function preloadRecurringClientsForSeller() {

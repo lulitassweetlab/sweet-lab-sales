@@ -2045,6 +2045,14 @@ button.secondary.press-btn:active {
 /* Admin: remove background highlight; keep asterisk only */
 .cell-changed { background-color: transparent !important; }
 
+/* Client history table */
+#client-history-wrapper { overflow: auto; }
+#client-history-table { width: 100%; border-collapse: collapse; }
+#client-history-table th, #client-history-table td { border-bottom: 1px solid var(--border); padding: 6px 8px; text-align: right; }
+#client-history-table th:nth-child(1), #client-history-table td:nth-child(1) { text-align: left; }
+#client-history-table th:nth-child(2), #client-history-table td:nth-child(2) { text-align: center; }
+#client-history-table tfoot td.label { text-align: right; font-weight: 700; }
+
 /* Date item with delete */
 .date-item .date-delete {
 	font-size: 0;
