@@ -105,10 +105,12 @@ function renderClientDetailTable(rows) {
 		];
 		const isMarcela = String(state.currentUser?.name || '').toLowerCase() === 'marcela';
 		if (isMarcela) opts.push({ v: 'marce', label: '' });
+		// If current value is 'marce' but user is not Marcela, include it disabled so it displays
+		if (!isMarcela && current === 'marce') opts.push({ v: 'marce', label: '' });
 		const isJorge = String(state.currentUser?.name || '').toLowerCase() === 'jorge';
 		if (isJorge) opts.push({ v: 'jorge', label: '' });
 		opts.push({ v: 'transf', label: '' });
-		for (const o of opts) { const opt = document.createElement('option'); opt.value = o.v; opt.textContent = o.label; if (current === o.v) opt.selected = true; sel.appendChild(opt); }
+		for (const o of opts) { const opt = document.createElement('option'); opt.value = o.v; opt.textContent = o.label; if (!isMarcela && o.v === 'marce') opt.disabled = true; if (current === o.v) opt.selected = true; sel.appendChild(opt); }
 		function applyPayClass() {
 			wrap.classList.remove('placeholder','method-efectivo','method-transf','method-marce','method-jorge');
 			const val = sel.value;
@@ -694,6 +696,8 @@ function renderTable() {
 				];
 				const isMarcela = String(state.currentUser?.name || '').toLowerCase() === 'marcela';
 				if (isMarcela) options.push({ v: 'marce', label: '' });
+				// If current value is 'marce' but user is not Marcela, include it disabled so it displays
+				if (!isMarcela && current === 'marce') options.push({ v: 'marce', label: '' });
 				const isJorge = String(state.currentUser?.name || '').toLowerCase() === 'jorge';
 				if (isJorge) options.push({ v: 'jorge', label: '' });
 				options.push({ v: 'transf', label: '' });
@@ -701,6 +705,7 @@ function renderTable() {
 					const opt = document.createElement('option');
 					opt.value = o.v;
 					opt.textContent = o.label;
+					if (!isMarcela && o.v === 'marce') opt.disabled = true;
 					if (current === o.v) opt.selected = true;
 					sel.appendChild(opt);
 				}
@@ -1308,7 +1313,7 @@ function exportTableToExcel() {
 			const paid = tr.querySelector('td.col-paid input[type="checkbox"]').checked ? '✓' : '';
 			const paySel = tr.querySelector('td.col-paid select.pay-select');
 			const payRaw = paySel ? paySel.value : '';
-			const pay = payRaw === 'efectivo' ? 'Efectivo' : payRaw === 'transf' ? 'Transf' : '-';
+			const pay = payRaw === 'efectivo' ? 'Efectivo' : payRaw === 'transf' ? 'Transf' : payRaw === 'marce' ? 'Marce' : payRaw === 'jorge' ? 'Jorge' : '-';
 			const client = tr.querySelector('td.col-client input')?.value ?? '';
 			let arco = tr.querySelector('td.col-arco input')?.value ?? '';
 			let melo = tr.querySelector('td.col-melo input')?.value ?? '';
@@ -1381,7 +1386,7 @@ async function exportConsolidatedForDate(dayIso) {
 			const qn = r.qty_nute || 0;
 			const tot = r.total_cents || 0;
 			const pm = (r.pay_method || '').toString();
-			const pay = pm === 'efectivo' ? 'Efectivo' : pm === 'transf' ? 'Transf' : '-';
+			const pay = pm === 'efectivo' ? 'Efectivo' : pm === 'transf' ? 'Transf' : pm === 'marce' ? 'Marce' : pm === 'jorge' ? 'Jorge' : '-';
 			tQa += qa; tQm += qm; tQma += qma; tQo += qo; tQn += qn; tGrand += (tot || 0);
 			rows.push([
 				s.name || '',
@@ -1430,7 +1435,7 @@ async function exportConsolidatedForDates(isoList) {
 				const qn = r.qty_nute || 0;
 				const tot = r.total_cents || 0;
 				const pm = (r.pay_method || '').toString();
-				const pay = pm === 'efectivo' ? 'Efectivo' : pm === 'transf' ? 'Transf' : '-';
+				const pay = pm === 'efectivo' ? 'Efectivo' : pm === 'transf' ? 'Transf' : pm === 'marce' ? 'Marce' : pm === 'jorge' ? 'Jorge' : '-';
 				tQa += qa; tQm += qm; tQma += qma; tQo += qo; tQn += qn; tGrand += (tot || 0);
 				rows.push([iso, s.name || '', r.is_paid ? '✓' : '', pay,
 					r.client_name || '', qa === 0 ? '' : qa, qm === 0 ? '' : qm,
