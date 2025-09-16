@@ -1341,23 +1341,81 @@ function bindEvents() {
 	detailBackBtn?.addEventListener('click', () => { switchView('#view-clients'); });
 
 	// Admin-only: Restore bugged sales
-	const restoreBtn = document.getElementById('clients-restore');
-	restoreBtn?.addEventListener('click', async () => {
-		if (!state.currentUser?.isAdmin) { notify.error('Solo admin'); return; }
-		try {
-			restoreBtn.disabled = true;
-			restoreBtn.textContent = 'Restaurando...';
-			const fixed = await restoreBuggedSalesForSeller();
-			notify.success(`Restauradas ${fixed} ventas`);
-		} catch (e) {
-			notify.error('Error al restaurar');
-		} finally {
-			restoreBtn.disabled = false;
-			restoreBtn.textContent = 'Restaurar';
-		}
+	// (el botón de restauración ha sido eliminado)
+	const reportBtn = document.getElementById('clients-report');
+	reportBtn?.addEventListener('click', async (ev) => {
+		const data = await buildRestoreReport();
+		openRestoreReportDialog(data, ev?.clientX, ev?.clientY);
 	});
 
 	document.getElementById('export-excel')?.addEventListener('click', exportTableToExcel);
+}
+
+async function buildRestoreReport() {
+	const sellers = await api('GET', API.Sellers);
+	const report = [];
+	for (const s of (sellers || [])) {
+		const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(s.id)}`);
+		for (const d of (days || [])) {
+			const params = new URLSearchParams({ seller_id: String(s.id), sale_day_id: String(d.id) });
+			let sales = [];
+			try { sales = await api('GET', `${API.Sales}?${params.toString()}`); } catch { sales = []; }
+			for (const row of (sales || [])) {
+				const isAllZero = !Number(row.qty_arco||0) && !Number(row.qty_melo||0) && !Number(row.qty_mara||0) && !Number(row.qty_oreo||0) && !Number(row.qty_nute||0);
+				if (!isAllZero) continue;
+				let logs = [];
+				try { logs = await api('GET', `${API.Sales}?history_for=${encodeURIComponent(row.id)}`); } catch { logs = []; }
+				const restored = { arco: 0, melo: 0, mara: 0, oreo: 0, nute: 0 };
+				for (const key of Object.keys(restored)) {
+					const field = 'qty_' + key;
+					const history = logs.filter(l => l.field === field);
+					for (const h of history) {
+						const prev = Number(h.new_value ?? h.newValue ?? 0) || 0;
+						if (prev > 0) { restored[key] = prev; }
+					}
+				}
+				const any = Object.values(restored).some(v => Number(v||0) > 0);
+				if (!any) continue;
+				report.push({
+					seller: s.name,
+					date: String(d.day).slice(0,10),
+					client: row.client_name || '',
+					qtys: restored
+				});
+			}
+		}
+	}
+	return report;
+}
+
+function openRestoreReportDialog(items, anchorX, anchorY) {
+	const pop = document.createElement('div');
+	pop.className = 'confirm-popover';
+	pop.style.position = 'fixed';
+	const baseX = (typeof anchorX === 'number') ? anchorX : (window.innerWidth / 2);
+	const baseY = (typeof anchorY === 'number') ? anchorY : (window.innerHeight / 2);
+	pop.style.left = baseX + 'px'; pop.style.top = (baseY + 6) + 'px'; pop.style.transform = 'translate(-50%, 0)'; pop.style.zIndex = '1000';
+	pop.style.maxWidth = 'min(92vw, 520px)'; pop.style.wordBreak = 'break-word';
+	const title = document.createElement('div'); title.className = 'history-title'; title.textContent = 'Ventas restaurables';
+	const list = document.createElement('div'); list.className = 'history-list'; list.style.maxHeight = '60vh'; list.style.overflow = 'auto';
+	if (!items || items.length === 0) {
+		const empty = document.createElement('div'); empty.className = 'history-item'; empty.textContent = 'No hay ventas para restaurar'; list.appendChild(empty);
+	} else {
+		for (const it of items) {
+			const row = document.createElement('div'); row.className = 'history-item';
+			row.textContent = `${it.seller} | ${it.date} | ${it.client} → Ar:${it.qtys.arco} Me:${it.qtys.melo} Ma:${it.qtys.mara} Or:${it.qtys.oreo} Nu:${it.qtys.nute}`;
+			list.appendChild(row);
+		}
+	}
+	const actions = document.createElement('div'); actions.className = 'confirm-actions';
+	const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn'; closeBtn.textContent = 'Cerrar';
+	actions.append(closeBtn);
+	pop.append(title, list, actions);
+	document.body.appendChild(pop);
+	function cleanup(){ document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); if (pop.parentNode) pop.parentNode.removeChild(pop); }
+	function outside(ev){ if (!pop.contains(ev.target)) cleanup(); }
+	setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
+	closeBtn.addEventListener('click', cleanup);
 }
 
 // Reverted: removed sticky header clone logic to return to visible non-sticky thead state.
@@ -2081,53 +2139,7 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 (async function init() {
 	bindEvents();
 	notify.initToggle();
-	// One-time: restore any affected sales across all sellers
-	try {
-		const sellers = await api('GET', API.Sellers);
-		let totalRestored = 0;
-		for (const s of (sellers || [])) {
-			const n = await (async () => {
-				const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(s.id)}`);
-				let restored = 0;
-				for (const d of (days || [])) {
-					const params = new URLSearchParams({ seller_id: String(s.id), sale_day_id: String(d.id) });
-					let sales = [];
-					try { sales = await api('GET', `${API.Sales}?${params.toString()}`); } catch { sales = []; }
-					for (const row of (sales || [])) {
-						const isAllZero = !Number(row.qty_arco||0) && !Number(row.qty_melo||0) && !Number(row.qty_mara||0) && !Number(row.qty_oreo||0) && !Number(row.qty_nute||0);
-						if (!isAllZero) continue;
-						let logs = [];
-						try { logs = await api('GET', `${API.Sales}?history_for=${encodeURIComponent(row.id)}`); } catch { logs = []; }
-						const byField = { qty_arco: 0, qty_melo: 0, qty_mara: 0, qty_oreo: 0, qty_nute: 0 };
-						for (const f of Object.keys(byField)) {
-							const history = logs.filter(l => l.field === f);
-							for (const h of history) {
-								const prev = Number(h.new_value ?? h.newValue ?? 0) || 0;
-								if (prev > 0) { byField[f] = prev; }
-							}
-						}
-						const any = Object.values(byField).some(v => Number(v||0) > 0);
-						if (!any) continue;
-						await api('PUT', API.Sales, {
-							id: row.id,
-							client_name: row.client_name || '',
-							qty_arco: byField.qty_arco || 0,
-							qty_melo: byField.qty_melo || 0,
-							qty_mara: byField.qty_mara || 0,
-							qty_oreo: byField.qty_oreo || 0,
-							qty_nute: byField.qty_nute || 0,
-							pay_method: row.pay_method || null,
-							_actor_name: state.currentUser?.name || ''
-						});
-						restored++;
-					}
-				}
-				return restored;
-			})();
-			totalRestored += Number(n||0);
-		}
-		if (totalRestored > 0) { try { notify.success(`Restauradas ${totalRestored} ventas`); } catch {} }
-	} catch {}
+	// (la restauración automática fue removida; se mantiene reporte bajo demanda)
 	// Realtime polling of backend notifications
 	(function startRealtime(){
 		let lastId = 0;
