@@ -145,14 +145,18 @@ export async function handler(event) {
 					if (prevPm !== nextPm) {
 						const fmt = (v) => v === 'efectivo' ? 'Efectivo' : v === 'transf' ? 'Transferencia' : v === 'marce' ? 'Marce' : '-';
 						const msg = `${client || 'Cliente'} pago: ${fmt(prevPm)} → ${fmt(nextPm)}` + (actor ? ` - ${actor}` : '');
-						await notifyDb({ type: 'pay', sellerId: Number(data.seller_id||0)||null, saleId: id, saleDayId: Number(data.sale_day_id||0)||null, message: msg, actorName: actor });
+						const iconUrl = nextPm === 'efectivo' ? '/icons/bill.svg' : nextPm === 'transf' ? '/icons/bank.svg' : nextPm === 'marce' ? '/icons/marce7.svg?v=1' : null;
+						await notifyDb({ type: 'pay', sellerId: Number(data.seller_id||0)||null, saleId: id, saleDayId: Number(data.sale_day_id||0)||null, message: msg, actorName: actor, iconUrl, payMethod: nextPm });
 					}
 				} catch {}
 				const row = await recalcTotalForId(id);
 				return json(row);
 			}
 			case 'DELETE': {
-				const params = new URLSearchParams(event.rawQuery || event.queryStringParameters ? event.rawQuery || '' : '');
+				const rawQs = (typeof event.rawQuery === 'string' && event.rawQuery.length)
+					? event.rawQuery
+					: (event.queryStringParameters ? new URLSearchParams(event.queryStringParameters).toString() : '');
+				const params = new URLSearchParams(rawQs);
 				const idParam = params.get('id') || (event.queryStringParameters && event.queryStringParameters.id);
 				const actor = (params.get('actor') || '').toString();
 				const id = Number(idParam);
@@ -165,7 +169,7 @@ export async function handler(event) {
 				}
 				if (!id) return json({ error: 'id requerido' }, 400);
 				// fetch previous data for notification content
-				const prev = (await sql`SELECT seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute FROM sales WHERE id=${id}`)[0] || null;
+				const prev = (await sql`SELECT seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, pay_method FROM sales WHERE id=${id}`)[0] || null;
 				await sql`DELETE FROM sales WHERE id=${id}`;
 				// emit deletion notification with client, quantities, and seller name
 				if (prev) {
@@ -183,9 +187,11 @@ export async function handler(event) {
 						sellerName = (s && s[0] && s[0].name) ? String(s[0].name) : '';
 					} catch {}
 					const tail = sellerName ? ` - ${sellerName}` : '';
-					const msg = `Eliminada: ${name}${suffix}${tail}`;
+					const msg = `Eliminado: ${name}${suffix}${tail}`;
+					const pm = (prev?.pay_method || '').toString();
+					const iconUrl = pm === 'efectivo' ? '/icons/bill.svg' : pm === 'transf' ? '/icons/bank.svg' : pm === 'marce' ? '/icons/marce7.svg?v=1' : null;
 					// Do not reference deleted sale_id to avoid FK violation
-					await notifyDb({ type: 'delete', sellerId: Number(prev.seller_id||0)||null, saleId: null, saleDayId: Number(prev.sale_day_id||0)||null, message: msg, actorName: actor });
+					await notifyDb({ type: 'delete', sellerId: Number(prev.seller_id||0)||null, saleId: null, saleDayId: Number(prev.sale_day_id||0)||null, message: msg, actorName: actor, iconUrl, payMethod: pm });
 				}
 				return json({ ok: true });
 			}

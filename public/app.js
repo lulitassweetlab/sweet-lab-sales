@@ -245,9 +245,19 @@ const notify = (() => {
 			btn.classList.toggle('has-unread', !!anyUnread);
 		} catch {}
 	}
-	function render(type, message, timeoutMs = 3000) {
+	function render(type, message, optsOrTimeout) {
 		const c = container();
 		if (!c) return;
+		let timeoutMs = 3000;
+		let iconUrl = null;
+		let payMethod = null;
+		if (typeof optsOrTimeout === 'number') {
+			timeoutMs = optsOrTimeout;
+		} else if (optsOrTimeout && typeof optsOrTimeout === 'object') {
+			if (typeof optsOrTimeout.timeoutMs === 'number') timeoutMs = optsOrTimeout.timeoutMs;
+			iconUrl = optsOrTimeout.iconUrl || null;
+			payMethod = optsOrTimeout.payMethod || null;
+		}
 		const n = document.createElement('div');
 		n.className = 'toast toast-' + (type || 'info');
 		const actorName = String((state?.currentSeller?.name || state?.currentUser?.name || '') || '');
@@ -257,6 +267,19 @@ const notify = (() => {
 		const close = document.createElement('button'); close.className = 'toast-close'; close.type = 'button'; close.textContent = '×';
 		close.addEventListener('click', () => dismiss(n));
 		n.append(msg, close);
+		// Optional icon support (e.g., payment method)
+		try {
+			let url = iconUrl;
+			if (!url && payMethod) {
+				url = payMethod === 'efectivo' ? '/icons/bill.svg' : payMethod === 'transf' ? '/icons/bank.svg' : payMethod === 'marce' ? '/icons/marce7.svg?v=1' : null;
+			}
+			if (url) {
+				const icon = document.createElement('span');
+				icon.className = 'toast-icon';
+				icon.style.backgroundImage = `url('${url}')`;
+				n.insertBefore(icon, msg);
+			}
+		} catch {}
 		c.appendChild(n);
 		if (timeoutMs > 0) setTimeout(() => dismiss(n), timeoutMs);
 		pushLog({ type, text: String(message || ''), actor: actorName });
@@ -329,7 +352,24 @@ const notify = (() => {
 				const item = document.createElement('div'); item.className = 'notif-item';
 				const when = document.createElement('div'); when.className = 'when';
 				const d = new Date(it.created_at || it.when); when.textContent = isNaN(d.getTime()) ? String(it.created_at || it.when) : d.toLocaleString();
-				const text = document.createElement('div'); text.className = 'text'; text.textContent = String(it.message || it.text || '');
+				const text = document.createElement('div'); text.className = 'text';
+				// prepend icon if present or if pay_method provided
+				try {
+					let url = it.icon_url || null;
+					const pm = (it.pay_method || '').toString();
+					if (!url && pm) {
+						url = pm === 'efectivo' ? '/icons/bill.svg' : pm === 'transf' ? '/icons/bank.svg' : pm === 'marce' ? '/icons/marce7.svg?v=1' : null;
+					}
+					if (url) {
+						const icon = document.createElement('span');
+						icon.className = 'notif-icon';
+						icon.style.backgroundImage = `url('${url}')`;
+						text.appendChild(icon);
+					}
+				} catch {}
+				const txt = document.createElement('span');
+				txt.textContent = String(it.message || it.text || '');
+				text.appendChild(txt);
 				item.append(when, text);
 				list.appendChild(item);
 			}
@@ -1108,8 +1148,9 @@ async function deleteRow(id) {
 				sellerName = match && match.name ? String(match.name) : '';
 			} catch {}
 			const tail = sellerName ? (' - ' + sellerName) : '';
-			const msg = 'Eliminada: ' + formatSaleSummary(prev) + tail;
-			notify.info(msg);
+			const msg = 'Eliminado: ' + formatSaleSummary(prev) + tail;
+			const pay = (prev?.pay_method || '').toString();
+			notify.info(msg, pay ? { payMethod: pay } : undefined);
 		} catch {}
 	}
 	// Push undo: re-create previous row
@@ -2593,7 +2634,9 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 							lastId = Math.max(lastId, Number(r.id||0));
 							if (!initialized) continue; // skip showing notifications on first load
 							const msg = String(r.message || '');
-							notify.info(msg);
+							const pm = (r.pay_method || '').toString();
+							const iconUrl = r.icon_url || (pm === 'efectivo' ? '/icons/bill.svg' : pm === 'transf' ? '/icons/bank.svg' : pm === 'marce' ? '/icons/marce7.svg?v=1' : null);
+							notify.info(msg, iconUrl || pm ? { iconUrl, payMethod: pm } : undefined);
 							notify.showBrowser('Venta', msg);
 						}
 						initialized = true;

@@ -78,6 +78,7 @@
 .toast-success { border-color: #16a34a; }
 .toast-error { border-color: var(--danger); }
 .toast-info { border-color: var(--accent); }
+.toast .toast-icon { width:16px; height:16px; background-repeat:no-repeat; background-position:center; background-size:contain; opacity:0.9; }
 .toast .toast-msg { flex: 1; }
 .toast .toast-msg .actor { opacity: 0.8; font-style: italic; }
 .toast .toast-close {
@@ -159,7 +160,8 @@
 .notif-list { overflow: auto; padding: 8px 12px; display: grid; gap: 8px; }
 .notif-item { border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; background: var(--card); display: grid; gap: 4px; }
 .notif-item .when { font-size: 11px; color: var(--muted); }
-.notif-item .text { font-size: 12px; white-space: pre-wrap; word-break: break-word; }
+.notif-item .text { font-size: 12px; white-space: pre-wrap; word-break: break-word; display:flex; align-items:center; gap:6px; }
+.notif-item .text .notif-icon { width:16px; height:16px; background-repeat:no-repeat; background-position:center; background-size:contain; opacity:0.9; flex:0 0 auto; }
 .notif-empty { color: var(--muted); font-size: 12px; padding: 12px; text-align: center; }
 .notif-close { background: transparent; border: none; color: inherit; cursor: pointer; padding: 6px 8px; border-radius: 8px; }
 .notif-btn { border: 1px solid var(--border); background: var(--card); color: var(--text); border-radius: 10px; padding: 6px 10px; cursor: pointer; }

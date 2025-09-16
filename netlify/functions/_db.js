@@ -117,9 +117,26 @@ export async function ensureSchema() {
 		sale_day_id INTEGER REFERENCES sale_days(id) ON DELETE SET NULL,
 		message TEXT NOT NULL,
 		actor_name TEXT,
+		icon_url TEXT,
+		pay_method TEXT,
 		created_at TIMESTAMPTZ DEFAULT now(),
 		read_at TIMESTAMPTZ
 	)`;
+	// Ensure optional columns exist for older deployments
+	await sql`DO $$ BEGIN
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'notifications' AND column_name = 'icon_url'
+		) THEN
+			ALTER TABLE notifications ADD COLUMN icon_url TEXT;
+		END IF;
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'notifications' AND column_name = 'pay_method'
+		) THEN
+			ALTER TABLE notifications ADD COLUMN pay_method TEXT;
+		END IF;
+	END $$;`;
 	// Seed default users if table is empty
 	const existing = await sql`SELECT COUNT(*)::int AS c FROM users`;
 	if ((existing[0]?.c || 0) === 0) {
@@ -155,9 +172,9 @@ export async function getOrCreateDayId(sellerId, day) {
 	return created.id;
 }
 
-export async function notify({ type, sellerId = null, saleId = null, saleDayId = null, message = '', actorName = '' }) {
+export async function notify({ type, sellerId = null, saleId = null, saleDayId = null, message = '', actorName = '', iconUrl = null, payMethod = null }) {
 	await ensureSchema();
-	await sql`INSERT INTO notifications (type, seller_id, sale_id, sale_day_id, message, actor_name) VALUES (${type}, ${sellerId}, ${saleId}, ${saleDayId}, ${message}, ${actorName})`;
+	await sql`INSERT INTO notifications (type, seller_id, sale_id, sale_day_id, message, actor_name, icon_url, pay_method) VALUES (${type}, ${sellerId}, ${saleId}, ${saleDayId}, ${message}, ${actorName}, ${iconUrl}, ${payMethod})`;
 }
 
 export { sql };
