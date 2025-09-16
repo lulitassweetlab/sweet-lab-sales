@@ -832,6 +832,26 @@ tfoot td { font-weight: 700; }
 	100% { transform: translate(-50%, 0) scale(1); opacity: 1; }
 }
 .aladdin-pop { animation: aladdinUp 220ms cubic-bezier(0.2, 0.8, 0.2, 1); will-change: transform, opacity; }
+
+/* Users popover: unify button base/hover styles */
+.users-menu .history-list .press-btn,
+.users-menu .confirm-actions .press-btn {
+	background: var(--card);
+	color: var(--text);
+	border: 1px solid var(--border);
+}
+.users-menu .history-list .press-btn:hover,
+.users-menu .confirm-actions .press-btn:hover {
+	background-color: var(--hover-primary-pink);
+	box-shadow: 0 8px 24px var(--hover-shadow-pink);
+	filter: none;
+	color: #ffffff;
+}
+.users-menu .history-list .press-btn:active,
+.users-menu .confirm-actions .press-btn:active {
+	background-color: var(--hover-primary-pink-intense);
+	box-shadow: 0 4px 12px var(--hover-shadow-pink);
+}
 @media (max-width: 600px) {
 	/* Deja el rebote nativo del body (suave) */
 	html, body { overscroll-behavior-y: auto; touch-action: pan-y; }
