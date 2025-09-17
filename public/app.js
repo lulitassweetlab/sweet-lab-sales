@@ -3438,15 +3438,42 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 		try { localStorage.setItem('authUser', JSON.stringify(state.currentUser)); } catch {}
 	}
 	await loadSellers();
+	let __handledPendingFocus = false;
+	// Handle deep link focus coming from Transfers (pendingFocus in localStorage)
+	try {
+		const saved = localStorage.getItem('pendingFocus');
+		if (saved) {
+			localStorage.removeItem('pendingFocus');
+			const { sellerId, dayIso, clientName } = JSON.parse(saved);
+			const seller = (state.sellers || []).find(s => Number(s.id) === Number(sellerId));
+			if (seller) {
+				__handledPendingFocus = true;
+				await enterSeller(seller.id);
+				// Load days and select the requested date
+				try {
+					const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(seller.id)}`);
+					const d = (days || []).find(x => String(x.day).slice(0,10) === String(dayIso).slice(0,10));
+					if (d) {
+						state.selectedDayId = d.id;
+						document.getElementById('sales-wrapper')?.classList.remove('hidden');
+						await loadSales();
+						focusClientRow(clientName || '');
+					}
+				} catch {}
+			}
+		}
+	} catch {}
 	bindLogin();
-	// Route initial view
-	if (!state.currentUser) {
-		switchView('#view-login');
-	} else if (state.currentUser.isAdmin) {
-		switchView('#view-select-seller');
-	} else {
-		const me = (state.sellers || []).find(s => String(s.name).toLowerCase() === String(state.currentUser.name || '').toLowerCase());
-		if (me) enterSeller(me.id); else switchView('#view-select-seller');
+	// Route initial view (skip if we just navigated from Transfers)
+	if (!__handledPendingFocus) {
+		if (!state.currentUser) {
+			switchView('#view-login');
+		} else if (state.currentUser.isAdmin) {
+			switchView('#view-select-seller');
+		} else {
+			const me = (state.sellers || []).find(s => String(s.name).toLowerCase() === String(state.currentUser.name || '').toLowerCase());
+			if (me) enterSeller(me.id); else switchView('#view-select-seller');
+		}
 	}
 	window.addEventListener('resize', debounce(updateSummary, 150));
 })();
