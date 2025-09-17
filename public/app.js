@@ -2158,7 +2158,8 @@ async function buildDessertCard(dessertName) {
 	const title = document.createElement('h3'); title.textContent = dessertName;
 	const addStep = document.createElement('button'); addStep.className = 'press-btn'; addStep.textContent = 'Agregar paso';
 	const delDessert = document.createElement('button'); delDessert.className = 'press-btn'; delDessert.textContent = 'Eliminar postre';
-	head.append(addStep, delDessert, title);
+	const actionsWrap = document.createElement('div'); actionsWrap.className = 'dessert-actions'; actionsWrap.append(addStep, delDessert);
+	head.append(title, actionsWrap);
 	const steps = document.createElement('div'); steps.className = 'steps-list';
 	for (const s of (data.steps || [])) steps.appendChild(buildStepCard(dessertName, s));
 	addStep.addEventListener('click', async () => {
