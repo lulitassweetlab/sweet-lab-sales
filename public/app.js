@@ -2871,22 +2871,128 @@ function focusClientRow(name) {
 		if (input) { input.focus(); }
 		targetTr.scrollIntoView({ behavior: 'smooth', block: 'center' });
 		// Inline, conflict-free row signal overlay (no CSS dependency)
+		showRowSignal(targetTr, 1500);
+	} catch {}
+}
+
+// Helper: show a temporary overlay highlight over a row element
+function showRowSignal(rowEl, durationMs) {
+	try {
+		const tr = rowEl;
+		const prevPos = tr.style.position;
+		if (!prevPos) tr.style.position = 'relative';
+		const overlay = document.createElement('div');
+		overlay.style.position = 'absolute';
+		overlay.style.left = '0'; overlay.style.right = '0'; overlay.style.top = '0'; overlay.style.bottom = '0';
+		overlay.style.background = 'rgba(244, 166, 183, 0.7)'; // primary @ 70%
+		overlay.style.pointerEvents = 'none';
+		overlay.style.zIndex = '1';
+		overlay.style.opacity = '0';
+		overlay.style.transition = 'opacity 100ms ease-in';
+		tr.appendChild(overlay);
+		requestAnimationFrame(() => { overlay.style.opacity = '1'; });
+		const t = Math.max(400, Number(durationMs||1500));
+		setTimeout(() => { overlay.style.transition = 'opacity 180ms ease-out'; overlay.style.opacity = '0'; }, Math.min(t - 300, 1200));
+		setTimeout(() => { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); if (!prevPos) tr.style.position = ''; }, t);
+	} catch {}
+}
+
+// Focus and highlight a sale row by its sale_id in the current table
+function focusSaleRowById(saleId) {
+	try {
+		const id = Number(saleId);
+		if (!id) return false;
+		const tr = document.querySelector(`#sales-tbody tr[data-id="${id}"]`);
+		if (!tr) return false;
+		tr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+		showRowSignal(tr, 1500);
+		return true;
+	} catch { return false; }
+}
+
+// Try to discover seller_id and sale_day_id by scanning if only sale_id is known
+async function resolveSaleContextBySaleId(rowId) {
+	try {
+		const id = Number(rowId);
+		if (!id) return null;
+		// Fast path (optional): backend may support this; ignore errors
 		try {
-			const prevPos = targetTr.style.position;
-			if (!prevPos) targetTr.style.position = 'relative';
-			const overlay = document.createElement('div');
-			overlay.style.position = 'absolute';
-			overlay.style.left = '0'; overlay.style.right = '0'; overlay.style.top = '0'; overlay.style.bottom = '0';
-			overlay.style.background = 'rgba(244, 166, 183, 0.7)'; // primary @ 70%
-			overlay.style.pointerEvents = 'none';
-			overlay.style.zIndex = '1';
-			overlay.style.opacity = '0';
-			overlay.style.transition = 'opacity 100ms ease-in';
-			targetTr.appendChild(overlay);
-			requestAnimationFrame(() => { overlay.style.opacity = '1'; });
-			setTimeout(() => { overlay.style.transition = 'opacity 180ms ease-out'; overlay.style.opacity = '0'; }, 1200);
-			setTimeout(() => { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); if (!prevPos) targetTr.style.position = ''; }, 1500);
+			const fast = await api('GET', `${API.Sales}?find_by_id=${encodeURIComponent(id)}`);
+			if (fast && Number(fast.seller_id) && Number(fast.sale_day_id)) {
+				return { sellerId: Number(fast.seller_id), saleDayId: Number(fast.sale_day_id) };
+			}
 		} catch {}
+		const sellers = await api('GET', API.Sellers);
+		for (const s of (sellers || [])) {
+			const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(s.id)}`);
+			for (const d of (days || [])) {
+				const p = new URLSearchParams({ seller_id: String(s.id), sale_day_id: String(d.id) });
+				let rows = [];
+				try { rows = await api('GET', `${API.Sales}?${p.toString()}`); } catch { rows = []; }
+				if (Array.isArray(rows) && rows.some(r => Number(r?.id) === id)) {
+					return { sellerId: s.id, saleDayId: d.id };
+				}
+			}
+		}
+	} catch {}
+	return null;
+}
+
+// Navigate from a notification (or deep link) to the exact sale row
+async function goToSaleFromNotification(sellerId, saleDayId, saleId) {
+	try {
+		let sid = Number(sellerId || 0) || null;
+		let dayId = Number(saleDayId || 0) || null;
+		const rowId = Number(saleId || 0) || null;
+		if (!sid && !dayId && !rowId) return;
+
+		// Fallback: discover missing context by scanning
+		if ((!sid || !dayId) && rowId) {
+			const ctx = await resolveSaleContextBySaleId(rowId);
+			if (ctx) { sid = ctx.sellerId; dayId = ctx.saleDayId; }
+		}
+
+		// Respect role: non-admins stay within their seller
+		const isAdminUser = !!(state?.currentUser?.isAdmin);
+		if (!isAdminUser) {
+			// Non-admin: ignore sid if different; they only have one seller context
+			sid = state?.currentSeller?.id || sid;
+		}
+
+		// Ensure sales view for correct seller
+		if (sid) {
+			if (!state.currentSeller || state.currentSeller.id !== sid) {
+				await enterSeller(sid);
+			} else {
+				switchView('#view-sales');
+			}
+		} else {
+			if (!state.currentSeller) { try { notify.info('No se pudo ubicar el vendedor del movimiento'); } catch {} return; }
+		}
+
+		// Load days, select target day, load sales
+		await loadDaysForSeller();
+		if (dayId) {
+			state.selectedDayId = dayId;
+			const wrap = document.getElementById('sales-wrapper');
+			if (wrap && wrap.classList.contains('hidden')) wrap.classList.remove('hidden');
+			await loadSales();
+		} else {
+			const wrap = document.getElementById('sales-wrapper');
+			if (wrap && wrap.classList.contains('hidden')) wrap.classList.remove('hidden');
+			if (!state.selectedDayId && Array.isArray(state.saleDays) && state.saleDays.length) {
+				state.selectedDayId = state.saleDays[0].id;
+				await loadSales();
+			}
+		}
+
+		// Focus specific row if provided
+		if (rowId) {
+			const ok = focusSaleRowById(rowId);
+			if (!ok) { try { notify.info('Registro no encontrado en esta fecha'); } catch {} }
+		} else {
+			document.getElementById('sales-table')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+		}
 	} catch {}
 }
 
