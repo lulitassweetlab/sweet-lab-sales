@@ -1919,24 +1919,27 @@ async function renderIngredientsView() {
 	if (!root) return;
 	root.innerHTML = '';
 	let desserts = [];
-	try { desserts = await api('GET', API.Recipes); } catch { desserts = []; }
+	try { desserts = await api('GET', API.Recipes); } catch (e) { desserts = []; }
 	if (!desserts || desserts.length === 0) {
-		try { await api('GET', `${API.Recipes}?seed=1`); desserts = await api('GET', API.Recipes); }
-		catch {}
+		// Show empty state with action to seed
+		const empty = document.createElement('div'); empty.className = 'empty-state';
+		empty.innerHTML = '<p>No hay postres configurados.</p>';
+		const seedBtn = document.createElement('button'); seedBtn.className = 'press-btn btn-primary'; seedBtn.textContent = 'Cargar ejemplo';
+		seedBtn.addEventListener('click', async () => {
+			try { await api('GET', `${API.Recipes}?seed=1`); } catch {}
+			try { desserts = await api('GET', API.Recipes); } catch { desserts = []; }
+			await renderIngredientsView();
+		});
+		empty.appendChild(seedBtn);
+		root.appendChild(empty);
+		return;
 	}
 	const grid = document.createElement('div'); grid.className = 'ingredients-grid';
-	const list = document.createElement('div'); list.className = 'desserts-steps-list';
 	for (const name of (desserts || [])) {
 		const card = await buildDessertCard(name);
-		card.classList.add('draggable-step');
-		card.draggable = true;
-		card.dataset.dessertName = name;
-		list.appendChild(card);
+		grid.appendChild(card);
 	}
-	grid.appendChild(list);
 	root.appendChild(grid);
-
-	enableStepsReorder(list);
 	// Top actions
 	const addDessertBtn = document.getElementById('ingredients-add-dessert');
 	addDessertBtn?.addEventListener('click', async () => {
@@ -1946,54 +1949,6 @@ async function renderIngredientsView() {
 	});
 	const extrasBtn = document.getElementById('ingredients-add-extras');
 	extrasBtn?.addEventListener('click', async () => { openExtrasEditor(); });
-}
-
-function enableStepsReorder(container) {
-	let dragging = null;
-	container.addEventListener('dragstart', (e) => {
-		const card = e.target && e.target.closest('.draggable-step');
-		if (!card) return;
-		dragging = card;
-		card.classList.add('dragging');
-		try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', card.dataset.dessertName || ''); } catch {}
-	});
-	container.addEventListener('dragover', (e) => {
-		e.preventDefault();
-		const after = getAfterCard(container, e.clientY);
-		if (!dragging) return;
-		if (after == null) container.appendChild(dragging); else container.insertBefore(dragging, after);
-	});
-	container.addEventListener('dragend', async () => {
-		if (!dragging) return;
-		dragging.classList.remove('dragging');
-		const cards = Array.from(container.querySelectorAll('.draggable-step'));
-		let pos = 1;
-		for (const card of cards) {
-			const dessert = card.dataset.dessertName;
-			// Persist step positions for this dessert: re-write each step position in order
-			try {
-				const data = await api('GET', `${API.Recipes}?dessert=${encodeURIComponent(dessert)}&include_extras=1`);
-				let stepPos = 1;
-				for (const st of (data.steps || [])) {
-					await api('POST', API.Recipes, { kind: 'step.upsert', id: st.id, dessert, step_name: st.step_name || null, position: stepPos });
-					stepPos++;
-				}
-			} catch {}
-			pos++;
-		}
-		dragging = null;
-	});
-}
-
-function getAfterCard(container, y) {
-	const els = [...container.querySelectorAll('.draggable-step:not(.dragging)')];
-	let closest = { offset: Number.NEGATIVE_INFINITY, element: null };
-	for (const el of els) {
-		const rect = el.getBoundingClientRect();
-		const offset = y - rect.top - rect.height / 2;
-		if (offset < 0 && offset > closest.offset) closest = { offset, element: el };
-	}
-	return closest.element;
 }
 
 async function openMeasuresView() {
