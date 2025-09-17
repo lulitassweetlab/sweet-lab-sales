@@ -109,8 +109,10 @@ function renderClientDetailTable(rows) {
 		if (!isMarcela && current === 'marce') opts.push({ v: 'marce', label: '' });
 		const isJorge = String(state.currentUser?.name || '').toLowerCase() === 'jorge';
 		if (isJorge) opts.push({ v: 'jorge', label: '' });
+		// If current value is 'jorge' but user is not Jorge, include it disabled so it displays
+		if (!isJorge && current === 'jorge') opts.push({ v: 'jorge', label: '' });
 		opts.push({ v: 'transf', label: '' });
-		for (const o of opts) { const opt = document.createElement('option'); opt.value = o.v; opt.textContent = o.label; if (!isMarcela && o.v === 'marce') opt.disabled = true; if (current === o.v) opt.selected = true; sel.appendChild(opt); }
+		for (const o of opts) { const opt = document.createElement('option'); opt.value = o.v; opt.textContent = o.label; if (!isMarcela && o.v === 'marce') opt.disabled = true; if (!isJorge && o.v === 'jorge') opt.disabled = true; if (current === o.v) opt.selected = true; sel.appendChild(opt); }
 		function applyPayClass() {
 			wrap.classList.remove('placeholder','method-efectivo','method-transf','method-marce','method-jorge');
 			const val = sel.value;
@@ -143,7 +145,7 @@ function renderClientDetailTable(rows) {
 			});
 			try {
 				const val = (sel.value || '').toString();
-				const fmt = (v) => v === 'efectivo' ? 'Efectivo' : v === 'transf' ? 'Transferencia' : v === 'marce' ? 'Marce' : '-';
+				const fmt = (v) => v === 'efectivo' ? 'Efectivo' : v === 'transf' ? 'Transferencia' : v === 'marce' ? 'Marce' : v === 'jorge' ? 'Jorge' : '-';
 				const client = (state._clientDetailName || '').toString().trim() || 'Cliente';
 				const seller = String((state?.currentSeller?.name || state?.currentUser?.name || '') || '');
 				const msg = `${client} pago: ${fmt(val)}` + (seller ? ` - ${seller}` : '');
@@ -700,12 +702,15 @@ function renderTable() {
 				if (!isMarcela && current === 'marce') options.push({ v: 'marce', label: '' });
 				const isJorge = String(state.currentUser?.name || '').toLowerCase() === 'jorge';
 				if (isJorge) options.push({ v: 'jorge', label: '' });
+				// If current value is 'jorge' but user is not Jorge, include it disabled so it displays
+				if (!isJorge && current === 'jorge') options.push({ v: 'jorge', label: '' });
 				options.push({ v: 'transf', label: '' });
 				for (const o of options) {
 					const opt = document.createElement('option');
 					opt.value = o.v;
 					opt.textContent = o.label;
 					if (!isMarcela && o.v === 'marce') opt.disabled = true;
+					if (!isJorge && o.v === 'jorge') opt.disabled = true;
 					if (current === o.v) opt.selected = true;
 					sel.appendChild(opt);
 				}
@@ -723,7 +728,7 @@ function renderTable() {
 					await savePayMethod(tr, sale.id, sel.value);
 					try {
 						const val = (sel.value || '').toString();
-						const fmt = (v) => v === 'efectivo' ? 'Efectivo' : v === 'transf' ? 'Transferencia' : v === 'marce' ? 'Marce' : '-';
+						const fmt = (v) => v === 'efectivo' ? 'Efectivo' : v === 'transf' ? 'Transferencia' : v === 'marce' ? 'Marce' : v === 'jorge' ? 'Jorge' : '-';
 						const client = (tr.querySelector('td.col-client input')?.value || '').trim() || 'Cliente';
 						const seller = String((state?.currentSeller?.name || state?.currentUser?.name || '') || '');
 						const msg = `${client} pago: ${fmt(val)}` + (seller ? ` - ${seller}` : '');
