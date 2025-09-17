@@ -1240,7 +1240,7 @@ function updateSummary() {
 		qn += nute;
 		grand += calcRowTotal({ arco: s.qty_arco, melo: s.qty_melo, mara: s.qty_mara, oreo: s.qty_oreo, nute: s.qty_nute });
 		const pm = (s.pay_method || '').toString();
-		if (pm === 'transf' || pm === 'marce' || pm === 'jorge') {
+		if (pm === 'transf' || pm === 'jorgebank' || pm === 'marce' || pm === 'jorge') {
 			paidQa += arco; paidQm += melo; paidQma += mara; paidQo += oreo; paidQn += nute;
 		}
 	}
