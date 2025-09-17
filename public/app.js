@@ -387,6 +387,13 @@ const notify = (() => {
 				txt.textContent = String(it.message || it.text || '');
 				text.appendChild(txt);
 				item.append(when, text);
+				try {
+					item.style.cursor = 'pointer';
+					item.addEventListener('click', async () => {
+						await goToSaleFromNotification(it.seller_id || null, it.sale_day_id || null, it.sale_id || null);
+						cleanup();
+					});
+				} catch {}
 				list.appendChild(item);
 			}
 		}
@@ -2872,6 +2879,72 @@ function focusClientRow(name) {
 		targetTr.scrollIntoView({ behavior: 'smooth', block: 'center' });
 		targetTr.classList.add('row-highlight');
 		setTimeout(() => targetTr.classList.remove('row-highlight'), 1500);
+	} catch {}
+}
+
+// Focus and highlight a sale row by its sale_id in the current table
+function focusSaleRowById(saleId) {
+	try {
+		const id = Number(saleId);
+		if (!id) return false;
+		const tr = document.querySelector(`#sales-tbody tr[data-id="${id}"]`);
+		if (!tr) return false;
+		const input = tr.querySelector('td.col-client .client-input');
+		if (input) { input.focus(); }
+		tr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+		tr.classList.add('row-highlight');
+		setTimeout(() => tr.classList.remove('row-highlight'), 1500);
+		return true;
+	} catch { return false; }
+}
+
+// Navigate from a notification to the exact sale row
+async function goToSaleFromNotification(sellerId, saleDayId, saleId) {
+	try {
+		const sid = Number(sellerId || 0) || null;
+		const dayId = Number(saleDayId || 0) || null;
+		const rowId = Number(saleId || 0) || null;
+		if (!sid && !dayId && !rowId) return;
+
+		// Enforce basic role constraint: non-admins stay within their seller
+		const isAdminUser = !!(state?.currentUser?.isAdmin);
+		if (!isAdminUser && sid && state?.currentSeller && state.currentSeller.id !== sid) {
+			try { notify.info('No tienes acceso a ese vendedor'); } catch {}
+			return;
+		}
+
+		// Ensure we're in the sales view for the correct seller
+		if (!state.currentSeller || (sid && state.currentSeller.id !== sid)) {
+			await enterSeller(sid);
+		} else {
+			switchView('#view-sales');
+		}
+
+		// Ensure days are loaded, select the target day, and load sales
+		await loadDaysForSeller();
+		if (dayId) {
+			state.selectedDayId = dayId;
+			const wrap = document.getElementById('sales-wrapper');
+			if (wrap && wrap.classList.contains('hidden')) wrap.classList.remove('hidden');
+			await loadSales();
+		} else {
+			const wrap = document.getElementById('sales-wrapper');
+			if (wrap && wrap.classList.contains('hidden')) wrap.classList.remove('hidden');
+			// If no specific day, keep current selection or latest (handled elsewhere)
+			if (!state.selectedDayId && Array.isArray(state.saleDays) && state.saleDays.length) {
+				state.selectedDayId = state.saleDays[0].id;
+				await loadSales();
+			}
+		}
+
+		// Focus the specific row if provided
+		if (rowId) {
+			const ok = focusSaleRowById(rowId);
+			if (!ok) { try { notify.info('Registro no encontrado en esta fecha'); } catch {} }
+		} else {
+			// If only date was provided, bring table into view
+			document.getElementById('sales-table')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+		}
 	} catch {}
 }
 
