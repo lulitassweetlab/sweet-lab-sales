@@ -1938,6 +1938,7 @@ async function renderIngredientsView() {
 		const name = (prompt('Nombre del postre:') || '').trim(); if (!name) return;
 		await api('POST', API.Recipes, { kind: 'step.upsert', dessert: name, step_name: null, position: 0 });
 		await renderIngredientsView();
+		try { document.dispatchEvent(new CustomEvent('recipes:changed', { detail: { action: 'addDessert', dessert: name } })); } catch {}
 	});
 	const extrasBtn = document.getElementById('ingredients-add-extras');
 	extrasBtn?.addEventListener('click', async () => { openExtrasEditor(); });
@@ -1959,24 +1960,28 @@ async function renderMeasuresView() {
 		try { await api('GET', `${API.Recipes}?seed=1`); dessertNames = await api('GET', API.Recipes); } catch {}
 	}
 	// Build input form for counts
-	const form = document.createElement('div'); form.className = 'measures-form';
-	const grid = document.createElement('div'); grid.className = 'measures-grid';
-	const counts = { arco: 0, melo: 0, mara: 0, oreo: 0, nute: 0 };
+	const form = document.createElement('div'); form.className = 'measures-form'; form.style.display = 'flex'; form.style.justifyContent = 'center'; form.style.margin = '0 0 12px 0';
+	const grid = document.createElement('div'); grid.className = 'measures-grid'; grid.style.display = 'grid'; grid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(180px, 1fr))'; grid.style.gap = '12px 16px'; grid.style.maxWidth = '880px'; grid.style.width = '100%';
+	const counts = new Map();
 	function normalizeKey(name){ const k = String(name||'').trim().toLowerCase(); if (k.startsWith('arco')) return 'arco'; if (k.startsWith('melo')) return 'melo'; if (k.startsWith('mara')) return 'mara'; if (k.startsWith('oreo')) return 'oreo'; if (k.startsWith('nute')) return 'nute'; return k; }
 	const byKey = new Map();
 	for (const name of (dessertNames||[])) { const key = normalizeKey(name); byKey.set(key, name); }
-	['arco','melo','mara','oreo','nute'].forEach(k => {
-		const row = document.createElement('div'); row.className = 'measures-row';
-		const label = document.createElement('label'); label.textContent = (byKey.get(k) || k.charAt(0).toUpperCase()+k.slice(1));
-		const input = document.createElement('input'); input.type = 'number'; input.min = '0'; input.step = '1'; input.value = '0'; input.className = 'input-cell'; input.style.width = '96px';
-		input.addEventListener('input', () => { counts[k] = Math.max(0, Number(input.value||0) || 0); renderResults(); });
+	for (const [k, name] of byKey.entries()) {
+		const row = document.createElement('div'); row.className = 'measures-row'; row.style.display = 'flex'; row.style.alignItems = 'center'; row.style.justifyContent = 'center'; row.style.gap = '8px'; row.style.border = '1px solid rgba(0,0,0,0.12)'; row.style.borderRadius = '10px'; row.style.padding = '8px 10px'; row.style.cursor = 'pointer'; row.style.background = 'white';
+		const label = document.createElement('div'); label.textContent = name; label.style.fontWeight = '600'; label.style.textAlign = 'center'; label.style.flex = '1';
+		const input = document.createElement('input'); input.type = 'number'; input.min = '0'; input.step = '1'; input.value = '0'; input.className = 'input-cell'; input.style.width = '86px'; input.style.textAlign = 'center';
+		counts.set(k, 0);
+		input.addEventListener('focus', () => { try { input.select(); } catch {} });
+		row.addEventListener('click', (ev) => { if (ev.target !== input) { input.focus(); input.select(); } });
+		input.addEventListener('input', () => { counts.set(k, Math.max(0, Number(input.value||0) || 0)); renderResults(); });
 		row.append(label, input); grid.appendChild(row);
-	});
+	}
 	form.appendChild(grid);
 
 	// Results cards container
 	const resultWrap = document.createElement('div');
 	const cardsWrap = document.createElement('div');
+	cardsWrap.style.display = 'flex'; cardsWrap.style.flexDirection = 'column'; cardsWrap.style.alignItems = 'center';
 	resultWrap.appendChild(cardsWrap);
 
 	// Export button
@@ -2005,6 +2010,32 @@ async function renderMeasuresView() {
 	let recipeCache = null;
 	async function ensureRecipes(){ if (!recipeCache) recipeCache = await fetchRecipeMap(); return recipeCache; }
 
+	// Refresh when recipes change (e.g., new dessert added)
+	function onRecipesChanged(){ recipeCache = null; // clear cache
+		// Rebuild inputs grid with any new dessert
+		while (grid.firstChild) grid.removeChild(grid.firstChild);
+		byKey.clear();
+		for (const name of (dessertNames||[])) { const key = normalizeKey(name); byKey.set(key, name); }
+		for (const [k, name] of byKey.entries()) {
+			const row = document.createElement('div'); row.className = 'measures-row'; row.style.display = 'flex'; row.style.alignItems = 'center'; row.style.justifyContent = 'center'; row.style.gap = '8px'; row.style.border = '1px solid rgba(0,0,0,0.12)'; row.style.borderRadius = '10px'; row.style.padding = '8px 10px'; row.style.cursor = 'pointer'; row.style.background = 'white';
+			const label = document.createElement('div'); label.textContent = name; label.style.fontWeight = '600'; label.style.textAlign = 'center'; label.style.flex = '1';
+			const input = document.createElement('input'); input.type = 'number'; input.min = '0'; input.step = '1'; input.value = String(counts.get(k) || 0); input.className = 'input-cell'; input.style.width = '86px'; input.style.textAlign = 'center';
+			input.addEventListener('focus', () => { try { input.select(); } catch {} });
+			row.addEventListener('click', (ev) => { if (ev.target !== input) { input.focus(); input.select(); } });
+			input.addEventListener('input', () => { counts.set(k, Math.max(0, Number(input.value||0) || 0)); renderResults(); });
+			grid.appendChild(row); row.append(label, input);
+		}
+		renderResults();
+	}
+	const recipesChangedHandler = async (ev) => {
+		try {
+			// refetch dessert names to include new ones
+			dessertNames = await api('GET', API.Recipes);
+			onRecipesChanged();
+		} catch {}
+	};
+	try { document.addEventListener('recipes:changed', recipesChangedHandler); } catch {}
+
 	function clearCards(){ while (cardsWrap.firstChild) cardsWrap.removeChild(cardsWrap.firstChild); }
 
 	async function renderResults() {
@@ -2013,7 +2044,7 @@ async function renderMeasuresView() {
 		const fmt1 = new Intl.NumberFormat('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 		const dataByDessert = recipeCache.byDessert;
 		const extras = Array.isArray(recipeCache.extras) ? recipeCache.extras : [];
-		for (const [key, qty] of Object.entries(counts)) {
+		for (const [key, qty] of counts.entries()) {
 			const qtyNum = Number(qty || 0);
 			if (!qtyNum) continue;
 			const dessertName = byKey.get(key) || key;
@@ -2021,7 +2052,7 @@ async function renderMeasuresView() {
 			if (!d) continue;
 			// Card container
 			const card = document.createElement('div'); card.className = 'measure-card';
-			card.style.margin = '36px 0 48px 0';
+			card.style.margin = '64px 0 72px 0';
 			card.style.padding = '12px';
 			card.style.border = '1px solid rgba(0,0,0,0.15)';
 			card.style.borderRadius = '10px';
@@ -2034,11 +2065,12 @@ async function renderMeasuresView() {
 					const sh = document.createElement('div'); sh.textContent = step.step_name; sh.style.fontWeight = '600'; sh.style.margin = '0 0 6px 0';
 					section.appendChild(sh);
 				}
-				const table = document.createElement('table'); table.style.width = '100%';
+				const table = document.createElement('table'); table.style.width = '100%'; table.style.tableLayout = 'fixed';
+				const colgroup = document.createElement('colgroup'); const col1 = document.createElement('col'); col1.style.width = '75%'; const col2 = document.createElement('col'); col2.style.width = '25%'; colgroup.appendChild(col1); colgroup.appendChild(col2); table.appendChild(colgroup);
 				const tbody = document.createElement('tbody');
 				for (const it of (step.items || [])) {
 					const tr = document.createElement('tr');
-					const tdN = document.createElement('td'); tdN.textContent = it.ingredient; tdN.style.padding = '5px 4px'; tdN.style.textAlign = 'center';
+					const tdN = document.createElement('td'); tdN.textContent = it.ingredient; tdN.style.padding = '8px 4px'; tdN.style.textAlign = 'center';
 					const tdQ = document.createElement('td'); tdQ.textContent = fmt1.format((Number(it.qty_per_unit || 0) || 0) * qtyNum); tdQ.style.textAlign = 'right'; tdQ.style.padding = '5px 4px';
 					tr.append(tdN, tdQ); tbody.appendChild(tr);
 				}
@@ -2048,11 +2080,12 @@ async function renderMeasuresView() {
 			if (extras && extras.length) {
 				const section = document.createElement('div'); section.className = 'measure-section'; section.style.margin = '12px 0';
 				const sh = document.createElement('div'); sh.textContent = 'Extras'; sh.style.fontWeight = '600'; sh.style.margin = '0 0 6px 0'; section.appendChild(sh);
-				const table = document.createElement('table'); table.style.width = '100%';
+				const table = document.createElement('table'); table.style.width = '100%'; table.style.tableLayout = 'fixed';
+				const colgroup = document.createElement('colgroup'); const col1 = document.createElement('col'); col1.style.width = '75%'; const col2 = document.createElement('col'); col2.style.width = '25%'; colgroup.appendChild(col1); colgroup.appendChild(col2); table.appendChild(colgroup);
 				const tbody = document.createElement('tbody');
 				for (const ex of extras) {
 					const tr = document.createElement('tr');
-					const tdN = document.createElement('td'); tdN.textContent = ex.ingredient; tdN.style.padding = '5px 4px'; tdN.style.textAlign = 'center';
+					const tdN = document.createElement('td'); tdN.textContent = ex.ingredient; tdN.style.padding = '8px 4px'; tdN.style.textAlign = 'center';
 					const tdQ = document.createElement('td'); tdQ.textContent = fmt1.format((Number(ex.qty_per_unit || 0) || 0) * qtyNum); tdQ.style.textAlign = 'right'; tdQ.style.padding = '5px 4px';
 					tr.append(tdN, tdQ); tbody.appendChild(tr);
 				}
