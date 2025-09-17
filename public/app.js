@@ -1974,16 +1974,10 @@ async function renderMeasuresView() {
 	});
 	form.appendChild(grid);
 
-	// Results table
+	// Results cards container
 	const resultWrap = document.createElement('div');
-	const table = document.createElement('table'); table.className = 'items-table';
-	const thead = document.createElement('thead'); const hr = document.createElement('tr');
-	['Postre','Ingrediente','Unidad','Cantidad total'].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
-	thead.appendChild(hr);
-	const tbody = document.createElement('tbody');
-	const tfoot = document.createElement('tfoot'); const fr = document.createElement('tr'); const td = document.createElement('td'); td.colSpan = 4; td.textContent = 'Fin del cálculo'; fr.appendChild(td); tfoot.appendChild(fr);
-	table.append(thead, tbody, tfoot);
-	resultWrap.appendChild(table);
+	const cardsWrap = document.createElement('div');
+	resultWrap.appendChild(cardsWrap);
 
 	// Export button
 	const actions = document.createElement('div'); actions.className = 'confirm-actions';
@@ -1993,68 +1987,97 @@ async function renderMeasuresView() {
 	root.append(form, resultWrap, actions);
 
 	async function fetchRecipeMap() {
-		// Build per-dessert ingredient maps by summing items across steps; include extras
+		// Keep step divisions and item order; include extras
 		const names = dessertNames || [];
-		const result = new Map();
+		const byDessert = new Map();
 		for (const dessert of names) {
 			const data = await api('GET', `${API.Recipes}?dessert=${encodeURIComponent(dessert)}&include_extras=1`);
-			const map = new Map();
-			for (const step of (data.steps||[])) {
-				for (const it of (step.items||[])) {
-					const key = it.ingredient;
-					const prev = map.get(key) || { unit: it.unit || 'g', qty: 0 };
-					prev.qty += Number(it.qty_per_unit || 0);
-					prev.unit = it.unit || prev.unit || 'g';
-					map.set(key, prev);
-				}
-			}
-			result.set(dessert, map);
+			// Ensure steps are arrays with items in order
+			const steps = Array.isArray(data?.steps) ? data.steps : [];
+			byDessert.set(dessert, { steps, extras: Array.isArray(data?.extras) ? data.extras : [] });
 		}
-		// Extras apply to all desserts
-		let extras = [];
-		try { const exData = await api('GET', `${API.Recipes}?dessert=${encodeURIComponent(names[0]||'dummy')}&include_extras=1`); extras = exData.extras || []; } catch {}
-		return { byDessert: result, extras };
+		// Extras also needed even if a dessert has none in its payload
+		let globalExtras = [];
+		try { const exData = await api('GET', `${API.Recipes}?dessert=${encodeURIComponent(names[0]||'dummy')}&include_extras=1`); globalExtras = exData.extras || []; } catch {}
+		return { byDessert, extras: globalExtras };
 	}
 
 	let recipeCache = null;
 	async function ensureRecipes(){ if (!recipeCache) recipeCache = await fetchRecipeMap(); return recipeCache; }
 
-	function clearTbody(){ while (tbody.firstChild) tbody.removeChild(tbody.firstChild); }
+	function clearCards(){ while (cardsWrap.firstChild) cardsWrap.removeChild(cardsWrap.firstChild); }
 
 	async function renderResults() {
 		await ensureRecipes();
-		clearTbody();
-		const byDessert = recipeCache.byDessert;
+		clearCards();
+		const fmt1 = new Intl.NumberFormat('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+		const dataByDessert = recipeCache.byDessert;
 		const extras = Array.isArray(recipeCache.extras) ? recipeCache.extras : [];
 		for (const [key, qty] of Object.entries(counts)) {
+			const qtyNum = Number(qty || 0);
+			if (!qtyNum) continue;
 			const dessertName = byKey.get(key) || key;
-			const map = byDessert.get(dessertName);
-			if (!map || !qty) continue;
-			for (const [ing, rec] of map.entries()) {
-				const tr = document.createElement('tr');
-				const tdD = document.createElement('td'); tdD.textContent = dessertName;
-				const tdI = document.createElement('td'); tdI.textContent = ing;
-				const tdU = document.createElement('td'); tdU.textContent = rec.unit || 'g';
-				const tdQ = document.createElement('td'); tdQ.textContent = String(Number(rec.qty || 0) * Number(qty || 0));
-				tr.append(tdD, tdI, tdU, tdQ); tbody.appendChild(tr);
+			const d = dataByDessert.get(dessertName);
+			if (!d) continue;
+			// Card container
+			const card = document.createElement('div'); card.className = 'measure-card';
+			card.style.margin = '36px 0 48px 0';
+			card.style.padding = '12px';
+			card.style.border = '1px solid rgba(0,0,0,0.15)';
+			card.style.borderRadius = '10px';
+			const title = document.createElement('h3'); title.textContent = dessertName; title.style.textAlign = 'center'; title.style.fontSize = '22px'; title.style.margin = '4px 0 12px 0';
+			card.appendChild(title);
+			// Steps sections in order
+			for (const step of (d.steps || [])) {
+				const section = document.createElement('div'); section.className = 'measure-section'; section.style.margin = '12px 0';
+				if (step.step_name) {
+					const sh = document.createElement('div'); sh.textContent = step.step_name; sh.style.fontWeight = '600'; sh.style.margin = '0 0 6px 0';
+					section.appendChild(sh);
+				}
+				const table = document.createElement('table'); table.style.width = '100%';
+				const tbody = document.createElement('tbody');
+				for (const it of (step.items || [])) {
+					const tr = document.createElement('tr');
+					const tdN = document.createElement('td'); tdN.textContent = it.ingredient; tdN.style.padding = '2px 4px';
+					const tdQ = document.createElement('td'); tdQ.textContent = fmt1.format((Number(it.qty_per_unit || 0) || 0) * qtyNum); tdQ.style.textAlign = 'right'; tdQ.style.padding = '2px 4px';
+					tr.append(tdN, tdQ); tbody.appendChild(tr);
+				}
+				table.appendChild(tbody); section.appendChild(table); card.appendChild(section);
 			}
-			// Extras per unit
-			for (const ex of extras) {
-				const tr = document.createElement('tr');
-				const tdD = document.createElement('td'); tdD.textContent = dessertName;
-				const tdI = document.createElement('td'); tdI.textContent = ex.ingredient;
-				const tdU = document.createElement('td'); tdU.textContent = ex.unit || 'unidad';
-				const tdQ = document.createElement('td'); tdQ.textContent = String(Number(ex.qty_per_unit || 0) * Number(qty || 0));
-				tr.append(tdD, tdI, tdU, tdQ); tbody.appendChild(tr);
+			// Extras at the end
+			if (extras && extras.length) {
+				const section = document.createElement('div'); section.className = 'measure-section'; section.style.margin = '12px 0';
+				const sh = document.createElement('div'); sh.textContent = 'Extras'; sh.style.fontWeight = '600'; sh.style.margin = '0 0 6px 0'; section.appendChild(sh);
+				const table = document.createElement('table'); table.style.width = '100%';
+				const tbody = document.createElement('tbody');
+				for (const ex of extras) {
+					const tr = document.createElement('tr');
+					const tdN = document.createElement('td'); tdN.textContent = ex.ingredient; tdN.style.padding = '2px 4px';
+					const tdQ = document.createElement('td'); tdQ.textContent = fmt1.format((Number(ex.qty_per_unit || 0) || 0) * qtyNum); tdQ.style.textAlign = 'right'; tdQ.style.padding = '2px 4px';
+					tr.append(tdN, tdQ); tbody.appendChild(tr);
+				}
+				table.appendChild(tbody); section.appendChild(table); card.appendChild(section);
 			}
+			cardsWrap.appendChild(card);
 		}
 	}
 
 	function exportRows() {
+		const fmtNum = (n) => Number((Number(n||0)).toFixed(1));
 		const rows = [];
-		for (const tr of Array.from(tbody.querySelectorAll('tr'))) {
-			const tds = Array.from(tr.children).map(td => td.textContent || '');
-			rows.push({ Postre: tds[0], Ingrediente: tds[1], Unidad: tds[2], Cantidad: Number(tds[3]||0) });
+		for (const [key, qty] of Object.entries(counts)) {
+			const qtyNum = Number(qty || 0);
+			if (!qtyNum) continue;
+			const dessertName = byKey.get(key) || key;
+			const d = recipeCache?.byDessert?.get(dessertName);
+			if (!d) continue;
+			for (const step of (d.steps || [])) {
+				for (const it of (step.items || [])) {
+					rows.push({ Postre: dessertName, Ingrediente: it.ingredient, Cantidad: fmtNum((Number(it.qty_per_unit || 0) || 0) * qtyNum) });
+				}
+			}
+			const extras = Array.isArray(recipeCache.extras) ? recipeCache.extras : [];
+			for (const ex of extras) rows.push({ Postre: dessertName, Ingrediente: ex.ingredient, Cantidad: fmtNum((Number(ex.qty_per_unit || 0) || 0) * qtyNum) });
 		}
 		const ws = XLSX.utils.json_to_sheet(rows);
 		const wb = XLSX.utils.book_new();
