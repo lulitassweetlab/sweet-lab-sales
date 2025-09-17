@@ -1972,7 +1972,8 @@ async function renderInventoryView() {
 	const ingresoBtn = document.createElement('button'); ingresoBtn.className = 'press-btn btn-primary'; ingresoBtn.textContent = 'Ingreso';
 	const ajusteBtn = document.createElement('button'); ajusteBtn.className = 'press-btn'; ajusteBtn.textContent = 'Ajuste';
 	const histAllBtn = document.createElement('button'); histAllBtn.className = 'press-btn'; histAllBtn.textContent = 'Historial general';
-	actions.append(ingresoBtn, ajusteBtn, histAllBtn);
+	const resetBtn = document.createElement('button'); resetBtn.className = 'press-btn'; resetBtn.textContent = 'Resetear';
+	actions.append(ingresoBtn, ajusteBtn, histAllBtn, resetBtn);
 	root.appendChild(actions);
 	// Table
 	const table = document.createElement('table'); table.className = 'clients-table';
@@ -2028,6 +2029,14 @@ async function renderInventoryView() {
 	ingresoBtn.addEventListener('click', async () => { await promptMovement('ingreso'); });
 	ajusteBtn.addEventListener('click', async () => { await promptMovement('ajuste'); });
 	histAllBtn.addEventListener('click', async () => { openInventoryHistoryAllPage(); });
+	resetBtn.addEventListener('click', async () => {
+		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+		if (!isSuper) { notify.error('Solo el superadministrador'); return; }
+		const ok = confirm('Esto borrará TODO el historial y pondrá todos los saldos en 0. ¿Continuar?');
+		if (!ok) return;
+		try { await api('POST', API.Inventory, { action: 'reset' }); notify.success('Inventario reseteado'); await renderInventoryView(); }
+		catch { notify.error('No se pudo resetear'); }
+	});
 }
 
 async function openInventoryHistoryDialog(ingredient) {

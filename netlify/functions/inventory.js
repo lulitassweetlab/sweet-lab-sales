@@ -86,6 +86,11 @@ export async function handler(event) {
 					const [row] = await sql`INSERT INTO inventory_movements (ingredient, kind, qty, note, actor_name, metadata) VALUES (${ingredient}, ${kind}, ${signed}, ${note}, ${actor}, '{}'::jsonb) RETURNING *`;
 					return json(row, 201);
 				}
+				if (action === 'reset') {
+					// Danger: clears all movement history and leaves all balances at zero
+					await sql`DELETE FROM inventory_movements`;
+					return json({ ok: true, cleared: true });
+				}
 				if (action === 'produccion') {
 					// counts: { arco, melo, mara, oreo, nute }
 					const counts = data.counts && typeof data.counts === 'object' ? data.counts : {};
