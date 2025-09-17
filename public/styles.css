@@ -844,8 +844,9 @@ tfoot td { font-weight: 700; }
 .clients-table tbody tr:hover td { background: #f3f4f6 !important; }
 [data-theme="dark"] .clients-table tbody tr:hover td { background: #1a1a1a !important; }
 .clients-row:hover { background: var(--secondary); }
-.row-highlight td { animation: rowPulse 5s ease-in-out 1; }
-@keyframes rowPulse { 0% { background-color: rgba(226, 122, 144, 0.7); } 60% { background-color: rgba(226, 122, 144, 0.7); } 100% { background-color: transparent; } }
+.row-highlight td { position: relative; }
+.row-highlight td::before { content: ''; position: absolute; inset: 0; background-color: rgba(226, 122, 144, 0.7); animation: rowPulse 5s ease-in-out 1; z-index: 1; pointer-events: none; }
+@keyframes rowPulse { 0% { opacity: 1; } 60% { opacity: 1; } 100% { opacity: 0; } }
 
 /* Hover effect for client detail table */
 #client-detail-table tbody tr:hover td { background: #f3f4f6 !important; }
