@@ -2080,7 +2080,21 @@ async function openInventoryHistoryAllDialog() {
 		const tdN = document.createElement('td'); tdN.textContent = r.ingredient || '';
 		const tdK = document.createElement('td'); tdK.textContent = r.kind;
 		const tdQ = document.createElement('td'); tdQ.textContent = new Intl.NumberFormat('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(Number(r.qty||0)); tdQ.style.textAlign = 'right';
-		const tdNo = document.createElement('td'); tdNo.textContent = r.note || '';
+		const tdNo = document.createElement('td');
+		if ((r.kind || '') === 'produccion') {
+			let meta = r.metadata;
+			try { if (typeof meta === 'string') meta = JSON.parse(meta); } catch {}
+			const counts = (meta && meta.counts && typeof meta.counts === 'object') ? meta.counts : {};
+			const labels = [ ['arco','Arco'], ['melo','Melo'], ['mara','Mara'], ['oreo','Oreo'], ['nute','Nute'] ];
+			const parts = [];
+			for (const [key, label] of labels) {
+				const n = Number(counts[key] || 0) || 0;
+				if (n > 0) parts.push(`${label} ${n}`);
+			}
+			tdNo.textContent = parts.length ? parts.join(', ') : (r.note || '');
+		} else {
+			tdNo.textContent = r.note || '';
+		}
 		const tdA = document.createElement('td'); tdA.textContent = r.actor_name || '';
 		tr.append(tdD, tdN, tdK, tdQ, tdNo, tdA); tbody.appendChild(tr);
 	}
