@@ -844,8 +844,8 @@ tfoot td { font-weight: 700; }
 .clients-table tbody tr:hover td { background: #f3f4f6 !important; }
 [data-theme="dark"] .clients-table tbody tr:hover td { background: #1a1a1a !important; }
 .clients-row:hover { background: var(--secondary); }
-.row-highlight { animation: rowPulse 5s ease-in-out 1; }
-@keyframes rowPulse { 0% { background: #fff6; } 50% { background: var(--secondary); } 100% { background: transparent; } }
+.row-highlight td { animation: rowPulse 5s ease-in-out 1; }
+@keyframes rowPulse { 0% { background-color: rgba(255, 235, 59, 0.7); } 60% { background-color: rgba(255, 235, 59, 0.7); } 100% { background-color: transparent; } }
 
 /* Hover effect for client detail table */
 #client-detail-table tbody tr:hover td { background: #f3f4f6 !important; }
