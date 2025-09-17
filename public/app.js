@@ -2052,10 +2052,11 @@ async function renderMeasuresView() {
 			if (!d) continue;
 			// Card container
 			const card = document.createElement('div'); card.className = 'measure-card';
-			card.style.margin = '64px 0 72px 0';
+			card.style.margin = '80px 0 96px 0';
 			card.style.padding = '12px';
 			card.style.border = '1px solid rgba(0,0,0,0.15)';
 			card.style.borderRadius = '10px';
+			card.style.boxShadow = '0 8px 24px rgba(0,0,0,0.12)';
 	const title = document.createElement('h3'); title.textContent = dessertName; title.style.textAlign = 'center'; title.style.fontSize = '32px'; title.style.margin = '4px 0 12px 0'; title.style.background = 'rgba(255, 105, 180, 0.18)'; title.style.padding = '8px 6px'; title.style.borderRadius = '8px';
 			card.appendChild(title);
 			// Steps sections in order
@@ -2066,13 +2067,18 @@ async function renderMeasuresView() {
 					section.appendChild(sh);
 				}
 				const table = document.createElement('table'); table.style.width = '100%'; table.style.tableLayout = 'fixed';
-				const colgroup = document.createElement('colgroup'); const col1 = document.createElement('col'); col1.style.width = '75%'; const col2 = document.createElement('col'); col2.style.width = '25%'; colgroup.appendChild(col1); colgroup.appendChild(col2); table.appendChild(colgroup);
+				const colgroup = document.createElement('colgroup');
+				const colL = document.createElement('col'); colL.style.width = '33%';
+				const colM = document.createElement('col'); colM.style.width = '34%';
+				const colR = document.createElement('col'); colR.style.width = '33%';
+				colgroup.appendChild(colL); colgroup.appendChild(colM); colgroup.appendChild(colR); table.appendChild(colgroup);
 				const tbody = document.createElement('tbody');
 				for (const it of (step.items || [])) {
 					const tr = document.createElement('tr');
+					const tdL = document.createElement('td'); tdL.textContent = '';
 					const tdN = document.createElement('td'); tdN.textContent = it.ingredient; tdN.style.padding = '8px 4px'; tdN.style.textAlign = 'center';
 					const tdQ = document.createElement('td'); tdQ.textContent = fmt1.format((Number(it.qty_per_unit || 0) || 0) * qtyNum); tdQ.style.textAlign = 'right'; tdQ.style.padding = '5px 4px';
-					tr.append(tdN, tdQ); tbody.appendChild(tr);
+					tr.append(tdL, tdN, tdQ); tbody.appendChild(tr);
 				}
 				table.appendChild(tbody); section.appendChild(table); card.appendChild(section);
 			}
@@ -2081,13 +2087,18 @@ async function renderMeasuresView() {
 				const section = document.createElement('div'); section.className = 'measure-section'; section.style.margin = '12px 0';
 				const sh = document.createElement('div'); sh.textContent = 'Extras'; sh.style.fontWeight = '600'; sh.style.margin = '0 0 6px 0'; section.appendChild(sh);
 				const table = document.createElement('table'); table.style.width = '100%'; table.style.tableLayout = 'fixed';
-				const colgroup = document.createElement('colgroup'); const col1 = document.createElement('col'); col1.style.width = '75%'; const col2 = document.createElement('col'); col2.style.width = '25%'; colgroup.appendChild(col1); colgroup.appendChild(col2); table.appendChild(colgroup);
+				const colgroup = document.createElement('colgroup');
+				const colL = document.createElement('col'); colL.style.width = '33%';
+				const colM = document.createElement('col'); colM.style.width = '34%';
+				const colR = document.createElement('col'); colR.style.width = '33%';
+				colgroup.appendChild(colL); colgroup.appendChild(colM); colgroup.appendChild(colR); table.appendChild(colgroup);
 				const tbody = document.createElement('tbody');
 				for (const ex of extras) {
 					const tr = document.createElement('tr');
+					const tdL = document.createElement('td'); tdL.textContent = '';
 					const tdN = document.createElement('td'); tdN.textContent = ex.ingredient; tdN.style.padding = '8px 4px'; tdN.style.textAlign = 'center';
 					const tdQ = document.createElement('td'); tdQ.textContent = fmt1.format((Number(ex.qty_per_unit || 0) || 0) * qtyNum); tdQ.style.textAlign = 'right'; tdQ.style.padding = '5px 4px';
-					tr.append(tdN, tdQ); tbody.appendChild(tr);
+					tr.append(tdL, tdN, tdQ); tbody.appendChild(tr);
 				}
 				table.appendChild(tbody); section.appendChild(table); card.appendChild(section);
 			}
