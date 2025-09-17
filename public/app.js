@@ -1706,7 +1706,8 @@ function openMaterialsMenu(anchorX, anchorY) {
 	const b2 = document.createElement('button'); b2.className = 'press-btn'; b2.textContent = 'Necesarios';
 	const b3 = document.createElement('button'); b3.className = 'press-btn'; b3.textContent = 'Producción';
 	const b4 = document.createElement('button'); b4.className = 'press-btn'; b4.textContent = 'Inventario';
-	list.appendChild(b1); list.appendChild(b2); list.appendChild(b3); list.appendChild(b4);
+	const b5 = document.createElement('button'); b5.className = 'press-btn'; b5.textContent = 'Tiempos';
+	list.appendChild(b1); list.appendChild(b2); list.appendChild(b3); list.appendChild(b4); list.appendChild(b5);
 	pop.append(list);
 	document.body.appendChild(pop);
 
@@ -1726,6 +1727,7 @@ function openMaterialsMenu(anchorX, anchorY) {
 	b2.addEventListener('click', async () => { cleanup(); openMaterialsNeededFlow(baseX, desiredBottomY); });
 	b3.addEventListener('click', async () => { cleanup(); openMeasuresView(); });
 	b4.addEventListener('click', async () => { cleanup(); openInventoryView(); });
+	b5.addEventListener('click', async () => { cleanup(); openTimesView(); });
 }
 
 // Removed openAssignIconsDialog
@@ -1791,6 +1793,11 @@ function bindEvents() {
 
 	const backInventory = document.getElementById('inventory-back');
 	backInventory?.addEventListener('click', () => {
+		switchView('#view-select-seller');
+	});
+
+	const backTimes = document.getElementById('times-back');
+	backTimes?.addEventListener('click', () => {
 		switchView('#view-select-seller');
 	});
 
@@ -1952,6 +1959,11 @@ function openMaterialsReport(data, anchorX, anchorY) {
 async function openIngredientsView() {
 	switchView('#view-ingredients');
 	await renderIngredientsView();
+}
+
+async function openTimesView() {
+    switchView('#view-times');
+    await renderTimesView();
 }
 
 async function openInventoryView() {
@@ -2162,6 +2174,142 @@ async function renderIngredientsView() {
 	});
 	const extrasBtn = document.getElementById('ingredients-add-extras');
 	extrasBtn?.addEventListener('click', async () => { openExtrasEditor(); });
+}
+
+// ====== Local-only TIEMPOS ======
+function readTimesState() {
+    try { return JSON.parse(localStorage.getItem('timesState') || '[]') || []; } catch { return []; }
+}
+function writeTimesState(data) {
+    try { localStorage.setItem('timesState', JSON.stringify(data)); } catch {}
+}
+function formatMs(ms) {
+    const total = Math.max(0, Math.floor(ms / 1000));
+    const h = Math.floor(total / 3600);
+    const m = Math.floor((total % 3600) / 60);
+    const s = total % 60;
+    const pad = (n) => String(n).padStart(2, '0');
+    return (h > 0 ? `${h}:` : '') + `${pad(m)}:${pad(s)}`;
+}
+
+async function renderTimesView() {
+    const root = document.getElementById('times-content');
+    if (!root) return;
+    root.innerHTML = '';
+    let data = readTimesState();
+
+    const grid = document.createElement('div');
+    grid.className = 'ingredients-grid';
+
+    function saveAndRerender() { writeTimesState(data); renderTimesView(); }
+
+    function buildTimerControls(step, onTick) {
+        const wrap = document.createElement('div');
+        wrap.style.display = 'flex';
+        wrap.style.alignItems = 'center';
+        wrap.style.gap = '8px';
+        const display = document.createElement('div');
+        display.style.minWidth = '84px';
+        display.style.textAlign = 'center';
+        display.style.fontVariantNumeric = 'tabular-nums';
+        const startBtn = document.createElement('button'); startBtn.className = 'press-btn'; startBtn.textContent = 'Iniciar';
+        const pauseBtn = document.createElement('button'); pauseBtn.className = 'press-btn'; pauseBtn.textContent = 'Pausar';
+        const resetBtn = document.createElement('button'); resetBtn.className = 'press-btn'; resetBtn.textContent = 'Reset';
+        wrap.append(display, startBtn, pauseBtn, resetBtn);
+        let intervalId = null;
+        function computeElapsed() {
+            const base = Number(step.elapsedMs || 0) || 0;
+            if (step.isRunning && step.startedAt) return base + (Date.now() - step.startedAt);
+            return base;
+        }
+        function renderTime(){ display.textContent = formatMs(computeElapsed()); if (typeof onTick === 'function') onTick(); }
+        renderTime();
+        function start(){ if (step.isRunning) return; step.isRunning = true; step.startedAt = Date.now(); writeTimesState(data); clearInterval(intervalId); intervalId = setInterval(renderTime, 250); }
+        function pause(){ if (!step.isRunning) return; step.elapsedMs = computeElapsed(); step.isRunning = false; step.startedAt = null; writeTimesState(data); clearInterval(intervalId); intervalId = null; renderTime(); }
+        function reset(){ step.elapsedMs = 0; step.isRunning = false; step.startedAt = null; writeTimesState(data); clearInterval(intervalId); intervalId = null; renderTime(); }
+        startBtn.addEventListener('click', start);
+        pauseBtn.addEventListener('click', pause);
+        resetBtn.addEventListener('click', reset);
+        // Ensure timer runs if already active
+        if (step.isRunning) { clearInterval(intervalId); intervalId = setInterval(renderTime, 250); }
+        return { element: wrap, stop: () => { if (intervalId) clearInterval(intervalId); } };
+    }
+
+    function buildStep(step, dessert){
+        const box = document.createElement('div'); box.className = 'step-card';
+        const head = document.createElement('div'); head.className = 'step-header';
+        const name = document.createElement('input'); name.type = 'text'; name.value = step.name || 'Paso'; name.style.flex = '1'; name.style.fontWeight = '600'; name.style.border = '0'; name.style.background = 'transparent';
+        const actions = document.createElement('div'); actions.className = 'items-actions';
+        const del = document.createElement('button'); del.className = 'press-btn'; del.textContent = 'Eliminar paso';
+        actions.append(del);
+        head.append(name, actions);
+        const body = document.createElement('div'); body.style.display = 'flex'; body.style.justifyContent = 'space-between'; body.style.alignItems = 'center'; body.style.gap = '8px'; body.style.padding = '8px 0';
+        const note = document.createElement('input'); note.type = 'text'; note.placeholder = 'Nota (opcional)'; note.value = step.note || ''; note.className = 'input-cell'; note.style.flex = '1';
+        const timer = buildTimerControls(step);
+        body.append(note, timer.element);
+        box.append(head, body);
+        name.addEventListener('change', () => { step.name = (name.value || '').trim() || 'Paso'; writeTimesState(data); });
+        note.addEventListener('change', () => { step.note = note.value || ''; writeTimesState(data); });
+        del.addEventListener('click', () => {
+            const idx = (dessert.steps || []).indexOf(step);
+            if (idx >= 0) dessert.steps.splice(idx, 1);
+            saveAndRerender();
+        });
+        return box;
+    }
+
+    function buildDessertCardLocal(d){
+        const card = document.createElement('div'); card.className = 'dessert-card';
+        const head = document.createElement('div'); head.className = 'dessert-header';
+        const title = document.createElement('h3'); title.textContent = d.name || 'Postre';
+        const rename = document.createElement('button'); rename.className = 'press-btn'; rename.textContent = 'Renombrar';
+        const addStep = document.createElement('button'); addStep.className = 'press-btn'; addStep.textContent = 'Agregar paso';
+        const delDessert = document.createElement('button'); delDessert.className = 'press-btn'; delDessert.textContent = 'Eliminar postre';
+        const actionsWrap = document.createElement('div'); actionsWrap.className = 'dessert-actions'; actionsWrap.append(rename, addStep, delDessert);
+        head.append(title, actionsWrap);
+        const stepsWrap = document.createElement('div'); stepsWrap.className = 'steps-list';
+        for (const s of (d.steps || [])) stepsWrap.appendChild(buildStep(s, d));
+        addStep.addEventListener('click', () => { d.steps = d.steps || []; d.steps.push({ name: 'Paso', note: '', elapsedMs: 0, isRunning: false, startedAt: null }); saveAndRerender(); });
+        delDessert.addEventListener('click', () => { const idx = data.indexOf(d); if (idx >= 0) { data.splice(idx, 1); saveAndRerender(); } });
+        rename.addEventListener('click', () => { const n = (prompt('Nuevo nombre:') || '').trim(); if (!n) return; d.name = n; title.textContent = n; writeTimesState(data); });
+        card.append(head, stepsWrap);
+        // Drag for dessert reordering
+        card.draggable = true;
+        card.addEventListener('dragstart', () => { card.classList.add('dragging'); });
+        card.addEventListener('dragend', () => { card.classList.remove('dragging'); writeTimesState(data); });
+        return card;
+    }
+
+    // Render grid
+    grid.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        const dragging = grid.querySelector('.dessert-card.dragging');
+        if (!dragging) return;
+        const after = (() => {
+            const els = [...grid.querySelectorAll('.dessert-card:not(.dragging)')];
+            return els.reduce((closest, child) => {
+                const rect = child.getBoundingClientRect();
+                const offset = e.clientY - rect.top - rect.height / 2;
+                if (offset < 0 && offset > closest.offset) return { offset, element: child };
+                else return closest;
+            }, { offset: Number.NEGATIVE_INFINITY, element: null }).element;
+        })();
+        if (after == null) grid.appendChild(dragging); else grid.insertBefore(dragging, after);
+        // Sync order in data
+        const names = Array.from(grid.querySelectorAll('.dessert-card h3')).map(h => h.textContent || '');
+        data.sort((a, b) => names.indexOf(a.name) - names.indexOf(b.name));
+        writeTimesState(data);
+    });
+
+    for (const d of data) grid.appendChild(buildDessertCardLocal(d));
+    root.appendChild(grid);
+
+    const addDessertBtn = document.getElementById('times-add-dessert');
+    addDessertBtn?.addEventListener('click', () => {
+        const name = (prompt('Nombre del postre:') || '').trim(); if (!name) return;
+        data.push({ name, steps: [] });
+        saveAndRerender();
+    });
 }
 
 async function openMeasuresView() {
