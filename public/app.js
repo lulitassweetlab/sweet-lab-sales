@@ -2144,15 +2144,21 @@ function buildStepCard(dessertName, step) {
 		await api('DELETE', `${API.Recipes}?kind=step&id=${encodeURIComponent(step.id)}`);
 		box.remove();
 	});
+
+	// Enable drag-and-drop reordering within this step
+	enableItemsReorder(tbody, step.id);
 	return box;
 }
 
 function buildItemRow(stepId, item) {
 	const tr = document.createElement('tr');
+	tr.draggable = true;
+	tr.dataset.itemId = String(item.id);
+	tr.dataset.position = String(item.position || 0);
 	const tdN = document.createElement('td'); const inN = document.createElement('input'); inN.type = 'text'; inN.value = item.ingredient; tdN.appendChild(inN);
 	const tdU = document.createElement('td'); const inU = document.createElement('input'); inU.type = 'text'; inU.value = item.unit || 'g'; inU.style.width = '70px'; tdU.appendChild(inU);
 	const tdQ = document.createElement('td'); const inQ = document.createElement('input'); inQ.type = 'number'; inQ.step = '0.01'; inQ.value = String(item.qty_per_unit || 0); tdQ.appendChild(inQ);
-	const tdA = document.createElement('td'); const del = document.createElement('button'); del.className = 'press-btn'; del.textContent = '×'; tdA.appendChild(del);
+	const tdA = document.createElement('td'); const handle = document.createElement('span'); handle.className = 'drag-handle'; handle.textContent = '↕'; const del = document.createElement('button'); del.className = 'press-btn'; del.textContent = '×'; tdA.append(handle, del);
 	tr.append(tdN, tdU, tdQ, tdA);
 	async function save() {
 		try { await api('POST', API.Recipes, { kind: 'item.upsert', id: item.id, recipe_id: stepId, ingredient: inN.value, unit: inU.value || 'g', qty_per_unit: Number(inQ.value || 0) || 0, position: item.position || 0 }); }
@@ -2161,6 +2167,53 @@ function buildItemRow(stepId, item) {
 	[inN, inU, inQ].forEach(el => { el.addEventListener('change', save); el.addEventListener('blur', save); });
 	del.addEventListener('click', async () => { await api('DELETE', `${API.Recipes}?kind=item&id=${encodeURIComponent(item.id)}`); tr.remove(); });
 	return tr;
+}
+
+function enableItemsReorder(tbody, stepId) {
+	let dragging = null;
+	body.addEventListener('dragstart', (e) => {
+		const tr = e.target && e.target.closest('tr');
+		if (!tr) return;
+		dragging = tr;
+		tr.classList.add('dragging');
+		try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', tr.dataset.itemId || ''); } catch {}
+	});
+	body.addEventListener('dragover', (e) => {
+		e.preventDefault();
+		const after = getDragAfterElement(tbody, e.clientY);
+		if (!dragging) return;
+		if (after == null) tbody.appendChild(dragging); else tbody.insertBefore(dragging, after);
+	});
+	body.addEventListener('dragend', async () => {
+		if (!dragging) return;
+		dragging.classList.remove('dragging');
+		dragging = null;
+		await persistItemsOrder(tbody, stepId);
+	});
+}
+
+function getDragAfterElement(container, y) {
+	const els = [...container.querySelectorAll('tr:not(.dragging)')];
+	let closest = { offset: Number.NEGATIVE_INFINITY, element: null };
+	for (const el of els) {
+		const rect = el.getBoundingClientRect();
+		const offset = y - rect.top - rect.height / 2;
+		if (offset < 0 && offset > closest.offset) closest = { offset, element: el };
+	}
+	return closest.element;
+}
+
+async function persistItemsOrder(tbody, stepId) {
+	const rows = Array.from(tbody.querySelectorAll('tr'));
+	let pos = 1;
+	for (const tr of rows) {
+		const id = tr.dataset.itemId;
+		const name = tr.querySelector('td:nth-child(1) input')?.value || '';
+		const unit = tr.querySelector('td:nth-child(2) input')?.value || 'g';
+		const qty = Number(tr.querySelector('td:nth-child(3) input')?.value || 0) || 0;
+		try { await api('POST', API.Recipes, { kind: 'item.upsert', id, recipe_id: stepId, ingredient: name, unit, qty_per_unit: qty, position: pos }); } catch {}
+		pos++;
+	}
 }
 
 async function openExtrasEditor() {
