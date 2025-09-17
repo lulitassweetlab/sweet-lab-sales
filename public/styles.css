@@ -887,6 +887,20 @@ tfoot td { font-weight: 700; }
 .ingredients-list { max-height: 360px; overflow: auto; margin-top: 8px; border-top: 1px solid var(--border); }
 .ingredients-row { display: grid; grid-template-columns: 1.2fr .6fr repeat(5, .7fr) auto; gap: 6px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
 .ingredients-row input { width: 100%; }
+
+/* Measures view */
+.measures-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+.measures-col { display: flex; flex-direction: column; gap: 6px; }
+.measures-header { font-weight: 600; display: flex; align-items: center; justify-content: space-between; }
+.measures-suggest-header button { padding: 4px 8px; }
+.measures-list { border: 1px solid var(--border); border-radius: 8px; padding: 8px; max-height: 50vh; overflow: auto; }
+.measure-row { display: flex; align-items: center; height: 36px; border-bottom: 1px solid var(--border); }
+.measure-row:last-child { border-bottom: none; }
+.measure-row input { width: 100%; }
+.measure-dessert-block { margin-top: 16px; }
+.measure-step { opacity: .75; margin: 6px 0; }
+.measures-results table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+.measures-results th, .measures-results td { border-bottom: 1px solid var(--border); padding: 6px 4px; text-align: left; }
 .ingredients-header { font-weight: 600; position: sticky; top: 0; background: inherit; padding: 6px 0; z-index: 1; }
 .ingredients-actions { display: flex; justify-content: space-between; gap: 8px; margin-top: 10px; }
 .materials-report { min-width: 320px; }

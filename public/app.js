@@ -1676,7 +1676,8 @@ function openMaterialsMenu(anchorX, anchorY) {
 	const list = document.createElement('div'); list.className = 'history-list';
 	const b1 = document.createElement('button'); b1.className = 'press-btn'; b1.textContent = 'Ingredientes';
 	const b2 = document.createElement('button'); b2.className = 'press-btn'; b2.textContent = 'Necesarios';
-	list.appendChild(b1); list.appendChild(b2);
+	const b3 = document.createElement('button'); b3.className = 'press-btn'; b3.textContent = 'Medidas';
+	list.appendChild(b1); list.appendChild(b2); list.appendChild(b3);
 	pop.append(list);
 	document.body.appendChild(pop);
 
@@ -1694,6 +1695,7 @@ function openMaterialsMenu(anchorX, anchorY) {
 
 	b1.addEventListener('click', async () => { cleanup(); openIngredientsView(); });
 	b2.addEventListener('click', async () => { cleanup(); openMaterialsNeededFlow(baseX, desiredBottomY); });
+	b3.addEventListener('click', async () => { cleanup(); openMeasuresView(); });
 }
 
 // Removed openAssignIconsDialog
@@ -1749,6 +1751,11 @@ function bindEvents() {
 
 	const backIngredients = document.getElementById('ingredients-back');
 	backIngredients?.addEventListener('click', () => {
+		switchView('#view-select-seller');
+	});
+
+	const backMeasures = document.getElementById('measures-back');
+	backMeasures?.addEventListener('click', () => {
 		switchView('#view-select-seller');
 	});
 }
@@ -1932,6 +1939,163 @@ async function renderIngredientsView() {
 	});
 	const extrasBtn = document.getElementById('ingredients-add-extras');
 	extrasBtn?.addEventListener('click', async () => { openExtrasEditor(); });
+}
+
+async function openMeasuresView() {
+	switchView('#view-measures');
+	await renderMeasuresView();
+}
+
+async function renderMeasuresView() {
+	const dessertsRoot = document.getElementById('measures-desserts');
+	const qtyRoot = document.getElementById('measures-qty');
+	const suggRoot = document.getElementById('measures-suggest');
+	const resultsRoot = document.getElementById('measures-ingredients');
+	const pickBtn = document.getElementById('measures-pick-range');
+	if (!dessertsRoot || !qtyRoot || !suggRoot || !resultsRoot) return;
+
+	let desserts = [];
+	try { desserts = await api('GET', API.Recipes); } catch { desserts = []; }
+	if (!desserts || desserts.length === 0) {
+		try { await api('GET', `${API.Recipes}?seed=1`); desserts = await api('GET', API.Recipes); }
+		catch {}
+	}
+
+	// Clear
+	dessertsRoot.innerHTML = '';
+	qtyRoot.innerHTML = '';
+	suggRoot.innerHTML = '';
+	resultsRoot.innerHTML = '';
+
+	const qtyInputs = new Map();
+	const suggestCells = new Map();
+	const recipeCache = new Map();
+	let currentRange = null;
+
+	function fieldForDessert(name) {
+		const k = (name || '').toLowerCase();
+		if (k.startsWith('arco')) return 'qty_arco';
+		if (k.startsWith('melo')) return 'qty_melo';
+		if (k.startsWith('mara')) return 'qty_mara';
+		if (k.startsWith('oreo')) return 'qty_oreo';
+		if (k.startsWith('nute')) return 'qty_nute';
+		return null;
+	}
+
+	for (const name of (desserts || [])) {
+		const d = document.createElement('div'); d.className = 'measure-row'; d.textContent = name;
+		dessertsRoot.appendChild(d);
+		const qWrap = document.createElement('div'); qWrap.className = 'measure-row';
+		const inQ = document.createElement('input'); inQ.type = 'text'; inQ.placeholder = '0'; inQ.inputMode = 'numeric'; inQ.autocomplete = 'off'; inQ.spellcheck = false;
+		inQ.addEventListener('input', () => { updateTotals(); });
+		qWrap.appendChild(inQ); qtyRoot.appendChild(qWrap);
+		qtyInputs.set(name, inQ);
+		const s = document.createElement('div'); s.className = 'measure-row suggestion'; s.style.opacity = '0.6'; s.textContent = '—';
+		suggRoot.appendChild(s); suggestCells.set(name, s);
+	}
+
+	async function ensureRecipe(name) {
+		if (recipeCache.has(name)) return recipeCache.get(name);
+		try {
+			const data = await api('GET', `${API.Recipes}?dessert=${encodeURIComponent(name)}&include_extras=1`);
+			recipeCache.set(name, data);
+			return data;
+		} catch {
+			return { steps: [] };
+		}
+	}
+
+	async function computeSuggestions(startIso, endIso) {
+		const map = new Map();
+		for (const name of (desserts || [])) map.set(name, 0);
+		try {
+			const sellers = await api('GET', API.Sellers);
+			const start = String(startIso).slice(0,10);
+			const end = String(endIso).slice(0,10);
+			for (const s of (sellers || [])) {
+				const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(s.id)}`);
+				const within = (days || []).filter(d => {
+					const iso = String(d.day).slice(0,10);
+					return iso >= start && iso <= end;
+				});
+				for (const d of within) {
+					const params = new URLSearchParams({ seller_id: String(s.id), sale_day_id: String(d.id) });
+					const sales = await api('GET', `${API.Sales}?${params.toString()}`);
+					for (const r of (sales || [])) {
+						for (const name of (desserts || [])) {
+							const f = fieldForDessert(name);
+							if (!f) continue;
+							const cur = map.get(name) || 0;
+							map.set(name, cur + Number(r[f] || 0));
+						}
+					}
+				}
+			}
+		} catch {}
+		return map;
+	}
+
+	function renderTotalsView(perDessertTotals) {
+		resultsRoot.innerHTML = '';
+		for (const [dessertName, qty] of perDessertTotals) {
+			if (!qty || qty <= 0) continue;
+			const wrap = document.createElement('div'); wrap.className = 'measure-dessert-block';
+			const h = document.createElement('h4'); h.textContent = dessertName + ` × ${qty}`;
+			wrap.appendChild(h);
+			const data = recipeCache.get(dessertName);
+			for (const step of (data?.steps || [])) {
+				const sh = document.createElement('div'); sh.className = 'measure-step'; sh.textContent = step.step_name || 'Sin nombre'; wrap.appendChild(sh);
+				const table = document.createElement('table');
+				const thead = document.createElement('thead'); const trh = document.createElement('tr');
+				['Ingrediente','Unidad','Cantidad total'].forEach(t => { const th = document.createElement('th'); th.textContent = t; trh.appendChild(th); });
+				thead.appendChild(trh);
+				const tbody = document.createElement('tbody');
+				for (const it of (step.items || [])) {
+					const tr = document.createElement('tr');
+					const tdN = document.createElement('td'); tdN.textContent = it.ingredient; 
+					const tdU = document.createElement('td'); tdU.textContent = it.unit || 'g';
+					const tdQ = document.createElement('td'); tdQ.textContent = String((Number(it.qty_per_unit || 0) * qty));
+					tr.append(tdN, tdU, tdQ); tbody.appendChild(tr);
+				}
+				table.append(thead, tbody); wrap.appendChild(table);
+			}
+			resultsRoot.appendChild(wrap);
+		}
+	}
+
+	async function updateTotals() {
+		// Gather desired quantities
+		const perDessert = new Map();
+		for (const name of (desserts || [])) {
+			const input = qtyInputs.get(name);
+			const raw = (input?.value || '').trim();
+			const n = Number(raw.replace(/[^0-9.\-]/g, '')) || 0;
+			perDessert.set(name, n);
+		}
+		// Ensure recipes are loaded for any dessert with qty
+		for (const [name, qty] of perDessert) {
+			if (qty > 0 && !recipeCache.has(name)) await ensureRecipe(name);
+		}
+		renderTotalsView(perDessert);
+	}
+
+	pickBtn?.addEventListener('click', (ev) => {
+		const rect = ev.currentTarget.getBoundingClientRect();
+		const cx = rect.left + rect.width / 2; const cy = rect.bottom;
+		openRangeCalendarPopover(async (range) => {
+			if (!range || !range.start || !range.end) return;
+			currentRange = range;
+			const map = await computeSuggestions(range.start, range.end);
+			for (const name of (desserts || [])) {
+				const cell = suggestCells.get(name);
+				const val = map.get(name) || 0;
+				if (cell) cell.textContent = String(val);
+			}
+		}, cx, cy, { preferUp: true });
+	});
+
+	// Initial totals
+	updateTotals();
 }
 
 async function buildDessertCard(dessertName) {

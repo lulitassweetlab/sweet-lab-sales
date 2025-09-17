@@ -233,6 +233,47 @@
 			</div>
 		</section>
 
+		<section id="view-measures" class="view hidden">
+			<div class="header-sticky">
+				<div class="toolbar">
+					<div class="toolbar-left">
+						<img src="/logo.png" alt="Lulitas Logo" class="app-logo toolbar-logo" />
+						<button id="measures-back" class="secondary press-btn">Volver</button>
+					</div>
+					<h2>Medidas</h2>
+					<div class="toolbar-actions"></div>
+				</div>
+			</div>
+			<div class="sales-panel">
+				<div class="panel-header">
+					<h3>Cantidad por postre y sugerencias</h3>
+				</div>
+				<div class="panel-body">
+					<div class="measures-grid">
+						<div class="measures-col">
+							<div class="measures-header">Postre</div>
+							<div id="measures-desserts" class="measures-list"></div>
+						</div>
+						<div class="measures-col">
+							<div class="measures-header">Cantidad</div>
+							<div id="measures-qty" class="measures-list"></div>
+						</div>
+						<div class="measures-col">
+							<div class="measures-header measures-suggest-header">
+								<span>Sugerencias</span>
+								<button id="measures-pick-range" class="press-btn" title="Seleccionar rango">📅</button>
+							</div>
+							<div id="measures-suggest" class="measures-list"></div>
+						</div>
+					</div>
+					<div class="measures-results">
+						<h4>Ingredientes necesarios</h4>
+						<div id="measures-ingredients"></div>
+					</div>
+				</div>
+			</div>
+		</section>
+
 		<section id="view-clients" class="view hidden">
 			<div class="header-sticky">
 				<div class="toolbar">
