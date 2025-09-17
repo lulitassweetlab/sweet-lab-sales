@@ -23,19 +23,47 @@ export async function handler(event) {
 					const steps = await sql`SELECT id, dessert, step_name, position FROM dessert_recipes WHERE lower(dessert)=lower(${dessert}) ORDER BY position ASC, id ASC`;
 					const stepIds = steps.map(s => s.id);
 					let items = [];
-					if (stepIds.length) items = await sql`SELECT id, recipe_id, ingredient, unit, qty_per_unit, position FROM dessert_recipe_items WHERE recipe_id = ANY(${stepIds}) ORDER BY position ASC, id ASC`;
+					if (stepIds.length) items = await sql`SELECT id, recipe_id, ingredient, unit, qty_per_unit, adjustment, price, position FROM dessert_recipe_items WHERE recipe_id = ANY(${stepIds}) ORDER BY position ASC, id ASC`;
 					const grouped = steps.map(s => ({ id: s.id, dessert: s.dessert, step_name: s.step_name || null, position: s.position, items: items.filter(i => i.recipe_id === s.id) }));
 					let extras = [];
 					if (includeExtras) extras = await sql`SELECT id, ingredient, unit, qty_per_unit, position FROM extras_items ORDER BY position ASC, id ASC`;
 					return json({ dessert, steps: grouped, extras });
 				}
-				// all desserts summary
-				const ds = await sql`SELECT DISTINCT dessert FROM dessert_recipes ORDER BY dessert ASC`;
+				// all desserts summary (respect saved order if present)
+				const ds = await sql`
+					SELECT d.dessert
+					FROM (SELECT DISTINCT dessert FROM dessert_recipes) d
+					LEFT JOIN dessert_order o ON lower(o.dessert) = lower(d.dessert)
+					ORDER BY COALESCE(o.position, 1000000) ASC, d.dessert ASC
+				`;
 				return json(ds.map(r => r.dessert));
 			}
 			case 'POST': {
 				const data = JSON.parse(event.body || '{}');
 				const kind = (data.kind || '').toString();
+				if (kind === 'dessert.order') {
+					const names = Array.isArray(data.names) ? data.names : [];
+					for (let i=0;i<names.length;i++) {
+						const name = (names[i]||'').toString();
+						if (!name) continue;
+						await sql`INSERT INTO dessert_order (dessert, position, updated_at) VALUES (${name}, ${i+1}, now()) ON CONFLICT (dessert) DO UPDATE SET position=EXCLUDED.position, updated_at=now()`;
+					}
+					return json({ ok: true });
+				}
+				if (kind === 'step.reorder') {
+					const ids = Array.isArray(data.ids) ? data.ids.map(x => Number(x)||0).filter(Boolean) : [];
+					for (let i=0;i<ids.length;i++) {
+						await sql`UPDATE dessert_recipes SET position=${i+1}, updated_at=now() WHERE id=${ids[i]}`;
+					}
+					return json({ ok: true });
+				}
+				if (kind === 'item.reorder') {
+					const ids = Array.isArray(data.ids) ? data.ids.map(x => Number(x)||0).filter(Boolean) : [];
+					for (let i=0;i<ids.length;i++) {
+						await sql`UPDATE dessert_recipe_items SET position=${i+1}, updated_at=now() WHERE id=${ids[i]}`;
+					}
+					return json({ ok: true });
+				}
 				if (kind === 'step.upsert') {
 					const dessert = (data.dessert || '').toString();
 					if (!dessert) return json({ error: 'dessert requerido' }, 400);
@@ -56,13 +84,15 @@ export async function handler(event) {
 					const ingredient = (data.ingredient || '').toString();
 					const unit = (data.unit || 'g').toString();
 					const qty = Number(data.qty_per_unit || 0) || 0;
+					const adjustment = Number(data.adjustment || 0) || 0;
+					const price = Number(data.price || 0) || 0;
 					const position = Number(data.position || 0) || 0;
 					const id = Number(data.id || 0) || 0;
 					let row;
 					if (id) {
-						[row] = await sql`UPDATE dessert_recipe_items SET ingredient=${ingredient}, unit=${unit}, qty_per_unit=${qty}, position=${position}, updated_at=now() WHERE id=${id} RETURNING id, recipe_id, ingredient, unit, qty_per_unit, position`;
+						[row] = await sql`UPDATE dessert_recipe_items SET ingredient=${ingredient}, unit=${unit}, qty_per_unit=${qty}, adjustment=${adjustment}, price=${price}, position=${position}, updated_at=now() WHERE id=${id} RETURNING id, recipe_id, ingredient, unit, qty_per_unit, adjustment, price, position`;
 					} else {
-						[row] = await sql`INSERT INTO dessert_recipe_items (recipe_id, ingredient, unit, qty_per_unit, position) VALUES (${recipeId}, ${ingredient}, ${unit}, ${qty}, ${position}) RETURNING id, recipe_id, ingredient, unit, qty_per_unit, position`;
+						[row] = await sql`INSERT INTO dessert_recipe_items (recipe_id, ingredient, unit, qty_per_unit, adjustment, price, position) VALUES (${recipeId}, ${ingredient}, ${unit}, ${qty}, ${adjustment}, ${price}, ${position}) RETURNING id, recipe_id, ingredient, unit, qty_per_unit, adjustment, price, position`;
 					}
 					return json(row, id ? 200 : 201);
 				}
@@ -86,6 +116,13 @@ export async function handler(event) {
 				const raw = typeof event.rawQuery === 'string' ? event.rawQuery : (event.queryStringParameters ? new URLSearchParams(event.queryStringParameters).toString() : '');
 				const params = new URLSearchParams(raw);
 				const kind = params.get('kind');
+				if (kind === 'dessert') {
+					const dessert = (params.get('dessert') || '').toString();
+					if (!dessert) return json({ error: 'dessert requerido' }, 400);
+					await sql`DELETE FROM dessert_recipes WHERE lower(dessert)=lower(${dessert})`;
+					await sql`DELETE FROM dessert_order WHERE lower(dessert)=lower(${dessert})`;
+					return json({ ok: true });
+				}
 				const id = Number(params.get('id') || 0) || 0;
 				if (!id) return json({ error: 'id requerido' }, 400);
 				if (kind === 'step') { await sql`DELETE FROM dessert_recipes WHERE id=${id}`; return json({ ok: true }); }

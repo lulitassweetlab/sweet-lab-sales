@@ -46,6 +46,14 @@ export async function handler(event) {
 					const rows = await sql`SELECT id, sale_id, field, old_value, new_value, user_name, created_at FROM change_logs WHERE sale_id=${saleId} ORDER BY created_at DESC, id DESC`;
 					return json(rows);
 				}
+				// Fast context lookup: find seller_id and sale_day_id by sale id
+				const findById = params.get('find_by_id') || (event.queryStringParameters && event.queryStringParameters.find_by_id);
+				if (findById) {
+					const saleId = Number(findById);
+					if (!saleId) return json({ error: 'find_by_id inválido' }, 400);
+					const row = (await sql`SELECT id, seller_id, sale_day_id FROM sales WHERE id=${saleId}`)[0] || null;
+					return json(row || {});
+				}
 				const receiptFor = params.get('receipt_for') || (event.queryStringParameters && event.queryStringParameters.receipt_for);
 				if (receiptFor) {
 					const saleId = Number(receiptFor);
@@ -86,6 +94,11 @@ export async function handler(event) {
 					saleDayId = await getOrCreateDayId(sellerId, iso);
 				}
 				const [row] = await sql`INSERT INTO sales (seller_id, sale_day_id) VALUES (${sellerId}, ${saleDayId}) RETURNING id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, comment_text, total_cents, created_at`;
+				// Emit a notification for new sale with identifiers for deep linking
+				try {
+					const msg = `${row.client_name || 'Cliente'} nuevo pedido`;
+					await notifyDb({ type: 'create', sellerId, saleId: row.id, saleDayId, message: msg, actorName: '' });
+				} catch {}
 				return json(row, 201);
 			}
 			case 'PUT': {

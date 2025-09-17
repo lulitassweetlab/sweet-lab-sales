@@ -175,7 +175,7 @@ function renderClientDetailTable(rows) {
 		const total = calcRowTotal({ arco: r.qty_arco, melo: r.qty_melo, mara: r.qty_mara, oreo: r.qty_oreo, nute: r.qty_nute });
 		const tdTot = document.createElement('td'); tdTot.textContent = fmtNo.format(total);
 		tr.append(tdPay, tdDate, tdAr, tdMe, tdMa, tdOr, tdNu, tdTot);
-		tr.addEventListener('mousedown', () => { tr.classList.add('row-highlight'); setTimeout(() => tr.classList.remove('row-highlight'), 500); });
+		tr.addEventListener('mousedown', () => { tr.classList.add('row-highlight'); setTimeout(() => tr.classList.remove('row-highlight'), 3200); });
 		tbody.appendChild(tr);
 	}
 }
@@ -387,6 +387,19 @@ const notify = (() => {
 				txt.textContent = String(it.message || it.text || '');
 				text.appendChild(txt);
 				item.append(when, text);
+				try {
+					item.style.cursor = 'pointer';
+					item.addEventListener('click', () => {
+						cleanup();
+						setTimeout(() => {
+							goToSaleFromNotification(
+								it.seller_id ?? it.sellerId ?? null,
+								it.sale_day_id ?? it.saleDay_id ?? it.sale_dayId ?? it.saleDayId ?? null,
+								it.sale_id ?? it.saleId ?? null
+							);
+						}, 0);
+					});
+				} catch {}
 				list.appendChild(item);
 			}
 		}
@@ -916,6 +929,8 @@ async function saveRow(tr, id) {
 	const prev = before ? { ...before } : null;
 	const body = readRow(tr);
 	body.id = id;
+	body.seller_id = state.currentSeller?.id || null;
+	if (state.selectedDayId) body.sale_day_id = state.selectedDayId;
 	body._actor_name = state.currentUser?.name || '';
 	const updated = await api('PUT', API.Sales, body);
 	const idx = state.sales.findIndex(s => s.id === id);
@@ -1207,6 +1222,8 @@ async function savePaid(tr, id, isPaid) {
 	const body = readRow(tr);
 	body.id = id;
 	body.is_paid = !!isPaid;
+	body.seller_id = state.currentSeller?.id || null;
+	if (state.selectedDayId) body.sale_day_id = state.selectedDayId;
 	body._actor_name = state.currentUser?.name || '';
 	const updated = await api('PUT', API.Sales, body);
 	const idx = state.sales.findIndex(s => s.id === id);
@@ -1217,6 +1234,8 @@ async function savePayMethod(tr, id, method) {
 	const body = readRow(tr);
 	body.id = id;
 	body.pay_method = method || null;
+	body.seller_id = state.currentSeller?.id || null;
+	if (state.selectedDayId) body.sale_day_id = state.selectedDayId;
 	body._actor_name = state.currentUser?.name || '';
 	await api('PUT', API.Sales, body);
 	// Update local state
@@ -1240,7 +1259,7 @@ function updateSummary() {
 		qn += nute;
 		grand += calcRowTotal({ arco: s.qty_arco, melo: s.qty_melo, mara: s.qty_mara, oreo: s.qty_oreo, nute: s.qty_nute });
 		const pm = (s.pay_method || '').toString();
-		if (pm === 'transf' || pm === 'marce' || pm === 'jorge') {
+		if (pm === 'transf' || pm === 'jorgebank' || pm === 'marce' || pm === 'jorge') {
 			paidQa += arco; paidQm += melo; paidQma += mara; paidQo += oreo; paidQn += nute;
 		}
 	}
@@ -1678,7 +1697,8 @@ function openMaterialsMenu(anchorX, anchorY) {
 	const list = document.createElement('div'); list.className = 'history-list';
 	const b1 = document.createElement('button'); b1.className = 'press-btn'; b1.textContent = 'Ingredientes';
 	const b2 = document.createElement('button'); b2.className = 'press-btn'; b2.textContent = 'Necesarios';
-	list.appendChild(b1); list.appendChild(b2);
+	const b3 = document.createElement('button'); b3.className = 'press-btn'; b3.textContent = 'Producción';
+	list.appendChild(b1); list.appendChild(b2); list.appendChild(b3);
 	pop.append(list);
 	document.body.appendChild(pop);
 
@@ -1696,6 +1716,7 @@ function openMaterialsMenu(anchorX, anchorY) {
 
 	b1.addEventListener('click', async () => { cleanup(); openIngredientsView(); });
 	b2.addEventListener('click', async () => { cleanup(); openMaterialsNeededFlow(baseX, desiredBottomY); });
+	b3.addEventListener('click', async () => { cleanup(); openMeasuresView(); });
 }
 
 // Removed openAssignIconsDialog
@@ -1751,6 +1772,11 @@ function bindEvents() {
 
 	const backIngredients = document.getElementById('ingredients-back');
 	backIngredients?.addEventListener('click', () => {
+		switchView('#view-select-seller');
+	});
+
+	const backMeasures = document.getElementById('measures-back');
+	backMeasures?.addEventListener('click', () => {
 		switchView('#view-select-seller');
 	});
 }
@@ -1924,6 +1950,22 @@ async function renderIngredientsView() {
 		const card = await buildDessertCard(name);
 		grid.appendChild(card);
 	}
+	// Enable drag & drop reordering of dessert cards at grid level
+	grid.addEventListener('dragover', (e) => {
+		e.preventDefault();
+		const dragging = grid.querySelector('.dessert-card.dragging');
+		if (!dragging) return;
+		const after = (() => {
+			const els = [...grid.querySelectorAll('.dessert-card:not(.dragging)')];
+			return els.reduce((closest, child) => {
+				const rect = child.getBoundingClientRect();
+				const offset = e.clientY - rect.top - rect.height / 2;
+				if (offset < 0 && offset > closest.offset) return { offset, element: child };
+				else return closest;
+			}, { offset: Number.NEGATIVE_INFINITY, element: null }).element;
+		})();
+		if (after == null) grid.appendChild(dragging); else grid.insertBefore(dragging, after);
+	});
 	root.appendChild(grid);
 	// Top actions
 	const addDessertBtn = document.getElementById('ingredients-add-dessert');
@@ -1931,9 +1973,201 @@ async function renderIngredientsView() {
 		const name = (prompt('Nombre del postre:') || '').trim(); if (!name) return;
 		await api('POST', API.Recipes, { kind: 'step.upsert', dessert: name, step_name: null, position: 0 });
 		await renderIngredientsView();
+		try { document.dispatchEvent(new CustomEvent('recipes:changed', { detail: { action: 'addDessert', dessert: name } })); } catch {}
 	});
 	const extrasBtn = document.getElementById('ingredients-add-extras');
 	extrasBtn?.addEventListener('click', async () => { openExtrasEditor(); });
+}
+
+async function openMeasuresView() {
+	switchView('#view-measures');
+	await renderMeasuresView();
+}
+
+async function renderMeasuresView() {
+	const root = document.getElementById('measures-content');
+	if (!root) return;
+	root.innerHTML = '';
+	// Fetch desserts and recipe aggregates
+	let dessertNames = [];
+	try { dessertNames = await api('GET', API.Recipes); } catch { dessertNames = []; }
+	if (!dessertNames || dessertNames.length === 0) {
+		try { await api('GET', `${API.Recipes}?seed=1`); dessertNames = await api('GET', API.Recipes); } catch {}
+	}
+	// Build input form for counts
+	const form = document.createElement('div'); form.className = 'measures-form'; form.style.display = 'flex'; form.style.justifyContent = 'center'; form.style.margin = '0 0 12px 0';
+	const grid = document.createElement('div'); grid.className = 'measures-grid'; grid.style.display = 'grid'; grid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(180px, 1fr))'; grid.style.gap = '12px 16px'; grid.style.maxWidth = '880px'; grid.style.width = '100%';
+	const counts = new Map();
+	function normalizeKey(name){ const k = String(name||'').trim().toLowerCase(); if (k.startsWith('arco')) return 'arco'; if (k.startsWith('melo')) return 'melo'; if (k.startsWith('mara')) return 'mara'; if (k.startsWith('oreo')) return 'oreo'; if (k.startsWith('nute')) return 'nute'; return k; }
+	const byKey = new Map();
+	for (const name of (dessertNames||[])) { const key = normalizeKey(name); byKey.set(key, name); }
+	for (const [k, name] of byKey.entries()) {
+		const row = document.createElement('div'); row.className = 'measures-row'; row.style.display = 'flex'; row.style.alignItems = 'center'; row.style.justifyContent = 'center'; row.style.gap = '8px'; row.style.border = '1px solid rgba(0,0,0,0.12)'; row.style.borderRadius = '10px'; row.style.padding = '8px 10px'; row.style.cursor = 'pointer'; row.style.background = 'white';
+		const label = document.createElement('div'); label.textContent = name; label.style.fontWeight = '600'; label.style.textAlign = 'center'; label.style.flex = '1';
+		const input = document.createElement('input'); input.type = 'number'; input.min = '0'; input.step = '1'; input.value = '0'; input.className = 'input-cell'; input.style.width = '86px'; input.style.textAlign = 'center';
+		counts.set(k, 0);
+		input.addEventListener('focus', () => { try { input.select(); } catch {} });
+		row.addEventListener('click', (ev) => { if (ev.target !== input) { input.focus(); input.select(); } });
+		input.addEventListener('input', () => { counts.set(k, Math.max(0, Number(input.value||0) || 0)); renderResults(); });
+		row.append(label, input); grid.appendChild(row);
+	}
+	form.appendChild(grid);
+
+	// Results cards container
+	const resultWrap = document.createElement('div');
+	const cardsWrap = document.createElement('div');
+	cardsWrap.style.display = 'flex'; cardsWrap.style.flexDirection = 'column'; cardsWrap.style.alignItems = 'center';
+	resultWrap.appendChild(cardsWrap);
+
+	// Export button
+	const actions = document.createElement('div'); actions.className = 'confirm-actions';
+	const exportBtn = document.createElement('button'); exportBtn.className = 'press-btn btn-gold'; exportBtn.textContent = 'Exportar Excel';
+	actions.appendChild(exportBtn);
+
+	root.append(form, resultWrap, actions);
+
+	async function fetchRecipeMap() {
+		// Keep step divisions and item order; include extras
+		const names = dessertNames || [];
+		const byDessert = new Map();
+		for (const dessert of names) {
+			const data = await api('GET', `${API.Recipes}?dessert=${encodeURIComponent(dessert)}&include_extras=1`);
+			// Ensure steps are arrays with items in order
+			const steps = Array.isArray(data?.steps) ? data.steps : [];
+			byDessert.set(dessert, { steps, extras: Array.isArray(data?.extras) ? data.extras : [] });
+		}
+		// Extras also needed even if a dessert has none in its payload
+		let globalExtras = [];
+		try { const exData = await api('GET', `${API.Recipes}?dessert=${encodeURIComponent(names[0]||'dummy')}&include_extras=1`); globalExtras = exData.extras || []; } catch {}
+		return { byDessert, extras: globalExtras };
+	}
+
+	let recipeCache = null;
+	async function ensureRecipes(){ if (!recipeCache) recipeCache = await fetchRecipeMap(); return recipeCache; }
+
+	// Refresh when recipes change (e.g., new dessert added)
+	function onRecipesChanged(){ recipeCache = null; // clear cache
+		// Rebuild inputs grid with any new dessert
+		while (grid.firstChild) grid.removeChild(grid.firstChild);
+		byKey.clear();
+		for (const name of (dessertNames||[])) { const key = normalizeKey(name); byKey.set(key, name); }
+		for (const [k, name] of byKey.entries()) {
+			const row = document.createElement('div'); row.className = 'measures-row'; row.style.display = 'flex'; row.style.alignItems = 'center'; row.style.justifyContent = 'center'; row.style.gap = '8px'; row.style.border = '1px solid rgba(0,0,0,0.12)'; row.style.borderRadius = '10px'; row.style.padding = '8px 10px'; row.style.cursor = 'pointer'; row.style.background = 'white';
+			const label = document.createElement('div'); label.textContent = name; label.style.fontWeight = '600'; label.style.textAlign = 'center'; label.style.flex = '1';
+			const input = document.createElement('input'); input.type = 'number'; input.min = '0'; input.step = '1'; input.value = String(counts.get(k) || 0); input.className = 'input-cell'; input.style.width = '86px'; input.style.textAlign = 'center';
+			input.addEventListener('focus', () => { try { input.select(); } catch {} });
+			row.addEventListener('click', (ev) => { if (ev.target !== input) { input.focus(); input.select(); } });
+			input.addEventListener('input', () => { counts.set(k, Math.max(0, Number(input.value||0) || 0)); renderResults(); });
+			grid.appendChild(row); row.append(label, input);
+		}
+		renderResults();
+	}
+	const recipesChangedHandler = async (ev) => {
+		try {
+			// refetch dessert names to include new ones
+			dessertNames = await api('GET', API.Recipes);
+			onRecipesChanged();
+		} catch {}
+	};
+	try { document.addEventListener('recipes:changed', recipesChangedHandler); } catch {}
+
+	function clearCards(){ while (cardsWrap.firstChild) cardsWrap.removeChild(cardsWrap.firstChild); }
+
+	async function renderResults() {
+		await ensureRecipes();
+		clearCards();
+		const fmt1 = new Intl.NumberFormat('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+		const dataByDessert = recipeCache.byDessert;
+		const extras = Array.isArray(recipeCache.extras) ? recipeCache.extras : [];
+		for (const [key, qty] of counts.entries()) {
+			const qtyNum = Number(qty || 0);
+			if (!qtyNum) continue;
+			const dessertName = byKey.get(key) || key;
+			const d = dataByDessert.get(dessertName);
+			if (!d) continue;
+			// Card container
+			const card = document.createElement('div'); card.className = 'measure-card';
+			card.style.margin = '80px 0 96px 0';
+			card.style.padding = '12px';
+			card.style.border = '1px solid rgba(0,0,0,0.15)';
+			card.style.borderRadius = '10px';
+			card.style.boxShadow = '0 8px 24px rgba(0,0,0,0.12)';
+	const title = document.createElement('h3'); title.textContent = dessertName; title.style.textAlign = 'center'; title.style.fontSize = '32px'; title.style.margin = '4px 0 12px 0'; title.style.background = 'rgba(255, 105, 180, 0.18)'; title.style.padding = '8px 6px'; title.style.borderRadius = '8px';
+			card.appendChild(title);
+			// Steps sections in order
+			for (const step of (d.steps || [])) {
+				const section = document.createElement('div'); section.className = 'measure-section'; section.style.margin = '12px 0';
+				if (step.step_name) {
+					const sh = document.createElement('div'); sh.textContent = step.step_name; sh.style.fontWeight = '600'; sh.style.margin = '0 0 6px 0';
+					section.appendChild(sh);
+				}
+				const table = document.createElement('table'); table.style.width = '100%'; table.style.tableLayout = 'fixed';
+				const colgroup = document.createElement('colgroup');
+				const colL = document.createElement('col'); colL.style.width = '33%';
+				const colM = document.createElement('col'); colM.style.width = '34%';
+				const colR = document.createElement('col'); colR.style.width = '33%';
+				colgroup.appendChild(colL); colgroup.appendChild(colM); colgroup.appendChild(colR); table.appendChild(colgroup);
+				const tbody = document.createElement('tbody');
+				for (const it of (step.items || [])) {
+					const tr = document.createElement('tr');
+					const tdL = document.createElement('td'); tdL.textContent = '';
+					const tdN = document.createElement('td'); tdN.textContent = it.ingredient; tdN.style.padding = '8px 4px'; tdN.style.textAlign = 'center';
+					const tdQ = document.createElement('td'); tdQ.textContent = fmt1.format((Number(it.qty_per_unit || 0) || 0) * qtyNum); tdQ.style.textAlign = 'right'; tdQ.style.padding = '5px 4px';
+					tr.append(tdL, tdN, tdQ); tbody.appendChild(tr);
+				}
+				table.appendChild(tbody); section.appendChild(table); card.appendChild(section);
+			}
+			// Extras at the end
+			if (extras && extras.length) {
+				const section = document.createElement('div'); section.className = 'measure-section'; section.style.margin = '12px 0';
+				const sh = document.createElement('div'); sh.textContent = 'Extras'; sh.style.fontWeight = '600'; sh.style.margin = '0 0 6px 0'; section.appendChild(sh);
+				const table = document.createElement('table'); table.style.width = '100%'; table.style.tableLayout = 'fixed';
+				const colgroup = document.createElement('colgroup');
+				const colL = document.createElement('col'); colL.style.width = '33%';
+				const colM = document.createElement('col'); colM.style.width = '34%';
+				const colR = document.createElement('col'); colR.style.width = '33%';
+				colgroup.appendChild(colL); colgroup.appendChild(colM); colgroup.appendChild(colR); table.appendChild(colgroup);
+				const tbody = document.createElement('tbody');
+				for (const ex of extras) {
+					const tr = document.createElement('tr');
+					const tdL = document.createElement('td'); tdL.textContent = '';
+					const tdN = document.createElement('td'); tdN.textContent = ex.ingredient; tdN.style.padding = '8px 4px'; tdN.style.textAlign = 'center';
+					const tdQ = document.createElement('td'); tdQ.textContent = fmt1.format((Number(ex.qty_per_unit || 0) || 0) * qtyNum); tdQ.style.textAlign = 'right'; tdQ.style.padding = '5px 4px';
+					tr.append(tdL, tdN, tdQ); tbody.appendChild(tr);
+				}
+				table.appendChild(tbody); section.appendChild(table); card.appendChild(section);
+			}
+			cardsWrap.appendChild(card);
+		}
+	}
+
+	function exportRows() {
+		const fmtNum = (n) => Number((Number(n||0)).toFixed(1));
+		const rows = [];
+		for (const [key, qty] of Object.entries(counts)) {
+			const qtyNum = Number(qty || 0);
+			if (!qtyNum) continue;
+			const dessertName = byKey.get(key) || key;
+			const d = recipeCache?.byDessert?.get(dessertName);
+			if (!d) continue;
+			for (const step of (d.steps || [])) {
+				for (const it of (step.items || [])) {
+					rows.push({ Postre: dessertName, Ingrediente: it.ingredient, Cantidad: fmtNum((Number(it.qty_per_unit || 0) || 0) * qtyNum) });
+				}
+			}
+			const extras = Array.isArray(recipeCache.extras) ? recipeCache.extras : [];
+			for (const ex of extras) rows.push({ Postre: dessertName, Ingrediente: ex.ingredient, Cantidad: fmtNum((Number(ex.qty_per_unit || 0) || 0) * qtyNum) });
+		}
+		const ws = XLSX.utils.json_to_sheet(rows);
+		const wb = XLSX.utils.book_new();
+		XLSX.utils.book_append_sheet(wb, ws, 'Medidas');
+		const label = new Date().toISOString().slice(0,10).replaceAll('-','');
+		XLSX.writeFile(wb, `Medidas_${label}.xlsx`);
+	}
+
+	exportBtn.addEventListener('click', exportRows);
+	// initial render
+	renderResults();
 }
 
 async function buildDessertCard(dessertName) {
@@ -1941,8 +2175,10 @@ async function buildDessertCard(dessertName) {
 	const card = document.createElement('div'); card.className = 'dessert-card';
 	const head = document.createElement('div'); head.className = 'dessert-header';
 	const title = document.createElement('h3'); title.textContent = dessertName;
-	const addStep = document.createElement('button'); addStep.className = 'press-btn'; addStep.textContent = '+ Paso';
-	head.append(title, addStep);
+	const addStep = document.createElement('button'); addStep.className = 'press-btn'; addStep.textContent = 'Agregar paso';
+	const delDessert = document.createElement('button'); delDessert.className = 'press-btn'; delDessert.textContent = 'Eliminar postre';
+	const actionsWrap = document.createElement('div'); actionsWrap.className = 'dessert-actions'; actionsWrap.append(addStep, delDessert);
+	head.append(title, actionsWrap);
 	const steps = document.createElement('div'); steps.className = 'steps-list';
 	for (const s of (data.steps || [])) steps.appendChild(buildStepCard(dessertName, s));
 	addStep.addEventListener('click', async () => {
@@ -1950,7 +2186,38 @@ async function buildDessertCard(dessertName) {
 		await api('POST', API.Recipes, { kind: 'step.upsert', dessert: dessertName, step_name: name || null, position: (data.steps?.length || 0) + 1 });
 		const fresh = await buildDessertCard(dessertName); card.replaceWith(fresh);
 	});
+	// Enable drag & drop for dessert cards
+	card.draggable = true;
+	card.addEventListener('dragstart', () => { card.classList.add('dragging'); });
+	card.addEventListener('dragend', async () => {
+		card.classList.remove('dragging');
+		const grid = card.parentElement;
+		if (!grid) return;
+		const names = Array.from(grid.querySelectorAll('.dessert-card h3')).map(h => (h.textContent || '').toString());
+		try { await api('POST', API.Recipes, { kind: 'dessert.order', names }); } catch {}
+	});
+	// Step-level DnD container
+	steps.addEventListener('dragover', (e) => {
+		e.preventDefault();
+		const dragging = steps.querySelector('.step-card.dragging');
+		if (!dragging) return;
+		const after = (() => {
+			const els = [...steps.querySelectorAll('.step-card:not(.dragging)')];
+			return els.reduce((closest, child) => {
+				const rect = child.getBoundingClientRect();
+				const offset = e.clientY - rect.top - rect.height / 2;
+				if (offset < 0 && offset > closest.offset) return { offset, element: child };
+				else return closest;
+			}, { offset: Number.NEGATIVE_INFINITY, element: null }).element;
+		})();
+		if (after == null) steps.appendChild(dragging); else steps.insertBefore(dragging, after);
+	});
 	card.append(head, steps);
+	delDessert.addEventListener('click', async () => {
+		const ok = confirm(`¿Eliminar el postre "${dessertName}" y todas sus recetas?`); if (!ok) return;
+		try { await api('DELETE', `${API.Recipes}?kind=dessert&dessert=${encodeURIComponent(dessertName)}`); } catch {}
+		await renderIngredientsView();
+	});
 	return card;
 }
 
@@ -1965,17 +2232,30 @@ function buildStepCard(dessertName, step) {
 	head.append(label, actions);
 	const table = document.createElement('table'); table.className = 'items-table';
 	const thead = document.createElement('thead'); const hr = document.createElement('tr');
-	['Ingrediente','Unidad','Cantidad por unidad',''].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
+	['Ingrediente','Cantidad por unidad','Ajuste','Precio',''].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
 	thead.appendChild(hr);
 	const tbody = document.createElement('tbody');
 	for (const it of (step.items || [])) tbody.appendChild(buildItemRow(step.id, it));
 	table.append(thead, tbody);
 	box.append(head, table);
+	// Enable drag & drop for steps
+	box.draggable = true;
+	box.addEventListener('dragstart', () => { box.classList.add('dragging'); });
+	box.addEventListener('dragend', async () => {
+		box.classList.remove('dragging');
+		const list = box.parentElement;
+		if (!list) return;
+		const ids = Array.from(list.querySelectorAll('.step-card'))
+			.map(sc => sc.querySelector('tbody tr input') ? null : null);
+		// Build ids from current dessertName data DOM by attaching data-id on creation
+		const stepIds = Array.from(list.querySelectorAll('.step-card')).map(el => Number(el.getAttribute('data-step-id')||'0')||0).filter(Boolean);
+		if (!stepIds.length) return;
+		try { await api('POST', API.Recipes, { kind: 'step.reorder', ids: stepIds }); } catch {}
+	});
 	add.addEventListener('click', async () => {
 		const ing = (prompt('Ingrediente:') || '').trim(); if (!ing) return;
-		const unit = (prompt('Unidad (g, ml, unidad):') || 'g').trim();
 		const qty = Number(prompt('Cantidad por unidad:') || '0') || 0;
-		const row = await api('POST', API.Recipes, { kind: 'item.upsert', recipe_id: step.id, ingredient: ing, unit, qty_per_unit: qty, position: (step.items?.length||0)+1 });
+		const row = await api('POST', API.Recipes, { kind: 'item.upsert', recipe_id: step.id, ingredient: ing, unit: 'g', qty_per_unit: qty, adjustment: 0, price: 0, position: (step.items?.length||0)+1 });
 		tbody.appendChild(buildItemRow(step.id, row));
 	});
 	del.addEventListener('click', async () => {
@@ -1983,22 +2263,55 @@ function buildStepCard(dessertName, step) {
 		await api('DELETE', `${API.Recipes}?kind=step&id=${encodeURIComponent(step.id)}`);
 		box.remove();
 	});
+	// Mark data-step-id to persist ordering
+	box.setAttribute('data-step-id', String(step.id));
+	// Ingredients rows drag & drop
+	tbody.addEventListener('dragover', (e) => {
+		e.preventDefault();
+		const dragging = tbody.querySelector('tr.dragging');
+		if (!dragging) return;
+		const after = (() => {
+			const els = [...tbody.querySelectorAll('tr:not(.dragging)')];
+			return els.reduce((closest, child) => {
+				const rect = child.getBoundingClientRect();
+				const offset = e.clientY - rect.top - rect.height / 2;
+				if (offset < 0 && offset > closest.offset) return { offset, element: child };
+				else return closest;
+			}, { offset: Number.NEGATIVE_INFINITY, element: null }).element;
+		})();
+		if (after == null) tbody.appendChild(dragging); else tbody.insertBefore(dragging, after);
+	});
 	return box;
 }
 
 function buildItemRow(stepId, item) {
 	const tr = document.createElement('tr');
 	const tdN = document.createElement('td'); const inN = document.createElement('input'); inN.type = 'text'; inN.value = item.ingredient; tdN.appendChild(inN);
-	const tdU = document.createElement('td'); const inU = document.createElement('input'); inU.type = 'text'; inU.value = item.unit || 'g'; inU.style.width = '70px'; tdU.appendChild(inU);
 	const tdQ = document.createElement('td'); const inQ = document.createElement('input'); inQ.type = 'number'; inQ.step = '0.01'; inQ.value = String(item.qty_per_unit || 0); tdQ.appendChild(inQ);
+	const tdAdj = document.createElement('td'); const inAdj = document.createElement('input'); inAdj.type = 'number'; inAdj.step = '0.01'; inAdj.value = String(item.adjustment || 0); tdAdj.appendChild(inAdj);
+	const tdP = document.createElement('td'); const inP = document.createElement('input'); inP.type = 'number'; inP.step = '0.01'; inP.value = String(item.price || 0); tdP.appendChild(inP);
 	const tdA = document.createElement('td'); const del = document.createElement('button'); del.className = 'press-btn'; del.textContent = '×'; tdA.appendChild(del);
-	tr.append(tdN, tdU, tdQ, tdA);
+	tr.append(tdN, tdQ, tdAdj, tdP, tdA);
+	// DnD for ingredient rows
+	tr.draggable = true;
+	tr.addEventListener('dragstart', () => { tr.classList.add('dragging'); });
+	tr.addEventListener('dragend', async () => {
+		tr.classList.remove('dragging');
+		const tbody = tr.parentElement;
+		if (!tbody) return;
+		const ids = Array.from(tbody.querySelectorAll('tr')).map(r => Number(r.getAttribute('data-item-id')||'0')||0).filter(Boolean);
+		if (!ids.length) return;
+		try { await api('POST', API.Recipes, { kind: 'item.reorder', ids }); } catch {}
+	});
 	async function save() {
-		try { await api('POST', API.Recipes, { kind: 'item.upsert', id: item.id, recipe_id: stepId, ingredient: inN.value, unit: inU.value || 'g', qty_per_unit: Number(inQ.value || 0) || 0, position: item.position || 0 }); }
-		catch { notify.error('No se pudo guardar'); }
+		try {
+			await api('POST', API.Recipes, { kind: 'item.upsert', id: item.id, recipe_id: stepId, ingredient: inN.value, unit: 'g', qty_per_unit: Number(inQ.value || 0) || 0, adjustment: Number(inAdj.value || 0) || 0, price: Number(inP.value || 0) || 0, position: item.position || 0 });
+		} catch { notify.error('No se pudo guardar'); }
 	}
-	[inN, inU, inQ].forEach(el => { el.addEventListener('change', save); el.addEventListener('blur', save); });
+	[inN, inQ, inAdj, inP].forEach(el => { el.addEventListener('change', save); el.addEventListener('blur', save); });
 	del.addEventListener('click', async () => { await api('DELETE', `${API.Recipes}?kind=item&id=${encodeURIComponent(item.id)}`); tr.remove(); });
+	// persist id on row
+	tr.setAttribute('data-item-id', String(item.id));
 	return tr;
 }
 
@@ -2845,7 +3158,7 @@ function renderClientsTable(rows) {
 		// No marker in clients list per request
 		const tdC = document.createElement('td'); tdC.textContent = String(r.count); tdC.style.textAlign = 'center';
 		tr.append(tdN, tdC);
-		tr.addEventListener('mousedown', () => { tr.classList.add('row-highlight'); setTimeout(() => tr.classList.remove('row-highlight'), 500); });
+		tr.addEventListener('mousedown', () => { tr.classList.add('row-highlight'); setTimeout(() => tr.classList.remove('row-highlight'), 3200); });
 		tr.addEventListener('click', async () => { await openClientDetailView(r.name); });
 		tbody.appendChild(tr);
 	}
@@ -2867,33 +3180,9 @@ function focusClientRow(name) {
 			if (!targetTr && v.includes(targetLower)) { targetTr = tr; }
 		}
 		if (!targetTr) { try { notify.info('Cliente no encontrado en esta fecha'); } catch {} return; }
-		const input = targetTr.querySelector('td.col-client .client-input');
-		if (input) { input.focus(); }
 		targetTr.scrollIntoView({ behavior: 'smooth', block: 'center' });
-		// Inline, conflict-free row signal overlay (no CSS dependency)
-		showRowSignal(targetTr, 1500);
-	} catch {}
-}
-
-// Helper: show a temporary overlay highlight over a row element
-function showRowSignal(rowEl, durationMs) {
-	try {
-		const tr = rowEl;
-		const prevPos = tr.style.position;
-		if (!prevPos) tr.style.position = 'relative';
-		const overlay = document.createElement('div');
-		overlay.style.position = 'absolute';
-		overlay.style.left = '0'; overlay.style.right = '0'; overlay.style.top = '0'; overlay.style.bottom = '0';
-		overlay.style.background = 'rgba(244, 166, 183, 0.7)'; // primary @ 70%
-		overlay.style.pointerEvents = 'none';
-		overlay.style.zIndex = '1';
-		overlay.style.opacity = '0';
-		overlay.style.transition = 'opacity 100ms ease-in';
-		tr.appendChild(overlay);
-		requestAnimationFrame(() => { overlay.style.opacity = '1'; });
-		const t = Math.max(400, Number(durationMs||1500));
-		setTimeout(() => { overlay.style.transition = 'opacity 180ms ease-out'; overlay.style.opacity = '0'; }, Math.min(t - 300, 1200));
-		setTimeout(() => { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); if (!prevPos) tr.style.position = ''; }, t);
+		targetTr.classList.add('row-highlight');
+		setTimeout(() => targetTr.classList.remove('row-highlight'), 3200);
 	} catch {}
 }
 
@@ -2905,7 +3194,8 @@ function focusSaleRowById(saleId) {
 		const tr = document.querySelector(`#sales-tbody tr[data-id="${id}"]`);
 		if (!tr) return false;
 		tr.scrollIntoView({ behavior: 'smooth', block: 'center' });
-		showRowSignal(tr, 1500);
+		tr.classList.add('row-highlight');
+		setTimeout(() => tr.classList.remove('row-highlight'), 3200);
 		return true;
 	} catch { return false; }
 }
@@ -2915,7 +3205,7 @@ async function resolveSaleContextBySaleId(rowId) {
 	try {
 		const id = Number(rowId);
 		if (!id) return null;
-		// Fast path (optional): backend may support this; ignore errors
+		// Fast path: ask backend for seller/day by id
 		try {
 			const fast = await api('GET', `${API.Sales}?find_by_id=${encodeURIComponent(id)}`);
 			if (fast && Number(fast.seller_id) && Number(fast.sale_day_id)) {
@@ -2938,7 +3228,7 @@ async function resolveSaleContextBySaleId(rowId) {
 	return null;
 }
 
-// Navigate from a notification (or deep link) to the exact sale row
+// Navigate from a notification to the exact sale row
 async function goToSaleFromNotification(sellerId, saleDayId, saleId) {
 	try {
 		let sid = Number(sellerId || 0) || null;
@@ -2952,14 +3242,14 @@ async function goToSaleFromNotification(sellerId, saleDayId, saleId) {
 			if (ctx) { sid = ctx.sellerId; dayId = ctx.saleDayId; }
 		}
 
-		// Respect role: non-admins stay within their seller
+		// Enforce basic role constraint: non-admins stay within their seller
 		const isAdminUser = !!(state?.currentUser?.isAdmin);
 		if (!isAdminUser) {
 			// Non-admin: ignore sid if different; they only have one seller context
 			sid = state?.currentSeller?.id || sid;
 		}
 
-		// Ensure sales view for correct seller
+		// Ensure we're in the sales view for the correct seller
 		if (sid) {
 			if (!state.currentSeller || state.currentSeller.id !== sid) {
 				await enterSeller(sid);
@@ -2967,10 +3257,11 @@ async function goToSaleFromNotification(sellerId, saleDayId, saleId) {
 				switchView('#view-sales');
 			}
 		} else {
+			// If we still don't know seller and there is no currentSeller, abort quietly
 			if (!state.currentSeller) { try { notify.info('No se pudo ubicar el vendedor del movimiento'); } catch {} return; }
 		}
 
-		// Load days, select target day, load sales
+		// Ensure days are loaded, select the target day, and load sales
 		await loadDaysForSeller();
 		if (dayId) {
 			state.selectedDayId = dayId;
@@ -2980,17 +3271,19 @@ async function goToSaleFromNotification(sellerId, saleDayId, saleId) {
 		} else {
 			const wrap = document.getElementById('sales-wrapper');
 			if (wrap && wrap.classList.contains('hidden')) wrap.classList.remove('hidden');
+			// If no specific day, keep current selection or latest (handled elsewhere)
 			if (!state.selectedDayId && Array.isArray(state.saleDays) && state.saleDays.length) {
 				state.selectedDayId = state.saleDays[0].id;
 				await loadSales();
 			}
 		}
 
-		// Focus specific row if provided
+		// Focus the specific row if provided
 		if (rowId) {
 			const ok = focusSaleRowById(rowId);
 			if (!ok) { try { notify.info('Registro no encontrado en esta fecha'); } catch {} }
 		} else {
+			// If only date was provided, bring table into view
 			document.getElementById('sales-table')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 		}
 	} catch {}

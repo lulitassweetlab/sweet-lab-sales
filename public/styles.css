@@ -158,7 +158,10 @@
 .notif-body { padding: 0; margin: 0; flex: 1; overflow: hidden; display: grid; grid-template-rows: auto 1fr; }
 .notif-toolbar { padding: 10px 12px; border-bottom: 1px solid var(--border); display: flex; gap: 8px; align-items: center; }
 .notif-list { overflow: auto; padding: 8px 12px; display: grid; gap: 8px; }
-.notif-item { border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; background: var(--card); display: grid; gap: 4px; }
+.notif-item { border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; background: var(--card); display: grid; gap: 4px; transition: transform 80ms ease, background-color 120ms ease, box-shadow 120ms ease; }
+.notif-item:hover { background: rgba(0,0,0,0.04); box-shadow: 0 1px 0 rgba(0,0,0,0.05); }
+.notif-item:active { transform: scale(0.98); background: rgba(0,0,0,0.06); }
+.notif-item:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .notif-item .when { font-size: 11px; color: var(--muted); }
 .notif-item .text { font-size: 12px; white-space: pre-wrap; word-break: break-word; display:flex; align-items:center; gap:6px; }
 .notif-item .text .notif-icon { width:16px; height:16px; background-repeat:no-repeat; background-position:center; background-size:contain; opacity:0.9; flex:0 0 auto; }
@@ -781,16 +784,22 @@ tfoot td { font-weight: 700; }
 
 /* Ingredients full-screen view */
 #view-ingredients .sales-panel { margin-top: 16px; }
-.ingredients-grid { display: grid; grid-template-columns: 1fr; gap: 24px; }
-.dessert-card { border: 1px solid var(--border); border-radius: 16px; padding: 16px; background: var(--card); }
-.dessert-header { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 12px; }
-.dessert-header h3 { margin: 0; font-size: 22px; letter-spacing: -0.01em; text-align: center; }
-.dessert-header .press-btn { margin-left: auto; }
+.ingredients-grid { display: grid; grid-template-columns: 1fr; gap: 60px; padding-bottom: 60px; }
+.dessert-card { border: 1px solid var(--border); border-radius: 16px; padding: 16px; background: var(--card); box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
+.dessert-header { position: relative; display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 12px; }
+.dessert-header h3 { margin: 0; font-size: 26px; letter-spacing: -0.01em; text-align: center; flex: 0 1 auto; }
+.dessert-header .dessert-actions { margin-left: auto; display: flex; gap: 8px; }
+.dessert-card.dragging { opacity: 0.6; }
 .steps-list { display: flex; flex-direction: column; gap: 10px; }
 .step-card { border: 1px solid var(--border); border-radius: 10px; padding: 10px; background: var(--secondary); }
+.step-card.dragging { opacity: 0.6; }
 .step-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
 .items-table { width: 100%; border-collapse: collapse; }
 .items-table th, .items-table td { border-bottom: 1px solid var(--border); padding: 6px 8px; text-align: left; }
+.items-table th:nth-child(2), .items-table td:nth-child(2) { width: 160px; }
+.items-table th:nth-child(3), .items-table td:nth-child(3) { width: 120px; }
+.items-table th:nth-child(4), .items-table td:nth-child(4) { width: 120px; }
+.items-table tr.dragging { opacity: 0.6; }
 .items-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
 .extras-card { border: 1px dashed var(--border); border-radius: 12px; padding: 12px; background: var(--card); }
 
@@ -841,7 +850,9 @@ tfoot td { font-weight: 700; }
 .clients-table tbody tr:hover td { background: #f3f4f6 !important; }
 [data-theme="dark"] .clients-table tbody tr:hover td { background: #1a1a1a !important; }
 .clients-row:hover { background: var(--secondary); }
-
+.row-highlight td { position: relative; }
+.row-highlight td::before { content: ''; position: absolute; inset: 0; background-color: rgba(226, 122, 144, 0.7); animation: rowPulse 3s ease-in-out 1; z-index: 1; pointer-events: none; }
+@keyframes rowPulse { 0% { opacity: 1; } 60% { opacity: 1; } 100% { opacity: 0; } }
 
 /* Hover effect for client detail table */
 #client-detail-table tbody tr:hover td { background: #f3f4f6 !important; }
