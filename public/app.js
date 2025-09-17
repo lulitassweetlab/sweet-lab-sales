@@ -1959,6 +1959,7 @@ async function renderInventoryView() {
 	const root = document.getElementById('inventory-content');
 	if (!root) return;
 	root.innerHTML = '';
+	const fmt1 = new Intl.NumberFormat('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 	let items = [];
 	try { items = await api('GET', API.Inventory); } catch { items = []; }
 	// Header actions: ingreso and ajuste buttons
@@ -1977,7 +1978,7 @@ async function renderInventoryView() {
 	for (const it of (items || [])) {
 		const tr = document.createElement('tr');
 		const tdN = document.createElement('td'); tdN.textContent = it.ingredient;
-		const tdS = document.createElement('td'); tdS.textContent = String(Number(it.saldo || 0)); tdS.style.textAlign = 'right';
+		const tdS = document.createElement('td'); tdS.textContent = fmt1.format(Number(it.saldo || 0)); tdS.style.textAlign = 'right';
 		const tdI = document.createElement('td'); const inQty = document.createElement('input'); inQty.type = 'number'; inQty.step = '0.01'; inQty.min = '0'; inQty.placeholder = '0'; inQty.className = 'input-cell'; inQty.style.width = '100%'; inQty.style.maxWidth = '120px'; inQty.style.textAlign = 'right'; tdI.appendChild(inQty);
 		const tdA = document.createElement('td'); const histBtn = document.createElement('button'); histBtn.className = 'press-btn'; histBtn.textContent = 'Historial'; tdA.appendChild(histBtn);
 		tr.append(tdN, tdS, tdI, tdA); tbody.appendChild(tr);
@@ -2038,7 +2039,7 @@ async function openInventoryHistoryDialog(ingredient) {
 		const tr = document.createElement('tr');
 		const tdD = document.createElement('td'); tdD.textContent = String(r.created_at || '').slice(0,19).replace('T',' ');
 		const tdK = document.createElement('td'); tdK.textContent = r.kind;
-		const tdQ = document.createElement('td'); tdQ.textContent = String(Number(r.qty||0)); tdQ.style.textAlign = 'right';
+		const tdQ = document.createElement('td'); tdQ.textContent = new Intl.NumberFormat('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(Number(r.qty||0)); tdQ.style.textAlign = 'right';
 		const tdN = document.createElement('td'); tdN.textContent = r.note || '';
 		const tdA = document.createElement('td'); tdA.textContent = r.actor_name || '';
 		tr.append(tdD, tdK, tdQ, tdN, tdA); tbody.appendChild(tr);
@@ -2063,7 +2064,7 @@ async function openInventoryHistoryAllDialog() {
 		const tdD = document.createElement('td'); tdD.textContent = String(r.created_at || '').slice(0,19).replace('T',' ');
 		const tdN = document.createElement('td'); tdN.textContent = r.ingredient || '';
 		const tdK = document.createElement('td'); tdK.textContent = r.kind;
-		const tdQ = document.createElement('td'); tdQ.textContent = String(Number(r.qty||0)); tdQ.style.textAlign = 'right';
+		const tdQ = document.createElement('td'); tdQ.textContent = new Intl.NumberFormat('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(Number(r.qty||0)); tdQ.style.textAlign = 'right';
 		const tdNo = document.createElement('td'); tdNo.textContent = r.note || '';
 		const tdA = document.createElement('td'); tdA.textContent = r.actor_name || '';
 		tr.append(tdD, tdN, tdK, tdQ, tdNo, tdA); tbody.appendChild(tr);
