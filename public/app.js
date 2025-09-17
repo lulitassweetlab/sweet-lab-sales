@@ -2033,16 +2033,31 @@ async function openInventoryHistoryDialog(ingredient) {
 	const title = document.createElement('h4'); title.textContent = `Historial: ${ingredient}`; title.style.margin = '0 0 8px 0';
 	const table = document.createElement('table'); table.className = 'items-table';
 	const thead = document.createElement('thead'); const hr = document.createElement('tr');
-	['Fecha','Tipo','Cantidad','Nota','Actor'].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); }); thead.appendChild(hr);
+	['Fecha','Tipo','Cantidad','Producción','Nota','Actor'].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); }); thead.appendChild(hr);
 	const tbody = document.createElement('tbody');
 	for (const r of (rows || [])) {
 		const tr = document.createElement('tr');
 		const tdD = document.createElement('td'); tdD.textContent = String(r.created_at || '').slice(0,19).replace('T',' ');
 		const tdK = document.createElement('td'); tdK.textContent = r.kind;
 		const tdQ = document.createElement('td'); tdQ.textContent = new Intl.NumberFormat('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(Number(r.qty||0)); tdQ.style.textAlign = 'right';
+		const tdProd = document.createElement('td');
+		if ((r.kind || '') === 'produccion') {
+			let meta = r.metadata;
+			try { if (typeof meta === 'string') meta = JSON.parse(meta); } catch {}
+			const counts = (meta && meta.counts && typeof meta.counts === 'object') ? meta.counts : {};
+			const labels = [ ['arco','Arco'], ['melo','Melo'], ['mara','Mara'], ['oreo','Oreo'], ['nute','Nute'] ];
+			const parts = [];
+			for (const [key, label] of labels) {
+				const n = Number(counts[key] || 0) || 0;
+				if (n > 0) parts.push(`${label} ${n}`);
+			}
+			tdProd.textContent = parts.join(', ');
+		} else {
+			tdProd.textContent = '';
+		}
 		const tdN = document.createElement('td'); tdN.textContent = r.note || '';
 		const tdA = document.createElement('td'); tdA.textContent = r.actor_name || '';
-		tr.append(tdD, tdK, tdQ, tdN, tdA); tbody.appendChild(tr);
+		tr.append(tdD, tdK, tdQ, tdProd, tdN, tdA); tbody.appendChild(tr);
 	}
 	const actions = document.createElement('div'); actions.className = 'confirm-actions'; const close = document.createElement('button'); close.className = 'press-btn'; close.textContent = 'Cerrar'; actions.appendChild(close);
 	close.addEventListener('click', () => { if (pop.parentNode) pop.parentNode.removeChild(pop); });
