@@ -35,6 +35,9 @@
 
 	<script type="module">
 	(function(){
+		// Read current user for role-based payment options and audit actor name
+		let currentUser = null;
+		try { const saved = localStorage.getItem('authUser'); if (saved) currentUser = JSON.parse(saved); } catch {}
 		const qs = new URLSearchParams(location.search);
 		let start = (qs.get('start') || '').slice(0,10);
 		let end = (qs.get('end') || '').slice(0,10);
@@ -44,6 +47,151 @@
 		const empty = document.getElementById('empty');
 		const backBtn = document.getElementById('back-btn');
 		const changeBtn = document.getElementById('change-range');
+
+		function buildPaySelector(sale){
+			const container = document.createElement('div');
+			container.style.display = 'flex';
+			container.style.justifyContent = 'flex-end';
+			container.style.alignItems = 'center';
+			container.style.gap = '8px';
+			container.style.margin = '6px 6px 0 6px';
+			// Use col-paid wrapper so existing CSS icons apply
+			const col = document.createElement('div'); col.className = 'col-paid';
+			const wrap = document.createElement('span'); wrap.className = 'pay-wrap';
+			const sel = document.createElement('select'); sel.className = 'input-cell pay-select';
+			// Hide native select; we open custom menu on click
+			sel.style.display = 'none';
+			const current = (sale.pay_method || '').replace(/\.$/, '');
+			const isMarcela = String(currentUser?.name || '').toLowerCase() === 'marcela';
+			const isJorge = String(currentUser?.name || '').toLowerCase() === 'jorge';
+			const opts = [ { v: '', label: '-' }, { v: 'efectivo', label: '' } ];
+			if (isMarcela) opts.push({ v: 'marce', label: '' });
+			if (!isMarcela && current === 'marce') opts.push({ v: 'marce', label: '' });
+			if (isJorge) opts.push({ v: 'jorge', label: '' });
+			if (!isJorge && current === 'jorge') opts.push({ v: 'jorge', label: '' });
+			opts.push({ v: 'transf', label: '' });
+			if (isJorge) opts.push({ v: 'jorgebank', label: '' });
+			if (!isJorge && current === 'jorgebank') opts.push({ v: 'jorgebank', label: '' });
+			for (const o of opts) {
+				const opt = document.createElement('option');
+				opt.value = o.v; opt.textContent = o.label;
+				if (!isMarcela && o.v === 'marce') opt.disabled = true;
+				if (!isJorge && o.v === 'jorge') opt.disabled = true;
+				if (current === o.v) opt.selected = true;
+				sel.appendChild(opt);
+			}
+			function applyPayClass(){
+				wrap.classList.remove('placeholder','method-efectivo','method-transf','method-marce','method-jorge','method-jorgebank');
+				const val = sel.value;
+				if (!val) wrap.classList.add('placeholder');
+				else if (val === 'efectivo') wrap.classList.add('method-efectivo');
+				else if (val === 'transf') wrap.classList.add('method-transf');
+				else if (val === 'marce') wrap.classList.add('method-marce');
+				else if (val === 'jorge') wrap.classList.add('method-jorge');
+				else if (val === 'jorgebank') wrap.classList.add('method-jorgebank');
+			}
+			applyPayClass();
+			wrap.addEventListener('click', (e) => {
+				e.stopPropagation();
+				const rect = wrap.getBoundingClientRect();
+				openPayMenu(wrap, sel, rect.left + rect.width/2, rect.bottom);
+			});
+			wrap.tabIndex = 0;
+			wrap.addEventListener('keydown', (e) => {
+				if (e.key === 'Enter' || e.key === ' ') {
+					e.preventDefault();
+					const rect = wrap.getBoundingClientRect();
+					openPayMenu(wrap, sel, rect.left + rect.width/2, rect.bottom);
+				}
+			});
+			sel.addEventListener('change', async () => {
+				// Persist to backend using the same endpoint as sales table
+				const payload = {
+					id: Number(sale.id),
+					client_name: (sale.client_name || ''),
+					qty_arco: Number(sale.qty_arco||0),
+					qty_melo: Number(sale.qty_melo||0),
+					qty_mara: Number(sale.qty_mara||0),
+					qty_oreo: Number(sale.qty_oreo||0),
+					qty_nute: Number(sale.qty_nute||0),
+					is_paid: !!sale.is_paid,
+					pay_method: sel.value || null,
+					_actor_name: currentUser?.name || ''
+				};
+				try {
+					await fetch('/api/sales', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+					// Reflect locally so UI stays in sync
+					sale.pay_method = sel.value || null;
+				} catch {}
+				applyPayClass();
+			});
+			wrap.appendChild(sel);
+			col.appendChild(wrap);
+			container.appendChild(col);
+			return container;
+		}
+
+		function openPayMenu(anchorEl, selectEl, clickX, clickY) {
+			const rect = anchorEl.getBoundingClientRect();
+			const menu = document.createElement('div');
+			menu.className = 'pay-menu';
+			menu.style.position = 'fixed';
+			menu.style.transform = 'translateX(-50%)';
+			menu.style.zIndex = '1000';
+			const items = [ { v: 'efectivo', cls: 'menu-efectivo' } ];
+			if (String(currentUser?.name || '').toLowerCase() === 'marcela') items.push({ v: 'marce', cls: 'menu-marce' });
+			const isJorgeUser = String(currentUser?.name || '').toLowerCase() === 'jorge';
+			if (isJorgeUser) {
+				items.push({ v: 'jorge', cls: 'menu-jorge' });
+				items.push({ v: 'jorgebank', cls: 'menu-jorgebank' });
+			} else if ((selectEl.value || '') === 'jorgebank') {
+				items.push({ v: 'jorgebank', cls: 'menu-jorgebank' });
+			}
+			items.push({ v: '', cls: 'menu-clear' }, { v: 'transf', cls: 'menu-transf' });
+			for (const it of items) {
+				const btn = document.createElement('button');
+				btn.type = 'button';
+				btn.className = 'pay-menu-item ' + it.cls;
+				if (it.v === '') btn.textContent = '-';
+				btn.addEventListener('click', (e) => {
+					e.stopPropagation();
+					selectEl.value = it.v;
+					selectEl.dispatchEvent(new Event('change'));
+					cleanup();
+				});
+				menu.appendChild(btn);
+			}
+			menu.style.left = '0px';
+			menu.style.top = '0px';
+			menu.style.visibility = 'hidden';
+			menu.style.pointerEvents = 'none';
+			document.body.appendChild(menu);
+			const dashBtn = menu.querySelector('.menu-clear');
+			const menuRect = menu.getBoundingClientRect();
+			const dashRect = dashBtn ? dashBtn.getBoundingClientRect() : menuRect;
+			const anchorCx = (typeof clickX === 'number') ? clickX : (rect.left + rect.width / 2);
+			const anchorCy = (typeof clickY === 'number') ? clickY : (rect.top + rect.height / 2);
+			const offsetYWithinMenu = (dashRect.top - menuRect.top) + (dashRect.height / 2);
+			let left = anchorCx;
+			let top = anchorCy - offsetYWithinMenu;
+			const half = menu.offsetWidth / 2;
+			left = Math.min(Math.max(left, half + 6), window.innerWidth - half - 6);
+			top = Math.max(6, Math.min(top, window.innerHeight - menu.offsetHeight - 6));
+			menu.style.left = left + 'px';
+			menu.style.top = top + 'px';
+			menu.style.visibility = '';
+			menu.style.pointerEvents = '';
+			function outside(e) { if (!menu.contains(e.target)) cleanup(); }
+			function cleanup() {
+				document.removeEventListener('mousedown', outside, true);
+				document.removeEventListener('touchstart', outside, true);
+				if (menu.parentNode) menu.parentNode.removeChild(menu);
+			}
+			setTimeout(() => {
+				document.addEventListener('mousedown', outside, true);
+				document.addEventListener('touchstart', outside, true);
+			}, 0);
+		}
 
 		function formatDay(iso){
 			if (!iso) return '';
@@ -106,10 +254,12 @@
 						const card = document.createElement('div'); card.className = 'transfer-card';
 						const img = document.createElement('img'); img.alt = 'Comprobante'; img.src = r.image_base64; img.addEventListener('click', () => openLightbox(r.image_base64));
 						const meta = document.createElement('div'); meta.className = 'transfer-meta';
+						// Payment selector synced with sales table
+						const paySelector = buildPaySelector(sale);
 						const l1 = document.createElement('div'); l1.className = 'line'; l1.innerHTML = `<span>${(seller.name||'').toString()}</span><span>${String(day.day).slice(0,10)}</span>`;
 						const l2 = document.createElement('div'); l2.className = 'line'; l2.innerHTML = `<span>${(sale.client_name||'').toString()}</span><span>${(sale.total_cents||0)}</span>`;
 						const note = document.createElement('div'); note.className = 'note'; note.textContent = (r.note_text||'').toString();
-						meta.append(l1, l2, note);
+						meta.append(paySelector, l1, l2, note);
 						card.append(img, meta);
 						grid.appendChild(card);
 						found++;
