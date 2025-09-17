@@ -1970,17 +1970,40 @@ async function renderInventoryView() {
 	// Table
 	const table = document.createElement('table'); table.className = 'clients-table';
 	const thead = document.createElement('thead'); const hr = document.createElement('tr');
-	['Ingrediente','Saldo',''].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
+	['Ingrediente','Saldo','Ingresar',''].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
 	thead.appendChild(hr); const tbody = document.createElement('tbody');
+	const rowInputs = [];
 	for (const it of (items || [])) {
 		const tr = document.createElement('tr');
 		const tdN = document.createElement('td'); tdN.textContent = it.ingredient;
 		const tdS = document.createElement('td'); tdS.textContent = String(Number(it.saldo || 0)); tdS.style.textAlign = 'right';
+		const tdI = document.createElement('td'); const inQty = document.createElement('input'); inQty.type = 'number'; inQty.step = '0.01'; inQty.min = '0'; inQty.placeholder = '0'; inQty.className = 'input-cell'; inQty.style.width = '100%'; inQty.style.maxWidth = '120px'; inQty.style.textAlign = 'right'; tdI.appendChild(inQty);
 		const tdA = document.createElement('td'); const histBtn = document.createElement('button'); histBtn.className = 'press-btn'; histBtn.textContent = 'Historial'; tdA.appendChild(histBtn);
-		tr.append(tdN, tdS, tdA); tbody.appendChild(tr);
+		tr.append(tdN, tdS, tdI, tdA); tbody.appendChild(tr);
+		rowInputs.push({ ingredient: it.ingredient, unit: it.unit || 'g', input: inQty });
 		histBtn.addEventListener('click', async () => { openInventoryHistoryDialog(it.ingredient); });
 	}
-	table.append(thead, tbody); root.appendChild(table);
+	// Footer with Ingresar button under the Ingresar column
+	const tfoot = document.createElement('tfoot');
+	const fr = document.createElement('tr');
+	const fd1 = document.createElement('td'); const fd2 = document.createElement('td');
+	const fd3 = document.createElement('td'); const btnAll = document.createElement('button'); btnAll.className = 'press-btn btn-primary'; btnAll.textContent = 'Ingresar'; fd3.appendChild(btnAll);
+	const fd4 = document.createElement('td');
+	fr.append(fd1, fd2, fd3, fd4); tfoot.appendChild(fr);
+	btnAll.addEventListener('click', async () => {
+		try {
+			for (const r of rowInputs) {
+				const val = Number(r.input.value || 0) || 0;
+				if (val > 0) {
+					await api('POST', API.Inventory, { action: 'ingreso', ingredient: r.ingredient, unit: r.unit || 'g', qty: val, note: 'Ingreso', actor_name: state.currentUser?.username || state.currentUser?.name || null });
+				}
+			}
+			notify.success('Ingresos registrados');
+			await renderInventoryView();
+		} catch { notify.error('No se pudo registrar ingresos'); }
+	});
+
+	table.append(thead, tbody, tfoot); root.appendChild(table);
 
 	async function promptMovement(kind) {
 		try {
