@@ -2047,15 +2047,14 @@ async function renderMeasuresView() {
 				const sh = document.createElement('div'); sh.className = 'measure-step'; sh.textContent = step.step_name || 'Sin nombre'; wrap.appendChild(sh);
 				const table = document.createElement('table');
 				const thead = document.createElement('thead'); const trh = document.createElement('tr');
-				['Ingrediente','Unidad','Cantidad total'].forEach(t => { const th = document.createElement('th'); th.textContent = t; trh.appendChild(th); });
+				['Ingrediente','Cantidad total'].forEach(t => { const th = document.createElement('th'); th.textContent = t; trh.appendChild(th); });
 				thead.appendChild(trh);
 				const tbody = document.createElement('tbody');
 				for (const it of (step.items || [])) {
 					const tr = document.createElement('tr');
-					const tdN = document.createElement('td'); tdN.textContent = it.ingredient; 
-					const tdU = document.createElement('td'); tdU.textContent = it.unit || 'g';
-					const tdQ = document.createElement('td'); tdQ.textContent = String((Number(it.qty_per_unit || 0) * qty));
-					tr.append(tdN, tdU, tdQ); tbody.appendChild(tr);
+					const tdN = document.createElement('td'); tdN.textContent = it.ingredient;
+					const tdQ = document.createElement('td'); tdQ.textContent = (Number(it.qty_per_unit || 0) * qty).toFixed(1);
+					tr.append(tdN, tdQ); tbody.appendChild(tr);
 				}
 				table.append(thead, tbody); wrap.appendChild(table);
 			}

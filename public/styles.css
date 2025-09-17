@@ -899,8 +899,11 @@ tfoot td { font-weight: 700; }
 .measure-row input { width: 100%; }
 .measure-dessert-block { margin-top: 16px; }
 .measure-step { opacity: .75; margin: 6px 0; }
-.measures-results table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
-.measures-results th, .measures-results td { border-bottom: 1px solid var(--border); padding: 6px 4px; text-align: left; }
+.measures-results table { width: 100%; border-collapse: separate; border-spacing: 0 6px; margin-bottom: 8px; }
+.measures-results th, .measures-results td { padding: 6px 8px; text-align: left; border-bottom: none; }
+.measures-results th:nth-child(1), .measures-results td:nth-child(1) { padding-right: 18px; }
+.measure-dessert-block { margin-top: 20px; padding-top: 12px; border-top: 2px dashed var(--border); }
+.measure-step { opacity: .8; margin: 8px 0 6px; }
 .ingredients-header { font-weight: 600; position: sticky; top: 0; background: inherit; padding: 6px 0; z-index: 1; }
 .ingredients-actions { display: flex; justify-content: space-between; gap: 8px; margin-top: 10px; }
 .materials-report { min-width: 320px; }
