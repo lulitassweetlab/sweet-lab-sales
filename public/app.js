@@ -109,26 +109,38 @@ function renderClientDetailTable(rows) {
 		if (!isMarcela && current === 'marce') opts.push({ v: 'marce', label: '' });
 		const isJorge = String(state.currentUser?.name || '').toLowerCase() === 'jorge';
 		if (isJorge) opts.push({ v: 'jorge', label: '' });
+		// If current value is 'jorge' but user is not Jorge, include it disabled so it displays
+		if (!isJorge && current === 'jorge') opts.push({ v: 'jorge', label: '' });
 		opts.push({ v: 'transf', label: '' });
-		for (const o of opts) { const opt = document.createElement('option'); opt.value = o.v; opt.textContent = o.label; if (!isMarcela && o.v === 'marce') opt.disabled = true; if (current === o.v) opt.selected = true; sel.appendChild(opt); }
+		// Jorge-specific extra bank option
+		if (isJorge) opts.push({ v: 'jorgebank', label: '' });
+		if (!isJorge && current === 'jorgebank') opts.push({ v: 'jorgebank', label: '' });
+		for (const o of opts) { const opt = document.createElement('option'); opt.value = o.v; opt.textContent = o.label; if (!isMarcela && o.v === 'marce') opt.disabled = true; if (!isJorge && o.v === 'jorge') opt.disabled = true; if (current === o.v) opt.selected = true; sel.appendChild(opt); }
 		function applyPayClass() {
-			wrap.classList.remove('placeholder','method-efectivo','method-transf','method-marce','method-jorge');
+			wrap.classList.remove('placeholder','method-efectivo','method-transf','method-marce','method-jorge','method-jorgebank');
 			const val = sel.value;
 			if (!val) wrap.classList.add('placeholder');
 			else if (val === 'efectivo') wrap.classList.add('method-efectivo');
 			else if (val === 'transf') wrap.classList.add('method-transf');
 			else if (val === 'marce') wrap.classList.add('method-marce');
 			else if (val === 'jorge') wrap.classList.add('method-jorge');
+			else if (val === 'jorgebank') wrap.classList.add('method-jorgebank');
 		}
 		applyPayClass();
-		// Mirror behavior from sales: clicking the wrap opens the custom menu
+		// Click always opens the selector menu
 		wrap.addEventListener('click', async (e) => {
 			e.stopPropagation();
 			const rect = wrap.getBoundingClientRect();
 			openPayMenu(wrap, sel, rect.left + rect.width / 2, rect.bottom);
 		});
 		wrap.tabIndex = 0;
-		wrap.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); const rect = wrap.getBoundingClientRect(); openPayMenu(wrap, sel, rect.left + rect.width / 2, rect.bottom); } });
+		wrap.addEventListener('keydown', async (e) => {
+			if (e.key === 'Enter' || e.key === ' ') {
+				e.preventDefault();
+				const rect = wrap.getBoundingClientRect();
+				openPayMenu(wrap, sel, rect.left + rect.width / 2, rect.bottom);
+			}
+		});
 		sel.addEventListener('change', async () => {
 			await api('PUT', API.Sales, {
 				id: r.id,
@@ -143,7 +155,7 @@ function renderClientDetailTable(rows) {
 			});
 			try {
 				const val = (sel.value || '').toString();
-				const fmt = (v) => v === 'efectivo' ? 'Efectivo' : v === 'transf' ? 'Transferencia' : v === 'marce' ? 'Marce' : '-';
+				const fmt = (v) => v === 'efectivo' ? 'Efectivo' : (v === 'transf' || v === 'jorgebank') ? 'Transferencia' : v === 'marce' ? 'Marce' : v === 'jorge' ? 'Jorge' : '-';
 				const client = (state._clientDetailName || '').toString().trim() || 'Cliente';
 				const seller = String((state?.currentSeller?.name || state?.currentUser?.name || '') || '');
 				const msg = `${client} pago: ${fmt(val)}` + (seller ? ` - ${seller}` : '');
@@ -360,7 +372,7 @@ const notify = (() => {
 					let url = it.icon_url || null;
 					const pm = (it.pay_method || '').toString();
 					if (!url && pm) {
-						url = pm === 'efectivo' ? '/icons/bill.svg' : pm === 'transf' ? '/icons/bank.svg' : pm === 'marce' ? '/icons/marce7.svg?v=1' : null;
+						url = pm === 'efectivo' ? '/icons/bill.svg' : pm === 'transf' ? '/icons/bank.svg' : pm === 'jorgebank' ? '/icons/bank-yellow.svg' : pm === 'marce' ? '/icons/marce7.svg?v=1' : pm === 'jorge' ? '/icons/jorge7.svg?v=1' : null;
 					}
 					if (url) {
 						const icon = document.createElement('span');
@@ -700,30 +712,37 @@ function renderTable() {
 				if (!isMarcela && current === 'marce') options.push({ v: 'marce', label: '' });
 				const isJorge = String(state.currentUser?.name || '').toLowerCase() === 'jorge';
 				if (isJorge) options.push({ v: 'jorge', label: '' });
+				// Jorge-specific extra bank option
+				if (isJorge) options.push({ v: 'jorgebank', label: '' });
+				if (!isJorge && current === 'jorgebank') options.push({ v: 'jorgebank', label: '' });
+				// If current value is 'jorge' but user is not Jorge, include it disabled so it displays
+				if (!isJorge && current === 'jorge') options.push({ v: 'jorge', label: '' });
 				options.push({ v: 'transf', label: '' });
 				for (const o of options) {
 					const opt = document.createElement('option');
 					opt.value = o.v;
 					opt.textContent = o.label;
 					if (!isMarcela && o.v === 'marce') opt.disabled = true;
+					if (!isJorge && o.v === 'jorge') opt.disabled = true;
 					if (current === o.v) opt.selected = true;
 					sel.appendChild(opt);
 				}
 				function applyPayClass() {
-					wrap.classList.remove('placeholder','method-efectivo','method-transf','method-marce','method-jorge');
+					wrap.classList.remove('placeholder','method-efectivo','method-transf','method-marce','method-jorge','method-jorgebank');
 					const val = sel.value;
 					if (!val) wrap.classList.add('placeholder');
 					else if (val === 'efectivo') wrap.classList.add('method-efectivo');
 					else if (val === 'transf') wrap.classList.add('method-transf');
 					else if (val === 'marce') wrap.classList.add('method-marce');
 					else if (val === 'jorge') wrap.classList.add('method-jorge');
+					else if (val === 'jorgebank') wrap.classList.add('method-jorgebank');
 				}
 				applyPayClass();
 				sel.addEventListener('change', async () => {
 					await savePayMethod(tr, sale.id, sel.value);
 					try {
 						const val = (sel.value || '').toString();
-						const fmt = (v) => v === 'efectivo' ? 'Efectivo' : v === 'transf' ? 'Transferencia' : v === 'marce' ? 'Marce' : '-';
+						const fmt = (v) => v === 'efectivo' ? 'Efectivo' : (v === 'transf' || v === 'jorgebank') ? 'Transferencia' : v === 'marce' ? 'Marce' : v === 'jorge' ? 'Jorge' : '-';
 						const client = (tr.querySelector('td.col-client input')?.value || '').trim() || 'Cliente';
 						const seller = String((state?.currentSeller?.name || state?.currentUser?.name || '') || '');
 						const msg = `${client} pago: ${fmt(val)}` + (seller ? ` - ${seller}` : '');
@@ -731,9 +750,9 @@ function renderTable() {
 					} catch {}
 					applyPayClass();
 				});
-				wrap.addEventListener('click', (e) => { e.stopPropagation(); openPayMenu(wrap, sel, e.clientX, e.clientY); });
+				wrap.addEventListener('click', async (e) => { e.stopPropagation(); openPayMenu(wrap, sel, e.clientX, e.clientY); });
 				wrap.tabIndex = 0;
-				wrap.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPayMenu(wrap, sel); } });
+				wrap.addEventListener('keydown', async (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPayMenu(wrap, sel); } });
 				wrap.appendChild(sel);
 				return wrap;
 			})()),
@@ -1313,7 +1332,7 @@ function exportTableToExcel() {
 			const paid = tr.querySelector('td.col-paid input[type="checkbox"]').checked ? '✓' : '';
 			const paySel = tr.querySelector('td.col-paid select.pay-select');
 			const payRaw = paySel ? paySel.value : '';
-			const pay = payRaw === 'efectivo' ? 'Efectivo' : payRaw === 'transf' ? 'Transf' : payRaw === 'marce' ? 'Marce' : payRaw === 'jorge' ? 'Jorge' : '-';
+			const pay = payRaw === 'efectivo' ? 'Efectivo' : (payRaw === 'transf' || payRaw === 'jorgebank') ? 'Transf' : payRaw === 'marce' ? 'Marce' : payRaw === 'jorge' ? 'Jorge' : '-';
 			const client = tr.querySelector('td.col-client input')?.value ?? '';
 			let arco = tr.querySelector('td.col-arco input')?.value ?? '';
 			let melo = tr.querySelector('td.col-melo input')?.value ?? '';
@@ -1386,7 +1405,7 @@ async function exportConsolidatedForDate(dayIso) {
 			const qn = r.qty_nute || 0;
 			const tot = r.total_cents || 0;
 			const pm = (r.pay_method || '').toString();
-			const pay = pm === 'efectivo' ? 'Efectivo' : pm === 'transf' ? 'Transf' : pm === 'marce' ? 'Marce' : pm === 'jorge' ? 'Jorge' : '-';
+			const pay = pm === 'efectivo' ? 'Efectivo' : (pm === 'transf' || pm === 'jorgebank') ? 'Transf' : pm === 'marce' ? 'Marce' : pm === 'jorge' ? 'Jorge' : '-';
 			tQa += qa; tQm += qm; tQma += qma; tQo += qo; tQn += qn; tGrand += (tot || 0);
 			rows.push([
 				s.name || '',
@@ -1435,7 +1454,7 @@ async function exportConsolidatedForDates(isoList) {
 				const qn = r.qty_nute || 0;
 				const tot = r.total_cents || 0;
 				const pm = (r.pay_method || '').toString();
-				const pay = pm === 'efectivo' ? 'Efectivo' : pm === 'transf' ? 'Transf' : pm === 'marce' ? 'Marce' : pm === 'jorge' ? 'Jorge' : '-';
+				const pay = pm === 'efectivo' ? 'Efectivo' : (pm === 'transf' || pm === 'jorgebank') ? 'Transf' : pm === 'marce' ? 'Marce' : pm === 'jorge' ? 'Jorge' : '-';
 				tQa += qa; tQm += qm; tQma += qma; tQo += qo; tQn += qn; tGrand += (tot || 0);
 				rows.push([iso, s.name || '', r.is_paid ? '✓' : '', pay,
 					r.client_name || '', qa === 0 ? '' : qa, qm === 0 ? '' : qm,
@@ -2327,8 +2346,13 @@ function openPayMenu(anchorEl, selectEl, clickX, clickY) {
 	if (String(state.currentUser?.name || '').toLowerCase() === 'marcela') {
 		items.push({ v: 'marce', cls: 'menu-marce' });
 	}
-	if (String(state.currentUser?.name || '').toLowerCase() === 'jorge') {
+	const isJorgeUser = String(state.currentUser?.name || '').toLowerCase() === 'jorge';
+	if (isJorgeUser) {
 		items.push({ v: 'jorge', cls: 'menu-jorge' });
+		items.push({ v: 'jorgebank', cls: 'menu-jorgebank' });
+	} else if ((selectEl.value || '') === 'jorgebank') {
+		// Allow non-Jorge to see/select 'jorgebank' in menu only if it's current
+		items.push({ v: 'jorgebank', cls: 'menu-jorgebank' });
 	}
 	items.push({ v: '', cls: 'menu-clear' }, { v: 'transf', cls: 'menu-transf' });
 	// Find current sale id for upload flow when choosing 'transf'
@@ -2343,8 +2367,8 @@ function openPayMenu(anchorEl, selectEl, clickX, clickY) {
 			e.stopPropagation();
 			selectEl.value = it.v;
 			selectEl.dispatchEvent(new Event('change'));
-			// If selecting 'transf' from the menu, show existing receipt if any; otherwise open upload
-			if (it.v === 'transf' && currentSaleId) {
+			// If selecting bank types from the menu, show existing receipt if any; otherwise open upload
+			if ((it.v === 'transf' || it.v === 'jorgebank') && currentSaleId) {
 				try {
 					const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(currentSaleId)}`);
 					if (Array.isArray(recs) && recs.length) {
@@ -2640,7 +2664,7 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 							if (!initialized) continue; // skip showing notifications on first load
 							const msg = String(r.message || '');
 							const pm = (r.pay_method || '').toString();
-							const iconUrl = r.icon_url || (pm === 'efectivo' ? '/icons/bill.svg' : pm === 'transf' ? '/icons/bank.svg' : pm === 'marce' ? '/icons/marce7.svg?v=1' : null);
+							const iconUrl = r.icon_url || (pm === 'efectivo' ? '/icons/bill.svg' : pm === 'transf' ? '/icons/bank.svg' : pm === 'jorgebank' ? '/icons/bank-yellow.svg' : pm === 'marce' ? '/icons/marce7.svg?v=1' : pm === 'jorge' ? '/icons/jorge7.svg?v=1' : null);
 							notify.info(msg, iconUrl || pm ? { iconUrl, payMethod: pm } : undefined);
 							notify.showBrowser('Venta', msg);
 						}
