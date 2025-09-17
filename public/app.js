@@ -2112,7 +2112,7 @@ async function renderMeasuresView() {
 					const tr = document.createElement('tr');
 					const tdL = document.createElement('td'); tdL.textContent = '';
 					const tdN = document.createElement('td'); tdN.textContent = it.ingredient; tdN.style.padding = '8px 4px'; tdN.style.textAlign = 'center';
-					const tdQ = document.createElement('td'); tdQ.textContent = fmt1.format((Number(it.qty_per_unit || 0) || 0) * qtyNum); tdQ.style.textAlign = 'right'; tdQ.style.padding = '5px 4px';
+					const tdQ = document.createElement('td'); tdQ.textContent = fmt1.format(((Number(it.qty_per_unit || 0) || 0) * qtyNum) + (Number(it.adjustment || 0) || 0)); tdQ.style.textAlign = 'right'; tdQ.style.padding = '5px 4px';
 					tr.append(tdL, tdN, tdQ); tbody.appendChild(tr);
 				}
 				table.appendChild(tbody); section.appendChild(table); card.appendChild(section);
@@ -2152,7 +2152,7 @@ async function renderMeasuresView() {
 			if (!d) continue;
 			for (const step of (d.steps || [])) {
 				for (const it of (step.items || [])) {
-					rows.push({ Postre: dessertName, Ingrediente: it.ingredient, Cantidad: fmtNum((Number(it.qty_per_unit || 0) || 0) * qtyNum) });
+					rows.push({ Postre: dessertName, Ingrediente: it.ingredient, Cantidad: fmtNum(((Number(it.qty_per_unit || 0) || 0) * qtyNum) + (Number(it.adjustment || 0) || 0)) });
 				}
 			}
 			const extras = Array.isArray(recipeCache.extras) ? recipeCache.extras : [];
