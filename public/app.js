@@ -2870,8 +2870,23 @@ function focusClientRow(name) {
 		const input = targetTr.querySelector('td.col-client .client-input');
 		if (input) { input.focus(); }
 		targetTr.scrollIntoView({ behavior: 'smooth', block: 'center' });
-		targetTr.classList.add('row-highlight');
-		setTimeout(() => targetTr.classList.remove('row-highlight'), 1500);
+		// Inline, conflict-free row signal overlay (no CSS dependency)
+		try {
+			const prevPos = targetTr.style.position;
+			if (!prevPos) targetTr.style.position = 'relative';
+			const overlay = document.createElement('div');
+			overlay.style.position = 'absolute';
+			overlay.style.left = '0'; overlay.style.right = '0'; overlay.style.top = '0'; overlay.style.bottom = '0';
+			overlay.style.background = 'rgba(244, 166, 183, 0.7)'; // primary @ 70%
+			overlay.style.pointerEvents = 'none';
+			overlay.style.zIndex = '1';
+			overlay.style.opacity = '0';
+			overlay.style.transition = 'opacity 100ms ease-in';
+			targetTr.appendChild(overlay);
+			requestAnimationFrame(() => { overlay.style.opacity = '1'; });
+			setTimeout(() => { overlay.style.transition = 'opacity 180ms ease-out'; overlay.style.opacity = '0'; }, 1200);
+			setTimeout(() => { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); if (!prevPos) targetTr.style.position = ''; }, 1500);
+		} catch {}
 	} catch {}
 }
 
