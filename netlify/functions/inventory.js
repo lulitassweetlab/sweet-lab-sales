@@ -37,6 +37,25 @@ export async function handler(event) {
 				const data = JSON.parse(event.body || '{}');
 				const action = (data.action || '').toString();
 				const actor = (data.actor_name || '').toString() || null;
+				if (action === 'sync') {
+					// Ensure all current recipe/extras ingredients exist as inventory items (case-insensitive unique)
+					await sql`
+						WITH src AS (
+							SELECT ingredient, unit FROM dessert_recipe_items
+							UNION ALL
+							SELECT ingredient, unit FROM extras_items
+						), pick AS (
+							SELECT DISTINCT ON (lower(ingredient)) ingredient, COALESCE(NULLIF(unit,''), 'g') AS unit
+							FROM src
+							WHERE ingredient IS NOT NULL AND trim(ingredient) <> ''
+							ORDER BY lower(ingredient), unit ASC
+						)
+						INSERT INTO inventory_items (ingredient, unit)
+						SELECT ingredient, unit FROM pick
+						ON CONFLICT (ingredient) DO UPDATE SET unit = COALESCE(EXCLUDED.unit, inventory_items.unit), updated_at = now()
+					`;
+					return json({ ok: true });
+				}
 				if (action === 'ingreso' || action === 'ajuste') {
 					const ingredient = (data.ingredient || '').toString().trim();
 					const unit = (data.unit || 'g').toString();

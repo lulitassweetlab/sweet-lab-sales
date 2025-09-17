@@ -1951,6 +1951,7 @@ async function openIngredientsView() {
 
 async function openInventoryView() {
 	switchView('#view-inventory');
+	try { await api('POST', API.Inventory, { action: 'sync' }); } catch {}
 	await renderInventoryView();
 }
 
