@@ -389,9 +389,15 @@ const notify = (() => {
 				item.append(when, text);
 				try {
 					item.style.cursor = 'pointer';
-					item.addEventListener('click', async () => {
-						await goToSaleFromNotification(it.seller_id ?? it.sellerId ?? null, it.sale_day_id ?? it.saleDay_id ?? it.sale_dayId ?? it.saleDayId ?? null, it.sale_id ?? it.saleId ?? null);
+					item.addEventListener('click', () => {
 						cleanup();
+						setTimeout(() => {
+							goToSaleFromNotification(
+								it.seller_id ?? it.sellerId ?? null,
+								it.sale_day_id ?? it.saleDay_id ?? it.sale_dayId ?? it.saleDayId ?? null,
+								it.sale_id ?? it.saleId ?? null
+							);
+						}, 0);
 					});
 				} catch {}
 				list.appendChild(item);
@@ -2880,8 +2886,6 @@ function focusClientRow(name) {
 			if (!targetTr && v.includes(targetLower)) { targetTr = tr; }
 		}
 		if (!targetTr) { try { notify.info('Cliente no encontrado en esta fecha'); } catch {} return; }
-		const input = targetTr.querySelector('td.col-client .client-input');
-		if (input) { input.focus(); }
 		targetTr.scrollIntoView({ behavior: 'smooth', block: 'center' });
 		targetTr.classList.add('row-highlight');
 		setTimeout(() => targetTr.classList.remove('row-highlight'), 1500);
@@ -2895,8 +2899,6 @@ function focusSaleRowById(saleId) {
 		if (!id) return false;
 		const tr = document.querySelector(`#sales-tbody tr[data-id="${id}"]`);
 		if (!tr) return false;
-		const input = tr.querySelector('td.col-client .client-input');
-		if (input) { input.focus(); }
 		tr.scrollIntoView({ behavior: 'smooth', block: 'center' });
 		tr.classList.add('row-highlight');
 		setTimeout(() => tr.classList.remove('row-highlight'), 1500);
@@ -2909,6 +2911,13 @@ async function resolveSaleContextBySaleId(rowId) {
 	try {
 		const id = Number(rowId);
 		if (!id) return null;
+		// Fast path: ask backend for seller/day by id
+		try {
+			const fast = await api('GET', `${API.Sales}?find_by_id=${encodeURIComponent(id)}`);
+			if (fast && Number(fast.seller_id) && Number(fast.sale_day_id)) {
+				return { sellerId: Number(fast.seller_id), saleDayId: Number(fast.sale_day_id) };
+			}
+		} catch {}
 		const sellers = await api('GET', API.Sellers);
 		for (const s of (sellers || [])) {
 			const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(s.id)}`);
