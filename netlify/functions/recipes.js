@@ -1,4 +1,4 @@
-import { ensureSchema, sql } from './_db.js';
+import { ensureSchema, sql, ensureInventoryItem } from './_db.js';
 
 function json(body, status = 200) {
 	return { statusCode: status, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
@@ -94,6 +94,8 @@ export async function handler(event) {
 					} else {
 						[row] = await sql`INSERT INTO dessert_recipe_items (recipe_id, ingredient, unit, qty_per_unit, adjustment, price, position) VALUES (${recipeId}, ${ingredient}, ${unit}, ${qty}, ${adjustment}, ${price}, ${position}) RETURNING id, recipe_id, ingredient, unit, qty_per_unit, adjustment, price, position`;
 					}
+					// Ensure inventory item exists for this ingredient
+					try { await ensureInventoryItem(ingredient, unit); } catch {}
 					return json(row, id ? 200 : 201);
 				}
 				if (kind === 'extras.upsert') {
@@ -108,6 +110,8 @@ export async function handler(event) {
 					} else {
 						[row] = await sql`INSERT INTO extras_items (ingredient, unit, qty_per_unit, position) VALUES (${ingredient}, ${unit}, ${qty}, ${position}) RETURNING id, ingredient, unit, qty_per_unit, position`;
 					}
+					// Ensure inventory item exists for this ingredient
+					try { await ensureInventoryItem(ingredient, unit); } catch {}
 					return json(row, id ? 200 : 201);
 				}
 				return json({ error: 'kind inválido' }, 400);

@@ -217,6 +217,32 @@ export async function ensureSchema() {
 		created_at TIMESTAMPTZ DEFAULT now(),
 		updated_at TIMESTAMPTZ DEFAULT now()
 	)`;
+	// Inventory: master items and movements ledger
+	await sql`CREATE TABLE IF NOT EXISTS inventory_items (
+		id SERIAL PRIMARY KEY,
+		ingredient TEXT UNIQUE NOT NULL,
+		unit TEXT NOT NULL DEFAULT 'g',
+		created_at TIMESTAMPTZ DEFAULT now(),
+		updated_at TIMESTAMPTZ DEFAULT now()
+	)`;
+	await sql`DO $$ BEGIN
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'inventory_items' AND column_name = 'unit'
+		) THEN
+			ALTER TABLE inventory_items ADD COLUMN unit TEXT NOT NULL DEFAULT 'g';
+		END IF;
+	END $$;`;
+	await sql`CREATE TABLE IF NOT EXISTS inventory_movements (
+		id SERIAL PRIMARY KEY,
+		ingredient TEXT NOT NULL,
+		kind TEXT NOT NULL,
+		qty NUMERIC NOT NULL,
+		note TEXT DEFAULT '',
+		actor_name TEXT,
+		metadata JSONB DEFAULT '{}'::jsonb,
+		created_at TIMESTAMPTZ DEFAULT now()
+	)`;
 	// Seed default users if table is empty
 	const existing = await sql`SELECT COUNT(*)::int AS c FROM users`;
 	if ((existing[0]?.c || 0) === 0) {
@@ -255,6 +281,32 @@ export async function getOrCreateDayId(sellerId, day) {
 export async function notify({ type, sellerId = null, saleId = null, saleDayId = null, message = '', actorName = '', iconUrl = null, payMethod = null }) {
 	await ensureSchema();
 	await sql`INSERT INTO notifications (type, seller_id, sale_id, sale_day_id, message, actor_name, icon_url, pay_method) VALUES (${type}, ${sellerId}, ${saleId}, ${saleDayId}, ${message}, ${actorName}, ${iconUrl}, ${payMethod})`;
+}
+
+export function canonicalizeIngredientName(name) {
+	const raw = (name || '').toString().trim();
+	const low = raw.toLowerCase();
+	if (!raw) return raw;
+	if (low.includes('nutella')) return 'Nutella';
+	if (low.startsWith('agua')) return 'Agua';
+	if (low.includes('oreo')) return 'Oreo';
+	return raw;
+}
+
+export async function ensureInventoryItem(ingredient, unit = 'g') {
+	await ensureSchema();
+	const name = canonicalizeIngredientName(ingredient);
+	if (!name) return null;
+	const u = (unit || 'g').toString();
+	const [row] = await sql`
+		INSERT INTO inventory_items (ingredient, unit)
+		VALUES (${name}, ${u})
+		ON CONFLICT (ingredient) DO UPDATE SET
+			unit = CASE WHEN EXCLUDED.unit IS NOT NULL AND EXCLUDED.unit <> '' THEN EXCLUDED.unit ELSE inventory_items.unit END,
+			updated_at = now()
+		RETURNING id, ingredient, unit
+	`;
+	return row;
 }
 
 export { sql };

@@ -1,4 +1,4 @@
-import { ensureSchema, sql } from './_db.js';
+import { ensureSchema, sql, ensureInventoryItem } from './_db.js';
 
 function json(body, status = 200) {
 	return { statusCode: status, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
@@ -104,6 +104,7 @@ export async function handler(event) {
 				const per_mara = Number(data.per_mara || 0) || 0;
 				const per_oreo = Number(data.per_oreo || 0) || 0;
 				const per_nute = Number(data.per_nute || 0) || 0;
+				await ensureInventoryItem(ingredient, unit);
 				const [row] = await sql`
 					INSERT INTO ingredient_formulas (ingredient, unit, per_arco, per_melo, per_mara, per_oreo, per_nute)
 					VALUES (${ingredient}, ${unit}, ${per_arco}, ${per_melo}, ${per_mara}, ${per_oreo}, ${per_nute})

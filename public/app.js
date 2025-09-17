@@ -185,7 +185,8 @@ const API = {
 	Sales: '/api/sales',
 	Users: '/api/users',
 	Materials: '/api/materials',
-	Recipes: '/api/recipes'
+	Recipes: '/api/recipes',
+	Inventory: '/api/inventory'
 };
 
 const PRICES = {
@@ -1572,6 +1573,7 @@ async function exportCarteraExcel(startIso, endIso) {
 	const transfersBtn = document.getElementById('transfers-button');
 	const usersBtn = document.getElementById('users-button');
 	const materialsBtn = document.getElementById('materials-button');
+	const inventoryBtn = document.getElementById('inventory-button');
 	const carteraBtn = document.getElementById('cartera-button');
 	const input = document.getElementById('report-date');
 	if (!reportBtn || !input) return;
@@ -1610,6 +1612,11 @@ async function exportCarteraExcel(startIso, endIso) {
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 		if (!isSuper) { notify.error('Solo el superadministrador'); return; }
 		openMaterialsMenu(ev.clientX, ev.clientY);
+	});
+	inventoryBtn?.addEventListener('click', async (ev) => {
+		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+		if (!isSuper) { notify.error('Solo el superadministrador'); return; }
+		openInventoryView();
 	});
 })();
 
@@ -1698,7 +1705,8 @@ function openMaterialsMenu(anchorX, anchorY) {
 	const b1 = document.createElement('button'); b1.className = 'press-btn'; b1.textContent = 'Ingredientes';
 	const b2 = document.createElement('button'); b2.className = 'press-btn'; b2.textContent = 'Necesarios';
 	const b3 = document.createElement('button'); b3.className = 'press-btn'; b3.textContent = 'Producción';
-	list.appendChild(b1); list.appendChild(b2); list.appendChild(b3);
+	const b4 = document.createElement('button'); b4.className = 'press-btn'; b4.textContent = 'Inventario';
+	list.appendChild(b1); list.appendChild(b2); list.appendChild(b3); list.appendChild(b4);
 	pop.append(list);
 	document.body.appendChild(pop);
 
@@ -1717,6 +1725,7 @@ function openMaterialsMenu(anchorX, anchorY) {
 	b1.addEventListener('click', async () => { cleanup(); openIngredientsView(); });
 	b2.addEventListener('click', async () => { cleanup(); openMaterialsNeededFlow(baseX, desiredBottomY); });
 	b3.addEventListener('click', async () => { cleanup(); openMeasuresView(); });
+	b4.addEventListener('click', async () => { cleanup(); openInventoryView(); });
 }
 
 // Removed openAssignIconsDialog
@@ -1778,6 +1787,16 @@ function bindEvents() {
 	const backMeasures = document.getElementById('measures-back');
 	backMeasures?.addEventListener('click', () => {
 		switchView('#view-select-seller');
+	});
+
+	const backInventory = document.getElementById('inventory-back');
+	backInventory?.addEventListener('click', () => {
+		switchView('#view-select-seller');
+	});
+
+	const backInvHist = document.getElementById('inventory-history-back');
+	backInvHist?.addEventListener('click', () => {
+		switchView('#view-inventory');
 	});
 }
 
@@ -1935,6 +1954,172 @@ async function openIngredientsView() {
 	await renderIngredientsView();
 }
 
+async function openInventoryView() {
+	switchView('#view-inventory');
+	try { await api('POST', API.Inventory, { action: 'sync' }); } catch {}
+	await renderInventoryView();
+}
+
+async function renderInventoryView() {
+	const root = document.getElementById('inventory-content');
+	if (!root) return;
+	root.innerHTML = '';
+	const fmt1 = new Intl.NumberFormat('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+	let items = [];
+	try { items = await api('GET', API.Inventory); } catch { items = []; }
+	// Header actions: ingreso and ajuste buttons
+	const actions = document.createElement('div'); actions.className = 'confirm-actions'; actions.style.marginBottom = '8px';
+	const ingresoBtn = document.createElement('button'); ingresoBtn.className = 'press-btn btn-primary'; ingresoBtn.textContent = 'Ingreso';
+	const ajusteBtn = document.createElement('button'); ajusteBtn.className = 'press-btn'; ajusteBtn.textContent = 'Ajuste';
+	const histAllBtn = document.createElement('button'); histAllBtn.className = 'press-btn'; histAllBtn.textContent = 'Historial general';
+	const resetBtn = document.createElement('button'); resetBtn.className = 'press-btn'; resetBtn.textContent = 'Resetear';
+	actions.append(ingresoBtn, ajusteBtn, histAllBtn, resetBtn);
+	root.appendChild(actions);
+	// Table
+	const table = document.createElement('table'); table.className = 'clients-table';
+	const thead = document.createElement('thead'); const hr = document.createElement('tr');
+	['Ingrediente','Saldo','Ingresar',''].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
+	thead.appendChild(hr); const tbody = document.createElement('tbody');
+	const rowInputs = [];
+	for (const it of (items || [])) {
+		const tr = document.createElement('tr');
+		const tdN = document.createElement('td'); tdN.textContent = it.ingredient;
+		const tdS = document.createElement('td'); tdS.textContent = fmt1.format(Number(it.saldo || 0)); tdS.style.textAlign = 'right';
+		const tdI = document.createElement('td'); const inQty = document.createElement('input'); inQty.type = 'number'; inQty.step = '0.01'; inQty.min = '0'; inQty.placeholder = '0'; inQty.className = 'input-cell'; inQty.style.width = '100%'; inQty.style.maxWidth = '120px'; inQty.style.textAlign = 'right'; tdI.appendChild(inQty);
+		const tdA = document.createElement('td'); const histBtn = document.createElement('button'); histBtn.className = 'press-btn'; histBtn.textContent = 'Historial'; tdA.appendChild(histBtn);
+		tr.append(tdN, tdS, tdI, tdA); tbody.appendChild(tr);
+		rowInputs.push({ ingredient: it.ingredient, unit: it.unit || 'g', input: inQty });
+		histBtn.addEventListener('click', async () => { openInventoryHistoryDialog(it.ingredient); });
+	}
+	// Footer with Ingresar button under the Ingresar column
+	const tfoot = document.createElement('tfoot');
+	const fr = document.createElement('tr');
+	const fd1 = document.createElement('td'); const fd2 = document.createElement('td');
+	const fd3 = document.createElement('td'); const btnAll = document.createElement('button'); btnAll.className = 'press-btn btn-primary'; btnAll.textContent = 'Ingresar'; fd3.appendChild(btnAll);
+	const fd4 = document.createElement('td');
+	fr.append(fd1, fd2, fd3, fd4); tfoot.appendChild(fr);
+	btnAll.addEventListener('click', async () => {
+		try {
+			for (const r of rowInputs) {
+				const val = Number(r.input.value || 0) || 0;
+				if (val > 0) {
+					await api('POST', API.Inventory, { action: 'ingreso', ingredient: r.ingredient, unit: r.unit || 'g', qty: val, note: 'Ingreso', actor_name: state.currentUser?.username || state.currentUser?.name || null });
+				}
+			}
+			notify.success('Ingresos registrados');
+			await renderInventoryView();
+		} catch { notify.error('No se pudo registrar ingresos'); }
+	});
+
+	table.append(thead, tbody, tfoot); root.appendChild(table);
+
+	async function promptMovement(kind) {
+		try {
+			const ingredient = prompt('Ingrediente:'); if (!ingredient) return;
+			const unit = prompt('Unidad (g, ml, unidad):', 'g') || 'g';
+			const qtyStr = prompt(kind === 'ingreso' ? 'Cantidad a ingresar:' : 'Cantidad (use negativo para salida):', '0'); if (qtyStr == null) return;
+			const qty = Number(qtyStr || '0') || 0;
+			const note = prompt('Nota (opcional):', '') || '';
+			await api('POST', API.Inventory, { action: kind, ingredient, unit, qty, note, actor_name: state.currentUser?.username || state.currentUser?.name || null });
+			notify.success('Movimiento registrado');
+			await renderInventoryView();
+		} catch { notify.error('No se pudo registrar'); }
+	}
+
+	ingresoBtn.addEventListener('click', async () => { await promptMovement('ingreso'); });
+	ajusteBtn.addEventListener('click', async () => { await promptMovement('ajuste'); });
+	histAllBtn.addEventListener('click', async () => { openInventoryHistoryAllPage(); });
+	resetBtn.addEventListener('click', async () => {
+		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+		if (!isSuper) { notify.error('Solo el superadministrador'); return; }
+		const ok = confirm('Esto borrará TODO el historial y pondrá todos los saldos en 0. ¿Continuar?');
+		if (!ok) return;
+		try { await api('POST', API.Inventory, { action: 'reset' }); notify.success('Inventario reseteado'); await renderInventoryView(); }
+		catch { notify.error('No se pudo resetear'); }
+	});
+}
+
+async function openInventoryHistoryDialog(ingredient) {
+	let rows = [];
+	try { rows = await api('GET', `${API.Inventory}?history_for=${encodeURIComponent(ingredient)}`); } catch { rows = []; }
+	const pop = document.createElement('div'); pop.className = 'confirm-popover'; pop.style.position = 'fixed';
+	pop.style.left = (window.innerWidth/2) + 'px'; pop.style.top = '12%'; pop.style.transform = 'translate(-50%, 0)';
+	const title = document.createElement('h4'); title.textContent = `Historial: ${ingredient}`; title.style.margin = '0 0 8px 0';
+	const table = document.createElement('table'); table.className = 'items-table';
+	const thead = document.createElement('thead'); const hr = document.createElement('tr');
+	['Fecha','Tipo','Cantidad','Producción','Nota','Actor'].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); }); thead.appendChild(hr);
+	const tbody = document.createElement('tbody');
+	for (const r of (rows || [])) {
+		const tr = document.createElement('tr');
+		const tdD = document.createElement('td'); tdD.textContent = String(r.created_at || '').slice(0,19).replace('T',' ');
+		const tdK = document.createElement('td'); tdK.textContent = r.kind;
+		const tdQ = document.createElement('td'); tdQ.textContent = new Intl.NumberFormat('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(Number(r.qty||0)); tdQ.style.textAlign = 'right';
+		const tdProd = document.createElement('td');
+		if ((r.kind || '') === 'produccion') {
+			let meta = r.metadata;
+			try { if (typeof meta === 'string') meta = JSON.parse(meta); } catch {}
+			const counts = (meta && meta.counts && typeof meta.counts === 'object') ? meta.counts : {};
+			const labels = [ ['arco','Arco'], ['melo','Melo'], ['mara','Mara'], ['oreo','Oreo'], ['nute','Nute'] ];
+			const parts = [];
+			for (const [key, label] of labels) {
+				const n = Number(counts[key] || 0) || 0;
+				if (n > 0) parts.push(`${label} ${n}`);
+			}
+			tdProd.textContent = parts.join(', ');
+		} else {
+			tdProd.textContent = '';
+		}
+		const tdN = document.createElement('td'); tdN.textContent = r.note || '';
+		const tdA = document.createElement('td'); tdA.textContent = r.actor_name || '';
+		tr.append(tdD, tdK, tdQ, tdProd, tdN, tdA); tbody.appendChild(tr);
+	}
+	const actions = document.createElement('div'); actions.className = 'confirm-actions'; const close = document.createElement('button'); close.className = 'press-btn'; close.textContent = 'Cerrar'; actions.appendChild(close);
+	close.addEventListener('click', () => { if (pop.parentNode) pop.parentNode.removeChild(pop); });
+	table.append(thead, tbody); pop.append(title, table, actions); document.body.appendChild(pop); pop.classList.add('aladdin-pop');
+}
+
+async function openInventoryHistoryAllPage() {
+	switchView('#view-inventory-history');
+	await renderInventoryHistoryPage();
+}
+
+async function renderInventoryHistoryPage() {
+	const root = document.getElementById('inventory-history-content');
+	if (!root) return;
+	root.innerHTML = '';
+	let rows = [];
+	try { rows = await api('GET', `${API.Inventory}?history_all=1`); } catch { rows = []; }
+	const table = document.createElement('table'); table.className = 'clients-table';
+	const thead = document.createElement('thead'); const hr = document.createElement('tr');
+	['Fecha','Ingrediente','Tipo','Cantidad','Nota','Actor'].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); }); thead.appendChild(hr);
+	const tbody = document.createElement('tbody');
+	for (const r of (rows || [])) {
+		const tr = document.createElement('tr');
+		const tdD = document.createElement('td'); tdD.textContent = String(r.created_at || '').slice(0,19).replace('T',' ');
+		const tdN = document.createElement('td'); tdN.textContent = r.ingredient || '';
+		const tdK = document.createElement('td'); tdK.textContent = r.kind;
+		const tdQ = document.createElement('td'); tdQ.textContent = new Intl.NumberFormat('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(Number(r.qty||0)); tdQ.style.textAlign = 'right';
+		const tdNo = document.createElement('td');
+		if ((r.kind || '') === 'produccion') {
+			let meta = r.metadata;
+			try { if (typeof meta === 'string') meta = JSON.parse(meta); } catch {}
+			const counts = (meta && meta.counts && typeof meta.counts === 'object') ? meta.counts : {};
+			const labels = [ ['arco','Arco'], ['melo','Melo'], ['mara','Mara'], ['oreo','Oreo'], ['nute','Nute'] ];
+			const parts = [];
+			for (const [key, label] of labels) {
+				const n = Number(counts[key] || 0) || 0;
+				if (n > 0) parts.push(`${label} ${n}`);
+			}
+			tdNo.textContent = parts.length ? parts.join(', ') : (r.note || '');
+		} else {
+			tdNo.textContent = r.note || '';
+		}
+		const tdA = document.createElement('td'); tdA.textContent = r.actor_name || '';
+		tr.append(tdD, tdN, tdK, tdQ, tdNo, tdA); tbody.appendChild(tr);
+	}
+	table.append(thead, tbody); root.appendChild(table);
+}
+
 async function renderIngredientsView() {
 	const root = document.getElementById('ingredients-content');
 	if (!root) return;
@@ -2019,10 +2204,11 @@ async function renderMeasuresView() {
 	cardsWrap.style.display = 'flex'; cardsWrap.style.flexDirection = 'column'; cardsWrap.style.alignItems = 'center';
 	resultWrap.appendChild(cardsWrap);
 
-	// Export button
+	// Export and Approve buttons
 	const actions = document.createElement('div'); actions.className = 'confirm-actions';
 	const exportBtn = document.createElement('button'); exportBtn.className = 'press-btn btn-gold'; exportBtn.textContent = 'Exportar Excel';
-	actions.appendChild(exportBtn);
+	const approveBtn = document.createElement('button'); approveBtn.className = 'press-btn btn-primary'; approveBtn.textContent = 'Aprobar';
+	actions.append(exportBtn, approveBtn);
 
 	root.append(form, resultWrap, actions);
 
@@ -2166,6 +2352,20 @@ async function renderMeasuresView() {
 	}
 
 	exportBtn.addEventListener('click', exportRows);
+
+	approveBtn.addEventListener('click', async () => {
+		try {
+			// Build counts payload
+			const payload = { action: 'produccion', counts: { arco: 0, melo: 0, mara: 0, oreo: 0, nute: 0 }, actor_name: state.currentUser?.username || state.currentUser?.name || null };
+			for (const [k, v] of counts.entries()) {
+				if (k === 'arco' || k === 'melo' || k === 'mara' || k === 'oreo' || k === 'nute') payload.counts[k] = Number(v || 0) || 0;
+			}
+			const any = Object.values(payload.counts).some(n => Number(n||0) > 0);
+			if (!any) { notify.error('No hay cantidades para aprobar'); return; }
+			await api('POST', API.Inventory, payload);
+			notify.success('Producción aprobada y descontada del inventario');
+		} catch (e) { notify.error('No se pudo aprobar producción'); }
+	});
 	// initial render
 	renderResults();
 }
