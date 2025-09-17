@@ -175,7 +175,7 @@ function renderClientDetailTable(rows) {
 		const total = calcRowTotal({ arco: r.qty_arco, melo: r.qty_melo, mara: r.qty_mara, oreo: r.qty_oreo, nute: r.qty_nute });
 		const tdTot = document.createElement('td'); tdTot.textContent = fmtNo.format(total);
 		tr.append(tdPay, tdDate, tdAr, tdMe, tdMa, tdOr, tdNu, tdTot);
-		tr.addEventListener('mousedown', () => { tr.classList.add('row-highlight'); setTimeout(() => tr.classList.remove('row-highlight'), 500); });
+		tr.addEventListener('mousedown', () => { tr.classList.add('row-highlight'); setTimeout(() => tr.classList.remove('row-highlight'), 3200); });
 		tbody.appendChild(tr);
 	}
 }
@@ -387,6 +387,19 @@ const notify = (() => {
 				txt.textContent = String(it.message || it.text || '');
 				text.appendChild(txt);
 				item.append(when, text);
+				try {
+					item.style.cursor = 'pointer';
+					item.addEventListener('click', () => {
+						cleanup();
+						setTimeout(() => {
+							goToSaleFromNotification(
+								it.seller_id ?? it.sellerId ?? null,
+								it.sale_day_id ?? it.saleDay_id ?? it.sale_dayId ?? it.saleDayId ?? null,
+								it.sale_id ?? it.saleId ?? null
+							);
+						}, 0);
+					});
+				} catch {}
 				list.appendChild(item);
 			}
 		}
@@ -916,6 +929,8 @@ async function saveRow(tr, id) {
 	const prev = before ? { ...before } : null;
 	const body = readRow(tr);
 	body.id = id;
+	body.seller_id = state.currentSeller?.id || null;
+	if (state.selectedDayId) body.sale_day_id = state.selectedDayId;
 	body._actor_name = state.currentUser?.name || '';
 	const updated = await api('PUT', API.Sales, body);
 	const idx = state.sales.findIndex(s => s.id === id);
@@ -1207,6 +1222,8 @@ async function savePaid(tr, id, isPaid) {
 	const body = readRow(tr);
 	body.id = id;
 	body.is_paid = !!isPaid;
+	body.seller_id = state.currentSeller?.id || null;
+	if (state.selectedDayId) body.sale_day_id = state.selectedDayId;
 	body._actor_name = state.currentUser?.name || '';
 	const updated = await api('PUT', API.Sales, body);
 	const idx = state.sales.findIndex(s => s.id === id);
@@ -1217,6 +1234,8 @@ async function savePayMethod(tr, id, method) {
 	const body = readRow(tr);
 	body.id = id;
 	body.pay_method = method || null;
+	body.seller_id = state.currentSeller?.id || null;
+	if (state.selectedDayId) body.sale_day_id = state.selectedDayId;
 	body._actor_name = state.currentUser?.name || '';
 	await api('PUT', API.Sales, body);
 	// Update local state
@@ -3044,7 +3063,7 @@ function renderClientsTable(rows) {
 		// No marker in clients list per request
 		const tdC = document.createElement('td'); tdC.textContent = String(r.count); tdC.style.textAlign = 'center';
 		tr.append(tdN, tdC);
-		tr.addEventListener('mousedown', () => { tr.classList.add('row-highlight'); setTimeout(() => tr.classList.remove('row-highlight'), 500); });
+		tr.addEventListener('mousedown', () => { tr.classList.add('row-highlight'); setTimeout(() => tr.classList.remove('row-highlight'), 3200); });
 		tr.addEventListener('click', async () => { await openClientDetailView(r.name); });
 		tbody.appendChild(tr);
 	}
@@ -3066,11 +3085,112 @@ function focusClientRow(name) {
 			if (!targetTr && v.includes(targetLower)) { targetTr = tr; }
 		}
 		if (!targetTr) { try { notify.info('Cliente no encontrado en esta fecha'); } catch {} return; }
-		const input = targetTr.querySelector('td.col-client .client-input');
-		if (input) { input.focus(); }
 		targetTr.scrollIntoView({ behavior: 'smooth', block: 'center' });
 		targetTr.classList.add('row-highlight');
-		setTimeout(() => targetTr.classList.remove('row-highlight'), 1500);
+		setTimeout(() => targetTr.classList.remove('row-highlight'), 3200);
+	} catch {}
+}
+
+// Focus and highlight a sale row by its sale_id in the current table
+function focusSaleRowById(saleId) {
+	try {
+		const id = Number(saleId);
+		if (!id) return false;
+		const tr = document.querySelector(`#sales-tbody tr[data-id="${id}"]`);
+		if (!tr) return false;
+		tr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+		tr.classList.add('row-highlight');
+		setTimeout(() => tr.classList.remove('row-highlight'), 3200);
+		return true;
+	} catch { return false; }
+}
+
+// Try to discover seller_id and sale_day_id by scanning if only sale_id is known
+async function resolveSaleContextBySaleId(rowId) {
+	try {
+		const id = Number(rowId);
+		if (!id) return null;
+		// Fast path: ask backend for seller/day by id
+		try {
+			const fast = await api('GET', `${API.Sales}?find_by_id=${encodeURIComponent(id)}`);
+			if (fast && Number(fast.seller_id) && Number(fast.sale_day_id)) {
+				return { sellerId: Number(fast.seller_id), saleDayId: Number(fast.sale_day_id) };
+			}
+		} catch {}
+		const sellers = await api('GET', API.Sellers);
+		for (const s of (sellers || [])) {
+			const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(s.id)}`);
+			for (const d of (days || [])) {
+				const p = new URLSearchParams({ seller_id: String(s.id), sale_day_id: String(d.id) });
+				let rows = [];
+				try { rows = await api('GET', `${API.Sales}?${p.toString()}`); } catch { rows = []; }
+				if (Array.isArray(rows) && rows.some(r => Number(r?.id) === id)) {
+					return { sellerId: s.id, saleDayId: d.id };
+				}
+			}
+		}
+	} catch {}
+	return null;
+}
+
+// Navigate from a notification to the exact sale row
+async function goToSaleFromNotification(sellerId, saleDayId, saleId) {
+	try {
+		let sid = Number(sellerId || 0) || null;
+		let dayId = Number(saleDayId || 0) || null;
+		const rowId = Number(saleId || 0) || null;
+		if (!sid && !dayId && !rowId) return;
+
+		// Fallback: discover missing context by scanning
+		if ((!sid || !dayId) && rowId) {
+			const ctx = await resolveSaleContextBySaleId(rowId);
+			if (ctx) { sid = ctx.sellerId; dayId = ctx.saleDayId; }
+		}
+
+		// Enforce basic role constraint: non-admins stay within their seller
+		const isAdminUser = !!(state?.currentUser?.isAdmin);
+		if (!isAdminUser) {
+			// Non-admin: ignore sid if different; they only have one seller context
+			sid = state?.currentSeller?.id || sid;
+		}
+
+		// Ensure we're in the sales view for the correct seller
+		if (sid) {
+			if (!state.currentSeller || state.currentSeller.id !== sid) {
+				await enterSeller(sid);
+			} else {
+				switchView('#view-sales');
+			}
+		} else {
+			// If we still don't know seller and there is no currentSeller, abort quietly
+			if (!state.currentSeller) { try { notify.info('No se pudo ubicar el vendedor del movimiento'); } catch {} return; }
+		}
+
+		// Ensure days are loaded, select the target day, and load sales
+		await loadDaysForSeller();
+		if (dayId) {
+			state.selectedDayId = dayId;
+			const wrap = document.getElementById('sales-wrapper');
+			if (wrap && wrap.classList.contains('hidden')) wrap.classList.remove('hidden');
+			await loadSales();
+		} else {
+			const wrap = document.getElementById('sales-wrapper');
+			if (wrap && wrap.classList.contains('hidden')) wrap.classList.remove('hidden');
+			// If no specific day, keep current selection or latest (handled elsewhere)
+			if (!state.selectedDayId && Array.isArray(state.saleDays) && state.saleDays.length) {
+				state.selectedDayId = state.saleDays[0].id;
+				await loadSales();
+			}
+		}
+
+		// Focus the specific row if provided
+		if (rowId) {
+			const ok = focusSaleRowById(rowId);
+			if (!ok) { try { notify.info('Registro no encontrado en esta fecha'); } catch {} }
+		} else {
+			// If only date was provided, bring table into view
+			document.getElementById('sales-table')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+		}
 	} catch {}
 }
 
