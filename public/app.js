@@ -2141,7 +2141,22 @@ function buildStepCard(dessertName, step) {
 	['Ingrediente','Cantidad por unidad','Ajuste',''].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
 	thead.appendChild(hr);
 	const tbody = document.createElement('tbody');
-	for (const it of (step.items || [])) tbody.appendChild(buildItemRow(step.id, it));
+	// Normalize: fold hidden "(ajuste)" items into their base ingredient rows
+	const adjustByBase = new Map();
+	for (const it of (step.items || [])) {
+		const n = String(it.ingredient || '');
+		if (n.endsWith(' (ajuste)')) {
+			const base = n.slice(0, -10);
+			adjustByBase.set(base, { id: it.id, qty: Number(it.qty_per_unit || 0) || 0, position: it.position || 0 });
+		}
+	}
+	for (const it of (step.items || [])) {
+		const n = String(it.ingredient || '');
+		if (n.endsWith(' (ajuste)')) continue;
+		const adj = adjustByBase.get(n);
+		const merged = { ...it, adjust_once: adj?.qty || 0, _adjustItemId: adj?.id || null };
+		tbody.appendChild(buildItemRow(step.id, merged));
+	}
 	table.append(thead, tbody);
 	box.append(head, table);
 	add.addEventListener('click', async () => {
@@ -2173,7 +2188,16 @@ function buildItemRow(stepId, item) {
 	const tdA = document.createElement('td'); const handle = document.createElement('span'); handle.className = 'drag-handle'; handle.textContent = '↕'; const del = document.createElement('button'); del.className = 'press-btn'; del.textContent = '×'; tdA.append(handle, del);
 	tr.append(tdN, tdQ, tdAdj, tdA);
 	async function save() {
-		try { await api('POST', API.Recipes, { kind: 'item.upsert', id: item.id, recipe_id: stepId, ingredient: inN.value, unit: item.unit || 'g', qty_per_unit: Number(inQ.value || 0) || 0, adjust_once: Number(inAdj.value || 0) || 0, one_time_adjust: Number(inAdj.value || 0) || 0, ajuste: Number(inAdj.value || 0) || 0, position: item.position || 0 }); }
+		try {
+			// Persist visible row
+			await api('POST', API.Recipes, { kind: 'item.upsert', id: item.id, recipe_id: stepId, ingredient: inN.value, unit: item.unit || 'g', qty_per_unit: Number(inQ.value || 0) || 0, position: item.position || 0 });
+			// Persist folded adjust row as separate hidden item named "<name> (ajuste)"
+			const adjQty = Number(inAdj.value || 0) || 0;
+			const adjName = `${inN.value} (ajuste)`;
+			await api('POST', API.Recipes, { kind: 'item.upsert', id: item._adjustItemId || undefined, recipe_id: stepId, ingredient: adjName, unit: item.unit || 'g', qty_per_unit: adjQty, position: (item.position || 0) + 0.0001 });
+		} catch {
+			notify.error('No se pudo guardar');
+		}
 		catch { notify.error('No se pudo guardar'); }
 	}
 	[inN, inQ, inAdj].forEach(el => { el.addEventListener('change', save); el.addEventListener('blur', save); });
@@ -2223,7 +2247,11 @@ async function persistItemsOrder(tbody, stepId) {
 		const name = tr.querySelector('td:nth-child(1) input')?.value || '';
 		const qty = Number(tr.querySelector('td:nth-child(2) input')?.value || 0) || 0;
 		const adj = Number(tr.querySelector('td:nth-child(3) input')?.value || 0) || 0;
-		try { await api('POST', API.Recipes, { kind: 'item.upsert', id, recipe_id: stepId, ingredient: name, unit: 'g', qty_per_unit: qty, adjust_once: adj, one_time_adjust: adj, ajuste: adj, position: pos }); } catch {}
+		try {
+			await api('POST', API.Recipes, { kind: 'item.upsert', id, recipe_id: stepId, ingredient: name, unit: 'g', qty_per_unit: qty, position: pos });
+			const adjName = `${name} (ajuste)`;
+			await api('POST', API.Recipes, { kind: 'item.upsert', recipe_id: stepId, ingredient: adjName, unit: 'g', qty_per_unit: adj, position: pos + 0.0001 });
+		} catch {}
 		pos++;
 	}
 }
