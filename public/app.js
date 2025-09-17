@@ -1678,7 +1678,7 @@ function openMaterialsMenu(anchorX, anchorY) {
 	const list = document.createElement('div'); list.className = 'history-list';
 	const b1 = document.createElement('button'); b1.className = 'press-btn'; b1.textContent = 'Ingredientes';
 	const b2 = document.createElement('button'); b2.className = 'press-btn'; b2.textContent = 'Necesarios';
-	const b3 = document.createElement('button'); b3.className = 'press-btn'; b3.textContent = 'Medidas';
+	const b3 = document.createElement('button'); b3.className = 'press-btn'; b3.textContent = 'Producción';
 	list.appendChild(b1); list.appendChild(b2); list.appendChild(b3);
 	pop.append(list);
 	document.body.appendChild(pop);
@@ -2025,7 +2025,7 @@ async function renderMeasuresView() {
 			card.style.padding = '12px';
 			card.style.border = '1px solid rgba(0,0,0,0.15)';
 			card.style.borderRadius = '10px';
-			const title = document.createElement('h3'); title.textContent = dessertName; title.style.textAlign = 'center'; title.style.fontSize = '22px'; title.style.margin = '4px 0 12px 0';
+	const title = document.createElement('h3'); title.textContent = dessertName; title.style.textAlign = 'center'; title.style.fontSize = '32px'; title.style.margin = '4px 0 12px 0'; title.style.background = 'rgba(255, 105, 180, 0.18)'; title.style.padding = '8px 6px'; title.style.borderRadius = '8px';
 			card.appendChild(title);
 			// Steps sections in order
 			for (const step of (d.steps || [])) {
@@ -2038,8 +2038,8 @@ async function renderMeasuresView() {
 				const tbody = document.createElement('tbody');
 				for (const it of (step.items || [])) {
 					const tr = document.createElement('tr');
-					const tdN = document.createElement('td'); tdN.textContent = it.ingredient; tdN.style.padding = '2px 4px';
-					const tdQ = document.createElement('td'); tdQ.textContent = fmt1.format((Number(it.qty_per_unit || 0) || 0) * qtyNum); tdQ.style.textAlign = 'right'; tdQ.style.padding = '2px 4px';
+					const tdN = document.createElement('td'); tdN.textContent = it.ingredient; tdN.style.padding = '5px 4px'; tdN.style.textAlign = 'center';
+					const tdQ = document.createElement('td'); tdQ.textContent = fmt1.format((Number(it.qty_per_unit || 0) || 0) * qtyNum); tdQ.style.textAlign = 'right'; tdQ.style.padding = '5px 4px';
 					tr.append(tdN, tdQ); tbody.appendChild(tr);
 				}
 				table.appendChild(tbody); section.appendChild(table); card.appendChild(section);
@@ -2052,8 +2052,8 @@ async function renderMeasuresView() {
 				const tbody = document.createElement('tbody');
 				for (const ex of extras) {
 					const tr = document.createElement('tr');
-					const tdN = document.createElement('td'); tdN.textContent = ex.ingredient; tdN.style.padding = '2px 4px';
-					const tdQ = document.createElement('td'); tdQ.textContent = fmt1.format((Number(ex.qty_per_unit || 0) || 0) * qtyNum); tdQ.style.textAlign = 'right'; tdQ.style.padding = '2px 4px';
+					const tdN = document.createElement('td'); tdN.textContent = ex.ingredient; tdN.style.padding = '5px 4px'; tdN.style.textAlign = 'center';
+					const tdQ = document.createElement('td'); tdQ.textContent = fmt1.format((Number(ex.qty_per_unit || 0) || 0) * qtyNum); tdQ.style.textAlign = 'right'; tdQ.style.padding = '5px 4px';
 					tr.append(tdN, tdQ); tbody.appendChild(tr);
 				}
 				table.appendChild(tbody); section.appendChild(table); card.appendChild(section);
