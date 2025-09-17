@@ -115,7 +115,7 @@ function renderClientDetailTable(rows) {
 		// Jorge-specific extra bank option
 		if (isJorge) opts.push({ v: 'jorgebank', label: '' });
 		if (!isJorge && current === 'jorgebank') opts.push({ v: 'jorgebank', label: '' });
-		for (const o of opts) { const opt = document.createElement('option'); opt.value = o.v; opt.textContent = o.label; if (!isMarcela && o.v === 'marce') opt.disabled = true; if (!isJorge && (o.v === 'jorge' || o.v === 'jorgebank')) opt.disabled = true; if (current === o.v) opt.selected = true; sel.appendChild(opt); }
+		for (const o of opts) { const opt = document.createElement('option'); opt.value = o.v; opt.textContent = o.label; if (!isMarcela && o.v === 'marce') opt.disabled = true; if (!isJorge && o.v === 'jorge') opt.disabled = true; if (current === o.v) opt.selected = true; sel.appendChild(opt); }
 		function applyPayClass() {
 			wrap.classList.remove('placeholder','method-efectivo','method-transf','method-marce','method-jorge','method-jorgebank');
 			const val = sel.value;
@@ -723,7 +723,7 @@ function renderTable() {
 					opt.value = o.v;
 					opt.textContent = o.label;
 					if (!isMarcela && o.v === 'marce') opt.disabled = true;
-					if (!isJorge && (o.v === 'jorge' || o.v === 'jorgebank')) opt.disabled = true;
+					if (!isJorge && o.v === 'jorge') opt.disabled = true;
 					if (current === o.v) opt.selected = true;
 					sel.appendChild(opt);
 				}
@@ -2346,8 +2346,12 @@ function openPayMenu(anchorEl, selectEl, clickX, clickY) {
 	if (String(state.currentUser?.name || '').toLowerCase() === 'marcela') {
 		items.push({ v: 'marce', cls: 'menu-marce' });
 	}
-	if (String(state.currentUser?.name || '').toLowerCase() === 'jorge') {
+	const isJorgeUser = String(state.currentUser?.name || '').toLowerCase() === 'jorge';
+	if (isJorgeUser) {
 		items.push({ v: 'jorge', cls: 'menu-jorge' });
+		items.push({ v: 'jorgebank', cls: 'menu-jorgebank' });
+	} else if ((selectEl.value || '') === 'jorgebank') {
+		// Allow non-Jorge to see/select 'jorgebank' in menu only if it's current
 		items.push({ v: 'jorgebank', cls: 'menu-jorgebank' });
 	}
 	items.push({ v: '', cls: 'menu-clear' }, { v: 'transf', cls: 'menu-transf' });
