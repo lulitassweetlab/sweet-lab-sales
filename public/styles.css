@@ -849,7 +849,7 @@ tfoot td { font-weight: 700; }
 	background: rgba(244, 166, 183, 0.7); /* var(--primary) at 70% */
 	z-index: 1;
 	pointer-events: none;
-	animation: rowSwipe 3s ease-in-out 1;
+	animation: rowSwipe 1.5s ease-in-out 1;
 }
 @keyframes rowSwipe { 0% { opacity: 0.0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { opacity: 0; } }
 
