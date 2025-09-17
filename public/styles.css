@@ -841,8 +841,17 @@ tfoot td { font-weight: 700; }
 .clients-table tbody tr:hover td { background: #f3f4f6 !important; }
 [data-theme="dark"] .clients-table tbody tr:hover td { background: #1a1a1a !important; }
 .clients-row:hover { background: var(--secondary); }
-.row-highlight { animation: rowPulse 1.4s ease-in-out 1; }
-@keyframes rowPulse { 0% { background: #fff6; } 50% { background: var(--secondary); } 100% { background: transparent; } }
+.row-highlight { position: relative; }
+.row-highlight::after {
+	content: '';
+	position: absolute;
+	left: 0; right: 0; top: 0; bottom: 0;
+	background: rgba(244, 166, 183, 0.7); /* var(--primary) at 70% */
+	z-index: 1;
+	pointer-events: none;
+	animation: rowSwipe 3s ease-in-out 1;
+}
+@keyframes rowSwipe { 0% { opacity: 0.0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { opacity: 0; } }
 
 /* Hover effect for client detail table */
 #client-detail-table tbody tr:hover td { background: #f3f4f6 !important; }

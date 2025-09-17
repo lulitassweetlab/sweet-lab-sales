@@ -2871,7 +2871,7 @@ function focusClientRow(name) {
 		if (input) { input.focus(); }
 		targetTr.scrollIntoView({ behavior: 'smooth', block: 'center' });
 		targetTr.classList.add('row-highlight');
-		setTimeout(() => targetTr.classList.remove('row-highlight'), 1500);
+		setTimeout(() => targetTr.classList.remove('row-highlight'), 3000);
 	} catch {}
 }
 
