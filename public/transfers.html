@@ -50,11 +50,6 @@
 
 		function buildPaySelector(sale){
 			const container = document.createElement('div');
-			container.style.display = 'flex';
-			container.style.justifyContent = 'flex-end';
-			container.style.alignItems = 'center';
-			container.style.gap = '8px';
-			container.style.margin = '6px 6px 0 6px';
 			// Use col-paid wrapper so existing CSS icons apply
 			const col = document.createElement('div'); col.className = 'col-paid';
 			const wrap = document.createElement('span'); wrap.className = 'pay-wrap';
@@ -254,13 +249,14 @@
 						const card = document.createElement('div'); card.className = 'transfer-card';
 						const img = document.createElement('img'); img.alt = 'Comprobante'; img.src = r.image_base64; img.addEventListener('click', () => openLightbox(r.image_base64));
 						const meta = document.createElement('div'); meta.className = 'transfer-meta';
-						// Payment selector synced with sales table
+						// Payment selector synced with sales table (top-right overlay)
 						const paySelector = buildPaySelector(sale);
+						const payOverlay = document.createElement('div'); payOverlay.className = 'transfer-pay'; payOverlay.appendChild(paySelector);
 						const l1 = document.createElement('div'); l1.className = 'line'; l1.innerHTML = `<span>${(seller.name||'').toString()}</span><span>${String(day.day).slice(0,10)}</span>`;
 						const l2 = document.createElement('div'); l2.className = 'line'; l2.innerHTML = `<span>${(sale.client_name||'').toString()}</span><span>${(sale.total_cents||0)}</span>`;
 						const note = document.createElement('div'); note.className = 'note'; note.textContent = (r.note_text||'').toString();
-						meta.append(paySelector, l1, l2, note);
-						card.append(img, meta);
+						meta.append(l1, l2, note);
+						card.append(payOverlay, img, meta);
 						grid.appendChild(card);
 						found++;
 						countLabel.textContent = `Comprobantes: ${found} · Ventas revisadas: ${daySales.length}`;

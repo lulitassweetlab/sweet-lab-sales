@@ -2169,7 +2169,7 @@ button.secondary.press-btn:active {
 .transfers-container { max-width: 1100px; margin: 0 auto; padding: 16px; }
 .transfers-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; position: sticky; top: 0; background: var(--background, #fff); padding: 8px 0; z-index: 10; }
 .transfers-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-top: 12px; }
-.transfer-card { border: 1px solid var(--border, #e5e7eb); border-radius: 10px; overflow: hidden; background: var(--card, #fff); display: flex; flex-direction: column; }
+.transfer-card { border: 1px solid var(--border, #e5e7eb); border-radius: 10px; overflow: hidden; background: var(--card, #fff); display: flex; flex-direction: column; position: relative; }
 .transfer-card img { display: block; width: 100%; height: auto; object-fit: contain; background: #f3f4f6; cursor: zoom-in; }
 .lightbox-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 16px; }
 .lightbox { position: relative; max-width: 96vw; max-height: 92vh; }
@@ -2182,6 +2182,15 @@ button.secondary.press-btn:active {
 .transfers-empty { padding: 32px; text-align: center; color: #6b7280; border: 1px dashed #e5e7eb; border-radius: 10px; }
 /* Cartera button should look like other report buttons */
 #cartera-button { background: var(--primary); color: var(--primary-foreground); border-color: transparent; }
+
+/* Payment selector overlay on transfers cards */
+.transfer-pay { position: absolute; top: 8px; right: 8px; z-index: 2; }
+.transfer-pay .col-paid { display: inline-flex; }
+.transfer-pay .col-paid .pay-wrap { width: 36px; height: 28px; }
+.transfer-pay .col-paid .pay-wrap::before { width: 20px; height: 16px; }
+.transfer-pay .col-paid .pay-wrap.method-transf::before { width: 20px; height: 18px; }
+.transfer-pay .col-paid .pay-wrap.method-jorgebank::before { width: 20px; height: 18px; }
+.transfer-pay .col-paid .pay-wrap.placeholder::before { font-size: 14px; }
 #cartera-button:hover { filter: none; background: var(--hover-primary-pink); box-shadow: 0 8px 24px var(--hover-shadow-pink); }
 
 /* Slightly darken Arco, Mara and Nute columns (all sections) */
