@@ -127,14 +127,44 @@ function renderClientDetailTable(rows) {
 			else if (val === 'jorgebank') wrap.classList.add('method-jorgebank');
 		}
 		applyPayClass();
-		// Mirror behavior from sales: clicking the wrap opens the custom menu
+		// Click: if bank method, show receipt or upload; otherwise open menu
 		wrap.addEventListener('click', async (e) => {
 			e.stopPropagation();
 			const rect = wrap.getBoundingClientRect();
-			openPayMenu(wrap, sel, rect.left + rect.width / 2, rect.bottom);
+			const v = (sel.value || '').toString();
+			if (v === 'transf' || v === 'jorgebank') {
+				try {
+					const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(r.id)}`);
+					if (Array.isArray(recs) && recs.length) {
+						openReceiptViewerPopover(recs[0].image_base64, r.id, recs[0].created_at, rect.left + rect.width / 2, rect.bottom, recs[0].note_text || '', recs[0].id);
+					} else {
+						openReceiptUploadPage(r.id);
+					}
+				} catch { openReceiptUploadPage(r.id); }
+			} else {
+				openPayMenu(wrap, sel, rect.left + rect.width / 2, rect.bottom);
+			}
 		});
 		wrap.tabIndex = 0;
-		wrap.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); const rect = wrap.getBoundingClientRect(); openPayMenu(wrap, sel, rect.left + rect.width / 2, rect.bottom); } });
+		wrap.addEventListener('keydown', async (e) => {
+			if (e.key === 'Enter' || e.key === ' ') {
+				e.preventDefault();
+				const rect = wrap.getBoundingClientRect();
+				const v = (sel.value || '').toString();
+				if (v === 'transf' || v === 'jorgebank') {
+					try {
+						const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(r.id)}`);
+						if (Array.isArray(recs) && recs.length) {
+							openReceiptViewerPopover(recs[0].image_base64, r.id, recs[0].created_at, rect.left + rect.width / 2, rect.bottom, recs[0].note_text || '', recs[0].id);
+						} else {
+							openReceiptUploadPage(r.id);
+						}
+					} catch { openReceiptUploadPage(r.id); }
+				} else {
+					openPayMenu(wrap, sel, rect.left + rect.width / 2, rect.bottom);
+				}
+			}
+		});
 		sel.addEventListener('change', async () => {
 			await api('PUT', API.Sales, {
 				id: r.id,
@@ -744,9 +774,43 @@ function renderTable() {
 					} catch {}
 					applyPayClass();
 				});
-				wrap.addEventListener('click', (e) => { e.stopPropagation(); openPayMenu(wrap, sel, e.clientX, e.clientY); });
+				wrap.addEventListener('click', async (e) => {
+					e.stopPropagation();
+					const v = (sel.value || '').toString();
+					if (v === 'transf' || v === 'jorgebank') {
+						try {
+							const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(sale.id)}`);
+							if (Array.isArray(recs) && recs.length) {
+								const rect = wrap.getBoundingClientRect();
+								openReceiptViewerPopover(recs[0].image_base64, sale.id, recs[0].created_at, rect.left + rect.width / 2, rect.bottom, recs[0].note_text || '', recs[0].id);
+							} else {
+								openReceiptUploadPage(sale.id);
+							}
+						} catch { openReceiptUploadPage(sale.id); }
+					} else {
+						openPayMenu(wrap, sel, e.clientX, e.clientY);
+					}
+				});
 				wrap.tabIndex = 0;
-				wrap.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPayMenu(wrap, sel); } });
+				wrap.addEventListener('keydown', async (e) => {
+					if (e.key === 'Enter' || e.key === ' ') { 
+						e.preventDefault(); 
+						const v = (sel.value || '').toString();
+						if (v === 'transf' || v === 'jorgebank') {
+							try {
+								const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(sale.id)}`);
+								if (Array.isArray(recs) && recs.length) {
+									const rect = wrap.getBoundingClientRect();
+									openReceiptViewerPopover(recs[0].image_base64, sale.id, recs[0].created_at, rect.left + rect.width / 2, rect.bottom, recs[0].note_text || '', recs[0].id);
+								} else {
+									openReceiptUploadPage(sale.id);
+								}
+							} catch { openReceiptUploadPage(sale.id); }
+						} else {
+							openPayMenu(wrap, sel);
+						}
+					}
+				});
 				wrap.appendChild(sel);
 				return wrap;
 			})()),
