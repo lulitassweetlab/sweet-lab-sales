@@ -13,6 +13,11 @@ export async function handler(event) {
 				const raw = typeof event.rawQuery === 'string' ? event.rawQuery : (event.queryStringParameters ? new URLSearchParams(event.queryStringParameters).toString() : '');
 				const params = new URLSearchParams(raw);
 				const historyFor = params.get('history_for');
+				const historyAll = params.get('history_all');
+				if (historyAll) {
+					const rows = await sql`SELECT id, ingredient, kind, qty, note, actor_name, metadata, created_at FROM inventory_movements ORDER BY id DESC LIMIT 500`;
+					return json(rows);
+				}
 				if (historyFor) {
 					const name = canonicalizeIngredientName(historyFor.toString());
 					const rows = await sql`SELECT id, ingredient, kind, qty, note, actor_name, metadata, created_at FROM inventory_movements WHERE lower(ingredient)=lower(${name}) ORDER BY id DESC LIMIT 200`;

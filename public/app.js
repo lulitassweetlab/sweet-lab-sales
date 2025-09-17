@@ -1965,7 +1965,8 @@ async function renderInventoryView() {
 	const actions = document.createElement('div'); actions.className = 'confirm-actions'; actions.style.marginBottom = '8px';
 	const ingresoBtn = document.createElement('button'); ingresoBtn.className = 'press-btn btn-primary'; ingresoBtn.textContent = 'Ingreso';
 	const ajusteBtn = document.createElement('button'); ajusteBtn.className = 'press-btn'; ajusteBtn.textContent = 'Ajuste';
-	actions.append(ingresoBtn, ajusteBtn);
+	const histAllBtn = document.createElement('button'); histAllBtn.className = 'press-btn'; histAllBtn.textContent = 'Historial general';
+	actions.append(ingresoBtn, ajusteBtn, histAllBtn);
 	root.appendChild(actions);
 	// Table
 	const table = document.createElement('table'); table.className = 'clients-table';
@@ -2020,6 +2021,7 @@ async function renderInventoryView() {
 
 	ingresoBtn.addEventListener('click', async () => { await promptMovement('ingreso'); });
 	ajusteBtn.addEventListener('click', async () => { await promptMovement('ajuste'); });
+	histAllBtn.addEventListener('click', async () => { openInventoryHistoryAllDialog(); });
 }
 
 async function openInventoryHistoryDialog(ingredient) {
@@ -2040,6 +2042,31 @@ async function openInventoryHistoryDialog(ingredient) {
 		const tdN = document.createElement('td'); tdN.textContent = r.note || '';
 		const tdA = document.createElement('td'); tdA.textContent = r.actor_name || '';
 		tr.append(tdD, tdK, tdQ, tdN, tdA); tbody.appendChild(tr);
+	}
+	const actions = document.createElement('div'); actions.className = 'confirm-actions'; const close = document.createElement('button'); close.className = 'press-btn'; close.textContent = 'Cerrar'; actions.appendChild(close);
+	close.addEventListener('click', () => { if (pop.parentNode) pop.parentNode.removeChild(pop); });
+	table.append(thead, tbody); pop.append(title, table, actions); document.body.appendChild(pop); pop.classList.add('aladdin-pop');
+}
+
+async function openInventoryHistoryAllDialog() {
+	let rows = [];
+	try { rows = await api('GET', `${API.Inventory}?history_all=1`); } catch { rows = []; }
+	const pop = document.createElement('div'); pop.className = 'confirm-popover'; pop.style.position = 'fixed';
+	pop.style.left = (window.innerWidth/2) + 'px'; pop.style.top = '8%'; pop.style.transform = 'translate(-50%, 0)'; pop.style.maxWidth = 'min(96vw, 720px)';
+	const title = document.createElement('h4'); title.textContent = 'Historial general de inventario'; title.style.margin = '0 0 8px 0';
+	const table = document.createElement('table'); table.className = 'items-table';
+	const thead = document.createElement('thead'); const hr = document.createElement('tr');
+	['Fecha','Ingrediente','Tipo','Cantidad','Nota','Actor'].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); }); thead.appendChild(hr);
+	const tbody = document.createElement('tbody');
+	for (const r of (rows || [])) {
+		const tr = document.createElement('tr');
+		const tdD = document.createElement('td'); tdD.textContent = String(r.created_at || '').slice(0,19).replace('T',' ');
+		const tdN = document.createElement('td'); tdN.textContent = r.ingredient || '';
+		const tdK = document.createElement('td'); tdK.textContent = r.kind;
+		const tdQ = document.createElement('td'); tdQ.textContent = String(Number(r.qty||0)); tdQ.style.textAlign = 'right';
+		const tdNo = document.createElement('td'); tdNo.textContent = r.note || '';
+		const tdA = document.createElement('td'); tdA.textContent = r.actor_name || '';
+		tr.append(tdD, tdN, tdK, tdQ, tdNo, tdA); tbody.appendChild(tr);
 	}
 	const actions = document.createElement('div'); actions.className = 'confirm-actions'; const close = document.createElement('button'); close.className = 'press-btn'; close.textContent = 'Cerrar'; actions.appendChild(close);
 	close.addEventListener('click', () => { if (pop.parentNode) pop.parentNode.removeChild(pop); });
