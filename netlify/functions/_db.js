@@ -283,9 +283,18 @@ export async function notify({ type, sellerId = null, saleId = null, saleDayId =
 	await sql`INSERT INTO notifications (type, seller_id, sale_id, sale_day_id, message, actor_name, icon_url, pay_method) VALUES (${type}, ${sellerId}, ${saleId}, ${saleDayId}, ${message}, ${actorName}, ${iconUrl}, ${payMethod})`;
 }
 
+export function canonicalizeIngredientName(name) {
+	const raw = (name || '').toString().trim();
+	const low = raw.toLowerCase();
+	if (!raw) return raw;
+	if (low.includes('nutella')) return 'Nutella';
+	if (low.startsWith('agua')) return 'Agua';
+	return raw;
+}
+
 export async function ensureInventoryItem(ingredient, unit = 'g') {
 	await ensureSchema();
-	const name = (ingredient || '').toString().trim();
+	const name = canonicalizeIngredientName(ingredient);
 	if (!name) return null;
 	const u = (unit || 'g').toString();
 	const [row] = await sql`
