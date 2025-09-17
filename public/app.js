@@ -2181,20 +2181,20 @@ function buildItemRow(stepId, item) {
 
 function enableItemsReorder(tbody, stepId) {
 	let dragging = null;
-	body.addEventListener('dragstart', (e) => {
+	tbody.addEventListener('dragstart', (e) => {
 		const tr = e.target && e.target.closest('tr');
 		if (!tr) return;
 		dragging = tr;
 		tr.classList.add('dragging');
 		try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', tr.dataset.itemId || ''); } catch {}
 	});
-	body.addEventListener('dragover', (e) => {
+	tbody.addEventListener('dragover', (e) => {
 		e.preventDefault();
 		const after = getDragAfterElement(tbody, e.clientY);
 		if (!dragging) return;
 		if (after == null) tbody.appendChild(dragging); else tbody.insertBefore(dragging, after);
 	});
-	body.addEventListener('dragend', async () => {
+	tbody.addEventListener('dragend', async () => {
 		if (!dragging) return;
 		dragging.classList.remove('dragging');
 		dragging = null;
