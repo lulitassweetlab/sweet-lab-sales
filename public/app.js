@@ -1497,8 +1497,10 @@ async function exportCarteraExcel(startIso, endIso) {
 			const sales = await api('GET', `${API.Sales}?${params.toString()}`);
 			for (const r of (sales || [])) {
 				const pm = (r.pay_method || '').toString();
-				// Keep sales that do NOT have efectivo, transf, marce, or jorge
-				if (pm === 'efectivo' || pm === 'transf' || pm === 'marce' || pm === 'jorge') continue;
+				const unpaid = r.is_paid !== true;
+				// Keep only unpaid and payment method in: '-', efectivo (billete verde), or banco gris (transf)
+				const allowed = (pm === '' || pm === 'efectivo' || pm === 'transf');
+				if (!(unpaid && allowed)) continue;
 				const qa = r.qty_arco || 0;
 				const qm = r.qty_melo || 0;
 				const qma = r.qty_mara || 0;
@@ -1506,7 +1508,7 @@ async function exportCarteraExcel(startIso, endIso) {
 				const qn = r.qty_nute || 0;
 				const tot = r.total_cents || 0;
 				totalGrand += (tot || 0);
-				const payLabel = pm === '' ? '-' : pm;
+				const payLabel = pm === '' ? '-' : (pm === 'efectivo' ? 'Efectivo' : pm === 'transf' ? 'Transf' : pm);
 				rows.push([
 					String(d.day).slice(0,10), s.name || '', r.client_name || '', payLabel,
 					r.is_paid ? '✓' : '',
