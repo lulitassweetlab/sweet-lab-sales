@@ -143,9 +143,9 @@ export async function handler(event) {
 					const prevPm = (current.pay_method || '').toString();
 					const nextPm = (payMethod || '').toString();
 					if (prevPm !== nextPm) {
-						const fmt = (v) => v === 'efectivo' ? 'Efectivo' : v === 'transf' ? 'Transferencia' : v === 'marce' ? 'Marce' : '-';
+						const fmt = (v) => v === 'efectivo' ? 'Efectivo' : (v === 'transf' || v === 'jorgebank') ? 'Transferencia' : v === 'marce' ? 'Marce' : v === 'jorge' ? 'Jorge' : '-';
 						const msg = `${client || 'Cliente'} pago: ${fmt(prevPm)} → ${fmt(nextPm)}` + (actor ? ` - ${actor}` : '');
-						const iconUrl = nextPm === 'efectivo' ? '/icons/bill.svg' : nextPm === 'transf' ? '/icons/bank.svg' : nextPm === 'marce' ? '/icons/marce7.svg?v=1' : null;
+						const iconUrl = nextPm === 'efectivo' ? '/icons/bill.svg' : nextPm === 'transf' ? '/icons/bank.svg' : nextPm === 'jorgebank' ? '/icons/bank-yellow.svg' : nextPm === 'marce' ? '/icons/marce7.svg?v=1' : nextPm === 'jorge' ? '/icons/jorge7.svg?v=1' : null;
 						await notifyDb({ type: 'pay', sellerId: Number(data.seller_id||0)||null, saleId: id, saleDayId: Number(data.sale_day_id||0)||null, message: msg, actorName: actor, iconUrl, payMethod: nextPm });
 					}
 				} catch {}
@@ -189,7 +189,7 @@ export async function handler(event) {
 					const tail = sellerName ? ` - ${sellerName}` : '';
 					const msg = `Eliminado: ${name}${suffix}${tail}`;
 					const pm = (prev?.pay_method || '').toString();
-					const iconUrl = pm === 'efectivo' ? '/icons/bill.svg' : pm === 'transf' ? '/icons/bank.svg' : pm === 'marce' ? '/icons/marce7.svg?v=1' : null;
+					const iconUrl = pm === 'efectivo' ? '/icons/bill.svg' : pm === 'transf' ? '/icons/bank.svg' : pm === 'jorgebank' ? '/icons/bank-yellow.svg' : pm === 'marce' ? '/icons/marce7.svg?v=1' : pm === 'jorge' ? '/icons/jorge7.svg?v=1' : null;
 					// Do not reference deleted sale_id to avoid FK violation
 					await notifyDb({ type: 'delete', sellerId: Number(prev.seller_id||0)||null, saleId: null, saleDayId: Number(prev.sale_day_id||0)||null, message: msg, actorName: actor, iconUrl, payMethod: pm });
 				}
