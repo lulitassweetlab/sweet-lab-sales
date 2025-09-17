@@ -86,6 +86,11 @@ export async function handler(event) {
 					saleDayId = await getOrCreateDayId(sellerId, iso);
 				}
 				const [row] = await sql`INSERT INTO sales (seller_id, sale_day_id) VALUES (${sellerId}, ${saleDayId}) RETURNING id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, comment_text, total_cents, created_at`;
+				// Emit a notification for new sale with identifiers for deep linking
+				try {
+					const msg = `${row.client_name || 'Cliente'} nuevo pedido`;
+					await notifyDb({ type: 'create', sellerId, saleId: row.id, saleDayId, message: msg, actorName: '' });
+				} catch {}
 				return json(row, 201);
 			}
 			case 'PUT': {

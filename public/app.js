@@ -390,7 +390,7 @@ const notify = (() => {
 				try {
 					item.style.cursor = 'pointer';
 					item.addEventListener('click', async () => {
-						await goToSaleFromNotification(it.seller_id || null, it.sale_day_id || null, it.sale_id || null);
+						await goToSaleFromNotification(it.seller_id ?? it.sellerId ?? null, it.sale_day_id ?? it.saleDay_id ?? it.sale_dayId ?? it.saleDayId ?? null, it.sale_id ?? it.saleId ?? null);
 						cleanup();
 					});
 				} catch {}
@@ -923,6 +923,8 @@ async function saveRow(tr, id) {
 	const prev = before ? { ...before } : null;
 	const body = readRow(tr);
 	body.id = id;
+	body.seller_id = state.currentSeller?.id || null;
+	if (state.selectedDayId) body.sale_day_id = state.selectedDayId;
 	body._actor_name = state.currentUser?.name || '';
 	const updated = await api('PUT', API.Sales, body);
 	const idx = state.sales.findIndex(s => s.id === id);
@@ -1214,6 +1216,8 @@ async function savePaid(tr, id, isPaid) {
 	const body = readRow(tr);
 	body.id = id;
 	body.is_paid = !!isPaid;
+	body.seller_id = state.currentSeller?.id || null;
+	if (state.selectedDayId) body.sale_day_id = state.selectedDayId;
 	body._actor_name = state.currentUser?.name || '';
 	const updated = await api('PUT', API.Sales, body);
 	const idx = state.sales.findIndex(s => s.id === id);
@@ -1224,6 +1228,8 @@ async function savePayMethod(tr, id, method) {
 	const body = readRow(tr);
 	body.id = id;
 	body.pay_method = method || null;
+	body.seller_id = state.currentSeller?.id || null;
+	if (state.selectedDayId) body.sale_day_id = state.selectedDayId;
 	body._actor_name = state.currentUser?.name || '';
 	await api('PUT', API.Sales, body);
 	// Update local state
