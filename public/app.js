@@ -2197,6 +2197,27 @@ async function renderTimesView() {
     if (!root) return;
     root.innerHTML = '';
     let data = readTimesState();
+    // Seed from Ingredientes on first use (local-only copy)
+    if (!data || (Array.isArray(data) && data.length === 0)) {
+        try {
+            const desserts = await api('GET', API.Recipes);
+            const imported = [];
+            for (const name of (desserts || [])) {
+                try {
+                    const r = await api('GET', `${API.Recipes}?dessert=${encodeURIComponent(name)}&include_extras=1`);
+                    const steps = (Array.isArray(r?.steps) ? r.steps : []).map(s => ({
+                        name: s?.step_name || 'Sin nombre',
+                        note: '',
+                        elapsedMs: 0,
+                        isRunning: false,
+                        startedAt: null
+                    }));
+                    imported.push({ name, steps });
+                } catch {}
+            }
+            if (imported.length) { data = imported; writeTimesState(data); }
+        } catch {}
+    }
 
     const grid = document.createElement('div');
     grid.className = 'ingredients-grid';
