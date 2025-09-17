@@ -1678,7 +1678,8 @@ function openMaterialsMenu(anchorX, anchorY) {
 	const list = document.createElement('div'); list.className = 'history-list';
 	const b1 = document.createElement('button'); b1.className = 'press-btn'; b1.textContent = 'Ingredientes';
 	const b2 = document.createElement('button'); b2.className = 'press-btn'; b2.textContent = 'Necesarios';
-	list.appendChild(b1); list.appendChild(b2);
+	const b3 = document.createElement('button'); b3.className = 'press-btn'; b3.textContent = 'Medidas';
+	list.appendChild(b1); list.appendChild(b2); list.appendChild(b3);
 	pop.append(list);
 	document.body.appendChild(pop);
 
@@ -1696,6 +1697,7 @@ function openMaterialsMenu(anchorX, anchorY) {
 
 	b1.addEventListener('click', async () => { cleanup(); openIngredientsView(); });
 	b2.addEventListener('click', async () => { cleanup(); openMaterialsNeededFlow(baseX, desiredBottomY); });
+	b3.addEventListener('click', async () => { cleanup(); openMeasuresView(); });
 }
 
 // Removed openAssignIconsDialog
@@ -1751,6 +1753,11 @@ function bindEvents() {
 
 	const backIngredients = document.getElementById('ingredients-back');
 	backIngredients?.addEventListener('click', () => {
+		switchView('#view-select-seller');
+	});
+
+	const backMeasures = document.getElementById('measures-back');
+	backMeasures?.addEventListener('click', () => {
 		switchView('#view-select-seller');
 	});
 }
@@ -1934,6 +1941,131 @@ async function renderIngredientsView() {
 	});
 	const extrasBtn = document.getElementById('ingredients-add-extras');
 	extrasBtn?.addEventListener('click', async () => { openExtrasEditor(); });
+}
+
+async function openMeasuresView() {
+	switchView('#view-measures');
+	await renderMeasuresView();
+}
+
+async function renderMeasuresView() {
+	const root = document.getElementById('measures-content');
+	if (!root) return;
+	root.innerHTML = '';
+	// Fetch desserts and recipe aggregates
+	let dessertNames = [];
+	try { dessertNames = await api('GET', API.Recipes); } catch { dessertNames = []; }
+	if (!dessertNames || dessertNames.length === 0) {
+		try { await api('GET', `${API.Recipes}?seed=1`); dessertNames = await api('GET', API.Recipes); } catch {}
+	}
+	// Build input form for counts
+	const form = document.createElement('div'); form.className = 'measures-form';
+	const grid = document.createElement('div'); grid.className = 'measures-grid';
+	const counts = { arco: 0, melo: 0, mara: 0, oreo: 0, nute: 0 };
+	function normalizeKey(name){ const k = String(name||'').trim().toLowerCase(); if (k.startsWith('arco')) return 'arco'; if (k.startsWith('melo')) return 'melo'; if (k.startsWith('mara')) return 'mara'; if (k.startsWith('oreo')) return 'oreo'; if (k.startsWith('nute')) return 'nute'; return k; }
+	const byKey = new Map();
+	for (const name of (dessertNames||[])) { const key = normalizeKey(name); byKey.set(key, name); }
+	['arco','melo','mara','oreo','nute'].forEach(k => {
+		const row = document.createElement('div'); row.className = 'measures-row';
+		const label = document.createElement('label'); label.textContent = (byKey.get(k) || k.charAt(0).toUpperCase()+k.slice(1));
+		const input = document.createElement('input'); input.type = 'number'; input.min = '0'; input.step = '1'; input.value = '0'; input.className = 'input-cell'; input.style.width = '96px';
+		input.addEventListener('input', () => { counts[k] = Math.max(0, Number(input.value||0) || 0); renderResults(); });
+		row.append(label, input); grid.appendChild(row);
+	});
+	form.appendChild(grid);
+
+	// Results table
+	const resultWrap = document.createElement('div');
+	const table = document.createElement('table'); table.className = 'items-table';
+	const thead = document.createElement('thead'); const hr = document.createElement('tr');
+	['Postre','Ingrediente','Unidad','Cantidad total'].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
+	thead.appendChild(hr);
+	const tbody = document.createElement('tbody');
+	const tfoot = document.createElement('tfoot'); const fr = document.createElement('tr'); const td = document.createElement('td'); td.colSpan = 4; td.textContent = 'Fin del cálculo'; fr.appendChild(td); tfoot.appendChild(fr);
+	table.append(thead, tbody, tfoot);
+	resultWrap.appendChild(table);
+
+	// Export button
+	const actions = document.createElement('div'); actions.className = 'confirm-actions';
+	const exportBtn = document.createElement('button'); exportBtn.className = 'press-btn btn-gold'; exportBtn.textContent = 'Exportar Excel';
+	actions.appendChild(exportBtn);
+
+	root.append(form, resultWrap, actions);
+
+	async function fetchRecipeMap() {
+		// Build per-dessert ingredient maps by summing items across steps; include extras
+		const names = dessertNames || [];
+		const result = new Map();
+		for (const dessert of names) {
+			const data = await api('GET', `${API.Recipes}?dessert=${encodeURIComponent(dessert)}&include_extras=1`);
+			const map = new Map();
+			for (const step of (data.steps||[])) {
+				for (const it of (step.items||[])) {
+					const key = it.ingredient;
+					const prev = map.get(key) || { unit: it.unit || 'g', qty: 0 };
+					prev.qty += Number(it.qty_per_unit || 0);
+					prev.unit = it.unit || prev.unit || 'g';
+					map.set(key, prev);
+				}
+			}
+			result.set(dessert, map);
+		}
+		// Extras apply to all desserts
+		let extras = [];
+		try { const exData = await api('GET', `${API.Recipes}?dessert=${encodeURIComponent(names[0]||'dummy')}&include_extras=1`); extras = exData.extras || []; } catch {}
+		return { byDessert: result, extras };
+	}
+
+	let recipeCache = null;
+	async function ensureRecipes(){ if (!recipeCache) recipeCache = await fetchRecipeMap(); return recipeCache; }
+
+	function clearTbody(){ while (tbody.firstChild) tbody.removeChild(tbody.firstChild); }
+
+	async function renderResults() {
+		await ensureRecipes();
+		clearTbody();
+		const byDessert = recipeCache.byDessert;
+		const extras = Array.isArray(recipeCache.extras) ? recipeCache.extras : [];
+		for (const [key, qty] of Object.entries(counts)) {
+			const dessertName = byKey.get(key) || key;
+			const map = byDessert.get(dessertName);
+			if (!map || !qty) continue;
+			for (const [ing, rec] of map.entries()) {
+				const tr = document.createElement('tr');
+				const tdD = document.createElement('td'); tdD.textContent = dessertName;
+				const tdI = document.createElement('td'); tdI.textContent = ing;
+				const tdU = document.createElement('td'); tdU.textContent = rec.unit || 'g';
+				const tdQ = document.createElement('td'); tdQ.textContent = String(Number(rec.qty || 0) * Number(qty || 0));
+				tr.append(tdD, tdI, tdU, tdQ); tbody.appendChild(tr);
+			}
+			// Extras per unit
+			for (const ex of extras) {
+				const tr = document.createElement('tr');
+				const tdD = document.createElement('td'); tdD.textContent = dessertName;
+				const tdI = document.createElement('td'); tdI.textContent = ex.ingredient;
+				const tdU = document.createElement('td'); tdU.textContent = ex.unit || 'unidad';
+				const tdQ = document.createElement('td'); tdQ.textContent = String(Number(ex.qty_per_unit || 0) * Number(qty || 0));
+				tr.append(tdD, tdI, tdU, tdQ); tbody.appendChild(tr);
+			}
+		}
+	}
+
+	function exportRows() {
+		const rows = [];
+		for (const tr of Array.from(tbody.querySelectorAll('tr'))) {
+			const tds = Array.from(tr.children).map(td => td.textContent || '');
+			rows.push({ Postre: tds[0], Ingrediente: tds[1], Unidad: tds[2], Cantidad: Number(tds[3]||0) });
+		}
+		const ws = XLSX.utils.json_to_sheet(rows);
+		const wb = XLSX.utils.book_new();
+		XLSX.utils.book_append_sheet(wb, ws, 'Medidas');
+		const label = new Date().toISOString().slice(0,10).replaceAll('-','');
+		XLSX.writeFile(wb, `Medidas_${label}.xlsx`);
+	}
+
+	exportBtn.addEventListener('click', exportRows);
+	// initial render
+	renderResults();
 }
 
 async function buildDessertCard(dessertName) {
