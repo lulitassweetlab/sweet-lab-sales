@@ -2904,26 +2904,58 @@ function focusSaleRowById(saleId) {
 	} catch { return false; }
 }
 
+// Try to discover seller_id and sale_day_id by scanning if only sale_id is known
+async function resolveSaleContextBySaleId(rowId) {
+	try {
+		const id = Number(rowId);
+		if (!id) return null;
+		const sellers = await api('GET', API.Sellers);
+		for (const s of (sellers || [])) {
+			const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(s.id)}`);
+			for (const d of (days || [])) {
+				const p = new URLSearchParams({ seller_id: String(s.id), sale_day_id: String(d.id) });
+				let rows = [];
+				try { rows = await api('GET', `${API.Sales}?${p.toString()}`); } catch { rows = []; }
+				if (Array.isArray(rows) && rows.some(r => Number(r?.id) === id)) {
+					return { sellerId: s.id, saleDayId: d.id };
+				}
+			}
+		}
+	} catch {}
+	return null;
+}
+
 // Navigate from a notification to the exact sale row
 async function goToSaleFromNotification(sellerId, saleDayId, saleId) {
 	try {
-		const sid = Number(sellerId || 0) || null;
-		const dayId = Number(saleDayId || 0) || null;
+		let sid = Number(sellerId || 0) || null;
+		let dayId = Number(saleDayId || 0) || null;
 		const rowId = Number(saleId || 0) || null;
 		if (!sid && !dayId && !rowId) return;
 
+		// Fallback: discover missing context by scanning
+		if ((!sid || !dayId) && rowId) {
+			const ctx = await resolveSaleContextBySaleId(rowId);
+			if (ctx) { sid = ctx.sellerId; dayId = ctx.saleDayId; }
+		}
+
 		// Enforce basic role constraint: non-admins stay within their seller
 		const isAdminUser = !!(state?.currentUser?.isAdmin);
-		if (!isAdminUser && sid && state?.currentSeller && state.currentSeller.id !== sid) {
-			try { notify.info('No tienes acceso a ese vendedor'); } catch {}
-			return;
+		if (!isAdminUser) {
+			// Non-admin: ignore sid if different; they only have one seller context
+			sid = state?.currentSeller?.id || sid;
 		}
 
 		// Ensure we're in the sales view for the correct seller
-		if (!state.currentSeller || (sid && state.currentSeller.id !== sid)) {
-			await enterSeller(sid);
+		if (sid) {
+			if (!state.currentSeller || state.currentSeller.id !== sid) {
+				await enterSeller(sid);
+			} else {
+				switchView('#view-sales');
+			}
 		} else {
-			switchView('#view-sales');
+			// If we still don't know seller and there is no currentSeller, abort quietly
+			if (!state.currentSeller) { try { notify.info('No se pudo ubicar el vendedor del movimiento'); } catch {} return; }
 		}
 
 		// Ensure days are loaded, select the target day, and load sales
