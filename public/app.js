@@ -2213,7 +2213,7 @@ function buildStepCard(dessertName, step) {
 	head.append(label, actions);
 	const table = document.createElement('table'); table.className = 'items-table';
 	const thead = document.createElement('thead'); const hr = document.createElement('tr');
-	['Ingrediente','Cantidad por unidad',''].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
+	['Ingrediente','Cantidad por unidad','Ajuste','Precio',''].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
 	thead.appendChild(hr);
 	const tbody = document.createElement('tbody');
 	for (const it of (step.items || [])) tbody.appendChild(buildItemRow(step.id, it));
@@ -2236,7 +2236,7 @@ function buildStepCard(dessertName, step) {
 	add.addEventListener('click', async () => {
 		const ing = (prompt('Ingrediente:') || '').trim(); if (!ing) return;
 		const qty = Number(prompt('Cantidad por unidad:') || '0') || 0;
-		const row = await api('POST', API.Recipes, { kind: 'item.upsert', recipe_id: step.id, ingredient: ing, unit: 'g', qty_per_unit: qty, position: (step.items?.length||0)+1 });
+		const row = await api('POST', API.Recipes, { kind: 'item.upsert', recipe_id: step.id, ingredient: ing, unit: 'g', qty_per_unit: qty, adjustment: 0, price: 0, position: (step.items?.length||0)+1 });
 		tbody.appendChild(buildItemRow(step.id, row));
 	});
 	del.addEventListener('click', async () => {
@@ -2269,8 +2269,10 @@ function buildItemRow(stepId, item) {
 	const tr = document.createElement('tr');
 	const tdN = document.createElement('td'); const inN = document.createElement('input'); inN.type = 'text'; inN.value = item.ingredient; tdN.appendChild(inN);
 	const tdQ = document.createElement('td'); const inQ = document.createElement('input'); inQ.type = 'number'; inQ.step = '0.01'; inQ.value = String(item.qty_per_unit || 0); tdQ.appendChild(inQ);
+	const tdAdj = document.createElement('td'); const inAdj = document.createElement('input'); inAdj.type = 'number'; inAdj.step = '0.01'; inAdj.value = String(item.adjustment || 0); tdAdj.appendChild(inAdj);
+	const tdP = document.createElement('td'); const inP = document.createElement('input'); inP.type = 'number'; inP.step = '0.01'; inP.value = String(item.price || 0); tdP.appendChild(inP);
 	const tdA = document.createElement('td'); const del = document.createElement('button'); del.className = 'press-btn'; del.textContent = '×'; tdA.appendChild(del);
-	tr.append(tdN, tdQ, tdA);
+	tr.append(tdN, tdQ, tdAdj, tdP, tdA);
 	// DnD for ingredient rows
 	tr.draggable = true;
 	tr.addEventListener('dragstart', () => { tr.classList.add('dragging'); });
@@ -2283,10 +2285,11 @@ function buildItemRow(stepId, item) {
 		try { await api('POST', API.Recipes, { kind: 'item.reorder', ids }); } catch {}
 	});
 	async function save() {
-		try { await api('POST', API.Recipes, { kind: 'item.upsert', id: item.id, recipe_id: stepId, ingredient: inN.value, unit: 'g', qty_per_unit: Number(inQ.value || 0) || 0, position: item.position || 0 }); }
-		catch { notify.error('No se pudo guardar'); }
+		try {
+			await api('POST', API.Recipes, { kind: 'item.upsert', id: item.id, recipe_id: stepId, ingredient: inN.value, unit: 'g', qty_per_unit: Number(inQ.value || 0) || 0, adjustment: Number(inAdj.value || 0) || 0, price: Number(inP.value || 0) || 0, position: item.position || 0 });
+		} catch { notify.error('No se pudo guardar'); }
 	}
-	[inN, inQ].forEach(el => { el.addEventListener('change', save); el.addEventListener('blur', save); });
+	[inN, inQ, inAdj, inP].forEach(el => { el.addEventListener('change', save); el.addEventListener('blur', save); });
 	del.addEventListener('click', async () => { await api('DELETE', `${API.Recipes}?kind=item&id=${encodeURIComponent(item.id)}`); tr.remove(); });
 	// persist id on row
 	tr.setAttribute('data-item-id', String(item.id));
