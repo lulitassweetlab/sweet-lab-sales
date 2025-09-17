@@ -783,6 +783,9 @@ tfoot td { font-weight: 700; }
 #view-ingredients .sales-panel { margin-top: 16px; }
 .ingredients-grid { display: grid; grid-template-columns: 1fr; gap: 24px; }
 .dessert-card { border: 1px solid var(--border); border-radius: 16px; padding: 16px; background: var(--card); }
+.desserts-steps-list { display: grid; gap: 12px; }
+.draggable-step { cursor: grab; }
+.draggable-step.dragging { opacity: .7; }
 .dessert-header { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 12px; }
 .dessert-header h3 { margin: 0; font-size: 22px; letter-spacing: -0.01em; text-align: center; }
 .dessert-header .press-btn { margin-left: auto; }
