@@ -783,6 +783,9 @@ tfoot td { font-weight: 700; }
 #view-ingredients .sales-panel { margin-top: 16px; }
 .ingredients-grid { display: grid; grid-template-columns: 1fr; gap: 24px; }
 .dessert-card { border: 1px solid var(--border); border-radius: 16px; padding: 16px; background: var(--card); }
+.desserts-steps-list { display: grid; gap: 12px; }
+.draggable-step { cursor: grab; }
+.draggable-step.dragging { opacity: .7; }
 .dessert-header { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 12px; }
 .dessert-header h3 { margin: 0; font-size: 22px; letter-spacing: -0.01em; text-align: center; }
 .dessert-header .press-btn { margin-left: auto; }
@@ -791,6 +794,9 @@ tfoot td { font-weight: 700; }
 .step-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
 .items-table { width: 100%; border-collapse: collapse; }
 .items-table th, .items-table td { border-bottom: 1px solid var(--border); padding: 6px 8px; text-align: left; }
+.items-table td:last-child { width: 100px; }
+.drag-handle { cursor: grab; margin-right: 6px; opacity: .7; user-select: none; }
+tr.dragging { opacity: .6; }
 .items-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
 .extras-card { border: 1px dashed var(--border); border-radius: 12px; padding: 12px; background: var(--card); }
 
@@ -887,6 +893,23 @@ tfoot td { font-weight: 700; }
 .ingredients-list { max-height: 360px; overflow: auto; margin-top: 8px; border-top: 1px solid var(--border); }
 .ingredients-row { display: grid; grid-template-columns: 1.2fr .6fr repeat(5, .7fr) auto; gap: 6px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
 .ingredients-row input { width: 100%; }
+
+/* Measures view */
+.measures-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+.measures-col { display: flex; flex-direction: column; gap: 6px; }
+.measures-header { font-weight: 600; display: flex; align-items: center; justify-content: space-between; }
+.measures-suggest-header button { padding: 4px 8px; }
+.measures-list { border: 1px solid var(--border); border-radius: 8px; padding: 8px; max-height: 50vh; overflow: auto; }
+.measure-row { display: flex; align-items: center; height: 36px; border-bottom: 1px solid var(--border); }
+.measure-row:last-child { border-bottom: none; }
+.measure-row input { width: 100%; }
+.measure-dessert-block { margin-top: 16px; }
+.measure-step { opacity: .75; margin: 6px 0; }
+.measures-results table { width: 100%; border-collapse: separate; border-spacing: 0 6px; margin-bottom: 8px; }
+.measures-results th, .measures-results td { padding: 6px 8px; text-align: left; border-bottom: none; }
+.measures-results th:nth-child(1), .measures-results td:nth-child(1) { padding-right: 18px; }
+.measure-dessert-block { margin-top: 20px; padding-top: 12px; border-top: 2px dashed var(--border); }
+.measure-step { opacity: .8; margin: 8px 0 6px; }
 .ingredients-header { font-weight: 600; position: sticky; top: 0; background: inherit; padding: 6px 0; z-index: 1; }
 .ingredients-actions { display: flex; justify-content: space-between; gap: 8px; margin-top: 10px; }
 .materials-report { min-width: 320px; }
