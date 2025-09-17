@@ -1,4 +1,4 @@
-import { ensureSchema, sql, ensureInventoryItem } from './_db.js';
+import { ensureSchema, sql, ensureInventoryItem, canonicalizeIngredientName } from './_db.js';
 
 function json(body, status = 200) {
 	return { statusCode: status, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
@@ -14,7 +14,7 @@ export async function handler(event) {
 				const params = new URLSearchParams(raw);
 				const historyFor = params.get('history_for');
 				if (historyFor) {
-					const name = historyFor.toString();
+					const name = canonicalizeIngredientName(historyFor.toString());
 					const rows = await sql`SELECT id, ingredient, kind, qty, note, actor_name, metadata, created_at FROM inventory_movements WHERE lower(ingredient)=lower(${name}) ORDER BY id DESC LIMIT 200`;
 					return json(rows);
 				}
@@ -54,10 +54,22 @@ export async function handler(event) {
 						SELECT ingredient, unit FROM pick
 						ON CONFLICT (ingredient) DO UPDATE SET unit = COALESCE(EXCLUDED.unit, inventory_items.unit), updated_at = now()
 					`;
+					// Canonicalize and merge duplicates (e.g., Agua*, Nutella*, *Oreo*)
+					const items = await sql`SELECT ingredient, unit FROM inventory_items`;
+					for (const it of (items || [])) {
+						const current = (it.ingredient || '').toString();
+						const canon = canonicalizeIngredientName(current);
+						if (!canon) continue;
+						if (current.toLowerCase() !== canon.toLowerCase()) {
+							await ensureInventoryItem(canon, it.unit || 'g');
+							await sql`UPDATE inventory_movements SET ingredient=${canon} WHERE lower(ingredient)=lower(${current})`;
+							await sql`DELETE FROM inventory_items WHERE ingredient=${current}`;
+						}
+					}
 					return json({ ok: true });
 				}
 				if (action === 'ingreso' || action === 'ajuste') {
-					const ingredient = (data.ingredient || '').toString().trim();
+					const ingredient = canonicalizeIngredientName((data.ingredient || '').toString().trim());
 					const unit = (data.unit || 'g').toString();
 					let qty = Number(data.qty || 0) || 0;
 					const note = (data.note || '').toString();
@@ -96,7 +108,8 @@ export async function handler(event) {
 					const totals = new Map(); // ingredient -> { unit, qty }
 					function add(ing, unit, qty) {
 						if (!ing) return;
-						const k = ing.toString();
+						const canon = canonicalizeIngredientName(ing.toString());
+						const k = canon;
 						const prev = totals.get(k) || { unit: unit || 'g', qty: 0 };
 						prev.qty += Number(qty || 0) || 0;
 						if (unit) prev.unit = unit;
@@ -114,9 +127,10 @@ export async function handler(event) {
 					// Ensure inventory items and insert movements as negatives
 					const out = [];
 					for (const [ingredient, v] of totals.entries()) {
-						await ensureInventoryItem(ingredient, v.unit || 'g');
-						const [row] = await sql`INSERT INTO inventory_movements (ingredient, kind, qty, note, actor_name, metadata) VALUES (${ingredient}, ${'produccion'}, ${-Math.abs(v.qty || 0)}, ${'Producción aprobada'}, ${actor}, ${JSON.stringify({ counts: c })}::jsonb) RETURNING *`;
-						out.push({ ingredient, unit: v.unit || 'g', qty: v.qty || 0, movement_id: row?.id });
+						const canon = canonicalizeIngredientName(ingredient);
+						await ensureInventoryItem(canon, v.unit || 'g');
+						const [row] = await sql`INSERT INTO inventory_movements (ingredient, kind, qty, note, actor_name, metadata) VALUES (${canon}, ${'produccion'}, ${-Math.abs(v.qty || 0)}, ${'Producción aprobada'}, ${actor}, ${JSON.stringify({ counts: c })}::jsonb) RETURNING *`;
+						out.push({ ingredient: canon, unit: v.unit || 'g', qty: v.qty || 0, movement_id: row?.id });
 					}
 					return json({ ok: true, movements: out });
 				}

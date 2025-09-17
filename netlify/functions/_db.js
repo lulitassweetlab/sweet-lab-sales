@@ -289,6 +289,7 @@ export function canonicalizeIngredientName(name) {
 	if (!raw) return raw;
 	if (low.includes('nutella')) return 'Nutella';
 	if (low.startsWith('agua')) return 'Agua';
+	if (low.includes('oreo')) return 'Oreo';
 	return raw;
 }
 
