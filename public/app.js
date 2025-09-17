@@ -2169,11 +2169,11 @@ function buildItemRow(stepId, item) {
 	tr.dataset.position = String(item.position || 0);
 	const tdN = document.createElement('td'); const inN = document.createElement('input'); inN.type = 'text'; inN.value = item.ingredient; tdN.appendChild(inN);
 	const tdQ = document.createElement('td'); const inQ = document.createElement('input'); inQ.type = 'number'; inQ.step = '0.01'; inQ.value = String(item.qty_per_unit || 0); tdQ.appendChild(inQ);
-	const tdAdj = document.createElement('td'); const inAdj = document.createElement('input'); inAdj.type = 'number'; inAdj.step = '0.01'; inAdj.value = String(item.ajuste ?? item.one_time_adjust ?? item.adjust_once ?? 0); tdAdj.appendChild(inAdj);
+	const tdAdj = document.createElement('td'); const inAdj = document.createElement('input'); inAdj.type = 'number'; inAdj.step = '0.01'; inAdj.value = String(item.adjust_once ?? item.one_time_adjust ?? item.ajuste ?? 0); tdAdj.appendChild(inAdj);
 	const tdA = document.createElement('td'); const handle = document.createElement('span'); handle.className = 'drag-handle'; handle.textContent = '↕'; const del = document.createElement('button'); del.className = 'press-btn'; del.textContent = '×'; tdA.append(handle, del);
 	tr.append(tdN, tdQ, tdAdj, tdA);
 	async function save() {
-		try { await api('POST', API.Recipes, { kind: 'item.upsert', id: item.id, recipe_id: stepId, ingredient: inN.value, unit: item.unit || 'g', qty_per_unit: Number(inQ.value || 0) || 0, ajuste: Number(inAdj.value || 0) || 0, position: item.position || 0 }); }
+		try { await api('POST', API.Recipes, { kind: 'item.upsert', id: item.id, recipe_id: stepId, ingredient: inN.value, unit: item.unit || 'g', qty_per_unit: Number(inQ.value || 0) || 0, adjust_once: Number(inAdj.value || 0) || 0, one_time_adjust: Number(inAdj.value || 0) || 0, ajuste: Number(inAdj.value || 0) || 0, position: item.position || 0 }); }
 		catch { notify.error('No se pudo guardar'); }
 	}
 	[inN, inQ, inAdj].forEach(el => { el.addEventListener('change', save); el.addEventListener('blur', save); });
@@ -2223,7 +2223,7 @@ async function persistItemsOrder(tbody, stepId) {
 		const name = tr.querySelector('td:nth-child(1) input')?.value || '';
 		const qty = Number(tr.querySelector('td:nth-child(2) input')?.value || 0) || 0;
 		const adj = Number(tr.querySelector('td:nth-child(3) input')?.value || 0) || 0;
-		try { await api('POST', API.Recipes, { kind: 'item.upsert', id, recipe_id: stepId, ingredient: name, unit: 'g', qty_per_unit: qty, ajuste: adj, position: pos }); } catch {}
+		try { await api('POST', API.Recipes, { kind: 'item.upsert', id, recipe_id: stepId, ingredient: name, unit: 'g', qty_per_unit: qty, adjust_once: adj, one_time_adjust: adj, ajuste: adj, position: pos }); } catch {}
 		pos++;
 	}
 }
