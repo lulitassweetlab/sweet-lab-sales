@@ -1970,15 +1970,14 @@ async function renderInventoryView() {
 	// Table
 	const table = document.createElement('table'); table.className = 'clients-table';
 	const thead = document.createElement('thead'); const hr = document.createElement('tr');
-	['Ingrediente','Unidad','Saldo',''].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
+	['Ingrediente','Saldo',''].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
 	thead.appendChild(hr); const tbody = document.createElement('tbody');
 	for (const it of (items || [])) {
 		const tr = document.createElement('tr');
 		const tdN = document.createElement('td'); tdN.textContent = it.ingredient;
-		const tdU = document.createElement('td'); tdU.textContent = it.unit || 'g';
 		const tdS = document.createElement('td'); tdS.textContent = String(Number(it.saldo || 0)); tdS.style.textAlign = 'right';
 		const tdA = document.createElement('td'); const histBtn = document.createElement('button'); histBtn.className = 'press-btn'; histBtn.textContent = 'Historial'; tdA.appendChild(histBtn);
-		tr.append(tdN, tdU, tdS, tdA); tbody.appendChild(tr);
+		tr.append(tdN, tdS, tdA); tbody.appendChild(tr);
 		histBtn.addEventListener('click', async () => { openInventoryHistoryDialog(it.ingredient); });
 	}
 	table.append(thead, tbody); root.appendChild(table);
