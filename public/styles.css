@@ -786,11 +786,14 @@ tfoot td { font-weight: 700; }
 .dessert-header { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 12px; }
 .dessert-header h3 { margin: 0; font-size: 22px; letter-spacing: -0.01em; text-align: center; }
 .dessert-header .press-btn { margin-left: auto; }
+.dessert-card.dragging { opacity: 0.6; }
 .steps-list { display: flex; flex-direction: column; gap: 10px; }
 .step-card { border: 1px solid var(--border); border-radius: 10px; padding: 10px; background: var(--secondary); }
+.step-card.dragging { opacity: 0.6; }
 .step-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
 .items-table { width: 100%; border-collapse: collapse; }
 .items-table th, .items-table td { border-bottom: 1px solid var(--border); padding: 6px 8px; text-align: left; }
+.items-table tr.dragging { opacity: 0.6; }
 .items-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
 .extras-card { border: 1px dashed var(--border); border-radius: 12px; padding: 12px; background: var(--card); }
 

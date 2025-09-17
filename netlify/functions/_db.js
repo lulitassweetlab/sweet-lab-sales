@@ -175,6 +175,12 @@ export async function ensureSchema() {
 		created_at TIMESTAMPTZ DEFAULT now(),
 		updated_at TIMESTAMPTZ DEFAULT now()
 	)`;
+	// Optional: explicit dessert ordering table
+	await sql`CREATE TABLE IF NOT EXISTS dessert_order (
+		dessert TEXT PRIMARY KEY,
+		position INTEGER NOT NULL DEFAULT 0,
+		updated_at TIMESTAMPTZ DEFAULT now()
+	)`;
 	await sql`CREATE TABLE IF NOT EXISTS dessert_recipe_items (
 		id SERIAL PRIMARY KEY,
 		recipe_id INTEGER NOT NULL REFERENCES dessert_recipes(id) ON DELETE CASCADE,

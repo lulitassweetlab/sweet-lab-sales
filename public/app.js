@@ -1931,6 +1931,22 @@ async function renderIngredientsView() {
 		const card = await buildDessertCard(name);
 		grid.appendChild(card);
 	}
+	// Enable drag & drop reordering of dessert cards at grid level
+	grid.addEventListener('dragover', (e) => {
+		e.preventDefault();
+		const dragging = grid.querySelector('.dessert-card.dragging');
+		if (!dragging) return;
+		const after = (() => {
+			const els = [...grid.querySelectorAll('.dessert-card:not(.dragging)')];
+			return els.reduce((closest, child) => {
+				const rect = child.getBoundingClientRect();
+				const offset = e.clientY - rect.top - rect.height / 2;
+				if (offset < 0 && offset > closest.offset) return { offset, element: child };
+				else return closest;
+			}, { offset: Number.NEGATIVE_INFINITY, element: null }).element;
+		})();
+		if (after == null) grid.appendChild(dragging); else grid.insertBefore(dragging, after);
+	});
 	root.appendChild(grid);
 	// Top actions
 	const addDessertBtn = document.getElementById('ingredients-add-dessert');
@@ -2140,8 +2156,9 @@ async function buildDessertCard(dessertName) {
 	const card = document.createElement('div'); card.className = 'dessert-card';
 	const head = document.createElement('div'); head.className = 'dessert-header';
 	const title = document.createElement('h3'); title.textContent = dessertName;
-	const addStep = document.createElement('button'); addStep.className = 'press-btn'; addStep.textContent = '+ Paso';
-	head.append(title, addStep);
+	const addStep = document.createElement('button'); addStep.className = 'press-btn'; addStep.textContent = 'Agregar paso';
+	const delDessert = document.createElement('button'); delDessert.className = 'press-btn'; delDessert.textContent = 'Eliminar postre';
+	head.append(title, addStep, delDessert);
 	const steps = document.createElement('div'); steps.className = 'steps-list';
 	for (const s of (data.steps || [])) steps.appendChild(buildStepCard(dessertName, s));
 	addStep.addEventListener('click', async () => {
@@ -2149,7 +2166,38 @@ async function buildDessertCard(dessertName) {
 		await api('POST', API.Recipes, { kind: 'step.upsert', dessert: dessertName, step_name: name || null, position: (data.steps?.length || 0) + 1 });
 		const fresh = await buildDessertCard(dessertName); card.replaceWith(fresh);
 	});
+	// Enable drag & drop for dessert cards
+	card.draggable = true;
+	card.addEventListener('dragstart', () => { card.classList.add('dragging'); });
+	card.addEventListener('dragend', async () => {
+		card.classList.remove('dragging');
+		const grid = card.parentElement;
+		if (!grid) return;
+		const names = Array.from(grid.querySelectorAll('.dessert-card h3')).map(h => (h.textContent || '').toString());
+		try { await api('POST', API.Recipes, { kind: 'dessert.order', names }); } catch {}
+	});
+	// Step-level DnD container
+	steps.addEventListener('dragover', (e) => {
+		e.preventDefault();
+		const dragging = steps.querySelector('.step-card.dragging');
+		if (!dragging) return;
+		const after = (() => {
+			const els = [...steps.querySelectorAll('.step-card:not(.dragging)')];
+			return els.reduce((closest, child) => {
+				const rect = child.getBoundingClientRect();
+				const offset = e.clientY - rect.top - rect.height / 2;
+				if (offset < 0 && offset > closest.offset) return { offset, element: child };
+				else return closest;
+			}, { offset: Number.NEGATIVE_INFINITY, element: null }).element;
+		})();
+		if (after == null) steps.appendChild(dragging); else steps.insertBefore(dragging, after);
+	});
 	card.append(head, steps);
+	delDessert.addEventListener('click', async () => {
+		const ok = confirm(`¿Eliminar el postre "${dessertName}" y todas sus recetas?`); if (!ok) return;
+		try { await api('DELETE', `${API.Recipes}?kind=dessert&dessert=${encodeURIComponent(dessertName)}`); } catch {}
+		await renderIngredientsView();
+	});
 	return card;
 }
 
@@ -2170,6 +2218,20 @@ function buildStepCard(dessertName, step) {
 	for (const it of (step.items || [])) tbody.appendChild(buildItemRow(step.id, it));
 	table.append(thead, tbody);
 	box.append(head, table);
+	// Enable drag & drop for steps
+	box.draggable = true;
+	box.addEventListener('dragstart', () => { box.classList.add('dragging'); });
+	box.addEventListener('dragend', async () => {
+		box.classList.remove('dragging');
+		const list = box.parentElement;
+		if (!list) return;
+		const ids = Array.from(list.querySelectorAll('.step-card'))
+			.map(sc => sc.querySelector('tbody tr input') ? null : null);
+		// Build ids from current dessertName data DOM by attaching data-id on creation
+		const stepIds = Array.from(list.querySelectorAll('.step-card')).map(el => Number(el.getAttribute('data-step-id')||'0')||0).filter(Boolean);
+		if (!stepIds.length) return;
+		try { await api('POST', API.Recipes, { kind: 'step.reorder', ids: stepIds }); } catch {}
+	});
 	add.addEventListener('click', async () => {
 		const ing = (prompt('Ingrediente:') || '').trim(); if (!ing) return;
 		const unit = (prompt('Unidad (g, ml, unidad):') || 'g').trim();
@@ -2182,6 +2244,24 @@ function buildStepCard(dessertName, step) {
 		await api('DELETE', `${API.Recipes}?kind=step&id=${encodeURIComponent(step.id)}`);
 		box.remove();
 	});
+	// Mark data-step-id to persist ordering
+	box.setAttribute('data-step-id', String(step.id));
+	// Ingredients rows drag & drop
+	tbody.addEventListener('dragover', (e) => {
+		e.preventDefault();
+		const dragging = tbody.querySelector('tr.dragging');
+		if (!dragging) return;
+		const after = (() => {
+			const els = [...tbody.querySelectorAll('tr:not(.dragging)')];
+			return els.reduce((closest, child) => {
+				const rect = child.getBoundingClientRect();
+				const offset = e.clientY - rect.top - rect.height / 2;
+				if (offset < 0 && offset > closest.offset) return { offset, element: child };
+				else return closest;
+			}, { offset: Number.NEGATIVE_INFINITY, element: null }).element;
+		})();
+		if (after == null) tbody.appendChild(dragging); else tbody.insertBefore(dragging, after);
+	});
 	return box;
 }
 
@@ -2192,12 +2272,25 @@ function buildItemRow(stepId, item) {
 	const tdQ = document.createElement('td'); const inQ = document.createElement('input'); inQ.type = 'number'; inQ.step = '0.01'; inQ.value = String(item.qty_per_unit || 0); tdQ.appendChild(inQ);
 	const tdA = document.createElement('td'); const del = document.createElement('button'); del.className = 'press-btn'; del.textContent = '×'; tdA.appendChild(del);
 	tr.append(tdN, tdU, tdQ, tdA);
+	// DnD for ingredient rows
+	tr.draggable = true;
+	tr.addEventListener('dragstart', () => { tr.classList.add('dragging'); });
+	tr.addEventListener('dragend', async () => {
+		tr.classList.remove('dragging');
+		const tbody = tr.parentElement;
+		if (!tbody) return;
+		const ids = Array.from(tbody.querySelectorAll('tr')).map(r => Number(r.getAttribute('data-item-id')||'0')||0).filter(Boolean);
+		if (!ids.length) return;
+		try { await api('POST', API.Recipes, { kind: 'item.reorder', ids }); } catch {}
+	});
 	async function save() {
 		try { await api('POST', API.Recipes, { kind: 'item.upsert', id: item.id, recipe_id: stepId, ingredient: inN.value, unit: inU.value || 'g', qty_per_unit: Number(inQ.value || 0) || 0, position: item.position || 0 }); }
 		catch { notify.error('No se pudo guardar'); }
 	}
 	[inN, inU, inQ].forEach(el => { el.addEventListener('change', save); el.addEventListener('blur', save); });
 	del.addEventListener('click', async () => { await api('DELETE', `${API.Recipes}?kind=item&id=${encodeURIComponent(item.id)}`); tr.remove(); });
+	// persist id on row
+	tr.setAttribute('data-item-id', String(item.id));
 	return tr;
 }
 
