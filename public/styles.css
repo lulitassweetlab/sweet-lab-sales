@@ -779,6 +779,21 @@ tfoot td { font-weight: 700; }
 .sales-panel .panel-header .panel-actions { display: inline-flex; gap: 8px; align-items: center; }
 .sales-panel .panel-body { padding: 16px 12px 0; }
 
+/* Ingredients full-screen view */
+#view-ingredients .sales-panel { margin-top: 16px; }
+.ingredients-grid { display: grid; grid-template-columns: 1fr; gap: 24px; }
+.dessert-card { border: 1px solid var(--border); border-radius: 16px; padding: 16px; background: var(--card); }
+.dessert-header { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 12px; }
+.dessert-header h3 { margin: 0; font-size: 22px; letter-spacing: -0.01em; text-align: center; }
+.dessert-header .press-btn { margin-left: auto; }
+.steps-list { display: flex; flex-direction: column; gap: 10px; }
+.step-card { border: 1px solid var(--border); border-radius: 10px; padding: 10px; background: var(--secondary); }
+.step-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.items-table { width: 100%; border-collapse: collapse; }
+.items-table th, .items-table td { border-bottom: 1px solid var(--border); padding: 6px 8px; text-align: left; }
+.items-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
+.extras-card { border: 1px dashed var(--border); border-radius: 12px; padding: 12px; background: var(--card); }
+
 /* Custom date popover */
 .date-popover {
 	background: var(--card);
@@ -865,6 +880,19 @@ tfoot td { font-weight: 700; }
 	background-color: var(--hover-primary-pink-intense);
 	box-shadow: 0 4px 12px var(--hover-shadow-pink);
 }
+.materials-menu .history-list { display: flex; flex-direction: column; gap: 8px; }
+.materials-menu .press-btn { width: 100%; justify-content: center; }
+.ingredients-popover { background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.24); padding: 12px; min-width: 320px; max-width: 95vw; }
+.ingredients-popover h4 { margin: 0 0 8px 0; }
+.ingredients-list { max-height: 360px; overflow: auto; margin-top: 8px; border-top: 1px solid var(--border); }
+.ingredients-row { display: grid; grid-template-columns: 1.2fr .6fr repeat(5, .7fr) auto; gap: 6px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.ingredients-row input { width: 100%; }
+.ingredients-header { font-weight: 600; position: sticky; top: 0; background: inherit; padding: 6px 0; z-index: 1; }
+.ingredients-actions { display: flex; justify-content: space-between; gap: 8px; margin-top: 10px; }
+.materials-report { min-width: 320px; }
+.materials-report table { width: 100%; border-collapse: collapse; }
+.materials-report th, .materials-report td { border-bottom: 1px solid var(--border); padding: 6px 8px; text-align: left; }
+.materials-report tfoot td { font-weight: 600; }
 @media (max-width: 600px) {
 	/* Deja el rebote nativo del body (suave) */
 	html, body { overscroll-behavior-y: auto; touch-action: pan-y; }

@@ -183,7 +183,9 @@ function renderClientDetailTable(rows) {
 const API = {
 	Sellers: '/api/sellers',
 	Sales: '/api/sales',
-	Users: '/api/users'
+	Users: '/api/users',
+	Materials: '/api/materials',
+	Recipes: '/api/recipes'
 };
 
 const PRICES = {
@@ -650,6 +652,8 @@ function applyAuthVisibility() {
 	if (usersBtn) usersBtn.style.display = isSuper ? 'inline-block' : 'none';
 	const carteraBtn = document.getElementById('cartera-button');
 	if (carteraBtn) carteraBtn.style.display = isSuper ? 'inline-block' : 'none';
+	const materialsBtn = document.getElementById('materials-button');
+	if (materialsBtn) materialsBtn.style.display = isSuper ? 'inline-block' : 'none';
 }
 
 function calcRowTotal(q) {
@@ -1546,6 +1550,7 @@ async function exportCarteraExcel(startIso, endIso) {
 	const reportBtn = document.getElementById('report-button');
 	const transfersBtn = document.getElementById('transfers-button');
 	const usersBtn = document.getElementById('users-button');
+	const materialsBtn = document.getElementById('materials-button');
 	const carteraBtn = document.getElementById('cartera-button');
 	const input = document.getElementById('report-date');
 	if (!reportBtn || !input) return;
@@ -1579,6 +1584,11 @@ async function exportCarteraExcel(startIso, endIso) {
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 		if (!isSuper) { notify.error('Solo el superadministrador'); return; }
 		openUsersMenu(ev.clientX, ev.clientY);
+	});
+	materialsBtn?.addEventListener('click', async (ev) => {
+		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+		if (!isSuper) { notify.error('Solo el superadministrador'); return; }
+		openMaterialsMenu(ev.clientX, ev.clientY);
 	});
 })();
 
@@ -1653,6 +1663,39 @@ function openUsersMenu(anchorX, anchorY) {
 	// Removed Assign Icons
 }
 
+function openMaterialsMenu(anchorX, anchorY) {
+	const pop = document.createElement('div');
+	pop.className = 'confirm-popover materials-menu';
+	pop.style.position = 'fixed';
+	const baseX = (typeof anchorX === 'number') ? anchorX : (window.innerWidth / 2);
+	const baseY = (typeof anchorY === 'number') ? anchorY : (window.innerHeight / 2);
+	pop.style.left = baseX + 'px';
+	pop.style.top = '-9999px';
+	pop.style.transform = 'translate(-50%, 0)';
+	pop.style.zIndex = '1000';
+	const list = document.createElement('div'); list.className = 'history-list';
+	const b1 = document.createElement('button'); b1.className = 'press-btn'; b1.textContent = 'Ingredientes';
+	const b2 = document.createElement('button'); b2.className = 'press-btn'; b2.textContent = 'Necesarios';
+	list.appendChild(b1); list.appendChild(b2);
+	pop.append(list);
+	document.body.appendChild(pop);
+
+	const rect = pop.getBoundingClientRect();
+	const popHeight = rect.height;
+	const desiredBottomY = baseY;
+	let topY = desiredBottomY - popHeight;
+	const minTop = 8;
+	if (topY < minTop) topY = minTop;
+	pop.style.top = topY + 'px';
+	pop.classList.add('aladdin-pop');
+	function cleanup(){ document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); if (pop.parentNode) pop.parentNode.removeChild(pop); }
+	function outside(ev){ if (!pop.contains(ev.target)) cleanup(); }
+	setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
+
+	b1.addEventListener('click', async () => { cleanup(); openIngredientsView(); });
+	b2.addEventListener('click', async () => { cleanup(); openMaterialsNeededFlow(baseX, desiredBottomY); });
+}
+
 // Removed openAssignIconsDialog
 
 async function exportUsersExcel() {
@@ -1703,6 +1746,295 @@ function bindEvents() {
 	// (botón de reporte eliminado)
 
 	document.getElementById('export-excel')?.addEventListener('click', exportTableToExcel);
+
+	const backIngredients = document.getElementById('ingredients-back');
+	backIngredients?.addEventListener('click', () => {
+		switchView('#view-select-seller');
+	});
+}
+
+function openIngredientsManager(anchorX, anchorY) {
+	const pop = document.createElement('div');
+	pop.className = 'ingredients-popover';
+	pop.style.position = 'fixed';
+	pop.style.left = (typeof anchorX === 'number' ? anchorX : window.innerWidth / 2) + 'px';
+	pop.style.top = (typeof anchorY === 'number' ? anchorY : window.innerHeight / 2) + 'px';
+	pop.style.transform = 'translate(-50%, 0)';
+	const title = document.createElement('h4'); title.textContent = 'Ingredientes por sabor (por 1 unidad)';
+	const header = document.createElement('div'); header.className = 'ingredients-row ingredients-header';
+	['Ingrediente','Unidad','Arco','Melo','Mara','Oreo','Nute',''].forEach(t => { const d = document.createElement('div'); d.textContent = t; header.appendChild(d); });
+	const list = document.createElement('div'); list.className = 'ingredients-list';
+	list.appendChild(header);
+	const actions = document.createElement('div'); actions.className = 'ingredients-actions';
+	const addBtn = document.createElement('button'); addBtn.className = 'press-btn'; addBtn.textContent = '+ Agregar';
+	const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn'; closeBtn.textContent = 'Cerrar';
+	actions.append(addBtn, closeBtn);
+	pop.append(title, list, actions);
+	document.body.appendChild(pop);
+	pop.classList.add('aladdin-pop');
+	function cleanup(){ document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); if (pop.parentNode) pop.parentNode.removeChild(pop); }
+	function outside(ev){ if (!pop.contains(ev.target)) cleanup(); }
+	setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
+	closeBtn.addEventListener('click', cleanup);
+
+	async function loadRows() {
+		list.querySelectorAll('.ingredients-row.item')?.forEach(n => n.remove());
+		let rows = [];
+		try { rows = await api('GET', API.Materials); } catch { rows = []; }
+		for (const r of (rows || [])) {
+			appendRow(r);
+		}
+	}
+
+	function appendRow(r) {
+		const row = document.createElement('div'); row.className = 'ingredients-row item';
+		const inName = document.createElement('input'); inName.type = 'text'; inName.value = r?.ingredient || '';
+		const inUnit = document.createElement('input'); inUnit.type = 'text'; inUnit.value = r?.unit || 'g'; inUnit.style.width = '64px';
+		const inArco = document.createElement('input'); inArco.type = 'number'; inArco.step = '0.01'; inArco.value = String(r?.per_arco ?? 0);
+		const inMelo = document.createElement('input'); inMelo.type = 'number'; inMelo.step = '0.01'; inMelo.value = String(r?.per_melo ?? 0);
+		const inMara = document.createElement('input'); inMara.type = 'number'; inMara.step = '0.01'; inMara.value = String(r?.per_mara ?? 0);
+		const inOreo = document.createElement('input'); inOreo.type = 'number'; inOreo.step = '0.01'; inOreo.value = String(r?.per_oreo ?? 0);
+		const inNute = document.createElement('input'); inNute.type = 'number'; inNute.step = '0.01'; inNute.value = String(r?.per_nute ?? 0);
+		const del = document.createElement('button'); del.className = 'press-btn'; del.textContent = '×';
+		row.append(inName, inUnit, inArco, inMelo, inMara, inOreo, inNute, del);
+		list.appendChild(row);
+		del.addEventListener('click', async () => {
+			const name = (inName.value || '').trim();
+			if (!name) { row.remove(); return; }
+			try { await api('DELETE', `${API.Materials}?ingredient=${encodeURIComponent(name)}`); row.remove(); }
+			catch { notify.error('No se pudo eliminar'); }
+		});
+		async function save() {
+			const payload = {
+				ingredient: (inName.value || '').trim(),
+				unit: (inUnit.value || 'g').trim() || 'g',
+				per_arco: Number(inArco.value || 0) || 0,
+				per_melo: Number(inMelo.value || 0) || 0,
+				per_mara: Number(inMara.value || 0) || 0,
+				per_oreo: Number(inOreo.value || 0) || 0,
+				per_nute: Number(inNute.value || 0) || 0,
+			};
+			if (!payload.ingredient) { notify.error('Nombre requerido'); return; }
+			try { await api('POST', API.Materials, payload); }
+			catch { notify.error('No se pudo guardar'); }
+		}
+		[inName, inUnit, inArco, inMelo, inMara, inOreo, inNute].forEach(el => {
+			el.addEventListener('change', save);
+			el.addEventListener('blur', save);
+		});
+	}
+
+	addBtn.addEventListener('click', () => appendRow({ ingredient: '', unit: 'g', per_arco: 0, per_melo: 0, per_mara: 0, per_oreo: 0, per_nute: 0 }));
+	loadRows();
+}
+
+function openMaterialsNeededFlow(anchorX, anchorY) {
+	openRangeCalendarPopover(async (range) => {
+		if (!range || !range.start || !range.end) return;
+		try {
+			const res = await api('GET', `${API.Materials}?compute_start=${encodeURIComponent(range.start)}&compute_end=${encodeURIComponent(range.end)}`);
+			// Exportar Excel directamente, sin mostrar popover
+			const rows = (res?.materials || []).map(m => ({ Ingrediente: m.ingredient, Unidad: m.unit || 'g', Cantidad: Number(m.total_needed || 0) }));
+			const ws = XLSX.utils.json_to_sheet(rows);
+			const wb = XLSX.utils.book_new();
+			XLSX.utils.book_append_sheet(wb, ws, 'Materiales');
+			const label = `${(res?.range?.start||'').replaceAll('-','')}_${(res?.range?.end||'').replaceAll('-','')}`;
+			XLSX.writeFile(wb, `Materiales_${label}.xlsx`);
+		} catch {
+			notify.error('No se pudo calcular materiales');
+		}
+	}, anchorX, anchorY, { preferUp: true });
+}
+
+function openMaterialsReport(data, anchorX, anchorY) {
+	const pop = document.createElement('div');
+	pop.className = 'confirm-popover materials-report';
+	pop.style.position = 'fixed';
+	const baseX = (typeof anchorX === 'number') ? anchorX : (window.innerWidth / 2);
+	const baseY = (typeof anchorY === 'number') ? anchorY : (window.innerHeight / 2);
+	pop.style.left = baseX + 'px';
+	pop.style.top = '-9999px';
+	pop.style.transform = 'translate(-50%, 0)';
+	const h = document.createElement('h4'); h.textContent = 'Materiales necesarios'; h.style.margin = '0 0 8px 0';
+	const small = document.createElement('div'); small.style.opacity = '0.7'; small.style.marginBottom = '8px';
+	small.textContent = `Rango: ${data?.range?.start || ''} a ${data?.range?.end || ''}`;
+	const table = document.createElement('table');
+	const thead = document.createElement('thead');
+	const trh = document.createElement('tr');
+	['Ingrediente','Unidad','Cantidad total'].forEach(t => { const th = document.createElement('th'); th.textContent = t; trh.appendChild(th); });
+	thead.appendChild(trh);
+	const tbody = document.createElement('tbody');
+	for (const m of (data?.materials || [])) {
+		const tr = document.createElement('tr');
+		const tdN = document.createElement('td'); tdN.textContent = m.ingredient;
+		const tdU = document.createElement('td'); tdU.textContent = m.unit || 'g';
+		const tdT = document.createElement('td'); tdT.textContent = String(Number(m.total_needed || 0));
+		tr.append(tdN, tdU, tdT);
+		tbody.appendChild(tr);
+	}
+	const tfoot = document.createElement('tfoot');
+	const trf = document.createElement('tr');
+	const tdL = document.createElement('td'); tdL.colSpan = 3; tdL.textContent = 'Fin del reporte';
+	trf.appendChild(tdL); tfoot.appendChild(trf);
+	table.append(thead, tbody, tfoot);
+	const actions = document.createElement('div'); actions.className = 'confirm-actions';
+	const exportBtn = document.createElement('button'); exportBtn.className = 'press-btn btn-gold'; exportBtn.textContent = 'Exportar Excel';
+	const close = document.createElement('button'); close.className = 'press-btn'; close.textContent = 'Cerrar';
+	actions.append(exportBtn, close);
+	pop.append(h, small, table, actions);
+	document.body.appendChild(pop);
+	const rect = pop.getBoundingClientRect();
+	const popHeight = rect.height; let topY = baseY - popHeight; const minTop = 8; if (topY < minTop) topY = minTop; pop.style.top = topY + 'px';
+	pop.classList.add('aladdin-pop');
+	function cleanup(){ document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); if (pop.parentNode) pop.parentNode.removeChild(pop); }
+	function outside(ev){ if (!pop.contains(ev.target)) cleanup(); }
+	setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
+	close.addEventListener('click', cleanup);
+	exportBtn.addEventListener('click', () => {
+		try {
+			const rows = (data?.materials || []).map(m => ({ Ingrediente: m.ingredient, Unidad: m.unit || 'g', Cantidad: Number(m.total_needed || 0) }));
+			const ws = XLSX.utils.json_to_sheet(rows);
+			const wb = XLSX.utils.book_new();
+			XLSX.utils.book_append_sheet(wb, ws, 'Materiales');
+			const label = `${(data?.range?.start||'').replaceAll('-','')}_${(data?.range?.end||'').replaceAll('-','')}`;
+			XLSX.writeFile(wb, `Materiales_${label}.xlsx`);
+		} catch { notify.error('No se pudo exportar'); }
+	});
+}
+
+async function openIngredientsView() {
+	switchView('#view-ingredients');
+	await renderIngredientsView();
+}
+
+async function renderIngredientsView() {
+	const root = document.getElementById('ingredients-content');
+	if (!root) return;
+	root.innerHTML = '';
+	let desserts = [];
+	try { desserts = await api('GET', API.Recipes); } catch { desserts = []; }
+	if (!desserts || desserts.length === 0) {
+		try { await api('GET', `${API.Recipes}?seed=1`); desserts = await api('GET', API.Recipes); }
+		catch {}
+	}
+	const grid = document.createElement('div'); grid.className = 'ingredients-grid';
+	for (const name of (desserts || [])) {
+		const card = await buildDessertCard(name);
+		grid.appendChild(card);
+	}
+	root.appendChild(grid);
+	// Top actions
+	const addDessertBtn = document.getElementById('ingredients-add-dessert');
+	addDessertBtn?.addEventListener('click', async () => {
+		const name = (prompt('Nombre del postre:') || '').trim(); if (!name) return;
+		await api('POST', API.Recipes, { kind: 'step.upsert', dessert: name, step_name: null, position: 0 });
+		await renderIngredientsView();
+	});
+	const extrasBtn = document.getElementById('ingredients-add-extras');
+	extrasBtn?.addEventListener('click', async () => { openExtrasEditor(); });
+}
+
+async function buildDessertCard(dessertName) {
+	const data = await api('GET', `${API.Recipes}?dessert=${encodeURIComponent(dessertName)}&include_extras=1`);
+	const card = document.createElement('div'); card.className = 'dessert-card';
+	const head = document.createElement('div'); head.className = 'dessert-header';
+	const title = document.createElement('h3'); title.textContent = dessertName;
+	const addStep = document.createElement('button'); addStep.className = 'press-btn'; addStep.textContent = '+ Paso';
+	head.append(title, addStep);
+	const steps = document.createElement('div'); steps.className = 'steps-list';
+	for (const s of (data.steps || [])) steps.appendChild(buildStepCard(dessertName, s));
+	addStep.addEventListener('click', async () => {
+		const name = prompt('Nombre del paso (o vacío para sin paso):');
+		await api('POST', API.Recipes, { kind: 'step.upsert', dessert: dessertName, step_name: name || null, position: (data.steps?.length || 0) + 1 });
+		const fresh = await buildDessertCard(dessertName); card.replaceWith(fresh);
+	});
+	card.append(head, steps);
+	return card;
+}
+
+function buildStepCard(dessertName, step) {
+	const box = document.createElement('div'); box.className = 'step-card';
+	const head = document.createElement('div'); head.className = 'step-header';
+	const label = document.createElement('div'); label.textContent = step.step_name || 'Sin nombre';
+	const actions = document.createElement('div'); actions.className = 'items-actions';
+	const add = document.createElement('button'); add.className = 'press-btn'; add.textContent = '+ Ingrediente';
+	const del = document.createElement('button'); del.className = 'press-btn'; del.textContent = 'Eliminar paso';
+	actions.append(add, del);
+	head.append(label, actions);
+	const table = document.createElement('table'); table.className = 'items-table';
+	const thead = document.createElement('thead'); const hr = document.createElement('tr');
+	['Ingrediente','Unidad','Cantidad por unidad',''].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
+	thead.appendChild(hr);
+	const tbody = document.createElement('tbody');
+	for (const it of (step.items || [])) tbody.appendChild(buildItemRow(step.id, it));
+	table.append(thead, tbody);
+	box.append(head, table);
+	add.addEventListener('click', async () => {
+		const ing = (prompt('Ingrediente:') || '').trim(); if (!ing) return;
+		const unit = (prompt('Unidad (g, ml, unidad):') || 'g').trim();
+		const qty = Number(prompt('Cantidad por unidad:') || '0') || 0;
+		const row = await api('POST', API.Recipes, { kind: 'item.upsert', recipe_id: step.id, ingredient: ing, unit, qty_per_unit: qty, position: (step.items?.length||0)+1 });
+		tbody.appendChild(buildItemRow(step.id, row));
+	});
+	del.addEventListener('click', async () => {
+		const ok = confirm('¿Eliminar este paso y sus ingredientes?'); if (!ok) return;
+		await api('DELETE', `${API.Recipes}?kind=step&id=${encodeURIComponent(step.id)}`);
+		box.remove();
+	});
+	return box;
+}
+
+function buildItemRow(stepId, item) {
+	const tr = document.createElement('tr');
+	const tdN = document.createElement('td'); const inN = document.createElement('input'); inN.type = 'text'; inN.value = item.ingredient; tdN.appendChild(inN);
+	const tdU = document.createElement('td'); const inU = document.createElement('input'); inU.type = 'text'; inU.value = item.unit || 'g'; inU.style.width = '70px'; tdU.appendChild(inU);
+	const tdQ = document.createElement('td'); const inQ = document.createElement('input'); inQ.type = 'number'; inQ.step = '0.01'; inQ.value = String(item.qty_per_unit || 0); tdQ.appendChild(inQ);
+	const tdA = document.createElement('td'); const del = document.createElement('button'); del.className = 'press-btn'; del.textContent = '×'; tdA.appendChild(del);
+	tr.append(tdN, tdU, tdQ, tdA);
+	async function save() {
+		try { await api('POST', API.Recipes, { kind: 'item.upsert', id: item.id, recipe_id: stepId, ingredient: inN.value, unit: inU.value || 'g', qty_per_unit: Number(inQ.value || 0) || 0, position: item.position || 0 }); }
+		catch { notify.error('No se pudo guardar'); }
+	}
+	[inN, inU, inQ].forEach(el => { el.addEventListener('change', save); el.addEventListener('blur', save); });
+	del.addEventListener('click', async () => { await api('DELETE', `${API.Recipes}?kind=item&id=${encodeURIComponent(item.id)}`); tr.remove(); });
+	return tr;
+}
+
+async function openExtrasEditor() {
+	const data = await api('GET', `${API.Recipes}?dessert=${encodeURIComponent('dummy')}&include_extras=1`);
+	const extras = Array.isArray(data?.extras) ? data.extras : [];
+	const pop = document.createElement('div'); pop.className = 'confirm-popover'; pop.style.position = 'fixed';
+	pop.style.left = (window.innerWidth/2) + 'px'; pop.style.top = '12%'; pop.style.transform = 'translate(-50%, 0)';
+	const title = document.createElement('h4'); title.textContent = 'Extras por unidad'; title.style.margin = '0 0 8px 0';
+	const table = document.createElement('table'); table.className = 'items-table';
+	const thead = document.createElement('thead'); const hr = document.createElement('tr');
+	['Ingrediente','Unidad','Cantidad',''].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); }); thead.appendChild(hr);
+	const tbody = document.createElement('tbody');
+	for (const it of extras) tbody.appendChild(buildExtrasRow(it, tbody));
+	const tfoot = document.createElement('tfoot'); const fr = document.createElement('tr'); const td = document.createElement('td'); td.colSpan = 4; const add = document.createElement('button'); add.className = 'press-btn'; add.textContent = '+ Extra'; td.appendChild(add); fr.appendChild(td); tfoot.appendChild(fr);
+	const actions = document.createElement('div'); actions.className = 'confirm-actions'; const close = document.createElement('button'); close.className = 'press-btn'; close.textContent = 'Cerrar'; actions.appendChild(close);
+	add.addEventListener('click', async () => {
+		const ing = (prompt('Ingrediente:') || '').trim(); if (!ing) return;
+		const unit = (prompt('Unidad (g, ml, unidad):') || 'unidad').trim();
+		const qty = Number(prompt('Cantidad por unidad:') || '1') || 0;
+		const row = await api('POST', API.Recipes, { kind: 'extras.upsert', ingredient: ing, unit, qty_per_unit: qty, position: (extras.length||0)+1 });
+		tbody.appendChild(buildExtrasRow(row, tbody));
+	});
+	close.addEventListener('click', () => { if (pop.parentNode) pop.parentNode.removeChild(pop); });
+	pop.append(title, table, actions); table.append(thead, tbody, tfoot); document.body.appendChild(pop); pop.classList.add('aladdin-pop');
+}
+
+function buildExtrasRow(item, tbody) {
+	const tr = document.createElement('tr');
+	const tdN = document.createElement('td'); const inN = document.createElement('input'); inN.type = 'text'; inN.value = item.ingredient; tdN.appendChild(inN);
+	const tdU = document.createElement('td'); const inU = document.createElement('input'); inU.type = 'text'; inU.value = item.unit || 'unidad'; inU.style.width = '70px'; tdU.appendChild(inU);
+	const tdQ = document.createElement('td'); const inQ = document.createElement('input'); inQ.type = 'number'; inQ.step = '0.01'; inQ.value = String(item.qty_per_unit || 0); tdQ.appendChild(inQ);
+	const tdA = document.createElement('td'); const del = document.createElement('button'); del.className = 'press-btn'; del.textContent = '×'; tdA.appendChild(del);
+	tr.append(tdN, tdU, tdQ, tdA);
+	async function save() { try { await api('POST', API.Recipes, { kind: 'extras.upsert', id: item.id, ingredient: inN.value, unit: inU.value || 'unidad', qty_per_unit: Number(inQ.value || 0) || 0, position: item.position || 0 }); } catch { notify.error('No se pudo guardar'); } }
+	[inN, inU, inQ].forEach(el => { el.addEventListener('change', save); el.addEventListener('blur', save); });
+	del.addEventListener('click', async () => { await api('DELETE', `${API.Recipes}?kind=extras&id=${encodeURIComponent(item.id)}`); if (tr.parentNode === tbody) tbody.removeChild(tr); });
+	return tr;
 }
 
 async function buildRestoreReport() {
