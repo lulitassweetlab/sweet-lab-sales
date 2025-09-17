@@ -175,7 +175,7 @@ function renderClientDetailTable(rows) {
 		const total = calcRowTotal({ arco: r.qty_arco, melo: r.qty_melo, mara: r.qty_mara, oreo: r.qty_oreo, nute: r.qty_nute });
 		const tdTot = document.createElement('td'); tdTot.textContent = fmtNo.format(total);
 		tr.append(tdPay, tdDate, tdAr, tdMe, tdMa, tdOr, tdNu, tdTot);
-		tr.addEventListener('mousedown', () => { tr.classList.add('row-highlight'); setTimeout(() => tr.classList.remove('row-highlight'), 5200); });
+		tr.addEventListener('mousedown', () => { tr.classList.add('row-highlight'); setTimeout(() => tr.classList.remove('row-highlight'), 3200); });
 		tbody.appendChild(tr);
 	}
 }
@@ -2864,7 +2864,7 @@ function renderClientsTable(rows) {
 		// No marker in clients list per request
 		const tdC = document.createElement('td'); tdC.textContent = String(r.count); tdC.style.textAlign = 'center';
 		tr.append(tdN, tdC);
-		tr.addEventListener('mousedown', () => { tr.classList.add('row-highlight'); setTimeout(() => tr.classList.remove('row-highlight'), 5200); });
+		tr.addEventListener('mousedown', () => { tr.classList.add('row-highlight'); setTimeout(() => tr.classList.remove('row-highlight'), 3200); });
 		tr.addEventListener('click', async () => { await openClientDetailView(r.name); });
 		tbody.appendChild(tr);
 	}
@@ -2888,7 +2888,7 @@ function focusClientRow(name) {
 		if (!targetTr) { try { notify.info('Cliente no encontrado en esta fecha'); } catch {} return; }
 		targetTr.scrollIntoView({ behavior: 'smooth', block: 'center' });
 		targetTr.classList.add('row-highlight');
-		setTimeout(() => targetTr.classList.remove('row-highlight'), 5200);
+		setTimeout(() => targetTr.classList.remove('row-highlight'), 3200);
 	} catch {}
 }
 
@@ -2901,7 +2901,7 @@ function focusSaleRowById(saleId) {
 		if (!tr) return false;
 		tr.scrollIntoView({ behavior: 'smooth', block: 'center' });
 		tr.classList.add('row-highlight');
-		setTimeout(() => tr.classList.remove('row-highlight'), 5200);
+		setTimeout(() => tr.classList.remove('row-highlight'), 3200);
 		return true;
 	} catch { return false; }
 }
