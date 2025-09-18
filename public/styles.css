@@ -186,10 +186,12 @@
 /* Dark: ensure pay icons visible while keeping bill green */
 [data-theme="dark"] .col-paid .pay-wrap.method-efectivo { filter: none; }
 [data-theme="dark"] .col-paid .pay-wrap.method-transf { filter: brightness(1.3) contrast(1.1); }
+[data-theme="dark"] .col-paid .pay-wrap.method-entregado { filter: none; }
 [data-theme="dark"] .col-paid .pay-wrap.method-jorgebank { filter: brightness(1.2) contrast(1.1); }
 [data-theme="dark"] .pay-menu-item.menu-efectivo { filter: none; }
 [data-theme="dark"] .pay-menu-item.menu-transf { filter: brightness(1.3) contrast(1.1); }
 [data-theme="dark"] .pay-menu-item.menu-jorgebank { filter: brightness(1.2) contrast(1.1); }
+[data-theme="dark"] .pay-menu-item.menu-entregado { filter: none; }
 
 /* Theme toggle icon-only, larger, strong hover */
 .theme-toggle { width: 32px; height: 32px; border: none; background: transparent; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
@@ -695,6 +697,7 @@ tfoot td { font-weight: 700; }
 /* Pay method icon styling via classes */
 .pay-select.method-efectivo { background-image: none; }
 .pay-select.method-transf { background-image: none; }
+.pay-select.method-entregado { background-image: none; }
 
 /* Icons via pseudo-element */
 .col-paid .pay-select.method-efectivo::after {
@@ -711,11 +714,17 @@ tfoot td { font-weight: 700; }
 	-webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2l9 6H3l9-6zM5 10h14v10H5V10z"/></svg>') no-repeat center / contain;
 	mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2l9 6H3l9-6zM5 10h14v10H5V10z"/></svg>') no-repeat center / contain;
 }
+.col-paid .pay-select.method-entregado::after {
+	content: '';
+	position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+	width: 12px; height: 12px; background-color: #ff4da6; border-radius: 50%;
+}
 
 /* Hosted SVG icons for pay methods */
 .col-paid .pay-wrap { display: inline-flex; align-items: center; justify-content: center; position: relative; width: 28px; height: 22px; padding: 2px; cursor: pointer; }
 .col-paid .pay-wrap.method-efectivo::before { content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 16px; height: 12px; background: url('/icons/bill.svg') no-repeat center / contain; }
 .col-paid .pay-wrap.method-transf::before { content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 16px; height: 14px; background: url('/icons/bank.svg') no-repeat center / contain; }
+.col-paid .pay-wrap.method-entregado::before { content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 10px; height: 10px; background: #ff4da6; border-radius: 50%; }
 .col-paid .pay-wrap.method-marce::before { content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 16px; height: 12px; background: url('/icons/marce7.svg?v=1') no-repeat center / contain; }
 .col-paid .pay-wrap.method-jorge::before { content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 16px; height: 12px; background: url('/icons/jorge7.svg?v=1') no-repeat center / contain; }
 /* Jorge extra bank (yellow) */
@@ -1098,6 +1107,7 @@ tfoot td { font-weight: 700; }
 .pay-menu-item { width:22px; height:18px; border:none; background:transparent; cursor:pointer; }
 .pay-menu-item.menu-efectivo { background:url('/icons/bill.svg') no-repeat center / contain; }
 .pay-menu-item.menu-transf { background:url('/icons/bank.svg') no-repeat center / contain; }
+.pay-menu-item.menu-entregado { background: radial-gradient(circle at center, #ff9ccc 20%, #ff4da6 70%); border-radius: 50%; }
 .pay-menu-item.menu-marce { background: url('/icons/marce7.svg?v=1') no-repeat center / contain; }
 .pay-menu-item.menu-jorge { background: url('/icons/jorge7.svg?v=1') no-repeat center / contain; }
 /* Jorge extra bank menu icon (yellow) */
@@ -2203,6 +2213,7 @@ button.secondary.press-btn:active {
 .transfer-pay .col-paid .pay-wrap::before { width: 20px; height: 16px; }
 .transfer-pay .col-paid .pay-wrap.method-transf::before { width: 20px; height: 18px; }
 .transfer-pay .col-paid .pay-wrap.method-jorgebank::before { width: 20px; height: 18px; }
+.transfer-pay .col-paid .pay-wrap.method-entregado::before { width: 12px; height: 12px; }
 .transfer-pay .col-paid .pay-wrap.placeholder::before { font-size: 14px; }
 /* Dark theme adjustments for overlay chip */
 [data-theme="dark"] .transfer-pay { background: rgba(24,24,28,0.8); border-color: rgba(255,255,255,0.14); box-shadow: 0 6px 18px rgba(0,0,0,0.4); }
