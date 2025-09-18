@@ -2258,8 +2258,8 @@ async function renderTimesView() {
         display.style.minWidth = '84px';
         display.style.textAlign = 'center';
         display.style.fontVariantNumeric = 'tabular-nums';
-        const startBtn = document.createElement('button'); startBtn.className = 'press-btn'; startBtn.textContent = 'Iniciar';
-        const pauseBtn = document.createElement('button'); pauseBtn.className = 'press-btn'; pauseBtn.textContent = 'Pausar';
+        const startBtn = document.createElement('button'); startBtn.className = 'press-btn'; startBtn.textContent = '▶'; startBtn.title = 'Iniciar';
+        const pauseBtn = document.createElement('button'); pauseBtn.className = 'press-btn'; pauseBtn.textContent = '⏸'; pauseBtn.title = 'Pausar';
         const resetBtn = document.createElement('button'); resetBtn.className = 'press-btn'; resetBtn.textContent = 'Reset';
         wrap.append(display, startBtn, pauseBtn, resetBtn);
         let intervalId = null;
@@ -2311,20 +2311,18 @@ async function renderTimesView() {
 				match = recipe.steps.find(s => String(s.step_name || 'Paso').trim().toLowerCase() === stepNameKey) || null;
 			}
 			if (!match || !Array.isArray(match.items) || match.items.length === 0) { const small = document.createElement('div'); small.style.opacity = '0.7'; small.textContent = 'Sin ingredientes definidos para este paso'; ingWrap.appendChild(small); return; }
-			const table = document.createElement('table'); table.className = 'items-table';
-			const thead = document.createElement('thead'); const trh = document.createElement('tr');
-			['Ingrediente','Cantidad por unidad'].forEach(t => { const th = document.createElement('th'); th.textContent = t; trh.appendChild(th); }); thead.appendChild(trh);
+            const table = document.createElement('table'); table.className = 'items-table';
+            const thead = document.createElement('thead'); const trh = document.createElement('tr');
+            ['Ingrediente','Cantidad'].forEach(t => { const th = document.createElement('th'); th.textContent = t; trh.appendChild(th); }); thead.appendChild(trh);
 			const tbody = document.createElement('tbody');
 			for (const it of match.items) {
 				const tr = document.createElement('tr');
 				const tdN = document.createElement('td'); tdN.textContent = it.ingredient;
 				const tdQ = document.createElement('td');
-				const unit = (it.unit || '').toString();
-				const qty = Number(it.qty_per_unit || 0) || 0;
-				const adj = Number(it.adjustment || 0) || 0;
-				const parts = [fmtQty(qty) + (unit ? (' ' + unit) : '')];
-				if (adj) parts.push(`ajuste ${fmtQty(adj)}`);
-				tdQ.textContent = parts.join(' · ');
+                const qty = Number(it.qty_per_unit || 0) || 0;
+                const adj = Number(it.adjustment || 0) || 0;
+                const total = qty + adj;
+                tdQ.textContent = fmtQty(total);
 				tr.append(tdN, tdQ); tbody.appendChild(tr);
 			}
 			table.appendChild(tbody); ingWrap.appendChild(table);
