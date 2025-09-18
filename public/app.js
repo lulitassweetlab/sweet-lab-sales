@@ -2281,7 +2281,7 @@ async function renderTimesView() {
         return { element: wrap, stop: () => { if (intervalId) clearInterval(intervalId); } };
     }
 
-	function buildStep(step, dessert){
+	function buildStep(step, dessert, stepIndex){
         const box = document.createElement('div'); box.className = 'step-card';
         const head = document.createElement('div'); head.className = 'step-header';
         const name = document.createElement('input'); name.type = 'text'; name.value = step.name || 'Paso'; name.style.flex = '1'; name.style.fontWeight = '600'; name.style.border = '0'; name.style.background = 'transparent';
@@ -2289,10 +2289,12 @@ async function renderTimesView() {
         const del = document.createElement('button'); del.className = 'press-btn'; del.textContent = 'Eliminar paso';
         actions.append(del);
         head.append(name, actions);
-		const body = document.createElement('div'); body.style.display = 'flex'; body.style.justifyContent = 'space-between'; body.style.alignItems = 'center'; body.style.gap = '8px'; body.style.padding = '8px 0';
+		const body = document.createElement('div'); body.style.display = 'flex'; body.style.flexDirection = 'column'; body.style.gap = '8px'; body.style.padding = '8px 0';
         const note = document.createElement('input'); note.type = 'text'; note.placeholder = 'Nota (opcional)'; note.value = step.note || ''; note.className = 'input-cell'; note.style.flex = '1';
 		const timer = buildTimerControls(step);
-		body.append(note, timer.element);
+		const timerRow = document.createElement('div'); timerRow.style.display = 'flex'; timerRow.style.justifyContent = 'space-between'; timerRow.style.alignItems = 'center'; timerRow.style.gap = '8px';
+		timerRow.append(note, timer.element);
+		body.append(timerRow);
 		// Contenedor de ingredientes por paso
 		const ingWrap = document.createElement('div');
 		ingWrap.style.margin = '4px 0 8px 0';
@@ -2301,8 +2303,13 @@ async function renderTimesView() {
 			ingWrap.innerHTML = '';
 			const recipe = await getRecipeForDessert(dessert.name || '');
 			if (!recipe || !Array.isArray(recipe.steps)) return;
-			const stepNameKey = String(step.name || 'Paso').trim().toLowerCase();
-			const match = recipe.steps.find(s => String(s.step_name || 'Paso').trim().toLowerCase() === stepNameKey);
+			let match = null;
+			const si = Number(stepIndex || 0) || 0;
+			if (recipe.steps[si]) match = recipe.steps[si];
+			if (!match) {
+				const stepNameKey = String(step.name || 'Paso').trim().toLowerCase();
+				match = recipe.steps.find(s => String(s.step_name || 'Paso').trim().toLowerCase() === stepNameKey) || null;
+			}
 			if (!match || !Array.isArray(match.items) || match.items.length === 0) { const small = document.createElement('div'); small.style.opacity = '0.7'; small.textContent = 'Sin ingredientes definidos para este paso'; ingWrap.appendChild(small); return; }
 			const table = document.createElement('table'); table.className = 'items-table';
 			const thead = document.createElement('thead'); const trh = document.createElement('tr');
@@ -2347,7 +2354,7 @@ async function renderTimesView() {
         const actionsWrap = document.createElement('div'); actionsWrap.className = 'dessert-actions'; actionsWrap.append(rename, addStep, delDessert);
         head.append(title, actionsWrap);
         const stepsWrap = document.createElement('div'); stepsWrap.className = 'steps-list';
-        for (const s of (d.steps || [])) stepsWrap.appendChild(buildStep(s, d));
+		(d.steps || []).forEach((s, i) => stepsWrap.appendChild(buildStep(s, d, i)));
         addStep.addEventListener('click', () => { d.steps = d.steps || []; d.steps.push({ name: 'Paso', note: '', elapsedMs: 0, isRunning: false, startedAt: null }); saveAndRerender(); });
         delDessert.addEventListener('click', () => { const idx = data.indexOf(d); if (idx >= 0) { data.splice(idx, 1); saveAndRerender(); } });
 		rename.addEventListener('click', () => { const n = (prompt('Nuevo nombre:') || '').trim(); if (!n) return; d.name = n; title.textContent = n; saveAndRerender(); });
@@ -2387,12 +2394,19 @@ async function renderTimesView() {
 	const actions = document.createElement('div'); actions.className = 'confirm-actions'; actions.style.marginTop = '8px';
 	const saveBtn = document.createElement('button'); saveBtn.className = 'press-btn btn-primary'; saveBtn.textContent = 'Guardar tiempos';
 	actions.appendChild(saveBtn); root.appendChild(actions);
-	saveBtn.addEventListener('click', () => {
+	saveBtn.addEventListener('click', async () => {
 		try {
-			const hist = readTimesHistory();
-			hist.push(buildSnapshot());
-			writeTimesHistory(hist);
-			notify?.success ? notify.success('Tiempos guardados') : alert('Tiempos guardados');
+			const snapshot = buildSnapshot();
+			let saved = 0;
+			for (const d of (snapshot.desserts || [])) {
+				if (!Number(d.total_ms || 0)) continue;
+				await fetch('/api/times', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dessert: d.name || 'Postre', steps: d.steps || [], total_elapsed_ms: Number(d.total_ms||0)||0, actor_name: state.currentUser?.username || state.currentUser?.name || null }) });
+				saved++;
+			}
+			// keep local history too for quick reference
+			const hist = readTimesHistory(); hist.push(snapshot); writeTimesHistory(hist);
+			if (saved > 0) notify?.success ? notify.success(`Tiempos guardados (${saved})`) : alert(`Tiempos guardados (${saved})`);
+			else notify?.error ? notify.error('No hay tiempos para guardar') : alert('No hay tiempos para guardar');
 		} catch { try { alert('No se pudieron guardar los tiempos'); } catch {} }
 	});
 

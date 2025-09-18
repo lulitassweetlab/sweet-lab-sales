@@ -243,6 +243,15 @@ export async function ensureSchema() {
 		metadata JSONB DEFAULT '{}'::jsonb,
 		created_at TIMESTAMPTZ DEFAULT now()
 	)`;
+	// Time sessions for production timings per dessert
+	await sql`CREATE TABLE IF NOT EXISTS time_sessions (
+		id SERIAL PRIMARY KEY,
+		dessert TEXT NOT NULL,
+		steps JSONB NOT NULL,
+		total_elapsed_ms INTEGER NOT NULL DEFAULT 0,
+		actor_name TEXT,
+		created_at TIMESTAMPTZ DEFAULT now()
+	)`;
 	// Seed default users if table is empty
 	const existing = await sql`SELECT COUNT(*)::int AS c FROM users`;
 	if ((existing[0]?.c || 0) === 0) {
