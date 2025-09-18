@@ -2298,7 +2298,7 @@ async function renderTimesView() {
 		// Contenedor de ingredientes por paso
 		const ingWrap = document.createElement('div');
 		ingWrap.style.margin = '4px 0 8px 0';
-		function fmtQty(n) { try { return new Intl.NumberFormat('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(Number(n||0)); } catch { return String(n||0); } }
+		function fmtQty(n) { try { return new Intl.NumberFormat('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(Number(n||0)); } catch { return String(Number(n||0).toFixed(1)); } }
 		async function renderIngredients(){
 			ingWrap.innerHTML = '';
 			const recipe = await getRecipeForDessert(dessert.name || '');
@@ -2389,7 +2389,7 @@ async function renderTimesView() {
 	root.appendChild(grid);
 
 	// Botón para guardar snapshot de tiempos
-	const actions = document.createElement('div'); actions.className = 'confirm-actions'; actions.style.marginTop = '8px';
+	const actions = document.createElement('div'); actions.className = 'confirm-actions'; actions.style.marginTop = '12px'; actions.style.marginBottom = '16px';
 	const saveBtn = document.createElement('button'); saveBtn.className = 'press-btn btn-primary'; saveBtn.textContent = 'Guardar tiempos';
 	actions.appendChild(saveBtn); root.appendChild(actions);
 	saveBtn.addEventListener('click', async () => {
