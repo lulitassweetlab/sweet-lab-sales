@@ -2219,10 +2219,35 @@ async function renderTimesView() {
         } catch {}
     }
 
-    const grid = document.createElement('div');
-    grid.className = 'ingredients-grid';
+	const grid = document.createElement('div');
+	grid.className = 'ingredients-grid';
 
-    function saveAndRerender() { writeTimesState(data); renderTimesView(); }
+	function saveAndRerender() { writeTimesState(data); renderTimesView(); }
+
+	// Cache de recetas por postre para mostrar ingredientes por paso
+	const recipeCache = new Map();
+	async function fetchRecipeForDessert(name) {
+		try { return await api('GET', `${API.Recipes}?dessert=${encodeURIComponent(name)}&include_extras=1`); } catch { return null; }
+	}
+	async function getRecipeForDessert(name) {
+		if (!recipeCache.has(name)) recipeCache.set(name, await fetchRecipeForDessert(name));
+		return recipeCache.get(name);
+	}
+
+	// Historial local de tiempos guardados
+	function readTimesHistory() { try { return JSON.parse(localStorage.getItem('timesHistory') || '[]') || []; } catch { return []; } }
+	function writeTimesHistory(rows) { try { localStorage.setItem('timesHistory', JSON.stringify(rows)); } catch {} }
+	function buildSnapshot() {
+		const now = new Date();
+		const snapshot = { id: now.toISOString(), date_iso: now.toISOString(), desserts: [] };
+		for (const d of (data || [])) {
+			const steps = [];
+			let totalMs = 0;
+			for (const s of (d.steps || [])) { const ms = Number(s.elapsedMs || 0) || 0; totalMs += ms; steps.push({ name: s.name || 'Paso', note: s.note || '', elapsed_ms: ms }); }
+			snapshot.desserts.push({ name: d.name || 'Postre', total_ms: totalMs, steps });
+		}
+		return snapshot;
+	}
 
     function buildTimerControls(step, onTick) {
         const wrap = document.createElement('div');
@@ -2256,7 +2281,7 @@ async function renderTimesView() {
         return { element: wrap, stop: () => { if (intervalId) clearInterval(intervalId); } };
     }
 
-    function buildStep(step, dessert){
+	function buildStep(step, dessert){
         const box = document.createElement('div'); box.className = 'step-card';
         const head = document.createElement('div'); head.className = 'step-header';
         const name = document.createElement('input'); name.type = 'text'; name.value = step.name || 'Paso'; name.style.flex = '1'; name.style.fontWeight = '600'; name.style.border = '0'; name.style.background = 'transparent';
@@ -2264,19 +2289,52 @@ async function renderTimesView() {
         const del = document.createElement('button'); del.className = 'press-btn'; del.textContent = 'Eliminar paso';
         actions.append(del);
         head.append(name, actions);
-        const body = document.createElement('div'); body.style.display = 'flex'; body.style.justifyContent = 'space-between'; body.style.alignItems = 'center'; body.style.gap = '8px'; body.style.padding = '8px 0';
+		const body = document.createElement('div'); body.style.display = 'flex'; body.style.justifyContent = 'space-between'; body.style.alignItems = 'center'; body.style.gap = '8px'; body.style.padding = '8px 0';
         const note = document.createElement('input'); note.type = 'text'; note.placeholder = 'Nota (opcional)'; note.value = step.note || ''; note.className = 'input-cell'; note.style.flex = '1';
-        const timer = buildTimerControls(step);
-        body.append(note, timer.element);
+		const timer = buildTimerControls(step);
+		body.append(note, timer.element);
+		// Contenedor de ingredientes por paso
+		const ingWrap = document.createElement('div');
+		ingWrap.style.margin = '4px 0 8px 0';
+		function fmtQty(n) { try { return new Intl.NumberFormat('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(Number(n||0)); } catch { return String(n||0); } }
+		async function renderIngredients(){
+			ingWrap.innerHTML = '';
+			const recipe = await getRecipeForDessert(dessert.name || '');
+			if (!recipe || !Array.isArray(recipe.steps)) return;
+			const stepNameKey = String(step.name || 'Paso').trim().toLowerCase();
+			const match = recipe.steps.find(s => String(s.step_name || 'Paso').trim().toLowerCase() === stepNameKey);
+			if (!match || !Array.isArray(match.items) || match.items.length === 0) { const small = document.createElement('div'); small.style.opacity = '0.7'; small.textContent = 'Sin ingredientes definidos para este paso'; ingWrap.appendChild(small); return; }
+			const table = document.createElement('table'); table.className = 'items-table';
+			const thead = document.createElement('thead'); const trh = document.createElement('tr');
+			['Ingrediente','Cantidad por unidad'].forEach(t => { const th = document.createElement('th'); th.textContent = t; trh.appendChild(th); }); thead.appendChild(trh);
+			const tbody = document.createElement('tbody');
+			for (const it of match.items) {
+				const tr = document.createElement('tr');
+				const tdN = document.createElement('td'); tdN.textContent = it.ingredient;
+				const tdQ = document.createElement('td');
+				const unit = (it.unit || '').toString();
+				const qty = Number(it.qty_per_unit || 0) || 0;
+				const adj = Number(it.adjustment || 0) || 0;
+				const parts = [fmtQty(qty) + (unit ? (' ' + unit) : '')];
+				if (adj) parts.push(`ajuste ${fmtQty(adj)}`);
+				tdQ.textContent = parts.join(' · ');
+				tr.append(tdN, tdQ); tbody.appendChild(tr);
+			}
+			table.appendChild(tbody); ingWrap.appendChild(table);
+		}
+		renderIngredients();
         box.append(head, body);
         name.addEventListener('change', () => { step.name = (name.value || '').trim() || 'Paso'; writeTimesState(data); });
+		name.addEventListener('change', () => { try { renderIngredients(); } catch {} });
         note.addEventListener('change', () => { step.note = note.value || ''; writeTimesState(data); });
         del.addEventListener('click', () => {
             const idx = (dessert.steps || []).indexOf(step);
             if (idx >= 0) dessert.steps.splice(idx, 1);
             saveAndRerender();
         });
-        return box;
+		// Insertar ingredientes bajo el cuerpo
+		box.appendChild(ingWrap);
+		return box;
     }
 
     function buildDessertCardLocal(d){
@@ -2292,7 +2350,7 @@ async function renderTimesView() {
         for (const s of (d.steps || [])) stepsWrap.appendChild(buildStep(s, d));
         addStep.addEventListener('click', () => { d.steps = d.steps || []; d.steps.push({ name: 'Paso', note: '', elapsedMs: 0, isRunning: false, startedAt: null }); saveAndRerender(); });
         delDessert.addEventListener('click', () => { const idx = data.indexOf(d); if (idx >= 0) { data.splice(idx, 1); saveAndRerender(); } });
-        rename.addEventListener('click', () => { const n = (prompt('Nuevo nombre:') || '').trim(); if (!n) return; d.name = n; title.textContent = n; writeTimesState(data); });
+		rename.addEventListener('click', () => { const n = (prompt('Nuevo nombre:') || '').trim(); if (!n) return; d.name = n; title.textContent = n; saveAndRerender(); });
         card.append(head, stepsWrap);
         // Drag for dessert reordering
         card.draggable = true;
@@ -2322,8 +2380,21 @@ async function renderTimesView() {
         writeTimesState(data);
     });
 
-    for (const d of data) grid.appendChild(buildDessertCardLocal(d));
-    root.appendChild(grid);
+	for (const d of data) grid.appendChild(buildDessertCardLocal(d));
+	root.appendChild(grid);
+
+	// Botón para guardar snapshot de tiempos
+	const actions = document.createElement('div'); actions.className = 'confirm-actions'; actions.style.marginTop = '8px';
+	const saveBtn = document.createElement('button'); saveBtn.className = 'press-btn btn-primary'; saveBtn.textContent = 'Guardar tiempos';
+	actions.appendChild(saveBtn); root.appendChild(actions);
+	saveBtn.addEventListener('click', () => {
+		try {
+			const hist = readTimesHistory();
+			hist.push(buildSnapshot());
+			writeTimesHistory(hist);
+			notify?.success ? notify.success('Tiempos guardados') : alert('Tiempos guardados');
+		} catch { try { alert('No se pudieron guardar los tiempos'); } catch {} }
+	});
 
     const addDessertBtn = document.getElementById('times-add-dessert');
     addDessertBtn?.addEventListener('click', () => {
