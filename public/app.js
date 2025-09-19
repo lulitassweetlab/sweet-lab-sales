@@ -101,7 +101,8 @@ function renderClientDetailTable(rows) {
 		const current = (r.pay_method || '').replace(/\.$/, '');
 		const opts = [
 			{ v: '', label: '-' },
-			{ v: 'efectivo', label: '' }
+			{ v: 'efectivo', label: '' },
+			{ v: 'entregado', label: '' }
 		];
 		const isMarcela = String(state.currentUser?.name || '').toLowerCase() === 'marcela';
 		if (isMarcela) opts.push({ v: 'marce', label: '' });
@@ -117,10 +118,11 @@ function renderClientDetailTable(rows) {
 		if (!isJorge && current === 'jorgebank') opts.push({ v: 'jorgebank', label: '' });
 		for (const o of opts) { const opt = document.createElement('option'); opt.value = o.v; opt.textContent = o.label; if (!isMarcela && o.v === 'marce') opt.disabled = true; if (!isJorge && o.v === 'jorge') opt.disabled = true; if (current === o.v) opt.selected = true; sel.appendChild(opt); }
 		function applyPayClass() {
-			wrap.classList.remove('placeholder','method-efectivo','method-transf','method-marce','method-jorge','method-jorgebank');
+			wrap.classList.remove('placeholder','method-efectivo','method-transf','method-marce','method-jorge','method-jorgebank','method-entregado');
 			const val = sel.value;
 			if (!val) wrap.classList.add('placeholder');
 			else if (val === 'efectivo') wrap.classList.add('method-efectivo');
+			else if (val === 'entregado') wrap.classList.add('method-entregado');
 			else if (val === 'transf') wrap.classList.add('method-transf');
 			else if (val === 'marce') wrap.classList.add('method-marce');
 			else if (val === 'jorge') wrap.classList.add('method-jorge');
@@ -155,7 +157,7 @@ function renderClientDetailTable(rows) {
 			});
 			try {
 				const val = (sel.value || '').toString();
-				const fmt = (v) => v === 'efectivo' ? 'Efectivo' : (v === 'transf' || v === 'jorgebank') ? 'Transferencia' : v === 'marce' ? 'Marce' : v === 'jorge' ? 'Jorge' : '-';
+				const fmt = (v) => v === 'efectivo' ? 'Efectivo' : v === 'entregado' ? 'Entregado' : (v === 'transf' || v === 'jorgebank') ? 'Transferencia' : v === 'marce' ? 'Marce' : v === 'jorge' ? 'Jorge' : '-';
 				const client = (state._clientDetailName || '').toString().trim() || 'Cliente';
 				const seller = String((state?.currentSeller?.name || state?.currentUser?.name || '') || '');
 				const msg = `${client} pago: ${fmt(val)}` + (seller ? ` - ${seller}` : '');
@@ -722,7 +724,8 @@ function renderTable() {
 				const current = (sale.pay_method || '').replace(/\.$/, '');
 				const options = [
 					{ v: '', label: '-' },
-					{ v: 'efectivo', label: '' }
+					{ v: 'efectivo', label: '' },
+					{ v: 'entregado', label: '' }
 				];
 				const isMarcela = String(state.currentUser?.name || '').toLowerCase() === 'marcela';
 				if (isMarcela) options.push({ v: 'marce', label: '' });
@@ -746,10 +749,11 @@ function renderTable() {
 					sel.appendChild(opt);
 				}
 				function applyPayClass() {
-					wrap.classList.remove('placeholder','method-efectivo','method-transf','method-marce','method-jorge','method-jorgebank');
+					wrap.classList.remove('placeholder','method-efectivo','method-transf','method-marce','method-jorge','method-jorgebank','method-entregado');
 					const val = sel.value;
 					if (!val) wrap.classList.add('placeholder');
 					else if (val === 'efectivo') wrap.classList.add('method-efectivo');
+					else if (val === 'entregado') wrap.classList.add('method-entregado');
 					else if (val === 'transf') wrap.classList.add('method-transf');
 					else if (val === 'marce') wrap.classList.add('method-marce');
 					else if (val === 'jorge') wrap.classList.add('method-jorge');
@@ -760,7 +764,7 @@ function renderTable() {
 					await savePayMethod(tr, sale.id, sel.value);
 					try {
 						const val = (sel.value || '').toString();
-						const fmt = (v) => v === 'efectivo' ? 'Efectivo' : (v === 'transf' || v === 'jorgebank') ? 'Transferencia' : v === 'marce' ? 'Marce' : v === 'jorge' ? 'Jorge' : '-';
+						const fmt = (v) => v === 'efectivo' ? 'Efectivo' : v === 'entregado' ? 'Entregado' : (v === 'transf' || v === 'jorgebank') ? 'Transferencia' : v === 'marce' ? 'Marce' : v === 'jorge' ? 'Jorge' : '-';
 						const client = (tr.querySelector('td.col-client input')?.value || '').trim() || 'Cliente';
 						const seller = String((state?.currentSeller?.name || state?.currentUser?.name || '') || '');
 						const msg = `${client} pago: ${fmt(val)}` + (seller ? ` - ${seller}` : '');
@@ -3440,7 +3444,8 @@ function openPayMenu(anchorEl, selectEl, clickX, clickY) {
 	menu.style.transform = 'translateX(-50%)';
 	menu.style.zIndex = '1000';
 	const items = [
-		{ v: 'efectivo', cls: 'menu-efectivo' }
+		{ v: 'efectivo', cls: 'menu-efectivo' },
+		{ v: 'entregado', cls: 'menu-entregado' }
 	];
 	if (String(state.currentUser?.name || '').toLowerCase() === 'marcela') {
 		items.push({ v: 'marce', cls: 'menu-marce' });

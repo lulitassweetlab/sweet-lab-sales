@@ -59,7 +59,7 @@
 			const current = (sale.pay_method || '').replace(/\.$/, '');
 			const isMarcela = String(currentUser?.name || '').toLowerCase() === 'marcela';
 			const isJorge = String(currentUser?.name || '').toLowerCase() === 'jorge';
-			const opts = [ { v: '', label: '-' }, { v: 'efectivo', label: '' } ];
+			const opts = [ { v: '', label: '-' }, { v: 'efectivo', label: '' }, { v: 'entregado', label: '' } ];
 			if (isMarcela) opts.push({ v: 'marce', label: '' });
 			if (!isMarcela && current === 'marce') opts.push({ v: 'marce', label: '' });
 			if (isJorge) opts.push({ v: 'jorge', label: '' });
@@ -76,10 +76,11 @@
 				sel.appendChild(opt);
 			}
 			function applyPayClass(){
-				wrap.classList.remove('placeholder','method-efectivo','method-transf','method-marce','method-jorge','method-jorgebank');
+				wrap.classList.remove('placeholder','method-efectivo','method-transf','method-marce','method-jorge','method-jorgebank','method-entregado');
 				const val = sel.value;
 				if (!val) wrap.classList.add('placeholder');
 				else if (val === 'efectivo') wrap.classList.add('method-efectivo');
+				else if (val === 'entregado') wrap.classList.add('method-entregado');
 				else if (val === 'transf') wrap.classList.add('method-transf');
 				else if (val === 'marce') wrap.classList.add('method-marce');
 				else if (val === 'jorge') wrap.classList.add('method-jorge');
@@ -133,7 +134,7 @@
 			menu.style.position = 'fixed';
 			menu.style.transform = 'translateX(-50%)';
 			menu.style.zIndex = '1000';
-			const items = [ { v: 'efectivo', cls: 'menu-efectivo' } ];
+			const items = [ { v: 'efectivo', cls: 'menu-efectivo' }, { v: 'entregado', cls: 'menu-entregado' } ];
 			if (String(currentUser?.name || '').toLowerCase() === 'marcela') items.push({ v: 'marce', cls: 'menu-marce' });
 			const isJorgeUser = String(currentUser?.name || '').toLowerCase() === 'jorge';
 			if (isJorgeUser) {
