@@ -2213,7 +2213,7 @@ button.secondary.press-btn:active {
 .transfer-pay .col-paid .pay-wrap::before { width: 20px; height: 16px; }
 .transfer-pay .col-paid .pay-wrap.method-transf::before { width: 20px; height: 18px; }
 .transfer-pay .col-paid .pay-wrap.method-jorgebank::before { width: 20px; height: 18px; }
-.transfer-pay .col-paid .pay-wrap.method-entregado::before { width: 6px; height: 6px; }
+.transfer-pay .col-paid .pay-wrap.method-entregado::before { width: 4px; height: 4px; }
 .transfer-pay .col-paid .pay-wrap.placeholder::before { font-size: 14px; }
 /* Dark theme adjustments for overlay chip */
 [data-theme="dark"] .transfer-pay { background: rgba(24,24,28,0.8); border-color: rgba(255,255,255,0.14); box-shadow: 0 6px 18px rgba(0,0,0,0.4); }
