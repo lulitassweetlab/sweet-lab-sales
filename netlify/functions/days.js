@@ -35,7 +35,7 @@ export async function handler(event) {
 				const id = Number(data.id);
 				const day = (data.day || '').toString();
 				if (!id || !day) return json({ error: 'id y day requeridos' }, 400);
-				// Optional: delivered_* updates allowed only for superadmin
+				// Optional: delivered_* updates allowed only for superadmin. If day missing, backfill from DB.
 				const da = Number(data.delivered_arco ?? NaN);
 				const dm = Number(data.delivered_melo ?? NaN);
 				const dma = Number(data.delivered_mara ?? NaN);
@@ -49,18 +49,24 @@ export async function handler(event) {
 						if (r && r[0] && r[0].role) role = String(r[0].role);
 					} catch {}
 				}
-				// Build update set
-				const sets = [];
-				const vals = [];
-				sets.push(sql`day=${day}`);
-				if (role === 'superadmin') {
-					if (!Number.isNaN(da)) sets.push(sql`delivered_arco=${Math.max(0, da|0)}`);
-					if (!Number.isNaN(dm)) sets.push(sql`delivered_melo=${Math.max(0, dm|0)}`);
-					if (!Number.isNaN(dma)) sets.push(sql`delivered_mara=${Math.max(0, dma|0)}`);
-					if (!Number.isNaN(dor)) sets.push(sql`delivered_oreo=${Math.max(0, dor|0)}`);
-					if (!Number.isNaN(dnu)) sets.push(sql`delivered_nute=${Math.max(0, dnu|0)}`);
+				let dayToUse = day;
+				if (!dayToUse) {
+					try {
+						const cur = await sql`SELECT day FROM sale_days WHERE id=${id} LIMIT 1`;
+						if (cur && cur[0] && cur[0].day) dayToUse = String(cur[0].day);
+					} catch {}
 				}
-				const [row] = await sql`UPDATE sale_days SET ${sql.join(sets, sql`, `)} WHERE id=${id} RETURNING id, day, delivered_arco, delivered_melo, delivered_mara, delivered_oreo, delivered_nute`;
+				const [row] = await sql`
+					UPDATE sale_days SET
+						day=${dayToUse}
+						${role === 'superadmin' && !Number.isNaN(da) ? sql`, delivered_arco=${Math.max(0, da|0)}` : sql``}
+						${role === 'superadmin' && !Number.isNaN(dm) ? sql`, delivered_melo=${Math.max(0, dm|0)}` : sql``}
+						${role === 'superadmin' && !Number.isNaN(dma) ? sql`, delivered_mara=${Math.max(0, dma|0)}` : sql``}
+						${role === 'superadmin' && !Number.isNaN(dor) ? sql`, delivered_oreo=${Math.max(0, dor|0)}` : sql``}
+						${role === 'superadmin' && !Number.isNaN(dnu) ? sql`, delivered_nute=${Math.max(0, dnu|0)}` : sql``}
+					WHERE id=${id}
+					RETURNING id, day, delivered_arco, delivered_melo, delivered_mara, delivered_oreo, delivered_nute
+				`;
 				return json(row || { id, day });
 			}
 			case 'DELETE': {
