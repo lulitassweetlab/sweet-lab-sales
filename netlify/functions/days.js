@@ -34,7 +34,7 @@ export async function handler(event) {
 				const data = JSON.parse(event.body || '{}');
 				const id = Number(data.id);
 				const day = (data.day || '').toString();
-				if (!id || !day) return json({ error: 'id y day requeridos' }, 400);
+				if (!id) return json({ error: 'id requerido' }, 400);
 				// Optional: delivered_* updates allowed only for superadmin. If day missing, backfill from DB.
 				const da = Number(data.delivered_arco ?? NaN);
 				const dm = Number(data.delivered_melo ?? NaN);

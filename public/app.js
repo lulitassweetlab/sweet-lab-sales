@@ -944,12 +944,9 @@ function wireDeliveredRowEditors() {
             if (!isSuper) return;
             const dayId = state?.selectedDayId || null;
             if (!dayId) { try { notify.error('Selecciona una fecha'); } catch {} return; }
-            const dayRow = (state?.saleDays || []).find(d => d && d.id === dayId) || null;
-            const dayIso = dayRow?.day || null;
-            if (!dayIso) { try { notify.error('No se encontró la fecha'); } catch {} return; }
             const flavor = item.key;
             const value = Math.max(0, parseInt((el.textContent || '0').trim(), 10) || 0);
-            const payload = { id: dayId, day: dayIso, actor_name: state.currentUser?.name || '' };
+            const payload = { id: dayId, actor_name: state.currentUser?.name || '' };
             payload[`delivered_${flavor}`] = value;
             try {
                 const updated = await api('PUT', '/api/days', payload);
