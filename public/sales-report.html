@@ -34,9 +34,9 @@
 				<small id="count-label" style="opacity:.8"></small>
 			</div>
 			<div class="filters-row" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:6px 0 12px 0">
-				<label style="display:flex; gap:6px; align-items:center">
-					<span>Vendedores</span>
-					<select id="seller-filter" class="input-cell" multiple style="min-width:220px; min-height:84px"></select>
+				<label style="display:flex; gap:6px; align-items:flex-start">
+					<span style="line-height:28px;">Vendedores</span>
+					<div id="seller-filter-group" class="seller-filter-group" style="display:flex; gap:8px; flex-wrap:wrap; min-width:220px; max-height:132px; overflow:auto; padding:8px; border:1px solid var(--border); border-radius:10px; background: var(--card);"></div>
 				</label>
 				<label style="display:flex; gap:6px; align-items:center">
 					<span>Pago</span>
@@ -114,6 +114,7 @@
 		const exportBtn = document.getElementById('export-excel');
 		const sellerFilter = document.getElementById('seller-filter');
 		const payFilter = document.getElementById('pay-filter');
+		const sellerFilterGroup = document.getElementById('seller-filter-group');
 		const thDate = document.getElementById('th-date');
 		const thSeller = document.getElementById('th-seller');
 		const thPay = document.getElementById('th-pay');
@@ -138,10 +139,17 @@
 
 		function populateFilters(){
 			// Sellers
-			sellerFilter.innerHTML = '';
-			for (const s of (sellersList||[])){
-				const o = document.createElement('option'); o.value = s.name || ''; o.textContent = s.name || '';
-				sellerFilter.appendChild(o);
+			if (sellerFilterGroup) {
+				sellerFilterGroup.innerHTML = '';
+				for (const s of (sellersList||[])){
+					const id = `sf_${(s.name||'').replace(/[^a-z0-9]+/gi,'_')}`;
+					const wrap = document.createElement('label');
+					wrap.style.display = 'inline-flex'; wrap.style.alignItems = 'center'; wrap.style.gap = '6px';
+					const cb = document.createElement('input'); cb.type = 'checkbox'; cb.value = s.name || ''; cb.id = id; cb.addEventListener('change', () => render());
+					const sp = document.createElement('span'); sp.textContent = s.name || '';
+					wrap.appendChild(cb); wrap.appendChild(sp);
+					sellerFilterGroup.appendChild(wrap);
+				}
 			}
 			// Pay methods
 			payFilter.innerHTML = '';
@@ -151,7 +159,10 @@
 		}
 
 		function getSelectedSellers(){
-			return Array.from(sellerFilter.selectedOptions).map(o => o.value).filter(Boolean);
+			if (sellerFilterGroup) {
+				return Array.from(sellerFilterGroup.querySelectorAll('input[type="checkbox"]:checked')).map(i => i.value).filter(Boolean);
+			}
+			return [];
 		}
 
 		function getFilteredSortedData(){
@@ -290,7 +301,7 @@
 
 		backBtn.addEventListener('click', () => { location.href = '/'; });
 		changeBtn.addEventListener('click', openCalendar);
-		sellerFilter.addEventListener('change', () => render());
+		// sellerFilter removed (replaced by checkboxes)
 		payFilter.addEventListener('change', () => render());
 		function toggleSort(key){
 			if (sortKey === key){ sortDir = (sortDir === 'asc') ? 'desc' : 'asc'; }
