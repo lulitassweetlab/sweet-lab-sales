@@ -32,8 +32,18 @@ export async function ensureSchema() {
 		id SERIAL PRIMARY KEY,
 		seller_id INTEGER NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
 		day DATE NOT NULL,
+		is_archived BOOLEAN NOT NULL DEFAULT false,
 		UNIQUE (seller_id, day)
 	)`;
+	// Ensure is_archived exists for older deployments
+	await sql`DO $$ BEGIN
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'sale_days' AND column_name = 'is_archived'
+		) THEN
+			ALTER TABLE sale_days ADD COLUMN is_archived BOOLEAN NOT NULL DEFAULT false;
+		END IF;
+	END $$;`;
 	await sql`CREATE TABLE IF NOT EXISTS sales (
 		id SERIAL PRIMARY KEY,
 		seller_id INTEGER NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,

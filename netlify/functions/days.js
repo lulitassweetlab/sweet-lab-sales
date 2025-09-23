@@ -14,7 +14,16 @@ export async function handler(event) {
 				const sellerIdParam = params.get('seller_id') || (event.queryStringParameters && event.queryStringParameters.seller_id);
 				const sellerId = Number(sellerIdParam);
 				if (!sellerId) return json({ error: 'seller_id requerido' }, 400);
-				const rows = await sql`SELECT id, day FROM sale_days WHERE seller_id=${sellerId} ORDER BY day DESC`;
+				const archivedParam = (params.get('archived') || '').toString().toLowerCase();
+				const includeArchivedParam = (params.get('include_archived') || '').toString().toLowerCase();
+				let rows;
+				if (archivedParam === 'true' || archivedParam === '1') {
+					rows = await sql`SELECT id, day, is_archived FROM sale_days WHERE seller_id=${sellerId} AND is_archived=true ORDER BY day DESC`;
+				} else if (includeArchivedParam === 'true' || includeArchivedParam === '1') {
+					rows = await sql`SELECT id, day, is_archived FROM sale_days WHERE seller_id=${sellerId} ORDER BY day DESC`;
+				} else {
+					rows = await sql`SELECT id, day, is_archived FROM sale_days WHERE seller_id=${sellerId} AND is_archived=false ORDER BY day DESC`;
+				}
 				return json(rows);
 			}
 			case 'POST': {
@@ -37,6 +46,18 @@ export async function handler(event) {
 				if (!id || !day) return json({ error: 'id y day requeridos' }, 400);
 				const [row] = await sql`UPDATE sale_days SET day=${day} WHERE id=${id} RETURNING id, day`;
 				return json(row || { id, day });
+			}
+			case 'PATCH': {
+				// Update archive state for one or many days
+				// Body: { id?, ids?, is_archived }
+				const data = JSON.parse(event.body || '{}');
+				const isArchived = !!data.is_archived;
+				const id = Number(data.id || 0) || null;
+				let ids = Array.isArray(data.ids) ? data.ids.map(n => Number(n)).filter(n => Number.isInteger(n) && n > 0) : [];
+				if (!id && (!ids || ids.length === 0)) return json({ error: 'id o ids requerido' }, 400);
+				if (id && !ids.length) ids = [id];
+				await sql`UPDATE sale_days SET is_archived=${isArchived} WHERE id = ANY(${ids})`;
+				return json({ ok: true, updated: ids.length, is_archived: isArchived });
 			}
 			case 'DELETE': {
 				const params = new URLSearchParams(event.rawQuery || event.queryStringParameters ? event.rawQuery || '' : '');
