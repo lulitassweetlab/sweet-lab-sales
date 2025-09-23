@@ -2934,9 +2934,12 @@ window.addEventListener('resize', updateStickyHeadOffset);
 
 async function loadDaysForSeller() {
 	const sellerId = state.currentSeller.id;
-	const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(sellerId)}`);
+	const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(sellerId)}${state.showArchivedOnly ? '&archived=1' : ''}`);
 	state.saleDays = days;
 	renderDaysList();
+	// Toggle '+ Nueva Fecha' visibility in archive mode
+	const newBtn = document.getElementById('date-new');
+	if (newBtn) newBtn.style.display = state.showArchivedOnly ? 'none' : '';
 }
 
 function formatDayLabel(input) {
@@ -3007,7 +3010,7 @@ function renderDaysList() {
 	}
 	// Preview: auto-open the most recent date when entering seller view
 	try {
-		if (!state.selectedDayId) {
+		if (!state.selectedDayId && !state.showArchivedOnly) {
 			const days = Array.isArray(state.saleDays) ? state.saleDays.slice() : [];
 			if (days.length) {
 				let latest = days[0];
@@ -3572,14 +3575,18 @@ if (!('selectedDayId' in state)) state.selectedDayId = null;
 			}
 		}, cx, cy);
 	});
-	// Open archive manager
+	// Toggle archived-only view
 	const archBtn = document.getElementById('archive-button');
-	archBtn?.addEventListener('click', async (ev) => {
-		const sellerName = state.currentSeller?.name || '';
-		const rect = ev.currentTarget.getBoundingClientRect();
-		const cx = rect.left + rect.width / 2;
-		const cy = rect.bottom;
-		openArchiveManager(cx, cy, sellerName).catch(()=>{});
+	archBtn?.addEventListener('click', async () => {
+		state.showArchivedOnly = !state.showArchivedOnly;
+		archBtn.classList.toggle('btn-gold', !!state.showArchivedOnly);
+		await loadDaysForSeller();
+		// In archive mode, hide the table until a date is picked
+		if (state.showArchivedOnly) {
+			const wrap = document.getElementById('sales-wrapper');
+			if (wrap) wrap.classList.add('hidden');
+			state.selectedDayId = null;
+		}
 	});
 })();
 
