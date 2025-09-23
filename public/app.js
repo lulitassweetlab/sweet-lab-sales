@@ -2940,6 +2940,14 @@ async function loadDaysForSeller() {
 	// Toggle '+ Nueva Fecha' visibility in archive mode
 	const newBtn = document.getElementById('date-new');
 	if (newBtn) newBtn.style.display = state.showArchivedOnly ? 'none' : '';
+	// Update title and button label to match mode on load
+	const archBtn = document.getElementById('archive-button');
+	if (archBtn) {
+		archBtn.classList.toggle('btn-gold', !!state.showArchivedOnly);
+		archBtn.textContent = state.showArchivedOnly ? 'Activos' : 'Archivo';
+	}
+	const title = document.getElementById('sales-title');
+	if (title) title.textContent = state.showArchivedOnly ? 'Registro de Ventas de Postres (Archivo)' : 'Registro de Ventas de Postres';
 }
 
 function formatDayLabel(input) {
@@ -3580,6 +3588,9 @@ if (!('selectedDayId' in state)) state.selectedDayId = null;
 	archBtn?.addEventListener('click', async () => {
 		state.showArchivedOnly = !state.showArchivedOnly;
 		archBtn.classList.toggle('btn-gold', !!state.showArchivedOnly);
+		archBtn.textContent = state.showArchivedOnly ? 'Activos' : 'Archivo';
+		const title = document.getElementById('sales-title');
+		if (title) title.textContent = state.showArchivedOnly ? 'Registro de Ventas de Postres (Archivo)' : 'Registro de Ventas de Postres';
 		await loadDaysForSeller();
 		// In archive mode, hide the table until a date is picked
 		if (state.showArchivedOnly) {
