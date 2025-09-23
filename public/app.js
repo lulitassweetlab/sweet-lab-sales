@@ -903,44 +903,59 @@ async function performRedo() {
 	redoBtn?.addEventListener('click', () => { performRedo().catch(console.error); });
 })();
 
-// Superadmin-only editors for delivered counts per day
+// Superadmin-only editors for delivered counts per day (inline editable)
 function wireDeliveredRowEditors() {
-    const ids = [
+    const isSuper = state?.currentUser?.role === 'superadmin' || !!state?.currentUser?.isSuperAdmin;
+    const cells = [
         { key: 'arco', el: document.getElementById('deliv-arco') },
         { key: 'melo', el: document.getElementById('deliv-melo') },
         { key: 'mara', el: document.getElementById('deliv-mara') },
         { key: 'oreo', el: document.getElementById('deliv-oreo') },
         { key: 'nute', el: document.getElementById('deliv-nute') },
     ];
-    for (const item of ids) {
+    for (const item of cells) {
         const el = item.el;
         if (!el) continue;
+        // Toggle contenteditable based on role
+        if (isSuper) {
+            if (!el.isContentEditable) el.setAttribute('contenteditable', 'true');
+            el.style.cursor = 'text';
+            el.title = 'Editar cantidad entregada';
+        } else {
+            if (el.isContentEditable) el.removeAttribute('contenteditable');
+            el.style.cursor = 'default';
+            el.title = '';
+        }
         if (el.dataset.bound === '1') continue;
         el.dataset.bound = '1';
-        el.style.userSelect = 'none';
-        el.style.cursor = 'pointer';
-        el.title = 'Editar (solo superadmin)';
-        el.addEventListener('click', async () => {
-            const isSuper = state?.currentUser?.role === 'superadmin' || !!state?.currentUser?.isSuperAdmin;
-            if (!isSuper) return; // view-only for non-superadmin
-            const flavor = item.key;
-            const currentVal = Math.max(0, parseInt((el.textContent || '0').trim(), 10) || 0);
-            const nextRaw = prompt(`Postres entregados ${flavor}`, String(currentVal));
-            if (nextRaw == null) return;
-            const nextVal = Math.max(0, parseInt(String(nextRaw).trim(), 10) || 0);
+        // Sanitize input to numbers only while typing
+        el.addEventListener('input', () => {
+            if (!el.isContentEditable) return;
+            let raw = (el.textContent || '').replace(/[^0-9]/g, '');
+            // Remove leading zeros
+            raw = raw.replace(/^0+(\d)/, '$1');
+            el.textContent = raw;
+        });
+        // Save on Enter or blur
+        el.addEventListener('keydown', (ev) => {
+            if (ev.key === 'Enter') { ev.preventDefault(); el.blur(); }
+        });
+        el.addEventListener('blur', async () => {
+            if (!isSuper) return;
             const dayId = state?.selectedDayId || null;
             if (!dayId) { try { notify.error('Selecciona una fecha'); } catch {} return; }
             const dayRow = (state?.saleDays || []).find(d => d && d.id === dayId) || null;
             const dayIso = dayRow?.day || null;
             if (!dayIso) { try { notify.error('No se encontró la fecha'); } catch {} return; }
+            const flavor = item.key;
+            const value = Math.max(0, parseInt((el.textContent || '0').trim(), 10) || 0);
             const payload = { id: dayId, day: dayIso, actor_name: state.currentUser?.name || '' };
-            payload[`delivered_${flavor}`] = nextVal;
+            payload[`delivered_${flavor}`] = value;
             try {
                 const updated = await api('PUT', '/api/days', payload);
                 const idx = (state.saleDays || []).findIndex(d => d && d.id === dayId);
                 if (idx !== -1) state.saleDays[idx] = updated;
                 updateSummary();
-                try { notify.success('Postres entregados actualizados'); } catch {}
             } catch (e) {
                 try { notify.error('No se pudo guardar'); } catch {}
             }
