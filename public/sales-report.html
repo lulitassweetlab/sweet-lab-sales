@@ -33,6 +33,16 @@
 				<strong id="range-label"></strong>
 				<small id="count-label" style="opacity:.8"></small>
 			</div>
+			<div class="filters-row" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:6px 0 12px 0">
+				<label style="display:flex; gap:6px; align-items:center">
+					<span>Vendedor</span>
+					<select id="seller-filter" class="input-cell" style="min-width:200px"></select>
+				</label>
+				<label style="display:flex; gap:6px; align-items:center">
+					<span>Pago</span>
+					<select id="pay-filter" class="input-cell" style="min-width:160px"></select>
+				</label>
+			</div>
 			<div class="table-wrapper" id="report-wrapper">
 				<table id="report-table">
 					<thead>
@@ -84,6 +94,11 @@
 		const backBtn = document.getElementById('back-btn');
 		const changeBtn = document.getElementById('change-range');
 		const exportBtn = document.getElementById('export-excel');
+		const sellerFilter = document.getElementById('seller-filter');
+		const payFilter = document.getElementById('pay-filter');
+
+		let dataset = [];
+		let sellersList = [];
 
 		function formatDay(iso){
 			if (!iso) return '';
@@ -93,19 +108,67 @@
 		}
 
 		function payLabel(pm){
-			return pm === 'efectivo' ? 'Efectivo' : (pm === 'transf' || pm === 'jorgebank') ? 'Transf' : pm === 'marce' ? 'Marce' : pm === 'jorge' ? 'Jorge' : '-';
+			return pm === 'efectivo' ? 'Efectivo' : pm === 'transf' ? 'Transf' : pm === 'marce' ? 'Marce' : pm === 'jorge' ? 'Jorge' : pm === 'jorgebank' ? 'JorgeBank' : pm === 'entregado' ? 'Entregado' : '-';
 		}
 
 		async function fetchJSON(u){ const r = await fetch(u); if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }
 
+		function populateFilters(){
+			// Sellers
+			sellerFilter.innerHTML = '';
+			const optAllS = document.createElement('option'); optAllS.value = ''; optAllS.textContent = 'Todos'; sellerFilter.appendChild(optAllS);
+			for (const s of (sellersList||[])){
+				const o = document.createElement('option'); o.value = s.name || ''; o.textContent = s.name || '';
+				sellerFilter.appendChild(o);
+			}
+			// Pay methods
+			payFilter.innerHTML = '';
+			const optAllP = document.createElement('option'); optAllP.value = ''; optAllP.textContent = 'Todos'; payFilter.appendChild(optAllP);
+			const payCodes = ['', 'efectivo', 'transf', 'marce', 'jorge', 'jorgebank', 'entregado'];
+			for (const code of payCodes){ if (code==='') continue; const o=document.createElement('option'); o.value=code; o.textContent=payLabel(code); payFilter.appendChild(o); }
+		}
+
+		function render(){
+			const selSeller = (sellerFilter.value || '').toString();
+			const selPay = (payFilter.value || '').toString();
+			tbody.innerHTML = '';
+			let tQa = 0, tQm = 0, tQma = 0, tQo = 0, tQn = 0, tGrand = 0, rowsCount = 0;
+			for (const r of dataset){
+				if (selSeller && r.sellerName !== selSeller) continue;
+				if (selPay && (r.pay_method || '') !== selPay) continue;
+				const row = document.createElement('tr');
+				row.innerHTML = `
+					<td>${r.date}</td>
+					<td>${r.sellerName}</td>
+					<td>${r.is_paid ? '✓' : ''}</td>
+					<td>${payLabel(r.pay_method||'')}</td>
+					<td>${r.client_name||''}</td>
+					<td>${r.qa||''}</td>
+					<td>${r.qm||''}</td>
+					<td>${r.qma||''}</td>
+					<td>${r.qo||''}</td>
+					<td>${r.qn||''}</td>
+					<td>${r.tot||''}</td>`;
+				tbody.appendChild(row);
+				tQa += r.qa||0; tQm += r.qm||0; tQma += r.qma||0; tQo += r.qo||0; tQn += r.qn||0; tGrand += r.tot||0; rowsCount++;
+			}
+			tQaEl.textContent = tQa || '';
+			tQmEl.textContent = tQm || '';
+			tQmaEl.textContent = tQma || '';
+			tQoEl.textContent = tQo || '';
+			tQnEl.textContent = tQn || '';
+			tGrandEl.textContent = tGrand || '';
+			countLabel.textContent = `Filas: ${rowsCount}`;
+		}
+
 		async function load(){
 			if (!start || !end) return;
 			rangeLabel.textContent = `${formatDay(start)} — ${formatDay(end)}`;
-			tbody.innerHTML = '';
 			countLabel.textContent = 'Cargando…';
-			let tQa = 0, tQm = 0, tQma = 0, tQo = 0, tQn = 0, tGrand = 0, rowsCount = 0;
-			const sellers = await fetchJSON('/api/sellers');
-			countLabel.textContent = `Vendedores: ${sellers.length} · Buscando días…`;
+			dataset = [];
+			sellersList = await fetchJSON('/api/sellers');
+			populateFilters();
+			countLabel.textContent = `Vendedores: ${sellersList.length} · Buscando días…`;
 			const isoBetween = (iso, a, b) => iso >= a && iso <= b;
 			// Concurrency helper
 			async function mapLimit(items, limit, fn) {
@@ -121,7 +184,7 @@
 			}
 			// Gather days within range for each seller
 			const sellerDays = [];
-			await mapLimit(sellers, 6, async (s) => {
+			await mapLimit(sellersList, 6, async (s) => {
 				try {
 					const days = await fetchJSON(`/api/days?seller_id=${encodeURIComponent(s.id)}`);
 					for (const d of (days||[])) {
@@ -137,33 +200,19 @@
 					const params = new URLSearchParams({ seller_id: String(seller.id), sale_day_id: String(day.id) });
 					const sales = await fetchJSON(`/api/sales?${params.toString()}`);
 					for (const r of (sales || [])) {
-						const row = document.createElement('tr');
 						const qa = r.qty_arco || 0; const qm = r.qty_melo || 0; const qma = r.qty_mara || 0; const qo = r.qty_oreo || 0; const qn = r.qty_nute || 0; const tot = r.total_cents || 0;
-						tQa += qa; tQm += qm; tQma += qma; tQo += qo; tQn += qn; tGrand += (tot || 0);
-						rowsCount++;
-						row.innerHTML = `
-							<td>${String(day.day).slice(0,10)}</td>
-							<td>${(seller.name||'')}</td>
-							<td>${r.is_paid ? '✓' : ''}</td>
-							<td>${payLabel(r.pay_method||'')}</td>
-							<td>${(r.client_name||'')}</td>
-							<td>${qa||''}</td>
-							<td>${qm||''}</td>
-							<td>${qma||''}</td>
-							<td>${qo||''}</td>
-							<td>${qn||''}</td>
-							<td>${tot||''}</td>`;
-						tbody.appendChild(row);
+						dataset.push({
+							date: String(day.day).slice(0,10),
+							sellerName: seller.name || '',
+							is_paid: !!r.is_paid,
+							pay_method: (r.pay_method || '') || '',
+							client_name: r.client_name || '',
+							qa, qm, qma, qo, qn, tot
+						});
 					}
 				} catch {}
 			});
-			countLabel.textContent = `Filas: ${rowsCount}`;
-			tQaEl.textContent = tQa || '';
-			tQmEl.textContent = tQm || '';
-			tQmaEl.textContent = tQma || '';
-			tQoEl.textContent = tQo || '';
-			tQnEl.textContent = tQn || '';
-			tGrandEl.textContent = tGrand || '';
+			render();
 		}
 
 		function openCalendar(ev){
@@ -192,6 +241,8 @@
 
 		backBtn.addEventListener('click', () => { location.href = '/'; });
 		changeBtn.addEventListener('click', openCalendar);
+		sellerFilter.addEventListener('change', () => render());
+		payFilter.addEventListener('change', () => render());
 
 		// Lightweight embed of openRangeCalendarPopover if not present
 		if (typeof window.openRangeCalendarPopover !== 'function') {
