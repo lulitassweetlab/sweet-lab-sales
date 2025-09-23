@@ -47,10 +47,10 @@
 				<table id="report-table">
 					<thead>
 						<tr>
-							<th>Fecha</th>
-							<th>Vendedor</th>
+							<th id="th-date" style="cursor:pointer">Fecha</th>
+							<th id="th-seller" style="cursor:pointer">Vendedor</th>
 							<th class="col-paid">$</th>
-							<th>Pago</th>
+							<th id="th-pay" style="cursor:pointer">Pago</th>
 							<th>Cliente</th>
 							<th class="col-qty">Arco</th>
 							<th class="col-qty">Melo</th>
@@ -63,13 +63,17 @@
 					<tbody id="report-tbody"></tbody>
 					<tfoot>
 						<tr>
-							<td colspan="4">Totales</td>
+							<td colspan="5">Totales</td>
 							<td class="col-qty" id="t-qa"></td>
 							<td class="col-qty" id="t-qm"></td>
 							<td class="col-qty" id="t-qma"></td>
 							<td class="col-qty" id="t-qo"></td>
 							<td class="col-qty" id="t-qn"></td>
 							<td class="col-total" id="t-grand"></td>
+						</tr>
+						<tr>
+							<td colspan="10">Total postres</td>
+							<td class="col-total" id="t-sum-all"></td>
 						</tr>
 					</tfoot>
 				</table>
@@ -91,14 +95,20 @@
 		const tQoEl = document.getElementById('t-qo');
 		const tQnEl = document.getElementById('t-qn');
 		const tGrandEl = document.getElementById('t-grand');
+		const tSumAllEl = document.getElementById('t-sum-all');
 		const backBtn = document.getElementById('back-btn');
 		const changeBtn = document.getElementById('change-range');
 		const exportBtn = document.getElementById('export-excel');
 		const sellerFilter = document.getElementById('seller-filter');
 		const payFilter = document.getElementById('pay-filter');
+		const thDate = document.getElementById('th-date');
+		const thSeller = document.getElementById('th-seller');
+		const thPay = document.getElementById('th-pay');
 
 		let dataset = [];
 		let sellersList = [];
+		let sortKey = 'date'; // 'date' | 'seller' | 'pay'
+		let sortDir = 'asc'; // 'asc' | 'desc'
 
 		function formatDay(iso){
 			if (!iso) return '';
@@ -131,14 +141,32 @@
 			return Array.from(sellerFilter.selectedOptions).map(o => o.value).filter(Boolean);
 		}
 
-		function render(){
+		function getFilteredSortedData(){
 			const selSellers = getSelectedSellers();
 			const selPay = (payFilter.value || '').toString();
+			let rows = dataset.filter(r => {
+				if (selSellers.length && !selSellers.includes(r.sellerName)) return false;
+				if (selPay && (r.pay_method || '') !== selPay) return false;
+				return true;
+			});
+			const cmp = (a,b) => {
+				let va = '', vb = '';
+				if (sortKey === 'date') { va = a.date; vb = b.date; }
+				else if (sortKey === 'seller') { va = (a.sellerName||'').toLowerCase(); vb = (b.sellerName||'').toLowerCase(); }
+				else if (sortKey === 'pay') { va = (payLabel(a.pay_method||'')||'').toLowerCase(); vb = (payLabel(b.pay_method||'')||'').toLowerCase(); }
+				if (va < vb) return sortDir === 'asc' ? -1 : 1;
+				if (va > vb) return sortDir === 'asc' ? 1 : -1;
+				return 0;
+			};
+			rows.sort(cmp);
+			return rows;
+		}
+
+		function render(){
+			const rows = getFilteredSortedData();
 			tbody.innerHTML = '';
-			let tQa = 0, tQm = 0, tQma = 0, tQo = 0, tQn = 0, tGrand = 0, rowsCount = 0;
-			for (const r of dataset){
-				if (selSellers.length && !selSellers.includes(r.sellerName)) continue;
-				if (selPay && (r.pay_method || '') !== selPay) continue;
+			let tQa = 0, tQm = 0, tQma = 0, tQo = 0, tQn = 0, tGrand = 0;
+			for (const r of rows){
 				const row = document.createElement('tr');
 				row.innerHTML = `
 					<td>${r.date}</td>
@@ -153,7 +181,7 @@
 					<td>${r.qn||''}</td>
 					<td>${r.tot||''}</td>`;
 				tbody.appendChild(row);
-				tQa += r.qa||0; tQm += r.qm||0; tQma += r.qma||0; tQo += r.qo||0; tQn += r.qn||0; tGrand += r.tot||0; rowsCount++;
+				tQa += r.qa||0; tQm += r.qm||0; tQma += r.qma||0; tQo += r.qo||0; tQn += r.qn||0; tGrand += r.tot||0;
 			}
 			tQaEl.textContent = tQa || '';
 			tQmEl.textContent = tQm || '';
@@ -161,7 +189,9 @@
 			tQoEl.textContent = tQo || '';
 			tQnEl.textContent = tQn || '';
 			tGrandEl.textContent = tGrand || '';
-			countLabel.textContent = `Filas: ${rowsCount}`;
+			const sumAll = (tQa||0)+(tQm||0)+(tQma||0)+(tQo||0)+(tQn||0);
+			tSumAllEl.textContent = sumAll || '';
+			countLabel.textContent = `Filas: ${rows.length}`;
 		}
 
 		async function load(){
@@ -230,16 +260,14 @@
 		exportBtn.addEventListener('click', () => {
 			// Build Excel from current table body
 			const rows = [['Fecha','Vendedor', '$', 'Pago', 'Cliente', 'Arco', 'Melo', 'Mara', 'Oreo', 'Nute', 'Total']];
-			const selSellers = getSelectedSellers();
-			const selPay = (payFilter.value || '').toString();
 			let eQa=0,eQm=0,eQma=0,eQo=0,eQn=0,eGrand=0;
-			for (const r of dataset){
-				if (selSellers.length && !selSellers.includes(r.sellerName)) continue;
-				if (selPay && (r.pay_method || '') !== selPay) continue;
+			for (const r of getFilteredSortedData()){
 				rows.push([r.date, r.sellerName, r.is_paid ? '✓' : '', payLabel(r.pay_method||''), r.client_name||'', r.qa||'', r.qm||'', r.qma||'', r.qo||'', r.qn||'', r.tot||'']);
 				eQa += r.qa||0; eQm += r.qm||0; eQma += r.qma||0; eQo += r.qo||0; eQn += r.qn||0; eGrand += r.tot||0;
 			}
 			rows.push(['','','','','Totales', eQa||'', eQm||'', eQma||'', eQo||'', eQn||'', eGrand||'']);
+			const eSumAll = (eQa||0)+(eQm||0)+(eQma||0)+(eQo||0)+(eQn||0);
+			rows.push(['','','','','Total postres','','','','','', eSumAll||'']);
 			const ws = XLSX.utils.aoa_to_sheet(rows);
 			ws['!cols'] = [ {wch:10},{wch:18},{wch:3},{wch:10},{wch:24},{wch:6},{wch:6},{wch:6},{wch:6},{wch:6},{wch:10} ];
 			const wb = XLSX.utils.book_new();
@@ -251,6 +279,14 @@
 		changeBtn.addEventListener('click', openCalendar);
 		sellerFilter.addEventListener('change', () => render());
 		payFilter.addEventListener('change', () => render());
+		function toggleSort(key){
+			if (sortKey === key){ sortDir = (sortDir === 'asc') ? 'desc' : 'asc'; }
+			else { sortKey = key; sortDir = 'asc'; }
+			render();
+		}
+		thDate?.addEventListener('click', () => toggleSort('date'));
+		thSeller?.addEventListener('click', () => toggleSort('seller'));
+		thPay?.addEventListener('click', () => toggleSort('pay'));
 
 		// Lightweight embed of openRangeCalendarPopover if not present
 		if (typeof window.openRangeCalendarPopover !== 'function') {
