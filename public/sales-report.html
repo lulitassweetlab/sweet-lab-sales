@@ -35,8 +35,8 @@
 			</div>
 			<div class="filters-row" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:6px 0 12px 0">
 				<label style="display:flex; gap:6px; align-items:center">
-					<span>Vendedor</span>
-					<select id="seller-filter" class="input-cell" style="min-width:200px"></select>
+					<span>Vendedores</span>
+					<select id="seller-filter" class="input-cell" multiple style="min-width:220px; min-height:84px"></select>
 				</label>
 				<label style="display:flex; gap:6px; align-items:center">
 					<span>Pago</span>
@@ -116,7 +116,6 @@
 		function populateFilters(){
 			// Sellers
 			sellerFilter.innerHTML = '';
-			const optAllS = document.createElement('option'); optAllS.value = ''; optAllS.textContent = 'Todos'; sellerFilter.appendChild(optAllS);
 			for (const s of (sellersList||[])){
 				const o = document.createElement('option'); o.value = s.name || ''; o.textContent = s.name || '';
 				sellerFilter.appendChild(o);
@@ -128,13 +127,17 @@
 			for (const code of payCodes){ if (code==='') continue; const o=document.createElement('option'); o.value=code; o.textContent=payLabel(code); payFilter.appendChild(o); }
 		}
 
+		function getSelectedSellers(){
+			return Array.from(sellerFilter.selectedOptions).map(o => o.value).filter(Boolean);
+		}
+
 		function render(){
-			const selSeller = (sellerFilter.value || '').toString();
+			const selSellers = getSelectedSellers();
 			const selPay = (payFilter.value || '').toString();
 			tbody.innerHTML = '';
 			let tQa = 0, tQm = 0, tQma = 0, tQo = 0, tQn = 0, tGrand = 0, rowsCount = 0;
 			for (const r of dataset){
-				if (selSeller && r.sellerName !== selSeller) continue;
+				if (selSellers.length && !selSellers.includes(r.sellerName)) continue;
 				if (selPay && (r.pay_method || '') !== selPay) continue;
 				const row = document.createElement('tr');
 				row.innerHTML = `
@@ -227,11 +230,16 @@
 		exportBtn.addEventListener('click', () => {
 			// Build Excel from current table body
 			const rows = [['Fecha','Vendedor', '$', 'Pago', 'Cliente', 'Arco', 'Melo', 'Mara', 'Oreo', 'Nute', 'Total']];
-			for (const tr of tbody.querySelectorAll('tr')){
-				const cells = Array.from(tr.children).map(td => td.textContent || '');
-				rows.push(cells);
+			const selSellers = getSelectedSellers();
+			const selPay = (payFilter.value || '').toString();
+			let eQa=0,eQm=0,eQma=0,eQo=0,eQn=0,eGrand=0;
+			for (const r of dataset){
+				if (selSellers.length && !selSellers.includes(r.sellerName)) continue;
+				if (selPay && (r.pay_method || '') !== selPay) continue;
+				rows.push([r.date, r.sellerName, r.is_paid ? '✓' : '', payLabel(r.pay_method||''), r.client_name||'', r.qa||'', r.qm||'', r.qma||'', r.qo||'', r.qn||'', r.tot||'']);
+				eQa += r.qa||0; eQm += r.qm||0; eQma += r.qma||0; eQo += r.qo||0; eQn += r.qn||0; eGrand += r.tot||0;
 			}
-			rows.push(['','','','','Totales', tQaEl.textContent||'', tQmEl.textContent||'', tQmaEl.textContent||'', tQoEl.textContent||'', tQnEl.textContent||'', tGrandEl.textContent||'']);
+			rows.push(['','','','','Totales', eQa||'', eQm||'', eQma||'', eQo||'', eQn||'', eGrand||'']);
 			const ws = XLSX.utils.aoa_to_sheet(rows);
 			ws['!cols'] = [ {wch:10},{wch:18},{wch:3},{wch:10},{wch:24},{wch:6},{wch:6},{wch:6},{wch:6},{wch:6},{wch:10} ];
 			const wb = XLSX.utils.book_new();
