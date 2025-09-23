@@ -14,7 +14,7 @@ export async function handler(event) {
 				const sellerIdParam = params.get('seller_id') || (event.queryStringParameters && event.queryStringParameters.seller_id);
 				const sellerId = Number(sellerIdParam);
 				if (!sellerId) return json({ error: 'seller_id requerido' }, 400);
-				const rows = await sql`SELECT id, day FROM sale_days WHERE seller_id=${sellerId} ORDER BY day DESC`;
+				const rows = await sql`SELECT id, day, delivered_arco, delivered_melo, delivered_mara, delivered_oreo, delivered_nute FROM sale_days WHERE seller_id=${sellerId} ORDER BY day DESC`;
 				return json(rows);
 			}
 			case 'POST': {
@@ -35,7 +35,32 @@ export async function handler(event) {
 				const id = Number(data.id);
 				const day = (data.day || '').toString();
 				if (!id || !day) return json({ error: 'id y day requeridos' }, 400);
-				const [row] = await sql`UPDATE sale_days SET day=${day} WHERE id=${id} RETURNING id, day`;
+				// Optional: delivered_* updates allowed only for superadmin
+				const da = Number(data.delivered_arco ?? NaN);
+				const dm = Number(data.delivered_melo ?? NaN);
+				const dma = Number(data.delivered_mara ?? NaN);
+				const dor = Number(data.delivered_oreo ?? NaN);
+				const dnu = Number(data.delivered_nute ?? NaN);
+				const actor = (data.actor_name || data._actor_name || '').toString();
+				let role = 'user';
+				if (actor) {
+					try {
+						const r = await sql`SELECT role FROM users WHERE lower(username)=lower(${actor}) LIMIT 1`;
+						if (r && r[0] && r[0].role) role = String(r[0].role);
+					} catch {}
+				}
+				// Build update set
+				const sets = [];
+				const vals = [];
+				sets.push(sql`day=${day}`);
+				if (role === 'superadmin') {
+					if (!Number.isNaN(da)) sets.push(sql`delivered_arco=${Math.max(0, da|0)}`);
+					if (!Number.isNaN(dm)) sets.push(sql`delivered_melo=${Math.max(0, dm|0)}`);
+					if (!Number.isNaN(dma)) sets.push(sql`delivered_mara=${Math.max(0, dma|0)}`);
+					if (!Number.isNaN(dor)) sets.push(sql`delivered_oreo=${Math.max(0, dor|0)}`);
+					if (!Number.isNaN(dnu)) sets.push(sql`delivered_nute=${Math.max(0, dnu|0)}`);
+				}
+				const [row] = await sql`UPDATE sale_days SET ${sql.join(sets, sql`, `)} WHERE id=${id} RETURNING id, day, delivered_arco, delivered_melo, delivered_mara, delivered_oreo, delivered_nute`;
 				return json(row || { id, day });
 			}
 			case 'DELETE': {

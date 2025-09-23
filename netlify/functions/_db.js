@@ -34,6 +34,39 @@ export async function ensureSchema() {
 		day DATE NOT NULL,
 		UNIQUE (seller_id, day)
 	)`;
+	// Ensure delivered columns exist for per-day delivered counts
+	await sql`DO $$ BEGIN
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'sale_days' AND column_name = 'delivered_arco'
+		) THEN
+			ALTER TABLE sale_days ADD COLUMN delivered_arco INTEGER NOT NULL DEFAULT 0;
+		END IF;
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'sale_days' AND column_name = 'delivered_melo'
+		) THEN
+			ALTER TABLE sale_days ADD COLUMN delivered_melo INTEGER NOT NULL DEFAULT 0;
+		END IF;
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'sale_days' AND column_name = 'delivered_mara'
+		) THEN
+			ALTER TABLE sale_days ADD COLUMN delivered_mara INTEGER NOT NULL DEFAULT 0;
+		END IF;
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'sale_days' AND column_name = 'delivered_oreo'
+		) THEN
+			ALTER TABLE sale_days ADD COLUMN delivered_oreo INTEGER NOT NULL DEFAULT 0;
+		END IF;
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'sale_days' AND column_name = 'delivered_nute'
+		) THEN
+			ALTER TABLE sale_days ADD COLUMN delivered_nute INTEGER NOT NULL DEFAULT 0;
+		END IF;
+	END $$;`;
 	await sql`CREATE TABLE IF NOT EXISTS sales (
 		id SERIAL PRIMARY KEY,
 		seller_id INTEGER NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,

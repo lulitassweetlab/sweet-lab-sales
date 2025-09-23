@@ -903,6 +903,51 @@ async function performRedo() {
 	redoBtn?.addEventListener('click', () => { performRedo().catch(console.error); });
 })();
 
+// Superadmin-only editors for delivered counts per day
+function wireDeliveredRowEditors() {
+    const ids = [
+        { key: 'arco', el: document.getElementById('deliv-arco') },
+        { key: 'melo', el: document.getElementById('deliv-melo') },
+        { key: 'mara', el: document.getElementById('deliv-mara') },
+        { key: 'oreo', el: document.getElementById('deliv-oreo') },
+        { key: 'nute', el: document.getElementById('deliv-nute') },
+    ];
+    for (const item of ids) {
+        const el = item.el;
+        if (!el) continue;
+        if (el.dataset.bound === '1') continue;
+        el.dataset.bound = '1';
+        el.style.userSelect = 'none';
+        el.style.cursor = 'pointer';
+        el.title = 'Editar (solo superadmin)';
+        el.addEventListener('click', async () => {
+            const isSuper = state?.currentUser?.role === 'superadmin' || !!state?.currentUser?.isSuperAdmin;
+            if (!isSuper) return; // view-only for non-superadmin
+            const flavor = item.key;
+            const currentVal = Math.max(0, parseInt((el.textContent || '0').trim(), 10) || 0);
+            const nextRaw = prompt(`Postres entregados ${flavor}`, String(currentVal));
+            if (nextRaw == null) return;
+            const nextVal = Math.max(0, parseInt(String(nextRaw).trim(), 10) || 0);
+            const dayId = state?.selectedDayId || null;
+            if (!dayId) { try { notify.error('Selecciona una fecha'); } catch {} return; }
+            const dayRow = (state?.saleDays || []).find(d => d && d.id === dayId) || null;
+            const dayIso = dayRow?.day || null;
+            if (!dayIso) { try { notify.error('No se encontró la fecha'); } catch {} return; }
+            const payload = { id: dayId, day: dayIso, actor_name: state.currentUser?.name || '' };
+            payload[`delivered_${flavor}`] = nextVal;
+            try {
+                const updated = await api('PUT', '/api/days', payload);
+                const idx = (state.saleDays || []).findIndex(d => d && d.id === dayId);
+                if (idx !== -1) state.saleDays[idx] = updated;
+                updateSummary();
+                try { notify.success('Postres entregados actualizados'); } catch {}
+            } catch (e) {
+                try { notify.error('No se pudo guardar'); } catch {}
+            }
+        });
+    }
+}
+
 // Wrap API operations to record undo/redo
 async function addRow() {
 	const sellerId = state.currentSeller.id;
@@ -1303,6 +1348,25 @@ function updateSummary() {
 	const commStr = fmtNo.format(paidTotalQty * 1000);
 	const commEl = document.getElementById('sum-comm');
 	if (commEl) commEl.textContent = commStr;
+	// Postres entregados (per day, editable solo por superadmin)
+	try {
+		const day = (state && Array.isArray(state.saleDays) && state.selectedDayId)
+			? (state.saleDays || []).find(d => d && d.id === state.selectedDayId)
+			: null;
+		const da = Number(day?.delivered_arco || 0) || 0;
+		const dm = Number(day?.delivered_melo || 0) || 0;
+		const dma = Number(day?.delivered_mara || 0) || 0;
+		const dor = Number(day?.delivered_oreo || 0) || 0;
+		const dnu = Number(day?.delivered_nute || 0) || 0;
+		const totalDelivered = da + dm + dma + dor + dnu;
+		const elDa = document.getElementById('deliv-arco'); if (elDa) elDa.textContent = String(da);
+		const elDm = document.getElementById('deliv-melo'); if (elDm) elDm.textContent = String(dm);
+		const elDma = document.getElementById('deliv-mara'); if (elDma) elDma.textContent = String(dma);
+		const elDor = document.getElementById('deliv-oreo'); if (elDor) elDor.textContent = String(dor);
+		const elDnu = document.getElementById('deliv-nute'); if (elDnu) elDnu.textContent = String(dnu);
+		const elDt = document.getElementById('deliv-total'); if (elDt) elDt.textContent = String(totalDelivered);
+		wireDeliveredRowEditors();
+	} catch {}
 	// Decide whether to stack totals to avoid overlap on small screens
 	requestAnimationFrame(() => {
 		const table = document.getElementById('sales-table');
