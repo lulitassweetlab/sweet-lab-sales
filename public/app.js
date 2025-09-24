@@ -2809,10 +2809,7 @@ function buildStepCard(dessertName, step) {
 	box.draggable = true;
 	box.addEventListener('dragstart', (e) => {
 		// Ignore drags that start from ingredient rows or other children; allow only header
-		if (!(e && (e.target === head || head.contains(e.target)))) {
-			try { e.stopPropagation(); e.preventDefault(); } catch {}
-			return;
-		}
+		if (!(e && (e.target === head || head.contains(e.target)))) { return; }
 		box.__isStepDrag = true;
 		box.classList.add('dragging');
 	});
