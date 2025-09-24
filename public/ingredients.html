@@ -197,10 +197,30 @@
 			const agg = new Map(); // key -> { name, perUnits:Set<string>, needed:number }
 			const normKey = (s) => (s||'').toString().trim().toLowerCase().replace(/\s+/g,' ');
 			const fmt1 = (n) => (Number(n||0)||0).toFixed(1);
+			function canonicalizeName(name){
+				const raw = (name||'').toString().trim();
+				const low = raw.toLowerCase();
+				if (!raw) return raw;
+				if (low.includes('nutella')) return 'Nutella';
+				if (low.includes('oreo')) return 'Oreo';
+				if (low.startsWith('agua')) return 'Agua';
+				if (low.includes('almibar') || low.includes('almíbar')) return 'Almíbar';
+				return raw;
+			}
+			function displayNameFor(name){
+				const low = (name||'').toString().toLowerCase();
+				if (low.includes('bolsa') && low.includes('cuchara')) return 'Bolsa para cuchara';
+				if (low.includes('contenedor') && (low.includes('8 oz') || low.includes('8oz'))) return 'Contenedor 8 onz';
+				return name || '';
+			}
 			function addRow(_dessert, ingredient, unit, perUnit, needed){
-				const key = normKey(ingredient);
+				const canon = canonicalizeName(ingredient);
+				// Excluir Agua y Almíbar del reporte
+				if (canon === 'Agua' || canon === 'Almíbar') return;
+				const disp = displayNameFor(canon);
+				const key = normKey(canon);
 				if (!key) return;
-				const cur = agg.get(key) || { name: (ingredient||'').toString(), perUnits: new Set(), needed: 0 };
+				const cur = agg.get(key) || { name: disp, perUnits: new Set(), needed: 0 };
 				if (perUnit != null) cur.perUnits.add(fmt1(perUnit));
 				cur.needed += Number(needed||0)||0;
 				agg.set(key, cur);
