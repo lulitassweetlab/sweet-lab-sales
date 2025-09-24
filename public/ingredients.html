@@ -274,7 +274,7 @@
 				// Real purchase based on pack size: ceil(buy / pack) * pack
 				const pack = Number(packMap.get(key) || 0) || 0;
 				const real = pack > 0 ? Math.ceil(buy / pack) * pack : buy;
-				const price = Number(priceMap.get(key) || 0) || 0;
+					const price = Number(priceMap.get(key) || 0) || 0;
 				const cost = real * price;
 				const perUnitDisplay = (v.perUnits && v.perUnits.size === 1) ? Array.from(v.perUnits)[0] : '—';
 				const tr = document.createElement('tr');
@@ -291,8 +291,8 @@
 				tbody.appendChild(tr);
 				buySugTotal += buy;
 					buyRealTotal += real;
-				buyCostTotal += Number(inCost.value || 0) || 0;
-					rowsState.push({ name: v.name, realInput: inReal, pack, costInput: inCost });
+					buyCostTotal += Number(inCost.value || 0) || 0;
+					rowsState.push({ name: v.name, realInput: inReal, pack, costInput: inCost, unitPrice: price });
 			}
 			function recomputeTotals(){
 				let t = 0; for (const r of rowsState) t += Number(r.costInput?.value || 0) || 0;
@@ -307,8 +307,15 @@
 				for (const r of rowsState) {
 					r.costInput.addEventListener('change', recomputeTotals);
 					r.costInput.addEventListener('blur', recomputeTotals);
-					r.realInput.addEventListener('change', recomputeRealTotal);
-					r.realInput.addEventListener('blur', recomputeRealTotal);
+					function onRealEdit(){
+						const realV = Number(r.realInput?.value || 0) || 0;
+						const unit = Number(r.unitPrice || 0) || 0;
+						r.costInput.value = String(Math.round(realV * unit));
+						recomputeRealTotal();
+						recomputeTotals();
+					}
+					r.realInput.addEventListener('change', onRealEdit);
+					r.realInput.addEventListener('blur', onRealEdit);
 				}
 			tBuySugTotal.textContent = fmt1(buySugTotal);
 				recomputeRealTotal();
@@ -319,16 +326,20 @@
 				const pop = document.createElement('div'); pop.className = 'confirm-popover'; pop.style.position = 'fixed';
 				pop.style.left = (window.innerWidth/2) + 'px'; pop.style.top = '12%'; pop.style.transform = 'translate(-50%, 0)';
 				const title = document.createElement('h4'); title.textContent = 'Solicitar compra por WhatsApp'; title.style.margin = '0 0 8px 0';
-				// Build WA lines on demand from current editable costs and real quantities
-				const freshLines = [];
+					// Build WA lines on demand using current edited quantities
+					const freshLines = [];
 					for (const r of rowsState) {
 						const realV = Number(r.realInput?.value || 0) || 0;
 						if (realV > 0) {
-							const costV = Number(r.costInput?.value || 0) || 0;
-							freshLines.push(`${r.name}: ${fmt1(realV)}${r.pack > 0 ? ` (paquete ${fmt1(r.pack)})` : ''}${costV>0 ? ` — ${new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(costV)}` : ''}`);
+							if (Number(r.pack || 0) > 0) {
+								const pk = Math.max(1, Math.ceil(realV / Number(r.pack)));
+								freshLines.push(`${r.name} ${pk} paquete${pk===1?'':'s'}`);
+							} else {
+								freshLines.push(`${r.name} ${fmt1(realV)} unidades`);
+							}
 						}
 					}
-				const ta = document.createElement('textarea'); ta.style.width = 'min(92vw, 540px)'; ta.style.height = '260px'; ta.value = `Hola, por favor cotízame y despáchame:\n\n${freshLines.join('\n')}\n\nTotal estimado: ${new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(buyCostTotal)}\n\nGracias!`;
+					const ta = document.createElement('textarea'); ta.style.width = 'min(92vw, 540px)'; ta.style.height = '260px'; ta.value = `${freshLines.join('\n')}\n\nTotal estimado: ${new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(buyCostTotal)}`;
 				const actions = document.createElement('div'); actions.className = 'confirm-actions';
 				const copyBtn = document.createElement('button'); copyBtn.className = 'press-btn btn-primary'; copyBtn.textContent = 'Copiar';
 				const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn'; closeBtn.textContent = 'Cerrar';
