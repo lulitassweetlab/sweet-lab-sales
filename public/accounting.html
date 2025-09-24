@@ -166,6 +166,7 @@
 		let end = new Date(Date.UTC(today.getFullYear(), today.getMonth()+1, 0)).toISOString().slice(0,10);
 
 		async function fetchJSON(u, opts){ const r = await fetch(u, opts); if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }
+		function fmtMoney(n){ const v = Number(n||0); try { return new Intl.NumberFormat('es-CO').format(v); } catch { return String(v); } }
 
 		function renderRows(rows){
 			tbody.innerHTML = '';
@@ -175,21 +176,21 @@
 				const v = Number(r.amount_cents||0);
 				const isIng = (r.kind||'') === 'ingreso';
 				if (isIng) { sumIng += v; running += v; } else { sumGas += v; running -= v; }
-				const colIng = isIng ? (v || '') : '';
-				const colSal = !isIng ? (v || '') : '';
+				const colIng = isIng ? fmtMoney(v) : '';
+				const colSal = !isIng ? fmtMoney(v) : '';
 				tr.innerHTML = `
 					<td>${String(r.entry_date||'').slice(0,10)}</td>
 					<td>${r.description||''}</td>
 					<td class="col-total">${colIng}</td>
 					<td class="col-total">${colSal}</td>
-					<td class="col-total">${running}</td>
-					<td><button class="press-btn" data-del="${r.id}">Eliminar</button></td>
+					<td class="col-total">${fmtMoney(running)}</td>
+					<td><button class="row-delete" data-del="${r.id}" title="Eliminar" aria-label="Eliminar"></button></td>
 				`;
 				tbody.appendChild(tr);
 			}
-			tIng.textContent = sumIng || '';
-			tGas.textContent = sumGas || '';
-			tBal.textContent = (sumIng - sumGas) || '';
+			tIng.textContent = fmtMoney(sumIng || 0);
+			tGas.textContent = fmtMoney(sumGas || 0);
+			tBal.textContent = fmtMoney((sumIng - sumGas) || 0);
 			countLabel.textContent = `Filas: ${(rows||[]).length}`;
 			// Wire deletes
 			Array.from(tbody.querySelectorAll('button[data-del]')).forEach(btn => {
