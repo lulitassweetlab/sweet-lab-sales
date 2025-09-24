@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Contabilidad</title>
+	<link rel="stylesheet" href="/styles.css?v=2025-09-17-1" />
+    <style>
+    .acct-container { max-width: 980px; margin: 0 auto; padding: 16px; }
+    .acct-header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin: 12px 0 16px; }
+    .acct-title { display:flex; align-items:center; gap:12px; }
+    .acct-month { display:flex; align-items:center; gap:8px; }
+    .acct-month label { opacity:.8; }
+    .filters { display:flex; align-items:center; gap:8px; flex-wrap: wrap; }
+    .bulk-actions { display:flex; align-items:center; gap:8px; flex-wrap: wrap; margin-top: 8px; }
+    .cat-totals { margin: 8px 0; font-size: 13px; }
+    .col-sel { width: 36px; }
+    .col-cat { width: 160px; }
+    .acct-table { width:100%; border-collapse: collapse; }
+    .acct-table th, .acct-table td { border-bottom: 1px solid var(--table-border,#e6e6e6); padding: 10px; text-align: left; }
+    .acct-table th { background: var(--panel-header-bg, #f8f8f8); position: sticky; top: 0; z-index: 1; }
+    .col-date { width: 130px; }
+    .col-desc { min-width: 200px; }
+    .col-in, .col-out, .col-bal { width: 120px; text-align: right; }
+    .right { text-align: right; }
+    .muted { opacity: .7; }
+    .fab-add { position: fixed; right: 24px; bottom: 24px; width: 64px; height: 64px; border-radius: 50%; font-size: 28px; line-height: 1; display:flex; align-items:center; justify-content:center; box-shadow: 0 6px 18px rgba(0,0,0,.15); }
+    .dialog-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.2); display:flex; align-items:center; justify-content:center; z-index:1000; }
+    .dialog { width: min(520px, 92vw); background: var(--panel-bg, #fff); border-radius: 12px; padding: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+    .dialog h3 { margin: 0 0 8px; }
+    .dialog .type-row { display:flex; gap:8px; margin: 8px 0 12px; }
+    .dialog .form-row { display:grid; grid-template-columns: 1fr 2fr; gap:8px; align-items:center; margin: 8px 0; }
+    .dialog .actions { display:flex; justify-content:flex-end; gap:8px; margin-top:12px; }
+    .pill { padding: 8px 12px; border-radius: 999px; border: 1px solid var(--table-border,#ddd); cursor: pointer; background: none; }
+    .pill.active { background: var(--btn-primary-bg,#222); color: #fff; border-color: var(--btn-primary-bg,#222); }
+    </style>
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-row">
+            <div class="header-left">
+                <img src="/logo.png" alt="Lulitas Logo" class="app-logo" />
+                <h1>Contabilidad</h1>
+            </div>
+            <div class="header-actions">
+                <button id="acct-back" class="press-btn">Volver</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="acct-container">
+        <div class="acct-header">
+            <div class="acct-title">
+                <strong>Tabla mensual</strong>
+                <span id="balance-label" class="muted"></span>
+            </div>
+            <div class="acct-month">
+                <div class="filters">
+                    <label for="month">Mes</label>
+                    <input id="month" type="month" />
+                    <span class="muted">o</span>
+                    <label for="start">Inicio</label>
+                    <input id="start" type="date" />
+                    <label for="end">Fin</label>
+                    <input id="end" type="date" />
+                    <input id="q" type="text" class="input-cell" placeholder="Buscar descripción" style="min-width:200px" />
+                    <button id="apply-filters" class="press-btn btn-primary">Aplicar</button>
+                    <button id="clear-filters" class="press-btn">Limpiar</button>
+                    <button id="acct-export" class="press-btn">Exportar Excel</button>
+                    <button id="acct-report" class="press-btn">Reporte por categoría</button>
+                    <button id="acct-import" class="press-btn">Importar Excel</button>
+                </div>
+                <div class="bulk-actions">
+                    <label><input type="checkbox" id="sel-all" /> Seleccionar todo</label>
+                    <button id="bulk-del" class="press-btn">Eliminar seleccionados</button>
+                    <input id="bulk-cat" type="text" class="input-cell" placeholder="Asignar categoría" style="min-width:180px" />
+                    <button id="bulk-apply-cat" class="press-btn">Aplicar categoría</button>
+                </div>
+            </div>
+        </div>
+        <div class="table-wrapper">
+            <table id="acct-table" class="acct-table">
+                <thead>
+                    <tr>
+                        <th class="col-sel"></th>
+                        <th class="col-date">Fecha</th>
+                        <th class="col-desc">Descripción</th>
+                        <th class="col-in">Entra</th>
+                        <th class="col-out">Sale</th>
+                        <th class="col-cat">Categoría</th>
+                        <th class="col-bal">Saldo</th>
+                        <th class="col-actions"></th>
+                    </tr>
+                </thead>
+                <tbody id="acct-tbody"></tbody>
+            </table>
+            <div id="acct-empty" class="muted" style="padding:12px 6px; display:none">No hay movimientos para los filtros seleccionados.</div>
+            <div id="acct-error" class="muted" style="color:#b00020; padding:6px 6px; display:none"></div>
+            <div id="cat-totals" class="cat-totals"></div>
+        </div>
+    </main>
+
+    <button id="acct-add" class="press-btn btn-primary fab-add" title="Agregar">＋</button>
+
+    <script type="module">
+    (function(){
+        let currentUser = null;
+        try { const saved = localStorage.getItem('authUser'); if (saved) currentUser = JSON.parse(saved); } catch {}
+        const isSuper = (currentUser?.role === 'superadmin') || !!currentUser?.isSuperAdmin || (String(currentUser?.name||'').toLowerCase()==='jorge');
+        if (!isSuper) { location.href = '/'; return; }
+
+        const backBtn = document.getElementById('acct-back');
+        const addBtn = document.getElementById('acct-add');
+        const monthInput = document.getElementById('month');
+        const startInput = document.getElementById('start');
+        const endInput = document.getElementById('end');
+        const qInput = document.getElementById('q');
+        const tbody = document.getElementById('acct-tbody');
+        const balanceLabel = document.getElementById('balance-label');
+        const selAll = document.getElementById('sel-all');
+        const bulkDel = document.getElementById('bulk-del');
+        const bulkCat = document.getElementById('bulk-cat');
+        const bulkApplyCat = document.getElementById('bulk-apply-cat');
+        const catTotalsEl = document.getElementById('cat-totals');
+
+        function fmtCurrency(n){ const v = Number(n||0); return v.toLocaleString('es-CO'); }
+        function todayISO(){ const d = new Date(); const m = String(d.getMonth()+1).padStart(2,'0'); const day = String(d.getDate()).padStart(2,'0'); return `${d.getFullYear()}-${m}-${day}`; }
+        function monthKey(iso){ return (iso||'').slice(0,7); }
+        function getMonth(){ return monthInput.value || todayISO().slice(0,7); }
+        function storageKey(m){ return `acct:${m}`; }
+
+        async function fetchEntries(m){
+            const start = (startInput.value||'').slice(0,10);
+            const end = (endInput.value||'').slice(0,10);
+            const q = (qInput.value||'').trim();
+            const params = new URLSearchParams();
+            if (start && end) { params.set('start', start); params.set('end', end); } else { params.set('month', m); }
+            if (q) params.set('q', q);
+            params.set('actor', currentUser?.name || '');
+            const r = await fetch('/api/accounting?' + params.toString());
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            const j = await r.json();
+            return Array.isArray(j.entries) ? j.entries : [];
+        }
+        async function createEntry(payload){
+            const r = await fetch('/api/accounting', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...payload, actor_name: currentUser?.name || '' })
+            });
+            if (!r.ok) throw new Error('No se pudo guardar');
+            return await r.json();
+        }
+
+        async function recalcAndRender(){
+            const m = getMonth();
+            tbody.innerHTML = '';
+            let entries = [];
+            try { entries = await fetchEntries(m); document.getElementById('acct-error').style.display='none'; document.getElementById('acct-error').textContent=''; }
+            catch (e) {
+                entries = [];
+                const errEl=document.getElementById('acct-error');
+                if(errEl){
+                    try {
+                        // Intentar leer cuerpo con detalle del backend
+                        const start = (startInput.value||'').slice(0,10);
+                        const end = (endInput.value||'').slice(0,10);
+                        const params = new URLSearchParams();
+                        if (start && end) { params.set('start', start); params.set('end', end); } else { params.set('month', m); }
+                        params.set('actor', currentUser?.name || '');
+                        fetch('/api/accounting?' + params.toString())
+                            .then(r => r.json()).then(j => { errEl.textContent = 'Error cargando datos: ' + (j?.error || e?.message || ''); errEl.style.display=''; })
+                            .catch(() => { errEl.textContent = 'Error cargando datos: ' + (e?.message||''); errEl.style.display=''; });
+                    } catch {
+                        errEl.textContent = 'Error cargando datos: ' + (e?.message||''); errEl.style.display='';
+                    }
+                }
+            }
+            const emptyEl = document.getElementById('acct-empty'); if (emptyEl) emptyEl.style.display = (entries.length ? 'none' : '');
+            entries.sort((a,b) => String(a.entry_date||a.date).localeCompare(String(b.entry_date||b.date)));
+            let running = 0;
+            let sumIn = 0; let sumOut = 0;
+            const catTotals = new Map();
+            const selectedIds = new Set();
+            for (const e of entries){
+                const dateStr = String(e.entry_date || e.date || '');
+                const kind = String(e.kind || e.type || '');
+                const amount = Number(e.amount || e.value || 0);
+                const desc = String(e.description || e.desc || '');
+                const category = String(e.category || '');
+                const tr = document.createElement('tr'); tr.dataset.id = String(e.id||'');
+                const tdSel = document.createElement('td');
+                const cb = document.createElement('input'); cb.type = 'checkbox'; cb.addEventListener('change', () => { if (cb.checked) selectedIds.add(e.id); else selectedIds.delete(e.id); });
+                tdSel.appendChild(cb);
+                const tdDate = document.createElement('td'); tdDate.textContent = dateStr;
+                const tdDesc = document.createElement('td'); tdDesc.textContent = desc;
+                const tdIn = document.createElement('td'); tdIn.className = 'right'; tdIn.textContent = kind==='ingreso' ? fmtCurrency(amount) : '';
+                const tdOut = document.createElement('td'); tdOut.className = 'right'; tdOut.textContent = kind==='gasto' ? fmtCurrency(amount) : '';
+                if (kind==='ingreso') { sumIn += amount; running += amount; } else { sumOut += amount; running -= amount; }
+                if (category) { const prev = catTotals.get(category) || { in:0, out:0 }; if (kind==='ingreso') prev.in += amount; else prev.out += amount; catTotals.set(category, prev); }
+                const tdBal = document.createElement('td'); tdBal.className = 'right'; tdBal.textContent = fmtCurrency(running);
+                const tdCat = document.createElement('td'); tdCat.textContent = category;
+                const tdActions = document.createElement('td');
+                const editBtn = document.createElement('button'); editBtn.className = 'press-btn'; editBtn.textContent = 'Editar';
+                const delBtn = document.createElement('button'); delBtn.className = 'press-btn'; delBtn.textContent = 'Eliminar'; delBtn.style.marginLeft = '6px';
+                tdActions.append(editBtn, delBtn);
+                tr.append(tdSel, tdDate, tdDesc, tdIn, tdOut, tdCat, tdBal, tdActions);
+                tbody.appendChild(tr);
+
+                editBtn.addEventListener('click', () => openEditDialog({ id: e.id, date: dateStr, type: kind, value: amount, desc, category }));
+                delBtn.addEventListener('click', () => confirmDelete(e.id));
+            }
+            balanceLabel.textContent = `Ingresos: ${fmtCurrency(sumIn)} · Gastos: ${fmtCurrency(sumOut)} · Saldo: ${fmtCurrency(running)}`;
+
+            // Render subtotals per category
+            if (catTotals.size) {
+                const parts = [];
+                for (const [cat, t] of catTotals.entries()) parts.push(`${cat}: +${fmtCurrency(t.in)} / -${fmtCurrency(t.out)}`);
+                catTotalsEl.textContent = 'Por categoría: ' + parts.join(' · ');
+            } else { catTotalsEl.textContent = ''; }
+
+            // Wire bulk actions
+            selAll.checked = false;
+            selAll.onchange = () => { tbody.querySelectorAll('input[type="checkbox"]').forEach(ch => { ch.checked = selAll.checked; const id = Number(ch.closest('tr')?.dataset?.id || 0); }); };
+            bulkDel.onclick = async () => {
+                const ids = Array.from(tbody.querySelectorAll('input[type="checkbox"]')).filter(ch => ch.checked).map(ch => Number(ch.closest('tr').dataset.id||0)).filter(v=>v>0);
+                if (!ids.length) return; if (!confirm(`¿Eliminar ${ids.length} registro(s)?`)) return;
+                const u = `/api/accounting?ids=${encodeURIComponent(ids.join(','))}&actor=${encodeURIComponent(currentUser?.name||'')}`;
+                try { await fetch(u, { method: 'DELETE' }); recalcAndRender(); } catch {}
+            };
+            bulkApplyCat.onclick = async () => {
+                const ids = Array.from(tbody.querySelectorAll('input[type="checkbox"]')).filter(ch => ch.checked).map(ch => Number(ch.closest('tr').dataset.id||0)).filter(v=>v>0);
+                const category = (bulkCat.value||'').trim();
+                if (!ids.length) return; try { await updateEntry({ ids, category: category || null }); recalcAndRender(); } catch {}
+            };
+        }
+
+        async function updateEntry(payload){
+            const r = await fetch('/api/accounting', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...payload, actor_name: currentUser?.name || '' }) });
+            if (!r.ok) throw new Error('No se pudo actualizar');
+            return await r.json();
+        }
+
+        async function deleteEntry(id){
+            const u = `/api/accounting?id=${encodeURIComponent(String(id))}&actor=${encodeURIComponent(currentUser?.name||'')}`;
+            const r = await fetch(u, { method: 'DELETE' });
+            if (!r.ok) throw new Error('No se pudo eliminar');
+            return true;
+        }
+
+        function openEditDialog(entry){
+            const backdrop = document.createElement('div'); backdrop.className = 'dialog-backdrop';
+            const dlg = document.createElement('div'); dlg.className = 'dialog';
+            const title = document.createElement('h3'); title.textContent = 'Editar registro';
+            const typeRow = document.createElement('div'); typeRow.className = 'type-row';
+            const bIn = document.createElement('button'); bIn.className = 'pill'; bIn.textContent = 'Ingreso'; bIn.type = 'button';
+            const bOut = document.createElement('button'); bOut.className = 'pill'; bOut.textContent = 'Gasto'; bOut.type = 'button';
+            typeRow.append(bIn, bOut);
+            let type = entry.type === 'gasto' ? 'gasto' : 'ingreso';
+            if (type === 'ingreso') bIn.classList.add('active'); else bOut.classList.add('active');
+            bIn.addEventListener('click', () => { type='ingreso'; bIn.classList.add('active'); bOut.classList.remove('active'); });
+            bOut.addEventListener('click', () => { type='gasto'; bOut.classList.add('active'); bIn.classList.remove('active'); });
+
+            const row1 = document.createElement('div'); row1.className = 'form-row';
+            const lab1 = document.createElement('label'); lab1.textContent = 'Fecha';
+            const inDate = document.createElement('input'); inDate.type = 'date'; inDate.value = (entry.date||'').slice(0,10);
+            row1.append(lab1, inDate);
+
+            const row2 = document.createElement('div'); row2.className = 'form-row';
+            const lab2 = document.createElement('label'); lab2.textContent = 'Descripción';
+            const inDesc = document.createElement('input'); inDesc.type = 'text'; inDesc.value = entry.desc || '';
+            row2.append(lab2, inDesc);
+
+            const row3 = document.createElement('div'); row3.className = 'form-row';
+            const lab3 = document.createElement('label'); lab3.textContent = 'Valor';
+            const inVal = document.createElement('input'); inVal.type = 'number'; inVal.min = '0'; inVal.step = '1'; inVal.value = String(entry.value || 0);
+            row3.append(lab3, inVal);
+
+            const row4 = document.createElement('div'); row4.className = 'form-row';
+            const lab4 = document.createElement('label'); lab4.textContent = 'Categoría';
+            const inCat = document.createElement('input'); inCat.type = 'text'; inCat.placeholder = 'Opcional'; inCat.value = entry.category || '';
+            row4.append(lab4, inCat);
+
+            const actions = document.createElement('div'); actions.className = 'actions';
+            const cancel = document.createElement('button'); cancel.className = 'press-btn'; cancel.textContent = 'Cancelar';
+            const save = document.createElement('button'); save.className = 'press-btn btn-primary'; save.textContent = 'Guardar';
+            actions.append(cancel, save);
+
+            dlg.append(title, typeRow, row1, row2, row3, row4, actions); backdrop.appendChild(dlg); document.body.appendChild(backdrop);
+            setTimeout(() => backdrop.addEventListener('click', (e) => { if (e.target === backdrop) cleanup(); }), 0);
+            function cleanup(){ if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop); }
+            cancel.addEventListener('click', cleanup);
+            save.addEventListener('click', async () => {
+                const date = (inDate.value||'').slice(0,10);
+                const desc = (inDesc.value||'').trim();
+                const value = Math.max(0, Number(inVal.value||0)|0);
+                if (!date || !desc || !value) { return; }
+                try { await updateEntry({ id: entry.id, date, desc, value, type, category: (inCat.value||'').trim() || null }); } catch {}
+                cleanup();
+                if (monthKey(date) === getMonth()) recalcAndRender(); else recalcAndRender();
+            });
+        }
+
+        function confirmDelete(id){
+            if (!confirm('¿Eliminar este registro?')) return;
+            deleteEntry(id).then(() => recalcAndRender()).catch(() => {});
+        }
+
+        function openDialog(){
+            const backdrop = document.createElement('div'); backdrop.className = 'dialog-backdrop';
+            const dlg = document.createElement('div'); dlg.className = 'dialog';
+            const title = document.createElement('h3'); title.textContent = 'Nuevo registro';
+            const typeRow = document.createElement('div'); typeRow.className = 'type-row';
+            const bIn = document.createElement('button'); bIn.className = 'pill active'; bIn.textContent = 'Ingreso'; bIn.type = 'button';
+            const bOut = document.createElement('button'); bOut.className = 'pill'; bOut.textContent = 'Gasto'; bOut.type = 'button';
+            typeRow.append(bIn, bOut);
+            let type = 'ingreso';
+            bIn.addEventListener('click', () => { type='ingreso'; bIn.classList.add('active'); bOut.classList.remove('active'); });
+            bOut.addEventListener('click', () => { type='gasto'; bOut.classList.add('active'); bIn.classList.remove('active'); });
+
+            const row1 = document.createElement('div'); row1.className = 'form-row';
+            const lab1 = document.createElement('label'); lab1.textContent = 'Fecha';
+            const inDate = document.createElement('input'); inDate.type = 'date'; inDate.value = todayISO();
+            row1.append(lab1, inDate);
+
+            const row2 = document.createElement('div'); row2.className = 'form-row';
+            const lab2 = document.createElement('label'); lab2.textContent = 'Descripción';
+            const inDesc = document.createElement('input'); inDesc.type = 'text'; inDesc.placeholder = 'Descripción';
+            row2.append(lab2, inDesc);
+
+            const row3 = document.createElement('div'); row3.className = 'form-row';
+            const lab3 = document.createElement('label'); lab3.textContent = 'Valor';
+            const inVal = document.createElement('input'); inVal.type = 'number'; inVal.min = '0'; inVal.step = '1'; inVal.placeholder = '0';
+            row3.append(lab3, inVal);
+
+            const row4 = document.createElement('div'); row4.className = 'form-row';
+            const lab4 = document.createElement('label'); lab4.textContent = 'Categoría';
+            const inCat = document.createElement('input'); inCat.type = 'text'; inCat.placeholder = 'Opcional';
+            row4.append(lab4, inCat);
+
+            const actions = document.createElement('div'); actions.className = 'actions';
+            const cancel = document.createElement('button'); cancel.className = 'press-btn'; cancel.textContent = 'Cancelar';
+            const save = document.createElement('button'); save.className = 'press-btn btn-primary'; save.textContent = 'Guardar';
+            actions.append(cancel, save);
+
+            dlg.append(title, typeRow, row1, row2, row3, row4, actions); backdrop.appendChild(dlg); document.body.appendChild(backdrop);
+            setTimeout(() => backdrop.addEventListener('click', (e) => { if (e.target === backdrop) cleanup(); }), 0);
+
+            function cleanup(){ if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop); }
+            cancel.addEventListener('click', cleanup);
+            save.addEventListener('click', async () => {
+                const date = (inDate.value||'').slice(0,10);
+                const desc = (inDesc.value||'').trim();
+                const value = Math.max(0, Number(inVal.value||0)|0);
+                if (!date || !desc || !value) { return; }
+                const category = (inCat.value||'').trim();
+                try { await createEntry({ date, desc, value, type, category }); }
+                catch { alert('No se pudo guardar'); return; }
+                cleanup();
+                // Ajustar filtros para mostrar inmediatamente el movimiento recién creado
+                monthInput.value = monthKey(date);
+                if (startInput) startInput.value = '';
+                if (endInput) endInput.value = '';
+                if (qInput) qInput.value = '';
+                try { const sel = document.getElementById('cat-filter'); if (sel) sel.value = ''; } catch {}
+                await recalcAndRender();
+            });
+        }
+
+        function initMonth() {
+            const qs = new URLSearchParams(location.search);
+            const q = (qs.get('month')||'').slice(0,7);
+            const initial = q && /^\d{4}-\d{2}$/.test(q) ? q : todayISO().slice(0,7);
+            monthInput.value = initial;
+        }
+
+        backBtn.addEventListener('click', () => { location.href = '/'; });
+        monthInput.addEventListener('change', () => { recalcAndRender(); history.replaceState(null, '', `?month=${encodeURIComponent(getMonth())}`); });
+        addBtn.addEventListener('click', openDialog);
+        document.getElementById('apply-filters').addEventListener('click', () => { recalcAndRender(); });
+        document.getElementById('clear-filters').addEventListener('click', () => { startInput.value = ''; endInput.value = ''; qInput.value = ''; recalcAndRender(); });
+        document.getElementById('acct-export').addEventListener('click', async () => {
+            const m = getMonth();
+            let entries = [];
+            try { entries = await fetchEntries(m); } catch {}
+            const rows = entries.map(e => ({
+                Fecha: String(e.entry_date||'').slice(0,10),
+                Descripción: String(e.description||''),
+                Categoría: String(e.category||''),
+                Entra: (e.kind==='ingreso' ? Number(e.amount||0) : ''),
+                Sale: (e.kind==='gasto' ? Number(e.amount||0) : '')
+            }));
+            let running = 0; const withSaldo = rows.map(r => { const inV = Number(r.Entra||0); const outV = Number(r.Sale||0); running += inV - outV; return { ...r, Saldo: running }; });
+            try {
+                if (!window.XLSX) {
+                    const s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js'; document.head.appendChild(s);
+                    await new Promise(res => { s.onload = res; s.onerror = res; });
+                }
+                const ws = window.XLSX.utils.json_to_sheet(withSaldo);
+                const wb = window.XLSX.utils.book_new();
+                window.XLSX.utils.book_append_sheet(wb, ws, 'Contabilidad');
+                const start = (startInput.value||'').slice(0,10); const end = (endInput.value||'').slice(0,10); const q = (qInput.value||'').trim();
+                let label = m.replace('-','');
+                if (start && end) label = `${start.replaceAll('-','')}_${end.replaceAll('-','')}`;
+                if (q) label += `_busca_${q.replace(/\s+/g,'_')}`;
+                window.XLSX.writeFile(wb, `Contabilidad_${label}.xlsx`);
+            } catch {}
+        });
+
+        document.getElementById('acct-report').addEventListener('click', async (ev) => {
+            const m = getMonth();
+            let u = `/api/accounting?actor=${encodeURIComponent(currentUser?.name||'')}`;
+            const start = (startInput.value||'').slice(0,10);
+            const end = (endInput.value||'').slice(0,10);
+            const q = (qInput.value||'').trim();
+            if (start && end) u += `&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`; else u += `&month=${encodeURIComponent(m)}`;
+            if (q) u += `&q=${encodeURIComponent(q)}`;
+            u += `&summary=category_monthly`;
+            let rows = [];
+            try { const r = await fetch(u); const j = await r.json(); rows = j.rows || []; } catch {}
+            const months = [...new Set(rows.map(r => String(r.month)))].sort();
+            const cats = [...new Set(rows.map(r => String(r.category||'')))];
+            // Build simple text report dialog
+            const backdrop = document.createElement('div'); backdrop.className = 'dialog-backdrop';
+            const dlg = document.createElement('div'); dlg.className = 'dialog';
+            const title = document.createElement('h3'); title.textContent = 'Reporte por categoría (mensual)';
+            const pre = document.createElement('pre'); pre.style.maxHeight = '60vh'; pre.style.overflow = 'auto';
+            const lines = [];
+            lines.push(['Mes', ...cats].join('\t'));
+            for (const mth of months) {
+                const sums = cats.map(c => {
+                    const rec = rows.find(r => r.month===mth && String(r.category||'')===c) || { sum_in:0, sum_out:0 };
+                    return (Number(rec.sum_in||0) - Number(rec.sum_out||0));
+                });
+                lines.push([mth, ...sums].join('\t'));
+            }
+            pre.textContent = lines.join('\n');
+            const actions = document.createElement('div'); actions.className = 'actions';
+            const close = document.createElement('button'); close.className='press-btn'; close.textContent='Cerrar';
+            actions.append(close);
+            dlg.append(title, pre, actions); backdrop.appendChild(dlg); document.body.appendChild(backdrop);
+            function cleanup(){ if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop); }
+            setTimeout(() => backdrop.addEventListener('click', (e) => { if (e.target===backdrop) cleanup(); }), 0);
+            close.addEventListener('click', cleanup);
+        });
+
+        document.getElementById('acct-import').addEventListener('click', async () => {
+            // Simple import: expects columns Fecha(YYYY-MM-DD), Descripción, Tipo(ingreso|gasto), Valor, Categoría
+            if (!window.XLSX) {
+                const s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js'; document.head.appendChild(s);
+                await new Promise(res => { s.onload = res; s.onerror = res; });
+            }
+            const input = document.createElement('input'); input.type = 'file'; input.accept = '.xlsx,.xls';
+            input.addEventListener('change', async () => {
+                const file = input.files && input.files[0]; if (!file) return;
+                const data = await file.arrayBuffer();
+                const wb = window.XLSX.read(data, { type: 'array' });
+                const ws = wb.Sheets[wb.SheetNames[0]];
+                const rows = window.XLSX.utils.sheet_to_json(ws, { defval: '' });
+                const entries = rows.map(r => ({
+                    date: String(r.Fecha||'').slice(0,10),
+                    desc: String(r['Descripción']||''),
+                    type: String(r.Tipo||'').toLowerCase(),
+                    value: Number(r.Valor||0)|0,
+                    category: String(r['Categoría']||'') || null
+                }));
+                try {
+                    const resp = await fetch('/api/accounting', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ entries, actor_name: currentUser?.name||'' }) });
+                    if (resp.ok) { alert('Importación completada'); recalcAndRender(); } else { alert('Error importando'); }
+                } catch { alert('Error importando'); }
+            });
+            input.click();
+        });
+
+        initMonth();
+        recalcAndRender();
+        // Auto-refresh para coherencia global: refresca al volver el foco y cada 15s
+        window.addEventListener('focus', () => { recalcAndRender(); });
+        setInterval(() => { recalcAndRender(); }, 15000);
+    })();
+    </script>
+</body>
+</html>
+
