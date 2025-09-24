@@ -26,7 +26,7 @@ export async function handler(event) {
 					if (stepIds.length) items = await sql`SELECT id, recipe_id, ingredient, unit, qty_per_unit, adjustment, price, position FROM dessert_recipe_items WHERE recipe_id = ANY(${stepIds}) ORDER BY position ASC, id ASC`;
 					const grouped = steps.map(s => ({ id: s.id, dessert: s.dessert, step_name: s.step_name || null, position: s.position, items: items.filter(i => i.recipe_id === s.id) }));
 					let extras = [];
-					if (includeExtras) extras = await sql`SELECT id, ingredient, unit, qty_per_unit, position FROM extras_items ORDER BY position ASC, id ASC`;
+					if (includeExtras) extras = await sql`SELECT id, ingredient, unit, qty_per_unit, price, position FROM extras_items ORDER BY position ASC, id ASC`;
 					return json({ dessert, steps: grouped, extras });
 				}
 				// all desserts summary (respect saved order if present)
@@ -107,12 +107,13 @@ export async function handler(event) {
 					const ingredient = (data.ingredient || '').toString();
 					const unit = (data.unit || 'g').toString();
 					const qty = Number(data.qty_per_unit || 0) || 0;
+					const price = Number(data.price || 0) || 0;
 					const position = Number(data.position || 0) || 0;
 					let row;
 					if (id) {
-						[row] = await sql`UPDATE extras_items SET ingredient=${ingredient}, unit=${unit}, qty_per_unit=${qty}, position=${position}, updated_at=now() WHERE id=${id} RETURNING id, ingredient, unit, qty_per_unit, position`;
+						[row] = await sql`UPDATE extras_items SET ingredient=${ingredient}, unit=${unit}, qty_per_unit=${qty}, price=${price}, position=${position}, updated_at=now() WHERE id=${id} RETURNING id, ingredient, unit, qty_per_unit, price, position`;
 					} else {
-						[row] = await sql`INSERT INTO extras_items (ingredient, unit, qty_per_unit, position) VALUES (${ingredient}, ${unit}, ${qty}, ${position}) RETURNING id, ingredient, unit, qty_per_unit, position`;
+						[row] = await sql`INSERT INTO extras_items (ingredient, unit, qty_per_unit, price, position) VALUES (${ingredient}, ${unit}, ${qty}, ${price}, ${position}) RETURNING id, ingredient, unit, qty_per_unit, price, position`;
 					}
 					// Ensure inventory item exists for this ingredient
 					try { await ensureInventoryItem(ingredient, unit); } catch {}

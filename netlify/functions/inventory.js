@@ -24,9 +24,9 @@ export async function handler(event) {
 					return json(rows);
 				}
 				// Default: list unique ingredients from Recetas/Extras with saldo and price
-				// 1) Read recipe items (with price) and extras (without price)
+				// 1) Read recipe items (with price) and extras (with price)
 				const recipeItems = await sql`SELECT ingredient, unit, price FROM dessert_recipe_items`;
-				const extraItems = await sql`SELECT ingredient, unit FROM extras_items`;
+				const extraItems = await sql`SELECT ingredient, unit, price FROM extras_items`;
 				// 2) Build canonical definitions map: key -> { ingredient, unit, price }
 				const defs = new Map();
 				function upsertDef(name, unit, price, isExtra = false){
@@ -42,7 +42,7 @@ export async function handler(event) {
 					defs.set(key, prev);
 				}
 				for (const it of (recipeItems || [])) upsertDef(it.ingredient, it.unit, it.price, false);
-				for (const it of (extraItems || [])) upsertDef(it.ingredient, it.unit, 0, true);
+				for (const it of (extraItems || [])) upsertDef(it.ingredient, it.unit, it.price, true);
 				// 3) Compute balances by canonical key
 				// Aggregate movements by canonical name to avoid split balances
 				const rawMovs = await sql`SELECT ingredient, SUM(qty)::numeric AS qty FROM inventory_movements GROUP BY ingredient`;
