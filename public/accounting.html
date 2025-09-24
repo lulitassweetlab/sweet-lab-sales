@@ -32,10 +32,10 @@
 				<small id="count-label" style="opacity:.8"></small>
 			</div>
 			<div class="table-wrapper" style="padding:12px;">
-				<form id="acc-form" style="display:flex; flex-direction:column; gap:12px; max-width:520px;">
-					<div style="display:flex; gap:8px;">
-						<button id="btn-gasto" type="button" class="press-btn btn-primary" aria-pressed="true">Gasto</button>
-						<button id="btn-ingreso" type="button" class="press-btn btn-primary" aria-pressed="false" style="opacity:.7;">Ingreso</button>
+				<form id="acc-form" style="display:flex; flex-direction:column; gap:12px; max-width:520px; margin:0 auto;">
+					<div style="display:flex; gap:12px; justify-content:center; margin:16px 0;">
+						<button id="btn-gasto" type="button" class="press-btn btn-primary" aria-pressed="true" style="min-width:200px; padding:14px 22px; font-size:16px; border-radius:12px;">Gasto</button>
+						<button id="btn-ingreso" type="button" class="press-btn btn-primary" aria-pressed="false" style="min-width:200px; padding:14px 22px; font-size:16px; border-radius:12px;">Ingreso</button>
 					</div>
 					<label style="display:flex; gap:8px; align-items:center;">
 						<span>Fecha</span>
@@ -125,8 +125,18 @@
 			const gastoActive = currentKind === 'gasto';
 			btnGasto.setAttribute('aria-pressed', gastoActive ? 'true' : 'false');
 			btnIngreso.setAttribute('aria-pressed', gastoActive ? 'false' : 'true');
-			btnGasto.style.opacity = gastoActive ? '1' : '.7';
-			btnIngreso.style.opacity = gastoActive ? '.7' : '1';
+			// Selected retains hover appearance permanently
+			const activeStyles = (el, active) => {
+				if (active) {
+					el.style.backgroundColor = getComputedStyle(document.documentElement).getPropertyValue('--hover-primary-pink') || '#e27a90';
+					el.style.boxShadow = '0 8px 24px var(--hover-shadow-pink)';
+				} else {
+					el.style.backgroundColor = getComputedStyle(document.documentElement).getPropertyValue('--primary') || '#f4a6b7';
+					el.style.boxShadow = '';
+				}
+			};
+			activeStyles(btnGasto, gastoActive);
+			activeStyles(btnIngreso, !gastoActive);
 		}
 		btnGasto.addEventListener('click', () => setKind('gasto'));
 		btnIngreso.addEventListener('click', () => setKind('ingreso'));
