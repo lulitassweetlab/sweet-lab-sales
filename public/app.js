@@ -2766,7 +2766,7 @@ async function buildDessertCard(dessertName) {
 	// Step-level DnD container
 	steps.addEventListener('dragover', (e) => {
 		e.preventDefault();
-		const dragging = steps.querySelector('.step-card.dragging');
+		const dragging = document.querySelector('.step-card.dragging');
 		if (!dragging) return;
 		const after = (() => {
 			const els = [...steps.querySelectorAll('.step-card:not(.dragging)')];
@@ -2805,23 +2805,21 @@ function buildStepCard(dessertName, step) {
 	for (const it of (step.items || [])) tbody.appendChild(buildItemRow(step.id, it));
 	table.append(thead, tbody);
 	box.append(head, table);
-	// Enable drag & drop for steps (only when dragging the step header)
-	box.draggable = true;
-	box.addEventListener('dragstart', (e) => {
-		// Ignore drags that start from ingredient rows or other children; allow only header
-		if (!(e && (e.target === head || head.contains(e.target)))) { return; }
+	// Enable drag & drop for steps using the header as a handle
+	box.draggable = false;
+	head.draggable = true;
+	head.addEventListener('dragstart', (e) => {
+		try { if (e && e.dataTransfer) e.dataTransfer.setData('text/plain', 'step'); } catch {}
 		box.__isStepDrag = true;
 		box.classList.add('dragging');
 	});
-	box.addEventListener('dragend', async (e) => {
+	head.addEventListener('dragend', async () => {
 		if (!box.__isStepDrag) { box.classList.remove('dragging'); return; }
 		box.__isStepDrag = false;
 		box.classList.remove('dragging');
 		const list = box.parentElement;
 		if (!list) return;
-		const ids = Array.from(list.querySelectorAll('.step-card'))
-			.map(sc => sc.querySelector('tbody tr input') ? null : null);
-		// Build ids from current dessertName data DOM by attaching data-id on creation
+		// Build ids from DOM order
 		const stepIds = Array.from(list.querySelectorAll('.step-card')).map(el => Number(el.getAttribute('data-step-id')||'0')||0).filter(Boolean);
 		if (!stepIds.length) return;
 		try { await api('POST', API.Recipes, { kind: 'step.reorder', ids: stepIds }); } catch {}
