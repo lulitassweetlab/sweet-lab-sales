@@ -22,8 +22,15 @@
 	<main class="sales-panel">
 		<div class="panel-header">
 			<h3>Nuevo registro</h3>
+			<div class="panel-actions">
+				<button id="change-range" class="press-btn">Cambiar fechas</button>
+			</div>
 		</div>
 		<div class="panel-body">
+			<div style="display:flex; justify-content:space-between; align-items:center; margin:0 12px 8px 12px">
+				<strong id="range-label"></strong>
+				<small id="count-label" style="opacity:.8"></small>
+			</div>
 			<div class="table-wrapper" style="padding:12px;">
 				<form id="acc-form" style="display:flex; flex-direction:column; gap:12px; max-width:520px;">
 					<label style="display:flex; gap:8px; align-items:center;">
@@ -52,6 +59,43 @@
 					</div>
 				</form>
 			</div>
+			<div class="table-wrapper" id="acc-wrapper" style="margin-top:12px;">
+				<table id="acc-table">
+					<thead>
+						<tr>
+							<th>Fecha</th>
+							<th>Tipo</th>
+							<th>Descripción</th>
+							<th class="col-total">Valor</th>
+							<th></th>
+						</tr>
+					</thead>
+					<tbody id="acc-tbody"></tbody>
+					<tfoot>
+						<tr>
+							<td></td>
+							<td></td>
+							<td class="label">Ingresos</td>
+							<td class="col-total" id="t-ingresos"></td>
+							<td></td>
+						</tr>
+						<tr>
+							<td></td>
+							<td></td>
+							<td class="label">Gastos</td>
+							<td class="col-total" id="t-gastos"></td>
+							<td></td>
+						</tr>
+						<tr>
+							<td></td>
+							<td></td>
+							<td class="label">Balance</td>
+							<td class="col-total" id="t-balance"></td>
+							<td></td>
+						</tr>
+					</tfoot>
+				</table>
+			</div>
 		</div>
 	</main>
 
@@ -69,6 +113,65 @@
 		const iso = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())).toISOString().slice(0,10);
 		dateInput.value = iso;
 
+		const rangeLabel = document.getElementById('range-label');
+		const countLabel = document.getElementById('count-label');
+		const tbody = document.getElementById('acc-tbody');
+		const tIng = document.getElementById('t-ingresos');
+		const tGas = document.getElementById('t-gastos');
+		const tBal = document.getElementById('t-balance');
+		const changeBtn = document.getElementById('change-range');
+
+		function formatDay(diso){ if (!diso) return ''; const d=new Date(diso+'T00:00:00Z'); const m=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']; return `${d.getUTCDate()} ${m[d.getUTCMonth()]} ${d.getUTCFullYear()}`; }
+
+		// Range: current month by default
+		let start = new Date(Date.UTC(today.getFullYear(), today.getMonth(), 1)).toISOString().slice(0,10);
+		let end = new Date(Date.UTC(today.getFullYear(), today.getMonth()+1, 0)).toISOString().slice(0,10);
+
+		async function fetchJSON(u, opts){ const r = await fetch(u, opts); if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }
+
+		function renderRows(rows){
+			tbody.innerHTML = '';
+			let sumIng = 0, sumGas = 0;
+			for (const r of (rows||[])){
+				const tr = document.createElement('tr');
+				const v = Number(r.amount_cents||0);
+				const isIng = (r.kind||'') === 'ingreso';
+				if (isIng) sumIng += v; else sumGas += v;
+				tr.innerHTML = `
+					<td>${String(r.entry_date||'').slice(0,10)}</td>
+					<td>${r.kind||''}</td>
+					<td>${r.description||''}</td>
+					<td class="col-total">${v||''}</td>
+					<td><button class="press-btn" data-del="${r.id}">Eliminar</button></td>
+				`;
+				tbody.appendChild(tr);
+			}
+			tIng.textContent = sumIng || '';
+			tGas.textContent = sumGas || '';
+			tBal.textContent = (sumIng - sumGas) || '';
+			countLabel.textContent = `Filas: ${(rows||[]).length}`;
+			// Wire deletes
+			Array.from(tbody.querySelectorAll('button[data-del]')).forEach(btn => {
+				btn.addEventListener('click', async () => {
+					const id = Number(btn.getAttribute('data-del'));
+					if (!id) return;
+					if (!confirm('Eliminar registro?')) return;
+					try { await fetch(`/api/accounting?id=${encodeURIComponent(id)}`, { method: 'DELETE', headers: { 'X-Actor-Name': currentUser?.name || '' } }); await load(); } catch {}
+				});
+			});
+		}
+
+		async function load(){
+			try {
+				rangeLabel.textContent = `${formatDay(start)} — ${formatDay(end)}`;
+				countLabel.textContent = 'Cargando…';
+				const rows = await fetchJSON(`/api/accounting?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`);
+				renderRows(rows);
+			} catch (e) {
+				countLabel.textContent = 'Error cargando';
+			}
+		}
+
 		document.getElementById('back-btn').addEventListener('click', () => { location.href = '/'; });
 		document.getElementById('acc-cancel').addEventListener('click', () => { location.href = '/'; });
 
@@ -80,20 +183,47 @@
 			const value = Number(document.getElementById('acc-value').value || 0);
 			if (!type || !date || !desc || !value) { alert('Completa todos los campos'); return; }
 			try {
-				// Placeholder: persist locally for ahora
-				const item = { id: Date.now(), type, date, description: desc, value };
-				const key = 'accountingItems';
-				let list = [];
-				try { const prev = localStorage.getItem(key); if (prev) list = JSON.parse(prev); } catch {}
-				list.push(item);
-				localStorage.setItem(key, JSON.stringify(list));
-				alert('Guardado');
-				location.href = '/';
+				const payload = { kind: type, entry_date: date, description: desc, amount_cents: Number.isFinite(value) ? value : 0, _actor_name: currentUser?.name || '' };
+				await fetch('/api/accounting', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Actor-Name': currentUser?.name || '' }, body: JSON.stringify(payload) });
+				// Clear description and value, keep type and date
+				document.getElementById('acc-desc').value = '';
+				document.getElementById('acc-value').value = '';
+				await load();
 			} catch (err) {
 				console.error(err);
 				alert('Error al guardar');
 			}
 		});
+
+		function openCalendar(ev){
+			openRangeCalendarPopover((range) => {
+				if (!range || !range.start || !range.end) return;
+				start = range.start; end = range.end;
+				load();
+			}, ev.clientX, ev.clientY, { preferUp: true });
+		}
+		changeBtn.addEventListener('click', openCalendar);
+
+		// Lightweight embed of openRangeCalendarPopover if not present
+		if (typeof window.openRangeCalendarPopover !== 'function') {
+			window.openRangeCalendarPopover = function(onPickedRange, anchorX, anchorY, opts){
+				const pop = document.createElement('div'); pop.className = 'date-popover'; pop.style.position = 'fixed'; const baseX = anchorX||window.innerWidth/2; const baseY = anchorY||window.innerHeight/2; pop.style.left = baseX+'px'; pop.style.top=(baseY+8)+'px'; pop.style.transform='translate(-50%,0)'; pop.style.zIndex='1000';
+				const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']; let view = new Date(); view.setDate(1); let startIso=null, endIso=null;
+				const header=document.createElement('div'); header.className='date-popover-header'; const prev=document.createElement('button'); prev.className='date-nav'; prev.textContent='‹'; const label=document.createElement('div'); label.className='date-label'; const next=document.createElement('button'); next.className='date-nav'; next.textContent='›'; header.append(prev,label,next);
+				const grid=document.createElement('div'); grid.className='date-grid'; const weekdays=['L','M','X','J','V','S','D']; const wk=document.createElement('div'); wk.className='date-weekdays'; for (const w of weekdays){ const c=document.createElement('div'); c.textContent=w; wk.appendChild(c);} 
+				function isoUTC(y,m,d){ return new Date(Date.UTC(y,m,d)).toISOString().slice(0,10); }
+				function isBetween(x,a,b){ return x>=a && x<=b; }
+				function render(){ label.textContent = months[view.getMonth()] + ' ' + view.getFullYear(); grid.innerHTML=''; const year=view.getFullYear(); const month=view.getMonth(); const firstDay=(new Date(Date.UTC(year,month,1)).getUTCDay()+6)%7; const daysInMonth=new Date(Date.UTC(year,month+1,0)).getUTCDate(); for (let i=0;i<firstDay;i++){ const cell=document.createElement('button'); cell.className='date-cell disabled'; cell.disabled=true; grid.appendChild(cell);} for (let d=1; d<=daysInMonth; d++){ const iso=isoUTC(year,month,d); const cell=document.createElement('button'); let cls='date-cell'; if (startIso && !endIso && iso===startIso) cls+=' range-start selected'; if (startIso && endIso){ if (iso===startIso) cls+=' range-start selected'; else if (iso===endIso) cls+=' range-end selected'; else if (isBetween(iso,startIso,endIso)) cls+=' in-range'; } cell.className=cls; cell.textContent=String(d); cell.addEventListener('click',()=>{ if(!startIso){ startIso=iso; endIso=null; render(); return; } if(!endIso){ if(iso<startIso){ endIso=startIso; startIso=iso; } else { endIso=iso; } render(); return; } startIso=iso; endIso=null; render(); }); grid.appendChild(cell);} }
+				function cleanup(){ document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); if(pop.parentNode) pop.parentNode.removeChild(pop);} function outside(ev){ if(!pop.contains(ev.target)) cleanup(); }
+				prev.addEventListener('click',()=>{ view.setMonth(view.getMonth()-1); render(); }); next.addEventListener('click',()=>{ view.setMonth(view.getMonth()+1); render(); });
+				const actions=document.createElement('div'); actions.style.display='flex'; actions.style.justifyContent='space-between'; actions.style.marginTop='8px'; const clearBtn=document.createElement('button'); clearBtn.className='date-nav'; clearBtn.textContent='Limpiar'; const genBtn=document.createElement('button'); genBtn.className='date-nav'; genBtn.textContent='Generar'; genBtn.disabled=true; clearBtn.addEventListener('click',()=>{ startIso=null; endIso=null; genBtn.disabled=true; render(); }); genBtn.addEventListener('click',()=>{ if(startIso && endIso && typeof onPickedRange==='function'){ cleanup(); onPickedRange({ start:startIso, end:endIso }); } }); actions.append(clearBtn, genBtn);
+				const origRender = render; render = function(){ origRender(); genBtn.disabled = !(startIso && endIso); };
+				pop.append(header, wk, grid, actions); document.body.appendChild(pop); pop.classList.add('aladdin-pop');
+				document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); render();
+			};
+		}
+
+		load();
 	})();
 	</script>
 </body>
