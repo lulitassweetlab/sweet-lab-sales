@@ -273,6 +273,10 @@
 		dateIconBtn.addEventListener('click', (ev) => {
 			openSingleDatePopover((pickedIso) => { dateInput.value = pickedIso; }, ev.clientX, ev.clientY);
 		});
+		dateInput.addEventListener('click', (ev) => {
+			ev.preventDefault();
+			openSingleDatePopover((pickedIso) => { dateInput.value = pickedIso; }, ev.clientX, ev.clientY);
+		});
 
 		load();
 	})();
