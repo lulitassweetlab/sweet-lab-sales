@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Ingredientes necesarios</title>
+	<link rel="stylesheet" href="/styles.css?v=2025-09-17-1" />
+</head>
+<body>
+	<header class="app-header">
+		<div class="header-row">
+			<div class="header-left">
+				<img src="/logo.png" alt="Lulitas Logo" class="app-logo" />
+				<h1>Ingredientes necesarios</h1>
+			</div>
+			<div class="header-actions">
+				<button id="back-btn" class="press-btn">Volver</button>
+			</div>
+		</div>
+	</header>
+
+	<main class="sales-panel">
+		<div class="panel-header">
+			<h3 id="title">Requerimientos por pedidos</h3>
+			<div class="panel-actions">
+				<button id="change-range" class="press-btn">Cambiar fechas</button>
+			</div>
+		</div>
+		<div class="panel-body">
+			<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px">
+				<strong id="range-label"></strong>
+				<small id="count-label" style="opacity:.8"></small>
+			</div>
+			<div id="counts-summary" style="display:flex; gap:10px; flex-wrap:wrap; margin:6px 0 12px 0"></div>
+			<div class="table-wrapper">
+				<table id="ingredients-table">
+					<thead>
+						<tr>
+							<th>Ingrediente</th>
+							<th>Por unidad</th>
+							<th>Se necesitan</th>
+							<th>En inventario</th>
+							<th>Compras</th>
+						</tr>
+					</thead>
+					<tbody id="ingredients-tbody"></tbody>
+					<tfoot>
+						<tr class="report-spacer-row"><td colspan="5"></td></tr>
+						<tr>
+							<td class="label" colspan="4">Totales a comprar</td>
+							<td id="t-buy-total" class="col-total"></td>
+						</tr>
+					</tfoot>
+				</table>
+			</div>
+		</div>
+	</main>
+
+	<script type="module">
+	(function(){
+		const qs = new URLSearchParams(location.search);
+		let start = (qs.get('start') || '').slice(0,10);
+		let end = (qs.get('end') || '').slice(0,10);
+		const rangeLabel = document.getElementById('range-label');
+		const countLabel = document.getElementById('count-label');
+		const countsSummary = document.getElementById('counts-summary');
+		const tbody = document.getElementById('ingredients-tbody');
+		const tBuyTotal = document.getElementById('t-buy-total');
+		const backBtn = document.getElementById('back-btn');
+		const changeBtn = document.getElementById('change-range');
+
+		// Lightweight embed of openRangeCalendarPopover if not present (needed on this page)
+		if (typeof window.openRangeCalendarPopover !== 'function') {
+			window.openRangeCalendarPopover = function(onPickedRange, anchorX, anchorY, opts){
+				const pop = document.createElement('div'); pop.className = 'date-popover'; pop.style.position = 'fixed'; const baseX = anchorX||window.innerWidth/2; const baseY = anchorY||window.innerHeight/2; pop.style.left = baseX+'px'; pop.style.top=(baseY+8)+'px'; pop.style.transform='translate(-50%,0)'; pop.style.zIndex='1000';
+				const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']; let view = new Date(); view.setDate(1); let startIso=null, endIso=null;
+				const header=document.createElement('div'); header.className='date-popover-header'; const prev=document.createElement('button'); prev.className='date-nav'; prev.textContent='‹'; const label=document.createElement('div'); label.className='date-label'; const next=document.createElement('button'); next.className='date-nav'; next.textContent='›'; header.append(prev,label,next);
+				const grid=document.createElement('div'); grid.className='date-grid'; const weekdays=['L','M','X','J','V','S','D']; const wk=document.createElement('div'); wk.className='date-weekdays'; for (const w of weekdays){ const c=document.createElement('div'); c.textContent=w; wk.appendChild(c);} 
+				function isoUTC(y,m,d){ return new Date(Date.UTC(y,m,d)).toISOString().slice(0,10); }
+				function isBetween(x,a,b){ return x>=a && x<=b; }
+				function render(){ label.textContent = months[view.getMonth()] + ' ' + view.getFullYear(); grid.innerHTML=''; const year=view.getFullYear(); const month=view.getMonth(); const firstDay=(new Date(Date.UTC(year,month,1)).getUTCDay()+6)%7; const daysInMonth=new Date(Date.UTC(year,month+1,0)).getUTCDate(); for (let i=0;i<firstDay;i++){ const cell=document.createElement('button'); cell.className='date-cell disabled'; cell.disabled=true; grid.appendChild(cell);} for (let d=1; d<=daysInMonth; d++){ const iso=isoUTC(year,month,d); const cell=document.createElement('button'); let cls='date-cell'; if (startIso && !endIso && iso===startIso) cls+=' range-start selected'; if (startIso && endIso){ if (iso===startIso) cls+=' range-start selected'; else if (iso===endIso) cls+=' range-end selected'; else if (isBetween(iso,startIso,endIso)) cls+=' in-range'; } cell.className=cls; cell.textContent=String(d); cell.addEventListener('click',()=>{ if(!startIso){ startIso=iso; endIso=null; render(); return; } if(!endIso){ if(iso<startIso){ endIso=startIso; startIso=iso; } else { endIso=iso; } render(); return; } startIso=iso; endIso=null; render(); }); grid.appendChild(cell);} }
+				function cleanup(){ document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); if(pop.parentNode) pop.parentNode.removeChild(pop);} function outside(ev){ if(!pop.contains(ev.target)) cleanup(); }
+				prev.addEventListener('click',()=>{ view.setMonth(view.getMonth()-1); render(); }); next.addEventListener('click',()=>{ view.setMonth(view.getMonth()+1); render(); });
+				const actions=document.createElement('div'); actions.style.display='flex'; actions.style.justifyContent='space-between'; actions.style.marginTop='8px'; const clearBtn=document.createElement('button'); clearBtn.className='date-nav'; clearBtn.textContent='Limpiar'; const genBtn=document.createElement('button'); genBtn.className='date-nav'; genBtn.textContent='Generar'; genBtn.disabled=true; clearBtn.addEventListener('click',()=>{ startIso=null; endIso=null; genBtn.disabled=true; render(); }); genBtn.addEventListener('click',()=>{ if(startIso && endIso && typeof onPickedRange==='function'){ cleanup(); onPickedRange({ start:startIso, end:endIso }); } }); actions.append(clearBtn, genBtn);
+				const origRender = render; render = function(){ origRender(); genBtn.disabled = !(startIso && endIso); };
+				pop.append(header, wk, grid, actions); document.body.appendChild(pop); pop.classList.add('aladdin-pop');
+				document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); render();
+			};
+		}
+
+		function formatDay(iso){
+			if (!iso) return '';
+			const d = new Date(iso + 'T00:00:00Z');
+			const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+			return `${d.getUTCDate()} ${months[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+		}
+
+		async function fetchJSON(u){ const r = await fetch(u); if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }
+
+		function sumCountsView(c){
+			countsSummary.innerHTML = '';
+			const pills = [
+				{ label: 'Arco', v: c.arco },
+				{ label: 'Melo', v: c.melo },
+				{ label: 'Mara', v: c.mara },
+				{ label: 'Oreo', v: c.oreo },
+				{ label: 'Nute', v: c.nute },
+				{ label: 'Total', v: (c.arco+c.melo+c.mara+c.oreo+c.nute) }
+			];
+			for (const p of pills){
+				const el = document.createElement('div');
+				el.style.background = 'var(--card)'; el.style.border = '1px solid var(--border)'; el.style.borderRadius = '999px'; el.style.padding = '4px 10px';
+				el.textContent = `${p.label}: ${p.v}`;
+				countsSummary.appendChild(el);
+			}
+		}
+
+		function openCalendar(ev){
+			openRangeCalendarPopover((range) => {
+				if (!range || !range.start || !range.end) return;
+				start = range.start; end = range.end;
+				history.replaceState(null, '', `?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`);
+				load();
+			}, ev.clientX, ev.clientY, { preferUp: true });
+		}
+
+		async function load(){
+			if (!start || !end) return;
+			rangeLabel.textContent = `${formatDay(start)} — ${formatDay(end)}`;
+			countLabel.textContent = 'Cargando…';
+			// 1) Build counts by dessert from sales in range
+			const sellers = await fetchJSON('/api/sellers');
+			countLabel.textContent = `Vendedores: ${sellers.length} · Buscando días…`;
+			const isoBetween = (iso, a, b) => iso >= a && iso <= b;
+			async function mapLimit(items, limit, fn) {
+				const out = []; let idx = 0; let running = 0; let resolveAll; const done = new Promise(r => resolveAll = r);
+				function runNext(){
+					if (idx >= items.length && running === 0) return resolveAll();
+					while (running < limit && idx < items.length) {
+						const cur = items[idx++]; running++;
+						Promise.resolve(fn(cur)).then(v => { out.push(v); running--; runNext(); }).catch(() => { running--; runNext(); });
+					}
+				}
+				runNext(); await done; return out;
+			}
+			const sellerDays = [];
+			await mapLimit(sellers, 6, async (s) => {
+				try {
+					const days = await fetchJSON(`/api/days?seller_id=${encodeURIComponent(s.id)}`);
+					for (const d of (days||[])) {
+						const iso = String(d.day).slice(0,10);
+						if (isoBetween(iso, start, end)) sellerDays.push({ seller: s, day: d });
+					}
+				} catch {}
+			});
+			countLabel.textContent = `Días: ${sellerDays.length} · Buscando ventas…`;
+			const counts = { arco:0, melo:0, mara:0, oreo:0, nute:0 };
+			await mapLimit(sellerDays, 6, async ({ seller, day }) => {
+				try {
+					const params = new URLSearchParams({ seller_id: String(seller.id), sale_day_id: String(day.id) });
+					const sales = await fetchJSON(`/api/sales?${params.toString()}`);
+					for (const r of (sales || [])) {
+						counts.arco += Number(r.qty_arco || 0) || 0;
+						counts.melo += Number(r.qty_melo || 0) || 0;
+						counts.mara += Number(r.qty_mara || 0) || 0;
+						counts.oreo += Number(r.qty_oreo || 0) || 0;
+						counts.nute += Number(r.qty_nute || 0) || 0;
+					}
+				} catch {}
+			});
+			sumCountsView(counts);
+
+			// 2) Fetch recipes per dessert and extras once
+			countLabel.textContent = 'Cargando recetas…';
+			const desserts = await fetchJSON('/api/recipes');
+			const names = Array.isArray(desserts) ? desserts : [];
+			const details = new Map();
+			await mapLimit(names, 4, async (name, idx) => {
+				try {
+					const url = new URL('/api/recipes', location.origin);
+					url.searchParams.set('dessert', name);
+					if (idx === 0) url.searchParams.set('include_extras', '1');
+					const full = await fetchJSON(url.toString());
+					details.set(name, full);
+				} catch {}
+			});
+			const extras = (details.get(names[0]) && Array.isArray(details.get(names[0]).extras)) ? details.get(names[0]).extras : [];
+
+			// 3) Fetch inventory balances
+			countLabel.textContent = 'Leyendo inventario…';
+			const inventory = await fetchJSON('/api/inventory');
+			const invByKey = new Map();
+			for (const it of (inventory||[])) invByKey.set((it.ingredient||'').toString().toLowerCase(), Number(it.saldo||0)||0);
+
+			// 4) Build aggregated rows per ingredient (unify same ingredients)
+			countLabel.textContent = 'Calculando requerimientos…';
+			const agg = new Map(); // key -> { name, perUnits:Set<string>, needed:number }
+			const normKey = (s) => (s||'').toString().trim().toLowerCase().replace(/\s+/g,' ');
+			const fmt1 = (n) => (Number(n||0)||0).toFixed(1);
+			function canonicalizeName(name){
+				const raw = (name||'').toString().trim();
+				const low = raw.toLowerCase();
+				if (!raw) return raw;
+				if (low.includes('nutella')) return 'Nutella';
+				if (low.includes('oreo')) return 'Oreo';
+				if (low.startsWith('agua')) return 'Agua';
+				if (low.includes('almibar') || low.includes('almíbar')) return 'Almíbar';
+				return raw;
+			}
+			function displayNameFor(name){
+				const low = (name||'').toString().toLowerCase();
+				if (low.includes('bolsa') && low.includes('cuchara')) return 'Bolsa para cuchara';
+				if (low.includes('contenedor') && (low.includes('8 oz') || low.includes('8oz'))) return 'Contenedor 8 onz';
+				return name || '';
+			}
+			function addRow(_dessert, ingredient, unit, perUnit, needed){
+				const canon = canonicalizeName(ingredient);
+				// Excluir Agua y Almíbar del reporte
+				if (canon === 'Agua' || canon === 'Almíbar') return;
+				const disp = displayNameFor(canon);
+				const key = normKey(canon);
+				if (!key) return;
+				const cur = agg.get(key) || { name: disp, perUnits: new Set(), needed: 0 };
+				if (perUnit != null) cur.perUnits.add(fmt1(perUnit));
+				cur.needed += Number(needed||0)||0;
+				agg.set(key, cur);
+			}
+			const mapKey = (name) => (name||'').toString().trim().toLowerCase();
+			for (const name of names){
+				const info = details.get(name);
+				if (!info || !Array.isArray(info.steps)) continue;
+				const k = mapKey(name);
+				const mult = k.startsWith('arco') ? counts.arco : k.startsWith('melo') ? counts.melo : k.startsWith('mara') ? counts.mara : k.startsWith('oreo') ? counts.oreo : k.startsWith('nute') ? counts.nute : 0;
+				if (!mult) continue;
+				for (const st of info.steps){
+					for (const it of (st.items||[])){
+						const per = Number(it.qty_per_unit||0)||0;
+						addRow(name, it.ingredient, it.unit, per, per * mult);
+					}
+				}
+			}
+			const totalUnits = counts.arco + counts.melo + counts.mara + counts.oreo + counts.nute;
+			for (const ex of (extras||[])){
+				const per = Number(ex.qty_per_unit||0)||0;
+				addRow('Extra', ex.ingredient, ex.unit, per, per * totalUnits);
+			}
+
+			// 5) Materialize rows and render
+			const keys = Array.from(agg.keys()).sort((a,b) => a.localeCompare(b));
+			tbody.innerHTML = '';
+			let buyTotal = 0;
+			for (const key of keys){
+				const v = agg.get(key);
+				const inv = invByKey.has(key) ? Number(invByKey.get(key)||0)||0 : 0;
+				const buy = Math.max(0, (Number(v.needed||0)||0) - inv);
+				const perUnitDisplay = (v.perUnits && v.perUnits.size === 1) ? Array.from(v.perUnits)[0] : '—';
+				const tr = document.createElement('tr');
+				tr.innerHTML = `
+					<td style="text-align:left">${v.name}</td>
+					<td>${perUnitDisplay}</td>
+					<td>${fmt1(v.needed)}</td>
+					<td>${fmt1(inv)}</td>
+					<td class="col-total">${fmt1(buy)}</td>`;
+				tbody.appendChild(tr);
+				buyTotal += buy;
+			}
+			tBuyTotal.textContent = fmt1(buyTotal);
+			countLabel.textContent = `Ingredientes: ${keys.length}`;
+		}
+
+		// Back to report or home
+		backBtn.addEventListener('click', () => {
+			const url = new URL('/sales-report.html', location.origin);
+			if (start) url.searchParams.set('start', start);
+			if (end) url.searchParams.set('end', end);
+			location.href = url.toString();
+		});
+		changeBtn.addEventListener('click', openCalendar);
+
+
+
+		if (!start || !end) {
+			countLabel.textContent = 'Selecciona un rango de fechas';
+			const cx = Math.round(window.innerWidth / 2);
+			const cy = 120;
+			openRangeCalendarPopover((range) => {
+				if (!range || !range.start || !range.end) return;
+				start = range.start; end = range.end;
+				history.replaceState(null, '', `?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`);
+				load();
+			}, cx, cy, { preferUp: true });
+		} else {
+			load();
+		}
+	})();
+	</script>
+</body>
+</html>
+

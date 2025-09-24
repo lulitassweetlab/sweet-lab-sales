@@ -308,6 +308,8 @@ tfoot td { font-weight: 400; }
 .tfoot-qty td { color: var(--text); }
 .tfoot-amt td { color: var(--accent); }
 .tfoot-qty .label { text-align: left; }
+/* Spacer between last data row and totals in report */
+.report-spacer-row td { border-bottom: none; padding: 0; height: 40px; background: transparent; }
 
 /* Inputs */
 .input-cell {

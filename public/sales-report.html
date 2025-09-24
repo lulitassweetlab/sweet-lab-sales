@@ -26,6 +26,7 @@
 			<div class="panel-actions">
 				<button id="change-range" class="press-btn">Cambiar fechas</button>
 				<button id="export-excel" class="excel-btn press-btn btn-gold">⤓ Generar Excel</button>
+				<button id="ingredients-btn" class="press-btn">Ingredientes necesarios</button>
 			</div>
 		</div>
 		<div class="panel-body">
@@ -61,7 +62,8 @@
 						</tr>
 					</thead>
 					<tbody id="report-tbody"></tbody>
-					<tfoot>
+				<tfoot>
+					<tr class="report-spacer-row"><td colspan="11"></td></tr>
 						<tr>
 							<td></td>
 							<td></td>
@@ -112,6 +114,7 @@
 		const backBtn = document.getElementById('back-btn');
 		const changeBtn = document.getElementById('change-range');
 		const exportBtn = document.getElementById('export-excel');
+		const ingredientsBtn = document.getElementById('ingredients-btn');
 		const sellerFilter = document.getElementById('seller-filter');
 		const payFilter = document.getElementById('pay-filter');
 		const sellerFilterGroup = document.getElementById('seller-filter-group');
@@ -339,6 +342,13 @@
 			const wb = XLSX.utils.book_new();
 			XLSX.utils.book_append_sheet(wb, ws, 'Consolidado');
 			XLSX.writeFile(wb, `Consolidado_${(start||'').replaceAll('-','')}_a_${(end||'').replaceAll('-','')}.xlsx`);
+		});
+
+		ingredientsBtn.addEventListener('click', () => {
+			const url = new URL('/ingredients.html', location.origin);
+			if (start) url.searchParams.set('start', start);
+			if (end) url.searchParams.set('end', end);
+			location.href = url.toString();
 		});
 
 		backBtn.addEventListener('click', () => { location.href = '/'; });
