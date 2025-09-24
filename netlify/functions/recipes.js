@@ -68,12 +68,16 @@ export async function handler(event) {
 					const dessert = (data.dessert || '').toString();
 					if (!dessert) return json({ error: 'dessert requerido' }, 400);
 					const stepName = (data.step_name || null);
-					const position = Number(data.position || 0) || 0;
+					let position = Number(data.position || 0) || 0;
 					const id = Number(data.id || 0) || 0;
 					let row;
 					if (id) {
 						[row] = await sql`UPDATE dessert_recipes SET dessert=${dessert}, step_name=${stepName}, position=${position}, updated_at=now() WHERE id=${id} RETURNING id, dessert, step_name, position`; 
 					} else {
+						if (!position || position <= 0) {
+							const [p] = await sql`SELECT COALESCE(MAX(position), 0)::int + 1 AS next_pos FROM dessert_recipes WHERE lower(dessert)=lower(${dessert})`;
+							position = Number(p?.next_pos || 1) || 1;
+						}
 						[row] = await sql`INSERT INTO dessert_recipes (dessert, step_name, position) VALUES (${dessert}, ${stepName}, ${position}) RETURNING id, dessert, step_name, position`;
 					}
 					return json(row, id ? 200 : 201);

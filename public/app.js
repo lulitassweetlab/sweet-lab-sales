@@ -2750,7 +2750,7 @@ async function buildDessertCard(dessertName) {
 	for (const s of (data.steps || [])) steps.appendChild(buildStepCard(dessertName, s));
 	addStep.addEventListener('click', async () => {
 		const name = prompt('Nombre del paso (o vacío para sin paso):');
-		await api('POST', API.Recipes, { kind: 'step.upsert', dessert: dessertName, step_name: name || null, position: (data.steps?.length || 0) + 1 });
+		await api('POST', API.Recipes, { kind: 'step.upsert', dessert: dessertName, step_name: name || null });
 		const fresh = await buildDessertCard(dessertName); card.replaceWith(fresh);
 	});
 	// Enable drag & drop for dessert cards
