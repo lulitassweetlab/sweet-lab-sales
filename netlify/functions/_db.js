@@ -17,6 +17,7 @@ export async function ensureSchema() {
 		id SERIAL PRIMARY KEY,
 		name TEXT UNIQUE NOT NULL,
 		bill_color TEXT,
+		archived_at TIMESTAMPTZ,
 		created_at TIMESTAMPTZ DEFAULT now()
 	)`;
 	// Ensure bill_color exists for older deployments
@@ -27,6 +28,12 @@ export async function ensureSchema() {
 		) THEN
 			ALTER TABLE sellers ADD COLUMN bill_color TEXT;
 		END IF;
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'sellers' AND column_name = 'archived_at'
+		) THEN
+			ALTER TABLE sellers ADD COLUMN archived_at TIMESTAMPTZ;
+		END IF;
 	END $$;`;
 	await sql`CREATE TABLE IF NOT EXISTS sale_days (
 		id SERIAL PRIMARY KEY,
@@ -35,8 +42,38 @@ export async function ensureSchema() {
 		is_archived BOOLEAN NOT NULL DEFAULT false,
 		UNIQUE (seller_id, day)
 	)`;
-	// Ensure is_archived exists for older deployments
+	// Ensure delivered columns and is_archived exist for older deployments
 	await sql`DO $$ BEGIN
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'sale_days' AND column_name = 'delivered_arco'
+		) THEN
+			ALTER TABLE sale_days ADD COLUMN delivered_arco INTEGER NOT NULL DEFAULT 0;
+		END IF;
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'sale_days' AND column_name = 'delivered_melo'
+		) THEN
+			ALTER TABLE sale_days ADD COLUMN delivered_melo INTEGER NOT NULL DEFAULT 0;
+		END IF;
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'sale_days' AND column_name = 'delivered_mara'
+		) THEN
+			ALTER TABLE sale_days ADD COLUMN delivered_mara INTEGER NOT NULL DEFAULT 0;
+		END IF;
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'sale_days' AND column_name = 'delivered_oreo'
+		) THEN
+			ALTER TABLE sale_days ADD COLUMN delivered_oreo INTEGER NOT NULL DEFAULT 0;
+		END IF;
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'sale_days' AND column_name = 'delivered_nute'
+		) THEN
+			ALTER TABLE sale_days ADD COLUMN delivered_nute INTEGER NOT NULL DEFAULT 0;
+		END IF;
 		IF NOT EXISTS (
 			SELECT 1 FROM information_schema.columns
 			WHERE table_name = 'sale_days' AND column_name = 'is_archived'

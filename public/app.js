@@ -903,6 +903,76 @@ async function performRedo() {
 	redoBtn?.addEventListener('click', () => { performRedo().catch(console.error); });
 })();
 
+// Superadmin-only editors for delivered counts per day (inline editable)
+function wireDeliveredRowEditors() {
+    const isSuper = state?.currentUser?.role === 'superadmin' || !!state?.currentUser?.isSuperAdmin;
+    const cells = [
+        { key: 'arco', el: document.getElementById('deliv-arco') },
+        { key: 'melo', el: document.getElementById('deliv-melo') },
+        { key: 'mara', el: document.getElementById('deliv-mara') },
+        { key: 'oreo', el: document.getElementById('deliv-oreo') },
+        { key: 'nute', el: document.getElementById('deliv-nute') },
+    ];
+	function selectAllContent(el) {
+		try {
+			const range = document.createRange();
+			range.selectNodeContents(el);
+			const sel = window.getSelection();
+			sel.removeAllRanges();
+			sel.addRange(range);
+		} catch {}
+	}
+    for (const item of cells) {
+        const el = item.el;
+        if (!el) continue;
+        // Toggle contenteditable based on role
+        if (isSuper) {
+            if (!el.isContentEditable) el.setAttribute('contenteditable', 'true');
+            el.style.cursor = 'text';
+            el.title = 'Editar cantidad entregada';
+        } else {
+            if (el.isContentEditable) el.removeAttribute('contenteditable');
+            el.style.cursor = 'default';
+            el.title = '';
+        }
+        if (el.dataset.bound === '1') continue;
+        el.dataset.bound = '1';
+		// Al enfocar/clic, seleccionar todo para reemplazar con la nueva cifra
+		el.addEventListener('focus', () => { selectAllContent(el); });
+		el.addEventListener('mouseup', (ev) => { ev.preventDefault(); selectAllContent(el); });
+		el.addEventListener('click', () => { selectAllContent(el); });
+        // Sanitize input to numbers only while typing
+        el.addEventListener('input', () => {
+            if (!el.isContentEditable) return;
+            let raw = (el.textContent || '').replace(/[^0-9]/g, '');
+            // Remove leading zeros
+            raw = raw.replace(/^0+(\d)/, '$1');
+            el.textContent = raw;
+        });
+        // Save on Enter or blur
+        el.addEventListener('keydown', (ev) => {
+            if (ev.key === 'Enter') { ev.preventDefault(); el.blur(); }
+        });
+        el.addEventListener('blur', async () => {
+            if (!isSuper) return;
+            const dayId = state?.selectedDayId || null;
+            if (!dayId) { try { notify.error('Selecciona una fecha'); } catch {} return; }
+            const flavor = item.key;
+            const value = Math.max(0, parseInt((el.textContent || '0').trim(), 10) || 0);
+            const payload = { id: dayId, actor_name: state.currentUser?.name || '' };
+            payload[`delivered_${flavor}`] = value;
+            try {
+                const updated = await api('PUT', '/api/days', payload);
+                const idx = (state.saleDays || []).findIndex(d => d && d.id === dayId);
+                if (idx !== -1) state.saleDays[idx] = updated;
+                updateSummary();
+            } catch (e) {
+                try { notify.error('No se pudo guardar'); } catch {}
+            }
+        });
+    }
+}
+
 // Wrap API operations to record undo/redo
 async function addRow() {
 	const sellerId = state.currentSeller.id;
@@ -1303,6 +1373,25 @@ function updateSummary() {
 	const commStr = fmtNo.format(paidTotalQty * 1000);
 	const commEl = document.getElementById('sum-comm');
 	if (commEl) commEl.textContent = commStr;
+	// Postres entregados (per day, editable solo por superadmin)
+	try {
+		const day = (state && Array.isArray(state.saleDays) && state.selectedDayId)
+			? (state.saleDays || []).find(d => d && d.id === state.selectedDayId)
+			: null;
+		const da = Number(day?.delivered_arco || 0) || 0;
+		const dm = Number(day?.delivered_melo || 0) || 0;
+		const dma = Number(day?.delivered_mara || 0) || 0;
+		const dor = Number(day?.delivered_oreo || 0) || 0;
+		const dnu = Number(day?.delivered_nute || 0) || 0;
+		const totalDelivered = da + dm + dma + dor + dnu;
+		const elDa = document.getElementById('deliv-arco'); if (elDa) elDa.textContent = String(da);
+		const elDm = document.getElementById('deliv-melo'); if (elDm) elDm.textContent = String(dm);
+		const elDma = document.getElementById('deliv-mara'); if (elDma) elDma.textContent = String(dma);
+		const elDor = document.getElementById('deliv-oreo'); if (elDor) elDor.textContent = String(dor);
+		const elDnu = document.getElementById('deliv-nute'); if (elDnu) elDnu.textContent = String(dnu);
+		const elDt = document.getElementById('deliv-total'); if (elDt) elDt.textContent = String(totalDelivered);
+		wireDeliveredRowEditors();
+	} catch {}
 	// Decide whether to stack totals to avoid overlap on small screens
 	requestAnimationFrame(() => {
 		const table = document.getElementById('sales-table');
@@ -1582,11 +1671,10 @@ async function exportCarteraExcel(startIso, endIso) {
 	const input = document.getElementById('report-date');
 	if (!reportBtn || !input) return;
 	reportBtn.addEventListener('click', (ev) => {
-		openRangeCalendarPopover(async (range) => {
+		openRangeCalendarPopover((range) => {
 			if (!range || !range.start || !range.end) return;
-			const dates = buildIsoListFromRange(range.start, range.end);
-			if (!dates.length) return;
-			await exportConsolidatedForDates(dates);
+			const url = `/sales-report.html?start=${encodeURIComponent(range.start)}&end=${encodeURIComponent(range.end)}`;
+			window.location.href = url;
 		}, ev.clientX, ev.clientY, { preferUp: true });
 	});
 	carteraBtn?.addEventListener('click', async (ev) => {
