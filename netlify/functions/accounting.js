@@ -31,6 +31,7 @@ export async function handler(event) {
                 const start = (params.get('start') || '').toString().slice(0,10);
                 const end = (params.get('end') || '').toString().slice(0,10);
                 const q = (params.get('q') || '').toString().trim();
+                const category = (params.get('category') || '').toString().trim();
                 const role = await getActorRole(event, null);
                 if (role !== 'superadmin') return json({ error: 'No autorizado' }, 403);
                 let rangeStart = start, rangeEnd = end;
@@ -42,13 +43,14 @@ export async function handler(event) {
                 }
                 const clauses = [sql`entry_date BETWEEN ${rangeStart} AND ${rangeEnd}`];
                 if (q) clauses.push(sql`description ILIKE ${'%' + q + '%'}`);
+                if (category) clauses.push(sql`category = ${category}`);
                 const rows = await sql`
-                    SELECT id, entry_date, description, kind, amount
+                    SELECT id, entry_date, description, kind, amount, category
                     FROM accounting_entries
                     WHERE ${sql.join(clauses, sql` AND `)}
                     ORDER BY entry_date ASC, id ASC
                 `;
-                return json({ month, start: rangeStart, end: rangeEnd, q, entries: rows });
+                return json({ month, start: rangeStart, end: rangeEnd, q, category, entries: rows });
             }
             case 'POST': {
                 const data = JSON.parse(event.body || '{}');
@@ -58,14 +60,15 @@ export async function handler(event) {
                 const description = (data.desc || data.description || '').toString().trim();
                 const kind = (data.type || data.kind || '').toString();
                 const amount = Number(data.value || data.amount || 0) | 0;
+                const category = (data.category || '').toString().trim() || null;
                 if (!entryDate || !/^\d{4}-\d{2}-\d{2}$/.test(entryDate)) return json({ error: 'Fecha inválida' }, 400);
                 if (!description) return json({ error: 'Descripción requerida' }, 400);
                 if (!(kind === 'ingreso' || kind === 'gasto')) return json({ error: 'Tipo inválido' }, 400);
                 if (!Number.isFinite(amount) || amount <= 0) return json({ error: 'Valor inválido' }, 400);
                 const [row] = await sql`
-                    INSERT INTO accounting_entries (entry_date, description, kind, amount)
-                    VALUES (${entryDate}, ${description}, ${kind}, ${amount})
-                    RETURNING id, entry_date, description, kind, amount
+                    INSERT INTO accounting_entries (entry_date, description, kind, amount, category)
+                    VALUES (${entryDate}, ${description}, ${kind}, ${amount}, ${category})
+                    RETURNING id, entry_date, description, kind, amount, category
                 `;
                 return json(row, 201);
             }
@@ -73,35 +76,43 @@ export async function handler(event) {
                 const data = JSON.parse(event.body || '{}');
                 const role = await getActorRole(event, data);
                 if (role !== 'superadmin') return json({ error: 'No autorizado' }, 403);
-                const id = Number(data.id || 0) | 0;
-                if (!id) return json({ error: 'id requerido' }, 400);
+                // Bulk support: ids array or single id
+                const singleId = Number(data.id || 0) | 0;
+                const ids = Array.isArray(data.ids) ? data.ids.map(v => Number(v)||0).filter(v => v>0) : (singleId ? [singleId] : []);
+                if (!ids.length) return json({ error: 'id(s) requeridos' }, 400);
                 const entryDate = (data.date || data.entry_date || '').toString().slice(0,10) || null;
                 const description = (data.desc || data.description || '').toString();
                 const kind = (data.type || data.kind || '').toString();
                 const amount = (data.value ?? data.amount);
+                const category = (data.category ?? null);
                 if (kind && !(kind === 'ingreso' || kind === 'gasto')) return json({ error: 'Tipo inválido' }, 400);
                 const updates = [];
                 if (entryDate && /^\d{4}-\d{2}-\d{2}$/.test(entryDate)) updates.push(sql`entry_date = ${entryDate}`);
                 if (description) updates.push(sql`description = ${description}`);
                 if (kind) updates.push(sql`kind = ${kind}`);
                 if (amount !== undefined && amount !== null) updates.push(sql`amount = ${Number(amount)|0}`);
+                if (category !== undefined) updates.push(sql`category = ${category ? String(category) : null}`);
                 if (!updates.length) return json({ error: 'Sin cambios' }, 400);
-                const [row] = await sql`
+                const rows = await sql`
                     UPDATE accounting_entries SET ${sql.join(updates, sql`, `)}, updated_at = now()
-                    WHERE id = ${id}
-                    RETURNING id, entry_date, description, kind, amount
+                    WHERE id = ANY(${ids})
+                    RETURNING id, entry_date, description, kind, amount, category
                 `;
-                if (!row) return json({ error: 'No encontrado' }, 404);
-                return json(row);
+                if (!rows.length) return json({ error: 'No encontrado' }, 404);
+                return json({ updated: rows.length, entries: rows });
             }
             case 'DELETE': {
                 const params = new URLSearchParams(event.rawQuery || event.queryStringParameters ? event.rawQuery || '' : '');
                 const role = await getActorRole(event, null);
                 if (role !== 'superadmin') return json({ error: 'No autorizado' }, 403);
-                const id = Number(params.get('id') || 0) | 0;
-                if (!id) return json({ error: 'id requerido' }, 400);
-                const res = await sql`DELETE FROM accounting_entries WHERE id=${id}`;
-                return json({ ok: true });
+                const idsParam = (params.get('ids') || '').toString();
+                const idParam = Number(params.get('id') || 0) | 0;
+                let ids = [];
+                if (idsParam) { ids = idsParam.split(',').map(v => Number(v)||0).filter(v => v>0); }
+                else if (idParam) { ids = [idParam]; }
+                if (!ids.length) return json({ error: 'id(s) requeridos' }, 400);
+                await sql`DELETE FROM accounting_entries WHERE id = ANY(${ids})`;
+                return json({ ok: true, deleted: ids.length });
             }
             default:
                 return json({ error: 'Método no permitido' }, 405);

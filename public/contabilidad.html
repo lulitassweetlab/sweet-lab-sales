@@ -12,6 +12,10 @@
     .acct-month { display:flex; align-items:center; gap:8px; }
     .acct-month label { opacity:.8; }
     .filters { display:flex; align-items:center; gap:8px; flex-wrap: wrap; }
+    .bulk-actions { display:flex; align-items:center; gap:8px; flex-wrap: wrap; margin-top: 8px; }
+    .cat-totals { margin: 8px 0; font-size: 13px; }
+    .col-sel { width: 36px; }
+    .col-cat { width: 160px; }
     .acct-table { width:100%; border-collapse: collapse; }
     .acct-table th, .acct-table td { border-bottom: 1px solid var(--table-border,#e6e6e6); padding: 10px; text-align: left; }
     .acct-table th { background: var(--panel-header-bg, #f8f8f8); position: sticky; top: 0; z-index: 1; }
@@ -64,22 +68,31 @@
                     <button id="clear-filters" class="press-btn">Limpiar</button>
                     <button id="acct-export" class="press-btn">Exportar Excel</button>
                 </div>
+                <div class="bulk-actions">
+                    <label><input type="checkbox" id="sel-all" /> Seleccionar todo</label>
+                    <button id="bulk-del" class="press-btn">Eliminar seleccionados</button>
+                    <input id="bulk-cat" type="text" class="input-cell" placeholder="Asignar categoría" style="min-width:180px" />
+                    <button id="bulk-apply-cat" class="press-btn">Aplicar categoría</button>
+                </div>
             </div>
         </div>
         <div class="table-wrapper">
             <table id="acct-table" class="acct-table">
                 <thead>
                     <tr>
+                        <th class="col-sel"></th>
                         <th class="col-date">Fecha</th>
                         <th class="col-desc">Descripción</th>
                         <th class="col-in">Entra</th>
                         <th class="col-out">Sale</th>
+                        <th class="col-cat">Categoría</th>
                         <th class="col-bal">Saldo</th>
                         <th class="col-actions"></th>
                     </tr>
                 </thead>
                 <tbody id="acct-tbody"></tbody>
             </table>
+            <div id="cat-totals" class="cat-totals"></div>
         </div>
     </main>
 
@@ -100,6 +113,11 @@
         const qInput = document.getElementById('q');
         const tbody = document.getElementById('acct-tbody');
         const balanceLabel = document.getElementById('balance-label');
+        const selAll = document.getElementById('sel-all');
+        const bulkDel = document.getElementById('bulk-del');
+        const bulkCat = document.getElementById('bulk-cat');
+        const bulkApplyCat = document.getElementById('bulk-apply-cat');
+        const catTotalsEl = document.getElementById('cat-totals');
 
         function fmtCurrency(n){ const v = Number(n||0); return v.toLocaleString('es-CO'); }
         function todayISO(){ const d = new Date(); const m = String(d.getMonth()+1).padStart(2,'0'); const day = String(d.getDate()).padStart(2,'0'); return `${d.getFullYear()}-${m}-${day}`; }
@@ -137,29 +155,59 @@
             entries.sort((a,b) => String(a.entry_date||a.date).localeCompare(String(b.entry_date||b.date)));
             let running = 0;
             let sumIn = 0; let sumOut = 0;
+            const catTotals = new Map();
+            const selectedIds = new Set();
             for (const e of entries){
                 const dateStr = String(e.entry_date || e.date || '');
                 const kind = String(e.kind || e.type || '');
                 const amount = Number(e.amount || e.value || 0);
                 const desc = String(e.description || e.desc || '');
-                const tr = document.createElement('tr');
+                const category = String(e.category || '');
+                const tr = document.createElement('tr'); tr.dataset.id = String(e.id||'');
+                const tdSel = document.createElement('td');
+                const cb = document.createElement('input'); cb.type = 'checkbox'; cb.addEventListener('change', () => { if (cb.checked) selectedIds.add(e.id); else selectedIds.delete(e.id); });
+                tdSel.appendChild(cb);
                 const tdDate = document.createElement('td'); tdDate.textContent = dateStr;
                 const tdDesc = document.createElement('td'); tdDesc.textContent = desc;
                 const tdIn = document.createElement('td'); tdIn.className = 'right'; tdIn.textContent = kind==='ingreso' ? fmtCurrency(amount) : '';
                 const tdOut = document.createElement('td'); tdOut.className = 'right'; tdOut.textContent = kind==='gasto' ? fmtCurrency(amount) : '';
                 if (kind==='ingreso') { sumIn += amount; running += amount; } else { sumOut += amount; running -= amount; }
+                if (category) { const prev = catTotals.get(category) || { in:0, out:0 }; if (kind==='ingreso') prev.in += amount; else prev.out += amount; catTotals.set(category, prev); }
                 const tdBal = document.createElement('td'); tdBal.className = 'right'; tdBal.textContent = fmtCurrency(running);
+                const tdCat = document.createElement('td'); tdCat.textContent = category;
                 const tdActions = document.createElement('td');
                 const editBtn = document.createElement('button'); editBtn.className = 'press-btn'; editBtn.textContent = 'Editar';
                 const delBtn = document.createElement('button'); delBtn.className = 'press-btn'; delBtn.textContent = 'Eliminar'; delBtn.style.marginLeft = '6px';
                 tdActions.append(editBtn, delBtn);
-                tr.append(tdDate, tdDesc, tdIn, tdOut, tdBal, tdActions);
+                tr.append(tdSel, tdDate, tdDesc, tdIn, tdOut, tdCat, tdBal, tdActions);
                 tbody.appendChild(tr);
 
-                editBtn.addEventListener('click', () => openEditDialog({ id: e.id, date: dateStr, type: kind, value: amount, desc }));
+                editBtn.addEventListener('click', () => openEditDialog({ id: e.id, date: dateStr, type: kind, value: amount, desc, category }));
                 delBtn.addEventListener('click', () => confirmDelete(e.id));
             }
             balanceLabel.textContent = `Ingresos: ${fmtCurrency(sumIn)} · Gastos: ${fmtCurrency(sumOut)} · Saldo: ${fmtCurrency(running)}`;
+
+            // Render subtotals per category
+            if (catTotals.size) {
+                const parts = [];
+                for (const [cat, t] of catTotals.entries()) parts.push(`${cat}: +${fmtCurrency(t.in)} / -${fmtCurrency(t.out)}`);
+                catTotalsEl.textContent = 'Por categoría: ' + parts.join(' · ');
+            } else { catTotalsEl.textContent = ''; }
+
+            // Wire bulk actions
+            selAll.checked = false;
+            selAll.onchange = () => { tbody.querySelectorAll('input[type="checkbox"]').forEach(ch => { ch.checked = selAll.checked; const id = Number(ch.closest('tr')?.dataset?.id || 0); }); };
+            bulkDel.onclick = async () => {
+                const ids = Array.from(tbody.querySelectorAll('input[type="checkbox"]')).filter(ch => ch.checked).map(ch => Number(ch.closest('tr').dataset.id||0)).filter(v=>v>0);
+                if (!ids.length) return; if (!confirm(`¿Eliminar ${ids.length} registro(s)?`)) return;
+                const u = `/api/accounting?ids=${encodeURIComponent(ids.join(','))}&actor=${encodeURIComponent(currentUser?.name||'')}`;
+                try { await fetch(u, { method: 'DELETE' }); recalcAndRender(); } catch {}
+            };
+            bulkApplyCat.onclick = async () => {
+                const ids = Array.from(tbody.querySelectorAll('input[type="checkbox"]')).filter(ch => ch.checked).map(ch => Number(ch.closest('tr').dataset.id||0)).filter(v=>v>0);
+                const category = (bulkCat.value||'').trim();
+                if (!ids.length) return; try { await updateEntry({ ids, category: category || null }); recalcAndRender(); } catch {}
+            };
         }
 
         async function updateEntry(payload){
@@ -203,12 +251,17 @@
             const inVal = document.createElement('input'); inVal.type = 'number'; inVal.min = '0'; inVal.step = '1'; inVal.value = String(entry.value || 0);
             row3.append(lab3, inVal);
 
+            const row4 = document.createElement('div'); row4.className = 'form-row';
+            const lab4 = document.createElement('label'); lab4.textContent = 'Categoría';
+            const inCat = document.createElement('input'); inCat.type = 'text'; inCat.placeholder = 'Opcional'; inCat.value = entry.category || '';
+            row4.append(lab4, inCat);
+
             const actions = document.createElement('div'); actions.className = 'actions';
             const cancel = document.createElement('button'); cancel.className = 'press-btn'; cancel.textContent = 'Cancelar';
             const save = document.createElement('button'); save.className = 'press-btn btn-primary'; save.textContent = 'Guardar';
             actions.append(cancel, save);
 
-            dlg.append(title, typeRow, row1, row2, row3, actions); backdrop.appendChild(dlg); document.body.appendChild(backdrop);
+            dlg.append(title, typeRow, row1, row2, row3, row4, actions); backdrop.appendChild(dlg); document.body.appendChild(backdrop);
             setTimeout(() => backdrop.addEventListener('click', (e) => { if (e.target === backdrop) cleanup(); }), 0);
             function cleanup(){ if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop); }
             cancel.addEventListener('click', cleanup);
@@ -217,7 +270,7 @@
                 const desc = (inDesc.value||'').trim();
                 const value = Math.max(0, Number(inVal.value||0)|0);
                 if (!date || !desc || !value) { return; }
-                try { await updateEntry({ id: entry.id, date, desc, value, type }); } catch {}
+                try { await updateEntry({ id: entry.id, date, desc, value, type, category: (inCat.value||'').trim() || null }); } catch {}
                 cleanup();
                 if (monthKey(date) === getMonth()) recalcAndRender(); else recalcAndRender();
             });
@@ -270,7 +323,8 @@
                 const desc = (inDesc.value||'').trim();
                 const value = Math.max(0, Number(inVal.value||0)|0);
                 if (!date || !desc || !value) { return; }
-                try { await createEntry({ date, desc, value, type }); } catch {}
+                const category = (inCat.value||'').trim();
+                try { await createEntry({ date, desc, value, type, category }); } catch {}
                 cleanup();
                 if (monthKey(date) === getMonth()) recalcAndRender();
             });
@@ -295,6 +349,7 @@
             const rows = entries.map(e => ({
                 Fecha: String(e.entry_date||'').slice(0,10),
                 Descripción: String(e.description||''),
+                Categoría: String(e.category||''),
                 Entra: (e.kind==='ingreso' ? Number(e.amount||0) : ''),
                 Sale: (e.kind==='gasto' ? Number(e.amount||0) : '')
             }));

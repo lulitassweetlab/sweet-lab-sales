@@ -192,6 +192,7 @@ export async function ensureSchema() {
 		description TEXT NOT NULL,
 		kind TEXT NOT NULL,
 		amount INTEGER NOT NULL DEFAULT 0,
+		category TEXT,
 		created_at TIMESTAMPTZ DEFAULT now(),
 		updated_at TIMESTAMPTZ DEFAULT now()
 	)`;
@@ -202,6 +203,12 @@ export async function ensureSchema() {
 			WHERE table_name = 'accounting_entries' AND column_name = 'updated_at'
 		) THEN
 			ALTER TABLE accounting_entries ADD COLUMN updated_at TIMESTAMPTZ DEFAULT now();
+		END IF;
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'accounting_entries' AND column_name = 'category'
+		) THEN
+			ALTER TABLE accounting_entries ADD COLUMN category TEXT;
 		END IF;
 	END $$;`;
 	// Materials: per-flavor ingredient formulas
