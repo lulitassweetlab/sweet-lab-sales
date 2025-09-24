@@ -77,6 +77,15 @@ export async function handler(event) {
 					raw = Object.entries(event.queryStringParameters).map(([k,v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v ?? '')}`).join('&');
 				}
 				const params = new URLSearchParams(raw);
+					// Attachment fetch by entry id
+					const attFor = params.get('attachment_for');
+					if (attFor) {
+						const entryId = Number(attFor);
+						if (!entryId) return json({ error: 'attachment_for inválido' }, 400);
+						const rows = await sql`SELECT id, entry_id, file_base64, mime_type, file_name, created_at FROM accounting_attachments WHERE entry_id=${entryId} ORDER BY created_at DESC, id DESC LIMIT 1`;
+						if (!rows.length) return json({ error: 'No encontrado' }, 404);
+						return json(rows[0]);
+					}
 				const start = (params.get('start') || '').toString().slice(0,10) || null;
 				const end = (params.get('end') || '').toString().slice(0,10) || null;
 				let rows;

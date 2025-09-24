@@ -198,9 +198,34 @@
 					<td><button class="row-delete" data-del="${r.id}" title="Eliminar" aria-label="Eliminar"></button></td>
 				`;
 				tbody.appendChild(tr);
-				// Wire attachment upload
+				// Wire attachment upload or view
 				const attBtn = tr.querySelector('.attach-btn');
 				attBtn.addEventListener('click', async () => {
+					// If already has attachment, fetch and preview
+					if (attBtn.classList.contains('has')) {
+						try {
+							const res = await fetch(`/api/accounting?attachment_for=${encodeURIComponent(r.id)}`);
+							if (!res.ok) { alert('No se pudo cargar el adjunto'); return; }
+							const obj = await res.json();
+							const src = obj.file_base64;
+							// Simple lightbox
+							const backdrop = document.createElement('div'); backdrop.className = 'lightbox-backdrop';
+							const box = document.createElement('div'); box.className = 'lightbox';
+							const img = document.createElement('img'); img.src = src; img.alt = 'Adjunto';
+							const actions = document.createElement('div'); actions.className = 'lightbox-actions';
+							const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn'; closeBtn.textContent = 'Cerrar';
+							const downBtn = document.createElement('button'); downBtn.className = 'press-btn'; downBtn.textContent = 'Descargar';
+							actions.append(closeBtn, downBtn); box.append(img, actions);
+							backdrop.appendChild(box); document.body.appendChild(backdrop);
+							function cleanup(){ document.removeEventListener('keydown', onKey); if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop); }
+							function onKey(e){ if (e.key === 'Escape') cleanup(); }
+							backdrop.addEventListener('click', (e) => { if (e.target === backdrop) cleanup(); });
+							closeBtn.addEventListener('click', cleanup);
+							downBtn.addEventListener('click', () => { const a=document.createElement('a'); a.href = src; a.download = obj.file_name || `adjunto_${r.id}.bin`; document.body.appendChild(a); a.click(); a.remove(); });
+						} catch (e) { console.error(e); alert('Error al abrir adjunto'); }
+						return;
+					}
+					// Else upload new
 					try {
 						const input = document.createElement('input'); input.type = 'file'; input.accept = '*/*';
 						input.addEventListener('change', async () => {
