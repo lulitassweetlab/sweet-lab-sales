@@ -211,9 +211,9 @@
 				if (low.includes('oreo')) return 'Oreo';
 				if (low.startsWith('agua')) return 'Agua';
 				if (low.includes('almibar') || low.includes('almíbar')) return 'Almíbar';
-\t\t\t\t// Extras aliases consistent with server canonicalization
-\t\t\t\tif (low.includes('bolsa') && low.includes('cuchara')) return 'Bolsa para cuchara';
-\t\t\t\tif (low.includes('contenedor') && (low.includes('8 oz') || low.includes('8oz') || low.includes('8 onz') || low.includes('8onz'))) return 'Contenedor 8 onz';
+				// Extras aliases consistent with server canonicalization
+				if (low.includes('bolsa') && low.includes('cuchara')) return 'Bolsa para cuchara';
+				if (low.includes('contenedor') && (low.includes('8 oz') || low.includes('8oz') || low.includes('8 onz') || low.includes('8onz'))) return 'Contenedor 8 onz';
 				return raw;
 			}
 			function displayNameFor(name){
