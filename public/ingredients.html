@@ -40,15 +40,19 @@
 							<th>Por unidad</th>
 							<th>Se necesitan</th>
 							<th>En inventario</th>
-							<th>Compras</th>
+							<th>Compras sugeridas</th>
+							<th>Compras reales</th>
+							<th>Precio compra</th>
 						</tr>
 					</thead>
 					<tbody id="ingredients-tbody"></tbody>
 					<tfoot>
-						<tr class="report-spacer-row"><td colspan="5"></td></tr>
+						<tr class="report-spacer-row"><td colspan="7"></td></tr>
 						<tr>
-							<td class="label" colspan="4">Totales a comprar</td>
-							<td id="t-buy-total" class="col-total"></td>
+							<td class="label" colspan="4">Totales</td>
+							<td id="t-buy-sug-total" class="col-total"></td>
+							<td id="t-buy-real-total" class="col-total"></td>
+							<td id="t-buy-cost-total" class="col-total"></td>
 						</tr>
 					</tfoot>
 				</table>
@@ -65,7 +69,9 @@
 		const countLabel = document.getElementById('count-label');
 		const countsSummary = document.getElementById('counts-summary');
 		const tbody = document.getElementById('ingredients-tbody');
-		const tBuyTotal = document.getElementById('t-buy-total');
+			const tBuySugTotal = document.getElementById('t-buy-sug-total');
+			const tBuyRealTotal = document.getElementById('t-buy-real-total');
+			const tBuyCostTotal = document.getElementById('t-buy-cost-total');
 		const backBtn = document.getElementById('back-btn');
 		const changeBtn = document.getElementById('change-range');
 
@@ -185,6 +191,21 @@
 				} catch {}
 			});
 			const extras = (details.get(names[0]) && Array.isArray(details.get(names[0]).extras)) ? details.get(names[0]).extras : [];
+			// Build price and pack maps from recipes/extras
+			const priceMap = new Map(); // key -> price
+			const packMap = new Map(); // key -> pack_size
+			function setMapsFor(name, unit, price, pack){
+				const k = normKey(canonicalizeName(name)); if (!k) return;
+				if (Number(price||0) > 0) priceMap.set(k, Number(price||0));
+				if (Number(pack||0) > 0) packMap.set(k, Number(pack||0));
+			}
+			for (const dessertName of names){
+				const info = details.get(dessertName);
+				for (const st of (info?.steps||[])){
+					for (const it of (st.items||[])) setMapsFor(it.ingredient, it.unit, it.price, it.pack_size);
+				}
+			}
+			for (const ex of (extras||[])) setMapsFor(ex.ingredient, ex.unit, ex.price, ex.pack_size);
 
 			// 3) Fetch inventory balances
 			countLabel.textContent = 'Leyendo inventario…';
@@ -248,11 +269,16 @@
 			// 5) Materialize rows and render
 			const keys = Array.from(agg.keys()).sort((a,b) => a.localeCompare(b));
 			tbody.innerHTML = '';
-			let buyTotal = 0;
+			let buySugTotal = 0; let buyRealTotal = 0; let buyCostTotal = 0;
 			for (const key of keys){
 				const v = agg.get(key);
 				const inv = invByKey.has(key) ? Number(invByKey.get(key)||0)||0 : 0;
 				const buy = Math.max(0, (Number(v.needed||0)||0) - inv);
+				// Real purchase based on pack size: ceil(buy / pack) * pack
+				const pack = Number(packMap.get(key) || 0) || 0;
+				const real = pack > 0 ? Math.ceil(buy / pack) * pack : buy;
+				const price = Number(priceMap.get(key) || 0) || 0;
+				const cost = real * price;
 				const perUnitDisplay = (v.perUnits && v.perUnits.size === 1) ? Array.from(v.perUnits)[0] : '—';
 				const tr = document.createElement('tr');
 				tr.innerHTML = `
@@ -260,11 +286,17 @@
 					<td>${perUnitDisplay}</td>
 					<td>${fmt1(v.needed)}</td>
 					<td>${fmt1(inv)}</td>
-					<td class="col-total">${fmt1(buy)}</td>`;
+					<td class="col-total">${fmt1(buy)}</td>
+					<td>${fmt1(real)}</td>
+					<td>${(new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 })).format(cost)}</td>`;
 				tbody.appendChild(tr);
-				buyTotal += buy;
+				buySugTotal += buy;
+				buyRealTotal += real;
+				buyCostTotal += cost;
 			}
-			tBuyTotal.textContent = fmt1(buyTotal);
+			tBuySugTotal.textContent = fmt1(buySugTotal);
+			tBuyRealTotal.textContent = fmt1(buyRealTotal);
+			tBuyCostTotal.textContent = (new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 })).format(buyCostTotal);
 			countLabel.textContent = `Ingredientes: ${keys.length}`;
 		}
 

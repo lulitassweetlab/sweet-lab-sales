@@ -279,6 +279,7 @@ export async function ensureSchema() {
 		qty_per_unit NUMERIC NOT NULL DEFAULT 0,
 		adjustment NUMERIC NOT NULL DEFAULT 0,
 		price NUMERIC NOT NULL DEFAULT 0,
+	pack_size NUMERIC NOT NULL DEFAULT 0,
 		position INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMPTZ DEFAULT now(),
 		updated_at TIMESTAMPTZ DEFAULT now()
@@ -297,6 +298,12 @@ export async function ensureSchema() {
 		) THEN
 			ALTER TABLE dessert_recipe_items ADD COLUMN price NUMERIC NOT NULL DEFAULT 0;
 		END IF;
+	IF NOT EXISTS (
+		SELECT 1 FROM information_schema.columns
+		WHERE table_name = 'dessert_recipe_items' AND column_name = 'pack_size'
+	) THEN
+		ALTER TABLE dessert_recipe_items ADD COLUMN pack_size NUMERIC NOT NULL DEFAULT 0;
+	END IF;
 	END $$;`;
 await sql`CREATE TABLE IF NOT EXISTS extras_items (
 		id SERIAL PRIMARY KEY,
@@ -304,6 +311,7 @@ await sql`CREATE TABLE IF NOT EXISTS extras_items (
 		unit TEXT NOT NULL DEFAULT 'g',
 		qty_per_unit NUMERIC NOT NULL DEFAULT 0,
 	price NUMERIC NOT NULL DEFAULT 0,
+	pack_size NUMERIC NOT NULL DEFAULT 0,
 		position INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMPTZ DEFAULT now(),
 		updated_at TIMESTAMPTZ DEFAULT now()
@@ -315,6 +323,15 @@ await sql`DO $$ BEGIN
 		WHERE table_name = 'extras_items' AND column_name = 'price'
 	) THEN
 		ALTER TABLE extras_items ADD COLUMN price NUMERIC NOT NULL DEFAULT 0;
+	END IF;
+END $$;`;
+// Ensure extras pack_size
+await sql`DO $$ BEGIN
+	IF NOT EXISTS (
+		SELECT 1 FROM information_schema.columns
+		WHERE table_name = 'extras_items' AND column_name = 'pack_size'
+	) THEN
+		ALTER TABLE extras_items ADD COLUMN pack_size NUMERIC NOT NULL DEFAULT 0;
 	END IF;
 END $$;`;
 	// Inventory: master items and movements ledger
