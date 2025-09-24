@@ -44,8 +44,8 @@
 			<div class="table-wrapper" style="padding:12px;">
 				<form id="acc-form" style="display:flex; flex-direction:column; gap:12px; max-width:520px; margin:0 auto;">
 					<div style="display:flex; gap:12px; justify-content:center; width:300px; margin:40px auto 20px auto;">
-						<button id="btn-gasto" type="button" class="press-btn btn-primary" aria-pressed="true" style="flex:1 1 0; padding:14px 22px; font-size:16px; border-radius:12px;">Gasto</button>
-						<button id="btn-ingreso" type="button" class="press-btn btn-primary" aria-pressed="false" style="flex:1 1 0; padding:14px 22px; font-size:16px; border-radius:12px;">Ingreso</button>
+						<button id="btn-ingreso" type="button" class="press-btn btn-primary" aria-pressed="true" style="flex:1 1 0; padding:14px 22px; font-size:16px; border-radius:12px;">Ingreso</button>
+						<button id="btn-salida" type="button" class="press-btn btn-primary" aria-pressed="false" style="flex:1 1 0; padding:14px 22px; font-size:16px; border-radius:12px;">Salida</button>
 					</div>
 					<label style="display:flex; gap:8px; align-items:center; justify-content:center;">
 						<span style="min-width:92px;">Fecha</span>
@@ -80,8 +80,9 @@
 									<th></th>
 						</tr>
 					</thead>
-					<tbody id="acc-tbody"></tbody>
+						<tbody id="acc-tbody"></tbody>
 					<tfoot>
+								<tr><td colspan="6" style="height:30px; border-bottom:none; background:transparent;"></td></tr>
 								<tr>
 									<td></td>
 									<td class="label">Ingresos</td>
@@ -133,15 +134,15 @@
 		const tGas = document.getElementById('t-gastos');
 		const tBal = document.getElementById('t-balance');
 		const changeBtn = document.getElementById('change-range');
-		const btnGasto = document.getElementById('btn-gasto');
 		const btnIngreso = document.getElementById('btn-ingreso');
-		let currentKind = 'gasto';
+		const btnSalida = document.getElementById('btn-salida');
+		let currentKind = 'ingreso';
 
 		function setKind(kind){
-			currentKind = kind === 'ingreso' ? 'ingreso' : 'gasto';
-			const gastoActive = currentKind === 'gasto';
-			btnGasto.setAttribute('aria-pressed', gastoActive ? 'true' : 'false');
-			btnIngreso.setAttribute('aria-pressed', gastoActive ? 'false' : 'true');
+			currentKind = kind === 'salida' ? 'gasto' : 'ingreso';
+			const isIngreso = currentKind === 'ingreso';
+			btnIngreso.setAttribute('aria-pressed', isIngreso ? 'true' : 'false');
+			btnSalida.setAttribute('aria-pressed', isIngreso ? 'false' : 'true');
 			// Selected retains hover appearance permanently
 			const activeStyles = (el, active) => {
 				if (active) {
@@ -152,11 +153,11 @@
 					el.style.boxShadow = '';
 				}
 			};
-			activeStyles(btnGasto, gastoActive);
-			activeStyles(btnIngreso, !gastoActive);
+			activeStyles(btnIngreso, isIngreso);
+			activeStyles(btnSalida, !isIngreso);
 		}
-		btnGasto.addEventListener('click', () => setKind('gasto'));
 		btnIngreso.addEventListener('click', () => setKind('ingreso'));
+		btnSalida.addEventListener('click', () => setKind('salida'));
 
 		function formatDay(diso){ if (!diso) return ''; const d=new Date(diso+'T00:00:00Z'); const m=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']; return `${d.getUTCDate()} ${m[d.getUTCMonth()]} ${d.getUTCFullYear()}`; }
 
