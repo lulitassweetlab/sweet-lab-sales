@@ -2803,6 +2803,18 @@ function buildStepCard(dessertName, step) {
 	thead.appendChild(hr);
 	const tbody = document.createElement('tbody');
 	for (const it of (step.items || [])) tbody.appendChild(buildItemRow(step.id, it));
+	// Ensure empty steps have a visible drop target
+	function hasRealRows(){ return !!tbody.querySelector('tr:not(.empty-drop)'); }
+	function ensurePlaceholder(){
+		if (hasRealRows()) { removePlaceholder(); return; }
+		if (tbody.querySelector('tr.empty-drop')) return;
+		const tr = document.createElement('tr'); tr.className = 'empty-drop';
+		const td = document.createElement('td'); td.colSpan = 5; td.textContent = 'Suelta ingredientes aquí';
+		td.style.opacity = '0.7'; td.style.textAlign = 'center'; td.style.padding = '14px'; td.style.border = '1px dashed var(--border)';
+		tr.appendChild(td); tbody.appendChild(tr);
+	}
+	function removePlaceholder(){ const ph = tbody.querySelector('tr.empty-drop'); if (ph) ph.remove(); }
+	ensurePlaceholder();
 	table.append(thead, tbody);
 	box.append(head, table);
 	// Enable drag & drop for steps using the header as a handle
@@ -2828,6 +2840,7 @@ function buildStepCard(dessertName, step) {
 		const ing = (prompt('Ingrediente:') || '').trim(); if (!ing) return;
 		const qty = Number(prompt('Cantidad por unidad:') || '0') || 0;
 		const row = await api('POST', API.Recipes, { kind: 'item.upsert', recipe_id: step.id, ingredient: ing, unit: 'g', qty_per_unit: qty, adjustment: 0, price: 0, position: (step.items?.length||0)+1 });
+		removePlaceholder();
 		tbody.appendChild(buildItemRow(step.id, row));
 	});
 	del.addEventListener('click', async () => {
@@ -2869,7 +2882,7 @@ function buildStepCard(dessertName, step) {
 		// Only preview order if dragging within this tbody
 		if (dragging.parentElement === tbody) {
 			const after = (() => {
-				const els = [...tbody.querySelectorAll('tr:not(.dragging)')];
+				const els = [...tbody.querySelectorAll('tr:not(.dragging):not(.empty-drop)')];
 				return els.reduce((closest, child) => {
 					const rect = child.getBoundingClientRect();
 					const offset = e.clientY - rect.top - rect.height / 2;
@@ -2889,7 +2902,7 @@ function buildStepCard(dessertName, step) {
 			if (info.tr.parentElement === tbody) return; // same-step handled by dragend reorder
 			// Determine insertion point
 			const after = (() => {
-				const els = [...tbody.querySelectorAll('tr')];
+				const els = [...tbody.querySelectorAll('tr:not(.empty-drop)')];
 				return els.reduce((closest, child) => {
 					const rect = child.getBoundingClientRect();
 					const offset = e.clientY - rect.top - rect.height / 2;
@@ -2897,6 +2910,7 @@ function buildStepCard(dessertName, step) {
 					else return closest;
 				}, { offset: Number.NEGATIVE_INFINITY, element: null }).element;
 			})();
+			removePlaceholder();
 			if (after == null) tbody.appendChild(info.tr); else tbody.insertBefore(info.tr, after);
 			// Update stepId on row
 			info.tr.setAttribute('data-step-id', String(step.id));
@@ -2921,6 +2935,7 @@ function buildStepCard(dessertName, step) {
 				const srcIds = Array.from(info.fromTbody.querySelectorAll('tr')).map(r => Number(r.getAttribute('data-item-id')||'0')||0).filter(Boolean);
 				if (srcIds.length) { try { await api('POST', API.Recipes, { kind: 'item.reorder', ids: srcIds }); } catch {} }
 			}
+			ensurePlaceholder();
 		} catch { notify.error('No se pudo mover el ingrediente'); }
 	});
 	return box;
