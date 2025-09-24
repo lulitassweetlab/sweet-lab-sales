@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Contabilidad</title>
+	<link rel="stylesheet" href="/styles.css?v=2025-09-17-1" />
+</head>
+<body>
+	<header class="app-header">
+		<div class="header-row">
+			<div class="header-left">
+				<img src="/logo.png" alt="Lulitas Logo" class="app-logo" />
+				<h1>Contabilidad</h1>
+			</div>
+			<div class="header-actions">
+				<button id="back-btn" class="press-btn">Volver</button>
+			</div>
+		</div>
+	</header>
+
+	<main class="sales-panel">
+		<div class="panel-header">
+			<h3>Nuevo registro</h3>
+		</div>
+		<div class="panel-body">
+			<div class="table-wrapper" style="padding:12px;">
+				<form id="acc-form" style="display:flex; flex-direction:column; gap:12px; max-width:520px;">
+					<label style="display:flex; gap:8px; align-items:center;">
+						<span>Tipo</span>
+						<select id="acc-type" class="input-cell" required>
+							<option value="">Selecciona…</option>
+							<option value="gasto">Gasto</option>
+							<option value="ingreso">Ingreso</option>
+						</select>
+					</label>
+					<label style="display:flex; gap:8px; align-items:center;">
+						<span>Fecha</span>
+						<input id="acc-date" type="date" class="input-cell" required />
+					</label>
+					<label style="display:flex; gap:8px; align-items:center;">
+						<span style="min-width:92px;">Descripción</span>
+						<input id="acc-desc" type="text" class="input-cell" placeholder="Descripción" required />
+					</label>
+					<label style="display:flex; gap:8px; align-items:center;">
+						<span>Valor</span>
+						<input id="acc-value" type="number" inputmode="numeric" class="input-cell" placeholder="0" required />
+					</label>
+					<div style="display:flex; gap:8px; justify-content:flex-end;">
+						<button id="acc-cancel" type="button" class="press-btn">Cancelar</button>
+						<button id="acc-save" type="submit" class="press-btn btn-primary">Guardar</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	</main>
+
+	<script type="module">
+	(function(){
+		// Gate: only superadmin
+		let currentUser = null;
+		try { const saved = localStorage.getItem('authUser'); if (saved) currentUser = JSON.parse(saved); } catch {}
+		const isSuper = currentUser && (currentUser.role === 'superadmin' || !!currentUser.isSuperAdmin);
+		if (!isSuper) { alert('Solo el superadministrador'); location.href = '/'; return; }
+
+		// Default fecha = hoy (UTC)
+		const dateInput = document.getElementById('acc-date');
+		const today = new Date();
+		const iso = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())).toISOString().slice(0,10);
+		dateInput.value = iso;
+
+		document.getElementById('back-btn').addEventListener('click', () => { location.href = '/'; });
+		document.getElementById('acc-cancel').addEventListener('click', () => { location.href = '/'; });
+
+		document.getElementById('acc-form').addEventListener('submit', async (e) => {
+			e.preventDefault();
+			const type = (document.getElementById('acc-type').value || '').toString();
+			const date = (document.getElementById('acc-date').value || '').toString();
+			const desc = (document.getElementById('acc-desc').value || '').toString();
+			const value = Number(document.getElementById('acc-value').value || 0);
+			if (!type || !date || !desc || !value) { alert('Completa todos los campos'); return; }
+			try {
+				// Placeholder: persist locally for ahora
+				const item = { id: Date.now(), type, date, description: desc, value };
+				const key = 'accountingItems';
+				let list = [];
+				try { const prev = localStorage.getItem(key); if (prev) list = JSON.parse(prev); } catch {}
+				list.push(item);
+				localStorage.setItem(key, JSON.stringify(list));
+				alert('Guardado');
+				location.href = '/';
+			} catch (err) {
+				console.error(err);
+				alert('Error al guardar');
+			}
+		});
+	})();
+	</script>
+</body>
+</html>
+
