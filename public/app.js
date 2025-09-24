@@ -1671,11 +1671,10 @@ async function exportCarteraExcel(startIso, endIso) {
 	const input = document.getElementById('report-date');
 	if (!reportBtn || !input) return;
 	reportBtn.addEventListener('click', (ev) => {
-		openRangeCalendarPopover(async (range) => {
+		openRangeCalendarPopover((range) => {
 			if (!range || !range.start || !range.end) return;
-			const dates = buildIsoListFromRange(range.start, range.end);
-			if (!dates.length) return;
-			await exportConsolidatedForDates(dates);
+			const url = `/sales-report.html?start=${encodeURIComponent(range.start)}&end=${encodeURIComponent(range.end)}`;
+			window.location.href = url;
 		}, ev.clientX, ev.clientY, { preferUp: true });
 	});
 	carteraBtn?.addEventListener('click', async (ev) => {
