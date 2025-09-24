@@ -2832,6 +2832,30 @@ function buildStepCard(dessertName, step) {
 	});
 	// Mark data-step-id to persist ordering
 	box.setAttribute('data-step-id', String(step.id));
+	// Inline rename of step name on click
+	label.style.cursor = 'text';
+	label.title = 'Haz clic para renombrar el paso';
+	label.addEventListener('click', () => {
+		if (label.__editing) return;
+		label.__editing = true;
+		const current = (step.step_name || '').toString();
+		const input = document.createElement('input'); input.type = 'text'; input.value = current; input.style.flex = '1'; input.className = 'input-cell';
+		function cleanup() { if (input.parentNode) input.parentNode.replaceWith(label); label.__editing = false; }
+		async function commit() {
+			const raw = (input.value || '').trim();
+			const name = raw === '' ? null : raw;
+			try { await api('POST', API.Recipes, { kind: 'step.upsert', id: step.id, dessert: dessertName, step_name: name, position: step.position || 0 }); }
+			catch { notify.error('No se pudo renombrar el paso'); cleanup(); return; }
+			step.step_name = name;
+			label.textContent = name || 'Sin nombre';
+			cleanup();
+		}
+		label.replaceWith(input);
+		input.focus();
+		input.select();
+		input.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') commit(); if (ev.key === 'Escape') cleanup(); });
+		input.addEventListener('blur', commit);
+	});
 	// Ingredients rows drag & drop (supports reordering and cross-step move)
 	tbody.addEventListener('dragover', (e) => {
 		e.preventDefault();
