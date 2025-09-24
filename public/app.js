@@ -2077,6 +2077,7 @@ async function renderInventoryView() {
 	if (!root) return;
 	root.innerHTML = '';
 	const fmt1 = new Intl.NumberFormat('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+	const fmtMoney = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
 	let items = [];
 	try { items = await api('GET', API.Inventory); } catch { items = []; }
 	// Header actions: ingreso and ajuste buttons
@@ -2090,19 +2091,22 @@ async function renderInventoryView() {
 	// Table
 	const table = document.createElement('table'); table.className = 'clients-table';
 	const thead = document.createElement('thead'); const hr = document.createElement('tr');
-	['Ingrediente','Saldo','Ingresar',''].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
+	['Ingrediente','Saldo','Valor','Ingresar',''].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
 	thead.appendChild(hr); const tbody = document.createElement('tbody');
 	const rowInputs = [];
+	let totalValor = 0;
 	for (const it of (items || [])) {
 		const tr = document.createElement('tr');
 		const tdN = document.createElement('td'); tdN.textContent = it.ingredient;
 		const tdS = document.createElement('td');
 		const inSaldo = document.createElement('input'); inSaldo.type = 'number'; inSaldo.step = '0.01'; inSaldo.className = 'input-cell'; inSaldo.style.width = '100%'; inSaldo.style.maxWidth = '120px'; inSaldo.style.textAlign = 'right'; inSaldo.value = String(Number(it.saldo || 0) || 0);
 		tdS.append(inSaldo);
+		const tdV = document.createElement('td'); const valor = (Number(it.saldo||0)||0) * (Number(it.price||0)||0); tdV.textContent = fmtMoney.format(valor); tdV.style.textAlign = 'right';
 		const tdI = document.createElement('td'); const inQty = document.createElement('input'); inQty.type = 'number'; inQty.step = '0.01'; inQty.min = '0'; inQty.placeholder = '0'; inQty.className = 'input-cell'; inQty.style.width = '100%'; inQty.style.maxWidth = '120px'; inQty.style.textAlign = 'right'; tdI.appendChild(inQty);
 		const tdA = document.createElement('td'); const saveBtn = document.createElement('button'); saveBtn.className = 'press-btn'; saveBtn.textContent = 'Guardar'; const histBtn = document.createElement('button'); histBtn.className = 'press-btn'; histBtn.textContent = 'Historial'; tdA.append(saveBtn, histBtn);
-		tr.append(tdN, tdS, tdI, tdA); tbody.appendChild(tr);
+		tr.append(tdN, tdS, tdV, tdI, tdA); tbody.appendChild(tr);
 		rowInputs.push({ ingredient: it.ingredient, unit: it.unit || 'g', input: inQty });
+		totalValor += valor;
 		histBtn.addEventListener('click', async () => { openInventoryHistoryDialog(it.ingredient); });
 		async function saveSaldo(){
 			try {
@@ -2118,13 +2122,20 @@ async function renderInventoryView() {
 		saveBtn.addEventListener('click', saveSaldo);
 		inSaldo.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') saveSaldo(); });
 	}
-	// Footer with Ingresar button under the Ingresar column
+	// Footer: total valor + Ingresar button row
 	const tfoot = document.createElement('tfoot');
+	const frTotal = document.createElement('tr');
+	const ft1 = document.createElement('td'); ft1.className = 'label'; ft1.textContent = 'Total inventario';
+	const ft2 = document.createElement('td');
+	const ft3 = document.createElement('td'); ft3.className = 'col-total'; ft3.textContent = fmtMoney.format(totalValor); ft3.style.textAlign = 'right';
+	const ft4 = document.createElement('td');
+	const ft5 = document.createElement('td');
+	frTotal.append(ft1, ft2, ft3, ft4, ft5); tfoot.appendChild(frTotal);
 	const fr = document.createElement('tr');
-	const fd1 = document.createElement('td'); const fd2 = document.createElement('td');
-	const fd3 = document.createElement('td'); const btnAll = document.createElement('button'); btnAll.className = 'press-btn btn-primary'; btnAll.textContent = 'Ingresar'; fd3.appendChild(btnAll);
-	const fd4 = document.createElement('td');
-	fr.append(fd1, fd2, fd3, fd4); tfoot.appendChild(fr);
+	const fd1 = document.createElement('td'); const fd2 = document.createElement('td'); const fd3 = document.createElement('td');
+	const fd4 = document.createElement('td'); const btnAll = document.createElement('button'); btnAll.className = 'press-btn btn-primary'; btnAll.textContent = 'Ingresar'; fd4.appendChild(btnAll);
+	const fd5 = document.createElement('td');
+	fr.append(fd1, fd2, fd3, fd4, fd5); tfoot.appendChild(fr);
 	btnAll.addEventListener('click', async () => {
 		try {
 			for (const r of rowInputs) {
@@ -2799,7 +2810,7 @@ function buildStepCard(dessertName, step) {
 	head.append(label, actions);
 	const table = document.createElement('table'); table.className = 'items-table';
 	const thead = document.createElement('thead'); const hr = document.createElement('tr');
-	['Ingrediente','Cantidad por unidad','Ajuste','Precio',''].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
+	['Ingrediente','Cantidad por unidad','Ajuste','Precio','Por paquete',''].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
 	thead.appendChild(hr);
 	const tbody = document.createElement('tbody');
 	for (const it of (step.items || [])) tbody.appendChild(buildItemRow(step.id, it));
@@ -2947,8 +2958,9 @@ function buildItemRow(stepId, item) {
 	const tdQ = document.createElement('td'); const inQ = document.createElement('input'); inQ.type = 'number'; inQ.step = '0.01'; inQ.value = String(item.qty_per_unit || 0); tdQ.appendChild(inQ);
 	const tdAdj = document.createElement('td'); const inAdj = document.createElement('input'); inAdj.type = 'number'; inAdj.step = '0.01'; inAdj.value = String(item.adjustment || 0); tdAdj.appendChild(inAdj);
 	const tdP = document.createElement('td'); const inP = document.createElement('input'); inP.type = 'number'; inP.step = '0.01'; inP.value = String(item.price || 0); tdP.appendChild(inP);
+	const tdPack = document.createElement('td'); const inPack = document.createElement('input'); inPack.type = 'number'; inPack.step = '0.01'; inPack.value = String(item.pack_size || 0); tdPack.appendChild(inPack);
 	const tdA = document.createElement('td'); const del = document.createElement('button'); del.className = 'press-btn'; del.textContent = '×'; tdA.appendChild(del);
-	tr.append(tdN, tdQ, tdAdj, tdP, tdA);
+	tr.append(tdN, tdQ, tdAdj, tdP, tdPack, tdA);
 	// DnD for ingredient rows
 	tr.draggable = true;
 	tr.addEventListener('dragstart', () => {
@@ -2966,10 +2978,10 @@ function buildItemRow(stepId, item) {
 	});
 	async function save() {
 		try {
-			await api('POST', API.Recipes, { kind: 'item.upsert', id: item.id, recipe_id: stepId, ingredient: inN.value, unit: 'g', qty_per_unit: Number(inQ.value || 0) || 0, adjustment: Number(inAdj.value || 0) || 0, price: Number(inP.value || 0) || 0, position: item.position || 0 });
+			await api('POST', API.Recipes, { kind: 'item.upsert', id: item.id, recipe_id: stepId, ingredient: inN.value, unit: 'g', qty_per_unit: Number(inQ.value || 0) || 0, adjustment: Number(inAdj.value || 0) || 0, price: Number(inP.value || 0) || 0, pack_size: Number(inPack.value || 0) || 0, position: item.position || 0 });
 		} catch { notify.error('No se pudo guardar'); }
 	}
-	[inN, inQ, inAdj, inP].forEach(el => { el.addEventListener('change', save); el.addEventListener('blur', save); });
+	[inN, inQ, inAdj, inP, inPack].forEach(el => { el.addEventListener('change', save); el.addEventListener('blur', save); });
 	del.addEventListener('click', async () => { await api('DELETE', `${API.Recipes}?kind=item&id=${encodeURIComponent(item.id)}`); tr.remove(); });
 	// persist id on row
 	tr.setAttribute('data-item-id', String(item.id));
@@ -2984,16 +2996,18 @@ async function openExtrasEditor() {
 	const title = document.createElement('h4'); title.textContent = 'Extras por unidad'; title.style.margin = '0 0 8px 0';
 	const table = document.createElement('table'); table.className = 'items-table';
 	const thead = document.createElement('thead'); const hr = document.createElement('tr');
-	['Ingrediente','Unidad','Cantidad',''].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); }); thead.appendChild(hr);
+	['Ingrediente','Cantidad','Precio','Por paquete',''].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); }); thead.appendChild(hr);
 	const tbody = document.createElement('tbody');
 	for (const it of extras) tbody.appendChild(buildExtrasRow(it, tbody));
 	const tfoot = document.createElement('tfoot'); const fr = document.createElement('tr'); const td = document.createElement('td'); td.colSpan = 4; const add = document.createElement('button'); add.className = 'press-btn'; add.textContent = '+ Extra'; td.appendChild(add); fr.appendChild(td); tfoot.appendChild(fr);
 	const actions = document.createElement('div'); actions.className = 'confirm-actions'; const close = document.createElement('button'); close.className = 'press-btn'; close.textContent = 'Cerrar'; actions.appendChild(close);
 	add.addEventListener('click', async () => {
 		const ing = (prompt('Ingrediente:') || '').trim(); if (!ing) return;
-		const unit = (prompt('Unidad (g, ml, unidad):') || 'unidad').trim();
+		const unit = 'unidad';
 		const qty = Number(prompt('Cantidad por unidad:') || '1') || 0;
-		const row = await api('POST', API.Recipes, { kind: 'extras.upsert', ingredient: ing, unit, qty_per_unit: qty, position: (extras.length||0)+1 });
+		const price = Number(prompt('Precio unitario:') || '0') || 0;
+		const pack = Number(prompt('Cantidad por paquete (0 si no aplica):') || '0') || 0;
+		const row = await api('POST', API.Recipes, { kind: 'extras.upsert', ingredient: ing, unit, qty_per_unit: qty, price, pack_size: pack, position: (extras.length||0)+1 });
 		tbody.appendChild(buildExtrasRow(row, tbody));
 	});
 	close.addEventListener('click', () => { if (pop.parentNode) pop.parentNode.removeChild(pop); });
@@ -3003,12 +3017,13 @@ async function openExtrasEditor() {
 function buildExtrasRow(item, tbody) {
 	const tr = document.createElement('tr');
 	const tdN = document.createElement('td'); const inN = document.createElement('input'); inN.type = 'text'; inN.value = item.ingredient; tdN.appendChild(inN);
-	const tdU = document.createElement('td'); const inU = document.createElement('input'); inU.type = 'text'; inU.value = item.unit || 'unidad'; inU.style.width = '70px'; tdU.appendChild(inU);
-	const tdQ = document.createElement('td'); const inQ = document.createElement('input'); inQ.type = 'number'; inQ.step = '0.01'; inQ.value = String(item.qty_per_unit || 0); tdQ.appendChild(inQ);
+	const tdQ = document.createElement('td'); const inQ = document.createElement('input'); inQ.type = 'number'; inQ.step = '0.01'; inQ.style.width = '76px'; inQ.value = String(item.qty_per_unit || 0); tdQ.appendChild(inQ);
+	const tdP = document.createElement('td'); const inP = document.createElement('input'); inP.type = 'number'; inP.step = '0.01'; inP.style.width = '88px'; inP.value = String(item.price || 0); tdP.appendChild(inP);
+	const tdPack = document.createElement('td'); const inPack = document.createElement('input'); inPack.type = 'number'; inPack.step = '0.01'; inPack.style.width = '88px'; inPack.value = String(item.pack_size || 0); tdPack.appendChild(inPack);
 	const tdA = document.createElement('td'); const del = document.createElement('button'); del.className = 'press-btn'; del.textContent = '×'; tdA.appendChild(del);
-	tr.append(tdN, tdU, tdQ, tdA);
-	async function save() { try { await api('POST', API.Recipes, { kind: 'extras.upsert', id: item.id, ingredient: inN.value, unit: inU.value || 'unidad', qty_per_unit: Number(inQ.value || 0) || 0, position: item.position || 0 }); } catch { notify.error('No se pudo guardar'); } }
-	[inN, inU, inQ].forEach(el => { el.addEventListener('change', save); el.addEventListener('blur', save); });
+	tr.append(tdN, tdQ, tdP, tdPack, tdA);
+	async function save() { try { await api('POST', API.Recipes, { kind: 'extras.upsert', id: item.id, ingredient: inN.value, unit: 'unidad', qty_per_unit: Number(inQ.value || 0) || 0, price: Number(inP.value || 0) || 0, pack_size: Number(inPack.value || 0) || 0, position: item.position || 0 }); } catch { notify.error('No se pudo guardar'); } }
+	[inN, inQ, inP, inPack].forEach(el => { el.addEventListener('change', save); el.addEventListener('blur', save); });
 	del.addEventListener('click', async () => { await api('DELETE', `${API.Recipes}?kind=extras&id=${encodeURIComponent(item.id)}`); if (tr.parentNode === tbody) tbody.removeChild(tr); });
 	return tr;
 }

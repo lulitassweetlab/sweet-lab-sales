@@ -23,18 +23,46 @@ export async function handler(event) {
 					const rows = await sql`SELECT id, ingredient, kind, qty, note, actor_name, metadata, created_at FROM inventory_movements WHERE lower(ingredient)=lower(${name}) ORDER BY id DESC LIMIT 200`;
 					return json(rows);
 				}
-				// Default: list items with saldo based on ingredient_formulas (Ingredientes page)
-				const items = await sql`SELECT ingredient, unit FROM ingredient_formulas ORDER BY ingredient ASC`;
-				// Compute balances
-				const movs = await sql`SELECT lower(ingredient) AS key, SUM(qty)::numeric AS qty FROM inventory_movements GROUP BY lower(ingredient)`;
-				const byKey = new Map();
-				for (const it of items) byKey.set((it.ingredient||'').toString().toLowerCase(), { ingredient: it.ingredient, unit: it.unit || 'g', saldo: 0 });
-				for (const m of (movs || [])) {
-					const k = (m.key || '').toString();
-					const prev = byKey.get(k);
-					if (prev) prev.saldo = Number(m.qty || 0) || 0;
+				// Default: list unique ingredients from Recetas/Extras with saldo and price
+				// 1) Read recipe items (with price) and extras (with price)
+				const recipeItems = await sql`SELECT ingredient, unit, price FROM dessert_recipe_items`;
+				const extraItems = await sql`SELECT ingredient, unit, price FROM extras_items`;
+				// 2) Build canonical definitions map: key -> { ingredient, unit, price }
+				const defs = new Map();
+				function upsertDef(name, unit, price, isExtra = false){
+					if (!name) return;
+					const canon = canonicalizeIngredientName((name||'').toString());
+					const key = (canon||'').toString().toLowerCase();
+					if (!key) return;
+					const prev = defs.get(key) || { ingredient: canon, unit: unit || 'g', price: 0, isExtra: false };
+					if (unit && unit !== '') prev.unit = unit;
+					const p = Number(price || 0) || 0;
+					if (p > 0 && p > Number(prev.price || 0)) prev.price = p;
+					if (isExtra) prev.isExtra = true;
+					defs.set(key, prev);
 				}
-				const list = Array.from(byKey.values()).sort((a,b) => (a.ingredient||'').localeCompare(b.ingredient||''));
+				for (const it of (recipeItems || [])) upsertDef(it.ingredient, it.unit, it.price, false);
+				for (const it of (extraItems || [])) upsertDef(it.ingredient, it.unit, it.price, true);
+				// 3) Compute balances by canonical key
+				// Aggregate movements by canonical name to avoid split balances
+				const rawMovs = await sql`SELECT ingredient, SUM(qty)::numeric AS qty FROM inventory_movements GROUP BY ingredient`;
+				const movs = new Map();
+				for (const r of (rawMovs || [])) {
+					const canon = canonicalizeIngredientName((r.ingredient||'').toString());
+					const key = (canon||'').toString().toLowerCase();
+					const prev = Number(movs.get(key) || 0) || 0;
+					movs.set(key, prev + (Number(r.qty||0)||0));
+				}
+				const saldoByKey = movs;
+				// 4) Materialize list, excluding items with price 0
+				const list = [];
+				for (const [key, v] of defs.entries()) {
+					const price = Number(v.price || 0) || 0;
+					if (price <= 0 && !v.isExtra) continue; // excluir costo 0, excepto extras
+					const saldo = Number(saldoByKey.get(key) || 0) || 0;
+					list.push({ ingredient: v.ingredient, unit: v.unit || 'g', saldo, price, valor: saldo * price });
+				}
+				list.sort((a,b) => (a.ingredient||'').localeCompare(b.ingredient||''));
 				return json(list);
 			}
 			case 'POST': {

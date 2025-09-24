@@ -23,7 +23,8 @@
 		<div class="panel-header">
 			<h3 id="title">Requerimientos por pedidos</h3>
 			<div class="panel-actions">
-				<button id="change-range" class="press-btn">Cambiar fechas</button>
+					<button id="change-range" class="press-btn">Cambiar fechas</button>
+					<button id="whatsapp-request" class="press-btn btn-gold">Solicitar compra por WhatsApp</button>
 			</div>
 		</div>
 		<div class="panel-body">
@@ -40,15 +41,19 @@
 							<th>Por unidad</th>
 							<th>Se necesitan</th>
 							<th>En inventario</th>
-							<th>Compras</th>
+							<th>Compras sugeridas</th>
+							<th>Compras reales</th>
+							<th>Precio compra</th>
 						</tr>
 					</thead>
 					<tbody id="ingredients-tbody"></tbody>
 					<tfoot>
-						<tr class="report-spacer-row"><td colspan="5"></td></tr>
+						<tr class="report-spacer-row"><td colspan="7"></td></tr>
 						<tr>
-							<td class="label" colspan="4">Totales a comprar</td>
-							<td id="t-buy-total" class="col-total"></td>
+							<td class="label" colspan="4">Totales</td>
+							<td id="t-buy-sug-total" class="col-total"></td>
+							<td id="t-buy-real-total" class="col-total"></td>
+							<td id="t-buy-cost-total" class="col-total"></td>
 						</tr>
 					</tfoot>
 				</table>
@@ -65,9 +70,12 @@
 		const countLabel = document.getElementById('count-label');
 		const countsSummary = document.getElementById('counts-summary');
 		const tbody = document.getElementById('ingredients-tbody');
-		const tBuyTotal = document.getElementById('t-buy-total');
-		const backBtn = document.getElementById('back-btn');
-		const changeBtn = document.getElementById('change-range');
+			const tBuySugTotal = document.getElementById('t-buy-sug-total');
+			const tBuyRealTotal = document.getElementById('t-buy-real-total');
+			const tBuyCostTotal = document.getElementById('t-buy-cost-total');
+			const backBtn = document.getElementById('back-btn');
+			const changeBtn = document.getElementById('change-range');
+			const waBtn = document.getElementById('whatsapp-request');
 
 		// Lightweight embed of openRangeCalendarPopover if not present (needed on this page)
 		if (typeof window.openRangeCalendarPopover !== 'function') {
@@ -170,21 +178,19 @@
 			});
 			sumCountsView(counts);
 
-			// 2) Fetch recipes per dessert and extras once
+			// 2) Fetch recipes and extras once (batched)
 			countLabel.textContent = 'Cargando recetas…';
-			const desserts = await fetchJSON('/api/recipes');
-			const names = Array.isArray(desserts) ? desserts : [];
-			const details = new Map();
-			await mapLimit(names, 4, async (name, idx) => {
-				try {
-					const url = new URL('/api/recipes', location.origin);
-					url.searchParams.set('dessert', name);
-					if (idx === 0) url.searchParams.set('include_extras', '1');
-					const full = await fetchJSON(url.toString());
-					details.set(name, full);
-				} catch {}
-			});
-			const extras = (details.get(names[0]) && Array.isArray(details.get(names[0]).extras)) ? details.get(names[0]).extras : [];
+			const all = await fetchJSON('/api/recipes?all_items=1&include_extras=1');
+			const names = Array.isArray(all?.desserts) ? all.desserts : [];
+			const extras = Array.isArray(all?.extras) ? all.extras : [];
+			const itemsByDessert = new Map();
+			for (const n of names) itemsByDessert.set(n, []);
+			for (const it of (all?.items || [])) {
+				if (!itemsByDessert.has(it.dessert)) itemsByDessert.set(it.dessert, []);
+				itemsByDessert.get(it.dessert).push(it);
+			}
+			// Build price and pack maps from recipes/extras (defined after helper fns)
+			let priceMap; let packMap; let setMapsFor;
 
 			// 3) Fetch inventory balances
 			countLabel.textContent = 'Leyendo inventario…';
@@ -213,6 +219,19 @@
 				if (low.includes('contenedor') && (low.includes('8 oz') || low.includes('8oz'))) return 'Contenedor 8 onz';
 				return name || '';
 			}
+			// Build price and pack maps from recipes/extras
+			priceMap = new Map(); // key -> price
+			packMap = new Map(); // key -> pack_size
+			setMapsFor = function(name, unit, price, pack){
+				const k = normKey(canonicalizeName(name)); if (!k) return;
+				if (Number(price||0) > 0) priceMap.set(k, Number(price||0));
+				if (Number(pack||0) > 0) packMap.set(k, Number(pack||0));
+			};
+			for (const dessertName of names){
+				const arr = itemsByDessert.get(dessertName) || [];
+				for (const it of arr) setMapsFor(it.ingredient, it.unit, it.price, it.pack_size);
+			}
+			for (const ex of (extras||[])) setMapsFor(ex.ingredient, ex.unit, ex.price, ex.pack_size);
 			function addRow(_dessert, ingredient, unit, perUnit, needed){
 				const canon = canonicalizeName(ingredient);
 				// Excluir Agua y Almíbar del reporte
@@ -227,16 +246,13 @@
 			}
 			const mapKey = (name) => (name||'').toString().trim().toLowerCase();
 			for (const name of names){
-				const info = details.get(name);
-				if (!info || !Array.isArray(info.steps)) continue;
+				const arr = itemsByDessert.get(name) || [];
 				const k = mapKey(name);
 				const mult = k.startsWith('arco') ? counts.arco : k.startsWith('melo') ? counts.melo : k.startsWith('mara') ? counts.mara : k.startsWith('oreo') ? counts.oreo : k.startsWith('nute') ? counts.nute : 0;
 				if (!mult) continue;
-				for (const st of info.steps){
-					for (const it of (st.items||[])){
-						const per = Number(it.qty_per_unit||0)||0;
-						addRow(name, it.ingredient, it.unit, per, per * mult);
-					}
+				for (const it of arr){
+					const per = Number(it.qty_per_unit||0)||0;
+					addRow(name, it.ingredient, it.unit, per, per * mult);
 				}
 			}
 			const totalUnits = counts.arco + counts.melo + counts.mara + counts.oreo + counts.nute;
@@ -248,24 +264,68 @@
 			// 5) Materialize rows and render
 			const keys = Array.from(agg.keys()).sort((a,b) => a.localeCompare(b));
 			tbody.innerHTML = '';
-			let buyTotal = 0;
+			let buySugTotal = 0; let buyRealTotal = 0; let buyCostTotal = 0;
+			const waLines = [];
+			const rowsState = [];
 			for (const key of keys){
 				const v = agg.get(key);
 				const inv = invByKey.has(key) ? Number(invByKey.get(key)||0)||0 : 0;
 				const buy = Math.max(0, (Number(v.needed||0)||0) - inv);
+				// Real purchase based on pack size: ceil(buy / pack) * pack
+				const pack = Number(packMap.get(key) || 0) || 0;
+				const real = pack > 0 ? Math.ceil(buy / pack) * pack : buy;
+				const price = Number(priceMap.get(key) || 0) || 0;
+				const cost = real * price;
 				const perUnitDisplay = (v.perUnits && v.perUnits.size === 1) ? Array.from(v.perUnits)[0] : '—';
 				const tr = document.createElement('tr');
-				tr.innerHTML = `
-					<td style="text-align:left">${v.name}</td>
-					<td>${perUnitDisplay}</td>
-					<td>${fmt1(v.needed)}</td>
-					<td>${fmt1(inv)}</td>
-					<td class="col-total">${fmt1(buy)}</td>`;
+				const tdName = document.createElement('td'); tdName.style.textAlign = 'left'; tdName.textContent = v.name;
+				const tdPer = document.createElement('td'); tdPer.textContent = perUnitDisplay;
+				const tdNeed = document.createElement('td'); tdNeed.textContent = fmt1(v.needed);
+				const tdInv = document.createElement('td'); tdInv.textContent = fmt1(inv);
+				const tdBuy = document.createElement('td'); tdBuy.className = 'col-total'; tdBuy.textContent = fmt1(buy);
+				const tdReal = document.createElement('td'); tdReal.textContent = fmt1(real);
+				const tdCost = document.createElement('td');
+				const inCost = document.createElement('input'); inCost.type = 'number'; inCost.step = '1'; inCost.min = '0'; inCost.className = 'input-cell'; inCost.style.width = '110px'; inCost.style.textAlign = 'right'; inCost.value = String(Math.round(cost)); tdCost.appendChild(inCost);
+				tr.append(tdName, tdPer, tdNeed, tdInv, tdBuy, tdReal, tdCost);
 				tbody.appendChild(tr);
-				buyTotal += buy;
+				buySugTotal += buy;
+				buyRealTotal += real;
+				buyCostTotal += Number(inCost.value || 0) || 0;
+				rowsState.push({ name: v.name, real, pack, costInput: inCost });
 			}
-			tBuyTotal.textContent = fmt1(buyTotal);
+			function recomputeTotals(){
+				let t = 0; for (const r of rowsState) t += Number(r.costInput?.value || 0) || 0;
+				buyCostTotal = t;
+				tBuyCostTotal.textContent = (new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 })).format(buyCostTotal);
+			}
+			for (const r of rowsState) { r.costInput.addEventListener('change', recomputeTotals); r.costInput.addEventListener('blur', recomputeTotals); }
+			tBuySugTotal.textContent = fmt1(buySugTotal);
+			tBuyRealTotal.textContent = fmt1(buyRealTotal);
+			recomputeTotals();
 			countLabel.textContent = `Ingredientes: ${keys.length}`;
+			// Bind WA button to open a copyable text box
+			waBtn.onclick = () => {
+				const pop = document.createElement('div'); pop.className = 'confirm-popover'; pop.style.position = 'fixed';
+				pop.style.left = (window.innerWidth/2) + 'px'; pop.style.top = '12%'; pop.style.transform = 'translate(-50%, 0)';
+				const title = document.createElement('h4'); title.textContent = 'Solicitar compra por WhatsApp'; title.style.margin = '0 0 8px 0';
+				// Build WA lines on demand from current editable costs and real quantities
+				const freshLines = [];
+				for (const r of rowsState) {
+					if (Number(r.real||0) > 0) {
+						const costV = Number(r.costInput?.value || 0) || 0;
+						freshLines.push(`${r.name}: ${fmt1(r.real)}${r.pack > 0 ? ` (paquete ${fmt1(r.pack)})` : ''}${costV>0 ? ` — ${new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(costV)}` : ''}`);
+					}
+				}
+				const ta = document.createElement('textarea'); ta.style.width = 'min(92vw, 540px)'; ta.style.height = '260px'; ta.value = `Hola, por favor cotízame y despáchame:\n\n${freshLines.join('\n')}\n\nTotal estimado: ${new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(buyCostTotal)}\n\nGracias!`;
+				const actions = document.createElement('div'); actions.className = 'confirm-actions';
+				const copyBtn = document.createElement('button'); copyBtn.className = 'press-btn btn-primary'; copyBtn.textContent = 'Copiar';
+				const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn'; closeBtn.textContent = 'Cerrar';
+				actions.append(copyBtn, closeBtn);
+				pop.append(title, ta, actions);
+				document.body.appendChild(pop); pop.classList.add('aladdin-pop');
+				copyBtn.addEventListener('click', async () => { try { ta.select(); document.execCommand('copy'); } catch {} });
+				closeBtn.addEventListener('click', () => { if (pop.parentNode) pop.parentNode.removeChild(pop); });
+			};
 		}
 
 		// Back to report or home

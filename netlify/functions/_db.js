@@ -279,6 +279,7 @@ export async function ensureSchema() {
 		qty_per_unit NUMERIC NOT NULL DEFAULT 0,
 		adjustment NUMERIC NOT NULL DEFAULT 0,
 		price NUMERIC NOT NULL DEFAULT 0,
+	pack_size NUMERIC NOT NULL DEFAULT 0,
 		position INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMPTZ DEFAULT now(),
 		updated_at TIMESTAMPTZ DEFAULT now()
@@ -297,16 +298,42 @@ export async function ensureSchema() {
 		) THEN
 			ALTER TABLE dessert_recipe_items ADD COLUMN price NUMERIC NOT NULL DEFAULT 0;
 		END IF;
+	IF NOT EXISTS (
+		SELECT 1 FROM information_schema.columns
+		WHERE table_name = 'dessert_recipe_items' AND column_name = 'pack_size'
+	) THEN
+		ALTER TABLE dessert_recipe_items ADD COLUMN pack_size NUMERIC NOT NULL DEFAULT 0;
+	END IF;
 	END $$;`;
-	await sql`CREATE TABLE IF NOT EXISTS extras_items (
+await sql`CREATE TABLE IF NOT EXISTS extras_items (
 		id SERIAL PRIMARY KEY,
 		ingredient TEXT NOT NULL,
 		unit TEXT NOT NULL DEFAULT 'g',
 		qty_per_unit NUMERIC NOT NULL DEFAULT 0,
+	price NUMERIC NOT NULL DEFAULT 0,
+	pack_size NUMERIC NOT NULL DEFAULT 0,
 		position INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMPTZ DEFAULT now(),
 		updated_at TIMESTAMPTZ DEFAULT now()
 	)`;
+// Ensure new numeric columns exist for older deployments (extras price)
+await sql`DO $$ BEGIN
+	IF NOT EXISTS (
+		SELECT 1 FROM information_schema.columns
+		WHERE table_name = 'extras_items' AND column_name = 'price'
+	) THEN
+		ALTER TABLE extras_items ADD COLUMN price NUMERIC NOT NULL DEFAULT 0;
+	END IF;
+END $$;`;
+// Ensure extras pack_size
+await sql`DO $$ BEGIN
+	IF NOT EXISTS (
+		SELECT 1 FROM information_schema.columns
+		WHERE table_name = 'extras_items' AND column_name = 'pack_size'
+	) THEN
+		ALTER TABLE extras_items ADD COLUMN pack_size NUMERIC NOT NULL DEFAULT 0;
+	END IF;
+END $$;`;
 	// Inventory: master items and movements ledger
 	await sql`CREATE TABLE IF NOT EXISTS inventory_items (
 		id SERIAL PRIMARY KEY,
@@ -389,6 +416,9 @@ export function canonicalizeIngredientName(name) {
 	if (low.includes('nutella')) return 'Nutella';
 	if (low.startsWith('agua')) return 'Agua';
 	if (low.includes('oreo')) return 'Oreo';
+	// Extras common aliases
+	if (low.includes('bolsa') && low.includes('cuchara')) return 'Bolsa para cuchara';
+	if (low.includes('contenedor') && (low.includes('8 oz') || low.includes('8oz') || low.includes('8 onz') || low.includes('8onz'))) return 'Contenedor 8 onz';
 	return raw;
 }
 
