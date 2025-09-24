@@ -44,17 +44,13 @@ export async function handler(event) {
 				const params = new URLSearchParams(raw);
 				const start = (params.get('start') || '').toString().slice(0,10) || null;
 				const end = (params.get('end') || '').toString().slice(0,10) || null;
-				try {
-					let rows;
-					if (start && end) {
-						rows = await sql`SELECT id, kind, entry_date, description, amount_cents, actor_name, created_at FROM accounting_entries WHERE entry_date BETWEEN ${start} AND ${end} ORDER BY entry_date DESC, id DESC`;
-					} else {
-						rows = await sql`SELECT id, kind, entry_date, description, amount_cents, actor_name, created_at FROM accounting_entries ORDER BY entry_date DESC, id DESC LIMIT 200`;
-					}
-					return json(rows);
-				} catch (e) {
-					return json([]);
+				let rows;
+				if (start && end) {
+					rows = await sql`SELECT id, kind, entry_date, description, amount_cents, actor_name, created_at FROM accounting_entries WHERE entry_date BETWEEN ${start} AND ${end} ORDER BY entry_date DESC, id DESC`;
+				} else {
+					rows = await sql`SELECT id, kind, entry_date, description, amount_cents, actor_name, created_at FROM accounting_entries ORDER BY entry_date DESC, id DESC LIMIT 200`;
 				}
+				return json(rows);
 			}
 			case 'POST': {
 				const data = JSON.parse(event.body || '{}');

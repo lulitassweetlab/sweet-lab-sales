@@ -183,8 +183,14 @@
 			const value = Number(document.getElementById('acc-value').value || 0);
 			if (!type || !date || !desc || !value) { alert('Completa todos los campos'); return; }
 			try {
-				const payload = { kind: type, entry_date: date, description: desc, amount_cents: Number.isFinite(value) ? value : 0, _actor_name: currentUser?.name || '' };
-				await fetch('/api/accounting', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Actor-Name': currentUser?.name || '' }, body: JSON.stringify(payload) });
+				const payload = { kind: type, entry_date: date, description: desc, amount_cents: Number.isFinite(value) ? Math.round(value) : 0, _actor_name: currentUser?.name || '' };
+				const res = await fetch('/api/accounting', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Actor-Name': currentUser?.name || '' }, body: JSON.stringify(payload) });
+				if (!res.ok) {
+					let msg = `Error (${res.status})`;
+					try { const j = await res.json(); if (j && j.error) msg = j.error; } catch {}
+					alert(msg);
+					return;
+				}
 				// Clear description and value, keep type and date
 				document.getElementById('acc-desc').value = '';
 				document.getElementById('acc-value').value = '';
