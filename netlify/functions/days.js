@@ -49,20 +49,23 @@ export async function handler(event) {
 						if (r && r[0] && r[0].role) role = String(r[0].role);
 					} catch {}
 				}
-				const sets = [];
-				if (day) sets.push(sql`day=${day}`);
-				if (role === 'superadmin') {
-					if (!Number.isNaN(da)) sets.push(sql`delivered_arco=${Math.max(0, da|0)}`);
-					if (!Number.isNaN(dm)) sets.push(sql`delivered_melo=${Math.max(0, dm|0)}`);
-					if (!Number.isNaN(dma)) sets.push(sql`delivered_mara=${Math.max(0, dma|0)}`);
-					if (!Number.isNaN(dor)) sets.push(sql`delivered_oreo=${Math.max(0, dor|0)}`);
-					if (!Number.isNaN(dnu)) sets.push(sql`delivered_nute=${Math.max(0, dnu|0)}`);
-				}
-				if (sets.length === 0) {
-					const current = (await sql`SELECT id, day, delivered_arco, delivered_melo, delivered_mara, delivered_oreo, delivered_nute FROM sale_days WHERE id=${id} LIMIT 1`)[0] || { id, day };
-					return json(current);
-				}
-				const [row] = await sql`UPDATE sale_days SET ${sql.join(sets, sql`, `)} WHERE id=${id} RETURNING id, day, delivered_arco, delivered_melo, delivered_mara, delivered_oreo, delivered_nute`;
+				const dayParam = day && day.length ? day : null;
+				const daVal = (role === 'superadmin' && !Number.isNaN(da)) ? Math.max(0, da|0) : null;
+				const dmVal = (role === 'superadmin' && !Number.isNaN(dm)) ? Math.max(0, dm|0) : null;
+				const dmaVal = (role === 'superadmin' && !Number.isNaN(dma)) ? Math.max(0, dma|0) : null;
+				const dorVal = (role === 'superadmin' && !Number.isNaN(dor)) ? Math.max(0, dor|0) : null;
+				const dnuVal = (role === 'superadmin' && !Number.isNaN(dnu)) ? Math.max(0, dnu|0) : null;
+				const [row] = await sql`
+					UPDATE sale_days SET
+						day = COALESCE(${dayParam}, day),
+						delivered_arco = COALESCE(${daVal}, delivered_arco),
+						delivered_melo = COALESCE(${dmVal}, delivered_melo),
+						delivered_mara = COALESCE(${dmaVal}, delivered_mara),
+						delivered_oreo = COALESCE(${dorVal}, delivered_oreo),
+						delivered_nute = COALESCE(${dnuVal}, delivered_nute)
+					WHERE id=${id}
+					RETURNING id, day, delivered_arco, delivered_melo, delivered_mara, delivered_oreo, delivered_nute
+				`;
 				return json(row || { id, day });
 			}
 			case 'DELETE': {
