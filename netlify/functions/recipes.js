@@ -94,7 +94,7 @@ export async function handler(event) {
 					const id = Number(data.id || 0) || 0;
 					let row;
 					if (id) {
-						[row] = await sql`UPDATE dessert_recipe_items SET ingredient=${ingredient}, unit=${unit}, qty_per_unit=${qty}, adjustment=${adjustment}, price=${price}, position=${position}, updated_at=now() WHERE id=${id} RETURNING id, recipe_id, ingredient, unit, qty_per_unit, adjustment, price, position`;
+						[row] = await sql`UPDATE dessert_recipe_items SET recipe_id=${recipeId}, ingredient=${ingredient}, unit=${unit}, qty_per_unit=${qty}, adjustment=${adjustment}, price=${price}, position=${position}, updated_at=now() WHERE id=${id} RETURNING id, recipe_id, ingredient, unit, qty_per_unit, adjustment, price, position`;
 					} else {
 						[row] = await sql`INSERT INTO dessert_recipe_items (recipe_id, ingredient, unit, qty_per_unit, adjustment, price, position) VALUES (${recipeId}, ${ingredient}, ${unit}, ${qty}, ${adjustment}, ${price}, ${position}) RETURNING id, recipe_id, ingredient, unit, qty_per_unit, adjustment, price, position`;
 					}
