@@ -340,7 +340,7 @@
                 if (endInput) endInput.value = '';
                 if (qInput) qInput.value = '';
                 try { const sel = document.getElementById('cat-filter'); if (sel) sel.value = ''; } catch {}
-                recalcAndRender();
+                await recalcAndRender();
             });
         }
 
