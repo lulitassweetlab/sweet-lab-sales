@@ -4,6 +4,15 @@ function json(body, status = 200) {
     return { statusCode: status, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
 }
 
+function getRawQuery(evt){
+    try {
+        if (typeof evt.rawQuery === 'string') return evt.rawQuery;
+        const qsp = evt.queryStringParameters || null;
+        if (qsp && typeof qsp === 'object') return new URLSearchParams(qsp).toString();
+    } catch {}
+    return '';
+}
+
 async function getActorRole(evt, body = null) {
     try {
         const headers = (evt.headers || {});
@@ -11,7 +20,7 @@ async function getActorRole(evt, body = null) {
         let bActor = '';
         try { bActor = (body && (body.actor_name || body._actor_name || body.username)) ? String(body.actor_name || body._actor_name || body.username) : ''; } catch {}
         let qActor = '';
-        try { const qs = new URLSearchParams(evt.rawQuery || (evt.queryStringParameters ? new URLSearchParams(evt.queryStringParameters).toString() : '')); qActor = (qs.get('actor') || '').toString(); } catch {}
+        try { const qs = new URLSearchParams(getRawQuery(evt)); qActor = (qs.get('actor') || '').toString(); } catch {}
         const actor = (hActor || bActor || qActor || '').trim();
         if (!actor) return 'user';
         const rows = await sql`SELECT role FROM users WHERE lower(username)=lower(${actor}) LIMIT 1`;
@@ -26,7 +35,7 @@ export async function handler(event) {
 
         switch (event.httpMethod) {
             case 'GET': {
-                const params = new URLSearchParams(event.rawQuery || event.queryStringParameters ? event.rawQuery || '' : '');
+                const params = new URLSearchParams(getRawQuery(event));
                 const month = (params.get('month') || '').toString().slice(0,7);
                 const start = (params.get('start') || '').toString().slice(0,10);
                 const end = (params.get('end') || '').toString().slice(0,10);
@@ -146,7 +155,7 @@ export async function handler(event) {
                 return json({ updated: rows.length, entries: rows });
             }
             case 'DELETE': {
-                const params = new URLSearchParams(event.rawQuery || event.queryStringParameters ? event.rawQuery || '' : '');
+                const params = new URLSearchParams(getRawQuery(event));
                 const role = await getActorRole(event, null);
                 if (role !== 'superadmin') return json({ error: 'No autorizado' }, 403);
                 const idsParam = (params.get('ids') || '').toString();

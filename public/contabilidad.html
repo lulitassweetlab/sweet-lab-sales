@@ -128,14 +128,14 @@
         function storageKey(m){ return `acct:${m}`; }
 
         async function fetchEntries(m){
-            let u = `/api/accounting?actor=${encodeURIComponent(currentUser?.name||'')}`;
             const start = (startInput.value||'').slice(0,10);
             const end = (endInput.value||'').slice(0,10);
             const q = (qInput.value||'').trim();
-            if (start && end) u += `&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`;
-            else u += `&month=${encodeURIComponent(m)}`;
-            if (q) u += `&q=${encodeURIComponent(q)}`;
-            const r = await fetch(u);
+            const params = new URLSearchParams();
+            if (start && end) { params.set('start', start); params.set('end', end); } else { params.set('month', m); }
+            if (q) params.set('q', q);
+            params.set('actor', currentUser?.name || '');
+            const r = await fetch('/api/accounting?' + params.toString());
             if (!r.ok) throw new Error(`HTTP ${r.status}`);
             const j = await r.json();
             return Array.isArray(j.entries) ? j.entries : [];
