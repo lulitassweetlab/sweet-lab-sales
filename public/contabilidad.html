@@ -334,7 +334,13 @@
                 try { await createEntry({ date, desc, value, type, category }); }
                 catch { alert('No se pudo guardar'); return; }
                 cleanup();
-                if (monthKey(date) === getMonth()) recalcAndRender();
+                // Ajustar filtros para mostrar inmediatamente el movimiento recién creado
+                monthInput.value = monthKey(date);
+                if (startInput) startInput.value = '';
+                if (endInput) endInput.value = '';
+                if (qInput) qInput.value = '';
+                try { const sel = document.getElementById('cat-filter'); if (sel) sel.value = ''; } catch {}
+                recalcAndRender();
             });
         }
 
@@ -445,6 +451,9 @@
 
         initMonth();
         recalcAndRender();
+        // Auto-refresh para coherencia global: refresca al volver el foco y cada 15s
+        window.addEventListener('focus', () => { recalcAndRender(); });
+        setInterval(() => { recalcAndRender(); }, 15000);
     })();
     </script>
 </body>
