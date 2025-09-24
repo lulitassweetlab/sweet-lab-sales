@@ -86,8 +86,19 @@ export async function handler(event) {
 						if (!rows.length) return json({ error: 'No encontrado' }, 404);
 						return json(rows[0]);
 					}
-				const start = (params.get('start') || '').toString().slice(0,10) || null;
-				const end = (params.get('end') || '').toString().slice(0,10) || null;
+					// Range params reused in multiple branches
+					const start = (params.get('start') || '').toString().slice(0,10) || null;
+					const end = (params.get('end') || '').toString().slice(0,10) || null;
+					// All attachments for a date range
+					if (params.has('attachments_for_range')) {
+						if (!start || !end) return json({ error: 'start y end requeridos' }, 400);
+						const rows = await sql`SELECT a.id, a.entry_id, a.file_base64, a.mime_type, a.file_name, a.created_at
+							FROM accounting_attachments a
+							JOIN accounting_entries e ON e.id = a.entry_id
+							WHERE e.entry_date BETWEEN ${start} AND ${end}
+							ORDER BY e.entry_date ASC, a.id ASC`;
+						return json(rows);
+					}
 				let rows;
 					if (start && end) {
 						rows = await sql`SELECT e.id, e.kind, e.entry_date, e.description, e.amount_cents, e.actor_name, e.created_at,

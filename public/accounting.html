@@ -35,10 +35,11 @@
 	</header>
 
 	<main class="sales-panel">
-		<div class="panel-header">
+			<div class="panel-header">
 			<h3>Nuevo registro</h3>
 			<div class="panel-actions">
-				<button id="change-range" class="press-btn">Cambiar fechas</button>
+					<button id="download-range" class="press-btn">Descargar adjuntos</button>
+					<button id="change-range" class="press-btn">Cambiar fechas</button>
 			</div>
 		</div>
 		<div class="panel-body">
@@ -144,6 +145,7 @@
 		const tGas = document.getElementById('t-gastos');
 		const tBal = document.getElementById('t-balance');
 		const changeBtn = document.getElementById('change-range');
+		const downloadBtn = document.getElementById('download-range');
 		const btnIngreso = document.getElementById('btn-ingreso');
 		const btnSalida = document.getElementById('btn-salida');
 		let currentKind = 'ingreso';
@@ -196,20 +198,9 @@
 					<td class="col-total editable" data-field="amount_cents" data-kind="ingreso">${colIng}</td>
 					<td class="col-total editable" data-field="amount_cents" data-kind="gasto">${colSal}</td>
 					<td class="col-total">${fmtMoney(running)}</td>
-					<td><button class="download-att" data-id="${r.id}" title="Descargar adjunto" aria-label="Descargar">⬇️</button></td>
 					<td><button class="row-delete" data-del="${r.id}" title="Eliminar" aria-label="Eliminar"></button></td>
 				`;
-				// Wire download button
-				const dlBtn = tr.querySelector('.download-att');
-				dlBtn.addEventListener('click', async (e) => {
-					e.stopPropagation();
-					try {
-						const res = await fetch(`/api/accounting?attachment_for=${encodeURIComponent(r.id)}`);
-						if (!res.ok) { alert('No hay adjunto para descargar'); return; }
-						const obj = await res.json();
-						const a = document.createElement('a'); a.href = obj.file_base64; a.download = obj.file_name || `adjunto_${r.id}.bin`; document.body.appendChild(a); a.click(); a.remove();
-					} catch (err) { console.error(err); alert('Error al descargar adjunto'); }
-				});
+				// removed per-row download
 				tbody.appendChild(tr);
 				// Wire attachment upload or view
 				const attBtn = tr.querySelector('.attach-btn');
@@ -351,6 +342,19 @@
 			}, ev.clientX, ev.clientY, { preferUp: true });
 		}
 		changeBtn.addEventListener('click', openCalendar);
+
+		// Descargar todos los adjuntos del rango seleccionado como archivos individuales (o ZIP si es posible)
+		downloadBtn.addEventListener('click', async () => {
+			try {
+				const list = await fetchJSON(`/api/accounting?attachments_for_range=1&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`);
+				if (!Array.isArray(list) || !list.length) { alert('No hay adjuntos en el rango'); return; }
+				// Intento simple: disparar descargas una por una con nombres
+				for (const a of list) {
+					const name = a.file_name || `adjunto_${String(a.entry_id)}_${String(a.id)}.bin`;
+					const link = document.createElement('a'); link.href = a.file_base64; link.download = name; document.body.appendChild(link); link.click(); link.remove();
+				}
+			} catch (e) { console.error(e); alert('Error al descargar adjuntos'); }
+		});
 
 		// Lightweight embed of openRangeCalendarPopover if not present
 		if (typeof window.openRangeCalendarPopover !== 'function') {
