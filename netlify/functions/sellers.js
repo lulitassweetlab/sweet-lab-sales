@@ -8,25 +8,53 @@ export async function handler(event) {
 	try {
 		await ensureSchema();
 		if (event.httpMethod === 'OPTIONS') return json({ ok: true });
+
+		async function getActorRole(evt, body = null) {
+			try {
+				const headers = (evt.headers || {});
+				const hActor = (headers['x-actor-name'] || headers['X-Actor-Name'] || headers['x-actor'] || '').toString();
+				let bActor = '';
+				try { bActor = (body && (body.actor_name || body._actor_name || body.username)) ? String(body.actor_name || body._actor_name || body.username) : ''; } catch {}
+				let qActor = '';
+				try { const qs = new URLSearchParams(evt.rawQuery || (evt.queryStringParameters ? new URLSearchParams(evt.queryStringParameters).toString() : '')); qActor = (qs.get('actor') || '').toString(); } catch {}
+				const actor = (hActor || bActor || qActor || '').trim();
+				if (!actor) return 'user';
+				const rows = await sql`SELECT role FROM users WHERE lower(username)=lower(${actor}) LIMIT 1`;
+				return (rows && rows[0] && rows[0].role) ? String(rows[0].role) : 'user';
+			} catch { return 'user'; }
+		}
 		switch (event.httpMethod) {
 			case 'GET': {
-				const rows = await sql`SELECT id, name, bill_color FROM sellers ORDER BY name`;
+				// Support include_archived=1 to include archived sellers; default excludes archived
+				const params = new URLSearchParams(event.rawQuery || event.queryStringParameters ? event.rawQuery || '' : '');
+				const includeArchived = (params.get('include_archived') || '').toString() === '1';
+				let rows;
+				if (includeArchived) {
+					rows = await sql`SELECT id, name, bill_color, archived_at FROM sellers ORDER BY name`;
+				} else {
+					rows = await sql`SELECT id, name, bill_color, archived_at FROM sellers WHERE archived_at IS NULL ORDER BY name`;
+				}
 				return json(rows);
 			}
 			case 'POST': {
 				const data = JSON.parse(event.body || '{}');
+				const role = await getActorRole(event, data);
+				if (role !== 'superadmin') return json({ error: 'No autorizado' }, 403);
 				const name = (data.name || '').trim();
 				if (!name) return json({ error: 'Nombre requerido' }, 400);
-				const [row] = await sql`INSERT INTO sellers (name) VALUES (${name}) ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name RETURNING id, name, bill_color`;
+				const [row] = await sql`INSERT INTO sellers (name) VALUES (${name}) ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name RETURNING id, name, bill_color, archived_at`;
 				return json(row, 201);
 			}
 			case 'PATCH': {
-				// Update seller properties (currently bill_color)
-				// Body: { id? or name?, bill_color }
+				// Update seller properties: bill_color, and logical archive/unarchive
+				// Body: { id? or name?, bill_color?, action?: 'archive'|'unarchive' }
 				const data = JSON.parse(event.body || '{}');
+				const role = await getActorRole(event, data);
+				if (role !== 'admin' && role !== 'superadmin') return json({ error: 'No autorizado' }, 403);
 				const id = Number(data.id || 0) || null;
 				const rawName = (data.name || '').toString().trim();
 				const billColor = (data.bill_color ?? null);
+				const action = (data.action || '').toString();
 				if (!id && !rawName) return json({ error: 'id o name requerido' }, 400);
 				if (billColor !== null && typeof billColor !== 'string') return json({ error: 'bill_color inválido' }, 400);
 				let targetId = id;
@@ -35,19 +63,30 @@ export async function handler(event) {
 					if (!found.length) return json({ error: 'Vendedor no encontrado' }, 404);
 					targetId = found[0].id;
 				}
-				const [row] = await sql`UPDATE sellers SET bill_color=${billColor} WHERE id=${targetId} RETURNING id, name, bill_color`;
+				let row;
+				if (action === 'archive') {
+					[row] = await sql`UPDATE sellers SET archived_at=now() WHERE id=${targetId} RETURNING id, name, bill_color, archived_at`;
+				} else if (action === 'unarchive') {
+					[row] = await sql`UPDATE sellers SET archived_at=NULL WHERE id=${targetId} RETURNING id, name, bill_color, archived_at`;
+				} else if (billColor !== null) {
+					[row] = await sql`UPDATE sellers SET bill_color=${billColor} WHERE id=${targetId} RETURNING id, name, bill_color, archived_at`;
+				} else {
+					return json({ error: 'Sin cambios' }, 400);
+				}
 				return json(row);
 			}
 			case 'DELETE': {
 				const params = new URLSearchParams(event.rawQuery || event.queryStringParameters ? event.rawQuery || '' : '');
+				const role = await getActorRole(event, null);
+				if (role !== 'superadmin') return json({ error: 'No autorizado' }, 403);
 				const idParam = params.get('id');
 				const nameParam = params.get('name');
 				if (!idParam && !nameParam) return json({ error: 'id o name requerido' }, 400);
 				if (idParam) {
 					const id = Number(idParam);
 					if (!id) return json({ error: 'id inválido' }, 400);
-					await sql`DELETE FROM sellers WHERE id=${id}`;
-					return json({ ok: true, deleted_id: id });
+					await sql`UPDATE sellers SET archived_at=now() WHERE id=${id}`;
+					return json({ ok: true, archived_id: id });
 				}
 				// If deleting by name, keep the oldest (smallest id) and delete the rest (case-insensitive)
 				const nm = (nameParam || '').toString();
@@ -55,9 +94,9 @@ export async function handler(event) {
 				const rows = await sql`SELECT id, name FROM sellers WHERE lower(name)=lower(${nm}) ORDER BY id ASC`;
 				if (rows.length <= 1) return json({ ok: true, kept_id: rows[0]?.id || null, deleted: 0 });
 				const keepId = rows[0].id;
-				const toDelete = rows.slice(1).map(r => r.id);
-				await sql`DELETE FROM sellers WHERE id = ANY(${toDelete})`;
-				return json({ ok: true, kept_id: keepId, deleted: toDelete.length });
+				const toArchive = rows.slice(1).map(r => r.id);
+				await sql`UPDATE sellers SET archived_at=now() WHERE id = ANY(${toArchive})`;
+				return json({ ok: true, kept_id: keepId, archived: toArchive.length });
 			}
 			default:
 				return json({ error: 'Método no permitido' }, 405);

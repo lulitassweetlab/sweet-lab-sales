@@ -17,6 +17,7 @@ export async function ensureSchema() {
 		id SERIAL PRIMARY KEY,
 		name TEXT UNIQUE NOT NULL,
 		bill_color TEXT,
+		archived_at TIMESTAMPTZ,
 		created_at TIMESTAMPTZ DEFAULT now()
 	)`;
 	// Ensure bill_color exists for older deployments
@@ -26,6 +27,12 @@ export async function ensureSchema() {
 			WHERE table_name = 'sellers' AND column_name = 'bill_color'
 		) THEN
 			ALTER TABLE sellers ADD COLUMN bill_color TEXT;
+		END IF;
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'sellers' AND column_name = 'archived_at'
+		) THEN
+			ALTER TABLE sellers ADD COLUMN archived_at TIMESTAMPTZ;
 		END IF;
 	END $$;`;
 	await sql`CREATE TABLE IF NOT EXISTS sale_days (
