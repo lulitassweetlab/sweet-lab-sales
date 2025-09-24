@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Contabilidad</title>
+	<link rel="stylesheet" href="/styles.css?v=2025-09-17-1" />
+    <style>
+    .acct-container { max-width: 980px; margin: 0 auto; padding: 16px; }
+    .acct-header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin: 12px 0 16px; }
+    .acct-title { display:flex; align-items:center; gap:12px; }
+    .acct-month { display:flex; align-items:center; gap:8px; }
+    .acct-month label { opacity:.8; }
+    .acct-table { width:100%; border-collapse: collapse; }
+    .acct-table th, .acct-table td { border-bottom: 1px solid var(--table-border,#e6e6e6); padding: 10px; text-align: left; }
+    .acct-table th { background: var(--panel-header-bg, #f8f8f8); position: sticky; top: 0; z-index: 1; }
+    .col-date { width: 130px; }
+    .col-desc { }
+    .col-in, .col-out, .col-bal { width: 120px; text-align: right; }
+    .right { text-align: right; }
+    .muted { opacity: .7; }
+    .fab-add { position: fixed; right: 24px; bottom: 24px; width: 64px; height: 64px; border-radius: 50%; font-size: 28px; line-height: 1; display:flex; align-items:center; justify-content:center; box-shadow: 0 6px 18px rgba(0,0,0,.15); }
+    .dialog-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.2); display:flex; align-items:center; justify-content:center; z-index:1000; }
+    .dialog { width: min(520px, 92vw); background: var(--panel-bg, #fff); border-radius: 12px; padding: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+    .dialog h3 { margin: 0 0 8px; }
+    .dialog .type-row { display:flex; gap:8px; margin: 8px 0 12px; }
+    .dialog .form-row { display:grid; grid-template-columns: 1fr 2fr; gap:8px; align-items:center; margin: 8px 0; }
+    .dialog .actions { display:flex; justify-content:flex-end; gap:8px; margin-top:12px; }
+    .pill { padding: 8px 12px; border-radius: 999px; border: 1px solid var(--table-border,#ddd); cursor: pointer; background: none; }
+    .pill.active { background: var(--btn-primary-bg,#222); color: #fff; border-color: var(--btn-primary-bg,#222); }
+    </style>
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-row">
+            <div class="header-left">
+                <img src="/logo.png" alt="Lulitas Logo" class="app-logo" />
+                <h1>Contabilidad</h1>
+            </div>
+            <div class="header-actions">
+                <button id="acct-back" class="press-btn">Volver</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="acct-container">
+        <div class="acct-header">
+            <div class="acct-title">
+                <strong>Tabla mensual</strong>
+                <span id="balance-label" class="muted"></span>
+            </div>
+            <div class="acct-month">
+                <label for="month">Mes</label>
+                <input id="month" type="month" />
+            </div>
+        </div>
+        <div class="table-wrapper">
+            <table id="acct-table" class="acct-table">
+                <thead>
+                    <tr>
+                        <th class="col-date">Fecha</th>
+                        <th class="col-desc">Descripción</th>
+                        <th class="col-in">Entra</th>
+                        <th class="col-out">Sale</th>
+                        <th class="col-bal">Saldo</th>
+                    </tr>
+                </thead>
+                <tbody id="acct-tbody"></tbody>
+            </table>
+        </div>
+    </main>
+
+    <button id="acct-add" class="press-btn btn-primary fab-add" title="Agregar">＋</button>
+
+    <script type="module">
+    (function(){
+        let currentUser = null;
+        try { const saved = localStorage.getItem('authUser'); if (saved) currentUser = JSON.parse(saved); } catch {}
+        const isSuper = (currentUser?.role === 'superadmin') || !!currentUser?.isSuperAdmin || (String(currentUser?.name||'').toLowerCase()==='jorge');
+        if (!isSuper) { location.href = '/'; return; }
+
+        const backBtn = document.getElementById('acct-back');
+        const addBtn = document.getElementById('acct-add');
+        const monthInput = document.getElementById('month');
+        const tbody = document.getElementById('acct-tbody');
+        const balanceLabel = document.getElementById('balance-label');
+
+        function fmtCurrency(n){ const v = Number(n||0); return v.toLocaleString('es-CO'); }
+        function todayISO(){ const d = new Date(); const m = String(d.getMonth()+1).padStart(2,'0'); const day = String(d.getDate()).padStart(2,'0'); return `${d.getFullYear()}-${m}-${day}`; }
+        function monthKey(iso){ return (iso||'').slice(0,7); }
+        function getMonth(){ return monthInput.value || todayISO().slice(0,7); }
+        function storageKey(m){ return `acct:${m}`; }
+
+        function loadEntries(m){
+            try { const raw = localStorage.getItem(storageKey(m)); if (!raw) return []; const arr = JSON.parse(raw); if (Array.isArray(arr)) return arr; } catch {}
+            return [];
+        }
+        function saveEntries(m, entries){
+            try { localStorage.setItem(storageKey(m), JSON.stringify(entries)); } catch {}
+        }
+
+        function recalcAndRender(){
+            const m = getMonth();
+            const entries = loadEntries(m).slice().sort((a,b) => String(a.date).localeCompare(String(b.date)));
+            tbody.innerHTML = '';
+            let running = 0;
+            for (const e of entries){
+                const tr = document.createElement('tr');
+                const tdDate = document.createElement('td'); tdDate.textContent = String(e.date || '');
+                const tdDesc = document.createElement('td'); tdDesc.textContent = String(e.desc || '');
+                const tdIn = document.createElement('td'); tdIn.className = 'right'; tdIn.textContent = e.type==='ingreso' ? fmtCurrency(e.value||0) : '';
+                const tdOut = document.createElement('td'); tdOut.className = 'right'; tdOut.textContent = e.type==='gasto' ? fmtCurrency(e.value||0) : '';
+                running += (e.type==='ingreso' ? Number(e.value||0) : -Number(e.value||0));
+                const tdBal = document.createElement('td'); tdBal.className = 'right'; tdBal.textContent = fmtCurrency(running);
+                tr.append(tdDate, tdDesc, tdIn, tdOut, tdBal);
+                tbody.appendChild(tr);
+            }
+            balanceLabel.textContent = `Saldo: ${fmtCurrency(running)}`;
+        }
+
+        function openDialog(){
+            const backdrop = document.createElement('div'); backdrop.className = 'dialog-backdrop';
+            const dlg = document.createElement('div'); dlg.className = 'dialog';
+            const title = document.createElement('h3'); title.textContent = 'Nuevo registro';
+            const typeRow = document.createElement('div'); typeRow.className = 'type-row';
+            const bIn = document.createElement('button'); bIn.className = 'pill active'; bIn.textContent = 'Ingreso'; bIn.type = 'button';
+            const bOut = document.createElement('button'); bOut.className = 'pill'; bOut.textContent = 'Gasto'; bOut.type = 'button';
+            typeRow.append(bIn, bOut);
+            let type = 'ingreso';
+            bIn.addEventListener('click', () => { type='ingreso'; bIn.classList.add('active'); bOut.classList.remove('active'); });
+            bOut.addEventListener('click', () => { type='gasto'; bOut.classList.add('active'); bIn.classList.remove('active'); });
+
+            const row1 = document.createElement('div'); row1.className = 'form-row';
+            const lab1 = document.createElement('label'); lab1.textContent = 'Fecha';
+            const inDate = document.createElement('input'); inDate.type = 'date'; inDate.value = todayISO();
+            row1.append(lab1, inDate);
+
+            const row2 = document.createElement('div'); row2.className = 'form-row';
+            const lab2 = document.createElement('label'); lab2.textContent = 'Descripción';
+            const inDesc = document.createElement('input'); inDesc.type = 'text'; inDesc.placeholder = 'Descripción';
+            row2.append(lab2, inDesc);
+
+            const row3 = document.createElement('div'); row3.className = 'form-row';
+            const lab3 = document.createElement('label'); lab3.textContent = 'Valor';
+            const inVal = document.createElement('input'); inVal.type = 'number'; inVal.min = '0'; inVal.step = '1'; inVal.placeholder = '0';
+            row3.append(lab3, inVal);
+
+            const actions = document.createElement('div'); actions.className = 'actions';
+            const cancel = document.createElement('button'); cancel.className = 'press-btn'; cancel.textContent = 'Cancelar';
+            const save = document.createElement('button'); save.className = 'press-btn btn-primary'; save.textContent = 'Guardar';
+            actions.append(cancel, save);
+
+            dlg.append(title, typeRow, row1, row2, row3, actions); backdrop.appendChild(dlg); document.body.appendChild(backdrop);
+            setTimeout(() => backdrop.addEventListener('click', (e) => { if (e.target === backdrop) cleanup(); }), 0);
+
+            function cleanup(){ if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop); }
+            cancel.addEventListener('click', cleanup);
+            save.addEventListener('click', () => {
+                const date = (inDate.value||'').slice(0,10);
+                const desc = (inDesc.value||'').trim();
+                const value = Math.max(0, Number(inVal.value||0)|0);
+                if (!date || !desc || !value) { return; }
+                const m = monthKey(date);
+                const arr = loadEntries(m);
+                arr.push({ date, desc, value, type });
+                saveEntries(m, arr);
+                cleanup();
+                if (m === getMonth()) recalcAndRender();
+            });
+        }
+
+        function initMonth() {
+            const qs = new URLSearchParams(location.search);
+            const q = (qs.get('month')||'').slice(0,7);
+            const initial = q && /^\d{4}-\d{2}$/.test(q) ? q : todayISO().slice(0,7);
+            monthInput.value = initial;
+        }
+
+        backBtn.addEventListener('click', () => { location.href = '/'; });
+        monthInput.addEventListener('change', () => { recalcAndRender(); history.replaceState(null, '', `?month=${encodeURIComponent(getMonth())}`); });
+        addBtn.addEventListener('click', openDialog);
+
+        initMonth();
+        recalcAndRender();
+    })();
+    </script>
+</body>
+</html>
+
