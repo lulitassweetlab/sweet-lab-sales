@@ -218,6 +218,9 @@
 				if (low.includes('oreo')) return 'Oreo';
 				if (low.startsWith('agua')) return 'Agua';
 				if (low.includes('almibar') || low.includes('almíbar')) return 'Almíbar';
+				// Extras aliases consistent with server canonicalization
+				if (low.includes('bolsa') && low.includes('cuchara')) return 'Bolsa para cuchara';
+				if (low.includes('contenedor') && (low.includes('8 oz') || low.includes('8oz') || low.includes('8 onz') || low.includes('8onz'))) return 'Contenedor 8 onz';
 				return raw;
 			}
 			function displayNameFor(name){
@@ -306,14 +309,14 @@
 			let buySugTotal = 0; let buyRealTotal = 0; let buyCostTotal = 0; let neededCostTotal = 0;
 			const waLines = [];
 			const rowsState = [];
-			for (const key of keys){
+				for (const key of keys){
 				const v = agg.get(key);
 				const inv = invByKey.has(key) ? Number(invByKey.get(key)||0)||0 : 0;
 				const buy = Math.max(0, (Number(v.needed||0)||0) - inv);
 				// Real purchase based on pack size: ceil(buy / pack) * pack
 				const pack = Number(packMap.get(key) || 0) || 0;
 				const real = pack > 0 ? Math.ceil(buy / pack) * pack : buy;
-				const price = Number(priceMap.get(key) || 0) || 0;
+					const price = Number(priceMap.get(key) || 0) || 0;
 				const cost = real * price;
 				const perUnitDisplay = (v.perUnits && v.perUnits.size === 1) ? Array.from(v.perUnits)[0] : '—';
 				const tr = document.createElement('tr');
@@ -322,16 +325,17 @@
 				const tdNeed = document.createElement('td'); tdNeed.textContent = fmt1(v.needed);
 				const tdInv = document.createElement('td'); tdInv.textContent = fmt1(inv);
 				const tdBuy = document.createElement('td'); tdBuy.className = 'col-total'; tdBuy.textContent = fmt1(buy);
-				const tdReal = document.createElement('td'); tdReal.textContent = fmt1(real);
+					const tdReal = document.createElement('td');
+					const inReal = document.createElement('input'); inReal.type = 'number'; inReal.step = '0.1'; inReal.min = '0'; inReal.className = 'input-cell'; inReal.style.width = '90px'; inReal.style.textAlign = 'right'; inReal.value = String(Number(fmt1(real))); tdReal.appendChild(inReal);
 				const tdCost = document.createElement('td');
 				const inCost = document.createElement('input'); inCost.type = 'number'; inCost.step = '1'; inCost.min = '0'; inCost.className = 'input-cell'; inCost.style.width = '110px'; inCost.style.textAlign = 'right'; inCost.value = String(Math.round(cost)); tdCost.appendChild(inCost);
-				tr.append(tdName, tdPer, tdNeed, tdInv, tdBuy, tdReal, tdCost);
+					tr.append(tdName, tdPer, tdNeed, tdInv, tdBuy, tdReal, tdCost);
 				tbody.appendChild(tr);
 				buySugTotal += buy;
 				buyRealTotal += real;
 				buyCostTotal += Number(inCost.value || 0) || 0;
 				neededCostTotal += (Number(v.needed || 0) || 0) * price;
-				rowsState.push({ name: v.name, real, realInput: null, pack, costInput: inCost, unitPrice: price });
+				rowsState.push({ name: v.name, realInput: inReal, pack, costInput: inCost, unitPrice: price });
 			}
 			function recomputeTotals(){
 				let t = 0; for (const r of rowsState) t += Number(r.costInput?.value || 0) || 0;
@@ -407,27 +411,49 @@
 				);
 				bottomSummary.appendChild(wrap);
 			}
-			for (const r of rowsState) { r.costInput.addEventListener('change', recomputeTotals); r.costInput.addEventListener('blur', recomputeTotals); }
+				function recomputeRealTotal(){
+					let t = 0; for (const r of rowsState) t += Number(r.realInput?.value || 0) || 0;
+					buyRealTotal = t;
+					tBuyRealTotal.textContent = fmt1(buyRealTotal);
+				}
+				for (const r of rowsState) {
+					r.costInput.addEventListener('change', recomputeTotals);
+					r.costInput.addEventListener('blur', recomputeTotals);
+					function onRealEdit(){
+						const realV = Number(r.realInput?.value || 0) || 0;
+						const unit = Number(r.unitPrice || 0) || 0;
+						r.costInput.value = String(Math.round(realV * unit));
+						recomputeRealTotal();
+						recomputeTotals();
+					}
+					r.realInput.addEventListener('change', onRealEdit);
+					r.realInput.addEventListener('blur', onRealEdit);
+				}
 			tBuySugTotal.textContent = fmt1(buySugTotal);
-			tBuyRealTotal.textContent = fmt1(buyRealTotal);
+			recomputeRealTotal();
 			recomputeTotals();
 			renderDessertSummary();
 			renderBottomSummary();
 			countLabel.textContent = `Ingredientes: ${keys.length}`;
 			// Bind WA button to open a copyable text box
-			waBtn.onclick = () => {
+				waBtn.onclick = () => {
 				const pop = document.createElement('div'); pop.className = 'confirm-popover'; pop.style.position = 'fixed';
 				pop.style.left = (window.innerWidth/2) + 'px'; pop.style.top = '12%'; pop.style.transform = 'translate(-50%, 0)';
 				const title = document.createElement('h4'); title.textContent = 'Solicitar compra por WhatsApp'; title.style.margin = '0 0 8px 0';
-				// Build WA lines on demand from current editable costs and real quantities
-				const freshLines = [];
-				for (const r of rowsState) {
-					if (Number(r.real||0) > 0) {
-						const costV = Number(r.costInput?.value || 0) || 0;
-						freshLines.push(`${r.name}: ${fmt1(r.real)}${r.pack > 0 ? ` (paquete ${fmt1(r.pack)})` : ''}${costV>0 ? ` — ${new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(costV)}` : ''}`);
+					// Build WA lines on demand using current edited quantities
+					const freshLines = [];
+					for (const r of rowsState) {
+						const realV = Number(r.realInput?.value || 0) || 0;
+						if (realV > 0) {
+							if (Number(r.pack || 0) > 0) {
+								const pk = Math.max(1, Math.ceil(realV / Number(r.pack)));
+								freshLines.push(`${r.name} ${pk} paquete${pk===1?'':'s'}`);
+							} else {
+								freshLines.push(`${r.name} ${fmt1(realV)} unidades`);
+							}
+						}
 					}
-				}
-				const ta = document.createElement('textarea'); ta.style.width = 'min(92vw, 540px)'; ta.style.height = '260px'; ta.value = `Hola, por favor cotízame y despáchame:\n\n${freshLines.join('\n')}\n\nTotal estimado: ${new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(buyCostTotal)}\n\nGracias!`;
+					const ta = document.createElement('textarea'); ta.style.width = 'min(92vw, 540px)'; ta.style.height = '260px'; ta.value = `${freshLines.join('\n')}\n\nTotal estimado: ${new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(buyCostTotal)}`;
 				const actions = document.createElement('div'); actions.className = 'confirm-actions';
 				const copyBtn = document.createElement('button'); copyBtn.className = 'press-btn btn-primary'; copyBtn.textContent = 'Copiar';
 				const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn'; closeBtn.textContent = 'Cerrar';
