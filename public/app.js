@@ -2077,6 +2077,7 @@ async function renderInventoryView() {
 	if (!root) return;
 	root.innerHTML = '';
 	const fmt1 = new Intl.NumberFormat('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+	const fmtMoney = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
 	let items = [];
 	try { items = await api('GET', API.Inventory); } catch { items = []; }
 	// Header actions: ingreso and ajuste buttons
@@ -2090,19 +2091,22 @@ async function renderInventoryView() {
 	// Table
 	const table = document.createElement('table'); table.className = 'clients-table';
 	const thead = document.createElement('thead'); const hr = document.createElement('tr');
-	['Ingrediente','Saldo','Ingresar',''].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
+	['Ingrediente','Saldo','Valor','Ingresar',''].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
 	thead.appendChild(hr); const tbody = document.createElement('tbody');
 	const rowInputs = [];
+	let totalValor = 0;
 	for (const it of (items || [])) {
 		const tr = document.createElement('tr');
 		const tdN = document.createElement('td'); tdN.textContent = it.ingredient;
 		const tdS = document.createElement('td');
 		const inSaldo = document.createElement('input'); inSaldo.type = 'number'; inSaldo.step = '0.01'; inSaldo.className = 'input-cell'; inSaldo.style.width = '100%'; inSaldo.style.maxWidth = '120px'; inSaldo.style.textAlign = 'right'; inSaldo.value = String(Number(it.saldo || 0) || 0);
 		tdS.append(inSaldo);
+		const tdV = document.createElement('td'); const valor = (Number(it.saldo||0)||0) * (Number(it.price||0)||0); tdV.textContent = fmtMoney.format(valor); tdV.style.textAlign = 'right';
 		const tdI = document.createElement('td'); const inQty = document.createElement('input'); inQty.type = 'number'; inQty.step = '0.01'; inQty.min = '0'; inQty.placeholder = '0'; inQty.className = 'input-cell'; inQty.style.width = '100%'; inQty.style.maxWidth = '120px'; inQty.style.textAlign = 'right'; tdI.appendChild(inQty);
 		const tdA = document.createElement('td'); const saveBtn = document.createElement('button'); saveBtn.className = 'press-btn'; saveBtn.textContent = 'Guardar'; const histBtn = document.createElement('button'); histBtn.className = 'press-btn'; histBtn.textContent = 'Historial'; tdA.append(saveBtn, histBtn);
-		tr.append(tdN, tdS, tdI, tdA); tbody.appendChild(tr);
+		tr.append(tdN, tdS, tdV, tdI, tdA); tbody.appendChild(tr);
 		rowInputs.push({ ingredient: it.ingredient, unit: it.unit || 'g', input: inQty });
+		totalValor += valor;
 		histBtn.addEventListener('click', async () => { openInventoryHistoryDialog(it.ingredient); });
 		async function saveSaldo(){
 			try {
@@ -2118,13 +2122,20 @@ async function renderInventoryView() {
 		saveBtn.addEventListener('click', saveSaldo);
 		inSaldo.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') saveSaldo(); });
 	}
-	// Footer with Ingresar button under the Ingresar column
+	// Footer: total valor + Ingresar button row
 	const tfoot = document.createElement('tfoot');
+	const frTotal = document.createElement('tr');
+	const ft1 = document.createElement('td'); ft1.className = 'label'; ft1.textContent = 'Total inventario';
+	const ft2 = document.createElement('td');
+	const ft3 = document.createElement('td'); ft3.className = 'col-total'; ft3.textContent = fmtMoney.format(totalValor); ft3.style.textAlign = 'right';
+	const ft4 = document.createElement('td');
+	const ft5 = document.createElement('td');
+	frTotal.append(ft1, ft2, ft3, ft4, ft5); tfoot.appendChild(frTotal);
 	const fr = document.createElement('tr');
-	const fd1 = document.createElement('td'); const fd2 = document.createElement('td');
-	const fd3 = document.createElement('td'); const btnAll = document.createElement('button'); btnAll.className = 'press-btn btn-primary'; btnAll.textContent = 'Ingresar'; fd3.appendChild(btnAll);
-	const fd4 = document.createElement('td');
-	fr.append(fd1, fd2, fd3, fd4); tfoot.appendChild(fr);
+	const fd1 = document.createElement('td'); const fd2 = document.createElement('td'); const fd3 = document.createElement('td');
+	const fd4 = document.createElement('td'); const btnAll = document.createElement('button'); btnAll.className = 'press-btn btn-primary'; btnAll.textContent = 'Ingresar'; fd4.appendChild(btnAll);
+	const fd5 = document.createElement('td');
+	fr.append(fd1, fd2, fd3, fd4, fd5); tfoot.appendChild(fr);
 	btnAll.addEventListener('click', async () => {
 		try {
 			for (const r of rowInputs) {
