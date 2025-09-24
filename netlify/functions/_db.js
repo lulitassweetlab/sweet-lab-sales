@@ -73,6 +73,12 @@ export async function ensureSchema() {
 		) THEN
 			ALTER TABLE sale_days ADD COLUMN delivered_nute INTEGER NOT NULL DEFAULT 0;
 		END IF;
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'sale_days' AND column_name = 'is_archived'
+		) THEN
+			ALTER TABLE sale_days ADD COLUMN is_archived BOOLEAN NOT NULL DEFAULT false;
+		END IF;
 	END $$;`;
 	await sql`CREATE TABLE IF NOT EXISTS sales (
 		id SERIAL PRIMARY KEY,
