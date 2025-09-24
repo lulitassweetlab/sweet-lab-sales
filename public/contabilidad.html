@@ -156,7 +156,25 @@
             tbody.innerHTML = '';
             let entries = [];
             try { entries = await fetchEntries(m); document.getElementById('acct-error').style.display='none'; document.getElementById('acct-error').textContent=''; }
-            catch (e) { entries = []; const errEl=document.getElementById('acct-error'); if(errEl){ errEl.textContent = 'Error cargando datos: ' + (e?.message||''); errEl.style.display=''; } }
+            catch (e) {
+                entries = [];
+                const errEl=document.getElementById('acct-error');
+                if(errEl){
+                    try {
+                        // Intentar leer cuerpo con detalle del backend
+                        const start = (startInput.value||'').slice(0,10);
+                        const end = (endInput.value||'').slice(0,10);
+                        const params = new URLSearchParams();
+                        if (start && end) { params.set('start', start); params.set('end', end); } else { params.set('month', m); }
+                        params.set('actor', currentUser?.name || '');
+                        fetch('/api/accounting?' + params.toString())
+                            .then(r => r.json()).then(j => { errEl.textContent = 'Error cargando datos: ' + (j?.error || e?.message || ''); errEl.style.display=''; })
+                            .catch(() => { errEl.textContent = 'Error cargando datos: ' + (e?.message||''); errEl.style.display=''; });
+                    } catch {
+                        errEl.textContent = 'Error cargando datos: ' + (e?.message||''); errEl.style.display='';
+                    }
+                }
+            }
             const emptyEl = document.getElementById('acct-empty'); if (emptyEl) emptyEl.style.display = (entries.length ? 'none' : '');
             entries.sort((a,b) => String(a.entry_date||a.date).localeCompare(String(b.entry_date||b.date)));
             let running = 0;

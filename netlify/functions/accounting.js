@@ -192,7 +192,9 @@ export async function handler(event) {
                 return json({ error: 'Método no permitido' }, 405);
         }
     } catch (err) {
-        return json({ error: String(err) }, 500);
+        const msg = (err && err.message) ? String(err.message) : String(err);
+        const code = (err && err.code) ? String(err.code) : undefined;
+        return json({ error: msg, code }, 500);
     }
 }
 
