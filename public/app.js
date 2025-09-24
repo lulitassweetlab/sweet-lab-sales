@@ -2098,8 +2098,7 @@ async function renderInventoryView() {
 		const tdN = document.createElement('td'); tdN.textContent = it.ingredient;
 		const tdS = document.createElement('td');
 		const inSaldo = document.createElement('input'); inSaldo.type = 'number'; inSaldo.step = '0.01'; inSaldo.className = 'input-cell'; inSaldo.style.width = '100%'; inSaldo.style.maxWidth = '120px'; inSaldo.style.textAlign = 'right'; inSaldo.value = String(Number(it.saldo || 0) || 0);
-		const unitSmall = document.createElement('small'); unitSmall.textContent = it.unit || 'g'; unitSmall.style.marginLeft = '6px'; unitSmall.style.opacity = '0.7';
-		tdS.append(inSaldo, unitSmall);
+		tdS.append(inSaldo);
 		const tdI = document.createElement('td'); const inQty = document.createElement('input'); inQty.type = 'number'; inQty.step = '0.01'; inQty.min = '0'; inQty.placeholder = '0'; inQty.className = 'input-cell'; inQty.style.width = '100%'; inQty.style.maxWidth = '120px'; inQty.style.textAlign = 'right'; tdI.appendChild(inQty);
 		const tdA = document.createElement('td'); const saveBtn = document.createElement('button'); saveBtn.className = 'press-btn'; saveBtn.textContent = 'Guardar'; const histBtn = document.createElement('button'); histBtn.className = 'press-btn'; histBtn.textContent = 'Historial'; tdA.append(saveBtn, histBtn);
 		tr.append(tdN, tdS, tdI, tdA); tbody.appendChild(tr);
