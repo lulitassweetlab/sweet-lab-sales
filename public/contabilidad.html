@@ -52,6 +52,7 @@
             <div class="acct-month">
                 <label for="month">Mes</label>
                 <input id="month" type="month" />
+                <button id="acct-export" class="press-btn" style="margin-left:8px">Exportar Excel</button>
             </div>
         </div>
         <div class="table-wrapper">
@@ -63,6 +64,7 @@
                         <th class="col-in">Entra</th>
                         <th class="col-out">Sale</th>
                         <th class="col-bal">Saldo</th>
+                        <th class="col-actions"></th>
                     </tr>
                 </thead>
                 <tbody id="acct-tbody"></tbody>
@@ -126,10 +128,83 @@
                 const tdOut = document.createElement('td'); tdOut.className = 'right'; tdOut.textContent = kind==='gasto' ? fmtCurrency(amount) : '';
                 running += (kind==='ingreso' ? amount : -amount);
                 const tdBal = document.createElement('td'); tdBal.className = 'right'; tdBal.textContent = fmtCurrency(running);
-                tr.append(tdDate, tdDesc, tdIn, tdOut, tdBal);
+                const tdActions = document.createElement('td');
+                const editBtn = document.createElement('button'); editBtn.className = 'press-btn'; editBtn.textContent = 'Editar';
+                const delBtn = document.createElement('button'); delBtn.className = 'press-btn'; delBtn.textContent = 'Eliminar'; delBtn.style.marginLeft = '6px';
+                tdActions.append(editBtn, delBtn);
+                tr.append(tdDate, tdDesc, tdIn, tdOut, tdBal, tdActions);
                 tbody.appendChild(tr);
+
+                editBtn.addEventListener('click', () => openEditDialog({ id: e.id, date: dateStr, type: kind, value: amount, desc }));
+                delBtn.addEventListener('click', () => confirmDelete(e.id));
             }
             balanceLabel.textContent = `Saldo: ${fmtCurrency(running)}`;
+        }
+
+        async function updateEntry(payload){
+            const r = await fetch('/api/accounting', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...payload, actor_name: currentUser?.name || '' }) });
+            if (!r.ok) throw new Error('No se pudo actualizar');
+            return await r.json();
+        }
+
+        async function deleteEntry(id){
+            const u = `/api/accounting?id=${encodeURIComponent(String(id))}&actor=${encodeURIComponent(currentUser?.name||'')}`;
+            const r = await fetch(u, { method: 'DELETE' });
+            if (!r.ok) throw new Error('No se pudo eliminar');
+            return true;
+        }
+
+        function openEditDialog(entry){
+            const backdrop = document.createElement('div'); backdrop.className = 'dialog-backdrop';
+            const dlg = document.createElement('div'); dlg.className = 'dialog';
+            const title = document.createElement('h3'); title.textContent = 'Editar registro';
+            const typeRow = document.createElement('div'); typeRow.className = 'type-row';
+            const bIn = document.createElement('button'); bIn.className = 'pill'; bIn.textContent = 'Ingreso'; bIn.type = 'button';
+            const bOut = document.createElement('button'); bOut.className = 'pill'; bOut.textContent = 'Gasto'; bOut.type = 'button';
+            typeRow.append(bIn, bOut);
+            let type = entry.type === 'gasto' ? 'gasto' : 'ingreso';
+            if (type === 'ingreso') bIn.classList.add('active'); else bOut.classList.add('active');
+            bIn.addEventListener('click', () => { type='ingreso'; bIn.classList.add('active'); bOut.classList.remove('active'); });
+            bOut.addEventListener('click', () => { type='gasto'; bOut.classList.add('active'); bIn.classList.remove('active'); });
+
+            const row1 = document.createElement('div'); row1.className = 'form-row';
+            const lab1 = document.createElement('label'); lab1.textContent = 'Fecha';
+            const inDate = document.createElement('input'); inDate.type = 'date'; inDate.value = (entry.date||'').slice(0,10);
+            row1.append(lab1, inDate);
+
+            const row2 = document.createElement('div'); row2.className = 'form-row';
+            const lab2 = document.createElement('label'); lab2.textContent = 'Descripción';
+            const inDesc = document.createElement('input'); inDesc.type = 'text'; inDesc.value = entry.desc || '';
+            row2.append(lab2, inDesc);
+
+            const row3 = document.createElement('div'); row3.className = 'form-row';
+            const lab3 = document.createElement('label'); lab3.textContent = 'Valor';
+            const inVal = document.createElement('input'); inVal.type = 'number'; inVal.min = '0'; inVal.step = '1'; inVal.value = String(entry.value || 0);
+            row3.append(lab3, inVal);
+
+            const actions = document.createElement('div'); actions.className = 'actions';
+            const cancel = document.createElement('button'); cancel.className = 'press-btn'; cancel.textContent = 'Cancelar';
+            const save = document.createElement('button'); save.className = 'press-btn btn-primary'; save.textContent = 'Guardar';
+            actions.append(cancel, save);
+
+            dlg.append(title, typeRow, row1, row2, row3, actions); backdrop.appendChild(dlg); document.body.appendChild(backdrop);
+            setTimeout(() => backdrop.addEventListener('click', (e) => { if (e.target === backdrop) cleanup(); }), 0);
+            function cleanup(){ if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop); }
+            cancel.addEventListener('click', cleanup);
+            save.addEventListener('click', async () => {
+                const date = (inDate.value||'').slice(0,10);
+                const desc = (inDesc.value||'').trim();
+                const value = Math.max(0, Number(inVal.value||0)|0);
+                if (!date || !desc || !value) { return; }
+                try { await updateEntry({ id: entry.id, date, desc, value, type }); } catch {}
+                cleanup();
+                if (monthKey(date) === getMonth()) recalcAndRender(); else recalcAndRender();
+            });
+        }
+
+        function confirmDelete(id){
+            if (!confirm('¿Eliminar este registro?')) return;
+            deleteEntry(id).then(() => recalcAndRender()).catch(() => {});
         }
 
         function openDialog(){
@@ -190,6 +265,29 @@
         backBtn.addEventListener('click', () => { location.href = '/'; });
         monthInput.addEventListener('change', () => { recalcAndRender(); history.replaceState(null, '', `?month=${encodeURIComponent(getMonth())}`); });
         addBtn.addEventListener('click', openDialog);
+        document.getElementById('acct-export').addEventListener('click', async () => {
+            const m = getMonth();
+            let entries = [];
+            try { entries = await fetchEntries(m); } catch {}
+            const rows = entries.map(e => ({
+                Fecha: String(e.entry_date||'').slice(0,10),
+                Descripción: String(e.description||''),
+                Entra: (e.kind==='ingreso' ? Number(e.amount||0) : ''),
+                Sale: (e.kind==='gasto' ? Number(e.amount||0) : '')
+            }));
+            let running = 0; const withSaldo = rows.map(r => { const inV = Number(r.Entra||0); const outV = Number(r.Sale||0); running += inV - outV; return { ...r, Saldo: running }; });
+            try {
+                if (!window.XLSX) {
+                    const s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js'; document.head.appendChild(s);
+                    await new Promise(res => { s.onload = res; s.onerror = res; });
+                }
+                const ws = window.XLSX.utils.json_to_sheet(withSaldo);
+                const wb = window.XLSX.utils.book_new();
+                window.XLSX.utils.book_append_sheet(wb, ws, 'Contabilidad');
+                const label = m.replace('-','');
+                window.XLSX.writeFile(wb, `Contabilidad_${label}.xlsx`);
+            } catch {}
+        });
 
         initMonth();
         recalcAndRender();

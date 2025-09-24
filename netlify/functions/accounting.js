@@ -61,6 +61,40 @@ export async function handler(event) {
                 `;
                 return json(row, 201);
             }
+            case 'PATCH': {
+                const data = JSON.parse(event.body || '{}');
+                const role = await getActorRole(event, data);
+                if (role !== 'superadmin') return json({ error: 'No autorizado' }, 403);
+                const id = Number(data.id || 0) | 0;
+                if (!id) return json({ error: 'id requerido' }, 400);
+                const entryDate = (data.date || data.entry_date || '').toString().slice(0,10) || null;
+                const description = (data.desc || data.description || '').toString();
+                const kind = (data.type || data.kind || '').toString();
+                const amount = (data.value ?? data.amount);
+                if (kind && !(kind === 'ingreso' || kind === 'gasto')) return json({ error: 'Tipo inválido' }, 400);
+                const updates = [];
+                if (entryDate && /^\d{4}-\d{2}-\d{2}$/.test(entryDate)) updates.push(sql`entry_date = ${entryDate}`);
+                if (description) updates.push(sql`description = ${description}`);
+                if (kind) updates.push(sql`kind = ${kind}`);
+                if (amount !== undefined && amount !== null) updates.push(sql`amount = ${Number(amount)|0}`);
+                if (!updates.length) return json({ error: 'Sin cambios' }, 400);
+                const [row] = await sql`
+                    UPDATE accounting_entries SET ${sql.join(updates, sql`, `)}, updated_at = now()
+                    WHERE id = ${id}
+                    RETURNING id, entry_date, description, kind, amount
+                `;
+                if (!row) return json({ error: 'No encontrado' }, 404);
+                return json(row);
+            }
+            case 'DELETE': {
+                const params = new URLSearchParams(event.rawQuery || event.queryStringParameters ? event.rawQuery || '' : '');
+                const role = await getActorRole(event, null);
+                if (role !== 'superadmin') return json({ error: 'No autorizado' }, 403);
+                const id = Number(params.get('id') || 0) | 0;
+                if (!id) return json({ error: 'id requerido' }, 400);
+                const res = await sql`DELETE FROM accounting_entries WHERE id=${id}`;
+                return json({ ok: true });
+            }
             default:
                 return json({ error: 'Método no permitido' }, 405);
         }
