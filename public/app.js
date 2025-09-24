@@ -3022,9 +3022,20 @@ window.addEventListener('resize', updateStickyHeadOffset);
 
 async function loadDaysForSeller() {
 	const sellerId = state.currentSeller.id;
-	const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(sellerId)}`);
+	const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(sellerId)}${state.showArchivedOnly ? '&archived=1' : ''}`);
 	state.saleDays = days;
 	renderDaysList();
+	// Toggle '+ Nueva Fecha' visibility in archive mode
+	const newBtn = document.getElementById('date-new');
+	if (newBtn) newBtn.style.display = state.showArchivedOnly ? 'none' : '';
+	// Update title and button label to match mode on load
+	const archBtn = document.getElementById('archive-button');
+	if (archBtn) {
+		archBtn.classList.toggle('btn-gold', !!state.showArchivedOnly);
+		archBtn.textContent = state.showArchivedOnly ? 'Activos' : 'Archivo';
+	}
+	const title = document.getElementById('sales-title');
+	if (title) title.textContent = state.showArchivedOnly ? 'Registro de Ventas de Postres (Archivo)' : 'Registro de Ventas de Postres';
 }
 
 function formatDayLabel(input) {
@@ -3045,6 +3056,7 @@ function renderDaysList() {
 	if (!list) return;
 	list.innerHTML = '';
 	// Render API-provided days only (Nueva fecha button is next to Excel)
+	const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 	for (const d of (state.saleDays || [])) {
 		if (!d || !d.day) continue;
 		const item = document.createElement('div');
@@ -3075,12 +3087,26 @@ function renderDaysList() {
 			notify.info('Fecha eliminada');
 		});
 		item.appendChild(btn);
+		// Superadmin archive icon
+		if (isSuper) {
+			const arch = document.createElement('button');
+			arch.className = 'date-archive';
+			arch.title = d.is_archived ? 'Desarchivar fecha' : 'Archivar fecha';
+			arch.addEventListener('click', async (e) => {
+				e.stopPropagation();
+				const makeArchived = !d.is_archived;
+				await api('PATCH', '/api/days', { id: d.id, is_archived: makeArchived });
+				await loadDaysForSeller();
+				try { notify.success(makeArchived ? 'Fecha archivada' : 'Fecha desarchivada'); } catch {}
+			});
+			item.appendChild(arch);
+		}
 		item.appendChild(del);
 		list.appendChild(item);
 	}
 	// Preview: auto-open the most recent date when entering seller view
 	try {
-		if (!state.selectedDayId) {
+		if (!state.selectedDayId && !state.showArchivedOnly) {
 			const days = Array.isArray(state.saleDays) ? state.saleDays.slice() : [];
 			if (days.length) {
 				let latest = days[0];
@@ -3645,7 +3671,106 @@ if (!('selectedDayId' in state)) state.selectedDayId = null;
 			}
 		}, cx, cy);
 	});
+	// Toggle archived-only view
+	const archBtn = document.getElementById('archive-button');
+	archBtn?.addEventListener('click', async () => {
+		state.showArchivedOnly = !state.showArchivedOnly;
+		archBtn.classList.toggle('btn-gold', !!state.showArchivedOnly);
+		archBtn.textContent = state.showArchivedOnly ? 'Activos' : 'Archivo';
+		const title = document.getElementById('sales-title');
+		if (title) title.textContent = state.showArchivedOnly ? 'Registro de Ventas de Postres (Archivo)' : 'Registro de Ventas de Postres';
+		await loadDaysForSeller();
+		// In archive mode, hide the table until a date is picked
+		if (state.showArchivedOnly) {
+			const wrap = document.getElementById('sales-wrapper');
+			if (wrap) wrap.classList.add('hidden');
+			state.selectedDayId = null;
+		}
+	});
 })();
+
+async function openArchiveManager(anchorX, anchorY, sellerName) {
+	// Fetch both active and archived
+	const sellerId = state.currentSeller?.id;
+	if (!sellerId) return;
+	const [active, archived] = await Promise.all([
+		api('GET', `/api/days?seller_id=${encodeURIComponent(sellerId)}&include_archived=1`),
+		api('GET', `/api/days?seller_id=${encodeURIComponent(sellerId)}&archived=1`)
+	]);
+	const pop = document.createElement('div');
+	pop.className = 'archive-popover';
+	pop.style.position = 'fixed';
+	pop.style.left = anchorX + 'px';
+	pop.style.top = (anchorY + 8) + 'px';
+	pop.style.transform = 'translate(-50%, 0)';
+	pop.style.zIndex = '1000';
+	const title = document.createElement('h4');
+	title.textContent = `Archivo de ${sellerName}`.trim();
+	const listWrap = document.createElement('div'); listWrap.className = 'archive-list';
+	// Build checkboxes of active days
+	const activeDays = Array.isArray(active) ? active.filter(d => d && d.id && !d.is_archived) : [];
+	if (activeDays.length === 0) {
+		const empty = document.createElement('div'); empty.textContent = 'Sin fechas activas'; empty.style.opacity = '0.8'; listWrap.appendChild(empty);
+	} else {
+		for (const d of activeDays) {
+			const row = document.createElement('label'); row.style.display = 'flex'; row.style.alignItems = 'center'; row.style.gap = '8px';
+			const cb = document.createElement('input'); cb.type = 'checkbox'; cb.value = String(d.id);
+			const span = document.createElement('span'); span.textContent = formatDayLabel(d.day);
+			row.append(cb, span); listWrap.appendChild(row);
+		}
+	}
+	// Section for archived days with quick restore
+	const archTitle = document.createElement('div'); archTitle.textContent = 'Archivadas'; archTitle.style.marginTop = '8px'; archTitle.style.fontWeight = '600';
+	const archList = document.createElement('div'); archList.style.display = 'grid'; archList.style.gap = '6px';
+	const archivedDays = Array.isArray(archived) ? archived : [];
+	if (archivedDays.length === 0) {
+		const empty = document.createElement('div'); empty.textContent = 'Sin archivadas'; empty.style.opacity = '0.8'; archList.appendChild(empty);
+	} else {
+		for (const d of archivedDays) {
+			const row = document.createElement('div'); row.style.display = 'flex'; row.style.justifyContent = 'space-between'; row.style.alignItems = 'center';
+			const lbl = document.createElement('span'); lbl.textContent = formatDayLabel(d.day);
+			const un = document.createElement('button'); un.className = 'press-btn'; un.textContent = 'Desarchivar';
+			un.addEventListener('click', async () => {
+				await api('PATCH', '/api/days', { id: d.id, is_archived: false });
+				try { notify.success('Fecha desarchivada'); } catch {}
+				if (pop.parentNode) pop.parentNode.removeChild(pop);
+				await loadDaysForSeller();
+			});
+			row.append(lbl, un); archList.appendChild(row);
+		}
+	}
+	const actions = document.createElement('div'); actions.className = 'archive-actions';
+	const cancelBtn = document.createElement('button'); cancelBtn.className = 'press-btn'; cancelBtn.textContent = 'Cerrar';
+	const applyBtn = document.createElement('button'); applyBtn.className = 'press-btn btn-primary'; applyBtn.textContent = 'Archivar seleccionadas';
+	applyBtn.addEventListener('click', async () => {
+		const ids = Array.from(listWrap.querySelectorAll('input[type="checkbox"]')).filter(i => i.checked).map(i => Number(i.value)).filter(Boolean);
+		if (ids.length === 0) { try { notify.info('Selecciona al menos una fecha'); } catch {} return; }
+		await api('PATCH', '/api/days', { ids, is_archived: true });
+		try { notify.success('Fechas archivadas'); } catch {}
+		if (pop.parentNode) pop.parentNode.removeChild(pop);
+		await loadDaysForSeller();
+	});
+	cancelBtn.addEventListener('click', () => { if (pop.parentNode) pop.parentNode.removeChild(pop); });
+	pop.append(title, listWrap, archTitle, archList, actions);
+	actions.append(cancelBtn, applyBtn);
+	document.body.appendChild(pop);
+	// Clamp within viewport after mount
+	requestAnimationFrame(() => {
+		const margin = 8;
+		const r = pop.getBoundingClientRect();
+		let left = anchorX - r.width / 2;
+		let top = anchorY + 8;
+		if (left < margin) left = margin;
+		if (left + r.width > window.innerWidth - margin) left = Math.max(margin, window.innerWidth - margin - r.width);
+		if (top + r.height > window.innerHeight - margin) top = Math.max(margin, window.innerHeight - margin - r.height);
+		pop.style.left = left + 'px';
+		pop.style.top = top + 'px';
+		pop.style.transform = 'none';
+	});
+	function outside(ev) { if (!pop.contains(ev.target)) cleanup(); }
+	function cleanup() { document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); if (pop.parentNode) pop.parentNode.removeChild(pop); }
+	setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
+}
 
 // Load and render Clients view listing all unique client names across all dates for the current seller
 function normalizeClientName(value) {

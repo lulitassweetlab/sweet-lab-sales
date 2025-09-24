@@ -785,6 +785,14 @@ tfoot td { font-weight: 700; }
 /* Dates section */
 .dates-section { margin: 24px 0 12px; }
 .clients-actions { margin-bottom: 14px; }
+.clients-actions #archive-button { margin-left: 6px; }
+/* Make Clientes share Archivo's hover look */
+.clients-actions #clients-button:hover,
+.clients-actions #archive-button:hover {
+	background-color: #f2e2d3;
+	color: var(--text);
+	box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+}
 .sales-panel { background: var(--card); border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 1px 2px rgba(0,0,0,0.06); overflow: hidden; margin-top: 8px; }
 .sales-panel .panel-header { background: var(--secondary); padding: 8px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .sales-panel .panel-header h3 { margin: 0; font-size: 18px; font-weight: 400; letter-spacing: -0.01em; }
@@ -2172,6 +2180,50 @@ button.secondary.press-btn:active {
 	-webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="%23000" d="M7 4h10l-1 2h4v2H4V6h4l-1-2zm-1 6h12l-1 10H7L6 10zm3 2v6h2v-6H9zm4 0v6h2v-6h-2z"/></svg>') no-repeat center / contain;
 	mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="%23000" d="M7 4h10l-1 2h4v2H4V6h4l-1-2zm-1 6h12l-1 10H7L6 10zm3 2v6h2v-6H9zm4 0v6h2v-6h-2z"/></svg>') no-repeat center / contain;
 }
+
+/* Archive icon next to date button (superadmin only) */
+.date-item .date-archive {
+	font-size: 0;
+	width: 1.2em;
+	height: 1.2em;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0;
+	margin-left: 4px;
+	border: none !important;
+	background: transparent !important;
+	color: var(--muted);
+	cursor: pointer;
+}
+.date-item .date-archive::before {
+	content: '';
+	display: inline-block;
+	width: 1em;
+	height: 1em;
+	background-color: var(--muted);
+	-webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="%23000" d="M3 3h18v4H3V3zm2 6h14v12H5V9zm3 3v6h8v-6H8z"/></svg>') no-repeat center / contain;
+	mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="%23000" d="M3 3h18v4H3V3zm2 6h14v12H5V9zm3 3v6h8v-6H8z"/></svg>') no-repeat center / contain;
+}
+@media (max-width: 600px) {
+	.date-item .date-archive { width: 1.1em; height: 1.1em; }
+	.date-item .date-archive::before { width: 0.95em; height: 0.95em; }
+}
+
+/* Archive manager popover */
+.archive-popover {
+	background: var(--card);
+	color: var(--text);
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	box-shadow: 0 8px 24px rgba(0,0,0,0.24);
+	padding: 10px;
+	min-width: 260px;
+	max-width: 92vw;
+}
+.archive-popover h4 { margin: 0 0 8px; font-size: 13px; }
+.archive-list { max-height: 40vh; overflow: auto; display: grid; gap: 6px; }
+.archive-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; }
 @media (max-width: 600px) {
 	.date-item .date-delete { width: 1.1em; height: 1.1em; }
 	.date-item .date-delete::before { width: 0.95em; height: 0.95em; }

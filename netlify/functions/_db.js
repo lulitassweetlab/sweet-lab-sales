@@ -39,9 +39,10 @@ export async function ensureSchema() {
 		id SERIAL PRIMARY KEY,
 		seller_id INTEGER NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
 		day DATE NOT NULL,
+		is_archived BOOLEAN NOT NULL DEFAULT false,
 		UNIQUE (seller_id, day)
 	)`;
-	// Ensure delivered columns exist for per-day delivered counts
+	// Ensure delivered columns and is_archived exist for older deployments
 	await sql`DO $$ BEGIN
 		IF NOT EXISTS (
 			SELECT 1 FROM information_schema.columns
