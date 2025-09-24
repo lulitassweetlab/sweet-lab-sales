@@ -2096,12 +2096,28 @@ async function renderInventoryView() {
 	for (const it of (items || [])) {
 		const tr = document.createElement('tr');
 		const tdN = document.createElement('td'); tdN.textContent = it.ingredient;
-		const tdS = document.createElement('td'); tdS.textContent = fmt1.format(Number(it.saldo || 0)); tdS.style.textAlign = 'right';
+		const tdS = document.createElement('td');
+		const inSaldo = document.createElement('input'); inSaldo.type = 'number'; inSaldo.step = '0.01'; inSaldo.className = 'input-cell'; inSaldo.style.width = '100%'; inSaldo.style.maxWidth = '120px'; inSaldo.style.textAlign = 'right'; inSaldo.value = String(Number(it.saldo || 0) || 0);
+		const unitSmall = document.createElement('small'); unitSmall.textContent = it.unit || 'g'; unitSmall.style.marginLeft = '6px'; unitSmall.style.opacity = '0.7';
+		tdS.append(inSaldo, unitSmall);
 		const tdI = document.createElement('td'); const inQty = document.createElement('input'); inQty.type = 'number'; inQty.step = '0.01'; inQty.min = '0'; inQty.placeholder = '0'; inQty.className = 'input-cell'; inQty.style.width = '100%'; inQty.style.maxWidth = '120px'; inQty.style.textAlign = 'right'; tdI.appendChild(inQty);
-		const tdA = document.createElement('td'); const histBtn = document.createElement('button'); histBtn.className = 'press-btn'; histBtn.textContent = 'Historial'; tdA.appendChild(histBtn);
+		const tdA = document.createElement('td'); const saveBtn = document.createElement('button'); saveBtn.className = 'press-btn'; saveBtn.textContent = 'Guardar'; const histBtn = document.createElement('button'); histBtn.className = 'press-btn'; histBtn.textContent = 'Historial'; tdA.append(saveBtn, histBtn);
 		tr.append(tdN, tdS, tdI, tdA); tbody.appendChild(tr);
 		rowInputs.push({ ingredient: it.ingredient, unit: it.unit || 'g', input: inQty });
 		histBtn.addEventListener('click', async () => { openInventoryHistoryDialog(it.ingredient); });
+		async function saveSaldo(){
+			try {
+				const prev = Number(it.saldo || 0) || 0;
+				const next = Number(inSaldo.value || 0) || 0;
+				const delta = next - prev;
+				if (!isFinite(delta) || Math.abs(delta) < 1e-9) { return; }
+				await api('POST', API.Inventory, { action: 'ajuste', ingredient: it.ingredient, unit: it.unit || 'g', qty: delta, note: 'Ajuste de saldo', actor_name: state.currentUser?.username || state.currentUser?.name || null });
+				notify.success('Saldo actualizado');
+				await renderInventoryView();
+			} catch { notify.error('No se pudo actualizar saldo'); }
+		}
+		saveBtn.addEventListener('click', saveSaldo);
+		inSaldo.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') saveSaldo(); });
 	}
 	// Footer with Ingresar button under the Ingresar column
 	const tfoot = document.createElement('tfoot');
