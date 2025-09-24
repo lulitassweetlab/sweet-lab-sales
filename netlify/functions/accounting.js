@@ -31,6 +31,27 @@ async function getActorRole(evt, body = null) {
 export async function handler(event) {
     try {
         await ensureSchema();
+        // Ensure accounting table exists even if ensureSchema was previously cached
+        try {
+            await sql`CREATE TABLE IF NOT EXISTS accounting_entries (
+                id SERIAL PRIMARY KEY,
+                entry_date DATE NOT NULL,
+                description TEXT NOT NULL,
+                kind TEXT NOT NULL,
+                amount INTEGER NOT NULL DEFAULT 0,
+                category TEXT,
+                created_at TIMESTAMPTZ DEFAULT now(),
+                updated_at TIMESTAMPTZ DEFAULT now()
+            )`;
+            await sql`DO $$ BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'accounting_entries' AND column_name = 'category'
+                ) THEN
+                    ALTER TABLE accounting_entries ADD COLUMN category TEXT;
+                END IF;
+            END $$;`;
+        } catch {}
         if (event.httpMethod === 'OPTIONS') return json({ ok: true });
 
         switch (event.httpMethod) {
