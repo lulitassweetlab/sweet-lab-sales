@@ -33,14 +33,10 @@
 			</div>
 			<div class="table-wrapper" style="padding:12px;">
 				<form id="acc-form" style="display:flex; flex-direction:column; gap:12px; max-width:520px;">
-					<label style="display:flex; gap:8px; align-items:center;">
-						<span>Tipo</span>
-						<select id="acc-type" class="input-cell" required>
-							<option value="">Selecciona…</option>
-							<option value="gasto">Gasto</option>
-							<option value="ingreso">Ingreso</option>
-						</select>
-					</label>
+					<div style="display:flex; gap:8px;">
+						<button id="btn-gasto" type="button" class="press-btn btn-primary" aria-pressed="true">Gasto</button>
+						<button id="btn-ingreso" type="button" class="press-btn btn-primary" aria-pressed="false" style="opacity:.7;">Ingreso</button>
+					</div>
 					<label style="display:flex; gap:8px; align-items:center;">
 						<span>Fecha</span>
 						<input id="acc-date" type="date" class="input-cell" required />
@@ -120,6 +116,20 @@
 		const tGas = document.getElementById('t-gastos');
 		const tBal = document.getElementById('t-balance');
 		const changeBtn = document.getElementById('change-range');
+		const btnGasto = document.getElementById('btn-gasto');
+		const btnIngreso = document.getElementById('btn-ingreso');
+		let currentKind = 'gasto';
+
+		function setKind(kind){
+			currentKind = kind === 'ingreso' ? 'ingreso' : 'gasto';
+			const gastoActive = currentKind === 'gasto';
+			btnGasto.setAttribute('aria-pressed', gastoActive ? 'true' : 'false');
+			btnIngreso.setAttribute('aria-pressed', gastoActive ? 'false' : 'true');
+			btnGasto.style.opacity = gastoActive ? '1' : '.7';
+			btnIngreso.style.opacity = gastoActive ? '.7' : '1';
+		}
+		btnGasto.addEventListener('click', () => setKind('gasto'));
+		btnIngreso.addEventListener('click', () => setKind('ingreso'));
 
 		function formatDay(diso){ if (!diso) return ''; const d=new Date(diso+'T00:00:00Z'); const m=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']; return `${d.getUTCDate()} ${m[d.getUTCMonth()]} ${d.getUTCFullYear()}`; }
 
@@ -175,13 +185,13 @@
 		document.getElementById('back-btn').addEventListener('click', () => { location.href = '/'; });
 		document.getElementById('acc-cancel').addEventListener('click', () => { location.href = '/'; });
 
-		document.getElementById('acc-form').addEventListener('submit', async (e) => {
+			document.getElementById('acc-form').addEventListener('submit', async (e) => {
 			e.preventDefault();
-			const type = (document.getElementById('acc-type').value || '').toString();
+			const type = currentKind;
 			const date = (document.getElementById('acc-date').value || '').toString();
 			const desc = (document.getElementById('acc-desc').value || '').toString();
 			const value = Number(document.getElementById('acc-value').value || 0);
-			if (!type || !date || !desc || !value) { alert('Completa todos los campos'); return; }
+			if (!date || !desc || !value) { alert('Completa todos los campos'); return; }
 			try {
 				const payload = { kind: type, entry_date: date, description: desc, amount_cents: Number.isFinite(value) ? Math.round(value) : 0, _actor_name: currentUser?.name || '' };
 				const res = await fetch('/api/accounting', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Actor-Name': currentUser?.name || '' }, body: JSON.stringify(payload) });
