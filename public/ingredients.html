@@ -36,22 +36,18 @@
 				<table id="ingredients-table">
 					<thead>
 						<tr>
-							<th>Postre</th>
 							<th>Ingrediente</th>
-							<th>Unidad</th>
 							<th>Por unidad</th>
-							<th>Necesaria</th>
-							<th>Inventario</th>
-							<th>Comprar</th>
+							<th>Se necesitan</th>
+							<th>En inventario</th>
+							<th>Compras</th>
 						</tr>
 					</thead>
 					<tbody id="ingredients-tbody"></tbody>
 					<tfoot>
-						<tr class="report-spacer-row"><td colspan="7"></td></tr>
+						<tr class="report-spacer-row"><td colspan="5"></td></tr>
 						<tr>
 							<td class="label" colspan="4">Totales a comprar</td>
-							<td></td>
-							<td></td>
 							<td id="t-buy-total" class="col-total"></td>
 						</tr>
 					</tfoot>
@@ -177,14 +173,18 @@
 			const invByKey = new Map();
 			for (const it of (inventory||[])) invByKey.set((it.ingredient||'').toString().toLowerCase(), Number(it.saldo||0)||0);
 
-			// 4) Build rows per dessert item
+			// 4) Build aggregated rows per ingredient (unify same ingredients)
 			countLabel.textContent = 'Calculando requerimientos…';
-			const rows = [];
-			function addRow(dessert, ingredient, unit, perUnit, needed){
-				const key = (ingredient||'').toString().toLowerCase();
-				const inv = invByKey.has(key) ? Number(invByKey.get(key)||0)||0 : 0;
-				const buy = Math.max(0, (Number(needed||0)||0) - inv);
-				rows.push({ dessert, ingredient, unit: unit||'g', perUnit: Number(perUnit||0)||0, needed: Number(needed||0)||0, inv, buy });
+			const agg = new Map(); // key -> { name, perUnits:Set<string>, needed:number }
+			const normKey = (s) => (s||'').toString().trim().toLowerCase().replace(/\s+/g,' ');
+			const fmt1 = (n) => (Number(n||0)||0).toFixed(1);
+			function addRow(_dessert, ingredient, unit, perUnit, needed){
+				const key = normKey(ingredient);
+				if (!key) return;
+				const cur = agg.get(key) || { name: (ingredient||'').toString(), perUnits: new Set(), needed: 0 };
+				if (perUnit != null) cur.perUnits.add(fmt1(perUnit));
+				cur.needed += Number(needed||0)||0;
+				agg.set(key, cur);
 			}
 			const mapKey = (name) => (name||'').toString().trim().toLowerCase();
 			for (const name of names){
@@ -206,25 +206,27 @@
 				addRow('Extra', ex.ingredient, ex.unit, per, per * totalUnits);
 			}
 
-			// 5) Render rows
-			rows.sort((a,b) => (a.ingredient||'').localeCompare(b.ingredient||'') || (a.dessert||'').localeCompare(b.dessert||''));
-			tbody.innerHTML = '';
-			let buyTotal = 0;
-			for (const r of rows){
-				const tr = document.createElement('tr');
-				tr.innerHTML = `
-					<td>${r.dessert}</td>
-					<td style="text-align:left">${r.ingredient}</td>
-					<td>${r.unit}</td>
-					<td>${r.perUnit || ''}</td>
-					<td>${r.needed || ''}</td>
-					<td>${r.inv || 0}</td>
-					<td class="col-total">${r.buy || 0}</td>`;
-				tbody.appendChild(tr);
-				buyTotal += Number(r.buy||0)||0;
-			}
-			tBuyTotal.textContent = buyTotal || '';
-			countLabel.textContent = `Ingredientes: ${rows.length}`;
+			// 5) Materialize rows and render
+\t\t\tconst keys = Array.from(agg.keys()).sort((a,b) => a.localeCompare(b));
+\t\t\ttbody.innerHTML = '';
+\t\t\tlet buyTotal = 0;
+\t\t\tfor (const key of keys){
+\t\t\t\tconst v = agg.get(key);
+\t\t\t\tconst inv = invByKey.has(key) ? Number(invByKey.get(key)||0)||0 : 0;
+\t\t\t\tconst buy = Math.max(0, (Number(v.needed||0)||0) - inv);
+\t\t\t\tconst perUnitDisplay = (v.perUnits && v.perUnits.size === 1) ? Array.from(v.perUnits)[0] : '—';
+\t\t\t\tconst tr = document.createElement('tr');
+\t\t\t\ttr.innerHTML = `
+\t\t\t\t\t<td style="text-align:left">${v.name}</td>
+\t\t\t\t\t<td>${perUnitDisplay}</td>
+\t\t\t\t\t<td>${fmt1(v.needed)}</td>
+\t\t\t\t\t<td>${fmt1(inv)}</td>
+\t\t\t\t\t<td class="col-total">${fmt1(buy)}</td>`;
+\t\t\t\tbody.appendChild(tr);
+\t\t\t\tbuyTotal += buy;
+\t\t\t}
+\t\t\ttBuyTotal.textContent = fmt1(buyTotal);
+\t\t\tcountLabel.textContent = `Ingredientes: ${keys.length}`;
 		}
 
 		// Back to report or home
