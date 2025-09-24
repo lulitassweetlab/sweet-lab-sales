@@ -913,6 +913,15 @@ function wireDeliveredRowEditors() {
         { key: 'oreo', el: document.getElementById('deliv-oreo') },
         { key: 'nute', el: document.getElementById('deliv-nute') },
     ];
+	function selectAllContent(el) {
+		try {
+			const range = document.createRange();
+			range.selectNodeContents(el);
+			const sel = window.getSelection();
+			sel.removeAllRanges();
+			sel.addRange(range);
+		} catch {}
+	}
     for (const item of cells) {
         const el = item.el;
         if (!el) continue;
@@ -928,6 +937,10 @@ function wireDeliveredRowEditors() {
         }
         if (el.dataset.bound === '1') continue;
         el.dataset.bound = '1';
+		// Al enfocar/clic, seleccionar todo para reemplazar con la nueva cifra
+		el.addEventListener('focus', () => { selectAllContent(el); });
+		el.addEventListener('mouseup', (ev) => { ev.preventDefault(); selectAllContent(el); });
+		el.addEventListener('click', () => { selectAllContent(el); });
         // Sanitize input to numbers only while typing
         el.addEventListener('input', () => {
             if (!el.isContentEditable) return;
