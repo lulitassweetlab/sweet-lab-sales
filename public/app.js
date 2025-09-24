@@ -2805,10 +2805,20 @@ function buildStepCard(dessertName, step) {
 	for (const it of (step.items || [])) tbody.appendChild(buildItemRow(step.id, it));
 	table.append(thead, tbody);
 	box.append(head, table);
-	// Enable drag & drop for steps
+	// Enable drag & drop for steps (only when dragging the step header)
 	box.draggable = true;
-	box.addEventListener('dragstart', () => { box.classList.add('dragging'); });
-	box.addEventListener('dragend', async () => {
+	box.addEventListener('dragstart', (e) => {
+		// Ignore drags that start from ingredient rows or other children; allow only header
+		if (!(e && (e.target === head || head.contains(e.target)))) {
+			try { e.stopPropagation(); e.preventDefault(); } catch {}
+			return;
+		}
+		box.__isStepDrag = true;
+		box.classList.add('dragging');
+	});
+	box.addEventListener('dragend', async (e) => {
+		if (!box.__isStepDrag) { box.classList.remove('dragging'); return; }
+		box.__isStepDrag = false;
 		box.classList.remove('dragging');
 		const list = box.parentElement;
 		if (!list) return;
