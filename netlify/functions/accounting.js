@@ -72,16 +72,17 @@ export async function handler(event) {
                     const [endRow] = await sql`SELECT (date_trunc('month', ${ms}::date) + interval '1 month - 1 day')::date AS end_date`;
                     rangeStart = ms; rangeEnd = endRow.end_date;
                 }
-                const clauses = [sql`entry_date BETWEEN ${rangeStart} AND ${rangeEnd}`];
-                if (q) clauses.push(sql`description ILIKE ${'%' + q + '%'}`);
-                if (category) clauses.push(sql`category = ${category}`);
+                const qParam = q ? `%${q}%` : null;
+                const cParam = category || null;
                 if (summary === 'category') {
                     const rows = await sql`
                         SELECT coalesce(category,'') AS category,
                                SUM(CASE WHEN kind='ingreso' THEN amount ELSE 0 END)::int AS sum_in,
                                SUM(CASE WHEN kind='gasto' THEN amount ELSE 0 END)::int AS sum_out
                         FROM accounting_entries
-                        WHERE ${sql.join(clauses, sql` AND `)}
+                        WHERE entry_date BETWEEN ${rangeStart} AND ${rangeEnd}
+                          AND (${qParam} IS NULL OR description ILIKE ${qParam})
+                          AND (${cParam} IS NULL OR category = ${cParam})
                         GROUP BY coalesce(category,'')
                         ORDER BY coalesce(category,'') ASC
                     `;
@@ -94,7 +95,9 @@ export async function handler(event) {
                                SUM(CASE WHEN kind='ingreso' THEN amount ELSE 0 END)::int AS sum_in,
                                SUM(CASE WHEN kind='gasto' THEN amount ELSE 0 END)::int AS sum_out
                         FROM accounting_entries
-                        WHERE ${sql.join(clauses, sql` AND `)}
+                        WHERE entry_date BETWEEN ${rangeStart} AND ${rangeEnd}
+                          AND (${qParam} IS NULL OR description ILIKE ${qParam})
+                          AND (${cParam} IS NULL OR category = ${cParam})
                         GROUP BY month, coalesce(category,'')
                         ORDER BY month ASC, category ASC
                     `;
@@ -103,7 +106,9 @@ export async function handler(event) {
                 const rows = await sql`
                     SELECT id, entry_date, description, kind, amount, category
                     FROM accounting_entries
-                    WHERE ${sql.join(clauses, sql` AND `)}
+                    WHERE entry_date BETWEEN ${rangeStart} AND ${rangeEnd}
+                      AND (${qParam} IS NULL OR description ILIKE ${qParam})
+                      AND (${cParam} IS NULL OR category = ${cParam})
                     ORDER BY entry_date ASC, id ASC
                 `;
                 return json({ month, start: rangeStart, end: rangeEnd, q, category, entries: rows });
@@ -123,12 +128,14 @@ export async function handler(event) {
                         }))
                         .filter(e => e.entry_date && /^\d{4}-\d{2}-\d{2}$/.test(e.entry_date) && e.description && (e.kind==='ingreso'||e.kind==='gasto') && e.amount>0);
                     if (!entries.length) return json({ error: 'Sin entradas válidas' }, 400);
-                    const values = entries.map(e => sql`(${e.entry_date}, ${e.description}, ${e.kind}, ${e.amount}, ${e.category})`);
-                    await sql`
-                        INSERT INTO accounting_entries (entry_date, description, kind, amount, category)
-                        VALUES ${sql.join(values, sql`, `)}
-                    `;
-                    return json({ ok: true, inserted: entries.length }, 201);
+                    let inserted = 0;
+                    for (const e of entries) {
+                        try {
+                            await sql`INSERT INTO accounting_entries (entry_date, description, kind, amount, category) VALUES (${e.entry_date}, ${e.description}, ${e.kind}, ${e.amount}, ${e.category})`;
+                            inserted++;
+                        } catch {}
+                    }
+                    return json({ ok: true, inserted }, 201);
                 }
                 const entryDate = (data.date || '').toString().slice(0,10);
                 const description = (data.desc || data.description || '').toString().trim();
@@ -155,20 +162,24 @@ export async function handler(event) {
                 const ids = Array.isArray(data.ids) ? data.ids.map(v => Number(v)||0).filter(v => v>0) : (singleId ? [singleId] : []);
                 if (!ids.length) return json({ error: 'id(s) requeridos' }, 400);
                 const entryDate = (data.date || data.entry_date || '').toString().slice(0,10) || null;
-                const description = (data.desc || data.description || '').toString();
-                const kind = (data.type || data.kind || '').toString();
+                const description = (data.desc || data.description || '') ? String(data.desc || data.description) : null;
+                const kind = (data.type || data.kind || '') ? String(data.type || data.kind) : null;
                 const amount = (data.value ?? data.amount);
-                const category = (data.category ?? null);
+                const category = (data.category !== undefined) ? (data.category === null ? null : String(data.category)) : undefined;
                 if (kind && !(kind === 'ingreso' || kind === 'gasto')) return json({ error: 'Tipo inválido' }, 400);
-                const updates = [];
-                if (entryDate && /^\d{4}-\d{2}-\d{2}$/.test(entryDate)) updates.push(sql`entry_date = ${entryDate}`);
-                if (description) updates.push(sql`description = ${description}`);
-                if (kind) updates.push(sql`kind = ${kind}`);
-                if (amount !== undefined && amount !== null) updates.push(sql`amount = ${Number(amount)|0}`);
-                if (category !== undefined) updates.push(sql`category = ${category ? String(category) : null}`);
-                if (!updates.length) return json({ error: 'Sin cambios' }, 400);
+                const eDate = (entryDate && /^\d{4}-\d{2}-\d{2}$/.test(entryDate)) ? entryDate : null;
+                const dDesc = description || null;
+                const kKind = kind || null;
+                const aAmt = (amount !== undefined && amount !== null) ? (Number(amount)|0) : null;
+                const cCat = (category !== undefined) ? category : null;
                 const rows = await sql`
-                    UPDATE accounting_entries SET ${sql.join(updates, sql`, `)}, updated_at = now()
+                    UPDATE accounting_entries SET
+                        entry_date = COALESCE(${eDate}, entry_date),
+                        description = COALESCE(${dDesc}, description),
+                        kind = COALESCE(${kKind}, kind),
+                        amount = COALESCE(${aAmt}, amount),
+                        category = COALESCE(${cCat}, category),
+                        updated_at = now()
                     WHERE id = ANY(${ids})
                     RETURNING id, entry_date, description, kind, amount, category
                 `;
