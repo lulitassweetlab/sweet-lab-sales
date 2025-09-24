@@ -67,6 +67,8 @@
                     <button id="apply-filters" class="press-btn btn-primary">Aplicar</button>
                     <button id="clear-filters" class="press-btn">Limpiar</button>
                     <button id="acct-export" class="press-btn">Exportar Excel</button>
+                    <button id="acct-report" class="press-btn">Reporte por categoría</button>
+                    <button id="acct-import" class="press-btn">Importar Excel</button>
                 </div>
                 <div class="bulk-actions">
                     <label><input type="checkbox" id="sel-all" /> Seleccionar todo</label>
@@ -368,6 +370,71 @@
                 if (q) label += `_busca_${q.replace(/\s+/g,'_')}`;
                 window.XLSX.writeFile(wb, `Contabilidad_${label}.xlsx`);
             } catch {}
+        });
+
+        document.getElementById('acct-report').addEventListener('click', async (ev) => {
+            const m = getMonth();
+            let u = `/api/accounting?actor=${encodeURIComponent(currentUser?.name||'')}`;
+            const start = (startInput.value||'').slice(0,10);
+            const end = (endInput.value||'').slice(0,10);
+            const q = (qInput.value||'').trim();
+            if (start && end) u += `&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`; else u += `&month=${encodeURIComponent(m)}`;
+            if (q) u += `&q=${encodeURIComponent(q)}`;
+            u += `&summary=category_monthly`;
+            let rows = [];
+            try { const r = await fetch(u); const j = await r.json(); rows = j.rows || []; } catch {}
+            const months = [...new Set(rows.map(r => String(r.month)))].sort();
+            const cats = [...new Set(rows.map(r => String(r.category||'')))];
+            // Build simple text report dialog
+            const backdrop = document.createElement('div'); backdrop.className = 'dialog-backdrop';
+            const dlg = document.createElement('div'); dlg.className = 'dialog';
+            const title = document.createElement('h3'); title.textContent = 'Reporte por categoría (mensual)';
+            const pre = document.createElement('pre'); pre.style.maxHeight = '60vh'; pre.style.overflow = 'auto';
+            const lines = [];
+            lines.push(['Mes', ...cats].join('\t'));
+            for (const mth of months) {
+                const sums = cats.map(c => {
+                    const rec = rows.find(r => r.month===mth && String(r.category||'')===c) || { sum_in:0, sum_out:0 };
+                    return (Number(rec.sum_in||0) - Number(rec.sum_out||0));
+                });
+                lines.push([mth, ...sums].join('\t'));
+            }
+            pre.textContent = lines.join('\n');
+            const actions = document.createElement('div'); actions.className = 'actions';
+            const close = document.createElement('button'); close.className='press-btn'; close.textContent='Cerrar';
+            actions.append(close);
+            dlg.append(title, pre, actions); backdrop.appendChild(dlg); document.body.appendChild(backdrop);
+            function cleanup(){ if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop); }
+            setTimeout(() => backdrop.addEventListener('click', (e) => { if (e.target===backdrop) cleanup(); }), 0);
+            close.addEventListener('click', cleanup);
+        });
+
+        document.getElementById('acct-import').addEventListener('click', async () => {
+            // Simple import: expects columns Fecha(YYYY-MM-DD), Descripción, Tipo(ingreso|gasto), Valor, Categoría
+            if (!window.XLSX) {
+                const s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js'; document.head.appendChild(s);
+                await new Promise(res => { s.onload = res; s.onerror = res; });
+            }
+            const input = document.createElement('input'); input.type = 'file'; input.accept = '.xlsx,.xls';
+            input.addEventListener('change', async () => {
+                const file = input.files && input.files[0]; if (!file) return;
+                const data = await file.arrayBuffer();
+                const wb = window.XLSX.read(data, { type: 'array' });
+                const ws = wb.Sheets[wb.SheetNames[0]];
+                const rows = window.XLSX.utils.sheet_to_json(ws, { defval: '' });
+                const entries = rows.map(r => ({
+                    date: String(r.Fecha||'').slice(0,10),
+                    desc: String(r['Descripción']||''),
+                    type: String(r.Tipo||'').toLowerCase(),
+                    value: Number(r.Valor||0)|0,
+                    category: String(r['Categoría']||'') || null
+                }));
+                try {
+                    const resp = await fetch('/api/accounting', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ entries, actor_name: currentUser?.name||'' }) });
+                    if (resp.ok) { alert('Importación completada'); recalcAndRender(); } else { alert('Error importando'); }
+                } catch { alert('Error importando'); }
+            });
+            input.click();
         });
 
         initMonth();

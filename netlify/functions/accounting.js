@@ -32,6 +32,7 @@ export async function handler(event) {
                 const end = (params.get('end') || '').toString().slice(0,10);
                 const q = (params.get('q') || '').toString().trim();
                 const category = (params.get('category') || '').toString().trim();
+                const summary = (params.get('summary') || '').toString().trim();
                 const role = await getActorRole(event, null);
                 if (role !== 'superadmin') return json({ error: 'No autorizado' }, 403);
                 let rangeStart = start, rangeEnd = end;
@@ -44,6 +45,31 @@ export async function handler(event) {
                 const clauses = [sql`entry_date BETWEEN ${rangeStart} AND ${rangeEnd}`];
                 if (q) clauses.push(sql`description ILIKE ${'%' + q + '%'}`);
                 if (category) clauses.push(sql`category = ${category}`);
+                if (summary === 'category') {
+                    const rows = await sql`
+                        SELECT coalesce(category,'') AS category,
+                               SUM(CASE WHEN kind='ingreso' THEN amount ELSE 0 END)::int AS sum_in,
+                               SUM(CASE WHEN kind='gasto' THEN amount ELSE 0 END)::int AS sum_out
+                        FROM accounting_entries
+                        WHERE ${sql.join(clauses, sql` AND `)}
+                        GROUP BY coalesce(category,'')
+                        ORDER BY coalesce(category,'') ASC
+                    `;
+                    return json({ start: rangeStart, end: rangeEnd, q, category, summary: 'category', rows });
+                }
+                if (summary === 'category_monthly') {
+                    const rows = await sql`
+                        SELECT to_char(date_trunc('month', entry_date), 'YYYY-MM') AS month,
+                               coalesce(category,'') AS category,
+                               SUM(CASE WHEN kind='ingreso' THEN amount ELSE 0 END)::int AS sum_in,
+                               SUM(CASE WHEN kind='gasto' THEN amount ELSE 0 END)::int AS sum_out
+                        FROM accounting_entries
+                        WHERE ${sql.join(clauses, sql` AND `)}
+                        GROUP BY month, coalesce(category,'')
+                        ORDER BY month ASC, category ASC
+                    `;
+                    return json({ start: rangeStart, end: rangeEnd, q, category, summary: 'category_monthly', rows });
+                }
                 const rows = await sql`
                     SELECT id, entry_date, description, kind, amount, category
                     FROM accounting_entries
@@ -56,6 +82,24 @@ export async function handler(event) {
                 const data = JSON.parse(event.body || '{}');
                 const role = await getActorRole(event, data);
                 if (role !== 'superadmin') return json({ error: 'No autorizado' }, 403);
+                if (Array.isArray(data.entries)) {
+                    const entries = data.entries
+                        .map(e => ({
+                            entry_date: String((e.date||e.entry_date||'')).slice(0,10),
+                            description: String(e.desc||e.description||'').trim(),
+                            kind: String(e.type||e.kind||'').trim(),
+                            amount: Number(e.value||e.amount||0)|0,
+                            category: (e.category ? String(e.category).trim() : null)
+                        }))
+                        .filter(e => e.entry_date && /^\d{4}-\d{2}-\d{2}$/.test(e.entry_date) && e.description && (e.kind==='ingreso'||e.kind==='gasto') && e.amount>0);
+                    if (!entries.length) return json({ error: 'Sin entradas válidas' }, 400);
+                    const values = entries.map(e => sql`(${e.entry_date}, ${e.description}, ${e.kind}, ${e.amount}, ${e.category})`);
+                    await sql`
+                        INSERT INTO accounting_entries (entry_date, description, kind, amount, category)
+                        VALUES ${sql.join(values, sql`, `)}
+                    `;
+                    return json({ ok: true, inserted: entries.length }, 201);
+                }
                 const entryDate = (data.date || '').toString().slice(0,10);
                 const description = (data.desc || data.description || '').toString().trim();
                 const kind = (data.type || data.kind || '').toString();
