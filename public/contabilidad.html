@@ -15,7 +15,7 @@
     .acct-table th, .acct-table td { border-bottom: 1px solid var(--table-border,#e6e6e6); padding: 10px; text-align: left; }
     .acct-table th { background: var(--panel-header-bg, #f8f8f8); position: sticky; top: 0; z-index: 1; }
     .col-date { width: 130px; }
-    .col-desc { }
+    .col-desc { min-width: 200px; }
     .col-in, .col-out, .col-bal { width: 120px; text-align: right; }
     .right { text-align: right; }
     .muted { opacity: .7; }
@@ -91,26 +91,40 @@
         function getMonth(){ return monthInput.value || todayISO().slice(0,7); }
         function storageKey(m){ return `acct:${m}`; }
 
-        function loadEntries(m){
-            try { const raw = localStorage.getItem(storageKey(m)); if (!raw) return []; const arr = JSON.parse(raw); if (Array.isArray(arr)) return arr; } catch {}
-            return [];
+        async function fetchEntries(m){
+            const u = `/api/accounting?month=${encodeURIComponent(m)}&actor=${encodeURIComponent(currentUser?.name||'')}`;
+            const r = await fetch(u);
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            const j = await r.json();
+            return Array.isArray(j.entries) ? j.entries : [];
         }
-        function saveEntries(m, entries){
-            try { localStorage.setItem(storageKey(m), JSON.stringify(entries)); } catch {}
+        async function createEntry(payload){
+            const r = await fetch('/api/accounting', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...payload, actor_name: currentUser?.name || '' })
+            });
+            if (!r.ok) throw new Error('No se pudo guardar');
+            return await r.json();
         }
 
-        function recalcAndRender(){
+        async function recalcAndRender(){
             const m = getMonth();
-            const entries = loadEntries(m).slice().sort((a,b) => String(a.date).localeCompare(String(b.date)));
             tbody.innerHTML = '';
+            let entries = [];
+            try { entries = await fetchEntries(m); } catch { entries = []; }
+            entries.sort((a,b) => String(a.entry_date||a.date).localeCompare(String(b.entry_date||b.date)));
             let running = 0;
             for (const e of entries){
+                const dateStr = String(e.entry_date || e.date || '');
+                const kind = String(e.kind || e.type || '');
+                const amount = Number(e.amount || e.value || 0);
+                const desc = String(e.description || e.desc || '');
                 const tr = document.createElement('tr');
-                const tdDate = document.createElement('td'); tdDate.textContent = String(e.date || '');
-                const tdDesc = document.createElement('td'); tdDesc.textContent = String(e.desc || '');
-                const tdIn = document.createElement('td'); tdIn.className = 'right'; tdIn.textContent = e.type==='ingreso' ? fmtCurrency(e.value||0) : '';
-                const tdOut = document.createElement('td'); tdOut.className = 'right'; tdOut.textContent = e.type==='gasto' ? fmtCurrency(e.value||0) : '';
-                running += (e.type==='ingreso' ? Number(e.value||0) : -Number(e.value||0));
+                const tdDate = document.createElement('td'); tdDate.textContent = dateStr;
+                const tdDesc = document.createElement('td'); tdDesc.textContent = desc;
+                const tdIn = document.createElement('td'); tdIn.className = 'right'; tdIn.textContent = kind==='ingreso' ? fmtCurrency(amount) : '';
+                const tdOut = document.createElement('td'); tdOut.className = 'right'; tdOut.textContent = kind==='gasto' ? fmtCurrency(amount) : '';
+                running += (kind==='ingreso' ? amount : -amount);
                 const tdBal = document.createElement('td'); tdBal.className = 'right'; tdBal.textContent = fmtCurrency(running);
                 tr.append(tdDate, tdDesc, tdIn, tdOut, tdBal);
                 tbody.appendChild(tr);
@@ -155,17 +169,14 @@
 
             function cleanup(){ if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop); }
             cancel.addEventListener('click', cleanup);
-            save.addEventListener('click', () => {
+            save.addEventListener('click', async () => {
                 const date = (inDate.value||'').slice(0,10);
                 const desc = (inDesc.value||'').trim();
                 const value = Math.max(0, Number(inVal.value||0)|0);
                 if (!date || !desc || !value) { return; }
-                const m = monthKey(date);
-                const arr = loadEntries(m);
-                arr.push({ date, desc, value, type });
-                saveEntries(m, arr);
+                try { await createEntry({ date, desc, value, type }); } catch {}
                 cleanup();
-                if (m === getMonth()) recalcAndRender();
+                if (monthKey(date) === getMonth()) recalcAndRender();
             });
         }
 

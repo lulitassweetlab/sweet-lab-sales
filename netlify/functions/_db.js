@@ -184,6 +184,26 @@ export async function ensureSchema() {
 			ALTER TABLE notifications ADD COLUMN pay_method TEXT;
 		END IF;
 	END $$;`;
+
+	// Accounting: simple monthly ledger of incomes and expenses
+	await sql`CREATE TABLE IF NOT EXISTS accounting_entries (
+		id SERIAL PRIMARY KEY,
+		entry_date DATE NOT NULL,
+		description TEXT NOT NULL,
+		kind TEXT NOT NULL,
+		amount INTEGER NOT NULL DEFAULT 0,
+		created_at TIMESTAMPTZ DEFAULT now(),
+		updated_at TIMESTAMPTZ DEFAULT now()
+	)`;
+	// Ensure constraints/columns for older deployments
+	await sql`DO $$ BEGIN
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'accounting_entries' AND column_name = 'updated_at'
+		) THEN
+			ALTER TABLE accounting_entries ADD COLUMN updated_at TIMESTAMPTZ DEFAULT now();
+		END IF;
+	END $$;`;
 	// Materials: per-flavor ingredient formulas
 	await sql`CREATE TABLE IF NOT EXISTS ingredient_formulas (
 		id SERIAL PRIMARY KEY,
