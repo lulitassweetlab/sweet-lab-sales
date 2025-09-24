@@ -22,20 +22,39 @@ async function getActorRole(evt, body = null) {
 export async function handler(event) {
 	try {
 		await ensureSchema();
+		// Harden: ensure accounting table exists even if ensureSchema was previously cached
+		await sql`CREATE TABLE IF NOT EXISTS accounting_entries (
+			id SERIAL PRIMARY KEY,
+			kind TEXT NOT NULL,
+			entry_date DATE NOT NULL,
+			description TEXT NOT NULL DEFAULT '',
+			amount_cents INTEGER NOT NULL DEFAULT 0,
+			actor_name TEXT,
+			created_at TIMESTAMPTZ DEFAULT now()
+		)`;
 		if (event.httpMethod === 'OPTIONS') return json({ ok: true });
 		switch (event.httpMethod) {
 			case 'GET': {
-				// Optional filters: start, end
-				const params = new URLSearchParams(event.rawQuery || event.queryStringParameters ? event.rawQuery || '' : '');
+				// Optional filters: start, end (robust parsing like sales.js)
+				let raw = '';
+				if (event.rawQuery && typeof event.rawQuery === 'string') raw = event.rawQuery;
+				else if (event.queryStringParameters && typeof event.queryStringParameters === 'object') {
+					raw = Object.entries(event.queryStringParameters).map(([k,v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v ?? '')}`).join('&');
+				}
+				const params = new URLSearchParams(raw);
 				const start = (params.get('start') || '').toString().slice(0,10) || null;
 				const end = (params.get('end') || '').toString().slice(0,10) || null;
-				let rows;
-				if (start && end) {
-					rows = await sql`SELECT id, kind, entry_date, description, amount_cents, actor_name, created_at FROM accounting_entries WHERE entry_date BETWEEN ${start} AND ${end} ORDER BY entry_date DESC, id DESC`;
-				} else {
-					rows = await sql`SELECT id, kind, entry_date, description, amount_cents, actor_name, created_at FROM accounting_entries ORDER BY entry_date DESC, id DESC LIMIT 200`;
+				try {
+					let rows;
+					if (start && end) {
+						rows = await sql`SELECT id, kind, entry_date, description, amount_cents, actor_name, created_at FROM accounting_entries WHERE entry_date BETWEEN ${start} AND ${end} ORDER BY entry_date DESC, id DESC`;
+					} else {
+						rows = await sql`SELECT id, kind, entry_date, description, amount_cents, actor_name, created_at FROM accounting_entries ORDER BY entry_date DESC, id DESC LIMIT 200`;
+					}
+					return json(rows);
+				} catch (e) {
+					return json([]);
 				}
-				return json(rows);
 			}
 			case 'POST': {
 				const data = JSON.parse(event.body || '{}');
