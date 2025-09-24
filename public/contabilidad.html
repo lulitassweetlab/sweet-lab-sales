@@ -310,12 +310,17 @@
             const inVal = document.createElement('input'); inVal.type = 'number'; inVal.min = '0'; inVal.step = '1'; inVal.placeholder = '0';
             row3.append(lab3, inVal);
 
+            const row4 = document.createElement('div'); row4.className = 'form-row';
+            const lab4 = document.createElement('label'); lab4.textContent = 'Categoría';
+            const inCat = document.createElement('input'); inCat.type = 'text'; inCat.placeholder = 'Opcional';
+            row4.append(lab4, inCat);
+
             const actions = document.createElement('div'); actions.className = 'actions';
             const cancel = document.createElement('button'); cancel.className = 'press-btn'; cancel.textContent = 'Cancelar';
             const save = document.createElement('button'); save.className = 'press-btn btn-primary'; save.textContent = 'Guardar';
             actions.append(cancel, save);
 
-            dlg.append(title, typeRow, row1, row2, row3, actions); backdrop.appendChild(dlg); document.body.appendChild(backdrop);
+            dlg.append(title, typeRow, row1, row2, row3, row4, actions); backdrop.appendChild(dlg); document.body.appendChild(backdrop);
             setTimeout(() => backdrop.addEventListener('click', (e) => { if (e.target === backdrop) cleanup(); }), 0);
 
             function cleanup(){ if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop); }
@@ -326,7 +331,8 @@
                 const value = Math.max(0, Number(inVal.value||0)|0);
                 if (!date || !desc || !value) { return; }
                 const category = (inCat.value||'').trim();
-                try { await createEntry({ date, desc, value, type, category }); } catch {}
+                try { await createEntry({ date, desc, value, type, category }); }
+                catch { alert('No se pudo guardar'); return; }
                 cleanup();
                 if (monthKey(date) === getMonth()) recalcAndRender();
             });
