@@ -28,19 +28,27 @@ export async function handler(event) {
             case 'GET': {
                 const params = new URLSearchParams(event.rawQuery || event.queryStringParameters ? event.rawQuery || '' : '');
                 const month = (params.get('month') || '').toString().slice(0,7);
+                const start = (params.get('start') || '').toString().slice(0,10);
+                const end = (params.get('end') || '').toString().slice(0,10);
+                const q = (params.get('q') || '').toString().trim();
                 const role = await getActorRole(event, null);
                 if (role !== 'superadmin') return json({ error: 'No autorizado' }, 403);
-                if (!month || !/^\d{4}-\d{2}$/.test(month)) return json({ error: 'Mes inválido' }, 400);
-                const start = month + '-01';
-                const [endRow] = await sql`SELECT (date_trunc('month', ${start}::date) + interval '1 month - 1 day')::date AS end_date`;
-                const end = endRow.end_date;
+                let rangeStart = start, rangeEnd = end;
+                if (!rangeStart || !rangeEnd) {
+                    if (!month || !/^\d{4}-\d{2}$/.test(month)) return json({ error: 'Mes inválido' }, 400);
+                    const ms = month + '-01';
+                    const [endRow] = await sql`SELECT (date_trunc('month', ${ms}::date) + interval '1 month - 1 day')::date AS end_date`;
+                    rangeStart = ms; rangeEnd = endRow.end_date;
+                }
+                const clauses = [sql`entry_date BETWEEN ${rangeStart} AND ${rangeEnd}`];
+                if (q) clauses.push(sql`description ILIKE ${'%' + q + '%'}`);
                 const rows = await sql`
                     SELECT id, entry_date, description, kind, amount
                     FROM accounting_entries
-                    WHERE entry_date BETWEEN ${start} AND ${end}
+                    WHERE ${sql.join(clauses, sql` AND `)}
                     ORDER BY entry_date ASC, id ASC
                 `;
-                return json({ month, entries: rows });
+                return json({ month, start: rangeStart, end: rangeEnd, q, entries: rows });
             }
             case 'POST': {
                 const data = JSON.parse(event.body || '{}');

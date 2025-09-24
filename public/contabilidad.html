@@ -11,6 +11,7 @@
     .acct-title { display:flex; align-items:center; gap:12px; }
     .acct-month { display:flex; align-items:center; gap:8px; }
     .acct-month label { opacity:.8; }
+    .filters { display:flex; align-items:center; gap:8px; flex-wrap: wrap; }
     .acct-table { width:100%; border-collapse: collapse; }
     .acct-table th, .acct-table td { border-bottom: 1px solid var(--table-border,#e6e6e6); padding: 10px; text-align: left; }
     .acct-table th { background: var(--panel-header-bg, #f8f8f8); position: sticky; top: 0; z-index: 1; }
@@ -50,9 +51,19 @@
                 <span id="balance-label" class="muted"></span>
             </div>
             <div class="acct-month">
-                <label for="month">Mes</label>
-                <input id="month" type="month" />
-                <button id="acct-export" class="press-btn" style="margin-left:8px">Exportar Excel</button>
+                <div class="filters">
+                    <label for="month">Mes</label>
+                    <input id="month" type="month" />
+                    <span class="muted">o</span>
+                    <label for="start">Inicio</label>
+                    <input id="start" type="date" />
+                    <label for="end">Fin</label>
+                    <input id="end" type="date" />
+                    <input id="q" type="text" class="input-cell" placeholder="Buscar descripción" style="min-width:200px" />
+                    <button id="apply-filters" class="press-btn btn-primary">Aplicar</button>
+                    <button id="clear-filters" class="press-btn">Limpiar</button>
+                    <button id="acct-export" class="press-btn">Exportar Excel</button>
+                </div>
             </div>
         </div>
         <div class="table-wrapper">
@@ -84,6 +95,9 @@
         const backBtn = document.getElementById('acct-back');
         const addBtn = document.getElementById('acct-add');
         const monthInput = document.getElementById('month');
+        const startInput = document.getElementById('start');
+        const endInput = document.getElementById('end');
+        const qInput = document.getElementById('q');
         const tbody = document.getElementById('acct-tbody');
         const balanceLabel = document.getElementById('balance-label');
 
@@ -94,7 +108,13 @@
         function storageKey(m){ return `acct:${m}`; }
 
         async function fetchEntries(m){
-            const u = `/api/accounting?month=${encodeURIComponent(m)}&actor=${encodeURIComponent(currentUser?.name||'')}`;
+            let u = `/api/accounting?actor=${encodeURIComponent(currentUser?.name||'')}`;
+            const start = (startInput.value||'').slice(0,10);
+            const end = (endInput.value||'').slice(0,10);
+            const q = (qInput.value||'').trim();
+            if (start && end) u += `&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`;
+            else u += `&month=${encodeURIComponent(m)}`;
+            if (q) u += `&q=${encodeURIComponent(q)}`;
             const r = await fetch(u);
             if (!r.ok) throw new Error(`HTTP ${r.status}`);
             const j = await r.json();
@@ -116,6 +136,7 @@
             try { entries = await fetchEntries(m); } catch { entries = []; }
             entries.sort((a,b) => String(a.entry_date||a.date).localeCompare(String(b.entry_date||b.date)));
             let running = 0;
+            let sumIn = 0; let sumOut = 0;
             for (const e of entries){
                 const dateStr = String(e.entry_date || e.date || '');
                 const kind = String(e.kind || e.type || '');
@@ -126,7 +147,7 @@
                 const tdDesc = document.createElement('td'); tdDesc.textContent = desc;
                 const tdIn = document.createElement('td'); tdIn.className = 'right'; tdIn.textContent = kind==='ingreso' ? fmtCurrency(amount) : '';
                 const tdOut = document.createElement('td'); tdOut.className = 'right'; tdOut.textContent = kind==='gasto' ? fmtCurrency(amount) : '';
-                running += (kind==='ingreso' ? amount : -amount);
+                if (kind==='ingreso') { sumIn += amount; running += amount; } else { sumOut += amount; running -= amount; }
                 const tdBal = document.createElement('td'); tdBal.className = 'right'; tdBal.textContent = fmtCurrency(running);
                 const tdActions = document.createElement('td');
                 const editBtn = document.createElement('button'); editBtn.className = 'press-btn'; editBtn.textContent = 'Editar';
@@ -138,7 +159,7 @@
                 editBtn.addEventListener('click', () => openEditDialog({ id: e.id, date: dateStr, type: kind, value: amount, desc }));
                 delBtn.addEventListener('click', () => confirmDelete(e.id));
             }
-            balanceLabel.textContent = `Saldo: ${fmtCurrency(running)}`;
+            balanceLabel.textContent = `Ingresos: ${fmtCurrency(sumIn)} · Gastos: ${fmtCurrency(sumOut)} · Saldo: ${fmtCurrency(running)}`;
         }
 
         async function updateEntry(payload){
@@ -265,6 +286,8 @@
         backBtn.addEventListener('click', () => { location.href = '/'; });
         monthInput.addEventListener('change', () => { recalcAndRender(); history.replaceState(null, '', `?month=${encodeURIComponent(getMonth())}`); });
         addBtn.addEventListener('click', openDialog);
+        document.getElementById('apply-filters').addEventListener('click', () => { recalcAndRender(); });
+        document.getElementById('clear-filters').addEventListener('click', () => { startInput.value = ''; endInput.value = ''; qInput.value = ''; recalcAndRender(); });
         document.getElementById('acct-export').addEventListener('click', async () => {
             const m = getMonth();
             let entries = [];
@@ -284,7 +307,10 @@
                 const ws = window.XLSX.utils.json_to_sheet(withSaldo);
                 const wb = window.XLSX.utils.book_new();
                 window.XLSX.utils.book_append_sheet(wb, ws, 'Contabilidad');
-                const label = m.replace('-','');
+                const start = (startInput.value||'').slice(0,10); const end = (endInput.value||'').slice(0,10); const q = (qInput.value||'').trim();
+                let label = m.replace('-','');
+                if (start && end) label = `${start.replaceAll('-','')}_${end.replaceAll('-','')}`;
+                if (q) label += `_busca_${q.replace(/\s+/g,'_')}`;
                 window.XLSX.writeFile(wb, `Contabilidad_${label}.xlsx`);
             } catch {}
         });
