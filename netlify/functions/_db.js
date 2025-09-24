@@ -204,9 +204,27 @@ export async function ensureSchema() {
 		END IF;
 		IF NOT EXISTS (
 			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'accounting_entries' AND column_name = 'kind'
+		) THEN
+			ALTER TABLE accounting_entries ADD COLUMN kind TEXT NOT NULL DEFAULT 'gasto';
+		END IF;
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
 			WHERE table_name = 'accounting_entries' AND column_name = 'entry_date'
 		) THEN
 			ALTER TABLE accounting_entries ADD COLUMN entry_date DATE NOT NULL DEFAULT now();
+		END IF;
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'accounting_entries' AND column_name = 'description'
+		) THEN
+			ALTER TABLE accounting_entries ADD COLUMN description TEXT NOT NULL DEFAULT '';
+		END IF;
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'accounting_entries' AND column_name = 'amount_cents'
+		) THEN
+			ALTER TABLE accounting_entries ADD COLUMN amount_cents INTEGER NOT NULL DEFAULT 0;
 		END IF;
 	END $$;`;
 	// Materials: per-flavor ingredient formulas
