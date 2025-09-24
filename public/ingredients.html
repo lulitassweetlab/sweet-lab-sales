@@ -187,21 +187,8 @@
 				if (!itemsByDessert.has(it.dessert)) itemsByDessert.set(it.dessert, []);
 				itemsByDessert.get(it.dessert).push(it);
 			}
-			// Build price and pack maps from recipes/extras
-			const priceMap = new Map(); // key -> price
-			const packMap = new Map(); // key -> pack_size
-			function setMapsFor(name, unit, price, pack){
-				const k = normKey(canonicalizeName(name)); if (!k) return;
-				if (Number(price||0) > 0) priceMap.set(k, Number(price||0));
-				if (Number(pack||0) > 0) packMap.set(k, Number(pack||0));
-			}
-			for (const dessertName of names){
-				const info = details.get(dessertName);
-				for (const st of (info?.steps||[])){
-					for (const it of (st.items||[])) setMapsFor(it.ingredient, it.unit, it.price, it.pack_size);
-				}
-			}
-			for (const ex of (extras||[])) setMapsFor(ex.ingredient, ex.unit, ex.price, ex.pack_size);
+			// Build price and pack maps from recipes/extras (defined after helper fns)
+			let priceMap; let packMap; let setMapsFor;
 
 			// 3) Fetch inventory balances
 			countLabel.textContent = 'Leyendo inventario…';
@@ -230,6 +217,19 @@
 				if (low.includes('contenedor') && (low.includes('8 oz') || low.includes('8oz'))) return 'Contenedor 8 onz';
 				return name || '';
 			}
+			// Build price and pack maps from recipes/extras
+			priceMap = new Map(); // key -> price
+			packMap = new Map(); // key -> pack_size
+			setMapsFor = function(name, unit, price, pack){
+				const k = normKey(canonicalizeName(name)); if (!k) return;
+				if (Number(price||0) > 0) priceMap.set(k, Number(price||0));
+				if (Number(pack||0) > 0) packMap.set(k, Number(pack||0));
+			};
+			for (const dessertName of names){
+				const arr = itemsByDessert.get(dessertName) || [];
+				for (const it of arr) setMapsFor(it.ingredient, it.unit, it.price, it.pack_size);
+			}
+			for (const ex of (extras||[])) setMapsFor(ex.ingredient, ex.unit, ex.price, ex.pack_size);
 			function addRow(_dessert, ingredient, unit, perUnit, needed){
 				const canon = canonicalizeName(ingredient);
 				// Excluir Agua y Almíbar del reporte
