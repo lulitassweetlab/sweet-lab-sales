@@ -305,20 +305,33 @@
 		}
 
 		exportBtn.addEventListener('click', () => {
-			// Build Excel from current table body
-			const rows = [['Fecha','Vendedor', '$', 'Pago', 'Cliente', 'Arco', 'Melo', 'Mara', 'Oreo', 'Nute', 'Total']];
+			// Build Excel from filtered and sorted data currently visible
+			const header = ['Fecha','Vendedor', '$', 'Pago', 'Cliente', 'Arco', 'Melo', 'Mara', 'Oreo', 'Nute', 'Total'];
+			const rows = [header];
 			let eQa=0,eQm=0,eQma=0,eQo=0,eQn=0,eGrand=0;
-			const visibleRows = Array.from(tbody.querySelectorAll('tr'));
-			for (const tr of visibleRows){
-				const cells = Array.from(tr.children).map(td => td.textContent || '');
-				rows.push(cells);
-				// Sum amounts from table for reliability
-				const qa = Number(cells[5]||0)||0; const qm = Number(cells[6]||0)||0; const qma = Number(cells[7]||0)||0; const qo = Number(cells[8]||0)||0; const qn = Number(cells[9]||0)||0; const tot = Number(cells[10]||0)||0;
-				eQa += qa; eQm += qm; eQma += qma; eQo += qo; eQn += qn; eGrand += tot;
+			const data = getFilteredSortedData();
+			for (const r of data){
+				rows.push([
+					r.date,
+					r.sellerName,
+					r.is_paid ? '✓' : '',
+					payLabel(r.pay_method||''),
+					r.client_name||'',
+					r.qa||'', r.qm||'', r.qma||'', r.qo||'', r.qn||'', r.tot||''
+				]);
+				eQa += r.qa||0; eQm += r.qm||0; eQma += r.qma||0; eQo += r.qo||0; eQn += r.qn||0; eGrand += r.tot||0;
 			}
-			rows.push(['','','','','Totales', eQa||'', eQm||'', eQma||'', eQo||'', eQn||'', eGrand||'']);
-			const eSumAll = (eQa||0)+(eQm||0)+(eQma||0)+(eQo||0)+(eQn||0);
-			rows.push(['','','','','Total postres','','','','','', eSumAll||'']);
+			// Totales row (fixed 11 columns)
+			const totRow = new Array(11).fill('');
+			totRow[4] = 'Totales';
+			totRow[5] = eQa||''; totRow[6] = eQm||''; totRow[7] = eQma||''; totRow[8] = eQo||''; totRow[9] = eQn||''; totRow[10] = eGrand||'';
+			rows.push(totRow);
+			// Total postres row (fixed 11 columns)
+			const sumAll = (eQa||0)+(eQm||0)+(eQma||0)+(eQo||0)+(eQn||0);
+			const sumRow = new Array(11).fill('');
+			sumRow[4] = 'Total postres';
+			sumRow[10] = sumAll||'';
+			rows.push(sumRow);
 			const ws = XLSX.utils.aoa_to_sheet(rows);
 			ws['!cols'] = [ {wch:10},{wch:18},{wch:3},{wch:10},{wch:24},{wch:6},{wch:6},{wch:6},{wch:6},{wch:6},{wch:10} ];
 			const wb = XLSX.utils.book_new();
