@@ -23,8 +23,8 @@ export async function handler(event) {
 					const rows = await sql`SELECT id, ingredient, kind, qty, note, actor_name, metadata, created_at FROM inventory_movements WHERE lower(ingredient)=lower(${name}) ORDER BY id DESC LIMIT 200`;
 					return json(rows);
 				}
-				// Default: list items with saldo
-				const items = await sql`SELECT id, ingredient, unit FROM inventory_items ORDER BY ingredient ASC`;
+				// Default: list items with saldo based on ingredient_formulas (Ingredientes page)
+				const items = await sql`SELECT ingredient, unit FROM ingredient_formulas ORDER BY ingredient ASC`;
 				// Compute balances
 				const movs = await sql`SELECT lower(ingredient) AS key, SUM(qty)::numeric AS qty FROM inventory_movements GROUP BY lower(ingredient)`;
 				const byKey = new Map();
@@ -33,7 +33,6 @@ export async function handler(event) {
 					const k = (m.key || '').toString();
 					const prev = byKey.get(k);
 					if (prev) prev.saldo = Number(m.qty || 0) || 0;
-					else byKey.set(k, { ingredient: m.key, unit: 'g', saldo: Number(m.qty || 0) || 0 });
 				}
 				const list = Array.from(byKey.values()).sort((a,b) => (a.ingredient||'').localeCompare(b.ingredient||''));
 				return json(list);
@@ -43,15 +42,11 @@ export async function handler(event) {
 				const action = (data.action || '').toString();
 				const actor = (data.actor_name || '').toString() || null;
 				if (action === 'sync') {
-					// Ensure all current recipe/extras ingredients exist as inventory items (case-insensitive unique)
+					// Ensure all Ingredientes (ingredient_formulas) exist as inventory items (case-insensitive unique)
 					await sql`
-						WITH src AS (
-							SELECT ingredient, unit FROM dessert_recipe_items
-							UNION ALL
-							SELECT ingredient, unit FROM extras_items
-						), pick AS (
+						WITH pick AS (
 							SELECT DISTINCT ON (lower(ingredient)) ingredient, COALESCE(NULLIF(unit,''), 'g') AS unit
-							FROM src
+							FROM ingredient_formulas
 							WHERE ingredient IS NOT NULL AND trim(ingredient) <> ''
 							ORDER BY lower(ingredient), unit ASC
 						)

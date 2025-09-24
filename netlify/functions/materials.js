@@ -128,12 +128,20 @@ export async function handler(event) {
 				if (idParam) {
 					const id = Number(idParam);
 					if (!id) return json({ error: 'id inválido' }, 400);
+					const rows = await sql`SELECT ingredient FROM ingredient_formulas WHERE id=${id}`;
 					await sql`DELETE FROM ingredient_formulas WHERE id=${id}`;
+					if (rows && rows[0] && rows[0].ingredient) {
+						const ing = rows[0].ingredient;
+						await sql`DELETE FROM inventory_movements WHERE lower(ingredient)=lower(${ing})`;
+						await sql`DELETE FROM inventory_items WHERE ingredient=${ing}`;
+					}
 					return json({ ok: true });
 				}
 				if (ingParam) {
 					const ing = ingParam.toString();
 					await sql`DELETE FROM ingredient_formulas WHERE ingredient=${ing}`;
+					await sql`DELETE FROM inventory_movements WHERE lower(ingredient)=lower(${ing})`;
+					await sql`DELETE FROM inventory_items WHERE ingredient=${ing}`;
 					return json({ ok: true });
 				}
 				return json({ error: 'id o ingredient requerido' }, 400);
