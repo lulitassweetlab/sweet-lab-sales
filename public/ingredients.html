@@ -176,21 +176,17 @@
 			});
 			sumCountsView(counts);
 
-			// 2) Fetch recipes per dessert and extras once
+			// 2) Fetch recipes and extras once (batched)
 			countLabel.textContent = 'Cargando recetas…';
-			const desserts = await fetchJSON('/api/recipes');
-			const names = Array.isArray(desserts) ? desserts : [];
-			const details = new Map();
-			await mapLimit(names, 4, async (name, idx) => {
-				try {
-					const url = new URL('/api/recipes', location.origin);
-					url.searchParams.set('dessert', name);
-					if (idx === 0) url.searchParams.set('include_extras', '1');
-					const full = await fetchJSON(url.toString());
-					details.set(name, full);
-				} catch {}
-			});
-			const extras = (details.get(names[0]) && Array.isArray(details.get(names[0]).extras)) ? details.get(names[0]).extras : [];
+			const all = await fetchJSON('/api/recipes?all_items=1&include_extras=1');
+			const names = Array.isArray(all?.desserts) ? all.desserts : [];
+			const extras = Array.isArray(all?.extras) ? all.extras : [];
+			const itemsByDessert = new Map();
+			for (const n of names) itemsByDessert.set(n, []);
+			for (const it of (all?.items || [])) {
+				if (!itemsByDessert.has(it.dessert)) itemsByDessert.set(it.dessert, []);
+				itemsByDessert.get(it.dessert).push(it);
+			}
 			// Build price and pack maps from recipes/extras
 			const priceMap = new Map(); // key -> price
 			const packMap = new Map(); // key -> pack_size
@@ -248,16 +244,13 @@
 			}
 			const mapKey = (name) => (name||'').toString().trim().toLowerCase();
 			for (const name of names){
-				const info = details.get(name);
-				if (!info || !Array.isArray(info.steps)) continue;
+				const arr = itemsByDessert.get(name) || [];
 				const k = mapKey(name);
 				const mult = k.startsWith('arco') ? counts.arco : k.startsWith('melo') ? counts.melo : k.startsWith('mara') ? counts.mara : k.startsWith('oreo') ? counts.oreo : k.startsWith('nute') ? counts.nute : 0;
 				if (!mult) continue;
-				for (const st of info.steps){
-					for (const it of (st.items||[])){
-						const per = Number(it.qty_per_unit||0)||0;
-						addRow(name, it.ingredient, it.unit, per, per * mult);
-					}
+				for (const it of arr){
+					const per = Number(it.qty_per_unit||0)||0;
+					addRow(name, it.ingredient, it.unit, per, per * mult);
 				}
 			}
 			const totalUnits = counts.arco + counts.melo + counts.mara + counts.oreo + counts.nute;

@@ -14,10 +14,24 @@ export async function handler(event) {
 				const params = new URLSearchParams(raw);
 				const dessert = params.get('dessert');
 				const includeExtras = params.get('include_extras') === '1' || params.get('include_extras') === 'true';
+				const allItems = params.get('all_items') === '1' || params.get('all_items') === 'true';
 				const seed = params.get('seed') === '1' || params.get('seed') === 'true';
 				if (seed) {
 					await seedDefaults();
 					return json({ ok: true });
+				}
+				if (allItems) {
+					// Single payload with all items grouped by dessert + extras to reduce roundtrips
+					const desserts = (await sql`SELECT DISTINCT dessert FROM dessert_recipes ORDER BY dessert ASC`).map(r => r.dessert);
+					const items = await sql`
+						SELECT dr.dessert, i.ingredient, i.unit, i.qty_per_unit, i.adjustment, i.price, i.pack_size
+						FROM dessert_recipe_items i
+						LEFT JOIN dessert_recipes dr ON dr.id = i.recipe_id
+						ORDER BY dr.dessert ASC, i.position ASC, i.id ASC
+					`;
+					let extras = [];
+					if (includeExtras) extras = await sql`SELECT ingredient, unit, qty_per_unit, price, pack_size FROM extras_items ORDER BY position ASC, id ASC`;
+					return json({ desserts, items, extras });
 				}
 				if (dessert) {
 					const steps = await sql`SELECT id, dessert, step_name, position FROM dessert_recipes WHERE lower(dessert)=lower(${dessert}) ORDER BY position ASC, id ASC`;
