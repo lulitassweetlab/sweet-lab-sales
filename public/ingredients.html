@@ -226,26 +226,26 @@
 			}
 
 			// 5) Materialize rows and render
-\t\t\tconst keys = Array.from(agg.keys()).sort((a,b) => a.localeCompare(b));
-\t\t\ttbody.innerHTML = '';
-\t\t\tlet buyTotal = 0;
-\t\t\tfor (const key of keys){
-\t\t\t\tconst v = agg.get(key);
-\t\t\t\tconst inv = invByKey.has(key) ? Number(invByKey.get(key)||0)||0 : 0;
-\t\t\t\tconst buy = Math.max(0, (Number(v.needed||0)||0) - inv);
-\t\t\t\tconst perUnitDisplay = (v.perUnits && v.perUnits.size === 1) ? Array.from(v.perUnits)[0] : '—';
-\t\t\t\tconst tr = document.createElement('tr');
-\t\t\t\ttr.innerHTML = `
-\t\t\t\t\t<td style="text-align:left">${v.name}</td>
-\t\t\t\t\t<td>${perUnitDisplay}</td>
-\t\t\t\t\t<td>${fmt1(v.needed)}</td>
-\t\t\t\t\t<td>${fmt1(inv)}</td>
-\t\t\t\t\t<td class="col-total">${fmt1(buy)}</td>`;
-\t\t\t\tbody.appendChild(tr);
-\t\t\t\tbuyTotal += buy;
-\t\t\t}
-\t\t\ttBuyTotal.textContent = fmt1(buyTotal);
-\t\t\tcountLabel.textContent = `Ingredientes: ${keys.length}`;
+			const keys = Array.from(agg.keys()).sort((a,b) => a.localeCompare(b));
+			tbody.innerHTML = '';
+			let buyTotal = 0;
+			for (const key of keys){
+				const v = agg.get(key);
+				const inv = invByKey.has(key) ? Number(invByKey.get(key)||0)||0 : 0;
+				const buy = Math.max(0, (Number(v.needed||0)||0) - inv);
+				const perUnitDisplay = (v.perUnits && v.perUnits.size === 1) ? Array.from(v.perUnits)[0] : '—';
+				const tr = document.createElement('tr');
+				tr.innerHTML = `
+					<td style="text-align:left">${v.name}</td>
+					<td>${perUnitDisplay}</td>
+					<td>${fmt1(v.needed)}</td>
+					<td>${fmt1(inv)}</td>
+					<td class="col-total">${fmt1(buy)}</td>`;
+				tbody.appendChild(tr);
+				buyTotal += buy;
+			}
+			tBuyTotal.textContent = fmt1(buyTotal);
+			countLabel.textContent = `Ingredientes: ${keys.length}`;
 		}
 
 		// Back to report or home
