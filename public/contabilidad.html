@@ -95,6 +95,7 @@
                 <tbody id="acct-tbody"></tbody>
             </table>
             <div id="acct-empty" class="muted" style="padding:12px 6px; display:none">No hay movimientos para los filtros seleccionados.</div>
+            <div id="acct-error" class="muted" style="color:#b00020; padding:6px 6px; display:none"></div>
             <div id="cat-totals" class="cat-totals"></div>
         </div>
     </main>
@@ -154,7 +155,8 @@
             const m = getMonth();
             tbody.innerHTML = '';
             let entries = [];
-            try { entries = await fetchEntries(m); } catch { entries = []; }
+            try { entries = await fetchEntries(m); document.getElementById('acct-error').style.display='none'; document.getElementById('acct-error').textContent=''; }
+            catch (e) { entries = []; const errEl=document.getElementById('acct-error'); if(errEl){ errEl.textContent = 'Error cargando datos: ' + (e?.message||''); errEl.style.display=''; } }
             const emptyEl = document.getElementById('acct-empty'); if (emptyEl) emptyEl.style.display = (entries.length ? 'none' : '');
             entries.sort((a,b) => String(a.entry_date||a.date).localeCompare(String(b.entry_date||b.date)));
             let running = 0;
