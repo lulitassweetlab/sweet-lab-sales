@@ -83,7 +83,8 @@
 									<th class="col-total">Ingreso</th>
 									<th class="col-total">Salida</th>
 									<th class="col-total">Saldo</th>
-									<th></th>
+							<th></th>
+							<th></th>
 						</tr>
 					</thead>
 						<tbody id="acc-tbody"></tbody>
@@ -195,8 +196,20 @@
 					<td class="col-total editable" data-field="amount_cents" data-kind="ingreso">${colIng}</td>
 					<td class="col-total editable" data-field="amount_cents" data-kind="gasto">${colSal}</td>
 					<td class="col-total">${fmtMoney(running)}</td>
+					<td><button class="download-att" data-id="${r.id}" title="Descargar adjunto" aria-label="Descargar">⬇️</button></td>
 					<td><button class="row-delete" data-del="${r.id}" title="Eliminar" aria-label="Eliminar"></button></td>
 				`;
+				// Wire download button
+				const dlBtn = tr.querySelector('.download-att');
+				dlBtn.addEventListener('click', async (e) => {
+					e.stopPropagation();
+					try {
+						const res = await fetch(`/api/accounting?attachment_for=${encodeURIComponent(r.id)}`);
+						if (!res.ok) { alert('No hay adjunto para descargar'); return; }
+						const obj = await res.json();
+						const a = document.createElement('a'); a.href = obj.file_base64; a.download = obj.file_name || `adjunto_${r.id}.bin`; document.body.appendChild(a); a.click(); a.remove();
+					} catch (err) { console.error(err); alert('Error al descargar adjunto'); }
+				});
 				tbody.appendChild(tr);
 				// Wire attachment upload or view
 				const attBtn = tr.querySelector('.attach-btn');
