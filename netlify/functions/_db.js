@@ -389,6 +389,9 @@ export function canonicalizeIngredientName(name) {
 	if (low.includes('nutella')) return 'Nutella';
 	if (low.startsWith('agua')) return 'Agua';
 	if (low.includes('oreo')) return 'Oreo';
+	// Extras common aliases
+	if (low.includes('bolsa') && low.includes('cuchara')) return 'Bolsa para cuchara';
+	if (low.includes('contenedor') && (low.includes('8 oz') || low.includes('8oz') || low.includes('8 onz') || low.includes('8onz'))) return 'Contenedor 8 onz';
 	return raw;
 }
 

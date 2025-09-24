@@ -29,28 +29,36 @@ export async function handler(event) {
 				const extraItems = await sql`SELECT ingredient, unit FROM extras_items`;
 				// 2) Build canonical definitions map: key -> { ingredient, unit, price }
 				const defs = new Map();
-				function upsertDef(name, unit, price){
+				function upsertDef(name, unit, price, isExtra = false){
 					if (!name) return;
 					const canon = canonicalizeIngredientName((name||'').toString());
 					const key = (canon||'').toString().toLowerCase();
 					if (!key) return;
-					const prev = defs.get(key) || { ingredient: canon, unit: unit || 'g', price: 0 };
+					const prev = defs.get(key) || { ingredient: canon, unit: unit || 'g', price: 0, isExtra: false };
 					if (unit && unit !== '') prev.unit = unit;
 					const p = Number(price || 0) || 0;
 					if (p > 0 && p > Number(prev.price || 0)) prev.price = p;
+					if (isExtra) prev.isExtra = true;
 					defs.set(key, prev);
 				}
-				for (const it of (recipeItems || [])) upsertDef(it.ingredient, it.unit, it.price);
-				for (const it of (extraItems || [])) upsertDef(it.ingredient, it.unit, 0);
+				for (const it of (recipeItems || [])) upsertDef(it.ingredient, it.unit, it.price, false);
+				for (const it of (extraItems || [])) upsertDef(it.ingredient, it.unit, 0, true);
 				// 3) Compute balances by canonical key
-				const movs = await sql`SELECT lower(ingredient) AS key, SUM(qty)::numeric AS qty FROM inventory_movements GROUP BY lower(ingredient)`;
-				const saldoByKey = new Map();
-				for (const m of (movs || [])) saldoByKey.set((m.key||'').toString(), Number(m.qty||0) || 0);
+				// Aggregate movements by canonical name to avoid split balances
+				const rawMovs = await sql`SELECT ingredient, SUM(qty)::numeric AS qty FROM inventory_movements GROUP BY ingredient`;
+				const movs = new Map();
+				for (const r of (rawMovs || [])) {
+					const canon = canonicalizeIngredientName((r.ingredient||'').toString());
+					const key = (canon||'').toString().toLowerCase();
+					const prev = Number(movs.get(key) || 0) || 0;
+					movs.set(key, prev + (Number(r.qty||0)||0));
+				}
+				const saldoByKey = movs;
 				// 4) Materialize list, excluding items with price 0
 				const list = [];
 				for (const [key, v] of defs.entries()) {
 					const price = Number(v.price || 0) || 0;
-					if (price <= 0) continue; // excluir costo 0
+					if (price <= 0 && !v.isExtra) continue; // excluir costo 0, excepto extras
 					const saldo = Number(saldoByKey.get(key) || 0) || 0;
 					list.push({ ingredient: v.ingredient, unit: v.unit || 'g', saldo, price, valor: saldo * price });
 				}
