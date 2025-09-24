@@ -2832,21 +2832,67 @@ function buildStepCard(dessertName, step) {
 	});
 	// Mark data-step-id to persist ordering
 	box.setAttribute('data-step-id', String(step.id));
-	// Ingredients rows drag & drop
+	// Ingredients rows drag & drop (supports reordering and cross-step move)
 	tbody.addEventListener('dragover', (e) => {
 		e.preventDefault();
-		const dragging = tbody.querySelector('tr.dragging');
+		const dragging = document.querySelector('tr.dragging');
 		if (!dragging) return;
-		const after = (() => {
-			const els = [...tbody.querySelectorAll('tr:not(.dragging)')];
-			return els.reduce((closest, child) => {
-				const rect = child.getBoundingClientRect();
-				const offset = e.clientY - rect.top - rect.height / 2;
-				if (offset < 0 && offset > closest.offset) return { offset, element: child };
-				else return closest;
-			}, { offset: Number.NEGATIVE_INFINITY, element: null }).element;
-		})();
-		if (after == null) tbody.appendChild(dragging); else tbody.insertBefore(dragging, after);
+		// Only preview order if dragging within this tbody
+		if (dragging.parentElement === tbody) {
+			const after = (() => {
+				const els = [...tbody.querySelectorAll('tr:not(.dragging)')];
+				return els.reduce((closest, child) => {
+					const rect = child.getBoundingClientRect();
+					const offset = e.clientY - rect.top - rect.height / 2;
+					if (offset < 0 && offset > closest.offset) return { offset, element: child };
+					else return closest;
+				}, { offset: Number.NEGATIVE_INFINITY, element: null }).element;
+			})();
+			if (after == null) tbody.appendChild(dragging); else tbody.insertBefore(dragging, after);
+		}
+	});
+	tbody.addEventListener('drop', async (e) => {
+		e.preventDefault();
+		try {
+			if (!window.__draggingItemInfo) return;
+			const info = window.__draggingItemInfo;
+			if (!info.tr || !info.itemId) return;
+			if (info.tr.parentElement === tbody) return; // same-step handled by dragend reorder
+			// Determine insertion point
+			const after = (() => {
+				const els = [...tbody.querySelectorAll('tr')];
+				return els.reduce((closest, child) => {
+					const rect = child.getBoundingClientRect();
+					const offset = e.clientY - rect.top - rect.height / 2;
+					if (offset < 0 && offset > closest.offset) return { offset, element: child };
+					else return closest;
+				}, { offset: Number.NEGATIVE_INFINITY, element: null }).element;
+			})();
+			if (after == null) tbody.appendChild(info.tr); else tbody.insertBefore(info.tr, after);
+			// Update stepId on row
+			info.tr.setAttribute('data-step-id', String(step.id));
+			// Persist: move item to new step with current field values and position
+			const rows = Array.from(tbody.querySelectorAll('tr'));
+			const newIndex = rows.indexOf(info.tr);
+			await api('POST', API.Recipes, {
+				kind: 'item.upsert',
+				id: info.itemId,
+				recipe_id: step.id,
+				ingredient: info.inN?.value || '',
+				unit: 'g',
+				qty_per_unit: Number(info.inQ?.value || 0) || 0,
+				adjustment: Number(info.inAdj?.value || 0) || 0,
+				price: Number(info.inP?.value || 0) || 0,
+				position: newIndex + 1
+			});
+			// Reorder positions in target and source tbodys
+			const targetIds = Array.from(tbody.querySelectorAll('tr')).map(r => Number(r.getAttribute('data-item-id')||'0')||0).filter(Boolean);
+			if (targetIds.length) { try { await api('POST', API.Recipes, { kind: 'item.reorder', ids: targetIds }); } catch {} }
+			if (info.fromTbody && info.fromTbody.isConnected) {
+				const srcIds = Array.from(info.fromTbody.querySelectorAll('tr')).map(r => Number(r.getAttribute('data-item-id')||'0')||0).filter(Boolean);
+				if (srcIds.length) { try { await api('POST', API.Recipes, { kind: 'item.reorder', ids: srcIds }); } catch {} }
+			}
+		} catch { notify.error('No se pudo mover el ingrediente'); }
 	});
 	return box;
 }
@@ -2861,7 +2907,10 @@ function buildItemRow(stepId, item) {
 	tr.append(tdN, tdQ, tdAdj, tdP, tdA);
 	// DnD for ingredient rows
 	tr.draggable = true;
-	tr.addEventListener('dragstart', () => { tr.classList.add('dragging'); });
+	tr.addEventListener('dragstart', () => {
+		tr.classList.add('dragging');
+		window.__draggingItemInfo = { tr, itemId: item.id, fromTbody: tr.parentElement, inN, inQ, inAdj, inP };
+	});
 	tr.addEventListener('dragend', async () => {
 		tr.classList.remove('dragging');
 		const tbody = tr.parentElement;
@@ -2869,6 +2918,7 @@ function buildItemRow(stepId, item) {
 		const ids = Array.from(tbody.querySelectorAll('tr')).map(r => Number(r.getAttribute('data-item-id')||'0')||0).filter(Boolean);
 		if (!ids.length) return;
 		try { await api('POST', API.Recipes, { kind: 'item.reorder', ids }); } catch {}
+		try { delete window.__draggingItemInfo; } catch {}
 	});
 	async function save() {
 		try {
