@@ -140,16 +140,39 @@
 		function populateFilters(){
 			// Sellers
 			if (sellerFilterGroup) {
+				const prevSelected = getSelectedSellers();
 				sellerFilterGroup.innerHTML = '';
+				// Master checkbox
+				const masterWrap = document.createElement('label'); masterWrap.style.display='inline-flex'; masterWrap.style.alignItems='center'; masterWrap.style.gap='6px';
+				const master = document.createElement('input'); master.type='checkbox'; master.id='sf_all';
+				const masterSpan = document.createElement('span'); masterSpan.textContent = 'Todos';
+				masterWrap.appendChild(master); masterWrap.appendChild(masterSpan);
+				sellerFilterGroup.appendChild(masterWrap);
+				// Vendors
 				for (const s of (sellersList||[])){
 					const id = `sf_${(s.name||'').replace(/[^a-z0-9]+/gi,'_')}`;
 					const wrap = document.createElement('label');
 					wrap.style.display = 'inline-flex'; wrap.style.alignItems = 'center'; wrap.style.gap = '6px';
-					const cb = document.createElement('input'); cb.type = 'checkbox'; cb.value = s.name || ''; cb.id = id; cb.addEventListener('change', () => render());
+					const cb = document.createElement('input'); cb.type = 'checkbox'; cb.value = s.name || ''; cb.id = id;
+					cb.checked = prevSelected.length ? prevSelected.includes(cb.value) : false;
+					cb.addEventListener('change', () => { updateMasterCheckboxState(); render(); });
 					const sp = document.createElement('span'); sp.textContent = s.name || '';
 					wrap.appendChild(cb); wrap.appendChild(sp);
 					sellerFilterGroup.appendChild(wrap);
 				}
+				function updateMasterCheckboxState(){
+					const cbs = Array.from(sellerFilterGroup.querySelectorAll('input[type="checkbox"]')).filter(x => x.id !== 'sf_all');
+					const checked = cbs.filter(x => x.checked).length;
+					master.indeterminate = checked > 0 && checked < cbs.length;
+					master.checked = checked > 0 && checked === cbs.length;
+				}
+				master.addEventListener('change', () => {
+					const cbs = Array.from(sellerFilterGroup.querySelectorAll('input[type="checkbox"]')).filter(x => x.id !== 'sf_all');
+					for (const cb of cbs) cb.checked = master.checked;
+					updateMasterCheckboxState();
+					render();
+				});
+				updateMasterCheckboxState();
 			}
 			// Pay methods
 			payFilter.innerHTML = '';
@@ -285,9 +308,13 @@
 			// Build Excel from current table body
 			const rows = [['Fecha','Vendedor', '$', 'Pago', 'Cliente', 'Arco', 'Melo', 'Mara', 'Oreo', 'Nute', 'Total']];
 			let eQa=0,eQm=0,eQma=0,eQo=0,eQn=0,eGrand=0;
-			for (const r of getFilteredSortedData()){
-				rows.push([r.date, r.sellerName, r.is_paid ? '✓' : '', payLabel(r.pay_method||''), r.client_name||'', r.qa||'', r.qm||'', r.qma||'', r.qo||'', r.qn||'', r.tot||'']);
-				eQa += r.qa||0; eQm += r.qm||0; eQma += r.qma||0; eQo += r.qo||0; eQn += r.qn||0; eGrand += r.tot||0;
+			const visibleRows = Array.from(tbody.querySelectorAll('tr'));
+			for (const tr of visibleRows){
+				const cells = Array.from(tr.children).map(td => td.textContent || '');
+				rows.push(cells);
+				// Sum amounts from table for reliability
+				const qa = Number(cells[5]||0)||0; const qm = Number(cells[6]||0)||0; const qma = Number(cells[7]||0)||0; const qo = Number(cells[8]||0)||0; const qn = Number(cells[9]||0)||0; const tot = Number(cells[10]||0)||0;
+				eQa += qa; eQm += qm; eQma += qma; eQo += qo; eQn += qn; eGrand += tot;
 			}
 			rows.push(['','','','','Totales', eQa||'', eQm||'', eQma||'', eQo||'', eQn||'', eGrand||'']);
 			const eSumAll = (eQa||0)+(eQm||0)+(eQma||0)+(eQo||0)+(eQn||0);
