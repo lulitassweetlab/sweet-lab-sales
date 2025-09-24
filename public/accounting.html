@@ -5,6 +5,11 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
 	<title>Contabilidad</title>
 	<link rel="stylesheet" href="/styles.css?v=2025-09-17-1" />
+	<style>
+		/* Oculta el ícono/calendario nativo del input de fecha para evitar duplicado */
+		#acc-date { -webkit-appearance: none; -moz-appearance: none; appearance: none; }
+		#acc-date::-webkit-calendar-picker-indicator { display: none; }
+	</style>
 </head>
 <body>
 	<header class="app-header">
