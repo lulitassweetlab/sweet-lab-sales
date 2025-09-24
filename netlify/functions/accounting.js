@@ -32,6 +32,15 @@ export async function handler(event) {
 			actor_name TEXT,
 			created_at TIMESTAMPTZ DEFAULT now()
 		)`;
+		// Ensure attachments table exists
+		await sql`CREATE TABLE IF NOT EXISTS accounting_attachments (
+			id SERIAL PRIMARY KEY,
+			entry_id INTEGER NOT NULL REFERENCES accounting_entries(id) ON DELETE CASCADE,
+			file_base64 TEXT NOT NULL,
+			mime_type TEXT,
+			file_name TEXT,
+			created_at TIMESTAMPTZ DEFAULT now()
+		)`;
 		await sql`DO $$ BEGIN
 			IF NOT EXISTS (
 				SELECT 1 FROM information_schema.columns
@@ -59,7 +68,7 @@ export async function handler(event) {
 			END IF;
 		END $$;`;
 		if (event.httpMethod === 'OPTIONS') return json({ ok: true });
-		switch (event.httpMethod) {
+			switch (event.httpMethod) {
 			case 'GET': {
 				// Optional filters: start, end (robust parsing like sales.js)
 				let raw = '';
@@ -71,15 +80,34 @@ export async function handler(event) {
 				const start = (params.get('start') || '').toString().slice(0,10) || null;
 				const end = (params.get('end') || '').toString().slice(0,10) || null;
 				let rows;
-				if (start && end) {
-					rows = await sql`SELECT id, kind, entry_date, description, amount_cents, actor_name, created_at FROM accounting_entries WHERE entry_date BETWEEN ${start} AND ${end} ORDER BY entry_date DESC, id DESC`;
-				} else {
-					rows = await sql`SELECT id, kind, entry_date, description, amount_cents, actor_name, created_at FROM accounting_entries ORDER BY entry_date DESC, id DESC LIMIT 200`;
-				}
+					if (start && end) {
+						rows = await sql`SELECT e.id, e.kind, e.entry_date, e.description, e.amount_cents, e.actor_name, e.created_at,
+							EXISTS(SELECT 1 FROM accounting_attachments a WHERE a.entry_id = e.id) AS has_attachment
+							FROM accounting_entries e
+							WHERE e.entry_date BETWEEN ${start} AND ${end}
+							ORDER BY e.entry_date DESC, e.id DESC`;
+					} else {
+						rows = await sql`SELECT e.id, e.kind, e.entry_date, e.description, e.amount_cents, e.actor_name, e.created_at,
+							EXISTS(SELECT 1 FROM accounting_attachments a WHERE a.entry_id = e.id) AS has_attachment
+							FROM accounting_entries e
+							ORDER BY e.entry_date DESC, e.id DESC LIMIT 200`;
+					}
 				return json(rows);
 			}
 			case 'POST': {
 				const data = JSON.parse(event.body || '{}');
+					// Special case: upload attachment for an entry
+					if (data && (data._upload_attachment_for || data.entry_id) && (data.file_base64 || data.image_base64)) {
+						const role = await getActorRole(event, data);
+						if (role !== 'superadmin') return json({ error: 'No autorizado' }, 403);
+						const entryId = Number(data._upload_attachment_for ?? data.entry_id);
+						const base64 = (data.file_base64 || data.image_base64 || '').toString();
+						const mime = (data.mime_type || '').toString() || null;
+						const fname = (data.file_name || '').toString() || null;
+						if (!entryId || !base64) return json({ error: 'entry_id y file_base64 requeridos' }, 400);
+						await sql`INSERT INTO accounting_attachments (entry_id, file_base64, mime_type, file_name) VALUES (${entryId}, ${base64}, ${mime}, ${fname})`;
+						return json({ ok: true });
+					}
 				const role = await getActorRole(event, data);
 				if (role !== 'superadmin') return json({ error: 'No autorizado' }, 403);
 				const kind = (data.kind || data.type || '').toString();
@@ -94,6 +122,26 @@ export async function handler(event) {
 				const [row] = await sql`INSERT INTO accounting_entries (kind, entry_date, description, amount_cents, actor_name) VALUES (${kind}, ${entryDate}, ${description}, ${amountCents}, ${actorName}) RETURNING id, kind, entry_date, description, amount_cents, actor_name, created_at`;
 				return json(row, 201);
 			}
+				case 'PUT': {
+					const data = JSON.parse(event.body || '{}');
+					const role = await getActorRole(event, data);
+					if (role !== 'superadmin') return json({ error: 'No autorizado' }, 403);
+					const id = Number(data.id);
+					if (!id) return json({ error: 'id requerido' }, 400);
+					const fields = [];
+					if (data.kind && (data.kind === 'gasto' || data.kind === 'ingreso')) fields.push(sql`kind = ${data.kind}`);
+					if (data.entry_date) fields.push(sql`entry_date = ${String(data.entry_date).slice(0,10)}`);
+					if (typeof data.description === 'string') fields.push(sql`description = ${data.description}`);
+					if (data.amount_cents != null) {
+						const ac = Number(data.amount_cents) | 0;
+						if (!Number.isFinite(ac) || ac <= 0) return json({ error: 'amount_cents inválido' }, 400);
+						fields.push(sql`amount_cents = ${ac}`);
+					}
+					if (!fields.length) return json({ error: 'Nada para actualizar' }, 400);
+					const setSql = fields.reduce((acc, part, idx) => idx === 0 ? part : sql`${acc}, ${part}`);
+					const [row] = await sql`UPDATE accounting_entries SET ${setSql} WHERE id = ${id} RETURNING id, kind, entry_date, description, amount_cents, actor_name, created_at`;
+					return json(row);
+				}
 			case 'DELETE': {
 				const params = new URLSearchParams(event.rawQuery || event.queryStringParameters ? event.rawQuery || '' : '');
 				const role = await getActorRole(event, null);

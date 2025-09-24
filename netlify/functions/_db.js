@@ -194,6 +194,15 @@ export async function ensureSchema() {
 		actor_name TEXT,
 		created_at TIMESTAMPTZ DEFAULT now()
 	)`;
+	// Optional: attachments per accounting entry (image or file as base64)
+	await sql`CREATE TABLE IF NOT EXISTS accounting_attachments (
+		id SERIAL PRIMARY KEY,
+		entry_id INTEGER NOT NULL REFERENCES accounting_entries(id) ON DELETE CASCADE,
+		file_base64 TEXT NOT NULL,
+		mime_type TEXT,
+		file_name TEXT,
+		created_at TIMESTAMPTZ DEFAULT now()
+	)`;
 	// Ensure columns exist for older deployments
 	await sql`DO $$ BEGIN
 		IF NOT EXISTS (
