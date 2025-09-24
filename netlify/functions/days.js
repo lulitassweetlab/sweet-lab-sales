@@ -14,7 +14,7 @@ export async function handler(event) {
 				const sellerIdParam = params.get('seller_id') || (event.queryStringParameters && event.queryStringParameters.seller_id);
 				const sellerId = Number(sellerIdParam);
 				if (!sellerId) return json({ error: 'seller_id requerido' }, 400);
-				const rows = await sql`SELECT id, day FROM sale_days WHERE seller_id=${sellerId} ORDER BY day DESC`;
+				const rows = await sql`SELECT id, day, delivered_arco, delivered_melo, delivered_mara, delivered_oreo, delivered_nute FROM sale_days WHERE seller_id=${sellerId} ORDER BY day DESC`;
 				return json(rows);
 			}
 			case 'POST': {
@@ -34,8 +34,38 @@ export async function handler(event) {
 				const data = JSON.parse(event.body || '{}');
 				const id = Number(data.id);
 				const day = (data.day || '').toString();
-				if (!id || !day) return json({ error: 'id y day requeridos' }, 400);
-				const [row] = await sql`UPDATE sale_days SET day=${day} WHERE id=${id} RETURNING id, day`;
+				if (!id) return json({ error: 'id requerido' }, 400);
+				// Optional: delivered_* updates allowed only for superadmin. If day missing, backfill from DB.
+				const da = Number(data.delivered_arco ?? NaN);
+				const dm = Number(data.delivered_melo ?? NaN);
+				const dma = Number(data.delivered_mara ?? NaN);
+				const dor = Number(data.delivered_oreo ?? NaN);
+				const dnu = Number(data.delivered_nute ?? NaN);
+				const actor = (data.actor_name || data._actor_name || '').toString();
+				let role = 'user';
+				if (actor) {
+					try {
+						const r = await sql`SELECT role FROM users WHERE lower(username)=lower(${actor}) LIMIT 1`;
+						if (r && r[0] && r[0].role) role = String(r[0].role);
+					} catch {}
+				}
+				const dayParam = day && day.length ? day : null;
+				const daVal = (role === 'superadmin' && !Number.isNaN(da)) ? Math.max(0, da|0) : null;
+				const dmVal = (role === 'superadmin' && !Number.isNaN(dm)) ? Math.max(0, dm|0) : null;
+				const dmaVal = (role === 'superadmin' && !Number.isNaN(dma)) ? Math.max(0, dma|0) : null;
+				const dorVal = (role === 'superadmin' && !Number.isNaN(dor)) ? Math.max(0, dor|0) : null;
+				const dnuVal = (role === 'superadmin' && !Number.isNaN(dnu)) ? Math.max(0, dnu|0) : null;
+				const [row] = await sql`
+					UPDATE sale_days SET
+						day = COALESCE(${dayParam}, day),
+						delivered_arco = COALESCE(${daVal}, delivered_arco),
+						delivered_melo = COALESCE(${dmVal}, delivered_melo),
+						delivered_mara = COALESCE(${dmaVal}, delivered_mara),
+						delivered_oreo = COALESCE(${dorVal}, delivered_oreo),
+						delivered_nute = COALESCE(${dnuVal}, delivered_nute)
+					WHERE id=${id}
+					RETURNING id, day, delivered_arco, delivered_melo, delivered_mara, delivered_oreo, delivered_nute
+				`;
 				return json(row || { id, day });
 			}
 			case 'DELETE': {
