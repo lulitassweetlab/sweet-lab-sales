@@ -331,7 +331,7 @@
 				buyRealTotal += real;
 				buyCostTotal += Number(inCost.value || 0) || 0;
 				neededCostTotal += (Number(v.needed || 0) || 0) * price;
-				rowsState.push({ name: v.name, real, pack, costInput: inCost });
+				rowsState.push({ name: v.name, real, realInput: null, pack, costInput: inCost, unitPrice: price });
 			}
 			function recomputeTotals(){
 				let t = 0; for (const r of rowsState) t += Number(r.costInput?.value || 0) || 0;
