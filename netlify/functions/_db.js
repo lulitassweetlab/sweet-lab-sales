@@ -184,6 +184,49 @@ export async function ensureSchema() {
 			ALTER TABLE notifications ADD COLUMN pay_method TEXT;
 		END IF;
 	END $$;`;
+	// Accounting: ingresos/gastos ledger
+	await sql`CREATE TABLE IF NOT EXISTS accounting_entries (
+		id SERIAL PRIMARY KEY,
+		kind TEXT NOT NULL, -- 'gasto' | 'ingreso'
+		entry_date DATE NOT NULL,
+		description TEXT NOT NULL DEFAULT '',
+		amount_cents INTEGER NOT NULL DEFAULT 0,
+		actor_name TEXT,
+		created_at TIMESTAMPTZ DEFAULT now()
+	)`;
+	// Ensure columns exist for older deployments
+	await sql`DO $$ BEGIN
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'accounting_entries' AND column_name = 'actor_name'
+		) THEN
+			ALTER TABLE accounting_entries ADD COLUMN actor_name TEXT;
+		END IF;
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'accounting_entries' AND column_name = 'kind'
+		) THEN
+			ALTER TABLE accounting_entries ADD COLUMN kind TEXT NOT NULL DEFAULT 'gasto';
+		END IF;
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'accounting_entries' AND column_name = 'entry_date'
+		) THEN
+			ALTER TABLE accounting_entries ADD COLUMN entry_date DATE NOT NULL DEFAULT now();
+		END IF;
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'accounting_entries' AND column_name = 'description'
+		) THEN
+			ALTER TABLE accounting_entries ADD COLUMN description TEXT NOT NULL DEFAULT '';
+		END IF;
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'accounting_entries' AND column_name = 'amount_cents'
+		) THEN
+			ALTER TABLE accounting_entries ADD COLUMN amount_cents INTEGER NOT NULL DEFAULT 0;
+		END IF;
+	END $$;`;
 	// Materials: per-flavor ingredient formulas
 	await sql`CREATE TABLE IF NOT EXISTS ingredient_formulas (
 		id SERIAL PRIMARY KEY,

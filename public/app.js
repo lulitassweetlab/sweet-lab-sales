@@ -670,6 +670,8 @@ function applyAuthVisibility() {
 	if (carteraBtn) carteraBtn.style.display = isSuper ? 'inline-block' : 'none';
 	const materialsBtn = document.getElementById('materials-button');
 	if (materialsBtn) materialsBtn.style.display = isSuper ? 'inline-block' : 'none';
+	const accountingBtn = document.getElementById('accounting-button');
+	if (accountingBtn) accountingBtn.style.display = isSuper ? 'inline-block' : 'none';
 }
 
 function calcRowTotal(q) {
@@ -1668,6 +1670,7 @@ async function exportCarteraExcel(startIso, endIso) {
 	const materialsBtn = document.getElementById('materials-button');
 	const inventoryBtn = document.getElementById('inventory-button');
 	const carteraBtn = document.getElementById('cartera-button');
+	const accountingBtn = document.getElementById('accounting-button');
 	const input = document.getElementById('report-date');
 	if (!reportBtn || !input) return;
 	reportBtn.addEventListener('click', (ev) => {
@@ -1709,6 +1712,11 @@ async function exportCarteraExcel(startIso, endIso) {
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 		if (!isSuper) { notify.error('Solo el superadministrador'); return; }
 		openInventoryView();
+	});
+	accountingBtn?.addEventListener('click', (ev) => {
+		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+		if (!isSuper) { notify.error('Solo el superadministrador'); return; }
+		window.location.href = '/accounting.html';
 	});
 })();
 
