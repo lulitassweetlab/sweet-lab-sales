@@ -14,6 +14,11 @@
 		/* Quitar flechas en input number (Valor) */
 		#acc-value { -moz-appearance: textfield; }
 		#acc-value::-webkit-outer-spin-button, #acc-value::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+		/* Botón de adjunto por fila */
+		.attach-btn { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--border); background: transparent; color: var(--foreground); font-weight: 700; line-height: 1; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+		.attach-btn.has { background: #ad1457; color: #fff; border-color: #ad1457; }
+		/* Celdas editables */
+		.editable { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 2px; }
 	</style>
 </head>
 <body>
@@ -30,10 +35,11 @@
 	</header>
 
 	<main class="sales-panel">
-		<div class="panel-header">
+			<div class="panel-header">
 			<h3>Nuevo registro</h3>
 			<div class="panel-actions">
-				<button id="change-range" class="press-btn">Cambiar fechas</button>
+					<button id="download-range" class="press-btn">Descargar adjuntos</button>
+					<button id="change-range" class="press-btn">Cambiar fechas</button>
 			</div>
 		</div>
 		<div class="panel-body">
@@ -72,18 +78,21 @@
 				<table id="acc-table">
 					<thead>
 						<tr>
+							<th></th>
 									<th>Fecha</th>
 									<th>Descripción</th>
 									<th class="col-total">Ingreso</th>
 									<th class="col-total">Salida</th>
 									<th class="col-total">Saldo</th>
-									<th></th>
+							<th></th>
+							<th></th>
 						</tr>
 					</thead>
 						<tbody id="acc-tbody"></tbody>
-					<tfoot>
-								<tr><td colspan="6" style="height:30px; border-bottom:none; background:transparent;"></td></tr>
+						<tfoot>
+								<tr><td colspan="7" style="height:30px; border-bottom:none; background:transparent;"></td></tr>
 								<tr>
+									<td></td>
 									<td></td>
 									<td class="label">Ingresos</td>
 									<td class="col-total" id="t-ingresos"></td>
@@ -93,6 +102,7 @@
 								</tr>
 								<tr>
 									<td></td>
+									<td></td>
 									<td class="label">Salidas</td>
 									<td></td>
 									<td class="col-total" id="t-gastos"></td>
@@ -101,13 +111,14 @@
 								</tr>
 								<tr>
 									<td></td>
+									<td></td>
 									<td class="label">Saldo</td>
 									<td></td>
 									<td></td>
 									<td class="col-total" id="t-balance" style="color: var(--accent); font-weight: 700;"></td>
 									<td></td>
 								</tr>
-					</tfoot>
+						</tfoot>
 				</table>
 			</div>
 		</div>
@@ -134,6 +145,7 @@
 		const tGas = document.getElementById('t-gastos');
 		const tBal = document.getElementById('t-balance');
 		const changeBtn = document.getElementById('change-range');
+		const downloadBtn = document.getElementById('download-range');
 		const btnIngreso = document.getElementById('btn-ingreso');
 		const btnSalida = document.getElementById('btn-salida');
 		let currentKind = 'ingreso';
@@ -178,15 +190,94 @@
 				if (isIng) { sumIng += v; running += v; } else { sumGas += v; running -= v; }
 				const colIng = isIng ? fmtMoney(v) : '';
 				const colSal = !isIng ? fmtMoney(v) : '';
+				const hasAtt = !!(r.has_attachment);
 				tr.innerHTML = `
-					<td>${String(r.entry_date||'').slice(0,10)}</td>
-					<td>${r.description||''}</td>
-					<td class="col-total">${colIng}</td>
-					<td class="col-total">${colSal}</td>
+					<td style="text-align:center; width:28px"><button class="attach-btn${hasAtt ? ' has' : ''}" data-id="${r.id}" title="Adjuntar archivo" aria-label="Adjuntar">${hasAtt ? '●' : '-'}</button></td>
+					<td class="editable" data-field="entry_date">${String(r.entry_date||'').slice(0,10)}</td>
+					<td class="editable" data-field="description">${r.description||''}</td>
+					<td class="col-total editable" data-field="amount_cents" data-kind="ingreso">${colIng}</td>
+					<td class="col-total editable" data-field="amount_cents" data-kind="gasto">${colSal}</td>
 					<td class="col-total">${fmtMoney(running)}</td>
 					<td><button class="row-delete" data-del="${r.id}" title="Eliminar" aria-label="Eliminar"></button></td>
 				`;
+				// removed per-row download
 				tbody.appendChild(tr);
+				// Wire attachment upload or view
+				const attBtn = tr.querySelector('.attach-btn');
+				attBtn.addEventListener('click', async () => {
+					// If already has attachment, fetch and preview
+					if (attBtn.classList.contains('has')) {
+						try {
+							const res = await fetch(`/api/accounting?attachment_for=${encodeURIComponent(r.id)}`);
+							if (!res.ok) { alert('No se pudo cargar el adjunto'); return; }
+							const obj = await res.json();
+							const src = obj.file_base64;
+							// Simple lightbox
+							const backdrop = document.createElement('div'); backdrop.className = 'lightbox-backdrop';
+							const box = document.createElement('div'); box.className = 'lightbox';
+							const img = document.createElement('img'); img.src = src; img.alt = 'Adjunto';
+							const actions = document.createElement('div'); actions.className = 'lightbox-actions';
+							const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn'; closeBtn.textContent = 'Cerrar';
+							const downBtn = document.createElement('button'); downBtn.className = 'press-btn'; downBtn.textContent = 'Descargar';
+							actions.append(closeBtn, downBtn); box.append(img, actions);
+							backdrop.appendChild(box); document.body.appendChild(backdrop);
+							function cleanup(){ document.removeEventListener('keydown', onKey); if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop); }
+							function onKey(e){ if (e.key === 'Escape') cleanup(); }
+							backdrop.addEventListener('click', (e) => { if (e.target === backdrop) cleanup(); });
+							closeBtn.addEventListener('click', cleanup);
+							downBtn.addEventListener('click', () => { const a=document.createElement('a'); a.href = src; a.download = obj.file_name || `adjunto_${r.id}.bin`; document.body.appendChild(a); a.click(); a.remove(); });
+						} catch (e) { console.error(e); alert('Error al abrir adjunto'); }
+						return;
+					}
+					// Else upload new
+					try {
+						const input = document.createElement('input'); input.type = 'file'; input.accept = '*/*';
+						input.addEventListener('change', async () => {
+							if (!input.files || !input.files[0]) return;
+							const file = input.files[0];
+							const reader = new FileReader();
+							reader.onload = async () => {
+								const dataUrl = String(reader.result || '');
+								try {
+									attBtn.disabled = true;
+									const res = await fetch('/api/accounting', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Actor-Name': currentUser?.name || '' }, body: JSON.stringify({ _upload_attachment_for: r.id, file_base64: dataUrl, file_name: file.name, mime_type: file.type }) });
+									if (!res.ok) { alert('Error al subir archivo'); attBtn.disabled = false; return; }
+									attBtn.disabled = false;
+									attBtn.classList.add('has'); attBtn.textContent = '●';
+								} catch (e) { console.error(e); alert('Error al subir archivo'); attBtn.disabled = false; }
+							};
+							reader.readAsDataURL(file);
+						});
+						input.click();
+					} catch {}
+				});
+				// Wire inline edits
+				const tds = tr.querySelectorAll('td');
+				const tdDate = tds[1];
+				const tdDesc = tds[2];
+				const tdIng = tds[3];
+				const tdSal = tds[4];
+				tdDesc.addEventListener('dblclick', async () => {
+					const val = prompt('Descripción', r.description || '');
+					if (val == null) return;
+					try {
+						await fetch('/api/accounting', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-Actor-Name': currentUser?.name || '' }, body: JSON.stringify({ id: r.id, description: String(val) }) });
+						await load();
+					} catch {}
+				});
+				tdIng.addEventListener('dblclick', async () => {
+					if (!isIng) return; const raw = prompt('Nuevo valor (ingreso)', String(v)); if (raw == null) return; const n = Number(raw); if (!Number.isFinite(n) || n <= 0) { alert('Valor inválido'); return; }
+					try { await fetch('/api/accounting', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-Actor-Name': currentUser?.name || '' }, body: JSON.stringify({ id: r.id, amount_cents: Math.round(n) }) }); await load(); } catch {}
+				});
+				tdSal.addEventListener('dblclick', async () => {
+					if (isIng) return; const raw = prompt('Nuevo valor (salida)', String(v)); if (raw == null) return; const n = Number(raw); if (!Number.isFinite(n) || n <= 0) { alert('Valor inválido'); return; }
+					try { await fetch('/api/accounting', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-Actor-Name': currentUser?.name || '' }, body: JSON.stringify({ id: r.id, amount_cents: Math.round(n) }) }); await load(); } catch {}
+				});
+				tdDate.addEventListener('dblclick', (ev) => {
+					openSingleDatePopover(async (pickedIso) => {
+						try { await fetch('/api/accounting', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-Actor-Name': currentUser?.name || '' }, body: JSON.stringify({ id: r.id, entry_date: pickedIso }) }); await load(); } catch {}
+					}, ev.clientX, ev.clientY);
+				});
 			}
 			tIng.textContent = fmtMoney(sumIng || 0);
 			tGas.textContent = fmtMoney(sumGas || 0);
@@ -251,6 +342,19 @@
 			}, ev.clientX, ev.clientY, { preferUp: true });
 		}
 		changeBtn.addEventListener('click', openCalendar);
+
+		// Descargar todos los adjuntos del rango seleccionado como archivos individuales (o ZIP si es posible)
+		downloadBtn.addEventListener('click', async () => {
+			try {
+				const list = await fetchJSON(`/api/accounting?attachments_for_range=1&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`);
+				if (!Array.isArray(list) || !list.length) { alert('No hay adjuntos en el rango'); return; }
+				// Intento simple: disparar descargas una por una con nombres
+				for (const a of list) {
+					const name = a.file_name || `adjunto_${String(a.entry_id)}_${String(a.id)}.bin`;
+					const link = document.createElement('a'); link.href = a.file_base64; link.download = name; document.body.appendChild(link); link.click(); link.remove();
+				}
+			} catch (e) { console.error(e); alert('Error al descargar adjuntos'); }
+		});
 
 		// Lightweight embed of openRangeCalendarPopover if not present
 		if (typeof window.openRangeCalendarPopover !== 'function') {
