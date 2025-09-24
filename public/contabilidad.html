@@ -94,6 +94,7 @@
                 </thead>
                 <tbody id="acct-tbody"></tbody>
             </table>
+            <div id="acct-empty" class="muted" style="padding:12px 6px; display:none">No hay movimientos para los filtros seleccionados.</div>
             <div id="cat-totals" class="cat-totals"></div>
         </div>
     </main>
@@ -154,6 +155,7 @@
             tbody.innerHTML = '';
             let entries = [];
             try { entries = await fetchEntries(m); } catch { entries = []; }
+            const emptyEl = document.getElementById('acct-empty'); if (emptyEl) emptyEl.style.display = (entries.length ? 'none' : '');
             entries.sort((a,b) => String(a.entry_date||a.date).localeCompare(String(b.entry_date||b.date)));
             let running = 0;
             let sumIn = 0; let sumOut = 0;
