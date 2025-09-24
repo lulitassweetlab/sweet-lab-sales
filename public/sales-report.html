@@ -321,6 +321,8 @@
 				]);
 				eQa += r.qa||0; eQm += r.qm||0; eQma += r.qma||0; eQo += r.qo||0; eQn += r.qn||0; eGrand += r.tot||0;
 			}
+			// Empty spacer row before totals (fixed 11 columns)
+			rows.push(new Array(11).fill(''));
 			// Totales row (fixed 11 columns)
 			const totRow = new Array(11).fill('');
 			totRow[4] = 'Totales';
