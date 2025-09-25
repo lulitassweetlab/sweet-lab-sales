@@ -24,6 +24,7 @@
 			<h3 id="title">Requerimientos por pedidos</h3>
 			<div class="panel-actions">
 					<button id="change-range" class="press-btn">Cambiar fechas</button>
+					<button id="receta-btn" class="press-btn">Receta</button>
 					<button id="whatsapp-request" class="press-btn btn-gold">Solicitar compra por WhatsApp</button>
 			</div>
 		</div>
@@ -79,6 +80,7 @@
 			const changeBtn = document.getElementById('change-range');
 			const waBtn = document.getElementById('whatsapp-request');
 			const bottomSummary = document.getElementById('bottom-summary');
+			const recetaBtn = document.getElementById('receta-btn');
 			const dessertSummary = document.getElementById('dessert-summary');
 
 			// Precios de venta por unidad
@@ -473,6 +475,12 @@
 			location.href = url.toString();
 		});
 		changeBtn.addEventListener('click', openCalendar);
+		recetaBtn.addEventListener('click', () => {
+			const url = new URL('/receta.html', location.origin);
+			if (start) url.searchParams.set('start', start);
+			if (end) url.searchParams.set('end', end);
+			location.href = url.toString();
+		});
 
 
 
