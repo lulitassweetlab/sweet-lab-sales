@@ -47,6 +47,7 @@
 		const cardsWrap = document.getElementById('cards-wrap');
 		const backBtn = document.getElementById('back-btn');
 		const changeBtn = document.getElementById('change-range');
+ 		const sessions = [];
 
 		// Lightweight embed of openRangeCalendarPopover if not present
 		if (typeof window.openRangeCalendarPopover !== 'function') {
@@ -100,7 +101,7 @@
 			function stop(){ stepState.elapsedMs = 0; stepState.isRunning = false; stepState.startedAt = null; clearInterval(intervalId); intervalId = null; render(); }
 			playBtn.addEventListener('click', play); pauseBtn.addEventListener('click', pause); stopBtn.addEventListener('click', stop);
 			render();
-			return wrap;
+			return { element: wrap, getElapsedMs: () => compute(), reset: () => { stop(); } };
 		}
 
 		function normalizeKey(name){ const k=(name||'').toString().trim().toLowerCase(); if (k.startsWith('arco')) return 'arco'; if (k.startsWith('melo')) return 'melo'; if (k.startsWith('mara')) return 'mara'; if (k.startsWith('oreo')) return 'oreo'; if (k.startsWith('nute')) return 'nute'; return k; }
@@ -154,11 +155,12 @@
 				if (!data) return;
 				const card = document.createElement('div'); card.className = 'measure-card'; card.style.padding='12px'; card.style.border='1px solid rgba(0,0,0,0.15)'; card.style.borderRadius='10px'; card.style.boxShadow='0 8px 24px rgba(0,0,0,0.12)';
 				const title = document.createElement('h3'); title.textContent = `${dessertName} × ${qty}`; title.style.textAlign='center'; title.style.fontSize='28px'; title.style.margin='4px 0 12px 0'; title.style.background='rgba(255, 105, 180, 0.18)'; title.style.padding='8px 6px'; title.style.borderRadius='8px'; card.appendChild(title);
+				const session = { dessert: dessertName, qty, steps: [] };
 				for (const step of (Array.isArray(data.steps) ? data.steps : [])){
 					const section = document.createElement('div'); section.className='measure-section'; section.style.margin='12px 0';
 					const head = document.createElement('div'); head.style.display='flex'; head.style.alignItems='center'; head.style.justifyContent='space-between'; head.style.gap='8px';
 					const sh = document.createElement('div'); sh.textContent = step.step_name || 'Paso'; sh.style.fontWeight='600'; sh.style.margin='0 0 6px 0'; sh.style.flex='1';
-					const timer = buildTimerControls(); head.append(sh, timer);
+					const timer = buildTimerControls(); head.append(sh, timer.element);
 					section.appendChild(head);
 					const table = document.createElement('table'); table.style.width='100%'; table.style.tableLayout='fixed';
 					const tbody = document.createElement('tbody');
@@ -171,6 +173,7 @@
 						tr.append(tdL, tdN, tdQ); tbody.appendChild(tr);
 					}
 					table.appendChild(tbody); section.appendChild(table); card.appendChild(section);
+					session.steps.push({ name: step.step_name || 'Paso', timer });
 				}
 				// Extras
 				const extras = Array.isArray(data.extras) ? data.extras : [];
@@ -189,6 +192,7 @@
 					table.appendChild(tbody); section.appendChild(table); card.appendChild(section);
 				}
 				cardsWrap.appendChild(card);
+				sessions.push(session);
 			}
 
 			await renderDessert('arco','Arco');
@@ -198,6 +202,57 @@
 			await renderDessert('nute','Nute');
 			const totalDesserts = (counts.arco + counts.melo + counts.mara + counts.oreo + counts.nute);
 			countLabel.textContent = `Postres: ${totalDesserts}`;
+			// Actions: save times & view history
+			const actions = document.createElement('div'); actions.className = 'confirm-actions'; actions.style.marginTop='8px';
+			const saveBtn = document.createElement('button'); saveBtn.className='press-btn btn-primary'; saveBtn.textContent='Guardar tiempos';
+			const historyBtn = document.createElement('button'); historyBtn.className='press-btn'; historyBtn.textContent='Ver historial';
+			actions.append(saveBtn, historyBtn); cardsWrap.parentElement.appendChild(actions);
+			function readHistory(){ try { return JSON.parse(localStorage.getItem('timesHistory') || '[]') || []; } catch { return []; } }
+			function writeHistory(arr){ try { localStorage.setItem('timesHistory', JSON.stringify(arr)); } catch {} }
+			function fmtMs(ms){ const total=Math.max(0,Math.floor(ms/1000)); const h=Math.floor(total/3600); const m=Math.floor((total%3600)/60); const s=total%60; const pad=n=>String(n).padStart(2,'0'); return (h>0?`${h}:`:'')+`${pad(m)}:${pad(s)}`; }
+			saveBtn.addEventListener('click', async () => {
+				try {
+					let saved = 0;
+					const hist = readHistory();
+					for (const sess of sessions) {
+						const qty = Number(sess.qty || 0) || 0;
+						const steps = [];
+						let total = 0;
+						for (const st of (sess.steps || [])) {
+							const ms = Number(st.timer?.getElapsedMs?.() || 0) || 0;
+							if (ms > 0) {
+								const avg = qty > 0 ? Math.round(ms / qty) : 0;
+								steps.push({ name: st.name || 'Paso', elapsed_ms: ms, qty_units: qty, avg_ms_per_unit: avg });
+								total += ms;
+							}
+						}
+						if (!steps.length) continue;
+						// Save to server
+						await fetch('/api/times', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dessert: sess.dessert, steps, total_elapsed_ms: total, actor_name: null }) });
+						// Save to local history
+						hist.push({ id: new Date().toISOString(), date_iso: new Date().toISOString(), dessert: sess.dessert, qty_units: qty, total_elapsed_ms: total, steps });
+						saved++;
+					}
+					writeHistory(hist);
+					if (saved > 0) alert(`Tiempos guardados (${saved})`); else alert('No hay tiempos para guardar');
+				} catch { alert('No se pudieron guardar los tiempos'); }
+			});
+			historyBtn.addEventListener('click', () => {
+				const items = readHistory().slice(-20).reverse();
+				const pop = document.createElement('div'); pop.className = 'confirm-popover'; pop.style.position='fixed'; pop.style.left=(window.innerWidth/2)+'px'; pop.style.top='12%'; pop.style.transform='translate(-50%,0)';
+				const title = document.createElement('h4'); title.textContent = 'Historial de tiempos'; title.style.margin='0 0 8px 0';
+				const list = document.createElement('div'); list.style.maxHeight='60vh'; list.style.overflow='auto'; list.style.minWidth='min(92vw,520px)';
+				if (!items.length) { const empty=document.createElement('div'); empty.textContent='Sin registros'; list.appendChild(empty); }
+				for (const it of items) {
+					const row = document.createElement('div'); row.style.borderBottom='1px solid var(--border)'; row.style.padding='6px 2px';
+					const when = new Date(it.date_iso || it.id || Date.now());
+					row.innerHTML = `<strong>${it.dessert}</strong> · ${when.toLocaleString()} · Cant: ${it.qty_units||0} · Total: ${fmtMs(it.total_elapsed_ms||0)}`;
+					list.appendChild(row);
+				}
+				const actions=document.createElement('div'); actions.className='confirm-actions'; const close=document.createElement('button'); close.className='press-btn'; close.textContent='Cerrar'; actions.appendChild(close);
+				pop.append(title, list, actions); document.body.appendChild(pop); pop.classList.add('aladdin-pop');
+				close.addEventListener('click', () => { if (pop.parentNode) pop.parentNode.removeChild(pop); });
+			});
 		}
 
 		// Navigation
