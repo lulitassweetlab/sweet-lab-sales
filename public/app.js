@@ -623,10 +623,17 @@ function renderSellerButtons() {
 }
 
 async function addSeller(name) {
-	const seller = await api('POST', API.Sellers, { name });
-	state.sellers.push(seller);
-	renderSellerButtons();
-	notify.success('Vendedor agregado');
+	try {
+		const seller = await api('POST', API.Sellers, { name, _actor_name: state.currentUser?.name || '' });
+		state.sellers.push(seller);
+		renderSellerButtons();
+		notify.success('Vendedor agregado');
+	} catch (err) {
+		try {
+			const msg = (err && err.message || '').includes('403') ? 'No autorizado para agregar vendedores' : 'No se pudo agregar el vendedor';
+			notify.error(msg);
+		} catch {}
+	}
 }
 
 async function enterSeller(id) {
