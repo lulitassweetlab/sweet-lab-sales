@@ -162,6 +162,7 @@
 			return d.toISOString().slice(0,10);
 		}
 		function addDaysIso(iso, days){ const d=new Date(iso+'T00:00:00Z'); d.setUTCDate(d.getUTCDate()+days); return d.toISOString().slice(0,10); }
+		function fridayOfWeek(weekStartIso){ return addDaysIso(weekStartIso, 4); }
 		function weekContainsHighDay(weekStartIso){
 			for (let i=0;i<7;i++){
 				const iso = addDaysIso(weekStartIso, i);
@@ -252,7 +253,7 @@
 			let grand = 0;
 			for (const r of rows){
 				const tr = document.createElement('tr');
-				tr.innerHTML = `<td>${fmtDate(r.weekStart)}</td><td>${r.isHigh ? 'Alta' : 'Baja'}</td><td class="col-total">${fmtMoney(r.total)}</td><td>${r.note||''}</td>`;
+				tr.innerHTML = `<td>${fmtDate(fridayOfWeek(r.weekStart))}</td><td>${r.isHigh ? 'Alta' : 'Baja'}</td><td class="col-total">${fmtMoney(r.total)}</td><td>${r.note||''}</td>`;
 				tbody.appendChild(tr);
 				grand += Number(r.total||0);
 			}
@@ -273,7 +274,7 @@
 			for (const r of rows){
 				const tr = document.createElement('tr');
 				const tot = Number(r.qa||0)+Number(r.qm||0)+Number(r.qma||0)+Number(r.qo||0)+Number(r.qn||0);
-				tr.innerHTML = `<td>${fmtDate(r.weekStart)}</td><td>${r.qa||0}</td><td>${r.qm||0}</td><td>${r.qma||0}</td><td>${r.qo||0}</td><td>${r.qn||0}</td><td class="col-total">${tot}</td>`;
+				tr.innerHTML = `<td>${fmtDate(fridayOfWeek(r.weekStart))}</td><td>${r.qa||0}</td><td>${r.qm||0}</td><td>${r.qma||0}</td><td>${r.qo||0}</td><td>${r.qn||0}</td><td class="col-total">${tot}</td>`;
 				tbody.appendChild(tr);
 				sQa+=Number(r.qa||0); sQm+=Number(r.qm||0); sQma+=Number(r.qma||0); sQo+=Number(r.qo||0); sQn+=Number(r.qn||0); sT+=tot;
 			}
@@ -406,7 +407,7 @@
 			}
 			const weeks = Array.from(weekMap.entries()).sort((a,b)=> a[0] < b[0] ? -1 : 1).map(([weekStart, v]) => ({ weekStart, total: v.total, isHigh: v.isHigh }));
 			const weeksQty = weeks.map(w => { const q = weekQtyMap.get(w.weekStart) || {qa:0,qm:0,qma:0,qo:0,qn:0}; return { weekStart: w.weekStart, ...q }; });
-			const histLabels = weeks.map(w => fmtDate(w.weekStart));
+			const histLabels = weeks.map(w => fmtDate(fridayOfWeek(w.weekStart)));
 			const histVals = weeks.map(w => w.total);
 			const highVals = weeks.filter(w=>w.isHigh).map(w=>w.total);
 			const lowVals = weeks.filter(w=>!w.isHigh).map(w=>w.total);
@@ -461,9 +462,9 @@
 				projQty.push({ weekStart: nextWeekStart, qa, qm, qma, qo, qn });
 				nextWeekStart = addDaysIso(nextWeekStart, 7);
 			}
-			buildChart(histLabels, histVals, proj.map(p=>fmtDate(p.weekStart)), proj.map(p=>p.total));
+			buildChart(histLabels, histVals, proj.map(p=>fmtDate(fridayOfWeek(p.weekStart))), proj.map(p=>p.total));
 			renderTable(proj);
-			buildCountsChart(proj.map(p=>fmtDate(p.weekStart)), projQty);
+			buildCountsChart(proj.map(p=>fmtDate(fridayOfWeek(p.weekStart))), projQty);
 			renderDessertTable(projQty);
 			renderAnalysis({ highAvg, lowAvg, overallAvg, growthPct, horizonWeeks });
 			loadLabel.textContent = `Semanas analizadas: ${weeks.length} · Proyectadas: ${proj.length}`;
