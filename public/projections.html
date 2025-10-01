@@ -50,11 +50,11 @@
 				<label style="display:flex; gap:8px; align-items:center; flex-wrap:wrap">
 					<span>Intensidad</span>
 					<div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap">
-						<label style="display:flex; gap:6px; align-items:center">
-							<span>Crec.</span>
-							<input id="trend-intensity" type="range" min="0" max="100" step="5" value="50" />
-							<small id="trend-intensity-label" style="opacity:.8; min-width:44px; text-align:right">50%</small>
-						</label>
+					<label style="display:flex; gap:6px; align-items:center">
+						<span>Crec.</span>
+						<input id="trend-intensity" type="range" min="0" max="100" step="5" value="100" />
+						<small id="trend-intensity-label" style="opacity:.8; min-width:44px; text-align:right">100%</small>
+					</label>
 						<label style="display:flex; gap:6px; align-items:center">
 							<span>Estac.</span>
 							<input id="seasonality-intensity" type="range" min="0" max="100" step="5" value="30" />
@@ -218,7 +218,7 @@
 			return { slope, intercept, r2 };
 		}
 
-		function renderKPIs({ highAvg, lowAvg, overallAvg, slope, r2 }){
+		function renderKPIs({ highAvg, lowAvg, overallAvg, growthWeeklyPct, r2 }){
 			kpisEl.innerHTML = '';
 			function card(label, value, sub){
 				const d = document.createElement('div');
@@ -229,12 +229,11 @@
 				const s = document.createElement('div'); s.style.opacity='.8'; s.style.marginTop='4px'; s.textContent = sub||'';
 				c.append(h, v, s); d.append(c); return d;
 			}
-			const growthPct = overallAvg>0 ? (slope/overallAvg)*100 : 0;
 			kpisEl.append(
 				card('Promedio semana ALTA', fmtMoney(highAvg||0), 'Semanas con día 15 o 30'),
 				card('Promedio semana BAJA', fmtMoney(lowAvg||0), 'Otras semanas'),
 				card('Promedio semanal', fmtMoney(overallAvg||0), 'Histórico en rango'),
-				card('Tendencia de crecimiento', `${growthPct.toFixed(2)}%/semana`, `Ajuste lineal (R² ${r2.toFixed(2)})`)
+				card('Crecimiento aplicado', `${Number(growthWeeklyPct||0).toFixed(2)}%/semana`, `Base conservadora 1.5%/mes · R² ${r2.toFixed(2)}`)
 			);
 		}
 
@@ -305,7 +304,7 @@
 			const el = document.getElementById('analysis');
 			el.innerHTML = '';
 			const p = document.createElement('p');
-			p.textContent = `Usamos tu histórico para separar semanas ALTA (contienen día 15 o 30) y BAJA. Calculamos promedios por tipo y aplicamos una tendencia de crecimiento semanal del ${growthPct.toFixed(2)}%, proyectando ${horizonWeeks} semanas. Las semanas ALTA muestran picos consistentes por quincena y fin de mes, mientras que las BAJA mantienen niveles menores. Si hay campañas o cambios de precio planificados, ajusta el horizonte o el crecimiento esperado.`;
+			p.textContent = `Usamos tu histórico para separar semanas ALTA (contienen día 15 o 30) y BAJA. Calculamos promedios por tipo y aplicamos un crecimiento compuesto semanal de ${growthPct.toFixed(2)}% (base conservadora ≈1.5% mensual), proyectando ${horizonWeeks} semanas. Las semanas ALTA muestran picos por quincena y fin de mes; las BAJA mantienen niveles menores. Si esperas sucesos extraordinarios (Navidad, eventos o promociones), ajusta la intensidad de crecimiento o agrega notas para esas semanas.`;
 			el.appendChild(p);
 		}
 
@@ -442,16 +441,20 @@
 			const highAvg = highVals.length ? highVals.reduce((a,b)=>a+b,0)/highVals.length : 0;
 			const lowAvg = lowVals.length ? lowVals.reduce((a,b)=>a+b,0)/lowVals.length : 0;
 			const { slope, intercept, r2 } = linearRegression(histVals);
-			// User-tunable conservative controls
-			const trendPct = Math.max(0, Math.min(100, Number(trendIntensity?.value || 50))) / 100; // 0..1
-			const slopeAdj = slope * trendPct;
+			// Controles conservadores: usar crecimiento compuesto desde 1.5% mensual por defecto
+			const trendPct = Math.max(0, Math.min(100, Number(trendIntensity?.value || 100))) / 100; // 0..1 escala del 1.5% mensual
 			const highFactorRaw = overallAvg>0 ? (highAvg/overallAvg) : 1;
 			const lowFactorRaw = overallAvg>0 ? (lowAvg/overallAvg) : 1;
 			const blend = Math.max(0, Math.min(100, Number(seasIntensity?.value || 30))) / 100; // 0..1
 			const highFactor = 1 + (highFactorRaw - 1) * blend;
 			const lowFactor = 1 + (lowFactorRaw - 1) * blend;
-			const growthPct = overallAvg>0 ? (slopeAdj/overallAvg)*100 : 0;
-			renderKPIs({ highAvg, lowAvg, overallAvg, slope: slopeAdj, r2 });
+			// 1.5% mensual -> tasa semanal compuesta aproximada (4.345 semanas/mes)
+			const BASELINE_MONTHLY_GROWTH = 0.015; // 1.5%
+			const WEEKS_PER_MONTH = 4.345;
+			const effectiveMonthlyGrowth = BASELINE_MONTHLY_GROWTH * trendPct;
+			const weeklyGrowth = Math.pow(1 + effectiveMonthlyGrowth, 1 / WEEKS_PER_MONTH) - 1;
+			const appliedWeeklyPct = weeklyGrowth * 100;
+			renderKPIs({ highAvg, lowAvg, overallAvg, growthWeeklyPct: appliedWeeklyPct, r2 });
 			let lastWeekStartP = weeks.length ? weeks[weeks.length-1].weekStart : startOfWeekMonday(end);
 			let nextWeekStart = addDaysIso(lastWeekStartP, 7);
 			const proj = [];
@@ -469,9 +472,11 @@
 			}
 			const avgUnitsPerWeek = weeksQty.length ? (totalUnitsHist / weeksQty.length) : 0;
 			const avgPriceApprox = (overallAvg > 0 && avgUnitsPerWeek > 0) ? (overallAvg / avgUnitsPerWeek) : 1;
+			// Base conservadora: partir de la última semana observada y aplicar crecimiento semanal compuesto
+			let baseline = weeks.length ? Math.max(0, weeks[weeks.length-1].total) : Math.max(0, overallAvg);
 			for (let i=1;i<=horizonWeeks;i++){
-				const idx = histVals.length + i;
-				const base = Math.max(0, intercept + slopeAdj*idx);
+				baseline = Math.max(0, baseline * (1 + weeklyGrowth));
+				const base = baseline;
 				const isHigh = highWeeksSet.has(nextWeekStart);
 				const factor = isHigh ? highFactor : lowFactor;
 				const total = Math.max(0, base * factor);
@@ -495,7 +500,7 @@
 			renderTable(proj);
 			buildCountsChart(proj.map(p=>fmtDate(fridayOfWeek(p.weekStart))), projQty);
 			renderDessertTable(projQty);
-			renderAnalysis({ highAvg, lowAvg, overallAvg, growthPct, horizonWeeks });
+			renderAnalysis({ highAvg, lowAvg, overallAvg, growthPct: appliedWeeklyPct, horizonWeeks });
 			loadLabel.textContent = `Semanas analizadas: ${weeks.length} · Proyectadas: ${proj.length}`;
 		}
 
