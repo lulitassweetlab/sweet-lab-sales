@@ -199,7 +199,7 @@
 				itemsByDessert.get(it.dessert).push(it);
 			}
 			// Build price and pack maps from recipes/extras (defined after helper fns)
-			let priceMap; let packMap; let setMapsFor;
+			let priceMap; let packMap; let unitMap; let setMapsFor;
 
 			// 3) Fetch inventory balances
 			countLabel.textContent = 'Leyendo inventario…';
@@ -234,10 +234,12 @@
 			// Build price and pack maps from recipes/extras
 			priceMap = new Map(); // key -> price
 			packMap = new Map(); // key -> pack_size
+			unitMap = new Map(); // key -> unit
 			setMapsFor = function(name, unit, price, pack){
 				const k = normKey(canonicalizeName(name)); if (!k) return;
 				if (Number(price||0) > 0) priceMap.set(k, Number(price||0));
 				if (Number(pack||0) > 0) packMap.set(k, Number(pack||0));
+				if ((unit||'').toString() !== '') unitMap.set(k, (unit||'g').toString());
 			};
 			for (const dessertName of names){
 				const arr = itemsByDessert.get(dessertName) || [];
@@ -326,7 +328,8 @@
 				const tr = document.createElement('tr');
 				const tdName = document.createElement('td'); tdName.style.textAlign = 'left'; tdName.textContent = v.name;
 				const tdPer = document.createElement('td'); tdPer.textContent = perUnitDisplay;
-				const tdNeed = document.createElement('td'); tdNeed.textContent = fmt1(v.needed);
+				const tdNeed = document.createElement('td');
+				const inNeed = document.createElement('input'); inNeed.type = 'number'; inNeed.step = '0.1'; inNeed.min = '0'; inNeed.className = 'input-cell'; inNeed.style.width = '90px'; inNeed.style.textAlign = 'right'; inNeed.value = String(Number(fmt1(v.needed))); tdNeed.appendChild(inNeed);
 				const tdInv = document.createElement('td'); tdInv.textContent = fmt1(inv);
 				const tdBuy = document.createElement('td'); tdBuy.className = 'col-total'; tdBuy.textContent = fmt1(buy);
 					const tdReal = document.createElement('td');
@@ -339,12 +342,33 @@
 				buyRealTotal += real;
 				buyCostTotal += Number(inCost.value || 0) || 0;
 				neededCostTotal += (Number(v.needed || 0) || 0) * price;
-				rowsState.push({ name: v.name, realInput: inReal, pack, costInput: inCost, unitPrice: price });
+				const unit = unitMap.get(key) || 'g';
+				rowsState.push({ name: v.name, key, neededInput: inNeed, inv, invCell: tdInv, buyCell: tdBuy, realInput: inReal, pack, costInput: inCost, unitPrice: price, unit });
 			}
 			function recomputeTotals(){
 				let t = 0; for (const r of rowsState) t += Number(r.costInput?.value || 0) || 0;
 				buyCostTotal = t;
 				tBuyCostTotal.textContent = (new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 })).format(buyCostTotal);
+				renderBottomSummary();
+			}
+			function recomputeBuySugTotal(){
+				let t = 0;
+				for (const r of rowsState) {
+					const need = Number(r.neededInput?.value || 0) || 0;
+					const sug = Math.max(0, need - (Number(r.inv||0)||0));
+					r.buyCell.textContent = fmt1(sug);
+					t += sug;
+				}
+				buySugTotal = t;
+				tBuySugTotal.textContent = fmt1(buySugTotal);
+			}
+			function recomputeNeededCostTotal(){
+				let t = 0;
+				for (const r of rowsState) {
+					const need = Number(r.neededInput?.value || 0) || 0;
+					t += need * (Number(r.unitPrice||0)||0);
+				}
+				neededCostTotal = t;
 				renderBottomSummary();
 			}
 			function renderDessertSummary(){
@@ -421,6 +445,12 @@
 					tBuyRealTotal.textContent = fmt1(buyRealTotal);
 				}
 				for (const r of rowsState) {
+					function onNeedEdit(){
+						recomputeBuySugTotal();
+						recomputeNeededCostTotal();
+					}
+					r.neededInput.addEventListener('change', onNeedEdit);
+					r.neededInput.addEventListener('blur', onNeedEdit);
 					r.costInput.addEventListener('change', recomputeTotals);
 					r.costInput.addEventListener('blur', recomputeTotals);
 					function onRealEdit(){
@@ -433,12 +463,40 @@
 					r.realInput.addEventListener('change', onRealEdit);
 					r.realInput.addEventListener('blur', onRealEdit);
 				}
-			tBuySugTotal.textContent = fmt1(buySugTotal);
+			recomputeBuySugTotal();
 			recomputeRealTotal();
 			recomputeTotals();
 			renderDessertSummary();
 			renderBottomSummary();
 			countLabel.textContent = `Ingredientes: ${keys.length}`;
+			// Add Update Inventory button
+			try {
+				const actionsWrap = changeBtn && changeBtn.parentElement ? changeBtn.parentElement : null;
+				if (actionsWrap && !document.getElementById('update-inventory-btn')) {
+					const upBtn = document.createElement('button'); upBtn.id = 'update-inventory-btn'; upBtn.className = 'press-btn btn-primary'; upBtn.textContent = 'Actualizar inventario'; actionsWrap.appendChild(upBtn);
+					upBtn.addEventListener('click', async () => {
+						if (!confirm('¿Restar "Se necesitan" del inventario para todos los ingredientes?')) return;
+						upBtn.disabled = true;
+						try {
+							for (const r of rowsState) {
+								const need = Number(r.neededInput?.value || 0) || 0;
+								if (need > 0) {
+									await fetch('/api/inventory', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'ajuste', ingredient: r.name, unit: r.unit || 'g', qty: -need, note: 'Consumo (ingredientes necesarios)' }) });
+									// Update local inventory cell and recompute suggestions
+									r.inv = (Number(r.inv||0)||0) - need;
+									r.invCell.textContent = fmt1(Number(r.inv||0)||0);
+								}
+							}
+							recomputeBuySugTotal();
+							alert('Inventario actualizado');
+						} catch (e) {
+							alert('Error al actualizar inventario');
+						} finally {
+							upBtn.disabled = false;
+						}
+					});
+				}
+			} catch {}
 			// Bind WA button to open a copyable text box
 				waBtn.onclick = () => {
 				const pop = document.createElement('div'); pop.className = 'confirm-popover'; pop.style.position = 'fixed';
