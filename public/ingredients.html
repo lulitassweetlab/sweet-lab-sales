@@ -467,46 +467,63 @@
 				};
 			}
 
-			// Editor: Postres a realizar (escala proporciones del rango)
+			// Editor: Cantidades por postre (Arco, Melo, Mara, Oreo, Nute)
 			(function(){
 				const parent = countsSummary.parentElement;
 				let editor = document.getElementById('counts-editor');
 				if (!editor) {
 					editor = document.createElement('div'); editor.id = 'counts-editor';
-					editor.style.display='flex'; editor.style.alignItems='center'; editor.style.gap='8px'; editor.style.margin='6px 0 6px 0';
-					const label = document.createElement('div'); label.textContent='Postres a realizar:'; label.style.fontWeight='600';
-					const input = document.createElement('input'); input.type='number'; input.min='0'; input.step='1'; input.style.width='120px'; input.className='input-cell'; input.id='counts-total-input';
+					editor.style.display='flex'; editor.style.flexWrap='wrap'; editor.style.alignItems='center'; editor.style.gap='8px'; editor.style.margin='6px 0 6px 0';
+					function field(key, label){
+						const wrap = document.createElement('label'); wrap.style.display='flex'; wrap.style.alignItems='center'; wrap.style.gap='6px'; wrap.style.background='var(--card)'; wrap.style.border='1px solid var(--border)'; wrap.style.borderRadius='8px'; wrap.style.padding='6px 8px';
+						const span = document.createElement('span'); span.textContent = label + ':'; span.style.fontWeight='600';
+						const input = document.createElement('input'); input.type='number'; input.min='0'; input.step='1'; input.style.width='100px'; input.className='input-cell'; input.dataset.key = key;
+						wrap.append(span, input);
+						return { wrap, input };
+					}
+					const arco = field('arco','Arco');
+					const melo = field('melo','Melo');
+					const mara = field('mara','Mara');
+					const oreo = field('oreo','Oreo');
+					const nute = field('nute','Nute');
 					const reset = document.createElement('button'); reset.className='press-btn'; reset.textContent='Usar ventas del rango'; reset.id='counts-reset-btn';
-					editor.append(label, input, reset);
+					editor.append(arco.wrap, melo.wrap, mara.wrap, oreo.wrap, nute.wrap, reset);
 					parent.insertBefore(editor, countsSummary);
 				}
-				const input = document.getElementById('counts-total-input');
+				const inputs = Array.from(editor.querySelectorAll('input.input-cell'));
 				const resetBtn = document.getElementById('counts-reset-btn');
-				const storeKey = `ingredients.total:${start}:${end}`;
-				function currentScaledCounts(total){
-					const t = Number(total||0)||0;
-					if (t<=0 || baseTotal<=0) return { ...baseCounts };
-					const scale = t / baseTotal;
-					return {
-						arco: Math.round(baseCounts.arco * scale),
-						melo: Math.round(baseCounts.melo * scale),
-						mara: Math.round(baseCounts.mara * scale),
-						oreo: Math.round(baseCounts.oreo * scale),
-						nute: Math.round(baseCounts.nute * scale),
-					};
+				const storeKey = `ingredients.counts:${start}:${end}`;
+				function getSaved(){
+					try {
+						const v = localStorage.getItem(storeKey);
+						if (!v) return null;
+						const o = JSON.parse(v);
+						if (!o) return null;
+						return { arco: Number(o.arco||0)||0, melo: Number(o.melo||0)||0, mara: Number(o.mara||0)||0, oreo: Number(o.oreo||0)||0, nute: Number(o.nute||0)||0 };
+					} catch { return null; }
 				}
-				const saved = Number(localStorage.getItem(storeKey)||'')||0;
-				if (saved>0) { input.value = String(saved); renderAllForCounts(currentScaledCounts(saved)); }
-				else { input.value = String(baseTotal); renderAllForCounts({ ...baseCounts }); }
-				input.addEventListener('input', () => {
-					const v = Number(input.value||0)||0;
-					try { if (v>0) localStorage.setItem(storeKey, String(v)); else localStorage.removeItem(storeKey); } catch {}
-					renderAllForCounts(currentScaledCounts(v));
+				function saveCounts(c){ try { localStorage.setItem(storeKey, JSON.stringify(c)); } catch {} }
+				function use(c){
+					renderAllForCounts(c);
+					inputs.forEach(inp => { const k = String(inp.dataset.key||''); inp.value = String(c[k]||0); });
+				}
+				const saved = getSaved();
+				const initial = saved ? saved : { ...baseCounts };
+				use(initial);
+				inputs.forEach(inp => {
+					function onChange(){
+						const c = { arco:0, melo:0, mara:0, oreo:0, nute:0 };
+						for (const el of inputs) { const k = String(el.dataset.key||''); c[k] = Math.max(0, Math.round(Number(el.value||0)||0)); }
+						saveCounts(c);
+						renderAllForCounts(c);
+					}
+					inp.addEventListener('input', onChange);
+					inp.addEventListener('change', onChange);
+					inp.addEventListener('blur', onChange);
 				});
 				resetBtn.addEventListener('click', () => {
 					try { localStorage.removeItem(storeKey); } catch {}
-					input.value = String(baseTotal);
-					renderAllForCounts({ ...baseCounts });
+					use({ ...baseCounts });
 				});
 			})();
 
