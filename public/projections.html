@@ -47,6 +47,21 @@
 					<span>Pago</span>
 					<select id="pay-filter" class="input-cell" style="min-width:160px"></select>
 				</label>
+				<label style="display:flex; gap:8px; align-items:center; flex-wrap:wrap">
+					<span>Intensidad</span>
+					<div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap">
+						<label style="display:flex; gap:6px; align-items:center">
+							<span>Crec.</span>
+							<input id="trend-intensity" type="range" min="0" max="100" step="5" value="50" />
+							<small id="trend-intensity-label" style="opacity:.8; min-width:44px; text-align:right">50%</small>
+						</label>
+						<label style="display:flex; gap:6px; align-items:center">
+							<span>Estac.</span>
+							<input id="seasonality-intensity" type="range" min="0" max="100" step="5" value="30" />
+							<small id="seasonality-intensity-label" style="opacity:.8; min-width:44px; text-align:right">30%</small>
+						</label>
+					</div>
+				</label>
 			</div>
 			<div id="kpis" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:10px; margin:10px 0 16px 0"></div>
 			<div class="table-wrapper" style="margin-bottom:16px">
@@ -129,6 +144,10 @@
 		const horizonSel = document.getElementById('horizon-weeks');
 		const chartCanvas = document.getElementById('proj-chart');
 		const chartCountsCanvas = document.getElementById('proj-chart-counts');
+		const trendIntensity = document.getElementById('trend-intensity');
+		const trendLabel = document.getElementById('trend-intensity-label');
+		const seasIntensity = document.getElementById('seasonality-intensity');
+		const seasLabel = document.getElementById('seasonality-intensity-label');
 		let chart;
 		let chartCounts;
 
@@ -395,11 +414,12 @@
 			const highAvg = highVals.length ? highVals.reduce((a,b)=>a+b,0)/highVals.length : 0;
 			const lowAvg = lowVals.length ? lowVals.reduce((a,b)=>a+b,0)/lowVals.length : 0;
 			const { slope, intercept, r2 } = linearRegression(histVals);
-			// Conservative: reduce trend and soften seasonality differences
-			const slopeAdj = slope * 0.5;
+			// User-tunable conservative controls
+			const trendPct = Math.max(0, Math.min(100, Number(trendIntensity?.value || 50))) / 100; // 0..1
+			const slopeAdj = slope * trendPct;
 			const highFactorRaw = overallAvg>0 ? (highAvg/overallAvg) : 1;
 			const lowFactorRaw = overallAvg>0 ? (lowAvg/overallAvg) : 1;
-			const blend = 0.3; // bring factors closer to 1
+			const blend = Math.max(0, Math.min(100, Number(seasIntensity?.value || 30))) / 100; // 0..1
 			const highFactor = 1 + (highFactorRaw - 1) * blend;
 			const lowFactor = 1 + (lowFactorRaw - 1) * blend;
 			const growthPct = overallAvg>0 ? (slopeAdj/overallAvg)*100 : 0;
@@ -480,6 +500,8 @@
 		backBtn.addEventListener('click', () => { location.href = '/'; });
 		changeBtn.addEventListener('click', (ev) => openCalendar(ev));
 		horizonSel.addEventListener('change', load);
+		trendIntensity?.addEventListener('input', () => { if (trendLabel) trendLabel.textContent = `${trendIntensity.value}%`; computeAndRender(_cached); });
+		seasIntensity?.addEventListener('input', () => { if (seasLabel) seasLabel.textContent = `${seasIntensity.value}%`; computeAndRender(_cached); });
 		load();
 	})();
 	</script>
