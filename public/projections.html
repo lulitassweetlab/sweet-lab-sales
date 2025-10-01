@@ -52,7 +52,7 @@
 					<div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap">
 					<label style="display:flex; gap:6px; align-items:center">
 						<span>Crec.</span>
-						<input id="trend-intensity" type="range" min="0" max="100" step="5" value="15" />
+						<input id="trend-intensity" type="range" min="0" max="10" step="0.1" value="1.5" />
 						<small id="trend-intensity-label" style="opacity:.8; min-width:44px; text-align:right">1.5%</small>
 					</label>
 						<label style="display:flex; gap:6px; align-items:center">
@@ -471,7 +471,7 @@
 			const lowAvg = lowVals.length ? lowVals.reduce((a,b)=>a+b,0)/lowVals.length : 0;
 			const { slope, intercept, r2 } = linearRegression(histVals);
 			// Intensidad de crecimiento: 0%..10% mensual (por defecto 1.5%) convertido a semanal
-			const trendMonthlyPct = Math.max(0, Math.min(100, Number(trendIntensity?.value || 15)));
+			const trendMonthlyPct = Math.max(0, Math.min(10, Number(trendIntensity?.value || 1.5)));
 			const effectiveMonthlyGrowth = trendMonthlyPct / 100; // 0..0.10
 			const highFactorRaw = overallAvg>0 ? (highAvg/overallAvg) : 1;
 			const lowFactorRaw = overallAvg>0 ? (lowAvg/overallAvg) : 1;
