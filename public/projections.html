@@ -177,25 +177,17 @@
 		function nextMonthIso(iso){ const d=new Date(iso+'T00:00:00Z'); d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth()+1); return d.toISOString().slice(0,10); }
 		function buildHighWeekSet(minWeekStartIso, maxWeekStartIso){
 			const set = new Set();
-			let curMonthIso = monthStartIso(minWeekStartIso);
-			const endMonthIso = monthStartIso(maxWeekStartIso);
-			while (true) {
-				const d = new Date(curMonthIso+'T00:00:00Z');
-				const y = d.getUTCFullYear(); const m = d.getUTCMonth();
-				const dim = daysInMonthUTC(y,m);
-				for (const dd of [15,30]){
-					if (dd > dim) continue;
-					const dayIso = new Date(Date.UTC(y,m,dd)).toISOString().slice(0,10);
-					const ws = startOfWeekMonday(dayIso);
-					const dow = getUTCDayFromIso(dayIso); // 0=Dom..6=Sab
-					if (dow === 4 || dow === 5 || dow === 6) {
-						set.add(ws);
-					} else {
-						set.add(addDaysIso(ws, -7));
-					}
+			let cur = minWeekStartIso;
+			while (cur <= maxWeekStartIso) {
+				const fri = fridayOfWeek(cur);
+				let isHigh = false;
+				for (let k=-3; k<=3; k++){
+					const iso = addDaysIso(fri, k);
+					const dom = Number(iso.slice(8,10));
+					if (dom === 15 || dom === 30) { isHigh = true; break; }
 				}
-				if (curMonthIso === endMonthIso) break;
-				curMonthIso = nextMonthIso(curMonthIso);
+				if (isHigh) set.add(cur);
+				cur = addDaysIso(cur, 7);
 			}
 			return set;
 		}
