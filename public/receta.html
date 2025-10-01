@@ -164,12 +164,14 @@
 					section.appendChild(head);
 					const table = document.createElement('table'); table.style.width='100%'; table.style.tableLayout='fixed';
 					const tbody = document.createElement('tbody');
-					for (const it of (step.items || [])){
+                    for (const it of (step.items || [])){
 						const tr = document.createElement('tr');
 						const tdL = document.createElement('td'); tdL.textContent = '';
 						const tdN = document.createElement('td'); tdN.textContent = it.ingredient; tdN.style.padding='8px 4px'; tdN.style.textAlign='center';
-						const base = (Number(it.qty_per_unit || 0) || 0) + (Number(it.adjustment || 0) || 0);
-						const tdQ = document.createElement('td'); tdQ.textContent = fmt1.format(base * qty); tdQ.style.textAlign='right'; tdQ.style.padding='5px 4px';
+                        const per = Number(it.qty_per_unit || 0) || 0;
+                        const adj = Number(it.adjustment || 0) || 0;
+                        const total = (per * qty) + adj;
+                        const tdQ = document.createElement('td'); tdQ.textContent = fmt1.format(total); tdQ.style.textAlign='right'; tdQ.style.padding='5px 4px';
 						tr.append(tdL, tdN, tdQ); tbody.appendChild(tr);
 					}
 					table.appendChild(tbody); section.appendChild(table); card.appendChild(section);
