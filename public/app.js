@@ -2085,6 +2085,7 @@ async function renderInventoryView() {
 	root.innerHTML = '';
 	const fmt1 = new Intl.NumberFormat('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 	const fmtMoney = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
+	const round1 = (n) => Math.round((Number(n||0)||0) * 10) / 10;
 	let items = [];
 	try { items = await api('GET', API.Inventory); } catch { items = []; }
 	// Header actions: ingreso and ajuste buttons
@@ -2106,10 +2107,10 @@ async function renderInventoryView() {
 		const tr = document.createElement('tr');
 		const tdN = document.createElement('td'); tdN.textContent = it.ingredient;
 		const tdS = document.createElement('td');
-		const inSaldo = document.createElement('input'); inSaldo.type = 'number'; inSaldo.step = '0.01'; inSaldo.className = 'input-cell'; inSaldo.style.width = '100%'; inSaldo.style.maxWidth = '120px'; inSaldo.style.textAlign = 'right'; inSaldo.value = String(Number(it.saldo || 0) || 0);
+		const inSaldo = document.createElement('input'); inSaldo.type = 'number'; inSaldo.step = '0.1'; inSaldo.className = 'input-cell'; inSaldo.style.width = '100%'; inSaldo.style.maxWidth = '120px'; inSaldo.style.textAlign = 'right'; inSaldo.value = String((Number(it.saldo || 0) || 0).toFixed(1));
 		tdS.append(inSaldo);
 		const tdV = document.createElement('td'); const valor = (Number(it.saldo||0)||0) * (Number(it.price||0)||0); tdV.textContent = fmtMoney.format(valor); tdV.style.textAlign = 'right';
-		const tdI = document.createElement('td'); const inQty = document.createElement('input'); inQty.type = 'number'; inQty.step = '0.01'; inQty.min = '0'; inQty.placeholder = '0'; inQty.className = 'input-cell'; inQty.style.width = '100%'; inQty.style.maxWidth = '120px'; inQty.style.textAlign = 'right'; tdI.appendChild(inQty);
+		const tdI = document.createElement('td'); const inQty = document.createElement('input'); inQty.type = 'number'; inQty.step = '0.1'; inQty.min = '0'; inQty.placeholder = '0.0'; inQty.className = 'input-cell'; inQty.style.width = '100%'; inQty.style.maxWidth = '120px'; inQty.style.textAlign = 'right'; tdI.appendChild(inQty);
 		const tdA = document.createElement('td'); const saveBtn = document.createElement('button'); saveBtn.className = 'press-btn'; saveBtn.textContent = 'Guardar'; const histBtn = document.createElement('button'); histBtn.className = 'press-btn'; histBtn.textContent = 'Historial'; tdA.append(saveBtn, histBtn);
 		tr.append(tdN, tdS, tdV, tdI, tdA); tbody.appendChild(tr);
 		rowInputs.push({ ingredient: it.ingredient, unit: it.unit || 'g', input: inQty });
@@ -2118,8 +2119,9 @@ async function renderInventoryView() {
 		async function saveSaldo(){
 			try {
 				const prev = Number(it.saldo || 0) || 0;
-				const next = Number(inSaldo.value || 0) || 0;
-				const delta = next - prev;
+				let next = Number(inSaldo.value || 0) || 0;
+				next = round1(next);
+				const delta = round1(next - prev);
 				if (!isFinite(delta) || Math.abs(delta) < 1e-9) { return; }
 				await api('POST', API.Inventory, { action: 'ajuste', ingredient: it.ingredient, unit: it.unit || 'g', qty: delta, note: 'Ajuste de saldo', actor_name: state.currentUser?.username || state.currentUser?.name || null });
 				notify.success('Saldo actualizado');
@@ -2128,6 +2130,7 @@ async function renderInventoryView() {
 		}
 		saveBtn.addEventListener('click', saveSaldo);
 		inSaldo.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') saveSaldo(); });
+		inSaldo.addEventListener('blur', () => { inSaldo.value = String((Number(inSaldo.value || 0) || 0).toFixed(1)); });
 	}
 	// Footer: total valor + Ingresar button row
 	const tfoot = document.createElement('tfoot');
@@ -2146,7 +2149,7 @@ async function renderInventoryView() {
 	btnAll.addEventListener('click', async () => {
 		try {
 			for (const r of rowInputs) {
-				const val = Number(r.input.value || 0) || 0;
+				const val = round1(Number(r.input.value || 0) || 0);
 				if (val > 0) {
 					await api('POST', API.Inventory, { action: 'ingreso', ingredient: r.ingredient, unit: r.unit || 'g', qty: val, note: 'Ingreso', actor_name: state.currentUser?.username || state.currentUser?.name || null });
 				}
@@ -2163,7 +2166,7 @@ async function renderInventoryView() {
 			const ingredient = prompt('Ingrediente:'); if (!ingredient) return;
 			const unit = prompt('Unidad (g, ml, unidad):', 'g') || 'g';
 			const qtyStr = prompt(kind === 'ingreso' ? 'Cantidad a ingresar:' : 'Cantidad (use negativo para salida):', '0'); if (qtyStr == null) return;
-			const qty = Number(qtyStr || '0') || 0;
+			const qty = round1(Number(qtyStr || '0') || 0);
 			const note = prompt('Nota (opcional):', '') || '';
 			await api('POST', API.Inventory, { action: kind, ingredient, unit, qty, note, actor_name: state.currentUser?.username || state.currentUser?.name || null });
 			notify.success('Movimiento registrado');
