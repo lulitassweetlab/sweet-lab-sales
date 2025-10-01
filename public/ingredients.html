@@ -245,10 +245,43 @@
 
 			const baseCounts = { arco: counts.arco, melo: counts.melo, mara: counts.mara, oreo: counts.oreo, nute: counts.nute };
 			const baseTotal = baseCounts.arco + baseCounts.melo + baseCounts.mara + baseCounts.oreo + baseCounts.nute;
+			// Persistencia por rango de las cantidades editadas por postre
+			const storeKey = `ingredients.counts:${start}:${end}`;
+			function getSavedCounts(){
+				try { const v = localStorage.getItem(storeKey); if (!v) return null; const o = JSON.parse(v); if (!o) return null; return { arco:Number(o.arco||0)||0, melo:Number(o.melo||0)||0, mara:Number(o.mara||0)||0, oreo:Number(o.oreo||0)||0, nute:Number(o.nute||0)||0 }; } catch { return null; }
+			}
+			function saveCounts(c){ try { localStorage.setItem(storeKey, JSON.stringify(c)); } catch {} }
+			function clearSaved(){ try { localStorage.removeItem(storeKey); } catch {} }
+			function renderCountsEditor(currentCounts){
+				countsSummary.innerHTML = '';
+				const keys = [ ['arco','Arco'], ['melo','Melo'], ['mara','Mara'], ['oreo','Oreo'], ['nute','Nute'] ];
+				const inputs = [];
+				for (const [k, label] of keys){
+					const el = document.createElement('div');
+					el.style.background = 'var(--card)'; el.style.border = '1px solid var(--border)'; el.style.borderRadius = '999px'; el.style.padding = '4px 10px'; el.style.display='flex'; el.style.alignItems='center'; el.style.gap='8px';
+					const span = document.createElement('span'); span.textContent = label+':'; span.style.fontWeight='600';
+					const input = document.createElement('input'); input.type='number'; input.min='0'; input.step='1'; input.style.width='90px'; input.className='input-cell'; input.value = String(Number(currentCounts[k]||0)); input.dataset.key = k;
+					el.append(span, input);
+					countsSummary.appendChild(el);
+					inputs.push(input);
+				}
+				const resetBtn = document.createElement('button'); resetBtn.className='press-btn'; resetBtn.textContent='Cantidades originales'; resetBtn.style.marginLeft='4px';
+				resetBtn.addEventListener('click', () => { clearSaved(); renderAllForCounts({ ...baseCounts }); });
+				countsSummary.appendChild(resetBtn);
+				function onAnyChange(){
+					const next = { arco:0, melo:0, mara:0, oreo:0, nute:0 };
+					for (const inp of inputs){ const kk = String(inp.dataset.key||''); next[kk] = Math.max(0, Math.round(Number(inp.value||0)||0)); }
+					saveCounts(next);
+					renderAllForCounts(next);
+				}
+				for (const inp of inputs){ inp.addEventListener('input', onAnyChange); inp.addEventListener('change', onAnyChange); inp.addEventListener('blur', onAnyChange); }
+			}
+			const savedCounts = getSavedCounts();
+			const initialCounts = savedCounts ? savedCounts : { ...baseCounts };
 
 			function renderAllForCounts(useCounts){
-				// Pills con los conteos actuales
-				sumCountsView(useCounts);
+				// Editor inline de conteos por postre
+				renderCountsEditor(useCounts);
 				// Agregado por ingrediente
 				const agg = new Map();
 				function addRow(_dessert, ingredient, unit, perUnit, needed){
@@ -467,65 +500,9 @@
 				};
 			}
 
-			// Editor: Cantidades por postre (Arco, Melo, Mara, Oreo, Nute)
-			(function(){
-				const parent = countsSummary.parentElement;
-				let editor = document.getElementById('counts-editor');
-				if (!editor) {
-					editor = document.createElement('div'); editor.id = 'counts-editor';
-					editor.style.display='flex'; editor.style.flexWrap='wrap'; editor.style.alignItems='center'; editor.style.gap='8px'; editor.style.margin='6px 0 6px 0';
-					function field(key, label){
-						const wrap = document.createElement('label'); wrap.style.display='flex'; wrap.style.alignItems='center'; wrap.style.gap='6px'; wrap.style.background='var(--card)'; wrap.style.border='1px solid var(--border)'; wrap.style.borderRadius='8px'; wrap.style.padding='6px 8px';
-						const span = document.createElement('span'); span.textContent = label + ':'; span.style.fontWeight='600';
-						const input = document.createElement('input'); input.type='number'; input.min='0'; input.step='1'; input.style.width='100px'; input.className='input-cell'; input.dataset.key = key;
-						wrap.append(span, input);
-						return { wrap, input };
-					}
-					const arco = field('arco','Arco');
-					const melo = field('melo','Melo');
-					const mara = field('mara','Mara');
-					const oreo = field('oreo','Oreo');
-					const nute = field('nute','Nute');
-					const reset = document.createElement('button'); reset.className='press-btn'; reset.textContent='Usar ventas del rango'; reset.id='counts-reset-btn';
-					editor.append(arco.wrap, melo.wrap, mara.wrap, oreo.wrap, nute.wrap, reset);
-					parent.insertBefore(editor, countsSummary);
-				}
-				const inputs = Array.from(editor.querySelectorAll('input.input-cell'));
-				const resetBtn = document.getElementById('counts-reset-btn');
-				const storeKey = `ingredients.counts:${start}:${end}`;
-				function getSaved(){
-					try {
-						const v = localStorage.getItem(storeKey);
-						if (!v) return null;
-						const o = JSON.parse(v);
-						if (!o) return null;
-						return { arco: Number(o.arco||0)||0, melo: Number(o.melo||0)||0, mara: Number(o.mara||0)||0, oreo: Number(o.oreo||0)||0, nute: Number(o.nute||0)||0 };
-					} catch { return null; }
-				}
-				function saveCounts(c){ try { localStorage.setItem(storeKey, JSON.stringify(c)); } catch {} }
-				function use(c){
-					renderAllForCounts(c);
-					inputs.forEach(inp => { const k = String(inp.dataset.key||''); inp.value = String(c[k]||0); });
-				}
-				const saved = getSaved();
-				const initial = saved ? saved : { ...baseCounts };
-				use(initial);
-				inputs.forEach(inp => {
-					function onChange(){
-						const c = { arco:0, melo:0, mara:0, oreo:0, nute:0 };
-						for (const el of inputs) { const k = String(el.dataset.key||''); c[k] = Math.max(0, Math.round(Number(el.value||0)||0)); }
-						saveCounts(c);
-						renderAllForCounts(c);
-					}
-					inp.addEventListener('input', onChange);
-					inp.addEventListener('change', onChange);
-					inp.addEventListener('blur', onChange);
-				});
-				resetBtn.addEventListener('click', () => {
-					try { localStorage.removeItem(storeKey); } catch {}
-					use({ ...baseCounts });
-				});
-			})();
+			// Render inicial con valores guardados o base
+			renderAllForCounts(initialCounts);
+
 
 		}
 
