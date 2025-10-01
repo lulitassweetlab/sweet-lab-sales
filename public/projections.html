@@ -62,6 +62,19 @@
 						</label>
 					</div>
 				</label>
+				<label style="display:flex; gap:8px; align-items:center; flex-wrap:wrap">
+					<span>Metas</span>
+					<div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap">
+						<label style="display:flex; gap:6px; align-items:center">
+							<span>Quinc.</span>
+							<input id="target-quincena" type="number" min="0" step="1" value="100" class="input-cell" style="width:80px" />
+						</label>
+						<label style="display:flex; gap:6px; align-items:center">
+							<span>Normal</span>
+							<input id="target-normal" type="number" min="0" step="1" value="60" class="input-cell" style="width:80px" />
+						</label>
+					</div>
+				</label>
 			</div>
 			<div id="kpis" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:10px; margin:10px 0 16px 0"></div>
 			<div class="table-wrapper" style="margin-bottom:16px">
@@ -148,8 +161,24 @@
 		const trendLabel = document.getElementById('trend-intensity-label');
 		const seasIntensity = document.getElementById('seasonality-intensity');
 		const seasLabel = document.getElementById('seasonality-intensity-label');
+		const targetQuincenaInput = document.getElementById('target-quincena');
+		const targetNormalInput = document.getElementById('target-normal');
 		let chart;
 		let chartCounts;
+		function loadTargets(){
+			try {
+				const q = Number(localStorage.getItem('proj_target_quincena')||'');
+				const n = Number(localStorage.getItem('proj_target_normal')||'');
+				if (Number.isFinite(q) && q >= 0 && targetQuincenaInput) targetQuincenaInput.value = String(q);
+				if (Number.isFinite(n) && n >= 0 && targetNormalInput) targetNormalInput.value = String(n);
+			} catch {}
+		}
+		function saveTargets(){
+			try {
+				if (targetQuincenaInput) localStorage.setItem('proj_target_quincena', String(Math.max(0, Number(targetQuincenaInput.value||'0')||0)));
+				if (targetNormalInput) localStorage.setItem('proj_target_normal', String(Math.max(0, Number(targetNormalInput.value||'0')||0)));
+			} catch {}
+		}
 
 		function fmtMoney(n){ return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(Math.round(Number(n||0))); }
 		function fmtDate(iso){ if (!iso) return ''; const d=new Date(iso+'T00:00:00Z'); const m=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']; return `${String(d.getUTCDate()).padStart(2,'0')}-${m[d.getUTCMonth()]}-${d.getUTCFullYear()}`; }
@@ -480,8 +509,10 @@
 				const isHigh = highWeeksSet.has(nextWeekStart);
 				const factor = isHigh ? highFactor : lowFactor;
 				const total = Math.max(0, base * factor);
-				// Meta de unidades por semana: Quincena ~100, Normal ~60
-				const targetUnits = isHigh ? 100 : 60;
+				// Meta de unidades por semana configurable: Quincena/Normal
+				const targetQ = Math.max(0, Number(targetQuincenaInput?.value || '100') || 0);
+				const targetN = Math.max(0, Number(targetNormalInput?.value || '60') || 0);
+				const targetUnits = isHigh ? targetQ : targetN;
 				// Elegimos el máximo entre unidades calculadas por precio promedio y la meta fija
 				const unitsCalc = avgPriceApprox > 0 ? Math.max(0, Math.round(total / avgPriceApprox)) : 0;
 				const unitsThisWeek = Math.max(unitsCalc, targetUnits);
@@ -541,6 +572,9 @@
 		horizonSel.addEventListener('change', load);
 		trendIntensity?.addEventListener('input', () => { if (trendLabel) trendLabel.textContent = `${trendIntensity.value}%`; computeAndRender(_cached); });
 		seasIntensity?.addEventListener('input', () => { if (seasLabel) seasLabel.textContent = `${seasIntensity.value}%`; computeAndRender(_cached); });
+		targetQuincenaInput?.addEventListener('change', () => { saveTargets(); computeAndRender(_cached); });
+		targetNormalInput?.addEventListener('change', () => { saveTargets(); computeAndRender(_cached); });
+		loadTargets();
 		load();
 	})();
 	</script>
