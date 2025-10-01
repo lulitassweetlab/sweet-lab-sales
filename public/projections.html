@@ -52,6 +52,9 @@
 			<div class="table-wrapper" style="margin-bottom:16px">
 				<canvas id="proj-chart" height="120"></canvas>
 			</div>
+			<div class="table-wrapper" style="margin-bottom:16px">
+				<canvas id="proj-chart-counts" height="140"></canvas>
+			</div>
 			<div class="table-wrapper" id="proj-wrapper">
 				<table id="proj-table">
 					<thead>
@@ -73,6 +76,38 @@
 					</tfoot>
 				</table>
 			</div>
+			<div class="sales-panel" style="margin-top:8px">
+				<div class="panel-header"><h3>Proyección por postre (unidades)</h3></div>
+				<div class="panel-body">
+					<div class="table-wrapper" id="proj-dessert-wrapper">
+						<table id="proj-dessert-table">
+							<thead>
+								<tr>
+									<th>Semana</th>
+									<th class="col-qty">Arco</th>
+									<th class="col-qty">Melo</th>
+									<th class="col-qty">Mara</th>
+									<th class="col-qty">Oreo</th>
+									<th class="col-qty">Nute</th>
+									<th class="col-total">Total</th>
+								</tr>
+							</thead>
+							<tbody id="proj-dessert-tbody"></tbody>
+							<tfoot>
+								<tr>
+									<td class="label">Totales</td>
+									<td id="pd-a"></td>
+									<td id="pd-m"></td>
+									<td id="pd-ma"></td>
+									<td id="pd-o"></td>
+									<td id="pd-n"></td>
+									<td id="pd-t"></td>
+								</tr>
+							</tfoot>
+						</table>
+					</div>
+				</div>
+			</div>
 			<div id="analysis" style="margin-top:12px"></div>
 		</div>
 	</main>
@@ -93,7 +128,9 @@
 		const changeBtn = document.getElementById('change-range');
 		const horizonSel = document.getElementById('horizon-weeks');
 		const chartCanvas = document.getElementById('proj-chart');
+		const chartCountsCanvas = document.getElementById('proj-chart-counts');
 		let chart;
+		let chartCounts;
 
 		function fmtMoney(n){ return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(Math.round(Number(n||0))); }
 		function fmtDate(iso){ if (!iso) return ''; const d=new Date(iso+'T00:00:00Z'); const m=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']; return `${String(d.getUTCDate()).padStart(2,'0')}-${m[d.getUTCMonth()]}-${d.getUTCFullYear()}`; }
@@ -173,6 +210,24 @@
 			chart = new Chart(chartCanvas, { type: 'line', data, options: { responsive: true, scales: { y: { ticks: { callback: (v)=>fmtMoney(v).replace('$','') } } }, plugins: { legend: { position: 'top' }, tooltip: { callbacks: { label: (ctx)=> `${ctx.dataset.label}: ${fmtMoney(ctx.parsed.y)}` } } } } });
 		}
 
+		function buildCountsChart(labels, series){
+			if (chartCounts) { chartCounts.destroy(); }
+			chartCounts = new Chart(chartCountsCanvas, {
+				type: 'bar',
+				data: {
+					labels,
+					datasets: [
+						{ label: 'Arco', data: series.map(r=>r.qa), backgroundColor: 'rgba(59,130,246,0.6)' },
+						{ label: 'Melo', data: series.map(r=>r.qm), backgroundColor: 'rgba(34,197,94,0.6)' },
+						{ label: 'Mara', data: series.map(r=>r.qma), backgroundColor: 'rgba(244,63,94,0.6)' },
+						{ label: 'Oreo', data: series.map(r=>r.qo), backgroundColor: 'rgba(234,179,8,0.6)' },
+						{ label: 'Nute', data: series.map(r=>r.qn), backgroundColor: 'rgba(99,102,241,0.6)' }
+					]
+				},
+				options: { responsive: true, plugins: { legend: { position: 'top' } }, scales: { x: { stacked: true }, y: { stacked: true } } }
+			});
+		}
+
 		function renderTable(rows){
 			tbody.innerHTML = '';
 			let grand = 0;
@@ -183,6 +238,27 @@
 				grand += Number(r.total||0);
 			}
 			totalEl.textContent = fmtMoney(grand);
+		}
+
+		function renderDessertTable(rows){
+			const tbody = document.getElementById('proj-dessert-tbody');
+			const tQa = document.getElementById('pd-a');
+			const tQm = document.getElementById('pd-m');
+			const tQma = document.getElementById('pd-ma');
+			const tQo = document.getElementById('pd-o');
+			const tQn = document.getElementById('pd-n');
+			const tT = document.getElementById('pd-t');
+			if (!tbody) return;
+			tbody.innerHTML = '';
+			let sQa=0,sQm=0,sQma=0,sQo=0,sQn=0,sT=0;
+			for (const r of rows){
+				const tr = document.createElement('tr');
+				const tot = Number(r.qa||0)+Number(r.qm||0)+Number(r.qma||0)+Number(r.qo||0)+Number(r.qn||0);
+				tr.innerHTML = `<td>${fmtDate(r.weekStart)}</td><td>${r.qa||0}</td><td>${r.qm||0}</td><td>${r.qma||0}</td><td>${r.qo||0}</td><td>${r.qn||0}</td><td class="col-total">${tot}</td>`;
+				tbody.appendChild(tr);
+				sQa+=Number(r.qa||0); sQm+=Number(r.qm||0); sQma+=Number(r.qma||0); sQo+=Number(r.qo||0); sQn+=Number(r.qn||0); sT+=tot;
+			}
+			tQa.textContent = sQa||''; tQm.textContent = sQm||''; tQma.textContent = sQma||''; tQo.textContent = sQo||''; tQn.textContent = sQn||''; tT.textContent = sT||'';
 		}
 
 		function renderAnalysis({ highAvg, lowAvg, overallAvg, growthPct, horizonWeeks }){
@@ -279,26 +355,38 @@
 			const { salesByDayBySeller } = cache || {};
 			const selectedSellers = getSelectedSellers();
 			const selectedPay = (payFilter?.value || '').toString();
-			const byDate = new Map(); // iso -> sum
+			const byDate = new Map(); // iso -> sum dinero
+			const qtyByDate = new Map(); // iso -> {qa,qm,qma,qo,qn}
 			for (const [key, rows] of (salesByDayBySeller?.entries() || [])){
 				const [sellerName, iso] = key.split('|');
 				if (selectedSellers.length && !selectedSellers.includes(sellerName)) continue;
-				let sum = 0;
+				let sum = 0; let qa=0,qm=0,qma=0,qo=0,qn=0;
 				for (const r of (rows||[])){
 					if (selectedPay && (r.pay_method || '') !== selectedPay) continue;
 					sum += Number(r.total_cents||0) || 0;
+					qa += Number(r.qty_arco||0) || 0; qm += Number(r.qty_melo||0) || 0; qma += Number(r.qty_mara||0) || 0; qo += Number(r.qty_oreo||0) || 0; qn += Number(r.qty_nute||0) || 0;
 				}
-				if (sum > 0) byDate.set(iso, (byDate.get(iso)||0) + sum);
+				if (sum > 0) {
+					byDate.set(iso, (byDate.get(iso)||0) + sum);
+					const prev = qtyByDate.get(iso) || {qa:0,qm:0,qma:0,qo:0,qn:0};
+					prev.qa += qa; prev.qm += qm; prev.qma += qma; prev.qo += qo; prev.qn += qn;
+					qtyByDate.set(iso, prev);
+				}
 			}
-			// Weekly aggregation
+			// Weekly aggregation (dinero y unidades)
 			const weekMap = new Map();
+			const weekQtyMap = new Map();
 			for (const [iso, amt] of byDate.entries()){
 				const wk = startOfWeekMonday(iso);
 				const cur = weekMap.get(wk) || { total:0, isHigh: weekContainsHighDay(wk) };
-				cur.total += amt;
-				weekMap.set(wk, cur);
+				cur.total += amt; weekMap.set(wk, cur);
+				const qq = qtyByDate.get(iso) || {qa:0,qm:0,qma:0,qo:0,qn:0};
+				const qcur = weekQtyMap.get(wk) || { qa:0,qm:0,qma:0,qo:0,qn:0 };
+				qcur.qa += qq.qa; qcur.qm += qq.qm; qcur.qma += qq.qma; qcur.qo += qq.qo; qcur.qn += qq.qn;
+				weekQtyMap.set(wk, qcur);
 			}
 			const weeks = Array.from(weekMap.entries()).sort((a,b)=> a[0] < b[0] ? -1 : 1).map(([weekStart, v]) => ({ weekStart, total: v.total, isHigh: v.isHigh }));
+			const weeksQty = weeks.map(w => { const q = weekQtyMap.get(w.weekStart) || {qa:0,qm:0,qma:0,qo:0,qn:0}; return { weekStart: w.weekStart, ...q }; });
 			const histLabels = weeks.map(w => fmtDate(w.weekStart));
 			const histVals = weeks.map(w => w.total);
 			const highVals = weeks.filter(w=>w.isHigh).map(w=>w.total);
@@ -307,28 +395,56 @@
 			const highAvg = highVals.length ? highVals.reduce((a,b)=>a+b,0)/highVals.length : 0;
 			const lowAvg = lowVals.length ? lowVals.reduce((a,b)=>a+b,0)/lowVals.length : 0;
 			const { slope, intercept, r2 } = linearRegression(histVals);
-			const highFactor = overallAvg>0 ? (highAvg/overallAvg) : 1;
-			const lowFactor = overallAvg>0 ? (lowAvg/overallAvg) : 1;
-			const growthPct = overallAvg>0 ? (slope/overallAvg)*100 : 0;
-			renderKPIs({ highAvg, lowAvg, overallAvg, slope, r2 });
+			// Conservative: reduce trend and soften seasonality differences
+			const slopeAdj = slope * 0.5;
+			const highFactorRaw = overallAvg>0 ? (highAvg/overallAvg) : 1;
+			const lowFactorRaw = overallAvg>0 ? (lowAvg/overallAvg) : 1;
+			const blend = 0.3; // bring factors closer to 1
+			const highFactor = 1 + (highFactorRaw - 1) * blend;
+			const lowFactor = 1 + (lowFactorRaw - 1) * blend;
+			const growthPct = overallAvg>0 ? (slopeAdj/overallAvg)*100 : 0;
+			renderKPIs({ highAvg, lowAvg, overallAvg, slope: slopeAdj, r2 });
 			const horizonWeeks = Number(horizonSel.value || '12') || 12;
 			let lastWeekStart = weeks.length ? weeks[weeks.length-1].weekStart : startOfWeekMonday(end);
 			let nextWeekStart = addDaysIso(lastWeekStart, 7);
 			const proj = [];
+			const projQty = [];
+			// Historical unit shares and avg price per unit (approx)
+			const sumQa = weeksQty.reduce((a,b)=>a + Number(b.qa||0), 0);
+			const sumQm = weeksQty.reduce((a,b)=>a + Number(b.qm||0), 0);
+			const sumQma = weeksQty.reduce((a,b)=>a + Number(b.qma||0), 0);
+			const sumQo = weeksQty.reduce((a,b)=>a + Number(b.qo||0), 0);
+			const sumQn = weeksQty.reduce((a,b)=>a + Number(b.qn||0), 0);
+			const totalUnitsHist = sumQa+sumQm+sumQma+sumQo+sumQn;
+			let wQa=0.2,wQm=0.2,wQma=0.2,wQo=0.2,wQn=0.2;
+			if (totalUnitsHist > 0) {
+				wQa = sumQa/totalUnitsHist; wQm = sumQm/totalUnitsHist; wQma = sumQma/totalUnitsHist; wQo = sumQo/totalUnitsHist; wQn = sumQn/totalUnitsHist;
+			}
+			const avgUnitsPerWeek = weeksQty.length ? (totalUnitsHist / weeksQty.length) : 0;
+			const avgPriceApprox = (overallAvg > 0 && avgUnitsPerWeek > 0) ? (overallAvg / avgUnitsPerWeek) : 1;
 			for (let i=1;i<=horizonWeeks;i++){
 				const idx = histVals.length + i;
-				const base = Math.max(0, intercept + slope*idx);
+				const base = Math.max(0, intercept + slopeAdj*idx);
 				const isHigh = weekContainsHighDay(nextWeekStart);
 				const factor = isHigh ? highFactor : lowFactor;
 				const total = Math.max(0, base * factor);
+				const unitsThisWeek = avgPriceApprox > 0 ? Math.max(0, Math.round(total / avgPriceApprox)) : 0;
+				const qa = Math.round(unitsThisWeek * wQa);
+				const qm = Math.round(unitsThisWeek * wQm);
+				const qma = Math.round(unitsThisWeek * wQma);
+				const qo = Math.round(unitsThisWeek * wQo);
+				const qn = Math.round(unitsThisWeek * wQn);
 				const has15 = (() => { for (let d=0; d<7; d++){ const day = Number(addDaysIso(nextWeekStart,d).slice(8,10)); if (day===15) return true; } return false; })();
 				const has30 = (() => { for (let d=0; d<7; d++){ const day = Number(addDaysIso(nextWeekStart,d).slice(8,10)); if (day===30) return true; } return false; })();
 				const note = has15 && has30 ? 'Incluye 15 y 30' : has15 ? 'Incluye 15' : has30 ? 'Incluye 30' : '';
 				proj.push({ weekStart: nextWeekStart, isHigh, total, note });
+				projQty.push({ weekStart: nextWeekStart, qa, qm, qma, qo, qn });
 				nextWeekStart = addDaysIso(nextWeekStart, 7);
 			}
 			buildChart(histLabels, histVals, proj.map(p=>fmtDate(p.weekStart)), proj.map(p=>p.total));
 			renderTable(proj);
+			buildCountsChart(proj.map(p=>fmtDate(p.weekStart)), projQty);
+			renderDessertTable(projQty);
 			renderAnalysis({ highAvg, lowAvg, overallAvg, growthPct, horizonWeeks });
 			loadLabel.textContent = `Semanas analizadas: ${weeks.length} · Proyectadas: ${proj.length}`;
 		}
