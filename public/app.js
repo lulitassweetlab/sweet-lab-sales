@@ -1673,6 +1673,7 @@ async function exportCarteraExcel(startIso, endIso) {
 (function wireReportButton(){
 	const reportBtn = document.getElementById('report-button');
 	const transfersBtn = document.getElementById('transfers-button');
+	const projectionsBtn = document.getElementById('projections-button');
 	const usersBtn = document.getElementById('users-button');
 	const materialsBtn = document.getElementById('materials-button');
 	const inventoryBtn = document.getElementById('inventory-button');
@@ -1684,6 +1685,15 @@ async function exportCarteraExcel(startIso, endIso) {
 		openRangeCalendarPopover((range) => {
 			if (!range || !range.start || !range.end) return;
 			const url = `/sales-report.html?start=${encodeURIComponent(range.start)}&end=${encodeURIComponent(range.end)}`;
+			window.location.href = url;
+		}, ev.clientX, ev.clientY, { preferUp: true });
+	});
+	projectionsBtn?.addEventListener('click', (ev) => {
+		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+		if (!isSuper) { notify.error('Solo el superadministrador'); return; }
+		openRangeCalendarPopover((range) => {
+			if (!range || !range.start || !range.end) return;
+			const url = `/projections.html?start=${encodeURIComponent(range.start)}&end=${encodeURIComponent(range.end)}`;
 			window.location.href = url;
 		}, ev.clientX, ev.clientY, { preferUp: true });
 	});

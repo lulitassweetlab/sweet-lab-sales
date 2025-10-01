@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Proyecciones de Ventas</title>
+	<link rel="stylesheet" href="/styles.css?v=2025-09-17-1" />
+	<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+	<header class="app-header">
+		<div class="header-row">
+			<div class="header-left">
+				<img src="/logo.png" alt="Lulitas Logo" class="app-logo" />
+				<h1>Proyecciones de Ventas</h1>
+			</div>
+			<div class="header-actions">
+				<button id="back-btn" class="press-btn">Volver</button>
+			</div>
+		</div>
+	</header>
+
+	<main class="sales-panel">
+		<div class="panel-header">
+			<h3 id="title">Proyección semana a semana</h3>
+			<div class="panel-actions">
+				<button id="change-range" class="press-btn">Cambiar fechas</button>
+				<select id="horizon-weeks" class="input-cell" style="min-width:120px">
+					<option value="8">8 semanas</option>
+					<option value="12" selected>12 semanas</option>
+					<option value="16">16 semanas</option>
+					<option value="24">24 semanas</option>
+				</select>
+			</div>
+		</div>
+		<div class="panel-body">
+			<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; gap:8px; flex-wrap:wrap">
+				<strong id="range-label"></strong>
+				<small id="load-label" style="opacity:.8"></small>
+			</div>
+			<div class="filters-row" style="display:flex; gap:8px; align-items:flex-start; flex-wrap:wrap; margin:6px 0 12px 0">
+				<label style="display:flex; gap:6px; align-items:flex-start">
+					<span style="line-height:28px; white-space:nowrap">Vendedores</span>
+					<div id="seller-filter-group" class="seller-filter-group" style="display:flex; gap:8px; flex-wrap:wrap; min-width:220px; max-height:132px; overflow:auto; padding:8px; border:1px solid var(--border); border-radius:10px; background: var(--card);"></div>
+				</label>
+				<label style="display:flex; gap:6px; align-items:center">
+					<span>Pago</span>
+					<select id="pay-filter" class="input-cell" style="min-width:160px"></select>
+				</label>
+				<label style="display:flex; gap:8px; align-items:center; flex-wrap:wrap">
+					<span>Intensidad</span>
+					<div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap">
+						<label style="display:flex; gap:6px; align-items:center">
+							<span>Crec.</span>
+							<input id="trend-intensity" type="range" min="0" max="100" step="5" value="50" />
+							<small id="trend-intensity-label" style="opacity:.8; min-width:44px; text-align:right">50%</small>
+						</label>
+						<label style="display:flex; gap:6px; align-items:center">
+							<span>Estac.</span>
+							<input id="seasonality-intensity" type="range" min="0" max="100" step="5" value="30" />
+							<small id="seasonality-intensity-label" style="opacity:.8; min-width:44px; text-align:right">30%</small>
+						</label>
+					</div>
+				</label>
+			</div>
+			<div id="kpis" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:10px; margin:10px 0 16px 0"></div>
+			<div class="table-wrapper" style="margin-bottom:16px">
+				<canvas id="proj-chart" height="120"></canvas>
+			</div>
+			<div class="table-wrapper" style="margin-bottom:16px">
+				<canvas id="proj-chart-counts" height="140"></canvas>
+			</div>
+			<div class="table-wrapper" id="proj-wrapper">
+				<table id="proj-table">
+					<thead>
+						<tr>
+							<th>Semana</th>
+							<th>Tipo</th>
+							<th class="col-total">Venta proyectada</th>
+							<th>Notas</th>
+						</tr>
+					</thead>
+					<tbody id="proj-tbody"></tbody>
+					<tfoot>
+						<tr>
+							<td></td>
+							<td class="label">Total proyectado</td>
+							<td class="col-total" id="proj-total"></td>
+							<td></td>
+						</tr>
+					</tfoot>
+				</table>
+			</div>
+			<div class="sales-panel" style="margin-top:8px">
+				<div class="panel-header"><h3>Proyección por postre (unidades)</h3></div>
+				<div class="panel-body">
+					<div class="table-wrapper" id="proj-dessert-wrapper">
+						<table id="proj-dessert-table">
+							<thead>
+								<tr>
+									<th>Semana</th>
+									<th class="col-qty">Arco</th>
+									<th class="col-qty">Melo</th>
+									<th class="col-qty">Mara</th>
+									<th class="col-qty">Oreo</th>
+									<th class="col-qty">Nute</th>
+									<th class="col-total">Total</th>
+								</tr>
+							</thead>
+							<tbody id="proj-dessert-tbody"></tbody>
+							<tfoot>
+								<tr>
+									<td class="label">Totales</td>
+									<td id="pd-a"></td>
+									<td id="pd-m"></td>
+									<td id="pd-ma"></td>
+									<td id="pd-o"></td>
+									<td id="pd-n"></td>
+									<td id="pd-t"></td>
+								</tr>
+							</tfoot>
+						</table>
+					</div>
+				</div>
+			</div>
+			<div id="analysis" style="margin-top:12px"></div>
+		</div>
+	</main>
+
+	<script type="module">
+	(function(){
+		const qs = new URLSearchParams(location.search);
+		let start = (qs.get('start') || '').slice(0,10);
+		let end = (qs.get('end') || '').slice(0,10);
+		const rangeLabel = document.getElementById('range-label');
+		const loadLabel = document.getElementById('load-label');
+		const kpisEl = document.getElementById('kpis');
+		const sellerFilterGroup = document.getElementById('seller-filter-group');
+		const payFilter = document.getElementById('pay-filter');
+		const tbody = document.getElementById('proj-tbody');
+		const totalEl = document.getElementById('proj-total');
+		const backBtn = document.getElementById('back-btn');
+		const changeBtn = document.getElementById('change-range');
+		const horizonSel = document.getElementById('horizon-weeks');
+		const chartCanvas = document.getElementById('proj-chart');
+		const chartCountsCanvas = document.getElementById('proj-chart-counts');
+		const trendIntensity = document.getElementById('trend-intensity');
+		const trendLabel = document.getElementById('trend-intensity-label');
+		const seasIntensity = document.getElementById('seasonality-intensity');
+		const seasLabel = document.getElementById('seasonality-intensity-label');
+		let chart;
+		let chartCounts;
+
+		function fmtMoney(n){ return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(Math.round(Number(n||0))); }
+		function fmtDate(iso){ if (!iso) return ''; const d=new Date(iso+'T00:00:00Z'); const m=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']; return `${String(d.getUTCDate()).padStart(2,'0')}-${m[d.getUTCMonth()]}-${d.getUTCFullYear()}`; }
+		async function fetchJSON(u){ const r = await fetch(u); if (!r.ok) throw new Error('HTTP '+r.status); return r.json(); }
+
+		function startOfWeekMonday(iso){
+			const d = new Date(iso+'T00:00:00Z');
+			const day = (d.getUTCDay() + 6) % 7; // 0=Mon
+			d.setUTCDate(d.getUTCDate() - day);
+			return d.toISOString().slice(0,10);
+		}
+		function addDaysIso(iso, days){ const d=new Date(iso+'T00:00:00Z'); d.setUTCDate(d.getUTCDate()+days); return d.toISOString().slice(0,10); }
+		function fridayOfWeek(weekStartIso){ return addDaysIso(weekStartIso, 4); }
+		function weekContainsHighDay(weekStartIso){
+			for (let i=0;i<7;i++){
+				const iso = addDaysIso(weekStartIso, i);
+				const day = Number(iso.slice(8,10));
+				if (day === 15 || day === 30) return true;
+			}
+			return false;
+		}
+		function getUTCDayFromIso(iso){ return new Date(iso+'T00:00:00Z').getUTCDay(); }
+		function daysInMonthUTC(y,m){ return new Date(Date.UTC(y, m+1, 0)).getUTCDate(); }
+		function monthStartIso(iso){ const d=new Date(iso+'T00:00:00Z'); return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)).toISOString().slice(0,10); }
+		function nextMonthIso(iso){ const d=new Date(iso+'T00:00:00Z'); d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth()+1); return d.toISOString().slice(0,10); }
+		function buildHighWeekSet(minWeekStartIso, maxWeekStartIso){
+			const set = new Set();
+			let cur = minWeekStartIso;
+			while (cur <= maxWeekStartIso) {
+				const fri = fridayOfWeek(cur);
+				let isHigh = false;
+				for (let k=-3; k<=3; k++){
+					const iso = addDaysIso(fri, k);
+					const dom = Number(iso.slice(8,10));
+					if (dom === 15 || dom === 30) { isHigh = true; break; }
+				}
+				if (isHigh) set.add(cur);
+				cur = addDaysIso(cur, 7);
+			}
+			return set;
+		}
+
+		async function mapLimit(items, limit, fn) {
+			const out = []; let idx = 0; let running = 0; let resolveAll; const done = new Promise(r => resolveAll = r);
+			function runNext(){
+				if (idx >= items.length && running === 0) return resolveAll();
+				while (running < limit && idx < items.length) {
+					const cur = items[idx++]; running++;
+					Promise.resolve(fn(cur)).then(v => { out.push(v); running--; runNext(); }).catch(() => { running--; runNext(); });
+				}
+			}
+			runNext(); await done; return out;
+		}
+
+		function linearRegression(yValues){
+			const n = yValues.length; if (!n) return { slope:0, intercept:0, r2:0 };
+			let sumX=0,sumY=0,sumXY=0,sumXX=0,sumYY=0;
+			for (let i=0;i<n;i++){ const x=i+1; const y=Number(yValues[i]||0); sumX+=x; sumY+=y; sumXY+=x*y; sumXX+=x*x; sumYY+=y*y; }
+			const denom = (n*sumXX - sumX*sumX) || 1;
+			const slope = (n*sumXY - sumX*sumY) / denom;
+			const intercept = (sumY - slope*sumX) / n;
+			const meanY = sumY / n;
+			let ssTot=0, ssRes=0;
+			for (let i=0;i<n;i++){ const x=i+1; const y=Number(yValues[i]||0); const yhat=slope*x+intercept; ssTot+=(y-meanY)**2; ssRes+=(y-yhat)**2; }
+			const r2 = ssTot>0 ? 1 - (ssRes/ssTot) : 0;
+			return { slope, intercept, r2 };
+		}
+
+		function renderKPIs({ highAvg, lowAvg, overallAvg, slope, r2 }){
+			kpisEl.innerHTML = '';
+			function card(label, value, sub){
+				const d = document.createElement('div');
+				d.className = 'report-card';
+				const c = document.createElement('div'); c.className='report-card-content';
+				const h = document.createElement('div'); h.className='report-title'; h.textContent = label;
+				const v = document.createElement('div'); v.style.fontSize='20px'; v.style.fontWeight='600'; v.textContent = value;
+				const s = document.createElement('div'); s.style.opacity='.8'; s.style.marginTop='4px'; s.textContent = sub||'';
+				c.append(h, v, s); d.append(c); return d;
+			}
+			const growthPct = overallAvg>0 ? (slope/overallAvg)*100 : 0;
+			kpisEl.append(
+				card('Promedio semana ALTA', fmtMoney(highAvg||0), 'Semanas con día 15 o 30'),
+				card('Promedio semana BAJA', fmtMoney(lowAvg||0), 'Otras semanas'),
+				card('Promedio semanal', fmtMoney(overallAvg||0), 'Histórico en rango'),
+				card('Tendencia de crecimiento', `${growthPct.toFixed(2)}%/semana`, `Ajuste lineal (R² ${r2.toFixed(2)})`)
+			);
+		}
+
+		function buildChart(labels, histVals, projLabels, projVals){
+			if (chart) { chart.destroy(); }
+			const data = {
+				labels: [...labels, ...projLabels],
+				datasets: [
+					{ label: 'Histórico (semanal)', data: histVals, borderColor: '#4F46E5', backgroundColor: 'rgba(79,70,229,0.15)', tension: 0.25 },
+					{ label: 'Proyección', data: [...new Array(histVals.length).fill(null), ...projVals], borderColor: '#F59E0B', borderDash: [6,4], tension: 0.25 }
+				]
+			};
+			chart = new Chart(chartCanvas, { type: 'line', data, options: { responsive: true, scales: { y: { ticks: { callback: (v)=>fmtMoney(v).replace('$','') } } }, plugins: { legend: { position: 'top' }, tooltip: { callbacks: { label: (ctx)=> `${ctx.dataset.label}: ${fmtMoney(ctx.parsed.y)}` } } } } });
+		}
+
+		function buildCountsChart(labels, series){
+			if (chartCounts) { chartCounts.destroy(); }
+			chartCounts = new Chart(chartCountsCanvas, {
+				type: 'bar',
+				data: {
+					labels,
+					datasets: [
+						{ label: 'Arco', data: series.map(r=>r.qa), backgroundColor: 'rgba(59,130,246,0.6)' },
+						{ label: 'Melo', data: series.map(r=>r.qm), backgroundColor: 'rgba(34,197,94,0.6)' },
+						{ label: 'Mara', data: series.map(r=>r.qma), backgroundColor: 'rgba(244,63,94,0.6)' },
+						{ label: 'Oreo', data: series.map(r=>r.qo), backgroundColor: 'rgba(234,179,8,0.6)' },
+						{ label: 'Nute', data: series.map(r=>r.qn), backgroundColor: 'rgba(99,102,241,0.6)' }
+					]
+				},
+				options: { responsive: true, plugins: { legend: { position: 'top' } }, scales: { x: { stacked: true }, y: { stacked: true } } }
+			});
+		}
+
+		function renderTable(rows){
+			tbody.innerHTML = '';
+			let grand = 0;
+			for (const r of rows){
+				const tr = document.createElement('tr');
+				tr.innerHTML = `<td>${fmtDate(fridayOfWeek(r.weekStart))}</td><td>${r.isHigh ? 'Alta' : 'Baja'}</td><td class="col-total">${fmtMoney(r.total)}</td><td>${r.note||''}</td>`;
+				tbody.appendChild(tr);
+				grand += Number(r.total||0);
+			}
+			totalEl.textContent = fmtMoney(grand);
+		}
+
+		function renderDessertTable(rows){
+			const tbody = document.getElementById('proj-dessert-tbody');
+			const tQa = document.getElementById('pd-a');
+			const tQm = document.getElementById('pd-m');
+			const tQma = document.getElementById('pd-ma');
+			const tQo = document.getElementById('pd-o');
+			const tQn = document.getElementById('pd-n');
+			const tT = document.getElementById('pd-t');
+			if (!tbody) return;
+			tbody.innerHTML = '';
+			let sQa=0,sQm=0,sQma=0,sQo=0,sQn=0,sT=0;
+			for (const r of rows){
+				const tr = document.createElement('tr');
+				const tot = Number(r.qa||0)+Number(r.qm||0)+Number(r.qma||0)+Number(r.qo||0)+Number(r.qn||0);
+				tr.innerHTML = `<td>${fmtDate(fridayOfWeek(r.weekStart))}</td><td>${r.qa||0}</td><td>${r.qm||0}</td><td>${r.qma||0}</td><td>${r.qo||0}</td><td>${r.qn||0}</td><td class="col-total">${tot}</td>`;
+				tbody.appendChild(tr);
+				sQa+=Number(r.qa||0); sQm+=Number(r.qm||0); sQma+=Number(r.qma||0); sQo+=Number(r.qo||0); sQn+=Number(r.qn||0); sT+=tot;
+			}
+			tQa.textContent = sQa||''; tQm.textContent = sQm||''; tQma.textContent = sQma||''; tQo.textContent = sQo||''; tQn.textContent = sQn||''; tT.textContent = sT||'';
+		}
+
+		function renderAnalysis({ highAvg, lowAvg, overallAvg, growthPct, horizonWeeks }){
+			const el = document.getElementById('analysis');
+			el.innerHTML = '';
+			const p = document.createElement('p');
+			p.textContent = `Usamos tu histórico para separar semanas ALTA (contienen día 15 o 30) y BAJA. Calculamos promedios por tipo y aplicamos una tendencia de crecimiento semanal del ${growthPct.toFixed(2)}%, proyectando ${horizonWeeks} semanas. Las semanas ALTA muestran picos consistentes por quincena y fin de mes, mientras que las BAJA mantienen niveles menores. Si hay campañas o cambios de precio planificados, ajusta el horizonte o el crecimiento esperado.`;
+			el.appendChild(p);
+		}
+
+		function getSelectedSellers(){
+			if (!sellerFilterGroup) return [];
+			return Array.from(sellerFilterGroup.querySelectorAll('input[type="checkbox"]:checked')).map(i => i.value).filter(Boolean);
+		}
+
+		function populateFilters(sellers){
+			// Sellers
+			if (sellerFilterGroup) {
+				sellerFilterGroup.innerHTML = '';
+				const masterWrap = document.createElement('label'); masterWrap.style.display='inline-flex'; masterWrap.style.alignItems='center'; masterWrap.style.gap='6px';
+				const master = document.createElement('input'); master.type='checkbox'; master.id='sf_all'; master.checked = true;
+				const masterSpan = document.createElement('span'); masterSpan.textContent = 'Todos';
+				masterWrap.appendChild(master); masterWrap.appendChild(masterSpan);
+				sellerFilterGroup.appendChild(masterWrap);
+				for (const s of (sellers||[])){
+					const id = `sf_${(s.name||'').replace(/[^a-z0-9]+/gi,'_')}`;
+					const wrap = document.createElement('label'); wrap.style.display='inline-flex'; wrap.style.alignItems='center'; wrap.style.gap='6px';
+					const cb = document.createElement('input'); cb.type='checkbox'; cb.value = s.name || ''; cb.id = id; cb.checked = true;
+					cb.addEventListener('change', () => { updateMasterCheckboxState(); computeAndRender(_cached); });
+					const sp = document.createElement('span'); sp.textContent = s.name || '';
+					wrap.appendChild(cb); wrap.appendChild(sp);
+					sellerFilterGroup.appendChild(wrap);
+				}
+				function updateMasterCheckboxState(){
+					const cbs = Array.from(sellerFilterGroup.querySelectorAll('input[type="checkbox"]')).filter(x => x.id !== 'sf_all');
+					const checked = cbs.filter(x => x.checked).length;
+					master.indeterminate = checked > 0 && checked < cbs.length;
+					master.checked = checked > 0 && checked === cbs.length;
+				}
+				master.addEventListener('change', () => {
+					const cbs = Array.from(sellerFilterGroup.querySelectorAll('input[type="checkbox"]')).filter(x => x.id !== 'sf_all');
+					for (const cb of cbs) cb.checked = master.checked;
+					updateMasterCheckboxState();
+					computeAndRender(_cached);
+				});
+				updateMasterCheckboxState();
+			}
+			// Pay methods
+			if (payFilter) {
+				payFilter.innerHTML = '';
+				const optAllP = document.createElement('option'); optAllP.value = ''; optAllP.textContent = 'Todos'; payFilter.appendChild(optAllP);
+				const payCodes = ['', 'efectivo', 'transf', 'marce', 'jorge', 'jorgebank', 'entregado'];
+				for (const code of payCodes){ if (code==='') continue; const o=document.createElement('option'); o.value=code; o.textContent = code==='efectivo'?'Efectivo': code==='transf'?'Transf': code==='marce'?'Marce': code==='jorge'?'Jorge': code==='jorgebank'?'JorgeBank': code==='entregado'?'Entregado':'-'; payFilter.appendChild(o); }
+				payFilter.addEventListener('change', () => computeAndRender(_cached));
+			}
+		}
+
+		let _cached = { sellerDays: [], sellers: [], salesByDayBySeller: new Map() };
+
+		async function load(){
+			if (!start || !end) { rangeLabel.textContent = 'Selecciona rango'; openCalendar(); return; }
+			rangeLabel.textContent = `${start} — ${end}`;
+			loadLabel.textContent = 'Cargando…';
+			let sellers = [];
+			try { sellers = await fetchJSON('/api/sellers'); } catch { sellers = []; }
+			loadLabel.textContent = `Vendedores: ${sellers.length} · buscando días…`;
+			populateFilters(sellers);
+			const sellerDays = [];
+			const isoBetween = (iso, a, b) => iso >= a && iso <= b;
+			await mapLimit(sellers, 6, async (s) => {
+				try {
+					const days = await fetchJSON(`/api/days?seller_id=${encodeURIComponent(s.id)}`);
+					for (const d of (days||[])) {
+						const iso = String(d.day).slice(0,10);
+						if (isoBetween(iso, start, end)) sellerDays.push({ seller: s, day: d });
+					}
+				} catch {}
+			});
+			loadLabel.textContent = `Días: ${sellerDays.length} · buscando ventas…`;
+			const salesByDayBySeller = new Map(); // key: `${sellerName}|${iso}` -> array of sale rows
+			await mapLimit(sellerDays, 6, async ({ seller, day }) => {
+				try {
+					const params = new URLSearchParams({ seller_id: String(seller.id), sale_day_id: String(day.id) });
+					const sales = await fetchJSON(`/api/sales?${params.toString()}`);
+					const iso = String(day.day).slice(0,10);
+					salesByDayBySeller.set(`${seller.name||''}|${iso}`, (sales||[]));
+				} catch {}
+			});
+			_cached = { sellerDays, sellers, salesByDayBySeller };
+			computeAndRender(_cached);
+		}
+
+		function computeAndRender(cache){
+			const { salesByDayBySeller } = cache || {};
+			const selectedSellers = getSelectedSellers();
+			const selectedPay = (payFilter?.value || '').toString();
+			const byDate = new Map(); // iso -> sum dinero
+			const qtyByDate = new Map(); // iso -> {qa,qm,qma,qo,qn}
+			for (const [key, rows] of (salesByDayBySeller?.entries() || [])){
+				const [sellerName, iso] = key.split('|');
+				if (selectedSellers.length && !selectedSellers.includes(sellerName)) continue;
+				let sum = 0; let qa=0,qm=0,qma=0,qo=0,qn=0;
+				for (const r of (rows||[])){
+					if (selectedPay && (r.pay_method || '') !== selectedPay) continue;
+					sum += Number(r.total_cents||0) || 0;
+					qa += Number(r.qty_arco||0) || 0; qm += Number(r.qty_melo||0) || 0; qma += Number(r.qty_mara||0) || 0; qo += Number(r.qty_oreo||0) || 0; qn += Number(r.qty_nute||0) || 0;
+				}
+				if (sum > 0) {
+					byDate.set(iso, (byDate.get(iso)||0) + sum);
+					const prev = qtyByDate.get(iso) || {qa:0,qm:0,qma:0,qo:0,qn:0};
+					prev.qa += qa; prev.qm += qm; prev.qma += qma; prev.qo += qo; prev.qn += qn;
+					qtyByDate.set(iso, prev);
+				}
+			}
+			// Weekly aggregation (dinero y unidades)
+			const weekMap = new Map();
+			const weekQtyMap = new Map();
+			for (const [iso, amt] of byDate.entries()){
+				const wk = startOfWeekMonday(iso);
+				const cur = weekMap.get(wk) || { total:0 };
+				cur.total += amt; weekMap.set(wk, cur);
+				const qq = qtyByDate.get(iso) || {qa:0,qm:0,qma:0,qo:0,qn:0};
+				const qcur = weekQtyMap.get(wk) || { qa:0,qm:0,qma:0,qo:0,qn:0 };
+				qcur.qa += qq.qa; qcur.qm += qq.qm; qcur.qma += qq.qma; qcur.qo += qq.qo; qcur.qn += qq.qn;
+				weekQtyMap.set(wk, qcur);
+			}
+			const weekStarts = Array.from(weekMap.keys()).sort((a,b)=> a < b ? -1 : 1);
+			const firstWeekStart = weekStarts[0] || startOfWeekMonday(start);
+			const lastWeekStart = weekStarts[weekStarts.length-1] || startOfWeekMonday(end);
+			// Build high weeks Set from first to last+horizon
+			const horizonWeeks = Number(horizonSel.value || '12') || 12;
+			const maxNeededWeek = addDaysIso(lastWeekStart, (horizonWeeks+1)*7);
+			const highWeeksSet = buildHighWeekSet(firstWeekStart, maxNeededWeek);
+			const weeks = weekStarts.map(ws => ({ weekStart: ws, total: (weekMap.get(ws)||{total:0}).total, isHigh: highWeeksSet.has(ws) }));
+			const weeksQty = weeks.map(w => { const q = weekQtyMap.get(w.weekStart) || {qa:0,qm:0,qma:0,qo:0,qn:0}; return { weekStart: w.weekStart, ...q }; });
+			const histLabels = weeks.map(w => fmtDate(fridayOfWeek(w.weekStart)));
+			const histVals = weeks.map(w => w.total);
+			const highVals = weeks.filter(w=>w.isHigh).map(w=>w.total);
+			const lowVals = weeks.filter(w=>!w.isHigh).map(w=>w.total);
+			const overallAvg = histVals.length ? histVals.reduce((a,b)=>a+b,0)/histVals.length : 0;
+			const highAvg = highVals.length ? highVals.reduce((a,b)=>a+b,0)/highVals.length : 0;
+			const lowAvg = lowVals.length ? lowVals.reduce((a,b)=>a+b,0)/lowVals.length : 0;
+			const { slope, intercept, r2 } = linearRegression(histVals);
+			// User-tunable conservative controls
+			const trendPct = Math.max(0, Math.min(100, Number(trendIntensity?.value || 50))) / 100; // 0..1
+			const slopeAdj = slope * trendPct;
+			const highFactorRaw = overallAvg>0 ? (highAvg/overallAvg) : 1;
+			const lowFactorRaw = overallAvg>0 ? (lowAvg/overallAvg) : 1;
+			const blend = Math.max(0, Math.min(100, Number(seasIntensity?.value || 30))) / 100; // 0..1
+			const highFactor = 1 + (highFactorRaw - 1) * blend;
+			const lowFactor = 1 + (lowFactorRaw - 1) * blend;
+			const growthPct = overallAvg>0 ? (slopeAdj/overallAvg)*100 : 0;
+			renderKPIs({ highAvg, lowAvg, overallAvg, slope: slopeAdj, r2 });
+			let lastWeekStartP = weeks.length ? weeks[weeks.length-1].weekStart : startOfWeekMonday(end);
+			let nextWeekStart = addDaysIso(lastWeekStartP, 7);
+			const proj = [];
+			const projQty = [];
+			// Historical unit shares and avg price per unit (approx)
+			const sumQa = weeksQty.reduce((a,b)=>a + Number(b.qa||0), 0);
+			const sumQm = weeksQty.reduce((a,b)=>a + Number(b.qm||0), 0);
+			const sumQma = weeksQty.reduce((a,b)=>a + Number(b.qma||0), 0);
+			const sumQo = weeksQty.reduce((a,b)=>a + Number(b.qo||0), 0);
+			const sumQn = weeksQty.reduce((a,b)=>a + Number(b.qn||0), 0);
+			const totalUnitsHist = sumQa+sumQm+sumQma+sumQo+sumQn;
+			let wQa=0.2,wQm=0.2,wQma=0.2,wQo=0.2,wQn=0.2;
+			if (totalUnitsHist > 0) {
+				wQa = sumQa/totalUnitsHist; wQm = sumQm/totalUnitsHist; wQma = sumQma/totalUnitsHist; wQo = sumQo/totalUnitsHist; wQn = sumQn/totalUnitsHist;
+			}
+			const avgUnitsPerWeek = weeksQty.length ? (totalUnitsHist / weeksQty.length) : 0;
+			const avgPriceApprox = (overallAvg > 0 && avgUnitsPerWeek > 0) ? (overallAvg / avgUnitsPerWeek) : 1;
+			for (let i=1;i<=horizonWeeks;i++){
+				const idx = histVals.length + i;
+				const base = Math.max(0, intercept + slopeAdj*idx);
+				const isHigh = highWeeksSet.has(nextWeekStart);
+				const factor = isHigh ? highFactor : lowFactor;
+				const total = Math.max(0, base * factor);
+				const unitsThisWeek = avgPriceApprox > 0 ? Math.max(0, Math.round(total / avgPriceApprox)) : 0;
+				const qa = Math.round(unitsThisWeek * wQa);
+				const qm = Math.round(unitsThisWeek * wQm);
+				const qma = Math.round(unitsThisWeek * wQma);
+				const qo = Math.round(unitsThisWeek * wQo);
+				const qn = Math.round(unitsThisWeek * wQn);
+				const has15 = (() => { for (let d=0; d<7; d++){ const day = Number(addDaysIso(nextWeekStart,d).slice(8,10)); if (day===15) return true; } return false; })();
+				const has30 = (() => { for (let d=0; d<7; d++){ const day = Number(addDaysIso(nextWeekStart,d).slice(8,10)); if (day===30) return true; } return false; })();
+				let note = '';
+				if (isHigh) {
+					note = (has15 && has30) ? 'Incluye 15 y 30' : has15 ? 'Incluye 15' : has30 ? 'Incluye 30' : 'Alta por 15/30 cercano';
+				}
+				proj.push({ weekStart: nextWeekStart, isHigh, total, note });
+				projQty.push({ weekStart: nextWeekStart, qa, qm, qma, qo, qn });
+				nextWeekStart = addDaysIso(nextWeekStart, 7);
+			}
+			buildChart(histLabels, histVals, proj.map(p=>fmtDate(fridayOfWeek(p.weekStart))), proj.map(p=>p.total));
+			renderTable(proj);
+			buildCountsChart(proj.map(p=>fmtDate(fridayOfWeek(p.weekStart))), projQty);
+			renderDessertTable(projQty);
+			renderAnalysis({ highAvg, lowAvg, overallAvg, growthPct, horizonWeeks });
+			loadLabel.textContent = `Semanas analizadas: ${weeks.length} · Proyectadas: ${proj.length}`;
+		}
+
+		function openCalendar(ev){
+			openRangeCalendarPopover((range) => {
+				if (!range || !range.start || !range.end) return;
+				start = range.start; end = range.end;
+				history.replaceState(null, '', `?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`);
+				load();
+			}, ev?.clientX, ev?.clientY, { preferUp: true });
+		}
+
+		// Lightweight date range popover (same as sales-report)
+		if (typeof window.openRangeCalendarPopover !== 'function') {
+			window.openRangeCalendarPopover = function(onPickedRange, anchorX, anchorY, opts){
+				const pop = document.createElement('div'); pop.className = 'date-popover'; pop.style.position = 'fixed'; const baseX = anchorX||window.innerWidth/2; const baseY = anchorY||window.innerHeight/2; pop.style.left = baseX+'px'; pop.style.top=(baseY+8)+'px'; pop.style.transform='translate(-50%,0)'; pop.style.zIndex='1000';
+				const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']; let view = new Date(); view.setDate(1); let startIso=null, endIso=null;
+				const header=document.createElement('div'); header.className='date-popover-header'; const prev=document.createElement('button'); prev.className='date-nav'; prev.textContent='‹'; const label=document.createElement('div'); label.className='date-label'; const next=document.createElement('button'); next.className='date-nav'; next.textContent='›'; header.append(prev,label,next);
+				const grid=document.createElement('div'); grid.className='date-grid'; const weekdays=['L','M','X','J','V','S','D']; const wk=document.createElement('div'); wk.className='date-weekdays'; for (const w of weekdays){ const c=document.createElement('div'); c.textContent=w; wk.appendChild(c);} 
+				function isoUTC(y,m,d){ return new Date(Date.UTC(y,m,d)).toISOString().slice(0,10); }
+				function isBetween(x,a,b){ return x>=a && x<=b; }
+				function render(){ label.textContent = months[view.getMonth()] + ' ' + view.getFullYear(); grid.innerHTML=''; const year=view.getFullYear(); const month=view.getMonth(); const firstDay=(new Date(Date.UTC(year,month,1)).getUTCDay()+6)%7; const daysInMonth=new Date(Date.UTC(year,month+1,0)).getUTCDate(); for (let i=0;i<firstDay;i++){ const cell=document.createElement('button'); cell.className='date-cell disabled'; cell.disabled=true; grid.appendChild(cell);} for (let d=1; d<=daysInMonth; d++){ const iso=isoUTC(year,month,d); const cell=document.createElement('button'); let cls='date-cell'; if (startIso && !endIso && iso===startIso) cls+=' range-start selected'; if (startIso && endIso){ if (iso===startIso) cls+=' range-start selected'; else if (iso===endIso) cls+=' range-end selected'; else if (isBetween(iso,startIso,endIso)) cls+=' in-range'; } cell.className=cls; cell.textContent=String(d); cell.addEventListener('click',()=>{ if(!startIso){ startIso=iso; endIso=null; render(); return; } if(!endIso){ if(iso<startIso){ endIso=startIso; startIso=iso; } else { endIso=iso; } render(); return; } startIso=iso; endIso=null; render(); }); grid.appendChild(cell);} }
+				function cleanup(){ document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); if(pop.parentNode) pop.parentNode.removeChild(pop);} function outside(ev){ if(!pop.contains(ev.target)) cleanup(); }
+				prev.addEventListener('click',()=>{ view.setMonth(view.getMonth()-1); render(); }); next.addEventListener('click',()=>{ view.setMonth(view.getMonth()+1); render(); });
+				const actions=document.createElement('div'); actions.style.display='flex'; actions.style.justifyContent='space-between'; actions.style.marginTop='8px'; const clearBtn=document.createElement('button'); clearBtn.className='date-nav'; clearBtn.textContent='Limpiar'; const genBtn=document.createElement('button'); genBtn.className='date-nav'; genBtn.textContent='Generar'; genBtn.disabled=true; clearBtn.addEventListener('click',()=>{ startIso=null; endIso=null; genBtn.disabled=true; render(); }); genBtn.addEventListener('click',()=>{ if(startIso && endIso && typeof onPickedRange==='function'){ cleanup(); onPickedRange({ start:startIso, end:endIso }); } }); actions.append(clearBtn, genBtn);
+				const origRender = render; render = function(){ origRender(); genBtn.disabled = !(startIso && endIso); };
+				pop.append(header, wk, grid, actions); document.body.appendChild(pop); pop.classList.add('aladdin-pop');
+				document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); render();
+			};
+		}
+
+		backBtn.addEventListener('click', () => { location.href = '/'; });
+		changeBtn.addEventListener('click', (ev) => openCalendar(ev));
+		horizonSel.addEventListener('change', load);
+		trendIntensity?.addEventListener('input', () => { if (trendLabel) trendLabel.textContent = `${trendIntensity.value}%`; computeAndRender(_cached); });
+		seasIntensity?.addEventListener('input', () => { if (seasLabel) seasLabel.textContent = `${seasIntensity.value}%`; computeAndRender(_cached); });
+		load();
+	})();
+	</script>
+</body>
+</html>
+
