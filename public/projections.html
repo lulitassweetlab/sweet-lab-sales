@@ -38,6 +38,16 @@
 				<strong id="range-label"></strong>
 				<small id="load-label" style="opacity:.8"></small>
 			</div>
+			<div class="filters-row" style="display:flex; gap:8px; align-items:flex-start; flex-wrap:wrap; margin:6px 0 12px 0">
+				<label style="display:flex; gap:6px; align-items:flex-start">
+					<span style="line-height:28px; white-space:nowrap">Vendedores</span>
+					<div id="seller-filter-group" class="seller-filter-group" style="display:flex; gap:8px; flex-wrap:wrap; min-width:220px; max-height:132px; overflow:auto; padding:8px; border:1px solid var(--border); border-radius:10px; background: var(--card);"></div>
+				</label>
+				<label style="display:flex; gap:6px; align-items:center">
+					<span>Pago</span>
+					<select id="pay-filter" class="input-cell" style="min-width:160px"></select>
+				</label>
+			</div>
 			<div id="kpis" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:10px; margin:10px 0 16px 0"></div>
 			<div class="table-wrapper" style="margin-bottom:16px">
 				<canvas id="proj-chart" height="120"></canvas>
@@ -75,6 +85,8 @@
 		const rangeLabel = document.getElementById('range-label');
 		const loadLabel = document.getElementById('load-label');
 		const kpisEl = document.getElementById('kpis');
+		const sellerFilterGroup = document.getElementById('seller-filter-group');
+		const payFilter = document.getElementById('pay-filter');
 		const tbody = document.getElementById('proj-tbody');
 		const totalEl = document.getElementById('proj-total');
 		const backBtn = document.getElementById('back-btn');
@@ -181,6 +193,55 @@
 			el.appendChild(p);
 		}
 
+		function getSelectedSellers(){
+			if (!sellerFilterGroup) return [];
+			return Array.from(sellerFilterGroup.querySelectorAll('input[type="checkbox"]:checked')).map(i => i.value).filter(Boolean);
+		}
+
+		function populateFilters(sellers){
+			// Sellers
+			if (sellerFilterGroup) {
+				sellerFilterGroup.innerHTML = '';
+				const masterWrap = document.createElement('label'); masterWrap.style.display='inline-flex'; masterWrap.style.alignItems='center'; masterWrap.style.gap='6px';
+				const master = document.createElement('input'); master.type='checkbox'; master.id='sf_all'; master.checked = true;
+				const masterSpan = document.createElement('span'); masterSpan.textContent = 'Todos';
+				masterWrap.appendChild(master); masterWrap.appendChild(masterSpan);
+				sellerFilterGroup.appendChild(masterWrap);
+				for (const s of (sellers||[])){
+					const id = `sf_${(s.name||'').replace(/[^a-z0-9]+/gi,'_')}`;
+					const wrap = document.createElement('label'); wrap.style.display='inline-flex'; wrap.style.alignItems='center'; wrap.style.gap='6px';
+					const cb = document.createElement('input'); cb.type='checkbox'; cb.value = s.name || ''; cb.id = id; cb.checked = true;
+					cb.addEventListener('change', () => { updateMasterCheckboxState(); computeAndRender(_cached); });
+					const sp = document.createElement('span'); sp.textContent = s.name || '';
+					wrap.appendChild(cb); wrap.appendChild(sp);
+					sellerFilterGroup.appendChild(wrap);
+				}
+				function updateMasterCheckboxState(){
+					const cbs = Array.from(sellerFilterGroup.querySelectorAll('input[type="checkbox"]')).filter(x => x.id !== 'sf_all');
+					const checked = cbs.filter(x => x.checked).length;
+					master.indeterminate = checked > 0 && checked < cbs.length;
+					master.checked = checked > 0 && checked === cbs.length;
+				}
+				master.addEventListener('change', () => {
+					const cbs = Array.from(sellerFilterGroup.querySelectorAll('input[type="checkbox"]')).filter(x => x.id !== 'sf_all');
+					for (const cb of cbs) cb.checked = master.checked;
+					updateMasterCheckboxState();
+					computeAndRender(_cached);
+				});
+				updateMasterCheckboxState();
+			}
+			// Pay methods
+			if (payFilter) {
+				payFilter.innerHTML = '';
+				const optAllP = document.createElement('option'); optAllP.value = ''; optAllP.textContent = 'Todos'; payFilter.appendChild(optAllP);
+				const payCodes = ['', 'efectivo', 'transf', 'marce', 'jorge', 'jorgebank', 'entregado'];
+				for (const code of payCodes){ if (code==='') continue; const o=document.createElement('option'); o.value=code; o.textContent = code==='efectivo'?'Efectivo': code==='transf'?'Transf': code==='marce'?'Marce': code==='jorge'?'Jorge': code==='jorgebank'?'JorgeBank': code==='entregado'?'Entregado':'-'; payFilter.appendChild(o); }
+				payFilter.addEventListener('change', () => computeAndRender(_cached));
+			}
+		}
+
+		let _cached = { sellerDays: [], sellers: [], salesByDayBySeller: new Map() };
+
 		async function load(){
 			if (!start || !end) { rangeLabel.textContent = 'Selecciona rango'; openCalendar(); return; }
 			rangeLabel.textContent = `${start} — ${end}`;
@@ -188,6 +249,7 @@
 			let sellers = [];
 			try { sellers = await fetchJSON('/api/sellers'); } catch { sellers = []; }
 			loadLabel.textContent = `Vendedores: ${sellers.length} · buscando días…`;
+			populateFilters(sellers);
 			const sellerDays = [];
 			const isoBetween = (iso, a, b) => iso >= a && iso <= b;
 			await mapLimit(sellers, 6, async (s) => {
@@ -200,20 +262,36 @@
 				} catch {}
 			});
 			loadLabel.textContent = `Días: ${sellerDays.length} · buscando ventas…`;
-			const byDate = new Map();
+			const salesByDayBySeller = new Map(); // key: `${sellerName}|${iso}` -> array of sale rows
 			await mapLimit(sellerDays, 6, async ({ seller, day }) => {
 				try {
 					const params = new URLSearchParams({ seller_id: String(seller.id), sale_day_id: String(day.id) });
 					const sales = await fetchJSON(`/api/sales?${params.toString()}`);
-					for (const r of (sales||[])) {
-						const iso = String(day.day).slice(0,10);
-						const tot = Number(r.total_cents||0) || 0;
-						byDate.set(iso, (byDate.get(iso)||0) + tot);
-					}
+					const iso = String(day.day).slice(0,10);
+					salesByDayBySeller.set(`${seller.name||''}|${iso}`, (sales||[]));
 				} catch {}
 			});
+			_cached = { sellerDays, sellers, salesByDayBySeller };
+			computeAndRender(_cached);
+		}
+
+		function computeAndRender(cache){
+			const { salesByDayBySeller } = cache || {};
+			const selectedSellers = getSelectedSellers();
+			const selectedPay = (payFilter?.value || '').toString();
+			const byDate = new Map(); // iso -> sum
+			for (const [key, rows] of (salesByDayBySeller?.entries() || [])){
+				const [sellerName, iso] = key.split('|');
+				if (selectedSellers.length && !selectedSellers.includes(sellerName)) continue;
+				let sum = 0;
+				for (const r of (rows||[])){
+					if (selectedPay && (r.pay_method || '') !== selectedPay) continue;
+					sum += Number(r.total_cents||0) || 0;
+				}
+				if (sum > 0) byDate.set(iso, (byDate.get(iso)||0) + sum);
+			}
 			// Weekly aggregation
-			const weekMap = new Map(); // weekStart -> { total, isHigh }
+			const weekMap = new Map();
 			for (const [iso, amt] of byDate.entries()){
 				const wk = startOfWeekMonday(iso);
 				const cur = weekMap.get(wk) || { total:0, isHigh: weekContainsHighDay(wk) };
@@ -233,13 +311,12 @@
 			const lowFactor = overallAvg>0 ? (lowAvg/overallAvg) : 1;
 			const growthPct = overallAvg>0 ? (slope/overallAvg)*100 : 0;
 			renderKPIs({ highAvg, lowAvg, overallAvg, slope, r2 });
-			// Build projections
 			const horizonWeeks = Number(horizonSel.value || '12') || 12;
 			let lastWeekStart = weeks.length ? weeks[weeks.length-1].weekStart : startOfWeekMonday(end);
 			let nextWeekStart = addDaysIso(lastWeekStart, 7);
 			const proj = [];
 			for (let i=1;i<=horizonWeeks;i++){
-				const idx = histVals.length + i; // continue regression index
+				const idx = histVals.length + i;
 				const base = Math.max(0, intercept + slope*idx);
 				const isHigh = weekContainsHighDay(nextWeekStart);
 				const factor = isHigh ? highFactor : lowFactor;
