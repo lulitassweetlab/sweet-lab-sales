@@ -230,8 +230,8 @@
 				c.append(h, v, s); d.append(c); return d;
 			}
 			kpisEl.append(
-				card('Promedio semana ALTA', fmtMoney(highAvg||0), 'Semanas con día 15 o 30'),
-				card('Promedio semana BAJA', fmtMoney(lowAvg||0), 'Otras semanas'),
+				card('Promedio semana QUINCENA', fmtMoney(highAvg||0), 'Semanas con día 15 o 30'),
+				card('Promedio semana NORMAL', fmtMoney(lowAvg||0), 'Otras semanas'),
 				card('Promedio semanal', fmtMoney(overallAvg||0), 'Histórico en rango'),
 				card('Crecimiento aplicado', `${Number(growthWeeklyPct||0).toFixed(2)}%/semana`, `Base conservadora 1.5%/mes · R² ${r2.toFixed(2)}`)
 			);
