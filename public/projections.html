@@ -52,8 +52,8 @@
 					<div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap">
 					<label style="display:flex; gap:6px; align-items:center">
 						<span>Crec.</span>
-						<input id="trend-intensity" type="range" min="0" max="100" step="5" value="100" />
-						<small id="trend-intensity-label" style="opacity:.8; min-width:44px; text-align:right">100%</small>
+						<input id="trend-intensity" type="range" min="0" max="100" step="5" value="15" />
+						<small id="trend-intensity-label" style="opacity:.8; min-width:44px; text-align:right">1.5%</small>
 					</label>
 						<label style="display:flex; gap:6px; align-items:center">
 							<span>Estac.</span>
@@ -258,11 +258,11 @@
 				const s = document.createElement('div'); s.style.opacity='.8'; s.style.marginTop='4px'; s.textContent = sub||'';
 				c.append(h, v, s); d.append(c); return d;
 			}
-			kpisEl.append(
+		kpisEl.append(
 				card('Promedio semana QUINCENA', fmtMoney(highAvg||0), 'Semanas con día 15 o 30'),
 				card('Promedio semana NORMAL', fmtMoney(lowAvg||0), 'Otras semanas'),
 				card('Promedio semanal', fmtMoney(overallAvg||0), 'Histórico en rango'),
-				card('Crecimiento aplicado', `${Number(growthWeeklyPct||0).toFixed(2)}%/semana`, `Base conservadora 1.5%/mes · R² ${r2.toFixed(2)}`)
+				card('Crecimiento aplicado', `${Number(growthWeeklyPct||0).toFixed(2)}%/semana`, `Control 0–10%/mes · R² ${r2.toFixed(2)}`)
 			);
 		}
 
@@ -333,7 +333,7 @@
 			const el = document.getElementById('analysis');
 			el.innerHTML = '';
 			const p = document.createElement('p');
-			p.textContent = `Usamos tu histórico para separar semanas QUINCENA (contienen día 15 o 30) y NORMAL. Calculamos promedios por tipo y aplicamos un crecimiento compuesto semanal de ${growthPct.toFixed(2)}% (base conservadora ≈1.5% mensual), proyectando ${horizonWeeks} semanas. Las semanas de QUINCENA muestran picos por quincena y fin de mes; las NORMAL mantienen niveles menores. Si esperas sucesos extraordinarios (Navidad, eventos o promociones), ajusta la intensidad de crecimiento o agrega notas para esas semanas.`;
+			p.textContent = `Usamos tu histórico para separar semanas QUINCENA (contienen día 15 o 30) y NORMAL. Calculamos promedios por tipo y aplicamos un crecimiento compuesto semanal de ${growthPct.toFixed(2)}% (definido por el control de 0–10% mensual), proyectando ${horizonWeeks} semanas. Las semanas de QUINCENA muestran picos por quincena y fin de mes; las NORMAL mantienen niveles menores. Si esperas sucesos extraordinarios (Navidad, eventos o promociones), ajusta la intensidad de crecimiento o agrega notas para esas semanas.`;
 			el.appendChild(p);
 		}
 
@@ -470,17 +470,16 @@
 			const highAvg = highVals.length ? highVals.reduce((a,b)=>a+b,0)/highVals.length : 0;
 			const lowAvg = lowVals.length ? lowVals.reduce((a,b)=>a+b,0)/lowVals.length : 0;
 			const { slope, intercept, r2 } = linearRegression(histVals);
-			// Controles conservadores: usar crecimiento compuesto desde 1.5% mensual por defecto
-			const trendPct = Math.max(0, Math.min(100, Number(trendIntensity?.value || 100))) / 100; // 0..1 escala del 1.5% mensual
+			// Intensidad de crecimiento: 0%..10% mensual (por defecto 1.5%) convertido a semanal
+			const trendMonthlyPct = Math.max(0, Math.min(100, Number(trendIntensity?.value || 15)));
+			const effectiveMonthlyGrowth = trendMonthlyPct / 100; // 0..0.10
 			const highFactorRaw = overallAvg>0 ? (highAvg/overallAvg) : 1;
 			const lowFactorRaw = overallAvg>0 ? (lowAvg/overallAvg) : 1;
 			const blend = Math.max(0, Math.min(100, Number(seasIntensity?.value || 30))) / 100; // 0..1
 			const highFactor = 1 + (highFactorRaw - 1) * blend;
 			const lowFactor = 1 + (lowFactorRaw - 1) * blend;
 			// 1.5% mensual -> tasa semanal compuesta aproximada (4.345 semanas/mes)
-			const BASELINE_MONTHLY_GROWTH = 0.015; // 1.5%
 			const WEEKS_PER_MONTH = 4.345;
-			const effectiveMonthlyGrowth = BASELINE_MONTHLY_GROWTH * trendPct;
 			const weeklyGrowth = Math.pow(1 + effectiveMonthlyGrowth, 1 / WEEKS_PER_MONTH) - 1;
 			const appliedWeeklyPct = weeklyGrowth * 100;
 			renderKPIs({ highAvg, lowAvg, overallAvg, growthWeeklyPct: appliedWeeklyPct, r2 });
@@ -570,7 +569,7 @@
 		backBtn.addEventListener('click', () => { location.href = '/'; });
 		changeBtn.addEventListener('click', (ev) => openCalendar(ev));
 		horizonSel.addEventListener('change', load);
-		trendIntensity?.addEventListener('input', () => { if (trendLabel) trendLabel.textContent = `${trendIntensity.value}%`; computeAndRender(_cached); });
+		trendIntensity?.addEventListener('input', () => { if (trendLabel) trendLabel.textContent = `${Number(trendIntensity.value||0).toFixed(1)}%`; computeAndRender(_cached); });
 		seasIntensity?.addEventListener('input', () => { if (seasLabel) seasLabel.textContent = `${seasIntensity.value}%`; computeAndRender(_cached); });
 		targetQuincenaInput?.addEventListener('change', () => { saveTargets(); computeAndRender(_cached); });
 		targetNormalInput?.addEventListener('change', () => { saveTargets(); computeAndRender(_cached); });
