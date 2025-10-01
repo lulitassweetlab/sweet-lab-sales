@@ -207,9 +207,8 @@
 			const invByKey = new Map();
 			for (const it of (inventory||[])) invByKey.set((it.ingredient||'').toString().toLowerCase(), Number(it.saldo||0)||0);
 
-			// 4) Build aggregated rows per ingredient (unify same ingredients)
+			// 4) Preparar render dinámico con control de postres a realizar
 			countLabel.textContent = 'Calculando requerimientos…';
-			const agg = new Map(); // key -> { name, perUnits:Set<string>, needed:number }
 			const normKey = (s) => (s||'').toString().trim().toLowerCase().replace(/\s+/g,' ');
 			const fmt1 = (n) => (Number(n||0)||0).toFixed(1);
 			function canonicalizeName(name){
@@ -220,7 +219,6 @@
 				if (low.includes('oreo')) return 'Oreo';
 				if (low.startsWith('agua')) return 'Agua';
 				if (low.includes('almibar') || low.includes('almíbar')) return 'Almíbar';
-				// Extras aliases consistent with server canonicalization
 				if (low.includes('bolsa') && low.includes('cuchara')) return 'Bolsa para cuchara';
 				if (low.includes('contenedor') && (low.includes('8 oz') || low.includes('8oz') || low.includes('8 onz') || low.includes('8onz'))) return 'Contenedor 8 onz';
 				return raw;
@@ -232,8 +230,8 @@
 				return name || '';
 			}
 			// Build price and pack maps from recipes/extras
-			priceMap = new Map(); // key -> price
-			packMap = new Map(); // key -> pack_size
+			priceMap = new Map();
+			packMap = new Map();
 			setMapsFor = function(name, unit, price, pack){
 				const k = normKey(canonicalizeName(name)); if (!k) return;
 				if (Number(price||0) > 0) priceMap.set(k, Number(price||0));
@@ -244,177 +242,213 @@
 				for (const it of arr) setMapsFor(it.ingredient, it.unit, it.price, it.pack_size);
 			}
 			for (const ex of (extras||[])) setMapsFor(ex.ingredient, ex.unit, ex.price, ex.pack_size);
-			function addRow(_dessert, ingredient, unit, perUnit, needed){
-				const canon = canonicalizeName(ingredient);
-				// Excluir Agua y Almíbar del reporte
-				if (canon === 'Agua' || canon === 'Almíbar') return;
-				const disp = displayNameFor(canon);
-				const key = normKey(canon);
-				if (!key) return;
-				const cur = agg.get(key) || { name: disp, perUnits: new Set(), needed: 0 };
-				if (perUnit != null) cur.perUnits.add(fmt1(perUnit));
-				cur.needed += Number(needed||0)||0;
-				agg.set(key, cur);
-			}
-			const mapKey = (name) => (name||'').toString().trim().toLowerCase();
-			for (const name of names){
-				const arr = itemsByDessert.get(name) || [];
-				const k = mapKey(name);
-				const mult = k.startsWith('arco') ? counts.arco : k.startsWith('melo') ? counts.melo : k.startsWith('mara') ? counts.mara : k.startsWith('oreo') ? counts.oreo : k.startsWith('nute') ? counts.nute : 0;
-				if (!mult) continue;
-				for (const it of arr){
-					const per = Number(it.qty_per_unit||0)||0;
-					const adj = Number(it.adjustment||0)||0;
-					addRow(name, it.ingredient, it.unit, per, (per * mult) + adj);
-				}
-			}
-			const totalUnits = counts.arco + counts.melo + counts.mara + counts.oreo + counts.nute;
-			for (const ex of (extras||[])){
-				const per = Number(ex.qty_per_unit||0)||0;
-				addRow('Extra', ex.ingredient, ex.unit, per, per * totalUnits);
-			}
 
-			// 4.1) Compute per-dessert cost (needed cost) including extras per unidad
-			const perDessertCostNeeded = { arco:0, melo:0, mara:0, oreo:0, nute:0 };
-			// Cost from recipe items
-			for (const name of names){
-				const arr = itemsByDessert.get(name) || [];
-				const k = mapKey(name);
-				const flavor = k.startsWith('arco') ? 'arco' : k.startsWith('melo') ? 'melo' : k.startsWith('mara') ? 'mara' : k.startsWith('oreo') ? 'oreo' : k.startsWith('nute') ? 'nute' : null;
-				const mult = flavor ? counts[flavor] : 0;
-				if (!flavor || !mult) continue;
-				for (const it of arr){
-					const canon = canonicalizeName(it.ingredient);
+
+			const baseCounts = { arco: counts.arco, melo: counts.melo, mara: counts.mara, oreo: counts.oreo, nute: counts.nute };
+			const baseTotal = baseCounts.arco + baseCounts.melo + baseCounts.mara + baseCounts.oreo + baseCounts.nute;
+			// Persistencia por rango de las cantidades editadas por postre
+			const storeKey = `ingredients.counts:${start}:${end}`;
+			function getSavedCounts(){
+				try { const v = localStorage.getItem(storeKey); if (!v) return null; const o = JSON.parse(v); if (!o) return null; return { arco:Number(o.arco||0)||0, melo:Number(o.melo||0)||0, mara:Number(o.mara||0)||0, oreo:Number(o.oreo||0)||0, nute:Number(o.nute||0)||0 }; } catch { return null; }
+			}
+			function saveCounts(c){ try { localStorage.setItem(storeKey, JSON.stringify(c)); } catch {} }
+			function clearSaved(){ try { localStorage.removeItem(storeKey); } catch {} }
+			function renderCountsEditor(currentCounts){
+				countsSummary.innerHTML = '';
+				const keys = [ ['arco','Arco'], ['melo','Melo'], ['mara','Mara'], ['oreo','Oreo'], ['nute','Nute'] ];
+				const inputs = [];
+				for (const [k, label] of keys){
+					const el = document.createElement('div');
+					el.style.background = 'var(--card)'; el.style.border = '1px solid var(--border)'; el.style.borderRadius = '999px'; el.style.padding = '4px 10px'; el.style.display='flex'; el.style.alignItems='center'; el.style.gap='8px';
+					const span = document.createElement('span'); span.textContent = label+':'; span.style.fontWeight='600';
+					const input = document.createElement('input'); input.type='number'; input.min='0'; input.step='1'; input.style.width='90px'; input.className='input-cell'; input.value = String(Number(currentCounts[k]||0)); input.dataset.key = k;
+					el.append(span, input);
+					countsSummary.appendChild(el);
+					inputs.push(input);
+				}
+				const resetBtn = document.createElement('button'); resetBtn.className='press-btn'; resetBtn.textContent='Cantidades originales'; resetBtn.style.marginLeft='4px';
+				resetBtn.addEventListener('click', () => { clearSaved(); renderAllForCounts({ ...baseCounts }); });
+				countsSummary.appendChild(resetBtn);
+				function onAnyChange(){
+					const next = { arco:0, melo:0, mara:0, oreo:0, nute:0 };
+					for (const inp of inputs){ const kk = String(inp.dataset.key||''); next[kk] = Math.max(0, Math.round(Number(inp.value||0)||0)); }
+					saveCounts(next);
+					renderAllForCounts(next);
+				}
+				for (const inp of inputs){ inp.addEventListener('input', onAnyChange); inp.addEventListener('change', onAnyChange); inp.addEventListener('blur', onAnyChange); }
+			}
+			const savedCounts = getSavedCounts();
+			const initialCounts = savedCounts ? savedCounts : { ...baseCounts };
+
+			function renderAllForCounts(useCounts){
+				// Editor inline de conteos por postre
+				renderCountsEditor(useCounts);
+				// Agregado por ingrediente
+				const agg = new Map();
+				function addRow(_dessert, ingredient, unit, perUnit, needed){
+					const canon = canonicalizeName(ingredient);
+					if (canon === 'Agua' || canon === 'Almíbar') return;
+					const disp = displayNameFor(canon);
+					const key = normKey(canon);
+					if (!key) return;
+					const cur = agg.get(key) || { name: disp, perUnits: new Set(), needed: 0 };
+					if (perUnit != null) cur.perUnits.add(fmt1(perUnit));
+					cur.needed += Number(needed||0)||0;
+					agg.set(key, cur);
+				}
+				const mapKey = (name) => (name||'').toString().trim().toLowerCase();
+				for (const name of names){
+					const arr = itemsByDessert.get(name) || [];
+					const k = mapKey(name);
+					const mult = k.startsWith('arco') ? useCounts.arco : k.startsWith('melo') ? useCounts.melo : k.startsWith('mara') ? useCounts.mara : k.startsWith('oreo') ? useCounts.oreo : k.startsWith('nute') ? useCounts.nute : 0;
+					if (!mult) continue;
+					for (const it of arr){
+						const per = Number(it.qty_per_unit||0)||0;
+						addRow(name, it.ingredient, it.unit, per, per * mult);
+					}
+				}
+				const totalUnits = useCounts.arco + useCounts.melo + useCounts.mara + useCounts.oreo + useCounts.nute;
+				for (const ex of (extras||[])){
+					const per = Number(ex.qty_per_unit||0)||0;
+					addRow('Extra', ex.ingredient, ex.unit, per, per * totalUnits);
+				}
+
+				// Costos por postre
+				const perDessertCostNeeded = { arco:0, melo:0, mara:0, oreo:0, nute:0 };
+				for (const name of names){
+					const arr = itemsByDessert.get(name) || [];
+					const k = mapKey(name);
+					const flavor = k.startsWith('arco') ? 'arco' : k.startsWith('melo') ? 'melo' : k.startsWith('mara') ? 'mara' : k.startsWith('oreo') ? 'oreo' : k.startsWith('nute') ? 'nute' : null;
+					const mult = flavor ? useCounts[flavor] : 0;
+					if (!flavor || !mult) continue;
+					for (const it of arr){
+						const canon = canonicalizeName(it.ingredient);
+						if (canon === 'Agua' || canon === 'Almíbar') continue;
+						const per = Number(it.qty_per_unit||0)||0;
+						const price = Number(it.price||0)||0;
+						perDessertCostNeeded[flavor] += per * mult * price;
+					}
+				}
+				let extrasUnitCost = 0;
+				for (const ex of (extras||[])){
+					const canon = canonicalizeName(ex.ingredient);
 					if (canon === 'Agua' || canon === 'Almíbar') continue;
-					const per = Number(it.qty_per_unit||0)||0;
-					const adj = Number(it.adjustment||0)||0;
-					const price = Number(it.price||0)||0;
-					perDessertCostNeeded[flavor] += ((per * mult) + adj) * price;
+					const per = Number(ex.qty_per_unit||0)||0;
+					const price = Number(ex.price||0)||0;
+					extrasUnitCost += per * price;
 				}
-			}
-			// Extras cost per unidad, applied to each dessert by its count
-			let extrasUnitCost = 0;
-			for (const ex of (extras||[])){
-				const canon = canonicalizeName(ex.ingredient);
-				if (canon === 'Agua' || canon === 'Almíbar') continue;
-				const per = Number(ex.qty_per_unit||0)||0;
-				const price = Number(ex.price||0)||0;
-				extrasUnitCost += per * price;
-			}
-			perDessertCostNeeded.arco += counts.arco * extrasUnitCost;
-			perDessertCostNeeded.melo += counts.melo * extrasUnitCost;
-			perDessertCostNeeded.mara += counts.mara * extrasUnitCost;
-			perDessertCostNeeded.oreo += counts.oreo * extrasUnitCost;
-			perDessertCostNeeded.nute += counts.nute * extrasUnitCost;
+				perDessertCostNeeded.arco += useCounts.arco * extrasUnitCost;
+				perDessertCostNeeded.melo += useCounts.melo * extrasUnitCost;
+				perDessertCostNeeded.mara += useCounts.mara * extrasUnitCost;
+				perDessertCostNeeded.oreo += useCounts.oreo * extrasUnitCost;
+				perDessertCostNeeded.nute += useCounts.nute * extrasUnitCost;
 
-			// 5) Materialize rows and render
-			const keys = Array.from(agg.keys()).sort((a,b) => a.localeCompare(b));
-			tbody.innerHTML = '';
-			let buySugTotal = 0; let buyRealTotal = 0; let buyCostTotal = 0; let neededCostTotal = 0;
-			const waLines = [];
-			const rowsState = [];
+				// Render tabla
+				const keys = Array.from(agg.keys()).sort((a,b) => a.localeCompare(b));
+				tbody.innerHTML = '';
+				let buySugTotal = 0; let buyRealTotal = 0; let buyCostTotal = 0; let neededCostTotal = 0;
+				const rowsState = [];
 				for (const key of keys){
-				const v = agg.get(key);
-				const inv = invByKey.has(key) ? Number(invByKey.get(key)||0)||0 : 0;
-				const buy = Math.max(0, (Number(v.needed||0)||0) - inv);
-				// Real purchase based on pack size: ceil(buy / pack) * pack
-				const pack = Number(packMap.get(key) || 0) || 0;
-				const real = pack > 0 ? Math.ceil(buy / pack) * pack : buy;
+					const v = agg.get(key);
+					const inv = invByKey.has(key) ? Number(invByKey.get(key)||0)||0 : 0;
+					const buy = Math.max(0, (Number(v.needed||0)||0) - inv);
+					const pack = Number(packMap.get(key) || 0) || 0;
+					const real = pack > 0 ? Math.ceil(buy / pack) * pack : buy;
 					const price = Number(priceMap.get(key) || 0) || 0;
-				const cost = real * price;
-				const perUnitDisplay = (v.perUnits && v.perUnits.size === 1) ? Array.from(v.perUnits)[0] : '—';
-				const tr = document.createElement('tr');
-				const tdName = document.createElement('td'); tdName.style.textAlign = 'left'; tdName.textContent = v.name;
-				const tdPer = document.createElement('td'); tdPer.textContent = perUnitDisplay;
-				const tdNeed = document.createElement('td'); tdNeed.textContent = fmt1(v.needed);
-				const tdInv = document.createElement('td'); tdInv.textContent = fmt1(inv);
-				const tdBuy = document.createElement('td'); tdBuy.className = 'col-total'; tdBuy.textContent = fmt1(buy);
+					const cost = real * price;
+					const perUnitDisplay = (v.perUnits && v.perUnits.size === 1) ? Array.from(v.perUnits)[0] : '—';
+					const tr = document.createElement('tr');
+					const tdName = document.createElement('td'); tdName.style.textAlign = 'left'; tdName.textContent = v.name;
+					const tdPer = document.createElement('td'); tdPer.textContent = perUnitDisplay;
+					const tdNeed = document.createElement('td'); tdNeed.textContent = fmt1(v.needed);
+					const tdInv = document.createElement('td'); tdInv.textContent = fmt1(inv);
+					const tdBuy = document.createElement('td'); tdBuy.className = 'col-total'; tdBuy.textContent = fmt1(buy);
 					const tdReal = document.createElement('td');
 					const inReal = document.createElement('input'); inReal.type = 'number'; inReal.step = '0.1'; inReal.min = '0'; inReal.className = 'input-cell'; inReal.style.width = '90px'; inReal.style.textAlign = 'right'; inReal.value = String(Number(fmt1(real))); tdReal.appendChild(inReal);
-				const tdCost = document.createElement('td');
-				const inCost = document.createElement('input'); inCost.type = 'number'; inCost.step = '1'; inCost.min = '0'; inCost.className = 'input-cell'; inCost.style.width = '110px'; inCost.style.textAlign = 'right'; inCost.value = String(Math.round(cost)); tdCost.appendChild(inCost);
+					const tdCost = document.createElement('td');
+					const inCost = document.createElement('input'); inCost.type = 'number'; inCost.step = '1'; inCost.min = '0'; inCost.className = 'input-cell'; inCost.style.width = '110px'; inCost.style.textAlign = 'right'; inCost.value = String(Math.round(cost)); tdCost.appendChild(inCost);
 					tr.append(tdName, tdPer, tdNeed, tdInv, tdBuy, tdReal, tdCost);
-				tbody.appendChild(tr);
-				buySugTotal += buy;
-				buyRealTotal += real;
-				buyCostTotal += Number(inCost.value || 0) || 0;
-				neededCostTotal += (Number(v.needed || 0) || 0) * price;
-				rowsState.push({ name: v.name, realInput: inReal, pack, costInput: inCost, unitPrice: price });
-			}
-			function recomputeTotals(){
-				let t = 0; for (const r of rowsState) t += Number(r.costInput?.value || 0) || 0;
-				buyCostTotal = t;
-				tBuyCostTotal.textContent = (new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 })).format(buyCostTotal);
-				renderBottomSummary();
-			}
-			function renderDessertSummary(){
-				const fmtMoney = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
-				dessertSummary.innerHTML = '';
-				const wrap = document.createElement('div');
-				wrap.style.display = 'grid';
-				wrap.style.gridTemplateColumns = 'repeat(auto-fit, minmax(240px, 1fr))';
-				wrap.style.gap = '12px';
-				function card(title, data){
-					const el = document.createElement('div');
-					el.style.background = 'var(--card)';
-					el.style.border = '1px solid var(--border)';
-					el.style.borderRadius = '10px';
-					el.style.padding = '10px 12px';
-					const h = document.createElement('div'); h.style.fontWeight = '700'; h.style.marginBottom = '6px'; h.textContent = title;
-					const vVenta = document.createElement('div'); vVenta.innerHTML = `<strong>Valor venta:</strong> ${fmtMoney.format(data.valorVenta)}`;
-					const cTot = document.createElement('div'); cTot.innerHTML = `<strong>Costos totales:</strong> ${fmtMoney.format(data.costosTotales)}`;
-					const util = document.createElement('div'); util.innerHTML = `<strong>Utilidad bruta:</strong> ${fmtMoney.format(data.utilidadBruta)}`;
-					const pct = document.createElement('div'); pct.innerHTML = `<strong>% utilidad:</strong> ${data.porcentaje.toFixed(1)}%`;
-					el.append(h, vVenta, cTot, util, pct);
-					return el;
+					tbody.appendChild(tr);
+					buySugTotal += buy;
+					buyRealTotal += real;
+					buyCostTotal += Number(inCost.value || 0) || 0;
+					neededCostTotal += (Number(v.needed || 0) || 0) * price;
+					rowsState.push({ name: v.name, realInput: inReal, pack, costInput: inCost, unitPrice: price });
 				}
-				function build(flavorKey, label){
-					const valorVenta = (counts[flavorKey]||0) * (PRICES[flavorKey]||0);
-					const costosTotales = Math.round(perDessertCostNeeded[flavorKey]||0);
+				function recomputeTotals(){
+					let t = 0; for (const r of rowsState) t += Number(r.costInput?.value || 0) || 0;
+					buyCostTotal = t;
+					tBuyCostTotal.textContent = (new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 })).format(buyCostTotal);
+					renderBottomSummary();
+				}
+				function renderDessertSummary(){
+					const fmtMoney = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
+					dessertSummary.innerHTML = '';
+					const wrap = document.createElement('div');
+					wrap.style.display = 'grid';
+					wrap.style.gridTemplateColumns = 'repeat(auto-fit, minmax(240px, 1fr))';
+					wrap.style.gap = '12px';
+					function card(title, data){
+						const el = document.createElement('div');
+						el.style.background = 'var(--card)';
+						el.style.border = '1px solid var(--border)';
+						el.style.borderRadius = '10px';
+						el.style.padding = '10px 12px';
+						const h = document.createElement('div'); h.style.fontWeight = '700'; h.style.marginBottom = '6px'; h.textContent = title;
+						const vVenta = document.createElement('div'); vVenta.innerHTML = `<strong>Valor venta:</strong> ${fmtMoney.format(data.valorVenta)}`;
+						const cTot = document.createElement('div'); cTot.innerHTML = `<strong>Costos totales:</strong> ${fmtMoney.format(data.costosTotales)}`;
+						const util = document.createElement('div'); util.innerHTML = `<strong>Utilidad bruta:</strong> ${fmtMoney.format(data.utilidadBruta)}`;
+						const pct = document.createElement('div'); pct.innerHTML = `<strong>% utilidad:</strong> ${data.porcentaje.toFixed(1)}%`;
+						el.append(h, vVenta, cTot, util, pct);
+						return el;
+					}
+					function build(flavorKey, label){
+						const valorVenta = (useCounts[flavorKey]||0) * (PRICES[flavorKey]||0);
+						const costosTotales = Math.round(perDessertCostNeeded[flavorKey]||0);
+						const utilidadBruta = valorVenta - costosTotales;
+						const porcentaje = valorVenta>0 ? (utilidadBruta / valorVenta * 100) : 0;
+						return card(label, { valorVenta, costosTotales, utilidadBruta, porcentaje });
+					}
+					wrap.append(
+						build('arco','Arco'),
+						build('melo','Melo'),
+						build('mara','Mara'),
+						build('oreo','Oreo'),
+						build('nute','Nute')
+					);
+					dessertSummary.appendChild(wrap);
+				}
+				function renderBottomSummary(){
+					const fmtMoney = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
+					const valorVenta = useCounts.arco * PRICES.arco + useCounts.melo * PRICES.melo + useCounts.mara * PRICES.mara + useCounts.oreo * PRICES.oreo + useCounts.nute * PRICES.nute;
+					const costosTotales = Math.round(neededCostTotal);
 					const utilidadBruta = valorVenta - costosTotales;
-					const porcentaje = valorVenta>0 ? (utilidadBruta / valorVenta * 100) : 0;
-					return card(label, { valorVenta, costosTotales, utilidadBruta, porcentaje });
+					const utilidadDespCompras = valorVenta - Math.round(buyCostTotal);
+					bottomSummary.innerHTML = '';
+					const wrap = document.createElement('div');
+					wrap.style.display = 'flex';
+					wrap.style.flexWrap = 'wrap';
+					wrap.style.gap = '10px';
+					function pill(label, value){
+						const el = document.createElement('div');
+						el.style.background = 'var(--card)';
+						el.style.border = '1px solid var(--border)';
+						el.style.borderRadius = '10px';
+						el.style.padding = '10px 12px';
+						el.style.minWidth = '240px';
+						const strong = document.createElement('div'); strong.style.fontWeight = '600'; strong.textContent = label;
+						const val = document.createElement('div'); val.style.marginTop = '4px'; val.style.fontSize = '18px'; val.style.fontVariantNumeric = 'tabular-nums'; val.textContent = fmtMoney.format(value);
+						el.append(strong, val);
+						return el;
+					}
+					wrap.append(
+						pill('Costos totales', costosTotales),
+						pill('Valor venta', valorVenta),
+						pill('Utilidad bruta', utilidadBruta),
+						pill('Utilidad después de compras', utilidadDespCompras)
+					);
+					bottomSummary.appendChild(wrap);
 				}
-				wrap.append(
-					build('arco','Arco'),
-					build('melo','Melo'),
-					build('mara','Mara'),
-					build('oreo','Oreo'),
-					build('nute','Nute')
-				);
-				dessertSummary.appendChild(wrap);
-			}
-			function renderBottomSummary(){
-				const fmtMoney = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
-				const valorVenta = counts.arco * PRICES.arco + counts.melo * PRICES.melo + counts.mara * PRICES.mara + counts.oreo * PRICES.oreo + counts.nute * PRICES.nute;
-				const costosTotales = Math.round(neededCostTotal);
-				const utilidadBruta = valorVenta - costosTotales;
-				const utilidadDespCompras = valorVenta - Math.round(buyCostTotal);
-				bottomSummary.innerHTML = '';
-				const wrap = document.createElement('div');
-				wrap.style.display = 'flex';
-				wrap.style.flexWrap = 'wrap';
-				wrap.style.gap = '10px';
-				function pill(label, value){
-					const el = document.createElement('div');
-					el.style.background = 'var(--card)';
-					el.style.border = '1px solid var(--border)';
-					el.style.borderRadius = '10px';
-					el.style.padding = '10px 12px';
-					el.style.minWidth = '240px';
-					const strong = document.createElement('div'); strong.style.fontWeight = '600'; strong.textContent = label;
-					const val = document.createElement('div'); val.style.marginTop = '4px'; val.style.fontSize = '18px'; val.style.fontVariantNumeric = 'tabular-nums'; val.textContent = fmtMoney.format(value);
-					el.append(strong, val);
-					return el;
-				}
-				wrap.append(
-					pill('Costos totales', costosTotales),
-					pill('Valor venta', valorVenta),
-					pill('Utilidad bruta', utilidadBruta),
-					pill('Utilidad después de compras', utilidadDespCompras)
-				);
-				bottomSummary.appendChild(wrap);
-			}
 				function recomputeRealTotal(){
 					let t = 0; for (const r of rowsState) t += Number(r.realInput?.value || 0) || 0;
 					buyRealTotal = t;
@@ -433,18 +467,16 @@
 					r.realInput.addEventListener('change', onRealEdit);
 					r.realInput.addEventListener('blur', onRealEdit);
 				}
-			tBuySugTotal.textContent = fmt1(buySugTotal);
-			recomputeRealTotal();
-			recomputeTotals();
-			renderDessertSummary();
-			renderBottomSummary();
-			countLabel.textContent = `Ingredientes: ${keys.length}`;
-			// Bind WA button to open a copyable text box
+				tBuySugTotal.textContent = fmt1(buySugTotal);
+				recomputeRealTotal();
+				recomputeTotals();
+				renderDessertSummary();
+				renderBottomSummary();
+				countLabel.textContent = `Ingredientes: ${keys.length}`;
 				waBtn.onclick = () => {
-				const pop = document.createElement('div'); pop.className = 'confirm-popover'; pop.style.position = 'fixed';
-				pop.style.left = (window.innerWidth/2) + 'px'; pop.style.top = '12%'; pop.style.transform = 'translate(-50%, 0)';
-				const title = document.createElement('h4'); title.textContent = 'Solicitar compra por WhatsApp'; title.style.margin = '0 0 8px 0';
-					// Build WA lines on demand using current edited quantities
+					const pop = document.createElement('div'); pop.className = 'confirm-popover'; pop.style.position = 'fixed';
+					pop.style.left = (window.innerWidth/2) + 'px'; pop.style.top = '12%'; pop.style.transform = 'translate(-50%, 0)';
+					const title = document.createElement('h4'); title.textContent = 'Solicitar compra por WhatsApp'; title.style.margin = '0 0 8px 0';
 					const freshLines = [];
 					for (const r of rowsState) {
 						const realV = Number(r.realInput?.value || 0) || 0;
@@ -458,18 +490,24 @@
 						}
 					}
 					const ta = document.createElement('textarea'); ta.style.width = 'min(92vw, 540px)'; ta.style.height = '260px'; ta.value = `${freshLines.join('\n')}\n\nTotal estimado: ${new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(buyCostTotal)}`;
-				const actions = document.createElement('div'); actions.className = 'confirm-actions';
-				const copyBtn = document.createElement('button'); copyBtn.className = 'press-btn btn-primary'; copyBtn.textContent = 'Copiar';
-				const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn'; closeBtn.textContent = 'Cerrar';
-				actions.append(copyBtn, closeBtn);
-				pop.append(title, ta, actions);
-				document.body.appendChild(pop); pop.classList.add('aladdin-pop');
-				copyBtn.addEventListener('click', async () => { try { ta.select(); document.execCommand('copy'); } catch {} });
-				closeBtn.addEventListener('click', () => { if (pop.parentNode) pop.parentNode.removeChild(pop); });
-			};
+					const actions = document.createElement('div'); actions.className = 'confirm-actions';
+					const copyBtn = document.createElement('button'); copyBtn.className = 'press-btn btn-primary'; copyBtn.textContent = 'Copiar';
+					const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn'; closeBtn.textContent = 'Cerrar';
+					actions.append(copyBtn, closeBtn);
+					pop.append(title, ta, actions);
+					document.body.appendChild(pop); pop.classList.add('aladdin-pop');
+					copyBtn.addEventListener('click', async () => { try { ta.select(); document.execCommand('copy'); } catch {} });
+					closeBtn.addEventListener('click', () => { if (pop.parentNode) pop.parentNode.removeChild(pop); });
+				};
+			}
+
+			// Render inicial con valores guardados o base
+			renderAllForCounts(initialCounts);
+
+
 		}
 
-		// Back to report or home
+			// Back to report or home
 		backBtn.addEventListener('click', () => {
 			const url = new URL('/sales-report.html', location.origin);
 			if (start) url.searchParams.set('start', start);
