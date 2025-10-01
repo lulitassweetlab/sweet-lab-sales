@@ -2,9 +2,25 @@ import { neon } from '@netlify/neon';
 
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
+const SCHEMA_VERSION = 1; // Bump when schema changes require a migration
 
 export async function ensureSchema() {
 	if (schemaEnsured) return;
+
+	// Lightweight schema gating: skip heavy DDL if already migrated
+	// 1) Ensure schema_meta table exists (very cheap, only on cold start)
+	await sql`CREATE TABLE IF NOT EXISTS schema_meta (
+		version INTEGER NOT NULL DEFAULT 0,
+		updated_at TIMESTAMPTZ DEFAULT now()
+	)`;
+	// 2) Ensure a single row exists
+	await sql`INSERT INTO schema_meta (version)
+		SELECT 0
+		WHERE NOT EXISTS (SELECT 1 FROM schema_meta)`;
+	// 3) Read current version and short-circuit if up to date
+	const cur = await sql`SELECT version FROM schema_meta LIMIT 1`;
+	const currentVersion = Number(cur?.[0]?.version || 0);
+	if (currentVersion >= SCHEMA_VERSION) { schemaEnsured = true; return; }
 	// Basic users table for authentication
 	await sql`CREATE TABLE IF NOT EXISTS users (
 		id SERIAL PRIMARY KEY,
@@ -388,6 +404,8 @@ END $$;`;
 	}
 	// Ensure Marcela has a default yellow bill color if seller exists and not set
 	await sql`UPDATE sellers SET bill_color=${'#fdd835'} WHERE lower(name)='marcela' AND (bill_color IS NULL OR bill_color='')`;
+	// 4) Persist target schema version so future requests short-circuit
+	await sql`UPDATE schema_meta SET version=${SCHEMA_VERSION}, updated_at=now()`;
 	schemaEnsured = true;
 }
 
