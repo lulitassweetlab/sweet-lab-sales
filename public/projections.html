@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Proyecciones de Ventas</title>
+	<link rel="stylesheet" href="/styles.css?v=2025-09-17-1" />
+	<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+	<header class="app-header">
+		<div class="header-row">
+			<div class="header-left">
+				<img src="/logo.png" alt="Lulitas Logo" class="app-logo" />
+				<h1>Proyecciones de Ventas</h1>
+			</div>
+			<div class="header-actions">
+				<button id="back-btn" class="press-btn">Volver</button>
+			</div>
+		</div>
+	</header>
+
+	<main class="sales-panel">
+		<div class="panel-header">
+			<h3 id="title">Proyección semana a semana</h3>
+			<div class="panel-actions">
+				<button id="change-range" class="press-btn">Cambiar fechas</button>
+				<select id="horizon-weeks" class="input-cell" style="min-width:120px">
+					<option value="8">8 semanas</option>
+					<option value="12" selected>12 semanas</option>
+					<option value="16">16 semanas</option>
+					<option value="24">24 semanas</option>
+				</select>
+			</div>
+		</div>
+		<div class="panel-body">
+			<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; gap:8px; flex-wrap:wrap">
+				<strong id="range-label"></strong>
+				<small id="load-label" style="opacity:.8"></small>
+			</div>
+			<div id="kpis" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:10px; margin:10px 0 16px 0"></div>
+			<div class="table-wrapper" style="margin-bottom:16px">
+				<canvas id="proj-chart" height="120"></canvas>
+			</div>
+			<div class="table-wrapper" id="proj-wrapper">
+				<table id="proj-table">
+					<thead>
+						<tr>
+							<th>Semana</th>
+							<th>Tipo</th>
+							<th class="col-total">Venta proyectada</th>
+							<th>Notas</th>
+						</tr>
+					</thead>
+					<tbody id="proj-tbody"></tbody>
+					<tfoot>
+						<tr>
+							<td></td>
+							<td class="label">Total proyectado</td>
+							<td class="col-total" id="proj-total"></td>
+							<td></td>
+						</tr>
+					</tfoot>
+				</table>
+			</div>
+			<div id="analysis" style="margin-top:12px"></div>
+		</div>
+	</main>
+
+	<script type="module">
+	(function(){
+		const qs = new URLSearchParams(location.search);
+		let start = (qs.get('start') || '').slice(0,10);
+		let end = (qs.get('end') || '').slice(0,10);
+		const rangeLabel = document.getElementById('range-label');
+		const loadLabel = document.getElementById('load-label');
+		const kpisEl = document.getElementById('kpis');
+		const tbody = document.getElementById('proj-tbody');
+		const totalEl = document.getElementById('proj-total');
+		const backBtn = document.getElementById('back-btn');
+		const changeBtn = document.getElementById('change-range');
+		const horizonSel = document.getElementById('horizon-weeks');
+		const chartCanvas = document.getElementById('proj-chart');
+		let chart;
+
+		function fmtMoney(n){ return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(Math.round(Number(n||0))); }
+		function fmtDate(iso){ if (!iso) return ''; const d=new Date(iso+'T00:00:00Z'); const m=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']; return `${String(d.getUTCDate()).padStart(2,'0')}-${m[d.getUTCMonth()]}-${d.getUTCFullYear()}`; }
+		async function fetchJSON(u){ const r = await fetch(u); if (!r.ok) throw new Error('HTTP '+r.status); return r.json(); }
+
+		function startOfWeekMonday(iso){
+			const d = new Date(iso+'T00:00:00Z');
+			const day = (d.getUTCDay() + 6) % 7; // 0=Mon
+			d.setUTCDate(d.getUTCDate() - day);
+			return d.toISOString().slice(0,10);
+		}
+		function addDaysIso(iso, days){ const d=new Date(iso+'T00:00:00Z'); d.setUTCDate(d.getUTCDate()+days); return d.toISOString().slice(0,10); }
+		function weekContainsHighDay(weekStartIso){
+			for (let i=0;i<7;i++){
+				const iso = addDaysIso(weekStartIso, i);
+				const day = Number(iso.slice(8,10));
+				if (day === 15 || day === 30) return true;
+			}
+			return false;
+		}
+
+		async function mapLimit(items, limit, fn) {
+			const out = []; let idx = 0; let running = 0; let resolveAll; const done = new Promise(r => resolveAll = r);
+			function runNext(){
+				if (idx >= items.length && running === 0) return resolveAll();
+				while (running < limit && idx < items.length) {
+					const cur = items[idx++]; running++;
+					Promise.resolve(fn(cur)).then(v => { out.push(v); running--; runNext(); }).catch(() => { running--; runNext(); });
+				}
+			}
+			runNext(); await done; return out;
+		}
+
+		function linearRegression(yValues){
+			const n = yValues.length; if (!n) return { slope:0, intercept:0, r2:0 };
+			let sumX=0,sumY=0,sumXY=0,sumXX=0,sumYY=0;
+			for (let i=0;i<n;i++){ const x=i+1; const y=Number(yValues[i]||0); sumX+=x; sumY+=y; sumXY+=x*y; sumXX+=x*x; sumYY+=y*y; }
+			const denom = (n*sumXX - sumX*sumX) || 1;
+			const slope = (n*sumXY - sumX*sumY) / denom;
+			const intercept = (sumY - slope*sumX) / n;
+			const meanY = sumY / n;
+			let ssTot=0, ssRes=0;
+			for (let i=0;i<n;i++){ const x=i+1; const y=Number(yValues[i]||0); const yhat=slope*x+intercept; ssTot+=(y-meanY)**2; ssRes+=(y-yhat)**2; }
+			const r2 = ssTot>0 ? 1 - (ssRes/ssTot) : 0;
+			return { slope, intercept, r2 };
+		}
+
+		function renderKPIs({ highAvg, lowAvg, overallAvg, slope, r2 }){
+			kpisEl.innerHTML = '';
+			function card(label, value, sub){
+				const d = document.createElement('div');
+				d.className = 'report-card';
+				const c = document.createElement('div'); c.className='report-card-content';
+				const h = document.createElement('div'); h.className='report-title'; h.textContent = label;
+				const v = document.createElement('div'); v.style.fontSize='20px'; v.style.fontWeight='600'; v.textContent = value;
+				const s = document.createElement('div'); s.style.opacity='.8'; s.style.marginTop='4px'; s.textContent = sub||'';
+				c.append(h, v, s); d.append(c); return d;
+			}
+			const growthPct = overallAvg>0 ? (slope/overallAvg)*100 : 0;
+			kpisEl.append(
+				card('Promedio semana ALTA', fmtMoney(highAvg||0), 'Semanas con día 15 o 30'),
+				card('Promedio semana BAJA', fmtMoney(lowAvg||0), 'Otras semanas'),
+				card('Promedio semanal', fmtMoney(overallAvg||0), 'Histórico en rango'),
+				card('Tendencia de crecimiento', `${growthPct.toFixed(2)}%/semana`, `Ajuste lineal (R² ${r2.toFixed(2)})`)
+			);
+		}
+
+		function buildChart(labels, histVals, projLabels, projVals){
+			if (chart) { chart.destroy(); }
+			const data = {
+				labels: [...labels, ...projLabels],
+				datasets: [
+					{ label: 'Histórico (semanal)', data: histVals, borderColor: '#4F46E5', backgroundColor: 'rgba(79,70,229,0.15)', tension: 0.25 },
+					{ label: 'Proyección', data: [...new Array(histVals.length).fill(null), ...projVals], borderColor: '#F59E0B', borderDash: [6,4], tension: 0.25 }
+				]
+			};
+			chart = new Chart(chartCanvas, { type: 'line', data, options: { responsive: true, scales: { y: { ticks: { callback: (v)=>fmtMoney(v).replace('$','') } } }, plugins: { legend: { position: 'top' }, tooltip: { callbacks: { label: (ctx)=> `${ctx.dataset.label}: ${fmtMoney(ctx.parsed.y)}` } } } } });
+		}
+
+		function renderTable(rows){
+			tbody.innerHTML = '';
+			let grand = 0;
+			for (const r of rows){
+				const tr = document.createElement('tr');
+				tr.innerHTML = `<td>${fmtDate(r.weekStart)}</td><td>${r.isHigh ? 'Alta' : 'Baja'}</td><td class="col-total">${fmtMoney(r.total)}</td><td>${r.note||''}</td>`;
+				tbody.appendChild(tr);
+				grand += Number(r.total||0);
+			}
+			totalEl.textContent = fmtMoney(grand);
+		}
+
+		function renderAnalysis({ highAvg, lowAvg, overallAvg, growthPct, horizonWeeks }){
+			const el = document.getElementById('analysis');
+			el.innerHTML = '';
+			const p = document.createElement('p');
+			p.textContent = `Usamos tu histórico para separar semanas ALTA (contienen día 15 o 30) y BAJA. Calculamos promedios por tipo y aplicamos una tendencia de crecimiento semanal del ${growthPct.toFixed(2)}%, proyectando ${horizonWeeks} semanas. Las semanas ALTA muestran picos consistentes por quincena y fin de mes, mientras que las BAJA mantienen niveles menores. Si hay campañas o cambios de precio planificados, ajusta el horizonte o el crecimiento esperado.`;
+			el.appendChild(p);
+		}
+
+		async function load(){
+			if (!start || !end) { rangeLabel.textContent = 'Selecciona rango'; openCalendar(); return; }
+			rangeLabel.textContent = `${start} — ${end}`;
+			loadLabel.textContent = 'Cargando…';
+			let sellers = [];
+			try { sellers = await fetchJSON('/api/sellers'); } catch { sellers = []; }
+			loadLabel.textContent = `Vendedores: ${sellers.length} · buscando días…`;
+			const sellerDays = [];
+			const isoBetween = (iso, a, b) => iso >= a && iso <= b;
+			await mapLimit(sellers, 6, async (s) => {
+				try {
+					const days = await fetchJSON(`/api/days?seller_id=${encodeURIComponent(s.id)}`);
+					for (const d of (days||[])) {
+						const iso = String(d.day).slice(0,10);
+						if (isoBetween(iso, start, end)) sellerDays.push({ seller: s, day: d });
+					}
+				} catch {}
+			});
+			loadLabel.textContent = `Días: ${sellerDays.length} · buscando ventas…`;
+			const byDate = new Map();
+			await mapLimit(sellerDays, 6, async ({ seller, day }) => {
+				try {
+					const params = new URLSearchParams({ seller_id: String(seller.id), sale_day_id: String(day.id) });
+					const sales = await fetchJSON(`/api/sales?${params.toString()}`);
+					for (const r of (sales||[])) {
+						const iso = String(day.day).slice(0,10);
+						const tot = Number(r.total_cents||0) || 0;
+						byDate.set(iso, (byDate.get(iso)||0) + tot);
+					}
+				} catch {}
+			});
+			// Weekly aggregation
+			const weekMap = new Map(); // weekStart -> { total, isHigh }
+			for (const [iso, amt] of byDate.entries()){
+				const wk = startOfWeekMonday(iso);
+				const cur = weekMap.get(wk) || { total:0, isHigh: weekContainsHighDay(wk) };
+				cur.total += amt;
+				weekMap.set(wk, cur);
+			}
+			const weeks = Array.from(weekMap.entries()).sort((a,b)=> a[0] < b[0] ? -1 : 1).map(([weekStart, v]) => ({ weekStart, total: v.total, isHigh: v.isHigh }));
+			const histLabels = weeks.map(w => fmtDate(w.weekStart));
+			const histVals = weeks.map(w => w.total);
+			const highVals = weeks.filter(w=>w.isHigh).map(w=>w.total);
+			const lowVals = weeks.filter(w=>!w.isHigh).map(w=>w.total);
+			const overallAvg = histVals.length ? histVals.reduce((a,b)=>a+b,0)/histVals.length : 0;
+			const highAvg = highVals.length ? highVals.reduce((a,b)=>a+b,0)/highVals.length : 0;
+			const lowAvg = lowVals.length ? lowVals.reduce((a,b)=>a+b,0)/lowVals.length : 0;
+			const { slope, intercept, r2 } = linearRegression(histVals);
+			const highFactor = overallAvg>0 ? (highAvg/overallAvg) : 1;
+			const lowFactor = overallAvg>0 ? (lowAvg/overallAvg) : 1;
+			const growthPct = overallAvg>0 ? (slope/overallAvg)*100 : 0;
+			renderKPIs({ highAvg, lowAvg, overallAvg, slope, r2 });
+			// Build projections
+			const horizonWeeks = Number(horizonSel.value || '12') || 12;
+			let lastWeekStart = weeks.length ? weeks[weeks.length-1].weekStart : startOfWeekMonday(end);
+			let nextWeekStart = addDaysIso(lastWeekStart, 7);
+			const proj = [];
+			for (let i=1;i<=horizonWeeks;i++){
+				const idx = histVals.length + i; // continue regression index
+				const base = Math.max(0, intercept + slope*idx);
+				const isHigh = weekContainsHighDay(nextWeekStart);
+				const factor = isHigh ? highFactor : lowFactor;
+				const total = Math.max(0, base * factor);
+				const has15 = (() => { for (let d=0; d<7; d++){ const day = Number(addDaysIso(nextWeekStart,d).slice(8,10)); if (day===15) return true; } return false; })();
+				const has30 = (() => { for (let d=0; d<7; d++){ const day = Number(addDaysIso(nextWeekStart,d).slice(8,10)); if (day===30) return true; } return false; })();
+				const note = has15 && has30 ? 'Incluye 15 y 30' : has15 ? 'Incluye 15' : has30 ? 'Incluye 30' : '';
+				proj.push({ weekStart: nextWeekStart, isHigh, total, note });
+				nextWeekStart = addDaysIso(nextWeekStart, 7);
+			}
+			buildChart(histLabels, histVals, proj.map(p=>fmtDate(p.weekStart)), proj.map(p=>p.total));
+			renderTable(proj);
+			renderAnalysis({ highAvg, lowAvg, overallAvg, growthPct, horizonWeeks });
+			loadLabel.textContent = `Semanas analizadas: ${weeks.length} · Proyectadas: ${proj.length}`;
+		}
+
+		function openCalendar(ev){
+			openRangeCalendarPopover((range) => {
+				if (!range || !range.start || !range.end) return;
+				start = range.start; end = range.end;
+				history.replaceState(null, '', `?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`);
+				load();
+			}, ev?.clientX, ev?.clientY, { preferUp: true });
+		}
+
+		// Lightweight date range popover (same as sales-report)
+		if (typeof window.openRangeCalendarPopover !== 'function') {
+			window.openRangeCalendarPopover = function(onPickedRange, anchorX, anchorY, opts){
+				const pop = document.createElement('div'); pop.className = 'date-popover'; pop.style.position = 'fixed'; const baseX = anchorX||window.innerWidth/2; const baseY = anchorY||window.innerHeight/2; pop.style.left = baseX+'px'; pop.style.top=(baseY+8)+'px'; pop.style.transform='translate(-50%,0)'; pop.style.zIndex='1000';
+				const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']; let view = new Date(); view.setDate(1); let startIso=null, endIso=null;
+				const header=document.createElement('div'); header.className='date-popover-header'; const prev=document.createElement('button'); prev.className='date-nav'; prev.textContent='‹'; const label=document.createElement('div'); label.className='date-label'; const next=document.createElement('button'); next.className='date-nav'; next.textContent='›'; header.append(prev,label,next);
+				const grid=document.createElement('div'); grid.className='date-grid'; const weekdays=['L','M','X','J','V','S','D']; const wk=document.createElement('div'); wk.className='date-weekdays'; for (const w of weekdays){ const c=document.createElement('div'); c.textContent=w; wk.appendChild(c);} 
+				function isoUTC(y,m,d){ return new Date(Date.UTC(y,m,d)).toISOString().slice(0,10); }
+				function isBetween(x,a,b){ return x>=a && x<=b; }
+				function render(){ label.textContent = months[view.getMonth()] + ' ' + view.getFullYear(); grid.innerHTML=''; const year=view.getFullYear(); const month=view.getMonth(); const firstDay=(new Date(Date.UTC(year,month,1)).getUTCDay()+6)%7; const daysInMonth=new Date(Date.UTC(year,month+1,0)).getUTCDate(); for (let i=0;i<firstDay;i++){ const cell=document.createElement('button'); cell.className='date-cell disabled'; cell.disabled=true; grid.appendChild(cell);} for (let d=1; d<=daysInMonth; d++){ const iso=isoUTC(year,month,d); const cell=document.createElement('button'); let cls='date-cell'; if (startIso && !endIso && iso===startIso) cls+=' range-start selected'; if (startIso && endIso){ if (iso===startIso) cls+=' range-start selected'; else if (iso===endIso) cls+=' range-end selected'; else if (isBetween(iso,startIso,endIso)) cls+=' in-range'; } cell.className=cls; cell.textContent=String(d); cell.addEventListener('click',()=>{ if(!startIso){ startIso=iso; endIso=null; render(); return; } if(!endIso){ if(iso<startIso){ endIso=startIso; startIso=iso; } else { endIso=iso; } render(); return; } startIso=iso; endIso=null; render(); }); grid.appendChild(cell);} }
+				function cleanup(){ document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); if(pop.parentNode) pop.parentNode.removeChild(pop);} function outside(ev){ if(!pop.contains(ev.target)) cleanup(); }
+				prev.addEventListener('click',()=>{ view.setMonth(view.getMonth()-1); render(); }); next.addEventListener('click',()=>{ view.setMonth(view.getMonth()+1); render(); });
+				const actions=document.createElement('div'); actions.style.display='flex'; actions.style.justifyContent='space-between'; actions.style.marginTop='8px'; const clearBtn=document.createElement('button'); clearBtn.className='date-nav'; clearBtn.textContent='Limpiar'; const genBtn=document.createElement('button'); genBtn.className='date-nav'; genBtn.textContent='Generar'; genBtn.disabled=true; clearBtn.addEventListener('click',()=>{ startIso=null; endIso=null; genBtn.disabled=true; render(); }); genBtn.addEventListener('click',()=>{ if(startIso && endIso && typeof onPickedRange==='function'){ cleanup(); onPickedRange({ start:startIso, end:endIso }); } }); actions.append(clearBtn, genBtn);
+				const origRender = render; render = function(){ origRender(); genBtn.disabled = !(startIso && endIso); };
+				pop.append(header, wk, grid, actions); document.body.appendChild(pop); pop.classList.add('aladdin-pop');
+				document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); render();
+			};
+		}
+
+		backBtn.addEventListener('click', () => { location.href = '/'; });
+		changeBtn.addEventListener('click', (ev) => openCalendar(ev));
+		horizonSel.addEventListener('change', load);
+		load();
+	})();
+	</script>
+</body>
+</html>
+
