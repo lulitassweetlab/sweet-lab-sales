@@ -264,7 +264,8 @@
 				if (!mult) continue;
 				for (const it of arr){
 					const per = Number(it.qty_per_unit||0)||0;
-					addRow(name, it.ingredient, it.unit, per, per * mult);
+					const adj = Number(it.adjustment||0)||0;
+					addRow(name, it.ingredient, it.unit, per, (per * mult) + adj);
 				}
 			}
 			const totalUnits = counts.arco + counts.melo + counts.mara + counts.oreo + counts.nute;
@@ -286,8 +287,9 @@
 					const canon = canonicalizeName(it.ingredient);
 					if (canon === 'Agua' || canon === 'Almíbar') continue;
 					const per = Number(it.qty_per_unit||0)||0;
+					const adj = Number(it.adjustment||0)||0;
 					const price = Number(it.price||0)||0;
-					perDessertCostNeeded[flavor] += per * mult * price;
+					perDessertCostNeeded[flavor] += ((per * mult) + adj) * price;
 				}
 			}
 			// Extras cost per unidad, applied to each dessert by its count
