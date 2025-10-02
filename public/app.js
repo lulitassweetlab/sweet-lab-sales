@@ -515,6 +515,7 @@ function bindLogin() {
 				state.currentUser = { name: res.username, isAdmin: res.role === 'admin' || res.role === 'superadmin', role: res.role, isSuperAdmin: res.role === 'superadmin' };
 				try { localStorage.setItem('authUser', JSON.stringify(state.currentUser)); } catch {}
 				applyAuthVisibility();
+				await loadSellers();
 				renderSellerButtons();
 				const usernameLower = String(res.username || '').toLowerCase();
 				const feminineUsers = new Set(['marcela', 'aleja', 'kate', 'stefa', 'mariana', 'janeth']);
