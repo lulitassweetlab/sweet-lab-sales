@@ -675,13 +675,16 @@ function applyAuthVisibility() {
 	if (addSellerWrap) addSellerWrap.style.display = isSuper ? 'block' : 'none';
 	const usersBtn = document.getElementById('users-button');
 	if (usersBtn) usersBtn.style.display = isSuper ? 'inline-block' : 'none';
+    const reportBtn = document.getElementById('report-button');
     const carteraBtn = document.getElementById('cartera-button');
     const projectionsBtn = document.getElementById('projections-button');
     const transfersBtn = document.getElementById('transfers-button');
     const feats = new Set((state.currentUser?.features || []));
+    const canSales = isSuper || feats.has('reports.sales');
     const canCartera = isSuper || feats.has('reports.cartera');
     const canProjections = isSuper || feats.has('reports.projections');
     const canTransfers = isSuper || feats.has('reports.transfers');
+    if (reportBtn) reportBtn.style.display = canSales ? 'inline-block' : 'none';
     if (carteraBtn) carteraBtn.style.display = canCartera ? 'inline-block' : 'none';
     if (projectionsBtn) projectionsBtn.style.display = canProjections ? 'inline-block' : 'none';
     if (transfersBtn) transfersBtn.style.display = canTransfers ? 'inline-block' : 'none';
@@ -1692,6 +1695,9 @@ async function exportCarteraExcel(startIso, endIso) {
 	const input = document.getElementById('report-date');
 	if (!reportBtn || !input) return;
 	reportBtn.addEventListener('click', (ev) => {
+		const feats = new Set((state.currentUser?.features || []));
+		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+		if (!isSuper && !feats.has('reports.sales')) { notify.error('Sin permiso de reporte de ventas'); return; }
 		openRangeCalendarPopover((range) => {
 			if (!range || !range.start || !range.end) return;
 			const url = `/sales-report.html?start=${encodeURIComponent(range.start)}&end=${encodeURIComponent(range.end)}`;
@@ -1699,8 +1705,9 @@ async function exportCarteraExcel(startIso, endIso) {
 		}, ev.clientX, ev.clientY, { preferUp: true });
 	});
 	projectionsBtn?.addEventListener('click', (ev) => {
+		const feats = new Set((state.currentUser?.features || []));
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
-		if (!isSuper) { notify.error('Solo el superadministrador'); return; }
+		if (!isSuper && !feats.has('reports.projections')) { notify.error('Sin permiso de proyecciones'); return; }
 		openRangeCalendarPopover((range) => {
 			if (!range || !range.start || !range.end) return;
 			const url = `/projections.html?start=${encodeURIComponent(range.start)}&end=${encodeURIComponent(range.end)}`;
@@ -1708,8 +1715,9 @@ async function exportCarteraExcel(startIso, endIso) {
 		}, ev.clientX, ev.clientY, { preferUp: true });
 	});
 	carteraBtn?.addEventListener('click', async (ev) => {
+		const feats = new Set((state.currentUser?.features || []));
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
-		if (!isSuper) { notify.error('Solo el superadministrador'); return; }
+		if (!isSuper && !feats.has('reports.cartera')) { notify.error('Sin permiso de cartera'); return; }
 		openRangeCalendarPopover(async (range) => {
 			if (!range || !range.start || !range.end) return;
 			await exportCarteraExcel(range.start, range.end);
@@ -1717,8 +1725,9 @@ async function exportCarteraExcel(startIso, endIso) {
 	});
 
 	transfersBtn?.addEventListener('click', (ev) => {
-		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
-		if (!isSuper) { notify.error('Solo el superadministrador'); return; }
+	const feats = new Set((state.currentUser?.features || []));
+	const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+		if (!isSuper && !feats.has('reports.transfers')) { notify.error('Sin permiso de transferencias'); return; }
 		openRangeCalendarPopover((range) => {
 			if (!range || !range.start || !range.end) return;
 			const url = `/transfers.html?start=${encodeURIComponent(range.start)}&end=${encodeURIComponent(range.end)}`;
