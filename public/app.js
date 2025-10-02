@@ -745,6 +745,13 @@ function renderTable() {
 	const actorName = String(state?.currentUser?.name || state?.currentUser?.username || '').toLowerCase();
 	const isOwnSeller = !!sellerName && !!actorName && (sellerName === actorName);
 	const canEdit = isAdmin || isOwnSeller;
+	// Also reflect add controls visibility based on canEdit
+	try {
+		const hdrAdd = document.getElementById('add-row');
+		if (hdrAdd) hdrAdd.style.display = canEdit ? '' : 'none';
+		const bottomAdd = document.getElementById('add-row-bottom');
+		if (bottomAdd) bottomAdd.closest('.table-actions')?.classList.toggle('hidden', !canEdit);
+	} catch {}
 	tbody.innerHTML = '';
 	for (const sale of state.sales) {
 		const total = calcRowTotal({ arco: sale.qty_arco, melo: sale.qty_melo, mara: sale.qty_mara, oreo: sale.qty_oreo, nute: sale.qty_nute });
