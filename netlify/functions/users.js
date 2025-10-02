@@ -10,6 +10,52 @@ export async function handler(event) {
 		if (event.httpMethod === 'OPTIONS') return json({ ok: true });
 		switch (event.httpMethod) {
 			case 'GET': {
+				// Support listing users or view permissions
+				let raw = '';
+				if (event.rawQuery && typeof event.rawQuery === 'string') raw = event.rawQuery;
+				else if (event.queryStringParameters && typeof event.queryStringParameters === 'object') {
+					raw = Object.entries(event.queryStringParameters).map(([k,v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v ?? '')}`).join('&');
+				}
+				const params = new URLSearchParams(raw);
+				if ((params.get('view_permissions') || '') === '1') {
+					// Only superadmin can list permissions
+					let actorRole = 'user';
+					try {
+						const headers = (event.headers || {});
+						const actorName = (headers['x-actor-name'] || headers['X-Actor-Name'] || headers['x-actor'] || '').toString();
+						if (actorName) {
+							const r = await sql`SELECT role FROM users WHERE lower(username)=lower(${actorName}) LIMIT 1`;
+							actorRole = (r && r[0] && r[0].role) ? String(r[0].role) : 'user';
+						}
+					} catch {}
+					if (actorRole !== 'superadmin') return json({ error: 'No autorizado' }, 403);
+					const viewer = (params.get('viewer') || '').toString();
+					if (viewer) {
+						const rows = await sql`SELECT uvp.viewer_username, uvp.seller_id, s.name AS seller_name, uvp.created_at FROM user_view_permissions uvp JOIN sellers s ON s.id = uvp.seller_id WHERE lower(uvp.viewer_username)=lower(${viewer}) ORDER BY s.name ASC`;
+						return json(rows);
+					}
+					const rows = await sql`SELECT uvp.viewer_username, uvp.seller_id, s.name AS seller_name, uvp.created_at FROM user_view_permissions uvp JOIN sellers s ON s.id = uvp.seller_id ORDER BY lower(uvp.viewer_username) ASC, s.name ASC`;
+					return json(rows);
+				}
+				if ((params.get('feature_permissions') || '') === '1') {
+					let actorRole = 'user';
+					try {
+						const headers = (event.headers || {});
+						const actorName = (headers['x-actor-name'] || headers['X-Actor-Name'] || headers['x-actor'] || '').toString();
+						if (actorName) {
+							const r = await sql`SELECT role FROM users WHERE lower(username)=lower(${actorName}) LIMIT 1`;
+							actorRole = (r && r[0] && r[0].role) ? String(r[0].role) : 'user';
+						}
+					} catch {}
+					if (actorRole !== 'superadmin') return json({ error: 'No autorizado' }, 403);
+					const username = (params.get('username') || '').toString();
+					if (username) {
+						const rows = await sql`SELECT username, feature, created_at FROM user_feature_permissions WHERE lower(username)=lower(${username}) ORDER BY feature ASC`;
+						return json(rows);
+					}
+					const rows = await sql`SELECT username, feature, created_at FROM user_feature_permissions ORDER BY lower(username) ASC, feature ASC`;
+					return json(rows);
+				}
 				// List users for reports, including sellers without an explicit user row
 				const userRows = await sql`SELECT id, username, password_hash, role, created_at FROM users ORDER BY username ASC`;
 				const sellerRows = await sql`SELECT name FROM sellers ORDER BY name ASC`;
@@ -36,12 +82,16 @@ export async function handler(event) {
 				if (rows.length) {
 					const user = rows[0];
 					if (user.password_hash !== password) return json({ error: 'Usuario o contraseña inválidos' }, 401);
-					return json({ username: user.username, role: user.role });
+					const featRows = await sql`SELECT feature FROM user_feature_permissions WHERE lower(username)=lower(${user.username}) ORDER BY feature ASC`;
+					const features = (featRows || []).map(f => String(f.feature));
+					return json({ username: user.username, role: user.role, features });
 				}
 				// Fallback: allow default rule for any username (legacy behavior)
 				const expected = username === 'jorge' ? 'Jorge123' : (username + 'sweet');
 				if ((expected || '').toLowerCase() !== (password || '').toLowerCase()) return json({ error: 'Usuario o contraseña inválidos' }, 401);
-				return json({ username: rawUsername, role: 'user' });
+				const featRows = await sql`SELECT feature FROM user_feature_permissions WHERE lower(username)=lower(${rawUsername}) ORDER BY feature ASC`;
+				const features = (featRows || []).map(f => String(f.feature));
+				return json({ username: rawUsername, role: 'user', features });
 			}
 			case 'PUT': {
 				// Change password
@@ -68,12 +118,22 @@ export async function handler(event) {
 			}
 			case 'PATCH': {
 				// Admin actions: set password or set role
-				// Body: { action: 'setPassword'|'setRole', username, newPassword?, role? }
+				// Body: { action: 'setPassword'|'setRole'|'grantView'|'revokeView'|'grantFeature'|'revokeFeature', username, newPassword?, role?, sellerId?/sellerName?, feature? }
 				const data = JSON.parse(event.body || '{}');
 				const action = (data.action || '').toString();
 				const rawUsername = (data.username || '').toString().trim();
 				const username = rawUsername.toLowerCase();
 				if (!action || !username) return json({ error: 'Datos incompletos' }, 400);
+				// Determine actor role for authorization
+				let actorRole = 'user';
+				try {
+					const headers = (event.headers || {});
+					const actorName = (headers['x-actor-name'] || headers['X-Actor-Name'] || headers['x-actor'] || '').toString();
+					if (actorName) {
+						const r = await sql`SELECT role FROM users WHERE lower(username)=lower(${actorName}) LIMIT 1`;
+						actorRole = (r && r[0] && r[0].role) ? String(r[0].role) : 'user';
+					}
+				} catch {}
 				if (action === 'setPassword') {
 					const newPassword = (data.newPassword || '').toString();
 					if (!newPassword || newPassword.length < 6) return json({ error: 'Nueva contraseña inválida' }, 400);
@@ -96,6 +156,35 @@ export async function handler(event) {
 					}
 					await sql`UPDATE users SET role=${role} WHERE id=${rows[0].id}`;
 					return json({ ok: true });
+				} else if (action === 'grantView' || action === 'revokeView') {
+					if (actorRole !== 'superadmin') return json({ error: 'No autorizado' }, 403);
+					// Determine target seller id
+					let sellerId = Number(data.sellerId || 0) || null;
+					const sellerName = (data.sellerName || data.seller || '').toString();
+					if (!sellerId) {
+						if (!sellerName) return json({ error: 'sellerId o sellerName requerido' }, 400);
+						const s = await sql`SELECT id FROM sellers WHERE lower(name)=lower(${sellerName}) LIMIT 1`;
+						if (!s.length) return json({ error: 'Vendedor no encontrado' }, 404);
+						sellerId = s[0].id;
+					}
+					if (action === 'grantView') {
+						await sql`INSERT INTO user_view_permissions (viewer_username, seller_id) VALUES (${rawUsername}, ${sellerId}) ON CONFLICT (viewer_username, seller_id) DO NOTHING`;
+						return json({ ok: true, granted: true });
+					} else {
+						await sql`DELETE FROM user_view_permissions WHERE lower(viewer_username)=lower(${rawUsername}) AND seller_id=${sellerId}`;
+						return json({ ok: true, revoked: true });
+					}
+				} else if (action === 'grantFeature' || action === 'revokeFeature') {
+					if (actorRole !== 'superadmin') return json({ error: 'No autorizado' }, 403);
+					const feature = (data.feature || '').toString();
+					if (!feature) return json({ error: 'feature requerido' }, 400);
+					if (action === 'grantFeature') {
+						await sql`INSERT INTO user_feature_permissions (username, feature) VALUES (${rawUsername}, ${feature}) ON CONFLICT (username, feature) DO NOTHING`;
+						return json({ ok: true, granted: true });
+					} else {
+						await sql`DELETE FROM user_feature_permissions WHERE lower(username)=lower(${rawUsername}) AND feature=${feature}`;
+						return json({ ok: true, revoked: true });
+					}
 				}
 				return json({ error: 'Acción inválida' }, 400);
 			}

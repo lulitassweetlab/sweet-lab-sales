@@ -512,9 +512,10 @@ function bindLogin() {
 			try {
 				const res = await api('POST', API.Users, { username: user, password: pass });
 				if (err) err.classList.add('hidden');
-				state.currentUser = { name: res.username, isAdmin: res.role === 'admin' || res.role === 'superadmin', role: res.role, isSuperAdmin: res.role === 'superadmin' };
+				state.currentUser = { name: res.username, isAdmin: res.role === 'admin' || res.role === 'superadmin', role: res.role, isSuperAdmin: res.role === 'superadmin', features: Array.isArray(res.features) ? res.features : [] };
 				try { localStorage.setItem('authUser', JSON.stringify(state.currentUser)); } catch {}
 				applyAuthVisibility();
+				await loadSellers();
 				renderSellerButtons();
 				const usernameLower = String(res.username || '').toLowerCase();
 				const feminineUsers = new Set(['marcela', 'aleja', 'kate', 'stefa', 'mariana', 'janeth']);
@@ -581,11 +582,15 @@ function el(tag, attrs = {}, ...children) {
 }
 
 async function api(method, url, body) {
-	const res = await fetch(url, {
-		method,
-		headers: { 'Content-Type': 'application/json' },
-		body: body ? JSON.stringify(body) : undefined,
-	});
+    const actor = (state?.currentUser?.name || state?.currentUser?.username || '').toString();
+    const res = await fetch(url, {
+        method,
+        headers: {
+            'Content-Type': 'application/json',
+            ...(actor ? { 'X-Actor-Name': actor } : {})
+        },
+        body: body ? JSON.stringify(body) : undefined,
+    });
 	if (!res.ok) {
 		const text = await res.text();
 		throw new Error(`API ${method} ${url} failed: ${res.status} ${text}`);
@@ -612,14 +617,11 @@ async function loadSellers() {
 function renderSellerButtons() {
 	const list = $('#seller-list');
 	list.innerHTML = '';
-	const currentUserName = (state.currentUser?.name || '').toLowerCase();
-	const isAdminUser = !!state.currentUser?.isAdmin;
-	for (const s of state.sellers) {
-		const sellerName = String(s.name || '').toLowerCase();
-		if (!isAdminUser && sellerName !== currentUserName) continue;
-		const btn = el('button', { class: 'seller-button', onclick: async () => { await enterSeller(s.id); } }, s.name);
-		list.appendChild(btn);
-	}
+    // Server already filters sellers by permissions. Render all returned.
+    for (const s of state.sellers) {
+        const btn = el('button', { class: 'seller-button', onclick: async () => { await enterSeller(s.id); } }, s.name);
+        list.appendChild(btn);
+    }
 }
 
 async function addSeller(name) {
@@ -672,13 +674,30 @@ function applyAuthVisibility() {
 	const addSellerWrap = document.querySelector('.seller-add');
 	if (addSellerWrap) addSellerWrap.style.display = isSuper ? 'block' : 'none';
 	const usersBtn = document.getElementById('users-button');
-	if (usersBtn) usersBtn.style.display = isSuper ? 'inline-block' : 'none';
+	const feats = new Set((state.currentUser?.features || []));
+	const reportBtn = document.getElementById('report-button');
 	const carteraBtn = document.getElementById('cartera-button');
-	if (carteraBtn) carteraBtn.style.display = isSuper ? 'inline-block' : 'none';
+	const projectionsBtn = document.getElementById('projections-button');
+	const transfersBtn = document.getElementById('transfers-button');
 	const materialsBtn = document.getElementById('materials-button');
-	if (materialsBtn) materialsBtn.style.display = isSuper ? 'inline-block' : 'none';
+	const inventoryBtn = document.getElementById('inventory-button');
 	const accountingBtn = document.getElementById('accounting-button');
-	if (accountingBtn) accountingBtn.style.display = isSuper ? 'inline-block' : 'none';
+	const canSales = isSuper || feats.has('reports.sales');
+	const canCartera = isSuper || feats.has('reports.cartera');
+	const canProjections = isSuper || feats.has('reports.projections');
+	const canTransfers = isSuper || feats.has('reports.transfers');
+	const canMaterials = isSuper || feats.has('nav.materials');
+	const canInventory = isSuper || feats.has('nav.inventory');
+	const canUsers = isSuper || feats.has('nav.users');
+	const canAccounting = isSuper || feats.has('nav.accounting');
+	if (usersBtn) usersBtn.style.display = canUsers ? 'inline-block' : 'none';
+	if (reportBtn) reportBtn.style.display = canSales ? 'inline-block' : 'none';
+	if (carteraBtn) carteraBtn.style.display = canCartera ? 'inline-block' : 'none';
+	if (projectionsBtn) projectionsBtn.style.display = canProjections ? 'inline-block' : 'none';
+	if (transfersBtn) transfersBtn.style.display = canTransfers ? 'inline-block' : 'none';
+	if (materialsBtn) materialsBtn.style.display = canMaterials ? 'inline-block' : 'none';
+	if (inventoryBtn) inventoryBtn.style.display = canInventory ? 'inline-block' : 'none';
+	if (accountingBtn) accountingBtn.style.display = canAccounting ? 'inline-block' : 'none';
 }
 
 function calcRowTotal(q) {
@@ -1682,6 +1701,9 @@ async function exportCarteraExcel(startIso, endIso) {
 	const input = document.getElementById('report-date');
 	if (!reportBtn || !input) return;
 	reportBtn.addEventListener('click', (ev) => {
+		const feats = new Set((state.currentUser?.features || []));
+		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+		if (!isSuper && !feats.has('reports.sales')) { notify.error('Sin permiso de reporte de ventas'); return; }
 		openRangeCalendarPopover((range) => {
 			if (!range || !range.start || !range.end) return;
 			const url = `/sales-report.html?start=${encodeURIComponent(range.start)}&end=${encodeURIComponent(range.end)}`;
@@ -1689,8 +1711,9 @@ async function exportCarteraExcel(startIso, endIso) {
 		}, ev.clientX, ev.clientY, { preferUp: true });
 	});
 	projectionsBtn?.addEventListener('click', (ev) => {
+		const feats = new Set((state.currentUser?.features || []));
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
-		if (!isSuper) { notify.error('Solo el superadministrador'); return; }
+		if (!isSuper && !feats.has('reports.projections')) { notify.error('Sin permiso de proyecciones'); return; }
 		openRangeCalendarPopover((range) => {
 			if (!range || !range.start || !range.end) return;
 			const url = `/projections.html?start=${encodeURIComponent(range.start)}&end=${encodeURIComponent(range.end)}`;
@@ -1698,8 +1721,9 @@ async function exportCarteraExcel(startIso, endIso) {
 		}, ev.clientX, ev.clientY, { preferUp: true });
 	});
 	carteraBtn?.addEventListener('click', async (ev) => {
+		const feats = new Set((state.currentUser?.features || []));
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
-		if (!isSuper) { notify.error('Solo el superadministrador'); return; }
+		if (!isSuper && !feats.has('reports.cartera')) { notify.error('Sin permiso de cartera'); return; }
 		openRangeCalendarPopover(async (range) => {
 			if (!range || !range.start || !range.end) return;
 			await exportCarteraExcel(range.start, range.end);
@@ -1707,8 +1731,9 @@ async function exportCarteraExcel(startIso, endIso) {
 	});
 
 	transfersBtn?.addEventListener('click', (ev) => {
-		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
-		if (!isSuper) { notify.error('Solo el superadministrador'); return; }
+	const feats = new Set((state.currentUser?.features || []));
+	const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+		if (!isSuper && !feats.has('reports.transfers')) { notify.error('Sin permiso de transferencias'); return; }
 		openRangeCalendarPopover((range) => {
 			if (!range || !range.start || !range.end) return;
 			const url = `/transfers.html?start=${encodeURIComponent(range.start)}&end=${encodeURIComponent(range.end)}`;
@@ -1716,23 +1741,27 @@ async function exportCarteraExcel(startIso, endIso) {
 		}, ev.clientX, ev.clientY, { preferUp: true });
 	});
 	usersBtn?.addEventListener('click', async (ev) => {
+		const feats = new Set((state.currentUser?.features || []));
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
-		if (!isSuper) { notify.error('Solo el superadministrador'); return; }
+		if (!isSuper && !feats.has('nav.users')) { notify.error('Sin permiso de usuarios'); return; }
 		openUsersMenu(ev.clientX, ev.clientY);
 	});
 	materialsBtn?.addEventListener('click', async (ev) => {
+		const feats = new Set((state.currentUser?.features || []));
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
-		if (!isSuper) { notify.error('Solo el superadministrador'); return; }
+		if (!isSuper && !feats.has('nav.materials')) { notify.error('Sin permiso de materiales'); return; }
 		openMaterialsMenu(ev.clientX, ev.clientY);
 	});
 	inventoryBtn?.addEventListener('click', async (ev) => {
+		const feats = new Set((state.currentUser?.features || []));
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
-		if (!isSuper) { notify.error('Solo el superadministrador'); return; }
+		if (!isSuper && !feats.has('nav.inventory')) { notify.error('Sin permiso de inventario'); return; }
 		openInventoryView();
 	});
 	accountingBtn?.addEventListener('click', (ev) => {
+		const feats = new Set((state.currentUser?.features || []));
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
-		if (!isSuper) { notify.error('Solo el superadministrador'); return; }
+		if (!isSuper && !feats.has('nav.accounting')) { notify.error('Sin permiso de contabilidad'); return; }
 		window.location.href = '/accounting.html';
 	});
 })();
@@ -1770,10 +1799,13 @@ function openUsersMenu(anchorX, anchorY) {
 	pop.style.transform = 'translate(-50%, 0)';
 	pop.style.zIndex = '1000';
 	const list = document.createElement('div'); list.className = 'history-list';
-	const b1 = document.createElement('button'); b1.className = 'press-btn'; b1.textContent = 'Reporte';
-	const b2 = document.createElement('button'); b2.className = 'press-btn'; b2.textContent = 'Cambiar contraseñas';
-	const b3 = document.createElement('button'); b3.className = 'press-btn'; b3.textContent = 'Asignar roles';
-	list.appendChild(b1); list.appendChild(b2); list.appendChild(b3);
+    const b1 = document.createElement('button'); b1.className = 'press-btn'; b1.textContent = 'Reporte';
+    const b2 = document.createElement('button'); b2.className = 'press-btn'; b2.textContent = 'Cambiar contraseñas';
+    const b3 = document.createElement('button'); b3.className = 'press-btn'; b3.textContent = 'Asignar roles';
+    const b4 = document.createElement('button'); b4.className = 'press-btn'; b4.textContent = 'Otorgar ver vendedor';
+    const b5 = document.createElement('button'); b5.className = 'press-btn'; b5.textContent = 'Revocar ver vendedor';
+    const b6 = document.createElement('button'); b6.className = 'press-btn'; b6.textContent = 'Gestionar permisos (UI)';
+    list.appendChild(b1); list.appendChild(b2); list.appendChild(b3); list.appendChild(b4); list.appendChild(b5); list.appendChild(b6);
 	pop.append(list);
 	document.body.appendChild(pop);
 
@@ -1805,7 +1837,123 @@ function openUsersMenu(anchorX, anchorY) {
 		try { await api('PATCH', API.Users, { action: 'setRole', username, role }); notify.success('Rol actualizado'); cleanup(); }
 		catch { notify.error('No se pudo actualizar'); }
 	});
-	// Removed Assign Icons
+    b4.addEventListener('click', async () => {
+        const viewer = prompt('Usuario que podrá ver:'); if (!viewer) return;
+        const seller = prompt('Vendedor a autorizar (nombre exacto):'); if (!seller) return;
+        try {
+            await api('PATCH', API.Users, { action: 'grantView', username: viewer, sellerName: seller });
+            notify.success('Permiso otorgado'); cleanup();
+        } catch { notify.error('No se pudo otorgar'); }
+    });
+    b5.addEventListener('click', async () => {
+        const viewer = prompt('Usuario a revocar:'); if (!viewer) return;
+        const seller = prompt('Vendedor a revocar (nombre exacto):'); if (!seller) return;
+        try {
+            await api('PATCH', API.Users, { action: 'revokeView', username: viewer, sellerName: seller });
+            notify.success('Permiso revocado'); cleanup();
+        } catch { notify.error('No se pudo revocar'); }
+    });
+    b6.addEventListener('click', async () => { cleanup(); openPermissionsManager(); });
+    // Removed Assign Icons
+}
+
+function openPermissionsManager() {
+    const overlay = document.createElement('div'); overlay.className = 'confirm-popover permissions-overlay'; overlay.style.position = 'fixed'; overlay.style.left = '0'; overlay.style.top = '0'; overlay.style.right = '0'; overlay.style.bottom = '0'; overlay.style.background = 'rgba(0,0,0,0.35)'; overlay.style.zIndex = '1000';
+    const modal = document.createElement('div'); modal.className = 'confirm-popover permissions-modal'; modal.style.position = 'fixed'; modal.style.left = '50%'; modal.style.top = '50%'; modal.style.transform = 'translate(-50%, -50%)'; modal.style.maxWidth = '680px'; modal.style.width = '90%'; modal.style.maxHeight = '80vh'; modal.style.overflow = 'auto'; modal.style.background = 'var(--panel-bg, #fff)'; modal.style.padding = '16px'; modal.style.borderRadius = '12px';
+    const title = document.createElement('h3'); title.textContent = 'Gestión de permisos de visualización'; modal.appendChild(title);
+    const row = document.createElement('div'); row.style.display = 'flex'; row.style.gap = '12px'; row.style.alignItems = 'flex-start';
+    const left = document.createElement('div'); left.style.flex = '1'; const right = document.createElement('div'); right.style.flex = '1';
+    const userLabel = document.createElement('label'); userLabel.textContent = 'Usuario (viewer)'; userLabel.style.display = 'block';
+    const userSelect = document.createElement('select'); userSelect.style.width = '100%'; userSelect.className = 'input-cell';
+    left.appendChild(userLabel); left.appendChild(userSelect);
+    const sellersLabel = document.createElement('label'); sellersLabel.textContent = 'Vendedores permitidos'; sellersLabel.style.display = 'block';
+    const sellersBox = document.createElement('div'); sellersBox.style.display = 'grid'; sellersBox.style.gridTemplateColumns = 'repeat(2, minmax(0, 1fr))'; sellersBox.style.gap = '8px'; sellersBox.style.marginTop = '6px';
+    right.appendChild(sellersLabel); right.appendChild(sellersBox);
+    const featureLabel = document.createElement('label'); featureLabel.textContent = 'Permisos de funcionalidades'; featureLabel.style.display = 'block'; featureLabel.style.marginTop = '12px';
+    function makeFeat(labelText, featureKey) {
+        const wrap = document.createElement('label'); wrap.style.display = 'flex'; wrap.style.alignItems = 'center'; wrap.style.gap = '8px'; wrap.style.marginTop = '6px';
+        const cb = document.createElement('input'); cb.type = 'checkbox'; cb.value = featureKey; cb.dataset.feature = featureKey;
+        const span = document.createElement('span'); span.textContent = labelText;
+        wrap.appendChild(cb); wrap.appendChild(span);
+        return { wrap, cb };
+    }
+    // Reports
+    const featSales = makeFeat('Ver botón Ventas', 'reports.sales');
+    const featTransfers = makeFeat('Ver botón Transferencias', 'reports.transfers');
+    const featCartera = makeFeat('Ver botón Cartera', 'reports.cartera');
+    const featProjections = makeFeat('Ver botón Proyecciones', 'reports.projections');
+    // Nav
+    const featMaterials = makeFeat('Ver botón Materiales', 'nav.materials');
+    const featInventory = makeFeat('Ver botón Inventario', 'nav.inventory');
+    const featUsers = makeFeat('Ver botón Usuarios', 'nav.users');
+    const featAccounting = makeFeat('Ver botón Contabilidad', 'nav.accounting');
+    right.appendChild(featureLabel);
+    [featSales, featTransfers, featCartera, featProjections, featMaterials, featInventory, featUsers, featAccounting]
+        .forEach(x => right.appendChild(x.wrap));
+    row.appendChild(left); row.appendChild(right);
+    const actions = document.createElement('div'); actions.style.display = 'flex'; actions.style.justifyContent = 'flex-end'; actions.style.gap = '8px'; actions.style.marginTop = '14px';
+    const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn'; closeBtn.textContent = 'Cerrar';
+    const saveBtn = document.createElement('button'); saveBtn.className = 'press-btn btn-primary'; saveBtn.textContent = 'Guardar';
+    actions.appendChild(closeBtn); actions.appendChild(saveBtn);
+    modal.appendChild(row); modal.appendChild(actions);
+    overlay.appendChild(modal); document.body.appendChild(overlay);
+    function cleanup(){ if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }
+    closeBtn.addEventListener('click', cleanup);
+
+    (async () => {
+        const users = await api('GET', API.Users);
+        const sellers = await api('GET', API.Sellers + '?include_archived=1');
+        const sortedUsers = [...users].sort((a,b) => String(a.username||'').localeCompare(String(b.username||'')));
+        sortedUsers.forEach(u => {
+            const opt = document.createElement('option'); opt.value = String(u.username||''); opt.textContent = String(u.username||''); userSelect.appendChild(opt);
+        });
+        sellersBox.innerHTML = '';
+        sellers.forEach(s => {
+            const wrap = document.createElement('label'); wrap.style.display = 'flex'; wrap.style.alignItems = 'center'; wrap.style.gap = '8px';
+            const cb = document.createElement('input'); cb.type = 'checkbox'; cb.value = String(s.id);
+            const span = document.createElement('span'); span.textContent = String(s.name||'');
+            wrap.appendChild(cb); wrap.appendChild(span); sellersBox.appendChild(wrap);
+        });
+        async function loadViewerGrants(viewerName) {
+            const grants = await api('GET', API.Users + '?view_permissions=1&viewer=' + encodeURIComponent(viewerName));
+            const grantedIds = new Set(grants.map(g => Number(g.seller_id)));
+            Array.from(sellersBox.querySelectorAll('input[type="checkbox"]')).forEach((el) => {
+                el.checked = grantedIds.has(Number(el.value));
+            });
+            const feats = await api('GET', API.Users + '?feature_permissions=1&username=' + encodeURIComponent(viewerName));
+            const featuresSet = new Set((feats || []).map(f => String(f.feature)));
+            [featSales.cb, featTransfers.cb, featCartera.cb, featProjections.cb, featMaterials.cb, featInventory.cb, featUsers.cb, featAccounting.cb]
+                .forEach(cb => { cb.checked = featuresSet.has(cb.dataset.feature); });
+        }
+        userSelect.addEventListener('change', async () => {
+            await loadViewerGrants(userSelect.value);
+        });
+        if (sortedUsers.length) {
+            userSelect.value = String(sortedUsers[0].username||'');
+            await loadViewerGrants(userSelect.value);
+        }
+        saveBtn.addEventListener('click', async () => {
+            const viewer = String(userSelect.value||''); if (!viewer) return;
+            const cbs = Array.from(sellersBox.querySelectorAll('input[type="checkbox"]'));
+            const selectedIds = new Set(cbs.filter(el => el.checked).map(el => Number(el.value)));
+            const current = await api('GET', API.Users + '?view_permissions=1&viewer=' + encodeURIComponent(viewer));
+            const currentIds = new Set(current.map(g => Number(g.seller_id)));
+            const toGrant = [...selectedIds].filter(id => !currentIds.has(id));
+            const toRevoke = [...currentIds].filter(id => !selectedIds.has(id));
+            for (const id of toGrant) { await api('PATCH', API.Users, { action: 'grantView', username: viewer, sellerId: id }); }
+            for (const id of toRevoke) { await api('PATCH', API.Users, { action: 'revokeView', username: viewer, sellerId: id }); }
+            const feats = await api('GET', API.Users + '?feature_permissions=1&username=' + encodeURIComponent(viewer));
+            const currentFeat = new Set((feats || []).map(f => String(f.feature)));
+            const desiredFeat = new Set([featSales.cb, featTransfers.cb, featCartera.cb, featProjections.cb, featMaterials.cb, featInventory.cb, featUsers.cb, featAccounting.cb]
+                .filter(cb => cb.checked).map(cb => cb.dataset.feature));
+            const toGrantF = [...desiredFeat].filter(f => !currentFeat.has(f));
+            const toRevokeF = [...currentFeat].filter(f => !desiredFeat.has(f));
+            for (const f of toGrantF) await api('PATCH', API.Users, { action: 'grantFeature', username: viewer, feature: f });
+            for (const f of toRevokeF) await api('PATCH', API.Users, { action: 'revokeFeature', username: viewer, feature: f });
+            notify.success('Permisos actualizados');
+            cleanup();
+        });
+    })();
 }
 
 function openMaterialsMenu(anchorX, anchorY) {
@@ -1856,6 +2004,13 @@ async function exportUsersExcel() {
 		const ws = XLSX.utils.json_to_sheet(rows);
 		const wb = XLSX.utils.book_new();
 		XLSX.utils.book_append_sheet(wb, ws, 'Usuarios');
+		// Add Permissions sheet
+		try {
+			const perms = await api('GET', API.Users + '?view_permissions=1');
+			const permRows = (perms || []).map(p => ({ Usuario: p.viewer_username, Vendedor: p.seller_name, Otorgado: (p.created_at || '').toString().slice(0,19).replace('T',' ') }));
+			const ws2 = XLSX.utils.json_to_sheet(permRows);
+			XLSX.utils.book_append_sheet(wb, ws2, 'Permisos');
+		} catch {}
 		XLSX.writeFile(wb, `Usuarios_${new Date().toISOString().slice(0,10)}.xlsx`);
 		notify.success('Excel de usuarios generado');
 	} catch (e) {
@@ -4337,6 +4492,7 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 		state.currentUser.role = getRole(name);
 		state.currentUser.isSuperAdmin = isSuperAdmin(name);
 		state.currentUser.isAdmin = isAdmin(name);
+		state.currentUser.features = Array.isArray(state.currentUser.features) ? state.currentUser.features : [];
 		try { localStorage.setItem('authUser', JSON.stringify(state.currentUser)); } catch {}
 	}
 	await loadSellers();
