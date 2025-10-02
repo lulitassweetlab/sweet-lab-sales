@@ -581,11 +581,15 @@ function el(tag, attrs = {}, ...children) {
 }
 
 async function api(method, url, body) {
-	const res = await fetch(url, {
-		method,
-		headers: { 'Content-Type': 'application/json' },
-		body: body ? JSON.stringify(body) : undefined,
-	});
+    const actor = (state?.currentUser?.name || state?.currentUser?.username || '').toString();
+    const res = await fetch(url, {
+        method,
+        headers: {
+            'Content-Type': 'application/json',
+            ...(actor ? { 'X-Actor-Name': actor } : {})
+        },
+        body: body ? JSON.stringify(body) : undefined,
+    });
 	if (!res.ok) {
 		const text = await res.text();
 		throw new Error(`API ${method} ${url} failed: ${res.status} ${text}`);
@@ -612,14 +616,11 @@ async function loadSellers() {
 function renderSellerButtons() {
 	const list = $('#seller-list');
 	list.innerHTML = '';
-	const currentUserName = (state.currentUser?.name || '').toLowerCase();
-	const isAdminUser = !!state.currentUser?.isAdmin;
-	for (const s of state.sellers) {
-		const sellerName = String(s.name || '').toLowerCase();
-		if (!isAdminUser && sellerName !== currentUserName) continue;
-		const btn = el('button', { class: 'seller-button', onclick: async () => { await enterSeller(s.id); } }, s.name);
-		list.appendChild(btn);
-	}
+    // Server already filters sellers by permissions. Render all returned.
+    for (const s of state.sellers) {
+        const btn = el('button', { class: 'seller-button', onclick: async () => { await enterSeller(s.id); } }, s.name);
+        list.appendChild(btn);
+    }
 }
 
 async function addSeller(name) {
@@ -1770,10 +1771,12 @@ function openUsersMenu(anchorX, anchorY) {
 	pop.style.transform = 'translate(-50%, 0)';
 	pop.style.zIndex = '1000';
 	const list = document.createElement('div'); list.className = 'history-list';
-	const b1 = document.createElement('button'); b1.className = 'press-btn'; b1.textContent = 'Reporte';
-	const b2 = document.createElement('button'); b2.className = 'press-btn'; b2.textContent = 'Cambiar contraseñas';
-	const b3 = document.createElement('button'); b3.className = 'press-btn'; b3.textContent = 'Asignar roles';
-	list.appendChild(b1); list.appendChild(b2); list.appendChild(b3);
+    const b1 = document.createElement('button'); b1.className = 'press-btn'; b1.textContent = 'Reporte';
+    const b2 = document.createElement('button'); b2.className = 'press-btn'; b2.textContent = 'Cambiar contraseñas';
+    const b3 = document.createElement('button'); b3.className = 'press-btn'; b3.textContent = 'Asignar roles';
+    const b4 = document.createElement('button'); b4.className = 'press-btn'; b4.textContent = 'Otorgar ver vendedor';
+    const b5 = document.createElement('button'); b5.className = 'press-btn'; b5.textContent = 'Revocar ver vendedor';
+    list.appendChild(b1); list.appendChild(b2); list.appendChild(b3); list.appendChild(b4); list.appendChild(b5);
 	pop.append(list);
 	document.body.appendChild(pop);
 
@@ -1805,6 +1808,22 @@ function openUsersMenu(anchorX, anchorY) {
 		try { await api('PATCH', API.Users, { action: 'setRole', username, role }); notify.success('Rol actualizado'); cleanup(); }
 		catch { notify.error('No se pudo actualizar'); }
 	});
+    b4.addEventListener('click', async () => {
+        const viewer = prompt('Usuario que podrá ver:'); if (!viewer) return;
+        const seller = prompt('Vendedor a autorizar (nombre exacto):'); if (!seller) return;
+        try {
+            await api('PATCH', API.Users, { action: 'grantView', username: viewer, sellerName: seller });
+            notify.success('Permiso otorgado'); cleanup();
+        } catch { notify.error('No se pudo otorgar'); }
+    });
+    b5.addEventListener('click', async () => {
+        const viewer = prompt('Usuario a revocar:'); if (!viewer) return;
+        const seller = prompt('Vendedor a revocar (nombre exacto):'); if (!seller) return;
+        try {
+            await api('PATCH', API.Users, { action: 'revokeView', username: viewer, sellerName: seller });
+            notify.success('Permiso revocado'); cleanup();
+        } catch { notify.error('No se pudo revocar'); }
+    });
 	// Removed Assign Icons
 }
 

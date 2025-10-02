@@ -23,17 +23,48 @@ export async function handler(event) {
 				return (rows && rows[0] && rows[0].role) ? String(rows[0].role) : 'user';
 			} catch { return 'user'; }
 		}
+
+		async function getActorName(evt, body = null) {
+			try {
+				const headers = (evt.headers || {});
+				const hActor = (headers['x-actor-name'] || headers['X-Actor-Name'] || headers['x-actor'] || '').toString();
+				let bActor = '';
+				try { bActor = (body && (body.actor_name || body._actor_name || body.username)) ? String(body.actor_name || body._actor_name || body.username) : ''; } catch {}
+				let qActor = '';
+				try { const qs = new URLSearchParams(evt.rawQuery || (evt.queryStringParameters ? new URLSearchParams(evt.queryStringParameters).toString() : '')); qActor = (qs.get('actor') || '').toString(); } catch {}
+				return (hActor || bActor || qActor || '').toString();
+			} catch { return ''; }
+		}
 		switch (event.httpMethod) {
 			case 'GET': {
 				// Support include_archived=1 to include archived sellers; default excludes archived
 				const params = new URLSearchParams(event.rawQuery || event.queryStringParameters ? event.rawQuery || '' : '');
 				const includeArchived = (params.get('include_archived') || '').toString() === '1';
-				let rows;
-				if (includeArchived) {
-					rows = await sql`SELECT id, name, bill_color, archived_at FROM sellers ORDER BY name`;
-				} else {
-					rows = await sql`SELECT id, name, bill_color, archived_at FROM sellers WHERE archived_at IS NULL ORDER BY name`;
+				const role = await getActorRole(event, null);
+				const actorName = (await getActorName(event, null) || '').toString();
+				const whereArchived = includeArchived ? sql`` : sql`WHERE archived_at IS NULL`;
+				if (role === 'admin' || role === 'superadmin') {
+					const rows = await sql`SELECT id, name, bill_color, archived_at FROM sellers ${whereArchived} ORDER BY name`;
+					return json(rows);
 				}
+				// Regular user: own seller or granted via user_view_permissions
+				const rows = await sql`
+					WITH grants AS (
+						SELECT s.id
+						FROM user_view_permissions uvp
+						JOIN sellers s ON s.id = uvp.seller_id
+						WHERE lower(uvp.viewer_username) = lower(${actorName})
+					), own AS (
+						SELECT s.id
+						FROM sellers s
+						WHERE lower(s.name) = lower(${actorName})
+					)
+					SELECT id, name, bill_color, archived_at
+					FROM sellers
+					WHERE id IN (SELECT id FROM grants UNION SELECT id FROM own)
+					${includeArchived ? sql`` : sql`AND archived_at IS NULL`}
+					ORDER BY name
+				`;
 				return json(rows);
 			}
 			case 'POST': {

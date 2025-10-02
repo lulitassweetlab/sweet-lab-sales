@@ -66,6 +66,28 @@ export async function handler(event) {
 				const sellerId = Number(sellerIdParam);
 				const saleDayId = dayIdParam ? Number(dayIdParam) : null;
 				if (!sellerId) return json({ error: 'seller_id requerido' }, 400);
+				// Permission check for viewing sales
+				try {
+					const headers = (event.headers || {});
+					const hActor = (headers['x-actor-name'] || headers['X-Actor-Name'] || headers['x-actor'] || '').toString();
+					let qActor = '';
+					try { const qs = new URLSearchParams(event.rawQuery || (event.queryStringParameters ? new URLSearchParams(event.queryStringParameters).toString() : '')); qActor = (qs.get('actor') || '').toString(); } catch {}
+					const actorName = (hActor || qActor || '').toString();
+					let role = 'user';
+					if (actorName) {
+						const r = await sql`SELECT role FROM users WHERE lower(username)=lower(${actorName}) LIMIT 1`;
+						role = (r && r[0] && r[0].role) ? String(r[0].role) : 'user';
+					}
+					if (role !== 'admin' && role !== 'superadmin') {
+						const allowed = await sql`
+							SELECT 1 FROM (
+								SELECT s.id FROM sellers s WHERE lower(s.name)=lower(${actorName})
+								UNION ALL
+								SELECT uvp.seller_id FROM user_view_permissions uvp WHERE lower(uvp.viewer_username)=lower(${actorName})
+							) x WHERE x.id=${sellerId} LIMIT 1`;
+						if (!allowed.length) return json({ error: 'No autorizado' }, 403);
+					}
+				} catch {}
 				let rows;
 				if (saleDayId) {
 					rows = await sql`SELECT id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, comment_text, total_cents, created_at FROM sales WHERE seller_id = ${sellerId} AND sale_day_id=${saleDayId} ORDER BY created_at DESC, id DESC`;

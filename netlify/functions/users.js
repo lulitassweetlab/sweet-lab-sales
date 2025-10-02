@@ -68,12 +68,22 @@ export async function handler(event) {
 			}
 			case 'PATCH': {
 				// Admin actions: set password or set role
-				// Body: { action: 'setPassword'|'setRole', username, newPassword?, role? }
+				// Body: { action: 'setPassword'|'setRole'|'grantView'|'revokeView', username, newPassword?, role?, sellerId? or sellerName? }
 				const data = JSON.parse(event.body || '{}');
 				const action = (data.action || '').toString();
 				const rawUsername = (data.username || '').toString().trim();
 				const username = rawUsername.toLowerCase();
 				if (!action || !username) return json({ error: 'Datos incompletos' }, 400);
+				// Determine actor role for authorization
+				let actorRole = 'user';
+				try {
+					const headers = (event.headers || {});
+					const actorName = (headers['x-actor-name'] || headers['X-Actor-Name'] || headers['x-actor'] || '').toString();
+					if (actorName) {
+						const r = await sql`SELECT role FROM users WHERE lower(username)=lower(${actorName}) LIMIT 1`;
+						actorRole = (r && r[0] && r[0].role) ? String(r[0].role) : 'user';
+					}
+				} catch {}
 				if (action === 'setPassword') {
 					const newPassword = (data.newPassword || '').toString();
 					if (!newPassword || newPassword.length < 6) return json({ error: 'Nueva contraseña inválida' }, 400);
@@ -96,6 +106,24 @@ export async function handler(event) {
 					}
 					await sql`UPDATE users SET role=${role} WHERE id=${rows[0].id}`;
 					return json({ ok: true });
+				} else if (action === 'grantView' || action === 'revokeView') {
+					if (actorRole !== 'superadmin') return json({ error: 'No autorizado' }, 403);
+					// Determine target seller id
+					let sellerId = Number(data.sellerId || 0) || null;
+					const sellerName = (data.sellerName || data.seller || '').toString();
+					if (!sellerId) {
+						if (!sellerName) return json({ error: 'sellerId o sellerName requerido' }, 400);
+						const s = await sql`SELECT id FROM sellers WHERE lower(name)=lower(${sellerName}) LIMIT 1`;
+						if (!s.length) return json({ error: 'Vendedor no encontrado' }, 404);
+						sellerId = s[0].id;
+					}
+					if (action === 'grantView') {
+						await sql`INSERT INTO user_view_permissions (viewer_username, seller_id) VALUES (${rawUsername}, ${sellerId}) ON CONFLICT (viewer_username, seller_id) DO NOTHING`;
+						return json({ ok: true, granted: true });
+					} else {
+						await sql`DELETE FROM user_view_permissions WHERE lower(viewer_username)=lower(${rawUsername}) AND seller_id=${sellerId}`;
+						return json({ ok: true, revoked: true });
+					}
 				}
 				return json({ error: 'Acción inválida' }, 400);
 			}

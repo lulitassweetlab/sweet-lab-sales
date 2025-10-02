@@ -14,6 +14,28 @@ export async function handler(event) {
 				const sellerIdParam = params.get('seller_id') || (event.queryStringParameters && event.queryStringParameters.seller_id);
 				const sellerId = Number(sellerIdParam);
 				if (!sellerId) return json({ error: 'seller_id requerido' }, 400);
+				// Permission check: user can only view allowed sellers
+				try {
+					const headers = (event.headers || {});
+					const hActor = (headers['x-actor-name'] || headers['X-Actor-Name'] || headers['x-actor'] || '').toString();
+					let qActor = '';
+					try { const qs = new URLSearchParams(event.rawQuery || (event.queryStringParameters ? new URLSearchParams(event.queryStringParameters).toString() : '')); qActor = (qs.get('actor') || '').toString(); } catch {}
+					const actorName = (hActor || qActor || '').toString();
+					let role = 'user';
+					if (actorName) {
+						const r = await sql`SELECT role FROM users WHERE lower(username)=lower(${actorName}) LIMIT 1`;
+						role = (r && r[0] && r[0].role) ? String(r[0].role) : 'user';
+					}
+					if (role !== 'admin' && role !== 'superadmin') {
+						const allowed = await sql`
+							SELECT 1 FROM (
+								SELECT s.id FROM sellers s WHERE lower(s.name)=lower(${actorName})
+								UNION ALL
+								SELECT uvp.seller_id FROM user_view_permissions uvp WHERE lower(uvp.viewer_username)=lower(${actorName})
+							) x WHERE x.id=${sellerId} LIMIT 1`;
+						if (!allowed.length) return json({ error: 'No autorizado' }, 403);
+					}
+				} catch {}
 				const archivedParam = (params.get('archived') || '').toString().toLowerCase();
 				const includeArchivedParam = (params.get('include_archived') || '').toString().toLowerCase();
 				let rows;
