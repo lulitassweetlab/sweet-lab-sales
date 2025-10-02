@@ -101,9 +101,9 @@
 		const qs = new URLSearchParams(location.search);
 		let start = (qs.get('start') || '').slice(0,10);
 		let end = (qs.get('end') || '').slice(0,10);
-		// Try to infer current actor from localStorage set by index page
-		let actor = '';
-		try { const saved = JSON.parse(localStorage.getItem('authUser')||'null'); actor = (saved?.name||saved?.username||'').toString(); } catch {}
+		// Actor can come from URL or localStorage (set by index page)
+		let actor = (qs.get('actor') || '').toString();
+		if (!actor) { try { const saved = JSON.parse(localStorage.getItem('authUser')||'null'); actor = (saved?.name||saved?.username||'').toString(); } catch {} }
 		const rangeLabel = document.getElementById('range-label');
 		const countLabel = document.getElementById('count-label');
 		const tbody = document.getElementById('report-tbody');
@@ -260,7 +260,7 @@
 			rangeLabel.textContent = `${formatDay(start)} — ${formatDay(end)}`;
 			countLabel.textContent = 'Cargando…';
 			dataset = [];
-			sellersList = await fetchJSON('/api/sellers');
+			sellersList = await fetchJSON(withActor('/api/sellers'));
 			populateFilters();
 			countLabel.textContent = `Vendedores: ${sellersList.length} · Buscando días…`;
 			const isoBetween = (iso, a, b) => iso >= a && iso <= b;
@@ -313,7 +313,7 @@
 			openRangeCalendarPopover((range) => {
 				if (!range || !range.start || !range.end) return;
 				start = range.start; end = range.end;
-				history.replaceState(null, '', `?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`);
+			history.replaceState(null, '', `?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}${actor?`&actor=${encodeURIComponent(actor)}`:''}`);
 				load();
 			}, ev.clientX, ev.clientY, { preferUp: true });
 		}
