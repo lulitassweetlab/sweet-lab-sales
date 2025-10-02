@@ -42,29 +42,52 @@ export async function handler(event) {
 				const includeArchived = (params.get('include_archived') || '').toString() === '1';
 				const role = await getActorRole(event, null);
 				const actorName = (await getActorName(event, null) || '').toString();
-				const whereArchived = includeArchived ? sql`` : sql`WHERE archived_at IS NULL`;
 				if (role === 'admin' || role === 'superadmin') {
-					const rows = await sql`SELECT id, name, bill_color, archived_at FROM sellers ${whereArchived} ORDER BY name`;
+					let rows;
+					if (includeArchived) {
+						rows = await sql`SELECT id, name, bill_color, archived_at FROM sellers ORDER BY name`;
+					} else {
+						rows = await sql`SELECT id, name, bill_color, archived_at FROM sellers WHERE archived_at IS NULL ORDER BY name`;
+					}
 					return json(rows);
 				}
 				// Regular user: own seller or granted via user_view_permissions
-				const rows = await sql`
-					WITH grants AS (
-						SELECT s.id
-						FROM user_view_permissions uvp
-						JOIN sellers s ON s.id = uvp.seller_id
-						WHERE lower(uvp.viewer_username) = lower(${actorName})
-					), own AS (
-						SELECT s.id
-						FROM sellers s
-						WHERE lower(s.name) = lower(${actorName})
-					)
-					SELECT id, name, bill_color, archived_at
-					FROM sellers
-					WHERE id IN (SELECT id FROM grants UNION SELECT id FROM own)
-					${includeArchived ? sql`` : sql`AND archived_at IS NULL`}
-					ORDER BY name
-				`;
+				let rows;
+				if (includeArchived) {
+					rows = await sql`
+						WITH grants AS (
+							SELECT s.id
+							FROM user_view_permissions uvp
+							JOIN sellers s ON s.id = uvp.seller_id
+							WHERE lower(uvp.viewer_username) = lower(${actorName})
+						), own AS (
+							SELECT s.id
+							FROM sellers s
+							WHERE lower(s.name) = lower(${actorName})
+						)
+						SELECT id, name, bill_color, archived_at
+						FROM sellers
+						WHERE id IN (SELECT id FROM grants UNION SELECT id FROM own)
+						ORDER BY name
+					`;
+				} else {
+					rows = await sql`
+						WITH grants AS (
+							SELECT s.id
+							FROM user_view_permissions uvp
+							JOIN sellers s ON s.id = uvp.seller_id
+							WHERE lower(uvp.viewer_username) = lower(${actorName})
+						), own AS (
+							SELECT s.id
+							FROM sellers s
+							WHERE lower(s.name) = lower(${actorName})
+						)
+						SELECT id, name, bill_color, archived_at
+						FROM sellers
+						WHERE id IN (SELECT id FROM grants UNION SELECT id FROM own) AND archived_at IS NULL
+						ORDER BY name
+					`;
+				}
 				return json(rows);
 			}
 			case 'POST': {
