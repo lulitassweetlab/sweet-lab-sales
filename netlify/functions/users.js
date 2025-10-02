@@ -10,6 +10,33 @@ export async function handler(event) {
 		if (event.httpMethod === 'OPTIONS') return json({ ok: true });
 		switch (event.httpMethod) {
 			case 'GET': {
+				// Support listing users or view permissions
+				let raw = '';
+				if (event.rawQuery && typeof event.rawQuery === 'string') raw = event.rawQuery;
+				else if (event.queryStringParameters && typeof event.queryStringParameters === 'object') {
+					raw = Object.entries(event.queryStringParameters).map(([k,v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v ?? '')}`).join('&');
+				}
+				const params = new URLSearchParams(raw);
+				if ((params.get('view_permissions') || '') === '1') {
+					// Only superadmin can list permissions
+					let actorRole = 'user';
+					try {
+						const headers = (event.headers || {});
+						const actorName = (headers['x-actor-name'] || headers['X-Actor-Name'] || headers['x-actor'] || '').toString();
+						if (actorName) {
+							const r = await sql`SELECT role FROM users WHERE lower(username)=lower(${actorName}) LIMIT 1`;
+							actorRole = (r && r[0] && r[0].role) ? String(r[0].role) : 'user';
+						}
+					} catch {}
+					if (actorRole !== 'superadmin') return json({ error: 'No autorizado' }, 403);
+					const viewer = (params.get('viewer') || '').toString();
+					if (viewer) {
+						const rows = await sql`SELECT uvp.viewer_username, uvp.seller_id, s.name AS seller_name, uvp.created_at FROM user_view_permissions uvp JOIN sellers s ON s.id = uvp.seller_id WHERE lower(uvp.viewer_username)=lower(${viewer}) ORDER BY s.name ASC`;
+						return json(rows);
+					}
+					const rows = await sql`SELECT uvp.viewer_username, uvp.seller_id, s.name AS seller_name, uvp.created_at FROM user_view_permissions uvp JOIN sellers s ON s.id = uvp.seller_id ORDER BY lower(uvp.viewer_username) ASC, s.name ASC`;
+					return json(rows);
+				}
 				// List users for reports, including sellers without an explicit user row
 				const userRows = await sql`SELECT id, username, password_hash, role, created_at FROM users ORDER BY username ASC`;
 				const sellerRows = await sql`SELECT name FROM sellers ORDER BY name ASC`;

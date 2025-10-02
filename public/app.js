@@ -1777,7 +1777,8 @@ function openUsersMenu(anchorX, anchorY) {
     const b3 = document.createElement('button'); b3.className = 'press-btn'; b3.textContent = 'Asignar roles';
     const b4 = document.createElement('button'); b4.className = 'press-btn'; b4.textContent = 'Otorgar ver vendedor';
     const b5 = document.createElement('button'); b5.className = 'press-btn'; b5.textContent = 'Revocar ver vendedor';
-    list.appendChild(b1); list.appendChild(b2); list.appendChild(b3); list.appendChild(b4); list.appendChild(b5);
+    const b6 = document.createElement('button'); b6.className = 'press-btn'; b6.textContent = 'Gestionar permisos (UI)';
+    list.appendChild(b1); list.appendChild(b2); list.appendChild(b3); list.appendChild(b4); list.appendChild(b5); list.appendChild(b6);
 	pop.append(list);
 	document.body.appendChild(pop);
 
@@ -1825,7 +1826,74 @@ function openUsersMenu(anchorX, anchorY) {
             notify.success('Permiso revocado'); cleanup();
         } catch { notify.error('No se pudo revocar'); }
     });
-	// Removed Assign Icons
+    b6.addEventListener('click', async () => { cleanup(); openPermissionsManager(); });
+    // Removed Assign Icons
+}
+
+function openPermissionsManager() {
+    const overlay = document.createElement('div'); overlay.className = 'confirm-popover permissions-overlay'; overlay.style.position = 'fixed'; overlay.style.left = '0'; overlay.style.top = '0'; overlay.style.right = '0'; overlay.style.bottom = '0'; overlay.style.background = 'rgba(0,0,0,0.35)'; overlay.style.zIndex = '1000';
+    const modal = document.createElement('div'); modal.className = 'confirm-popover permissions-modal'; modal.style.position = 'fixed'; modal.style.left = '50%'; modal.style.top = '50%'; modal.style.transform = 'translate(-50%, -50%)'; modal.style.maxWidth = '680px'; modal.style.width = '90%'; modal.style.maxHeight = '80vh'; modal.style.overflow = 'auto'; modal.style.background = 'var(--panel-bg, #fff)'; modal.style.padding = '16px'; modal.style.borderRadius = '12px';
+    const title = document.createElement('h3'); title.textContent = 'Gestión de permisos de visualización'; modal.appendChild(title);
+    const row = document.createElement('div'); row.style.display = 'flex'; row.style.gap = '12px'; row.style.alignItems = 'flex-start';
+    const left = document.createElement('div'); left.style.flex = '1'; const right = document.createElement('div'); right.style.flex = '1';
+    const userLabel = document.createElement('label'); userLabel.textContent = 'Usuario (viewer)'; userLabel.style.display = 'block';
+    const userSelect = document.createElement('select'); userSelect.style.width = '100%'; userSelect.className = 'input-cell';
+    left.appendChild(userLabel); left.appendChild(userSelect);
+    const sellersLabel = document.createElement('label'); sellersLabel.textContent = 'Vendedores permitidos'; sellersLabel.style.display = 'block';
+    const sellersBox = document.createElement('div'); sellersBox.style.display = 'grid'; sellersBox.style.gridTemplateColumns = 'repeat(2, minmax(0, 1fr))'; sellersBox.style.gap = '8px'; sellersBox.style.marginTop = '6px';
+    right.appendChild(sellersLabel); right.appendChild(sellersBox);
+    row.appendChild(left); row.appendChild(right);
+    const actions = document.createElement('div'); actions.style.display = 'flex'; actions.style.justifyContent = 'flex-end'; actions.style.gap = '8px'; actions.style.marginTop = '14px';
+    const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn'; closeBtn.textContent = 'Cerrar';
+    const saveBtn = document.createElement('button'); saveBtn.className = 'press-btn btn-primary'; saveBtn.textContent = 'Guardar';
+    actions.appendChild(closeBtn); actions.appendChild(saveBtn);
+    modal.appendChild(row); modal.appendChild(actions);
+    overlay.appendChild(modal); document.body.appendChild(overlay);
+    function cleanup(){ if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }
+    closeBtn.addEventListener('click', cleanup);
+
+    (async () => {
+        const users = await api('GET', API.Users);
+        const sellers = await api('GET', API.Sellers + '?include_archived=1');
+        const sortedUsers = [...users].sort((a,b) => String(a.username||'').localeCompare(String(b.username||'')));
+        sortedUsers.forEach(u => {
+            const opt = document.createElement('option'); opt.value = String(u.username||''); opt.textContent = String(u.username||''); userSelect.appendChild(opt);
+        });
+        sellersBox.innerHTML = '';
+        sellers.forEach(s => {
+            const wrap = document.createElement('label'); wrap.style.display = 'flex'; wrap.style.alignItems = 'center'; wrap.style.gap = '8px';
+            const cb = document.createElement('input'); cb.type = 'checkbox'; cb.value = String(s.id);
+            const span = document.createElement('span'); span.textContent = String(s.name||'');
+            wrap.appendChild(cb); wrap.appendChild(span); sellersBox.appendChild(wrap);
+        });
+        async function loadViewerGrants(viewerName) {
+            const grants = await api('GET', API.Users + '?view_permissions=1&viewer=' + encodeURIComponent(viewerName));
+            const grantedIds = new Set(grants.map(g => Number(g.seller_id)));
+            Array.from(sellersBox.querySelectorAll('input[type="checkbox"]')).forEach((el) => {
+                el.checked = grantedIds.has(Number(el.value));
+            });
+        }
+        userSelect.addEventListener('change', async () => {
+            await loadViewerGrants(userSelect.value);
+        });
+        if (sortedUsers.length) {
+            userSelect.value = String(sortedUsers[0].username||'');
+            await loadViewerGrants(userSelect.value);
+        }
+        saveBtn.addEventListener('click', async () => {
+            const viewer = String(userSelect.value||''); if (!viewer) return;
+            const cbs = Array.from(sellersBox.querySelectorAll('input[type="checkbox"]'));
+            const selectedIds = new Set(cbs.filter(el => el.checked).map(el => Number(el.value)));
+            const current = await api('GET', API.Users + '?view_permissions=1&viewer=' + encodeURIComponent(viewer));
+            const currentIds = new Set(current.map(g => Number(g.seller_id)));
+            const toGrant = [...selectedIds].filter(id => !currentIds.has(id));
+            const toRevoke = [...currentIds].filter(id => !selectedIds.has(id));
+            for (const id of toGrant) { await api('PATCH', API.Users, { action: 'grantView', username: viewer, sellerId: id }); }
+            for (const id of toRevoke) { await api('PATCH', API.Users, { action: 'revokeView', username: viewer, sellerId: id }); }
+            notify.success('Permisos actualizados');
+            cleanup();
+        });
+    })();
 }
 
 function openMaterialsMenu(anchorX, anchorY) {
