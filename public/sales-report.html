@@ -359,6 +359,7 @@
 			const url = new URL('/ingredients.html', location.origin);
 			if (start) url.searchParams.set('start', start);
 			if (end) url.searchParams.set('end', end);
+			if (actor) url.searchParams.set('actor', actor);
 			location.href = url.toString();
 		});
 
