@@ -512,7 +512,7 @@ function bindLogin() {
 			try {
 				const res = await api('POST', API.Users, { username: user, password: pass });
 				if (err) err.classList.add('hidden');
-				state.currentUser = { name: res.username, isAdmin: res.role === 'admin' || res.role === 'superadmin', role: res.role, isSuperAdmin: res.role === 'superadmin' };
+				state.currentUser = { name: res.username, isAdmin: res.role === 'admin' || res.role === 'superadmin', role: res.role, isSuperAdmin: res.role === 'superadmin', features: Array.isArray(res.features) ? res.features : [] };
 				try { localStorage.setItem('authUser', JSON.stringify(state.currentUser)); } catch {}
 				applyAuthVisibility();
 				await loadSellers();
@@ -4492,6 +4492,7 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 		state.currentUser.role = getRole(name);
 		state.currentUser.isSuperAdmin = isSuperAdmin(name);
 		state.currentUser.isAdmin = isAdmin(name);
+		state.currentUser.features = Array.isArray(state.currentUser.features) ? state.currentUser.features : [];
 		try { localStorage.setItem('authUser', JSON.stringify(state.currentUser)); } catch {}
 	}
 	await loadSellers();

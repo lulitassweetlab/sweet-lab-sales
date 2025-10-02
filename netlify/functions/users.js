@@ -82,12 +82,16 @@ export async function handler(event) {
 				if (rows.length) {
 					const user = rows[0];
 					if (user.password_hash !== password) return json({ error: 'Usuario o contraseña inválidos' }, 401);
-					return json({ username: user.username, role: user.role });
+					const featRows = await sql`SELECT feature FROM user_feature_permissions WHERE lower(username)=lower(${user.username}) ORDER BY feature ASC`;
+					const features = (featRows || []).map(f => String(f.feature));
+					return json({ username: user.username, role: user.role, features });
 				}
 				// Fallback: allow default rule for any username (legacy behavior)
 				const expected = username === 'jorge' ? 'Jorge123' : (username + 'sweet');
 				if ((expected || '').toLowerCase() !== (password || '').toLowerCase()) return json({ error: 'Usuario o contraseña inválidos' }, 401);
-				return json({ username: rawUsername, role: 'user' });
+				const featRows = await sql`SELECT feature FROM user_feature_permissions WHERE lower(username)=lower(${rawUsername}) ORDER BY feature ASC`;
+				const features = (featRows || []).map(f => String(f.feature));
+				return json({ username: rawUsername, role: 'user', features });
 			}
 			case 'PUT': {
 				// Change password
