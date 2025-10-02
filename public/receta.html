@@ -41,6 +41,8 @@
 		const qs = new URLSearchParams(location.search);
 		let start = (qs.get('start') || '').slice(0,10);
 		let end = (qs.get('end') || '').slice(0,10);
+		let actor = (qs.get('actor') || '').toString();
+		if (!actor) { try { const saved = JSON.parse(localStorage.getItem('authUser')||'null'); actor = (saved?.name||saved?.username||'').toString(); } catch {} }
 		const rangeLabel = document.getElementById('range-label');
 		const countLabel = document.getElementById('count-label');
 		const countsSummary = document.getElementById('counts-summary');
@@ -68,8 +70,15 @@
 			};
 		}
 
-		function formatDay(iso){ if (!iso) return ''; const d = new Date(iso + 'T00:00:00Z'); const months=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']; return `${d.getUTCDate()} ${months[d.getUTCMonth()]} ${d.getUTCFullYear()}`; }
+		function formatDay(iso){ if (!iso) return ''; const d = new Date(iso + 'T00:00:00Z'); const months=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']; return `${d.getUTCDate()} ${months[d.getUTCMonth()]} ${d.getFullYear()}`; }
 		async function fetchJSON(u){ const r = await fetch(u); if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }
+		function withActor(url){
+			try {
+				const u = new URL(url, location.origin);
+				if (actor) u.searchParams.set('actor', actor);
+				return u.pathname + (u.search || '');
+			} catch { return url + (url.includes('?') ? `&actor=${encodeURIComponent(actor)}` : `?actor=${encodeURIComponent(actor)}`); }
+		}
 
 		function sumCountsView(c){
 			countsSummary.innerHTML = '';
@@ -112,14 +121,14 @@
 			countLabel.textContent = 'Cargando…';
 			cardsWrap.innerHTML = '';
 			// 1) Build counts by dessert from sales in range
-			const sellers = await fetchJSON('/api/sellers');
+			const sellers = await fetchJSON(withActor('/api/sellers'));
 			countLabel.textContent = `Vendedores: ${sellers.length} · Buscando días…`;
 			const isoBetween = (iso, a, b) => iso >= a && iso <= b;
 			async function mapLimit(items, limit, fn){ const out=[]; let idx=0; let running=0; let resolveAll; const done=new Promise(r=>resolveAll=r); function runNext(){ if(idx>=items.length && running===0) return resolveAll(); while(running<limit && idx<items.length){ const cur=items[idx++]; running++; Promise.resolve(fn(cur)).then(v=>{ out.push(v); running--; runNext(); }).catch(()=>{ running--; runNext(); }); } } runNext(); await done; return out; }
 			const sellerDays = [];
 			await mapLimit(sellers, 6, async (s) => {
 				try {
-					const days = await fetchJSON(`/api/days?seller_id=${encodeURIComponent(s.id)}`);
+					const days = await fetchJSON(withActor(`/api/days?seller_id=${encodeURIComponent(s.id)}`));
 					for (const d of (days||[])) { const iso = String(d.day).slice(0,10); if (isoBetween(iso, start, end)) sellerDays.push({ seller: s, day: d }); }
 				} catch {}
 			});
@@ -128,7 +137,7 @@
 			await mapLimit(sellerDays, 6, async ({ seller, day }) => {
 				try {
 					const params = new URLSearchParams({ seller_id: String(seller.id), sale_day_id: String(day.id) });
-					const sales = await fetchJSON(`/api/sales?${params.toString()}`);
+					const sales = await fetchJSON(withActor(`/api/sales?${params.toString()}`));
 					for (const r of (sales || [])) {
 						counts.arco += Number(r.qty_arco || 0) || 0;
 						counts.melo += Number(r.qty_melo || 0) || 0;
@@ -142,7 +151,7 @@
 
 			// 2) Fetch dessert names and map them to keys
 			let dessertNames = [];
-			try { dessertNames = await fetchJSON('/api/recipes'); } catch { dessertNames = []; }
+			try { dessertNames = await fetchJSON(withActor('/api/recipes')); } catch { dessertNames = []; }
 			const byKey = new Map();
 			for (const name of (dessertNames||[])) { const k = normalizeKey(name); if (!byKey.has(k)) byKey.set(k, name); }
 
@@ -151,7 +160,7 @@
 			async function renderDessert(keyLabel, label){
 				const qty = Number(counts[keyLabel] || 0) || 0; if (!qty) return;
 				const dessertName = byKey.get(keyLabel) || label;
-				let data = null; try { data = await fetchJSON(`/api/recipes?dessert=${encodeURIComponent(dessertName)}&include_extras=1`); } catch { data = null; }
+			let data = null; try { data = await fetchJSON(withActor(`/api/recipes?dessert=${encodeURIComponent(dessertName)}&include_extras=1`)); } catch { data = null; }
 				if (!data) return;
 				const card = document.createElement('div'); card.className = 'measure-card'; card.style.padding='12px'; card.style.border='1px solid rgba(0,0,0,0.15)'; card.style.borderRadius='10px'; card.style.boxShadow='0 8px 24px rgba(0,0,0,0.12)';
 				const title = document.createElement('h3'); title.textContent = `${dessertName} × ${qty}`; title.style.textAlign='center'; title.style.fontSize='28px'; title.style.margin='4px 0 12px 0'; title.style.background='rgba(255, 105, 180, 0.18)'; title.style.padding='8px 6px'; title.style.borderRadius='8px'; card.appendChild(title);
@@ -262,13 +271,14 @@
 			const url = new URL('/ingredients.html', location.origin);
 			if (start) url.searchParams.set('start', start);
 			if (end) url.searchParams.set('end', end);
+			if (actor) url.searchParams.set('actor', actor);
 			location.href = url.toString();
 		});
 		changeBtn.addEventListener('click', (ev) => {
 			openRangeCalendarPopover((range) => {
 				if (!range || !range.start || !range.end) return;
 				start = range.start; end = range.end;
-				history.replaceState(null, '', `?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`);
+				history.replaceState(null, '', `?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}${actor?`&actor=${encodeURIComponent(actor)}`:''}`);
 				load();
 			}, ev.clientX, ev.clientY);
 		});
@@ -279,8 +289,8 @@
 			const cy = 120;
 			openRangeCalendarPopover((range) => {
 				if (!range || !range.start || !range.end) return;
-				start = range.start; end = range.end;
-				history.replaceState(null, '', `?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`);
+			start = range.start; end = range.end;
+			history.replaceState(null, '', `?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}${actor?`&actor=${encodeURIComponent(actor)}`:''}`);
 				load();
 			}, cx, cy);
 		} else {
