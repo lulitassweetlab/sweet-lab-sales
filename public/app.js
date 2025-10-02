@@ -678,10 +678,13 @@ function applyAuthVisibility() {
     const carteraBtn = document.getElementById('cartera-button');
     const projectionsBtn = document.getElementById('projections-button');
     const transfersBtn = document.getElementById('transfers-button');
-    const canReports = !!state.currentUser?.features?.includes?.('reports') || isSuper;
-    if (carteraBtn) carteraBtn.style.display = canReports ? 'inline-block' : 'none';
-    if (projectionsBtn) projectionsBtn.style.display = canReports ? 'inline-block' : 'none';
-    if (transfersBtn) transfersBtn.style.display = canReports ? 'inline-block' : 'none';
+    const feats = new Set((state.currentUser?.features || []));
+    const canCartera = isSuper || feats.has('reports.cartera');
+    const canProjections = isSuper || feats.has('reports.projections');
+    const canTransfers = isSuper || feats.has('reports.transfers');
+    if (carteraBtn) carteraBtn.style.display = canCartera ? 'inline-block' : 'none';
+    if (projectionsBtn) projectionsBtn.style.display = canProjections ? 'inline-block' : 'none';
+    if (transfersBtn) transfersBtn.style.display = canTransfers ? 'inline-block' : 'none';
 	const materialsBtn = document.getElementById('materials-button');
 	if (materialsBtn) materialsBtn.style.display = isSuper ? 'inline-block' : 'none';
 	const accountingBtn = document.getElementById('accounting-button');
@@ -1847,12 +1850,18 @@ function openPermissionsManager() {
     const sellersLabel = document.createElement('label'); sellersLabel.textContent = 'Vendedores permitidos'; sellersLabel.style.display = 'block';
     const sellersBox = document.createElement('div'); sellersBox.style.display = 'grid'; sellersBox.style.gridTemplateColumns = 'repeat(2, minmax(0, 1fr))'; sellersBox.style.gap = '8px'; sellersBox.style.marginTop = '6px';
     right.appendChild(sellersLabel); right.appendChild(sellersBox);
-    const featureLabel = document.createElement('label'); featureLabel.textContent = 'Permisos de funcionalidades'; featureLabel.style.display = 'block'; featureLabel.style.marginTop = '12px';
-    const featureReportsWrap = document.createElement('label'); featureReportsWrap.style.display = 'flex'; featureReportsWrap.style.alignItems = 'center'; featureReportsWrap.style.gap = '8px'; featureReportsWrap.style.marginTop = '6px';
-    const featureReports = document.createElement('input'); featureReports.type = 'checkbox'; featureReports.value = 'reports';
-    const featureReportsText = document.createElement('span'); featureReportsText.textContent = 'Acceso a botones de reportes';
-    featureReportsWrap.appendChild(featureReports); featureReportsWrap.appendChild(featureReportsText);
-    right.appendChild(featureLabel); right.appendChild(featureReportsWrap);
+    const featureLabel = document.createElement('label'); featureLabel.textContent = 'Permisos de funcionalidades (reportes)'; featureLabel.style.display = 'block'; featureLabel.style.marginTop = '12px';
+    function makeFeat(labelText, featureKey) {
+        const wrap = document.createElement('label'); wrap.style.display = 'flex'; wrap.style.alignItems = 'center'; wrap.style.gap = '8px'; wrap.style.marginTop = '6px';
+        const cb = document.createElement('input'); cb.type = 'checkbox'; cb.value = featureKey; cb.dataset.feature = featureKey;
+        const span = document.createElement('span'); span.textContent = labelText;
+        wrap.appendChild(cb); wrap.appendChild(span);
+        return { wrap, cb };
+    }
+    const featCartera = makeFeat('Ver botón Cartera', 'reports.cartera');
+    const featProjections = makeFeat('Ver botón Proyecciones', 'reports.projections');
+    const featTransfers = makeFeat('Ver botón Transferencias', 'reports.transfers');
+    right.appendChild(featureLabel); right.appendChild(featCartera.wrap); right.appendChild(featProjections.wrap); right.appendChild(featTransfers.wrap);
     row.appendChild(left); row.appendChild(right);
     const actions = document.createElement('div'); actions.style.display = 'flex'; actions.style.justifyContent = 'flex-end'; actions.style.gap = '8px'; actions.style.marginTop = '14px';
     const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn'; closeBtn.textContent = 'Cerrar';
@@ -1885,7 +1894,7 @@ function openPermissionsManager() {
             });
             const feats = await api('GET', API.Users + '?feature_permissions=1&username=' + encodeURIComponent(viewerName));
             const featuresSet = new Set((feats || []).map(f => String(f.feature)));
-            featureReports.checked = featuresSet.has('reports');
+            [featCartera.cb, featProjections.cb, featTransfers.cb].forEach(cb => { cb.checked = featuresSet.has(cb.dataset.feature); });
         }
         userSelect.addEventListener('change', async () => {
             await loadViewerGrants(userSelect.value);
@@ -1904,11 +1913,13 @@ function openPermissionsManager() {
             const toRevoke = [...currentIds].filter(id => !selectedIds.has(id));
             for (const id of toGrant) { await api('PATCH', API.Users, { action: 'grantView', username: viewer, sellerId: id }); }
             for (const id of toRevoke) { await api('PATCH', API.Users, { action: 'revokeView', username: viewer, sellerId: id }); }
-            // Features diff for 'reports'
             const feats = await api('GET', API.Users + '?feature_permissions=1&username=' + encodeURIComponent(viewer));
-            const hasReports = (feats || []).some(f => String(f.feature) === 'reports');
-            if (featureReports.checked && !hasReports) await api('PATCH', API.Users, { action: 'grantFeature', username: viewer, feature: 'reports' });
-            if (!featureReports.checked && hasReports) await api('PATCH', API.Users, { action: 'revokeFeature', username: viewer, feature: 'reports' });
+            const currentFeat = new Set((feats || []).map(f => String(f.feature)));
+            const desiredFeat = new Set([featCartera.cb, featProjections.cb, featTransfers.cb].filter(cb => cb.checked).map(cb => cb.dataset.feature));
+            const toGrantF = [...desiredFeat].filter(f => !currentFeat.has(f));
+            const toRevokeF = [...currentFeat].filter(f => !desiredFeat.has(f));
+            for (const f of toGrantF) await api('PATCH', API.Users, { action: 'grantFeature', username: viewer, feature: f });
+            for (const f of toRevokeF) await api('PATCH', API.Users, { action: 'revokeFeature', username: viewer, feature: f });
             notify.success('Permisos actualizados');
             cleanup();
         });
