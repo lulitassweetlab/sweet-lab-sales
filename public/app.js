@@ -674,24 +674,30 @@ function applyAuthVisibility() {
 	const addSellerWrap = document.querySelector('.seller-add');
 	if (addSellerWrap) addSellerWrap.style.display = isSuper ? 'block' : 'none';
 	const usersBtn = document.getElementById('users-button');
-	if (usersBtn) usersBtn.style.display = isSuper ? 'inline-block' : 'none';
-    const reportBtn = document.getElementById('report-button');
-    const carteraBtn = document.getElementById('cartera-button');
-    const projectionsBtn = document.getElementById('projections-button');
-    const transfersBtn = document.getElementById('transfers-button');
-    const feats = new Set((state.currentUser?.features || []));
-    const canSales = isSuper || feats.has('reports.sales');
-    const canCartera = isSuper || feats.has('reports.cartera');
-    const canProjections = isSuper || feats.has('reports.projections');
-    const canTransfers = isSuper || feats.has('reports.transfers');
-    if (reportBtn) reportBtn.style.display = canSales ? 'inline-block' : 'none';
-    if (carteraBtn) carteraBtn.style.display = canCartera ? 'inline-block' : 'none';
-    if (projectionsBtn) projectionsBtn.style.display = canProjections ? 'inline-block' : 'none';
-    if (transfersBtn) transfersBtn.style.display = canTransfers ? 'inline-block' : 'none';
+	const feats = new Set((state.currentUser?.features || []));
+	const reportBtn = document.getElementById('report-button');
+	const carteraBtn = document.getElementById('cartera-button');
+	const projectionsBtn = document.getElementById('projections-button');
+	const transfersBtn = document.getElementById('transfers-button');
 	const materialsBtn = document.getElementById('materials-button');
-	if (materialsBtn) materialsBtn.style.display = isSuper ? 'inline-block' : 'none';
+	const inventoryBtn = document.getElementById('inventory-button');
 	const accountingBtn = document.getElementById('accounting-button');
-	if (accountingBtn) accountingBtn.style.display = isSuper ? 'inline-block' : 'none';
+	const canSales = isSuper || feats.has('reports.sales');
+	const canCartera = isSuper || feats.has('reports.cartera');
+	const canProjections = isSuper || feats.has('reports.projections');
+	const canTransfers = isSuper || feats.has('reports.transfers');
+	const canMaterials = isSuper || feats.has('nav.materials');
+	const canInventory = isSuper || feats.has('nav.inventory');
+	const canUsers = isSuper || feats.has('nav.users');
+	const canAccounting = isSuper || feats.has('nav.accounting');
+	if (usersBtn) usersBtn.style.display = canUsers ? 'inline-block' : 'none';
+	if (reportBtn) reportBtn.style.display = canSales ? 'inline-block' : 'none';
+	if (carteraBtn) carteraBtn.style.display = canCartera ? 'inline-block' : 'none';
+	if (projectionsBtn) projectionsBtn.style.display = canProjections ? 'inline-block' : 'none';
+	if (transfersBtn) transfersBtn.style.display = canTransfers ? 'inline-block' : 'none';
+	if (materialsBtn) materialsBtn.style.display = canMaterials ? 'inline-block' : 'none';
+	if (inventoryBtn) inventoryBtn.style.display = canInventory ? 'inline-block' : 'none';
+	if (accountingBtn) accountingBtn.style.display = canAccounting ? 'inline-block' : 'none';
 }
 
 function calcRowTotal(q) {
@@ -1735,23 +1741,27 @@ async function exportCarteraExcel(startIso, endIso) {
 		}, ev.clientX, ev.clientY, { preferUp: true });
 	});
 	usersBtn?.addEventListener('click', async (ev) => {
+		const feats = new Set((state.currentUser?.features || []));
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
-		if (!isSuper) { notify.error('Solo el superadministrador'); return; }
+		if (!isSuper && !feats.has('nav.users')) { notify.error('Sin permiso de usuarios'); return; }
 		openUsersMenu(ev.clientX, ev.clientY);
 	});
 	materialsBtn?.addEventListener('click', async (ev) => {
+		const feats = new Set((state.currentUser?.features || []));
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
-		if (!isSuper) { notify.error('Solo el superadministrador'); return; }
+		if (!isSuper && !feats.has('nav.materials')) { notify.error('Sin permiso de materiales'); return; }
 		openMaterialsMenu(ev.clientX, ev.clientY);
 	});
 	inventoryBtn?.addEventListener('click', async (ev) => {
+		const feats = new Set((state.currentUser?.features || []));
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
-		if (!isSuper) { notify.error('Solo el superadministrador'); return; }
+		if (!isSuper && !feats.has('nav.inventory')) { notify.error('Sin permiso de inventario'); return; }
 		openInventoryView();
 	});
 	accountingBtn?.addEventListener('click', (ev) => {
+		const feats = new Set((state.currentUser?.features || []));
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
-		if (!isSuper) { notify.error('Solo el superadministrador'); return; }
+		if (!isSuper && !feats.has('nav.accounting')) { notify.error('Sin permiso de contabilidad'); return; }
 		window.location.href = '/accounting.html';
 	});
 })();
@@ -1859,7 +1869,7 @@ function openPermissionsManager() {
     const sellersLabel = document.createElement('label'); sellersLabel.textContent = 'Vendedores permitidos'; sellersLabel.style.display = 'block';
     const sellersBox = document.createElement('div'); sellersBox.style.display = 'grid'; sellersBox.style.gridTemplateColumns = 'repeat(2, minmax(0, 1fr))'; sellersBox.style.gap = '8px'; sellersBox.style.marginTop = '6px';
     right.appendChild(sellersLabel); right.appendChild(sellersBox);
-    const featureLabel = document.createElement('label'); featureLabel.textContent = 'Permisos de funcionalidades (reportes)'; featureLabel.style.display = 'block'; featureLabel.style.marginTop = '12px';
+    const featureLabel = document.createElement('label'); featureLabel.textContent = 'Permisos de funcionalidades'; featureLabel.style.display = 'block'; featureLabel.style.marginTop = '12px';
     function makeFeat(labelText, featureKey) {
         const wrap = document.createElement('label'); wrap.style.display = 'flex'; wrap.style.alignItems = 'center'; wrap.style.gap = '8px'; wrap.style.marginTop = '6px';
         const cb = document.createElement('input'); cb.type = 'checkbox'; cb.value = featureKey; cb.dataset.feature = featureKey;
@@ -1867,10 +1877,19 @@ function openPermissionsManager() {
         wrap.appendChild(cb); wrap.appendChild(span);
         return { wrap, cb };
     }
+    // Reports
+    const featSales = makeFeat('Ver botón Ventas', 'reports.sales');
+    const featTransfers = makeFeat('Ver botón Transferencias', 'reports.transfers');
     const featCartera = makeFeat('Ver botón Cartera', 'reports.cartera');
     const featProjections = makeFeat('Ver botón Proyecciones', 'reports.projections');
-    const featTransfers = makeFeat('Ver botón Transferencias', 'reports.transfers');
-    right.appendChild(featureLabel); right.appendChild(featCartera.wrap); right.appendChild(featProjections.wrap); right.appendChild(featTransfers.wrap);
+    // Nav
+    const featMaterials = makeFeat('Ver botón Materiales', 'nav.materials');
+    const featInventory = makeFeat('Ver botón Inventario', 'nav.inventory');
+    const featUsers = makeFeat('Ver botón Usuarios', 'nav.users');
+    const featAccounting = makeFeat('Ver botón Contabilidad', 'nav.accounting');
+    right.appendChild(featureLabel);
+    [featSales, featTransfers, featCartera, featProjections, featMaterials, featInventory, featUsers, featAccounting]
+        .forEach(x => right.appendChild(x.wrap));
     row.appendChild(left); row.appendChild(right);
     const actions = document.createElement('div'); actions.style.display = 'flex'; actions.style.justifyContent = 'flex-end'; actions.style.gap = '8px'; actions.style.marginTop = '14px';
     const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn'; closeBtn.textContent = 'Cerrar';
@@ -1903,7 +1922,8 @@ function openPermissionsManager() {
             });
             const feats = await api('GET', API.Users + '?feature_permissions=1&username=' + encodeURIComponent(viewerName));
             const featuresSet = new Set((feats || []).map(f => String(f.feature)));
-            [featCartera.cb, featProjections.cb, featTransfers.cb].forEach(cb => { cb.checked = featuresSet.has(cb.dataset.feature); });
+            [featSales.cb, featTransfers.cb, featCartera.cb, featProjections.cb, featMaterials.cb, featInventory.cb, featUsers.cb, featAccounting.cb]
+                .forEach(cb => { cb.checked = featuresSet.has(cb.dataset.feature); });
         }
         userSelect.addEventListener('change', async () => {
             await loadViewerGrants(userSelect.value);
@@ -1924,7 +1944,8 @@ function openPermissionsManager() {
             for (const id of toRevoke) { await api('PATCH', API.Users, { action: 'revokeView', username: viewer, sellerId: id }); }
             const feats = await api('GET', API.Users + '?feature_permissions=1&username=' + encodeURIComponent(viewer));
             const currentFeat = new Set((feats || []).map(f => String(f.feature)));
-            const desiredFeat = new Set([featCartera.cb, featProjections.cb, featTransfers.cb].filter(cb => cb.checked).map(cb => cb.dataset.feature));
+            const desiredFeat = new Set([featSales.cb, featTransfers.cb, featCartera.cb, featProjections.cb, featMaterials.cb, featInventory.cb, featUsers.cb, featAccounting.cb]
+                .filter(cb => cb.checked).map(cb => cb.dataset.feature));
             const toGrantF = [...desiredFeat].filter(f => !currentFeat.has(f));
             const toRevokeF = [...currentFeat].filter(f => !desiredFeat.has(f));
             for (const f of toGrantF) await api('PATCH', API.Users, { action: 'grantFeature', username: viewer, feature: f });
