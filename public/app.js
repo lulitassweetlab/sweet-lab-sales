@@ -739,6 +739,12 @@ function renderTable() {
 			if (!cap.contains(strong)) cap.appendChild(strong);
 		}
 	} catch {}
+	// Determine if current user can edit this seller's data
+	const isAdmin = (state?.currentUser?.role === 'admin') || (state?.currentUser?.role === 'superadmin') || !!state?.currentUser?.isSuperAdmin;
+	const sellerName = String(state?.currentSeller?.name || '').toLowerCase();
+	const actorName = String(state?.currentUser?.name || state?.currentUser?.username || '').toLowerCase();
+	const isOwnSeller = !!sellerName && !!actorName && (sellerName === actorName);
+	const canEdit = isAdmin || isOwnSeller;
 	tbody.innerHTML = '';
 	for (const sale of state.sales) {
 		const total = calcRowTotal({ arco: sale.qty_arco, melo: sale.qty_melo, mara: sale.qty_mara, oreo: sale.qty_oreo, nute: sale.qty_nute });
@@ -788,21 +794,26 @@ function renderTable() {
 					else if (val === 'jorgebank') wrap.classList.add('method-jorgebank');
 				}
 				applyPayClass();
-				sel.addEventListener('change', async () => {
-					await savePayMethod(tr, sale.id, sel.value);
-					try {
-						const val = (sel.value || '').toString();
-						const fmt = (v) => v === 'efectivo' ? 'Efectivo' : v === 'entregado' ? 'Entregado' : (v === 'transf' || v === 'jorgebank') ? 'Transferencia' : v === 'marce' ? 'Marce' : v === 'jorge' ? 'Jorge' : '-';
-						const client = (tr.querySelector('td.col-client input')?.value || '').trim() || 'Cliente';
-						const seller = String((state?.currentSeller?.name || state?.currentUser?.name || '') || '');
-						const msg = `${client} pago: ${fmt(val)}` + (seller ? ` - ${seller}` : '');
-						notify.info(msg);
-					} catch {}
-					applyPayClass();
-				});
-				wrap.addEventListener('click', async (e) => { e.stopPropagation(); openPayMenu(wrap, sel, e.clientX, e.clientY); });
-				wrap.tabIndex = 0;
-				wrap.addEventListener('keydown', async (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPayMenu(wrap, sel); } });
+				if (canEdit) {
+					sel.addEventListener('change', async () => {
+						await savePayMethod(tr, sale.id, sel.value);
+						try {
+							const val = (sel.value || '').toString();
+							const fmt = (v) => v === 'efectivo' ? 'Efectivo' : v === 'entregado' ? 'Entregado' : (v === 'transf' || v === 'jorgebank') ? 'Transferencia' : v === 'marce' ? 'Marce' : v === 'jorge' ? 'Jorge' : '-';
+							const client = (tr.querySelector('td.col-client input')?.value || '').trim() || 'Cliente';
+							const seller = String((state?.currentSeller?.name || state?.currentUser?.name || '') || '');
+							const msg = `${client} pago: ${fmt(val)}` + (seller ? ` - ${seller}` : '');
+							notify.info(msg);
+						} catch {}
+						applyPayClass();
+					});
+					wrap.addEventListener('click', async (e) => { e.stopPropagation(); openPayMenu(wrap, sel, e.clientX, e.clientY); });
+					wrap.tabIndex = 0;
+					wrap.addEventListener('keydown', async (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPayMenu(wrap, sel); } });
+				} else {
+					sel.disabled = true;
+					wrap.tabIndex = -1;
+				}
 				wrap.appendChild(sel);
 				return wrap;
 			})()),
@@ -813,9 +824,13 @@ function renderTable() {
 				input.className = 'input-cell client-input';
 				input.value = sale.client_name || '';
 				input.placeholder = '';
-				input.addEventListener('input', (e) => { const v = (e.target.value || ''); if (/\*$/.test(v.trim())) { saveClientWithCommentFlow(tr, sale.id); } });
-				input.addEventListener('blur', () => saveClientWithCommentFlow(tr, sale.id));
-				input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); saveClientWithCommentFlow(tr, sale.id); } });
+				if (canEdit) {
+					input.addEventListener('input', (e) => { const v = (e.target.value || ''); if (/\*$/.test(v.trim())) { saveClientWithCommentFlow(tr, sale.id); } });
+					input.addEventListener('blur', () => saveClientWithCommentFlow(tr, sale.id));
+					input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); saveClientWithCommentFlow(tr, sale.id); } });
+				} else {
+					input.disabled = true;
+				}
 				td.appendChild(input);
 				const name = (sale.client_name || '').trim();
 				if (name) {
@@ -833,23 +848,27 @@ function renderTable() {
 				}
 				return td;
 			})(),
-			el('td', { class: 'col-arco' }, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_arco ? String(sale.qty_arco) : '', placeholder: '', onblur: () => saveRow(tr, sale.id), onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); saveRow(tr, sale.id); } }, onfocus: (e) => e.target.select(), onmouseup: (e) => e.preventDefault() })),
-			el('td', { class: 'col-melo' }, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_melo ? String(sale.qty_melo) : '', placeholder: '', onblur: () => saveRow(tr, sale.id), onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); saveRow(tr, sale.id); } }, onfocus: (e) => e.target.select(), onmouseup: (e) => e.preventDefault() })),
-			el('td', { class: 'col-mara' }, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_mara ? String(sale.qty_mara) : '', placeholder: '', onblur: () => saveRow(tr, sale.id), onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); saveRow(tr, sale.id); } }, onfocus: (e) => e.target.select(), onmouseup: (e) => e.preventDefault() })),
-			el('td', { class: 'col-oreo' }, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_oreo ? String(sale.qty_oreo) : '', placeholder: '', onblur: () => saveRow(tr, sale.id), onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); saveRow(tr, sale.id); } }, onfocus: (e) => e.target.select(), onmouseup: (e) => e.preventDefault() })),
-			el('td', { class: 'col-nute' }, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_nute ? String(sale.qty_nute) : '', placeholder: '', onblur: () => saveRow(tr, sale.id), onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); saveRow(tr, sale.id); } }, onfocus: (e) => e.target.select(), onmouseup: (e) => e.preventDefault() })),
+			el('td', { class: 'col-arco' }, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_arco ? String(sale.qty_arco) : '', placeholder: '', disabled: (!canEdit ? true : undefined), onblur: (canEdit ? (() => saveRow(tr, sale.id)) : undefined), onkeydown: (canEdit ? ((e) => { if (e.key === 'Enter') { e.preventDefault(); saveRow(tr, sale.id); } }) : undefined), onfocus: (canEdit ? ((e) => e.target.select()) : undefined), onmouseup: (canEdit ? ((e) => e.preventDefault()) : undefined) })),
+			el('td', { class: 'col-melo' }, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_melo ? String(sale.qty_melo) : '', placeholder: '', disabled: (!canEdit ? true : undefined), onblur: (canEdit ? (() => saveRow(tr, sale.id)) : undefined), onkeydown: (canEdit ? ((e) => { if (e.key === 'Enter') { e.preventDefault(); saveRow(tr, sale.id); } }) : undefined), onfocus: (canEdit ? ((e) => e.target.select()) : undefined), onmouseup: (canEdit ? ((e) => e.preventDefault()) : undefined) })),
+			el('td', { class: 'col-mara' }, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_mara ? String(sale.qty_mara) : '', placeholder: '', disabled: (!canEdit ? true : undefined), onblur: (canEdit ? (() => saveRow(tr, sale.id)) : undefined), onkeydown: (canEdit ? ((e) => { if (e.key === 'Enter') { e.preventDefault(); saveRow(tr, sale.id); } }) : undefined), onfocus: (canEdit ? ((e) => e.target.select()) : undefined), onmouseup: (canEdit ? ((e) => e.preventDefault()) : undefined) })),
+			el('td', { class: 'col-oreo' }, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_oreo ? String(sale.qty_oreo) : '', placeholder: '', disabled: (!canEdit ? true : undefined), onblur: (canEdit ? (() => saveRow(tr, sale.id)) : undefined), onkeydown: (canEdit ? ((e) => { if (e.key === 'Enter') { e.preventDefault(); saveRow(tr, sale.id); } }) : undefined), onfocus: (canEdit ? ((e) => e.target.select()) : undefined), onmouseup: (canEdit ? ((e) => e.preventDefault()) : undefined) })),
+			el('td', { class: 'col-nute' }, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_nute ? String(sale.qty_nute) : '', placeholder: '', disabled: (!canEdit ? true : undefined), onblur: (canEdit ? (() => saveRow(tr, sale.id)) : undefined), onkeydown: (canEdit ? ((e) => { if (e.key === 'Enter') { e.preventDefault(); saveRow(tr, sale.id); } }) : undefined), onfocus: (canEdit ? ((e) => e.target.select()) : undefined), onmouseup: (canEdit ? ((e) => e.preventDefault()) : undefined) })),
 			el('td', { class: 'col-extra' }),
 			el('td', { class: 'total col-total' }, fmtNo.format(total)),
 			el('td', { class: 'col-actions' }, (function(){
 				const b = document.createElement('button');
 				b.className = 'row-delete';
-				b.title = 'Eliminar';
-				b.addEventListener('click', async (ev) => {
-					ev.stopPropagation();
-					const ok = await openConfirmPopover('¿Seguro que quieres eliminar este pedido?', ev.clientX, ev.clientY);
-					if (!ok) return;
-					await deleteRow(sale.id);
-				});
+				b.title = canEdit ? 'Eliminar' : 'Solo lectura';
+				if (canEdit) {
+					b.addEventListener('click', async (ev) => {
+						ev.stopPropagation();
+						const ok = await openConfirmPopover('¿Seguro que quieres eliminar este pedido?', ev.clientX, ev.clientY);
+						if (!ok) return;
+						await deleteRow(sale.id);
+					});
+				} else {
+					b.disabled = true;
+				}
 				return b;
 			})()),
 		);
@@ -858,18 +877,20 @@ function renderTable() {
 		// Comment trigger removed per request
 	}
 	// Inline add row line just below last sale
-	const colCount = document.querySelectorAll('#sales-table thead th').length || 8;
-	const addTr = document.createElement('tr');
-	addTr.className = 'add-row-line';
-	const td = document.createElement('td');
-	td.colSpan = colCount;
-	const btn = document.createElement('button');
-	btn.className = 'inline-add-btn btn-primary';
-	btn.textContent = 'Nuevo pedido';
-	btn.addEventListener('click', addRow);
-	td.appendChild(btn);
-	addTr.appendChild(td);
-	tbody.appendChild(addTr);
+	if (canEdit) {
+		const colCount = document.querySelectorAll('#sales-table thead th').length || 8;
+		const addTr = document.createElement('tr');
+		addTr.className = 'add-row-line';
+		const td = document.createElement('td');
+		td.colSpan = colCount;
+		const btn = document.createElement('button');
+		btn.className = 'inline-add-btn btn-primary';
+		btn.textContent = 'Nuevo pedido';
+		btn.addEventListener('click', addRow);
+		td.appendChild(btn);
+		addTr.appendChild(td);
+		tbody.appendChild(addTr);
+	}
 
 	updateSummary();
 	// Remove old bottom add button if present
