@@ -101,6 +101,9 @@
 		const qs = new URLSearchParams(location.search);
 		let start = (qs.get('start') || '').slice(0,10);
 		let end = (qs.get('end') || '').slice(0,10);
+		// Try to infer current actor from localStorage set by index page
+		let actor = '';
+		try { const saved = JSON.parse(localStorage.getItem('authUser')||'null'); actor = (saved?.name||saved?.username||'').toString(); } catch {}
 		const rangeLabel = document.getElementById('range-label');
 		const countLabel = document.getElementById('count-label');
 		const tbody = document.getElementById('report-tbody');
@@ -139,6 +142,14 @@
 		}
 
 		async function fetchJSON(u){ const r = await fetch(u); if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }
+
+		function withActor(url){
+			try {
+				const u = new URL(url, location.origin);
+				if (actor) u.searchParams.set('actor', actor);
+				return u.pathname + (u.search || '');
+			} catch { return url + (url.includes('?') ? `&actor=${encodeURIComponent(actor)}` : `?actor=${encodeURIComponent(actor)}`); }
+		}
 
 		function populateFilters(){
 			// Sellers
@@ -269,7 +280,7 @@
 			const sellerDays = [];
 			await mapLimit(sellersList, 6, async (s) => {
 				try {
-					const days = await fetchJSON(`/api/days?seller_id=${encodeURIComponent(s.id)}`);
+				const days = await fetchJSON(withActor(`/api/days?seller_id=${encodeURIComponent(s.id)}`));
 					for (const d of (days||[])) {
 						const iso = String(d.day).slice(0,10);
 						if (isoBetween(iso, start, end)) sellerDays.push({ seller: s, day: d });
@@ -281,7 +292,7 @@
 			await mapLimit(sellerDays, 6, async ({ seller, day }) => {
 				try {
 					const params = new URLSearchParams({ seller_id: String(seller.id), sale_day_id: String(day.id) });
-					const sales = await fetchJSON(`/api/sales?${params.toString()}`);
+					const sales = await fetchJSON(withActor(`/api/sales?${params.toString()}`));
 					for (const r of (sales || [])) {
 						const qa = r.qty_arco || 0; const qm = r.qty_melo || 0; const qma = r.qty_mara || 0; const qo = r.qty_oreo || 0; const qn = r.qty_nute || 0; const tot = r.total_cents || 0;
 						dataset.push({
