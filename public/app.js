@@ -675,8 +675,13 @@ function applyAuthVisibility() {
 	if (addSellerWrap) addSellerWrap.style.display = isSuper ? 'block' : 'none';
 	const usersBtn = document.getElementById('users-button');
 	if (usersBtn) usersBtn.style.display = isSuper ? 'inline-block' : 'none';
-	const carteraBtn = document.getElementById('cartera-button');
-	if (carteraBtn) carteraBtn.style.display = isSuper ? 'inline-block' : 'none';
+    const carteraBtn = document.getElementById('cartera-button');
+    const projectionsBtn = document.getElementById('projections-button');
+    const transfersBtn = document.getElementById('transfers-button');
+    const canReports = !!state.currentUser?.features?.includes?.('reports') || isSuper;
+    if (carteraBtn) carteraBtn.style.display = canReports ? 'inline-block' : 'none';
+    if (projectionsBtn) projectionsBtn.style.display = canReports ? 'inline-block' : 'none';
+    if (transfersBtn) transfersBtn.style.display = canReports ? 'inline-block' : 'none';
 	const materialsBtn = document.getElementById('materials-button');
 	if (materialsBtn) materialsBtn.style.display = isSuper ? 'inline-block' : 'none';
 	const accountingBtn = document.getElementById('accounting-button');
@@ -1842,6 +1847,12 @@ function openPermissionsManager() {
     const sellersLabel = document.createElement('label'); sellersLabel.textContent = 'Vendedores permitidos'; sellersLabel.style.display = 'block';
     const sellersBox = document.createElement('div'); sellersBox.style.display = 'grid'; sellersBox.style.gridTemplateColumns = 'repeat(2, minmax(0, 1fr))'; sellersBox.style.gap = '8px'; sellersBox.style.marginTop = '6px';
     right.appendChild(sellersLabel); right.appendChild(sellersBox);
+    const featureLabel = document.createElement('label'); featureLabel.textContent = 'Permisos de funcionalidades'; featureLabel.style.display = 'block'; featureLabel.style.marginTop = '12px';
+    const featureReportsWrap = document.createElement('label'); featureReportsWrap.style.display = 'flex'; featureReportsWrap.style.alignItems = 'center'; featureReportsWrap.style.gap = '8px'; featureReportsWrap.style.marginTop = '6px';
+    const featureReports = document.createElement('input'); featureReports.type = 'checkbox'; featureReports.value = 'reports';
+    const featureReportsText = document.createElement('span'); featureReportsText.textContent = 'Acceso a botones de reportes';
+    featureReportsWrap.appendChild(featureReports); featureReportsWrap.appendChild(featureReportsText);
+    right.appendChild(featureLabel); right.appendChild(featureReportsWrap);
     row.appendChild(left); row.appendChild(right);
     const actions = document.createElement('div'); actions.style.display = 'flex'; actions.style.justifyContent = 'flex-end'; actions.style.gap = '8px'; actions.style.marginTop = '14px';
     const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn'; closeBtn.textContent = 'Cerrar';
@@ -1872,6 +1883,9 @@ function openPermissionsManager() {
             Array.from(sellersBox.querySelectorAll('input[type="checkbox"]')).forEach((el) => {
                 el.checked = grantedIds.has(Number(el.value));
             });
+            const feats = await api('GET', API.Users + '?feature_permissions=1&username=' + encodeURIComponent(viewerName));
+            const featuresSet = new Set((feats || []).map(f => String(f.feature)));
+            featureReports.checked = featuresSet.has('reports');
         }
         userSelect.addEventListener('change', async () => {
             await loadViewerGrants(userSelect.value);
@@ -1890,6 +1904,11 @@ function openPermissionsManager() {
             const toRevoke = [...currentIds].filter(id => !selectedIds.has(id));
             for (const id of toGrant) { await api('PATCH', API.Users, { action: 'grantView', username: viewer, sellerId: id }); }
             for (const id of toRevoke) { await api('PATCH', API.Users, { action: 'revokeView', username: viewer, sellerId: id }); }
+            // Features diff for 'reports'
+            const feats = await api('GET', API.Users + '?feature_permissions=1&username=' + encodeURIComponent(viewer));
+            const hasReports = (feats || []).some(f => String(f.feature) === 'reports');
+            if (featureReports.checked && !hasReports) await api('PATCH', API.Users, { action: 'grantFeature', username: viewer, feature: 'reports' });
+            if (!featureReports.checked && hasReports) await api('PATCH', API.Users, { action: 'revokeFeature', username: viewer, feature: 'reports' });
             notify.success('Permisos actualizados');
             cleanup();
         });
@@ -1944,6 +1963,13 @@ async function exportUsersExcel() {
 		const ws = XLSX.utils.json_to_sheet(rows);
 		const wb = XLSX.utils.book_new();
 		XLSX.utils.book_append_sheet(wb, ws, 'Usuarios');
+		// Add Permissions sheet
+		try {
+			const perms = await api('GET', API.Users + '?view_permissions=1');
+			const permRows = (perms || []).map(p => ({ Usuario: p.viewer_username, Vendedor: p.seller_name, Otorgado: (p.created_at || '').toString().slice(0,19).replace('T',' ') }));
+			const ws2 = XLSX.utils.json_to_sheet(permRows);
+			XLSX.utils.book_append_sheet(wb, ws2, 'Permisos');
+		} catch {}
 		XLSX.writeFile(wb, `Usuarios_${new Date().toISOString().slice(0,10)}.xlsx`);
 		notify.success('Excel de usuarios generado');
 	} catch (e) {

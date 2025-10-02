@@ -2,7 +2,7 @@ import { neon } from '@netlify/neon';
 
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
-const SCHEMA_VERSION = 2; // Bump when schema changes require a migration
+const SCHEMA_VERSION = 3; // Bump when schema changes require a migration
 
 export async function ensureSchema() {
 	if (schemaEnsured) return;
@@ -58,6 +58,14 @@ export async function ensureSchema() {
 		seller_id INTEGER NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
 		created_at TIMESTAMPTZ DEFAULT now(),
 		UNIQUE (viewer_username, seller_id)
+	)`;
+	// Feature permissions: grant specific features to users (e.g., 'reports')
+	await sql`CREATE TABLE IF NOT EXISTS user_feature_permissions (
+		id SERIAL PRIMARY KEY,
+		username TEXT NOT NULL,
+		feature TEXT NOT NULL,
+		created_at TIMESTAMPTZ DEFAULT now(),
+		UNIQUE (username, feature)
 	)`;
 	await sql`CREATE TABLE IF NOT EXISTS sale_days (
 		id SERIAL PRIMARY KEY,

@@ -37,6 +37,25 @@ export async function handler(event) {
 					const rows = await sql`SELECT uvp.viewer_username, uvp.seller_id, s.name AS seller_name, uvp.created_at FROM user_view_permissions uvp JOIN sellers s ON s.id = uvp.seller_id ORDER BY lower(uvp.viewer_username) ASC, s.name ASC`;
 					return json(rows);
 				}
+				if ((params.get('feature_permissions') || '') === '1') {
+					let actorRole = 'user';
+					try {
+						const headers = (event.headers || {});
+						const actorName = (headers['x-actor-name'] || headers['X-Actor-Name'] || headers['x-actor'] || '').toString();
+						if (actorName) {
+							const r = await sql`SELECT role FROM users WHERE lower(username)=lower(${actorName}) LIMIT 1`;
+							actorRole = (r && r[0] && r[0].role) ? String(r[0].role) : 'user';
+						}
+					} catch {}
+					if (actorRole !== 'superadmin') return json({ error: 'No autorizado' }, 403);
+					const username = (params.get('username') || '').toString();
+					if (username) {
+						const rows = await sql`SELECT username, feature, created_at FROM user_feature_permissions WHERE lower(username)=lower(${username}) ORDER BY feature ASC`;
+						return json(rows);
+					}
+					const rows = await sql`SELECT username, feature, created_at FROM user_feature_permissions ORDER BY lower(username) ASC, feature ASC`;
+					return json(rows);
+				}
 				// List users for reports, including sellers without an explicit user row
 				const userRows = await sql`SELECT id, username, password_hash, role, created_at FROM users ORDER BY username ASC`;
 				const sellerRows = await sql`SELECT name FROM sellers ORDER BY name ASC`;
@@ -95,7 +114,7 @@ export async function handler(event) {
 			}
 			case 'PATCH': {
 				// Admin actions: set password or set role
-				// Body: { action: 'setPassword'|'setRole'|'grantView'|'revokeView', username, newPassword?, role?, sellerId? or sellerName? }
+				// Body: { action: 'setPassword'|'setRole'|'grantView'|'revokeView'|'grantFeature'|'revokeFeature', username, newPassword?, role?, sellerId?/sellerName?, feature? }
 				const data = JSON.parse(event.body || '{}');
 				const action = (data.action || '').toString();
 				const rawUsername = (data.username || '').toString().trim();
@@ -149,6 +168,17 @@ export async function handler(event) {
 						return json({ ok: true, granted: true });
 					} else {
 						await sql`DELETE FROM user_view_permissions WHERE lower(viewer_username)=lower(${rawUsername}) AND seller_id=${sellerId}`;
+						return json({ ok: true, revoked: true });
+					}
+				} else if (action === 'grantFeature' || action === 'revokeFeature') {
+					if (actorRole !== 'superadmin') return json({ error: 'No autorizado' }, 403);
+					const feature = (data.feature || '').toString();
+					if (!feature) return json({ error: 'feature requerido' }, 400);
+					if (action === 'grantFeature') {
+						await sql`INSERT INTO user_feature_permissions (username, feature) VALUES (${rawUsername}, ${feature}) ON CONFLICT (username, feature) DO NOTHING`;
+						return json({ ok: true, granted: true });
+					} else {
+						await sql`DELETE FROM user_feature_permissions WHERE lower(username)=lower(${rawUsername}) AND feature=${feature}`;
 						return json({ ok: true, revoked: true });
 					}
 				}
