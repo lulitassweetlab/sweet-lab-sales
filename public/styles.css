@@ -3642,8 +3642,8 @@ button.secondary.press-btn:active {
 /* Desktop: Horizontal labels, EXACT same styling as existing columns */
 @media (min-width: 601px) {
 	#sales-table thead th.col-dessert {
-		padding: 6px 6px !important;
-		vertical-align: middle !important;
+		padding: 6px !important;
+		vertical-align: bottom !important;
 	}
 	#sales-table thead th.col-dessert .v-label {
 		display: inline !important;
@@ -3657,6 +3657,7 @@ button.secondary.press-btn:active {
 		right: auto !important;
 		line-height: normal !important;
 		font-size: inherit !important;
+		margin: 0 !important;
 	}
 }
 
