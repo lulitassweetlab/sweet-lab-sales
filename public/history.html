@@ -19,8 +19,8 @@
     .editable { width: 100%; box-sizing: border-box; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--text); }
     .group-title { display:flex; align-items:center; justify-content:space-between; gap:10px; margin: 2px 0 8px 0; }
     .group-sub { display:flex; gap:8px; align-items:center; }
-    .step-group { border: 1px solid var(--border); border-radius: 10px; padding: 8px; background: var(--secondary); }
-    .step-head { display:flex; align-items:center; justify-content:space-between; gap:8px; cursor: pointer; padding: 12px; margin: -8px -8px 6px -8px; border-bottom: 1px solid var(--border); border-radius: 10px; transition: background-color 120ms ease, box-shadow 120ms ease; min-height: 44px; }
+    .step-group { border: 1px solid var(--border); border-radius: 10px; padding: 0; background: var(--secondary); overflow: hidden; }
+    .step-head { display:flex; align-items:center; justify-content:space-between; gap:8px; cursor: pointer; padding: 12px; margin: 0; border: 0; border-radius: 0; transition: background-color 120ms ease, box-shadow 120ms ease; min-height: 48px; }
     .step-head:hover { background: var(--hover-primary-pink); color: #ffffff; box-shadow: 0 2px 6px rgba(0,0,0,0.12); }
     .step-head .meta { display:flex; gap:8px; align-items:center; }
     .step-head .meta .avg { font-size: 12px; color: var(--accent); background: transparent; padding: 0; border: 0; }
@@ -51,11 +51,20 @@
 
   <script type="module">
   (function(){
+    const qs = new URLSearchParams(location.search);
+    let actor = (qs.get('actor') || '').toString();
+    if (!actor) { try { const saved = JSON.parse(localStorage.getItem('authUser')||'null'); actor = (saved?.name||saved?.username||'').toString(); } catch {} }
     const backBtn = document.getElementById('back-btn');
     const groupsWrap = document.getElementById('groups');
 
     function readHistory(){ try { return JSON.parse(localStorage.getItem('timesHistory') || '[]') || []; } catch { return []; } }
     function writeHistory(arr){ try { localStorage.setItem('timesHistory', JSON.stringify(arr)); } catch {} }
+
+    async function fetchJSON(u){ const r = await fetch(u); if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }
+    function withActor(url){
+      try { const u = new URL(url, location.origin); if (actor) u.searchParams.set('actor', actor); return u.pathname + (u.search || ''); }
+      catch { return url + (url.includes('?') ? `&actor=${encodeURIComponent(actor)}` : `?actor=${encodeURIComponent(actor)}`); }
+    }
 
     function fmtMs(ms){
       const total=Math.max(0,Math.floor(ms/1000));
@@ -96,6 +105,29 @@
       return map;
     }
 
+    async function getStepAvgMsPerUnit(dessertName, stepName){
+      let totalMs = 0; let totalQty = 0;
+      try {
+        const rows = await fetchJSON(withActor(`/api/times?dessert=${encodeURIComponent(dessertName)}`));
+        for (const r of (rows||[])){
+          let steps = r.steps; if (!Array.isArray(steps)) { try { steps = JSON.parse(steps||'[]'); } catch { steps = []; } }
+          for (const st of (steps||[])){
+            if ((st.name||'') === stepName){ totalMs += Number(st.elapsed_ms||0)||0; totalQty += Number(st.qty_units||0)||0; }
+          }
+        }
+      } catch {}
+      if (totalMs === 0 || totalQty === 0) {
+        // Fallback to local history
+        const items = readHistory().filter(it => (it.dessert||'') === dessertName);
+        for (const it of items){
+          for (const st of (it.steps||[])){
+            if ((st.name||'') === stepName){ totalMs += Number(st.elapsed_ms||0)||0; totalQty += Number(st.qty_units||it.qty_units||0)||0; }
+          }
+        }
+      }
+      return totalQty > 0 ? Math.round(totalMs / totalQty) : 0;
+    }
+
     function goToStepDetail(dessert, stepName){
       const url = new URL('/step-detail.html', location.origin);
       url.searchParams.set('dessert', dessert);
@@ -126,7 +158,12 @@
           const totalQty = arr.reduce((acc, it)=> acc + (Number(it.step.qty_units||it.entry.qty_units||0)||0), 0);
           const totalMsStep = arr.reduce((acc, it)=> acc + (Number(it.step.elapsed_ms||0)||0), 0);
           const avgPerUnit = totalQty > 0 ? Math.round(totalMsStep / totalQty) : 0;
-          const avgTxt = document.createElement('span'); avgTxt.className='avg'; avgTxt.textContent = `${fmtHm(avgPerUnit)}`;
+          const avgTxt = document.createElement('span'); avgTxt.className='avg'; avgTxt.textContent = avgPerUnit > 0 ? `${fmtMs(avgPerUnit)}` : '';
+          // Async refine using server data if available
+          (async () => {
+            const remoteAvg = await getStepAvgMsPerUnit(dessert, stepName);
+            if (remoteAvg > 0) avgTxt.textContent = `${fmtMs(remoteAvg)}`;
+          })();
           meta.append(avgTxt);
           sh.append(left, meta);
           sh.addEventListener('click', () => goToStepDetail(dessert, stepName));
