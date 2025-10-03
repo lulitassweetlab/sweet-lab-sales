@@ -870,9 +870,9 @@ function renderTable() {
 		const theadRow = document.querySelector('#sales-table thead tr');
 		if (theadRow) {
 			for (const d of (DYNAMIC_DESSERTS||[])) {
-				let th = theadRow.querySelector(`th.col-${d.key}`);
+                let th = theadRow.querySelector(`th.col-${d.key}`);
 				if (!th) {
-					th = document.createElement('th'); th.className = `col-${d.key}`; th.dataset.label = d.label; const span = document.createElement('span'); span.className = 'v-label'; span.textContent = d.label; th.appendChild(span);
+                    th = document.createElement('th'); th.className = `col-${d.key} col-dessert`; th.dataset.label = d.label; const span = document.createElement('span'); span.className = 'v-label'; span.textContent = d.label; th.appendChild(span);
 					// Alternate background by toggling zebra class
 					const ths = Array.from(theadRow.querySelectorAll('th')); const lastFlavorIdx = ths.findIndex(x => x.classList.contains('col-nute'));
 					const idxToInsert = Math.max(0, lastFlavorIdx + (theadRow.querySelectorAll('th[class^="col-"]').length));

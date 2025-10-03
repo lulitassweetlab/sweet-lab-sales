@@ -1740,7 +1740,8 @@ button.secondary.press-btn:active {
 #sales-table thead tr > th.col-melo,
 #sales-table thead tr > th.col-mara,
 #sales-table thead tr > th.col-oreo,
-#sales-table thead tr > th.col-nute {
+#sales-table thead tr > th.col-nute,
+#sales-table thead tr > th.col-dessert {
 	position: relative !important;
 	vertical-align: bottom !important;
 	text-align: center !important;
@@ -1751,12 +1752,14 @@ button.secondary.press-btn:active {
 #sales-table thead tr > th.col-melo .v-label,
 #sales-table thead tr > th.col-mara .v-label,
 #sales-table thead tr > th.col-oreo .v-label,
-#sales-table thead tr > th.col-nute .v-label { display: none !important; }
+#sales-table thead tr > th.col-nute .v-label,
+#sales-table thead tr > th.col-dessert .v-label { display: none !important; }
 #sales-table thead tr > th.col-arco::after,
 #sales-table thead tr > th.col-melo::after,
 #sales-table thead tr > th.col-mara::after,
 #sales-table thead tr > th.col-oreo::after,
-#sales-table thead tr > th.col-nute::after {
+#sales-table thead tr > th.col-nute::after,
+#sales-table thead tr > th.col-dessert::after {
 	content: attr(data-label);
 	position: absolute !important;
 	left: 50% !important;
@@ -1774,7 +1777,8 @@ button.secondary.press-btn:active {
 	#sales-table thead tr > th.col-melo::after,
 	#sales-table thead tr > th.col-mara::after,
 	#sales-table thead tr > th.col-oreo::after,
-	#sales-table thead tr > th.col-nute::after {
+	#sales-table thead tr > th.col-nute::after,
+	#sales-table thead tr > th.col-dessert::after {
 		bottom: 6px !important;
 	}
 }
