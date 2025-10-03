@@ -3054,7 +3054,10 @@ async function renderIngredientsView() {
     if (addDessertBtn) addDessertBtn.onclick = async () => {
         const name = (prompt('Nombre del postre:') || '').trim();
         if (!name) return;
+        const priceStr = prompt('Precio de venta (COP, solo números):') || '';
+        const price = Math.max(0, parseInt(priceStr.replace(/\D+/g,''), 10) || 0);
         await api('POST', API.Recipes, { kind: 'step.upsert', dessert: name, step_name: null, position: 0 });
+        if (price > 0) { try { await api('POST', API.Recipes, { kind: 'dessert.price', dessert: name, sale_price: price }); } catch {} }
         await renderIngredientsView();
         try { document.dispatchEvent(new CustomEvent('recipes:changed', { detail: { action: 'addDessert', dessert: name } })); } catch {}
     };
@@ -3509,14 +3512,19 @@ async function renderMeasuresView() {
 }
 
 async function buildDessertCard(dessertName) {
-	const data = await api('GET', `${API.Recipes}?dessert=${encodeURIComponent(dessertName)}&include_extras=1`);
+    const data = await api('GET', `${API.Recipes}?dessert=${encodeURIComponent(dessertName)}&include_extras=1`);
 	const card = document.createElement('div'); card.className = 'dessert-card';
 	const head = document.createElement('div'); head.className = 'dessert-header';
-	const title = document.createElement('h3'); title.textContent = dessertName;
+    const title = document.createElement('h3'); title.textContent = dessertName;
+    const priceWrap = document.createElement('div'); priceWrap.style.display='inline-flex'; priceWrap.style.gap='6px'; priceWrap.style.alignItems='center'; priceWrap.style.marginLeft='8px';
+    const priceLabel = document.createElement('span'); priceLabel.textContent = 'Precio:'; priceLabel.style.fontWeight='600';
+    const priceInput = document.createElement('input'); priceInput.type='number'; priceInput.min='0'; priceInput.step='1'; priceInput.className='input-cell'; priceInput.style.width='110px'; priceInput.value = String(Number(data.sale_price||0)||0);
+    priceInput.addEventListener('change', async () => { try { await api('POST', API.Recipes, { kind: 'dessert.price', dessert: dessertName, sale_price: Math.max(0, parseInt(priceInput.value||'0',10)||0) }); notify.success('Precio actualizado'); } catch { notify.error('No se pudo actualizar el precio'); } });
+    priceWrap.append(priceLabel, priceInput);
 	const addStep = document.createElement('button'); addStep.className = 'press-btn'; addStep.textContent = 'Agregar paso';
 	const delDessert = document.createElement('button'); delDessert.className = 'press-btn'; delDessert.textContent = 'Eliminar postre';
-	const actionsWrap = document.createElement('div'); actionsWrap.className = 'dessert-actions'; actionsWrap.append(addStep, delDessert);
-	head.append(title, actionsWrap);
+    const actionsWrap = document.createElement('div'); actionsWrap.className = 'dessert-actions'; actionsWrap.append(addStep, delDessert);
+    head.append(title, priceWrap, actionsWrap);
 	const steps = document.createElement('div'); steps.className = 'steps-list';
 	for (const s of (data.steps || [])) steps.appendChild(buildStepCard(dessertName, s));
 	addStep.addEventListener('click', async () => {
