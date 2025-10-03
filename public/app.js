@@ -1720,15 +1720,16 @@ async function exportCarteraExcel(startIso, endIso) {
 			window.location.href = url;
 		}, ev.clientX, ev.clientY, { preferUp: true });
 	});
-	carteraBtn?.addEventListener('click', async (ev) => {
-		const feats = new Set((state.currentUser?.features || []));
-		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
-		if (!isSuper && !feats.has('reports.cartera')) { notify.error('Sin permiso de cartera'); return; }
-		openRangeCalendarPopover(async (range) => {
-			if (!range || !range.start || !range.end) return;
-			await exportCarteraExcel(range.start, range.end);
-		}, ev.clientX, ev.clientY, { preferUp: true });
-	});
+    carteraBtn?.addEventListener('click', (ev) => {
+        const feats = new Set((state.currentUser?.features || []));
+        const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+        if (!isSuper && !feats.has('reports.cartera')) { notify.error('Sin permiso de cartera'); return; }
+        openRangeCalendarPopover((range) => {
+            if (!range || !range.start || !range.end) return;
+            const url = `/cartera.html?start=${encodeURIComponent(range.start)}&end=${encodeURIComponent(range.end)}`;
+            window.location.href = url;
+        }, ev.clientX, ev.clientY, { preferUp: true });
+    });
 
 	transfersBtn?.addEventListener('click', (ev) => {
 	const feats = new Set((state.currentUser?.features || []));

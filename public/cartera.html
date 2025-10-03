@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Reporte de Cartera</title>
+	<link rel="stylesheet" href="/styles.css?v=2025-09-17-1" />
+	<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+	<header class="app-header">
+		<div class="header-row">
+			<div class="header-left">
+				<img src="/logo.png" alt="Lulitas Logo" class="app-logo" />
+				<h1>Reporte de Cartera</h1>
+			</div>
+			<div class="header-actions">
+				<button id="back-btn" class="press-btn">Volver</button>
+			</div>
+		</div>
+	</header>
+
+	<main class="sales-panel">
+		<div class="panel-header">
+			<h3 id="title">Cartera</h3>
+			<div class="panel-actions">
+				<button id="change-range" class="press-btn">Cambiar fechas</button>
+				<button id="export-excel" class="excel-btn press-btn btn-gold">⤓ Generar Excel</button>
+			</div>
+		</div>
+		<div class="panel-body">
+			<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px">
+				<strong id="range-label"></strong>
+				<small id="count-label" style="opacity:.8"></small>
+			</div>
+			<div class="filters-row" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:6px 0 12px 0">
+				<label style="display:flex; gap:6px; align-items:flex-start">
+					<span style="line-height:28px;">Vendedores</span>
+					<div id="seller-filter-group" class="seller-filter-group" style="display:flex; gap:8px; flex-wrap:wrap; min-width:220px; max-height:132px; overflow:auto; padding:8px; border:1px solid var(--border); border-radius:10px; background: var(--card);"></div>
+				</label>
+                <label style="display:flex; gap:6px; align-items:flex-start">
+                    <span style="line-height:28px;">Pago</span>
+                    <div id="pay-filter-group" class="seller-filter-group" style="display:flex; gap:8px; flex-wrap:wrap; min-width:220px; max-height:132px; overflow:auto; padding:8px; border:1px solid var(--border); border-radius:10px; background: var(--card);"></div>
+                </label>
+			</div>
+			<div class="table-wrapper" id="report-wrapper">
+				<table id="report-table">
+					<thead>
+						<tr>
+							<th>Fecha</th>
+							<th>Vendedor</th>
+							<th>Cliente</th>
+							<th>Pago</th>
+							<th class="col-paid">$</th>
+							<th class="col-qty">Arco</th>
+							<th class="col-qty">Melo</th>
+							<th class="col-qty">Mara</th>
+							<th class="col-qty">Oreo</th>
+							<th class="col-qty">Nute</th>
+							<th class="col-total">Total</th>
+						</tr>
+					</thead>
+					<tbody id="report-tbody"></tbody>
+					<tfoot>
+						<tr>
+							<td></td>
+							<td></td>
+							<td></td>
+							<td class="label">Totales</td>
+							<td></td>
+							<td id="t-qa" class="col-qty"></td>
+							<td id="t-qm" class="col-qty"></td>
+							<td id="t-qma" class="col-qty"></td>
+							<td id="t-qo" class="col-qty"></td>
+							<td id="t-qn" class="col-qty"></td>
+							<td id="t-grand" class="col-total"></td>
+						</tr>
+					</tfoot>
+				</table>
+			</div>
+		</div>
+	</main>
+
+	<script type="module">
+	(function(){
+		const qs = new URLSearchParams(location.search);
+		let start = (qs.get('start') || '').slice(0,10);
+		let end = (qs.get('end') || '').slice(0,10);
+		let actor = (qs.get('actor') || '').toString();
+		if (!actor) { try { const saved = JSON.parse(localStorage.getItem('authUser')||'null'); actor = (saved?.name||saved?.username||'').toString(); } catch {} }
+		const rangeLabel = document.getElementById('range-label');
+		const countLabel = document.getElementById('count-label');
+		const tbody = document.getElementById('report-tbody');
+		const tQaEl = document.getElementById('t-qa');
+		const tQmEl = document.getElementById('t-qm');
+		const tQmaEl = document.getElementById('t-qma');
+		const tQoEl = document.getElementById('t-qo');
+		const tQnEl = document.getElementById('t-qn');
+		const tGrandEl = document.getElementById('t-grand');
+		const backBtn = document.getElementById('back-btn');
+		const changeBtn = document.getElementById('change-range');
+		const exportBtn = document.getElementById('export-excel');
+        const sellerFilterGroup = document.getElementById('seller-filter-group');
+        const payFilterGroup = document.getElementById('pay-filter-group');
+
+		let dataset = [];
+		let sellersList = [];
+
+        function payLabel(pm){
+            return pm === '' ? '-' :
+                pm === 'efectivo' ? 'Efectivo' :
+                pm === 'transf' ? 'Transf' :
+                pm === 'marce' ? 'Marce' :
+                pm === 'jorge' ? 'Jorge' :
+                pm === 'jorgebank' ? 'JorgeBank' : '-';
+        }
+		async function fetchJSON(u){ const r = await fetch(u); if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }
+		function withActor(url){
+			try { const u = new URL(url, location.origin); if (actor) u.searchParams.set('actor', actor); return u.pathname + (u.search || ''); }
+			catch { return url + (url.includes('?') ? `&actor=${encodeURIComponent(actor)}` : `?actor=${encodeURIComponent(actor)}`); }
+		}
+
+		function populateFilters(){
+			// Sellers
+			if (sellerFilterGroup) {
+				const prevSelected = getSelectedSellers();
+				sellerFilterGroup.innerHTML = '';
+				const masterWrap = document.createElement('label'); masterWrap.style.display='inline-flex'; masterWrap.style.alignItems='center'; masterWrap.style.gap='6px';
+				const master = document.createElement('input'); master.type='checkbox'; master.id='sf_all';
+				const masterSpan = document.createElement('span'); masterSpan.textContent = 'Todos';
+				masterWrap.appendChild(master); masterWrap.appendChild(masterSpan);
+				sellerFilterGroup.appendChild(masterWrap);
+				for (const s of (sellersList||[])){
+					const id = `sf_${(s.name||'').replace(/[^a-z0-9]+/gi,'_')}`;
+					const wrap = document.createElement('label'); wrap.style.display='inline-flex'; wrap.style.alignItems='center'; wrap.style.gap='6px';
+					const cb = document.createElement('input'); cb.type='checkbox'; cb.value = s.name || ''; cb.id = id;
+					cb.checked = prevSelected.length ? prevSelected.includes(cb.value) : false;
+					cb.addEventListener('change', () => { updateMasterCheckboxState(); render(); });
+					const sp = document.createElement('span'); sp.textContent = s.name || '';
+					wrap.appendChild(cb); wrap.appendChild(sp);
+					sellerFilterGroup.appendChild(wrap);
+				}
+				function updateMasterCheckboxState(){
+					const cbs = Array.from(sellerFilterGroup.querySelectorAll('input[type="checkbox"]')).filter(x => x.id !== 'sf_all');
+					const checked = cbs.filter(x => x.checked).length;
+					master.indeterminate = checked > 0 && checked < cbs.length;
+					master.checked = checked > 0 && checked === cbs.length;
+				}
+				master.addEventListener('change', () => {
+					const cbs = Array.from(sellerFilterGroup.querySelectorAll('input[type="checkbox"]')).filter(x => x.id !== 'sf_all');
+					for (const cb of cbs) cb.checked = master.checked;
+					updateMasterCheckboxState();
+					render();
+				});
+				updateMasterCheckboxState();
+			}
+            // Pay methods (multi-select)
+            if (payFilterGroup) {
+                const prevSelected = getSelectedPays();
+                payFilterGroup.innerHTML = '';
+                const masterWrap = document.createElement('label'); masterWrap.style.display='inline-flex'; masterWrap.style.alignItems='center'; masterWrap.style.gap='6px';
+                const master = document.createElement('input'); master.type='checkbox'; master.id='pf_all';
+                const masterSpan = document.createElement('span'); masterSpan.textContent = 'Todos';
+                masterWrap.appendChild(master); masterWrap.appendChild(masterSpan);
+                payFilterGroup.appendChild(masterWrap);
+                const codes = ['', 'efectivo', 'marce', 'jorge', 'transf', 'jorgebank'];
+                for (const code of codes){
+                    const id = `pf_${code || 'dash'}`;
+                    const wrap = document.createElement('label'); wrap.style.display='inline-flex'; wrap.style.alignItems='center'; wrap.style.gap='6px';
+                    const cb = document.createElement('input'); cb.type='checkbox'; cb.value = code; cb.id = id;
+                    // Default to selected if no prior selection
+                    cb.checked = prevSelected.length ? prevSelected.includes(cb.value) : true;
+                    cb.addEventListener('change', () => { updateMasterCheckboxState(); render(); });
+                    const sp = document.createElement('span'); sp.textContent = payLabel(code);
+                    wrap.appendChild(cb); wrap.appendChild(sp);
+                    payFilterGroup.appendChild(wrap);
+                }
+                function updateMasterCheckboxState(){
+                    const cbs = Array.from(payFilterGroup.querySelectorAll('input[type="checkbox"]')).filter(x => x.id !== 'pf_all');
+                    const checked = cbs.filter(x => x.checked).length;
+                    master.indeterminate = checked > 0 && checked < cbs.length;
+                    master.checked = checked > 0 && checked === cbs.length;
+                }
+                master.addEventListener('change', () => {
+                    const cbs = Array.from(payFilterGroup.querySelectorAll('input[type="checkbox"]')).filter(x => x.id !== 'pf_all');
+                    for (const cb of cbs) cb.checked = master.checked;
+                    updateMasterCheckboxState();
+                    render();
+                });
+                updateMasterCheckboxState();
+            }
+		}
+
+		function getSelectedSellers(){
+			if (sellerFilterGroup) {
+				return Array.from(sellerFilterGroup.querySelectorAll('input[type="checkbox"]:checked')).map(i => i.value).filter(Boolean);
+			}
+			return [];
+		}
+
+		function getFilteredData(){
+			const selSellers = getSelectedSellers();
+            const selPays = getSelectedPays();
+			let rows = dataset.filter(r => {
+				if (selSellers.length && !selSellers.includes(r.sellerName)) return false;
+                if (selPays.length && !selPays.includes((r.pay_method || ''))) return false;
+				return true;
+			});
+			return rows;
+		}
+
+        function getSelectedPays(){
+            if (payFilterGroup) {
+                return Array.from(payFilterGroup.querySelectorAll('input[type="checkbox"]:checked'))
+                    .filter(i => i.id !== 'pf_all')
+                    .map(i => i.value);
+            }
+            return [];
+        }
+
+		function render(){
+			const rows = getFilteredData();
+			tbody.innerHTML = '';
+			let tQa=0,tQm=0,tQma=0,tQo=0,tQn=0,tGrand=0;
+			for (const r of rows){
+				const tr = document.createElement('tr');
+				tr.innerHTML = `
+					<td>${r.date}</td>
+					<td>${r.sellerName}</td>
+					<td>${r.client_name||''}</td>
+					<td>${payLabel(r.pay_method||'')}</td>
+					<td>${r.is_paid ? '✓' : ''}</td>
+					<td>${r.qa||''}</td>
+					<td>${r.qm||''}</td>
+					<td>${r.qma||''}</td>
+					<td>${r.qo||''}</td>
+					<td>${r.qn||''}</td>
+					<td class="col-total">${r.tot||''}</td>`;
+				tbody.appendChild(tr);
+				tQa += r.qa||0; tQm += r.qm||0; tQma += r.qma||0; tQo += r.qo||0; tQn += r.qn||0; tGrand += r.tot||0;
+			}
+			tQaEl.textContent = tQa || '';
+			tQmEl.textContent = tQm || '';
+			tQmaEl.textContent = tQma || '';
+			 tQoEl.textContent = tQo || '';
+			 tQnEl.textContent = tQn || '';
+			 tGrandEl.textContent = tGrand || '';
+			countLabel.textContent = `Filas: ${rows.length}`;
+		}
+
+		async function load(){
+			if (!start || !end) { rangeLabel.textContent = 'Selecciona rango'; openCalendar(); return; }
+			rangeLabel.textContent = `${start} — ${end}`;
+			countLabel.textContent = 'Cargando…';
+			dataset = [];
+			sellersList = await fetchJSON(withActor('/api/sellers'));
+			populateFilters();
+			countLabel.textContent = `Vendedores: ${sellersList.length} · Buscando días…`;
+			const isoBetween = (iso, a, b) => iso >= a && iso <= b;
+			async function mapLimit(items, limit, fn) {
+				const out = []; let idx = 0; let running = 0; let resolveAll; const done = new Promise(r => resolveAll = r);
+				function runNext(){
+					if (idx >= items.length && running === 0) return resolveAll();
+					while (running < limit && idx < items.length) {
+						const cur = items[idx++]; running++;
+						Promise.resolve(fn(cur)).then(v => { out.push(v); running--; runNext(); }).catch(() => { running--; runNext(); });
+					}
+				}
+				runNext(); await done; return out;
+			}
+			const sellerDays = [];
+			await mapLimit(sellersList, 6, async (s) => {
+				try {
+					const days = await fetchJSON(withActor(`/api/days?seller_id=${encodeURIComponent(s.id)}`));
+					for (const d of (days||[])){
+						const iso = String(d.day).slice(0,10);
+						if (isoBetween(iso, start, end)) sellerDays.push({ seller: s, day: d });
+					}
+				} catch {}
+			});
+			countLabel.textContent = `Días: ${sellerDays.length} · Buscando ventas…`;
+			await mapLimit(sellerDays, 6, async ({ seller, day }) => {
+				try {
+					const params = new URLSearchParams({ seller_id: String(seller.id), sale_day_id: String(day.id) });
+                    const sales = await fetchJSON(withActor(`/api/sales?${params.toString()}`));
+					for (const r of (sales||[])){
+						const pm = (r.pay_method || '').toString();
+						const unpaid = r.is_paid !== true;
+                        const allowed = (pm === '' || pm === 'efectivo' || pm === 'transf' || pm === 'marce' || pm === 'jorge' || pm === 'jorgebank');
+						if (!(unpaid && allowed)) continue;
+						const qa = r.qty_arco || 0; const qm = r.qty_melo || 0; const qma = r.qty_mara || 0; const qo = r.qty_oreo || 0; const qn = r.qty_nute || 0; const tot = r.total_cents || 0;
+						dataset.push({
+							date: String(day.day).slice(0,10),
+							sellerName: seller.name || '',
+							client_name: r.client_name || '',
+							pay_method: pm,
+							is_paid: !!r.is_paid,
+							qa, qm, qma, qo, qn, tot
+						});
+					}
+				} catch {}
+			});
+			render();
+		}
+
+		function openCalendar(ev){
+			openRangeCalendarPopover((range) => {
+				if (!range || !range.start || !range.end) return;
+				start = range.start; end = range.end;
+				history.replaceState(null, '', `?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}${actor?`&actor=${encodeURIComponent(actor)}`:''}`);
+				load();
+			}, ev?.clientX, ev?.clientY, { preferUp: true });
+		}
+
+		exportBtn.addEventListener('click', () => {
+			const header = ['Fecha','Vendedor','Cliente','Pago','$','Arco','Melo','Mara','Oreo','Nute','Total'];
+			const rows = [header];
+			let eGrand = 0, eQa=0,eQm=0,eQma=0,eQo=0,eQn=0;
+			for (const r of getFilteredData()){
+				rows.push([
+					r.date,
+					r.sellerName,
+					r.client_name||'',
+					payLabel(r.pay_method||''),
+					r.is_paid ? '✓' : '',
+					r.qa||'', r.qm||'', r.qma||'', r.qo||'', r.qn||'', r.tot||''
+				]);
+				eQa += r.qa||0; eQm += r.qm||0; eQma += r.qma||0; eQo += r.qo||0; eQn += r.qn||0; eGrand += r.tot||0;
+			}
+			rows.push(['','','','','Totales','','','','','', eGrand || '']);
+			const ws = XLSX.utils.aoa_to_sheet(rows);
+			ws['!cols'] = [ {wch:10},{wch:18},{wch:24},{wch:10},{wch:3},{wch:6},{wch:6},{wch:6},{wch:6},{wch:6},{wch:10} ];
+			const wb = XLSX.utils.book_new();
+			XLSX.utils.book_append_sheet(wb, ws, 'Cartera');
+			XLSX.writeFile(wb, `Cartera_${(start||'')}_a_${(end||'')}.xlsx`);
+		});
+
+		backBtn.addEventListener('click', () => { location.href = '/'; });
+        changeBtn.addEventListener('click', (ev) => openCalendar(ev));
+
+		// Lightweight date range popover if missing
+		if (typeof window.openRangeCalendarPopover !== 'function') {
+			window.openRangeCalendarPopover = function(onPickedRange, anchorX, anchorY, opts){
+				const pop = document.createElement('div'); pop.className = 'date-popover'; pop.style.position = 'fixed'; const baseX = anchorX||window.innerWidth/2; const baseY = anchorY||window.innerHeight/2; pop.style.left = baseX+'px'; pop.style.top=(baseY+8)+'px'; pop.style.transform='translate(-50%,0)'; pop.style.zIndex='1000';
+				const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']; let view = new Date(); view.setDate(1); let startIso=null, endIso=null;
+				const header=document.createElement('div'); header.className='date-popover-header'; const prev=document.createElement('button'); prev.className='date-nav'; prev.textContent='‹'; const label=document.createElement('div'); label.className='date-label'; const next=document.createElement('button'); next.className='date-nav'; next.textContent='›'; header.append(prev,label,next);
+				const grid=document.createElement('div'); grid.className='date-grid'; const weekdays=['L','M','X','J','V','S','D']; const wk=document.createElement('div'); wk.className='date-weekdays'; for (const w of weekdays){ const c=document.createElement('div'); c.textContent=w; wk.appendChild(c);} 
+				function isoUTC(y,m,d){ return new Date(Date.UTC(y,m,d)).toISOString().slice(0,10); }
+				function isBetween(x,a,b){ return x>=a && x<=b; }
+				function render(){ label.textContent = months[view.getMonth()] + ' ' + view.getFullYear(); grid.innerHTML=''; const year=view.getFullYear(); const month=view.getMonth(); const firstDay=(new Date(Date.UTC(year,month,1)).getUTCDay()+6)%7; const daysInMonth=new Date(Date.UTC(year,month+1,0)).getUTCDate(); for (let i=0;i<firstDay;i++){ const cell=document.createElement('button'); cell.className='date-cell disabled'; cell.disabled=true; grid.appendChild(cell);} for (let d=1; d<=daysInMonth; d++){ const iso=isoUTC(year,month,d); const cell=document.createElement('button'); let cls='date-cell'; if (startIso && !endIso && iso===startIso) cls+=' range-start selected'; if (startIso && endIso){ if (iso===startIso) cls+=' range-start selected'; else if (iso===endIso) cls+=' range-end selected'; else if (isBetween(iso,startIso,endIso)) cls+=' in-range'; } cell.className=cls; cell.textContent=String(d); cell.addEventListener('click',()=>{ if(!startIso){ startIso=iso; endIso=null; render(); return; } if(!endIso){ if(iso<startIso){ endIso=startIso; startIso=iso; } else { endIso=iso; } render(); return; } startIso=iso; endIso=null; render(); }); grid.appendChild(cell);} }
+				function cleanup(){ document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); if(pop.parentNode) pop.parentNode.removeChild(pop);} function outside(ev){ if(!pop.contains(ev.target)) cleanup(); }
+				prev.addEventListener('click',()=>{ view.setMonth(view.getMonth()-1); render(); }); next.addEventListener('click',()=>{ view.setMonth(view.getMonth()+1); render(); });
+				const actions=document.createElement('div'); actions.style.display='flex'; actions.style.justifyContent='space-between'; actions.style.marginTop='8px'; const clearBtn=document.createElement('button'); clearBtn.className='date-nav'; clearBtn.textContent='Limpiar'; const genBtn=document.createElement('button'); genBtn.className='date-nav'; genBtn.textContent='Generar'; genBtn.disabled=true; clearBtn.addEventListener('click',()=>{ startIso=null; endIso=null; genBtn.disabled=true; render(); }); genBtn.addEventListener('click',()=>{ if(startIso && endIso && typeof onPickedRange==='function'){ cleanup(); onPickedRange({ start:startIso, end:endIso }); } }); actions.append(clearBtn, genBtn);
+				const origRender = render; render = function(){ origRender(); genBtn.disabled = !(startIso && endIso); };
+				pop.append(header, wk, grid, actions); document.body.appendChild(pop); pop.classList.add('aladdin-pop');
+				document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); render();
+			};
+		}
+
+		load();
+	})();
+	</script>
+</body>
+</html>
