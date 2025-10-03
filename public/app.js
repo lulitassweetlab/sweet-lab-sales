@@ -1865,7 +1865,8 @@ function exportTableToExcel() {
 		const tbody = document.getElementById('sales-tbody');
 		if (tbody) {
 			for (const tr of Array.from(tbody.rows)) {
-				const paid = tr.querySelector('td.col-paid input[type="checkbox"]').checked ? '✓' : '';
+				const paidCheckbox = tr.querySelector('td.col-paid input[type="checkbox"]');
+				const paid = paidCheckbox?.checked ? '✓' : '';
 				const paySel = tr.querySelector('td.col-paid select.pay-select');
 				const payRaw = paySel ? paySel.value : '';
 				const pay = payRaw === 'efectivo' ? 'Efectivo' : (payRaw === 'transf' || payRaw === 'jorgebank') ? 'Transf' : payRaw === 'marce' ? 'Marce' : payRaw === 'jorge' ? 'Jorge' : '-';
@@ -1924,7 +1925,8 @@ function exportTableToExcel() {
 		try { notify.success('Excel exportado'); } catch {}
 	} catch (error) {
 		console.error('Error al exportar Excel:', error);
-		try { notify.error('Error al exportar Excel'); } catch {}
+		const errorMsg = error.message ? `Error al exportar Excel: ${error.message}` : 'Error al exportar Excel';
+		try { notify.error(errorMsg); } catch {}
 	}
 }
 
@@ -2480,8 +2482,7 @@ function bindEvents() {
 	// Export Excel button - ensure event is attached
 	const exportExcelBtn = document.getElementById('export-excel');
 	if (exportExcelBtn) {
-		exportExcelBtn.addEventListener('click', (e) => {
-			e.preventDefault();
+		exportExcelBtn.addEventListener('click', () => {
 			exportTableToExcel();
 		});
 	}
