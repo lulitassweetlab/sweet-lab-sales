@@ -188,7 +188,8 @@ const API = {
 	Users: '/api/users',
 	Materials: '/api/materials',
 	Recipes: '/api/recipes',
-	Inventory: '/api/inventory'
+	Inventory: '/api/inventory',
+	Desserts: '/api/desserts'
 };
 
 const PRICES = {
@@ -2936,14 +2937,29 @@ async function renderIngredientsView() {
 	const root = document.getElementById('ingredients-content');
 	if (!root) return;
 	root.innerHTML = '';
-	let desserts = [];
-	try { desserts = await api('GET', API.Recipes); } catch { desserts = []; }
-	if (!desserts || desserts.length === 0) {
-		try { await api('GET', `${API.Recipes}?seed=1`); desserts = await api('GET', API.Recipes); }
+	
+	// Get desserts from both sources:
+	// 1. Desserts with recipes (from dessert_recipes)
+	let recipeDesserts = [];
+	try { recipeDesserts = await api('GET', API.Recipes); } catch { recipeDesserts = []; }
+	if (!recipeDesserts || recipeDesserts.length === 0) {
+		try { await api('GET', `${API.Recipes}?seed=1`); recipeDesserts = await api('GET', API.Recipes); }
 		catch {}
 	}
+	
+	// 2. ALL active desserts (from desserts table)
+	let allDesserts = [];
+	try { allDesserts = await api('GET', API.Desserts); } catch { allDesserts = []; }
+	
+	// Merge: show all desserts from desserts table
+	// If they have recipe, use recipe data; otherwise just show the name
+	const dessertNames = new Set(recipeDesserts || []);
+	for (const d of allDesserts) {
+		dessertNames.add(d.name);
+	}
+	
 	const grid = document.createElement('div'); grid.className = 'ingredients-grid';
-	for (const name of (desserts || [])) {
+	for (const name of Array.from(dessertNames).sort()) {
 		const card = await buildDessertCard(name);
 		grid.appendChild(card);
 	}
