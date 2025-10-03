@@ -279,6 +279,30 @@ main { padding: 24px; max-width: 1024px; margin: 0 auto; }
 .add-seller-wide { display: block; width: 100%; padding: 14px 16px; border-radius: 16px; background: #fbf7f0; border: 1px solid var(--border); color: var(--text); font-weight: 400; font-size: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
 .add-seller-wide:hover { background: #f2e2d3; }
 
+/* Bottom-right trash toggle inside sellers panel */
+.seller-add { position: relative; display: flex; align-items: center; gap: 8px; }
+.seller-delete-toggle {
+    margin-left: auto;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--danger);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.seller-delete-toggle::before {
+    content: '';
+    display: inline-block;
+    width: 18px; height: 18px;
+    background-color: currentColor;
+    -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="%23000" d="M7 4h10l-1 2h4v2H4V6h4l-1-2zm-1 6h12l-1 10H7L6 10zm3 2v6h2v-6H9zm4 0v6h2v-6h-2z"/></svg>') no-repeat center / contain;
+    mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="%23000" d="M7 4h10l-1 2h4v2H4V6h4l-1-2zm-1 6h12l-1 10H7L6 10zm3 2v6h2v-6H9zm4 0v6h2v-6h-2z"/></svg>') no-repeat center / contain;
+}
+.seller-delete-toggle.active { background: #fff0f0; border-color: #ffd6d6; }
+
 select, input[type="text"], button {
 	padding: 10px 12px;
 	border-radius: 12px;

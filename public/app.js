@@ -207,6 +207,7 @@ const state = {
 	sales: [],
 	currentUser: null,
 	clientCounts: new Map(),
+	showSellerDelete: false,
 };
 
 // Toasts and Notifications
@@ -612,6 +613,21 @@ async function loadSellers() {
 	renderSellerButtons();
 	// Removed syncColumnsBarWidths();
 	applyAuthVisibility();
+
+	// Wire seller delete toggle
+	try {
+		const toggleDel = document.getElementById('toggle-seller-delete');
+		if (toggleDel) {
+			// Initial icon
+			toggleDel.textContent = state.showSellerDelete ? 'Ocultar borrar' : 'Borrar vendedores';
+			toggleDel.addEventListener('click', () => {
+				state.showSellerDelete = !state.showSellerDelete;
+				toggleDel.classList.toggle('active', !!state.showSellerDelete);
+				toggleDel.textContent = state.showSellerDelete ? 'Ocultar borrar' : 'Borrar vendedores';
+				renderSellerButtons();
+			});
+		}
+	} catch {}
 }
 
 function renderSellerButtons() {
@@ -619,11 +635,12 @@ function renderSellerButtons() {
 	list.innerHTML = '';
     // Server already filters sellers by permissions. Render all returned.
     const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+    const showDel = isSuper && !!state.showSellerDelete;
     for (const s of state.sellers) {
-        const btn = el('button', { class: 'seller-button' + (isSuper ? ' has-delete' : ''), title: s.name, onclick: async () => { await enterSeller(s.id); } });
+        const btn = el('button', { class: 'seller-button' + (showDel ? ' has-delete' : ''), title: s.name, onclick: async () => { await enterSeller(s.id); } });
         const nameSpan = el('span', { class: 'seller-name' }, s.name);
         btn.appendChild(nameSpan);
-        if (isSuper) {
+        if (showDel) {
             const del = el('span', { class: 'delete-seller', title: 'Eliminar vendedor', 'aria-label': 'Eliminar vendedor', role: 'button' });
             del.addEventListener('click', async (ev) => {
                 ev.preventDefault();
@@ -698,6 +715,11 @@ function applyAuthVisibility() {
 	if (logoutBtn) logoutBtn.style.display = state.currentUser ? 'inline-flex' : 'none';
 	const addSellerWrap = document.querySelector('.seller-add');
 	if (addSellerWrap) addSellerWrap.style.display = isSuper ? 'block' : 'none';
+	const toggleDel = document.getElementById('toggle-seller-delete');
+	if (toggleDel) {
+		toggleDel.style.display = isSuper ? 'inline-flex' : 'none';
+		toggleDel.classList.toggle('active', !!state.showSellerDelete);
+	}
 	const usersBtn = document.getElementById('users-button');
 	const feats = new Set((state.currentUser?.features || []));
 	const reportBtn = document.getElementById('report-button');
