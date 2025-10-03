@@ -4,7 +4,25 @@
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
 	<title>Receta por pasos</title>
-	<link rel="stylesheet" href="/styles.css?v=2025-09-17-1" />
+    <link rel="stylesheet" href="/styles.css?v=2025-09-17-1" />
+    <style>
+      /* Timer running visual indicator (highly recognizable glow) */
+      .timer-controls { position: relative; border-radius: 12px; padding: 2px; }
+      .timer-controls.timer-active::after {
+        content: '';
+        position: absolute;
+        inset: -6px;
+        border-radius: 14px;
+        box-shadow: 0 0 0 3px var(--accent), 0 0 18px var(--accent);
+        animation: timerPulse 1.1s ease-in-out infinite;
+        pointer-events: none;
+      }
+      @keyframes timerPulse {
+        0% { box-shadow: 0 0 0 2px var(--accent), 0 0 8px var(--accent); }
+        50% { box-shadow: 0 0 0 6px var(--accent), 0 0 28px var(--accent); }
+        100% { box-shadow: 0 0 0 2px var(--accent), 0 0 8px var(--accent); }
+      }
+    </style>
 </head>
 <body>
 	<header class="app-header">
@@ -95,7 +113,7 @@
 
 		function buildTimerControls(){
 			const stepState = { elapsedMs: 0, isRunning: false, startedAt: null };
-			const wrap = document.createElement('div'); wrap.style.display='flex'; wrap.style.alignItems='center'; wrap.style.gap='8px';
+            const wrap = document.createElement('div'); wrap.className='timer-controls'; wrap.style.display='flex'; wrap.style.alignItems='center'; wrap.style.gap='8px';
 			const display = document.createElement('div'); display.style.minWidth='84px'; display.style.textAlign='center'; display.style.fontVariantNumeric='tabular-nums';
 			const playBtn = document.createElement('button'); playBtn.className='press-btn'; playBtn.textContent='▶'; playBtn.title='Play';
 			const pauseBtn = document.createElement('button'); pauseBtn.className='press-btn'; pauseBtn.textContent='⏸'; pauseBtn.title='Pause';
@@ -105,12 +123,13 @@
 			let intervalId = null;
 			function compute(){ const base=Number(stepState.elapsedMs||0)||0; if (stepState.isRunning && stepState.startedAt) return base + (Date.now()-stepState.startedAt); return base; }
 			function render(){ display.textContent = formatMs(compute()); }
-			function play(){ if (stepState.isRunning) return; stepState.isRunning = true; stepState.startedAt = Date.now(); clearInterval(intervalId); intervalId = setInterval(render, 250); }
-			function pause(){ if (!stepState.isRunning) return; stepState.elapsedMs = compute(); stepState.isRunning = false; stepState.startedAt = null; clearInterval(intervalId); intervalId = null; render(); }
-			function stop(){ stepState.elapsedMs = 0; stepState.isRunning = false; stepState.startedAt = null; clearInterval(intervalId); intervalId = null; render(); }
+            function setActive(v){ if(v){ wrap.classList.add('timer-active'); } else { wrap.classList.remove('timer-active'); } }
+            function play(){ if (stepState.isRunning) return; stepState.isRunning = true; stepState.startedAt = Date.now(); setActive(true); clearInterval(intervalId); intervalId = setInterval(render, 250); }
+            function pause(){ if (!stepState.isRunning) return; stepState.elapsedMs = compute(); stepState.isRunning = false; stepState.startedAt = null; setActive(false); clearInterval(intervalId); intervalId = null; render(); }
+            function stop(){ stepState.elapsedMs = 0; stepState.isRunning = false; stepState.startedAt = null; setActive(false); clearInterval(intervalId); intervalId = null; render(); }
 			playBtn.addEventListener('click', play); pauseBtn.addEventListener('click', pause); stopBtn.addEventListener('click', stop);
 			render();
-			return { element: wrap, getElapsedMs: () => compute(), reset: () => { stop(); } };
+            return { element: wrap, getElapsedMs: () => compute(), reset: () => { stop(); } };
 		}
 
 		function normalizeKey(name){ const k=(name||'').toString().trim().toLowerCase(); if (k.startsWith('arco')) return 'arco'; if (k.startsWith('melo')) return 'melo'; if (k.startsWith('mara')) return 'mara'; if (k.startsWith('oreo')) return 'oreo'; if (k.startsWith('nute')) return 'nute'; return k; }
