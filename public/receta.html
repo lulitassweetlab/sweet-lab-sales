@@ -111,9 +111,36 @@
 			for (const p of pills){ const el = document.createElement('div'); el.style.background = 'var(--card)'; el.style.border = '1px solid var(--border)'; el.style.borderRadius = '999px'; el.style.padding = '4px 10px'; el.textContent = `${p.label}: ${p.v}`; countsSummary.appendChild(el); }
 		}
 
+		function fmtHm(ms){ const total=Math.max(0,Math.floor(ms/1000)); const h=Math.floor(total/3600); const m=Math.floor((total%3600)/60); const pad=n=>String(n).padStart(2,'0'); return `${pad(h)}:${pad(m)}`; }
+		function readLocalTimesHistory(){ try { return JSON.parse(localStorage.getItem('timesHistory')||'[]')||[]; } catch { return []; } }
+		async function getStepAvgMsPerUnit(dessertName, stepName){
+			let totalMs = 0; let totalQty = 0;
+			// Try server first
+			try {
+				const rows = await fetchJSON(withActor(`/api/times?dessert=${encodeURIComponent(dessertName)}`));
+				for (const r of (rows||[])){
+					let steps = r.steps;
+					if (!Array.isArray(steps)) { try { steps = JSON.parse(steps||'[]'); } catch { steps = []; } }
+					for (const st of (steps||[])){
+						if ((st.name||'') === stepName){ totalMs += Number(st.elapsed_ms||0)||0; totalQty += Number(st.qty_units||0)||0; }
+					}
+				}
+			} catch {}
+			// Fallback to local history
+			if (totalMs === 0 || totalQty === 0){
+				for (const it of readLocalTimesHistory()){
+					if ((it.dessert||'') !== dessertName) continue;
+					for (const st of (it.steps||[])){
+						if ((st.name||'') === stepName){ totalMs += Number(st.elapsed_ms||0)||0; totalQty += Number(st.qty_units||0)||0; }
+					}
+				}
+			}
+			return totalQty > 0 ? Math.round(totalMs / totalQty) : 0;
+		}
+
 		function buildTimerControls(){
 			const stepState = { elapsedMs: 0, isRunning: false, startedAt: null };
-            const wrap = document.createElement('div'); wrap.className='timer-controls'; wrap.style.display='flex'; wrap.style.alignItems='center'; wrap.style.gap='8px';
+			const wrap = document.createElement('div'); wrap.className='timer-controls'; wrap.style.display='flex'; wrap.style.alignItems='center'; wrap.style.gap='8px';
 			const display = document.createElement('div'); display.style.minWidth='84px'; display.style.textAlign='center'; display.style.fontVariantNumeric='tabular-nums';
 			const playBtn = document.createElement('button'); playBtn.className='press-btn'; playBtn.textContent='▶'; playBtn.title='Play';
 			const pauseBtn = document.createElement('button'); pauseBtn.className='press-btn'; pauseBtn.textContent='⏸'; pauseBtn.title='Pause';
@@ -129,7 +156,7 @@
             function stop(){ stepState.elapsedMs = 0; stepState.isRunning = false; stepState.startedAt = null; setActive(false); clearInterval(intervalId); intervalId = null; render(); }
 			playBtn.addEventListener('click', play); pauseBtn.addEventListener('click', pause); stopBtn.addEventListener('click', stop);
 			render();
-            return { element: wrap, getElapsedMs: () => compute(), reset: () => { stop(); } };
+			return { element: wrap, getElapsedMs: () => compute(), reset: () => { stop(); } };
 		}
 
 		function normalizeKey(name){ const k=(name||'').toString().trim().toLowerCase(); if (k.startsWith('arco')) return 'arco'; if (k.startsWith('melo')) return 'melo'; if (k.startsWith('mara')) return 'mara'; if (k.startsWith('oreo')) return 'oreo'; if (k.startsWith('nute')) return 'nute'; return k; }
@@ -188,8 +215,18 @@
 					const section = document.createElement('div'); section.className='measure-section'; section.style.margin='12px 0';
 					const head = document.createElement('div'); head.style.display='flex'; head.style.alignItems='center'; head.style.justifyContent='space-between'; head.style.gap='8px';
 					const sh = document.createElement('div'); sh.textContent = step.step_name || 'Paso'; sh.style.fontWeight='600'; sh.style.margin='0 0 6px 0'; sh.style.flex='1';
-					const timer = buildTimerControls(); head.append(sh, timer.element);
+					const timer = buildTimerControls();
+					// Suggested time label (avg per unit * qty)
+					const suggestion = document.createElement('small'); suggestion.textContent=''; suggestion.style.marginLeft='8px'; suggestion.style.color='var(--accent)'; suggestion.style.whiteSpace='nowrap';
+					const rightWrap = document.createElement('div'); rightWrap.style.display='flex'; rightWrap.style.alignItems='center'; rightWrap.style.gap='8px';
+					rightWrap.append(timer.element, suggestion);
+					head.append(sh, rightWrap);
 					section.appendChild(head);
+					// Compute and render suggestion asynchronously
+					(async () => {
+						const avgPerUnit = await getStepAvgMsPerUnit(dessertName, step.step_name || 'Paso');
+						if (avgPerUnit > 0){ const totalMs = avgPerUnit * qty; suggestion.textContent = `Sugerencia: ${fmtHm(totalMs)}`; }
+					})();
 					const table = document.createElement('table'); table.style.width='100%'; table.style.tableLayout='fixed';
 					const tbody = document.createElement('tbody');
                     for (const it of (step.items || [])){
