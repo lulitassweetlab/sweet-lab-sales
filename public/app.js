@@ -967,17 +967,19 @@ function renderTable() {
 	addTr.className = 'add-row-line';
 	const td = document.createElement('td');
 	td.colSpan = colCount;
-	const btn = document.createElement('button');
+    const btn = document.createElement('button');
 	btn.className = 'inline-add-btn btn-primary';
 	btn.textContent = 'Nuevo pedido';
-	btn.addEventListener('click', addRow);
+    btn.addEventListener('click', (ev) => {
+        const rect = ev.currentTarget.getBoundingClientRect();
+        openNewSalePopover(rect.left + rect.width / 2, rect.top - 8);
+    });
 	td.appendChild(btn);
 	addTr.appendChild(td);
 	tbody.appendChild(addTr);
 
 	updateSummary();
-	// Remove old bottom add button if present
-	document.getElementById('add-row-bottom')?.closest('.table-actions')?.remove();
+    // Keep bottom add button present so both triggers work
 	preloadChangeLogsForCurrentTable();
 }
 
@@ -1174,12 +1176,13 @@ function attachClientSuggestionsPopover(inputEl) {
                 const row = document.createElement('div');
                 row.className = 'client-suggest-item';
                 row.textContent = String(it.name || '');
-                row.addEventListener('mousedown', (ev) => { ev.preventDefault(); });
-                row.addEventListener('click', () => {
+                row.addEventListener('mousedown', (ev) => { ev.preventDefault(); ev.stopPropagation(); });
+                row.addEventListener('click', (ev) => {
+                    ev.preventDefault(); ev.stopPropagation();
                     inputEl.value = String(it.name || '');
                     inputEl.dispatchEvent(new Event('input'));
                     inputEl.focus();
-                    closePop();
+                    // Keep popover open; do not close parent new-sale popover
                 });
                 pop.appendChild(row);
             }
@@ -1280,7 +1283,10 @@ function openNewSalePopover(anchorX, anchorY) {
             document.removeEventListener('touchstart', outside, true);
             if (pop.parentNode) pop.parentNode.removeChild(pop);
         }
-        function outside(ev) { if (!pop.contains(ev.target)) cleanup(); }
+        function outside(ev) {
+            const t = ev.target;
+            if (!pop.contains(t) && !t.closest?.('.client-suggest-popover')) cleanup();
+        }
         setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
         cancelBtn.addEventListener('click', cleanup);
 
