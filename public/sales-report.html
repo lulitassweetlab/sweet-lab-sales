@@ -47,47 +47,35 @@
 			<div class="table-wrapper" id="report-wrapper">
 				<table id="report-table">
 					<thead>
-						<tr>
+						<tr id="report-thead-row">
 							<th id="th-date" style="cursor:pointer">Fecha</th>
 							<th id="th-seller" style="cursor:pointer">Vendedor</th>
 							<th class="col-paid">$</th>
 							<th id="th-pay" style="cursor:pointer">Pago</th>
 							<th>Cliente</th>
-							<th class="col-qty">Arco</th>
-							<th class="col-qty">Melo</th>
-							<th class="col-qty">Mara</th>
-							<th class="col-qty">Oreo</th>
-							<th class="col-qty">Nute</th>
+							<!-- Dessert columns will be inserted here -->
 							<th class="col-total">Total</th>
 						</tr>
 					</thead>
 					<tbody id="report-tbody"></tbody>
-				<tfoot>
-					<tr class="report-spacer-row"><td colspan="11"></td></tr>
-						<tr>
+				<tfoot id="report-tfoot">
+					<tr class="report-spacer-row"><td id="spacer-td" colspan="11"></td></tr>
+						<tr id="totals-row">
 							<td></td>
 							<td></td>
 							<td></td>
 							<td></td>
 							<td class="label">Totales</td>
-							<td class="col-qty" id="t-qa"></td>
-							<td class="col-qty" id="t-qm"></td>
-							<td class="col-qty" id="t-qma"></td>
-							<td class="col-qty" id="t-qo"></td>
-							<td class="col-qty" id="t-qn"></td>
+							<!-- Dessert totals will be inserted here -->
 							<td class="col-total" id="t-grand"></td>
 						</tr>
-						<tr>
+						<tr id="total-postres-row">
 							<td></td>
 							<td></td>
 							<td></td>
 							<td></td>
 							<td class="label">Total postres</td>
-							<td class="col-qty"></td>
-							<td class="col-qty"></td>
-							<td class="col-qty"></td>
-							<td class="col-qty"></td>
-							<td class="col-qty"></td>
+							<!-- Empty dessert cells will be inserted here -->
 							<td class="col-total" id="t-sum-all"></td>
 						</tr>
 					</tfoot>
@@ -107,11 +95,6 @@
 		const rangeLabel = document.getElementById('range-label');
 		const countLabel = document.getElementById('count-label');
 		const tbody = document.getElementById('report-tbody');
-		const tQaEl = document.getElementById('t-qa');
-		const tQmEl = document.getElementById('t-qm');
-		const tQmaEl = document.getElementById('t-qma');
-		const tQoEl = document.getElementById('t-qo');
-		const tQnEl = document.getElementById('t-qn');
 		const tGrandEl = document.getElementById('t-grand');
 		const tSumAllEl = document.getElementById('t-sum-all');
 		const backBtn = document.getElementById('back-btn');
@@ -127,6 +110,7 @@
 
 		let dataset = [];
 		let sellersList = [];
+		let desserts = [];
 		let sortKey = 'date'; // 'date' | 'seller' | 'pay'
 		let sortDir = 'asc'; // 'asc' | 'desc'
 
@@ -149,6 +133,42 @@
 				if (actor) u.searchParams.set('actor', actor);
 				return u.pathname + (u.search || '');
 			} catch { return url + (url.includes('?') ? `&actor=${encodeURIComponent(actor)}` : `?actor=${encodeURIComponent(actor)}`); }
+		}
+
+		function renderDessertColumns() {
+			const theadRow = document.getElementById('report-thead-row');
+			const totalsRow = document.getElementById('totals-row');
+			const totalPostresRow = document.getElementById('total-postres-row');
+			const totalTh = theadRow.querySelector('th.col-total');
+			
+			// Remove existing dessert columns
+			theadRow.querySelectorAll('th.col-qty').forEach(th => th.remove());
+			totalsRow.querySelectorAll('td.col-qty').forEach(td => td.remove());
+			totalPostresRow.querySelectorAll('td.col-qty').forEach(td => td.remove());
+			
+			// Insert new columns
+			for (const d of desserts) {
+				// Header
+				const th = document.createElement('th');
+				th.className = 'col-qty';
+				th.textContent = d.name;
+				theadRow.insertBefore(th, totalTh);
+				
+				// Totals row
+				const tdTot = document.createElement('td');
+				tdTot.className = 'col-qty';
+				tdTot.id = `t-q-${d.short_code}`;
+				totalsRow.insertBefore(tdTot, totalsRow.querySelector('td.col-total'));
+				
+				// Total postres row (empty cells)
+				const tdEmpty = document.createElement('td');
+				tdEmpty.className = 'col-qty';
+				totalPostresRow.insertBefore(tdEmpty, totalPostresRow.querySelector('td.col-total'));
+			}
+			
+			// Update colspan for spacer row
+			const spacerTd = document.getElementById('spacer-td');
+			if (spacerTd) spacerTd.colSpan = 6 + desserts.length;
 		}
 
 		function populateFilters(){
@@ -226,32 +246,46 @@
 		function render(){
 			const rows = getFilteredSortedData();
 			tbody.innerHTML = '';
-			let tQa = 0, tQm = 0, tQma = 0, tQo = 0, tQn = 0, tGrand = 0;
+			
+			// Initialize totals dynamically
+			const qtys = {};
+			for (const d of desserts) {
+				qtys[d.short_code] = 0;
+			}
+			let tGrand = 0;
+			
 			for (const r of rows){
 				const row = document.createElement('tr');
-				row.innerHTML = `
+				let html = `
 					<td>${r.date}</td>
 					<td>${r.sellerName}</td>
 					<td>${r.is_paid ? '✓' : ''}</td>
 					<td>${payLabel(r.pay_method||'')}</td>
-					<td>${r.client_name||''}</td>
-					<td>${r.qa||''}</td>
-					<td>${r.qm||''}</td>
-					<td>${r.qma||''}</td>
-					<td>${r.qo||''}</td>
-					<td>${r.qn||''}</td>
-					<td class="col-total">${r.tot||''}</td>`;
+					<td>${r.client_name||''}</td>`;
+				
+				// Add dessert quantities dynamically
+				for (const d of desserts) {
+					const qty = r[`q_${d.short_code}`] || 0;
+					html += `<td>${qty || ''}</td>`;
+					qtys[d.short_code] += qty;
+				}
+				
+				html += `<td class="col-total">${r.tot||''}</td>`;
+				row.innerHTML = html;
 				tbody.appendChild(row);
-				tQa += r.qa||0; tQm += r.qm||0; tQma += r.qma||0; tQo += r.qo||0; tQn += r.qn||0; tGrand += r.tot||0;
+				tGrand += r.tot||0;
 			}
-			tQaEl.textContent = tQa || '';
-			tQmEl.textContent = tQm || '';
-			tQmaEl.textContent = tQma || '';
-			tQoEl.textContent = tQo || '';
-			tQnEl.textContent = tQn || '';
+			
+			// Update totals dynamically
+			let totalQty = 0;
+			for (const d of desserts) {
+				const el = document.getElementById(`t-q-${d.short_code}`);
+				if (el) el.textContent = qtys[d.short_code] || '';
+				totalQty += qtys[d.short_code] || 0;
+			}
+			
 			tGrandEl.textContent = tGrand || '';
-			const sumAll = (tQa||0)+(tQm||0)+(tQma||0)+(tQo||0)+(tQn||0);
-			tSumAllEl.textContent = sumAll || '';
+			tSumAllEl.textContent = totalQty || '';
 			countLabel.textContent = `Filas: ${rows.length}`;
 		}
 
@@ -260,6 +294,22 @@
 			rangeLabel.textContent = `${formatDay(start)} — ${formatDay(end)}`;
 			countLabel.textContent = 'Cargando…';
 			dataset = [];
+			
+			// Load desserts first
+			try {
+				desserts = await fetchJSON('/api/desserts');
+			} catch {
+				// Fallback to defaults
+				desserts = [
+					{ id: 1, name: 'Arco', short_code: 'arco', sale_price: 8500 },
+					{ id: 2, name: 'Melo', short_code: 'melo', sale_price: 9500 },
+					{ id: 3, name: 'Mara', short_code: 'mara', sale_price: 10500 },
+					{ id: 4, name: 'Oreo', short_code: 'oreo', sale_price: 10500 },
+					{ id: 5, name: 'Nute', short_code: 'nute', sale_price: 13000 }
+				];
+			}
+			renderDessertColumns();
+			
 			sellersList = await fetchJSON(withActor('/api/sellers'));
 			populateFilters();
 			countLabel.textContent = `Vendedores: ${sellersList.length} · Buscando días…`;
@@ -294,15 +344,30 @@
 					const params = new URLSearchParams({ seller_id: String(seller.id), sale_day_id: String(day.id) });
 					const sales = await fetchJSON(withActor(`/api/sales?${params.toString()}`));
 					for (const r of (sales || [])) {
-						const qa = r.qty_arco || 0; const qm = r.qty_melo || 0; const qma = r.qty_mara || 0; const qo = r.qty_oreo || 0; const qn = r.qty_nute || 0; const tot = r.total_cents || 0;
-						dataset.push({
+						const row = {
 							date: String(day.day).slice(0,10),
 							sellerName: seller.name || '',
 							is_paid: !!r.is_paid,
 							pay_method: (r.pay_method || '') || '',
 							client_name: r.client_name || '',
-							qa, qm, qma, qo, qn, tot
-						});
+							tot: r.total_cents || 0
+						};
+						
+						// Process dessert quantities dynamically
+						for (const d of desserts) {
+							let qty = 0;
+							if (Array.isArray(r.items) && r.items.length > 0) {
+								// New format: use items
+								const item = r.items.find(i => i.dessert_id === d.id || i.short_code === d.short_code);
+								qty = item ? (item.quantity || 0) : 0;
+							} else {
+								// Old format: use qty_* columns
+								qty = r[`qty_${d.short_code}`] || 0;
+							}
+							row[`q_${d.short_code}`] = qty;
+						}
+						
+						dataset.push(row);
 					}
 				} catch {}
 			});
@@ -320,36 +385,71 @@
 
 		exportBtn.addEventListener('click', () => {
 			// Build Excel from filtered and sorted data currently visible
-			const header = ['Fecha','Vendedor', '$', 'Pago', 'Cliente', 'Arco', 'Melo', 'Mara', 'Oreo', 'Nute', 'Total'];
+			const header = ['Fecha','Vendedor', '$', 'Pago', 'Cliente'];
+			for (const d of desserts) {
+				header.push(d.name);
+			}
+			header.push('Total');
+			
 			const rows = [header];
-			let eQa=0,eQm=0,eQma=0,eQo=0,eQn=0,eGrand=0;
+			const qtys = {};
+			for (const d of desserts) {
+				qtys[d.short_code] = 0;
+			}
+			let eGrand = 0;
+			
 			const data = getFilteredSortedData();
 			for (const r of data){
-				rows.push([
+				const row = [
 					r.date,
 					r.sellerName,
 					r.is_paid ? '✓' : '',
 					payLabel(r.pay_method||''),
-					r.client_name||'',
-					r.qa||'', r.qm||'', r.qma||'', r.qo||'', r.qn||'', r.tot||''
-				]);
-				eQa += r.qa||0; eQm += r.qm||0; eQma += r.qma||0; eQo += r.qo||0; eQn += r.qn||0; eGrand += r.tot||0;
+					r.client_name||''
+				];
+				
+				for (const d of desserts) {
+					const qty = r[`q_${d.short_code}`] || 0;
+					row.push(qty || '');
+					qtys[d.short_code] += qty;
+				}
+				
+				row.push(r.tot||'');
+				rows.push(row);
+				eGrand += r.tot||0;
 			}
-			// Empty spacer row before totals (fixed 11 columns)
-			rows.push(new Array(11).fill(''));
-			// Totales row (fixed 11 columns)
-			const totRow = new Array(11).fill('');
+			// Empty spacer row before totals
+			const colCount = 5 + desserts.length + 1; // Fecha, Vendedor, $, Pago, Cliente + desserts + Total
+			rows.push(new Array(colCount).fill(''));
+			
+			// Totales row
+			const totRow = new Array(colCount).fill('');
 			totRow[4] = 'Totales';
-			totRow[5] = eQa||''; totRow[6] = eQm||''; totRow[7] = eQma||''; totRow[8] = eQo||''; totRow[9] = eQn||''; totRow[10] = eGrand||'';
+			let idx = 5;
+			for (const d of desserts) {
+				totRow[idx++] = qtys[d.short_code] || '';
+			}
+			totRow[idx] = eGrand || '';
 			rows.push(totRow);
-			// Total postres row (fixed 11 columns)
-			const sumAll = (eQa||0)+(eQm||0)+(eQma||0)+(eQo||0)+(eQn||0);
-			const sumRow = new Array(11).fill('');
+			
+			// Total postres row
+			let sumAll = 0;
+			for (const d of desserts) {
+				sumAll += qtys[d.short_code] || 0;
+			}
+			const sumRow = new Array(colCount).fill('');
 			sumRow[4] = 'Total postres';
-			sumRow[10] = sumAll||'';
+			sumRow[colCount - 1] = sumAll || '';
 			rows.push(sumRow);
+			
+			// Column widths
 			const ws = XLSX.utils.aoa_to_sheet(rows);
-			ws['!cols'] = [ {wch:10},{wch:18},{wch:3},{wch:10},{wch:24},{wch:6},{wch:6},{wch:6},{wch:6},{wch:6},{wch:10} ];
+			const colWidths = [{wch:10},{wch:18},{wch:3},{wch:10},{wch:24}];
+			for (const d of desserts) {
+				colWidths.push({wch:6});
+			}
+			colWidths.push({wch:10});
+			ws['!cols'] = colWidths;
 			const wb = XLSX.utils.book_new();
 			XLSX.utils.book_append_sheet(wb, ws, 'Consolidado');
 			XLSX.writeFile(wb, `Consolidado_${(start||'').replaceAll('-','')}_a_${(end||'').replaceAll('-','')}.xlsx`);
