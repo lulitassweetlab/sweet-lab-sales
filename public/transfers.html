@@ -26,6 +26,7 @@
 				<div id="count-label" style="opacity:.8; font-size:12px"></div>
 			</div>
 			<div style="display:flex; gap:8px; align-items:center;">
+				<button id="user-filter-btn" class="press-btn">Filtrar usuarios</button>
 				<button id="change-range" class="press-btn">Cambiar fechas</button>
 			</div>
 		</div>
@@ -47,6 +48,9 @@
 		const empty = document.getElementById('empty');
 		const backBtn = document.getElementById('back-btn');
 		const changeBtn = document.getElementById('change-range');
+		const userFilterBtn = document.getElementById('user-filter-btn');
+		let selectedUsers = new Set(); // Set of seller IDs
+		let allSellers = [];
 
 		function buildPaySelector(sale){
 			const container = document.createElement('div');
@@ -211,6 +215,8 @@
 					return r.json();
 				};
 				const sellers = await fetchJSON('/api/sellers?include_archived=1');
+			// Filter out archived sellers and store for filter menu
+			allSellers = sellers.filter(s => !s.is_archived);
 			let found = 0;
 			countLabel.textContent = `Vendedores: ${sellers.length} · Buscando días…`;
 			// Concurrency limiter
@@ -227,7 +233,11 @@
 			}
 			// Gather days within range for each seller
 			const sellerDays = [];
-				await mapLimit(sellers, 6, async (s) => {
+			// Filter sellers by selected users if applicable
+			const filteredSellers = selectedUsers.size > 0 
+				? allSellers.filter(s => selectedUsers.has(String(s.id)))
+				: allSellers;
+				await mapLimit(filteredSellers, 6, async (s) => {
 				try {
 						const days = await fetchJSON(`/api/days?seller_id=${encodeURIComponent(s.id)}&include_archived=1`);
 					for (const d of (days||[])) {
@@ -293,6 +303,152 @@
 				load();
 			}, ev.clientX, ev.clientY, { preferUp: true });
 		});
+		
+		userFilterBtn.addEventListener('click', (ev) => {
+			openUserFilterMenu(ev.clientX, ev.clientY);
+		});
+
+		function openUserFilterMenu(anchorX, anchorY) {
+			const menu = document.createElement('div');
+			menu.className = 'pay-menu';
+			menu.style.position = 'fixed';
+			menu.style.left = anchorX + 'px';
+			menu.style.top = anchorY + 'px';
+			menu.style.transform = 'translateX(-50%)';
+			menu.style.zIndex = '1000';
+			menu.style.maxHeight = '400px';
+			menu.style.overflowY = 'auto';
+			menu.style.padding = '8px';
+			menu.style.minWidth = '200px';
+
+			// "Todos" checkbox
+			const allWrap = document.createElement('label');
+			allWrap.style.display = 'flex';
+			allWrap.style.alignItems = 'center';
+			allWrap.style.gap = '8px';
+			allWrap.style.padding = '4px 8px';
+			allWrap.style.cursor = 'pointer';
+			allWrap.style.borderBottom = '1px solid rgba(0,0,0,0.1)';
+			allWrap.style.marginBottom = '4px';
+			const allCheck = document.createElement('input');
+			allCheck.type = 'checkbox';
+			allCheck.checked = selectedUsers.size === 0;
+			const allLabel = document.createElement('span');
+			allLabel.textContent = 'Todos los usuarios';
+			allLabel.style.fontWeight = '600';
+			allWrap.append(allCheck, allLabel);
+			
+			allCheck.addEventListener('change', () => {
+				if (allCheck.checked) {
+					selectedUsers.clear();
+					// Uncheck all individual checkboxes
+					menu.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+						if (cb !== allCheck) cb.checked = false;
+					});
+				}
+			});
+
+			menu.appendChild(allWrap);
+
+			// Individual seller checkboxes
+			for (const seller of allSellers) {
+				const wrap = document.createElement('label');
+				wrap.style.display = 'flex';
+				wrap.style.alignItems = 'center';
+				wrap.style.gap = '8px';
+				wrap.style.padding = '4px 8px';
+				wrap.style.cursor = 'pointer';
+				wrap.style.borderRadius = '4px';
+				wrap.addEventListener('mouseenter', () => {
+					wrap.style.backgroundColor = 'rgba(0,0,0,0.05)';
+				});
+				wrap.addEventListener('mouseleave', () => {
+					wrap.style.backgroundColor = '';
+				});
+
+				const checkbox = document.createElement('input');
+				checkbox.type = 'checkbox';
+				checkbox.checked = selectedUsers.has(String(seller.id));
+				checkbox.dataset.sellerId = String(seller.id);
+
+				const label = document.createElement('span');
+				label.textContent = String(seller.name || '');
+
+				checkbox.addEventListener('change', () => {
+					if (checkbox.checked) {
+						selectedUsers.add(String(seller.id));
+						allCheck.checked = false;
+					} else {
+						selectedUsers.delete(String(seller.id));
+						if (selectedUsers.size === 0) {
+							allCheck.checked = true;
+						}
+					}
+				});
+
+				wrap.append(checkbox, label);
+				menu.appendChild(wrap);
+			}
+
+			// Apply button
+			const actions = document.createElement('div');
+			actions.style.display = 'flex';
+			actions.style.gap = '8px';
+			actions.style.marginTop = '8px';
+			actions.style.paddingTop = '8px';
+			actions.style.borderTop = '1px solid rgba(0,0,0,0.1)';
+			
+			const applyBtn = document.createElement('button');
+			applyBtn.className = 'press-btn btn-primary';
+			applyBtn.textContent = 'Aplicar';
+			applyBtn.style.flex = '1';
+			applyBtn.addEventListener('click', () => {
+				cleanup();
+				load();
+			});
+
+			const cancelBtn = document.createElement('button');
+			cancelBtn.className = 'press-btn';
+			cancelBtn.textContent = 'Cancelar';
+			cancelBtn.style.flex = '1';
+			cancelBtn.addEventListener('click', cleanup);
+
+			actions.append(cancelBtn, applyBtn);
+			menu.appendChild(actions);
+
+			document.body.appendChild(menu);
+
+			// Position adjustment to keep in viewport
+			const rect = menu.getBoundingClientRect();
+			let left = anchorX;
+			let top = anchorY + 8;
+			
+			if (left + rect.width / 2 > window.innerWidth - 10) {
+				left = window.innerWidth - rect.width / 2 - 10;
+			}
+			if (left - rect.width / 2 < 10) {
+				left = rect.width / 2 + 10;
+			}
+			if (top + rect.height > window.innerHeight - 10) {
+				top = anchorY - rect.height - 8;
+			}
+
+			menu.style.left = left + 'px';
+			menu.style.top = top + 'px';
+
+			function outside(e) {
+				if (!menu.contains(e.target)) cleanup();
+			}
+			function cleanup() {
+				document.removeEventListener('mousedown', outside, true);
+				document.removeEventListener('touchstart', outside, true);
+				if (menu.parentNode) menu.parentNode.removeChild(menu);
+			}
+			setTimeout(() => {
+				document.addEventListener('mousedown', outside, true);
+				document.addEventListener('touchstart', outside, true);
+			}, 0);
+		}
 
 		// Lightweight embed of openRangeCalendarPopover from app.js if not present
 		if (typeof window.openRangeCalendarPopover !== 'function') {
