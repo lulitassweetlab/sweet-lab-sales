@@ -19,6 +19,9 @@
     .editable { width: 100%; box-sizing: border-box; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--text); }
     .group-title { display:flex; align-items:center; justify-content:space-between; gap:10px; margin: 2px 0 8px 0; }
     .group-sub { display:flex; gap:8px; align-items:center; }
+    .step-group { border: 1px solid var(--border); border-radius: 10px; padding: 8px; background: var(--secondary); }
+    .step-head { display:flex; align-items:center; justify-content:space-between; gap:8px; cursor: pointer; padding-bottom: 6px; border-bottom: 1px solid var(--border); margin-bottom: 6px; }
+    .step-head .meta { display:flex; gap:8px; align-items:center; }
   </style>
 </head>
 <body>
@@ -80,14 +83,38 @@
       return map;
     }
 
-    function buildEditableRow(step){
+    function buildStepRow(entry, step, stepIndex){
       const row = document.createElement('div'); row.className = 'step-row';
-      const name = document.createElement('div'); name.textContent = step.name || 'Paso';
-      const qty = document.createElement('div'); qty.className='num'; qty.textContent = String(step.qty_units||0);
+      row.dataset.entryId = (entry.id || entry.date_iso || '').toString();
+      row.dataset.stepIndex = String(stepIndex);
+      const when = new Date(entry.date_iso || entry.id || Date.now());
+      const whenCell = document.createElement('div'); whenCell.textContent = when.toLocaleString();
+      const qty = document.createElement('div'); qty.className='num'; qty.textContent = String(entry.qty_units||0);
       const avg = document.createElement('div'); avg.className='num'; avg.textContent = fmtMs(step.avg_ms_per_unit||0);
       const edit = document.createElement('input'); edit.className='editable'; edit.placeholder='ms totales o mm:ss'; edit.value = String(step.elapsed_ms||0);
-      row.append(name, qty, avg, edit);
+      row.append(whenCell, qty, avg, edit);
       return { row, edit };
+    }
+
+    function groupStepsByName(entries){
+      const map = new Map();
+      for (const entry of entries){
+        const steps = Array.isArray(entry.steps) ? entry.steps : [];
+        for (let i=0;i<steps.length;i++){
+          const st = steps[i];
+          const key = (st.name || 'Paso').toString();
+          if (!map.has(key)) map.set(key, []);
+          map.get(key).push({ entry, step: st, index: i });
+        }
+      }
+      return map;
+    }
+
+    function goToStepDetail(dessert, stepName){
+      const url = new URL('/step-detail.html', location.origin);
+      url.searchParams.set('dessert', dessert);
+      url.searchParams.set('step', stepName);
+      location.href = url.toString();
     }
 
     function render(){
@@ -105,16 +132,31 @@
         sub.append(totalSessions, totalLabel);
         head.append(title, sub);
 
-        const body = document.createElement('div'); body.style.display='flex'; body.style.flexDirection='column'; body.style.gap='6px';
+        const body = document.createElement('div'); body.style.display='flex'; body.style.flexDirection='column'; body.style.gap='10px';
 
-        // Flatten steps across sessions
-        const stepRows = [];
-        for (const entry of entries){
-          for (const st of (entry.steps||[])){
-            const { row, edit } = buildEditableRow(st);
-            stepRows.push({ entry, step: st, edit });
-            body.appendChild(row);
+        // Group steps by name and render each group with aggregated average
+        const stepMap = groupStepsByName(entries);
+        for (const [stepName, arr] of stepMap.entries()){
+          const sg = document.createElement('div'); sg.className='step-group';
+          const sh = document.createElement('div'); sh.className='step-head';
+          const left = document.createElement('div'); left.textContent = stepName; left.style.fontWeight='600';
+          const meta = document.createElement('div'); meta.className='meta';
+          const sessionsPill = document.createElement('span'); sessionsPill.className='pill tiny'; sessionsPill.textContent = `${arr.length} sesiones`;
+          const totalQty = arr.reduce((acc, it)=> acc + (Number(it.entry.qty_units||0)||0), 0);
+          const totalMsStep = arr.reduce((acc, it)=> acc + (Number(it.step.elapsed_ms||0)||0), 0);
+          const avgPerUnit = totalQty > 0 ? Math.round(totalMsStep / totalQty) : 0;
+          const avgPill = document.createElement('span'); avgPill.className='pill tiny'; avgPill.textContent = `Promedio: ${fmtMs(avgPerUnit)}/u`;
+          meta.append(sessionsPill, avgPill);
+          sh.append(left, meta);
+          sh.addEventListener('click', () => goToStepDetail(dessert, stepName));
+
+          const sb = document.createElement('div'); sb.style.display='flex'; sb.style.flexDirection='column'; sb.style.gap='6px';
+          for (const it of arr){
+            const { row } = buildStepRow(it.entry, it.step, it.index);
+            sb.appendChild(row);
           }
+          sg.append(sh, sb);
+          body.appendChild(sg);
         }
 
         card.append(head, body);
@@ -133,24 +175,19 @@
 
     function collectAndSave(){
       const items = readHistory();
-      // Walk DOM to collect edits back into the same objects
-      const groups = groupByDessert(items);
-      let cardIdx = 0;
-      const cards = Array.from(groupsWrap.children);
-      for (const [dessert, entries] of groups.entries()){
-        const card = cards[cardIdx++];
-        if (!card) continue;
-        const rows = card.querySelectorAll('.step-row');
-        let rowIdx = 0;
-        for (const entry of entries){
-          for (const st of (entry.steps||[])){
-            const row = rows[rowIdx++]; if (!row) continue;
-            const input = row.querySelector('input.editable');
-            const parsed = parseMsString(input.value);
-            if (!Number.isNaN(parsed)) st.elapsed_ms = parsed;
-          }
-          recompute(entry);
-        }
+      const byId = new Map(items.map(it => [String(it.id||it.date_iso||''), it]));
+      const allRows = groupsWrap.querySelectorAll('.step-row');
+      for (const row of allRows){
+        const entryId = String(row.dataset.entryId||'');
+        const stepIndex = Number(row.dataset.stepIndex||-1);
+        if (!byId.has(entryId) || stepIndex < 0) continue;
+        const entry = byId.get(entryId);
+        const steps = Array.isArray(entry.steps) ? entry.steps : [];
+        if (!steps[stepIndex]) continue;
+        const input = row.querySelector('input.editable');
+        const parsed = parseMsString(input.value);
+        if (!Number.isNaN(parsed)) steps[stepIndex].elapsed_ms = parsed;
+        recompute(entry);
       }
       writeHistory(items);
       alert('Cambios guardados');

@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Detalle del Paso</title>
+  <link rel="stylesheet" href="/styles.css?v=2025-09-17-1" />
+  <style>
+    .detail-panel { background: var(--card); border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 1px 2px rgba(0,0,0,0.06); overflow: hidden; margin-top: 8px; }
+    .detail-panel .panel-header { background: var(--secondary); padding: 8px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .grid { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(160px, 1fr); gap: 10px; overflow-x: auto; padding-bottom: 8px; }
+    .col { border: 1px solid var(--border); border-radius: 10px; background: var(--card); padding: 10px; min-width: 180px; }
+    .col h4 { margin: 0 0 6px 0; font-size: 14px; }
+    .row { display: grid; grid-template-columns: 1fr; gap: 6px; }
+    .cell { border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; background: var(--secondary); }
+    .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .avg-col { background: linear-gradient(180deg, rgba(255,77,166,0.12), rgba(255,77,166,0.06)); border-color: #ff4da6; }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-row">
+      <div class="header-left">
+        <img src="/logo.png" alt="Lulitas Logo" class="app-logo" />
+        <h1 id="title">Detalle del Paso</h1>
+      </div>
+      <div class="header-actions">
+        <button id="back-btn" class="press-btn">Volver</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="detail-panel">
+    <div class="panel-header">
+      <h3 id="subtitle">Cargando…</h3>
+      <div class="panel-actions">
+        <button id="save-btn" class="press-btn btn-primary">Guardar cambios</button>
+      </div>
+    </div>
+    <div class="panel-body" style="padding:12px">
+      <div id="grid" class="grid"></div>
+    </div>
+  </main>
+
+  <script type="module">
+  (function(){
+    const qs = new URLSearchParams(location.search);
+    const dessert = qs.get('dessert') || '';
+    const stepName = qs.get('step') || '';
+
+    const backBtn = document.getElementById('back-btn');
+    const saveBtn = document.getElementById('save-btn');
+    const title = document.getElementById('title');
+    const subtitle = document.getElementById('subtitle');
+    const grid = document.getElementById('grid');
+
+    function readHistory(){ try { return JSON.parse(localStorage.getItem('timesHistory') || '[]') || []; } catch { return []; } }
+    function writeHistory(arr){ try { localStorage.setItem('timesHistory', JSON.stringify(arr)); } catch {} }
+
+    function fmtMs(ms){
+      const total=Math.max(0,Math.floor(ms/1000));
+      const h=Math.floor(total/3600); const m=Math.floor((total%3600)/60); const s=total%60; const pad=n=>String(n).padStart(2,'0');
+      return (h>0?`${h}:`:'')+`${pad(m)}:${pad(s)}`;
+    }
+    function parseMsString(v){
+      if (typeof v !== 'string') return NaN;
+      const parts = v.trim().split(':').map(p=>p.trim());
+      if (parts.length === 3) { const [h,m,s] = parts.map(n=>Number(n)||0); return ((h*60+m)*60+s)*1000; }
+      if (parts.length === 2) { const [m,s] = parts.map(n=>Number(n)||0); return ((m*60)+s)*1000; }
+      const num = Number(v); if (!Number.isNaN(num)) return num; return NaN;
+    }
+
+    function recompute(entry){
+      const qty = Number(entry.qty_units||0)||0;
+      for (const st of (entry.steps||[])){
+        const ms = Number(st.elapsed_ms||0)||0;
+        st.avg_ms_per_unit = qty > 0 ? Math.round(ms / qty) : 0;
+      }
+      entry.total_elapsed_ms = (entry.steps||[]).reduce((acc, s)=> acc + (Number(s.elapsed_ms||0)||0), 0);
+    }
+
+    function render(){
+      title.textContent = `Paso: ${stepName}`;
+      subtitle.textContent = dessert ? `Postre: ${dessert}` : 'Sin postre';
+      grid.innerHTML = '';
+
+      const items = readHistory().filter(it => (it.dessert||'') === dessert);
+      // Build columns: one per session + final average column
+      const cols = [];
+      let sumQty = 0; let sumElapsed = 0; let count = 0;
+      for (const entry of items){
+        const st = (entry.steps||[]).find(s => (s.name||'') === stepName);
+        if (!st) continue;
+        const col = document.createElement('div'); col.className='col';
+        const when = new Date(entry.date_iso || entry.id || Date.now());
+        const h4 = document.createElement('h4'); h4.textContent = when.toLocaleString();
+        const row = document.createElement('div'); row.className='row';
+
+        const qtyCell = document.createElement('div'); qtyCell.className='cell num'; qtyCell.textContent = `Cant: ${entry.qty_units||0}`;
+        const timeInput = document.createElement('input'); timeInput.className='cell editable'; timeInput.value = String(st.elapsed_ms||0); timeInput.placeholder='ms o mm:ss';
+        timeInput.dataset.entryId = String(entry.id||entry.date_iso||'');
+        timeInput.dataset.stepName = String(stepName);
+
+        row.append(qtyCell, timeInput);
+        col.append(h4, row);
+        grid.appendChild(col);
+        cols.push({ entry, st, timeInput });
+
+        sumQty += Number(entry.qty_units||0)||0;
+        sumElapsed += Number(st.elapsed_ms||0)||0;
+        count++;
+      }
+
+      // Average column
+      const avgCol = document.createElement('div'); avgCol.className='col avg-col';
+      const h4 = document.createElement('h4'); h4.textContent = 'Promedio';
+      const row = document.createElement('div'); row.className='row';
+      const avgPerUnit = sumQty > 0 ? Math.round(sumElapsed / sumQty) : 0;
+      const avgCell = document.createElement('div'); avgCell.className='cell num'; avgCell.textContent = `${fmtMs(avgPerUnit)}/u`;
+      row.append(avgCell);
+      avgCol.append(h4, row);
+      grid.appendChild(avgCol);
+
+      function save(){
+        const items = readHistory();
+        const byId = new Map(items.map(it => [String(it.id||it.date_iso||''), it]));
+        for (const { timeInput } of cols){
+          const entryId = String(timeInput.dataset.entryId||'');
+          const entry = byId.get(entryId); if (!entry) continue;
+          const steps = Array.isArray(entry.steps) ? entry.steps : [];
+          const st = steps.find(s => (s.name||'') === stepName); if (!st) continue;
+          const parsed = parseMsString(timeInput.value);
+          if (!Number.isNaN(parsed)) st.elapsed_ms = parsed;
+          recompute(entry);
+        }
+        localStorage.setItem('timesHistory', JSON.stringify(items));
+        alert('Cambios guardados');
+      }
+
+      saveBtn.onclick = save;
+    }
+
+    backBtn.addEventListener('click', () => history.back());
+    render();
+  })();
+  </script>
+</body>
+</html>
