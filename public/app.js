@@ -1256,6 +1256,10 @@ async function loadSales() {
             state.clientSuggestions = arr;
         } catch { state.clientSuggestions = []; }
 	} catch { state.clientCounts = new Map(); }
+	
+	// Ensure desserts are loaded before rendering table
+	await loadDesserts();
+	
 	renderTable();
 	preloadChangeLogsForCurrentTable();
 }
