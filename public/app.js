@@ -1119,6 +1119,141 @@ function wireDeliveredRowEditors() {
     }
 }
 
+// New order popover: allow entering client and quantities before creating the row
+function openNewSalePopover(anchorX, anchorY) {
+    try {
+        const pop = document.createElement('div');
+        pop.className = 'new-sale-popover';
+        pop.style.position = 'fixed';
+        const isSmall = window.matchMedia('(max-width: 640px)').matches;
+        if (typeof anchorX === 'number' && typeof anchorY === 'number' && !isSmall) {
+            pop.style.left = anchorX + 'px';
+            pop.style.top = anchorY + 'px';
+            pop.style.transform = 'translate(-50%, 0)';
+        } else {
+            pop.style.left = '50%';
+            pop.style.top = '20%';
+            pop.style.transform = 'translate(-50%, 0)';
+        }
+
+        const title = document.createElement('h4');
+        title.textContent = 'Nuevo pedido';
+        title.style.margin = '0 0 8px 0';
+
+        const grid = document.createElement('div');
+        grid.className = 'new-sale-grid';
+
+        function makeLabel(text) {
+            const lbl = document.createElement('label');
+            lbl.className = 'new-sale-label';
+            lbl.textContent = text;
+            return lbl;
+        }
+
+        // Client row
+        const clientInput = document.createElement('input');
+        clientInput.type = 'text';
+        clientInput.placeholder = 'Nombre del cliente';
+        clientInput.className = 'input-cell client-input';
+        clientInput.autocomplete = 'off';
+        try { wireClientAutocompleteForInput(clientInput); } catch {}
+        grid.appendChild(makeLabel('Cliente'));
+        grid.appendChild(clientInput);
+
+        // Dessert rows (fixed to current sales columns)
+        const dessertDefs = [
+            { key: 'arco', label: 'Arco' },
+            { key: 'melo', label: 'Melo' },
+            { key: 'mara', label: 'Mara' },
+            { key: 'oreo', label: 'Oreo' },
+            { key: 'nute', label: 'Nute' },
+        ];
+        const qtyInputs = {};
+        for (const d of dessertDefs) {
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.min = '0';
+            input.step = '1';
+            input.inputMode = 'numeric';
+            input.placeholder = '0';
+            input.className = 'input-cell input-qty';
+            qtyInputs[d.key] = input;
+            grid.appendChild(makeLabel(d.label));
+            grid.appendChild(input);
+        }
+
+        const actions = document.createElement('div');
+        actions.className = 'confirm-actions';
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'press-btn';
+        cancelBtn.textContent = 'Cancelar';
+        const saveBtn = document.createElement('button');
+        saveBtn.className = 'press-btn btn-primary';
+        saveBtn.textContent = 'Guardar';
+        actions.append(cancelBtn, saveBtn);
+
+        pop.append(title, grid, actions);
+        document.body.appendChild(pop);
+        pop.classList.add('aladdin-pop');
+
+        function cleanup() {
+            document.removeEventListener('mousedown', outside, true);
+            document.removeEventListener('touchstart', outside, true);
+            if (pop.parentNode) pop.parentNode.removeChild(pop);
+        }
+        function outside(ev) { if (!pop.contains(ev.target)) cleanup(); }
+        setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
+        cancelBtn.addEventListener('click', cleanup);
+
+        // Focus client by default
+        setTimeout(() => { try { clientInput.focus(); clientInput.select(); } catch {} }, 0);
+
+        async function doSave() {
+            try {
+                saveBtn.disabled = true; cancelBtn.disabled = true;
+                const sellerId = state?.currentSeller?.id;
+                if (!sellerId) { try { notify.error('Selecciona un vendedor'); } catch {} return; }
+                const payload = { seller_id: sellerId };
+                if (state?.selectedDayId) payload.sale_day_id = state.selectedDayId;
+                const created = await api('POST', API.Sales, payload);
+                const body = {
+                    id: created.id,
+                    client_name: (clientInput.value || '').trim(),
+                    qty_arco: Math.max(0, parseInt(qtyInputs.arco.value || '0', 10) || 0),
+                    qty_melo: Math.max(0, parseInt(qtyInputs.melo.value || '0', 10) || 0),
+                    qty_mara: Math.max(0, parseInt(qtyInputs.mara.value || '0', 10) || 0),
+                    qty_oreo: Math.max(0, parseInt(qtyInputs.oreo.value || '0', 10) || 0),
+                    qty_nute: Math.max(0, parseInt(qtyInputs.nute.value || '0', 10) || 0),
+                    is_paid: false,
+                    pay_method: null,
+                    _actor_name: state.currentUser?.name || ''
+                };
+                const updated = await api('PUT', API.Sales, body);
+                // Prepend and render
+                state.sales.unshift(updated);
+                renderTable();
+                try { notify.success('Guardado exitosamente'); } catch {}
+                cleanup();
+            } catch (e) {
+                try { notify.error('No se pudo guardar'); } catch {}
+                saveBtn.disabled = false; cancelBtn.disabled = false;
+            }
+        }
+
+        saveBtn.addEventListener('click', doSave);
+        // Submit on Enter in any input
+        const allInputs = [clientInput, ...Object.values(qtyInputs)];
+        allInputs.forEach((el) => {
+            el.addEventListener('keydown', (ev) => {
+                if (ev.key === 'Enter') { ev.preventDefault(); doSave(); }
+            });
+        });
+    } catch (e) {
+        // Fallback to old inline add if popover fails
+        try { addRow(); } catch {}
+    }
+}
+
 // Wrap API operations to record undo/redo
 async function addRow() {
 	const sellerId = state.currentSeller.id;
@@ -2169,7 +2304,10 @@ function bindEvents() {
         } catch {}
     });
 
-    $('#add-row').addEventListener('click', addRow);
+    $('#add-row').addEventListener('click', (ev) => {
+        const rect = ev.currentTarget.getBoundingClientRect();
+        openNewSalePopover(rect.left + rect.width / 2, rect.bottom + 8);
+    });
 	$('#go-home').addEventListener('click', () => {
 		state.currentSeller = null;
 		state.sales = [];
@@ -4537,7 +4675,11 @@ async function goToSaleFromNotification(sellerId, saleDayId, saleId) {
 })();
 
 (function bindBottomAdd(){
-	document.getElementById('add-row-bottom')?.addEventListener('click', addRow);
+    const btn = document.getElementById('add-row-bottom');
+    btn?.addEventListener('click', (ev) => {
+        const rect = ev.currentTarget.getBoundingClientRect();
+        openNewSalePopover(rect.left + rect.width / 2, rect.top - 8);
+    });
 })();
 
 // Open a dedicated page to upload a receipt image for the given sale id
