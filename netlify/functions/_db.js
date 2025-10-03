@@ -551,24 +551,39 @@ export async function recalcTotalForId(id) {
 		WHERE sale_id = ${id}
 	`;
 	
+	let row;
 	if (itemsTotal && itemsTotal[0] && itemsTotal[0].total > 0) {
 		// Update using sale_items
-		const [row] = await sql`
+		[row] = await sql`
 			UPDATE sales SET total_cents = ${itemsTotal[0].total}
 			WHERE id = ${id}
 			RETURNING *
 		`;
-		return row;
 	} else {
 		// Fallback to old system for backward compatibility
 		const p = prices();
-		const [row] = await sql`
+		[row] = await sql`
 			UPDATE sales SET total_cents = qty_arco * ${p.arco} + qty_melo * ${p.melo} + qty_mara * ${p.mara} + qty_oreo * ${p.oreo} + qty_nute * ${p.nute}
 			WHERE id = ${id}
 			RETURNING *
 		`;
-		return row;
 	}
+	
+	// Load sale_items to include in response
+	try {
+		const items = await sql`
+			SELECT si.id, si.dessert_id, si.quantity, si.unit_price, d.name, d.short_code
+			FROM sale_items si
+			JOIN desserts d ON d.id = si.dessert_id
+			WHERE si.sale_id = ${id}
+			ORDER BY d.position ASC, d.id ASC
+		`;
+		row.items = items || [];
+	} catch (err) {
+		row.items = [];
+	}
+	
+	return row;
 }
 
 export async function getOrCreateDayId(sellerId, day) {
