@@ -51,10 +51,15 @@ export async function handler(event) {
 					LEFT JOIN dessert_order o ON lower(o.dessert) = lower(d.dessert)
 					ORDER BY COALESCE(o.position, 1000000) ASC, d.dessert ASC
 				`;
-                // Attach sale prices in a map
-                const ps = await sql`SELECT dessert, sale_price FROM dessert_meta`;
-                const byDessert = new Map(); for (const p of (ps||[])) byDessert.set((p.dessert||'').toString().toLowerCase(), Number(p.sale_price||0)||0);
-                return json(ds.map(r => ({ name: r.dessert, sale_price: byDessert.get((r.dessert||'').toLowerCase()) || 0 })));
+                const raw = typeof event.rawQuery === 'string' ? event.rawQuery : (event.queryStringParameters ? new URLSearchParams(event.queryStringParameters).toString() : '');
+                const qp = new URLSearchParams(raw);
+                const withPrices = (qp.get('with_prices') === '1' || qp.get('with_prices') === 'true');
+                if (withPrices) {
+                    const ps = await sql`SELECT dessert, sale_price FROM dessert_meta`;
+                    const byDessert = new Map(); for (const p of (ps||[])) byDessert.set((p.dessert||'').toString().toLowerCase(), Number(p.sale_price||0)||0);
+                    return json(ds.map(r => ({ name: r.dessert, sale_price: byDessert.get((r.dessert||'').toLowerCase()) || 0 })));
+                }
+                return json(ds.map(r => r.dessert));
 			}
 			case 'POST': {
 				const data = JSON.parse(event.body || '{}');

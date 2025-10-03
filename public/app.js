@@ -202,6 +202,7 @@ const PRICES = {
 // Dynamic desserts (beyond the 5 fixed flavors)
 let DYNAMIC_DESSERTS = [];
 let DESSERT_KEY_TO_NAME = new Map();
+let PRICE_MAP = { arco: PRICES.arco, melo: PRICES.melo, mara: PRICES.mara, oreo: PRICES.oreo, nute: PRICES.nute };
 function normalizeDessertKey(name){ const k=(name||'').toString().trim().toLowerCase(); if (k.startsWith('arco')) return 'arco'; if (k.startsWith('melo')) return 'melo'; if (k.startsWith('mara')) return 'mara'; if (k.startsWith('oreo')) return 'oreo'; if (k.startsWith('nute')) return 'nute'; return k.replace(/\s+/g,' '); }
 async function ensureDynamicDesserts(){
     try {
@@ -215,6 +216,21 @@ async function ensureDynamicDesserts(){
             if (!base.has(key)) DYNAMIC_DESSERTS.push({ key, label: n });
         }
     } catch { DYNAMIC_DESSERTS = []; DESSERT_KEY_TO_NAME = new Map(); }
+}
+
+async function ensurePriceMap(){
+    try {
+        const arr = await api('GET', `${API.Recipes}?with_prices=1`);
+        // Reset price map to defaults
+        PRICE_MAP = { arco: PRICES.arco, melo: PRICES.melo, mara: PRICES.mara, oreo: PRICES.oreo, nute: PRICES.nute };
+        for (const it of (arr||[])){
+            const name = (typeof it === 'string') ? it : (it?.name || '');
+            const price = Number((typeof it === 'object' ? it?.sale_price : 0) || 0) || 0;
+            if (!name) continue;
+            const k = normalizeDessertKey(name);
+            if (price > 0) PRICE_MAP[k] = price;
+        }
+    } catch {}
 }
 
 const fmtNo = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 });
@@ -826,12 +842,12 @@ function calcRowTotal(q) {
 	const mara = Number(q.mara || 0);
 	const oreo = Number(q.oreo || 0);
 	const nute = Number(q.nute || 0);
-	let base = arco * PRICES.arco + melo * PRICES.melo + mara * PRICES.mara + oreo * PRICES.oreo + nute * PRICES.nute;
+	let base = arco * (PRICE_MAP.arco||PRICES.arco) + melo * (PRICE_MAP.melo||PRICES.melo) + mara * (PRICE_MAP.mara||PRICES.mara) + oreo * (PRICE_MAP.oreo||PRICES.oreo) + nute * (PRICE_MAP.nute||PRICES.nute);
 	if (q.extra && typeof q.extra === 'object') {
 		for (const [key, qty] of Object.entries(q.extra)) {
 			const v = Number(qty||0)||0; if (!v) continue;
-			// No price assigned for dynamic desserts; ignore in total for now
-			base += 0;
+			const k = normalizeDessertKey(key);
+			base += v * (PRICE_MAP[k] || 0);
 		}
 	}
 	return base;
@@ -1035,7 +1051,8 @@ async function loadSales() {
 	const sellerId = state.currentSeller.id;
 	const params = new URLSearchParams({ seller_id: String(sellerId) });
 	if (state.selectedDayId) params.set('sale_day_id', String(state.selectedDayId));
-	await ensureDynamicDesserts();
+    await ensureDynamicDesserts();
+    await ensurePriceMap();
 	state.sales = await api('GET', `${API.Sales}?${params.toString()}`);
 	// Build recurrence counts across all dates for this seller
 	try {
@@ -3315,8 +3332,8 @@ async function renderMeasuresView() {
 	if (!root) return;
 	root.innerHTML = '';
 	// Fetch desserts and recipe aggregates
-	let dessertNames = [];
-	try { dessertNames = await api('GET', API.Recipes); } catch { dessertNames = []; }
+    let dessertNames = [];
+    try { dessertNames = await api('GET', `${API.Recipes}?with_prices=1`); } catch { dessertNames = []; }
 	if (!dessertNames || dessertNames.length === 0) {
 		try { await api('GET', `${API.Recipes}?seed=1`); dessertNames = await api('GET', API.Recipes); } catch {}
 	}
@@ -3326,7 +3343,7 @@ async function renderMeasuresView() {
 	const counts = new Map();
 	function normalizeKey(name){ const k = String(name||'').trim().toLowerCase(); if (k.startsWith('arco')) return 'arco'; if (k.startsWith('melo')) return 'melo'; if (k.startsWith('mara')) return 'mara'; if (k.startsWith('oreo')) return 'oreo'; if (k.startsWith('nute')) return 'nute'; return k; }
 	const byKey = new Map();
-	for (const name of (dessertNames||[])) { const key = normalizeKey(name); byKey.set(key, name); }
+    for (const it of (dessertNames||[])) { const name = (typeof it === 'string') ? it : (it?.name || ''); const key = normalizeKey(name); byKey.set(key, name); }
 	for (const [k, name] of byKey.entries()) {
 		const row = document.createElement('div'); row.className = 'measures-row'; row.style.display = 'flex'; row.style.alignItems = 'center'; row.style.justifyContent = 'center'; row.style.gap = '8px'; row.style.border = '1px solid rgba(0,0,0,0.12)'; row.style.borderRadius = '10px'; row.style.padding = '8px 10px'; row.style.cursor = 'pointer'; row.style.background = 'white';
 		const label = document.createElement('div'); label.textContent = name; label.style.fontWeight = '600'; label.style.textAlign = 'center'; label.style.flex = '1';
