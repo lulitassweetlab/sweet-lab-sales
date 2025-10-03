@@ -1851,12 +1851,13 @@ function debounce(fn, ms) {
 
 function exportTableToExcel() {
 	try {
-		// Check if XLSX library is loaded
-		if (typeof XLSX === 'undefined') {
+		// Check if XLSX library is loaded (use window.XLSX for module compatibility)
+		if (typeof window.XLSX === 'undefined') {
 			notify.error('Error: Librería Excel no cargada');
 			console.error('XLSX library is not loaded');
 			return;
 		}
+		const XLSX = window.XLSX;
 
 		// Build SheetJS worksheet from rows
 		const header = ['$', 'Pago', 'Cliente', 'Arco', 'Melo', 'Mara', 'Oreo', 'Nute', 'Total'];
@@ -1966,6 +1967,7 @@ async function exportConsolidatedForDate(dayIso) {
 	// Add total count of all desserts
 	const tSumAll = (tQa || 0) + (tQm || 0) + (tQma || 0) + (tQo || 0) + (tQn || 0);
 	rows.push(['', '', '', 'Total postres', '', '', '', '', '', tSumAll || '']);
+	const XLSX = window.XLSX;
 	const ws = XLSX.utils.aoa_to_sheet(rows);
 	ws['!cols'] = [ {wch:18},{wch:3},{wch:10},{wch:24},{wch:6},{wch:6},{wch:6},{wch:6},{wch:6},{wch:10} ];
 	const wb = XLSX.utils.book_new();
@@ -2006,6 +2008,7 @@ async function exportConsolidatedForDates(isoList) {
 	// Add total count of all desserts across selected dates
 	const tSumAll = (tQa || 0) + (tQm || 0) + (tQma || 0) + (tQo || 0) + (tQn || 0);
 	rows.push(['', '', '', '', 'Total postres', '', '', '', '', '', tSumAll || '']);
+	const XLSX = window.XLSX;
 	const ws = XLSX.utils.aoa_to_sheet(rows);
 	ws['!cols'] = [ {wch:10},{wch:18},{wch:3},{wch:10},{wch:24},{wch:6},{wch:6},{wch:6},{wch:6},{wch:6},{wch:10} ];
 	const wb = XLSX.utils.book_new();
@@ -2054,6 +2057,7 @@ async function exportCarteraExcel(startIso, endIso) {
 		}
 	}
 	rows.push(['','','','','Totales','','','','','', totalGrand || '']);
+	const XLSX = window.XLSX;
 	const ws = XLSX.utils.aoa_to_sheet(rows);
 	ws['!cols'] = [ {wch:10},{wch:18},{wch:24},{wch:10},{wch:3},{wch:6},{wch:6},{wch:6},{wch:6},{wch:6},{wch:10} ];
 	const wb = XLSX.utils.book_new();
@@ -2403,6 +2407,7 @@ function openMaterialsMenu(anchorX, anchorY) {
 
 async function exportUsersExcel() {
 	try {
+		const XLSX = window.XLSX;
 		const users = await api('GET', API.Users);
 		const rows = (users || []).map(u => ({ Usuario: u.username, Contraseña: u.password_hash }));
 		const ws = XLSX.utils.json_to_sheet(rows);
@@ -2472,7 +2477,14 @@ function bindEvents() {
 	// Admin-only: Restore bugged sales
 	// (botón de reporte eliminado)
 
-	document.getElementById('export-excel')?.addEventListener('click', exportTableToExcel);
+	// Export Excel button - ensure event is attached
+	const exportExcelBtn = document.getElementById('export-excel');
+	if (exportExcelBtn) {
+		exportExcelBtn.addEventListener('click', (e) => {
+			e.preventDefault();
+			exportTableToExcel();
+		});
+	}
 
 	const backIngredients = document.getElementById('ingredients-back');
 	backIngredients?.addEventListener('click', () => {
