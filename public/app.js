@@ -214,6 +214,7 @@ const state = {
 const notify = (() => {
 	const container = () => document.getElementById('toast-container');
 	const STORAGE_KEY = 'notify_log_v1';
+	const STORAGE_HIDE_KEY = 'notify_hide_ids_v1';
 	let notifIcon = '/logo.png';
 	function buildPinkIcon() {
 		try {
@@ -245,6 +246,15 @@ const notify = (() => {
 	function writeLog(items) {
 		try { localStorage.setItem(STORAGE_KEY, JSON.stringify(items.slice(-200))); } catch {}
 		refreshUnreadDot();
+	}
+	function readHideSet() {
+		try {
+			const raw = JSON.parse(localStorage.getItem(STORAGE_HIDE_KEY) || '[]');
+			return new Set(Array.isArray(raw) ? raw : []);
+		} catch { return new Set(); }
+	}
+	function writeHideSet(set) {
+		try { localStorage.setItem(STORAGE_HIDE_KEY, JSON.stringify(Array.from(set))); } catch {}
 	}
 	function pushLog(entry) {
 		const list = readLog();
@@ -354,45 +364,127 @@ const notify = (() => {
 		header.append(title, actions);
 		const body = document.createElement('div'); body.className = 'notif-body';
 		const toolbar = document.createElement('div'); toolbar.className = 'notif-toolbar';
-		const info = document.createElement('div'); info.style.fontSize = '12px'; info.style.opacity = '0.8'; info.textContent = 'Últimas 200 notificaciones';
-		toolbar.append(info);
+		const info = document.createElement('div'); info.style.fontSize = '12px'; info.style.opacity = '0.8'; info.textContent = 'Historial del servidor (más recientes primero)';
+		const loadMoreBtn = document.createElement('button'); loadMoreBtn.className = 'notif-btn'; loadMoreBtn.textContent = 'Cargar más';
+		toolbar.append(info, loadMoreBtn);
 		const list = document.createElement('div'); list.className = 'notif-list';
-		function renderList() {
+		let seenIds = new Set();
+		let minLoadedId = null; // track smallest id loaded (for before_id)
+		let serverMode = true;
+		function renderLocalList() {
 			list.innerHTML = '';
 			let data = [];
 			try { data = readLog(); } catch { data = []; }
 			if (!Array.isArray(data) || data.length === 0) {
 				const empty = document.createElement('div'); empty.className = 'notif-empty'; empty.textContent = 'Sin notificaciones'; list.appendChild(empty); return;
 			}
-			// Más recientes primero
 			for (const it of data.slice(-200).reverse()) {
-				const item = document.createElement('div'); item.className = 'notif-item';
-				item.style.gridTemplateColumns = '1fr auto';
-				const when = document.createElement('div'); when.className = 'when';
-				const d = new Date(it.when || it.created_at); when.textContent = isNaN(d.getTime()) ? String(it.when || it.created_at || '') : d.toLocaleString();
-				const text = document.createElement('div'); text.className = 'text';
-				const txt = document.createElement('span'); txt.textContent = String(it.text || it.message || '');
-				text.appendChild(txt);
-				const delBtn = document.createElement('button'); delBtn.type = 'button'; delBtn.className = 'notif-del'; delBtn.title = 'Eliminar'; delBtn.textContent = '🗑';
-				delBtn.addEventListener('click', (e) => {
-					e.stopPropagation();
-					try {
-						const all = (readLog() || []).filter(x => x && x.id !== it.id);
-						writeLog(all);
-						renderList();
-					} catch {}
+				appendItem({
+					id: it.id,
+					when: it.when,
+					text: it.text,
+					isServer: false,
+					original: it
 				});
-				// Layout: when + delete on first row, text spanning full width below
-				item.append(when, delBtn, text);
-				text.style.gridColumn = '1 / -1';
-				list.appendChild(item);
 			}
+		}
+		function appendItem(opts) {
+			const { id, when, text, isServer, original } = opts;
+			if (isServer) {
+				if (seenIds.has(id)) return; // de-dup
+				const hidden = readHideSet();
+				if (hidden.has(String(id))) return; // locally hidden
+				seenIds.add(id);
+				minLoadedId = (minLoadedId == null) ? id : Math.min(minLoadedId, id);
+			}
+			const item = document.createElement('div'); item.className = 'notif-item';
+			item.style.gridTemplateColumns = '1fr auto';
+			const whenEl = document.createElement('div'); whenEl.className = 'when';
+			const d = new Date(when); whenEl.textContent = isNaN(d.getTime()) ? String(when || '') : d.toLocaleString();
+			const textEl = document.createElement('div'); textEl.className = 'text';
+			// Optional icon if server provided icon_url or pay_method
+			if (isServer) {
+				try {
+					let url = original.icon_url || null;
+					const pm = (original.pay_method || '').toString();
+					if (!url && pm) {
+						url = pm === 'efectivo' ? '/icons/bill.svg' : pm === 'transf' ? '/icons/bank.svg' : pm === 'jorgebank' ? '/icons/bank-yellow.svg' : pm === 'marce' ? '/icons/marce7.svg?v=1' : pm === 'jorge' ? '/icons/jorge7.svg?v=1' : null;
+					}
+					if (url) {
+						const icon = document.createElement('span'); icon.className = 'notif-icon'; icon.style.backgroundImage = `url('${url}')`;
+						textEl.appendChild(icon);
+					}
+				} catch {}
+			}
+			const txt = document.createElement('span'); txt.textContent = String(text || '');
+			textEl.appendChild(txt);
+			const delBtn = document.createElement('button'); delBtn.type = 'button'; delBtn.className = 'notif-del'; delBtn.title = 'Eliminar'; delBtn.textContent = '🗑';
+			delBtn.addEventListener('click', (e) => {
+				e.stopPropagation();
+				try {
+					if (isServer) {
+						const hidden = readHideSet(); hidden.add(String(id)); writeHideSet(hidden);
+						item.remove();
+					} else {
+						const all = (readLog() || []).filter(x => x && x.id !== id);
+						writeLog(all);
+						item.remove();
+					}
+				} catch {}
+			});
+			item.append(whenEl, delBtn, textEl);
+			textEl.style.gridColumn = '1 / -1';
+			if (isServer) {
+				item.style.cursor = 'pointer';
+				item.addEventListener('click', () => {
+					cleanup();
+					setTimeout(() => {
+						goToSaleFromNotification(
+							original.seller_id ?? original.sellerId ?? null,
+							original.sale_day_id ?? original.saleDay_id ?? original.sale_dayId ?? original.saleDayId ?? null,
+							original.sale_id ?? original.saleId ?? null
+						);
+					}, 0);
+				});
+			}
+			list.appendChild(item);
+		}
+		async function fetchInitial() {
+			serverMode = true;
+			list.innerHTML = '';
+			seenIds = new Set();
+			minLoadedId = null;
+			try {
+				const res = await fetch('/api/notifications?limit=50');
+				if (!res.ok) throw new Error('bad');
+				const data = await res.json();
+				if (!Array.isArray(data) || data.length === 0) throw new Error('empty');
+				for (const it of data) {
+					appendItem({ id: Number(it.id), when: it.created_at || it.when, text: it.message || it.text, isServer: true, original: it });
+				}
+			} catch {
+				serverMode = false;
+				renderLocalList();
+			}
+		}
+		async function loadMore() {
+			if (!serverMode || !minLoadedId) { renderLocalList(); return; }
+			try {
+				const res = await fetch(`/api/notifications?before_id=${encodeURIComponent(minLoadedId)}&limit=100`);
+				if (!res.ok) return;
+				const data = await res.json();
+				if (!Array.isArray(data) || data.length === 0) return;
+				for (const it of data) {
+					appendItem({ id: Number(it.id), when: it.created_at || it.when, text: it.message || it.text, isServer: true, original: it });
+				}
+			} catch {}
 		}
 		body.append(toolbar, list);
 		dlg.append(header, body);
 		backdrop.appendChild(dlg);
 		document.body.appendChild(backdrop);
-		renderList();
+		loadMoreBtn.addEventListener('click', () => { loadMore(); });
+		fetchInitial();
 		// mark all as read
 		try {
 			const data = readLog();
@@ -403,7 +495,7 @@ const notify = (() => {
 		function cleanup(){ if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop); }
 		backdrop.addEventListener('click', (e) => { if (e.target === backdrop) cleanup(); });
 		closeBtn.addEventListener('click', cleanup);
-		clearBtn.addEventListener('click', () => { writeLog([]); renderList(); });
+		clearBtn.addEventListener('click', () => { writeLog([]); if (!serverMode) { renderLocalList(); } });
 		permBtn.addEventListener('click', async () => {
 			const res = await ensurePermission();
 			if (res === 'granted') { render('success', 'Notificaciones activadas'); showBrowser('Sweet Lab', 'Notificaciones activadas'); }
