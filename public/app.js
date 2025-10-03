@@ -975,7 +975,7 @@ function calcRowTotal(q) {
 	// Support both old format and new dynamic format
 	let total = 0;
 	
-	// If using items array (new format) - PRIORITY
+	// If using items array (new format) - only if array has elements
 	if (Array.isArray(q.items) && q.items.length > 0) {
 		for (const item of q.items) {
 			total += Number(item.quantity || 0) * Number(item.unit_price || 0);
@@ -999,7 +999,7 @@ function formatSaleSummary(sale) {
 	const name = (sale.client_name || '').trim() || 'Cliente';
 	const parts = [];
 	
-	// Support new items format
+	// Support new items format (only if array has elements)
 	if (Array.isArray(sale.items) && sale.items.length > 0) {
 		for (const item of sale.items) {
 			const qty = Number(item.quantity || 0);
@@ -1036,7 +1036,7 @@ function createDessertQtyCell(sale, dessert, tr) {
 	
 	// Get quantity from sale - support both formats
 	let qty = 0;
-	if (Array.isArray(sale.items)) {
+	if (Array.isArray(sale.items) && sale.items.length > 0) {
 		const item = sale.items.find(i => i.dessert_id === dessert.id || i.short_code === dessert.short_code);
 		qty = item ? Number(item.quantity || 0) : 0;
 	} else {
@@ -1259,6 +1259,7 @@ async function loadSales() {
 	
 	// Ensure desserts are loaded before rendering table
 	await loadDesserts();
+	renderDessertColumns();
 	
 	renderTable();
 	preloadChangeLogsForCurrentTable();
