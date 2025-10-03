@@ -38,10 +38,10 @@
 					<span style="line-height:28px;">Vendedores</span>
 					<div id="seller-filter-group" class="seller-filter-group" style="display:flex; gap:8px; flex-wrap:wrap; min-width:220px; max-height:132px; overflow:auto; padding:8px; border:1px solid var(--border); border-radius:10px; background: var(--card);"></div>
 				</label>
-				<label style="display:flex; gap:6px; align-items:center">
-					<span>Pago</span>
-					<select id="pay-filter" class="input-cell" style="min-width:160px"></select>
-				</label>
+                <label style="display:flex; gap:6px; align-items:flex-start">
+                    <span style="line-height:28px;">Pago</span>
+                    <div id="pay-filter-group" class="seller-filter-group" style="display:flex; gap:8px; flex-wrap:wrap; min-width:220px; max-height:132px; overflow:auto; padding:8px; border:1px solid var(--border); border-radius:10px; background: var(--card);"></div>
+                </label>
 			</div>
 			<div class="table-wrapper" id="report-wrapper">
 				<table id="report-table">
@@ -100,15 +100,20 @@
 		const backBtn = document.getElementById('back-btn');
 		const changeBtn = document.getElementById('change-range');
 		const exportBtn = document.getElementById('export-excel');
-		const sellerFilterGroup = document.getElementById('seller-filter-group');
-		const payFilter = document.getElementById('pay-filter');
+        const sellerFilterGroup = document.getElementById('seller-filter-group');
+        const payFilterGroup = document.getElementById('pay-filter-group');
 
 		let dataset = [];
 		let sellersList = [];
 
-		function payLabel(pm){
-			return pm === '' ? '-' : pm === 'efectivo' ? 'Efectivo' : pm === 'transf' ? 'Transf' : '-';
-		}
+        function payLabel(pm){
+            return pm === '' ? '-' :
+                pm === 'efectivo' ? 'Efectivo' :
+                pm === 'transf' ? 'Transf' :
+                pm === 'marce' ? 'Marce' :
+                pm === 'jorge' ? 'Jorge' :
+                pm === 'jorgebank' ? 'JorgeBank' : '-';
+        }
 		async function fetchJSON(u){ const r = await fetch(u); if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }
 		function withActor(url){
 			try { const u = new URL(url, location.origin); if (actor) u.searchParams.set('actor', actor); return u.pathname + (u.search || ''); }
@@ -149,10 +154,41 @@
 				});
 				updateMasterCheckboxState();
 			}
-			// Pay methods (solo cartera)
-			payFilter.innerHTML = '';
-			const optAllP = document.createElement('option'); optAllP.value = ''; optAllP.textContent = 'Todos'; payFilter.appendChild(optAllP);
-			for (const code of ['', 'efectivo', 'transf']){ if (code==='') continue; const o=document.createElement('option'); o.value=code; o.textContent=payLabel(code); payFilter.appendChild(o); }
+            // Pay methods (multi-select)
+            if (payFilterGroup) {
+                const prevSelected = getSelectedPays();
+                payFilterGroup.innerHTML = '';
+                const masterWrap = document.createElement('label'); masterWrap.style.display='inline-flex'; masterWrap.style.alignItems='center'; masterWrap.style.gap='6px';
+                const master = document.createElement('input'); master.type='checkbox'; master.id='pf_all';
+                const masterSpan = document.createElement('span'); masterSpan.textContent = 'Todos';
+                masterWrap.appendChild(master); masterWrap.appendChild(masterSpan);
+                payFilterGroup.appendChild(masterWrap);
+                const codes = ['', 'efectivo', 'marce', 'jorge', 'transf', 'jorgebank'];
+                for (const code of codes){
+                    const id = `pf_${code || 'dash'}`;
+                    const wrap = document.createElement('label'); wrap.style.display='inline-flex'; wrap.style.alignItems='center'; wrap.style.gap='6px';
+                    const cb = document.createElement('input'); cb.type='checkbox'; cb.value = code; cb.id = id;
+                    // Default to selected if no prior selection
+                    cb.checked = prevSelected.length ? prevSelected.includes(cb.value) : true;
+                    cb.addEventListener('change', () => { updateMasterCheckboxState(); render(); });
+                    const sp = document.createElement('span'); sp.textContent = payLabel(code);
+                    wrap.appendChild(cb); wrap.appendChild(sp);
+                    payFilterGroup.appendChild(wrap);
+                }
+                function updateMasterCheckboxState(){
+                    const cbs = Array.from(payFilterGroup.querySelectorAll('input[type="checkbox"]')).filter(x => x.id !== 'pf_all');
+                    const checked = cbs.filter(x => x.checked).length;
+                    master.indeterminate = checked > 0 && checked < cbs.length;
+                    master.checked = checked > 0 && checked === cbs.length;
+                }
+                master.addEventListener('change', () => {
+                    const cbs = Array.from(payFilterGroup.querySelectorAll('input[type="checkbox"]')).filter(x => x.id !== 'pf_all');
+                    for (const cb of cbs) cb.checked = master.checked;
+                    updateMasterCheckboxState();
+                    render();
+                });
+                updateMasterCheckboxState();
+            }
 		}
 
 		function getSelectedSellers(){
@@ -164,14 +200,23 @@
 
 		function getFilteredData(){
 			const selSellers = getSelectedSellers();
-			const selPay = (payFilter.value || '').toString();
+            const selPays = getSelectedPays();
 			let rows = dataset.filter(r => {
 				if (selSellers.length && !selSellers.includes(r.sellerName)) return false;
-				if (selPay && (r.pay_method || '') !== selPay) return false;
+                if (selPays.length && !selPays.includes((r.pay_method || ''))) return false;
 				return true;
 			});
 			return rows;
 		}
+
+        function getSelectedPays(){
+            if (payFilterGroup) {
+                return Array.from(payFilterGroup.querySelectorAll('input[type="checkbox"]:checked'))
+                    .filter(i => i.id !== 'pf_all')
+                    .map(i => i.value);
+            }
+            return [];
+        }
 
 		function render(){
 			const rows = getFilteredData();
@@ -237,11 +282,11 @@
 			await mapLimit(sellerDays, 6, async ({ seller, day }) => {
 				try {
 					const params = new URLSearchParams({ seller_id: String(seller.id), sale_day_id: String(day.id) });
-					const sales = await fetchJSON(withActor(`/api/sales?${params.toString()}`));
+                    const sales = await fetchJSON(withActor(`/api/sales?${params.toString()}`));
 					for (const r of (sales||[])){
 						const pm = (r.pay_method || '').toString();
 						const unpaid = r.is_paid !== true;
-						const allowed = (pm === '' || pm === 'efectivo' || pm === 'transf');
+                        const allowed = (pm === '' || pm === 'efectivo' || pm === 'transf' || pm === 'marce' || pm === 'jorge' || pm === 'jorgebank');
 						if (!(unpaid && allowed)) continue;
 						const qa = r.qty_arco || 0; const qm = r.qty_melo || 0; const qma = r.qty_mara || 0; const qo = r.qty_oreo || 0; const qn = r.qty_nute || 0; const tot = r.total_cents || 0;
 						dataset.push({
@@ -291,8 +336,7 @@
 		});
 
 		backBtn.addEventListener('click', () => { location.href = '/'; });
-		changeBtn.addEventListener('click', (ev) => openCalendar(ev));
-		payFilter.addEventListener('change', () => render());
+        changeBtn.addEventListener('click', (ev) => openCalendar(ev));
 
 		// Lightweight date range popover if missing
 		if (typeof window.openRangeCalendarPopover !== 'function') {
