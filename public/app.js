@@ -1259,6 +1259,7 @@ async function loadSales() {
 	
 	// Ensure desserts are loaded before rendering table
 	await loadDesserts();
+	renderDessertColumns();
 	
 	renderTable();
 	preloadChangeLogsForCurrentTable();
