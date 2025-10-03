@@ -87,6 +87,10 @@
 				tdStatus.style.color = d.is_active ? 'green' : 'gray';
 				
 				const tdActions = document.createElement('td');
+				tdActions.style.display = 'flex';
+				tdActions.style.gap = '6px';
+				tdActions.style.justifyContent = 'center';
+				
 				const editBtn = document.createElement('button');
 				editBtn.className = 'press-btn';
 				editBtn.textContent = 'Editar';
@@ -96,29 +100,64 @@
 				toggleBtn.className = 'press-btn';
 				toggleBtn.textContent = d.is_active ? 'Desactivar' : 'Activar';
 				toggleBtn.addEventListener('click', async () => {
-					await toggleDessert(d.id, !d.is_active);
+					await toggleDessert(d);
 					loadDesserts();
+				});
+				
+				const deleteBtn = document.createElement('button');
+				deleteBtn.className = 'press-btn';
+				deleteBtn.textContent = '🗑️';
+				deleteBtn.title = 'Eliminar';
+				deleteBtn.style.background = '#ff4444';
+				deleteBtn.style.color = 'white';
+				deleteBtn.addEventListener('click', async () => {
+					const confirmed = confirm(`¿Seguro que quieres eliminar "${d.name}"? Esta acción no se puede deshacer.`);
+					if (confirmed) {
+						await deleteDessert(d.id);
+						loadDesserts();
+					}
 				});
 				
 				tdActions.appendChild(editBtn);
 				tdActions.appendChild(toggleBtn);
+				tdActions.appendChild(deleteBtn);
 				
 				tr.append(tdName, tdCode, tdPrice, tdPos, tdStatus, tdActions);
 				tbody.appendChild(tr);
 			}
 		}
 		
-		async function toggleDessert(id, isActive) {
+		async function toggleDessert(dessert) {
 			try {
 				const response = await fetch('/api/desserts', {
 					method: 'PUT',
 					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ id, is_active: isActive })
+					body: JSON.stringify({ 
+						id: dessert.id, 
+						name: dessert.name,
+						sale_price: dessert.sale_price,
+						position: dessert.position,
+						is_active: !dessert.is_active
+					})
 				});
 				if (!response.ok) throw new Error('Failed to toggle dessert');
+				alert(dessert.is_active ? 'Postre desactivado' : 'Postre activado');
 			} catch (err) {
 				console.error('Error toggling dessert:', err);
 				alert('Error al cambiar el estado del postre');
+			}
+		}
+		
+		async function deleteDessert(id) {
+			try {
+				const response = await fetch(`/api/desserts?id=${id}`, {
+					method: 'DELETE'
+				});
+				if (!response.ok) throw new Error('Failed to delete dessert');
+				alert('Postre eliminado exitosamente');
+			} catch (err) {
+				console.error('Error deleting dessert:', err);
+				alert('Error al eliminar el postre');
 			}
 		}
 		
