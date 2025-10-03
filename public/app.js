@@ -1850,68 +1850,84 @@ function debounce(fn, ms) {
 }
 
 function exportTableToExcel() {
-	// Build SheetJS worksheet from rows
-	const header = ['$', 'Pago', 'Cliente', 'Arco', 'Melo', 'Mara', 'Oreo', 'Nute', 'Total'];
-	const data = [header];
-	const tbody = document.getElementById('sales-tbody');
-	if (tbody) {
-		for (const tr of Array.from(tbody.rows)) {
-			const paid = tr.querySelector('td.col-paid input[type="checkbox"]').checked ? '✓' : '';
-			const paySel = tr.querySelector('td.col-paid select.pay-select');
-			const payRaw = paySel ? paySel.value : '';
-			const pay = payRaw === 'efectivo' ? 'Efectivo' : (payRaw === 'transf' || payRaw === 'jorgebank') ? 'Transf' : payRaw === 'marce' ? 'Marce' : payRaw === 'jorge' ? 'Jorge' : '-';
-			const client = tr.querySelector('td.col-client input')?.value ?? '';
-			let arco = tr.querySelector('td.col-arco input')?.value ?? '';
-			let melo = tr.querySelector('td.col-melo input')?.value ?? '';
-			let mara = tr.querySelector('td.col-mara input')?.value ?? '';
-			let oreo = tr.querySelector('td.col-oreo input')?.value ?? '';
-			let nute = tr.querySelector('td.col-nute input')?.value ?? '';
-			if (arco === '0') arco = '';
-			if (melo === '0') melo = '';
-			if (mara === '0') mara = '';
-			if (oreo === '0') oreo = '';
-			if (nute === '0') nute = '';
-			let total = tr.querySelector('td.col-total')?.textContent?.trim() ?? '';
-			if (total === '0') total = '';
-			data.push([paid, pay, client, arco, melo, mara, oreo, nute, total]);
+	try {
+		// Check if XLSX library is loaded (use window.XLSX for module compatibility)
+		if (typeof window.XLSX === 'undefined') {
+			notify.error('Error: Librería Excel no cargada');
+			console.error('XLSX library is not loaded');
+			return;
 		}
-	}
-	const tAr = (document.getElementById('sum-arco-qty')?.textContent ?? '').trim();
-	const tMe = (document.getElementById('sum-melo-qty')?.textContent ?? '').trim();
-	const tMa = (document.getElementById('sum-mara-qty')?.textContent ?? '').trim();
-	const tOr = (document.getElementById('sum-oreo-qty')?.textContent ?? '').trim();
-	const tNu = (document.getElementById('sum-nute-qty')?.textContent ?? '').trim();
-	const tSum = [tAr, tMe, tMa, tOr, tNu].map(v => parseInt(v || '0', 10) || 0).reduce((a, b) => a + b, 0);
-	data.push(['', '', 'Totales (cant.)',
-		tAr === '0' ? '' : tAr,
-		tMe === '0' ? '' : tMe,
-		tMa === '0' ? '' : tMa,
-		tOr === '0' ? '' : tOr,
-		tSum === 0 ? '' : String(tSum)
-	]);
-	const vAr = (document.getElementById('sum-arco-amt')?.textContent ?? '').trim();
-	const vMe = (document.getElementById('sum-melo-amt')?.textContent ?? '').trim();
-	const vMa = (document.getElementById('sum-mara-amt')?.textContent ?? '').trim();
-	const vOr = (document.getElementById('sum-oreo-amt')?.textContent ?? '').trim();
-	const vGr = (document.getElementById('sum-grand')?.textContent ?? '').trim();
-	data.push(['', '', 'Totales (valor)',
-		vAr === '0' ? '' : vAr,
-		vMe === '0' ? '' : vMe,
-		vMa === '0' ? '' : vMa,
-		vOr === '0' ? '' : vOr,
-		(document.getElementById('sum-nute-amt')?.textContent ?? '').trim() || '',
-		vGr === '0' ? '' : vGr
-	]);
+		const XLSX = window.XLSX;
 
-	const ws = XLSX.utils.aoa_to_sheet(data);
-	// Autofit: set column widths roughly based on header text length
-	ws['!cols'] = header.map(h => ({ wch: Math.max(8, h.length + 2) }));
-	const wb = XLSX.utils.book_new();
-	XLSX.utils.book_append_sheet(wb, ws, 'Ventas');
-	const sellerName = state.currentSeller?.name?.replace(/[^\w\-]+/g, '_') || 'ventas';
-	const dateStr = new Date().toISOString().slice(0,10);
-	XLSX.writeFile(wb, `${sellerName}_${dateStr}.xlsx`);
-	try { notify.success('Excel exportado'); } catch {}
+		// Build SheetJS worksheet from rows
+		const header = ['$', 'Pago', 'Cliente', 'Arco', 'Melo', 'Mara', 'Oreo', 'Nute', 'Total'];
+		const data = [header];
+		const tbody = document.getElementById('sales-tbody');
+		if (tbody) {
+			for (const tr of Array.from(tbody.rows)) {
+				const paidCheckbox = tr.querySelector('td.col-paid input[type="checkbox"]');
+				const paid = paidCheckbox?.checked ? '✓' : '';
+				const paySel = tr.querySelector('td.col-paid select.pay-select');
+				const payRaw = paySel ? paySel.value : '';
+				const pay = payRaw === 'efectivo' ? 'Efectivo' : (payRaw === 'transf' || payRaw === 'jorgebank') ? 'Transf' : payRaw === 'marce' ? 'Marce' : payRaw === 'jorge' ? 'Jorge' : '-';
+				const client = tr.querySelector('td.col-client input')?.value ?? '';
+				let arco = tr.querySelector('td.col-arco input')?.value ?? '';
+				let melo = tr.querySelector('td.col-melo input')?.value ?? '';
+				let mara = tr.querySelector('td.col-mara input')?.value ?? '';
+				let oreo = tr.querySelector('td.col-oreo input')?.value ?? '';
+				let nute = tr.querySelector('td.col-nute input')?.value ?? '';
+				if (arco === '0') arco = '';
+				if (melo === '0') melo = '';
+				if (mara === '0') mara = '';
+				if (oreo === '0') oreo = '';
+				if (nute === '0') nute = '';
+				let total = tr.querySelector('td.col-total')?.textContent?.trim() ?? '';
+				if (total === '0') total = '';
+				data.push([paid, pay, client, arco, melo, mara, oreo, nute, total]);
+			}
+		}
+		const tAr = (document.getElementById('sum-arco-qty')?.textContent ?? '').trim();
+		const tMe = (document.getElementById('sum-melo-qty')?.textContent ?? '').trim();
+		const tMa = (document.getElementById('sum-mara-qty')?.textContent ?? '').trim();
+		const tOr = (document.getElementById('sum-oreo-qty')?.textContent ?? '').trim();
+		const tNu = (document.getElementById('sum-nute-qty')?.textContent ?? '').trim();
+		const tSum = [tAr, tMe, tMa, tOr, tNu].map(v => parseInt(v || '0', 10) || 0).reduce((a, b) => a + b, 0);
+		data.push(['', '', 'Totales (cant.)',
+			tAr === '0' ? '' : tAr,
+			tMe === '0' ? '' : tMe,
+			tMa === '0' ? '' : tMa,
+			tOr === '0' ? '' : tOr,
+			tNu === '0' ? '' : tNu,
+			tSum === 0 ? '' : String(tSum)
+		]);
+		const vAr = (document.getElementById('sum-arco-amt')?.textContent ?? '').trim();
+		const vMe = (document.getElementById('sum-melo-amt')?.textContent ?? '').trim();
+		const vMa = (document.getElementById('sum-mara-amt')?.textContent ?? '').trim();
+		const vOr = (document.getElementById('sum-oreo-amt')?.textContent ?? '').trim();
+		const vGr = (document.getElementById('sum-grand')?.textContent ?? '').trim();
+		data.push(['', '', 'Totales (valor)',
+			vAr === '0' ? '' : vAr,
+			vMe === '0' ? '' : vMe,
+			vMa === '0' ? '' : vMa,
+			vOr === '0' ? '' : vOr,
+			(document.getElementById('sum-nute-amt')?.textContent ?? '').trim() || '',
+			vGr === '0' ? '' : vGr
+		]);
+
+		const ws = XLSX.utils.aoa_to_sheet(data);
+		// Autofit: set column widths roughly based on header text length
+		ws['!cols'] = header.map(h => ({ wch: Math.max(8, h.length + 2) }));
+		const wb = XLSX.utils.book_new();
+		XLSX.utils.book_append_sheet(wb, ws, 'Ventas');
+		const sellerName = state.currentSeller?.name?.replace(/[^\w\-]+/g, '_') || 'ventas';
+		const dateStr = new Date().toISOString().slice(0,10);
+		XLSX.writeFile(wb, `${sellerName}_${dateStr}.xlsx`);
+		try { notify.success('Excel exportado'); } catch {}
+	} catch (error) {
+		console.error('Error al exportar Excel:', error);
+		const errorMsg = error.message ? `Error al exportar Excel: ${error.message}` : 'Error al exportar Excel';
+		try { notify.error(errorMsg); } catch {}
+	}
 }
 
 async function exportConsolidatedForDate(dayIso) {
@@ -1953,6 +1969,7 @@ async function exportConsolidatedForDate(dayIso) {
 	// Add total count of all desserts
 	const tSumAll = (tQa || 0) + (tQm || 0) + (tQma || 0) + (tQo || 0) + (tQn || 0);
 	rows.push(['', '', '', 'Total postres', '', '', '', '', '', tSumAll || '']);
+	const XLSX = window.XLSX;
 	const ws = XLSX.utils.aoa_to_sheet(rows);
 	ws['!cols'] = [ {wch:18},{wch:3},{wch:10},{wch:24},{wch:6},{wch:6},{wch:6},{wch:6},{wch:6},{wch:10} ];
 	const wb = XLSX.utils.book_new();
@@ -1993,6 +2010,7 @@ async function exportConsolidatedForDates(isoList) {
 	// Add total count of all desserts across selected dates
 	const tSumAll = (tQa || 0) + (tQm || 0) + (tQma || 0) + (tQo || 0) + (tQn || 0);
 	rows.push(['', '', '', '', 'Total postres', '', '', '', '', '', tSumAll || '']);
+	const XLSX = window.XLSX;
 	const ws = XLSX.utils.aoa_to_sheet(rows);
 	ws['!cols'] = [ {wch:10},{wch:18},{wch:3},{wch:10},{wch:24},{wch:6},{wch:6},{wch:6},{wch:6},{wch:6},{wch:10} ];
 	const wb = XLSX.utils.book_new();
@@ -2041,6 +2059,7 @@ async function exportCarteraExcel(startIso, endIso) {
 		}
 	}
 	rows.push(['','','','','Totales','','','','','', totalGrand || '']);
+	const XLSX = window.XLSX;
 	const ws = XLSX.utils.aoa_to_sheet(rows);
 	ws['!cols'] = [ {wch:10},{wch:18},{wch:24},{wch:10},{wch:3},{wch:6},{wch:6},{wch:6},{wch:6},{wch:6},{wch:10} ];
 	const wb = XLSX.utils.book_new();
@@ -2390,6 +2409,7 @@ function openMaterialsMenu(anchorX, anchorY) {
 
 async function exportUsersExcel() {
 	try {
+		const XLSX = window.XLSX;
 		const users = await api('GET', API.Users);
 		const rows = (users || []).map(u => ({ Usuario: u.username, Contraseña: u.password_hash }));
 		const ws = XLSX.utils.json_to_sheet(rows);
@@ -2459,7 +2479,13 @@ function bindEvents() {
 	// Admin-only: Restore bugged sales
 	// (botón de reporte eliminado)
 
-	document.getElementById('export-excel')?.addEventListener('click', exportTableToExcel);
+	// Export Excel button - ensure event is attached
+	const exportExcelBtn = document.getElementById('export-excel');
+	if (exportExcelBtn) {
+		exportExcelBtn.addEventListener('click', () => {
+			exportTableToExcel();
+		});
+	}
 
 	const backIngredients = document.getElementById('ingredients-back');
 	backIngredients?.addEventListener('click', () => {
