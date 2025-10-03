@@ -2,7 +2,7 @@ import { neon } from '@netlify/neon';
 
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
-const SCHEMA_VERSION = 3; // Bump when schema changes require a migration
+const SCHEMA_VERSION = 4; // Bump when schema changes require a migration
 
 export async function ensureSchema() {
 	if (schemaEnsured) return;
@@ -123,6 +123,7 @@ export async function ensureSchema() {
 		qty_mara INTEGER NOT NULL DEFAULT 0,
 		qty_oreo INTEGER NOT NULL DEFAULT 0,
 		qty_nute INTEGER NOT NULL DEFAULT 0,
+		extra_qty JSONB NOT NULL DEFAULT '{}'::jsonb,
 		is_paid BOOLEAN NOT NULL DEFAULT false,
 		pay_method TEXT,
 		comment_text TEXT DEFAULT '',
@@ -160,6 +161,12 @@ export async function ensureSchema() {
 			WHERE table_name = 'sales' AND column_name = 'qty_nute'
 		) THEN
 			ALTER TABLE sales ADD COLUMN qty_nute INTEGER NOT NULL DEFAULT 0;
+		END IF;
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'sales' AND column_name = 'extra_qty'
+		) THEN
+			ALTER TABLE sales ADD COLUMN extra_qty JSONB NOT NULL DEFAULT '{}'::jsonb;
 		END IF;
 	END $$;`;
 	await sql`CREATE TABLE IF NOT EXISTS change_logs (
