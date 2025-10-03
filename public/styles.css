@@ -3667,12 +3667,14 @@ button.secondary.press-btn:active {
 	}
 }
 
-/* Mobile: Vertical labels using ::after */
+/* Mobile: Vertical labels using ::after - EXACT same as old columns */
 @media (max-width: 600px) {
 	#sales-table thead th.col-dessert {
 		position: relative !important;
-		padding: 0 2px 2px !important;
-		height: 60px;
+		vertical-align: bottom !important;
+		text-align: center !important;
+		height: 84px !important;
+		padding: 0 2px 6px !important;
 	}
 	#sales-table thead th.col-dessert .v-label {
 		display: none !important;
@@ -3685,7 +3687,9 @@ button.secondary.press-btn:active {
 		transform: translateX(-50%) rotate(-90deg) !important;
 		transform-origin: center center !important;
 		white-space: nowrap !important;
-		font-size: 11px !important;
+		line-height: 1 !important;
+		font-size: 10px !important;
+		color: inherit !important;
 	}
 }
 
