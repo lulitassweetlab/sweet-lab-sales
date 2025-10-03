@@ -17,9 +17,51 @@ export async function ensureSchema() {
 	await sql`INSERT INTO schema_meta (version)
 		SELECT 0
 		WHERE NOT EXISTS (SELECT 1 FROM schema_meta)`;
-	// 3) Read current version and short-circuit if up to date
+	// 3) Read current version and short-circuit if up to date (but always create new tables)
 	const cur = await sql`SELECT version FROM schema_meta LIMIT 1`;
 	const currentVersion = Number(cur?.[0]?.version || 0);
+	
+	// Always ensure these critical tables exist (even if version is up to date)
+	// This handles the case where version was bumped but tables weren't created
+	await sql`CREATE TABLE IF NOT EXISTS desserts (
+		id SERIAL PRIMARY KEY,
+		name TEXT UNIQUE NOT NULL,
+		short_code TEXT UNIQUE NOT NULL,
+		sale_price INTEGER NOT NULL DEFAULT 0,
+		is_active BOOLEAN NOT NULL DEFAULT true,
+		position INTEGER NOT NULL DEFAULT 0,
+		created_at TIMESTAMPTZ DEFAULT now(),
+		updated_at TIMESTAMPTZ DEFAULT now()
+	)`;
+	await sql`CREATE TABLE IF NOT EXISTS sale_items (
+		id SERIAL PRIMARY KEY,
+		sale_id INTEGER NOT NULL REFERENCES sales(id) ON DELETE CASCADE,
+		dessert_id INTEGER NOT NULL REFERENCES desserts(id) ON DELETE CASCADE,
+		quantity INTEGER NOT NULL DEFAULT 0,
+		unit_price INTEGER NOT NULL DEFAULT 0,
+		created_at TIMESTAMPTZ DEFAULT now(),
+		updated_at TIMESTAMPTZ DEFAULT now()
+	)`;
+	
+	// Seed default desserts if table is empty (always run this)
+	try {
+		const dessertCount = await sql`SELECT COUNT(*)::int AS c FROM desserts`;
+		if ((dessertCount[0]?.c || 0) === 0) {
+			const defaultDesserts = [
+				{ name: 'Arco', short_code: 'arco', sale_price: 8500, position: 1 },
+				{ name: 'Melo', short_code: 'melo', sale_price: 9500, position: 2 },
+				{ name: 'Mara', short_code: 'mara', sale_price: 10500, position: 3 },
+				{ name: 'Oreo', short_code: 'oreo', sale_price: 10500, position: 4 },
+				{ name: 'Nute', short_code: 'nute', sale_price: 13000, position: 5 }
+			];
+			for (const d of defaultDesserts) {
+				await sql`INSERT INTO desserts (name, short_code, sale_price, position) VALUES (${d.name}, ${d.short_code}, ${d.sale_price}, ${d.position}) ON CONFLICT (name) DO NOTHING`;
+			}
+		}
+	} catch (err) {
+		console.error('Error seeding desserts:', err);
+	}
+	
 	if (currentVersion >= SCHEMA_VERSION) { schemaEnsured = true; return; }
 	// Basic users table for authentication
 	await sql`CREATE TABLE IF NOT EXISTS users (
@@ -410,48 +452,7 @@ END $$;`;
 		actor_name TEXT,
 		created_at TIMESTAMPTZ DEFAULT now()
 	)`;
-	// Dynamic desserts table for flexible dessert management
-	await sql`CREATE TABLE IF NOT EXISTS desserts (
-		id SERIAL PRIMARY KEY,
-		name TEXT UNIQUE NOT NULL,
-		short_code TEXT UNIQUE NOT NULL,
-		sale_price INTEGER NOT NULL DEFAULT 0,
-		is_active BOOLEAN NOT NULL DEFAULT true,
-		position INTEGER NOT NULL DEFAULT 0,
-		created_at TIMESTAMPTZ DEFAULT now(),
-		updated_at TIMESTAMPTZ DEFAULT now()
-	)`;
-	// Ensure desserts columns exist for older deployments
-	await sql`DO $$ BEGIN
-		IF NOT EXISTS (
-			SELECT 1 FROM information_schema.columns
-			WHERE table_name = 'desserts' AND column_name = 'short_code'
-		) THEN
-			ALTER TABLE desserts ADD COLUMN short_code TEXT UNIQUE;
-		END IF;
-		IF NOT EXISTS (
-			SELECT 1 FROM information_schema.columns
-			WHERE table_name = 'desserts' AND column_name = 'is_active'
-		) THEN
-			ALTER TABLE desserts ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT true;
-		END IF;
-		IF NOT EXISTS (
-			SELECT 1 FROM information_schema.columns
-			WHERE table_name = 'desserts' AND column_name = 'position'
-		) THEN
-			ALTER TABLE desserts ADD COLUMN position INTEGER NOT NULL DEFAULT 0;
-		END IF;
-	END $$;`;
-	// Dynamic sale items table to replace fixed columns
-	await sql`CREATE TABLE IF NOT EXISTS sale_items (
-		id SERIAL PRIMARY KEY,
-		sale_id INTEGER NOT NULL REFERENCES sales(id) ON DELETE CASCADE,
-		dessert_id INTEGER NOT NULL REFERENCES desserts(id) ON DELETE CASCADE,
-		quantity INTEGER NOT NULL DEFAULT 0,
-		unit_price INTEGER NOT NULL DEFAULT 0,
-		created_at TIMESTAMPTZ DEFAULT now(),
-		updated_at TIMESTAMPTZ DEFAULT now()
-	)`;
+	// Tables created at top of function before version check
 	// Seed default users if table is empty
 	const existing = await sql`SELECT COUNT(*)::int AS c FROM users`;
 	if ((existing[0]?.c || 0) === 0) {
@@ -462,26 +463,6 @@ END $$;`;
 	}
 	// Ensure Marcela has a default yellow bill color if seller exists and not set
 	await sql`UPDATE sellers SET bill_color=${'#fdd835'} WHERE lower(name)='marcela' AND (bill_color IS NULL OR bill_color='')`;
-	
-	// Migration: Seed default desserts if table is empty
-	try {
-		const dessertCount = await sql`SELECT COUNT(*)::int AS c FROM desserts`;
-		if ((dessertCount[0]?.c || 0) === 0) {
-			const defaultDesserts = [
-				{ name: 'Arco', short_code: 'arco', sale_price: 8500, position: 1 },
-				{ name: 'Melo', short_code: 'melo', sale_price: 9500, position: 2 },
-				{ name: 'Mara', short_code: 'mara', sale_price: 10500, position: 3 },
-				{ name: 'Oreo', short_code: 'oreo', sale_price: 10500, position: 4 },
-				{ name: 'Nute', short_code: 'nute', sale_price: 13000, position: 5 }
-			];
-			for (const d of defaultDesserts) {
-				await sql`INSERT INTO desserts (name, short_code, sale_price, position) VALUES (${d.name}, ${d.short_code}, ${d.sale_price}, ${d.position}) ON CONFLICT (name) DO NOTHING`;
-			}
-		}
-	} catch (err) {
-		console.error('Error seeding desserts:', err);
-		// Continue anyway - table might not exist yet in old deployments
-	}
 	
 	// Migration: Migrate existing sales to sale_items if needed
 	// This only runs once - checks if there are sales with old qty columns but no sale_items
@@ -552,7 +533,13 @@ export function prices() {
 
 export async function getDesserts() {
 	await ensureSchema();
-	return await sql`SELECT id, name, short_code, sale_price, is_active, position FROM desserts WHERE is_active = true ORDER BY position ASC, id ASC`;
+	try {
+		return await sql`SELECT id, name, short_code, sale_price, is_active, position FROM desserts WHERE is_active = true ORDER BY position ASC, id ASC`;
+	} catch (err) {
+		console.error('Error getting desserts:', err);
+		// Return empty array if table doesn't exist yet
+		return [];
+	}
 }
 
 export async function recalcTotalForId(id) {

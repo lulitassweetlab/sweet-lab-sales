@@ -68,6 +68,7 @@ export async function handler(event) {
 				return json({ error: 'Método no permitido' }, 405);
 		}
 	} catch (err) {
-		return json({ error: String(err) }, 500);
+		console.error('Desserts API error:', err);
+		return json({ error: String(err?.message || err) }, 500);
 	}
 }
