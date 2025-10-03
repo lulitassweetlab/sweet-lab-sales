@@ -3659,6 +3659,12 @@ button.secondary.press-btn:active {
 		font-size: inherit !important;
 		margin: 0 !important;
 	}
+	
+	/* Align Total header same as desserts */
+	#sales-table thead th.col-total {
+		padding: 6px !important;
+		vertical-align: bottom !important;
+	}
 }
 
 /* Mobile: Vertical labels using ::after */
