@@ -842,6 +842,8 @@ function renderTable() {
 				input.className = 'input-cell client-input';
 				input.value = sale.client_name || '';
 				input.placeholder = '';
+                // Wire client name autocomplete suggestions
+                try { wireClientAutocompleteForInput(input); } catch {}
 				input.addEventListener('input', (e) => { const v = (e.target.value || ''); if (/\*$/.test(v.trim())) { saveClientWithCommentFlow(tr, sale.id); } });
 				input.addEventListener('blur', () => saveClientWithCommentFlow(tr, sale.id));
 				input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); saveClientWithCommentFlow(tr, sale.id); } });
@@ -915,6 +917,7 @@ async function loadSales() {
 	try {
 		const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(sellerId)}`);
 		const counts = new Map();
+        const namesByKey = new Map();
 		for (const d of (days || [])) {
 			const p = new URLSearchParams({ seller_id: String(sellerId), sale_day_id: String(d.id) });
 			let sales = [];
@@ -924,9 +927,22 @@ async function loadSales() {
 				if (!raw) continue;
 				const key = normalizeClientName(raw);
 				counts.set(key, (counts.get(key) || 0) + 1);
+                if (!namesByKey.has(key)) namesByKey.set(key, raw);
 			}
 		}
 		state.clientCounts = counts;
+        // Prepare suggestion list of regular clients (count > 1)
+        try {
+            const arr = Array.from(counts.entries())
+                .filter(([, count]) => Number(count) > 1)
+                .map(([key, count]) => ({ key, name: namesByKey.get(key) || '', count: Number(count) || 0 }))
+                .filter(it => it.name && it.name.trim() !== '');
+            arr.sort((a, b) => {
+                if (b.count !== a.count) return b.count - a.count;
+                return (a.name || '').localeCompare(b.name || '', 'es');
+            });
+            state.clientSuggestions = arr;
+        } catch { state.clientSuggestions = []; }
 	} catch { state.clientCounts = new Map(); }
 	renderTable();
 	preloadChangeLogsForCurrentTable();
@@ -4223,6 +4239,50 @@ function normalizeClientName(value) {
 	} catch {
 		return String(value || '').trim().toLowerCase();
 	}
+}
+
+// Autocomplete: ensure global datalist element for client suggestions exists
+function ensureClientDatalist() {
+    let dl = document.getElementById('client-datalist');
+    if (!dl) {
+        dl = document.createElement('datalist');
+        dl.id = 'client-datalist';
+        document.body.appendChild(dl);
+    }
+    return dl;
+}
+
+// Autocomplete: update datalist options based on current query
+function updateClientDatalistForQuery(queryRaw) {
+    const dl = ensureClientDatalist();
+    const list = Array.isArray(state.clientSuggestions) ? state.clientSuggestions : [];
+    const q = normalizeClientName(queryRaw || '');
+    let filtered = list;
+    if (q) {
+        filtered = list.filter(it => it.key.startsWith(q) || normalizeClientName(it.name).includes(q));
+    }
+    // Limit number of suggestions to keep UI compact
+    filtered = filtered.slice(0, 12);
+    // Rebuild <option> list
+    dl.innerHTML = '';
+    for (const it of filtered) {
+        const opt = document.createElement('option');
+        opt.value = it.name;
+        dl.appendChild(opt);
+    }
+}
+
+// Autocomplete: attach to a given client input element
+function wireClientAutocompleteForInput(inputEl) {
+    if (!(inputEl instanceof HTMLInputElement)) return;
+    // Attach datalist and refresh on user input/focus
+    inputEl.setAttribute('list', 'client-datalist');
+    const refresh = () => updateClientDatalistForQuery(inputEl.value || '');
+    // Avoid duplicate listeners
+    if (inputEl.dataset.autoCompleteBound === '1') { refresh(); return; }
+    inputEl.dataset.autoCompleteBound = '1';
+    inputEl.addEventListener('focus', refresh);
+    inputEl.addEventListener('input', refresh);
 }
 
 async function openClientsView() {
