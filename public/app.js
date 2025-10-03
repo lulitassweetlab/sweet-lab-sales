@@ -4257,14 +4257,11 @@ function updateClientDatalistForQuery(queryRaw) {
     const dl = ensureClientDatalist();
     const list = Array.isArray(state.clientSuggestions) ? state.clientSuggestions : [];
     const q = normalizeClientName(queryRaw || '');
-    let filtered = list;
-    if (q) {
-        filtered = list.filter(it => it.key.startsWith(q) || normalizeClientName(it.name).includes(q));
-    }
-    // Limit number of suggestions to keep UI compact
-    filtered = filtered.slice(0, 12);
-    // Rebuild <option> list
+    // Rebuild <option> list and only show suggestions when user typed something
     dl.innerHTML = '';
+    if (!q) return; // do not show any options until typing begins
+    // Strict prefix match by typed sequence
+    const filtered = list.filter(it => (it.key || '').startsWith(q)).slice(0, 12);
     for (const it of filtered) {
         const opt = document.createElement('option');
         opt.value = it.name;
@@ -4281,7 +4278,7 @@ function wireClientAutocompleteForInput(inputEl) {
     // Avoid duplicate listeners
     if (inputEl.dataset.autoCompleteBound === '1') { refresh(); return; }
     inputEl.dataset.autoCompleteBound = '1';
-    inputEl.addEventListener('focus', refresh);
+    // Show suggestions only after typing begins
     inputEl.addEventListener('input', refresh);
 }
 
