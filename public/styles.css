@@ -3622,3 +3622,68 @@ button.secondary.press-btn:active {
 @media (min-width: 601px) and (max-width: 700px) {
 	:root { --w-paid: 6%; --w-client: 36%; --w-qty: 8%; --w-total: 20%; --w-actions: 6%; }
 }
+
+/* ===== DYNAMIC DESSERTS COLUMNS ===== */
+/* Generic styles for any dessert column (col-dessert class) */
+#sales-table thead th.col-dessert,
+#sales-table tbody td.col-dessert,
+#sales-table tfoot td.col-dessert {
+	text-align: center;
+	width: var(--w-qty);
+	vertical-align: middle;
+}
+
+/* Vertical labels for dynamic desserts - Desktop */
+@media (min-width: 601px) {
+	#sales-table thead th.col-dessert .v-label {
+		display: inline-block !important;
+		writing-mode: vertical-rl;
+		text-orientation: mixed;
+		line-height: 1;
+		position: relative;
+		top: -4px;
+	}
+}
+
+/* Vertical labels for dynamic desserts - Mobile */
+@media (max-width: 600px) {
+	#sales-table thead th.col-dessert {
+		position: relative !important;
+		padding: 0 2px 2px !important;
+	}
+	#sales-table thead th.col-dessert .v-label {
+		display: none !important;
+	}
+	#sales-table thead th.col-dessert::after {
+		content: attr(data-label);
+		position: absolute !important;
+		left: 50% !important;
+		bottom: 4px !important;
+		transform: translateX(-50%) rotate(-90deg) !important;
+		transform-origin: center center !important;
+		white-space: nowrap !important;
+		font-size: 11px !important;
+	}
+}
+
+/* Alternating background for dynamic desserts */
+#sales-table thead th.col-dessert:nth-of-type(odd),
+#sales-table tbody td.col-dessert:nth-of-type(odd),
+#sales-table tfoot td.col-dessert:nth-of-type(odd) {
+	background-color: rgba(255, 228, 196, 0.2);
+}
+
+#sales-table tbody tr:hover td.col-dessert {
+	background-color: rgba(255, 228, 196, 0.35);
+}
+
+/* Dark theme for dynamic desserts */
+[data-theme="dark"] #sales-table thead th.col-dessert:nth-of-type(odd),
+[data-theme="dark"] #sales-table tbody td.col-dessert:nth-of-type(odd),
+[data-theme="dark"] #sales-table tfoot td.col-dessert:nth-of-type(odd) {
+	background-color: #191b1f !important;
+}
+
+[data-theme="dark"] #sales-table tbody tr:hover td.col-dessert:nth-of-type(odd) {
+	background-color: #202327 !important;
+}
