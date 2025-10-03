@@ -165,11 +165,117 @@
 				const card = document.createElement('div'); card.className = 'measure-card'; card.style.padding='12px'; card.style.border='1px solid rgba(0,0,0,0.15)'; card.style.borderRadius='10px'; card.style.boxShadow='0 8px 24px rgba(0,0,0,0.12)';
 				const title = document.createElement('h3'); title.textContent = `${dessertName} × ${qty}`; title.style.textAlign='center'; title.style.fontSize='28px'; title.style.margin='4px 0 12px 0'; title.style.background='rgba(255, 105, 180, 0.18)'; title.style.padding='8px 6px'; title.style.borderRadius='8px'; card.appendChild(title);
 				const session = { dessert: dessertName, qty, steps: [] };
+				// Helper utilities for server sessions and averages per step
+				const serverSessionsByDessert = new Map();
+				async function fetchServerSessions(dessert, limit = 100) {
+					if (serverSessionsByDessert.has(dessert)) return serverSessionsByDessert.get(dessert);
+					try {
+						const res = await fetch(withActor(`/api/times?dessert=${encodeURIComponent(dessert)}&limit=${limit}`));
+						const rows = res.ok ? (await res.json()) : [];
+						serverSessionsByDessert.set(dessert, Array.isArray(rows) ? rows : []);
+						return serverSessionsByDessert.get(dessert);
+					} catch { serverSessionsByDessert.set(dessert, []); return []; }
+				}
+				function computeStepStats(rows, stepName) {
+					const key = (stepName || 'Paso').toString().trim().toLowerCase();
+					let sumMs = 0; let sumQty = 0;
+					for (const r of (rows || [])) {
+						const steps = Array.isArray(r.steps) ? r.steps : [];
+						for (const s of steps) {
+							const sName = (s?.name ?? s?.step_name ?? 'Paso').toString().trim().toLowerCase();
+							if (sName !== key) continue;
+							const ms = Number(s.elapsed_ms || 0) || 0;
+							const q = Number(s.qty_units || 0) || 0;
+							sumMs += ms; sumQty += q;
+						}
+					}
+					const avg = sumQty > 0 ? Math.round(sumMs / sumQty) : 0;
+					return { sumMs, sumQty, avgMsPerUnit: avg };
+				}
+				function formatAvg(ms) {
+					const total = Math.max(0, Math.floor(ms / 1000));
+					const m = Math.floor((total % 3600) / 60);
+					const s = total % 60;
+					const pad = (n) => String(n).padStart(2, '0');
+					return `${pad(m)}:${pad(s)}`;
+				}
+				async function openStepHistoryDialog(dessert, stepName, onUpdated) {
+					const pop = document.createElement('div'); pop.className = 'confirm-popover'; pop.style.position='fixed'; pop.style.left=(window.innerWidth/2)+'px'; pop.style.top='12%'; pop.style.transform='translate(-50%,0)';
+					const title = document.createElement('h4'); title.textContent = `Sesiones: ${dessert} · ${stepName || 'Paso'}`; title.style.margin='0 0 8px 0';
+					const list = document.createElement('div'); list.style.maxHeight='60vh'; list.style.overflow='auto'; list.style.minWidth='min(92vw,560px)';
+					const summary = document.createElement('div'); summary.style.opacity='0.8'; summary.style.margin='0 0 8px 0';
+					const actions = document.createElement('div'); actions.className='confirm-actions'; const closeBtn = document.createElement('button'); closeBtn.className='press-btn'; closeBtn.textContent='Cerrar'; actions.appendChild(closeBtn);
+					pop.append(title, summary, list, actions); document.body.appendChild(pop); pop.classList.add('aladdin-pop');
+					function setSummaryFrom(rows){ const st = computeStepStats(rows, stepName); summary.textContent = st.sumQty>0 ? `Promedio actual: ${formatAvg(st.avgMsPerUnit)} (sobre ${st.sumQty} unidades)` : 'Sin datos de promedio'; }
+					let rows = await fetchServerSessions(dessert);
+					setSummaryFrom(rows);
+					function refreshList() {
+						list.innerHTML='';
+						const items = (rows||[]).slice().sort((a,b)=>new Date(b.created_at||b.id||0)-new Date(a.created_at||a.id||0));
+						let any = false;
+						for (const it of items) {
+							const when = new Date(it.created_at || it.id || Date.now());
+							const steps = Array.isArray(it.steps) ? it.steps : [];
+							const match = steps.find(s => ((s?.name ?? s?.step_name ?? 'Paso').toString().trim().toLowerCase()) === (stepName||'Paso').toString().trim().toLowerCase());
+							if (!match) continue;
+							any = true;
+							const row = document.createElement('div'); row.style.display='grid'; row.style.gridTemplateColumns='1.2fr .6fr .8fr .8fr auto'; row.style.gap='8px'; row.style.alignItems='center'; row.style.borderBottom='1px solid var(--border)'; row.style.padding='6px 0';
+							const whenEl = document.createElement('div'); whenEl.textContent = when.toLocaleString();
+							const qtyIn = document.createElement('input'); qtyIn.type='number'; qtyIn.min='0'; qtyIn.step='1'; qtyIn.value = String(Number(match.qty_units||0)||0);
+							const msIn = document.createElement('input'); msIn.type='number'; msIn.min='0'; msIn.step='1000'; msIn.value = String(Number(match.elapsed_ms||0)||0);
+							const avgEl = document.createElement('div'); const recomputeAvg = () => { const q = Number(qtyIn.value||0)||0; const ms = Number(msIn.value||0)||0; avgEl.textContent = q>0 ? formatAvg(Math.round(ms / q)) : '-'; }; recomputeAvg();
+							const right = document.createElement('div'); right.style.display='flex'; right.style.gap='8px'; right.style.justifyContent='flex-end';
+							const saveBtn = document.createElement('button'); saveBtn.className='press-btn btn-primary'; saveBtn.textContent='Guardar';
+							const delBtn = document.createElement('button'); delBtn.className='press-btn'; delBtn.textContent='Eliminar';
+							right.append(saveBtn, delBtn);
+							row.append(whenEl, qtyIn, msIn, avgEl, right); list.appendChild(row);
+							qtyIn.addEventListener('input', recomputeAvg); msIn.addEventListener('input', recomputeAvg);
+							saveBtn.addEventListener('click', async () => {
+								try {
+									const q = Math.max(0, Number(qtyIn.value||0) || 0);
+									const ms = Math.max(0, Number(msIn.value||0) || 0);
+									match.qty_units = q;
+									match.elapsed_ms = ms;
+									match.avg_ms_per_unit = q > 0 ? Math.round(ms / q) : 0;
+									await fetch('/api/times', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: it.id, steps }) });
+									serverSessionsByDessert.delete(dessert);
+									rows = await fetchServerSessions(dessert);
+									setSummaryFrom(rows);
+									if (typeof onUpdated === 'function') onUpdated(rows);
+								} catch { alert('No se pudo guardar'); }
+							});
+							delBtn.addEventListener('click', async () => {
+								const ok = confirm('¿Eliminar esta sesión completa?'); if (!ok) return;
+								try {
+									await fetch(`/api/times?id=${encodeURIComponent(it.id)}`, { method: 'DELETE' });
+									rows = (rows||[]).filter(r => Number(r.id) !== Number(it.id));
+									serverSessionsByDessert.set(dessert, rows);
+									setSummaryFrom(rows);
+									refreshList();
+									if (typeof onUpdated === 'function') onUpdated(rows);
+								} catch { alert('No se pudo eliminar'); }
+							});
+						}
+						if (!any) { const empty=document.createElement('div'); empty.textContent='Sin sesiones'; empty.style.opacity='0.8'; empty.style.padding='4px 0'; list.appendChild(empty); }
+					}
+					refreshList();
+					function cleanup(){ document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); if (pop.parentNode) pop.parentNode.removeChild(pop); }
+					function outside(ev){ if(!pop.contains(ev.target)) cleanup(); }
+					setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
+					closeBtn.addEventListener('click', cleanup);
+				}
 				for (const step of (Array.isArray(data.steps) ? data.steps : [])){
 					const section = document.createElement('div'); section.className='measure-section'; section.style.margin='12px 0';
 					const head = document.createElement('div'); head.style.display='flex'; head.style.alignItems='center'; head.style.justifyContent='space-between'; head.style.gap='8px';
 					const sh = document.createElement('div'); sh.textContent = step.step_name || 'Paso'; sh.style.fontWeight='600'; sh.style.margin='0 0 6px 0'; sh.style.flex='1';
-					const timer = buildTimerControls(); head.append(sh, timer.element);
+					const timer = buildTimerControls();
+					const avgLabel = document.createElement('small'); avgLabel.style.opacity='0.8'; avgLabel.style.minWidth='96px'; avgLabel.style.textAlign='right'; avgLabel.textContent = 'Prom: --:--';
+					const histBtn = document.createElement('button'); histBtn.className='press-btn'; histBtn.textContent='Historial';
+					function refreshAvgLabelFrom(rows){ const st = computeStepStats(rows, step.step_name || 'Paso'); avgLabel.textContent = st.sumQty>0 ? `Prom: ${formatAvg(st.avgMsPerUnit)}` : 'Prom: --:--'; }
+					fetchServerSessions(dessertName).then(rows => { refreshAvgLabelFrom(rows); }).catch(()=>{});
+					histBtn.addEventListener('click', () => { openStepHistoryDialog(dessertName, step.step_name || 'Paso', (rows) => { refreshAvgLabelFrom(rows); }); });
+					const rightWrap = document.createElement('div'); rightWrap.style.display='flex'; rightWrap.style.alignItems='center'; rightWrap.style.gap='8px'; rightWrap.append(timer.element, avgLabel, histBtn);
+					head.append(sh, rightWrap);
 					section.appendChild(head);
 					const table = document.createElement('table'); table.style.width='100%'; table.style.tableLayout='fixed';
 					const tbody = document.createElement('tbody');
@@ -248,21 +354,38 @@
 					if (saved > 0) alert(`Tiempos guardados (${saved})`); else alert('No hay tiempos para guardar');
 				} catch { alert('No se pudieron guardar los tiempos'); }
 			});
-			historyBtn.addEventListener('click', () => {
-				const items = readHistory().slice(-20).reverse();
+			historyBtn.addEventListener('click', async () => {
 				const pop = document.createElement('div'); pop.className = 'confirm-popover'; pop.style.position='fixed'; pop.style.left=(window.innerWidth/2)+'px'; pop.style.top='12%'; pop.style.transform='translate(-50%,0)';
-				const title = document.createElement('h4'); title.textContent = 'Historial de tiempos'; title.style.margin='0 0 8px 0';
-				const list = document.createElement('div'); list.style.maxHeight='60vh'; list.style.overflow='auto'; list.style.minWidth='min(92vw,520px)';
-				if (!items.length) { const empty=document.createElement('div'); empty.textContent='Sin registros'; list.appendChild(empty); }
-				for (const it of items) {
-					const row = document.createElement('div'); row.style.borderBottom='1px solid var(--border)'; row.style.padding='6px 2px';
-					const when = new Date(it.date_iso || it.id || Date.now());
-					row.innerHTML = `<strong>${it.dessert}</strong> · ${when.toLocaleString()} · Cant: ${it.qty_units||0} · Total: ${fmtMs(it.total_elapsed_ms||0)}`;
-					list.appendChild(row);
-				}
+				const title = document.createElement('h4'); title.textContent = 'Historial de tiempos (servidor)'; title.style.margin='0 0 8px 0';
+				const list = document.createElement('div'); list.style.maxHeight='60vh'; list.style.overflow='auto'; list.style.minWidth='min(92vw,560px)';
 				const actions=document.createElement('div'); actions.className='confirm-actions'; const close=document.createElement('button'); close.className='press-btn'; close.textContent='Cerrar'; actions.appendChild(close);
 				pop.append(title, list, actions); document.body.appendChild(pop); pop.classList.add('aladdin-pop');
-				close.addEventListener('click', () => { if (pop.parentNode) pop.parentNode.removeChild(pop); });
+				async function loadServerHistory(){
+					list.innerHTML='';
+					let rows = [];
+					try { rows = await fetch(withActor('/api/times?limit=100')).then(r => r.ok ? r.json() : []); } catch { rows = []; }
+					if (!rows || rows.length === 0) { const empty=document.createElement('div'); empty.textContent='Sin registros'; empty.style.opacity='0.8'; list.appendChild(empty); return; }
+					for (const it of rows) {
+						const row = document.createElement('div'); row.style.display='grid'; row.style.gridTemplateColumns='1.2fr .6fr .8fr auto'; row.style.gap='8px'; row.style.alignItems='center'; row.style.borderBottom='1px solid var(--border)'; row.style.padding='6px 0';
+						const when = new Date(it.created_at || it.id || Date.now());
+						const nameEl = document.createElement('div'); nameEl.innerHTML = `<strong>${it.dessert}</strong>`;
+						const qty = (() => { try { const steps = Array.isArray(it.steps)?it.steps:[]; let q=0; for (const s of steps) q = Math.max(q, Number(s.qty_units||0)||0); return q; } catch { return 0; } })();
+						const qtyEl = document.createElement('div'); qtyEl.textContent = `Cant: ${qty}`;
+						const totalEl = document.createElement('div'); totalEl.textContent = `Total: ${fmtMs(Number(it.total_elapsed_ms||0)||0)}`;
+						const delBtn = document.createElement('button'); delBtn.className='press-btn'; delBtn.textContent='Eliminar';
+						delBtn.addEventListener('click', async () => {
+							const ok = confirm('¿Eliminar esta sesión?'); if (!ok) return;
+							try { await fetch(`/api/times?id=${encodeURIComponent(it.id)}`, { method: 'DELETE' }); row.remove(); } catch { alert('No se pudo eliminar'); }
+						});
+						const whenEl = document.createElement('div'); whenEl.textContent = when.toLocaleString();
+						row.append(nameEl, whenEl, totalEl, delBtn); list.appendChild(row);
+					}
+				}
+				loadServerHistory();
+				function cleanup(){ document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); if (pop.parentNode) pop.parentNode.removeChild(pop); }
+				function outside(ev){ if(!pop.contains(ev.target)) cleanup(); }
+				setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
+				close.addEventListener('click', cleanup);
 			});
 		}
 
