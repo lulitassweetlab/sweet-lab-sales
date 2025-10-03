@@ -108,15 +108,10 @@
 					<div class="table-wrapper hidden" id="sales-wrapper">
 				<table id="sales-table">
 					<caption id="sales-caption"><strong></strong></caption>
-					<colgroup>
+					<colgroup id="sales-table-colgroup">
 						<col class="w-paid" />
 						<col class="w-client" />
-						<col class="w-qty" />
-						<col class="w-qty" />
-						<col class="w-qty" />
-						<col class="w-qty" />
-						<col class="w-qty" />
-						<col class="w-extra" />
+						<!-- Dessert cols will be inserted dynamically here -->
 						<col class="w-total" />
 						<col class="w-actions" />
 					</colgroup>
@@ -125,7 +120,6 @@
 							<th class="col-paid">$</th>
 							<th class="col-client">Cliente</th>
 							<!-- Dessert columns will be inserted dynamically here -->
-							<th class="col-extra"></th>
 							<th class="col-total">Total</th>
 							<th class="col-actions"></th>
 						</tr>
@@ -136,7 +130,6 @@
 							<td class="col-paid"></td>
 							<td class="col-client label">Totales</td>
 							<!-- Dessert qty columns will be inserted dynamically here -->
-							<td class="col-extra"></td>
 							<td class="col-total"><span id="sum-total-qty"> </span></td>
 							<td class="col-actions"></td>
 						</tr>
@@ -144,7 +137,6 @@
 							<td class="col-paid"></td>
 							<td class="col-client label"></td>
 							<!-- Dessert amt columns will be inserted dynamically here -->
-							<td class="col-extra"></td>
 							<td class="col-total"><span id="sum-grand">0</span></td>
 							<td class="col-actions"></td>
 						</tr>
@@ -158,7 +150,6 @@
 							<td class="col-paid"></td>
 							<td class="col-client label">Postres entregados</td>
 							<!-- Dessert delivered columns will be inserted dynamically here -->
-							<td class="col-extra"></td>
 							<td class="col-total"><span id="deliv-total">0</span></td>
 							<td class="col-actions"></td>
 						</tr>
@@ -166,7 +157,6 @@
 							<td class="col-paid"></td>
 							<td class="col-client label">Comisiones</td>
 							<!-- Dessert comm columns will be inserted dynamically here -->
-							<td class="col-extra"></td>
 							<td class="col-total"><span id="sum-comm">0</span></td>
 							<td class="col-actions"></td>
 						</tr>

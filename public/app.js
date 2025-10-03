@@ -842,26 +842,41 @@ async function loadDesserts() {
 // Render dynamic dessert columns in table header
 function renderDessertColumns() {
 	const headerRow = document.getElementById('sales-table-header');
-	if (!headerRow) return;
+	const colgroup = document.getElementById('sales-table-colgroup');
+	if (!headerRow || !colgroup) return;
 	
-	// Remove existing dessert columns
+	// Remove existing dessert columns from header
 	const existingDesserts = headerRow.querySelectorAll('th.col-dessert');
 	existingDesserts.forEach(th => th.remove());
 	
-	// Insert new columns before col-extra
-	const extraTh = headerRow.querySelector('th.col-extra');
-	if (!extraTh) return;
+	// Remove existing dessert cols from colgroup
+	const existingCols = colgroup.querySelectorAll('col.w-qty');
+	existingCols.forEach(col => col.remove());
 	
-	for (const d of state.desserts) {
-		const th = document.createElement('th');
-		th.className = `col-dessert col-${d.short_code}`;
-		th.dataset.label = d.name;
-		th.dataset.shortCode = d.short_code;
-		const span = document.createElement('span');
-		span.className = 'v-label';
-		span.textContent = d.name;
-		th.appendChild(span);
-		headerRow.insertBefore(th, extraTh);
+	// Insert new cols in colgroup before w-total
+	const totalCol = colgroup.querySelector('col.w-total');
+	if (totalCol) {
+		for (const d of state.desserts) {
+			const col = document.createElement('col');
+			col.className = 'w-qty';
+			colgroup.insertBefore(col, totalCol);
+		}
+	}
+	
+	// Insert new th columns before col-total
+	const totalTh = headerRow.querySelector('th.col-total');
+	if (totalTh) {
+		for (const d of state.desserts) {
+			const th = document.createElement('th');
+			th.className = `col-dessert col-${d.short_code}`;
+			th.dataset.label = d.name;
+			th.dataset.shortCode = d.short_code;
+			const span = document.createElement('span');
+			span.className = 'v-label';
+			span.textContent = d.name;
+			th.appendChild(span);
+			headerRow.insertBefore(th, totalTh);
+		}
 	}
 	
 	// Also update footer rows
@@ -883,35 +898,35 @@ function renderFooterDessertColumns() {
 		existing.forEach(td => td.remove());
 	});
 	
-	// Insert new columns before col-extra
+	// Insert new columns before col-total
 	for (const d of state.desserts) {
 		// Qty row
 		if (qtyRow) {
-			const extraTd = qtyRow.querySelector('td.col-extra');
+			const totalTd = qtyRow.querySelector('td.col-total');
 			const td = document.createElement('td');
 			td.className = `col-dessert col-${d.short_code}`;
 			const span = document.createElement('span');
 			span.id = `sum-${d.short_code}-qty`;
 			span.textContent = '0';
 			td.appendChild(span);
-			if (extraTd) qtyRow.insertBefore(td, extraTd);
+			if (totalTd) qtyRow.insertBefore(td, totalTd);
 		}
 		
 		// Amt row
 		if (amtRow) {
-			const extraTd = amtRow.querySelector('td.col-extra');
+			const totalTd = amtRow.querySelector('td.col-total');
 			const td = document.createElement('td');
 			td.className = `col-dessert col-${d.short_code}`;
 			const span = document.createElement('span');
 			span.id = `sum-${d.short_code}-amt`;
 			span.textContent = '0';
 			td.appendChild(span);
-			if (extraTd) amtRow.insertBefore(td, extraTd);
+			if (totalTd) amtRow.insertBefore(td, totalTd);
 		}
 		
 		// Delivered row
 		if (delivRow) {
-			const extraTd = delivRow.querySelector('td.col-extra');
+			const totalTd = delivRow.querySelector('td.col-total');
 			const td = document.createElement('td');
 			td.className = `col-dessert col-${d.short_code}`;
 			const span = document.createElement('span');
@@ -919,15 +934,15 @@ function renderFooterDessertColumns() {
 			span.style.outline = 'none';
 			span.textContent = '0';
 			td.appendChild(span);
-			if (extraTd) delivRow.insertBefore(td, extraTd);
+			if (totalTd) delivRow.insertBefore(td, totalTd);
 		}
 		
 		// Comm row (empty cells)
 		if (commRow) {
-			const extraTd = commRow.querySelector('td.col-extra');
+			const totalTd = commRow.querySelector('td.col-total');
 			const td = document.createElement('td');
 			td.className = `col-dessert col-${d.short_code}`;
-			if (extraTd) commRow.insertBefore(td, extraTd);
+			if (totalTd) commRow.insertBefore(td, totalTd);
 		}
 	}
 	
@@ -1164,8 +1179,7 @@ function renderTable() {
 			tr.appendChild(dessertCell);
 		}
 		
-		// Continue with extra, total, and actions columns
-		tr.appendChild(el('td', { class: 'col-extra' }));
+		// Continue with total and actions columns
 		tr.appendChild(el('td', { class: 'total col-total' }, fmtNo.format(total)));
 		tr.appendChild(el('td', { class: 'col-actions' }, (function(){
 			const b = document.createElement('button');
