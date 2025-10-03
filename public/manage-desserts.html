@@ -105,11 +105,9 @@
 				});
 				
 				const deleteBtn = document.createElement('button');
-				deleteBtn.className = 'press-btn';
-				deleteBtn.textContent = '🗑️';
+				deleteBtn.className = 'row-delete';
 				deleteBtn.title = 'Eliminar';
-				deleteBtn.style.background = '#ff4444';
-				deleteBtn.style.color = 'white';
+				deleteBtn.setAttribute('aria-label', 'Eliminar');
 				deleteBtn.addEventListener('click', async () => {
 					const confirmed = confirm(`¿Seguro que quieres eliminar "${d.name}"? Esta acción no se puede deshacer.`);
 					if (confirmed) {
