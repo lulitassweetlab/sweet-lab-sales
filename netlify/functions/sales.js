@@ -97,14 +97,19 @@ export async function handler(event) {
 				
 				// Enhance with sale_items data for each sale
 				for (const row of rows) {
-					const items = await sql`
-						SELECT si.id, si.dessert_id, si.quantity, si.unit_price, d.name, d.short_code
-						FROM sale_items si
-						JOIN desserts d ON d.id = si.dessert_id
-						WHERE si.sale_id = ${row.id}
-						ORDER BY d.position ASC, d.id ASC
-					`;
-					row.items = items || [];
+					try {
+						const items = await sql`
+							SELECT si.id, si.dessert_id, si.quantity, si.unit_price, d.name, d.short_code
+							FROM sale_items si
+							JOIN desserts d ON d.id = si.dessert_id
+							WHERE si.sale_id = ${row.id}
+							ORDER BY d.position ASC, d.id ASC
+						`;
+						row.items = items || [];
+					} catch (err) {
+						// Table might not exist yet, or no items for this sale
+						row.items = [];
+					}
 				}
 				
 				return json(rows);
