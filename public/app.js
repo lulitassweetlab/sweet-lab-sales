@@ -207,6 +207,7 @@ const state = {
 	sales: [],
 	currentUser: null,
 	clientCounts: new Map(),
+	showSellerDelete: false,
 };
 
 // Toasts and Notifications
@@ -612,14 +613,55 @@ async function loadSellers() {
 	renderSellerButtons();
 	// Removed syncColumnsBarWidths();
 	applyAuthVisibility();
+
+	// Wire seller delete toggle
+	try {
+		const toggleDel = document.getElementById('toggle-seller-delete');
+		if (toggleDel) {
+			// Initial icon
+			toggleDel.textContent = state.showSellerDelete ? 'Ocultar borrar' : 'Borrar vendedores';
+			toggleDel.addEventListener('click', () => {
+				state.showSellerDelete = !state.showSellerDelete;
+				toggleDel.classList.toggle('active', !!state.showSellerDelete);
+				toggleDel.textContent = state.showSellerDelete ? 'Ocultar borrar' : 'Borrar vendedores';
+				renderSellerButtons();
+			});
+		}
+	} catch {}
 }
 
 function renderSellerButtons() {
 	const list = $('#seller-list');
 	list.innerHTML = '';
     // Server already filters sellers by permissions. Render all returned.
+    const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+    const showDel = isSuper && !!state.showSellerDelete;
     for (const s of state.sellers) {
-        const btn = el('button', { class: 'seller-button', onclick: async () => { await enterSeller(s.id); } }, s.name);
+        const btn = el('button', { class: 'seller-button' + (showDel ? ' has-delete' : ''), title: s.name, onclick: async () => { await enterSeller(s.id); } });
+        const nameSpan = el('span', { class: 'seller-name' }, s.name);
+        btn.appendChild(nameSpan);
+        if (showDel) {
+            const del = el('span', { class: 'delete-seller', title: 'Eliminar vendedor', 'aria-label': 'Eliminar vendedor', role: 'button' });
+            del.addEventListener('click', async (ev) => {
+                ev.preventDefault();
+                ev.stopPropagation();
+                const ok = confirm(`¿Eliminar al vendedor "${s.name}"?`);
+                if (!ok) return;
+                try {
+                    await api('DELETE', `${API.Sellers}?id=${encodeURIComponent(s.id)}`);
+                    // Remove from state and re-render
+                    state.sellers = (state.sellers || []).filter(x => x.id !== s.id);
+                    if (state.currentSeller && state.currentSeller.id === s.id) {
+                        state.currentSeller = null;
+                    }
+                    renderSellerButtons();
+                    notify.success('Vendedor eliminado');
+                } catch (err) {
+                    notify.error('No se pudo eliminar el vendedor');
+                }
+            });
+            btn.appendChild(del);
+        }
         list.appendChild(btn);
     }
 }
@@ -673,6 +715,11 @@ function applyAuthVisibility() {
 	if (logoutBtn) logoutBtn.style.display = state.currentUser ? 'inline-flex' : 'none';
 	const addSellerWrap = document.querySelector('.seller-add');
 	if (addSellerWrap) addSellerWrap.style.display = isSuper ? 'block' : 'none';
+	const toggleDel = document.getElementById('toggle-seller-delete');
+	if (toggleDel) {
+		toggleDel.style.display = isSuper ? 'inline-flex' : 'none';
+		toggleDel.classList.toggle('active', !!state.showSellerDelete);
+	}
 	const usersBtn = document.getElementById('users-button');
 	const feats = new Set((state.currentUser?.features || []));
 	const reportBtn = document.getElementById('report-button');
