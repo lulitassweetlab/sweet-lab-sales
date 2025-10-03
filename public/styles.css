@@ -649,6 +649,20 @@ tfoot td { font-weight: 700; }
 	#sales-table.totals-stacked tfoot .tfoot-amt-stack .st-name { font-weight: 400; line-height: 1.4; }
 	#sales-table.totals-stacked tfoot .tfoot-amt-stack .st-qty { text-align: center; min-width: 3ch; line-height: 1.4; }
 	#sales-table.totals-stacked tfoot .tfoot-amt-stack .st-amt { text-align: right; color: var(--accent); line-height: 1.4; }
+	
+	/* Fix grand total row - hide extra cells and make col-client full width */
+	#sales-table.totals-stacked tfoot .t-am-grand .col-paid,
+	#sales-table.totals-stacked tfoot .t-am-grand .col-actions,
+	#sales-table.totals-stacked tfoot .t-am-grand .col-total { display: none !important; }
+	#sales-table.totals-stacked tfoot .t-am-grand .col-client { 
+		display: block; 
+		width: 100%; 
+		text-align: right; 
+		padding-right: 8px; 
+		font-weight: 700; 
+		font-size: 14px;
+		color: var(--accent);
+	}
 }
 
 /* Revert header to non-sticky but visible and aligned across devices */
@@ -1227,10 +1241,21 @@ tfoot td { font-weight: 700; }
 	#sales-table tfoot .tfoot-amt-stack td { vertical-align: bottom; padding-top: 12px; padding-bottom: 0; }
 	#sales-table tfoot .tfoot-amt-stack .col-paid, 
 	#sales-table tfoot .tfoot-amt-stack .col-actions { display: none; }
-	/* Hide side cells in grand total row to allow full width */
+	/* Hide ALL cells in grand total row except col-client to allow full width */
 	#sales-table tfoot .t-am-grand .col-paid,
-	#sales-table tfoot .t-am-grand .col-actions { display: none !important; }
+	#sales-table tfoot .t-am-grand .col-actions,
 	#sales-table tfoot .t-am-grand .col-total { display: none !important; }
+	/* Make col-client span full width by removing colspan and using CSS */
+	#sales-table tfoot .t-am-grand .col-client { 
+		display: block; 
+		width: 100%; 
+		text-align: right; 
+		padding-right: 8px; 
+		padding-left: 8px; 
+		font-weight: 700; 
+		font-size: 14px;
+		color: var(--accent);
+	}
 
 	#sales-table tfoot .tfoot-amt-stack .col-client { text-align: left; color: var(--muted); padding-right: 14px; display: grid; grid-template-columns: 1fr auto auto; align-items: end; align-content: end; gap: 8px; padding-bottom: 0; }
 	#sales-table tfoot .tfoot-amt-stack .col-client > * { align-self: end; line-height: 1; }
@@ -1241,8 +1266,6 @@ tfoot td { font-weight: 700; }
 	#sales-table tfoot .tfoot-amt-stack .st-grand { font-weight: 700; }
 	/* Preserve explicit spaces in spans if any */
 	#sales-table tfoot .tfoot-amt-stack .col-client span { white-space: pre; }
-	/* Grand total number all the way to the right - full width cell */
-	#sales-table tfoot .t-am-grand .col-client { display: table-cell; text-align: right; padding-right: 8px; padding-left: 8px; font-weight: 700; }
 }
 
 @media (min-width: 601px) {
