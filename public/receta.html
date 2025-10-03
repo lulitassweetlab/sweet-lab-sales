@@ -4,7 +4,25 @@
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
 	<title>Receta por pasos</title>
-	<link rel="stylesheet" href="/styles.css?v=2025-09-17-1" />
+    <link rel="stylesheet" href="/styles.css?v=2025-09-17-1" />
+    <style>
+      /* Timer running visual indicator (highly recognizable glow) */
+      .timer-controls { position: relative; border-radius: 12px; padding: 2px; }
+      .timer-controls.timer-active::after {
+        content: '';
+        position: absolute;
+        inset: -6px;
+        border-radius: 14px;
+        box-shadow: 0 0 0 3px #ff4da6, 0 0 18px #ff4da6;
+        animation: timerPulse 1.1s ease-in-out infinite;
+        pointer-events: none;
+      }
+      @keyframes timerPulse {
+        0% { box-shadow: 0 0 0 2px #ff4da6, 0 0 8px #ff4da6; }
+        50% { box-shadow: 0 0 0 6px #ff4da6, 0 0 28px #ff4da6; }
+        100% { box-shadow: 0 0 0 2px #ff4da6, 0 0 8px #ff4da6; }
+      }
+    </style>
 </head>
 <body>
 	<header class="app-header">
@@ -93,9 +111,40 @@
 			for (const p of pills){ const el = document.createElement('div'); el.style.background = 'var(--card)'; el.style.border = '1px solid var(--border)'; el.style.borderRadius = '999px'; el.style.padding = '4px 10px'; el.textContent = `${p.label}: ${p.v}`; countsSummary.appendChild(el); }
 		}
 
+		function fmtHm(ms){ const total=Math.max(0,Math.floor(ms/1000)); const h=Math.floor(total/3600); const m=Math.floor((total%3600)/60); const pad=n=>String(n).padStart(2,'0'); return `${pad(h)}:${pad(m)}`; }
+		function readLocalTimesHistory(){ try { return JSON.parse(localStorage.getItem('timesHistory')||'[]')||[]; } catch { return []; } }
+        async function getStepAvgMsPerUnit(dessertName, stepName){
+            // Prefer strictly local history for consistency after reset; only if no local samples, check server
+            let totalMs = 0; let totalQty = 0; let localFound = false;
+            for (const it of readLocalTimesHistory()){
+                if ((it.dessert||'') !== dessertName) continue;
+                for (const st of (it.steps||[])){
+                    if ((st.name||'') === stepName){
+                        totalMs += Number(st.elapsed_ms||0)||0;
+                        totalQty += Number(st.qty_units||it.qty_units||0)||0;
+                        localFound = true;
+                    }
+                }
+            }
+            if (localFound) {
+                return totalQty > 0 ? Math.round(totalMs / totalQty) : 0;
+            }
+            try {
+                const rows = await fetchJSON(withActor(`/api/times?dessert=${encodeURIComponent(dessertName)}`));
+                let rMs = 0, rQty = 0;
+                for (const r of (rows||[])){
+                    let steps = r.steps; if (!Array.isArray(steps)) { try { steps = JSON.parse(steps||'[]'); } catch { steps = []; } }
+                    for (const st of (steps||[])){
+                        if ((st.name||'') === stepName){ rMs += Number(st.elapsed_ms||0)||0; rQty += Number(st.qty_units||0)||0; }
+                    }
+                }
+                return rQty > 0 ? Math.round(rMs / rQty) : 0;
+            } catch { return 0; }
+        }
+
 		function buildTimerControls(){
 			const stepState = { elapsedMs: 0, isRunning: false, startedAt: null };
-			const wrap = document.createElement('div'); wrap.style.display='flex'; wrap.style.alignItems='center'; wrap.style.gap='8px';
+			const wrap = document.createElement('div'); wrap.className='timer-controls'; wrap.style.display='flex'; wrap.style.alignItems='center'; wrap.style.gap='8px';
 			const display = document.createElement('div'); display.style.minWidth='84px'; display.style.textAlign='center'; display.style.fontVariantNumeric='tabular-nums';
 			const playBtn = document.createElement('button'); playBtn.className='press-btn'; playBtn.textContent='▶'; playBtn.title='Play';
 			const pauseBtn = document.createElement('button'); pauseBtn.className='press-btn'; pauseBtn.textContent='⏸'; pauseBtn.title='Pause';
@@ -105,9 +154,10 @@
 			let intervalId = null;
 			function compute(){ const base=Number(stepState.elapsedMs||0)||0; if (stepState.isRunning && stepState.startedAt) return base + (Date.now()-stepState.startedAt); return base; }
 			function render(){ display.textContent = formatMs(compute()); }
-			function play(){ if (stepState.isRunning) return; stepState.isRunning = true; stepState.startedAt = Date.now(); clearInterval(intervalId); intervalId = setInterval(render, 250); }
-			function pause(){ if (!stepState.isRunning) return; stepState.elapsedMs = compute(); stepState.isRunning = false; stepState.startedAt = null; clearInterval(intervalId); intervalId = null; render(); }
-			function stop(){ stepState.elapsedMs = 0; stepState.isRunning = false; stepState.startedAt = null; clearInterval(intervalId); intervalId = null; render(); }
+            function setActive(v){ if(v){ wrap.classList.add('timer-active'); } else { wrap.classList.remove('timer-active'); } }
+            function play(){ if (stepState.isRunning) return; stepState.isRunning = true; stepState.startedAt = Date.now(); setActive(true); clearInterval(intervalId); intervalId = setInterval(render, 250); }
+            function pause(){ if (!stepState.isRunning) return; stepState.elapsedMs = compute(); stepState.isRunning = false; stepState.startedAt = null; setActive(false); clearInterval(intervalId); intervalId = null; render(); }
+            function stop(){ stepState.elapsedMs = 0; stepState.isRunning = false; stepState.startedAt = null; setActive(false); clearInterval(intervalId); intervalId = null; render(); }
 			playBtn.addEventListener('click', play); pauseBtn.addEventListener('click', pause); stopBtn.addEventListener('click', stop);
 			render();
 			return { element: wrap, getElapsedMs: () => compute(), reset: () => { stop(); } };
@@ -169,8 +219,18 @@
 					const section = document.createElement('div'); section.className='measure-section'; section.style.margin='12px 0';
 					const head = document.createElement('div'); head.style.display='flex'; head.style.alignItems='center'; head.style.justifyContent='space-between'; head.style.gap='8px';
 					const sh = document.createElement('div'); sh.textContent = step.step_name || 'Paso'; sh.style.fontWeight='600'; sh.style.margin='0 0 6px 0'; sh.style.flex='1';
-					const timer = buildTimerControls(); head.append(sh, timer.element);
+					const timer = buildTimerControls();
+					// Suggested time label (avg per unit * qty)
+					const suggestion = document.createElement('small'); suggestion.textContent=''; suggestion.style.marginLeft='8px'; suggestion.style.color='var(--accent)'; suggestion.style.whiteSpace='nowrap';
+					const rightWrap = document.createElement('div'); rightWrap.style.display='flex'; rightWrap.style.alignItems='center'; rightWrap.style.gap='8px';
+					rightWrap.append(timer.element, suggestion);
+					head.append(sh, rightWrap);
 					section.appendChild(head);
+					// Compute and render suggestion asynchronously
+                    (async () => {
+                        const avgPerUnit = await getStepAvgMsPerUnit(dessertName, step.step_name || 'Paso');
+                        if (avgPerUnit > 0){ const totalMs = avgPerUnit * qty; suggestion.textContent = `Sugerencia: ${fmtMs(totalMs)}`; }
+                    })();
 					const table = document.createElement('table'); table.style.width='100%'; table.style.tableLayout='fixed';
 					const tbody = document.createElement('tbody');
                     for (const it of (step.items || [])){
@@ -248,22 +308,11 @@
 					if (saved > 0) alert(`Tiempos guardados (${saved})`); else alert('No hay tiempos para guardar');
 				} catch { alert('No se pudieron guardar los tiempos'); }
 			});
-			historyBtn.addEventListener('click', () => {
-				const items = readHistory().slice(-20).reverse();
-				const pop = document.createElement('div'); pop.className = 'confirm-popover'; pop.style.position='fixed'; pop.style.left=(window.innerWidth/2)+'px'; pop.style.top='12%'; pop.style.transform='translate(-50%,0)';
-				const title = document.createElement('h4'); title.textContent = 'Historial de tiempos'; title.style.margin='0 0 8px 0';
-				const list = document.createElement('div'); list.style.maxHeight='60vh'; list.style.overflow='auto'; list.style.minWidth='min(92vw,520px)';
-				if (!items.length) { const empty=document.createElement('div'); empty.textContent='Sin registros'; list.appendChild(empty); }
-				for (const it of items) {
-					const row = document.createElement('div'); row.style.borderBottom='1px solid var(--border)'; row.style.padding='6px 2px';
-					const when = new Date(it.date_iso || it.id || Date.now());
-					row.innerHTML = `<strong>${it.dessert}</strong> · ${when.toLocaleString()} · Cant: ${it.qty_units||0} · Total: ${fmtMs(it.total_elapsed_ms||0)}`;
-					list.appendChild(row);
-				}
-				const actions=document.createElement('div'); actions.className='confirm-actions'; const close=document.createElement('button'); close.className='press-btn'; close.textContent='Cerrar'; actions.appendChild(close);
-				pop.append(title, list, actions); document.body.appendChild(pop); pop.classList.add('aladdin-pop');
-				close.addEventListener('click', () => { if (pop.parentNode) pop.parentNode.removeChild(pop); });
-			});
+            historyBtn.addEventListener('click', () => {
+                const url = new URL('/history.html', location.origin);
+                if (actor) url.searchParams.set('actor', actor);
+                location.href = url.toString();
+            });
 		}
 
 		// Navigation

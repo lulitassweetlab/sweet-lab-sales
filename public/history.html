@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Historial de Tiempos</title>
+  <link rel="stylesheet" href="/styles.css?v=2025-09-17-1" />
+  <style>
+    .history-panel { background: var(--card); border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 1px 2px rgba(0,0,0,0.06); overflow: hidden; margin-top: 8px; }
+    .history-panel .panel-header { background: var(--secondary); padding: 8px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .history-card { border: 1px solid var(--border); border-radius: 12px; padding: 12px; background: var(--card); box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
+    .step-row { display: grid; grid-template-columns: 1.1fr .6fr .6fr auto; gap: 8px; align-items: center; border-bottom: 1px solid var(--border); padding: 6px 0; }
+    .step-row:last-child { border-bottom: none; }
+    .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); background: var(--secondary); }
+    .tiny { font-size: 10px; opacity: .8; }
+    .btn-row { display: flex; gap: 8px; align-items: center; justify-content: flex-end; margin-top: 10px; }
+    .wide { width: 100%; }
+    .editable { width: 100%; box-sizing: border-box; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--text); }
+    .group-title { display:flex; align-items:center; justify-content:space-between; gap:10px; margin: 2px 0 8px 0; }
+    .group-sub { display:flex; gap:8px; align-items:center; }
+    .step-group { border: 1px solid var(--border); border-radius: 10px; padding: 0; background: var(--secondary); overflow: hidden; }
+    .step-head { display:flex; align-items:center; justify-content:space-between; gap:8px; cursor: pointer; padding: 12px; margin: 0; border: 0; border-radius: 0; transition: background-color 120ms ease, box-shadow 120ms ease; min-height: 48px; }
+    .step-head:hover { background: var(--hover-primary-pink); color: #ffffff; box-shadow: 0 2px 6px rgba(0,0,0,0.12); }
+    .step-head .meta { display:flex; gap:8px; align-items:center; }
+    .step-head .meta .avg { font-size: 12px; color: var(--accent); background: transparent; padding: 0; border: 0; min-width: 56px; text-align: right; }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-row">
+      <div class="header-left">
+        <img src="/logo.png" alt="Lulitas Logo" class="app-logo" />
+        <h1>Historial de Tiempos</h1>
+      </div>
+      <div class="header-actions">
+        <button id="back-btn" class="press-btn">Volver</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="history-panel">
+    <div class="panel-header">
+      <h3>Últimos registros guardados</h3>
+      <div class="panel-actions"></div>
+    </div>
+    <div class="panel-body" style="padding:12px">
+      <div id="groups" style="display:flex; flex-direction:column; gap:16px"></div>
+    </div>
+  </main>
+
+  <script type="module">
+  (function(){
+    const qs = new URLSearchParams(location.search);
+    let actor = (qs.get('actor') || '').toString();
+    if (!actor) { try { const saved = JSON.parse(localStorage.getItem('authUser')||'null'); actor = (saved?.name||saved?.username||'').toString(); } catch {} }
+    const backBtn = document.getElementById('back-btn');
+    const groupsWrap = document.getElementById('groups');
+
+    function readHistory(){ try { return JSON.parse(localStorage.getItem('timesHistory') || '[]') || []; } catch { return []; } }
+    function clearHistoryTimes(){
+      const items = readHistory();
+      for (const it of items){
+        const steps = Array.isArray(it.steps) ? it.steps : [];
+        for (const st of steps){
+          st.elapsed_ms = 0;
+          st.avg_ms_per_unit = 0;
+        }
+        it.total_elapsed_ms = 0;
+      }
+      localStorage.setItem('timesHistory', JSON.stringify(items));
+    }
+    function writeHistory(arr){ try { localStorage.setItem('timesHistory', JSON.stringify(arr)); } catch {} }
+
+    async function fetchJSON(u){ const r = await fetch(u); if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }
+    function withActor(url){
+      try { const u = new URL(url, location.origin); if (actor) u.searchParams.set('actor', actor); return u.pathname + (u.search || ''); }
+      catch { return url + (url.includes('?') ? `&actor=${encodeURIComponent(actor)}` : `?actor=${encodeURIComponent(actor)}`); }
+    }
+
+    function fmtMs(ms){
+      const total=Math.max(0,Math.floor(ms/1000));
+      const h=Math.floor(total/3600); const m=Math.floor((total%3600)/60); const s=total%60; const pad=n=>String(n).padStart(2,'0');
+      return (h>0?`${h}:`:'')+`${pad(m)}:${pad(s)}`;
+    }
+    function fmtHm(ms){
+      const total=Math.max(0,Math.floor(ms/1000));
+      const h=Math.floor(total/3600); const m=Math.floor((total%3600)/60); const pad=n=>String(n).padStart(2,'0');
+      return `${pad(h)}:${pad(m)}`;
+    }
+
+    // No parsing here; ediciones ocurren en la página de detalle
+
+    function groupByDessert(items){
+      const map = new Map();
+      for (const it of items) {
+        const key = (it.dessert || 'Sin nombre').toString();
+        if (!map.has(key)) map.set(key, []);
+        map.get(key).push(it);
+      }
+      return map;
+    }
+
+    // Sin filas individuales de sesiones en esta vista
+
+    function groupStepsByName(entries){
+      const map = new Map();
+      for (const entry of entries){
+        const steps = Array.isArray(entry.steps) ? entry.steps : [];
+        for (let i=0;i<steps.length;i++){
+          const st = steps[i];
+          const key = (st.name || 'Paso').toString();
+          if (!map.has(key)) map.set(key, []);
+          map.get(key).push({ entry, step: st, index: i });
+        }
+      }
+      return map;
+    }
+
+    async function getStepAvgMsPerUnit(dessertName, stepName){
+      let totalMs = 0; let totalQty = 0;
+      try {
+        const rows = await fetchJSON(withActor(`/api/times?dessert=${encodeURIComponent(dessertName)}`));
+        for (const r of (rows||[])){
+          let steps = r.steps; if (!Array.isArray(steps)) { try { steps = JSON.parse(steps||'[]'); } catch { steps = []; } }
+          for (const st of (steps||[])){
+            if ((st.name||'') === stepName){ totalMs += Number(st.elapsed_ms||0)||0; totalQty += Number(st.qty_units||0)||0; }
+          }
+        }
+      } catch {}
+      if (totalMs === 0 || totalQty === 0) {
+        // Fallback to local history
+        const items = readHistory().filter(it => (it.dessert||'') === dessertName);
+        for (const it of items){
+          for (const st of (it.steps||[])){
+            if ((st.name||'') === stepName){ totalMs += Number(st.elapsed_ms||0)||0; totalQty += Number(st.qty_units||it.qty_units||0)||0; }
+          }
+        }
+      }
+      return totalQty > 0 ? Math.round(totalMs / totalQty) : 0;
+    }
+
+    function goToStepDetail(dessert, stepName){
+      const url = new URL('/step-detail.html', location.origin);
+      url.searchParams.set('dessert', dessert);
+      url.searchParams.set('step', stepName);
+      location.href = url.toString();
+    }
+
+    function render(){
+      groupsWrap.innerHTML = '';
+      const items = readHistory();
+      const groups = groupByDessert(items);
+      for (const [dessert, entries] of groups.entries()){
+        const card = document.createElement('div'); card.className='history-card';
+        const head = document.createElement('div'); head.className='group-title';
+        const title = document.createElement('h3'); title.textContent = dessert; title.style.margin='0';
+        head.append(title);
+
+        const body = document.createElement('div'); body.style.display='flex'; body.style.flexDirection='column'; body.style.gap='10px';
+
+        // Group steps by name and render each group with aggregated average
+        const stepMap = groupStepsByName(entries);
+        for (const [stepName, arr] of stepMap.entries()){
+          const sg = document.createElement('div'); sg.className='step-group';
+          const sh = document.createElement('div'); sh.className='step-head';
+          const left = document.createElement('div'); left.textContent = stepName; left.style.fontWeight='600';
+          const meta = document.createElement('div'); meta.className='meta';
+          // promedio por unidad (sum ms / sum qty)
+          const totalQty = arr.reduce((acc, it)=> acc + (Number(it.step.qty_units||it.entry.qty_units||0)||0), 0);
+          const totalMsStep = arr.reduce((acc, it)=> acc + (Number(it.step.elapsed_ms||0)||0), 0);
+          const avgPerUnit = totalQty > 0 ? Math.round(totalMsStep / totalQty) : 0;
+          const avgTxt = document.createElement('span'); avgTxt.className='avg'; avgTxt.textContent = avgPerUnit > 0 ? `${fmtMs(avgPerUnit)}` : '';
+          // Async refine using server data if available
+          (async () => {
+            const remoteAvg = await getStepAvgMsPerUnit(dessert, stepName);
+            if (remoteAvg > 0) avgTxt.textContent = `${fmtMs(remoteAvg)}`;
+          })();
+          meta.append(avgTxt);
+          sh.append(left, meta);
+          sh.addEventListener('click', () => goToStepDetail(dessert, stepName));
+
+          sg.append(sh);
+          body.appendChild(sg);
+        }
+
+        card.append(head, body);
+        groupsWrap.appendChild(card);
+      }
+    }
+
+    function recompute(entry){
+      const qty = Number(entry.qty_units||0)||0;
+      for (const st of (entry.steps||[])){
+        const ms = Number(st.elapsed_ms||0)||0;
+        st.avg_ms_per_unit = qty > 0 ? Math.round(ms / qty) : 0;
+      }
+      entry.total_elapsed_ms = (entry.steps||[]).reduce((acc, s)=> acc + (Number(s.elapsed_ms||0)||0), 0);
+    }
+
+    backBtn.addEventListener('click', () => { history.back(); });
+
+    // Reset times on first load of this page
+    clearHistoryTimes();
+    render();
+  })();
+  </script>
+</body>
+</html>
