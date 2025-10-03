@@ -62,6 +62,11 @@
       const h=Math.floor(total/3600); const m=Math.floor((total%3600)/60); const s=total%60; const pad=n=>String(n).padStart(2,'0');
       return (h>0?`${h}:`:'')+`${pad(m)}:${pad(s)}`;
     }
+    function fmtHm(ms){
+      const total=Math.max(0,Math.floor(ms/1000));
+      const h=Math.floor(total/3600); const m=Math.floor((total%3600)/60); const pad=n=>String(n).padStart(2,'0');
+      return `${pad(h)}:${pad(m)}`;
+    }
     function parseMsString(v){
       if (typeof v !== 'string') return NaN;
       const parts = v.trim().split(':').map(p=>p.trim());
@@ -98,14 +103,14 @@
         const qtyWrap = document.createElement('div'); qtyWrap.className='cell';
         const qtyInput = document.createElement('input'); qtyInput.type='number'; qtyInput.min='0'; qtyInput.step='1'; qtyInput.value = String(entry.qty_units||0); qtyInput.style.textAlign='center'; qtyInput.style.width='100%';
         qtyWrap.appendChild(qtyInput);
-        const timeInput = document.createElement('input'); timeInput.className='cell editable'; timeInput.value = fmtMs(Number(st.elapsed_ms||0)); timeInput.placeholder='HH:MM';
+        const timeInput = document.createElement('input'); timeInput.className='cell editable'; timeInput.value = fmtHm(Number(st.elapsed_ms||0)); timeInput.placeholder='HH:MM';
         timeInput.dataset.entryId = String(entry.id||entry.date_iso||'');
         timeInput.dataset.stepName = String(stepName);
 
         row.append(qtyWrap, timeInput);
         col.append(h4, row);
         grid.appendChild(col);
-        cols.push({ entry, st, timeInput, qtyInput });
+        cols.push({ col, entry, st, timeInput, qtyInput });
 
         sumQty += Number(entry.qty_units||0)||0;
         sumElapsed += Number(st.elapsed_ms||0)||0;
@@ -117,10 +122,27 @@
       const h4 = document.createElement('h4'); h4.textContent = 'Promedio';
       const row = document.createElement('div'); row.className='row';
       const avgPerUnit = sumQty > 0 ? Math.round(sumElapsed / sumQty) : 0;
-      const avgCell = document.createElement('div'); avgCell.className='cell num'; avgCell.textContent = sumQty > 0 ? `${fmtMs(avgPerUnit)}` : '';
+      const avgCell = document.createElement('div'); avgCell.className='cell num'; avgCell.textContent = sumQty > 0 ? `${fmtHm(avgPerUnit)}` : '';
       row.append(avgCell);
       avgCol.append(h4, row);
       grid.appendChild(avgCol);
+
+      function recalc(){
+        let sQty = 0; let sElapsed = 0;
+        for (const { timeInput, qtyInput } of cols){
+          const q = Number(qtyInput.value||0)||0; sQty += q;
+          const ms = parseMsString(timeInput.value); sElapsed += (Number.isNaN(ms) ? 0 : ms);
+        }
+        const apu = sQty > 0 ? Math.round(sElapsed / sQty) : 0;
+        avgCell.textContent = sQty > 0 ? `${fmtHm(apu)}` : '';
+      }
+
+      for (const { timeInput, qtyInput } of cols){
+        timeInput.addEventListener('input', recalc);
+        qtyInput.addEventListener('input', recalc);
+        timeInput.addEventListener('change', recalc);
+        qtyInput.addEventListener('change', recalc);
+      }
 
       function save(){
         const items = readHistory();
