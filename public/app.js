@@ -630,6 +630,8 @@ function renderSellerButtons() {
                     await api('DELETE', `${API.Sellers}?id=${encodeURIComponent(s.id)}`);
                     // Remove locally and re-render
                     state.sellers = state.sellers.filter(x => x.id !== s.id);
+                    // Exit delete mode after successful deletion
+                    state.deleteSellerMode = false;
                     notify.success('Vendedor eliminado');
                     renderSellerButtons();
                 } catch (e) {
@@ -641,6 +643,13 @@ function renderSellerButtons() {
         } }, s.name);
         if (isSuper && state.deleteSellerMode) btn.classList.add('delete-mode');
         list.appendChild(btn);
+    }
+}
+
+function exitDeleteSellerModeIfActive() {
+    if (state.deleteSellerMode) {
+        state.deleteSellerMode = false;
+        renderSellerButtons();
     }
 }
 
@@ -1721,6 +1730,7 @@ async function exportCarteraExcel(startIso, endIso) {
 	const input = document.getElementById('report-date');
 	if (!reportBtn || !input) return;
 	reportBtn.addEventListener('click', (ev) => {
+		exitDeleteSellerModeIfActive();
 		const feats = new Set((state.currentUser?.features || []));
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 		if (!isSuper && !feats.has('reports.sales')) { notify.error('Sin permiso de reporte de ventas'); return; }
@@ -1731,6 +1741,7 @@ async function exportCarteraExcel(startIso, endIso) {
 		}, ev.clientX, ev.clientY, { preferUp: true });
 	});
 	projectionsBtn?.addEventListener('click', (ev) => {
+		exitDeleteSellerModeIfActive();
 		const feats = new Set((state.currentUser?.features || []));
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 		if (!isSuper && !feats.has('reports.projections')) { notify.error('Sin permiso de proyecciones'); return; }
@@ -1741,6 +1752,7 @@ async function exportCarteraExcel(startIso, endIso) {
 		}, ev.clientX, ev.clientY, { preferUp: true });
 	});
     carteraBtn?.addEventListener('click', (ev) => {
+        exitDeleteSellerModeIfActive();
         const feats = new Set((state.currentUser?.features || []));
         const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
         if (!isSuper && !feats.has('reports.cartera')) { notify.error('Sin permiso de cartera'); return; }
@@ -1752,6 +1764,7 @@ async function exportCarteraExcel(startIso, endIso) {
     });
 
 	transfersBtn?.addEventListener('click', (ev) => {
+		exitDeleteSellerModeIfActive();
 	const feats = new Set((state.currentUser?.features || []));
 	const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 		if (!isSuper && !feats.has('reports.transfers')) { notify.error('Sin permiso de transferencias'); return; }
@@ -1762,24 +1775,28 @@ async function exportCarteraExcel(startIso, endIso) {
 		}, ev.clientX, ev.clientY, { preferUp: true });
 	});
 	usersBtn?.addEventListener('click', async (ev) => {
+		exitDeleteSellerModeIfActive();
 		const feats = new Set((state.currentUser?.features || []));
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 		if (!isSuper && !feats.has('nav.users')) { notify.error('Sin permiso de usuarios'); return; }
 		openUsersMenu(ev.clientX, ev.clientY);
 	});
-	materialsBtn?.addEventListener('click', async (ev) => {
+    materialsBtn?.addEventListener('click', async (ev) => {
+        exitDeleteSellerModeIfActive();
 		const feats = new Set((state.currentUser?.features || []));
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 		if (!isSuper && !feats.has('nav.materials')) { notify.error('Sin permiso de materiales'); return; }
 		openMaterialsMenu(ev.clientX, ev.clientY);
 	});
-	inventoryBtn?.addEventListener('click', async (ev) => {
+    inventoryBtn?.addEventListener('click', async (ev) => {
+        exitDeleteSellerModeIfActive();
 		const feats = new Set((state.currentUser?.features || []));
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 		if (!isSuper && !feats.has('nav.inventory')) { notify.error('Sin permiso de inventario'); return; }
 		openInventoryView();
 	});
-	accountingBtn?.addEventListener('click', (ev) => {
+    accountingBtn?.addEventListener('click', (ev) => {
+        exitDeleteSellerModeIfActive();
 		const feats = new Set((state.currentUser?.features || []));
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 		if (!isSuper && !feats.has('nav.accounting')) { notify.error('Sin permiso de contabilidad'); return; }
@@ -2063,7 +2080,7 @@ function bindEvents() {
         } catch {}
     });
 
-	$('#add-row').addEventListener('click', addRow);
+    $('#add-row').addEventListener('click', addRow);
 	$('#go-home').addEventListener('click', () => {
 		state.currentSeller = null;
 		state.sales = [];
