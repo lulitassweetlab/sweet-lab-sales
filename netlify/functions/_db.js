@@ -2,7 +2,7 @@ import { neon } from '@netlify/neon';
 
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
-const SCHEMA_VERSION = 3; // Bump when schema changes require a migration
+const SCHEMA_VERSION = 4; // Bump when schema changes require a migration
 
 export async function ensureSchema() {
 	if (schemaEnsured) return;
@@ -410,6 +410,48 @@ END $$;`;
 		actor_name TEXT,
 		created_at TIMESTAMPTZ DEFAULT now()
 	)`;
+	// Dynamic desserts table for flexible dessert management
+	await sql`CREATE TABLE IF NOT EXISTS desserts (
+		id SERIAL PRIMARY KEY,
+		name TEXT UNIQUE NOT NULL,
+		short_code TEXT UNIQUE NOT NULL,
+		sale_price INTEGER NOT NULL DEFAULT 0,
+		is_active BOOLEAN NOT NULL DEFAULT true,
+		position INTEGER NOT NULL DEFAULT 0,
+		created_at TIMESTAMPTZ DEFAULT now(),
+		updated_at TIMESTAMPTZ DEFAULT now()
+	)`;
+	// Ensure desserts columns exist for older deployments
+	await sql`DO $$ BEGIN
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'desserts' AND column_name = 'short_code'
+		) THEN
+			ALTER TABLE desserts ADD COLUMN short_code TEXT UNIQUE;
+		END IF;
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'desserts' AND column_name = 'is_active'
+		) THEN
+			ALTER TABLE desserts ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT true;
+		END IF;
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'desserts' AND column_name = 'position'
+		) THEN
+			ALTER TABLE desserts ADD COLUMN position INTEGER NOT NULL DEFAULT 0;
+		END IF;
+	END $$;`;
+	// Dynamic sale items table to replace fixed columns
+	await sql`CREATE TABLE IF NOT EXISTS sale_items (
+		id SERIAL PRIMARY KEY,
+		sale_id INTEGER NOT NULL REFERENCES sales(id) ON DELETE CASCADE,
+		dessert_id INTEGER NOT NULL REFERENCES desserts(id) ON DELETE CASCADE,
+		quantity INTEGER NOT NULL DEFAULT 0,
+		unit_price INTEGER NOT NULL DEFAULT 0,
+		created_at TIMESTAMPTZ DEFAULT now(),
+		updated_at TIMESTAMPTZ DEFAULT now()
+	)`;
 	// Seed default users if table is empty
 	const existing = await sql`SELECT COUNT(*)::int AS c FROM users`;
 	if ((existing[0]?.c || 0) === 0) {
@@ -420,6 +462,72 @@ END $$;`;
 	}
 	// Ensure Marcela has a default yellow bill color if seller exists and not set
 	await sql`UPDATE sellers SET bill_color=${'#fdd835'} WHERE lower(name)='marcela' AND (bill_color IS NULL OR bill_color='')`;
+	
+	// Migration: Seed default desserts if table is empty
+	const dessertCount = await sql`SELECT COUNT(*)::int AS c FROM desserts`;
+	if ((dessertCount[0]?.c || 0) === 0) {
+		const defaultDesserts = [
+			{ name: 'Arco', short_code: 'arco', sale_price: 8500, position: 1 },
+			{ name: 'Melo', short_code: 'melo', sale_price: 9500, position: 2 },
+			{ name: 'Mara', short_code: 'mara', sale_price: 10500, position: 3 },
+			{ name: 'Oreo', short_code: 'oreo', sale_price: 10500, position: 4 },
+			{ name: 'Nute', short_code: 'nute', sale_price: 13000, position: 5 }
+		];
+		for (const d of defaultDesserts) {
+			await sql`INSERT INTO desserts (name, short_code, sale_price, position) VALUES (${d.name}, ${d.short_code}, ${d.sale_price}, ${d.position}) ON CONFLICT (name) DO NOTHING`;
+		}
+	}
+	
+	// Migration: Migrate existing sales to sale_items if needed
+	// This only runs once - checks if there are sales with old qty columns but no sale_items
+	const needsMigration = await sql`
+		SELECT COUNT(*)::int AS c FROM sales s
+		WHERE (s.qty_arco > 0 OR s.qty_melo > 0 OR s.qty_mara > 0 OR s.qty_oreo > 0 OR s.qty_nute > 0)
+		AND NOT EXISTS (SELECT 1 FROM sale_items si WHERE si.sale_id = s.id)
+		LIMIT 1
+	`;
+	if ((needsMigration[0]?.c || 0) > 0) {
+		// Get dessert IDs
+		const dessertMap = {};
+		const desserts = await sql`SELECT id, short_code FROM desserts WHERE short_code IN ('arco', 'melo', 'mara', 'oreo', 'nute')`;
+		for (const d of desserts) {
+			dessertMap[d.short_code] = d.id;
+		}
+		
+		// Migrate all existing sales
+		const salesToMigrate = await sql`
+			SELECT id, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute FROM sales
+			WHERE (qty_arco > 0 OR qty_melo > 0 OR qty_mara > 0 OR qty_oreo > 0 OR qty_nute > 0)
+			AND NOT EXISTS (SELECT 1 FROM sale_items si WHERE si.sale_id = sales.id)
+		`;
+		
+		const prices = { arco: 8500, melo: 9500, mara: 10500, oreo: 10500, nute: 13000 };
+		
+		for (const sale of salesToMigrate) {
+			const items = [];
+			if (sale.qty_arco > 0 && dessertMap.arco) {
+				items.push({ dessert_id: dessertMap.arco, quantity: sale.qty_arco, unit_price: prices.arco });
+			}
+			if (sale.qty_melo > 0 && dessertMap.melo) {
+				items.push({ dessert_id: dessertMap.melo, quantity: sale.qty_melo, unit_price: prices.melo });
+			}
+			if (sale.qty_mara > 0 && dessertMap.mara) {
+				items.push({ dessert_id: dessertMap.mara, quantity: sale.qty_mara, unit_price: prices.mara });
+			}
+			if (sale.qty_oreo > 0 && dessertMap.oreo) {
+				items.push({ dessert_id: dessertMap.oreo, quantity: sale.qty_oreo, unit_price: prices.oreo });
+			}
+			if (sale.qty_nute > 0 && dessertMap.nute) {
+				items.push({ dessert_id: dessertMap.nute, quantity: sale.qty_nute, unit_price: prices.nute });
+			}
+			
+			for (const item of items) {
+				await sql`INSERT INTO sale_items (sale_id, dessert_id, quantity, unit_price) 
+					VALUES (${sale.id}, ${item.dessert_id}, ${item.quantity}, ${item.unit_price})`;
+			}
+		}
+	}
+	
 	// 4) Persist target schema version so future requests short-circuit
 	await sql`UPDATE schema_meta SET version=${SCHEMA_VERSION}, updated_at=now()`;
 	schemaEnsured = true;
@@ -429,14 +537,38 @@ export function prices() {
 	return { arco: 8500, melo: 9500, mara: 10500, oreo: 10500, nute: 13000 };
 }
 
+export async function getDesserts() {
+	await ensureSchema();
+	return await sql`SELECT id, name, short_code, sale_price, is_active, position FROM desserts WHERE is_active = true ORDER BY position ASC, id ASC`;
+}
+
 export async function recalcTotalForId(id) {
-	const p = prices();
-	const [row] = await sql`
-		UPDATE sales SET total_cents = qty_arco * ${p.arco} + qty_melo * ${p.melo} + qty_mara * ${p.mara} + qty_oreo * ${p.oreo} + qty_nute * ${p.nute}
-		WHERE id = ${id}
-		RETURNING *
+	await ensureSchema();
+	// First try to calculate from sale_items (new system)
+	const itemsTotal = await sql`
+		SELECT COALESCE(SUM(quantity * unit_price), 0)::int AS total
+		FROM sale_items
+		WHERE sale_id = ${id}
 	`;
-	return row;
+	
+	if (itemsTotal && itemsTotal[0] && itemsTotal[0].total > 0) {
+		// Update using sale_items
+		const [row] = await sql`
+			UPDATE sales SET total_cents = ${itemsTotal[0].total}
+			WHERE id = ${id}
+			RETURNING *
+		`;
+		return row;
+	} else {
+		// Fallback to old system for backward compatibility
+		const p = prices();
+		const [row] = await sql`
+			UPDATE sales SET total_cents = qty_arco * ${p.arco} + qty_melo * ${p.melo} + qty_mara * ${p.mara} + qty_oreo * ${p.oreo} + qty_nute * ${p.nute}
+			WHERE id = ${id}
+			RETURNING *
+		`;
+		return row;
+	}
 }
 
 export async function getOrCreateDayId(sellerId, day) {

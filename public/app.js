@@ -784,6 +784,7 @@ function applyAuthVisibility() {
 	const materialsBtn = document.getElementById('materials-button');
 	const inventoryBtn = document.getElementById('inventory-button');
 	const accountingBtn = document.getElementById('accounting-button');
+	const dessertsBtn = document.getElementById('desserts-button');
 	const canSales = isSuper || feats.has('reports.sales');
 	const canCartera = isSuper || feats.has('reports.cartera');
 	const canProjections = isSuper || feats.has('reports.projections');
@@ -792,6 +793,7 @@ function applyAuthVisibility() {
 	const canInventory = isSuper || feats.has('nav.inventory');
 	const canUsers = isSuper || feats.has('nav.users');
 	const canAccounting = isSuper || feats.has('nav.accounting');
+	const canDesserts = isSuper || feats.has('nav.desserts');
 	if (usersBtn) usersBtn.style.display = canUsers ? 'inline-block' : 'none';
 	if (reportBtn) reportBtn.style.display = canSales ? 'inline-block' : 'none';
 	if (carteraBtn) carteraBtn.style.display = canCartera ? 'inline-block' : 'none';
@@ -800,6 +802,7 @@ function applyAuthVisibility() {
 	if (materialsBtn) materialsBtn.style.display = canMaterials ? 'inline-block' : 'none';
 	if (inventoryBtn) inventoryBtn.style.display = canInventory ? 'inline-block' : 'none';
 	if (accountingBtn) accountingBtn.style.display = canAccounting ? 'inline-block' : 'none';
+	if (dessertsBtn) dessertsBtn.style.display = canDesserts ? 'inline-block' : 'none';
 }
 
 function calcRowTotal(q) {
@@ -2080,6 +2083,7 @@ async function exportCarteraExcel(startIso, endIso) {
 	const inventoryBtn = document.getElementById('inventory-button');
 	const carteraBtn = document.getElementById('cartera-button');
 	const accountingBtn = document.getElementById('accounting-button');
+	const dessertsBtn = document.getElementById('desserts-button');
 	const input = document.getElementById('report-date');
 	if (!reportBtn || !input) return;
 	reportBtn.addEventListener('click', (ev) => {
@@ -2154,6 +2158,13 @@ async function exportCarteraExcel(startIso, endIso) {
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 		if (!isSuper && !feats.has('nav.accounting')) { notify.error('Sin permiso de contabilidad'); return; }
 		window.location.href = '/accounting.html';
+	});
+	dessertsBtn?.addEventListener('click', (ev) => {
+		exitDeleteSellerModeIfActive();
+		const feats = new Set((state.currentUser?.features || []));
+		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+		if (!isSuper && !feats.has('nav.desserts')) { notify.error('Sin permiso para administrar postres'); return; }
+		window.location.href = '/manage-desserts.html';
 	});
 })();
 

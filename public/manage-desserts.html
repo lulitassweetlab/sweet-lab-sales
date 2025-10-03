@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Administrar Postres</title>
+	<link rel="stylesheet" href="/styles.css?v=2025-09-17-1" />
+</head>
+<body>
+	<header class="app-header">
+		<div class="header-row">
+			<div class="header-left">
+				<img src="/logo.png" alt="Lulitas Logo" class="app-logo" />
+				<h1>Administrar Postres</h1>
+			</div>
+			<div class="header-actions">
+				<button id="back-btn" class="press-btn">Volver</button>
+			</div>
+		</div>
+	</header>
+
+	<main class="sales-panel">
+		<div class="panel-header">
+			<h3>Postres Disponibles</h3>
+			<div class="panel-actions">
+				<button id="add-dessert-btn" class="press-btn btn-primary">+ Nuevo Postre</button>
+			</div>
+		</div>
+		<div class="panel-body">
+			<div class="table-wrapper">
+				<table id="desserts-table">
+					<thead>
+						<tr>
+							<th>Nombre</th>
+							<th>Código</th>
+							<th>Precio de Venta</th>
+							<th>Posición</th>
+							<th>Estado</th>
+							<th>Acciones</th>
+						</tr>
+					</thead>
+					<tbody id="desserts-tbody"></tbody>
+				</table>
+			</div>
+		</div>
+	</main>
+
+	<script type="module">
+	(function(){
+		const tbody = document.getElementById('desserts-tbody');
+		const backBtn = document.getElementById('back-btn');
+		const addBtn = document.getElementById('add-dessert-btn');
+		
+		const fmtMoney = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
+		
+		async function loadDesserts() {
+			try {
+				const response = await fetch('/api/desserts');
+				if (!response.ok) throw new Error('Failed to load desserts');
+				const desserts = await response.json();
+				renderDesserts(desserts);
+			} catch (err) {
+				console.error('Error loading desserts:', err);
+				alert('Error al cargar los postres');
+			}
+		}
+		
+		function renderDesserts(desserts) {
+			tbody.innerHTML = '';
+			for (const d of desserts) {
+				const tr = document.createElement('tr');
+				
+				const tdName = document.createElement('td');
+				tdName.textContent = d.name;
+				
+				const tdCode = document.createElement('td');
+				tdCode.textContent = d.short_code;
+				
+				const tdPrice = document.createElement('td');
+				tdPrice.textContent = fmtMoney.format(d.sale_price);
+				
+				const tdPos = document.createElement('td');
+				tdPos.textContent = d.position;
+				
+				const tdStatus = document.createElement('td');
+				tdStatus.textContent = d.is_active ? 'Activo' : 'Inactivo';
+				tdStatus.style.color = d.is_active ? 'green' : 'gray';
+				
+				const tdActions = document.createElement('td');
+				const editBtn = document.createElement('button');
+				editBtn.className = 'press-btn';
+				editBtn.textContent = 'Editar';
+				editBtn.addEventListener('click', () => openEditDessert(d));
+				
+				const toggleBtn = document.createElement('button');
+				toggleBtn.className = 'press-btn';
+				toggleBtn.textContent = d.is_active ? 'Desactivar' : 'Activar';
+				toggleBtn.addEventListener('click', async () => {
+					await toggleDessert(d.id, !d.is_active);
+					loadDesserts();
+				});
+				
+				tdActions.appendChild(editBtn);
+				tdActions.appendChild(toggleBtn);
+				
+				tr.append(tdName, tdCode, tdPrice, tdPos, tdStatus, tdActions);
+				tbody.appendChild(tr);
+			}
+		}
+		
+		async function toggleDessert(id, isActive) {
+			try {
+				const response = await fetch('/api/desserts', {
+					method: 'PUT',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ id, is_active: isActive })
+				});
+				if (!response.ok) throw new Error('Failed to toggle dessert');
+			} catch (err) {
+				console.error('Error toggling dessert:', err);
+				alert('Error al cambiar el estado del postre');
+			}
+		}
+		
+		function openEditDessert(dessert) {
+			const pop = document.createElement('div');
+			pop.className = 'confirm-popover';
+			pop.style.position = 'fixed';
+			pop.style.left = (window.innerWidth / 2) + 'px';
+			pop.style.top = '12%';
+			pop.style.transform = 'translate(-50%, 0)';
+			pop.style.zIndex = '1000';
+			
+			const title = document.createElement('h4');
+			title.textContent = dessert ? 'Editar Postre' : 'Nuevo Postre';
+			title.style.margin = '0 0 12px 0';
+			
+			const form = document.createElement('div');
+			form.style.display = 'flex';
+			form.style.flexDirection = 'column';
+			form.style.gap = '10px';
+			form.style.minWidth = '320px';
+			
+			const nameLabel = document.createElement('label');
+			nameLabel.textContent = 'Nombre:';
+			const nameInput = document.createElement('input');
+			nameInput.className = 'input-cell';
+			nameInput.type = 'text';
+			nameInput.value = dessert ? dessert.name : '';
+			nameInput.placeholder = 'Ej: Cheesecake';
+			
+			const codeLabel = document.createElement('label');
+			codeLabel.textContent = 'Código (4 letras):';
+			const codeInput = document.createElement('input');
+			codeInput.className = 'input-cell';
+			codeInput.type = 'text';
+			codeInput.maxLength = 4;
+			codeInput.value = dessert ? dessert.short_code : '';
+			codeInput.placeholder = 'Ej: chee';
+			codeInput.disabled = !!dessert; // Can't change code after creation
+			
+			const priceLabel = document.createElement('label');
+			priceLabel.textContent = 'Precio de Venta:';
+			const priceInput = document.createElement('input');
+			priceInput.className = 'input-cell';
+			priceInput.type = 'number';
+			priceInput.min = '0';
+			priceInput.step = '100';
+			priceInput.value = dessert ? dessert.sale_price : '';
+			priceInput.placeholder = 'Ej: 15000';
+			
+			const posLabel = document.createElement('label');
+			posLabel.textContent = 'Posición:';
+			const posInput = document.createElement('input');
+			posInput.className = 'input-cell';
+			posInput.type = 'number';
+			posInput.min = '0';
+			posInput.step = '1';
+			posInput.value = dessert ? dessert.position : '0';
+			
+			const actions = document.createElement('div');
+			actions.className = 'confirm-actions';
+			actions.style.marginTop = '12px';
+			
+			const saveBtn = document.createElement('button');
+			saveBtn.className = 'press-btn btn-primary';
+			saveBtn.textContent = dessert ? 'Guardar' : 'Crear';
+			
+			const cancelBtn = document.createElement('button');
+			cancelBtn.className = 'press-btn';
+			cancelBtn.textContent = 'Cancelar';
+			
+			actions.append(saveBtn, cancelBtn);
+			
+			form.append(
+				nameLabel, nameInput,
+				codeLabel, codeInput,
+				priceLabel, priceInput,
+				posLabel, posInput
+			);
+			
+			pop.append(title, form, actions);
+			document.body.appendChild(pop);
+			pop.classList.add('aladdin-pop');
+			
+			saveBtn.addEventListener('click', async () => {
+				const name = nameInput.value.trim();
+				const code = codeInput.value.trim().toLowerCase();
+				const price = Number(priceInput.value) || 0;
+				const position = Number(posInput.value) || 0;
+				
+				if (!name) {
+					alert('El nombre es requerido');
+					return;
+				}
+				if (!code || code.length !== 4) {
+					alert('El código debe tener exactamente 4 letras');
+					return;
+				}
+				if (price <= 0) {
+					alert('El precio debe ser mayor a 0');
+					return;
+				}
+				
+				try {
+					const method = dessert ? 'PUT' : 'POST';
+					const body = dessert 
+						? { id: dessert.id, name, sale_price: price, position, is_active: dessert.is_active }
+						: { name, short_code: code, sale_price: price, position };
+					
+					const response = await fetch('/api/desserts', {
+						method,
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify(body)
+					});
+					
+					if (!response.ok) throw new Error('Failed to save dessert');
+					
+					document.body.removeChild(pop);
+					loadDesserts();
+					alert(dessert ? 'Postre actualizado' : 'Postre creado exitosamente');
+				} catch (err) {
+					console.error('Error saving dessert:', err);
+					alert('Error al guardar el postre');
+				}
+			});
+			
+			cancelBtn.addEventListener('click', () => {
+				document.body.removeChild(pop);
+			});
+			
+			nameInput.focus();
+		}
+		
+		addBtn.addEventListener('click', () => openEditDessert(null));
+		
+		backBtn.addEventListener('click', () => {
+			window.location.href = '/index.html';
+		});
+		
+		loadDesserts();
+	})();
+	</script>
+</body>
+</html>
