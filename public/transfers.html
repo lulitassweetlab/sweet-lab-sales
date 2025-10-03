@@ -26,6 +26,9 @@
 				<div id="count-label" style="opacity:.8; font-size:12px"></div>
 			</div>
 			<div style="display:flex; gap:8px; align-items:center;">
+				<select id="user-filter" class="input-cell" style="min-width:150px;">
+					<option value="">Todos los usuarios</option>
+				</select>
 				<button id="change-range" class="press-btn">Cambiar fechas</button>
 			</div>
 		</div>
@@ -47,6 +50,8 @@
 		const empty = document.getElementById('empty');
 		const backBtn = document.getElementById('back-btn');
 		const changeBtn = document.getElementById('change-range');
+		const userFilter = document.getElementById('user-filter');
+		let selectedUser = '';
 
 		function buildPaySelector(sale){
 			const container = document.createElement('div');
@@ -211,6 +216,15 @@
 					return r.json();
 				};
 				const sellers = await fetchJSON('/api/sellers?include_archived=1');
+			// Populate user filter dropdown
+			if (userFilter.options.length === 1) {
+				for (const s of sellers) {
+					const opt = document.createElement('option');
+					opt.value = String(s.id);
+					opt.textContent = String(s.name || '');
+					userFilter.appendChild(opt);
+				}
+			}
 			let found = 0;
 			countLabel.textContent = `Vendedores: ${sellers.length} · Buscando días…`;
 			// Concurrency limiter
@@ -227,7 +241,9 @@
 			}
 			// Gather days within range for each seller
 			const sellerDays = [];
-				await mapLimit(sellers, 6, async (s) => {
+			// Filter sellers by selected user if applicable
+			const filteredSellers = selectedUser ? sellers.filter(s => String(s.id) === selectedUser) : sellers;
+				await mapLimit(filteredSellers, 6, async (s) => {
 				try {
 						const days = await fetchJSON(`/api/days?seller_id=${encodeURIComponent(s.id)}&include_archived=1`);
 					for (const d of (days||[])) {
@@ -292,6 +308,10 @@
 				history.replaceState(null, '', `?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`);
 				load();
 			}, ev.clientX, ev.clientY, { preferUp: true });
+		});
+		userFilter.addEventListener('change', () => {
+			selectedUser = userFilter.value;
+			load();
 		});
 
 		// Lightweight embed of openRangeCalendarPopover from app.js if not present
