@@ -1492,16 +1492,9 @@ function openNewSalePopover(anchorX, anchorY) {
         attachClientSuggestionsPopover(clientInput);
         appendRow('Cliente', clientInput);
 
-        // Dessert rows (fixed to current sales columns)
-        const dessertDefs = [
-            { key: 'arco', label: 'Arco' },
-            { key: 'melo', label: 'Melo' },
-            { key: 'mara', label: 'Mara' },
-            { key: 'oreo', label: 'Oreo' },
-            { key: 'nute', label: 'Nute' },
-        ];
+        // Dessert rows (dynamic from state.desserts)
         const qtyInputs = {};
-        for (const d of dessertDefs) {
+        for (const d of state.desserts) {
             const input = document.createElement('input');
             input.type = 'number';
             input.min = '0';
@@ -1509,8 +1502,9 @@ function openNewSalePopover(anchorX, anchorY) {
             input.inputMode = 'numeric';
             input.placeholder = '0';
             input.className = 'input-cell input-qty';
-            qtyInputs[d.key] = input;
-            appendRow(d.label, input);
+            input.dataset.dessertId = d.id;
+            qtyInputs[d.short_code] = input;
+            appendRow(d.name, input);
         }
 
         const actions = document.createElement('div');
@@ -1586,18 +1580,35 @@ function openNewSalePopover(anchorX, anchorY) {
                 const payload = { seller_id: sellerId };
                 if (state?.selectedDayId) payload.sale_day_id = state.selectedDayId;
                 const created = await api('POST', API.Sales, payload);
+                
+                // Build items array and legacy qty_* properties dynamically
+                const items = [];
                 const body = {
                     id: created.id,
                     client_name: (clientInput.value || '').trim(),
-                    qty_arco: Math.max(0, parseInt(qtyInputs.arco.value || '0', 10) || 0),
-                    qty_melo: Math.max(0, parseInt(qtyInputs.melo.value || '0', 10) || 0),
-                    qty_mara: Math.max(0, parseInt(qtyInputs.mara.value || '0', 10) || 0),
-                    qty_oreo: Math.max(0, parseInt(qtyInputs.oreo.value || '0', 10) || 0),
-                    qty_nute: Math.max(0, parseInt(qtyInputs.nute.value || '0', 10) || 0),
                     is_paid: false,
                     pay_method: null,
                     _actor_name: state.currentUser?.name || ''
                 };
+                
+                for (const d of state.desserts) {
+                    const input = qtyInputs[d.short_code];
+                    const qty = Math.max(0, parseInt(input?.value || '0', 10) || 0);
+                    
+                    // Legacy format for backward compatibility
+                    body[`qty_${d.short_code}`] = qty;
+                    
+                    // New format - items array
+                    if (qty > 0) {
+                        items.push({
+                            dessert_id: d.id,
+                            quantity: qty,
+                            unit_price: d.sale_price
+                        });
+                    }
+                }
+                
+                body.items = items;
                 const updated = await api('PUT', API.Sales, body);
                 // Prepend and render
                 state.sales.unshift(updated);
