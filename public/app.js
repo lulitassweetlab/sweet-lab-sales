@@ -1182,7 +1182,8 @@ function attachClientSuggestionsPopover(inputEl) {
                     inputEl.value = String(it.name || '');
                     inputEl.dispatchEvent(new Event('input'));
                     inputEl.focus();
-                    // Keep popover open; do not close parent new-sale popover
+                    // Close suggestions after selecting
+                    closePop();
                 });
                 pop.appendChild(row);
             }
