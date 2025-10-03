@@ -3632,13 +3632,11 @@ button.secondary.press-btn:active {
 	vertical-align: middle;
 }
 
-/* Force same width as other dessert columns */
+/* Force same width as other dessert columns (use CSS variable) */
 #sales-table thead th.col-dessert,
 #sales-table tbody td.col-dessert,
 #sales-table tfoot td.col-dessert {
-	width: 12% !important;
-	min-width: 12% !important;
-	max-width: 12% !important;
+	width: var(--w-qty) !important;
 }
 
 /* Desktop: Horizontal labels, EXACT same styling as existing columns */
