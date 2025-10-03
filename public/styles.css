@@ -3629,17 +3629,23 @@ button.secondary.press-btn:active {
 #sales-table tbody td.col-dessert,
 #sales-table tfoot td.col-dessert {
 	text-align: center;
-	width: var(--w-qty) !important;
-	min-width: var(--w-qty) !important;
-	max-width: var(--w-qty) !important;
 	vertical-align: middle;
 }
 
-/* Desktop: Horizontal labels, same height as other headers */
+/* Force same width as other dessert columns */
+#sales-table thead th.col-dessert,
+#sales-table tbody td.col-dessert,
+#sales-table tfoot td.col-dessert {
+	width: 12% !important;
+	min-width: 12% !important;
+	max-width: 12% !important;
+}
+
+/* Desktop: Horizontal labels, EXACT same styling as existing columns */
 @media (min-width: 601px) {
 	#sales-table thead th.col-dessert {
-		padding: 10px 4px;
-		vertical-align: middle;
+		padding: 6px 6px !important;
+		vertical-align: middle !important;
 	}
 	#sales-table thead th.col-dessert .v-label {
 		display: inline !important;
@@ -3648,7 +3654,11 @@ button.secondary.press-btn:active {
 		transform: none !important;
 		position: static !important;
 		top: auto !important;
-		line-height: normal;
+		bottom: auto !important;
+		left: auto !important;
+		right: auto !important;
+		line-height: normal !important;
+		font-size: inherit !important;
 	}
 }
 
