@@ -20,9 +20,10 @@
     .group-title { display:flex; align-items:center; justify-content:space-between; gap:10px; margin: 2px 0 8px 0; }
     .group-sub { display:flex; gap:8px; align-items:center; }
     .step-group { border: 1px solid var(--border); border-radius: 10px; padding: 8px; background: var(--secondary); }
-    .step-head { display:flex; align-items:center; justify-content:space-between; gap:8px; cursor: pointer; padding-bottom: 6px; border-bottom: 1px solid var(--border); margin-bottom: 6px; border-radius: 8px; transition: background-color 120ms ease, box-shadow 120ms ease; }
-    .step-head:hover { background: var(--card); box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
+    .step-head { display:flex; align-items:center; justify-content:space-between; gap:8px; cursor: pointer; padding: 8px; margin: -8px -8px 6px -8px; border-bottom: 1px solid var(--border); border-radius: 8px; transition: background-color 120ms ease, box-shadow 120ms ease; }
+    .step-head:hover { background: var(--hover-primary-pink); color: #ffffff; box-shadow: 0 2px 6px rgba(0,0,0,0.12); }
     .step-head .meta { display:flex; gap:8px; align-items:center; }
+    .step-head .meta .avg { font-size: 12px; color: var(--accent); background: transparent; padding: 0; border: 0; }
   </style>
 </head>
 <body>
@@ -60,6 +61,11 @@
       const total=Math.max(0,Math.floor(ms/1000));
       const h=Math.floor(total/3600); const m=Math.floor((total%3600)/60); const s=total%60; const pad=n=>String(n).padStart(2,'0');
       return (h>0?`${h}:`:'')+`${pad(m)}:${pad(s)}`;
+    }
+    function fmtHm(ms){
+      const total=Math.max(0,Math.floor(ms/1000));
+      const h=Math.floor(total/3600); const m=Math.floor((total%3600)/60); const pad=n=>String(n).padStart(2,'0');
+      return `${pad(h)}:${pad(m)}`;
     }
 
     // No parsing here; ediciones ocurren en la página de detalle
@@ -120,8 +126,8 @@
           const totalQty = arr.reduce((acc, it)=> acc + (Number(it.step.qty_units||it.entry.qty_units||0)||0), 0);
           const totalMsStep = arr.reduce((acc, it)=> acc + (Number(it.step.elapsed_ms||0)||0), 0);
           const avgPerUnit = totalQty > 0 ? Math.round(totalMsStep / totalQty) : 0;
-          const avgPill = document.createElement('span'); avgPill.className='pill tiny'; avgPill.textContent = `Promedio: ${fmtMs(avgPerUnit)}`;
-          meta.append(avgPill);
+          const avgTxt = document.createElement('span'); avgTxt.className='avg'; avgTxt.textContent = `${fmtHm(avgPerUnit)}`;
+          meta.append(avgTxt);
           sh.append(left, meta);
           sh.addEventListener('click', () => goToStepDetail(dessert, stepName));
 
