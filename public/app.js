@@ -2686,16 +2686,17 @@ async function renderIngredientsView() {
 		if (after == null) grid.appendChild(dragging); else grid.insertBefore(dragging, after);
 	});
 	root.appendChild(grid);
-	// Top actions
-	const addDessertBtn = document.getElementById('ingredients-add-dessert');
-	addDessertBtn?.addEventListener('click', async () => {
-		const name = (prompt('Nombre del postre:') || '').trim(); if (!name) return;
-		await api('POST', API.Recipes, { kind: 'step.upsert', dessert: name, step_name: null, position: 0 });
-		await renderIngredientsView();
-		try { document.dispatchEvent(new CustomEvent('recipes:changed', { detail: { action: 'addDessert', dessert: name } })); } catch {}
-	});
-	const extrasBtn = document.getElementById('ingredients-add-extras');
-	extrasBtn?.addEventListener('click', async () => { openExtrasEditor(); });
+    // Top actions (use onclick to avoid duplicate listeners on re-render)
+    const addDessertBtn = document.getElementById('ingredients-add-dessert');
+    if (addDessertBtn) addDessertBtn.onclick = async () => {
+        const name = (prompt('Nombre del postre:') || '').trim();
+        if (!name) return;
+        await api('POST', API.Recipes, { kind: 'step.upsert', dessert: name, step_name: null, position: 0 });
+        await renderIngredientsView();
+        try { document.dispatchEvent(new CustomEvent('recipes:changed', { detail: { action: 'addDessert', dessert: name } })); } catch {}
+    };
+    const extrasBtn = document.getElementById('ingredients-add-extras');
+    if (extrasBtn) extrasBtn.onclick = () => { openExtrasEditor(); };
 }
 
 // ====== Local-only TIEMPOS ======
