@@ -3629,27 +3629,36 @@ button.secondary.press-btn:active {
 #sales-table tbody td.col-dessert,
 #sales-table tfoot td.col-dessert {
 	text-align: center;
-	width: var(--w-qty);
+	width: var(--w-qty) !important;
+	min-width: var(--w-qty) !important;
+	max-width: var(--w-qty) !important;
 	vertical-align: middle;
 }
 
-/* Vertical labels for dynamic desserts - Desktop */
+/* Desktop: Horizontal labels, same height as other headers */
 @media (min-width: 601px) {
+	#sales-table thead th.col-dessert {
+		height: 36px;
+		padding: 8px 4px;
+		vertical-align: middle;
+	}
 	#sales-table thead th.col-dessert .v-label {
-		display: inline-block !important;
-		writing-mode: vertical-rl;
-		text-orientation: mixed;
-		line-height: 1;
-		position: relative;
-		top: -4px;
+		display: inline !important;
+		writing-mode: initial !important;
+		text-orientation: initial !important;
+		transform: none !important;
+		position: static !important;
+		top: auto !important;
+		line-height: 1.2;
 	}
 }
 
-/* Vertical labels for dynamic desserts - Mobile */
+/* Mobile: Vertical labels using ::after */
 @media (max-width: 600px) {
 	#sales-table thead th.col-dessert {
 		position: relative !important;
 		padding: 0 2px 2px !important;
+		height: 60px;
 	}
 	#sales-table thead th.col-dessert .v-label {
 		display: none !important;
@@ -3666,24 +3675,33 @@ button.secondary.press-btn:active {
 	}
 }
 
-/* Alternating background for dynamic desserts */
-#sales-table thead th.col-dessert:nth-of-type(odd),
-#sales-table tbody td.col-dessert:nth-of-type(odd),
-#sales-table tfoot td.col-dessert:nth-of-type(odd) {
-	background-color: rgba(255, 228, 196, 0.2);
+/* Alternating gray background for dessert columns (every other one) */
+/* Light theme */
+#sales-table thead th.col-dessert:nth-child(odd),
+#sales-table tbody td.col-dessert:nth-child(odd),
+#sales-table tfoot td.col-dessert:nth-child(odd) {
+	background-color: rgba(0, 0, 0, 0.03);
 }
 
-#sales-table tbody tr:hover td.col-dessert {
-	background-color: rgba(255, 228, 196, 0.35);
+#sales-table tbody tr:hover td.col-dessert:nth-child(odd) {
+	background-color: rgba(0, 0, 0, 0.08);
 }
 
-/* Dark theme for dynamic desserts */
-[data-theme="dark"] #sales-table thead th.col-dessert:nth-of-type(odd),
-[data-theme="dark"] #sales-table tbody td.col-dessert:nth-of-type(odd),
-[data-theme="dark"] #sales-table tfoot td.col-dessert:nth-of-type(odd) {
+#sales-table tbody tr:hover td.col-dessert:nth-child(even) {
+	background-color: rgba(255, 228, 196, 0.15);
+}
+
+/* Dark theme */
+[data-theme="dark"] #sales-table thead th.col-dessert:nth-child(odd),
+[data-theme="dark"] #sales-table tbody td.col-dessert:nth-child(odd),
+[data-theme="dark"] #sales-table tfoot td.col-dessert:nth-child(odd) {
 	background-color: #191b1f !important;
 }
 
-[data-theme="dark"] #sales-table tbody tr:hover td.col-dessert:nth-of-type(odd) {
+[data-theme="dark"] #sales-table tbody tr:hover td.col-dessert:nth-child(odd) {
 	background-color: #202327 !important;
+}
+
+[data-theme="dark"] #sales-table tbody tr:hover td.col-dessert:nth-child(even) {
+	background-color: rgba(255, 228, 196, 0.05) !important;
 }
