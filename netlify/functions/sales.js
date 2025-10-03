@@ -4,6 +4,22 @@ function json(body, status = 200) {
 	return { statusCode: status, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
 }
 
+async function getActorAndRole(event, body = null) {
+    try {
+        const headers = (event.headers || {});
+        const hActor = (headers['x-actor-name'] || headers['X-Actor-Name'] || headers['x-actor'] || '').toString();
+        let bActor = '';
+        try { bActor = (body && (body.actor_name || body._actor_name || body.username)) ? String(body.actor_name || body._actor_name || body.username) : ''; } catch {}
+        let qActor = '';
+        try { const qs = new URLSearchParams(event.rawQuery || (event.queryStringParameters ? new URLSearchParams(event.queryStringParameters).toString() : '')); qActor = (qs.get('actor') || '').toString(); } catch {}
+        const actor = (hActor || bActor || qActor || '').trim();
+        if (!actor) return { actor: '', role: 'user' };
+        const r = await sql`SELECT role FROM users WHERE lower(username)=lower(${actor}) LIMIT 1`;
+        const role = (r && r[0] && r[0].role) ? String(r[0].role) : 'user';
+        return { actor, role };
+    } catch { return { actor: '', role: 'user' }; }
+}
+
 export async function handler(event) {
 	try {
 		await ensureSchema();
@@ -110,6 +126,17 @@ export async function handler(event) {
 				const sellerId = Number(data.seller_id);
 				let saleDayId = data.sale_day_id ? Number(data.sale_day_id) : null;
 				if (!sellerId) return json({ error: 'seller_id requerido' }, 400);
+                // Authorization: only admin/superadmin can create for others; users only for their own seller
+                try {
+                    const { actor, role } = await getActorAndRole(event, data);
+                    if (role !== 'admin' && role !== 'superadmin') {
+                        const s = await sql`SELECT name FROM sellers WHERE id=${sellerId} LIMIT 1`;
+                        const sellerName = (s && s[0] && s[0].name) ? String(s[0].name) : '';
+                        if (!actor || !sellerName || sellerName.toLowerCase() !== actor.toLowerCase()) {
+                            return json({ error: 'No autorizado' }, 403);
+                        }
+                    }
+                } catch {}
 				if (!saleDayId) {
 					const now = new Date();
 					const iso = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())).toISOString().slice(0,10);
@@ -127,7 +154,19 @@ export async function handler(event) {
 				const data = JSON.parse(event.body || '{}');
 				const id = Number(data.id);
 				if (!id) return json({ error: 'id requerido' }, 400);
-				const current = (await sql`SELECT client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, comment_text, created_at FROM sales WHERE id=${id}`)[0] || {};
+                // Authorization: allow admin/superadmin; users only if editing own seller
+                let current = (await sql`SELECT seller_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, comment_text, created_at FROM sales WHERE id=${id}`)[0] || {};
+                if (!current || !current.seller_id) return json({ error: 'No encontrado' }, 404);
+                try {
+                    const { actor, role } = await getActorAndRole(event, data);
+                    if (role !== 'admin' && role !== 'superadmin') {
+                        const s = await sql`SELECT name FROM sellers WHERE id=${Number(current.seller_id)} LIMIT 1`;
+                        const sellerName = (s && s[0] && s[0].name) ? String(s[0].name) : '';
+                        if (!actor || !sellerName || sellerName.toLowerCase() !== actor.toLowerCase()) {
+                            return json({ error: 'No autorizado' }, 403);
+                        }
+                    }
+                } catch {}
 				const createdAt = current.created_at ? new Date(current.created_at) : null;
 				const withinGrace = createdAt ? ((new Date()) - createdAt) < 120000 : false; // 2 minutes
 				const client = (data.client_name ?? '').toString();
@@ -199,12 +238,35 @@ export async function handler(event) {
 				if (receiptIdParam) {
 					const receiptId = Number(receiptIdParam);
 					if (!receiptId) return json({ error: 'receipt_id requerido' }, 400);
-					await sql`DELETE FROM sale_receipts WHERE id=${receiptId}`;
+                    // Authorization for receipt deletion uses the sale's seller
+                    const { actor: hdrActor, role } = await getActorAndRole(event, null);
+                    const effActor = actor || hdrActor;
+                    if (role !== 'admin' && role !== 'superadmin') {
+                        const r = await sql`SELECT s.seller_id, se.name AS seller_name FROM sale_receipts sr JOIN sales s ON s.id = sr.sale_id LEFT JOIN sellers se ON se.id = s.seller_id WHERE sr.id=${receiptId} LIMIT 1`;
+                        const sellerName = (r && r[0] && r[0].seller_name) ? String(r[0].seller_name) : '';
+                        if (!effActor || !sellerName || sellerName.toLowerCase() !== effActor.toLowerCase()) {
+                            return json({ error: 'No autorizado' }, 403);
+                        }
+                    }
+                    await sql`DELETE FROM sale_receipts WHERE id=${receiptId}`;
 					return json({ ok: true });
 				}
 				if (!id) return json({ error: 'id requerido' }, 400);
 				// fetch previous data for notification content
-				const prev = (await sql`SELECT seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, pay_method FROM sales WHERE id=${id}`)[0] || null;
+                const prev = (await sql`SELECT seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, pay_method FROM sales WHERE id=${id}`)[0] || null;
+                if (!prev) return json({ error: 'No encontrado' }, 404);
+                // Authorization: allow admin/superadmin; users only if deleting own seller's sale
+                try {
+                    const { actor: hdrActor, role } = await getActorAndRole(event, null);
+                    const effActor = actor || hdrActor;
+                    if (role !== 'admin' && role !== 'superadmin') {
+                        const s = await sql`SELECT name FROM sellers WHERE id=${Number(prev.seller_id||0)} LIMIT 1`;
+                        const sellerName = (s && s[0] && s[0].name) ? String(s[0].name) : '';
+                        if (!effActor || !sellerName || sellerName.toLowerCase() !== effActor.toLowerCase()) {
+                            return json({ error: 'No autorizado' }, 403);
+                        }
+                    }
+                } catch {}
 				await sql`DELETE FROM sales WHERE id=${id}`;
 				// emit deletion notification with client, quantities, and seller name
 				if (prev) {
