@@ -8,8 +8,8 @@
   <style>
     .detail-panel { background: var(--card); border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 1px 2px rgba(0,0,0,0.06); overflow: hidden; margin-top: 8px; }
     .detail-panel .panel-header { background: var(--secondary); padding: 8px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-    .grid { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(160px, 1fr); gap: 10px; overflow-x: auto; padding-bottom: 8px; justify-content: center; }
-    .col { border: 1px solid var(--border); border-radius: 10px; background: var(--card); padding: 10px; min-width: 180px; text-align: center; }
+    .grid { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(200px, 1fr); gap: 14px; overflow-x: auto; padding-bottom: 8px; justify-content: center; }
+    .col { border: 1px solid var(--border); border-radius: 12px; background: var(--card); padding: 12px; min-width: 200px; text-align: center; }
     .col h4 { margin: 0 0 6px 0; font-size: 14px; text-align: center; }
     .row { display: grid; grid-template-columns: 1fr; gap: 6px; justify-items: center; }
     .cell { border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; background: var(--secondary); text-align: center; }
@@ -95,15 +95,17 @@
         const h4 = document.createElement('h4'); h4.textContent = when.toLocaleString();
         const row = document.createElement('div'); row.className='row';
 
-        const qtyCell = document.createElement('div'); qtyCell.className='cell num'; qtyCell.textContent = `Cant: ${entry.qty_units||0}`;
+        const qtyWrap = document.createElement('div'); qtyWrap.className='cell';
+        const qtyInput = document.createElement('input'); qtyInput.type='number'; qtyInput.min='0'; qtyInput.step='1'; qtyInput.value = String(entry.qty_units||0); qtyInput.style.textAlign='center'; qtyInput.style.width='100%';
+        qtyWrap.appendChild(qtyInput);
         const timeInput = document.createElement('input'); timeInput.className='cell editable'; timeInput.value = fmtMs(Number(st.elapsed_ms||0)); timeInput.placeholder='HH:MM';
         timeInput.dataset.entryId = String(entry.id||entry.date_iso||'');
         timeInput.dataset.stepName = String(stepName);
 
-        row.append(qtyCell, timeInput);
+        row.append(qtyWrap, timeInput);
         col.append(h4, row);
         grid.appendChild(col);
-        cols.push({ entry, st, timeInput });
+        cols.push({ entry, st, timeInput, qtyInput });
 
         sumQty += Number(entry.qty_units||0)||0;
         sumElapsed += Number(st.elapsed_ms||0)||0;
@@ -115,7 +117,7 @@
       const h4 = document.createElement('h4'); h4.textContent = 'Promedio';
       const row = document.createElement('div'); row.className='row';
       const avgPerUnit = sumQty > 0 ? Math.round(sumElapsed / sumQty) : 0;
-      const avgCell = document.createElement('div'); avgCell.className='cell num'; avgCell.textContent = `${fmtMs(avgPerUnit)}`;
+      const avgCell = document.createElement('div'); avgCell.className='cell num'; avgCell.textContent = sumQty > 0 ? `${fmtMs(avgPerUnit)}` : '';
       row.append(avgCell);
       avgCol.append(h4, row);
       grid.appendChild(avgCol);
@@ -123,20 +125,46 @@
       function save(){
         const items = readHistory();
         const byId = new Map(items.map(it => [String(it.id||it.date_iso||''), it]));
-        for (const { timeInput } of cols){
+        for (const { col, timeInput, qtyInput } of cols){
           const entryId = String(timeInput.dataset.entryId||'');
           const entry = byId.get(entryId); if (!entry) continue;
           const steps = Array.isArray(entry.steps) ? entry.steps : [];
           const st = steps.find(s => (s.name||'') === stepName); if (!st) continue;
           const parsed = parseMsString(timeInput.value);
           if (!Number.isNaN(parsed)) st.elapsed_ms = parsed;
+          const newQty = Number(qtyInput.value||0)||0; entry.qty_units = newQty;
           recompute(entry);
         }
         localStorage.setItem('timesHistory', JSON.stringify(items));
         alert('Cambios guardados');
       }
 
-      saveBtn.onclick = save;
+      // Delete selected sessions (columns) support
+      let selected = new Set();
+      grid.addEventListener('click', (ev) => {
+        const col = ev.target.closest('.col');
+        if (!col || col.classList.contains('avg-col')) return;
+        const idx = Array.from(grid.children).indexOf(col);
+        if (selected.has(idx)) { selected.delete(idx); col.style.outline='none'; }
+        else { selected.add(idx); col.style.outline='2px solid var(--hover-primary-pink)'; }
+      });
+
+      function removeSelected(){
+        if (selected.size === 0) return;
+        const items = readHistory();
+        const colsArr = Array.from(grid.children);
+        const toRemove = Array.from(selected).filter(i => i >=0 && i < colsArr.length-1); // exclude avg-col
+        const ids = toRemove.map(i => {
+          const input = cols[i].timeInput; return String(input.dataset.entryId||'');
+        });
+        const filtered = items.filter(it => !ids.includes(String(it.id||it.date_iso||'')));
+        localStorage.setItem('timesHistory', JSON.stringify(filtered));
+        location.reload();
+      }
+
+      saveBtn.onclick = (ev) => {
+        if (ev.shiftKey) removeSelected(); else save();
+      };
     }
 
     backBtn.addEventListener('click', () => history.back());

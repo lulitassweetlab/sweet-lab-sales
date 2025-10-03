@@ -113,30 +113,34 @@
 
 		function fmtHm(ms){ const total=Math.max(0,Math.floor(ms/1000)); const h=Math.floor(total/3600); const m=Math.floor((total%3600)/60); const pad=n=>String(n).padStart(2,'0'); return `${pad(h)}:${pad(m)}`; }
 		function readLocalTimesHistory(){ try { return JSON.parse(localStorage.getItem('timesHistory')||'[]')||[]; } catch { return []; } }
-		async function getStepAvgMsPerUnit(dessertName, stepName){
-			let totalMs = 0; let totalQty = 0;
-			// Try server first
-			try {
-				const rows = await fetchJSON(withActor(`/api/times?dessert=${encodeURIComponent(dessertName)}`));
-				for (const r of (rows||[])){
-					let steps = r.steps;
-					if (!Array.isArray(steps)) { try { steps = JSON.parse(steps||'[]'); } catch { steps = []; } }
-					for (const st of (steps||[])){
-						if ((st.name||'') === stepName){ totalMs += Number(st.elapsed_ms||0)||0; totalQty += Number(st.qty_units||0)||0; }
-					}
-				}
-			} catch {}
-			// Fallback to local history
-			if (totalMs === 0 || totalQty === 0){
-				for (const it of readLocalTimesHistory()){
-					if ((it.dessert||'') !== dessertName) continue;
-					for (const st of (it.steps||[])){
-						if ((st.name||'') === stepName){ totalMs += Number(st.elapsed_ms||0)||0; totalQty += Number(st.qty_units||0)||0; }
-					}
-				}
-			}
-			return totalQty > 0 ? Math.round(totalMs / totalQty) : 0;
-		}
+        async function getStepAvgMsPerUnit(dessertName, stepName){
+            // Prefer strictly local history for consistency after reset; only if no local samples, check server
+            let totalMs = 0; let totalQty = 0; let localFound = false;
+            for (const it of readLocalTimesHistory()){
+                if ((it.dessert||'') !== dessertName) continue;
+                for (const st of (it.steps||[])){
+                    if ((st.name||'') === stepName){
+                        totalMs += Number(st.elapsed_ms||0)||0;
+                        totalQty += Number(st.qty_units||it.qty_units||0)||0;
+                        localFound = true;
+                    }
+                }
+            }
+            if (localFound) {
+                return totalQty > 0 ? Math.round(totalMs / totalQty) : 0;
+            }
+            try {
+                const rows = await fetchJSON(withActor(`/api/times?dessert=${encodeURIComponent(dessertName)}`));
+                let rMs = 0, rQty = 0;
+                for (const r of (rows||[])){
+                    let steps = r.steps; if (!Array.isArray(steps)) { try { steps = JSON.parse(steps||'[]'); } catch { steps = []; } }
+                    for (const st of (steps||[])){
+                        if ((st.name||'') === stepName){ rMs += Number(st.elapsed_ms||0)||0; rQty += Number(st.qty_units||0)||0; }
+                    }
+                }
+                return rQty > 0 ? Math.round(rMs / rQty) : 0;
+            } catch { return 0; }
+        }
 
 		function buildTimerControls(){
 			const stepState = { elapsedMs: 0, isRunning: false, startedAt: null };
