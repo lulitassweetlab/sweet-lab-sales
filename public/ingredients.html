@@ -374,23 +374,32 @@
 					agg.set(key, cur);
 				}
 				const mapKey = (name) => (name||'').toString().trim().toLowerCase();
-				for (const name of names){
-					const arr = itemsByDessert.get(name) || [];
-					const k = mapKey(name);
+				
+				// Process ALL desserts from DESSERTS array (not just ones with recipes)
+				for (const d of DESSERTS) {
+					const mult = Number(useCounts[d.short_code] || 0);
+					if (!mult) continue; // Skip if no quantity
 					
-					// Find matching dessert by name
-					let mult = 0;
-					for (const d of DESSERTS) {
-						if (k.startsWith(d.short_code) || k.includes(d.short_code)) {
-							mult = Number(useCounts[d.short_code] || 0);
+					// Try to find recipe by matching name
+					let recipeFound = false;
+					for (const name of names) {
+						const k = mapKey(name);
+						if (k.startsWith(d.short_code) || k.includes(d.short_code) || k === mapKey(d.name)) {
+							// Found matching recipe
+							const arr = itemsByDessert.get(name) || [];
+							for (const it of arr){
+								const per = Number(it.qty_per_unit||0)||0;
+								addRow(name, it.ingredient, it.unit, per, per * mult);
+							}
+							recipeFound = true;
 							break;
 						}
 					}
 					
-					if (!mult) continue;
-					for (const it of arr){
-						const per = Number(it.qty_per_unit||0)||0;
-						addRow(name, it.ingredient, it.unit, per, per * mult);
+					// If no recipe found, still add a note (so user knows the dessert is counted)
+					if (!recipeFound && mult > 0) {
+						// Dessert exists but has no recipe - still counted in totals
+						console.log(`Postre ${d.name} (${d.short_code}) tiene ${mult} unidades pero no tiene receta definida`);
 					}
 				}
 				let totalUnits = 0;
@@ -408,27 +417,27 @@
 					perDessertCostNeeded[d.short_code] = 0;
 				}
 				
-				for (const name of names){
-					const arr = itemsByDessert.get(name) || [];
-					const k = mapKey(name);
+				// Process costs for ALL desserts
+				for (const d of DESSERTS) {
+					const mult = Number(useCounts[d.short_code] || 0);
+					if (!mult) continue;
 					
-					// Find matching dessert
-					let flavor = null;
-					for (const d of DESSERTS) {
-						if (k.startsWith(d.short_code) || k.includes(d.short_code)) {
-							flavor = d.short_code;
+					// Try to find recipe
+					for (const name of names){
+						const arr = itemsByDessert.get(name) || [];
+						const k = mapKey(name);
+						
+						if (k.startsWith(d.short_code) || k.includes(d.short_code) || k === mapKey(d.name)) {
+							// Found matching recipe
+							for (const it of arr){
+								const canon = canonicalizeName(it.ingredient);
+								if (canon === 'Agua' || canon === 'Almíbar') continue;
+								const per = Number(it.qty_per_unit||0)||0;
+								const price = Number(it.price||0)||0;
+								perDessertCostNeeded[d.short_code] += per * mult * price;
+							}
 							break;
 						}
-					}
-					
-					const mult = flavor ? useCounts[flavor] : 0;
-					if (!flavor || !mult) continue;
-					for (const it of arr){
-						const canon = canonicalizeName(it.ingredient);
-						if (canon === 'Agua' || canon === 'Almíbar') continue;
-						const per = Number(it.qty_per_unit||0)||0;
-						const price = Number(it.price||0)||0;
-						perDessertCostNeeded[flavor] += per * mult * price;
 					}
 				}
 				let extrasUnitCost = 0;
