@@ -223,10 +223,10 @@
 					head.append(sh, rightWrap);
 					section.appendChild(head);
 					// Compute and render suggestion asynchronously
-					(async () => {
-						const avgPerUnit = await getStepAvgMsPerUnit(dessertName, step.step_name || 'Paso');
-						if (avgPerUnit > 0){ const totalMs = avgPerUnit * qty; suggestion.textContent = `Sugerencia: ${fmtHm(totalMs)}`; }
-					})();
+                    (async () => {
+                        const avgPerUnit = await getStepAvgMsPerUnit(dessertName, step.step_name || 'Paso');
+                        if (avgPerUnit > 0){ const totalMs = avgPerUnit * qty; suggestion.textContent = `Sugerencia: ${fmtMs(totalMs)}`; }
+                    })();
 					const table = document.createElement('table'); table.style.width='100%'; table.style.tableLayout='fixed';
 					const tbody = document.createElement('tbody');
                     for (const it of (step.items || [])){
