@@ -975,17 +975,17 @@ function calcRowTotal(q) {
 	// Support both old format and new dynamic format
 	let total = 0;
 	
-	// If using items array (new format)
-	if (Array.isArray(q.items)) {
+	// If using items array (new format) - PRIORITY
+	if (Array.isArray(q.items) && q.items.length > 0) {
 		for (const item of q.items) {
 			total += Number(item.quantity || 0) * Number(item.unit_price || 0);
 		}
 		return total;
 	}
 	
-	// Fallback to old format with dynamic desserts
+	// Fallback to old format with dynamic desserts (check qty_* properties)
 	for (const d of state.desserts) {
-		const qty = Number(q[d.short_code] || 0);
+		const qty = Number(q[`qty_${d.short_code}`] || 0);
 		const price = Number(PRICES[d.short_code] || 0);
 		total += qty * price;
 	}
@@ -1962,13 +1962,16 @@ function updateSummary() {
 		if (Array.isArray(s.items) && s.items.length > 0) {
 			// New format: use items
 			for (const item of s.items) {
-				const code = item.short_code;
-				if (qtys[code] !== undefined) {
+				// Find dessert by id or short_code
+				const code = item.short_code || 
+					state.desserts.find(d => d.id === item.dessert_id)?.short_code;
+				
+				if (code && qtys[code] !== undefined) {
 					qtys[code] += Number(item.quantity || 0);
 				}
 				const pm = (s.pay_method || '').toString();
 				if (pm === 'transf' || pm === 'jorgebank' || pm === 'marce' || pm === 'jorge') {
-					if (paidQtys[code] !== undefined) {
+					if (code && paidQtys[code] !== undefined) {
 						paidQtys[code] += Number(item.quantity || 0);
 					}
 				}
