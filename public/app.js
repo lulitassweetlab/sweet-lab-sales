@@ -1282,8 +1282,11 @@ function openNewSalePopover(anchorX, anchorY) {
         actions.append(cancelBtn, saveBtn);
 
         pop.append(title, grid, actions);
+        // Prepare hidden mount to avoid visible jump before clamping
+        pop.style.visibility = 'hidden';
+        pop.style.opacity = '0';
+        pop.style.transition = 'opacity 160ms ease-out';
         document.body.appendChild(pop);
-        pop.classList.add('aladdin-pop');
 
         // Clamp within viewport so the popover is fully visible
         function clampWithinViewport() {
@@ -1312,8 +1315,11 @@ function openNewSalePopover(anchorX, anchorY) {
                 pop.style.transform = 'none';
             } catch {}
         }
-        // Initial clamp after mount
-        requestAnimationFrame(clampWithinViewport);
+        // Clamp immediately before showing to prevent jump
+        clampWithinViewport();
+        // Reveal with a light fade-in
+        pop.style.visibility = 'visible';
+        requestAnimationFrame(() => { pop.style.opacity = '1'; });
 
         function cleanup() {
             document.removeEventListener('mousedown', outside, true);
