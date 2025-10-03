@@ -84,6 +84,18 @@ export async function handler(event) {
 					const stepName = (data.step_name || null);
 					let position = Number(data.position || 0) || 0;
 					const id = Number(data.id || 0) || 0;
+					const salePrice = data.sale_price !== undefined ? Number(data.sale_price || 0) : null;
+					
+					// If sale_price is provided, upsert into desserts table
+					if (salePrice !== null && salePrice > 0) {
+						const shortCode = dessert.toLowerCase().slice(0, 4);
+						await sql`
+							INSERT INTO desserts (name, short_code, sale_price, position)
+							VALUES (${dessert}, ${shortCode}, ${salePrice}, 0)
+							ON CONFLICT (name) DO UPDATE SET sale_price = EXCLUDED.sale_price, updated_at = now()
+						`;
+					}
+					
 					let row;
 					if (id) {
 						[row] = await sql`UPDATE dessert_recipes SET dessert=${dessert}, step_name=${stepName}, position=${position}, updated_at=now() WHERE id=${id} RETURNING id, dessert, step_name, position`; 

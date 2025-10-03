@@ -188,7 +188,8 @@ const API = {
 	Users: '/api/users',
 	Materials: '/api/materials',
 	Recipes: '/api/recipes',
-	Inventory: '/api/inventory'
+	Inventory: '/api/inventory',
+	Desserts: '/api/desserts'
 };
 
 const PRICES = {
@@ -208,6 +209,8 @@ const state = {
 	currentUser: null,
 	clientCounts: new Map(),
 	deleteSellerMode: false,
+	desserts: [], // Dynamic desserts loaded from API
+	dessertsLoaded: false,
 };
 
 // Toasts and Notifications
@@ -754,6 +757,11 @@ async function enterSeller(id) {
 	state.clientCounts = new Map();
 	$('#current-seller').textContent = seller.name;
 	switchView('#view-sales');
+	
+	// Load desserts and render columns
+	await loadDesserts();
+	renderDessertColumns();
+	
 	// Show dates section, hide table until a date is selected, then load real dates
 	const datesSection = document.getElementById('dates-section');
 	const datesList = document.querySelector('#dates-section .dates-list');
@@ -784,6 +792,7 @@ function applyAuthVisibility() {
 	const materialsBtn = document.getElementById('materials-button');
 	const inventoryBtn = document.getElementById('inventory-button');
 	const accountingBtn = document.getElementById('accounting-button');
+	const dessertsBtn = document.getElementById('desserts-button');
 	const canSales = isSuper || feats.has('reports.sales');
 	const canCartera = isSuper || feats.has('reports.cartera');
 	const canProjections = isSuper || feats.has('reports.projections');
@@ -792,6 +801,7 @@ function applyAuthVisibility() {
 	const canInventory = isSuper || feats.has('nav.inventory');
 	const canUsers = isSuper || feats.has('nav.users');
 	const canAccounting = isSuper || feats.has('nav.accounting');
+	const canDesserts = isSuper || feats.has('nav.desserts');
 	if (usersBtn) usersBtn.style.display = canUsers ? 'inline-block' : 'none';
 	if (reportBtn) reportBtn.style.display = canSales ? 'inline-block' : 'none';
 	if (carteraBtn) carteraBtn.style.display = canCartera ? 'inline-block' : 'none';
@@ -800,15 +810,187 @@ function applyAuthVisibility() {
 	if (materialsBtn) materialsBtn.style.display = canMaterials ? 'inline-block' : 'none';
 	if (inventoryBtn) inventoryBtn.style.display = canInventory ? 'inline-block' : 'none';
 	if (accountingBtn) accountingBtn.style.display = canAccounting ? 'inline-block' : 'none';
+	if (dessertsBtn) dessertsBtn.style.display = canDesserts ? 'inline-block' : 'none';
+}
+
+// Load desserts from API (runs once per session)
+async function loadDesserts() {
+	if (state.dessertsLoaded && state.desserts.length > 0) return state.desserts;
+	try {
+		state.desserts = await api('GET', API.Desserts);
+		state.dessertsLoaded = true;
+		// Update PRICES map
+		for (const d of state.desserts) {
+			PRICES[d.short_code] = d.sale_price;
+		}
+		return state.desserts;
+	} catch (err) {
+		console.error('Error loading desserts:', err);
+		// Fallback to defaults
+		state.desserts = [
+			{ id: 1, name: 'Arco', short_code: 'arco', sale_price: 8500, position: 1 },
+			{ id: 2, name: 'Melo', short_code: 'melo', sale_price: 9500, position: 2 },
+			{ id: 3, name: 'Mara', short_code: 'mara', sale_price: 10500, position: 3 },
+			{ id: 4, name: 'Oreo', short_code: 'oreo', sale_price: 10500, position: 4 },
+			{ id: 5, name: 'Nute', short_code: 'nute', sale_price: 13000, position: 5 }
+		];
+		state.dessertsLoaded = true;
+		return state.desserts;
+	}
+}
+
+// Render dynamic dessert columns in table header
+function renderDessertColumns() {
+	const headerRow = document.getElementById('sales-table-header');
+	const colgroup = document.getElementById('sales-table-colgroup');
+	if (!headerRow || !colgroup) return;
+	
+	// Remove existing dessert columns from header
+	const existingDesserts = headerRow.querySelectorAll('th.col-dessert');
+	existingDesserts.forEach(th => th.remove());
+	
+	// Remove existing dessert cols from colgroup
+	const existingCols = colgroup.querySelectorAll('col.w-qty');
+	existingCols.forEach(col => col.remove());
+	
+	// Insert new cols in colgroup before w-total
+	const totalCol = colgroup.querySelector('col.w-total');
+	if (totalCol) {
+		for (const d of state.desserts) {
+			const col = document.createElement('col');
+			col.className = 'w-qty';
+			colgroup.insertBefore(col, totalCol);
+		}
+	}
+	
+	// Insert new th columns before col-total
+	const totalTh = headerRow.querySelector('th.col-total');
+	if (totalTh) {
+		for (const d of state.desserts) {
+			const th = document.createElement('th');
+			th.className = `col-dessert col-${d.short_code}`;
+			th.dataset.label = d.name;
+			th.dataset.shortCode = d.short_code;
+			const span = document.createElement('span');
+			span.className = 'v-label';
+			span.textContent = d.name;
+			th.appendChild(span);
+			headerRow.insertBefore(th, totalTh);
+		}
+	}
+	
+	// Also update footer rows
+	renderFooterDessertColumns();
+}
+
+function renderFooterDessertColumns() {
+	const qtyRow = document.getElementById('footer-qty-row');
+	const amtRow = document.getElementById('footer-amt-row');
+	const delivRow = document.getElementById('footer-delivered-row');
+	const commRow = document.getElementById('footer-comm-row');
+	
+	if (!qtyRow || !amtRow) return;
+	
+	// Remove existing dessert columns from footer
+	[qtyRow, amtRow, delivRow, commRow].forEach(row => {
+		if (!row) return;
+		const existing = row.querySelectorAll('td.col-dessert');
+		existing.forEach(td => td.remove());
+	});
+	
+	// Insert new columns before col-total
+	for (const d of state.desserts) {
+		// Qty row
+		if (qtyRow) {
+			const totalTd = qtyRow.querySelector('td.col-total');
+			const td = document.createElement('td');
+			td.className = `col-dessert col-${d.short_code}`;
+			const span = document.createElement('span');
+			span.id = `sum-${d.short_code}-qty`;
+			span.textContent = '0';
+			td.appendChild(span);
+			if (totalTd) qtyRow.insertBefore(td, totalTd);
+		}
+		
+		// Amt row
+		if (amtRow) {
+			const totalTd = amtRow.querySelector('td.col-total');
+			const td = document.createElement('td');
+			td.className = `col-dessert col-${d.short_code}`;
+			const span = document.createElement('span');
+			span.id = `sum-${d.short_code}-amt`;
+			span.textContent = '0';
+			td.appendChild(span);
+			if (totalTd) amtRow.insertBefore(td, totalTd);
+		}
+		
+		// Delivered row
+		if (delivRow) {
+			const totalTd = delivRow.querySelector('td.col-total');
+			const td = document.createElement('td');
+			td.className = `col-dessert col-${d.short_code}`;
+			const span = document.createElement('span');
+			span.id = `deliv-${d.short_code}`;
+			span.style.outline = 'none';
+			span.textContent = '0';
+			td.appendChild(span);
+			if (totalTd) delivRow.insertBefore(td, totalTd);
+		}
+		
+		// Comm row (empty cells)
+		if (commRow) {
+			const totalTd = commRow.querySelector('td.col-total');
+			const td = document.createElement('td');
+			td.className = `col-dessert col-${d.short_code}`;
+			if (totalTd) commRow.insertBefore(td, totalTd);
+		}
+	}
+	
+	// Add stacked summary rows
+	const footer = document.getElementById('sales-table-footer');
+	if (footer) {
+		// Remove existing stacked rows
+		const existing = footer.querySelectorAll('tr.tfoot-amt-stack:not(.t-am-grand)');
+		existing.forEach(tr => tr.remove());
+		
+		// Add stacked row for each dessert
+		for (const d of state.desserts) {
+			const tr = document.createElement('tr');
+			tr.className = `tfoot-amt-stack t-am-${d.short_code}`;
+			const td1 = document.createElement('td');
+			td1.className = 'col-paid';
+			const td2 = document.createElement('td');
+			td2.className = 'col-client';
+			td2.colSpan = 8;
+			td2.innerHTML = `<span class="st-name">${d.name}</span> <span class="st-qty" id="sum-${d.short_code}-qty-2"></span> <span class="st-amt" id="sum-${d.short_code}-amt-2"></span>`;
+			const td3 = document.createElement('td');
+			td3.className = 'col-actions';
+			tr.append(td1, td2, td3);
+			footer.appendChild(tr);
+		}
+	}
 }
 
 function calcRowTotal(q) {
-	const arco = Number(q.arco || 0);
-	const melo = Number(q.melo || 0);
-	const mara = Number(q.mara || 0);
-	const oreo = Number(q.oreo || 0);
-	const nute = Number(q.nute || 0);
-	return arco * PRICES.arco + melo * PRICES.melo + mara * PRICES.mara + oreo * PRICES.oreo + nute * PRICES.nute;
+	// Support both old format and new dynamic format
+	let total = 0;
+	
+	// If using items array (new format) - PRIORITY
+	if (Array.isArray(q.items) && q.items.length > 0) {
+		for (const item of q.items) {
+			total += Number(item.quantity || 0) * Number(item.unit_price || 0);
+		}
+		return total;
+	}
+	
+	// Fallback to old format with dynamic desserts (check qty_* properties)
+	for (const d of state.desserts) {
+		const qty = Number(q[`qty_${d.short_code}`] || 0);
+		const price = Number(PRICES[d.short_code] || 0);
+		total += qty * price;
+	}
+	
+	return total;
 }
 
 // Build compact sale summary: "Cliente + 2 arco + 1 melo"
@@ -816,13 +998,65 @@ function formatSaleSummary(sale) {
 	if (!sale) return '';
 	const name = (sale.client_name || '').trim() || 'Cliente';
 	const parts = [];
-	const qAr = Number(sale.qty_arco || 0); if (qAr) parts.push(`${qAr} arco`);
-	const qMe = Number(sale.qty_melo || 0); if (qMe) parts.push(`${qMe} melo`);
-	const qMa = Number(sale.qty_mara || 0); if (qMa) parts.push(`${qMa} mara`);
-	const qOr = Number(sale.qty_oreo || 0); if (qOr) parts.push(`${qOr} oreo`);
-	const qNu = Number(sale.qty_nute || 0); if (qNu) parts.push(`${qNu} nute`);
+	
+	// Support new items format
+	if (Array.isArray(sale.items) && sale.items.length > 0) {
+		for (const item of sale.items) {
+			const qty = Number(item.quantity || 0);
+			if (qty > 0) {
+				parts.push(`${qty} ${item.short_code || item.name}`);
+			}
+		}
+	} else {
+		// Fallback to old format - check all desserts dynamically
+		for (const d of state.desserts) {
+			const qty = Number(sale[`qty_${d.short_code}`] || 0);
+			if (qty > 0) {
+				parts.push(`${qty} ${d.short_code}`);
+			}
+		}
+	}
+	
 	const suffix = parts.length ? (' + ' + parts.join(' + ')) : '';
 	return name + suffix;
+}
+
+// Helper to create dessert qty cell for a sale row
+function createDessertQtyCell(sale, dessert, tr) {
+	const td = document.createElement('td');
+	td.className = `col-dessert col-${dessert.short_code}`;
+	const input = document.createElement('input');
+	input.className = 'input-cell input-qty';
+	input.type = 'number';
+	input.min = '0';
+	input.step = '1';
+	input.inputMode = 'numeric';
+	input.dataset.dessertId = dessert.id;
+	input.dataset.shortCode = dessert.short_code;
+	
+	// Get quantity from sale - support both formats
+	let qty = 0;
+	if (Array.isArray(sale.items)) {
+		const item = sale.items.find(i => i.dessert_id === dessert.id || i.short_code === dessert.short_code);
+		qty = item ? Number(item.quantity || 0) : 0;
+	} else {
+		qty = Number(sale[`qty_${dessert.short_code}`] || 0);
+	}
+	
+	input.value = qty > 0 ? String(qty) : '';
+	input.placeholder = '';
+	input.addEventListener('blur', () => saveRow(tr, sale.id));
+	input.addEventListener('keydown', (e) => {
+		if (e.key === 'Enter') {
+			e.preventDefault();
+			saveRow(tr, sale.id);
+		}
+	});
+	input.addEventListener('focus', (e) => e.target.select());
+	input.addEventListener('mouseup', (e) => e.preventDefault());
+	
+	td.appendChild(input);
+	return td;
 }
 
 function renderTable() {
@@ -843,7 +1077,7 @@ function renderTable() {
 	} catch {}
 	tbody.innerHTML = '';
 	for (const sale of state.sales) {
-		const total = calcRowTotal({ arco: sale.qty_arco, melo: sale.qty_melo, mara: sale.qty_mara, oreo: sale.qty_oreo, nute: sale.qty_nute });
+		const total = calcRowTotal(sale);
 		const isPaid = !!sale.is_paid;
 		const tr = el('tr', {},
 			el('td', { class: 'col-paid' }, (function(){
@@ -936,27 +1170,30 @@ function renderTable() {
 					}
 				}
 				return td;
-			})(),
-			el('td', { class: 'col-arco' }, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_arco ? String(sale.qty_arco) : '', placeholder: '', onblur: () => saveRow(tr, sale.id), onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); saveRow(tr, sale.id); } }, onfocus: (e) => e.target.select(), onmouseup: (e) => e.preventDefault() })),
-			el('td', { class: 'col-melo' }, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_melo ? String(sale.qty_melo) : '', placeholder: '', onblur: () => saveRow(tr, sale.id), onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); saveRow(tr, sale.id); } }, onfocus: (e) => e.target.select(), onmouseup: (e) => e.preventDefault() })),
-			el('td', { class: 'col-mara' }, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_mara ? String(sale.qty_mara) : '', placeholder: '', onblur: () => saveRow(tr, sale.id), onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); saveRow(tr, sale.id); } }, onfocus: (e) => e.target.select(), onmouseup: (e) => e.preventDefault() })),
-			el('td', { class: 'col-oreo' }, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_oreo ? String(sale.qty_oreo) : '', placeholder: '', onblur: () => saveRow(tr, sale.id), onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); saveRow(tr, sale.id); } }, onfocus: (e) => e.target.select(), onmouseup: (e) => e.preventDefault() })),
-			el('td', { class: 'col-nute' }, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_nute ? String(sale.qty_nute) : '', placeholder: '', onblur: () => saveRow(tr, sale.id), onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); saveRow(tr, sale.id); } }, onfocus: (e) => e.target.select(), onmouseup: (e) => e.preventDefault() })),
-			el('td', { class: 'col-extra' }),
-			el('td', { class: 'total col-total' }, fmtNo.format(total)),
-			el('td', { class: 'col-actions' }, (function(){
-				const b = document.createElement('button');
-				b.className = 'row-delete';
-				b.title = 'Eliminar';
-				b.addEventListener('click', async (ev) => {
-					ev.stopPropagation();
-					const ok = await openConfirmPopover('¿Seguro que quieres eliminar este pedido?', ev.clientX, ev.clientY);
-					if (!ok) return;
-					await deleteRow(sale.id);
-				});
-				return b;
-			})()),
+			})()
 		);
+		
+		// Add dynamic dessert columns
+		for (const dessert of state.desserts) {
+			const dessertCell = createDessertQtyCell(sale, dessert, tr);
+			tr.appendChild(dessertCell);
+		}
+		
+		// Continue with total and actions columns
+		tr.appendChild(el('td', { class: 'total col-total' }, fmtNo.format(total)));
+		tr.appendChild(el('td', { class: 'col-actions' }, (function(){
+			const b = document.createElement('button');
+			b.className = 'row-delete';
+			b.title = 'Eliminar';
+			b.addEventListener('click', async (ev) => {
+				ev.stopPropagation();
+				const ok = await openConfirmPopover('¿Seguro que quieres eliminar este pedido?', ev.clientX, ev.clientY);
+				if (!ok) return;
+				await deleteRow(sale.id);
+			});
+			return b;
+		})()));
+		
 		tr.dataset.id = String(sale.id);
 		tbody.appendChild(tr);
 		// Comment trigger removed per request
@@ -1019,6 +1256,10 @@ async function loadSales() {
             state.clientSuggestions = arr;
         } catch { state.clientSuggestions = []; }
 	} catch { state.clientCounts = new Map(); }
+	
+	// Ensure desserts are loaded before rendering table
+	await loadDesserts();
+	
 	renderTable();
 	preloadChangeLogsForCurrentTable();
 }
@@ -1251,16 +1492,9 @@ function openNewSalePopover(anchorX, anchorY) {
         attachClientSuggestionsPopover(clientInput);
         appendRow('Cliente', clientInput);
 
-        // Dessert rows (fixed to current sales columns)
-        const dessertDefs = [
-            { key: 'arco', label: 'Arco' },
-            { key: 'melo', label: 'Melo' },
-            { key: 'mara', label: 'Mara' },
-            { key: 'oreo', label: 'Oreo' },
-            { key: 'nute', label: 'Nute' },
-        ];
+        // Dessert rows (dynamic from state.desserts)
         const qtyInputs = {};
-        for (const d of dessertDefs) {
+        for (const d of state.desserts) {
             const input = document.createElement('input');
             input.type = 'number';
             input.min = '0';
@@ -1268,8 +1502,9 @@ function openNewSalePopover(anchorX, anchorY) {
             input.inputMode = 'numeric';
             input.placeholder = '0';
             input.className = 'input-cell input-qty';
-            qtyInputs[d.key] = input;
-            appendRow(d.label, input);
+            input.dataset.dessertId = d.id;
+            qtyInputs[d.short_code] = input;
+            appendRow(d.name, input);
         }
 
         const actions = document.createElement('div');
@@ -1345,18 +1580,35 @@ function openNewSalePopover(anchorX, anchorY) {
                 const payload = { seller_id: sellerId };
                 if (state?.selectedDayId) payload.sale_day_id = state.selectedDayId;
                 const created = await api('POST', API.Sales, payload);
+                
+                // Build items array and legacy qty_* properties dynamically
+                const items = [];
                 const body = {
                     id: created.id,
                     client_name: (clientInput.value || '').trim(),
-                    qty_arco: Math.max(0, parseInt(qtyInputs.arco.value || '0', 10) || 0),
-                    qty_melo: Math.max(0, parseInt(qtyInputs.melo.value || '0', 10) || 0),
-                    qty_mara: Math.max(0, parseInt(qtyInputs.mara.value || '0', 10) || 0),
-                    qty_oreo: Math.max(0, parseInt(qtyInputs.oreo.value || '0', 10) || 0),
-                    qty_nute: Math.max(0, parseInt(qtyInputs.nute.value || '0', 10) || 0),
                     is_paid: false,
                     pay_method: null,
                     _actor_name: state.currentUser?.name || ''
                 };
+                
+                for (const d of state.desserts) {
+                    const input = qtyInputs[d.short_code];
+                    const qty = Math.max(0, parseInt(input?.value || '0', 10) || 0);
+                    
+                    // Legacy format for backward compatibility
+                    body[`qty_${d.short_code}`] = qty;
+                    
+                    // New format - items array
+                    if (qty > 0) {
+                        items.push({
+                            dessert_id: d.id,
+                            quantity: qty,
+                            unit_price: d.sale_price
+                        });
+                    }
+                }
+                
+                body.items = items;
                 const updated = await api('PUT', API.Sales, body);
                 // Prepend and render
                 state.sales.unshift(updated);
@@ -1421,43 +1673,24 @@ async function saveRow(tr, id) {
 	const idx = state.sales.findIndex(s => s.id === id);
 	if (idx !== -1) state.sales[idx] = updated;
 	const totalCell = tr.querySelector('.total');
-	const total = calcRowTotal({ arco: updated.qty_arco, melo: updated.qty_melo, mara: updated.qty_mara, oreo: updated.qty_oreo, nute: updated.qty_nute });
+	const total = calcRowTotal(updated);
 	totalCell.textContent = fmtNo.format(total);
 	updateSummary();
-	// Notify only when quantities change; one notification per dessert type
+	// Notify only when quantities change; one notification per dessert type (dynamic)
 	try {
 		if (prev) {
 			const client = (updated.client_name || '').trim() || 'Cliente';
-			const prevAr = Number(prev.qty_arco||0), newAr = Number(updated.qty_arco||0);
-			const prevMe = Number(prev.qty_melo||0), newMe = Number(updated.qty_melo||0);
-			const prevMa = Number(prev.qty_mara||0), newMa = Number(updated.qty_mara||0);
-			const prevOr = Number(prev.qty_oreo||0), newOr = Number(updated.qty_oreo||0);
-			const prevNu = Number(prev.qty_nute||0), newNu = Number(updated.qty_nute||0);
 			const seller = String((state?.currentSeller?.name || state?.currentUser?.name || '') || '');
-			if (newAr !== prevAr) {
-				const prevNote = prevAr > 0 ? ` (antes ${prevAr})` : '';
-				const msg = `${client} + ${newAr} arco${prevNote}` + (seller ? ` - ${seller}` : '');
-				notify.success(msg);
-			}
-			if (newMe !== prevMe) {
-				const prevNote = prevMe > 0 ? ` (antes ${prevMe})` : '';
-				const msg = `${client} + ${newMe} melo${prevNote}` + (seller ? ` - ${seller}` : '');
-				notify.success(msg);
-			}
-			if (newMa !== prevMa) {
-				const prevNote = prevMa > 0 ? ` (antes ${prevMa})` : '';
-				const msg = `${client} + ${newMa} mara${prevNote}` + (seller ? ` - ${seller}` : '');
-				notify.success(msg);
-			}
-			if (newOr !== prevOr) {
-				const prevNote = prevOr > 0 ? ` (antes ${prevOr})` : '';
-				const msg = `${client} + ${newOr} oreo${prevNote}` + (seller ? ` - ${seller}` : '');
-				notify.success(msg);
-			}
-			if (newNu !== prevNu) {
-				const prevNote = prevNu > 0 ? ` (antes ${prevNu})` : '';
-				const msg = `${client} + ${newNu} nute${prevNote}` + (seller ? ` - ${seller}` : '');
-				notify.success(msg);
+			
+			for (const d of state.desserts) {
+				const prevQty = Number(prev[`qty_${d.short_code}`] || 0);
+				const newQty = Number(updated[`qty_${d.short_code}`] || 0);
+				
+				if (newQty !== prevQty) {
+					const prevNote = prevQty > 0 ? ` (antes ${prevQty})` : '';
+					const msg = `${client} + ${newQty} ${d.short_code}${prevNote}` + (seller ? ` - ${seller}` : '');
+					notify.success(msg);
+				}
 			}
 		}
 	} catch {}
@@ -1729,57 +1962,82 @@ async function savePayMethod(tr, id, method) {
 }
 
 function updateSummary() {
-	let qa = 0, qm = 0, qma = 0, qo = 0, qn = 0, grand = 0;
-	let paidQa = 0, paidQm = 0, paidQma = 0, paidQo = 0, paidQn = 0;
-	for (const s of state.sales) {
-		const arco = Number(s.qty_arco || 0);
-		const melo = Number(s.qty_melo || 0);
-		const mara = Number(s.qty_mara || 0);
-		const oreo = Number(s.qty_oreo || 0);
-		const nute = Number(s.qty_nute || 0);
-		qa += arco;
-		qm += melo;
-		qma += mara;
-		qo += oreo;
-		qn += nute;
-		grand += calcRowTotal({ arco: s.qty_arco, melo: s.qty_melo, mara: s.qty_mara, oreo: s.qty_oreo, nute: s.qty_nute });
-		const pm = (s.pay_method || '').toString();
-		if (pm === 'transf' || pm === 'jorgebank' || pm === 'marce' || pm === 'jorge') {
-			paidQa += arco; paidQm += melo; paidQma += mara; paidQo += oreo; paidQn += nute;
-		}
+	// Initialize counts dynamically for all desserts
+	const qtys = {};
+	const paidQtys = {};
+	for (const d of state.desserts) {
+		qtys[d.short_code] = 0;
+		paidQtys[d.short_code] = 0;
 	}
-	$('#sum-arco-qty').textContent = String(qa);
-	$('#sum-melo-qty').textContent = String(qm);
-	$('#sum-mara-qty').textContent = String(qma);
-	$('#sum-oreo-qty').textContent = String(qo);
-	const elNq = document.getElementById('sum-nute-qty'); if (elNq) elNq.textContent = String(qn);
-	const totalQty = qa + qm + qma + qo + qn;
+	
+	let grand = 0;
+	
+	for (const s of state.sales) {
+		// Support both formats
+		if (Array.isArray(s.items) && s.items.length > 0) {
+			// New format: use items
+			for (const item of s.items) {
+				// Find dessert by id or short_code
+				const code = item.short_code || 
+					state.desserts.find(d => d.id === item.dessert_id)?.short_code;
+				
+				if (code && qtys[code] !== undefined) {
+					qtys[code] += Number(item.quantity || 0);
+				}
+				const pm = (s.pay_method || '').toString();
+				if (pm === 'transf' || pm === 'jorgebank' || pm === 'marce' || pm === 'jorge') {
+					if (code && paidQtys[code] !== undefined) {
+						paidQtys[code] += Number(item.quantity || 0);
+					}
+				}
+			}
+		} else {
+			// Old format: use qty_* columns
+			for (const d of state.desserts) {
+				const qty = Number(s[`qty_${d.short_code}`] || 0);
+				qtys[d.short_code] += qty;
+				const pm = (s.pay_method || '').toString();
+				if (pm === 'transf' || pm === 'jorgebank' || pm === 'marce' || pm === 'jorge') {
+					paidQtys[d.short_code] += qty;
+				}
+			}
+		}
+		
+		grand += calcRowTotal(s);
+	}
+	
+	// Update UI dynamically for all desserts
+	let totalQty = 0;
+	for (const d of state.desserts) {
+		const qty = qtys[d.short_code] || 0;
+		const amt = qty * (PRICES[d.short_code] || 0);
+		totalQty += qty;
+		
+		// Update qty cell
+		const qtyEl = document.getElementById(`sum-${d.short_code}-qty`);
+		if (qtyEl) qtyEl.textContent = String(qty);
+		
+		// Update amt cell
+		const amtEl = document.getElementById(`sum-${d.short_code}-amt`);
+		if (amtEl) amtEl.textContent = fmtNo.format(amt);
+		
+		// Update stacked rows (mobile)
+		const qty2El = document.getElementById(`sum-${d.short_code}-qty-2`);
+		if (qty2El) qty2El.textContent = String(qty);
+		
+		const amt2El = document.getElementById(`sum-${d.short_code}-amt-2`);
+		if (amt2El) amt2El.textContent = fmtNo.format(amt);
+	}
+	
 	$('#sum-total-qty').textContent = String(totalQty);
-	const va = fmtNo.format(qa * PRICES.arco);
-	const vm = fmtNo.format(qm * PRICES.melo);
-	const vma = fmtNo.format(qma * PRICES.mara);
-	const vo = fmtNo.format(qo * PRICES.oreo);
-	const vn = fmtNo.format(qn * PRICES.nute);
-	$('#sum-arco-amt').textContent = va;
-	$('#sum-melo-amt').textContent = vm;
-	$('#sum-mara-amt').textContent = vma;
-	$('#sum-oreo-amt').textContent = vo;
-	const elNa = document.getElementById('sum-nute-amt'); if (elNa) elNa.textContent = vn;
-	// stacked rows on small screens
-	const qva = String(qa);
-	const qvm = String(qm);
-	const qvma = String(qma);
-	const qvo = String(qo);
-	const qvn = String(qn);
-	const elAr = document.getElementById('sum-arco-qty-2'); if (elAr) elAr.textContent = qva; const elArAmt = document.getElementById('sum-arco-amt-2'); if (elArAmt) elArAmt.textContent = va;
-	const elMe = document.getElementById('sum-melo-qty-2'); if (elMe) elMe.textContent = qvm; const elMeAmt = document.getElementById('sum-melo-amt-2'); if (elMeAmt) elMeAmt.textContent = vm;
-	const elMa = document.getElementById('sum-mara-qty-2'); if (elMa) elMa.textContent = qvma; const elMaAmt = document.getElementById('sum-mara-amt-2'); if (elMaAmt) elMaAmt.textContent = vma;
-	const elOr = document.getElementById('sum-oreo-qty-2'); if (elOr) elOr.textContent = qvo; const elOrAmt = document.getElementById('sum-oreo-amt-2'); if (elOrAmt) elOrAmt.textContent = vo;
-	const elNu = document.getElementById('sum-nute-qty-2'); if (elNu) elNu.textContent = qvn; const elNuAmt = document.getElementById('sum-nute-amt-2'); if (elNuAmt) elNuAmt.textContent = vn;
 	const grandStr = fmtNo.format(grand);
 	$('#sum-grand').textContent = grandStr;
+	
 	// Commissions: only paid desserts * 1000
-	const paidTotalQty = paidQa + paidQm + paidQma + paidQo + paidQn;
+	let paidTotalQty = 0;
+	for (const d of state.desserts) {
+		paidTotalQty += paidQtys[d.short_code] || 0;
+	}
 	const commStr = fmtNo.format(paidTotalQty * 1000);
 	const commEl = document.getElementById('sum-comm');
 	if (commEl) commEl.textContent = commStr;
@@ -1788,18 +2046,17 @@ function updateSummary() {
 		const day = (state && Array.isArray(state.saleDays) && state.selectedDayId)
 			? (state.saleDays || []).find(d => d && d.id === state.selectedDayId)
 			: null;
-		const da = Number(day?.delivered_arco || 0) || 0;
-		const dm = Number(day?.delivered_melo || 0) || 0;
-		const dma = Number(day?.delivered_mara || 0) || 0;
-		const dor = Number(day?.delivered_oreo || 0) || 0;
-		const dnu = Number(day?.delivered_nute || 0) || 0;
-		const totalDelivered = da + dm + dma + dor + dnu;
-		const elDa = document.getElementById('deliv-arco'); if (elDa) elDa.textContent = String(da);
-		const elDm = document.getElementById('deliv-melo'); if (elDm) elDm.textContent = String(dm);
-		const elDma = document.getElementById('deliv-mara'); if (elDma) elDma.textContent = String(dma);
-		const elDor = document.getElementById('deliv-oreo'); if (elDor) elDor.textContent = String(dor);
-		const elDnu = document.getElementById('deliv-nute'); if (elDnu) elDnu.textContent = String(dnu);
-		const elDt = document.getElementById('deliv-total'); if (elDt) elDt.textContent = String(totalDelivered);
+		
+		let totalDelivered = 0;
+		for (const d of state.desserts) {
+			const delivered = Number(day?.[`delivered_${d.short_code}`] || 0) || 0;
+			totalDelivered += delivered;
+			const elD = document.getElementById(`deliv-${d.short_code}`);
+			if (elD) elD.textContent = String(delivered);
+		}
+		
+		const elDt = document.getElementById('deliv-total');
+		if (elDt) elDt.textContent = String(totalDelivered);
 		wireDeliveredRowEditors();
 	} catch {}
 	// Decide whether to stack totals to avoid overlap on small screens
@@ -1809,9 +2066,9 @@ function updateSummary() {
 		const isSmall = window.matchMedia('(max-width: 600px)').matches;
 		let overlap = false;
 		if (isSmall) {
-			const ids = ['sum-arco-amt', 'sum-melo-amt', 'sum-mara-amt', 'sum-oreo-amt', 'sum-nute-amt'];
-			for (const id of ids) {
-				const el = document.getElementById(id);
+			// Check all dessert amt cells dynamically
+			for (const d of state.desserts) {
+				const el = document.getElementById(`sum-${d.short_code}-amt`);
 				if (!el) continue;
 				if (el.scrollWidth > el.clientWidth) { overlap = true; break; }
 			}
@@ -1826,19 +2083,33 @@ function updateSummary() {
 
 function readRow(tr) {
 	const clientEl = tr.querySelector('td.col-client .client-input');
-	const arcoEl = tr.querySelector('td.col-arco input');
-	const meloEl = tr.querySelector('td.col-melo input');
-	const maraEl = tr.querySelector('td.col-mara input');
-	const oreoEl = tr.querySelector('td.col-oreo input');
-	const nuteEl = tr.querySelector('td.col-nute input');
-	return {
+	const result = {
 		client_name: clientEl ? clientEl.value.trim() : '',
-		qty_arco: arcoEl && arcoEl.value !== '' ? Number(arcoEl.value) : 0,
-		qty_melo: meloEl && meloEl.value !== '' ? Number(meloEl.value) : 0,
-		qty_mara: maraEl && maraEl.value !== '' ? Number(maraEl.value) : 0,
-		qty_oreo: oreoEl && oreoEl.value !== '' ? Number(oreoEl.value) : 0,
-		qty_nute: nuteEl && nuteEl.value !== '' ? Number(nuteEl.value) : 0,
 	};
+	
+	// Read quantities dynamically for all desserts
+	const items = [];
+	for (const d of state.desserts) {
+		const input = tr.querySelector(`td.col-dessert[class*="col-${d.short_code}"] input`);
+		const qty = input && input.value !== '' ? Number(input.value) : 0;
+		
+		// Store in both formats for backward compatibility
+		result[`qty_${d.short_code}`] = qty;
+		
+		// Build items array (new format)
+		if (qty > 0) {
+			items.push({
+				dessert_id: d.id,
+				quantity: qty,
+				unit_price: d.sale_price
+			});
+		}
+	}
+	
+	// Include items array for new format
+	result.items = items;
+	
+	return result;
 }
 
 function debounce(fn, ms) {
@@ -2099,6 +2370,7 @@ async function exportCarteraExcel(startIso, endIso) {
 	const inventoryBtn = document.getElementById('inventory-button');
 	const carteraBtn = document.getElementById('cartera-button');
 	const accountingBtn = document.getElementById('accounting-button');
+	const dessertsBtn = document.getElementById('desserts-button');
 	const input = document.getElementById('report-date');
 	if (!reportBtn || !input) return;
 	reportBtn.addEventListener('click', (ev) => {
@@ -2173,6 +2445,13 @@ async function exportCarteraExcel(startIso, endIso) {
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 		if (!isSuper && !feats.has('nav.accounting')) { notify.error('Sin permiso de contabilidad'); return; }
 		window.location.href = '/accounting.html';
+	});
+	dessertsBtn?.addEventListener('click', (ev) => {
+		exitDeleteSellerModeIfActive();
+		const feats = new Set((state.currentUser?.features || []));
+		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+		if (!isSuper && !feats.has('nav.desserts')) { notify.error('Sin permiso para administrar postres'); return; }
+		window.location.href = '/manage-desserts.html';
 	});
 })();
 
@@ -2951,14 +3230,29 @@ async function renderIngredientsView() {
 	const root = document.getElementById('ingredients-content');
 	if (!root) return;
 	root.innerHTML = '';
-	let desserts = [];
-	try { desserts = await api('GET', API.Recipes); } catch { desserts = []; }
-	if (!desserts || desserts.length === 0) {
-		try { await api('GET', `${API.Recipes}?seed=1`); desserts = await api('GET', API.Recipes); }
+	
+	// Get desserts from both sources:
+	// 1. Desserts with recipes (from dessert_recipes)
+	let recipeDesserts = [];
+	try { recipeDesserts = await api('GET', API.Recipes); } catch { recipeDesserts = []; }
+	if (!recipeDesserts || recipeDesserts.length === 0) {
+		try { await api('GET', `${API.Recipes}?seed=1`); recipeDesserts = await api('GET', API.Recipes); }
 		catch {}
 	}
+	
+	// 2. ALL active desserts (from desserts table)
+	let allDesserts = [];
+	try { allDesserts = await api('GET', API.Desserts); } catch { allDesserts = []; }
+	
+	// Merge: show all desserts from desserts table
+	// If they have recipe, use recipe data; otherwise just show the name
+	const dessertNames = new Set(recipeDesserts || []);
+	for (const d of allDesserts) {
+		dessertNames.add(d.name);
+	}
+	
 	const grid = document.createElement('div'); grid.className = 'ingredients-grid';
-	for (const name of (desserts || [])) {
+	for (const name of Array.from(dessertNames).sort()) {
 		const card = await buildDessertCard(name);
 		grid.appendChild(card);
 	}

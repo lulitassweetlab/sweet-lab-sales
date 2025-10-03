@@ -65,6 +65,7 @@
 					<button id="projections-button" class="press-btn report-btn">Proyecciones</button>
 						<button id="materials-button" class="press-btn report-btn">Materiales</button>
 						<button id="inventory-button" class="press-btn report-btn">Inventario</button>
+						<button id="desserts-button" class="press-btn report-btn">Postres</button>
 						<button id="users-button" class="press-btn report-btn">Usuarios</button>
 						<button id="accounting-button" class="press-btn report-btn">Contabilidad</button>
 					</div>
@@ -107,55 +108,35 @@
 					<div class="table-wrapper hidden" id="sales-wrapper">
 				<table id="sales-table">
 					<caption id="sales-caption"><strong></strong></caption>
-					<colgroup>
+					<colgroup id="sales-table-colgroup">
 						<col class="w-paid" />
 						<col class="w-client" />
-						<col class="w-qty" />
-						<col class="w-qty" />
-						<col class="w-qty" />
-						<col class="w-qty" />
-						<col class="w-qty" />
-						<col class="w-extra" />
+						<!-- Dessert cols will be inserted dynamically here -->
 						<col class="w-total" />
 						<col class="w-actions" />
 					</colgroup>
 					<thead>
-						<tr>
+						<tr id="sales-table-header">
 							<th class="col-paid">$</th>
 							<th class="col-client">Cliente</th>
-							<th class="col-arco" data-label="Arco"><span class="v-label">Arco</span></th>
-							<th class="col-melo" data-label="Melo"><span class="v-label">Melo</span></th>
-							<th class="col-mara" data-label="Mara"><span class="v-label">Mara</span></th>
-							<th class="col-oreo" data-label="Oreo"><span class="v-label">Oreo</span></th>
-							<th class="col-nute" data-label="Nute"><span class="v-label">Nute</span></th>
-							<th class="col-extra"></th>
+							<!-- Dessert columns will be inserted dynamically here -->
 							<th class="col-total">Total</th>
 							<th class="col-actions"></th>
 						</tr>
 					</thead>
 					<tbody id="sales-tbody"></tbody>
-					<tfoot>
-						<tr class="tfoot-qty">
+					<tfoot id="sales-table-footer">
+						<tr class="tfoot-qty" id="footer-qty-row">
 							<td class="col-paid"></td>
 							<td class="col-client label">Totales</td>
-							<td class="col-arco"><span id="sum-arco-qty">0</span></td>
-							<td class="col-melo"><span id="sum-melo-qty">0</span></td>
-							<td class="col-mara"><span id="sum-mara-qty">0</span></td>
-							<td class="col-oreo"><span id="sum-oreo-qty">0</span></td>
-							<td class="col-nute"><span id="sum-nute-qty">0</span></td>
-							<td class="col-extra"></td>
+							<!-- Dessert qty columns will be inserted dynamically here -->
 							<td class="col-total"><span id="sum-total-qty"> </span></td>
 							<td class="col-actions"></td>
 						</tr>
-						<tr class="tfoot-amt">
+						<tr class="tfoot-amt" id="footer-amt-row">
 							<td class="col-paid"></td>
 							<td class="col-client label"></td>
-							<td class="col-arco"><span id="sum-arco-amt">0</span></td>
-							<td class="col-melo"><span id="sum-melo-amt">0</span></td>
-							<td class="col-mara"><span id="sum-mara-amt">0</span></td>
-							<td class="col-oreo"><span id="sum-oreo-amt">0</span></td>
-							<td class="col-nute"><span id="sum-nute-amt">0</span></td>
-							<td class="col-extra"></td>
+							<!-- Dessert amt columns will be inserted dynamically here -->
 							<td class="col-total"><span id="sum-grand">0</span></td>
 							<td class="col-actions"></td>
 						</tr>
@@ -165,55 +146,21 @@
 							<td class="col-total"><span class="st-amt st-grand" id="sum-grand-2"></span></td>
 							<td class="col-actions"></td>
 						</tr>
-						<tr class="tfoot-delivered">
+						<tr class="tfoot-delivered" id="footer-delivered-row">
 							<td class="col-paid"></td>
 							<td class="col-client label">Postres entregados</td>
-							<td class="col-arco"><span id="deliv-arco" style="outline:none">0</span></td>
-							<td class="col-melo"><span id="deliv-melo" style="outline:none">0</span></td>
-							<td class="col-mara"><span id="deliv-mara" style="outline:none">0</span></td>
-							<td class="col-oreo"><span id="deliv-oreo" style="outline:none">0</span></td>
-							<td class="col-nute"><span id="deliv-nute" style="outline:none">0</span></td>
-							<td class="col-extra"></td>
+							<!-- Dessert delivered columns will be inserted dynamically here -->
 							<td class="col-total"><span id="deliv-total">0</span></td>
 							<td class="col-actions"></td>
 						</tr>
-						<tr class="tfoot-comm">
+						<tr class="tfoot-comm" id="footer-comm-row">
 							<td class="col-paid"></td>
 							<td class="col-client label">Comisiones</td>
-							<td class="col-arco"></td>
-							<td class="col-melo"></td>
-							<td class="col-mara"></td>
-							<td class="col-oreo"></td>
-							<td class="col-nute"></td>
-							<td class="col-extra"></td>
+							<!-- Dessert comm columns will be inserted dynamically here -->
 							<td class="col-total"><span id="sum-comm">0</span></td>
 							<td class="col-actions"></td>
 						</tr>
-						<tr class="tfoot-amt-stack t-am-arco">
-							<td class="col-paid"></td>
-							<td class="col-client" colspan="8"><span class="st-name">Arco</span> <span class="st-qty" id="sum-arco-qty-2"></span> <span class="st-amt" id="sum-arco-amt-2"></span></td>
-							<td class="col-actions"></td>
-						</tr>
-						<tr class="tfoot-amt-stack t-am-melo">
-							<td class="col-paid"></td>
-							<td class="col-client" colspan="8"><span class="st-name">Melo</span> <span class="st-qty" id="sum-melo-qty-2"></span> <span class="st-amt" id="sum-melo-amt-2"></span></td>
-							<td class="col-actions"></td>
-						</tr>
-						<tr class="tfoot-amt-stack t-am-mara">
-							<td class="col-paid"></td>
-							<td class="col-client" colspan="8"><span class="st-name">Mara</span> <span class="st-qty" id="sum-mara-qty-2"></span> <span class="st-amt" id="sum-mara-amt-2"></span></td>
-							<td class="col-actions"></td>
-						</tr>
-						<tr class="tfoot-amt-stack t-am-oreo">
-							<td class="col-paid"></td>
-							<td class="col-client" colspan="8"><span class="st-name">Oreo</span> <span class="st-qty" id="sum-oreo-qty-2"></span> <span class="st-amt" id="sum-oreo-amt-2"></span></td>
-							<td class="col-actions"></td>
-						</tr>
-						<tr class="tfoot-amt-stack t-am-nute">
-							<td class="col-paid"></td>
-							<td class="col-client" colspan="8"><span class="st-name">Nute</span> <span class="st-qty" id="sum-nute-qty-2"></span> <span class="st-amt" id="sum-nute-amt-2"></span></td>
-							<td class="col-actions"></td>
-						</tr>
+						<!-- Stacked rows will be inserted dynamically here -->
 					</tfoot>
 				</table>
 				<div class="table-actions end">

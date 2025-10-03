@@ -675,8 +675,8 @@ tfoot td { font-weight: 700; }
 
 /* Map CSS variables to colgroup widths for alignment */
 /* Widths including new Paid column */
-:root { --w-paid: 6%; --w-client: 40%; --w-qty: 7%; --w-total: 16%; --w-actions: 4%; }
-@media (max-width: 600px) { :root { --w-paid: 7%; --w-client: 49.5%; --w-qty: 6.5%; --w-total: 15.5%; --w-actions: 6%; } }
+:root { --w-paid: 8%; --w-client: 45%; --w-qty: 5.5%; --w-total: 14%; --w-actions: 3%; --w-extra: 0%; }
+@media (max-width: 600px) { :root { --w-paid: 10%; --w-client: 50%; --w-qty: 5%; --w-total: 13%; --w-actions: 4%; --w-extra: 0%; } }
 
 /* Hide native thead to prevent overlap */
 #sales-table thead { display: none; }
@@ -694,8 +694,8 @@ tfoot td { font-weight: 700; }
 #sales-table thead { display: none; }
 
 /* Rebalance widths to include Paid without overflow */
-:root { --w-paid: 6%; --w-client: 40%; --w-qty: 7%; --w-total: 16%; --w-actions: 5%; }
-@media (max-width: 600px) { :root { --w-paid: 7%; --w-client: 49.5%; --w-qty: 6.5%; --w-total: 15.5%; --w-actions: 6%; } }
+:root { --w-paid: 8%; --w-client: 45%; --w-qty: 5.5%; --w-total: 14%; --w-actions: 3%; --w-extra: 0%; }
+@media (max-width: 600px) { :root { --w-paid: 10%; --w-client: 50%; --w-qty: 5%; --w-total: 13%; --w-actions: 4%; --w-extra: 0%; } }
 
 /* Revert Pago checkbox custom styles */
 .col-paid input[type="checkbox"] {
@@ -3620,5 +3620,106 @@ button.secondary.press-btn:active {
 
 /* Responsive tweak: widen Total column on small tablets (601–700px) */
 @media (min-width: 601px) and (max-width: 700px) {
-	:root { --w-paid: 6%; --w-client: 36%; --w-qty: 8%; --w-total: 20%; --w-actions: 6%; }
+	:root { --w-paid: 8%; --w-client: 42%; --w-qty: 5.5%; --w-total: 16%; --w-actions: 4%; }
+}
+
+/* ===== DYNAMIC DESSERTS COLUMNS ===== */
+/* Generic styles for any dessert column (col-dessert class) */
+#sales-table thead th.col-dessert,
+#sales-table tbody td.col-dessert,
+#sales-table tfoot td.col-dessert {
+	text-align: center;
+	vertical-align: middle;
+}
+
+/* Force same width as other dessert columns (use CSS variable) */
+#sales-table thead th.col-dessert,
+#sales-table tbody td.col-dessert,
+#sales-table tfoot td.col-dessert {
+	width: var(--w-qty) !important;
+}
+
+/* Desktop: Horizontal labels, EXACT same styling as existing columns */
+@media (min-width: 601px) {
+	#sales-table thead th.col-dessert {
+		padding: 6px !important;
+		vertical-align: bottom !important;
+	}
+	#sales-table thead th.col-dessert .v-label {
+		display: inline !important;
+		writing-mode: initial !important;
+		text-orientation: initial !important;
+		transform: none !important;
+		position: static !important;
+		top: auto !important;
+		bottom: auto !important;
+		left: auto !important;
+		right: auto !important;
+		line-height: normal !important;
+		font-size: inherit !important;
+		margin: 0 !important;
+	}
+	
+	/* Align Total header same as desserts */
+	#sales-table thead th.col-total {
+		padding: 6px !important;
+		vertical-align: bottom !important;
+	}
+}
+
+/* Mobile: Vertical labels using ::after - EXACT same as old columns */
+@media (max-width: 600px) {
+	#sales-table thead tr > th.col-dessert {
+		position: relative !important;
+		vertical-align: bottom !important;
+		text-align: center !important;
+		height: 84px !important;
+		padding: 0 2px 6px !important;
+	}
+	#sales-table thead tr > th.col-dessert .v-label {
+		display: none !important;
+	}
+	#sales-table thead tr > th.col-dessert::after {
+		content: attr(data-label);
+		position: absolute !important;
+		left: 50% !important;
+		bottom: 14px !important;
+		transform: translateX(-50%) rotate(-90deg) !important;
+		transform-origin: center center !important;
+		white-space: nowrap !important;
+		line-height: 1 !important;
+		font-size: 10px !important;
+		color: inherit !important;
+	}
+}
+
+/* Alternating gray background for dessert columns (every other one) */
+/* Light theme - match existing columns (Arco, Mara, Nute) */
+#sales-table thead th.col-dessert:nth-child(odd),
+#sales-table tbody td.col-dessert:nth-child(odd),
+#sales-table tfoot td.col-dessert:nth-child(odd) {
+	background-color: rgba(0, 0, 0, 0.10) !important;
+}
+
+#sales-table tbody tr:hover td.col-dessert:nth-child(odd) {
+	background-color: rgba(0, 0, 0, 0.14) !important;
+}
+
+#sales-table tbody tr:hover td.col-dessert:nth-child(even) {
+	background-color: rgba(255, 228, 196, 0.15);
+}
+
+/* Dark theme */
+[data-theme="dark"] #sales-table thead th.col-dessert:nth-child(odd),
+[data-theme="dark"] #sales-table tbody td.col-dessert:nth-child(odd),
+[data-theme="dark"] #sales-table tfoot td.col-dessert:nth-child(odd) {
+	background-color: #191b1f !important;
+}
+
+[data-theme="dark"] #sales-table tbody tr:hover td.col-dessert:nth-child(odd) {
+	background-color: #202327 !important;
+}
+
+[data-theme="dark"] #sales-table tbody tr:hover td.col-dessert:nth-child(even) {
+	background-color: rgba(255, 228, 196, 0.05) !important;
 }

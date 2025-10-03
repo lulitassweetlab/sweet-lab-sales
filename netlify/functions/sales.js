@@ -94,6 +94,24 @@ export async function handler(event) {
 				} else {
 					rows = await sql`SELECT id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, comment_text, total_cents, created_at FROM sales WHERE seller_id = ${sellerId} ORDER BY created_at DESC, id DESC`;
 				}
+				
+				// Enhance with sale_items data for each sale
+				for (const row of rows) {
+					try {
+						const items = await sql`
+							SELECT si.id, si.dessert_id, si.quantity, si.unit_price, d.name, d.short_code
+							FROM sale_items si
+							JOIN desserts d ON d.id = si.dessert_id
+							WHERE si.sale_id = ${row.id}
+							ORDER BY d.position ASC, d.id ASC
+						`;
+						row.items = items || [];
+					} catch (err) {
+						// Table might not exist yet, or no items for this sale
+						row.items = [];
+					}
+				}
+				
 				return json(rows);
 			}
 			case 'POST': {
@@ -132,6 +150,11 @@ export async function handler(event) {
 				const withinGrace = createdAt ? ((new Date()) - createdAt) < 120000 : false; // 2 minutes
 				const client = (data.client_name ?? '').toString();
 				const comment = (Object.prototype.hasOwnProperty.call(data, 'comment_text')) ? (data.comment_text ?? '') : current.comment_text;
+				
+				// Support for new dynamic items structure
+				const items = Array.isArray(data.items) ? data.items : null;
+				
+				// Support for legacy qty columns (backward compatibility)
 				const qa = Number(data.qty_arco ?? 0) || 0;
 				const qm = Number(data.qty_melo ?? 0) || 0;
 				const qma = Number(data.qty_mara ?? 0) || 0;
@@ -139,7 +162,26 @@ export async function handler(event) {
 				const qn = Number(data.qty_nute ?? 0) || 0;
 				const paid = (data.is_paid === true || data.is_paid === 'true') ? true : (data.is_paid === false || data.is_paid === 'false') ? false : current.is_paid;
 				const payMethod = (Object.prototype.hasOwnProperty.call(data, 'pay_method')) ? (data.pay_method ?? null) : current.pay_method;
+				
+				// Update sale basic info
 				await sql`UPDATE sales SET client_name=${client}, comment_text=${comment}, qty_arco=${qa}, qty_melo=${qm}, qty_mara=${qma}, qty_oreo=${qo}, qty_nute=${qn}, is_paid=${paid}, pay_method=${payMethod} WHERE id=${id}`;
+				
+				// If items are provided, update sale_items table
+				if (items !== null) {
+					// Delete existing items
+					await sql`DELETE FROM sale_items WHERE sale_id = ${id}`;
+					
+					// Insert new items
+					for (const item of items) {
+						const dessertId = Number(item.dessert_id || 0) || 0;
+						const quantity = Number(item.quantity || 0) || 0;
+						const unitPrice = Number(item.unit_price || 0) || 0;
+						
+						if (dessertId > 0 && quantity > 0) {
+							await sql`INSERT INTO sale_items (sale_id, dessert_id, quantity, unit_price) VALUES (${id}, ${dessertId}, ${quantity}, ${unitPrice})`;
+						}
+					}
+				}
 				// write change logs
 				const actor = (data._actor_name ?? '').toString();
 				async function write(field, oldVal, newVal) {
