@@ -618,8 +618,33 @@ function renderSellerButtons() {
 	const list = $('#seller-list');
 	list.innerHTML = '';
     // Server already filters sellers by permissions. Render all returned.
+    const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
     for (const s of state.sellers) {
-        const btn = el('button', { class: 'seller-button', onclick: async () => { await enterSeller(s.id); } }, s.name);
+        const btn = el('button', { class: 'seller-button' + (isSuper ? ' has-delete' : ''), title: s.name, onclick: async () => { await enterSeller(s.id); } });
+        const nameSpan = el('span', { class: 'seller-name' }, s.name);
+        btn.appendChild(nameSpan);
+        if (isSuper) {
+            const del = el('span', { class: 'delete-seller', title: 'Eliminar vendedor', 'aria-label': 'Eliminar vendedor', role: 'button' });
+            del.addEventListener('click', async (ev) => {
+                ev.preventDefault();
+                ev.stopPropagation();
+                const ok = confirm(`¿Eliminar al vendedor "${s.name}"?`);
+                if (!ok) return;
+                try {
+                    await api('DELETE', `${API.Sellers}?id=${encodeURIComponent(s.id)}`);
+                    // Remove from state and re-render
+                    state.sellers = (state.sellers || []).filter(x => x.id !== s.id);
+                    if (state.currentSeller && state.currentSeller.id === s.id) {
+                        state.currentSeller = null;
+                    }
+                    renderSellerButtons();
+                    notify.success('Vendedor eliminado');
+                } catch (err) {
+                    notify.error('No se pudo eliminar el vendedor');
+                }
+            });
+            btn.appendChild(del);
+        }
         list.appendChild(btn);
     }
 }
