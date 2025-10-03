@@ -1127,22 +1127,11 @@ function attachClientSuggestionsPopover(inputEl) {
         function buildList(queryRaw) {
             const list = Array.isArray(state.clientSuggestions) ? state.clientSuggestions : [];
             const q = normalizeClientName(queryRaw || '');
-            if (!q) return list.slice(0, 8);
-            const starts = [];
-            const contains = [];
+            if (!q) return [];
+            const out = [];
             for (const it of list) {
                 const key = String(it.key || '');
-                if (key.startsWith(q)) starts.push(it);
-                else if (key.includes(q)) contains.push(it);
-            }
-            const merged = [...starts, ...contains];
-            // De-duplicate by key
-            const seen = new Set();
-            const out = [];
-            for (const it of merged) {
-                if (seen.has(it.key)) continue;
-                seen.add(it.key);
-                out.push(it);
+                if (key.startsWith(q)) out.push(it);
                 if (out.length >= 10) break;
             }
             return out;
@@ -1202,7 +1191,7 @@ function attachClientSuggestionsPopover(inputEl) {
                 window.addEventListener('scroll', positionPop, true);
             }
         }
-        inputEl.addEventListener('focus', () => { render(inputEl.value || ''); });
+        inputEl.addEventListener('focus', () => { /* do not open on focus alone */ });
         inputEl.addEventListener('input', () => { render(inputEl.value || ''); });
         inputEl.addEventListener('blur', () => { setTimeout(closePop, 120); });
     } catch {}

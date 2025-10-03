@@ -984,10 +984,10 @@ tfoot td { font-weight: 700; }
   max-width: 95vw;
   z-index: 1000;
 }
-.new-sale-popover h4 { margin: 0 0 10px 0; font-weight: 700; }
+.new-sale-popover h4 { margin: 0 0 10px 0; font-weight: 700; text-align: center; font-size: 20px; }
 .new-sale-grid {
   display: grid;
-  grid-template-columns: 1fr 2fr;
+  grid-template-columns: 0.8fr 2.2fr;
   gap: 6px 10px;
   align-items: center;
   margin-bottom: 10px;
@@ -1025,6 +1025,10 @@ tfoot td { font-weight: 700; }
 .client-suggest-item:hover {
   background: var(--secondary);
 }
+
+/* Ensure only one border (the cell) inside the New Sale popover */
+.new-sale-popover .input-cell { border: none !important; background: transparent; }
+.new-sale-popover .input-qty { width: 5.5ch; min-width: 5.5ch; text-align: center; }
 
 /* Make each date item feel clickable as a whole */
 .date-item {
