@@ -1229,6 +1229,13 @@ function openNewSalePopover(anchorX, anchorY) {
             const lbl = document.createElement('div'); lbl.className = 'new-sale-label-text'; lbl.textContent = labelText;
             left.appendChild(lbl);
             right.appendChild(inputEl);
+            // Make whole right cell focus the input when clicked
+            right.addEventListener('mousedown', (ev) => {
+                if (ev.target !== inputEl) { ev.preventDefault(); try { inputEl.focus(); inputEl.select(); } catch {} }
+            });
+            right.addEventListener('click', (ev) => {
+                if (ev.target !== inputEl) { ev.preventDefault(); try { inputEl.focus(); inputEl.select(); } catch {} }
+            });
             grid.appendChild(left);
             grid.appendChild(right);
         }
