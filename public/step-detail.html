@@ -65,8 +65,7 @@
     function parseMsString(v){
       if (typeof v !== 'string') return NaN;
       const parts = v.trim().split(':').map(p=>p.trim());
-      if (parts.length === 3) { const [h,m,s] = parts.map(n=>Number(n)||0); return ((h*60+m)*60+s)*1000; }
-      if (parts.length === 2) { const [m,s] = parts.map(n=>Number(n)||0); return ((m*60)+s)*1000; }
+      if (parts.length === 2) { const [h,m] = parts.map(n=>Number(n)||0); return ((h*60)+m)*60*1000; }
       const num = Number(v); if (!Number.isNaN(num)) return num; return NaN;
     }
 
@@ -97,7 +96,7 @@
         const row = document.createElement('div'); row.className='row';
 
         const qtyCell = document.createElement('div'); qtyCell.className='cell num'; qtyCell.textContent = `Cant: ${entry.qty_units||0}`;
-        const timeInput = document.createElement('input'); timeInput.className='cell editable'; timeInput.value = String(st.elapsed_ms||0); timeInput.placeholder='ms o mm:ss';
+        const timeInput = document.createElement('input'); timeInput.className='cell editable'; timeInput.value = fmtMs(Number(st.elapsed_ms||0)); timeInput.placeholder='HH:MM';
         timeInput.dataset.entryId = String(entry.id||entry.date_iso||'');
         timeInput.dataset.stepName = String(stepName);
 
@@ -116,7 +115,7 @@
       const h4 = document.createElement('h4'); h4.textContent = 'Promedio';
       const row = document.createElement('div'); row.className='row';
       const avgPerUnit = sumQty > 0 ? Math.round(sumElapsed / sumQty) : 0;
-      const avgCell = document.createElement('div'); avgCell.className='cell num'; avgCell.textContent = `${fmtMs(avgPerUnit)}/u`;
+      const avgCell = document.createElement('div'); avgCell.className='cell num'; avgCell.textContent = `${fmtMs(avgPerUnit)}`;
       row.append(avgCell);
       avgCol.append(h4, row);
       grid.appendChild(avgCol);

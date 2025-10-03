@@ -40,9 +40,7 @@
   <main class="history-panel">
     <div class="panel-header">
       <h3>Últimos registros guardados</h3>
-      <div class="panel-actions">
-        <button id="save-btn" class="press-btn btn-primary">Guardar cambios</button>
-      </div>
+      <div class="panel-actions"></div>
     </div>
     <div class="panel-body" style="padding:12px">
       <div id="groups" style="display:flex; flex-direction:column; gap:16px"></div>
@@ -52,7 +50,6 @@
   <script type="module">
   (function(){
     const backBtn = document.getElementById('back-btn');
-    const saveBtn = document.getElementById('save-btn');
     const groupsWrap = document.getElementById('groups');
 
     function readHistory(){ try { return JSON.parse(localStorage.getItem('timesHistory') || '[]') || []; } catch { return []; } }
@@ -64,14 +61,7 @@
       return (h>0?`${h}:`:'')+`${pad(m)}:${pad(s)}`;
     }
 
-    function parseMsString(v){
-      if (typeof v !== 'string') return NaN;
-      const parts = v.trim().split(':').map(p=>p.trim());
-      if (parts.length === 3) { const [h,m,s] = parts.map(n=>Number(n)||0); return ((h*60+m)*60+s)*1000; }
-      if (parts.length === 2) { const [m,s] = parts.map(n=>Number(n)||0); return ((m*60)+s)*1000; }
-      const num = Number(v); if (!Number.isNaN(num)) return num; // allow raw ms
-      return NaN;
-    }
+    // No parsing here; ediciones ocurren en la página de detalle
 
     function groupByDessert(items){
       const map = new Map();
@@ -83,18 +73,7 @@
       return map;
     }
 
-    function buildStepRow(entry, step, stepIndex){
-      const row = document.createElement('div'); row.className = 'step-row';
-      row.dataset.entryId = (entry.id || entry.date_iso || '').toString();
-      row.dataset.stepIndex = String(stepIndex);
-      const when = new Date(entry.date_iso || entry.id || Date.now());
-      const whenCell = document.createElement('div'); whenCell.textContent = when.toLocaleString();
-      const qty = document.createElement('div'); qty.className='num'; qty.textContent = String(entry.qty_units||0);
-      const avg = document.createElement('div'); avg.className='num'; avg.textContent = fmtMs(step.avg_ms_per_unit||0);
-      const edit = document.createElement('input'); edit.className='editable'; edit.placeholder='ms totales o mm:ss'; edit.value = String(step.elapsed_ms||0);
-      row.append(whenCell, qty, avg, edit);
-      return { row, edit };
-    }
+    // Sin filas individuales de sesiones en esta vista
 
     function groupStepsByName(entries){
       const map = new Map();
@@ -125,12 +104,7 @@
         const card = document.createElement('div'); card.className='history-card';
         const head = document.createElement('div'); head.className='group-title';
         const title = document.createElement('h3'); title.textContent = dessert; title.style.margin='0';
-        const sub = document.createElement('div'); sub.className='group-sub';
-        const totalSessions = document.createElement('span'); totalSessions.className='pill tiny'; totalSessions.textContent = `${entries.length} sesiones`;
-        const totalMs = entries.reduce((acc, e)=> acc + Number(e.total_elapsed_ms||0)||0, 0);
-        const totalLabel = document.createElement('span'); totalLabel.className='pill tiny'; totalLabel.textContent = `Total: ${fmtMs(totalMs)}`;
-        sub.append(totalSessions, totalLabel);
-        head.append(title, sub);
+        head.append(title);
 
         const body = document.createElement('div'); body.style.display='flex'; body.style.flexDirection='column'; body.style.gap='10px';
 
@@ -140,22 +114,10 @@
           const sg = document.createElement('div'); sg.className='step-group';
           const sh = document.createElement('div'); sh.className='step-head';
           const left = document.createElement('div'); left.textContent = stepName; left.style.fontWeight='600';
-          const meta = document.createElement('div'); meta.className='meta';
-          const sessionsPill = document.createElement('span'); sessionsPill.className='pill tiny'; sessionsPill.textContent = `${arr.length} sesiones`;
-          const totalQty = arr.reduce((acc, it)=> acc + (Number(it.entry.qty_units||0)||0), 0);
-          const totalMsStep = arr.reduce((acc, it)=> acc + (Number(it.step.elapsed_ms||0)||0), 0);
-          const avgPerUnit = totalQty > 0 ? Math.round(totalMsStep / totalQty) : 0;
-          const avgPill = document.createElement('span'); avgPill.className='pill tiny'; avgPill.textContent = `Promedio: ${fmtMs(avgPerUnit)}/u`;
-          meta.append(sessionsPill, avgPill);
-          sh.append(left, meta);
+          sh.append(left);
           sh.addEventListener('click', () => goToStepDetail(dessert, stepName));
 
-          const sb = document.createElement('div'); sb.style.display='flex'; sb.style.flexDirection='column'; sb.style.gap='6px';
-          for (const it of arr){
-            const { row } = buildStepRow(it.entry, it.step, it.index);
-            sb.appendChild(row);
-          }
-          sg.append(sh, sb);
+          sg.append(sh);
           body.appendChild(sg);
         }
 
@@ -173,28 +135,7 @@
       entry.total_elapsed_ms = (entry.steps||[]).reduce((acc, s)=> acc + (Number(s.elapsed_ms||0)||0), 0);
     }
 
-    function collectAndSave(){
-      const items = readHistory();
-      const byId = new Map(items.map(it => [String(it.id||it.date_iso||''), it]));
-      const allRows = groupsWrap.querySelectorAll('.step-row');
-      for (const row of allRows){
-        const entryId = String(row.dataset.entryId||'');
-        const stepIndex = Number(row.dataset.stepIndex||-1);
-        if (!byId.has(entryId) || stepIndex < 0) continue;
-        const entry = byId.get(entryId);
-        const steps = Array.isArray(entry.steps) ? entry.steps : [];
-        if (!steps[stepIndex]) continue;
-        const input = row.querySelector('input.editable');
-        const parsed = parseMsString(input.value);
-        if (!Number.isNaN(parsed)) steps[stepIndex].elapsed_ms = parsed;
-        recompute(entry);
-      }
-      writeHistory(items);
-      alert('Cambios guardados');
-    }
-
     backBtn.addEventListener('click', () => { history.back(); });
-    saveBtn.addEventListener('click', collectAndSave);
 
     render();
   })();
