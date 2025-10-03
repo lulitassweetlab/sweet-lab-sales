@@ -207,6 +207,7 @@ const state = {
 	sales: [],
 	currentUser: null,
 	clientCounts: new Map(),
+	deleteSellerMode: false,
 };
 
 // Toasts and Notifications
@@ -618,8 +619,27 @@ function renderSellerButtons() {
 	const list = $('#seller-list');
 	list.innerHTML = '';
     // Server already filters sellers by permissions. Render all returned.
+    const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
     for (const s of state.sellers) {
-        const btn = el('button', { class: 'seller-button', onclick: async () => { await enterSeller(s.id); } }, s.name);
+        const btn = el('button', { class: 'seller-button', onclick: async (ev) => {
+            if (isSuper && state.deleteSellerMode) {
+                ev.preventDefault();
+                const ok = await openConfirmPopover(`¿Eliminar al vendedor "${s.name}"?`, ev.clientX, ev.clientY);
+                if (!ok) return;
+                try {
+                    await api('DELETE', `${API.Sellers}?id=${encodeURIComponent(s.id)}`);
+                    // Remove locally and re-render
+                    state.sellers = state.sellers.filter(x => x.id !== s.id);
+                    notify.success('Vendedor eliminado');
+                    renderSellerButtons();
+                } catch (e) {
+                    try { notify.error('No se pudo eliminar el vendedor'); } catch {}
+                }
+                return;
+            }
+            await enterSeller(s.id);
+        } }, s.name);
+        if (isSuper && state.deleteSellerMode) btn.classList.add('delete-mode');
         list.appendChild(btn);
     }
 }
@@ -672,7 +692,7 @@ function applyAuthVisibility() {
 	const logoutBtn = document.getElementById('logout-btn');
 	if (logoutBtn) logoutBtn.style.display = state.currentUser ? 'inline-flex' : 'none';
 	const addSellerWrap = document.querySelector('.seller-add');
-	if (addSellerWrap) addSellerWrap.style.display = isSuper ? 'block' : 'none';
+	if (addSellerWrap) addSellerWrap.style.display = isSuper ? 'grid' : 'none';
 	const usersBtn = document.getElementById('users-button');
 	const feats = new Set((state.currentUser?.features || []));
 	const reportBtn = document.getElementById('report-button');
@@ -2021,13 +2041,27 @@ async function exportUsersExcel() {
 
 function bindEvents() {
 	// No header password button; handled in login view
-	$('#add-seller').addEventListener('click', async () => {
+    $('#add-seller').addEventListener('click', async () => {
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 		if (!isSuper) { notify.error('Solo Jorge puede agregar vendedores'); return; }
+        // Leaving delete mode if active
+        if (state.deleteSellerMode) { state.deleteSellerMode = false; renderSellerButtons(); }
 		const name = (prompt('Nombre del nuevo vendedor:') || '').trim();
 		if (!name) return;
 		await addSeller(name);
 	});
+
+    const delBtn = document.getElementById('delete-seller');
+    delBtn?.addEventListener('click', () => {
+        const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+        if (!isSuper) { notify.error('Solo el superadministrador'); return; }
+        state.deleteSellerMode = !state.deleteSellerMode;
+        renderSellerButtons();
+        try {
+            if (state.deleteSellerMode) notify.info('Modo eliminar vendedor activo');
+            else notify.info('Modo eliminar vendedor desactivado');
+        } catch {}
+    });
 
 	$('#add-row').addEventListener('click', addRow);
 	$('#go-home').addEventListener('click', () => {
