@@ -357,53 +357,34 @@ const notify = (() => {
 		const info = document.createElement('div'); info.style.fontSize = '12px'; info.style.opacity = '0.8'; info.textContent = 'Últimas 200 notificaciones';
 		toolbar.append(info);
 		const list = document.createElement('div'); list.className = 'notif-list';
-		async function renderList() {
+		function renderList() {
 			list.innerHTML = '';
 			let data = [];
-			try {
-				const res = await fetch('/api/notifications');
-				if (res.ok) data = await res.json();
-			} catch {}
+			try { data = readLog(); } catch { data = []; }
 			if (!Array.isArray(data) || data.length === 0) {
 				const empty = document.createElement('div'); empty.className = 'notif-empty'; empty.textContent = 'Sin notificaciones'; list.appendChild(empty); return;
 			}
-			// Mostrar más recientes primero, confiando en orden del backend (id DESC)
-			for (const it of data) {
+			// Más recientes primero
+			for (const it of data.slice(-200).reverse()) {
 				const item = document.createElement('div'); item.className = 'notif-item';
+				item.style.gridTemplateColumns = '1fr auto';
 				const when = document.createElement('div'); when.className = 'when';
-				const d = new Date(it.created_at || it.when); when.textContent = isNaN(d.getTime()) ? String(it.created_at || it.when) : d.toLocaleString();
+				const d = new Date(it.when || it.created_at); when.textContent = isNaN(d.getTime()) ? String(it.when || it.created_at || '') : d.toLocaleString();
 				const text = document.createElement('div'); text.className = 'text';
-				// prepend icon if present or if pay_method provided
-				try {
-					let url = it.icon_url || null;
-					const pm = (it.pay_method || '').toString();
-					if (!url && pm) {
-						url = pm === 'efectivo' ? '/icons/bill.svg' : pm === 'transf' ? '/icons/bank.svg' : pm === 'jorgebank' ? '/icons/bank-yellow.svg' : pm === 'marce' ? '/icons/marce7.svg?v=1' : pm === 'jorge' ? '/icons/jorge7.svg?v=1' : null;
-					}
-					if (url) {
-						const icon = document.createElement('span');
-						icon.className = 'notif-icon';
-						icon.style.backgroundImage = `url('${url}')`;
-						text.appendChild(icon);
-					}
-				} catch {}
-				const txt = document.createElement('span');
-				txt.textContent = String(it.message || it.text || '');
+				const txt = document.createElement('span'); txt.textContent = String(it.text || it.message || '');
 				text.appendChild(txt);
-				item.append(when, text);
-				try {
-					item.style.cursor = 'pointer';
-					item.addEventListener('click', () => {
-						cleanup();
-						setTimeout(() => {
-							goToSaleFromNotification(
-								it.seller_id ?? it.sellerId ?? null,
-								it.sale_day_id ?? it.saleDay_id ?? it.sale_dayId ?? it.saleDayId ?? null,
-								it.sale_id ?? it.saleId ?? null
-							);
-						}, 0);
-					});
-				} catch {}
+				const delBtn = document.createElement('button'); delBtn.type = 'button'; delBtn.className = 'notif-del'; delBtn.title = 'Eliminar'; delBtn.textContent = '🗑';
+				delBtn.addEventListener('click', (e) => {
+					e.stopPropagation();
+					try {
+						const all = (readLog() || []).filter(x => x && x.id !== it.id);
+						writeLog(all);
+						renderList();
+					} catch {}
+				});
+				// Layout: when + delete on first row, text spanning full width below
+				item.append(when, delBtn, text);
+				text.style.gridColumn = '1 / -1';
 				list.appendChild(item);
 			}
 		}
