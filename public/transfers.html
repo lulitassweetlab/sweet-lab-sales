@@ -36,7 +36,7 @@
 	<script type="module">
 	(function(){
 		// Read current user for role-based payment options and audit actor name
-		let currentUser = null;
+			let currentUser = null;
 		try { const saved = localStorage.getItem('authUser'); if (saved) currentUser = JSON.parse(saved); } catch {}
 		const qs = new URLSearchParams(location.search);
 		let start = (qs.get('start') || '').slice(0,10);
@@ -196,15 +196,21 @@
 			return `${d.getUTCDate()} ${months[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 		}
 
-		async function load(){
+			async function load(){
 			if (!start || !end) return;
 			rangeLabel.textContent = `${formatDay(start)} — ${formatDay(end)}`;
 			grid.innerHTML = '';
 			empty.style.display = 'none';
 			countLabel.textContent = 'Cargando…';
-			const isoBetween = (iso, a, b) => iso >= a && iso <= b;
-			const fetchJSON = async (u) => { const r = await fetch(u); if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); };
-			const sellers = await fetchJSON('/api/sellers');
+				const isoBetween = (iso, a, b) => iso >= a && iso <= b;
+				const fetchJSON = async (u) => {
+					const headers = {};
+					if (currentUser?.name) headers['X-Actor-Name'] = String(currentUser.name);
+					const r = await fetch(u, { headers });
+					if (!r.ok) throw new Error(`HTTP ${r.status}`);
+					return r.json();
+				};
+				const sellers = await fetchJSON('/api/sellers?include_archived=1');
 			let found = 0;
 			countLabel.textContent = `Vendedores: ${sellers.length} · Buscando días…`;
 			// Concurrency limiter
@@ -221,9 +227,9 @@
 			}
 			// Gather days within range for each seller
 			const sellerDays = [];
-			await mapLimit(sellers, 6, async (s) => {
+				await mapLimit(sellers, 6, async (s) => {
 				try {
-					const days = await fetchJSON(`/api/days?seller_id=${encodeURIComponent(s.id)}`);
+						const days = await fetchJSON(`/api/days?seller_id=${encodeURIComponent(s.id)}&include_archived=1`);
 					for (const d of (days||[])) {
 						const iso = String(d.day).slice(0,10);
 						if (isoBetween(iso, start, end)) sellerDays.push({ seller: s, day: d });
@@ -233,10 +239,10 @@
 			countLabel.textContent = `Días: ${sellerDays.length} · Buscando ventas…`;
 			// Gather sales for those days
 			const daySales = [];
-			await mapLimit(sellerDays, 6, async ({ seller, day }) => {
+				await mapLimit(sellerDays, 6, async ({ seller, day }) => {
 				try {
-					const params = new URLSearchParams({ seller_id: String(seller.id), sale_day_id: String(day.id) });
-					const sales = await fetchJSON(`/api/sales?${params.toString()}`);
+						const params = new URLSearchParams({ seller_id: String(seller.id), sale_day_id: String(day.id) });
+						const sales = await fetchJSON(`/api/sales?${params.toString()}`);
 					for (const row of (sales||[])) daySales.push({ seller, day, sale: row });
 				} catch {}
 			});
