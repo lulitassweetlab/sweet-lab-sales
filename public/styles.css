@@ -971,6 +971,65 @@ tfoot td { font-weight: 700; }
 .comment-popover:focus, .comment-popover:focus-within { outline: none !important; box-shadow: none !important; }
 .comment-popover .confirm-actions { gap: 10px; }
 
+/* New Sale Popover */
+.new-sale-popover {
+  position: fixed;
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.24);
+  padding: 14px;
+  min-width: 520px;
+  max-width: 95vw;
+  z-index: 1000;
+}
+.new-sale-popover h4 { margin: 0 0 10px 0; font-weight: 700; text-align: center; font-size: 20px; }
+.new-sale-grid {
+  display: grid;
+  grid-template-columns: 0.8fr 1.8fr;
+  gap: 6px 10px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.new-sale-cell {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 6px 8px;
+}
+.new-sale-left { background: rgba(0,0,0,0.06); }
+[data-theme="dark"] .new-sale-left { background: rgba(255,255,255,0.06); }
+.new-sale-right { background: rgba(255,255,255,0.66); }
+[data-theme="dark"] .new-sale-right { background: rgba(24,24,24,0.66); }
+.new-sale-label-text { font-weight: 500; opacity: 0.9; }
+@media (max-width: 640px) {
+  .new-sale-popover { min-width: 0; width: 92vw; left: 50% !important; transform: translateX(-50%) !important; top: 16px !important; }
+  .new-sale-grid { grid-template-columns: 1fr 1fr; }
+}
+
+/* Inline client suggestions under input (popover aligned to caret/left edge) */
+.client-suggest-popover {
+  position: fixed;
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.22);
+  max-height: 240px;
+  overflow: auto;
+}
+.client-suggest-item {
+  padding: 6px 8px;
+  cursor: pointer;
+}
+.client-suggest-item:hover {
+  background: var(--secondary);
+}
+
+/* Ensure only one border (the cell) inside the New Sale popover */
+.new-sale-popover .input-cell { border: none !important; background: transparent; }
+.new-sale-popover .input-qty { width: 5.5ch; min-width: 5.5ch; text-align: center; }
+
 /* Make each date item feel clickable as a whole */
 .date-item {
 	display: inline-flex;
