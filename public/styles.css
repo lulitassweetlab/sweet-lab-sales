@@ -3638,8 +3638,7 @@ button.secondary.press-btn:active {
 /* Desktop: Horizontal labels, same height as other headers */
 @media (min-width: 601px) {
 	#sales-table thead th.col-dessert {
-		height: 36px;
-		padding: 8px 4px;
+		padding: 10px 4px;
 		vertical-align: middle;
 	}
 	#sales-table thead th.col-dessert .v-label {
@@ -3649,7 +3648,7 @@ button.secondary.press-btn:active {
 		transform: none !important;
 		position: static !important;
 		top: auto !important;
-		line-height: 1.2;
+		line-height: normal;
 	}
 }
 
@@ -3676,15 +3675,15 @@ button.secondary.press-btn:active {
 }
 
 /* Alternating gray background for dessert columns (every other one) */
-/* Light theme */
+/* Light theme - match existing columns (Arco, Mara, Nute) */
 #sales-table thead th.col-dessert:nth-child(odd),
 #sales-table tbody td.col-dessert:nth-child(odd),
 #sales-table tfoot td.col-dessert:nth-child(odd) {
-	background-color: rgba(0, 0, 0, 0.03);
+	background-color: rgba(0, 0, 0, 0.10) !important;
 }
 
 #sales-table tbody tr:hover td.col-dessert:nth-child(odd) {
-	background-color: rgba(0, 0, 0, 0.08);
+	background-color: rgba(0, 0, 0, 0.14) !important;
 }
 
 #sales-table tbody tr:hover td.col-dessert:nth-child(even) {
