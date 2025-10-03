@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Historial de Tiempos</title>
+  <link rel="stylesheet" href="/styles.css?v=2025-09-17-1" />
+  <style>
+    .history-panel { background: var(--card); border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 1px 2px rgba(0,0,0,0.06); overflow: hidden; margin-top: 8px; }
+    .history-panel .panel-header { background: var(--secondary); padding: 8px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .history-card { border: 1px solid var(--border); border-radius: 12px; padding: 12px; background: var(--card); box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
+    .step-row { display: grid; grid-template-columns: 1.1fr .6fr .6fr auto; gap: 8px; align-items: center; border-bottom: 1px solid var(--border); padding: 6px 0; }
+    .step-row:last-child { border-bottom: none; }
+    .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); background: var(--secondary); }
+    .tiny { font-size: 10px; opacity: .8; }
+    .btn-row { display: flex; gap: 8px; align-items: center; justify-content: flex-end; margin-top: 10px; }
+    .wide { width: 100%; }
+    .editable { width: 100%; box-sizing: border-box; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--text); }
+    .group-title { display:flex; align-items:center; justify-content:space-between; gap:10px; margin: 2px 0 8px 0; }
+    .group-sub { display:flex; gap:8px; align-items:center; }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-row">
+      <div class="header-left">
+        <img src="/logo.png" alt="Lulitas Logo" class="app-logo" />
+        <h1>Historial de Tiempos</h1>
+      </div>
+      <div class="header-actions">
+        <button id="back-btn" class="press-btn">Volver</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="history-panel">
+    <div class="panel-header">
+      <h3>Últimos registros guardados</h3>
+      <div class="panel-actions">
+        <button id="save-btn" class="press-btn btn-primary">Guardar cambios</button>
+      </div>
+    </div>
+    <div class="panel-body" style="padding:12px">
+      <div id="groups" style="display:flex; flex-direction:column; gap:16px"></div>
+    </div>
+  </main>
+
+  <script type="module">
+  (function(){
+    const backBtn = document.getElementById('back-btn');
+    const saveBtn = document.getElementById('save-btn');
+    const groupsWrap = document.getElementById('groups');
+
+    function readHistory(){ try { return JSON.parse(localStorage.getItem('timesHistory') || '[]') || []; } catch { return []; } }
+    function writeHistory(arr){ try { localStorage.setItem('timesHistory', JSON.stringify(arr)); } catch {} }
+
+    function fmtMs(ms){
+      const total=Math.max(0,Math.floor(ms/1000));
+      const h=Math.floor(total/3600); const m=Math.floor((total%3600)/60); const s=total%60; const pad=n=>String(n).padStart(2,'0');
+      return (h>0?`${h}:`:'')+`${pad(m)}:${pad(s)}`;
+    }
+
+    function parseMsString(v){
+      if (typeof v !== 'string') return NaN;
+      const parts = v.trim().split(':').map(p=>p.trim());
+      if (parts.length === 3) { const [h,m,s] = parts.map(n=>Number(n)||0); return ((h*60+m)*60+s)*1000; }
+      if (parts.length === 2) { const [m,s] = parts.map(n=>Number(n)||0); return ((m*60)+s)*1000; }
+      const num = Number(v); if (!Number.isNaN(num)) return num; // allow raw ms
+      return NaN;
+    }
+
+    function groupByDessert(items){
+      const map = new Map();
+      for (const it of items) {
+        const key = (it.dessert || 'Sin nombre').toString();
+        if (!map.has(key)) map.set(key, []);
+        map.get(key).push(it);
+      }
+      return map;
+    }
+
+    function buildEditableRow(step){
+      const row = document.createElement('div'); row.className = 'step-row';
+      const name = document.createElement('div'); name.textContent = step.name || 'Paso';
+      const qty = document.createElement('div'); qty.className='num'; qty.textContent = String(step.qty_units||0);
+      const avg = document.createElement('div'); avg.className='num'; avg.textContent = fmtMs(step.avg_ms_per_unit||0);
+      const edit = document.createElement('input'); edit.className='editable'; edit.placeholder='ms totales o mm:ss'; edit.value = String(step.elapsed_ms||0);
+      row.append(name, qty, avg, edit);
+      return { row, edit };
+    }
+
+    function render(){
+      groupsWrap.innerHTML = '';
+      const items = readHistory();
+      const groups = groupByDessert(items);
+      for (const [dessert, entries] of groups.entries()){
+        const card = document.createElement('div'); card.className='history-card';
+        const head = document.createElement('div'); head.className='group-title';
+        const title = document.createElement('h3'); title.textContent = dessert; title.style.margin='0';
+        const sub = document.createElement('div'); sub.className='group-sub';
+        const totalSessions = document.createElement('span'); totalSessions.className='pill tiny'; totalSessions.textContent = `${entries.length} sesiones`;
+        const totalMs = entries.reduce((acc, e)=> acc + Number(e.total_elapsed_ms||0)||0, 0);
+        const totalLabel = document.createElement('span'); totalLabel.className='pill tiny'; totalLabel.textContent = `Total: ${fmtMs(totalMs)}`;
+        sub.append(totalSessions, totalLabel);
+        head.append(title, sub);
+
+        const body = document.createElement('div'); body.style.display='flex'; body.style.flexDirection='column'; body.style.gap='6px';
+
+        // Flatten steps across sessions
+        const stepRows = [];
+        for (const entry of entries){
+          for (const st of (entry.steps||[])){
+            const { row, edit } = buildEditableRow(st);
+            stepRows.push({ entry, step: st, edit });
+            body.appendChild(row);
+          }
+        }
+
+        card.append(head, body);
+        groupsWrap.appendChild(card);
+      }
+    }
+
+    function recompute(entry){
+      const qty = Number(entry.qty_units||0)||0;
+      for (const st of (entry.steps||[])){
+        const ms = Number(st.elapsed_ms||0)||0;
+        st.avg_ms_per_unit = qty > 0 ? Math.round(ms / qty) : 0;
+      }
+      entry.total_elapsed_ms = (entry.steps||[]).reduce((acc, s)=> acc + (Number(s.elapsed_ms||0)||0), 0);
+    }
+
+    function collectAndSave(){
+      const items = readHistory();
+      // Walk DOM to collect edits back into the same objects
+      const groups = groupByDessert(items);
+      let cardIdx = 0;
+      const cards = Array.from(groupsWrap.children);
+      for (const [dessert, entries] of groups.entries()){
+        const card = cards[cardIdx++];
+        if (!card) continue;
+        const rows = card.querySelectorAll('.step-row');
+        let rowIdx = 0;
+        for (const entry of entries){
+          for (const st of (entry.steps||[])){
+            const row = rows[rowIdx++]; if (!row) continue;
+            const input = row.querySelector('input.editable');
+            const parsed = parseMsString(input.value);
+            if (!Number.isNaN(parsed)) st.elapsed_ms = parsed;
+          }
+          recompute(entry);
+        }
+      }
+      writeHistory(items);
+      alert('Cambios guardados');
+    }
+
+    backBtn.addEventListener('click', () => { history.back(); });
+    saveBtn.addEventListener('click', collectAndSave);
+
+    render();
+  })();
+  </script>
+</body>
+</html>

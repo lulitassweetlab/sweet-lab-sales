@@ -13,14 +13,14 @@
         position: absolute;
         inset: -6px;
         border-radius: 14px;
-        box-shadow: 0 0 0 3px var(--accent), 0 0 18px var(--accent);
+        box-shadow: 0 0 0 3px #ff4da6, 0 0 18px #ff4da6;
         animation: timerPulse 1.1s ease-in-out infinite;
         pointer-events: none;
       }
       @keyframes timerPulse {
-        0% { box-shadow: 0 0 0 2px var(--accent), 0 0 8px var(--accent); }
-        50% { box-shadow: 0 0 0 6px var(--accent), 0 0 28px var(--accent); }
-        100% { box-shadow: 0 0 0 2px var(--accent), 0 0 8px var(--accent); }
+        0% { box-shadow: 0 0 0 2px #ff4da6, 0 0 8px #ff4da6; }
+        50% { box-shadow: 0 0 0 6px #ff4da6, 0 0 28px #ff4da6; }
+        100% { box-shadow: 0 0 0 2px #ff4da6, 0 0 8px #ff4da6; }
       }
     </style>
 </head>
@@ -267,22 +267,11 @@
 					if (saved > 0) alert(`Tiempos guardados (${saved})`); else alert('No hay tiempos para guardar');
 				} catch { alert('No se pudieron guardar los tiempos'); }
 			});
-			historyBtn.addEventListener('click', () => {
-				const items = readHistory().slice(-20).reverse();
-				const pop = document.createElement('div'); pop.className = 'confirm-popover'; pop.style.position='fixed'; pop.style.left=(window.innerWidth/2)+'px'; pop.style.top='12%'; pop.style.transform='translate(-50%,0)';
-				const title = document.createElement('h4'); title.textContent = 'Historial de tiempos'; title.style.margin='0 0 8px 0';
-				const list = document.createElement('div'); list.style.maxHeight='60vh'; list.style.overflow='auto'; list.style.minWidth='min(92vw,520px)';
-				if (!items.length) { const empty=document.createElement('div'); empty.textContent='Sin registros'; list.appendChild(empty); }
-				for (const it of items) {
-					const row = document.createElement('div'); row.style.borderBottom='1px solid var(--border)'; row.style.padding='6px 2px';
-					const when = new Date(it.date_iso || it.id || Date.now());
-					row.innerHTML = `<strong>${it.dessert}</strong> · ${when.toLocaleString()} · Cant: ${it.qty_units||0} · Total: ${fmtMs(it.total_elapsed_ms||0)}`;
-					list.appendChild(row);
-				}
-				const actions=document.createElement('div'); actions.className='confirm-actions'; const close=document.createElement('button'); close.className='press-btn'; close.textContent='Cerrar'; actions.appendChild(close);
-				pop.append(title, list, actions); document.body.appendChild(pop); pop.classList.add('aladdin-pop');
-				close.addEventListener('click', () => { if (pop.parentNode) pop.parentNode.removeChild(pop); });
-			});
+            historyBtn.addEventListener('click', () => {
+                const url = new URL('/history.html', location.origin);
+                if (actor) url.searchParams.set('actor', actor);
+                location.href = url.toString();
+            });
 		}
 
 		// Navigation
