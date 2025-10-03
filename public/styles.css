@@ -988,14 +988,42 @@ tfoot td { font-weight: 700; }
 .new-sale-grid {
   display: grid;
   grid-template-columns: 1fr 2fr;
-  gap: 8px 12px;
+  gap: 6px 10px;
   align-items: center;
   margin-bottom: 10px;
 }
-.new-sale-label { opacity: 0.9; }
+.new-sale-cell {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 6px 8px;
+}
+.new-sale-left { background: rgba(0,0,0,0.06); }
+[data-theme="dark"] .new-sale-left { background: rgba(255,255,255,0.06); }
+.new-sale-right { background: rgba(255,255,255,0.66); }
+[data-theme="dark"] .new-sale-right { background: rgba(24,24,24,0.66); }
+.new-sale-label-text { font-weight: 500; opacity: 0.9; }
 @media (max-width: 640px) {
   .new-sale-popover { min-width: 0; width: 92vw; left: 50% !important; transform: translateX(-50%) !important; top: 16px !important; }
   .new-sale-grid { grid-template-columns: 1fr 1fr; }
+}
+
+/* Inline client suggestions under input (popover aligned to caret/left edge) */
+.client-suggest-popover {
+  position: fixed;
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.22);
+  max-height: 240px;
+  overflow: auto;
+}
+.client-suggest-item {
+  padding: 6px 8px;
+  cursor: pointer;
+}
+.client-suggest-item:hover {
+  background: var(--secondary);
 }
 
 /* Make each date item feel clickable as a whole */

@@ -1120,6 +1120,94 @@ function wireDeliveredRowEditors() {
 }
 
 // New order popover: allow entering client and quantities before creating the row
+function attachClientSuggestionsPopover(inputEl) {
+    try {
+        let pop = null;
+        let visible = false;
+        function buildList(queryRaw) {
+            const list = Array.isArray(state.clientSuggestions) ? state.clientSuggestions : [];
+            const q = normalizeClientName(queryRaw || '');
+            if (!q) return list.slice(0, 8);
+            const starts = [];
+            const contains = [];
+            for (const it of list) {
+                const key = String(it.key || '');
+                if (key.startsWith(q)) starts.push(it);
+                else if (key.includes(q)) contains.push(it);
+            }
+            const merged = [...starts, ...contains];
+            // De-duplicate by key
+            const seen = new Set();
+            const out = [];
+            for (const it of merged) {
+                if (seen.has(it.key)) continue;
+                seen.add(it.key);
+                out.push(it);
+                if (out.length >= 10) break;
+            }
+            return out;
+        }
+        function ensurePop() {
+            if (pop) return pop;
+            pop = document.createElement('div');
+            pop.className = 'client-suggest-popover';
+            pop.style.position = 'fixed';
+            pop.style.zIndex = '1001';
+            document.body.appendChild(pop);
+            return pop;
+        }
+    function positionPop() {
+            if (!pop) return;
+            const rect = inputEl.getBoundingClientRect();
+        const cs = getComputedStyle(inputEl);
+        const padL = parseFloat(cs.paddingLeft) || 0;
+        const padR = parseFloat(cs.paddingRight) || 0;
+        pop.style.left = (rect.left + padL) + 'px';
+        pop.style.top = (rect.bottom + 2) + 'px';
+        const w = Math.max(120, rect.width - padL - padR);
+        pop.style.width = w + 'px';
+        }
+        function closePop() {
+            visible = false;
+            if (pop && pop.parentNode) pop.parentNode.removeChild(pop);
+            pop = null;
+            document.removeEventListener('mousedown', handleOutside, true);
+            window.removeEventListener('resize', positionPop);
+            window.removeEventListener('scroll', positionPop, true);
+        }
+        function handleOutside(ev) { if (pop && !pop.contains(ev.target) && ev.target !== inputEl) closePop(); }
+        function render(query) {
+            const data = buildList(query);
+            if (!data || data.length === 0) { closePop(); return; }
+            ensurePop();
+            pop.innerHTML = '';
+            for (const it of data) {
+                const row = document.createElement('div');
+                row.className = 'client-suggest-item';
+                row.textContent = String(it.name || '');
+                row.addEventListener('mousedown', (ev) => { ev.preventDefault(); });
+                row.addEventListener('click', () => {
+                    inputEl.value = String(it.name || '');
+                    inputEl.dispatchEvent(new Event('input'));
+                    inputEl.focus();
+                    closePop();
+                });
+                pop.appendChild(row);
+            }
+            positionPop();
+            if (!visible) {
+                visible = true;
+                setTimeout(() => { document.addEventListener('mousedown', handleOutside, true); }, 0);
+                window.addEventListener('resize', positionPop);
+                window.addEventListener('scroll', positionPop, true);
+            }
+        }
+        inputEl.addEventListener('focus', () => { render(inputEl.value || ''); });
+        inputEl.addEventListener('input', () => { render(inputEl.value || ''); });
+        inputEl.addEventListener('blur', () => { setTimeout(closePop, 120); });
+    } catch {}
+}
+
 function openNewSalePopover(anchorX, anchorY) {
     try {
         const pop = document.createElement('div');
@@ -1143,11 +1231,14 @@ function openNewSalePopover(anchorX, anchorY) {
         const grid = document.createElement('div');
         grid.className = 'new-sale-grid';
 
-        function makeLabel(text) {
-            const lbl = document.createElement('label');
-            lbl.className = 'new-sale-label';
-            lbl.textContent = text;
-            return lbl;
+        function appendRow(labelText, inputEl) {
+            const left = document.createElement('div'); left.className = 'new-sale-cell new-sale-left';
+            const right = document.createElement('div'); right.className = 'new-sale-cell new-sale-right';
+            const lbl = document.createElement('div'); lbl.className = 'new-sale-label-text'; lbl.textContent = labelText;
+            left.appendChild(lbl);
+            right.appendChild(inputEl);
+            grid.appendChild(left);
+            grid.appendChild(right);
         }
 
         // Client row
@@ -1156,9 +1247,9 @@ function openNewSalePopover(anchorX, anchorY) {
         clientInput.placeholder = 'Nombre del cliente';
         clientInput.className = 'input-cell client-input';
         clientInput.autocomplete = 'off';
-        try { wireClientAutocompleteForInput(clientInput); } catch {}
-        grid.appendChild(makeLabel('Cliente'));
-        grid.appendChild(clientInput);
+        // Custom inline suggestions below the first character (left-aligned)
+        attachClientSuggestionsPopover(clientInput);
+        appendRow('Cliente', clientInput);
 
         // Dessert rows (fixed to current sales columns)
         const dessertDefs = [
@@ -1178,8 +1269,7 @@ function openNewSalePopover(anchorX, anchorY) {
             input.placeholder = '0';
             input.className = 'input-cell input-qty';
             qtyInputs[d.key] = input;
-            grid.appendChild(makeLabel(d.label));
-            grid.appendChild(input);
+            appendRow(d.label, input);
         }
 
         const actions = document.createElement('div');
