@@ -85,8 +85,9 @@
 			const recetaBtn = document.getElementById('receta-btn');
 			const dessertSummary = document.getElementById('dessert-summary');
 
-			// Precios de venta por unidad
-			const PRICES = { arco: 8500, melo: 9500, mara: 10500, oreo: 10500, nute: 13000 };
+			// Precios de venta por unidad (se cargarán dinámicamente)
+			let PRICES = { arco: 8500, melo: 9500, mara: 10500, oreo: 10500, nute: 13000 };
+			let DESSERTS = []; // Will be loaded from API
 
 		// Lightweight embed of openRangeCalendarPopover if not present (needed on this page)
 		if (typeof window.openRangeCalendarPopover !== 'function') {
@@ -126,14 +127,18 @@
 
 		function sumCountsView(c){
 			countsSummary.innerHTML = '';
-			const pills = [
-				{ label: 'Arco', v: c.arco },
-				{ label: 'Melo', v: c.melo },
-				{ label: 'Mara', v: c.mara },
-				{ label: 'Oreo', v: c.oreo },
-				{ label: 'Nute', v: c.nute },
-				{ label: 'Total', v: (c.arco+c.melo+c.mara+c.oreo+c.nute) }
-			];
+			const pills = [];
+			let total = 0;
+			
+			// Dynamic desserts from DESSERTS array
+			for (const d of DESSERTS) {
+				const val = Number(c[d.short_code] || 0);
+				pills.push({ label: d.name, v: val });
+				total += val;
+			}
+			
+			pills.push({ label: 'Total', v: total });
+			
 			for (const p of pills){
 				const el = document.createElement('div');
 				el.style.background = 'var(--card)'; el.style.border = '1px solid var(--border)'; el.style.borderRadius = '999px'; el.style.padding = '4px 10px';
@@ -154,8 +159,31 @@
 		async function load(){
 			if (!start || !end) return;
 			rangeLabel.textContent = `${formatDay(start)} — ${formatDay(end)}`;
-			countLabel.textContent = 'Cargando…';
+			countLabel.textContent = 'Cargando postres…';
+			
+			// Load desserts from API
+			try {
+				DESSERTS = await fetchJSON(withActor('/api/desserts'));
+				// Build PRICES map from desserts
+				PRICES = {};
+				for (const d of DESSERTS) {
+					PRICES[d.short_code] = d.sale_price;
+				}
+			} catch (err) {
+				console.error('Error loading desserts:', err);
+				// Fallback to hardcoded if API fails
+				DESSERTS = [
+					{ name: 'Arco', short_code: 'arco', sale_price: 8500 },
+					{ name: 'Melo', short_code: 'melo', sale_price: 9500 },
+					{ name: 'Mara', short_code: 'mara', sale_price: 10500 },
+					{ name: 'Oreo', short_code: 'oreo', sale_price: 10500 },
+					{ name: 'Nute', short_code: 'nute', sale_price: 13000 }
+				];
+				PRICES = { arco: 8500, melo: 9500, mara: 10500, oreo: 10500, nute: 13000 };
+			}
+			
 			// 1) Build counts by dessert from sales in range
+			countLabel.textContent = 'Cargando vendedores…';
 			const sellers = await fetchJSON(withActor('/api/sellers'));
 			countLabel.textContent = `Vendedores: ${sellers.length} · Buscando días…`;
 			const isoBetween = (iso, a, b) => iso >= a && iso <= b;
@@ -181,17 +209,35 @@
 				} catch {}
 			});
 			countLabel.textContent = `Días: ${sellerDays.length} · Buscando ventas…`;
-			const counts = { arco:0, melo:0, mara:0, oreo:0, nute:0 };
+			
+			// Initialize counts dynamically based on desserts
+			const counts = {};
+			for (const d of DESSERTS) {
+				counts[d.short_code] = 0;
+			}
+			
 			await mapLimit(sellerDays, 6, async ({ seller, day }) => {
 				try {
 					const params = new URLSearchParams({ seller_id: String(seller.id), sale_day_id: String(day.id) });
 					const sales = await fetchJSON(withActor(`/api/sales?${params.toString()}`));
 					for (const r of (sales || [])) {
-						counts.arco += Number(r.qty_arco || 0) || 0;
-						counts.melo += Number(r.qty_melo || 0) || 0;
-						counts.mara += Number(r.qty_mara || 0) || 0;
-						counts.oreo += Number(r.qty_oreo || 0) || 0;
-						counts.nute += Number(r.qty_nute || 0) || 0;
+						// Support both old format (qty_arco) and new format (items array)
+						if (Array.isArray(r.items) && r.items.length > 0) {
+							// New format: use items
+							for (const item of r.items) {
+								if (counts[item.short_code] !== undefined) {
+									counts[item.short_code] += Number(item.quantity || 0) || 0;
+								}
+							}
+						} else {
+							// Old format: use qty_* columns
+							for (const d of DESSERTS) {
+								const qtyKey = `qty_${d.short_code}`;
+								if (r[qtyKey]) {
+									counts[d.short_code] += Number(r[qtyKey] || 0) || 0;
+								}
+							}
+						}
 					}
 				} catch {}
 			});
@@ -254,33 +300,54 @@
 			for (const ex of (extras||[])) setMapsFor(ex.ingredient, ex.unit, ex.price, ex.pack_size);
 
 
-			const baseCounts = { arco: counts.arco, melo: counts.melo, mara: counts.mara, oreo: counts.oreo, nute: counts.nute };
-			const baseTotal = baseCounts.arco + baseCounts.melo + baseCounts.mara + baseCounts.oreo + baseCounts.nute;
+			const baseCounts = { ...counts }; // Dynamic copy of all dessert counts
+			let baseTotal = 0;
+			for (const d of DESSERTS) {
+				baseTotal += Number(baseCounts[d.short_code] || 0);
+			}
+			
 			// Persistencia por rango de las cantidades editadas por postre
 			const storeKey = `ingredients.counts:${start}:${end}`;
 			function getSavedCounts(){
-				try { const v = localStorage.getItem(storeKey); if (!v) return null; const o = JSON.parse(v); if (!o) return null; return { arco:Number(o.arco||0)||0, melo:Number(o.melo||0)||0, mara:Number(o.mara||0)||0, oreo:Number(o.oreo||0)||0, nute:Number(o.nute||0)||0 }; } catch { return null; }
+				try {
+					const v = localStorage.getItem(storeKey);
+					if (!v) return null;
+					const o = JSON.parse(v);
+					if (!o) return null;
+					const result = {};
+					for (const d of DESSERTS) {
+						result[d.short_code] = Number(o[d.short_code] || 0) || 0;
+					}
+					return result;
+				} catch {
+					return null;
+				}
 			}
 			function saveCounts(c){ try { localStorage.setItem(storeKey, JSON.stringify(c)); } catch {} }
 			function clearSaved(){ try { localStorage.removeItem(storeKey); } catch {} }
 			function renderCountsEditor(currentCounts){
 				countsSummary.innerHTML = '';
-				const keys = [ ['arco','Arco'], ['melo','Melo'], ['mara','Mara'], ['oreo','Oreo'], ['nute','Nute'] ];
 				const inputs = [];
-				for (const [k, label] of keys){
+				
+				// Dynamic desserts editor
+				for (const d of DESSERTS) {
 					const el = document.createElement('div');
 					el.style.background = 'var(--card)'; el.style.border = '1px solid var(--border)'; el.style.borderRadius = '999px'; el.style.padding = '4px 10px'; el.style.display='flex'; el.style.alignItems='center'; el.style.gap='8px';
-					const span = document.createElement('span'); span.textContent = label+':'; span.style.fontWeight='600';
-					const input = document.createElement('input'); input.type='number'; input.min='0'; input.step='1'; input.style.width='90px'; input.className='input-cell'; input.value = String(Number(currentCounts[k]||0)); input.dataset.key = k;
+					const span = document.createElement('span'); span.textContent = d.name + ':'; span.style.fontWeight='600';
+					const input = document.createElement('input'); input.type='number'; input.min='0'; input.step='1'; input.style.width='90px'; input.className='input-cell'; input.value = String(Number(currentCounts[d.short_code]||0)); input.dataset.key = d.short_code;
 					el.append(span, input);
 					countsSummary.appendChild(el);
 					inputs.push(input);
 				}
+				
 				const resetBtn = document.createElement('button'); resetBtn.className='press-btn'; resetBtn.textContent='Cantidades originales'; resetBtn.style.marginLeft='4px';
 				resetBtn.addEventListener('click', () => { clearSaved(); renderAllForCounts({ ...baseCounts }); });
 				countsSummary.appendChild(resetBtn);
 				function onAnyChange(){
-					const next = { arco:0, melo:0, mara:0, oreo:0, nute:0 };
+					const next = {};
+					for (const d of DESSERTS) {
+						next[d.short_code] = 0;
+					}
 					for (const inp of inputs){ const kk = String(inp.dataset.key||''); next[kk] = Math.max(0, Math.round(Number(inp.value||0)||0)); }
 					saveCounts(next);
 					renderAllForCounts(next);
@@ -310,25 +377,50 @@
 				for (const name of names){
 					const arr = itemsByDessert.get(name) || [];
 					const k = mapKey(name);
-					const mult = k.startsWith('arco') ? useCounts.arco : k.startsWith('melo') ? useCounts.melo : k.startsWith('mara') ? useCounts.mara : k.startsWith('oreo') ? useCounts.oreo : k.startsWith('nute') ? useCounts.nute : 0;
+					
+					// Find matching dessert by name
+					let mult = 0;
+					for (const d of DESSERTS) {
+						if (k.startsWith(d.short_code) || k.includes(d.short_code)) {
+							mult = Number(useCounts[d.short_code] || 0);
+							break;
+						}
+					}
+					
 					if (!mult) continue;
 					for (const it of arr){
 						const per = Number(it.qty_per_unit||0)||0;
 						addRow(name, it.ingredient, it.unit, per, per * mult);
 					}
 				}
-				const totalUnits = useCounts.arco + useCounts.melo + useCounts.mara + useCounts.oreo + useCounts.nute;
+				let totalUnits = 0;
+				for (const d of DESSERTS) {
+					totalUnits += Number(useCounts[d.short_code] || 0);
+				}
 				for (const ex of (extras||[])){
 					const per = Number(ex.qty_per_unit||0)||0;
 					addRow('Extra', ex.ingredient, ex.unit, per, per * totalUnits);
 				}
 
-				// Costos por postre
-				const perDessertCostNeeded = { arco:0, melo:0, mara:0, oreo:0, nute:0 };
+				// Costos por postre (dynamic)
+				const perDessertCostNeeded = {};
+				for (const d of DESSERTS) {
+					perDessertCostNeeded[d.short_code] = 0;
+				}
+				
 				for (const name of names){
 					const arr = itemsByDessert.get(name) || [];
 					const k = mapKey(name);
-					const flavor = k.startsWith('arco') ? 'arco' : k.startsWith('melo') ? 'melo' : k.startsWith('mara') ? 'mara' : k.startsWith('oreo') ? 'oreo' : k.startsWith('nute') ? 'nute' : null;
+					
+					// Find matching dessert
+					let flavor = null;
+					for (const d of DESSERTS) {
+						if (k.startsWith(d.short_code) || k.includes(d.short_code)) {
+							flavor = d.short_code;
+							break;
+						}
+					}
+					
 					const mult = flavor ? useCounts[flavor] : 0;
 					if (!flavor || !mult) continue;
 					for (const it of arr){
@@ -347,11 +439,11 @@
 					const price = Number(ex.price||0)||0;
 					extrasUnitCost += per * price;
 				}
-				perDessertCostNeeded.arco += useCounts.arco * extrasUnitCost;
-				perDessertCostNeeded.melo += useCounts.melo * extrasUnitCost;
-				perDessertCostNeeded.mara += useCounts.mara * extrasUnitCost;
-				perDessertCostNeeded.oreo += useCounts.oreo * extrasUnitCost;
-				perDessertCostNeeded.nute += useCounts.nute * extrasUnitCost;
+				
+				// Add extras cost to all desserts
+				for (const d of DESSERTS) {
+					perDessertCostNeeded[d.short_code] += useCounts[d.short_code] * extrasUnitCost;
+				}
 
 				// Render tabla
 				const keys = Array.from(agg.keys()).sort((a,b) => a.localeCompare(b));
@@ -419,18 +511,20 @@
 						const porcentaje = valorVenta>0 ? (utilidadBruta / valorVenta * 100) : 0;
 						return card(label, { valorVenta, costosTotales, utilidadBruta, porcentaje });
 					}
-					wrap.append(
-						build('arco','Arco'),
-						build('melo','Melo'),
-						build('mara','Mara'),
-						build('oreo','Oreo'),
-						build('nute','Nute')
-					);
+					// Dynamic desserts cards
+					for (const d of DESSERTS) {
+						wrap.appendChild(build(d.short_code, d.name));
+					}
 					dessertSummary.appendChild(wrap);
 				}
 				function renderBottomSummary(){
 					const fmtMoney = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
-					const valorVenta = useCounts.arco * PRICES.arco + useCounts.melo * PRICES.melo + useCounts.mara * PRICES.mara + useCounts.oreo * PRICES.oreo + useCounts.nute * PRICES.nute;
+					
+					// Calculate total sales value dynamically
+					let valorVenta = 0;
+					for (const d of DESSERTS) {
+						valorVenta += (useCounts[d.short_code] || 0) * (PRICES[d.short_code] || 0);
+					}
 					const costosTotales = Math.round(neededCostTotal);
 					const utilidadBruta = valorVenta - costosTotales;
 					const utilidadDespCompras = valorVenta - Math.round(buyCostTotal);
