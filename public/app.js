@@ -1285,6 +1285,36 @@ function openNewSalePopover(anchorX, anchorY) {
         document.body.appendChild(pop);
         pop.classList.add('aladdin-pop');
 
+        // Clamp within viewport so the popover is fully visible
+        function clampWithinViewport() {
+            try {
+                const margin = 8;
+                const vw = window.innerWidth;
+                const vh = window.innerHeight;
+                const r = pop.getBoundingClientRect();
+                const baseX = (typeof anchorX === 'number') ? anchorX : (vw / 2);
+                const baseY = (typeof anchorY === 'number') ? anchorY : (vh / 2);
+                let left = Math.round(baseX - r.width / 2);
+                let topBelow = Math.round(baseY + 8);
+                let topAbove = Math.round(baseY - 8 - r.height);
+                let top = topBelow;
+                if (top + r.height > vh - margin) {
+                    // Prefer above if below overflows
+                    top = topAbove;
+                }
+                // If still overflows, clamp to margins
+                if (top < margin) top = margin;
+                if (top + r.height > vh - margin) top = Math.max(margin, vh - margin - r.height);
+                if (left < margin) left = margin;
+                if (left + r.width > vw - margin) left = Math.max(margin, vw - margin - r.width);
+                pop.style.left = left + 'px';
+                pop.style.top = top + 'px';
+                pop.style.transform = 'none';
+            } catch {}
+        }
+        // Initial clamp after mount
+        requestAnimationFrame(clampWithinViewport);
+
         function cleanup() {
             document.removeEventListener('mousedown', outside, true);
             document.removeEventListener('touchstart', outside, true);
@@ -4770,7 +4800,7 @@ async function goToSaleFromNotification(sellerId, saleDayId, saleId) {
     const btn = document.getElementById('add-row-bottom');
     btn?.addEventListener('click', (ev) => {
         const rect = ev.currentTarget.getBoundingClientRect();
-        openNewSalePopover(rect.left + rect.width / 2, rect.top - 8);
+        openNewSalePopover(rect.left + rect.width / 2, rect.bottom + 8);
     });
 })();
 
