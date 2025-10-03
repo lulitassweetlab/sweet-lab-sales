@@ -1665,8 +1665,12 @@ button.secondary.press-btn:active {
 #sales-table tfoot td.col-mara,
 #sales-table thead th.col-nute,
 #sales-table tbody td.col-nute,
-#sales-table tfoot td.col-nute {
-	background-color: rgba(0,0,0,0.10) !important;
+#sales-table tfoot td.col-nute,
+/* Dynamic columns: apply alternating darker shade via zebra-dark class */
+#sales-table thead th.zebra-dark,
+#sales-table tbody td.zebra-dark,
+#sales-table tfoot td.zebra-dark {
+    background-color: rgba(0,0,0,0.10) !important;
 }
 /* Keep darker shade on hover as well (light theme) */
 #sales-table tbody tr:hover td.col-arco,
@@ -1682,7 +1686,10 @@ button.secondary.press-btn:active {
 [data-theme="dark"] #sales-table tfoot td.col-mara,
 [data-theme="dark"] #sales-table thead th.col-nute,
 [data-theme="dark"] #sales-table tbody td.col-nute,
-[data-theme="dark"] #sales-table tfoot td.col-nute {
+[data-theme="dark"] #sales-table tfoot td.col-nute,
+[data-theme="dark"] #sales-table thead th.zebra-dark,
+[data-theme="dark"] #sales-table tbody td.zebra-dark,
+[data-theme="dark"] #sales-table tfoot td.zebra-dark {
 	background-color: #191b1f !important;
 }
 [data-theme="dark"] #sales-table tbody tr:hover td.col-arco,
@@ -1733,7 +1740,8 @@ button.secondary.press-btn:active {
 #sales-table thead tr > th.col-melo,
 #sales-table thead tr > th.col-mara,
 #sales-table thead tr > th.col-oreo,
-#sales-table thead tr > th.col-nute {
+#sales-table thead tr > th.col-nute,
+#sales-table thead tr > th.col-dessert {
 	position: relative !important;
 	vertical-align: bottom !important;
 	text-align: center !important;
@@ -1744,12 +1752,14 @@ button.secondary.press-btn:active {
 #sales-table thead tr > th.col-melo .v-label,
 #sales-table thead tr > th.col-mara .v-label,
 #sales-table thead tr > th.col-oreo .v-label,
-#sales-table thead tr > th.col-nute .v-label { display: none !important; }
+#sales-table thead tr > th.col-nute .v-label,
+#sales-table thead tr > th.col-dessert .v-label { display: none !important; }
 #sales-table thead tr > th.col-arco::after,
 #sales-table thead tr > th.col-melo::after,
 #sales-table thead tr > th.col-mara::after,
 #sales-table thead tr > th.col-oreo::after,
-#sales-table thead tr > th.col-nute::after {
+#sales-table thead tr > th.col-nute::after,
+#sales-table thead tr > th.col-dessert::after {
 	content: attr(data-label);
 	position: absolute !important;
 	left: 50% !important;
@@ -1767,7 +1777,8 @@ button.secondary.press-btn:active {
 	#sales-table thead tr > th.col-melo::after,
 	#sales-table thead tr > th.col-mara::after,
 	#sales-table thead tr > th.col-oreo::after,
-	#sales-table thead tr > th.col-nute::after {
+	#sales-table thead tr > th.col-nute::after,
+	#sales-table thead tr > th.col-dessert::after {
 		bottom: 6px !important;
 	}
 }

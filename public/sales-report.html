@@ -58,6 +58,7 @@
 							<th class="col-qty">Mara</th>
 							<th class="col-qty">Oreo</th>
 							<th class="col-qty">Nute</th>
+						<!-- Dynamic dessert headers injected at runtime -->
 							<th class="col-total">Total</th>
 						</tr>
 					</thead>
@@ -75,6 +76,7 @@
 							<td class="col-qty" id="t-qma"></td>
 							<td class="col-qty" id="t-qo"></td>
 							<td class="col-qty" id="t-qn"></td>
+							<!-- Dynamic dessert totals injected at runtime -->
 							<td class="col-total" id="t-grand"></td>
 						</tr>
 						<tr>
@@ -227,6 +229,9 @@
 			const rows = getFilteredSortedData();
 			tbody.innerHTML = '';
 			let tQa = 0, tQm = 0, tQma = 0, tQo = 0, tQn = 0, tGrand = 0;
+			// Precompute dynamic keys from header
+			const dynThs = Array.from(document.querySelectorAll('#report-table thead th[data-dyn]'));
+			const dynKeys = dynThs.map(th => (th.getAttribute('data-dyn') || '').toString());
 			for (const r of rows){
 				const row = document.createElement('tr');
 				row.innerHTML = `
@@ -239,8 +244,18 @@
 					<td>${r.qm||''}</td>
 					<td>${r.qma||''}</td>
 					<td>${r.qo||''}</td>
-					<td>${r.qn||''}</td>
-					<td class="col-total">${r.tot||''}</td>`;
+					<td>${r.qn||''}</td>`;
+				// Append dynamic dessert cols
+				const extra = (r.extra||{});
+				for (const name of dynKeys){
+					const td = document.createElement('td'); td.className = 'col-qty';
+					const key = name.toString().trim().toLowerCase();
+					let val = 0;
+					for (const [k,v] of Object.entries(extra)) { if ((k||'').toString().trim().toLowerCase() === key) { val = Number(v||0)||0; break; } }
+					td.textContent = val ? String(val) : '';
+					row.appendChild(td);
+				}
+				const tdTot = document.createElement('td'); tdTot.className = 'col-total'; tdTot.textContent = r.tot||''; row.appendChild(tdTot);
 				tbody.appendChild(row);
 				tQa += r.qa||0; tQm += r.qm||0; tQma += r.qma||0; tQo += r.qo||0; tQn += r.qn||0; tGrand += r.tot||0;
 			}
@@ -250,7 +265,7 @@
 			tQoEl.textContent = tQo || '';
 			tQnEl.textContent = tQn || '';
 			tGrandEl.textContent = tGrand || '';
-			const sumAll = (tQa||0)+(tQm||0)+(tQma||0)+(tQo||0)+(tQn||0);
+			const sumAll = (tQa||0)+(tQm||0)+(tQma||0)+(tQo||0)+(tQn||0) + Array.from(document.querySelectorAll('#report-table tfoot td[id^="t-q-"]')).map(td=>parseInt(td.textContent||'0',10)||0).reduce((a,b)=>a+b,0);
 			tSumAllEl.textContent = sumAll || '';
 			countLabel.textContent = `Filas: ${rows.length}`;
 		}
@@ -301,11 +316,31 @@
 							is_paid: !!r.is_paid,
 							pay_method: (r.pay_method || '') || '',
 							client_name: r.client_name || '',
-							qa, qm, qma, qo, qn, tot
+							qa, qm, qma, qo, qn, tot, extra: (r.extra_qty || {})
 						});
 					}
 				} catch {}
 			});
+
+			// Inject dynamic dessert columns in header
+			try {
+				const names = await fetchJSON(withActor('/api/recipes'));
+				const base = new Set(['arco','melo','mara','oreo','nute']);
+				const theadRow = document.querySelector('#report-table thead tr');
+				const footerTotals = document.querySelector('#report-table tfoot tr:nth-child(2)');
+				for (const n of (names||[])) {
+					const key = (n||'').toString().trim().toLowerCase();
+					if ([...base].some(b => key.startsWith(b))) continue;
+					if (theadRow && !theadRow.querySelector(`th[data-dyn="${n}"]`)) {
+						const th = document.createElement('th'); th.className='col-qty'; th.textContent = n; th.setAttribute('data-dyn', n);
+						theadRow.insertBefore(th, theadRow.querySelector('th.col-total'));
+					}
+					if (footerTotals && !footerTotals.querySelector(`td[data-dyn="${n}"]`)) {
+						const td = document.createElement('td'); td.className='col-qty'; td.id = `t-q-${key}`; td.setAttribute('data-dyn', n);
+						footerTotals.insertBefore(td, document.getElementById('t-grand'));
+					}
+				}
+			} catch {}
 			render();
 		}
 

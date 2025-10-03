@@ -2,7 +2,7 @@ import { neon } from '@netlify/neon';
 
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
-const SCHEMA_VERSION = 3; // Bump when schema changes require a migration
+const SCHEMA_VERSION = 5; // Bump when schema changes require a migration
 
 export async function ensureSchema() {
 	if (schemaEnsured) return;
@@ -123,6 +123,7 @@ export async function ensureSchema() {
 		qty_mara INTEGER NOT NULL DEFAULT 0,
 		qty_oreo INTEGER NOT NULL DEFAULT 0,
 		qty_nute INTEGER NOT NULL DEFAULT 0,
+		extra_qty JSONB NOT NULL DEFAULT '{}'::jsonb,
 		is_paid BOOLEAN NOT NULL DEFAULT false,
 		pay_method TEXT,
 		comment_text TEXT DEFAULT '',
@@ -160,6 +161,12 @@ export async function ensureSchema() {
 			WHERE table_name = 'sales' AND column_name = 'qty_nute'
 		) THEN
 			ALTER TABLE sales ADD COLUMN qty_nute INTEGER NOT NULL DEFAULT 0;
+		END IF;
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'sales' AND column_name = 'extra_qty'
+		) THEN
+			ALTER TABLE sales ADD COLUMN extra_qty JSONB NOT NULL DEFAULT '{}'::jsonb;
 		END IF;
 	END $$;`;
 	await sql`CREATE TABLE IF NOT EXISTS change_logs (
@@ -346,6 +353,13 @@ export async function ensureSchema() {
 		ALTER TABLE dessert_recipe_items ADD COLUMN pack_size NUMERIC NOT NULL DEFAULT 0;
 	END IF;
 	END $$;`;
+
+	// Dessert meta: sale prices per dessert
+	await sql`CREATE TABLE IF NOT EXISTS dessert_meta (
+		dessert TEXT PRIMARY KEY,
+		sale_price INTEGER NOT NULL DEFAULT 0,
+		updated_at TIMESTAMPTZ DEFAULT now()
+	)`;
 await sql`CREATE TABLE IF NOT EXISTS extras_items (
 		id SERIAL PRIMARY KEY,
 		ingredient TEXT NOT NULL,
@@ -431,8 +445,17 @@ export function prices() {
 
 export async function recalcTotalForId(id) {
 	const p = prices();
+	// Sum dynamic extras using dessert_meta sale prices (match by lower(key))
 	const [row] = await sql`
-		UPDATE sales SET total_cents = qty_arco * ${p.arco} + qty_melo * ${p.melo} + qty_mara * ${p.mara} + qty_oreo * ${p.oreo} + qty_nute * ${p.nute}
+		WITH dyn AS (
+			SELECT COALESCE(SUM((value::numeric) * COALESCE(dm.sale_price,0)),0)::int AS extra_total
+			FROM sales s
+			LEFT JOIN LATERAL jsonb_each_text(s.extra_qty) AS e(key, value) ON true
+			LEFT JOIN dessert_meta dm ON lower(dm.dessert) = lower(e.key)
+			WHERE s.id = ${id}
+		)
+		UPDATE sales
+		SET total_cents = (qty_arco * ${p.arco} + qty_melo * ${p.melo} + qty_mara * ${p.mara} + qty_oreo * ${p.oreo} + qty_nute * ${p.nute}) + (SELECT extra_total FROM dyn)
 		WHERE id = ${id}
 		RETURNING *
 	`;

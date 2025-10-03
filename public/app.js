@@ -199,6 +199,40 @@ const PRICES = {
 	nute: 13000,
 };
 
+// Dynamic desserts (beyond the 5 fixed flavors)
+let DYNAMIC_DESSERTS = [];
+let DESSERT_KEY_TO_NAME = new Map();
+let PRICE_MAP = { arco: PRICES.arco, melo: PRICES.melo, mara: PRICES.mara, oreo: PRICES.oreo, nute: PRICES.nute };
+function normalizeDessertKey(name){ const k=(name||'').toString().trim().toLowerCase(); if (k.startsWith('arco')) return 'arco'; if (k.startsWith('melo')) return 'melo'; if (k.startsWith('mara')) return 'mara'; if (k.startsWith('oreo')) return 'oreo'; if (k.startsWith('nute')) return 'nute'; return k.replace(/\s+/g,' '); }
+async function ensureDynamicDesserts(){
+    try {
+        const names = await api('GET', API.Recipes);
+        const base = new Set(['arco','melo','mara','oreo','nute']);
+        DESSERT_KEY_TO_NAME = new Map();
+        DYNAMIC_DESSERTS = [];
+        for (const n of (names||[])){
+            const key = normalizeDessertKey(n);
+            DESSERT_KEY_TO_NAME.set(key, n);
+            if (!base.has(key)) DYNAMIC_DESSERTS.push({ key, label: n });
+        }
+    } catch { DYNAMIC_DESSERTS = []; DESSERT_KEY_TO_NAME = new Map(); }
+}
+
+async function ensurePriceMap(){
+    try {
+        const arr = await api('GET', `${API.Recipes}?with_prices=1`);
+        // Reset price map to defaults
+        PRICE_MAP = { arco: PRICES.arco, melo: PRICES.melo, mara: PRICES.mara, oreo: PRICES.oreo, nute: PRICES.nute };
+        for (const it of (arr||[])){
+            const name = (typeof it === 'string') ? it : (it?.name || '');
+            const price = Number((typeof it === 'object' ? it?.sale_price : 0) || 0) || 0;
+            if (!name) continue;
+            const k = normalizeDessertKey(name);
+            if (price > 0) PRICE_MAP[k] = price;
+        }
+    } catch {}
+}
+
 const fmtNo = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 });
 
 const state = {
@@ -808,7 +842,15 @@ function calcRowTotal(q) {
 	const mara = Number(q.mara || 0);
 	const oreo = Number(q.oreo || 0);
 	const nute = Number(q.nute || 0);
-	return arco * PRICES.arco + melo * PRICES.melo + mara * PRICES.mara + oreo * PRICES.oreo + nute * PRICES.nute;
+	let base = arco * (PRICE_MAP.arco||PRICES.arco) + melo * (PRICE_MAP.melo||PRICES.melo) + mara * (PRICE_MAP.mara||PRICES.mara) + oreo * (PRICE_MAP.oreo||PRICES.oreo) + nute * (PRICE_MAP.nute||PRICES.nute);
+	if (q.extra && typeof q.extra === 'object') {
+		for (const [key, qty] of Object.entries(q.extra)) {
+			const v = Number(qty||0)||0; if (!v) continue;
+			const k = normalizeDessertKey(key);
+			base += v * (PRICE_MAP[k] || 0);
+		}
+	}
+	return base;
 }
 
 // Build compact sale summary: "Cliente + 2 arco + 1 melo"
@@ -840,10 +882,25 @@ function renderTable() {
 			strong.textContent = label || '';
 			if (!cap.contains(strong)) cap.appendChild(strong);
 		}
+		// Ensure dynamic headers present in the THEAD
+		const theadRow = document.querySelector('#sales-table thead tr');
+		if (theadRow) {
+			for (const d of (DYNAMIC_DESSERTS||[])) {
+                let th = theadRow.querySelector(`th.col-${d.key}`);
+				if (!th) {
+                    th = document.createElement('th'); th.className = `col-${d.key} col-dessert`; th.dataset.label = d.label; const span = document.createElement('span'); span.className = 'v-label'; span.textContent = d.label; th.appendChild(span);
+					// Alternate background by toggling zebra class
+					const ths = Array.from(theadRow.querySelectorAll('th')); const lastFlavorIdx = ths.findIndex(x => x.classList.contains('col-nute'));
+					const idxToInsert = Math.max(0, lastFlavorIdx + (theadRow.querySelectorAll('th[class^="col-"]').length));
+					if ((idxToInsert % 2) === 1) th.classList.add('zebra-dark');
+					theadRow.insertBefore(th, theadRow.querySelector('th.col-extra'));
+				}
+			}
+		}
 	} catch {}
 	tbody.innerHTML = '';
 	for (const sale of state.sales) {
-		const total = calcRowTotal({ arco: sale.qty_arco, melo: sale.qty_melo, mara: sale.qty_mara, oreo: sale.qty_oreo, nute: sale.qty_nute });
+		const total = calcRowTotal({ arco: sale.qty_arco, melo: sale.qty_melo, mara: sale.qty_mara, oreo: sale.qty_oreo, nute: sale.qty_nute, extra: sale.extra_qty || {} });
 		const isPaid = !!sale.is_paid;
 		const tr = el('tr', {},
 			el('td', { class: 'col-paid' }, (function(){
@@ -942,6 +999,13 @@ function renderTable() {
 			el('td', { class: 'col-mara' }, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_mara ? String(sale.qty_mara) : '', placeholder: '', onblur: () => saveRow(tr, sale.id), onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); saveRow(tr, sale.id); } }, onfocus: (e) => e.target.select(), onmouseup: (e) => e.preventDefault() })),
 			el('td', { class: 'col-oreo' }, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_oreo ? String(sale.qty_oreo) : '', placeholder: '', onblur: () => saveRow(tr, sale.id), onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); saveRow(tr, sale.id); } }, onfocus: (e) => e.target.select(), onmouseup: (e) => e.preventDefault() })),
 			el('td', { class: 'col-nute' }, el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: sale.qty_nute ? String(sale.qty_nute) : '', placeholder: '', onblur: () => saveRow(tr, sale.id), onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); saveRow(tr, sale.id); } }, onfocus: (e) => e.target.select(), onmouseup: (e) => e.preventDefault() })),
+			// Dynamic dessert qty inputs
+			...(DYNAMIC_DESSERTS||[]).map(d => {
+				const cls = `col-${d.key}`;
+				const current = (sale.extra_qty && typeof sale.extra_qty==='object') ? Number(sale.extra_qty[d.key]||0) : 0;
+				const input = el('input', { class: 'input-cell input-qty', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: current ? String(current) : '', placeholder: '', onblur: () => saveRow(tr, sale.id), onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); saveRow(tr, sale.id); } }, onfocus: (e) => e.target.select(), onmouseup: (e) => e.preventDefault() });
+				const td = document.createElement('td'); td.className = cls; td.appendChild(input); return td;
+			}),
 			el('td', { class: 'col-extra' }),
 			el('td', { class: 'total col-total' }, fmtNo.format(total)),
 			el('td', { class: 'col-actions' }, (function(){
@@ -987,6 +1051,8 @@ async function loadSales() {
 	const sellerId = state.currentSeller.id;
 	const params = new URLSearchParams({ seller_id: String(sellerId) });
 	if (state.selectedDayId) params.set('sale_day_id', String(state.selectedDayId));
+    await ensureDynamicDesserts();
+    await ensurePriceMap();
 	state.sales = await api('GET', `${API.Sales}?${params.toString()}`);
 	// Build recurrence counts across all dates for this seller
 	try {
@@ -1251,13 +1317,14 @@ function openNewSalePopover(anchorX, anchorY) {
         attachClientSuggestionsPopover(clientInput);
         appendRow('Cliente', clientInput);
 
-        // Dessert rows (fixed to current sales columns)
+        // Dessert rows (base + dynamic)
         const dessertDefs = [
             { key: 'arco', label: 'Arco' },
             { key: 'melo', label: 'Melo' },
             { key: 'mara', label: 'Mara' },
             { key: 'oreo', label: 'Oreo' },
             { key: 'nute', label: 'Nute' },
+            ...((DYNAMIC_DESSERTS||[]).map(d => ({ key: d.key, label: d.label })))
         ];
         const qtyInputs = {};
         for (const d of dessertDefs) {
@@ -1353,6 +1420,7 @@ function openNewSalePopover(anchorX, anchorY) {
                     qty_mara: Math.max(0, parseInt(qtyInputs.mara.value || '0', 10) || 0),
                     qty_oreo: Math.max(0, parseInt(qtyInputs.oreo.value || '0', 10) || 0),
                     qty_nute: Math.max(0, parseInt(qtyInputs.nute.value || '0', 10) || 0),
+                    extra_qty: (() => { const o = {}; for (const d of (DYNAMIC_DESSERTS||[])) { const el = qtyInputs[d.key]; if (el) { const v = Math.max(0, parseInt(el.value || '0', 10) || 0); if (v) o[d.key] = v; } } return o; })(),
                     is_paid: false,
                     pay_method: null,
                     _actor_name: state.currentUser?.name || ''
@@ -1729,31 +1797,58 @@ async function savePayMethod(tr, id, method) {
 }
 
 function updateSummary() {
-	let qa = 0, qm = 0, qma = 0, qo = 0, qn = 0, grand = 0;
-	let paidQa = 0, paidQm = 0, paidQma = 0, paidQo = 0, paidQn = 0;
-	for (const s of state.sales) {
-		const arco = Number(s.qty_arco || 0);
-		const melo = Number(s.qty_melo || 0);
-		const mara = Number(s.qty_mara || 0);
-		const oreo = Number(s.qty_oreo || 0);
-		const nute = Number(s.qty_nute || 0);
-		qa += arco;
-		qm += melo;
-		qma += mara;
-		qo += oreo;
-		qn += nute;
-		grand += calcRowTotal({ arco: s.qty_arco, melo: s.qty_melo, mara: s.qty_mara, oreo: s.qty_oreo, nute: s.qty_nute });
-		const pm = (s.pay_method || '').toString();
-		if (pm === 'transf' || pm === 'jorgebank' || pm === 'marce' || pm === 'jorge') {
-			paidQa += arco; paidQm += melo; paidQma += mara; paidQo += oreo; paidQn += nute;
-		}
-	}
+    let qa = 0, qm = 0, qma = 0, qo = 0, qn = 0, grand = 0;
+    const dynTotals = new Map();
+    let paidQa = 0, paidQm = 0, paidQma = 0, paidQo = 0, paidQn = 0;
+    for (const s of state.sales) {
+        const arco = Number(s.qty_arco || 0);
+        const melo = Number(s.qty_melo || 0);
+        const mara = Number(s.qty_mara || 0);
+        const oreo = Number(s.qty_oreo || 0);
+        const nute = Number(s.qty_nute || 0);
+        const extra = (s.extra_qty && typeof s.extra_qty==='object') ? s.extra_qty : {};
+        qa += arco;
+        qm += melo;
+        qma += mara;
+        qo += oreo;
+        qn += nute;
+        for (const d of (DYNAMIC_DESSERTS||[])) { const v = Number(extra[d.key]||0)||0; dynTotals.set(d.key, (dynTotals.get(d.key)||0) + v); }
+        grand += calcRowTotal({ arco: s.qty_arco, melo: s.qty_melo, mara: s.qty_mara, oreo: s.qty_oreo, nute: s.qty_nute, extra });
+        const pm = (s.pay_method || '').toString();
+        if (pm === 'transf' || pm === 'jorgebank' || pm === 'marce' || pm === 'jorge') {
+            paidQa += arco; paidQm += melo; paidQma += mara; paidQo += oreo; paidQn += nute;
+        }
+    }
 	$('#sum-arco-qty').textContent = String(qa);
 	$('#sum-melo-qty').textContent = String(qm);
 	$('#sum-mara-qty').textContent = String(qma);
 	$('#sum-oreo-qty').textContent = String(qo);
 	const elNq = document.getElementById('sum-nute-qty'); if (elNq) elNq.textContent = String(qn);
-	const totalQty = qa + qm + qma + qo + qn;
+    // Dynamic totals injection
+    try {
+        const tfootQty = document.querySelector('#sales-table tfoot tr.tfoot-qty');
+        if (tfootQty) {
+            for (const d of (DYNAMIC_DESSERTS||[])) {
+                let cell = tfootQty.querySelector(`td.col-${d.key}`);
+                if (!cell) { cell = document.createElement('td'); cell.className = `col-${d.key}`; tfootQty.insertBefore(cell, tfootQty.querySelector('td.col-extra')); }
+                // Alternate zebra background consistently with header
+                const th = document.querySelector(`#sales-table thead th.col-${d.key}`);
+                cell.classList.toggle('zebra-dark', !!th?.classList.contains('zebra-dark'));
+                cell.textContent = String(dynTotals.get(d.key)||0);
+            }
+        }
+        const tfootAmt = document.querySelector('#sales-table tfoot tr.tfoot-amt');
+        if (tfootAmt) {
+            for (const d of (DYNAMIC_DESSERTS||[])) {
+                let cell = tfootAmt.querySelector(`td.col-${d.key}`);
+                if (!cell) { cell = document.createElement('td'); cell.className = `col-${d.key}`; tfootAmt.insertBefore(cell, tfootAmt.querySelector('td.col-extra')); }
+                const th = document.querySelector(`#sales-table thead th.col-${d.key}`);
+                cell.classList.toggle('zebra-dark', !!th?.classList.contains('zebra-dark'));
+                cell.textContent = '0';
+            }
+        }
+    } catch {}
+    const totalQty = qa + qm + qma + qo + qn + Array.from(dynTotals.values()).reduce((a,b)=>a+b,0);
 	$('#sum-total-qty').textContent = String(totalQty);
 	const va = fmtNo.format(qa * PRICES.arco);
 	const vm = fmtNo.format(qm * PRICES.melo);
@@ -1831,6 +1926,11 @@ function readRow(tr) {
 	const maraEl = tr.querySelector('td.col-mara input');
 	const oreoEl = tr.querySelector('td.col-oreo input');
 	const nuteEl = tr.querySelector('td.col-nute input');
+	const extra = {};
+	for (const d of (DYNAMIC_DESSERTS||[])) {
+		const el = tr.querySelector(`td.col-${d.key} input`);
+		if (el && el.value !== '') extra[d.key] = Number(el.value)||0;
+	}
 	return {
 		client_name: clientEl ? clientEl.value.trim() : '',
 		qty_arco: arcoEl && arcoEl.value !== '' ? Number(arcoEl.value) : 0,
@@ -1838,6 +1938,7 @@ function readRow(tr) {
 		qty_mara: maraEl && maraEl.value !== '' ? Number(maraEl.value) : 0,
 		qty_oreo: oreoEl && oreoEl.value !== '' ? Number(oreoEl.value) : 0,
 		qty_nute: nuteEl && nuteEl.value !== '' ? Number(nuteEl.value) : 0,
+		extra_qty: extra,
 	};
 }
 
@@ -1851,7 +1952,8 @@ function debounce(fn, ms) {
 
 function exportTableToExcel() {
 	// Build SheetJS worksheet from rows
-	const header = ['$', 'Pago', 'Cliente', 'Arco', 'Melo', 'Mara', 'Oreo', 'Nute', 'Total'];
+	const dynHeaders = (DYNAMIC_DESSERTS||[]).map(d => d.label);
+	const header = ['$', 'Pago', 'Cliente', 'Arco', 'Melo', 'Mara', 'Oreo', 'Nute', ...dynHeaders, 'Total'];
 	const data = [header];
 	const tbody = document.getElementById('sales-tbody');
 	if (tbody) {
@@ -1871,9 +1973,14 @@ function exportTableToExcel() {
 			if (mara === '0') mara = '';
 			if (oreo === '0') oreo = '';
 			if (nute === '0') nute = '';
+			const dyn = (DYNAMIC_DESSERTS||[]).map(d => {
+				let v = tr.querySelector(`td.col-${d.key} input`)?.value ?? '';
+				if (v === '0') v = '';
+				return v;
+			});
 			let total = tr.querySelector('td.col-total')?.textContent?.trim() ?? '';
 			if (total === '0') total = '';
-			data.push([paid, pay, client, arco, melo, mara, oreo, nute, total]);
+			data.push([paid, pay, client, arco, melo, mara, oreo, nute, ...dyn, total]);
 		}
 	}
 	const tAr = (document.getElementById('sum-arco-qty')?.textContent ?? '').trim();
@@ -1881,27 +1988,33 @@ function exportTableToExcel() {
 	const tMa = (document.getElementById('sum-mara-qty')?.textContent ?? '').trim();
 	const tOr = (document.getElementById('sum-oreo-qty')?.textContent ?? '').trim();
 	const tNu = (document.getElementById('sum-nute-qty')?.textContent ?? '').trim();
-	const tSum = [tAr, tMe, tMa, tOr, tNu].map(v => parseInt(v || '0', 10) || 0).reduce((a, b) => a + b, 0);
-	data.push(['', '', 'Totales (cant.)',
+	const dynTotals = (DYNAMIC_DESSERTS||[]).map(d => (document.querySelector(`#sales-table tfoot tr.tfoot-qty td.col-${d.key}`)?.textContent || '').trim());
+	const tSum = [tAr, tMe, tMa, tOr, tNu, ...dynTotals].map(v => parseInt(v || '0', 10) || 0).reduce((a, b) => a + b, 0);
+	const totalsRow = ['', '', 'Totales (cant.)',
 		tAr === '0' ? '' : tAr,
 		tMe === '0' ? '' : tMe,
 		tMa === '0' ? '' : tMa,
 		tOr === '0' ? '' : tOr,
+		tNu === '0' ? '' : tNu,
+		...dynTotals.map(v=>v==='0'?'':v),
 		tSum === 0 ? '' : String(tSum)
-	]);
+	];
+	data.push(totalsRow);
 	const vAr = (document.getElementById('sum-arco-amt')?.textContent ?? '').trim();
 	const vMe = (document.getElementById('sum-melo-amt')?.textContent ?? '').trim();
 	const vMa = (document.getElementById('sum-mara-amt')?.textContent ?? '').trim();
 	const vOr = (document.getElementById('sum-oreo-amt')?.textContent ?? '').trim();
 	const vGr = (document.getElementById('sum-grand')?.textContent ?? '').trim();
-	data.push(['', '', 'Totales (valor)',
+	const amtRow = ['', '', 'Totales (valor)',
 		vAr === '0' ? '' : vAr,
 		vMe === '0' ? '' : vMe,
 		vMa === '0' ? '' : vMa,
 		vOr === '0' ? '' : vOr,
 		(document.getElementById('sum-nute-amt')?.textContent ?? '').trim() || '',
+		...((DYNAMIC_DESSERTS||[]).map(()=>'')),
 		vGr === '0' ? '' : vGr
-	]);
+	];
+	data.push(amtRow);
 
 	const ws = XLSX.utils.aoa_to_sheet(data);
 	// Autofit: set column widths roughly based on header text length
@@ -2958,7 +3071,10 @@ async function renderIngredientsView() {
     if (addDessertBtn) addDessertBtn.onclick = async () => {
         const name = (prompt('Nombre del postre:') || '').trim();
         if (!name) return;
+        const priceStr = prompt('Precio de venta (COP, solo números):') || '';
+        const price = Math.max(0, parseInt(priceStr.replace(/\D+/g,''), 10) || 0);
         await api('POST', API.Recipes, { kind: 'step.upsert', dessert: name, step_name: null, position: 0 });
+        if (price > 0) { try { await api('POST', API.Recipes, { kind: 'dessert.price', dessert: name, sale_price: price }); } catch {} }
         await renderIngredientsView();
         try { document.dispatchEvent(new CustomEvent('recipes:changed', { detail: { action: 'addDessert', dessert: name } })); } catch {}
     };
@@ -3216,8 +3332,8 @@ async function renderMeasuresView() {
 	if (!root) return;
 	root.innerHTML = '';
 	// Fetch desserts and recipe aggregates
-	let dessertNames = [];
-	try { dessertNames = await api('GET', API.Recipes); } catch { dessertNames = []; }
+    let dessertNames = [];
+    try { dessertNames = await api('GET', `${API.Recipes}?with_prices=1`); } catch { dessertNames = []; }
 	if (!dessertNames || dessertNames.length === 0) {
 		try { await api('GET', `${API.Recipes}?seed=1`); dessertNames = await api('GET', API.Recipes); } catch {}
 	}
@@ -3227,7 +3343,7 @@ async function renderMeasuresView() {
 	const counts = new Map();
 	function normalizeKey(name){ const k = String(name||'').trim().toLowerCase(); if (k.startsWith('arco')) return 'arco'; if (k.startsWith('melo')) return 'melo'; if (k.startsWith('mara')) return 'mara'; if (k.startsWith('oreo')) return 'oreo'; if (k.startsWith('nute')) return 'nute'; return k; }
 	const byKey = new Map();
-	for (const name of (dessertNames||[])) { const key = normalizeKey(name); byKey.set(key, name); }
+    for (const it of (dessertNames||[])) { const name = (typeof it === 'string') ? it : (it?.name || ''); const key = normalizeKey(name); byKey.set(key, name); }
 	for (const [k, name] of byKey.entries()) {
 		const row = document.createElement('div'); row.className = 'measures-row'; row.style.display = 'flex'; row.style.alignItems = 'center'; row.style.justifyContent = 'center'; row.style.gap = '8px'; row.style.border = '1px solid rgba(0,0,0,0.12)'; row.style.borderRadius = '10px'; row.style.padding = '8px 10px'; row.style.cursor = 'pointer'; row.style.background = 'white';
 		const label = document.createElement('div'); label.textContent = name; label.style.fontWeight = '600'; label.style.textAlign = 'center'; label.style.flex = '1';
@@ -3413,14 +3529,19 @@ async function renderMeasuresView() {
 }
 
 async function buildDessertCard(dessertName) {
-	const data = await api('GET', `${API.Recipes}?dessert=${encodeURIComponent(dessertName)}&include_extras=1`);
+    const data = await api('GET', `${API.Recipes}?dessert=${encodeURIComponent(dessertName)}&include_extras=1`);
 	const card = document.createElement('div'); card.className = 'dessert-card';
 	const head = document.createElement('div'); head.className = 'dessert-header';
-	const title = document.createElement('h3'); title.textContent = dessertName;
+    const title = document.createElement('h3'); title.textContent = dessertName;
+    const priceWrap = document.createElement('div'); priceWrap.style.display='inline-flex'; priceWrap.style.gap='6px'; priceWrap.style.alignItems='center'; priceWrap.style.marginLeft='8px';
+    const priceLabel = document.createElement('span'); priceLabel.textContent = 'Precio:'; priceLabel.style.fontWeight='600';
+    const priceInput = document.createElement('input'); priceInput.type='number'; priceInput.min='0'; priceInput.step='1'; priceInput.className='input-cell'; priceInput.style.width='110px'; priceInput.value = String(Number(data.sale_price||0)||0);
+    priceInput.addEventListener('change', async () => { try { await api('POST', API.Recipes, { kind: 'dessert.price', dessert: dessertName, sale_price: Math.max(0, parseInt(priceInput.value||'0',10)||0) }); notify.success('Precio actualizado'); } catch { notify.error('No se pudo actualizar el precio'); } });
+    priceWrap.append(priceLabel, priceInput);
 	const addStep = document.createElement('button'); addStep.className = 'press-btn'; addStep.textContent = 'Agregar paso';
 	const delDessert = document.createElement('button'); delDessert.className = 'press-btn'; delDessert.textContent = 'Eliminar postre';
-	const actionsWrap = document.createElement('div'); actionsWrap.className = 'dessert-actions'; actionsWrap.append(addStep, delDessert);
-	head.append(title, actionsWrap);
+    const actionsWrap = document.createElement('div'); actionsWrap.className = 'dessert-actions'; actionsWrap.append(addStep, delDessert);
+    head.append(title, priceWrap, actionsWrap);
 	const steps = document.createElement('div'); steps.className = 'steps-list';
 	for (const s of (data.steps || [])) steps.appendChild(buildStepCard(dessertName, s));
 	addStep.addEventListener('click', async () => {
@@ -4993,7 +5114,7 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 (function enforceDesktopHeaderHorizontal(){
 	function apply() {
 		const isDesktop = window.matchMedia('(min-width: 601px)').matches;
-		const labels = document.querySelectorAll('#sales-table thead th.col-arco .v-label, #sales-table thead th.col-melo .v-label, #sales-table thead th.col-mara .v-label, #sales-table thead th.col-oreo .v-label');
+		const labels = document.querySelectorAll('#sales-table thead th[class^="col-"] .v-label');
 		labels.forEach((el) => {
 			if (!(el instanceof HTMLElement)) return;
 			if (isDesktop) {

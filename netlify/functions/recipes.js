@@ -33,24 +33,33 @@ export async function handler(event) {
 					if (includeExtras) extras = await sql`SELECT ingredient, unit, qty_per_unit, price, pack_size FROM extras_items ORDER BY position ASC, id ASC`;
 					return json({ desserts, items, extras });
 				}
-				if (dessert) {
-					const steps = await sql`SELECT id, dessert, step_name, position FROM dessert_recipes WHERE lower(dessert)=lower(${dessert}) ORDER BY position ASC, id ASC`;
+                if (dessert) {
+                    const steps = await sql`SELECT id, dessert, step_name, position FROM dessert_recipes WHERE lower(dessert)=lower(${dessert}) ORDER BY position ASC, id ASC`;
 					const stepIds = steps.map(s => s.id);
 					let items = [];
 					if (stepIds.length) items = await sql`SELECT id, recipe_id, ingredient, unit, qty_per_unit, adjustment, price, pack_size, position FROM dessert_recipe_items WHERE recipe_id = ANY(${stepIds}) ORDER BY position ASC, id ASC`;
-					const grouped = steps.map(s => ({ id: s.id, dessert: s.dessert, step_name: s.step_name || null, position: s.position, items: items.filter(i => i.recipe_id === s.id) }));
+                    const grouped = steps.map(s => ({ id: s.id, dessert: s.dessert, step_name: s.step_name || null, position: s.position, items: items.filter(i => i.recipe_id === s.id) }));
+                    const meta = (await sql`SELECT sale_price FROM dessert_meta WHERE lower(dessert)=lower(${dessert}) LIMIT 1`)[0] || null;
 					let extras = [];
 					if (includeExtras) extras = await sql`SELECT id, ingredient, unit, qty_per_unit, price, pack_size, position FROM extras_items ORDER BY position ASC, id ASC`;
-					return json({ dessert, steps: grouped, extras });
+                    return json({ dessert, steps: grouped, extras, sale_price: Number(meta?.sale_price||0)||0 });
 				}
-				// all desserts summary (respect saved order if present)
-				const ds = await sql`
+                // all desserts summary (respect saved order if present)
+                const ds = await sql`
 					SELECT d.dessert
 					FROM (SELECT DISTINCT dessert FROM dessert_recipes) d
 					LEFT JOIN dessert_order o ON lower(o.dessert) = lower(d.dessert)
 					ORDER BY COALESCE(o.position, 1000000) ASC, d.dessert ASC
 				`;
-				return json(ds.map(r => r.dessert));
+                const raw = typeof event.rawQuery === 'string' ? event.rawQuery : (event.queryStringParameters ? new URLSearchParams(event.queryStringParameters).toString() : '');
+                const qp = new URLSearchParams(raw);
+                const withPrices = (qp.get('with_prices') === '1' || qp.get('with_prices') === 'true');
+                if (withPrices) {
+                    const ps = await sql`SELECT dessert, sale_price FROM dessert_meta`;
+                    const byDessert = new Map(); for (const p of (ps||[])) byDessert.set((p.dessert||'').toString().toLowerCase(), Number(p.sale_price||0)||0);
+                    return json(ds.map(r => ({ name: r.dessert, sale_price: byDessert.get((r.dessert||'').toLowerCase()) || 0 })));
+                }
+                return json(ds.map(r => r.dessert));
 			}
 			case 'POST': {
 				const data = JSON.parse(event.body || '{}');
@@ -78,7 +87,7 @@ export async function handler(event) {
 					}
 					return json({ ok: true });
 				}
-				if (kind === 'step.upsert') {
+                if (kind === 'step.upsert') {
 					const dessert = (data.dessert || '').toString();
 					if (!dessert) return json({ error: 'dessert requerido' }, 400);
 					const stepName = (data.step_name || null);
@@ -94,8 +103,17 @@ export async function handler(event) {
 						}
 						[row] = await sql`INSERT INTO dessert_recipes (dessert, step_name, position) VALUES (${dessert}, ${stepName}, ${position}) RETURNING id, dessert, step_name, position`;
 					}
-					return json(row, id ? 200 : 201);
+                    // Ensure a meta row exists (keeps existing price)
+                    await sql`INSERT INTO dessert_meta (dessert, sale_price) VALUES (${dessert}, 0) ON CONFLICT (dessert) DO NOTHING`;
+                    return json(row, id ? 200 : 201);
 				}
+                if (kind === 'dessert.price') {
+                    const dessert = (data.dessert || '').toString();
+                    const price = Number(data.sale_price || 0) || 0;
+                    if (!dessert) return json({ error: 'dessert requerido' }, 400);
+                    await sql`INSERT INTO dessert_meta (dessert, sale_price, updated_at) VALUES (${dessert}, ${price}, now()) ON CONFLICT (dessert) DO UPDATE SET sale_price=EXCLUDED.sale_price, updated_at=now()`;
+                    return json({ ok: true, dessert, sale_price: price });
+                }
 				if (kind === 'item.upsert') {
 					const recipeId = Number(data.recipe_id || 0) || 0;
 					if (!recipeId) return json({ error: 'recipe_id requerido' }, 400);
