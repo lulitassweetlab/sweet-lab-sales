@@ -650,18 +650,24 @@ tfoot td { font-weight: 700; }
 	#sales-table.totals-stacked tfoot .tfoot-amt-stack .st-qty { text-align: center; min-width: 3ch; line-height: 1.4; }
 	#sales-table.totals-stacked tfoot .tfoot-amt-stack .st-amt { text-align: right; color: var(--accent); line-height: 1.4; }
 	
-	/* Fix grand total row - keep table structure but hide col-client colspan */
-	#sales-table.totals-stacked tfoot .t-am-grand .col-client { display: none !important; }
+	/* Fix grand total row - make col-client empty but maintain structure */
+	#sales-table.totals-stacked tfoot .t-am-grand .col-client { 
+		display: table-cell !important;
+		visibility: hidden !important;
+		width: auto !important;
+	}
 	
-	/* Keep col-paid and col-actions visible to maintain column alignment */
+	/* Keep all cells visible to maintain column alignment */
 	#sales-table.totals-stacked tfoot .t-am-grand .col-paid,
-	#sales-table.totals-stacked tfoot .t-am-grand .col-actions { display: table-cell !important; }
+	#sales-table.totals-stacked tfoot .t-am-grand .col-actions { 
+		display: table-cell !important; 
+	}
 	
-	/* col-total stays in its normal position */
+	/* col-total stays in its normal position aligned with other totals */
 	#sales-table.totals-stacked tfoot .t-am-grand .col-total { 
 		display: table-cell !important; 
 		text-align: right !important; 
-		padding-right: 12px !important; 
+		padding-right: 8px !important; 
 		font-weight: 700 !important; 
 		font-size: 14px !important;
 		color: var(--accent) !important;
@@ -1250,18 +1256,24 @@ tfoot td { font-weight: 700; }
 	#sales-table tfoot .tfoot-amt-stack td { vertical-align: bottom; padding-top: 12px; padding-bottom: 0; }
 	#sales-table tfoot .tfoot-amt-stack .col-paid, 
 	#sales-table tfoot .tfoot-amt-stack .col-actions { display: none; }
-	/* Hide all cells except col-total in grand total row */
-	#sales-table tfoot .t-am-grand .col-paid,
-	#sales-table tfoot .t-am-grand .col-actions,
-	#sales-table tfoot .t-am-grand .col-client { display: none !important; }
+	/* Make col-client empty but visible to maintain structure */
+	#sales-table tfoot .t-am-grand .col-client { 
+		display: table-cell !important;
+		visibility: hidden !important;
+		width: auto !important;
+	}
 	
-	/* Make col-total full width and right-aligned */
+	/* Keep all cells visible to maintain column alignment */
+	#sales-table tfoot .t-am-grand .col-paid,
+	#sales-table tfoot .t-am-grand .col-actions { 
+		display: table-cell !important; 
+	}
+	
+	/* col-total stays in its normal position aligned with other totals */
 	#sales-table tfoot .t-am-grand .col-total { 
 		display: table-cell !important; 
-		width: 100% !important;
 		text-align: right !important; 
-		padding-right: 12px !important; 
-		padding-left: 12px !important; 
+		padding-right: 8px !important; 
 		font-weight: 700 !important; 
 		font-size: 14px !important;
 		color: var(--accent) !important;
