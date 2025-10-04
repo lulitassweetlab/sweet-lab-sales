@@ -658,17 +658,20 @@ tfoot td { font-weight: 700; }
 		display: block !important; 
 		width: 100% !important; 
 		text-align: right !important; 
-		padding-right: 8px !important; 
+		padding-right: 12px !important; 
+		padding-left: 8px !important;
 		font-weight: 700 !important; 
 		font-size: 14px !important;
 		color: var(--accent) !important;
+		box-sizing: border-box !important;
 	}
 	/* Make sure the span inside is visible and styled */
 	#sales-table.totals-stacked tfoot .t-am-grand .col-total span {
-		display: inline !important;
+		display: inline-block !important;
 		font-weight: 700 !important;
 		font-size: 14px !important;
 		color: var(--accent) !important;
+		text-align: right !important;
 	}
 }
 
@@ -1257,18 +1260,20 @@ tfoot td { font-weight: 700; }
 		display: block !important; 
 		width: 100% !important; 
 		text-align: right !important; 
-		padding-right: 8px !important; 
+		padding-right: 12px !important; 
 		padding-left: 8px !important; 
 		font-weight: 700 !important; 
 		font-size: 14px !important;
 		color: var(--accent) !important;
+		box-sizing: border-box !important;
 	}
 	/* Make sure the span inside is visible and styled */
 	#sales-table tfoot .t-am-grand .col-total span {
-		display: inline !important;
+		display: inline-block !important;
 		font-weight: 700 !important;
 		font-size: 14px !important;
 		color: var(--accent) !important;
+		text-align: right !important;
 	}
 
 	#sales-table tfoot .tfoot-amt-stack .col-client { text-align: left; color: var(--muted); padding-right: 14px; display: grid; grid-template-columns: 1fr auto auto; align-items: end; align-content: end; gap: 8px; padding-bottom: 0; }
