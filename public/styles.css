@@ -3723,3 +3723,28 @@ button.secondary.press-btn:active {
 [data-theme="dark"] #sales-table tbody tr:hover td.col-dessert:nth-child(even) {
 	background-color: rgba(255, 228, 196, 0.05) !important;
 }
+
+/* ===== CENTER DESSERT QUANTITIES IN COLUMNS ===== */
+/* Force center alignment for all dessert column cells in tbody */
+#sales-table tbody td.col-arco,
+#sales-table tbody td.col-melo,
+#sales-table tbody td.col-mara,
+#sales-table tbody td.col-oreo,
+#sales-table tbody td.col-nute,
+#sales-table tbody td.col-dessert {
+	text-align: center !important;
+	padding-left: 1px !important;
+	padding-right: 1px !important;
+}
+
+/* Force center alignment and block display for input fields */
+#sales-table tbody td.col-arco .input-qty,
+#sales-table tbody td.col-melo .input-qty,
+#sales-table tbody td.col-mara .input-qty,
+#sales-table tbody td.col-oreo .input-qty,
+#sales-table tbody td.col-nute .input-qty,
+#sales-table tbody td.col-dessert .input-qty {
+	text-align: center !important;
+	margin: 0 auto !important;
+	display: block !important;
+}
