@@ -411,7 +411,7 @@ th, td { border-bottom: 1px solid var(--border); padding: 6px 6px; text-align: c
 	.w-client { width: 22%; }
 	.w-qty { width: 13%; }
 	.w-total { width: 20%; }
-	.w-actions { width: 6%; }
+	.w-actions { width: 1%; }
 
 	/* Inputs tiny */
 	.client-input { font-size: 8px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
@@ -445,7 +445,7 @@ tfoot td { font-weight: 700; }
 	.w-client { width: 40%; }
 	.w-qty { width: 9%; }
 	.w-total { width: 16%; }
-	.w-actions { width: 6%; }
+	.w-actions { width: 1%; }
 
 	/* Smaller red x */
 	.row-delete { font-size: 9px; width: 12px; height: 12px; line-height: 12px; }
@@ -458,7 +458,7 @@ tfoot td { font-weight: 700; }
 	.w-client { width: 42%; }
 	.w-qty { width: 8.5%; }
 	.w-total { width: 16%; }
-	.w-actions { width: 5%; }
+	.w-actions { width: 1%; }
 }
 
 /* Table actions */
@@ -511,7 +511,7 @@ th, td { border-bottom: 1px solid var(--border); padding: 6px 6px; text-align: c
 	.w-client { width: 22%; }
 	.w-qty { width: 13%; }
 	.w-total { width: 20%; }
-	.w-actions { width: 6%; }
+	.w-actions { width: 1%; }
 
 	/* Inputs tiny */
 	.client-input { font-size: 13px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
@@ -544,7 +544,7 @@ tfoot td { font-weight: 700; }
 	.w-client { width: 28%; }
 	.w-qty { width: 12%; }
 	.w-total { width: 18%; }
-	.w-actions { width: 6%; }
+	.w-actions { width: 1%; }
 
 	/* Smaller red x */
 	.row-delete { font-size: 9px; width: 12px; height: 12px; line-height: 12px; }
@@ -557,7 +557,7 @@ tfoot td { font-weight: 700; }
 	.w-client { width: 32%; }
 	.w-qty { width: 11%; }
 	.w-total { width: 19%; }
-	.w-actions { width: 5%; }
+	.w-actions { width: 1%; }
 }
 
 /* Final tweaks per user request */
@@ -581,7 +581,7 @@ tfoot td { font-weight: 700; }
 	.w-client { width: 36%; }
 	.w-qty { width: 10%; }
 	.w-total { width: 16%; }
-	.w-actions { width: 4%; }
+	.w-actions { width: 1%; }
 
 	/* Footer row slightly taller on phones too */
 	#sales-table tfoot tr { height: 34px; }
@@ -676,7 +676,7 @@ tfoot td { font-weight: 700; }
 /* Map CSS variables to colgroup widths for alignment */
 /* Widths including new Paid column */
 :root { --w-paid: 8%; --w-client: 45%; --w-qty: 5.5%; --w-total: 14%; --w-actions: 3%; --w-extra: 0%; }
-@media (max-width: 600px) { :root { --w-paid: 10%; --w-client: 50%; --w-qty: 5%; --w-total: 13%; --w-actions: 4%; --w-extra: 0%; } }
+@media (max-width: 600px) { :root { --w-paid: 9%; --w-client: 50%; --w-qty: 5%; --w-total: 15%; --w-actions: 1%; --w-extra: 0%; } }
 
 /* Hide native thead to prevent overlap */
 #sales-table thead { display: none; }
@@ -695,7 +695,7 @@ tfoot td { font-weight: 700; }
 
 /* Rebalance widths to include Paid without overflow */
 :root { --w-paid: 8%; --w-client: 45%; --w-qty: 5.5%; --w-total: 14%; --w-actions: 3%; --w-extra: 0%; }
-@media (max-width: 600px) { :root { --w-paid: 10%; --w-client: 50%; --w-qty: 5%; --w-total: 13%; --w-actions: 4%; --w-extra: 0%; } }
+@media (max-width: 600px) { :root { --w-paid: 9%; --w-client: 50%; --w-qty: 5%; --w-total: 15%; --w-actions: 1%; --w-extra: 0%; } }
 
 /* Revert Pago checkbox custom styles */
 .col-paid input[type="checkbox"] {
@@ -3620,7 +3620,7 @@ button.secondary.press-btn:active {
 
 /* Responsive tweak: widen Total column on small tablets (601–700px) */
 @media (min-width: 601px) and (max-width: 700px) {
-	:root { --w-paid: 8%; --w-client: 42%; --w-qty: 5.5%; --w-total: 16%; --w-actions: 4%; }
+	:root { --w-paid: 8%; --w-client: 42%; --w-qty: 5.5%; --w-total: 16%; --w-actions: 2%; }
 }
 
 /* ===== DYNAMIC DESSERTS COLUMNS ===== */
