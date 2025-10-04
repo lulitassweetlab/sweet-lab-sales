@@ -6,8 +6,131 @@
 	<title>Reporte de Ventas</title>
 	<link rel="stylesheet" href="/styles.css?v=2025-09-17-1" />
 	<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+	<style>
+		/* Skeleton loader */
+		.skeleton-row td { padding: 8px; }
+		.skeleton-box {
+			height: 20px;
+			background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+			background-size: 200% 100%;
+			animation: skeleton-loading 1.5s ease-in-out infinite;
+			border-radius: 4px;
+		}
+		@keyframes skeleton-loading {
+			0% { background-position: 200% 0; }
+			100% { background-position: -200% 0; }
+		}
+		
+		/* Loading overlay */
+		.loading-overlay {
+			position: fixed;
+			top: 0;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			background: rgba(244, 166, 183, 0.98); /* Rosa más visible para debug */
+			z-index: 99999; /* Aumentado */
+			display: flex !important; /* Forzar display */
+			align-items: center;
+			justify-content: center;
+			backdrop-filter: blur(5px);
+			opacity: 0;
+			pointer-events: none;
+			transition: opacity 0.2s ease;
+		}
+		.loading-overlay.active { 
+			opacity: 1 !important;
+			pointer-events: auto;
+		}
+		.loading-content {
+			text-align: center;
+			max-width: 400px;
+			padding: 32px;
+			background: white;
+			border-radius: 16px;
+			box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+			transform: translateY(0);
+			transition: transform 0.2s ease;
+		}
+		.loading-overlay:not(.active) .loading-content {
+			transform: translateY(-20px);
+		}
+		.loading-spinner {
+			width: 60px;
+			height: 60px;
+			margin: 0 auto 24px;
+			border: 4px solid #f0f0f0;
+			border-top-color: var(--primary);
+			border-radius: 50%;
+			animation: spin 0.8s linear infinite;
+		}
+		@keyframes spin {
+			to { transform: rotate(360deg); }
+		}
+		.progress-bar-container {
+			width: 100%;
+			height: 8px;
+			background: #f0f0f0;
+			border-radius: 4px;
+			overflow: hidden;
+			margin: 16px 0;
+		}
+		.progress-bar {
+			height: 100%;
+			background: linear-gradient(90deg, var(--primary), var(--hover-primary-pink));
+			border-radius: 4px;
+			transition: width 0.3s ease;
+			animation: progress-pulse 1.5s ease-in-out infinite;
+		}
+		@keyframes progress-pulse {
+			0%, 100% { opacity: 1; }
+			50% { opacity: 0.7; }
+		}
+		.loading-text {
+			font-size: 16px;
+			color: var(--text);
+			margin: 8px 0;
+			font-weight: 500;
+		}
+		.loading-subtext {
+			font-size: 13px;
+			color: var(--muted);
+		}
+		
+		/* Button loading state */
+		button.loading {
+			pointer-events: none;
+			opacity: 0.6;
+			position: relative;
+		}
+		button.loading::after {
+			content: '';
+			position: absolute;
+			width: 16px;
+			height: 16px;
+			top: 50%;
+			left: 50%;
+			margin-left: -8px;
+			margin-top: -8px;
+			border: 2px solid white;
+			border-radius: 50%;
+			border-top-color: transparent;
+			animation: spin 0.6s linear infinite;
+		}
+	</style>
 </head>
 <body>
+	<!-- Loading overlay -->
+	<div id="loading-overlay" class="loading-overlay">
+		<div class="loading-content">
+			<div class="loading-spinner"></div>
+			<div class="loading-text" id="loading-text">Cargando ventas...</div>
+			<div class="progress-bar-container">
+				<div class="progress-bar" id="progress-bar" style="width: 0%"></div>
+			</div>
+			<div class="loading-subtext" id="loading-subtext">Esto tomará solo un momento</div>
+		</div>
+	</div>
 	<header class="app-header">
 		<div class="header-row">
 			<div class="header-left">
@@ -86,9 +209,55 @@
 
 	<script type="module">
 	(function(){
+		// OPTIMIZED: Pre-loaded desserts data (inline to avoid extra request)
+		const PRELOADED_DESSERTS = [
+			{ id: 1, name: 'Arco', short_code: 'arco', sale_price: 8500, is_active: true, position: 1 },
+			{ id: 2, name: 'Melo', short_code: 'melo', sale_price: 9500, is_active: true, position: 2 },
+			{ id: 3, name: 'Mara', short_code: 'mara', sale_price: 10500, is_active: true, position: 3 },
+			{ id: 4, name: 'Oreo', short_code: 'oreo', sale_price: 10500, is_active: true, position: 4 },
+			{ id: 5, name: 'Nute', short_code: 'nute', sale_price: 13000, is_active: true, position: 5 }
+		];
+		
 		const qs = new URLSearchParams(location.search);
-		let start = (qs.get('start') || '').slice(0,10);
-		let end = (qs.get('end') || '').slice(0,10);
+		
+		// OPTIMIZED: Set intelligent default dates if not provided
+		function getDefaultDates() {
+			// Try to get last used dates from localStorage
+			try {
+				const cached = localStorage.getItem('lastReportDates');
+				if (cached) {
+					const parsed = JSON.parse(cached);
+					const now = Date.now();
+					const cacheAge = now - (parsed.timestamp || 0);
+					// Use cached dates if less than 1 hour old
+					if (cacheAge < 3600000 && parsed.start && parsed.end) {
+						return { start: parsed.start, end: parsed.end };
+					}
+				}
+			} catch {}
+			
+			// Default: last 3 days (faster loading)
+			const today = new Date();
+			const threeDaysAgo = new Date(today);
+			threeDaysAgo.setDate(today.getDate() - 3);
+			
+			return {
+				start: threeDaysAgo.toISOString().slice(0, 10),
+				end: today.toISOString().slice(0, 10)
+			};
+		}
+		
+		const defaults = getDefaultDates();
+		let start = (qs.get('start') || defaults.start).slice(0,10);
+		let end = (qs.get('end') || defaults.end).slice(0,10);
+		
+		// Cache the dates for next time
+		try {
+			localStorage.setItem('lastReportDates', JSON.stringify({
+				start, end, timestamp: Date.now()
+			}));
+		} catch {}
+		
 		// Actor can come from URL or localStorage (set by index page)
 		let actor = (qs.get('actor') || '').toString();
 		if (!actor) { try { const saved = JSON.parse(localStorage.getItem('authUser')||'null'); actor = (saved?.name||saved?.username||'').toString(); } catch {} }
@@ -113,6 +282,44 @@
 		let desserts = [];
 		let sortKey = 'date'; // 'date' | 'seller' | 'pay'
 		let sortDir = 'asc'; // 'asc' | 'desc'
+		let isLoading = false; // Prevent concurrent loads
+		
+		// Loading overlay management
+		const loadingOverlay = document.getElementById('loading-overlay');
+		const loadingText = document.getElementById('loading-text');
+		const loadingSubtext = document.getElementById('loading-subtext');
+		const progressBar = document.getElementById('progress-bar');
+		
+		function showLoading(message = 'Cargando ventas...') {
+			console.log('📊 showLoading called with message:', message);
+			loadingText.textContent = message;
+			loadingOverlay.classList.add('active');
+			progressBar.style.width = '0%';
+			console.log('Overlay classList:', loadingOverlay.className);
+			
+			// Simulate realistic progress
+			let progress = 0;
+			const progressInterval = setInterval(() => {
+				progress += Math.random() * 15;
+				if (progress > 90) progress = 90; // Stop at 90% until actual completion
+				progressBar.style.width = `${progress}%`;
+			}, 200);
+			
+			return () => {
+				clearInterval(progressInterval);
+				progressBar.style.width = '100%';
+				setTimeout(() => {
+					loadingOverlay.classList.remove('active');
+				}, 300);
+			};
+		}
+		
+		function updateLoadingProgress(percent, text) {
+			if (loadingOverlay.classList.contains('active')) {
+				progressBar.style.width = `${percent}%`;
+				if (text) loadingSubtext.textContent = text;
+			}
+		}
 
 		function formatDay(iso){
 			if (!iso) return '';
@@ -172,47 +379,50 @@
 		}
 
 		function populateFilters(){
-			// Sellers
-			if (sellerFilterGroup) {
-				const prevSelected = getSelectedSellers();
-				sellerFilterGroup.innerHTML = '';
-				// Master checkbox
-				const masterWrap = document.createElement('label'); masterWrap.style.display='inline-flex'; masterWrap.style.alignItems='center'; masterWrap.style.gap='6px';
-				const master = document.createElement('input'); master.type='checkbox'; master.id='sf_all';
-				const masterSpan = document.createElement('span'); masterSpan.textContent = 'Todos';
-				masterWrap.appendChild(master); masterWrap.appendChild(masterSpan);
-				sellerFilterGroup.appendChild(masterWrap);
-				// Vendors
-				for (const s of (sellersList||[])){
-					const id = `sf_${(s.name||'').replace(/[^a-z0-9]+/gi,'_')}`;
-					const wrap = document.createElement('label');
-					wrap.style.display = 'inline-flex'; wrap.style.alignItems = 'center'; wrap.style.gap = '6px';
-					const cb = document.createElement('input'); cb.type = 'checkbox'; cb.value = s.name || ''; cb.id = id;
-					cb.checked = prevSelected.length ? prevSelected.includes(cb.value) : false;
-					cb.addEventListener('change', () => { updateMasterCheckboxState(); render(); });
-					const sp = document.createElement('span'); sp.textContent = s.name || '';
-					wrap.appendChild(cb); wrap.appendChild(sp);
-					sellerFilterGroup.appendChild(wrap);
-				}
-				function updateMasterCheckboxState(){
-					const cbs = Array.from(sellerFilterGroup.querySelectorAll('input[type="checkbox"]')).filter(x => x.id !== 'sf_all');
-					const checked = cbs.filter(x => x.checked).length;
-					master.indeterminate = checked > 0 && checked < cbs.length;
-					master.checked = checked > 0 && checked === cbs.length;
-				}
-				master.addEventListener('change', () => {
-					const cbs = Array.from(sellerFilterGroup.querySelectorAll('input[type="checkbox"]')).filter(x => x.id !== 'sf_all');
-					for (const cb of cbs) cb.checked = master.checked;
+			// OPTIMIZED: Use requestIdleCallback to avoid blocking render
+			requestIdleCallback(() => {
+				// Sellers
+				if (sellerFilterGroup) {
+					const prevSelected = getSelectedSellers();
+					sellerFilterGroup.innerHTML = '';
+					// Master checkbox
+					const masterWrap = document.createElement('label'); masterWrap.style.display='inline-flex'; masterWrap.style.alignItems='center'; masterWrap.style.gap='6px';
+					const master = document.createElement('input'); master.type='checkbox'; master.id='sf_all';
+					const masterSpan = document.createElement('span'); masterSpan.textContent = 'Todos';
+					masterWrap.appendChild(master); masterWrap.appendChild(masterSpan);
+					sellerFilterGroup.appendChild(masterWrap);
+					// Vendors
+					for (const s of (sellersList||[])){
+						const id = `sf_${(s.name||'').replace(/[^a-z0-9]+/gi,'_')}`;
+						const wrap = document.createElement('label');
+						wrap.style.display = 'inline-flex'; wrap.style.alignItems = 'center'; wrap.style.gap = '6px';
+						const cb = document.createElement('input'); cb.type = 'checkbox'; cb.value = s.name || ''; cb.id = id;
+						cb.checked = prevSelected.length ? prevSelected.includes(cb.value) : false;
+						cb.addEventListener('change', () => { updateMasterCheckboxState(); render(); });
+						const sp = document.createElement('span'); sp.textContent = s.name || '';
+						wrap.appendChild(cb); wrap.appendChild(sp);
+						sellerFilterGroup.appendChild(wrap);
+					}
+					function updateMasterCheckboxState(){
+						const cbs = Array.from(sellerFilterGroup.querySelectorAll('input[type="checkbox"]')).filter(x => x.id !== 'sf_all');
+						const checked = cbs.filter(x => x.checked).length;
+						master.indeterminate = checked > 0 && checked < cbs.length;
+						master.checked = checked > 0 && checked === cbs.length;
+					}
+					master.addEventListener('change', () => {
+						const cbs = Array.from(sellerFilterGroup.querySelectorAll('input[type="checkbox"]')).filter(x => x.id !== 'sf_all');
+						for (const cb of cbs) cb.checked = master.checked;
+						updateMasterCheckboxState();
+						render();
+					});
 					updateMasterCheckboxState();
-					render();
-				});
-				updateMasterCheckboxState();
-			}
-			// Pay methods
-			payFilter.innerHTML = '';
-			const optAllP = document.createElement('option'); optAllP.value = ''; optAllP.textContent = 'Todos'; payFilter.appendChild(optAllP);
-			const payCodes = ['', 'efectivo', 'transf', 'marce', 'jorge', 'jorgebank', 'entregado'];
-			for (const code of payCodes){ if (code==='') continue; const o=document.createElement('option'); o.value=code; o.textContent=payLabel(code); payFilter.appendChild(o); }
+				}
+				// Pay methods
+				payFilter.innerHTML = '';
+				const optAllP = document.createElement('option'); optAllP.value = ''; optAllP.textContent = 'Todos'; payFilter.appendChild(optAllP);
+				const payCodes = ['', 'efectivo', 'transf', 'marce', 'jorge', 'jorgebank', 'entregado'];
+				for (const code of payCodes){ if (code==='') continue; const o=document.createElement('option'); o.value=code; o.textContent=payLabel(code); payFilter.appendChild(o); }
+			}, { timeout: 100 });
 		}
 
 		function getSelectedSellers(){
@@ -245,7 +455,6 @@
 
 		function render(){
 			const rows = getFilteredSortedData();
-			tbody.innerHTML = '';
 			
 			// Initialize totals dynamically
 			const qtys = {};
@@ -254,25 +463,12 @@
 			}
 			let tGrand = 0;
 			
+			// Calculate totals first (fast)
 			for (const r of rows){
-				const row = document.createElement('tr');
-				let html = `
-					<td>${r.date}</td>
-					<td>${r.sellerName}</td>
-					<td>${r.is_paid ? '✓' : ''}</td>
-					<td>${payLabel(r.pay_method||'')}</td>
-					<td>${r.client_name||''}</td>`;
-				
-				// Add dessert quantities dynamically
 				for (const d of desserts) {
 					const qty = r[`q_${d.short_code}`] || 0;
-					html += `<td>${qty || ''}</td>`;
 					qtys[d.short_code] += qty;
 				}
-				
-				html += `<td class="col-total">${r.tot||''}</td>`;
-				row.innerHTML = html;
-				tbody.appendChild(row);
 				tGrand += r.tot||0;
 			}
 			
@@ -287,103 +483,357 @@
 			tGrandEl.textContent = tGrand || '';
 			tSumAllEl.textContent = totalQty || '';
 			countLabel.textContent = `Filas: ${rows.length}`;
+			
+			// Render rows in batches for better performance
+			tbody.innerHTML = '';
+			const fragment = document.createDocumentFragment();
+			const batchSize = 50;
+			let currentBatch = 0;
+			
+			function renderBatch() {
+				const start = currentBatch * batchSize;
+				const end = Math.min(start + batchSize, rows.length);
+				
+				for (let i = start; i < end; i++) {
+					const r = rows[i];
+					const row = document.createElement('tr');
+					let html = `
+						<td>${r.date}</td>
+						<td>${r.sellerName}</td>
+						<td>${r.is_paid ? '✓' : ''}</td>
+						<td>${payLabel(r.pay_method||'')}</td>
+						<td>${r.client_name||''}</td>`;
+					
+					// Add dessert quantities dynamically
+					for (const d of desserts) {
+						const qty = r[`q_${d.short_code}`] || 0;
+						html += `<td>${qty || ''}</td>`;
+					}
+					
+					html += `<td class="col-total">${r.tot||''}</td>`;
+					row.innerHTML = html;
+					fragment.appendChild(row);
+				}
+				
+				tbody.appendChild(fragment);
+				currentBatch++;
+				
+				// Schedule next batch
+				if (end < rows.length) {
+					requestAnimationFrame(renderBatch);
+				}
+			}
+			
+			// Start rendering
+			if (rows.length > 0) {
+				renderBatch();
+			}
+		}
+
+		async function loadDesserts() {
+			// OPTIMIZED: Use preloaded data immediately, then update in background
+			// Return preloaded data instantly
+			const preloaded = PRELOADED_DESSERTS.slice();
+			
+			// Try cache first (non-blocking)
+			Promise.resolve().then(async () => {
+				try {
+					const cached = localStorage.getItem('dessertsCache');
+					if (cached) {
+						const parsed = JSON.parse(cached);
+						const cacheAge = Date.now() - (parsed.timestamp || 0);
+						// Use cache if less than 1 hour old
+						if (cacheAge < 3600000 && parsed.data && parsed.data.length > 0) {
+							desserts = parsed.data;
+							renderDessertColumns();
+							return;
+						}
+					}
+				} catch {}
+				
+				// Load from API in background
+				try {
+					const data = await fetchJSON('/api/desserts');
+					if (data && data.length > 0) {
+						// Cache for next time
+						try {
+							localStorage.setItem('dessertsCache', JSON.stringify({
+								data, timestamp: Date.now()
+							}));
+						} catch {}
+						
+						// Update if different from preloaded
+						if (JSON.stringify(data) !== JSON.stringify(preloaded)) {
+							desserts = data;
+							renderDessertColumns();
+							// Re-render if we already have data
+							if (dataset.length > 0) {
+								render();
+							}
+						}
+					}
+				} catch {}
+			});
+			
+			return preloaded;
 		}
 
 		async function load(){
 			if (!start || !end) return;
-			rangeLabel.textContent = `${formatDay(start)} — ${formatDay(end)}`;
-			countLabel.textContent = 'Cargando…';
-			dataset = [];
 			
-			// Load desserts first
+			// Prevent concurrent loads
+			if (isLoading) return;
+			isLoading = true;
+			
+			// DEBUG: Verificar que se ejecuta
+			console.log('🚀 Loading started - overlay should appear now');
+			
+			// Show loading overlay
+			const hideLoading = showLoading('Cargando ventas...');
+			console.log('✅ Overlay shown');
+			
 			try {
-				desserts = await fetchJSON('/api/desserts');
-			} catch {
-				// Fallback to defaults
-				desserts = [
-					{ id: 1, name: 'Arco', short_code: 'arco', sale_price: 8500 },
-					{ id: 2, name: 'Melo', short_code: 'melo', sale_price: 9500 },
-					{ id: 3, name: 'Mara', short_code: 'mara', sale_price: 10500 },
-					{ id: 4, name: 'Oreo', short_code: 'oreo', sale_price: 10500 },
-					{ id: 5, name: 'Nute', short_code: 'nute', sale_price: 13000 }
-				];
-			}
-			renderDessertColumns();
-			
-			sellersList = await fetchJSON(withActor('/api/sellers'));
-			populateFilters();
-			countLabel.textContent = `Vendedores: ${sellersList.length} · Buscando días…`;
-			const isoBetween = (iso, a, b) => iso >= a && iso <= b;
-			// Concurrency helper
-			async function mapLimit(items, limit, fn) {
-				const out = []; let idx = 0; let running = 0; let resolveAll; const done = new Promise(r => resolveAll = r);
-				function runNext(){
-					if (idx >= items.length && running === 0) return resolveAll();
-					while (running < limit && idx < items.length) {
-						const cur = items[idx++]; running++;
-						Promise.resolve(fn(cur)).then(v => { out.push(v); running--; runNext(); }).catch(() => { running--; runNext(); });
+				rangeLabel.textContent = `${formatDay(start)} — ${formatDay(end)}`;
+				countLabel.textContent = '⏳ Cargando...';
+				dataset = [];
+				
+				// Skeleton loader: Show animated loading rows
+				const skeletonRows = 5;
+				let skeletonHTML = '';
+				for (let i = 0; i < skeletonRows; i++) {
+					skeletonHTML += '<tr class="skeleton-row">';
+					for (let j = 0; j < 8; j++) {
+						skeletonHTML += '<td><div class="skeleton-box"></div></td>';
 					}
+					skeletonHTML += '</tr>';
 				}
-				runNext(); await done; return out;
-			}
-			// Gather days within range for each seller
-			const sellerDays = [];
-			await mapLimit(sellersList, 6, async (s) => {
-				try {
-				const days = await fetchJSON(withActor(`/api/days?seller_id=${encodeURIComponent(s.id)}`));
-					for (const d of (days||[])) {
-						const iso = String(d.day).slice(0,10);
-						if (isoBetween(iso, start, end)) sellerDays.push({ seller: s, day: d });
-					}
-				} catch {}
-			});
-			countLabel.textContent = `Días: ${sellerDays.length} · Buscando ventas…`;
-			// Gather sales for those days
-			await mapLimit(sellerDays, 6, async ({ seller, day }) => {
-				try {
-					const params = new URLSearchParams({ seller_id: String(seller.id), sale_day_id: String(day.id) });
-					const sales = await fetchJSON(withActor(`/api/sales?${params.toString()}`));
-					for (const r of (sales || [])) {
-						const row = {
-							date: String(day.day).slice(0,10),
-							sellerName: seller.name || '',
-							is_paid: !!r.is_paid,
-							pay_method: (r.pay_method || '') || '',
-							client_name: r.client_name || '',
-							tot: r.total_cents || 0
-						};
+				tbody.innerHTML = skeletonHTML;
+				
+				updateLoadingProgress(20, 'Cargando postres...');
+				
+				// Load desserts (with cache)
+				desserts = await loadDesserts();
+				renderDessertColumns();
+				
+				updateLoadingProgress(40, 'Obteniendo ventas...');
+			
+			// Check if we have cached data for this exact date range
+			const cacheKey = `salesCache_${start}_${end}`;
+			let usedCache = false;
+			
+			try {
+				const cached = localStorage.getItem(cacheKey);
+				if (cached) {
+					const parsed = JSON.parse(cached);
+					const cacheAge = Date.now() - (parsed.timestamp || 0);
+					// Use cache if less than 5 minutes old (for instant display)
+					if (cacheAge < 300000 && parsed.sellers && parsed.sales) {
+						sellersList = parsed.sellers;
+						populateFilters();
 						
-						// Process dessert quantities dynamically
+						// Process cached sales data immediately
+						countLabel.textContent = `Procesando ${parsed.sales.length} ventas…`;
+						const dessertMap = {};
 						for (const d of desserts) {
-							let qty = 0;
-							if (Array.isArray(r.items) && r.items.length > 0) {
-								// New format: use items
-								const item = r.items.find(i => i.dessert_id === d.id || i.short_code === d.short_code);
-								qty = item ? (item.quantity || 0) : 0;
-							} else {
-								// Old format: use qty_* columns
-								qty = r[`qty_${d.short_code}`] || 0;
-							}
-							row[`q_${d.short_code}`] = qty;
+							dessertMap[d.id] = d.short_code;
+							dessertMap[d.short_code] = d.short_code;
 						}
 						
-						dataset.push(row);
+						dataset = parsed.sales.map(r => {
+							const row = {
+								date: String(r.sale_day || '').slice(0,10),
+								sellerName: r.seller_name || '',
+								is_paid: !!r.is_paid,
+								pay_method: r.pay_method || '',
+								client_name: r.client_name || '',
+								tot: r.total_cents || 0
+							};
+							
+							for (const d of desserts) {
+								let qty = 0;
+								if (Array.isArray(r.items) && r.items.length > 0) {
+									const item = r.items.find(i => i.short_code === d.short_code);
+									qty = item ? (item.quantity || 0) : 0;
+								} else {
+									qty = r[`qty_${d.short_code}`] || 0;
+								}
+								row[`q_${d.short_code}`] = qty;
+							}
+							return row;
+						});
+						
+						render();
+						usedCache = true;
+						
+						// Refresh in background (don't await)
+						Promise.all([
+							fetchJSON(withActor('/api/sellers')).catch(() => []),
+							fetchJSON(withActor(`/api/sales?date_range_start=${encodeURIComponent(start)}&date_range_end=${encodeURIComponent(end)}`)).catch(() => [])
+						]).then(([freshSellers, freshSales]) => {
+							// Update cache
+							try {
+								localStorage.setItem(cacheKey, JSON.stringify({
+									sellers: freshSellers,
+									sales: freshSales,
+									timestamp: Date.now()
+								}));
+							} catch {}
+							
+							// Only re-render if data changed
+							if (JSON.stringify(freshSales) !== JSON.stringify(parsed.sales)) {
+								sellersList = freshSellers;
+								populateFilters();
+								
+								// Process fresh data
+								const dessertMap = {};
+								for (const d of desserts) {
+									dessertMap[d.id] = d.short_code;
+									dessertMap[d.short_code] = d.short_code;
+								}
+								
+								dataset = freshSales.map(r => {
+									const row = {
+										date: String(r.sale_day || '').slice(0,10),
+										sellerName: r.seller_name || '',
+										is_paid: !!r.is_paid,
+										pay_method: r.pay_method || '',
+										client_name: r.client_name || '',
+										tot: r.total_cents || 0
+									};
+									
+									for (const d of desserts) {
+										let qty = 0;
+										if (Array.isArray(r.items) && r.items.length > 0) {
+											const item = r.items.find(i => i.short_code === d.short_code);
+											qty = item ? (item.quantity || 0) : 0;
+										} else {
+											qty = r[`qty_${d.short_code}`] || 0;
+										}
+										row[`q_${d.short_code}`] = qty;
+									}
+									return row;
+								});
+								
+								render();
+							}
+						});
+						
+						hideLoading();
+						isLoading = false;
+						return; // Skip fresh fetch below
 					}
-				} catch {}
+				}
+			} catch {}
+			
+			updateLoadingProgress(60, 'Consultando base de datos...');
+			
+			// No cache or expired - fetch fresh data
+			const [sellersData, salesData] = await Promise.all([
+				fetchJSON(withActor('/api/sellers')).catch(() => []),
+				fetchJSON(withActor(`/api/sales?date_range_start=${encodeURIComponent(start)}&date_range_end=${encodeURIComponent(end)}`)).catch(() => [])
+			]);
+			
+			// Cache the fresh data
+			try {
+				localStorage.setItem(cacheKey, JSON.stringify({
+					sellers: sellersData,
+					sales: salesData,
+					timestamp: Date.now()
+				}));
+			} catch {}
+			
+			updateLoadingProgress(80, 'Procesando datos...');
+			
+			sellersList = sellersData;
+			populateFilters();
+			
+			// Process sales data - optimized for speed
+			countLabel.textContent = `Procesando ${salesData.length} ventas…`;
+			updateLoadingProgress(90, 'Renderizando tabla...');
+			
+			// Pre-create lookup map for desserts
+			const dessertMap = {};
+			for (const d of desserts) {
+				dessertMap[d.id] = d.short_code;
+				dessertMap[d.short_code] = d.short_code;
+			}
+			
+			// Process all sales in one pass
+			dataset = salesData.map(r => {
+				const row = {
+					date: String(r.sale_day || '').slice(0,10),
+					sellerName: r.seller_name || '',
+					is_paid: !!r.is_paid,
+					pay_method: r.pay_method || '',
+					client_name: r.client_name || '',
+					tot: r.total_cents || 0
+				};
+				
+				// Process dessert quantities dynamically
+				for (const d of desserts) {
+					let qty = 0;
+					if (Array.isArray(r.items) && r.items.length > 0) {
+						// New format: use items (optimized lookup)
+						const item = r.items.find(i => i.short_code === d.short_code);
+						qty = item ? (item.quantity || 0) : 0;
+					} else {
+						// Old format: use qty_* columns
+						qty = r[`qty_${d.short_code}`] || 0;
+					}
+					row[`q_${d.short_code}`] = qty;
+				}
+				
+				return row;
 			});
-			render();
+				
+				updateLoadingProgress(95, 'Finalizando...');
+				render();
+			} catch (error) {
+				console.error('Error loading data:', error);
+				countLabel.textContent = 'Error al cargar datos';
+			} finally {
+				hideLoading();
+				isLoading = false;
+			}
 		}
 
 		function openCalendar(ev){
+			// Prevent multiple clicks
+			if (isLoading) return;
+			
+			// Add visual feedback to button
+			const btn = ev.currentTarget;
+			btn.classList.add('loading');
+			
 			openRangeCalendarPopover((range) => {
+				btn.classList.remove('loading');
+				
 				if (!range || !range.start || !range.end) return;
+				
+				// Check if dates actually changed
+				if (range.start === start && range.end === end) {
+					return; // No change, no need to reload
+				}
+				
 				start = range.start; end = range.end;
-			history.replaceState(null, '', `?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}${actor?`&actor=${encodeURIComponent(actor)}`:''}`);
+				history.replaceState(null, '', `?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}${actor?`&actor=${encodeURIComponent(actor)}`:''}`);
+				
+				// Immediate visual feedback
+				rangeLabel.textContent = `${formatDay(start)} — ${formatDay(end)}`;
+				
 				load();
 			}, ev.clientX, ev.clientY, { preferUp: true });
 		}
 
-		exportBtn.addEventListener('click', () => {
+		exportBtn.addEventListener('click', (ev) => {
+			// Prevent export while loading
+			if (isLoading) return;
+			
+			// Add visual feedback
+			ev.currentTarget.classList.add('loading');
+			setTimeout(() => {
+				ev.currentTarget.classList.remove('loading');
+			}, 1000);
 			// Build Excel from filtered and sorted data currently visible
 			const header = ['Fecha','Vendedor', '$', 'Pago', 'Cliente'];
 			for (const d of desserts) {
@@ -455,7 +905,9 @@
 			XLSX.writeFile(wb, `Consolidado_${(start||'').replaceAll('-','')}_a_${(end||'').replaceAll('-','')}.xlsx`);
 		});
 
-		ingredientsBtn.addEventListener('click', () => {
+		ingredientsBtn.addEventListener('click', (ev) => {
+			if (isLoading) return;
+			ev.currentTarget.classList.add('loading');
 			const url = new URL('/ingredients.html', location.origin);
 			if (start) url.searchParams.set('start', start);
 			if (end) url.searchParams.set('end', end);
@@ -463,8 +915,17 @@
 			location.href = url.toString();
 		});
 
-		backBtn.addEventListener('click', () => { location.href = '/'; });
-		changeBtn.addEventListener('click', openCalendar);
+		backBtn.addEventListener('click', () => { 
+			if (!isLoading) location.href = '/'; 
+		});
+		changeBtn.addEventListener('click', (ev) => {
+			if (isLoading) {
+				// Show toast or feedback
+				console.log('Ya se está cargando...');
+				return;
+			}
+			openCalendar(ev);
+		});
 		// sellerFilter removed (replaced by checkboxes)
 		payFilter.addEventListener('change', () => render());
 		function toggleSort(key){
