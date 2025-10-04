@@ -2076,7 +2076,19 @@ function updateSummary() {
 		}
 		if (isSmall && overlap) table.classList.add('totals-stacked'); else table.classList.remove('totals-stacked');
 		const grandLine = document.getElementById('sum-grand-2');
-		if (grandLine) grandLine.textContent = grandStr;
+		if (grandLine) {
+			grandLine.textContent = grandStr;
+			// On mobile, move grand total to col-client cell for proper positioning
+			if (isSmall) {
+				const grandRow = grandLine.closest('tr.t-am-grand');
+				const clientCell = grandRow?.querySelector('td.col-client');
+				if (clientCell && grandLine.parentElement) {
+					clientCell.appendChild(grandLine);
+					clientCell.style.textAlign = 'right';
+					clientCell.style.paddingRight = '4px';
+				}
+			}
+		}
 		const commLine = document.getElementById('sum-comm-2');
 		if (commLine) commLine.textContent = commStr;
 	});
