@@ -2,24 +2,45 @@ import { neon } from '@netlify/neon';
 
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
+let schemaCheckPromise = null; // Deduplicate concurrent schema checks
 const SCHEMA_VERSION = 5; // Bump when schema changes require a migration (incremented for index creation)
 
 export async function ensureSchema() {
+	// If already ensured in this instance, skip immediately
 	if (schemaEnsured) return;
+	
+	// If another request is currently checking schema, wait for it
+	if (schemaCheckPromise) return schemaCheckPromise;
+	
+	// Start schema check
+	schemaCheckPromise = (async () => {
+		try {
+			// FAST PATH: Just check if schema_meta exists and has correct version
+			try {
+				const cur = await sql`SELECT version FROM schema_meta LIMIT 1`;
+				const currentVersion = Number(cur?.[0]?.version || 0);
+				
+				if (currentVersion >= SCHEMA_VERSION) {
+					schemaEnsured = true;
+					return; // Schema is up to date, skip all DDL
+				}
+			} catch (err) {
+				// Table doesn't exist yet, continue with full schema setup
+			}
 
-	// Lightweight schema gating: skip heavy DDL if already migrated
-	// 1) Ensure schema_meta table exists (very cheap, only on cold start)
-	await sql`CREATE TABLE IF NOT EXISTS schema_meta (
-		version INTEGER NOT NULL DEFAULT 0,
-		updated_at TIMESTAMPTZ DEFAULT now()
-	)`;
-	// 2) Ensure a single row exists
-	await sql`INSERT INTO schema_meta (version)
-		SELECT 0
-		WHERE NOT EXISTS (SELECT 1 FROM schema_meta)`;
-	// 3) Read current version and short-circuit if up to date (but always create new tables)
-	const cur = await sql`SELECT version FROM schema_meta LIMIT 1`;
-	const currentVersion = Number(cur?.[0]?.version || 0);
+			// SLOW PATH: Only run if schema needs initialization/upgrade
+			// 1) Ensure schema_meta table exists (very cheap, only on cold start)
+			await sql`CREATE TABLE IF NOT EXISTS schema_meta (
+				version INTEGER NOT NULL DEFAULT 0,
+				updated_at TIMESTAMPTZ DEFAULT now()
+			)`;
+			// 2) Ensure a single row exists
+			await sql`INSERT INTO schema_meta (version)
+				SELECT 0
+				WHERE NOT EXISTS (SELECT 1 FROM schema_meta)`;
+			// 3) Read current version
+			const cur = await sql`SELECT version FROM schema_meta LIMIT 1`;
+			const currentVersion = Number(cur?.[0]?.version || 0);
 	
 	// Always ensure these critical tables exist (even if version is up to date)
 	// This handles the case where version was bumped but tables weren't created
@@ -531,9 +552,15 @@ END $$;`;
 	await sql`CREATE INDEX IF NOT EXISTS idx_sellers_name ON sellers(lower(name))`;
 	await sql`CREATE INDEX IF NOT EXISTS idx_user_view_permissions_lookup ON user_view_permissions(lower(viewer_username), seller_id)`;
 	
-	// 4) Persist target schema version so future requests short-circuit
-	await sql`UPDATE schema_meta SET version=${SCHEMA_VERSION}, updated_at=now()`;
-	schemaEnsured = true;
+			// 4) Persist target schema version so future requests short-circuit
+			await sql`UPDATE schema_meta SET version=${SCHEMA_VERSION}, updated_at=now()`;
+			schemaEnsured = true;
+		} finally {
+			schemaCheckPromise = null; // Reset for potential retries
+		}
+	})();
+	
+	return schemaCheckPromise;
 }
 
 export function prices() {

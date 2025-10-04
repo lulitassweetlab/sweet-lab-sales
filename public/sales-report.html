@@ -87,8 +87,45 @@
 	<script type="module">
 	(function(){
 		const qs = new URLSearchParams(location.search);
-		let start = (qs.get('start') || '').slice(0,10);
-		let end = (qs.get('end') || '').slice(0,10);
+		
+		// OPTIMIZED: Set intelligent default dates if not provided
+		function getDefaultDates() {
+			// Try to get last used dates from localStorage
+			try {
+				const cached = localStorage.getItem('lastReportDates');
+				if (cached) {
+					const parsed = JSON.parse(cached);
+					const now = Date.now();
+					const cacheAge = now - (parsed.timestamp || 0);
+					// Use cached dates if less than 1 hour old
+					if (cacheAge < 3600000 && parsed.start && parsed.end) {
+						return { start: parsed.start, end: parsed.end };
+					}
+				}
+			} catch {}
+			
+			// Default: last 7 days
+			const today = new Date();
+			const sevenDaysAgo = new Date(today);
+			sevenDaysAgo.setDate(today.getDate() - 7);
+			
+			return {
+				start: sevenDaysAgo.toISOString().slice(0, 10),
+				end: today.toISOString().slice(0, 10)
+			};
+		}
+		
+		const defaults = getDefaultDates();
+		let start = (qs.get('start') || defaults.start).slice(0,10);
+		let end = (qs.get('end') || defaults.end).slice(0,10);
+		
+		// Cache the dates for next time
+		try {
+			localStorage.setItem('lastReportDates', JSON.stringify({
+				start, end, timestamp: Date.now()
+			}));
+		} catch {}
+		
 		// Actor can come from URL or localStorage (set by index page)
 		let actor = (qs.get('actor') || '').toString();
 		if (!actor) { try { const saved = JSON.parse(localStorage.getItem('authUser')||'null'); actor = (saved?.name||saved?.username||'').toString(); } catch {} }
@@ -320,19 +357,33 @@
 			}
 		}
 
-		async function load(){
-			if (!start || !end) return;
-			rangeLabel.textContent = `${formatDay(start)} — ${formatDay(end)}`;
-			countLabel.textContent = '⏳ Cargando...';
-			dataset = [];
-			tbody.innerHTML = '<tr><td colspan="20" style="text-align:center;padding:40px;opacity:0.6;">⏳ Cargando ventas...</td></tr>';
-			
-			// Load desserts first
+		async function loadDesserts() {
+			// Try cache first
 			try {
-				desserts = await fetchJSON('/api/desserts');
+				const cached = localStorage.getItem('dessertsCache');
+				if (cached) {
+					const parsed = JSON.parse(cached);
+					const cacheAge = Date.now() - (parsed.timestamp || 0);
+					// Use cache if less than 1 hour old
+					if (cacheAge < 3600000 && parsed.data) {
+						return parsed.data;
+					}
+				}
+			} catch {}
+			
+			// Load from API
+			try {
+				const data = await fetchJSON('/api/desserts');
+				// Cache for next time
+				try {
+					localStorage.setItem('dessertsCache', JSON.stringify({
+						data, timestamp: Date.now()
+					}));
+				} catch {}
+				return data;
 			} catch {
 				// Fallback to defaults
-				desserts = [
+				return [
 					{ id: 1, name: 'Arco', short_code: 'arco', sale_price: 8500 },
 					{ id: 2, name: 'Melo', short_code: 'melo', sale_price: 9500 },
 					{ id: 3, name: 'Mara', short_code: 'mara', sale_price: 10500 },
@@ -340,13 +391,139 @@
 					{ id: 5, name: 'Nute', short_code: 'nute', sale_price: 13000 }
 				];
 			}
+		}
+
+		async function load(){
+			if (!start || !end) return;
+			rangeLabel.textContent = `${formatDay(start)} — ${formatDay(end)}`;
+			countLabel.textContent = '⏳ Cargando...';
+			dataset = [];
+			tbody.innerHTML = '<tr><td colspan="20" style="text-align:center;padding:40px;opacity:0.6;">⏳ Cargando ventas...</td></tr>';
+			
+			// Load desserts (with cache)
+			desserts = await loadDesserts();
 			renderDessertColumns();
 			
-			// OPTIMIZED: Load sellers and sales in parallel
+			// Check if we have cached data for this exact date range
+			const cacheKey = `salesCache_${start}_${end}`;
+			let usedCache = false;
+			
+			try {
+				const cached = localStorage.getItem(cacheKey);
+				if (cached) {
+					const parsed = JSON.parse(cached);
+					const cacheAge = Date.now() - (parsed.timestamp || 0);
+					// Use cache if less than 5 minutes old (for instant display)
+					if (cacheAge < 300000 && parsed.sellers && parsed.sales) {
+						sellersList = parsed.sellers;
+						populateFilters();
+						
+						// Process cached sales data immediately
+						countLabel.textContent = `Procesando ${parsed.sales.length} ventas…`;
+						const dessertMap = {};
+						for (const d of desserts) {
+							dessertMap[d.id] = d.short_code;
+							dessertMap[d.short_code] = d.short_code;
+						}
+						
+						dataset = parsed.sales.map(r => {
+							const row = {
+								date: String(r.sale_day || '').slice(0,10),
+								sellerName: r.seller_name || '',
+								is_paid: !!r.is_paid,
+								pay_method: r.pay_method || '',
+								client_name: r.client_name || '',
+								tot: r.total_cents || 0
+							};
+							
+							for (const d of desserts) {
+								let qty = 0;
+								if (Array.isArray(r.items) && r.items.length > 0) {
+									const item = r.items.find(i => i.short_code === d.short_code);
+									qty = item ? (item.quantity || 0) : 0;
+								} else {
+									qty = r[`qty_${d.short_code}`] || 0;
+								}
+								row[`q_${d.short_code}`] = qty;
+							}
+							return row;
+						});
+						
+						render();
+						usedCache = true;
+						
+						// Refresh in background (don't await)
+						Promise.all([
+							fetchJSON(withActor('/api/sellers')).catch(() => []),
+							fetchJSON(withActor(`/api/sales?date_range_start=${encodeURIComponent(start)}&date_range_end=${encodeURIComponent(end)}`)).catch(() => [])
+						]).then(([freshSellers, freshSales]) => {
+							// Update cache
+							try {
+								localStorage.setItem(cacheKey, JSON.stringify({
+									sellers: freshSellers,
+									sales: freshSales,
+									timestamp: Date.now()
+								}));
+							} catch {}
+							
+							// Only re-render if data changed
+							if (JSON.stringify(freshSales) !== JSON.stringify(parsed.sales)) {
+								sellersList = freshSellers;
+								populateFilters();
+								
+								// Process fresh data
+								const dessertMap = {};
+								for (const d of desserts) {
+									dessertMap[d.id] = d.short_code;
+									dessertMap[d.short_code] = d.short_code;
+								}
+								
+								dataset = freshSales.map(r => {
+									const row = {
+										date: String(r.sale_day || '').slice(0,10),
+										sellerName: r.seller_name || '',
+										is_paid: !!r.is_paid,
+										pay_method: r.pay_method || '',
+										client_name: r.client_name || '',
+										tot: r.total_cents || 0
+									};
+									
+									for (const d of desserts) {
+										let qty = 0;
+										if (Array.isArray(r.items) && r.items.length > 0) {
+											const item = r.items.find(i => i.short_code === d.short_code);
+											qty = item ? (item.quantity || 0) : 0;
+										} else {
+											qty = r[`qty_${d.short_code}`] || 0;
+										}
+										row[`q_${d.short_code}`] = qty;
+									}
+									return row;
+								});
+								
+								render();
+							}
+						});
+						
+						return; // Skip fresh fetch below
+					}
+				}
+			} catch {}
+			
+			// No cache or expired - fetch fresh data
 			const [sellersData, salesData] = await Promise.all([
 				fetchJSON(withActor('/api/sellers')).catch(() => []),
 				fetchJSON(withActor(`/api/sales?date_range_start=${encodeURIComponent(start)}&date_range_end=${encodeURIComponent(end)}`)).catch(() => [])
 			]);
+			
+			// Cache the fresh data
+			try {
+				localStorage.setItem(cacheKey, JSON.stringify({
+					sellers: sellersData,
+					sales: salesData,
+					timestamp: Date.now()
+				}));
+			} catch {}
 			
 			sellersList = sellersData;
 			populateFilters();
