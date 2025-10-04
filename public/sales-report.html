@@ -310,67 +310,44 @@
 			}
 			renderDessertColumns();
 			
-			sellersList = await fetchJSON(withActor('/api/sellers'));
+			// OPTIMIZED: Load sellers and sales in parallel
+			const [sellersData, salesData] = await Promise.all([
+				fetchJSON(withActor('/api/sellers')).catch(() => []),
+				fetchJSON(withActor(`/api/sales?date_range_start=${encodeURIComponent(start)}&date_range_end=${encodeURIComponent(end)}`)).catch(() => [])
+			]);
+			
+			sellersList = sellersData;
 			populateFilters();
-			countLabel.textContent = `Vendedores: ${sellersList.length} · Buscando días…`;
-			const isoBetween = (iso, a, b) => iso >= a && iso <= b;
-			// Concurrency helper
-			async function mapLimit(items, limit, fn) {
-				const out = []; let idx = 0; let running = 0; let resolveAll; const done = new Promise(r => resolveAll = r);
-				function runNext(){
-					if (idx >= items.length && running === 0) return resolveAll();
-					while (running < limit && idx < items.length) {
-						const cur = items[idx++]; running++;
-						Promise.resolve(fn(cur)).then(v => { out.push(v); running--; runNext(); }).catch(() => { running--; runNext(); });
+			
+			// Process sales data
+			countLabel.textContent = `Procesando ${salesData.length} ventas…`;
+			for (const r of salesData) {
+				const row = {
+					date: String(r.sale_day || '').slice(0,10),
+					sellerName: r.seller_name || '',
+					is_paid: !!r.is_paid,
+					pay_method: (r.pay_method || '') || '',
+					client_name: r.client_name || '',
+					tot: r.total_cents || 0
+				};
+				
+				// Process dessert quantities dynamically
+				for (const d of desserts) {
+					let qty = 0;
+					if (Array.isArray(r.items) && r.items.length > 0) {
+						// New format: use items
+						const item = r.items.find(i => i.dessert_id === d.id || i.short_code === d.short_code);
+						qty = item ? (item.quantity || 0) : 0;
+					} else {
+						// Old format: use qty_* columns
+						qty = r[`qty_${d.short_code}`] || 0;
 					}
+					row[`q_${d.short_code}`] = qty;
 				}
-				runNext(); await done; return out;
+				
+				dataset.push(row);
 			}
-			// Gather days within range for each seller
-			const sellerDays = [];
-			await mapLimit(sellersList, 6, async (s) => {
-				try {
-				const days = await fetchJSON(withActor(`/api/days?seller_id=${encodeURIComponent(s.id)}`));
-					for (const d of (days||[])) {
-						const iso = String(d.day).slice(0,10);
-						if (isoBetween(iso, start, end)) sellerDays.push({ seller: s, day: d });
-					}
-				} catch {}
-			});
-			countLabel.textContent = `Días: ${sellerDays.length} · Buscando ventas…`;
-			// Gather sales for those days
-			await mapLimit(sellerDays, 6, async ({ seller, day }) => {
-				try {
-					const params = new URLSearchParams({ seller_id: String(seller.id), sale_day_id: String(day.id) });
-					const sales = await fetchJSON(withActor(`/api/sales?${params.toString()}`));
-					for (const r of (sales || [])) {
-						const row = {
-							date: String(day.day).slice(0,10),
-							sellerName: seller.name || '',
-							is_paid: !!r.is_paid,
-							pay_method: (r.pay_method || '') || '',
-							client_name: r.client_name || '',
-							tot: r.total_cents || 0
-						};
-						
-						// Process dessert quantities dynamically
-						for (const d of desserts) {
-							let qty = 0;
-							if (Array.isArray(r.items) && r.items.length > 0) {
-								// New format: use items
-								const item = r.items.find(i => i.dessert_id === d.id || i.short_code === d.short_code);
-								qty = item ? (item.quantity || 0) : 0;
-							} else {
-								// Old format: use qty_* columns
-								qty = r[`qty_${d.short_code}`] || 0;
-							}
-							row[`q_${d.short_code}`] = qty;
-						}
-						
-						dataset.push(row);
-					}
-				} catch {}
-			});
+			
 			render();
 		}
 

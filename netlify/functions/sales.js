@@ -19,6 +19,100 @@ export async function handler(event) {
 						.join('&');
 				}
 				const params = new URLSearchParams(raw);
+				
+				// OPTIMIZED: Get all sales for a date range in a single query
+				const dateRangeStart = params.get('date_range_start') || (event.queryStringParameters && event.queryStringParameters.date_range_start) || null;
+				const dateRangeEnd = params.get('date_range_end') || (event.queryStringParameters && event.queryStringParameters.date_range_end) || null;
+				if (dateRangeStart && dateRangeEnd) {
+					const start = dateRangeStart.toString().slice(0,10);
+					const end = dateRangeEnd.toString().slice(0,10);
+					
+					// Permission check for viewing sales
+					try {
+						const headers = (event.headers || {});
+						const hActor = (headers['x-actor-name'] || headers['X-Actor-Name'] || headers['x-actor'] || '').toString();
+						let qActor = '';
+						try { const qs = new URLSearchParams(event.rawQuery || (event.queryStringParameters ? new URLSearchParams(event.queryStringParameters).toString() : '')); qActor = (qs.get('actor') || '').toString(); } catch {}
+						const actorName = (hActor || qActor || '').toString();
+						let role = 'user';
+						if (actorName) {
+							const r = await sql`SELECT role FROM users WHERE lower(username)=lower(${actorName}) LIMIT 1`;
+							role = (r && r[0] && r[0].role) ? String(r[0].role) : 'user';
+						}
+						
+						// Build the query based on permissions
+						let rows;
+						if (role === 'admin' || role === 'superadmin') {
+							// Admin can see all sales
+							rows = await sql`
+								SELECT s.id, s.seller_id, s.sale_day_id, s.client_name, s.qty_arco, s.qty_melo, 
+								       s.qty_mara, s.qty_oreo, s.qty_nute, s.is_paid, s.pay_method, s.comment_text, 
+								       s.total_cents, s.created_at,
+								       sd.day AS sale_day,
+								       se.name AS seller_name
+								FROM sales s
+								JOIN sale_days sd ON sd.id = s.sale_day_id
+								JOIN sellers se ON se.id = s.seller_id
+								WHERE sd.day BETWEEN ${start} AND ${end}
+								ORDER BY sd.day ASC, se.name ASC, s.created_at DESC
+							`;
+						} else {
+							// Non-admin can only see their own sales or sales they have permission to view
+							rows = await sql`
+								SELECT s.id, s.seller_id, s.sale_day_id, s.client_name, s.qty_arco, s.qty_melo, 
+								       s.qty_mara, s.qty_oreo, s.qty_nute, s.is_paid, s.pay_method, s.comment_text, 
+								       s.total_cents, s.created_at,
+								       sd.day AS sale_day,
+								       se.name AS seller_name
+								FROM sales s
+								JOIN sale_days sd ON sd.id = s.sale_day_id
+								JOIN sellers se ON se.id = s.seller_id
+								WHERE sd.day BETWEEN ${start} AND ${end}
+								  AND (
+								    lower(se.name) = lower(${actorName})
+								    OR EXISTS (
+								      SELECT 1 FROM user_view_permissions uvp 
+								      WHERE uvp.seller_id = s.seller_id 
+								        AND lower(uvp.viewer_username) = lower(${actorName})
+								    )
+								  )
+								ORDER BY sd.day ASC, se.name ASC, s.created_at DESC
+							`;
+						}
+						
+						// Enhance with sale_items data for each sale (optimized with a single query)
+						if (rows.length > 0) {
+							const saleIds = rows.map(r => r.id);
+							const allItems = await sql`
+								SELECT si.sale_id, si.id, si.dessert_id, si.quantity, si.unit_price, 
+								       d.name, d.short_code
+								FROM sale_items si
+								JOIN desserts d ON d.id = si.dessert_id
+								WHERE si.sale_id = ANY(${saleIds})
+								ORDER BY si.sale_id, d.position ASC, d.id ASC
+							`;
+							
+							// Group items by sale_id
+							const itemsBySaleId = {};
+							for (const item of allItems) {
+								if (!itemsBySaleId[item.sale_id]) {
+									itemsBySaleId[item.sale_id] = [];
+								}
+								itemsBySaleId[item.sale_id].push(item);
+							}
+							
+							// Attach items to each row
+							for (const row of rows) {
+								row.items = itemsBySaleId[row.id] || [];
+							}
+						}
+						
+						return json(rows);
+					} catch (err) {
+						return json({ error: 'Error de permisos: ' + String(err) }, 403);
+					}
+				}
+				
 				// New: list receipts across date range
 				const receiptsRangeStart = params.get('receipts_start') || (event.queryStringParameters && event.queryStringParameters.receipts_start) || null;
 				const receiptsRangeEnd = params.get('receipts_end') || (event.queryStringParameters && event.queryStringParameters.receipts_end) || null;
