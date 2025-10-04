@@ -6,7 +6,10 @@ function json(body, status = 200) {
 
 export async function handler(event) {
 	try {
-		await ensureSchema();
+		// OPTIMIZED: Skip ensureSchema for GET requests (read-only, performance critical)
+		if (event.httpMethod !== 'GET') {
+			await ensureSchema();
+		}
 		if (event.httpMethod === 'OPTIONS') return json({ ok: true });
 
 		async function getActorRole(evt, body = null) {

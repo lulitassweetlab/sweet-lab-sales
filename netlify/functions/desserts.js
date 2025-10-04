@@ -4,14 +4,30 @@ function json(body, status = 200) {
 	return { statusCode: status, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
 }
 
+// In-memory cache for desserts (lasts for function instance lifetime)
+let dessertsCache = null;
+let cacheTime = 0;
+const CACHE_TTL = 60000; // 1 minute
+
 export async function handler(event) {
 	try {
-		await ensureSchema();
+		// OPTIMIZED: Skip ensureSchema for GET requests
+		if (event.httpMethod !== 'GET') {
+			await ensureSchema();
+		}
 		if (event.httpMethod === 'OPTIONS') return json({ ok: true });
 		
 		switch (event.httpMethod) {
 			case 'GET': {
+				// Use in-memory cache if available
+				const now = Date.now();
+				if (dessertsCache && (now - cacheTime) < CACHE_TTL) {
+					return json(dessertsCache);
+				}
+				
 				const desserts = await getDesserts();
+				dessertsCache = desserts;
+				cacheTime = now;
 				return json(desserts);
 			}
 			case 'POST': {

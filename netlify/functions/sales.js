@@ -6,7 +6,15 @@ function json(body, status = 200) {
 
 export async function handler(event) {
 	try {
-		await ensureSchema();
+		// OPTIMIZED: Skip ensureSchema for GET date_range queries (read-only, performance critical)
+		const isDateRangeQuery = event.httpMethod === 'GET' && 
+			(event.rawQuery?.includes('date_range_start') || 
+			 event.queryStringParameters?.date_range_start);
+		
+		if (!isDateRangeQuery) {
+			await ensureSchema();
+		}
+		
 		if (event.httpMethod === 'OPTIONS') return json({ ok: true });
 		switch (event.httpMethod) {
 			case 'GET': {

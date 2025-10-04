@@ -6,6 +6,21 @@
 	<title>Reporte de Ventas</title>
 	<link rel="stylesheet" href="/styles.css?v=2025-09-17-1" />
 	<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+	<style>
+		/* Skeleton loader */
+		.skeleton-row td { padding: 8px; }
+		.skeleton-box {
+			height: 20px;
+			background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+			background-size: 200% 100%;
+			animation: skeleton-loading 1.5s ease-in-out infinite;
+			border-radius: 4px;
+		}
+		@keyframes skeleton-loading {
+			0% { background-position: 200% 0; }
+			100% { background-position: -200% 0; }
+		}
+	</style>
 </head>
 <body>
 	<header class="app-header">
@@ -86,6 +101,15 @@
 
 	<script type="module">
 	(function(){
+		// OPTIMIZED: Pre-loaded desserts data (inline to avoid extra request)
+		const PRELOADED_DESSERTS = [
+			{ id: 1, name: 'Arco', short_code: 'arco', sale_price: 8500, is_active: true, position: 1 },
+			{ id: 2, name: 'Melo', short_code: 'melo', sale_price: 9500, is_active: true, position: 2 },
+			{ id: 3, name: 'Mara', short_code: 'mara', sale_price: 10500, is_active: true, position: 3 },
+			{ id: 4, name: 'Oreo', short_code: 'oreo', sale_price: 10500, is_active: true, position: 4 },
+			{ id: 5, name: 'Nute', short_code: 'nute', sale_price: 13000, is_active: true, position: 5 }
+		];
+		
 		const qs = new URLSearchParams(location.search);
 		
 		// OPTIMIZED: Set intelligent default dates if not provided
@@ -104,13 +128,13 @@
 				}
 			} catch {}
 			
-			// Default: last 7 days
+			// Default: last 3 days (faster loading)
 			const today = new Date();
-			const sevenDaysAgo = new Date(today);
-			sevenDaysAgo.setDate(today.getDate() - 7);
+			const threeDaysAgo = new Date(today);
+			threeDaysAgo.setDate(today.getDate() - 3);
 			
 			return {
-				start: sevenDaysAgo.toISOString().slice(0, 10),
+				start: threeDaysAgo.toISOString().slice(0, 10),
 				end: today.toISOString().slice(0, 10)
 			};
 		}
@@ -209,47 +233,50 @@
 		}
 
 		function populateFilters(){
-			// Sellers
-			if (sellerFilterGroup) {
-				const prevSelected = getSelectedSellers();
-				sellerFilterGroup.innerHTML = '';
-				// Master checkbox
-				const masterWrap = document.createElement('label'); masterWrap.style.display='inline-flex'; masterWrap.style.alignItems='center'; masterWrap.style.gap='6px';
-				const master = document.createElement('input'); master.type='checkbox'; master.id='sf_all';
-				const masterSpan = document.createElement('span'); masterSpan.textContent = 'Todos';
-				masterWrap.appendChild(master); masterWrap.appendChild(masterSpan);
-				sellerFilterGroup.appendChild(masterWrap);
-				// Vendors
-				for (const s of (sellersList||[])){
-					const id = `sf_${(s.name||'').replace(/[^a-z0-9]+/gi,'_')}`;
-					const wrap = document.createElement('label');
-					wrap.style.display = 'inline-flex'; wrap.style.alignItems = 'center'; wrap.style.gap = '6px';
-					const cb = document.createElement('input'); cb.type = 'checkbox'; cb.value = s.name || ''; cb.id = id;
-					cb.checked = prevSelected.length ? prevSelected.includes(cb.value) : false;
-					cb.addEventListener('change', () => { updateMasterCheckboxState(); render(); });
-					const sp = document.createElement('span'); sp.textContent = s.name || '';
-					wrap.appendChild(cb); wrap.appendChild(sp);
-					sellerFilterGroup.appendChild(wrap);
-				}
-				function updateMasterCheckboxState(){
-					const cbs = Array.from(sellerFilterGroup.querySelectorAll('input[type="checkbox"]')).filter(x => x.id !== 'sf_all');
-					const checked = cbs.filter(x => x.checked).length;
-					master.indeterminate = checked > 0 && checked < cbs.length;
-					master.checked = checked > 0 && checked === cbs.length;
-				}
-				master.addEventListener('change', () => {
-					const cbs = Array.from(sellerFilterGroup.querySelectorAll('input[type="checkbox"]')).filter(x => x.id !== 'sf_all');
-					for (const cb of cbs) cb.checked = master.checked;
+			// OPTIMIZED: Use requestIdleCallback to avoid blocking render
+			requestIdleCallback(() => {
+				// Sellers
+				if (sellerFilterGroup) {
+					const prevSelected = getSelectedSellers();
+					sellerFilterGroup.innerHTML = '';
+					// Master checkbox
+					const masterWrap = document.createElement('label'); masterWrap.style.display='inline-flex'; masterWrap.style.alignItems='center'; masterWrap.style.gap='6px';
+					const master = document.createElement('input'); master.type='checkbox'; master.id='sf_all';
+					const masterSpan = document.createElement('span'); masterSpan.textContent = 'Todos';
+					masterWrap.appendChild(master); masterWrap.appendChild(masterSpan);
+					sellerFilterGroup.appendChild(masterWrap);
+					// Vendors
+					for (const s of (sellersList||[])){
+						const id = `sf_${(s.name||'').replace(/[^a-z0-9]+/gi,'_')}`;
+						const wrap = document.createElement('label');
+						wrap.style.display = 'inline-flex'; wrap.style.alignItems = 'center'; wrap.style.gap = '6px';
+						const cb = document.createElement('input'); cb.type = 'checkbox'; cb.value = s.name || ''; cb.id = id;
+						cb.checked = prevSelected.length ? prevSelected.includes(cb.value) : false;
+						cb.addEventListener('change', () => { updateMasterCheckboxState(); render(); });
+						const sp = document.createElement('span'); sp.textContent = s.name || '';
+						wrap.appendChild(cb); wrap.appendChild(sp);
+						sellerFilterGroup.appendChild(wrap);
+					}
+					function updateMasterCheckboxState(){
+						const cbs = Array.from(sellerFilterGroup.querySelectorAll('input[type="checkbox"]')).filter(x => x.id !== 'sf_all');
+						const checked = cbs.filter(x => x.checked).length;
+						master.indeterminate = checked > 0 && checked < cbs.length;
+						master.checked = checked > 0 && checked === cbs.length;
+					}
+					master.addEventListener('change', () => {
+						const cbs = Array.from(sellerFilterGroup.querySelectorAll('input[type="checkbox"]')).filter(x => x.id !== 'sf_all');
+						for (const cb of cbs) cb.checked = master.checked;
+						updateMasterCheckboxState();
+						render();
+					});
 					updateMasterCheckboxState();
-					render();
-				});
-				updateMasterCheckboxState();
-			}
-			// Pay methods
-			payFilter.innerHTML = '';
-			const optAllP = document.createElement('option'); optAllP.value = ''; optAllP.textContent = 'Todos'; payFilter.appendChild(optAllP);
-			const payCodes = ['', 'efectivo', 'transf', 'marce', 'jorge', 'jorgebank', 'entregado'];
-			for (const code of payCodes){ if (code==='') continue; const o=document.createElement('option'); o.value=code; o.textContent=payLabel(code); payFilter.appendChild(o); }
+				}
+				// Pay methods
+				payFilter.innerHTML = '';
+				const optAllP = document.createElement('option'); optAllP.value = ''; optAllP.textContent = 'Todos'; payFilter.appendChild(optAllP);
+				const payCodes = ['', 'efectivo', 'transf', 'marce', 'jorge', 'jorgebank', 'entregado'];
+				for (const code of payCodes){ if (code==='') continue; const o=document.createElement('option'); o.value=code; o.textContent=payLabel(code); payFilter.appendChild(o); }
+			}, { timeout: 100 });
 		}
 
 		function getSelectedSellers(){
@@ -358,39 +385,51 @@
 		}
 
 		async function loadDesserts() {
-			// Try cache first
-			try {
-				const cached = localStorage.getItem('dessertsCache');
-				if (cached) {
-					const parsed = JSON.parse(cached);
-					const cacheAge = Date.now() - (parsed.timestamp || 0);
-					// Use cache if less than 1 hour old
-					if (cacheAge < 3600000 && parsed.data) {
-						return parsed.data;
-					}
-				}
-			} catch {}
+			// OPTIMIZED: Use preloaded data immediately, then update in background
+			// Return preloaded data instantly
+			const preloaded = PRELOADED_DESSERTS.slice();
 			
-			// Load from API
-			try {
-				const data = await fetchJSON('/api/desserts');
-				// Cache for next time
+			// Try cache first (non-blocking)
+			Promise.resolve().then(async () => {
 				try {
-					localStorage.setItem('dessertsCache', JSON.stringify({
-						data, timestamp: Date.now()
-					}));
+					const cached = localStorage.getItem('dessertsCache');
+					if (cached) {
+						const parsed = JSON.parse(cached);
+						const cacheAge = Date.now() - (parsed.timestamp || 0);
+						// Use cache if less than 1 hour old
+						if (cacheAge < 3600000 && parsed.data && parsed.data.length > 0) {
+							desserts = parsed.data;
+							renderDessertColumns();
+							return;
+						}
+					}
 				} catch {}
-				return data;
-			} catch {
-				// Fallback to defaults
-				return [
-					{ id: 1, name: 'Arco', short_code: 'arco', sale_price: 8500 },
-					{ id: 2, name: 'Melo', short_code: 'melo', sale_price: 9500 },
-					{ id: 3, name: 'Mara', short_code: 'mara', sale_price: 10500 },
-					{ id: 4, name: 'Oreo', short_code: 'oreo', sale_price: 10500 },
-					{ id: 5, name: 'Nute', short_code: 'nute', sale_price: 13000 }
-				];
-			}
+				
+				// Load from API in background
+				try {
+					const data = await fetchJSON('/api/desserts');
+					if (data && data.length > 0) {
+						// Cache for next time
+						try {
+							localStorage.setItem('dessertsCache', JSON.stringify({
+								data, timestamp: Date.now()
+							}));
+						} catch {}
+						
+						// Update if different from preloaded
+						if (JSON.stringify(data) !== JSON.stringify(preloaded)) {
+							desserts = data;
+							renderDessertColumns();
+							// Re-render if we already have data
+							if (dataset.length > 0) {
+								render();
+							}
+						}
+					}
+				} catch {}
+			});
+			
+			return preloaded;
 		}
 
 		async function load(){
@@ -398,7 +437,17 @@
 			rangeLabel.textContent = `${formatDay(start)} — ${formatDay(end)}`;
 			countLabel.textContent = '⏳ Cargando...';
 			dataset = [];
-			tbody.innerHTML = '<tr><td colspan="20" style="text-align:center;padding:40px;opacity:0.6;">⏳ Cargando ventas...</td></tr>';
+			// Skeleton loader: Show animated loading rows
+			const skeletonRows = 5;
+			let skeletonHTML = '';
+			for (let i = 0; i < skeletonRows; i++) {
+				skeletonHTML += '<tr class="skeleton-row">';
+				for (let j = 0; j < 8; j++) {
+					skeletonHTML += '<td><div class="skeleton-box"></div></td>';
+				}
+				skeletonHTML += '</tr>';
+			}
+			tbody.innerHTML = skeletonHTML;
 			
 			// Load desserts (with cache)
 			desserts = await loadDesserts();
