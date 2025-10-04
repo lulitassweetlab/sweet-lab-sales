@@ -1238,23 +1238,35 @@ tfoot td { font-weight: 700; }
 	
 	/* Grand total row: hide col-client and show total in col-total column */
 	#sales-table tfoot .t-am-grand .col-client { display: none !important; }
-	#sales-table tfoot .t-am-grand .col-total { 
+	#sales-table tfoot tr.t-am-grand td.col-total { 
 		display: table-cell !important; 
 		text-align: right !important; 
 		font-weight: 700 !important;
 		padding-right: 4px !important;
 		padding-left: 0 !important;
+		vertical-align: middle !important;
 	}
-	#sales-table tfoot .t-am-grand .col-total span,
-	#sales-table tfoot .t-am-grand .col-total .st-grand,
-	#sales-table tfoot .t-am-grand .col-total .st-amt {
-		display: block !important;
-		width: 100% !important;
+	#sales-table tfoot tr.t-am-grand td.col-total span,
+	#sales-table tfoot tr.t-am-grand td.col-total .st-grand,
+	#sales-table tfoot tr.t-am-grand td.col-total .st-amt,
+	#sales-table tfoot tr.t-am-grand td.col-total #sum-grand-2 {
+		display: inline-block !important;
 		text-align: right !important;
 		color: var(--accent) !important;
 		font-size: 14px !important;
-		padding-right: 0 !important;
+		font-weight: 700 !important;
+		padding: 0 !important;
 		margin: 0 !important;
+		float: right !important;
+	}
+	
+	/* Also handle when table has totals-stacked class */
+	#sales-table.totals-stacked tfoot tr.t-am-grand td.col-total {
+		text-align: right !important;
+	}
+	#sales-table.totals-stacked tfoot tr.t-am-grand td.col-total span {
+		float: right !important;
+		text-align: right !important;
 	}
 }
 
