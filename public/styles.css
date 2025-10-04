@@ -1242,11 +1242,19 @@ tfoot td { font-weight: 700; }
 		display: table-cell !important; 
 		text-align: right !important; 
 		font-weight: 700 !important;
-		padding-right: 8px !important;
+		padding-right: 4px !important;
+		padding-left: 0 !important;
 	}
-	#sales-table tfoot .t-am-grand .col-total .st-grand {
+	#sales-table tfoot .t-am-grand .col-total span,
+	#sales-table tfoot .t-am-grand .col-total .st-grand,
+	#sales-table tfoot .t-am-grand .col-total .st-amt {
+		display: block !important;
+		width: 100% !important;
+		text-align: right !important;
 		color: var(--accent) !important;
 		font-size: 14px !important;
+		padding-right: 0 !important;
+		margin: 0 !important;
 	}
 }
 
