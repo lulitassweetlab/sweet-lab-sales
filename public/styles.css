@@ -1235,8 +1235,19 @@ tfoot td { font-weight: 700; }
 	#sales-table tfoot .tfoot-amt-stack .st-grand { font-weight: 700; }
 	/* Preserve explicit spaces in spans if any */
 	#sales-table tfoot .tfoot-amt-stack .col-client span { white-space: pre; }
-	/* Grand total number all the way to the right */
-	#sales-table tfoot .t-am-grand .col-client { display: table-cell; text-align: right; padding-right: 14px; font-weight: 700; }
+	
+	/* Grand total row: hide col-client and show total in col-total column */
+	#sales-table tfoot .t-am-grand .col-client { display: none !important; }
+	#sales-table tfoot .t-am-grand .col-total { 
+		display: table-cell !important; 
+		text-align: right !important; 
+		font-weight: 700 !important;
+		padding-right: 8px !important;
+	}
+	#sales-table tfoot .t-am-grand .col-total .st-grand {
+		color: var(--accent) !important;
+		font-size: 14px !important;
+	}
 }
 
 @media (min-width: 601px) {
