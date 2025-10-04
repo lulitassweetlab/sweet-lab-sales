@@ -20,9 +20,117 @@
 			0% { background-position: 200% 0; }
 			100% { background-position: -200% 0; }
 		}
+		
+		/* Loading overlay */
+		.loading-overlay {
+			position: fixed;
+			top: 0;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			background: rgba(255, 255, 255, 0.95);
+			z-index: 9999;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			backdrop-filter: blur(3px);
+			opacity: 0;
+			pointer-events: none;
+			transition: opacity 0.2s ease;
+		}
+		.loading-overlay.active { 
+			opacity: 1; 
+			pointer-events: auto;
+		}
+		.loading-content {
+			text-align: center;
+			max-width: 400px;
+			padding: 32px;
+			background: white;
+			border-radius: 16px;
+			box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+			transform: translateY(0);
+			transition: transform 0.2s ease;
+		}
+		.loading-overlay:not(.active) .loading-content {
+			transform: translateY(-20px);
+		}
+		.loading-spinner {
+			width: 60px;
+			height: 60px;
+			margin: 0 auto 24px;
+			border: 4px solid #f0f0f0;
+			border-top-color: var(--primary);
+			border-radius: 50%;
+			animation: spin 0.8s linear infinite;
+		}
+		@keyframes spin {
+			to { transform: rotate(360deg); }
+		}
+		.progress-bar-container {
+			width: 100%;
+			height: 8px;
+			background: #f0f0f0;
+			border-radius: 4px;
+			overflow: hidden;
+			margin: 16px 0;
+		}
+		.progress-bar {
+			height: 100%;
+			background: linear-gradient(90deg, var(--primary), var(--hover-primary-pink));
+			border-radius: 4px;
+			transition: width 0.3s ease;
+			animation: progress-pulse 1.5s ease-in-out infinite;
+		}
+		@keyframes progress-pulse {
+			0%, 100% { opacity: 1; }
+			50% { opacity: 0.7; }
+		}
+		.loading-text {
+			font-size: 16px;
+			color: var(--text);
+			margin: 8px 0;
+			font-weight: 500;
+		}
+		.loading-subtext {
+			font-size: 13px;
+			color: var(--muted);
+		}
+		
+		/* Button loading state */
+		button.loading {
+			pointer-events: none;
+			opacity: 0.6;
+			position: relative;
+		}
+		button.loading::after {
+			content: '';
+			position: absolute;
+			width: 16px;
+			height: 16px;
+			top: 50%;
+			left: 50%;
+			margin-left: -8px;
+			margin-top: -8px;
+			border: 2px solid white;
+			border-radius: 50%;
+			border-top-color: transparent;
+			animation: spin 0.6s linear infinite;
+		}
 	</style>
 </head>
 <body>
+	<!-- Loading overlay -->
+	<div id="loading-overlay" class="loading-overlay">
+		<div class="loading-content">
+			<div class="loading-spinner"></div>
+			<div class="loading-text" id="loading-text">Cargando ventas...</div>
+			<div class="progress-bar-container">
+				<div class="progress-bar" id="progress-bar" style="width: 0%"></div>
+			</div>
+			<div class="loading-subtext" id="loading-subtext">Esto tomará solo un momento</div>
+		</div>
+	</div>
 	<header class="app-header">
 		<div class="header-row">
 			<div class="header-left">
@@ -174,6 +282,42 @@
 		let desserts = [];
 		let sortKey = 'date'; // 'date' | 'seller' | 'pay'
 		let sortDir = 'asc'; // 'asc' | 'desc'
+		let isLoading = false; // Prevent concurrent loads
+		
+		// Loading overlay management
+		const loadingOverlay = document.getElementById('loading-overlay');
+		const loadingText = document.getElementById('loading-text');
+		const loadingSubtext = document.getElementById('loading-subtext');
+		const progressBar = document.getElementById('progress-bar');
+		
+		function showLoading(message = 'Cargando ventas...') {
+			loadingText.textContent = message;
+			loadingOverlay.classList.add('active');
+			progressBar.style.width = '0%';
+			
+			// Simulate realistic progress
+			let progress = 0;
+			const progressInterval = setInterval(() => {
+				progress += Math.random() * 15;
+				if (progress > 90) progress = 90; // Stop at 90% until actual completion
+				progressBar.style.width = `${progress}%`;
+			}, 200);
+			
+			return () => {
+				clearInterval(progressInterval);
+				progressBar.style.width = '100%';
+				setTimeout(() => {
+					loadingOverlay.classList.remove('active');
+				}, 300);
+			};
+		}
+		
+		function updateLoadingProgress(percent, text) {
+			if (loadingOverlay.classList.contains('active')) {
+				progressBar.style.width = `${percent}%`;
+				if (text) loadingSubtext.textContent = text;
+			}
+		}
 
 		function formatDay(iso){
 			if (!iso) return '';
@@ -434,24 +578,38 @@
 
 		async function load(){
 			if (!start || !end) return;
-			rangeLabel.textContent = `${formatDay(start)} — ${formatDay(end)}`;
-			countLabel.textContent = '⏳ Cargando...';
-			dataset = [];
-			// Skeleton loader: Show animated loading rows
-			const skeletonRows = 5;
-			let skeletonHTML = '';
-			for (let i = 0; i < skeletonRows; i++) {
-				skeletonHTML += '<tr class="skeleton-row">';
-				for (let j = 0; j < 8; j++) {
-					skeletonHTML += '<td><div class="skeleton-box"></div></td>';
-				}
-				skeletonHTML += '</tr>';
-			}
-			tbody.innerHTML = skeletonHTML;
 			
-			// Load desserts (with cache)
-			desserts = await loadDesserts();
-			renderDessertColumns();
+			// Prevent concurrent loads
+			if (isLoading) return;
+			isLoading = true;
+			
+			// Show loading overlay
+			const hideLoading = showLoading('Cargando ventas...');
+			
+			try {
+				rangeLabel.textContent = `${formatDay(start)} — ${formatDay(end)}`;
+				countLabel.textContent = '⏳ Cargando...';
+				dataset = [];
+				
+				// Skeleton loader: Show animated loading rows
+				const skeletonRows = 5;
+				let skeletonHTML = '';
+				for (let i = 0; i < skeletonRows; i++) {
+					skeletonHTML += '<tr class="skeleton-row">';
+					for (let j = 0; j < 8; j++) {
+						skeletonHTML += '<td><div class="skeleton-box"></div></td>';
+					}
+					skeletonHTML += '</tr>';
+				}
+				tbody.innerHTML = skeletonHTML;
+				
+				updateLoadingProgress(20, 'Cargando postres...');
+				
+				// Load desserts (with cache)
+				desserts = await loadDesserts();
+				renderDessertColumns();
+				
+				updateLoadingProgress(40, 'Obteniendo ventas...');
 			
 			// Check if we have cached data for this exact date range
 			const cacheKey = `salesCache_${start}_${end}`;
@@ -554,10 +712,14 @@
 							}
 						});
 						
+						hideLoading();
+						isLoading = false;
 						return; // Skip fresh fetch below
 					}
 				}
 			} catch {}
+			
+			updateLoadingProgress(60, 'Consultando base de datos...');
 			
 			// No cache or expired - fetch fresh data
 			const [sellersData, salesData] = await Promise.all([
@@ -574,11 +736,14 @@
 				}));
 			} catch {}
 			
+			updateLoadingProgress(80, 'Procesando datos...');
+			
 			sellersList = sellersData;
 			populateFilters();
 			
 			// Process sales data - optimized for speed
 			countLabel.textContent = `Procesando ${salesData.length} ventas…`;
+			updateLoadingProgress(90, 'Renderizando tabla...');
 			
 			// Pre-create lookup map for desserts
 			const dessertMap = {};
@@ -614,20 +779,55 @@
 				
 				return row;
 			});
-			
-			render();
+				
+				updateLoadingProgress(95, 'Finalizando...');
+				render();
+			} catch (error) {
+				console.error('Error loading data:', error);
+				countLabel.textContent = 'Error al cargar datos';
+			} finally {
+				hideLoading();
+				isLoading = false;
+			}
 		}
 
 		function openCalendar(ev){
+			// Prevent multiple clicks
+			if (isLoading) return;
+			
+			// Add visual feedback to button
+			const btn = ev.currentTarget;
+			btn.classList.add('loading');
+			
 			openRangeCalendarPopover((range) => {
+				btn.classList.remove('loading');
+				
 				if (!range || !range.start || !range.end) return;
+				
+				// Check if dates actually changed
+				if (range.start === start && range.end === end) {
+					return; // No change, no need to reload
+				}
+				
 				start = range.start; end = range.end;
-			history.replaceState(null, '', `?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}${actor?`&actor=${encodeURIComponent(actor)}`:''}`);
+				history.replaceState(null, '', `?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}${actor?`&actor=${encodeURIComponent(actor)}`:''}`);
+				
+				// Immediate visual feedback
+				rangeLabel.textContent = `${formatDay(start)} — ${formatDay(end)}`;
+				
 				load();
 			}, ev.clientX, ev.clientY, { preferUp: true });
 		}
 
-		exportBtn.addEventListener('click', () => {
+		exportBtn.addEventListener('click', (ev) => {
+			// Prevent export while loading
+			if (isLoading) return;
+			
+			// Add visual feedback
+			ev.currentTarget.classList.add('loading');
+			setTimeout(() => {
+				ev.currentTarget.classList.remove('loading');
+			}, 1000);
 			// Build Excel from filtered and sorted data currently visible
 			const header = ['Fecha','Vendedor', '$', 'Pago', 'Cliente'];
 			for (const d of desserts) {
@@ -699,7 +899,9 @@
 			XLSX.writeFile(wb, `Consolidado_${(start||'').replaceAll('-','')}_a_${(end||'').replaceAll('-','')}.xlsx`);
 		});
 
-		ingredientsBtn.addEventListener('click', () => {
+		ingredientsBtn.addEventListener('click', (ev) => {
+			if (isLoading) return;
+			ev.currentTarget.classList.add('loading');
 			const url = new URL('/ingredients.html', location.origin);
 			if (start) url.searchParams.set('start', start);
 			if (end) url.searchParams.set('end', end);
@@ -707,8 +909,17 @@
 			location.href = url.toString();
 		});
 
-		backBtn.addEventListener('click', () => { location.href = '/'; });
-		changeBtn.addEventListener('click', openCalendar);
+		backBtn.addEventListener('click', () => { 
+			if (!isLoading) location.href = '/'; 
+		});
+		changeBtn.addEventListener('click', (ev) => {
+			if (isLoading) {
+				// Show toast or feedback
+				console.log('Ya se está cargando...');
+				return;
+			}
+			openCalendar(ev);
+		});
 		// sellerFilter removed (replaced by checkboxes)
 		payFilter.addEventListener('change', () => render());
 		function toggleSort(key){
