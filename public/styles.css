@@ -650,20 +650,14 @@ tfoot td { font-weight: 700; }
 	#sales-table.totals-stacked tfoot .tfoot-amt-stack .st-qty { text-align: center; min-width: 3ch; line-height: 1.4; }
 	#sales-table.totals-stacked tfoot .tfoot-amt-stack .st-amt { text-align: right; color: var(--accent); line-height: 1.4; }
 	
-	/* Fix grand total row - make col-client empty but maintain structure */
-	#sales-table.totals-stacked tfoot .t-am-grand .col-client { 
-		display: table-cell !important;
-		visibility: hidden !important;
-		width: auto !important;
-	}
-	
-	/* Keep all cells visible to maintain column alignment */
+	/* Fix grand total row - convert to normal row structure */
+	/* Hide col-paid and col-client */
 	#sales-table.totals-stacked tfoot .t-am-grand .col-paid,
-	#sales-table.totals-stacked tfoot .t-am-grand .col-actions { 
-		display: table-cell !important; 
+	#sales-table.totals-stacked tfoot .t-am-grand .col-client { 
+		display: none !important;
 	}
 	
-	/* col-total stays in its normal position aligned with other totals */
+	/* col-total positioned like other totals rows */
 	#sales-table.totals-stacked tfoot .t-am-grand .col-total { 
 		display: table-cell !important; 
 		text-align: right !important; 
@@ -671,7 +665,15 @@ tfoot td { font-weight: 700; }
 		font-weight: 700 !important; 
 		font-size: 14px !important;
 		color: var(--accent) !important;
+		width: var(--w-total) !important;
 	}
+	
+	/* col-actions maintains spacing */
+	#sales-table.totals-stacked tfoot .t-am-grand .col-actions { 
+		display: table-cell !important;
+		width: var(--w-actions) !important;
+	}
+	
 	/* Style the span inside col-total */
 	#sales-table.totals-stacked tfoot .t-am-grand .col-total span {
 		font-weight: 700 !important;
@@ -1256,20 +1258,13 @@ tfoot td { font-weight: 700; }
 	#sales-table tfoot .tfoot-amt-stack td { vertical-align: bottom; padding-top: 12px; padding-bottom: 0; }
 	#sales-table tfoot .tfoot-amt-stack .col-paid, 
 	#sales-table tfoot .tfoot-amt-stack .col-actions { display: none; }
-	/* Make col-client empty but visible to maintain structure */
-	#sales-table tfoot .t-am-grand .col-client { 
-		display: table-cell !important;
-		visibility: hidden !important;
-		width: auto !important;
-	}
-	
-	/* Keep all cells visible to maintain column alignment */
+	/* Hide col-paid and col-client to match other total rows */
 	#sales-table tfoot .t-am-grand .col-paid,
-	#sales-table tfoot .t-am-grand .col-actions { 
-		display: table-cell !important; 
+	#sales-table tfoot .t-am-grand .col-client { 
+		display: none !important;
 	}
 	
-	/* col-total stays in its normal position aligned with other totals */
+	/* col-total positioned like other totals rows */
 	#sales-table tfoot .t-am-grand .col-total { 
 		display: table-cell !important; 
 		text-align: right !important; 
@@ -1277,7 +1272,15 @@ tfoot td { font-weight: 700; }
 		font-weight: 700 !important; 
 		font-size: 14px !important;
 		color: var(--accent) !important;
+		width: var(--w-total) !important;
 	}
+	
+	/* col-actions maintains spacing */
+	#sales-table tfoot .t-am-grand .col-actions { 
+		display: table-cell !important;
+		width: var(--w-actions) !important;
+	}
+	
 	/* Style the span inside col-total */
 	#sales-table tfoot .t-am-grand .col-total span {
 		font-weight: 700 !important;
