@@ -3733,11 +3733,11 @@ button.secondary.press-btn:active {
 #sales-table tbody td.col-nute,
 #sales-table tbody td.col-dessert {
 	text-align: center !important;
-	padding-left: 1px !important;
-	padding-right: 1px !important;
+	padding-left: 0 !important;
+	padding-right: 0 !important;
 }
 
-/* Force center alignment and block display for input fields */
+/* Force center alignment for input fields - make them fill the cell */
 #sales-table tbody td.col-arco .input-qty,
 #sales-table tbody td.col-melo .input-qty,
 #sales-table tbody td.col-mara .input-qty,
@@ -3745,6 +3745,9 @@ button.secondary.press-btn:active {
 #sales-table tbody td.col-nute .input-qty,
 #sales-table tbody td.col-dessert .input-qty {
 	text-align: center !important;
-	margin: 0 auto !important;
-	display: block !important;
+	width: 100% !important;
+	box-sizing: border-box !important;
+	padding-left: 0 !important;
+	padding-right: 0 !important;
+	margin: 0 !important;
 }
