@@ -445,7 +445,7 @@ tfoot td { font-weight: 700; }
 	.w-client { width: 40%; }
 	.w-qty { width: 9%; }
 	.w-total { width: 16%; }
-	.w-actions { width: 1%; }
+	.w-actions { width: 3%; }
 
 	/* Smaller red x */
 	.row-delete { font-size: 9px; width: 12px; height: 12px; line-height: 12px; }
@@ -458,7 +458,7 @@ tfoot td { font-weight: 700; }
 	.w-client { width: 42%; }
 	.w-qty { width: 8.5%; }
 	.w-total { width: 16%; }
-	.w-actions { width: 1%; }
+	.w-actions { width: 3%; }
 }
 
 /* Table actions */
@@ -676,7 +676,7 @@ tfoot td { font-weight: 700; }
 /* Map CSS variables to colgroup widths for alignment */
 /* Widths including new Paid column */
 :root { --w-paid: 8%; --w-client: 45%; --w-qty: 5.5%; --w-total: 14%; --w-actions: 3%; --w-extra: 0%; }
-@media (max-width: 600px) { :root { --w-paid: 9%; --w-client: 50%; --w-qty: 5%; --w-total: 15%; --w-actions: 1%; --w-extra: 0%; } }
+@media (max-width: 600px) { :root { --w-paid: 9%; --w-client: 48%; --w-qty: 5%; --w-total: 15%; --w-actions: 3%; --w-extra: 0%; } }
 
 /* Hide native thead to prevent overlap */
 #sales-table thead { display: none; }
@@ -695,7 +695,7 @@ tfoot td { font-weight: 700; }
 
 /* Rebalance widths to include Paid without overflow */
 :root { --w-paid: 8%; --w-client: 45%; --w-qty: 5.5%; --w-total: 14%; --w-actions: 3%; --w-extra: 0%; }
-@media (max-width: 600px) { :root { --w-paid: 9%; --w-client: 50%; --w-qty: 5%; --w-total: 15%; --w-actions: 1%; --w-extra: 0%; } }
+@media (max-width: 600px) { :root { --w-paid: 9%; --w-client: 48%; --w-qty: 5%; --w-total: 15%; --w-actions: 3%; --w-extra: 0%; } }
 
 /* Revert Pago checkbox custom styles */
 .col-paid input[type="checkbox"] {
@@ -1247,7 +1247,7 @@ tfoot td { font-weight: 700; }
 	/* Hide col-total and move its content to col-client visually */
 	#sales-table tfoot tr.t-am-grand td.col-total { 
 		position: absolute !important;
-		right: 5% !important;
+		right: 2% !important;
 		text-align: right !important;
 		padding-right: 4px !important;
 		z-index: 10 !important;
