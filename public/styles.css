@@ -650,40 +650,32 @@ tfoot td { font-weight: 700; }
 	#sales-table.totals-stacked tfoot .tfoot-amt-stack .st-qty { text-align: center; min-width: 3ch; line-height: 1.4; }
 	#sales-table.totals-stacked tfoot .tfoot-amt-stack .st-amt { text-align: right; color: var(--accent); line-height: 1.4; }
 	
-	/* Fix grand total row - collapse col-client to prevent overflow */
-	#sales-table.totals-stacked tfoot .t-am-grand .col-paid { 
-		display: table-cell !important;
-		width: var(--w-paid) !important;
-	}
-	
-	/* Collapse col-client completely despite colspan */
-	#sales-table.totals-stacked tfoot .t-am-grand .col-client { 
-		display: table-cell !important;
-		width: 0 !important;
-		max-width: 0 !important;
-		padding: 0 !important;
-		margin: 0 !important;
-		overflow: hidden !important;
-		font-size: 0 !important;
-		line-height: 0 !important;
-	}
-	
-	/* col-total fills remaining space and aligns right */
-	#sales-table.totals-stacked tfoot .t-am-grand .col-total { 
-		display: table-cell !important; 
-		text-align: right !important; 
+	/* Fix grand total row - use flexbox to override table layout */
+	#sales-table.totals-stacked tfoot .t-am-grand { 
+		display: flex !important;
+		justify-content: flex-end !important;
+		align-items: center !important;
 		padding-right: 8px !important;
-		padding-left: 8px !important;
+		padding-top: 10px !important;
+		border-top: 1px solid var(--border) !important;
+		height: 40px !important;
+	}
+	
+	/* Hide all cells except col-total */
+	#sales-table.totals-stacked tfoot .t-am-grand .col-paid,
+	#sales-table.totals-stacked tfoot .t-am-grand .col-client,
+	#sales-table.totals-stacked tfoot .t-am-grand .col-actions { 
+		display: none !important;
+	}
+	
+	/* col-total as flex item aligned to right */
+	#sales-table.totals-stacked tfoot .t-am-grand .col-total { 
+		display: block !important; 
+		text-align: right !important; 
 		font-weight: 700 !important; 
 		font-size: 14px !important;
 		color: var(--accent) !important;
-		width: auto !important;
-	}
-	
-	/* Hide col-actions to give more space to col-total */
-	#sales-table.totals-stacked tfoot .t-am-grand .col-actions { 
-		display: table-cell !important;
-		width: var(--w-actions) !important;
+		padding-right: 0 !important;
 	}
 	
 	/* Style the span inside col-total */
@@ -1270,36 +1262,32 @@ tfoot td { font-weight: 700; }
 	#sales-table tfoot .tfoot-amt-stack td { vertical-align: bottom; padding-top: 12px; padding-bottom: 0; }
 	#sales-table tfoot .tfoot-amt-stack .col-paid, 
 	#sales-table tfoot .tfoot-amt-stack .col-actions { display: none; }
-	/* Keep all cells visible to maintain column alignment */
-	/* Keep col-paid visible */
-	#sales-table tfoot .t-am-grand .col-paid { 
-		display: table-cell !important;
-		width: var(--w-paid) !important;
+	/* Use flexbox to override table layout and ignore colspan */
+	#sales-table tfoot .t-am-grand { 
+		display: flex !important;
+		justify-content: flex-end !important;
+		align-items: center !important;
+		padding-right: 8px !important;
+		padding-top: 10px !important;
+		border-top: 1px solid var(--border) !important;
+		height: 40px !important;
 	}
 	
-	/* Hide only col-client content but keep cell structure */
-	#sales-table tfoot .t-am-grand .col-client { 
-		display: table-cell !important;
-		font-size: 0 !important;
-		line-height: 0 !important;
-		color: transparent !important;
+	/* Hide all cells except col-total */
+	#sales-table tfoot .t-am-grand .col-paid,
+	#sales-table tfoot .t-am-grand .col-client,
+	#sales-table tfoot .t-am-grand .col-actions { 
+		display: none !important;
 	}
 	
-	/* col-total positioned like other totals rows */
+	/* col-total as flex item aligned to right */
 	#sales-table tfoot .t-am-grand .col-total { 
-		display: table-cell !important; 
+		display: block !important; 
 		text-align: right !important; 
-		padding-right: 8px !important; 
 		font-weight: 700 !important; 
 		font-size: 14px !important;
 		color: var(--accent) !important;
-		width: var(--w-total) !important;
-	}
-	
-	/* col-actions maintains spacing */
-	#sales-table tfoot .t-am-grand .col-actions { 
-		display: table-cell !important;
-		width: var(--w-actions) !important;
+		padding-right: 0 !important;
 	}
 	
 	/* Style the span inside col-total */
