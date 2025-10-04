@@ -2,7 +2,7 @@ import { neon } from '@netlify/neon';
 
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
-const SCHEMA_VERSION = 4; // Bump when schema changes require a migration
+const SCHEMA_VERSION = 5; // Bump when schema changes require a migration (incremented for index creation)
 
 export async function ensureSchema() {
 	if (schemaEnsured) return;
@@ -521,6 +521,15 @@ END $$;`;
 		console.error('Error migrating sales to sale_items:', err);
 		// Continue anyway - migration will retry on next cold start
 	}
+	
+	// Create critical indexes for performance
+	await sql`CREATE INDEX IF NOT EXISTS idx_sales_seller_day ON sales(seller_id, sale_day_id)`;
+	await sql`CREATE INDEX IF NOT EXISTS idx_sales_created ON sales(created_at DESC)`;
+	await sql`CREATE INDEX IF NOT EXISTS idx_sale_days_seller_day ON sale_days(seller_id, day)`;
+	await sql`CREATE INDEX IF NOT EXISTS idx_sale_days_day ON sale_days(day)`;
+	await sql`CREATE INDEX IF NOT EXISTS idx_sale_items_sale ON sale_items(sale_id)`;
+	await sql`CREATE INDEX IF NOT EXISTS idx_sellers_name ON sellers(lower(name))`;
+	await sql`CREATE INDEX IF NOT EXISTS idx_user_view_permissions_lookup ON user_view_permissions(lower(viewer_username), seller_id)`;
 	
 	// 4) Persist target schema version so future requests short-circuit
 	await sql`UPDATE schema_meta SET version=${SCHEMA_VERSION}, updated_at=now()`;

@@ -245,7 +245,6 @@
 
 		function render(){
 			const rows = getFilteredSortedData();
-			tbody.innerHTML = '';
 			
 			// Initialize totals dynamically
 			const qtys = {};
@@ -254,25 +253,12 @@
 			}
 			let tGrand = 0;
 			
+			// Calculate totals first (fast)
 			for (const r of rows){
-				const row = document.createElement('tr');
-				let html = `
-					<td>${r.date}</td>
-					<td>${r.sellerName}</td>
-					<td>${r.is_paid ? '✓' : ''}</td>
-					<td>${payLabel(r.pay_method||'')}</td>
-					<td>${r.client_name||''}</td>`;
-				
-				// Add dessert quantities dynamically
 				for (const d of desserts) {
 					const qty = r[`q_${d.short_code}`] || 0;
-					html += `<td>${qty || ''}</td>`;
 					qtys[d.short_code] += qty;
 				}
-				
-				html += `<td class="col-total">${r.tot||''}</td>`;
-				row.innerHTML = html;
-				tbody.appendChild(row);
 				tGrand += r.tot||0;
 			}
 			
@@ -287,13 +273,59 @@
 			tGrandEl.textContent = tGrand || '';
 			tSumAllEl.textContent = totalQty || '';
 			countLabel.textContent = `Filas: ${rows.length}`;
+			
+			// Render rows in batches for better performance
+			tbody.innerHTML = '';
+			const fragment = document.createDocumentFragment();
+			const batchSize = 50;
+			let currentBatch = 0;
+			
+			function renderBatch() {
+				const start = currentBatch * batchSize;
+				const end = Math.min(start + batchSize, rows.length);
+				
+				for (let i = start; i < end; i++) {
+					const r = rows[i];
+					const row = document.createElement('tr');
+					let html = `
+						<td>${r.date}</td>
+						<td>${r.sellerName}</td>
+						<td>${r.is_paid ? '✓' : ''}</td>
+						<td>${payLabel(r.pay_method||'')}</td>
+						<td>${r.client_name||''}</td>`;
+					
+					// Add dessert quantities dynamically
+					for (const d of desserts) {
+						const qty = r[`q_${d.short_code}`] || 0;
+						html += `<td>${qty || ''}</td>`;
+					}
+					
+					html += `<td class="col-total">${r.tot||''}</td>`;
+					row.innerHTML = html;
+					fragment.appendChild(row);
+				}
+				
+				tbody.appendChild(fragment);
+				currentBatch++;
+				
+				// Schedule next batch
+				if (end < rows.length) {
+					requestAnimationFrame(renderBatch);
+				}
+			}
+			
+			// Start rendering
+			if (rows.length > 0) {
+				renderBatch();
+			}
 		}
 
 		async function load(){
 			if (!start || !end) return;
 			rangeLabel.textContent = `${formatDay(start)} — ${formatDay(end)}`;
-			countLabel.textContent = 'Cargando…';
+			countLabel.textContent = '⏳ Cargando...';
 			dataset = [];
+			tbody.innerHTML = '<tr><td colspan="20" style="text-align:center;padding:40px;opacity:0.6;">⏳ Cargando ventas...</td></tr>';
 			
 			// Load desserts first
 			try {
@@ -319,14 +351,23 @@
 			sellersList = sellersData;
 			populateFilters();
 			
-			// Process sales data
+			// Process sales data - optimized for speed
 			countLabel.textContent = `Procesando ${salesData.length} ventas…`;
-			for (const r of salesData) {
+			
+			// Pre-create lookup map for desserts
+			const dessertMap = {};
+			for (const d of desserts) {
+				dessertMap[d.id] = d.short_code;
+				dessertMap[d.short_code] = d.short_code;
+			}
+			
+			// Process all sales in one pass
+			dataset = salesData.map(r => {
 				const row = {
 					date: String(r.sale_day || '').slice(0,10),
 					sellerName: r.seller_name || '',
 					is_paid: !!r.is_paid,
-					pay_method: (r.pay_method || '') || '',
+					pay_method: r.pay_method || '',
 					client_name: r.client_name || '',
 					tot: r.total_cents || 0
 				};
@@ -335,8 +376,8 @@
 				for (const d of desserts) {
 					let qty = 0;
 					if (Array.isArray(r.items) && r.items.length > 0) {
-						// New format: use items
-						const item = r.items.find(i => i.dessert_id === d.id || i.short_code === d.short_code);
+						// New format: use items (optimized lookup)
+						const item = r.items.find(i => i.short_code === d.short_code);
 						qty = item ? (item.quantity || 0) : 0;
 					} else {
 						// Old format: use qty_* columns
@@ -345,8 +386,8 @@
 					row[`q_${d.short_code}`] = qty;
 				}
 				
-				dataset.push(row);
-			}
+				return row;
+			});
 			
 			render();
 		}

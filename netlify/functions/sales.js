@@ -43,40 +43,35 @@ export async function handler(event) {
 						// Build the query based on permissions
 						let rows;
 						if (role === 'admin' || role === 'superadmin') {
-							// Admin can see all sales
+							// Admin can see all sales - optimized query with minimal data
 							rows = await sql`
 								SELECT s.id, s.seller_id, s.sale_day_id, s.client_name, s.qty_arco, s.qty_melo, 
-								       s.qty_mara, s.qty_oreo, s.qty_nute, s.is_paid, s.pay_method, s.comment_text, 
-								       s.total_cents, s.created_at,
+								       s.qty_mara, s.qty_oreo, s.qty_nute, s.is_paid, s.pay_method, 
+								       s.total_cents,
 								       sd.day AS sale_day,
 								       se.name AS seller_name
 								FROM sales s
-								JOIN sale_days sd ON sd.id = s.sale_day_id
-								JOIN sellers se ON se.id = s.seller_id
-								WHERE sd.day BETWEEN ${start} AND ${end}
-								ORDER BY sd.day ASC, se.name ASC, s.created_at DESC
+								INNER JOIN sale_days sd ON sd.id = s.sale_day_id
+								INNER JOIN sellers se ON se.id = s.seller_id
+								WHERE sd.day >= ${start} AND sd.day <= ${end}
+								ORDER BY sd.day ASC, se.name ASC
 							`;
 						} else {
 							// Non-admin can only see their own sales or sales they have permission to view
 							rows = await sql`
 								SELECT s.id, s.seller_id, s.sale_day_id, s.client_name, s.qty_arco, s.qty_melo, 
-								       s.qty_mara, s.qty_oreo, s.qty_nute, s.is_paid, s.pay_method, s.comment_text, 
-								       s.total_cents, s.created_at,
+								       s.qty_mara, s.qty_oreo, s.qty_nute, s.is_paid, s.pay_method, 
+								       s.total_cents,
 								       sd.day AS sale_day,
 								       se.name AS seller_name
 								FROM sales s
-								JOIN sale_days sd ON sd.id = s.sale_day_id
-								JOIN sellers se ON se.id = s.seller_id
-								WHERE sd.day BETWEEN ${start} AND ${end}
-								  AND (
-								    lower(se.name) = lower(${actorName})
-								    OR EXISTS (
-								      SELECT 1 FROM user_view_permissions uvp 
-								      WHERE uvp.seller_id = s.seller_id 
-								        AND lower(uvp.viewer_username) = lower(${actorName})
-								    )
-								  )
-								ORDER BY sd.day ASC, se.name ASC, s.created_at DESC
+								INNER JOIN sale_days sd ON sd.id = s.sale_day_id
+								INNER JOIN sellers se ON se.id = s.seller_id
+								LEFT JOIN user_view_permissions uvp ON uvp.seller_id = s.seller_id 
+								  AND lower(uvp.viewer_username) = lower(${actorName})
+								WHERE sd.day >= ${start} AND sd.day <= ${end}
+								  AND (lower(se.name) = lower(${actorName}) OR uvp.id IS NOT NULL)
+								ORDER BY sd.day ASC, se.name ASC
 							`;
 						}
 						
@@ -84,21 +79,24 @@ export async function handler(event) {
 						if (rows.length > 0) {
 							const saleIds = rows.map(r => r.id);
 							const allItems = await sql`
-								SELECT si.sale_id, si.id, si.dessert_id, si.quantity, si.unit_price, 
-								       d.name, d.short_code
+								SELECT si.sale_id, si.dessert_id, si.quantity, d.short_code
 								FROM sale_items si
-								JOIN desserts d ON d.id = si.dessert_id
+								INNER JOIN desserts d ON d.id = si.dessert_id
 								WHERE si.sale_id = ANY(${saleIds})
-								ORDER BY si.sale_id, d.position ASC, d.id ASC
+								ORDER BY si.sale_id, d.position ASC
 							`;
 							
-							// Group items by sale_id
+							// Group items by sale_id (more efficient)
 							const itemsBySaleId = {};
 							for (const item of allItems) {
 								if (!itemsBySaleId[item.sale_id]) {
 									itemsBySaleId[item.sale_id] = [];
 								}
-								itemsBySaleId[item.sale_id].push(item);
+								itemsBySaleId[item.sale_id].push({
+									dessert_id: item.dessert_id,
+									quantity: item.quantity,
+									short_code: item.short_code
+								});
 							}
 							
 							// Attach items to each row
