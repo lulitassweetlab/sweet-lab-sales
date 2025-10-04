@@ -649,6 +649,46 @@ tfoot td { font-weight: 700; }
 	#sales-table.totals-stacked tfoot .tfoot-amt-stack .st-name { font-weight: 400; line-height: 1.4; }
 	#sales-table.totals-stacked tfoot .tfoot-amt-stack .st-qty { text-align: center; min-width: 3ch; line-height: 1.4; }
 	#sales-table.totals-stacked tfoot .tfoot-amt-stack .st-amt { text-align: right; color: var(--accent); line-height: 1.4; }
+	
+	/* Fix grand total row - use block layout with absolute positioning */
+	#sales-table.totals-stacked tfoot .t-am-grand { 
+		display: block !important;
+		position: relative !important;
+		padding-top: 10px !important;
+		padding-bottom: 10px !important;
+		border-top: 1px solid var(--border) !important;
+		height: 40px !important;
+	}
+	
+	/* Hide all cells except col-total */
+	#sales-table.totals-stacked tfoot .t-am-grand .col-paid,
+	#sales-table.totals-stacked tfoot .t-am-grand .col-client,
+	#sales-table.totals-stacked tfoot .t-am-grand .col-actions { 
+		display: none !important;
+	}
+	
+	/* col-total positioned absolutely to the right, more visible */
+	#sales-table.totals-stacked tfoot .t-am-grand .col-total { 
+		display: block !important; 
+		position: absolute !important;
+		right: 5% !important;
+		top: 50% !important;
+		transform: translateY(-50%) !important;
+		text-align: right !important; 
+		font-weight: 700 !important; 
+		font-size: 14px !important;
+		color: var(--accent) !important;
+		white-space: nowrap !important;
+		z-index: 10 !important;
+	}
+	
+	/* Style the span inside col-total */
+	#sales-table.totals-stacked tfoot .t-am-grand .col-total span {
+		display: inline-block !important;
+		font-weight: 700 !important;
+		font-size: 14px !important;
+		color: var(--accent) !important;
+	}
 }
 
 /* Revert header to non-sticky but visible and aligned across devices */
@@ -686,16 +726,28 @@ tfoot td { font-weight: 700; }
 #sales-table caption { caption-side: top; text-align: center; padding-bottom: 16px; }
 #sales-table caption strong { font-size: calc(1em + 2px); font-weight: 700; color: var(--hover-primary-pink-intense); }
 #sales-table col.w-paid { width: var(--w-paid); }
-#sales-table col.w-client { width: max(25ch, var(--w-client)); }
+#sales-table col.w-client { width: var(--w-client); }
 #sales-table col.w-qty { width: var(--w-qty); }
 #sales-table col.w-total { width: var(--w-total); }
 #sales-table col.w-actions { width: var(--w-actions); }
+
+/* Mobile: use min-width on client column instead of max() */
+@media (max-width: 600px) {
+	#sales-table col.w-client { min-width: 0; }
+}
 #sales-table th, #sales-table td { box-sizing: border-box; padding-left: 1px; padding-right: 1px; }
 #sales-table thead { display: none; }
 
 /* Rebalance widths to include Paid without overflow */
 :root { --w-paid: 8%; --w-client: 45%; --w-qty: 5.5%; --w-total: 14%; --w-actions: 3%; --w-extra: 0%; }
-@media (max-width: 600px) { :root { --w-paid: 10%; --w-client: 50%; --w-qty: 5%; --w-total: 13%; --w-actions: 4%; --w-extra: 0%; } }
+@media (max-width: 600px) { :root { --w-paid: 10%; --w-client: 48%; --w-qty: 5.5%; --w-total: 14%; --w-actions: 30px; --w-extra: 0%; } }
+
+/* Ensure quantity columns are centered */
+.col-qty, th.col-qty, td.col-qty { text-align: center !important; }
+#sales-table tbody td.col-qty { text-align: center !important; }
+/* Center all tbody cells except client column */
+#sales-table tbody td:not(.col-client) { text-align: center !important; }
+#sales-table .input-qty { text-align: center !important; margin: 0 auto !important; display: block !important; }
 
 /* Revert Pago checkbox custom styles */
 .col-paid input[type="checkbox"] {
@@ -1222,9 +1274,45 @@ tfoot td { font-weight: 700; }
 	#sales-table tfoot .tfoot-amt-stack td { vertical-align: bottom; padding-top: 12px; padding-bottom: 0; }
 	#sales-table tfoot .tfoot-amt-stack .col-paid, 
 	#sales-table tfoot .tfoot-amt-stack .col-actions { display: none; }
-	/* But keep side cells visible for grand total row so it sits in Total column */
+	/* Use block layout with absolute positioning for grand total */
+	#sales-table tfoot .t-am-grand { 
+		display: block !important;
+		position: relative !important;
+		padding-top: 10px !important;
+		padding-bottom: 10px !important;
+		border-top: 1px solid var(--border) !important;
+		height: 40px !important;
+	}
+	
+	/* Hide all cells except col-total */
 	#sales-table tfoot .t-am-grand .col-paid,
-	#sales-table tfoot .t-am-grand .col-actions { display: table-cell !important; }
+	#sales-table tfoot .t-am-grand .col-client,
+	#sales-table tfoot .t-am-grand .col-actions { 
+		display: none !important;
+	}
+	
+	/* col-total positioned absolutely to the right, more visible */
+	#sales-table tfoot .t-am-grand .col-total { 
+		display: block !important; 
+		position: absolute !important;
+		right: 5% !important;
+		top: 50% !important;
+		transform: translateY(-50%) !important;
+		text-align: right !important; 
+		font-weight: 700 !important; 
+		font-size: 14px !important;
+		color: var(--accent) !important;
+		white-space: nowrap !important;
+		z-index: 10 !important;
+	}
+	
+	/* Style the span inside col-total */
+	#sales-table tfoot .t-am-grand .col-total span {
+		display: inline-block !important;
+		font-weight: 700 !important;
+		font-size: 14px !important;
+		color: var(--accent) !important;
+	}
 
 	#sales-table tfoot .tfoot-amt-stack .col-client { text-align: left; color: var(--muted); padding-right: 14px; display: grid; grid-template-columns: 1fr auto auto; align-items: end; align-content: end; gap: 8px; padding-bottom: 0; }
 	#sales-table tfoot .tfoot-amt-stack .col-client > * { align-self: end; line-height: 1; }
@@ -1235,8 +1323,6 @@ tfoot td { font-weight: 700; }
 	#sales-table tfoot .tfoot-amt-stack .st-grand { font-weight: 700; }
 	/* Preserve explicit spaces in spans if any */
 	#sales-table tfoot .tfoot-amt-stack .col-client span { white-space: pre; }
-	/* Grand total number all the way to the right */
-	#sales-table tfoot .t-am-grand .col-client { display: table-cell; text-align: right; padding-right: 14px; font-weight: 700; }
 }
 
 @media (min-width: 601px) {
