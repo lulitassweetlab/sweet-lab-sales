@@ -1003,8 +1003,25 @@ tfoot td { font-weight: 700; }
 [data-theme="dark"] .new-sale-right { background: rgba(24,24,24,0.66); }
 .new-sale-label-text { font-weight: 500; opacity: 0.9; }
 @media (max-width: 640px) {
-  .new-sale-popover { min-width: 0; width: 92vw; left: 50% !important; transform: translateX(-50%) !important; top: 16px !important; }
-  .new-sale-grid { grid-template-columns: 1fr 1fr; }
+  .new-sale-popover { 
+    min-width: 0; 
+    width: 88vw; 
+    max-width: 400px;
+    max-height: 85vh;
+    overflow-y: auto;
+    left: 50% !important; 
+    transform: translateX(-50%) !important; 
+    top: 8vh !important; 
+    padding: 12px;
+  }
+  .new-sale-popover h4 { font-size: 18px; margin: 0 0 8px 0; }
+  .new-sale-grid { 
+    grid-template-columns: 1fr 1fr; 
+    gap: 5px 8px;
+  }
+  .new-sale-cell {
+    padding: 5px 6px;
+  }
 }
 
 /* Inline client suggestions under input (popover aligned to caret/left edge) */
