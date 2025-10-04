@@ -2381,7 +2381,8 @@ async function exportCarteraExcel(startIso, endIso) {
 		if (!isSuper && !feats.has('reports.sales')) { notify.error('Sin permiso de reporte de ventas'); return; }
 		openRangeCalendarPopover((range) => {
 			if (!range || !range.start || !range.end) return;
-			const url = `/sales-report.html?start=${encodeURIComponent(range.start)}&end=${encodeURIComponent(range.end)}`;
+			const actor = state.currentUser?.name || state.currentUser?.username || '';
+			const url = `/sales-report.html?start=${encodeURIComponent(range.start)}&end=${encodeURIComponent(range.end)}${actor ? `&actor=${encodeURIComponent(actor)}` : ''}`;
 			window.location.href = url;
 		}, ev.clientX, ev.clientY, { preferUp: true });
 	});
