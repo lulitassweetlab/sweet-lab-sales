@@ -663,6 +663,13 @@ tfoot td { font-weight: 700; }
 		font-size: 14px !important;
 		color: var(--accent) !important;
 	}
+	/* Make sure the span inside is visible and styled */
+	#sales-table.totals-stacked tfoot .t-am-grand .col-total span {
+		display: inline !important;
+		font-weight: 700 !important;
+		font-size: 14px !important;
+		color: var(--accent) !important;
+	}
 }
 
 /* Revert header to non-sticky but visible and aligned across devices */
@@ -1253,6 +1260,13 @@ tfoot td { font-weight: 700; }
 		padding-right: 8px !important; 
 		padding-left: 8px !important; 
 		font-weight: 700 !important; 
+		font-size: 14px !important;
+		color: var(--accent) !important;
+	}
+	/* Make sure the span inside is visible and styled */
+	#sales-table tfoot .t-am-grand .col-total span {
+		display: inline !important;
+		font-weight: 700 !important;
 		font-size: 14px !important;
 		color: var(--accent) !important;
 	}
