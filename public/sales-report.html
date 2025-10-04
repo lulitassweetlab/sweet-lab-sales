@@ -28,18 +28,18 @@
 			left: 0;
 			right: 0;
 			bottom: 0;
-			background: rgba(255, 255, 255, 0.95);
-			z-index: 9999;
-			display: flex;
+			background: rgba(244, 166, 183, 0.98); /* Rosa más visible para debug */
+			z-index: 99999; /* Aumentado */
+			display: flex !important; /* Forzar display */
 			align-items: center;
 			justify-content: center;
-			backdrop-filter: blur(3px);
+			backdrop-filter: blur(5px);
 			opacity: 0;
 			pointer-events: none;
 			transition: opacity 0.2s ease;
 		}
 		.loading-overlay.active { 
-			opacity: 1; 
+			opacity: 1 !important;
 			pointer-events: auto;
 		}
 		.loading-content {
@@ -291,9 +291,11 @@
 		const progressBar = document.getElementById('progress-bar');
 		
 		function showLoading(message = 'Cargando ventas...') {
+			console.log('📊 showLoading called with message:', message);
 			loadingText.textContent = message;
 			loadingOverlay.classList.add('active');
 			progressBar.style.width = '0%';
+			console.log('Overlay classList:', loadingOverlay.className);
 			
 			// Simulate realistic progress
 			let progress = 0;
@@ -583,8 +585,12 @@
 			if (isLoading) return;
 			isLoading = true;
 			
+			// DEBUG: Verificar que se ejecuta
+			console.log('🚀 Loading started - overlay should appear now');
+			
 			// Show loading overlay
 			const hideLoading = showLoading('Cargando ventas...');
+			console.log('✅ Overlay shown');
 			
 			try {
 				rangeLabel.textContent = `${formatDay(start)} — ${formatDay(end)}`;
