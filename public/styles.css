@@ -1236,40 +1236,28 @@ tfoot td { font-weight: 700; }
 	/* Preserve explicit spaces in spans if any */
 	#sales-table tfoot .tfoot-amt-stack .col-client span { white-space: pre; }
 	
-	/* Grand total row: reduce colspan and show in proper column */
+	/* Grand total row: use col-client with colspan, position content to right */
 	#sales-table tfoot tr.t-am-grand td.col-client { 
-		display: none !important; 
-	}
-	
-	/* Show col-paid to take space */
-	#sales-table tfoot tr.t-am-grand td.col-paid {
 		display: table-cell !important;
-	}
-	
-	/* Show all dessert columns so total appears in correct position */
-	#sales-table tfoot tr.t-am-grand td.col-dessert,
-	#sales-table tfoot tr.t-am-grand td.col-arco,
-	#sales-table tfoot tr.t-am-grand td.col-melo,
-	#sales-table tfoot tr.t-am-grand td.col-mara,
-	#sales-table tfoot tr.t-am-grand td.col-oreo,
-	#sales-table tfoot tr.t-am-grand td.col-nute {
-		display: table-cell !important;
-		padding: 8px 1px !important;
-	}
-	
-	/* Force right alignment for grand total */
-	#sales-table tfoot tr.t-am-grand td.col-total { 
-		display: table-cell !important;
-		text-align: right !important; 
-		padding-right: 4px !important;
+		text-align: right !important;
+		padding-right: 2px !important;
 		vertical-align: middle !important;
-		font-weight: 700 !important;
+	}
+	
+	/* Hide col-total and move its content to col-client visually */
+	#sales-table tfoot tr.t-am-grand td.col-total { 
+		position: absolute !important;
+		right: 5% !important;
+		text-align: right !important;
+		padding-right: 4px !important;
+		z-index: 10 !important;
 	}
 	
 	#sales-table tfoot tr.t-am-grand td.col-total span {
 		color: var(--accent) !important;
 		font-size: 14px !important;
 		font-weight: 700 !important;
+		display: inline-block !important;
 	}
 }
 
