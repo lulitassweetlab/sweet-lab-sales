@@ -650,28 +650,27 @@ tfoot td { font-weight: 700; }
 	#sales-table.totals-stacked tfoot .tfoot-amt-stack .st-qty { text-align: center; min-width: 3ch; line-height: 1.4; }
 	#sales-table.totals-stacked tfoot .tfoot-amt-stack .st-amt { text-align: right; color: var(--accent); line-height: 1.4; }
 	
-	/* Fix grand total row - hide side cells and make col-total visible and right-aligned */
+	/* Fix grand total row - hide everything except col-total */
 	#sales-table.totals-stacked tfoot .t-am-grand .col-paid,
-	#sales-table.totals-stacked tfoot .t-am-grand .col-actions { display: none !important; }
+	#sales-table.totals-stacked tfoot .t-am-grand .col-actions,
 	#sales-table.totals-stacked tfoot .t-am-grand .col-client { display: none !important; }
+	
+	/* Make col-total full width and right-aligned */
 	#sales-table.totals-stacked tfoot .t-am-grand .col-total { 
-		display: block !important; 
-		width: 100% !important; 
+		display: table-cell !important; 
+		width: 100% !important;
 		text-align: right !important; 
 		padding-right: 12px !important; 
-		padding-left: 8px !important;
+		padding-left: 12px !important;
 		font-weight: 700 !important; 
 		font-size: 14px !important;
 		color: var(--accent) !important;
-		box-sizing: border-box !important;
 	}
-	/* Make sure the span inside is visible and styled */
+	/* Style the span inside col-total */
 	#sales-table.totals-stacked tfoot .t-am-grand .col-total span {
-		display: inline-block !important;
 		font-weight: 700 !important;
 		font-size: 14px !important;
 		color: var(--accent) !important;
-		text-align: right !important;
 	}
 }
 
@@ -1251,29 +1250,27 @@ tfoot td { font-weight: 700; }
 	#sales-table tfoot .tfoot-amt-stack td { vertical-align: bottom; padding-top: 12px; padding-bottom: 0; }
 	#sales-table tfoot .tfoot-amt-stack .col-paid, 
 	#sales-table tfoot .tfoot-amt-stack .col-actions { display: none; }
-	/* Hide side cells in grand total row and make col-total full width */
+	/* Hide all cells except col-total in grand total row */
 	#sales-table tfoot .t-am-grand .col-paid,
-	#sales-table tfoot .t-am-grand .col-actions { display: none !important; }
+	#sales-table tfoot .t-am-grand .col-actions,
 	#sales-table tfoot .t-am-grand .col-client { display: none !important; }
-	/* Make col-total span full width to show the total */
+	
+	/* Make col-total full width and right-aligned */
 	#sales-table tfoot .t-am-grand .col-total { 
-		display: block !important; 
-		width: 100% !important; 
+		display: table-cell !important; 
+		width: 100% !important;
 		text-align: right !important; 
 		padding-right: 12px !important; 
-		padding-left: 8px !important; 
+		padding-left: 12px !important; 
 		font-weight: 700 !important; 
 		font-size: 14px !important;
 		color: var(--accent) !important;
-		box-sizing: border-box !important;
 	}
-	/* Make sure the span inside is visible and styled */
+	/* Style the span inside col-total */
 	#sales-table tfoot .t-am-grand .col-total span {
-		display: inline-block !important;
 		font-weight: 700 !important;
 		font-size: 14px !important;
 		color: var(--accent) !important;
-		text-align: right !important;
 	}
 
 	#sales-table tfoot .tfoot-amt-stack .col-client { text-align: left; color: var(--muted); padding-right: 14px; display: grid; grid-template-columns: 1fr auto auto; align-items: end; align-content: end; gap: 8px; padding-bottom: 0; }
