@@ -650,13 +650,12 @@ tfoot td { font-weight: 700; }
 	#sales-table.totals-stacked tfoot .tfoot-amt-stack .st-qty { text-align: center; min-width: 3ch; line-height: 1.4; }
 	#sales-table.totals-stacked tfoot .tfoot-amt-stack .st-amt { text-align: right; color: var(--accent); line-height: 1.4; }
 	
-	/* Fix grand total row - use flexbox to override table layout */
+	/* Fix grand total row - use block layout with absolute positioning */
 	#sales-table.totals-stacked tfoot .t-am-grand { 
-		display: flex !important;
-		justify-content: flex-end !important;
-		align-items: center !important;
-		padding-right: 8px !important;
+		display: block !important;
+		position: relative !important;
 		padding-top: 10px !important;
+		padding-bottom: 10px !important;
 		border-top: 1px solid var(--border) !important;
 		height: 40px !important;
 	}
@@ -668,14 +667,17 @@ tfoot td { font-weight: 700; }
 		display: none !important;
 	}
 	
-	/* col-total as flex item aligned to right */
+	/* col-total positioned absolutely to the right */
 	#sales-table.totals-stacked tfoot .t-am-grand .col-total { 
 		display: block !important; 
+		position: absolute !important;
+		right: 38px !important;
+		top: 50% !important;
+		transform: translateY(-50%) !important;
 		text-align: right !important; 
 		font-weight: 700 !important; 
 		font-size: 14px !important;
 		color: var(--accent) !important;
-		padding-right: 0 !important;
 	}
 	
 	/* Style the span inside col-total */
@@ -735,7 +737,11 @@ tfoot td { font-weight: 700; }
 
 /* Rebalance widths to include Paid without overflow */
 :root { --w-paid: 8%; --w-client: 45%; --w-qty: 5.5%; --w-total: 14%; --w-actions: 3%; --w-extra: 0%; }
-@media (max-width: 600px) { :root { --w-paid: 10%; --w-client: 50%; --w-qty: 5%; --w-total: 13%; --w-actions: 30px; --w-extra: 0%; } }
+@media (max-width: 600px) { :root { --w-paid: 10%; --w-client: 48%; --w-qty: 5.5%; --w-total: 14%; --w-actions: 30px; --w-extra: 0%; } }
+
+/* Ensure quantity columns are centered */
+.col-qty, th.col-qty, td.col-qty { text-align: center !important; }
+#sales-table tbody td.col-qty { text-align: center !important; }
 
 /* Revert Pago checkbox custom styles */
 .col-paid input[type="checkbox"] {
@@ -1262,13 +1268,12 @@ tfoot td { font-weight: 700; }
 	#sales-table tfoot .tfoot-amt-stack td { vertical-align: bottom; padding-top: 12px; padding-bottom: 0; }
 	#sales-table tfoot .tfoot-amt-stack .col-paid, 
 	#sales-table tfoot .tfoot-amt-stack .col-actions { display: none; }
-	/* Use flexbox to override table layout and ignore colspan */
+	/* Use block layout with absolute positioning for grand total */
 	#sales-table tfoot .t-am-grand { 
-		display: flex !important;
-		justify-content: flex-end !important;
-		align-items: center !important;
-		padding-right: 8px !important;
+		display: block !important;
+		position: relative !important;
 		padding-top: 10px !important;
+		padding-bottom: 10px !important;
 		border-top: 1px solid var(--border) !important;
 		height: 40px !important;
 	}
@@ -1280,14 +1285,17 @@ tfoot td { font-weight: 700; }
 		display: none !important;
 	}
 	
-	/* col-total as flex item aligned to right */
+	/* col-total positioned absolutely to the right */
 	#sales-table tfoot .t-am-grand .col-total { 
 		display: block !important; 
+		position: absolute !important;
+		right: 38px !important;
+		top: 50% !important;
+		transform: translateY(-50%) !important;
 		text-align: right !important; 
 		font-weight: 700 !important; 
 		font-size: 14px !important;
 		color: var(--accent) !important;
-		padding-right: 0 !important;
 	}
 	
 	/* Style the span inside col-total */
