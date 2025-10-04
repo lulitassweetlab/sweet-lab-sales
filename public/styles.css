@@ -411,7 +411,7 @@ th, td { border-bottom: 1px solid var(--border); padding: 6px 6px; text-align: c
 	.w-client { width: 22%; }
 	.w-qty { width: 13%; }
 	.w-total { width: 20%; }
-	.w-actions { width: 1%; }
+	.w-actions { width: 3%; }
 
 	/* Inputs tiny */
 	.client-input { font-size: 8px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
@@ -511,7 +511,7 @@ th, td { border-bottom: 1px solid var(--border); padding: 6px 6px; text-align: c
 	.w-client { width: 22%; }
 	.w-qty { width: 13%; }
 	.w-total { width: 20%; }
-	.w-actions { width: 1%; }
+	.w-actions { width: 3%; }
 
 	/* Inputs tiny */
 	.client-input { font-size: 13px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
@@ -544,7 +544,7 @@ tfoot td { font-weight: 700; }
 	.w-client { width: 28%; }
 	.w-qty { width: 12%; }
 	.w-total { width: 18%; }
-	.w-actions { width: 1%; }
+	.w-actions { width: 3%; }
 
 	/* Smaller red x */
 	.row-delete { font-size: 9px; width: 12px; height: 12px; line-height: 12px; }
@@ -557,7 +557,7 @@ tfoot td { font-weight: 700; }
 	.w-client { width: 32%; }
 	.w-qty { width: 11%; }
 	.w-total { width: 19%; }
-	.w-actions { width: 1%; }
+	.w-actions { width: 3%; }
 }
 
 /* Final tweaks per user request */
@@ -581,7 +581,7 @@ tfoot td { font-weight: 700; }
 	.w-client { width: 36%; }
 	.w-qty { width: 10%; }
 	.w-total { width: 16%; }
-	.w-actions { width: 1%; }
+	.w-actions { width: 3%; }
 
 	/* Footer row slightly taller on phones too */
 	#sales-table tfoot tr { height: 34px; }
