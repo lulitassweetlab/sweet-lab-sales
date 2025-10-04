@@ -650,11 +650,19 @@ tfoot td { font-weight: 700; }
 	#sales-table.totals-stacked tfoot .tfoot-amt-stack .st-qty { text-align: center; min-width: 3ch; line-height: 1.4; }
 	#sales-table.totals-stacked tfoot .tfoot-amt-stack .st-amt { text-align: right; color: var(--accent); line-height: 1.4; }
 	
-	/* Fix grand total row - convert to normal row structure */
-	/* Hide col-paid and col-client */
-	#sales-table.totals-stacked tfoot .t-am-grand .col-paid,
+	/* Fix grand total row - keep all cells visible but hide col-client content */
+	/* Keep col-paid visible */
+	#sales-table.totals-stacked tfoot .t-am-grand .col-paid { 
+		display: table-cell !important;
+		width: var(--w-paid) !important;
+	}
+	
+	/* Hide only col-client content but keep cell structure */
 	#sales-table.totals-stacked tfoot .t-am-grand .col-client { 
-		display: none !important;
+		display: table-cell !important;
+		font-size: 0 !important;
+		line-height: 0 !important;
+		color: transparent !important;
 	}
 	
 	/* col-total positioned like other totals rows */
@@ -1258,10 +1266,19 @@ tfoot td { font-weight: 700; }
 	#sales-table tfoot .tfoot-amt-stack td { vertical-align: bottom; padding-top: 12px; padding-bottom: 0; }
 	#sales-table tfoot .tfoot-amt-stack .col-paid, 
 	#sales-table tfoot .tfoot-amt-stack .col-actions { display: none; }
-	/* Hide col-paid and col-client to match other total rows */
-	#sales-table tfoot .t-am-grand .col-paid,
+	/* Keep all cells visible to maintain column alignment */
+	/* Keep col-paid visible */
+	#sales-table tfoot .t-am-grand .col-paid { 
+		display: table-cell !important;
+		width: var(--w-paid) !important;
+	}
+	
+	/* Hide only col-client content but keep cell structure */
 	#sales-table tfoot .t-am-grand .col-client { 
-		display: none !important;
+		display: table-cell !important;
+		font-size: 0 !important;
+		line-height: 0 !important;
+		color: transparent !important;
 	}
 	
 	/* col-total positioned like other totals rows */
