@@ -411,7 +411,7 @@ th, td { border-bottom: 1px solid var(--border); padding: 6px 6px; text-align: c
 	.w-client { width: 22%; }
 	.w-qty { width: 13%; }
 	.w-total { width: 20%; }
-	.w-actions { width: 6%; }
+	.w-actions { width: 3%; }
 
 	/* Inputs tiny */
 	.client-input { font-size: 8px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
@@ -445,7 +445,7 @@ tfoot td { font-weight: 700; }
 	.w-client { width: 40%; }
 	.w-qty { width: 9%; }
 	.w-total { width: 16%; }
-	.w-actions { width: 6%; }
+	.w-actions { width: 3%; }
 
 	/* Smaller red x */
 	.row-delete { font-size: 9px; width: 12px; height: 12px; line-height: 12px; }
@@ -458,7 +458,7 @@ tfoot td { font-weight: 700; }
 	.w-client { width: 42%; }
 	.w-qty { width: 8.5%; }
 	.w-total { width: 16%; }
-	.w-actions { width: 5%; }
+	.w-actions { width: 3%; }
 }
 
 /* Table actions */
@@ -511,7 +511,7 @@ th, td { border-bottom: 1px solid var(--border); padding: 6px 6px; text-align: c
 	.w-client { width: 22%; }
 	.w-qty { width: 13%; }
 	.w-total { width: 20%; }
-	.w-actions { width: 6%; }
+	.w-actions { width: 3%; }
 
 	/* Inputs tiny */
 	.client-input { font-size: 13px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
@@ -544,7 +544,7 @@ tfoot td { font-weight: 700; }
 	.w-client { width: 28%; }
 	.w-qty { width: 12%; }
 	.w-total { width: 18%; }
-	.w-actions { width: 6%; }
+	.w-actions { width: 3%; }
 
 	/* Smaller red x */
 	.row-delete { font-size: 9px; width: 12px; height: 12px; line-height: 12px; }
@@ -557,7 +557,7 @@ tfoot td { font-weight: 700; }
 	.w-client { width: 32%; }
 	.w-qty { width: 11%; }
 	.w-total { width: 19%; }
-	.w-actions { width: 5%; }
+	.w-actions { width: 3%; }
 }
 
 /* Final tweaks per user request */
@@ -581,7 +581,7 @@ tfoot td { font-weight: 700; }
 	.w-client { width: 36%; }
 	.w-qty { width: 10%; }
 	.w-total { width: 16%; }
-	.w-actions { width: 4%; }
+	.w-actions { width: 3%; }
 
 	/* Footer row slightly taller on phones too */
 	#sales-table tfoot tr { height: 34px; }
@@ -676,7 +676,7 @@ tfoot td { font-weight: 700; }
 /* Map CSS variables to colgroup widths for alignment */
 /* Widths including new Paid column */
 :root { --w-paid: 8%; --w-client: 45%; --w-qty: 5.5%; --w-total: 14%; --w-actions: 3%; --w-extra: 0%; }
-@media (max-width: 600px) { :root { --w-paid: 10%; --w-client: 50%; --w-qty: 5%; --w-total: 13%; --w-actions: 4%; --w-extra: 0%; } }
+@media (max-width: 600px) { :root { --w-paid: 9%; --w-client: 48%; --w-qty: 5%; --w-total: 15%; --w-actions: 3%; --w-extra: 0%; } }
 
 /* Hide native thead to prevent overlap */
 #sales-table thead { display: none; }
@@ -686,7 +686,7 @@ tfoot td { font-weight: 700; }
 #sales-table caption { caption-side: top; text-align: center; padding-bottom: 16px; }
 #sales-table caption strong { font-size: calc(1em + 2px); font-weight: 700; color: var(--hover-primary-pink-intense); }
 #sales-table col.w-paid { width: var(--w-paid); }
-#sales-table col.w-client { width: max(25ch, var(--w-client)); }
+#sales-table col.w-client { width: var(--w-client); }
 #sales-table col.w-qty { width: var(--w-qty); }
 #sales-table col.w-total { width: var(--w-total); }
 #sales-table col.w-actions { width: var(--w-actions); }
@@ -695,7 +695,7 @@ tfoot td { font-weight: 700; }
 
 /* Rebalance widths to include Paid without overflow */
 :root { --w-paid: 8%; --w-client: 45%; --w-qty: 5.5%; --w-total: 14%; --w-actions: 3%; --w-extra: 0%; }
-@media (max-width: 600px) { :root { --w-paid: 10%; --w-client: 50%; --w-qty: 5%; --w-total: 13%; --w-actions: 4%; --w-extra: 0%; } }
+@media (max-width: 600px) { :root { --w-paid: 9%; --w-client: 48%; --w-qty: 5%; --w-total: 15%; --w-actions: 3%; --w-extra: 0%; } }
 
 /* Revert Pago checkbox custom styles */
 .col-paid input[type="checkbox"] {
@@ -1235,8 +1235,30 @@ tfoot td { font-weight: 700; }
 	#sales-table tfoot .tfoot-amt-stack .st-grand { font-weight: 700; }
 	/* Preserve explicit spaces in spans if any */
 	#sales-table tfoot .tfoot-amt-stack .col-client span { white-space: pre; }
-	/* Grand total number all the way to the right */
-	#sales-table tfoot .t-am-grand .col-client { display: table-cell; text-align: right; padding-right: 14px; font-weight: 700; }
+	
+	/* Grand total row: use col-client with colspan, position content to right */
+	#sales-table tfoot tr.t-am-grand td.col-client { 
+		display: table-cell !important;
+		text-align: right !important;
+		padding-right: 2px !important;
+		vertical-align: middle !important;
+	}
+	
+	/* Hide col-total and move its content to col-client visually */
+	#sales-table tfoot tr.t-am-grand td.col-total { 
+		position: absolute !important;
+		right: 2% !important;
+		text-align: right !important;
+		padding-right: 4px !important;
+		z-index: 10 !important;
+	}
+	
+	#sales-table tfoot tr.t-am-grand td.col-total span {
+		color: var(--accent) !important;
+		font-size: 14px !important;
+		font-weight: 700 !important;
+		display: inline-block !important;
+	}
 }
 
 @media (min-width: 601px) {
@@ -3620,7 +3642,7 @@ button.secondary.press-btn:active {
 
 /* Responsive tweak: widen Total column on small tablets (601–700px) */
 @media (min-width: 601px) and (max-width: 700px) {
-	:root { --w-paid: 8%; --w-client: 42%; --w-qty: 5.5%; --w-total: 16%; --w-actions: 4%; }
+	:root { --w-paid: 8%; --w-client: 42%; --w-qty: 5.5%; --w-total: 16%; --w-actions: 2%; }
 }
 
 /* ===== DYNAMIC DESSERTS COLUMNS ===== */
@@ -3722,4 +3744,32 @@ button.secondary.press-btn:active {
 
 [data-theme="dark"] #sales-table tbody tr:hover td.col-dessert:nth-child(even) {
 	background-color: rgba(255, 228, 196, 0.05) !important;
+}
+
+/* ===== CENTER DESSERT QUANTITIES IN COLUMNS ===== */
+/* Force center alignment for all dessert column cells in tbody */
+#sales-table tbody td.col-arco,
+#sales-table tbody td.col-melo,
+#sales-table tbody td.col-mara,
+#sales-table tbody td.col-oreo,
+#sales-table tbody td.col-nute,
+#sales-table tbody td.col-dessert {
+	text-align: center !important;
+	padding-left: 0 !important;
+	padding-right: 0 !important;
+}
+
+/* Force center alignment for input fields - make them fill the cell */
+#sales-table tbody td.col-arco .input-qty,
+#sales-table tbody td.col-melo .input-qty,
+#sales-table tbody td.col-mara .input-qty,
+#sales-table tbody td.col-oreo .input-qty,
+#sales-table tbody td.col-nute .input-qty,
+#sales-table tbody td.col-dessert .input-qty {
+	text-align: center !important;
+	width: 100% !important;
+	box-sizing: border-box !important;
+	padding-left: 0 !important;
+	padding-right: 0 !important;
+	margin: 0 !important;
 }
