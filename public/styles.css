@@ -667,21 +667,24 @@ tfoot td { font-weight: 700; }
 		display: none !important;
 	}
 	
-	/* col-total positioned absolutely to the right */
+	/* col-total positioned absolutely to the right, more visible */
 	#sales-table.totals-stacked tfoot .t-am-grand .col-total { 
 		display: block !important; 
 		position: absolute !important;
-		right: 38px !important;
+		right: 5% !important;
 		top: 50% !important;
 		transform: translateY(-50%) !important;
 		text-align: right !important; 
 		font-weight: 700 !important; 
 		font-size: 14px !important;
 		color: var(--accent) !important;
+		white-space: nowrap !important;
+		z-index: 10 !important;
 	}
 	
 	/* Style the span inside col-total */
 	#sales-table.totals-stacked tfoot .t-am-grand .col-total span {
+		display: inline-block !important;
 		font-weight: 700 !important;
 		font-size: 14px !important;
 		color: var(--accent) !important;
@@ -742,6 +745,9 @@ tfoot td { font-weight: 700; }
 /* Ensure quantity columns are centered */
 .col-qty, th.col-qty, td.col-qty { text-align: center !important; }
 #sales-table tbody td.col-qty { text-align: center !important; }
+/* Center all tbody cells except client column */
+#sales-table tbody td:not(.col-client) { text-align: center !important; }
+#sales-table .input-qty { text-align: center !important; margin: 0 auto !important; display: block !important; }
 
 /* Revert Pago checkbox custom styles */
 .col-paid input[type="checkbox"] {
@@ -1285,21 +1291,24 @@ tfoot td { font-weight: 700; }
 		display: none !important;
 	}
 	
-	/* col-total positioned absolutely to the right */
+	/* col-total positioned absolutely to the right, more visible */
 	#sales-table tfoot .t-am-grand .col-total { 
 		display: block !important; 
 		position: absolute !important;
-		right: 38px !important;
+		right: 5% !important;
 		top: 50% !important;
 		transform: translateY(-50%) !important;
 		text-align: right !important; 
 		font-weight: 700 !important; 
 		font-size: 14px !important;
 		color: var(--accent) !important;
+		white-space: nowrap !important;
+		z-index: 10 !important;
 	}
 	
 	/* Style the span inside col-total */
 	#sales-table tfoot .t-am-grand .col-total span {
+		display: inline-block !important;
 		font-weight: 700 !important;
 		font-size: 14px !important;
 		color: var(--accent) !important;
