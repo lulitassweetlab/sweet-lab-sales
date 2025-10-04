@@ -650,33 +650,37 @@ tfoot td { font-weight: 700; }
 	#sales-table.totals-stacked tfoot .tfoot-amt-stack .st-qty { text-align: center; min-width: 3ch; line-height: 1.4; }
 	#sales-table.totals-stacked tfoot .tfoot-amt-stack .st-amt { text-align: right; color: var(--accent); line-height: 1.4; }
 	
-	/* Fix grand total row - keep all cells visible but hide col-client content */
-	/* Keep col-paid visible */
+	/* Fix grand total row - collapse col-client to prevent overflow */
 	#sales-table.totals-stacked tfoot .t-am-grand .col-paid { 
 		display: table-cell !important;
 		width: var(--w-paid) !important;
 	}
 	
-	/* Hide only col-client content but keep cell structure */
+	/* Collapse col-client completely despite colspan */
 	#sales-table.totals-stacked tfoot .t-am-grand .col-client { 
 		display: table-cell !important;
+		width: 0 !important;
+		max-width: 0 !important;
+		padding: 0 !important;
+		margin: 0 !important;
+		overflow: hidden !important;
 		font-size: 0 !important;
 		line-height: 0 !important;
-		color: transparent !important;
 	}
 	
-	/* col-total positioned like other totals rows */
+	/* col-total fills remaining space and aligns right */
 	#sales-table.totals-stacked tfoot .t-am-grand .col-total { 
 		display: table-cell !important; 
 		text-align: right !important; 
-		padding-right: 8px !important; 
+		padding-right: 8px !important;
+		padding-left: 8px !important;
 		font-weight: 700 !important; 
 		font-size: 14px !important;
 		color: var(--accent) !important;
-		width: var(--w-total) !important;
+		width: auto !important;
 	}
 	
-	/* col-actions maintains spacing */
+	/* Hide col-actions to give more space to col-total */
 	#sales-table.totals-stacked tfoot .t-am-grand .col-actions { 
 		display: table-cell !important;
 		width: var(--w-actions) !important;
