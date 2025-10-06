@@ -581,7 +581,24 @@ const notify = (() => {
 			const btn = document.getElementById('notif-toggle'); if (btn) { const ok = ('Notification' in window) && Notification.permission === 'granted'; btn.classList.toggle('enabled', !!ok); }
 		});
 	}
-	return { info: (m,t)=>render('info',m,t), success: (m,t)=>render('success',m,t), error: (m,t)=>render('error',m,t), showBrowser, ensurePermission, initToggle, openDialog };
+	function loading(message) {
+		const c = container();
+		if (!c) return { close: () => {} };
+		const n = document.createElement('div');
+		n.className = 'toast toast-loading';
+		const spinner = document.createElement('span');
+		spinner.className = 'toast-spinner';
+		const msg = document.createElement('div');
+		msg.className = 'toast-msg';
+		msg.textContent = String(message || 'Cargando...');
+		n.append(spinner, msg);
+		c.appendChild(n);
+		return {
+			close: () => dismiss(n),
+			update: (newMessage) => { msg.textContent = String(newMessage || 'Cargando...'); }
+		};
+	}
+	return { info: (m,t)=>render('info',m,t), success: (m,t)=>render('success',m,t), error: (m,t)=>render('error',m,t), loading, showBrowser, ensurePermission, initToggle, openDialog };
 })();
 
 // Theme management
@@ -3021,17 +3038,22 @@ function bindEvents() {
 				const dropdown = searchInput.parentElement?.querySelector('.client-search-dropdown');
 				if (dropdown) dropdown.style.display = 'none';
 				
-				// Show loading feedback
+				// Show loading notification with spinner
+				let loadingToast = null;
 				try {
-					notify.info(`Buscando cliente: ${clientName}...`);
+					loadingToast = notify.loading(`Buscando cliente: ${clientName}...`);
 				} catch {}
 				
 				// Navigate to client detail page using global search
 				try {
 					await openGlobalClientDetailView(clientName);
 					searchInput.value = '';
+					// Close loading notification
+					if (loadingToast) loadingToast.close();
 				} catch (e) {
 					console.error('Error opening client detail:', e);
+					// Close loading notification and show error
+					if (loadingToast) loadingToast.close();
 					try {
 						notify.error('Error al buscar el cliente');
 					} catch {}
