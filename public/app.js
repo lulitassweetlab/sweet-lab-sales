@@ -1844,12 +1844,13 @@ function openNewSalePopover(anchorX, anchorY) {
 // Open "Nuevo pedido" popover with date selection for client detail view
 async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName) {
     try {
-        // Ensure days are loaded before building the popover
+        // Ensure desserts and days are loaded before building the popover
         if (state.currentSeller) {
             try {
+                await loadDesserts();
                 await loadDaysForSeller();
             } catch (e) {
-                console.error('Error loading days in popover:', e);
+                console.error('Error loading data in popover:', e);
             }
         }
         
