@@ -346,7 +346,7 @@
 			const sellerDays = [];
 			await mapLimit(sellersList, 6, async (s) => {
 				try {
-					const days = await fetchJSON(withActor(`/api/days?seller_id=${encodeURIComponent(s.id)}`));
+					const days = await fetchJSON(withActor(`/api/days?seller_id=${encodeURIComponent(s.id)}&include_archived=1`));
 					for (const d of (days||[])){
 						const iso = String(d.day).slice(0,10);
 						if (isoBetween(iso, start, end)) sellerDays.push({ seller: s, day: d });
