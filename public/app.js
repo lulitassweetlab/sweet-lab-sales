@@ -1842,8 +1842,17 @@ function openNewSalePopover(anchorX, anchorY) {
 }
 
 // Open "Nuevo pedido" popover with date selection for client detail view
-function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName) {
+async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName) {
     try {
+        // Ensure days are loaded before building the popover
+        if (state.currentSeller) {
+            try {
+                await loadDaysForSeller();
+            } catch (e) {
+                console.error('Error loading days in popover:', e);
+            }
+        }
+        
         const pop = document.createElement('div');
         pop.className = 'new-sale-popover';
         pop.style.position = 'fixed';
@@ -3249,17 +3258,10 @@ function bindEvents() {
 				return;
 			}
 			
-			// Always ensure days are loaded for the current seller
-			try {
-				await loadDaysForSeller();
-			} catch (e) {
-				console.error('Error loading days:', e);
-			}
-			
-			// Open the popover
+			// Open the popover (it will load days internally)
 			const rect = ev.currentTarget.getBoundingClientRect();
 			const clientName = state._clientDetailName || '';
-			openNewSalePopoverWithDate(rect.left + rect.width / 2, rect.bottom + 8, clientName);
+			await openNewSalePopoverWithDate(rect.left + rect.width / 2, rect.bottom + 8, clientName);
 		} catch (e) {
 			console.error('Error opening new order popover:', e);
 		}
