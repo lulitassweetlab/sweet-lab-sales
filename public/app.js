@@ -3230,41 +3230,41 @@ function bindEvents() {
 	// Nuevo pedido button from Client Detail view
 	const clientDetailAddOrderBtn = document.getElementById('client-detail-add-order');
 	clientDetailAddOrderBtn?.addEventListener('click', async (ev) => {
-		// Determine which seller to use
-		let sellerToUse = state.currentSeller;
-		
-		// If no seller is currently selected, use the client's primary seller
-		if (!sellerToUse && state._clientDetailSellerId) {
-			const seller = (state.sellers || []).find(s => s.id === state._clientDetailSellerId);
-			if (seller) {
-				// Temporarily set this seller as current
-				sellerToUse = seller;
-				state.currentSeller = seller;
-				// Load days for this seller
+		try {
+			// Determine which seller to use
+			let sellerToUse = state.currentSeller;
+			
+			// If no seller is currently selected, use the client's primary seller
+			if (!sellerToUse && state._clientDetailSellerId) {
+				const seller = (state.sellers || []).find(s => s.id === state._clientDetailSellerId);
+				if (seller) {
+					// Temporarily set this seller as current
+					sellerToUse = seller;
+					state.currentSeller = seller;
+				}
+			}
+			
+			if (!sellerToUse) {
+				try { notify.error('No se pudo determinar el vendedor'); } catch {}
+				return;
+			}
+			
+			// Load days for current seller if not already loaded
+			if (!state.saleDays || state.saleDays.length === 0) {
 				try {
 					await loadDaysForSeller();
 				} catch (e) {
 					console.error('Error loading days:', e);
 				}
 			}
+			
+			// Open the popover
+			const rect = ev.currentTarget.getBoundingClientRect();
+			const clientName = state._clientDetailName || '';
+			openNewSalePopoverWithDate(rect.left + rect.width / 2, rect.bottom + 8, clientName);
+		} catch (e) {
+			console.error('Error opening new order popover:', e);
 		}
-		
-		if (!sellerToUse) {
-			try { notify.error('No se pudo determinar el vendedor'); } catch {}
-			return;
-		}
-		
-		// Load days for current seller if not already loaded
-		if (!state.saleDays || state.saleDays.length === 0) {
-			try {
-				await loadDaysForSeller();
-			} catch (e) {
-				console.error('Error loading days:', e);
-			}
-		}
-		const rect = ev.currentTarget.getBoundingClientRect();
-		const clientName = state._clientDetailName || '';
-		openNewSalePopoverWithDate(rect.left + rect.width / 2, rect.bottom + 8, clientName);
 	});
 
 	// Admin-only: Restore bugged sales
