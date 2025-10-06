@@ -2060,14 +2060,13 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
                             dateSelect.appendChild(newDateOpt2);
                             
                             // Select the newly created date - force update
+                            isUpdatingProgrammatically = true;
                             dateSelect.value = added.id;
                             state.selectedDayId = added.id;
                             
-                            // Trigger change event to ensure UI updates
-                            const changeEvent = new Event('change', { bubbles: true });
-                            dateSelect.dispatchEvent(changeEvent);
-                            
                             console.log('Date selected:', added.id, formatDayLabel(added.day));
+                            console.log('Select value after update:', dateSelect.value);
+                            console.log('Select display:', dateSelect.options[dateSelect.selectedIndex]?.text);
                         }
                         
                         // Hide calendar with animation
@@ -2199,7 +2198,14 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
         cancelBtn.addEventListener('click', cleanup);
 
         // Handle date selection change
+        let isUpdatingProgrammatically = false;
         dateSelect.addEventListener('change', async (e) => {
+            // Skip if this is a programmatic update from calendar
+            if (isUpdatingProgrammatically) {
+                isUpdatingProgrammatically = false;
+                return;
+            }
+            
             if (dateSelect.value === 'NEW_DATE') {
                 // Show integrated calendar with animation
                 calendarContainer.style.display = 'block';
