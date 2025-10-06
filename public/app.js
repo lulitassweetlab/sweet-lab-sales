@@ -1931,34 +1931,43 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
         calendarContainer.style.display = 'none';
         calendarContainer.style.marginTop = '8px';
         calendarContainer.style.marginBottom = '8px';
+        calendarContainer.style.width = '100%';
+        calendarContainer.style.maxWidth = '280px';
         
-        const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+        const months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
         let calView = new Date();
         calView.setDate(1);
         
         const calHeader = document.createElement('div');
         calHeader.className = 'date-popover-header';
+        calHeader.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;';
         const calPrev = document.createElement('button'); 
         calPrev.className = 'date-nav'; 
         calPrev.textContent = '‹';
         calPrev.type = 'button';
+        calPrev.style.cssText = 'padding:4px 8px;background:none;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:16px;';
         const calLabel = document.createElement('div'); 
         calLabel.className = 'date-label';
+        calLabel.style.cssText = 'font-weight:500;font-size:13px;';
         const calNext = document.createElement('button'); 
         calNext.className = 'date-nav'; 
         calNext.textContent = '›';
         calNext.type = 'button';
+        calNext.style.cssText = 'padding:4px 8px;background:none;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:16px;';
         calHeader.append(calPrev, calLabel, calNext);
         
         const calGrid = document.createElement('div');
         calGrid.className = 'date-grid';
+        calGrid.style.cssText = 'display:grid;grid-template-columns:repeat(7,1fr);gap:4px;';
         
         const weekdays = ['L','M','X','J','V','S','D'];
         const calWeekdays = document.createElement('div'); 
         calWeekdays.className = 'date-weekdays';
+        calWeekdays.style.cssText = 'display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px;';
         for (const w of weekdays) { 
             const c = document.createElement('div'); 
             c.textContent = w; 
+            c.style.cssText = 'text-align:center;font-size:11px;font-weight:500;color:#666;padding:4px 0;';
             calWeekdays.appendChild(c); 
         }
         
@@ -1978,6 +1987,7 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
                 cell.className = 'date-cell disabled';
                 cell.disabled = true;
                 cell.type = 'button';
+                cell.style.cssText = 'padding:6px;background:#f5f5f5;border:1px solid #e0e0e0;border-radius:4px;cursor:not-allowed;font-size:12px;';
                 calGrid.appendChild(cell);
             }
             for (let d = 1; d <= daysInMonth; d++) {
@@ -1985,6 +1995,13 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
                 cell.className = 'date-cell';
                 cell.textContent = String(d);
                 cell.type = 'button';
+                cell.style.cssText = 'padding:6px;background:white;border:1px solid #ddd;border-radius:4px;cursor:pointer;font-size:12px;transition:all 0.15s;';
+                cell.addEventListener('mouseenter', () => {
+                    cell.style.background = '#f0f0f0';
+                });
+                cell.addEventListener('mouseleave', () => {
+                    cell.style.background = 'white';
+                });
                 const dayIso = isoUTC(year, month, d);
                 cell.addEventListener('click', async () => {
                     try {
@@ -2155,9 +2172,13 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
                 // Reset select to placeholder
                 dateSelect.value = '';
                 e.preventDefault();
+                // Re-clamp popover to ensure it's visible
+                setTimeout(() => clampWithinViewport(), 10);
             } else if (dateSelect.value) {
                 // Hide calendar if a real date is selected
                 calendarContainer.style.display = 'none';
+                // Re-clamp popover
+                setTimeout(() => clampWithinViewport(), 10);
             }
         });
 
