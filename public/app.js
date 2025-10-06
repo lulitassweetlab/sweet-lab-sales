@@ -211,6 +211,7 @@ const state = {
 	deleteSellerMode: false,
 	desserts: [], // Dynamic desserts loaded from API
 	dessertsLoaded: false,
+	globalClientSuggestions: [], // Global client suggestions for header search
 };
 
 // Toasts and Notifications
@@ -689,6 +690,77 @@ async function loadSellers() {
 	renderSellerButtons();
 	// Removed syncColumnsBarWidths();
 	applyAuthVisibility();
+	// Load global client suggestions for search bar
+	await loadGlobalClientSuggestions();
+}
+
+// Load all clients the current user has permission to see
+async function loadGlobalClientSuggestions() {
+	try {
+		if (!state.currentUser) {
+			state.globalClientSuggestions = [];
+			return;
+		}
+
+		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+		const isAdmin = !!state.currentUser?.isAdmin;
+		
+		const counts = new Map();
+		const namesByKey = new Map();
+		
+		// Determine which sellers to load clients from
+		let sellersToLoad = [];
+		
+		if (isSuper || isAdmin) {
+			// Admin/SuperAdmin: load from all sellers
+			sellersToLoad = state.sellers || [];
+		} else {
+			// Regular user: load only their own clients
+			// The server already filtered sellers by permissions
+			sellersToLoad = (state.sellers || []).filter(s => 
+				String(s.name).toLowerCase() === String(state.currentUser.name || '').toLowerCase()
+			);
+		}
+		
+		// Load clients from all authorized sellers
+		for (const seller of sellersToLoad) {
+			try {
+				const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(seller.id)}`);
+				for (const d of (days || [])) {
+					const p = new URLSearchParams({ seller_id: String(seller.id), sale_day_id: String(d.id) });
+					let sales = [];
+					try { 
+						sales = await api('GET', `${API.Sales}?${p.toString()}`); 
+					} catch { 
+						sales = []; 
+					}
+					for (const s of (sales || [])) {
+						const raw = (s?.client_name || '').trim();
+						if (!raw) continue;
+						const key = normalizeClientName(raw);
+						counts.set(key, (counts.get(key) || 0) + 1);
+						if (!namesByKey.has(key)) namesByKey.set(key, raw);
+					}
+				}
+			} catch (e) {
+				console.error('Error loading clients for seller:', seller.name, e);
+			}
+		}
+		
+		// Prepare suggestion list (all clients, including those with count = 1)
+		const arr = Array.from(counts.entries())
+			.map(([key, count]) => ({ key, name: namesByKey.get(key) || '', count: Number(count) || 0 }))
+			.filter(it => it.name && it.name.trim() !== '');
+		arr.sort((a, b) => {
+			if (b.count !== a.count) return b.count - a.count;
+			return (a.name || '').localeCompare(b.name || '', 'es');
+		});
+		
+		state.globalClientSuggestions = arr;
+	} catch (e) {
+		console.error('Error loading global client suggestions:', e);
+		state.globalClientSuggestions = [];
+	}
 }
 
 function renderSellerButtons() {
@@ -2817,11 +2889,11 @@ function bindEvents() {
 			}
 		});
 
-		// Wire autocomplete to search input
+		// Wire GLOBAL autocomplete to search input (uses globalClientSuggestions)
 		try {
-			wireClientAutocompleteForInput(searchInput);
+			wireGlobalClientAutocompleteForInput(searchInput);
 		} catch (e) {
-			console.error('Error wiring autocomplete:', e);
+			console.error('Error wiring global autocomplete:', e);
 		}
 
 		// Handle client selection and navigation
@@ -5013,6 +5085,47 @@ function wireClientAutocompleteForInput(inputEl) {
     // Avoid duplicate listeners
     if (inputEl.dataset.autoCompleteBound === '1') { refresh(); return; }
     inputEl.dataset.autoCompleteBound = '1';
+    // Show suggestions only after typing begins
+    inputEl.addEventListener('input', refresh);
+}
+
+// Global autocomplete: ensure global datalist element for global client suggestions exists
+function ensureGlobalClientDatalist() {
+    let dl = document.getElementById('global-client-datalist');
+    if (!dl) {
+        dl = document.createElement('datalist');
+        dl.id = 'global-client-datalist';
+        document.body.appendChild(dl);
+    }
+    return dl;
+}
+
+// Global autocomplete: update datalist options based on current query using global suggestions
+function updateGlobalClientDatalistForQuery(queryRaw) {
+    const dl = ensureGlobalClientDatalist();
+    const list = Array.isArray(state.globalClientSuggestions) ? state.globalClientSuggestions : [];
+    const q = normalizeClientName(queryRaw || '');
+    // Rebuild <option> list and only show suggestions when user typed something
+    dl.innerHTML = '';
+    if (!q) return; // do not show any options until typing begins
+    // Strict prefix match by typed sequence
+    const filtered = list.filter(it => (it.key || '').startsWith(q)).slice(0, 12);
+    for (const it of filtered) {
+        const opt = document.createElement('option');
+        opt.value = it.name;
+        dl.appendChild(opt);
+    }
+}
+
+// Global autocomplete: attach to a given client input element (for global search)
+function wireGlobalClientAutocompleteForInput(inputEl) {
+    if (!(inputEl instanceof HTMLInputElement)) return;
+    // Attach global datalist and refresh on user input/focus
+    inputEl.setAttribute('list', 'global-client-datalist');
+    const refresh = () => updateGlobalClientDatalistForQuery(inputEl.value || '');
+    // Avoid duplicate listeners
+    if (inputEl.dataset.globalAutoCompleteBound === '1') { refresh(); return; }
+    inputEl.dataset.globalAutoCompleteBound = '1';
     // Show suggestions only after typing begins
     inputEl.addEventListener('input', refresh);
 }
