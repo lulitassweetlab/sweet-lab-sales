@@ -47,10 +47,10 @@
 				<table id="report-table">
 					<thead>
 						<tr>
-							<th>Fecha</th>
-							<th>Vendedor</th>
+							<th id="th-fecha" style="cursor:pointer; user-select:none;">Fecha <span id="sort-fecha"></span></th>
+							<th id="th-vendedor" style="cursor:pointer; user-select:none;">Vendedor <span id="sort-vendedor"></span></th>
 							<th>Cliente</th>
-							<th>Pago</th>
+							<th id="th-pago" style="cursor:pointer; user-select:none;">Pago <span id="sort-pago"></span></th>
 							<th class="col-paid">$</th>
 							<th class="col-qty">Arco</th>
 							<th class="col-qty">Melo</th>
@@ -105,6 +105,8 @@
 
 		let dataset = [];
 		let sellersList = [];
+		let sortColumn = null;
+		let sortDirection = 'desc'; // 'asc' or 'desc'
 
         function payLabel(pm){
             return pm === '' ? '-' :
@@ -219,7 +221,11 @@
         }
 
 		function render(){
-			const rows = getFilteredData();
+			let rows = getFilteredData();
+			// Apply sorting if a column is selected
+			if (sortColumn) {
+				rows = sortData(rows, sortColumn, sortDirection);
+			}
 			tbody.innerHTML = '';
 			let tQa=0,tQm=0,tQma=0,tQo=0,tQn=0,tGrand=0;
 			for (const r of rows){
@@ -246,6 +252,75 @@
 			 tQnEl.textContent = tQn || '';
 			 tGrandEl.textContent = tGrand || '';
 			countLabel.textContent = `Filas: ${rows.length}`;
+			updateSortIndicators();
+		}
+
+		function sortData(rows, column, direction){
+			const sorted = [...rows];
+			const compareFn = (a, b) => {
+				let valA, valB;
+				if (column === 'fecha') {
+					valA = a.date;
+					valB = b.date;
+				} else if (column === 'vendedor') {
+					valA = (a.sellerName || '').toLowerCase();
+					valB = (b.sellerName || '').toLowerCase();
+				} else if (column === 'pago') {
+					valA = (a.pay_method || '').toLowerCase();
+					valB = (b.pay_method || '').toLowerCase();
+				}
+				if (valA < valB) return direction === 'asc' ? -1 : 1;
+				if (valA > valB) return direction === 'asc' ? 1 : -1;
+				return 0;
+			};
+			sorted.sort(compareFn);
+			return sorted;
+		}
+
+		function updateSortIndicators(){
+			document.getElementById('sort-fecha').textContent = '';
+			document.getElementById('sort-vendedor').textContent = '';
+			document.getElementById('sort-pago').textContent = '';
+			if (sortColumn) {
+				const arrow = sortDirection === 'asc' ? '▲' : '▼';
+				document.getElementById(`sort-${sortColumn}`).textContent = arrow;
+			}
+		}
+
+		function setupSortListeners(){
+			const thFecha = document.getElementById('th-fecha');
+			const thVendedor = document.getElementById('th-vendedor');
+			const thPago = document.getElementById('th-pago');
+			
+			thFecha.addEventListener('click', () => {
+				if (sortColumn === 'fecha') {
+					sortDirection = sortDirection === 'desc' ? 'asc' : 'desc';
+				} else {
+					sortColumn = 'fecha';
+					sortDirection = 'desc';
+				}
+				render();
+			});
+			
+			thVendedor.addEventListener('click', () => {
+				if (sortColumn === 'vendedor') {
+					sortDirection = sortDirection === 'desc' ? 'asc' : 'desc';
+				} else {
+					sortColumn = 'vendedor';
+					sortDirection = 'desc';
+				}
+				render();
+			});
+			
+			thPago.addEventListener('click', () => {
+				if (sortColumn === 'pago') {
+					sortDirection = sortDirection === 'desc' ? 'asc' : 'desc';
+				} else {
+					sortColumn = 'pago';
+					sortDirection = 'desc';
+				}
+				render();
+			});
 		}
 
 		async function load(){
@@ -271,7 +346,7 @@
 			const sellerDays = [];
 			await mapLimit(sellersList, 6, async (s) => {
 				try {
-					const days = await fetchJSON(withActor(`/api/days?seller_id=${encodeURIComponent(s.id)}`));
+					const days = await fetchJSON(withActor(`/api/days?seller_id=${encodeURIComponent(s.id)}&include_archived=1`));
 					for (const d of (days||[])){
 						const iso = String(d.day).slice(0,10);
 						if (isoBetween(iso, start, end)) sellerDays.push({ seller: s, day: d });
@@ -337,6 +412,7 @@
 
 		backBtn.addEventListener('click', () => { location.href = '/'; });
         changeBtn.addEventListener('click', (ev) => openCalendar(ev));
+		setupSortListeners();
 
 		// Lightweight date range popover if missing
 		if (typeof window.openRangeCalendarPopover !== 'function') {
