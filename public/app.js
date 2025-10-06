@@ -2269,18 +2269,31 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
         setTimeout(() => { try { dateSelect.focus(); } catch {} }, 0);
 
         async function doSave() {
+            console.log('💾 doSave called');
             try {
                 const selectedDayId = dateSelect.value;
+                console.log('📅 Selected day ID:', selectedDayId);
+                
                 if (!selectedDayId || selectedDayId === 'NEW_DATE') {
+                    console.log('❌ No date selected');
                     try { notify.error('Por favor selecciona una fecha'); } catch {}
                     return;
                 }
                 
+                console.log('🔒 Disabling buttons');
                 saveBtn.disabled = true; cancelBtn.disabled = true;
                 const sellerId = state?.currentSeller?.id;
-                if (!sellerId) { try { notify.error('Selecciona un vendedor'); } catch {} return; }
+                console.log('👤 Seller ID:', sellerId);
+                if (!sellerId) { 
+                    console.log('❌ No seller selected');
+                    try { notify.error('Selecciona un vendedor'); } catch {} 
+                    return; 
+                }
+                
+                console.log('📤 Creating sale...');
                 const payload = { seller_id: sellerId, sale_day_id: selectedDayId };
                 const created = await api('POST', API.Sales, payload);
+                console.log('✅ Sale created:', created.id);
                 
                 // Build items array and legacy qty_* properties dynamically
                 const items = [];
@@ -2307,21 +2320,28 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
                 }
                 body.items = items;
                 
+                console.log('📤 Updating sale...');
                 await api('PUT', API.Sales, body);
+                console.log('✅ Sale updated');
                 
                 // Reload client detail to show the new order
                 if (state._clientDetailName) {
+                    console.log('🔄 Reloading client detail...');
                     if (state._clientDetailFrom === 'global-search') {
                         await loadGlobalClientDetailRows(state._clientDetailName);
                     } else {
                         await loadClientDetailRows(state._clientDetailName);
                     }
+                    console.log('✅ Client detail reloaded');
                 }
                 
+                console.log('🎉 Showing success notification');
                 try { notify.success('Pedido guardado exitosamente'); } catch {}
                 
+                console.log('🚪 Calling cleanup to close popover');
                 // Close the popover
                 cleanup();
+                console.log('✅ Cleanup executed');
             } catch (e) {
                 console.error('Error saving order:', e);
                 try { notify.error('No se pudo guardar el pedido'); } catch {}
@@ -2329,7 +2349,13 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
             }
         }
 
-        saveBtn.addEventListener('click', doSave);
+        // Ensure only one click handler
+        saveBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            await doSave();
+        });
+        
         // Submit on Enter in any input
         const allInputs = [clientInput, ...Object.values(qtyInputs)];
         allInputs.forEach((el) => {
