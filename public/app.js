@@ -9,6 +9,79 @@ async function openClientDetailView(clientName) {
 	switchView('#view-client-detail');
 }
 
+// Global client detail view - works without needing a current seller selected
+async function openGlobalClientDetailView(clientName) {
+	const name = String(clientName || '').trim();
+	if (!name) return;
+	
+	state._clientDetailName = name;
+	state._clientDetailFrom = 'global-search';
+	const title = document.getElementById('client-detail-title'); 
+	if (title) title.textContent = name || 'Cliente';
+	const subtitle = document.getElementById('client-detail-subtitle'); 
+	if (subtitle) subtitle.textContent = 'Historial de compras';
+	
+	await loadGlobalClientDetailRows(name);
+	switchView('#view-client-detail');
+}
+
+// Load client detail rows from all sellers the user has access to
+async function loadGlobalClientDetailRows(clientName) {
+	const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+	const isAdmin = !!state.currentUser?.isAdmin;
+	
+	const allRows = [];
+	let sellersToSearch = [];
+	
+	if (isSuper || isAdmin) {
+		// Admin/SuperAdmin: search in all sellers
+		sellersToSearch = state.sellers || [];
+	} else {
+		// Regular user: search only in their own seller
+		sellersToSearch = (state.sellers || []).filter(s => 
+			String(s.name).toLowerCase() === String(state.currentUser.name || '').toLowerCase()
+		);
+	}
+	
+	for (const seller of sellersToSearch) {
+		try {
+			const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(seller.id)}`);
+			for (const d of (days || [])) {
+				const params = new URLSearchParams({ seller_id: String(seller.id), sale_day_id: String(d.id) });
+				let sales = [];
+				try { 
+					sales = await api('GET', `${API.Sales}?${params.toString()}`); 
+				} catch { 
+					sales = []; 
+				}
+				for (const s of (sales || [])) {
+					const n = (s?.client_name || '').trim();
+					if (!n) continue;
+					if (normalizeClientName(n) !== normalizeClientName(clientName)) continue;
+					allRows.push({
+						id: s.id,
+						dayIso: String(d.day).slice(0,10),
+						sellerName: seller.name || '',
+						qty_arco: Number(s.qty_arco||0),
+						qty_melo: Number(s.qty_melo||0),
+						qty_mara: Number(s.qty_mara||0),
+						qty_oreo: Number(s.qty_oreo||0),
+						qty_nute: Number(s.qty_nute||0),
+						pay_method: s.pay_method || '',
+						is_paid: !!s.is_paid
+					});
+				}
+			}
+		} catch (e) {
+			console.error('Error loading client details for seller:', seller.name, e);
+		}
+	}
+	
+	// Sort by date descending
+	allRows.sort((a,b) => (a.dayIso < b.dayIso ? 1 : a.dayIso > b.dayIso ? -1 : 0));
+	renderClientDetailTable(allRows);
+}
+
 async function loadClientDetailRows(clientName) {
 	const sellerId = state.currentSeller.id;
 	const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(sellerId)}`);
@@ -2825,8 +2898,15 @@ function bindEvents() {
 	// Back from Client Detail view
 	const detailBackBtn = document.getElementById('client-detail-back');
 	detailBackBtn?.addEventListener('click', () => {
-		if (state._clientDetailFrom === 'sales') switchView('#view-sales');
-		else switchView('#view-clients');
+		if (state._clientDetailFrom === 'global-search') {
+			// Return to appropriate view based on current context
+			if (state.currentSeller) switchView('#view-sales');
+			else switchView('#view-select-seller');
+		} else if (state._clientDetailFrom === 'sales') {
+			switchView('#view-sales');
+		} else {
+			switchView('#view-clients');
+		}
 	});
 
 	// Admin-only: Restore bugged sales
@@ -2905,9 +2985,9 @@ function bindEvents() {
 				searchInput.style.display = 'none';
 				searchInput.value = '';
 				
-				// Navigate to client detail page
+				// Navigate to client detail page using global search
 				try {
-					await openClientDetailView(clientName);
+					await openGlobalClientDetailView(clientName);
 				} catch (e) {
 					console.error('Error opening client detail:', e);
 				}
