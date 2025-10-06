@@ -220,6 +220,12 @@
 .client-search-input.expanded { width: 240px; opacity: 1; pointer-events: all; }
 .client-search-input:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
 
+/* Client search dropdown */
+.client-search-dropdown { position: absolute; right: 0; top: 36px; width: 240px; max-height: 300px; overflow-y: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1000; }
+.client-search-option { padding: 8px 16px; cursor: pointer; transition: background-color 100ms ease; }
+.client-search-option:hover { background: var(--secondary); }
+.client-search-option:active { background: var(--border); }
+
 * { box-sizing: border-box; }
 
 body {

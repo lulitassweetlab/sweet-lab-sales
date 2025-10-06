@@ -2962,6 +2962,9 @@ function bindEvents() {
 				searchInput.classList.remove('expanded');
 				searchInput.style.display = 'none';
 				searchInput.value = '';
+				// Hide dropdown
+				const dropdown = searchInput.parentElement?.querySelector('.client-search-dropdown');
+				if (dropdown) dropdown.style.display = 'none';
 			} else {
 				searchInput.style.display = 'block';
 				searchInput.classList.add('expanded');
@@ -2980,21 +2983,31 @@ function bindEvents() {
 		const navigateToClient = async () => {
 			const clientName = searchInput.value.trim();
 			if (clientName) {
-				// Close search bar
+				// Close search bar and dropdown
 				searchInput.classList.remove('expanded');
 				searchInput.style.display = 'none';
-				searchInput.value = '';
+				const dropdown = searchInput.parentElement?.querySelector('.client-search-dropdown');
+				if (dropdown) dropdown.style.display = 'none';
+				
+				// Show loading feedback
+				try {
+					notify.info(`Buscando cliente: ${clientName}...`);
+				} catch {}
 				
 				// Navigate to client detail page using global search
 				try {
 					await openGlobalClientDetailView(clientName);
+					searchInput.value = '';
 				} catch (e) {
 					console.error('Error opening client detail:', e);
+					try {
+						notify.error('Error al buscar el cliente');
+					} catch {}
 				}
 			}
 		};
 
-		// Handle Enter key and autocomplete selection
+		// Handle Enter key
 		searchInput.addEventListener('keydown', async (e) => {
 			if (e.key === 'Enter') {
 				e.preventDefault();
@@ -3003,11 +3016,14 @@ function bindEvents() {
 				searchInput.classList.remove('expanded');
 				searchInput.style.display = 'none';
 				searchInput.value = '';
+				// Hide dropdown
+				const dropdown = searchInput.parentElement?.querySelector('.client-search-dropdown');
+				if (dropdown) dropdown.style.display = 'none';
 			}
 		});
 
-		// Handle autocomplete selection
-		searchInput.addEventListener('change', navigateToClient);
+		// Handle custom dropdown selection
+		searchInput.addEventListener('client-selected', navigateToClient);
 
 		// Close search bar when clicking outside
 		document.addEventListener('click', (e) => {
@@ -3017,6 +3033,9 @@ function bindEvents() {
 					searchInput.classList.remove('expanded');
 					searchInput.style.display = 'none';
 					searchInput.value = '';
+					// Hide dropdown
+					const dropdown = container.querySelector('.client-search-dropdown');
+					if (dropdown) dropdown.style.display = 'none';
 				}
 			}
 		});
@@ -5197,17 +5216,68 @@ function updateGlobalClientDatalistForQuery(queryRaw) {
     }
 }
 
-// Global autocomplete: attach to a given client input element (for global search)
+// Global autocomplete: attach custom dropdown to input element (for global search)
 function wireGlobalClientAutocompleteForInput(inputEl) {
     if (!(inputEl instanceof HTMLInputElement)) return;
-    // Attach global datalist and refresh on user input/focus
-    inputEl.setAttribute('list', 'global-client-datalist');
-    const refresh = () => updateGlobalClientDatalistForQuery(inputEl.value || '');
-    // Avoid duplicate listeners
-    if (inputEl.dataset.globalAutoCompleteBound === '1') { refresh(); return; }
+    if (inputEl.dataset.globalAutoCompleteBound === '1') return;
     inputEl.dataset.globalAutoCompleteBound = '1';
-    // Show suggestions only after typing begins
-    inputEl.addEventListener('input', refresh);
+    
+    // Remove datalist if it exists (we'll use custom dropdown)
+    inputEl.removeAttribute('list');
+    
+    // Create custom dropdown
+    let dropdown = document.createElement('div');
+    dropdown.className = 'client-search-dropdown';
+    dropdown.style.display = 'none';
+    inputEl.parentElement?.appendChild(dropdown);
+    
+    function updateDropdown() {
+        const query = inputEl.value.trim();
+        const list = Array.isArray(state.globalClientSuggestions) ? state.globalClientSuggestions : [];
+        const q = normalizeClientName(query || '');
+        
+        if (!q) {
+            dropdown.style.display = 'none';
+            dropdown.innerHTML = '';
+            return;
+        }
+        
+        // Filter suggestions
+        const filtered = list.filter(it => (it.key || '').startsWith(q)).slice(0, 12);
+        
+        if (filtered.length === 0) {
+            dropdown.style.display = 'none';
+            dropdown.innerHTML = '';
+            return;
+        }
+        
+        // Render dropdown
+        dropdown.innerHTML = '';
+        filtered.forEach(item => {
+            const option = document.createElement('div');
+            option.className = 'client-search-option';
+            option.textContent = item.name;
+            option.addEventListener('mousedown', (e) => {
+                e.preventDefault(); // Prevent blur
+                inputEl.value = item.name;
+                dropdown.style.display = 'none';
+                // Trigger navigation
+                inputEl.dispatchEvent(new Event('client-selected', { bubbles: true }));
+            });
+            dropdown.appendChild(option);
+        });
+        
+        dropdown.style.display = 'block';
+    }
+    
+    inputEl.addEventListener('input', updateDropdown);
+    inputEl.addEventListener('focus', updateDropdown);
+    inputEl.addEventListener('blur', () => {
+        // Delay to allow click on option
+        setTimeout(() => {
+            dropdown.style.display = 'none';
+        }, 200);
+    });
 }
 
 async function openClientsView() {
