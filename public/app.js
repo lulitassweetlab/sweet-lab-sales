@@ -2022,14 +2022,26 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
                         cell.disabled = true;
                         cell.style.opacity = '0.5';
                         
+                        console.log('Creating date:', dayIso);
+                        
                         // Create the new date
                         const sellerId = state.currentSeller.id;
-                        await api('POST', '/api/days', { seller_id: sellerId, day: dayIso });
+                        const created = await api('POST', '/api/days', { seller_id: sellerId, day: dayIso });
+                        console.log('Date created:', created);
+                        
+                        // Reload days from server
+                        console.log('Loading days for seller...');
                         await loadDaysForSeller();
+                        console.log('Days loaded:', state.saleDays?.length, 'days');
+                        
+                        // Find the newly created date
                         const added = (state.saleDays || []).find(d => d.day === dayIso);
+                        console.log('Found added date:', added);
                         
                         // Update the select with the new date
                         if (added) {
+                            console.log('Rebuilding select with', state.saleDays.length, 'dates');
+                            
                             // Clear all options
                             dateSelect.innerHTML = '';
                             
@@ -2046,6 +2058,9 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
                                 const dateB = new Date(b.day);
                                 return dateB - dateA; // Most recent first
                             });
+                            
+                            console.log('Sorted dates:', sorted.map(d => ({ id: d.id, day: d.day })));
+                            
                             for (const d of sorted) {
                                 const opt = document.createElement('option');
                                 opt.value = d.id;
@@ -2061,12 +2076,16 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
                             
                             // Select the newly created date - force update
                             isUpdatingProgrammatically = true;
-                            dateSelect.value = added.id;
+                            dateSelect.value = String(added.id);
                             state.selectedDayId = added.id;
                             
-                            console.log('Date selected:', added.id, formatDayLabel(added.day));
+                            console.log('Setting select value to:', added.id);
                             console.log('Select value after update:', dateSelect.value);
-                            console.log('Select display:', dateSelect.options[dateSelect.selectedIndex]?.text);
+                            console.log('Select selectedIndex:', dateSelect.selectedIndex);
+                            console.log('Select display text:', dateSelect.options[dateSelect.selectedIndex]?.text);
+                            console.log('Total options:', dateSelect.options.length);
+                        } else {
+                            console.error('Could not find added date in state.saleDays');
                         }
                         
                         // Hide calendar with animation
