@@ -5220,8 +5220,8 @@ function updateClientDatalistForQuery(queryRaw) {
     // Rebuild <option> list and only show suggestions when user typed something
     dl.innerHTML = '';
     if (!q) return; // do not show any options until typing begins
-    // Strict prefix match by typed sequence
-    const filtered = list.filter(it => (it.key || '').startsWith(q)).slice(0, 12);
+    // Match typed sequence anywhere in the name
+    const filtered = list.filter(it => (it.key || '').includes(q)).slice(0, 12);
     for (const it of filtered) {
         const opt = document.createElement('option');
         opt.value = it.name;
@@ -5261,8 +5261,8 @@ function updateGlobalClientDatalistForQuery(queryRaw) {
     // Rebuild <option> list and only show suggestions when user typed something
     dl.innerHTML = '';
     if (!q) return; // do not show any options until typing begins
-    // Strict prefix match by typed sequence
-    const filtered = list.filter(it => (it.key || '').startsWith(q)).slice(0, 12);
+    // Match typed sequence anywhere in the name
+    const filtered = list.filter(it => (it.key || '').includes(q)).slice(0, 12);
     for (const it of filtered) {
         const opt = document.createElement('option');
         opt.value = it.name;
@@ -5296,8 +5296,8 @@ function wireGlobalClientAutocompleteForInput(inputEl) {
             return;
         }
         
-        // Filter suggestions
-        const filtered = list.filter(it => (it.key || '').startsWith(q)).slice(0, 12);
+        // Filter suggestions - match typed sequence anywhere in the name
+        const filtered = list.filter(it => (it.key || '').includes(q)).slice(0, 12);
         
         if (filtered.length === 0) {
             dropdown.style.display = 'none';
