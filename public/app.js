@@ -2797,6 +2797,78 @@ function bindEvents() {
 	backInvAdjust?.addEventListener('click', () => {
 		switchView('#view-inventory');
 	});
+
+	// Client search functionality
+	const searchToggle = document.getElementById('client-search-toggle');
+	const searchInput = document.getElementById('client-search-input');
+	
+	if (searchToggle && searchInput) {
+		// Toggle search bar expansion
+		searchToggle.addEventListener('click', () => {
+			const isExpanded = searchInput.classList.contains('expanded');
+			if (isExpanded) {
+				searchInput.classList.remove('expanded');
+				searchInput.style.display = 'none';
+				searchInput.value = '';
+			} else {
+				searchInput.style.display = 'block';
+				searchInput.classList.add('expanded');
+				setTimeout(() => searchInput.focus(), 100);
+			}
+		});
+
+		// Wire autocomplete to search input
+		try {
+			wireClientAutocompleteForInput(searchInput);
+		} catch (e) {
+			console.error('Error wiring autocomplete:', e);
+		}
+
+		// Handle client selection and navigation
+		const navigateToClient = async () => {
+			const clientName = searchInput.value.trim();
+			if (clientName) {
+				// Close search bar
+				searchInput.classList.remove('expanded');
+				searchInput.style.display = 'none';
+				searchInput.value = '';
+				
+				// Navigate to client detail page
+				try {
+					await openClientDetailView(clientName);
+				} catch (e) {
+					console.error('Error opening client detail:', e);
+				}
+			}
+		};
+
+		// Handle Enter key and autocomplete selection
+		searchInput.addEventListener('keydown', async (e) => {
+			if (e.key === 'Enter') {
+				e.preventDefault();
+				await navigateToClient();
+			} else if (e.key === 'Escape') {
+				searchInput.classList.remove('expanded');
+				searchInput.style.display = 'none';
+				searchInput.value = '';
+			}
+		});
+
+		// Handle autocomplete selection
+		searchInput.addEventListener('change', navigateToClient);
+
+		// Close search bar when clicking outside
+		document.addEventListener('click', (e) => {
+			const container = document.getElementById('client-search-container');
+			if (container && !container.contains(e.target)) {
+				if (searchInput.classList.contains('expanded')) {
+					searchInput.classList.remove('expanded');
+					searchInput.style.display = 'none';
+					searchInput.value = '';
+				}
+			}
+		});
+	}
 }
 
 function openIngredientsManager(anchorX, anchorY) {

@@ -205,6 +205,21 @@
 .theme-toggle:hover::before { transform: scale(1.25); filter: drop-shadow(0 0 10px rgba(0,0,0,0.35)); }
 [data-theme="dark"] .theme-toggle::before { background-color: #facc15; -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6"/><g><path d="M12 1v3"/><path d="M12 20v3"/><path d="M4.22 4.22l2.12 2.12"/><path d="M17.66 17.66l2.12 2.12"/><path d="M1 12h3"/><path d="M20 12h3"/><path d="M4.22 19.78l2.12-2.12"/><path d="M17.66 6.34l2.12-2.12"/></g></svg>') no-repeat center / contain; mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6"/><g><path d="M12 1v3"/><path d="M12 20v3"/><path d="M4.22 4.22l2.12 2.12"/><path d="M17.66 17.66l2.12 2.12"/><path d="M1 12h3"/><path d="M20 12h3"/><path d="M4.22 19.78l2.12-2.12"/><path d="M17.66 6.34l2.12-2.12"/></g></svg>') no-repeat center / contain; }
 [data-theme="dark"] .theme-toggle:hover::before { transform: scale(1.25); filter: drop-shadow(0 0 14px rgba(250, 204, 21, 0.7)); background-color: #fde047; }
+
+/* Client search container */
+.client-search-container { position: relative; display: inline-flex; align-items: center; }
+
+/* Client search toggle button with search icon */
+.client-search-toggle { width: 32px; height: 32px; border: none; background: transparent; padding: 0; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.client-search-toggle::before { content: ''; width: 24px; height: 24px; background-color: var(--text); -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>') no-repeat center / contain; mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>') no-repeat center / contain; transition: transform 140ms ease, filter 140ms ease, background-color 140ms ease; }
+.client-search-toggle:hover::before { transform: scale(1.25); filter: drop-shadow(0 0 10px rgba(0,0,0,0.35)); }
+[data-theme="dark"] .client-search-toggle:hover::before { filter: drop-shadow(0 0 10px rgba(255,255,255,0.35)); }
+
+/* Client search input - expandable */
+.client-search-input { position: absolute; right: 0; top: 0; height: 32px; border: 1px solid var(--border); border-radius: 16px; padding: 0 16px 0 40px; background: var(--surface); color: var(--text); outline: none; font-family: inherit; transition: width 200ms ease, opacity 200ms ease; width: 0; opacity: 0; pointer-events: none; }
+.client-search-input.expanded { width: 240px; opacity: 1; pointer-events: all; }
+.client-search-input:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
+
 * { box-sizing: border-box; }
 
 body {
