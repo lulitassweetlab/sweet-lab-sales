@@ -2026,21 +2026,16 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
                         
                         // Create the new date
                         const sellerId = state.currentSeller.id;
-                        const createResult = await api('POST', '/api/days', { seller_id: sellerId, day: dayIso });
-                        console.log('📅 Fecha creada:', createResult);
+                        await api('POST', '/api/days', { seller_id: sellerId, day: dayIso });
                         
                         // Reload days from server
                         await loadDaysForSeller();
-                        console.log('📋 state.saleDays después de reload:', state.saleDays);
                         
                         // Find the newly created date (comparing ISO date part only)
                         const added = (state.saleDays || []).find(d => {
                             const dayPart = String(d.day).slice(0, 10);
-                            const match = dayPart === dayIso;
-                            console.log(`Comparing ${dayPart} === ${dayIso}: ${match}`);
-                            return match;
+                            return dayPart === dayIso;
                         });
-                        console.log('🎯 Fecha encontrada:', added);
                         
                         // Update the select with the new date
                         if (added) {
@@ -2083,21 +2078,13 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
                             dateSelect.value = String(added.id);
                             state.selectedDayId = added.id;
                             
-                            console.log('🔧 dateSelect.value set to:', dateSelect.value);
-                            console.log('🔧 dateSelect.selectedIndex:', dateSelect.selectedIndex);
-                            console.log('🔧 Selected option:', dateSelect.options[dateSelect.selectedIndex]);
-                            
                             // Force browser to update the display
                             dateSelect.dispatchEvent(new Event('input', { bubbles: true }));
                             
-                            // Verify selection
+                            // Show success notification
                             const selectedText = dateSelect.options[dateSelect.selectedIndex]?.text;
-                            console.log('📺 Texto visible en select:', selectedText);
-                            
                             if (selectedText && selectedText !== 'Seleccionar fecha...') {
                                 try { notify.success('Fecha seleccionada: ' + selectedText); } catch {}
-                            } else {
-                                console.error('❌ La fecha NO se seleccionó correctamente');
                             }
                         }
                         
@@ -2274,41 +2261,30 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
 
         let isSaving = false;
         async function doSave() {
-            console.log('💾 doSave called, isSaving:', isSaving);
-            
-            if (isSaving) {
-                console.log('⏸️ Already saving, skipping...');
-                return;
-            }
-            
+            if (isSaving) return;
             isSaving = true;
             
             try {
                 const selectedDayId = dateSelect.value;
-                console.log('📅 Selected day ID:', selectedDayId);
                 
                 if (!selectedDayId || selectedDayId === 'NEW_DATE') {
-                    console.log('❌ No date selected');
                     try { notify.error('Por favor selecciona una fecha'); } catch {}
                     isSaving = false;
                     return;
                 }
                 
-                console.log('🔒 Disabling buttons');
-                saveBtn.disabled = true; cancelBtn.disabled = true;
+                saveBtn.disabled = true; 
+                cancelBtn.disabled = true;
+                
                 const sellerId = state?.currentSeller?.id;
-                console.log('👤 Seller ID:', sellerId);
                 if (!sellerId) { 
-                    console.log('❌ No seller selected');
                     try { notify.error('Selecciona un vendedor'); } catch {}
                     isSaving = false;
                     return; 
                 }
                 
-                console.log('📤 Creating sale...');
                 const payload = { seller_id: sellerId, sale_day_id: selectedDayId };
                 const created = await api('POST', API.Sales, payload);
-                console.log('✅ Sale created:', created.id);
                 
                 // Build items array and legacy qty_* properties dynamically
                 const items = [];
@@ -2335,28 +2311,22 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
                 }
                 body.items = items;
                 
-                console.log('📤 Updating sale...');
                 await api('PUT', API.Sales, body);
-                console.log('✅ Sale updated');
                 
-                // Reload client detail to show the new order
-                if (state._clientDetailName) {
-                    console.log('🔄 Reloading client detail...');
-                    if (state._clientDetailFrom === 'global-search') {
-                        await loadGlobalClientDetailRows(state._clientDetailName);
-                    } else {
-                        await loadClientDetailRows(state._clientDetailName);
-                    }
-                    console.log('✅ Client detail reloaded');
-                }
+                // Close the popover IMMEDIATELY
+                cleanup();
                 
-                console.log('🎉 Showing success notification');
+                // Show success notification
                 try { notify.success('Pedido guardado exitosamente'); } catch {}
                 
-                console.log('🚪 Calling cleanup to close popover');
-                // Close the popover
-                cleanup();
-                console.log('✅ Cleanup executed');
+                // Reload client detail in background to show the new order
+                if (state._clientDetailName) {
+                    if (state._clientDetailFrom === 'global-search') {
+                        loadGlobalClientDetailRows(state._clientDetailName).catch(e => console.error('Error reloading:', e));
+                    } else {
+                        loadClientDetailRows(state._clientDetailName).catch(e => console.error('Error reloading:', e));
+                    }
+                }
             } catch (e) {
                 console.error('Error saving order:', e);
                 try { notify.error('No se pudo guardar el pedido'); } catch {}
@@ -2371,9 +2341,8 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
         saveBtn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            console.log('🖱️ Save button clicked');
             doSave();
-        }, { once: false });
+        });
         
         // Submit on Enter in any input
         const allInputs = [clientInput, ...Object.values(qtyInputs)];
