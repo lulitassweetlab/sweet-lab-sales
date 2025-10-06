@@ -1925,13 +1925,14 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
         
         appendRow('Fecha', dateSelect);
 
-        // Integrated calendar (hidden by default)
+        // Integrated calendar (hidden by default) - appears between date select and client input
         const calendarContainer = document.createElement('div');
         calendarContainer.className = 'integrated-calendar';
         calendarContainer.style.display = 'none';
-        calendarContainer.style.marginTop = '6px';
-        calendarContainer.style.marginBottom = '6px';
-        calendarContainer.style.padding = '8px';
+        calendarContainer.style.gridColumn = '1 / -1'; // Span full width of the grid
+        calendarContainer.style.marginTop = '0';
+        calendarContainer.style.marginBottom = '8px';
+        calendarContainer.style.padding = '10px';
         calendarContainer.style.background = '#f9f9f9';
         calendarContainer.style.borderRadius = '6px';
         calendarContainer.style.border = '1px solid #e0e0e0';
@@ -2072,6 +2073,8 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
         });
         
         calendarContainer.append(calHeader, calWeekdays, calGrid);
+        
+        // Insert calendar right after the date row, before client input
         grid.appendChild(calendarContainer);
 
         // Client row (prefilled if provided)
