@@ -1716,9 +1716,11 @@ function openNewSalePopover(anchorX, anchorY) {
         const actions = document.createElement('div');
         actions.className = 'confirm-actions';
         const cancelBtn = document.createElement('button');
+        cancelBtn.type = 'button';
         cancelBtn.className = 'press-btn';
         cancelBtn.textContent = 'Cancelar';
         const saveBtn = document.createElement('button');
+        saveBtn.type = 'button';
         saveBtn.className = 'press-btn btn-primary';
         saveBtn.textContent = 'Guardar';
         actions.append(cancelBtn, saveBtn);
@@ -2166,9 +2168,11 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
         const actions = document.createElement('div');
         actions.className = 'confirm-actions';
         const cancelBtn = document.createElement('button');
+        cancelBtn.type = 'button';
         cancelBtn.className = 'press-btn';
         cancelBtn.textContent = 'Cancelar';
         const saveBtn = document.createElement('button');
+        saveBtn.type = 'button';
         saveBtn.className = 'press-btn btn-primary';
         saveBtn.textContent = 'Guardar';
         actions.append(cancelBtn, saveBtn);
@@ -2364,11 +2368,12 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
         }
 
         // Ensure only one click handler
-        saveBtn.addEventListener('click', async (e) => {
+        saveBtn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            await doSave();
-        });
+            console.log('🖱️ Save button clicked');
+            doSave();
+        }, { once: false });
         
         // Submit on Enter in any input
         const allInputs = [clientInput, ...Object.values(qtyInputs)];
