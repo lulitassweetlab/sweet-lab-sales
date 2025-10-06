@@ -2019,6 +2019,9 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
                 // Open calendar popover for new date
                 cleanup();
                 const rect = dateSelect.getBoundingClientRect();
+                // Position calendar near the select, centered
+                const calX = rect.left + rect.width / 2;
+                const calY = rect.bottom;
                 openCalendarPopover(async (iso) => {
                     const sellerId = state.currentSeller.id;
                     await api('POST', '/api/days', { seller_id: sellerId, day: iso });
@@ -2031,7 +2034,7 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
                             openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName);
                         }, 100);
                     }
-                }, rect.left + rect.width / 2, rect.bottom + 8);
+                }, calX, calY);
             }
         });
 
@@ -4936,7 +4939,7 @@ function openCalendarPopover(onPicked, anchorX, anchorY) {
 	pop.style.left = baseX + 'px';
 	pop.style.top = (baseY + 8) + 'px';
 	pop.style.transform = 'translate(-50%, 0)';
-	pop.style.zIndex = '1000';
+	pop.style.zIndex = '10000';
 	pop.setAttribute('role', 'dialog');
 	
 	const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -4994,7 +4997,11 @@ function openCalendarPopover(onPicked, anchorX, anchorY) {
 	next.addEventListener('click', () => { view.setMonth(view.getMonth() + 1); render(); });
 	
 	pop.append(header, wk, grid);
+	
+	// Hide initially to avoid flash
+	pop.style.visibility = 'hidden';
 	document.body.appendChild(pop);
+	
 	// Positioning/clamping: ensure visible; on mobile, prefer above if near bottom
 	requestAnimationFrame(() => {
 		const margin = 8;
@@ -5005,18 +5012,34 @@ function openCalendarPopover(onPicked, anchorX, anchorY) {
 		const viewTop = (vv && typeof vv.offsetTop === 'number') ? vv.offsetTop : 0;
 		const isSmall = window.matchMedia('(max-width: 600px)').matches;
 		const r = pop.getBoundingClientRect();
-		let left = baseX;
+		
+		// Calculate position centered below anchor
+		let left = baseX - r.width / 2;
 		let top = baseY + 8;
-		// Prefer placing above if near bottom on small screens
-		if (isSmall && baseY > (viewTop + viewH * 0.6)) {
+		
+		// Check if it fits below; if not, place above
+		if (top + r.height > viewTop + viewH - margin) {
 			top = baseY - 8 - r.height;
 		}
-		// Clamp within viewport
-		left = Math.min(Math.max(left, viewLeft + margin), viewLeft + viewW - margin);
-		if (top + r.height > viewTop + viewH - margin) top = Math.max(viewTop + margin, viewTop + viewH - margin - r.height);
+		
+		// Clamp horizontal position within viewport
+		if (left < viewLeft + margin) left = viewLeft + margin;
+		if (left + r.width > viewLeft + viewW - margin) left = viewLeft + viewW - margin - r.width;
+		
+		// Clamp vertical position within viewport
 		if (top < viewTop + margin) top = viewTop + margin;
+		if (top + r.height > viewTop + viewH - margin) top = viewTop + viewH - margin - r.height;
+		
+		// On very small screens, center it
+		if (isSmall && (r.width > viewW * 0.9 || r.height > viewH * 0.9)) {
+			left = viewLeft + (viewW - r.width) / 2;
+			top = viewTop + (viewH - r.height) / 2;
+		}
+		
 		pop.style.left = left + 'px';
 		pop.style.top = top + 'px';
+		pop.style.transform = 'none';
+		pop.style.visibility = 'visible';
 	});
 	document.addEventListener('mousedown', outside, true);
 	document.addEventListener('touchstart', outside, true);
