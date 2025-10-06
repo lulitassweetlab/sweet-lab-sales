@@ -9,6 +9,79 @@ async function openClientDetailView(clientName) {
 	switchView('#view-client-detail');
 }
 
+// Global client detail view - works without needing a current seller selected
+async function openGlobalClientDetailView(clientName) {
+	const name = String(clientName || '').trim();
+	if (!name) return;
+	
+	state._clientDetailName = name;
+	state._clientDetailFrom = 'global-search';
+	const title = document.getElementById('client-detail-title'); 
+	if (title) title.textContent = name || 'Cliente';
+	const subtitle = document.getElementById('client-detail-subtitle'); 
+	if (subtitle) subtitle.textContent = 'Historial de compras';
+	
+	await loadGlobalClientDetailRows(name);
+	switchView('#view-client-detail');
+}
+
+// Load client detail rows from all sellers the user has access to
+async function loadGlobalClientDetailRows(clientName) {
+	const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+	const isAdmin = !!state.currentUser?.isAdmin;
+	
+	const allRows = [];
+	let sellersToSearch = [];
+	
+	if (isSuper || isAdmin) {
+		// Admin/SuperAdmin: search in all sellers
+		sellersToSearch = state.sellers || [];
+	} else {
+		// Regular user: search only in their own seller
+		sellersToSearch = (state.sellers || []).filter(s => 
+			String(s.name).toLowerCase() === String(state.currentUser.name || '').toLowerCase()
+		);
+	}
+	
+	for (const seller of sellersToSearch) {
+		try {
+			const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(seller.id)}`);
+			for (const d of (days || [])) {
+				const params = new URLSearchParams({ seller_id: String(seller.id), sale_day_id: String(d.id) });
+				let sales = [];
+				try { 
+					sales = await api('GET', `${API.Sales}?${params.toString()}`); 
+				} catch { 
+					sales = []; 
+				}
+				for (const s of (sales || [])) {
+					const n = (s?.client_name || '').trim();
+					if (!n) continue;
+					if (normalizeClientName(n) !== normalizeClientName(clientName)) continue;
+					allRows.push({
+						id: s.id,
+						dayIso: String(d.day).slice(0,10),
+						sellerName: seller.name || '',
+						qty_arco: Number(s.qty_arco||0),
+						qty_melo: Number(s.qty_melo||0),
+						qty_mara: Number(s.qty_mara||0),
+						qty_oreo: Number(s.qty_oreo||0),
+						qty_nute: Number(s.qty_nute||0),
+						pay_method: s.pay_method || '',
+						is_paid: !!s.is_paid
+					});
+				}
+			}
+		} catch (e) {
+			console.error('Error loading client details for seller:', seller.name, e);
+		}
+	}
+	
+	// Sort by date descending
+	allRows.sort((a,b) => (a.dayIso < b.dayIso ? 1 : a.dayIso > b.dayIso ? -1 : 0));
+	renderClientDetailTable(allRows);
+}
+
 async function loadClientDetailRows(clientName) {
 	const sellerId = state.currentSeller.id;
 	const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(sellerId)}`);
@@ -211,6 +284,7 @@ const state = {
 	deleteSellerMode: false,
 	desserts: [], // Dynamic desserts loaded from API
 	dessertsLoaded: false,
+	globalClientSuggestions: [], // Global client suggestions for header search
 };
 
 // Toasts and Notifications
@@ -507,7 +581,24 @@ const notify = (() => {
 			const btn = document.getElementById('notif-toggle'); if (btn) { const ok = ('Notification' in window) && Notification.permission === 'granted'; btn.classList.toggle('enabled', !!ok); }
 		});
 	}
-	return { info: (m,t)=>render('info',m,t), success: (m,t)=>render('success',m,t), error: (m,t)=>render('error',m,t), showBrowser, ensurePermission, initToggle, openDialog };
+	function loading(message) {
+		const c = container();
+		if (!c) return { close: () => {} };
+		const n = document.createElement('div');
+		n.className = 'toast toast-loading';
+		const spinner = document.createElement('span');
+		spinner.className = 'toast-spinner';
+		const msg = document.createElement('div');
+		msg.className = 'toast-msg';
+		msg.textContent = String(message || 'Cargando...');
+		n.append(spinner, msg);
+		c.appendChild(n);
+		return {
+			close: () => dismiss(n),
+			update: (newMessage) => { msg.textContent = String(newMessage || 'Cargando...'); }
+		};
+	}
+	return { info: (m,t)=>render('info',m,t), success: (m,t)=>render('success',m,t), error: (m,t)=>render('error',m,t), loading, showBrowser, ensurePermission, initToggle, openDialog };
 })();
 
 // Theme management
@@ -689,6 +780,109 @@ async function loadSellers() {
 	renderSellerButtons();
 	// Removed syncColumnsBarWidths();
 	applyAuthVisibility();
+	// Load global client suggestions for search bar in background (non-blocking)
+	loadGlobalClientSuggestions().catch(e => console.error('Error loading global suggestions:', e));
+}
+
+// Load all clients the current user has permission to see (optimized)
+async function loadGlobalClientSuggestions() {
+	try {
+		if (!state.currentUser) {
+			state.globalClientSuggestions = [];
+			return;
+		}
+		
+		// Check if already loaded and still fresh (cache for 5 minutes)
+		if (state._globalSuggestionsLoadedAt && (Date.now() - state._globalSuggestionsLoadedAt) < 300000) {
+			return; // Use cached data
+		}
+
+		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+		const isAdmin = !!state.currentUser?.isAdmin;
+		
+		const counts = new Map();
+		const namesByKey = new Map();
+		
+		// Determine which sellers to load clients from
+		let sellersToLoad = [];
+		
+		if (isSuper || isAdmin) {
+			// Admin/SuperAdmin: load from all sellers
+			sellersToLoad = state.sellers || [];
+		} else {
+			// Regular user: load only their own clients
+			sellersToLoad = (state.sellers || []).filter(s => 
+				String(s.name).toLowerCase() === String(state.currentUser.name || '').toLowerCase()
+			);
+		}
+		
+		// Load clients from all authorized sellers IN PARALLEL
+		const sellerPromises = sellersToLoad.map(async (seller) => {
+			try {
+				const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(seller.id)}`);
+				
+				// Limit to last 180 days for faster loading (about 6 months)
+				const recentDays = (days || []).slice(0, 180);
+				
+				// Load all sales for this seller in parallel
+				const salesPromises = recentDays.map(async (d) => {
+					const p = new URLSearchParams({ seller_id: String(seller.id), sale_day_id: String(d.id) });
+					try { 
+						return await api('GET', `${API.Sales}?${p.toString()}`); 
+					} catch { 
+						return []; 
+					}
+				});
+				
+				const salesArrays = await Promise.all(salesPromises);
+				
+				// Process all sales
+				const sellerClients = new Map();
+				const sellerNames = new Map();
+				
+				for (const sales of salesArrays) {
+					for (const s of (sales || [])) {
+						const raw = (s?.client_name || '').trim();
+						if (!raw) continue;
+						const key = normalizeClientName(raw);
+						sellerClients.set(key, (sellerClients.get(key) || 0) + 1);
+						if (!sellerNames.has(key)) sellerNames.set(key, raw);
+					}
+				}
+				
+				return { clients: sellerClients, names: sellerNames };
+			} catch (e) {
+				console.error('Error loading clients for seller:', seller.name, e);
+				return { clients: new Map(), names: new Map() };
+			}
+		});
+		
+		// Wait for all sellers to complete
+		const sellerResults = await Promise.all(sellerPromises);
+		
+		// Merge all results
+		for (const result of sellerResults) {
+			for (const [key, count] of result.clients) {
+				counts.set(key, (counts.get(key) || 0) + count);
+				if (!namesByKey.has(key)) namesByKey.set(key, result.names.get(key) || '');
+			}
+		}
+		
+		// Prepare suggestion list (all clients, including those with count = 1)
+		const arr = Array.from(counts.entries())
+			.map(([key, count]) => ({ key, name: namesByKey.get(key) || '', count: Number(count) || 0 }))
+			.filter(it => it.name && it.name.trim() !== '');
+		arr.sort((a, b) => {
+			if (b.count !== a.count) return b.count - a.count;
+			return (a.name || '').localeCompare(b.name || '', 'es');
+		});
+		
+		state.globalClientSuggestions = arr;
+		state._globalSuggestionsLoadedAt = Date.now(); // Cache timestamp
+	} catch (e) {
+		console.error('Error loading global client suggestions:', e);
+		state.globalClientSuggestions = [];
+	}
 }
 
 function renderSellerButtons() {
@@ -2753,8 +2947,15 @@ function bindEvents() {
 	// Back from Client Detail view
 	const detailBackBtn = document.getElementById('client-detail-back');
 	detailBackBtn?.addEventListener('click', () => {
-		if (state._clientDetailFrom === 'sales') switchView('#view-sales');
-		else switchView('#view-clients');
+		if (state._clientDetailFrom === 'global-search') {
+			// Return to appropriate view based on current context
+			if (state.currentSeller) switchView('#view-sales');
+			else switchView('#view-select-seller');
+		} else if (state._clientDetailFrom === 'sales') {
+			switchView('#view-sales');
+		} else {
+			switchView('#view-clients');
+		}
 	});
 
 	// Admin-only: Restore bugged sales
@@ -2797,6 +2998,102 @@ function bindEvents() {
 	backInvAdjust?.addEventListener('click', () => {
 		switchView('#view-inventory');
 	});
+
+	// Client search functionality
+	const searchToggle = document.getElementById('client-search-toggle');
+	const searchInput = document.getElementById('client-search-input');
+	
+	if (searchToggle && searchInput) {
+		// Toggle search bar expansion
+		searchToggle.addEventListener('click', () => {
+			const isExpanded = searchInput.classList.contains('expanded');
+			if (isExpanded) {
+				searchInput.classList.remove('expanded');
+				searchInput.style.display = 'none';
+				searchInput.value = '';
+				// Hide dropdown
+				const dropdown = searchInput.parentElement?.querySelector('.client-search-dropdown');
+				if (dropdown) dropdown.style.display = 'none';
+			} else {
+				searchInput.style.display = 'block';
+				searchInput.classList.add('expanded');
+				setTimeout(() => searchInput.focus(), 100);
+			}
+		});
+
+		// Wire GLOBAL autocomplete to search input (uses globalClientSuggestions)
+		try {
+			wireGlobalClientAutocompleteForInput(searchInput);
+		} catch (e) {
+			console.error('Error wiring global autocomplete:', e);
+		}
+
+		// Handle client selection and navigation
+		const navigateToClient = async () => {
+			const clientName = searchInput.value.trim();
+			if (clientName) {
+				// Close search bar and dropdown
+				searchInput.classList.remove('expanded');
+				searchInput.style.display = 'none';
+				const dropdown = searchInput.parentElement?.querySelector('.client-search-dropdown');
+				if (dropdown) dropdown.style.display = 'none';
+				
+				// Show loading notification with spinner
+				let loadingToast = null;
+				try {
+					loadingToast = notify.loading(`Buscando cliente: ${clientName}...`);
+				} catch {}
+				
+				// Navigate to client detail page using global search
+				try {
+					await openGlobalClientDetailView(clientName);
+					searchInput.value = '';
+					// Close loading notification
+					if (loadingToast) loadingToast.close();
+				} catch (e) {
+					console.error('Error opening client detail:', e);
+					// Close loading notification and show error
+					if (loadingToast) loadingToast.close();
+					try {
+						notify.error('Error al buscar el cliente');
+					} catch {}
+				}
+			}
+		};
+
+		// Handle Enter key
+		searchInput.addEventListener('keydown', async (e) => {
+			if (e.key === 'Enter') {
+				e.preventDefault();
+				await navigateToClient();
+			} else if (e.key === 'Escape') {
+				searchInput.classList.remove('expanded');
+				searchInput.style.display = 'none';
+				searchInput.value = '';
+				// Hide dropdown
+				const dropdown = searchInput.parentElement?.querySelector('.client-search-dropdown');
+				if (dropdown) dropdown.style.display = 'none';
+			}
+		});
+
+		// Handle custom dropdown selection
+		searchInput.addEventListener('client-selected', navigateToClient);
+
+		// Close search bar when clicking outside
+		document.addEventListener('click', (e) => {
+			const container = document.getElementById('client-search-container');
+			if (container && !container.contains(e.target)) {
+				if (searchInput.classList.contains('expanded')) {
+					searchInput.classList.remove('expanded');
+					searchInput.style.display = 'none';
+					searchInput.value = '';
+					// Hide dropdown
+					const dropdown = container.querySelector('.client-search-dropdown');
+					if (dropdown) dropdown.style.display = 'none';
+				}
+			}
+		});
+	}
 }
 
 function openIngredientsManager(anchorX, anchorY) {
@@ -4943,6 +5240,98 @@ function wireClientAutocompleteForInput(inputEl) {
     inputEl.dataset.autoCompleteBound = '1';
     // Show suggestions only after typing begins
     inputEl.addEventListener('input', refresh);
+}
+
+// Global autocomplete: ensure global datalist element for global client suggestions exists
+function ensureGlobalClientDatalist() {
+    let dl = document.getElementById('global-client-datalist');
+    if (!dl) {
+        dl = document.createElement('datalist');
+        dl.id = 'global-client-datalist';
+        document.body.appendChild(dl);
+    }
+    return dl;
+}
+
+// Global autocomplete: update datalist options based on current query using global suggestions
+function updateGlobalClientDatalistForQuery(queryRaw) {
+    const dl = ensureGlobalClientDatalist();
+    const list = Array.isArray(state.globalClientSuggestions) ? state.globalClientSuggestions : [];
+    const q = normalizeClientName(queryRaw || '');
+    // Rebuild <option> list and only show suggestions when user typed something
+    dl.innerHTML = '';
+    if (!q) return; // do not show any options until typing begins
+    // Strict prefix match by typed sequence
+    const filtered = list.filter(it => (it.key || '').startsWith(q)).slice(0, 12);
+    for (const it of filtered) {
+        const opt = document.createElement('option');
+        opt.value = it.name;
+        dl.appendChild(opt);
+    }
+}
+
+// Global autocomplete: attach custom dropdown to input element (for global search)
+function wireGlobalClientAutocompleteForInput(inputEl) {
+    if (!(inputEl instanceof HTMLInputElement)) return;
+    if (inputEl.dataset.globalAutoCompleteBound === '1') return;
+    inputEl.dataset.globalAutoCompleteBound = '1';
+    
+    // Remove datalist if it exists (we'll use custom dropdown)
+    inputEl.removeAttribute('list');
+    
+    // Create custom dropdown
+    let dropdown = document.createElement('div');
+    dropdown.className = 'client-search-dropdown';
+    dropdown.style.display = 'none';
+    inputEl.parentElement?.appendChild(dropdown);
+    
+    function updateDropdown() {
+        const query = inputEl.value.trim();
+        const list = Array.isArray(state.globalClientSuggestions) ? state.globalClientSuggestions : [];
+        const q = normalizeClientName(query || '');
+        
+        if (!q) {
+            dropdown.style.display = 'none';
+            dropdown.innerHTML = '';
+            return;
+        }
+        
+        // Filter suggestions
+        const filtered = list.filter(it => (it.key || '').startsWith(q)).slice(0, 12);
+        
+        if (filtered.length === 0) {
+            dropdown.style.display = 'none';
+            dropdown.innerHTML = '';
+            return;
+        }
+        
+        // Render dropdown
+        dropdown.innerHTML = '';
+        filtered.forEach(item => {
+            const option = document.createElement('div');
+            option.className = 'client-search-option';
+            option.textContent = item.name;
+            option.addEventListener('mousedown', (e) => {
+                e.preventDefault(); // Prevent blur
+                inputEl.value = item.name;
+                dropdown.style.display = 'none';
+                // Trigger navigation
+                inputEl.dispatchEvent(new Event('client-selected', { bubbles: true }));
+            });
+            dropdown.appendChild(option);
+        });
+        
+        dropdown.style.display = 'block';
+    }
+    
+    inputEl.addEventListener('input', updateDropdown);
+    inputEl.addEventListener('focus', updateDropdown);
+    inputEl.addEventListener('blur', () => {
+        // Delay to allow click on option
+        setTimeout(() => {
+            dropdown.style.display = 'none';
+        }, 200);
+    });
 }
 
 async function openClientsView() {
