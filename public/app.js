@@ -62,6 +62,7 @@ async function loadGlobalClientDetailRows(clientName) {
 						id: s.id,
 						dayIso: String(d.day).slice(0,10),
 						sellerName: seller.name || '',
+						sellerId: seller.id,
 						qty_arco: Number(s.qty_arco||0),
 						qty_melo: Number(s.qty_melo||0),
 						qty_mara: Number(s.qty_mara||0),
@@ -79,6 +80,12 @@ async function loadGlobalClientDetailRows(clientName) {
 	
 	// Sort by date descending
 	allRows.sort((a,b) => (a.dayIso < b.dayIso ? 1 : a.dayIso > b.dayIso ? -1 : 0));
+	
+	// Save the primary seller for this client (from the most recent order)
+	if (allRows.length > 0) {
+		state._clientDetailSellerId = allRows[0].sellerId;
+	}
+	
 	renderClientDetailTable(allRows);
 }
 
@@ -109,6 +116,10 @@ async function loadClientDetailRows(clientName) {
 	}
 	// Sort by date descending
 	allRows.sort((a,b) => (a.dayIso < b.dayIso ? 1 : a.dayIso > b.dayIso ? -1 : 0));
+	
+	// Save the seller ID for this client
+	state._clientDetailSellerId = sellerId;
+	
 	renderClientDetailTable(allRows);
 }
 
@@ -3219,11 +3230,30 @@ function bindEvents() {
 	// Nuevo pedido button from Client Detail view
 	const clientDetailAddOrderBtn = document.getElementById('client-detail-add-order');
 	clientDetailAddOrderBtn?.addEventListener('click', async (ev) => {
-		// Ensure we have a current seller and dates loaded
-		if (!state.currentSeller) {
-			try { notify.error('Por favor selecciona un vendedor primero'); } catch {}
+		// Determine which seller to use
+		let sellerToUse = state.currentSeller;
+		
+		// If no seller is currently selected, use the client's primary seller
+		if (!sellerToUse && state._clientDetailSellerId) {
+			const seller = (state.sellers || []).find(s => s.id === state._clientDetailSellerId);
+			if (seller) {
+				// Temporarily set this seller as current
+				sellerToUse = seller;
+				state.currentSeller = seller;
+				// Load days for this seller
+				try {
+					await loadDaysForSeller();
+				} catch (e) {
+					console.error('Error loading days:', e);
+				}
+			}
+		}
+		
+		if (!sellerToUse) {
+			try { notify.error('No se pudo determinar el vendedor'); } catch {}
 			return;
 		}
+		
 		// Load days for current seller if not already loaded
 		if (!state.saleDays || state.saleDays.length === 0) {
 			try {
