@@ -1925,6 +1925,139 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
         
         appendRow('Fecha', dateSelect);
 
+        // Integrated calendar (hidden by default)
+        const calendarContainer = document.createElement('div');
+        calendarContainer.className = 'integrated-calendar';
+        calendarContainer.style.display = 'none';
+        calendarContainer.style.marginTop = '8px';
+        calendarContainer.style.marginBottom = '8px';
+        
+        const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+        let calView = new Date();
+        calView.setDate(1);
+        
+        const calHeader = document.createElement('div');
+        calHeader.className = 'date-popover-header';
+        const calPrev = document.createElement('button'); 
+        calPrev.className = 'date-nav'; 
+        calPrev.textContent = '‹';
+        calPrev.type = 'button';
+        const calLabel = document.createElement('div'); 
+        calLabel.className = 'date-label';
+        const calNext = document.createElement('button'); 
+        calNext.className = 'date-nav'; 
+        calNext.textContent = '›';
+        calNext.type = 'button';
+        calHeader.append(calPrev, calLabel, calNext);
+        
+        const calGrid = document.createElement('div');
+        calGrid.className = 'date-grid';
+        
+        const weekdays = ['L','M','X','J','V','S','D'];
+        const calWeekdays = document.createElement('div'); 
+        calWeekdays.className = 'date-weekdays';
+        for (const w of weekdays) { 
+            const c = document.createElement('div'); 
+            c.textContent = w; 
+            calWeekdays.appendChild(c); 
+        }
+        
+        function isoUTC(y, m, d) { 
+            return new Date(Date.UTC(y, m, d)).toISOString().slice(0,10); 
+        }
+        
+        function renderCalendar() {
+            calLabel.textContent = months[calView.getMonth()] + ' ' + calView.getFullYear();
+            calGrid.innerHTML = '';
+            const year = calView.getFullYear();
+            const month = calView.getMonth();
+            const firstDay = (new Date(Date.UTC(year, month, 1)).getUTCDay() + 6) % 7;
+            const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+            for (let i = 0; i < firstDay; i++) {
+                const cell = document.createElement('button');
+                cell.className = 'date-cell disabled';
+                cell.disabled = true;
+                cell.type = 'button';
+                calGrid.appendChild(cell);
+            }
+            for (let d = 1; d <= daysInMonth; d++) {
+                const cell = document.createElement('button');
+                cell.className = 'date-cell';
+                cell.textContent = String(d);
+                cell.type = 'button';
+                const dayIso = isoUTC(year, month, d);
+                cell.addEventListener('click', async () => {
+                    try {
+                        // Create the new date
+                        const sellerId = state.currentSeller.id;
+                        await api('POST', '/api/days', { seller_id: sellerId, day: dayIso });
+                        await loadDaysForSeller();
+                        const added = (state.saleDays || []).find(d => d.day === dayIso);
+                        
+                        // Update the select with the new date
+                        if (added) {
+                            // Remove NEW_DATE option temporarily
+                            const newOpt = dateSelect.querySelector('option[value="NEW_DATE"]');
+                            if (newOpt) newOpt.remove();
+                            
+                            // Add the new date option
+                            const opt = document.createElement('option');
+                            opt.value = added.id;
+                            opt.textContent = formatDayLabel(added.day);
+                            
+                            // Insert in sorted position
+                            const options = Array.from(dateSelect.options).filter(o => o.value && o.value !== '');
+                            let inserted = false;
+                            for (let i = 0; i < options.length; i++) {
+                                const existingDay = (state.saleDays || []).find(d => d.id == options[i].value);
+                                if (existingDay && new Date(added.day) > new Date(existingDay.day)) {
+                                    dateSelect.insertBefore(opt, options[i]);
+                                    inserted = true;
+                                    break;
+                                }
+                            }
+                            if (!inserted) {
+                                dateSelect.insertBefore(opt, dateSelect.querySelector('option[value=""]')?.nextSibling || null);
+                            }
+                            
+                            // Re-add NEW_DATE option at the end
+                            const newDateOpt2 = document.createElement('option');
+                            newDateOpt2.value = 'NEW_DATE';
+                            newDateOpt2.textContent = '+ Nueva fecha...';
+                            dateSelect.appendChild(newDateOpt2);
+                            
+                            // Select the new date
+                            dateSelect.value = added.id;
+                            state.selectedDayId = added.id;
+                        }
+                        
+                        // Hide calendar
+                        calendarContainer.style.display = 'none';
+                        
+                        try { notify.success('Fecha creada'); } catch {}
+                    } catch (e) {
+                        console.error('Error creating date:', e);
+                        try { notify.error('Error al crear la fecha'); } catch {}
+                    }
+                });
+                calGrid.appendChild(cell);
+            }
+        }
+        
+        calPrev.addEventListener('click', (e) => { 
+            e.preventDefault();
+            calView.setMonth(calView.getMonth() - 1); 
+            renderCalendar(); 
+        });
+        calNext.addEventListener('click', (e) => { 
+            e.preventDefault();
+            calView.setMonth(calView.getMonth() + 1); 
+            renderCalendar(); 
+        });
+        
+        calendarContainer.append(calHeader, calWeekdays, calGrid);
+        grid.appendChild(calendarContainer);
+
         // Client row (prefilled if provided)
         const clientInput = document.createElement('input');
         clientInput.type = 'text';
@@ -2014,27 +2147,17 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
         cancelBtn.addEventListener('click', cleanup);
 
         // Handle date selection change
-        dateSelect.addEventListener('change', async () => {
+        dateSelect.addEventListener('change', async (e) => {
             if (dateSelect.value === 'NEW_DATE') {
-                // Open calendar popover for new date
-                cleanup();
-                const rect = dateSelect.getBoundingClientRect();
-                // Position calendar near the select, centered
-                const calX = rect.left + rect.width / 2;
-                const calY = rect.bottom;
-                openCalendarPopover(async (iso) => {
-                    const sellerId = state.currentSeller.id;
-                    await api('POST', '/api/days', { seller_id: sellerId, day: iso });
-                    await loadDaysForSeller();
-                    const added = (state.saleDays || []).find(d => d.day === iso);
-                    if (added) {
-                        state.selectedDayId = added.id;
-                        // Re-open the popover with the new date selected
-                        setTimeout(() => {
-                            openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName);
-                        }, 100);
-                    }
-                }, calX, calY);
+                // Show integrated calendar
+                calendarContainer.style.display = 'block';
+                renderCalendar();
+                // Reset select to placeholder
+                dateSelect.value = '';
+                e.preventDefault();
+            } else if (dateSelect.value) {
+                // Hide calendar if a real date is selected
+                calendarContainer.style.display = 'none';
             }
         });
 
