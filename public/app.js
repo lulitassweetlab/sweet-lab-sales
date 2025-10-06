@@ -763,16 +763,21 @@ async function loadSellers() {
 	renderSellerButtons();
 	// Removed syncColumnsBarWidths();
 	applyAuthVisibility();
-	// Load global client suggestions for search bar
-	await loadGlobalClientSuggestions();
+	// Load global client suggestions for search bar in background (non-blocking)
+	loadGlobalClientSuggestions().catch(e => console.error('Error loading global suggestions:', e));
 }
 
-// Load all clients the current user has permission to see
+// Load all clients the current user has permission to see (optimized)
 async function loadGlobalClientSuggestions() {
 	try {
 		if (!state.currentUser) {
 			state.globalClientSuggestions = [];
 			return;
+		}
+		
+		// Check if already loaded and still fresh (cache for 5 minutes)
+		if (state._globalSuggestionsLoadedAt && (Date.now() - state._globalSuggestionsLoadedAt) < 300000) {
+			return; // Use cached data
 		}
 
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
@@ -789,34 +794,60 @@ async function loadGlobalClientSuggestions() {
 			sellersToLoad = state.sellers || [];
 		} else {
 			// Regular user: load only their own clients
-			// The server already filtered sellers by permissions
 			sellersToLoad = (state.sellers || []).filter(s => 
 				String(s.name).toLowerCase() === String(state.currentUser.name || '').toLowerCase()
 			);
 		}
 		
-		// Load clients from all authorized sellers
-		for (const seller of sellersToLoad) {
+		// Load clients from all authorized sellers IN PARALLEL
+		const sellerPromises = sellersToLoad.map(async (seller) => {
 			try {
 				const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(seller.id)}`);
-				for (const d of (days || [])) {
+				
+				// Limit to last 180 days for faster loading (about 6 months)
+				const recentDays = (days || []).slice(0, 180);
+				
+				// Load all sales for this seller in parallel
+				const salesPromises = recentDays.map(async (d) => {
 					const p = new URLSearchParams({ seller_id: String(seller.id), sale_day_id: String(d.id) });
-					let sales = [];
 					try { 
-						sales = await api('GET', `${API.Sales}?${p.toString()}`); 
+						return await api('GET', `${API.Sales}?${p.toString()}`); 
 					} catch { 
-						sales = []; 
+						return []; 
 					}
+				});
+				
+				const salesArrays = await Promise.all(salesPromises);
+				
+				// Process all sales
+				const sellerClients = new Map();
+				const sellerNames = new Map();
+				
+				for (const sales of salesArrays) {
 					for (const s of (sales || [])) {
 						const raw = (s?.client_name || '').trim();
 						if (!raw) continue;
 						const key = normalizeClientName(raw);
-						counts.set(key, (counts.get(key) || 0) + 1);
-						if (!namesByKey.has(key)) namesByKey.set(key, raw);
+						sellerClients.set(key, (sellerClients.get(key) || 0) + 1);
+						if (!sellerNames.has(key)) sellerNames.set(key, raw);
 					}
 				}
+				
+				return { clients: sellerClients, names: sellerNames };
 			} catch (e) {
 				console.error('Error loading clients for seller:', seller.name, e);
+				return { clients: new Map(), names: new Map() };
+			}
+		});
+		
+		// Wait for all sellers to complete
+		const sellerResults = await Promise.all(sellerPromises);
+		
+		// Merge all results
+		for (const result of sellerResults) {
+			for (const [key, count] of result.clients) {
+				counts.set(key, (counts.get(key) || 0) + count);
+				if (!namesByKey.has(key)) namesByKey.set(key, result.names.get(key) || '');
 			}
 		}
 		
@@ -830,6 +861,7 @@ async function loadGlobalClientSuggestions() {
 		});
 		
 		state.globalClientSuggestions = arr;
+		state._globalSuggestionsLoadedAt = Date.now(); // Cache timestamp
 	} catch (e) {
 		console.error('Error loading global client suggestions:', e);
 		state.globalClientSuggestions = [];
