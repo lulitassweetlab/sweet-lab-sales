@@ -351,20 +351,33 @@ Las imágenes base64 ocupan mucho en la DB
 
 ## 📊 Estimación de Uso Mensual
 
-### Escenario Típico (30 días):
+### ⚠️ IMPORTANTE: Configuración de Auto-Suspend
+
+**Tu uso REAL reportado:**
+- 33.57 horas en 6 días = **$4.68**
+- **Proyección:** ~168 horas/mes = ~**$23/mes**
+
+**Causa probable:** Auto-suspend mal configurado en Neon (DB no se duerme)
+
+### Escenario CON auto-suspend correctamente configurado (5 minutos):
+- **Tiempo de cómputo real:** ~20-30 horas/mes
 - **Ventas creadas:** 500/mes = 500 × $0.00002 = **$0.01**
 - **Ventas actualizadas:** 200/mes = 200 × $0.00005 = **$0.01**
 - **Consultas de lista:** 1000/mes = 1000 × $0.00004 = **$0.04**
 - **Reportes:** 50/mes = 50 × $0.0001 = **$0.005**
 - **Cold starts:** 100/mes = 100 × $0.0003 = **$0.03**
 
-**Total estimado:** ~**$0.10 - $0.20/mes** en cómputo
+**Total estimado:** ~**$0/mes** (dentro del plan gratuito)
 
 ### Plan Gratuito de Netlify/Neon:
 - **Netlify:** 125,000 invocaciones + 100 horas/mes = ✅ SUFICIENTE
-- **Neon:** 300 horas de cómputo/mes = ✅ SUFICIENTE
+- **Neon (con auto-suspend):** 300 horas de cómputo/mes = ✅ SUFICIENTE
+- **Neon (SIN auto-suspend):** ⚠️ PUEDE COSTAR $100/mes si está activa 24/7
 
-**Conclusión:** Tu aplicación está MUY por debajo de los límites gratuitos ✅
+**Conclusión:** ✅ Con configuración correcta: GRATIS  
+**⚠️ Con configuración incorrecta:** $20-100/mes
+
+**ACCIÓN REQUERIDA:** Revisar Settings → Compute → Auto-suspend delay (debe ser 5 minutos)
 
 ---
 
