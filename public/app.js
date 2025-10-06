@@ -2018,6 +2018,10 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
                 const dayIso = isoUTC(year, month, d);
                 cell.addEventListener('click', async () => {
                     try {
+                        // Disable calendar while processing
+                        cell.disabled = true;
+                        cell.style.opacity = '0.5';
+                        
                         // Create the new date
                         const sellerId = state.currentSeller.id;
                         await api('POST', '/api/days', { seller_id: sellerId, day: dayIso });
@@ -2026,10 +2030,15 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
                         
                         // Update the select with the new date
                         if (added) {
-                            // Clear all options except placeholder
-                            const placeholder = dateSelect.querySelector('option[value=""]');
+                            // Clear all options
                             dateSelect.innerHTML = '';
-                            if (placeholder) dateSelect.appendChild(placeholder);
+                            
+                            // Re-add placeholder
+                            const placeholderOpt = document.createElement('option');
+                            placeholderOpt.value = '';
+                            placeholderOpt.textContent = 'Seleccionar fecha...';
+                            placeholderOpt.disabled = true;
+                            dateSelect.appendChild(placeholderOpt);
                             
                             // Rebuild sorted dates
                             const sorted = [...state.saleDays].sort((a, b) => {
@@ -2050,9 +2059,15 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
                             newDateOpt2.textContent = '+ Nueva fecha...';
                             dateSelect.appendChild(newDateOpt2);
                             
-                            // Select the newly created date
+                            // Select the newly created date - force update
                             dateSelect.value = added.id;
                             state.selectedDayId = added.id;
+                            
+                            // Trigger change event to ensure UI updates
+                            const changeEvent = new Event('change', { bubbles: true });
+                            dateSelect.dispatchEvent(changeEvent);
+                            
+                            console.log('Date selected:', added.id, formatDayLabel(added.day));
                         }
                         
                         // Hide calendar with animation
@@ -2066,10 +2081,13 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
                             clampWithinViewport();
                         }, 300);
                         
-                        try { notify.success('Fecha creada'); } catch {}
+                        try { notify.success('Fecha creada: ' + formatDayLabel(dayIso)); } catch {}
                     } catch (e) {
                         console.error('Error creating date:', e);
                         try { notify.error('Error al crear la fecha'); } catch {}
+                        // Re-enable calendar on error
+                        cell.disabled = false;
+                        cell.style.opacity = '1';
                     }
                 });
                 calGrid.appendChild(cell);
