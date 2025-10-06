@@ -1830,6 +1830,264 @@ function openNewSalePopover(anchorX, anchorY) {
     }
 }
 
+// Open "Nuevo pedido" popover with date selection for client detail view
+function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName) {
+    try {
+        const pop = document.createElement('div');
+        pop.className = 'new-sale-popover';
+        pop.style.position = 'fixed';
+        const isSmall = window.matchMedia('(max-width: 640px)').matches;
+        if (typeof anchorX === 'number' && typeof anchorY === 'number' && !isSmall) {
+            pop.style.left = anchorX + 'px';
+            pop.style.top = anchorY + 'px';
+            pop.style.transform = 'translate(-50%, 0)';
+        } else {
+            pop.style.left = '50%';
+            pop.style.top = '20%';
+            pop.style.transform = 'translate(-50%, 0)';
+        }
+
+        const title = document.createElement('h4');
+        title.textContent = 'Nuevo pedido';
+        title.style.margin = '0 0 8px 0';
+
+        const grid = document.createElement('div');
+        grid.className = 'new-sale-grid';
+
+        function appendRow(labelText, inputEl) {
+            const left = document.createElement('div'); left.className = 'new-sale-cell new-sale-left';
+            const right = document.createElement('div'); right.className = 'new-sale-cell new-sale-right';
+            const lbl = document.createElement('div'); lbl.className = 'new-sale-label-text'; lbl.textContent = labelText;
+            left.appendChild(lbl);
+            right.appendChild(inputEl);
+            // Make whole right cell focus the input when clicked
+            right.addEventListener('mousedown', (ev) => {
+                if (ev.target !== inputEl) { ev.preventDefault(); try { inputEl.focus(); inputEl.select(); } catch {} }
+            });
+            right.addEventListener('click', (ev) => {
+                if (ev.target !== inputEl) { ev.preventDefault(); try { inputEl.focus(); inputEl.select(); } catch {} }
+            });
+            grid.appendChild(left);
+            grid.appendChild(right);
+        }
+
+        // Date selection row
+        const dateSelect = document.createElement('select');
+        dateSelect.className = 'input-cell';
+        const placeholderOpt = document.createElement('option');
+        placeholderOpt.value = '';
+        placeholderOpt.textContent = 'Seleccionar fecha...';
+        placeholderOpt.disabled = true;
+        placeholderOpt.selected = true;
+        dateSelect.appendChild(placeholderOpt);
+        
+        // Add existing dates
+        if (state.currentSeller && Array.isArray(state.saleDays)) {
+            const sorted = [...state.saleDays].sort((a, b) => {
+                const dateA = new Date(a.day);
+                const dateB = new Date(b.day);
+                return dateB - dateA; // Most recent first
+            });
+            for (const d of sorted) {
+                const opt = document.createElement('option');
+                opt.value = d.id;
+                opt.textContent = formatDayLabel(d.day);
+                dateSelect.appendChild(opt);
+            }
+        }
+        
+        // Add "Nueva fecha..." option
+        const newDateOpt = document.createElement('option');
+        newDateOpt.value = 'NEW_DATE';
+        newDateOpt.textContent = '+ Nueva fecha...';
+        dateSelect.appendChild(newDateOpt);
+        
+        appendRow('Fecha', dateSelect);
+
+        // Client row (prefilled if provided)
+        const clientInput = document.createElement('input');
+        clientInput.type = 'text';
+        clientInput.placeholder = 'Nombre del cliente';
+        clientInput.className = 'input-cell client-input';
+        clientInput.autocomplete = 'off';
+        if (prefilledClientName) clientInput.value = prefilledClientName;
+        // Custom inline suggestions below the first character (left-aligned)
+        attachClientSuggestionsPopover(clientInput);
+        appendRow('Cliente', clientInput);
+
+        // Dessert rows (dynamic from state.desserts)
+        const qtyInputs = {};
+        for (const d of state.desserts) {
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.min = '0';
+            input.step = '1';
+            input.inputMode = 'numeric';
+            input.placeholder = '0';
+            input.className = 'input-cell input-qty';
+            input.dataset.dessertId = d.id;
+            qtyInputs[d.short_code] = input;
+            appendRow(d.name, input);
+        }
+
+        const actions = document.createElement('div');
+        actions.className = 'confirm-actions';
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'press-btn';
+        cancelBtn.textContent = 'Cancelar';
+        const saveBtn = document.createElement('button');
+        saveBtn.className = 'press-btn btn-primary';
+        saveBtn.textContent = 'Guardar';
+        actions.append(cancelBtn, saveBtn);
+
+        pop.append(title, grid, actions);
+        // Prepare hidden mount to avoid visible jump before clamping
+        pop.style.visibility = 'hidden';
+        pop.style.opacity = '0';
+        pop.style.transition = 'opacity 160ms ease-out';
+        document.body.appendChild(pop);
+
+        // Clamp within viewport so the popover is fully visible
+        function clampWithinViewport() {
+            try {
+                const margin = 8;
+                const vw = window.innerWidth;
+                const vh = window.innerHeight;
+                const r = pop.getBoundingClientRect();
+                const baseX = (typeof anchorX === 'number') ? anchorX : (vw / 2);
+                const baseY = (typeof anchorY === 'number') ? anchorY : (vh / 2);
+                let left = Math.round(baseX - r.width / 2);
+                let topBelow = Math.round(baseY + 8);
+                let topAbove = Math.round(baseY - 8 - r.height);
+                let top = topBelow;
+                if (top + r.height > vh - margin) {
+                    // Prefer above if below overflows
+                    top = topAbove;
+                }
+                // If still overflows, clamp to margins
+                if (top < margin) top = margin;
+                if (top + r.height > vh - margin) top = Math.max(margin, vh - margin - r.height);
+                if (left < margin) left = margin;
+                if (left + r.width > vw - margin) left = Math.max(margin, vw - margin - r.width);
+                pop.style.left = left + 'px';
+                pop.style.top = top + 'px';
+                pop.style.transform = 'none';
+            } catch {}
+        }
+        // Clamp immediately before showing to prevent jump
+        clampWithinViewport();
+        // Reveal with a light fade-in
+        pop.style.visibility = 'visible';
+        requestAnimationFrame(() => { pop.style.opacity = '1'; });
+
+        function cleanup() {
+            document.removeEventListener('mousedown', outside, true);
+            document.removeEventListener('touchstart', outside, true);
+            if (pop.parentNode) pop.parentNode.removeChild(pop);
+        }
+        function outside(ev) {
+            const t = ev.target;
+            if (!pop.contains(t) && !t.closest?.('.client-suggest-popover')) cleanup();
+        }
+        setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
+        cancelBtn.addEventListener('click', cleanup);
+
+        // Handle date selection change
+        dateSelect.addEventListener('change', async () => {
+            if (dateSelect.value === 'NEW_DATE') {
+                // Open calendar popover for new date
+                cleanup();
+                const rect = dateSelect.getBoundingClientRect();
+                openCalendarPopover(async (iso) => {
+                    const sellerId = state.currentSeller.id;
+                    await api('POST', '/api/days', { seller_id: sellerId, day: iso });
+                    await loadDaysForSeller();
+                    const added = (state.saleDays || []).find(d => d.day === iso);
+                    if (added) {
+                        state.selectedDayId = added.id;
+                        // Re-open the popover with the new date selected
+                        setTimeout(() => {
+                            openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName);
+                        }, 100);
+                    }
+                }, rect.left + rect.width / 2, rect.bottom + 8);
+            }
+        });
+
+        // Focus date select by default
+        setTimeout(() => { try { dateSelect.focus(); } catch {} }, 0);
+
+        async function doSave() {
+            try {
+                const selectedDayId = dateSelect.value;
+                if (!selectedDayId || selectedDayId === 'NEW_DATE') {
+                    try { notify.error('Por favor selecciona una fecha'); } catch {}
+                    return;
+                }
+                
+                saveBtn.disabled = true; cancelBtn.disabled = true;
+                const sellerId = state?.currentSeller?.id;
+                if (!sellerId) { try { notify.error('Selecciona un vendedor'); } catch {} return; }
+                const payload = { seller_id: sellerId, sale_day_id: selectedDayId };
+                const created = await api('POST', API.Sales, payload);
+                
+                // Build items array and legacy qty_* properties dynamically
+                const items = [];
+                const body = {
+                    id: created.id,
+                    client_name: (clientInput.value || '').trim(),
+                    is_paid: false,
+                    pay_method: null,
+                    _actor_name: state.currentUser?.name || ''
+                };
+                
+                for (const d of state.desserts) {
+                    const val = parseInt(qtyInputs[d.short_code]?.value, 10) || 0;
+                    // Legacy: set qty_<short_code>
+                    body[`qty_${d.short_code}`] = val;
+                    // New: build items
+                    if (val > 0) {
+                        items.push({
+                            dessert_id: d.id,
+                            qty: val,
+                            amount: val * d.price
+                        });
+                    }
+                }
+                body.items = items;
+                
+                await api('PUT', API.Sales, body);
+                
+                // Reload client detail to show the new order
+                if (state._clientDetailName) {
+                    if (state._clientDetailFrom === 'global-search') {
+                        await loadGlobalClientDetailRows(state._clientDetailName);
+                    } else {
+                        await loadClientDetailRows(state._clientDetailName);
+                    }
+                }
+                
+                try { notify.success('Guardado exitosamente'); } catch {}
+                cleanup();
+            } catch (e) {
+                try { notify.error('No se pudo guardar'); } catch {}
+                saveBtn.disabled = false; cancelBtn.disabled = false;
+            }
+        }
+
+        saveBtn.addEventListener('click', doSave);
+        // Submit on Enter in any input
+        const allInputs = [clientInput, ...Object.values(qtyInputs)];
+        allInputs.forEach((el) => {
+            el.addEventListener('keydown', (ev) => {
+                if (ev.key === 'Enter') { ev.preventDefault(); doSave(); }
+            });
+        });
+    } catch (e) {
+        console.error('Error opening new sale popover with date:', e);
+    }
+}
+
 // Wrap API operations to record undo/redo
 async function addRow() {
 	const sellerId = state.currentSeller.id;
@@ -2956,6 +3214,27 @@ function bindEvents() {
 		} else {
 			switchView('#view-clients');
 		}
+	});
+
+	// Nuevo pedido button from Client Detail view
+	const clientDetailAddOrderBtn = document.getElementById('client-detail-add-order');
+	clientDetailAddOrderBtn?.addEventListener('click', async (ev) => {
+		// Ensure we have a current seller and dates loaded
+		if (!state.currentSeller) {
+			try { notify.error('Por favor selecciona un vendedor primero'); } catch {}
+			return;
+		}
+		// Load days for current seller if not already loaded
+		if (!state.saleDays || state.saleDays.length === 0) {
+			try {
+				await loadDaysForSeller();
+			} catch (e) {
+				console.error('Error loading days:', e);
+			}
+		}
+		const rect = ev.currentTarget.getBoundingClientRect();
+		const clientName = state._clientDetailName || '';
+		openNewSalePopoverWithDate(rect.left + rect.width / 2, rect.bottom + 8, clientName);
 	});
 
 	// Admin-only: Restore bugged sales
