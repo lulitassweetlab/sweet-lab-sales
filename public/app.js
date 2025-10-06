@@ -1928,14 +1928,24 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
         // Integrated calendar (hidden by default) - appears between date select and client input
         const calendarContainer = document.createElement('div');
         calendarContainer.className = 'integrated-calendar';
-        calendarContainer.style.display = 'none';
-        calendarContainer.style.gridColumn = '1 / -1'; // Span full width of the grid
-        calendarContainer.style.marginTop = '0';
-        calendarContainer.style.marginBottom = '8px';
-        calendarContainer.style.padding = '10px';
-        calendarContainer.style.background = '#f9f9f9';
-        calendarContainer.style.borderRadius = '6px';
-        calendarContainer.style.border = '1px solid #e0e0e0';
+        calendarContainer.style.cssText = `
+            display: none;
+            grid-column: 2 / 3;
+            margin-top: 0;
+            margin-bottom: 8px;
+            padding: 10px;
+            background: #f9f9f9;
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+            overflow: hidden;
+            max-height: 0;
+            opacity: 0;
+            transform: scaleY(0);
+            transform-origin: top;
+            transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+                        opacity 0.3s ease, 
+                        transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        `.replace(/\s+/g, ' ').trim();
         
         const months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
         let calView = new Date();
@@ -2045,11 +2055,16 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
                             state.selectedDayId = added.id;
                         }
                         
-                        // Hide calendar
-                        calendarContainer.style.display = 'none';
+                        // Hide calendar with animation
+                        calendarContainer.style.maxHeight = '0';
+                        calendarContainer.style.opacity = '0';
+                        calendarContainer.style.transform = 'scaleY(0)';
                         
-                        // Re-clamp popover
-                        setTimeout(() => clampWithinViewport(), 10);
+                        // Actually hide after animation
+                        setTimeout(() => {
+                            calendarContainer.style.display = 'none';
+                            clampWithinViewport();
+                        }, 300);
                         
                         try { notify.success('Fecha creada'); } catch {}
                     } catch (e) {
@@ -2168,19 +2183,33 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
         // Handle date selection change
         dateSelect.addEventListener('change', async (e) => {
             if (dateSelect.value === 'NEW_DATE') {
-                // Show integrated calendar
+                // Show integrated calendar with animation
                 calendarContainer.style.display = 'block';
                 renderCalendar();
                 // Reset select to placeholder
                 dateSelect.value = '';
                 e.preventDefault();
-                // Re-clamp popover to ensure it's visible
-                setTimeout(() => clampWithinViewport(), 10);
+                
+                // Trigger animation
+                requestAnimationFrame(() => {
+                    calendarContainer.style.maxHeight = '400px';
+                    calendarContainer.style.opacity = '1';
+                    calendarContainer.style.transform = 'scaleY(1)';
+                });
+                
+                // Re-clamp popover to ensure it's visible after animation
+                setTimeout(() => clampWithinViewport(), 320);
             } else if (dateSelect.value) {
-                // Hide calendar if a real date is selected
-                calendarContainer.style.display = 'none';
-                // Re-clamp popover
-                setTimeout(() => clampWithinViewport(), 10);
+                // Hide calendar with animation
+                calendarContainer.style.maxHeight = '0';
+                calendarContainer.style.opacity = '0';
+                calendarContainer.style.transform = 'scaleY(0)';
+                
+                // Actually hide after animation
+                setTimeout(() => {
+                    calendarContainer.style.display = 'none';
+                    clampWithinViewport();
+                }, 300);
             }
         });
 
