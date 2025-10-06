@@ -3238,9 +3238,9 @@ function bindEvents() {
 			if (!sellerToUse && state._clientDetailSellerId) {
 				const seller = (state.sellers || []).find(s => s.id === state._clientDetailSellerId);
 				if (seller) {
-					// Temporarily set this seller as current
-					sellerToUse = seller;
+					// Set this seller as current
 					state.currentSeller = seller;
+					sellerToUse = seller;
 				}
 			}
 			
@@ -3249,13 +3249,11 @@ function bindEvents() {
 				return;
 			}
 			
-			// Load days for current seller if not already loaded
-			if (!state.saleDays || state.saleDays.length === 0) {
-				try {
-					await loadDaysForSeller();
-				} catch (e) {
-					console.error('Error loading days:', e);
-				}
+			// Always ensure days are loaded for the current seller
+			try {
+				await loadDaysForSeller();
+			} catch (e) {
+				console.error('Error loading days:', e);
 			}
 			
 			// Open the popover
