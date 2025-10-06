@@ -2024,13 +2024,21 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
                         
                         // Create the new date
                         const sellerId = state.currentSeller.id;
-                        await api('POST', '/api/days', { seller_id: sellerId, day: dayIso });
+                        const createResult = await api('POST', '/api/days', { seller_id: sellerId, day: dayIso });
+                        console.log('📅 Fecha creada:', createResult);
                         
                         // Reload days from server
                         await loadDaysForSeller();
+                        console.log('📋 state.saleDays después de reload:', state.saleDays);
                         
-                        // Find the newly created date
-                        const added = (state.saleDays || []).find(d => d.day === dayIso);
+                        // Find the newly created date (comparing ISO date part only)
+                        const added = (state.saleDays || []).find(d => {
+                            const dayPart = String(d.day).slice(0, 10);
+                            const match = dayPart === dayIso;
+                            console.log(`Comparing ${dayPart} === ${dayIso}: ${match}`);
+                            return match;
+                        });
+                        console.log('🎯 Fecha encontrada:', added);
                         
                         // Update the select with the new date
                         if (added) {
@@ -2073,13 +2081,21 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
                             dateSelect.value = String(added.id);
                             state.selectedDayId = added.id;
                             
+                            console.log('🔧 dateSelect.value set to:', dateSelect.value);
+                            console.log('🔧 dateSelect.selectedIndex:', dateSelect.selectedIndex);
+                            console.log('🔧 Selected option:', dateSelect.options[dateSelect.selectedIndex]);
+                            
                             // Force browser to update the display
                             dateSelect.dispatchEvent(new Event('input', { bubbles: true }));
                             
                             // Verify selection
                             const selectedText = dateSelect.options[dateSelect.selectedIndex]?.text;
+                            console.log('📺 Texto visible en select:', selectedText);
+                            
                             if (selectedText && selectedText !== 'Seleccionar fecha...') {
                                 try { notify.success('Fecha seleccionada: ' + selectedText); } catch {}
+                            } else {
+                                console.error('❌ La fecha NO se seleccionó correctamente');
                             }
                         }
                         
