@@ -2268,8 +2268,17 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
         // Focus date select by default
         setTimeout(() => { try { dateSelect.focus(); } catch {} }, 0);
 
+        let isSaving = false;
         async function doSave() {
-            console.log('💾 doSave called');
+            console.log('💾 doSave called, isSaving:', isSaving);
+            
+            if (isSaving) {
+                console.log('⏸️ Already saving, skipping...');
+                return;
+            }
+            
+            isSaving = true;
+            
             try {
                 const selectedDayId = dateSelect.value;
                 console.log('📅 Selected day ID:', selectedDayId);
@@ -2277,6 +2286,7 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
                 if (!selectedDayId || selectedDayId === 'NEW_DATE') {
                     console.log('❌ No date selected');
                     try { notify.error('Por favor selecciona una fecha'); } catch {}
+                    isSaving = false;
                     return;
                 }
                 
@@ -2286,7 +2296,8 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
                 console.log('👤 Seller ID:', sellerId);
                 if (!sellerId) { 
                     console.log('❌ No seller selected');
-                    try { notify.error('Selecciona un vendedor'); } catch {} 
+                    try { notify.error('Selecciona un vendedor'); } catch {}
+                    isSaving = false;
                     return; 
                 }
                 
@@ -2346,6 +2357,9 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
                 console.error('Error saving order:', e);
                 try { notify.error('No se pudo guardar el pedido'); } catch {}
                 saveBtn.disabled = false; cancelBtn.disabled = false;
+                isSaving = false;
+            } finally {
+                isSaving = false;
             }
         }
 
