@@ -2055,6 +2055,10 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
                                 const opt = document.createElement('option');
                                 opt.value = d.id;
                                 opt.textContent = formatDayLabel(d.day);
+                                // Mark as selected if this is the newly created date
+                                if (d.id === added.id) {
+                                    opt.selected = true;
+                                }
                                 dateSelect.appendChild(opt);
                             }
                             
@@ -2064,22 +2068,18 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
                             newDateOpt2.textContent = '+ Nueva fecha...';
                             dateSelect.appendChild(newDateOpt2);
                             
-                            // Force visual update by selecting manually
+                            // Set the value and state
                             isUpdatingProgrammatically = true;
+                            dateSelect.value = String(added.id);
+                            state.selectedDayId = added.id;
                             
-                            // Find the option index for the new date
-                            let targetIndex = -1;
-                            for (let i = 0; i < dateSelect.options.length; i++) {
-                                if (dateSelect.options[i].value == added.id) {
-                                    targetIndex = i;
-                                    break;
-                                }
-                            }
+                            // Force browser to update the display
+                            dateSelect.dispatchEvent(new Event('input', { bubbles: true }));
                             
-                            if (targetIndex >= 0) {
-                                dateSelect.selectedIndex = targetIndex;
-                                dateSelect.value = String(added.id);
-                                state.selectedDayId = added.id;
+                            // Verify selection
+                            const selectedText = dateSelect.options[dateSelect.selectedIndex]?.text;
+                            if (selectedText && selectedText !== 'Seleccionar fecha...') {
+                                try { notify.success('Fecha seleccionada: ' + selectedText); } catch {}
                             }
                         }
                         
@@ -2093,8 +2093,6 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
                             calendarContainer.style.display = 'none';
                             clampWithinViewport();
                         }, 300);
-                        
-                        try { notify.success('Fecha creada: ' + formatDayLabel(dayIso)); } catch {}
                     } catch (e) {
                         console.error('Error creating date:', e);
                         try { notify.error('Error al crear la fecha'); } catch {}
