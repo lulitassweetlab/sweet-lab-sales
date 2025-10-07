@@ -6203,7 +6203,7 @@ function openPaymentDateDialog(saleId, anchorX, anchorY) {
 	// Title
 	const title = document.createElement('div');
 	title.className = 'payment-date-title';
-	title.textContent = 'Selecciona la fecha de pago';
+	title.textContent = 'Fecha de pago';
 	
 	// Create inline calendar
 	const calendarContainer = document.createElement('div');
