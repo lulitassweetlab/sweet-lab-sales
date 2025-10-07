@@ -63,7 +63,7 @@
 				<small id="count-label" style="opacity:.8"></small>
 			</div>
 			<div style="margin:0 12px 12px 12px; padding:8px 12px; background-color:rgba(244, 166, 183, 0.1); border-left:3px solid var(--primary); border-radius:4px;">
-				<small style="opacity:.85">💡 <strong>Consejo:</strong> Haz doble clic en las celdas de Fecha, Descripción, Ingreso o Salida para editarlas</small>
+				<small style="opacity:.85">💡 <strong>Consejo:</strong> Haz clic en las celdas de Fecha, Descripción, Ingreso o Salida para editarlas</small>
 			</div>
 			<div class="table-wrapper" style="padding:12px;">
 				<form id="acc-form" style="display:flex; flex-direction:column; gap:12px; max-width:520px; margin:0 auto;">
@@ -211,10 +211,10 @@
 				const hasAtt = !!(r.has_attachment);
 				tr.innerHTML = `
 					<td style="text-align:center; width:28px"><button class="attach-btn${hasAtt ? ' has' : ''}" data-id="${r.id}" title="Adjuntar archivo" aria-label="Adjuntar">${hasAtt ? '●' : '-'}</button></td>
-					<td class="editable" data-field="entry_date" title="Doble clic para editar fecha">${String(r.entry_date||'').slice(0,10)}</td>
-					<td class="editable" data-field="description" title="Doble clic para editar descripción">${r.description||''}</td>
-					<td class="col-total editable" data-field="amount_cents" data-kind="ingreso" title="${isIng ? 'Doble clic para editar ingreso' : ''}">${colIng}</td>
-					<td class="col-total editable" data-field="amount_cents" data-kind="gasto" title="${!isIng ? 'Doble clic para editar salida' : ''}">${colSal}</td>
+					<td class="editable" data-field="entry_date" title="Clic para editar fecha">${String(r.entry_date||'').slice(0,10)}</td>
+					<td class="editable" data-field="description" title="Clic para editar descripción">${r.description||''}</td>
+					<td class="col-total editable" data-field="amount_cents" data-kind="ingreso" title="${isIng ? 'Clic para editar ingreso' : ''}">${colIng}</td>
+					<td class="col-total editable" data-field="amount_cents" data-kind="gasto" title="${!isIng ? 'Clic para editar salida' : ''}">${colSal}</td>
 					<td class="col-total">${fmtMoney(running)}</td>
 					<td><button class="row-delete" data-del="${r.id}" title="Eliminar" aria-label="Eliminar"></button></td>
 				`;
@@ -275,25 +275,54 @@
 				const tdDesc = tds[2];
 				const tdIng = tds[3];
 				const tdSal = tds[4];
-				tdDesc.addEventListener('dblclick', async () => {
+				tdDesc.addEventListener('click', async () => {
 					const val = prompt('Descripción', r.description || '');
 					if (val == null) return;
 					try {
-						await fetch('/api/accounting', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-Actor-Name': currentUser?.name || '' }, body: JSON.stringify({ id: r.id, description: String(val) }) });
+						const res = await fetch('/api/accounting', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-Actor-Name': currentUser?.name || '' }, body: JSON.stringify({ id: r.id, description: String(val) }) });
+						if (!res.ok) {
+							const err = await res.json().catch(() => ({}));
+							alert('Error al guardar: ' + (err.error || res.status));
+							return;
+						}
 						await load();
-					} catch {}
+					} catch (e) { console.error(e); alert('Error: ' + e.message); }
 				});
-				tdIng.addEventListener('dblclick', async () => {
+				tdIng.addEventListener('click', async () => {
 					if (!isIng) return; const raw = prompt('Nuevo valor (ingreso)', String(v)); if (raw == null) return; const n = Number(raw); if (!Number.isFinite(n) || n <= 0) { alert('Valor inválido'); return; }
-					try { await fetch('/api/accounting', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-Actor-Name': currentUser?.name || '' }, body: JSON.stringify({ id: r.id, amount_cents: Math.round(n) }) }); await load(); } catch {}
+					try { 
+						const res = await fetch('/api/accounting', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-Actor-Name': currentUser?.name || '' }, body: JSON.stringify({ id: r.id, amount_cents: Math.round(n) }) });
+						if (!res.ok) {
+							const err = await res.json().catch(() => ({}));
+							alert('Error al guardar: ' + (err.error || res.status));
+							return;
+						}
+						await load();
+					} catch (e) { console.error(e); alert('Error: ' + e.message); }
 				});
-				tdSal.addEventListener('dblclick', async () => {
+				tdSal.addEventListener('click', async () => {
 					if (isIng) return; const raw = prompt('Nuevo valor (salida)', String(v)); if (raw == null) return; const n = Number(raw); if (!Number.isFinite(n) || n <= 0) { alert('Valor inválido'); return; }
-					try { await fetch('/api/accounting', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-Actor-Name': currentUser?.name || '' }, body: JSON.stringify({ id: r.id, amount_cents: Math.round(n) }) }); await load(); } catch {}
+					try { 
+						const res = await fetch('/api/accounting', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-Actor-Name': currentUser?.name || '' }, body: JSON.stringify({ id: r.id, amount_cents: Math.round(n) }) });
+						if (!res.ok) {
+							const err = await res.json().catch(() => ({}));
+							alert('Error al guardar: ' + (err.error || res.status));
+							return;
+						}
+						await load();
+					} catch (e) { console.error(e); alert('Error: ' + e.message); }
 				});
-				tdDate.addEventListener('dblclick', (ev) => {
+				tdDate.addEventListener('click', (ev) => {
 					openSingleDatePopover(async (pickedIso) => {
-						try { await fetch('/api/accounting', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-Actor-Name': currentUser?.name || '' }, body: JSON.stringify({ id: r.id, entry_date: pickedIso }) }); await load(); } catch {}
+						try { 
+							const res = await fetch('/api/accounting', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-Actor-Name': currentUser?.name || '' }, body: JSON.stringify({ id: r.id, entry_date: pickedIso }) });
+							if (!res.ok) {
+								const err = await res.json().catch(() => ({}));
+								alert('Error al guardar: ' + (err.error || res.status));
+								return;
+							}
+							await load();
+						} catch (e) { console.error(e); alert('Error: ' + e.message); }
 					}, ev.clientX, ev.clientY);
 				});
 			}
