@@ -186,6 +186,7 @@ function renderClientDetailTable(rows) {
 		if (rows && rows.length > 0 && rows[0].sellerName) {
 			sellerNameSpan.textContent = '  -  ' + rows[0].sellerName;
 			sellerNameSpan.style.opacity = '0.7';
+			sellerNameSpan.style.marginRight = '5px';
 		}
 		
 		title.appendChild(clientNameSpan);
@@ -287,8 +288,8 @@ function renderClientDetailTable(rows) {
 		const tdMa = document.createElement('td'); tdMa.textContent = r.qty_mara ? String(r.qty_mara) : '';
 		const tdOr = document.createElement('td'); tdOr.textContent = r.qty_oreo ? String(r.qty_oreo) : '';
 		const tdNu = document.createElement('td'); tdNu.textContent = r.qty_nute ? String(r.qty_nute) : '';
-		const total = calcRowTotal({ arco: r.qty_arco, melo: r.qty_melo, mara: r.qty_mara, oreo: r.qty_oreo, nute: r.qty_nute });
-		const tdTot = document.createElement('td'); tdTot.textContent = fmtNo.format(total);
+		const total = calcRowTotal(r);
+		const tdTot = document.createElement('td'); tdTot.className = 'col-total'; tdTot.textContent = fmtNo.format(total);
 		// Delete button
 		const tdDel = document.createElement('td'); tdDel.style.textAlign = 'center';
 		const delBtn = document.createElement('button');
@@ -325,7 +326,7 @@ function renderClientDetailTable(rows) {
 		totalMara += r.qty_mara || 0;
 		totalOreo += r.qty_oreo || 0;
 		totalNute += r.qty_nute || 0;
-		const rowTotal = calcRowTotal({ arco: r.qty_arco, melo: r.qty_melo, mara: r.qty_mara, oreo: r.qty_oreo, nute: r.qty_nute });
+		const rowTotal = calcRowTotal(r);
 		totalGrand += rowTotal;
 	}
 	
