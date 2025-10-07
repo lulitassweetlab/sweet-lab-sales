@@ -5757,28 +5757,31 @@ function openClientActionBar(tdElement, saleId, clientName) {
 		closeClientActionBar();
 	});
 	
-	// Payment date button (opens payment selector)
-	const paymentBtn = document.createElement('button');
-	paymentBtn.className = 'client-action-bar-btn';
-	paymentBtn.innerHTML = '📅';
-	paymentBtn.title = 'Método de pago';
-	paymentBtn.addEventListener('click', (e) => {
-		e.stopPropagation();
-		const tr = tdElement.closest('tr');
-		if (tr) {
-			const payWrap = tr.querySelector('.pay-wrap');
-			const paySel = tr.querySelector('.pay-select');
-			if (payWrap && paySel) {
-				const rect = payWrap.getBoundingClientRect();
-				openPayMenu(payWrap, paySel, rect.left + rect.width / 2, rect.bottom);
-			}
-		}
-		closeClientActionBar();
-	});
-	
 	actionBar.appendChild(editBtn);
 	actionBar.appendChild(commentBtn);
-	actionBar.appendChild(paymentBtn);
+	
+	// Payment date button (only for superadmin)
+	const isSuperAdmin = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+	if (isSuperAdmin) {
+		const paymentBtn = document.createElement('button');
+		paymentBtn.className = 'client-action-bar-btn';
+		paymentBtn.innerHTML = '📅';
+		paymentBtn.title = 'Método de pago';
+		paymentBtn.addEventListener('click', (e) => {
+			e.stopPropagation();
+			const tr = tdElement.closest('tr');
+			if (tr) {
+				const payWrap = tr.querySelector('.pay-wrap');
+				const paySel = tr.querySelector('.pay-select');
+				if (payWrap && paySel) {
+					const rect = payWrap.getBoundingClientRect();
+					openPayMenu(payWrap, paySel, rect.left + rect.width / 2, rect.bottom);
+				}
+			}
+			closeClientActionBar();
+		});
+		actionBar.appendChild(paymentBtn);
+	}
 	
 	tdElement.appendChild(actionBar);
 	tdElement.classList.add('action-bar-active');

@@ -3855,7 +3855,7 @@ button.secondary.press-btn:active {
 	bottom: calc(100% + 4px);
 	left: 50%;
 	transform: translateX(-50%);
-	background: rgba(0, 0, 0, 0.75);
+	background: rgba(0, 0, 0, 0.5);
 	backdrop-filter: blur(8px);
 	border-radius: 8px;
 	padding: 8px 12px;
