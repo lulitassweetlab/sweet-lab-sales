@@ -3997,13 +3997,13 @@ td.col-client.action-bar-active .client-input {
 @media (max-width: 600px) {
 	.client-action-bar {
 		bottom: calc(100% + 2px);
-		padding: 14px 20px;
-		gap: 18px;
+		padding: 18px 6px;
+		gap: 12px;
 	}
 	
 	.client-action-bar-btn {
 		padding: 10px;
-		font-size: 26px;
+		font-size: 31px;
 		min-width: 48px;
 		min-height: 48px;
 	}
