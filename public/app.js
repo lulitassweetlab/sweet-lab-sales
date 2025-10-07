@@ -6199,7 +6199,10 @@ function openPaymentDateDialog(saleId, anchorX, anchorY) {
 	
 	// Use previously saved date if exists, otherwise use today
 	let initialDate = new Date();
-	if (sale._paymentInfo && sale._paymentInfo.date) {
+	if (sale.payment_date) {
+		initialDate = new Date(sale.payment_date + 'T00:00:00');
+	} else if (sale._paymentInfo && sale._paymentInfo.date) {
+		// Fallback to memory-only storage (legacy)
 		initialDate = new Date(sale._paymentInfo.date + 'T00:00:00');
 	}
 	
@@ -6332,7 +6335,7 @@ function openPaymentDateDialog(saleId, anchorX, anchorY) {
 	];
 	
 	// Get previously selected method if exists
-	const previousMethod = sale._paymentInfo?.method;
+	const previousMethod = sale.pay_method || sale._paymentInfo?.method;
 	
 	methods.forEach(method => {
 		const btn = document.createElement('button');
@@ -6342,7 +6345,7 @@ function openPaymentDateDialog(saleId, anchorX, anchorY) {
 		btn.dataset.value = method.value;
 		
 		// Pre-select if this was the previously chosen method
-		if (previousMethod && method.label === previousMethod) {
+		if (previousMethod && (method.value === previousMethod || method.label === previousMethod)) {
 			btn.classList.add('selected');
 		}
 		
@@ -6354,23 +6357,46 @@ function openPaymentDateDialog(saleId, anchorX, anchorY) {
 				const paymentDate = selectedDate.toISOString().split('T')[0];
 				const paymentMethod = method.value;
 				
-				// Store payment info in memory (state) only, not in comments
+				// Update the sale in the database with payment_date and pay_method
+				const updateData = {
+					id: saleId,
+					seller_id: sale.seller_id,
+					sale_day_id: sale.sale_day_id,
+					client_name: sale.client_name || '',
+					qty_arco: Number(sale.qty_arco || 0),
+					qty_melo: Number(sale.qty_melo || 0),
+					qty_mara: Number(sale.qty_mara || 0),
+					qty_oreo: Number(sale.qty_oreo || 0),
+					qty_nute: Number(sale.qty_nute || 0),
+					is_paid: sale.is_paid,
+					pay_method: paymentMethod,
+					payment_date: paymentDate,
+					comment_text: sale.comment_text || '',
+					_actor_name: state?.currentUser?.username || ''
+				};
+				// Include items if they exist (for dynamic desserts)
+				if (sale.items && Array.isArray(sale.items)) {
+					updateData.items = sale.items;
+				}
+				await api('PUT', API.Sales, updateData);
+				
+				// Update the sale in memory
 				const idx = state.sales.findIndex(s => s.id === saleId);
 				if (idx !== -1) {
-					// Store in memory - replace any previous payment info
+					state.sales[idx].payment_date = paymentDate;
+					state.sales[idx].pay_method = paymentMethod;
+					// Keep legacy support
 					state.sales[idx]._paymentInfo = {
 						date: paymentDate,
 						method: method.label,
 						methodValue: method.value
 					};
-					console.log('Guardado en memoria:', state.sales[idx]._paymentInfo);
 				}
 				
-				// Don't update the database or comments - just keep in memory
-				try { notify.success(`Fecha guardada en memoria: ${paymentDate} - ${method.label}`); } catch {}
+				try { notify.success(`Fecha y método guardados: ${paymentDate} - ${method.label}`); } catch {}
 				cleanup();
 			} catch (e) {
-				try { notify.error('Error al guardar'); } catch {}
+				try { notify.error('Error al guardar: ' + String(e)); } catch {}
 				methodsContainer.querySelectorAll('button').forEach(b => b.disabled = false);
 			}
 		});

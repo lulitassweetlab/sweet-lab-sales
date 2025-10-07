@@ -51,36 +51,36 @@ export async function handler(event) {
 						// Build the query based on permissions
 						let rows;
 						if (role === 'admin' || role === 'superadmin') {
-							// Admin can see all sales - optimized query with minimal data
-							rows = await sql`
-								SELECT s.id, s.seller_id, s.sale_day_id, s.client_name, s.qty_arco, s.qty_melo, 
-								       s.qty_mara, s.qty_oreo, s.qty_nute, s.is_paid, s.pay_method, 
-								       s.total_cents,
-								       sd.day AS sale_day,
-								       se.name AS seller_name
-								FROM sales s
-								INNER JOIN sale_days sd ON sd.id = s.sale_day_id
-								INNER JOIN sellers se ON se.id = s.seller_id
-								WHERE sd.day >= ${start} AND sd.day <= ${end}
-								ORDER BY sd.day ASC, se.name ASC
-							`;
+						// Admin can see all sales - optimized query with minimal data
+						rows = await sql`
+							SELECT s.id, s.seller_id, s.sale_day_id, s.client_name, s.qty_arco, s.qty_melo, 
+							       s.qty_mara, s.qty_oreo, s.qty_nute, s.is_paid, s.pay_method, s.payment_date,
+							       s.total_cents,
+							       sd.day AS sale_day,
+							       se.name AS seller_name
+							FROM sales s
+							INNER JOIN sale_days sd ON sd.id = s.sale_day_id
+							INNER JOIN sellers se ON se.id = s.seller_id
+							WHERE sd.day >= ${start} AND sd.day <= ${end}
+							ORDER BY sd.day ASC, se.name ASC
+						`;
 						} else {
-							// Non-admin can only see their own sales or sales they have permission to view
-							rows = await sql`
-								SELECT s.id, s.seller_id, s.sale_day_id, s.client_name, s.qty_arco, s.qty_melo, 
-								       s.qty_mara, s.qty_oreo, s.qty_nute, s.is_paid, s.pay_method, 
-								       s.total_cents,
-								       sd.day AS sale_day,
-								       se.name AS seller_name
-								FROM sales s
-								INNER JOIN sale_days sd ON sd.id = s.sale_day_id
-								INNER JOIN sellers se ON se.id = s.seller_id
-								LEFT JOIN user_view_permissions uvp ON uvp.seller_id = s.seller_id 
-								  AND lower(uvp.viewer_username) = lower(${actorName})
-								WHERE sd.day >= ${start} AND sd.day <= ${end}
-								  AND (lower(se.name) = lower(${actorName}) OR uvp.id IS NOT NULL)
-								ORDER BY sd.day ASC, se.name ASC
-							`;
+						// Non-admin can only see their own sales or sales they have permission to view
+						rows = await sql`
+							SELECT s.id, s.seller_id, s.sale_day_id, s.client_name, s.qty_arco, s.qty_melo, 
+							       s.qty_mara, s.qty_oreo, s.qty_nute, s.is_paid, s.pay_method, s.payment_date,
+							       s.total_cents,
+							       sd.day AS sale_day,
+							       se.name AS seller_name
+							FROM sales s
+							INNER JOIN sale_days sd ON sd.id = s.sale_day_id
+							INNER JOIN sellers se ON se.id = s.seller_id
+							LEFT JOIN user_view_permissions uvp ON uvp.seller_id = s.seller_id 
+							  AND lower(uvp.viewer_username) = lower(${actorName})
+							WHERE sd.day >= ${start} AND sd.day <= ${end}
+							  AND (lower(se.name) = lower(${actorName}) OR uvp.id IS NOT NULL)
+							ORDER BY sd.day ASC, se.name ASC
+						`;
 						}
 						
 						// Enhance with sale_items data for each sale (optimized with a single query)
@@ -188,12 +188,12 @@ export async function handler(event) {
 						if (!allowed.length) return json({ error: 'No autorizado' }, 403);
 					}
 				} catch {}
-				let rows;
-				if (saleDayId) {
-					rows = await sql`SELECT id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, comment_text, total_cents, created_at FROM sales WHERE seller_id = ${sellerId} AND sale_day_id=${saleDayId} ORDER BY created_at DESC, id DESC`;
-				} else {
-					rows = await sql`SELECT id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, comment_text, total_cents, created_at FROM sales WHERE seller_id = ${sellerId} ORDER BY created_at DESC, id DESC`;
-				}
+			let rows;
+			if (saleDayId) {
+				rows = await sql`SELECT id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, payment_date, comment_text, total_cents, created_at FROM sales WHERE seller_id = ${sellerId} AND sale_day_id=${saleDayId} ORDER BY created_at DESC, id DESC`;
+			} else {
+				rows = await sql`SELECT id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, payment_date, comment_text, total_cents, created_at FROM sales WHERE seller_id = ${sellerId} ORDER BY created_at DESC, id DESC`;
+			}
 				
 				// Enhance with sale_items data for each sale
 				for (const row of rows) {
@@ -242,29 +242,30 @@ export async function handler(event) {
 				return json(row, 201);
 			}
 			case 'PUT': {
-				const data = JSON.parse(event.body || '{}');
-				const id = Number(data.id);
-				if (!id) return json({ error: 'id requerido' }, 400);
-				const current = (await sql`SELECT client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, comment_text, created_at FROM sales WHERE id=${id}`)[0] || {};
-				const createdAt = current.created_at ? new Date(current.created_at) : null;
-				const withinGrace = createdAt ? ((new Date()) - createdAt) < 120000 : false; // 2 minutes
-				const client = (data.client_name ?? '').toString();
-				const comment = (Object.prototype.hasOwnProperty.call(data, 'comment_text')) ? (data.comment_text ?? '') : current.comment_text;
-				
-				// Support for new dynamic items structure
-				const items = Array.isArray(data.items) ? data.items : null;
-				
-				// Support for legacy qty columns (backward compatibility)
-				const qa = Number(data.qty_arco ?? 0) || 0;
-				const qm = Number(data.qty_melo ?? 0) || 0;
-				const qma = Number(data.qty_mara ?? 0) || 0;
-				const qo = Number(data.qty_oreo ?? 0) || 0;
-				const qn = Number(data.qty_nute ?? 0) || 0;
-				const paid = (data.is_paid === true || data.is_paid === 'true') ? true : (data.is_paid === false || data.is_paid === 'false') ? false : current.is_paid;
-				const payMethod = (Object.prototype.hasOwnProperty.call(data, 'pay_method')) ? (data.pay_method ?? null) : current.pay_method;
-				
-				// Update sale basic info
-				await sql`UPDATE sales SET client_name=${client}, comment_text=${comment}, qty_arco=${qa}, qty_melo=${qm}, qty_mara=${qma}, qty_oreo=${qo}, qty_nute=${qn}, is_paid=${paid}, pay_method=${payMethod} WHERE id=${id}`;
+			const data = JSON.parse(event.body || '{}');
+			const id = Number(data.id);
+			if (!id) return json({ error: 'id requerido' }, 400);
+			const current = (await sql`SELECT client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, payment_date, comment_text, created_at FROM sales WHERE id=${id}`)[0] || {};
+			const createdAt = current.created_at ? new Date(current.created_at) : null;
+			const withinGrace = createdAt ? ((new Date()) - createdAt) < 120000 : false; // 2 minutes
+			const client = (data.client_name ?? '').toString();
+			const comment = (Object.prototype.hasOwnProperty.call(data, 'comment_text')) ? (data.comment_text ?? '') : current.comment_text;
+			
+			// Support for new dynamic items structure
+			const items = Array.isArray(data.items) ? data.items : null;
+			
+			// Support for legacy qty columns (backward compatibility)
+			const qa = Number(data.qty_arco ?? 0) || 0;
+			const qm = Number(data.qty_melo ?? 0) || 0;
+			const qma = Number(data.qty_mara ?? 0) || 0;
+			const qo = Number(data.qty_oreo ?? 0) || 0;
+			const qn = Number(data.qty_nute ?? 0) || 0;
+			const paid = (data.is_paid === true || data.is_paid === 'true') ? true : (data.is_paid === false || data.is_paid === 'false') ? false : current.is_paid;
+			const payMethod = (Object.prototype.hasOwnProperty.call(data, 'pay_method')) ? (data.pay_method ?? null) : current.pay_method;
+			const paymentDate = (Object.prototype.hasOwnProperty.call(data, 'payment_date')) ? (data.payment_date ?? null) : current.payment_date;
+			
+			// Update sale basic info
+			await sql`UPDATE sales SET client_name=${client}, comment_text=${comment}, qty_arco=${qa}, qty_melo=${qm}, qty_mara=${qma}, qty_oreo=${qo}, qty_nute=${qn}, is_paid=${paid}, pay_method=${payMethod}, payment_date=${paymentDate} WHERE id=${id}`;
 				
 				// If items are provided, update sale_items table
 				if (items !== null) {
@@ -299,10 +300,11 @@ export async function handler(event) {
 				await write('client_name', current.client_name ?? '', client ?? '');
 				await write('qty_arco', current.qty_arco ?? 0, qa ?? 0);
 				await write('qty_melo', current.qty_melo ?? 0, qm ?? 0);
-				await write('qty_mara', current.qty_mara ?? 0, qma ?? 0);
-				await write('qty_oreo', current.qty_oreo ?? 0, qo ?? 0);
-				await write('qty_nute', current.qty_nute ?? 0, qn ?? 0);
-				await write('pay_method', current.pay_method ?? '', payMethod ?? '');
+			await write('qty_mara', current.qty_mara ?? 0, qma ?? 0);
+			await write('qty_oreo', current.qty_oreo ?? 0, qo ?? 0);
+			await write('qty_nute', current.qty_nute ?? 0, qn ?? 0);
+			await write('pay_method', current.pay_method ?? '', payMethod ?? '');
+			await write('payment_date', current.payment_date ?? '', paymentDate ?? '');
 				// emit realtime notifications for qty changes
 				async function emitQty(name, prev, next) {
 					if (String(prev) === String(next)) return;
