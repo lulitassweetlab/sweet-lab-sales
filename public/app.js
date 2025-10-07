@@ -1490,6 +1490,11 @@ function renderTable() {
 						}
 					});
 					td.appendChild(commentMarker);
+					// Position comment marker dynamically based on text width
+					updateCommentMarkerPosition(input, commentMarker);
+					// Update position on input changes
+					input.addEventListener('input', () => updateCommentMarkerPosition(input, commentMarker));
+					input.addEventListener('blur', () => updateCommentMarkerPosition(input, commentMarker));
 				}
 				return td;
 			})()
@@ -5771,6 +5776,36 @@ function openPayMenu(anchorEl, selectEl, clickX, clickY) {
 		document.addEventListener('mousedown', outside, true);
 		document.addEventListener('touchstart', outside, true);
 	}, 0);
+}
+
+// Function to position comment marker dynamically after client name text
+function updateCommentMarkerPosition(inputElement, markerElement) {
+	if (!inputElement || !markerElement) return;
+	
+	// Get the text content
+	const text = inputElement.value || '';
+	
+	// Create a temporary canvas to measure text width
+	const canvas = updateCommentMarkerPosition._canvas || (updateCommentMarkerPosition._canvas = document.createElement('canvas'));
+	const ctx = canvas.getContext('2d');
+	
+	// Get computed style to match exact font
+	const cs = window.getComputedStyle(inputElement);
+	ctx.font = `${cs.fontStyle} ${cs.fontVariant} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+	
+	// Measure text width
+	const metrics = ctx.measureText(text);
+	const textWidth = metrics.width;
+	
+	// Get padding left from input
+	const paddingLeft = parseFloat(cs.paddingLeft) || 8;
+	
+	// Position marker right after the text, with a small gap
+	const markerLeft = paddingLeft + textWidth + 4;
+	
+	// Apply position
+	markerElement.style.left = markerLeft + 'px';
+	markerElement.style.right = 'auto';
 }
 
 // Client action bar for sales table
