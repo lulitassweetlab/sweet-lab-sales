@@ -174,6 +174,8 @@ function renderClientDetailTable(rows) {
 	if (title) {
 		// Clear existing content and create editable structure
 		title.innerHTML = '';
+		title.style.textAlign = 'center';
+		title.style.flex = '1';
 		const clientNameSpan = document.createElement('span');
 		clientNameSpan.textContent = state._clientDetailName || 'Cliente';
 		clientNameSpan.style.cursor = 'pointer';
@@ -317,6 +319,17 @@ function renderClientDetailTable(rows) {
 		tr.addEventListener('mousedown', () => { tr.classList.add('row-highlight'); setTimeout(() => tr.classList.remove('row-highlight'), 3200); });
 		tbody.appendChild(tr);
 	}
+	
+	// Add a separator row at the end of tbody
+	const separatorRow = document.createElement('tr');
+	separatorRow.className = 'separator-row';
+	const separatorCell = document.createElement('td');
+	separatorCell.colSpan = 9;
+	separatorCell.style.height = '12px';
+	separatorCell.style.borderBottom = '2px solid var(--border)';
+	separatorCell.style.background = 'transparent';
+	separatorRow.appendChild(separatorCell);
+	tbody.appendChild(separatorRow);
 	
 	// Calculate and display totals
 	let totalArco = 0, totalMelo = 0, totalMara = 0, totalOreo = 0, totalNute = 0, totalGrand = 0;
