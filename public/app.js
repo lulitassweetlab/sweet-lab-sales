@@ -575,7 +575,7 @@ const notify = (() => {
 			}
 			const txt = document.createElement('span'); txt.textContent = String(text || '');
 			textEl.appendChild(txt);
-			const delBtn = document.createElement('button'); delBtn.type = 'button'; delBtn.className = 'notif-del'; delBtn.title = 'Eliminar'; delBtn.textContent = '🗑';
+			const delBtn = document.createElement('button'); delBtn.type = 'button'; delBtn.className = 'notif-del'; delBtn.title = 'Eliminar'; delBtn.setAttribute('aria-label', 'Eliminar');
 			delBtn.addEventListener('click', (e) => {
 				e.stopPropagation();
 				try {
