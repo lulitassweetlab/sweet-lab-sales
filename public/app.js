@@ -6287,8 +6287,22 @@ function openClientActionBar(tdElement, saleId, clientName, clickX, clickY) {
 		}
 	});
 	
+	// History button (opens client detail view)
+	const historyBtn = document.createElement('button');
+	historyBtn.className = 'client-action-bar-btn';
+	historyBtn.innerHTML = '📋';
+	historyBtn.title = 'Historial del cliente';
+	historyBtn.addEventListener('click', async (e) => {
+		e.stopPropagation();
+		closeClientActionBar();
+		if (clientName && clientName.trim()) {
+			await openClientDetailView(clientName.trim());
+		}
+	});
+	
 	actionBar.appendChild(editBtn);
 	actionBar.appendChild(commentBtn);
+	actionBar.appendChild(historyBtn);
 	
 	// Payment date button (only for superadmin)
 	const isSuperAdmin = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
