@@ -2328,8 +2328,10 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
                     }
                 }
             } catch (e) {
-                console.error('Error saving order:', e);
-                try { notify.error('No se pudo guardar el pedido'); } catch {}
+                console.error('❌ Error completo:', e);
+                console.error('Error message:', e.message);
+                console.error('Error stack:', e.stack);
+                try { notify.error('Error: ' + (e.message || 'No se pudo guardar')); } catch {}
                 saveBtn.disabled = false; cancelBtn.disabled = false;
                 isSaving = false;
             } finally {
