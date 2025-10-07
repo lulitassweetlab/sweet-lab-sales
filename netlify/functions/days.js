@@ -40,11 +40,11 @@ export async function handler(event) {
 				const includeArchivedParam = (params.get('include_archived') || '').toString().toLowerCase();
 				let rows;
 				if (archivedParam === 'true' || archivedParam === '1') {
-					rows = await sql`SELECT id, day, delivered_arco, delivered_melo, delivered_mara, delivered_oreo, delivered_nute, is_archived FROM sale_days WHERE seller_id=${sellerId} AND is_archived=true ORDER BY day DESC`;
+					rows = await sql`SELECT id, day, delivered_arco, delivered_melo, delivered_mara, delivered_oreo, delivered_nute, paid_comm_total, is_archived FROM sale_days WHERE seller_id=${sellerId} AND is_archived=true ORDER BY day DESC`;
 				} else if (includeArchivedParam === 'true' || includeArchivedParam === '1') {
-					rows = await sql`SELECT id, day, delivered_arco, delivered_melo, delivered_mara, delivered_oreo, delivered_nute, is_archived FROM sale_days WHERE seller_id=${sellerId} ORDER BY day DESC`;
+					rows = await sql`SELECT id, day, delivered_arco, delivered_melo, delivered_mara, delivered_oreo, delivered_nute, paid_comm_total, is_archived FROM sale_days WHERE seller_id=${sellerId} ORDER BY day DESC`;
 				} else {
-					rows = await sql`SELECT id, day, delivered_arco, delivered_melo, delivered_mara, delivered_oreo, delivered_nute, is_archived FROM sale_days WHERE seller_id=${sellerId} AND is_archived=false ORDER BY day DESC`;
+					rows = await sql`SELECT id, day, delivered_arco, delivered_melo, delivered_mara, delivered_oreo, delivered_nute, paid_comm_total, is_archived FROM sale_days WHERE seller_id=${sellerId} AND is_archived=false ORDER BY day DESC`;
 				}
 				return json(rows);
 			}
@@ -72,6 +72,7 @@ export async function handler(event) {
 				const dma = Number(data.delivered_mara ?? NaN);
 				const dor = Number(data.delivered_oreo ?? NaN);
 				const dnu = Number(data.delivered_nute ?? NaN);
+				const paidCommTotal = Number(data.paid_comm_total ?? NaN);
 				const actor = (data.actor_name || data._actor_name || '').toString();
 				let role = 'user';
 				if (actor) {
@@ -86,6 +87,7 @@ export async function handler(event) {
 				const dmaVal = (role === 'superadmin' && !Number.isNaN(dma)) ? Math.max(0, dma|0) : null;
 				const dorVal = (role === 'superadmin' && !Number.isNaN(dor)) ? Math.max(0, dor|0) : null;
 				const dnuVal = (role === 'superadmin' && !Number.isNaN(dnu)) ? Math.max(0, dnu|0) : null;
+				const paidCommTotalVal = (role === 'superadmin' && !Number.isNaN(paidCommTotal)) ? Math.max(0, paidCommTotal|0) : null;
 				const [row] = await sql`
 					UPDATE sale_days SET
 						day = COALESCE(${dayParam}, day),
@@ -93,9 +95,10 @@ export async function handler(event) {
 						delivered_melo = COALESCE(${dmVal}, delivered_melo),
 						delivered_mara = COALESCE(${dmaVal}, delivered_mara),
 						delivered_oreo = COALESCE(${dorVal}, delivered_oreo),
-						delivered_nute = COALESCE(${dnuVal}, delivered_nute)
+						delivered_nute = COALESCE(${dnuVal}, delivered_nute),
+						paid_comm_total = COALESCE(${paidCommTotalVal}, paid_comm_total)
 					WHERE id=${id}
-					RETURNING id, day, delivered_arco, delivered_melo, delivered_mara, delivered_oreo, delivered_nute
+					RETURNING id, day, delivered_arco, delivered_melo, delivered_mara, delivered_oreo, delivered_nute, paid_comm_total
 				`;
 				return json(row || { id, day });
 			}
