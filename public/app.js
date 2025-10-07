@@ -6132,9 +6132,9 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 	img.alt = 'Comprobante';
 	img.style.display = 'block';
 	img.style.width = 'auto';
-	img.style.maxWidth = '88vw';
+	img.style.maxWidth = '92vw';
 	img.style.height = 'auto';
-	img.style.maxHeight = '72vh';
+	img.style.maxHeight = '76vh';
 	img.style.margin = '0 auto';
 	img.style.borderRadius = '8px';
 	img.style.objectFit = 'contain';
