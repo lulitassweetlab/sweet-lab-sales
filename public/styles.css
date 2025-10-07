@@ -3968,12 +3968,12 @@ button.secondary.press-btn:active {
 }
 
 .client-action-bar-btn-icon {
-	font-size: 28px;
+	font-size: 23px;
 	line-height: 1;
 }
 
 .client-action-bar-btn-label {
-	font-size: 9px;
+	font-size: 7px;
 	font-weight: 500;
 	text-transform: uppercase;
 	letter-spacing: 0.3px;
@@ -3983,11 +3983,12 @@ button.secondary.press-btn:active {
 
 .client-action-bar-btn:hover {
 	background: rgba(255, 255, 255, 0.2);
-	transform: scale(1.08);
+	transform: scale(1.15);
+	border-radius: 12px;
 }
 
 .client-action-bar-btn:active {
-	transform: scale(0.95);
+	transform: scale(0.92);
 }
 
 [data-theme="dark"] .client-action-bar-btn {
@@ -3996,6 +3997,8 @@ button.secondary.press-btn:active {
 
 [data-theme="dark"] .client-action-bar-btn:hover {
 	background: rgba(255, 255, 255, 0.3);
+	transform: scale(1.15);
+	border-radius: 12px;
 }
 
 /* Make sure col-client has proper positioning */
@@ -4023,11 +4026,11 @@ td.col-client.action-bar-active .client-input {
 	}
 	
 	.client-action-bar-btn-icon {
-		font-size: 24px;
+		font-size: 19px;
 	}
 	
 	.client-action-bar-btn-label {
-		font-size: 8px;
+		font-size: 6px;
 	}
 }
 
