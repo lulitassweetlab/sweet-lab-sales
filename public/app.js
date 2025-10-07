@@ -1359,10 +1359,11 @@ function renderTable() {
 				input.addEventListener('input', (e) => { const v = (e.target.value || ''); if (/\*$/.test(v.trim())) { saveClientWithCommentFlow(tr, sale.id); } });
 				input.addEventListener('blur', () => saveClientWithCommentFlow(tr, sale.id));
 				input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); saveClientWithCommentFlow(tr, sale.id); } });
-				// Add click handler to open client actions menu
-				input.addEventListener('click', (e) => {
+				// Add double-click handler to open client actions menu
+				input.addEventListener('dblclick', (e) => {
 					const clientName = (input.value || '').trim();
 					if (clientName) {
+						e.preventDefault();
 						e.stopPropagation();
 						openClientActionsMenu(input, sale, e.clientX, e.clientY);
 					}
