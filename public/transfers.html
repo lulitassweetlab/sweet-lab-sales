@@ -281,13 +281,13 @@
 						const l2 = document.createElement('div'); l2.className = 'line';
 						const clientEl = document.createElement('span'); clientEl.className = 'transfer-client'; clientEl.textContent = (sale.client_name||'').toString();
 						clientEl.title = 'Ir al pedido en ventas';
-						clientEl.addEventListener('click', () => {
-							try {
-								const payload = { sellerId: seller.id, dayIso: String(day.day).slice(0,10), clientName: sale.client_name||'' };
-								localStorage.setItem('pendingFocus', JSON.stringify(payload));
-								location.href = '/';
-							} catch { location.href = '/'; }
-						});
+					clientEl.addEventListener('click', () => {
+						try {
+							const payload = { sellerId: seller.id, dayIso: String(day.day).slice(0,10), clientName: sale.client_name||'' };
+							localStorage.setItem('pendingFocus', JSON.stringify(payload));
+							window.open('/', '_blank');
+						} catch { window.open('/', '_blank'); }
+					});
 						const amountEl = document.createElement('span'); amountEl.textContent = String(sale.total_cents||0);
 						l2.append(clientEl, amountEl);
 						const note = document.createElement('div'); note.className = 'note'; note.textContent = (r.note_text||'').toString();
