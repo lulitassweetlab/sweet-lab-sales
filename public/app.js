@@ -6171,12 +6171,20 @@ function openPaymentDateDialog(saleId, anchorX, anchorY) {
 		{ value: 'otro', label: 'Otro' }
 	];
 	
+	// Get previously selected method if exists
+	const previousMethod = sale._paymentInfo?.method;
+	
 	methods.forEach(method => {
 		const btn = document.createElement('button');
 		btn.type = 'button';
 		btn.className = 'payment-method-btn';
 		btn.textContent = method.label;
 		btn.dataset.value = method.value;
+		
+		// Pre-select if this was the previously chosen method
+		if (previousMethod && method.label === previousMethod) {
+			btn.classList.add('selected');
+		}
 		
 		btn.addEventListener('click', async () => {
 			// Disable all buttons while saving
@@ -6189,14 +6197,13 @@ function openPaymentDateDialog(saleId, anchorX, anchorY) {
 				// Store payment info in memory (state) only, not in comments
 				const idx = state.sales.findIndex(s => s.id === saleId);
 				if (idx !== -1) {
-					// Store in memory - create payment_info object if it doesn't exist
-					if (!state.sales[idx]._paymentInfo) {
-						state.sales[idx]._paymentInfo = {};
-					}
+					// Store in memory - replace any previous payment info
 					state.sales[idx]._paymentInfo = {
 						date: paymentDate,
-						method: method.label
+						method: method.label,
+						methodValue: method.value
 					};
+					console.log('Guardado en memoria:', state.sales[idx]._paymentInfo);
 				}
 				
 				// Don't update the database or comments - just keep in memory
