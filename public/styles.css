@@ -4034,11 +4034,37 @@ td.col-client.action-bar-active .client-input {
 }
 
 .calendar-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 10px;
+	gap: 8px;
+}
+
+.calendar-month-label {
 	font-weight: 600;
 	font-size: 14px;
 	text-align: center;
-	margin-bottom: 10px;
 	color: var(--text);
+	flex: 1;
+}
+
+.calendar-nav-btn {
+	background: transparent;
+	border: none;
+	color: var(--text);
+	cursor: pointer;
+	padding: 6px 10px;
+	border-radius: 8px;
+	font-size: 14px;
+	transition: background 0.2s ease;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.calendar-nav-btn:hover {
+	background: rgba(193, 84, 129, 0.15);
 }
 
 .calendar-grid {

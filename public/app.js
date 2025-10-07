@@ -6127,12 +6127,17 @@ function openPaymentDateDialog(saleId, anchorX, anchorY) {
 					'otro': 'transf'
 				};
 				
+				// Don't modify payment status, just store the date info in comment
+				const dateInfo = `[Pago: ${paymentDate} - ${method.label}]`;
+				const existingComment = sale.comment_text || '';
+				const newComment = existingComment ? `${existingComment}\n${dateInfo}` : dateInfo;
+				
 				const body = {
 					id: saleId,
 					client_name: sale.client_name || '',
-					is_paid: true,
-					pay_method: methodMap[paymentMethod],
-					comment_text: sale.comment_text || '',
+					is_paid: sale.is_paid || false,
+					pay_method: sale.pay_method || null,
+					comment_text: newComment,
 					_actor_name: state.currentUser?.name || ''
 				};
 				
