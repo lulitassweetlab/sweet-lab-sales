@@ -1055,6 +1055,10 @@ async function enterSeller(id) {
 function switchView(id) {
 	document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
 	$(id).classList.remove('hidden');
+	// Close client action bar when switching views
+	if (typeof closeClientActionBar === 'function') {
+		closeClientActionBar();
+	}
 }
 
 function applyAuthVisibility() {
@@ -1341,6 +1345,10 @@ function createDessertQtyCell(sale, dessert, tr) {
 }
 
 function renderTable() {
+	// Close any open client action bar before re-rendering
+	if (typeof closeClientActionBar === 'function') {
+		closeClientActionBar();
+	}
 	const tbody = $('#sales-tbody');
 	// Update caption with selected date label
 	try {
@@ -1435,6 +1443,12 @@ function renderTable() {
 				input.addEventListener('input', (e) => { const v = (e.target.value || ''); if (/\*$/.test(v.trim())) { saveClientWithCommentFlow(tr, sale.id); } });
 				input.addEventListener('blur', () => saveClientWithCommentFlow(tr, sale.id));
 				input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); saveClientWithCommentFlow(tr, sale.id); } });
+				// Add click listener to show action bar
+				input.addEventListener('click', (e) => {
+					e.stopPropagation();
+					const currentName = input.value || '';
+					openClientActionBar(td, sale.id, currentName);
+				});
 				td.appendChild(input);
 				const name = (sale.client_name || '').trim();
 				if (name) {
@@ -5701,6 +5715,111 @@ function openPayMenu(anchorEl, selectEl, clickX, clickY) {
 		document.addEventListener('mousedown', outside, true);
 		document.addEventListener('touchstart', outside, true);
 	}, 0);
+}
+
+// Client action bar for sales table
+let activeClientActionBar = null;
+
+function openClientActionBar(tdElement, saleId, clientName) {
+	// Close any existing action bar
+	closeClientActionBar();
+	
+	// Create action bar
+	const actionBar = document.createElement('div');
+	actionBar.className = 'client-action-bar';
+	
+	// Edit button (opens client detail view)
+	const editBtn = document.createElement('button');
+	editBtn.className = 'client-action-bar-btn';
+	editBtn.innerHTML = '✏️';
+	editBtn.title = 'Editar cliente';
+	editBtn.addEventListener('click', async (e) => {
+		e.stopPropagation();
+		if (clientName && clientName.trim()) {
+			await openClientDetailView(clientName.trim());
+		}
+		closeClientActionBar();
+	});
+	
+	// Comment button (triggers comment flow with asterisk)
+	const commentBtn = document.createElement('button');
+	commentBtn.className = 'client-action-bar-btn';
+	commentBtn.innerHTML = '💬';
+	commentBtn.title = 'Agregar comentario';
+	commentBtn.addEventListener('click', (e) => {
+		e.stopPropagation();
+		const input = tdElement.querySelector('.client-input');
+		if (input) {
+			// Add asterisk to trigger comment flow
+			input.value = (input.value || '').trim() + '*';
+			input.dispatchEvent(new Event('input'));
+		}
+		closeClientActionBar();
+	});
+	
+	// Payment date button (opens payment selector)
+	const paymentBtn = document.createElement('button');
+	paymentBtn.className = 'client-action-bar-btn';
+	paymentBtn.innerHTML = '📅';
+	paymentBtn.title = 'Método de pago';
+	paymentBtn.addEventListener('click', (e) => {
+		e.stopPropagation();
+		const tr = tdElement.closest('tr');
+		if (tr) {
+			const payWrap = tr.querySelector('.pay-wrap');
+			const paySel = tr.querySelector('.pay-select');
+			if (payWrap && paySel) {
+				const rect = payWrap.getBoundingClientRect();
+				openPayMenu(payWrap, paySel, rect.left + rect.width / 2, rect.bottom);
+			}
+		}
+		closeClientActionBar();
+	});
+	
+	actionBar.appendChild(editBtn);
+	actionBar.appendChild(commentBtn);
+	actionBar.appendChild(paymentBtn);
+	
+	tdElement.appendChild(actionBar);
+	tdElement.classList.add('action-bar-active');
+	
+	// Show with animation
+	setTimeout(() => actionBar.classList.add('active'), 10);
+	
+	activeClientActionBar = { bar: actionBar, td: tdElement };
+	
+	// Close on outside click
+	const outsideClick = (e) => {
+		if (!tdElement.contains(e.target)) {
+			closeClientActionBar();
+		}
+	};
+	
+	setTimeout(() => {
+		document.addEventListener('mousedown', outsideClick, true);
+		document.addEventListener('touchstart', outsideClick, true);
+	}, 0);
+	
+	// Store cleanup function
+	activeClientActionBar.cleanup = () => {
+		document.removeEventListener('mousedown', outsideClick, true);
+		document.removeEventListener('touchstart', outsideClick, true);
+	};
+}
+
+function closeClientActionBar() {
+	if (activeClientActionBar) {
+		if (activeClientActionBar.cleanup) {
+			activeClientActionBar.cleanup();
+		}
+		if (activeClientActionBar.bar && activeClientActionBar.bar.parentNode) {
+			activeClientActionBar.bar.remove();
+		}
+		if (activeClientActionBar.td) {
+			activeClientActionBar.td.classList.remove('action-bar-active');
+		}
+		activeClientActionBar = null;
+	}
 }
 
 // Extend state to include saleDays and selectedDayId if not present

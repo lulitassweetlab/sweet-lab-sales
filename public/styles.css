@@ -3848,3 +3848,83 @@ button.secondary.press-btn:active {
 	padding-right: 0 !important;
 	margin: 0 !important;
 }
+
+/* ===== CLIENT ACTION BAR (SALES TABLE ONLY) ===== */
+.client-action-bar {
+	position: absolute;
+	bottom: calc(100% + 4px);
+	left: 50%;
+	transform: translateX(-50%);
+	background: rgba(0, 0, 0, 0.75);
+	backdrop-filter: blur(8px);
+	border-radius: 8px;
+	padding: 8px 12px;
+	display: flex;
+	gap: 12px;
+	align-items: center;
+	z-index: 1000;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.client-action-bar.active {
+	opacity: 1;
+	pointer-events: auto;
+}
+
+[data-theme="dark"] .client-action-bar {
+	background: rgba(255, 255, 255, 0.15);
+}
+
+.client-action-bar-btn {
+	background: transparent;
+	border: none;
+	color: #fff;
+	cursor: pointer;
+	padding: 6px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 6px;
+	transition: background 0.2s ease;
+	font-size: 16px;
+	line-height: 1;
+}
+
+.client-action-bar-btn:hover {
+	background: rgba(255, 255, 255, 0.2);
+}
+
+[data-theme="dark"] .client-action-bar-btn {
+	color: #fff;
+}
+
+[data-theme="dark"] .client-action-bar-btn:hover {
+	background: rgba(255, 255, 255, 0.3);
+}
+
+/* Make sure col-client has proper positioning */
+td.col-client {
+	position: relative;
+}
+
+/* Add slight visual feedback when action bar is active */
+td.col-client.action-bar-active .client-input {
+	outline: 2px solid var(--primary);
+	outline-offset: -2px;
+}
+
+@media (max-width: 600px) {
+	.client-action-bar {
+		bottom: calc(100% + 2px);
+		padding: 6px 8px;
+		gap: 8px;
+	}
+	
+	.client-action-bar-btn {
+		padding: 4px;
+		font-size: 14px;
+	}
+}
