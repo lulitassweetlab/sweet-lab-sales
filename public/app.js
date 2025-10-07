@@ -1169,11 +1169,12 @@ function renderFooterDessertColumns() {
 	const amtRow = document.getElementById('footer-amt-row');
 	const delivRow = document.getElementById('footer-delivered-row');
 	const commRow = document.getElementById('footer-comm-row');
+	const paidCommRow = document.getElementById('footer-paid-comm-row');
 	
 	if (!qtyRow || !amtRow) return;
 	
 	// Remove existing dessert columns from footer
-	[qtyRow, amtRow, delivRow, commRow].forEach(row => {
+	[qtyRow, amtRow, delivRow, commRow, paidCommRow].forEach(row => {
 		if (!row) return;
 		const existing = row.querySelectorAll('td.col-dessert');
 		existing.forEach(td => td.remove());
@@ -1224,6 +1225,19 @@ function renderFooterDessertColumns() {
 			const td = document.createElement('td');
 			td.className = `col-dessert col-${d.short_code}`;
 			if (totalTd) commRow.insertBefore(td, totalTd);
+		}
+		
+		// Paid Comm row (editable cells)
+		if (paidCommRow) {
+			const totalTd = paidCommRow.querySelector('td.col-total');
+			const td = document.createElement('td');
+			td.className = `col-dessert col-${d.short_code}`;
+			const span = document.createElement('span');
+			span.id = `paid-comm-${d.short_code}`;
+			span.style.outline = 'none';
+			span.textContent = '0';
+			td.appendChild(span);
+			if (totalTd) paidCommRow.insertBefore(td, totalTd);
 		}
 	}
 	
@@ -1573,6 +1587,78 @@ async function performRedo() {
 	undoBtn?.addEventListener('click', () => { performUndo().catch(console.error); });
 	redoBtn?.addEventListener('click', () => { performRedo().catch(console.error); });
 })();
+
+// Superadmin-only editors for paid commissions per day (inline editable)
+function wirePaidCommRowEditors() {
+    const isSuper = state?.currentUser?.role === 'superadmin' || !!state?.currentUser?.isSuperAdmin;
+    const cells = [];
+    
+    // Build cells array dynamically from state.desserts
+    for (const d of state.desserts || []) {
+        const el = document.getElementById(`paid-comm-${d.short_code}`);
+        if (el) cells.push({ key: d.short_code, el });
+    }
+    
+    function selectAllContent(el) {
+        try {
+            const range = document.createRange();
+            range.selectNodeContents(el);
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+        } catch {}
+    }
+    
+    for (const item of cells) {
+        const el = item.el;
+        if (!el) continue;
+        // Toggle contenteditable based on role
+        if (isSuper) {
+            if (!el.isContentEditable) el.setAttribute('contenteditable', 'true');
+            el.style.cursor = 'text';
+            el.title = 'Editar comisión pagada';
+        } else {
+            if (el.isContentEditable) el.removeAttribute('contenteditable');
+            el.style.cursor = 'default';
+            el.title = '';
+        }
+        if (el.dataset.bound === '1') continue;
+        el.dataset.bound = '1';
+        // Al enfocar/clic, seleccionar todo para reemplazar con la nueva cifra
+        el.addEventListener('focus', () => { selectAllContent(el); });
+        el.addEventListener('mouseup', (ev) => { ev.preventDefault(); selectAllContent(el); });
+        el.addEventListener('click', () => { selectAllContent(el); });
+        // Sanitize input to numbers only while typing
+        el.addEventListener('input', () => {
+            if (!el.isContentEditable) return;
+            let raw = (el.textContent || '').replace(/[^0-9]/g, '');
+            // Remove leading zeros
+            raw = raw.replace(/^0+(\d)/, '$1');
+            el.textContent = raw;
+        });
+        // Save on Enter or blur
+        el.addEventListener('keydown', (ev) => {
+            if (ev.key === 'Enter') { ev.preventDefault(); el.blur(); }
+        });
+        el.addEventListener('blur', async () => {
+            if (!isSuper) return;
+            const dayId = state?.selectedDayId || null;
+            if (!dayId) { try { notify.error('Selecciona una fecha'); } catch {} return; }
+            const flavor = item.key;
+            const value = Math.max(0, parseInt((el.textContent || '0').trim(), 10) || 0);
+            const payload = { id: dayId, actor_name: state.currentUser?.name || '' };
+            payload[`paid_comm_${flavor}`] = value;
+            try {
+                const updated = await api('PUT', '/api/days', payload);
+                const idx = (state.saleDays || []).findIndex(d => d && d.id === dayId);
+                if (idx !== -1) state.saleDays[idx] = updated;
+                updateSummary();
+            } catch (e) {
+                try { notify.error('No se pudo guardar'); } catch {}
+            }
+        });
+    }
+}
 
 // Superadmin-only editors for delivered counts per day (inline editable)
 function wireDeliveredRowEditors() {
@@ -2857,6 +2943,24 @@ function updateSummary() {
 		const elDt = document.getElementById('deliv-total');
 		if (elDt) elDt.textContent = String(totalDelivered);
 		wireDeliveredRowEditors();
+	} catch {}
+	// Paid commissions (per day, editable solo por superadmin)
+	try {
+		const day = (state && Array.isArray(state.saleDays) && state.selectedDayId)
+			? (state.saleDays || []).find(d => d && d.id === state.selectedDayId)
+			: null;
+		
+		let totalPaidComm = 0;
+		for (const d of state.desserts) {
+			const paidComm = Number(day?.[`paid_comm_${d.short_code}`] || 0) || 0;
+			totalPaidComm += paidComm;
+			const elPC = document.getElementById(`paid-comm-${d.short_code}`);
+			if (elPC) elPC.textContent = String(paidComm);
+		}
+		
+		const elPCt = document.getElementById('sum-paid-comm');
+		if (elPCt) elPCt.textContent = String(totalPaidComm);
+		wirePaidCommRowEditors();
 	} catch {}
 	// Decide whether to stack totals to avoid overlap on small screens
 	requestAnimationFrame(() => {
