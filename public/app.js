@@ -2876,11 +2876,11 @@ function openCommentDialog(anchorEl, initial = '', anchorX, anchorY) {
 			pop.style.transform = 'none';
 		}
 		pop.style.zIndex = '1000';
-		// Size: compact size
+		// Size: medium compact size
 		const isSmallScreen = window.matchMedia('(max-width: 600px)').matches;
-		pop.style.minWidth = isSmallScreen ? 'min(85vw, 200px)' : '180px';
-		pop.style.maxWidth = isSmallScreen ? '90vw' : '320px';
-		const ta = document.createElement('textarea'); ta.className = 'comment-input'; ta.placeholder = 'comentario'; ta.value = initial || ''; ta.style.minHeight = isSmallScreen ? '70px' : '80px';
+		pop.style.minWidth = isSmallScreen ? 'min(85vw, 300px)' : '320px';
+		pop.style.maxWidth = isSmallScreen ? '90vw' : '520px';
+		const ta = document.createElement('textarea'); ta.className = 'comment-input'; ta.placeholder = 'Escribe un comentario...'; ta.value = initial || ''; ta.style.minHeight = isSmallScreen ? '100px' : '140px';
 		ta.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); save.click(); } });
 		const actions = document.createElement('div'); actions.className = 'confirm-actions';
 		const cancel = document.createElement('button'); cancel.className = 'press-btn'; cancel.textContent = 'Cancelar';
@@ -6005,9 +6005,9 @@ function updateCommentMarkerPosition(inputElement, markerElement) {
 	// Get padding left from input
 	const paddingLeft = parseFloat(cs.paddingLeft) || 8;
 	
-	// Position marker right after the text, with a gap of approximately 4 spaces
+	// Position marker right after the text, with a gap of approximately 6 spaces
 	const spaceWidth = ctx.measureText(' ').width || 4;
-	const markerLeft = paddingLeft + textWidth + (spaceWidth * 4);
+	const markerLeft = paddingLeft + textWidth + (spaceWidth * 6);
 	
 	// Apply position
 	markerElement.style.left = markerLeft + 'px';
