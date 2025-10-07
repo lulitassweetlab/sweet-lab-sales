@@ -6213,8 +6213,32 @@ function openPaymentDateDialog(saleId, anchorX, anchorY) {
 	
 	// Use previously saved date if exists, otherwise use today
 	let initialDate = new Date();
-	if (sale._paymentInfo && sale._paymentInfo.date) {
-		initialDate = new Date(sale._paymentInfo.date + 'T00:00:00');
+	
+	// Try to get saved date from multiple sources
+	const savedDate = sale.payment_date || (sale._paymentInfo && sale._paymentInfo.date);
+	if (savedDate) {
+		try {
+			// Handle different date formats (ISO, date object, etc)
+			let dateStr;
+			if (typeof savedDate === 'string') {
+				dateStr = savedDate.slice(0, 10); // Get YYYY-MM-DD
+			} else if (savedDate instanceof Date) {
+				dateStr = savedDate.toISOString().slice(0, 10);
+			} else {
+				dateStr = String(savedDate).slice(0, 10);
+			}
+			
+			initialDate = new Date(dateStr + 'T00:00:00');
+			
+			// Validate the date is valid
+			if (isNaN(initialDate.getTime())) {
+				console.warn('Invalid date, using today. Original value:', savedDate);
+				initialDate = new Date();
+			}
+		} catch (e) {
+			console.error('Error parsing date:', e, 'Original value:', savedDate);
+			initialDate = new Date();
+		}
 	}
 	
 	let currentMonth = initialDate.getMonth();
@@ -6345,8 +6369,8 @@ function openPaymentDateDialog(saleId, anchorX, anchorY) {
 		{ value: 'otro', label: 'Otro' }
 	];
 	
-	// Get previously selected method if exists
-	const previousMethod = sale._paymentInfo?.method;
+	// Get previously selected method if exists (try multiple sources)
+	const previousMethod = sale.pay_method || (sale._paymentInfo && sale._paymentInfo.method);
 	
 	methods.forEach(method => {
 		const btn = document.createElement('button');
@@ -6356,7 +6380,14 @@ function openPaymentDateDialog(saleId, anchorX, anchorY) {
 		btn.dataset.value = method.value;
 		
 		// Pre-select if this was the previously chosen method
-		if (previousMethod && method.label === previousMethod) {
+		// Check both label and value for matching
+		const isSelected = previousMethod && (
+			method.label === previousMethod || 
+			method.label.toLowerCase() === previousMethod.toLowerCase() ||
+			method.value === previousMethod.toLowerCase()
+		);
+		
+		if (isSelected) {
 			btn.classList.add('selected');
 		}
 		
