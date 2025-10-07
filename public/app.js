@@ -3,8 +3,6 @@ async function openClientDetailView(clientName) {
 	const name = String(clientName || '').trim();
 	state._clientDetailName = name;
 	state._clientDetailFrom = document.querySelector('#view-sales')?.classList.contains('hidden') ? 'clients' : 'sales';
-	const title = document.getElementById('client-detail-title'); if (title) title.textContent = name || 'Cliente';
-	const subtitle = document.getElementById('client-detail-subtitle'); if (subtitle) subtitle.textContent = 'Historial de compras';
 	await loadClientDetailRows(name);
 	switchView('#view-client-detail');
 }
@@ -16,10 +14,6 @@ async function openGlobalClientDetailView(clientName) {
 	
 	state._clientDetailName = name;
 	state._clientDetailFrom = 'global-search';
-	const title = document.getElementById('client-detail-title'); 
-	if (title) title.textContent = name || 'Cliente';
-	const subtitle = document.getElementById('client-detail-subtitle'); 
-	if (subtitle) subtitle.textContent = 'Historial de compras';
 	
 	await loadGlobalClientDetailRows(name);
 	switchView('#view-client-detail');
@@ -91,6 +85,7 @@ async function loadGlobalClientDetailRows(clientName) {
 
 async function loadClientDetailRows(clientName) {
 	const sellerId = state.currentSeller.id;
+	const sellerName = state.currentSeller.name || '';
 	const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(sellerId)}`);
 	const allRows = [];
 	for (const d of (days || [])) {
@@ -104,6 +99,8 @@ async function loadClientDetailRows(clientName) {
 			allRows.push({
 				id: s.id,
 				dayIso: String(d.day).slice(0,10),
+				sellerName: sellerName,
+				sellerId: sellerId,
 				qty_arco: Number(s.qty_arco||0),
 				qty_melo: Number(s.qty_melo||0),
 				qty_mara: Number(s.qty_mara||0),
@@ -171,10 +168,42 @@ function renderClientDetailTable(rows) {
 	const tbody = document.getElementById('client-detail-tbody');
 	if (!tbody) return;
 	tbody.innerHTML = '';
+	
+	// Update title with client name and seller name
+	const title = document.getElementById('client-detail-title');
+	if (title) {
+		// Clear existing content and create editable structure
+		title.innerHTML = '';
+		const clientNameSpan = document.createElement('span');
+		clientNameSpan.textContent = state._clientDetailName || 'Cliente';
+		clientNameSpan.style.cursor = 'pointer';
+		clientNameSpan.title = 'Haz clic para editar';
+		clientNameSpan.addEventListener('click', () => {
+			openEditClientNameDialog(state._clientDetailName);
+		});
+		
+		const sellerNameSpan = document.createElement('span');
+		if (rows && rows.length > 0 && rows[0].sellerName) {
+			sellerNameSpan.textContent = '  -  ' + rows[0].sellerName;
+			sellerNameSpan.style.opacity = '0.7';
+		}
+		
+		title.appendChild(clientNameSpan);
+		title.appendChild(sellerNameSpan);
+	}
+	
 	if (!rows || rows.length === 0) {
 		const tr = document.createElement('tr');
 		const td = document.createElement('td'); td.colSpan = 9; td.textContent = 'Sin compras'; td.style.opacity = '0.8';
-		tr.appendChild(td); tbody.appendChild(tr); return;
+		tr.appendChild(td); tbody.appendChild(tr);
+		// Clear totals
+		document.getElementById('client-detail-total-arco').textContent = '';
+		document.getElementById('client-detail-total-melo').textContent = '';
+		document.getElementById('client-detail-total-mara').textContent = '';
+		document.getElementById('client-detail-total-oreo').textContent = '';
+		document.getElementById('client-detail-total-nute').textContent = '';
+		document.getElementById('client-detail-total-grand').textContent = '';
+		return;
 	}
 	for (const r of rows) {
 		const tr = document.createElement('tr');
@@ -286,6 +315,124 @@ function renderClientDetailTable(rows) {
 		tr.append(tdPay, tdDate, tdAr, tdMe, tdMa, tdOr, tdNu, tdTot, tdDel);
 		tr.addEventListener('mousedown', () => { tr.classList.add('row-highlight'); setTimeout(() => tr.classList.remove('row-highlight'), 3200); });
 		tbody.appendChild(tr);
+	}
+	
+	// Calculate and display totals
+	let totalArco = 0, totalMelo = 0, totalMara = 0, totalOreo = 0, totalNute = 0, totalGrand = 0;
+	for (const r of rows) {
+		totalArco += r.qty_arco || 0;
+		totalMelo += r.qty_melo || 0;
+		totalMara += r.qty_mara || 0;
+		totalOreo += r.qty_oreo || 0;
+		totalNute += r.qty_nute || 0;
+		const rowTotal = calcRowTotal({ arco: r.qty_arco, melo: r.qty_melo, mara: r.qty_mara, oreo: r.qty_oreo, nute: r.qty_nute });
+		totalGrand += rowTotal;
+	}
+	
+	document.getElementById('client-detail-total-arco').textContent = totalArco || '';
+	document.getElementById('client-detail-total-melo').textContent = totalMelo || '';
+	document.getElementById('client-detail-total-mara').textContent = totalMara || '';
+	document.getElementById('client-detail-total-oreo').textContent = totalOreo || '';
+	document.getElementById('client-detail-total-nute').textContent = totalNute || '';
+	document.getElementById('client-detail-total-grand').textContent = fmtNo.format(totalGrand);
+}
+
+// Function to edit client name
+async function openEditClientNameDialog(currentName) {
+	const newName = prompt('Editar nombre del cliente:', currentName);
+	if (!newName || newName.trim() === '') {
+		return; // User cancelled or entered empty name
+	}
+	
+	const trimmedName = newName.trim();
+	if (trimmedName === currentName) {
+		return; // No change
+	}
+	
+	// Confirm the change
+	if (!confirm(`¿Cambiar el nombre del cliente de "${currentName}" a "${trimmedName}"?\n\nEsto actualizará todas las compras de este cliente.`)) {
+		return;
+	}
+	
+	try {
+		let updatedCount = 0;
+		
+		// Determine which sellers to update
+		const isGlobalView = state._clientDetailFrom === 'global-search';
+		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+		const isAdmin = !!state.currentUser?.isAdmin;
+		
+		let sellersToUpdate = [];
+		
+		if (isGlobalView && (isSuper || isAdmin)) {
+			// Update across all sellers
+			sellersToUpdate = state.sellers || [];
+		} else if (state._clientDetailSellerId) {
+			// Update only for specific seller
+			const seller = (state.sellers || []).find(s => s.id === state._clientDetailSellerId);
+			if (seller) sellersToUpdate = [seller];
+		} else if (state.currentSeller) {
+			// Fallback to current seller
+			sellersToUpdate = [state.currentSeller];
+		}
+		
+		if (sellersToUpdate.length === 0) {
+			notify.error('No se pudo determinar el vendedor');
+			return;
+		}
+		
+		// Update sales for all relevant sellers
+		for (const seller of sellersToUpdate) {
+			const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(seller.id)}`);
+			
+			for (const d of (days || [])) {
+				const params = new URLSearchParams({ seller_id: String(seller.id), sale_day_id: String(d.id) });
+				let sales = [];
+				try { 
+					sales = await api('GET', `${API.Sales}?${params.toString()}`); 
+				} catch { 
+					sales = []; 
+				}
+				
+				for (const s of (sales || [])) {
+					const n = (s?.client_name || '').trim();
+					if (!n) continue;
+					if (normalizeClientName(n) !== normalizeClientName(currentName)) continue;
+					
+					// Update this sale with the new name
+					await api('PUT', API.Sales, {
+						id: s.id,
+						client_name: trimmedName,
+						qty_arco: Number(s.qty_arco||0),
+						qty_melo: Number(s.qty_melo||0),
+						qty_mara: Number(s.qty_mara||0),
+						qty_oreo: Number(s.qty_oreo||0),
+						qty_nute: Number(s.qty_nute||0),
+						pay_method: s.pay_method || null,
+						_actor_name: state.currentUser?.name || ''
+					});
+					updatedCount++;
+				}
+			}
+		}
+		
+		// Update state and reload
+		state._clientDetailName = trimmedName;
+		notify.success(`Nombre actualizado: ${updatedCount} compra(s) modificadas`);
+		
+		// Reload the client detail view with new name
+		if (state._clientDetailFrom === 'global-search') {
+			await loadGlobalClientDetailRows(trimmedName);
+		} else {
+			await loadClientDetailRows(trimmedName);
+		}
+		
+		// Update client counts if necessary
+		if (typeof loadGlobalClientSuggestions === 'function') {
+			await loadGlobalClientSuggestions();
+		}
+	} catch (err) {
+		notify.error('Error al actualizar el nombre: ' + String(err));
 	}
 }
 
