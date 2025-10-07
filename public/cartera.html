@@ -58,6 +58,7 @@
 							<th class="col-qty">Oreo</th>
 							<th class="col-qty">Nute</th>
 							<th class="col-total">Total</th>
+							<th></th>
 						</tr>
 					</thead>
 					<tbody id="report-tbody"></tbody>
@@ -74,6 +75,7 @@
 							<td id="t-qo" class="col-qty"></td>
 							<td id="t-qn" class="col-qty"></td>
 							<td id="t-grand" class="col-total"></td>
+							<td></td>
 						</tr>
 					</tfoot>
 				</table>
@@ -105,6 +107,7 @@
 
 		let dataset = [];
 		let sellersList = [];
+		let salesMap = {}; // Maps composite key to sale_id
 		let sortColumn = null;
 		let sortDirection = 'desc'; // 'asc' or 'desc'
 
@@ -117,6 +120,18 @@
                 pm === 'jorgebank' ? 'JorgeBank' : '-';
         }
 		async function fetchJSON(u){ const r = await fetch(u); if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }
+		async function deleteSale(saleId, clientName) {
+			if (!confirm(`¿Estás seguro de eliminar la venta de "${clientName || 'este cliente'}"?`)) return;
+			try {
+				const url = withActor(`/api/sales?id=${saleId}`);
+				const r = await fetch(url, { method: 'DELETE' });
+				if (!r.ok) throw new Error(`HTTP ${r.status}`);
+				// Reload data after deletion
+				await load();
+			} catch (err) {
+				alert('Error al eliminar: ' + String(err));
+			}
+		}
 		function withActor(url){
 			try { const u = new URL(url, location.origin); if (actor) u.searchParams.set('actor', actor); return u.pathname + (u.search || ''); }
 			catch { return url + (url.includes('?') ? `&actor=${encodeURIComponent(actor)}` : `?actor=${encodeURIComponent(actor)}`); }
@@ -241,9 +256,19 @@
 					<td>${r.qma||''}</td>
 					<td>${r.qo||''}</td>
 					<td>${r.qn||''}</td>
-					<td class="col-total">${r.tot||''}</td>`;
+					<td class="col-total">${r.tot||''}</td>
+					<td style="text-align:center;"><button class="delete-btn" data-sale-id="${r.saleId||''}" data-client-name="${(r.client_name||'').replace(/"/g,'&quot;')}" title="Eliminar" style="background:none; border:none; cursor:pointer; font-size:18px; color:#e74c3c; padding:4px 8px;">🗑️</button></td>`;
 				tbody.appendChild(tr);
 				tQa += r.qa||0; tQm += r.qm||0; tQma += r.qma||0; tQo += r.qo||0; tQn += r.qn||0; tGrand += r.tot||0;
+			}
+			// Attach delete event listeners
+			const deleteBtns = tbody.querySelectorAll('.delete-btn');
+			for (const btn of deleteBtns) {
+				btn.addEventListener('click', () => {
+					const saleId = btn.getAttribute('data-sale-id');
+					const clientName = btn.getAttribute('data-client-name');
+					if (saleId) deleteSale(saleId, clientName);
+				});
 			}
 			tQaEl.textContent = tQa || '';
 			tQmEl.textContent = tQm || '';
@@ -370,7 +395,8 @@
 							client_name: r.client_name || '',
 							pay_method: pm,
 							is_paid: !!r.is_paid,
-							qa, qm, qma, qo, qn, tot
+							qa, qm, qma, qo, qn, tot,
+							saleId: r.id
 						});
 					}
 				} catch {}
