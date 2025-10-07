@@ -39,18 +39,15 @@
 					<div id="seller-filter-group" class="seller-filter-group" style="display:flex; gap:8px; flex-wrap:wrap; min-width:220px; max-height:132px; overflow:auto; padding:8px; border:1px solid var(--border); border-radius:10px; background: var(--card);"></div>
 				</label>
                 <label style="display:flex; gap:6px; align-items:flex-start">
-                    <span style="line-height:28px;">Pago</span>
-                    <div id="pay-filter-group" class="seller-filter-group" style="display:flex; gap:8px; flex-wrap:wrap; min-width:220px; max-height:132px; overflow:auto; padding:8px; border:1px solid var(--border); border-radius:10px; background: var(--card);"></div>
+                    <span style="line-height:28px;">Método</span>
+                    <div id="pay-filter-group" class="seller-filter-group" style="display:flex; gap:8px; flex-wrap:wrap; min-width:200px; max-height:132px; overflow:auto; padding:8px; border:1px solid var(--border); border-radius:10px; background: var(--card);"></div>
                 </label>
 				<label style="display:flex; gap:6px; align-items:center">
-					<span>Fecha desde:</span>
-					<input type="date" id="date-from-filter" style="padding:4px 8px; border:1px solid var(--border); border-radius:6px; background:var(--card); color:var(--text);" />
+					<span>Fecha pago:</span>
+					<button id="date-filter-btn" class="press-btn" style="padding:4px 12px; height:28px; font-size:0.9em;">
+						<span id="date-filter-label">Todas</span>
+					</button>
 				</label>
-				<label style="display:flex; gap:6px; align-items:center">
-					<span>Fecha hasta:</span>
-					<input type="date" id="date-to-filter" style="padding:4px 8px; border:1px solid var(--border); border-radius:6px; background:var(--card); color:var(--text);" />
-				</label>
-				<button id="clear-date-filter" class="press-btn" style="padding:4px 12px; height:28px; font-size:0.9em;">Limpiar fechas</button>
 			</div>
 			<div class="table-wrapper" id="report-wrapper">
 				<table id="report-table">
@@ -113,9 +110,11 @@
 		const exportBtn = document.getElementById('export-excel');
         const sellerFilterGroup = document.getElementById('seller-filter-group');
         const payFilterGroup = document.getElementById('pay-filter-group');
-		const dateFromFilter = document.getElementById('date-from-filter');
-		const dateToFilter = document.getElementById('date-to-filter');
-		const clearDateBtn = document.getElementById('clear-date-filter');
+		const dateFilterBtn = document.getElementById('date-filter-btn');
+		const dateFilterLabel = document.getElementById('date-filter-label');
+		
+		let dateFilterFrom = null;
+		let dateFilterTo = null;
 
 		let dataset = [];
 		let sellersList = [];
@@ -183,24 +182,28 @@
 				});
 				updateMasterCheckboxState();
 			}
-            // Pay methods (multi-select)
+            // Pay methods - Bancolombia, Nequi, Otros
             if (payFilterGroup) {
-                const prevSelected = getSelectedPays();
+                const prevSelected = getSelectedPayCategories();
                 payFilterGroup.innerHTML = '';
                 const masterWrap = document.createElement('label'); masterWrap.style.display='inline-flex'; masterWrap.style.alignItems='center'; masterWrap.style.gap='6px';
                 const master = document.createElement('input'); master.type='checkbox'; master.id='pf_all';
                 const masterSpan = document.createElement('span'); masterSpan.textContent = 'Todos';
                 masterWrap.appendChild(master); masterWrap.appendChild(masterSpan);
                 payFilterGroup.appendChild(masterWrap);
-                const codes = ['', 'efectivo', 'marce', 'jorge', 'transf', 'jorgebank'];
-                for (const code of codes){
-                    const id = `pf_${code || 'dash'}`;
+                const categories = [
+                    { value: 'bancolombia', label: 'Bancolombia' },
+                    { value: 'nequi', label: 'Nequi' },
+                    { value: 'otros', label: 'Otros' }
+                ];
+                for (const cat of categories){
+                    const id = `pf_${cat.value}`;
                     const wrap = document.createElement('label'); wrap.style.display='inline-flex'; wrap.style.alignItems='center'; wrap.style.gap='6px';
-                    const cb = document.createElement('input'); cb.type='checkbox'; cb.value = code; cb.id = id;
+                    const cb = document.createElement('input'); cb.type='checkbox'; cb.value = cat.value; cb.id = id;
                     // Default to selected if no prior selection
                     cb.checked = prevSelected.length ? prevSelected.includes(cb.value) : true;
                     cb.addEventListener('change', () => { updateMasterCheckboxState(); render(); });
-                    const sp = document.createElement('span'); sp.textContent = payLabel(code);
+                    const sp = document.createElement('span'); sp.textContent = cat.label;
                     wrap.appendChild(cb); wrap.appendChild(sp);
                     payFilterGroup.appendChild(wrap);
                 }
@@ -227,22 +230,31 @@
 			return [];
 		}
 
+		function getPayCategory(payMethod){
+			// Map pay_method to category
+			const pm = (payMethod || '').toString().toLowerCase();
+			if (pm === 'jorgebank' || pm === 'transf') return 'bancolombia';
+			if (pm === 'marce' || pm === 'jorge') return 'nequi';
+			return 'otros'; // efectivo, '', entregado, etc.
+		}
+
 		function getFilteredData(){
 			const selSellers = getSelectedSellers();
-            const selPays = getSelectedPays();
-			const dateFrom = dateFromFilter.value;
-			const dateTo = dateToFilter.value;
+            const selCategories = getSelectedPayCategories();
 			let rows = dataset.filter(r => {
 				if (selSellers.length && !selSellers.includes(r.sellerName)) return false;
-                if (selPays.length && !selPays.includes((r.pay_method || ''))) return false;
-				if (dateFrom && r.date < dateFrom) return false;
-				if (dateTo && r.date > dateTo) return false;
+                if (selCategories.length) {
+					const category = getPayCategory(r.pay_method);
+					if (!selCategories.includes(category)) return false;
+				}
+				if (dateFilterFrom && r.date < dateFilterFrom) return false;
+				if (dateFilterTo && r.date > dateFilterTo) return false;
 				return true;
 			});
 			return rows;
 		}
 
-        function getSelectedPays(){
+        function getSelectedPayCategories(){
             if (payFilterGroup) {
                 return Array.from(payFilterGroup.querySelectorAll('input[type="checkbox"]:checked'))
                     .filter(i => i.id !== 'pf_all')
@@ -456,14 +468,27 @@
         changeBtn.addEventListener('click', (ev) => openCalendar(ev));
 		setupSortListeners();
 		
-		// Date filter listeners
-		dateFromFilter.addEventListener('change', render);
-		dateToFilter.addEventListener('change', render);
-		clearDateBtn.addEventListener('click', () => {
-			dateFromFilter.value = '';
-			dateToFilter.value = '';
-			render();
+		// Date filter button
+		dateFilterBtn.addEventListener('click', (ev) => {
+			openDateFilterCalendar(ev);
 		});
+		
+		function openDateFilterCalendar(ev){
+			openRangeCalendarPopover((range) => {
+				if (!range || !range.start || !range.end) {
+					// Clear filter
+					dateFilterFrom = null;
+					dateFilterTo = null;
+					dateFilterLabel.textContent = 'Todas';
+					render();
+					return;
+				}
+				dateFilterFrom = range.start;
+				dateFilterTo = range.end;
+				dateFilterLabel.textContent = `${dateFilterFrom} — ${dateFilterTo}`;
+				render();
+			}, ev?.clientX, ev?.clientY, { preferUp: true });
+		}
 
 		// Lightweight date range popover if missing
 		if (typeof window.openRangeCalendarPopover !== 'function') {
