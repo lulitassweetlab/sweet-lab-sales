@@ -2862,13 +2862,12 @@ function openCommentDialog(anchorEl, initial = '', anchorX, anchorY) {
 		const pop = document.createElement('div');
 		pop.className = 'comment-popover';
 		pop.style.position = 'fixed';
-		pop.style.visibility = 'hidden'; // Hide initially to measure
 		const rect = anchorEl.getBoundingClientRect();
 		if (typeof anchorX === 'number' && typeof anchorY === 'number') {
 			// Position centered at the click point (slightly above)
 			pop.style.left = anchorX + 'px';
-			pop.style.top = (anchorY - 5) + 'px';
-			pop.style.transform = 'translate(-50%, -100%)'; // Center horizontally, right at click
+			pop.style.top = anchorY + 'px';
+			pop.style.transform = 'translate(-50%, calc(-100% - 10px))'; // Center horizontally, 10px above click
 		} else {
 			// Fallback: open to the right of the input at same row height
 			pop.style.left = (rect.right + 8) + 'px';
@@ -2888,10 +2887,6 @@ function openCommentDialog(anchorEl, initial = '', anchorX, anchorY) {
 		actions.append(cancel, save);
 		pop.append(ta, actions);
 		document.body.appendChild(pop);
-		// Make visible after measuring
-		requestAnimationFrame(() => {
-			pop.style.visibility = 'visible';
-		});
 		// Clamp within the visible viewport (accounts for on-screen keyboard via visualViewport)
 		const reclamp = () => {
 			const margin = 8;
@@ -6014,6 +6009,159 @@ function updateCommentMarkerPosition(inputElement, markerElement) {
 	markerElement.style.right = 'auto';
 }
 
+// Payment date dialog with calendar and payment method options
+function openPaymentDateDialog(saleId, anchorX, anchorY) {
+	const sale = state.sales.find(s => s.id === saleId);
+	if (!sale) return;
+	
+	const pop = document.createElement('div');
+	pop.className = 'payment-date-popover';
+	pop.style.position = 'fixed';
+	pop.style.left = anchorX + 'px';
+	pop.style.top = anchorY + 'px';
+	pop.style.transform = 'translate(-50%, calc(-100% - 10px))';
+	pop.style.zIndex = '1000';
+	
+	// Title
+	const title = document.createElement('div');
+	title.className = 'payment-date-title';
+	title.textContent = 'Fecha y método de pago';
+	
+	// Date input
+	const dateLabel = document.createElement('label');
+	dateLabel.className = 'payment-date-label';
+	dateLabel.textContent = 'Fecha de pago:';
+	
+	const dateInput = document.createElement('input');
+	dateInput.type = 'date';
+	dateInput.className = 'payment-date-input';
+	dateInput.value = new Date().toISOString().split('T')[0]; // Today by default
+	
+	// Payment method label
+	const methodLabel = document.createElement('div');
+	methodLabel.className = 'payment-date-label';
+	methodLabel.textContent = 'Método de pago:';
+	methodLabel.style.marginTop = '12px';
+	
+	// Payment method buttons
+	const methodsContainer = document.createElement('div');
+	methodsContainer.className = 'payment-methods-container';
+	
+	let selectedMethod = 'bancolombia';
+	
+	const methods = [
+		{ value: 'bancolombia', label: 'Bancolombia' },
+		{ value: 'nequi', label: 'Nequi' },
+		{ value: 'otro', label: 'Otro' }
+	];
+	
+	const methodButtons = methods.map(method => {
+		const btn = document.createElement('button');
+		btn.type = 'button';
+		btn.className = 'payment-method-btn';
+		btn.textContent = method.label;
+		btn.dataset.value = method.value;
+		
+		if (method.value === selectedMethod) {
+			btn.classList.add('selected');
+		}
+		
+		btn.addEventListener('click', () => {
+			methodButtons.forEach(b => b.classList.remove('selected'));
+			btn.classList.add('selected');
+			selectedMethod = method.value;
+		});
+		
+		methodsContainer.appendChild(btn);
+		return btn;
+	});
+	
+	// Actions
+	const actions = document.createElement('div');
+	actions.className = 'confirm-actions';
+	actions.style.marginTop = '16px';
+	
+	const cancelBtn = document.createElement('button');
+	cancelBtn.type = 'button';
+	cancelBtn.className = 'press-btn';
+	cancelBtn.textContent = 'Cancelar';
+	
+	const saveBtn = document.createElement('button');
+	saveBtn.type = 'button';
+	saveBtn.className = 'press-btn btn-primary';
+	saveBtn.textContent = 'Guardar';
+	
+	actions.append(cancelBtn, saveBtn);
+	
+	pop.append(title, dateLabel, dateInput, methodLabel, methodsContainer, actions);
+	document.body.appendChild(pop);
+	
+	function cleanup() {
+		document.removeEventListener('mousedown', outside, true);
+		document.removeEventListener('touchstart', outside, true);
+		if (pop.parentNode) pop.parentNode.removeChild(pop);
+	}
+	
+	function outside(ev) {
+		if (!pop.contains(ev.target)) cleanup();
+	}
+	
+	setTimeout(() => {
+		document.addEventListener('mousedown', outside, true);
+		document.addEventListener('touchstart', outside, true);
+	}, 0);
+	
+	cancelBtn.addEventListener('click', cleanup);
+	
+	saveBtn.addEventListener('click', async () => {
+		try {
+			saveBtn.disabled = true;
+			const paymentDate = dateInput.value;
+			const paymentMethod = selectedMethod;
+			
+			// Save payment info (you can add fields to store date and method in the database)
+			// For now, we'll just set pay_method with a prefix indicating the payment method
+			const methodMap = {
+				'bancolombia': 'transf',
+				'nequi': 'transf', 
+				'otro': 'transf'
+			};
+			
+			const body = {
+				id: saleId,
+				client_name: sale.client_name || '',
+				is_paid: true,
+				pay_method: methodMap[paymentMethod],
+				comment_text: sale.comment_text || '',
+				_actor_name: state.currentUser?.name || ''
+			};
+			
+			// Support for items or legacy format
+			if (sale.items && Array.isArray(sale.items)) {
+				body.items = sale.items;
+			} else {
+				for (const d of state.desserts) {
+					body[`qty_${d.short_code}`] = sale[`qty_${d.short_code}`] || 0;
+				}
+			}
+			
+			const updated = await api('PUT', API.Sales, body);
+			const idx = state.sales.findIndex(s => s.id === saleId);
+			if (idx !== -1) state.sales[idx] = updated;
+			
+			renderTable();
+			try { notify.success(`Pago registrado: ${paymentDate} - ${methods.find(m => m.value === paymentMethod)?.label}`); } catch {}
+			cleanup();
+		} catch (e) {
+			try { notify.error('Error al guardar'); } catch {}
+			saveBtn.disabled = false;
+		}
+	});
+	
+	// Focus date input
+	setTimeout(() => { try { dateInput.focus(); } catch {} }, 0);
+}
+
 // Client action bar for sales table
 let activeClientActionBar = null;
 
@@ -6080,19 +6228,13 @@ function openClientActionBar(tdElement, saleId, clientName, clickX, clickY) {
 		const paymentBtn = document.createElement('button');
 		paymentBtn.className = 'client-action-bar-btn';
 		paymentBtn.innerHTML = '📅';
-		paymentBtn.title = 'Método de pago';
+		paymentBtn.title = 'Fecha y método de pago';
 		paymentBtn.addEventListener('click', (e) => {
 			e.stopPropagation();
-			const tr = tdElement.closest('tr');
-			if (tr) {
-				const payWrap = tr.querySelector('.pay-wrap');
-				const paySel = tr.querySelector('.pay-select');
-				if (payWrap && paySel) {
-					const rect = payWrap.getBoundingClientRect();
-					openPayMenu(payWrap, paySel, rect.left + rect.width / 2, rect.bottom);
-				}
-			}
+			const btnClickX = e.clientX;
+			const btnClickY = e.clientY;
 			closeClientActionBar();
+			openPaymentDateDialog(saleId, btnClickX, btnClickY);
 		});
 		actionBar.appendChild(paymentBtn);
 	}

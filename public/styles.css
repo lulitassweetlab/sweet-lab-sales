@@ -3988,3 +3988,96 @@ td.col-client.action-bar-active .client-input {
 		font-size: 18px;
 	}
 }
+
+/* ===== PAYMENT DATE POPOVER ===== */
+.payment-date-popover {
+	background: rgba(255, 255, 255, 0.95);
+	backdrop-filter: blur(10px);
+	color: var(--text);
+	border: 1px solid rgba(193, 84, 129, 0.3);
+	border-radius: 16px;
+	padding: 18px;
+	min-width: 280px;
+	max-width: 320px;
+	box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="dark"] .payment-date-popover {
+	background: rgba(40, 40, 40, 0.95);
+	border: 1px solid rgba(193, 84, 129, 0.4);
+}
+
+.payment-date-title {
+	font-weight: 600;
+	font-size: 15px;
+	margin-bottom: 14px;
+	color: var(--text);
+}
+
+.payment-date-label {
+	font-size: 13px;
+	font-weight: 500;
+	margin-bottom: 8px;
+	color: var(--text);
+}
+
+.payment-date-input {
+	width: 100%;
+	padding: 10px 12px;
+	border: 1px solid rgba(193, 84, 129, 0.2);
+	border-radius: 10px;
+	font-size: 14px;
+	background: rgba(250, 250, 250, 1);
+	color: var(--text);
+	transition: border-color 0.2s ease;
+	-webkit-appearance: none;
+}
+
+[data-theme="dark"] .payment-date-input {
+	background: rgba(50, 50, 50, 1);
+}
+
+.payment-date-input:focus {
+	outline: none;
+	border-color: rgba(193, 84, 129, 0.5);
+	box-shadow: 0 0 0 3px rgba(193, 84, 129, 0.1);
+}
+
+.payment-methods-container {
+	display: flex;
+	gap: 8px;
+	margin-top: 10px;
+}
+
+.payment-method-btn {
+	flex: 1;
+	padding: 10px 8px;
+	border: 1px solid rgba(193, 84, 129, 0.3);
+	border-radius: 10px;
+	background: rgba(250, 250, 250, 1);
+	color: var(--text);
+	font-size: 13px;
+	font-weight: 500;
+	cursor: pointer;
+	transition: all 0.2s ease;
+}
+
+[data-theme="dark"] .payment-method-btn {
+	background: rgba(50, 50, 50, 1);
+}
+
+.payment-method-btn:hover {
+	border-color: rgba(193, 84, 129, 0.5);
+	background: rgba(193, 84, 129, 0.05);
+}
+
+.payment-method-btn.selected {
+	border-color: rgba(193, 84, 129, 0.8);
+	background: rgba(193, 84, 129, 0.15);
+	color: var(--text);
+	font-weight: 600;
+}
+
+[data-theme="dark"] .payment-method-btn.selected {
+	background: rgba(193, 84, 129, 0.25);
+}
