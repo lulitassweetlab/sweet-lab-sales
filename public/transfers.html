@@ -264,7 +264,7 @@
 					if (Array.isArray(recs) && recs.length) {
 						const r = recs[0];
 						const card = document.createElement('div'); card.className = 'transfer-card';
-						const img = document.createElement('img'); img.alt = 'Comprobante'; img.src = r.image_base64; img.addEventListener('click', () => openLightbox(r.image_base64));
+						const img = document.createElement('img'); img.alt = 'Comprobante'; img.src = r.image_base64; img.addEventListener('click', () => openLightbox(r.image_base64, r.note_text || ''));
 						const meta = document.createElement('div'); meta.className = 'transfer-meta';
 						// Payment selector synced with sales table (top-right overlay)
 						const paySelector = buildPaySelector(sale);
@@ -469,10 +469,12 @@
 			};
 		}
 
-		function openLightbox(src){
+		function openLightbox(src, noteText){
 			const backdrop = document.createElement('div'); backdrop.className = 'lightbox-backdrop';
 			const box = document.createElement('div'); box.className = 'lightbox';
+			const imgContainer = document.createElement('div'); imgContainer.className = 'lightbox-img-container';
 			const img = document.createElement('img'); img.src = src; img.alt = 'Comprobante';
+			imgContainer.appendChild(img);
 			const actions = document.createElement('div'); actions.className = 'lightbox-actions';
 			const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn'; closeBtn.textContent = 'Cerrar';
 			const downBtn = document.createElement('button'); downBtn.className = 'press-btn'; downBtn.textContent = 'Descargar';
@@ -482,7 +484,17 @@
 			});
 			function outside(e){ if (!box.contains(e.target)) cleanup(); }
 			function cleanup(){ document.removeEventListener('mousedown', outside, true); if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop); }
-			actions.append(closeBtn, downBtn); box.append(img, actions); backdrop.appendChild(box); document.body.appendChild(backdrop);
+			actions.append(closeBtn, downBtn); 
+			box.appendChild(imgContainer);
+			if (noteText && noteText.trim()) {
+				const noteContainer = document.createElement('div'); 
+				noteContainer.className = 'lightbox-note';
+				noteContainer.textContent = noteText;
+				box.appendChild(noteContainer);
+			}
+			box.appendChild(actions);
+			backdrop.appendChild(box); 
+			document.body.appendChild(backdrop);
 			setTimeout(() => document.addEventListener('mousedown', outside, true), 0);
 		}
 
