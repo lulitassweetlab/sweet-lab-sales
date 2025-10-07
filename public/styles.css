@@ -3923,7 +3923,7 @@ button.secondary.press-btn:active {
 /* ===== CLIENT ACTION BAR (SALES TABLE ONLY) ===== */
 .client-action-bar {
 	position: absolute;
-	bottom: calc(100% + 14px);
+	bottom: calc(100% + 24px);
 	left: 50%;
 	transform: translateX(-50%);
 	background: rgba(0, 0, 0, 0.3);
@@ -3968,15 +3968,15 @@ button.secondary.press-btn:active {
 }
 
 .client-action-bar-btn-icon {
-	font-size: 23px;
+	font-size: 16px;
 	line-height: 1;
 }
 
 .client-action-bar-btn-label {
-	font-size: 7px;
+	font-size: 6px;
 	font-weight: 500;
 	text-transform: uppercase;
-	letter-spacing: 0.3px;
+	letter-spacing: 0.2px;
 	white-space: nowrap;
 	opacity: 0.9;
 }
@@ -4026,11 +4026,11 @@ td.col-client.action-bar-active .client-input {
 	}
 	
 	.client-action-bar-btn-icon {
-		font-size: 19px;
+		font-size: 14px;
 	}
 	
 	.client-action-bar-btn-label {
-		font-size: 6px;
+		font-size: 5px;
 	}
 }
 
