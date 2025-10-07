@@ -62,6 +62,7 @@ async function loadGlobalClientDetailRows(clientName) {
 						id: s.id,
 						dayIso: String(d.day).slice(0,10),
 						sellerName: seller.name || '',
+						sellerId: seller.id,
 						qty_arco: Number(s.qty_arco||0),
 						qty_melo: Number(s.qty_melo||0),
 						qty_mara: Number(s.qty_mara||0),
@@ -79,6 +80,12 @@ async function loadGlobalClientDetailRows(clientName) {
 	
 	// Sort by date descending
 	allRows.sort((a,b) => (a.dayIso < b.dayIso ? 1 : a.dayIso > b.dayIso ? -1 : 0));
+	
+	// Save the primary seller for this client (from the most recent order)
+	if (allRows.length > 0) {
+		state._clientDetailSellerId = allRows[0].sellerId;
+	}
+	
 	renderClientDetailTable(allRows);
 }
 
@@ -109,6 +116,10 @@ async function loadClientDetailRows(clientName) {
 	}
 	// Sort by date descending
 	allRows.sort((a,b) => (a.dayIso < b.dayIso ? 1 : a.dayIso > b.dayIso ? -1 : 0));
+	
+	// Save the seller ID for this client
+	state._clientDetailSellerId = sellerId;
+	
 	renderClientDetailTable(allRows);
 }
 
@@ -1705,9 +1716,11 @@ function openNewSalePopover(anchorX, anchorY) {
         const actions = document.createElement('div');
         actions.className = 'confirm-actions';
         const cancelBtn = document.createElement('button');
+        cancelBtn.type = 'button';
         cancelBtn.className = 'press-btn';
         cancelBtn.textContent = 'Cancelar';
         const saveBtn = document.createElement('button');
+        saveBtn.type = 'button';
         saveBtn.className = 'press-btn btn-primary';
         saveBtn.textContent = 'Guardar';
         actions.append(cancelBtn, saveBtn);
@@ -1827,6 +1840,521 @@ function openNewSalePopover(anchorX, anchorY) {
     } catch (e) {
         // Fallback to old inline add if popover fails
         try { addRow(); } catch {}
+    }
+}
+
+// Open "Nuevo pedido" popover with date selection for client detail view
+async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName) {
+    try {
+        // Ensure desserts and days are loaded before building the popover
+        if (state.currentSeller) {
+            try {
+                await loadDesserts();
+                await loadDaysForSeller();
+            } catch (e) {
+                console.error('Error loading data in popover:', e);
+            }
+        }
+        
+        const pop = document.createElement('div');
+        pop.className = 'new-sale-popover';
+        pop.style.position = 'fixed';
+        const isSmall = window.matchMedia('(max-width: 640px)').matches;
+        if (typeof anchorX === 'number' && typeof anchorY === 'number' && !isSmall) {
+            pop.style.left = anchorX + 'px';
+            pop.style.top = anchorY + 'px';
+            pop.style.transform = 'translate(-50%, 0)';
+        } else {
+            pop.style.left = '50%';
+            pop.style.top = '20%';
+            pop.style.transform = 'translate(-50%, 0)';
+        }
+
+        const title = document.createElement('h4');
+        title.textContent = 'Nuevo pedido';
+        title.style.margin = '0 0 8px 0';
+
+        const grid = document.createElement('div');
+        grid.className = 'new-sale-grid';
+
+        function appendRow(labelText, inputEl) {
+            const left = document.createElement('div'); left.className = 'new-sale-cell new-sale-left';
+            const right = document.createElement('div'); right.className = 'new-sale-cell new-sale-right';
+            const lbl = document.createElement('div'); lbl.className = 'new-sale-label-text'; lbl.textContent = labelText;
+            left.appendChild(lbl);
+            right.appendChild(inputEl);
+            // Make whole right cell focus the input when clicked
+            right.addEventListener('mousedown', (ev) => {
+                if (ev.target !== inputEl) { ev.preventDefault(); try { inputEl.focus(); inputEl.select(); } catch {} }
+            });
+            right.addEventListener('click', (ev) => {
+                if (ev.target !== inputEl) { ev.preventDefault(); try { inputEl.focus(); inputEl.select(); } catch {} }
+            });
+            grid.appendChild(left);
+            grid.appendChild(right);
+        }
+
+        // Date selection row
+        const dateSelect = document.createElement('select');
+        dateSelect.className = 'input-cell';
+        const placeholderOpt = document.createElement('option');
+        placeholderOpt.value = '';
+        placeholderOpt.textContent = 'Seleccionar fecha...';
+        placeholderOpt.disabled = true;
+        placeholderOpt.selected = true;
+        dateSelect.appendChild(placeholderOpt);
+        
+        // Add existing dates
+        if (state.currentSeller && Array.isArray(state.saleDays)) {
+            const sorted = [...state.saleDays].sort((a, b) => {
+                const dateA = new Date(a.day);
+                const dateB = new Date(b.day);
+                return dateB - dateA; // Most recent first
+            });
+            for (const d of sorted) {
+                const opt = document.createElement('option');
+                opt.value = d.id;
+                opt.textContent = formatDayLabel(d.day);
+                dateSelect.appendChild(opt);
+            }
+        }
+        
+        // Add "Nueva fecha..." option
+        const newDateOpt = document.createElement('option');
+        newDateOpt.value = 'NEW_DATE';
+        newDateOpt.textContent = '+ Nueva fecha...';
+        dateSelect.appendChild(newDateOpt);
+        
+        appendRow('Fecha', dateSelect);
+
+        // Integrated calendar (hidden by default) - appears between date select and client input
+        const calendarContainer = document.createElement('div');
+        calendarContainer.className = 'integrated-calendar';
+        calendarContainer.style.cssText = `
+            display: none;
+            grid-column: 2 / 3;
+            margin-top: 0;
+            margin-bottom: 8px;
+            padding: 10px;
+            background: #f9f9f9;
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+            overflow: hidden;
+            max-height: 0;
+            opacity: 0;
+            transform: scaleY(0);
+            transform-origin: top;
+            transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+                        opacity 0.3s ease, 
+                        transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        `.replace(/\s+/g, ' ').trim();
+        
+        const months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+        let calView = new Date();
+        calView.setDate(1);
+        
+        const calHeader = document.createElement('div');
+        calHeader.className = 'date-popover-header';
+        calHeader.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;';
+        const calPrev = document.createElement('button'); 
+        calPrev.className = 'date-nav'; 
+        calPrev.textContent = '‹';
+        calPrev.type = 'button';
+        calPrev.style.cssText = 'padding:2px 6px;background:white;border:1px solid #ccc;border-radius:3px;cursor:pointer;font-size:14px;min-width:24px;';
+        const calLabel = document.createElement('div'); 
+        calLabel.className = 'date-label';
+        calLabel.style.cssText = 'font-weight:500;font-size:12px;';
+        const calNext = document.createElement('button'); 
+        calNext.className = 'date-nav'; 
+        calNext.textContent = '›';
+        calNext.type = 'button';
+        calNext.style.cssText = 'padding:2px 6px;background:white;border:1px solid #ccc;border-radius:3px;cursor:pointer;font-size:14px;min-width:24px;';
+        calHeader.append(calPrev, calLabel, calNext);
+        
+        const calGrid = document.createElement('div');
+        calGrid.className = 'date-grid';
+        calGrid.style.cssText = 'display:grid;grid-template-columns:repeat(7,1fr);gap:2px;';
+        
+        const weekdays = ['L','M','X','J','V','S','D'];
+        const calWeekdays = document.createElement('div'); 
+        calWeekdays.className = 'date-weekdays';
+        calWeekdays.style.cssText = 'display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:2px;';
+        for (const w of weekdays) { 
+            const c = document.createElement('div'); 
+            c.textContent = w; 
+            c.style.cssText = 'text-align:center;font-size:10px;font-weight:600;color:#666;padding:2px 0;';
+            calWeekdays.appendChild(c); 
+        }
+        
+        function isoUTC(y, m, d) { 
+            return new Date(Date.UTC(y, m, d)).toISOString().slice(0,10); 
+        }
+        
+        function renderCalendar() {
+            calLabel.textContent = months[calView.getMonth()] + ' ' + calView.getFullYear();
+            calGrid.innerHTML = '';
+            const year = calView.getFullYear();
+            const month = calView.getMonth();
+            const firstDay = (new Date(Date.UTC(year, month, 1)).getUTCDay() + 6) % 7;
+            const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+            for (let i = 0; i < firstDay; i++) {
+                const cell = document.createElement('button');
+                cell.className = 'date-cell disabled';
+                cell.disabled = true;
+                cell.type = 'button';
+                cell.style.cssText = 'padding:6px;background:#f5f5f5;border:1px solid #e0e0e0;border-radius:4px;cursor:not-allowed;font-size:12px;';
+                calGrid.appendChild(cell);
+            }
+            for (let d = 1; d <= daysInMonth; d++) {
+                const cell = document.createElement('button');
+                cell.className = 'date-cell';
+                cell.textContent = String(d);
+                cell.type = 'button';
+                cell.style.cssText = 'padding:6px;background:white;border:1px solid #ddd;border-radius:4px;cursor:pointer;font-size:12px;transition:all 0.15s;';
+                cell.addEventListener('mouseenter', () => {
+                    cell.style.background = '#f0f0f0';
+                });
+                cell.addEventListener('mouseleave', () => {
+                    cell.style.background = 'white';
+                });
+                const dayIso = isoUTC(year, month, d);
+                cell.addEventListener('click', async () => {
+                    try {
+                        // Disable calendar while processing
+                        cell.disabled = true;
+                        cell.style.opacity = '0.5';
+                        
+                        // Create the new date
+                        const sellerId = state.currentSeller.id;
+                        await api('POST', '/api/days', { seller_id: sellerId, day: dayIso });
+                        
+                        // Reload days from server
+                        await loadDaysForSeller();
+                        
+                        // Find the newly created date (comparing ISO date part only)
+                        const added = (state.saleDays || []).find(d => {
+                            const dayPart = String(d.day).slice(0, 10);
+                            return dayPart === dayIso;
+                        });
+                        
+                        // Update the select with the new date
+                        if (added) {
+                            // Clear all options
+                            dateSelect.innerHTML = '';
+                            
+                            // Re-add placeholder
+                            const placeholderOpt = document.createElement('option');
+                            placeholderOpt.value = '';
+                            placeholderOpt.textContent = 'Seleccionar fecha...';
+                            placeholderOpt.disabled = true;
+                            dateSelect.appendChild(placeholderOpt);
+                            
+                            // Rebuild sorted dates
+                            const sorted = [...state.saleDays].sort((a, b) => {
+                                const dateA = new Date(a.day);
+                                const dateB = new Date(b.day);
+                                return dateB - dateA; // Most recent first
+                            });
+                            
+                            for (const d of sorted) {
+                                const opt = document.createElement('option');
+                                opt.value = d.id;
+                                opt.textContent = formatDayLabel(d.day);
+                                // Mark as selected if this is the newly created date
+                                if (d.id === added.id) {
+                                    opt.selected = true;
+                                }
+                                dateSelect.appendChild(opt);
+                            }
+                            
+                            // Re-add NEW_DATE option at the end
+                            const newDateOpt2 = document.createElement('option');
+                            newDateOpt2.value = 'NEW_DATE';
+                            newDateOpt2.textContent = '+ Nueva fecha...';
+                            dateSelect.appendChild(newDateOpt2);
+                            
+                            // Set the value and state
+                            isUpdatingProgrammatically = true;
+                            dateSelect.value = String(added.id);
+                            state.selectedDayId = added.id;
+                            
+                            // Force browser to update the display
+                            dateSelect.dispatchEvent(new Event('input', { bubbles: true }));
+                            
+                            // Show success notification
+                            const selectedText = dateSelect.options[dateSelect.selectedIndex]?.text;
+                            if (selectedText && selectedText !== 'Seleccionar fecha...') {
+                                try { notify.success('Fecha seleccionada: ' + selectedText); } catch {}
+                            }
+                        }
+                        
+                        // Hide calendar with animation
+                        calendarContainer.style.maxHeight = '0';
+                        calendarContainer.style.opacity = '0';
+                        calendarContainer.style.transform = 'scaleY(0)';
+                        
+                        // Actually hide after animation
+                        setTimeout(() => {
+                            calendarContainer.style.display = 'none';
+                            clampWithinViewport();
+                        }, 300);
+                    } catch (e) {
+                        console.error('Error creating date:', e);
+                        try { notify.error('Error al crear la fecha'); } catch {}
+                        // Re-enable calendar on error
+                        cell.disabled = false;
+                        cell.style.opacity = '1';
+                    }
+                });
+                calGrid.appendChild(cell);
+            }
+        }
+        
+        calPrev.addEventListener('click', (e) => { 
+            e.preventDefault();
+            calView.setMonth(calView.getMonth() - 1); 
+            renderCalendar(); 
+        });
+        calNext.addEventListener('click', (e) => { 
+            e.preventDefault();
+            calView.setMonth(calView.getMonth() + 1); 
+            renderCalendar(); 
+        });
+        
+        calendarContainer.append(calHeader, calWeekdays, calGrid);
+        
+        // Insert calendar right after the date row, before client input
+        grid.appendChild(calendarContainer);
+
+        // Client row (prefilled if provided)
+        const clientInput = document.createElement('input');
+        clientInput.type = 'text';
+        clientInput.placeholder = 'Nombre del cliente';
+        clientInput.className = 'input-cell client-input';
+        clientInput.autocomplete = 'off';
+        if (prefilledClientName) clientInput.value = prefilledClientName;
+        // Custom inline suggestions below the first character (left-aligned)
+        attachClientSuggestionsPopover(clientInput);
+        appendRow('Cliente', clientInput);
+
+        // Dessert rows (dynamic from state.desserts)
+        const qtyInputs = {};
+        for (const d of state.desserts) {
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.min = '0';
+            input.step = '1';
+            input.inputMode = 'numeric';
+            input.placeholder = '0';
+            input.className = 'input-cell input-qty';
+            input.dataset.dessertId = d.id;
+            qtyInputs[d.short_code] = input;
+            appendRow(d.name, input);
+        }
+
+        const actions = document.createElement('div');
+        actions.className = 'confirm-actions';
+        const cancelBtn = document.createElement('button');
+        cancelBtn.type = 'button';
+        cancelBtn.className = 'press-btn';
+        cancelBtn.textContent = 'Cancelar';
+        const saveBtn = document.createElement('button');
+        saveBtn.type = 'button';
+        saveBtn.className = 'press-btn btn-primary';
+        saveBtn.textContent = 'Guardar';
+        actions.append(cancelBtn, saveBtn);
+
+        pop.append(title, grid, actions);
+        // Prepare hidden mount to avoid visible jump before clamping
+        pop.style.visibility = 'hidden';
+        pop.style.opacity = '0';
+        pop.style.transition = 'opacity 160ms ease-out';
+        document.body.appendChild(pop);
+
+        // Clamp within viewport so the popover is fully visible
+        function clampWithinViewport() {
+            try {
+                const margin = 8;
+                const vw = window.innerWidth;
+                const vh = window.innerHeight;
+                const r = pop.getBoundingClientRect();
+                const baseX = (typeof anchorX === 'number') ? anchorX : (vw / 2);
+                const baseY = (typeof anchorY === 'number') ? anchorY : (vh / 2);
+                let left = Math.round(baseX - r.width / 2);
+                let topBelow = Math.round(baseY + 8);
+                let topAbove = Math.round(baseY - 8 - r.height);
+                let top = topBelow;
+                if (top + r.height > vh - margin) {
+                    // Prefer above if below overflows
+                    top = topAbove;
+                }
+                // If still overflows, clamp to margins
+                if (top < margin) top = margin;
+                if (top + r.height > vh - margin) top = Math.max(margin, vh - margin - r.height);
+                if (left < margin) left = margin;
+                if (left + r.width > vw - margin) left = Math.max(margin, vw - margin - r.width);
+                pop.style.left = left + 'px';
+                pop.style.top = top + 'px';
+                pop.style.transform = 'none';
+            } catch {}
+        }
+        // Clamp immediately before showing to prevent jump
+        clampWithinViewport();
+        // Reveal with a light fade-in
+        pop.style.visibility = 'visible';
+        requestAnimationFrame(() => { pop.style.opacity = '1'; });
+
+        function cleanup() {
+            document.removeEventListener('mousedown', outside, true);
+            document.removeEventListener('touchstart', outside, true);
+            if (pop.parentNode) pop.parentNode.removeChild(pop);
+        }
+        function outside(ev) {
+            const t = ev.target;
+            if (!pop.contains(t) && !t.closest?.('.client-suggest-popover')) cleanup();
+        }
+        setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
+        cancelBtn.addEventListener('click', cleanup);
+
+        // Handle date selection change
+        let isUpdatingProgrammatically = false;
+        dateSelect.addEventListener('change', async (e) => {
+            // Skip if this is a programmatic update from calendar
+            if (isUpdatingProgrammatically) {
+                isUpdatingProgrammatically = false;
+                return;
+            }
+            
+            if (dateSelect.value === 'NEW_DATE') {
+                // Show integrated calendar with animation
+                calendarContainer.style.display = 'block';
+                renderCalendar();
+                // Reset select to placeholder
+                dateSelect.value = '';
+                e.preventDefault();
+                
+                // Trigger animation
+                requestAnimationFrame(() => {
+                    calendarContainer.style.maxHeight = '400px';
+                    calendarContainer.style.opacity = '1';
+                    calendarContainer.style.transform = 'scaleY(1)';
+                });
+                
+                // Re-clamp popover to ensure it's visible after animation
+                setTimeout(() => clampWithinViewport(), 320);
+            } else if (dateSelect.value) {
+                // Hide calendar with animation
+                calendarContainer.style.maxHeight = '0';
+                calendarContainer.style.opacity = '0';
+                calendarContainer.style.transform = 'scaleY(0)';
+                
+                // Actually hide after animation
+                setTimeout(() => {
+                    calendarContainer.style.display = 'none';
+                    clampWithinViewport();
+                }, 300);
+            }
+        });
+
+        // Focus date select by default
+        setTimeout(() => { try { dateSelect.focus(); } catch {} }, 0);
+
+        let isSaving = false;
+        async function doSave() {
+            if (isSaving) return;
+            isSaving = true;
+            
+            try {
+                const selectedDayId = dateSelect.value;
+                
+                if (!selectedDayId || selectedDayId === 'NEW_DATE') {
+                    try { notify.error('Por favor selecciona una fecha'); } catch {}
+                    isSaving = false;
+                    return;
+                }
+                
+                saveBtn.disabled = true; 
+                cancelBtn.disabled = true;
+                
+                const sellerId = state?.currentSeller?.id;
+                if (!sellerId) { 
+                    try { notify.error('Selecciona un vendedor'); } catch {}
+                    isSaving = false;
+                    return; 
+                }
+                
+                const payload = { seller_id: sellerId, sale_day_id: selectedDayId };
+                const created = await api('POST', API.Sales, payload);
+                
+                // Build items array and legacy qty_* properties dynamically
+                const items = [];
+                const body = {
+                    id: created.id,
+                    client_name: (clientInput.value || '').trim(),
+                    is_paid: false,
+                    pay_method: null,
+                    _actor_name: state.currentUser?.name || ''
+                };
+                
+                for (const d of state.desserts) {
+                    const val = parseInt(qtyInputs[d.short_code]?.value, 10) || 0;
+                    // Legacy: set qty_<short_code>
+                    body[`qty_${d.short_code}`] = val;
+                    // New: build items
+                    if (val > 0) {
+                        items.push({
+                            dessert_id: d.id,
+                            qty: val,
+                            amount: val * d.price
+                        });
+                    }
+                }
+                body.items = items;
+                
+                await api('PUT', API.Sales, body);
+                
+                // Close the popover IMMEDIATELY
+                cleanup();
+                
+                // Show success notification
+                try { notify.success('Pedido guardado exitosamente'); } catch {}
+                
+                // Reload client detail in background to show the new order
+                if (state._clientDetailName) {
+                    if (state._clientDetailFrom === 'global-search') {
+                        loadGlobalClientDetailRows(state._clientDetailName).catch(e => console.error('Error reloading:', e));
+                    } else {
+                        loadClientDetailRows(state._clientDetailName).catch(e => console.error('Error reloading:', e));
+                    }
+                }
+            } catch (e) {
+                console.error('❌ Error completo:', e);
+                console.error('Error message:', e.message);
+                console.error('Error stack:', e.stack);
+                try { notify.error('Error: ' + (e.message || 'No se pudo guardar')); } catch {}
+                saveBtn.disabled = false; cancelBtn.disabled = false;
+                isSaving = false;
+            } finally {
+                isSaving = false;
+            }
+        }
+
+        // Ensure only one click handler
+        saveBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            doSave();
+        });
+        
+        // Submit on Enter in any input
+        const allInputs = [clientInput, ...Object.values(qtyInputs)];
+        allInputs.forEach((el) => {
+            el.addEventListener('keydown', (ev) => {
+                if (ev.key === 'Enter') { ev.preventDefault(); doSave(); }
+            });
+        });
+    } catch (e) {
+        console.error('Error opening new sale popover with date:', e);
     }
 }
 
@@ -2955,6 +3483,37 @@ function bindEvents() {
 			switchView('#view-sales');
 		} else {
 			switchView('#view-clients');
+		}
+	});
+
+	// Nuevo pedido button from Client Detail view
+	const clientDetailAddOrderBtn = document.getElementById('client-detail-add-order');
+	clientDetailAddOrderBtn?.addEventListener('click', async (ev) => {
+		try {
+			// Determine which seller to use
+			let sellerToUse = state.currentSeller;
+			
+			// If no seller is currently selected, use the client's primary seller
+			if (!sellerToUse && state._clientDetailSellerId) {
+				const seller = (state.sellers || []).find(s => s.id === state._clientDetailSellerId);
+				if (seller) {
+					// Set this seller as current
+					state.currentSeller = seller;
+					sellerToUse = seller;
+				}
+			}
+			
+			if (!sellerToUse) {
+				try { notify.error('No se pudo determinar el vendedor'); } catch {}
+				return;
+			}
+			
+			// Open the popover (it will load days internally)
+			const rect = ev.currentTarget.getBoundingClientRect();
+			const clientName = state._clientDetailName || '';
+			await openNewSalePopoverWithDate(rect.left + rect.width / 2, rect.bottom + 8, clientName);
+		} catch (e) {
+			console.error('Error opening new order popover:', e);
 		}
 	});
 
@@ -4626,7 +5185,7 @@ function openCalendarPopover(onPicked, anchorX, anchorY) {
 	pop.style.left = baseX + 'px';
 	pop.style.top = (baseY + 8) + 'px';
 	pop.style.transform = 'translate(-50%, 0)';
-	pop.style.zIndex = '1000';
+	pop.style.zIndex = '10000';
 	pop.setAttribute('role', 'dialog');
 	
 	const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -4684,7 +5243,11 @@ function openCalendarPopover(onPicked, anchorX, anchorY) {
 	next.addEventListener('click', () => { view.setMonth(view.getMonth() + 1); render(); });
 	
 	pop.append(header, wk, grid);
+	
+	// Hide initially to avoid flash
+	pop.style.visibility = 'hidden';
 	document.body.appendChild(pop);
+	
 	// Positioning/clamping: ensure visible; on mobile, prefer above if near bottom
 	requestAnimationFrame(() => {
 		const margin = 8;
@@ -4695,18 +5258,34 @@ function openCalendarPopover(onPicked, anchorX, anchorY) {
 		const viewTop = (vv && typeof vv.offsetTop === 'number') ? vv.offsetTop : 0;
 		const isSmall = window.matchMedia('(max-width: 600px)').matches;
 		const r = pop.getBoundingClientRect();
-		let left = baseX;
+		
+		// Calculate position centered below anchor
+		let left = baseX - r.width / 2;
 		let top = baseY + 8;
-		// Prefer placing above if near bottom on small screens
-		if (isSmall && baseY > (viewTop + viewH * 0.6)) {
+		
+		// Check if it fits below; if not, place above
+		if (top + r.height > viewTop + viewH - margin) {
 			top = baseY - 8 - r.height;
 		}
-		// Clamp within viewport
-		left = Math.min(Math.max(left, viewLeft + margin), viewLeft + viewW - margin);
-		if (top + r.height > viewTop + viewH - margin) top = Math.max(viewTop + margin, viewTop + viewH - margin - r.height);
+		
+		// Clamp horizontal position within viewport
+		if (left < viewLeft + margin) left = viewLeft + margin;
+		if (left + r.width > viewLeft + viewW - margin) left = viewLeft + viewW - margin - r.width;
+		
+		// Clamp vertical position within viewport
 		if (top < viewTop + margin) top = viewTop + margin;
+		if (top + r.height > viewTop + viewH - margin) top = viewTop + viewH - margin - r.height;
+		
+		// On very small screens, center it
+		if (isSmall && (r.width > viewW * 0.9 || r.height > viewH * 0.9)) {
+			left = viewLeft + (viewW - r.width) / 2;
+			top = viewTop + (viewH - r.height) / 2;
+		}
+		
 		pop.style.left = left + 'px';
 		pop.style.top = top + 'px';
+		pop.style.transform = 'none';
+		pop.style.visibility = 'visible';
 	});
 	document.addEventListener('mousedown', outside, true);
 	document.addEventListener('touchstart', outside, true);
