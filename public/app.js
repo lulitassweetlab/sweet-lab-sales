@@ -6374,19 +6374,43 @@ function openPaymentDateDialog(saleId, anchorX, anchorY) {
 				throw new Error('Venta no encontrada');
 			}
 			
-			const currentSale = state.sales[idx];
-			
-			// Update the database with payment date and method
-			const body = {
-				id: saleId,
-				seller_id: currentSale.seller_id,
-				sale_day_id: currentSale.sale_day_id,
-				payment_date: paymentDate,
-				pay_method: paymentMethod,
-				_actor_name: state.actorName || ''
-			};
-			
-			const updated = await api('PUT', API.Sales, body);
+		const currentSale = state.sales[idx];
+		
+		// Update the database with payment date and method
+		// IMPORTANT: Include all fields to prevent overwriting existing data
+		const body = {
+			id: saleId,
+			seller_id: currentSale.seller_id,
+			sale_day_id: currentSale.sale_day_id,
+			client_name: currentSale.client_name || '',
+			payment_date: paymentDate,
+			pay_method: paymentMethod,
+			comment_text: currentSale.comment_text || '',
+			is_paid: currentSale.is_paid || false,
+			_actor_name: state.actorName || ''
+		};
+		
+		// Include quantities for all desserts (support both formats)
+		if (Array.isArray(currentSale.items) && currentSale.items.length > 0) {
+			body.items = currentSale.items;
+		} else {
+			// Legacy format: include qty_* fields for all desserts (dynamic)
+			if (Array.isArray(state.desserts)) {
+				for (const d of state.desserts) {
+					const fieldName = `qty_${d.short_code}`;
+					body[fieldName] = currentSale[fieldName] || 0;
+				}
+			} else {
+				// Fallback to hardcoded original desserts
+				body.qty_arco = currentSale.qty_arco || 0;
+				body.qty_melo = currentSale.qty_melo || 0;
+				body.qty_mara = currentSale.qty_mara || 0;
+				body.qty_oreo = currentSale.qty_oreo || 0;
+				body.qty_nute = currentSale.qty_nute || 0;
+			}
+		}
+		
+		const updated = await api('PUT', API.Sales, body);
 			
 			// Update in memory
 			if (updated) {
