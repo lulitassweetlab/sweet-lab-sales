@@ -220,8 +220,8 @@
 					<td class="col-total editable" data-field="amount_cents" data-kind="ingreso" title="${isIng ? 'Clic para editar ingreso' : ''}">${colIng}</td>
 					<td class="col-total editable" data-field="amount_cents" data-kind="gasto" title="${!isIng ? 'Clic para editar salida' : ''}">${colSal}</td>
 					<td class="col-total">${fmtMoney(running)}</td>
-				<td style="padding-right:4px;"><button class="row-duplicate" data-dup="${r.id}" title="Duplicar" aria-label="Duplicar"></button></td>
-				<td style="padding-left:4px;"><button class="row-delete" data-del="${r.id}" title="Eliminar" aria-label="Eliminar"></button></td>
+				<td style="padding-right:2px;"><button class="row-duplicate" data-dup="${r.id}" title="Duplicar" aria-label="Duplicar"></button></td>
+				<td style="padding-left:2px;"><button class="row-delete" data-del="${r.id}" title="Eliminar" aria-label="Eliminar"></button></td>
 				`;
 				// removed per-row download
 				tbody.appendChild(tr);
