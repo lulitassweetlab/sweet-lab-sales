@@ -42,6 +42,10 @@
                     <span style="line-height:28px;">Pago</span>
                     <div id="pay-filter-group" class="seller-filter-group" style="display:flex; gap:8px; flex-wrap:wrap; min-width:220px; max-height:132px; overflow:auto; padding:8px; border:1px solid var(--border); border-radius:10px; background: var(--card);"></div>
                 </label>
+                <label style="display:flex; gap:6px; align-items:flex-start">
+                    <span style="line-height:28px;">Método Bancario</span>
+                    <div id="bank-method-filter-group" class="seller-filter-group" style="display:flex; gap:8px; flex-wrap:wrap; min-width:220px; max-height:132px; overflow:auto; padding:8px; border:1px solid var(--border); border-radius:10px; background: var(--card);"></div>
+                </label>
 			</div>
 			<div class="table-wrapper" id="report-wrapper">
 				<table id="report-table">
@@ -58,7 +62,6 @@
 							<th class="col-qty">Oreo</th>
 							<th class="col-qty">Nute</th>
 							<th class="col-total">Total</th>
-							<th></th>
 						</tr>
 					</thead>
 					<tbody id="report-tbody"></tbody>
@@ -75,7 +78,6 @@
 							<td id="t-qo" class="col-qty"></td>
 							<td id="t-qn" class="col-qty"></td>
 							<td id="t-grand" class="col-total"></td>
-							<td></td>
 						</tr>
 					</tfoot>
 				</table>
@@ -104,10 +106,10 @@
 		const exportBtn = document.getElementById('export-excel');
         const sellerFilterGroup = document.getElementById('seller-filter-group');
         const payFilterGroup = document.getElementById('pay-filter-group');
+        const bankMethodFilterGroup = document.getElementById('bank-method-filter-group');
 
 		let dataset = [];
 		let sellersList = [];
-		let salesMap = {}; // Maps composite key to sale_id
 		let sortColumn = null;
 		let sortDirection = 'desc'; // 'asc' or 'desc'
 
@@ -119,19 +121,13 @@
                 pm === 'jorge' ? 'Jorge' :
                 pm === 'jorgebank' ? 'JorgeBank' : '-';
         }
+        function bankMethodLabel(bm){
+            return bm === '' ? 'Sin especificar' :
+                bm === 'bancolombia' ? 'Bancolombia' :
+                bm === 'nequi' ? 'Nequi' :
+                bm === 'otro' ? 'Otro' : 'Sin especificar';
+        }
 		async function fetchJSON(u){ const r = await fetch(u); if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }
-		async function deleteSale(saleId, clientName) {
-			if (!confirm(`¿Estás seguro de eliminar la venta de "${clientName || 'este cliente'}"?`)) return;
-			try {
-				const url = withActor(`/api/sales?id=${saleId}`);
-				const r = await fetch(url, { method: 'DELETE' });
-				if (!r.ok) throw new Error(`HTTP ${r.status}`);
-				// Reload data after deletion
-				await load();
-			} catch (err) {
-				alert('Error al eliminar: ' + String(err));
-			}
-		}
 		function withActor(url){
 			try { const u = new URL(url, location.origin); if (actor) u.searchParams.set('actor', actor); return u.pathname + (u.search || ''); }
 			catch { return url + (url.includes('?') ? `&actor=${encodeURIComponent(actor)}` : `?actor=${encodeURIComponent(actor)}`); }
@@ -206,6 +202,40 @@
                 });
                 updateMasterCheckboxState();
             }
+            // Bank method filter (multi-select)
+            if (bankMethodFilterGroup) {
+                const prevSelected = getSelectedBankMethods();
+                bankMethodFilterGroup.innerHTML = '';
+                const masterWrap = document.createElement('label'); masterWrap.style.display='inline-flex'; masterWrap.style.alignItems='center'; masterWrap.style.gap='6px';
+                const master = document.createElement('input'); master.type='checkbox'; master.id='bmf_all';
+                const masterSpan = document.createElement('span'); masterSpan.textContent = 'Todos';
+                masterWrap.appendChild(master); masterWrap.appendChild(masterSpan);
+                bankMethodFilterGroup.appendChild(masterWrap);
+                const codes = ['', 'bancolombia', 'nequi', 'otro'];
+                for (const code of codes){
+                    const id = `bmf_${code || 'dash'}`;
+                    const wrap = document.createElement('label'); wrap.style.display='inline-flex'; wrap.style.alignItems='center'; wrap.style.gap='6px';
+                    const cb = document.createElement('input'); cb.type='checkbox'; cb.value = code; cb.id = id;
+                    cb.checked = prevSelected.length ? prevSelected.includes(cb.value) : true;
+                    cb.addEventListener('change', () => { updateMasterCheckboxState(); render(); });
+                    const sp = document.createElement('span'); sp.textContent = bankMethodLabel(code);
+                    wrap.appendChild(cb); wrap.appendChild(sp);
+                    bankMethodFilterGroup.appendChild(wrap);
+                }
+                function updateMasterCheckboxState(){
+                    const cbs = Array.from(bankMethodFilterGroup.querySelectorAll('input[type="checkbox"]')).filter(x => x.id !== 'bmf_all');
+                    const checked = cbs.filter(x => x.checked).length;
+                    master.indeterminate = checked > 0 && checked < cbs.length;
+                    master.checked = checked > 0 && checked === cbs.length;
+                }
+                master.addEventListener('change', () => {
+                    const cbs = Array.from(bankMethodFilterGroup.querySelectorAll('input[type="checkbox"]')).filter(x => x.id !== 'bmf_all');
+                    for (const cb of cbs) cb.checked = master.checked;
+                    updateMasterCheckboxState();
+                    render();
+                });
+                updateMasterCheckboxState();
+            }
 		}
 
 		function getSelectedSellers(){
@@ -218,9 +248,11 @@
 		function getFilteredData(){
 			const selSellers = getSelectedSellers();
             const selPays = getSelectedPays();
+            const selBankMethods = getSelectedBankMethods();
 			let rows = dataset.filter(r => {
 				if (selSellers.length && !selSellers.includes(r.sellerName)) return false;
                 if (selPays.length && !selPays.includes((r.pay_method || ''))) return false;
+                if (selBankMethods.length && !selBankMethods.includes((r.payment_bank_method || ''))) return false;
 				return true;
 			});
 			return rows;
@@ -230,6 +262,15 @@
             if (payFilterGroup) {
                 return Array.from(payFilterGroup.querySelectorAll('input[type="checkbox"]:checked'))
                     .filter(i => i.id !== 'pf_all')
+                    .map(i => i.value);
+            }
+            return [];
+        }
+
+        function getSelectedBankMethods(){
+            if (bankMethodFilterGroup) {
+                return Array.from(bankMethodFilterGroup.querySelectorAll('input[type="checkbox"]:checked'))
+                    .filter(i => i.id !== 'bmf_all')
                     .map(i => i.value);
             }
             return [];
@@ -256,19 +297,9 @@
 					<td>${r.qma||''}</td>
 					<td>${r.qo||''}</td>
 					<td>${r.qn||''}</td>
-					<td class="col-total">${r.tot||''}</td>
-					<td style="text-align:center;"><button class="row-delete delete-btn" data-sale-id="${r.saleId||''}" data-client-name="${(r.client_name||'').replace(/"/g,'&quot;')}" title="Eliminar"></button></td>`;
+					<td class="col-total">${r.tot||''}</td>`;
 				tbody.appendChild(tr);
 				tQa += r.qa||0; tQm += r.qm||0; tQma += r.qma||0; tQo += r.qo||0; tQn += r.qn||0; tGrand += r.tot||0;
-			}
-			// Attach delete event listeners
-			const deleteBtns = tbody.querySelectorAll('.delete-btn');
-			for (const btn of deleteBtns) {
-				btn.addEventListener('click', () => {
-					const saleId = btn.getAttribute('data-sale-id');
-					const clientName = btn.getAttribute('data-client-name');
-					if (saleId) deleteSale(saleId, clientName);
-				});
 			}
 			tQaEl.textContent = tQa || '';
 			tQmEl.textContent = tQm || '';
@@ -395,8 +426,9 @@
 							client_name: r.client_name || '',
 							pay_method: pm,
 							is_paid: !!r.is_paid,
-							qa, qm, qma, qo, qn, tot,
-							saleId: r.id
+							payment_bank_method: (r.payment_bank_method || '').toString(),
+							payment_date: r.payment_date || '',
+							qa, qm, qma, qo, qn, tot
 						});
 					}
 				} catch {}
