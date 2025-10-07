@@ -1473,19 +1473,13 @@ function renderTable() {
 					commentMarker.title = 'Ver/editar comentario';
 					commentMarker.addEventListener('click', async (ev) => {
 						ev.stopPropagation();
-						const comment = await openCommentDialog(input, sale.comment_text, ev.clientX, ev.clientY);
-						if (comment != null) {
-							await saveComment(sale.id, comment);
-							// Update the marker visibility
-							if (comment.trim()) {
-								// Keep marker visible with updated content
-								sale.comment_text = comment;
-							} else {
-								// Remove marker if comment is empty
-								commentMarker.remove();
-								td.classList.remove('has-comment');
-								sale.comment_text = '';
-							}
+						await openCommentDialog(input, sale.comment_text, ev.clientX, ev.clientY, sale.id);
+						// After closing (click outside), check if we need to update marker
+						const updatedSale = state.sales.find(s => s.id === sale.id);
+						if (updatedSale && !updatedSale.comment_text?.trim()) {
+							// Remove marker if comment was deleted
+							commentMarker.remove();
+							td.classList.remove('has-comment');
 						}
 					});
 					td.appendChild(commentMarker);
@@ -2778,10 +2772,7 @@ async function saveClientWithCommentFlow(tr, id) {
 	const sale = state.sales.find(s => s.id === id);
 	const currentComment = sale?.comment_text || '';
 	const pos = getInputEndCoords(input, input.value);
-	const comment = await openCommentDialog(input, currentComment, pos.x, pos.y);
-	if (comment == null) { return; }
-	// Persist comment
-	await saveComment(id, comment);
+	await openCommentDialog(input, currentComment, pos.x, pos.y, id);
 	// Re-render table to show/update comment marker
 	renderTable();
 }
@@ -2857,7 +2848,7 @@ function getSpaceWidthForInput(inputEl) {
 	return ctx.measureText(' ').width || 4;
 }
 
-function openCommentDialog(anchorEl, initial = '', anchorX, anchorY) {
+function openCommentDialog(anchorEl, initial = '', anchorX, anchorY, saleId = null) {
 	return new Promise((resolve) => {
 		const pop = document.createElement('div');
 		pop.className = 'comment-popover';
@@ -2869,15 +2860,33 @@ function openCommentDialog(anchorEl, initial = '', anchorX, anchorY) {
 		pop.style.zIndex = '1000';
 		// Size: medium compact size
 		const isSmallScreen = window.matchMedia('(max-width: 600px)').matches;
-		pop.style.minWidth = isSmallScreen ? 'min(85vw, 300px)' : '320px';
-		pop.style.maxWidth = isSmallScreen ? '90vw' : '520px';
-		const ta = document.createElement('textarea'); ta.className = 'comment-input'; ta.placeholder = 'Escribe un comentario...'; ta.value = initial || ''; ta.style.minHeight = isSmallScreen ? '100px' : '140px';
-		ta.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); save.click(); } });
-		const actions = document.createElement('div'); actions.className = 'confirm-actions';
-		const cancel = document.createElement('button'); cancel.className = 'press-btn'; cancel.textContent = 'Cancelar';
-		const save = document.createElement('button'); save.className = 'press-btn btn-primary'; save.textContent = 'Guardar';
-		actions.append(cancel, save);
-		pop.append(ta, actions);
+		pop.style.minWidth = isSmallScreen ? 'min(85vw, 300px)' : '360px';
+		pop.style.maxWidth = isSmallScreen ? '90vw' : '480px';
+		
+		// Textarea
+		const ta = document.createElement('textarea'); 
+		ta.className = 'comment-input'; 
+		ta.placeholder = 'Escribe un comentario...'; 
+		ta.value = initial || ''; 
+		ta.style.minHeight = isSmallScreen ? '120px' : '160px';
+		ta.style.marginBottom = '0'; // No margin since no buttons below
+		
+		// Auto-save with debounce (saves without closing)
+		let saveTimeout;
+		ta.addEventListener('input', () => {
+			clearTimeout(saveTimeout);
+			saveTimeout = setTimeout(async () => {
+				if (saleId) {
+					const v = ta.value.trim();
+					await saveComment(saleId, v);
+					// Update marker visibility without re-rendering entire table
+					const sale = state.sales.find(s => s.id === saleId);
+					if (sale) sale.comment_text = v;
+				}
+			}, 800); // Save after 800ms of no typing
+		});
+		
+		pop.append(ta);
 		document.body.appendChild(pop);
 		
 		// Position after appending to get accurate dimensions
@@ -2909,11 +2918,10 @@ function openCommentDialog(anchorEl, initial = '', anchorX, anchorY) {
 			// Make popover height fit within the visible viewport
 			pop.style.maxHeight = Math.max(140, viewH - 2 * margin) + 'px';
 			pop.style.overflow = 'auto';
-			const actionsH = (pop.querySelector('.confirm-actions')?.getBoundingClientRect().height) || 44;
 			const ta = pop.querySelector('textarea.comment-input');
 			if (ta) {
-				const extra = 24; // padding/margins inside pop
-				const maxTa = Math.max(64, viewH - 2 * margin - actionsH - extra);
+				const extra = 40; // padding inside popover (20px * 2)
+				const maxTa = Math.max(80, viewH - 2 * margin - extra);
 				ta.style.maxHeight = maxTa + 'px';
 			}
 			let r = pop.getBoundingClientRect();
@@ -2969,13 +2977,17 @@ function openCommentDialog(anchorEl, initial = '', anchorX, anchorY) {
 			window.removeEventListener('scroll', onWinScroll, { passive: true });
 			if (pop.parentNode) pop.parentNode.removeChild(pop);
 		}
-		function outside(ev) { if (!pop.contains(ev.target)) { cleanup(); resolve(null); } }
+		function outside(ev) { 
+			if (!pop.contains(ev.target)) { 
+				const v = ta.value.trim();
+				cleanup(); 
+				resolve(v);
+			} 
+		}
 		setTimeout(() => {
 			document.addEventListener('mousedown', outside, true);
 			document.addEventListener('touchstart', outside, true);
 		}, 0);
-		cancel.addEventListener('click', () => { cleanup(); resolve(null); });
-		save.addEventListener('click', () => { const v = ta.value.trim(); cleanup(); resolve(v); });
 		ta.focus();
 	});
 }
@@ -6270,12 +6282,9 @@ function openClientActionBar(tdElement, saleId, clientName, clickX, clickY) {
 			const sale = state.sales.find(s => s.id === saleId);
 			const currentComment = sale?.comment_text || '';
 			// Open comment dialog above the click position
-			const comment = await openCommentDialog(input, currentComment, btnClickX, btnClickY);
-			if (comment != null) {
-				await saveComment(saleId, comment);
-				// Re-render table to show/update comment marker
-				renderTable();
-			}
+			await openCommentDialog(input, currentComment, btnClickX, btnClickY, saleId);
+			// Re-render table to show/update comment marker
+			renderTable();
 		}
 	});
 	
