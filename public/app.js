@@ -1710,13 +1710,15 @@ async function loadSales() {
 	state.sales = await api('GET', `${API.Sales}?${params.toString()}`);
 	
 	// Initialize _paymentInfo from database fields (payment_date and pay_method)
-	for (const sale of state.sales) {
-		if (sale.payment_date && sale.pay_method) {
-			sale._paymentInfo = {
-				date: sale.payment_date,
-				method: sale.pay_method,
-				methodValue: sale.pay_method.toLowerCase()
-			};
+	if (Array.isArray(state.sales)) {
+		for (const sale of state.sales) {
+			if (sale && sale.payment_date && sale.pay_method) {
+				sale._paymentInfo = {
+					date: sale.payment_date,
+					method: sale.pay_method,
+					methodValue: sale.pay_method.toLowerCase()
+				};
+			}
 		}
 	}
 	
