@@ -1359,15 +1359,6 @@ function renderTable() {
 				input.addEventListener('input', (e) => { const v = (e.target.value || ''); if (/\*$/.test(v.trim())) { saveClientWithCommentFlow(tr, sale.id); } });
 				input.addEventListener('blur', () => saveClientWithCommentFlow(tr, sale.id));
 				input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); saveClientWithCommentFlow(tr, sale.id); } });
-				// Add double-click handler to open client actions menu
-				input.addEventListener('dblclick', (e) => {
-					const clientName = (input.value || '').trim();
-					if (clientName) {
-						e.preventDefault();
-						e.stopPropagation();
-						openClientActionsMenu(input, sale, e.clientX, e.clientY);
-					}
-				});
 				td.appendChild(input);
 				const name = (sale.client_name || '').trim();
 				if (name) {
@@ -1382,6 +1373,20 @@ function renderTable() {
 						reg.addEventListener('click', async (ev) => { ev.stopPropagation(); await openClientDetailView(name); });
 						td.appendChild(reg);
 					}
+					// Add actions button
+					const actionsBtn = document.createElement('button');
+					actionsBtn.className = 'client-actions-btn';
+					actionsBtn.textContent = '⋯';
+					actionsBtn.title = 'Acciones';
+					actionsBtn.addEventListener('click', (ev) => {
+						ev.stopPropagation();
+						try {
+							openClientActionsMenu(actionsBtn, sale, ev.clientX, ev.clientY);
+						} catch (err) {
+							console.error('Error opening actions menu:', err);
+						}
+					});
+					td.appendChild(actionsBtn);
 				}
 				return td;
 			})()
