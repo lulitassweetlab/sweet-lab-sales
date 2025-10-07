@@ -6014,13 +6014,21 @@ function updateCommentMarkerPosition(inputElement, markerElement) {
 // Client action bar for sales table
 let activeClientActionBar = null;
 
-function openClientActionBar(tdElement, saleId, clientName) {
+function openClientActionBar(tdElement, saleId, clientName, clickX, clickY) {
 	// Close any existing action bar
 	closeClientActionBar();
 	
 	// Create action bar
 	const actionBar = document.createElement('div');
 	actionBar.className = 'client-action-bar';
+	actionBar.style.position = 'fixed';
+	
+	// Position at click coordinates if provided
+	if (typeof clickX === 'number' && typeof clickY === 'number') {
+		actionBar.style.left = clickX + 'px';
+		actionBar.style.top = (clickY - 10) + 'px'; // 10px above click
+		actionBar.style.transform = 'translate(-50%, -100%)';
+	}
 	
 	// Edit button (opens edit popover)
 	const editBtn = document.createElement('button');
