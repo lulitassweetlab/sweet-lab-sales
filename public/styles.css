@@ -4071,6 +4071,8 @@ td.col-client.action-bar-active .client-input {
 	display: grid;
 	grid-template-columns: repeat(7, 1fr);
 	gap: 4px;
+	min-height: 240px; /* Fixed height for 6 rows + headers (7 rows * 34px) */
+	align-content: start;
 }
 
 .calendar-day-header {

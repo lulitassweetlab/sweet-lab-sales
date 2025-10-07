@@ -6186,41 +6186,21 @@ function openPaymentDateDialog(saleId, anchorX, anchorY) {
 				const paymentDate = selectedDate.toISOString().split('T')[0];
 				const paymentMethod = method.value;
 				
-				const methodMap = {
-					'bancolombia': 'transf',
-					'nequi': 'transf', 
-					'otro': 'transf'
-				};
-				
-				// Don't modify payment status, just store the date info in comment
-				const dateInfo = `[Pago: ${paymentDate} - ${method.label}]`;
-				const existingComment = sale.comment_text || '';
-				const newComment = existingComment ? `${existingComment}\n${dateInfo}` : dateInfo;
-				
-				const body = {
-					id: saleId,
-					client_name: sale.client_name || '',
-					is_paid: sale.is_paid || false,
-					pay_method: sale.pay_method || null,
-					comment_text: newComment,
-					_actor_name: state.currentUser?.name || ''
-				};
-				
-				// Support for items or legacy format
-				if (sale.items && Array.isArray(sale.items)) {
-					body.items = sale.items;
-				} else {
-					for (const d of state.desserts) {
-						body[`qty_${d.short_code}`] = sale[`qty_${d.short_code}`] || 0;
+				// Store payment info in memory (state) only, not in comments
+				const idx = state.sales.findIndex(s => s.id === saleId);
+				if (idx !== -1) {
+					// Store in memory - create payment_info object if it doesn't exist
+					if (!state.sales[idx]._paymentInfo) {
+						state.sales[idx]._paymentInfo = {};
 					}
+					state.sales[idx]._paymentInfo = {
+						date: paymentDate,
+						method: method.label
+					};
 				}
 				
-				const updated = await api('PUT', API.Sales, body);
-				const idx = state.sales.findIndex(s => s.id === saleId);
-				if (idx !== -1) state.sales[idx] = updated;
-				
-				renderTable();
-				try { notify.success(`Pago registrado: ${paymentDate} - ${method.label}`); } catch {}
+				// Don't update the database or comments - just keep in memory
+				try { notify.success(`Fecha guardada en memoria: ${paymentDate} - ${method.label}`); } catch {}
 				cleanup();
 			} catch (e) {
 				try { notify.error('Error al guardar'); } catch {}
