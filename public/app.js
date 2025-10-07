@@ -6256,7 +6256,7 @@ function openClientActionBar(tdElement, saleId, clientName, clickX, clickY) {
 	// Edit button (opens edit popover)
 	const editBtn = document.createElement('button');
 	editBtn.className = 'client-action-bar-btn';
-	editBtn.innerHTML = '✏️';
+	editBtn.innerHTML = '<span class="client-action-bar-btn-icon">✏️</span><span class="client-action-bar-btn-label">Editar</span>';
 	editBtn.title = 'Editar pedido';
 	editBtn.addEventListener('click', (e) => {
 		e.stopPropagation();
@@ -6269,7 +6269,7 @@ function openClientActionBar(tdElement, saleId, clientName, clickX, clickY) {
 	// Comment button (opens comment dialog directly)
 	const commentBtn = document.createElement('button');
 	commentBtn.className = 'client-action-bar-btn';
-	commentBtn.innerHTML = '💬';
+	commentBtn.innerHTML = '<span class="client-action-bar-btn-icon">💬</span><span class="client-action-bar-btn-label">Comentario</span>';
 	commentBtn.title = 'Agregar/editar comentario';
 	commentBtn.addEventListener('click', async (e) => {
 		e.stopPropagation();
@@ -6291,7 +6291,7 @@ function openClientActionBar(tdElement, saleId, clientName, clickX, clickY) {
 	// History button (opens client detail view)
 	const historyBtn = document.createElement('button');
 	historyBtn.className = 'client-action-bar-btn';
-	historyBtn.innerHTML = '📋';
+	historyBtn.innerHTML = '<span class="client-action-bar-btn-icon">📋</span><span class="client-action-bar-btn-label">Historial</span>';
 	historyBtn.title = 'Historial del cliente';
 	historyBtn.addEventListener('click', async (e) => {
 		e.stopPropagation();
@@ -6310,7 +6310,7 @@ function openClientActionBar(tdElement, saleId, clientName, clickX, clickY) {
 	if (isSuperAdmin) {
 		const paymentBtn = document.createElement('button');
 		paymentBtn.className = 'client-action-bar-btn';
-		paymentBtn.innerHTML = '📅';
+		paymentBtn.innerHTML = '<span class="client-action-bar-btn-icon">📅</span><span class="client-action-bar-btn-label">Fecha</span>';
 		paymentBtn.title = 'Fecha y método de pago';
 		paymentBtn.addEventListener('click', (e) => {
 			e.stopPropagation();

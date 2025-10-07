@@ -3926,12 +3926,12 @@ button.secondary.press-btn:active {
 	bottom: calc(100% + 4px);
 	left: 50%;
 	transform: translateX(-50%);
-	background: rgba(0, 0, 0, 0.5);
-	backdrop-filter: blur(8px);
+	background: rgba(0, 0, 0, 0.2);
+	backdrop-filter: blur(10px);
 	border-radius: 16px;
-	padding: 24px 18px;
+	padding: 16px 6px 12px 6px;
 	display: flex;
-	gap: 24px;
+	gap: 8px;
 	align-items: center;
 	z-index: 1000;
 	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
@@ -3946,7 +3946,7 @@ button.secondary.press-btn:active {
 }
 
 [data-theme="dark"] .client-action-bar {
-	background: rgba(255, 255, 255, 0.12);
+	background: rgba(255, 255, 255, 0.08);
 }
 
 .client-action-bar-btn {
@@ -3954,16 +3954,31 @@ button.secondary.press-btn:active {
 	border: none;
 	color: #fff;
 	cursor: pointer;
-	padding: 12px;
+	padding: 8px 4px 4px 4px;
 	display: flex;
+	flex-direction: column;
 	align-items: center;
 	justify-content: center;
+	gap: 4px;
 	border-radius: 10px;
 	transition: background 0.2s ease, transform 0.15s ease;
-	font-size: 37px;
+	font-size: 28px;
 	line-height: 1;
-	min-width: 56px;
-	min-height: 56px;
+	min-width: 50px;
+}
+
+.client-action-bar-btn-icon {
+	font-size: 28px;
+	line-height: 1;
+}
+
+.client-action-bar-btn-label {
+	font-size: 9px;
+	font-weight: 500;
+	text-transform: uppercase;
+	letter-spacing: 0.3px;
+	white-space: nowrap;
+	opacity: 0.9;
 }
 
 .client-action-bar-btn:hover {
@@ -3997,15 +4012,22 @@ td.col-client.action-bar-active .client-input {
 @media (max-width: 600px) {
 	.client-action-bar {
 		bottom: calc(100% + 2px);
-		padding: 18px 6px;
-		gap: 12px;
+		padding: 14px 4px 10px 4px;
+		gap: 6px;
 	}
 	
 	.client-action-bar-btn {
-		padding: 10px;
-		font-size: 31px;
-		min-width: 48px;
-		min-height: 48px;
+		padding: 6px 2px 4px 2px;
+		min-width: 46px;
+		font-size: 24px;
+	}
+	
+	.client-action-bar-btn-icon {
+		font-size: 24px;
+	}
+	
+	.client-action-bar-btn-label {
+		font-size: 8px;
 	}
 }
 
