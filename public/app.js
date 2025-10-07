@@ -1339,7 +1339,7 @@ function createDessertQtyCell(sale, dessert, tr) {
 		const clientInput = tr.querySelector('.col-client .client-input');
 		const clientName = clientInput?.value || '';
 		if (clientTd) {
-			openClientActionBar(clientTd, sale.id, clientName);
+			openClientActionBar(clientTd, sale.id, clientName, e.clientX, e.clientY);
 		}
 	});
 	
@@ -1447,7 +1447,7 @@ function renderTable() {
 				input.addEventListener('click', (e) => {
 					e.stopPropagation();
 					const currentName = input.value || '';
-					openClientActionBar(td, sale.id, currentName);
+					openClientActionBar(td, sale.id, currentName, e.clientX, e.clientY);
 				});
 				td.appendChild(input);
 				const name = (sale.client_name || '').trim();
@@ -1473,8 +1473,7 @@ function renderTable() {
 					commentMarker.title = 'Ver/editar comentario';
 					commentMarker.addEventListener('click', async (ev) => {
 						ev.stopPropagation();
-						const rect = input.getBoundingClientRect();
-						const comment = await openCommentDialog(input, sale.comment_text, rect.right + 8, rect.top);
+						const comment = await openCommentDialog(input, sale.comment_text, ev.clientX, ev.clientY);
 						if (comment != null) {
 							await saveComment(sale.id, comment);
 							// Update the marker visibility
@@ -2863,13 +2862,13 @@ function openCommentDialog(anchorEl, initial = '', anchorX, anchorY) {
 		const pop = document.createElement('div');
 		pop.className = 'comment-popover';
 		pop.style.position = 'fixed';
+		pop.style.visibility = 'hidden'; // Hide initially to measure
 		const rect = anchorEl.getBoundingClientRect();
 		if (typeof anchorX === 'number' && typeof anchorY === 'number') {
-			// Place the popover so its left edge starts exactly where the * was typed
-			// and align vertically at the caret Y position
+			// Position centered above the click point
 			pop.style.left = anchorX + 'px';
 			pop.style.top = anchorY + 'px';
-			pop.style.transform = 'none';
+			pop.style.transform = 'translate(-50%, calc(-100% - 10px))'; // Center horizontally, 10px above
 		} else {
 			// Fallback: open to the right of the input at same row height
 			pop.style.left = (rect.right + 8) + 'px';
@@ -2889,6 +2888,10 @@ function openCommentDialog(anchorEl, initial = '', anchorX, anchorY) {
 		actions.append(cancel, save);
 		pop.append(ta, actions);
 		document.body.appendChild(pop);
+		// Make visible after measuring
+		requestAnimationFrame(() => {
+			pop.style.visibility = 'visible';
+		});
 		// Clamp within the visible viewport (accounts for on-screen keyboard via visualViewport)
 		const reclamp = () => {
 			const margin = 8;
@@ -6050,14 +6053,16 @@ function openClientActionBar(tdElement, saleId, clientName, clickX, clickY) {
 	commentBtn.title = 'Agregar/editar comentario';
 	commentBtn.addEventListener('click', async (e) => {
 		e.stopPropagation();
+		const btnClickX = e.clientX;
+		const btnClickY = e.clientY;
 		closeClientActionBar();
 		const input = tdElement.querySelector('.client-input');
 		if (input) {
 			// Get current comment text
 			const sale = state.sales.find(s => s.id === saleId);
 			const currentComment = sale?.comment_text || '';
-			const rect = input.getBoundingClientRect();
-			const comment = await openCommentDialog(input, currentComment, rect.right + 8, rect.top);
+			// Open comment dialog above the click position
+			const comment = await openCommentDialog(input, currentComment, btnClickX, btnClickY);
 			if (comment != null) {
 				await saveComment(saleId, comment);
 				// Re-render table to show/update comment marker

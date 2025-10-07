@@ -1045,10 +1045,32 @@ tfoot td { font-weight: 700; }
 .col-client .client-input { padding-right: 32px; }
 .col-client.has-comment .client-input { padding-right: 32px; }
 /* comment-trigger UI removed */
-.comment-popover { background: #F2E8DE; color: var(--text); border: 1px solid var(--border); border-radius: 12px; padding: 14px; min-width: 460px; max-width: 95vw; }
-.comment-input { width: 100%; min-height: 160px; resize: vertical; background: #EBDCCF; color: var(--text); border: 1px solid #D9C7B6; border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; line-height: 1.4; font-size: 14px; -webkit-appearance: none; }
+.comment-popover { 
+	background: rgba(193, 84, 129, 0.4); 
+	backdrop-filter: blur(8px);
+	color: var(--text); 
+	border: 1px solid rgba(193, 84, 129, 0.6); 
+	border-radius: 12px; 
+	padding: 14px; 
+	min-width: 460px; 
+	max-width: 95vw; 
+}
+.comment-input { 
+	width: 100%; 
+	min-height: 160px; 
+	resize: vertical; 
+	background: rgba(255, 255, 255, 0.9); 
+	color: var(--text); 
+	border: 1px solid rgba(193, 84, 129, 0.4); 
+	border-radius: 10px; 
+	padding: 10px 12px; 
+	margin-bottom: 10px; 
+	line-height: 1.4; 
+	font-size: 14px; 
+	-webkit-appearance: none; 
+}
 .comment-input { outline: none !important; -webkit-tap-highlight-color: transparent; }
-.comment-input:focus { outline: none !important; outline-color: transparent !important; box-shadow: none !important; -webkit-box-shadow: none !important; border-color: #CFB8A4 !important; }
+.comment-input:focus { outline: none !important; outline-color: transparent !important; box-shadow: none !important; -webkit-box-shadow: none !important; border-color: rgba(193, 84, 129, 0.6) !important; }
 .comment-input:focus-visible { outline: none !important; box-shadow: none !important; -webkit-box-shadow: none !important; }
 .comment-input::-moz-focus-inner { border: 0 !important; }
 .comment-input::-moz-focusring { outline: none !important; }
