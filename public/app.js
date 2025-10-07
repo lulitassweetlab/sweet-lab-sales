@@ -174,8 +174,10 @@ function renderClientDetailTable(rows) {
 	if (title) {
 		// Clear existing content and create editable structure
 		title.innerHTML = '';
-		title.style.textAlign = 'center';
-		title.style.flex = '1';
+		title.style.position = 'absolute';
+		title.style.left = '50%';
+		title.style.transform = 'translateX(-50%)';
+		title.style.margin = '0';
 		const clientNameSpan = document.createElement('span');
 		clientNameSpan.textContent = state._clientDetailName || 'Cliente';
 		clientNameSpan.style.cursor = 'pointer';
