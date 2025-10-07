@@ -486,7 +486,53 @@ const notify = (() => {
 				minLoadedId = (minLoadedId == null) ? id : Math.min(minLoadedId, id);
 			}
 			const item = document.createElement('div'); item.className = 'notif-item';
-			item.style.gridTemplateColumns = '1fr auto';
+			const isRead = isServer && original.read_at !== null && original.read_at !== undefined;
+			if (isRead) item.classList.add('notif-read');
+			
+			// Check if user is superadmin
+			const isSuperAdmin = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+			
+			// Add checkbox for superadmin to mark as read
+			let checkboxEl = null;
+			if (isServer && isSuperAdmin) {
+				checkboxEl = document.createElement('input');
+				checkboxEl.type = 'checkbox';
+				checkboxEl.className = 'notif-checkbox';
+				checkboxEl.checked = isRead;
+				checkboxEl.title = isRead ? 'Marcar como no leída' : 'Marcar como leída';
+				checkboxEl.addEventListener('click', async (e) => {
+					e.stopPropagation();
+					const newReadState = e.target.checked;
+					try {
+						const res = await fetch('/api/notifications', {
+							method: 'PATCH',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({ id: id, is_read: newReadState })
+						});
+						if (res.ok) {
+							// Update the visual state
+							if (newReadState) {
+								item.classList.add('notif-read');
+							} else {
+								item.classList.remove('notif-read');
+							}
+							checkboxEl.title = newReadState ? 'Marcar como no leída' : 'Marcar como leída';
+						} else {
+							// Revert checkbox on error
+							checkboxEl.checked = !newReadState;
+							notify.error('Error al actualizar notificación');
+						}
+					} catch (err) {
+						// Revert checkbox on error
+						checkboxEl.checked = !newReadState;
+						notify.error('Error al actualizar notificación');
+					}
+				});
+				item.style.gridTemplateColumns = 'auto 1fr auto';
+			} else {
+				item.style.gridTemplateColumns = '1fr auto';
+			}
+			
 			const whenEl = document.createElement('div'); whenEl.className = 'when';
 			const d = new Date(when); whenEl.textContent = isNaN(d.getTime()) ? String(when || '') : d.toLocaleString();
 			const textEl = document.createElement('div'); textEl.className = 'text';
@@ -520,11 +566,18 @@ const notify = (() => {
 					}
 				} catch {}
 			});
-			item.append(whenEl, delBtn, textEl);
-			textEl.style.gridColumn = '1 / -1';
+			
+			if (checkboxEl) {
+				item.append(checkboxEl, whenEl, delBtn, textEl);
+			} else {
+				item.append(whenEl, delBtn, textEl);
+			}
+			textEl.style.gridColumn = checkboxEl ? '2 / -1' : '1 / -1';
 			if (isServer) {
 				item.style.cursor = 'pointer';
-				item.addEventListener('click', () => {
+				item.addEventListener('click', (e) => {
+					// Don't navigate if clicking on checkbox
+					if (e.target === checkboxEl) return;
 					cleanup();
 					setTimeout(() => {
 						goToSaleFromNotification(
