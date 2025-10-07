@@ -6036,8 +6036,8 @@ function openPaymentDateDialog(saleId, anchorX, anchorY) {
 	
 	// Use previously saved date if exists, otherwise use today
 	let initialDate = new Date();
-	if (sale._paymentInfo && sale._paymentInfo.date) {
-		initialDate = new Date(sale._paymentInfo.date + 'T00:00:00');
+	if (sale.pay_date) {
+		initialDate = new Date(sale.pay_date + 'T00:00:00');
 	}
 	
 	let currentMonth = initialDate.getMonth();
@@ -6169,7 +6169,7 @@ function openPaymentDateDialog(saleId, anchorX, anchorY) {
 	];
 	
 	// Get previously selected method if exists
-	const previousMethod = sale._paymentInfo?.method;
+	const previousMethod = sale.pay_method;
 	
 	methods.forEach(method => {
 		const btn = document.createElement('button');
@@ -6179,7 +6179,7 @@ function openPaymentDateDialog(saleId, anchorX, anchorY) {
 		btn.dataset.value = method.value;
 		
 		// Pre-select if this was the previously chosen method
-		if (previousMethod && method.label === previousMethod) {
+		if (previousMethod && method.value === previousMethod) {
 			btn.classList.add('selected');
 		}
 		
@@ -6191,23 +6191,32 @@ function openPaymentDateDialog(saleId, anchorX, anchorY) {
 				const paymentDate = selectedDate.toISOString().split('T')[0];
 				const paymentMethod = method.value;
 				
-				// Store payment info in memory (state) only, not in comments
-				const idx = state.sales.findIndex(s => s.id === saleId);
-				if (idx !== -1) {
-					// Store in memory - replace any previous payment info
-					state.sales[idx]._paymentInfo = {
-						date: paymentDate,
-						method: method.label,
-						methodValue: method.value
-					};
-					console.log('Guardado en memoria:', state.sales[idx]._paymentInfo);
+				// Save to database
+				const body = {
+					id: saleId,
+					pay_date: paymentDate,
+					pay_method: paymentMethod,
+					seller_id: state.currentSeller?.id || null,
+					_actor_name: state.currentUser?.name || ''
+				};
+				
+				if (state.selectedDayId) {
+					body.sale_day_id = state.selectedDayId;
 				}
 				
-				// Don't update the database or comments - just keep in memory
-				try { notify.success(`Fecha guardada en memoria: ${paymentDate} - ${method.label}`); } catch {}
+				await api('PUT', API.Sales, body);
+				
+				// Update local state
+				const idx = state.sales.findIndex(s => s.id === saleId);
+				if (idx !== -1) {
+					state.sales[idx].pay_date = paymentDate;
+					state.sales[idx].pay_method = paymentMethod;
+				}
+				
+				try { notify.success(`Fecha guardada: ${paymentDate} - ${method.label}`); } catch {}
 				cleanup();
 			} catch (e) {
-				try { notify.error('Error al guardar'); } catch {}
+				try { notify.error('Error al guardar: ' + String(e)); } catch {}
 				methodsContainer.querySelectorAll('button').forEach(b => b.disabled = false);
 			}
 		});
