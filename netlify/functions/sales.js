@@ -6,14 +6,8 @@ function json(body, status = 200) {
 
 export async function handler(event) {
 	try {
-		// OPTIMIZED: Skip ensureSchema for GET date_range queries (read-only, performance critical)
-		const isDateRangeQuery = event.httpMethod === 'GET' && 
-			(event.rawQuery?.includes('date_range_start') || 
-			 event.queryStringParameters?.date_range_start);
-		
-		if (!isDateRangeQuery) {
-			await ensureSchema();
-		}
+		// Always run ensureSchema to ensure payment_date and payment_bank_method columns exist
+		await ensureSchema();
 		
 		if (event.httpMethod === 'OPTIONS') return json({ ok: true });
 		switch (event.httpMethod) {
