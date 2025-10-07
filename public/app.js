@@ -6043,9 +6043,16 @@ function openPaymentDateDialog(saleId, anchorX, anchorY) {
 	calendarContainer.className = 'inline-calendar';
 	
 	const today = new Date();
-	let currentMonth = today.getMonth();
-	let currentYear = today.getFullYear();
-	let selectedDate = new Date();
+	
+	// Use previously saved date if exists, otherwise use today
+	let initialDate = new Date();
+	if (sale._paymentInfo && sale._paymentInfo.date) {
+		initialDate = new Date(sale._paymentInfo.date + 'T00:00:00');
+	}
+	
+	let currentMonth = initialDate.getMonth();
+	let currentYear = initialDate.getFullYear();
+	let selectedDate = new Date(initialDate);
 	
 	// Calendar header with navigation
 	const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
