@@ -27,6 +27,7 @@
 			</div>
 			<div style="display:flex; gap:8px; align-items:center;">
 				<button id="user-filter-btn" class="press-btn">Filtrar usuarios</button>
+				<button id="amount-filter-btn" class="press-btn">Filtrar valor</button>
 				<button id="change-range" class="press-btn">Cambiar fechas</button>
 			</div>
 		</div>
@@ -49,8 +50,11 @@
 		const backBtn = document.getElementById('back-btn');
 		const changeBtn = document.getElementById('change-range');
 		const userFilterBtn = document.getElementById('user-filter-btn');
+		const amountFilterBtn = document.getElementById('amount-filter-btn');
 		let selectedUsers = new Set(); // Set of seller IDs
 		let allSellers = [];
+		let minAmount = null;
+		let maxAmount = null;
 
 		function buildPaySelector(sale){
 			const container = document.createElement('div');
@@ -261,6 +265,10 @@
 			await mapLimit(daySales, 8, async ({ seller, day, sale }) => {
 				try {
 					const recs = await fetchJSON(`/api/sales?receipt_for=${encodeURIComponent(sale.id)}`);
+					// Apply amount filter
+					const saleAmount = Number(sale.total_cents || 0);
+					if (minAmount !== null && saleAmount < minAmount) return;
+					if (maxAmount !== null && saleAmount > maxAmount) return;
 					if (Array.isArray(recs) && recs.length) {
 						const r = recs[0];
 						const card = document.createElement('div'); card.className = 'transfer-card';
@@ -306,6 +314,10 @@
 		
 		userFilterBtn.addEventListener('click', (ev) => {
 			openUserFilterMenu(ev.clientX, ev.clientY);
+		});
+
+		amountFilterBtn.addEventListener('click', (ev) => {
+			openAmountFilterMenu(ev.clientX, ev.clientY);
 		});
 
 		function openUserFilterMenu(anchorX, anchorY) {
@@ -435,6 +447,144 @@
 
 			menu.style.left = left + 'px';
 			menu.style.top = top + 'px';
+
+			function outside(e) {
+				if (!menu.contains(e.target)) cleanup();
+			}
+			function cleanup() {
+				document.removeEventListener('mousedown', outside, true);
+				document.removeEventListener('touchstart', outside, true);
+				if (menu.parentNode) menu.parentNode.removeChild(menu);
+			}
+			setTimeout(() => {
+				document.addEventListener('mousedown', outside, true);
+				document.addEventListener('touchstart', outside, true);
+			}, 0);
+		}
+
+		function openAmountFilterMenu(anchorX, anchorY) {
+			const menu = document.createElement('div');
+			menu.className = 'pay-menu';
+			menu.style.position = 'fixed';
+			menu.style.left = anchorX + 'px';
+			menu.style.top = anchorY + 'px';
+			menu.style.transform = 'translateX(-50%)';
+			menu.style.zIndex = '1000';
+			menu.style.padding = '16px';
+			menu.style.minWidth = '280px';
+
+			const title = document.createElement('div');
+			title.textContent = 'Filtrar por valor del pedido';
+			title.style.fontWeight = '600';
+			title.style.marginBottom = '12px';
+			title.style.fontSize = '14px';
+			menu.appendChild(title);
+
+			// Min amount input
+			const minWrap = document.createElement('div');
+			minWrap.style.marginBottom = '12px';
+			const minLabel = document.createElement('label');
+			minLabel.textContent = 'Valor mínimo:';
+			minLabel.style.display = 'block';
+			minLabel.style.fontSize = '12px';
+			minLabel.style.marginBottom = '4px';
+			minLabel.style.opacity = '0.8';
+			const minInput = document.createElement('input');
+			minInput.type = 'number';
+			minInput.placeholder = 'Sin mínimo';
+			minInput.value = minAmount !== null ? String(minAmount) : '';
+			minInput.style.width = '100%';
+			minInput.style.padding = '8px';
+			minInput.style.border = '1px solid rgba(0,0,0,0.2)';
+			minInput.style.borderRadius = '4px';
+			minInput.style.fontSize = '14px';
+			minWrap.append(minLabel, minInput);
+			menu.appendChild(minWrap);
+
+			// Max amount input
+			const maxWrap = document.createElement('div');
+			maxWrap.style.marginBottom = '12px';
+			const maxLabel = document.createElement('label');
+			maxLabel.textContent = 'Valor máximo:';
+			maxLabel.style.display = 'block';
+			maxLabel.style.fontSize = '12px';
+			maxLabel.style.marginBottom = '4px';
+			maxLabel.style.opacity = '0.8';
+			const maxInput = document.createElement('input');
+			maxInput.type = 'number';
+			maxInput.placeholder = 'Sin máximo';
+			maxInput.value = maxAmount !== null ? String(maxAmount) : '';
+			maxInput.style.width = '100%';
+			maxInput.style.padding = '8px';
+			maxInput.style.border = '1px solid rgba(0,0,0,0.2)';
+			maxInput.style.borderRadius = '4px';
+			maxInput.style.fontSize = '14px';
+			maxWrap.append(maxLabel, maxInput);
+			menu.appendChild(maxWrap);
+
+			// Action buttons
+			const actions = document.createElement('div');
+			actions.style.display = 'flex';
+			actions.style.gap = '8px';
+			actions.style.marginTop = '8px';
+			actions.style.paddingTop = '12px';
+			actions.style.borderTop = '1px solid rgba(0,0,0,0.1)';
+
+			const clearBtn = document.createElement('button');
+			clearBtn.className = 'press-btn';
+			clearBtn.textContent = 'Limpiar';
+			clearBtn.style.flex = '1';
+			clearBtn.addEventListener('click', () => {
+				minAmount = null;
+				maxAmount = null;
+				cleanup();
+				load();
+			});
+
+			const applyBtn = document.createElement('button');
+			applyBtn.className = 'press-btn btn-primary';
+			applyBtn.textContent = 'Aplicar';
+			applyBtn.style.flex = '1';
+			applyBtn.addEventListener('click', () => {
+				const minVal = minInput.value.trim();
+				const maxVal = maxInput.value.trim();
+				minAmount = minVal ? Number(minVal) : null;
+				maxAmount = maxVal ? Number(maxVal) : null;
+				cleanup();
+				load();
+			});
+
+			const cancelBtn = document.createElement('button');
+			cancelBtn.className = 'press-btn';
+			cancelBtn.textContent = 'Cancelar';
+			cancelBtn.style.flex = '1';
+			cancelBtn.addEventListener('click', cleanup);
+
+			actions.append(cancelBtn, clearBtn, applyBtn);
+			menu.appendChild(actions);
+
+			document.body.appendChild(menu);
+
+			// Position adjustment to keep in viewport
+			const rect = menu.getBoundingClientRect();
+			let left = anchorX;
+			let top = anchorY + 8;
+			
+			if (left + rect.width / 2 > window.innerWidth - 10) {
+				left = window.innerWidth - rect.width / 2 - 10;
+			}
+			if (left - rect.width / 2 < 10) {
+				left = rect.width / 2 + 10;
+			}
+			if (top + rect.height > window.innerHeight - 10) {
+				top = anchorY - rect.height - 8;
+			}
+
+			menu.style.left = left + 'px';
+			menu.style.top = top + 'px';
+
+			// Auto-focus first input
+			setTimeout(() => minInput.focus(), 100);
 
 			function outside(e) {
 				if (!menu.contains(e.target)) cleanup();
