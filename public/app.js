@@ -2862,18 +2862,10 @@ function openCommentDialog(anchorEl, initial = '', anchorX, anchorY) {
 		const pop = document.createElement('div');
 		pop.className = 'comment-popover';
 		pop.style.position = 'fixed';
+		pop.style.visibility = 'hidden'; // Hide initially to measure size
 		const rect = anchorEl.getBoundingClientRect();
-		if (typeof anchorX === 'number' && typeof anchorY === 'number') {
-			// Position centered very close to the click point
-			pop.style.left = anchorX + 'px';
-			pop.style.top = (anchorY - 2) + 'px';
-			pop.style.transform = 'translate(-50%, -100%)'; // Center horizontally, right above click
-		} else {
-			// Fallback: open to the right of the input at same row height
-			pop.style.left = (rect.right + 8) + 'px';
-			pop.style.top = (rect.top) + 'px';
-			pop.style.transform = 'none';
-		}
+		
+		// Append to body first to measure
 		pop.style.zIndex = '1000';
 		// Size: medium compact size
 		const isSmallScreen = window.matchMedia('(max-width: 600px)').matches;
@@ -2887,6 +2879,25 @@ function openCommentDialog(anchorEl, initial = '', anchorX, anchorY) {
 		actions.append(cancel, save);
 		pop.append(ta, actions);
 		document.body.appendChild(pop);
+		
+		// Position after appending to get accurate dimensions
+		if (typeof anchorX === 'number' && typeof anchorY === 'number') {
+			const popRect = pop.getBoundingClientRect();
+			// Position centered horizontally, just above the click with small gap
+			const left = anchorX - (popRect.width / 2);
+			const top = anchorY - popRect.height - 8; // 8px gap above click
+			pop.style.left = Math.max(8, left) + 'px';
+			pop.style.top = Math.max(8, top) + 'px';
+			pop.style.transform = 'none';
+		} else {
+			// Fallback: open to the right of the input at same row height
+			pop.style.left = (rect.right + 8) + 'px';
+			pop.style.top = (rect.top) + 'px';
+			pop.style.transform = 'none';
+		}
+		
+		// Make visible
+		pop.style.visibility = 'visible';
 		// Clamp within the visible viewport (accounts for on-screen keyboard via visualViewport)
 		const reclamp = () => {
 			const margin = 8;
@@ -6032,8 +6043,8 @@ function openPaymentDateDialog(saleId, anchorX, anchorY) {
 	calendarContainer.className = 'inline-calendar';
 	
 	const today = new Date();
-	const currentMonth = today.getMonth();
-	const currentYear = today.getFullYear();
+	let currentMonth = today.getMonth();
+	let currentYear = today.getFullYear();
 	let selectedDate = new Date();
 	
 	// Calendar header with navigation
