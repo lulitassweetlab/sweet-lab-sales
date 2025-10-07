@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 5; // Bump when schema changes require a migration (incremented for index creation)
+const SCHEMA_VERSION = 6; // Bump when schema changes require a migration (incremented for payment_date column)
 
 export async function ensureSchema() {
 	// If already ensured in this instance, skip immediately
@@ -188,6 +188,7 @@ export async function ensureSchema() {
 		qty_nute INTEGER NOT NULL DEFAULT 0,
 		is_paid BOOLEAN NOT NULL DEFAULT false,
 		pay_method TEXT,
+		payment_date DATE,
 		comment_text TEXT DEFAULT '',
 		total_cents INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMPTZ DEFAULT now()
@@ -223,6 +224,12 @@ export async function ensureSchema() {
 			WHERE table_name = 'sales' AND column_name = 'qty_nute'
 		) THEN
 			ALTER TABLE sales ADD COLUMN qty_nute INTEGER NOT NULL DEFAULT 0;
+		END IF;
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'sales' AND column_name = 'payment_date'
+		) THEN
+			ALTER TABLE sales ADD COLUMN payment_date DATE;
 		END IF;
 	END $$;`;
 	await sql`CREATE TABLE IF NOT EXISTS change_logs (

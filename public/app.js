@@ -1708,6 +1708,20 @@ async function loadSales() {
 	const params = new URLSearchParams({ seller_id: String(sellerId) });
 	if (state.selectedDayId) params.set('sale_day_id', String(state.selectedDayId));
 	state.sales = await api('GET', `${API.Sales}?${params.toString()}`);
+	
+	// Initialize _paymentInfo from database fields (payment_date and pay_method)
+	if (Array.isArray(state.sales)) {
+		for (const sale of state.sales) {
+			if (sale && sale.payment_date && sale.pay_method) {
+				sale._paymentInfo = {
+					date: sale.payment_date,
+					method: sale.pay_method,
+					methodValue: sale.pay_method.toLowerCase()
+				};
+			}
+		}
+	}
+	
 	// Build recurrence counts across all dates for this seller
 	try {
 		const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(sellerId)}`);
@@ -6189,7 +6203,7 @@ function openPaymentDateDialog(saleId, anchorX, anchorY) {
 	// Title
 	const title = document.createElement('div');
 	title.className = 'payment-date-title';
-	title.textContent = 'Selecciona la fecha de pago';
+	title.textContent = 'Fecha de pago';
 	
 	// Create inline calendar
 	const calendarContainer = document.createElement('div');
@@ -6199,8 +6213,32 @@ function openPaymentDateDialog(saleId, anchorX, anchorY) {
 	
 	// Use previously saved date if exists, otherwise use today
 	let initialDate = new Date();
-	if (sale._paymentInfo && sale._paymentInfo.date) {
-		initialDate = new Date(sale._paymentInfo.date + 'T00:00:00');
+	
+	// Try to get saved date from multiple sources
+	const savedDate = sale.payment_date || (sale._paymentInfo && sale._paymentInfo.date);
+	if (savedDate) {
+		try {
+			// Handle different date formats (ISO, date object, etc)
+			let dateStr;
+			if (typeof savedDate === 'string') {
+				dateStr = savedDate.slice(0, 10); // Get YYYY-MM-DD
+			} else if (savedDate instanceof Date) {
+				dateStr = savedDate.toISOString().slice(0, 10);
+			} else {
+				dateStr = String(savedDate).slice(0, 10);
+			}
+			
+			initialDate = new Date(dateStr + 'T00:00:00');
+			
+			// Validate the date is valid
+			if (isNaN(initialDate.getTime())) {
+				console.warn('Invalid date, using today. Original value:', savedDate);
+				initialDate = new Date();
+			}
+		} catch (e) {
+			console.error('Error parsing date:', e, 'Original value:', savedDate);
+			initialDate = new Date();
+		}
 	}
 	
 	let currentMonth = initialDate.getMonth();
@@ -6331,8 +6369,8 @@ function openPaymentDateDialog(saleId, anchorX, anchorY) {
 		{ value: 'otro', label: 'Otro' }
 	];
 	
-	// Get previously selected method if exists
-	const previousMethod = sale._paymentInfo?.method;
+	// Get previously selected method if exists (try multiple sources)
+	const previousMethod = sale.pay_method || (sale._paymentInfo && sale._paymentInfo.method);
 	
 	methods.forEach(method => {
 		const btn = document.createElement('button');
@@ -6342,38 +6380,93 @@ function openPaymentDateDialog(saleId, anchorX, anchorY) {
 		btn.dataset.value = method.value;
 		
 		// Pre-select if this was the previously chosen method
-		if (previousMethod && method.label === previousMethod) {
+		// Check both label and value for matching
+		const isSelected = previousMethod && (
+			method.label === previousMethod || 
+			method.label.toLowerCase() === previousMethod.toLowerCase() ||
+			method.value === previousMethod.toLowerCase()
+		);
+		
+		if (isSelected) {
 			btn.classList.add('selected');
 		}
 		
-		btn.addEventListener('click', async () => {
-			// Disable all buttons while saving
-			methodsContainer.querySelectorAll('button').forEach(b => b.disabled = true);
+	btn.addEventListener('click', async () => {
+		// Disable all buttons while saving
+		methodsContainer.querySelectorAll('button').forEach(b => b.disabled = true);
+		
+		try {
+			const paymentDate = selectedDate.toISOString().split('T')[0];
+			const paymentMethod = method.label;
 			
-			try {
-				const paymentDate = selectedDate.toISOString().split('T')[0];
-				const paymentMethod = method.value;
-				
-				// Store payment info in memory (state) only, not in comments
-				const idx = state.sales.findIndex(s => s.id === saleId);
-				if (idx !== -1) {
-					// Store in memory - replace any previous payment info
-					state.sales[idx]._paymentInfo = {
-						date: paymentDate,
-						method: method.label,
-						methodValue: method.value
-					};
-					console.log('Guardado en memoria:', state.sales[idx]._paymentInfo);
-				}
-				
-				// Don't update the database or comments - just keep in memory
-				try { notify.success(`Fecha guardada en memoria: ${paymentDate} - ${method.label}`); } catch {}
-				cleanup();
-			} catch (e) {
-				try { notify.error('Error al guardar'); } catch {}
-				methodsContainer.querySelectorAll('button').forEach(b => b.disabled = false);
+			// Get current sale data
+			const idx = state.sales.findIndex(s => s.id === saleId);
+			if (idx === -1) {
+				throw new Error('Venta no encontrada');
 			}
-		});
+			
+		const currentSale = state.sales[idx];
+		
+		// Update the database with payment date and method
+		// IMPORTANT: Include all fields to prevent overwriting existing data
+		const body = {
+			id: saleId,
+			seller_id: currentSale.seller_id,
+			sale_day_id: currentSale.sale_day_id,
+			client_name: currentSale.client_name || '',
+			payment_date: paymentDate,
+			pay_method: paymentMethod,
+			comment_text: currentSale.comment_text || '',
+			is_paid: currentSale.is_paid || false,
+			_actor_name: state.actorName || ''
+		};
+		
+		// Include quantities for all desserts (support both formats)
+		if (Array.isArray(currentSale.items) && currentSale.items.length > 0) {
+			body.items = currentSale.items;
+		} else {
+			// Legacy format: include qty_* fields for all desserts (dynamic)
+			if (Array.isArray(state.desserts)) {
+				for (const d of state.desserts) {
+					const fieldName = `qty_${d.short_code}`;
+					body[fieldName] = currentSale[fieldName] || 0;
+				}
+			} else {
+				// Fallback to hardcoded original desserts
+				body.qty_arco = currentSale.qty_arco || 0;
+				body.qty_melo = currentSale.qty_melo || 0;
+				body.qty_mara = currentSale.qty_mara || 0;
+				body.qty_oreo = currentSale.qty_oreo || 0;
+				body.qty_nute = currentSale.qty_nute || 0;
+			}
+		}
+		
+		const updated = await api('PUT', API.Sales, body);
+			
+			// Update in memory
+			if (updated) {
+				state.sales[idx].payment_date = paymentDate;
+				state.sales[idx].pay_method = paymentMethod;
+				state.sales[idx]._paymentInfo = {
+					date: paymentDate,
+					method: paymentMethod,
+					methodValue: method.value
+				};
+			}
+			
+			try { notify.success(`Fecha de pago guardada: ${paymentDate} - ${paymentMethod}`); } catch {}
+			cleanup();
+			
+			// Refresh the UI to show the updated payment info
+			if (typeof renderSalesView === 'function') {
+				renderSalesView();
+			}
+		} catch (e) {
+			console.error('Error al guardar fecha de pago:', e);
+			try { notify.error('Error al guardar: ' + (e.message || 'Error desconocido')); } catch {}
+			methodsContainer.querySelectorAll('button').forEach(b => b.disabled = false);
+		}
+	});
 		
 		methodsContainer.appendChild(btn);
 	});
@@ -6473,8 +6566,24 @@ function openClientActionBar(tdElement, saleId, clientName, clickX, clickY) {
 	if (isSuperAdmin) {
 		const paymentBtn = document.createElement('button');
 		paymentBtn.className = 'client-action-bar-btn';
-		paymentBtn.innerHTML = '<span class="client-action-bar-btn-icon">📅</span><span class="client-action-bar-btn-label">Fecha</span>';
-		paymentBtn.title = 'Fecha y método de pago';
+		
+		// Get sale data to check if payment date is set
+		const sale = state.sales.find(s => s.id === saleId);
+		const hasPaymentInfo = sale?.payment_date && sale?.pay_method;
+		
+		if (hasPaymentInfo) {
+			// Format date for display (DD/MM)
+			const dateStr = sale.payment_date;
+			const dateParts = dateStr.split('-');
+			const displayDate = dateParts.length >= 3 ? `${dateParts[2]}/${dateParts[1]}` : dateStr;
+			paymentBtn.innerHTML = `<span class="client-action-bar-btn-icon">📅</span><span class="client-action-bar-btn-label">${displayDate}</span>`;
+			paymentBtn.title = `Fecha de pago: ${displayDate} - ${sale.pay_method}`;
+			paymentBtn.style.fontWeight = 'bold';
+		} else {
+			paymentBtn.innerHTML = '<span class="client-action-bar-btn-icon">📅</span><span class="client-action-bar-btn-label">Fecha</span>';
+			paymentBtn.title = 'Fecha y método de pago';
+		}
+		
 		paymentBtn.addEventListener('click', (e) => {
 			e.stopPropagation();
 			const btnClickX = e.clientX;
