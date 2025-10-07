@@ -18,7 +18,22 @@
 		.attach-btn { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--border); background: transparent; color: var(--foreground); font-weight: 700; line-height: 1; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
 		.attach-btn.has { background: #ad1457; color: #fff; border-color: #ad1457; }
 		/* Celdas editables */
-		.editable { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 2px; }
+		.editable { 
+			cursor: pointer; 
+			text-decoration: underline dotted; 
+			text-underline-offset: 2px;
+			transition: background-color 0.2s ease, transform 0.1s ease;
+			padding: 4px 8px;
+			border-radius: 4px;
+		}
+		.editable:hover {
+			background-color: rgba(244, 166, 183, 0.15);
+			text-decoration-color: var(--primary);
+			transform: scale(1.02);
+		}
+		.editable:active {
+			transform: scale(0.98);
+		}
 	</style>
 </head>
 <body>
@@ -46,6 +61,9 @@
 			<div style="display:flex; justify-content:space-between; align-items:center; margin:0 12px 8px 12px">
 				<strong id="range-label"></strong>
 				<small id="count-label" style="opacity:.8"></small>
+			</div>
+			<div style="margin:0 12px 12px 12px; padding:8px 12px; background-color:rgba(244, 166, 183, 0.1); border-left:3px solid var(--primary); border-radius:4px;">
+				<small style="opacity:.85">💡 <strong>Consejo:</strong> Haz doble clic en las celdas de Fecha, Descripción, Ingreso o Salida para editarlas</small>
 			</div>
 			<div class="table-wrapper" style="padding:12px;">
 				<form id="acc-form" style="display:flex; flex-direction:column; gap:12px; max-width:520px; margin:0 auto;">
@@ -193,10 +211,10 @@
 				const hasAtt = !!(r.has_attachment);
 				tr.innerHTML = `
 					<td style="text-align:center; width:28px"><button class="attach-btn${hasAtt ? ' has' : ''}" data-id="${r.id}" title="Adjuntar archivo" aria-label="Adjuntar">${hasAtt ? '●' : '-'}</button></td>
-					<td class="editable" data-field="entry_date">${String(r.entry_date||'').slice(0,10)}</td>
-					<td class="editable" data-field="description">${r.description||''}</td>
-					<td class="col-total editable" data-field="amount_cents" data-kind="ingreso">${colIng}</td>
-					<td class="col-total editable" data-field="amount_cents" data-kind="gasto">${colSal}</td>
+					<td class="editable" data-field="entry_date" title="Doble clic para editar fecha">${String(r.entry_date||'').slice(0,10)}</td>
+					<td class="editable" data-field="description" title="Doble clic para editar descripción">${r.description||''}</td>
+					<td class="col-total editable" data-field="amount_cents" data-kind="ingreso" title="${isIng ? 'Doble clic para editar ingreso' : ''}">${colIng}</td>
+					<td class="col-total editable" data-field="amount_cents" data-kind="gasto" title="${!isIng ? 'Doble clic para editar salida' : ''}">${colSal}</td>
 					<td class="col-total">${fmtMoney(running)}</td>
 					<td><button class="row-delete" data-del="${r.id}" title="Eliminar" aria-label="Eliminar"></button></td>
 				`;
