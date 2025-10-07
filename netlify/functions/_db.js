@@ -205,6 +205,12 @@ export async function ensureSchema() {
 		) THEN
 			ALTER TABLE sale_days ADD COLUMN paid_comm_nute INTEGER NOT NULL DEFAULT 0;
 		END IF;
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'sale_days' AND column_name = 'paid_comm_total'
+		) THEN
+			ALTER TABLE sale_days ADD COLUMN paid_comm_total INTEGER NOT NULL DEFAULT 0;
+		END IF;
 	END $$;`;
 	await sql`CREATE TABLE IF NOT EXISTS sales (
 		id SERIAL PRIMARY KEY,
