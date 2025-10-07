@@ -257,7 +257,7 @@
 					<td>${r.qo||''}</td>
 					<td>${r.qn||''}</td>
 					<td class="col-total">${r.tot||''}</td>
-					<td style="text-align:center;"><button class="delete-btn" data-sale-id="${r.saleId||''}" data-client-name="${(r.client_name||'').replace(/"/g,'&quot;')}" title="Eliminar" style="background:none; border:none; cursor:pointer; font-size:18px; color:#e74c3c; padding:4px 8px;">🗑️</button></td>`;
+					<td style="text-align:center;"><button class="row-delete delete-btn" data-sale-id="${r.saleId||''}" data-client-name="${(r.client_name||'').replace(/"/g,'&quot;')}" title="Eliminar"></button></td>`;
 				tbody.appendChild(tr);
 				tQa += r.qa||0; tQm += r.qm||0; tQma += r.qma||0; tQo += r.qo||0; tQn += r.qn||0; tGrand += r.tot||0;
 			}

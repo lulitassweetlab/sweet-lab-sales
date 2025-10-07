@@ -173,7 +173,7 @@ function renderClientDetailTable(rows) {
 	tbody.innerHTML = '';
 	if (!rows || rows.length === 0) {
 		const tr = document.createElement('tr');
-		const td = document.createElement('td'); td.colSpan = 8; td.textContent = 'Sin compras'; td.style.opacity = '0.8';
+		const td = document.createElement('td'); td.colSpan = 9; td.textContent = 'Sin compras'; td.style.opacity = '0.8';
 		tr.appendChild(td); tbody.appendChild(tr); return;
 	}
 	for (const r of rows) {
@@ -260,7 +260,30 @@ function renderClientDetailTable(rows) {
 		const tdNu = document.createElement('td'); tdNu.textContent = r.qty_nute ? String(r.qty_nute) : '';
 		const total = calcRowTotal({ arco: r.qty_arco, melo: r.qty_melo, mara: r.qty_mara, oreo: r.qty_oreo, nute: r.qty_nute });
 		const tdTot = document.createElement('td'); tdTot.textContent = fmtNo.format(total);
-		tr.append(tdPay, tdDate, tdAr, tdMe, tdMa, tdOr, tdNu, tdTot);
+		// Delete button
+		const tdDel = document.createElement('td'); tdDel.style.textAlign = 'center';
+		const delBtn = document.createElement('button');
+		delBtn.className = 'row-delete';
+		delBtn.title = 'Eliminar';
+		delBtn.setAttribute('aria-label', 'Eliminar');
+		delBtn.addEventListener('click', async (e) => {
+			e.stopPropagation();
+			if (!confirm(`¿Estás seguro de eliminar esta compra de "${state._clientDetailName || 'este cliente'}"?`)) return;
+			try {
+				await api('DELETE', `${API.Sales}?id=${encodeURIComponent(r.id)}`);
+				notify.info(`Compra eliminada`);
+				// Reload the client detail view
+				if (state._clientDetailFrom === 'global-search') {
+					await loadGlobalClientDetailRows(state._clientDetailName);
+				} else {
+					await loadClientDetailRows(state._clientDetailName);
+				}
+			} catch (err) {
+				notify.error('Error al eliminar: ' + String(err));
+			}
+		});
+		tdDel.appendChild(delBtn);
+		tr.append(tdPay, tdDate, tdAr, tdMe, tdMa, tdOr, tdNu, tdTot, tdDel);
 		tr.addEventListener('mousedown', () => { tr.classList.add('row-highlight'); setTimeout(() => tr.classList.remove('row-highlight'), 3200); });
 		tbody.appendChild(tr);
 	}
