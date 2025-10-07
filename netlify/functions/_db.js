@@ -224,6 +224,12 @@ export async function ensureSchema() {
 		) THEN
 			ALTER TABLE sales ADD COLUMN qty_nute INTEGER NOT NULL DEFAULT 0;
 		END IF;
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'sales' AND column_name = 'payment_date'
+		) THEN
+			ALTER TABLE sales ADD COLUMN payment_date DATE;
+		END IF;
 	END $$;`;
 	await sql`CREATE TABLE IF NOT EXISTS change_logs (
 		id SERIAL PRIMARY KEY,
