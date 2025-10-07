@@ -2416,10 +2416,13 @@ button.secondary.press-btn:active {
 .transfers-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-top: 12px; }
 .transfer-card { border: 1px solid var(--border, #e5e7eb); border-radius: 10px; overflow: hidden; background: var(--card, #fff); display: flex; flex-direction: column; position: relative; }
 .transfer-card img { display: block; width: 100%; height: auto; object-fit: contain; background: #f3f4f6; cursor: zoom-in; }
-.lightbox-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 16px; }
-.lightbox { position: relative; max-width: 96vw; max-height: 92vh; }
-.lightbox img { display: block; max-width: 96vw; max-height: 92vh; width: auto; height: auto; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-.lightbox-actions { position: absolute; top: -44px; right: 0; display: flex; gap: 8px; }
+.lightbox-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.lightbox { position: relative; width: 100%; max-width: min(90vw, 900px); max-height: 90vh; display: flex; flex-direction: column; gap: 16px; margin: 0 auto; }
+.lightbox-img-container { flex: 0 1 auto; display: flex; align-items: center; justify-content: center; max-height: calc(90vh - 160px); }
+.lightbox-img-container img { display: block; max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+.lightbox-note { background: rgba(255,255,255,0.95); color: #374151; padding: 12px 16px; border-radius: 8px; max-height: 120px; overflow-y: auto; white-space: pre-wrap; font-size: 14px; line-height: 1.5; box-shadow: 0 4px 12px rgba(0,0,0,0.3); flex-shrink: 0; }
+[data-theme="dark"] .lightbox-note { background: rgba(30,30,35,0.95); color: #d1d5db; }
+.lightbox-actions { display: flex; gap: 8px; justify-content: center; flex-shrink: 0; }
 .lightbox-actions .press-btn { background: #fff; color: #111; border-color: transparent; }
 .transfer-meta { padding: 8px 10px; font-size: 12px; color: #374151; }
 .transfer-meta .line { display: flex; justify-content: space-between; gap: 8px; }
