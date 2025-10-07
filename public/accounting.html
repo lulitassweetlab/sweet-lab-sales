@@ -104,16 +104,18 @@
 									<th class="col-total">Saldo</th>
 							<th></th>
 							<th></th>
+							<th></th>
 						</tr>
 					</thead>
 						<tbody id="acc-tbody"></tbody>
 						<tfoot>
-								<tr><td colspan="7" style="height:30px; border-bottom:none; background:transparent;"></td></tr>
+								<tr><td colspan="8" style="height:30px; border-bottom:none; background:transparent;"></td></tr>
 								<tr>
 									<td></td>
 									<td></td>
 									<td class="label">Ingresos</td>
 									<td class="col-total" id="t-ingresos"></td>
+									<td></td>
 									<td></td>
 									<td></td>
 									<td></td>
@@ -126,6 +128,7 @@
 									<td class="col-total" id="t-gastos"></td>
 									<td></td>
 									<td></td>
+									<td></td>
 								</tr>
 								<tr>
 									<td></td>
@@ -134,6 +137,7 @@
 									<td></td>
 									<td></td>
 									<td class="col-total" id="t-balance" style="color: var(--accent); font-weight: 700;"></td>
+									<td></td>
 									<td></td>
 								</tr>
 						</tfoot>
@@ -216,7 +220,8 @@
 					<td class="col-total editable" data-field="amount_cents" data-kind="ingreso" title="${isIng ? 'Clic para editar ingreso' : ''}">${colIng}</td>
 					<td class="col-total editable" data-field="amount_cents" data-kind="gasto" title="${!isIng ? 'Clic para editar salida' : ''}">${colSal}</td>
 					<td class="col-total">${fmtMoney(running)}</td>
-					<td><button class="row-delete" data-del="${r.id}" title="Eliminar" aria-label="Eliminar"></button></td>
+				<td style="padding-right:2px;"><button class="row-duplicate" data-dup="${r.id}" title="Duplicar" aria-label="Duplicar"></button></td>
+				<td style="padding-left:2px;"><button class="row-delete" data-del="${r.id}" title="Eliminar" aria-label="Eliminar"></button></td>
 				`;
 				// removed per-row download
 				tbody.appendChild(tr);
@@ -337,6 +342,39 @@
 					if (!id) return;
 					if (!confirm('Eliminar registro?')) return;
 					try { await fetch(`/api/accounting?id=${encodeURIComponent(id)}`, { method: 'DELETE', headers: { 'X-Actor-Name': currentUser?.name || '' } }); await load(); } catch {}
+				});
+			});
+			// Wire duplicates
+			Array.from(tbody.querySelectorAll('button[data-dup]')).forEach(btn => {
+				btn.addEventListener('click', async () => {
+					const id = Number(btn.getAttribute('data-dup'));
+					if (!id) return;
+					const row = rows.find(r => r.id === id);
+					if (!row) return;
+					try {
+						const payload = { 
+							kind: row.kind, 
+							entry_date: row.entry_date, 
+							description: row.description, 
+							amount_cents: row.amount_cents, 
+							_actor_name: currentUser?.name || '' 
+						};
+						const res = await fetch('/api/accounting', { 
+							method: 'POST', 
+							headers: { 'Content-Type': 'application/json', 'X-Actor-Name': currentUser?.name || '' }, 
+							body: JSON.stringify(payload) 
+						});
+						if (!res.ok) {
+							let msg = `Error (${res.status})`;
+							try { const j = await res.json(); if (j && j.error) msg = j.error; } catch {}
+							alert(msg);
+							return;
+						}
+						await load();
+					} catch (e) {
+						console.error(e);
+						alert('Error al duplicar');
+					}
 				});
 			});
 		}
