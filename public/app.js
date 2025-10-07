@@ -2864,10 +2864,10 @@ function openCommentDialog(anchorEl, initial = '', anchorX, anchorY) {
 		pop.style.position = 'fixed';
 		const rect = anchorEl.getBoundingClientRect();
 		if (typeof anchorX === 'number' && typeof anchorY === 'number') {
-			// Position centered at the click point (slightly above)
+			// Position centered very close to the click point
 			pop.style.left = anchorX + 'px';
-			pop.style.top = anchorY + 'px';
-			pop.style.transform = 'translate(-50%, calc(-100% - 10px))'; // Center horizontally, 10px above click
+			pop.style.top = (anchorY - 2) + 'px';
+			pop.style.transform = 'translate(-50%, -100%)'; // Center horizontally, right above click
 		} else {
 			// Fallback: open to the right of the input at same row height
 			pop.style.left = (rect.right + 8) + 'px';
@@ -6036,59 +6036,113 @@ function openPaymentDateDialog(saleId, anchorX, anchorY) {
 	const currentYear = today.getFullYear();
 	let selectedDate = new Date();
 	
-	// Calendar header
+	// Calendar header with navigation
+	const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 	const calendarHeader = document.createElement('div');
 	calendarHeader.className = 'calendar-header';
-	const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-	calendarHeader.textContent = `${monthNames[currentMonth]} ${currentYear}`;
+	
+	const prevBtn = document.createElement('button');
+	prevBtn.className = 'calendar-nav-btn';
+	prevBtn.innerHTML = '◀';
+	prevBtn.type = 'button';
+	
+	const monthLabel = document.createElement('span');
+	monthLabel.className = 'calendar-month-label';
+	monthLabel.textContent = `${monthNames[currentMonth]} ${currentYear}`;
+	
+	const nextBtn = document.createElement('button');
+	nextBtn.className = 'calendar-nav-btn';
+	nextBtn.innerHTML = '▶';
+	nextBtn.type = 'button';
+	
+	calendarHeader.appendChild(prevBtn);
+	calendarHeader.appendChild(monthLabel);
+	calendarHeader.appendChild(nextBtn);
 	
 	// Calendar days grid
 	const calendarGrid = document.createElement('div');
 	calendarGrid.className = 'calendar-grid';
 	
-	// Day headers
-	const dayNames = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
-	dayNames.forEach(day => {
-		const dayHeader = document.createElement('div');
-		dayHeader.className = 'calendar-day-header';
-		dayHeader.textContent = day;
-		calendarGrid.appendChild(dayHeader);
-	});
-	
-	// Get first day of month and number of days
-	const firstDay = new Date(currentYear, currentMonth, 1).getDay();
-	const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-	
-	// Empty cells for days before month starts
-	for (let i = 0; i < firstDay; i++) {
-		const emptyCell = document.createElement('div');
-		emptyCell.className = 'calendar-day empty';
-		calendarGrid.appendChild(emptyCell);
-	}
-	
-	// Day cells
-	for (let day = 1; day <= daysInMonth; day++) {
-		const dayCell = document.createElement('div');
-		dayCell.className = 'calendar-day';
-		dayCell.textContent = day;
+	// Function to render/re-render calendar
+	function renderCalendar() {
+		calendarGrid.innerHTML = '';
+		monthLabel.textContent = `${monthNames[currentMonth]} ${currentYear}`;
 		
-		const cellDate = new Date(currentYear, currentMonth, day);
-		if (cellDate.toDateString() === today.toDateString()) {
-			dayCell.classList.add('today');
-			dayCell.classList.add('selected');
-		}
-		
-		dayCell.addEventListener('click', () => {
-			document.querySelectorAll('.calendar-day').forEach(d => d.classList.remove('selected'));
-			dayCell.classList.add('selected');
-			selectedDate = new Date(currentYear, currentMonth, day);
+		// Day headers
+		const dayNames = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
+		dayNames.forEach(day => {
+			const dayHeader = document.createElement('div');
+			dayHeader.className = 'calendar-day-header';
+			dayHeader.textContent = day;
+			calendarGrid.appendChild(dayHeader);
 		});
 		
-		calendarGrid.appendChild(dayCell);
+		// Get first day of month and number of days
+		const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+		const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+		
+		// Empty cells for days before month starts
+		for (let i = 0; i < firstDay; i++) {
+			const emptyCell = document.createElement('div');
+			emptyCell.className = 'calendar-day empty';
+			calendarGrid.appendChild(emptyCell);
+		}
+		
+		// Day cells
+		for (let day = 1; day <= daysInMonth; day++) {
+			const dayCell = document.createElement('div');
+			dayCell.className = 'calendar-day';
+			dayCell.textContent = day;
+			
+			const cellDate = new Date(currentYear, currentMonth, day);
+			if (cellDate.toDateString() === today.toDateString()) {
+				dayCell.classList.add('today');
+			}
+			
+			// Check if this date is selected
+			if (selectedDate && 
+				selectedDate.getDate() === day && 
+				selectedDate.getMonth() === currentMonth && 
+				selectedDate.getFullYear() === currentYear) {
+				dayCell.classList.add('selected');
+			}
+			
+			dayCell.addEventListener('click', () => {
+				document.querySelectorAll('.calendar-day').forEach(d => d.classList.remove('selected'));
+				dayCell.classList.add('selected');
+				selectedDate = new Date(currentYear, currentMonth, day);
+			});
+			
+			calendarGrid.appendChild(dayCell);
+		}
 	}
+	
+	// Add event listeners for prev/next buttons
+	prevBtn.addEventListener('click', (e) => {
+		e.preventDefault();
+		currentMonth--;
+		if (currentMonth < 0) {
+			currentMonth = 11;
+			currentYear--;
+		}
+		renderCalendar();
+	});
+	
+	nextBtn.addEventListener('click', (e) => {
+		e.preventDefault();
+		currentMonth++;
+		if (currentMonth > 11) {
+			currentMonth = 0;
+			currentYear++;
+		}
+		renderCalendar();
+	});
 	
 	calendarContainer.appendChild(calendarHeader);
 	calendarContainer.appendChild(calendarGrid);
+	
+	// Initial render
+	renderCalendar();
 	
 	// Payment method label
 	const methodLabel = document.createElement('div');
