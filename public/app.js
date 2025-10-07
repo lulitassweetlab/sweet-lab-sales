@@ -1708,6 +1708,18 @@ async function loadSales() {
 	const params = new URLSearchParams({ seller_id: String(sellerId) });
 	if (state.selectedDayId) params.set('sale_day_id', String(state.selectedDayId));
 	state.sales = await api('GET', `${API.Sales}?${params.toString()}`);
+	
+	// Initialize _paymentInfo from database fields (payment_date and pay_method)
+	for (const sale of state.sales) {
+		if (sale.payment_date && sale.pay_method) {
+			sale._paymentInfo = {
+				date: sale.payment_date,
+				method: sale.pay_method,
+				methodValue: sale.pay_method.toLowerCase()
+			};
+		}
+	}
+	
 	// Build recurrence counts across all dates for this seller
 	try {
 		const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(sellerId)}`);
@@ -6346,34 +6358,58 @@ function openPaymentDateDialog(saleId, anchorX, anchorY) {
 			btn.classList.add('selected');
 		}
 		
-		btn.addEventListener('click', async () => {
-			// Disable all buttons while saving
-			methodsContainer.querySelectorAll('button').forEach(b => b.disabled = true);
+	btn.addEventListener('click', async () => {
+		// Disable all buttons while saving
+		methodsContainer.querySelectorAll('button').forEach(b => b.disabled = true);
+		
+		try {
+			const paymentDate = selectedDate.toISOString().split('T')[0];
+			const paymentMethod = method.label;
 			
-			try {
-				const paymentDate = selectedDate.toISOString().split('T')[0];
-				const paymentMethod = method.value;
-				
-				// Store payment info in memory (state) only, not in comments
-				const idx = state.sales.findIndex(s => s.id === saleId);
-				if (idx !== -1) {
-					// Store in memory - replace any previous payment info
-					state.sales[idx]._paymentInfo = {
-						date: paymentDate,
-						method: method.label,
-						methodValue: method.value
-					};
-					console.log('Guardado en memoria:', state.sales[idx]._paymentInfo);
-				}
-				
-				// Don't update the database or comments - just keep in memory
-				try { notify.success(`Fecha guardada en memoria: ${paymentDate} - ${method.label}`); } catch {}
-				cleanup();
-			} catch (e) {
-				try { notify.error('Error al guardar'); } catch {}
-				methodsContainer.querySelectorAll('button').forEach(b => b.disabled = false);
+			// Get current sale data
+			const idx = state.sales.findIndex(s => s.id === saleId);
+			if (idx === -1) {
+				throw new Error('Venta no encontrada');
 			}
-		});
+			
+			const currentSale = state.sales[idx];
+			
+			// Update the database with payment date and method
+			const body = {
+				id: saleId,
+				seller_id: currentSale.seller_id,
+				sale_day_id: currentSale.sale_day_id,
+				payment_date: paymentDate,
+				pay_method: paymentMethod,
+				_actor_name: state.actorName || ''
+			};
+			
+			const updated = await api('PUT', API.Sales, body);
+			
+			// Update in memory
+			if (updated) {
+				state.sales[idx].payment_date = paymentDate;
+				state.sales[idx].pay_method = paymentMethod;
+				state.sales[idx]._paymentInfo = {
+					date: paymentDate,
+					method: paymentMethod,
+					methodValue: method.value
+				};
+			}
+			
+			try { notify.success(`Fecha de pago guardada: ${paymentDate} - ${paymentMethod}`); } catch {}
+			cleanup();
+			
+			// Refresh the UI to show the updated payment info
+			if (typeof renderSalesView === 'function') {
+				renderSalesView();
+			}
+		} catch (e) {
+			console.error('Error al guardar fecha de pago:', e);
+			try { notify.error('Error al guardar: ' + (e.message || 'Error desconocido')); } catch {}
+			methodsContainer.querySelectorAll('button').forEach(b => b.disabled = false);
+		}
+	});
 		
 		methodsContainer.appendChild(btn);
 	});
@@ -6473,8 +6509,24 @@ function openClientActionBar(tdElement, saleId, clientName, clickX, clickY) {
 	if (isSuperAdmin) {
 		const paymentBtn = document.createElement('button');
 		paymentBtn.className = 'client-action-bar-btn';
-		paymentBtn.innerHTML = '<span class="client-action-bar-btn-icon">📅</span><span class="client-action-bar-btn-label">Fecha</span>';
-		paymentBtn.title = 'Fecha y método de pago';
+		
+		// Get sale data to check if payment date is set
+		const sale = state.sales.find(s => s.id === saleId);
+		const hasPaymentInfo = sale?.payment_date && sale?.pay_method;
+		
+		if (hasPaymentInfo) {
+			// Format date for display (DD/MM)
+			const dateStr = sale.payment_date;
+			const dateParts = dateStr.split('-');
+			const displayDate = dateParts.length >= 3 ? `${dateParts[2]}/${dateParts[1]}` : dateStr;
+			paymentBtn.innerHTML = `<span class="client-action-bar-btn-icon">📅</span><span class="client-action-bar-btn-label">${displayDate}</span>`;
+			paymentBtn.title = `Fecha de pago: ${displayDate} - ${sale.pay_method}`;
+			paymentBtn.style.fontWeight = 'bold';
+		} else {
+			paymentBtn.innerHTML = '<span class="client-action-bar-btn-icon">📅</span><span class="client-action-bar-btn-label">Fecha</span>';
+			paymentBtn.title = 'Fecha y método de pago';
+		}
+		
 		paymentBtn.addEventListener('click', (e) => {
 			e.stopPropagation();
 			const btnClickX = e.clientX;
