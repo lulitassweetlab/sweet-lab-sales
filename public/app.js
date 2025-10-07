@@ -5053,9 +5053,20 @@ function renderDaysList() {
 		btn.className = 'date-button';
 		btn.textContent = formatDayLabel(d.day);
 		btn.addEventListener('click', async () => {
-			state.selectedDayId = d.id;
-			document.getElementById('sales-wrapper').classList.remove('hidden');
-			await loadSales();
+			console.log('📅 Date button clicked:', d.day, 'id:', d.id);
+			try {
+				state.selectedDayId = d.id;
+				const wrap = document.getElementById('sales-wrapper');
+				if (wrap) {
+					wrap.classList.remove('hidden');
+					console.log('✅ Sales wrapper shown');
+				}
+				await loadSales();
+				console.log('✅ Sales loaded successfully');
+			} catch (err) {
+				console.error('❌ Error loading sales on date click:', err);
+				try { notify.error('Error: ' + (err.message || err)); } catch {}
+			}
 		});
 		const del = document.createElement('button');
 		del.className = 'date-delete';
@@ -5094,8 +5105,10 @@ function renderDaysList() {
 	}
 	// Preview: auto-open the most recent date when entering seller view
 	try {
+		console.log('🔍 Auto-loading most recent date...');
 		if (!state.selectedDayId && !state.showArchivedOnly) {
 			const days = Array.isArray(state.saleDays) ? state.saleDays.slice() : [];
+			console.log('📅 Available days:', days.length);
 			if (days.length) {
 				let latest = days[0];
 				let latestTs = Date.parse(String(latest.day).slice(0,10));
@@ -5104,14 +5117,22 @@ function renderDaysList() {
 					if (!isNaN(ts) && (isNaN(latestTs) || ts > latestTs)) { latest = days[i]; latestTs = ts; }
 				}
 				if (latest && latest.id) {
+					console.log('✅ Auto-loading date:', latest.day, 'id:', latest.id);
 					state.selectedDayId = latest.id;
 					const wrap = document.getElementById('sales-wrapper');
 					if (wrap) wrap.classList.remove('hidden');
-					loadSales().catch(()=>{});
+					loadSales().catch((err) => {
+						console.error('❌ Error loading sales:', err);
+						try { notify.error('Error al cargar ventas: ' + (err.message || err)); } catch {}
+					});
 				}
 			}
+		} else {
+			console.log('⚠️ No auto-load: selectedDayId=' + state.selectedDayId + ', showArchivedOnly=' + state.showArchivedOnly);
 		}
-	} catch {}
+	} catch (err) {
+		console.error('❌ Error in renderDaysList auto-load:', err);
+	}
 }
 
 async function addNewDate() {
