@@ -936,8 +936,17 @@ tfoot td { font-weight: 700; }
 	font-weight: 800;
 	color: var(--primary);
 	cursor: pointer;
+	z-index: 10;
 }
 .col-client.has-reg .client-input { padding-right: 36px; }
+
+/* When both reg and comment markers are present, adjust positioning */
+.col-client.has-reg .comment-marker {
+	right: 34px;
+}
+.col-client.has-reg.has-comment .client-input {
+	padding-right: 66px;
+}
 .clients-row { cursor: pointer; }
 .clients-table tbody tr:hover td { background: #f3f4f6 !important; }
 [data-theme="dark"] .clients-table tbody tr:hover td { background: #1a1a1a !important; }
@@ -1012,9 +1021,26 @@ tfoot td { font-weight: 700; }
 .report-card {
 	background: var(--card);
 }
-.comment-marker { color: var(--primary); margin-left: 6px; cursor: pointer; user-select: none; font-weight: 700; font-size: 11px; line-height: 1; }
+.comment-marker { 
+	color: var(--primary); 
+	margin-left: 6px; 
+	cursor: pointer; 
+	user-select: none; 
+	font-weight: 700; 
+	font-size: 16px; 
+	line-height: 1; 
+	position: absolute;
+	right: 6px;
+	top: 50%;
+	transform: translateY(-50%);
+	z-index: 10;
+	transition: transform 0.2s ease;
+}
+.comment-marker:hover {
+	transform: translateY(-50%) scale(1.15);
+}
 .col-client { position: relative; }
-.col-client .client-input { padding-right: 22px; }
+.col-client .client-input { padding-right: 32px; }
 /* comment-trigger UI removed */
 .comment-popover { background: #F2E8DE; color: var(--text); border: 1px solid var(--border); border-radius: 12px; padding: 14px; min-width: 460px; max-width: 95vw; }
 .comment-input { width: 100%; min-height: 160px; resize: vertical; background: #EBDCCF; color: var(--text); border: 1px solid #D9C7B6; border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; line-height: 1.4; font-size: 14px; -webkit-appearance: none; }

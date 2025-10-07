@@ -1464,6 +1464,33 @@ function renderTable() {
 						td.appendChild(reg);
 					}
 				}
+				// Add comment marker if comment exists
+				if (sale.comment_text && sale.comment_text.trim()) {
+					td.classList.add('has-comment');
+					const commentMarker = document.createElement('span');
+					commentMarker.className = 'comment-marker';
+					commentMarker.textContent = '💬';
+					commentMarker.title = 'Ver/editar comentario';
+					commentMarker.addEventListener('click', async (ev) => {
+						ev.stopPropagation();
+						const rect = input.getBoundingClientRect();
+						const comment = await openCommentDialog(input, sale.comment_text, rect.right + 8, rect.top);
+						if (comment != null) {
+							await saveComment(sale.id, comment);
+							// Update the marker visibility
+							if (comment.trim()) {
+								// Keep marker visible with updated content
+								sale.comment_text = comment;
+							} else {
+								// Remove marker if comment is empty
+								commentMarker.remove();
+								td.classList.remove('has-comment');
+								sale.comment_text = '';
+							}
+						}
+					});
+					td.appendChild(commentMarker);
+				}
 				return td;
 			})()
 		);
@@ -2542,21 +2569,50 @@ async function saveClientWithCommentFlow(tr, id) {
 	// Trigger removed per request
 	// If the user purposely typed *, open dialog immediately after save
 	if (!hadEndingStar) return;
+	const sale = state.sales.find(s => s.id === id);
+	const currentComment = sale?.comment_text || '';
 	const pos = getInputEndCoords(input, input.value);
-	const comment = await openCommentDialog(input, '', pos.x, pos.y);
+	const comment = await openCommentDialog(input, currentComment, pos.x, pos.y);
 	if (comment == null) { return; }
 	// Persist comment
 	await saveComment(id, comment);
-	// Update local state and UI
-	const idx = state.sales.findIndex(s => s.id === id);
-	if (idx !== -1) state.sales[idx].comment_text = comment;
-	// trigger removed
+	// Re-render table to show/update comment marker
+	renderTable();
 }
 
 async function saveComment(id, text) {
 	const sale = state.sales.find(s => s.id === id);
 	if (!sale) return;
-	const payload = { id, client_name: sale.client_name || '', qty_arco: sale.qty_arco||0, qty_melo: sale.qty_melo||0, qty_mara: sale.qty_mara||0, qty_oreo: sale.qty_oreo||0, qty_nute: sale.qty_nute||0, is_paid: !!sale.is_paid, pay_method: sale.pay_method ?? null, comment_text: text, _actor_name: state.currentUser?.name || '' };
+	
+	// Support for new items format
+	let payload;
+	if (sale.items && Array.isArray(sale.items)) {
+		payload = { 
+			id, 
+			client_name: sale.client_name || '', 
+			items: sale.items,
+			is_paid: !!sale.is_paid, 
+			pay_method: sale.pay_method ?? null, 
+			comment_text: text, 
+			_actor_name: state.currentUser?.name || '' 
+		};
+	} else {
+		// Legacy format with qty columns
+		payload = { 
+			id, 
+			client_name: sale.client_name || '', 
+			qty_arco: sale.qty_arco||0, 
+			qty_melo: sale.qty_melo||0, 
+			qty_mara: sale.qty_mara||0, 
+			qty_oreo: sale.qty_oreo||0, 
+			qty_nute: sale.qty_nute||0, 
+			is_paid: !!sale.is_paid, 
+			pay_method: sale.pay_method ?? null, 
+			comment_text: text, 
+			_actor_name: state.currentUser?.name || '' 
+		};
+	}
+	
 	const updated = await api('PUT', API.Sales, payload);
 	const idx = state.sales.findIndex(s => s.id === id);
 	if (idx !== -1) state.sales[idx] = updated;
@@ -5741,20 +5797,27 @@ function openClientActionBar(tdElement, saleId, clientName) {
 		closeClientActionBar();
 	});
 	
-	// Comment button (triggers comment flow with asterisk)
+	// Comment button (opens comment dialog directly)
 	const commentBtn = document.createElement('button');
 	commentBtn.className = 'client-action-bar-btn';
 	commentBtn.innerHTML = '💬';
-	commentBtn.title = 'Agregar comentario';
-	commentBtn.addEventListener('click', (e) => {
+	commentBtn.title = 'Agregar/editar comentario';
+	commentBtn.addEventListener('click', async (e) => {
 		e.stopPropagation();
+		closeClientActionBar();
 		const input = tdElement.querySelector('.client-input');
 		if (input) {
-			// Add asterisk to trigger comment flow
-			input.value = (input.value || '').trim() + '*';
-			input.dispatchEvent(new Event('input'));
+			// Get current comment text
+			const sale = state.sales.find(s => s.id === saleId);
+			const currentComment = sale?.comment_text || '';
+			const rect = input.getBoundingClientRect();
+			const comment = await openCommentDialog(input, currentComment, rect.right + 8, rect.top);
+			if (comment != null) {
+				await saveComment(saleId, comment);
+				// Re-render table to show/update comment marker
+				renderTable();
+			}
 		}
-		closeClientActionBar();
 	});
 	
 	actionBar.appendChild(editBtn);
