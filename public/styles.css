@@ -431,6 +431,15 @@ tfoot td { font-weight: 400; }
 .input-qty::-webkit-outer-spin-button, .input-qty::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 
 .client-input { min-width: 380px; max-width: 100%; width: 100%; font-size: 18px; font-weight: 400; letter-spacing: 0.2px; }
+/* Readonly inputs styling */
+.client-input[readonly], .input-qty[readonly] {
+	background: transparent;
+	cursor: pointer;
+}
+.client-input[readonly]:focus, .input-qty[readonly]:focus {
+	outline: none;
+	box-shadow: none;
+}
 
 .total { font-weight: 400; color: var(--accent); white-space: nowrap; }
 
@@ -967,8 +976,11 @@ tfoot td { font-weight: 700; }
 	font-weight: 800;
 	color: var(--primary);
 	cursor: pointer;
+	z-index: 10;
 }
 .col-client.has-reg .client-input { padding-right: 36px; }
+
+/* Comment marker follows text dynamically, no special positioning needed when reg is present */
 .clients-row { cursor: pointer; }
 .clients-table tbody tr:hover td { background: #f3f4f6 !important; }
 [data-theme="dark"] .clients-table tbody tr:hover td { background: #1a1a1a !important; }
@@ -1043,19 +1055,78 @@ tfoot td { font-weight: 700; }
 .report-card {
 	background: var(--card);
 }
-.comment-marker { color: var(--primary); margin-left: 6px; cursor: pointer; user-select: none; font-weight: 700; font-size: 11px; line-height: 1; }
+.comment-marker {
+	color: var(--primary);
+	cursor: pointer;
+	user-select: none;
+	font-weight: 700;
+	font-size: 16px;
+	line-height: 1;
+	position: absolute;
+	top: 50%;
+	right: 8px;
+	transform: translateY(-50%);
+	z-index: 10;
+	transition: transform 0.2s ease;
+	pointer-events: auto;
+}
+.comment-marker:hover {
+	transform: translateY(-50%) scale(1.15);
+}
 .col-client { position: relative; }
-.col-client .client-input { padding-right: 22px; }
+.col-client .client-input { padding-right: 32px; }
+.col-client.has-comment .client-input { padding-right: 32px; }
 /* comment-trigger UI removed */
-.comment-popover { background: #F2E8DE; color: var(--text); border: 1px solid var(--border); border-radius: 12px; padding: 14px; min-width: 460px; max-width: 95vw; }
-.comment-input { width: 100%; min-height: 160px; resize: vertical; background: #EBDCCF; color: var(--text); border: 1px solid #D9C7B6; border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; line-height: 1.4; font-size: 14px; -webkit-appearance: none; }
+.comment-popover { 
+	background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 250, 253, 0.98) 100%);
+	backdrop-filter: blur(16px);
+	color: var(--text); 
+	border: 1.5px solid rgba(193, 84, 129, 0.25); 
+	border-radius: 20px; 
+	padding: 20px; 
+	min-width: 360px; 
+	max-width: 480px;
+	box-shadow: 0 12px 40px rgba(193, 84, 129, 0.18), 0 4px 12px rgba(0, 0, 0, 0.08);
+	animation: commentFadeIn 0.2s ease;
+}
+@keyframes commentFadeIn {
+	from { opacity: 0; transform: scale(0.96); }
+	to { opacity: 1; transform: scale(1); }
+}
+[data-theme="dark"] .comment-popover {
+	background: linear-gradient(135deg, rgba(45, 45, 50, 0.98) 0%, rgba(50, 40, 48, 0.98) 100%);
+	border: 1.5px solid rgba(193, 84, 129, 0.35);
+	box-shadow: 0 12px 40px rgba(193, 84, 129, 0.25), 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+.comment-input { 
+	width: 100%; 
+	min-height: 160px; 
+	resize: vertical; 
+	background: transparent;
+	color: var(--text); 
+	border: none;
+	border-radius: 0;
+	padding: 0; 
+	margin-bottom: 0;
+	line-height: 1.6; 
+	font-size: 15px; 
+	font-family: inherit;
+	-webkit-appearance: none;
+	transition: none;
+}
+[data-theme="dark"] .comment-input {
+	background: transparent;
+}
 .comment-input { outline: none !important; -webkit-tap-highlight-color: transparent; }
-.comment-input:focus { outline: none !important; outline-color: transparent !important; box-shadow: none !important; -webkit-box-shadow: none !important; border-color: #CFB8A4 !important; }
+.comment-input:focus { outline: none !important; outline-color: transparent !important; box-shadow: none !important; -webkit-box-shadow: none !important; border: none !important; }
 .comment-input:focus-visible { outline: none !important; box-shadow: none !important; -webkit-box-shadow: none !important; }
+.comment-input::placeholder {
+	color: rgba(193, 84, 129, 0.4);
+	font-style: italic;
+}
 .comment-input::-moz-focus-inner { border: 0 !important; }
 .comment-input::-moz-focusring { outline: none !important; }
 .comment-popover:focus, .comment-popover:focus-within { outline: none !important; box-shadow: none !important; }
-.comment-popover .confirm-actions { gap: 10px; }
 
 /* New Sale Popover */
 .new-sale-popover {
@@ -3911,4 +3982,290 @@ button.secondary.press-btn:active {
 @media (max-width: 600px) {
 	.row-duplicate { width: 14px !important; height: 14px !important; }
 	.row-duplicate::before { background-size: 90% 90% !important; }
+}
+
+/* ===== CLIENT ACTION BAR (SALES TABLE ONLY) ===== */
+.client-action-bar {
+	position: absolute;
+	bottom: calc(100% + 24px);
+	left: 50%;
+	transform: translateX(-50%);
+	background: rgba(0, 0, 0, 0.3);
+	backdrop-filter: blur(10px);
+	border-radius: 16px;
+	padding: 21px 6px 17px 6px;
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	z-index: 1000;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.client-action-bar.active {
+	opacity: 1;
+	pointer-events: auto;
+}
+
+[data-theme="dark"] .client-action-bar {
+	background: rgba(255, 255, 255, 0.12);
+}
+
+.client-action-bar-btn {
+	background: transparent;
+	border: none;
+	color: #fff;
+	cursor: pointer;
+	padding: 8px 4px 4px 4px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 4px;
+	border-radius: 10px;
+	transition: background 0.2s ease, transform 0.15s ease;
+	font-size: 28px;
+	line-height: 1;
+	min-width: 50px;
+}
+
+.client-action-bar-btn-icon {
+	font-size: 16px;
+	line-height: 1;
+}
+
+.client-action-bar-btn-label {
+	font-size: 6px;
+	font-weight: 500;
+	text-transform: uppercase;
+	letter-spacing: 0.2px;
+	white-space: nowrap;
+	opacity: 0.9;
+}
+
+.client-action-bar-btn:hover {
+	background: rgba(255, 255, 255, 0.2);
+	transform: scale(1.22);
+	border-radius: 12px;
+}
+
+.client-action-bar-btn:active {
+	transform: scale(0.88);
+}
+
+[data-theme="dark"] .client-action-bar-btn {
+	color: #fff;
+}
+
+[data-theme="dark"] .client-action-bar-btn:hover {
+	background: rgba(255, 255, 255, 0.3);
+	transform: scale(1.15);
+	border-radius: 12px;
+}
+
+/* Make sure col-client has proper positioning */
+td.col-client {
+	position: relative;
+}
+
+/* Add slight visual feedback when action bar is active */
+td.col-client.action-bar-active .client-input {
+	outline: 2px solid var(--primary);
+	outline-offset: -2px;
+}
+
+@media (max-width: 600px) {
+	.client-action-bar {
+		bottom: calc(100% + 2px);
+		padding: 14px 4px 10px 4px;
+		gap: 6px;
+	}
+	
+	.client-action-bar-btn {
+		padding: 6px 2px 4px 2px;
+		min-width: 46px;
+		font-size: 24px;
+	}
+	
+	.client-action-bar-btn-icon {
+		font-size: 14px;
+	}
+	
+	.client-action-bar-btn-label {
+		font-size: 5px;
+	}
+}
+
+/* ===== PAYMENT DATE POPOVER ===== */
+.payment-date-popover {
+	background: rgba(255, 255, 255, 0.95);
+	backdrop-filter: blur(10px);
+	color: var(--text);
+	border: 1px solid rgba(193, 84, 129, 0.3);
+	border-radius: 16px;
+	padding: 18px;
+	min-width: 280px;
+	max-width: 320px;
+	box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="dark"] .payment-date-popover {
+	background: rgba(40, 40, 40, 0.95);
+	border: 1px solid rgba(193, 84, 129, 0.4);
+}
+
+.payment-date-title {
+	font-weight: 600;
+	font-size: 15px;
+	margin-bottom: 12px;
+	color: var(--text);
+}
+
+.payment-date-label {
+	font-size: 13px;
+	font-weight: 500;
+	margin-bottom: 8px;
+	color: var(--text);
+}
+
+/* Inline Calendar */
+.inline-calendar {
+	background: rgba(250, 250, 250, 0.5);
+	border-radius: 12px;
+	padding: 12px;
+	margin-bottom: 8px;
+}
+
+[data-theme="dark"] .inline-calendar {
+	background: rgba(50, 50, 50, 0.5);
+}
+
+.calendar-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 10px;
+	gap: 8px;
+}
+
+.calendar-month-label {
+	font-weight: 600;
+	font-size: 14px;
+	text-align: center;
+	color: var(--text);
+	flex: 1;
+}
+
+.calendar-nav-btn {
+	background: transparent;
+	border: none;
+	color: var(--text);
+	cursor: pointer;
+	padding: 6px 10px;
+	border-radius: 8px;
+	font-size: 14px;
+	transition: background 0.2s ease;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.calendar-nav-btn:hover {
+	background: rgba(193, 84, 129, 0.15);
+}
+
+.calendar-grid {
+	display: grid;
+	grid-template-columns: repeat(7, 1fr);
+	gap: 4px;
+	min-height: 240px; /* Fixed height for 6 rows + headers (7 rows * 34px) */
+	align-content: start;
+}
+
+.calendar-day-header {
+	font-size: 11px;
+	font-weight: 600;
+	text-align: center;
+	padding: 6px 0;
+	color: var(--text);
+	opacity: 0.6;
+}
+
+.calendar-day {
+	aspect-ratio: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 13px;
+	border-radius: 8px;
+	cursor: pointer;
+	transition: all 0.2s ease;
+	color: var(--text);
+	background: transparent;
+}
+
+.calendar-day.empty {
+	cursor: default;
+	opacity: 0;
+}
+
+.calendar-day:not(.empty):hover {
+	background: rgba(193, 84, 129, 0.1);
+}
+
+.calendar-day.today {
+	font-weight: 600;
+	border: 2px solid rgba(193, 84, 129, 0.4);
+}
+
+.calendar-day.selected {
+	background: rgba(193, 84, 129, 0.25);
+	color: var(--text);
+	font-weight: 600;
+}
+
+.calendar-day.today.selected {
+	background: rgba(193, 84, 129, 0.35);
+	border-color: rgba(193, 84, 129, 0.6);
+}
+
+.payment-methods-container {
+	display: flex;
+	gap: 8px;
+	margin-top: 10px;
+}
+
+.payment-method-btn {
+	flex: 1;
+	padding: 10px 8px;
+	border: 1px solid rgba(193, 84, 129, 0.3);
+	border-radius: 10px;
+	background: rgba(250, 250, 250, 1);
+	color: var(--text);
+	font-size: 13px;
+	font-weight: 500;
+	cursor: pointer;
+	transition: all 0.2s ease;
+}
+
+[data-theme="dark"] .payment-method-btn {
+	background: rgba(50, 50, 50, 1);
+}
+
+.payment-method-btn:hover {
+	border-color: rgba(193, 84, 129, 0.5);
+	background: rgba(193, 84, 129, 0.05);
+}
+
+.payment-method-btn.selected {
+	border-color: rgba(193, 84, 129, 0.8);
+	background: rgba(193, 84, 129, 0.15);
+	color: var(--text);
+	font-weight: 600;
+}
+
+[data-theme="dark"] .payment-method-btn.selected {
+	background: rgba(193, 84, 129, 0.25);
 }
