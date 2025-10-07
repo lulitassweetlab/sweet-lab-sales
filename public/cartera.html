@@ -42,6 +42,15 @@
                     <span style="line-height:28px;">Pago</span>
                     <div id="pay-filter-group" class="seller-filter-group" style="display:flex; gap:8px; flex-wrap:wrap; min-width:220px; max-height:132px; overflow:auto; padding:8px; border:1px solid var(--border); border-radius:10px; background: var(--card);"></div>
                 </label>
+				<label style="display:flex; gap:6px; align-items:center">
+					<span>Fecha desde:</span>
+					<input type="date" id="date-from-filter" style="padding:4px 8px; border:1px solid var(--border); border-radius:6px; background:var(--card); color:var(--text);" />
+				</label>
+				<label style="display:flex; gap:6px; align-items:center">
+					<span>Fecha hasta:</span>
+					<input type="date" id="date-to-filter" style="padding:4px 8px; border:1px solid var(--border); border-radius:6px; background:var(--card); color:var(--text);" />
+				</label>
+				<button id="clear-date-filter" class="press-btn" style="padding:4px 12px; height:28px; font-size:0.9em;">Limpiar fechas</button>
 			</div>
 			<div class="table-wrapper" id="report-wrapper">
 				<table id="report-table">
@@ -104,6 +113,9 @@
 		const exportBtn = document.getElementById('export-excel');
         const sellerFilterGroup = document.getElementById('seller-filter-group');
         const payFilterGroup = document.getElementById('pay-filter-group');
+		const dateFromFilter = document.getElementById('date-from-filter');
+		const dateToFilter = document.getElementById('date-to-filter');
+		const clearDateBtn = document.getElementById('clear-date-filter');
 
 		let dataset = [];
 		let sellersList = [];
@@ -218,9 +230,13 @@
 		function getFilteredData(){
 			const selSellers = getSelectedSellers();
             const selPays = getSelectedPays();
+			const dateFrom = dateFromFilter.value;
+			const dateTo = dateToFilter.value;
 			let rows = dataset.filter(r => {
 				if (selSellers.length && !selSellers.includes(r.sellerName)) return false;
                 if (selPays.length && !selPays.includes((r.pay_method || ''))) return false;
+				if (dateFrom && r.date < dateFrom) return false;
+				if (dateTo && r.date > dateTo) return false;
 				return true;
 			});
 			return rows;
@@ -439,6 +455,15 @@
 		backBtn.addEventListener('click', () => { location.href = '/'; });
         changeBtn.addEventListener('click', (ev) => openCalendar(ev));
 		setupSortListeners();
+		
+		// Date filter listeners
+		dateFromFilter.addEventListener('change', render);
+		dateToFilter.addEventListener('change', render);
+		clearDateBtn.addEventListener('click', () => {
+			dateFromFilter.value = '';
+			dateToFilter.value = '';
+			render();
+		});
 
 		// Lightweight date range popover if missing
 		if (typeof window.openRangeCalendarPopover !== 'function') {
