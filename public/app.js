@@ -1412,6 +1412,14 @@ function renderTable() {
 				input.addEventListener('input', (e) => { const v = (e.target.value || ''); if (/\*$/.test(v.trim())) { saveClientWithCommentFlow(tr, sale.id); } });
 				input.addEventListener('blur', () => saveClientWithCommentFlow(tr, sale.id));
 				input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); saveClientWithCommentFlow(tr, sale.id); } });
+				// Add click handler to open client actions menu
+				input.addEventListener('click', (e) => {
+					const clientName = (input.value || '').trim();
+					if (clientName) {
+						e.stopPropagation();
+						openClientActionsMenu(input, sale, e.clientX, e.clientY);
+					}
+				});
 				td.appendChild(input);
 				const name = (sale.client_name || '').trim();
 				if (name) {
@@ -5678,6 +5686,237 @@ function openPayMenu(anchorEl, selectEl, clickX, clickY) {
 		document.addEventListener('mousedown', outside, true);
 		document.addEventListener('touchstart', outside, true);
 	}, 0);
+}
+
+function openClientActionsMenu(anchorEl, sale, clickX, clickY) {
+	const rect = anchorEl.getBoundingClientRect();
+	const menu = document.createElement('div');
+	menu.className = 'client-actions-menu';
+	menu.style.position = 'fixed';
+	menu.style.transform = 'translateX(-50%)';
+	menu.style.zIndex = '1000';
+	
+	const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+	const hasNote = !!(sale.comment_text && String(sale.comment_text).trim());
+	
+	// Edit button
+	const editBtn = document.createElement('button');
+	editBtn.type = 'button';
+	editBtn.className = 'client-action-btn action-edit';
+	editBtn.title = 'Editar cliente';
+	editBtn.addEventListener('click', (e) => {
+		e.stopPropagation();
+		cleanup();
+		// Focus the input
+		anchorEl.focus();
+		anchorEl.select();
+	});
+	menu.appendChild(editBtn);
+	
+	// Note button
+	const noteBtn = document.createElement('button');
+	noteBtn.type = 'button';
+	noteBtn.className = 'client-action-btn action-note' + (hasNote ? ' has-note' : '');
+	noteBtn.title = hasNote ? 'Ver/editar nota' : 'Agregar nota';
+	noteBtn.addEventListener('click', async (e) => {
+		e.stopPropagation();
+		cleanup();
+		// Open comment flow
+		const trEl = anchorEl.closest('tr');
+		if (trEl) {
+			await saveClientWithCommentFlow(trEl, sale.id);
+		}
+	});
+	menu.appendChild(noteBtn);
+	
+	// History button
+	const historyBtn = document.createElement('button');
+	historyBtn.type = 'button';
+	historyBtn.className = 'client-action-btn action-history';
+	historyBtn.title = 'Ver historial del cliente';
+	historyBtn.addEventListener('click', async (e) => {
+		e.stopPropagation();
+		cleanup();
+		const clientName = (sale.client_name || '').trim();
+		if (clientName) {
+			await openClientDetailView(clientName);
+		}
+	});
+	menu.appendChild(historyBtn);
+	
+	// Payment date button (superadmin only)
+	if (isSuper) {
+		const paymentBtn = document.createElement('button');
+		paymentBtn.type = 'button';
+		paymentBtn.className = 'client-action-btn action-payment';
+		paymentBtn.title = 'Ingresar fecha y método de pago';
+		paymentBtn.addEventListener('click', async (e) => {
+			e.stopPropagation();
+			cleanup();
+			await openPaymentDateDialog(sale);
+		});
+		menu.appendChild(paymentBtn);
+	}
+	
+	// Position menu above the client name
+	menu.style.left = '0px';
+	menu.style.top = '0px';
+	menu.style.visibility = 'hidden';
+	menu.style.pointerEvents = 'none';
+	document.body.appendChild(menu);
+	
+	const menuRect = menu.getBoundingClientRect();
+	const anchorCx = (typeof clickX === 'number') ? clickX : (rect.left + rect.width / 2);
+	const anchorCy = (typeof clickY === 'number') ? clickY : rect.top;
+	
+	let left = anchorCx;
+	let top = anchorCy - menuRect.height - 8; // 8px above the element
+	
+	const half = menu.offsetWidth / 2;
+	left = Math.min(Math.max(left, half + 6), window.innerWidth - half - 6);
+	top = Math.max(6, top);
+	
+	// If menu would be above viewport, show below instead
+	if (top < 6) {
+		top = rect.bottom + 8;
+	}
+	
+	menu.style.left = left + 'px';
+	menu.style.top = top + 'px';
+	menu.style.visibility = '';
+	menu.style.pointerEvents = '';
+	
+	function outside(e) { if (!menu.contains(e.target) && !anchorEl.contains(e.target)) cleanup(); }
+	function cleanup() {
+		document.removeEventListener('mousedown', outside, true);
+		document.removeEventListener('touchstart', outside, true);
+		if (menu.parentNode) menu.parentNode.removeChild(menu);
+	}
+	
+	setTimeout(() => {
+		document.addEventListener('mousedown', outside, true);
+		document.addEventListener('touchstart', outside, true);
+	}, 0);
+}
+
+async function openPaymentDateDialog(sale) {
+	return new Promise((resolve) => {
+		const backdrop = document.createElement('div');
+		backdrop.style.cssText = 'position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:10000; display:flex; align-items:center; justify-content:center;';
+		
+		const dialog = document.createElement('div');
+		dialog.style.cssText = 'background:var(--card); border:1px solid var(--border); border-radius:14px; padding:20px; width:min(400px,90vw); box-shadow:0 20px 60px rgba(0,0,0,0.3);';
+		
+		const title = document.createElement('h3');
+		title.textContent = 'Fecha y método de pago';
+		title.style.cssText = 'margin:0 0 16px 0; font-size:16px; font-weight:600;';
+		dialog.appendChild(title);
+		
+		const clientInfo = document.createElement('p');
+		clientInfo.textContent = `Cliente: ${sale.client_name || ''}`;
+		clientInfo.style.cssText = 'margin:0 0 16px 0; font-size:13px; opacity:0.8;';
+		dialog.appendChild(clientInfo);
+		
+		const dateLabel = document.createElement('label');
+		dateLabel.textContent = 'Fecha de pago:';
+		dateLabel.style.cssText = 'display:block; margin-bottom:6px; font-size:13px; font-weight:500;';
+		dialog.appendChild(dateLabel);
+		
+		const dateInput = document.createElement('input');
+		dateInput.type = 'date';
+		dateInput.className = 'input-cell';
+		dateInput.value = sale.payment_date ? String(sale.payment_date).slice(0, 10) : '';
+		dateInput.style.cssText = 'width:100%; margin-bottom:16px;';
+		dialog.appendChild(dateInput);
+		
+		const methodLabel = document.createElement('label');
+		methodLabel.textContent = 'Método de pago:';
+		methodLabel.style.cssText = 'display:block; margin-bottom:6px; font-size:13px; font-weight:500;';
+		dialog.appendChild(methodLabel);
+		
+		const methodSelect = document.createElement('select');
+		methodSelect.className = 'input-cell';
+		methodSelect.style.cssText = 'width:100%; margin-bottom:20px;';
+		const methods = [
+			{ value: '', label: '(sin especificar)' },
+			{ value: 'bancolombia', label: 'Bancolombia' },
+			{ value: 'nequi', label: 'Nequi' },
+			{ value: 'otro', label: 'Otro' }
+		];
+		for (const m of methods) {
+			const opt = document.createElement('option');
+			opt.value = m.value;
+			opt.textContent = m.label;
+			if (sale.payment_bank_method === m.value) opt.selected = true;
+			methodSelect.appendChild(opt);
+		}
+		dialog.appendChild(methodSelect);
+		
+		const actions = document.createElement('div');
+		actions.style.cssText = 'display:flex; gap:8px; justify-content:flex-end;';
+		
+		const cancelBtn = document.createElement('button');
+		cancelBtn.textContent = 'Cancelar';
+		cancelBtn.className = 'press-btn secondary';
+		cancelBtn.addEventListener('click', () => { cleanup(); resolve(false); });
+		actions.appendChild(cancelBtn);
+		
+		const saveBtn = document.createElement('button');
+		saveBtn.textContent = 'Guardar';
+		saveBtn.className = 'press-btn btn-primary';
+		saveBtn.addEventListener('click', async () => {
+			const paymentDate = dateInput.value || null;
+			const paymentMethod = methodSelect.value || null;
+			
+			try {
+				await api('PUT', API.Sales, {
+					id: sale.id,
+					client_name: sale.client_name || '',
+					qty_arco: sale.qty_arco || 0,
+					qty_melo: sale.qty_melo || 0,
+					qty_mara: sale.qty_mara || 0,
+					qty_oreo: sale.qty_oreo || 0,
+					qty_nute: sale.qty_nute || 0,
+					is_paid: sale.is_paid,
+					pay_method: sale.pay_method,
+					payment_date: paymentDate,
+					payment_bank_method: paymentMethod,
+					_actor_name: state.currentUser?.name || ''
+				});
+				
+				// Update local state
+				const idx = state.sales.findIndex(s => s.id === sale.id);
+				if (idx !== -1) {
+					state.sales[idx].payment_date = paymentDate;
+					state.sales[idx].payment_bank_method = paymentMethod;
+				}
+				
+				notify.success('Fecha de pago guardada');
+				cleanup();
+				resolve(true);
+			} catch (err) {
+				notify.error('Error al guardar: ' + (err.message || 'Error desconocido'));
+				cleanup();
+				resolve(false);
+			}
+		});
+		actions.appendChild(saveBtn);
+		
+		dialog.appendChild(actions);
+		backdrop.appendChild(dialog);
+		document.body.appendChild(backdrop);
+		
+		function cleanup() {
+			if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop);
+		}
+		
+		backdrop.addEventListener('click', (e) => {
+			if (e.target === backdrop) {
+				cleanup();
+				resolve(false);
+			}
+		});
+	});
 }
 
 // Extend state to include saleDays and selectedDayId if not present
