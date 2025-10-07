@@ -214,6 +214,12 @@ export async function ensureSchema() {
 		END IF;
 		IF NOT EXISTS (
 			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'sales' AND column_name = 'payment_date'
+		) THEN
+			ALTER TABLE sales ADD COLUMN payment_date DATE;
+		END IF;
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
 			WHERE table_name = 'sales' AND column_name = 'comment_text'
 		) THEN
 			ALTER TABLE sales ADD COLUMN comment_text TEXT DEFAULT '';
