@@ -5993,31 +5993,9 @@ function openPayMenu(anchorEl, selectEl, clickX, clickY) {
 function updateCommentMarkerPosition(inputElement, markerElement) {
 	if (!inputElement || !markerElement) return;
 	
-	// Get the text content
-	const text = inputElement.value || '';
-	
-	// Create a temporary canvas to measure text width
-	const canvas = updateCommentMarkerPosition._canvas || (updateCommentMarkerPosition._canvas = document.createElement('canvas'));
-	const ctx = canvas.getContext('2d');
-	
-	// Get computed style to match exact font
-	const cs = window.getComputedStyle(inputElement);
-	ctx.font = `${cs.fontStyle} ${cs.fontVariant} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
-	
-	// Measure text width
-	const metrics = ctx.measureText(text);
-	const textWidth = metrics.width;
-	
-	// Get padding left from input
-	const paddingLeft = parseFloat(cs.paddingLeft) || 8;
-	
-	// Position marker right after the text, with a gap of approximately 6 spaces
-	const spaceWidth = ctx.measureText(' ').width || 4;
-	const markerLeft = paddingLeft + textWidth + (spaceWidth * 6);
-	
-	// Apply position
-	markerElement.style.left = markerLeft + 'px';
-	markerElement.style.right = 'auto';
+	// Position at the end (right side) of the input
+	markerElement.style.left = 'auto';
+	markerElement.style.right = '8px';
 }
 
 // Payment date dialog with calendar and payment method options

@@ -1024,18 +1024,19 @@ tfoot td { font-weight: 700; }
 .report-card {
 	background: var(--card);
 }
-.comment-marker { 
-	color: var(--primary); 
-	cursor: pointer; 
-	user-select: none; 
-	font-weight: 700; 
-	font-size: 16px; 
-	line-height: 1; 
+.comment-marker {
+	color: var(--primary);
+	cursor: pointer;
+	user-select: none;
+	font-weight: 700;
+	font-size: 16px;
+	line-height: 1;
 	position: absolute;
 	top: 50%;
+	right: 8px;
 	transform: translateY(-50%);
 	z-index: 10;
-	transition: transform 0.2s ease, left 0.1s ease;
+	transition: transform 0.2s ease;
 	pointer-events: auto;
 }
 .comment-marker:hover {
