@@ -4010,7 +4010,7 @@ td.col-client.action-bar-active .client-input {
 .payment-date-title {
 	font-weight: 600;
 	font-size: 15px;
-	margin-bottom: 14px;
+	margin-bottom: 12px;
 	color: var(--text);
 }
 
@@ -4021,26 +4021,77 @@ td.col-client.action-bar-active .client-input {
 	color: var(--text);
 }
 
-.payment-date-input {
-	width: 100%;
-	padding: 10px 12px;
-	border: 1px solid rgba(193, 84, 129, 0.2);
-	border-radius: 10px;
+/* Inline Calendar */
+.inline-calendar {
+	background: rgba(250, 250, 250, 0.5);
+	border-radius: 12px;
+	padding: 12px;
+	margin-bottom: 8px;
+}
+
+[data-theme="dark"] .inline-calendar {
+	background: rgba(50, 50, 50, 0.5);
+}
+
+.calendar-header {
+	font-weight: 600;
 	font-size: 14px;
-	background: rgba(250, 250, 250, 1);
+	text-align: center;
+	margin-bottom: 10px;
 	color: var(--text);
-	transition: border-color 0.2s ease;
-	-webkit-appearance: none;
 }
 
-[data-theme="dark"] .payment-date-input {
-	background: rgba(50, 50, 50, 1);
+.calendar-grid {
+	display: grid;
+	grid-template-columns: repeat(7, 1fr);
+	gap: 4px;
 }
 
-.payment-date-input:focus {
-	outline: none;
-	border-color: rgba(193, 84, 129, 0.5);
-	box-shadow: 0 0 0 3px rgba(193, 84, 129, 0.1);
+.calendar-day-header {
+	font-size: 11px;
+	font-weight: 600;
+	text-align: center;
+	padding: 6px 0;
+	color: var(--text);
+	opacity: 0.6;
+}
+
+.calendar-day {
+	aspect-ratio: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 13px;
+	border-radius: 8px;
+	cursor: pointer;
+	transition: all 0.2s ease;
+	color: var(--text);
+	background: transparent;
+}
+
+.calendar-day.empty {
+	cursor: default;
+	opacity: 0;
+}
+
+.calendar-day:not(.empty):hover {
+	background: rgba(193, 84, 129, 0.1);
+}
+
+.calendar-day.today {
+	font-weight: 600;
+	border: 2px solid rgba(193, 84, 129, 0.4);
+}
+
+.calendar-day.selected {
+	background: rgba(193, 84, 129, 0.25);
+	color: var(--text);
+	font-weight: 600;
+}
+
+.calendar-day.today.selected {
+	background: rgba(193, 84, 129, 0.35);
+	border-color: rgba(193, 84, 129, 0.6);
 }
 
 .payment-methods-container {

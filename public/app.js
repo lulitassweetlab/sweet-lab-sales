@@ -6018,36 +6018,87 @@ function openPaymentDateDialog(saleId, anchorX, anchorY) {
 	pop.className = 'payment-date-popover';
 	pop.style.position = 'fixed';
 	pop.style.left = anchorX + 'px';
-	pop.style.top = anchorY + 'px';
-	pop.style.transform = 'translate(-50%, calc(-100% - 10px))';
+	pop.style.top = (anchorY - 5) + 'px';
+	pop.style.transform = 'translate(-50%, -100%)';
 	pop.style.zIndex = '1000';
 	
 	// Title
 	const title = document.createElement('div');
 	title.className = 'payment-date-title';
-	title.textContent = 'Fecha y método de pago';
+	title.textContent = 'Selecciona la fecha de pago';
 	
-	// Date input
-	const dateLabel = document.createElement('label');
-	dateLabel.className = 'payment-date-label';
-	dateLabel.textContent = 'Fecha de pago:';
+	// Create inline calendar
+	const calendarContainer = document.createElement('div');
+	calendarContainer.className = 'inline-calendar';
 	
-	const dateInput = document.createElement('input');
-	dateInput.type = 'date';
-	dateInput.className = 'payment-date-input';
-	dateInput.value = new Date().toISOString().split('T')[0]; // Today by default
+	const today = new Date();
+	const currentMonth = today.getMonth();
+	const currentYear = today.getFullYear();
+	let selectedDate = new Date();
+	
+	// Calendar header
+	const calendarHeader = document.createElement('div');
+	calendarHeader.className = 'calendar-header';
+	const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+	calendarHeader.textContent = `${monthNames[currentMonth]} ${currentYear}`;
+	
+	// Calendar days grid
+	const calendarGrid = document.createElement('div');
+	calendarGrid.className = 'calendar-grid';
+	
+	// Day headers
+	const dayNames = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
+	dayNames.forEach(day => {
+		const dayHeader = document.createElement('div');
+		dayHeader.className = 'calendar-day-header';
+		dayHeader.textContent = day;
+		calendarGrid.appendChild(dayHeader);
+	});
+	
+	// Get first day of month and number of days
+	const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+	const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+	
+	// Empty cells for days before month starts
+	for (let i = 0; i < firstDay; i++) {
+		const emptyCell = document.createElement('div');
+		emptyCell.className = 'calendar-day empty';
+		calendarGrid.appendChild(emptyCell);
+	}
+	
+	// Day cells
+	for (let day = 1; day <= daysInMonth; day++) {
+		const dayCell = document.createElement('div');
+		dayCell.className = 'calendar-day';
+		dayCell.textContent = day;
+		
+		const cellDate = new Date(currentYear, currentMonth, day);
+		if (cellDate.toDateString() === today.toDateString()) {
+			dayCell.classList.add('today');
+			dayCell.classList.add('selected');
+		}
+		
+		dayCell.addEventListener('click', () => {
+			document.querySelectorAll('.calendar-day').forEach(d => d.classList.remove('selected'));
+			dayCell.classList.add('selected');
+			selectedDate = new Date(currentYear, currentMonth, day);
+		});
+		
+		calendarGrid.appendChild(dayCell);
+	}
+	
+	calendarContainer.appendChild(calendarHeader);
+	calendarContainer.appendChild(calendarGrid);
 	
 	// Payment method label
 	const methodLabel = document.createElement('div');
 	methodLabel.className = 'payment-date-label';
 	methodLabel.textContent = 'Método de pago:';
-	methodLabel.style.marginTop = '12px';
+	methodLabel.style.marginTop = '14px';
 	
-	// Payment method buttons
+	// Payment method buttons - auto-save on click
 	const methodsContainer = document.createElement('div');
 	methodsContainer.className = 'payment-methods-container';
-	
-	let selectedMethod = 'bancolombia';
 	
 	const methods = [
 		{ value: 'bancolombia', label: 'Bancolombia' },
@@ -6055,45 +6106,62 @@ function openPaymentDateDialog(saleId, anchorX, anchorY) {
 		{ value: 'otro', label: 'Otro' }
 	];
 	
-	const methodButtons = methods.map(method => {
+	methods.forEach(method => {
 		const btn = document.createElement('button');
 		btn.type = 'button';
 		btn.className = 'payment-method-btn';
 		btn.textContent = method.label;
 		btn.dataset.value = method.value;
 		
-		if (method.value === selectedMethod) {
-			btn.classList.add('selected');
-		}
-		
-		btn.addEventListener('click', () => {
-			methodButtons.forEach(b => b.classList.remove('selected'));
-			btn.classList.add('selected');
-			selectedMethod = method.value;
+		btn.addEventListener('click', async () => {
+			// Disable all buttons while saving
+			methodsContainer.querySelectorAll('button').forEach(b => b.disabled = true);
+			
+			try {
+				const paymentDate = selectedDate.toISOString().split('T')[0];
+				const paymentMethod = method.value;
+				
+				const methodMap = {
+					'bancolombia': 'transf',
+					'nequi': 'transf', 
+					'otro': 'transf'
+				};
+				
+				const body = {
+					id: saleId,
+					client_name: sale.client_name || '',
+					is_paid: true,
+					pay_method: methodMap[paymentMethod],
+					comment_text: sale.comment_text || '',
+					_actor_name: state.currentUser?.name || ''
+				};
+				
+				// Support for items or legacy format
+				if (sale.items && Array.isArray(sale.items)) {
+					body.items = sale.items;
+				} else {
+					for (const d of state.desserts) {
+						body[`qty_${d.short_code}`] = sale[`qty_${d.short_code}`] || 0;
+					}
+				}
+				
+				const updated = await api('PUT', API.Sales, body);
+				const idx = state.sales.findIndex(s => s.id === saleId);
+				if (idx !== -1) state.sales[idx] = updated;
+				
+				renderTable();
+				try { notify.success(`Pago registrado: ${paymentDate} - ${method.label}`); } catch {}
+				cleanup();
+			} catch (e) {
+				try { notify.error('Error al guardar'); } catch {}
+				methodsContainer.querySelectorAll('button').forEach(b => b.disabled = false);
+			}
 		});
 		
 		methodsContainer.appendChild(btn);
-		return btn;
 	});
 	
-	// Actions
-	const actions = document.createElement('div');
-	actions.className = 'confirm-actions';
-	actions.style.marginTop = '16px';
-	
-	const cancelBtn = document.createElement('button');
-	cancelBtn.type = 'button';
-	cancelBtn.className = 'press-btn';
-	cancelBtn.textContent = 'Cancelar';
-	
-	const saveBtn = document.createElement('button');
-	saveBtn.type = 'button';
-	saveBtn.className = 'press-btn btn-primary';
-	saveBtn.textContent = 'Guardar';
-	
-	actions.append(cancelBtn, saveBtn);
-	
-	pop.append(title, dateLabel, dateInput, methodLabel, methodsContainer, actions);
+	pop.append(title, calendarContainer, methodLabel, methodsContainer);
 	document.body.appendChild(pop);
 	
 	function cleanup() {
@@ -6110,56 +6178,6 @@ function openPaymentDateDialog(saleId, anchorX, anchorY) {
 		document.addEventListener('mousedown', outside, true);
 		document.addEventListener('touchstart', outside, true);
 	}, 0);
-	
-	cancelBtn.addEventListener('click', cleanup);
-	
-	saveBtn.addEventListener('click', async () => {
-		try {
-			saveBtn.disabled = true;
-			const paymentDate = dateInput.value;
-			const paymentMethod = selectedMethod;
-			
-			// Save payment info (you can add fields to store date and method in the database)
-			// For now, we'll just set pay_method with a prefix indicating the payment method
-			const methodMap = {
-				'bancolombia': 'transf',
-				'nequi': 'transf', 
-				'otro': 'transf'
-			};
-			
-			const body = {
-				id: saleId,
-				client_name: sale.client_name || '',
-				is_paid: true,
-				pay_method: methodMap[paymentMethod],
-				comment_text: sale.comment_text || '',
-				_actor_name: state.currentUser?.name || ''
-			};
-			
-			// Support for items or legacy format
-			if (sale.items && Array.isArray(sale.items)) {
-				body.items = sale.items;
-			} else {
-				for (const d of state.desserts) {
-					body[`qty_${d.short_code}`] = sale[`qty_${d.short_code}`] || 0;
-				}
-			}
-			
-			const updated = await api('PUT', API.Sales, body);
-			const idx = state.sales.findIndex(s => s.id === saleId);
-			if (idx !== -1) state.sales[idx] = updated;
-			
-			renderTable();
-			try { notify.success(`Pago registrado: ${paymentDate} - ${methods.find(m => m.value === paymentMethod)?.label}`); } catch {}
-			cleanup();
-		} catch (e) {
-			try { notify.error('Error al guardar'); } catch {}
-			saveBtn.disabled = false;
-		}
-	});
-	
-	// Focus date input
-	setTimeout(() => { try { dateInput.focus(); } catch {} }, 0);
 }
 
 // Client action bar for sales table
