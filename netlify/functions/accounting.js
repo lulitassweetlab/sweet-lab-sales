@@ -148,18 +148,27 @@ export async function handler(event) {
 					if (role !== 'superadmin') return json({ error: 'No autorizado' }, 403);
 					const id = Number(data.id);
 					if (!id) return json({ error: 'id requerido' }, 400);
-					const fields = [];
-					if (data.kind && (data.kind === 'gasto' || data.kind === 'ingreso')) fields.push(sql`kind = ${data.kind}`);
-					if (data.entry_date) fields.push(sql`entry_date = ${String(data.entry_date).slice(0,10)}`);
-					if (typeof data.description === 'string') fields.push(sql`description = ${data.description}`);
+					
+					// Build update parts dynamically
+					const updates = {};
+					if (data.kind && (data.kind === 'gasto' || data.kind === 'ingreso')) updates.kind = data.kind;
+					if (data.entry_date) updates.entry_date = String(data.entry_date).slice(0,10);
+					if (typeof data.description === 'string') updates.description = data.description;
 					if (data.amount_cents != null) {
 						const ac = Number(data.amount_cents) | 0;
 						if (!Number.isFinite(ac) || ac <= 0) return json({ error: 'amount_cents inválido' }, 400);
-						fields.push(sql`amount_cents = ${ac}`);
+						updates.amount_cents = ac;
 					}
-					if (!fields.length) return json({ error: 'Nada para actualizar' }, 400);
-					const setSql = fields.reduce((acc, part, idx) => idx === 0 ? part : sql`${acc}, ${part}`);
-					const [row] = await sql`UPDATE accounting_entries SET ${setSql} WHERE id = ${id} RETURNING id, kind, entry_date, description, amount_cents, actor_name, created_at`;
+					
+					if (!Object.keys(updates).length) return json({ error: 'Nada para actualizar' }, 400);
+					
+					// Build SET clause manually
+					const setClause = Object.keys(updates).map((key, idx) => `${key} = $${idx + 1}`).join(', ');
+					const values = Object.values(updates);
+					
+					// Execute with proper parameter binding
+					const query = `UPDATE accounting_entries SET ${setClause} WHERE id = $${values.length + 1} RETURNING id, kind, entry_date, description, amount_cents, actor_name, created_at`;
+					const [row] = await sql(query, [...values, id]);
 					return json(row);
 				}
 			case 'DELETE': {
