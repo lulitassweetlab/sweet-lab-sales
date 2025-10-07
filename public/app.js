@@ -1330,15 +1330,18 @@ function createDessertQtyCell(sale, dessert, tr) {
 	
 	input.value = qty > 0 ? String(qty) : '';
 	input.placeholder = '';
-	input.addEventListener('blur', () => saveRow(tr, sale.id));
-	input.addEventListener('keydown', (e) => {
-		if (e.key === 'Enter') {
-			e.preventDefault();
-			saveRow(tr, sale.id);
+	input.readOnly = true; // Make readonly - only editable via edit button
+	input.style.cursor = 'pointer';
+	// Show action bar on click
+	input.addEventListener('click', (e) => {
+		e.stopPropagation();
+		const clientTd = tr.querySelector('.col-client');
+		const clientInput = tr.querySelector('.col-client .client-input');
+		const clientName = clientInput?.value || '';
+		if (clientTd) {
+			openClientActionBar(clientTd, sale.id, clientName);
 		}
 	});
-	input.addEventListener('focus', (e) => e.target.select());
-	input.addEventListener('mouseup', (e) => e.preventDefault());
 	
 	td.appendChild(input);
 	return td;
@@ -1438,11 +1441,8 @@ function renderTable() {
 				input.className = 'input-cell client-input';
 				input.value = sale.client_name || '';
 				input.placeholder = '';
-                // Wire client name autocomplete suggestions
-                try { wireClientAutocompleteForInput(input); } catch {}
-				input.addEventListener('input', (e) => { const v = (e.target.value || ''); if (/\*$/.test(v.trim())) { saveClientWithCommentFlow(tr, sale.id); } });
-				input.addEventListener('blur', () => saveClientWithCommentFlow(tr, sale.id));
-				input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); saveClientWithCommentFlow(tr, sale.id); } });
+				input.readOnly = true; // Make readonly - only editable via edit button
+				input.style.cursor = 'pointer';
 				// Add click listener to show action bar
 				input.addEventListener('click', (e) => {
 					e.stopPropagation();
@@ -1962,6 +1962,208 @@ function openNewSalePopover(anchorX, anchorY) {
     } catch (e) {
         // Fallback to old inline add if popover fails
         try { addRow(); } catch {}
+    }
+}
+
+// Open edit sale popover with existing sale data
+function openEditSalePopover(saleId, anchorX, anchorY) {
+    try {
+        const sale = state.sales.find(s => s.id === saleId);
+        if (!sale) {
+            try { notify.error('No se encontró el pedido'); } catch {}
+            return;
+        }
+        
+        const pop = document.createElement('div');
+        pop.className = 'new-sale-popover';
+        pop.style.position = 'fixed';
+        const isSmall = window.matchMedia('(max-width: 640px)').matches;
+        if (typeof anchorX === 'number' && typeof anchorY === 'number' && !isSmall) {
+            pop.style.left = anchorX + 'px';
+            pop.style.top = anchorY + 'px';
+            pop.style.transform = 'translate(-50%, 0)';
+        } else {
+            pop.style.left = '50%';
+            pop.style.top = '20%';
+            pop.style.transform = 'translate(-50%, 0)';
+        }
+
+        const title = document.createElement('h4');
+        title.textContent = 'Editar pedido';
+        title.style.margin = '0 0 8px 0';
+
+        const grid = document.createElement('div');
+        grid.className = 'new-sale-grid';
+
+        function appendRow(labelText, inputEl) {
+            const left = document.createElement('div'); left.className = 'new-sale-cell new-sale-left';
+            const right = document.createElement('div'); right.className = 'new-sale-cell new-sale-right';
+            const lbl = document.createElement('div'); lbl.className = 'new-sale-label-text'; lbl.textContent = labelText;
+            left.appendChild(lbl);
+            right.appendChild(inputEl);
+            right.addEventListener('mousedown', (ev) => {
+                if (ev.target !== inputEl) { ev.preventDefault(); try { inputEl.focus(); inputEl.select(); } catch {} }
+            });
+            right.addEventListener('click', (ev) => {
+                if (ev.target !== inputEl) { ev.preventDefault(); try { inputEl.focus(); inputEl.select(); } catch {} }
+            });
+            grid.appendChild(left);
+            grid.appendChild(right);
+        }
+
+        // Client row - prefilled
+        const clientInput = document.createElement('input');
+        clientInput.type = 'text';
+        clientInput.placeholder = 'Nombre del cliente';
+        clientInput.className = 'input-cell client-input';
+        clientInput.autocomplete = 'off';
+        clientInput.value = sale.client_name || '';
+        attachClientSuggestionsPopover(clientInput);
+        appendRow('Cliente', clientInput);
+
+        // Dessert rows (dynamic from state.desserts) - prefilled
+        const qtyInputs = {};
+        for (const d of state.desserts) {
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.min = '0';
+            input.step = '1';
+            input.inputMode = 'numeric';
+            input.placeholder = '0';
+            input.className = 'input-cell input-qty';
+            input.dataset.dessertId = d.id;
+            
+            // Get current quantity from sale
+            let qty = 0;
+            if (Array.isArray(sale.items) && sale.items.length > 0) {
+                const item = sale.items.find(i => i.dessert_id === d.id || i.short_code === d.short_code);
+                qty = item ? Number(item.quantity || 0) : 0;
+            } else {
+                qty = Number(sale[`qty_${d.short_code}`] || 0);
+            }
+            
+            input.value = qty > 0 ? String(qty) : '';
+            qtyInputs[d.short_code] = input;
+            appendRow(d.name, input);
+        }
+
+        const actions = document.createElement('div');
+        actions.className = 'confirm-actions';
+        const cancelBtn = document.createElement('button');
+        cancelBtn.type = 'button';
+        cancelBtn.className = 'press-btn';
+        cancelBtn.textContent = 'Cancelar';
+        const saveBtn = document.createElement('button');
+        saveBtn.type = 'button';
+        saveBtn.className = 'press-btn btn-primary';
+        saveBtn.textContent = 'Guardar';
+        actions.append(cancelBtn, saveBtn);
+
+        pop.append(title, grid, actions);
+        pop.style.visibility = 'hidden';
+        pop.style.opacity = '0';
+        pop.style.transition = 'opacity 160ms ease-out';
+        document.body.appendChild(pop);
+
+        // Clamp within viewport
+        function clampWithinViewport() {
+            try {
+                const margin = 8;
+                const vw = window.innerWidth;
+                const vh = window.innerHeight;
+                const r = pop.getBoundingClientRect();
+                const baseX = (typeof anchorX === 'number') ? anchorX : (vw / 2);
+                const baseY = (typeof anchorY === 'number') ? anchorY : (vh / 2);
+                let left = Math.round(baseX - r.width / 2);
+                let topBelow = Math.round(baseY + 8);
+                let topAbove = Math.round(baseY - 8 - r.height);
+                let top = topBelow;
+                if (top + r.height > vh - margin) top = topAbove;
+                if (top < margin) top = margin;
+                if (top + r.height > vh - margin) top = Math.max(margin, vh - margin - r.height);
+                if (left < margin) left = margin;
+                if (left + r.width > vw - margin) left = Math.max(margin, vw - margin - r.width);
+                pop.style.left = left + 'px';
+                pop.style.top = top + 'px';
+                pop.style.transform = 'none';
+            } catch {}
+        }
+        clampWithinViewport();
+        pop.style.visibility = 'visible';
+        requestAnimationFrame(() => { pop.style.opacity = '1'; });
+
+        function cleanup() {
+            document.removeEventListener('mousedown', outside, true);
+            document.removeEventListener('touchstart', outside, true);
+            if (pop.parentNode) pop.parentNode.removeChild(pop);
+        }
+        function outside(ev) {
+            const t = ev.target;
+            if (!pop.contains(t) && !t.closest?.('.client-suggest-popover')) cleanup();
+        }
+        setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
+        cancelBtn.addEventListener('click', cleanup);
+
+        // Focus client by default
+        setTimeout(() => { try { clientInput.focus(); clientInput.select(); } catch {} }, 0);
+
+        async function doSave() {
+            try {
+                saveBtn.disabled = true; cancelBtn.disabled = true;
+                
+                // Build items array and legacy qty_* properties
+                const items = [];
+                const body = {
+                    id: saleId,
+                    client_name: (clientInput.value || '').trim(),
+                    is_paid: sale.is_paid || false,
+                    pay_method: sale.pay_method || null,
+                    comment_text: sale.comment_text || '',
+                    _actor_name: state.currentUser?.name || ''
+                };
+                
+                for (const d of state.desserts) {
+                    const input = qtyInputs[d.short_code];
+                    const qty = Math.max(0, parseInt(input?.value || '0', 10) || 0);
+                    
+                    // Legacy format
+                    body[`qty_${d.short_code}`] = qty;
+                    
+                    // New format
+                    if (qty > 0) {
+                        items.push({
+                            dessert_id: d.id,
+                            quantity: qty,
+                            unit_price: d.sale_price
+                        });
+                    }
+                }
+                
+                body.items = items;
+                const updated = await api('PUT', API.Sales, body);
+                
+                // Update state and re-render
+                const idx = state.sales.findIndex(s => s.id === saleId);
+                if (idx !== -1) state.sales[idx] = updated;
+                renderTable();
+                try { notify.success('Guardado exitosamente'); } catch {}
+                cleanup();
+            } catch (e) {
+                try { notify.error('No se pudo guardar'); } catch {}
+                saveBtn.disabled = false; cancelBtn.disabled = false;
+            }
+        }
+
+        saveBtn.addEventListener('click', doSave);
+        const allInputs = [clientInput, ...Object.values(qtyInputs)];
+        allInputs.forEach((el) => {
+            el.addEventListener('keydown', (ev) => {
+                if (ev.key === 'Enter') { ev.preventDefault(); doSave(); }
+            });
+        });
+    } catch (e) {
+        console.error('Error opening edit popover:', e);
+        try { notify.error('Error al abrir el editor'); } catch {}
     }
 }
 
@@ -5800,8 +6002,9 @@ function updateCommentMarkerPosition(inputElement, markerElement) {
 	// Get padding left from input
 	const paddingLeft = parseFloat(cs.paddingLeft) || 8;
 	
-	// Position marker right after the text, with a small gap
-	const markerLeft = paddingLeft + textWidth + 4;
+	// Position marker right after the text, with a gap of approximately 4 spaces
+	const spaceWidth = ctx.measureText(' ').width || 4;
+	const markerLeft = paddingLeft + textWidth + (spaceWidth * 4);
 	
 	// Apply position
 	markerElement.style.left = markerLeft + 'px';
@@ -5819,17 +6022,17 @@ function openClientActionBar(tdElement, saleId, clientName) {
 	const actionBar = document.createElement('div');
 	actionBar.className = 'client-action-bar';
 	
-	// Edit button (opens client detail view)
+	// Edit button (opens edit popover)
 	const editBtn = document.createElement('button');
 	editBtn.className = 'client-action-bar-btn';
 	editBtn.innerHTML = '✏️';
-	editBtn.title = 'Editar cliente';
-	editBtn.addEventListener('click', async (e) => {
+	editBtn.title = 'Editar pedido';
+	editBtn.addEventListener('click', (e) => {
 		e.stopPropagation();
-		if (clientName && clientName.trim()) {
-			await openClientDetailView(clientName.trim());
-		}
 		closeClientActionBar();
+		// Get position for popover
+		const rect = tdElement.getBoundingClientRect();
+		openEditSalePopover(saleId, rect.left + rect.width / 2, rect.top);
 	});
 	
 	// Comment button (opens comment dialog directly)

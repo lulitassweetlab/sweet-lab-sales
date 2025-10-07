@@ -400,6 +400,15 @@ tfoot td { font-weight: 400; }
 .input-qty::-webkit-outer-spin-button, .input-qty::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 
 .client-input { min-width: 380px; max-width: 100%; width: 100%; font-size: 18px; font-weight: 400; letter-spacing: 0.2px; }
+/* Readonly inputs styling */
+.client-input[readonly], .input-qty[readonly] {
+	background: transparent;
+	cursor: pointer;
+}
+.client-input[readonly]:focus, .input-qty[readonly]:focus {
+	outline: none;
+	box-shadow: none;
+}
 
 .total { font-weight: 400; color: var(--accent); white-space: nowrap; }
 
