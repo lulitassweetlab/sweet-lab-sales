@@ -173,7 +173,7 @@ function renderClientDetailTable(rows) {
 	tbody.innerHTML = '';
 	if (!rows || rows.length === 0) {
 		const tr = document.createElement('tr');
-		const td = document.createElement('td'); td.colSpan = 9; td.textContent = 'Sin compras'; td.style.opacity = '0.8';
+		const td = document.createElement('td'); td.colSpan = 8; td.textContent = 'Sin compras'; td.style.opacity = '0.8';
 		tr.appendChild(td); tbody.appendChild(tr); return;
 	}
 	for (const r of rows) {
@@ -260,30 +260,7 @@ function renderClientDetailTable(rows) {
 		const tdNu = document.createElement('td'); tdNu.textContent = r.qty_nute ? String(r.qty_nute) : '';
 		const total = calcRowTotal({ arco: r.qty_arco, melo: r.qty_melo, mara: r.qty_mara, oreo: r.qty_oreo, nute: r.qty_nute });
 		const tdTot = document.createElement('td'); tdTot.textContent = fmtNo.format(total);
-		// Delete button
-		const tdDel = document.createElement('td'); tdDel.style.textAlign = 'center';
-		const delBtn = document.createElement('button');
-		delBtn.className = 'row-delete';
-		delBtn.title = 'Eliminar';
-		delBtn.setAttribute('aria-label', 'Eliminar');
-		delBtn.addEventListener('click', async (e) => {
-			e.stopPropagation();
-			if (!confirm(`¿Estás seguro de eliminar esta compra de "${state._clientDetailName || 'este cliente'}"?`)) return;
-			try {
-				await api('DELETE', `${API.Sales}?id=${encodeURIComponent(r.id)}`);
-				notify.info(`Compra eliminada`);
-				// Reload the client detail view
-				if (state._clientDetailFrom === 'global-search') {
-					await loadGlobalClientDetailRows(state._clientDetailName);
-				} else {
-					await loadClientDetailRows(state._clientDetailName);
-				}
-			} catch (err) {
-				notify.error('Error al eliminar: ' + String(err));
-			}
-		});
-		tdDel.appendChild(delBtn);
-		tr.append(tdPay, tdDate, tdAr, tdMe, tdMa, tdOr, tdNu, tdTot, tdDel);
+		tr.append(tdPay, tdDate, tdAr, tdMe, tdMa, tdOr, tdNu, tdTot);
 		tr.addEventListener('mousedown', () => { tr.classList.add('row-highlight'); setTimeout(() => tr.classList.remove('row-highlight'), 3200); });
 		tbody.appendChild(tr);
 	}
@@ -509,53 +486,7 @@ const notify = (() => {
 				minLoadedId = (minLoadedId == null) ? id : Math.min(minLoadedId, id);
 			}
 			const item = document.createElement('div'); item.className = 'notif-item';
-			const isRead = isServer && original.read_at !== null && original.read_at !== undefined;
-			if (isRead) item.classList.add('notif-read');
-			
-			// Check if user is superadmin
-			const isSuperAdmin = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
-			
-			// Add checkbox for superadmin to mark as read
-			let checkboxEl = null;
-			if (isServer && isSuperAdmin) {
-				checkboxEl = document.createElement('input');
-				checkboxEl.type = 'checkbox';
-				checkboxEl.className = 'notif-checkbox';
-				checkboxEl.checked = isRead;
-				checkboxEl.title = isRead ? 'Marcar como no leída' : 'Marcar como leída';
-				checkboxEl.addEventListener('click', async (e) => {
-					e.stopPropagation();
-					const newReadState = e.target.checked;
-					try {
-						const res = await fetch('/api/notifications', {
-							method: 'PATCH',
-							headers: { 'Content-Type': 'application/json' },
-							body: JSON.stringify({ id: id, is_read: newReadState })
-						});
-						if (res.ok) {
-							// Update the visual state
-							if (newReadState) {
-								item.classList.add('notif-read');
-							} else {
-								item.classList.remove('notif-read');
-							}
-							checkboxEl.title = newReadState ? 'Marcar como no leída' : 'Marcar como leída';
-						} else {
-							// Revert checkbox on error
-							checkboxEl.checked = !newReadState;
-							notify.error('Error al actualizar notificación');
-						}
-					} catch (err) {
-						// Revert checkbox on error
-						checkboxEl.checked = !newReadState;
-						notify.error('Error al actualizar notificación');
-					}
-				});
-				item.style.gridTemplateColumns = 'auto 1fr auto';
-			} else {
-				item.style.gridTemplateColumns = '1fr auto';
-			}
-			
+			item.style.gridTemplateColumns = '1fr auto';
 			const whenEl = document.createElement('div'); whenEl.className = 'when';
 			const d = new Date(when); whenEl.textContent = isNaN(d.getTime()) ? String(when || '') : d.toLocaleString();
 			const textEl = document.createElement('div'); textEl.className = 'text';
@@ -589,18 +520,11 @@ const notify = (() => {
 					}
 				} catch {}
 			});
-			
-			if (checkboxEl) {
-				item.append(checkboxEl, whenEl, delBtn, textEl);
-			} else {
-				item.append(whenEl, delBtn, textEl);
-			}
-			textEl.style.gridColumn = checkboxEl ? '2 / -1' : '1 / -1';
+			item.append(whenEl, delBtn, textEl);
+			textEl.style.gridColumn = '1 / -1';
 			if (isServer) {
 				item.style.cursor = 'pointer';
-				item.addEventListener('click', (e) => {
-					// Don't navigate if clicking on checkbox
-					if (e.target === checkboxEl) return;
+				item.addEventListener('click', () => {
 					cleanup();
 					setTimeout(() => {
 						goToSaleFromNotification(
@@ -1449,6 +1373,20 @@ function renderTable() {
 						reg.addEventListener('click', async (ev) => { ev.stopPropagation(); await openClientDetailView(name); });
 						td.appendChild(reg);
 					}
+					// Add actions button
+					const actionsBtn = document.createElement('button');
+					actionsBtn.className = 'client-actions-btn';
+					actionsBtn.textContent = '⋯';
+					actionsBtn.title = 'Acciones';
+					actionsBtn.addEventListener('click', (ev) => {
+						ev.stopPropagation();
+						try {
+							openClientActionsMenu(actionsBtn, sale, ev.clientX, ev.clientY);
+						} catch (err) {
+							console.error('Error opening actions menu:', err);
+						}
+					});
+					td.appendChild(actionsBtn);
 				}
 				return td;
 			})()
@@ -5115,9 +5053,20 @@ function renderDaysList() {
 		btn.className = 'date-button';
 		btn.textContent = formatDayLabel(d.day);
 		btn.addEventListener('click', async () => {
-			state.selectedDayId = d.id;
-			document.getElementById('sales-wrapper').classList.remove('hidden');
-			await loadSales();
+			console.log('📅 Date button clicked:', d.day, 'id:', d.id);
+			try {
+				state.selectedDayId = d.id;
+				const wrap = document.getElementById('sales-wrapper');
+				if (wrap) {
+					wrap.classList.remove('hidden');
+					console.log('✅ Sales wrapper shown');
+				}
+				await loadSales();
+				console.log('✅ Sales loaded successfully');
+			} catch (err) {
+				console.error('❌ Error loading sales on date click:', err);
+				try { notify.error('Error: ' + (err.message || err)); } catch {}
+			}
 		});
 		const del = document.createElement('button');
 		del.className = 'date-delete';
@@ -5156,8 +5105,10 @@ function renderDaysList() {
 	}
 	// Preview: auto-open the most recent date when entering seller view
 	try {
+		console.log('🔍 Auto-loading most recent date...');
 		if (!state.selectedDayId && !state.showArchivedOnly) {
 			const days = Array.isArray(state.saleDays) ? state.saleDays.slice() : [];
+			console.log('📅 Available days:', days.length);
 			if (days.length) {
 				let latest = days[0];
 				let latestTs = Date.parse(String(latest.day).slice(0,10));
@@ -5166,14 +5117,22 @@ function renderDaysList() {
 					if (!isNaN(ts) && (isNaN(latestTs) || ts > latestTs)) { latest = days[i]; latestTs = ts; }
 				}
 				if (latest && latest.id) {
+					console.log('✅ Auto-loading date:', latest.day, 'id:', latest.id);
 					state.selectedDayId = latest.id;
 					const wrap = document.getElementById('sales-wrapper');
 					if (wrap) wrap.classList.remove('hidden');
-					loadSales().catch(()=>{});
+					loadSales().catch((err) => {
+						console.error('❌ Error loading sales:', err);
+						try { notify.error('Error al cargar ventas: ' + (err.message || err)); } catch {}
+					});
 				}
 			}
+		} else {
+			console.log('⚠️ No auto-load: selectedDayId=' + state.selectedDayId + ', showArchivedOnly=' + state.showArchivedOnly);
 		}
-	} catch {}
+	} catch (err) {
+		console.error('❌ Error in renderDaysList auto-load:', err);
+	}
 }
 
 async function addNewDate() {
@@ -5703,6 +5662,237 @@ function openPayMenu(anchorEl, selectEl, clickX, clickY) {
 	}, 0);
 }
 
+function openClientActionsMenu(anchorEl, sale, clickX, clickY) {
+	const rect = anchorEl.getBoundingClientRect();
+	const menu = document.createElement('div');
+	menu.className = 'client-actions-menu';
+	menu.style.position = 'fixed';
+	menu.style.transform = 'translateX(-50%)';
+	menu.style.zIndex = '1000';
+	
+	const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+	const hasNote = !!(sale.comment_text && String(sale.comment_text).trim());
+	
+	// Edit button
+	const editBtn = document.createElement('button');
+	editBtn.type = 'button';
+	editBtn.className = 'client-action-btn action-edit';
+	editBtn.title = 'Editar cliente';
+	editBtn.addEventListener('click', (e) => {
+		e.stopPropagation();
+		cleanup();
+		// Focus the input
+		anchorEl.focus();
+		anchorEl.select();
+	});
+	menu.appendChild(editBtn);
+	
+	// Note button
+	const noteBtn = document.createElement('button');
+	noteBtn.type = 'button';
+	noteBtn.className = 'client-action-btn action-note' + (hasNote ? ' has-note' : '');
+	noteBtn.title = hasNote ? 'Ver/editar nota' : 'Agregar nota';
+	noteBtn.addEventListener('click', async (e) => {
+		e.stopPropagation();
+		cleanup();
+		// Open comment flow
+		const trEl = anchorEl.closest('tr');
+		if (trEl) {
+			await saveClientWithCommentFlow(trEl, sale.id);
+		}
+	});
+	menu.appendChild(noteBtn);
+	
+	// History button
+	const historyBtn = document.createElement('button');
+	historyBtn.type = 'button';
+	historyBtn.className = 'client-action-btn action-history';
+	historyBtn.title = 'Ver historial del cliente';
+	historyBtn.addEventListener('click', async (e) => {
+		e.stopPropagation();
+		cleanup();
+		const clientName = (sale.client_name || '').trim();
+		if (clientName) {
+			await openClientDetailView(clientName);
+		}
+	});
+	menu.appendChild(historyBtn);
+	
+	// Payment date button (superadmin only)
+	if (isSuper) {
+		const paymentBtn = document.createElement('button');
+		paymentBtn.type = 'button';
+		paymentBtn.className = 'client-action-btn action-payment';
+		paymentBtn.title = 'Ingresar fecha y método de pago';
+		paymentBtn.addEventListener('click', async (e) => {
+			e.stopPropagation();
+			cleanup();
+			await openPaymentDateDialog(sale);
+		});
+		menu.appendChild(paymentBtn);
+	}
+	
+	// Position menu above the client name
+	menu.style.left = '0px';
+	menu.style.top = '0px';
+	menu.style.visibility = 'hidden';
+	menu.style.pointerEvents = 'none';
+	document.body.appendChild(menu);
+	
+	const menuRect = menu.getBoundingClientRect();
+	const anchorCx = (typeof clickX === 'number') ? clickX : (rect.left + rect.width / 2);
+	const anchorCy = (typeof clickY === 'number') ? clickY : rect.top;
+	
+	let left = anchorCx;
+	let top = anchorCy - menuRect.height - 8; // 8px above the element
+	
+	const half = menu.offsetWidth / 2;
+	left = Math.min(Math.max(left, half + 6), window.innerWidth - half - 6);
+	top = Math.max(6, top);
+	
+	// If menu would be above viewport, show below instead
+	if (top < 6) {
+		top = rect.bottom + 8;
+	}
+	
+	menu.style.left = left + 'px';
+	menu.style.top = top + 'px';
+	menu.style.visibility = '';
+	menu.style.pointerEvents = '';
+	
+	function outside(e) { if (!menu.contains(e.target) && !anchorEl.contains(e.target)) cleanup(); }
+	function cleanup() {
+		document.removeEventListener('mousedown', outside, true);
+		document.removeEventListener('touchstart', outside, true);
+		if (menu.parentNode) menu.parentNode.removeChild(menu);
+	}
+	
+	setTimeout(() => {
+		document.addEventListener('mousedown', outside, true);
+		document.addEventListener('touchstart', outside, true);
+	}, 0);
+}
+
+async function openPaymentDateDialog(sale) {
+	return new Promise((resolve) => {
+		const backdrop = document.createElement('div');
+		backdrop.style.cssText = 'position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:10000; display:flex; align-items:center; justify-content:center;';
+		
+		const dialog = document.createElement('div');
+		dialog.style.cssText = 'background:var(--card); border:1px solid var(--border); border-radius:14px; padding:20px; width:min(400px,90vw); box-shadow:0 20px 60px rgba(0,0,0,0.3);';
+		
+		const title = document.createElement('h3');
+		title.textContent = 'Fecha y método de pago';
+		title.style.cssText = 'margin:0 0 16px 0; font-size:16px; font-weight:600;';
+		dialog.appendChild(title);
+		
+		const clientInfo = document.createElement('p');
+		clientInfo.textContent = `Cliente: ${sale.client_name || ''}`;
+		clientInfo.style.cssText = 'margin:0 0 16px 0; font-size:13px; opacity:0.8;';
+		dialog.appendChild(clientInfo);
+		
+		const dateLabel = document.createElement('label');
+		dateLabel.textContent = 'Fecha de pago:';
+		dateLabel.style.cssText = 'display:block; margin-bottom:6px; font-size:13px; font-weight:500;';
+		dialog.appendChild(dateLabel);
+		
+		const dateInput = document.createElement('input');
+		dateInput.type = 'date';
+		dateInput.className = 'input-cell';
+		dateInput.value = sale.payment_date ? String(sale.payment_date).slice(0, 10) : '';
+		dateInput.style.cssText = 'width:100%; margin-bottom:16px;';
+		dialog.appendChild(dateInput);
+		
+		const methodLabel = document.createElement('label');
+		methodLabel.textContent = 'Método de pago:';
+		methodLabel.style.cssText = 'display:block; margin-bottom:6px; font-size:13px; font-weight:500;';
+		dialog.appendChild(methodLabel);
+		
+		const methodSelect = document.createElement('select');
+		methodSelect.className = 'input-cell';
+		methodSelect.style.cssText = 'width:100%; margin-bottom:20px;';
+		const methods = [
+			{ value: '', label: '(sin especificar)' },
+			{ value: 'bancolombia', label: 'Bancolombia' },
+			{ value: 'nequi', label: 'Nequi' },
+			{ value: 'otro', label: 'Otro' }
+		];
+		for (const m of methods) {
+			const opt = document.createElement('option');
+			opt.value = m.value;
+			opt.textContent = m.label;
+			if (sale.payment_bank_method === m.value) opt.selected = true;
+			methodSelect.appendChild(opt);
+		}
+		dialog.appendChild(methodSelect);
+		
+		const actions = document.createElement('div');
+		actions.style.cssText = 'display:flex; gap:8px; justify-content:flex-end;';
+		
+		const cancelBtn = document.createElement('button');
+		cancelBtn.textContent = 'Cancelar';
+		cancelBtn.className = 'press-btn secondary';
+		cancelBtn.addEventListener('click', () => { cleanup(); resolve(false); });
+		actions.appendChild(cancelBtn);
+		
+		const saveBtn = document.createElement('button');
+		saveBtn.textContent = 'Guardar';
+		saveBtn.className = 'press-btn btn-primary';
+		saveBtn.addEventListener('click', async () => {
+			const paymentDate = dateInput.value || null;
+			const paymentMethod = methodSelect.value || null;
+			
+			try {
+				await api('PUT', API.Sales, {
+					id: sale.id,
+					client_name: sale.client_name || '',
+					qty_arco: sale.qty_arco || 0,
+					qty_melo: sale.qty_melo || 0,
+					qty_mara: sale.qty_mara || 0,
+					qty_oreo: sale.qty_oreo || 0,
+					qty_nute: sale.qty_nute || 0,
+					is_paid: sale.is_paid,
+					pay_method: sale.pay_method,
+					payment_date: paymentDate,
+					payment_bank_method: paymentMethod,
+					_actor_name: state.currentUser?.name || ''
+				});
+				
+				// Update local state
+				const idx = state.sales.findIndex(s => s.id === sale.id);
+				if (idx !== -1) {
+					state.sales[idx].payment_date = paymentDate;
+					state.sales[idx].payment_bank_method = paymentMethod;
+				}
+				
+				notify.success('Fecha de pago guardada');
+				cleanup();
+				resolve(true);
+			} catch (err) {
+				notify.error('Error al guardar: ' + (err.message || 'Error desconocido'));
+				cleanup();
+				resolve(false);
+			}
+		});
+		actions.appendChild(saveBtn);
+		
+		dialog.appendChild(actions);
+		backdrop.appendChild(dialog);
+		document.body.appendChild(backdrop);
+		
+		function cleanup() {
+			if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop);
+		}
+		
+		backdrop.addEventListener('click', (e) => {
+			if (e.target === backdrop) {
+				cleanup();
+				resolve(false);
+			}
+		});
+	});
+}
+
 // Extend state to include saleDays and selectedDayId if not present
 if (!('saleDays' in state)) state.saleDays = [];
 if (!('selectedDayId' in state)) state.selectedDayId = null;
@@ -6191,58 +6381,54 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 	const pop = document.createElement('div');
 	pop.className = 'receipt-popover';
 	pop.style.position = 'fixed';
-	// Always center the popover in the screen
-	pop.style.left = '50%';
-	pop.style.top = '50%';
-	pop.style.transform = 'translate(-50%, -50%)';
-	pop.style.width = 'auto';
-	pop.style.maxWidth = '90vw';
-	pop.style.maxHeight = '85vh';
+	const isSmall = window.matchMedia('(max-width: 600px)').matches;
+	if (isSmall) {
+		pop.style.left = '50%';
+		pop.style.top = '50%';
+		pop.style.transform = 'translate(-50%, -50%)';
+		pop.style.width = 'auto';
+		pop.style.maxWidth = '90vw';
+		pop.style.maxHeight = '82vh';
+	} else {
+		const x = typeof anchorX === 'number' ? anchorX : (window.innerWidth / 2);
+		const y = typeof anchorY === 'number' ? anchorY : (window.innerHeight / 2);
+		pop.style.left = x + 'px';
+		pop.style.top = (y + 8) + 'px';
+		pop.style.transform = 'translate(-50%, 0)';
+		pop.style.maxWidth = '90vw';
+		pop.style.maxHeight = '80vh';
+	}
 	pop.style.zIndex = '1000';
 	pop.style.overflow = 'auto';
-	pop.style.display = 'flex';
-	pop.style.flexDirection = 'column';
-	pop.style.gap = '12px';
 	const img = document.createElement('img');
 	img.src = imageBase64;
 	img.alt = 'Comprobante';
 	img.style.display = 'block';
-	img.style.width = 'auto';
-	img.style.maxWidth = '92vw';
+	img.style.width = isSmall ? 'auto' : 'auto';
+	img.style.maxWidth = isSmall ? '88vw' : '80vw';
 	img.style.height = 'auto';
-	img.style.maxHeight = '76vh';
+	img.style.maxHeight = isSmall ? '72vh' : '60vh';
 	img.style.margin = '0 auto';
 	img.style.borderRadius = '8px';
-	img.style.objectFit = 'contain';
 	const meta = document.createElement('div');
 	meta.className = 'receipt-meta';
-	meta.style.maxHeight = '120px';
-	meta.style.overflowY = 'auto';
-	meta.style.flexShrink = '0';
 	if (createdAt) {
 		const when = new Date(createdAt);
 		const whenStr = isNaN(when.getTime()) ? String(createdAt) : when.toLocaleString();
-		const timeDiv = document.createElement('div');
-		timeDiv.textContent = 'Subido: ' + whenStr;
-		timeDiv.style.fontSize = '12px';
-		timeDiv.style.opacity = '0.75';
-		timeDiv.style.marginBottom = '4px';
-		meta.appendChild(timeDiv);
+		meta.textContent = 'Subido: ' + whenStr;
+		meta.style.fontSize = '12px';
+		meta.style.opacity = '0.75';
+		meta.style.marginTop = '6px';
 	}
 	if (noteText) {
 		const note = document.createElement('div');
 		note.textContent = 'Nota: ' + String(noteText || '');
 		note.style.fontSize = '13px';
 		note.style.marginTop = '4px';
-		note.style.whiteSpace = 'pre-wrap';
 		meta.appendChild(note);
 	}
 	const actions = document.createElement('div');
 	actions.className = 'confirm-actions';
-	actions.style.display = 'flex';
-	actions.style.gap = '8px';
-	actions.style.justifyContent = 'center';
-	actions.style.flexShrink = '0';
 	const replaceBtn = document.createElement('button'); replaceBtn.className = 'press-btn btn-primary'; replaceBtn.textContent = 'Reemplazar foto';
 	const deleteBtn = document.createElement('button'); deleteBtn.className = 'press-btn'; deleteBtn.textContent = 'Eliminar';
 	const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn'; closeBtn.textContent = 'Cerrar';
