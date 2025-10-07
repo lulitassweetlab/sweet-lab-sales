@@ -6115,54 +6115,58 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 	const pop = document.createElement('div');
 	pop.className = 'receipt-popover';
 	pop.style.position = 'fixed';
-	const isSmall = window.matchMedia('(max-width: 600px)').matches;
-	if (isSmall) {
-		pop.style.left = '50%';
-		pop.style.top = '50%';
-		pop.style.transform = 'translate(-50%, -50%)';
-		pop.style.width = 'auto';
-		pop.style.maxWidth = '90vw';
-		pop.style.maxHeight = '82vh';
-	} else {
-		const x = typeof anchorX === 'number' ? anchorX : (window.innerWidth / 2);
-		const y = typeof anchorY === 'number' ? anchorY : (window.innerHeight / 2);
-		pop.style.left = x + 'px';
-		pop.style.top = (y + 8) + 'px';
-		pop.style.transform = 'translate(-50%, 0)';
-		pop.style.maxWidth = '90vw';
-		pop.style.maxHeight = '80vh';
-	}
+	// Always center the popover in the screen
+	pop.style.left = '50%';
+	pop.style.top = '50%';
+	pop.style.transform = 'translate(-50%, -50%)';
+	pop.style.width = 'auto';
+	pop.style.maxWidth = '90vw';
+	pop.style.maxHeight = '85vh';
 	pop.style.zIndex = '1000';
 	pop.style.overflow = 'auto';
+	pop.style.display = 'flex';
+	pop.style.flexDirection = 'column';
+	pop.style.gap = '12px';
 	const img = document.createElement('img');
 	img.src = imageBase64;
 	img.alt = 'Comprobante';
 	img.style.display = 'block';
-	img.style.width = isSmall ? 'auto' : 'auto';
-	img.style.maxWidth = isSmall ? '88vw' : '80vw';
+	img.style.width = 'auto';
+	img.style.maxWidth = '85vw';
 	img.style.height = 'auto';
-	img.style.maxHeight = isSmall ? '72vh' : '60vh';
+	img.style.maxHeight = '65vh';
 	img.style.margin = '0 auto';
 	img.style.borderRadius = '8px';
+	img.style.objectFit = 'contain';
 	const meta = document.createElement('div');
 	meta.className = 'receipt-meta';
+	meta.style.maxHeight = '120px';
+	meta.style.overflowY = 'auto';
+	meta.style.flexShrink = '0';
 	if (createdAt) {
 		const when = new Date(createdAt);
 		const whenStr = isNaN(when.getTime()) ? String(createdAt) : when.toLocaleString();
-		meta.textContent = 'Subido: ' + whenStr;
-		meta.style.fontSize = '12px';
-		meta.style.opacity = '0.75';
-		meta.style.marginTop = '6px';
+		const timeDiv = document.createElement('div');
+		timeDiv.textContent = 'Subido: ' + whenStr;
+		timeDiv.style.fontSize = '12px';
+		timeDiv.style.opacity = '0.75';
+		timeDiv.style.marginBottom = '4px';
+		meta.appendChild(timeDiv);
 	}
 	if (noteText) {
 		const note = document.createElement('div');
 		note.textContent = 'Nota: ' + String(noteText || '');
 		note.style.fontSize = '13px';
 		note.style.marginTop = '4px';
+		note.style.whiteSpace = 'pre-wrap';
 		meta.appendChild(note);
 	}
 	const actions = document.createElement('div');
 	actions.className = 'confirm-actions';
+	actions.style.display = 'flex';
+	actions.style.gap = '8px';
+	actions.style.justifyContent = 'center';
+	actions.style.flexShrink = '0';
 	const replaceBtn = document.createElement('button'); replaceBtn.className = 'press-btn btn-primary'; replaceBtn.textContent = 'Reemplazar foto';
 	const deleteBtn = document.createElement('button'); deleteBtn.className = 'press-btn'; deleteBtn.textContent = 'Eliminar';
 	const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn'; closeBtn.textContent = 'Cerrar';
