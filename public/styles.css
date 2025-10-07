@@ -1051,22 +1051,22 @@ tfoot td { font-weight: 700; }
 	color: var(--text); 
 	border: 1px solid rgba(193, 84, 129, 0.6); 
 	border-radius: 12px; 
-	padding: 14px; 
-	min-width: 460px; 
-	max-width: 95vw; 
+	padding: 12px; 
+	min-width: 180px; 
+	max-width: 320px; 
 }
 .comment-input { 
 	width: 100%; 
-	min-height: 160px; 
+	min-height: 80px; 
 	resize: vertical; 
 	background: rgba(255, 255, 255, 0.9); 
 	color: var(--text); 
 	border: 1px solid rgba(193, 84, 129, 0.4); 
-	border-radius: 10px; 
-	padding: 10px 12px; 
-	margin-bottom: 10px; 
-	line-height: 1.4; 
-	font-size: 14px; 
+	border-radius: 8px; 
+	padding: 8px 10px; 
+	margin-bottom: 8px; 
+	line-height: 1.3; 
+	font-size: 13px; 
 	-webkit-appearance: none; 
 }
 .comment-input { outline: none !important; -webkit-tap-highlight-color: transparent; }
@@ -3908,10 +3908,10 @@ button.secondary.press-btn:active {
 	transform: translateX(-50%);
 	background: rgba(0, 0, 0, 0.5);
 	backdrop-filter: blur(8px);
-	border-radius: 8px;
-	padding: 8px 12px;
+	border-radius: 12px;
+	padding: 12px 18px;
 	display: flex;
-	gap: 12px;
+	gap: 16px;
 	align-items: center;
 	z-index: 1000;
 	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
@@ -3934,13 +3934,13 @@ button.secondary.press-btn:active {
 	border: none;
 	color: #fff;
 	cursor: pointer;
-	padding: 6px;
+	padding: 8px;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	border-radius: 6px;
+	border-radius: 8px;
 	transition: background 0.2s ease;
-	font-size: 16px;
+	font-size: 22px;
 	line-height: 1;
 }
 
@@ -3970,12 +3970,12 @@ td.col-client.action-bar-active .client-input {
 @media (max-width: 600px) {
 	.client-action-bar {
 		bottom: calc(100% + 2px);
-		padding: 6px 8px;
-		gap: 8px;
+		padding: 10px 14px;
+		gap: 12px;
 	}
 	
 	.client-action-bar-btn {
-		padding: 4px;
-		font-size: 14px;
+		padding: 6px;
+		font-size: 18px;
 	}
 }

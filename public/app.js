@@ -2865,10 +2865,10 @@ function openCommentDialog(anchorEl, initial = '', anchorX, anchorY) {
 		pop.style.visibility = 'hidden'; // Hide initially to measure
 		const rect = anchorEl.getBoundingClientRect();
 		if (typeof anchorX === 'number' && typeof anchorY === 'number') {
-			// Position centered above the click point
+			// Position centered at the click point (slightly above)
 			pop.style.left = anchorX + 'px';
-			pop.style.top = anchorY + 'px';
-			pop.style.transform = 'translate(-50%, calc(-100% - 10px))'; // Center horizontally, 10px above
+			pop.style.top = (anchorY - 5) + 'px';
+			pop.style.transform = 'translate(-50%, -100%)'; // Center horizontally, right at click
 		} else {
 			// Fallback: open to the right of the input at same row height
 			pop.style.left = (rect.right + 8) + 'px';
@@ -2876,11 +2876,11 @@ function openCommentDialog(anchorEl, initial = '', anchorX, anchorY) {
 			pop.style.transform = 'none';
 		}
 		pop.style.zIndex = '1000';
-		// Size: generous on desktop, fluid on small screens
+		// Size: compact size
 		const isSmallScreen = window.matchMedia('(max-width: 600px)').matches;
-		pop.style.minWidth = isSmallScreen ? 'min(90vw, 320px)' : '520px';
-		pop.style.maxWidth = isSmallScreen ? '94vw' : '640px';
-		const ta = document.createElement('textarea'); ta.className = 'comment-input'; ta.placeholder = 'comentario'; ta.value = initial || ''; ta.style.minHeight = isSmallScreen ? '120px' : '160px';
+		pop.style.minWidth = isSmallScreen ? 'min(85vw, 200px)' : '180px';
+		pop.style.maxWidth = isSmallScreen ? '90vw' : '320px';
+		const ta = document.createElement('textarea'); ta.className = 'comment-input'; ta.placeholder = 'comentario'; ta.value = initial || ''; ta.style.minHeight = isSmallScreen ? '70px' : '80px';
 		ta.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); save.click(); } });
 		const actions = document.createElement('div'); actions.className = 'confirm-actions';
 		const cancel = document.createElement('button'); cancel.className = 'press-btn'; cancel.textContent = 'Cancelar';
