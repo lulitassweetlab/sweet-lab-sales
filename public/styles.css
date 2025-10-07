@@ -177,9 +177,39 @@
 .notif-btn.primary { background: var(--primary); color: var(--primary-foreground); border-color: transparent; }
 
 /* Per-item delete button in notifications list */
-.notif-del { background: transparent; border: 1px solid transparent; color: var(--muted); border-radius: 8px; padding: 2px 6px; cursor: pointer; }
-.notif-del:hover { color: var(--danger); background: rgba(239, 68, 68, 0.06); border-color: rgba(239, 68, 68, 0.15); }
+.notif-del {
+	width: 16px !important;
+	height: 16px !important;
+	padding: 0 !important;
+	border: none !important;
+	outline: none !important;
+	background: transparent !important;
+	border-radius: 0 !important;
+	display: inline-flex !important;
+	align-items: center !important;
+	justify-content: center !important;
+	line-height: 0 !important;
+	cursor: pointer;
+	font-size: 0;
+}
+.notif-del::before {
+	content: '' !important;
+	display: block !important;
+	width: 100% !important;
+	height: 100% !important;
+	background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="%23ef4444" d="M7 4h10l-1 2h4v2H4V6h4l-1-2zm-1 6h12l-1 10H7L6 10zm3 2v6h2v-6H9zm4 0v6h2v-6h-2z"/></svg>') no-repeat center / 90% 90% !important;
+	background-color: transparent !important;
+	-webkit-mask: none !important;
+	mask: none !important;
+}
+.notif-del:hover::before {
+	background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="%23dc2626" d="M7 4h10l-1 2h4v2H4V6h4l-1-2zm-1 6h12l-1 10H7L6 10zm3 2v6h2v-6H9zm4 0v6h2v-6h-2z"/></svg>') no-repeat center / 90% 90% !important;
+}
 .notif-del:active { transform: scale(0.96); }
+@media (max-width: 600px) {
+	.notif-del { width: 14px !important; height: 14px !important; }
+	.notif-del::before { background-size: 90% 90% !important; }
+}
 
 /* Checkbox for read/unread status (superadmin only) */
 .notif-checkbox {
