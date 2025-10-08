@@ -342,41 +342,41 @@
 			} catch { return url + (url.includes('?') ? `&actor=${encodeURIComponent(actor)}` : `?actor=${encodeURIComponent(actor)}`); }
 		}
 
-		function renderDessertColumns() {
-			const theadRow = document.getElementById('report-thead-row');
-			const totalsRow = document.getElementById('totals-row');
-			const totalPostresRow = document.getElementById('total-postres-row');
-			const totalTh = theadRow.querySelector('th.col-total');
+	function renderDessertColumns() {
+		const theadRow = document.getElementById('report-thead-row');
+		const totalsRow = document.getElementById('totals-row');
+		const totalPostresRow = document.getElementById('total-postres-row');
+		const totalTh = theadRow.querySelector('th.col-total');
+		
+		// Remove existing dessert columns
+		theadRow.querySelectorAll('th.col-qty').forEach(th => th.remove());
+		totalsRow.querySelectorAll('td.col-qty').forEach(td => td.remove());
+		totalPostresRow.querySelectorAll('td.col-qty').forEach(td => td.remove());
+		
+		// Insert new columns
+		for (const d of desserts) {
+			// Header
+			const th = document.createElement('th');
+			th.className = 'col-qty';
+			th.textContent = d.name;
+			theadRow.insertBefore(th, totalTh);
 			
-			// Remove existing dessert columns
-			theadRow.querySelectorAll('th.col-qty').forEach(th => th.remove());
-			totalsRow.querySelectorAll('td.col-qty').forEach(td => td.remove());
-			totalPostresRow.querySelectorAll('td.col-qty').forEach(td => td.remove());
+			// Totals row
+			const tdTot = document.createElement('td');
+			tdTot.className = 'col-qty';
+			tdTot.id = `t-q-${d.short_code}`;
+			totalsRow.insertBefore(tdTot, totalsRow.querySelector('td.col-total'));
 			
-			// Insert new columns
-			for (const d of desserts) {
-				// Header
-				const th = document.createElement('th');
-				th.className = 'col-qty';
-				th.textContent = d.name;
-				theadRow.insertBefore(th, totalTh);
-				
-				// Totals row
-				const tdTot = document.createElement('td');
-				tdTot.className = 'col-qty';
-				tdTot.id = `t-q-${d.short_code}`;
-				totalsRow.insertBefore(tdTot, totalsRow.querySelector('td.col-total'));
-				
-				// Total postres row (empty cells)
-				const tdEmpty = document.createElement('td');
-				tdEmpty.className = 'col-qty';
-				totalPostresRow.insertBefore(tdEmpty, totalPostresRow.querySelector('td.col-total'));
-			}
-			
-			// Update colspan for spacer row
-			const spacerTd = document.getElementById('spacer-td');
-			if (spacerTd) spacerTd.colSpan = 6 + desserts.length;
+			// Total postres row (empty cells)
+			const tdEmpty = document.createElement('td');
+			tdEmpty.className = 'col-qty';
+			totalPostresRow.insertBefore(tdEmpty, totalPostresRow.querySelector('td.col-total'));
 		}
+		
+		// Update colspan for spacer row
+		const spacerTd = document.getElementById('spacer-td');
+		if (spacerTd) spacerTd.colSpan = 6 + desserts.length;
+	}
 
 		function populateFilters(){
 			// OPTIMIZED: Use requestIdleCallback to avoid blocking render
@@ -453,37 +453,37 @@
 			return rows;
 		}
 
-		function render(){
-			const rows = getFilteredSortedData();
-			
-			// Initialize totals dynamically
-			const qtys = {};
-			for (const d of desserts) {
-				qtys[d.short_code] = 0;
-			}
-			let tGrand = 0;
-			
-	// Calculate totals first (fast)
-	for (const r of rows){
+	function render(){
+		const rows = getFilteredSortedData();
+		
+		// Initialize totals dynamically
+		const qtys = {};
 		for (const d of desserts) {
-			const qty = Number(r[`q_${d.short_code}`]) || 0;
-			qtys[d.short_code] += qty;
+			qtys[d.short_code] = 0;
 		}
-		tGrand += Number(r.tot) || 0;
-	}
+		let tGrand = 0;
 		
-	// Update totals dynamically
-	let totalQty = 0;
-	for (const d of desserts) {
-		const el = document.getElementById(`t-q-${d.short_code}`);
-		const value = Number(qtys[d.short_code]) || 0;
-		if (el) el.textContent = value || '';
-		totalQty += value;
-	}
+		// Calculate totals first (fast)
+		for (const r of rows){
+			for (const d of desserts) {
+				const qty = Number(r[`q_${d.short_code}`]) || 0;
+				qtys[d.short_code] += qty;
+			}
+			tGrand += Number(r.tot) || 0;
+		}
 		
-		tGrandEl.textContent = tGrand || '';
-		tSumAllEl.textContent = totalQty || '';
-			countLabel.textContent = `Filas: ${rows.length}`;
+		// Update totals dynamically
+		let totalQty = 0;
+		for (const d of desserts) {
+			const el = document.getElementById(`t-q-${d.short_code}`);
+			const value = Number(qtys[d.short_code]) || 0;
+			if (el) el.textContent = value; // Always show number, even if 0
+			totalQty += value;
+		}
+		
+		tGrandEl.textContent = tGrand;
+		tSumAllEl.textContent = totalQty;
+		countLabel.textContent = `Filas: ${rows.length}`;
 			
 			// Render rows in batches for better performance
 			tbody.innerHTML = '';
@@ -563,15 +563,13 @@
 							}));
 						} catch {}
 						
-						// Update if different from preloaded
-						if (JSON.stringify(data) !== JSON.stringify(preloaded)) {
-							desserts = data;
-							renderDessertColumns();
-							// Re-render if we already have data
-							if (dataset.length > 0) {
-								render();
-							}
-						}
+					// Update if different from preloaded
+					if (JSON.stringify(data) !== JSON.stringify(preloaded)) {
+						desserts = data;
+						renderDessertColumns();
+						// DON'T re-render here because dataset was processed with old desserts
+						// Fresh data will arrive with correct desserts and trigger a proper render
+					}
 					}
 				} catch {}
 			});
