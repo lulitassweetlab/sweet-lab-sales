@@ -42,6 +42,9 @@
 		const qs = new URLSearchParams(location.search);
 		const saleId = Number(qs.get('sale_id'));
 		document.getElementById('sale-info').textContent = saleId ? ('Venta #' + saleId) : '';
+		// Resolve actor name from saved auth user
+		let actorName = '';
+		try { const saved = localStorage.getItem('authUser'); if (saved) { const u = JSON.parse(saved); actorName = (u && (u.name || u.username)) ? (u.name || u.username) : ''; } } catch {}
 		const fileInput = document.getElementById('file');
 		const preview = document.getElementById('preview');
 		const img = document.getElementById('img');
@@ -63,10 +66,13 @@
 				reader.onload = async () => {
 					const base64 = reader.result;
 					const note = (document.getElementById('note').value || '').toString();
-					const res = await fetch('/api/sales', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _upload_receipt_for: saleId, image_base64: base64, note_text: note }) });
+					const res = await fetch('/api/sales', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _upload_receipt_for: saleId, image_base64: base64, note_text: note, _actor_name: actorName }) });
 					if (!res.ok) { alert('Error al subir comprobante'); uploadBtn.disabled = false; return; }
 					alert('Comprobante subido');
-					history.length > 1 ? history.back() : (location.href = '/');
+					// Hint the app to focus this sale on return
+					try { localStorage.setItem('pendingFocus', JSON.stringify({ saleId })); } catch {}
+					// Always go to inicio to refrescar estados y selector de pago
+					location.href = '/';
 				};
 				reader.readAsDataURL(f);
 			} catch (e) {
