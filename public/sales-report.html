@@ -456,6 +456,19 @@
 	function render(){
 		const rows = getFilteredSortedData();
 		
+		// DEBUG: Log complete state
+		console.group('🔍 RENDER DEBUG');
+		console.log('Desserts order:', desserts.map(d => d.short_code));
+		console.log('Total rows:', rows.length);
+		if (rows.length > 0) {
+			console.log('Sample row 0:', rows[0]);
+			console.log('Sample row 0 quantities:');
+			for (const d of desserts) {
+				const val = rows[0][`q_${d.short_code}`];
+				console.log(`  q_${d.short_code} = ${val} (type: ${typeof val})`);
+			}
+		}
+		
 		// Initialize totals dynamically
 		const qtys = {};
 		for (const d of desserts) {
@@ -467,10 +480,22 @@
 		for (const r of rows){
 			for (const d of desserts) {
 				const qty = Number(r[`q_${d.short_code}`]) || 0;
+				const before = qtys[d.short_code];
 				qtys[d.short_code] += qty;
+				if (qty > 0) {
+					console.log(`  Row: ${r.client_name || 'Unknown'} - ${d.short_code}: ${before} + ${qty} = ${qtys[d.short_code]}`);
+				}
 			}
 			tGrand += Number(r.tot) || 0;
 		}
+		
+		console.log('Final totals:', qtys);
+		console.log('Checking DOM elements:');
+		for (const d of desserts) {
+			const el = document.getElementById(`t-q-${d.short_code}`);
+			console.log(`  #t-q-${d.short_code}: ${el ? 'EXISTS' : 'MISSING'}`);
+		}
+		console.groupEnd();
 		
 		// Update totals dynamically
 		let totalQty = 0;
@@ -758,7 +783,24 @@
 			}
 			
 		// Process all sales in one pass
-		dataset = salesData.map(r => {
+		console.group('📦 PROCESSING SALES DATA');
+		console.log('Raw sales data count:', salesData.length);
+		if (salesData.length > 0) {
+			console.log('Sample raw sale:', salesData[0]);
+			console.log('Has items array?', Array.isArray(salesData[0].items));
+			if (salesData[0].items) {
+				console.log('Items:', salesData[0].items);
+			}
+			console.log('Legacy qty columns:', {
+				qty_arco: salesData[0].qty_arco,
+				qty_melo: salesData[0].qty_melo,
+				qty_mara: salesData[0].qty_mara,
+				qty_oreo: salesData[0].qty_oreo,
+				qty_nute: salesData[0].qty_nute
+			});
+		}
+		
+		dataset = salesData.map((r, idx) => {
 			const row = {
 				date: String(r.sale_day || '').slice(0,10),
 				sellerName: r.seller_name || '',
@@ -782,8 +824,15 @@
 				row[`q_${d.short_code}`] = qty;
 			}
 			
+			if (idx === 0) {
+				console.log('Processed first row:', row);
+			}
+			
 			return row;
 		});
+		
+		console.log('Dataset created:', dataset.length, 'rows');
+		console.groupEnd();
 				
 				updateLoadingProgress(95, 'Finalizando...');
 				render();
