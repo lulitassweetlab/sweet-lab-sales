@@ -147,6 +147,7 @@
 		<div class="panel-header">
 			<h3 id="title">Consolidado</h3>
 			<div class="panel-actions">
+				<button id="recalc-totals-btn" class="press-btn" style="background: #ff6b6b; color: white;" title="Recalcular totales de ventas en el rango de fechas actual">🔄 Recalcular Totales</button>
 				<button id="change-range" class="press-btn">Cambiar fechas</button>
 				<button id="export-excel" class="excel-btn press-btn btn-gold">⤓ Generar Excel</button>
 				<button id="ingredients-btn" class="press-btn">Ingredientes necesarios</button>
@@ -291,11 +292,9 @@
 		const progressBar = document.getElementById('progress-bar');
 		
 		function showLoading(message = 'Cargando ventas...') {
-			console.log('📊 showLoading called with message:', message);
 			loadingText.textContent = message;
 			loadingOverlay.classList.add('active');
 			progressBar.style.width = '0%';
-			console.log('Overlay classList:', loadingOverlay.className);
 			
 			// Simulate realistic progress
 			let progress = 0;
@@ -348,9 +347,6 @@
 		const totalPostresRow = document.getElementById('total-postres-row');
 		const totalTh = theadRow.querySelector('th.col-total');
 		
-		console.log('🏗️ RENDER DESSERT COLUMNS');
-		console.log('Desserts to render:', desserts.map(d => d.short_code));
-		
 		// Remove existing dessert columns
 		theadRow.querySelectorAll('th.col-qty').forEach(th => th.remove());
 		totalsRow.querySelectorAll('td.col-qty').forEach(td => td.remove());
@@ -375,10 +371,6 @@
 			tdEmpty.className = 'col-qty';
 			totalPostresRow.insertBefore(tdEmpty, totalPostresRow.querySelector('td.col-total'));
 		}
-		
-		// Log final structure
-		console.log('Headers order:', Array.from(theadRow.querySelectorAll('th')).map(th => th.textContent));
-		console.log('Total row cells:', Array.from(totalsRow.children).map((td, i) => `[${i}] id=${td.id || 'none'}`));
 		
 		// Update colspan for spacer row
 		const spacerTd = document.getElementById('spacer-td');
@@ -463,19 +455,6 @@
 	function render(){
 		const rows = getFilteredSortedData();
 		
-		// DEBUG: Log complete state
-		console.group('🔍 RENDER DEBUG');
-		console.log('Desserts order:', desserts.map(d => d.short_code));
-		console.log('Total rows:', rows.length);
-		if (rows.length > 0) {
-			console.log('Sample row 0:', rows[0]);
-			console.log('Sample row 0 quantities:');
-			for (const d of desserts) {
-				const val = rows[0][`q_${d.short_code}`];
-				console.log(`  q_${d.short_code} = ${val} (type: ${typeof val})`);
-			}
-		}
-		
 		// Initialize totals dynamically
 		const qtys = {};
 		for (const d of desserts) {
@@ -487,62 +466,23 @@
 		for (const r of rows){
 			for (const d of desserts) {
 				const qty = Number(r[`q_${d.short_code}`]) || 0;
-				const before = qtys[d.short_code];
 				qtys[d.short_code] += qty;
-				if (qty > 0) {
-					console.log(`  Row: ${r.client_name || 'Unknown'} - ${d.short_code}: ${before} + ${qty} = ${qtys[d.short_code]}`);
-				}
 			}
 			tGrand += Number(r.tot) || 0;
 		}
 		
-		console.log('Final totals:', qtys);
-		console.log('Checking DOM elements:');
+		// Update totals dynamically
+		let totalQty = 0;
 		for (const d of desserts) {
 			const el = document.getElementById(`t-q-${d.short_code}`);
-			console.log(`  #t-q-${d.short_code}: ${el ? 'EXISTS' : 'MISSING'}`);
-		}
-		console.groupEnd();
-		
-	// Update totals dynamically
-	let totalQty = 0;
-	console.log('📝 Writing totals to DOM:');
-	for (const d of desserts) {
-		const el = document.getElementById(`t-q-${d.short_code}`);
-		const value = Number(qtys[d.short_code]) || 0;
-		if (el) {
-			el.textContent = value; // Always show number, even if 0
-			console.log(`  Writing ${value} to #t-q-${d.short_code}`);
-			console.log(`    Element position in row:`, Array.from(el.parentElement.children).indexOf(el));
-		}
-		totalQty += value;
-	}
-	
-	tGrandEl.textContent = tGrand;
-	tSumAllEl.textContent = totalQty;
-	countLabel.textContent = `Filas: ${rows.length}`;
-	
-	// CRITICAL DEBUG: Check what's actually in the rendered table vs dataset
-	console.log('🔍 VERIFICATION:');
-	console.log('Calculated totals:', qtys, 'Sum:', totalQty);
-	console.log('Total money:', tGrand);
-	
-	// Check first visible row in tbody
-	requestAnimationFrame(() => {
-		const firstRenderedRow = tbody.querySelector('tr');
-		if (firstRenderedRow) {
-			const cells = Array.from(firstRenderedRow.querySelectorAll('td'));
-			console.log('First RENDERED row cells:', cells.map(c => c.textContent));
-			console.log('First DATASET row:', rows[0]);
+			const value = Number(qtys[d.short_code]) || 0;
+			if (el) el.textContent = value; // Always show number, even if 0
+			totalQty += value;
 		}
 		
-		// Check actual total row values
-		console.log('Actual values in total row:');
-		for (const d of desserts) {
-			const el = document.getElementById(`t-q-${d.short_code}`);
-			console.log(`  ${d.short_code}: ${el ? el.textContent : 'NOT FOUND'}`);
-		}
-	});
+		tGrandEl.textContent = tGrand;
+		tSumAllEl.textContent = totalQty;
+		countLabel.textContent = `Filas: ${rows.length}`;
 			
 			// Render rows in batches for better performance
 			tbody.innerHTML = '';
@@ -643,12 +583,8 @@
 			if (isLoading) return;
 			isLoading = true;
 			
-			// DEBUG: Verificar que se ejecuta
-			console.log('🚀 Loading started - overlay should appear now');
-			
 			// Show loading overlay
 			const hideLoading = showLoading('Cargando ventas...');
-			console.log('✅ Overlay shown');
 			
 			try {
 				rangeLabel.textContent = `${formatDay(start)} — ${formatDay(end)}`;
@@ -817,24 +753,7 @@
 			}
 			
 		// Process all sales in one pass
-		console.group('📦 PROCESSING SALES DATA');
-		console.log('Raw sales data count:', salesData.length);
-		if (salesData.length > 0) {
-			console.log('Sample raw sale:', salesData[0]);
-			console.log('Has items array?', Array.isArray(salesData[0].items));
-			if (salesData[0].items) {
-				console.log('Items:', salesData[0].items);
-			}
-			console.log('Legacy qty columns:', {
-				qty_arco: salesData[0].qty_arco,
-				qty_melo: salesData[0].qty_melo,
-				qty_mara: salesData[0].qty_mara,
-				qty_oreo: salesData[0].qty_oreo,
-				qty_nute: salesData[0].qty_nute
-			});
-		}
-		
-		dataset = salesData.map((r, idx) => {
+		dataset = salesData.map(r => {
 			const row = {
 				date: String(r.sale_day || '').slice(0,10),
 				sellerName: r.seller_name || '',
@@ -858,15 +777,8 @@
 				row[`q_${d.short_code}`] = qty;
 			}
 			
-			if (idx === 0) {
-				console.log('Processed first row:', row);
-			}
-			
 			return row;
 		});
-		
-		console.log('Dataset created:', dataset.length, 'rows');
-		console.groupEnd();
 				
 				updateLoadingProgress(95, 'Finalizando...');
 				render();
@@ -987,19 +899,61 @@
 			XLSX.writeFile(wb, `Consolidado_${(start||'').replaceAll('-','')}_a_${(end||'').replaceAll('-','')}.xlsx`);
 		});
 
-		ingredientsBtn.addEventListener('click', (ev) => {
-			if (isLoading) return;
-			ev.currentTarget.classList.add('loading');
-			const url = new URL('/ingredients.html', location.origin);
-			if (start) url.searchParams.set('start', start);
-			if (end) url.searchParams.set('end', end);
-			if (actor) url.searchParams.set('actor', actor);
-			location.href = url.toString();
-		});
+	ingredientsBtn.addEventListener('click', (ev) => {
+		if (isLoading) return;
+		ev.currentTarget.classList.add('loading');
+		const url = new URL('/ingredients.html', location.origin);
+		if (start) url.searchParams.set('start', start);
+		if (end) url.searchParams.set('end', end);
+		if (actor) url.searchParams.set('actor', actor);
+		location.href = url.toString();
+	});
 
-		backBtn.addEventListener('click', () => { 
-			if (!isLoading) location.href = '/'; 
-		});
+	// Recalculate totals button
+	const recalcTotalsBtn = document.getElementById('recalc-totals-btn');
+	recalcTotalsBtn?.addEventListener('click', async (ev) => {
+		if (isLoading) return;
+		
+		const confirm = window.confirm(
+			`¿Recalcular totales de TODAS las ventas entre ${formatDay(start)} y ${formatDay(end)}?\n\n` +
+			`Esto corregirá los totales incorrectos en la base de datos.`
+		);
+		
+		if (!confirm) return;
+		
+		ev.currentTarget.classList.add('loading');
+		ev.currentTarget.disabled = true;
+		
+		try {
+			const response = await fetch(
+				`/api/recalculate-totals?start_date=${encodeURIComponent(start)}&end_date=${encodeURIComponent(end)}`,
+				{ method: 'POST' }
+			);
+			
+			const result = await response.json();
+			
+			if (result.success) {
+				alert(
+					`✅ Totales recalculados exitosamente!\n\n` +
+					`Ventas procesadas: ${result.recalculated}\n` +
+					`Errores: ${result.errors || 0}\n\n` +
+					`Recargando página...`
+				);
+				location.reload();
+			} else {
+				alert(`❌ Error: ${result.error || 'Error desconocido'}`);
+			}
+		} catch (err) {
+			alert(`❌ Error al recalcular: ${err.message}`);
+		} finally {
+			ev.currentTarget.classList.remove('loading');
+			ev.currentTarget.disabled = false;
+		}
+	});
+
+	backBtn.addEventListener('click', () => { 
+		if (!isLoading) location.href = '/'; 
+	});
 		changeBtn.addEventListener('click', (ev) => {
 			if (isLoading) {
 				// Show toast or feedback
