@@ -503,101 +503,68 @@
 			rangeLabel.textContent = `${start} — ${end}`;
 			countLabel.textContent = 'Cargando…';
 			dataset = [];
+			seenSaleIds.clear();
 			sellersList = await fetchJSON(withActor('/api/sellers'));
 			populateFilters();
-			countLabel.textContent = `Vendedores: ${sellersList.length} · Buscando días…`;
-			const isoBetween = (iso, a, b) => iso >= a && iso <= b;
-			async function mapLimit(items, limit, fn) {
-				const out = []; let idx = 0; let running = 0; let resolveAll; const done = new Promise(r => resolveAll = r);
-				function runNext(){
-					if (idx >= items.length && running === 0) return resolveAll();
-					while (running < limit && idx < items.length) {
-						const cur = items[idx++]; running++;
-						Promise.resolve(fn(cur)).then(v => { out.push(v); running--; runNext(); }).catch(() => { running--; runNext(); });
+			countLabel.textContent = `Vendedores: ${sellersList.length} · Buscando ventas…`;
+			// Cargar todas las ventas del rango en una sola consulta (evita duplicados y desalineaciones)
+			let salesData = [];
+			try {
+				salesData = await fetchJSON(withActor(`/api/sales?date_range_start=${encodeURIComponent(start)}&date_range_end=${encodeURIComponent(end)}`));
+			} catch {}
+			countLabel.textContent = `Ventas: ${salesData.length} · Procesando…`;
+			for (const r of (salesData || [])) {
+				const pm = (r.pay_method || '').toString();
+				const ps = (r.payment_source || '').toString();
+				const pd = r.payment_date ? String(r.payment_date).slice(0, 10) : '';
+				// Cantidades por sabor
+				let qa = Number(r.qty_arco || 0) || 0;
+				let qm = Number(r.qty_melo || 0) || 0;
+				let qma = Number(r.qty_mara || 0) || 0;
+				let qo = Number(r.qty_oreo || 0) || 0;
+				let qn = Number(r.qty_nute || 0) || 0;
+				if (Array.isArray(r.items) && r.items.length > 0) {
+					qa = 0; qm = 0; qma = 0; qo = 0; qn = 0;
+					for (const item of r.items) {
+						const code = (item.short_code || '').toLowerCase();
+						const qty = Number(item.quantity || 0) || 0;
+						if (code === 'arco') qa += qty;
+						else if (code === 'melo') qm += qty;
+						else if (code === 'mara') qma += qty;
+						else if (code === 'oreo') qo += qty;
+						else if (code === 'nute') qn += qty;
 					}
 				}
-				runNext(); await done; return out;
+				// Total robusto
+				let totCalc = 0;
+				if (Array.isArray(r.items) && r.items.length > 0) {
+					for (const item of r.items) {
+						const code = (item.short_code || '').toLowerCase();
+						const qty = Number(item.quantity || 0) || 0;
+						let price = Number(item.unit_price || 0) || 0;
+						if (!price) price = PRICES[code] || 0;
+						totCalc += qty * price;
+					}
+				} else {
+					totCalc = (qa * PRICES.arco) + (qm * PRICES.melo) + (qma * PRICES.mara) + (qo * PRICES.oreo) + (qn * PRICES.nute);
+				}
+				const totDb = Number(r.total_cents || 0) || 0;
+				const tot = totCalc > 0 ? totCalc : totDb;
+				// Evitar duplicados por id
+				if (seenSaleIds.has(r.id)) continue;
+				seenSaleIds.add(r.id);
+				dataset.push({
+					date: String(r.sale_day || '').slice(0,10),
+					sellerName: r.seller_name || '',
+					client_name: r.client_name || '',
+					pay_method: pm,
+					payment_source: ps,
+					payment_date: pd,
+					is_paid: !!r.is_paid,
+					qa, qm, qma, qo, qn, tot,
+					saleId: r.id
+				});
 			}
-			const sellerDays = [];
-			await mapLimit(sellersList, 6, async (s) => {
-				try {
-					const days = await fetchJSON(withActor(`/api/days?seller_id=${encodeURIComponent(s.id)}&include_archived=1`));
-					for (const d of (days||[])){
-						const iso = String(d.day).slice(0,10);
-						if (isoBetween(iso, start, end)) sellerDays.push({ seller: s, day: d });
-					}
-				} catch {}
-			});
-			countLabel.textContent = `Días: ${sellerDays.length} · Buscando ventas…`;
-			await mapLimit(sellerDays, 6, async ({ seller, day }) => {
-				try {
-					const params = new URLSearchParams({ seller_id: String(seller.id), sale_day_id: String(day.id) });
-                    const sales = await fetchJSON(withActor(`/api/sales?${params.toString()}`));
-					for (const r of (sales||[])){
-						const pm = (r.pay_method || '').toString();
-						const ps = (r.payment_source || '').toString();
-						const pd = r.payment_date ? String(r.payment_date).slice(0, 10) : '';
-						// Include ALL sales - no filtering at data load time
-						
-						// Support both formats: old (qty_*) and new (items array)
-                        let qa = Number(r.qty_arco || 0) || 0;
-                        let qm = Number(r.qty_melo || 0) || 0;
-                        let qma = Number(r.qty_mara || 0) || 0;
-                        let qo = Number(r.qty_oreo || 0) || 0;
-                        let qn = Number(r.qty_nute || 0) || 0;
-						
-						// If items array exists, use that instead
-						if (Array.isArray(r.items) && r.items.length > 0) {
-							qa = 0; qm = 0; qma = 0; qo = 0; qn = 0;
-							for (const item of r.items) {
-								const code = (item.short_code || '').toLowerCase();
-								const qty = Number(item.quantity || 0);
-								if (code === 'arco') qa += qty;
-								else if (code === 'melo') qm += qty;
-								else if (code === 'mara') qma += qty;
-								else if (code === 'oreo') qo += qty;
-								else if (code === 'nute') qn += qty;
-							}
-						}
-
-						// Recalcular total de forma resiliente (items -> cantidades * precios -> total_cents)
-						let totCalc = 0;
-						if (Array.isArray(r.items) && r.items.length > 0) {
-							for (const item of r.items) {
-								const code = (item.short_code || '').toLowerCase();
-								const qty = Number(item.quantity || 0) || 0;
-								let price = Number(item.unit_price || 0) || 0;
-								if (!price) {
-									if (code === 'arco') price = PRICES.arco;
-									else if (code === 'melo') price = PRICES.melo;
-									else if (code === 'mara') price = PRICES.mara;
-									else if (code === 'oreo') price = PRICES.oreo;
-									else if (code === 'nute') price = PRICES.nute;
-								}
-								totCalc += qty * price;
-							}
-						} else {
-							totCalc = (qa * PRICES.arco) + (qm * PRICES.melo) + (qma * PRICES.mara) + (qo * PRICES.oreo) + (qn * PRICES.nute);
-						}
-						const totDb = Number(r.total_cents || 0) || 0;
-						const tot = totCalc > 0 ? totCalc : totDb;
-						// Skip duplicate sale rows (defensive against accidental duplicates from API)
-						if (seenSaleIds.has(r.id)) continue;
-						seenSaleIds.add(r.id);
-						dataset.push({
-							date: String(day.day).slice(0,10),
-							sellerName: seller.name || '',
-							client_name: r.client_name || '',
-							pay_method: pm,
-							payment_source: ps,
-							payment_date: pd,
-							is_paid: !!r.is_paid,
-							qa, qm, qma, qo, qn, tot,
-							saleId: r.id
-						});
-					}
-				} catch {}
-			});
 			render();
 		}
 
