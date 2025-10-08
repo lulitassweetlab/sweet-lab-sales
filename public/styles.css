@@ -4074,6 +4074,25 @@ td.col-client {
 td.col-client.action-bar-active .client-input {
 	outline: 2px solid var(--primary);
 	outline-offset: -2px;
+	transition: outline 0.2s ease;
+}
+
+/* Fade out animation for client input outline */
+td.col-client.action-bar-fading .client-input {
+	outline: 2px solid var(--primary);
+	outline-offset: -2px;
+	animation: fadeOutOutline 2s ease forwards;
+}
+
+@keyframes fadeOutOutline {
+	0% {
+		outline-color: var(--primary);
+		outline-width: 2px;
+	}
+	100% {
+		outline-color: transparent;
+		outline-width: 0px;
+	}
 }
 
 @media (max-width: 600px) {

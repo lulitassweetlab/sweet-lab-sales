@@ -1511,9 +1511,9 @@ function createDessertQtyCell(sale, dessert, tr) {
 }
 
 function renderTable() {
-	// Close any open client action bar before re-rendering
+	// Close any open client action bar before re-rendering (skip fade since we'll handle it after re-render if needed)
 	if (typeof closeClientActionBar === 'function') {
-		closeClientActionBar();
+		closeClientActionBar(true); // Skip fade on re-render
 	}
 	const tbody = $('#sales-tbody');
 	// Update caption with selected date label
@@ -1534,7 +1534,7 @@ function renderTable() {
 	for (const sale of state.sales) {
 		const total = calcRowTotal(sale);
 		const isPaid = !!sale.is_paid;
-		const tr = el('tr', {},
+		const tr = el('tr', { 'data-sale-id': sale.id },
 			el('td', { class: 'col-paid' }, (function(){
 				const wrap = document.createElement('span');
 				wrap.className = 'pay-wrap';
@@ -2136,7 +2136,7 @@ function openNewSalePopover(anchorX, anchorY) {
 }
 
 // Open edit sale popover with existing sale data
-function openEditSalePopover(saleId, anchorX, anchorY) {
+function openEditSalePopover(saleId, anchorX, anchorY, onCloseCallback) {
     try {
         const sale = state.sales.find(s => s.id === saleId);
         if (!sale) {
@@ -2266,6 +2266,10 @@ function openEditSalePopover(saleId, anchorX, anchorY) {
             document.removeEventListener('mousedown', outside, true);
             document.removeEventListener('touchstart', outside, true);
             if (pop.parentNode) pop.parentNode.removeChild(pop);
+            // Call the callback to close action bar with fade animation
+            if (typeof onCloseCallback === 'function') {
+                onCloseCallback();
+            }
         }
         function outside(ev) {
             const t = ev.target;
@@ -3025,7 +3029,7 @@ function getSpaceWidthForInput(inputEl) {
 	return ctx.measureText(' ').width || 4;
 }
 
-function openCommentDialog(anchorEl, initial = '', anchorX, anchorY, saleId = null) {
+function openCommentDialog(anchorEl, initial = '', anchorX, anchorY, saleId = null, onCloseCallback) {
 	return new Promise((resolve) => {
 		const pop = document.createElement('div');
 		pop.className = 'comment-popover';
@@ -3153,6 +3157,10 @@ function openCommentDialog(anchorEl, initial = '', anchorX, anchorY, saleId = nu
 			if (typeof detachViewport === 'function') detachViewport();
 			window.removeEventListener('scroll', onWinScroll, { passive: true });
 			if (pop.parentNode) pop.parentNode.removeChild(pop);
+			// Call the callback to close action bar with fade animation
+			if (typeof onCloseCallback === 'function') {
+				onCloseCallback();
+			}
 		}
 		function outside(ev) { 
 			if (!pop.contains(ev.target)) { 
@@ -6188,7 +6196,7 @@ function updateCommentMarkerPosition(inputElement, markerElement) {
 }
 
 // Payment date dialog with calendar and payment method options
-function openPaymentDateDialog(saleId, anchorX, anchorY) {
+function openPaymentDateDialog(saleId, anchorX, anchorY, onCloseCallback) {
 	const sale = state.sales.find(s => s.id === saleId);
 	if (!sale) return;
 	
@@ -6457,12 +6465,39 @@ function openPaymentDateDialog(saleId, anchorX, anchorY) {
 			}
 			
 			try { notify.success(`Fecha de pago guardada: ${paymentDate} - ${paymentSource}`); } catch {}
-			cleanup();
+			
+			// Save sale ID to preserve border after re-render
+			const preserveBorderForSaleId = saleId;
+			
+			cleanup(false); // Close popup without triggering fade yet
 			
 			// Refresh the UI to show the updated payment info
 			if (typeof renderSalesView === 'function') {
 				renderSalesView();
 			}
+			
+			// Re-apply border to the updated element and then fade it
+			setTimeout(() => {
+				// Find the new TD element for this sale after re-render
+				const allClientInputs = document.querySelectorAll('.client-input');
+				for (const input of allClientInputs) {
+					const td = input.closest('td');
+					const row = td?.closest('tr');
+					if (row && row.dataset.saleId == preserveBorderForSaleId) {
+						// Apply classes to show border
+						td.classList.add('action-bar-active');
+						// Then immediately start fade
+						requestAnimationFrame(() => {
+							td.classList.remove('action-bar-active');
+							td.classList.add('action-bar-fading');
+							setTimeout(() => {
+								td.classList.remove('action-bar-fading');
+							}, 2000);
+						});
+						break;
+					}
+				}
+			}, 50); // Small delay to ensure re-render is complete
 		} catch (e) {
 			console.error('Error al guardar fecha de pago:', e);
 			try { notify.error('Error al guardar: ' + (e.message || 'Error desconocido')); } catch {}
@@ -6502,14 +6537,18 @@ function openPaymentDateDialog(saleId, anchorX, anchorY) {
 		pop.style.transform = 'none';
 	});
 	
-	function cleanup() {
+	function cleanup(triggerFade = true) {
 		document.removeEventListener('mousedown', outside, true);
 		document.removeEventListener('touchstart', outside, true);
 		if (pop.parentNode) pop.parentNode.removeChild(pop);
+		// Call the callback to close action bar with fade animation only if triggerFade is true
+		if (triggerFade && typeof onCloseCallback === 'function') {
+			onCloseCallback();
+		}
 	}
 	
 	function outside(ev) {
-		if (!pop.contains(ev.target)) cleanup();
+		if (!pop.contains(ev.target)) cleanup(true); // Manual close, trigger fade
 	}
 	
 	setTimeout(() => {
@@ -6544,10 +6583,13 @@ function openClientActionBar(tdElement, saleId, clientName, clickX, clickY) {
 	editBtn.title = 'Editar pedido';
 	editBtn.addEventListener('click', (e) => {
 		e.stopPropagation();
-		closeClientActionBar();
+		// Hide the action bar but keep the outline active
+		actionBar.classList.remove('active');
 		// Get position for popover
 		const rect = tdElement.getBoundingClientRect();
-		openEditSalePopover(saleId, rect.left + rect.width / 2, rect.top);
+		openEditSalePopover(saleId, rect.left + rect.width / 2, rect.top, () => {
+			closeClientActionBar();
+		});
 	});
 	
 	// Comment button (opens comment dialog directly)
@@ -6559,14 +6601,17 @@ function openClientActionBar(tdElement, saleId, clientName, clickX, clickY) {
 		e.stopPropagation();
 		const btnClickX = e.clientX;
 		const btnClickY = e.clientY;
-		closeClientActionBar();
+		// Hide the action bar but keep the outline active
+		actionBar.classList.remove('active');
 		const input = tdElement.querySelector('.client-input');
 		if (input) {
 			// Get current comment text
 			const sale = state.sales.find(s => s.id === saleId);
 			const currentComment = sale?.comment_text || '';
 			// Open comment dialog above the click position
-			await openCommentDialog(input, currentComment, btnClickX, btnClickY, saleId);
+			await openCommentDialog(input, currentComment, btnClickX, btnClickY, saleId, () => {
+				closeClientActionBar();
+			});
 			// Re-render table to show/update comment marker
 			renderTable();
 		}
@@ -6579,6 +6624,7 @@ function openClientActionBar(tdElement, saleId, clientName, clickX, clickY) {
 	historyBtn.title = 'Historial del cliente';
 	historyBtn.addEventListener('click', async (e) => {
 		e.stopPropagation();
+		// Close action bar with fade effect immediately since we're changing views
 		closeClientActionBar();
 		if (clientName && clientName.trim()) {
 			await openClientDetailView(clientName.trim());
@@ -6617,8 +6663,12 @@ function openClientActionBar(tdElement, saleId, clientName, clickX, clickY) {
 			e.stopPropagation();
 			const btnClickX = e.clientX;
 			const btnClickY = e.clientY;
-			closeClientActionBar();
-			openPaymentDateDialog(saleId, btnClickX, btnClickY);
+			// Hide the action bar but keep the outline active
+			actionBar.classList.remove('active');
+			// Open dialog and pass callback to close action bar when done
+			openPaymentDateDialog(saleId, btnClickX, btnClickY, () => {
+				closeClientActionBar();
+			});
 		});
 		actionBar.appendChild(paymentBtn);
 	}
@@ -6650,7 +6700,7 @@ function openClientActionBar(tdElement, saleId, clientName, clickX, clickY) {
 	};
 }
 
-function closeClientActionBar() {
+function closeClientActionBar(skipFade = false) {
 	if (activeClientActionBar) {
 		if (activeClientActionBar.cleanup) {
 			activeClientActionBar.cleanup();
@@ -6658,8 +6708,21 @@ function closeClientActionBar() {
 		if (activeClientActionBar.bar && activeClientActionBar.bar.parentNode) {
 			activeClientActionBar.bar.remove();
 		}
-		if (activeClientActionBar.td) {
-			activeClientActionBar.td.classList.remove('action-bar-active');
+		if (activeClientActionBar.td && !skipFade) {
+			const td = activeClientActionBar.td;
+			
+			// Remove active class and add fading class to start fade animation
+			td.classList.remove('action-bar-active');
+			td.classList.add('action-bar-fading');
+			
+			// After 2 seconds, remove the fading class
+			setTimeout(() => {
+				td.classList.remove('action-bar-fading');
+			}, 2000);
+		} else if (activeClientActionBar.td && skipFade) {
+			// Just remove classes without fade
+			const td = activeClientActionBar.td;
+			td.classList.remove('action-bar-active', 'action-bar-fading');
 		}
 		activeClientActionBar = null;
 	}
