@@ -4081,7 +4081,7 @@ td.col-client.action-bar-active .client-input {
 td.col-client.action-bar-fading .client-input {
 	outline: 2px solid var(--primary);
 	outline-offset: -2px;
-	animation: fadeOutOutline 1s ease forwards;
+	animation: fadeOutOutline 2s ease forwards;
 }
 
 @keyframes fadeOutOutline {

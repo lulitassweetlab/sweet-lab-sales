@@ -2136,7 +2136,7 @@ function openNewSalePopover(anchorX, anchorY) {
 }
 
 // Open edit sale popover with existing sale data
-function openEditSalePopover(saleId, anchorX, anchorY) {
+function openEditSalePopover(saleId, anchorX, anchorY, onCloseCallback) {
     try {
         const sale = state.sales.find(s => s.id === saleId);
         if (!sale) {
@@ -2266,6 +2266,10 @@ function openEditSalePopover(saleId, anchorX, anchorY) {
             document.removeEventListener('mousedown', outside, true);
             document.removeEventListener('touchstart', outside, true);
             if (pop.parentNode) pop.parentNode.removeChild(pop);
+            // Call the callback to close action bar with fade animation
+            if (typeof onCloseCallback === 'function') {
+                onCloseCallback();
+            }
         }
         function outside(ev) {
             const t = ev.target;
@@ -3025,7 +3029,7 @@ function getSpaceWidthForInput(inputEl) {
 	return ctx.measureText(' ').width || 4;
 }
 
-function openCommentDialog(anchorEl, initial = '', anchorX, anchorY, saleId = null) {
+function openCommentDialog(anchorEl, initial = '', anchorX, anchorY, saleId = null, onCloseCallback) {
 	return new Promise((resolve) => {
 		const pop = document.createElement('div');
 		pop.className = 'comment-popover';
@@ -3153,6 +3157,10 @@ function openCommentDialog(anchorEl, initial = '', anchorX, anchorY, saleId = nu
 			if (typeof detachViewport === 'function') detachViewport();
 			window.removeEventListener('scroll', onWinScroll, { passive: true });
 			if (pop.parentNode) pop.parentNode.removeChild(pop);
+			// Call the callback to close action bar with fade animation
+			if (typeof onCloseCallback === 'function') {
+				onCloseCallback();
+			}
 		}
 		function outside(ev) { 
 			if (!pop.contains(ev.target)) { 
@@ -6188,7 +6196,7 @@ function updateCommentMarkerPosition(inputElement, markerElement) {
 }
 
 // Payment date dialog with calendar and payment method options
-function openPaymentDateDialog(saleId, anchorX, anchorY) {
+function openPaymentDateDialog(saleId, anchorX, anchorY, onCloseCallback) {
 	const sale = state.sales.find(s => s.id === saleId);
 	if (!sale) return;
 	
@@ -6506,6 +6514,10 @@ function openPaymentDateDialog(saleId, anchorX, anchorY) {
 		document.removeEventListener('mousedown', outside, true);
 		document.removeEventListener('touchstart', outside, true);
 		if (pop.parentNode) pop.parentNode.removeChild(pop);
+		// Call the callback to close action bar with fade animation
+		if (typeof onCloseCallback === 'function') {
+			onCloseCallback();
+		}
 	}
 	
 	function outside(ev) {
@@ -6544,10 +6556,13 @@ function openClientActionBar(tdElement, saleId, clientName, clickX, clickY) {
 	editBtn.title = 'Editar pedido';
 	editBtn.addEventListener('click', (e) => {
 		e.stopPropagation();
-		closeClientActionBar();
+		// Hide the action bar but keep the outline active
+		actionBar.classList.remove('active');
 		// Get position for popover
 		const rect = tdElement.getBoundingClientRect();
-		openEditSalePopover(saleId, rect.left + rect.width / 2, rect.top);
+		openEditSalePopover(saleId, rect.left + rect.width / 2, rect.top, () => {
+			closeClientActionBar();
+		});
 	});
 	
 	// Comment button (opens comment dialog directly)
@@ -6559,14 +6574,17 @@ function openClientActionBar(tdElement, saleId, clientName, clickX, clickY) {
 		e.stopPropagation();
 		const btnClickX = e.clientX;
 		const btnClickY = e.clientY;
-		closeClientActionBar();
+		// Hide the action bar but keep the outline active
+		actionBar.classList.remove('active');
 		const input = tdElement.querySelector('.client-input');
 		if (input) {
 			// Get current comment text
 			const sale = state.sales.find(s => s.id === saleId);
 			const currentComment = sale?.comment_text || '';
 			// Open comment dialog above the click position
-			await openCommentDialog(input, currentComment, btnClickX, btnClickY, saleId);
+			await openCommentDialog(input, currentComment, btnClickX, btnClickY, saleId, () => {
+				closeClientActionBar();
+			});
 			// Re-render table to show/update comment marker
 			renderTable();
 		}
@@ -6579,6 +6597,7 @@ function openClientActionBar(tdElement, saleId, clientName, clickX, clickY) {
 	historyBtn.title = 'Historial del cliente';
 	historyBtn.addEventListener('click', async (e) => {
 		e.stopPropagation();
+		// Close action bar with fade effect immediately since we're changing views
 		closeClientActionBar();
 		if (clientName && clientName.trim()) {
 			await openClientDetailView(clientName.trim());
@@ -6617,8 +6636,12 @@ function openClientActionBar(tdElement, saleId, clientName, clickX, clickY) {
 			e.stopPropagation();
 			const btnClickX = e.clientX;
 			const btnClickY = e.clientY;
-			closeClientActionBar();
-			openPaymentDateDialog(saleId, btnClickX, btnClickY);
+			// Hide the action bar but keep the outline active
+			actionBar.classList.remove('active');
+			// Open dialog and pass callback to close action bar when done
+			openPaymentDateDialog(saleId, btnClickX, btnClickY, () => {
+				closeClientActionBar();
+			});
 		});
 		actionBar.appendChild(paymentBtn);
 	}
@@ -6665,10 +6688,10 @@ function closeClientActionBar() {
 			td.classList.remove('action-bar-active');
 			td.classList.add('action-bar-fading');
 			
-			// After 1 second, remove the fading class
+			// After 2 seconds, remove the fading class
 			setTimeout(() => {
 				td.classList.remove('action-bar-fading');
-			}, 1000);
+			}, 2000);
 		}
 		activeClientActionBar = null;
 	}
