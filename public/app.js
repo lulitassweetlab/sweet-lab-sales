@@ -251,6 +251,9 @@ function renderClientDetailTable(rows) {
 		wrap.addEventListener('click', async (e) => {
 			e.stopPropagation();
 			const rect = wrap.getBoundingClientRect();
+			const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
+			const locked = String(r.pay_method || '').trim() !== '';
+			if (!isAdminUser && locked) return; // block for non-admins
 			openPayMenu(wrap, sel, rect.left + rect.width / 2, rect.bottom);
 		});
 		wrap.tabIndex = 0;
@@ -258,6 +261,9 @@ function renderClientDetailTable(rows) {
 			if (e.key === 'Enter' || e.key === ' ') {
 				e.preventDefault();
 				const rect = wrap.getBoundingClientRect();
+				const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
+				const locked = String(r.pay_method || '').trim() !== '';
+				if (!isAdminUser && locked) return;
 				openPayMenu(wrap, sel, rect.left + rect.width / 2, rect.bottom);
 			}
 		});
@@ -1576,6 +1582,12 @@ function renderTable() {
 					if (current === o.v) opt.selected = true;
 					sel.appendChild(opt);
 				}
+				// Lock editing for non-admins once a method is chosen
+				const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
+				if (!isAdminUser && current) {
+					sel.disabled = true;
+					wrap.classList.add('locked');
+				}
 				function applyPayClass() {
 					wrap.classList.remove('placeholder','method-efectivo','method-transf','method-marce','method-jorge','method-jorgebank','method-entregado');
 					const val = sel.value;
@@ -1600,9 +1612,23 @@ function renderTable() {
 					} catch {}
 					applyPayClass();
 				});
-				wrap.addEventListener('click', async (e) => { e.stopPropagation(); openPayMenu(wrap, sel, e.clientX, e.clientY); });
+			wrap.addEventListener('click', async (e) => { 
+				e.stopPropagation(); 
+				const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
+				const locked = String(sale.pay_method || '').trim() !== '';
+				if (!isAdminUser && locked) return; // block opening menu for non-admins
+				openPayMenu(wrap, sel, e.clientX, e.clientY); 
+			});
 				wrap.tabIndex = 0;
-				wrap.addEventListener('keydown', async (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPayMenu(wrap, sel); } });
+			wrap.addEventListener('keydown', async (e) => { 
+				if (e.key === 'Enter' || e.key === ' ') { 
+					e.preventDefault(); 
+					const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
+					const locked = String(sale.pay_method || '').trim() !== '';
+					if (!isAdminUser && locked) return; 
+					openPayMenu(wrap, sel); 
+				} 
+			});
 				wrap.appendChild(sel);
 				return wrap;
 			})()),
@@ -1614,10 +1640,21 @@ function renderTable() {
 				input.value = sale.client_name || '';
 				input.placeholder = '';
 				input.readOnly = true; // Make readonly - only editable via edit button
-				input.style.cursor = 'pointer';
+				// Lock edit action for non-admins if pay_method chosen
+				const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
+				const saleLocked = String(sale.pay_method || '').trim() !== '';
+				if (!isAdminUser && saleLocked) {
+					input.style.cursor = 'default';
+					input.title = 'Pedido bloqueado';
+				} else {
+					input.style.cursor = 'pointer';
+				}
 				// Add click listener to show action bar
 				input.addEventListener('click', (e) => {
 					e.stopPropagation();
+					const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
+					const saleLocked = String(sale.pay_method || '').trim() !== '';
+					if (!isAdminUser && saleLocked) return; // block opening editor for non-admins
 					const currentName = input.value || '';
 					openClientActionBar(td, sale.id, currentName, e.clientX, e.clientY);
 				});
@@ -3189,7 +3226,14 @@ function openCommentDialog(anchorEl, initial = '', anchorX, anchorY, saleId = nu
 async function deleteRow(id) {
 	const prev = state.sales.find(s => s.id === id);
 	const actor = encodeURIComponent(state.currentUser?.name || '');
-	await api('DELETE', `${API.Sales}?id=${encodeURIComponent(id)}&actor=${actor}`);
+    // Block delete in UI for non-admins if sale is locked
+    const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
+    const locked = String(prev?.pay_method || '').trim() !== '';
+    if (!isAdminUser && locked) {
+        try { notify.error('Pedido bloqueado: solo admin/superadmin puede eliminar'); } catch {}
+        return;
+    }
+    await api('DELETE', `${API.Sales}?id=${encodeURIComponent(id)}&actor=${actor}`);
 	state.sales = state.sales.filter(s => s.id !== id);
 	// Show immediate local toast for feedback; global notification will also arrive via polling
 	if (prev) {
