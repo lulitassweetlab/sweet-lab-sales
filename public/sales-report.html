@@ -463,25 +463,26 @@
 			}
 			let tGrand = 0;
 			
-		// Calculate totals first (fast)
-		for (const r of rows){
-			for (const d of desserts) {
-				const qty = Number(r[`q_${d.short_code}`]) || 0;
-				qtys[d.short_code] += qty;
-			}
-			tGrand += Number(r.tot) || 0;
-		}
-			
-		// Update totals dynamically
-		let totalQty = 0;
+	// Calculate totals first (fast)
+	for (const r of rows){
 		for (const d of desserts) {
-			const el = document.getElementById(`t-q-${d.short_code}`);
-			if (el) el.textContent = qtys[d.short_code] || '';
-			totalQty += Number(qtys[d.short_code]) || 0;
+			const qty = Number(r[`q_${d.short_code}`]) || 0;
+			qtys[d.short_code] += qty;
 		}
-			
-			tGrandEl.textContent = tGrand || '';
-			tSumAllEl.textContent = totalQty || '';
+		tGrand += Number(r.tot) || 0;
+	}
+		
+	// Update totals dynamically
+	let totalQty = 0;
+	for (const d of desserts) {
+		const el = document.getElementById(`t-q-${d.short_code}`);
+		const value = Number(qtys[d.short_code]) || 0;
+		if (el) el.textContent = value || '';
+		totalQty += value;
+	}
+		
+		tGrandEl.textContent = tGrand || '';
+		tSumAllEl.textContent = totalQty || '';
 			countLabel.textContent = `Filas: ${rows.length}`;
 			
 			// Render rows in batches for better performance
@@ -504,11 +505,11 @@
 						<td>${payLabel(r.pay_method||'')}</td>
 						<td>${r.client_name||''}</td>`;
 					
-					// Add dessert quantities dynamically
-					for (const d of desserts) {
-						const qty = r[`q_${d.short_code}`] || 0;
-						html += `<td>${qty || ''}</td>`;
-					}
+				// Add dessert quantities dynamically
+				for (const d of desserts) {
+					const qty = Number(r[`q_${d.short_code}`]) || 0;
+					html += `<td>${qty || ''}</td>`;
+				}
 					
 					html += `<td class="col-total">${r.tot||''}</td>`;
 					row.innerHTML = html;
@@ -646,7 +647,7 @@
 							is_paid: !!r.is_paid,
 							pay_method: r.pay_method || '',
 							client_name: r.client_name || '',
-							tot: r.total_cents || 0
+							tot: Number(r.total_cents) || 0
 						};
 						
 						for (const d of desserts) {
@@ -698,7 +699,7 @@
 									is_paid: !!r.is_paid,
 									pay_method: r.pay_method || '',
 									client_name: r.client_name || '',
-									tot: r.total_cents || 0
+									tot: Number(r.total_cents) || 0
 								};
 								
 								for (const d of desserts) {
@@ -766,7 +767,7 @@
 				is_paid: !!r.is_paid,
 				pay_method: r.pay_method || '',
 				client_name: r.client_name || '',
-				tot: r.total_cents || 0
+				tot: Number(r.total_cents) || 0
 			};
 			
 			// Process dessert quantities dynamically
