@@ -62,6 +62,7 @@
 							<th>Cliente</th>
 							<th id="th-metodo" style="cursor:pointer; user-select:none;">Método <span id="sort-metodo"></span></th>
 							<th id="th-fuente" style="cursor:pointer; user-select:none;">Fuente <span id="sort-fuente"></span></th>
+							<th id="th-fecha-pago" style="cursor:pointer; user-select:none;">Fecha pago <span id="sort-fecha-pago"></span></th>
 							<th class="col-paid">$</th>
 							<th class="col-qty">Arco</th>
 							<th class="col-qty">Melo</th>
@@ -75,6 +76,7 @@
 					<tbody id="report-tbody"></tbody>
 					<tfoot>
 						<tr>
+							<td></td>
 							<td></td>
 							<td></td>
 							<td></td>
@@ -347,12 +349,14 @@
 				const tr = document.createElement('tr');
 				const payMethod = payLabel(r.pay_method||'');
 				const paySource = r.payment_source ? payLabel(r.payment_source) : '';
+				const payDate = r.payment_date ? String(r.payment_date).slice(0,10) : '';
 				tr.innerHTML = `
 					<td>${r.date}</td>
 					<td>${r.sellerName}</td>
 					<td>${r.client_name||''}</td>
 					<td>${payMethod}</td>
 					<td>${paySource}</td>
+					<td>${payDate}</td>
 					<td>${r.is_paid ? '✓' : ''}</td>
 					<td>${r.qa||''}</td>
 					<td>${r.qm||''}</td>
@@ -399,6 +403,9 @@
 				} else if (column === 'fuente') {
 					valA = (a.payment_source || '').toLowerCase();
 					valB = (b.payment_source || '').toLowerCase();
+				} else if (column === 'fecha-pago') {
+					valA = a.payment_date || '';
+					valB = b.payment_date || '';
 				}
 				if (valA < valB) return direction === 'asc' ? -1 : 1;
 				if (valA > valB) return direction === 'asc' ? 1 : -1;
@@ -413,6 +420,7 @@
 			document.getElementById('sort-vendedor').textContent = '';
 			document.getElementById('sort-metodo').textContent = '';
 			document.getElementById('sort-fuente').textContent = '';
+			document.getElementById('sort-fecha-pago').textContent = '';
 			if (sortColumn) {
 				const arrow = sortDirection === 'asc' ? '▲' : '▼';
 				document.getElementById(`sort-${sortColumn}`).textContent = arrow;
@@ -424,6 +432,7 @@
 			const thVendedor = document.getElementById('th-vendedor');
 			const thMetodo = document.getElementById('th-metodo');
 			const thFuente = document.getElementById('th-fuente');
+			const thFechaPago = document.getElementById('th-fecha-pago');
 			
 			thFecha.addEventListener('click', () => {
 				if (sortColumn === 'fecha') {
@@ -460,6 +469,16 @@
 					sortDirection = sortDirection === 'desc' ? 'asc' : 'desc';
 				} else {
 					sortColumn = 'fuente';
+					sortDirection = 'desc';
+				}
+				render();
+			});
+			
+			thFechaPago.addEventListener('click', () => {
+				if (sortColumn === 'fecha-pago') {
+					sortDirection = sortDirection === 'desc' ? 'asc' : 'desc';
+				} else {
+					sortColumn = 'fecha-pago';
 					sortDirection = 'desc';
 				}
 				render();
@@ -504,18 +523,42 @@
 					for (const r of (sales||[])){
 						const pm = (r.pay_method || '').toString();
 						const ps = (r.payment_source || '').toString();
+						const pd = (r.payment_date || '').toString();
 						const unpaid = r.is_paid !== true;
                         // Allow sale if it's unpaid AND has either a valid pay_method OR a valid payment_source
                         const hasPayMethod = (pm === '' || pm === 'efectivo' || pm === 'transf' || pm === 'marce' || pm === 'jorge' || pm === 'jorgebank');
                         const hasPaySource = (ps !== '');
 						if (!(unpaid && (hasPayMethod || hasPaySource))) continue;
-						const qa = r.qty_arco || 0; const qm = r.qty_melo || 0; const qma = r.qty_mara || 0; const qo = r.qty_oreo || 0; const qn = r.qty_nute || 0; const tot = r.total_cents || 0;
+						
+						// Support both formats: old (qty_*) and new (items array)
+						let qa = r.qty_arco || 0;
+						let qm = r.qty_melo || 0;
+						let qma = r.qty_mara || 0;
+						let qo = r.qty_oreo || 0;
+						let qn = r.qty_nute || 0;
+						
+						// If items array exists, use that instead
+						if (Array.isArray(r.items) && r.items.length > 0) {
+							qa = 0; qm = 0; qma = 0; qo = 0; qn = 0;
+							for (const item of r.items) {
+								const code = (item.short_code || '').toLowerCase();
+								const qty = Number(item.quantity || 0);
+								if (code === 'arco') qa += qty;
+								else if (code === 'melo') qm += qty;
+								else if (code === 'mara') qma += qty;
+								else if (code === 'oreo') qo += qty;
+								else if (code === 'nute') qn += qty;
+							}
+						}
+						
+						const tot = r.total_cents || 0;
 						dataset.push({
 							date: String(day.day).slice(0,10),
 							sellerName: seller.name || '',
 							client_name: r.client_name || '',
 							pay_method: pm,
 							payment_source: ps,
+							payment_date: pd,
 							is_paid: !!r.is_paid,
 							qa, qm, qma, qo, qn, tot,
 							saleId: r.id
@@ -536,26 +579,28 @@
 		}
 
 		exportBtn.addEventListener('click', () => {
-			const header = ['Fecha','Vendedor','Cliente','Método','Fuente','$','Arco','Melo','Mara','Oreo','Nute','Total'];
+			const header = ['Fecha','Vendedor','Cliente','Método','Fuente','Fecha pago','$','Arco','Melo','Mara','Oreo','Nute','Total'];
 			const rows = [header];
 			let eGrand = 0, eQa=0,eQm=0,eQma=0,eQo=0,eQn=0;
 			for (const r of getFilteredData()){
 				const payMethod = payLabel(r.pay_method||'');
 				const paySource = r.payment_source ? payLabel(r.payment_source) : '';
+				const payDate = r.payment_date ? String(r.payment_date).slice(0,10) : '';
 				rows.push([
 					r.date,
 					r.sellerName,
 					r.client_name||'',
 					payMethod,
 					paySource,
+					payDate,
 					r.is_paid ? '✓' : '',
 					r.qa||'', r.qm||'', r.qma||'', r.qo||'', r.qn||'', r.tot||''
 				]);
 				eQa += r.qa||0; eQm += r.qm||0; eQma += r.qma||0; eQo += r.qo||0; eQn += r.qn||0; eGrand += r.tot||0;
 			}
-			rows.push(['','','','','','Totales','','','','','', eGrand || '']);
+			rows.push(['','','','','','','Totales','','','','','', eGrand || '']);
 			const ws = XLSX.utils.aoa_to_sheet(rows);
-			ws['!cols'] = [ {wch:10},{wch:18},{wch:24},{wch:10},{wch:14},{wch:3},{wch:6},{wch:6},{wch:6},{wch:6},{wch:6},{wch:10} ];
+			ws['!cols'] = [ {wch:10},{wch:18},{wch:24},{wch:10},{wch:14},{wch:12},{wch:3},{wch:6},{wch:6},{wch:6},{wch:6},{wch:6},{wch:10} ];
 			const wb = XLSX.utils.book_new();
 			XLSX.utils.book_append_sheet(wb, ws, 'Cartera');
 			XLSX.writeFile(wb, `Cartera_${(start||'')}_a_${(end||'')}.xlsx`);
