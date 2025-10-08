@@ -310,7 +310,8 @@
 				// Check pay source filter (new sources: Bancolombia, Nequi, etc.)
 				const ps = (r.payment_source || '').toString();
 				const source = getPaySource(ps);
-				if (selSources.length && source && !selSources.includes(source)) return false;
+				// If source filters are selected, only show sales that have a source AND that source is selected
+				if (selSources.length && (!source || !selSources.includes(source))) return false;
 				
 				// Filter by payment date (not sale date)
 				const payDate = (r.payment_date || '').toString();
