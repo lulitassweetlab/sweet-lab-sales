@@ -130,6 +130,9 @@
 		let sortColumn = null;
 		let sortDirection = 'desc'; // 'asc' or 'desc'
 
+		// Precio de venta por postre (alineado con el backend)
+		const PRICES = { arco: 8500, melo: 9500, mara: 10500, oreo: 10500, nute: 13000 };
+
         function payLabel(pm){
             const lower = (pm || '').toString().toLowerCase();
             if (lower === 'efectivo aleja' || lower === 'efectivo_aleja') return 'Efectivo Aleja';
@@ -555,8 +558,28 @@
 								else if (code === 'nute') qn += qty;
 							}
 						}
-						
-                        const tot = Number(r.total_cents || 0) || 0;
+
+						// Recalcular total de forma resiliente (items -> cantidades * precios -> total_cents)
+						let totCalc = 0;
+						if (Array.isArray(r.items) && r.items.length > 0) {
+							for (const item of r.items) {
+								const code = (item.short_code || '').toLowerCase();
+								const qty = Number(item.quantity || 0) || 0;
+								let price = Number(item.unit_price || 0) || 0;
+								if (!price) {
+									if (code === 'arco') price = PRICES.arco;
+									else if (code === 'melo') price = PRICES.melo;
+									else if (code === 'mara') price = PRICES.mara;
+									else if (code === 'oreo') price = PRICES.oreo;
+									else if (code === 'nute') price = PRICES.nute;
+								}
+								totCalc += qty * price;
+							}
+						} else {
+							totCalc = (qa * PRICES.arco) + (qm * PRICES.melo) + (qma * PRICES.mara) + (qo * PRICES.oreo) + (qn * PRICES.nute);
+						}
+						const totDb = Number(r.total_cents || 0) || 0;
+						const tot = totCalc > 0 ? totCalc : totDb;
 						dataset.push({
 							date: String(day.day).slice(0,10),
 							sellerName: seller.name || '',
