@@ -6626,10 +6626,16 @@ function openClientActionBar(tdElement, saleId, clientName, clickX, clickY) {
 	tdElement.appendChild(actionBar);
 	tdElement.classList.add('action-bar-active');
 	
+	// Add row highlight
+	const rowElement = tdElement.closest('tr');
+	if (rowElement) {
+		rowElement.classList.add('row-action-bar-active');
+	}
+	
 	// Show with animation
 	setTimeout(() => actionBar.classList.add('active'), 10);
 	
-	activeClientActionBar = { bar: actionBar, td: tdElement };
+	activeClientActionBar = { bar: actionBar, td: tdElement, row: rowElement };
 	
 	// Close on outside click
 	const outsideClick = (e) => {
@@ -6660,6 +6666,10 @@ function closeClientActionBar() {
 		}
 		if (activeClientActionBar.td) {
 			activeClientActionBar.td.classList.remove('action-bar-active');
+		}
+		// Remove row highlight
+		if (activeClientActionBar.row) {
+			activeClientActionBar.row.classList.remove('row-action-bar-active');
 		}
 		activeClientActionBar = null;
 	}
