@@ -312,8 +312,10 @@
 				const source = getPaySource(ps);
 				if (selSources.length && source && !selSources.includes(source)) return false;
 				
-				if (dateFilterFrom && r.date < dateFilterFrom) return false;
-				if (dateFilterTo && r.date > dateFilterTo) return false;
+				// Filter by payment date (not sale date)
+				const payDate = (r.payment_date || '').toString();
+				if (dateFilterFrom && payDate && payDate < dateFilterFrom) return false;
+				if (dateFilterTo && payDate && payDate > dateFilterTo) return false;
 				return true;
 			});
 			return rows;
