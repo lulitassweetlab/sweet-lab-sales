@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Entregas</title>
+	<link rel="stylesheet" href="/styles.css?v=2025-09-17-1" />
+</head>
+<body>
+	<header class="app-header">
+		<div class="header-row">
+			<div class="header-left">
+				<img src="/logo.png" alt="Lulitas Logo" class="app-logo" />
+				<h1>Entregas</h1>
+			</div>
+			<div class="header-actions">
+				<button id="back-btn" class="press-btn">Volver</button>
+			</div>
+		</div>
+	</header>
+
+	<main class="sales-panel">
+		<div class="panel-header">
+			<h3>Producciones de postres</h3>
+			<div class="panel-actions">
+				<button id="add-delivery-btn" class="press-btn btn-primary">+ Nueva entrega</button>
+			</div>
+		</div>
+		<div class="panel-body">
+			<div class="table-wrapper">
+				<table id="deliveries-table">
+					<thead>
+						<tr>
+							<th>Fecha</th>
+							<th class="col-qty">Arco</th>
+							<th class="col-qty">Melo</th>
+							<th class="col-qty">Mara</th>
+							<th class="col-qty">Oreo</th>
+							<th class="col-qty">Nute</th>
+							<th>Acciones</th>
+						</tr>
+					</thead>
+					<tbody id="deliveries-tbody"></tbody>
+				</table>
+			</div>
+		</div>
+	</main>
+
+	<script type="module">
+	(function(){
+		const tbody = document.getElementById('deliveries-tbody');
+		const addBtn = document.getElementById('add-delivery-btn');
+		const backBtn = document.getElementById('back-btn');
+
+		async function api(method, url, body) {
+			const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+			if (!res.ok) throw new Error('API error');
+			return res.json();
+		}
+
+		async function load() {
+			let rows = [];
+			try { rows = await api('GET', '/api/deliveries'); } catch {}
+			render(rows);
+		}
+
+		function render(rows) {
+			tbody.innerHTML = '';
+			for (const r of rows) tbody.appendChild(renderDeliveryRow(r));
+		}
+
+		function renderDeliveryRow(r) {
+			const tr = document.createElement('tr');
+			const d = document.createElement('td'); d.textContent = r.day || '';
+			const a = document.createElement('td'); a.textContent = r.arco ?? 0; a.className = 'col-qty';
+			const m = document.createElement('td'); m.textContent = r.melo ?? 0; m.className = 'col-qty';
+			const ma = document.createElement('td'); ma.textContent = r.mara ?? 0; ma.className = 'col-qty';
+			const o = document.createElement('td'); o.textContent = r.oreo ?? 0; o.className = 'col-qty';
+			const n = document.createElement('td'); n.textContent = r.nute ?? 0; n.className = 'col-qty';
+			const act = document.createElement('td');
+			const edit = document.createElement('button'); edit.className = 'press-btn'; edit.textContent = 'Editar';
+			const notes = document.createElement('button'); notes.className = 'press-btn'; notes.textContent = 'Notas';
+			const addSeller = document.createElement('button'); addSeller.className = 'press-btn'; addSeller.textContent = 'Agregar vendedor';
+			act.style.display = 'flex'; act.style.gap = '6px'; act.append(edit, notes, addSeller);
+			tr.append(d, a, m, ma, o, n, act);
+			return tr;
+		}
+
+		addBtn.addEventListener('click', async () => {
+			const day = prompt('Fecha (YYYY-MM-DD):', new Date().toISOString().slice(0,10)); if (!day) return;
+			const arco = Number(prompt('Arco:', '0')||'0')|0;
+			const melo = Number(prompt('Melo:', '0')||'0')|0;
+			const mara = Number(prompt('Mara:', '0')||'0')|0;
+			const oreo = Number(prompt('Oreo:', '0')||'0')|0;
+			const nute = Number(prompt('Nute:', '0')||'0')|0;
+			try { await api('POST', '/api/deliveries', { day, items: { arco, melo, mara, oreo, nute } }); await load(); }
+			catch (e) { alert('No se pudo crear'); }
+		});
+
+		backBtn.addEventListener('click', () => { window.location.href = '/index.html'; });
+		load();
+	})();
+	</script>
+</body>
+</html>
+
