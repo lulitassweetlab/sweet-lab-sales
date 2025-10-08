@@ -3264,30 +3264,23 @@ function updateSummary() {
 	let grand = 0;
 	
 	for (const s of state.sales) {
-		// Support both formats
-	if (Array.isArray(s.items) && s.items.length > 0) {
-		// New format: use items
-		for (const item of s.items) {
-			// Find dessert by id or short_code
-			const code = item.short_code || 
-				state.desserts.find(d => d.id === item.dessert_id)?.short_code;
-			
-			if (code && qtys[code] !== undefined) {
-				qtys[code] += Number(item.quantity || 0);
-			}
-			const pm = (s.pay_method || '').toString();
-			if (pm === 'transf' || pm === 'jorgebank' || pm === 'marce' || pm === 'jorge') {
-				if (code && paidQtys[code] !== undefined) {
-					paidQtys[code] += Number(item.quantity || 0);
+		// Support both formats; align with visible per-flavor qty (first occurrence per dessert)
+		const pm = (s.pay_method || '').toString();
+		if (Array.isArray(s.items) && s.items.length > 0) {
+			for (const d of state.desserts) {
+				let qty = 0;
+				const item = s.items.find(i => i.short_code === d.short_code || i.dessert_id === d.id);
+				qty = item ? Number(item.quantity || 0) : 0;
+				qtys[d.short_code] += qty;
+				if (pm === 'transf' || pm === 'jorgebank' || pm === 'marce' || pm === 'jorge') {
+					paidQtys[d.short_code] += qty;
 				}
 			}
-		}
-	} else {
+		} else {
 			// Old format: use qty_* columns
 			for (const d of state.desserts) {
 				const qty = Number(s[`qty_${d.short_code}`] || 0);
 				qtys[d.short_code] += qty;
-				const pm = (s.pay_method || '').toString();
 				if (pm === 'transf' || pm === 'jorgebank' || pm === 'marce' || pm === 'jorge') {
 					paidQtys[d.short_code] += qty;
 				}
