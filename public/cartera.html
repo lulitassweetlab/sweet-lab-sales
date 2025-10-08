@@ -534,10 +534,13 @@
 						const ps = (r.payment_source || '').toString();
 						const pd = r.payment_date ? String(r.payment_date).slice(0, 10) : '';
 						const unpaid = r.is_paid !== true;
-                        // Allow sale if it's unpaid AND has either a valid pay_method OR a valid payment_source
+                        // Allow sale if:
+                        // 1. It has a payment date (regardless of paid status), OR
+                        // 2. It's unpaid AND has a valid payment method or source
+                        const hasPaymentDate = pd !== '';
                         const hasPayMethod = (pm === '' || pm === 'efectivo' || pm === 'transf' || pm === 'marce' || pm === 'jorge' || pm === 'jorgebank');
                         const hasPaySource = (ps !== '');
-						if (!(unpaid && (hasPayMethod || hasPaySource))) continue;
+						if (!(hasPaymentDate || (unpaid && (hasPayMethod || hasPaySource)))) continue;
 						
 						// Support both formats: old (qty_*) and new (items array)
 						let qa = r.qty_arco || 0;
