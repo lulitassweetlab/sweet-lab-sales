@@ -4233,12 +4233,14 @@ td.col-client.action-bar-active .client-input {
 
 .payment-methods-container {
 	display: flex;
+	flex-wrap: wrap;
 	gap: 8px;
 	margin-top: 10px;
 }
 
 .payment-method-btn {
-	flex: 1;
+	flex: 1 1 calc(50% - 4px);
+	min-width: 120px;
 	padding: 10px 8px;
 	border: 1px solid rgba(193, 84, 129, 0.3);
 	border-radius: 10px;
@@ -4248,6 +4250,7 @@ td.col-client.action-bar-active .client-input {
 	font-weight: 500;
 	cursor: pointer;
 	transition: all 0.2s ease;
+	text-align: center;
 }
 
 [data-theme="dark"] .payment-method-btn {

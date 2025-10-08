@@ -6364,11 +6364,11 @@ function openPaymentDateDialog(saleId, anchorX, anchorY) {
 	methodsContainer.className = 'payment-methods-container';
 	
 	const methods = [
-		{ value: 'efectivo_aleja', label: 'Efectivo Aleja' },
-		{ value: 'efectivo_marcela', label: 'Efectivo Marcela' },
-		{ value: 'bancolombia_aleja', label: 'Bancolombia Aleja' },
 		{ value: 'bancolombia', label: 'Bancolombia' },
 		{ value: 'nequi', label: 'Nequi' },
+		{ value: 'efectivo_marcela', label: 'Efectivo Marcela' },
+		{ value: 'efectivo_aleja', label: 'Efectivo Aleja' },
+		{ value: 'bancolombia_aleja', label: 'Bancolombia Aleja' },
 		{ value: 'otro', label: 'Otro' }
 	];
 	
