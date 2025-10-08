@@ -7436,6 +7436,7 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 
 (async function init() {
 	bindEvents();
+	bindLogin();
 	notify.initToggle();
 	// Asegurar que el login siempre quede vinculado, incluso si las llamadas iniciales fallan
 	// (la restauración automática fue removida; se mantiene reporte bajo demanda)
