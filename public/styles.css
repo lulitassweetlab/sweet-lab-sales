@@ -4258,8 +4258,20 @@ td.col-client.action-bar-active .client-input {
 }
 
 .payment-method-btn:hover {
-	border-color: rgba(193, 84, 129, 0.5);
-	background: rgba(193, 84, 129, 0.05);
+	border-color: rgba(193, 84, 129, 0.6);
+	background: rgba(193, 84, 129, 0.1);
+	transform: translateY(-2px);
+	box-shadow: 0 4px 12px rgba(193, 84, 129, 0.2);
+}
+
+[data-theme="dark"] .payment-method-btn:hover {
+	background: rgba(193, 84, 129, 0.15);
+	box-shadow: 0 4px 12px rgba(193, 84, 129, 0.3);
+}
+
+.payment-method-btn:active {
+	transform: translateY(0);
+	box-shadow: 0 2px 6px rgba(193, 84, 129, 0.15);
 }
 
 .payment-method-btn.selected {
@@ -4267,8 +4279,15 @@ td.col-client.action-bar-active .client-input {
 	background: rgba(193, 84, 129, 0.15);
 	color: var(--text);
 	font-weight: 600;
+	box-shadow: 0 2px 8px rgba(193, 84, 129, 0.2);
+}
+
+.payment-method-btn.selected:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 4px 14px rgba(193, 84, 129, 0.3);
 }
 
 [data-theme="dark"] .payment-method-btn.selected {
 	background: rgba(193, 84, 129, 0.25);
+	box-shadow: 0 2px 8px rgba(193, 84, 129, 0.3);
 }
