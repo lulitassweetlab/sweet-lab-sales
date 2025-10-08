@@ -95,17 +95,17 @@
 				else if (val === 'jorgebank') wrap.classList.add('method-jorgebank');
 			}
 			applyPayClass();
-			wrap.addEventListener('click', (e) => {
+            wrap.addEventListener('click', (e) => {
 				e.stopPropagation();
 				const rect = wrap.getBoundingClientRect();
-				openPayMenu(wrap, sel, rect.left + rect.width/2, rect.bottom);
+                openPayMenu(wrap, sel, rect.left + rect.width/2, rect.bottom, sale);
 			});
 			wrap.tabIndex = 0;
-			wrap.addEventListener('keydown', (e) => {
+            wrap.addEventListener('keydown', (e) => {
 				if (e.key === 'Enter' || e.key === ' ') {
 					e.preventDefault();
 					const rect = wrap.getBoundingClientRect();
-					openPayMenu(wrap, sel, rect.left + rect.width/2, rect.bottom);
+                    openPayMenu(wrap, sel, rect.left + rect.width/2, rect.bottom, sale);
 				}
 			});
 			sel.addEventListener('change', async () => {
@@ -135,7 +135,7 @@
 			return container;
 		}
 
-		function openPayMenu(anchorEl, selectEl, clickX, clickY) {
+        function openPayMenu(anchorEl, selectEl, clickX, clickY, sale) {
 			const rect = anchorEl.getBoundingClientRect();
 			const menu = document.createElement('div');
 			menu.className = 'pay-menu';
@@ -161,7 +161,11 @@
 					e.stopPropagation();
 					selectEl.value = it.v;
 					selectEl.dispatchEvent(new Event('change'));
-					cleanup();
+                    cleanup();
+                    // If jorgebank selected, open payment date popover centered
+                    if (it.v === 'jorgebank' && sale && typeof openPaymentDateDialogTransfer === 'function') {
+                        try { openPaymentDateDialogTransfer(sale); } catch {}
+                    }
 				});
 				menu.appendChild(btn);
 			}
@@ -191,6 +195,157 @@
 				document.removeEventListener('touchstart', outside, true);
 				if (menu.parentNode) menu.parentNode.removeChild(menu);
 			}
+
+        // Payment date dialog for transfers: centered and full view
+        function openPaymentDateDialogTransfer(sale){
+            if (!sale || !sale.id) return;
+            const pop = document.createElement('div');
+            pop.className = 'payment-date-popover';
+            pop.style.position = 'fixed';
+            pop.style.zIndex = '1000';
+
+            // Title
+            const title = document.createElement('div');
+            title.className = 'payment-date-title';
+            title.textContent = 'Fecha de pago';
+
+            // Inline calendar
+            const calendarContainer = document.createElement('div');
+            calendarContainer.className = 'inline-calendar';
+
+            const today = new Date();
+            let initialDate = new Date();
+            const savedDate = sale.payment_date;
+            if (savedDate) {
+                try {
+                    const dateStr = typeof savedDate === 'string' ? savedDate.slice(0,10) : String(savedDate).slice(0,10);
+                    const parsed = new Date(dateStr + 'T00:00:00');
+                    if (!isNaN(parsed.getTime())) initialDate = parsed;
+                } catch {}
+            }
+            let currentMonth = initialDate.getMonth();
+            let currentYear = initialDate.getFullYear();
+            let selectedDate = new Date(initialDate);
+
+            const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+            const calendarHeader = document.createElement('div');
+            calendarHeader.className = 'calendar-header';
+            const prevBtn = document.createElement('button'); prevBtn.className = 'calendar-nav-btn'; prevBtn.type='button'; prevBtn.innerHTML='◀';
+            const monthLabel = document.createElement('span'); monthLabel.className = 'calendar-month-label'; monthLabel.textContent = `${monthNames[currentMonth]} ${currentYear}`;
+            const nextBtn = document.createElement('button'); nextBtn.className = 'calendar-nav-btn'; nextBtn.type='button'; nextBtn.innerHTML='▶';
+            calendarHeader.append(prevBtn, monthLabel, nextBtn);
+
+            const calendarGrid = document.createElement('div');
+            calendarGrid.className = 'calendar-grid';
+            function renderCalendar(){
+                calendarGrid.innerHTML = '';
+                monthLabel.textContent = `${monthNames[currentMonth]} ${currentYear}`;
+                const dayNames = ['D','L','M','M','J','V','S'];
+                for (const d of dayNames){ const h=document.createElement('div'); h.className='calendar-day-header'; h.textContent=d; calendarGrid.appendChild(h); }
+                const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+                const daysInMonth = new Date(currentYear, currentMonth+1, 0).getDate();
+                for (let i=0;i<firstDay;i++){ const e=document.createElement('div'); e.className='calendar-day empty'; calendarGrid.appendChild(e); }
+                for (let day=1; day<=daysInMonth; day++){
+                    const cell=document.createElement('div'); cell.className='calendar-day'; cell.textContent=day;
+                    const cellDate = new Date(currentYear, currentMonth, day);
+                    if (cellDate.toDateString() === today.toDateString()) cell.classList.add('today');
+                    if (selectedDate && selectedDate.getDate()===day && selectedDate.getMonth()===currentMonth && selectedDate.getFullYear()===currentYear) {
+                        cell.classList.add('selected');
+                    }
+                    cell.addEventListener('click', ()=>{
+                        calendarGrid.querySelectorAll('.calendar-day').forEach(d=>d.classList.remove('selected'));
+                        cell.classList.add('selected');
+                        selectedDate = new Date(currentYear, currentMonth, day);
+                    });
+                    calendarGrid.appendChild(cell);
+                }
+            }
+            prevBtn.addEventListener('click', (e)=>{ e.preventDefault(); currentMonth--; if(currentMonth<0){ currentMonth=11; currentYear--; } renderCalendar(); });
+            nextBtn.addEventListener('click', (e)=>{ e.preventDefault(); currentMonth++; if(currentMonth>11){ currentMonth=0; currentYear++; } renderCalendar(); });
+            renderCalendar();
+            calendarContainer.append(calendarHeader, calendarGrid);
+
+            const methodLabel = document.createElement('div');
+            methodLabel.className = 'payment-date-label';
+            methodLabel.textContent = 'Fuente de pago:';
+            methodLabel.style.marginTop = '14px';
+            const methodsContainer = document.createElement('div');
+            methodsContainer.className = 'payment-methods-container';
+            const methods = [
+                { value: 'bancolombia', label: 'Bancolombia' },
+                { value: 'nequi', label: 'Nequi' },
+                { value: 'efectivo_marcela', label: 'Efectivo Marcela' },
+                { value: 'efectivo_aleja', label: 'Efectivo Aleja' },
+                { value: 'bancolombia_aleja', label: 'Bancolombia Aleja' },
+                { value: 'otro', label: 'Otro' }
+            ];
+            const previousSource = sale.payment_source;
+            for (const m of methods){
+                const b = document.createElement('button');
+                b.type = 'button'; b.className='payment-method-btn'; b.textContent = m.label; b.dataset.value = m.value;
+                if (previousSource && (
+                    m.label === previousSource ||
+                    m.label.toLowerCase() === String(previousSource).toLowerCase() ||
+                    m.value === String(previousSource).toLowerCase()
+                )) { b.classList.add('selected'); }
+                b.addEventListener('click', async ()=>{
+                    // Disable while saving
+                    methodsContainer.querySelectorAll('button').forEach(x=>x.disabled=true);
+                    try {
+                        const paymentDate = selectedDate.toISOString().split('T')[0];
+                        const paymentSource = m.label;
+                        const payload = {
+                            id: Number(sale.id),
+                            client_name: sale.client_name || '',
+                            qty_arco: Number(sale.qty_arco||0),
+                            qty_melo: Number(sale.qty_melo||0),
+                            qty_mara: Number(sale.qty_mara||0),
+                            qty_oreo: Number(sale.qty_oreo||0),
+                            qty_nute: Number(sale.qty_nute||0),
+                            is_paid: !!sale.is_paid,
+                            pay_method: sale.pay_method || null,
+                            payment_date: paymentDate,
+                            payment_source: paymentSource,
+                            _actor_name: currentUser?.name || ''
+                        };
+                        await fetch('/api/sales', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                        sale.payment_date = paymentDate;
+                        sale.payment_source = paymentSource;
+                        cleanup();
+                    } catch (err) {
+                        console.error('Error guardando fecha de pago:', err);
+                        methodsContainer.querySelectorAll('button').forEach(x=>x.disabled=false);
+                    }
+                });
+                methodsContainer.appendChild(b);
+            }
+
+            pop.append(title, calendarContainer, methodLabel, methodsContainer);
+            document.body.appendChild(pop);
+
+            // Center in viewport and keep fully visible
+            requestAnimationFrame(()=>{
+                const r = pop.getBoundingClientRect();
+                const vw = window.innerWidth, vh = window.innerHeight;
+                const pad = 16;
+                let left = (vw - r.width)/2; if (left < pad) left = pad; if (left + r.width > vw - pad) left = vw - r.width - pad;
+                let top = (vh - r.height)/2; if (top < pad) top = pad; if (top + r.height > vh - pad) top = vh - r.height - pad;
+                pop.style.left = left + 'px';
+                pop.style.top = top + 'px';
+                pop.style.transform = 'none';
+            });
+
+            function outside(ev){ if (!pop.contains(ev.target)) cleanup(); }
+            function cleanup(){
+                document.removeEventListener('mousedown', outside, true);
+                document.removeEventListener('touchstart', outside, true);
+                if (pop.parentNode) pop.parentNode.removeChild(pop);
+            }
+            setTimeout(()=>{
+                document.addEventListener('mousedown', outside, true);
+                document.addEventListener('touchstart', outside, true);
+            },0);
+        }
 			setTimeout(() => {
 				document.addEventListener('mousedown', outside, true);
 				document.addEventListener('touchstart', outside, true);
