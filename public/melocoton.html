@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Postre de Melocotón – Lulita’s Sweet Lab</title>
+    <meta name="description" content="Antójate hoy, recíbelo mañana. Postre de Melocotón con domicilio gratis en Medellín. Pago contraentrega.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" href="./logo.png" type="image/png">
+    <link rel="stylesheet" href="./melocoton.css">
+    <meta property="og:title" content="Postre de Melocotón – Lulita’s Sweet Lab">
+    <meta property="og:description" content="Solo 20 disponibles — paga al recibir. Haz tu pedido antes de las 10:00 p.m.">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="https://images.unsplash.com/photo-1622737133809-d95047b9e673?auto=format&fit=crop&w=1600&q=80">
+  </head>
+  <body>
+    <header class="hero">
+      <div class="hero__overlay"></div>
+      <div class="container hero__content">
+        <div class="brand">
+          <img class="brand__logo" src="./logo.png" alt="Lulita’s Sweet Lab" />
+          <div class="brand__name">Lulita’s Sweet Lab</div>
+        </div>
+        <h1 class="hero__title">🍑 Antójate hoy, recíbelo mañana</h1>
+        <p class="hero__subtitle">Postre de Melocotón con domicilio GRATIS 🚲</p>
+        <div class="hero__meta">
+          <span class="badge">💸 Pago contraentrega</span>
+          <span class="badge">🚲 Domicilio gratis</span>
+          <span class="badge units-badge">🔢 <span class="units-available" data-initial="20">20</span> unidades</span>
+        </div>
+        <p class="hero__note">Solo 20 disponibles — paga al recibir • Haz tu pedido antes de las <strong>10:00 p.m.</strong></p>
+        <a class="btn btn--primary" href="#pedido">📲 Hacer mi pedido ahora</a>
+        <div class="hero__countdown">
+          ⏰ Cierre de pedidos en <span id="countdown">—:—:—</span>
+        </div>
+      </div>
+      <figure class="hero__image" aria-hidden="true" title="Postre de melocotón">
+        <!-- Background image handled in CSS -->
+      </figure>
+    </header>
+
+    <main>
+      <section class="details" id="detalles">
+        <div class="container details__grid">
+          <div class="details__image" aria-hidden="true"></div>
+          <div class="details__text">
+            <h2>🍰 Detalles del postre</h2>
+            <ul class="features">
+              <li>🧁 Hecho con melocotones frescos, crema suave y base artesanal.</li>
+              <li>💕 El postre perfecto para darte un gusto (o compartir).</li>
+              <li>🚲 Entrega mañana en la tarde — ¡domicilio gratis!</li>
+              <li>💸 Pago contraentrega (solo si haces tu pedido hoy).</li>
+            </ul>
+            <div class="stats">
+              <div class="stat">
+                <div class="stat__label">⏰ Cierre de pedidos</div>
+                <div class="stat__value">10:00 p.m.</div>
+              </div>
+              <div class="stat">
+                <div class="stat__label">🔢 Disponibles</div>
+                <div class="stat__value"><span class="units-available" data-initial="20">20</span> unidades</div>
+              </div>
+            </div>
+            <div class="seals">
+              <span class="seal">💸 Pago contraentrega</span>
+              <span class="seal">🚲 Domicilio gratis</span>
+              <span class="seal">⭐ Solo 20 unidades</span>
+            </div>
+
+            <figure class="testimonial">
+              <blockquote>“¡El postre más rico que he probado!”</blockquote>
+              <figcaption>— Ana, Medellín</figcaption>
+            </figure>
+          </div>
+        </div>
+      </section>
+
+      <section class="order" id="pedido">
+        <div class="container">
+          <h2>🩷 Haz tu pedido aquí:</h2>
+          <form id="order-form" class="form" novalidate>
+            <div class="form__field">
+              <label for="name">🧍‍♀️ Nombre completo</label>
+              <input id="name" name="name" type="text" required placeholder="Tu nombre y apellido" autocomplete="name">
+              <p class="field-error" id="name-error" role="alert"></p>
+            </div>
+
+            <div class="form__field">
+              <label for="phone">📱 Número de WhatsApp o teléfono</label>
+              <input id="phone" name="phone" type="tel" required placeholder="Ej: 300 123 4567" autocomplete="tel" pattern="^[0-9+\s()\-]{7,}$">
+              <p class="field-error" id="phone-error" role="alert"></p>
+            </div>
+
+            <div class="form__field">
+              <label for="address">📦 (opcional) Dirección o barrio</label>
+              <input id="address" name="address" type="text" placeholder="Tu dirección o barrio">
+            </div>
+
+            <div class="form__check">
+              <input id="consent" name="consent" type="checkbox" required>
+              <label for="consent">Acepto que mi pedido será confirmado por WhatsApp 💬</label>
+            </div>
+            <p class="field-error" id="consent-error" role="alert"></p>
+
+            <button type="submit" class="btn btn--primary">Enviar mi pedido 🍑</button>
+            <p class="form__hint">Al enviar aceptas el pago contraentrega y nuestras políticas de contacto.</p>
+          </form>
+        </div>
+      </section>
+
+      <section class="confirmation" id="confirmacion" hidden>
+        <div class="container confirm__card">
+          <h2>✅ ¡Pedido recibido!</h2>
+          <p>Gracias por pedir tu postre de melocotón 🍑</p>
+          <p>Hemos recibido tu información y alguien de nuestro equipo se comunicará contigo en breve para confirmar tu pedido.</p>
+          <ul class="confirm__list">
+            <li>💸 Recuerda: el pago es contraentrega</li>
+            <li>🚲 Entregas mañana en la tarde</li>
+          </ul>
+          <a class="btn btn--whatsapp" id="whatsapp-confirm" href="#" target="_blank" rel="noopener">📲 Confirmar por WhatsApp</a>
+          <a class="btn btn--secondary" href="#pedido">Hacer otro pedido</a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="container footer__content">
+        <div>
+          <strong>Lulita’s Sweet Lab 🍓</strong><br>
+          Postres hechos con amor desde Medellín 💕
+        </div>
+        <div>
+          📸 Instagram: <a href="https://instagram.com/lulitas_sweet_lab" target="_blank" rel="noopener">@lulitas_sweet_lab</a>
+        </div>
+      </div>
+    </footer>
+
+    <script defer src="./melocoton.js"></script>
+  </body>
+  </html>
+
