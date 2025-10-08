@@ -47,7 +47,7 @@ export async function handler(event) {
 		const sinceParam = params.get('since');
 		const limitParamRaw = Number(params.get('limit')) || 0;
 		const limitParam = Math.max(1, Math.min(200, limitParamRaw || 100));
-		// Optional seller filter: by id or name
+		// Optional filters: seller (by id or name), sale_day_id
 		let sellerIdFilter = Number(params.get('seller_id')) || 0;
 		const sellerNameParamRaw = (params.get('seller') || '').toString().trim();
 		if (!sellerIdFilter && sellerNameParamRaw && sellerNameParamRaw.toLowerCase() !== 'all' && sellerNameParamRaw.toLowerCase() !== 'todos') {
@@ -56,28 +56,45 @@ export async function handler(event) {
 				sellerIdFilter = sidRows?.[0]?.id ? Number(sidRows[0].id) : 0;
 			} catch {}
 		}
+		const saleDayIdFilter = Number(params.get('sale_day_id')) || 0;
 		let rows;
 		if (afterId) {
-			if (sellerIdFilter) {
+			if (sellerIdFilter && saleDayIdFilter) {
+				rows = await sql`SELECT id, type, seller_id, sale_id, sale_day_id, message, actor_name, icon_url, pay_method, created_at, read_at FROM notifications WHERE id > ${afterId} AND seller_id = ${sellerIdFilter} AND sale_day_id = ${saleDayIdFilter} ORDER BY id ASC LIMIT ${limitParam}`;
+			} else if (sellerIdFilter) {
 				rows = await sql`SELECT id, type, seller_id, sale_id, sale_day_id, message, actor_name, icon_url, pay_method, created_at, read_at FROM notifications WHERE id > ${afterId} AND seller_id = ${sellerIdFilter} ORDER BY id ASC LIMIT ${limitParam}`;
+			} else if (saleDayIdFilter) {
+				rows = await sql`SELECT id, type, seller_id, sale_id, sale_day_id, message, actor_name, icon_url, pay_method, created_at, read_at FROM notifications WHERE id > ${afterId} AND sale_day_id = ${saleDayIdFilter} ORDER BY id ASC LIMIT ${limitParam}`;
 			} else {
 				rows = await sql`SELECT id, type, seller_id, sale_id, sale_day_id, message, actor_name, icon_url, pay_method, created_at, read_at FROM notifications WHERE id > ${afterId} ORDER BY id ASC LIMIT ${limitParam}`;
 			}
 		} else if (beforeId) {
-			if (sellerIdFilter) {
+			if (sellerIdFilter && saleDayIdFilter) {
+				rows = await sql`SELECT id, type, seller_id, sale_id, sale_day_id, message, actor_name, icon_url, pay_method, created_at, read_at FROM notifications WHERE id < ${beforeId} AND seller_id = ${sellerIdFilter} AND sale_day_id = ${saleDayIdFilter} ORDER BY id DESC LIMIT ${limitParam}`;
+			} else if (sellerIdFilter) {
 				rows = await sql`SELECT id, type, seller_id, sale_id, sale_day_id, message, actor_name, icon_url, pay_method, created_at, read_at FROM notifications WHERE id < ${beforeId} AND seller_id = ${sellerIdFilter} ORDER BY id DESC LIMIT ${limitParam}`;
+			} else if (saleDayIdFilter) {
+				rows = await sql`SELECT id, type, seller_id, sale_id, sale_day_id, message, actor_name, icon_url, pay_method, created_at, read_at FROM notifications WHERE id < ${beforeId} AND sale_day_id = ${saleDayIdFilter} ORDER BY id DESC LIMIT ${limitParam}`;
 			} else {
 				rows = await sql`SELECT id, type, seller_id, sale_id, sale_day_id, message, actor_name, icon_url, pay_method, created_at, read_at FROM notifications WHERE id < ${beforeId} ORDER BY id DESC LIMIT ${limitParam}`;
 			}
 		} else if (sinceParam) {
-			if (sellerIdFilter) {
+			if (sellerIdFilter && saleDayIdFilter) {
+				rows = await sql`SELECT id, type, seller_id, sale_id, sale_day_id, message, actor_name, icon_url, pay_method, created_at, read_at FROM notifications WHERE created_at > ${new Date(sinceParam)} AND seller_id = ${sellerIdFilter} AND sale_day_id = ${saleDayIdFilter} ORDER BY created_at ASC, id ASC LIMIT ${limitParam}`;
+			} else if (sellerIdFilter) {
 				rows = await sql`SELECT id, type, seller_id, sale_id, sale_day_id, message, actor_name, icon_url, pay_method, created_at, read_at FROM notifications WHERE created_at > ${new Date(sinceParam)} AND seller_id = ${sellerIdFilter} ORDER BY created_at ASC, id ASC LIMIT ${limitParam}`;
+			} else if (saleDayIdFilter) {
+				rows = await sql`SELECT id, type, seller_id, sale_id, sale_day_id, message, actor_name, icon_url, pay_method, created_at, read_at FROM notifications WHERE created_at > ${new Date(sinceParam)} AND sale_day_id = ${saleDayIdFilter} ORDER BY created_at ASC, id ASC LIMIT ${limitParam}`;
 			} else {
 				rows = await sql`SELECT id, type, seller_id, sale_id, sale_day_id, message, actor_name, icon_url, pay_method, created_at, read_at FROM notifications WHERE created_at > ${new Date(sinceParam)} ORDER BY created_at ASC, id ASC LIMIT ${limitParam}`;
 			}
 		} else {
-			if (sellerIdFilter) {
+			if (sellerIdFilter && saleDayIdFilter) {
+				rows = await sql`SELECT id, type, seller_id, sale_id, sale_day_id, message, actor_name, icon_url, pay_method, created_at, read_at FROM notifications WHERE seller_id = ${sellerIdFilter} AND sale_day_id = ${saleDayIdFilter} ORDER BY id DESC LIMIT ${limitParam}`;
+			} else if (sellerIdFilter) {
 				rows = await sql`SELECT id, type, seller_id, sale_id, sale_day_id, message, actor_name, icon_url, pay_method, created_at, read_at FROM notifications WHERE seller_id = ${sellerIdFilter} ORDER BY id DESC LIMIT ${limitParam}`;
+			} else if (saleDayIdFilter) {
+				rows = await sql`SELECT id, type, seller_id, sale_id, sale_day_id, message, actor_name, icon_url, pay_method, created_at, read_at FROM notifications WHERE sale_day_id = ${saleDayIdFilter} ORDER BY id DESC LIMIT ${limitParam}`;
 			} else {
 				rows = await sql`SELECT id, type, seller_id, sale_id, sale_day_id, message, actor_name, icon_url, pay_method, created_at, read_at FROM notifications ORDER BY id DESC LIMIT ${limitParam}`;
 			}

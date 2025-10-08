@@ -641,9 +641,10 @@ const notify = (() => {
 		const toolbar = document.createElement('div'); toolbar.className = 'notif-toolbar';
 		const info = document.createElement('div'); info.style.fontSize = '12px'; info.style.opacity = '0.8'; info.textContent = 'Historial del servidor (más recientes primero)';
 		const loadMoreBtn = document.createElement('button'); loadMoreBtn.className = 'notif-btn'; loadMoreBtn.textContent = 'Cargar más';
-		// Superadmin-only seller filter
+		// Superadmin-only seller/day filter
 		const isSuperAdmin = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 		let sellerSelect = null;
+		let daySelect = null;
 		if (isSuperAdmin) {
 			sellerSelect = document.createElement('select');
 			sellerSelect.className = 'notif-seller-select';
@@ -664,11 +665,47 @@ const notify = (() => {
 					if (saved) sellerSelect.value = saved;
 				} catch {}
 			} catch {}
+			// Day select depends on seller
+			daySelect = document.createElement('select');
+			daySelect.className = 'notif-day-select';
+			daySelect.title = 'Filtrar por fecha (tabla)';
+			const optAllDays = document.createElement('option'); optAllDays.value = ''; optAllDays.textContent = 'Todas las fechas';
+			daySelect.appendChild(optAllDays);
+			async function loadDaysForSelectedSeller() {
+				// Reset options
+				while (daySelect.options.length > 1) daySelect.remove(1);
+				const sid = sellerSelect.value;
+				if (!sid) { try { localStorage.removeItem('notify_day_filter_id_v1'); } catch {}; return; }
+				try {
+					const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(sid)}`);
+					for (const d of (days || [])) {
+						const opt = document.createElement('option');
+						opt.value = String(d.id);
+						opt.textContent = String(d.day).slice(0,10);
+						daySelect.appendChild(opt);
+					}
+
+					// Restore saved day for this seller
+					try {
+						const savedDay = localStorage.getItem('notify_day_filter_id_v1') || '';
+						if (savedDay) daySelect.value = savedDay;
+					} catch {}
+				} catch {}
+			}
 			sellerSelect.addEventListener('change', () => {
 				try { localStorage.setItem(STORAGE_FILTER_KEY, sellerSelect.value || ''); } catch {}
+				// Reset day filter on seller change
+				try { localStorage.removeItem('notify_day_filter_id_v1'); } catch {}
+				loadDaysForSelectedSeller();
+				fetchInitial();
+			});
+			daySelect.addEventListener('change', () => {
+				try { localStorage.setItem('notify_day_filter_id_v1', daySelect.value || ''); } catch {}
 				fetchInitial();
 			});
 			toolbar.append(sellerSelect);
+			toolbar.append(daySelect);
+			await loadDaysForSelectedSeller();
 		}
 		toolbar.append(info, loadMoreBtn);
 		const list = document.createElement('div'); list.className = 'notif-list';
@@ -815,9 +852,8 @@ const notify = (() => {
 			minLoadedId = null;
 			try {
 				let url = '/api/notifications?limit=50';
-				if (sellerSelect && sellerSelect.value) {
-					url += `&seller_id=${encodeURIComponent(sellerSelect.value)}`;
-				}
+				if (sellerSelect && sellerSelect.value) url += `&seller_id=${encodeURIComponent(sellerSelect.value)}`;
+				if (daySelect && daySelect.value) url += `&sale_day_id=${encodeURIComponent(daySelect.value)}`;
 				const res = await fetch(url);
 				if (!res.ok) throw new Error('bad');
 				const data = await res.json();
@@ -834,9 +870,8 @@ const notify = (() => {
 			if (!serverMode || !minLoadedId) { renderLocalList(); return; }
 			try {
 				let url = `/api/notifications?before_id=${encodeURIComponent(minLoadedId)}&limit=100`;
-				if (sellerSelect && sellerSelect.value) {
-					url += `&seller_id=${encodeURIComponent(sellerSelect.value)}`;
-				}
+				if (sellerSelect && sellerSelect.value) url += `&seller_id=${encodeURIComponent(sellerSelect.value)}`;
+				if (daySelect && daySelect.value) url += `&sale_day_id=${encodeURIComponent(daySelect.value)}`;
 				const res = await fetch(url);
 				if (!res.ok) return;
 				const data = await res.json();
