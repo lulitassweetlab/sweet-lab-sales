@@ -1425,8 +1425,17 @@ function calcRowTotal(q) {
 	
 	// If using items array (new format) - only if array has elements
 	if (Array.isArray(q.items) && q.items.length > 0) {
+		// Use only the first occurrence per dessert (to match visible per-flavor qty)
+		const seen = new Set();
 		for (const item of q.items) {
-			total += Number(item.quantity || 0) * Number(item.unit_price || 0);
+			const code = (item.short_code || '').toString() || (state.desserts.find(d => d.id === item.dessert_id)?.short_code || '');
+			const key = code || `id:${item.dessert_id}`;
+			if (seen.has(key)) continue;
+			seen.add(key);
+			const qty = Number(item.quantity || 0) || 0;
+			let price = Number(item.unit_price || 0) || 0;
+			if (!price && code && PRICES[code] != null) price = Number(PRICES[code] || 0) || 0;
+			total += qty * price;
 		}
 		return total;
 	}
