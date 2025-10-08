@@ -210,15 +210,33 @@ export async function handler(event) {
 			}
 			case 'POST': {
 				const data = JSON.parse(event.body || '{}');
-				// Receipt upload flow
-				if (data && data._upload_receipt_for) {
-					const sid = Number(data._upload_receipt_for);
-					const img = (data.image_base64 || '').toString();
-					const note = (data.note_text || '').toString();
-					if (!sid || !img) return json({ error: 'sale_id e imagen requeridos' }, 400);
-					const [row] = await sql`INSERT INTO sale_receipts (sale_id, image_base64, note_text) VALUES (${sid}, ${img}, ${note}) RETURNING id, sale_id, note_text, created_at`;
-					return json(row, 201);
-				}
+                // Receipt upload flow
+                if (data && data._upload_receipt_for) {
+                    const sid = Number(data._upload_receipt_for);
+                    const img = (data.image_base64 || '').toString();
+                    const note = (data.note_text || '').toString();
+                    const actor = (data._actor_name || '').toString();
+                    if (!sid || !img) return json({ error: 'sale_id e imagen requeridos' }, 400);
+                    // Store receipt first
+                    const [row] = await sql`INSERT INTO sale_receipts (sale_id, image_base64, note_text) VALUES (${sid}, ${img}, ${note}) RETURNING id, sale_id, note_text, created_at`;
+                    try {
+                        // After uploading a receipt, mark pay_method as 'transf' if not already a bank method
+                        const prev = (await sql`SELECT seller_id, sale_day_id, client_name, pay_method FROM sales WHERE id=${sid}`)[0] || null;
+                        if (prev) {
+                            const prevPm = (prev.pay_method || '').toString();
+                            const isAlreadyBank = prevPm === 'transf' || prevPm === 'jorgebank' || prevPm === 'marce' || prevPm === 'jorge';
+                            if (!isAlreadyBank) {
+                                await sql`UPDATE sales SET pay_method='transf' WHERE id=${sid}`;
+                                try {
+                                    const msg = `${prev.client_name || 'Cliente'} pago: - → Transferencia` + (actor ? ` - ${actor}` : '');
+                                    const iconUrl = '/icons/bank.svg';
+                                    await notifyDb({ type: 'pay', sellerId: Number(prev.seller_id||0)||null, saleId: sid, saleDayId: Number(prev.sale_day_id||0)||null, message: msg, actorName: actor, iconUrl, payMethod: 'transf' });
+                                } catch {}
+                            }
+                        }
+                    } catch {}
+                    return json(row, 201);
+                }
 				const sellerId = Number(data.seller_id);
 				let saleDayId = data.sale_day_id ? Number(data.sale_day_id) : null;
 				if (!sellerId) return json({ error: 'seller_id requerido' }, 400);

@@ -1738,6 +1738,19 @@ function renderTable() {
                 const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
                 const pm = String(sale.pay_method || '').trim().replace(/\.$/, '').toLowerCase();
                 const locked = pm !== '' && pm !== 'entregado';
+                // If locked and current is a bank method, open receipt viewer/upload directly
+                if (!isAdminUser && locked && (pm === 'transf' || pm === 'jorgebank')) {
+                    try {
+                        const rect = wrap.getBoundingClientRect();
+                        const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(sale.id)}`);
+                        if (Array.isArray(recs) && recs.length) {
+                            openReceiptViewerPopover(recs[0].image_base64, sale.id, recs[0].created_at, rect.left + rect.width / 2, rect.bottom, recs[0].note_text || '', recs[0].id);
+                        } else {
+                            openReceiptUploadPage(sale.id);
+                        }
+                    } catch { openReceiptUploadPage(sale.id); }
+                    return;
+                }
                 if (!isAdminUser && locked) return; // block opening menu for non-admins, allow when 'entregado'
                 openPayMenu(wrap, sel, e.clientX, e.clientY); 
             });
@@ -1748,6 +1761,18 @@ function renderTable() {
                     const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
                     const pm = String(sale.pay_method || '').trim().replace(/\.$/, '').toLowerCase();
                     const locked = pm !== '' && pm !== 'entregado';
+                    if (!isAdminUser && locked && (pm === 'transf' || pm === 'jorgebank')) {
+                        try {
+                            const rect = wrap.getBoundingClientRect();
+                            const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(sale.id)}`);
+                            if (Array.isArray(recs) && recs.length) {
+                                openReceiptViewerPopover(recs[0].image_base64, sale.id, recs[0].created_at, rect.left + rect.width / 2, rect.bottom, recs[0].note_text || '', recs[0].id);
+                            } else {
+                                openReceiptUploadPage(sale.id);
+                            }
+                        } catch { openReceiptUploadPage(sale.id); }
+                        return;
+                    }
                     if (!isAdminUser && locked) return; 
                     openPayMenu(wrap, sel); 
                 } 
