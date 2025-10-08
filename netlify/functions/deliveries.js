@@ -59,6 +59,7 @@ export async function handler(event) {
 							COALESCE(SUM(CASE WHEN di.dessert_id = (SELECT id FROM desserts WHERE short_code='nute' LIMIT 1) THEN di.quantity END),0)::int AS nute
 						FROM deliveries d
 						LEFT JOIN delivery_items di ON di.delivery_id = d.id
+						GROUP BY d.id, d.day
 						ORDER BY d.day DESC, d.id DESC
 						LIMIT 200
 					`;
