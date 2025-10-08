@@ -517,7 +517,7 @@
 				const pm = (r.pay_method || '').toString();
 				const ps = (r.payment_source || '').toString();
 				const pd = r.payment_date ? String(r.payment_date).slice(0, 10) : '';
-				// Cantidades por sabor
+				// Cantidades por sabor (usar solo primera ocurrencia por postre, igual que consolidado)
 				let qa = Number(r.qty_arco || 0) || 0;
 				let qm = Number(r.qty_melo || 0) || 0;
 				let qma = Number(r.qty_mara || 0) || 0;
@@ -525,21 +525,27 @@
 				let qn = Number(r.qty_nute || 0) || 0;
 				if (Array.isArray(r.items) && r.items.length > 0) {
 					qa = 0; qm = 0; qma = 0; qo = 0; qn = 0;
+					const seenQty = new Set();
 					for (const item of r.items) {
 						const code = (item.short_code || '').toLowerCase();
+						if (!code || seenQty.has(code)) continue;
+						seenQty.add(code);
 						const qty = Number(item.quantity || 0) || 0;
-						if (code === 'arco') qa += qty;
-						else if (code === 'melo') qm += qty;
-						else if (code === 'mara') qma += qty;
-						else if (code === 'oreo') qo += qty;
-						else if (code === 'nute') qn += qty;
+						if (code === 'arco') qa = qty;
+						else if (code === 'melo') qm = qty;
+						else if (code === 'mara') qma = qty;
+						else if (code === 'oreo') qo = qty;
+						else if (code === 'nute') qn = qty;
 					}
 				}
 				// Total robusto
 				let totCalc = 0;
 				if (Array.isArray(r.items) && r.items.length > 0) {
+					const seenTot = new Set();
 					for (const item of r.items) {
 						const code = (item.short_code || '').toLowerCase();
+						if (!code || seenTot.has(code)) continue;
+						seenTot.add(code);
 						const qty = Number(item.quantity || 0) || 0;
 						let price = Number(item.unit_price || 0) || 0;
 						if (!price) price = PRICES[code] || 0;
