@@ -336,11 +336,25 @@ function renderClientDetailTable(rows) {
 	// Calculate and display totals
 	let totalArco = 0, totalMelo = 0, totalMara = 0, totalOreo = 0, totalNute = 0, totalGrand = 0;
 	for (const r of rows) {
-		totalArco += r.qty_arco || 0;
-		totalMelo += r.qty_melo || 0;
-		totalMara += r.qty_mara || 0;
-		totalOreo += r.qty_oreo || 0;
-		totalNute += r.qty_nute || 0;
+		// Support both formats: prefer items over qty_* columns to avoid duplication
+		if (Array.isArray(r.items) && r.items.length > 0) {
+			// New format: use items
+			for (const item of r.items) {
+				const code = (item.short_code || '').toLowerCase();
+				if (code === 'arco') totalArco += Number(item.quantity || 0) || 0;
+				else if (code === 'melo') totalMelo += Number(item.quantity || 0) || 0;
+				else if (code === 'mara') totalMara += Number(item.quantity || 0) || 0;
+				else if (code === 'oreo') totalOreo += Number(item.quantity || 0) || 0;
+				else if (code === 'nute') totalNute += Number(item.quantity || 0) || 0;
+			}
+		} else {
+			// Old format: use qty_* columns
+			totalArco += r.qty_arco || 0;
+			totalMelo += r.qty_melo || 0;
+			totalMara += r.qty_mara || 0;
+			totalOreo += r.qty_oreo || 0;
+			totalNute += r.qty_nute || 0;
+		}
 		const rowTotal = calcRowTotal(r);
 		totalGrand += rowTotal;
 	}

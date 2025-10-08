@@ -432,7 +432,21 @@
 				for (const r of (rows||[])){
 					if (selectedPay && (r.pay_method || '') !== selectedPay) continue;
 					sum += Number(r.total_cents||0) || 0;
-					qa += Number(r.qty_arco||0) || 0; qm += Number(r.qty_melo||0) || 0; qma += Number(r.qty_mara||0) || 0; qo += Number(r.qty_oreo||0) || 0; qn += Number(r.qty_nute||0) || 0;
+					// Support both formats: prefer items over qty_* columns to avoid duplication
+					if (Array.isArray(r.items) && r.items.length > 0) {
+						// New format: use items
+						for (const item of r.items) {
+							const code = (item.short_code || '').toLowerCase();
+							if (code === 'arco') qa += Number(item.quantity || 0) || 0;
+							else if (code === 'melo') qm += Number(item.quantity || 0) || 0;
+							else if (code === 'mara') qma += Number(item.quantity || 0) || 0;
+							else if (code === 'oreo') qo += Number(item.quantity || 0) || 0;
+							else if (code === 'nute') qn += Number(item.quantity || 0) || 0;
+						}
+					} else {
+						// Old format: use qty_* columns
+						qa += Number(r.qty_arco||0) || 0; qm += Number(r.qty_melo||0) || 0; qma += Number(r.qty_mara||0) || 0; qo += Number(r.qty_oreo||0) || 0; qn += Number(r.qty_nute||0) || 0;
+					}
 				}
 				if (sum > 0) {
 					byDate.set(iso, (byDate.get(iso)||0) + sum);

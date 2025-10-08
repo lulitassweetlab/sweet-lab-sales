@@ -488,7 +488,25 @@
 						const unpaid = r.is_paid !== true;
                         const allowed = (pm === '' || pm === 'efectivo' || pm === 'transf' || pm === 'marce' || pm === 'jorge' || pm === 'jorgebank');
 						if (!(unpaid && allowed)) continue;
-						const qa = r.qty_arco || 0; const qm = r.qty_melo || 0; const qma = r.qty_mara || 0; const qo = r.qty_oreo || 0; const qn = r.qty_nute || 0; const tot = r.total_cents || 0;
+						
+						// Support both formats: prefer items over qty_* columns to avoid duplication
+						let qa = 0, qm = 0, qma = 0, qo = 0, qn = 0;
+						if (Array.isArray(r.items) && r.items.length > 0) {
+							// New format: use items
+							for (const item of r.items) {
+								const code = (item.short_code || '').toLowerCase();
+								if (code === 'arco') qa = Number(item.quantity || 0) || 0;
+								else if (code === 'melo') qm = Number(item.quantity || 0) || 0;
+								else if (code === 'mara') qma = Number(item.quantity || 0) || 0;
+								else if (code === 'oreo') qo = Number(item.quantity || 0) || 0;
+								else if (code === 'nute') qn = Number(item.quantity || 0) || 0;
+							}
+						} else {
+							// Old format: use qty_* columns
+							qa = r.qty_arco || 0; qm = r.qty_melo || 0; qma = r.qty_mara || 0; qo = r.qty_oreo || 0; qn = r.qty_nute || 0;
+						}
+						const tot = r.total_cents || 0;
+						
 						dataset.push({
 							date: String(day.day).slice(0,10),
 							sellerName: seller.name || '',

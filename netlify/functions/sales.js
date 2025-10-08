@@ -4,10 +4,25 @@ function json(body, status = 200) {
 	return { statusCode: status, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
 }
 
+let initialCleanupDone = false;
+
 export async function handler(event) {
 	try {
 		// Always ensure schema to allow migrations (payment_date column)
 		await ensureSchema();
+		
+		// CRITICAL: Force cleanup EVERY TIME until we're sure database is clean
+		// This runs on every request to guarantee data integrity
+		try {
+			await sql`
+				UPDATE sales
+				SET qty_arco = 0, qty_melo = 0, qty_mara = 0, qty_oreo = 0, qty_nute = 0
+				WHERE EXISTS (SELECT 1 FROM sale_items si WHERE si.sale_id = sales.id)
+				AND (qty_arco > 0 OR qty_melo > 0 OR qty_mara > 0 OR qty_oreo > 0 OR qty_nute > 0)
+			`;
+		} catch (cleanErr) {
+			console.error('Cleanup error:', cleanErr);
+		}
 		
 		if (event.httpMethod === 'OPTIONS') return json({ ok: true });
 		switch (event.httpMethod) {
@@ -260,7 +275,12 @@ export async function handler(event) {
 			const paymentSource = (Object.prototype.hasOwnProperty.call(data, 'payment_source')) ? (data.payment_source ?? null) : current.payment_source;
 			
 			// Update sale basic info
-			await sql`UPDATE sales SET client_name=${client}, comment_text=${comment}, qty_arco=${qa}, qty_melo=${qm}, qty_mara=${qma}, qty_oreo=${qo}, qty_nute=${qn}, is_paid=${paid}, pay_method=${payMethod}, payment_date=${paymentDate}, payment_source=${paymentSource} WHERE id=${id}`;
+			// If using new items system, clear old qty columns to prevent duplication
+			if (items !== null) {
+				await sql`UPDATE sales SET client_name=${client}, comment_text=${comment}, qty_arco=0, qty_melo=0, qty_mara=0, qty_oreo=0, qty_nute=0, is_paid=${paid}, pay_method=${payMethod}, payment_date=${paymentDate}, payment_source=${paymentSource} WHERE id=${id}`;
+			} else {
+				await sql`UPDATE sales SET client_name=${client}, comment_text=${comment}, qty_arco=${qa}, qty_melo=${qm}, qty_mara=${qma}, qty_oreo=${qo}, qty_nute=${qn}, is_paid=${paid}, pay_method=${payMethod}, payment_date=${paymentDate}, payment_source=${paymentSource} WHERE id=${id}`;
+			}
 				
 				// If items are provided, update sale_items table
 				if (items !== null) {
