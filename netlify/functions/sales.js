@@ -240,6 +240,24 @@ export async function handler(event) {
 			const id = Number(data.id);
 			if (!id) return json({ error: 'id requerido' }, 400);
 			const current = (await sql`SELECT client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, payment_date, payment_source, comment_text, created_at FROM sales WHERE id=${id}`)[0] || {};
+			// Authorization: if sale has a pay_method already set, only admin/superadmin may edit
+			try {
+				const headers = (event.headers || {});
+				const hActor = (headers['x-actor-name'] || headers['X-Actor-Name'] || headers['x-actor'] || '').toString();
+				const bActor = (data._actor_name || '').toString();
+				let qActor = '';
+				try { const qs = new URLSearchParams(event.rawQuery || (event.queryStringParameters ? new URLSearchParams(event.queryStringParameters).toString() : '')); qActor = (qs.get('actor') || '').toString(); } catch {}
+				const actorName = (hActor || bActor || qActor || '').toString();
+				let role = 'user';
+				if (actorName) {
+					const r = await sql`SELECT role FROM users WHERE lower(username)=lower(${actorName}) LIMIT 1`;
+					role = (r && r[0] && r[0].role) ? String(r[0].role) : 'user';
+				}
+				const locked = String(current.pay_method || '').trim() !== '';
+				if (locked && role !== 'admin' && role !== 'superadmin') {
+					return json({ error: 'Pedido bloqueado: solo admin/superadmin puede editar' }, 403);
+				}
+			} catch {}
 				const createdAt = current.created_at ? new Date(current.created_at) : null;
 				const withinGrace = createdAt ? ((new Date()) - createdAt) < 120000 : false; // 2 minutes
 				const client = (data.client_name ?? '').toString();
@@ -341,8 +359,22 @@ export async function handler(event) {
 					return json({ ok: true });
 				}
 				if (!id) return json({ error: 'id requerido' }, 400);
-				// fetch previous data for notification content
+				// fetch previous data and enforce authorization for locked sales
 				const prev = (await sql`SELECT seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, pay_method, payment_source FROM sales WHERE id=${id}`)[0] || null;
+				try {
+					const headers = (event.headers || {});
+					const hActor = (headers['x-actor-name'] || headers['X-Actor-Name'] || headers['x-actor'] || '').toString();
+					const actorName = (hActor || actor || '').toString();
+					let role = 'user';
+					if (actorName) {
+						const r = await sql`SELECT role FROM users WHERE lower(username)=lower(${actorName}) LIMIT 1`;
+						role = (r && r[0] && r[0].role) ? String(r[0].role) : 'user';
+					}
+					const locked = String(prev?.pay_method || '').trim() !== '';
+					if (locked && role !== 'admin' && role !== 'superadmin') {
+						return json({ error: 'Pedido bloqueado: solo admin/superadmin puede eliminar' }, 403);
+					}
+				} catch {}
 				await sql`DELETE FROM sales WHERE id=${id}`;
 				// emit deletion notification with client, quantities, and seller name
 				if (prev) {
