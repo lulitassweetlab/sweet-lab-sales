@@ -463,22 +463,22 @@
 			}
 			let tGrand = 0;
 			
-			// Calculate totals first (fast)
-			for (const r of rows){
-				for (const d of desserts) {
-					const qty = r[`q_${d.short_code}`] || 0;
-					qtys[d.short_code] += qty;
-				}
-				tGrand += r.tot||0;
-			}
-			
-			// Update totals dynamically
-			let totalQty = 0;
+		// Calculate totals first (fast)
+		for (const r of rows){
 			for (const d of desserts) {
-				const el = document.getElementById(`t-q-${d.short_code}`);
-				if (el) el.textContent = qtys[d.short_code] || '';
-				totalQty += qtys[d.short_code] || 0;
+				const qty = Number(r[`q_${d.short_code}`]) || 0;
+				qtys[d.short_code] += qty;
 			}
+			tGrand += Number(r.tot) || 0;
+		}
+			
+		// Update totals dynamically
+		let totalQty = 0;
+		for (const d of desserts) {
+			const el = document.getElementById(`t-q-${d.short_code}`);
+			if (el) el.textContent = qtys[d.short_code] || '';
+			totalQty += Number(qtys[d.short_code]) || 0;
+		}
 			
 			tGrandEl.textContent = tGrand || '';
 			tSumAllEl.textContent = totalQty || '';
@@ -631,36 +631,36 @@
 						sellersList = parsed.sellers;
 						populateFilters();
 						
-						// Process cached sales data immediately
-						countLabel.textContent = `Procesando ${parsed.sales.length} ventas…`;
-						const dessertMap = {};
-						for (const d of desserts) {
-							dessertMap[d.id] = d.short_code;
-							dessertMap[d.short_code] = d.short_code;
-						}
+					// Process cached sales data immediately
+					countLabel.textContent = `Procesando ${parsed.sales.length} ventas…`;
+					const dessertMap = {};
+					for (const d of desserts) {
+						dessertMap[d.id] = d.short_code;
+						dessertMap[d.short_code] = d.short_code;
+					}
+					
+					dataset = parsed.sales.map(r => {
+						const row = {
+							date: String(r.sale_day || '').slice(0,10),
+							sellerName: r.seller_name || '',
+							is_paid: !!r.is_paid,
+							pay_method: r.pay_method || '',
+							client_name: r.client_name || '',
+							tot: r.total_cents || 0
+						};
 						
-						dataset = parsed.sales.map(r => {
-							const row = {
-								date: String(r.sale_day || '').slice(0,10),
-								sellerName: r.seller_name || '',
-								is_paid: !!r.is_paid,
-								pay_method: r.pay_method || '',
-								client_name: r.client_name || '',
-								tot: r.total_cents || 0
-							};
-							
-							for (const d of desserts) {
-								let qty = 0;
-								if (Array.isArray(r.items) && r.items.length > 0) {
-									const item = r.items.find(i => i.short_code === d.short_code);
-									qty = item ? (item.quantity || 0) : 0;
-								} else {
-									qty = r[`qty_${d.short_code}`] || 0;
-								}
-								row[`q_${d.short_code}`] = qty;
+						for (const d of desserts) {
+							let qty = 0;
+							if (Array.isArray(r.items) && r.items.length > 0) {
+								const item = r.items.find(i => i.short_code === d.short_code);
+								qty = item ? (Number(item.quantity) || 0) : 0;
+							} else {
+								qty = Number(r[`qty_${d.short_code}`]) || 0;
 							}
-							return row;
-						});
+							row[`q_${d.short_code}`] = qty;
+						}
+						return row;
+					});
 						
 						render();
 						usedCache = true;
@@ -684,35 +684,35 @@
 								sellersList = freshSellers;
 								populateFilters();
 								
-								// Process fresh data
-								const dessertMap = {};
-								for (const d of desserts) {
-									dessertMap[d.id] = d.short_code;
-									dessertMap[d.short_code] = d.short_code;
-								}
+							// Process fresh data
+							const dessertMap = {};
+							for (const d of desserts) {
+								dessertMap[d.id] = d.short_code;
+								dessertMap[d.short_code] = d.short_code;
+							}
+							
+							dataset = freshSales.map(r => {
+								const row = {
+									date: String(r.sale_day || '').slice(0,10),
+									sellerName: r.seller_name || '',
+									is_paid: !!r.is_paid,
+									pay_method: r.pay_method || '',
+									client_name: r.client_name || '',
+									tot: r.total_cents || 0
+								};
 								
-								dataset = freshSales.map(r => {
-									const row = {
-										date: String(r.sale_day || '').slice(0,10),
-										sellerName: r.seller_name || '',
-										is_paid: !!r.is_paid,
-										pay_method: r.pay_method || '',
-										client_name: r.client_name || '',
-										tot: r.total_cents || 0
-									};
-									
-									for (const d of desserts) {
-										let qty = 0;
-										if (Array.isArray(r.items) && r.items.length > 0) {
-											const item = r.items.find(i => i.short_code === d.short_code);
-											qty = item ? (item.quantity || 0) : 0;
-										} else {
-											qty = r[`qty_${d.short_code}`] || 0;
-										}
-										row[`q_${d.short_code}`] = qty;
+								for (const d of desserts) {
+									let qty = 0;
+									if (Array.isArray(r.items) && r.items.length > 0) {
+										const item = r.items.find(i => i.short_code === d.short_code);
+										qty = item ? (Number(item.quantity) || 0) : 0;
+									} else {
+										qty = Number(r[`qty_${d.short_code}`]) || 0;
 									}
-									return row;
-								});
+									row[`q_${d.short_code}`] = qty;
+								}
+								return row;
+							});
 								
 								render();
 							}
@@ -758,33 +758,33 @@
 				dessertMap[d.short_code] = d.short_code;
 			}
 			
-			// Process all sales in one pass
-			dataset = salesData.map(r => {
-				const row = {
-					date: String(r.sale_day || '').slice(0,10),
-					sellerName: r.seller_name || '',
-					is_paid: !!r.is_paid,
-					pay_method: r.pay_method || '',
-					client_name: r.client_name || '',
-					tot: r.total_cents || 0
-				};
-				
-				// Process dessert quantities dynamically
-				for (const d of desserts) {
-					let qty = 0;
-					if (Array.isArray(r.items) && r.items.length > 0) {
-						// New format: use items (optimized lookup)
-						const item = r.items.find(i => i.short_code === d.short_code);
-						qty = item ? (item.quantity || 0) : 0;
-					} else {
-						// Old format: use qty_* columns
-						qty = r[`qty_${d.short_code}`] || 0;
-					}
-					row[`q_${d.short_code}`] = qty;
+		// Process all sales in one pass
+		dataset = salesData.map(r => {
+			const row = {
+				date: String(r.sale_day || '').slice(0,10),
+				sellerName: r.seller_name || '',
+				is_paid: !!r.is_paid,
+				pay_method: r.pay_method || '',
+				client_name: r.client_name || '',
+				tot: r.total_cents || 0
+			};
+			
+			// Process dessert quantities dynamically
+			for (const d of desserts) {
+				let qty = 0;
+				if (Array.isArray(r.items) && r.items.length > 0) {
+					// New format: use items (optimized lookup)
+					const item = r.items.find(i => i.short_code === d.short_code);
+					qty = item ? (Number(item.quantity) || 0) : 0;
+				} else {
+					// Old format: use qty_* columns
+					qty = Number(r[`qty_${d.short_code}`]) || 0;
 				}
-				
-				return row;
-			});
+				row[`q_${d.short_code}`] = qty;
+			}
+			
+			return row;
+		});
 				
 				updateLoadingProgress(95, 'Finalizando...');
 				render();
@@ -858,15 +858,15 @@
 					r.client_name||''
 				];
 				
-				for (const d of desserts) {
-					const qty = r[`q_${d.short_code}`] || 0;
-					row.push(qty || '');
-					qtys[d.short_code] += qty;
-				}
-				
-				row.push(r.tot||'');
-				rows.push(row);
-				eGrand += r.tot||0;
+			for (const d of desserts) {
+				const qty = Number(r[`q_${d.short_code}`]) || 0;
+				row.push(qty || '');
+				qtys[d.short_code] += qty;
+			}
+			
+			row.push(r.tot||'');
+			rows.push(row);
+			eGrand += Number(r.tot) || 0;
 			}
 			// Empty spacer row before totals
 			const colCount = 5 + desserts.length + 1; // Fecha, Vendedor, $, Pago, Cliente + desserts + Total
@@ -882,11 +882,11 @@
 			totRow[idx] = eGrand || '';
 			rows.push(totRow);
 			
-			// Total postres row
-			let sumAll = 0;
-			for (const d of desserts) {
-				sumAll += qtys[d.short_code] || 0;
-			}
+		// Total postres row
+		let sumAll = 0;
+		for (const d of desserts) {
+			sumAll += Number(qtys[d.short_code]) || 0;
+		}
 			const sumRow = new Array(colCount).fill('');
 			sumRow[4] = 'Total postres';
 			sumRow[colCount - 1] = sumAll || '';
