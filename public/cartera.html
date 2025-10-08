@@ -536,11 +536,11 @@
 						// Include ALL sales - no filtering at data load time
 						
 						// Support both formats: old (qty_*) and new (items array)
-						let qa = r.qty_arco || 0;
-						let qm = r.qty_melo || 0;
-						let qma = r.qty_mara || 0;
-						let qo = r.qty_oreo || 0;
-						let qn = r.qty_nute || 0;
+                        let qa = Number(r.qty_arco || 0) || 0;
+                        let qm = Number(r.qty_melo || 0) || 0;
+                        let qma = Number(r.qty_mara || 0) || 0;
+                        let qo = Number(r.qty_oreo || 0) || 0;
+                        let qn = Number(r.qty_nute || 0) || 0;
 						
 						// If items array exists, use that instead
 						if (Array.isArray(r.items) && r.items.length > 0) {
@@ -556,7 +556,7 @@
 							}
 						}
 						
-						const tot = r.total_cents || 0;
+                        const tot = Number(r.total_cents || 0) || 0;
 						dataset.push({
 							date: String(day.day).slice(0,10),
 							sellerName: seller.name || '',
