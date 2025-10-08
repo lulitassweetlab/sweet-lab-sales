@@ -103,52 +103,131 @@
 			return tr;
 		}
 
-		function openNewDeliveryPopover(anchorX, anchorY) {
-			const overlay = document.createElement('div'); overlay.className = 'confirm-popover'; overlay.style.position = 'fixed'; overlay.style.left = '50%'; overlay.style.top = '14%'; overlay.style.transform = 'translate(-50%, 0)'; overlay.style.zIndex = '1000'; overlay.classList.add('aladdin-pop');
-			const title = document.createElement('h4'); title.textContent = 'Nueva entrega'; title.style.margin = '0 0 10px 0';
-			const form = document.createElement('div'); form.style.display = 'grid'; form.style.gridTemplateColumns = '1fr 1fr'; form.style.gap = '8px'; form.style.minWidth = '360px';
-			const dLabel = document.createElement('label'); dLabel.textContent = 'Fecha:'; dLabel.style.gridColumn = '1 / span 2';
-			const dInput = document.createElement('input'); dInput.type = 'date'; dInput.className = 'input-cell'; dInput.value = new Date().toISOString().slice(0,10); dInput.style.gridColumn = '1 / span 2';
-			function numField(name, label){
-				const wrap = document.createElement('div');
-				const l = document.createElement('label'); l.textContent = label; l.style.display = 'block';
-				const i = document.createElement('input'); i.type = 'number'; i.min = '0'; i.step = '1'; i.value = '0'; i.className = 'input-cell';
-				wrap.append(l, i); return [wrap, i];
-			}
-			const [fa, ia] = numField('arco','Arco');
-			const [fm, im] = numField('melo','Melo');
-			const [fma, ima] = numField('mara','Mara');
-			const [fo, io] = numField('oreo','Oreo');
-			const [fn, inn] = numField('nute','Nute');
-			form.append(dLabel, dInput, fa, fm, fma, fo, fn);
-			const actions = document.createElement('div'); actions.className = 'confirm-actions'; actions.style.marginTop = '12px';
-			const save = document.createElement('button'); save.className = 'press-btn btn-primary'; save.textContent = 'Guardar';
-			const cancel = document.createElement('button'); cancel.className = 'press-btn'; cancel.textContent = 'Cancelar';
-			actions.append(save, cancel);
-			overlay.append(title, form, actions);
-			document.body.appendChild(overlay);
-			function close(){ if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay); }
-			cancel.addEventListener('click', close);
-			save.addEventListener('click', async () => {
-				const payload = {
-					day: dInput.value || new Date().toISOString().slice(0,10),
-					items: {
-						arco: Number(ia.value||0)||0,
-						melo: Number(im.value||0)||0,
-						mara: Number(ima.value||0)||0,
-						oreo: Number(io.value||0)||0,
-						nute: Number(inn.value||0)||0
+		async function openProductionPopover(anchorX, anchorY) {
+			try {
+				// Load dynamic desserts
+				let desserts = [];
+				try { const r = await api('GET', '/api/desserts'); desserts = Array.isArray(r) ? r : []; } catch {}
+				// Build popover similar to Nuevo pedido
+				const pop = document.createElement('div');
+				pop.className = 'new-sale-popover';
+				pop.style.position = 'fixed';
+				const isSmall = window.matchMedia('(max-width: 640px)').matches;
+				if (typeof anchorX === 'number' && typeof anchorY === 'number' && !isSmall) {
+					pop.style.left = anchorX + 'px';
+					pop.style.top = anchorY + 'px';
+					pop.style.transform = 'translate(-50%, 0)';
+				} else {
+					pop.style.left = '50%';
+					pop.style.top = '20%';
+					pop.style.transform = 'translate(-50%, 0)';
+				}
+
+				const title = document.createElement('h4');
+				title.style.margin = '0 0 8px 0';
+				function formatTitle(iso){
+					try {
+						const d = iso ? new Date(iso + 'T00:00:00Z') : new Date();
+						const mes = d.toLocaleString('es-CO', { month: 'long', timeZone: 'UTC' });
+						const dia = d.getUTCDate();
+						const cap = mes.charAt(0).toUpperCase() + mes.slice(1);
+						return `Producción ${cap} ${dia}`;
+					} catch { return 'Producción'; }
+				}
+				const todayIso = new Date().toISOString().slice(0,10);
+				title.textContent = formatTitle(todayIso);
+
+				const grid = document.createElement('div');
+				grid.className = 'new-sale-grid';
+
+				function appendRow(labelText, inputEl) {
+					const left = document.createElement('div'); left.className = 'new-sale-cell new-sale-left';
+					const right = document.createElement('div'); right.className = 'new-sale-cell new-sale-right';
+					const lbl = document.createElement('div'); lbl.className = 'new-sale-label-text'; lbl.textContent = labelText;
+					left.appendChild(lbl);
+					right.appendChild(inputEl);
+					right.addEventListener('mousedown', (ev) => { if (ev.target !== inputEl) { ev.preventDefault(); try { inputEl.focus(); inputEl.select?.(); } catch {} } });
+					right.addEventListener('click', (ev) => { if (ev.target !== inputEl) { ev.preventDefault(); try { inputEl.focus(); inputEl.select?.(); } catch {} } });
+					grid.appendChild(left);
+					grid.appendChild(right);
+				}
+
+				// Fecha row (replaces Cliente)
+				const dateInput = document.createElement('input');
+				dateInput.type = 'date';
+				dateInput.className = 'input-cell';
+				dateInput.value = todayIso;
+				dateInput.addEventListener('change', () => { title.textContent = formatTitle(dateInput.value); });
+				appendRow('Fecha', dateInput);
+
+				// Dessert rows from dynamic list
+				const qtyInputs = {};
+				for (const d of desserts) {
+					if (d.is_active === false) continue;
+					const input = document.createElement('input');
+					input.type = 'number'; input.min = '0'; input.step = '1'; input.inputMode = 'numeric'; input.placeholder = '0';
+					input.className = 'input-cell input-qty';
+					qtyInputs[d.short_code] = input;
+					appendRow(d.name, input);
+				}
+
+				const actions = document.createElement('div'); actions.className = 'confirm-actions';
+				const cancelBtn = document.createElement('button'); cancelBtn.type = 'button'; cancelBtn.className = 'press-btn'; cancelBtn.textContent = 'Cancelar';
+				const saveBtn = document.createElement('button'); saveBtn.type = 'button'; saveBtn.className = 'press-btn btn-primary'; saveBtn.textContent = 'Guardar';
+				actions.append(cancelBtn, saveBtn);
+
+				pop.append(title, grid, actions);
+				pop.style.visibility = 'hidden'; pop.style.opacity = '0'; pop.style.transition = 'opacity 160ms ease-out';
+				document.body.appendChild(pop);
+
+				function clampWithinViewport() {
+					try {
+						const margin = 8; const vw = window.innerWidth; const vh = window.innerHeight; const r = pop.getBoundingClientRect();
+						const baseX = (typeof anchorX === 'number') ? anchorX : (vw / 2);
+						const baseY = (typeof anchorY === 'number') ? anchorY : (vh / 2);
+						let left = Math.round(baseX - r.width / 2);
+						let topBelow = Math.round(baseY + 8); let topAbove = Math.round(baseY - 8 - r.height); let top = topBelow;
+						if (top + r.height > vh - margin) top = topAbove;
+						if (top < margin) top = margin;
+						if (top + r.height > vh - margin) top = Math.max(margin, vh - margin - r.height);
+						if (left < margin) left = margin;
+						if (left + r.width > vw - margin) left = Math.max(margin, vw - margin - r.width);
+						pop.style.left = left + 'px'; pop.style.top = top + 'px'; pop.style.transform = 'none';
+					} catch {}
+				}
+				clampWithinViewport(); pop.style.visibility = 'visible'; requestAnimationFrame(() => { pop.style.opacity = '1'; });
+
+				function cleanup(){ document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); if (pop.parentNode) pop.parentNode.removeChild(pop); }
+				function outside(ev){ const t = ev.target; if (!pop.contains(t)) cleanup(); }
+				setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
+				cancelBtn.addEventListener('click', cleanup);
+
+				setTimeout(() => { try { dateInput.focus(); } catch {} }, 0);
+
+				async function doSave(){
+					try {
+						saveBtn.disabled = true; cancelBtn.disabled = true;
+						const items = {};
+						for (const [code, input] of Object.entries(qtyInputs)) { const q = Math.max(0, parseInt(input?.value || '0', 10) || 0); if (q > 0) items[code] = q; }
+						const payload = { day: dateInput.value || todayIso, items };
+						await api('POST', '/api/deliveries', payload);
+						cleanup(); await load();
+					} catch (e) {
+						alert('No se pudo guardar: ' + (e?.message || e));
+						saveBtn.disabled = false; cancelBtn.disabled = false;
 					}
-				};
-				try { await api('POST', '/api/deliveries', payload); close(); await load(); }
-				catch (e) { alert('No se pudo guardar: ' + (e?.message || e)); }
-			});
+				}
+				saveBtn.addEventListener('click', doSave);
+				Object.values(qtyInputs).forEach((el) => { el.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); doSave(); } }); });
+			} catch (e) {
+				alert('No se pudo abrir el formulario');
+			}
 		}
 
-		addBtn.addEventListener('click', (ev) => {
+		addBtn.addEventListener('click', async () => {
 			if (!requireAdmin()) return;
 			const rect = addBtn.getBoundingClientRect();
-			openNewDeliveryPopover(rect.left + rect.width/2, rect.bottom + 8);
+			await openProductionPopover(rect.left + rect.width/2, rect.bottom + 8);
 		});
 
 		backBtn.addEventListener('click', () => { window.location.href = '/index.html'; });
