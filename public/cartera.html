@@ -127,6 +127,7 @@
 		let dataset = [];
 		let sellersList = [];
 		let salesMap = {}; // Maps composite key to sale_id
+		const seenSaleIds = new Set(); // Prevent duplicate rows per sale
 		let sortColumn = null;
 		let sortDirection = 'desc'; // 'asc' or 'desc'
 
@@ -580,6 +581,9 @@
 						}
 						const totDb = Number(r.total_cents || 0) || 0;
 						const tot = totCalc > 0 ? totCalc : totDb;
+						// Skip duplicate sale rows (defensive against accidental duplicates from API)
+						if (seenSaleIds.has(r.id)) continue;
+						seenSaleIds.add(r.id);
 						dataset.push({
 							date: String(day.day).slice(0,10),
 							sellerName: seller.name || '',
