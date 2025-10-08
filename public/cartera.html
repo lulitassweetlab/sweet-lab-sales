@@ -39,9 +39,19 @@
 					<div id="seller-filter-group" class="seller-filter-group" style="display:flex; gap:8px; flex-wrap:wrap; min-width:220px; max-height:132px; overflow:auto; padding:8px; border:1px solid var(--border); border-radius:10px; background: var(--card);"></div>
 				</label>
                 <label style="display:flex; gap:6px; align-items:flex-start">
-                    <span style="line-height:28px;">Pago</span>
-                    <div id="pay-filter-group" class="seller-filter-group" style="display:flex; gap:8px; flex-wrap:wrap; min-width:220px; max-height:132px; overflow:auto; padding:8px; border:1px solid var(--border); border-radius:10px; background: var(--card);"></div>
+                    <span style="line-height:28px;">Método</span>
+                    <div id="pay-method-filter-group" class="seller-filter-group" style="display:flex; gap:8px; flex-wrap:wrap; min-width:220px; max-height:132px; overflow:auto; padding:8px; border:1px solid var(--border); border-radius:10px; background: var(--card);"></div>
                 </label>
+                <label style="display:flex; gap:6px; align-items:flex-start">
+                    <span style="line-height:28px;">Fuente</span>
+                    <div id="pay-source-filter-group" class="seller-filter-group" style="display:flex; gap:8px; flex-wrap:wrap; min-width:200px; max-height:132px; overflow:auto; padding:8px; border:1px solid var(--border); border-radius:10px; background: var(--card);"></div>
+                </label>
+				<label style="display:flex; gap:6px; align-items:center">
+					<span>Fecha pago:</span>
+					<button id="date-filter-btn" class="press-btn" style="padding:4px 12px; height:28px; font-size:0.9em;">
+						<span id="date-filter-label">Todas</span>
+					</button>
+				</label>
 			</div>
 			<div class="table-wrapper" id="report-wrapper">
 				<table id="report-table">
@@ -103,7 +113,13 @@
 		const changeBtn = document.getElementById('change-range');
 		const exportBtn = document.getElementById('export-excel');
         const sellerFilterGroup = document.getElementById('seller-filter-group');
-        const payFilterGroup = document.getElementById('pay-filter-group');
+        const payMethodFilterGroup = document.getElementById('pay-method-filter-group');
+        const paySourceFilterGroup = document.getElementById('pay-source-filter-group');
+		const dateFilterBtn = document.getElementById('date-filter-btn');
+		const dateFilterLabel = document.getElementById('date-filter-label');
+		
+		let dateFilterFrom = null;
+		let dateFilterTo = null;
 
 		let dataset = [];
 		let sellersList = [];
@@ -112,12 +128,20 @@
 		let sortDirection = 'desc'; // 'asc' or 'desc'
 
         function payLabel(pm){
-            return pm === '' ? '-' :
-                pm === 'efectivo' ? 'Efectivo' :
-                pm === 'transf' ? 'Transf' :
-                pm === 'marce' ? 'Marce' :
-                pm === 'jorge' ? 'Jorge' :
-                pm === 'jorgebank' ? 'JorgeBank' : '-';
+            const lower = (pm || '').toString().toLowerCase();
+            if (lower === 'efectivo aleja' || lower === 'efectivo_aleja') return 'Efectivo Aleja';
+            if (lower === 'efectivo marcela' || lower === 'efectivo_marcela') return 'Efectivo Marcela';
+            if (lower === 'bancolombia aleja' || lower === 'bancolombia_aleja') return 'Bancolombia Aleja';
+            if (lower === 'bancolombia') return 'Bancolombia';
+            if (lower === 'nequi') return 'Nequi';
+            if (lower === 'otro') return 'Otro';
+            // Old methods
+            if (lower === 'efectivo') return 'Efectivo';
+            if (lower === 'transf') return 'Transf';
+            if (lower === 'marce') return 'Marce';
+            if (lower === 'jorge') return 'Jorge';
+            if (lower === 'jorgebank') return 'JorgeBank';
+            return pm === '' ? '-' : pm;
         }
 		async function fetchJSON(u){ const r = await fetch(u); if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }
 		async function deleteSale(saleId, clientName) {
@@ -171,35 +195,75 @@
 				});
 				updateMasterCheckboxState();
 			}
-            // Pay methods (multi-select)
-            if (payFilterGroup) {
-                const prevSelected = getSelectedPays();
-                payFilterGroup.innerHTML = '';
+            // Pay methods (efectivo, transf, marce, jorge, etc.)
+            if (payMethodFilterGroup) {
+                const prevSelected = getSelectedPayMethods();
+                payMethodFilterGroup.innerHTML = '';
                 const masterWrap = document.createElement('label'); masterWrap.style.display='inline-flex'; masterWrap.style.alignItems='center'; masterWrap.style.gap='6px';
-                const master = document.createElement('input'); master.type='checkbox'; master.id='pf_all';
+                const master = document.createElement('input'); master.type='checkbox'; master.id='pmf_all';
                 const masterSpan = document.createElement('span'); masterSpan.textContent = 'Todos';
                 masterWrap.appendChild(master); masterWrap.appendChild(masterSpan);
-                payFilterGroup.appendChild(masterWrap);
+                payMethodFilterGroup.appendChild(masterWrap);
                 const codes = ['', 'efectivo', 'marce', 'jorge', 'transf', 'jorgebank'];
                 for (const code of codes){
-                    const id = `pf_${code || 'dash'}`;
+                    const id = `pmf_${code || 'dash'}`;
                     const wrap = document.createElement('label'); wrap.style.display='inline-flex'; wrap.style.alignItems='center'; wrap.style.gap='6px';
                     const cb = document.createElement('input'); cb.type='checkbox'; cb.value = code; cb.id = id;
-                    // Default to selected if no prior selection
                     cb.checked = prevSelected.length ? prevSelected.includes(cb.value) : true;
                     cb.addEventListener('change', () => { updateMasterCheckboxState(); render(); });
                     const sp = document.createElement('span'); sp.textContent = payLabel(code);
                     wrap.appendChild(cb); wrap.appendChild(sp);
-                    payFilterGroup.appendChild(wrap);
+                    payMethodFilterGroup.appendChild(wrap);
                 }
                 function updateMasterCheckboxState(){
-                    const cbs = Array.from(payFilterGroup.querySelectorAll('input[type="checkbox"]')).filter(x => x.id !== 'pf_all');
+                    const cbs = Array.from(payMethodFilterGroup.querySelectorAll('input[type="checkbox"]')).filter(x => x.id !== 'pmf_all');
                     const checked = cbs.filter(x => x.checked).length;
                     master.indeterminate = checked > 0 && checked < cbs.length;
                     master.checked = checked > 0 && checked === cbs.length;
                 }
                 master.addEventListener('change', () => {
-                    const cbs = Array.from(payFilterGroup.querySelectorAll('input[type="checkbox"]')).filter(x => x.id !== 'pf_all');
+                    const cbs = Array.from(payMethodFilterGroup.querySelectorAll('input[type="checkbox"]')).filter(x => x.id !== 'pmf_all');
+                    for (const cb of cbs) cb.checked = master.checked;
+                    updateMasterCheckboxState();
+                    render();
+                });
+                updateMasterCheckboxState();
+            }
+            // Pay sources (fuentes de pago del popup)
+            if (paySourceFilterGroup) {
+                const prevSelected = getSelectedPaySources();
+                paySourceFilterGroup.innerHTML = '';
+                const masterWrap = document.createElement('label'); masterWrap.style.display='inline-flex'; masterWrap.style.alignItems='center'; masterWrap.style.gap='6px';
+                const master = document.createElement('input'); master.type='checkbox'; master.id='psf_all';
+                const masterSpan = document.createElement('span'); masterSpan.textContent = 'Todos';
+                masterWrap.appendChild(master); masterWrap.appendChild(masterSpan);
+                paySourceFilterGroup.appendChild(masterWrap);
+                const sources = [
+                    { value: 'bancolombia', label: 'Bancolombia' },
+                    { value: 'nequi', label: 'Nequi' },
+                    { value: 'efectivo_marcela', label: 'Efectivo Marcela' },
+                    { value: 'efectivo_aleja', label: 'Efectivo Aleja' },
+                    { value: 'bancolombia_aleja', label: 'Bancolombia Aleja' },
+                    { value: 'otros', label: 'Otros' }
+                ];
+                for (const src of sources){
+                    const id = `psf_${src.value}`;
+                    const wrap = document.createElement('label'); wrap.style.display='inline-flex'; wrap.style.alignItems='center'; wrap.style.gap='6px';
+                    const cb = document.createElement('input'); cb.type='checkbox'; cb.value = src.value; cb.id = id;
+                    cb.checked = prevSelected.length ? prevSelected.includes(cb.value) : true;
+                    cb.addEventListener('change', () => { updateMasterCheckboxState(); render(); });
+                    const sp = document.createElement('span'); sp.textContent = src.label;
+                    wrap.appendChild(cb); wrap.appendChild(sp);
+                    paySourceFilterGroup.appendChild(wrap);
+                }
+                function updateMasterCheckboxState(){
+                    const cbs = Array.from(paySourceFilterGroup.querySelectorAll('input[type="checkbox"]')).filter(x => x.id !== 'psf_all');
+                    const checked = cbs.filter(x => x.checked).length;
+                    master.indeterminate = checked > 0 && checked < cbs.length;
+                    master.checked = checked > 0 && checked === cbs.length;
+                }
+                master.addEventListener('change', () => {
+                    const cbs = Array.from(paySourceFilterGroup.querySelectorAll('input[type="checkbox"]')).filter(x => x.id !== 'psf_all');
                     for (const cb of cbs) cb.checked = master.checked;
                     updateMasterCheckboxState();
                     render();
@@ -215,21 +279,55 @@
 			return [];
 		}
 
+		function getPaySource(paymentSource){
+			// Check if payment_source is one of the new sources from popup
+			const ps = (paymentSource || '').toString().toLowerCase();
+			if (ps === 'efectivo aleja' || ps === 'efectivo_aleja') return 'efectivo_aleja';
+			if (ps === 'efectivo marcela' || ps === 'efectivo_marcela') return 'efectivo_marcela';
+			if (ps === 'bancolombia aleja' || ps === 'bancolombia_aleja') return 'bancolombia_aleja';
+			if (ps === 'bancolombia') return 'bancolombia';
+			if (ps === 'nequi') return 'nequi';
+			if (ps === 'otro') return 'otros';
+			// Otherwise no source set
+			return null;
+		}
+
 		function getFilteredData(){
 			const selSellers = getSelectedSellers();
-            const selPays = getSelectedPays();
+            const selMethods = getSelectedPayMethods();
+            const selSources = getSelectedPaySources();
 			let rows = dataset.filter(r => {
 				if (selSellers.length && !selSellers.includes(r.sellerName)) return false;
-                if (selPays.length && !selPays.includes((r.pay_method || ''))) return false;
+                
+				// Check pay method filter (old methods: efectivo, transf, marce, jorge, jorgebank)
+				const pm = (r.pay_method || '').toString();
+				if (selMethods.length && !selMethods.includes(pm)) return false;
+				
+				// Check pay source filter (new sources: Bancolombia, Nequi, etc.)
+				const ps = (r.payment_source || '').toString();
+				const source = getPaySource(ps);
+				if (selSources.length && source && !selSources.includes(source)) return false;
+				
+				if (dateFilterFrom && r.date < dateFilterFrom) return false;
+				if (dateFilterTo && r.date > dateFilterTo) return false;
 				return true;
 			});
 			return rows;
 		}
 
-        function getSelectedPays(){
-            if (payFilterGroup) {
-                return Array.from(payFilterGroup.querySelectorAll('input[type="checkbox"]:checked'))
-                    .filter(i => i.id !== 'pf_all')
+        function getSelectedPayMethods(){
+            if (payMethodFilterGroup) {
+                return Array.from(payMethodFilterGroup.querySelectorAll('input[type="checkbox"]:checked'))
+                    .filter(i => i.id !== 'pmf_all')
+                    .map(i => i.value);
+            }
+            return [];
+        }
+
+        function getSelectedPaySources(){
+            if (paySourceFilterGroup) {
+                return Array.from(paySourceFilterGroup.querySelectorAll('input[type="checkbox"]:checked'))
+                    .filter(i => i.id !== 'psf_all')
                     .map(i => i.value);
             }
             return [];
@@ -245,11 +343,12 @@
 			let tQa=0,tQm=0,tQma=0,tQo=0,tQn=0,tGrand=0;
 			for (const r of rows){
 				const tr = document.createElement('tr');
+				const payDisplay = r.payment_source ? payLabel(r.payment_source) : payLabel(r.pay_method||'');
 				tr.innerHTML = `
 					<td>${r.date}</td>
 					<td>${r.sellerName}</td>
 					<td>${r.client_name||''}</td>
-					<td>${payLabel(r.pay_method||'')}</td>
+					<td>${payDisplay}</td>
 					<td>${r.is_paid ? '✓' : ''}</td>
 					<td>${r.qa||''}</td>
 					<td>${r.qm||''}</td>
@@ -385,6 +484,7 @@
                     const sales = await fetchJSON(withActor(`/api/sales?${params.toString()}`));
 					for (const r of (sales||[])){
 						const pm = (r.pay_method || '').toString();
+						const ps = (r.payment_source || '').toString();
 						const unpaid = r.is_paid !== true;
                         const allowed = (pm === '' || pm === 'efectivo' || pm === 'transf' || pm === 'marce' || pm === 'jorge' || pm === 'jorgebank');
 						if (!(unpaid && allowed)) continue;
@@ -394,6 +494,7 @@
 							sellerName: seller.name || '',
 							client_name: r.client_name || '',
 							pay_method: pm,
+							payment_source: ps,
 							is_paid: !!r.is_paid,
 							qa, qm, qma, qo, qn, tot,
 							saleId: r.id
@@ -418,11 +519,12 @@
 			const rows = [header];
 			let eGrand = 0, eQa=0,eQm=0,eQma=0,eQo=0,eQn=0;
 			for (const r of getFilteredData()){
+				const payDisplay = r.payment_source ? payLabel(r.payment_source) : payLabel(r.pay_method||'');
 				rows.push([
 					r.date,
 					r.sellerName,
 					r.client_name||'',
-					payLabel(r.pay_method||''),
+					payDisplay,
 					r.is_paid ? '✓' : '',
 					r.qa||'', r.qm||'', r.qma||'', r.qo||'', r.qn||'', r.tot||''
 				]);
@@ -439,6 +541,28 @@
 		backBtn.addEventListener('click', () => { location.href = '/'; });
         changeBtn.addEventListener('click', (ev) => openCalendar(ev));
 		setupSortListeners();
+		
+		// Date filter button
+		dateFilterBtn.addEventListener('click', (ev) => {
+			openDateFilterCalendar(ev);
+		});
+		
+		function openDateFilterCalendar(ev){
+			openRangeCalendarPopover((range) => {
+				if (!range || !range.start || !range.end) {
+					// Clear filter
+					dateFilterFrom = null;
+					dateFilterTo = null;
+					dateFilterLabel.textContent = 'Todas';
+					render();
+					return;
+				}
+				dateFilterFrom = range.start;
+				dateFilterTo = range.end;
+				dateFilterLabel.textContent = `${dateFilterFrom} — ${dateFilterTo}`;
+				render();
+			}, ev?.clientX, ev?.clientY, { preferUp: true });
+		}
 
 		// Lightweight date range popover if missing
 		if (typeof window.openRangeCalendarPopover !== 'function') {

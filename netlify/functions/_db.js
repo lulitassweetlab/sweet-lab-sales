@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 6; // Bump when schema changes require a migration (incremented for payment_date column)
+const SCHEMA_VERSION = 7; // Bump when schema changes require a migration (incremented for payment_source column)
 
 export async function ensureSchema() {
 	// If already ensured in this instance, skip immediately
@@ -189,6 +189,7 @@ export async function ensureSchema() {
 		is_paid BOOLEAN NOT NULL DEFAULT false,
 		pay_method TEXT,
 		payment_date DATE,
+		payment_source TEXT,
 		comment_text TEXT DEFAULT '',
 		total_cents INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMPTZ DEFAULT now()
@@ -212,6 +213,12 @@ export async function ensureSchema() {
 			WHERE table_name = 'sales' AND column_name = 'pay_method'
 		) THEN
 			ALTER TABLE sales ADD COLUMN pay_method TEXT;
+		END IF;
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'sales' AND column_name = 'payment_source'
+		) THEN
+			ALTER TABLE sales ADD COLUMN payment_source TEXT;
 		END IF;
 		IF NOT EXISTS (
 			SELECT 1 FROM information_schema.columns
@@ -562,6 +569,10 @@ END $$;`;
 			// 4) Persist target schema version so future requests short-circuit
 			await sql`UPDATE schema_meta SET version=${SCHEMA_VERSION}, updated_at=now()`;
 			schemaEnsured = true;
+		} catch (err) {
+			console.error('❌ Error during schema migration:', err);
+			// Don't set schemaEnsured = true so it will retry
+			throw err; // Propagate error to fail fast and alert
 		} finally {
 			schemaCheckPromise = null; // Reset for potential retries
 		}

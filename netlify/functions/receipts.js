@@ -26,7 +26,7 @@ export async function handler(event) {
 		}
 		const rows = await sql`
 			SELECT sr.id, sr.sale_id, sr.image_base64, sr.note_text, sr.created_at,
-			       s.seller_id, s.sale_day_id, s.client_name, s.pay_method, s.total_cents,
+			       s.seller_id, s.sale_day_id, s.client_name, s.pay_method, s.payment_source, s.total_cents,
 			       sd.day AS sale_day, se.name AS seller_name,
 			       COALESCE(sd.day, sr.created_at::date, s.created_at::date) AS effective_day
 			FROM sale_receipts sr
