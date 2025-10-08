@@ -1425,8 +1425,17 @@ function calcRowTotal(q) {
 	
 	// If using items array (new format) - only if array has elements
 	if (Array.isArray(q.items) && q.items.length > 0) {
+		// Use only the first occurrence per dessert (to match visible per-flavor qty)
+		const seen = new Set();
 		for (const item of q.items) {
-			total += Number(item.quantity || 0) * Number(item.unit_price || 0);
+			const code = (item.short_code || '').toString() || (state.desserts.find(d => d.id === item.dessert_id)?.short_code || '');
+			const key = code || `id:${item.dessert_id}`;
+			if (seen.has(key)) continue;
+			seen.add(key);
+			const qty = Number(item.quantity || 0) || 0;
+			let price = Number(item.unit_price || 0) || 0;
+			if (!price && code && PRICES[code] != null) price = Number(PRICES[code] || 0) || 0;
+			total += qty * price;
 		}
 		return total;
 	}
@@ -3255,22 +3264,16 @@ function updateSummary() {
 	let grand = 0;
 	
 	for (const s of state.sales) {
-		// Support both formats
+		// Support both formats; align with visible per-flavor qty (first occurrence per dessert)
+		const pm = (s.pay_method || '').toString();
 		if (Array.isArray(s.items) && s.items.length > 0) {
-			// New format: use items
-			for (const item of s.items) {
-				// Find dessert by id or short_code
-				const code = item.short_code || 
-					state.desserts.find(d => d.id === item.dessert_id)?.short_code;
-				
-				if (code && qtys[code] !== undefined) {
-					qtys[code] += Number(item.quantity || 0);
-				}
-				const pm = (s.pay_method || '').toString();
+			for (const d of state.desserts) {
+				let qty = 0;
+				const item = s.items.find(i => i.short_code === d.short_code || i.dessert_id === d.id);
+				qty = item ? Number(item.quantity || 0) : 0;
+				qtys[d.short_code] += qty;
 				if (pm === 'transf' || pm === 'jorgebank' || pm === 'marce' || pm === 'jorge') {
-					if (code && paidQtys[code] !== undefined) {
-						paidQtys[code] += Number(item.quantity || 0);
-					}
+					paidQtys[d.short_code] += qty;
 				}
 			}
 		} else {
@@ -3278,7 +3281,6 @@ function updateSummary() {
 			for (const d of state.desserts) {
 				const qty = Number(s[`qty_${d.short_code}`] || 0);
 				qtys[d.short_code] += qty;
-				const pm = (s.pay_method || '').toString();
 				if (pm === 'transf' || pm === 'jorgebank' || pm === 'marce' || pm === 'jorge') {
 					paidQtys[d.short_code] += qty;
 				}
