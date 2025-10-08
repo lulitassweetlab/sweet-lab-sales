@@ -52,9 +52,26 @@
 		const addBtn = document.getElementById('add-delivery-btn');
 		const backBtn = document.getElementById('back-btn');
 
+		function getCurrentUser(){
+			try { return JSON.parse(localStorage.getItem('authUser') || 'null'); } catch { return null; }
+		}
+
+		function requireAdmin(){
+			const u = getCurrentUser();
+			if (!u) { alert('Inicia sesión'); window.location.href = '/index.html'; return null; }
+			if (!(u.role === 'admin' || u.role === 'superadmin')) { alert('Solo para admin/superadmin'); window.location.href = '/index.html'; return null; }
+			return u;
+		}
+
 		async function api(method, url, body) {
-			const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
-			if (!res.ok) throw new Error('API error');
+			const u = getCurrentUser();
+			const headers = { 'Content-Type': 'application/json' };
+			if (u && u.name) headers['X-Actor-Name'] = String(u.name);
+			const res = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined });
+			if (!res.ok) {
+				const t = await res.text();
+				throw new Error(t || 'API error');
+			}
 			return res.json();
 		}
 
@@ -86,18 +103,56 @@
 			return tr;
 		}
 
-		addBtn.addEventListener('click', async () => {
-			const day = prompt('Fecha (YYYY-MM-DD):', new Date().toISOString().slice(0,10)); if (!day) return;
-			const arco = Number(prompt('Arco:', '0')||'0')|0;
-			const melo = Number(prompt('Melo:', '0')||'0')|0;
-			const mara = Number(prompt('Mara:', '0')||'0')|0;
-			const oreo = Number(prompt('Oreo:', '0')||'0')|0;
-			const nute = Number(prompt('Nute:', '0')||'0')|0;
-			try { await api('POST', '/api/deliveries', { day, items: { arco, melo, mara, oreo, nute } }); await load(); }
-			catch (e) { alert('No se pudo crear'); }
+		function openNewDeliveryPopover(anchorX, anchorY) {
+			const overlay = document.createElement('div'); overlay.className = 'confirm-popover'; overlay.style.position = 'fixed'; overlay.style.left = '50%'; overlay.style.top = '14%'; overlay.style.transform = 'translate(-50%, 0)'; overlay.style.zIndex = '1000'; overlay.classList.add('aladdin-pop');
+			const title = document.createElement('h4'); title.textContent = 'Nueva entrega'; title.style.margin = '0 0 10px 0';
+			const form = document.createElement('div'); form.style.display = 'grid'; form.style.gridTemplateColumns = '1fr 1fr'; form.style.gap = '8px'; form.style.minWidth = '360px';
+			const dLabel = document.createElement('label'); dLabel.textContent = 'Fecha:'; dLabel.style.gridColumn = '1 / span 2';
+			const dInput = document.createElement('input'); dInput.type = 'date'; dInput.className = 'input-cell'; dInput.value = new Date().toISOString().slice(0,10); dInput.style.gridColumn = '1 / span 2';
+			function numField(name, label){
+				const wrap = document.createElement('div');
+				const l = document.createElement('label'); l.textContent = label; l.style.display = 'block';
+				const i = document.createElement('input'); i.type = 'number'; i.min = '0'; i.step = '1'; i.value = '0'; i.className = 'input-cell';
+				wrap.append(l, i); return [wrap, i];
+			}
+			const [fa, ia] = numField('arco','Arco');
+			const [fm, im] = numField('melo','Melo');
+			const [fma, ima] = numField('mara','Mara');
+			const [fo, io] = numField('oreo','Oreo');
+			const [fn, inn] = numField('nute','Nute');
+			form.append(dLabel, dInput, fa, fm, fma, fo, fn);
+			const actions = document.createElement('div'); actions.className = 'confirm-actions'; actions.style.marginTop = '12px';
+			const save = document.createElement('button'); save.className = 'press-btn btn-primary'; save.textContent = 'Guardar';
+			const cancel = document.createElement('button'); cancel.className = 'press-btn'; cancel.textContent = 'Cancelar';
+			actions.append(save, cancel);
+			overlay.append(title, form, actions);
+			document.body.appendChild(overlay);
+			function close(){ if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay); }
+			cancel.addEventListener('click', close);
+			save.addEventListener('click', async () => {
+				const payload = {
+					day: dInput.value || new Date().toISOString().slice(0,10),
+					items: {
+						arco: Number(ia.value||0)||0,
+						melo: Number(im.value||0)||0,
+						mara: Number(ima.value||0)||0,
+						oreo: Number(io.value||0)||0,
+						nute: Number(inn.value||0)||0
+					}
+				};
+				try { await api('POST', '/api/deliveries', payload); close(); await load(); }
+				catch (e) { alert('No se pudo guardar: ' + (e?.message || e)); }
+			});
+		}
+
+		addBtn.addEventListener('click', (ev) => {
+			if (!requireAdmin()) return;
+			const rect = addBtn.getBoundingClientRect();
+			openNewDeliveryPopover(rect.left + rect.width/2, rect.bottom + 8);
 		});
 
 		backBtn.addEventListener('click', () => { window.location.href = '/index.html'; });
+		requireAdmin();
 		load();
 	})();
 	</script>
