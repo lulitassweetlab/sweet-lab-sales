@@ -128,12 +128,20 @@
 		let sortDirection = 'desc'; // 'asc' or 'desc'
 
         function payLabel(pm){
-            return pm === '' ? '-' :
-                pm === 'efectivo' ? 'Efectivo' :
-                pm === 'transf' ? 'Transf' :
-                pm === 'marce' ? 'Marce' :
-                pm === 'jorge' ? 'Jorge' :
-                pm === 'jorgebank' ? 'JorgeBank' : '-';
+            const lower = (pm || '').toString().toLowerCase();
+            if (lower === 'efectivo aleja' || lower === 'efectivo_aleja') return 'Efectivo Aleja';
+            if (lower === 'efectivo marcela' || lower === 'efectivo_marcela') return 'Efectivo Marcela';
+            if (lower === 'bancolombia aleja' || lower === 'bancolombia_aleja') return 'Bancolombia Aleja';
+            if (lower === 'bancolombia') return 'Bancolombia';
+            if (lower === 'nequi') return 'Nequi';
+            if (lower === 'otro') return 'Otro';
+            // Old methods
+            if (lower === 'efectivo') return 'Efectivo';
+            if (lower === 'transf') return 'Transf';
+            if (lower === 'marce') return 'Marce';
+            if (lower === 'jorge') return 'Jorge';
+            if (lower === 'jorgebank') return 'JorgeBank';
+            return pm === '' ? '-' : pm;
         }
 		async function fetchJSON(u){ const r = await fetch(u); if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }
 		async function deleteSale(saleId, clientName) {
@@ -221,7 +229,7 @@
                 });
                 updateMasterCheckboxState();
             }
-            // Pay sources (Bancolombia, Nequi, Otros)
+            // Pay sources (fuentes de pago del popup)
             if (paySourceFilterGroup) {
                 const prevSelected = getSelectedPaySources();
                 paySourceFilterGroup.innerHTML = '';
@@ -231,6 +239,9 @@
                 masterWrap.appendChild(master); masterWrap.appendChild(masterSpan);
                 paySourceFilterGroup.appendChild(masterWrap);
                 const sources = [
+                    { value: 'efectivo_aleja', label: 'Efectivo Aleja' },
+                    { value: 'efectivo_marcela', label: 'Efectivo Marcela' },
+                    { value: 'bancolombia_aleja', label: 'Bancolombia Aleja' },
                     { value: 'bancolombia', label: 'Bancolombia' },
                     { value: 'nequi', label: 'Nequi' },
                     { value: 'otros', label: 'Otros' }
@@ -269,8 +280,11 @@
 		}
 
 		function getPaySource(payMethod){
-			// Check if pay_method is one of the new sources (bancolombia, nequi, otro)
+			// Check if pay_method is one of the new sources from popup
 			const pm = (payMethod || '').toString().toLowerCase();
+			if (pm === 'efectivo aleja' || pm === 'efectivo_aleja') return 'efectivo_aleja';
+			if (pm === 'efectivo marcela' || pm === 'efectivo_marcela') return 'efectivo_marcela';
+			if (pm === 'bancolombia aleja' || pm === 'bancolombia_aleja') return 'bancolombia_aleja';
 			if (pm === 'bancolombia') return 'bancolombia';
 			if (pm === 'nequi') return 'nequi';
 			if (pm === 'otro') return 'otros';

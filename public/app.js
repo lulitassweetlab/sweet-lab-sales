@@ -6356,7 +6356,7 @@ function openPaymentDateDialog(saleId, anchorX, anchorY) {
 	// Payment method label
 	const methodLabel = document.createElement('div');
 	methodLabel.className = 'payment-date-label';
-	methodLabel.textContent = 'Método de pago:';
+	methodLabel.textContent = 'Fuente de pago:';
 	methodLabel.style.marginTop = '14px';
 	
 	// Payment method buttons - auto-save on click
@@ -6364,6 +6364,9 @@ function openPaymentDateDialog(saleId, anchorX, anchorY) {
 	methodsContainer.className = 'payment-methods-container';
 	
 	const methods = [
+		{ value: 'efectivo_aleja', label: 'Efectivo Aleja' },
+		{ value: 'efectivo_marcela', label: 'Efectivo Marcela' },
+		{ value: 'bancolombia_aleja', label: 'Bancolombia Aleja' },
 		{ value: 'bancolombia', label: 'Bancolombia' },
 		{ value: 'nequi', label: 'Nequi' },
 		{ value: 'otro', label: 'Otro' }
