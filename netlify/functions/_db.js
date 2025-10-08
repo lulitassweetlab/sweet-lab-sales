@@ -3,9 +3,25 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
+let cleanupExecuted = false; // Track if cleanup has run in this instance
 const SCHEMA_VERSION = 7; // Bump when schema changes require a migration (incremented for payment_source column)
 
 export async function ensureSchema() {
+	// Always run cleanup on first call, even if schema is ensured
+	if (!cleanupExecuted) {
+		cleanupExecuted = true;
+		try {
+			await sql`
+				UPDATE sales
+				SET qty_arco = 0, qty_melo = 0, qty_mara = 0, qty_oreo = 0, qty_nute = 0
+				WHERE EXISTS (SELECT 1 FROM sale_items si WHERE si.sale_id = sales.id)
+				AND (qty_arco > 0 OR qty_melo > 0 OR qty_mara > 0 OR qty_oreo > 0 OR qty_nute > 0)
+			`;
+		} catch (cleanupErr) {
+			console.error('Error cleaning up duplicate qty columns on startup:', cleanupErr);
+		}
+	}
+	
 	// If already ensured in this instance, skip immediately
 	if (schemaEnsured) return;
 	
@@ -558,20 +574,6 @@ END $$;`;
 	} catch (err) {
 		console.error('Error migrating sales to sale_items:', err);
 		// Continue anyway - migration will retry on next cold start
-	}
-	
-	// Additional cleanup: Clear qty columns for sales that already have sale_items but still have old qty values
-	// This fixes the duplication issue for sales that were migrated but not cleaned up
-	try {
-		await sql`
-			UPDATE sales
-			SET qty_arco = 0, qty_melo = 0, qty_mara = 0, qty_oreo = 0, qty_nute = 0
-			WHERE EXISTS (SELECT 1 FROM sale_items si WHERE si.sale_id = sales.id)
-			AND (qty_arco > 0 OR qty_melo > 0 OR qty_mara > 0 OR qty_oreo > 0 OR qty_nute > 0)
-		`;
-	} catch (err) {
-		console.error('Error cleaning up duplicate qty columns:', err);
-		// Continue anyway - cleanup will retry on next cold start
 	}
 	
 	// Create critical indexes for performance
