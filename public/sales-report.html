@@ -521,6 +521,28 @@
 	tGrandEl.textContent = tGrand;
 	tSumAllEl.textContent = totalQty;
 	countLabel.textContent = `Filas: ${rows.length}`;
+	
+	// CRITICAL DEBUG: Check what's actually in the rendered table vs dataset
+	console.log('🔍 VERIFICATION:');
+	console.log('Calculated totals:', qtys, 'Sum:', totalQty);
+	console.log('Total money:', tGrand);
+	
+	// Check first visible row in tbody
+	requestAnimationFrame(() => {
+		const firstRenderedRow = tbody.querySelector('tr');
+		if (firstRenderedRow) {
+			const cells = Array.from(firstRenderedRow.querySelectorAll('td'));
+			console.log('First RENDERED row cells:', cells.map(c => c.textContent));
+			console.log('First DATASET row:', rows[0]);
+		}
+		
+		// Check actual total row values
+		console.log('Actual values in total row:');
+		for (const d of desserts) {
+			const el = document.getElementById(`t-q-${d.short_code}`);
+			console.log(`  ${d.short_code}: ${el ? el.textContent : 'NOT FOUND'}`);
+		}
+	});
 			
 			// Render rows in batches for better performance
 			tbody.innerHTML = '';
