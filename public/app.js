@@ -1716,7 +1716,7 @@ async function loadSales() {
 				sale._paymentInfo = {
 					date: sale.payment_date,
 					source: sale.payment_source,
-					sourceValue: sale.payment_source.toLowerCase()
+					sourceValue: (sale.payment_source || '').toLowerCase()
 				};
 			}
 		}

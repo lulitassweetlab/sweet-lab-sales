@@ -121,7 +121,7 @@ export async function handler(event) {
 					const end = receiptsRangeEnd.toString().slice(0,10);
 					const rows = await sql`
 						SELECT sr.id, sr.sale_id, sr.image_base64, sr.note_text, sr.created_at,
-						       s.seller_id, s.sale_day_id, s.client_name, s.pay_method, s.total_cents,
+						       s.seller_id, s.sale_day_id, s.client_name, s.pay_method, s.payment_source, s.total_cents,
 						       sd.day AS sale_day, se.name AS seller_name,
 						       COALESCE(sd.day, sr.created_at::date, s.created_at::date) AS effective_day
 						FROM sale_receipts sr
@@ -342,7 +342,7 @@ export async function handler(event) {
 				}
 				if (!id) return json({ error: 'id requerido' }, 400);
 				// fetch previous data for notification content
-				const prev = (await sql`SELECT seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, pay_method FROM sales WHERE id=${id}`)[0] || null;
+				const prev = (await sql`SELECT seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, pay_method, payment_source FROM sales WHERE id=${id}`)[0] || null;
 				await sql`DELETE FROM sales WHERE id=${id}`;
 				// emit deletion notification with client, quantities, and seller name
 				if (prev) {
