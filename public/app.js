@@ -3763,6 +3763,7 @@ async function exportCarteraExcel(startIso, endIso) {
 
 (function wireReportButton(){
 	const reportBtn = document.getElementById('report-button');
+	const deliveriesBtn = document.getElementById('deliveries-button');
 	const transfersBtn = document.getElementById('transfers-button');
 	const projectionsBtn = document.getElementById('projections-button');
 	const usersBtn = document.getElementById('users-button');
@@ -3793,6 +3794,19 @@ async function exportCarteraExcel(startIso, endIso) {
 		openRangeCalendarPopover((range) => {
 			if (!range || !range.start || !range.end) return;
 			const url = `/projections.html?start=${encodeURIComponent(range.start)}&end=${encodeURIComponent(range.end)}`;
+			window.location.href = url;
+		}, ev.clientX, ev.clientY, { preferUp: true });
+	});
+	// Open Deliveries (Entregas) range picker and navigate to deliveries.html
+	deliveriesBtn?.addEventListener('click', (ev) => {
+		exitDeleteSellerModeIfActive();
+		const feats = new Set((state.currentUser?.features || []));
+		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+		if (!isSuper && !feats.has('reports.deliveries')) { try { notify.error('Sin permiso de entregas'); } catch {} return; }
+		openRangeCalendarPopover((range) => {
+			if (!range || !range.start || !range.end) return;
+			const actor = state.currentUser?.name || state.currentUser?.username || '';
+			const url = `/deliveries.html?start=${encodeURIComponent(range.start)}&end=${encodeURIComponent(range.end)}${actor ? `&actor=${encodeURIComponent(actor)}` : ''}`;
 			window.location.href = url;
 		}, ev.clientX, ev.clientY, { preferUp: true });
 	});
