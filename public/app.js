@@ -1652,9 +1652,6 @@ function renderTable() {
 				// Add click listener to show action bar
 				input.addEventListener('click', (e) => {
 					e.stopPropagation();
-					const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
-					const saleLocked = String(sale.pay_method || '').trim() !== '';
-					if (!isAdminUser && saleLocked) return; // block opening editor for non-admins
 					const currentName = input.value || '';
 					openClientActionBar(td, sale.id, currentName, e.clientX, e.clientY);
 				});
@@ -6622,13 +6619,20 @@ function openClientActionBar(tdElement, saleId, clientName, clickX, clickY) {
 		actionBar.style.transform = 'translate(-50%, -100%)';
 	}
 	
-	// Edit button (opens edit popover)
+	// Edit button (opens edit popover or shows lock message)
 	const editBtn = document.createElement('button');
 	editBtn.className = 'client-action-bar-btn';
 	editBtn.innerHTML = '<span class="client-action-bar-btn-icon">✏️</span><span class="client-action-bar-btn-label">Editar</span>';
 	editBtn.title = 'Editar pedido';
 	editBtn.addEventListener('click', (e) => {
 		e.stopPropagation();
+		const sale = state.sales.find(s => s.id === saleId);
+		const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
+		const locked = String(sale?.pay_method || '').trim() !== '';
+		if (!isAdminUser && locked) {
+			try { notify.error('Ya no es posible editar este pedido ya que ha sido entregado al cliente. Para editarlo por favor pide soporte.'); } catch {}
+			return;
+		}
 		// Hide the action bar but keep the outline active
 		actionBar.classList.remove('active');
 		// Get position for popover
