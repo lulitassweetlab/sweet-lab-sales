@@ -348,6 +348,9 @@
 		const totalPostresRow = document.getElementById('total-postres-row');
 		const totalTh = theadRow.querySelector('th.col-total');
 		
+		console.log('🏗️ RENDER DESSERT COLUMNS');
+		console.log('Desserts to render:', desserts.map(d => d.short_code));
+		
 		// Remove existing dessert columns
 		theadRow.querySelectorAll('th.col-qty').forEach(th => th.remove());
 		totalsRow.querySelectorAll('td.col-qty').forEach(td => td.remove());
@@ -372,6 +375,10 @@
 			tdEmpty.className = 'col-qty';
 			totalPostresRow.insertBefore(tdEmpty, totalPostresRow.querySelector('td.col-total'));
 		}
+		
+		// Log final structure
+		console.log('Headers order:', Array.from(theadRow.querySelectorAll('th')).map(th => th.textContent));
+		console.log('Total row cells:', Array.from(totalsRow.children).map((td, i) => `[${i}] id=${td.id || 'none'}`));
 		
 		// Update colspan for spacer row
 		const spacerTd = document.getElementById('spacer-td');
@@ -497,18 +504,23 @@
 		}
 		console.groupEnd();
 		
-		// Update totals dynamically
-		let totalQty = 0;
-		for (const d of desserts) {
-			const el = document.getElementById(`t-q-${d.short_code}`);
-			const value = Number(qtys[d.short_code]) || 0;
-			if (el) el.textContent = value; // Always show number, even if 0
-			totalQty += value;
+	// Update totals dynamically
+	let totalQty = 0;
+	console.log('📝 Writing totals to DOM:');
+	for (const d of desserts) {
+		const el = document.getElementById(`t-q-${d.short_code}`);
+		const value = Number(qtys[d.short_code]) || 0;
+		if (el) {
+			el.textContent = value; // Always show number, even if 0
+			console.log(`  Writing ${value} to #t-q-${d.short_code}`);
+			console.log(`    Element position in row:`, Array.from(el.parentElement.children).indexOf(el));
 		}
-		
-		tGrandEl.textContent = tGrand;
-		tSumAllEl.textContent = totalQty;
-		countLabel.textContent = `Filas: ${rows.length}`;
+		totalQty += value;
+	}
+	
+	tGrandEl.textContent = tGrand;
+	tSumAllEl.textContent = totalQty;
+	countLabel.textContent = `Filas: ${rows.length}`;
 			
 			// Render rows in batches for better performance
 			tbody.innerHTML = '';
