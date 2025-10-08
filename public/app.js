@@ -794,14 +794,16 @@ const notify = (() => {
 				item.addEventListener('click', (e) => {
 					// Don't navigate if clicking on checkbox
 					if (e.target === checkboxEl) return;
-					cleanup();
-					setTimeout(() => {
-						goToSaleFromNotification(
-							original.seller_id ?? original.sellerId ?? null,
-							original.sale_day_id ?? original.saleDay_id ?? original.sale_dayId ?? original.saleDayId ?? null,
-							original.sale_id ?? original.saleId ?? null
-						);
-					}, 0);
+					// Deep link in a new tab so the dialog stays open
+					try {
+						const payload = {
+							sellerId: original.seller_id ?? original.sellerId ?? null,
+							saleDayId: original.sale_day_id ?? original.saleDay_id ?? original.sale_dayId ?? original.saleDayId ?? null,
+							saleId: original.sale_id ?? original.saleId ?? null
+						};
+						localStorage.setItem('pendingFocus', JSON.stringify(payload));
+					} catch {}
+					try { window.open('/', '_blank', 'noopener'); } catch {}
 				});
 			}
 			list.appendChild(item);
@@ -7387,27 +7389,39 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 	}
 	try { await loadSellers(); } catch { /* Ignorar error de red para no bloquear el login */ }
 	let __handledPendingFocus = false;
-	// Handle deep link focus coming from Transfers (pendingFocus in localStorage)
+	// Handle deep link focus coming from Transfers or Notifications (pendingFocus in localStorage)
 	try {
 		const saved = localStorage.getItem('pendingFocus');
 		if (saved) {
 			localStorage.removeItem('pendingFocus');
-			const { sellerId, dayIso, clientName } = JSON.parse(saved);
+			const pf = JSON.parse(saved);
+			const sellerId = pf?.sellerId || pf?.seller_id || null;
+			const dayIso = pf?.dayIso || null;
+			const clientName = pf?.clientName || null;
+			const saleDayId = pf?.saleDayId || pf?.sale_day_id || null;
+			const saleId = pf?.saleId || pf?.sale_id || null;
 			const seller = (state.sellers || []).find(s => Number(s.id) === Number(sellerId));
 			if (seller) {
 				__handledPendingFocus = true;
 				await enterSeller(seller.id);
-				// Load days and select the requested date
-				try {
-					const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(seller.id)}`);
-					const d = (days || []).find(x => String(x.day).slice(0,10) === String(dayIso).slice(0,10));
-					if (d) {
-						state.selectedDayId = d.id;
-						document.getElementById('sales-wrapper')?.classList.remove('hidden');
-						await loadSales();
-						focusClientRow(clientName || '');
-					}
-				} catch {}
+				// Ensure days loaded
+				await loadDaysForSeller();
+				if (saleDayId) {
+					state.selectedDayId = Number(saleDayId);
+				} else if (dayIso) {
+					try {
+						const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(seller.id)}`);
+						const d = (days || []).find(x => String(x.day).slice(0,10) === String(dayIso).slice(0,10));
+						if (d) state.selectedDayId = d.id;
+					} catch {}
+				}
+				document.getElementById('sales-wrapper')?.classList.remove('hidden');
+				await loadSales();
+				if (saleId) {
+					focusSaleRowById(Number(saleId));
+				} else if (clientName) {
+					focusClientRow(clientName || '');
+				}
 			}
 		}
 	} catch {}
