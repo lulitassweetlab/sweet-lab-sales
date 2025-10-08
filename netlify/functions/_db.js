@@ -549,12 +549,29 @@ END $$;`;
 						await sql`INSERT INTO sale_items (sale_id, dessert_id, quantity, unit_price) 
 							VALUES (${sale.id}, ${item.dessert_id}, ${item.quantity}, ${item.unit_price})`;
 					}
+					
+					// Clear old qty columns to prevent duplication after migration
+					await sql`UPDATE sales SET qty_arco = 0, qty_melo = 0, qty_mara = 0, qty_oreo = 0, qty_nute = 0 WHERE id = ${sale.id}`;
 				}
 			}
 		}
 	} catch (err) {
 		console.error('Error migrating sales to sale_items:', err);
 		// Continue anyway - migration will retry on next cold start
+	}
+	
+	// Additional cleanup: Clear qty columns for sales that already have sale_items but still have old qty values
+	// This fixes the duplication issue for sales that were migrated but not cleaned up
+	try {
+		await sql`
+			UPDATE sales
+			SET qty_arco = 0, qty_melo = 0, qty_mara = 0, qty_oreo = 0, qty_nute = 0
+			WHERE EXISTS (SELECT 1 FROM sale_items si WHERE si.sale_id = sales.id)
+			AND (qty_arco > 0 OR qty_melo > 0 OR qty_mara > 0 OR qty_oreo > 0 OR qty_nute > 0)
+		`;
+	} catch (err) {
+		console.error('Error cleaning up duplicate qty columns:', err);
+		// Continue anyway - cleanup will retry on next cold start
 	}
 	
 	// Create critical indexes for performance

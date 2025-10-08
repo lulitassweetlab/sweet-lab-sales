@@ -17,6 +17,21 @@ export async function handler(event) {
 				if (computeStart && computeEnd) {
 					const start = computeStart.toString().slice(0,10);
 					const end = computeEnd.toString().slice(0,10);
+					
+					// Calculate totals from sale_items (new system) first
+					const itemsRows = await sql`
+						SELECT 
+							d.short_code,
+							SUM(si.quantity)::int AS total_qty
+						FROM sale_items si
+						JOIN desserts d ON d.id = si.dessert_id
+						JOIN sales s ON s.id = si.sale_id
+						LEFT JOIN sale_days sd ON sd.id = s.sale_day_id
+						WHERE COALESCE(sd.day, s.created_at::date) BETWEEN ${start} AND ${end}
+						GROUP BY d.short_code
+					`;
+					
+					// Calculate totals from old qty columns ONLY for sales without sale_items (to avoid duplication)
 					const qtyRows = await sql`
 						SELECT 
 							SUM(qty_arco)::int AS sum_arco,
@@ -27,8 +42,30 @@ export async function handler(event) {
 						FROM sales s
 						LEFT JOIN sale_days sd ON sd.id = s.sale_day_id
 						WHERE COALESCE(sd.day, s.created_at::date) BETWEEN ${start} AND ${end}
+						AND NOT EXISTS (SELECT 1 FROM sale_items si WHERE si.sale_id = s.id)
 					`;
-					const totals = qtyRows && qtyRows[0] ? qtyRows[0] : { sum_arco: 0, sum_melo: 0, sum_mara: 0, sum_oreo: 0, sum_nute: 0 };
+					
+					// Merge both systems: sale_items + qty columns (only for sales without items)
+					const totals = { sum_arco: 0, sum_melo: 0, sum_mara: 0, sum_oreo: 0, sum_nute: 0 };
+					
+					// Add quantities from sale_items
+					for (const row of (itemsRows || [])) {
+						const code = row.short_code;
+						const qty = Number(row.total_qty || 0);
+						if (code === 'arco') totals.sum_arco += qty;
+						else if (code === 'melo') totals.sum_melo += qty;
+						else if (code === 'mara') totals.sum_mara += qty;
+						else if (code === 'oreo') totals.sum_oreo += qty;
+						else if (code === 'nute') totals.sum_nute += qty;
+					}
+					
+					// Add quantities from old columns (only for sales without sale_items to avoid duplication)
+					const oldQtys = qtyRows && qtyRows[0] ? qtyRows[0] : { sum_arco: 0, sum_melo: 0, sum_mara: 0, sum_oreo: 0, sum_nute: 0 };
+					totals.sum_arco += Number(oldQtys.sum_arco || 0);
+					totals.sum_melo += Number(oldQtys.sum_melo || 0);
+					totals.sum_mara += Number(oldQtys.sum_mara || 0);
+					totals.sum_oreo += Number(oldQtys.sum_oreo || 0);
+					totals.sum_nute += Number(oldQtys.sum_nute || 0);
 					// Prefer recipes if present; otherwise fall back to ingredient_formulas
 					const haveRecipes = (await sql`SELECT COUNT(*)::int AS c FROM dessert_recipes`)[0]?.c > 0;
 					let out = [];

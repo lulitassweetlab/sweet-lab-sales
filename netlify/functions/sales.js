@@ -260,7 +260,12 @@ export async function handler(event) {
 			const paymentSource = (Object.prototype.hasOwnProperty.call(data, 'payment_source')) ? (data.payment_source ?? null) : current.payment_source;
 			
 			// Update sale basic info
-			await sql`UPDATE sales SET client_name=${client}, comment_text=${comment}, qty_arco=${qa}, qty_melo=${qm}, qty_mara=${qma}, qty_oreo=${qo}, qty_nute=${qn}, is_paid=${paid}, pay_method=${payMethod}, payment_date=${paymentDate}, payment_source=${paymentSource} WHERE id=${id}`;
+			// If using new items system, clear old qty columns to prevent duplication
+			if (items !== null) {
+				await sql`UPDATE sales SET client_name=${client}, comment_text=${comment}, qty_arco=0, qty_melo=0, qty_mara=0, qty_oreo=0, qty_nute=0, is_paid=${paid}, pay_method=${payMethod}, payment_date=${paymentDate}, payment_source=${paymentSource} WHERE id=${id}`;
+			} else {
+				await sql`UPDATE sales SET client_name=${client}, comment_text=${comment}, qty_arco=${qa}, qty_melo=${qm}, qty_mara=${qma}, qty_oreo=${qo}, qty_nute=${qn}, is_paid=${paid}, pay_method=${payMethod}, payment_date=${paymentDate}, payment_source=${paymentSource} WHERE id=${id}`;
+			}
 				
 				// If items are provided, update sale_items table
 				if (items !== null) {
