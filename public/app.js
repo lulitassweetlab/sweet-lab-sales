@@ -3658,6 +3658,7 @@ async function exportCarteraExcel(startIso, endIso) {
 	const carteraBtn = document.getElementById('cartera-button');
 	const accountingBtn = document.getElementById('accounting-button');
 	const dessertsBtn = document.getElementById('desserts-button');
+	const deliveriesBtn = document.getElementById('deliveries-button');
 	const input = document.getElementById('report-date');
 	if (!reportBtn || !input) return;
 	reportBtn.addEventListener('click', (ev) => {
