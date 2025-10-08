@@ -28,6 +28,7 @@
 			<div style="display:flex; gap:8px; align-items:center;">
 				<button id="user-filter-btn" class="press-btn">Filtrar usuarios</button>
 				<button id="amount-filter-btn" class="press-btn">Filtrar valor</button>
+				<button id="payment-date-filter-btn" class="press-btn">Fecha pago: <span id="payment-date-filter-label">Todas</span></button>
 				<button id="change-range" class="press-btn">Cambiar fechas</button>
 			</div>
 		</div>
@@ -51,10 +52,13 @@
 		const changeBtn = document.getElementById('change-range');
 		const userFilterBtn = document.getElementById('user-filter-btn');
 		const amountFilterBtn = document.getElementById('amount-filter-btn');
+		const paymentDateFilterBtn = document.getElementById('payment-date-filter-btn');
+		const paymentDateFilterLabel = document.getElementById('payment-date-filter-label');
 		let selectedUsers = new Set(); // Set of seller IDs
 		let allSellers = [];
 		let minAmount = null;
 		let maxAmount = null;
+		let selectedPaymentDates = []; // array of YYYY-MM-DD strings
 
 		function buildPaySelector(sale){
 			const container = document.createElement('div');
@@ -424,11 +428,15 @@
 					const saleAmount = Number(sale.total_cents || 0);
 					if (minAmount !== null && saleAmount < minAmount) return;
 					if (maxAmount !== null && saleAmount > maxAmount) return;
+					// Apply payment date filter (only include if matches selected dates)
+					const payDate = sale.payment_date ? String(sale.payment_date).slice(0,10) : '';
+					if (selectedPaymentDates.length > 0 && (!payDate || !selectedPaymentDates.includes(payDate))) return;
 					if (Array.isArray(recs) && recs.length) {
 						const r = recs[0];
 						const card = document.createElement('div'); card.className = 'transfer-card';
 						const img = document.createElement('img'); img.alt = 'Comprobante'; img.src = r.image_base64; img.addEventListener('click', () => openLightbox(r.image_base64, r.note_text || ''));
 						const meta = document.createElement('div'); meta.className = 'transfer-meta';
+						if (payDate) meta.dataset.paymentDate = payDate; // mark for filtering
 						// Payment selector synced with sales table (top-right overlay)
 						const paySelector = buildPaySelector(sale);
 						const payOverlay = document.createElement('div'); payOverlay.className = 'transfer-pay'; payOverlay.appendChild(paySelector);
@@ -473,6 +481,10 @@
 
 		amountFilterBtn.addEventListener('click', (ev) => {
 			openAmountFilterMenu(ev.clientX, ev.clientY);
+		});
+
+		paymentDateFilterBtn.addEventListener('click', (ev) => {
+			openPaymentDateFilterMenu(ev.clientX, ev.clientY);
 		});
 
 		function openUserFilterMenu(anchorX, anchorY) {
@@ -753,6 +765,109 @@
 				document.addEventListener('mousedown', outside, true);
 				document.addEventListener('touchstart', outside, true);
 			}, 0);
+		}
+
+		function openPaymentDateFilterMenu(anchorX, anchorY) {
+			// Gather payment dates from currently loaded cards (within current filters except payment-date itself)
+			const dateSet = new Set();
+			const cards = grid.querySelectorAll('.transfer-card .transfer-meta');
+			cards.forEach(meta => {
+				const d = meta?.dataset?.paymentDate || '';
+				if (d) dateSet.add(String(d).slice(0,10));
+			});
+			const uniqueDates = Array.from(dateSet).sort((a,b) => b.localeCompare(a));
+
+			const menu = document.createElement('div');
+			menu.className = 'pay-menu';
+			menu.style.position = 'fixed';
+			menu.style.left = anchorX + 'px';
+			menu.style.top = anchorY + 'px';
+			menu.style.transform = 'translateX(-50%)';
+			menu.style.zIndex = '1000';
+			menu.style.maxHeight = '320px';
+			menu.style.overflowY = 'auto';
+			menu.style.padding = '8px';
+			menu.style.minWidth = '200px';
+
+			// All option
+			const allWrap = document.createElement('label');
+			allWrap.style.display = 'flex';
+			allWrap.style.alignItems = 'center';
+			allWrap.style.gap = '8px';
+			allWrap.style.padding = '4px 8px';
+			allWrap.style.cursor = 'pointer';
+			allWrap.style.borderBottom = '1px solid rgba(0,0,0,0.1)';
+			allWrap.style.marginBottom = '6px';
+			const allCheck = document.createElement('input');
+			allCheck.type = 'checkbox';
+			allCheck.checked = selectedPaymentDates.length === 0;
+			const allLabel = document.createElement('span');
+			allLabel.textContent = 'Todas';
+			allLabel.style.fontWeight = '600';
+			allWrap.append(allCheck, allLabel);
+			allCheck.addEventListener('change', () => {
+				if (allCheck.checked) {
+					selectedPaymentDates = [];
+					paymentDateFilterLabel.textContent = 'Todas';
+					applyPaymentDateFilter();
+					cleanup();
+				}
+			});
+			menu.appendChild(allWrap);
+
+			// Individual date checkboxes
+			for (const d of uniqueDates) {
+				const wrap = document.createElement('label');
+				wrap.style.display = 'flex';
+				wrap.style.alignItems = 'center';
+				wrap.style.gap = '8px';
+				wrap.style.padding = '4px 8px';
+				wrap.style.cursor = 'pointer';
+				wrap.style.borderRadius = '4px';
+				wrap.addEventListener('mouseenter', () => { wrap.style.backgroundColor = 'rgba(0,0,0,0.05)'; });
+				wrap.addEventListener('mouseleave', () => { wrap.style.backgroundColor = ''; });
+				const cb = document.createElement('input');
+				cb.type = 'checkbox';
+				cb.checked = selectedPaymentDates.includes(d);
+				const label = document.createElement('span');
+				label.textContent = String(d);
+				wrap.append(cb, label);
+				cb.addEventListener('change', () => {
+					if (cb.checked) {
+						if (!selectedPaymentDates.includes(d)) selectedPaymentDates.push(d);
+					} else {
+						selectedPaymentDates = selectedPaymentDates.filter(x => x !== d);
+					}
+					updatePaymentDateFilterLabel();
+					applyPaymentDateFilter();
+				});
+				menu.appendChild(wrap);
+			}
+
+			document.body.appendChild(menu);
+			// Keep in viewport
+			const rect = menu.getBoundingClientRect();
+			let left = anchorX; let top = anchorY + 8;
+			if (left + rect.width / 2 > window.innerWidth - 10) left = window.innerWidth - rect.width / 2 - 10;
+			if (left - rect.width / 2 < 10) left = rect.width / 2 + 10;
+			if (top + rect.height > window.innerHeight - 10) top = anchorY - rect.height - 8;
+			menu.style.left = left + 'px';
+			menu.style.top = top + 'px';
+
+			function outside(e) { if (!menu.contains(e.target)) cleanup(); }
+			function cleanup(){ document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); if (menu.parentNode) menu.parentNode.removeChild(menu); }
+			setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
+		}
+
+		function updatePaymentDateFilterLabel(){
+			if (selectedPaymentDates.length === 0) { paymentDateFilterLabel.textContent = 'Todas'; return; }
+			if (selectedPaymentDates.length === 1) { paymentDateFilterLabel.textContent = selectedPaymentDates[0]; return; }
+			paymentDateFilterLabel.textContent = `${selectedPaymentDates.length} fechas`;
+		}
+
+		function applyPaymentDateFilter(){
+			// Re-render by re-running load to respect all filters (users, amount)
+			load();
 		}
 
 		// Lightweight embed of openRangeCalendarPopover from app.js if not present
