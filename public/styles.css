@@ -327,6 +327,64 @@ main { padding: 24px; max-width: 1024px; margin: 0 auto; }
 
 .view.hidden { display: none; }
 
+/* Landing (select seller) – center everything */
+#view-select-seller {
+  display: grid;
+  place-items: center;
+  gap: 20px;
+}
+
+#view-select-seller .sellers-panel {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+#view-select-seller .sellers-panel .panel-header h3 {
+  text-align: center;
+}
+
+/* Center seller grid items and avoid full-width stretching */
+#view-select-seller .seller-list {
+  justify-content: center;
+  justify-items: center;
+  grid-template-columns: repeat(auto-fit, minmax(200px, max-content));
+}
+
+#view-select-seller .seller-add {
+  justify-content: center;
+  justify-items: center;
+  max-width: 420px;
+  margin: 12px auto 0;
+}
+
+#view-select-seller .dates-section {
+  margin: 0;
+}
+
+#view-select-seller .report-card {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+/* Center report content and title with buttons beneath */
+#view-select-seller .report-card-content {
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+}
+
+#view-select-seller .report-title {
+  flex: 1 0 100%;
+  text-align: center;
+}
+
+#view-select-seller .report-btn {
+  min-width: 140px;
+}
+
 .seller-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 16px 0 18px; }
 
 /* Login */
