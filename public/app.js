@@ -247,23 +247,62 @@ function renderClientDetailTable(rows) {
 			else if (val === 'jorgebank') wrap.classList.add('method-jorgebank');
 		}
 		applyPayClass();
-		// Click always opens the selector menu
+		// Click: first-time behaviors and shortcuts
 		wrap.addEventListener('click', async (e) => {
 			e.stopPropagation();
-			const rect = wrap.getBoundingClientRect();
 			const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
 			const locked = String(r.pay_method || '').trim() !== '';
 			if (!isAdminUser && locked) return; // block for non-admins
+			const curr = String(sel.value || '');
+			const saleId = Number(r.id);
+			const rect = wrap.getBoundingClientRect();
+			function hasSeen(method){ try { return localStorage.getItem('seenPaymentDate_' + method + '_' + saleId) === '1'; } catch { return false; } }
+			function markSeen(method){ try { localStorage.setItem('seenPaymentDate_' + method + '_' + saleId, '1'); } catch {} }
+			// If current is 'jorge' and first time -> open payment date dialog centered
+			if (curr === 'jorge' && !hasSeen('jorge')) { markSeen('jorge'); openPaymentDateDialog(saleId); return; }
+			// If current is 'jorgebank' and already seen -> open receipt viewer/upload directly
+			if (curr === 'jorgebank' && hasSeen('jorgebank')) {
+				try {
+					const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(saleId)}`);
+					if (Array.isArray(recs) && recs.length) {
+						openReceiptViewerPopover(recs[0].image_base64, saleId, recs[0].created_at, rect.left + rect.width / 2, rect.bottom, recs[0].note_text || '', recs[0].id);
+					} else {
+						openReceiptUploadPage(saleId);
+					}
+				} catch { openReceiptUploadPage(saleId); }
+				return;
+			}
+				// If current is 'jorgebank' and NOT seen -> show payment date popover first time
+				if (curr === 'jorgebank' && !hasSeen('jorgebank')) { markSeen('jorgebank'); openPaymentDateDialog(saleId); return; }
+				// If current is 'jorgebank' and NOT seen -> show payment date popover first time
+				if (curr === 'jorgebank' && !hasSeen('jorgebank')) { markSeen('jorgebank'); openPaymentDateDialog(saleId); return; }
+			// Otherwise open the selector menu
 			openPayMenu(wrap, sel, rect.left + rect.width / 2, rect.bottom);
 		});
 		wrap.tabIndex = 0;
 		wrap.addEventListener('keydown', async (e) => {
 			if (e.key === 'Enter' || e.key === ' ') {
 				e.preventDefault();
-				const rect = wrap.getBoundingClientRect();
 				const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
 				const locked = String(r.pay_method || '').trim() !== '';
 				if (!isAdminUser && locked) return;
+				const curr = String(sel.value || '');
+				const saleId = Number(r.id);
+				const rect = wrap.getBoundingClientRect();
+				function hasSeen(method){ try { return localStorage.getItem('seenPaymentDate_' + method + '_' + saleId) === '1'; } catch { return false; } }
+				function markSeen(method){ try { localStorage.setItem('seenPaymentDate_' + method + '_' + saleId, '1'); } catch {} }
+				if (curr === 'jorge' && !hasSeen('jorge')) { markSeen('jorge'); openPaymentDateDialog(saleId); return; }
+				if (curr === 'jorgebank' && hasSeen('jorgebank')) {
+					try {
+						const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(saleId)}`);
+						if (Array.isArray(recs) && recs.length) {
+							openReceiptViewerPopover(recs[0].image_base64, saleId, recs[0].created_at, rect.left + rect.width / 2, rect.bottom, recs[0].note_text || '', recs[0].id);
+						} else {
+							openReceiptUploadPage(saleId);
+						}
+					} catch { openReceiptUploadPage(saleId); }
+					return;
+				}
 				openPayMenu(wrap, sel, rect.left + rect.width / 2, rect.bottom);
 			}
 		});
@@ -6239,6 +6278,13 @@ function openPayMenu(anchorEl, selectEl, clickX, clickY) {
 	menu.style.position = 'fixed';
 	menu.style.transform = 'translateX(-50%)';
 	menu.style.zIndex = '1000';
+	// Helpers to track if payment-date popover was already shown for a sale+method
+	function hasSeenPaymentDateDialogForSale(saleId, method) {
+		try { return localStorage.getItem('seenPaymentDate_' + String(method || '') + '_' + String(saleId || '')) === '1'; } catch { return false; }
+	}
+	function markSeenPaymentDateDialogForSale(saleId, method) {
+		try { localStorage.setItem('seenPaymentDate_' + String(method || '') + '_' + String(saleId || ''), '1'); } catch {}
+	}
 	const items = [
 		{ v: 'efectivo', cls: 'menu-efectivo' },
 		{ v: 'entregado', cls: 'menu-entregado' }
@@ -6267,7 +6313,18 @@ function openPayMenu(anchorEl, selectEl, clickX, clickY) {
 			e.stopPropagation();
 			selectEl.value = it.v;
 			selectEl.dispatchEvent(new Event('change'));
-			// If selecting bank types from the menu, show existing receipt if any; otherwise open upload
+			// Special behavior: first time selecting 'jorge' or 'jorgebank' open payment-date popover centered
+			if (currentSaleId && (it.v === 'jorge' || it.v === 'jorgebank')) {
+				const firstTime = !hasSeenPaymentDateDialogForSale(currentSaleId, it.v);
+				if (firstTime) {
+					markSeenPaymentDateDialogForSale(currentSaleId, it.v);
+					// Open centered popover (it positions itself to center)
+					setTimeout(() => openPaymentDateDialog(currentSaleId), 0);
+					cleanup();
+					return;
+				}
+			}
+			// If selecting bank types and not first-time popover, show existing receipt if any; otherwise open upload
 			if ((it.v === 'transf' || it.v === 'jorgebank') && currentSaleId) {
 				try {
 					const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(currentSaleId)}`);
