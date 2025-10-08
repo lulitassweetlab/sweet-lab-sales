@@ -40,7 +40,11 @@
 				</label>
                 <label style="display:flex; gap:6px; align-items:flex-start">
                     <span style="line-height:28px;">Método</span>
-                    <div id="pay-filter-group" class="seller-filter-group" style="display:flex; gap:8px; flex-wrap:wrap; min-width:200px; max-height:132px; overflow:auto; padding:8px; border:1px solid var(--border); border-radius:10px; background: var(--card);"></div>
+                    <div id="pay-method-filter-group" class="seller-filter-group" style="display:flex; gap:8px; flex-wrap:wrap; min-width:220px; max-height:132px; overflow:auto; padding:8px; border:1px solid var(--border); border-radius:10px; background: var(--card);"></div>
+                </label>
+                <label style="display:flex; gap:6px; align-items:flex-start">
+                    <span style="line-height:28px;">Fuente</span>
+                    <div id="pay-source-filter-group" class="seller-filter-group" style="display:flex; gap:8px; flex-wrap:wrap; min-width:200px; max-height:132px; overflow:auto; padding:8px; border:1px solid var(--border); border-radius:10px; background: var(--card);"></div>
                 </label>
 				<label style="display:flex; gap:6px; align-items:center">
 					<span>Fecha pago:</span>
@@ -109,7 +113,8 @@
 		const changeBtn = document.getElementById('change-range');
 		const exportBtn = document.getElementById('export-excel');
         const sellerFilterGroup = document.getElementById('seller-filter-group');
-        const payFilterGroup = document.getElementById('pay-filter-group');
+        const payMethodFilterGroup = document.getElementById('pay-method-filter-group');
+        const paySourceFilterGroup = document.getElementById('pay-source-filter-group');
 		const dateFilterBtn = document.getElementById('date-filter-btn');
 		const dateFilterLabel = document.getElementById('date-filter-label');
 		
@@ -182,39 +187,72 @@
 				});
 				updateMasterCheckboxState();
 			}
-            // Pay methods - Bancolombia, Nequi, Otros
-            if (payFilterGroup) {
-                const prevSelected = getSelectedPayCategories();
-                payFilterGroup.innerHTML = '';
+            // Pay methods (efectivo, transf, marce, jorge, etc.)
+            if (payMethodFilterGroup) {
+                const prevSelected = getSelectedPayMethods();
+                payMethodFilterGroup.innerHTML = '';
                 const masterWrap = document.createElement('label'); masterWrap.style.display='inline-flex'; masterWrap.style.alignItems='center'; masterWrap.style.gap='6px';
-                const master = document.createElement('input'); master.type='checkbox'; master.id='pf_all';
+                const master = document.createElement('input'); master.type='checkbox'; master.id='pmf_all';
                 const masterSpan = document.createElement('span'); masterSpan.textContent = 'Todos';
                 masterWrap.appendChild(master); masterWrap.appendChild(masterSpan);
-                payFilterGroup.appendChild(masterWrap);
-                const categories = [
-                    { value: 'bancolombia', label: 'Bancolombia' },
-                    { value: 'nequi', label: 'Nequi' },
-                    { value: 'otros', label: 'Otros' }
-                ];
-                for (const cat of categories){
-                    const id = `pf_${cat.value}`;
+                payMethodFilterGroup.appendChild(masterWrap);
+                const codes = ['', 'efectivo', 'marce', 'jorge', 'transf', 'jorgebank'];
+                for (const code of codes){
+                    const id = `pmf_${code || 'dash'}`;
                     const wrap = document.createElement('label'); wrap.style.display='inline-flex'; wrap.style.alignItems='center'; wrap.style.gap='6px';
-                    const cb = document.createElement('input'); cb.type='checkbox'; cb.value = cat.value; cb.id = id;
-                    // Default to selected if no prior selection
+                    const cb = document.createElement('input'); cb.type='checkbox'; cb.value = code; cb.id = id;
                     cb.checked = prevSelected.length ? prevSelected.includes(cb.value) : true;
                     cb.addEventListener('change', () => { updateMasterCheckboxState(); render(); });
-                    const sp = document.createElement('span'); sp.textContent = cat.label;
+                    const sp = document.createElement('span'); sp.textContent = payLabel(code);
                     wrap.appendChild(cb); wrap.appendChild(sp);
-                    payFilterGroup.appendChild(wrap);
+                    payMethodFilterGroup.appendChild(wrap);
                 }
                 function updateMasterCheckboxState(){
-                    const cbs = Array.from(payFilterGroup.querySelectorAll('input[type="checkbox"]')).filter(x => x.id !== 'pf_all');
+                    const cbs = Array.from(payMethodFilterGroup.querySelectorAll('input[type="checkbox"]')).filter(x => x.id !== 'pmf_all');
                     const checked = cbs.filter(x => x.checked).length;
                     master.indeterminate = checked > 0 && checked < cbs.length;
                     master.checked = checked > 0 && checked === cbs.length;
                 }
                 master.addEventListener('change', () => {
-                    const cbs = Array.from(payFilterGroup.querySelectorAll('input[type="checkbox"]')).filter(x => x.id !== 'pf_all');
+                    const cbs = Array.from(payMethodFilterGroup.querySelectorAll('input[type="checkbox"]')).filter(x => x.id !== 'pmf_all');
+                    for (const cb of cbs) cb.checked = master.checked;
+                    updateMasterCheckboxState();
+                    render();
+                });
+                updateMasterCheckboxState();
+            }
+            // Pay sources (Bancolombia, Nequi, Otros)
+            if (paySourceFilterGroup) {
+                const prevSelected = getSelectedPaySources();
+                paySourceFilterGroup.innerHTML = '';
+                const masterWrap = document.createElement('label'); masterWrap.style.display='inline-flex'; masterWrap.style.alignItems='center'; masterWrap.style.gap='6px';
+                const master = document.createElement('input'); master.type='checkbox'; master.id='psf_all';
+                const masterSpan = document.createElement('span'); masterSpan.textContent = 'Todos';
+                masterWrap.appendChild(master); masterWrap.appendChild(masterSpan);
+                paySourceFilterGroup.appendChild(masterWrap);
+                const sources = [
+                    { value: 'bancolombia', label: 'Bancolombia' },
+                    { value: 'nequi', label: 'Nequi' },
+                    { value: 'otros', label: 'Otros' }
+                ];
+                for (const src of sources){
+                    const id = `psf_${src.value}`;
+                    const wrap = document.createElement('label'); wrap.style.display='inline-flex'; wrap.style.alignItems='center'; wrap.style.gap='6px';
+                    const cb = document.createElement('input'); cb.type='checkbox'; cb.value = src.value; cb.id = id;
+                    cb.checked = prevSelected.length ? prevSelected.includes(cb.value) : true;
+                    cb.addEventListener('change', () => { updateMasterCheckboxState(); render(); });
+                    const sp = document.createElement('span'); sp.textContent = src.label;
+                    wrap.appendChild(cb); wrap.appendChild(sp);
+                    paySourceFilterGroup.appendChild(wrap);
+                }
+                function updateMasterCheckboxState(){
+                    const cbs = Array.from(paySourceFilterGroup.querySelectorAll('input[type="checkbox"]')).filter(x => x.id !== 'psf_all');
+                    const checked = cbs.filter(x => x.checked).length;
+                    master.indeterminate = checked > 0 && checked < cbs.length;
+                    master.checked = checked > 0 && checked === cbs.length;
+                }
+                master.addEventListener('change', () => {
+                    const cbs = Array.from(paySourceFilterGroup.querySelectorAll('input[type="checkbox"]')).filter(x => x.id !== 'psf_all');
                     for (const cb of cbs) cb.checked = master.checked;
                     updateMasterCheckboxState();
                     render();
@@ -230,23 +268,35 @@
 			return [];
 		}
 
-		function getPayCategory(payMethod){
-			// Map pay_method to category
+		function getPaySource(payMethod){
+			// Check if pay_method is one of the new sources (bancolombia, nequi, otro)
 			const pm = (payMethod || '').toString().toLowerCase();
-			if (pm === 'jorgebank' || pm === 'transf') return 'bancolombia';
-			if (pm === 'marce' || pm === 'jorge') return 'nequi';
-			return 'otros'; // efectivo, '', entregado, etc.
+			if (pm === 'bancolombia') return 'bancolombia';
+			if (pm === 'nequi') return 'nequi';
+			if (pm === 'otro') return 'otros';
+			// Otherwise it's an old method, return null (not a source)
+			return null;
 		}
 
 		function getFilteredData(){
 			const selSellers = getSelectedSellers();
-            const selCategories = getSelectedPayCategories();
+            const selMethods = getSelectedPayMethods();
+            const selSources = getSelectedPaySources();
 			let rows = dataset.filter(r => {
 				if (selSellers.length && !selSellers.includes(r.sellerName)) return false;
-                if (selCategories.length) {
-					const category = getPayCategory(r.pay_method);
-					if (!selCategories.includes(category)) return false;
+                
+				// Check pay method filter (old methods: efectivo, transf, marce, jorge, jorgebank)
+				const pm = (r.pay_method || '').toString();
+				const source = getPaySource(pm);
+				
+				// If it's an old method (source is null), filter by pay method
+				if (source === null) {
+					if (selMethods.length && !selMethods.includes(pm)) return false;
+				} else {
+					// If it's a new source, filter by pay source
+					if (selSources.length && !selSources.includes(source)) return false;
 				}
+				
 				if (dateFilterFrom && r.date < dateFilterFrom) return false;
 				if (dateFilterTo && r.date > dateFilterTo) return false;
 				return true;
@@ -254,10 +304,19 @@
 			return rows;
 		}
 
-        function getSelectedPayCategories(){
-            if (payFilterGroup) {
-                return Array.from(payFilterGroup.querySelectorAll('input[type="checkbox"]:checked'))
-                    .filter(i => i.id !== 'pf_all')
+        function getSelectedPayMethods(){
+            if (payMethodFilterGroup) {
+                return Array.from(payMethodFilterGroup.querySelectorAll('input[type="checkbox"]:checked'))
+                    .filter(i => i.id !== 'pmf_all')
+                    .map(i => i.value);
+            }
+            return [];
+        }
+
+        function getSelectedPaySources(){
+            if (paySourceFilterGroup) {
+                return Array.from(paySourceFilterGroup.querySelectorAll('input[type="checkbox"]:checked'))
+                    .filter(i => i.id !== 'psf_all')
                     .map(i => i.value);
             }
             return [];
