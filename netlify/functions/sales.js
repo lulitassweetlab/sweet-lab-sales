@@ -4,10 +4,27 @@ function json(body, status = 200) {
 	return { statusCode: status, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
 }
 
+let initialCleanupDone = false;
+
 export async function handler(event) {
 	try {
 		// Always ensure schema to allow migrations (payment_date column)
 		await ensureSchema();
+		
+		// Force cleanup on first request to this handler (handles hot reloads)
+		if (!initialCleanupDone) {
+			initialCleanupDone = true;
+			try {
+				await sql`
+					UPDATE sales
+					SET qty_arco = 0, qty_melo = 0, qty_mara = 0, qty_oreo = 0, qty_nute = 0
+					WHERE EXISTS (SELECT 1 FROM sale_items si WHERE si.sale_id = sales.id)
+					AND (qty_arco > 0 OR qty_melo > 0 OR qty_mara > 0 OR qty_oreo > 0 OR qty_nute > 0)
+				`;
+			} catch (cleanErr) {
+				console.error('Cleanup error:', cleanErr);
+			}
+		}
 		
 		if (event.httpMethod === 'OPTIONS') return json({ ok: true });
 		switch (event.httpMethod) {

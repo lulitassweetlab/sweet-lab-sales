@@ -7,16 +7,19 @@ let cleanupExecuted = false; // Track if cleanup has run in this instance
 const SCHEMA_VERSION = 7; // Bump when schema changes require a migration (incremented for payment_source column)
 
 export async function ensureSchema() {
-	// Always run cleanup on first call, even if schema is ensured
+	// Always run cleanup on first call (critical for fixing existing duplicates)
 	if (!cleanupExecuted) {
 		cleanupExecuted = true;
 		try {
-			await sql`
+			const result = await sql`
 				UPDATE sales
 				SET qty_arco = 0, qty_melo = 0, qty_mara = 0, qty_oreo = 0, qty_nute = 0
 				WHERE EXISTS (SELECT 1 FROM sale_items si WHERE si.sale_id = sales.id)
 				AND (qty_arco > 0 OR qty_melo > 0 OR qty_mara > 0 OR qty_oreo > 0 OR qty_nute > 0)
 			`;
+			if (result && result.length > 0) {
+				console.log(`✓ Cleaned up ${result.length} sales with duplicate qty values`);
+			}
 		} catch (cleanupErr) {
 			console.error('Error cleaning up duplicate qty columns on startup:', cleanupErr);
 		}
