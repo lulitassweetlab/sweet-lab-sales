@@ -46,10 +46,12 @@
                     <span style="line-height:28px;">Fuente</span>
                     <div id="pay-source-filter-group" class="seller-filter-group" style="display:flex; gap:8px; flex-wrap:wrap; min-width:200px; max-height:132px; overflow:auto; padding:8px; border:1px solid var(--border); border-radius:10px; background: var(--card);"></div>
                 </label>
-                <label style="display:flex; gap:6px; align-items:flex-start">
-                    <span style="line-height:28px;">Fecha pago</span>
-                    <div id="payment-date-filter-group" class="seller-filter-group" style="display:flex; gap:8px; flex-wrap:wrap; min-width:220px; max-height:132px; overflow:auto; padding:8px; border:1px solid var(--border); border-radius:10px; background: var(--card);"></div>
-                </label>
+				<label style="display:flex; gap:6px; align-items:center">
+					<span>Fecha pago:</span>
+					<button id="payment-date-filter-btn" class="press-btn" style="padding:4px 12px; height:28px; font-size:0.9em;">
+						<span id="payment-date-filter-label">Todas</span>
+					</button>
+				</label>
 			</div>
 			<div class="table-wrapper" id="report-wrapper">
 				<table id="report-table">
@@ -117,7 +119,10 @@
         const sellerFilterGroup = document.getElementById('seller-filter-group');
         const payMethodFilterGroup = document.getElementById('pay-method-filter-group');
         const paySourceFilterGroup = document.getElementById('pay-source-filter-group');
-        const paymentDateFilterGroup = document.getElementById('payment-date-filter-group');
+        const paymentDateFilterBtn = document.getElementById('payment-date-filter-btn');
+        const paymentDateFilterLabel = document.getElementById('payment-date-filter-label');
+        
+        let selectedPaymentDates = [];
 
 		let dataset = [];
 		let sellersList = [];
