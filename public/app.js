@@ -6626,16 +6626,10 @@ function openClientActionBar(tdElement, saleId, clientName, clickX, clickY) {
 	tdElement.appendChild(actionBar);
 	tdElement.classList.add('action-bar-active');
 	
-	// Add row highlight
-	const rowElement = tdElement.closest('tr');
-	if (rowElement) {
-		rowElement.classList.add('row-action-bar-active');
-	}
-	
 	// Show with animation
 	setTimeout(() => actionBar.classList.add('active'), 10);
 	
-	activeClientActionBar = { bar: actionBar, td: tdElement, row: rowElement };
+	activeClientActionBar = { bar: actionBar, td: tdElement };
 	
 	// Close on outside click
 	const outsideClick = (e) => {
@@ -6665,11 +6659,16 @@ function closeClientActionBar() {
 			activeClientActionBar.bar.remove();
 		}
 		if (activeClientActionBar.td) {
-			activeClientActionBar.td.classList.remove('action-bar-active');
-		}
-		// Remove row highlight
-		if (activeClientActionBar.row) {
-			activeClientActionBar.row.classList.remove('row-action-bar-active');
+			const td = activeClientActionBar.td;
+			
+			// Remove active class and add fading class to start fade animation
+			td.classList.remove('action-bar-active');
+			td.classList.add('action-bar-fading');
+			
+			// After 1 second, remove the fading class
+			setTimeout(() => {
+				td.classList.remove('action-bar-fading');
+			}, 1000);
 		}
 		activeClientActionBar = null;
 	}

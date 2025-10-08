@@ -4074,27 +4074,25 @@ td.col-client {
 td.col-client.action-bar-active .client-input {
 	outline: 2px solid var(--primary);
 	outline-offset: -2px;
+	transition: outline 0.2s ease;
 }
 
-/* Highlight entire row when action bar is active */
-tr.row-action-bar-active {
-	background: rgba(244, 166, 183, 0.15) !important;
-	box-shadow: inset 0 0 0 2px rgba(244, 166, 183, 0.3);
-	transition: all 0.3s ease;
-	position: relative;
+/* Fade out animation for client input outline */
+td.col-client.action-bar-fading .client-input {
+	outline: 2px solid var(--primary);
+	outline-offset: -2px;
+	animation: fadeOutOutline 1s ease forwards;
 }
 
-tr.row-action-bar-active td {
-	border-color: rgba(244, 166, 183, 0.3) !important;
-}
-
-[data-theme="dark"] tr.row-action-bar-active {
-	background: rgba(244, 166, 183, 0.08) !important;
-	box-shadow: inset 0 0 0 2px rgba(244, 166, 183, 0.2);
-}
-
-[data-theme="dark"] tr.row-action-bar-active td {
-	border-color: rgba(244, 166, 183, 0.2) !important;
+@keyframes fadeOutOutline {
+	0% {
+		outline-color: var(--primary);
+		outline-width: 2px;
+	}
+	100% {
+		outline-color: transparent;
+		outline-width: 0px;
+	}
 }
 
 @media (max-width: 600px) {
