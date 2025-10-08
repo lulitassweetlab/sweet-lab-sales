@@ -248,11 +248,12 @@ function renderClientDetailTable(rows) {
 		}
 		applyPayClass();
 		// Click: first-time behaviors and shortcuts
-		wrap.addEventListener('click', async (e) => {
+        wrap.addEventListener('click', async (e) => {
 			e.stopPropagation();
 			const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
-			const locked = String(r.pay_method || '').trim() !== '';
-			if (!isAdminUser && locked) return; // block for non-admins
+            const pm = String(r.pay_method || '').trim().replace(/\.$/, '').toLowerCase();
+            const locked = pm !== '' && pm !== 'entregado';
+            if (!isAdminUser && locked) return; // block for non-admins, allow when 'entregado'
 			const curr = String(sel.value || '');
 			const saleId = Number(r.id);
 			const rect = wrap.getBoundingClientRect();
@@ -280,12 +281,13 @@ function renderClientDetailTable(rows) {
 			openPayMenu(wrap, sel, rect.left + rect.width / 2, rect.bottom);
 		});
 		wrap.tabIndex = 0;
-		wrap.addEventListener('keydown', async (e) => {
+        wrap.addEventListener('keydown', async (e) => {
 			if (e.key === 'Enter' || e.key === ' ') {
 				e.preventDefault();
 				const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
-				const locked = String(r.pay_method || '').trim() !== '';
-				if (!isAdminUser && locked) return;
+                const pm = String(r.pay_method || '').trim().replace(/\.$/, '').toLowerCase();
+                const locked = pm !== '' && pm !== 'entregado';
+                if (!isAdminUser && locked) return;
 				const curr = String(sel.value || '');
 				const saleId = Number(r.id);
 				const rect = wrap.getBoundingClientRect();
@@ -1699,12 +1701,14 @@ function renderTable() {
 					if (current === o.v) opt.selected = true;
 					sel.appendChild(opt);
 				}
-				// Lock editing for non-admins once a method is chosen
-				const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
-				if (!isAdminUser && current) {
-					sel.disabled = true;
-					wrap.classList.add('locked');
-				}
+                // Lock editing for non-admins once a method is chosen, except when it's 'entregado'
+                const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
+                const pmNormalized = String(current || '').trim().toLowerCase();
+                const shouldLock = pmNormalized !== '' && pmNormalized !== 'entregado';
+                if (!isAdminUser && shouldLock) {
+                    sel.disabled = true;
+                    wrap.classList.add('locked');
+                }
 				function applyPayClass() {
 					wrap.classList.remove('placeholder','method-efectivo','method-transf','method-marce','method-jorge','method-jorgebank','method-entregado');
 					const val = sel.value;
@@ -1729,23 +1733,25 @@ function renderTable() {
 					} catch {}
 					applyPayClass();
 				});
-			wrap.addEventListener('click', async (e) => { 
-				e.stopPropagation(); 
-				const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
-				const locked = String(sale.pay_method || '').trim() !== '';
-				if (!isAdminUser && locked) return; // block opening menu for non-admins
-				openPayMenu(wrap, sel, e.clientX, e.clientY); 
-			});
+            wrap.addEventListener('click', async (e) => { 
+                e.stopPropagation(); 
+                const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
+                const pm = String(sale.pay_method || '').trim().replace(/\.$/, '').toLowerCase();
+                const locked = pm !== '' && pm !== 'entregado';
+                if (!isAdminUser && locked) return; // block opening menu for non-admins, allow when 'entregado'
+                openPayMenu(wrap, sel, e.clientX, e.clientY); 
+            });
 				wrap.tabIndex = 0;
-			wrap.addEventListener('keydown', async (e) => { 
-				if (e.key === 'Enter' || e.key === ' ') { 
-					e.preventDefault(); 
-					const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
-					const locked = String(sale.pay_method || '').trim() !== '';
-					if (!isAdminUser && locked) return; 
-					openPayMenu(wrap, sel); 
-				} 
-			});
+            wrap.addEventListener('keydown', async (e) => { 
+                if (e.key === 'Enter' || e.key === ' ') { 
+                    e.preventDefault(); 
+                    const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
+                    const pm = String(sale.pay_method || '').trim().replace(/\.$/, '').toLowerCase();
+                    const locked = pm !== '' && pm !== 'entregado';
+                    if (!isAdminUser && locked) return; 
+                    openPayMenu(wrap, sel); 
+                } 
+            });
 				wrap.appendChild(sel);
 				return wrap;
 			})()),
