@@ -86,9 +86,19 @@
 			for (const r of rows) tbody.appendChild(renderDeliveryRow(r));
 		}
 
+		function formatIsoDate(value) {
+			try {
+				const s = String(value || '');
+				if (!s) return '';
+				if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+				const iso = new Date(s).toISOString();
+				return iso.slice(0,10);
+			} catch { return String(value || '').slice(0,10); }
+		}
+
 		function renderDeliveryRow(r) {
 			const tr = document.createElement('tr');
-			const d = document.createElement('td'); d.textContent = r.day || '';
+			const d = document.createElement('td'); d.textContent = formatIsoDate(r.day);
 			const a = document.createElement('td'); a.textContent = r.arco ?? 0; a.className = 'col-qty';
 			const m = document.createElement('td'); m.textContent = r.melo ?? 0; m.className = 'col-qty';
 			const ma = document.createElement('td'); ma.textContent = r.mara ?? 0; ma.className = 'col-qty';
