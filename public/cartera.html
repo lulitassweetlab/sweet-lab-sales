@@ -316,7 +316,7 @@
 				if (selSources.length > 0 && (!source || !selSources.includes(source))) return false;
 				
 				// Filter by payment date
-				const payDate = (r.payment_date || '').toString();
+				const payDate = r.payment_date ? String(r.payment_date).slice(0, 10) : '';
 				if (selPaymentDates.length > 0 && !selPaymentDates.includes(payDate)) return false;
 				
 				return true;
@@ -532,7 +532,7 @@
 					for (const r of (sales||[])){
 						const pm = (r.pay_method || '').toString();
 						const ps = (r.payment_source || '').toString();
-						const pd = (r.payment_date || '').toString();
+						const pd = r.payment_date ? String(r.payment_date).slice(0, 10) : '';
 						const unpaid = r.is_paid !== true;
                         // Allow sale if it's unpaid AND has either a valid pay_method OR a valid payment_source
                         const hasPayMethod = (pm === '' || pm === 'efectivo' || pm === 'transf' || pm === 'marce' || pm === 'jorge' || pm === 'jorgebank');
@@ -642,7 +642,11 @@
 			
 			const dateSet = new Set();
 			for (const r of filteredData) {
-				if (r.payment_date) dateSet.add(r.payment_date);
+				if (r.payment_date) {
+					// Normalize to YYYY-MM-DD format
+					const cleanDate = String(r.payment_date).slice(0, 10);
+					dateSet.add(cleanDate);
+				}
 			}
 			const uniqueDates = Array.from(dateSet).sort((a, b) => b.localeCompare(a));
 			
@@ -699,8 +703,9 @@
 			
 			// Add dates
 			for (const date of uniqueDates) {
-				const [y, m, d] = date.split('-');
-				const formatted = `${d}-${m}-${y}`;
+				// Normalize date format (extract YYYY-MM-DD from any format)
+				const cleanDate = String(date).slice(0, 10);
+				const formatted = cleanDate; // Keep as YYYY-MM-DD
 				
 				const label = document.createElement('label');
 				label.style.display = 'flex';
@@ -712,22 +717,21 @@
 				label.addEventListener('mouseleave', () => label.style.background = 'transparent');
 				const cb = document.createElement('input');
 				cb.type = 'checkbox';
-				cb.checked = selectedPaymentDates.includes(date);
+				cb.checked = selectedPaymentDates.includes(cleanDate);
 				const span = document.createElement('span');
 				span.textContent = formatted;
 				label.appendChild(cb);
 				label.appendChild(span);
 				cb.addEventListener('change', () => {
 					if (cb.checked) {
-						if (!selectedPaymentDates.includes(date)) selectedPaymentDates.push(date);
+						if (!selectedPaymentDates.includes(cleanDate)) selectedPaymentDates.push(cleanDate);
 					} else {
-						selectedPaymentDates = selectedPaymentDates.filter(d => d !== date);
+						selectedPaymentDates = selectedPaymentDates.filter(d => d !== cleanDate);
 					}
 					if (selectedPaymentDates.length === 0) {
 						paymentDateFilterLabel.textContent = 'Todas';
 					} else if (selectedPaymentDates.length === 1) {
-						const [y2, m2, d2] = selectedPaymentDates[0].split('-');
-						paymentDateFilterLabel.textContent = `${d2}-${m2}-${y2}`;
+						paymentDateFilterLabel.textContent = String(selectedPaymentDates[0]).slice(0, 10);
 					} else {
 						paymentDateFilterLabel.textContent = `${selectedPaymentDates.length} fechas`;
 					}
