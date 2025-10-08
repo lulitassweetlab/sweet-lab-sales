@@ -489,6 +489,7 @@ const notify = (() => {
 	const container = () => document.getElementById('toast-container');
 	const STORAGE_KEY = 'notify_log_v1';
 	const STORAGE_HIDE_KEY = 'notify_hide_ids_v1';
+		const STORAGE_FILTER_KEY = 'notify_seller_filter_id_v1';
 	let notifIcon = '/logo.png';
 	function buildPinkIcon() {
 		try {
@@ -640,6 +641,35 @@ const notify = (() => {
 		const toolbar = document.createElement('div'); toolbar.className = 'notif-toolbar';
 		const info = document.createElement('div'); info.style.fontSize = '12px'; info.style.opacity = '0.8'; info.textContent = 'Historial del servidor (más recientes primero)';
 		const loadMoreBtn = document.createElement('button'); loadMoreBtn.className = 'notif-btn'; loadMoreBtn.textContent = 'Cargar más';
+		// Superadmin-only seller filter
+		const isSuperAdmin = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+		let sellerSelect = null;
+		if (isSuperAdmin) {
+			sellerSelect = document.createElement('select');
+			sellerSelect.className = 'notif-seller-select';
+			sellerSelect.title = 'Filtrar por vendedor';
+			const optAll = document.createElement('option'); optAll.value = ''; optAll.textContent = 'Todos los vendedores';
+			sellerSelect.appendChild(optAll);
+			try {
+				const sellers = Array.isArray(state.sellers) && state.sellers.length ? state.sellers : await api('GET', API.Sellers);
+				for (const s of sellers) {
+					const opt = document.createElement('option');
+					opt.value = String(s.id);
+					opt.textContent = s.name;
+					sellerSelect.appendChild(opt);
+				}
+				// Restore saved selection
+				try {
+					const saved = localStorage.getItem(STORAGE_FILTER_KEY) || '';
+					if (saved) sellerSelect.value = saved;
+				} catch {}
+			} catch {}
+			sellerSelect.addEventListener('change', () => {
+				try { localStorage.setItem(STORAGE_FILTER_KEY, sellerSelect.value || ''); } catch {}
+				fetchInitial();
+			});
+			toolbar.append(sellerSelect);
+		}
 		toolbar.append(info, loadMoreBtn);
 		const list = document.createElement('div'); list.className = 'notif-list';
 		let seenIds = new Set();
@@ -782,7 +812,11 @@ const notify = (() => {
 			seenIds = new Set();
 			minLoadedId = null;
 			try {
-				const res = await fetch('/api/notifications?limit=50');
+				let url = '/api/notifications?limit=50';
+				if (sellerSelect && sellerSelect.value) {
+					url += `&seller_id=${encodeURIComponent(sellerSelect.value)}`;
+				}
+				const res = await fetch(url);
 				if (!res.ok) throw new Error('bad');
 				const data = await res.json();
 				if (!Array.isArray(data) || data.length === 0) throw new Error('empty');
@@ -797,7 +831,11 @@ const notify = (() => {
 		async function loadMore() {
 			if (!serverMode || !minLoadedId) { renderLocalList(); return; }
 			try {
-				const res = await fetch(`/api/notifications?before_id=${encodeURIComponent(minLoadedId)}&limit=100`);
+				let url = `/api/notifications?before_id=${encodeURIComponent(minLoadedId)}&limit=100`;
+				if (sellerSelect && sellerSelect.value) {
+					url += `&seller_id=${encodeURIComponent(sellerSelect.value)}`;
+				}
+				const res = await fetch(url);
 				if (!res.ok) return;
 				const data = await res.json();
 				if (!Array.isArray(data) || data.length === 0) return;
