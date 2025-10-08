@@ -1511,9 +1511,9 @@ function createDessertQtyCell(sale, dessert, tr) {
 }
 
 function renderTable() {
-	// Close any open client action bar before re-rendering
+	// Close any open client action bar before re-rendering (skip fade since we'll handle it after re-render if needed)
 	if (typeof closeClientActionBar === 'function') {
-		closeClientActionBar();
+		closeClientActionBar(true); // Skip fade on re-render
 	}
 	const tbody = $('#sales-tbody');
 	// Update caption with selected date label
@@ -1534,7 +1534,7 @@ function renderTable() {
 	for (const sale of state.sales) {
 		const total = calcRowTotal(sale);
 		const isPaid = !!sale.is_paid;
-		const tr = el('tr', {},
+		const tr = el('tr', { 'data-sale-id': sale.id },
 			el('td', { class: 'col-paid' }, (function(){
 				const wrap = document.createElement('span');
 				wrap.className = 'pay-wrap';
@@ -6465,12 +6465,39 @@ function openPaymentDateDialog(saleId, anchorX, anchorY, onCloseCallback) {
 			}
 			
 			try { notify.success(`Fecha de pago guardada: ${paymentDate} - ${paymentSource}`); } catch {}
-			cleanup();
+			
+			// Save sale ID to preserve border after re-render
+			const preserveBorderForSaleId = saleId;
+			
+			cleanup(false); // Close popup without triggering fade yet
 			
 			// Refresh the UI to show the updated payment info
 			if (typeof renderSalesView === 'function') {
 				renderSalesView();
 			}
+			
+			// Re-apply border to the updated element and then fade it
+			setTimeout(() => {
+				// Find the new TD element for this sale after re-render
+				const allClientInputs = document.querySelectorAll('.client-input');
+				for (const input of allClientInputs) {
+					const td = input.closest('td');
+					const row = td?.closest('tr');
+					if (row && row.dataset.saleId == preserveBorderForSaleId) {
+						// Apply classes to show border
+						td.classList.add('action-bar-active');
+						// Then immediately start fade
+						requestAnimationFrame(() => {
+							td.classList.remove('action-bar-active');
+							td.classList.add('action-bar-fading');
+							setTimeout(() => {
+								td.classList.remove('action-bar-fading');
+							}, 2000);
+						});
+						break;
+					}
+				}
+			}, 50); // Small delay to ensure re-render is complete
 		} catch (e) {
 			console.error('Error al guardar fecha de pago:', e);
 			try { notify.error('Error al guardar: ' + (e.message || 'Error desconocido')); } catch {}
@@ -6510,18 +6537,18 @@ function openPaymentDateDialog(saleId, anchorX, anchorY, onCloseCallback) {
 		pop.style.transform = 'none';
 	});
 	
-	function cleanup() {
+	function cleanup(triggerFade = true) {
 		document.removeEventListener('mousedown', outside, true);
 		document.removeEventListener('touchstart', outside, true);
 		if (pop.parentNode) pop.parentNode.removeChild(pop);
-		// Call the callback to close action bar with fade animation
-		if (typeof onCloseCallback === 'function') {
+		// Call the callback to close action bar with fade animation only if triggerFade is true
+		if (triggerFade && typeof onCloseCallback === 'function') {
 			onCloseCallback();
 		}
 	}
 	
 	function outside(ev) {
-		if (!pop.contains(ev.target)) cleanup();
+		if (!pop.contains(ev.target)) cleanup(true); // Manual close, trigger fade
 	}
 	
 	setTimeout(() => {
@@ -6673,7 +6700,7 @@ function openClientActionBar(tdElement, saleId, clientName, clickX, clickY) {
 	};
 }
 
-function closeClientActionBar() {
+function closeClientActionBar(skipFade = false) {
 	if (activeClientActionBar) {
 		if (activeClientActionBar.cleanup) {
 			activeClientActionBar.cleanup();
@@ -6681,7 +6708,7 @@ function closeClientActionBar() {
 		if (activeClientActionBar.bar && activeClientActionBar.bar.parentNode) {
 			activeClientActionBar.bar.remove();
 		}
-		if (activeClientActionBar.td) {
+		if (activeClientActionBar.td && !skipFade) {
 			const td = activeClientActionBar.td;
 			
 			// Remove active class and add fading class to start fade animation
@@ -6692,6 +6719,10 @@ function closeClientActionBar() {
 			setTimeout(() => {
 				td.classList.remove('action-bar-fading');
 			}, 2000);
+		} else if (activeClientActionBar.td && skipFade) {
+			// Just remove classes without fade
+			const td = activeClientActionBar.td;
+			td.classList.remove('action-bar-active', 'action-bar-fading');
 		}
 		activeClientActionBar = null;
 	}
