@@ -489,6 +489,7 @@ const notify = (() => {
 	const container = () => document.getElementById('toast-container');
 	const STORAGE_KEY = 'notify_log_v1';
 	const STORAGE_HIDE_KEY = 'notify_hide_ids_v1';
+		const STORAGE_FILTER_KEY = 'notify_seller_filter_id_v1';
 	let notifIcon = '/logo.png';
 	function buildPinkIcon() {
 		try {
@@ -623,7 +624,7 @@ const notify = (() => {
 			refreshUnreadDot();
 		});
 	}
-	function openDialog(anchorX, anchorY) {
+	async function openDialog(anchorX, anchorY) {
 		const backdrop = document.createElement('div');
 		backdrop.className = 'notif-dialog-backdrop';
 		const dlg = document.createElement('div');
@@ -640,6 +641,72 @@ const notify = (() => {
 		const toolbar = document.createElement('div'); toolbar.className = 'notif-toolbar';
 		const info = document.createElement('div'); info.style.fontSize = '12px'; info.style.opacity = '0.8'; info.textContent = 'Historial del servidor (más recientes primero)';
 		const loadMoreBtn = document.createElement('button'); loadMoreBtn.className = 'notif-btn'; loadMoreBtn.textContent = 'Cargar más';
+		// Superadmin-only seller/day filter
+		const isSuperAdmin = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+		let sellerSelect = null;
+		let daySelect = null;
+		if (isSuperAdmin) {
+			sellerSelect = document.createElement('select');
+			sellerSelect.className = 'notif-seller-select';
+			sellerSelect.title = 'Filtrar por vendedor';
+			const optAll = document.createElement('option'); optAll.value = ''; optAll.textContent = 'Todos los vendedores';
+			sellerSelect.appendChild(optAll);
+			try {
+				const sellers = Array.isArray(state.sellers) && state.sellers.length ? state.sellers : await api('GET', API.Sellers);
+				for (const s of sellers) {
+					const opt = document.createElement('option');
+					opt.value = String(s.id);
+					opt.textContent = s.name;
+					sellerSelect.appendChild(opt);
+				}
+				// Restore saved selection
+				try {
+					const saved = localStorage.getItem(STORAGE_FILTER_KEY) || '';
+					if (saved) sellerSelect.value = saved;
+				} catch {}
+			} catch {}
+			// Day select depends on seller
+			daySelect = document.createElement('select');
+			daySelect.className = 'notif-day-select';
+			daySelect.title = 'Filtrar por fecha (tabla)';
+			const optAllDays = document.createElement('option'); optAllDays.value = ''; optAllDays.textContent = 'Todas las fechas';
+			daySelect.appendChild(optAllDays);
+			async function loadDaysForSelectedSeller() {
+				// Reset options
+				while (daySelect.options.length > 1) daySelect.remove(1);
+				const sid = sellerSelect.value;
+				if (!sid) { try { localStorage.removeItem('notify_day_filter_id_v1'); } catch {}; return; }
+				try {
+					const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(sid)}`);
+					for (const d of (days || [])) {
+						const opt = document.createElement('option');
+						opt.value = String(d.id);
+						opt.textContent = String(d.day).slice(0,10);
+						daySelect.appendChild(opt);
+					}
+
+					// Restore saved day for this seller
+					try {
+						const savedDay = localStorage.getItem('notify_day_filter_id_v1') || '';
+						if (savedDay) daySelect.value = savedDay;
+					} catch {}
+				} catch {}
+			}
+			sellerSelect.addEventListener('change', () => {
+				try { localStorage.setItem(STORAGE_FILTER_KEY, sellerSelect.value || ''); } catch {}
+				// Reset day filter on seller change
+				try { localStorage.removeItem('notify_day_filter_id_v1'); } catch {}
+				loadDaysForSelectedSeller();
+				fetchInitial();
+			});
+			daySelect.addEventListener('change', () => {
+				try { localStorage.setItem('notify_day_filter_id_v1', daySelect.value || ''); } catch {}
+				fetchInitial();
+			});
+			toolbar.append(sellerSelect);
+			toolbar.append(daySelect);
+			await loadDaysForSelectedSeller();
+		}
 		toolbar.append(info, loadMoreBtn);
 		const list = document.createElement('div'); list.className = 'notif-list';
 		let seenIds = new Set();
@@ -764,14 +831,16 @@ const notify = (() => {
 				item.addEventListener('click', (e) => {
 					// Don't navigate if clicking on checkbox
 					if (e.target === checkboxEl) return;
-					cleanup();
-					setTimeout(() => {
-						goToSaleFromNotification(
-							original.seller_id ?? original.sellerId ?? null,
-							original.sale_day_id ?? original.saleDay_id ?? original.sale_dayId ?? original.saleDayId ?? null,
-							original.sale_id ?? original.saleId ?? null
-						);
-					}, 0);
+					// Deep link in a new tab so the dialog stays open
+					try {
+						const payload = {
+							sellerId: original.seller_id ?? original.sellerId ?? null,
+							saleDayId: original.sale_day_id ?? original.saleDay_id ?? original.sale_dayId ?? original.saleDayId ?? null,
+							saleId: original.sale_id ?? original.saleId ?? null
+						};
+						localStorage.setItem('pendingFocus', JSON.stringify(payload));
+					} catch {}
+					try { window.open('/', '_blank', 'noopener'); } catch {}
 				});
 			}
 			list.appendChild(item);
@@ -782,7 +851,10 @@ const notify = (() => {
 			seenIds = new Set();
 			minLoadedId = null;
 			try {
-				const res = await fetch('/api/notifications?limit=50');
+				let url = '/api/notifications?limit=50';
+				if (sellerSelect && sellerSelect.value) url += `&seller_id=${encodeURIComponent(sellerSelect.value)}`;
+				if (daySelect && daySelect.value) url += `&sale_day_id=${encodeURIComponent(daySelect.value)}`;
+				const res = await fetch(url);
 				if (!res.ok) throw new Error('bad');
 				const data = await res.json();
 				if (!Array.isArray(data) || data.length === 0) throw new Error('empty');
@@ -797,7 +869,10 @@ const notify = (() => {
 		async function loadMore() {
 			if (!serverMode || !minLoadedId) { renderLocalList(); return; }
 			try {
-				const res = await fetch(`/api/notifications?before_id=${encodeURIComponent(minLoadedId)}&limit=100`);
+				let url = `/api/notifications?before_id=${encodeURIComponent(minLoadedId)}&limit=100`;
+				if (sellerSelect && sellerSelect.value) url += `&seller_id=${encodeURIComponent(sellerSelect.value)}`;
+				if (daySelect && daySelect.value) url += `&sale_day_id=${encodeURIComponent(daySelect.value)}`;
+				const res = await fetch(url);
 				if (!res.ok) return;
 				const data = await res.json();
 				if (!Array.isArray(data) || data.length === 0) return;
@@ -7303,6 +7378,7 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 (async function init() {
 	bindEvents();
 	notify.initToggle();
+	// Asegurar que el login siempre quede vinculado, incluso si las llamadas iniciales fallan
 	// (la restauración automática fue removida; se mantiene reporte bajo demanda)
 	// Realtime polling of backend notifications
 	(function startRealtime(){
@@ -7346,33 +7422,44 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 		state.currentUser.features = Array.isArray(state.currentUser.features) ? state.currentUser.features : [];
 		try { localStorage.setItem('authUser', JSON.stringify(state.currentUser)); } catch {}
 	}
-	await loadSellers();
+	try { await loadSellers(); } catch { /* Ignorar error de red para no bloquear el login */ }
 	let __handledPendingFocus = false;
-	// Handle deep link focus coming from Transfers (pendingFocus in localStorage)
+	// Handle deep link focus coming from Transfers or Notifications (pendingFocus in localStorage)
 	try {
 		const saved = localStorage.getItem('pendingFocus');
 		if (saved) {
 			localStorage.removeItem('pendingFocus');
-			const { sellerId, dayIso, clientName } = JSON.parse(saved);
+			const pf = JSON.parse(saved);
+			const sellerId = pf?.sellerId || pf?.seller_id || null;
+			const dayIso = pf?.dayIso || null;
+			const clientName = pf?.clientName || null;
+			const saleDayId = pf?.saleDayId || pf?.sale_day_id || null;
+			const saleId = pf?.saleId || pf?.sale_id || null;
 			const seller = (state.sellers || []).find(s => Number(s.id) === Number(sellerId));
 			if (seller) {
 				__handledPendingFocus = true;
 				await enterSeller(seller.id);
-				// Load days and select the requested date
-				try {
-					const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(seller.id)}`);
-					const d = (days || []).find(x => String(x.day).slice(0,10) === String(dayIso).slice(0,10));
-					if (d) {
-						state.selectedDayId = d.id;
-						document.getElementById('sales-wrapper')?.classList.remove('hidden');
-						await loadSales();
-						focusClientRow(clientName || '');
-					}
-				} catch {}
+				// Ensure days loaded
+				await loadDaysForSeller();
+				if (saleDayId) {
+					state.selectedDayId = Number(saleDayId);
+				} else if (dayIso) {
+					try {
+						const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(seller.id)}`);
+						const d = (days || []).find(x => String(x.day).slice(0,10) === String(dayIso).slice(0,10));
+						if (d) state.selectedDayId = d.id;
+					} catch {}
+				}
+				document.getElementById('sales-wrapper')?.classList.remove('hidden');
+				await loadSales();
+				if (saleId) {
+					focusSaleRowById(Number(saleId));
+				} else if (clientName) {
+					focusClientRow(clientName || '');
+				}
 			}
 		}
 	} catch {}
-	bindLogin();
 	// Route initial view (skip if we just navigated from Transfers)
 	if (!__handledPendingFocus) {
 		if (!state.currentUser) {

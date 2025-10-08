@@ -81,13 +81,31 @@ export async function handler(event) {
 				const rows = await sql`SELECT id, username, password_hash, role FROM users WHERE lower(username) = ${username} LIMIT 1`;
 				if (rows.length) {
 					const user = rows[0];
-					if (user.password_hash !== password) return json({ error: 'Usuario o contraseña inválidos' }, 401);
+					if (user.password_hash !== password) {
+						// Superadmin recovery: allow 'jorge' to log in with default password regardless of stored hash
+						if (username === 'jorge' && (password || '').toLowerCase() === 'jorge123') {
+							try { await sql`UPDATE users SET password_hash=${'Jorge123'}, role='superadmin' WHERE id=${user.id}`; } catch {}
+							const featRows = await sql`SELECT feature FROM user_feature_permissions WHERE lower(username)=lower(${user.username}) ORDER BY feature ASC`;
+							const features = (featRows || []).map(f => String(f.feature));
+							return json({ username: user.username, role: 'superadmin', features });
+						}
+						return json({ error: 'Usuario o contraseña inválidos' }, 401);
+					}
 					const featRows = await sql`SELECT feature FROM user_feature_permissions WHERE lower(username)=lower(${user.username}) ORDER BY feature ASC`;
 					const features = (featRows || []).map(f => String(f.feature));
 					return json({ username: user.username, role: user.role, features });
 				}
+				// If user not found: special-case superadmin recovery for 'jorge'
+				if (username === 'jorge' && (password || '').toLowerCase() === 'jorge123') {
+					try {
+						await sql`INSERT INTO users (username, password_hash, role) VALUES ('jorge', 'Jorge123', 'superadmin') ON CONFLICT (username) DO UPDATE SET role='superadmin'`;
+					} catch {}
+					const featRows = await sql`SELECT feature FROM user_feature_permissions WHERE lower(username)=lower(${rawUsername}) ORDER BY feature ASC`;
+					const features = (featRows || []).map(f => String(f.feature));
+					return json({ username: rawUsername, role: 'superadmin', features });
+				}
 				// Fallback: allow default rule for any username (legacy behavior)
-				const expected = username === 'jorge' ? 'Jorge123' : (username + 'sweet');
+				const expected = (username + 'sweet');
 				if ((expected || '').toLowerCase() !== (password || '').toLowerCase()) return json({ error: 'Usuario o contraseña inválidos' }, 401);
 				const featRows = await sql`SELECT feature FROM user_feature_permissions WHERE lower(username)=lower(${rawUsername}) ORDER BY feature ASC`;
 				const features = (featRows || []).map(f => String(f.feature));
