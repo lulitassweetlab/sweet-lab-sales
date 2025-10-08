@@ -6195,10 +6195,8 @@ function openPaymentDateDialog(saleId, anchorX, anchorY) {
 	const pop = document.createElement('div');
 	pop.className = 'payment-date-popover';
 	pop.style.position = 'fixed';
-	pop.style.left = anchorX + 'px';
-	pop.style.top = (anchorY - 5) + 'px';
-	pop.style.transform = 'translate(-50%, -100%)';
 	pop.style.zIndex = '1000';
+	// Position will be set after content is rendered
 	
 	// Title
 	const title = document.createElement('div');
@@ -6477,6 +6475,32 @@ function openPaymentDateDialog(saleId, anchorX, anchorY) {
 	
 	pop.append(title, calendarContainer, methodLabel, methodsContainer);
 	document.body.appendChild(pop);
+	
+	// Position popover in center of viewport after appending to measure dimensions
+	requestAnimationFrame(() => {
+		const popRect = pop.getBoundingClientRect();
+		const viewportWidth = window.innerWidth;
+		const viewportHeight = window.innerHeight;
+		
+		// Calculate center position
+		let left = (viewportWidth - popRect.width) / 2;
+		let top = (viewportHeight - popRect.height) / 2;
+		
+		// Ensure popover stays within viewport bounds with padding
+		const padding = 16;
+		if (left < padding) left = padding;
+		if (top < padding) top = padding;
+		if (left + popRect.width > viewportWidth - padding) {
+			left = viewportWidth - popRect.width - padding;
+		}
+		if (top + popRect.height > viewportHeight - padding) {
+			top = viewportHeight - popRect.height - padding;
+		}
+		
+		pop.style.left = left + 'px';
+		pop.style.top = top + 'px';
+		pop.style.transform = 'none';
+	});
 	
 	function cleanup() {
 		document.removeEventListener('mousedown', outside, true);
