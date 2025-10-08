@@ -1425,33 +1425,16 @@ function calcRowTotal(q) {
 	
 	// If using items array (new format) - only if array has elements
 	if (Array.isArray(q.items) && q.items.length > 0) {
-		// Aggregate by dessert to avoid duplicate dessert rows summing incorrectly
-		const byDessert = new Map(); // key: short_code (preferred) or dessert_id
 		for (const item of q.items) {
-			const code = (item.short_code || '').toString();
-			const key = code || `id:${item.dessert_id}`;
-			const prevQty = byDessert.get(key) || 0;
-			byDessert.set(key, prevQty + (Number(item.quantity || 0) || 0));
-		}
-		for (const [key, qty] of byDessert.entries()) {
-			let price = 0;
-			const code = key.startsWith('id:') ? '' : key;
-			if (code && PRICES[code] != null) {
-				price = Number(PRICES[code] || 0) || 0;
-			} else if (Array.isArray(q.items)) {
-				// fallback: try to find unit_price from one of the items with same key
-				const it = q.items.find(i => (i.short_code && i.short_code === code) || (!code && (`id:${i.dessert_id}`) === key));
-				price = it ? (Number(it.unit_price || 0) || 0) : 0;
-			}
-			total += qty * price;
+			total += Number(item.quantity || 0) * Number(item.unit_price || 0);
 		}
 		return total;
 	}
 	
 	// Fallback to old format with dynamic desserts (check qty_* properties)
 	for (const d of state.desserts) {
-		const qty = Number(q[`qty_${d.short_code}`] || 0) || 0;
-		const price = Number(PRICES[d.short_code] || 0) || 0;
+		const qty = Number(q[`qty_${d.short_code}`] || 0);
+		const price = Number(PRICES[d.short_code] || 0);
 		total += qty * price;
 	}
 	
@@ -1502,9 +1485,8 @@ function createDessertQtyCell(sale, dessert, tr) {
 	// Get quantity from sale - support both formats
 	let qty = 0;
 	if (Array.isArray(sale.items) && sale.items.length > 0) {
-		// Aggregate all items for this dessert (there may be multiple records)
-		const itemsForDessert = sale.items.filter(i => i.dessert_id === dessert.id || i.short_code === dessert.short_code);
-		qty = itemsForDessert.reduce((sum, it) => sum + (Number(it.quantity || 0) || 0), 0);
+		const item = sale.items.find(i => i.dessert_id === dessert.id || i.short_code === dessert.short_code);
+		qty = item ? Number(item.quantity || 0) : 0;
 	} else {
 		qty = Number(sale[`qty_${dessert.short_code}`] || 0);
 	}
@@ -3275,18 +3257,20 @@ function updateSummary() {
 	for (const s of state.sales) {
 		// Support both formats
 	if (Array.isArray(s.items) && s.items.length > 0) {
-		// New format: aggregate by dessert code to avoid double counting
-		const agg = new Map();
+		// New format: use items
 		for (const item of s.items) {
-			const code = item.short_code || state.desserts.find(d => d.id === item.dessert_id)?.short_code;
-			if (!code) continue;
-			agg.set(code, (agg.get(code) || 0) + (Number(item.quantity || 0) || 0));
-		}
-		for (const [code, q] of agg.entries()) {
-			if (qtys[code] !== undefined) qtys[code] += q;
+			// Find dessert by id or short_code
+			const code = item.short_code || 
+				state.desserts.find(d => d.id === item.dessert_id)?.short_code;
+			
+			if (code && qtys[code] !== undefined) {
+				qtys[code] += Number(item.quantity || 0);
+			}
 			const pm = (s.pay_method || '').toString();
 			if (pm === 'transf' || pm === 'jorgebank' || pm === 'marce' || pm === 'jorge') {
-				if (paidQtys[code] !== undefined) paidQtys[code] += q;
+				if (code && paidQtys[code] !== undefined) {
+					paidQtys[code] += Number(item.quantity || 0);
+				}
 			}
 		}
 	} else {
