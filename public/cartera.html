@@ -60,7 +60,8 @@
 							<th id="th-fecha" style="cursor:pointer; user-select:none;">Fecha <span id="sort-fecha"></span></th>
 							<th id="th-vendedor" style="cursor:pointer; user-select:none;">Vendedor <span id="sort-vendedor"></span></th>
 							<th>Cliente</th>
-							<th id="th-pago" style="cursor:pointer; user-select:none;">Pago <span id="sort-pago"></span></th>
+							<th id="th-metodo" style="cursor:pointer; user-select:none;">Método <span id="sort-metodo"></span></th>
+							<th id="th-fuente" style="cursor:pointer; user-select:none;">Fuente <span id="sort-fuente"></span></th>
 							<th class="col-paid">$</th>
 							<th class="col-qty">Arco</th>
 							<th class="col-qty">Melo</th>
@@ -74,6 +75,7 @@
 					<tbody id="report-tbody"></tbody>
 					<tfoot>
 						<tr>
+							<td></td>
 							<td></td>
 							<td></td>
 							<td></td>
@@ -343,12 +345,14 @@
 			let tQa=0,tQm=0,tQma=0,tQo=0,tQn=0,tGrand=0;
 			for (const r of rows){
 				const tr = document.createElement('tr');
-				const payDisplay = r.payment_source ? payLabel(r.payment_source) : payLabel(r.pay_method||'');
+				const payMethod = payLabel(r.pay_method||'');
+				const paySource = r.payment_source ? payLabel(r.payment_source) : '';
 				tr.innerHTML = `
 					<td>${r.date}</td>
 					<td>${r.sellerName}</td>
 					<td>${r.client_name||''}</td>
-					<td>${payDisplay}</td>
+					<td>${payMethod}</td>
+					<td>${paySource}</td>
 					<td>${r.is_paid ? '✓' : ''}</td>
 					<td>${r.qa||''}</td>
 					<td>${r.qm||''}</td>
@@ -389,9 +393,12 @@
 				} else if (column === 'vendedor') {
 					valA = (a.sellerName || '').toLowerCase();
 					valB = (b.sellerName || '').toLowerCase();
-				} else if (column === 'pago') {
+				} else if (column === 'metodo') {
 					valA = (a.pay_method || '').toLowerCase();
 					valB = (b.pay_method || '').toLowerCase();
+				} else if (column === 'fuente') {
+					valA = (a.payment_source || '').toLowerCase();
+					valB = (b.payment_source || '').toLowerCase();
 				}
 				if (valA < valB) return direction === 'asc' ? -1 : 1;
 				if (valA > valB) return direction === 'asc' ? 1 : -1;
@@ -404,7 +411,8 @@
 		function updateSortIndicators(){
 			document.getElementById('sort-fecha').textContent = '';
 			document.getElementById('sort-vendedor').textContent = '';
-			document.getElementById('sort-pago').textContent = '';
+			document.getElementById('sort-metodo').textContent = '';
+			document.getElementById('sort-fuente').textContent = '';
 			if (sortColumn) {
 				const arrow = sortDirection === 'asc' ? '▲' : '▼';
 				document.getElementById(`sort-${sortColumn}`).textContent = arrow;
@@ -414,7 +422,8 @@
 		function setupSortListeners(){
 			const thFecha = document.getElementById('th-fecha');
 			const thVendedor = document.getElementById('th-vendedor');
-			const thPago = document.getElementById('th-pago');
+			const thMetodo = document.getElementById('th-metodo');
+			const thFuente = document.getElementById('th-fuente');
 			
 			thFecha.addEventListener('click', () => {
 				if (sortColumn === 'fecha') {
@@ -436,11 +445,21 @@
 				render();
 			});
 			
-			thPago.addEventListener('click', () => {
-				if (sortColumn === 'pago') {
+			thMetodo.addEventListener('click', () => {
+				if (sortColumn === 'metodo') {
 					sortDirection = sortDirection === 'desc' ? 'asc' : 'desc';
 				} else {
-					sortColumn = 'pago';
+					sortColumn = 'metodo';
+					sortDirection = 'desc';
+				}
+				render();
+			});
+			
+			thFuente.addEventListener('click', () => {
+				if (sortColumn === 'fuente') {
+					sortDirection = sortDirection === 'desc' ? 'asc' : 'desc';
+				} else {
+					sortColumn = 'fuente';
 					sortDirection = 'desc';
 				}
 				render();
@@ -486,8 +505,10 @@
 						const pm = (r.pay_method || '').toString();
 						const ps = (r.payment_source || '').toString();
 						const unpaid = r.is_paid !== true;
-                        const allowed = (pm === '' || pm === 'efectivo' || pm === 'transf' || pm === 'marce' || pm === 'jorge' || pm === 'jorgebank');
-						if (!(unpaid && allowed)) continue;
+                        // Allow sale if it's unpaid AND has either a valid pay_method OR a valid payment_source
+                        const hasPayMethod = (pm === '' || pm === 'efectivo' || pm === 'transf' || pm === 'marce' || pm === 'jorge' || pm === 'jorgebank');
+                        const hasPaySource = (ps !== '');
+						if (!(unpaid && (hasPayMethod || hasPaySource))) continue;
 						const qa = r.qty_arco || 0; const qm = r.qty_melo || 0; const qma = r.qty_mara || 0; const qo = r.qty_oreo || 0; const qn = r.qty_nute || 0; const tot = r.total_cents || 0;
 						dataset.push({
 							date: String(day.day).slice(0,10),
@@ -515,24 +536,26 @@
 		}
 
 		exportBtn.addEventListener('click', () => {
-			const header = ['Fecha','Vendedor','Cliente','Pago','$','Arco','Melo','Mara','Oreo','Nute','Total'];
+			const header = ['Fecha','Vendedor','Cliente','Método','Fuente','$','Arco','Melo','Mara','Oreo','Nute','Total'];
 			const rows = [header];
 			let eGrand = 0, eQa=0,eQm=0,eQma=0,eQo=0,eQn=0;
 			for (const r of getFilteredData()){
-				const payDisplay = r.payment_source ? payLabel(r.payment_source) : payLabel(r.pay_method||'');
+				const payMethod = payLabel(r.pay_method||'');
+				const paySource = r.payment_source ? payLabel(r.payment_source) : '';
 				rows.push([
 					r.date,
 					r.sellerName,
 					r.client_name||'',
-					payDisplay,
+					payMethod,
+					paySource,
 					r.is_paid ? '✓' : '',
 					r.qa||'', r.qm||'', r.qma||'', r.qo||'', r.qn||'', r.tot||''
 				]);
 				eQa += r.qa||0; eQm += r.qm||0; eQma += r.qma||0; eQo += r.qo||0; eQn += r.qn||0; eGrand += r.tot||0;
 			}
-			rows.push(['','','','','Totales','','','','','', eGrand || '']);
+			rows.push(['','','','','','Totales','','','','','', eGrand || '']);
 			const ws = XLSX.utils.aoa_to_sheet(rows);
-			ws['!cols'] = [ {wch:10},{wch:18},{wch:24},{wch:10},{wch:3},{wch:6},{wch:6},{wch:6},{wch:6},{wch:6},{wch:10} ];
+			ws['!cols'] = [ {wch:10},{wch:18},{wch:24},{wch:10},{wch:14},{wch:3},{wch:6},{wch:6},{wch:6},{wch:6},{wch:6},{wch:10} ];
 			const wb = XLSX.utils.book_new();
 			XLSX.utils.book_append_sheet(wb, ws, 'Cartera');
 			XLSX.writeFile(wb, `Cartera_${(start||'')}_a_${(end||'')}.xlsx`);
