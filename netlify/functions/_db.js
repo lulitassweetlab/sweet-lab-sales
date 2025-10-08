@@ -189,6 +189,7 @@ export async function ensureSchema() {
 		is_paid BOOLEAN NOT NULL DEFAULT false,
 		pay_method TEXT,
 		payment_date DATE,
+		payment_source TEXT,
 		comment_text TEXT DEFAULT '',
 		total_cents INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMPTZ DEFAULT now()
@@ -212,6 +213,12 @@ export async function ensureSchema() {
 			WHERE table_name = 'sales' AND column_name = 'pay_method'
 		) THEN
 			ALTER TABLE sales ADD COLUMN pay_method TEXT;
+		END IF;
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'sales' AND column_name = 'payment_source'
+		) THEN
+			ALTER TABLE sales ADD COLUMN payment_source TEXT;
 		END IF;
 		IF NOT EXISTS (
 			SELECT 1 FROM information_schema.columns

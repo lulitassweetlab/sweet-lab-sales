@@ -279,16 +279,16 @@
 			return [];
 		}
 
-		function getPaySource(payMethod){
-			// Check if pay_method is one of the new sources from popup
-			const pm = (payMethod || '').toString().toLowerCase();
-			if (pm === 'efectivo aleja' || pm === 'efectivo_aleja') return 'efectivo_aleja';
-			if (pm === 'efectivo marcela' || pm === 'efectivo_marcela') return 'efectivo_marcela';
-			if (pm === 'bancolombia aleja' || pm === 'bancolombia_aleja') return 'bancolombia_aleja';
-			if (pm === 'bancolombia') return 'bancolombia';
-			if (pm === 'nequi') return 'nequi';
-			if (pm === 'otro') return 'otros';
-			// Otherwise it's an old method, return null (not a source)
+		function getPaySource(paymentSource){
+			// Check if payment_source is one of the new sources from popup
+			const ps = (paymentSource || '').toString().toLowerCase();
+			if (ps === 'efectivo aleja' || ps === 'efectivo_aleja') return 'efectivo_aleja';
+			if (ps === 'efectivo marcela' || ps === 'efectivo_marcela') return 'efectivo_marcela';
+			if (ps === 'bancolombia aleja' || ps === 'bancolombia_aleja') return 'bancolombia_aleja';
+			if (ps === 'bancolombia') return 'bancolombia';
+			if (ps === 'nequi') return 'nequi';
+			if (ps === 'otro') return 'otros';
+			// Otherwise no source set
 			return null;
 		}
 
@@ -301,15 +301,12 @@
                 
 				// Check pay method filter (old methods: efectivo, transf, marce, jorge, jorgebank)
 				const pm = (r.pay_method || '').toString();
-				const source = getPaySource(pm);
+				if (selMethods.length && !selMethods.includes(pm)) return false;
 				
-				// If it's an old method (source is null), filter by pay method
-				if (source === null) {
-					if (selMethods.length && !selMethods.includes(pm)) return false;
-				} else {
-					// If it's a new source, filter by pay source
-					if (selSources.length && !selSources.includes(source)) return false;
-				}
+				// Check pay source filter (new sources: Bancolombia, Nequi, etc.)
+				const ps = (r.payment_source || '').toString();
+				const source = getPaySource(ps);
+				if (selSources.length && source && !selSources.includes(source)) return false;
 				
 				if (dateFilterFrom && r.date < dateFilterFrom) return false;
 				if (dateFilterTo && r.date > dateFilterTo) return false;
@@ -346,11 +343,12 @@
 			let tQa=0,tQm=0,tQma=0,tQo=0,tQn=0,tGrand=0;
 			for (const r of rows){
 				const tr = document.createElement('tr');
+				const payDisplay = r.payment_source ? payLabel(r.payment_source) : payLabel(r.pay_method||'');
 				tr.innerHTML = `
 					<td>${r.date}</td>
 					<td>${r.sellerName}</td>
 					<td>${r.client_name||''}</td>
-					<td>${payLabel(r.pay_method||'')}</td>
+					<td>${payDisplay}</td>
 					<td>${r.is_paid ? '✓' : ''}</td>
 					<td>${r.qa||''}</td>
 					<td>${r.qm||''}</td>
@@ -486,6 +484,7 @@
                     const sales = await fetchJSON(withActor(`/api/sales?${params.toString()}`));
 					for (const r of (sales||[])){
 						const pm = (r.pay_method || '').toString();
+						const ps = (r.payment_source || '').toString();
 						const unpaid = r.is_paid !== true;
                         const allowed = (pm === '' || pm === 'efectivo' || pm === 'transf' || pm === 'marce' || pm === 'jorge' || pm === 'jorgebank');
 						if (!(unpaid && allowed)) continue;
@@ -495,6 +494,7 @@
 							sellerName: seller.name || '',
 							client_name: r.client_name || '',
 							pay_method: pm,
+							payment_source: ps,
 							is_paid: !!r.is_paid,
 							qa, qm, qma, qo, qn, tot,
 							saleId: r.id
@@ -519,11 +519,12 @@
 			const rows = [header];
 			let eGrand = 0, eQa=0,eQm=0,eQma=0,eQo=0,eQn=0;
 			for (const r of getFilteredData()){
+				const payDisplay = r.payment_source ? payLabel(r.payment_source) : payLabel(r.pay_method||'');
 				rows.push([
 					r.date,
 					r.sellerName,
 					r.client_name||'',
-					payLabel(r.pay_method||''),
+					payDisplay,
 					r.is_paid ? '✓' : '',
 					r.qa||'', r.qm||'', r.qma||'', r.qo||'', r.qn||'', r.tot||''
 				]);

@@ -1709,14 +1709,14 @@ async function loadSales() {
 	if (state.selectedDayId) params.set('sale_day_id', String(state.selectedDayId));
 	state.sales = await api('GET', `${API.Sales}?${params.toString()}`);
 	
-	// Initialize _paymentInfo from database fields (payment_date and pay_method)
+	// Initialize _paymentInfo from database fields (payment_date and payment_source)
 	if (Array.isArray(state.sales)) {
 		for (const sale of state.sales) {
-			if (sale && sale.payment_date && sale.pay_method) {
+			if (sale && sale.payment_date && sale.payment_source) {
 				sale._paymentInfo = {
 					date: sale.payment_date,
-					method: sale.pay_method,
-					methodValue: sale.pay_method.toLowerCase()
+					source: sale.payment_source,
+					sourceValue: sale.payment_source.toLowerCase()
 				};
 			}
 		}
@@ -6372,8 +6372,8 @@ function openPaymentDateDialog(saleId, anchorX, anchorY) {
 		{ value: 'otro', label: 'Otro' }
 	];
 	
-	// Get previously selected method if exists (try multiple sources)
-	const previousMethod = sale.pay_method || (sale._paymentInfo && sale._paymentInfo.method);
+	// Get previously selected source if exists (try multiple sources)
+	const previousSource = sale.payment_source || (sale._paymentInfo && sale._paymentInfo.source);
 	
 	methods.forEach(method => {
 		const btn = document.createElement('button');
@@ -6382,12 +6382,12 @@ function openPaymentDateDialog(saleId, anchorX, anchorY) {
 		btn.textContent = method.label;
 		btn.dataset.value = method.value;
 		
-		// Pre-select if this was the previously chosen method
+		// Pre-select if this was the previously chosen source
 		// Check both label and value for matching
-		const isSelected = previousMethod && (
-			method.label === previousMethod || 
-			method.label.toLowerCase() === previousMethod.toLowerCase() ||
-			method.value === previousMethod.toLowerCase()
+		const isSelected = previousSource && (
+			method.label === previousSource || 
+			method.label.toLowerCase() === previousSource.toLowerCase() ||
+			method.value === previousSource.toLowerCase()
 		);
 		
 		if (isSelected) {
@@ -6400,7 +6400,7 @@ function openPaymentDateDialog(saleId, anchorX, anchorY) {
 		
 		try {
 			const paymentDate = selectedDate.toISOString().split('T')[0];
-			const paymentMethod = method.label;
+			const paymentSource = method.label;
 			
 			// Get current sale data
 			const idx = state.sales.findIndex(s => s.id === saleId);
@@ -6410,15 +6410,16 @@ function openPaymentDateDialog(saleId, anchorX, anchorY) {
 			
 		const currentSale = state.sales[idx];
 		
-		// Update the database with payment date and method
+		// Update the database with payment date and source
 		// IMPORTANT: Include all fields to prevent overwriting existing data
+		// NOTE: payment_source is separate from pay_method to avoid overwriting old payment methods
 		const body = {
 			id: saleId,
 			seller_id: currentSale.seller_id,
 			sale_day_id: currentSale.sale_day_id,
 			client_name: currentSale.client_name || '',
 			payment_date: paymentDate,
-			pay_method: paymentMethod,
+			payment_source: paymentSource,
 			comment_text: currentSale.comment_text || '',
 			is_paid: currentSale.is_paid || false,
 			_actor_name: state.actorName || ''
@@ -6449,15 +6450,15 @@ function openPaymentDateDialog(saleId, anchorX, anchorY) {
 			// Update in memory
 			if (updated) {
 				state.sales[idx].payment_date = paymentDate;
-				state.sales[idx].pay_method = paymentMethod;
+				state.sales[idx].payment_source = paymentSource;
 				state.sales[idx]._paymentInfo = {
 					date: paymentDate,
-					method: paymentMethod,
-					methodValue: method.value
+					source: paymentSource,
+					sourceValue: method.value
 				};
 			}
 			
-			try { notify.success(`Fecha de pago guardada: ${paymentDate} - ${paymentMethod}`); } catch {}
+			try { notify.success(`Fecha de pago guardada: ${paymentDate} - ${paymentSource}`); } catch {}
 			cleanup();
 			
 			// Refresh the UI to show the updated payment info
@@ -6572,15 +6573,16 @@ function openClientActionBar(tdElement, saleId, clientName, clickX, clickY) {
 		
 		// Get sale data to check if payment date is set
 		const sale = state.sales.find(s => s.id === saleId);
-		const hasPaymentInfo = sale?.payment_date && sale?.pay_method;
+		const hasPaymentInfo = sale?.payment_date && (sale?.payment_source || sale?.pay_method);
 		
 		if (hasPaymentInfo) {
 			// Format date for display (DD/MM)
 			const dateStr = sale.payment_date;
 			const dateParts = dateStr.split('-');
 			const displayDate = dateParts.length >= 3 ? `${dateParts[2]}/${dateParts[1]}` : dateStr;
+			const sourceOrMethod = sale.payment_source || sale.pay_method || '';
 			paymentBtn.innerHTML = `<span class="client-action-bar-btn-icon">📅</span><span class="client-action-bar-btn-label">${displayDate}</span>`;
-			paymentBtn.title = `Fecha de pago: ${displayDate} - ${sale.pay_method}`;
+			paymentBtn.title = `Fecha de pago: ${displayDate}${sourceOrMethod ? ' - ' + sourceOrMethod : ''}`;
 			paymentBtn.style.fontWeight = 'bold';
 		} else {
 			paymentBtn.innerHTML = '<span class="client-action-bar-btn-icon">📅</span><span class="client-action-bar-btn-label">Fecha</span>';
