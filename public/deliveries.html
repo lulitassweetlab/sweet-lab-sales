@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Entregas</title>
+	<link rel="stylesheet" href="/styles.css?v=2025-09-17-1" />
+</head>
+<body>
+	<header class="app-header">
+		<div class="header-row">
+			<div class="header-left">
+				<img src="/logo.png" alt="Lulitas Logo" class="app-logo" />
+				<h1>Entregas</h1>
+			</div>
+			<div class="header-actions">
+				<button id="back-btn" class="press-btn">Volver</button>
+			</div>
+		</div>
+	</header>
+
+	<main class="sales-panel">
+		<div class="panel-header">
+			<h3>Producciones de postres</h3>
+			<div class="panel-actions">
+				<button id="add-delivery-btn" class="press-btn btn-primary">+ Nueva entrega</button>
+			</div>
+		</div>
+		<div class="panel-body">
+			<div class="table-wrapper">
+				<table id="deliveries-table">
+					<thead>
+						<tr>
+							<th>Fecha</th>
+							<th class="col-qty">Arco</th>
+							<th class="col-qty">Melo</th>
+							<th class="col-qty">Mara</th>
+							<th class="col-qty">Oreo</th>
+							<th class="col-qty">Nute</th>
+							<th>Acciones</th>
+						</tr>
+					</thead>
+					<tbody id="deliveries-tbody"></tbody>
+				</table>
+			</div>
+		</div>
+	</main>
+
+	<script type="module">
+	(function(){
+		const tbody = document.getElementById('deliveries-tbody');
+		const addBtn = document.getElementById('add-delivery-btn');
+		const backBtn = document.getElementById('back-btn');
+
+		function getCurrentUser(){
+			try { return JSON.parse(localStorage.getItem('authUser') || 'null'); } catch { return null; }
+		}
+
+		function requireAdmin(){
+			const u = getCurrentUser();
+			if (!u) { alert('Inicia sesión'); window.location.href = '/index.html'; return null; }
+			if (!(u.role === 'admin' || u.role === 'superadmin')) { alert('Solo para admin/superadmin'); window.location.href = '/index.html'; return null; }
+			return u;
+		}
+
+		async function api(method, url, body) {
+			const u = getCurrentUser();
+			const headers = { 'Content-Type': 'application/json' };
+			if (u && u.name) headers['X-Actor-Name'] = String(u.name);
+			const res = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined });
+			if (!res.ok) {
+				const t = await res.text();
+				throw new Error(t || 'API error');
+			}
+			return res.json();
+		}
+
+		async function load() {
+			let rows = [];
+			try { rows = await api('GET', '/api/deliveries'); } catch {}
+			render(rows);
+		}
+
+		function render(rows) {
+			tbody.innerHTML = '';
+			for (const r of rows) tbody.appendChild(renderDeliveryRow(r));
+		}
+
+		function formatIsoDate(value) {
+			try {
+				const s = String(value || '');
+				if (!s) return '';
+				if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+				const iso = new Date(s).toISOString();
+				return iso.slice(0,10);
+			} catch { return String(value || '').slice(0,10); }
+		}
+
+		function renderDeliveryRow(r) {
+			const tr = document.createElement('tr');
+			const d = document.createElement('td'); d.textContent = formatIsoDate(r.day);
+			const a = document.createElement('td'); a.textContent = r.arco ?? 0; a.className = 'col-qty';
+			const m = document.createElement('td'); m.textContent = r.melo ?? 0; m.className = 'col-qty';
+			const ma = document.createElement('td'); ma.textContent = r.mara ?? 0; ma.className = 'col-qty';
+			const o = document.createElement('td'); o.textContent = r.oreo ?? 0; o.className = 'col-qty';
+			const n = document.createElement('td'); n.textContent = r.nute ?? 0; n.className = 'col-qty';
+			const act = document.createElement('td');
+			const edit = document.createElement('button'); edit.className = 'press-btn'; edit.textContent = 'Editar';
+			const notes = document.createElement('button'); notes.className = 'press-btn'; notes.textContent = 'Notas';
+			const addSeller = document.createElement('button'); addSeller.className = 'press-btn'; addSeller.textContent = 'Agregar vendedor';
+			act.style.display = 'flex'; act.style.gap = '6px'; act.append(edit, notes, addSeller);
+			tr.append(d, a, m, ma, o, n, act);
+			return tr;
+		}
+
+		async function openProductionPopover(anchorX, anchorY) {
+			try {
+				// Load dynamic desserts
+				let desserts = [];
+				try { const r = await api('GET', '/api/desserts'); desserts = Array.isArray(r) ? r : []; } catch {}
+				// Build popover similar to Nuevo pedido
+				const pop = document.createElement('div');
+				pop.className = 'new-sale-popover';
+				pop.style.position = 'fixed';
+				const isSmall = window.matchMedia('(max-width: 640px)').matches;
+				if (typeof anchorX === 'number' && typeof anchorY === 'number' && !isSmall) {
+					pop.style.left = anchorX + 'px';
+					pop.style.top = anchorY + 'px';
+					pop.style.transform = 'translate(-50%, 0)';
+				} else {
+					pop.style.left = '50%';
+					pop.style.top = '20%';
+					pop.style.transform = 'translate(-50%, 0)';
+				}
+
+				const title = document.createElement('h4');
+				title.style.margin = '0 0 8px 0';
+				function formatTitle(iso){
+					try {
+						const d = iso ? new Date(iso + 'T00:00:00Z') : new Date();
+						const mes = d.toLocaleString('es-CO', { month: 'long', timeZone: 'UTC' });
+						const dia = d.getUTCDate();
+						const cap = mes.charAt(0).toUpperCase() + mes.slice(1);
+						return `Producción ${cap} ${dia}`;
+					} catch { return 'Producción'; }
+				}
+				const todayIso = new Date().toISOString().slice(0,10);
+				title.textContent = formatTitle(todayIso);
+
+				const grid = document.createElement('div');
+				grid.className = 'new-sale-grid';
+
+				function appendRow(labelText, inputEl) {
+					const left = document.createElement('div'); left.className = 'new-sale-cell new-sale-left';
+					const right = document.createElement('div'); right.className = 'new-sale-cell new-sale-right';
+					const lbl = document.createElement('div'); lbl.className = 'new-sale-label-text'; lbl.textContent = labelText;
+					left.appendChild(lbl);
+					right.appendChild(inputEl);
+					right.addEventListener('mousedown', (ev) => { if (ev.target !== inputEl) { ev.preventDefault(); try { inputEl.focus(); inputEl.select?.(); } catch {} } });
+					right.addEventListener('click', (ev) => { if (ev.target !== inputEl) { ev.preventDefault(); try { inputEl.focus(); inputEl.select?.(); } catch {} } });
+					grid.appendChild(left);
+					grid.appendChild(right);
+				}
+
+				// Fecha row (replaces Cliente)
+				const dateInput = document.createElement('input');
+				dateInput.type = 'date';
+				dateInput.className = 'input-cell';
+				dateInput.value = todayIso;
+				dateInput.addEventListener('change', () => { title.textContent = formatTitle(dateInput.value); });
+				appendRow('Fecha', dateInput);
+
+				// Dessert rows from dynamic list
+				const qtyInputs = {};
+				for (const d of desserts) {
+					if (d.is_active === false) continue;
+					const input = document.createElement('input');
+					input.type = 'number'; input.min = '0'; input.step = '1'; input.inputMode = 'numeric'; input.placeholder = '0';
+					input.className = 'input-cell input-qty';
+					qtyInputs[d.short_code] = input;
+					appendRow(d.name, input);
+				}
+
+				const actions = document.createElement('div'); actions.className = 'confirm-actions';
+				const cancelBtn = document.createElement('button'); cancelBtn.type = 'button'; cancelBtn.className = 'press-btn'; cancelBtn.textContent = 'Cancelar';
+				const saveBtn = document.createElement('button'); saveBtn.type = 'button'; saveBtn.className = 'press-btn btn-primary'; saveBtn.textContent = 'Guardar';
+				actions.append(cancelBtn, saveBtn);
+
+				pop.append(title, grid, actions);
+				pop.style.visibility = 'hidden'; pop.style.opacity = '0'; pop.style.transition = 'opacity 160ms ease-out';
+				document.body.appendChild(pop);
+
+				function clampWithinViewport() {
+					try {
+						const margin = 8; const vw = window.innerWidth; const vh = window.innerHeight; const r = pop.getBoundingClientRect();
+						const baseX = (typeof anchorX === 'number') ? anchorX : (vw / 2);
+						const baseY = (typeof anchorY === 'number') ? anchorY : (vh / 2);
+						let left = Math.round(baseX - r.width / 2);
+						let topBelow = Math.round(baseY + 8); let topAbove = Math.round(baseY - 8 - r.height); let top = topBelow;
+						if (top + r.height > vh - margin) top = topAbove;
+						if (top < margin) top = margin;
+						if (top + r.height > vh - margin) top = Math.max(margin, vh - margin - r.height);
+						if (left < margin) left = margin;
+						if (left + r.width > vw - margin) left = Math.max(margin, vw - margin - r.width);
+						pop.style.left = left + 'px'; pop.style.top = top + 'px'; pop.style.transform = 'none';
+					} catch {}
+				}
+				clampWithinViewport(); pop.style.visibility = 'visible'; requestAnimationFrame(() => { pop.style.opacity = '1'; });
+
+				function cleanup(){ document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); if (pop.parentNode) pop.parentNode.removeChild(pop); }
+				function outside(ev){ const t = ev.target; if (!pop.contains(t)) cleanup(); }
+				setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
+				cancelBtn.addEventListener('click', cleanup);
+
+				setTimeout(() => { try { dateInput.focus(); } catch {} }, 0);
+
+				async function doSave(){
+					try {
+						saveBtn.disabled = true; cancelBtn.disabled = true;
+						const items = {};
+						for (const [code, input] of Object.entries(qtyInputs)) { const q = Math.max(0, parseInt(input?.value || '0', 10) || 0); if (q > 0) items[code] = q; }
+						const payload = { day: dateInput.value || todayIso, items };
+						await api('POST', '/api/deliveries', payload);
+						cleanup(); await load();
+					} catch (e) {
+						alert('No se pudo guardar: ' + (e?.message || e));
+						saveBtn.disabled = false; cancelBtn.disabled = false;
+					}
+				}
+				saveBtn.addEventListener('click', doSave);
+				Object.values(qtyInputs).forEach((el) => { el.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); doSave(); } }); });
+			} catch (e) {
+				alert('No se pudo abrir el formulario');
+			}
+		}
+
+		addBtn.addEventListener('click', async () => {
+			if (!requireAdmin()) return;
+			const rect = addBtn.getBoundingClientRect();
+			await openProductionPopover(rect.left + rect.width/2, rect.bottom + 8);
+		});
+
+		backBtn.addEventListener('click', () => { window.location.href = '/index.html'; });
+		requireAdmin();
+		load();
+	})();
+	</script>
+</body>
+</html>
+

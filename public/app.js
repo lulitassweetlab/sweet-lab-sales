@@ -1322,6 +1322,7 @@ function applyAuthVisibility() {
 	const inventoryBtn = document.getElementById('inventory-button');
 	const accountingBtn = document.getElementById('accounting-button');
 	const dessertsBtn = document.getElementById('desserts-button');
+	const deliveriesBtn = document.getElementById('deliveries-button');
 	const canSales = isSuper || feats.has('reports.sales');
 	const canCartera = isSuper || feats.has('reports.cartera');
 	const canProjections = isSuper || feats.has('reports.projections');
@@ -1339,7 +1340,9 @@ function applyAuthVisibility() {
 	if (materialsBtn) materialsBtn.style.display = canMaterials ? 'inline-block' : 'none';
 	if (inventoryBtn) inventoryBtn.style.display = canInventory ? 'inline-block' : 'none';
 	if (accountingBtn) accountingBtn.style.display = canAccounting ? 'inline-block' : 'none';
+	const canDeliveries = isSuper || isAdminUser;
 	if (dessertsBtn) dessertsBtn.style.display = canDesserts ? 'inline-block' : 'none';
+	if (deliveriesBtn) deliveriesBtn.style.display = canDeliveries ? 'inline-block' : 'none';
 }
 
 // Load desserts from API (runs once per session)
@@ -3771,6 +3774,7 @@ async function exportCarteraExcel(startIso, endIso) {
 	const carteraBtn = document.getElementById('cartera-button');
 	const accountingBtn = document.getElementById('accounting-button');
 	const dessertsBtn = document.getElementById('desserts-button');
+	const deliveriesBtn = document.getElementById('deliveries-button');
 	const input = document.getElementById('report-date');
 	if (!reportBtn || !input) return;
 	reportBtn.addEventListener('click', (ev) => {
@@ -3853,6 +3857,13 @@ async function exportCarteraExcel(startIso, endIso) {
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 		if (!isSuper && !feats.has('nav.desserts')) { notify.error('Sin permiso para administrar postres'); return; }
 		window.location.href = '/manage-desserts.html';
+	});
+	deliveriesBtn?.addEventListener('click', (ev) => {
+		exitDeleteSellerModeIfActive();
+		const isAdminUser = !!(state?.currentUser?.isAdmin);
+		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+		if (!isAdminUser && !isSuper) { notify.error('Solo para admin/superadmin'); return; }
+		window.location.href = '/deliveries.html';
 	});
 })();
 

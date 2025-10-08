@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 7; // Bump when schema changes require a migration (incremented for payment_source column)
+const SCHEMA_VERSION = 8; // Bump when schema changes require a migration (deliveries feature)
 
 export async function ensureSchema() {
 	// If already ensured in this instance, skip immediately
@@ -265,6 +265,29 @@ export async function ensureSchema() {
 			ALTER TABLE sale_receipts ADD COLUMN note_text TEXT DEFAULT '';
 		END IF;
 	END $$;`;
+	// Deliveries: record production by day and assignments to sellers
+	await sql`CREATE TABLE IF NOT EXISTS deliveries (
+		id SERIAL PRIMARY KEY,
+		day DATE NOT NULL,
+		note TEXT DEFAULT '',
+		actor_name TEXT,
+		created_at TIMESTAMPTZ DEFAULT now()
+	)`;
+	await sql`CREATE TABLE IF NOT EXISTS delivery_items (
+		id SERIAL PRIMARY KEY,
+		delivery_id INTEGER NOT NULL REFERENCES deliveries(id) ON DELETE CASCADE,
+		dessert_id INTEGER NOT NULL REFERENCES desserts(id) ON DELETE CASCADE,
+		quantity INTEGER NOT NULL DEFAULT 0,
+		UNIQUE (delivery_id, dessert_id)
+	)`;
+	await sql`CREATE TABLE IF NOT EXISTS delivery_seller_items (
+		id SERIAL PRIMARY KEY,
+		delivery_id INTEGER NOT NULL REFERENCES deliveries(id) ON DELETE CASCADE,
+		seller_id INTEGER NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
+		dessert_id INTEGER NOT NULL REFERENCES desserts(id) ON DELETE CASCADE,
+		quantity INTEGER NOT NULL DEFAULT 0,
+		UNIQUE (delivery_id, seller_id, dessert_id)
+	)`;
 	await sql`CREATE TABLE IF NOT EXISTS notifications (
 		id SERIAL PRIMARY KEY,
 		type TEXT NOT NULL,
@@ -565,6 +588,10 @@ END $$;`;
 	await sql`CREATE INDEX IF NOT EXISTS idx_sale_items_sale ON sale_items(sale_id)`;
 	await sql`CREATE INDEX IF NOT EXISTS idx_sellers_name ON sellers(lower(name))`;
 	await sql`CREATE INDEX IF NOT EXISTS idx_user_view_permissions_lookup ON user_view_permissions(lower(viewer_username), seller_id)`;
+	await sql`CREATE INDEX IF NOT EXISTS idx_deliveries_day ON deliveries(day DESC)`;
+	await sql`CREATE INDEX IF NOT EXISTS idx_delivery_items_delivery ON delivery_items(delivery_id)`;
+	await sql`CREATE INDEX IF NOT EXISTS idx_delivery_seller_items_delivery ON delivery_seller_items(delivery_id)`;
+	await sql`CREATE INDEX IF NOT EXISTS idx_delivery_seller_items_delivery_seller ON delivery_seller_items(delivery_id, seller_id)`;
 	
 			// 4) Persist target schema version so future requests short-circuit
 			await sql`UPDATE schema_meta SET version=${SCHEMA_VERSION}, updated_at=now()`;
