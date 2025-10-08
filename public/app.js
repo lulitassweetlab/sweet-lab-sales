@@ -624,7 +624,7 @@ const notify = (() => {
 			refreshUnreadDot();
 		});
 	}
-	function openDialog(anchorX, anchorY) {
+	async function openDialog(anchorX, anchorY) {
 		const backdrop = document.createElement('div');
 		backdrop.className = 'notif-dialog-backdrop';
 		const dlg = document.createElement('div');
@@ -7341,6 +7341,7 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 (async function init() {
 	bindEvents();
 	notify.initToggle();
+	// Asegurar que el login siempre quede vinculado, incluso si las llamadas iniciales fallan
 	// (la restauración automática fue removida; se mantiene reporte bajo demanda)
 	// Realtime polling of backend notifications
 	(function startRealtime(){
@@ -7384,7 +7385,7 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 		state.currentUser.features = Array.isArray(state.currentUser.features) ? state.currentUser.features : [];
 		try { localStorage.setItem('authUser', JSON.stringify(state.currentUser)); } catch {}
 	}
-	await loadSellers();
+	try { await loadSellers(); } catch { /* Ignorar error de red para no bloquear el login */ }
 	let __handledPendingFocus = false;
 	// Handle deep link focus coming from Transfers (pendingFocus in localStorage)
 	try {
@@ -7410,7 +7411,6 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 			}
 		}
 	} catch {}
-	bindLogin();
 	// Route initial view (skip if we just navigated from Transfers)
 	if (!__handledPendingFocus) {
 		if (!state.currentUser) {
