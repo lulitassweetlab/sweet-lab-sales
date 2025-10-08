@@ -46,12 +46,10 @@
                     <span style="line-height:28px;">Fuente</span>
                     <div id="pay-source-filter-group" class="seller-filter-group" style="display:flex; gap:8px; flex-wrap:wrap; min-width:200px; max-height:132px; overflow:auto; padding:8px; border:1px solid var(--border); border-radius:10px; background: var(--card);"></div>
                 </label>
-				<label style="display:flex; gap:6px; align-items:center">
-					<span>Fecha pago:</span>
-					<button id="date-filter-btn" class="press-btn" style="padding:4px 12px; height:28px; font-size:0.9em;">
-						<span id="date-filter-label">Todas</span>
-					</button>
-				</label>
+                <label style="display:flex; gap:6px; align-items:flex-start">
+                    <span style="line-height:28px;">Fecha pago</span>
+                    <div id="payment-date-filter-group" class="seller-filter-group" style="display:flex; gap:8px; flex-wrap:wrap; min-width:220px; max-height:132px; overflow:auto; padding:8px; border:1px solid var(--border); border-radius:10px; background: var(--card);"></div>
+                </label>
 			</div>
 			<div class="table-wrapper" id="report-wrapper">
 				<table id="report-table">
@@ -119,11 +117,7 @@
         const sellerFilterGroup = document.getElementById('seller-filter-group');
         const payMethodFilterGroup = document.getElementById('pay-method-filter-group');
         const paySourceFilterGroup = document.getElementById('pay-source-filter-group');
-		const dateFilterBtn = document.getElementById('date-filter-btn');
-		const dateFilterLabel = document.getElementById('date-filter-label');
-		
-		let dateFilterFrom = null;
-		let dateFilterTo = null;
+        const paymentDateFilterGroup = document.getElementById('payment-date-filter-group');
 
 		let dataset = [];
 		let sellersList = [];
@@ -180,7 +174,7 @@
 					const wrap = document.createElement('label'); wrap.style.display='inline-flex'; wrap.style.alignItems='center'; wrap.style.gap='6px';
 					const cb = document.createElement('input'); cb.type='checkbox'; cb.value = s.name || ''; cb.id = id;
 					cb.checked = prevSelected.length ? prevSelected.includes(cb.value) : false;
-					cb.addEventListener('change', () => { updateMasterCheckboxState(); render(); });
+					cb.addEventListener('change', () => { updateMasterCheckboxState(); populatePaymentDateFilter(); render(); });
 					const sp = document.createElement('span'); sp.textContent = s.name || '';
 					wrap.appendChild(cb); wrap.appendChild(sp);
 					sellerFilterGroup.appendChild(wrap);
@@ -195,6 +189,7 @@
 					const cbs = Array.from(sellerFilterGroup.querySelectorAll('input[type="checkbox"]')).filter(x => x.id !== 'sf_all');
 					for (const cb of cbs) cb.checked = master.checked;
 					updateMasterCheckboxState();
+					populatePaymentDateFilter();
 					render();
 				});
 				updateMasterCheckboxState();
@@ -214,7 +209,7 @@
                     const wrap = document.createElement('label'); wrap.style.display='inline-flex'; wrap.style.alignItems='center'; wrap.style.gap='6px';
                     const cb = document.createElement('input'); cb.type='checkbox'; cb.value = code; cb.id = id;
                     cb.checked = prevSelected.length ? prevSelected.includes(cb.value) : true;
-                    cb.addEventListener('change', () => { updateMasterCheckboxState(); render(); });
+                    cb.addEventListener('change', () => { updateMasterCheckboxState(); populatePaymentDateFilter(); render(); });
                     const sp = document.createElement('span'); sp.textContent = payLabel(code);
                     wrap.appendChild(cb); wrap.appendChild(sp);
                     payMethodFilterGroup.appendChild(wrap);
@@ -229,6 +224,7 @@
                     const cbs = Array.from(payMethodFilterGroup.querySelectorAll('input[type="checkbox"]')).filter(x => x.id !== 'pmf_all');
                     for (const cb of cbs) cb.checked = master.checked;
                     updateMasterCheckboxState();
+                    populatePaymentDateFilter();
                     render();
                 });
                 updateMasterCheckboxState();
@@ -255,7 +251,7 @@
                     const wrap = document.createElement('label'); wrap.style.display='inline-flex'; wrap.style.alignItems='center'; wrap.style.gap='6px';
                     const cb = document.createElement('input'); cb.type='checkbox'; cb.value = src.value; cb.id = id;
                     cb.checked = prevSelected.length ? prevSelected.includes(cb.value) : true;
-                    cb.addEventListener('change', () => { updateMasterCheckboxState(); render(); });
+                    cb.addEventListener('change', () => { updateMasterCheckboxState(); populatePaymentDateFilter(); render(); });
                     const sp = document.createElement('span'); sp.textContent = src.label;
                     wrap.appendChild(cb); wrap.appendChild(sp);
                     paySourceFilterGroup.appendChild(wrap);
@@ -270,11 +266,92 @@
                     const cbs = Array.from(paySourceFilterGroup.querySelectorAll('input[type="checkbox"]')).filter(x => x.id !== 'psf_all');
                     for (const cb of cbs) cb.checked = master.checked;
                     updateMasterCheckboxState();
+                    populatePaymentDateFilter();
                     render();
                 });
                 updateMasterCheckboxState();
             }
+            
+            // Payment date filter - will be populated dynamically
+            populatePaymentDateFilter();
 		}
+		
+		function populatePaymentDateFilter(){
+            // Get data filtered by everything EXCEPT payment date
+            const selSellers = getSelectedSellers();
+            const selMethods = getSelectedPayMethods();
+            const selSources = getSelectedPaySources();
+            
+            const filteredData = dataset.filter(r => {
+                if (selSellers.length && !selSellers.includes(r.sellerName)) return false;
+                const pm = (r.pay_method || '').toString();
+                if (selMethods.length && !selMethods.includes(pm)) return false;
+                const ps = (r.payment_source || '').toString();
+                const source = getPaySource(ps);
+                if (selSources.length && (!source || !selSources.includes(source))) return false;
+                return true;
+            });
+            
+            // Extract unique payment dates
+            const dateSet = new Set();
+            for (const r of filteredData) {
+                if (r.payment_date) {
+                    dateSet.add(r.payment_date);
+                }
+            }
+            const uniqueDates = Array.from(dateSet).sort((a, b) => b.localeCompare(a)); // Descending
+            
+            if (paymentDateFilterGroup) {
+                const prevSelected = getSelectedPaymentDates();
+                paymentDateFilterGroup.innerHTML = '';
+                
+                const masterWrap = document.createElement('label'); 
+                masterWrap.style.display='inline-flex'; 
+                masterWrap.style.alignItems='center'; 
+                masterWrap.style.gap='6px';
+                const master = document.createElement('input'); 
+                master.type='checkbox'; 
+                master.id='pdf_all';
+                const masterSpan = document.createElement('span'); 
+                masterSpan.textContent = 'Todas';
+                masterWrap.appendChild(master); 
+                masterWrap.appendChild(masterSpan);
+                paymentDateFilterGroup.appendChild(masterWrap);
+                
+                for (const date of uniqueDates){
+                    const id = `pdf_${date.replace(/-/g, '_')}`;
+                    const wrap = document.createElement('label'); 
+                    wrap.style.display='inline-flex'; 
+                    wrap.style.alignItems='center'; 
+                    wrap.style.gap='6px';
+                    const cb = document.createElement('input'); 
+                    cb.type='checkbox'; 
+                    cb.value = date; 
+                    cb.id = id;
+                    cb.checked = prevSelected.length ? prevSelected.includes(date) : true;
+                    cb.addEventListener('change', () => { updateMasterCheckboxState(); render(); });
+                    const sp = document.createElement('span'); 
+                    sp.textContent = date;
+                    wrap.appendChild(cb); 
+                    wrap.appendChild(sp);
+                    paymentDateFilterGroup.appendChild(wrap);
+                }
+                
+                function updateMasterCheckboxState(){
+                    const cbs = Array.from(paymentDateFilterGroup.querySelectorAll('input[type="checkbox"]')).filter(x => x.id !== 'pdf_all');
+                    const checked = cbs.filter(x => x.checked).length;
+                    master.indeterminate = checked > 0 && checked < cbs.length;
+                    master.checked = checked > 0 && checked === cbs.length;
+                }
+                master.addEventListener('change', () => {
+                    const cbs = Array.from(paymentDateFilterGroup.querySelectorAll('input[type="checkbox"]')).filter(x => x.id !== 'pdf_all');
+                    for (const cb of cbs) cb.checked = master.checked;
+                    updateMasterCheckboxState();
+                    render();
+                });
+                updateMasterCheckboxState();
+            }
+        }
 
 		function getSelectedSellers(){
 			if (sellerFilterGroup) {
@@ -300,6 +377,7 @@
 			const selSellers = getSelectedSellers();
             const selMethods = getSelectedPayMethods();
             const selSources = getSelectedPaySources();
+            const selPaymentDates = getSelectedPaymentDates();
 			let rows = dataset.filter(r => {
 				if (selSellers.length && !selSellers.includes(r.sellerName)) return false;
                 
@@ -313,10 +391,10 @@
 				// If source filters are selected, only show sales that have a source AND that source is selected
 				if (selSources.length && (!source || !selSources.includes(source))) return false;
 				
-				// Filter by payment date (not sale date)
+				// Filter by payment date
 				const payDate = (r.payment_date || '').toString();
-				if (dateFilterFrom && payDate && payDate < dateFilterFrom) return false;
-				if (dateFilterTo && payDate && payDate > dateFilterTo) return false;
+				if (selPaymentDates.length && !selPaymentDates.includes(payDate)) return false;
+				
 				return true;
 			});
 			return rows;
@@ -335,6 +413,15 @@
             if (paySourceFilterGroup) {
                 return Array.from(paySourceFilterGroup.querySelectorAll('input[type="checkbox"]:checked'))
                     .filter(i => i.id !== 'psf_all')
+                    .map(i => i.value);
+            }
+            return [];
+        }
+        
+        function getSelectedPaymentDates(){
+            if (paymentDateFilterGroup) {
+                return Array.from(paymentDateFilterGroup.querySelectorAll('input[type="checkbox"]:checked'))
+                    .filter(i => i.id !== 'pdf_all')
                     .map(i => i.value);
             }
             return [];
@@ -612,28 +699,6 @@
 		backBtn.addEventListener('click', () => { location.href = '/'; });
         changeBtn.addEventListener('click', (ev) => openCalendar(ev));
 		setupSortListeners();
-		
-		// Date filter button
-		dateFilterBtn.addEventListener('click', (ev) => {
-			openDateFilterCalendar(ev);
-		});
-		
-		function openDateFilterCalendar(ev){
-			openRangeCalendarPopover((range) => {
-				if (!range || !range.start || !range.end) {
-					// Clear filter
-					dateFilterFrom = null;
-					dateFilterTo = null;
-					dateFilterLabel.textContent = 'Todas';
-					render();
-					return;
-				}
-				dateFilterFrom = range.start;
-				dateFilterTo = range.end;
-				dateFilterLabel.textContent = `${dateFilterFrom} — ${dateFilterTo}`;
-				render();
-			}, ev?.clientX, ev?.clientY, { preferUp: true });
-		}
 
 		// Lightweight date range popover if missing
 		if (typeof window.openRangeCalendarPopover !== 'function') {
