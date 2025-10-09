@@ -273,7 +273,17 @@ export async function handler(event) {
 				}
 				const locked = String(current.pay_method || '').trim() !== '';
 				if (locked && role !== 'admin' && role !== 'superadmin') {
-					return json({ error: 'Pedido bloqueado: solo admin/superadmin puede editar' }, 403);
+					// Exception: allow changing from 'entregado' to 'efectivo' for non-admins
+					let allowException = false;
+					try {
+						const prevPm = String(current.pay_method || '').trim().toLowerCase();
+						const hasPayMethodField = Object.prototype.hasOwnProperty.call(data, 'pay_method');
+						const nextPm = hasPayMethodField ? String(data.pay_method || '').trim().toLowerCase() : null;
+						allowException = (prevPm === 'entregado' && nextPm === 'efectivo');
+					} catch {}
+					if (!allowException) {
+						return json({ error: 'Pedido bloqueado: solo admin/superadmin puede editar' }, 403);
+					}
 				}
 			} catch {}
 				const createdAt = current.created_at ? new Date(current.created_at) : null;
@@ -352,7 +362,7 @@ export async function handler(event) {
 					const prevPm = (current.pay_method || '').toString();
 					const nextPm = (payMethod || '').toString();
 					if (prevPm !== nextPm) {
-						const fmt = (v) => v === 'efectivo' ? 'Efectivo' : (v === 'transf' || v === 'jorgebank') ? 'Transferencia' : v === 'marce' ? 'Marce' : v === 'jorge' ? 'Jorge' : '-';
+						const fmt = (v) => v === 'efectivo' ? 'Efectivo' : v === 'entregado' ? 'Entregado' : (v === 'transf' || v === 'jorgebank') ? 'Transferencia' : v === 'marce' ? 'Marce' : v === 'jorge' ? 'Jorge' : '-';
 						const msg = `${client || 'Cliente'} pago: ${fmt(prevPm)} → ${fmt(nextPm)}` + (actor ? ` - ${actor}` : '');
 					const iconUrl = nextPm === 'efectivo' ? '/icons/bill.svg' : nextPm === 'entregado' ? '/icons/delivered-pink.svg' : nextPm === 'transf' ? '/icons/bank.svg' : nextPm === 'jorgebank' ? '/icons/bank-yellow.svg' : nextPm === 'marce' ? '/icons/marce7.svg?v=1' : nextPm === 'jorge' ? '/icons/jorge7.svg?v=1' : null;
 						await notifyDb({ type: 'pay', sellerId: Number(data.seller_id||0)||null, saleId: id, saleDayId: Number(data.sale_day_id||0)||null, message: msg, actorName: actor, iconUrl, payMethod: nextPm });
