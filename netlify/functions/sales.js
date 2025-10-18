@@ -210,6 +210,14 @@ export async function handler(event) {
 			}
 			case 'POST': {
 				const data = JSON.parse(event.body || '{}');
+                // Determine actor from headers/body for notification suppression logic
+                let actor = '';
+                try {
+                    const headers = (event.headers || {});
+                    const hActor = (headers['x-actor-name'] || headers['X-Actor-Name'] || headers['x-actor'] || '').toString();
+                    const bActor = (data._actor_name || '').toString();
+                    actor = (hActor || bActor || '').toString();
+                } catch {}
                 // Receipt upload flow
                 if (data && data._upload_receipt_for) {
                     const sid = Number(data._upload_receipt_for);
@@ -249,7 +257,7 @@ export async function handler(event) {
 				// Emit a notification for new sale with identifiers for deep linking
 				try {
 					const msg = `${row.client_name || 'Cliente'} nuevo pedido`;
-					await notifyDb({ type: 'create', sellerId, saleId: row.id, saleDayId, message: msg, actorName: '' });
+					await notifyDb({ type: 'create', sellerId, saleId: row.id, saleDayId, message: msg, actorName: actor });
 				} catch {}
 				return json(row, 201);
 			}
