@@ -42,16 +42,6 @@ export async function handler(event) {
 		if (event.httpMethod !== 'GET') return json({ error: 'Método no permitido' }, 405);
 		
 		const params = new URLSearchParams(event.rawQuery || (event.queryStringParameters ? new URLSearchParams(event.queryStringParameters).toString() : ''));
-		// Determine if current actor is superadmin; if so, suppress showing superadmin-authored notifications
-		let suppressSuperAdmin = false;
-		try {
-			const headers = (event.headers || {});
-			const actorName = (headers['x-actor-name'] || headers['X-Actor-Name'] || headers['x-actor'] || '').toString();
-			if (actorName) {
-				const r = await sql`SELECT role FROM users WHERE lower(username)=lower(${actorName}) LIMIT 1`;
-				suppressSuperAdmin = (r && r[0] && String(r[0].role) === 'superadmin');
-			}
-		} catch {}
 		const afterId = Number(params.get('after_id')) || 0;
 		const beforeId = Number(params.get('before_id')) || 0;
 		const sinceParam = params.get('since');
@@ -76,7 +66,7 @@ export async function handler(event) {
 			} else if (saleDayIdFilter) {
 				rows = await sql`SELECT id, type, seller_id, sale_id, sale_day_id, message, actor_name, icon_url, pay_method, created_at, read_at FROM notifications WHERE id > ${afterId} AND sale_day_id = ${saleDayIdFilter} ORDER BY id ASC LIMIT ${limitParam}`;
 			} else {
-				rows = await sql`SELECT id, type, seller_id, sale_id, sale_day_id, message, actor_name, icon_url, pay_method, created_at, read_at FROM notifications WHERE id > ${afterId} ${suppressSuperAdmin ? sql`AND (actor_name IS NULL OR lower(actor_name) <> 'jorge')` : sql``} ORDER BY id ASC LIMIT ${limitParam}`;
+				rows = await sql`SELECT id, type, seller_id, sale_id, sale_day_id, message, actor_name, icon_url, pay_method, created_at, read_at FROM notifications WHERE id > ${afterId} ORDER BY id ASC LIMIT ${limitParam}`;
 			}
 		} else if (beforeId) {
 			if (sellerIdFilter && saleDayIdFilter) {
@@ -86,7 +76,7 @@ export async function handler(event) {
 			} else if (saleDayIdFilter) {
 				rows = await sql`SELECT id, type, seller_id, sale_id, sale_day_id, message, actor_name, icon_url, pay_method, created_at, read_at FROM notifications WHERE id < ${beforeId} AND sale_day_id = ${saleDayIdFilter} ORDER BY id DESC LIMIT ${limitParam}`;
 			} else {
-				rows = await sql`SELECT id, type, seller_id, sale_id, sale_day_id, message, actor_name, icon_url, pay_method, created_at, read_at FROM notifications WHERE id < ${beforeId} ${suppressSuperAdmin ? sql`AND (actor_name IS NULL OR lower(actor_name) <> 'jorge')` : sql``} ORDER BY id DESC LIMIT ${limitParam}`;
+				rows = await sql`SELECT id, type, seller_id, sale_id, sale_day_id, message, actor_name, icon_url, pay_method, created_at, read_at FROM notifications WHERE id < ${beforeId} ORDER BY id DESC LIMIT ${limitParam}`;
 			}
 		} else if (sinceParam) {
 			if (sellerIdFilter && saleDayIdFilter) {
@@ -96,7 +86,7 @@ export async function handler(event) {
 			} else if (saleDayIdFilter) {
 				rows = await sql`SELECT id, type, seller_id, sale_id, sale_day_id, message, actor_name, icon_url, pay_method, created_at, read_at FROM notifications WHERE created_at > ${new Date(sinceParam)} AND sale_day_id = ${saleDayIdFilter} ORDER BY created_at ASC, id ASC LIMIT ${limitParam}`;
 			} else {
-				rows = await sql`SELECT id, type, seller_id, sale_id, sale_day_id, message, actor_name, icon_url, pay_method, created_at, read_at FROM notifications WHERE created_at > ${new Date(sinceParam)} ${suppressSuperAdmin ? sql`AND (actor_name IS NULL OR lower(actor_name) <> 'jorge')` : sql``} ORDER BY created_at ASC, id ASC LIMIT ${limitParam}`;
+				rows = await sql`SELECT id, type, seller_id, sale_id, sale_day_id, message, actor_name, icon_url, pay_method, created_at, read_at FROM notifications WHERE created_at > ${new Date(sinceParam)} ORDER BY created_at ASC, id ASC LIMIT ${limitParam}`;
 			}
 		} else {
 			if (sellerIdFilter && saleDayIdFilter) {
@@ -106,7 +96,7 @@ export async function handler(event) {
 			} else if (saleDayIdFilter) {
 				rows = await sql`SELECT id, type, seller_id, sale_id, sale_day_id, message, actor_name, icon_url, pay_method, created_at, read_at FROM notifications WHERE sale_day_id = ${saleDayIdFilter} ORDER BY id DESC LIMIT ${limitParam}`;
 			} else {
-				rows = await sql`SELECT id, type, seller_id, sale_id, sale_day_id, message, actor_name, icon_url, pay_method, created_at, read_at FROM notifications ${suppressSuperAdmin ? sql`WHERE (actor_name IS NULL OR lower(actor_name) <> 'jorge')` : sql``} ORDER BY id DESC LIMIT ${limitParam}`;
+				rows = await sql`SELECT id, type, seller_id, sale_id, sale_day_id, message, actor_name, icon_url, pay_method, created_at, read_at FROM notifications ORDER BY id DESC LIMIT ${limitParam}`;
 			}
 		}
 		return json(rows);
