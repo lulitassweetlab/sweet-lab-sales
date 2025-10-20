@@ -210,6 +210,14 @@ export async function handler(event) {
 			}
 			case 'POST': {
 				const data = JSON.parse(event.body || '{}');
+                // Determine actor from headers/body for notification suppression logic
+                let actor = '';
+                try {
+                    const headers = (event.headers || {});
+                    const hActor = (headers['x-actor-name'] || headers['X-Actor-Name'] || headers['x-actor'] || '').toString();
+                    const bActor = (data._actor_name || '').toString();
+                    actor = (hActor || bActor || '').toString();
+                } catch {}
                 // Receipt upload flow
                 if (data && data._upload_receipt_for) {
                     const sid = Number(data._upload_receipt_for);
@@ -246,18 +254,14 @@ export async function handler(event) {
 					saleDayId = await getOrCreateDayId(sellerId, iso);
 				}
 				const [row] = await sql`INSERT INTO sales (seller_id, sale_day_id) VALUES (${sellerId}, ${saleDayId}) RETURNING id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, payment_date, payment_source, comment_text, total_cents, created_at`;
-				// Emit a notification for new sale with identifiers for deep linking
-				try {
-					const msg = `${row.client_name || 'Cliente'} nuevo pedido`;
-					await notifyDb({ type: 'create', sellerId, saleId: row.id, saleDayId, message: msg, actorName: '' });
-				} catch {}
+				// Note: detailed order notification is emitted after quantities are set (in PUT)
 				return json(row, 201);
 			}
 			case 'PUT': {
 			const data = JSON.parse(event.body || '{}');
 			const id = Number(data.id);
 			if (!id) return json({ error: 'id requerido' }, 400);
-			const current = (await sql`SELECT client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, payment_date, payment_source, comment_text, created_at FROM sales WHERE id=${id}`)[0] || {};
+			const current = (await sql`SELECT seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, payment_date, payment_source, comment_text, created_at FROM sales WHERE id=${id}`)[0] || {};
 			// Authorization: if sale has a pay_method already set, only admin/superadmin may edit
 			try {
 				const headers = (event.headers || {});
@@ -350,13 +354,33 @@ export async function handler(event) {
 					if (String(prev) === String(next)) return;
 					const prevNote = (Number(prev||0) > 0) ? ` (antes ${prev})` : '';
 					const msg = `${client || 'Cliente'} + ${next} ${name}${prevNote}` + (actor ? ` - ${actor}` : '');
-					await notifyDb({ type: 'qty', sellerId: Number(data.seller_id||0)||null, saleId: id, saleDayId: Number(data.sale_day_id||0)||null, message: msg, actorName: actor });
+					const sellerIdForNotif = Number(data.seller_id||0) || Number(current.seller_id||0) || null;
+					const saleDayIdForNotif = Number(data.sale_day_id||0) || Number(current.sale_day_id||0) || null;
+					await notifyDb({ type: 'qty', sellerId: sellerIdForNotif, saleId: id, saleDayId: saleDayIdForNotif, message: msg, actorName: actor });
 				}
-				await emitQty('arco', current.qty_arco ?? 0, qa ?? 0);
-				await emitQty('melo', current.qty_melo ?? 0, qm ?? 0);
-				await emitQty('mara', current.qty_mara ?? 0, qma ?? 0);
-				await emitQty('oreo', current.qty_oreo ?? 0, qo ?? 0);
-				await emitQty('nute', current.qty_nute ?? 0, qn ?? 0);
+				// Detect initial creation update: all previous quantities were 0 and now there are items
+				const prevSum = Number(current.qty_arco||0) + Number(current.qty_melo||0) + Number(current.qty_mara||0) + Number(current.qty_oreo||0) + Number(current.qty_nute||0);
+				const nextSum = Number(qa||0) + Number(qm||0) + Number(qma||0) + Number(qo||0) + Number(qn||0);
+				const isInitialCreation = withinGrace && prevSum === 0 && nextSum > 0;
+				if (!isInitialCreation) {
+					await emitQty('arco', current.qty_arco ?? 0, qa ?? 0);
+					await emitQty('melo', current.qty_melo ?? 0, qm ?? 0);
+					await emitQty('mara', current.qty_mara ?? 0, qma ?? 0);
+					await emitQty('oreo', current.qty_oreo ?? 0, qo ?? 0);
+					await emitQty('nute', current.qty_nute ?? 0, qn ?? 0);
+				} else {
+					// Emit a single detailed notification for the new order
+					const parts = [];
+					if (Number(qa||0) > 0) parts.push(`${qa} arco`);
+					if (Number(qm||0) > 0) parts.push(`${qm} melo`);
+					if (Number(qma||0) > 0) parts.push(`${qma} mara`);
+					if (Number(qo||0) > 0) parts.push(`${qo} oreo`);
+					if (Number(qn||0) > 0) parts.push(`${qn} nute`);
+					const sellerIdForNotif = Number(data.seller_id||0) || Number(current.seller_id||0) || null;
+					const saleDayIdForNotif = Number(data.sale_day_id||0) || Number(current.sale_day_id||0) || null;
+					const msg = `${client || 'Cliente'}: ${parts.join(' + ')}` + (actor ? ` - ${actor}` : '');
+					await notifyDb({ type: 'create', sellerId: sellerIdForNotif, saleId: id, saleDayId: saleDayIdForNotif, message: msg, actorName: actor });
+				}
 				// emit notification for payment method change
 				try {
 					const prevPm = (current.pay_method || '').toString();
