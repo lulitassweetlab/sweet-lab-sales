@@ -10,8 +10,9 @@
 		h1 { font-size: 18px; margin: 0 0 8px; font-weight: 500; }
 		label { display: block; margin: 12px 0 6px; font-size: 14px; }
 		input[type="file"] { display: block; width: 100%; }
-		.preview { margin-top: 12px; display: none; }
-		.preview img { max-width: 100%; border-radius: 8px; border: 1px solid var(--border, #e5e7eb); }
+        .preview { margin-top: 12px; display: none; }
+        .preview-list { display: flex; flex-wrap: wrap; gap: 8px; }
+        .preview-list img { max-height: 160px; border-radius: 8px; border: 1px solid var(--border, #e5e7eb); object-fit: contain; }
 		.actions { margin-top: 14px; display: flex; gap: 8px; justify-content: flex-end; }
 		.btn { border: 1px solid var(--border, #e5e7eb); background: var(--card, #fff); color: inherit; border-radius: 10px; padding: 8px 12px; cursor: pointer; }
 		.btn-primary { background: var(--primary, #f4a6b7); color: #fff; border-color: transparent; }
@@ -29,7 +30,7 @@
 		<textarea id="note" rows="3" placeholder="Escribe una nota..." style="width:100%; resize: vertical;"></textarea>
         <div class="preview" id="preview">
             <div id="preview-info" class="note" style="margin-bottom:6px;"></div>
-            <img id="img" alt="Vista previa" />
+            <div id="preview-list" class="preview-list"></div>
         </div>
 		<div class="actions">
 			<button class="btn" id="back">Cancelar</button>
@@ -49,22 +50,37 @@
 		const fileInput = document.getElementById('file');
         const preview = document.getElementById('preview');
         const previewInfo = document.getElementById('preview-info');
-        const img = document.getElementById('img');
+        const previewList = document.getElementById('preview-list');
 		const uploadBtn = document.getElementById('upload');
 		document.getElementById('back').addEventListener('click', () => history.length > 1 ? history.back() : (location.href = '/'));
         fileInput.addEventListener('change', () => {
             const files = fileInput.files;
-            if (!files || files.length === 0) { preview.style.display = 'none'; img.src = ''; uploadBtn.disabled = true; return; }
-            // Preview the first image and show count
-            const first = files[0];
-            const reader = new FileReader();
-            reader.onload = () => {
-                img.src = reader.result;
-                previewInfo.textContent = files.length > 1 ? `${files.length} archivos seleccionados (se mostrará vista previa del primero)` : '1 archivo seleccionado';
+            if (!files || files.length === 0) { preview.style.display = 'none'; previewList.innerHTML = ''; uploadBtn.disabled = true; return; }
+            previewList.innerHTML = '';
+            previewInfo.textContent = files.length === 1 ? '1 archivo seleccionado' : `${files.length} archivos seleccionados`;
+            // Read all selected files and render thumbnails
+            const readers = [];
+            for (const f of files) {
+                readers.push(new Promise((resolve, reject) => {
+                    const r = new FileReader();
+                    r.onload = () => resolve(r.result);
+                    r.onerror = reject;
+                    r.readAsDataURL(f);
+                }));
+            }
+            Promise.all(readers).then((datas) => {
+                for (const dataUrl of datas) {
+                    const im = document.createElement('img');
+                    im.src = dataUrl;
+                    im.alt = 'Vista previa';
+                    previewList.appendChild(im);
+                }
                 preview.style.display = 'block';
                 uploadBtn.disabled = false;
-            };
-            reader.readAsDataURL(first);
+            }).catch(() => {
+                preview.style.display = 'none';
+                uploadBtn.disabled = true;
+            });
         });
         uploadBtn.addEventListener('click', async () => {
             const files = fileInput.files;
