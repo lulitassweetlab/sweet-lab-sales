@@ -264,12 +264,12 @@ function renderClientDetailTable(rows) {
 			// If current is 'jorgebank' and already seen -> open receipt viewer/upload directly
 			if (curr === 'jorgebank' && hasSeen('jorgebank')) {
 				try {
-					const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(saleId)}`);
-					if (Array.isArray(recs) && recs.length) {
-						openReceiptViewerPopover(recs[0].image_base64, saleId, recs[0].created_at, rect.left + rect.width / 2, rect.bottom, recs[0].note_text || '', recs[0].id);
-					} else {
-						openReceiptUploadPage(saleId);
-					}
+                    const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(saleId)}`);
+                    if (Array.isArray(recs) && recs.length) {
+                        openReceiptsGalleryPopover(recs, saleId, rect.left + rect.width / 2, rect.bottom);
+                    } else {
+                        openReceiptUploadPage(saleId);
+                    }
 				} catch { openReceiptUploadPage(saleId); }
 				return;
 			}
@@ -1744,7 +1744,7 @@ function renderTable() {
                         const rect = wrap.getBoundingClientRect();
                         const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(sale.id)}`);
                         if (Array.isArray(recs) && recs.length) {
-                            openReceiptViewerPopover(recs[0].image_base64, sale.id, recs[0].created_at, rect.left + rect.width / 2, rect.bottom, recs[0].note_text || '', recs[0].id);
+                            openReceiptsGalleryPopover(recs, sale.id, rect.left + rect.width / 2, rect.bottom);
                         } else {
                             openReceiptUploadPage(sale.id);
                         }
@@ -1766,7 +1766,7 @@ function renderTable() {
                             const rect = wrap.getBoundingClientRect();
                             const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(sale.id)}`);
                             if (Array.isArray(recs) && recs.length) {
-                                openReceiptViewerPopover(recs[0].image_base64, sale.id, recs[0].created_at, rect.left + rect.width / 2, rect.bottom, recs[0].note_text || '', recs[0].id);
+                                openReceiptsGalleryPopover(recs, sale.id, rect.left + rect.width / 2, rect.bottom);
                             } else {
                                 openReceiptUploadPage(sale.id);
                             }
@@ -6357,14 +6357,14 @@ function openPayMenu(anchorEl, selectEl, clickX, clickY) {
 			}
 			// If selecting bank types and not first-time popover, show existing receipt if any; otherwise open upload
 			if ((it.v === 'transf' || it.v === 'jorgebank') && currentSaleId) {
-				try {
-					const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(currentSaleId)}`);
-					if (Array.isArray(recs) && recs.length) {
-						openReceiptViewerPopover(recs[0].image_base64, currentSaleId, recs[0].created_at, rect.left + rect.width / 2, rect.bottom, recs[0].note_text || '', recs[0].id);
-					} else {
-						openReceiptUploadPage(currentSaleId);
-					}
-				} catch { openReceiptUploadPage(currentSaleId); }
+                try {
+                    const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(currentSaleId)}`);
+                    if (Array.isArray(recs) && recs.length) {
+                        openReceiptsGalleryPopover(recs, currentSaleId, rect.left + rect.width / 2, rect.bottom);
+                    } else {
+                        openReceiptUploadPage(currentSaleId);
+                    }
+                } catch { openReceiptUploadPage(currentSaleId); }
 			}
 			cleanup();
 		});
@@ -7436,89 +7436,170 @@ function openReceiptUploadPage(saleId) {
 	} catch {}
 }
 
+// New: gallery popover to view multiple receipts and add more
+function openReceiptsGalleryPopover(receipts, saleId, anchorX, anchorY) {
+    try {
+        const list = Array.isArray(receipts) ? receipts.slice() : [];
+        if (!list.length) return;
+        let index = 0;
+
+        const pop = document.createElement('div');
+        pop.className = 'receipt-popover';
+        pop.style.position = 'fixed';
+        pop.style.left = '50%';
+        pop.style.top = '50%';
+        pop.style.transform = 'translate(-50%, -50%)';
+        pop.style.width = 'auto';
+        pop.style.maxWidth = '92vw';
+        pop.style.maxHeight = '88vh';
+        pop.style.zIndex = '1000';
+        pop.style.overflow = 'hidden';
+        pop.style.display = 'grid';
+        pop.style.gridTemplateRows = 'auto 1fr auto auto';
+        pop.style.rowGap = '10px';
+
+        const title = document.createElement('div');
+        title.style.textAlign = 'center';
+        title.style.fontWeight = '600';
+        title.style.marginTop = '4px';
+
+        const viewport = document.createElement('div');
+        viewport.style.position = 'relative';
+        viewport.style.overflow = 'auto';
+        viewport.style.maxHeight = '64vh';
+        viewport.style.display = 'flex';
+        viewport.style.alignItems = 'center';
+        viewport.style.justifyContent = 'center';
+
+        const img = document.createElement('img');
+        img.alt = 'Comprobante';
+        img.style.display = 'block';
+        img.style.maxWidth = '92vw';
+        img.style.maxHeight = '64vh';
+        img.style.borderRadius = '8px';
+        img.style.objectFit = 'contain';
+
+        const meta = document.createElement('div');
+        meta.className = 'receipt-meta';
+        meta.style.maxHeight = '110px';
+        meta.style.overflowY = 'auto';
+        meta.style.padding = '0 8px';
+
+        const thumbs = document.createElement('div');
+        thumbs.style.display = 'flex';
+        thumbs.style.gap = '6px';
+        thumbs.style.padding = '0 8px 6px 8px';
+        thumbs.style.overflowX = 'auto';
+        thumbs.style.alignItems = 'center';
+
+        const actions = document.createElement('div');
+        actions.className = 'confirm-actions';
+        actions.style.display = 'flex';
+        actions.style.gap = '8px';
+        actions.style.justifyContent = 'center';
+        actions.style.paddingBottom = '8px';
+
+        const moreBtn = document.createElement('button'); moreBtn.className = 'press-btn btn-primary'; moreBtn.textContent = 'Subir más archivos';
+        const deleteBtn = document.createElement('button'); deleteBtn.className = 'press-btn'; deleteBtn.textContent = 'Eliminar';
+        const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn'; closeBtn.textContent = 'Cerrar';
+        actions.append(moreBtn, deleteBtn, closeBtn);
+
+        viewport.appendChild(img);
+        pop.append(title, viewport, meta, thumbs, actions);
+        document.body.appendChild(pop);
+
+        function cleanup() {
+            document.removeEventListener('keydown', onKey);
+            document.removeEventListener('mousedown', outside, true);
+            document.removeEventListener('touchstart', outside, true);
+            if (pop.parentNode) pop.parentNode.removeChild(pop);
+        }
+        function outside(ev) { if (!pop.contains(ev.target)) cleanup(); }
+        function onKey(ev) {
+            if (ev.key === 'ArrowRight') { ev.preventDefault(); go(1); }
+            if (ev.key === 'ArrowLeft') { ev.preventDefault(); go(-1); }
+            if (ev.key === 'Escape') { ev.preventDefault(); cleanup(); }
+        }
+        setTimeout(() => {
+            document.addEventListener('mousedown', outside, true);
+            document.addEventListener('touchstart', outside, true);
+            document.addEventListener('keydown', onKey);
+        }, 0);
+
+        function renderThumbs() {
+            thumbs.innerHTML = '';
+            list.forEach((r, i) => {
+                const t = document.createElement('img');
+                t.src = r.image_base64;
+                t.alt = 'Miniatura ' + (i + 1);
+                t.style.height = '56px';
+                t.style.width = 'auto';
+                t.style.borderRadius = '6px';
+                t.style.cursor = 'pointer';
+                t.style.opacity = i === index ? '1' : '0.7';
+                t.style.outline = i === index ? '2px solid var(--primary, #f4a6b7)' : 'none';
+                t.addEventListener('click', () => { index = i; render(); });
+                thumbs.appendChild(t);
+            });
+        }
+
+        function render() {
+            if (!list.length) { cleanup(); return; }
+            const r = list[index];
+            img.src = r.image_base64;
+            const when = r.created_at ? new Date(r.created_at) : null;
+            const whenStr = when && !isNaN(when) ? when.toLocaleString() : (r.created_at || '');
+            title.textContent = `Comprobante ${index + 1} de ${list.length}`;
+            meta.innerHTML = '';
+            if (whenStr) {
+                const timeDiv = document.createElement('div');
+                timeDiv.textContent = 'Subido: ' + whenStr;
+                timeDiv.style.fontSize = '12px';
+                timeDiv.style.opacity = '0.75';
+                timeDiv.style.marginBottom = '4px';
+                meta.appendChild(timeDiv);
+            }
+            if (r.note_text) {
+                const note = document.createElement('div');
+                note.textContent = 'Nota: ' + String(r.note_text || '');
+                note.style.fontSize = '13px';
+                note.style.whiteSpace = 'pre-wrap';
+                meta.appendChild(note);
+            }
+            renderThumbs();
+        }
+
+        function go(delta) {
+            if (!list.length) return;
+            index = (index + delta + list.length) % list.length;
+            render();
+        }
+
+        deleteBtn.addEventListener('click', async () => {
+            try {
+                const ok = await openConfirmPopover('¿Eliminar el comprobante?', anchorX, anchorY);
+                if (!ok) return;
+                const rid = list[index]?.id;
+                if (!rid) return;
+                await fetch(`/api/sales?receipt_id=${encodeURIComponent(rid)}`, { method: 'DELETE' });
+                list.splice(index, 1);
+                if (index >= list.length) index = Math.max(0, list.length - 1);
+                if (!list.length) { cleanup(); return; }
+                render();
+            } catch {}
+        });
+
+        moreBtn.addEventListener('click', () => { cleanup(); openReceiptUploadPage(saleId); });
+        closeBtn.addEventListener('click', cleanup);
+
+        render();
+    } catch {}
+}
+
 function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, anchorY, noteText, receiptId) {
-	const pop = document.createElement('div');
-	pop.className = 'receipt-popover';
-	pop.style.position = 'fixed';
-	// Always center the popover in the screen
-	pop.style.left = '50%';
-	pop.style.top = '50%';
-	pop.style.transform = 'translate(-50%, -50%)';
-	pop.style.width = 'auto';
-	pop.style.maxWidth = '90vw';
-	pop.style.maxHeight = '85vh';
-	pop.style.zIndex = '1000';
-	pop.style.overflow = 'auto';
-	pop.style.display = 'flex';
-	pop.style.flexDirection = 'column';
-	pop.style.gap = '12px';
-	const img = document.createElement('img');
-	img.src = imageBase64;
-	img.alt = 'Comprobante';
-	img.style.display = 'block';
-	img.style.width = 'auto';
-	img.style.maxWidth = '92vw';
-	img.style.height = 'auto';
-	img.style.maxHeight = '76vh';
-	img.style.margin = '0 auto';
-	img.style.borderRadius = '8px';
-	img.style.objectFit = 'contain';
-	const meta = document.createElement('div');
-	meta.className = 'receipt-meta';
-	meta.style.maxHeight = '120px';
-	meta.style.overflowY = 'auto';
-	meta.style.flexShrink = '0';
-	if (createdAt) {
-		const when = new Date(createdAt);
-		const whenStr = isNaN(when.getTime()) ? String(createdAt) : when.toLocaleString();
-		const timeDiv = document.createElement('div');
-		timeDiv.textContent = 'Subido: ' + whenStr;
-		timeDiv.style.fontSize = '12px';
-		timeDiv.style.opacity = '0.75';
-		timeDiv.style.marginBottom = '4px';
-		meta.appendChild(timeDiv);
-	}
-	if (noteText) {
-		const note = document.createElement('div');
-		note.textContent = 'Nota: ' + String(noteText || '');
-		note.style.fontSize = '13px';
-		note.style.marginTop = '4px';
-		note.style.whiteSpace = 'pre-wrap';
-		meta.appendChild(note);
-	}
-	const actions = document.createElement('div');
-	actions.className = 'confirm-actions';
-	actions.style.display = 'flex';
-	actions.style.gap = '8px';
-	actions.style.justifyContent = 'center';
-	actions.style.flexShrink = '0';
-	const replaceBtn = document.createElement('button'); replaceBtn.className = 'press-btn btn-primary'; replaceBtn.textContent = 'Reemplazar foto';
-	const deleteBtn = document.createElement('button'); deleteBtn.className = 'press-btn'; deleteBtn.textContent = 'Eliminar';
-	const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn'; closeBtn.textContent = 'Cerrar';
-	actions.append(replaceBtn, deleteBtn, closeBtn);
-	pop.append(img, meta, actions);
-	document.body.appendChild(pop);
-	function cleanup() {
-		document.removeEventListener('mousedown', outside, true);
-		document.removeEventListener('touchstart', outside, true);
-		if (pop.parentNode) pop.parentNode.removeChild(pop);
-	}
-	function outside(ev) { if (!pop.contains(ev.target)) cleanup(); }
-	setTimeout(() => {
-		document.addEventListener('mousedown', outside, true);
-		document.addEventListener('touchstart', outside, true);
-	}, 0);
-	replaceBtn.addEventListener('click', () => { cleanup(); openReceiptUploadPage(saleId); });
-	deleteBtn.addEventListener('click', async () => {
-		try {
-			const ok = await openConfirmPopover('¿Eliminar el comprobante?', anchorX, anchorY);
-			if (!ok) return;
-			if (!receiptId) return;
-			await fetch(`/api/sales?receipt_id=${encodeURIComponent(receiptId)}`, { method: 'DELETE' });
-			cleanup();
-		} catch {}
-	});
-	closeBtn.addEventListener('click', cleanup);
+    // Backwards compatibility: adapt single receipt to gallery API
+    const single = [{ image_base64: imageBase64, created_at: createdAt, note_text: noteText, id: receiptId }];
+    openReceiptsGalleryPopover(single, saleId, anchorX, anchorY);
 }
 
 
