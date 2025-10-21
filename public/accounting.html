@@ -7,13 +7,13 @@
 	<link rel="stylesheet" href="/styles.css?v=2025-09-17-1" />
 	<style>
 		/* Oculta el ícono/calendario nativo del input de fecha para evitar duplicado */
-		#acc-date { -webkit-appearance: none; -moz-appearance: none; appearance: none; }
-		#acc-date::-webkit-calendar-picker-indicator { display: none; }
+		input[type="date"] { -webkit-appearance: none; -moz-appearance: none; appearance: none; }
+		input[type="date"]::-webkit-calendar-picker-indicator { display: none; }
 		/* Mismo borde redondeado y fondo para los campos del formulario */
-		#acc-form .input-cell { border: 1px solid var(--border); background: var(--card); }
+		.input-cell { border: 1px solid var(--border); background: var(--card); }
 		/* Quitar flechas en input number (Valor) */
-		#acc-value { -moz-appearance: textfield; }
-		#acc-value::-webkit-outer-spin-button, #acc-value::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+		input[type="number"] { -moz-appearance: textfield; }
+		input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 		/* Botón de adjunto por fila */
 		.attach-btn { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--border); background: transparent; color: var(--foreground); font-weight: 700; line-height: 1; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
 		.attach-btn.has { background: #ad1457; color: #fff; border-color: #ad1457; }
@@ -30,6 +30,109 @@
 		}
 		.editable:active {
 			transform: scale(0.98);
+		}
+		/* Estilos para los botones de meses */
+		.month-buttons {
+			display: flex;
+			gap: 8px;
+			justify-content: center;
+			flex-wrap: wrap;
+			padding: 12px;
+		}
+		/* Efecto hover para el botón + de la tabla */
+		#add-entry-btn-table:hover {
+			transform: scale(1.1);
+			box-shadow: 0 6px 24px rgba(244, 166, 183, 0.6) !important;
+		}
+		#add-entry-btn-table:active {
+			transform: scale(0.95);
+		}
+		.month-btn {
+			padding: 10px 18px;
+			border: 1px solid var(--border);
+			background: var(--card);
+			color: var(--foreground);
+			border-radius: 6px;
+			cursor: pointer;
+			font-size: 14px;
+			font-weight: 500;
+			transition: all 0.2s ease;
+			min-width: 100px;
+		}
+		.month-btn:hover {
+			background: var(--hover-primary-pink, #e27a90);
+			color: white;
+			transform: translateY(-2px);
+			box-shadow: 0 4px 12px rgba(244, 166, 183, 0.3);
+			border-color: var(--primary);
+		}
+		.month-btn:active {
+			transform: translateY(0);
+		}
+		.month-btn.active {
+			background: var(--primary, #f4a6b7);
+			color: white;
+			border-color: var(--primary);
+			box-shadow: 0 4px 12px rgba(244, 166, 183, 0.2);
+		}
+		/* Estilos para el botón + y popover del formulario */
+		.add-entry-btn {
+			position: fixed;
+			bottom: 30px;
+			right: 30px;
+			width: 55px;
+			height: 55px;
+			border-radius: 50%;
+			background: var(--primary, #f4a6b7);
+			color: white;
+			border: none;
+			font-size: 200px;
+			font-weight: 900;
+			line-height: 0.5;
+			cursor: pointer;
+			box-shadow: 0 4px 16px rgba(244, 166, 183, 0.4);
+			transition: all 0.3s ease;
+			z-index: 100;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			overflow: hidden;
+		}
+		.add-entry-btn:hover {
+			background: var(--hover-primary-pink, #e27a90);
+			box-shadow: 0 6px 24px rgba(244, 166, 183, 0.6);
+			transform: scale(1.1);
+		}
+		.add-entry-btn:active {
+			transform: scale(0.95);
+		}
+		.form-popover {
+			position: fixed;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%);
+			background: var(--card);
+			border: 1px solid var(--border);
+			border-radius: 12px;
+			padding: 24px;
+			box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+			z-index: 1000;
+			min-width: 400px;
+			max-width: 90vw;
+		}
+		.form-popover-backdrop {
+			position: fixed;
+			top: 0;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			background: rgba(0, 0, 0, 0.5);
+			z-index: 999;
+		}
+		.form-popover h3 {
+			margin: 0 0 20px 0;
+			text-align: center;
+			color: var(--foreground);
 		}
 	</style>
 </head>
@@ -48,46 +151,22 @@
 
 	<main class="sales-panel">
 			<div class="panel-header">
-			<h3>Nuevo registro</h3>
+			<h3>Contabilidad</h3>
 			<div class="panel-actions">
 					<button id="download-range" class="press-btn">Descargar adjuntos</button>
 					<button id="change-range" class="press-btn">Cambiar fechas</button>
 			</div>
 		</div>
 		<div class="panel-body">
+			<div style="position:relative; margin:12px 12px 16px 12px;">
+				<div class="month-buttons" id="month-buttons" style="margin:0; padding:12px; justify-content:center;">
+					<!-- Los botones de meses se generarán dinámicamente -->
+				</div>
+				<button id="add-entry-btn-table" class="press-btn btn-primary" style="position:absolute; right:0; top:50%; transform:translateY(-50%); width:50px; height:50px; border-radius:50%; padding:0; font-size:180px; font-weight:900; line-height:0.5; display:flex; align-items:center; justify-content:center; box-shadow: 0 4px 16px rgba(244, 166, 183, 0.4); transition: all 0.3s ease; overflow:hidden;" title="Nueva entrada">+</button>
+			</div>
 			<div style="display:flex; justify-content:space-between; align-items:center; margin:0 12px 8px 12px">
 				<strong id="range-label"></strong>
 				<small id="count-label" style="opacity:.8"></small>
-			</div>
-			<div style="margin:0 12px 12px 12px; padding:8px 12px; background-color:rgba(244, 166, 183, 0.1); border-left:3px solid var(--primary); border-radius:4px;">
-				<small style="opacity:.85">💡 <strong>Consejo:</strong> Haz clic en las celdas de Fecha, Descripción, Ingreso o Salida para editarlas</small>
-			</div>
-			<div class="table-wrapper" style="padding:12px;">
-				<form id="acc-form" style="display:flex; flex-direction:column; gap:12px; max-width:520px; margin:0 auto;">
-					<div style="display:flex; gap:12px; justify-content:center; width:300px; margin:40px auto 20px auto;">
-						<button id="btn-ingreso" type="button" class="press-btn btn-primary" aria-pressed="true" style="flex:1 1 0; padding:14px 22px; font-size:16px; border-radius:12px;">Ingreso</button>
-						<button id="btn-salida" type="button" class="press-btn btn-primary" aria-pressed="false" style="flex:1 1 0; padding:14px 22px; font-size:16px; border-radius:12px;">Salida</button>
-					</div>
-					<label style="display:flex; gap:8px; align-items:center; justify-content:center;">
-						<span style="min-width:92px;">Fecha</span>
-						<div style="position:relative; width:auto; min-width:200px;">
-							<input id="acc-date" type="date" class="input-cell" required style="width:200px; padding-right:42px;" />
-							<button id="acc-date-icon" type="button" title="Calendario" aria-label="Abrir calendario" style="position:absolute; right:4px; top:50%; transform: translateY(-50%); padding:6px 8px; border:none; background:transparent; box-shadow:none;">📅</button>
-						</div>
-					</label>
-					<label style="display:flex; gap:8px; align-items:center; justify-content:center;">
-						<span style="min-width:92px;">Descripción</span>
-						<input id="acc-desc" type="text" class="input-cell" placeholder="Descripción" required style="width:200px" />
-					</label>
-					<label style="display:flex; gap:8px; align-items:center; justify-content:center;">
-						<span style="min-width:92px;">Valor</span>
-						<input id="acc-value" type="number" inputmode="numeric" class="input-cell" placeholder="0" required style="width:200px" />
-					</label>
-					<div style="display:flex; gap:8px; justify-content:flex-end; width:300px; margin:20px auto 50px auto;">
-						<button id="acc-cancel" type="button" class="press-btn">Cancelar</button>
-						<button id="acc-save" type="submit" class="press-btn btn-primary">Guardar</button>
-					</div>
-				</form>
 			</div>
 					<div class="table-wrapper" id="acc-wrapper" style="margin-top:12px;">
 				<table id="acc-table">
@@ -143,6 +222,9 @@
 		</div>
 	</main>
 
+	<!-- Botón flotante para agregar entrada -->
+	<button id="add-entry-btn" class="add-entry-btn" title="Nueva entrada">+</button>
+
 	<script type="module">
 	(function(){
 		// Gate: only superadmin
@@ -151,12 +233,7 @@
 		const isSuper = currentUser && (currentUser.role === 'superadmin' || !!currentUser.isSuperAdmin);
 		if (!isSuper) { alert('Solo el superadministrador'); location.href = '/'; return; }
 
-		// Default fecha = hoy (UTC)
-		const dateInput = document.getElementById('acc-date');
 		const today = new Date();
-		const iso = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())).toISOString().slice(0,10);
-		dateInput.value = iso;
-
 		const rangeLabel = document.getElementById('range-label');
 		const countLabel = document.getElementById('count-label');
 		const tbody = document.getElementById('acc-tbody');
@@ -165,11 +242,11 @@
 		const tBal = document.getElementById('t-balance');
 		const changeBtn = document.getElementById('change-range');
 		const downloadBtn = document.getElementById('download-range');
-		const btnIngreso = document.getElementById('btn-ingreso');
-		const btnSalida = document.getElementById('btn-salida');
+		const addEntryBtn = document.getElementById('add-entry-btn');
 		let currentKind = 'ingreso';
+		let formPopover = null;
 
-		function setKind(kind){
+		function setKind(kind, btnIngreso, btnSalida){
 			currentKind = kind === 'salida' ? 'gasto' : 'ingreso';
 			const isIngreso = currentKind === 'ingreso';
 			btnIngreso.setAttribute('aria-pressed', isIngreso ? 'true' : 'false');
@@ -187,14 +264,70 @@
 			activeStyles(btnIngreso, isIngreso);
 			activeStyles(btnSalida, !isIngreso);
 		}
-		btnIngreso.addEventListener('click', () => setKind('ingreso'));
-		btnSalida.addEventListener('click', () => setKind('salida'));
 
 		function formatDay(diso){ if (!diso) return ''; const d=new Date(diso+'T00:00:00Z'); const m=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']; return `${d.getUTCDate()} ${m[d.getUTCMonth()]} ${d.getUTCFullYear()}`; }
 
 		// Range: current month by default
 		let start = new Date(Date.UTC(today.getFullYear(), today.getMonth(), 1)).toISOString().slice(0,10);
 		let end = new Date(Date.UTC(today.getFullYear(), today.getMonth()+1, 0)).toISOString().slice(0,10);
+
+		// Generate last 6 months buttons
+		const monthButtons = document.getElementById('month-buttons');
+		const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+		
+		function generateMonthButtons() {
+			monthButtons.innerHTML = '';
+			// Use same date logic as the rest of the code
+			const currentYear = today.getFullYear();
+			const currentMonth = today.getMonth();
+			const months = [];
+			
+			// Generate last 6 months including current month
+			for (let i = 5; i >= 0; i--) {
+				const date = new Date(currentYear, currentMonth - i, 1);
+				const monthStart = new Date(Date.UTC(date.getFullYear(), date.getMonth(), 1)).toISOString().slice(0,10);
+				const monthEnd = new Date(Date.UTC(date.getFullYear(), date.getMonth() + 1, 0)).toISOString().slice(0,10);
+				
+				months.push({
+					name: monthNames[date.getMonth()],
+					year: date.getFullYear(),
+					start: monthStart,
+					end: monthEnd,
+					isCurrent: i === 0
+				});
+			}
+			
+			// Create buttons
+			months.forEach((month, index) => {
+				const btn = document.createElement('button');
+				btn.className = 'month-btn';
+				btn.textContent = month.name;
+				btn.dataset.start = month.start;
+				btn.dataset.end = month.end;
+				
+				// Mark current month as active by default
+				if (month.isCurrent) {
+					btn.classList.add('active');
+				}
+				
+				// Click handler
+				btn.addEventListener('click', () => {
+					// Remove active class from all buttons
+					monthButtons.querySelectorAll('.month-btn').forEach(b => b.classList.remove('active'));
+					// Add active class to clicked button
+					btn.classList.add('active');
+					// Update range and reload data
+					start = month.start;
+					end = month.end;
+					load();
+				});
+				
+				monthButtons.appendChild(btn);
+			});
+		}
+		
+		// Initialize month buttons
+		generateMonthButtons();
 
 		async function fetchJSON(u, opts){ const r = await fetch(u, opts); if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }
 		function fmtMoney(n){ const v = Number(n||0); try { return new Intl.NumberFormat('es-CO').format(v); } catch { return String(v); } }
@@ -376,6 +509,125 @@
 			});
 		}
 
+		function openFormPopover() {
+			if (formPopover) return; // Already open
+
+			// Create backdrop
+			const backdrop = document.createElement('div');
+			backdrop.className = 'form-popover-backdrop';
+
+			// Create popover
+			const popover = document.createElement('div');
+			popover.className = 'form-popover';
+
+			// Create form content
+			popover.innerHTML = `
+				<h3>Nuevo Registro</h3>
+				<form id="acc-form" style="display:flex; flex-direction:column; gap:16px;">
+					<div style="display:flex; gap:12px; justify-content:center;">
+						<button id="btn-ingreso" type="button" class="press-btn btn-primary" aria-pressed="true" style="flex:1; padding:12px 20px; font-size:15px; border-radius:8px;">Ingreso</button>
+						<button id="btn-salida" type="button" class="press-btn btn-primary" aria-pressed="false" style="flex:1; padding:12px 20px; font-size:15px; border-radius:8px;">Salida</button>
+					</div>
+					<label style="display:flex; gap:8px; align-items:center;">
+						<span style="min-width:92px;">Fecha</span>
+						<div style="position:relative; flex:1;">
+							<input id="acc-date" type="date" class="input-cell" required style="width:100%; padding-right:42px;" />
+							<button id="acc-date-icon" type="button" title="Calendario" aria-label="Abrir calendario" style="position:absolute; right:4px; top:50%; transform: translateY(-50%); padding:6px 8px; border:none; background:transparent; box-shadow:none;">📅</button>
+						</div>
+					</label>
+					<label style="display:flex; gap:8px; align-items:center;">
+						<span style="min-width:92px;">Descripción</span>
+						<input id="acc-desc" type="text" class="input-cell" placeholder="Descripción" required style="flex:1;" />
+					</label>
+					<label style="display:flex; gap:8px; align-items:center;">
+						<span style="min-width:92px;">Valor</span>
+						<input id="acc-value" type="number" inputmode="numeric" class="input-cell" placeholder="0" required style="flex:1;" />
+					</label>
+					<div style="display:flex; gap:8px; justify-content:flex-end; margin-top:8px;">
+						<button id="acc-cancel" type="button" class="press-btn">Cancelar</button>
+						<button id="acc-save" type="submit" class="press-btn btn-primary">Guardar</button>
+					</div>
+				</form>
+			`;
+
+			document.body.appendChild(backdrop);
+			document.body.appendChild(popover);
+			formPopover = { backdrop, popover };
+
+			// Get form elements
+			const form = popover.querySelector('#acc-form');
+			const dateInput = popover.querySelector('#acc-date');
+			const dateIconBtn = popover.querySelector('#acc-date-icon');
+			const btnIngreso = popover.querySelector('#btn-ingreso');
+			const btnSalida = popover.querySelector('#btn-salida');
+			const cancelBtn = popover.querySelector('#acc-cancel');
+
+			// Set default date
+			const today = new Date();
+			const iso = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())).toISOString().slice(0,10);
+			dateInput.value = iso;
+
+			// Initialize kind buttons
+			setKind('ingreso', btnIngreso, btnSalida);
+			btnIngreso.addEventListener('click', () => setKind('ingreso', btnIngreso, btnSalida));
+			btnSalida.addEventListener('click', () => setKind('salida', btnIngreso, btnSalida));
+
+			// Date picker
+			dateIconBtn.addEventListener('click', (ev) => {
+				openSingleDatePopover((pickedIso) => { dateInput.value = pickedIso; }, ev.clientX, ev.clientY);
+			});
+			dateInput.addEventListener('click', (ev) => {
+				ev.preventDefault();
+				openSingleDatePopover((pickedIso) => { dateInput.value = pickedIso; }, ev.clientX, ev.clientY);
+			});
+
+			// Form submission
+			form.addEventListener('submit', async (e) => {
+				e.preventDefault();
+				const type = currentKind;
+				const date = (popover.querySelector('#acc-date').value || '').toString();
+				const desc = (popover.querySelector('#acc-desc').value || '').toString();
+				const value = Number(popover.querySelector('#acc-value').value || 0);
+				if (!date || !desc || !value) { alert('Completa todos los campos'); return; }
+				try {
+					const payload = { kind: type, entry_date: date, description: desc, amount_cents: Number.isFinite(value) ? Math.round(value) : 0, _actor_name: currentUser?.name || '' };
+					const res = await fetch('/api/accounting', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Actor-Name': currentUser?.name || '' }, body: JSON.stringify(payload) });
+					if (!res.ok) {
+						let msg = `Error (${res.status})`;
+						try { const j = await res.json(); if (j && j.error) msg = j.error; } catch {}
+						alert(msg);
+						return;
+					}
+					closeFormPopover();
+					await load();
+				} catch (err) {
+					console.error(err);
+					alert('Error al guardar');
+				}
+			});
+
+			// Close handlers
+			function closeFormPopover() {
+				if (formPopover) {
+					document.body.removeChild(formPopover.backdrop);
+					document.body.removeChild(formPopover.popover);
+					formPopover = null;
+				}
+			}
+
+			cancelBtn.addEventListener('click', closeFormPopover);
+			backdrop.addEventListener('click', closeFormPopover);
+
+			// ESC key to close
+			function onKeyDown(e) {
+				if (e.key === 'Escape') {
+					closeFormPopover();
+					document.removeEventListener('keydown', onKeyDown);
+				}
+			}
+			document.addEventListener('keydown', onKeyDown);
+		}
+
 		async function load(){
 			try {
 				rangeLabel.textContent = `${formatDay(start)} — ${formatDay(end)}`;
@@ -388,33 +640,9 @@
 		}
 
 		document.getElementById('back-btn').addEventListener('click', () => { location.href = '/'; });
-		document.getElementById('acc-cancel').addEventListener('click', () => { location.href = '/'; });
-
-			document.getElementById('acc-form').addEventListener('submit', async (e) => {
-			e.preventDefault();
-			const type = currentKind;
-			const date = (document.getElementById('acc-date').value || '').toString();
-			const desc = (document.getElementById('acc-desc').value || '').toString();
-			const value = Number(document.getElementById('acc-value').value || 0);
-			if (!date || !desc || !value) { alert('Completa todos los campos'); return; }
-			try {
-				const payload = { kind: type, entry_date: date, description: desc, amount_cents: Number.isFinite(value) ? Math.round(value) : 0, _actor_name: currentUser?.name || '' };
-				const res = await fetch('/api/accounting', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Actor-Name': currentUser?.name || '' }, body: JSON.stringify(payload) });
-				if (!res.ok) {
-					let msg = `Error (${res.status})`;
-					try { const j = await res.json(); if (j && j.error) msg = j.error; } catch {}
-					alert(msg);
-					return;
-				}
-				// Clear description and value, keep type and date
-				document.getElementById('acc-desc').value = '';
-				document.getElementById('acc-value').value = '';
-				await load();
-			} catch (err) {
-				console.error(err);
-				alert('Error al guardar');
-			}
-		});
+		
+		// Open form popover on + button click
+		addEntryBtn.addEventListener('click', openFormPopover);
 
 		function openCalendar(ev){
 			openRangeCalendarPopover((range) => {
@@ -474,16 +702,16 @@
 			};
 		}
 
-		const dateIconBtn = document.getElementById('acc-date-icon');
-		dateIconBtn.addEventListener('click', (ev) => {
-			openSingleDatePopover((pickedIso) => { dateInput.value = pickedIso; }, ev.clientX, ev.clientY);
-		});
-		dateInput.addEventListener('click', (ev) => {
-			ev.preventDefault();
-			openSingleDatePopover((pickedIso) => { dateInput.value = pickedIso; }, ev.clientX, ev.clientY);
-		});
-
 		load();
+		
+		// Abrir el popover automáticamente al cargar la página
+		openFormPopover();
+		
+		// Event listener para el botón + de la tabla
+		const addEntryBtnTable = document.getElementById('add-entry-btn-table');
+		if (addEntryBtnTable) {
+			addEntryBtnTable.addEventListener('click', openFormPopover);
+		}
 	})();
 	</script>
 </body>
