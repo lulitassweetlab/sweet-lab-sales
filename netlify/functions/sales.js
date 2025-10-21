@@ -236,8 +236,8 @@ export async function handler(event) {
                     // Store receipt - try new columns first, fallback to old schema
                     let row;
                     try {
-                        // Try with new columns
-                        const payMethod = data.pay_method !== undefined ? (data.pay_method || null) : null;
+                        // Try with new columns - default pay_method to 'transf' for uploaded receipts
+                        const payMethod = data.pay_method !== undefined ? (data.pay_method || null) : 'transf';
                         const paymentSource = data.payment_source !== undefined ? (data.payment_source || null) : null;
                         const paymentDate = data.payment_date !== undefined ? (data.payment_date || null) : null;
                         [row] = await sql`INSERT INTO sale_receipts (sale_id, image_base64, note_text, pay_method, payment_source, payment_date) VALUES (${sid}, ${img}, ${note}, ${payMethod}, ${paymentSource}, ${paymentDate}) RETURNING *`;
@@ -284,10 +284,25 @@ export async function handler(event) {
 				const receiptId = Number(data.receipt_id);
 				if (!receiptId) return json({ error: 'receipt_id requerido' }, 400);
 				try {
-					const payMethod = data.pay_method !== undefined ? data.pay_method : null;
-					const paymentSource = data.payment_source !== undefined ? data.payment_source : null;
-					const paymentDate = data.payment_date !== undefined ? data.payment_date : null;
-					await sql`UPDATE sale_receipts SET pay_method=${payMethod}, payment_source=${paymentSource}, payment_date=${paymentDate} WHERE id=${receiptId}`;
+					// Build update object with only provided fields
+					const updates = {};
+					if (data.pay_method !== undefined) updates.pay_method = data.pay_method || null;
+					if (data.payment_source !== undefined) updates.payment_source = data.payment_source || null;
+					if (data.payment_date !== undefined) updates.payment_date = data.payment_date || null;
+					
+					// Build dynamic UPDATE query
+					const setClauses = [];
+					const values = [];
+					if ('pay_method' in updates) { setClauses.push('pay_method'); values.push(updates.pay_method); }
+					if ('payment_source' in updates) { setClauses.push('payment_source'); values.push(updates.payment_source); }
+					if ('payment_date' in updates) { setClauses.push('payment_date'); values.push(updates.payment_date); }
+					
+					if (setClauses.length > 0) {
+						const setClause = setClauses.map((col, i) => `${col}=$${i + 1}`).join(', ');
+						values.push(receiptId);
+						await sql.unsafe(`UPDATE sale_receipts SET ${setClause} WHERE id=$${values.length}`, values);
+					}
+					
 					const [updated] = await sql`SELECT id, sale_id, pay_method, payment_source, payment_date FROM sale_receipts WHERE id=${receiptId}`;
 					return json(updated || {});
 				} catch (err) {

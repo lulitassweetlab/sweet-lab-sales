@@ -7613,17 +7613,29 @@ async function openReceiptsGalleryPopover(saleId, anchorX, anchorY) {
 				});
 				
 				sel.addEventListener('change', async () => {
-					try {
-						await api('PUT', API.Sales, {
-							_update_receipt_payment: true,
-							receipt_id: receipt.id,
-							pay_method: sel.value || null
+					const newValue = sel.value || null;
+					
+					// If selecting jorgebank, open payment date dialog
+					if (newValue === 'jorgebank') {
+						openPaymentDateDialogForReceipt(receipt, () => {
+							// Callback after saving date - update receipt locally
+							receipt.pay_method = newValue;
+							applyPayClass();
 						});
-						receipt.pay_method = sel.value || null;
-					} catch (err) {
-						console.error('Error updating receipt payment:', err);
+					} else {
+						// For other methods, just update pay_method
+						try {
+							await api('PUT', API.Sales, {
+								_update_receipt_payment: true,
+								receipt_id: receipt.id,
+								pay_method: newValue
+							});
+							receipt.pay_method = newValue;
+						} catch (err) {
+							console.error('Error updating receipt payment:', err);
+						}
+						applyPayClass();
 					}
-					applyPayClass();
 				});
 				
 				wrap.appendChild(sel);
@@ -7726,6 +7738,196 @@ async function openReceiptsGalleryPopover(saleId, anchorX, anchorY) {
 		// Fallback to upload page
 		openReceiptUploadPage(saleId);
 	}
+}
+
+// Open payment date dialog for individual receipt
+function openPaymentDateDialogForReceipt(receipt, onSaved) {
+	const pop = document.createElement('div');
+	pop.className = 'payment-date-popover';
+	pop.style.position = 'fixed';
+	pop.style.zIndex = '1002'; // Higher than gallery to appear on top
+	pop.style.left = '50%';
+	pop.style.top = '50%';
+	pop.style.transform = 'translate(-50%, -50%)';
+
+	// Title
+	const title = document.createElement('div');
+	title.className = 'payment-date-title';
+	title.textContent = 'Fecha de pago';
+
+	// Inline calendar
+	const calendarContainer = document.createElement('div');
+	calendarContainer.className = 'inline-calendar';
+
+	const today = new Date();
+	let initialDate = new Date();
+	const savedDate = receipt.payment_date;
+	if (savedDate) {
+		try {
+			const dateStr = typeof savedDate === 'string' ? savedDate.slice(0, 10) : String(savedDate).slice(0, 10);
+			const parsed = new Date(dateStr + 'T00:00:00');
+			if (!isNaN(parsed.getTime())) initialDate = parsed;
+		} catch {}
+	}
+	let currentMonth = initialDate.getMonth();
+	let currentYear = initialDate.getFullYear();
+	let selectedDate = new Date(initialDate);
+
+	const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+	const calendarHeader = document.createElement('div');
+	calendarHeader.className = 'calendar-header';
+	const prevBtn = document.createElement('button');
+	prevBtn.className = 'calendar-nav-btn';
+	prevBtn.type = 'button';
+	prevBtn.innerHTML = '◀';
+	const monthLabel = document.createElement('span');
+	monthLabel.className = 'calendar-month-label';
+	monthLabel.textContent = `${monthNames[currentMonth]} ${currentYear}`;
+	const nextBtn = document.createElement('button');
+	nextBtn.className = 'calendar-nav-btn';
+	nextBtn.type = 'button';
+	nextBtn.innerHTML = '▶';
+	calendarHeader.append(prevBtn, monthLabel, nextBtn);
+
+	const calendarGrid = document.createElement('div');
+	calendarGrid.className = 'calendar-grid';
+
+	function renderCalendar() {
+		calendarGrid.innerHTML = '';
+		monthLabel.textContent = `${monthNames[currentMonth]} ${currentYear}`;
+		const dayNames = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
+		for (const d of dayNames) {
+			const h = document.createElement('div');
+			h.className = 'calendar-day-header';
+			h.textContent = d;
+			calendarGrid.appendChild(h);
+		}
+		const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+		const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+		for (let i = 0; i < firstDay; i++) {
+			const e = document.createElement('div');
+			e.className = 'calendar-day empty';
+			calendarGrid.appendChild(e);
+		}
+		for (let day = 1; day <= daysInMonth; day++) {
+			const cell = document.createElement('div');
+			cell.className = 'calendar-day';
+			cell.textContent = day;
+			const cellDate = new Date(currentYear, currentMonth, day);
+			if (cellDate.toDateString() === today.toDateString()) cell.classList.add('today');
+			if (selectedDate && selectedDate.getDate() === day && selectedDate.getMonth() === currentMonth && selectedDate.getFullYear() === currentYear) {
+				cell.classList.add('selected');
+			}
+			cell.addEventListener('click', () => {
+				calendarGrid.querySelectorAll('.calendar-day').forEach(d => d.classList.remove('selected'));
+				cell.classList.add('selected');
+				selectedDate = new Date(currentYear, currentMonth, day);
+			});
+			calendarGrid.appendChild(cell);
+		}
+	}
+
+	prevBtn.addEventListener('click', (e) => {
+		e.preventDefault();
+		currentMonth--;
+		if (currentMonth < 0) {
+			currentMonth = 11;
+			currentYear--;
+		}
+		renderCalendar();
+	});
+	nextBtn.addEventListener('click', (e) => {
+		e.preventDefault();
+		currentMonth++;
+		if (currentMonth > 11) {
+			currentMonth = 0;
+			currentYear++;
+		}
+		renderCalendar();
+	});
+	renderCalendar();
+	calendarContainer.append(calendarHeader, calendarGrid);
+
+	const methodLabel = document.createElement('div');
+	methodLabel.className = 'payment-date-label';
+	methodLabel.textContent = 'Fuente de pago:';
+	methodLabel.style.marginTop = '14px';
+	const methodsContainer = document.createElement('div');
+	methodsContainer.className = 'payment-methods-container';
+	const methods = [
+		{ value: 'bancolombia', label: 'Bancolombia' },
+		{ value: 'nequi', label: 'Nequi' },
+		{ value: 'efectivo_marcela', label: 'Efectivo Marcela' },
+		{ value: 'efectivo_aleja', label: 'Efectivo Aleja' },
+		{ value: 'bancolombia_aleja', label: 'Bancolombia Aleja' },
+		{ value: 'otro', label: 'Otro' }
+	];
+	const previousSource = receipt.payment_source;
+	for (const m of methods) {
+		const b = document.createElement('button');
+		b.type = 'button';
+		b.className = 'payment-method-btn';
+		b.textContent = m.label;
+		b.dataset.value = m.value;
+		if (previousSource && (
+			m.label === previousSource ||
+			m.label.toLowerCase() === String(previousSource).toLowerCase() ||
+			m.value === String(previousSource).toLowerCase()
+		)) {
+			b.classList.add('selected');
+		}
+		b.addEventListener('click', async () => {
+			// Disable while saving
+			methodsContainer.querySelectorAll('button').forEach(x => x.disabled = true);
+			try {
+				const paymentDate = selectedDate.toISOString().split('T')[0];
+				const paymentSource = m.label;
+				
+				// Update receipt payment info
+				await api('PUT', API.Sales, {
+					_update_receipt_payment: true,
+					receipt_id: receipt.id,
+					pay_method: 'jorgebank',
+					payment_date: paymentDate,
+					payment_source: paymentSource
+				});
+				
+				// Update local receipt object
+				receipt.pay_method = 'jorgebank';
+				receipt.payment_date = paymentDate;
+				receipt.payment_source = paymentSource;
+				
+				// Call the callback
+				if (typeof onSaved === 'function') onSaved();
+				
+				// Close this dialog (but NOT the gallery)
+				cleanup();
+			} catch (err) {
+				console.error('Error guardando fecha de pago:', err);
+				methodsContainer.querySelectorAll('button').forEach(x => x.disabled = false);
+				notify.error('Error al guardar fecha de pago');
+			}
+		});
+		methodsContainer.appendChild(b);
+	}
+
+	pop.append(title, calendarContainer, methodLabel, methodsContainer);
+	document.body.appendChild(pop);
+
+	function outside(ev) {
+		if (!pop.contains(ev.target)) cleanup();
+	}
+
+	function cleanup() {
+		document.removeEventListener('mousedown', outside, true);
+		document.removeEventListener('touchstart', outside, true);
+		if (pop.parentNode) pop.parentNode.removeChild(pop);
+	}
+
+	setTimeout(() => {
+		document.addEventListener('mousedown', outside, true);
+		document.addEventListener('touchstart', outside, true);
+	}, 0);
 }
 
 // Open payment menu for individual receipt in gallery
