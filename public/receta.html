@@ -176,7 +176,8 @@
 			const pauseBtn = document.createElement('button'); pauseBtn.className='press-btn'; pauseBtn.textContent='⏸'; pauseBtn.title='Pause';
 			const stopBtn = document.createElement('button'); stopBtn.className='press-btn'; stopBtn.textContent='⏹'; stopBtn.title='Stop';
 			const saveBtn = document.createElement('button'); saveBtn.className='press-btn'; saveBtn.textContent='💾'; saveBtn.title='Guardar'; saveBtn.style.fontSize='16px';
-			wrap.append(display, playBtn, pauseBtn, stopBtn, saveBtn);
+			const histBtn = document.createElement('button'); histBtn.className='press-btn'; histBtn.textContent='📊'; histBtn.title='Historial'; histBtn.style.fontSize='16px';
+			wrap.append(display, playBtn, pauseBtn, stopBtn, saveBtn, histBtn);
 			function formatMs(ms){ const total=Math.max(0,Math.floor(ms/1000)); const h=Math.floor(total/3600); const m=Math.floor((total%3600)/60); const s=total%60; const pad=n=>String(n).padStart(2,'0'); return (h>0?`${h}:`:'')+`${pad(m)}:${pad(s)}`; }
 			let intervalId = null;
 			let activeTimerButton = null;
@@ -259,6 +260,137 @@
 			}
 			function readHistory(){ try { return JSON.parse(localStorage.getItem('timesHistory') || '[]') || []; } catch { return []; } }
 			function writeHistory(arr){ try { localStorage.setItem('timesHistory', JSON.stringify(arr)); } catch {} }
+			function fmtMs(ms){ const total=Math.max(0,Math.floor(ms/1000)); const h=Math.floor(total/3600); const m=Math.floor((total%3600)/60); const s=total%60; const pad=n=>String(n).padStart(2,'0'); return (h>0?`${h}:`:'')+`${pad(m)}:${pad(s)}`; }
+			
+			histBtn.addEventListener('click', () => {
+				const allHistory = readHistory();
+				// Filter by this specific dessert and step
+				const filteredItems = allHistory.filter(item => 
+					item.dessert === dessertName && item.step_name === stepName
+				).reverse();
+				
+				const pop = document.createElement('div'); 
+				pop.className = 'confirm-popover'; 
+				pop.style.position='fixed'; 
+				pop.style.left=(window.innerWidth/2)+'px'; 
+				pop.style.top='10%'; 
+				pop.style.transform='translate(-50%,0)'; 
+				pop.style.zIndex='10000';
+				pop.style.maxWidth='90vw';
+				
+				const title = document.createElement('h4'); 
+				title.textContent = `Historial: ${dessertName} - ${stepName}`; 
+				title.style.margin='0 0 12px 0';
+				title.style.textAlign='center';
+				
+				const list = document.createElement('div'); 
+				list.style.maxHeight='65vh'; 
+				list.style.overflow='auto'; 
+				list.style.minWidth='min(85vw,700px)';
+				
+				if (!filteredItems.length) { 
+					const empty=document.createElement('div'); 
+					empty.textContent='Sin registros para este paso'; 
+					empty.style.textAlign='center';
+					empty.style.padding='20px';
+					empty.style.opacity='0.7';
+					list.appendChild(empty); 
+				} else {
+					// Calculate average of averages
+					let sumOfAverages = 0;
+					let countWithAverage = 0;
+					
+					filteredItems.forEach((it, idx) => {
+						const row = document.createElement('div'); 
+						row.style.borderBottom='1px solid var(--border)'; 
+						row.style.padding='10px 8px';
+						row.style.display='flex';
+						row.style.justifyContent='space-between';
+						row.style.alignItems='center';
+						row.style.gap='12px';
+						
+						const info = document.createElement('div');
+						info.style.flex='1';
+						const when = new Date(it.date_iso || it.id || Date.now());
+						const dateStr = when.toLocaleString('es-ES', { 
+							year: 'numeric', 
+							month: '2-digit', 
+							day: '2-digit', 
+							hour: '2-digit', 
+							minute: '2-digit' 
+						});
+						
+						info.innerHTML = `
+							<div style="margin-bottom:4px;">
+								<strong style="color:var(--primary);">${dateStr}</strong>
+							</div>
+							<div style="display:flex; gap:16px; flex-wrap:wrap; font-size:13px;">
+								<span>📦 Cant: <strong>${it.qty_units||0}</strong></span>
+								<span>⏱️ Total: <strong>${fmtMs(it.total_elapsed_ms||0)}</strong></span>
+								<span>📊 Prom/u: <strong>${fmtMs(it.avg_ms_per_unit||0)}</strong></span>
+							</div>
+						`;
+						
+						if (it.avg_ms_per_unit) {
+							sumOfAverages += it.avg_ms_per_unit;
+							countWithAverage++;
+						}
+						
+						const deleteBtn = document.createElement('button');
+						deleteBtn.className='press-btn';
+						deleteBtn.textContent='🗑️';
+						deleteBtn.title='Eliminar';
+						deleteBtn.style.fontSize='16px';
+						deleteBtn.style.padding='6px 10px';
+						deleteBtn.style.minWidth='unset';
+						deleteBtn.addEventListener('click', () => {
+							if (confirm('¿Eliminar este registro?')) {
+								const hist = readHistory();
+								const itemId = it.id || it.date_iso;
+								const newHist = hist.filter(h => (h.id || h.date_iso) !== itemId);
+								writeHistory(newHist);
+								// Re-open the history popup
+								if (pop.parentNode) pop.parentNode.removeChild(pop);
+								histBtn.click();
+							}
+						});
+						
+						row.append(info, deleteBtn);
+						list.appendChild(row);
+					});
+					
+					// Add average of averages section
+					if (countWithAverage > 0) {
+						const avgOfAvg = Math.round(sumOfAverages / countWithAverage);
+						const avgSection = document.createElement('div');
+						avgSection.style.marginTop='16px';
+						avgSection.style.padding='12px';
+						avgSection.style.background='rgba(244, 166, 183, 0.15)';
+						avgSection.style.borderRadius='8px';
+						avgSection.style.textAlign='center';
+						avgSection.style.fontWeight='600';
+						avgSection.innerHTML = `
+							📈 Promedio de todos los promedios: <strong style="color:var(--primary); font-size:18px;">${fmtMs(avgOfAvg)}</strong>
+							<div style="font-size:12px; font-weight:400; margin-top:4px; opacity:0.8;">
+								Basado en ${countWithAverage} registro${countWithAverage !== 1 ? 's' : ''}
+							</div>
+						`;
+						list.appendChild(avgSection);
+					}
+				}
+				
+				const actions=document.createElement('div'); 
+				actions.className='confirm-actions'; 
+				const close=document.createElement('button'); 
+				close.className='press-btn'; 
+				close.textContent='Cerrar'; 
+				actions.appendChild(close);
+				
+				pop.append(title, list, actions); 
+				document.body.appendChild(pop); 
+				pop.classList.add('aladdin-pop');
+				close.addEventListener('click', () => { if (pop.parentNode) pop.parentNode.removeChild(pop); });
+			});
 			
 			saveBtn.addEventListener('click', async () => {
 				const ms = compute();
@@ -307,9 +439,6 @@
 						steps 
 					});
 					writeHistory(hist);
-					
-					// Format time for display
-					function fmtMs(ms){ const total=Math.max(0,Math.floor(ms/1000)); const h=Math.floor(total/3600); const m=Math.floor((total%3600)/60); const s=total%60; const pad=n=>String(n).padStart(2,'0'); return (h>0?`${h}:`:'')+`${pad(m)}:${pad(s)}`; }
 					
 					alert(`✅ Guardado!\n\nPostre: ${dessertName}\nPaso: ${stepName}\nCantidad: ${qty}\nTiempo total: ${fmtMs(ms)}\nPromedio por unidad: ${fmtMs(avg)}`);
 				} catch (err) {
@@ -730,15 +859,17 @@
 				} catch { alert('No se pudieron guardar los tiempos'); }
 			});
 			historyBtn.addEventListener('click', () => {
-				const items = readHistory().slice(-20).reverse();
-				const pop = document.createElement('div'); pop.className = 'confirm-popover'; pop.style.position='fixed'; pop.style.left=(window.innerWidth/2)+'px'; pop.style.top='12%'; pop.style.transform='translate(-50%,0)';
+				const items = readHistory().slice(-30).reverse();
+				const pop = document.createElement('div'); pop.className = 'confirm-popover'; pop.style.position='fixed'; pop.style.left=(window.innerWidth/2)+'px'; pop.style.top='12%'; pop.style.transform='translate(-50%,0)'; pop.style.zIndex='10000';
 				const title = document.createElement('h4'); title.textContent = 'Historial de tiempos'; title.style.margin='0 0 8px 0';
-				const list = document.createElement('div'); list.style.maxHeight='60vh'; list.style.overflow='auto'; list.style.minWidth='min(92vw,520px)';
+				const list = document.createElement('div'); list.style.maxHeight='60vh'; list.style.overflow='auto'; list.style.minWidth='min(92vw,620px)';
 				if (!items.length) { const empty=document.createElement('div'); empty.textContent='Sin registros'; list.appendChild(empty); }
 				for (const it of items) {
 					const row = document.createElement('div'); row.style.borderBottom='1px solid var(--border)'; row.style.padding='6px 2px';
 					const when = new Date(it.date_iso || it.id || Date.now());
-					row.innerHTML = `<strong>${it.dessert}</strong> · ${when.toLocaleString()} · Cant: ${it.qty_units||0} · Total: ${fmtMs(it.total_elapsed_ms||0)}`;
+					const stepInfo = it.step_name ? ` · Paso: ${it.step_name}` : '';
+					const avgInfo = it.avg_ms_per_unit ? ` · Prom/u: ${fmtMs(it.avg_ms_per_unit)}` : '';
+					row.innerHTML = `<strong>${it.dessert}</strong>${stepInfo} · ${when.toLocaleString()} · Cant: ${it.qty_units||0} · Total: ${fmtMs(it.total_elapsed_ms||0)}${avgInfo}`;
 					list.appendChild(row);
 				}
 				const actions=document.createElement('div'); actions.className='confirm-actions'; const close=document.createElement('button'); close.className='press-btn'; close.textContent='Cerrar'; actions.appendChild(close);
