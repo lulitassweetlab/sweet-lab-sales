@@ -1976,20 +1976,19 @@ async function enrichSalesWithReceiptStatus() {
 			const receipts = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(sale.id)}`);
 			
 			if (!Array.isArray(receipts) || receipts.length === 0) {
-				// No receipts - keep as transf
-				if (pm === 'jorgebank') sale.pay_method = 'transf';
+				// No receipts - keep as transf, NEVER jorgebank
+				sale.pay_method = 'transf';
 				continue;
 			}
 			
 			// Check if ALL receipts have pay_method = 'jorgebank'
 			const allJorgebank = receipts.every(r => (r.pay_method || '').trim().toLowerCase() === 'jorgebank');
-			const someJorgebank = receipts.some(r => (r.pay_method || '').trim().toLowerCase() === 'jorgebank');
 			
 			if (allJorgebank && receipts.length > 0) {
 				// All receipts verified with jorgebank
 				sale.pay_method = 'jorgebank';
 				console.log(`✅ Sale ${sale.id}: All ${receipts.length} receipts are jorgebank - updating selector`);
-			} else if (someJorgebank || pm === 'jorgebank') {
+			} else {
 				// Mixed or partial jorgebank - keep as transf
 				sale.pay_method = 'transf';
 				console.log(`⚠️ Sale ${sale.id}: Mixed receipt methods (${receipts.length} total) - keeping as transf`);
@@ -8448,6 +8447,22 @@ async function openHistoryPopover(saleId, field, anchorX, anchorY) {
 		document.addEventListener('touchstart', outside, true);
 	}, 0);
 	closeBtn.addEventListener('click', cleanup);
+}
+
+function renderChangeMarkerIfNeeded(tdEl, saleId, field) {
+	if (!state.currentUser?.isAdmin) return;
+	const mark = document.createElement('span');
+	mark.className = 'change-marker';
+	mark.textContent = '*';
+	mark.title = 'Ver historial';
+	mark.addEventListener('click', (ev) => {
+		ev.stopPropagation();
+		openHistoryPopover(saleId, field, ev.clientX, ev.clientY);
+	});
+	tdEl.appendChild(mark);
+}
+
+// (mobile bounce limiter removed per user preference);
 }
 
 function renderChangeMarkerIfNeeded(tdEl, saleId, field) {

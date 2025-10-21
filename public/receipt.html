@@ -154,21 +154,40 @@
 		let selectedFiles = [];
 		
 		function returnToSales() {
+			console.log('🔙 returnToSales - Context:', uploadContext);
+			
 			// Save the focus hint for the sale
 			if (uploadContext && uploadContext.saleId) {
 				try { 
-					localStorage.setItem('pendingFocus', JSON.stringify({ saleId: uploadContext.saleId })); 
-				} catch {}
+					localStorage.setItem('pendingFocus', String(uploadContext.saleId));
+					console.log('💾 Saved pendingFocus:', uploadContext.saleId);
+				} catch (e) {
+					console.error('Error saving pendingFocus:', e);
+				}
 			}
+			
+			// Navigate using context if available
+			if (uploadContext && uploadContext.sellerId && uploadContext.saleDayId) {
+				const url = `/#view-sales?seller_id=${uploadContext.sellerId}&sale_day_id=${uploadContext.saleDayId}`;
+				console.log('✅ Navigating with context to:', url);
+				
+				// Clean up context AFTER using it
+				try { localStorage.removeItem('receiptUploadContext'); } catch {}
+				
+				location.href = url;
+				return;
+			}
+			
+			// Fallback: try history.back()
+			console.log('⬅️ Using history.back()');
 			
 			// Clean up context
 			try { localStorage.removeItem('receiptUploadContext'); } catch {}
 			
-			// Always use history.back() to return to exactly where we were
 			if (window.history.length > 1) {
 				window.history.back();
 			} else {
-				// Fallback if no history
+				console.log('🏠 No history, going home');
 				location.href = '/';
 			}
 		}
