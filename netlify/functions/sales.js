@@ -223,9 +223,10 @@ export async function handler(event) {
                     const sid = Number(data._upload_receipt_for);
                     const img = (data.image_base64 || '').toString();
                     const note = (data.note_text || '').toString();
-                    const payMethod = (data.pay_method || null);
-                    const paymentSource = (data.payment_source || null);
-                    const paymentDate = (data.payment_date || null);
+                    // Handle optional payment fields - ensure they are null if not provided
+                    const payMethod = data.pay_method !== undefined ? (data.pay_method || null) : null;
+                    const paymentSource = data.payment_source !== undefined ? (data.payment_source || null) : null;
+                    const paymentDate = data.payment_date !== undefined ? (data.payment_date || null) : null;
                     const actor = (data._actor_name || '').toString();
                     if (!sid || !img) return json({ error: 'sale_id e imagen requeridos' }, 400);
                     // Store receipt with payment info

@@ -23,12 +23,12 @@
 	<div class="card">
 		<h1>Subir comprobante de transferencia</h1>
 		<div id="sale-info" class="note"></div>
-		<label for="file">Foto del comprobante</label>
-		<input id="file" type="file" accept="image/*" />
+		<label for="file">Foto(s) del comprobante</label>
+		<input id="file" type="file" accept="image/*" multiple />
 		<label for="note">Nota (opcional)</label>
 		<textarea id="note" rows="3" placeholder="Escribe una nota..." style="width:100%; resize: vertical;"></textarea>
 		<div class="preview" id="preview">
-			<img id="img" alt="Vista previa" />
+			<!-- Images will be added here dynamically -->
 		</div>
 		<div class="actions">
 			<button class="btn" id="back">Cancelar</button>
@@ -47,38 +47,124 @@
 		try { const saved = localStorage.getItem('authUser'); if (saved) { const u = JSON.parse(saved); actorName = (u && (u.name || u.username)) ? (u.name || u.username) : ''; } } catch {}
 		const fileInput = document.getElementById('file');
 		const preview = document.getElementById('preview');
-		const img = document.getElementById('img');
 		const uploadBtn = document.getElementById('upload');
+		let selectedFiles = [];
+		
 		document.getElementById('back').addEventListener('click', () => history.length > 1 ? history.back() : (location.href = '/'));
+		
 		fileInput.addEventListener('change', () => {
-			const f = fileInput.files && fileInput.files[0];
-			if (!f) { preview.style.display = 'none'; img.src = ''; uploadBtn.disabled = true; return; }
-			const reader = new FileReader();
-			reader.onload = () => { img.src = reader.result; preview.style.display = 'block'; uploadBtn.disabled = false; };
-			reader.readAsDataURL(f);
-		});
-		uploadBtn.addEventListener('click', async () => {
-			const f = fileInput.files && fileInput.files[0];
-			if (!f || !saleId) return;
-			uploadBtn.disabled = true;
-			try {
+			const files = fileInput.files;
+			if (!files || files.length === 0) { 
+				preview.style.display = 'none'; 
+				preview.innerHTML = '';
+				uploadBtn.disabled = true; 
+				selectedFiles = [];
+				return; 
+			}
+			
+			// Store files for later upload
+			selectedFiles = Array.from(files);
+			
+			// Show previews
+			preview.innerHTML = '';
+			preview.style.display = 'block';
+			
+			selectedFiles.forEach((file, index) => {
 				const reader = new FileReader();
-				reader.onload = async () => {
-					const base64 = reader.result;
-					const note = (document.getElementById('note').value || '').toString();
-					const res = await fetch('/api/sales', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _upload_receipt_for: saleId, image_base64: base64, note_text: note, _actor_name: actorName }) });
-					if (!res.ok) { alert('Error al subir comprobante'); uploadBtn.disabled = false; return; }
-					alert('Comprobante subido');
-					// Hint the app to focus this sale on return
-					try { localStorage.setItem('pendingFocus', JSON.stringify({ saleId })); } catch {}
-					// Always go to inicio to refrescar estados y selector de pago
-					location.href = '/';
+				reader.onload = (e) => {
+					const imgContainer = document.createElement('div');
+					imgContainer.style.marginBottom = '12px';
+					
+					const img = document.createElement('img');
+					img.src = e.target.result;
+					img.alt = 'Vista previa ' + (index + 1);
+					img.style.maxWidth = '100%';
+					img.style.borderRadius = '8px';
+					img.style.border = '1px solid var(--border, #e5e7eb)';
+					
+					const label = document.createElement('div');
+					label.textContent = 'Archivo ' + (index + 1) + ': ' + file.name;
+					label.style.fontSize = '12px';
+					label.style.marginBottom = '4px';
+					label.style.opacity = '0.75';
+					
+					imgContainer.appendChild(label);
+					imgContainer.appendChild(img);
+					preview.appendChild(imgContainer);
 				};
-				reader.readAsDataURL(f);
+				reader.readAsDataURL(file);
+			});
+			
+			uploadBtn.disabled = false;
+			uploadBtn.textContent = `Subir ${selectedFiles.length} archivo${selectedFiles.length > 1 ? 's' : ''}`;
+		});
+		
+		uploadBtn.addEventListener('click', async () => {
+			if (selectedFiles.length === 0 || !saleId) return;
+			uploadBtn.disabled = true;
+			
+			const note = (document.getElementById('note').value || '').toString();
+			let successCount = 0;
+			let errorCount = 0;
+			
+			try {
+				// Upload each file
+				for (let i = 0; i < selectedFiles.length; i++) {
+					const file = selectedFiles[i];
+					uploadBtn.textContent = `Subiendo ${i + 1}/${selectedFiles.length}...`;
+					
+					try {
+						const base64 = await new Promise((resolve, reject) => {
+							const reader = new FileReader();
+							reader.onload = () => resolve(reader.result);
+							reader.onerror = reject;
+							reader.readAsDataURL(file);
+						});
+						
+						const res = await fetch('/api/sales', { 
+							method: 'POST', 
+							headers: { 'Content-Type': 'application/json' }, 
+							body: JSON.stringify({ 
+								_upload_receipt_for: saleId, 
+								image_base64: base64, 
+								note_text: note,
+								_actor_name: actorName 
+							}) 
+						});
+						
+						if (!res.ok) {
+							console.error('Error uploading file:', file.name);
+							errorCount++;
+						} else {
+							successCount++;
+						}
+					} catch (e) {
+						console.error('Error processing file:', file.name, e);
+						errorCount++;
+					}
+				}
+				
+				// Show results
+				if (successCount > 0 && errorCount === 0) {
+					alert(`${successCount} comprobante${successCount > 1 ? 's' : ''} subido${successCount > 1 ? 's' : ''} correctamente`);
+				} else if (successCount > 0 && errorCount > 0) {
+					alert(`${successCount} archivo${successCount > 1 ? 's' : ''} subido${successCount > 1 ? 's' : ''}, ${errorCount} con error`);
+				} else {
+					alert('Error al subir los comprobantes');
+					uploadBtn.disabled = false;
+					uploadBtn.textContent = `Subir ${selectedFiles.length} archivo${selectedFiles.length > 1 ? 's' : ''}`;
+					return;
+				}
+				
+				// Hint the app to focus this sale on return
+				try { localStorage.setItem('pendingFocus', JSON.stringify({ saleId })); } catch {}
+				// Always go to inicio to refrescar estados y selector de pago
+				location.href = '/';
 			} catch (e) {
 				console.error(e);
-				alert('Error al subir comprobante');
+				alert('Error al subir comprobantes');
 				uploadBtn.disabled = false;
+				uploadBtn.textContent = `Subir ${selectedFiles.length} archivo${selectedFiles.length > 1 ? 's' : ''}`;
 			}
 		});
 	})();
