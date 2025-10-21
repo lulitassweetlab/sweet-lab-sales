@@ -130,6 +130,14 @@
 		const qs = new URLSearchParams(location.search);
 		const saleId = Number(qs.get('sale_id'));
 		document.getElementById('sale-info').textContent = saleId ? ('Venta #' + saleId) : '';
+		
+		// Get context for returning to the correct view
+		let uploadContext = null;
+		try {
+			const saved = localStorage.getItem('receiptUploadContext');
+			if (saved) uploadContext = JSON.parse(saved);
+		} catch {}
+		
 		// Resolve actor name from saved auth user
 		let actorName = '';
 		try { const saved = localStorage.getItem('authUser'); if (saved) { const u = JSON.parse(saved); actorName = (u && (u.name || u.username)) ? (u.name || u.username) : ''; } } catch {}
@@ -138,7 +146,29 @@
 		const uploadBtn = document.getElementById('upload');
 		let selectedFiles = [];
 		
-		document.getElementById('back').addEventListener('click', () => history.length > 1 ? history.back() : (location.href = '/'));
+		function returnToSales() {
+			// Clean up context
+			try { localStorage.removeItem('receiptUploadContext'); } catch {}
+			
+			// Try to return to the exact sales table view
+			if (uploadContext && uploadContext.returnToSales && uploadContext.sellerId) {
+				// Build URL to return to sales view with context
+				const hash = '#view-sales';
+				const params = new URLSearchParams();
+				params.set('seller_id', uploadContext.sellerId);
+				if (uploadContext.saleDayId) params.set('sale_day_id', uploadContext.saleDayId);
+				if (uploadContext.saleId) {
+					// Save focus hint
+					try { localStorage.setItem('pendingFocus', JSON.stringify({ saleId: uploadContext.saleId })); } catch {}
+				}
+				location.href = `/${hash}?${params.toString()}`;
+			} else {
+				// Fallback to history back
+				history.length > 1 ? history.back() : (location.href = '/');
+			}
+		}
+		
+		document.getElementById('back').addEventListener('click', returnToSales);
 		
 		fileInput.addEventListener('change', () => {
 			const files = fileInput.files;
@@ -254,16 +284,13 @@
 					loadingText.textContent = `${successCount} ${fileWord} ${uploadedWord}`;
 					loadingSubtext.textContent = '✓ Completado con éxito';
 					
-					// Hint the app to focus this sale on return
-					try { localStorage.setItem('pendingFocus', JSON.stringify({ saleId })); } catch {}
-					
 					// Wait a bit to show success, then navigate back
 					await new Promise(resolve => setTimeout(resolve, 1500));
 					overlay.classList.remove('show');
 					await new Promise(resolve => setTimeout(resolve, 300));
 					
-					// Navigate back to sales table
-					window.history.back();
+					// Navigate back to sales table with context
+					returnToSales();
 				} else if (successCount > 0 && errorCount > 0) {
 					spinner.style.display = 'none';
 					successIcon.style.display = 'flex';
@@ -272,12 +299,10 @@
 					loadingText.textContent = `${successCount} ${fileWord} ${uploadedWord}`;
 					loadingSubtext.textContent = `⚠️ ${errorCount} con error`;
 					
-					try { localStorage.setItem('pendingFocus', JSON.stringify({ saleId })); } catch {}
-					
 					await new Promise(resolve => setTimeout(resolve, 2000));
 					overlay.classList.remove('show');
 					await new Promise(resolve => setTimeout(resolve, 300));
-					window.history.back();
+					returnToSales();
 				} else {
 					// All failed
 					spinner.style.display = 'none';
@@ -305,34 +330,3 @@
 	</script>
 </body>
 </html>
-
-(resolve => setTimeout(resolve, 300));
-					window.history.back();
-				} else {
-					// All failed
-					spinner.style.display = 'none';
-					loadingText.textContent = '✗ Error al subir';
-					loadingSubtext.textContent = 'Intenta de nuevo';
-					
-					await new Promise(resolve => setTimeout(resolve, 2000));
-					overlay.classList.remove('show');
-					uploadBtn.disabled = false;
-					uploadBtn.textContent = `Subir ${selectedFiles.length} archivo${selectedFiles.length > 1 ? 's' : ''}`;
-				}
-			} catch (e) {
-				console.error(e);
-				spinner.style.display = 'none';
-				loadingText.textContent = '✗ Error al subir';
-				loadingSubtext.textContent = 'Intenta de nuevo';
-				
-				await new Promise(resolve => setTimeout(resolve, 2000));
-				overlay.classList.remove('show');
-				uploadBtn.disabled = false;
-				uploadBtn.textContent = `Subir ${selectedFiles.length} archivo${selectedFiles.length > 1 ? 's' : ''}`;
-			}
-		});
-	})();
-	</script>
-</body>
-</html>
-
