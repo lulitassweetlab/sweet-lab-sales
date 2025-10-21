@@ -1895,97 +1895,18 @@ function renderTable() {
 	preloadChangeLogsForCurrentTable();
 }
 
-// Update main selector to jorgebank in real-time if all receipts are verified
+// Check receipts for a sale (for internal tracking only - does NOT update UI)
 async function checkAndUpdateMainSelectorToJorgebank(saleId) {
-	try {
-		// Fetch all receipts for this sale
-		const receipts = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(saleId)}`);
-		
-		if (!Array.isArray(receipts) || receipts.length === 0) return;
-		
-		// Check if ALL receipts have jorgebank
-		const allJorgebank = receipts.every(r => (r.pay_method || '').trim().toLowerCase() === 'jorgebank');
-		
-		if (allJorgebank) {
-			// Find the sale in state.sales
-			const sale = state.sales?.find(s => Number(s.id) === Number(saleId));
-			if (sale) {
-				// Update local state
-				sale.pay_method = 'jorgebank';
-				console.log(`🔄 Real-time update: Sale ${saleId} -> jorgebank (all ${receipts.length} receipts verified)`);
-				
-				// Update the selector in the DOM
-				const row = document.querySelector(`tr[data-sale-id="${saleId}"]`);
-				if (row) {
-					const selector = row.querySelector('.col-paid select');
-					if (selector) {
-						// Add jorgebank option if not present
-						if (!selector.querySelector('option[value="jorgebank"]')) {
-							const opt = document.createElement('option');
-							opt.value = 'jorgebank';
-							opt.textContent = '';
-							opt.disabled = true;
-							selector.appendChild(opt);
-						}
-						selector.value = 'jorgebank';
-						
-						// Update visual class
-						const wrap = selector.closest('.pay-wrap');
-						if (wrap) {
-							wrap.classList.remove('placeholder', 'method-efectivo', 'method-transf', 'method-marce', 'method-jorge', 'method-entregado');
-							wrap.classList.add('method-jorgebank');
-						}
-					}
-				}
-				
-				// Update backend
-				await api('PUT', API.Sales, {
-					_update_sale_pay_method: true,
-					sale_id: saleId,
-					pay_method: 'jorgebank'
-				});
-			}
-		}
-	} catch (err) {
-		console.error('Error checking receipts for real-time update:', err);
-	}
+	// This function is now a no-op - jorgebank is only tracked at receipt level
+	// The main selector stays as 'transf' regardless of receipt verification status
+	console.log(`📸 Receipt verification check for sale ${saleId} - no UI update needed`);
 }
 
-// Check receipts for each sale and update pay_method to jorgebank if all receipts are jorgebank
+// Check receipts for each sale (internal tracking only - does NOT change main selector)
 async function enrichSalesWithReceiptStatus() {
-	if (!Array.isArray(state.sales)) return;
-	
-	for (const sale of state.sales) {
-		// Only check sales with transfer-based payment methods
-		const pm = (sale.pay_method || '').trim().toLowerCase();
-		if (pm !== 'transf' && pm !== 'jorgebank') continue;
-		
-		try {
-			// Fetch receipts for this sale
-			const receipts = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(sale.id)}`);
-			
-			if (!Array.isArray(receipts) || receipts.length === 0) {
-				// No receipts - keep as transf, NEVER jorgebank
-				sale.pay_method = 'transf';
-				continue;
-			}
-			
-			// Check if ALL receipts have pay_method = 'jorgebank'
-			const allJorgebank = receipts.every(r => (r.pay_method || '').trim().toLowerCase() === 'jorgebank');
-			
-			if (allJorgebank && receipts.length > 0) {
-				// All receipts verified with jorgebank
-				sale.pay_method = 'jorgebank';
-				console.log(`✅ Sale ${sale.id}: All ${receipts.length} receipts are jorgebank - updating selector`);
-			} else {
-				// Mixed or partial jorgebank - keep as transf
-				sale.pay_method = 'transf';
-				console.log(`⚠️ Sale ${sale.id}: Mixed receipt methods (${receipts.length} total) - keeping as transf`);
-			}
-		} catch (err) {
-			console.error(`Error checking receipts for sale ${sale.id}:`, err);
-		}
-	}
+	// This function is now a no-op - jorgebank only exists at receipt level
+	// Main selector always shows what user selected (transf, jorge, etc.)
+	console.log('📸 Receipt status enrichment skipped - jorgebank is receipt-level only');
 }
 
 async function loadSales() {
