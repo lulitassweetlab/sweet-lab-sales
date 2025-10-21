@@ -271,22 +271,6 @@
 		function saveCheckedState(state){
 			checkedState = state;
 		}
-
-		async function renderAllDesserts(counts, byKey, fmt1) {
-			cardsWrap.innerHTML = '';
-			sessions.length = 0;
-			const renderedDesserts = [];
-			
-			for (const d of desserts) {
-				const qty = editedCounts[d.short_code] !== undefined ? editedCounts[d.short_code] : (counts[d.short_code] || 0);
-				if (qty > 0) {
-					renderedDesserts.push(d);
-					await renderDessert(d.short_code, d.name, qty, byKey, fmt1);
-				}
-			}
-			
-			return renderedDesserts;
-		}
 		
 		async function load(){
 			if (!start || !end) return;
@@ -357,7 +341,7 @@
 			
 			const onCountChange = async () => {
 				// Re-render all desserts when counts change
-				const newRenderedDesserts = await renderAllDesserts(counts, byKey, fmt1);
+				const newRenderedDesserts = await renderAllDesserts();
 				
 				// Update total count label
 				let totalDesserts = 0;
@@ -384,6 +368,7 @@
 
 			// 3) Render a card per dessert with count > 0
 			const fmt1 = new Intl.NumberFormat('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+			
 			async function renderDessert(keyLabel, label, qty, byKeyMap, formatter){
 				if (!qty) return;
 				const dessertName = byKeyMap.get(keyLabel) || label;
@@ -489,6 +474,22 @@
 				card.id = `dessert-${keyLabel}`;
 				cardsWrap.appendChild(card);
 				sessions.push(session);
+			}
+			
+			async function renderAllDesserts() {
+				cardsWrap.innerHTML = '';
+				sessions.length = 0;
+				const renderedDesserts = [];
+				
+				for (const d of desserts) {
+					const qty = editedCounts[d.short_code] !== undefined ? editedCounts[d.short_code] : (counts[d.short_code] || 0);
+					if (qty > 0) {
+						renderedDesserts.push(d);
+						await renderDessert(d.short_code, d.name, qty, byKey, fmt1);
+					}
+				}
+				
+				return renderedDesserts;
 			}
 
 			// Global navigation container references
@@ -621,7 +622,7 @@
 			}
 			
 			// Render cards dynamically for all desserts with count > 0
-			const renderedDesserts = await renderAllDesserts(counts, byKey, fmt1);
+			const renderedDesserts = await renderAllDesserts();
 			
 			let totalDesserts = 0;
 			for (const d of desserts) {
