@@ -7454,6 +7454,7 @@ async function openReceiptsGalleryPopover(saleId, anchorX, anchorY) {
 	let receipts = [];
 	try {
 		receipts = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(saleId)}`);
+		console.log('📸 Receipts loaded from backend:', receipts.map(r => ({ id: r.id, pay_method: r.pay_method, payment_source: r.payment_source, payment_date: r.payment_date })));
 	} catch (err) {
 		console.error('Error loading receipts:', err);
 		// If error loading, go to upload page
@@ -7574,8 +7575,10 @@ async function openReceiptsGalleryPopover(saleId, anchorX, anchorY) {
 				sel.className = 'input-cell pay-select';
 				sel.style.display = 'none';
 				
-				// Use saved pay_method or default to 'transf' only for display
+				// Use saved pay_method or default to 'transf' for new receipts
 				const current = (receipt.pay_method || 'transf').replace(/\.$/, '');
+				console.log(`🎯 Receipt ${receipt.id} - pay_method from backend: "${receipt.pay_method}" -> current: "${current}"`);
+				
 				const isMarcela = String(state.currentUser?.name || '').toLowerCase() === 'marcela';
 				const isJorge = String(state.currentUser?.name || '').toLowerCase() === 'jorge';
 				
@@ -7601,6 +7604,10 @@ async function openReceiptsGalleryPopover(saleId, anchorX, anchorY) {
 					if (current === o.v) opt.selected = true;
 					sel.appendChild(opt);
 				}
+				
+				// Explicitly set selector value to match backend data
+				sel.value = current;
+				console.log(`✅ Selector initialized with value: "${sel.value}"`);
 				
 				function applyPayClass() {
 					wrap.classList.remove('placeholder', 'method-efectivo', 'method-transf', 'method-marce', 'method-jorge', 'method-jorgebank', 'method-entregado');
