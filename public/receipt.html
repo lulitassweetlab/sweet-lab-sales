@@ -103,6 +103,8 @@
                         body: JSON.stringify({ _upload_receipt_for: saleId, image_base64: base64, note_text: note, _actor_name: actorName })
                     });
                     if (!res.ok) {
+                        const err = await res.json().catch(() => ({}));
+                        console.error('Upload error:', err);
                         alert('Error al subir uno de los comprobantes');
                         uploadBtn.disabled = false;
                         return;
