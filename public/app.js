@@ -231,9 +231,7 @@ function renderClientDetailTable(rows) {
 		// If current value is 'jorge' but user is not Jorge, include it disabled so it displays
 		if (!isJorge && current === 'jorge') opts.push({ v: 'jorge', label: '' });
 		opts.push({ v: 'transf', label: '' });
-		// Jorge-specific extra bank option
-		if (isJorge) opts.push({ v: 'jorgebank', label: '' });
-		if (!isJorge && current === 'jorgebank') opts.push({ v: 'jorgebank', label: '' });
+		// NOTE: jorgebank removed from main table selector - only available in receipt miniature selectors
 		for (const o of opts) { const opt = document.createElement('option'); opt.value = o.v; opt.textContent = o.label; if (!isMarcela && o.v === 'marce') opt.disabled = true; if (!isJorge && o.v === 'jorge') opt.disabled = true; if (current === o.v) opt.selected = true; sel.appendChild(opt); }
 		function applyPayClass() {
 			wrap.classList.remove('placeholder','method-efectivo','method-transf','method-marce','method-jorge','method-jorgebank','method-entregado');
@@ -1685,9 +1683,7 @@ function renderTable() {
 				if (!isMarcela && current === 'marce') options.push({ v: 'marce', label: '' });
 				const isJorge = String(state.currentUser?.name || '').toLowerCase() === 'jorge';
 				if (isJorge) options.push({ v: 'jorge', label: '' });
-				// Jorge-specific extra bank option
-				if (isJorge) options.push({ v: 'jorgebank', label: '' });
-				if (!isJorge && current === 'jorgebank') options.push({ v: 'jorgebank', label: '' });
+				// NOTE: jorgebank removed from main table selector - only available in receipt miniature selectors
 				// If current value is 'jorge' but user is not Jorge, include it disabled so it displays
 				if (!isJorge && current === 'jorge') options.push({ v: 'jorge', label: '' });
 				options.push({ v: 'transf', label: '' });

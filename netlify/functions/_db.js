@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 9; // Bump when schema changes require a migration (receipt payment fields)
+const SCHEMA_VERSION = 10; // Bump when schema changes require a migration (force receipt payment fields migration)
 
 export async function ensureSchema() {
 	// If already ensured in this instance, skip immediately
