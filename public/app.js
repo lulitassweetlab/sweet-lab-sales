@@ -8464,17 +8464,4 @@ function renderChangeMarkerIfNeeded(tdEl, saleId, field) {
 
 // (mobile bounce limiter removed per user preference);
 
-function renderChangeMarkerIfNeeded(tdEl, saleId, field) {
-	if (!state.currentUser?.isAdmin) return;
-	const mark = document.createElement('span');
-	mark.className = 'change-marker';
-	mark.textContent = '*';
-	mark.title = 'Ver historial';
-	mark.addEventListener('click', (ev) => {
-		ev.stopPropagation();
-		openHistoryPopover(saleId, field, ev.clientX, ev.clientY);
-	});
-	tdEl.appendChild(mark);
-}
-
 // (mobile bounce limiter removed per user preference)
