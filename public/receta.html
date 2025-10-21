@@ -269,7 +269,8 @@
 					stepRows.push(tr);
 					tbody.appendChild(tr);
 				}
-				// Associate rows with timer
+				// Associate header and rows with timer
+				timer.addRow(head);
 				for (const row of stepRows) {
 					timer.addRow(row);
 				}

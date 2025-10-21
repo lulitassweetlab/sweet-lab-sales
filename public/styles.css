@@ -106,6 +106,9 @@ tr.row-checked td {
 .timer-row-active {
 	animation: timer-pulse 1.5s ease-in-out infinite;
 	transition: all 0.3s ease;
+	padding: 4px 8px;
+	border-radius: 6px;
+	margin: -4px -8px;
 }
 
 .timer-row-active td {
