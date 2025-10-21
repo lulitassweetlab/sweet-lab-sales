@@ -1683,11 +1683,10 @@ function renderTable() {
 				if (isMarcela) options.push({ v: 'marce', label: '' });
 				// If current value is 'marce' but user is not Marcela, include it disabled so it displays
 				if (!isMarcela && current === 'marce') options.push({ v: 'marce', label: '' });
-				const isJorge = String(state.currentUser?.name || '').toLowerCase() === 'jorge';
-				if (isJorge) options.push({ v: 'jorge', label: '' });
-				// Jorge-specific extra bank option
-				if (isJorge) options.push({ v: 'jorgebank', label: '' });
-				if (!isJorge && current === 'jorgebank') options.push({ v: 'jorgebank', label: '' });
+                const isJorge = String(state.currentUser?.name || '').toLowerCase() === 'jorge';
+                if (isJorge) options.push({ v: 'jorge', label: '' });
+                // Hide 'jorgebank' entirely from main table selector; include only to display current value
+                if (current === 'jorgebank') options.push({ v: 'jorgebank', label: '' });
 				// If current value is 'jorge' but user is not Jorge, include it disabled so it displays
 				if (!isJorge && current === 'jorge') options.push({ v: 'jorge', label: '' });
 				options.push({ v: 'transf', label: '' });
