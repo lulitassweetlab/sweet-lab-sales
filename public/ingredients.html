@@ -38,6 +38,7 @@
 				<table id="ingredients-table">
 					<thead>
 						<tr>
+							<th style="width: 40px;">✓</th>
 							<th>Ingrediente</th>
 							<th>Por unidad</th>
 							<th>Se necesitan</th>
@@ -49,8 +50,9 @@
 					</thead>
 					<tbody id="ingredients-tbody"></tbody>
 					<tfoot>
-						<tr class="report-spacer-row"><td colspan="7"></td></tr>
+						<tr class="report-spacer-row"><td colspan="8"></td></tr>
 						<tr>
+							<td></td>
 							<td class="label" colspan="4">Totales</td>
 							<td id="t-buy-sug-total" class="col-total"></td>
 							<td id="t-buy-real-total" class="col-total"></td>
@@ -265,8 +267,22 @@
 
 			// 4) Preparar render dinámico con control de postres a realizar
 			countLabel.textContent = 'Calculando requerimientos…';
-			const normKey = (s) => (s||'').toString().trim().toLowerCase().replace(/\s+/g,' ');
-			const fmt1 = (n) => (Number(n||0)||0).toFixed(1);
+				const normKey = (s) => (s||'').toString().trim().toLowerCase().replace(/\s+/g,' ');
+				const fmt1 = (n) => (Number(n||0)||0).toFixed(1);
+				
+				// Checkbox state management (per session, per range)
+				const getCheckStateKey = () => `ingredients.checkState:${start}:${end}`;
+				function getCheckedState(){
+					try {
+						const saved = localStorage.getItem(getCheckStateKey());
+						return saved ? JSON.parse(saved) : {};
+					} catch { return {}; }
+				}
+				function saveCheckedState(state){
+					try {
+						localStorage.setItem(getCheckStateKey(), JSON.stringify(state));
+					} catch {}
+				}
 			function canonicalizeName(name){
 				const raw = (name||'').toString().trim();
 				const low = raw.toLowerCase();
@@ -459,6 +475,7 @@
 				tbody.innerHTML = '';
 				let buySugTotal = 0; let buyRealTotal = 0; let buyCostTotal = 0; let neededCostTotal = 0;
 				const rowsState = [];
+				const checkedState = getCheckedState();
 				for (const key of keys){
 					const v = agg.get(key);
 					const inv = invByKey.has(key) ? Number(invByKey.get(key)||0)||0 : 0;
@@ -469,6 +486,28 @@
 					const cost = real * price;
 					const perUnitDisplay = (v.perUnits && v.perUnits.size === 1) ? Array.from(v.perUnits)[0] : '—';
 					const tr = document.createElement('tr');
+					const isChecked = !!checkedState[key];
+					if (isChecked) tr.classList.add('row-checked');
+					
+					// Checkbox column
+					const tdCheck = document.createElement('td');
+					const checkbox = document.createElement('input');
+					checkbox.type = 'checkbox';
+					checkbox.className = 'ingredient-checkbox';
+					checkbox.checked = isChecked;
+					checkbox.addEventListener('change', () => {
+						const state = getCheckedState();
+						if (checkbox.checked) {
+							state[key] = true;
+							tr.classList.add('row-checked');
+						} else {
+							delete state[key];
+							tr.classList.remove('row-checked');
+						}
+						saveCheckedState(state);
+					});
+					tdCheck.appendChild(checkbox);
+					
 					const tdName = document.createElement('td'); tdName.style.textAlign = 'left'; tdName.textContent = v.name;
 					const tdPer = document.createElement('td'); tdPer.textContent = perUnitDisplay;
 					const tdNeed = document.createElement('td'); tdNeed.textContent = fmt1(v.needed);
@@ -478,7 +517,7 @@
 					const inReal = document.createElement('input'); inReal.type = 'number'; inReal.step = '0.1'; inReal.min = '0'; inReal.className = 'input-cell'; inReal.style.width = '90px'; inReal.style.textAlign = 'right'; inReal.value = String(Number(fmt1(real))); tdReal.appendChild(inReal);
 					const tdCost = document.createElement('td');
 					const inCost = document.createElement('input'); inCost.type = 'number'; inCost.step = '1'; inCost.min = '0'; inCost.className = 'input-cell'; inCost.style.width = '110px'; inCost.style.textAlign = 'right'; inCost.value = String(Math.round(cost)); tdCost.appendChild(inCost);
-					tr.append(tdName, tdPer, tdNeed, tdInv, tdBuy, tdReal, tdCost);
+					tr.append(tdCheck, tdName, tdPer, tdNeed, tdInv, tdBuy, tdReal, tdCost);
 					tbody.appendChild(tr);
 					buySugTotal += buy;
 					buyRealTotal += real;

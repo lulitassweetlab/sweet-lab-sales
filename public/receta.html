@@ -126,6 +126,20 @@
 		}
 
 		function normalizeKey(name){ const k=(name||'').toString().trim().toLowerCase(); if (k.startsWith('arco')) return 'arco'; if (k.startsWith('melo')) return 'melo'; if (k.startsWith('mara')) return 'mara'; if (k.startsWith('oreo')) return 'oreo'; if (k.startsWith('nute')) return 'nute'; return k; }
+		
+		// Checkbox state management (per session, per range)
+		const getCheckStateKey = () => `receta.checkState:${start}:${end}`;
+		function getCheckedState(){
+			try {
+				const saved = localStorage.getItem(getCheckStateKey());
+				return saved ? JSON.parse(saved) : {};
+			} catch { return {}; }
+		}
+		function saveCheckedState(state){
+			try {
+				localStorage.setItem(getCheckStateKey(), JSON.stringify(state));
+			} catch {}
+		}
 
 		async function load(){
 			if (!start || !end) return;
@@ -207,6 +221,7 @@
 				const card = document.createElement('div'); card.className = 'measure-card'; card.style.padding='12px'; card.style.border='1px solid rgba(0,0,0,0.15)'; card.style.borderRadius='10px'; card.style.boxShadow='0 8px 24px rgba(0,0,0,0.12)';
 				const title = document.createElement('h3'); title.textContent = `${dessertName} × ${qty}`; title.style.textAlign='center'; title.style.fontSize='28px'; title.style.margin='4px 0 12px 0'; title.style.background='rgba(255, 105, 180, 0.18)'; title.style.padding='8px 6px'; title.style.borderRadius='8px'; card.appendChild(title);
 				const session = { dessert: dessertName, qty, steps: [] };
+				const checkedState = getCheckedState();
 				for (const step of (Array.isArray(data.steps) ? data.steps : [])){
 					const section = document.createElement('div'); section.className='measure-section'; section.style.margin='12px 0';
 					const head = document.createElement('div'); head.style.display='flex'; head.style.alignItems='center'; head.style.justifyContent='space-between'; head.style.gap='8px';
@@ -217,13 +232,35 @@
 					const tbody = document.createElement('tbody');
                     for (const it of (step.items || [])){
 						const tr = document.createElement('tr');
-						const tdL = document.createElement('td'); tdL.textContent = '';
+						const itemKey = `${dessertName}:${step.step_name}:${it.ingredient}`.toLowerCase();
+						const isChecked = !!checkedState[itemKey];
+						if (isChecked) tr.classList.add('row-checked');
+						
+						// Checkbox column
+						const tdCheck = document.createElement('td'); tdCheck.style.width='30px';
+						const checkbox = document.createElement('input');
+						checkbox.type = 'checkbox';
+						checkbox.className = 'ingredient-checkbox';
+						checkbox.checked = isChecked;
+						checkbox.addEventListener('change', () => {
+							const state = getCheckedState();
+							if (checkbox.checked) {
+								state[itemKey] = true;
+								tr.classList.add('row-checked');
+							} else {
+								delete state[itemKey];
+								tr.classList.remove('row-checked');
+							}
+							saveCheckedState(state);
+						});
+						tdCheck.appendChild(checkbox);
+						
 						const tdN = document.createElement('td'); tdN.textContent = it.ingredient; tdN.style.padding='8px 4px'; tdN.style.textAlign='center';
                         const per = Number(it.qty_per_unit || 0) || 0;
                         const adj = Number(it.adjustment || 0) || 0;
                         const total = (per * qty) + adj;
                         const tdQ = document.createElement('td'); tdQ.textContent = fmt1.format(total); tdQ.style.textAlign='right'; tdQ.style.padding='5px 4px';
-						tr.append(tdL, tdN, tdQ); tbody.appendChild(tr);
+						tr.append(tdCheck, tdN, tdQ); tbody.appendChild(tr);
 					}
 					table.appendChild(tbody); section.appendChild(table); card.appendChild(section);
 					session.steps.push({ name: step.step_name || 'Paso', timer });
@@ -237,10 +274,32 @@
 					const tbody = document.createElement('tbody');
 					for (const ex of extras){
 						const tr = document.createElement('tr');
-						const tdL = document.createElement('td'); tdL.textContent = '';
+						const itemKey = `${dessertName}:extras:${ex.ingredient}`.toLowerCase();
+						const isChecked = !!checkedState[itemKey];
+						if (isChecked) tr.classList.add('row-checked');
+						
+						// Checkbox column
+						const tdCheck = document.createElement('td'); tdCheck.style.width='30px';
+						const checkbox = document.createElement('input');
+						checkbox.type = 'checkbox';
+						checkbox.className = 'ingredient-checkbox';
+						checkbox.checked = isChecked;
+						checkbox.addEventListener('change', () => {
+							const state = getCheckedState();
+							if (checkbox.checked) {
+								state[itemKey] = true;
+								tr.classList.add('row-checked');
+							} else {
+								delete state[itemKey];
+								tr.classList.remove('row-checked');
+							}
+							saveCheckedState(state);
+						});
+						tdCheck.appendChild(checkbox);
+						
 						const tdN = document.createElement('td'); tdN.textContent = ex.ingredient; tdN.style.padding='8px 4px'; tdN.style.textAlign='center';
 						const tdQ = document.createElement('td'); tdQ.textContent = fmt1.format((Number(ex.qty_per_unit || 0) || 0) * qty); tdQ.style.textAlign='right'; tdQ.style.padding='5px 4px';
-						tr.append(tdL, tdN, tdQ); tbody.appendChild(tr);
+						tr.append(tdCheck, tdN, tdQ); tbody.appendChild(tr);
 					}
 					table.appendChild(tbody); section.appendChild(table); card.appendChild(section);
 				}
