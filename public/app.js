@@ -7519,16 +7519,16 @@ function openReceiptsGalleryPopover(receipts, saleId, anchorX, anchorY) {
             sel.addEventListener('change', async (ev) => {
                 try {
                     const val = (sel.value || '').toLowerCase();
-                    // If jorgebank selected, open payment date popover first (same UX que transferencias)
                     if (val === 'jorgebank') {
-                        // open popover immediately (keep gallery open)
+                        // Open popover (keep gallery open)
                         openPaymentDateDialog(Number(id));
-                        // then persist selection
+                        // Persist selection at sale level too
                         await api('PUT', API.Sales, { id, pay_method: 'jorgebank', _actor_name: state.currentUser?.name || '' });
+                        if (saleRow) saleRow.pay_method = 'jorgebank';
                     } else {
                         await api('PUT', API.Sales, { id, pay_method: sel.value || null, _actor_name: state.currentUser?.name || '' });
+                        if (saleRow) saleRow.pay_method = sel.value || null;
                     }
-                    if (saleRow) saleRow.pay_method = sel.value || null;
                     applyPayClass();
                 } catch {}
             });
@@ -7565,7 +7565,7 @@ function openReceiptsGalleryPopover(receipts, saleId, anchorX, anchorY) {
 
             for (const r of list) {
                 const card = document.createElement('div'); card.className = 'transfer-card';
-                const overlay = buildPayOverlayForSale(Number(saleId));
+            const overlay = buildPayOverlayForSale(Number(saleId));
                 const img = document.createElement('img');
                 img.src = r.image_base64; img.alt = 'Comprobante';
                 img.addEventListener('click', () => {
@@ -7574,10 +7574,18 @@ function openReceiptsGalleryPopover(receipts, saleId, anchorX, anchorY) {
                     openReceiptViewerPopover(r.image_base64, saleId, r.created_at, anchorX, anchorY, r.note_text || '', r.id);
                 });
                 card.append(overlay, img);
+                // Reflect current bank method per receipt if available
+                if (String(r.bank_method || '').toLowerCase() === 'jorgebank') {
+                    overlay.querySelector('.pay-wrap')?.classList.remove('method-transf','method-efectivo','method-marce','method-jorge','method-entregado');
+                    overlay.querySelector('.pay-wrap')?.classList.add('method-jorgebank');
+                } else {
+                    overlay.querySelector('.pay-wrap')?.classList.remove('method-jorgebank','method-efectivo','method-marce','method-jorge','method-entregado');
+                    overlay.querySelector('.pay-wrap')?.classList.add('method-transf');
+                }
                 grid.appendChild(card);
             }
 
-            const actions = document.createElement('div');
+        const actions = document.createElement('div');
             actions.className = 'confirm-actions';
             actions.style.display = 'flex';
             actions.style.gap = '8px';
@@ -7609,7 +7617,20 @@ function openReceiptsGalleryPopover(receipts, saleId, anchorX, anchorY) {
                 document.addEventListener('touchstart', outside, true);
             }, 0);
             moreBtn.addEventListener('click', () => { cleanup(); openReceiptUploadPage(saleId); });
-            closeBtn.addEventListener('click', cleanup);
+            // When closing, recompute overall pay icon if all receipts are jorgebank
+            closeBtn.addEventListener('click', async () => {
+                try {
+                    const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(saleId)}`);
+                    if (Array.isArray(recs) && recs.length) {
+                        const allJb = recs.every(r => String(r.bank_method || '').toLowerCase() === 'jorgebank');
+                        if (allJb) {
+                            await api('PUT', API.Sales, { id: Number(saleId), pay_method: 'jorgebank', _actor_name: state.currentUser?.name || '' });
+                        }
+                    }
+                } catch {}
+            });
+            // Also simple close without recompute
+            // closeBtn.addEventListener('click', cleanup);
             return;
         }
 
