@@ -358,6 +358,8 @@
 				navContainer.style.zIndex = '100';
 				
 				const navButtons = [];
+				const navButtonMap = new Map(); // Map dessert code to button
+				
 				for (const d of renderedDesserts) {
 					const btn = document.createElement('button');
 					btn.className = 'press-btn dessert-nav-btn';
@@ -386,6 +388,7 @@
 						}
 					});
 					navButtons.push(btn);
+					navButtonMap.set(d.short_code, btn);
 					navContainer.appendChild(btn);
 				}
 				
@@ -395,6 +398,51 @@
 				}
 				
 				document.body.appendChild(navContainer);
+				
+				// Setup Intersection Observer to auto-update active button based on scroll
+				const observerOptions = {
+					root: null,
+					rootMargin: '-20% 0px -60% 0px', // Trigger when dessert is in upper 40% of viewport
+					threshold: 0
+				};
+				
+				const observerCallback = (entries) => {
+					// Find the most visible entry
+					let mostVisible = null;
+					let maxRatio = 0;
+					
+					for (const entry of entries) {
+						if (entry.isIntersecting && entry.intersectionRatio > maxRatio) {
+							maxRatio = entry.intersectionRatio;
+							mostVisible = entry;
+						}
+					}
+					
+					if (mostVisible) {
+						const dessertId = mostVisible.target.id; // e.g., "dessert-arco"
+						const dessertCode = dessertId.replace('dessert-', '');
+						const activeBtn = navButtonMap.get(dessertCode);
+						
+						if (activeBtn && !activeBtn.classList.contains('active')) {
+							// Remove active from all
+							for (const navBtn of navButtons) {
+								navBtn.classList.remove('active');
+							}
+							// Add to current
+							activeBtn.classList.add('active');
+						}
+					}
+				};
+				
+				const observer = new IntersectionObserver(observerCallback, observerOptions);
+				
+				// Observe all dessert cards
+				for (const d of renderedDesserts) {
+					const card = document.getElementById(`dessert-${d.short_code}`);
+					if (card) {
+						observer.observe(card);
+					}
+				}
 			}
 			// Actions: save times & view history
 			const actions = document.createElement('div'); actions.className = 'confirm-actions'; actions.style.marginTop='8px';
