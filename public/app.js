@@ -226,14 +226,13 @@ function renderClientDetailTable(rows) {
 		if (isMarcela) opts.push({ v: 'marce', label: '' });
 		// If current value is 'marce' but user is not Marcela, include it disabled so it displays
 		if (!isMarcela && current === 'marce') opts.push({ v: 'marce', label: '' });
-		const isJorge = String(state.currentUser?.name || '').toLowerCase() === 'jorge';
-		if (isJorge) opts.push({ v: 'jorge', label: '' });
-		// If current value is 'jorge' but user is not Jorge, include it disabled so it displays
-		if (!isJorge && current === 'jorge') opts.push({ v: 'jorge', label: '' });
-		opts.push({ v: 'transf', label: '' });
-		// Jorge-specific extra bank option
-		if (isJorge) opts.push({ v: 'jorgebank', label: '' });
-		if (!isJorge && current === 'jorgebank') opts.push({ v: 'jorgebank', label: '' });
+        const isJorge = String(state.currentUser?.name || '').toLowerCase() === 'jorge';
+        if (isJorge) opts.push({ v: 'jorge', label: '' });
+        // If current value is 'jorge' but user is not Jorge, include it disabled so it displays
+        if (!isJorge && current === 'jorge') opts.push({ v: 'jorge', label: '' });
+        opts.push({ v: 'transf', label: '' });
+        // Hide 'jorgebank' from main selector for all users; include only to display current value
+        if (current === 'jorgebank') opts.push({ v: 'jorgebank', label: '' });
 		for (const o of opts) { const opt = document.createElement('option'); opt.value = o.v; opt.textContent = o.label; if (!isMarcela && o.v === 'marce') opt.disabled = true; if (!isJorge && o.v === 'jorge') opt.disabled = true; if (current === o.v) opt.selected = true; sel.appendChild(opt); }
 		function applyPayClass() {
 			wrap.classList.remove('placeholder','method-efectivo','method-transf','method-marce','method-jorge','method-jorgebank','method-entregado');
@@ -264,12 +263,12 @@ function renderClientDetailTable(rows) {
 			// If current is 'jorgebank' and already seen -> open receipt viewer/upload directly
 			if (curr === 'jorgebank' && hasSeen('jorgebank')) {
 				try {
-					const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(saleId)}`);
-					if (Array.isArray(recs) && recs.length) {
-						openReceiptViewerPopover(recs[0].image_base64, saleId, recs[0].created_at, rect.left + rect.width / 2, rect.bottom, recs[0].note_text || '', recs[0].id);
-					} else {
-						openReceiptUploadPage(saleId);
-					}
+                    const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(saleId)}`);
+                    if (Array.isArray(recs) && recs.length) {
+                        openReceiptsGalleryPopover(recs, saleId, rect.left + rect.width / 2, rect.bottom);
+                    } else {
+                        openReceiptUploadPage(saleId);
+                    }
 				} catch { openReceiptUploadPage(saleId); }
 				return;
 			}
@@ -1697,11 +1696,11 @@ function renderTable() {
 				if (isMarcela) options.push({ v: 'marce', label: '' });
 				// If current value is 'marce' but user is not Marcela, include it disabled so it displays
 				if (!isMarcela && current === 'marce') options.push({ v: 'marce', label: '' });
-				const isJorge = String(state.currentUser?.name || '').toLowerCase() === 'jorge';
-				if (isJorge) options.push({ v: 'jorge', label: '' });
-				// Jorge-specific extra bank option
-				if (isJorge) options.push({ v: 'jorgebank', label: '' });
-				if (!isJorge && current === 'jorgebank') options.push({ v: 'jorgebank', label: '' });
+                const isJorge = String(state.currentUser?.name || '').toLowerCase() === 'jorge';
+                if (isJorge) options.push({ v: 'jorge', label: '' });
+                // Hide 'jorgebank' entirely from main table selector for everyone, including superadmin.
+                // Only include to display current value if already set.
+                if (current === 'jorgebank') options.push({ v: 'jorgebank', label: '' });
 				// If current value is 'jorge' but user is not Jorge, include it disabled so it displays
 				if (!isJorge && current === 'jorge') options.push({ v: 'jorge', label: '' });
 				options.push({ v: 'transf', label: '' });
@@ -1757,7 +1756,7 @@ function renderTable() {
                         const rect = wrap.getBoundingClientRect();
                         const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(sale.id)}`);
                         if (Array.isArray(recs) && recs.length) {
-                            openReceiptViewerPopover(recs[0].image_base64, sale.id, recs[0].created_at, rect.left + rect.width / 2, rect.bottom, recs[0].note_text || '', recs[0].id);
+                            openReceiptsGalleryPopover(recs, sale.id, rect.left + rect.width / 2, rect.bottom);
                         } else {
                             openReceiptUploadPage(sale.id);
                         }
@@ -1779,7 +1778,7 @@ function renderTable() {
                             const rect = wrap.getBoundingClientRect();
                             const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(sale.id)}`);
                             if (Array.isArray(recs) && recs.length) {
-                                openReceiptViewerPopover(recs[0].image_base64, sale.id, recs[0].created_at, rect.left + rect.width / 2, rect.bottom, recs[0].note_text || '', recs[0].id);
+                                openReceiptsGalleryPopover(recs, sale.id, rect.left + rect.width / 2, rect.bottom);
                             } else {
                                 openReceiptUploadPage(sale.id);
                             }
@@ -6315,7 +6314,7 @@ async function openConfirmPopover(message, anchorX, anchorY) {
 	});
 }
 
-function openPayMenu(anchorEl, selectEl, clickX, clickY) {
+function openPayMenu(anchorEl, selectEl, clickX, clickY, allowJorgebank) {
 	const rect = anchorEl.getBoundingClientRect();
 	const menu = document.createElement('div');
 	menu.className = 'pay-menu';
@@ -6329,21 +6328,25 @@ function openPayMenu(anchorEl, selectEl, clickX, clickY) {
 	function markSeenPaymentDateDialogForSale(saleId, method) {
 		try { localStorage.setItem('seenPaymentDate_' + String(method || '') + '_' + String(saleId || ''), '1'); } catch {}
 	}
-	const items = [
-		{ v: 'efectivo', cls: 'menu-efectivo' },
-		{ v: 'entregado', cls: 'menu-entregado' }
-	];
-	if (String(state.currentUser?.name || '').toLowerCase() === 'marcela') {
-		items.push({ v: 'marce', cls: 'menu-marce' });
-	}
-	const isJorgeUser = String(state.currentUser?.name || '').toLowerCase() === 'jorge';
-	if (isJorgeUser) {
-		items.push({ v: 'jorge', cls: 'menu-jorge' });
-		items.push({ v: 'jorgebank', cls: 'menu-jorgebank' });
-	} else if ((selectEl.value || '') === 'jorgebank') {
-		// Allow non-Jorge to see/select 'jorgebank' in menu only if it's current
-		items.push({ v: 'jorgebank', cls: 'menu-jorgebank' });
-	}
+    const items = [
+        { v: 'efectivo', cls: 'menu-efectivo' },
+        { v: 'entregado', cls: 'menu-entregado' }
+    ];
+    if (String(state.currentUser?.name || '').toLowerCase() === 'marcela') {
+        items.push({ v: 'marce', cls: 'menu-marce' });
+    }
+    const isJorgeUser = String(state.currentUser?.name || '').toLowerCase() === 'jorge';
+    if (isJorgeUser) {
+        items.push({ v: 'jorge', cls: 'menu-jorge' });
+    }
+    // Only include 'jorgebank' when explicitly allowed (e.g., in gallery overlay),
+    // otherwise keep it hidden from the main selector menu. Still allow seeing it
+    // if it's currently selected so users can clear it.
+    if (allowJorgebank === true) {
+        items.push({ v: 'jorgebank', cls: 'menu-jorgebank' });
+    } else if ((selectEl.value || '') === 'jorgebank') {
+        items.push({ v: 'jorgebank', cls: 'menu-jorgebank' });
+    }
 	items.push({ v: '', cls: 'menu-clear' }, { v: 'transf', cls: 'menu-transf' });
 	// Find current sale id for upload flow when choosing 'transf'
 	const trEl = anchorEl.closest('tr');
@@ -6355,10 +6358,28 @@ function openPayMenu(anchorEl, selectEl, clickX, clickY) {
 		if (it.v === '') btn.textContent = '-';
 		btn.addEventListener('click', async (e) => {
 			e.stopPropagation();
+			// Special handling to avoid overwriting bank method when just opening gallery
+			const trEl = anchorEl.closest('tr');
+			const currentSaleId = Number(trEl?.dataset?.id);
+			if (it.v === 'transf' && currentSaleId) {
+				try {
+					const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(currentSaleId)}`);
+					if (Array.isArray(recs) && recs.length) {
+						openReceiptsGalleryPopover(recs, currentSaleId, rect.left + rect.width / 2, rect.bottom);
+						cleanup();
+						return;
+					}
+				} catch {}
+				// If no receipts, fall back to upload page (no need to change pay_method yet)
+				openReceiptUploadPage(currentSaleId);
+				cleanup();
+				return;
+			}
+			// Default: perform selection change
 			selectEl.value = it.v;
 			selectEl.dispatchEvent(new Event('change'));
-			// Special behavior: first time selecting 'jorge' or 'jorgebank' open payment-date popover centered
-			if (currentSaleId && (it.v === 'jorge' || it.v === 'jorgebank')) {
+            // Special behavior: selecting 'jorge' or 'jorgebank' can open payment-date popover
+            if (currentSaleId && (it.v === 'jorge' || it.v === 'jorgebank')) {
 				const firstTime = !hasSeenPaymentDateDialogForSale(currentSaleId, it.v);
 				if (firstTime) {
 					markSeenPaymentDateDialogForSale(currentSaleId, it.v);
@@ -6368,12 +6389,12 @@ function openPayMenu(anchorEl, selectEl, clickX, clickY) {
 					return;
 				}
 			}
-			// If selecting bank types and not first-time popover, show existing receipt if any; otherwise open upload
-			if ((it.v === 'transf' || it.v === 'jorgebank') && currentSaleId) {
+			// For jorgebank from main menu (not gallery), still show receipts/upload as before
+			if (it.v === 'jorgebank' && currentSaleId && allowJorgebank !== true) {
 				try {
 					const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(currentSaleId)}`);
 					if (Array.isArray(recs) && recs.length) {
-						openReceiptViewerPopover(recs[0].image_base64, currentSaleId, recs[0].created_at, rect.left + rect.width / 2, rect.bottom, recs[0].note_text || '', recs[0].id);
+						openReceiptsGalleryPopover(recs, currentSaleId, rect.left + rect.width / 2, rect.bottom);
 					} else {
 						openReceiptUploadPage(currentSaleId);
 					}
@@ -7449,89 +7470,278 @@ function openReceiptUploadPage(saleId) {
 	} catch {}
 }
 
+// New: gallery popover to view multiple receipts and add more
+function openReceiptsGalleryPopover(receipts, saleId, anchorX, anchorY) {
+    try {
+        const list = Array.isArray(receipts) ? receipts.slice() : [];
+        if (!list.length) return;
+
+        // Helper: build payment selector overlay similar to Transfers
+        function buildPayOverlayForSale(id) {
+            const saleRow = (state.sales || []).find(s => Number(s.id) === Number(id)) || {};
+            const container = document.createElement('div');
+            container.className = 'transfer-pay';
+            const col = document.createElement('div'); col.className = 'col-paid';
+            const wrap = document.createElement('span'); wrap.className = 'pay-wrap';
+            const sel = document.createElement('select'); sel.className = 'input-cell pay-select'; sel.style.display = 'none';
+            const current = (saleRow.pay_method || '').replace(/\.$/, '');
+            const isMarcela = String(state.currentUser?.name || '').toLowerCase() === 'marcela';
+            const isJorge = String(state.currentUser?.name || '').toLowerCase() === 'jorge';
+            const opts = [ { v: '', label: '-' }, { v: 'efectivo', label: '' }, { v: 'entregado', label: '' } ];
+            if (isMarcela) opts.push({ v: 'marce', label: '' });
+            if (!isMarcela && current === 'marce') opts.push({ v: 'marce', label: '' });
+            if (isJorge) opts.push({ v: 'jorge', label: '' });
+            if (!isJorge && current === 'jorge') opts.push({ v: 'jorge', label: '' });
+            opts.push({ v: 'transf', label: '' });
+            // In gallery overlay, ALWAYS allow selecting 'jorgebank'
+            opts.push({ v: 'jorgebank', label: '' });
+            for (const o of opts) {
+                const opt = document.createElement('option');
+                opt.value = o.v; opt.textContent = o.label;
+                if (!isMarcela && o.v === 'marce') opt.disabled = true;
+                if (!isJorge && o.v === 'jorge') opt.disabled = true;
+                if (current === o.v) opt.selected = true;
+                sel.appendChild(opt);
+            }
+            function applyPayClass(){
+                wrap.classList.remove('placeholder','method-efectivo','method-transf','method-marce','method-jorge','method-jorgebank','method-entregado');
+                const val = sel.value;
+                if (!val) wrap.classList.add('placeholder');
+                else if (val === 'efectivo') wrap.classList.add('method-efectivo');
+                else if (val === 'entregado') wrap.classList.add('method-entregado');
+                else if (val === 'transf') wrap.classList.add('method-transf');
+                else if (val === 'marce') wrap.classList.add('method-marce');
+                else if (val === 'jorge') wrap.classList.add('method-jorge');
+                else if (val === 'jorgebank') wrap.classList.add('method-jorgebank');
+            }
+            applyPayClass();
+            wrap.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const rect = wrap.getBoundingClientRect();
+                // Allow jorgebank inside the gallery overlay
+                openPayMenu(wrap, sel, rect.left + rect.width/2, rect.bottom, true);
+            });
+            wrap.tabIndex = 0;
+            wrap.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    const rect = wrap.getBoundingClientRect();
+                    openPayMenu(wrap, sel, rect.left + rect.width/2, rect.bottom, true);
+                }
+            });
+            sel.addEventListener('change', async (ev) => {
+                try {
+                    const val = (sel.value || '').toLowerCase();
+                    if (val === 'jorgebank') {
+                        // Open popover (keep gallery open)
+                        openPaymentDateDialog(Number(id));
+                        // Persist selection at sale level too
+                        await api('PUT', API.Sales, { id, pay_method: 'jorgebank', _actor_name: state.currentUser?.name || '' });
+                        if (saleRow) saleRow.pay_method = 'jorgebank';
+                    } else {
+                        await api('PUT', API.Sales, { id, pay_method: sel.value || null, _actor_name: state.currentUser?.name || '' });
+                        if (saleRow) saleRow.pay_method = sel.value || null;
+                    }
+                    applyPayClass();
+                } catch {}
+            });
+            wrap.appendChild(sel);
+            col.appendChild(wrap);
+            container.appendChild(col);
+            return container;
+        }
+
+        // If more than one receipt: show grid of cards like Transfers
+        if (list.length > 1) {
+            const pop = document.createElement('div');
+            pop.className = 'receipt-popover';
+            pop.style.position = 'fixed';
+            pop.style.left = '50%';
+            pop.style.top = '50%';
+            pop.style.transform = 'translate(-50%, -50%)';
+            pop.style.width = 'auto';
+            pop.style.maxWidth = '96vw';
+            pop.style.maxHeight = '88vh';
+            pop.style.zIndex = '1000';
+            pop.style.overflow = 'auto';
+            pop.style.display = 'grid';
+            pop.style.gridTemplateRows = 'auto 1fr auto';
+            pop.style.rowGap = '10px';
+
+            const title = document.createElement('div');
+            title.style.textAlign = 'center';
+            title.style.fontWeight = '600';
+            title.textContent = `Comprobantes (${list.length})`;
+
+            const grid = document.createElement('div');
+            grid.className = 'transfers-grid';
+
+            for (const r of list) {
+                const card = document.createElement('div'); card.className = 'transfer-card';
+            const overlay = buildPayOverlayForSale(Number(saleId));
+                const img = document.createElement('img');
+                img.src = r.image_base64; img.alt = 'Comprobante';
+                img.addEventListener('click', () => {
+                    // Open single-image viewer for more actions
+                    try { if (pop.parentNode) pop.parentNode.removeChild(pop); } catch {}
+                    openReceiptViewerPopover(r.image_base64, saleId, r.created_at, anchorX, anchorY, r.note_text || '', r.id);
+                });
+                card.append(overlay, img);
+                // Reflect current bank method per receipt if available
+                if (String(r.bank_method || '').toLowerCase() === 'jorgebank') {
+                    overlay.querySelector('.pay-wrap')?.classList.remove('method-transf','method-efectivo','method-marce','method-jorge','method-entregado');
+                    overlay.querySelector('.pay-wrap')?.classList.add('method-jorgebank');
+                } else {
+                    overlay.querySelector('.pay-wrap')?.classList.remove('method-jorgebank','method-efectivo','method-marce','method-jorge','method-entregado');
+                    overlay.querySelector('.pay-wrap')?.classList.add('method-transf');
+                }
+                grid.appendChild(card);
+            }
+
+        const actions = document.createElement('div');
+            actions.className = 'confirm-actions';
+            actions.style.display = 'flex';
+            actions.style.gap = '8px';
+            actions.style.justifyContent = 'center';
+            actions.style.paddingBottom = '8px';
+            const moreBtn = document.createElement('button'); moreBtn.className = 'press-btn btn-primary'; moreBtn.textContent = 'Subir más archivos';
+            const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn'; closeBtn.textContent = 'Cerrar';
+            actions.append(moreBtn, closeBtn);
+
+            pop.append(title, grid, actions);
+            document.body.appendChild(pop);
+            function cleanup(){
+                document.removeEventListener('mousedown', outside, true);
+                document.removeEventListener('touchstart', outside, true);
+                if (pop.parentNode) pop.parentNode.removeChild(pop);
+            }
+            function outside(ev){
+                // Keep gallery open while interacting with pay menu or payment date popover
+                const payMenu = document.querySelector('.pay-menu');
+                const datePop = document.querySelector('.payment-date-popover');
+                if (payMenu && payMenu.contains(ev.target)) return;
+                if (datePop && datePop.contains(ev.target)) return;
+                // Also, if a date popover is open at all, ignore outside to avoid closing the gallery
+                if (datePop) return;
+                if (!pop.contains(ev.target)) cleanup();
+            }
+            setTimeout(() => {
+                document.addEventListener('mousedown', outside, true);
+                document.addEventListener('touchstart', outside, true);
+            }, 0);
+            moreBtn.addEventListener('click', () => { cleanup(); openReceiptUploadPage(saleId); });
+            // When closing, recompute overall pay icon if all receipts are jorgebank
+            closeBtn.addEventListener('click', async () => {
+                try {
+                    const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(saleId)}`);
+                    if (Array.isArray(recs) && recs.length) {
+                        const allJb = recs.every(r => String(r.bank_method || '').toLowerCase() === 'jorgebank');
+                        if (allJb) {
+                            await api('PUT', API.Sales, { id: Number(saleId), pay_method: 'jorgebank', _actor_name: state.currentUser?.name || '' });
+                        }
+                    }
+                } catch {}
+            });
+            // Also simple close without recompute
+            // closeBtn.addEventListener('click', cleanup);
+            return;
+        }
+
+        // Single receipt: keep existing simple viewer with actions
+        let index = 0;
+        const pop = document.createElement('div');
+        pop.className = 'receipt-popover';
+        pop.style.position = 'fixed';
+        pop.style.left = '50%';
+        pop.style.top = '50%';
+        pop.style.transform = 'translate(-50%, -50%)';
+        pop.style.width = 'auto';
+        pop.style.maxWidth = '92vw';
+        pop.style.maxHeight = '88vh';
+        pop.style.zIndex = '1000';
+        pop.style.overflow = 'hidden';
+        pop.style.display = 'grid';
+        pop.style.gridTemplateRows = 'auto 1fr auto auto';
+        pop.style.rowGap = '10px';
+
+        const title = document.createElement('div');
+        title.style.textAlign = 'center';
+        title.style.fontWeight = '600';
+        title.style.marginTop = '4px';
+        const viewport = document.createElement('div');
+        viewport.style.position = 'relative';
+        viewport.style.overflow = 'auto';
+        viewport.style.maxHeight = '64vh';
+        viewport.style.display = 'flex';
+        viewport.style.alignItems = 'center';
+        viewport.style.justifyContent = 'center';
+        const img = document.createElement('img');
+        img.alt = 'Comprobante';
+        img.style.display = 'block';
+        img.style.maxWidth = '92vw';
+        img.style.maxHeight = '64vh';
+        img.style.borderRadius = '8px';
+        img.style.objectFit = 'contain';
+        const meta = document.createElement('div');
+        meta.className = 'receipt-meta';
+        meta.style.maxHeight = '110px';
+        meta.style.overflowY = 'auto';
+        meta.style.padding = '0 8px';
+        const thumbs = document.createElement('div');
+        thumbs.style.display = 'flex';
+        thumbs.style.gap = '6px';
+        thumbs.style.padding = '0 8px 6px 8px';
+        thumbs.style.overflowX = 'auto';
+        thumbs.style.alignItems = 'center';
+        const actions = document.createElement('div');
+        actions.className = 'confirm-actions';
+        actions.style.display = 'flex';
+        actions.style.gap = '8px';
+        actions.style.justifyContent = 'center';
+        actions.style.paddingBottom = '8px';
+        const moreBtn = document.createElement('button'); moreBtn.className = 'press-btn btn-primary'; moreBtn.textContent = 'Subir más archivos';
+        const deleteBtn = document.createElement('button'); deleteBtn.className = 'press-btn'; deleteBtn.textContent = 'Eliminar';
+        const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn'; closeBtn.textContent = 'Cerrar';
+        actions.append(moreBtn, deleteBtn, closeBtn);
+        viewport.appendChild(img);
+        pop.append(title, viewport, meta, thumbs, actions);
+        document.body.appendChild(pop);
+        function cleanup() {
+            document.removeEventListener('keydown', onKey);
+            document.removeEventListener('mousedown', outside, true);
+            document.removeEventListener('touchstart', outside, true);
+            if (pop.parentNode) pop.parentNode.removeChild(pop);
+        }
+        function outside(ev) { if (!pop.contains(ev.target)) cleanup(); }
+        function onKey(ev) { if (ev.key === 'Escape') { ev.preventDefault(); cleanup(); } }
+        setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); document.addEventListener('keydown', onKey); }, 0);
+        function render() {
+            const r = list[0];
+            img.src = r.image_base64;
+            const when = r.created_at ? new Date(r.created_at) : null;
+            const whenStr = when && !isNaN(when) ? when.toLocaleString() : (r.created_at || '');
+            title.textContent = 'Comprobante';
+            meta.innerHTML = '';
+            if (whenStr) { const timeDiv = document.createElement('div'); timeDiv.textContent = 'Subido: ' + whenStr; timeDiv.style.fontSize = '12px'; timeDiv.style.opacity = '0.75'; timeDiv.style.marginBottom = '4px'; meta.appendChild(timeDiv); }
+            if (r.note_text) { const note = document.createElement('div'); note.textContent = 'Nota: ' + String(r.note_text || ''); note.style.fontSize = '13px'; note.style.whiteSpace = 'pre-wrap'; meta.appendChild(note); }
+        }
+        deleteBtn.addEventListener('click', async () => {
+            try {
+                const ok = await openConfirmPopover('¿Eliminar el comprobante?', anchorX, anchorY);
+                if (!ok) return; const rid = list[0]?.id; if (!rid) return;
+                await fetch(`/api/sales?receipt_id=${encodeURIComponent(rid)}`, { method: 'DELETE' }); cleanup();
+            } catch {}
+        });
+        moreBtn.addEventListener('click', () => { cleanup(); openReceiptUploadPage(saleId); });
+        closeBtn.addEventListener('click', cleanup);
+        render();
+    } catch {}
+}
+
 function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, anchorY, noteText, receiptId) {
-	const pop = document.createElement('div');
-	pop.className = 'receipt-popover';
-	pop.style.position = 'fixed';
-	// Always center the popover in the screen
-	pop.style.left = '50%';
-	pop.style.top = '50%';
-	pop.style.transform = 'translate(-50%, -50%)';
-	pop.style.width = 'auto';
-	pop.style.maxWidth = '90vw';
-	pop.style.maxHeight = '85vh';
-	pop.style.zIndex = '1000';
-	pop.style.overflow = 'auto';
-	pop.style.display = 'flex';
-	pop.style.flexDirection = 'column';
-	pop.style.gap = '12px';
-	const img = document.createElement('img');
-	img.src = imageBase64;
-	img.alt = 'Comprobante';
-	img.style.display = 'block';
-	img.style.width = 'auto';
-	img.style.maxWidth = '92vw';
-	img.style.height = 'auto';
-	img.style.maxHeight = '76vh';
-	img.style.margin = '0 auto';
-	img.style.borderRadius = '8px';
-	img.style.objectFit = 'contain';
-	const meta = document.createElement('div');
-	meta.className = 'receipt-meta';
-	meta.style.maxHeight = '120px';
-	meta.style.overflowY = 'auto';
-	meta.style.flexShrink = '0';
-	if (createdAt) {
-		const when = new Date(createdAt);
-		const whenStr = isNaN(when.getTime()) ? String(createdAt) : when.toLocaleString();
-		const timeDiv = document.createElement('div');
-		timeDiv.textContent = 'Subido: ' + whenStr;
-		timeDiv.style.fontSize = '12px';
-		timeDiv.style.opacity = '0.75';
-		timeDiv.style.marginBottom = '4px';
-		meta.appendChild(timeDiv);
-	}
-	if (noteText) {
-		const note = document.createElement('div');
-		note.textContent = 'Nota: ' + String(noteText || '');
-		note.style.fontSize = '13px';
-		note.style.marginTop = '4px';
-		note.style.whiteSpace = 'pre-wrap';
-		meta.appendChild(note);
-	}
-	const actions = document.createElement('div');
-	actions.className = 'confirm-actions';
-	actions.style.display = 'flex';
-	actions.style.gap = '8px';
-	actions.style.justifyContent = 'center';
-	actions.style.flexShrink = '0';
-	const replaceBtn = document.createElement('button'); replaceBtn.className = 'press-btn btn-primary'; replaceBtn.textContent = 'Reemplazar foto';
-	const deleteBtn = document.createElement('button'); deleteBtn.className = 'press-btn'; deleteBtn.textContent = 'Eliminar';
-	const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn'; closeBtn.textContent = 'Cerrar';
-	actions.append(replaceBtn, deleteBtn, closeBtn);
-	pop.append(img, meta, actions);
-	document.body.appendChild(pop);
-	function cleanup() {
-		document.removeEventListener('mousedown', outside, true);
-		document.removeEventListener('touchstart', outside, true);
-		if (pop.parentNode) pop.parentNode.removeChild(pop);
-	}
-	function outside(ev) { if (!pop.contains(ev.target)) cleanup(); }
-	setTimeout(() => {
-		document.addEventListener('mousedown', outside, true);
-		document.addEventListener('touchstart', outside, true);
-	}, 0);
-	replaceBtn.addEventListener('click', () => { cleanup(); openReceiptUploadPage(saleId); });
-	deleteBtn.addEventListener('click', async () => {
-		try {
-			const ok = await openConfirmPopover('¿Eliminar el comprobante?', anchorX, anchorY);
-			if (!ok) return;
-			if (!receiptId) return;
-			await fetch(`/api/sales?receipt_id=${encodeURIComponent(receiptId)}`, { method: 'DELETE' });
-			cleanup();
-		} catch {}
-	});
-	closeBtn.addEventListener('click', cleanup);
+    // Backwards compatibility: adapt single receipt to gallery API
+    const single = [{ image_base64: imageBase64, created_at: createdAt, note_text: noteText, id: receiptId }];
+    openReceiptsGalleryPopover(single, saleId, anchorX, anchorY);
 }
 
 

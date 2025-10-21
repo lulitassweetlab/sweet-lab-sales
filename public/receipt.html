@@ -10,8 +10,9 @@
 		h1 { font-size: 18px; margin: 0 0 8px; font-weight: 500; }
 		label { display: block; margin: 12px 0 6px; font-size: 14px; }
 		input[type="file"] { display: block; width: 100%; }
-		.preview { margin-top: 12px; display: none; }
-		.preview img { max-width: 100%; border-radius: 8px; border: 1px solid var(--border, #e5e7eb); }
+        .preview { margin-top: 12px; display: none; }
+        .preview-list { display: flex; flex-wrap: wrap; gap: 8px; }
+        .preview-list img { max-height: 160px; border-radius: 8px; border: 1px solid var(--border, #e5e7eb); object-fit: contain; }
 		.actions { margin-top: 14px; display: flex; gap: 8px; justify-content: flex-end; }
 		.btn { border: 1px solid var(--border, #e5e7eb); background: var(--card, #fff); color: inherit; border-radius: 10px; padding: 8px 12px; cursor: pointer; }
 		.btn-primary { background: var(--primary, #f4a6b7); color: #fff; border-color: transparent; }
@@ -23,18 +24,19 @@
 	<div class="card">
 		<h1>Subir comprobante de transferencia</h1>
 		<div id="sale-info" class="note"></div>
-		<label for="file">Foto del comprobante</label>
-		<input id="file" type="file" accept="image/*" />
+        <label for="file">Foto(s) del comprobante</label>
+        <input id="file" type="file" accept="image/*" multiple />
 		<label for="note">Nota (opcional)</label>
 		<textarea id="note" rows="3" placeholder="Escribe una nota..." style="width:100%; resize: vertical;"></textarea>
-		<div class="preview" id="preview">
-			<img id="img" alt="Vista previa" />
-		</div>
+        <div class="preview" id="preview">
+            <div id="preview-info" class="note" style="margin-bottom:6px;"></div>
+            <div id="preview-list" class="preview-list"></div>
+        </div>
 		<div class="actions">
 			<button class="btn" id="back">Cancelar</button>
 			<button class="btn btn-primary" id="upload" disabled>Subir</button>
 		</div>
-		<div class="note">Formatos comunes: JPG, PNG. Tamaño máximo recomendado 2MB.</div>
+        <div class="note">Formatos comunes: JPG, PNG. Tamaño máximo recomendado 2MB por archivo.</div>
 	</div>
 
 	<script>
@@ -46,41 +48,78 @@
 		let actorName = '';
 		try { const saved = localStorage.getItem('authUser'); if (saved) { const u = JSON.parse(saved); actorName = (u && (u.name || u.username)) ? (u.name || u.username) : ''; } } catch {}
 		const fileInput = document.getElementById('file');
-		const preview = document.getElementById('preview');
-		const img = document.getElementById('img');
+        const preview = document.getElementById('preview');
+        const previewInfo = document.getElementById('preview-info');
+        const previewList = document.getElementById('preview-list');
 		const uploadBtn = document.getElementById('upload');
-		document.getElementById('back').addEventListener('click', () => history.length > 1 ? history.back() : (location.href = '/'));
-		fileInput.addEventListener('change', () => {
-			const f = fileInput.files && fileInput.files[0];
-			if (!f) { preview.style.display = 'none'; img.src = ''; uploadBtn.disabled = true; return; }
-			const reader = new FileReader();
-			reader.onload = () => { img.src = reader.result; preview.style.display = 'block'; uploadBtn.disabled = false; };
-			reader.readAsDataURL(f);
-		});
-		uploadBtn.addEventListener('click', async () => {
-			const f = fileInput.files && fileInput.files[0];
-			if (!f || !saleId) return;
-			uploadBtn.disabled = true;
-			try {
-				const reader = new FileReader();
-				reader.onload = async () => {
-					const base64 = reader.result;
-					const note = (document.getElementById('note').value || '').toString();
-					const res = await fetch('/api/sales', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _upload_receipt_for: saleId, image_base64: base64, note_text: note, _actor_name: actorName }) });
-					if (!res.ok) { alert('Error al subir comprobante'); uploadBtn.disabled = false; return; }
-					alert('Comprobante subido');
-					// Hint the app to focus this sale on return
-					try { localStorage.setItem('pendingFocus', JSON.stringify({ saleId })); } catch {}
-					// Always go to inicio to refrescar estados y selector de pago
-					location.href = '/';
-				};
-				reader.readAsDataURL(f);
-			} catch (e) {
-				console.error(e);
-				alert('Error al subir comprobante');
-				uploadBtn.disabled = false;
-			}
-		});
+        document.getElementById('back').addEventListener('click', () => history.back());
+        fileInput.addEventListener('change', () => {
+            const files = fileInput.files;
+            if (!files || files.length === 0) { preview.style.display = 'none'; previewList.innerHTML = ''; uploadBtn.disabled = true; return; }
+            previewList.innerHTML = '';
+            previewInfo.textContent = files.length === 1 ? '1 archivo seleccionado' : `${files.length} archivos seleccionados`;
+            // Read all selected files and render thumbnails
+            const readers = [];
+            for (const f of files) {
+                readers.push(new Promise((resolve, reject) => {
+                    const r = new FileReader();
+                    r.onload = () => resolve(r.result);
+                    r.onerror = reject;
+                    r.readAsDataURL(f);
+                }));
+            }
+            Promise.all(readers).then((datas) => {
+                for (const dataUrl of datas) {
+                    const im = document.createElement('img');
+                    im.src = dataUrl;
+                    im.alt = 'Vista previa';
+                    previewList.appendChild(im);
+                }
+                preview.style.display = 'block';
+                uploadBtn.disabled = false;
+            }).catch(() => {
+                preview.style.display = 'none';
+                uploadBtn.disabled = true;
+            });
+        });
+        uploadBtn.addEventListener('click', async () => {
+            const files = fileInput.files;
+            if (!files || files.length === 0 || !saleId) return;
+            uploadBtn.disabled = true;
+            try {
+                // Helper to read a File as data URL
+                const readAsDataURL = (file) => new Promise((resolve, reject) => {
+                    const r = new FileReader();
+                    r.onload = () => resolve(r.result);
+                    r.onerror = reject;
+                    r.readAsDataURL(file);
+                });
+                const note = (document.getElementById('note').value || '').toString();
+                for (const f of files) {
+                    const base64 = await readAsDataURL(f);
+                    const res = await fetch('/api/sales', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ _upload_receipt_for: saleId, image_base64: base64, note_text: note, _actor_name: actorName })
+                    });
+                    if (!res.ok) {
+                        const err = await res.json().catch(() => ({}));
+                        console.error('Upload error:', err);
+                        alert('Error al subir uno de los comprobantes');
+                        uploadBtn.disabled = false;
+                        return;
+                    }
+                }
+                alert('Comprobante(s) subido(s)');
+                try { localStorage.setItem('pendingFocus', JSON.stringify({ saleId })); } catch {}
+                // Regresar a la página anterior (tabla de ventas)
+                history.back();
+            } catch (e) {
+                console.error(e);
+                alert('Error al subir comprobante');
+                uploadBtn.disabled = false;
+            }
+        });
 	})();
 	</script>
 </body>
