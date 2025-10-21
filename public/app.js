@@ -7505,8 +7505,7 @@ function openReceiptsGalleryPopover(receipts, saleId, anchorX, anchorY) {
                     if (saleRow) saleRow.pay_method = sel.value || null;
                     applyPayClass();
                     if ((sel.value || '').toLowerCase() === 'jorgebank') {
-                        // Open payment date popover without closing galería.
-                        // Prevent menu auto-cleanup by delaying popover until after menu close.
+                        // Open payment date popover without cerrar la galería de miniaturas
                         setTimeout(() => openPaymentDateDialog(Number(id)), 50);
                     }
                 } catch {}
@@ -7573,7 +7572,16 @@ function openReceiptsGalleryPopover(receipts, saleId, anchorX, anchorY) {
                 document.removeEventListener('touchstart', outside, true);
                 if (pop.parentNode) pop.parentNode.removeChild(pop);
             }
-            function outside(ev){ if (!pop.contains(ev.target)) cleanup(); }
+            function outside(ev){
+                // Keep gallery open while interacting with pay menu or payment date popover
+                const payMenu = document.querySelector('.pay-menu');
+                const datePop = document.querySelector('.payment-date-popover');
+                if (payMenu && payMenu.contains(ev.target)) return;
+                if (datePop && datePop.contains(ev.target)) return;
+                // Also, if a date popover is open at all, ignore outside to avoid closing the gallery
+                if (datePop) return;
+                if (!pop.contains(ev.target)) cleanup();
+            }
             setTimeout(() => {
                 document.addEventListener('mousedown', outside, true);
                 document.addEventListener('touchstart', outside, true);
