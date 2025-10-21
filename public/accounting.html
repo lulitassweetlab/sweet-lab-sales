@@ -39,9 +39,6 @@
 			flex-wrap: wrap;
 			margin: 16px 12px;
 			padding: 12px;
-			background: var(--card);
-			border-radius: 8px;
-			border: 1px solid var(--border);
 		}
 		.month-btn {
 			padding: 10px 18px;
@@ -246,11 +243,15 @@
 		function generateMonthButtons() {
 			monthButtons.innerHTML = '';
 			const now = new Date();
+			const currentYear = now.getFullYear();
+			const currentMonth = now.getMonth();
 			const months = [];
 			
-			// Generate last 6 months including current
+			// Generate last 6 months including current month
 			for (let i = 5; i >= 0; i--) {
-				const date = new Date(Date.UTC(now.getFullYear(), now.getMonth() - i, 1));
+				const targetYear = currentYear;
+				const targetMonth = currentMonth - i;
+				const date = new Date(Date.UTC(targetYear, targetMonth, 1));
 				const monthStart = new Date(Date.UTC(date.getFullYear(), date.getMonth(), 1)).toISOString().slice(0,10);
 				const monthEnd = new Date(Date.UTC(date.getFullYear(), date.getMonth() + 1, 0)).toISOString().slice(0,10);
 				
@@ -264,7 +265,7 @@
 			}
 			
 			// Create buttons
-			months.forEach(month => {
+			months.forEach((month, index) => {
 				const btn = document.createElement('button');
 				btn.className = 'month-btn';
 				btn.textContent = `${month.name} ${month.year}`;
@@ -290,6 +291,8 @@
 				
 				monthButtons.appendChild(btn);
 			});
+			
+			console.log('Meses generados:', months.map(m => `${m.name} ${m.year}`).join(', '));
 		}
 		
 		// Initialize month buttons
