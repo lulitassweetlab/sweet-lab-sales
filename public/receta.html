@@ -81,38 +81,44 @@
 			} catch { return url + (url.includes('?') ? `&actor=${encodeURIComponent(actor)}` : `?actor=${encodeURIComponent(actor)}`); }
 		}
 
-		function sumCountsView(c){
-			countsSummary.innerHTML = '';
-			const pills = [];
-			
-			// Add pill for each dessert dynamically
-			let total = 0;
-			for (const d of desserts) {
-				const v = c[d.short_code] || 0;
-				pills.push({ label: d.name, v });
-				total += v;
-			}
-			pills.push({ label: 'Total', v: total });
-			
-			for (const p of pills){ 
-				const el = document.createElement('div'); 
-				el.style.background = 'var(--card)'; 
-				el.style.border = '1px solid var(--border)'; 
-				el.style.borderRadius = '999px'; 
-				el.style.padding = '4px 10px'; 
-				el.textContent = `${p.label}: ${p.v}`; 
-				countsSummary.appendChild(el); 
-			}
+	function sumCountsView(c){
+		countsSummary.innerHTML = '';
+		const pills = [];
+		
+		// Add pill for each dessert dynamically
+		let total = 0;
+		for (const d of desserts) {
+			const v = c[d.short_code] || 0;
+			pills.push({ label: d.name, v });
+			total += v;
 		}
+		pills.push({ label: 'Total', v: total });
+		
+		for (const p of pills){ 
+			const el = document.createElement('div'); 
+			el.style.background = 'var(--card)'; 
+			el.style.border = '1px solid var(--border)'; 
+			el.style.borderRadius = '999px'; 
+			el.style.padding = '4px 10px'; 
+			el.textContent = `${p.label}: ${p.v}`; 
+			countsSummary.appendChild(el); 
+		}
+	}
+	
+	// History helper functions (global scope for access from timers)
+	function readHistory(){ try { return JSON.parse(localStorage.getItem('timesHistory') || '[]') || []; } catch { return []; } }
+	function writeHistory(arr){ try { localStorage.setItem('timesHistory', JSON.stringify(arr)); } catch {} }
+	function fmtMs(ms){ const total=Math.max(0,Math.floor(ms/1000)); const h=Math.floor(total/3600); const m=Math.floor((total%3600)/60); const s=total%60; const pad=n=>String(n).padStart(2,'0'); return (h>0?`${h}:`:'')+`${pad(m)}:${pad(s)}`; }
 
-		function buildTimerControls(associatedRows = []){
-			const stepState = { elapsedMs: 0, isRunning: false, startedAt: null };
-			const wrap = document.createElement('div'); wrap.style.display='flex'; wrap.style.alignItems='center'; wrap.style.gap='8px';
-			const display = document.createElement('div'); display.style.minWidth='84px'; display.style.textAlign='center'; display.style.fontVariantNumeric='tabular-nums';
-			const playBtn = document.createElement('button'); playBtn.className='press-btn'; playBtn.textContent='▶'; playBtn.title='Play';
-			const pauseBtn = document.createElement('button'); pauseBtn.className='press-btn'; pauseBtn.textContent='⏸'; pauseBtn.title='Pause';
-			const stopBtn = document.createElement('button'); stopBtn.className='press-btn'; stopBtn.textContent='⏹'; stopBtn.title='Stop';
-			wrap.append(display, playBtn, pauseBtn, stopBtn);
+	function buildTimerControls(associatedRows = [], stepName = '', dessertName = ''){
+		const stepState = { elapsedMs: 0, isRunning: false, startedAt: null };
+		const wrap = document.createElement('div'); wrap.style.display='flex'; wrap.style.alignItems='center'; wrap.style.gap='8px';
+		const display = document.createElement('div'); display.style.minWidth='84px'; display.style.textAlign='center'; display.style.fontVariantNumeric='tabular-nums';
+		const playBtn = document.createElement('button'); playBtn.className='press-btn'; playBtn.textContent='▶'; playBtn.title='Play';
+		const pauseBtn = document.createElement('button'); pauseBtn.className='press-btn'; pauseBtn.textContent='⏸'; pauseBtn.title='Pause';
+		const stopBtn = document.createElement('button'); stopBtn.className='press-btn'; stopBtn.textContent='⏹'; stopBtn.title='Stop';
+		const histBtn = document.createElement('button'); histBtn.className='press-btn'; histBtn.textContent='📊'; histBtn.title='Ver historial de este paso';
+		wrap.append(display, playBtn, pauseBtn, stopBtn, histBtn);
 			function formatMs(ms){ const total=Math.max(0,Math.floor(ms/1000)); const h=Math.floor(total/3600); const m=Math.floor((total%3600)/60); const s=total%60; const pad=n=>String(n).padStart(2,'0'); return (h>0?`${h}:`:'')+`${pad(m)}:${pad(s)}`; }
 			let intervalId = null;
 			function compute(){ const base=Number(stepState.elapsedMs||0)||0; if (stepState.isRunning && stepState.startedAt) return base + (Date.now()-stepState.startedAt); return base; }
@@ -129,10 +135,203 @@
 			function play(){ if (stepState.isRunning) return; stepState.isRunning = true; stepState.startedAt = Date.now(); clearInterval(intervalId); intervalId = setInterval(render, 250); updateRowHighlight(); }
 			function pause(){ if (!stepState.isRunning) return; stepState.elapsedMs = compute(); stepState.isRunning = false; stepState.startedAt = null; clearInterval(intervalId); intervalId = null; render(); updateRowHighlight(); }
 			function stop(){ stepState.elapsedMs = 0; stepState.isRunning = false; stepState.startedAt = null; clearInterval(intervalId); intervalId = null; render(); updateRowHighlight(); }
-			playBtn.addEventListener('click', play); pauseBtn.addEventListener('click', pause); stopBtn.addEventListener('click', stop);
-			render();
-			return { element: wrap, getElapsedMs: () => compute(), reset: () => { stop(); }, addRow: (row) => { associatedRows.push(row); } };
+		playBtn.addEventListener('click', play); pauseBtn.addEventListener('click', pause); stopBtn.addEventListener('click', stop);
+		
+		// History button for this specific step
+		histBtn.addEventListener('click', () => {
+			showStepHistory(dessertName, stepName);
+		});
+		
+		render();
+		return { element: wrap, getElapsedMs: () => compute(), reset: () => { stop(); }, addRow: (row) => { associatedRows.push(row); } };
+	}
+	
+	function showStepHistory(dessertName, stepName) {
+		const pop = document.createElement('div');
+		pop.className = 'confirm-popover';
+		pop.style.position = 'fixed';
+		pop.style.left = (window.innerWidth / 2) + 'px';
+		pop.style.top = '8%';
+		pop.style.transform = 'translate(-50%, 0)';
+		pop.style.maxWidth = '95vw';
+		pop.style.width = 'auto';
+		
+		const title = document.createElement('h4');
+		title.textContent = `${dessertName} - ${stepName}`;
+		title.style.margin = '0 0 12px 0';
+		title.style.textAlign = 'center';
+		
+		const list = document.createElement('div');
+		list.style.maxHeight = '70vh';
+		list.style.overflow = 'auto';
+		list.style.minWidth = 'min(92vw, 600px)';
+		
+		function fmtMs(ms) {
+			const total = Math.max(0, Math.floor(ms / 1000));
+			const h = Math.floor(total / 3600);
+			const m = Math.floor((total % 3600) / 60);
+			const s = total % 60;
+			const pad = n => String(n).padStart(2, '0');
+			return (h > 0 ? `${h}:` : '') + `${pad(m)}:${pad(s)}`;
 		}
+		
+		function renderHistory() {
+			list.innerHTML = '';
+			const allHistory = readHistory();
+			
+			// Filter history for this specific dessert and step
+			const stepHistory = allHistory.filter(item => {
+				if (item.dessert !== dessertName) return false;
+				if (!item.steps || !Array.isArray(item.steps)) return false;
+				return item.steps.some(s => s.name === stepName);
+			}).map(item => {
+				// Extract only this step's data
+				const step = item.steps.find(s => s.name === stepName);
+				return {
+					id: item.id,
+					date_iso: item.date_iso,
+					dessert: item.dessert,
+					step_name: step.name,
+					qty_units: step.qty_units || item.qty_units || 0,
+					elapsed_ms: step.elapsed_ms || 0,
+					avg_ms_per_unit: step.avg_ms_per_unit || 0
+				};
+			}).reverse(); // Most recent first
+			
+			if (!stepHistory.length) {
+				const empty = document.createElement('div');
+				empty.textContent = 'Sin registros para este paso';
+				empty.style.padding = '20px';
+				empty.style.textAlign = 'center';
+				empty.style.opacity = '0.6';
+				list.appendChild(empty);
+			} else {
+				// Calculate overall average
+				const totalAvg = stepHistory.reduce((sum, item) => sum + (item.avg_ms_per_unit || 0), 0);
+				const overallAvg = stepHistory.length > 0 ? Math.round(totalAvg / stepHistory.length) : 0;
+				
+				// Header row
+				const header = document.createElement('div');
+				header.style.display = 'grid';
+				header.style.gridTemplateColumns = '1fr 120px 90px 90px 100px 60px';
+				header.style.gap = '8px';
+				header.style.padding = '8px';
+				header.style.fontWeight = '600';
+				header.style.borderBottom = '2px solid var(--border)';
+				header.style.background = 'var(--card)';
+				header.style.position = 'sticky';
+				header.style.top = '0';
+				header.style.zIndex = '1';
+				header.innerHTML = `
+					<div>Fecha</div>
+					<div style="text-align:center">Cantidad</div>
+					<div style="text-align:center">Tiempo</div>
+					<div style="text-align:center">Promedio</div>
+					<div></div>
+					<div></div>
+				`;
+				list.appendChild(header);
+				
+				// Data rows
+				for (const item of stepHistory) {
+					const row = document.createElement('div');
+					row.style.display = 'grid';
+					row.style.gridTemplateColumns = '1fr 120px 90px 90px 100px 60px';
+					row.style.gap = '8px';
+					row.style.padding = '8px';
+					row.style.borderBottom = '1px solid var(--border)';
+					row.style.alignItems = 'center';
+					
+					const when = new Date(item.date_iso || item.id || Date.now());
+					const dateStr = when.toLocaleDateString() + ' ' + when.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+					
+					const dateCell = document.createElement('div');
+					dateCell.textContent = dateStr;
+					dateCell.style.fontSize = '13px';
+					
+					const qtyCell = document.createElement('div');
+					qtyCell.textContent = item.qty_units || 0;
+					qtyCell.style.textAlign = 'center';
+					qtyCell.style.fontWeight = '500';
+					
+					const timeCell = document.createElement('div');
+					timeCell.textContent = fmtMs(item.elapsed_ms || 0);
+					timeCell.style.textAlign = 'center';
+					timeCell.style.fontVariantNumeric = 'tabular-nums';
+					
+					const avgCell = document.createElement('div');
+					avgCell.textContent = fmtMs(item.avg_ms_per_unit || 0);
+					avgCell.style.textAlign = 'center';
+					avgCell.style.fontVariantNumeric = 'tabular-nums';
+					avgCell.style.color = 'var(--accent)';
+					avgCell.style.fontWeight = '600';
+					
+					const spacer = document.createElement('div');
+					
+					const delBtn = document.createElement('button');
+					delBtn.className = 'press-btn';
+					delBtn.textContent = '🗑';
+					delBtn.title = 'Eliminar';
+					delBtn.style.padding = '4px 8px';
+					delBtn.style.fontSize = '16px';
+					delBtn.addEventListener('click', () => {
+						if (confirm('¿Eliminar este registro?')) {
+							deleteHistoryItem(item.id);
+							renderHistory();
+						}
+					});
+					
+					row.append(dateCell, qtyCell, timeCell, avgCell, spacer, delBtn);
+					list.appendChild(row);
+				}
+				
+				// Overall average footer
+				const footer = document.createElement('div');
+				footer.style.display = 'grid';
+				footer.style.gridTemplateColumns = '1fr 120px 90px 90px 100px 60px';
+				footer.style.gap = '8px';
+				footer.style.padding = '12px 8px';
+				footer.style.borderTop = '2px solid var(--border)';
+				footer.style.background = 'rgba(244, 166, 183, 0.1)';
+				footer.style.fontWeight = '600';
+				footer.style.marginTop = '8px';
+				footer.innerHTML = `
+					<div>Promedio general:</div>
+					<div></div>
+					<div></div>
+					<div style="text-align:center; color:var(--accent); font-size:16px;">${fmtMs(overallAvg)}</div>
+					<div></div>
+					<div></div>
+				`;
+				list.appendChild(footer);
+			}
+		}
+		
+		function deleteHistoryItem(id) {
+			const hist = readHistory();
+			const filtered = hist.filter(item => item.id !== id);
+			writeHistory(filtered);
+		}
+		
+		renderHistory();
+		
+		const actions = document.createElement('div');
+		actions.className = 'confirm-actions';
+		actions.style.marginTop = '12px';
+		
+		const close = document.createElement('button');
+		close.className = 'press-btn';
+		close.textContent = 'Cerrar';
+		actions.appendChild(close);
+		
+		pop.append(title, list, actions);
+		document.body.appendChild(pop);
+		pop.classList.add('aladdin-pop');
+		
+		close.addEventListener('click', () => {
+			if (pop.parentNode) pop.parentNode.removeChild(pop);
+		});
+	}
 
 		function normalizeKey(name){ const k=(name||'').toString().trim().toLowerCase(); if (k.startsWith('arco')) return 'arco'; if (k.startsWith('melo')) return 'melo'; if (k.startsWith('mara')) return 'mara'; if (k.startsWith('oreo')) return 'oreo'; if (k.startsWith('nute')) return 'nute'; return k; }
 		
@@ -228,9 +427,9 @@
 			const checkedState = getCheckedState();
 			for (const step of (Array.isArray(data.steps) ? data.steps : [])){
 				const section = document.createElement('div'); section.className='measure-section'; section.style.margin='12px 0';
-				const head = document.createElement('div'); head.style.display='flex'; head.style.alignItems='center'; head.style.justifyContent='space-between'; head.style.gap='8px';
-				const sh = document.createElement('div'); sh.textContent = step.step_name || 'Paso'; sh.style.fontWeight='600'; sh.style.margin='0 0 6px 0'; sh.style.flex='1';
-				const timer = buildTimerControls(); head.append(sh, timer.element);
+			const head = document.createElement('div'); head.style.display='flex'; head.style.alignItems='center'; head.style.justifyContent='space-between'; head.style.gap='8px';
+			const sh = document.createElement('div'); sh.textContent = step.step_name || 'Paso'; sh.style.fontWeight='600'; sh.style.margin='0 0 6px 0'; sh.style.flex='1';
+			const timer = buildTimerControls([], step.step_name || 'Paso', dessertName); head.append(sh, timer.element);
 				section.appendChild(head);
 				const table = document.createElement('table'); table.style.width='100%'; table.style.tableLayout='fixed';
 				const tbody = document.createElement('tbody');
@@ -444,9 +643,6 @@
 			const saveBtn = document.createElement('button'); saveBtn.className='press-btn btn-primary'; saveBtn.textContent='Guardar tiempos';
 			const historyBtn = document.createElement('button'); historyBtn.className='press-btn'; historyBtn.textContent='Ver historial';
 			actions.append(saveBtn, historyBtn); cardsWrap.parentElement.appendChild(actions);
-			function readHistory(){ try { return JSON.parse(localStorage.getItem('timesHistory') || '[]') || []; } catch { return []; } }
-			function writeHistory(arr){ try { localStorage.setItem('timesHistory', JSON.stringify(arr)); } catch {} }
-			function fmtMs(ms){ const total=Math.max(0,Math.floor(ms/1000)); const h=Math.floor(total/3600); const m=Math.floor((total%3600)/60); const s=total%60; const pad=n=>String(n).padStart(2,'0'); return (h>0?`${h}:`:'')+`${pad(m)}:${pad(s)}`; }
 			saveBtn.addEventListener('click', async () => {
 				try {
 					let saved = 0;
@@ -478,12 +674,33 @@
 				const items = readHistory().slice(-20).reverse();
 				const pop = document.createElement('div'); pop.className = 'confirm-popover'; pop.style.position='fixed'; pop.style.left=(window.innerWidth/2)+'px'; pop.style.top='12%'; pop.style.transform='translate(-50%,0)';
 				const title = document.createElement('h4'); title.textContent = 'Historial de tiempos'; title.style.margin='0 0 8px 0';
-				const list = document.createElement('div'); list.style.maxHeight='60vh'; list.style.overflow='auto'; list.style.minWidth='min(92vw,520px)';
+				const list = document.createElement('div'); list.style.maxHeight='60vh'; list.style.overflow='auto'; list.style.minWidth='min(92vw,600px)';
 				if (!items.length) { const empty=document.createElement('div'); empty.textContent='Sin registros'; list.appendChild(empty); }
 				for (const it of items) {
-					const row = document.createElement('div'); row.style.borderBottom='1px solid var(--border)'; row.style.padding='6px 2px';
+					const row = document.createElement('div'); row.style.borderBottom='1px solid var(--border)'; row.style.padding='8px 4px';
 					const when = new Date(it.date_iso || it.id || Date.now());
-					row.innerHTML = `<strong>${it.dessert}</strong> · ${when.toLocaleString()} · Cant: ${it.qty_units||0} · Total: ${fmtMs(it.total_elapsed_ms||0)}`;
+					
+					// Calculate overall average for all steps
+					let totalAvg = 0;
+					let stepCount = 0;
+					if (it.steps && Array.isArray(it.steps)) {
+						for (const step of it.steps) {
+							if (step.avg_ms_per_unit) {
+								totalAvg += step.avg_ms_per_unit;
+								stepCount++;
+							}
+						}
+					}
+					const overallAvg = stepCount > 0 ? Math.round(totalAvg / stepCount) : 0;
+					
+					// Show all steps
+					let stepsText = '';
+					if (it.steps && Array.isArray(it.steps)) {
+						const stepNames = it.steps.map(s => s.name).join(', ');
+						stepsText = ` · Pasos: ${stepNames}`;
+					}
+					
+					row.innerHTML = `<div><strong>${it.dessert}</strong> · ${when.toLocaleString()} · Cant: ${it.qty_units||0} · Total: ${fmtMs(it.total_elapsed_ms||0)} · Prom/postre: ${fmtMs(overallAvg)}${stepsText}</div>`;
 					list.appendChild(row);
 				}
 				const actions=document.createElement('div'); actions.className='confirm-actions'; const close=document.createElement('button'); close.className='press-btn'; close.textContent='Cerrar'; actions.appendChild(close);
