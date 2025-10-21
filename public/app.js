@@ -8463,7 +8463,6 @@ function renderChangeMarkerIfNeeded(tdEl, saleId, field) {
 }
 
 // (mobile bounce limiter removed per user preference);
-}
 
 function renderChangeMarkerIfNeeded(tdEl, saleId, field) {
 	if (!state.currentUser?.isAdmin) return;
