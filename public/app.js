@@ -6342,13 +6342,19 @@ function openPayMenu(anchorEl, selectEl, clickX, clickY) {
 					return;
 				}
 			}
-			// If selecting bank types and not first-time popover, show existing receipt if any; otherwise open upload
-			if ((it.v === 'transf' || it.v === 'jorgebank') && currentSaleId) {
-				try {
-					openReceiptsGalleryPopover(currentSaleId, rect.left + rect.width / 2, rect.bottom);
-				} catch { openReceiptUploadPage(currentSaleId); }
-			}
+		// If selecting bank types and not first-time popover, show existing receipt if any; otherwise open upload
+		if ((it.v === 'transf' || it.v === 'jorgebank') && currentSaleId) {
 			cleanup();
+			// Use setTimeout to avoid blocking and ensure proper async execution
+			setTimeout(() => {
+				openReceiptsGalleryPopover(currentSaleId, rect.left + rect.width / 2, rect.bottom).catch(err => {
+					console.error('Error opening gallery from menu:', err);
+					openReceiptUploadPage(currentSaleId);
+				});
+			}, 0);
+			return;
+		}
+		cleanup();
 		});
 		menu.appendChild(btn);
 	}
@@ -7420,13 +7426,23 @@ function openReceiptUploadPage(saleId) {
 
 // Gallery viewer for multiple receipts with independent payment selectors
 async function openReceiptsGalleryPopover(saleId, anchorX, anchorY) {
+	let receipts = [];
 	try {
-		const receipts = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(saleId)}`);
-		if (!Array.isArray(receipts) || receipts.length === 0) {
-			// No receipts yet, go to upload page
-			openReceiptUploadPage(saleId);
-			return;
-		}
+		receipts = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(saleId)}`);
+	} catch (err) {
+		console.error('Error loading receipts:', err);
+		// If error loading, go to upload page
+		openReceiptUploadPage(saleId);
+		return;
+	}
+	
+	if (!Array.isArray(receipts) || receipts.length === 0) {
+		// No receipts yet, go to upload page
+		openReceiptUploadPage(saleId);
+		return;
+	}
+	
+	try {
 
 		const pop = document.createElement('div');
 		pop.className = 'receipts-gallery-popover';
@@ -7637,8 +7653,10 @@ async function openReceiptsGalleryPopover(saleId, anchorX, anchorY) {
 			document.addEventListener('touchstart', outside, true);
 		}, 0);
 	} catch (err) {
-		console.error('Error opening receipts gallery:', err);
-		notify.error('Error al cargar comprobantes');
+		console.error('Error rendering receipts gallery:', err);
+		notify.error('Error al mostrar galería');
+		// Fallback to upload page
+		openReceiptUploadPage(saleId);
 	}
 }
 
