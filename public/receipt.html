@@ -147,24 +147,22 @@
 		let selectedFiles = [];
 		
 		function returnToSales() {
+			// Save the focus hint for the sale
+			if (uploadContext && uploadContext.saleId) {
+				try { 
+					localStorage.setItem('pendingFocus', JSON.stringify({ saleId: uploadContext.saleId })); 
+				} catch {}
+			}
+			
 			// Clean up context
 			try { localStorage.removeItem('receiptUploadContext'); } catch {}
 			
-			// Try to return to the exact sales table view
-			if (uploadContext && uploadContext.returnToSales && uploadContext.sellerId) {
-				// Build URL to return to sales view with context
-				const hash = '#view-sales';
-				const params = new URLSearchParams();
-				params.set('seller_id', uploadContext.sellerId);
-				if (uploadContext.saleDayId) params.set('sale_day_id', uploadContext.saleDayId);
-				if (uploadContext.saleId) {
-					// Save focus hint
-					try { localStorage.setItem('pendingFocus', JSON.stringify({ saleId: uploadContext.saleId })); } catch {}
-				}
-				location.href = `/${hash}?${params.toString()}`;
+			// Always use history.back() to return to exactly where we were
+			if (window.history.length > 1) {
+				window.history.back();
 			} else {
-				// Fallback to history back
-				history.length > 1 ? history.back() : (location.href = '/');
+				// Fallback if no history
+				location.href = '/';
 			}
 		}
 		
