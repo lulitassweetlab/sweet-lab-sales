@@ -1686,17 +1686,13 @@ function renderTable() {
 				// If current value is 'jorge' but user is not Jorge, include it disabled so it displays
 				if (!isJorge && current === 'jorge') options.push({ v: 'jorge', label: '' });
 				options.push({ v: 'transf', label: '' });
-				// jorgebank only shown when ALL receipts are verified (enrichSalesWithReceiptStatus sets this)
-				// It's disabled - user cannot select it manually, only via receipt verification
-				if (current === 'jorgebank') options.push({ v: 'jorgebank', label: '' });
+				// jorgebank is NEVER shown in the main table selector - it's internal only
 				for (const o of options) {
 					const opt = document.createElement('option');
 					opt.value = o.v;
 					opt.textContent = o.label;
 					if (!isMarcela && o.v === 'marce') opt.disabled = true;
 					if (!isJorge && o.v === 'jorge') opt.disabled = true;
-					// jorgebank is always disabled - read-only indicator
-					if (o.v === 'jorgebank') opt.disabled = true;
 					if (current === o.v) opt.selected = true;
 					sel.appendChild(opt);
 				}
