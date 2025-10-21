@@ -7462,8 +7462,8 @@ function openReceiptsGalleryPopover(receipts, saleId, anchorX, anchorY) {
             if (isJorge) opts.push({ v: 'jorge', label: '' });
             if (!isJorge && current === 'jorge') opts.push({ v: 'jorge', label: '' });
             opts.push({ v: 'transf', label: '' });
-            // Hide 'jorgebank' from this main selector; only show if current
-            if (current === 'jorgebank') opts.push({ v: 'jorgebank', label: '' });
+            // In gallery overlay, ALWAYS allow selecting 'jorgebank'
+            opts.push({ v: 'jorgebank', label: '' });
             for (const o of opts) {
                 const opt = document.createElement('option');
                 opt.value = o.v; opt.textContent = o.label;
@@ -7500,14 +7500,18 @@ function openReceiptsGalleryPopover(receipts, saleId, anchorX, anchorY) {
             });
             sel.addEventListener('change', async (ev) => {
                 try {
-                    await api('PUT', API.Sales, { id, pay_method: sel.value || null, _actor_name: state.currentUser?.name || '' });
-                    // reflect locally
+                    const val = (sel.value || '').toLowerCase();
+                    // If jorgebank selected, open payment date popover first (same UX que transferencias)
+                    if (val === 'jorgebank') {
+                        // open popover immediately (keep gallery open)
+                        openPaymentDateDialog(Number(id));
+                        // then persist selection
+                        await api('PUT', API.Sales, { id, pay_method: 'jorgebank', _actor_name: state.currentUser?.name || '' });
+                    } else {
+                        await api('PUT', API.Sales, { id, pay_method: sel.value || null, _actor_name: state.currentUser?.name || '' });
+                    }
                     if (saleRow) saleRow.pay_method = sel.value || null;
                     applyPayClass();
-                    if ((sel.value || '').toLowerCase() === 'jorgebank') {
-                        // Open payment date popover without cerrar la galería de miniaturas
-                        setTimeout(() => openPaymentDateDialog(Number(id)), 50);
-                    }
                 } catch {}
             });
             wrap.appendChild(sel);
