@@ -152,7 +152,14 @@ export async function handler(event) {
 				if (receiptFor) {
 					const saleId = Number(receiptFor);
 					if (!saleId) return json({ error: 'receipt_for inválido' }, 400);
-					const rows = await sql`SELECT id, sale_id, image_base64, note_text, pay_method, payment_source, payment_date, created_at FROM sale_receipts WHERE sale_id=${saleId} ORDER BY created_at DESC, id DESC`;
+					// Try to fetch with new columns, fallback to old schema if they don't exist
+					let rows;
+					try {
+						rows = await sql`SELECT id, sale_id, image_base64, note_text, pay_method, payment_source, payment_date, created_at FROM sale_receipts WHERE sale_id=${saleId} ORDER BY created_at DESC, id DESC`;
+					} catch (err) {
+						// Fallback to old schema
+						rows = await sql`SELECT id, sale_id, image_base64, note_text, created_at FROM sale_receipts WHERE sale_id=${saleId} ORDER BY created_at DESC, id DESC`;
+					}
 					return json(rows);
 				}
 				const sellerIdParam = params.get('seller_id') || (event.queryStringParameters && event.queryStringParameters.seller_id);
@@ -223,14 +230,23 @@ export async function handler(event) {
                     const sid = Number(data._upload_receipt_for);
                     const img = (data.image_base64 || '').toString();
                     const note = (data.note_text || '').toString();
-                    // Handle optional payment fields - ensure they are null if not provided
-                    const payMethod = data.pay_method !== undefined ? (data.pay_method || null) : null;
-                    const paymentSource = data.payment_source !== undefined ? (data.payment_source || null) : null;
-                    const paymentDate = data.payment_date !== undefined ? (data.payment_date || null) : null;
                     const actor = (data._actor_name || '').toString();
                     if (!sid || !img) return json({ error: 'sale_id e imagen requeridos' }, 400);
-                    // Store receipt with payment info
-                    const [row] = await sql`INSERT INTO sale_receipts (sale_id, image_base64, note_text, pay_method, payment_source, payment_date) VALUES (${sid}, ${img}, ${note}, ${payMethod}, ${paymentSource}, ${paymentDate}) RETURNING id, sale_id, note_text, pay_method, payment_source, payment_date, created_at`;
+                    
+                    // Store receipt - try new columns first, fallback to old schema
+                    let row;
+                    try {
+                        // Try with new columns
+                        const payMethod = data.pay_method !== undefined ? (data.pay_method || null) : null;
+                        const paymentSource = data.payment_source !== undefined ? (data.payment_source || null) : null;
+                        const paymentDate = data.payment_date !== undefined ? (data.payment_date || null) : null;
+                        [row] = await sql`INSERT INTO sale_receipts (sale_id, image_base64, note_text, pay_method, payment_source, payment_date) VALUES (${sid}, ${img}, ${note}, ${payMethod}, ${paymentSource}, ${paymentDate}) RETURNING *`;
+                    } catch (err) {
+                        // Fallback to old schema without payment columns
+                        console.error('New columns not available, using old schema:', err.message);
+                        [row] = await sql`INSERT INTO sale_receipts (sale_id, image_base64, note_text) VALUES (${sid}, ${img}, ${note}) RETURNING *`;
+                    }
+                    
                     try {
                         // After uploading a receipt, mark pay_method as 'transf' on sale level if not already a bank method
                         const prev = (await sql`SELECT seller_id, sale_day_id, client_name, pay_method FROM sales WHERE id=${sid}`)[0] || null;
@@ -267,12 +283,18 @@ export async function handler(event) {
 			if (data._update_receipt_payment) {
 				const receiptId = Number(data.receipt_id);
 				if (!receiptId) return json({ error: 'receipt_id requerido' }, 400);
-				const payMethod = data.pay_method !== undefined ? data.pay_method : null;
-				const paymentSource = data.payment_source !== undefined ? data.payment_source : null;
-				const paymentDate = data.payment_date !== undefined ? data.payment_date : null;
-				await sql`UPDATE sale_receipts SET pay_method=${payMethod}, payment_source=${paymentSource}, payment_date=${paymentDate} WHERE id=${receiptId}`;
-				const [updated] = await sql`SELECT id, sale_id, pay_method, payment_source, payment_date FROM sale_receipts WHERE id=${receiptId}`;
-				return json(updated || {});
+				try {
+					const payMethod = data.pay_method !== undefined ? data.pay_method : null;
+					const paymentSource = data.payment_source !== undefined ? data.payment_source : null;
+					const paymentDate = data.payment_date !== undefined ? data.payment_date : null;
+					await sql`UPDATE sale_receipts SET pay_method=${payMethod}, payment_source=${paymentSource}, payment_date=${paymentDate} WHERE id=${receiptId}`;
+					const [updated] = await sql`SELECT id, sale_id, pay_method, payment_source, payment_date FROM sale_receipts WHERE id=${receiptId}`;
+					return json(updated || {});
+				} catch (err) {
+					// New columns might not exist yet
+					console.error('Error updating receipt payment (columns might not exist):', err.message);
+					return json({ error: 'Actualización no disponible, espere migración de base de datos' }, 400);
+				}
 			}
 			const id = Number(data.id);
 			if (!id) return json({ error: 'id requerido' }, 400);
