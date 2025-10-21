@@ -5,8 +5,96 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
 	<title>Receta por pasos</title>
 	<link rel="stylesheet" href="/styles.css?v=2025-09-17-1" />
+	<style>
+		/* Loading overlay */
+		.loading-overlay {
+			position: fixed;
+			top: 0;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			background: rgba(244, 166, 183, 0.98);
+			z-index: 99999;
+			display: flex !important;
+			align-items: center;
+			justify-content: center;
+			backdrop-filter: blur(5px);
+			opacity: 0;
+			pointer-events: none;
+			transition: opacity 0.2s ease;
+		}
+		.loading-overlay.active { 
+			opacity: 1 !important;
+			pointer-events: auto;
+		}
+		.loading-content {
+			text-align: center;
+			max-width: 400px;
+			padding: 32px;
+			background: white;
+			border-radius: 16px;
+			box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+			transform: translateY(0);
+			transition: transform 0.2s ease;
+		}
+		.loading-overlay:not(.active) .loading-content {
+			transform: translateY(-20px);
+		}
+		.loading-spinner {
+			width: 60px;
+			height: 60px;
+			margin: 0 auto 24px;
+			border: 4px solid #f0f0f0;
+			border-top-color: var(--primary);
+			border-radius: 50%;
+			animation: spin 0.8s linear infinite;
+		}
+		@keyframes spin {
+			to { transform: rotate(360deg); }
+		}
+		.progress-bar-container {
+			width: 100%;
+			height: 8px;
+			background: #f0f0f0;
+			border-radius: 4px;
+			overflow: hidden;
+			margin: 16px 0;
+		}
+		.progress-bar {
+			height: 100%;
+			background: linear-gradient(90deg, var(--primary), var(--hover-primary-pink));
+			border-radius: 4px;
+			transition: width 0.3s ease;
+			animation: progress-pulse 1.5s ease-in-out infinite;
+		}
+		@keyframes progress-pulse {
+			0%, 100% { opacity: 1; }
+			50% { opacity: 0.7; }
+		}
+		.loading-text {
+			font-size: 16px;
+			color: var(--text);
+			margin: 8px 0;
+			font-weight: 500;
+		}
+		.loading-subtext {
+			font-size: 13px;
+			color: var(--muted);
+		}
+	</style>
 </head>
 <body>
+	<!-- Loading overlay -->
+	<div id="loading-overlay" class="loading-overlay">
+		<div class="loading-content">
+			<div class="loading-spinner"></div>
+			<div class="loading-text" id="loading-text">Cargando recetas...</div>
+			<div class="progress-bar-container">
+				<div class="progress-bar" id="progress-bar" style="width: 0%"></div>
+			</div>
+			<div class="loading-subtext" id="loading-subtext">Esto tomará solo un momento</div>
+		</div>
+	</div>
 	<header class="app-header">
 		<div class="header-row">
 			<div class="header-left">
@@ -660,11 +748,51 @@
 			checkedState = state;
 		}
 		
+		// Loading overlay management
+		const loadingOverlay = document.getElementById('loading-overlay');
+		const loadingText = document.getElementById('loading-text');
+		const loadingSubtext = document.getElementById('loading-subtext');
+		const progressBar = document.getElementById('progress-bar');
+		
+		function showLoading(message = 'Cargando recetas...') {
+			loadingText.textContent = message;
+			loadingOverlay.classList.add('active');
+			progressBar.style.width = '0%';
+			
+			// Simulate realistic progress
+			let progress = 0;
+			const progressInterval = setInterval(() => {
+				progress += Math.random() * 15;
+				if (progress > 90) progress = 90;
+				progressBar.style.width = `${progress}%`;
+			}, 300);
+			
+			return () => {
+				clearInterval(progressInterval);
+				progressBar.style.width = '100%';
+				setTimeout(() => {
+					loadingOverlay.classList.remove('active');
+				}, 300);
+			};
+		}
+		
+		function updateLoadingProgress(percent, text) {
+			if (loadingOverlay.classList.contains('active')) {
+				progressBar.style.width = `${percent}%`;
+				if (text) loadingSubtext.textContent = text;
+			}
+		}
+		
 		async function load(){
 			if (!start || !end) return;
+			
+			const hideLoading = showLoading('Cargando recetas...');
+			
 			rangeLabel.textContent = `${formatDay(start)} — ${formatDay(end)}`;
 			countLabel.textContent = 'Cargando…';
 			cardsWrap.innerHTML = '';
+			
+			updateLoadingProgress(10, 'Cargando postres...');
 			
 			// Load desserts first
 			try {
@@ -691,6 +819,7 @@
 					for (const d of (days||[])) { const iso = String(d.day).slice(0,10); if (isoBetween(iso, start, end)) sellerDays.push({ seller: s, day: d }); }
 				} catch {}
 			});
+			updateLoadingProgress(40, 'Buscando ventas...');
 			countLabel.textContent = `Días: ${sellerDays.length} · Buscando ventas…`;
 			
 			// Initialize counts dynamically
@@ -746,6 +875,7 @@
 				sumCountsView(counts, onCountChange);
 			};
 			
+			updateLoadingProgress(60, 'Calculando recetas...');
 			sumCountsView(counts, onCountChange);
 
 			// 2) Fetch dessert names and map them to keys
@@ -1019,7 +1149,13 @@
 			countLabel.textContent = `Postres: ${totalDesserts}`;
 			
 			// Setup navigation
+			updateLoadingProgress(85, 'Configurando navegaci\u00f3n...');
 			setupNavigation(renderedDesserts);
+			
+			updateLoadingProgress(95, 'Finalizando...');
+			
+			// Hide loading overlay
+			hideLoading();
 			
 			// Actions: save times & view history
 			const actions = document.createElement('div'); actions.className = 'confirm-actions'; actions.style.marginTop='8px';
@@ -1110,4 +1246,6 @@
 	</script>
 </body>
 </html>
+
+l>
 
