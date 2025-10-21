@@ -152,7 +152,7 @@ export async function handler(event) {
 				if (receiptFor) {
 					const saleId = Number(receiptFor);
 					if (!saleId) return json({ error: 'receipt_for inválido' }, 400);
-					const rows = await sql`SELECT id, sale_id, image_base64, note_text, created_at FROM sale_receipts WHERE sale_id=${saleId} ORDER BY created_at DESC, id DESC`;
+					const rows = await sql`SELECT id, sale_id, image_base64, note_text, bank_method, payment_date, payment_source, created_at FROM sale_receipts WHERE sale_id=${saleId} ORDER BY created_at DESC, id DESC`;
 					return json(rows);
 				}
 				const sellerIdParam = params.get('seller_id') || (event.queryStringParameters && event.queryStringParameters.seller_id);
@@ -218,21 +218,24 @@ export async function handler(event) {
                     const bActor = (data._actor_name || '').toString();
                     actor = (hActor || bActor || '').toString();
                 } catch {}
-                // Receipt upload flow
-                if (data && data._upload_receipt_for) {
+				// Receipt upload flow (supports multiple files per sale and optional per-file bank_method)
+				if (data && data._upload_receipt_for) {
                     const sid = Number(data._upload_receipt_for);
                     const img = (data.image_base64 || '').toString();
                     const note = (data.note_text || '').toString();
+					const bankMethod = (data.bank_method || '').toString() || null; // 'transf' | 'jorgebank' | 'marce' | 'jorge'
+					const perFilePaymentDate = data.payment_date ? String(data.payment_date).slice(0,10) : null;
+					const perFilePaymentSource = (data.payment_source || '').toString() || null;
                     const actor = (data._actor_name || '').toString();
                     if (!sid || !img) return json({ error: 'sale_id e imagen requeridos' }, 400);
-                    // Store receipt first
-                    const [row] = await sql`INSERT INTO sale_receipts (sale_id, image_base64, note_text) VALUES (${sid}, ${img}, ${note}) RETURNING id, sale_id, note_text, created_at`;
+					// Store receipt first (with optional per-file metadata)
+					const [row] = await sql`INSERT INTO sale_receipts (sale_id, image_base64, note_text, bank_method, payment_date, payment_source) VALUES (${sid}, ${img}, ${note}, ${bankMethod}, ${perFilePaymentDate}, ${perFilePaymentSource}) RETURNING id, sale_id, note_text, bank_method, payment_date, payment_source, created_at`;
                     try {
                         // After uploading a receipt, mark pay_method as 'transf' if not already a bank method
                         const prev = (await sql`SELECT seller_id, sale_day_id, client_name, pay_method FROM sales WHERE id=${sid}`)[0] || null;
                         if (prev) {
                             const prevPm = (prev.pay_method || '').toString();
-                            const isAlreadyBank = prevPm === 'transf' || prevPm === 'jorgebank' || prevPm === 'marce' || prevPm === 'jorge';
+							const isAlreadyBank = prevPm === 'transf' || prevPm === 'jorgebank' || prevPm === 'marce' || prevPm === 'jorge';
                             if (!isAlreadyBank) {
                                 await sql`UPDATE sales SET pay_method='transf' WHERE id=${sid}`;
                                 try {
@@ -259,6 +262,24 @@ export async function handler(event) {
 			}
 			case 'PUT': {
 			const data = JSON.parse(event.body || '{}');
+			// Special path: update a specific receipt row (per-file selector/metadata)
+			if (data && data._update_receipt_id) {
+				const rid = Number(data._update_receipt_id);
+				if (!rid) return json({ error: 'receipt_id inválido' }, 400);
+				const bankMethod = (Object.prototype.hasOwnProperty.call(data, 'bank_method')) ? ((data.bank_method || '').toString() || null) : undefined;
+				const paymentDate = (Object.prototype.hasOwnProperty.call(data, 'payment_date')) ? (data.payment_date ? String(data.payment_date).slice(0,10) : null) : undefined;
+				const paymentSource = (Object.prototype.hasOwnProperty.call(data, 'payment_source')) ? ((data.payment_source || '').toString() || null) : undefined;
+				const noteText = (Object.prototype.hasOwnProperty.call(data, 'note_text')) ? ((data.note_text || '').toString()) : undefined;
+				// Perform sequential updates for provided fields
+				let did = false;
+				if (bankMethod !== undefined) { await sql`UPDATE sale_receipts SET bank_method=${bankMethod} WHERE id=${rid}`; did = true; }
+				if (paymentDate !== undefined) { await sql`UPDATE sale_receipts SET payment_date=${paymentDate} WHERE id=${rid}`; did = true; }
+				if (paymentSource !== undefined) { await sql`UPDATE sale_receipts SET payment_source=${paymentSource} WHERE id=${rid}`; did = true; }
+				if (noteText !== undefined) { await sql`UPDATE sale_receipts SET note_text=${noteText} WHERE id=${rid}`; did = true; }
+				if (!did) return json({ error: 'Nada para actualizar' }, 400);
+				const rows = await sql`SELECT id, sale_id, image_base64, note_text, bank_method, payment_date, payment_source, created_at FROM sale_receipts WHERE id=${rid}`;
+				return json(rows && rows[0] ? rows[0] : {});
+			}
 			const id = Number(data.id);
 			if (!id) return json({ error: 'id requerido' }, 400);
 			const current = (await sql`SELECT seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, payment_date, payment_source, comment_text, created_at FROM sales WHERE id=${id}`)[0] || {};
