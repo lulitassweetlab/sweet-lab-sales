@@ -7631,31 +7631,35 @@ async function openReceiptsGalleryPopover(saleId, anchorX, anchorY) {
 					}
 				});
 				
-				sel.addEventListener('change', async () => {
-					const newValue = sel.value || null;
-					
-					// If selecting jorgebank, open payment date dialog
-					if (newValue === 'jorgebank') {
-						openPaymentDateDialogForReceipt(receipt, () => {
-							// Callback after saving date - update receipt locally
-							receipt.pay_method = newValue;
-							applyPayClass();
-						});
-					} else {
-						// For other methods, just update pay_method
-						try {
-							await api('PUT', API.Sales, {
-								_update_receipt_payment: true,
-								receipt_id: receipt.id,
-								pay_method: newValue
-							});
-							receipt.pay_method = newValue;
-						} catch (err) {
-							console.error('Error updating receipt payment:', err);
-						}
+			sel.addEventListener('change', async () => {
+				const newValue = sel.value || null;
+				
+				// If selecting jorgebank, open payment date dialog
+				if (newValue === 'jorgebank') {
+					openPaymentDateDialogForReceipt(receipt, () => {
+						// Callback after saving date - update receipt locally and refresh selector
+						receipt.pay_method = 'jorgebank';
+						sel.value = 'jorgebank';
 						applyPayClass();
+						notify.info('✓ Comprobante verificado');
+					});
+				} else {
+					// For other methods, just update pay_method
+					try {
+						await api('PUT', API.Sales, {
+							_update_receipt_payment: true,
+							receipt_id: receipt.id,
+							pay_method: newValue
+						});
+						receipt.pay_method = newValue;
+						notify.info('✓ Método actualizado');
+					} catch (err) {
+						console.error('Error updating receipt payment:', err);
+						notify.error('Error al actualizar');
 					}
-				});
+					applyPayClass();
+				}
+			});
 				
 				wrap.appendChild(sel);
 				col.appendChild(wrap);
@@ -7918,21 +7922,30 @@ function openPaymentDateDialogForReceipt(receipt, onSaved) {
 					payment_source: paymentSource
 				});
 				
-				console.log('Resultado:', result);
+				console.log('Guardado exitoso:', result);
 				
-				// Update local receipt object
-				receipt.pay_method = 'jorgebank';
-				receipt.payment_date = paymentDate;
-				receipt.payment_source = paymentSource;
+				// Update local receipt object with the response data
+				if (result) {
+					receipt.pay_method = result.pay_method || 'jorgebank';
+					receipt.payment_date = result.payment_date || paymentDate;
+					receipt.payment_source = result.payment_source || paymentSource;
+				} else {
+					receipt.pay_method = 'jorgebank';
+					receipt.payment_date = paymentDate;
+					receipt.payment_source = paymentSource;
+				}
 				
-				// Call the callback
+				// Call the callback to update the selector in the UI
 				if (typeof onSaved === 'function') onSaved();
 				
 				// Show success message
-				notify.info('✓ Fecha de pago guardada');
+				notify.info(`✓ Verificado: ${paymentSource} - ${paymentDate}`);
 				
 				// Close this dialog (but NOT the gallery)
 				cleanup();
+				
+				// Re-enable buttons
+				methodsContainer.querySelectorAll('button').forEach(x => x.disabled = false);
 			} catch (err) {
 				console.error('Error guardando fecha de pago:', err);
 				methodsContainer.querySelectorAll('button').forEach(x => x.disabled = false);
