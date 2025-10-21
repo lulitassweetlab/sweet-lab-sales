@@ -7507,10 +7507,8 @@ async function openReceiptsGalleryPopover(saleId, anchorX, anchorY) {
 		const isSuperAdmin = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 		
 		for (const receipt of receipts) {
-			// Default to 'transf' if no pay_method is set (uploaded receipts are transfers)
-			if (!receipt.pay_method) {
-				receipt.pay_method = 'transf';
-			}
+			// Each receipt preserves its own pay_method from database
+			// Don't force defaults - respect the saved value
 			const card = document.createElement('div');
 			card.style.border = '1px solid var(--border, #ddd)';
 			card.style.borderRadius = '8px';
@@ -7576,7 +7574,8 @@ async function openReceiptsGalleryPopover(saleId, anchorX, anchorY) {
 				sel.className = 'input-cell pay-select';
 				sel.style.display = 'none';
 				
-				const current = (receipt.pay_method || '').replace(/\.$/, '');
+				// Use saved pay_method or default to 'transf' only for display
+				const current = (receipt.pay_method || 'transf').replace(/\.$/, '');
 				const isMarcela = String(state.currentUser?.name || '').toLowerCase() === 'marcela';
 				const isJorge = String(state.currentUser?.name || '').toLowerCase() === 'jorge';
 				
