@@ -63,7 +63,8 @@ async function loadGlobalClientDetailRows(clientName) {
 						qty_oreo: Number(s.qty_oreo||0),
 						qty_nute: Number(s.qty_nute||0),
 						pay_method: s.pay_method || '',
-						is_paid: !!s.is_paid
+						is_paid: !!s.is_paid,
+						items: s.items || []
 					});
 				}
 			}
@@ -107,7 +108,8 @@ async function loadClientDetailRows(clientName) {
 				qty_oreo: Number(s.qty_oreo||0),
 				qty_nute: Number(s.qty_nute||0),
 				pay_method: s.pay_method || '',
-				is_paid: !!s.is_paid
+				is_paid: !!s.is_paid,
+				items: s.items || []
 			});
 		}
 	}
@@ -168,6 +170,17 @@ function renderClientDetailTable(rows) {
 	const tbody = document.getElementById('client-detail-tbody');
 	if (!tbody) return;
 	tbody.innerHTML = '';
+	
+	// Helper function to get quantity for a dessert from a sale row (supports both items array and legacy qty_* columns)
+	const getQtyForDessert = (row, shortCode) => {
+		// Try items array first (new format)
+		if (Array.isArray(row.items) && row.items.length > 0) {
+			const item = row.items.find(i => i.short_code === shortCode);
+			return item ? Number(item.quantity || 0) : 0;
+		}
+		// Fallback to legacy qty_* columns
+		return Number(row[`qty_${shortCode}`] || 0);
+	};
 	
 	// Update title with client name and seller name
 	const title = document.getElementById('client-detail-title');
@@ -312,11 +325,11 @@ function renderClientDetailTable(rows) {
 			await api('PUT', API.Sales, {
 				id: r.id,
 				client_name: (state._clientDetailName || '').toString(),
-				qty_arco: Number(r.qty_arco||0),
-				qty_melo: Number(r.qty_melo||0),
-				qty_mara: Number(r.qty_mara||0),
-				qty_oreo: Number(r.qty_oreo||0),
-				qty_nute: Number(r.qty_nute||0),
+				qty_arco: getQtyForDessert(r, 'arco'),
+				qty_melo: getQtyForDessert(r, 'melo'),
+				qty_mara: getQtyForDessert(r, 'mara'),
+				qty_oreo: getQtyForDessert(r, 'oreo'),
+				qty_nute: getQtyForDessert(r, 'nute'),
 				pay_method: sel.value || null,
 				_actor_name: state.currentUser?.name || ''
 			});
@@ -334,11 +347,11 @@ function renderClientDetailTable(rows) {
 		// Add a visible dash '-' like the main table when no method, using CSS class 'placeholder'
 		if (!sel.value) { /* wrap already has placeholder class to show '-' via styles */ }
 		const tdDate = document.createElement('td'); tdDate.textContent = formatDayLabel(r.dayIso);
-		const tdAr = document.createElement('td'); tdAr.textContent = r.qty_arco ? String(r.qty_arco) : '';
-		const tdMe = document.createElement('td'); tdMe.textContent = r.qty_melo ? String(r.qty_melo) : '';
-		const tdMa = document.createElement('td'); tdMa.textContent = r.qty_mara ? String(r.qty_mara) : '';
-		const tdOr = document.createElement('td'); tdOr.textContent = r.qty_oreo ? String(r.qty_oreo) : '';
-		const tdNu = document.createElement('td'); tdNu.textContent = r.qty_nute ? String(r.qty_nute) : '';
+		const tdAr = document.createElement('td'); tdAr.textContent = getQtyForDessert(r, 'arco') ? String(getQtyForDessert(r, 'arco')) : '';
+		const tdMe = document.createElement('td'); tdMe.textContent = getQtyForDessert(r, 'melo') ? String(getQtyForDessert(r, 'melo')) : '';
+		const tdMa = document.createElement('td'); tdMa.textContent = getQtyForDessert(r, 'mara') ? String(getQtyForDessert(r, 'mara')) : '';
+		const tdOr = document.createElement('td'); tdOr.textContent = getQtyForDessert(r, 'oreo') ? String(getQtyForDessert(r, 'oreo')) : '';
+		const tdNu = document.createElement('td'); tdNu.textContent = getQtyForDessert(r, 'nute') ? String(getQtyForDessert(r, 'nute')) : '';
 		const total = calcRowTotal(r);
 		const tdTot = document.createElement('td'); tdTot.className = 'col-total'; tdTot.textContent = fmtNo.format(total);
 		// Delete button
@@ -383,11 +396,11 @@ function renderClientDetailTable(rows) {
 	// Calculate and display totals
 	let totalArco = 0, totalMelo = 0, totalMara = 0, totalOreo = 0, totalNute = 0, totalGrand = 0;
 	for (const r of rows) {
-		totalArco += r.qty_arco || 0;
-		totalMelo += r.qty_melo || 0;
-		totalMara += r.qty_mara || 0;
-		totalOreo += r.qty_oreo || 0;
-		totalNute += r.qty_nute || 0;
+		totalArco += getQtyForDessert(r, 'arco');
+		totalMelo += getQtyForDessert(r, 'melo');
+		totalMara += getQtyForDessert(r, 'mara');
+		totalOreo += getQtyForDessert(r, 'oreo');
+		totalNute += getQtyForDessert(r, 'nute');
 		const rowTotal = calcRowTotal(r);
 		totalGrand += rowTotal;
 	}
