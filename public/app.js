@@ -7887,14 +7887,23 @@ function openPaymentDateDialogForReceipt(receipt, onSaved) {
 				const paymentDate = selectedDate.toISOString().split('T')[0];
 				const paymentSource = m.label;
 				
+				console.log('Guardando recibo:', {
+					receipt_id: receipt.id,
+					pay_method: 'jorgebank',
+					payment_date: paymentDate,
+					payment_source: paymentSource
+				});
+				
 				// Update receipt payment info
-				await api('PUT', API.Sales, {
+				const result = await api('PUT', API.Sales, {
 					_update_receipt_payment: true,
 					receipt_id: receipt.id,
 					pay_method: 'jorgebank',
 					payment_date: paymentDate,
 					payment_source: paymentSource
 				});
+				
+				console.log('Resultado:', result);
 				
 				// Update local receipt object
 				receipt.pay_method = 'jorgebank';
@@ -7904,12 +7913,15 @@ function openPaymentDateDialogForReceipt(receipt, onSaved) {
 				// Call the callback
 				if (typeof onSaved === 'function') onSaved();
 				
+				// Show success message
+				notify.info('✓ Fecha de pago guardada');
+				
 				// Close this dialog (but NOT the gallery)
 				cleanup();
 			} catch (err) {
 				console.error('Error guardando fecha de pago:', err);
 				methodsContainer.querySelectorAll('button').forEach(x => x.disabled = false);
-				notify.error('Error al guardar fecha de pago');
+				alert('Error al guardar: ' + (err.message || 'Error desconocido'));
 			}
 		});
 		methodsContainer.appendChild(b);
