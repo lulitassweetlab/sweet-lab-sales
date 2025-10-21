@@ -1721,6 +1721,13 @@ function renderTable() {
 				}
 				applyPayClass();
 				sel.addEventListener('change', async () => {
+					// Prevent manual selection of jorgebank - should only be set via receipt verification
+					if (sel.value === 'jorgebank') {
+						sel.value = current; // Revert to previous value
+						notify.error('jorgebank se establece automáticamente cuando todos los comprobantes están verificados');
+						return;
+					}
+					
 					await savePayMethod(tr, sale.id, sel.value);
 					try {
 						const val = (sel.value || '').toString();
