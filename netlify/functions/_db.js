@@ -265,6 +265,23 @@ export async function ensureSchema() {
 			ALTER TABLE sale_receipts ADD COLUMN note_text TEXT DEFAULT '';
 		END IF;
 	END $$;`;
+	// Add pay_method and payment_date columns to sale_receipts for independent payment tracking per receipt
+	await sql`DO $$ BEGIN
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'sale_receipts' AND column_name = 'pay_method'
+		) THEN
+			ALTER TABLE sale_receipts ADD COLUMN pay_method TEXT DEFAULT '';
+		END IF;
+	END $$;`;
+	await sql`DO $$ BEGIN
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'sale_receipts' AND column_name = 'payment_date'
+		) THEN
+			ALTER TABLE sale_receipts ADD COLUMN payment_date DATE;
+		END IF;
+	END $$;`;
 	// Deliveries: record production by day and assignments to sellers
 	await sql`CREATE TABLE IF NOT EXISTS deliveries (
 		id SERIAL PRIMARY KEY,
