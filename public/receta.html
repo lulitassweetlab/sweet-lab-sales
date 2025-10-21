@@ -215,15 +215,18 @@
 					section.appendChild(head);
 					const table = document.createElement('table'); table.style.width='100%'; table.style.tableLayout='fixed';
 					const tbody = document.createElement('tbody');
-                    for (const it of (step.items || [])){
+					   for (const it of (step.items || [])){
 						const tr = document.createElement('tr');
-						const tdL = document.createElement('td'); tdL.textContent = '';
+						const tdCk = document.createElement('td'); tdCk.style.textAlign = 'center'; tdCk.style.width = '28px';
+						const cb = document.createElement('input'); cb.type = 'checkbox'; cb.className = 'row-check';
+						cb.addEventListener('change', () => { tr.classList.toggle('row-highlight', cb.checked); });
+						tdCk.appendChild(cb);
 						const tdN = document.createElement('td'); tdN.textContent = it.ingredient; tdN.style.padding='8px 4px'; tdN.style.textAlign='center';
-                        const per = Number(it.qty_per_unit || 0) || 0;
-                        const adj = Number(it.adjustment || 0) || 0;
-                        const total = (per * qty) + adj;
-                        const tdQ = document.createElement('td'); tdQ.textContent = fmt1.format(total); tdQ.style.textAlign='right'; tdQ.style.padding='5px 4px';
-						tr.append(tdL, tdN, tdQ); tbody.appendChild(tr);
+					   const per = Number(it.qty_per_unit || 0) || 0;
+					   const adj = Number(it.adjustment || 0) || 0;
+					   const total = (per * qty) + adj;
+					   const tdQ = document.createElement('td'); tdQ.textContent = fmt1.format(total); tdQ.style.textAlign='right'; tdQ.style.padding='5px 4px';
+						tr.append(tdCk, tdN, tdQ); tbody.appendChild(tr);
 					}
 					table.appendChild(tbody); section.appendChild(table); card.appendChild(section);
 					session.steps.push({ name: step.step_name || 'Paso', timer });
@@ -237,10 +240,13 @@
 					const tbody = document.createElement('tbody');
 					for (const ex of extras){
 						const tr = document.createElement('tr');
-						const tdL = document.createElement('td'); tdL.textContent = '';
+						const tdCk = document.createElement('td'); tdCk.style.textAlign = 'center'; tdCk.style.width = '28px';
+						const cb = document.createElement('input'); cb.type = 'checkbox'; cb.className = 'row-check';
+						cb.addEventListener('change', () => { tr.classList.toggle('row-highlight', cb.checked); });
+						tdCk.appendChild(cb);
 						const tdN = document.createElement('td'); tdN.textContent = ex.ingredient; tdN.style.padding='8px 4px'; tdN.style.textAlign='center';
 						const tdQ = document.createElement('td'); tdQ.textContent = fmt1.format((Number(ex.qty_per_unit || 0) || 0) * qty); tdQ.style.textAlign='right'; tdQ.style.padding='5px 4px';
-						tr.append(tdL, tdN, tdQ); tbody.appendChild(tr);
+						tr.append(tdCk, tdN, tdQ); tbody.appendChild(tr);
 					}
 					table.appendChild(tbody); section.appendChild(table); card.appendChild(section);
 				}
