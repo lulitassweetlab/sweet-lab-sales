@@ -7441,8 +7441,145 @@ function openReceiptsGalleryPopover(receipts, saleId, anchorX, anchorY) {
     try {
         const list = Array.isArray(receipts) ? receipts.slice() : [];
         if (!list.length) return;
-        let index = 0;
 
+        // Helper: build payment selector overlay similar to Transfers
+        function buildPayOverlayForSale(id) {
+            const saleRow = (state.sales || []).find(s => Number(s.id) === Number(id)) || {};
+            const container = document.createElement('div');
+            container.className = 'transfer-pay';
+            const col = document.createElement('div'); col.className = 'col-paid';
+            const wrap = document.createElement('span'); wrap.className = 'pay-wrap';
+            const sel = document.createElement('select'); sel.className = 'input-cell pay-select'; sel.style.display = 'none';
+            const current = (saleRow.pay_method || '').replace(/\.$/, '');
+            const isMarcela = String(state.currentUser?.name || '').toLowerCase() === 'marcela';
+            const isJorge = String(state.currentUser?.name || '').toLowerCase() === 'jorge';
+            const opts = [ { v: '', label: '-' }, { v: 'efectivo', label: '' }, { v: 'entregado', label: '' } ];
+            if (isMarcela) opts.push({ v: 'marce', label: '' });
+            if (!isMarcela && current === 'marce') opts.push({ v: 'marce', label: '' });
+            if (isJorge) opts.push({ v: 'jorge', label: '' });
+            if (!isJorge && current === 'jorge') opts.push({ v: 'jorge', label: '' });
+            opts.push({ v: 'transf', label: '' });
+            if (isJorge) opts.push({ v: 'jorgebank', label: '' });
+            if (!isJorge && current === 'jorgebank') opts.push({ v: 'jorgebank', label: '' });
+            for (const o of opts) {
+                const opt = document.createElement('option');
+                opt.value = o.v; opt.textContent = o.label;
+                if (!isMarcela && o.v === 'marce') opt.disabled = true;
+                if (!isJorge && o.v === 'jorge') opt.disabled = true;
+                if (current === o.v) opt.selected = true;
+                sel.appendChild(opt);
+            }
+            function applyPayClass(){
+                wrap.classList.remove('placeholder','method-efectivo','method-transf','method-marce','method-jorge','method-jorgebank','method-entregado');
+                const val = sel.value;
+                if (!val) wrap.classList.add('placeholder');
+                else if (val === 'efectivo') wrap.classList.add('method-efectivo');
+                else if (val === 'entregado') wrap.classList.add('method-entregado');
+                else if (val === 'transf') wrap.classList.add('method-transf');
+                else if (val === 'marce') wrap.classList.add('method-marce');
+                else if (val === 'jorge') wrap.classList.add('method-jorge');
+                else if (val === 'jorgebank') wrap.classList.add('method-jorgebank');
+            }
+            applyPayClass();
+            wrap.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const rect = wrap.getBoundingClientRect();
+                openPayMenu(wrap, sel, rect.left + rect.width/2, rect.bottom);
+            });
+            wrap.tabIndex = 0;
+            wrap.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    const rect = wrap.getBoundingClientRect();
+                    openPayMenu(wrap, sel, rect.left + rect.width/2, rect.bottom);
+                }
+            });
+            sel.addEventListener('change', async () => {
+                try {
+                    await api('PUT', API.Sales, { id, pay_method: sel.value || null, _actor_name: state.currentUser?.name || '' });
+                    // reflect locally
+                    if (saleRow) saleRow.pay_method = sel.value || null;
+                    applyPayClass();
+                    if ((sel.value || '').toLowerCase() === 'jorgebank') {
+                        // open payment date popover immediately
+                        setTimeout(() => openPaymentDateDialog(Number(id)), 0);
+                    }
+                } catch {}
+            });
+            wrap.appendChild(sel);
+            col.appendChild(wrap);
+            container.appendChild(col);
+            return container;
+        }
+
+        // If more than one receipt: show grid of cards like Transfers
+        if (list.length > 1) {
+            const pop = document.createElement('div');
+            pop.className = 'receipt-popover';
+            pop.style.position = 'fixed';
+            pop.style.left = '50%';
+            pop.style.top = '50%';
+            pop.style.transform = 'translate(-50%, -50%)';
+            pop.style.width = 'auto';
+            pop.style.maxWidth = '96vw';
+            pop.style.maxHeight = '88vh';
+            pop.style.zIndex = '1000';
+            pop.style.overflow = 'auto';
+            pop.style.display = 'grid';
+            pop.style.gridTemplateRows = 'auto 1fr auto';
+            pop.style.rowGap = '10px';
+
+            const title = document.createElement('div');
+            title.style.textAlign = 'center';
+            title.style.fontWeight = '600';
+            title.textContent = `Comprobantes (${list.length})`;
+
+            const grid = document.createElement('div');
+            grid.className = 'transfers-grid';
+
+            for (const r of list) {
+                const card = document.createElement('div'); card.className = 'transfer-card';
+                const overlay = buildPayOverlayForSale(Number(saleId));
+                const img = document.createElement('img');
+                img.src = r.image_base64; img.alt = 'Comprobante';
+                img.addEventListener('click', () => {
+                    // Open single-image viewer for more actions
+                    try { if (pop.parentNode) pop.parentNode.removeChild(pop); } catch {}
+                    openReceiptViewerPopover(r.image_base64, saleId, r.created_at, anchorX, anchorY, r.note_text || '', r.id);
+                });
+                card.append(overlay, img);
+                grid.appendChild(card);
+            }
+
+            const actions = document.createElement('div');
+            actions.className = 'confirm-actions';
+            actions.style.display = 'flex';
+            actions.style.gap = '8px';
+            actions.style.justifyContent = 'center';
+            actions.style.paddingBottom = '8px';
+            const moreBtn = document.createElement('button'); moreBtn.className = 'press-btn btn-primary'; moreBtn.textContent = 'Subir más archivos';
+            const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn'; closeBtn.textContent = 'Cerrar';
+            actions.append(moreBtn, closeBtn);
+
+            pop.append(title, grid, actions);
+            document.body.appendChild(pop);
+            function cleanup(){
+                document.removeEventListener('mousedown', outside, true);
+                document.removeEventListener('touchstart', outside, true);
+                if (pop.parentNode) pop.parentNode.removeChild(pop);
+            }
+            function outside(ev){ if (!pop.contains(ev.target)) cleanup(); }
+            setTimeout(() => {
+                document.addEventListener('mousedown', outside, true);
+                document.addEventListener('touchstart', outside, true);
+            }, 0);
+            moreBtn.addEventListener('click', () => { cleanup(); openReceiptUploadPage(saleId); });
+            closeBtn.addEventListener('click', cleanup);
+            return;
+        }
+
+        // Single receipt: keep existing simple viewer with actions
+        let index = 0;
         const pop = document.createElement('div');
         pop.className = 'receipt-popover';
         pop.style.position = 'fixed';
@@ -7462,7 +7599,6 @@ function openReceiptsGalleryPopover(receipts, saleId, anchorX, anchorY) {
         title.style.textAlign = 'center';
         title.style.fontWeight = '600';
         title.style.marginTop = '4px';
-
         const viewport = document.createElement('div');
         viewport.style.position = 'relative';
         viewport.style.overflow = 'auto';
@@ -7470,7 +7606,6 @@ function openReceiptsGalleryPopover(receipts, saleId, anchorX, anchorY) {
         viewport.style.display = 'flex';
         viewport.style.alignItems = 'center';
         viewport.style.justifyContent = 'center';
-
         const img = document.createElement('img');
         img.alt = 'Comprobante';
         img.style.display = 'block';
@@ -7478,36 +7613,30 @@ function openReceiptsGalleryPopover(receipts, saleId, anchorX, anchorY) {
         img.style.maxHeight = '64vh';
         img.style.borderRadius = '8px';
         img.style.objectFit = 'contain';
-
         const meta = document.createElement('div');
         meta.className = 'receipt-meta';
         meta.style.maxHeight = '110px';
         meta.style.overflowY = 'auto';
         meta.style.padding = '0 8px';
-
         const thumbs = document.createElement('div');
         thumbs.style.display = 'flex';
         thumbs.style.gap = '6px';
         thumbs.style.padding = '0 8px 6px 8px';
         thumbs.style.overflowX = 'auto';
         thumbs.style.alignItems = 'center';
-
         const actions = document.createElement('div');
         actions.className = 'confirm-actions';
         actions.style.display = 'flex';
         actions.style.gap = '8px';
         actions.style.justifyContent = 'center';
         actions.style.paddingBottom = '8px';
-
         const moreBtn = document.createElement('button'); moreBtn.className = 'press-btn btn-primary'; moreBtn.textContent = 'Subir más archivos';
         const deleteBtn = document.createElement('button'); deleteBtn.className = 'press-btn'; deleteBtn.textContent = 'Eliminar';
         const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn'; closeBtn.textContent = 'Cerrar';
         actions.append(moreBtn, deleteBtn, closeBtn);
-
         viewport.appendChild(img);
         pop.append(title, viewport, meta, thumbs, actions);
         document.body.appendChild(pop);
-
         function cleanup() {
             document.removeEventListener('keydown', onKey);
             document.removeEventListener('mousedown', outside, true);
@@ -7515,83 +7644,27 @@ function openReceiptsGalleryPopover(receipts, saleId, anchorX, anchorY) {
             if (pop.parentNode) pop.parentNode.removeChild(pop);
         }
         function outside(ev) { if (!pop.contains(ev.target)) cleanup(); }
-        function onKey(ev) {
-            if (ev.key === 'ArrowRight') { ev.preventDefault(); go(1); }
-            if (ev.key === 'ArrowLeft') { ev.preventDefault(); go(-1); }
-            if (ev.key === 'Escape') { ev.preventDefault(); cleanup(); }
-        }
-        setTimeout(() => {
-            document.addEventListener('mousedown', outside, true);
-            document.addEventListener('touchstart', outside, true);
-            document.addEventListener('keydown', onKey);
-        }, 0);
-
-        function renderThumbs() {
-            thumbs.innerHTML = '';
-            list.forEach((r, i) => {
-                const t = document.createElement('img');
-                t.src = r.image_base64;
-                t.alt = 'Miniatura ' + (i + 1);
-                t.style.height = '56px';
-                t.style.width = 'auto';
-                t.style.borderRadius = '6px';
-                t.style.cursor = 'pointer';
-                t.style.opacity = i === index ? '1' : '0.7';
-                t.style.outline = i === index ? '2px solid var(--primary, #f4a6b7)' : 'none';
-                t.addEventListener('click', () => { index = i; render(); });
-                thumbs.appendChild(t);
-            });
-        }
-
+        function onKey(ev) { if (ev.key === 'Escape') { ev.preventDefault(); cleanup(); } }
+        setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); document.addEventListener('keydown', onKey); }, 0);
         function render() {
-            if (!list.length) { cleanup(); return; }
-            const r = list[index];
+            const r = list[0];
             img.src = r.image_base64;
             const when = r.created_at ? new Date(r.created_at) : null;
             const whenStr = when && !isNaN(when) ? when.toLocaleString() : (r.created_at || '');
-            title.textContent = `Comprobante ${index + 1} de ${list.length}`;
+            title.textContent = 'Comprobante';
             meta.innerHTML = '';
-            if (whenStr) {
-                const timeDiv = document.createElement('div');
-                timeDiv.textContent = 'Subido: ' + whenStr;
-                timeDiv.style.fontSize = '12px';
-                timeDiv.style.opacity = '0.75';
-                timeDiv.style.marginBottom = '4px';
-                meta.appendChild(timeDiv);
-            }
-            if (r.note_text) {
-                const note = document.createElement('div');
-                note.textContent = 'Nota: ' + String(r.note_text || '');
-                note.style.fontSize = '13px';
-                note.style.whiteSpace = 'pre-wrap';
-                meta.appendChild(note);
-            }
-            renderThumbs();
+            if (whenStr) { const timeDiv = document.createElement('div'); timeDiv.textContent = 'Subido: ' + whenStr; timeDiv.style.fontSize = '12px'; timeDiv.style.opacity = '0.75'; timeDiv.style.marginBottom = '4px'; meta.appendChild(timeDiv); }
+            if (r.note_text) { const note = document.createElement('div'); note.textContent = 'Nota: ' + String(r.note_text || ''); note.style.fontSize = '13px'; note.style.whiteSpace = 'pre-wrap'; meta.appendChild(note); }
         }
-
-        function go(delta) {
-            if (!list.length) return;
-            index = (index + delta + list.length) % list.length;
-            render();
-        }
-
         deleteBtn.addEventListener('click', async () => {
             try {
                 const ok = await openConfirmPopover('¿Eliminar el comprobante?', anchorX, anchorY);
-                if (!ok) return;
-                const rid = list[index]?.id;
-                if (!rid) return;
-                await fetch(`/api/sales?receipt_id=${encodeURIComponent(rid)}`, { method: 'DELETE' });
-                list.splice(index, 1);
-                if (index >= list.length) index = Math.max(0, list.length - 1);
-                if (!list.length) { cleanup(); return; }
-                render();
+                if (!ok) return; const rid = list[0]?.id; if (!rid) return;
+                await fetch(`/api/sales?receipt_id=${encodeURIComponent(rid)}`, { method: 'DELETE' }); cleanup();
             } catch {}
         });
-
         moreBtn.addEventListener('click', () => { cleanup(); openReceiptUploadPage(saleId); });
         closeBtn.addEventListener('click', cleanup);
-
         render();
     } catch {}
 }
