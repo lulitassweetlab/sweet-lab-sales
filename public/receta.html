@@ -265,7 +265,9 @@
 					table.appendChild(tbody); section.appendChild(table); card.appendChild(section);
 					session.steps.push({ name: step.step_name || 'Paso', timer });
 				}
-				// Extras
+				// Extras - Hidden in this view (still needed for other functionality)
+				// Uncomment below if you want to show extras again
+				/*
 				const extras = Array.isArray(data.extras) ? data.extras : [];
 				if (extras.length){
 					const section = document.createElement('div'); section.className='measure-section'; section.style.margin='12px 0';
@@ -303,13 +305,21 @@
 					}
 					table.appendChild(tbody); section.appendChild(table); card.appendChild(section);
 				}
+				*/
+				// Add ID to card for navigation
+				card.id = `dessert-${keyLabel}`;
 				cardsWrap.appendChild(card);
 				sessions.push(session);
 			}
 
 			// Render cards dynamically for all desserts with count > 0
+			const renderedDesserts = [];
 			for (const d of desserts) {
-				await renderDessert(d.short_code, d.name);
+				const hasQty = counts[d.short_code] > 0;
+				if (hasQty) {
+					renderedDesserts.push(d);
+					await renderDessert(d.short_code, d.name);
+				}
 			}
 			
 			let totalDesserts = 0;
@@ -317,6 +327,44 @@
 				totalDesserts += counts[d.short_code] || 0;
 			}
 			countLabel.textContent = `Postres: ${totalDesserts}`;
+			
+			// Create floating navigation buttons
+			if (renderedDesserts.length > 0) {
+				const navContainer = document.createElement('div');
+				navContainer.className = 'dessert-nav-floating';
+				navContainer.style.position = 'fixed';
+				navContainer.style.left = '16px';
+				navContainer.style.top = '50%';
+				navContainer.style.transform = 'translateY(-50%)';
+				navContainer.style.display = 'flex';
+				navContainer.style.flexDirection = 'column';
+				navContainer.style.gap = '8px';
+				navContainer.style.zIndex = '100';
+				
+				for (const d of renderedDesserts) {
+					const btn = document.createElement('button');
+					btn.className = 'press-btn';
+					btn.textContent = d.name;
+					btn.style.minWidth = '80px';
+					btn.style.fontSize = '13px';
+					btn.style.padding = '8px 12px';
+					btn.addEventListener('click', () => {
+						const card = document.getElementById(`dessert-${d.short_code}`);
+						if (card) {
+							card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+							// Add a visual highlight effect
+							card.style.transition = 'box-shadow 0.3s ease';
+							card.style.boxShadow = '0 8px 32px rgba(244, 166, 183, 0.6)';
+							setTimeout(() => {
+								card.style.boxShadow = '0 8px 24px rgba(0,0,0,0.12)';
+							}, 1000);
+						}
+					});
+					navContainer.appendChild(btn);
+				}
+				
+				document.body.appendChild(navContainer);
+			}
 			// Actions: save times & view history
 			const actions = document.createElement('div'); actions.className = 'confirm-actions'; actions.style.marginTop='8px';
 			const saveBtn = document.createElement('button'); saveBtn.className='press-btn btn-primary'; saveBtn.textContent='Guardar tiempos';
