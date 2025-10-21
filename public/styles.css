@@ -97,6 +97,23 @@ tr.row-checked td {
 	background: var(--primary) !important;
 	color: white !important;
 	animation: timer-button-pulse 2s ease-in-out infinite;
+	width: 90px;
+	height: 70px;
+	min-width: 90px;
+	max-width: 90px;
+	min-height: 70px;
+	max-height: 70px;
+	padding: 8px 6px;
+	font-size: 12px;
+	text-align: center;
+	line-height: 1.3;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
 }
 
 @keyframes timer-button-pulse {
@@ -117,13 +134,22 @@ tr.row-checked td {
 .active-timer-btn strong {
 	display: block;
 	font-size: 13px;
-	margin-bottom: 2px;
+	font-weight: 600;
+	margin-bottom: 4px;
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .active-timer-btn small {
 	display: block;
-	font-size: 10px;
-	opacity: 0.9;
+	font-size: 11px;
+	opacity: 0.95;
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 /* Active timer row pulsing effect */
