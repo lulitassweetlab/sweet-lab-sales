@@ -8099,6 +8099,7 @@ function openPaymentDateDialogForReceipt(receipt, onSaved) {
 	document.body.appendChild(pop);
 
 	function outside(ev) {
+		// Don't close if clicking inside the payment date dialog (which has higher z-index)
 		if (!pop.contains(ev.target)) cleanup();
 	}
 
