@@ -1683,10 +1683,11 @@ function renderTable() {
 				if (!isMarcela && current === 'marce') options.push({ v: 'marce', label: '' });
 				const isJorge = String(state.currentUser?.name || '').toLowerCase() === 'jorge';
 				if (isJorge) options.push({ v: 'jorge', label: '' });
-				// NOTE: jorgebank removed from main table selector - only available in receipt miniature selectors
 				// If current value is 'jorge' but user is not Jorge, include it disabled so it displays
 				if (!isJorge && current === 'jorge') options.push({ v: 'jorge', label: '' });
 				options.push({ v: 'transf', label: '' });
+				// jorgebank only shown when ALL receipts are verified (enrichSalesWithReceiptStatus sets this)
+				if (current === 'jorgebank') options.push({ v: 'jorgebank', label: '' });
 				for (const o of options) {
 					const opt = document.createElement('option');
 					opt.value = o.v;
@@ -1877,6 +1878,44 @@ function renderTable() {
 	preloadChangeLogsForCurrentTable();
 }
 
+// Check receipts for each sale and update pay_method to jorgebank if all receipts are jorgebank
+async function enrichSalesWithReceiptStatus() {
+	if (!Array.isArray(state.sales)) return;
+	
+	for (const sale of state.sales) {
+		// Only check sales with transfer-based payment methods
+		const pm = (sale.pay_method || '').trim().toLowerCase();
+		if (pm !== 'transf' && pm !== 'jorgebank') continue;
+		
+		try {
+			// Fetch receipts for this sale
+			const receipts = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(sale.id)}`);
+			
+			if (!Array.isArray(receipts) || receipts.length === 0) {
+				// No receipts - keep as transf
+				if (pm === 'jorgebank') sale.pay_method = 'transf';
+				continue;
+			}
+			
+			// Check if ALL receipts have pay_method = 'jorgebank'
+			const allJorgebank = receipts.every(r => (r.pay_method || '').trim().toLowerCase() === 'jorgebank');
+			const someJorgebank = receipts.some(r => (r.pay_method || '').trim().toLowerCase() === 'jorgebank');
+			
+			if (allJorgebank && receipts.length > 0) {
+				// All receipts verified with jorgebank
+				sale.pay_method = 'jorgebank';
+				console.log(`✅ Sale ${sale.id}: All ${receipts.length} receipts are jorgebank - updating selector`);
+			} else if (someJorgebank || pm === 'jorgebank') {
+				// Mixed or partial jorgebank - keep as transf
+				sale.pay_method = 'transf';
+				console.log(`⚠️ Sale ${sale.id}: Mixed receipt methods (${receipts.length} total) - keeping as transf`);
+			}
+		} catch (err) {
+			console.error(`Error checking receipts for sale ${sale.id}:`, err);
+		}
+	}
+}
+
 async function loadSales() {
 	const sellerId = state.currentSeller.id;
 	const params = new URLSearchParams({ seller_id: String(sellerId) });
@@ -1895,6 +1934,9 @@ async function loadSales() {
 			}
 		}
 	}
+	
+	// Check if all receipts for each sale have jorgebank - if so, update sale.pay_method
+	await enrichSalesWithReceiptStatus();
 	
 	// Build recurrence counts across all dates for this seller
 	try {
