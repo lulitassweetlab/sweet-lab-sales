@@ -1717,13 +1717,6 @@ function renderTable() {
 				}
 				applyPayClass();
 				sel.addEventListener('change', async () => {
-					// Prevent manual selection of jorgebank - should only be set via receipt verification
-					if (sel.value === 'jorgebank') {
-						sel.value = current; // Revert to previous value
-						notify.error('jorgebank se establece automáticamente cuando todos los comprobantes están verificados');
-						return;
-					}
-					
 					await savePayMethod(tr, sale.id, sel.value);
 					try {
 						const val = (sel.value || '').toString();
@@ -6430,10 +6423,7 @@ function openPayMenu(anchorEl, selectEl, clickX, clickY) {
 	const isJorgeUser = String(state.currentUser?.name || '').toLowerCase() === 'jorge';
 	if (isJorgeUser) {
 		items.push({ v: 'jorge', cls: 'menu-jorge' });
-		items.push({ v: 'jorgebank', cls: 'menu-jorgebank' });
-	} else if ((selectEl.value || '') === 'jorgebank') {
-		// Allow non-Jorge to see/select 'jorgebank' in menu only if it's current
-		items.push({ v: 'jorgebank', cls: 'menu-jorgebank' });
+		// jorgebank removed from menu - internal only
 	}
 	items.push({ v: '', cls: 'menu-clear' }, { v: 'transf', cls: 'menu-transf' });
 	// Find current sale id for upload flow when choosing 'transf'
@@ -6448,8 +6438,8 @@ function openPayMenu(anchorEl, selectEl, clickX, clickY) {
 			e.stopPropagation();
 			selectEl.value = it.v;
 			selectEl.dispatchEvent(new Event('change'));
-			// Special behavior: first time selecting 'jorge' or 'jorgebank' open payment-date popover centered
-			if (currentSaleId && (it.v === 'jorge' || it.v === 'jorgebank')) {
+			// Special behavior: first time selecting 'jorge' open payment-date popover centered
+			if (currentSaleId && it.v === 'jorge') {
 				const firstTime = !hasSeenPaymentDateDialogForSale(currentSaleId, it.v);
 				if (firstTime) {
 					markSeenPaymentDateDialogForSale(currentSaleId, it.v);
@@ -6459,8 +6449,8 @@ function openPayMenu(anchorEl, selectEl, clickX, clickY) {
 					return;
 				}
 			}
-		// If selecting bank types and not first-time popover, show existing receipt if any; otherwise open upload
-		if ((it.v === 'transf' || it.v === 'jorgebank') && currentSaleId) {
+		// If selecting transf, show existing receipt if any; otherwise open upload
+		if (it.v === 'transf' && currentSaleId) {
 			cleanup();
 			// Use setTimeout to avoid blocking and ensure proper async execution
 			setTimeout(() => {
