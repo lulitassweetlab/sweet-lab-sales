@@ -266,7 +266,7 @@ function renderClientDetailTable(rows) {
 				try {
 					const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(saleId)}`);
 					if (Array.isArray(recs) && recs.length) {
-						openReceiptViewerPopover(recs[0].image_base64, saleId, recs[0].created_at, rect.left + rect.width / 2, rect.bottom, recs[0].note_text || '', recs[0].id);
+						openReceiptGalleryPopover(recs, saleId, rect.left + rect.width / 2, rect.bottom);
 					} else {
 						openReceiptUploadPage(saleId);
 					}
@@ -297,9 +297,9 @@ function renderClientDetailTable(rows) {
 				if (curr === 'jorgebank' && hasSeen('jorgebank')) {
 					try {
 						const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(saleId)}`);
-						if (Array.isArray(recs) && recs.length) {
-							openReceiptViewerPopover(recs[0].image_base64, saleId, recs[0].created_at, rect.left + rect.width / 2, rect.bottom, recs[0].note_text || '', recs[0].id);
-						} else {
+					if (Array.isArray(recs) && recs.length) {
+						openReceiptGalleryPopover(recs, saleId, rect.left + rect.width / 2, rect.bottom);
+					} else {
 							openReceiptUploadPage(saleId);
 						}
 					} catch { openReceiptUploadPage(saleId); }
@@ -1756,9 +1756,9 @@ function renderTable() {
                     try {
                         const rect = wrap.getBoundingClientRect();
                         const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(sale.id)}`);
-                        if (Array.isArray(recs) && recs.length) {
-                            openReceiptViewerPopover(recs[0].image_base64, sale.id, recs[0].created_at, rect.left + rect.width / 2, rect.bottom, recs[0].note_text || '', recs[0].id);
-                        } else {
+						if (Array.isArray(recs) && recs.length) {
+							openReceiptGalleryPopover(recs, sale.id, rect.left + rect.width / 2, rect.bottom);
+						} else {
                             openReceiptUploadPage(sale.id);
                         }
                     } catch { openReceiptUploadPage(sale.id); }
@@ -1778,9 +1778,9 @@ function renderTable() {
                         try {
                             const rect = wrap.getBoundingClientRect();
                             const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(sale.id)}`);
-                            if (Array.isArray(recs) && recs.length) {
-                                openReceiptViewerPopover(recs[0].image_base64, sale.id, recs[0].created_at, rect.left + rect.width / 2, rect.bottom, recs[0].note_text || '', recs[0].id);
-                            } else {
+						if (Array.isArray(recs) && recs.length) {
+							openReceiptGalleryPopover(recs, sale.id, rect.left + rect.width / 2, rect.bottom);
+						} else {
                                 openReceiptUploadPage(sale.id);
                             }
                         } catch { openReceiptUploadPage(sale.id); }
@@ -6373,7 +6373,7 @@ function openPayMenu(anchorEl, selectEl, clickX, clickY) {
 				try {
 					const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(currentSaleId)}`);
 					if (Array.isArray(recs) && recs.length) {
-						openReceiptViewerPopover(recs[0].image_base64, currentSaleId, recs[0].created_at, rect.left + rect.width / 2, rect.bottom, recs[0].note_text || '', recs[0].id);
+						openReceiptGalleryPopover(recs, currentSaleId, rect.left + rect.width / 2, rect.bottom);
 					} else {
 						openReceiptUploadPage(currentSaleId);
 					}
@@ -7449,89 +7449,113 @@ function openReceiptUploadPage(saleId) {
 	} catch {}
 }
 
-function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, anchorY, noteText, receiptId) {
-	const pop = document.createElement('div');
-	pop.className = 'receipt-popover';
-	pop.style.position = 'fixed';
-	// Always center the popover in the screen
-	pop.style.left = '50%';
-	pop.style.top = '50%';
-	pop.style.transform = 'translate(-50%, -50%)';
-	pop.style.width = 'auto';
-	pop.style.maxWidth = '90vw';
-	pop.style.maxHeight = '85vh';
-	pop.style.zIndex = '1000';
-	pop.style.overflow = 'auto';
-	pop.style.display = 'flex';
-	pop.style.flexDirection = 'column';
-	pop.style.gap = '12px';
-	const img = document.createElement('img');
-	img.src = imageBase64;
-	img.alt = 'Comprobante';
-	img.style.display = 'block';
-	img.style.width = 'auto';
-	img.style.maxWidth = '92vw';
-	img.style.height = 'auto';
-	img.style.maxHeight = '76vh';
-	img.style.margin = '0 auto';
-	img.style.borderRadius = '8px';
-	img.style.objectFit = 'contain';
-	const meta = document.createElement('div');
-	meta.className = 'receipt-meta';
-	meta.style.maxHeight = '120px';
-	meta.style.overflowY = 'auto';
-	meta.style.flexShrink = '0';
-	if (createdAt) {
-		const when = new Date(createdAt);
-		const whenStr = isNaN(when.getTime()) ? String(createdAt) : when.toLocaleString();
-		const timeDiv = document.createElement('div');
-		timeDiv.textContent = 'Subido: ' + whenStr;
-		timeDiv.style.fontSize = '12px';
-		timeDiv.style.opacity = '0.75';
-		timeDiv.style.marginBottom = '4px';
-		meta.appendChild(timeDiv);
-	}
-	if (noteText) {
-		const note = document.createElement('div');
-		note.textContent = 'Nota: ' + String(noteText || '');
-		note.style.fontSize = '13px';
-		note.style.marginTop = '4px';
-		note.style.whiteSpace = 'pre-wrap';
-		meta.appendChild(note);
-	}
-	const actions = document.createElement('div');
-	actions.className = 'confirm-actions';
-	actions.style.display = 'flex';
-	actions.style.gap = '8px';
-	actions.style.justifyContent = 'center';
-	actions.style.flexShrink = '0';
-	const replaceBtn = document.createElement('button'); replaceBtn.className = 'press-btn btn-primary'; replaceBtn.textContent = 'Reemplazar foto';
-	const deleteBtn = document.createElement('button'); deleteBtn.className = 'press-btn'; deleteBtn.textContent = 'Eliminar';
-	const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn'; closeBtn.textContent = 'Cerrar';
-	actions.append(replaceBtn, deleteBtn, closeBtn);
-	pop.append(img, meta, actions);
-	document.body.appendChild(pop);
-	function cleanup() {
-		document.removeEventListener('mousedown', outside, true);
-		document.removeEventListener('touchstart', outside, true);
-		if (pop.parentNode) pop.parentNode.removeChild(pop);
-	}
-	function outside(ev) { if (!pop.contains(ev.target)) cleanup(); }
-	setTimeout(() => {
-		document.addEventListener('mousedown', outside, true);
-		document.addEventListener('touchstart', outside, true);
-	}, 0);
-	replaceBtn.addEventListener('click', () => { cleanup(); openReceiptUploadPage(saleId); });
-	deleteBtn.addEventListener('click', async () => {
-		try {
-			const ok = await openConfirmPopover('¿Eliminar el comprobante?', anchorX, anchorY);
-			if (!ok) return;
-			if (!receiptId) return;
-			await fetch(`/api/sales?receipt_id=${encodeURIComponent(receiptId)}`, { method: 'DELETE' });
-			cleanup();
-		} catch {}
-	});
-	closeBtn.addEventListener('click', cleanup);
+function openReceiptGalleryPopover(receipts, saleId, anchorX, anchorY) {
+    const pop = document.createElement('div');
+    pop.className = 'receipt-popover';
+    pop.style.position = 'fixed';
+    pop.style.left = '50%';
+    pop.style.top = '50%';
+    pop.style.transform = 'translate(-50%, -50%)';
+    pop.style.width = 'auto';
+    pop.style.maxWidth = '95vw';
+    pop.style.maxHeight = '88vh';
+    pop.style.zIndex = '1000';
+    pop.style.overflow = 'hidden';
+    pop.style.display = 'flex';
+    pop.style.flexDirection = 'column';
+    pop.style.gap = '12px';
+    const scroller = document.createElement('div');
+    scroller.style.display = 'flex';
+    scroller.style.flexDirection = 'row';
+    scroller.style.gap = '10px';
+    scroller.style.overflowX = 'auto';
+    scroller.style.padding = '10px';
+    scroller.style.maxWidth = '95vw';
+    scroller.style.maxHeight = '75vh';
+    scroller.style.alignItems = 'flex-start';
+    function cardFor(r){
+        const card = document.createElement('div');
+        card.style.border = '1px solid var(--border, #e5e7eb)';
+        card.style.borderRadius = '10px';
+        card.style.padding = '8px';
+        card.style.background = 'var(--card, #fff)';
+        card.style.display = 'flex';
+        card.style.flexDirection = 'column';
+        card.style.gap = '8px';
+        card.style.minWidth = '260px';
+        card.style.maxWidth = '420px';
+        const img = document.createElement('img');
+        img.src = r.image_base64;
+        img.alt = 'Comprobante';
+        img.style.display = 'block';
+        img.style.width = 'auto';
+        img.style.maxWidth = '420px';
+        img.style.height = 'auto';
+        img.style.maxHeight = '60vh';
+        img.style.margin = '0 auto';
+        img.style.borderRadius = '8px';
+        img.style.objectFit = 'contain';
+        const meta = document.createElement('div');
+        meta.style.fontSize = '12px';
+        meta.style.display = 'grid';
+        meta.style.gridTemplateColumns = 'auto auto';
+        meta.style.gap = '6px 8px';
+        function row(label, value){ const l = document.createElement('div'); l.style.opacity = '0.75'; l.textContent = label; const v = document.createElement('div'); v.textContent = value || '-'; return [l,v]; }
+        try {
+            const when = r.created_at ? new Date(r.created_at) : null; const whenStr = (when && !isNaN(when.getTime())) ? when.toLocaleString() : (r.created_at || '');
+            const [l1,v1] = row('Subido', whenStr); meta.append(l1,v1);
+        } catch {}
+        // Editable per-file fields
+        const isMarcela = String(state.currentUser?.name || '').toLowerCase() === 'marcela';
+        const isJorge = String(state.currentUser?.name || '').toLowerCase() === 'jorge';
+        const methodWrapL = document.createElement('div'); methodWrapL.style.opacity = '0.75'; methodWrapL.textContent = 'Método';
+        const methodSel = document.createElement('select'); methodSel.style.fontSize = '12px'; methodSel.style.padding = '3px 6px';
+        const mOpts = [ { v: '', t: '-' }, { v: 'transf', t: 'Transferencia' } ];
+        if (isJorge) mOpts.push({ v: 'jorgebank', t: 'JorgeBank' }); else if (r.bank_method === 'jorgebank') mOpts.push({ v: 'jorgebank', t: 'JorgeBank' });
+        if (isMarcela) mOpts.push({ v: 'marce', t: 'Marce' }); else if (r.bank_method === 'marce') mOpts.push({ v: 'marce', t: 'Marce' });
+        if (isJorge) mOpts.push({ v: 'jorge', t: 'Jorge' }); else if (r.bank_method === 'jorge') mOpts.push({ v: 'jorge', t: 'Jorge' });
+        mOpts.forEach(o => { const opt = document.createElement('option'); opt.value = o.v; opt.textContent = o.t; if (r.bank_method === o.v) opt.selected = true; if (!isMarcela && o.v === 'marce') opt.disabled = (r.bank_method !== 'marce'); if (!isJorge && (o.v === 'jorge' || o.v === 'jorgebank')) opt.disabled = (r.bank_method !== o.v); methodSel.appendChild(opt); });
+        meta.append(methodWrapL, methodSel);
+        const dateL = document.createElement('div'); dateL.style.opacity = '0.75'; dateL.textContent = 'Fecha pago';
+        const dateIn = document.createElement('input'); dateIn.type = 'date'; dateIn.style.fontSize = '12px'; dateIn.value = (r.payment_date ? String(r.payment_date).slice(0,10) : '');
+        meta.append(dateL, dateIn);
+        const srcL = document.createElement('div'); srcL.style.opacity = '0.75'; srcL.textContent = 'Fuente/ref.';
+        const srcIn = document.createElement('input'); srcIn.type = 'text'; srcIn.placeholder = 'Ref., banco, etc'; srcIn.style.fontSize = '12px'; srcIn.value = r.payment_source || '';
+        meta.append(srcL, srcIn);
+        if (r.note_text) { const note = document.createElement('div'); note.textContent = 'Nota: ' + String(r.note_text||''); note.style.gridColumn = '1 / span 2'; note.style.whiteSpace = 'pre-wrap'; meta.append(note); }
+        const actions = document.createElement('div');
+        actions.style.display = 'flex'; actions.style.gap = '8px'; actions.style.justifyContent = 'center';
+        const uploadBtn = document.createElement('button'); uploadBtn.className = 'press-btn btn-primary'; uploadBtn.textContent = 'Subir otro';
+        const saveBtn = document.createElement('button'); saveBtn.className = 'press-btn'; saveBtn.textContent = 'Guardar';
+        const deleteBtn = document.createElement('button'); deleteBtn.className = 'press-btn'; deleteBtn.textContent = 'Eliminar';
+        const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn'; closeBtn.textContent = 'Cerrar';
+        actions.append(uploadBtn, saveBtn, deleteBtn, closeBtn);
+        uploadBtn.addEventListener('click', () => { cleanup(); openReceiptUploadPage(saleId); });
+        saveBtn.addEventListener('click', async () => {
+            try {
+                const payload = { _update_receipt_id: r.id, bank_method: methodSel.value || null, payment_date: dateIn.value || null, payment_source: srcIn.value || null };
+                await fetch(API.Sales, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                try { notify?.info('Actualizado'); } catch {}
+            } catch {}
+        });
+        deleteBtn.addEventListener('click', async () => {
+            try {
+                const ok = await openConfirmPopover('¿Eliminar el comprobante?', anchorX, anchorY);
+                if (!ok) return; if (!r.id) return;
+                await fetch(`/api/sales?receipt_id=${encodeURIComponent(r.id)}`, { method: 'DELETE' });
+                cleanup();
+            } catch {}
+        });
+        closeBtn.addEventListener('click', cleanup);
+        card.append(img, meta, actions);
+        return card;
+    }
+    receipts.forEach(rec => scroller.appendChild(cardFor(rec)));
+    pop.appendChild(scroller);
+    document.body.appendChild(pop);
+    function cleanup(){ document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); if (pop.parentNode) pop.parentNode.removeChild(pop); }
+    function outside(ev){ if (!pop.contains(ev.target)) cleanup(); }
+    setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
 }
 
 

@@ -25,6 +25,18 @@
 		<div id="sale-info" class="note"></div>
 		<label for="file">Foto del comprobante</label>
 		<input id="file" type="file" accept="image/*" />
+		<label for="method">Método (para este archivo)</label>
+		<select id="method">
+			<option value="">-</option>
+			<option value="transf">Transferencia</option>
+			<option value="jorgebank">JorgeBank</option>
+			<option value="marce">Marce</option>
+			<option value="jorge">Jorge</option>
+		</select>
+		<label for="date">Fecha de pago (este archivo)</label>
+		<input id="date" type="date" />
+		<label for="source">Referencia / fuente (opcional)</label>
+		<input id="source" type="text" placeholder="Ref., banco, etc" />
 		<label for="note">Nota (opcional)</label>
 		<textarea id="note" rows="3" placeholder="Escribe una nota..." style="width:100%; resize: vertical;"></textarea>
 		<div class="preview" id="preview">
@@ -66,7 +78,10 @@
 				reader.onload = async () => {
 					const base64 = reader.result;
 					const note = (document.getElementById('note').value || '').toString();
-					const res = await fetch('/api/sales', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _upload_receipt_for: saleId, image_base64: base64, note_text: note, _actor_name: actorName }) });
+					const bankMethod = (document.getElementById('method').value || '').toString() || null;
+					const paymentDate = (document.getElementById('date').value || '').toString() || null;
+					const paymentSource = (document.getElementById('source').value || '').toString() || null;
+					const res = await fetch('/api/sales', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _upload_receipt_for: saleId, image_base64: base64, note_text: note, bank_method: bankMethod, payment_date: paymentDate, payment_source: paymentSource, _actor_name: actorName }) });
 					if (!res.ok) { alert('Error al subir comprobante'); uploadBtn.disabled = false; return; }
 					alert('Comprobante subido');
 					// Hint the app to focus this sale on return

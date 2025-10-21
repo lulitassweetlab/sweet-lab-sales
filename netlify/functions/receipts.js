@@ -25,8 +25,10 @@ export async function handler(event) {
 			return json({ error: 'start y end requeridos (YYYY-MM-DD)' }, 400);
 		}
 		const rows = await sql`
-			SELECT sr.id, sr.sale_id, sr.image_base64, sr.note_text, sr.created_at,
-			       s.seller_id, s.sale_day_id, s.client_name, s.pay_method, s.payment_source, s.total_cents,
+			SELECT sr.id, sr.sale_id, sr.image_base64, sr.note_text,
+			       sr.bank_method, sr.payment_date, sr.payment_source,
+			       sr.created_at,
+			       s.seller_id, s.sale_day_id, s.client_name, s.pay_method, s.payment_source AS sale_payment_source, s.total_cents,
 			       sd.day AS sale_day, se.name AS seller_name,
 			       COALESCE(sd.day, sr.created_at::date, s.created_at::date) AS effective_day
 			FROM sale_receipts sr
