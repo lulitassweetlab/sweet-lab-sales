@@ -7488,6 +7488,9 @@ async function openReceiptsGalleryPopover(saleId, anchorX, anchorY) {
 		gallery.style.maxHeight = '70vh';
 		gallery.style.overflowY = 'auto';
 
+		// Check if user is superadmin
+		const isSuperAdmin = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+		
 		for (const receipt of receipts) {
 			const card = document.createElement('div');
 			card.style.border = '1px solid var(--border, #ddd)';
@@ -7498,6 +7501,10 @@ async function openReceiptsGalleryPopover(saleId, anchorX, anchorY) {
 			card.style.flexDirection = 'column';
 			card.style.gap = '12px';
 
+			// Image container with payment selector overlay
+			const imgContainer = document.createElement('div');
+			imgContainer.style.position = 'relative';
+			
 			// Image
 			const img = document.createElement('img');
 			img.src = receipt.image_base64;
@@ -7533,7 +7540,99 @@ async function openReceiptsGalleryPopover(saleId, anchorX, anchorY) {
 					document.body.removeChild(lightbox);
 				});
 			});
-			card.appendChild(img);
+			imgContainer.appendChild(img);
+			
+			// Payment selector overlay (only for superadmin)
+			if (isSuperAdmin) {
+				const payOverlay = document.createElement('div');
+				payOverlay.className = 'transfer-pay';
+				
+				const col = document.createElement('div');
+				col.className = 'col-paid';
+				
+				const wrap = document.createElement('span');
+				wrap.className = 'pay-wrap';
+				
+				const sel = document.createElement('select');
+				sel.className = 'input-cell pay-select';
+				sel.style.display = 'none';
+				
+				const current = (receipt.pay_method || '').replace(/\.$/, '');
+				const isMarcela = String(state.currentUser?.name || '').toLowerCase() === 'marcela';
+				const isJorge = String(state.currentUser?.name || '').toLowerCase() === 'jorge';
+				
+				const opts = [
+					{ v: '', label: '-' },
+					{ v: 'efectivo', label: '' },
+					{ v: 'entregado', label: '' }
+				];
+				if (isMarcela) opts.push({ v: 'marce', label: '' });
+				if (!isMarcela && current === 'marce') opts.push({ v: 'marce', label: '' });
+				if (isJorge) opts.push({ v: 'jorge', label: '' });
+				if (!isJorge && current === 'jorge') opts.push({ v: 'jorge', label: '' });
+				opts.push({ v: 'transf', label: '' });
+				if (isJorge) opts.push({ v: 'jorgebank', label: '' });
+				if (!isJorge && current === 'jorgebank') opts.push({ v: 'jorgebank', label: '' });
+				
+				for (const o of opts) {
+					const opt = document.createElement('option');
+					opt.value = o.v;
+					opt.textContent = o.label;
+					if (!isMarcela && o.v === 'marce') opt.disabled = true;
+					if (!isJorge && o.v === 'jorge') opt.disabled = true;
+					if (current === o.v) opt.selected = true;
+					sel.appendChild(opt);
+				}
+				
+				function applyPayClass() {
+					wrap.classList.remove('placeholder', 'method-efectivo', 'method-transf', 'method-marce', 'method-jorge', 'method-jorgebank', 'method-entregado');
+					const val = sel.value;
+					if (!val) wrap.classList.add('placeholder');
+					else if (val === 'efectivo') wrap.classList.add('method-efectivo');
+					else if (val === 'entregado') wrap.classList.add('method-entregado');
+					else if (val === 'transf') wrap.classList.add('method-transf');
+					else if (val === 'marce') wrap.classList.add('method-marce');
+					else if (val === 'jorge') wrap.classList.add('method-jorge');
+					else if (val === 'jorgebank') wrap.classList.add('method-jorgebank');
+				}
+				applyPayClass();
+				
+				wrap.addEventListener('click', (e) => {
+					e.stopPropagation();
+					const rect = wrap.getBoundingClientRect();
+					openPayMenuForReceipt(wrap, sel, receipt, rect.left + rect.width / 2, rect.bottom, applyPayClass);
+				});
+				
+				wrap.tabIndex = 0;
+				wrap.addEventListener('keydown', (e) => {
+					if (e.key === 'Enter' || e.key === ' ') {
+						e.preventDefault();
+						const rect = wrap.getBoundingClientRect();
+						openPayMenuForReceipt(wrap, sel, receipt, rect.left + rect.width / 2, rect.bottom, applyPayClass);
+					}
+				});
+				
+				sel.addEventListener('change', async () => {
+					try {
+						await api('PUT', API.Sales, {
+							_update_receipt_payment: true,
+							receipt_id: receipt.id,
+							pay_method: sel.value || null
+						});
+						receipt.pay_method = sel.value || null;
+					} catch (err) {
+						console.error('Error updating receipt payment:', err);
+					}
+					applyPayClass();
+				});
+				
+				wrap.appendChild(sel);
+				col.appendChild(wrap);
+				payOverlay.appendChild(col);
+				imgContainer.appendChild(payOverlay);
+			}
+			
+			card.appendChild(imgContainer);
 
 			// Metadata
 			const meta = document.createElement('div');
@@ -7555,47 +7654,6 @@ async function openReceiptsGalleryPopover(saleId, anchorX, anchorY) {
 				meta.appendChild(note);
 			}
 			card.appendChild(meta);
-
-			// Payment selector (independent for each receipt)
-			const payLabel = document.createElement('label');
-			payLabel.textContent = 'Método de pago:';
-			payLabel.style.fontSize = '13px';
-			payLabel.style.fontWeight = '600';
-			card.appendChild(payLabel);
-
-			const paySelect = document.createElement('select');
-			paySelect.className = 'input-cell';
-			paySelect.style.width = '100%';
-			const payOptions = [
-				{ v: '', label: '-' },
-				{ v: 'efectivo', label: 'Efectivo' },
-				{ v: 'transf', label: 'Transferencia' },
-				{ v: 'marce', label: 'Marce' },
-				{ v: 'jorge', label: 'Jorge' },
-				{ v: 'jorgebank', label: 'JorgeBank' },
-				{ v: 'entregado', label: 'Entregado' }
-			];
-			for (const opt of payOptions) {
-				const option = document.createElement('option');
-				option.value = opt.v;
-				option.textContent = opt.label;
-				if (receipt.pay_method === opt.v) option.selected = true;
-				paySelect.appendChild(option);
-			}
-			paySelect.addEventListener('change', async () => {
-				try {
-					await api('PUT', API.Sales, {
-						_update_receipt_payment: true,
-						receipt_id: receipt.id,
-						pay_method: paySelect.value || null
-					});
-					notify.info('Método de pago actualizado');
-				} catch (err) {
-					console.error('Error updating receipt payment:', err);
-					notify.error('Error al actualizar método de pago');
-				}
-			});
-			card.appendChild(paySelect);
 
 			// Delete button
 			const deleteBtn = document.createElement('button');
@@ -7668,6 +7726,83 @@ async function openReceiptsGalleryPopover(saleId, anchorX, anchorY) {
 		// Fallback to upload page
 		openReceiptUploadPage(saleId);
 	}
+}
+
+// Open payment menu for individual receipt in gallery
+function openPayMenuForReceipt(anchorEl, selectEl, receipt, clickX, clickY, applyPayClass) {
+	const rect = anchorEl.getBoundingClientRect();
+	const menu = document.createElement('div');
+	menu.className = 'pay-menu';
+	menu.style.position = 'fixed';
+	menu.style.transform = 'translateX(-50%)';
+	menu.style.zIndex = '1001';
+	
+	const isMarcela = String(state.currentUser?.name || '').toLowerCase() === 'marcela';
+	const isJorge = String(state.currentUser?.name || '').toLowerCase() === 'jorge';
+	
+	const items = [
+		{ v: 'efectivo', cls: 'menu-efectivo' },
+		{ v: 'entregado', cls: 'menu-entregado' }
+	];
+	if (isMarcela) items.push({ v: 'marce', cls: 'menu-marce' });
+	if (isJorge) {
+		items.push({ v: 'jorge', cls: 'menu-jorge' });
+		items.push({ v: 'jorgebank', cls: 'menu-jorgebank' });
+	} else if ((selectEl.value || '') === 'jorgebank') {
+		items.push({ v: 'jorgebank', cls: 'menu-jorgebank' });
+	}
+	items.push({ v: '', cls: 'menu-clear' }, { v: 'transf', cls: 'menu-transf' });
+	
+	for (const it of items) {
+		const btn = document.createElement('button');
+		btn.type = 'button';
+		btn.className = 'pay-menu-item ' + it.cls;
+		if (it.v === '') btn.textContent = '-';
+		btn.addEventListener('click', async (e) => {
+			e.stopPropagation();
+			selectEl.value = it.v;
+			selectEl.dispatchEvent(new Event('change'));
+			cleanup();
+		});
+		menu.appendChild(btn);
+	}
+	
+	menu.style.left = '0px';
+	menu.style.top = '0px';
+	menu.style.visibility = 'hidden';
+	menu.style.pointerEvents = 'none';
+	document.body.appendChild(menu);
+	
+	const dashBtn = menu.querySelector('.menu-clear');
+	const menuRect = menu.getBoundingClientRect();
+	const dashRect = dashBtn ? dashBtn.getBoundingClientRect() : menuRect;
+	const anchorCx = (typeof clickX === 'number') ? clickX : (rect.left + rect.width / 2);
+	const anchorCy = (typeof clickY === 'number') ? clickY : (rect.top + rect.height / 2);
+	const offsetYWithinMenu = (dashRect.top - menuRect.top) + (dashRect.height / 2);
+	let left = anchorCx;
+	let top = anchorCy - offsetYWithinMenu;
+	const half = menu.offsetWidth / 2;
+	left = Math.min(Math.max(left, half + 6), window.innerWidth - half - 6);
+	top = Math.max(6, Math.min(top, window.innerHeight - menu.offsetHeight - 6));
+	menu.style.left = left + 'px';
+	menu.style.top = top + 'px';
+	menu.style.visibility = '';
+	menu.style.pointerEvents = '';
+	
+	function outside(e) {
+		if (!menu.contains(e.target)) cleanup();
+	}
+	
+	function cleanup() {
+		document.removeEventListener('mousedown', outside, true);
+		document.removeEventListener('touchstart', outside, true);
+		if (menu.parentNode) menu.parentNode.removeChild(menu);
+	}
+	
+	setTimeout(() => {
+		document.addEventListener('mousedown', outside, true);
+		document.addEventListener('touchstart', outside, true);
+	}, 0);
 }
 
 // Legacy function for backward compatibility
