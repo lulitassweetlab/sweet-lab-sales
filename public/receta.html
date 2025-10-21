@@ -249,18 +249,200 @@
 				removeActiveTimerButton();
 			}
 			function stop(){ 
-				stepState.elapsedMs = 0; 
-				stepState.isRunning = false; 
-				stepState.startedAt = null; 
-				clearInterval(intervalId); 
-				intervalId = null; 
-				render(); 
-				updateRowHighlight();
-				removeActiveTimerButton();
+				const currentMs = compute();
+				
+				// If there's time recorded, ask if user wants to save
+				if (currentMs > 0 && qtyPerDessert > 0) {
+					// Create popover
+					const popover = document.createElement('div');
+					popover.className = 'save-time-popover';
+					popover.style.position = 'fixed';
+					popover.style.left = '50%';
+					popover.style.top = '50%';
+					popover.style.transform = 'translate(-50%, -50%)';
+					popover.style.background = 'white';
+					popover.style.padding = '24px';
+					popover.style.borderRadius = '12px';
+					popover.style.boxShadow = '0 8px 32px rgba(0,0,0,0.2)';
+					popover.style.zIndex = '10001';
+					popover.style.minWidth = '320px';
+					popover.style.textAlign = 'center';
+					
+					const overlay = document.createElement('div');
+					overlay.style.position = 'fixed';
+					overlay.style.top = '0';
+					overlay.style.left = '0';
+					overlay.style.right = '0';
+					overlay.style.bottom = '0';
+					overlay.style.background = 'rgba(0,0,0,0.4)';
+					overlay.style.zIndex = '10000';
+					overlay.style.backdropFilter = 'blur(2px)';
+					
+					const title = document.createElement('div');
+					title.textContent = '¿Guardar este tiempo?';
+					title.style.fontSize = '18px';
+					title.style.fontWeight = '600';
+					title.style.marginBottom = '12px';
+					title.style.color = 'var(--text)';
+					
+					const info = document.createElement('div');
+					info.style.fontSize = '14px';
+					info.style.marginBottom = '20px';
+					info.style.color = 'var(--text)';
+					info.style.opacity = '0.8';
+					info.innerHTML = `
+						<div style="margin-bottom:8px;">
+							<strong style="color:var(--primary);">${dessertName} - ${stepName}</strong>
+						</div>
+						<div>⏱️ Tiempo: <strong>${fmtMs(currentMs)}</strong></div>
+						<div>📦 Cantidad: <strong>${qtyPerDessert}</strong></div>
+					`;
+					
+					const actions = document.createElement('div');
+					actions.style.display = 'flex';
+					actions.style.gap = '12px';
+					actions.style.justifyContent = 'center';
+					
+					const saveButton = document.createElement('button');
+					saveButton.className = 'press-btn btn-primary';
+					saveButton.textContent = '💾 Guardar';
+					saveButton.style.flex = '1';
+					saveButton.style.maxWidth = '140px';
+					
+					const discardButton = document.createElement('button');
+					discardButton.className = 'press-btn';
+					discardButton.textContent = 'Descartar';
+					discardButton.style.flex = '1';
+					discardButton.style.maxWidth = '140px';
+					
+					function cleanup() {
+						if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+						if (popover.parentNode) popover.parentNode.removeChild(popover);
+					}
+					
+					saveButton.addEventListener('click', async () => {
+						cleanup();
+						const saved = await saveTimerData();
+						if (saved) {
+							// Show brief success message
+							const toast = document.createElement('div');
+							toast.textContent = '✅ Tiempo guardado';
+							toast.style.position = 'fixed';
+							toast.style.top = '20px';
+							toast.style.left = '50%';
+							toast.style.transform = 'translateX(-50%)';
+							toast.style.background = 'var(--primary)';
+							toast.style.color = 'white';
+							toast.style.padding = '12px 24px';
+							toast.style.borderRadius = '8px';
+							toast.style.boxShadow = '0 4px 16px rgba(0,0,0,0.2)';
+							toast.style.zIndex = '10002';
+							toast.style.fontWeight = '500';
+							document.body.appendChild(toast);
+							setTimeout(() => {
+								if (toast.parentNode) toast.parentNode.removeChild(toast);
+							}, 2000);
+						}
+						// Execute stop
+						stepState.elapsedMs = 0; 
+						stepState.isRunning = false; 
+						stepState.startedAt = null; 
+						clearInterval(intervalId); 
+						intervalId = null; 
+						render(); 
+						updateRowHighlight();
+						removeActiveTimerButton();
+					});
+					
+					discardButton.addEventListener('click', () => {
+						cleanup();
+						// Execute stop without saving
+						stepState.elapsedMs = 0; 
+						stepState.isRunning = false; 
+						stepState.startedAt = null; 
+						clearInterval(intervalId); 
+						intervalId = null; 
+						render(); 
+						updateRowHighlight();
+						removeActiveTimerButton();
+					});
+					
+					overlay.addEventListener('click', () => {
+						cleanup();
+					});
+					
+					actions.append(saveButton, discardButton);
+					popover.append(title, info, actions);
+					document.body.appendChild(overlay);
+					document.body.appendChild(popover);
+				} else {
+					// No time or no quantity, just stop
+					stepState.elapsedMs = 0; 
+					stepState.isRunning = false; 
+					stepState.startedAt = null; 
+					clearInterval(intervalId); 
+					intervalId = null; 
+					render(); 
+					updateRowHighlight();
+					removeActiveTimerButton();
+				}
 			}
 			function readHistory(){ try { return JSON.parse(localStorage.getItem('timesHistory') || '[]') || []; } catch { return []; } }
 			function writeHistory(arr){ try { localStorage.setItem('timesHistory', JSON.stringify(arr)); } catch {} }
 			function fmtMs(ms){ const total=Math.max(0,Math.floor(ms/1000)); const h=Math.floor(total/3600); const m=Math.floor((total%3600)/60); const s=total%60; const pad=n=>String(n).padStart(2,'0'); return (h>0?`${h}:`:'')+`${pad(m)}:${pad(s)}`; }
+			
+			async function saveTimerData() {
+				const ms = compute();
+				if (ms <= 0) {
+					return false;
+				}
+				
+				const qty = Number(qtyPerDessert) || 0;
+				if (qty <= 0) {
+					return false;
+				}
+				
+				const avg = Math.round(ms / qty);
+				const steps = [{ 
+					name: stepName, 
+					elapsed_ms: ms, 
+					qty_units: qty, 
+					avg_ms_per_unit: avg 
+				}];
+				
+				try {
+					// Save to server
+					await fetch('/api/times', { 
+						method: 'POST', 
+						headers: { 'Content-Type': 'application/json' }, 
+						body: JSON.stringify({ 
+							dessert: dessertName, 
+							steps, 
+							total_elapsed_ms: ms, 
+							actor_name: null 
+						}) 
+					});
+					
+					// Save to local history
+					const hist = readHistory();
+					hist.push({ 
+						id: new Date().toISOString(), 
+						date_iso: new Date().toISOString(), 
+						dessert: dessertName, 
+						step_name: stepName,
+						qty_units: qty, 
+						total_elapsed_ms: ms,
+						avg_ms_per_unit: avg,
+						steps 
+					});
+					writeHistory(hist);
+					
+					return true;
+				} catch (err) {
+					console.error('Error al guardar:', err);
+					return false;
+				}
+			}
 			
 			histBtn.addEventListener('click', () => {
 				const allHistory = readHistory();
@@ -405,44 +587,12 @@
 					return;
 				}
 				
-				const avg = Math.round(ms / qty);
-				const steps = [{ 
-					name: stepName, 
-					elapsed_ms: ms, 
-					qty_units: qty, 
-					avg_ms_per_unit: avg 
-				}];
-				
-				try {
-					// Save to server
-					await fetch('/api/times', { 
-						method: 'POST', 
-						headers: { 'Content-Type': 'application/json' }, 
-						body: JSON.stringify({ 
-							dessert: dessertName, 
-							steps, 
-							total_elapsed_ms: ms, 
-							actor_name: null 
-						}) 
-					});
-					
-					// Save to local history
-					const hist = readHistory();
-					hist.push({ 
-						id: new Date().toISOString(), 
-						date_iso: new Date().toISOString(), 
-						dessert: dessertName, 
-						step_name: stepName,
-						qty_units: qty, 
-						total_elapsed_ms: ms,
-						avg_ms_per_unit: avg,
-						steps 
-					});
-					writeHistory(hist);
-					
+				const saved = await saveTimerData();
+				if (saved) {
+					const avg = Math.round(ms / qty);
 					alert(`✅ Guardado!\n\nPostre: ${dessertName}\nPaso: ${stepName}\nCantidad: ${qty}\nTiempo total: ${fmtMs(ms)}\nPromedio por unidad: ${fmtMs(avg)}`);
-				} catch (err) {
-					alert('Error al guardar: ' + err.message);
+				} else {
+					alert('Error al guardar');
 				}
 			});
 			
