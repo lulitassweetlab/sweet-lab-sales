@@ -7420,6 +7420,16 @@ function openReceiptUploadPage(saleId) {
 	try {
 		const id = Number(saleId);
 		if (!id) return;
+		// Save current context to return to the same view
+		try {
+			const context = {
+				saleId: id,
+				sellerId: state.currentSeller?.id || null,
+				saleDayId: state.selectedDayId || null,
+				returnToSales: true
+			};
+			localStorage.setItem('receiptUploadContext', JSON.stringify(context));
+		} catch {}
 		window.location.href = `/receipt.html?sale_id=${encodeURIComponent(id)}`;
 	} catch {}
 }

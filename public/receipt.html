@@ -77,11 +77,12 @@
 			height: 64px;
 			margin: 0 auto 16px;
 			border-radius: 50%;
-			background: #10b981;
+			background: var(--primary, #f4a6b7);
 			display: flex;
 			align-items: center;
 			justify-content: center;
 			animation: successPop 0.4s ease;
+			box-shadow: 0 4px 16px rgba(244, 166, 183, 0.4);
 		}
 		@keyframes successPop {
 			0% { transform: scale(0); }
@@ -276,6 +277,36 @@
 					await new Promise(resolve => setTimeout(resolve, 2000));
 					overlay.classList.remove('show');
 					await new Promise(resolve => setTimeout(resolve, 300));
+					window.history.back();
+				} else {
+					// All failed
+					spinner.style.display = 'none';
+					loadingText.textContent = '✗ Error al subir';
+					loadingSubtext.textContent = 'Intenta de nuevo';
+					
+					await new Promise(resolve => setTimeout(resolve, 2000));
+					overlay.classList.remove('show');
+					uploadBtn.disabled = false;
+					uploadBtn.textContent = `Subir ${selectedFiles.length} archivo${selectedFiles.length > 1 ? 's' : ''}`;
+				}
+			} catch (e) {
+				console.error(e);
+				spinner.style.display = 'none';
+				loadingText.textContent = '✗ Error al subir';
+				loadingSubtext.textContent = 'Intenta de nuevo';
+				
+				await new Promise(resolve => setTimeout(resolve, 2000));
+				overlay.classList.remove('show');
+				uploadBtn.disabled = false;
+				uploadBtn.textContent = `Subir ${selectedFiles.length} archivo${selectedFiles.length > 1 ? 's' : ''}`;
+			}
+		});
+	})();
+	</script>
+</body>
+</html>
+
+(resolve => setTimeout(resolve, 300));
 					window.history.back();
 				} else {
 					// All failed
