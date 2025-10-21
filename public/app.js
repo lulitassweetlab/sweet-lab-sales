@@ -6855,33 +6855,48 @@ function openClientActionBar(tdElement, saleId, clientName, clickX, clickY) {
 		
 		// Get sale data to check if payment date is set
 		const sale = state.sales.find(s => s.id === saleId);
-		const hasPaymentInfo = sale?.payment_date && (sale?.payment_source || sale?.pay_method);
+	// Check if sale has transfer/bank method to show receipts gallery instead
+	const payMethod = (sale?.pay_method || '').toLowerCase();
+	const isTransferMethod = payMethod === 'transf' || payMethod === 'jorgebank';
+	
+	const hasPaymentInfo = sale?.payment_date && (sale?.payment_source || sale?.pay_method);
+	
+	if (hasPaymentInfo) {
+		// Format date for display (DD/MM)
+		const dateStr = sale.payment_date;
+		const dateParts = dateStr.split('-');
+		const displayDate = dateParts.length >= 3 ? `${dateParts[2]}/${dateParts[1]}` : dateStr;
+		const sourceOrMethod = sale.payment_source || sale.pay_method || '';
+		paymentBtn.innerHTML = `<span class="client-action-bar-btn-icon">📅</span><span class="client-action-bar-btn-label">${displayDate}</span>`;
+		paymentBtn.title = `Fecha de pago: ${displayDate}${sourceOrMethod ? ' - ' + sourceOrMethod : ''}`;
+		paymentBtn.style.fontWeight = 'bold';
+	} else if (isTransferMethod) {
+		// For transfer methods, show "Ver comprobantes" instead
+		paymentBtn.innerHTML = '<span class="client-action-bar-btn-icon">📷</span><span class="client-action-bar-btn-label">Comprobantes</span>';
+		paymentBtn.title = 'Ver y gestionar comprobantes de pago';
+	} else {
+		paymentBtn.innerHTML = '<span class="client-action-bar-btn-icon">📅</span><span class="client-action-bar-btn-label">Fecha</span>';
+		paymentBtn.title = 'Fecha y método de pago';
+	}
+	
+	paymentBtn.addEventListener('click', (e) => {
+		e.stopPropagation();
+		const btnClickX = e.clientX;
+		const btnClickY = e.clientY;
+		// Hide the action bar but keep the outline active
+		actionBar.classList.remove('active');
 		
-		if (hasPaymentInfo) {
-			// Format date for display (DD/MM)
-			const dateStr = sale.payment_date;
-			const dateParts = dateStr.split('-');
-			const displayDate = dateParts.length >= 3 ? `${dateParts[2]}/${dateParts[1]}` : dateStr;
-			const sourceOrMethod = sale.payment_source || sale.pay_method || '';
-			paymentBtn.innerHTML = `<span class="client-action-bar-btn-icon">📅</span><span class="client-action-bar-btn-label">${displayDate}</span>`;
-			paymentBtn.title = `Fecha de pago: ${displayDate}${sourceOrMethod ? ' - ' + sourceOrMethod : ''}`;
-			paymentBtn.style.fontWeight = 'bold';
+		// If transfer/bank method, open receipts gallery instead of single date dialog
+		if (isTransferMethod) {
+			openReceiptsGalleryPopover(saleId, btnClickX, btnClickY);
+			closeClientActionBar();
 		} else {
-			paymentBtn.innerHTML = '<span class="client-action-bar-btn-icon">📅</span><span class="client-action-bar-btn-label">Fecha</span>';
-			paymentBtn.title = 'Fecha y método de pago';
-		}
-		
-		paymentBtn.addEventListener('click', (e) => {
-			e.stopPropagation();
-			const btnClickX = e.clientX;
-			const btnClickY = e.clientY;
-			// Hide the action bar but keep the outline active
-			actionBar.classList.remove('active');
-			// Open dialog and pass callback to close action bar when done
+			// For other methods, use the single date dialog
 			openPaymentDateDialog(saleId, btnClickX, btnClickY, () => {
 				closeClientActionBar();
 			});
-		});
+		}
+	});
 		actionBar.appendChild(paymentBtn);
 	}
 	
