@@ -7492,6 +7492,10 @@ async function openReceiptsGalleryPopover(saleId, anchorX, anchorY) {
 		const isSuperAdmin = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 		
 		for (const receipt of receipts) {
+			// Default to 'transf' if no pay_method is set (uploaded receipts are transfers)
+			if (!receipt.pay_method) {
+				receipt.pay_method = 'transf';
+			}
 			const card = document.createElement('div');
 			card.style.border = '1px solid var(--border, #ddd)';
 			card.style.borderRadius = '8px';
