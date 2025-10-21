@@ -254,6 +254,7 @@ export async function ensureSchema() {
 		sale_id INTEGER NOT NULL REFERENCES sales(id) ON DELETE CASCADE,
 		image_base64 TEXT NOT NULL,
 		note_text TEXT DEFAULT '',
+		bank_method TEXT,
 		created_at TIMESTAMPTZ DEFAULT now()
 	)`;
 	// Ensure note_text column exists on older deployments
@@ -263,6 +264,12 @@ export async function ensureSchema() {
 			WHERE table_name = 'sale_receipts' AND column_name = 'note_text'
 		) THEN
 			ALTER TABLE sale_receipts ADD COLUMN note_text TEXT DEFAULT '';
+		END IF;
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'sale_receipts' AND column_name = 'bank_method'
+		) THEN
+			ALTER TABLE sale_receipts ADD COLUMN bank_method TEXT;
 		END IF;
 	END $$;`;
 	// Deliveries: record production by day and assignments to sellers

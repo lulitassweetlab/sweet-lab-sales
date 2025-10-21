@@ -52,7 +52,7 @@
         const previewInfo = document.getElementById('preview-info');
         const previewList = document.getElementById('preview-list');
 		const uploadBtn = document.getElementById('upload');
-		document.getElementById('back').addEventListener('click', () => history.length > 1 ? history.back() : (location.href = '/'));
+        document.getElementById('back').addEventListener('click', () => history.back());
         fileInput.addEventListener('change', () => {
             const files = fileInput.files;
             if (!files || files.length === 0) { preview.style.display = 'none'; previewList.innerHTML = ''; uploadBtn.disabled = true; return; }
@@ -110,7 +110,8 @@
                 }
                 alert('Comprobante(s) subido(s)');
                 try { localStorage.setItem('pendingFocus', JSON.stringify({ saleId })); } catch {}
-                location.href = '/';
+                // Regresar a la página anterior (tabla de ventas)
+                history.back();
             } catch (e) {
                 console.error(e);
                 alert('Error al subir comprobante');
