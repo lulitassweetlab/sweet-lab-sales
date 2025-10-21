@@ -48,6 +48,63 @@
 	--hover-accent-gold: #d4a574;
 	--hover-accent-gold-intense: #c2925a;
 	--hover-shadow-gold: rgba(212, 165, 116, 0.6);
+	--row-checked-bg: rgba(244, 166, 183, 0.15);
+}
+
+/* Row highlighting for checked items */
+tr.row-checked {
+	background-color: var(--row-checked-bg) !important;
+	transition: background-color 0.2s ease;
+}
+
+tr.row-checked td {
+	background-color: transparent !important;
+}
+
+/* Checkbox styling */
+.ingredient-checkbox {
+	cursor: pointer;
+	width: 18px;
+	height: 18px;
+	accent-color: var(--primary);
+}
+
+/* Floating dessert navigation buttons */
+.dessert-nav-btn {
+	transition: all 0.2s ease;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.dessert-nav-btn:hover {
+	background: var(--hover-primary-pink) !important;
+	color: white !important;
+	transform: translateX(4px);
+	box-shadow: 0 4px 16px var(--hover-shadow-pink) !important;
+}
+
+.dessert-nav-btn.active {
+	background: var(--primary) !important;
+	color: white !important;
+	font-weight: 600;
+	box-shadow: 0 4px 16px var(--hover-shadow-pink) !important;
+}
+
+/* Active timer row pulsing effect */
+@keyframes timer-pulse {
+	0%, 100% {
+		background-color: transparent;
+	}
+	50% {
+		background-color: rgba(244, 166, 183, 0.25);
+	}
+}
+
+.timer-row-active {
+	animation: timer-pulse 2s ease-in-out infinite;
+}
+
+.timer-row-active td {
+	background-color: transparent !important;
 }
 
 /* Toasts */
