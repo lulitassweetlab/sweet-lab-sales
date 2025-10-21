@@ -69,6 +69,43 @@ tr.row-checked td {
 	accent-color: var(--primary);
 }
 
+/* Floating dessert navigation buttons */
+.dessert-nav-btn {
+	transition: all 0.2s ease;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.dessert-nav-btn:hover {
+	background: var(--hover-primary-pink) !important;
+	transform: translateX(4px);
+	box-shadow: 0 4px 16px var(--hover-shadow-pink) !important;
+}
+
+.dessert-nav-btn.active {
+	background: var(--primary) !important;
+	color: white !important;
+	font-weight: 600;
+	box-shadow: 0 4px 16px var(--hover-shadow-pink) !important;
+}
+
+/* Active timer row pulsing effect */
+@keyframes timer-pulse {
+	0%, 100% {
+		background-color: transparent;
+	}
+	50% {
+		background-color: rgba(244, 166, 183, 0.25);
+	}
+}
+
+.timer-row-active {
+	animation: timer-pulse 2s ease-in-out infinite;
+}
+
+.timer-row-active td {
+	background-color: transparent !important;
+}
+
 /* Toasts */
 #toast-container {
 	position: fixed;

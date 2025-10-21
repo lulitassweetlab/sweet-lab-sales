@@ -105,7 +105,7 @@
 			}
 		}
 
-		function buildTimerControls(){
+		function buildTimerControls(associatedRows = []){
 			const stepState = { elapsedMs: 0, isRunning: false, startedAt: null };
 			const wrap = document.createElement('div'); wrap.style.display='flex'; wrap.style.alignItems='center'; wrap.style.gap='8px';
 			const display = document.createElement('div'); display.style.minWidth='84px'; display.style.textAlign='center'; display.style.fontVariantNumeric='tabular-nums';
@@ -117,12 +117,21 @@
 			let intervalId = null;
 			function compute(){ const base=Number(stepState.elapsedMs||0)||0; if (stepState.isRunning && stepState.startedAt) return base + (Date.now()-stepState.startedAt); return base; }
 			function render(){ display.textContent = formatMs(compute()); }
-			function play(){ if (stepState.isRunning) return; stepState.isRunning = true; stepState.startedAt = Date.now(); clearInterval(intervalId); intervalId = setInterval(render, 250); }
-			function pause(){ if (!stepState.isRunning) return; stepState.elapsedMs = compute(); stepState.isRunning = false; stepState.startedAt = null; clearInterval(intervalId); intervalId = null; render(); }
-			function stop(){ stepState.elapsedMs = 0; stepState.isRunning = false; stepState.startedAt = null; clearInterval(intervalId); intervalId = null; render(); }
+			function updateRowHighlight(){
+				for (const row of associatedRows){
+					if (stepState.isRunning) {
+						row.classList.add('timer-row-active');
+					} else {
+						row.classList.remove('timer-row-active');
+					}
+				}
+			}
+			function play(){ if (stepState.isRunning) return; stepState.isRunning = true; stepState.startedAt = Date.now(); clearInterval(intervalId); intervalId = setInterval(render, 250); updateRowHighlight(); }
+			function pause(){ if (!stepState.isRunning) return; stepState.elapsedMs = compute(); stepState.isRunning = false; stepState.startedAt = null; clearInterval(intervalId); intervalId = null; render(); updateRowHighlight(); }
+			function stop(){ stepState.elapsedMs = 0; stepState.isRunning = false; stepState.startedAt = null; clearInterval(intervalId); intervalId = null; render(); updateRowHighlight(); }
 			playBtn.addEventListener('click', play); pauseBtn.addEventListener('click', pause); stopBtn.addEventListener('click', stop);
 			render();
-			return { element: wrap, getElapsedMs: () => compute(), reset: () => { stop(); } };
+			return { element: wrap, getElapsedMs: () => compute(), reset: () => { stop(); }, addRow: (row) => { associatedRows.push(row); } };
 		}
 
 		function normalizeKey(name){ const k=(name||'').toString().trim().toLowerCase(); if (k.startsWith('arco')) return 'arco'; if (k.startsWith('melo')) return 'melo'; if (k.startsWith('mara')) return 'mara'; if (k.startsWith('oreo')) return 'oreo'; if (k.startsWith('nute')) return 'nute'; return k; }
@@ -220,50 +229,57 @@
 				if (!data) return;
 				const card = document.createElement('div'); card.className = 'measure-card'; card.style.padding='12px'; card.style.border='1px solid rgba(0,0,0,0.15)'; card.style.borderRadius='10px'; card.style.boxShadow='0 8px 24px rgba(0,0,0,0.12)';
 				const title = document.createElement('h3'); title.textContent = `${dessertName} × ${qty}`; title.style.textAlign='center'; title.style.fontSize='28px'; title.style.margin='4px 0 12px 0'; title.style.background='rgba(255, 105, 180, 0.18)'; title.style.padding='8px 6px'; title.style.borderRadius='8px'; card.appendChild(title);
-				const session = { dessert: dessertName, qty, steps: [] };
-				const checkedState = getCheckedState();
-				for (const step of (Array.isArray(data.steps) ? data.steps : [])){
-					const section = document.createElement('div'); section.className='measure-section'; section.style.margin='12px 0';
-					const head = document.createElement('div'); head.style.display='flex'; head.style.alignItems='center'; head.style.justifyContent='space-between'; head.style.gap='8px';
-					const sh = document.createElement('div'); sh.textContent = step.step_name || 'Paso'; sh.style.fontWeight='600'; sh.style.margin='0 0 6px 0'; sh.style.flex='1';
-					const timer = buildTimerControls(); head.append(sh, timer.element);
-					section.appendChild(head);
-					const table = document.createElement('table'); table.style.width='100%'; table.style.tableLayout='fixed';
-					const tbody = document.createElement('tbody');
+			const session = { dessert: dessertName, qty, steps: [] };
+			const checkedState = getCheckedState();
+			for (const step of (Array.isArray(data.steps) ? data.steps : [])){
+				const section = document.createElement('div'); section.className='measure-section'; section.style.margin='12px 0';
+				const head = document.createElement('div'); head.style.display='flex'; head.style.alignItems='center'; head.style.justifyContent='space-between'; head.style.gap='8px';
+				const sh = document.createElement('div'); sh.textContent = step.step_name || 'Paso'; sh.style.fontWeight='600'; sh.style.margin='0 0 6px 0'; sh.style.flex='1';
+				const timer = buildTimerControls(); head.append(sh, timer.element);
+				section.appendChild(head);
+				const table = document.createElement('table'); table.style.width='100%'; table.style.tableLayout='fixed';
+				const tbody = document.createElement('tbody');
+				const stepRows = [];
                     for (const it of (step.items || [])){
-						const tr = document.createElement('tr');
-						const itemKey = `${dessertName}:${step.step_name}:${it.ingredient}`.toLowerCase();
-						const isChecked = !!checkedState[itemKey];
-						if (isChecked) tr.classList.add('row-checked');
-						
-						// Checkbox column
-						const tdCheck = document.createElement('td'); tdCheck.style.width='30px';
-						const checkbox = document.createElement('input');
-						checkbox.type = 'checkbox';
-						checkbox.className = 'ingredient-checkbox';
-						checkbox.checked = isChecked;
-						checkbox.addEventListener('change', () => {
-							const state = getCheckedState();
-							if (checkbox.checked) {
-								state[itemKey] = true;
-								tr.classList.add('row-checked');
-							} else {
-								delete state[itemKey];
-								tr.classList.remove('row-checked');
-							}
-							saveCheckedState(state);
-						});
-						tdCheck.appendChild(checkbox);
-						
-						const tdN = document.createElement('td'); tdN.textContent = it.ingredient; tdN.style.padding='8px 4px'; tdN.style.textAlign='center';
+					const tr = document.createElement('tr');
+					const itemKey = `${dessertName}:${step.step_name}:${it.ingredient}`.toLowerCase();
+					const isChecked = !!checkedState[itemKey];
+					if (isChecked) tr.classList.add('row-checked');
+					
+					// Checkbox column
+					const tdCheck = document.createElement('td'); tdCheck.style.width='30px';
+					const checkbox = document.createElement('input');
+					checkbox.type = 'checkbox';
+					checkbox.className = 'ingredient-checkbox';
+					checkbox.checked = isChecked;
+					checkbox.addEventListener('change', () => {
+						const state = getCheckedState();
+						if (checkbox.checked) {
+							state[itemKey] = true;
+							tr.classList.add('row-checked');
+						} else {
+							delete state[itemKey];
+							tr.classList.remove('row-checked');
+						}
+						saveCheckedState(state);
+					});
+					tdCheck.appendChild(checkbox);
+					
+					const tdN = document.createElement('td'); tdN.textContent = it.ingredient; tdN.style.padding='8px 4px'; tdN.style.textAlign='center';
                         const per = Number(it.qty_per_unit || 0) || 0;
                         const adj = Number(it.adjustment || 0) || 0;
                         const total = (per * qty) + adj;
                         const tdQ = document.createElement('td'); tdQ.textContent = fmt1.format(total); tdQ.style.textAlign='right'; tdQ.style.padding='5px 4px';
-						tr.append(tdCheck, tdN, tdQ); tbody.appendChild(tr);
-					}
-					table.appendChild(tbody); section.appendChild(table); card.appendChild(section);
-					session.steps.push({ name: step.step_name || 'Paso', timer });
+					tr.append(tdCheck, tdN, tdQ);
+					stepRows.push(tr);
+					tbody.appendChild(tr);
+				}
+				// Associate rows with timer
+				for (const row of stepRows) {
+					timer.addRow(row);
+				}
+				table.appendChild(tbody); section.appendChild(table); card.appendChild(section);
+				session.steps.push({ name: step.step_name || 'Paso', timer });
 				}
 				// Extras - Hidden in this view (still needed for other functionality)
 				// Uncomment below if you want to show extras again
@@ -341,14 +357,23 @@
 				navContainer.style.gap = '8px';
 				navContainer.style.zIndex = '100';
 				
+				const navButtons = [];
 				for (const d of renderedDesserts) {
 					const btn = document.createElement('button');
-					btn.className = 'press-btn';
+					btn.className = 'press-btn dessert-nav-btn';
 					btn.textContent = d.name;
+					btn.dataset.dessertCode = d.short_code;
 					btn.style.minWidth = '80px';
 					btn.style.fontSize = '13px';
 					btn.style.padding = '8px 12px';
 					btn.addEventListener('click', () => {
+						// Remove active class from all buttons
+						for (const navBtn of navButtons) {
+							navBtn.classList.remove('active');
+						}
+						// Add active class to clicked button
+						btn.classList.add('active');
+						
 						const card = document.getElementById(`dessert-${d.short_code}`);
 						if (card) {
 							card.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -360,7 +385,13 @@
 							}, 1000);
 						}
 					});
+					navButtons.push(btn);
 					navContainer.appendChild(btn);
+				}
+				
+				// Set first button as active by default
+				if (navButtons.length > 0) {
+					navButtons[0].classList.add('active');
 				}
 				
 				document.body.appendChild(navContainer);
