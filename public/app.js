@@ -226,14 +226,13 @@ function renderClientDetailTable(rows) {
 		if (isMarcela) opts.push({ v: 'marce', label: '' });
 		// If current value is 'marce' but user is not Marcela, include it disabled so it displays
 		if (!isMarcela && current === 'marce') opts.push({ v: 'marce', label: '' });
-		const isJorge = String(state.currentUser?.name || '').toLowerCase() === 'jorge';
-		if (isJorge) opts.push({ v: 'jorge', label: '' });
-		// If current value is 'jorge' but user is not Jorge, include it disabled so it displays
-		if (!isJorge && current === 'jorge') opts.push({ v: 'jorge', label: '' });
-		opts.push({ v: 'transf', label: '' });
-		// Jorge-specific extra bank option
-		if (isJorge) opts.push({ v: 'jorgebank', label: '' });
-		if (!isJorge && current === 'jorgebank') opts.push({ v: 'jorgebank', label: '' });
+        const isJorge = String(state.currentUser?.name || '').toLowerCase() === 'jorge';
+        if (isJorge) opts.push({ v: 'jorge', label: '' });
+        // If current value is 'jorge' but user is not Jorge, include it disabled so it displays
+        if (!isJorge && current === 'jorge') opts.push({ v: 'jorge', label: '' });
+        opts.push({ v: 'transf', label: '' });
+        // Hide 'jorgebank' from main selector for all users; include only to display current value
+        if (current === 'jorgebank') opts.push({ v: 'jorgebank', label: '' });
 		for (const o of opts) { const opt = document.createElement('option'); opt.value = o.v; opt.textContent = o.label; if (!isMarcela && o.v === 'marce') opt.disabled = true; if (!isJorge && o.v === 'jorge') opt.disabled = true; if (current === o.v) opt.selected = true; sel.appendChild(opt); }
 		function applyPayClass() {
 			wrap.classList.remove('placeholder','method-efectivo','method-transf','method-marce','method-jorge','method-jorgebank','method-entregado');
@@ -7459,8 +7458,8 @@ function openReceiptsGalleryPopover(receipts, saleId, anchorX, anchorY) {
             if (isJorge) opts.push({ v: 'jorge', label: '' });
             if (!isJorge && current === 'jorge') opts.push({ v: 'jorge', label: '' });
             opts.push({ v: 'transf', label: '' });
-            if (isJorge) opts.push({ v: 'jorgebank', label: '' });
-            if (!isJorge && current === 'jorgebank') opts.push({ v: 'jorgebank', label: '' });
+            // Hide 'jorgebank' from this main selector; only show if current
+            if (current === 'jorgebank') opts.push({ v: 'jorgebank', label: '' });
             for (const o of opts) {
                 const opt = document.createElement('option');
                 opt.value = o.v; opt.textContent = o.label;
@@ -7501,8 +7500,8 @@ function openReceiptsGalleryPopover(receipts, saleId, anchorX, anchorY) {
                     if (saleRow) saleRow.pay_method = sel.value || null;
                     applyPayClass();
                     if ((sel.value || '').toLowerCase() === 'jorgebank') {
-                        // open payment date popover immediately
-                        setTimeout(() => openPaymentDateDialog(Number(id)), 0);
+                        // open payment date popover immediately WITHOUT closing the gallery
+                        openPaymentDateDialog(Number(id));
                     }
                 } catch {}
             });
