@@ -1906,6 +1906,62 @@ function renderTable() {
 	preloadChangeLogsForCurrentTable();
 }
 
+// Update main selector to jorgebank in real-time if all receipts are verified
+async function checkAndUpdateMainSelectorToJorgebank(saleId) {
+	try {
+		// Fetch all receipts for this sale
+		const receipts = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(saleId)}`);
+		
+		if (!Array.isArray(receipts) || receipts.length === 0) return;
+		
+		// Check if ALL receipts have jorgebank
+		const allJorgebank = receipts.every(r => (r.pay_method || '').trim().toLowerCase() === 'jorgebank');
+		
+		if (allJorgebank) {
+			// Find the sale in state.sales
+			const sale = state.sales?.find(s => Number(s.id) === Number(saleId));
+			if (sale) {
+				// Update local state
+				sale.pay_method = 'jorgebank';
+				console.log(`🔄 Real-time update: Sale ${saleId} -> jorgebank (all ${receipts.length} receipts verified)`);
+				
+				// Update the selector in the DOM
+				const row = document.querySelector(`tr[data-sale-id="${saleId}"]`);
+				if (row) {
+					const selector = row.querySelector('.col-paid select');
+					if (selector) {
+						// Add jorgebank option if not present
+						if (!selector.querySelector('option[value="jorgebank"]')) {
+							const opt = document.createElement('option');
+							opt.value = 'jorgebank';
+							opt.textContent = '';
+							opt.disabled = true;
+							selector.appendChild(opt);
+						}
+						selector.value = 'jorgebank';
+						
+						// Update visual class
+						const wrap = selector.closest('.pay-wrap');
+						if (wrap) {
+							wrap.classList.remove('placeholder', 'method-efectivo', 'method-transf', 'method-marce', 'method-jorge', 'method-entregado');
+							wrap.classList.add('method-jorgebank');
+						}
+					}
+				}
+				
+				// Update backend
+				await api('PUT', API.Sales, {
+					_update_sale_pay_method: true,
+					sale_id: saleId,
+					pay_method: 'jorgebank'
+				});
+			}
+		}
+	} catch (err) {
+		console.error('Error checking receipts for real-time update:', err);
+	}
+}
+
 // Check receipts for each sale and update pay_method to jorgebank if all receipts are jorgebank
 async function enrichSalesWithReceiptStatus() {
 	if (!Array.isArray(state.sales)) return;
@@ -8015,6 +8071,9 @@ function openPaymentDateDialogForReceipt(receipt, onSaved) {
 				
 				// Close this dialog (but NOT the gallery)
 				cleanup();
+				
+				// Check if we need to update the main selector to jorgebank
+				await checkAndUpdateMainSelectorToJorgebank(receipt.sale_id);
 				
 				// Re-enable buttons
 				methodsContainer.querySelectorAll('button').forEach(x => x.disabled = false);
