@@ -99,9 +99,6 @@
 				<strong id="range-label"></strong>
 				<small id="count-label" style="opacity:.8"></small>
 			</div>
-			<div style="margin:0 12px 12px 12px; padding:8px 12px; background-color:rgba(244, 166, 183, 0.1); border-left:3px solid var(--primary); border-radius:4px;">
-				<small style="opacity:.85">💡 <strong>Consejo:</strong> Haz clic en las celdas de Fecha, Descripción, Ingreso o Salida para editarlas</small>
-			</div>
 			<div class="table-wrapper" style="padding:12px;">
 				<form id="acc-form" style="display:flex; flex-direction:column; gap:12px; max-width:520px; margin:0 auto;">
 					<div style="display:flex; gap:12px; justify-content:center; width:300px; margin:40px auto 20px auto;">
@@ -242,16 +239,14 @@
 		
 		function generateMonthButtons() {
 			monthButtons.innerHTML = '';
-			const now = new Date();
-			const currentYear = now.getFullYear();
-			const currentMonth = now.getMonth();
+			// Use same date logic as the rest of the code
+			const currentYear = today.getFullYear();
+			const currentMonth = today.getMonth();
 			const months = [];
 			
 			// Generate last 6 months including current month
 			for (let i = 5; i >= 0; i--) {
-				const targetYear = currentYear;
-				const targetMonth = currentMonth - i;
-				const date = new Date(Date.UTC(targetYear, targetMonth, 1));
+				const date = new Date(currentYear, currentMonth - i, 1);
 				const monthStart = new Date(Date.UTC(date.getFullYear(), date.getMonth(), 1)).toISOString().slice(0,10);
 				const monthEnd = new Date(Date.UTC(date.getFullYear(), date.getMonth() + 1, 0)).toISOString().slice(0,10);
 				
@@ -268,7 +263,7 @@
 			months.forEach((month, index) => {
 				const btn = document.createElement('button');
 				btn.className = 'month-btn';
-				btn.textContent = `${month.name} ${month.year}`;
+				btn.textContent = month.name;
 				btn.dataset.start = month.start;
 				btn.dataset.end = month.end;
 				
@@ -291,8 +286,6 @@
 				
 				monthButtons.appendChild(btn);
 			});
-			
-			console.log('Meses generados:', months.map(m => `${m.name} ${m.year}`).join(', '));
 		}
 		
 		// Initialize month buttons
