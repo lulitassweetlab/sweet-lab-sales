@@ -171,7 +171,7 @@
 		function buildTimerControls(associatedRows = [], dessertName = '', stepName = '', targetElement = null, qtyPerDessert = 0){
 			const stepState = { elapsedMs: 0, isRunning: false, startedAt: null };
 			const wrap = document.createElement('div'); wrap.style.display='flex'; wrap.style.alignItems='center'; wrap.style.gap='8px';
-			const display = document.createElement('div'); display.style.minWidth='84px'; display.style.textAlign='center'; display.style.fontVariantNumeric='tabular-nums';
+			const display = document.createElement('div'); display.style.minWidth='180px'; display.style.textAlign='center'; display.style.fontVariantNumeric='tabular-nums';
 			const playBtn = document.createElement('button'); playBtn.className='press-btn'; playBtn.textContent='▶'; playBtn.title='Play';
 			const pauseBtn = document.createElement('button'); pauseBtn.className='press-btn'; pauseBtn.textContent='⏸'; pauseBtn.title='Pause';
 			const stopBtn = document.createElement('button'); stopBtn.className='press-btn'; stopBtn.textContent='⏹'; stopBtn.title='Stop';
@@ -183,8 +183,39 @@
 			let activeTimerButton = null;
 			const timerId = 'timer-btn-' + (++timerButtonIdCounter);
 			
+			// Calculate estimated time based on history
+			function getEstimatedTime() {
+				const hist = readHistory();
+				const filtered = hist.filter(item => 
+					item.dessert === dessertName && 
+					item.step_name === stepName && 
+					item.avg_ms_per_unit
+				);
+				
+				if (filtered.length === 0) return null;
+				
+				// Calculate average of averages
+				const sumOfAverages = filtered.reduce((sum, item) => sum + item.avg_ms_per_unit, 0);
+				const avgPerUnit = Math.round(sumOfAverages / filtered.length);
+				
+				// Multiply by quantity
+				return avgPerUnit * qtyPerDessert;
+			}
+			
+			const estimatedMs = getEstimatedTime();
+			
 			function compute(){ const base=Number(stepState.elapsedMs||0)||0; if (stepState.isRunning && stepState.startedAt) return base + (Date.now()-stepState.startedAt); return base; }
-			function render(){ display.textContent = formatMs(compute()); }
+			function render(){ 
+				const currentTime = formatMs(compute());
+				if (estimatedMs) {
+					const estimatedTime = formatMs(estimatedMs);
+					display.innerHTML = `<span style="color:var(--text);">${currentTime}</span> <span style="color:rgba(0,0,0,0.4); font-weight:400;">/ ${estimatedTime}</span>`;
+				} else {
+					display.textContent = currentTime;
+				}
+			}
+			
+			function readHistory(){ try { return JSON.parse(localStorage.getItem('timesHistory') || '[]') || []; } catch { return []; } }
 			function updateRowHighlight(){
 				for (const row of associatedRows){
 					if (stepState.isRunning) {
@@ -387,7 +418,6 @@
 					removeActiveTimerButton();
 				}
 			}
-			function readHistory(){ try { return JSON.parse(localStorage.getItem('timesHistory') || '[]') || []; } catch { return []; } }
 			function writeHistory(arr){ try { localStorage.setItem('timesHistory', JSON.stringify(arr)); } catch {} }
 			function fmtMs(ms){ const total=Math.max(0,Math.floor(ms/1000)); const h=Math.floor(total/3600); const m=Math.floor((total%3600)/60); const s=total%60; const pad=n=>String(n).padStart(2,'0'); return (h>0?`${h}:`:'')+`${pad(m)}:${pad(s)}`; }
 			
@@ -450,6 +480,17 @@
 				const filteredItems = allHistory.filter(item => 
 					item.dessert === dessertName && item.step_name === stepName
 				).reverse();
+				
+				// Create overlay
+				const overlay = document.createElement('div');
+				overlay.style.position = 'fixed';
+				overlay.style.top = '0';
+				overlay.style.left = '0';
+				overlay.style.right = '0';
+				overlay.style.bottom = '0';
+				overlay.style.background = 'rgba(0,0,0,0.4)';
+				overlay.style.zIndex = '9999';
+				overlay.style.backdropFilter = 'blur(2px)';
 				
 				const pop = document.createElement('div'); 
 				pop.className = 'confirm-popover'; 
@@ -568,10 +609,17 @@
 				close.textContent='Cerrar'; 
 				actions.appendChild(close);
 				
+				function cleanup() {
+					if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+					if (pop.parentNode) pop.parentNode.removeChild(pop);
+				}
+				
 				pop.append(title, list, actions); 
+				document.body.appendChild(overlay);
 				document.body.appendChild(pop); 
 				pop.classList.add('aladdin-pop');
-				close.addEventListener('click', () => { if (pop.parentNode) pop.parentNode.removeChild(pop); });
+				close.addEventListener('click', cleanup);
+				overlay.addEventListener('click', cleanup);
 			});
 			
 			saveBtn.addEventListener('click', async () => {
