@@ -155,7 +155,10 @@
 			</div>
 			<div style="display:flex; justify-content:space-between; align-items:center; margin:0 12px 8px 12px">
 				<strong id="range-label"></strong>
-				<small id="count-label" style="opacity:.8"></small>
+				<div style="display:flex; align-items:center; gap:12px;">
+					<small id="count-label" style="opacity:.8"></small>
+					<button id="add-entry-btn-table" class="press-btn btn-primary" style="width:36px; height:36px; border-radius:50%; padding:0; font-size:24px; line-height:1; display:flex; align-items:center; justify-content:center;" title="Nueva entrada">+</button>
+				</div>
 			</div>
 					<div class="table-wrapper" id="acc-wrapper" style="margin-top:12px;">
 				<table id="acc-table">
@@ -692,6 +695,15 @@
 		}
 
 		load();
+		
+		// Abrir el popover automáticamente al cargar la página
+		openFormPopover();
+		
+		// Event listener para el botón + de la tabla
+		const addEntryBtnTable = document.getElementById('add-entry-btn-table');
+		if (addEntryBtnTable) {
+			addEntryBtnTable.addEventListener('click', openFormPopover);
+		}
 	})();
 	</script>
 </body>
