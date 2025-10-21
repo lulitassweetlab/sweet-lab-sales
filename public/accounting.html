@@ -31,6 +31,29 @@
 		.editable:active {
 			transform: scale(0.98);
 		}
+		/* Botonera de meses (últimos 6) */
+		.month-btn {
+			border: 1px solid var(--border);
+			background: transparent;
+			color: var(--foreground);
+			border-radius: 9999px;
+			padding: 6px 12px;
+			font-size: 13px;
+			line-height: 1;
+			cursor: pointer;
+			transition: background-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+		}
+		.month-btn:hover {
+			background-color: var(--hover-primary-pink, #e27a90);
+			color: #fff;
+			box-shadow: 0 4px 12px var(--hover-shadow-pink, rgba(226,122,144,0.35));
+			transform: translateY(-1px);
+		}
+		.month-btn.active, .month-btn[aria-pressed="true"] {
+			background-color: var(--primary, #f4a6b7);
+			color: #fff;
+			box-shadow: 0 6px 18px var(--hover-shadow-pink, rgba(226,122,144,0.45));
+		}
 	</style>
 </head>
 <body>
@@ -58,6 +81,9 @@
 			<div style="display:flex; justify-content:space-between; align-items:center; margin:0 12px 8px 12px">
 				<strong id="range-label"></strong>
 				<small id="count-label" style="opacity:.8"></small>
+			</div>
+			<!-- Últimos 6 meses -->
+			<div id="months-wrap" style="display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:0 12px 12px 12px;">
 			</div>
 			<div style="margin:0 12px 12px 12px; padding:8px 12px; background-color:rgba(244, 166, 183, 0.1); border-left:3px solid var(--primary); border-radius:4px;">
 				<small style="opacity:.85">💡 <strong>Consejo:</strong> Haz clic en las celdas de Fecha, Descripción, Ingreso o Salida para editarlas</small>
@@ -159,6 +185,7 @@
 
 		const rangeLabel = document.getElementById('range-label');
 		const countLabel = document.getElementById('count-label');
+		const monthsWrap = document.getElementById('months-wrap');
 		const tbody = document.getElementById('acc-tbody');
 		const tIng = document.getElementById('t-ingresos');
 		const tGas = document.getElementById('t-gastos');
@@ -376,6 +403,49 @@
 			});
 		}
 
+		function buildLastSixMonths(){
+			// Returns array of { y, m, label, startIso, endIso }
+			const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+			const out = [];
+			const now = new Date();
+			for (let i = 0; i < 6; i++) {
+				const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
+				const y = d.getUTCFullYear();
+				const m = d.getUTCMonth();
+				const startIso = new Date(Date.UTC(y, m, 1)).toISOString().slice(0,10);
+				const endIso = new Date(Date.UTC(y, m + 1, 0)).toISOString().slice(0,10);
+				out.push({ y, m, label: `${months[m]} ${y}` , startIso, endIso });
+			}
+			return out;
+		}
+
+		function renderMonthButtons(){
+			if (!monthsWrap) return;
+			monthsWrap.innerHTML = '';
+			const list = buildLastSixMonths();
+			for (let idx = 0; idx < list.length; idx++){
+				const it = list[idx];
+				const btn = document.createElement('button');
+				btn.type = 'button';
+				btn.className = 'month-btn';
+				btn.textContent = it.label;
+				btn.setAttribute('data-start', it.startIso);
+				btn.setAttribute('data-end', it.endIso);
+				btn.setAttribute('aria-pressed', (start === it.startIso && end === it.endIso) ? 'true' : 'false');
+				if (start === it.startIso && end === it.endIso) btn.classList.add('active');
+				btn.addEventListener('click', () => {
+					start = it.startIso;
+					end = it.endIso;
+					// Update active state
+					Array.from(monthsWrap.querySelectorAll('.month-btn')).forEach(b => { b.classList.remove('active'); b.setAttribute('aria-pressed','false'); });
+					btn.classList.add('active');
+					btn.setAttribute('aria-pressed','true');
+					load();
+				});
+				monthsWrap.appendChild(btn);
+			}
+		}
+
 		async function load(){
 			try {
 				rangeLabel.textContent = `${formatDay(start)} — ${formatDay(end)}`;
@@ -483,6 +553,7 @@
 			openSingleDatePopover((pickedIso) => { dateInput.value = pickedIso; }, ev.clientX, ev.clientY);
 		});
 
+		renderMonthButtons();
 		load();
 	})();
 	</script>
