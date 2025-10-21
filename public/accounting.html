@@ -31,6 +31,46 @@
 		.editable:active {
 			transform: scale(0.98);
 		}
+		/* Estilos para los botones de meses */
+		.month-buttons {
+			display: flex;
+			gap: 8px;
+			justify-content: center;
+			flex-wrap: wrap;
+			margin: 16px 12px;
+			padding: 12px;
+			background: var(--card);
+			border-radius: 8px;
+			border: 1px solid var(--border);
+		}
+		.month-btn {
+			padding: 10px 18px;
+			border: 1px solid var(--border);
+			background: var(--card);
+			color: var(--foreground);
+			border-radius: 6px;
+			cursor: pointer;
+			font-size: 14px;
+			font-weight: 500;
+			transition: all 0.2s ease;
+			min-width: 100px;
+		}
+		.month-btn:hover {
+			background: var(--hover-primary-pink, #e27a90);
+			color: white;
+			transform: translateY(-2px);
+			box-shadow: 0 4px 12px rgba(244, 166, 183, 0.3);
+			border-color: var(--primary);
+		}
+		.month-btn:active {
+			transform: translateY(0);
+		}
+		.month-btn.active {
+			background: var(--primary, #f4a6b7);
+			color: white;
+			border-color: var(--primary);
+			box-shadow: 0 4px 12px rgba(244, 166, 183, 0.2);
+		}
 	</style>
 </head>
 <body>
@@ -55,6 +95,9 @@
 			</div>
 		</div>
 		<div class="panel-body">
+			<div class="month-buttons" id="month-buttons">
+				<!-- Los botones de meses se generarán dinámicamente -->
+			</div>
 			<div style="display:flex; justify-content:space-between; align-items:center; margin:0 12px 8px 12px">
 				<strong id="range-label"></strong>
 				<small id="count-label" style="opacity:.8"></small>
@@ -195,6 +238,62 @@
 		// Range: current month by default
 		let start = new Date(Date.UTC(today.getFullYear(), today.getMonth(), 1)).toISOString().slice(0,10);
 		let end = new Date(Date.UTC(today.getFullYear(), today.getMonth()+1, 0)).toISOString().slice(0,10);
+
+		// Generate last 6 months buttons
+		const monthButtons = document.getElementById('month-buttons');
+		const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+		
+		function generateMonthButtons() {
+			monthButtons.innerHTML = '';
+			const now = new Date();
+			const months = [];
+			
+			// Generate last 6 months including current
+			for (let i = 5; i >= 0; i--) {
+				const date = new Date(Date.UTC(now.getFullYear(), now.getMonth() - i, 1));
+				const monthStart = new Date(Date.UTC(date.getFullYear(), date.getMonth(), 1)).toISOString().slice(0,10);
+				const monthEnd = new Date(Date.UTC(date.getFullYear(), date.getMonth() + 1, 0)).toISOString().slice(0,10);
+				
+				months.push({
+					name: monthNames[date.getMonth()],
+					year: date.getFullYear(),
+					start: monthStart,
+					end: monthEnd,
+					isCurrent: i === 0
+				});
+			}
+			
+			// Create buttons
+			months.forEach(month => {
+				const btn = document.createElement('button');
+				btn.className = 'month-btn';
+				btn.textContent = `${month.name} ${month.year}`;
+				btn.dataset.start = month.start;
+				btn.dataset.end = month.end;
+				
+				// Mark current month as active by default
+				if (month.isCurrent) {
+					btn.classList.add('active');
+				}
+				
+				// Click handler
+				btn.addEventListener('click', () => {
+					// Remove active class from all buttons
+					monthButtons.querySelectorAll('.month-btn').forEach(b => b.classList.remove('active'));
+					// Add active class to clicked button
+					btn.classList.add('active');
+					// Update range and reload data
+					start = month.start;
+					end = month.end;
+					load();
+				});
+				
+				monthButtons.appendChild(btn);
+			});
+		}
+		
+		// Initialize month buttons
+		generateMonthButtons();
 
 		async function fetchJSON(u, opts){ const r = await fetch(u, opts); if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }
 		function fmtMoney(n){ const v = Number(n||0); try { return new Intl.NumberFormat('es-CO').format(v); } catch { return String(v); } }
