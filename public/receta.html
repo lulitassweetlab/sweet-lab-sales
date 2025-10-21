@@ -136,22 +136,20 @@
 
 		function normalizeKey(name){ const k=(name||'').toString().trim().toLowerCase(); if (k.startsWith('arco')) return 'arco'; if (k.startsWith('melo')) return 'melo'; if (k.startsWith('mara')) return 'mara'; if (k.startsWith('oreo')) return 'oreo'; if (k.startsWith('nute')) return 'nute'; return k; }
 		
-		// Checkbox state management (per session, per range)
-		const getCheckStateKey = () => `receta.checkState:${start}:${end}`;
+		// Checkbox state management: temporary (do not persist)
+		let checkedStateMem = {};
 		function getCheckedState(){
-			try {
-				const saved = localStorage.getItem(getCheckStateKey());
-				return saved ? JSON.parse(saved) : {};
-			} catch { return {}; }
+			return checkedStateMem;
 		}
 		function saveCheckedState(state){
-			try {
-				localStorage.setItem(getCheckStateKey(), JSON.stringify(state));
-			} catch {}
+			// Keep only in memory for this visit
+			checkedStateMem = { ...state };
 		}
 
 		async function load(){
 			if (!start || !end) return;
+			// Reset temporary checkbox selections when loading a new range
+			checkedStateMem = {};
 			rangeLabel.textContent = `${formatDay(start)} — ${formatDay(end)}`;
 			countLabel.textContent = 'Cargando…';
 			cardsWrap.innerHTML = '';
