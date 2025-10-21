@@ -135,8 +135,15 @@
 		let uploadContext = null;
 		try {
 			const saved = localStorage.getItem('receiptUploadContext');
-			if (saved) uploadContext = JSON.parse(saved);
-		} catch {}
+			if (saved) {
+				uploadContext = JSON.parse(saved);
+				console.log('📦 Upload context loaded:', uploadContext);
+			} else {
+				console.log('⚠️ No upload context found in localStorage');
+			}
+		} catch (err) {
+			console.error('❌ Error loading upload context:', err);
+		}
 		
 		// Resolve actor name from saved auth user
 		let actorName = '';
