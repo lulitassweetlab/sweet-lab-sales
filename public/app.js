@@ -6345,6 +6345,24 @@ function openPayMenu(anchorEl, selectEl, clickX, clickY, allowJorgebank) {
 		if (it.v === '') btn.textContent = '-';
 		btn.addEventListener('click', async (e) => {
 			e.stopPropagation();
+			// Special handling to avoid overwriting bank method when just opening gallery
+			const trEl = anchorEl.closest('tr');
+			const currentSaleId = Number(trEl?.dataset?.id);
+			if (it.v === 'transf' && currentSaleId) {
+				try {
+					const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(currentSaleId)}`);
+					if (Array.isArray(recs) && recs.length) {
+						openReceiptsGalleryPopover(recs, currentSaleId, rect.left + rect.width / 2, rect.bottom);
+						cleanup();
+						return;
+					}
+				} catch {}
+				// If no receipts, fall back to upload page (no need to change pay_method yet)
+				openReceiptUploadPage(currentSaleId);
+				cleanup();
+				return;
+			}
+			// Default: perform selection change
 			selectEl.value = it.v;
 			selectEl.dispatchEvent(new Event('change'));
             // Special behavior: selecting 'jorge' or 'jorgebank' can open payment-date popover
@@ -6358,16 +6376,16 @@ function openPayMenu(anchorEl, selectEl, clickX, clickY, allowJorgebank) {
 					return;
 				}
 			}
-			// If selecting bank types and not first-time popover, show existing receipt if any; otherwise open upload
-			if ((it.v === 'transf' || it.v === 'jorgebank') && currentSaleId) {
-                try {
-                    const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(currentSaleId)}`);
-                    if (Array.isArray(recs) && recs.length) {
-                        openReceiptsGalleryPopover(recs, currentSaleId, rect.left + rect.width / 2, rect.bottom);
-                    } else {
-                        openReceiptUploadPage(currentSaleId);
-                    }
-                } catch { openReceiptUploadPage(currentSaleId); }
+			// For jorgebank from main menu (not gallery), still show receipts/upload as before
+			if (it.v === 'jorgebank' && currentSaleId && allowJorgebank !== true) {
+				try {
+					const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(currentSaleId)}`);
+					if (Array.isArray(recs) && recs.length) {
+						openReceiptsGalleryPopover(recs, currentSaleId, rect.left + rect.width / 2, rect.bottom);
+					} else {
+						openReceiptUploadPage(currentSaleId);
+					}
+				} catch { openReceiptUploadPage(currentSaleId); }
 			}
 			cleanup();
 		});
