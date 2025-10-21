@@ -1685,7 +1685,8 @@ function renderTable() {
 				if (!isMarcela && current === 'marce') options.push({ v: 'marce', label: '' });
                 const isJorge = String(state.currentUser?.name || '').toLowerCase() === 'jorge';
                 if (isJorge) options.push({ v: 'jorge', label: '' });
-                // Hide 'jorgebank' entirely from main table selector; include only to display current value
+                // Hide 'jorgebank' entirely from main table selector for everyone, including superadmin.
+                // Only include to display current value if already set.
                 if (current === 'jorgebank') options.push({ v: 'jorgebank', label: '' });
 				// If current value is 'jorge' but user is not Jorge, include it disabled so it displays
 				if (!isJorge && current === 'jorge') options.push({ v: 'jorge', label: '' });
@@ -6300,7 +6301,7 @@ async function openConfirmPopover(message, anchorX, anchorY) {
 	});
 }
 
-function openPayMenu(anchorEl, selectEl, clickX, clickY) {
+function openPayMenu(anchorEl, selectEl, clickX, clickY, allowJorgebank) {
 	const rect = anchorEl.getBoundingClientRect();
 	const menu = document.createElement('div');
 	menu.className = 'pay-menu';
@@ -6314,21 +6315,25 @@ function openPayMenu(anchorEl, selectEl, clickX, clickY) {
 	function markSeenPaymentDateDialogForSale(saleId, method) {
 		try { localStorage.setItem('seenPaymentDate_' + String(method || '') + '_' + String(saleId || ''), '1'); } catch {}
 	}
-	const items = [
-		{ v: 'efectivo', cls: 'menu-efectivo' },
-		{ v: 'entregado', cls: 'menu-entregado' }
-	];
-	if (String(state.currentUser?.name || '').toLowerCase() === 'marcela') {
-		items.push({ v: 'marce', cls: 'menu-marce' });
-	}
-	const isJorgeUser = String(state.currentUser?.name || '').toLowerCase() === 'jorge';
-	if (isJorgeUser) {
-		items.push({ v: 'jorge', cls: 'menu-jorge' });
-		items.push({ v: 'jorgebank', cls: 'menu-jorgebank' });
-	} else if ((selectEl.value || '') === 'jorgebank') {
-		// Allow non-Jorge to see/select 'jorgebank' in menu only if it's current
-		items.push({ v: 'jorgebank', cls: 'menu-jorgebank' });
-	}
+    const items = [
+        { v: 'efectivo', cls: 'menu-efectivo' },
+        { v: 'entregado', cls: 'menu-entregado' }
+    ];
+    if (String(state.currentUser?.name || '').toLowerCase() === 'marcela') {
+        items.push({ v: 'marce', cls: 'menu-marce' });
+    }
+    const isJorgeUser = String(state.currentUser?.name || '').toLowerCase() === 'jorge';
+    if (isJorgeUser) {
+        items.push({ v: 'jorge', cls: 'menu-jorge' });
+    }
+    // Only include 'jorgebank' when explicitly allowed (e.g., in gallery overlay),
+    // otherwise keep it hidden from the main selector menu. Still allow seeing it
+    // if it's currently selected so users can clear it.
+    if (allowJorgebank === true) {
+        items.push({ v: 'jorgebank', cls: 'menu-jorgebank' });
+    } else if ((selectEl.value || '') === 'jorgebank') {
+        items.push({ v: 'jorgebank', cls: 'menu-jorgebank' });
+    }
 	items.push({ v: '', cls: 'menu-clear' }, { v: 'transf', cls: 'menu-transf' });
 	// Find current sale id for upload flow when choosing 'transf'
 	const trEl = anchorEl.closest('tr');
@@ -6342,8 +6347,8 @@ function openPayMenu(anchorEl, selectEl, clickX, clickY) {
 			e.stopPropagation();
 			selectEl.value = it.v;
 			selectEl.dispatchEvent(new Event('change'));
-			// Special behavior: first time selecting 'jorge' or 'jorgebank' open payment-date popover centered
-			if (currentSaleId && (it.v === 'jorge' || it.v === 'jorgebank')) {
+            // Special behavior: selecting 'jorge' or 'jorgebank' can open payment-date popover
+            if (currentSaleId && (it.v === 'jorge' || it.v === 'jorgebank')) {
 				const firstTime = !hasSeenPaymentDateDialogForSale(currentSaleId, it.v);
 				if (firstTime) {
 					markSeenPaymentDateDialogForSale(currentSaleId, it.v);
@@ -7482,25 +7487,27 @@ function openReceiptsGalleryPopover(receipts, saleId, anchorX, anchorY) {
             wrap.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const rect = wrap.getBoundingClientRect();
-                openPayMenu(wrap, sel, rect.left + rect.width/2, rect.bottom);
+                // Allow jorgebank inside the gallery overlay
+                openPayMenu(wrap, sel, rect.left + rect.width/2, rect.bottom, true);
             });
             wrap.tabIndex = 0;
             wrap.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
                     const rect = wrap.getBoundingClientRect();
-                    openPayMenu(wrap, sel, rect.left + rect.width/2, rect.bottom);
+                    openPayMenu(wrap, sel, rect.left + rect.width/2, rect.bottom, true);
                 }
             });
-            sel.addEventListener('change', async () => {
+            sel.addEventListener('change', async (ev) => {
                 try {
                     await api('PUT', API.Sales, { id, pay_method: sel.value || null, _actor_name: state.currentUser?.name || '' });
                     // reflect locally
                     if (saleRow) saleRow.pay_method = sel.value || null;
                     applyPayClass();
                     if ((sel.value || '').toLowerCase() === 'jorgebank') {
-                        // open payment date popover immediately WITHOUT closing the gallery
-                        openPaymentDateDialog(Number(id));
+                        // Open payment date popover without closing galería.
+                        // Prevent menu auto-cleanup by delaying popover until after menu close.
+                        setTimeout(() => openPaymentDateDialog(Number(id)), 50);
                     }
                 } catch {}
             });
