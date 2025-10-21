@@ -136,18 +136,13 @@
 
 		function normalizeKey(name){ const k=(name||'').toString().trim().toLowerCase(); if (k.startsWith('arco')) return 'arco'; if (k.startsWith('melo')) return 'melo'; if (k.startsWith('mara')) return 'mara'; if (k.startsWith('oreo')) return 'oreo'; if (k.startsWith('nute')) return 'nute'; return k; }
 		
-		// Checkbox state management (per session, per range)
-		const getCheckStateKey = () => `receta.checkState:${start}:${end}`;
+		// Checkbox state management (temporary, in-memory only)
+		let checkedState = {};
 		function getCheckedState(){
-			try {
-				const saved = localStorage.getItem(getCheckStateKey());
-				return saved ? JSON.parse(saved) : {};
-			} catch { return {}; }
+			return checkedState;
 		}
 		function saveCheckedState(state){
-			try {
-				localStorage.setItem(getCheckStateKey(), JSON.stringify(state));
-			} catch {}
+			checkedState = state;
 		}
 
 		async function load(){
