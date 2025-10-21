@@ -37,37 +37,30 @@ async function loadGlobalClientDetailRows(clientName) {
 		);
 	}
 	
+	// Use optimized endpoint to get all sales for this client across all sellers
 	for (const seller of sellersToSearch) {
 		try {
-			// Include archived days to show complete client history
-			const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(seller.id)}&include_archived=1`);
-			for (const d of (days || [])) {
-				const params = new URLSearchParams({ seller_id: String(seller.id), sale_day_id: String(d.id) });
-				let sales = [];
-				try { 
-					sales = await api('GET', `${API.Sales}?${params.toString()}`); 
-				} catch { 
-					sales = []; 
-				}
-				for (const s of (sales || [])) {
-					const n = (s?.client_name || '').trim();
-					if (!n) continue;
-					if (normalizeClientName(n) !== normalizeClientName(clientName)) continue;
-					allRows.push({
-						id: s.id,
-						dayIso: String(d.day).slice(0,10),
-						sellerName: seller.name || '',
-						sellerId: seller.id,
-						qty_arco: Number(s.qty_arco||0),
-						qty_melo: Number(s.qty_melo||0),
-						qty_mara: Number(s.qty_mara||0),
-						qty_oreo: Number(s.qty_oreo||0),
-						qty_nute: Number(s.qty_nute||0),
-						pay_method: s.pay_method || '',
-						is_paid: !!s.is_paid,
-						items: s.items || []
-					});
-				}
+			const params = new URLSearchParams({ 
+				client_name: clientName,
+				client_seller_id: String(seller.id)
+			});
+			const sales = await api('GET', `${API.Sales}?${params.toString()}`);
+			
+			for (const s of (sales || [])) {
+				allRows.push({
+					id: s.id,
+					dayIso: String(s.day).slice(0,10),
+					sellerName: seller.name || '',
+					sellerId: seller.id,
+					qty_arco: Number(s.qty_arco||0),
+					qty_melo: Number(s.qty_melo||0),
+					qty_mara: Number(s.qty_mara||0),
+					qty_oreo: Number(s.qty_oreo||0),
+					qty_nute: Number(s.qty_nute||0),
+					pay_method: s.pay_method || '',
+					is_paid: !!s.is_paid,
+					items: s.items || []
+				});
 			}
 		} catch (e) {
 			console.error('Error loading client details for seller:', seller.name, e);
@@ -88,35 +81,33 @@ async function loadGlobalClientDetailRows(clientName) {
 async function loadClientDetailRows(clientName) {
 	const sellerId = state.currentSeller.id;
 	const sellerName = state.currentSeller.name || '';
-	// Include archived days to show complete client history
-	const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(sellerId)}&include_archived=1`);
+	
+	// Use optimized endpoint to get all sales for this client (including archived) in one query
+	const params = new URLSearchParams({ 
+		client_name: clientName,
+		client_seller_id: String(sellerId)
+	});
+	const sales = await api('GET', `${API.Sales}?${params.toString()}`);
+	
 	const allRows = [];
-	for (const d of (days || [])) {
-		const params = new URLSearchParams({ seller_id: String(sellerId), sale_day_id: String(d.id) });
-		let sales = [];
-		try { sales = await api('GET', `${API.Sales}?${params.toString()}`); } catch { sales = []; }
-		for (const s of (sales || [])) {
-			const n = (s?.client_name || '').trim();
-			if (!n) continue;
-			if (normalizeClientName(n) !== normalizeClientName(clientName)) continue;
-			allRows.push({
-				id: s.id,
-				dayIso: String(d.day).slice(0,10),
-				sellerName: sellerName,
-				sellerId: sellerId,
-				qty_arco: Number(s.qty_arco||0),
-				qty_melo: Number(s.qty_melo||0),
-				qty_mara: Number(s.qty_mara||0),
-				qty_oreo: Number(s.qty_oreo||0),
-				qty_nute: Number(s.qty_nute||0),
-				pay_method: s.pay_method || '',
-				is_paid: !!s.is_paid,
-				items: s.items || []
-			});
-		}
+	for (const s of (sales || [])) {
+		allRows.push({
+			id: s.id,
+			dayIso: String(s.day).slice(0,10),
+			sellerName: sellerName,
+			sellerId: sellerId,
+			qty_arco: Number(s.qty_arco||0),
+			qty_melo: Number(s.qty_melo||0),
+			qty_mara: Number(s.qty_mara||0),
+			qty_oreo: Number(s.qty_oreo||0),
+			qty_nute: Number(s.qty_nute||0),
+			pay_method: s.pay_method || '',
+			is_paid: !!s.is_paid,
+			items: s.items || []
+		});
 	}
-	// Sort by date descending
-	allRows.sort((a,b) => (a.dayIso < b.dayIso ? 1 : a.dayIso > b.dayIso ? -1 : 0));
+	
+	// Data already sorted by backend (day DESC)
 	
 	// Save the seller ID for this client
 	state._clientDetailSellerId = sellerId;
