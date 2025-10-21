@@ -270,19 +270,14 @@
 				const normKey = (s) => (s||'').toString().trim().toLowerCase().replace(/\s+/g,' ');
 				const fmt1 = (n) => (Number(n||0)||0).toFixed(1);
 				
-				// Checkbox state management (per session, per range)
-				const getCheckStateKey = () => `ingredients.checkState:${start}:${end}`;
-				function getCheckedState(){
-					try {
-						const saved = localStorage.getItem(getCheckStateKey());
-						return saved ? JSON.parse(saved) : {};
-					} catch { return {}; }
-				}
-				function saveCheckedState(state){
-					try {
-						localStorage.setItem(getCheckStateKey(), JSON.stringify(state));
-					} catch {}
-				}
+			// Checkbox state management (temporary, in-memory only)
+			let checkedState = {};
+			function getCheckedState(){
+				return checkedState;
+			}
+			function saveCheckedState(state){
+				checkedState = state;
+			}
 			function canonicalizeName(name){
 				const raw = (name||'').toString().trim();
 				const low = raw.toLowerCase();
