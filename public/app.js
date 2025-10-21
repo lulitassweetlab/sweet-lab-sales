@@ -7885,7 +7885,11 @@ async function openReceiptsGalleryPopover(saleId, anchorX, anchorY) {
 		}
 
 		function outside(ev) {
-			if (!pop.contains(ev.target)) cleanup();
+			// Don't close if clicking inside the payment date dialog
+			const isInsidePaymentDialog = ev.target.closest('.payment-date-popover');
+			if (!pop.contains(ev.target) && !isInsidePaymentDialog) {
+				cleanup();
+			}
 		}
 
 		setTimeout(() => {
