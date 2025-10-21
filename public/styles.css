@@ -92,19 +92,25 @@ tr.row-checked td {
 /* Active timer row pulsing effect */
 @keyframes timer-pulse {
 	0%, 100% {
-		background-color: transparent;
+		background-color: rgba(244, 166, 183, 0.2);
+		border-left: 4px solid rgba(244, 166, 183, 0.4);
+		box-shadow: 0 0 0 rgba(244, 166, 183, 0);
 	}
 	50% {
-		background-color: rgba(244, 166, 183, 0.25);
+		background-color: rgba(244, 166, 183, 0.5);
+		border-left: 4px solid rgba(244, 166, 183, 1);
+		box-shadow: 0 0 12px rgba(244, 166, 183, 0.6);
 	}
 }
 
 .timer-row-active {
-	animation: timer-pulse 2s ease-in-out infinite;
+	animation: timer-pulse 1.5s ease-in-out infinite;
+	transition: all 0.3s ease;
 }
 
 .timer-row-active td {
 	background-color: transparent !important;
+	transition: all 0.3s ease;
 }
 
 /* Toasts */
