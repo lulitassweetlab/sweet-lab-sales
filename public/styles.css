@@ -90,6 +90,42 @@ tr.row-checked td {
 	box-shadow: 0 4px 16px var(--hover-shadow-pink) !important;
 }
 
+/* Active timer buttons (right side) */
+.active-timer-btn {
+	transition: all 0.2s ease;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+	background: var(--primary) !important;
+	color: white !important;
+	animation: timer-button-pulse 2s ease-in-out infinite;
+}
+
+@keyframes timer-button-pulse {
+	0%, 100% {
+		box-shadow: 0 2px 8px rgba(244, 166, 183, 0.4);
+	}
+	50% {
+		box-shadow: 0 4px 20px rgba(244, 166, 183, 0.8);
+	}
+}
+
+.active-timer-btn:hover {
+	transform: translateX(-4px);
+	box-shadow: 0 4px 20px rgba(244, 166, 183, 0.9) !important;
+	animation: none;
+}
+
+.active-timer-btn strong {
+	display: block;
+	font-size: 13px;
+	margin-bottom: 2px;
+}
+
+.active-timer-btn small {
+	display: block;
+	font-size: 10px;
+	opacity: 0.9;
+}
+
 /* Active timer row pulsing effect */
 @keyframes timer-pulse {
 	0%, 100% {
