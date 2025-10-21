@@ -152,7 +152,7 @@ export async function handler(event) {
 				if (receiptFor) {
 					const saleId = Number(receiptFor);
 					if (!saleId) return json({ error: 'receipt_for inválido' }, 400);
-					const rows = await sql`SELECT id, sale_id, image_base64, note_text, created_at FROM sale_receipts WHERE sale_id=${saleId} ORDER BY created_at DESC, id DESC`;
+					const rows = await sql`SELECT id, sale_id, image_base64, note_text, pay_method, payment_date, created_at FROM sale_receipts WHERE sale_id=${saleId} ORDER BY created_at DESC, id DESC`;
 					return json(rows);
 				}
 				const sellerIdParam = params.get('seller_id') || (event.queryStringParameters && event.queryStringParameters.seller_id);
@@ -259,6 +259,16 @@ export async function handler(event) {
 			}
 			case 'PUT': {
 			const data = JSON.parse(event.body || '{}');
+			// Handle receipt payment method updates
+			if (data && data._update_receipt_payment) {
+				const receiptId = Number(data.receipt_id);
+				if (!receiptId) return json({ error: 'receipt_id requerido' }, 400);
+				const payMethod = (data.pay_method || '').toString();
+				const paymentDate = (data.payment_date || null);
+				await sql`UPDATE sale_receipts SET pay_method=${payMethod}, payment_date=${paymentDate} WHERE id=${receiptId}`;
+				const [updated] = await sql`SELECT id, sale_id, image_base64, note_text, pay_method, payment_date, created_at FROM sale_receipts WHERE id=${receiptId}`;
+				return json(updated || {});
+			}
 			const id = Number(data.id);
 			if (!id) return json({ error: 'id requerido' }, 400);
 			const current = (await sql`SELECT seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, payment_date, payment_source, comment_text, created_at FROM sales WHERE id=${id}`)[0] || {};
