@@ -261,16 +261,9 @@ function renderClientDetailTable(rows) {
 			function markSeen(method){ try { localStorage.setItem('seenPaymentDate_' + method + '_' + saleId, '1'); } catch {} }
 			// If current is 'jorge' and first time -> open payment date dialog centered
 			if (curr === 'jorge' && !hasSeen('jorge')) { markSeen('jorge'); openPaymentDateDialog(saleId); return; }
-			// If current is 'jorgebank' and already seen -> open receipt viewer/upload directly
+			// If current is 'jorgebank' and already seen -> open receipt gallery
 			if (curr === 'jorgebank' && hasSeen('jorgebank')) {
-				try {
-					const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(saleId)}`);
-					if (Array.isArray(recs) && recs.length) {
-						openReceiptViewerPopover(recs[0].image_base64, saleId, recs[0].created_at, rect.left + rect.width / 2, rect.bottom, recs[0].note_text || '', recs[0].id);
-					} else {
-						openReceiptUploadPage(saleId);
-					}
-				} catch { openReceiptUploadPage(saleId); }
+				openReceiptsGalleryPopover(saleId, rect.left + rect.width / 2, rect.bottom);
 				return;
 			}
 				// If current is 'jorgebank' and NOT seen -> show payment date popover first time
@@ -295,14 +288,7 @@ function renderClientDetailTable(rows) {
 				function markSeen(method){ try { localStorage.setItem('seenPaymentDate_' + method + '_' + saleId, '1'); } catch {} }
 				if (curr === 'jorge' && !hasSeen('jorge')) { markSeen('jorge'); openPaymentDateDialog(saleId); return; }
 				if (curr === 'jorgebank' && hasSeen('jorgebank')) {
-					try {
-						const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(saleId)}`);
-						if (Array.isArray(recs) && recs.length) {
-							openReceiptViewerPopover(recs[0].image_base64, saleId, recs[0].created_at, rect.left + rect.width / 2, rect.bottom, recs[0].note_text || '', recs[0].id);
-						} else {
-							openReceiptUploadPage(saleId);
-						}
-					} catch { openReceiptUploadPage(saleId); }
+					openReceiptsGalleryPopover(saleId, rect.left + rect.width / 2, rect.bottom);
 					return;
 				}
 				openPayMenu(wrap, sel, rect.left + rect.width / 2, rect.bottom);
@@ -1751,17 +1737,10 @@ function renderTable() {
                 const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
                 const pm = String(sale.pay_method || '').trim().replace(/\.$/, '').toLowerCase();
                 const locked = pm !== '' && pm !== 'entregado';
-                // If locked and current is a bank method, open receipt viewer/upload directly
+                // If locked and current is a bank method, open receipt gallery
                 if (!isAdminUser && locked && (pm === 'transf' || pm === 'jorgebank')) {
-                    try {
-                        const rect = wrap.getBoundingClientRect();
-                        const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(sale.id)}`);
-                        if (Array.isArray(recs) && recs.length) {
-                            openReceiptViewerPopover(recs[0].image_base64, sale.id, recs[0].created_at, rect.left + rect.width / 2, rect.bottom, recs[0].note_text || '', recs[0].id);
-                        } else {
-                            openReceiptUploadPage(sale.id);
-                        }
-                    } catch { openReceiptUploadPage(sale.id); }
+                    const rect = wrap.getBoundingClientRect();
+                    openReceiptsGalleryPopover(sale.id, rect.left + rect.width / 2, rect.bottom);
                     return;
                 }
                 if (!isAdminUser && locked) return; // block opening menu for non-admins, allow when 'entregado'
@@ -1777,12 +1756,7 @@ function renderTable() {
                     if (!isAdminUser && locked && (pm === 'transf' || pm === 'jorgebank')) {
                         try {
                             const rect = wrap.getBoundingClientRect();
-                            const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(sale.id)}`);
-                            if (Array.isArray(recs) && recs.length) {
-                                openReceiptViewerPopover(recs[0].image_base64, sale.id, recs[0].created_at, rect.left + rect.width / 2, rect.bottom, recs[0].note_text || '', recs[0].id);
-                            } else {
-                                openReceiptUploadPage(sale.id);
-                            }
+                            openReceiptsGalleryPopover(sale.id, rect.left + rect.width / 2, rect.bottom);
                         } catch { openReceiptUploadPage(sale.id); }
                         return;
                     }
@@ -6371,12 +6345,7 @@ function openPayMenu(anchorEl, selectEl, clickX, clickY) {
 			// If selecting bank types and not first-time popover, show existing receipt if any; otherwise open upload
 			if ((it.v === 'transf' || it.v === 'jorgebank') && currentSaleId) {
 				try {
-					const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(currentSaleId)}`);
-					if (Array.isArray(recs) && recs.length) {
-						openReceiptViewerPopover(recs[0].image_base64, currentSaleId, recs[0].created_at, rect.left + rect.width / 2, rect.bottom, recs[0].note_text || '', recs[0].id);
-					} else {
-						openReceiptUploadPage(currentSaleId);
-					}
+					openReceiptsGalleryPopover(currentSaleId, rect.left + rect.width / 2, rect.bottom);
 				} catch { openReceiptUploadPage(currentSaleId); }
 			}
 			cleanup();
@@ -7449,89 +7418,234 @@ function openReceiptUploadPage(saleId) {
 	} catch {}
 }
 
-function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, anchorY, noteText, receiptId) {
-	const pop = document.createElement('div');
-	pop.className = 'receipt-popover';
-	pop.style.position = 'fixed';
-	// Always center the popover in the screen
-	pop.style.left = '50%';
-	pop.style.top = '50%';
-	pop.style.transform = 'translate(-50%, -50%)';
-	pop.style.width = 'auto';
-	pop.style.maxWidth = '90vw';
-	pop.style.maxHeight = '85vh';
-	pop.style.zIndex = '1000';
-	pop.style.overflow = 'auto';
-	pop.style.display = 'flex';
-	pop.style.flexDirection = 'column';
-	pop.style.gap = '12px';
-	const img = document.createElement('img');
-	img.src = imageBase64;
-	img.alt = 'Comprobante';
-	img.style.display = 'block';
-	img.style.width = 'auto';
-	img.style.maxWidth = '92vw';
-	img.style.height = 'auto';
-	img.style.maxHeight = '76vh';
-	img.style.margin = '0 auto';
-	img.style.borderRadius = '8px';
-	img.style.objectFit = 'contain';
-	const meta = document.createElement('div');
-	meta.className = 'receipt-meta';
-	meta.style.maxHeight = '120px';
-	meta.style.overflowY = 'auto';
-	meta.style.flexShrink = '0';
-	if (createdAt) {
-		const when = new Date(createdAt);
-		const whenStr = isNaN(when.getTime()) ? String(createdAt) : when.toLocaleString();
-		const timeDiv = document.createElement('div');
-		timeDiv.textContent = 'Subido: ' + whenStr;
-		timeDiv.style.fontSize = '12px';
-		timeDiv.style.opacity = '0.75';
-		timeDiv.style.marginBottom = '4px';
-		meta.appendChild(timeDiv);
-	}
-	if (noteText) {
-		const note = document.createElement('div');
-		note.textContent = 'Nota: ' + String(noteText || '');
-		note.style.fontSize = '13px';
-		note.style.marginTop = '4px';
-		note.style.whiteSpace = 'pre-wrap';
-		meta.appendChild(note);
-	}
-	const actions = document.createElement('div');
-	actions.className = 'confirm-actions';
-	actions.style.display = 'flex';
-	actions.style.gap = '8px';
-	actions.style.justifyContent = 'center';
-	actions.style.flexShrink = '0';
-	const replaceBtn = document.createElement('button'); replaceBtn.className = 'press-btn btn-primary'; replaceBtn.textContent = 'Reemplazar foto';
-	const deleteBtn = document.createElement('button'); deleteBtn.className = 'press-btn'; deleteBtn.textContent = 'Eliminar';
-	const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn'; closeBtn.textContent = 'Cerrar';
-	actions.append(replaceBtn, deleteBtn, closeBtn);
-	pop.append(img, meta, actions);
-	document.body.appendChild(pop);
-	function cleanup() {
-		document.removeEventListener('mousedown', outside, true);
-		document.removeEventListener('touchstart', outside, true);
-		if (pop.parentNode) pop.parentNode.removeChild(pop);
-	}
-	function outside(ev) { if (!pop.contains(ev.target)) cleanup(); }
-	setTimeout(() => {
-		document.addEventListener('mousedown', outside, true);
-		document.addEventListener('touchstart', outside, true);
-	}, 0);
-	replaceBtn.addEventListener('click', () => { cleanup(); openReceiptUploadPage(saleId); });
-	deleteBtn.addEventListener('click', async () => {
-		try {
-			const ok = await openConfirmPopover('¿Eliminar el comprobante?', anchorX, anchorY);
-			if (!ok) return;
-			if (!receiptId) return;
-			await fetch(`/api/sales?receipt_id=${encodeURIComponent(receiptId)}`, { method: 'DELETE' });
+// Gallery viewer for multiple receipts with independent payment selectors
+async function openReceiptsGalleryPopover(saleId, anchorX, anchorY) {
+	try {
+		const receipts = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(saleId)}`);
+		if (!Array.isArray(receipts) || receipts.length === 0) {
+			// No receipts yet, go to upload page
+			openReceiptUploadPage(saleId);
+			return;
+		}
+
+		const pop = document.createElement('div');
+		pop.className = 'receipts-gallery-popover';
+		pop.style.position = 'fixed';
+		pop.style.left = '50%';
+		pop.style.top = '50%';
+		pop.style.transform = 'translate(-50%, -50%)';
+		pop.style.width = 'auto';
+		pop.style.maxWidth = '95vw';
+		pop.style.maxHeight = '90vh';
+		pop.style.zIndex = '1000';
+		pop.style.overflow = 'auto';
+		pop.style.display = 'flex';
+		pop.style.flexDirection = 'column';
+		pop.style.gap = '16px';
+		pop.style.background = 'var(--card, #fff)';
+		pop.style.padding = '20px';
+		pop.style.borderRadius = '12px';
+		pop.style.boxShadow = '0 8px 32px rgba(0,0,0,0.2)';
+
+		// Title
+		const title = document.createElement('h3');
+		title.textContent = `Comprobantes de pago (${receipts.length})`;
+		title.style.margin = '0 0 12px 0';
+		title.style.textAlign = 'center';
+		pop.appendChild(title);
+
+		// Gallery container
+		const gallery = document.createElement('div');
+		gallery.style.display = 'grid';
+		gallery.style.gridTemplateColumns = 'repeat(auto-fit, minmax(300px, 1fr))';
+		gallery.style.gap = '16px';
+		gallery.style.maxHeight = '70vh';
+		gallery.style.overflowY = 'auto';
+
+		for (const receipt of receipts) {
+			const card = document.createElement('div');
+			card.style.border = '1px solid var(--border, #ddd)';
+			card.style.borderRadius = '8px';
+			card.style.padding = '12px';
+			card.style.background = 'var(--background, #fff)';
+			card.style.display = 'flex';
+			card.style.flexDirection = 'column';
+			card.style.gap = '12px';
+
+			// Image
+			const img = document.createElement('img');
+			img.src = receipt.image_base64;
+			img.alt = 'Comprobante';
+			img.style.width = '100%';
+			img.style.height = 'auto';
+			img.style.maxHeight = '300px';
+			img.style.objectFit = 'contain';
+			img.style.borderRadius = '6px';
+			img.style.cursor = 'pointer';
+			img.addEventListener('click', () => {
+				// Open full-size view
+				const lightbox = document.createElement('div');
+				lightbox.style.position = 'fixed';
+				lightbox.style.top = '0';
+				lightbox.style.left = '0';
+				lightbox.style.width = '100%';
+				lightbox.style.height = '100%';
+				lightbox.style.background = 'rgba(0,0,0,0.9)';
+				lightbox.style.zIndex = '2000';
+				lightbox.style.display = 'flex';
+				lightbox.style.alignItems = 'center';
+				lightbox.style.justifyContent = 'center';
+				lightbox.style.cursor = 'pointer';
+				const fullImg = document.createElement('img');
+				fullImg.src = receipt.image_base64;
+				fullImg.style.maxWidth = '95%';
+				fullImg.style.maxHeight = '95%';
+				fullImg.style.objectFit = 'contain';
+				lightbox.appendChild(fullImg);
+				document.body.appendChild(lightbox);
+				lightbox.addEventListener('click', () => {
+					document.body.removeChild(lightbox);
+				});
+			});
+			card.appendChild(img);
+
+			// Metadata
+			const meta = document.createElement('div');
+			meta.style.fontSize = '12px';
+			meta.style.opacity = '0.75';
+			if (receipt.created_at) {
+				const when = new Date(receipt.created_at);
+				const whenStr = isNaN(when.getTime()) ? String(receipt.created_at) : when.toLocaleString();
+				const timeDiv = document.createElement('div');
+				timeDiv.textContent = 'Subido: ' + whenStr;
+				meta.appendChild(timeDiv);
+			}
+			if (receipt.note_text) {
+				const note = document.createElement('div');
+				note.textContent = 'Nota: ' + String(receipt.note_text || '');
+				note.style.fontSize = '12px';
+				note.style.marginTop = '4px';
+				note.style.whiteSpace = 'pre-wrap';
+				meta.appendChild(note);
+			}
+			card.appendChild(meta);
+
+			// Payment selector (independent for each receipt)
+			const payLabel = document.createElement('label');
+			payLabel.textContent = 'Método de pago:';
+			payLabel.style.fontSize = '13px';
+			payLabel.style.fontWeight = '600';
+			card.appendChild(payLabel);
+
+			const paySelect = document.createElement('select');
+			paySelect.className = 'input-cell';
+			paySelect.style.width = '100%';
+			const payOptions = [
+				{ v: '', label: '-' },
+				{ v: 'efectivo', label: 'Efectivo' },
+				{ v: 'transf', label: 'Transferencia' },
+				{ v: 'marce', label: 'Marce' },
+				{ v: 'jorge', label: 'Jorge' },
+				{ v: 'jorgebank', label: 'JorgeBank' },
+				{ v: 'entregado', label: 'Entregado' }
+			];
+			for (const opt of payOptions) {
+				const option = document.createElement('option');
+				option.value = opt.v;
+				option.textContent = opt.label;
+				if (receipt.pay_method === opt.v) option.selected = true;
+				paySelect.appendChild(option);
+			}
+			paySelect.addEventListener('change', async () => {
+				try {
+					await api('PUT', API.Sales, {
+						_update_receipt_payment: true,
+						receipt_id: receipt.id,
+						pay_method: paySelect.value || null
+					});
+					notify.info('Método de pago actualizado');
+				} catch (err) {
+					console.error('Error updating receipt payment:', err);
+					notify.error('Error al actualizar método de pago');
+				}
+			});
+			card.appendChild(paySelect);
+
+			// Delete button
+			const deleteBtn = document.createElement('button');
+			deleteBtn.className = 'press-btn';
+			deleteBtn.textContent = 'Eliminar este comprobante';
+			deleteBtn.style.marginTop = '8px';
+			deleteBtn.addEventListener('click', async () => {
+				try {
+					const ok = await openConfirmPopover('¿Eliminar este comprobante?', anchorX, anchorY);
+					if (!ok) return;
+					await fetch(`/api/sales?receipt_id=${encodeURIComponent(receipt.id)}`, { method: 'DELETE' });
+					cleanup();
+					// Re-open gallery to refresh
+					openReceiptsGalleryPopover(saleId, anchorX, anchorY);
+				} catch (err) {
+					console.error('Error deleting receipt:', err);
+					notify.error('Error al eliminar comprobante');
+				}
+			});
+			card.appendChild(deleteBtn);
+
+			gallery.appendChild(card);
+		}
+
+		pop.appendChild(gallery);
+
+		// Actions at the bottom
+		const actions = document.createElement('div');
+		actions.style.display = 'flex';
+		actions.style.gap = '8px';
+		actions.style.justifyContent = 'center';
+		actions.style.flexShrink = '0';
+		actions.style.marginTop = '12px';
+
+		const addBtn = document.createElement('button');
+		addBtn.className = 'press-btn btn-primary';
+		addBtn.textContent = '+ Subir otro comprobante';
+		addBtn.addEventListener('click', () => {
 			cleanup();
-		} catch {}
-	});
-	closeBtn.addEventListener('click', cleanup);
+			openReceiptUploadPage(saleId);
+		});
+
+		const closeBtn = document.createElement('button');
+		closeBtn.className = 'press-btn';
+		closeBtn.textContent = 'Cerrar';
+		closeBtn.addEventListener('click', cleanup);
+
+		actions.append(addBtn, closeBtn);
+		pop.appendChild(actions);
+
+		document.body.appendChild(pop);
+
+		function cleanup() {
+			document.removeEventListener('mousedown', outside, true);
+			document.removeEventListener('touchstart', outside, true);
+			if (pop.parentNode) pop.parentNode.removeChild(pop);
+		}
+
+		function outside(ev) {
+			if (!pop.contains(ev.target)) cleanup();
+		}
+
+		setTimeout(() => {
+			document.addEventListener('mousedown', outside, true);
+			document.addEventListener('touchstart', outside, true);
+		}, 0);
+	} catch (err) {
+		console.error('Error opening receipts gallery:', err);
+		notify.error('Error al cargar comprobantes');
+	}
+}
+
+// Legacy function for backward compatibility
+function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, anchorY, noteText, receiptId) {
+	// Redirect to new gallery view
+	openReceiptsGalleryPopover(saleId, anchorX, anchorY);
 }
 
 

@@ -152,7 +152,7 @@ export async function handler(event) {
 				if (receiptFor) {
 					const saleId = Number(receiptFor);
 					if (!saleId) return json({ error: 'receipt_for inválido' }, 400);
-					const rows = await sql`SELECT id, sale_id, image_base64, note_text, created_at FROM sale_receipts WHERE sale_id=${saleId} ORDER BY created_at DESC, id DESC`;
+					const rows = await sql`SELECT id, sale_id, image_base64, note_text, pay_method, payment_source, payment_date, created_at FROM sale_receipts WHERE sale_id=${saleId} ORDER BY created_at DESC, id DESC`;
 					return json(rows);
 				}
 				const sellerIdParam = params.get('seller_id') || (event.queryStringParameters && event.queryStringParameters.seller_id);
@@ -223,12 +223,15 @@ export async function handler(event) {
                     const sid = Number(data._upload_receipt_for);
                     const img = (data.image_base64 || '').toString();
                     const note = (data.note_text || '').toString();
+                    const payMethod = (data.pay_method || null);
+                    const paymentSource = (data.payment_source || null);
+                    const paymentDate = (data.payment_date || null);
                     const actor = (data._actor_name || '').toString();
                     if (!sid || !img) return json({ error: 'sale_id e imagen requeridos' }, 400);
-                    // Store receipt first
-                    const [row] = await sql`INSERT INTO sale_receipts (sale_id, image_base64, note_text) VALUES (${sid}, ${img}, ${note}) RETURNING id, sale_id, note_text, created_at`;
+                    // Store receipt with payment info
+                    const [row] = await sql`INSERT INTO sale_receipts (sale_id, image_base64, note_text, pay_method, payment_source, payment_date) VALUES (${sid}, ${img}, ${note}, ${payMethod}, ${paymentSource}, ${paymentDate}) RETURNING id, sale_id, note_text, pay_method, payment_source, payment_date, created_at`;
                     try {
-                        // After uploading a receipt, mark pay_method as 'transf' if not already a bank method
+                        // After uploading a receipt, mark pay_method as 'transf' on sale level if not already a bank method
                         const prev = (await sql`SELECT seller_id, sale_day_id, client_name, pay_method FROM sales WHERE id=${sid}`)[0] || null;
                         if (prev) {
                             const prevPm = (prev.pay_method || '').toString();
@@ -259,6 +262,17 @@ export async function handler(event) {
 			}
 			case 'PUT': {
 			const data = JSON.parse(event.body || '{}');
+			// Handle receipt payment update
+			if (data._update_receipt_payment) {
+				const receiptId = Number(data.receipt_id);
+				if (!receiptId) return json({ error: 'receipt_id requerido' }, 400);
+				const payMethod = data.pay_method !== undefined ? data.pay_method : null;
+				const paymentSource = data.payment_source !== undefined ? data.payment_source : null;
+				const paymentDate = data.payment_date !== undefined ? data.payment_date : null;
+				await sql`UPDATE sale_receipts SET pay_method=${payMethod}, payment_source=${paymentSource}, payment_date=${paymentDate} WHERE id=${receiptId}`;
+				const [updated] = await sql`SELECT id, sale_id, pay_method, payment_source, payment_date FROM sale_receipts WHERE id=${receiptId}`;
+				return json(updated || {});
+			}
 			const id = Number(data.id);
 			if (!id) return json({ error: 'id requerido' }, 400);
 			const current = (await sql`SELECT seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, payment_date, payment_source, comment_text, created_at FROM sales WHERE id=${id}`)[0] || {};
