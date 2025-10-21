@@ -1744,8 +1744,16 @@ function renderTable() {
                 const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
                 const pm = String(sale.pay_method || '').trim().replace(/\.$/, '').toLowerCase();
                 const locked = pm !== '' && pm !== 'entregado';
-                // If locked and current is a bank method, open receipt gallery
-                if (!isAdminUser && locked && (pm === 'transf' || pm === 'jorgebank')) {
+                
+                // If jorgebank, ALWAYS open receipt gallery (verified receipts)
+                if (pm === 'jorgebank') {
+                    const rect = wrap.getBoundingClientRect();
+                    openReceiptsGalleryPopover(sale.id, rect.left + rect.width / 2, rect.bottom);
+                    return;
+                }
+                
+                // If locked and current is transf, open receipt gallery for non-admins
+                if (!isAdminUser && locked && pm === 'transf') {
                     const rect = wrap.getBoundingClientRect();
                     openReceiptsGalleryPopover(sale.id, rect.left + rect.width / 2, rect.bottom);
                     return;
@@ -1760,7 +1768,17 @@ function renderTable() {
                     const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
                     const pm = String(sale.pay_method || '').trim().replace(/\.$/, '').toLowerCase();
                     const locked = pm !== '' && pm !== 'entregado';
-                    if (!isAdminUser && locked && (pm === 'transf' || pm === 'jorgebank')) {
+                    
+                    // If jorgebank, ALWAYS open receipt gallery (verified receipts)
+                    if (pm === 'jorgebank') {
+                        try {
+                            const rect = wrap.getBoundingClientRect();
+                            openReceiptsGalleryPopover(sale.id, rect.left + rect.width / 2, rect.bottom);
+                        } catch { openReceiptUploadPage(sale.id); }
+                        return;
+                    }
+                    
+                    if (!isAdminUser && locked && pm === 'transf') {
                         try {
                             const rect = wrap.getBoundingClientRect();
                             openReceiptsGalleryPopover(sale.id, rect.left + rect.width / 2, rect.bottom);
