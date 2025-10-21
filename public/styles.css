@@ -178,8 +178,8 @@
 
 /* Per-item delete button in notifications list */
 .notif-del {
-	width: 16px !important;
-	height: 16px !important;
+	width: 20px !important;
+	height: 20px !important;
 	padding: 0 !important;
 	border: none !important;
 	outline: none !important;
@@ -208,7 +208,7 @@
 }
 .notif-del:active { transform: scale(0.96); }
 @media (max-width: 600px) {
-	.notif-del { width: 14px !important; height: 14px !important; }
+	.notif-del { width: 16px !important; height: 16px !important; }
 	.notif-del::before { background-size: 90% 90% !important; }
 }
 

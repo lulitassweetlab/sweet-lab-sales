@@ -792,7 +792,7 @@ const notify = (() => {
 			// Check if user is superadmin
 			const isSuperAdmin = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 			
-			// Add checkbox for superadmin to mark as read
+			// Add checkbox for superadmin to mark as read (server-backed only)
 			let checkboxEl = null;
 			if (isServer && isSuperAdmin) {
 				checkboxEl = document.createElement('input');
@@ -852,25 +852,38 @@ const notify = (() => {
 			}
 			const txt = document.createElement('span'); txt.textContent = String(text || '');
 			textEl.appendChild(txt);
-			const delBtn = document.createElement('button'); delBtn.type = 'button'; delBtn.className = 'notif-del'; delBtn.title = 'Eliminar'; delBtn.setAttribute('aria-label', 'Eliminar');
-			delBtn.addEventListener('click', (e) => {
-				e.stopPropagation();
-				try {
-					if (isServer) {
-						const hidden = readHideSet(); hidden.add(String(id)); writeHideSet(hidden);
-						item.remove();
-					} else {
-						const all = (readLog() || []).filter(x => x && x.id !== id);
-						writeLog(all);
-						item.remove();
-					}
-				} catch {}
-			});
 			
-			if (checkboxEl) {
+			// Create delete button only for superadmin
+			let delBtn = null;
+			if (isSuperAdmin) {
+				delBtn = document.createElement('button');
+				delBtn.type = 'button';
+				delBtn.className = 'notif-del';
+				delBtn.title = 'Eliminar';
+				delBtn.setAttribute('aria-label', 'Eliminar');
+				delBtn.addEventListener('click', (e) => {
+					e.stopPropagation();
+					try {
+						if (isServer) {
+							const hidden = readHideSet(); hidden.add(String(id)); writeHideSet(hidden);
+							item.remove();
+						} else {
+							const all = (readLog() || []).filter(x => x && x.id !== id);
+							writeLog(all);
+							item.remove();
+						}
+					} catch {}
+				});
+			}
+			
+			if (checkboxEl && delBtn) {
 				item.append(checkboxEl, whenEl, delBtn, textEl);
-			} else {
+			} else if (checkboxEl) {
+				item.append(checkboxEl, whenEl, textEl);
+			} else if (delBtn) {
 				item.append(whenEl, delBtn, textEl);
+			} else {
+				item.append(whenEl, textEl);
 			}
 			textEl.style.gridColumn = checkboxEl ? '2 / -1' : '1 / -1';
 			if (isServer) {
