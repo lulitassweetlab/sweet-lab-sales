@@ -7556,7 +7556,10 @@ async function goToSaleFromNotification(sellerId, saleDayId, saleId) {
 function openReceiptUploadPage(saleId) {
 	try {
 		const id = Number(saleId);
-		if (!id) return;
+		if (!id) {
+			console.error('❌ openReceiptUploadPage: Invalid saleId', saleId);
+			return;
+		}
 		// Save current context to return to the same view
 		try {
 			const context = {
@@ -7566,9 +7569,15 @@ function openReceiptUploadPage(saleId) {
 				returnToSales: true
 			};
 			localStorage.setItem('receiptUploadContext', JSON.stringify(context));
-		} catch {}
+			console.log('💾 Upload context saved:', context);
+		} catch (err) {
+			console.error('❌ Error saving upload context:', err);
+		}
+		console.log('🚀 Navigating to receipt.html for sale:', id);
 		window.location.href = `/receipt.html?sale_id=${encodeURIComponent(id)}`;
-	} catch {}
+	} catch (err) {
+		console.error('❌ Error in openReceiptUploadPage:', err);
+	}
 }
 
 // Gallery viewer for multiple receipts with independent payment selectors
