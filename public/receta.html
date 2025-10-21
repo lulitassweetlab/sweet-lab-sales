@@ -81,26 +81,85 @@
 			} catch { return url + (url.includes('?') ? `&actor=${encodeURIComponent(actor)}` : `?actor=${encodeURIComponent(actor)}`); }
 		}
 
-		function sumCountsView(c){
+		// Store original and edited counts
+		let originalCounts = {};
+		let editedCounts = {};
+		
+		function sumCountsView(c, onCountChange){
 			countsSummary.innerHTML = '';
 			const pills = [];
 			
 			// Add pill for each dessert dynamically
 			let total = 0;
+			let editedTotal = 0;
 			for (const d of desserts) {
-				const v = c[d.short_code] || 0;
-				pills.push({ label: d.name, v });
-				total += v;
+				const originalV = c[d.short_code] || 0;
+				const editedV = editedCounts[d.short_code] !== undefined ? editedCounts[d.short_code] : originalV;
+				pills.push({ label: d.name, code: d.short_code, original: originalV, edited: editedV });
+				total += originalV;
+				editedTotal += editedV;
 			}
-			pills.push({ label: 'Total', v: total });
+			pills.push({ label: 'Total', code: null, original: total, edited: editedTotal });
 			
 			for (const p of pills){ 
 				const el = document.createElement('div'); 
 				el.style.background = 'var(--card)'; 
 				el.style.border = '1px solid var(--border)'; 
 				el.style.borderRadius = '999px'; 
-				el.style.padding = '4px 10px'; 
-				el.textContent = `${p.label}: ${p.v}`; 
+				el.style.padding = '4px 10px';
+				el.style.display = 'flex';
+				el.style.alignItems = 'center';
+				el.style.gap = '6px';
+				
+				const labelSpan = document.createElement('span');
+				labelSpan.textContent = p.label + ':';
+				labelSpan.style.fontWeight = '500';
+				el.appendChild(labelSpan);
+				
+				if (p.code) {
+					// Editable input
+					const input = document.createElement('input');
+					input.type = 'number';
+					input.min = '0';
+					input.value = p.edited;
+					input.style.width = '50px';
+					input.style.border = '1px solid var(--border)';
+					input.style.borderRadius = '4px';
+					input.style.padding = '2px 6px';
+					input.style.textAlign = 'center';
+					input.style.fontWeight = '600';
+					input.addEventListener('change', () => {
+						const newValue = Math.max(0, parseInt(input.value) || 0);
+						input.value = newValue;
+						editedCounts[p.code] = newValue;
+						if (onCountChange) onCountChange();
+					});
+					el.appendChild(input);
+					
+					// Show original if different
+					if (p.edited !== p.original) {
+						const originalSpan = document.createElement('span');
+						originalSpan.textContent = `(orig: ${p.original})`;
+						originalSpan.style.fontSize = '11px';
+						originalSpan.style.opacity = '0.7';
+						el.appendChild(originalSpan);
+					}
+				} else {
+					// Total (not editable)
+					const totalSpan = document.createElement('span');
+					totalSpan.textContent = p.edited;
+					totalSpan.style.fontWeight = '700';
+					el.appendChild(totalSpan);
+					
+					if (p.edited !== p.original) {
+						const originalSpan = document.createElement('span');
+						originalSpan.textContent = `(orig: ${p.original})`;
+						originalSpan.style.fontSize = '11px';
+						originalSpan.style.opacity = '0.7';
+						el.appendChild(originalSpan);
+					}
+				}
+				
 				countsSummary.appendChild(el); 
 			}
 		}
@@ -213,6 +272,22 @@
 			checkedState = state;
 		}
 
+		async function renderAllDesserts(counts, byKey, fmt1) {
+			cardsWrap.innerHTML = '';
+			sessions.length = 0;
+			const renderedDesserts = [];
+			
+			for (const d of desserts) {
+				const qty = editedCounts[d.short_code] !== undefined ? editedCounts[d.short_code] : (counts[d.short_code] || 0);
+				if (qty > 0) {
+					renderedDesserts.push(d);
+					await renderDessert(d.short_code, d.name, qty, byKey, fmt1);
+				}
+			}
+			
+			return renderedDesserts;
+		}
+		
 		async function load(){
 			if (!start || !end) return;
 			rangeLabel.textContent = `${formatDay(start)} — ${formatDay(end)}`;
@@ -275,7 +350,31 @@
 					}
 				} catch {}
 			});
-			sumCountsView(counts);
+			
+			// Store original counts
+			originalCounts = { ...counts };
+			editedCounts = {};
+			
+			const onCountChange = async () => {
+				// Re-render all desserts when counts change
+				const newRenderedDesserts = await renderAllDesserts(counts, byKey, fmt1);
+				
+				// Update total count label
+				let totalDesserts = 0;
+				for (const d of desserts) {
+					const qty = editedCounts[d.short_code] !== undefined ? editedCounts[d.short_code] : (counts[d.short_code] || 0);
+					totalDesserts += qty;
+				}
+				countLabel.textContent = `Postres: ${totalDesserts}`;
+				
+				// Re-setup navigation
+				setupNavigation(newRenderedDesserts);
+				
+				// Re-render the counts view to update totals
+				sumCountsView(counts, onCountChange);
+			};
+			
+			sumCountsView(counts, onCountChange);
 
 			// 2) Fetch dessert names and map them to keys
 			let dessertNames = [];
@@ -285,9 +384,9 @@
 
 			// 3) Render a card per dessert with count > 0
 			const fmt1 = new Intl.NumberFormat('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-			async function renderDessert(keyLabel, label){
-				const qty = Number(counts[keyLabel] || 0) || 0; if (!qty) return;
-				const dessertName = byKey.get(keyLabel) || label;
+			async function renderDessert(keyLabel, label, qty, byKeyMap, formatter){
+				if (!qty) return;
+				const dessertName = byKeyMap.get(keyLabel) || label;
 			let data = null; try { data = await fetchJSON(withActor(`/api/recipes?dessert=${encodeURIComponent(dessertName)}&include_extras=1`)); } catch { data = null; }
 				if (!data) return;
 				const card = document.createElement('div'); card.className = 'measure-card'; card.style.padding='12px'; card.style.border='1px solid rgba(0,0,0,0.15)'; card.style.borderRadius='10px'; card.style.boxShadow='0 8px 24px rgba(0,0,0,0.12)';
@@ -332,7 +431,7 @@
                         const per = Number(it.qty_per_unit || 0) || 0;
                         const adj = Number(it.adjustment || 0) || 0;
                         const total = (per * qty) + adj;
-                        const tdQ = document.createElement('td'); tdQ.textContent = fmt1.format(total); tdQ.style.textAlign='right'; tdQ.style.padding='5px 4px';
+                        const tdQ = document.createElement('td'); tdQ.textContent = formatter.format(total); tdQ.style.textAlign='right'; tdQ.style.padding='5px 4px';
 					tr.append(tdCheck, tdN, tdQ);
 					stepRows.push(tr);
 					tbody.appendChild(tr);
@@ -392,25 +491,23 @@
 				sessions.push(session);
 			}
 
-			// Render cards dynamically for all desserts with count > 0
-			const renderedDesserts = [];
-			for (const d of desserts) {
-				const hasQty = counts[d.short_code] > 0;
-				if (hasQty) {
-					renderedDesserts.push(d);
-					await renderDessert(d.short_code, d.name);
+			// Global navigation container references
+			let navContainer = null;
+			let activeTimersContainerRef = null;
+			
+			function setupNavigation(renderedDesserts) {
+				// Remove old navigation if exists
+				if (navContainer && navContainer.parentNode) {
+					navContainer.parentNode.removeChild(navContainer);
 				}
-			}
-			
-			let totalDesserts = 0;
-			for (const d of desserts) {
-				totalDesserts += counts[d.short_code] || 0;
-			}
-			countLabel.textContent = `Postres: ${totalDesserts}`;
-			
-			// Create floating navigation buttons
-			if (renderedDesserts.length > 0) {
-				const navContainer = document.createElement('div');
+				if (activeTimersContainerRef && activeTimersContainerRef.parentNode) {
+					activeTimersContainerRef.parentNode.removeChild(activeTimersContainerRef);
+				}
+				
+				if (renderedDesserts.length === 0) return;
+				
+				// Create floating navigation buttons
+				navContainer = document.createElement('div');
 				navContainer.className = 'dessert-nav-floating';
 				navContainer.style.position = 'fixed';
 				navContainer.style.left = '16px';
@@ -465,6 +562,7 @@
 				
 				// Create floating container for active timers (right side)
 				activeTimersContainer = document.createElement('div');
+				activeTimersContainerRef = activeTimersContainer;
 				activeTimersContainer.className = 'active-timers-floating';
 				activeTimersContainer.style.position = 'fixed';
 				activeTimersContainer.style.right = '16px';
@@ -521,6 +619,19 @@
 					}
 				}
 			}
+			
+			// Render cards dynamically for all desserts with count > 0
+			const renderedDesserts = await renderAllDesserts(counts, byKey, fmt1);
+			
+			let totalDesserts = 0;
+			for (const d of desserts) {
+				totalDesserts += counts[d.short_code] || 0;
+			}
+			countLabel.textContent = `Postres: ${totalDesserts}`;
+			
+			// Setup navigation
+			setupNavigation(renderedDesserts);
+			
 			// Actions: save times & view history
 			const actions = document.createElement('div'); actions.className = 'confirm-actions'; actions.style.marginTop='8px';
 			const saveBtn = document.createElement('button'); saveBtn.className='press-btn btn-primary'; saveBtn.textContent='Guardar tiempos';
