@@ -1961,65 +1961,74 @@ async function enrichSalesWithReceiptStatus() {
 }
 
 async function loadSales() {
-	const sellerId = state.currentSeller.id;
-	const params = new URLSearchParams({ seller_id: String(sellerId) });
-	if (state.selectedDayId) params.set('sale_day_id', String(state.selectedDayId));
-	state.sales = await api('GET', `${API.Sales}?${params.toString()}`);
+	// Show loading indicator
+	const loadingEl = document.getElementById('sales-loading');
+	if (loadingEl) loadingEl.style.display = 'flex';
 	
-	// Initialize _paymentInfo from database fields (payment_date and payment_source)
-	if (Array.isArray(state.sales)) {
-		for (const sale of state.sales) {
-			if (sale && sale.payment_date && sale.payment_source) {
-				sale._paymentInfo = {
-					date: sale.payment_date,
-					source: sale.payment_source,
-					sourceValue: (sale.payment_source || '').toLowerCase()
-				};
-			}
-		}
-	}
-	
-	// Check if all receipts for each sale have jorgebank - if so, update sale.pay_method
-	await enrichSalesWithReceiptStatus();
-	
-	// Build recurrence counts across all dates for this seller
 	try {
-		const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(sellerId)}`);
-		const counts = new Map();
-        const namesByKey = new Map();
-		for (const d of (days || [])) {
-			const p = new URLSearchParams({ seller_id: String(sellerId), sale_day_id: String(d.id) });
-			let sales = [];
-			try { sales = await api('GET', `${API.Sales}?${p.toString()}`); } catch { sales = []; }
-			for (const s of (sales || [])) {
-				const raw = (s?.client_name || '').trim();
-				if (!raw) continue;
-				const key = normalizeClientName(raw);
-				counts.set(key, (counts.get(key) || 0) + 1);
-                if (!namesByKey.has(key)) namesByKey.set(key, raw);
+		const sellerId = state.currentSeller.id;
+		const params = new URLSearchParams({ seller_id: String(sellerId) });
+		if (state.selectedDayId) params.set('sale_day_id', String(state.selectedDayId));
+		state.sales = await api('GET', `${API.Sales}?${params.toString()}`);
+		
+		// Initialize _paymentInfo from database fields (payment_date and payment_source)
+		if (Array.isArray(state.sales)) {
+			for (const sale of state.sales) {
+				if (sale && sale.payment_date && sale.payment_source) {
+					sale._paymentInfo = {
+						date: sale.payment_date,
+						source: sale.payment_source,
+						sourceValue: (sale.payment_source || '').toLowerCase()
+					};
+				}
 			}
 		}
-		state.clientCounts = counts;
-        // Prepare suggestion list of regular clients (count > 1)
-        try {
-            const arr = Array.from(counts.entries())
-                .filter(([, count]) => Number(count) > 1)
-                .map(([key, count]) => ({ key, name: namesByKey.get(key) || '', count: Number(count) || 0 }))
-                .filter(it => it.name && it.name.trim() !== '');
-            arr.sort((a, b) => {
-                if (b.count !== a.count) return b.count - a.count;
-                return (a.name || '').localeCompare(b.name || '', 'es');
-            });
-            state.clientSuggestions = arr;
-        } catch { state.clientSuggestions = []; }
-	} catch { state.clientCounts = new Map(); }
-	
-	// Ensure desserts are loaded before rendering table
-	await loadDesserts();
-	renderDessertColumns();
-	
-	renderTable();
-	preloadChangeLogsForCurrentTable();
+		
+		// Check if all receipts for each sale have jorgebank - if so, update sale.pay_method
+		await enrichSalesWithReceiptStatus();
+		
+		// Build recurrence counts across all dates for this seller
+		try {
+			const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(sellerId)}`);
+			const counts = new Map();
+			const namesByKey = new Map();
+			for (const d of (days || [])) {
+				const p = new URLSearchParams({ seller_id: String(sellerId), sale_day_id: String(d.id) });
+				let sales = [];
+				try { sales = await api('GET', `${API.Sales}?${p.toString()}`); } catch { sales = []; }
+				for (const s of (sales || [])) {
+					const raw = (s?.client_name || '').trim();
+					if (!raw) continue;
+					const key = normalizeClientName(raw);
+					counts.set(key, (counts.get(key) || 0) + 1);
+					if (!namesByKey.has(key)) namesByKey.set(key, raw);
+				}
+			}
+			state.clientCounts = counts;
+			// Prepare suggestion list of regular clients (count > 1)
+			try {
+				const arr = Array.from(counts.entries())
+					.filter(([, count]) => Number(count) > 1)
+					.map(([key, count]) => ({ key, name: namesByKey.get(key) || '', count: Number(count) || 0 }))
+					.filter(it => it.name && it.name.trim() !== '');
+				arr.sort((a, b) => {
+					if (b.count !== a.count) return b.count - a.count;
+					return (a.name || '').localeCompare(b.name || '', 'es');
+				});
+				state.clientSuggestions = arr;
+			} catch { state.clientSuggestions = []; }
+		} catch { state.clientCounts = new Map(); }
+		
+		// Ensure desserts are loaded before rendering table
+		await loadDesserts();
+		renderDessertColumns();
+		
+		renderTable();
+		preloadChangeLogsForCurrentTable();
+	} finally {
+		// Hide loading indicator
+		if (loadingEl) loadingEl.style.display = 'none';
+	}
 }
 
 const history = { undo: [], redo: [], limit: 10 };
