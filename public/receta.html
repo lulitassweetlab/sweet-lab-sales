@@ -5,8 +5,96 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
 	<title>Receta por pasos</title>
 	<link rel="stylesheet" href="/styles.css?v=2025-09-17-1" />
+	<style>
+		/* Loading overlay */
+		.loading-overlay {
+			position: fixed;
+			top: 0;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			background: rgba(244, 166, 183, 0.98);
+			z-index: 99999;
+			display: flex !important;
+			align-items: center;
+			justify-content: center;
+			backdrop-filter: blur(5px);
+			opacity: 0;
+			pointer-events: none;
+			transition: opacity 0.2s ease;
+		}
+		.loading-overlay.active { 
+			opacity: 1 !important;
+			pointer-events: auto;
+		}
+		.loading-content {
+			text-align: center;
+			max-width: 400px;
+			padding: 32px;
+			background: white;
+			border-radius: 16px;
+			box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+			transform: translateY(0);
+			transition: transform 0.2s ease;
+		}
+		.loading-overlay:not(.active) .loading-content {
+			transform: translateY(-20px);
+		}
+		.loading-spinner {
+			width: 60px;
+			height: 60px;
+			margin: 0 auto 24px;
+			border: 4px solid #f0f0f0;
+			border-top-color: var(--primary);
+			border-radius: 50%;
+			animation: spin 0.8s linear infinite;
+		}
+		@keyframes spin {
+			to { transform: rotate(360deg); }
+		}
+		.progress-bar-container {
+			width: 100%;
+			height: 8px;
+			background: #f0f0f0;
+			border-radius: 4px;
+			overflow: hidden;
+			margin: 16px 0;
+		}
+		.progress-bar {
+			height: 100%;
+			background: linear-gradient(90deg, var(--primary), var(--hover-primary-pink));
+			border-radius: 4px;
+			transition: width 0.3s ease;
+			animation: progress-pulse 1.5s ease-in-out infinite;
+		}
+		@keyframes progress-pulse {
+			0%, 100% { opacity: 1; }
+			50% { opacity: 0.7; }
+		}
+		.loading-text {
+			font-size: 16px;
+			color: var(--text);
+			margin: 8px 0;
+			font-weight: 500;
+		}
+		.loading-subtext {
+			font-size: 13px;
+			color: var(--muted);
+		}
+	</style>
 </head>
 <body>
+	<!-- Loading overlay -->
+	<div id="loading-overlay" class="loading-overlay">
+		<div class="loading-content">
+			<div class="loading-spinner"></div>
+			<div class="loading-text" id="loading-text">Cargando recetas...</div>
+			<div class="progress-bar-container">
+				<div class="progress-bar" id="progress-bar" style="width: 0%"></div>
+			</div>
+			<div class="loading-subtext" id="loading-subtext">Esto tomará solo un momento</div>
+		</div>
+	</div>
 	<header class="app-header">
 		<div class="header-row">
 			<div class="header-left">
@@ -81,35 +169,95 @@
 			} catch { return url + (url.includes('?') ? `&actor=${encodeURIComponent(actor)}` : `?actor=${encodeURIComponent(actor)}`); }
 		}
 
-	function sumCountsView(c){
-		countsSummary.innerHTML = '';
-		const pills = [];
+		// Store original and edited counts
+		let originalCounts = {};
+		let editedCounts = {};
 		
-		// Add pill for each dessert dynamically
-		let total = 0;
-		for (const d of desserts) {
-			const v = c[d.short_code] || 0;
-			pills.push({ label: d.name, v });
-			total += v;
+		function sumCountsView(c, onCountChange){
+			countsSummary.innerHTML = '';
+			const pills = [];
+			
+			// Add pill for each dessert dynamically
+			let total = 0;
+			let editedTotal = 0;
+			for (const d of desserts) {
+				const originalV = c[d.short_code] || 0;
+				const editedV = editedCounts[d.short_code] !== undefined ? editedCounts[d.short_code] : originalV;
+				pills.push({ label: d.name, code: d.short_code, original: originalV, edited: editedV });
+				total += originalV;
+				editedTotal += editedV;
+			}
+			pills.push({ label: 'Total', code: null, original: total, edited: editedTotal });
+			
+			for (const p of pills){ 
+				const el = document.createElement('div'); 
+				el.style.background = 'var(--card)'; 
+				el.style.border = '1px solid var(--border)'; 
+				el.style.borderRadius = '999px'; 
+				el.style.padding = '4px 10px';
+				el.style.display = 'flex';
+				el.style.alignItems = 'center';
+				el.style.gap = '6px';
+				
+				const labelSpan = document.createElement('span');
+				labelSpan.textContent = p.label + ':';
+				labelSpan.style.fontWeight = '500';
+				el.appendChild(labelSpan);
+				
+				if (p.code) {
+					// Editable input
+					const input = document.createElement('input');
+					input.type = 'number';
+					input.min = '0';
+					input.value = p.edited;
+					input.style.width = '50px';
+					input.style.border = '1px solid var(--border)';
+					input.style.borderRadius = '4px';
+					input.style.padding = '2px 6px';
+					input.style.textAlign = 'center';
+					input.style.fontWeight = '600';
+					input.addEventListener('change', () => {
+						const newValue = Math.max(0, parseInt(input.value) || 0);
+						input.value = newValue;
+						editedCounts[p.code] = newValue;
+						if (onCountChange) onCountChange();
+					});
+					el.appendChild(input);
+					
+					// Show original if different
+					if (p.edited !== p.original) {
+						const originalSpan = document.createElement('span');
+						originalSpan.textContent = `(orig: ${p.original})`;
+						originalSpan.style.fontSize = '11px';
+						originalSpan.style.opacity = '0.7';
+						el.appendChild(originalSpan);
+					}
+				} else {
+					// Total (not editable)
+					const totalSpan = document.createElement('span');
+					totalSpan.textContent = p.edited;
+					totalSpan.style.fontWeight = '700';
+					el.appendChild(totalSpan);
+					
+					if (p.edited !== p.original) {
+						const originalSpan = document.createElement('span');
+						originalSpan.textContent = `(orig: ${p.original})`;
+						originalSpan.style.fontSize = '11px';
+						originalSpan.style.opacity = '0.7';
+						el.appendChild(originalSpan);
+					}
+				}
+				
+				countsSummary.appendChild(el); 
+			}
 		}
-		pills.push({ label: 'Total', v: total });
-		
-		for (const p of pills){ 
-			const el = document.createElement('div'); 
-			el.style.background = 'var(--card)'; 
-			el.style.border = '1px solid var(--border)'; 
-			el.style.borderRadius = '999px'; 
-			el.style.padding = '4px 10px'; 
-			el.textContent = `${p.label}: ${p.v}`; 
-			countsSummary.appendChild(el); 
-		}
-	}
 	
 	// History helper functions (global scope for access from timers)
 	function readHistory(){ try { return JSON.parse(localStorage.getItem('timesHistory') || '[]') || []; } catch { return []; } }
 	function writeHistory(arr){ try { localStorage.setItem('timesHistory', JSON.stringify(arr)); } catch {} }
 	function fmtMs(ms){ const total=Math.max(0,Math.floor(ms/1000)); const h=Math.floor(total/3600); const m=Math.floor((total%3600)/60); const s=total%60; const pad=n=>String(n).padStart(2,'0'); return (h>0?`${h}:`:'')+`${pad(m)}:${pad(s)}`; }
 
+<<<<<<< HEAD
 	function buildTimerControls(associatedRows = [], stepName = '', dessertName = ''){
 		const stepState = { elapsedMs: 0, isRunning: false, startedAt: null };
 		const wrap = document.createElement('div'); wrap.style.display='flex'; wrap.style.alignItems='center'; wrap.style.gap='8px';
@@ -119,10 +267,59 @@
 		const stopBtn = document.createElement('button'); stopBtn.className='press-btn'; stopBtn.textContent='⏹'; stopBtn.title='Stop';
 		const histBtn = document.createElement('button'); histBtn.className='press-btn'; histBtn.textContent='📊'; histBtn.title='Ver historial de este paso';
 		wrap.append(display, playBtn, pauseBtn, stopBtn, histBtn);
+=======
+		// Global container for active timer buttons (right side)
+		let activeTimersContainer = null;
+		let timerButtonIdCounter = 0;
+
+		function buildTimerControls(associatedRows = [], dessertName = '', stepName = '', targetElement = null, qtyPerDessert = 0){
+			const stepState = { elapsedMs: 0, isRunning: false, startedAt: null };
+			const wrap = document.createElement('div'); wrap.style.display='flex'; wrap.style.alignItems='center'; wrap.style.gap='8px';
+			const display = document.createElement('div'); display.style.minWidth='180px'; display.style.textAlign='center'; display.style.fontVariantNumeric='tabular-nums';
+			const playBtn = document.createElement('button'); playBtn.className='press-btn'; playBtn.textContent='▶'; playBtn.title='Play';
+			const pauseBtn = document.createElement('button'); pauseBtn.className='press-btn'; pauseBtn.textContent='⏸'; pauseBtn.title='Pause';
+			const stopBtn = document.createElement('button'); stopBtn.className='press-btn'; stopBtn.textContent='⏹'; stopBtn.title='Stop';
+			const saveBtn = document.createElement('button'); saveBtn.className='press-btn'; saveBtn.textContent='💾'; saveBtn.title='Guardar'; saveBtn.style.fontSize='16px';
+			const histBtn = document.createElement('button'); histBtn.className='press-btn'; histBtn.textContent='📊'; histBtn.title='Historial'; histBtn.style.fontSize='16px';
+			wrap.append(display, playBtn, pauseBtn, stopBtn, saveBtn, histBtn);
 			function formatMs(ms){ const total=Math.max(0,Math.floor(ms/1000)); const h=Math.floor(total/3600); const m=Math.floor((total%3600)/60); const s=total%60; const pad=n=>String(n).padStart(2,'0'); return (h>0?`${h}:`:'')+`${pad(m)}:${pad(s)}`; }
 			let intervalId = null;
+			let activeTimerButton = null;
+			const timerId = 'timer-btn-' + (++timerButtonIdCounter);
+			
+			// Calculate estimated time based on history
+			function getEstimatedTime() {
+				const hist = readHistory();
+				const filtered = hist.filter(item => 
+					item.dessert === dessertName && 
+					item.step_name === stepName && 
+					item.avg_ms_per_unit
+				);
+				
+				if (filtered.length === 0) return null;
+				
+				// Calculate average of averages
+				const sumOfAverages = filtered.reduce((sum, item) => sum + item.avg_ms_per_unit, 0);
+				const avgPerUnit = Math.round(sumOfAverages / filtered.length);
+				
+				// Multiply by quantity
+				return avgPerUnit * qtyPerDessert;
+			}
+			
+			const estimatedMs = getEstimatedTime();
+			
 			function compute(){ const base=Number(stepState.elapsedMs||0)||0; if (stepState.isRunning && stepState.startedAt) return base + (Date.now()-stepState.startedAt); return base; }
-			function render(){ display.textContent = formatMs(compute()); }
+			function render(){ 
+				const currentTime = formatMs(compute());
+				if (estimatedMs) {
+					const estimatedTime = formatMs(estimatedMs);
+					display.innerHTML = `<span style="color:var(--text);">${currentTime}</span> <span style="color:rgba(0,0,0,0.4); font-weight:400;">/ ${estimatedTime}</span>`;
+				} else {
+					display.textContent = currentTime;
+				}
+			}
+			
+			function readHistory(){ try { return JSON.parse(localStorage.getItem('timesHistory') || '[]') || []; } catch { return []; } }
 			function updateRowHighlight(){
 				for (const row of associatedRows){
 					if (stepState.isRunning) {
@@ -132,47 +329,429 @@
 					}
 				}
 			}
-			function play(){ if (stepState.isRunning) return; stepState.isRunning = true; stepState.startedAt = Date.now(); clearInterval(intervalId); intervalId = setInterval(render, 250); updateRowHighlight(); }
-			function pause(){ if (!stepState.isRunning) return; stepState.elapsedMs = compute(); stepState.isRunning = false; stepState.startedAt = null; clearInterval(intervalId); intervalId = null; render(); updateRowHighlight(); }
-			function stop(){ stepState.elapsedMs = 0; stepState.isRunning = false; stepState.startedAt = null; clearInterval(intervalId); intervalId = null; render(); updateRowHighlight(); }
-		playBtn.addEventListener('click', play); pauseBtn.addEventListener('click', pause); stopBtn.addEventListener('click', stop);
-		
-		// History button for this specific step
-		histBtn.addEventListener('click', () => {
-			showStepHistory(dessertName, stepName);
-		});
-		
-		render();
-		return { element: wrap, getElapsedMs: () => compute(), reset: () => { stop(); }, addRow: (row) => { associatedRows.push(row); } };
-	}
-	
-	function showStepHistory(dessertName, stepName) {
-		const pop = document.createElement('div');
-		pop.className = 'confirm-popover';
-		pop.style.position = 'fixed';
-		pop.style.left = (window.innerWidth / 2) + 'px';
-		pop.style.top = '8%';
-		pop.style.transform = 'translate(-50%, 0)';
-		pop.style.maxWidth = '95vw';
-		pop.style.width = 'auto';
-		
-		const title = document.createElement('h4');
-		title.textContent = `${dessertName} - ${stepName}`;
-		title.style.margin = '0 0 12px 0';
-		title.style.textAlign = 'center';
-		
-		const list = document.createElement('div');
-		list.style.maxHeight = '70vh';
-		list.style.overflow = 'auto';
-		list.style.minWidth = 'min(92vw, 600px)';
-		
-		function fmtMs(ms) {
-			const total = Math.max(0, Math.floor(ms / 1000));
-			const h = Math.floor(total / 3600);
-			const m = Math.floor((total % 3600) / 60);
-			const s = total % 60;
-			const pad = n => String(n).padStart(2, '0');
-			return (h > 0 ? `${h}:` : '') + `${pad(m)}:${pad(s)}`;
+			function createActiveTimerButton(){
+				if (!activeTimersContainer || !dessertName || !stepName) return;
+				
+				// Remove any existing button for this timer
+				removeActiveTimerButton();
+				
+				// Extract first word of step name
+				const firstWordOfStep = stepName.split(' ')[0];
+				
+				const btn = document.createElement('button');
+				btn.className = 'press-btn active-timer-btn';
+				btn.id = timerId;
+				btn.innerHTML = `<strong>${dessertName}</strong><br><small>${firstWordOfStep}</small>`;
+				btn.addEventListener('click', () => {
+					if (targetElement) {
+						targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+						// Add a visual highlight effect
+						const originalBoxShadow = targetElement.style.boxShadow;
+						targetElement.style.transition = 'box-shadow 0.3s ease';
+						targetElement.style.boxShadow = '0 0 20px rgba(244, 166, 183, 0.8)';
+						setTimeout(() => {
+							targetElement.style.boxShadow = originalBoxShadow || '';
+						}, 1500);
+					}
+				});
+				activeTimersContainer.appendChild(btn);
+				activeTimerButton = btn;
+			}
+			function removeActiveTimerButton(){
+				if (activeTimerButton && activeTimerButton.parentNode) {
+					activeTimerButton.parentNode.removeChild(activeTimerButton);
+				}
+				activeTimerButton = null;
+			}
+			function play(){ 
+				if (stepState.isRunning) return; 
+				stepState.isRunning = true; 
+				stepState.startedAt = Date.now(); 
+				clearInterval(intervalId); 
+				intervalId = setInterval(render, 250); 
+				updateRowHighlight();
+				createActiveTimerButton();
+			}
+			function pause(){ 
+				if (!stepState.isRunning) return; 
+				stepState.elapsedMs = compute(); 
+				stepState.isRunning = false; 
+				stepState.startedAt = null; 
+				clearInterval(intervalId); 
+				intervalId = null; 
+				render(); 
+				updateRowHighlight();
+				removeActiveTimerButton();
+			}
+			function stop(){ 
+				const currentMs = compute();
+				
+				// If there's time recorded, ask if user wants to save
+				if (currentMs > 0 && qtyPerDessert > 0) {
+					// Create popover
+					const popover = document.createElement('div');
+					popover.className = 'save-time-popover';
+					popover.style.position = 'fixed';
+					popover.style.left = '50%';
+					popover.style.top = '50%';
+					popover.style.transform = 'translate(-50%, -50%)';
+					popover.style.background = 'white';
+					popover.style.padding = '24px';
+					popover.style.borderRadius = '12px';
+					popover.style.boxShadow = '0 8px 32px rgba(0,0,0,0.2)';
+					popover.style.zIndex = '10001';
+					popover.style.minWidth = '320px';
+					popover.style.textAlign = 'center';
+					
+					const overlay = document.createElement('div');
+					overlay.style.position = 'fixed';
+					overlay.style.top = '0';
+					overlay.style.left = '0';
+					overlay.style.right = '0';
+					overlay.style.bottom = '0';
+					overlay.style.background = 'rgba(0,0,0,0.4)';
+					overlay.style.zIndex = '10000';
+					overlay.style.backdropFilter = 'blur(2px)';
+					
+					const title = document.createElement('div');
+					title.textContent = '¿Guardar este tiempo?';
+					title.style.fontSize = '18px';
+					title.style.fontWeight = '600';
+					title.style.marginBottom = '12px';
+					title.style.color = 'var(--text)';
+					
+					const info = document.createElement('div');
+					info.style.fontSize = '14px';
+					info.style.marginBottom = '20px';
+					info.style.color = 'var(--text)';
+					info.style.opacity = '0.8';
+					info.innerHTML = `
+						<div style="margin-bottom:8px;">
+							<strong style="color:var(--primary);">${dessertName} - ${stepName}</strong>
+						</div>
+						<div>⏱️ Tiempo: <strong>${fmtMs(currentMs)}</strong></div>
+						<div>📦 Cantidad: <strong>${qtyPerDessert}</strong></div>
+					`;
+					
+					const actions = document.createElement('div');
+					actions.style.display = 'flex';
+					actions.style.gap = '12px';
+					actions.style.justifyContent = 'center';
+					
+					const saveButton = document.createElement('button');
+					saveButton.className = 'press-btn btn-primary';
+					saveButton.textContent = '💾 Guardar';
+					saveButton.style.flex = '1';
+					saveButton.style.maxWidth = '140px';
+					
+					const discardButton = document.createElement('button');
+					discardButton.className = 'press-btn';
+					discardButton.textContent = 'Descartar';
+					discardButton.style.flex = '1';
+					discardButton.style.maxWidth = '140px';
+					
+					function cleanup() {
+						if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+						if (popover.parentNode) popover.parentNode.removeChild(popover);
+					}
+					
+					saveButton.addEventListener('click', async () => {
+						cleanup();
+						const saved = await saveTimerData();
+						if (saved) {
+							// Show brief success message
+							const toast = document.createElement('div');
+							toast.textContent = '✅ Tiempo guardado';
+							toast.style.position = 'fixed';
+							toast.style.top = '20px';
+							toast.style.left = '50%';
+							toast.style.transform = 'translateX(-50%)';
+							toast.style.background = 'var(--primary)';
+							toast.style.color = 'white';
+							toast.style.padding = '12px 24px';
+							toast.style.borderRadius = '8px';
+							toast.style.boxShadow = '0 4px 16px rgba(0,0,0,0.2)';
+							toast.style.zIndex = '10002';
+							toast.style.fontWeight = '500';
+							document.body.appendChild(toast);
+							setTimeout(() => {
+								if (toast.parentNode) toast.parentNode.removeChild(toast);
+							}, 2000);
+						}
+						// Execute stop
+						stepState.elapsedMs = 0; 
+						stepState.isRunning = false; 
+						stepState.startedAt = null; 
+						clearInterval(intervalId); 
+						intervalId = null; 
+						render(); 
+						updateRowHighlight();
+						removeActiveTimerButton();
+					});
+					
+					discardButton.addEventListener('click', () => {
+						cleanup();
+						// Execute stop without saving
+						stepState.elapsedMs = 0; 
+						stepState.isRunning = false; 
+						stepState.startedAt = null; 
+						clearInterval(intervalId); 
+						intervalId = null; 
+						render(); 
+						updateRowHighlight();
+						removeActiveTimerButton();
+					});
+					
+					overlay.addEventListener('click', () => {
+						cleanup();
+					});
+					
+					actions.append(saveButton, discardButton);
+					popover.append(title, info, actions);
+					document.body.appendChild(overlay);
+					document.body.appendChild(popover);
+				} else {
+					// No time or no quantity, just stop
+					stepState.elapsedMs = 0; 
+					stepState.isRunning = false; 
+					stepState.startedAt = null; 
+					clearInterval(intervalId); 
+					intervalId = null; 
+					render(); 
+					updateRowHighlight();
+					removeActiveTimerButton();
+				}
+			}
+			function writeHistory(arr){ try { localStorage.setItem('timesHistory', JSON.stringify(arr)); } catch {} }
+			function fmtMs(ms){ const total=Math.max(0,Math.floor(ms/1000)); const h=Math.floor(total/3600); const m=Math.floor((total%3600)/60); const s=total%60; const pad=n=>String(n).padStart(2,'0'); return (h>0?`${h}:`:'')+`${pad(m)}:${pad(s)}`; }
+			
+			async function saveTimerData() {
+				const ms = compute();
+				if (ms <= 0) {
+					return false;
+				}
+				
+				const qty = Number(qtyPerDessert) || 0;
+				if (qty <= 0) {
+					return false;
+				}
+				
+				const avg = Math.round(ms / qty);
+				const steps = [{ 
+					name: stepName, 
+					elapsed_ms: ms, 
+					qty_units: qty, 
+					avg_ms_per_unit: avg 
+				}];
+				
+				try {
+					// Save to server
+					await fetch('/api/times', { 
+						method: 'POST', 
+						headers: { 'Content-Type': 'application/json' }, 
+						body: JSON.stringify({ 
+							dessert: dessertName, 
+							steps, 
+							total_elapsed_ms: ms, 
+							actor_name: null 
+						}) 
+					});
+					
+					// Save to local history
+					const hist = readHistory();
+					hist.push({ 
+						id: new Date().toISOString(), 
+						date_iso: new Date().toISOString(), 
+						dessert: dessertName, 
+						step_name: stepName,
+						qty_units: qty, 
+						total_elapsed_ms: ms,
+						avg_ms_per_unit: avg,
+						steps 
+					});
+					writeHistory(hist);
+					
+					return true;
+				} catch (err) {
+					console.error('Error al guardar:', err);
+					return false;
+				}
+			}
+			
+			histBtn.addEventListener('click', () => {
+				const allHistory = readHistory();
+				// Filter by this specific dessert and step
+				const filteredItems = allHistory.filter(item => 
+					item.dessert === dessertName && item.step_name === stepName
+				).reverse();
+				
+				// Create overlay
+				const overlay = document.createElement('div');
+				overlay.style.position = 'fixed';
+				overlay.style.top = '0';
+				overlay.style.left = '0';
+				overlay.style.right = '0';
+				overlay.style.bottom = '0';
+				overlay.style.background = 'rgba(0,0,0,0.4)';
+				overlay.style.zIndex = '9999';
+				overlay.style.backdropFilter = 'blur(2px)';
+				
+				const pop = document.createElement('div'); 
+				pop.className = 'confirm-popover'; 
+				pop.style.position='fixed'; 
+				pop.style.left=(window.innerWidth/2)+'px'; 
+				pop.style.top='10%'; 
+				pop.style.transform='translate(-50%,0)'; 
+				pop.style.zIndex='10000';
+				pop.style.maxWidth='90vw';
+				
+				const title = document.createElement('h4'); 
+				title.textContent = `Historial: ${dessertName} - ${stepName}`; 
+				title.style.margin='0 0 12px 0';
+				title.style.textAlign='center';
+				
+				const list = document.createElement('div'); 
+				list.style.maxHeight='65vh'; 
+				list.style.overflow='auto'; 
+				list.style.minWidth='min(85vw,700px)';
+				
+				if (!filteredItems.length) { 
+					const empty=document.createElement('div'); 
+					empty.textContent='Sin registros para este paso'; 
+					empty.style.textAlign='center';
+					empty.style.padding='20px';
+					empty.style.opacity='0.7';
+					list.appendChild(empty); 
+				} else {
+					// Calculate average of averages
+					let sumOfAverages = 0;
+					let countWithAverage = 0;
+					
+					filteredItems.forEach((it, idx) => {
+						const row = document.createElement('div'); 
+						row.style.borderBottom='1px solid var(--border)'; 
+						row.style.padding='10px 8px';
+						row.style.display='flex';
+						row.style.justifyContent='space-between';
+						row.style.alignItems='center';
+						row.style.gap='12px';
+						
+						const info = document.createElement('div');
+						info.style.flex='1';
+						const when = new Date(it.date_iso || it.id || Date.now());
+						const dateStr = when.toLocaleString('es-ES', { 
+							year: 'numeric', 
+							month: '2-digit', 
+							day: '2-digit', 
+							hour: '2-digit', 
+							minute: '2-digit' 
+						});
+						
+						info.innerHTML = `
+							<div style="margin-bottom:4px;">
+								<strong style="color:var(--primary);">${dateStr}</strong>
+							</div>
+							<div style="display:flex; gap:16px; flex-wrap:wrap; font-size:13px;">
+								<span>📦 Cant: <strong>${it.qty_units||0}</strong></span>
+								<span>⏱️ Total: <strong>${fmtMs(it.total_elapsed_ms||0)}</strong></span>
+								<span>📊 Prom/u: <strong>${fmtMs(it.avg_ms_per_unit||0)}</strong></span>
+							</div>
+						`;
+						
+						if (it.avg_ms_per_unit) {
+							sumOfAverages += it.avg_ms_per_unit;
+							countWithAverage++;
+						}
+						
+						const deleteBtn = document.createElement('button');
+						deleteBtn.className='press-btn';
+						deleteBtn.textContent='🗑️';
+						deleteBtn.title='Eliminar';
+						deleteBtn.style.fontSize='16px';
+						deleteBtn.style.padding='6px 10px';
+						deleteBtn.style.minWidth='unset';
+						deleteBtn.addEventListener('click', () => {
+							if (confirm('¿Eliminar este registro?')) {
+								const hist = readHistory();
+								const itemId = it.id || it.date_iso;
+								const newHist = hist.filter(h => (h.id || h.date_iso) !== itemId);
+								writeHistory(newHist);
+								// Re-open the history popup
+								if (pop.parentNode) pop.parentNode.removeChild(pop);
+								histBtn.click();
+							}
+						});
+						
+						row.append(info, deleteBtn);
+						list.appendChild(row);
+					});
+					
+					// Add average of averages section
+					if (countWithAverage > 0) {
+						const avgOfAvg = Math.round(sumOfAverages / countWithAverage);
+						const avgSection = document.createElement('div');
+						avgSection.style.marginTop='16px';
+						avgSection.style.padding='12px';
+						avgSection.style.background='rgba(244, 166, 183, 0.15)';
+						avgSection.style.borderRadius='8px';
+						avgSection.style.textAlign='center';
+						avgSection.style.fontWeight='600';
+						avgSection.innerHTML = `
+							📈 Promedio de todos los promedios: <strong style="color:var(--primary); font-size:18px;">${fmtMs(avgOfAvg)}</strong>
+							<div style="font-size:12px; font-weight:400; margin-top:4px; opacity:0.8;">
+								Basado en ${countWithAverage} registro${countWithAverage !== 1 ? 's' : ''}
+							</div>
+						`;
+						list.appendChild(avgSection);
+					}
+				}
+				
+				const actions=document.createElement('div'); 
+				actions.className='confirm-actions'; 
+				const close=document.createElement('button'); 
+				close.className='press-btn'; 
+				close.textContent='Cerrar'; 
+				actions.appendChild(close);
+				
+				function cleanup() {
+					if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+					if (pop.parentNode) pop.parentNode.removeChild(pop);
+				}
+				
+				pop.append(title, list, actions); 
+				document.body.appendChild(overlay);
+				document.body.appendChild(pop); 
+				pop.classList.add('aladdin-pop');
+				close.addEventListener('click', cleanup);
+				overlay.addEventListener('click', cleanup);
+			});
+			
+			saveBtn.addEventListener('click', async () => {
+				const ms = compute();
+				if (ms <= 0) {
+					alert('No hay tiempo para guardar');
+					return;
+				}
+				
+				const qty = Number(qtyPerDessert) || 0;
+				if (qty <= 0) {
+					alert('No hay cantidad para calcular el promedio');
+					return;
+				}
+				
+				const saved = await saveTimerData();
+				if (saved) {
+					const avg = Math.round(ms / qty);
+					alert(`✅ Guardado!\n\nPostre: ${dessertName}\nPaso: ${stepName}\nCantidad: ${qty}\nTiempo total: ${fmtMs(ms)}\nPromedio por unidad: ${fmtMs(avg)}`);
+				} else {
+					alert('Error al guardar');
+				}
+			});
+			
+			playBtn.addEventListener('click', play); pauseBtn.addEventListener('click', pause); stopBtn.addEventListener('click', stop);
+			render();
+			return { element: wrap, getElapsedMs: () => compute(), reset: () => { stop(); }, addRow: (row) => { associatedRows.push(row); } };
+>>>>>>> origin/main
 		}
 		
 		function renderHistory() {
@@ -343,12 +922,52 @@
 		function saveCheckedState(state){
 			checkedState = state;
 		}
-
+		
+		// Loading overlay management
+		const loadingOverlay = document.getElementById('loading-overlay');
+		const loadingText = document.getElementById('loading-text');
+		const loadingSubtext = document.getElementById('loading-subtext');
+		const progressBar = document.getElementById('progress-bar');
+		
+		function showLoading(message = 'Cargando recetas...') {
+			loadingText.textContent = message;
+			loadingOverlay.classList.add('active');
+			progressBar.style.width = '0%';
+			
+			// Simulate realistic progress
+			let progress = 0;
+			const progressInterval = setInterval(() => {
+				progress += Math.random() * 15;
+				if (progress > 90) progress = 90;
+				progressBar.style.width = `${progress}%`;
+			}, 300);
+			
+			return () => {
+				clearInterval(progressInterval);
+				progressBar.style.width = '100%';
+				setTimeout(() => {
+					loadingOverlay.classList.remove('active');
+				}, 300);
+			};
+		}
+		
+		function updateLoadingProgress(percent, text) {
+			if (loadingOverlay.classList.contains('active')) {
+				progressBar.style.width = `${percent}%`;
+				if (text) loadingSubtext.textContent = text;
+			}
+		}
+		
 		async function load(){
 			if (!start || !end) return;
+			
+			const hideLoading = showLoading('Cargando recetas...');
+			
 			rangeLabel.textContent = `${formatDay(start)} — ${formatDay(end)}`;
 			countLabel.textContent = 'Cargando…';
 			cardsWrap.innerHTML = '';
+			
+			updateLoadingProgress(10, 'Cargando postres...');
 			
 			// Load desserts first
 			try {
@@ -375,6 +994,7 @@
 					for (const d of (days||[])) { const iso = String(d.day).slice(0,10); if (isoBetween(iso, start, end)) sellerDays.push({ seller: s, day: d }); }
 				} catch {}
 			});
+			updateLoadingProgress(40, 'Buscando ventas...');
 			countLabel.textContent = `Días: ${sellerDays.length} · Buscando ventas…`;
 			
 			// Initialize counts dynamically
@@ -406,7 +1026,32 @@
 					}
 				} catch {}
 			});
-			sumCountsView(counts);
+			
+			// Store original counts
+			originalCounts = { ...counts };
+			editedCounts = {};
+			
+			const onCountChange = async () => {
+				// Re-render all desserts when counts change
+				const newRenderedDesserts = await renderAllDesserts();
+				
+				// Update total count label
+				let totalDesserts = 0;
+				for (const d of desserts) {
+					const qty = editedCounts[d.short_code] !== undefined ? editedCounts[d.short_code] : (counts[d.short_code] || 0);
+					totalDesserts += qty;
+				}
+				countLabel.textContent = `Postres: ${totalDesserts}`;
+				
+				// Re-setup navigation
+				setupNavigation(newRenderedDesserts);
+				
+				// Re-render the counts view to update totals
+				sumCountsView(counts, onCountChange);
+			};
+			
+			updateLoadingProgress(60, 'Calculando recetas...');
+			sumCountsView(counts, onCountChange);
 
 			// 2) Fetch dessert names and map them to keys
 			let dessertNames = [];
@@ -416,9 +1061,10 @@
 
 			// 3) Render a card per dessert with count > 0
 			const fmt1 = new Intl.NumberFormat('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-			async function renderDessert(keyLabel, label){
-				const qty = Number(counts[keyLabel] || 0) || 0; if (!qty) return;
-				const dessertName = byKey.get(keyLabel) || label;
+			
+			async function renderDessert(keyLabel, label, qty, byKeyMap, formatter){
+				if (!qty) return;
+				const dessertName = byKeyMap.get(keyLabel) || label;
 			let data = null; try { data = await fetchJSON(withActor(`/api/recipes?dessert=${encodeURIComponent(dessertName)}&include_extras=1`)); } catch { data = null; }
 				if (!data) return;
 				const card = document.createElement('div'); card.className = 'measure-card'; card.style.padding='12px'; card.style.border='1px solid rgba(0,0,0,0.15)'; card.style.borderRadius='10px'; card.style.boxShadow='0 8px 24px rgba(0,0,0,0.12)';
@@ -427,9 +1073,9 @@
 			const checkedState = getCheckedState();
 			for (const step of (Array.isArray(data.steps) ? data.steps : [])){
 				const section = document.createElement('div'); section.className='measure-section'; section.style.margin='12px 0';
-			const head = document.createElement('div'); head.style.display='flex'; head.style.alignItems='center'; head.style.justifyContent='space-between'; head.style.gap='8px';
-			const sh = document.createElement('div'); sh.textContent = step.step_name || 'Paso'; sh.style.fontWeight='600'; sh.style.margin='0 0 6px 0'; sh.style.flex='1';
-			const timer = buildTimerControls([], step.step_name || 'Paso', dessertName); head.append(sh, timer.element);
+				const head = document.createElement('div'); head.style.display='flex'; head.style.alignItems='center'; head.style.justifyContent='space-between'; head.style.gap='8px';
+				const sh = document.createElement('div'); sh.textContent = step.step_name || 'Paso'; sh.style.fontWeight='600'; sh.style.margin='0 0 6px 0'; sh.style.flex='1';
+				const timer = buildTimerControls([], dessertName, step.step_name || 'Paso', section, qty); head.append(sh, timer.element);
 				section.appendChild(head);
 				const table = document.createElement('table'); table.style.width='100%'; table.style.tableLayout='fixed';
 				const tbody = document.createElement('tbody');
@@ -463,12 +1109,13 @@
                         const per = Number(it.qty_per_unit || 0) || 0;
                         const adj = Number(it.adjustment || 0) || 0;
                         const total = (per * qty) + adj;
-                        const tdQ = document.createElement('td'); tdQ.textContent = fmt1.format(total); tdQ.style.textAlign='right'; tdQ.style.padding='5px 4px';
+                        const tdQ = document.createElement('td'); tdQ.textContent = formatter.format(total); tdQ.style.textAlign='right'; tdQ.style.padding='5px 4px';
 					tr.append(tdCheck, tdN, tdQ);
 					stepRows.push(tr);
 					tbody.appendChild(tr);
 				}
-				// Associate rows with timer
+				// Associate header and rows with timer
+				timer.addRow(head);
 				for (const row of stepRows) {
 					timer.addRow(row);
 				}
@@ -521,26 +1168,40 @@
 				cardsWrap.appendChild(card);
 				sessions.push(session);
 			}
-
-			// Render cards dynamically for all desserts with count > 0
-			const renderedDesserts = [];
-			for (const d of desserts) {
-				const hasQty = counts[d.short_code] > 0;
-				if (hasQty) {
-					renderedDesserts.push(d);
-					await renderDessert(d.short_code, d.name);
+			
+			async function renderAllDesserts() {
+				cardsWrap.innerHTML = '';
+				sessions.length = 0;
+				const renderedDesserts = [];
+				
+				for (const d of desserts) {
+					const qty = editedCounts[d.short_code] !== undefined ? editedCounts[d.short_code] : (counts[d.short_code] || 0);
+					if (qty > 0) {
+						renderedDesserts.push(d);
+						await renderDessert(d.short_code, d.name, qty, byKey, fmt1);
+					}
 				}
+				
+				return renderedDesserts;
 			}
+
+			// Global navigation container references
+			let navContainer = null;
+			let activeTimersContainerRef = null;
 			
-			let totalDesserts = 0;
-			for (const d of desserts) {
-				totalDesserts += counts[d.short_code] || 0;
-			}
-			countLabel.textContent = `Postres: ${totalDesserts}`;
-			
-			// Create floating navigation buttons
-			if (renderedDesserts.length > 0) {
-				const navContainer = document.createElement('div');
+			function setupNavigation(renderedDesserts) {
+				// Remove old navigation if exists
+				if (navContainer && navContainer.parentNode) {
+					navContainer.parentNode.removeChild(navContainer);
+				}
+				if (activeTimersContainerRef && activeTimersContainerRef.parentNode) {
+					activeTimersContainerRef.parentNode.removeChild(activeTimersContainerRef);
+				}
+				
+				if (renderedDesserts.length === 0) return;
+				
+				// Create floating navigation buttons
+				navContainer = document.createElement('div');
 				navContainer.className = 'dessert-nav-floating';
 				navContainer.style.position = 'fixed';
 				navContainer.style.left = '16px';
@@ -593,6 +1254,20 @@
 				
 				document.body.appendChild(navContainer);
 				
+				// Create floating container for active timers (right side)
+				activeTimersContainer = document.createElement('div');
+				activeTimersContainerRef = activeTimersContainer;
+				activeTimersContainer.className = 'active-timers-floating';
+				activeTimersContainer.style.position = 'fixed';
+				activeTimersContainer.style.right = '16px';
+				activeTimersContainer.style.top = '50%';
+				activeTimersContainer.style.transform = 'translateY(-50%)';
+				activeTimersContainer.style.display = 'flex';
+				activeTimersContainer.style.flexDirection = 'column';
+				activeTimersContainer.style.gap = '8px';
+				activeTimersContainer.style.zIndex = '100';
+				document.body.appendChild(activeTimersContainer);
+				
 				// Setup Intersection Observer to auto-update active button based on scroll
 				const observerOptions = {
 					root: null,
@@ -638,6 +1313,25 @@
 					}
 				}
 			}
+			
+			// Render cards dynamically for all desserts with count > 0
+			const renderedDesserts = await renderAllDesserts();
+			
+			let totalDesserts = 0;
+			for (const d of desserts) {
+				totalDesserts += counts[d.short_code] || 0;
+			}
+			countLabel.textContent = `Postres: ${totalDesserts}`;
+			
+			// Setup navigation
+			updateLoadingProgress(85, 'Configurando navegaci\u00f3n...');
+			setupNavigation(renderedDesserts);
+			
+			updateLoadingProgress(95, 'Finalizando...');
+			
+			// Hide loading overlay
+			hideLoading();
+			
 			// Actions: save times & view history
 			const actions = document.createElement('div'); actions.className = 'confirm-actions'; actions.style.marginTop='8px';
 			const saveBtn = document.createElement('button'); saveBtn.className='press-btn btn-primary'; saveBtn.textContent='Guardar tiempos';
@@ -671,14 +1365,19 @@
 				} catch { alert('No se pudieron guardar los tiempos'); }
 			});
 			historyBtn.addEventListener('click', () => {
-				const items = readHistory().slice(-20).reverse();
-				const pop = document.createElement('div'); pop.className = 'confirm-popover'; pop.style.position='fixed'; pop.style.left=(window.innerWidth/2)+'px'; pop.style.top='12%'; pop.style.transform='translate(-50%,0)';
+				const items = readHistory().slice(-30).reverse();
+				const pop = document.createElement('div'); pop.className = 'confirm-popover'; pop.style.position='fixed'; pop.style.left=(window.innerWidth/2)+'px'; pop.style.top='12%'; pop.style.transform='translate(-50%,0)'; pop.style.zIndex='10000';
 				const title = document.createElement('h4'); title.textContent = 'Historial de tiempos'; title.style.margin='0 0 8px 0';
+<<<<<<< HEAD
 				const list = document.createElement('div'); list.style.maxHeight='60vh'; list.style.overflow='auto'; list.style.minWidth='min(92vw,600px)';
+=======
+				const list = document.createElement('div'); list.style.maxHeight='60vh'; list.style.overflow='auto'; list.style.minWidth='min(92vw,620px)';
+>>>>>>> origin/main
 				if (!items.length) { const empty=document.createElement('div'); empty.textContent='Sin registros'; list.appendChild(empty); }
 				for (const it of items) {
 					const row = document.createElement('div'); row.style.borderBottom='1px solid var(--border)'; row.style.padding='8px 4px';
 					const when = new Date(it.date_iso || it.id || Date.now());
+<<<<<<< HEAD
 					
 					// Calculate overall average for all steps
 					let totalAvg = 0;
@@ -701,6 +1400,11 @@
 					}
 					
 					row.innerHTML = `<div><strong>${it.dessert}</strong> · ${when.toLocaleString()} · Cant: ${it.qty_units||0} · Total: ${fmtMs(it.total_elapsed_ms||0)} · Prom/postre: ${fmtMs(overallAvg)}${stepsText}</div>`;
+=======
+					const stepInfo = it.step_name ? ` · Paso: ${it.step_name}` : '';
+					const avgInfo = it.avg_ms_per_unit ? ` · Prom/u: ${fmtMs(it.avg_ms_per_unit)}` : '';
+					row.innerHTML = `<strong>${it.dessert}</strong>${stepInfo} · ${when.toLocaleString()} · Cant: ${it.qty_units||0} · Total: ${fmtMs(it.total_elapsed_ms||0)}${avgInfo}`;
+>>>>>>> origin/main
 					list.appendChild(row);
 				}
 				const actions=document.createElement('div'); actions.className='confirm-actions'; const close=document.createElement('button'); close.className='press-btn'; close.textContent='Cerrar'; actions.appendChild(close);
@@ -711,7 +1415,7 @@
 
 		// Navigation
 		backBtn.addEventListener('click', () => {
-			const url = new URL('/ingredients.html', location.origin);
+			const url = new URL('/sales-report.html', location.origin);
 			if (start) url.searchParams.set('start', start);
 			if (end) url.searchParams.set('end', end);
 			if (actor) url.searchParams.set('actor', actor);
@@ -743,4 +1447,6 @@
 	</script>
 </body>
 </html>
+
+l>
 

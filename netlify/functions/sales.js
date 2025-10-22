@@ -162,6 +162,84 @@ export async function handler(event) {
 					}
 					return json(rows);
 				}
+				// Optimized client history: get all sales for a client across all days (including archived)
+				const clientName = params.get('client_name') || (event.queryStringParameters && event.queryStringParameters.client_name);
+				const clientSellerId = params.get('client_seller_id') || (event.queryStringParameters && event.queryStringParameters.client_seller_id);
+				if (clientName && clientSellerId) {
+					const sellerId = Number(clientSellerId);
+					if (!sellerId) return json({ error: 'client_seller_id inválido' }, 400);
+					
+					// Permission check
+					try {
+						const headers = (event.headers || {});
+						const hActor = (headers['x-actor-name'] || headers['X-Actor-Name'] || headers['x-actor'] || '').toString();
+						let qActor = '';
+						try { const qs = new URLSearchParams(event.rawQuery || (event.queryStringParameters ? new URLSearchParams(event.queryStringParameters).toString() : '')); qActor = (qs.get('actor') || '').toString(); } catch {}
+						const actorName = (hActor || qActor || '').toString();
+						let role = 'user';
+						if (actorName) {
+							const r = await sql`SELECT role FROM users WHERE lower(username)=lower(${actorName}) LIMIT 1`;
+							role = (r && r[0] && r[0].role) ? String(r[0].role) : 'user';
+						}
+						if (role !== 'admin' && role !== 'superadmin') {
+							const allowed = await sql`
+								SELECT 1 FROM (
+									SELECT s.id FROM sellers s WHERE lower(s.name)=lower(${actorName})
+									UNION ALL
+									SELECT uvp.seller_id FROM user_view_permissions uvp WHERE lower(uvp.viewer_username)=lower(${actorName})
+								) x WHERE x.id=${sellerId} LIMIT 1`;
+							if (!allowed.length) return json({ error: 'No autorizado' }, 403);
+						}
+					} catch {}
+					
+					// Single optimized query to get all sales for this client (including archived days)
+					const rows = await sql`
+						SELECT s.id, s.seller_id, s.sale_day_id, s.client_name, s.qty_arco, s.qty_melo, 
+						       s.qty_mara, s.qty_oreo, s.qty_nute, s.is_paid, s.pay_method, s.payment_date, 
+						       s.payment_source, s.comment_text, s.total_cents, s.created_at,
+						       sd.day
+						FROM sales s
+						INNER JOIN sale_days sd ON sd.id = s.sale_day_id
+						WHERE s.seller_id = ${sellerId} 
+						  AND lower(s.client_name) = lower(${clientName})
+						ORDER BY sd.day DESC, s.created_at DESC
+					`;
+					
+					// Enhance with sale_items data for each sale (optimized batch query)
+					if (rows.length > 0) {
+						const saleIds = rows.map(r => r.id);
+						const allItems = await sql`
+							SELECT si.sale_id, si.id, si.dessert_id, si.quantity, si.unit_price, d.name, d.short_code
+							FROM sale_items si
+							JOIN desserts d ON d.id = si.dessert_id
+							WHERE si.sale_id = ANY(${saleIds})
+							ORDER BY si.sale_id, d.position ASC, d.id ASC
+						`;
+						
+						// Group items by sale_id
+						const itemsBySaleId = {};
+						for (const item of allItems) {
+							if (!itemsBySaleId[item.sale_id]) {
+								itemsBySaleId[item.sale_id] = [];
+							}
+							itemsBySaleId[item.sale_id].push({
+								id: item.id,
+								dessert_id: item.dessert_id,
+								quantity: item.quantity,
+								unit_price: item.unit_price,
+								name: item.name,
+								short_code: item.short_code
+							});
+						}
+						
+						// Attach items to each row
+						for (const row of rows) {
+							row.items = itemsBySaleId[row.id] || [];
+						}
+					}
+					
+					return json(rows);
+				}
 				const sellerIdParam = params.get('seller_id') || (event.queryStringParameters && event.queryStringParameters.seller_id);
 				const dayIdParam = params.get('sale_day_id') || (event.queryStringParameters && event.queryStringParameters.sale_day_id);
 				const sellerId = Number(sellerIdParam);

@@ -37,35 +37,30 @@ async function loadGlobalClientDetailRows(clientName) {
 		);
 	}
 	
+	// Use optimized endpoint to get all sales for this client across all sellers
 	for (const seller of sellersToSearch) {
 		try {
-			const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(seller.id)}`);
-			for (const d of (days || [])) {
-				const params = new URLSearchParams({ seller_id: String(seller.id), sale_day_id: String(d.id) });
-				let sales = [];
-				try { 
-					sales = await api('GET', `${API.Sales}?${params.toString()}`); 
-				} catch { 
-					sales = []; 
-				}
-				for (const s of (sales || [])) {
-					const n = (s?.client_name || '').trim();
-					if (!n) continue;
-					if (normalizeClientName(n) !== normalizeClientName(clientName)) continue;
-					allRows.push({
-						id: s.id,
-						dayIso: String(d.day).slice(0,10),
-						sellerName: seller.name || '',
-						sellerId: seller.id,
-						qty_arco: Number(s.qty_arco||0),
-						qty_melo: Number(s.qty_melo||0),
-						qty_mara: Number(s.qty_mara||0),
-						qty_oreo: Number(s.qty_oreo||0),
-						qty_nute: Number(s.qty_nute||0),
-						pay_method: s.pay_method || '',
-						is_paid: !!s.is_paid
-					});
-				}
+			const params = new URLSearchParams({ 
+				client_name: clientName,
+				client_seller_id: String(seller.id)
+			});
+			const sales = await api('GET', `${API.Sales}?${params.toString()}`);
+			
+			for (const s of (sales || [])) {
+				allRows.push({
+					id: s.id,
+					dayIso: String(s.day).slice(0,10),
+					sellerName: seller.name || '',
+					sellerId: seller.id,
+					qty_arco: Number(s.qty_arco||0),
+					qty_melo: Number(s.qty_melo||0),
+					qty_mara: Number(s.qty_mara||0),
+					qty_oreo: Number(s.qty_oreo||0),
+					qty_nute: Number(s.qty_nute||0),
+					pay_method: s.pay_method || '',
+					is_paid: !!s.is_paid,
+					items: s.items || []
+				});
 			}
 		} catch (e) {
 			console.error('Error loading client details for seller:', seller.name, e);
@@ -86,33 +81,33 @@ async function loadGlobalClientDetailRows(clientName) {
 async function loadClientDetailRows(clientName) {
 	const sellerId = state.currentSeller.id;
 	const sellerName = state.currentSeller.name || '';
-	const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(sellerId)}`);
+	
+	// Use optimized endpoint to get all sales for this client (including archived) in one query
+	const params = new URLSearchParams({ 
+		client_name: clientName,
+		client_seller_id: String(sellerId)
+	});
+	const sales = await api('GET', `${API.Sales}?${params.toString()}`);
+	
 	const allRows = [];
-	for (const d of (days || [])) {
-		const params = new URLSearchParams({ seller_id: String(sellerId), sale_day_id: String(d.id) });
-		let sales = [];
-		try { sales = await api('GET', `${API.Sales}?${params.toString()}`); } catch { sales = []; }
-		for (const s of (sales || [])) {
-			const n = (s?.client_name || '').trim();
-			if (!n) continue;
-			if (normalizeClientName(n) !== normalizeClientName(clientName)) continue;
-			allRows.push({
-				id: s.id,
-				dayIso: String(d.day).slice(0,10),
-				sellerName: sellerName,
-				sellerId: sellerId,
-				qty_arco: Number(s.qty_arco||0),
-				qty_melo: Number(s.qty_melo||0),
-				qty_mara: Number(s.qty_mara||0),
-				qty_oreo: Number(s.qty_oreo||0),
-				qty_nute: Number(s.qty_nute||0),
-				pay_method: s.pay_method || '',
-				is_paid: !!s.is_paid
-			});
-		}
+	for (const s of (sales || [])) {
+		allRows.push({
+			id: s.id,
+			dayIso: String(s.day).slice(0,10),
+			sellerName: sellerName,
+			sellerId: sellerId,
+			qty_arco: Number(s.qty_arco||0),
+			qty_melo: Number(s.qty_melo||0),
+			qty_mara: Number(s.qty_mara||0),
+			qty_oreo: Number(s.qty_oreo||0),
+			qty_nute: Number(s.qty_nute||0),
+			pay_method: s.pay_method || '',
+			is_paid: !!s.is_paid,
+			items: s.items || []
+		});
 	}
-	// Sort by date descending
-	allRows.sort((a,b) => (a.dayIso < b.dayIso ? 1 : a.dayIso > b.dayIso ? -1 : 0));
+	
+	// Data already sorted by backend (day DESC)
 	
 	// Save the seller ID for this client
 	state._clientDetailSellerId = sellerId;
@@ -168,6 +163,17 @@ function renderClientDetailTable(rows) {
 	const tbody = document.getElementById('client-detail-tbody');
 	if (!tbody) return;
 	tbody.innerHTML = '';
+	
+	// Helper function to get quantity for a dessert from a sale row (supports both items array and legacy qty_* columns)
+	const getQtyForDessert = (row, shortCode) => {
+		// Try items array first (new format)
+		if (Array.isArray(row.items) && row.items.length > 0) {
+			const item = row.items.find(i => i.short_code === shortCode);
+			return item ? Number(item.quantity || 0) : 0;
+		}
+		// Fallback to legacy qty_* columns
+		return Number(row[`qty_${shortCode}`] || 0);
+	};
 	
 	// Update title with client name and seller name
 	const title = document.getElementById('client-detail-title');
@@ -296,11 +302,11 @@ function renderClientDetailTable(rows) {
 			await api('PUT', API.Sales, {
 				id: r.id,
 				client_name: (state._clientDetailName || '').toString(),
-				qty_arco: Number(r.qty_arco||0),
-				qty_melo: Number(r.qty_melo||0),
-				qty_mara: Number(r.qty_mara||0),
-				qty_oreo: Number(r.qty_oreo||0),
-				qty_nute: Number(r.qty_nute||0),
+				qty_arco: getQtyForDessert(r, 'arco'),
+				qty_melo: getQtyForDessert(r, 'melo'),
+				qty_mara: getQtyForDessert(r, 'mara'),
+				qty_oreo: getQtyForDessert(r, 'oreo'),
+				qty_nute: getQtyForDessert(r, 'nute'),
 				pay_method: sel.value || null,
 				_actor_name: state.currentUser?.name || ''
 			});
@@ -318,11 +324,11 @@ function renderClientDetailTable(rows) {
 		// Add a visible dash '-' like the main table when no method, using CSS class 'placeholder'
 		if (!sel.value) { /* wrap already has placeholder class to show '-' via styles */ }
 		const tdDate = document.createElement('td'); tdDate.textContent = formatDayLabel(r.dayIso);
-		const tdAr = document.createElement('td'); tdAr.textContent = r.qty_arco ? String(r.qty_arco) : '';
-		const tdMe = document.createElement('td'); tdMe.textContent = r.qty_melo ? String(r.qty_melo) : '';
-		const tdMa = document.createElement('td'); tdMa.textContent = r.qty_mara ? String(r.qty_mara) : '';
-		const tdOr = document.createElement('td'); tdOr.textContent = r.qty_oreo ? String(r.qty_oreo) : '';
-		const tdNu = document.createElement('td'); tdNu.textContent = r.qty_nute ? String(r.qty_nute) : '';
+		const tdAr = document.createElement('td'); tdAr.textContent = getQtyForDessert(r, 'arco') ? String(getQtyForDessert(r, 'arco')) : '';
+		const tdMe = document.createElement('td'); tdMe.textContent = getQtyForDessert(r, 'melo') ? String(getQtyForDessert(r, 'melo')) : '';
+		const tdMa = document.createElement('td'); tdMa.textContent = getQtyForDessert(r, 'mara') ? String(getQtyForDessert(r, 'mara')) : '';
+		const tdOr = document.createElement('td'); tdOr.textContent = getQtyForDessert(r, 'oreo') ? String(getQtyForDessert(r, 'oreo')) : '';
+		const tdNu = document.createElement('td'); tdNu.textContent = getQtyForDessert(r, 'nute') ? String(getQtyForDessert(r, 'nute')) : '';
 		const total = calcRowTotal(r);
 		const tdTot = document.createElement('td'); tdTot.className = 'col-total'; tdTot.textContent = fmtNo.format(total);
 		// Delete button
@@ -367,11 +373,11 @@ function renderClientDetailTable(rows) {
 	// Calculate and display totals
 	let totalArco = 0, totalMelo = 0, totalMara = 0, totalOreo = 0, totalNute = 0, totalGrand = 0;
 	for (const r of rows) {
-		totalArco += r.qty_arco || 0;
-		totalMelo += r.qty_melo || 0;
-		totalMara += r.qty_mara || 0;
-		totalOreo += r.qty_oreo || 0;
-		totalNute += r.qty_nute || 0;
+		totalArco += getQtyForDessert(r, 'arco');
+		totalMelo += getQtyForDessert(r, 'melo');
+		totalMara += getQtyForDessert(r, 'mara');
+		totalOreo += getQtyForDessert(r, 'oreo');
+		totalNute += getQtyForDessert(r, 'nute');
 		const rowTotal = calcRowTotal(r);
 		totalGrand += rowTotal;
 	}
