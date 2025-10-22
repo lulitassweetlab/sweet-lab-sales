@@ -1761,6 +1761,15 @@ function renderTable() {
                     const pm = String(sale.pay_method || '').trim().replace(/\.$/, '').toLowerCase();
                     const locked = pm !== '' && pm !== 'entregado';
                     
+                    // If jorgebank (all receipts verified), open gallery
+                    if (pm === 'jorgebank') {
+                        try {
+                            const rect = wrap.getBoundingClientRect();
+                            openReceiptsGalleryPopover(sale.id, rect.left + rect.width / 2, rect.bottom);
+                        } catch { openReceiptUploadPage(sale.id); }
+                        return;
+                    }
+                    
                     if (!isAdminUser && locked && pm === 'transf') {
                         try {
                             const rect = wrap.getBoundingClientRect();
