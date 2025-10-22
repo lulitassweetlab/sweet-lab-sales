@@ -1961,14 +1961,36 @@ async function enrichSalesWithReceiptStatus() {
 }
 
 async function loadSales() {
-	// Show loading indicator
+	// Show loading indicator with dynamic messages
 	const loadingEl = document.getElementById('sales-loading');
-	if (loadingEl) loadingEl.style.display = 'flex';
+	const loadingTextEl = document.getElementById('sales-loading-text');
+	
+	// Messages that will rotate
+	const messages = [
+		'Cargando ventas...',
+		'Buscando pedidos...',
+		'Preparando la tabla...',
+		'Ya casi está...'
+	];
+	let messageIndex = 0;
+	let messageInterval = null;
+	
+	if (loadingEl) {
+		loadingEl.classList.remove('hidden');
+		
+		// Change message every 1.5 seconds
+		messageInterval = setInterval(() => {
+			messageIndex = (messageIndex + 1) % messages.length;
+			if (loadingTextEl) loadingTextEl.textContent = messages[messageIndex];
+		}, 1500);
+	}
 	
 	try {
 		const sellerId = state.currentSeller.id;
 		const params = new URLSearchParams({ seller_id: String(sellerId) });
 		if (state.selectedDayId) params.set('sale_day_id', String(state.selectedDayId));
+		
+		if (loadingTextEl) loadingTextEl.textContent = messages[0];
 		state.sales = await api('GET', `${API.Sales}?${params.toString()}`);
 		
 		// Initialize _paymentInfo from database fields (payment_date and payment_source)
@@ -1985,9 +2007,11 @@ async function loadSales() {
 		}
 		
 		// Check if all receipts for each sale have jorgebank - if so, update sale.pay_method
+		if (loadingTextEl) loadingTextEl.textContent = 'Verificando pagos...';
 		await enrichSalesWithReceiptStatus();
 		
 		// Build recurrence counts across all dates for this seller
+		if (loadingTextEl) loadingTextEl.textContent = 'Procesando clientes...';
 		try {
 			const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(sellerId)}`);
 			const counts = new Map();
@@ -2020,14 +2044,30 @@ async function loadSales() {
 		} catch { state.clientCounts = new Map(); }
 		
 		// Ensure desserts are loaded before rendering table
+		if (loadingTextEl) loadingTextEl.textContent = 'Preparando la tabla...';
 		await loadDesserts();
 		renderDessertColumns();
 		
 		renderTable();
 		preloadChangeLogsForCurrentTable();
+	} catch (error) {
+		console.error('Error loading sales:', error);
+		if (loadingTextEl) loadingTextEl.textContent = 'Error al cargar';
+		// Still hide after a brief moment even on error
+		setTimeout(() => {
+			if (messageInterval) clearInterval(messageInterval);
+			if (loadingEl) loadingEl.classList.add('hidden');
+		}, 1500);
+		throw error; // Re-throw to maintain error handling
 	} finally {
-		// Hide loading indicator
-		if (loadingEl) loadingEl.style.display = 'none';
+		// Clear interval and hide loading indicator
+		if (messageInterval) clearInterval(messageInterval);
+		if (loadingEl) {
+			// Add a small delay so the last message is visible
+			setTimeout(() => {
+				loadingEl.classList.add('hidden');
+			}, 300);
+		}
 	}
 }
 
