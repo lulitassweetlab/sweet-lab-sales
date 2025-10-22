@@ -34,10 +34,12 @@
 			align-items: center;
 			justify-content: center;
 			backdrop-filter: blur(8px);
+			-webkit-backdrop-filter: blur(8px);
 			opacity: 0;
 			visibility: hidden;
 			pointer-events: none;
-			transition: opacity 0.3s ease, visibility 0.3s ease;
+			transition: opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1), 
+			            visibility 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 		}
 		.loading-overlay.active { 
 			opacity: 1 !important;
@@ -671,15 +673,22 @@
 			if (!start || !end) return;
 			
 			// Prevent concurrent loads
-			if (isLoading) return;
+			if (isLoading) {
+				console.log('⚠️ Already loading, skipping...');
+				return;
+			}
 			isLoading = true;
 			
 			// DEBUG: Verificar que se ejecuta
 			console.log('🚀 Loading started - overlay should appear now');
 			
-			// Show loading overlay
+			// CRITICAL: Show loading overlay IMMEDIATELY before any async operations
 			const hideLoading = showLoading('Cargando ventas...');
-			console.log('✅ Overlay shown');
+			console.log('✅ Overlay shown, classList:', loadingOverlay.className);
+			
+			// Force a minimum display time so users can see the animation
+			const minDisplayTime = 800; // milliseconds
+			const startTime = Date.now();
 			
 			try {
 				rangeLabel.textContent = `${formatDay(start)} — ${formatDay(end)}`;
@@ -753,6 +762,7 @@
 						
 						render();
 						usedCache = true;
+						console.log('✅ Used cached data, displaying immediately');
 						
 						// Refresh in background (don't await)
 						Promise.all([
@@ -807,8 +817,14 @@
 							}
 						});
 						
-						hideLoading();
-						isLoading = false;
+						// Ensure minimum display time even with cache
+						const elapsedTime = Date.now() - startTime;
+						const remainingTime = Math.max(0, minDisplayTime - elapsedTime);
+						
+						setTimeout(() => {
+							hideLoading();
+							isLoading = false;
+						}, remainingTime);
 						return; // Skip fresh fetch below
 					}
 				}
@@ -881,14 +897,25 @@
 				console.error('Error loading data:', error);
 				countLabel.textContent = 'Error al cargar datos';
 			} finally {
-				hideLoading();
-				isLoading = false;
+				// Ensure minimum display time for better UX
+				const elapsedTime = Date.now() - startTime;
+				const remainingTime = Math.max(0, minDisplayTime - elapsedTime);
+				
+				console.log(`⏱️ Elapsed: ${elapsedTime}ms, waiting ${remainingTime}ms more`);
+				
+				setTimeout(() => {
+					hideLoading();
+					isLoading = false;
+				}, remainingTime);
 			}
 		}
 
 		function openCalendar(ev){
 			// Prevent multiple clicks
-			if (isLoading) return;
+			if (isLoading) {
+				console.log('⚠️ Ya está cargando, esperando...');
+				return;
+			}
 			
 			// Add visual feedback to button
 			const btn = ev.currentTarget;
@@ -897,19 +924,29 @@
 			openRangeCalendarPopover((range) => {
 				btn.classList.remove('loading');
 				
-				if (!range || !range.start || !range.end) return;
+				if (!range || !range.start || !range.end) {
+					console.log('❌ Rango inválido o cancelado');
+					return;
+				}
 				
 				// Check if dates actually changed
 				if (range.start === start && range.end === end) {
+					console.log('ℹ️ Fechas sin cambios, no se recarga');
 					return; // No change, no need to reload
 				}
 				
+				console.log(`📅 Cambiando fechas: ${range.start} a ${range.end}`);
 				start = range.start; end = range.end;
 				history.replaceState(null, '', `?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}${actor?`&actor=${encodeURIComponent(actor)}`:''}`);
 				
 				// Immediate visual feedback
 				rangeLabel.textContent = `${formatDay(start)} — ${formatDay(end)}`;
 				
+				// Clear existing data to show loading state
+				dataset = [];
+				tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:40px;">⏳ Cargando...</td></tr>';
+				
+				// Trigger load with overlay
 				load();
 			}, ev.clientX, ev.clientY, { preferUp: true });
 		}
@@ -1194,6 +1231,11 @@
 			};
 		}
 
+		// Show loading immediately on page load (before any data fetching)
+		console.log('🎬 Initializing page - showing loading overlay');
+		loadingOverlay.classList.add('active');
+		
+		// Start loading data
 		load();
 	})();
 	</script>
