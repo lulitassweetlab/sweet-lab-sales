@@ -1686,13 +1686,16 @@ function renderTable() {
 				// If current value is 'jorge' but user is not Jorge, include it disabled so it displays
 				if (!isJorge && current === 'jorge') options.push({ v: 'jorge', label: '' });
 				options.push({ v: 'transf', label: '' });
-				// jorgebank is NEVER shown in the main table selector - it's internal only
+				// jorgebank only shown when ALL receipts are verified (set by enrichSalesWithReceiptStatus)
+				if (current === 'jorgebank') options.push({ v: 'jorgebank', label: '' });
 				for (const o of options) {
 					const opt = document.createElement('option');
 					opt.value = o.v;
 					opt.textContent = o.label;
 					if (!isMarcela && o.v === 'marce') opt.disabled = true;
 					if (!isJorge && o.v === 'jorge') opt.disabled = true;
+					// jorgebank is disabled - read-only indicator
+					if (o.v === 'jorgebank') opt.disabled = true;
 					if (current === o.v) opt.selected = true;
 					sel.appendChild(opt);
 				}
@@ -1733,6 +1736,13 @@ function renderTable() {
                 const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
                 const pm = String(sale.pay_method || '').trim().replace(/\.$/, '').toLowerCase();
                 const locked = pm !== '' && pm !== 'entregado';
+                
+                // If jorgebank (all receipts verified), open gallery for everyone
+                if (pm === 'jorgebank') {
+                    const rect = wrap.getBoundingClientRect();
+                    openReceiptsGalleryPopover(sale.id, rect.left + rect.width / 2, rect.bottom);
+                    return;
+                }
                 
                 // If locked and current is transf, open receipt gallery for non-admins
                 if (!isAdminUser && locked && pm === 'transf') {
@@ -1879,11 +1889,53 @@ function renderTable() {
 	preloadChangeLogsForCurrentTable();
 }
 
-// Check receipts for a sale (for internal tracking only - does NOT update UI)
+// Update main selector to jorgebank in real-time if all receipts are verified
 async function checkAndUpdateMainSelectorToJorgebank(saleId) {
-	// This function is now a no-op - jorgebank is only tracked at receipt level
-	// The main selector stays as 'transf' regardless of receipt verification status
-	console.log(`📸 Receipt verification check for sale ${saleId} - no UI update needed`);
+	try {
+		// Fetch all receipts for this sale
+		const receipts = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(saleId)}`);
+		
+		if (!Array.isArray(receipts) || receipts.length === 0) return;
+		
+		// Check if ALL receipts have jorgebank
+		const allJorgebank = receipts.every(r => (r.pay_method || '').trim().toLowerCase() === 'jorgebank');
+		
+		if (allJorgebank) {
+			// Find the sale in state.sales
+			const sale = state.sales?.find(s => Number(s.id) === Number(saleId));
+			if (sale) {
+				// Update local state
+				sale.pay_method = 'jorgebank';
+				console.log(`🔄 Real-time update: Sale ${saleId} -> jorgebank (all ${receipts.length} receipts verified)`);
+				
+				// Update the selector in the DOM
+				const row = document.querySelector(`tr[data-sale-id="${saleId}"]`);
+				if (row) {
+					const selector = row.querySelector('.col-paid select');
+					if (selector) {
+						// Add jorgebank option if not present
+						if (!selector.querySelector('option[value="jorgebank"]')) {
+							const opt = document.createElement('option');
+							opt.value = 'jorgebank';
+							opt.textContent = '';
+							opt.disabled = true; // Read-only indicator
+							selector.appendChild(opt);
+						}
+						selector.value = 'jorgebank';
+						
+						// Update visual class
+						const wrap = selector.closest('.pay-wrap');
+						if (wrap) {
+							wrap.classList.remove('placeholder', 'method-efectivo', 'method-transf', 'method-marce', 'method-jorge', 'method-entregado');
+							wrap.classList.add('method-jorgebank');
+						}
+					}
+				}
+			}
+		}
+	} catch (err) {
+		console.error('Error checking receipts for real-time update:', err);
+	}
 }
 
 // Check receipts for each sale (internal tracking only - does NOT change main selector)
