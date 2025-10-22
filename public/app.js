@@ -2053,21 +2053,11 @@ async function loadSales() {
 	} catch (error) {
 		console.error('Error loading sales:', error);
 		if (loadingTextEl) loadingTextEl.textContent = 'Error al cargar';
-		// Still hide after a brief moment even on error
-		setTimeout(() => {
-			if (messageInterval) clearInterval(messageInterval);
-			if (loadingEl) loadingEl.classList.add('hidden');
-		}, 1500);
 		throw error; // Re-throw to maintain error handling
 	} finally {
-		// Clear interval and hide loading indicator
+		// Clear interval and hide loading indicator immediately
 		if (messageInterval) clearInterval(messageInterval);
-		if (loadingEl) {
-			// Add a small delay so the last message is visible
-			setTimeout(() => {
-				loadingEl.classList.add('hidden');
-			}, 300);
-		}
+		if (loadingEl) loadingEl.classList.add('hidden');
 	}
 }
 

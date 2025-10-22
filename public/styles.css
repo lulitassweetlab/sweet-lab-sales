@@ -4485,10 +4485,14 @@ td.col-client.action-bar-fading .client-input {
 	bottom: 0;
 	background: rgba(0, 0, 0, 0.5);
 	z-index: 9999;
-	display: flex !important;
+	display: flex;
 	align-items: center;
 	justify-content: center;
 	backdrop-filter: blur(3px);
+}
+
+.sales-loading-overlay.hidden {
+	display: none !important;
 }
 
 .sales-loading-box {
