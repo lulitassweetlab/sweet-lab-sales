@@ -17,18 +17,96 @@
 		.btn-primary { background: var(--primary, #f4a6b7); color: #fff; border-color: transparent; }
 		.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
 		.note { font-size: 12px; color: #6b7280; margin-top: 8px; }
+		
+		/* Loading overlay */
+		.loading-overlay {
+			position: fixed;
+			top: 0;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			background: rgba(0, 0, 0, 0.7);
+			display: none;
+			align-items: center;
+			justify-content: center;
+			z-index: 9999;
+			opacity: 0;
+			transition: opacity 0.3s ease;
+		}
+		.loading-overlay.show {
+			display: flex;
+			opacity: 1;
+		}
+		.loading-content {
+			background: var(--card, #fff);
+			padding: 32px 48px;
+			border-radius: 16px;
+			text-align: center;
+			box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+			transform: scale(0.9);
+			transition: transform 0.3s ease;
+		}
+		.loading-overlay.show .loading-content {
+			transform: scale(1);
+		}
+		.spinner {
+			width: 48px;
+			height: 48px;
+			margin: 0 auto 16px;
+			border: 4px solid var(--border, #e5e7eb);
+			border-top-color: var(--primary, #f4a6b7);
+			border-radius: 50%;
+			animation: spin 0.8s linear infinite;
+		}
+		@keyframes spin {
+			to { transform: rotate(360deg); }
+		}
+		.loading-text {
+			font-size: 16px;
+			font-weight: 500;
+			color: var(--foreground, #111);
+			margin: 0;
+		}
+		.loading-subtext {
+			font-size: 14px;
+			color: #6b7280;
+			margin: 8px 0 0;
+		}
+		.success-icon {
+			width: 64px;
+			height: 64px;
+			margin: 0 auto 16px;
+			border-radius: 50%;
+			background: var(--primary, #f4a6b7);
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			animation: successPop 0.4s ease;
+			box-shadow: 0 4px 16px rgba(244, 166, 183, 0.4);
+		}
+		@keyframes successPop {
+			0% { transform: scale(0); }
+			50% { transform: scale(1.1); }
+			100% { transform: scale(1); }
+		}
+		.success-icon::after {
+			content: '✓';
+			color: white;
+			font-size: 36px;
+			font-weight: bold;
+		}
 	</style>
 </head>
 <body>
 	<div class="card">
 		<h1>Subir comprobante de transferencia</h1>
 		<div id="sale-info" class="note"></div>
-		<label for="file">Foto del comprobante</label>
-		<input id="file" type="file" accept="image/*" />
+		<label for="file">Foto(s) del comprobante</label>
+		<input id="file" type="file" accept="image/*" multiple />
 		<label for="note">Nota (opcional)</label>
 		<textarea id="note" rows="3" placeholder="Escribe una nota..." style="width:100%; resize: vertical;"></textarea>
 		<div class="preview" id="preview">
-			<img id="img" alt="Vista previa" />
+			<!-- Images will be added here dynamically -->
 		</div>
 		<div class="actions">
 			<button class="btn" id="back">Cancelar</button>
@@ -37,52 +115,242 @@
 		<div class="note">Formatos comunes: JPG, PNG. Tamaño máximo recomendado 2MB.</div>
 	</div>
 
+	<!-- Loading overlay -->
+	<div class="loading-overlay" id="loading-overlay">
+		<div class="loading-content" id="loading-content">
+			<div class="spinner" id="spinner"></div>
+			<div class="success-icon" id="success-icon" style="display: none;"></div>
+			<p class="loading-text" id="loading-text">Procesando...</p>
+			<p class="loading-subtext" id="loading-subtext"></p>
+		</div>
+	</div>
+
 	<script>
 	(function(){
 		const qs = new URLSearchParams(location.search);
 		const saleId = Number(qs.get('sale_id'));
 		document.getElementById('sale-info').textContent = saleId ? ('Venta #' + saleId) : '';
+		
+		// Get context for returning to the correct view
+		let uploadContext = null;
+		try {
+			const saved = localStorage.getItem('receiptUploadContext');
+			if (saved) {
+				uploadContext = JSON.parse(saved);
+				console.log('📦 Upload context loaded:', uploadContext);
+			} else {
+				console.log('⚠️ No upload context found in localStorage');
+			}
+		} catch (err) {
+			console.error('❌ Error loading upload context:', err);
+		}
+		
 		// Resolve actor name from saved auth user
 		let actorName = '';
 		try { const saved = localStorage.getItem('authUser'); if (saved) { const u = JSON.parse(saved); actorName = (u && (u.name || u.username)) ? (u.name || u.username) : ''; } } catch {}
 		const fileInput = document.getElementById('file');
 		const preview = document.getElementById('preview');
-		const img = document.getElementById('img');
 		const uploadBtn = document.getElementById('upload');
-		document.getElementById('back').addEventListener('click', () => history.length > 1 ? history.back() : (location.href = '/'));
+		let selectedFiles = [];
+		
+		function returnToSales() {
+			console.log('🔙 returnToSales - Context:', uploadContext);
+			
+			// Save the focus hint for the sale
+			if (uploadContext && uploadContext.saleId) {
+				try { 
+					localStorage.setItem('pendingFocus', String(uploadContext.saleId));
+					console.log('💾 Saved pendingFocus:', uploadContext.saleId);
+				} catch (e) {
+					console.error('Error saving pendingFocus:', e);
+				}
+			}
+			
+			// Navigate using context if available
+			if (uploadContext && uploadContext.sellerId && uploadContext.saleDayId) {
+				const url = `/#view-sales?seller_id=${uploadContext.sellerId}&sale_day_id=${uploadContext.saleDayId}`;
+				console.log('✅ Navigating with context to:', url);
+				
+				// Clean up context AFTER using it
+				try { localStorage.removeItem('receiptUploadContext'); } catch {}
+				
+				location.href = url;
+				return;
+			}
+			
+			// Fallback: try history.back()
+			console.log('⬅️ Using history.back()');
+			
+			// Clean up context
+			try { localStorage.removeItem('receiptUploadContext'); } catch {}
+			
+			if (window.history.length > 1) {
+				window.history.back();
+			} else {
+				console.log('🏠 No history, going home');
+				location.href = '/';
+			}
+		}
+		
+		document.getElementById('back').addEventListener('click', returnToSales);
+		
 		fileInput.addEventListener('change', () => {
-			const f = fileInput.files && fileInput.files[0];
-			if (!f) { preview.style.display = 'none'; img.src = ''; uploadBtn.disabled = true; return; }
-			const reader = new FileReader();
-			reader.onload = () => { img.src = reader.result; preview.style.display = 'block'; uploadBtn.disabled = false; };
-			reader.readAsDataURL(f);
-		});
-		uploadBtn.addEventListener('click', async () => {
-			const f = fileInput.files && fileInput.files[0];
-			if (!f || !saleId) return;
-			uploadBtn.disabled = true;
-			try {
+			const files = fileInput.files;
+			if (!files || files.length === 0) { 
+				preview.style.display = 'none'; 
+				preview.innerHTML = '';
+				uploadBtn.disabled = true; 
+				selectedFiles = [];
+				return; 
+			}
+			
+			// Store files for later upload
+			selectedFiles = Array.from(files);
+			
+			// Show previews
+			preview.innerHTML = '';
+			preview.style.display = 'block';
+			
+			selectedFiles.forEach((file, index) => {
 				const reader = new FileReader();
-				reader.onload = async () => {
-					const base64 = reader.result;
-					const note = (document.getElementById('note').value || '').toString();
-					const res = await fetch('/api/sales', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _upload_receipt_for: saleId, image_base64: base64, note_text: note, _actor_name: actorName }) });
-					if (!res.ok) { alert('Error al subir comprobante'); uploadBtn.disabled = false; return; }
-					alert('Comprobante subido');
-					// Hint the app to focus this sale on return
-					try { localStorage.setItem('pendingFocus', JSON.stringify({ saleId })); } catch {}
-					// Always go to inicio to refrescar estados y selector de pago
-					location.href = '/';
+				reader.onload = (e) => {
+					const imgContainer = document.createElement('div');
+					imgContainer.style.marginBottom = '12px';
+					
+					const img = document.createElement('img');
+					img.src = e.target.result;
+					img.alt = 'Vista previa ' + (index + 1);
+					img.style.maxWidth = '100%';
+					img.style.borderRadius = '8px';
+					img.style.border = '1px solid var(--border, #e5e7eb)';
+					
+					const label = document.createElement('div');
+					label.textContent = 'Archivo ' + (index + 1) + ': ' + file.name;
+					label.style.fontSize = '12px';
+					label.style.marginBottom = '4px';
+					label.style.opacity = '0.75';
+					
+					imgContainer.appendChild(label);
+					imgContainer.appendChild(img);
+					preview.appendChild(imgContainer);
 				};
-				reader.readAsDataURL(f);
+				reader.readAsDataURL(file);
+			});
+			
+			uploadBtn.disabled = false;
+			uploadBtn.textContent = `Subir ${selectedFiles.length} archivo${selectedFiles.length > 1 ? 's' : ''}`;
+		});
+		
+		uploadBtn.addEventListener('click', async () => {
+			if (selectedFiles.length === 0 || !saleId) return;
+			uploadBtn.disabled = true;
+			
+			// Show loading overlay
+			const overlay = document.getElementById('loading-overlay');
+			const loadingText = document.getElementById('loading-text');
+			const loadingSubtext = document.getElementById('loading-subtext');
+			const spinner = document.getElementById('spinner');
+			const successIcon = document.getElementById('success-icon');
+			
+			overlay.classList.add('show');
+			loadingText.textContent = 'Procesando...';
+			loadingSubtext.textContent = '';
+			
+			const note = (document.getElementById('note').value || '').toString();
+			let successCount = 0;
+			let errorCount = 0;
+			
+			try {
+				// Upload each file
+				for (let i = 0; i < selectedFiles.length; i++) {
+					const file = selectedFiles[i];
+					loadingText.textContent = 'Subiendo archivos...';
+					loadingSubtext.textContent = `${i + 1} de ${selectedFiles.length}`;
+					
+					try {
+						const base64 = await new Promise((resolve, reject) => {
+							const reader = new FileReader();
+							reader.onload = () => resolve(reader.result);
+							reader.onerror = reject;
+							reader.readAsDataURL(file);
+						});
+						
+						const res = await fetch('/api/sales', { 
+							method: 'POST', 
+							headers: { 'Content-Type': 'application/json' }, 
+							body: JSON.stringify({ 
+								_upload_receipt_for: saleId, 
+								image_base64: base64, 
+								note_text: note,
+								_actor_name: actorName 
+							}) 
+						});
+						
+						if (!res.ok) {
+							console.error('Error uploading file:', file.name);
+							errorCount++;
+						} else {
+							successCount++;
+						}
+					} catch (e) {
+						console.error('Error processing file:', file.name, e);
+						errorCount++;
+					}
+				}
+				
+				// Show results
+				if (successCount > 0 && errorCount === 0) {
+					// Success animation
+					spinner.style.display = 'none';
+					successIcon.style.display = 'flex';
+					const fileWord = successCount === 1 ? 'archivo' : 'archivos';
+					const uploadedWord = successCount === 1 ? 'subido' : 'subidos';
+					loadingText.textContent = `${successCount} ${fileWord} ${uploadedWord}`;
+					loadingSubtext.textContent = '✓ Completado con éxito';
+					
+					// Wait a bit to show success, then navigate back
+					await new Promise(resolve => setTimeout(resolve, 1500));
+					overlay.classList.remove('show');
+					await new Promise(resolve => setTimeout(resolve, 300));
+					
+					// Navigate back to sales table with context
+					returnToSales();
+				} else if (successCount > 0 && errorCount > 0) {
+					spinner.style.display = 'none';
+					successIcon.style.display = 'flex';
+					const fileWord = successCount === 1 ? 'archivo' : 'archivos';
+					const uploadedWord = successCount === 1 ? 'subido' : 'subidos';
+					loadingText.textContent = `${successCount} ${fileWord} ${uploadedWord}`;
+					loadingSubtext.textContent = `⚠️ ${errorCount} con error`;
+					
+					await new Promise(resolve => setTimeout(resolve, 2000));
+					overlay.classList.remove('show');
+					await new Promise(resolve => setTimeout(resolve, 300));
+					returnToSales();
+				} else {
+					// All failed
+					spinner.style.display = 'none';
+					loadingText.textContent = '✗ Error al subir';
+					loadingSubtext.textContent = 'Intenta de nuevo';
+					
+					await new Promise(resolve => setTimeout(resolve, 2000));
+					overlay.classList.remove('show');
+					uploadBtn.disabled = false;
+					uploadBtn.textContent = `Subir ${selectedFiles.length} archivo${selectedFiles.length > 1 ? 's' : ''}`;
+				}
 			} catch (e) {
 				console.error(e);
-				alert('Error al subir comprobante');
+				spinner.style.display = 'none';
+				loadingText.textContent = '✗ Error al subir';
+				loadingSubtext.textContent = 'Intenta de nuevo';
+				
+				await new Promise(resolve => setTimeout(resolve, 2000));
+				overlay.classList.remove('show');
 				uploadBtn.disabled = false;
+				uploadBtn.textContent = `Subir ${selectedFiles.length} archivo${selectedFiles.length > 1 ? 's' : ''}`;
 			}
 		});
 	})();
 	</script>
 </body>
 </html>
-

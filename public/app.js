@@ -237,9 +237,7 @@ function renderClientDetailTable(rows) {
 		// If current value is 'jorge' but user is not Jorge, include it disabled so it displays
 		if (!isJorge && current === 'jorge') opts.push({ v: 'jorge', label: '' });
 		opts.push({ v: 'transf', label: '' });
-		// Jorge-specific extra bank option
-		if (isJorge) opts.push({ v: 'jorgebank', label: '' });
-		if (!isJorge && current === 'jorgebank') opts.push({ v: 'jorgebank', label: '' });
+		// NOTE: jorgebank removed from main table selector - only available in receipt miniature selectors
 		for (const o of opts) { const opt = document.createElement('option'); opt.value = o.v; opt.textContent = o.label; if (!isMarcela && o.v === 'marce') opt.disabled = true; if (!isJorge && o.v === 'jorge') opt.disabled = true; if (current === o.v) opt.selected = true; sel.appendChild(opt); }
 		function applyPayClass() {
 			wrap.classList.remove('placeholder','method-efectivo','method-transf','method-marce','method-jorge','method-jorgebank','method-entregado');
@@ -267,16 +265,9 @@ function renderClientDetailTable(rows) {
 			function markSeen(method){ try { localStorage.setItem('seenPaymentDate_' + method + '_' + saleId, '1'); } catch {} }
 			// If current is 'jorge' and first time -> open payment date dialog centered
 			if (curr === 'jorge' && !hasSeen('jorge')) { markSeen('jorge'); openPaymentDateDialog(saleId); return; }
-			// If current is 'jorgebank' and already seen -> open receipt viewer/upload directly
+			// If current is 'jorgebank' and already seen -> open receipt gallery
 			if (curr === 'jorgebank' && hasSeen('jorgebank')) {
-				try {
-					const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(saleId)}`);
-					if (Array.isArray(recs) && recs.length) {
-						openReceiptViewerPopover(recs[0].image_base64, saleId, recs[0].created_at, rect.left + rect.width / 2, rect.bottom, recs[0].note_text || '', recs[0].id);
-					} else {
-						openReceiptUploadPage(saleId);
-					}
-				} catch { openReceiptUploadPage(saleId); }
+				openReceiptsGalleryPopover(saleId, rect.left + rect.width / 2, rect.bottom);
 				return;
 			}
 				// If current is 'jorgebank' and NOT seen -> show payment date popover first time
@@ -301,14 +292,7 @@ function renderClientDetailTable(rows) {
 				function markSeen(method){ try { localStorage.setItem('seenPaymentDate_' + method + '_' + saleId, '1'); } catch {} }
 				if (curr === 'jorge' && !hasSeen('jorge')) { markSeen('jorge'); openPaymentDateDialog(saleId); return; }
 				if (curr === 'jorgebank' && hasSeen('jorgebank')) {
-					try {
-						const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(saleId)}`);
-						if (Array.isArray(recs) && recs.length) {
-							openReceiptViewerPopover(recs[0].image_base64, saleId, recs[0].created_at, rect.left + rect.width / 2, rect.bottom, recs[0].note_text || '', recs[0].id);
-						} else {
-							openReceiptUploadPage(saleId);
-						}
-					} catch { openReceiptUploadPage(saleId); }
+					openReceiptsGalleryPopover(saleId, rect.left + rect.width / 2, rect.bottom);
 					return;
 				}
 				openPayMenu(wrap, sel, rect.left + rect.width / 2, rect.bottom);
@@ -1705,18 +1689,19 @@ function renderTable() {
 				if (!isMarcela && current === 'marce') options.push({ v: 'marce', label: '' });
 				const isJorge = String(state.currentUser?.name || '').toLowerCase() === 'jorge';
 				if (isJorge) options.push({ v: 'jorge', label: '' });
-				// Jorge-specific extra bank option
-				if (isJorge) options.push({ v: 'jorgebank', label: '' });
-				if (!isJorge && current === 'jorgebank') options.push({ v: 'jorgebank', label: '' });
 				// If current value is 'jorge' but user is not Jorge, include it disabled so it displays
 				if (!isJorge && current === 'jorge') options.push({ v: 'jorge', label: '' });
 				options.push({ v: 'transf', label: '' });
+				// jorgebank only shown when ALL receipts are verified (set by enrichSalesWithReceiptStatus)
+				if (current === 'jorgebank') options.push({ v: 'jorgebank', label: '' });
 				for (const o of options) {
 					const opt = document.createElement('option');
 					opt.value = o.v;
 					opt.textContent = o.label;
 					if (!isMarcela && o.v === 'marce') opt.disabled = true;
 					if (!isJorge && o.v === 'jorge') opt.disabled = true;
+					// jorgebank is disabled - read-only indicator
+					if (o.v === 'jorgebank') opt.disabled = true;
 					if (current === o.v) opt.selected = true;
 					sel.appendChild(opt);
 				}
@@ -1757,17 +1742,18 @@ function renderTable() {
                 const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
                 const pm = String(sale.pay_method || '').trim().replace(/\.$/, '').toLowerCase();
                 const locked = pm !== '' && pm !== 'entregado';
-                // If locked and current is a bank method, open receipt viewer/upload directly
-                if (!isAdminUser && locked && (pm === 'transf' || pm === 'jorgebank')) {
-                    try {
-                        const rect = wrap.getBoundingClientRect();
-                        const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(sale.id)}`);
-                        if (Array.isArray(recs) && recs.length) {
-                            openReceiptViewerPopover(recs[0].image_base64, sale.id, recs[0].created_at, rect.left + rect.width / 2, rect.bottom, recs[0].note_text || '', recs[0].id);
-                        } else {
-                            openReceiptUploadPage(sale.id);
-                        }
-                    } catch { openReceiptUploadPage(sale.id); }
+                
+                // If jorgebank (all receipts verified), open gallery for everyone
+                if (pm === 'jorgebank') {
+                    const rect = wrap.getBoundingClientRect();
+                    openReceiptsGalleryPopover(sale.id, rect.left + rect.width / 2, rect.bottom);
+                    return;
+                }
+                
+                // If locked and current is transf, open receipt gallery for non-admins
+                if (!isAdminUser && locked && pm === 'transf') {
+                    const rect = wrap.getBoundingClientRect();
+                    openReceiptsGalleryPopover(sale.id, rect.left + rect.width / 2, rect.bottom);
                     return;
                 }
                 if (!isAdminUser && locked) return; // block opening menu for non-admins, allow when 'entregado'
@@ -1780,15 +1766,20 @@ function renderTable() {
                     const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
                     const pm = String(sale.pay_method || '').trim().replace(/\.$/, '').toLowerCase();
                     const locked = pm !== '' && pm !== 'entregado';
-                    if (!isAdminUser && locked && (pm === 'transf' || pm === 'jorgebank')) {
+                    
+                    // If jorgebank (all receipts verified), open gallery
+                    if (pm === 'jorgebank') {
                         try {
                             const rect = wrap.getBoundingClientRect();
-                            const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(sale.id)}`);
-                            if (Array.isArray(recs) && recs.length) {
-                                openReceiptViewerPopover(recs[0].image_base64, sale.id, recs[0].created_at, rect.left + rect.width / 2, rect.bottom, recs[0].note_text || '', recs[0].id);
-                            } else {
-                                openReceiptUploadPage(sale.id);
-                            }
+                            openReceiptsGalleryPopover(sale.id, rect.left + rect.width / 2, rect.bottom);
+                        } catch { openReceiptUploadPage(sale.id); }
+                        return;
+                    }
+                    
+                    if (!isAdminUser && locked && pm === 'transf') {
+                        try {
+                            const rect = wrap.getBoundingClientRect();
+                            openReceiptsGalleryPopover(sale.id, rect.left + rect.width / 2, rect.bottom);
                         } catch { openReceiptUploadPage(sale.id); }
                         return;
                     }
@@ -1913,6 +1904,62 @@ function renderTable() {
 	preloadChangeLogsForCurrentTable();
 }
 
+// Update main selector to jorgebank in real-time if all receipts are verified
+async function checkAndUpdateMainSelectorToJorgebank(saleId) {
+	try {
+		// Fetch all receipts for this sale
+		const receipts = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(saleId)}`);
+		
+		if (!Array.isArray(receipts) || receipts.length === 0) return;
+		
+		// Check if ALL receipts have jorgebank
+		const allJorgebank = receipts.every(r => (r.pay_method || '').trim().toLowerCase() === 'jorgebank');
+		
+		if (allJorgebank) {
+			// Find the sale in state.sales
+			const sale = state.sales?.find(s => Number(s.id) === Number(saleId));
+			if (sale) {
+				// Update local state
+				sale.pay_method = 'jorgebank';
+				console.log(`🔄 Real-time update: Sale ${saleId} -> jorgebank (all ${receipts.length} receipts verified)`);
+				
+				// Update the selector in the DOM
+				const row = document.querySelector(`tr[data-sale-id="${saleId}"]`);
+				if (row) {
+					const selector = row.querySelector('.col-paid select');
+					if (selector) {
+						// Add jorgebank option if not present
+						if (!selector.querySelector('option[value="jorgebank"]')) {
+							const opt = document.createElement('option');
+							opt.value = 'jorgebank';
+							opt.textContent = '';
+							opt.disabled = true; // Read-only indicator
+							selector.appendChild(opt);
+						}
+						selector.value = 'jorgebank';
+						
+						// Update visual class
+						const wrap = selector.closest('.pay-wrap');
+						if (wrap) {
+							wrap.classList.remove('placeholder', 'method-efectivo', 'method-transf', 'method-marce', 'method-jorge', 'method-entregado');
+							wrap.classList.add('method-jorgebank');
+						}
+					}
+				}
+			}
+		}
+	} catch (err) {
+		console.error('Error checking receipts for real-time update:', err);
+	}
+}
+
+// Check receipts for each sale (internal tracking only - does NOT change main selector)
+async function enrichSalesWithReceiptStatus() {
+	// This function is now a no-op - jorgebank only exists at receipt level
+	// Main selector always shows what user selected (transf, jorge, etc.)
+	console.log('📸 Receipt status enrichment skipped - jorgebank is receipt-level only');
+}
+
 async function loadSales() {
 	const sellerId = state.currentSeller.id;
 	const params = new URLSearchParams({ seller_id: String(sellerId) });
@@ -1931,6 +1978,9 @@ async function loadSales() {
 			}
 		}
 	}
+	
+	// Check if all receipts for each sale have jorgebank - if so, update sale.pay_method
+	await enrichSalesWithReceiptStatus();
 	
 	// Build recurrence counts across all dates for this seller
 	try {
@@ -6345,10 +6395,7 @@ function openPayMenu(anchorEl, selectEl, clickX, clickY) {
 	const isJorgeUser = String(state.currentUser?.name || '').toLowerCase() === 'jorge';
 	if (isJorgeUser) {
 		items.push({ v: 'jorge', cls: 'menu-jorge' });
-		items.push({ v: 'jorgebank', cls: 'menu-jorgebank' });
-	} else if ((selectEl.value || '') === 'jorgebank') {
-		// Allow non-Jorge to see/select 'jorgebank' in menu only if it's current
-		items.push({ v: 'jorgebank', cls: 'menu-jorgebank' });
+		// jorgebank removed from menu - internal only
 	}
 	items.push({ v: '', cls: 'menu-clear' }, { v: 'transf', cls: 'menu-transf' });
 	// Find current sale id for upload flow when choosing 'transf'
@@ -6363,8 +6410,8 @@ function openPayMenu(anchorEl, selectEl, clickX, clickY) {
 			e.stopPropagation();
 			selectEl.value = it.v;
 			selectEl.dispatchEvent(new Event('change'));
-			// Special behavior: first time selecting 'jorge' or 'jorgebank' open payment-date popover centered
-			if (currentSaleId && (it.v === 'jorge' || it.v === 'jorgebank')) {
+			// Special behavior: first time selecting 'jorge' open payment-date popover centered
+			if (currentSaleId && it.v === 'jorge') {
 				const firstTime = !hasSeenPaymentDateDialogForSale(currentSaleId, it.v);
 				if (firstTime) {
 					markSeenPaymentDateDialogForSale(currentSaleId, it.v);
@@ -6374,18 +6421,19 @@ function openPayMenu(anchorEl, selectEl, clickX, clickY) {
 					return;
 				}
 			}
-			// If selecting bank types and not first-time popover, show existing receipt if any; otherwise open upload
-			if ((it.v === 'transf' || it.v === 'jorgebank') && currentSaleId) {
-				try {
-					const recs = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(currentSaleId)}`);
-					if (Array.isArray(recs) && recs.length) {
-						openReceiptViewerPopover(recs[0].image_base64, currentSaleId, recs[0].created_at, rect.left + rect.width / 2, rect.bottom, recs[0].note_text || '', recs[0].id);
-					} else {
-						openReceiptUploadPage(currentSaleId);
-					}
-				} catch { openReceiptUploadPage(currentSaleId); }
-			}
+		// If selecting transf, show existing receipt if any; otherwise open upload
+		if (it.v === 'transf' && currentSaleId) {
 			cleanup();
+			// Use setTimeout to avoid blocking and ensure proper async execution
+			setTimeout(() => {
+				openReceiptsGalleryPopover(currentSaleId, rect.left + rect.width / 2, rect.bottom).catch(err => {
+					console.error('Error opening gallery from menu:', err);
+					openReceiptUploadPage(currentSaleId);
+				});
+			}, 0);
+			return;
+		}
+		cleanup();
 		});
 		menu.appendChild(btn);
 	}
@@ -6886,33 +6934,48 @@ function openClientActionBar(tdElement, saleId, clientName, clickX, clickY) {
 		
 		// Get sale data to check if payment date is set
 		const sale = state.sales.find(s => s.id === saleId);
-		const hasPaymentInfo = sale?.payment_date && (sale?.payment_source || sale?.pay_method);
+	// Check if sale has transfer/bank method to show receipts gallery instead
+	const payMethod = (sale?.pay_method || '').toLowerCase();
+	const isTransferMethod = payMethod === 'transf' || payMethod === 'jorgebank';
+	
+	const hasPaymentInfo = sale?.payment_date && (sale?.payment_source || sale?.pay_method);
+	
+	if (hasPaymentInfo) {
+		// Format date for display (DD/MM)
+		const dateStr = sale.payment_date;
+		const dateParts = dateStr.split('-');
+		const displayDate = dateParts.length >= 3 ? `${dateParts[2]}/${dateParts[1]}` : dateStr;
+		const sourceOrMethod = sale.payment_source || sale.pay_method || '';
+		paymentBtn.innerHTML = `<span class="client-action-bar-btn-icon">📅</span><span class="client-action-bar-btn-label">${displayDate}</span>`;
+		paymentBtn.title = `Fecha de pago: ${displayDate}${sourceOrMethod ? ' - ' + sourceOrMethod : ''}`;
+		paymentBtn.style.fontWeight = 'bold';
+	} else if (isTransferMethod) {
+		// For transfer methods, show "Ver comprobantes" instead
+		paymentBtn.innerHTML = '<span class="client-action-bar-btn-icon">📷</span><span class="client-action-bar-btn-label">Comprobantes</span>';
+		paymentBtn.title = 'Ver y gestionar comprobantes de pago';
+	} else {
+		paymentBtn.innerHTML = '<span class="client-action-bar-btn-icon">📅</span><span class="client-action-bar-btn-label">Fecha</span>';
+		paymentBtn.title = 'Fecha y método de pago';
+	}
+	
+	paymentBtn.addEventListener('click', (e) => {
+		e.stopPropagation();
+		const btnClickX = e.clientX;
+		const btnClickY = e.clientY;
+		// Hide the action bar but keep the outline active
+		actionBar.classList.remove('active');
 		
-		if (hasPaymentInfo) {
-			// Format date for display (DD/MM)
-			const dateStr = sale.payment_date;
-			const dateParts = dateStr.split('-');
-			const displayDate = dateParts.length >= 3 ? `${dateParts[2]}/${dateParts[1]}` : dateStr;
-			const sourceOrMethod = sale.payment_source || sale.pay_method || '';
-			paymentBtn.innerHTML = `<span class="client-action-bar-btn-icon">📅</span><span class="client-action-bar-btn-label">${displayDate}</span>`;
-			paymentBtn.title = `Fecha de pago: ${displayDate}${sourceOrMethod ? ' - ' + sourceOrMethod : ''}`;
-			paymentBtn.style.fontWeight = 'bold';
+		// If transfer/bank method, open receipts gallery instead of single date dialog
+		if (isTransferMethod) {
+			openReceiptsGalleryPopover(saleId, btnClickX, btnClickY);
+			closeClientActionBar();
 		} else {
-			paymentBtn.innerHTML = '<span class="client-action-bar-btn-icon">📅</span><span class="client-action-bar-btn-label">Fecha</span>';
-			paymentBtn.title = 'Fecha y método de pago';
-		}
-		
-		paymentBtn.addEventListener('click', (e) => {
-			e.stopPropagation();
-			const btnClickX = e.clientX;
-			const btnClickY = e.clientY;
-			// Hide the action bar but keep the outline active
-			actionBar.classList.remove('active');
-			// Open dialog and pass callback to close action bar when done
+			// For other methods, use the single date dialog
 			openPaymentDateDialog(saleId, btnClickX, btnClickY, () => {
 				closeClientActionBar();
 			});
-		});
+		}
+	});
 		actionBar.appendChild(paymentBtn);
 	}
 	
@@ -7450,94 +7513,650 @@ async function goToSaleFromNotification(sellerId, saleDayId, saleId) {
 function openReceiptUploadPage(saleId) {
 	try {
 		const id = Number(saleId);
-		if (!id) return;
+		if (!id) {
+			console.error('❌ openReceiptUploadPage: Invalid saleId', saleId);
+			return;
+		}
+		// Save current context to return to the same view
+		try {
+			const context = {
+				saleId: id,
+				sellerId: state.currentSeller?.id || null,
+				saleDayId: state.selectedDayId || null,
+				returnToSales: true
+			};
+			localStorage.setItem('receiptUploadContext', JSON.stringify(context));
+			console.log('💾 Upload context saved:', context);
+		} catch (err) {
+			console.error('❌ Error saving upload context:', err);
+		}
+		console.log('🚀 Navigating to receipt.html for sale:', id);
 		window.location.href = `/receipt.html?sale_id=${encodeURIComponent(id)}`;
-	} catch {}
+	} catch (err) {
+		console.error('❌ Error in openReceiptUploadPage:', err);
+	}
 }
 
-function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, anchorY, noteText, receiptId) {
+// Gallery viewer for multiple receipts with independent payment selectors
+async function openReceiptsGalleryPopover(saleId, anchorX, anchorY) {
+	let receipts = [];
+	try {
+		receipts = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(saleId)}`);
+		console.log('📸 Receipts loaded from backend:', receipts.map(r => ({ id: r.id, pay_method: r.pay_method, payment_source: r.payment_source, payment_date: r.payment_date })));
+	} catch (err) {
+		console.error('Error loading receipts:', err);
+		// If error loading, go to upload page
+		openReceiptUploadPage(saleId);
+		return;
+	}
+	
+	if (!Array.isArray(receipts) || receipts.length === 0) {
+		// No receipts yet, go to upload page
+		openReceiptUploadPage(saleId);
+		return;
+	}
+	
+	try {
+
+		const pop = document.createElement('div');
+		pop.className = 'receipts-gallery-popover';
+		pop.style.position = 'fixed';
+		pop.style.left = '50%';
+		pop.style.top = '50%';
+		pop.style.transform = 'translate(-50%, -50%)';
+		pop.style.width = 'auto';
+		pop.style.maxWidth = '95vw';
+		pop.style.maxHeight = '90vh';
+		pop.style.zIndex = '1000';
+		pop.style.overflow = 'auto';
+		pop.style.display = 'flex';
+		pop.style.flexDirection = 'column';
+		pop.style.gap = '16px';
+		pop.style.background = 'var(--card, #fff)';
+		pop.style.padding = '20px';
+		pop.style.borderRadius = '12px';
+		pop.style.boxShadow = '0 8px 32px rgba(0,0,0,0.2)';
+
+		// Title
+		const title = document.createElement('h3');
+		title.textContent = `Comprobantes de pago (${receipts.length})`;
+		title.style.margin = '0 0 12px 0';
+		title.style.textAlign = 'center';
+		pop.appendChild(title);
+
+		// Gallery container
+		const gallery = document.createElement('div');
+		gallery.style.display = 'grid';
+		gallery.style.gridTemplateColumns = 'repeat(auto-fit, minmax(300px, 1fr))';
+		gallery.style.gap = '16px';
+		gallery.style.maxHeight = '70vh';
+		gallery.style.overflowY = 'auto';
+
+		// Check if user is superadmin
+		const isSuperAdmin = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+		
+		for (const receipt of receipts) {
+			// Each receipt preserves its own pay_method from database
+			// Don't force defaults - respect the saved value
+			const card = document.createElement('div');
+			card.style.border = '1px solid var(--border, #ddd)';
+			card.style.borderRadius = '8px';
+			card.style.padding = '12px';
+			card.style.background = 'var(--background, #fff)';
+			card.style.display = 'flex';
+			card.style.flexDirection = 'column';
+			card.style.gap = '12px';
+
+			// Image container with payment selector overlay
+			const imgContainer = document.createElement('div');
+			imgContainer.style.position = 'relative';
+			
+			// Image
+			const img = document.createElement('img');
+			img.src = receipt.image_base64;
+			img.alt = 'Comprobante';
+			img.style.width = '100%';
+			img.style.height = 'auto';
+			img.style.maxHeight = '300px';
+			img.style.objectFit = 'contain';
+			img.style.borderRadius = '6px';
+			img.style.cursor = 'pointer';
+			img.addEventListener('click', () => {
+				// Open full-size view
+				const lightbox = document.createElement('div');
+				lightbox.style.position = 'fixed';
+				lightbox.style.top = '0';
+				lightbox.style.left = '0';
+				lightbox.style.width = '100%';
+				lightbox.style.height = '100%';
+				lightbox.style.background = 'rgba(0,0,0,0.9)';
+				lightbox.style.zIndex = '2000';
+				lightbox.style.display = 'flex';
+				lightbox.style.alignItems = 'center';
+				lightbox.style.justifyContent = 'center';
+				lightbox.style.cursor = 'pointer';
+				const fullImg = document.createElement('img');
+				fullImg.src = receipt.image_base64;
+				fullImg.style.maxWidth = '95%';
+				fullImg.style.maxHeight = '95%';
+				fullImg.style.objectFit = 'contain';
+				lightbox.appendChild(fullImg);
+				document.body.appendChild(lightbox);
+				lightbox.addEventListener('click', () => {
+					document.body.removeChild(lightbox);
+				});
+			});
+			imgContainer.appendChild(img);
+			
+			// Payment selector overlay (only for superadmin)
+			if (isSuperAdmin) {
+				const payOverlay = document.createElement('div');
+				payOverlay.className = 'transfer-pay';
+				
+				const col = document.createElement('div');
+				col.className = 'col-paid';
+				
+				const wrap = document.createElement('span');
+				wrap.className = 'pay-wrap';
+				
+				const sel = document.createElement('select');
+				sel.className = 'input-cell pay-select';
+				sel.style.display = 'none';
+				
+				// Use saved pay_method or default to 'transf' for new receipts
+				const current = (receipt.pay_method || 'transf').replace(/\.$/, '');
+				console.log(`🎯 Receipt ${receipt.id} - pay_method from backend: "${receipt.pay_method}" -> current: "${current}"`);
+				
+				const isMarcela = String(state.currentUser?.name || '').toLowerCase() === 'marcela';
+				const isJorge = String(state.currentUser?.name || '').toLowerCase() === 'jorge';
+				
+				const opts = [
+					{ v: '', label: '-' },
+					{ v: 'efectivo', label: '' },
+					{ v: 'entregado', label: '' }
+				];
+				if (isMarcela) opts.push({ v: 'marce', label: '' });
+				if (!isMarcela && current === 'marce') opts.push({ v: 'marce', label: '' });
+				if (isJorge) opts.push({ v: 'jorge', label: '' });
+				if (!isJorge && current === 'jorge') opts.push({ v: 'jorge', label: '' });
+				opts.push({ v: 'transf', label: '' });
+				if (isJorge) opts.push({ v: 'jorgebank', label: '' });
+				if (!isJorge && current === 'jorgebank') opts.push({ v: 'jorgebank', label: '' });
+				
+				for (const o of opts) {
+					const opt = document.createElement('option');
+					opt.value = o.v;
+					opt.textContent = o.label;
+					if (!isMarcela && o.v === 'marce') opt.disabled = true;
+					if (!isJorge && o.v === 'jorge') opt.disabled = true;
+					if (current === o.v) opt.selected = true;
+					sel.appendChild(opt);
+				}
+				
+				// Explicitly set selector value to match backend data
+				sel.value = current;
+				console.log(`✅ Selector initialized with value: "${sel.value}"`);
+				
+				function applyPayClass() {
+					wrap.classList.remove('placeholder', 'method-efectivo', 'method-transf', 'method-marce', 'method-jorge', 'method-jorgebank', 'method-entregado');
+					const val = sel.value;
+					if (!val) wrap.classList.add('placeholder');
+					else if (val === 'efectivo') wrap.classList.add('method-efectivo');
+					else if (val === 'entregado') wrap.classList.add('method-entregado');
+					else if (val === 'transf') wrap.classList.add('method-transf');
+					else if (val === 'marce') wrap.classList.add('method-marce');
+					else if (val === 'jorge') wrap.classList.add('method-jorge');
+					else if (val === 'jorgebank') wrap.classList.add('method-jorgebank');
+				}
+				applyPayClass();
+				
+				wrap.addEventListener('click', (e) => {
+					e.stopPropagation();
+					const rect = wrap.getBoundingClientRect();
+					openPayMenuForReceipt(wrap, sel, receipt, rect.left + rect.width / 2, rect.bottom, applyPayClass);
+				});
+				
+				wrap.tabIndex = 0;
+				wrap.addEventListener('keydown', (e) => {
+					if (e.key === 'Enter' || e.key === ' ') {
+						e.preventDefault();
+						const rect = wrap.getBoundingClientRect();
+						openPayMenuForReceipt(wrap, sel, receipt, rect.left + rect.width / 2, rect.bottom, applyPayClass);
+					}
+				});
+				
+			sel.addEventListener('change', async () => {
+				const newValue = sel.value || null;
+				
+				// If selecting jorgebank, open payment date dialog
+				if (newValue === 'jorgebank') {
+					openPaymentDateDialogForReceipt(receipt, () => {
+						// Callback after saving date - update receipt locally and refresh selector
+						receipt.pay_method = 'jorgebank';
+						sel.value = 'jorgebank';
+						applyPayClass();
+						notify.info('✓ Comprobante verificado');
+					});
+				} else {
+					// For other methods, just update pay_method
+					try {
+						await api('PUT', API.Sales, {
+							_update_receipt_payment: true,
+							receipt_id: receipt.id,
+							pay_method: newValue
+						});
+						receipt.pay_method = newValue;
+						notify.info('✓ Método actualizado');
+					} catch (err) {
+						console.error('Error updating receipt payment:', err);
+						notify.error('Error al actualizar');
+					}
+					applyPayClass();
+				}
+			});
+				
+				wrap.appendChild(sel);
+				col.appendChild(wrap);
+				payOverlay.appendChild(col);
+				imgContainer.appendChild(payOverlay);
+			}
+			
+			card.appendChild(imgContainer);
+
+			// Metadata
+			const meta = document.createElement('div');
+			meta.style.fontSize = '12px';
+			meta.style.opacity = '0.75';
+			if (receipt.created_at) {
+				const when = new Date(receipt.created_at);
+				const whenStr = isNaN(when.getTime()) ? String(receipt.created_at) : when.toLocaleString();
+				const timeDiv = document.createElement('div');
+				timeDiv.textContent = 'Subido: ' + whenStr;
+				meta.appendChild(timeDiv);
+			}
+			if (receipt.note_text) {
+				const note = document.createElement('div');
+				note.textContent = 'Nota: ' + String(receipt.note_text || '');
+				note.style.fontSize = '12px';
+				note.style.marginTop = '4px';
+				note.style.whiteSpace = 'pre-wrap';
+				meta.appendChild(note);
+			}
+			card.appendChild(meta);
+
+			// Delete button
+			const deleteBtn = document.createElement('button');
+			deleteBtn.className = 'press-btn';
+			deleteBtn.textContent = 'Eliminar este comprobante';
+			deleteBtn.style.marginTop = '8px';
+			deleteBtn.addEventListener('click', async () => {
+				try {
+					const ok = await openConfirmPopover('¿Eliminar este comprobante?', anchorX, anchorY);
+					if (!ok) return;
+					await fetch(`/api/sales?receipt_id=${encodeURIComponent(receipt.id)}`, { method: 'DELETE' });
+					cleanup();
+					// Re-open gallery to refresh
+					openReceiptsGalleryPopover(saleId, anchorX, anchorY);
+				} catch (err) {
+					console.error('Error deleting receipt:', err);
+					notify.error('Error al eliminar comprobante');
+				}
+			});
+			card.appendChild(deleteBtn);
+
+			gallery.appendChild(card);
+		}
+
+		pop.appendChild(gallery);
+
+		// Actions at the bottom
+		const actions = document.createElement('div');
+		actions.style.display = 'flex';
+		actions.style.gap = '8px';
+		actions.style.justifyContent = 'center';
+		actions.style.flexShrink = '0';
+		actions.style.marginTop = '12px';
+
+		const addBtn = document.createElement('button');
+		addBtn.className = 'press-btn btn-primary';
+		addBtn.textContent = '+ Subir otro comprobante';
+		addBtn.addEventListener('click', () => {
+			cleanup();
+			openReceiptUploadPage(saleId);
+		});
+
+		const closeBtn = document.createElement('button');
+		closeBtn.className = 'press-btn';
+		closeBtn.textContent = 'Cerrar';
+		closeBtn.addEventListener('click', cleanup);
+
+		actions.append(addBtn, closeBtn);
+		pop.appendChild(actions);
+
+		document.body.appendChild(pop);
+
+		function cleanup() {
+			document.removeEventListener('mousedown', outside, true);
+			document.removeEventListener('touchstart', outside, true);
+			if (pop.parentNode) pop.parentNode.removeChild(pop);
+		}
+
+		function outside(ev) {
+			// Don't close if clicking inside the payment date dialog
+			const isInsidePaymentDialog = ev.target.closest('.payment-date-popover');
+			if (!pop.contains(ev.target) && !isInsidePaymentDialog) {
+				cleanup();
+			}
+		}
+
+		setTimeout(() => {
+			document.addEventListener('mousedown', outside, true);
+			document.addEventListener('touchstart', outside, true);
+		}, 0);
+	} catch (err) {
+		console.error('Error rendering receipts gallery:', err);
+		notify.error('Error al mostrar galería');
+		// Fallback to upload page
+		openReceiptUploadPage(saleId);
+	}
+}
+
+// Open payment date dialog for individual receipt
+function openPaymentDateDialogForReceipt(receipt, onSaved) {
 	const pop = document.createElement('div');
-	pop.className = 'receipt-popover';
+	pop.className = 'payment-date-popover';
 	pop.style.position = 'fixed';
-	// Always center the popover in the screen
+	pop.style.zIndex = '1002'; // Higher than gallery to appear on top
 	pop.style.left = '50%';
 	pop.style.top = '50%';
 	pop.style.transform = 'translate(-50%, -50%)';
-	pop.style.width = 'auto';
-	pop.style.maxWidth = '90vw';
-	pop.style.maxHeight = '85vh';
-	pop.style.zIndex = '1000';
-	pop.style.overflow = 'auto';
-	pop.style.display = 'flex';
-	pop.style.flexDirection = 'column';
-	pop.style.gap = '12px';
-	const img = document.createElement('img');
-	img.src = imageBase64;
-	img.alt = 'Comprobante';
-	img.style.display = 'block';
-	img.style.width = 'auto';
-	img.style.maxWidth = '92vw';
-	img.style.height = 'auto';
-	img.style.maxHeight = '76vh';
-	img.style.margin = '0 auto';
-	img.style.borderRadius = '8px';
-	img.style.objectFit = 'contain';
-	const meta = document.createElement('div');
-	meta.className = 'receipt-meta';
-	meta.style.maxHeight = '120px';
-	meta.style.overflowY = 'auto';
-	meta.style.flexShrink = '0';
-	if (createdAt) {
-		const when = new Date(createdAt);
-		const whenStr = isNaN(when.getTime()) ? String(createdAt) : when.toLocaleString();
-		const timeDiv = document.createElement('div');
-		timeDiv.textContent = 'Subido: ' + whenStr;
-		timeDiv.style.fontSize = '12px';
-		timeDiv.style.opacity = '0.75';
-		timeDiv.style.marginBottom = '4px';
-		meta.appendChild(timeDiv);
+
+	// Title
+	const title = document.createElement('div');
+	title.className = 'payment-date-title';
+	title.textContent = 'Fecha de pago';
+
+	// Inline calendar
+	const calendarContainer = document.createElement('div');
+	calendarContainer.className = 'inline-calendar';
+
+	const today = new Date();
+	let initialDate = new Date();
+	const savedDate = receipt.payment_date;
+	if (savedDate) {
+		try {
+			const dateStr = typeof savedDate === 'string' ? savedDate.slice(0, 10) : String(savedDate).slice(0, 10);
+			const parsed = new Date(dateStr + 'T00:00:00');
+			if (!isNaN(parsed.getTime())) initialDate = parsed;
+		} catch {}
 	}
-	if (noteText) {
-		const note = document.createElement('div');
-		note.textContent = 'Nota: ' + String(noteText || '');
-		note.style.fontSize = '13px';
-		note.style.marginTop = '4px';
-		note.style.whiteSpace = 'pre-wrap';
-		meta.appendChild(note);
+	let currentMonth = initialDate.getMonth();
+	let currentYear = initialDate.getFullYear();
+	let selectedDate = new Date(initialDate);
+
+	const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+	const calendarHeader = document.createElement('div');
+	calendarHeader.className = 'calendar-header';
+	const prevBtn = document.createElement('button');
+	prevBtn.className = 'calendar-nav-btn';
+	prevBtn.type = 'button';
+	prevBtn.innerHTML = '◀';
+	const monthLabel = document.createElement('span');
+	monthLabel.className = 'calendar-month-label';
+	monthLabel.textContent = `${monthNames[currentMonth]} ${currentYear}`;
+	const nextBtn = document.createElement('button');
+	nextBtn.className = 'calendar-nav-btn';
+	nextBtn.type = 'button';
+	nextBtn.innerHTML = '▶';
+	calendarHeader.append(prevBtn, monthLabel, nextBtn);
+
+	const calendarGrid = document.createElement('div');
+	calendarGrid.className = 'calendar-grid';
+
+	function renderCalendar() {
+		calendarGrid.innerHTML = '';
+		monthLabel.textContent = `${monthNames[currentMonth]} ${currentYear}`;
+		const dayNames = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
+		for (const d of dayNames) {
+			const h = document.createElement('div');
+			h.className = 'calendar-day-header';
+			h.textContent = d;
+			calendarGrid.appendChild(h);
+		}
+		const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+		const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+		for (let i = 0; i < firstDay; i++) {
+			const e = document.createElement('div');
+			e.className = 'calendar-day empty';
+			calendarGrid.appendChild(e);
+		}
+		for (let day = 1; day <= daysInMonth; day++) {
+			const cell = document.createElement('div');
+			cell.className = 'calendar-day';
+			cell.textContent = day;
+			const cellDate = new Date(currentYear, currentMonth, day);
+			if (cellDate.toDateString() === today.toDateString()) cell.classList.add('today');
+			if (selectedDate && selectedDate.getDate() === day && selectedDate.getMonth() === currentMonth && selectedDate.getFullYear() === currentYear) {
+				cell.classList.add('selected');
+			}
+			cell.addEventListener('click', () => {
+				calendarGrid.querySelectorAll('.calendar-day').forEach(d => d.classList.remove('selected'));
+				cell.classList.add('selected');
+				selectedDate = new Date(currentYear, currentMonth, day);
+			});
+			calendarGrid.appendChild(cell);
+		}
 	}
-	const actions = document.createElement('div');
-	actions.className = 'confirm-actions';
-	actions.style.display = 'flex';
-	actions.style.gap = '8px';
-	actions.style.justifyContent = 'center';
-	actions.style.flexShrink = '0';
-	const replaceBtn = document.createElement('button'); replaceBtn.className = 'press-btn btn-primary'; replaceBtn.textContent = 'Reemplazar foto';
-	const deleteBtn = document.createElement('button'); deleteBtn.className = 'press-btn'; deleteBtn.textContent = 'Eliminar';
-	const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn'; closeBtn.textContent = 'Cerrar';
-	actions.append(replaceBtn, deleteBtn, closeBtn);
-	pop.append(img, meta, actions);
+
+	prevBtn.addEventListener('click', (e) => {
+		e.preventDefault();
+		currentMonth--;
+		if (currentMonth < 0) {
+			currentMonth = 11;
+			currentYear--;
+		}
+		renderCalendar();
+	});
+	nextBtn.addEventListener('click', (e) => {
+		e.preventDefault();
+		currentMonth++;
+		if (currentMonth > 11) {
+			currentMonth = 0;
+			currentYear++;
+		}
+		renderCalendar();
+	});
+	renderCalendar();
+	calendarContainer.append(calendarHeader, calendarGrid);
+
+	const methodLabel = document.createElement('div');
+	methodLabel.className = 'payment-date-label';
+	methodLabel.textContent = 'Fuente de pago:';
+	methodLabel.style.marginTop = '14px';
+	const methodsContainer = document.createElement('div');
+	methodsContainer.className = 'payment-methods-container';
+	const methods = [
+		{ value: 'bancolombia', label: 'Bancolombia' },
+		{ value: 'nequi', label: 'Nequi' },
+		{ value: 'efectivo_marcela', label: 'Efectivo Marcela' },
+		{ value: 'efectivo_aleja', label: 'Efectivo Aleja' },
+		{ value: 'bancolombia_aleja', label: 'Bancolombia Aleja' },
+		{ value: 'otro', label: 'Otro' }
+	];
+	const previousSource = receipt.payment_source;
+	for (const m of methods) {
+		const b = document.createElement('button');
+		b.type = 'button';
+		b.className = 'payment-method-btn';
+		b.textContent = m.label;
+		b.dataset.value = m.value;
+		if (previousSource && (
+			m.label === previousSource ||
+			m.label.toLowerCase() === String(previousSource).toLowerCase() ||
+			m.value === String(previousSource).toLowerCase()
+		)) {
+			b.classList.add('selected');
+		}
+		b.addEventListener('click', async () => {
+			// Disable while saving
+			methodsContainer.querySelectorAll('button').forEach(x => x.disabled = true);
+			try {
+				const paymentDate = selectedDate.toISOString().split('T')[0];
+				const paymentSource = m.label;
+				
+				console.log('Guardando recibo:', {
+					receipt_id: receipt.id,
+					pay_method: 'jorgebank',
+					payment_date: paymentDate,
+					payment_source: paymentSource
+				});
+				
+				// Update receipt payment info
+				const result = await api('PUT', API.Sales, {
+					_update_receipt_payment: true,
+					receipt_id: receipt.id,
+					pay_method: 'jorgebank',
+					payment_date: paymentDate,
+					payment_source: paymentSource
+				});
+				
+				console.log('Guardado exitoso:', result);
+				
+				// Update local receipt object with the response data
+				if (result) {
+					receipt.pay_method = result.pay_method || 'jorgebank';
+					receipt.payment_date = result.payment_date || paymentDate;
+					receipt.payment_source = result.payment_source || paymentSource;
+				} else {
+					receipt.pay_method = 'jorgebank';
+					receipt.payment_date = paymentDate;
+					receipt.payment_source = paymentSource;
+				}
+				
+				// Call the callback to update the selector in the UI
+				if (typeof onSaved === 'function') onSaved();
+				
+				// Show success message
+				notify.info(`✓ Verificado: ${paymentSource} - ${paymentDate}`);
+				
+				// Close this dialog (but NOT the gallery)
+				cleanup();
+				
+				// Check if we need to update the main selector to jorgebank
+				await checkAndUpdateMainSelectorToJorgebank(receipt.sale_id);
+				
+				// Re-enable buttons
+				methodsContainer.querySelectorAll('button').forEach(x => x.disabled = false);
+			} catch (err) {
+				console.error('Error guardando fecha de pago:', err);
+				methodsContainer.querySelectorAll('button').forEach(x => x.disabled = false);
+				alert('Error al guardar: ' + (err.message || 'Error desconocido'));
+			}
+		});
+		methodsContainer.appendChild(b);
+	}
+
+	pop.append(title, calendarContainer, methodLabel, methodsContainer);
 	document.body.appendChild(pop);
+
+	function outside(ev) {
+		// Don't close if clicking inside the payment date dialog (which has higher z-index)
+		if (!pop.contains(ev.target)) cleanup();
+	}
+
 	function cleanup() {
 		document.removeEventListener('mousedown', outside, true);
 		document.removeEventListener('touchstart', outside, true);
 		if (pop.parentNode) pop.parentNode.removeChild(pop);
 	}
-	function outside(ev) { if (!pop.contains(ev.target)) cleanup(); }
+
 	setTimeout(() => {
 		document.addEventListener('mousedown', outside, true);
 		document.addEventListener('touchstart', outside, true);
 	}, 0);
-	replaceBtn.addEventListener('click', () => { cleanup(); openReceiptUploadPage(saleId); });
-	deleteBtn.addEventListener('click', async () => {
-		try {
-			const ok = await openConfirmPopover('¿Eliminar el comprobante?', anchorX, anchorY);
-			if (!ok) return;
-			if (!receiptId) return;
-			await fetch(`/api/sales?receipt_id=${encodeURIComponent(receiptId)}`, { method: 'DELETE' });
+}
+
+// Open payment menu for individual receipt in gallery
+function openPayMenuForReceipt(anchorEl, selectEl, receipt, clickX, clickY, applyPayClass) {
+	const rect = anchorEl.getBoundingClientRect();
+	const menu = document.createElement('div');
+	menu.className = 'pay-menu';
+	menu.style.position = 'fixed';
+	menu.style.transform = 'translateX(-50%)';
+	menu.style.zIndex = '1001';
+	
+	const isMarcela = String(state.currentUser?.name || '').toLowerCase() === 'marcela';
+	const isJorge = String(state.currentUser?.name || '').toLowerCase() === 'jorge';
+	
+	const items = [
+		{ v: 'efectivo', cls: 'menu-efectivo' },
+		{ v: 'entregado', cls: 'menu-entregado' }
+	];
+	if (isMarcela) items.push({ v: 'marce', cls: 'menu-marce' });
+	if (isJorge) {
+		items.push({ v: 'jorge', cls: 'menu-jorge' });
+		items.push({ v: 'jorgebank', cls: 'menu-jorgebank' });
+	} else if ((selectEl.value || '') === 'jorgebank') {
+		items.push({ v: 'jorgebank', cls: 'menu-jorgebank' });
+	}
+	items.push({ v: '', cls: 'menu-clear' }, { v: 'transf', cls: 'menu-transf' });
+	
+	for (const it of items) {
+		const btn = document.createElement('button');
+		btn.type = 'button';
+		btn.className = 'pay-menu-item ' + it.cls;
+		if (it.v === '') btn.textContent = '-';
+		btn.addEventListener('click', async (e) => {
+			e.stopPropagation();
+			selectEl.value = it.v;
+			selectEl.dispatchEvent(new Event('change'));
 			cleanup();
-		} catch {}
-	});
-	closeBtn.addEventListener('click', cleanup);
+		});
+		menu.appendChild(btn);
+	}
+	
+	menu.style.left = '0px';
+	menu.style.top = '0px';
+	menu.style.visibility = 'hidden';
+	menu.style.pointerEvents = 'none';
+	document.body.appendChild(menu);
+	
+	const dashBtn = menu.querySelector('.menu-clear');
+	const menuRect = menu.getBoundingClientRect();
+	const dashRect = dashBtn ? dashBtn.getBoundingClientRect() : menuRect;
+	const anchorCx = (typeof clickX === 'number') ? clickX : (rect.left + rect.width / 2);
+	const anchorCy = (typeof clickY === 'number') ? clickY : (rect.top + rect.height / 2);
+	const offsetYWithinMenu = (dashRect.top - menuRect.top) + (dashRect.height / 2);
+	let left = anchorCx;
+	let top = anchorCy - offsetYWithinMenu;
+	const half = menu.offsetWidth / 2;
+	left = Math.min(Math.max(left, half + 6), window.innerWidth - half - 6);
+	top = Math.max(6, Math.min(top, window.innerHeight - menu.offsetHeight - 6));
+	menu.style.left = left + 'px';
+	menu.style.top = top + 'px';
+	menu.style.visibility = '';
+	menu.style.pointerEvents = '';
+	
+	function outside(e) {
+		if (!menu.contains(e.target)) cleanup();
+	}
+	
+	function cleanup() {
+		document.removeEventListener('mousedown', outside, true);
+		document.removeEventListener('touchstart', outside, true);
+		if (menu.parentNode) menu.parentNode.removeChild(menu);
+	}
+	
+	setTimeout(() => {
+		document.addEventListener('mousedown', outside, true);
+		document.addEventListener('touchstart', outside, true);
+	}, 0);
+}
+
+// Legacy function for backward compatibility
+function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, anchorY, noteText, receiptId) {
+	// Redirect to new gallery view
+	openReceiptsGalleryPopover(saleId, anchorX, anchorY);
 }
 
 
@@ -7800,5 +8419,7 @@ function renderChangeMarkerIfNeeded(tdEl, saleId, field) {
 	});
 	tdEl.appendChild(mark);
 }
+
+// (mobile bounce limiter removed per user preference);
 
 // (mobile bounce limiter removed per user preference)

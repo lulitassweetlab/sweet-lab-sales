@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 8; // Bump when schema changes require a migration (deliveries feature)
+const SCHEMA_VERSION = 10; // Bump when schema changes require a migration (force receipt payment fields migration)
 
 export async function ensureSchema() {
 	// If already ensured in this instance, skip immediately
@@ -254,15 +254,36 @@ export async function ensureSchema() {
 		sale_id INTEGER NOT NULL REFERENCES sales(id) ON DELETE CASCADE,
 		image_base64 TEXT NOT NULL,
 		note_text TEXT DEFAULT '',
+		pay_method TEXT,
+		payment_source TEXT,
+		payment_date DATE,
 		created_at TIMESTAMPTZ DEFAULT now()
 	)`;
-	// Ensure note_text column exists on older deployments
+	// Ensure note_text, pay_method, payment_source, and payment_date columns exist on older deployments
 	await sql`DO $$ BEGIN
 		IF NOT EXISTS (
 			SELECT 1 FROM information_schema.columns
 			WHERE table_name = 'sale_receipts' AND column_name = 'note_text'
 		) THEN
 			ALTER TABLE sale_receipts ADD COLUMN note_text TEXT DEFAULT '';
+		END IF;
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'sale_receipts' AND column_name = 'pay_method'
+		) THEN
+			ALTER TABLE sale_receipts ADD COLUMN pay_method TEXT;
+		END IF;
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'sale_receipts' AND column_name = 'payment_source'
+		) THEN
+			ALTER TABLE sale_receipts ADD COLUMN payment_source TEXT;
+		END IF;
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'sale_receipts' AND column_name = 'payment_date'
+		) THEN
+			ALTER TABLE sale_receipts ADD COLUMN payment_date DATE;
 		END IF;
 	END $$;`;
 	// Deliveries: record production by day and assignments to sellers
