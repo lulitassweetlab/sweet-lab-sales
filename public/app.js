@@ -7642,11 +7642,11 @@ function openInlineFileUploadDialog(saleId) {
         title.style.color = '#d66686';
 
         const fileInputWrapper = document.createElement('div');
-        fileInputWrapper.style.border = '2px dashed #f4a6b7';
+        fileInputWrapper.style.border = 'none'; // remove dashed border
         fileInputWrapper.style.borderRadius = '12px';
-        fileInputWrapper.style.padding = '18px';
+        fileInputWrapper.style.padding = '8px 0 0';
         fileInputWrapper.style.textAlign = 'center';
-        fileInputWrapper.style.background = '#fff7fa';
+        fileInputWrapper.style.background = '#fff';
         fileInputWrapper.style.cursor = 'pointer';
 
         const fileInput = document.createElement('input');
@@ -7658,7 +7658,10 @@ function openInlineFileUploadDialog(saleId) {
         fileLabel.type = 'button';
         fileLabel.textContent = '📷 Escoger archivos';
         fileLabel.className = 'press-btn btn-primary';
-        fileLabel.style.minWidth = '200px';
+        fileLabel.style.minWidth = '260px';
+        fileLabel.style.padding = '14px 22px';
+        fileLabel.style.fontSize = '16px';
+        fileLabel.style.borderRadius = '12px';
         fileLabel.addEventListener('click', () => fileInput.click());
         fileInputWrapper.addEventListener('click', (e) => { if (e.target === fileInputWrapper) fileInput.click(); });
 
@@ -7688,14 +7691,15 @@ function openInlineFileUploadDialog(saleId) {
         noteInputWrapper.style.position = 'relative';
         noteInputWrapper.style.marginTop = '10px';
         const noteInput = document.createElement('textarea');
-        noteInput.rows = 2;
+        noteInput.rows = 3;
         noteInput.style.width = '100%';
-        noteInput.style.border = '1px solid #e5e7eb';
-        noteInput.style.borderRadius = '10px';
-        noteInput.style.padding = '12px 10px';
-        noteInput.style.fontSize = '13px';
+        noteInput.style.border = '2px solid #f4a6b7';
+        noteInput.style.borderRadius = '12px';
+        noteInput.style.padding = '14px 12px';
+        noteInput.style.fontSize = '14px';
         noteInput.style.resize = 'vertical';
         noteInput.style.textAlign = 'center';
+        noteInput.style.background = '#fff7fa';
         const notePlaceholder = document.createElement('div');
         notePlaceholder.textContent = 'Notas';
         notePlaceholder.style.position = 'absolute';
@@ -7764,6 +7768,31 @@ function openInlineFileUploadDialog(saleId) {
                 const reader = new FileReader();
                 reader.onload = (e) => { img.src = e.target.result; };
                 reader.readAsDataURL(file);
+                // Toggle fullscreen preview on click
+                img.style.cursor = 'zoom-in';
+                img.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const lightbox = document.createElement('div');
+                    lightbox.className = 'image-lightbox';
+                    lightbox.style.position = 'fixed';
+                    lightbox.style.inset = '0';
+                    lightbox.style.background = 'rgba(0,0,0,0.9)';
+                    lightbox.style.zIndex = '10000';
+                    lightbox.style.display = 'flex';
+                    lightbox.style.alignItems = 'center';
+                    lightbox.style.justifyContent = 'center';
+                    lightbox.style.cursor = 'zoom-out';
+                    const full = document.createElement('img');
+                    full.src = img.src;
+                    full.style.maxWidth = '95%';
+                    full.style.maxHeight = '95%';
+                    full.style.objectFit = 'contain';
+                    lightbox.appendChild(full);
+                    const close = () => { if (lightbox.parentNode) lightbox.parentNode.removeChild(lightbox); };
+                    lightbox.addEventListener('click', (ev) => { ev.stopPropagation(); close(); });
+                    lightbox.addEventListener('mousedown', (ev) => ev.stopPropagation());
+                    document.body.appendChild(lightbox);
+                });
                 const x = document.createElement('button');
                 x.type = 'button';
                 x.textContent = '✕';
