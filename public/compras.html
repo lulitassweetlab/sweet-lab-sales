@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Compras de Ingredientes</title>
+	<link rel="stylesheet" href="/styles.css?v=2025-09-17-1" />
+	<style>
+		/* Oculta el ícono/calendario nativo del input de fecha para evitar duplicado */
+		input[type="date"] { -webkit-appearance: none; -moz-appearance: none; appearance: none; }
+		input[type="date"]::-webkit-calendar-picker-indicator { display: none; }
+		/* Mismo borde redondeado y fondo para los campos del formulario */
+		.input-cell { border: 1px solid var(--border); background: var(--card); }
+		/* Quitar flechas en input number (Valor) */
+		input[type="number"] { -moz-appearance: textfield; }
+		input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+		
+		/* Loading overlay */
+		.loading-overlay {
+			position: fixed;
+			top: 0;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			background: rgba(244, 166, 183, 0.9);
+			z-index: 99999;
+			display: flex !important;
+			align-items: center;
+			justify-content: center;
+			backdrop-filter: blur(5px);
+			opacity: 0;
+			pointer-events: none;
+			transition: opacity 0.2s ease;
+		}
+		.loading-overlay.active { 
+			opacity: 1 !important;
+			pointer-events: auto;
+		}
+		.loading-content {
+			text-align: center;
+			max-width: 400px;
+			padding: 32px;
+			background: white;
+			border-radius: 16px;
+			box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+		}
+		.loading-spinner {
+			width: 60px;
+			height: 60px;
+			margin: 0 auto 24px;
+			border: 4px solid #f0f0f0;
+			border-top-color: var(--primary);
+			border-radius: 50%;
+			animation: spin 0.8s linear infinite;
+		}
+		@keyframes spin {
+			to { transform: rotate(360deg); }
+		}
+		
+		/* Estilos para el popover del formulario de compras */
+		.form-popover {
+			position: fixed;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%);
+			background: var(--card);
+			border: 1px solid var(--border);
+			border-radius: 12px;
+			padding: 24px;
+			box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+			z-index: 1000;
+			min-width: 600px;
+			max-width: 90vw;
+			max-height: 85vh;
+			overflow-y: auto;
+		}
+		.form-popover-backdrop {
+			position: fixed;
+			top: 0;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			background: rgba(0, 0, 0, 0.5);
+			z-index: 999;
+		}
+		.form-popover h3 {
+			margin: 0 0 20px 0;
+			text-align: center;
+			color: var(--foreground);
+		}
+		
+		.ingredients-grid {
+			display: grid;
+			gap: 12px;
+			margin-bottom: 16px;
+		}
+		.ingredient-row {
+			display: grid;
+			grid-template-columns: 2fr 1fr 1fr;
+			gap: 8px;
+			align-items: center;
+			padding: 8px;
+			background: var(--background);
+			border-radius: 8px;
+		}
+		.ingredient-name {
+			font-weight: 500;
+		}
+	</style>
+</head>
+<body>
+	<!-- Loading overlay -->
+	<div id="loading-overlay" class="loading-overlay">
+		<div class="loading-content">
+			<div class="loading-spinner"></div>
+			<div class="loading-text" id="loading-text">Cargando datos...</div>
+		</div>
+	</div>
+	
+	<header class="app-header">
+		<div class="header-row">
+			<div class="header-left">
+				<img src="/logo.png" alt="Lulitas Logo" class="app-logo" />
+				<h1>Compras de Ingredientes</h1>
+			</div>
+			<div class="header-actions">
+				<button id="back-btn" class="press-btn">Volver</button>
+			</div>
+		</div>
+	</header>
+
+	<main class="sales-panel">
+		<div class="panel-header">
+			<h3>Historial de Compras</h3>
+			<div class="panel-actions">
+				<button id="change-range" class="press-btn">Cambiar fechas</button>
+				<button id="add-purchase-btn" class="press-btn btn-primary">+ Nueva Compra</button>
+			</div>
+		</div>
+		<div class="panel-body">
+			<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px">
+				<strong id="range-label"></strong>
+				<small id="count-label" style="opacity:.8"></small>
+			</div>
+			<div class="table-wrapper" id="purchases-wrapper">
+				<table id="purchases-table">
+					<thead>
+						<tr>
+							<th>Fecha</th>
+							<th>Ingrediente</th>
+							<th>Cantidad</th>
+							<th>Precio</th>
+							<th>Total</th>
+							<th></th>
+						</tr>
+					</thead>
+					<tbody id="purchases-tbody"></tbody>
+					<tfoot>
+						<tr><td colspan="6" style="height:30px; border-bottom:none; background:transparent;"></td></tr>
+						<tr>
+							<td colspan="4" class="label">Total de compras</td>
+							<td class="col-total" id="t-total"></td>
+							<td></td>
+						</tr>
+					</tfoot>
+				</table>
+			</div>
+		</div>
+	</main>
+
+	<script type="module">
+	(function(){
+		// Gate: only superadmin
+		let currentUser = null;
+		try { const saved = localStorage.getItem('authUser'); if (saved) currentUser = JSON.parse(saved); } catch {}
+		const isSuper = currentUser && (currentUser.role === 'superadmin' || !!currentUser.isSuperAdmin);
+		if (!isSuper) { alert('Solo el superadministrador'); location.href = '/'; return; }
+
+		const qs = new URLSearchParams(location.search);
+		let start = (qs.get('start') || '').slice(0,10);
+		let end = (qs.get('end') || '').slice(0,10);
+		let actor = (qs.get('actor') || '').toString();
+		if (!actor) { try { const saved = JSON.parse(localStorage.getItem('authUser')||'null'); actor = (saved?.name||saved?.username||'').toString(); } catch {} }
+		
+		const today = new Date();
+		if (!start || !end) {
+			// Default to current month
+			start = new Date(Date.UTC(today.getFullYear(), today.getMonth(), 1)).toISOString().slice(0,10);
+			end = new Date(Date.UTC(today.getFullYear(), today.getMonth()+1, 0)).toISOString().slice(0,10);
+		}
+		
+		const rangeLabel = document.getElementById('range-label');
+		const countLabel = document.getElementById('count-label');
+		const tbody = document.getElementById('purchases-tbody');
+		const tTotal = document.getElementById('t-total');
+		const changeBtn = document.getElementById('change-range');
+		const addPurchaseBtn = document.getElementById('add-purchase-btn');
+		let formPopover = null;
+
+		function formatDay(diso){ if (!diso) return ''; const d=new Date(diso+'T00:00:00Z'); const m=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']; return `${d.getUTCDate()} ${m[d.getUTCMonth()]} ${d.getUTCFullYear()}`; }
+
+		async function fetchJSON(u, opts){ const r = await fetch(u, opts); if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }
+		function fmtMoney(n){ const v = Number(n||0); try { return new Intl.NumberFormat('es-CO').format(v); } catch { return String(v); } }
+
+		function withActor(url){
+			try {
+				const u = new URL(url, location.origin);
+				if (actor) u.searchParams.set('actor', actor);
+				return u.pathname + (u.search || '');
+			} catch { return url + (url.includes('?') ? `&actor=${encodeURIComponent(actor)}` : `?actor=${encodeURIComponent(actor)}`); }
+		}
+
+		function renderRows(rows){
+			tbody.innerHTML = '';
+			let total = 0;
+			for (const r of (rows||[])){
+				const tr = document.createElement('tr');
+				const amount = Number(r.amount_cents||0);
+				total += amount;
+				tr.innerHTML = `
+					<td>${String(r.purchase_date||'').slice(0,10)}</td>
+					<td>${r.ingredient||''}</td>
+					<td>${Number(r.quantity||0)||0}</td>
+					<td>${fmtMoney(Number(r.unit_price||0)||0)}</td>
+					<td class="col-total">${fmtMoney(amount)}</td>
+					<td style="padding-left:2px;"><button class="row-delete" data-del="${r.id}" title="Eliminar" aria-label="Eliminar"></button></td>
+				`;
+				tbody.appendChild(tr);
+			}
+			tTotal.textContent = fmtMoney(total || 0);
+			countLabel.textContent = `Compras: ${(rows||[]).length}`;
+			
+			// Wire deletes
+			Array.from(tbody.querySelectorAll('button[data-del]')).forEach(btn => {
+				btn.addEventListener('click', async () => {
+					const id = Number(btn.getAttribute('data-del'));
+					if (!id) return;
+					if (!confirm('¿Eliminar compra?')) return;
+					try { 
+						await fetch(`/api/purchases?id=${encodeURIComponent(id)}`, { 
+							method: 'DELETE', 
+							headers: { 'X-Actor-Name': currentUser?.name || '' } 
+						}); 
+						await load(); 
+					} catch {}
+				});
+			});
+		}
+
+		async function openPurchasePopover() {
+			if (formPopover) return; // Already open
+
+			// Show loading
+			const loadingOverlay = document.getElementById('loading-overlay');
+			loadingOverlay.classList.add('active');
+			
+			// Calculate next 3 days from end date
+			const endDate = new Date(end + 'T00:00:00Z');
+			const next3DaysStart = new Date(endDate);
+			next3DaysStart.setUTCDate(endDate.getUTCDate() + 1);
+			const next3DaysEnd = new Date(next3DaysStart);
+			next3DaysEnd.setUTCDate(next3DaysStart.getUTCDate() + 2); // +2 to get 3 days total
+			
+			const next3Start = next3DaysStart.toISOString().slice(0,10);
+			const next3End = next3DaysEnd.toISOString().slice(0,10);
+
+			try {
+				// Load ingredients with suggested quantities for next 3 days
+				const ingredientsUrl = withActor(`/ingredients.html?start=${encodeURIComponent(next3Start)}&end=${encodeURIComponent(next3End)}`);
+				
+				// Get recipes and extras
+				const all = await fetchJSON(withActor('/api/recipes?all_items=1&include_extras=1'));
+				const desserts = Array.isArray(all?.desserts) ? all.desserts : [];
+				const items = Array.isArray(all?.items) ? all.items : [];
+				const extras = Array.isArray(all?.extras) ? all.extras : [];
+				
+				// Get desserts info
+				const dessertsInfo = await fetchJSON(withActor('/api/desserts'));
+				
+				// Get sales for next 3 days to calculate quantities needed
+				const sellers = await fetchJSON(withActor('/api/sellers'));
+				const isoBetween = (iso, a, b) => iso >= a && iso <= b;
+				
+				// Get sales for next 3 days
+				const sellerDays = [];
+				for (const s of sellers) {
+					try {
+						const days = await fetchJSON(withActor(`/api/days?seller_id=${encodeURIComponent(s.id)}`));
+						for (const d of (days||[])) {
+							const iso = String(d.day).slice(0,10);
+							if (isoBetween(iso, next3Start, next3End)) sellerDays.push({ seller: s, day: d });
+						}
+					} catch {}
+				}
+				
+				// Calculate dessert counts
+				const counts = {};
+				for (const d of dessertsInfo) {
+					counts[d.short_code] = 0;
+				}
+				
+				for (const { seller, day } of sellerDays) {
+					try {
+						const params = new URLSearchParams({ seller_id: String(seller.id), sale_day_id: String(day.id) });
+						const sales = await fetchJSON(withActor(`/api/sales?${params.toString()}`));
+						for (const r of (sales || [])) {
+							if (Array.isArray(r.items) && r.items.length > 0) {
+								for (const item of r.items) {
+									if (counts[item.short_code] !== undefined) {
+										counts[item.short_code] += Number(item.quantity || 0) || 0;
+									}
+								}
+							} else {
+								for (const d of dessertsInfo) {
+									const qtyKey = `qty_${d.short_code}`;
+									if (r[qtyKey]) {
+										counts[d.short_code] += Number(r[qtyKey] || 0) || 0;
+									}
+								}
+							}
+						}
+					} catch {}
+				}
+				
+				// Calculate ingredient requirements
+				const ingredientMap = new Map();
+				
+				// Process recipe items
+				for (const item of items) {
+					const dessertCode = item.dessert.toLowerCase().slice(0, 4);
+					const quantity = counts[dessertCode] || 0;
+					if (quantity > 0) {
+						const needed = (Number(item.qty_per_unit || 0) || 0) * quantity;
+						const key = (item.ingredient || '').toLowerCase();
+						const current = ingredientMap.get(key) || { 
+							name: item.ingredient, 
+							unit: item.unit, 
+							needed: 0, 
+							price: Number(item.price || 0) || 0,
+							pack_size: Number(item.pack_size || 0) || 0
+						};
+						current.needed += needed;
+						ingredientMap.set(key, current);
+					}
+				}
+				
+				// Process extras
+				let totalDesserts = 0;
+				for (const code in counts) {
+					totalDesserts += counts[code];
+				}
+				for (const ex of extras) {
+					const needed = (Number(ex.qty_per_unit || 0) || 0) * totalDesserts;
+					const key = (ex.ingredient || '').toLowerCase();
+					const current = ingredientMap.get(key) || { 
+						name: ex.ingredient, 
+						unit: ex.unit, 
+						needed: 0, 
+						price: Number(ex.price || 0) || 0,
+						pack_size: Number(ex.pack_size || 0) || 0
+					};
+					current.needed += needed;
+					ingredientMap.set(key, current);
+				}
+				
+				// Filter out agua and almibar
+				const filteredIngredients = Array.from(ingredientMap.values())
+					.filter(ing => !['agua', 'almíbar', 'almibar'].includes(ing.name.toLowerCase()))
+					.sort((a, b) => a.name.localeCompare(b.name));
+				
+				// Hide loading
+				loadingOverlay.classList.remove('active');
+
+				// Create backdrop
+				const backdrop = document.createElement('div');
+				backdrop.className = 'form-popover-backdrop';
+
+				// Create popover
+				const popover = document.createElement('div');
+				popover.className = 'form-popover';
+
+				// Create form content
+				let formHTML = `
+					<h3>Nueva Compra de Ingredientes</h3>
+					<form id="purchase-form" style="display:flex; flex-direction:column; gap:16px;">
+						<label style="display:flex; gap:8px; align-items:center;">
+							<span style="min-width:92px;">Fecha</span>
+							<div style="position:relative; flex:1;">
+								<input id="purchase-date" type="date" class="input-cell" required style="width:100%; padding-right:42px;" />
+								<button id="purchase-date-icon" type="button" title="Calendario" aria-label="Abrir calendario" style="position:absolute; right:4px; top:50%; transform: translateY(-50%); padding:6px 8px; border:none; background:transparent; box-shadow:none;">📅</button>
+							</div>
+						</label>
+						<div class="ingredients-grid">
+				`;
+				
+				for (const ing of filteredIngredients) {
+					const suggestedQty = ing.needed.toFixed(2);
+					const suggestedPrice = Math.round(ing.needed * ing.price);
+					formHTML += `
+						<div class="ingredient-row">
+							<div class="ingredient-name">${ing.name}</div>
+							<input type="number" step="0.01" min="0" class="input-cell ingredient-qty" 
+								   placeholder="${suggestedQty}" data-ingredient="${ing.name}" 
+								   data-unit="${ing.unit}" data-price="${ing.price}" 
+								   title="Cantidad sugerida: ${suggestedQty} ${ing.unit}" />
+							<input type="number" step="1" min="0" class="input-cell ingredient-price" 
+								   placeholder="${suggestedPrice}" 
+								   title="Precio sugerido: ${suggestedPrice}" />
+						</div>
+					`;
+				}
+				
+				formHTML += `
+						</div>
+						<div style="display:flex; gap:8px; justify-content:flex-end; margin-top:8px;">
+							<button id="purchase-cancel" type="button" class="press-btn">Cancelar</button>
+							<button id="purchase-save" type="submit" class="press-btn btn-primary">Guardar</button>
+						</div>
+					</form>
+				`;
+				
+				popover.innerHTML = formHTML;
+
+				document.body.appendChild(backdrop);
+				document.body.appendChild(popover);
+				formPopover = { backdrop, popover };
+
+				// Get form elements
+				const form = popover.querySelector('#purchase-form');
+				const dateInput = popover.querySelector('#purchase-date');
+				const dateIconBtn = popover.querySelector('#purchase-date-icon');
+				const cancelBtn = popover.querySelector('#purchase-cancel');
+
+				// Set default date to today
+				const todayIso = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())).toISOString().slice(0,10);
+				dateInput.value = todayIso;
+
+				// Date picker
+				dateIconBtn.addEventListener('click', (ev) => {
+					openSingleDatePopover((pickedIso) => { dateInput.value = pickedIso; }, ev.clientX, ev.clientY);
+				});
+				dateInput.addEventListener('click', (ev) => {
+					ev.preventDefault();
+					openSingleDatePopover((pickedIso) => { dateInput.value = pickedIso; }, ev.clientX, ev.clientY);
+				});
+
+				// Form submission
+				form.addEventListener('submit', async (e) => {
+					e.preventDefault();
+					const date = dateInput.value;
+					if (!date) { alert('Selecciona una fecha'); return; }
+					
+					// Collect all ingredients with quantities
+					const qtyInputs = popover.querySelectorAll('.ingredient-qty');
+					const priceInputs = popover.querySelectorAll('.ingredient-price');
+					const purchases = [];
+					
+					for (let i = 0; i < qtyInputs.length; i++) {
+						const qtyInput = qtyInputs[i];
+						const priceInput = priceInputs[i];
+						const qty = Number(qtyInput.value || qtyInput.placeholder || 0);
+						const price = Number(priceInput.value || priceInput.placeholder || 0);
+						
+						if (qty > 0 && price > 0) {
+							purchases.push({
+								ingredient: qtyInput.dataset.ingredient,
+								quantity: qty,
+								unit_price: price,
+								amount_cents: Math.round(qty * price)
+							});
+						}
+					}
+					
+					if (purchases.length === 0) {
+						alert('Ingresa al menos un ingrediente con cantidad y precio');
+						return;
+					}
+					
+					try {
+						const payload = {
+							purchase_date: date,
+							purchases: purchases,
+							_actor_name: currentUser?.name || ''
+						};
+						const res = await fetch('/api/purchases', {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json', 'X-Actor-Name': currentUser?.name || '' },
+							body: JSON.stringify(payload)
+						});
+						if (!res.ok) {
+							let msg = `Error (${res.status})`;
+							try { const j = await res.json(); if (j && j.error) msg = j.error; } catch {}
+							alert(msg);
+							return;
+						}
+						closeFormPopover();
+						await load();
+					} catch (err) {
+						console.error(err);
+						alert('Error al guardar');
+					}
+				});
+
+				// Close handlers
+				function closeFormPopover() {
+					if (formPopover) {
+						document.body.removeChild(formPopover.backdrop);
+						document.body.removeChild(formPopover.popover);
+						formPopover = null;
+					}
+				}
+
+				cancelBtn.addEventListener('click', closeFormPopover);
+				backdrop.addEventListener('click', closeFormPopover);
+
+				// ESC key to close
+				function onKeyDown(e) {
+					if (e.key === 'Escape') {
+						closeFormPopover();
+						document.removeEventListener('keydown', onKeyDown);
+					}
+				}
+				document.addEventListener('keydown', onKeyDown);
+			} catch (err) {
+				console.error(err);
+				loadingOverlay.classList.remove('active');
+				alert('Error al cargar ingredientes: ' + err.message);
+			}
+		}
+
+		async function load(){
+			try {
+				rangeLabel.textContent = `${formatDay(start)} — ${formatDay(end)}`;
+				countLabel.textContent = 'Cargando…';
+				const rows = await fetchJSON(`/api/purchases?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`);
+				renderRows(rows);
+			} catch (e) {
+				countLabel.textContent = 'Error cargando';
+			}
+		}
+
+		document.getElementById('back-btn').addEventListener('click', () => { 
+			const url = new URL('/sales-report.html', location.origin);
+			if (start) url.searchParams.set('start', start);
+			if (end) url.searchParams.set('end', end);
+			if (actor) url.searchParams.set('actor', actor);
+			location.href = url.toString();
+		});
+		
+		// Open form popover on + button click
+		addPurchaseBtn.addEventListener('click', openPurchasePopover);
+
+		function openCalendar(ev){
+			openRangeCalendarPopover((range) => {
+				if (!range || !range.start || !range.end) return;
+				start = range.start; end = range.end;
+				load();
+			}, ev.clientX, ev.clientY, { preferUp: true });
+		}
+		changeBtn.addEventListener('click', openCalendar);
+
+		// Lightweight embed of openRangeCalendarPopover if not present
+		if (typeof window.openRangeCalendarPopover !== 'function') {
+			window.openRangeCalendarPopover = function(onPickedRange, anchorX, anchorY, opts){
+				const pop = document.createElement('div'); pop.className = 'date-popover'; pop.style.position = 'fixed'; const baseX = anchorX||window.innerWidth/2; const baseY = anchorY||window.innerHeight/2; pop.style.left = baseX+'px'; pop.style.top=(baseY+8)+'px'; pop.style.transform='translate(-50%,0)'; pop.style.zIndex='1000';
+				const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']; let view = new Date(); view.setDate(1); let startIso=null, endIso=null;
+				const header=document.createElement('div'); header.className='date-popover-header'; const prev=document.createElement('button'); prev.className='date-nav'; prev.textContent='‹'; const label=document.createElement('div'); label.className='date-label'; const next=document.createElement('button'); next.className='date-nav'; next.textContent='›'; header.append(prev,label,next);
+				const grid=document.createElement('div'); grid.className='date-grid'; const weekdays=['L','M','X','J','V','S','D']; const wk=document.createElement('div'); wk.className='date-weekdays'; for (const w of weekdays){ const c=document.createElement('div'); c.textContent=w; wk.appendChild(c);} 
+				function isoUTC(y,m,d){ return new Date(Date.UTC(y,m,d)).toISOString().slice(0,10); }
+				function isBetween(x,a,b){ return x>=a && x<=b; }
+				function render(){ label.textContent = months[view.getMonth()] + ' ' + view.getFullYear(); grid.innerHTML=''; const year=view.getFullYear(); const month=view.getMonth(); const firstDay=(new Date(Date.UTC(year,month,1)).getUTCDay()+6)%7; const daysInMonth=new Date(Date.UTC(year,month+1,0)).getUTCDate(); for (let i=0;i<firstDay;i++){ const cell=document.createElement('button'); cell.className='date-cell disabled'; cell.disabled=true; grid.appendChild(cell);} for (let d=1; d<=daysInMonth; d++){ const iso=isoUTC(year,month,d); const cell=document.createElement('button'); let cls='date-cell'; if (startIso && !endIso && iso===startIso) cls+=' range-start selected'; if (startIso && endIso){ if (iso===startIso) cls+=' range-start selected'; else if (iso===endIso) cls+=' range-end selected'; else if (isBetween(iso,startIso,endIso)) cls+=' in-range'; } cell.className=cls; cell.textContent=String(d); cell.addEventListener('click',()=>{ if(!startIso){ startIso=iso; endIso=null; render(); return; } if(!endIso){ if(iso<startIso){ endIso=startIso; startIso=iso; } else { endIso=iso; } render(); return; } startIso=iso; endIso=null; render(); }); grid.appendChild(cell);} }
+				function cleanup(){ document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); if(pop.parentNode) pop.parentNode.removeChild(pop);} function outside(ev){ if(!pop.contains(ev.target)) cleanup(); }
+				prev.addEventListener('click',()=>{ view.setMonth(view.getMonth()-1); render(); }); next.addEventListener('click',()=>{ view.setMonth(view.getMonth()+1); render(); });
+				const actions=document.createElement('div'); actions.style.display='flex'; actions.style.justifyContent='space-between'; actions.style.marginTop='8px'; const clearBtn=document.createElement('button'); clearBtn.className='date-nav'; clearBtn.textContent='Limpiar'; const genBtn=document.createElement('button'); genBtn.className='date-nav'; genBtn.textContent='Generar'; genBtn.disabled=true; clearBtn.addEventListener('click',()=>{ startIso=null; endIso=null; genBtn.disabled=true; render(); }); genBtn.addEventListener('click',()=>{ if(startIso && endIso && typeof onPickedRange==='function'){ cleanup(); onPickedRange({ start:startIso, end:endIso }); } }); actions.append(clearBtn, genBtn);
+				const origRender = render; render = function(){ origRender(); genBtn.disabled = !(startIso && endIso); };
+				pop.append(header, wk, grid, actions); document.body.appendChild(pop); pop.classList.add('aladdin-pop');
+				document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); render();
+			};
+		}
+
+		// Single-date popover for Fecha
+		if (typeof window.openSingleDatePopover !== 'function') {
+			window.openSingleDatePopover = function(onPickedDate, anchorX, anchorY){
+				const pop = document.createElement('div'); pop.className='date-popover'; pop.style.position='fixed'; const baseX=anchorX||window.innerWidth/2; const baseY=anchorY||window.innerHeight/2; pop.style.left=baseX+'px'; pop.style.top=(baseY+8)+'px'; pop.style.transform='translate(-50%,0)'; pop.style.zIndex='1000';
+				const months=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']; let view=new Date(); view.setDate(1);
+				const header=document.createElement('div'); header.className='date-popover-header'; const prev=document.createElement('button'); prev.className='date-nav'; prev.textContent='‹'; const label=document.createElement('div'); label.className='date-label'; const next=document.createElement('button'); next.className='date-nav'; next.textContent='›'; header.append(prev,label,next);
+				const grid=document.createElement('div'); grid.className='date-grid'; const weekdays=['L','M','X','J','V','S','D']; const wk=document.createElement('div'); wk.className='date-weekdays'; for (const w of weekdays){ const c=document.createElement('div'); c.textContent=w; wk.appendChild(c);} 
+				function isoUTC(y,m,d){ return new Date(Date.UTC(y,m,d)).toISOString().slice(0,10); }
+				function render(){ label.textContent=months[view.getMonth()]+' '+view.getFullYear(); grid.innerHTML=''; const year=view.getFullYear(); const month=view.getMonth(); const firstDay=(new Date(Date.UTC(year,month,1)).getUTCDay()+6)%7; const daysInMonth=new Date(Date.UTC(year,month+1,0)).getUTCDate(); for (let i=0;i<firstDay;i++){ const cell=document.createElement('button'); cell.className='date-cell disabled'; cell.disabled=true; grid.appendChild(cell);} for (let d=1; d<=daysInMonth; d++){ const iso=isoUTC(year,month,d); const cell=document.createElement('button'); cell.className='date-cell'; cell.textContent=String(d); cell.addEventListener('click',()=>{ cleanup(); if (typeof onPickedDate==='function') onPickedDate(iso); }); grid.appendChild(cell);} }
+				function cleanup(){ document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); if (pop.parentNode) pop.parentNode.removeChild(pop); }
+				function outside(ev){ if (!pop.contains(ev.target)) cleanup(); }
+				prev.addEventListener('click',()=>{ view.setMonth(view.getMonth()-1); render(); }); next.addEventListener('click',()=>{ view.setMonth(view.getMonth()+1); render(); });
+				pop.append(header, wk, grid); document.body.appendChild(pop); pop.classList.add('aladdin-pop');
+				document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); render();
+			};
+		}
+
+		load();
+		
+		// Open popover automatically on load
+		setTimeout(() => openPurchasePopover(), 500);
+	})();
+	</script>
+</body>
+</html>
