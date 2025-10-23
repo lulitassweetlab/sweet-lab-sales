@@ -258,12 +258,17 @@ function renderClientDetailTable(rows) {
 			const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
             const pm = String(r.pay_method || '').trim().replace(/\.$/, '').toLowerCase();
             const locked = pm !== '' && pm !== 'entregado';
-            if (!isAdminUser && locked) return; // block for non-admins, allow when 'entregado'
 			const curr = String(sel.value || '');
 			const saleId = Number(r.id);
 			const rect = wrap.getBoundingClientRect();
 			function hasSeen(method){ try { return localStorage.getItem('seenPaymentDate_' + method + '_' + saleId) === '1'; } catch { return false; } }
 			function markSeen(method){ try { localStorage.setItem('seenPaymentDate_' + method + '_' + saleId, '1'); } catch {} }
+			
+			// If current is 'transf' -> open upload dialog (allow for everyone)
+			if (curr === 'transf') {
+				openInlineFileUploadDialog(saleId);
+				return;
+			}
 			// If current is 'jorge' and first time -> open payment date dialog centered
 			if (curr === 'jorge' && !hasSeen('jorge')) { markSeen('jorge'); openPaymentDateDialog(saleId); return; }
 			// If current is 'jorgebank' and already seen -> open receipt gallery
@@ -273,11 +278,10 @@ function renderClientDetailTable(rows) {
 			}
 			// If current is 'jorgebank' and NOT seen -> show payment date popover first time
 			if (curr === 'jorgebank' && !hasSeen('jorgebank')) { markSeen('jorgebank'); openPaymentDateDialog(saleId); return; }
-			// If current is 'transf' -> open upload dialog
-			if (curr === 'transf') {
-				openInlineFileUploadDialog(saleId);
-				return;
-			}
+			
+			// Block for non-admins if locked
+            if (!isAdminUser && locked) return;
+			
 			// Otherwise open the selector menu
 			openPayMenu(wrap, sel, rect.left + rect.width / 2, rect.bottom);
 		});
@@ -288,21 +292,26 @@ function renderClientDetailTable(rows) {
 				const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
                 const pm = String(r.pay_method || '').trim().replace(/\.$/, '').toLowerCase();
                 const locked = pm !== '' && pm !== 'entregado';
-                if (!isAdminUser && locked) return;
 				const curr = String(sel.value || '');
 				const saleId = Number(r.id);
 				const rect = wrap.getBoundingClientRect();
 				function hasSeen(method){ try { return localStorage.getItem('seenPaymentDate_' + method + '_' + saleId) === '1'; } catch { return false; } }
 				function markSeen(method){ try { localStorage.setItem('seenPaymentDate_' + method + '_' + saleId, '1'); } catch {} }
+				
+				// If current is 'transf' -> open upload dialog (allow for everyone)
+				if (curr === 'transf') {
+					openInlineFileUploadDialog(saleId);
+					return;
+				}
 				if (curr === 'jorge' && !hasSeen('jorge')) { markSeen('jorge'); openPaymentDateDialog(saleId); return; }
 				if (curr === 'jorgebank' && hasSeen('jorgebank')) {
 					openReceiptsGalleryPopover(saleId, rect.left + rect.width / 2, rect.bottom);
 					return;
 				}
-				if (curr === 'transf') {
-					openInlineFileUploadDialog(saleId);
-					return;
-				}
+				
+				// Block for non-admins if locked
+                if (!isAdminUser && locked) return;
+				
 				openPayMenu(wrap, sel, rect.left + rect.width / 2, rect.bottom);
 			}
 		});
