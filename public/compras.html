@@ -595,8 +595,10 @@
 
 		load();
 		
-		// Open popover automatically on load
-		setTimeout(() => openPurchasePopover(), 500);
+		// Open popover automatically on load only if we have valid dates
+		if (start && end) {
+			setTimeout(() => openPurchasePopover(), 500);
+		}
 	})();
 	</script>
 </body>

@@ -1047,10 +1047,17 @@ function bindLogin() {
 	function triggerLoginOnEnter(e) { if (e.key === 'Enter') { e.preventDefault(); btn?.click(); } }
 	userInput?.addEventListener('keydown', triggerLoginOnEnter);
 	passInput?.addEventListener('keydown', triggerLoginOnEnter);
-	btn?.addEventListener('click', () => {
+	if (!btn) {
+		console.error('Login button not found in DOM');
+		return;
+	}
+	console.log('Login button found, adding click listener');
+	btn.addEventListener('click', () => {
+		console.log('Login button clicked');
 		const user = document.getElementById('login-user')?.value?.trim();
 		const pass = document.getElementById('login-pass')?.value ?? '';
 		const err = document.getElementById('login-error');
+		console.log('User:', user, 'Pass length:', pass?.length);
 		if (!user) { if (err) { err.textContent = 'Ingresa el usuario'; err.classList.remove('hidden'); } return; }
 		(async () => {
 			try {
