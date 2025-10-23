@@ -7651,40 +7651,55 @@ function openInlineFileUploadDialog(saleId) {
 		dialog.style.animation = 'dialogFadeIn 0.2s ease';
 
 		const title = document.createElement('h1');
-		title.textContent = 'Subir comprobante';
-		title.style.margin = '0 0 6px';
-		title.style.fontSize = '20px';
-		title.style.fontWeight = '600';
-		title.style.color = 'var(--text, #111)';
+		title.textContent = 'Subir Comprobante';
+		title.style.margin = '0 0 24px';
+		title.style.fontSize = '32px';
+		title.style.fontWeight = '800';
+		title.style.color = '#f4a6b7';
+		title.style.textAlign = 'center';
+		title.style.letterSpacing = '0.5px';
 
-		const saleInfo = document.createElement('div');
-		saleInfo.className = 'note';
-		saleInfo.textContent = `Venta #${id}`;
-		saleInfo.style.fontSize = '13px';
-		saleInfo.style.color = 'var(--muted, #6b7280)';
-		saleInfo.style.marginBottom = '20px';
-		saleInfo.style.opacity = '0.8';
-
-		const fileLabel = document.createElement('label');
-		fileLabel.textContent = '📷 Fotos del comprobante';
-		fileLabel.style.display = 'block';
-		fileLabel.style.marginBottom = '8px';
-		fileLabel.style.fontSize = '14px';
-		fileLabel.style.fontWeight = '500';
-		fileLabel.style.color = 'var(--text, #111)';
-
+		// Custom file input button
+		const fileInputWrapper = document.createElement('div');
+		fileInputWrapper.style.marginBottom = '20px';
+		fileInputWrapper.style.textAlign = 'center';
+		
 		const fileInput = document.createElement('input');
 		fileInput.type = 'file';
 		fileInput.accept = 'image/*';
 		fileInput.multiple = true;
-		fileInput.style.display = 'block';
-		fileInput.style.width = '100%';
-		fileInput.style.marginBottom = '16px';
-		fileInput.style.padding = '10px';
-		fileInput.style.border = '2px dashed var(--border, #e5e7eb)';
-		fileInput.style.borderRadius = '10px';
-		fileInput.style.cursor = 'pointer';
-		fileInput.style.transition = 'border-color 0.2s ease';
+		fileInput.style.display = 'none';
+		fileInput.id = 'file-input-' + id;
+		
+		const fileLabel = document.createElement('label');
+		fileLabel.htmlFor = 'file-input-' + id;
+		fileLabel.textContent = '📷 Escoger Archivos';
+		fileLabel.style.display = 'inline-block';
+		fileLabel.style.padding = '20px 60px';
+		fileLabel.style.fontSize = '20px';
+		fileLabel.style.fontWeight = '700';
+		fileLabel.style.color = 'white';
+		fileLabel.style.background = 'linear-gradient(135deg, #f4a6b7 0%, #e885a0 100%)';
+		fileLabel.style.border = '3px solid #f4a6b7';
+		fileLabel.style.borderRadius = '16px';
+		fileLabel.style.cursor = 'pointer';
+		fileLabel.style.transition = 'all 0.3s ease';
+		fileLabel.style.boxShadow = '0 6px 20px rgba(244, 166, 183, 0.4)';
+		fileLabel.style.textTransform = 'uppercase';
+		fileLabel.style.letterSpacing = '1px';
+		fileLabel.addEventListener('mouseenter', () => {
+			fileLabel.style.transform = 'translateY(-3px) scale(1.05)';
+			fileLabel.style.boxShadow = '0 10px 30px rgba(244, 166, 183, 0.6)';
+			fileLabel.style.background = 'linear-gradient(135deg, #e885a0 0%, #d66686 100%)';
+		});
+		fileLabel.addEventListener('mouseleave', () => {
+			fileLabel.style.transform = 'translateY(0) scale(1)';
+			fileLabel.style.boxShadow = '0 6px 20px rgba(244, 166, 183, 0.4)';
+			fileLabel.style.background = 'linear-gradient(135deg, #f4a6b7 0%, #e885a0 100%)';
+		});
+		
+		fileInputWrapper.appendChild(fileInput);
+		fileInputWrapper.appendChild(fileLabel);
 
 		const noteLabel = document.createElement('label');
 		noteLabel.textContent = '💬 Agrega una nota (opcional)';
@@ -7721,20 +7736,36 @@ function openInlineFileUploadDialog(saleId) {
 		previewContainer.style.marginBottom = '20px';
 		
 		const previewTitle = document.createElement('div');
-		previewTitle.textContent = '👁️ Vista previa';
-		previewTitle.style.fontSize = '15px';
-		previewTitle.style.fontWeight = '600';
-		previewTitle.style.marginBottom = '12px';
-		previewTitle.style.color = 'var(--text, #111)';
+		previewTitle.textContent = '👁️ Vista Previa';
+		previewTitle.style.fontSize = '18px';
+		previewTitle.style.fontWeight = '700';
+		previewTitle.style.marginBottom = '16px';
+		previewTitle.style.color = '#f4a6b7';
 		previewTitle.style.display = 'none';
+		previewTitle.style.textAlign = 'center';
+		
+		const previewGrid = document.createElement('div');
+		previewGrid.style.display = 'grid';
+		previewGrid.style.gridTemplateColumns = 'repeat(3, 1fr)';
+		previewGrid.style.gap = '12px';
+		previewGrid.style.marginBottom = '16px';
 
-		const actions = document.createElement('div');
-		actions.className = 'actions';
-		actions.style.display = 'flex';
-		actions.style.gap = '10px';
-		actions.style.justifyContent = 'flex-end';
-		actions.style.marginTop = '20px';
-		actions.style.marginBottom = '8px';
+		const topActions = document.createElement('div');
+		topActions.className = 'actions';
+		topActions.style.display = 'none';
+		topActions.style.flexDirection = 'column';
+		topActions.style.gap = '12px';
+		topActions.style.alignItems = 'center';
+		topActions.style.marginBottom = '20px';
+		
+		const bottomActions = document.createElement('div');
+		bottomActions.className = 'actions';
+		bottomActions.style.display = 'flex';
+		bottomActions.style.gap = '12px';
+		bottomActions.style.justifyContent = 'center';
+		bottomActions.style.marginTop = '20px';
+		bottomActions.style.marginBottom = '8px';
+		bottomActions.style.flexWrap = 'wrap';
 
 		const cancelBtn = document.createElement('button');
 		cancelBtn.className = 'btn press-btn';
@@ -7761,33 +7792,80 @@ function openInlineFileUploadDialog(saleId) {
 			cancelBtn.style.boxShadow = 'none';
 		});
 
-		const uploadBtn = document.createElement('button');
-		uploadBtn.className = 'btn btn-primary press-btn btn-gold';
-		uploadBtn.textContent = 'Subir Archivos';
-		uploadBtn.style.padding = '14px 32px';
-		uploadBtn.style.borderRadius = '12px';
-		uploadBtn.style.border = 'none';
-		uploadBtn.style.background = '#f4a6b7';
-		uploadBtn.style.color = '#fff';
-		uploadBtn.style.cursor = 'pointer';
-		uploadBtn.style.fontSize = '16px';
-		uploadBtn.style.fontWeight = '700';
-		uploadBtn.style.transition = 'all 0.3s ease';
-		uploadBtn.style.textTransform = 'uppercase';
-		uploadBtn.style.letterSpacing = '0.5px';
-		uploadBtn.style.opacity = '0.5';
-		uploadBtn.disabled = true;
-		uploadBtn.addEventListener('mouseenter', () => {
-			if (!uploadBtn.disabled) {
-				uploadBtn.style.background = '#e885a0';
-				uploadBtn.style.transform = 'translateY(-3px) scale(1.02)';
-				uploadBtn.style.boxShadow = '0 8px 20px rgba(244, 166, 183, 0.6)';
-			}
+		// Upload button (will be cloned for top and bottom)
+		function createUploadButton() {
+			const btn = document.createElement('button');
+			btn.className = 'btn btn-primary press-btn btn-gold upload-btn';
+			btn.textContent = 'Subir Archivos';
+			btn.style.padding = '16px 48px';
+			btn.style.borderRadius = '14px';
+			btn.style.border = 'none';
+			btn.style.background = 'linear-gradient(135deg, #f4a6b7 0%, #e885a0 100%)';
+			btn.style.color = '#fff';
+			btn.style.cursor = 'pointer';
+			btn.style.fontSize = '18px';
+			btn.style.fontWeight = '800';
+			btn.style.transition = 'all 0.2s ease';
+			btn.style.textTransform = 'uppercase';
+			btn.style.letterSpacing = '1px';
+			btn.style.opacity = '0.5';
+			btn.style.boxShadow = '0 6px 20px rgba(244, 166, 183, 0.3)';
+			btn.disabled = true;
+			btn.addEventListener('mouseenter', () => {
+				if (!btn.disabled) {
+					btn.style.background = 'linear-gradient(135deg, #e885a0 0%, #d66686 100%)';
+					btn.style.transform = 'translateY(-4px) scale(1.03)';
+					btn.style.boxShadow = '0 12px 30px rgba(244, 166, 183, 0.7)';
+				}
+			});
+			btn.addEventListener('mouseleave', () => {
+				if (!btn.disabled) {
+					btn.style.background = 'linear-gradient(135deg, #f4a6b7 0%, #e885a0 100%)';
+					btn.style.transform = 'translateY(0) scale(1)';
+					btn.style.boxShadow = '0 6px 20px rgba(244, 166, 183, 0.3)';
+				}
+			});
+			btn.addEventListener('mousedown', () => {
+				if (!btn.disabled) {
+					btn.style.transform = 'translateY(-2px) scale(0.98)';
+				}
+			});
+			btn.addEventListener('mouseup', () => {
+				if (!btn.disabled) {
+					btn.style.transform = 'translateY(-4px) scale(1.03)';
+				}
+			});
+			return btn;
+		}
+		
+		const uploadBtnTop = createUploadButton();
+		const uploadBtnBottom = createUploadButton();
+		
+		const uploadMoreBtn = document.createElement('button');
+		uploadMoreBtn.className = 'btn press-btn';
+		uploadMoreBtn.textContent = '➕ Subir Más Archivos';
+		uploadMoreBtn.style.padding = '12px 24px';
+		uploadMoreBtn.style.borderRadius = '12px';
+		uploadMoreBtn.style.border = '2px solid #f4a6b7';
+		uploadMoreBtn.style.background = 'white';
+		uploadMoreBtn.style.color = '#f4a6b7';
+		uploadMoreBtn.style.cursor = 'pointer';
+		uploadMoreBtn.style.fontSize = '15px';
+		uploadMoreBtn.style.fontWeight = '700';
+		uploadMoreBtn.style.transition = 'all 0.3s ease';
+		uploadMoreBtn.style.display = 'none';
+		uploadMoreBtn.addEventListener('click', () => {
+			fileInput.click();
 		});
-		uploadBtn.addEventListener('mouseleave', () => {
-			uploadBtn.style.background = '#f4a6b7';
-			uploadBtn.style.transform = 'translateY(0) scale(1)';
-			uploadBtn.style.boxShadow = 'none';
+		uploadMoreBtn.addEventListener('mouseenter', () => {
+			uploadMoreBtn.style.background = '#fce7ec';
+			uploadMoreBtn.style.transform = 'translateY(-2px)';
+			uploadMoreBtn.style.boxShadow = '0 4px 12px rgba(244, 166, 183, 0.3)';
+		});
+		uploadMoreBtn.addEventListener('mouseleave', () => {
+			uploadMoreBtn.style.background = 'white';
+			uploadMoreBtn.style.transform = 'translateY(0)';
+			uploadMoreBtn.style.boxShadow = 'none';
 		});
 
 		const helpText = document.createElement('div');
@@ -7806,63 +7884,103 @@ function openInlineFileUploadDialog(saleId) {
 				previewContainer.style.display = 'none';
 				previewContainer.innerHTML = '';
 				previewTitle.style.display = 'none';
-				uploadBtn.disabled = true;
-				uploadBtn.style.opacity = '0.5';
-				uploadBtn.style.cursor = 'not-allowed';
+				topActions.style.display = 'none';
+				uploadMoreBtn.style.display = 'none';
+				uploadBtnTop.disabled = true;
+				uploadBtnTop.style.opacity = '0.5';
+				uploadBtnTop.style.cursor = 'not-allowed';
+				uploadBtnBottom.disabled = true;
+				uploadBtnBottom.style.opacity = '0.5';
+				uploadBtnBottom.style.cursor = 'not-allowed';
 				selectedFiles = [];
 				return;
 			}
+			
+			topActions.style.display = 'flex';
 
 			selectedFiles = Array.from(files);
 			previewContainer.innerHTML = '';
+			previewGrid.innerHTML = '';
 			previewContainer.appendChild(previewTitle);
+			previewContainer.appendChild(previewGrid);
 			previewContainer.style.display = 'block';
 			previewTitle.style.display = 'block';
+			uploadMoreBtn.style.display = 'inline-block';
 
 			selectedFiles.forEach((file, index) => {
 				const reader = new FileReader();
 				reader.onload = (e) => {
 					const imgContainer = document.createElement('div');
-					imgContainer.style.marginBottom = '16px';
+					imgContainer.style.position = 'relative';
 					imgContainer.style.padding = '0';
 					imgContainer.style.background = 'white';
-					imgContainer.style.borderRadius = '16px';
+					imgContainer.style.borderRadius = '12px';
 					imgContainer.style.border = '3px solid #f4a6b7';
 					imgContainer.style.overflow = 'hidden';
 					imgContainer.style.boxShadow = '0 4px 12px rgba(244, 166, 183, 0.2)';
-
-					const label = document.createElement('div');
-					label.textContent = `📎 ${file.name}`;
-					label.style.fontSize = '14px';
-					label.style.padding = '12px 16px';
-					label.style.fontWeight = '600';
-					label.style.color = 'white';
-					label.style.background = '#f4a6b7';
+					imgContainer.style.aspectRatio = '1';
 
 					const img = document.createElement('img');
 					img.src = e.target.result;
 					img.alt = `Vista previa ${index + 1}`;
 					img.style.width = '100%';
-					img.style.height = 'auto';
+					img.style.height = '100%';
 					img.style.display = 'block';
-					img.style.maxHeight = '300px';
-					img.style.objectFit = 'contain';
-					img.style.background = '#f9fafb';
+					img.style.objectFit = 'cover';
 
-					imgContainer.appendChild(label);
+					const removeBtn = document.createElement('button');
+					removeBtn.innerHTML = '✕';
+					removeBtn.style.position = 'absolute';
+					removeBtn.style.top = '8px';
+					removeBtn.style.right = '8px';
+					removeBtn.style.width = '32px';
+					removeBtn.style.height = '32px';
+					removeBtn.style.borderRadius = '50%';
+					removeBtn.style.border = 'none';
+					removeBtn.style.background = 'rgba(0, 0, 0, 0.7)';
+					removeBtn.style.color = 'white';
+					removeBtn.style.fontSize = '18px';
+					removeBtn.style.fontWeight = 'bold';
+					removeBtn.style.cursor = 'pointer';
+					removeBtn.style.display = 'flex';
+					removeBtn.style.alignItems = 'center';
+					removeBtn.style.justifyContent = 'center';
+					removeBtn.style.transition = 'all 0.2s ease';
+					removeBtn.style.zIndex = '2';
+					removeBtn.addEventListener('mouseenter', () => {
+						removeBtn.style.background = '#f4a6b7';
+						removeBtn.style.transform = 'scale(1.15)';
+					});
+					removeBtn.addEventListener('mouseleave', () => {
+						removeBtn.style.background = 'rgba(0, 0, 0, 0.7)';
+						removeBtn.style.transform = 'scale(1)';
+					});
+					removeBtn.addEventListener('click', (e) => {
+						e.stopPropagation();
+						selectedFiles.splice(index, 1);
+						fileInput.value = '';
+						fileInput.dispatchEvent(new Event('change'));
+					});
+
 					imgContainer.appendChild(img);
-					previewContainer.appendChild(imgContainer);
+					imgContainer.appendChild(removeBtn);
+					previewGrid.appendChild(imgContainer);
 				};
 				reader.readAsDataURL(file);
 			});
 
-			uploadBtn.disabled = false;
-			uploadBtn.style.opacity = '1';
-			uploadBtn.style.cursor = 'pointer';
-			uploadBtn.textContent = `Subir ${selectedFiles.length} Archivo${selectedFiles.length > 1 ? 's' : ''}`;
+			uploadBtnTop.disabled = false;
+			uploadBtnTop.style.opacity = '1';
+			uploadBtnTop.style.cursor = 'pointer';
+			uploadBtnTop.textContent = `✓ Subir ${selectedFiles.length} Archivo${selectedFiles.length > 1 ? 's' : ''}`;
+			
+			uploadBtnBottom.disabled = false;
+			uploadBtnBottom.style.opacity = '1';
+			uploadBtnBottom.style.cursor = 'pointer';
+			uploadBtnBottom.textContent = `✓ Subir ${selectedFiles.length} Archivo${selectedFiles.length > 1 ? 's' : ''}`;
 		});
 
-		uploadBtn.addEventListener('click', async () => {
+		async function handleUpload() {
 			if (selectedFiles.length === 0 || !id) return;
 			
 			// Show loading overlay
@@ -7947,7 +8065,10 @@ function openInlineFileUploadDialog(saleId) {
 					notify.error('Error al subir archivos');
 				} catch {}
 			}
-		});
+		}
+		
+		uploadBtnTop.addEventListener('click', handleUpload);
+		uploadBtnBottom.addEventListener('click', handleUpload);
 
 		cancelBtn.addEventListener('click', cleanup);
 		overlay.addEventListener('click', (e) => {
@@ -7960,8 +8081,11 @@ function openInlineFileUploadDialog(saleId) {
 			}
 		}
 
-		actions.appendChild(cancelBtn);
-		actions.appendChild(uploadBtn);
+		topActions.appendChild(uploadBtnTop);
+		topActions.appendChild(uploadMoreBtn);
+		
+		bottomActions.appendChild(cancelBtn);
+		bottomActions.appendChild(uploadBtnBottom);
 
 		// Create loading overlay inside dialog
 		const loadingOverlay = document.createElement('div');
@@ -8025,14 +8149,13 @@ function openInlineFileUploadDialog(saleId) {
 		
 		dialog.style.position = 'relative';
 		dialog.appendChild(title);
-		dialog.appendChild(saleInfo);
-		dialog.appendChild(fileLabel);
-		dialog.appendChild(fileInput);
+		dialog.appendChild(fileInputWrapper);
+		dialog.appendChild(topActions);
+		dialog.appendChild(previewContainer);
 		dialog.appendChild(noteLabel);
 		dialog.appendChild(noteInput);
-		dialog.appendChild(previewContainer);
-		dialog.appendChild(actions);
 		dialog.appendChild(helpText);
+		dialog.appendChild(bottomActions);
 		dialog.appendChild(loadingOverlay);
 
 		overlay.appendChild(dialog);
