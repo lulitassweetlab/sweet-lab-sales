@@ -51,6 +51,11 @@
 		const tbody = document.getElementById('deliveries-tbody');
 		const addBtn = document.getElementById('add-delivery-btn');
 		const backBtn = document.getElementById('back-btn');
+		
+		// Track which deliveries are expanded
+		const expandedDeliveries = new Set();
+		// Store current data for re-rendering
+		let currentRows = [];
 
 		function getCurrentUser(){
 			try { return JSON.parse(localStorage.getItem('authUser') || 'null'); } catch { return null; }
@@ -83,10 +88,15 @@
 				try {
 					const sellers = await api('GET', `/api/deliveries?delivery_id=${r.id}`);
 					r.sellers = Array.isArray(sellers) ? sellers : [];
+					// Auto-expand if there are sellers
+					if (r.sellers.length > 0 && !expandedDeliveries.has(r.id)) {
+						expandedDeliveries.add(r.id);
+					}
 				} catch {
 					r.sellers = [];
 				}
 			}
+			currentRows = rows;
 			render(rows);
 		}
 
@@ -94,11 +104,14 @@
 			tbody.innerHTML = '';
 			for (const r of rows) {
 				tbody.appendChild(renderDeliveryRow(r));
-				// Render seller rows below each delivery
-				if (r.sellers && Array.isArray(r.sellers)) {
+				// Render seller rows below each delivery if expanded
+				const isExpanded = expandedDeliveries.has(r.id);
+				if (r.sellers && Array.isArray(r.sellers) && r.sellers.length > 0 && isExpanded) {
 					for (const s of r.sellers) {
 						tbody.appendChild(renderSellerRow(s, r));
 					}
+					// Add totals row
+					tbody.appendChild(renderSellerTotalsRow(r));
 				}
 			}
 		}
@@ -115,7 +128,33 @@
 
 		function renderDeliveryRow(r) {
 			const tr = document.createElement('tr');
-			const d = document.createElement('td'); d.textContent = formatIsoDate(r.day);
+			const dateCell = document.createElement('td');
+			
+			// Add toggle button if there are sellers
+			const hasSellers = r.sellers && Array.isArray(r.sellers) && r.sellers.length > 0;
+			if (hasSellers) {
+				const isExpanded = expandedDeliveries.has(r.id);
+				const toggleBtn = document.createElement('button');
+				toggleBtn.className = 'press-btn';
+				toggleBtn.textContent = isExpanded ? '▼' : '▶';
+				toggleBtn.style.marginRight = '8px';
+				toggleBtn.style.fontSize = '10px';
+				toggleBtn.style.padding = '2px 6px';
+				toggleBtn.addEventListener('click', () => {
+					if (expandedDeliveries.has(r.id)) {
+						expandedDeliveries.delete(r.id);
+					} else {
+						expandedDeliveries.add(r.id);
+					}
+					render(currentRows);
+				});
+				dateCell.appendChild(toggleBtn);
+			}
+			
+			const dateText = document.createElement('span');
+			dateText.textContent = formatIsoDate(r.day);
+			dateCell.appendChild(dateText);
+			
 			const a = document.createElement('td'); a.textContent = r.arco ?? 0; a.className = 'col-qty';
 			const m = document.createElement('td'); m.textContent = r.melo ?? 0; m.className = 'col-qty';
 			const ma = document.createElement('td'); ma.textContent = r.mara ?? 0; ma.className = 'col-qty';
@@ -134,7 +173,7 @@
 			});
 			
 			act.style.display = 'flex'; act.style.gap = '6px'; act.append(edit, notes, addSeller);
-			tr.append(d, a, m, ma, o, n, act);
+			tr.append(dateCell, a, m, ma, o, n, act);
 			return tr;
 		}
 
@@ -145,7 +184,7 @@
 			
 			const sellerCell = document.createElement('td');
 			sellerCell.textContent = `  → ${s.seller_name}`;
-			sellerCell.style.paddingLeft = '20px';
+			sellerCell.style.paddingLeft = '30px';
 			
 			const a = document.createElement('td'); a.textContent = s.arco ?? 0; a.className = 'col-qty';
 			const m = document.createElement('td'); m.textContent = s.melo ?? 0; m.className = 'col-qty';
@@ -165,6 +204,39 @@
 			actCell.appendChild(editBtn);
 			
 			tr.append(sellerCell, a, m, ma, o, n, actCell);
+			return tr;
+		}
+
+		function renderSellerTotalsRow(delivery) {
+			const tr = document.createElement('tr');
+			tr.style.backgroundColor = '#e8f5e9';
+			tr.style.fontWeight = 'bold';
+			
+			const labelCell = document.createElement('td');
+			labelCell.textContent = '  ∑ Total vendedores';
+			labelCell.style.paddingLeft = '30px';
+			
+			// Calculate totals
+			const totals = { arco: 0, melo: 0, mara: 0, oreo: 0, nute: 0 };
+			if (delivery.sellers && Array.isArray(delivery.sellers)) {
+				for (const s of delivery.sellers) {
+					totals.arco += s.arco ?? 0;
+					totals.melo += s.melo ?? 0;
+					totals.mara += s.mara ?? 0;
+					totals.oreo += s.oreo ?? 0;
+					totals.nute += s.nute ?? 0;
+				}
+			}
+			
+			const a = document.createElement('td'); a.textContent = totals.arco; a.className = 'col-qty';
+			const m = document.createElement('td'); m.textContent = totals.melo; m.className = 'col-qty';
+			const ma = document.createElement('td'); ma.textContent = totals.mara; ma.className = 'col-qty';
+			const o = document.createElement('td'); o.textContent = totals.oreo; o.className = 'col-qty';
+			const n = document.createElement('td'); n.textContent = totals.nute; n.className = 'col-qty';
+			
+			const emptyCell = document.createElement('td');
+			
+			tr.append(labelCell, a, m, ma, o, n, emptyCell);
 			return tr;
 		}
 
