@@ -7611,7 +7611,7 @@ function openReceiptUploadPage(saleId) {
 }
 
 // NEW: Inline file upload dialog that stays in the sales table
-function openInlineFileUploadDialog(saleId) {
+async function openInlineFileUploadDialog(saleId) {
 	console.log('🎯 openInlineFileUploadDialog called with saleId:', saleId);
 	try {
 		const id = Number(saleId);
@@ -7620,6 +7620,24 @@ function openInlineFileUploadDialog(saleId) {
 			return;
 		}
 		console.log('✅ Creating upload dialog for sale:', id);
+		
+		// First, check if there are existing receipts
+		let existingReceipts = [];
+		try {
+			existingReceipts = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(id)}`);
+			console.log('📸 Found existing receipts:', existingReceipts.length);
+		} catch (err) {
+			console.log('No existing receipts found');
+		}
+		
+		// If receipts exist, show them in a gallery with upload option
+		if (existingReceipts && existingReceipts.length > 0) {
+			console.log('📸 Opening gallery with upload option');
+			openGalleryWithUploadOption(id, existingReceipts);
+			return;
+		}
+		
+		console.log('📸 No receipts found, showing upload form');
 
 		const overlay = document.createElement('div');
 		overlay.className = 'file-upload-overlay';
@@ -7742,7 +7760,7 @@ function openInlineFileUploadDialog(saleId) {
 
 		const noteInput = document.createElement('textarea');
 		noteInput.rows = 3;
-		noteInput.placeholder = 'Notas';
+		noteInput.value = '';
 		noteInput.style.width = '100%';
 		noteInput.style.resize = 'vertical';
 		noteInput.style.padding = '14px';
@@ -7753,23 +7771,40 @@ function openInlineFileUploadDialog(saleId) {
 		noteInput.style.fontSize = '14px';
 		noteInput.style.textAlign = 'center';
 		noteInput.style.transition = 'all 0.3s ease';
+		noteInput.style.color = '#9ca3af';
+		noteInput.textContent = 'Notas';
+		noteInput.addEventListener('click', () => {
+			if (noteInput.textContent === 'Notas' && noteInput.value === '') {
+				noteInput.textContent = '';
+				noteInput.value = '';
+				noteInput.style.color = '#111';
+				noteInput.focus();
+			}
+		});
 		noteInput.addEventListener('focus', () => {
 			noteInput.style.borderColor = '#f4a6b7';
 			noteInput.style.boxShadow = '0 0 0 3px rgba(244, 166, 183, 0.15)';
 			noteInput.style.textAlign = 'left';
+			noteInput.style.color = '#111';
+			if (noteInput.textContent === 'Notas') {
+				noteInput.textContent = '';
+				noteInput.value = '';
+			}
 		});
 		noteInput.addEventListener('blur', () => {
 			noteInput.style.borderColor = 'var(--border, #e5e7eb)';
 			noteInput.style.boxShadow = 'none';
-			if (!noteInput.value) {
+			if (!noteInput.value || noteInput.value.trim() === '') {
 				noteInput.style.textAlign = 'center';
+				noteInput.style.color = '#9ca3af';
+				noteInput.textContent = 'Notas';
+				noteInput.value = '';
 			}
 		});
 		noteInput.addEventListener('input', () => {
-			if (noteInput.value) {
+			if (noteInput.value && noteInput.value.trim()) {
 				noteInput.style.textAlign = 'left';
-			} else {
-				noteInput.style.textAlign = 'center';
+				noteInput.style.color = '#111';
 			}
 		});
 
@@ -7950,6 +7985,46 @@ function openInlineFileUploadDialog(saleId) {
 					img.style.height = '100%';
 					img.style.display = 'block';
 					img.style.objectFit = 'cover';
+					img.style.cursor = 'pointer';
+					img.style.transition = 'transform 0.2s ease';
+					
+					// Lightbox on click
+					img.addEventListener('click', (e) => {
+						e.stopPropagation();
+						
+						const lightbox = document.createElement('div');
+						lightbox.style.position = 'fixed';
+						lightbox.style.top = '0';
+						lightbox.style.left = '0';
+						lightbox.style.width = '100%';
+						lightbox.style.height = '100%';
+						lightbox.style.background = 'rgba(0,0,0,0.95)';
+						lightbox.style.zIndex = '99999';
+						lightbox.style.display = 'flex';
+						lightbox.style.alignItems = 'center';
+						lightbox.style.justifyContent = 'center';
+						lightbox.style.cursor = 'pointer';
+						lightbox.style.animation = 'fadeIn 0.2s ease';
+						
+						const fullImg = document.createElement('img');
+						fullImg.src = e.target.src;
+						fullImg.style.maxWidth = '95%';
+						fullImg.style.maxHeight = '95%';
+						fullImg.style.objectFit = 'contain';
+						fullImg.style.borderRadius = '8px';
+						
+						lightbox.appendChild(fullImg);
+						document.body.appendChild(lightbox);
+						
+						lightbox.addEventListener('click', () => {
+							lightbox.style.animation = 'fadeOut 0.2s ease';
+							setTimeout(() => {
+								if (lightbox.parentNode) {
+									lightbox.parentNode.removeChild(lightbox);
+								}
+							}, 200);
+						});
+					});
 
 					const removeBtn = document.createElement('button');
 					removeBtn.innerHTML = '✕';
@@ -8174,6 +8249,194 @@ function openInlineFileUploadDialog(saleId) {
 
 	} catch (err) {
 		console.error('❌ Error in openInlineFileUploadDialog:', err);
+	}
+}
+
+// Gallery with upload option for when receipts already exist
+function openGalleryWithUploadOption(saleId, receipts) {
+	const overlay = document.createElement('div');
+	overlay.style.position = 'fixed';
+	overlay.style.top = '0';
+	overlay.style.left = '0';
+	overlay.style.right = '0';
+	overlay.style.bottom = '0';
+	overlay.style.background = 'rgba(0, 0, 0, 0.4)';
+	overlay.style.zIndex = '9999';
+	overlay.style.display = 'flex';
+	overlay.style.alignItems = 'center';
+	overlay.style.justifyContent = 'center';
+	overlay.style.backdropFilter = 'blur(4px)';
+	overlay.style.animation = 'fadeIn 0.2s ease';
+	
+	const dialog = document.createElement('div');
+	dialog.style.background = 'var(--card, #fff)';
+	dialog.style.borderRadius = '16px';
+	dialog.style.padding = '28px';
+	dialog.style.maxWidth = '700px';
+	dialog.style.width = '90%';
+	dialog.style.boxShadow = '0 20px 60px rgba(0,0,0,0.15)';
+	dialog.style.maxHeight = '90vh';
+	dialog.style.overflowY = 'auto';
+	dialog.style.animation = 'dialogFadeIn 0.2s ease';
+	
+	const title = document.createElement('h1');
+	title.textContent = 'Comprobantes Subidos';
+	title.style.margin = '0 0 24px';
+	title.style.fontSize = '32px';
+	title.style.fontWeight = '800';
+	title.style.color = '#f4a6b7';
+	title.style.textAlign = 'center';
+	title.style.letterSpacing = '0.5px';
+	
+	const gallery = document.createElement('div');
+	gallery.style.display = 'grid';
+	gallery.style.gridTemplateColumns = 'repeat(3, 1fr)';
+	gallery.style.gap = '12px';
+	gallery.style.marginBottom = '24px';
+	
+	receipts.forEach(receipt => {
+		const imgCard = document.createElement('div');
+		imgCard.style.position = 'relative';
+		imgCard.style.aspectRatio = '1';
+		imgCard.style.borderRadius = '12px';
+		imgCard.style.overflow = 'hidden';
+		imgCard.style.border = '3px solid #f4a6b7';
+		imgCard.style.cursor = 'pointer';
+		imgCard.style.boxShadow = '0 4px 12px rgba(244, 166, 183, 0.2)';
+		imgCard.style.transition = 'transform 0.2s ease';
+		
+		const img = document.createElement('img');
+		img.src = receipt.image_base64;
+		img.style.width = '100%';
+		img.style.height = '100%';
+		img.style.objectFit = 'cover';
+		
+		imgCard.addEventListener('mouseenter', () => {
+			imgCard.style.transform = 'scale(1.05)';
+			imgCard.style.boxShadow = '0 8px 20px rgba(244, 166, 183, 0.4)';
+		});
+		imgCard.addEventListener('mouseleave', () => {
+			imgCard.style.transform = 'scale(1)';
+			imgCard.style.boxShadow = '0 4px 12px rgba(244, 166, 183, 0.2)';
+		});
+		
+		imgCard.addEventListener('click', () => {
+			const lightbox = document.createElement('div');
+			lightbox.style.position = 'fixed';
+			lightbox.style.top = '0';
+			lightbox.style.left = '0';
+			lightbox.style.width = '100%';
+			lightbox.style.height = '100%';
+			lightbox.style.background = 'rgba(0,0,0,0.95)';
+			lightbox.style.zIndex = '100000';
+			lightbox.style.display = 'flex';
+			lightbox.style.alignItems = 'center';
+			lightbox.style.justifyContent = 'center';
+			lightbox.style.cursor = 'pointer';
+			lightbox.style.animation = 'fadeIn 0.2s ease';
+			
+			const fullImg = document.createElement('img');
+			fullImg.src = receipt.image_base64;
+			fullImg.style.maxWidth = '95%';
+			fullImg.style.maxHeight = '95%';
+			fullImg.style.objectFit = 'contain';
+			
+			lightbox.appendChild(fullImg);
+			document.body.appendChild(lightbox);
+			
+			lightbox.addEventListener('click', () => {
+				lightbox.style.animation = 'fadeOut 0.2s ease';
+				setTimeout(() => {
+					if (lightbox.parentNode) {
+						lightbox.parentNode.removeChild(lightbox);
+					}
+				}, 200);
+			});
+		});
+		
+		imgCard.appendChild(img);
+		gallery.appendChild(imgCard);
+	});
+	
+	const actions = document.createElement('div');
+	actions.style.display = 'flex';
+	actions.style.gap = '12px';
+	actions.style.justifyContent = 'center';
+	actions.style.flexWrap = 'wrap';
+	
+	const uploadMoreBtn = document.createElement('button');
+	uploadMoreBtn.className = 'btn press-btn btn-gold';
+	uploadMoreBtn.textContent = '➕ Subir Más Archivos';
+	uploadMoreBtn.style.padding = '14px 32px';
+	uploadMoreBtn.style.borderRadius = '12px';
+	uploadMoreBtn.style.border = 'none';
+	uploadMoreBtn.style.background = 'linear-gradient(135deg, #f4a6b7 0%, #e885a0 100%)';
+	uploadMoreBtn.style.color = '#fff';
+	uploadMoreBtn.style.cursor = 'pointer';
+	uploadMoreBtn.style.fontSize = '16px';
+	uploadMoreBtn.style.fontWeight = '700';
+	uploadMoreBtn.style.transition = 'all 0.3s ease';
+	uploadMoreBtn.style.textTransform = 'uppercase';
+	uploadMoreBtn.style.letterSpacing = '0.5px';
+	uploadMoreBtn.addEventListener('click', () => {
+		cleanup();
+		setTimeout(() => openInlineFileUploadDialog(saleId), 100);
+	});
+	uploadMoreBtn.addEventListener('mouseenter', () => {
+		uploadMoreBtn.style.background = 'linear-gradient(135deg, #e885a0 0%, #d66686 100%)';
+		uploadMoreBtn.style.transform = 'translateY(-3px) scale(1.02)';
+		uploadMoreBtn.style.boxShadow = '0 8px 20px rgba(244, 166, 183, 0.6)';
+	});
+	uploadMoreBtn.addEventListener('mouseleave', () => {
+		uploadMoreBtn.style.background = 'linear-gradient(135deg, #f4a6b7 0%, #e885a0 100%)';
+		uploadMoreBtn.style.transform = 'translateY(0) scale(1)';
+		uploadMoreBtn.style.boxShadow = 'none';
+	});
+	
+	const closeBtn = document.createElement('button');
+	closeBtn.className = 'btn press-btn';
+	closeBtn.textContent = 'Cerrar';
+	closeBtn.style.padding = '14px 28px';
+	closeBtn.style.borderRadius = '12px';
+	closeBtn.style.border = '2px solid #e5e7eb';
+	closeBtn.style.background = 'white';
+	closeBtn.style.cursor = 'pointer';
+	closeBtn.style.fontSize = '15px';
+	closeBtn.style.fontWeight = '600';
+	closeBtn.style.transition = 'all 0.3s ease';
+	closeBtn.style.color = '#6b7280';
+	closeBtn.addEventListener('click', cleanup);
+	closeBtn.addEventListener('mouseenter', () => {
+		closeBtn.style.background = '#f9fafb';
+		closeBtn.style.borderColor = '#d1d5db';
+		closeBtn.style.transform = 'translateY(-2px)';
+		closeBtn.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+	});
+	closeBtn.addEventListener('mouseleave', () => {
+		closeBtn.style.background = 'white';
+		closeBtn.style.borderColor = '#e5e7eb';
+		closeBtn.style.transform = 'translateY(0)';
+		closeBtn.style.boxShadow = 'none';
+	});
+	
+	actions.appendChild(closeBtn);
+	actions.appendChild(uploadMoreBtn);
+	
+	dialog.appendChild(title);
+	dialog.appendChild(gallery);
+	dialog.appendChild(actions);
+	
+	overlay.appendChild(dialog);
+	document.body.appendChild(overlay);
+	
+	overlay.addEventListener('click', (e) => {
+		if (e.target === overlay) cleanup();
+	});
+	
+	function cleanup() {
+		if (overlay.parentNode) {
+			overlay.parentNode.removeChild(overlay);
+		}
 	}
 }
 
