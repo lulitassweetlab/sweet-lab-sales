@@ -1914,9 +1914,9 @@ async function checkAndUpdateMainSelectorToJorgebank(saleId) {
 		if (!Array.isArray(receipts) || receipts.length === 0) return;
 		
 		// Check if ALL receipts have jorgebank
-		const allJorgebank = receipts.every(r => (r.pay_method || '').trim().toLowerCase() === 'jorgebank');
-		
-		if (allJorgebank) {
+        const allJorgebank = receipts.every(r => (r.pay_method || '').trim().toLowerCase() === 'jorgebank');
+        
+        if (allJorgebank) {
 			// Find the sale in state.sales
 			const sale = state.sales?.find(s => Number(s.id) === Number(saleId));
 			if (sale) {
@@ -1948,6 +1948,25 @@ async function checkAndUpdateMainSelectorToJorgebank(saleId) {
 					}
 				}
 			}
+        } else {
+            // Not all receipts are jorgebank → ensure UI shows 'transf' if it was showing 'jorgebank'
+            const sale = state.sales?.find(s => Number(s.id) === Number(saleId));
+            if (sale && String(sale.pay_method || '').toLowerCase() === 'jorgebank') {
+                sale.pay_method = 'transf';
+                console.log(`🔄 Real-time update: Sale ${saleId} -> transf (not all receipts verified)`);
+                const row = document.querySelector(`tr[data-sale-id="${saleId}"]`);
+                if (row) {
+                    const selector = row.querySelector('.col-paid select');
+                    if (selector) {
+                        selector.value = 'transf';
+                        const wrap = selector.closest('.pay-wrap');
+                        if (wrap) {
+                            wrap.classList.remove('placeholder', 'method-efectivo', 'method-jorgebank', 'method-marce', 'method-jorge', 'method-entregado');
+                            wrap.classList.add('method-transf');
+                        }
+                    }
+                }
+            }
 		}
 	} catch (err) {
 		console.error('Error checking receipts for real-time update:', err);
@@ -1970,14 +1989,16 @@ async function enrichSalesWithReceiptStatus() {
 			
 			if (!Array.isArray(receipts) || receipts.length === 0) continue;
 			
-			// Check if ALL receipts have jorgebank
-			const allJorgebank = receipts.every(r => (r.pay_method || '').trim().toLowerCase() === 'jorgebank');
-			
-			if (allJorgebank) {
-				// Update local state
-				sale.pay_method = 'jorgebank';
-				console.log(`✅ Sale ${sale.id} -> jorgebank (all ${receipts.length} receipts verified)`);
-			}
+            // Check if ALL receipts have jorgebank
+            const allJorgebank = receipts.every(r => (r.pay_method || '').trim().toLowerCase() === 'jorgebank');
+            if (allJorgebank) {
+                sale.pay_method = 'jorgebank';
+                console.log(`✅ Sale ${sale.id} -> jorgebank (all ${receipts.length} receipts verified)`);
+            } else if (String(sale.pay_method || '').toLowerCase() === 'jorgebank') {
+                // Revert to 'transf' in UI if previously marked jorgebank but not all receipts are verified
+                sale.pay_method = 'transf';
+                console.log(`↩️ Sale ${sale.id} -> transf (not all receipts verified)`);
+            }
 		} catch (err) {
 			console.error(`Error checking receipts for sale ${sale.id}:`, err);
 		}
@@ -7707,7 +7728,9 @@ function openInlineFileUploadDialog(saleId) {
         notePlaceholder.style.right = '0';
         notePlaceholder.style.top = '10px';
         notePlaceholder.style.textAlign = 'center';
-        notePlaceholder.style.color = '#9ca3af';
+        notePlaceholder.style.color = '#6b7280'; // darker for readability
+        notePlaceholder.style.fontWeight = '600';
+        notePlaceholder.style.background = 'transparent';
         notePlaceholder.style.pointerEvents = 'none';
         notePlaceholder.style.transition = 'opacity 140ms ease';
         noteInput.addEventListener('focus', () => { notePlaceholder.style.opacity = '0'; });
@@ -7735,7 +7758,11 @@ function openInlineFileUploadDialog(saleId) {
 
         actions.append(cancelBtn, uploadMoreBtn, uploadBtn);
 
-        dialog.append(title, fileInputWrapper, helpText, previewContainer, noteInputWrapper, actions);
+        // extra spacing around notes
+        dialog.append(title, fileInputWrapper, helpText, previewContainer);
+        const spacer = document.createElement('div');
+        spacer.style.height = '10px';
+        dialog.append(spacer, noteInputWrapper, actions);
         previewContainer.append(previewTitle, previewGrid);
         overlay.appendChild(dialog);
         // Hidden input lives on overlay to keep outside layout clean
