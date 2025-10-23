@@ -7597,42 +7597,65 @@ function openInlineFileUploadDialog(saleId) {
 		overlay.style.left = '0';
 		overlay.style.right = '0';
 		overlay.style.bottom = '0';
-		overlay.style.background = 'rgba(0, 0, 0, 0.5)';
+		overlay.style.background = 'rgba(0, 0, 0, 0.4)';
 		overlay.style.zIndex = '9999';
 		overlay.style.display = 'flex';
 		overlay.style.alignItems = 'center';
 		overlay.style.justifyContent = 'center';
-		overlay.style.backdropFilter = 'blur(3px)';
+		overlay.style.backdropFilter = 'blur(4px)';
+		overlay.style.animation = 'fadeIn 0.2s ease';
+		
+		// Add animation keyframes to document if not already present
+		if (!document.getElementById('upload-dialog-animations')) {
+			const style = document.createElement('style');
+			style.id = 'upload-dialog-animations';
+			style.textContent = `
+				@keyframes fadeIn {
+					from { opacity: 0; }
+					to { opacity: 1; }
+				}
+				@keyframes dialogFadeIn {
+					from { opacity: 0; transform: scale(0.95) translateY(10px); }
+					to { opacity: 1; transform: scale(1) translateY(0); }
+				}
+			`;
+			document.head.appendChild(style);
+		}
 
 		const dialog = document.createElement('div');
 		dialog.className = 'file-upload-dialog';
 		dialog.style.background = 'var(--card, #fff)';
-		dialog.style.borderRadius = '12px';
-		dialog.style.padding = '24px';
-		dialog.style.maxWidth = '560px';
+		dialog.style.borderRadius = '16px';
+		dialog.style.padding = '28px';
+		dialog.style.maxWidth = '500px';
 		dialog.style.width = '90%';
-		dialog.style.boxShadow = '0 8px 32px rgba(0,0,0,0.2)';
+		dialog.style.boxShadow = '0 20px 60px rgba(0,0,0,0.15)';
 		dialog.style.maxHeight = '90vh';
 		dialog.style.overflowY = 'auto';
+		dialog.style.animation = 'dialogFadeIn 0.2s ease';
 
 		const title = document.createElement('h1');
-		title.textContent = 'Subir comprobante de transferencia';
-		title.style.margin = '0 0 8px';
-		title.style.fontSize = '18px';
-		title.style.fontWeight = '500';
+		title.textContent = 'Subir comprobante';
+		title.style.margin = '0 0 6px';
+		title.style.fontSize = '20px';
+		title.style.fontWeight = '600';
+		title.style.color = 'var(--text, #111)';
 
 		const saleInfo = document.createElement('div');
 		saleInfo.className = 'note';
 		saleInfo.textContent = `Venta #${id}`;
-		saleInfo.style.fontSize = '12px';
-		saleInfo.style.color = '#6b7280';
-		saleInfo.style.marginBottom = '12px';
+		saleInfo.style.fontSize = '13px';
+		saleInfo.style.color = 'var(--muted, #6b7280)';
+		saleInfo.style.marginBottom = '20px';
+		saleInfo.style.opacity = '0.8';
 
 		const fileLabel = document.createElement('label');
-		fileLabel.textContent = 'Foto(s) del comprobante';
+		fileLabel.textContent = '📷 Fotos del comprobante';
 		fileLabel.style.display = 'block';
-		fileLabel.style.marginBottom = '6px';
+		fileLabel.style.marginBottom = '8px';
 		fileLabel.style.fontSize = '14px';
+		fileLabel.style.fontWeight = '500';
+		fileLabel.style.color = 'var(--text, #111)';
 
 		const fileInput = document.createElement('input');
 		fileInput.type = 'file';
@@ -7640,24 +7663,39 @@ function openInlineFileUploadDialog(saleId) {
 		fileInput.multiple = true;
 		fileInput.style.display = 'block';
 		fileInput.style.width = '100%';
-		fileInput.style.marginBottom = '12px';
+		fileInput.style.marginBottom = '16px';
+		fileInput.style.padding = '10px';
+		fileInput.style.border = '2px dashed var(--border, #e5e7eb)';
+		fileInput.style.borderRadius = '10px';
+		fileInput.style.cursor = 'pointer';
+		fileInput.style.transition = 'border-color 0.2s ease';
 
 		const noteLabel = document.createElement('label');
-		noteLabel.textContent = 'Nota (opcional)';
+		noteLabel.textContent = '💬 Nota (opcional)';
 		noteLabel.style.display = 'block';
-		noteLabel.style.marginBottom = '6px';
+		noteLabel.style.marginBottom = '8px';
 		noteLabel.style.fontSize = '14px';
+		noteLabel.style.fontWeight = '500';
+		noteLabel.style.color = 'var(--text, #111)';
 
 		const noteInput = document.createElement('textarea');
 		noteInput.rows = 3;
-		noteInput.placeholder = 'Escribe una nota...';
+		noteInput.placeholder = 'Agrega una nota si lo deseas...';
 		noteInput.style.width = '100%';
 		noteInput.style.resize = 'vertical';
-		noteInput.style.padding = '8px';
-		noteInput.style.borderRadius = '6px';
+		noteInput.style.padding = '12px';
+		noteInput.style.borderRadius = '10px';
 		noteInput.style.border = '1px solid var(--border, #e5e7eb)';
-		noteInput.style.marginBottom = '12px';
+		noteInput.style.marginBottom = '16px';
 		noteInput.style.fontFamily = 'inherit';
+		noteInput.style.fontSize = '14px';
+		noteInput.style.transition = 'border-color 0.2s ease';
+		noteInput.addEventListener('focus', () => {
+			noteInput.style.borderColor = 'var(--primary, #f4a6b7)';
+		});
+		noteInput.addEventListener('blur', () => {
+			noteInput.style.borderColor = 'var(--border, #e5e7eb)';
+		});
 
 		const previewContainer = document.createElement('div');
 		previewContainer.className = 'preview';
@@ -7708,13 +7746,18 @@ function openInlineFileUploadDialog(saleId) {
 				const reader = new FileReader();
 				reader.onload = (e) => {
 					const imgContainer = document.createElement('div');
-					imgContainer.style.marginBottom = '12px';
+					imgContainer.style.marginBottom = '16px';
+					imgContainer.style.padding = '12px';
+					imgContainer.style.background = 'var(--background, #f9fafb)';
+					imgContainer.style.borderRadius = '12px';
+					imgContainer.style.border = '1px solid var(--border, #e5e7eb)';
 
 					const label = document.createElement('div');
-					label.textContent = `Archivo ${index + 1}: ${file.name}`;
-					label.style.fontSize = '12px';
-					label.style.marginBottom = '4px';
-					label.style.opacity = '0.75';
+					label.textContent = `📎 ${file.name}`;
+					label.style.fontSize = '13px';
+					label.style.marginBottom = '8px';
+					label.style.fontWeight = '500';
+					label.style.color = 'var(--text, #111)';
 
 					const img = document.createElement('img');
 					img.src = e.target.result;
@@ -7722,6 +7765,7 @@ function openInlineFileUploadDialog(saleId) {
 					img.style.maxWidth = '100%';
 					img.style.borderRadius = '8px';
 					img.style.border = '1px solid var(--border, #e5e7eb)';
+					img.style.display = 'block';
 
 					imgContainer.appendChild(label);
 					imgContainer.appendChild(img);
@@ -7754,15 +7798,13 @@ function openInlineFileUploadDialog(saleId) {
 
 						const body = {
 							_upload_receipt_for: id,
-							file_base64: dataUrl,
-							file_name: file.name,
-							mime_type: file.type,
+							image_base64: dataUrl,
 							_actor_name: state.currentUser?.name || ''
 						};
 
 						// Add note only to the first file upload if provided
 						if (note && successCount === 0) {
-							body.note = note;
+							body.note_text = note;
 						}
 
 						await api('POST', API.Sales, body);
