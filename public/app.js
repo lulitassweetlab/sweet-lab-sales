@@ -4053,6 +4053,12 @@ async function exportCarteraExcel(startIso, endIso) {
 		if (!isSuper && !feats.has('nav.accounting')) { notify.error('Sin permiso de contabilidad'); return; }
 		window.location.href = '/accounting.html';
 	});
+	comprasBtn?.addEventListener('click', (ev) => {
+		exitDeleteSellerModeIfActive();
+		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+		if (!isSuper) { notify.error('Solo el superadministrador'); return; }
+		window.location.href = '/compras.html';
+	});
 	dessertsBtn?.addEventListener('click', (ev) => {
 		exitDeleteSellerModeIfActive();
 		const feats = new Set((state.currentUser?.features || []));

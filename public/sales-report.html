@@ -150,7 +150,6 @@
 				<button id="change-range" class="press-btn">Cambiar fechas</button>
 				<button id="export-excel" class="excel-btn press-btn btn-gold">⤓ Generar Excel</button>
 				<button id="ingredients-btn" class="press-btn">Ingredientes necesarios</button>
-				<button id="compras-btn" class="press-btn btn-primary">Compras</button>
 			</div>
 		</div>
 		<div class="panel-body">
@@ -906,17 +905,6 @@
 			if (isLoading) return;
 			ev.currentTarget.classList.add('loading');
 			const url = new URL('/ingredients.html', location.origin);
-			if (start) url.searchParams.set('start', start);
-			if (end) url.searchParams.set('end', end);
-			if (actor) url.searchParams.set('actor', actor);
-			location.href = url.toString();
-		});
-		
-		const comprasBtn = document.getElementById('compras-btn');
-		comprasBtn.addEventListener('click', (ev) => {
-			if (isLoading) return;
-			ev.currentTarget.classList.add('loading');
-			const url = new URL('/compras.html', location.origin);
 			if (start) url.searchParams.set('start', start);
 			if (end) url.searchParams.set('end', end);
 			if (actor) url.searchParams.set('actor', actor);
