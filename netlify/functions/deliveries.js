@@ -59,6 +59,56 @@ export async function handler(event) {
 					return json(rows);
 				}
 				
+				// Check if this is a request for production users
+				const productionUsersId = params.get('production_users');
+				if (productionUsersId) {
+					const id = Number(productionUsersId) || 0;
+					if (!id) return json({ error: 'production_users inválido' }, 400);
+					
+					const rows = await sql`
+						SELECT DISTINCT u.username
+						FROM delivery_production_users dpu
+						JOIN users u ON u.id = dpu.user_id
+						WHERE dpu.delivery_id = ${id}
+						ORDER BY u.username ASC
+					`;
+					return json(rows.map(r => r.username));
+				}
+				
+				// Check if this is a production report request
+				const reportType = params.get('report');
+				if (reportType === 'production') {
+					const start = (params.get('start') || '').toString().slice(0,10);
+					const end = (params.get('end') || '').toString().slice(0,10);
+					if (!start || !end) return json({ error: 'start y end requeridos' }, 400);
+					
+					const rows = await sql`
+						SELECT 
+							u.username,
+							d.name AS dessert_name,
+							des.short_code,
+							COUNT(DISTINCT dpu.delivery_id) AS days_count,
+							COALESCE(SUM(di.quantity), 0)::int AS total_quantity
+						FROM delivery_production_users dpu
+						JOIN users u ON u.id = dpu.user_id
+						JOIN desserts des ON des.id = dpu.dessert_id
+						JOIN deliveries d ON d.id = dpu.delivery_id
+						JOIN desserts d2 ON d2.id = dpu.dessert_id
+						LEFT JOIN delivery_items di ON di.delivery_id = dpu.delivery_id AND di.dessert_id = dpu.dessert_id
+						WHERE d.day BETWEEN ${start} AND ${end}
+						GROUP BY u.username, d2.name, des.short_code
+						ORDER BY u.username ASC, d2.position ASC
+					`;
+					
+					// Group by username
+					const grouped = {};
+					for (const row of rows) {
+						if (!grouped[row.username]) grouped[row.username] = {};
+						grouped[row.username][row.short_code] = row.total_quantity;
+					}
+					return json(grouped);
+				}
+				
 				// List deliveries with totals per dessert
 				const start = (params.get('start') || '').toString().slice(0,10) || null;
 				const end = (params.get('end') || '').toString().slice(0,10) || null;
@@ -100,6 +150,7 @@ export async function handler(event) {
 				if (role !== 'admin' && role !== 'superadmin') return json({ error: 'No autorizado' }, 403);
 				const day = (data.day || '').toString().slice(0,10);
 				const items = (data.items && typeof data.items === 'object') ? data.items : {};
+				const production_users = (data.production_users && typeof data.production_users === 'object') ? data.production_users : {};
 				if (!day) return json({ error: 'day requerido' }, 400);
 				const [row] = await sql`INSERT INTO deliveries (day, note, actor_name) VALUES (${day}, ${data.note || ''}, ${data.actor_name || ''}) RETURNING id, day`;
 				const dmap = await sql`SELECT id, short_code FROM desserts WHERE short_code IN ('arco','melo','mara','oreo','nute')`;
@@ -115,6 +166,17 @@ export async function handler(event) {
 				await ins('mara', items.mara);
 				await ins('oreo', items.oreo);
 				await ins('nute', items.nute);
+				// Save production users
+				for (const [code, userIds] of Object.entries(production_users)) {
+					const dessertId = idByCode.get(code);
+					if (!dessertId || !Array.isArray(userIds)) continue;
+					for (const userId of userIds) {
+						const uid = Number(userId) || 0;
+						if (uid > 0) {
+							await sql`INSERT INTO delivery_production_users (delivery_id, dessert_id, user_id) VALUES (${row.id}, ${dessertId}, ${uid}) ON CONFLICT DO NOTHING`;
+						}
+					}
+				}
 				return json({ ok: true, id: row.id, day: row.day }, 201);
 			}
 			case 'PUT': {

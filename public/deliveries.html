@@ -23,6 +23,7 @@
 		<div class="panel-header">
 			<h3>Producciones de postres</h3>
 			<div class="panel-actions">
+				<button id="production-report-btn" class="press-btn">Reporte de producción</button>
 				<button id="add-delivery-btn" class="press-btn btn-primary">+ Nueva entrega</button>
 			</div>
 		</div>
@@ -50,6 +51,7 @@
 	(function(){
 		const tbody = document.getElementById('deliveries-tbody');
 		const addBtn = document.getElementById('add-delivery-btn');
+		const productionReportBtn = document.getElementById('production-report-btn');
 		const backBtn = document.getElementById('back-btn');
 		
 		// Track which deliveries are expanded
@@ -83,13 +85,19 @@
 		async function load() {
 			let rows = [];
 			try { rows = await api('GET', '/api/deliveries'); } catch {}
-			// Load seller assignments for each delivery
+			// Load seller assignments and production users for each delivery
 			for (const r of rows) {
 				try {
 					const sellers = await api('GET', `/api/deliveries?delivery_id=${r.id}`);
 					r.sellers = Array.isArray(sellers) ? sellers : [];
 				} catch {
 					r.sellers = [];
+				}
+				try {
+					const users = await api('GET', `/api/deliveries?production_users=${r.id}`);
+					r.production_users = Array.isArray(users) ? users : [];
+				} catch {
+					r.production_users = [];
 				}
 			}
 			currentRows = rows;
@@ -100,6 +108,10 @@
 			tbody.innerHTML = '';
 			for (const r of rows) {
 				tbody.appendChild(renderDeliveryRow(r));
+				// Show production users if any
+				if (r.production_users && r.production_users.length > 0) {
+					tbody.appendChild(renderProductionUsersRow(r));
+				}
 				// Render seller rows below each delivery if expanded
 				const isExpanded = expandedDeliveries.has(r.id);
 				if (r.sellers && Array.isArray(r.sellers) && r.sellers.length > 0 && isExpanded) {
@@ -235,6 +247,20 @@
 			const emptyCell = document.createElement('td');
 			
 			tr.append(labelCell, a, m, ma, o, n, emptyCell);
+			return tr;
+		}
+
+		function renderProductionUsersRow(delivery) {
+			const tr = document.createElement('tr');
+			tr.style.backgroundColor = '#fafafa';
+			const td = document.createElement('td');
+			td.colSpan = 7;
+			td.style.padding = '4px 8px';
+			td.style.fontSize = '11px';
+			td.style.fontStyle = 'italic';
+			td.style.color = '#666';
+			td.textContent = 'Producción: ' + delivery.production_users.join(', ');
+			tr.appendChild(td);
 			return tr;
 		}
 
@@ -450,9 +476,11 @@
 
 		async function openProductionPopover(anchorX, anchorY) {
 			try {
-				// Load dynamic desserts
+				// Load dynamic desserts and users
 				let desserts = [];
+				let users = [];
 				try { const r = await api('GET', '/api/desserts'); desserts = Array.isArray(r) ? r : []; } catch {}
+				try { const r = await api('GET', '/api/users'); users = Array.isArray(r) ? r : []; } catch {}
 				// Build popover similar to Nuevo pedido
 				const pop = document.createElement('div');
 				pop.className = 'new-sale-popover';
@@ -507,13 +535,58 @@
 
 				// Dessert rows from dynamic list
 				const qtyInputs = {};
+				const userSelections = {};
 				for (const d of desserts) {
 					if (d.is_active === false) continue;
+					
+					// Quantity input
 					const input = document.createElement('input');
 					input.type = 'number'; input.min = '0'; input.step = '1'; input.inputMode = 'numeric'; input.placeholder = '0';
 					input.className = 'input-cell input-qty';
 					qtyInputs[d.short_code] = input;
-					appendRow(d.name, input);
+					
+					// Container for quantity and user selection
+					const container = document.createElement('div');
+					container.style.display = 'flex';
+					container.style.flexDirection = 'column';
+					container.style.gap = '4px';
+					container.appendChild(input);
+					
+					// User selection for this dessert
+					const userContainer = document.createElement('div');
+					userContainer.style.display = 'flex';
+					userContainer.style.flexWrap = 'wrap';
+					userContainer.style.gap = '4px';
+					userContainer.style.marginTop = '4px';
+					
+					const selectedUsers = new Set();
+					userSelections[d.short_code] = selectedUsers;
+					
+					for (const u of users) {
+						const userChip = document.createElement('button');
+						userChip.type = 'button';
+						userChip.className = 'press-btn';
+						userChip.textContent = u.username;
+						userChip.style.fontSize = '11px';
+						userChip.style.padding = '2px 8px';
+						userChip.style.opacity = '0.5';
+						userChip.addEventListener('click', () => {
+							if (selectedUsers.has(u.id)) {
+								selectedUsers.delete(u.id);
+								userChip.style.opacity = '0.5';
+								userChip.style.backgroundColor = '';
+							} else {
+								selectedUsers.add(u.id);
+								userChip.style.opacity = '1';
+								userChip.style.backgroundColor = '#4caf50';
+								userChip.style.color = 'white';
+							}
+						});
+						userContainer.appendChild(userChip);
+					}
+					
+					container.appendChild(userContainer);
+					appendRow(d.name, container);
 				}
 
 				const actions = document.createElement('div'); actions.className = 'confirm-actions';
@@ -553,8 +626,17 @@
 					try {
 						saveBtn.disabled = true; cancelBtn.disabled = true;
 						const items = {};
-						for (const [code, input] of Object.entries(qtyInputs)) { const q = Math.max(0, parseInt(input?.value || '0', 10) || 0); if (q > 0) items[code] = q; }
-						const payload = { day: dateInput.value || todayIso, items };
+						const production_users = {};
+						for (const [code, input] of Object.entries(qtyInputs)) { 
+							const q = Math.max(0, parseInt(input?.value || '0', 10) || 0); 
+							if (q > 0) items[code] = q; 
+						}
+						for (const [code, selectedSet] of Object.entries(userSelections)) {
+							if (selectedSet.size > 0) {
+								production_users[code] = Array.from(selectedSet);
+							}
+						}
+						const payload = { day: dateInput.value || todayIso, items, production_users };
 						await api('POST', '/api/deliveries', payload);
 						cleanup(); await load();
 					} catch (e) {
@@ -574,6 +656,192 @@
 			const rect = addBtn.getBoundingClientRect();
 			await openProductionPopover(rect.left + rect.width/2, rect.bottom + 8);
 		});
+
+		productionReportBtn.addEventListener('click', async () => {
+			if (!requireAdmin()) return;
+			const rect = productionReportBtn.getBoundingClientRect();
+			await openProductionReportPopover(rect.left + rect.width/2, rect.bottom + 8);
+		});
+
+		async function openProductionReportPopover(anchorX, anchorY) {
+			try {
+				const pop = document.createElement('div');
+				pop.className = 'new-sale-popover';
+				pop.style.position = 'fixed';
+				const isSmall = window.matchMedia('(max-width: 640px)').matches;
+				if (typeof anchorX === 'number' && typeof anchorY === 'number' && !isSmall) {
+					pop.style.left = anchorX + 'px';
+					pop.style.top = anchorY + 'px';
+					pop.style.transform = 'translate(-50%, 0)';
+				} else {
+					pop.style.left = '50%';
+					pop.style.top = '20%';
+					pop.style.transform = 'translate(-50%, 0)';
+				}
+
+				const title = document.createElement('h4');
+				title.style.margin = '0 0 12px 0';
+				title.textContent = 'Reporte de producción';
+
+				const grid = document.createElement('div');
+				grid.className = 'new-sale-grid';
+
+				function appendRow(labelText, inputEl) {
+					const left = document.createElement('div'); left.className = 'new-sale-cell new-sale-left';
+					const right = document.createElement('div'); right.className = 'new-sale-cell new-sale-right';
+					const lbl = document.createElement('div'); lbl.className = 'new-sale-label-text'; lbl.textContent = labelText;
+					left.appendChild(lbl);
+					right.appendChild(inputEl);
+					grid.appendChild(left);
+					grid.appendChild(right);
+				}
+
+				// Date inputs
+				const todayIso = new Date().toISOString().slice(0,10);
+				const startDate = document.createElement('input');
+				startDate.type = 'date';
+				startDate.className = 'input-cell';
+				startDate.value = todayIso;
+				appendRow('Fecha inicio', startDate);
+
+				const endDate = document.createElement('input');
+				endDate.type = 'date';
+				endDate.className = 'input-cell';
+				endDate.value = todayIso;
+				appendRow('Fecha fin', endDate);
+
+				// Results container
+				const resultsDiv = document.createElement('div');
+				resultsDiv.style.marginTop = '16px';
+				resultsDiv.style.maxHeight = '400px';
+				resultsDiv.style.overflowY = 'auto';
+
+				const actions = document.createElement('div');
+				actions.className = 'confirm-actions';
+				const cancelBtn = document.createElement('button');
+				cancelBtn.type = 'button';
+				cancelBtn.className = 'press-btn';
+				cancelBtn.textContent = 'Cancelar';
+				const generateBtn = document.createElement('button');
+				generateBtn.type = 'button';
+				generateBtn.className = 'press-btn btn-primary';
+				generateBtn.textContent = 'Generar';
+				actions.append(cancelBtn, generateBtn);
+
+				pop.append(title, grid, resultsDiv, actions);
+				pop.style.visibility = 'hidden';
+				pop.style.opacity = '0';
+				pop.style.transition = 'opacity 160ms ease-out';
+				document.body.appendChild(pop);
+
+				function clampWithinViewport() {
+					try {
+						const margin = 8;
+						const vw = window.innerWidth;
+						const vh = window.innerHeight;
+						const r = pop.getBoundingClientRect();
+						const baseX = (typeof anchorX === 'number') ? anchorX : (vw / 2);
+						const baseY = (typeof anchorY === 'number') ? anchorY : (vh / 2);
+						let left = Math.round(baseX - r.width / 2);
+						let topBelow = Math.round(baseY + 8);
+						let topAbove = Math.round(baseY - 8 - r.height);
+						let top = topBelow;
+						if (top + r.height > vh - margin) top = topAbove;
+						if (top < margin) top = margin;
+						if (top + r.height > vh - margin) top = Math.max(margin, vh - margin - r.height);
+						if (left < margin) left = margin;
+						if (left + r.width > vw - margin) left = Math.max(margin, vw - margin - r.width);
+						pop.style.left = left + 'px';
+						pop.style.top = top + 'px';
+						pop.style.transform = 'none';
+					} catch {}
+				}
+				clampWithinViewport();
+				pop.style.visibility = 'visible';
+				requestAnimationFrame(() => { pop.style.opacity = '1'; });
+
+				function cleanup() {
+					document.removeEventListener('mousedown', outside, true);
+					document.removeEventListener('touchstart', outside, true);
+					if (pop.parentNode) pop.parentNode.removeChild(pop);
+				}
+				function outside(ev) {
+					const t = ev.target;
+					if (!pop.contains(t)) cleanup();
+				}
+				setTimeout(() => {
+					document.addEventListener('mousedown', outside, true);
+					document.addEventListener('touchstart', outside, true);
+				}, 0);
+				cancelBtn.addEventListener('click', cleanup);
+
+				async function generateReport() {
+					try {
+						generateBtn.disabled = true;
+						const start = startDate.value;
+						const end = endDate.value;
+						if (!start || !end) {
+							alert('Por favor selecciona ambas fechas');
+							generateBtn.disabled = false;
+							return;
+						}
+
+						const data = await api('GET', `/api/deliveries?report=production&start=${start}&end=${end}`);
+						
+						// Create table
+						resultsDiv.innerHTML = '';
+						const table = document.createElement('table');
+						table.style.width = '100%';
+						table.style.borderCollapse = 'collapse';
+						table.style.fontSize = '12px';
+						
+						const thead = document.createElement('thead');
+						const headerRow = document.createElement('tr');
+						const headers = ['Usuario', 'Arco', 'Melo', 'Mara', 'Oreo', 'Nute'];
+						for (const h of headers) {
+							const th = document.createElement('th');
+							th.textContent = h;
+							th.style.borderBottom = '2px solid #ddd';
+							th.style.padding = '8px';
+							th.style.textAlign = 'left';
+							headerRow.appendChild(th);
+						}
+						thead.appendChild(headerRow);
+						table.appendChild(thead);
+						
+						const tbody = document.createElement('tbody');
+						for (const [username, quantities] of Object.entries(data)) {
+							const row = document.createElement('tr');
+							const userCell = document.createElement('td');
+							userCell.textContent = username;
+							userCell.style.padding = '6px 8px';
+							userCell.style.borderBottom = '1px solid #eee';
+							row.appendChild(userCell);
+							
+							for (const code of ['arco', 'melo', 'mara', 'oreo', 'nute']) {
+								const cell = document.createElement('td');
+								cell.textContent = quantities[code] || 0;
+								cell.style.padding = '6px 8px';
+								cell.style.textAlign = 'center';
+								cell.style.borderBottom = '1px solid #eee';
+								row.appendChild(cell);
+							}
+							tbody.appendChild(row);
+						}
+						table.appendChild(tbody);
+						resultsDiv.appendChild(table);
+						
+						generateBtn.disabled = false;
+					} catch (e) {
+						alert('Error al generar reporte: ' + (e?.message || e));
+						generateBtn.disabled = false;
+					}
+				}
+				generateBtn.addEventListener('click', generateReport);
+			} catch (e) {
+				alert('No se pudo abrir el formulario: ' + (e?.message || e));
+			}
+		}
 
 		backBtn.addEventListener('click', () => { window.location.href = '/index.html'; });
 		requireAdmin();
