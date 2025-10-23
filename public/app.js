@@ -6475,29 +6475,41 @@ function openPayMenu(anchorEl, selectEl, clickX, clickY) {
 			e.stopPropagation();
 			selectEl.value = it.v;
 			selectEl.dispatchEvent(new Event('change'));
-			// Special behavior: first time selecting 'jorge' open payment-date popover centered
-			if (currentSaleId && it.v === 'jorge') {
-				const firstTime = !hasSeenPaymentDateDialogForSale(currentSaleId, it.v);
-				if (firstTime) {
-					markSeenPaymentDateDialogForSale(currentSaleId, it.v);
-					// Open centered popover (it positions itself to center)
-					setTimeout(() => openPaymentDateDialog(currentSaleId), 0);
-					cleanup();
-					return;
-				}
+		// Special behavior: first time selecting 'jorge' open payment-date popover centered
+		if (currentSaleId && it.v === 'jorge') {
+			const firstTime = !hasSeenPaymentDateDialogForSale(currentSaleId, it.v);
+			if (firstTime) {
+				markSeenPaymentDateDialogForSale(currentSaleId, it.v);
+				// Open centered popover (it positions itself to center)
+				setTimeout(() => openPaymentDateDialog(currentSaleId), 0);
+				cleanup();
+				return;
 			}
-		// If selecting transf, show existing receipt if any; otherwise open upload
-		if (it.v === 'transf' && currentSaleId) {
-			cleanup();
-			// Use setTimeout to avoid blocking and ensure proper async execution
-			setTimeout(() => {
-				openReceiptsGalleryPopover(currentSaleId, rect.left + rect.width / 2, rect.bottom).catch(err => {
-					console.error('Error opening gallery from menu:', err);
-					openReceiptUploadPage(currentSaleId);
-				});
-			}, 0);
-			return;
 		}
+		// Special behavior: first time selecting 'transf' open payment-date popover centered
+		if (currentSaleId && it.v === 'transf') {
+			const firstTime = !hasSeenPaymentDateDialogForSale(currentSaleId, it.v);
+			if (firstTime) {
+				markSeenPaymentDateDialogForSale(currentSaleId, it.v);
+				// Open centered popover (it positions itself to center)
+				setTimeout(() => openPaymentDateDialog(currentSaleId), 0);
+				cleanup();
+				return;
+			}
+		}
+	// If selecting transf (not first time), show existing receipt if any; otherwise open gallery/upload
+	if (it.v === 'transf' && currentSaleId) {
+		cleanup();
+		// Use setTimeout to avoid blocking and ensure proper async execution
+		setTimeout(() => {
+			openReceiptsGalleryPopover(currentSaleId, rect.left + rect.width / 2, rect.bottom).catch(err => {
+				console.error('Error opening gallery from menu:', err);
+				// Open gallery anyway, it will show upload option if no receipts
+				openReceiptsGalleryPopover(currentSaleId, window.innerWidth / 2, window.innerHeight / 2);
+			});
+		}, 0);
+		return;
+	}
 		cleanup();
 		});
 		menu.appendChild(btn);
@@ -6857,7 +6869,32 @@ function openPaymentDateDialog(saleId, anchorX, anchorY, onCloseCallback) {
 		methodsContainer.appendChild(btn);
 	});
 	
-	pop.append(title, calendarContainer, methodLabel, methodsContainer);
+	// Add upload button for transf/jorgebank payments
+	const saleForUpload = state.sales.find(s => s.id === saleId);
+	const currentPayMethod = saleForUpload?.pay_method || '';
+	if (currentPayMethod === 'transf' || currentPayMethod === 'jorgebank') {
+		const uploadSection = document.createElement('div');
+		uploadSection.style.marginTop = '16px';
+		uploadSection.style.paddingTop = '16px';
+		uploadSection.style.borderTop = '1px solid var(--border, #ddd)';
+		
+		const uploadBtn = document.createElement('button');
+		uploadBtn.type = 'button';
+		uploadBtn.className = 'press-btn btn-gold';
+		uploadBtn.textContent = '📎 Subir comprobantes';
+		uploadBtn.style.width = '100%';
+		uploadBtn.style.padding = '10px';
+		uploadBtn.addEventListener('click', () => {
+			cleanup(false);
+			setTimeout(() => openInlineFileUploadDialog(saleId), 100);
+		});
+		
+		uploadSection.appendChild(uploadBtn);
+		pop.append(title, calendarContainer, methodLabel, methodsContainer, uploadSection);
+	} else {
+		pop.append(title, calendarContainer, methodLabel, methodsContainer);
+	}
+	
 	document.body.appendChild(pop);
 	
 	// Position popover in center of viewport after appending to measure dimensions
