@@ -258,12 +258,23 @@ function renderClientDetailTable(rows) {
 			const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
             const pm = String(r.pay_method || '').trim().replace(/\.$/, '').toLowerCase();
             const locked = pm !== '' && pm !== 'entregado';
-            if (!isAdminUser && locked) return; // block for non-admins, allow when 'entregado'
 			const curr = String(sel.value || '');
 			const saleId = Number(r.id);
 			const rect = wrap.getBoundingClientRect();
 			function hasSeen(method){ try { return localStorage.getItem('seenPaymentDate_' + method + '_' + saleId) === '1'; } catch { return false; } }
 			function markSeen(method){ try { localStorage.setItem('seenPaymentDate_' + method + '_' + saleId, '1'); } catch {} }
+			
+			// If current is 'transf' -> check if receipts exist first
+			if (curr === 'transf') {
+				// For admin, open the pay menu to allow selection
+				if (isAdminUser) {
+					openPayMenu(wrap, sel, rect.left + rect.width / 2, rect.bottom);
+				} else {
+					// For non-admin, open upload dialog directly
+					openInlineFileUploadDialog(saleId);
+				}
+				return;
+			}
 			// If current is 'jorge' and first time -> open payment date dialog centered
 			if (curr === 'jorge' && !hasSeen('jorge')) { markSeen('jorge'); openPaymentDateDialog(saleId); return; }
 			// If current is 'jorgebank' and already seen -> open receipt gallery
@@ -271,10 +282,12 @@ function renderClientDetailTable(rows) {
 				openReceiptsGalleryPopover(saleId, rect.left + rect.width / 2, rect.bottom);
 				return;
 			}
-				// If current is 'jorgebank' and NOT seen -> show payment date popover first time
-				if (curr === 'jorgebank' && !hasSeen('jorgebank')) { markSeen('jorgebank'); openPaymentDateDialog(saleId); return; }
-				// If current is 'jorgebank' and NOT seen -> show payment date popover first time
-				if (curr === 'jorgebank' && !hasSeen('jorgebank')) { markSeen('jorgebank'); openPaymentDateDialog(saleId); return; }
+			// If current is 'jorgebank' and NOT seen -> show payment date popover first time
+			if (curr === 'jorgebank' && !hasSeen('jorgebank')) { markSeen('jorgebank'); openPaymentDateDialog(saleId); return; }
+			
+			// Block for non-admins if locked
+            if (!isAdminUser && locked) return;
+			
 			// Otherwise open the selector menu
 			openPayMenu(wrap, sel, rect.left + rect.width / 2, rect.bottom);
 		});
@@ -285,17 +298,26 @@ function renderClientDetailTable(rows) {
 				const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
                 const pm = String(r.pay_method || '').trim().replace(/\.$/, '').toLowerCase();
                 const locked = pm !== '' && pm !== 'entregado';
-                if (!isAdminUser && locked) return;
 				const curr = String(sel.value || '');
 				const saleId = Number(r.id);
 				const rect = wrap.getBoundingClientRect();
 				function hasSeen(method){ try { return localStorage.getItem('seenPaymentDate_' + method + '_' + saleId) === '1'; } catch { return false; } }
 				function markSeen(method){ try { localStorage.setItem('seenPaymentDate_' + method + '_' + saleId, '1'); } catch {} }
+				
+				// If current is 'transf' -> open upload dialog (allow for everyone)
+				if (curr === 'transf') {
+					openInlineFileUploadDialog(saleId);
+					return;
+				}
 				if (curr === 'jorge' && !hasSeen('jorge')) { markSeen('jorge'); openPaymentDateDialog(saleId); return; }
 				if (curr === 'jorgebank' && hasSeen('jorgebank')) {
 					openReceiptsGalleryPopover(saleId, rect.left + rect.width / 2, rect.bottom);
 					return;
 				}
+				
+				// Block for non-admins if locked
+                if (!isAdminUser && locked) return;
+				
 				openPayMenu(wrap, sel, rect.left + rect.width / 2, rect.bottom);
 			}
 		});
@@ -1706,13 +1728,21 @@ function renderTable() {
 					if (current === o.v) opt.selected = true;
 					sel.appendChild(opt);
 				}
-                // Lock editing for non-admins once a method is chosen, except when it's 'entregado'
+                // Lock editing for non-admins once a method is chosen, except when it's 'entregado' or 'transf'
                 const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
                 const pmNormalized = String(current || '').trim().toLowerCase();
-                const shouldLock = pmNormalized !== '' && pmNormalized !== 'entregado';
+                const shouldLock = pmNormalized !== '' && pmNormalized !== 'entregado' && pmNormalized !== 'transf';
                 if (!isAdminUser && shouldLock) {
                     sel.disabled = true;
                     wrap.classList.add('locked');
+                }
+                // For transf, keep it enabled but just show as readonly visually
+                // This allows the click listeners to work properly
+                if (!isAdminUser && pmNormalized === 'transf') {
+                    // Keep select enabled so wrap clicks work
+                    sel.disabled = false;
+                    // Prevent actual changes via change event
+                    wrap.dataset.readonlyTransf = 'true';
                 }
 				function applyPayClass() {
 					wrap.classList.remove('placeholder','method-efectivo','method-transf','method-marce','method-jorge','method-jorgebank','method-entregado');
@@ -1727,6 +1757,11 @@ function renderTable() {
 				}
 				applyPayClass();
 				sel.addEventListener('change', async () => {
+					// Prevent changes if readonly transf
+					if (wrap.dataset.readonlyTransf === 'true') {
+						sel.value = current; // Revert to original value
+						return;
+					}
 					await savePayMethod(tr, sale.id, sel.value);
 					try {
 						const val = (sel.value || '').toString();
@@ -1740,9 +1775,7 @@ function renderTable() {
 				});
             wrap.addEventListener('click', async (e) => { 
                 e.stopPropagation(); 
-                const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
                 const pm = String(sale.pay_method || '').trim().replace(/\.$/, '').toLowerCase();
-                const locked = pm !== '' && pm !== 'entregado';
                 
                 // If jorgebank (all receipts verified), open gallery for everyone
                 if (pm === 'jorgebank') {
@@ -1751,22 +1784,24 @@ function renderTable() {
                     return;
                 }
                 
-                // If locked and current is transf, open receipt gallery for non-admins
-                if (!isAdminUser && locked && pm === 'transf') {
-                    const rect = wrap.getBoundingClientRect();
-                    openReceiptsGalleryPopover(sale.id, rect.left + rect.width / 2, rect.bottom);
+                // If current is transf, open upload dialog for everyone
+                if (pm === 'transf') {
+                    openInlineFileUploadDialog(sale.id);
                     return;
                 }
-                if (!isAdminUser && locked) return; // block opening menu for non-admins, allow when 'entregado'
+                
+                // For other methods, check permissions
+                const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
+                const locked = pm !== '' && pm !== 'entregado';
+                if (!isAdminUser && locked) return; // block opening menu for non-admins
+                
                 openPayMenu(wrap, sel, e.clientX, e.clientY); 
             });
 				wrap.tabIndex = 0;
             wrap.addEventListener('keydown', async (e) => { 
                 if (e.key === 'Enter' || e.key === ' ') { 
                     e.preventDefault(); 
-                    const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
                     const pm = String(sale.pay_method || '').trim().replace(/\.$/, '').toLowerCase();
-                    const locked = pm !== '' && pm !== 'entregado';
                     
                     // If jorgebank (all receipts verified), open gallery
                     if (pm === 'jorgebank') {
@@ -1776,15 +1811,18 @@ function renderTable() {
                         } catch { openReceiptUploadPage(sale.id); }
                         return;
                     }
-                    
-                    if (!isAdminUser && locked && pm === 'transf') {
-                        try {
-                            const rect = wrap.getBoundingClientRect();
-                            openReceiptsGalleryPopover(sale.id, rect.left + rect.width / 2, rect.bottom);
-                        } catch { openReceiptUploadPage(sale.id); }
+
+                    // If current is transf, open upload dialog
+                    if (pm === 'transf') {
+                        openInlineFileUploadDialog(sale.id);
                         return;
                     }
+                    
+                    // For other methods, check permissions
+                    const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
+                    const locked = pm !== '' && pm !== 'entregado';
                     if (!isAdminUser && locked) return; 
+                    
                     openPayMenu(wrap, sel); 
                 } 
             });
@@ -6475,26 +6513,23 @@ function openPayMenu(anchorEl, selectEl, clickX, clickY) {
 			e.stopPropagation();
 			selectEl.value = it.v;
 			selectEl.dispatchEvent(new Event('change'));
-			// Special behavior: first time selecting 'jorge' open payment-date popover centered
-			if (currentSaleId && it.v === 'jorge') {
-				const firstTime = !hasSeenPaymentDateDialogForSale(currentSaleId, it.v);
-				if (firstTime) {
-					markSeenPaymentDateDialogForSale(currentSaleId, it.v);
-					// Open centered popover (it positions itself to center)
-					setTimeout(() => openPaymentDateDialog(currentSaleId), 0);
-					cleanup();
-					return;
-				}
+		// Special behavior: first time selecting 'jorge' open payment-date popover centered
+		if (currentSaleId && it.v === 'jorge') {
+			const firstTime = !hasSeenPaymentDateDialogForSale(currentSaleId, it.v);
+			if (firstTime) {
+				markSeenPaymentDateDialogForSale(currentSaleId, it.v);
+				// Open centered popover (it positions itself to center)
+				setTimeout(() => openPaymentDateDialog(currentSaleId), 0);
+				cleanup();
+				return;
 			}
-		// If selecting transf, show existing receipt if any; otherwise open upload
+		}
+		// If selecting transf, open upload dialog directly
 		if (it.v === 'transf' && currentSaleId) {
 			cleanup();
-			// Use setTimeout to avoid blocking and ensure proper async execution
+			// Open upload dialog
 			setTimeout(() => {
-				openReceiptsGalleryPopover(currentSaleId, rect.left + rect.width / 2, rect.bottom).catch(err => {
-					console.error('Error opening gallery from menu:', err);
-					openReceiptUploadPage(currentSaleId);
-				});
+				openInlineFileUploadDialog(currentSaleId);
 			}, 0);
 			return;
 		}
@@ -7577,29 +7612,1076 @@ async function goToSaleFromNotification(sellerId, saleDayId, saleId) {
 
 // Open a dedicated page to upload a receipt image for the given sale id
 function openReceiptUploadPage(saleId) {
+	// Instead of redirecting, show inline file upload dialog
+	openInlineFileUploadDialog(saleId);
+}
+
+// NEW: Inline file upload dialog that stays in the sales table
+async function openInlineFileUploadDialog(saleId) {
+	console.log('🎯 openInlineFileUploadDialog called with saleId:', saleId);
 	try {
 		const id = Number(saleId);
 		if (!id) {
-			console.error('❌ openReceiptUploadPage: Invalid saleId', saleId);
+			console.error('❌ openInlineFileUploadDialog: Invalid saleId', saleId);
 			return;
 		}
-		// Save current context to return to the same view
+		console.log('✅ Creating upload dialog for sale:', id);
+		
+		// First, check if there are existing receipts
+		let existingReceipts = [];
 		try {
-			const context = {
-				saleId: id,
-				sellerId: state.currentSeller?.id || null,
-				saleDayId: state.selectedDayId || null,
-				returnToSales: true
-			};
-			localStorage.setItem('receiptUploadContext', JSON.stringify(context));
-			console.log('💾 Upload context saved:', context);
+			existingReceipts = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(id)}`);
+			console.log('📸 Found existing receipts:', existingReceipts.length);
 		} catch (err) {
-			console.error('❌ Error saving upload context:', err);
+			console.log('No existing receipts found');
 		}
-		console.log('🚀 Navigating to receipt.html for sale:', id);
-		window.location.href = `/receipt.html?sale_id=${encodeURIComponent(id)}`;
+		
+		// If receipts exist, show them in a gallery with upload option
+		if (existingReceipts && existingReceipts.length > 0) {
+			console.log('📸 Opening gallery with upload option');
+			openGalleryWithUploadOption(id, existingReceipts);
+			return;
+		}
+		
+		console.log('📸 No receipts found, showing upload form');
+
+		const overlay = document.createElement('div');
+		overlay.className = 'file-upload-overlay';
+		overlay.style.position = 'fixed';
+		overlay.style.top = '0';
+		overlay.style.left = '0';
+		overlay.style.right = '0';
+		overlay.style.bottom = '0';
+		overlay.style.background = 'rgba(0, 0, 0, 0.4)';
+		overlay.style.zIndex = '9999';
+		overlay.style.display = 'flex';
+		overlay.style.alignItems = 'center';
+		overlay.style.justifyContent = 'center';
+		overlay.style.backdropFilter = 'blur(4px)';
+		overlay.style.animation = 'fadeIn 0.2s ease';
+		
+		// Add animation keyframes to document if not already present
+		if (!document.getElementById('upload-dialog-animations')) {
+			const style = document.createElement('style');
+			style.id = 'upload-dialog-animations';
+			style.textContent = `
+				@keyframes fadeIn {
+					from { opacity: 0; }
+					to { opacity: 1; }
+				}
+				@keyframes dialogFadeIn {
+					from { opacity: 0; transform: scale(0.95) translateY(10px); }
+					to { opacity: 1; transform: scale(1) translateY(0); }
+				}
+				@keyframes spin {
+					to { transform: rotate(360deg); }
+				}
+				@keyframes successPop {
+					0% { transform: scale(0); }
+					50% { transform: scale(1.15); }
+					100% { transform: scale(1); }
+				}
+				@keyframes spin {
+					to { transform: rotate(360deg); }
+				}
+				@keyframes fadeOut {
+					from { opacity: 1; }
+					to { opacity: 0; }
+				}
+			`;
+			document.head.appendChild(style);
+		}
+
+		const dialog = document.createElement('div');
+		dialog.className = 'file-upload-dialog';
+		dialog.style.background = 'var(--card, #fff)';
+		dialog.style.borderRadius = '16px';
+		dialog.style.padding = '28px';
+		dialog.style.maxWidth = '500px';
+		dialog.style.width = '90%';
+		dialog.style.boxShadow = '0 20px 60px rgba(0,0,0,0.15)';
+		dialog.style.maxHeight = '90vh';
+		dialog.style.overflowY = 'auto';
+		dialog.style.animation = 'dialogFadeIn 0.2s ease';
+
+		const title = document.createElement('h1');
+		title.textContent = 'Subir Comprobante';
+		title.style.margin = '0 0 28px';
+		title.style.fontSize = '40px';
+		title.style.fontWeight = '900';
+		title.style.color = '#f4a6b7';
+		title.style.textAlign = 'center';
+		title.style.letterSpacing = '1px';
+		title.style.textTransform = 'uppercase';
+
+		// Custom file input button
+		const fileInputWrapper = document.createElement('div');
+		fileInputWrapper.style.marginBottom = '20px';
+		fileInputWrapper.style.textAlign = 'center';
+		
+		const fileInput = document.createElement('input');
+		fileInput.type = 'file';
+		fileInput.accept = 'image/*';
+		fileInput.multiple = true;
+		fileInput.style.display = 'none';
+		fileInput.id = 'file-input-' + id;
+		
+		const fileLabel = document.createElement('label');
+		fileLabel.htmlFor = 'file-input-' + id;
+		fileLabel.textContent = '📷 Escoger Archivos';
+		fileLabel.style.display = 'inline-block';
+		fileLabel.style.padding = '20px 60px';
+		fileLabel.style.fontSize = '20px';
+		fileLabel.style.fontWeight = '700';
+		fileLabel.style.color = 'white';
+		fileLabel.style.background = 'linear-gradient(135deg, #f4a6b7 0%, #e885a0 100%)';
+		fileLabel.style.border = '3px solid #f4a6b7';
+		fileLabel.style.borderRadius = '16px';
+		fileLabel.style.cursor = 'pointer';
+		fileLabel.style.transition = 'all 0.3s ease';
+		fileLabel.style.boxShadow = '0 6px 20px rgba(244, 166, 183, 0.4)';
+		fileLabel.style.textTransform = 'uppercase';
+		fileLabel.style.letterSpacing = '1px';
+		fileLabel.addEventListener('mouseenter', () => {
+			fileLabel.style.transform = 'translateY(-3px) scale(1.05)';
+			fileLabel.style.boxShadow = '0 10px 30px rgba(244, 166, 183, 0.6)';
+			fileLabel.style.background = 'linear-gradient(135deg, #e885a0 0%, #d66686 100%)';
+		});
+		fileLabel.addEventListener('mouseleave', () => {
+			fileLabel.style.transform = 'translateY(0) scale(1)';
+			fileLabel.style.boxShadow = '0 6px 20px rgba(244, 166, 183, 0.4)';
+			fileLabel.style.background = 'linear-gradient(135deg, #f4a6b7 0%, #e885a0 100%)';
+		});
+		fileLabel.addEventListener('mousedown', () => {
+			fileLabel.style.transform = 'translateY(2px) scale(0.98)';
+			fileLabel.style.boxShadow = '0 3px 10px rgba(244, 166, 183, 0.4)';
+		});
+		fileLabel.addEventListener('mouseup', () => {
+			fileLabel.style.transform = 'translateY(-3px) scale(1.05)';
+			fileLabel.style.boxShadow = '0 10px 30px rgba(244, 166, 183, 0.6)';
+		});
+		
+		fileInputWrapper.appendChild(fileInput);
+		fileInputWrapper.appendChild(fileLabel);
+
+		const noteInputWrapper = document.createElement('div');
+		noteInputWrapper.style.position = 'relative';
+		noteInputWrapper.style.marginBottom = '20px';
+		
+		const noteInput = document.createElement('textarea');
+		noteInput.rows = 3;
+		noteInput.value = '';
+		noteInput.style.width = '100%';
+		noteInput.style.resize = 'vertical';
+		noteInput.style.padding = '14px';
+		noteInput.style.borderRadius = '12px';
+		noteInput.style.border = '2px solid var(--border, #e5e7eb)';
+		noteInput.style.fontFamily = 'inherit';
+		noteInput.style.fontSize = '14px';
+		noteInput.style.transition = 'all 0.3s ease';
+		noteInput.style.color = '#111';
+		
+		const notePlaceholder = document.createElement('div');
+		notePlaceholder.textContent = 'Notas';
+		notePlaceholder.style.position = 'absolute';
+		notePlaceholder.style.top = '14px';
+		notePlaceholder.style.left = '0';
+		notePlaceholder.style.right = '0';
+		notePlaceholder.style.textAlign = 'center';
+		notePlaceholder.style.color = '#9ca3af';
+		notePlaceholder.style.fontSize = '14px';
+		notePlaceholder.style.pointerEvents = 'none';
+		notePlaceholder.style.transition = 'opacity 0.2s ease';
+		
+		noteInput.addEventListener('click', () => {
+			notePlaceholder.style.opacity = '0';
+			noteInput.style.textAlign = 'left';
+		});
+		
+		noteInput.addEventListener('focus', () => {
+			noteInput.style.borderColor = '#f4a6b7';
+			noteInput.style.boxShadow = '0 0 0 3px rgba(244, 166, 183, 0.15)';
+			noteInput.style.textAlign = 'left';
+			notePlaceholder.style.opacity = '0';
+		});
+		
+		noteInput.addEventListener('blur', () => {
+			noteInput.style.borderColor = 'var(--border, #e5e7eb)';
+			noteInput.style.boxShadow = 'none';
+			if (!noteInput.value || noteInput.value.trim() === '') {
+				noteInput.style.textAlign = 'center';
+				notePlaceholder.style.opacity = '1';
+			}
+		});
+		
+		noteInput.addEventListener('input', () => {
+			if (noteInput.value && noteInput.value.trim()) {
+				noteInput.style.textAlign = 'left';
+				notePlaceholder.style.opacity = '0';
+			} else {
+				notePlaceholder.style.opacity = '1';
+			}
+		});
+		
+		noteInputWrapper.appendChild(noteInput);
+		noteInputWrapper.appendChild(notePlaceholder);
+
+		const previewContainer = document.createElement('div');
+		previewContainer.className = 'preview';
+		previewContainer.style.display = 'none';
+		previewContainer.style.marginBottom = '20px';
+		
+		const previewTitle = document.createElement('div');
+		previewTitle.textContent = 'Vista Previa';
+		previewTitle.style.fontSize = '18px';
+		previewTitle.style.fontWeight = '700';
+		previewTitle.style.marginBottom = '16px';
+		previewTitle.style.color = '#f4a6b7';
+		previewTitle.style.display = 'none';
+		previewTitle.style.textAlign = 'center';
+		
+		const previewGrid = document.createElement('div');
+		previewGrid.style.display = 'grid';
+		previewGrid.style.gridTemplateColumns = 'repeat(3, 1fr)';
+		previewGrid.style.gap = '12px';
+		previewGrid.style.marginBottom = '16px';
+		previewGrid.style.transition = 'all 0.3s ease';
+
+		
+		const bottomActions = document.createElement('div');
+		bottomActions.className = 'actions';
+		bottomActions.style.display = 'flex';
+		bottomActions.style.gap = '12px';
+		bottomActions.style.justifyContent = 'center';
+		bottomActions.style.marginTop = '20px';
+		bottomActions.style.marginBottom = '8px';
+		bottomActions.style.flexWrap = 'wrap';
+
+		const cancelBtn = document.createElement('button');
+		cancelBtn.className = 'btn press-btn';
+		cancelBtn.textContent = 'Cancelar';
+		cancelBtn.style.padding = '14px 28px';
+		cancelBtn.style.borderRadius = '12px';
+		cancelBtn.style.border = '2px solid #e5e7eb';
+		cancelBtn.style.background = 'white';
+		cancelBtn.style.cursor = 'pointer';
+		cancelBtn.style.fontSize = '15px';
+		cancelBtn.style.fontWeight = '600';
+		cancelBtn.style.transition = 'all 0.3s ease';
+		cancelBtn.style.color = '#6b7280';
+		cancelBtn.addEventListener('mouseenter', () => {
+			cancelBtn.style.background = '#f9fafb';
+			cancelBtn.style.borderColor = '#d1d5db';
+			cancelBtn.style.transform = 'translateY(-2px)';
+			cancelBtn.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+		});
+		cancelBtn.addEventListener('mouseleave', () => {
+			cancelBtn.style.background = 'white';
+			cancelBtn.style.borderColor = '#e5e7eb';
+			cancelBtn.style.transform = 'translateY(0)';
+			cancelBtn.style.boxShadow = 'none';
+		});
+		cancelBtn.addEventListener('mousedown', () => {
+			cancelBtn.style.transform = 'translateY(0) scale(0.97)';
+		});
+		cancelBtn.addEventListener('mouseup', () => {
+			cancelBtn.style.transform = 'translateY(-2px) scale(1)';
+		});
+
+		// Upload button
+		const uploadBtn = document.createElement('button');
+		uploadBtn.className = 'btn btn-primary press-btn btn-gold upload-btn';
+		uploadBtn.textContent = 'Subir Archivos';
+		uploadBtn.style.padding = '16px 48px';
+		uploadBtn.style.borderRadius = '14px';
+		uploadBtn.style.border = 'none';
+		uploadBtn.style.background = 'linear-gradient(135deg, #f4a6b7 0%, #e885a0 100%)';
+		uploadBtn.style.color = '#fff';
+		uploadBtn.style.cursor = 'pointer';
+		uploadBtn.style.fontSize = '18px';
+		uploadBtn.style.fontWeight = '800';
+		uploadBtn.style.transition = 'all 0.2s ease';
+		uploadBtn.style.textTransform = 'uppercase';
+		uploadBtn.style.letterSpacing = '1px';
+		uploadBtn.style.opacity = '0.5';
+		uploadBtn.style.boxShadow = '0 6px 20px rgba(244, 166, 183, 0.3)';
+		uploadBtn.disabled = true;
+		uploadBtn.addEventListener('mouseenter', () => {
+			if (!uploadBtn.disabled) {
+				uploadBtn.style.background = 'linear-gradient(135deg, #e885a0 0%, #d66686 100%)';
+				uploadBtn.style.transform = 'translateY(-4px) scale(1.03)';
+				uploadBtn.style.boxShadow = '0 12px 30px rgba(244, 166, 183, 0.7)';
+			}
+		});
+		uploadBtn.addEventListener('mouseleave', () => {
+			if (!uploadBtn.disabled) {
+				uploadBtn.style.background = 'linear-gradient(135deg, #f4a6b7 0%, #e885a0 100%)';
+				uploadBtn.style.transform = 'translateY(0) scale(1)';
+				uploadBtn.style.boxShadow = '0 6px 20px rgba(244, 166, 183, 0.3)';
+			}
+		});
+		uploadBtn.addEventListener('mousedown', () => {
+			if (!uploadBtn.disabled) {
+				uploadBtn.style.transform = 'translateY(-2px) scale(0.98)';
+			}
+		});
+		uploadBtn.addEventListener('mouseup', () => {
+			if (!uploadBtn.disabled) {
+				uploadBtn.style.transform = 'translateY(-4px) scale(1.03)';
+			}
+		});
+		
+		const uploadMoreBtn = document.createElement('button');
+		uploadMoreBtn.className = 'btn press-btn';
+		uploadMoreBtn.textContent = '➕ Subir Más Archivos';
+		uploadMoreBtn.style.padding = '12px 24px';
+		uploadMoreBtn.style.borderRadius = '12px';
+		uploadMoreBtn.style.border = '2px solid #f4a6b7';
+		uploadMoreBtn.style.background = 'white';
+		uploadMoreBtn.style.color = '#f4a6b7';
+		uploadMoreBtn.style.cursor = 'pointer';
+		uploadMoreBtn.style.fontSize = '15px';
+		uploadMoreBtn.style.fontWeight = '700';
+		uploadMoreBtn.style.transition = 'all 0.3s ease';
+		uploadMoreBtn.style.display = 'none';
+		uploadMoreBtn.addEventListener('click', () => {
+			isAddingMore = true;
+			fileInput.click();
+		});
+		uploadMoreBtn.addEventListener('mouseenter', () => {
+			uploadMoreBtn.style.background = '#fce7ec';
+			uploadMoreBtn.style.transform = 'translateY(-2px)';
+			uploadMoreBtn.style.boxShadow = '0 4px 12px rgba(244, 166, 183, 0.3)';
+		});
+		uploadMoreBtn.addEventListener('mouseleave', () => {
+			uploadMoreBtn.style.background = 'white';
+			uploadMoreBtn.style.transform = 'translateY(0)';
+			uploadMoreBtn.style.boxShadow = 'none';
+		});
+
+		const helpText = document.createElement('div');
+		helpText.className = 'note';
+		helpText.textContent = '💡 Formatos: JPG, PNG · Tamaño recomendado: < 2MB';
+		helpText.style.fontSize = '12px';
+		helpText.style.color = 'var(--muted, #6b7280)';
+		helpText.style.textAlign = 'center';
+		helpText.style.opacity = '0.75';
+
+		let selectedFiles = [];
+		let isAddingMore = false;
+
+		fileInput.addEventListener('change', () => {
+			const files = fileInput.files;
+			if (!files || files.length === 0) {
+				// Only clear if not adding more files
+				if (!isAddingMore) {
+					previewContainer.style.display = 'none';
+					previewContainer.innerHTML = '';
+					previewTitle.style.display = 'none';
+					uploadMoreBtn.style.display = 'none';
+					uploadBtn.disabled = true;
+					uploadBtn.style.opacity = '0.5';
+					uploadBtn.style.cursor = 'not-allowed';
+					selectedFiles = [];
+				}
+				return;
+			}
+			
+			// If adding more, append to existing files
+			if (isAddingMore) {
+				selectedFiles = [...selectedFiles, ...Array.from(files)];
+				isAddingMore = false;
+			} else {
+				selectedFiles = Array.from(files);
+			}
+			
+			// Smooth transition
+			previewContainer.innerHTML = '';
+			previewGrid.innerHTML = '';
+			previewContainer.appendChild(previewTitle);
+			previewContainer.appendChild(previewGrid);
+			previewContainer.style.display = 'block';
+			previewTitle.style.display = 'block';
+			uploadMoreBtn.style.display = 'inline-block';
+
+			selectedFiles.forEach((file, index) => {
+				const reader = new FileReader();
+				reader.onload = (e) => {
+				const imgContainer = document.createElement('div');
+				imgContainer.style.position = 'relative';
+				imgContainer.style.padding = '0';
+				imgContainer.style.background = 'white';
+				imgContainer.style.borderRadius = '12px';
+				imgContainer.style.border = '3px solid #f4a6b7';
+				imgContainer.style.overflow = 'hidden';
+				imgContainer.style.boxShadow = '0 4px 12px rgba(244, 166, 183, 0.2)';
+				imgContainer.style.aspectRatio = '1';
+				imgContainer.style.opacity = '0';
+				imgContainer.style.transform = 'scale(0.9)';
+				imgContainer.style.transition = 'all 0.3s ease';
+				requestAnimationFrame(() => {
+					requestAnimationFrame(() => {
+						imgContainer.style.opacity = '1';
+						imgContainer.style.transform = 'scale(1)';
+					});
+				});
+
+					const img = document.createElement('img');
+					img.src = e.target.result;
+					img.alt = `Vista previa ${index + 1}`;
+					img.style.width = '100%';
+					img.style.height = '100%';
+					img.style.display = 'block';
+					img.style.objectFit = 'cover';
+					img.style.cursor = 'pointer';
+					img.style.transition = 'transform 0.2s ease';
+					
+					// Lightbox on click
+					img.addEventListener('click', (e) => {
+						e.stopPropagation();
+						
+						const lightbox = document.createElement('div');
+						lightbox.style.position = 'fixed';
+						lightbox.style.top = '0';
+						lightbox.style.left = '0';
+						lightbox.style.width = '100%';
+						lightbox.style.height = '100%';
+						lightbox.style.background = 'rgba(0,0,0,0.95)';
+						lightbox.style.zIndex = '99999';
+						lightbox.style.display = 'flex';
+						lightbox.style.alignItems = 'center';
+						lightbox.style.justifyContent = 'center';
+						lightbox.style.cursor = 'pointer';
+						lightbox.style.animation = 'fadeIn 0.2s ease';
+						
+						const fullImg = document.createElement('img');
+						fullImg.src = e.target.src;
+						fullImg.style.maxWidth = '95%';
+						fullImg.style.maxHeight = '95%';
+						fullImg.style.objectFit = 'contain';
+						fullImg.style.borderRadius = '8px';
+						
+						lightbox.appendChild(fullImg);
+						document.body.appendChild(lightbox);
+						
+						lightbox.addEventListener('click', () => {
+							lightbox.style.animation = 'fadeOut 0.2s ease';
+							setTimeout(() => {
+								if (lightbox.parentNode) {
+									lightbox.parentNode.removeChild(lightbox);
+								}
+							}, 200);
+						});
+					});
+
+					const removeBtn = document.createElement('button');
+					removeBtn.innerHTML = '✕';
+					removeBtn.style.position = 'absolute';
+					removeBtn.style.top = '8px';
+					removeBtn.style.right = '8px';
+					removeBtn.style.width = '32px';
+					removeBtn.style.height = '32px';
+					removeBtn.style.borderRadius = '50%';
+					removeBtn.style.border = 'none';
+					removeBtn.style.background = 'rgba(0, 0, 0, 0.7)';
+					removeBtn.style.color = 'white';
+					removeBtn.style.fontSize = '18px';
+					removeBtn.style.fontWeight = 'bold';
+					removeBtn.style.cursor = 'pointer';
+					removeBtn.style.display = 'flex';
+					removeBtn.style.alignItems = 'center';
+					removeBtn.style.justifyContent = 'center';
+					removeBtn.style.transition = 'all 0.2s ease';
+					removeBtn.style.zIndex = '2';
+					removeBtn.addEventListener('mouseenter', () => {
+						removeBtn.style.background = '#f4a6b7';
+						removeBtn.style.transform = 'scale(1.15)';
+					});
+					removeBtn.addEventListener('mouseleave', () => {
+						removeBtn.style.background = 'rgba(0, 0, 0, 0.7)';
+						removeBtn.style.transform = 'scale(1)';
+					});
+					removeBtn.addEventListener('click', (e) => {
+						e.stopPropagation();
+						
+						// Animate out smoothly
+						imgContainer.style.opacity = '0';
+						imgContainer.style.transform = 'scale(0.7)';
+						
+						setTimeout(() => {
+							// Remove this specific file
+							selectedFiles.splice(index, 1);
+							
+							// Update button text
+							if (selectedFiles.length === 0) {
+								previewContainer.style.opacity = '0';
+								setTimeout(() => {
+									previewContainer.style.display = 'none';
+									previewTitle.style.display = 'none';
+									uploadMoreBtn.style.display = 'none';
+									uploadBtn.disabled = true;
+									uploadBtn.style.opacity = '0.5';
+									uploadBtn.style.cursor = 'not-allowed';
+									uploadBtn.textContent = 'Subir Archivos';
+									previewGrid.innerHTML = '';
+									fileInput.value = '';
+									previewContainer.style.opacity = '1';
+								}, 300);
+								return;
+							}
+							
+							uploadBtn.textContent = `✓ Subir ${selectedFiles.length} Archivo${selectedFiles.length > 1 ? 's' : ''}`;
+							
+							// Fade out all current items
+							const allItems = Array.from(previewGrid.children);
+							allItems.forEach(item => {
+								item.style.opacity = '0';
+								item.style.transform = 'scale(0.9)';
+							});
+							
+							setTimeout(() => {
+								previewGrid.innerHTML = '';
+								// Re-render all remaining files
+						selectedFiles.forEach((f, idx) => {
+							const reader = new FileReader();
+							reader.onload = (ev) => {
+							const container = document.createElement('div');
+							container.style.position = 'relative';
+							container.style.padding = '0';
+							container.style.background = 'white';
+							container.style.borderRadius = '12px';
+							container.style.border = '3px solid #f4a6b7';
+							container.style.overflow = 'hidden';
+							container.style.boxShadow = '0 4px 12px rgba(244, 166, 183, 0.2)';
+							container.style.aspectRatio = '1';
+
+								const i = document.createElement('img');
+								i.src = ev.target.result;
+								i.alt = `Vista previa ${idx + 1}`;
+								i.style.width = '100%';
+								i.style.height = '100%';
+								i.style.display = 'block';
+								i.style.objectFit = 'cover';
+								i.style.cursor = 'pointer';
+								i.style.transition = 'transform 0.2s ease';
+								
+								// Lightbox on click
+								i.addEventListener('click', (evt) => {
+									evt.stopPropagation();
+									
+									const lightbox = document.createElement('div');
+									lightbox.style.position = 'fixed';
+									lightbox.style.top = '0';
+									lightbox.style.left = '0';
+									lightbox.style.width = '100%';
+									lightbox.style.height = '100%';
+									lightbox.style.background = 'rgba(0,0,0,0.95)';
+									lightbox.style.zIndex = '99999';
+									lightbox.style.display = 'flex';
+									lightbox.style.alignItems = 'center';
+									lightbox.style.justifyContent = 'center';
+									lightbox.style.cursor = 'pointer';
+									lightbox.style.animation = 'fadeIn 0.2s ease';
+									
+									const fullImg = document.createElement('img');
+									fullImg.src = i.src;
+									fullImg.style.maxWidth = '95%';
+									fullImg.style.maxHeight = '95%';
+									fullImg.style.objectFit = 'contain';
+									fullImg.style.borderRadius = '8px';
+									
+									lightbox.appendChild(fullImg);
+									document.body.appendChild(lightbox);
+									
+									lightbox.addEventListener('click', () => {
+										lightbox.style.animation = 'fadeOut 0.2s ease';
+										setTimeout(() => {
+											if (lightbox.parentNode) {
+												lightbox.parentNode.removeChild(lightbox);
+											}
+										}, 200);
+									});
+								});
+
+								const btn = document.createElement('button');
+								btn.innerHTML = '✕';
+								btn.style.position = 'absolute';
+								btn.style.top = '8px';
+								btn.style.right = '8px';
+								btn.style.width = '32px';
+								btn.style.height = '32px';
+								btn.style.borderRadius = '50%';
+								btn.style.border = 'none';
+								btn.style.background = 'rgba(0, 0, 0, 0.7)';
+								btn.style.color = 'white';
+								btn.style.fontSize = '18px';
+								btn.style.fontWeight = 'bold';
+								btn.style.cursor = 'pointer';
+								btn.style.display = 'flex';
+								btn.style.alignItems = 'center';
+								btn.style.justifyContent = 'center';
+								btn.style.transition = 'all 0.2s ease';
+								btn.style.zIndex = '2';
+								btn.addEventListener('mouseenter', () => {
+									btn.style.background = '#f4a6b7';
+									btn.style.transform = 'scale(1.15)';
+								});
+							btn.addEventListener('mouseleave', () => {
+								btn.style.background = 'rgba(0, 0, 0, 0.7)';
+								btn.style.transform = 'scale(1)';
+							});
+							btn.addEventListener('mousedown', () => {
+								btn.style.transform = 'scale(0.9)';
+							});
+							btn.addEventListener('mouseup', () => {
+								btn.style.transform = 'scale(1.15)';
+							});
+							btn.addEventListener('click', (evt) => {
+								evt.stopPropagation();
+								selectedFiles.splice(idx, 1);
+								
+								// Re-trigger the same logic recursively
+								removeBtn.dispatchEvent(new MouseEvent('click', { bubbles: false }));
+							});
+
+								container.appendChild(i);
+								container.appendChild(btn);
+								previewGrid.appendChild(container);
+							};
+							reader.readAsDataURL(f);
+						});
+							}, 300); // Close setTimeout for fade out
+						}, 300); // Close setTimeout for imgContainer removal
+					});
+
+					imgContainer.appendChild(img);
+					imgContainer.appendChild(removeBtn);
+					previewGrid.appendChild(imgContainer);
+				};
+				reader.readAsDataURL(file);
+			});
+
+			uploadBtn.disabled = false;
+			uploadBtn.style.opacity = '1';
+			uploadBtn.style.cursor = 'pointer';
+			uploadBtn.textContent = `✓ Subir ${selectedFiles.length} Archivo${selectedFiles.length > 1 ? 's' : ''}`;
+		});
+
+		async function handleUpload() {
+			if (selectedFiles.length === 0 || !id) return;
+			
+			// Create separate loading overlay (small centered box)
+			const fullLoadingOverlay = document.createElement('div');
+			fullLoadingOverlay.style.position = 'fixed';
+			fullLoadingOverlay.style.top = '0';
+			fullLoadingOverlay.style.left = '0';
+			fullLoadingOverlay.style.right = '0';
+			fullLoadingOverlay.style.bottom = '0';
+			fullLoadingOverlay.style.background = 'rgba(0, 0, 0, 0.4)';
+			fullLoadingOverlay.style.backdropFilter = 'blur(4px)';
+			fullLoadingOverlay.style.zIndex = '10000';
+			fullLoadingOverlay.style.display = 'flex';
+			fullLoadingOverlay.style.alignItems = 'center';
+			fullLoadingOverlay.style.justifyContent = 'center';
+			fullLoadingOverlay.style.animation = 'fadeIn 0.3s ease';
+			
+			const fullLoadingContent = document.createElement('div');
+			fullLoadingContent.style.background = 'white';
+			fullLoadingContent.style.borderRadius = '20px';
+			fullLoadingContent.style.boxShadow = '0 20px 60px rgba(0,0,0,0.25)';
+			fullLoadingContent.style.textAlign = 'center';
+			fullLoadingContent.style.padding = '40px 50px';
+			fullLoadingContent.style.minWidth = '320px';
+			
+			const fullSpinner = document.createElement('div');
+			fullSpinner.style.width = '60px';
+			fullSpinner.style.height = '60px';
+			fullSpinner.style.margin = '0 auto 24px';
+			fullSpinner.style.border = '5px solid #fce7ec';
+			fullSpinner.style.borderTopColor = '#f4a6b7';
+			fullSpinner.style.borderRadius = '50%';
+			fullSpinner.style.animation = 'spin 0.8s linear infinite';
+			
+			const fullSuccessIcon = document.createElement('div');
+			fullSuccessIcon.style.width = '70px';
+			fullSuccessIcon.style.height = '70px';
+			fullSuccessIcon.style.margin = '0 auto 20px';
+			fullSuccessIcon.style.borderRadius = '50%';
+			fullSuccessIcon.style.background = '#f4a6b7';
+			fullSuccessIcon.style.display = 'none';
+			fullSuccessIcon.style.alignItems = 'center';
+			fullSuccessIcon.style.justifyContent = 'center';
+			fullSuccessIcon.style.fontSize = '42px';
+			fullSuccessIcon.style.color = 'white';
+			fullSuccessIcon.style.animation = 'successPop 0.5s ease';
+			fullSuccessIcon.style.boxShadow = '0 8px 24px rgba(244, 166, 183, 0.5)';
+			fullSuccessIcon.textContent = '✓';
+			
+			const fullLoadingText = document.createElement('div');
+			fullLoadingText.style.fontSize = '18px';
+			fullLoadingText.style.fontWeight = '700';
+			fullLoadingText.style.color = '#111';
+			fullLoadingText.style.marginBottom = '8px';
+			fullLoadingText.textContent = 'Subiendo archivos...';
+			
+			const fullLoadingSubtext = document.createElement('div');
+			fullLoadingSubtext.style.fontSize = '13px';
+			fullLoadingSubtext.style.color = '#6b7280';
+			fullLoadingSubtext.style.fontWeight = '500';
+			
+			fullLoadingContent.appendChild(fullSpinner);
+			fullLoadingContent.appendChild(fullSuccessIcon);
+			fullLoadingContent.appendChild(fullLoadingText);
+			fullLoadingContent.appendChild(fullLoadingSubtext);
+			fullLoadingOverlay.appendChild(fullLoadingContent);
+			
+			// Close the upload dialog and show loading overlay
+			cleanup();
+			document.body.appendChild(fullLoadingOverlay);
+
+			try {
+				const note = noteInput.value.trim();
+				let successCount = 0;
+				let errorCount = 0;
+
+				for (let i = 0; i < selectedFiles.length; i++) {
+					const file = selectedFiles[i];
+					fullLoadingSubtext.textContent = `${i + 1} de ${selectedFiles.length}`;
+					
+					try {
+						const reader = new FileReader();
+						const dataUrl = await new Promise((resolve, reject) => {
+							reader.onload = () => resolve(reader.result);
+							reader.onerror = reject;
+							reader.readAsDataURL(file);
+						});
+
+						const body = {
+							_upload_receipt_for: id,
+							image_base64: dataUrl,
+							_actor_name: state.currentUser?.name || ''
+						};
+
+						// Add note only to the first file upload if provided
+						if (note && successCount === 0) {
+							body.note_text = note;
+						}
+
+						await api('POST', API.Sales, body);
+						successCount++;
+					} catch (err) {
+						console.error('Error uploading file:', file.name, err);
+						errorCount++;
+					}
+				}
+
+			if (successCount > 0) {
+				// Update the parent sale's pay_method to 'transf'
+				try {
+					await api('PATCH', API.Sales, {
+						id: id,
+						pay_method: 'transf'
+					});
+					console.log('✅ Updated pay_method to transf for sale', id);
+				} catch (err) {
+					console.error('Error updating pay_method:', err);
+				}
+				
+				// Show success animation
+				fullSpinner.style.display = 'none';
+				fullSuccessIcon.style.display = 'flex';
+				const fileWord = successCount === 1 ? 'archivo' : 'archivos';
+				const uploadedWord = successCount === 1 ? 'subido' : 'subidos';
+				fullLoadingText.textContent = `\u00a1${successCount} ${fileWord} ${uploadedWord}!`;
+				fullLoadingSubtext.textContent = errorCount > 0 ? `\u26a0\ufe0f ${errorCount} con error` : '\u2713 Completado con \u00e9xito';
+				
+				// Wait to show success, then fade out
+				await new Promise(resolve => setTimeout(resolve, 1500));
+				
+				// Fade out the loading overlay
+				fullLoadingOverlay.style.animation = 'fadeOut 0.4s ease';
+				await new Promise(resolve => setTimeout(resolve, 400));
+				
+				// Remove overlay
+				if (fullLoadingOverlay.parentNode) {
+					fullLoadingOverlay.parentNode.removeChild(fullLoadingOverlay);
+				}
+				
+				// Show notification
+				try {
+					notify.success(`${successCount} archivo${successCount > 1 ? 's' : ''} subido${successCount > 1 ? 's' : ''} correctamente`);
+				} catch {}
+				
+				// Stay in sales table - reload to show updated data with smooth transition
+				if (typeof renderSalesView === 'function') {
+					// Smooth fade for table update
+					const mainContent = document.querySelector('.sales-table') || document.querySelector('main') || document.body;
+					if (mainContent) {
+						mainContent.style.transition = 'opacity 0.3s ease';
+						mainContent.style.opacity = '0.7';
+						setTimeout(() => {
+							renderSalesView();
+							setTimeout(() => {
+								mainContent.style.opacity = '1';
+							}, 50);
+						}, 150);
+					} else {
+						setTimeout(() => renderSalesView(), 100);
+					}
+				}
+			} else {
+				throw new Error('No se pudo subir ning\u00fan archivo');
+			}
+		} catch (err) {
+			console.error('Upload error:', err);
+			fullSpinner.style.display = 'none';
+			fullLoadingText.textContent = '\u2717 Error al subir';
+			fullLoadingSubtext.textContent = 'Intenta de nuevo';
+			
+			await new Promise(resolve => setTimeout(resolve, 2000));
+			
+			// Remove loading overlay
+			if (fullLoadingOverlay.parentNode) {
+				fullLoadingOverlay.parentNode.removeChild(fullLoadingOverlay);
+			}
+			
+			try {
+				notify.error('Error al subir archivos');
+			} catch {}
+		}
+		}
+		
+		uploadBtn.addEventListener('click', handleUpload);
+
+		cancelBtn.addEventListener('click', cleanup);
+		overlay.addEventListener('click', (e) => {
+			if (e.target === overlay) cleanup();
+		});
+
+		function cleanup() {
+			if (overlay.parentNode) {
+				overlay.parentNode.removeChild(overlay);
+			}
+		}
+
+		bottomActions.appendChild(cancelBtn);
+		bottomActions.appendChild(uploadMoreBtn);
+		bottomActions.appendChild(uploadBtn);
+
+		// Removed old loading overlay - now using full screen overlay
+		
+		dialog.style.position = 'relative';
+		dialog.appendChild(title);
+		dialog.appendChild(fileInputWrapper);
+		dialog.appendChild(previewContainer);
+		dialog.appendChild(noteInputWrapper);
+		dialog.appendChild(helpText);
+		dialog.appendChild(bottomActions);
+
+		overlay.appendChild(dialog);
+		document.body.appendChild(overlay);
+
 	} catch (err) {
-		console.error('❌ Error in openReceiptUploadPage:', err);
+		console.error('❌ Error in openInlineFileUploadDialog:', err);
+	}
+}
+
+// Gallery with upload option for when receipts already exist
+function openGalleryWithUploadOption(saleId, receipts) {
+	const overlay = document.createElement('div');
+	overlay.style.position = 'fixed';
+	overlay.style.top = '0';
+	overlay.style.left = '0';
+	overlay.style.right = '0';
+	overlay.style.bottom = '0';
+	overlay.style.background = 'rgba(0, 0, 0, 0.4)';
+	overlay.style.zIndex = '9999';
+	overlay.style.display = 'flex';
+	overlay.style.alignItems = 'center';
+	overlay.style.justifyContent = 'center';
+	overlay.style.backdropFilter = 'blur(4px)';
+	overlay.style.animation = 'fadeIn 0.2s ease';
+	
+	const dialog = document.createElement('div');
+	dialog.style.background = 'var(--card, #fff)';
+	dialog.style.borderRadius = '16px';
+	dialog.style.padding = '28px';
+	dialog.style.maxWidth = '700px';
+	dialog.style.width = '90%';
+	dialog.style.boxShadow = '0 20px 60px rgba(0,0,0,0.15)';
+	dialog.style.maxHeight = '90vh';
+	dialog.style.overflowY = 'auto';
+	dialog.style.animation = 'dialogFadeIn 0.2s ease';
+	
+	const title = document.createElement('h1');
+	title.textContent = 'Comprobantes Subidos';
+	title.style.margin = '0 0 24px';
+	title.style.fontSize = '32px';
+	title.style.fontWeight = '800';
+	title.style.color = '#f4a6b7';
+	title.style.textAlign = 'center';
+	title.style.letterSpacing = '0.5px';
+	
+	const gallery = document.createElement('div');
+	gallery.style.display = 'grid';
+	gallery.style.gridTemplateColumns = 'repeat(3, 1fr)';
+	gallery.style.gap = '12px';
+	gallery.style.marginBottom = '24px';
+	
+	receipts.forEach(receipt => {
+		const imgCard = document.createElement('div');
+		imgCard.style.position = 'relative';
+		imgCard.style.aspectRatio = '1';
+		imgCard.style.borderRadius = '12px';
+		imgCard.style.overflow = 'hidden';
+		imgCard.style.border = '3px solid #f4a6b7';
+		imgCard.style.cursor = 'pointer';
+		imgCard.style.boxShadow = '0 4px 12px rgba(244, 166, 183, 0.2)';
+		imgCard.style.transition = 'transform 0.2s ease';
+		
+		const img = document.createElement('img');
+		img.src = receipt.image_base64;
+		img.style.width = '100%';
+		img.style.height = '100%';
+		img.style.objectFit = 'cover';
+		
+		imgCard.addEventListener('mouseenter', () => {
+			imgCard.style.transform = 'scale(1.05)';
+			imgCard.style.boxShadow = '0 8px 20px rgba(244, 166, 183, 0.4)';
+		});
+		imgCard.addEventListener('mouseleave', () => {
+			imgCard.style.transform = 'scale(1)';
+			imgCard.style.boxShadow = '0 4px 12px rgba(244, 166, 183, 0.2)';
+		});
+		
+		imgCard.addEventListener('click', () => {
+			const lightbox = document.createElement('div');
+			lightbox.style.position = 'fixed';
+			lightbox.style.top = '0';
+			lightbox.style.left = '0';
+			lightbox.style.width = '100%';
+			lightbox.style.height = '100%';
+			lightbox.style.background = 'rgba(0,0,0,0.95)';
+			lightbox.style.zIndex = '100000';
+			lightbox.style.display = 'flex';
+			lightbox.style.alignItems = 'center';
+			lightbox.style.justifyContent = 'center';
+			lightbox.style.cursor = 'pointer';
+			lightbox.style.animation = 'fadeIn 0.2s ease';
+			
+			const fullImg = document.createElement('img');
+			fullImg.src = receipt.image_base64;
+			fullImg.style.maxWidth = '95%';
+			fullImg.style.maxHeight = '95%';
+			fullImg.style.objectFit = 'contain';
+			
+			lightbox.appendChild(fullImg);
+			document.body.appendChild(lightbox);
+			
+			lightbox.addEventListener('click', () => {
+				lightbox.style.animation = 'fadeOut 0.2s ease';
+				setTimeout(() => {
+					if (lightbox.parentNode) {
+						lightbox.parentNode.removeChild(lightbox);
+					}
+				}, 200);
+			});
+		});
+		
+		imgCard.appendChild(img);
+		gallery.appendChild(imgCard);
+	});
+	
+	const actions = document.createElement('div');
+	actions.style.display = 'flex';
+	actions.style.gap = '12px';
+	actions.style.justifyContent = 'center';
+	actions.style.flexWrap = 'wrap';
+	
+	const uploadMoreBtn = document.createElement('button');
+	uploadMoreBtn.className = 'btn press-btn btn-gold';
+	uploadMoreBtn.textContent = '➕ Subir Más Archivos';
+	uploadMoreBtn.style.padding = '14px 32px';
+	uploadMoreBtn.style.borderRadius = '12px';
+	uploadMoreBtn.style.border = 'none';
+	uploadMoreBtn.style.background = 'linear-gradient(135deg, #f4a6b7 0%, #e885a0 100%)';
+	uploadMoreBtn.style.color = '#fff';
+	uploadMoreBtn.style.cursor = 'pointer';
+	uploadMoreBtn.style.fontSize = '16px';
+	uploadMoreBtn.style.fontWeight = '700';
+	uploadMoreBtn.style.transition = 'all 0.3s ease';
+	uploadMoreBtn.style.textTransform = 'uppercase';
+	uploadMoreBtn.style.letterSpacing = '0.5px';
+	uploadMoreBtn.addEventListener('click', () => {
+		console.log('🔷 Click en Subir Más Archivos, saleId:', saleId);
+		cleanup();
+		// Give more time for cleanup animation
+		setTimeout(() => {
+			console.log('🔷 Opening inline upload dialog');
+			openInlineFileUploadDialog(saleId);
+		}, 300);
+	});
+	uploadMoreBtn.addEventListener('mouseenter', () => {
+		uploadMoreBtn.style.background = 'linear-gradient(135deg, #e885a0 0%, #d66686 100%)';
+		uploadMoreBtn.style.transform = 'translateY(-3px) scale(1.02)';
+		uploadMoreBtn.style.boxShadow = '0 8px 20px rgba(244, 166, 183, 0.6)';
+	});
+	uploadMoreBtn.addEventListener('mouseleave', () => {
+		uploadMoreBtn.style.background = 'linear-gradient(135deg, #f4a6b7 0%, #e885a0 100%)';
+		uploadMoreBtn.style.transform = 'translateY(0) scale(1)';
+		uploadMoreBtn.style.boxShadow = 'none';
+	});
+	uploadMoreBtn.addEventListener('mousedown', () => {
+		uploadMoreBtn.style.transform = 'translateY(0) scale(0.97)';
+	});
+	uploadMoreBtn.addEventListener('mouseup', () => {
+		uploadMoreBtn.style.transform = 'translateY(-3px) scale(1.02)';
+	});
+	
+	const closeBtn = document.createElement('button');
+	closeBtn.className = 'btn press-btn';
+	closeBtn.textContent = 'Cerrar';
+	closeBtn.style.padding = '14px 28px';
+	closeBtn.style.borderRadius = '12px';
+	closeBtn.style.border = '2px solid #e5e7eb';
+	closeBtn.style.background = 'white';
+	closeBtn.style.cursor = 'pointer';
+	closeBtn.style.fontSize = '15px';
+	closeBtn.style.fontWeight = '600';
+	closeBtn.style.transition = 'all 0.3s ease';
+	closeBtn.style.color = '#6b7280';
+	closeBtn.addEventListener('click', cleanup);
+	closeBtn.addEventListener('mouseenter', () => {
+		closeBtn.style.background = '#f9fafb';
+		closeBtn.style.borderColor = '#d1d5db';
+		closeBtn.style.transform = 'translateY(-2px)';
+		closeBtn.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+	});
+	closeBtn.addEventListener('mouseleave', () => {
+		closeBtn.style.background = 'white';
+		closeBtn.style.borderColor = '#e5e7eb';
+		closeBtn.style.transform = 'translateY(0)';
+		closeBtn.style.boxShadow = 'none';
+	});
+	
+	actions.appendChild(closeBtn);
+	actions.appendChild(uploadMoreBtn);
+	
+	dialog.appendChild(title);
+	dialog.appendChild(gallery);
+	dialog.appendChild(actions);
+	
+	overlay.appendChild(dialog);
+	document.body.appendChild(overlay);
+	
+	overlay.addEventListener('click', (e) => {
+		if (e.target === overlay) cleanup();
+	});
+	
+	function cleanup() {
+		if (overlay.parentNode) {
+			overlay.parentNode.removeChild(overlay);
+		}
 	}
 }
 
@@ -8506,4 +9588,4 @@ function renderChangeMarkerIfNeeded(tdEl, saleId, field) {
 
 // (mobile bounce limiter removed per user preference);
 
-// (mobile bounce limiter removed per user preference)
+// (mobile bounce limiter removed per user preference)user preference) preference)
