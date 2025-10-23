@@ -25,13 +25,41 @@ export async function handler(event) {
 		if (event.httpMethod === 'OPTIONS') return json({ ok: true });
 		switch (event.httpMethod) {
 			case 'GET': {
-				// List deliveries with totals per dessert
 				let raw = '';
 				if (event.rawQuery && typeof event.rawQuery === 'string') raw = event.rawQuery;
 				else if (event.queryStringParameters && typeof event.queryStringParameters === 'object') {
 					raw = Object.entries(event.queryStringParameters).map(([k,v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v ?? '')}`).join('&');
 				}
 				const params = new URLSearchParams(raw);
+				
+				// Check if this is a request for seller assignments
+				const deliveryId = params.get('delivery_id');
+				if (deliveryId) {
+					// Return seller assignments for a specific delivery
+					const id = Number(deliveryId) || 0;
+					if (!id) return json({ error: 'delivery_id inválido' }, 400);
+					
+					const rows = await sql`
+						SELECT 
+							dsi.delivery_id,
+							dsi.seller_id,
+							s.name AS seller_name,
+							COALESCE(SUM(CASE WHEN des.short_code='arco' THEN dsi.quantity END),0)::int AS arco,
+							COALESCE(SUM(CASE WHEN des.short_code='melo' THEN dsi.quantity END),0)::int AS melo,
+							COALESCE(SUM(CASE WHEN des.short_code='mara' THEN dsi.quantity END),0)::int AS mara,
+							COALESCE(SUM(CASE WHEN des.short_code='oreo' THEN dsi.quantity END),0)::int AS oreo,
+							COALESCE(SUM(CASE WHEN des.short_code='nute' THEN dsi.quantity END),0)::int AS nute
+						FROM delivery_seller_items dsi
+						JOIN sellers s ON s.id = dsi.seller_id
+						JOIN desserts des ON des.id = dsi.dessert_id
+						WHERE dsi.delivery_id = ${id}
+						GROUP BY dsi.delivery_id, dsi.seller_id, s.name
+						ORDER BY s.name ASC
+					`;
+					return json(rows);
+				}
+				
+				// List deliveries with totals per dessert
 				const start = (params.get('start') || '').toString().slice(0,10) || null;
 				const end = (params.get('end') || '').toString().slice(0,10) || null;
 				let rows;

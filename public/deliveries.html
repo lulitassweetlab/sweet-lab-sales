@@ -78,12 +78,29 @@
 		async function load() {
 			let rows = [];
 			try { rows = await api('GET', '/api/deliveries'); } catch {}
+			// Load seller assignments for each delivery
+			for (const r of rows) {
+				try {
+					const sellers = await api('GET', `/api/deliveries?delivery_id=${r.id}`);
+					r.sellers = Array.isArray(sellers) ? sellers : [];
+				} catch {
+					r.sellers = [];
+				}
+			}
 			render(rows);
 		}
 
 		function render(rows) {
 			tbody.innerHTML = '';
-			for (const r of rows) tbody.appendChild(renderDeliveryRow(r));
+			for (const r of rows) {
+				tbody.appendChild(renderDeliveryRow(r));
+				// Render seller rows below each delivery
+				if (r.sellers && Array.isArray(r.sellers)) {
+					for (const s of r.sellers) {
+						tbody.appendChild(renderSellerRow(s, r));
+					}
+				}
+			}
 		}
 
 		function formatIsoDate(value) {
@@ -108,9 +125,246 @@
 			const edit = document.createElement('button'); edit.className = 'press-btn'; edit.textContent = 'Editar';
 			const notes = document.createElement('button'); notes.className = 'press-btn'; notes.textContent = 'Notas';
 			const addSeller = document.createElement('button'); addSeller.className = 'press-btn'; addSeller.textContent = 'Agregar vendedor';
+			
+			// Add event listener for "Agregar vendedor" button
+			addSeller.addEventListener('click', async () => {
+				if (!requireAdmin()) return;
+				const rect = addSeller.getBoundingClientRect();
+				await openAddSellerPopover(r.id, rect.left + rect.width/2, rect.bottom + 8);
+			});
+			
 			act.style.display = 'flex'; act.style.gap = '6px'; act.append(edit, notes, addSeller);
 			tr.append(d, a, m, ma, o, n, act);
 			return tr;
+		}
+
+		function renderSellerRow(s, delivery) {
+			const tr = document.createElement('tr');
+			tr.style.backgroundColor = '#f5f5f5';
+			tr.style.fontStyle = 'italic';
+			
+			const sellerCell = document.createElement('td');
+			sellerCell.textContent = `  → ${s.seller_name}`;
+			sellerCell.style.paddingLeft = '20px';
+			
+			const a = document.createElement('td'); a.textContent = s.arco ?? 0; a.className = 'col-qty';
+			const m = document.createElement('td'); m.textContent = s.melo ?? 0; m.className = 'col-qty';
+			const ma = document.createElement('td'); ma.textContent = s.mara ?? 0; ma.className = 'col-qty';
+			const o = document.createElement('td'); o.textContent = s.oreo ?? 0; o.className = 'col-qty';
+			const n = document.createElement('td'); n.textContent = s.nute ?? 0; n.className = 'col-qty';
+			
+			const actCell = document.createElement('td');
+			const editBtn = document.createElement('button');
+			editBtn.className = 'press-btn';
+			editBtn.textContent = 'Editar';
+			editBtn.addEventListener('click', async () => {
+				if (!requireAdmin()) return;
+				const rect = editBtn.getBoundingClientRect();
+				await openAddSellerPopover(delivery.id, rect.left + rect.width/2, rect.bottom + 8, s);
+			});
+			actCell.appendChild(editBtn);
+			
+			tr.append(sellerCell, a, m, ma, o, n, actCell);
+			return tr;
+		}
+
+		async function openAddSellerPopover(deliveryId, anchorX, anchorY, existingSeller = null) {
+			try {
+				// Load sellers and desserts
+				let sellers = [];
+				let desserts = [];
+				try { 
+					sellers = await api('GET', '/api/sellers'); 
+					sellers = Array.isArray(sellers) ? sellers : [];
+				} catch {}
+				try { 
+					const r = await api('GET', '/api/desserts'); 
+					desserts = Array.isArray(r) ? r : [];
+				} catch {}
+
+				const pop = document.createElement('div');
+				pop.className = 'new-sale-popover';
+				pop.style.position = 'fixed';
+				const isSmall = window.matchMedia('(max-width: 640px)').matches;
+				if (typeof anchorX === 'number' && typeof anchorY === 'number' && !isSmall) {
+					pop.style.left = anchorX + 'px';
+					pop.style.top = anchorY + 'px';
+					pop.style.transform = 'translate(-50%, 0)';
+				} else {
+					pop.style.left = '50%';
+					pop.style.top = '20%';
+					pop.style.transform = 'translate(-50%, 0)';
+				}
+
+				const title = document.createElement('h4');
+				title.style.margin = '0 0 8px 0';
+				title.textContent = existingSeller ? 'Editar asignación' : 'Agregar vendedor a entrega';
+
+				const grid = document.createElement('div');
+				grid.className = 'new-sale-grid';
+
+				function appendRow(labelText, inputEl) {
+					const left = document.createElement('div'); left.className = 'new-sale-cell new-sale-left';
+					const right = document.createElement('div'); right.className = 'new-sale-cell new-sale-right';
+					const lbl = document.createElement('div'); lbl.className = 'new-sale-label-text'; lbl.textContent = labelText;
+					left.appendChild(lbl);
+					right.appendChild(inputEl);
+					right.addEventListener('mousedown', (ev) => { if (ev.target !== inputEl) { ev.preventDefault(); try { inputEl.focus(); inputEl.select?.(); } catch {} } });
+					right.addEventListener('click', (ev) => { if (ev.target !== inputEl) { ev.preventDefault(); try { inputEl.focus(); inputEl.select?.(); } catch {} } });
+					grid.appendChild(left);
+					grid.appendChild(right);
+				}
+
+				// Seller dropdown
+				const sellerSelect = document.createElement('select');
+				sellerSelect.className = 'input-cell';
+				const defaultOption = document.createElement('option');
+				defaultOption.value = '';
+				defaultOption.textContent = 'Seleccionar vendedor...';
+				sellerSelect.appendChild(defaultOption);
+				
+				for (const s of sellers) {
+					const opt = document.createElement('option');
+					opt.value = s.id;
+					opt.textContent = s.name;
+					if (existingSeller && existingSeller.seller_id === s.id) {
+						opt.selected = true;
+					}
+					sellerSelect.appendChild(opt);
+				}
+				appendRow('Vendedor', sellerSelect);
+
+				// Dessert quantity inputs
+				const qtyInputs = {};
+				for (const d of desserts) {
+					if (d.is_active === false) continue;
+					const input = document.createElement('input');
+					input.type = 'number'; 
+					input.min = '0'; 
+					input.step = '1'; 
+					input.inputMode = 'numeric'; 
+					input.placeholder = '0';
+					input.className = 'input-cell input-qty';
+					
+					// Pre-fill if editing
+					if (existingSeller) {
+						const val = existingSeller[d.short_code];
+						if (val !== undefined && val !== null) {
+							input.value = val;
+						}
+					}
+					
+					qtyInputs[d.short_code] = input;
+					appendRow(d.name, input);
+				}
+
+				const actions = document.createElement('div'); 
+				actions.className = 'confirm-actions';
+				const cancelBtn = document.createElement('button'); 
+				cancelBtn.type = 'button'; 
+				cancelBtn.className = 'press-btn'; 
+				cancelBtn.textContent = 'Cancelar';
+				const saveBtn = document.createElement('button'); 
+				saveBtn.type = 'button'; 
+				saveBtn.className = 'press-btn btn-primary'; 
+				saveBtn.textContent = 'Guardar';
+				actions.append(cancelBtn, saveBtn);
+
+				pop.append(title, grid, actions);
+				pop.style.visibility = 'hidden'; 
+				pop.style.opacity = '0'; 
+				pop.style.transition = 'opacity 160ms ease-out';
+				document.body.appendChild(pop);
+
+				function clampWithinViewport() {
+					try {
+						const margin = 8; 
+						const vw = window.innerWidth; 
+						const vh = window.innerHeight; 
+						const r = pop.getBoundingClientRect();
+						const baseX = (typeof anchorX === 'number') ? anchorX : (vw / 2);
+						const baseY = (typeof anchorY === 'number') ? anchorY : (vh / 2);
+						let left = Math.round(baseX - r.width / 2);
+						let topBelow = Math.round(baseY + 8); 
+						let topAbove = Math.round(baseY - 8 - r.height); 
+						let top = topBelow;
+						if (top + r.height > vh - margin) top = topAbove;
+						if (top < margin) top = margin;
+						if (top + r.height > vh - margin) top = Math.max(margin, vh - margin - r.height);
+						if (left < margin) left = margin;
+						if (left + r.width > vw - margin) left = Math.max(margin, vw - margin - r.width);
+						pop.style.left = left + 'px'; 
+						pop.style.top = top + 'px'; 
+						pop.style.transform = 'none';
+					} catch {}
+				}
+				clampWithinViewport(); 
+				pop.style.visibility = 'visible'; 
+				requestAnimationFrame(() => { pop.style.opacity = '1'; });
+
+				function cleanup(){ 
+					document.removeEventListener('mousedown', outside, true); 
+					document.removeEventListener('touchstart', outside, true); 
+					if (pop.parentNode) pop.parentNode.removeChild(pop); 
+				}
+				function outside(ev){ 
+					const t = ev.target; 
+					if (!pop.contains(t)) cleanup(); 
+				}
+				setTimeout(() => { 
+					document.addEventListener('mousedown', outside, true); 
+					document.addEventListener('touchstart', outside, true); 
+				}, 0);
+				cancelBtn.addEventListener('click', cleanup);
+
+				setTimeout(() => { try { sellerSelect.focus(); } catch {} }, 0);
+
+				async function doSave(){
+					try {
+						saveBtn.disabled = true; 
+						cancelBtn.disabled = true;
+						
+						const sellerId = sellerSelect.value;
+						if (!sellerId) {
+							alert('Por favor selecciona un vendedor');
+							saveBtn.disabled = false;
+							cancelBtn.disabled = false;
+							return;
+						}
+
+						const items = {};
+						for (const [code, input] of Object.entries(qtyInputs)) { 
+							const q = Math.max(0, parseInt(input?.value || '0', 10) || 0); 
+							items[code] = q;
+						}
+						
+						const payload = { 
+							id: deliveryId, 
+							seller_id: parseInt(sellerId, 10),
+							items 
+						};
+						
+						await api('PATCH', '/api/deliveries', payload);
+						cleanup(); 
+						await load();
+					} catch (e) {
+						alert('No se pudo guardar: ' + (e?.message || e));
+						saveBtn.disabled = false; 
+						cancelBtn.disabled = false;
+					}
+				}
+				saveBtn.addEventListener('click', doSave);
+				Object.values(qtyInputs).forEach((el) => { 
+					el.addEventListener('keydown', (ev) => { 
+						if (ev.key === 'Enter') { 
+							ev.preventDefault(); 
+							doSave(); 
+						} 
+					}); 
+				});
+			} catch (e) {
+				alert('No se pudo abrir el formulario: ' + (e?.message || e));
+			}
 		}
 
 		async function openProductionPopover(anchorX, anchorY) {
