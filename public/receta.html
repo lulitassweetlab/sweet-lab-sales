@@ -81,6 +81,27 @@
 			font-size: 13px;
 			color: var(--muted);
 		}
+		
+		/* Recipe ingredient table styles */
+		.measure-section table td {
+			vertical-align: middle;
+		}
+		
+		.measure-section table td > div {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			justify-content: flex-end;
+		}
+		
+		/* Inventory button states */
+		button[data-used="true"] {
+			cursor: not-allowed;
+		}
+		
+		button[data-used="true"]:hover {
+			opacity: 0.9;
+		}
 	</style>
 </head>
 <body>
@@ -256,6 +277,46 @@
 	function readHistory(){ try { return JSON.parse(localStorage.getItem('timesHistory') || '[]') || []; } catch { return []; } }
 	function writeHistory(arr){ try { localStorage.setItem('timesHistory', JSON.stringify(arr)); } catch {} }
 	function fmtMs(ms){ const total=Math.max(0,Math.floor(ms/1000)); const h=Math.floor(total/3600); const m=Math.floor((total%3600)/60); const s=total%60; const pad=n=>String(n).padStart(2,'0'); return (h>0?`${h}:`:'')+`${pad(m)}:${pad(s)}`; }
+	
+	// Show inventory update popover
+	function showInventoryPopover(targetElement) {
+		const popover = document.createElement('div');
+		popover.className = 'inventory-popover';
+		popover.textContent = '✅ Inventario actualizado';
+		popover.style.position = 'fixed';
+		popover.style.background = '#4CAF50';
+		popover.style.color = 'white';
+		popover.style.padding = '8px 16px';
+		popover.style.borderRadius = '8px';
+		popover.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+		popover.style.zIndex = '10000';
+		popover.style.fontSize = '14px';
+		popover.style.fontWeight = '500';
+		popover.style.opacity = '0';
+		popover.style.transition = 'opacity 0.3s ease';
+		
+		// Position near the button
+		const rect = targetElement.getBoundingClientRect();
+		popover.style.left = (rect.right + 10) + 'px';
+		popover.style.top = (rect.top + (rect.height / 2) - 20) + 'px';
+		
+		document.body.appendChild(popover);
+		
+		// Animate in
+		requestAnimationFrame(() => {
+			popover.style.opacity = '1';
+		});
+		
+		// Remove after 2 seconds
+		setTimeout(() => {
+			popover.style.opacity = '0';
+			setTimeout(() => {
+				if (popover.parentNode) {
+					popover.parentNode.removeChild(popover);
+				}
+			}, 300);
+		}, 2000);
+	}
 
 		// Global container for active timer buttons (right side)
 		let activeTimersContainer = null;
@@ -938,7 +999,106 @@
                         const per = Number(it.qty_per_unit || 0) || 0;
                         const adj = Number(it.adjustment || 0) || 0;
                         const total = (per * qty) + adj;
-                        const tdQ = document.createElement('td'); tdQ.textContent = formatter.format(total); tdQ.style.textAlign='right'; tdQ.style.padding='5px 4px';
+                        
+                        // Editable quantity cell with original value shown
+                        const tdQ = document.createElement('td'); 
+                        tdQ.style.textAlign='right'; 
+                        tdQ.style.padding='5px 4px';
+                        
+                        // Container div for flex layout
+                        const qtyContainer = document.createElement('div');
+                        qtyContainer.style.display='flex';
+                        qtyContainer.style.alignItems='center';
+                        qtyContainer.style.gap='8px';
+                        qtyContainer.style.justifyContent='flex-end';
+                        
+                        // Editable input
+                        const qtyInput = document.createElement('input');
+                        qtyInput.type = 'number';
+                        qtyInput.step = '0.1';
+                        qtyInput.min = '0';
+                        qtyInput.value = formatter.format(total);
+                        qtyInput.className = 'input-cell';
+                        qtyInput.style.width = '80px';
+                        qtyInput.style.textAlign = 'right';
+                        qtyInput.dataset.original = formatter.format(total);
+                        qtyInput.dataset.ingredient = it.ingredient;
+                        
+                        // Show original if different
+                        const originalSpan = document.createElement('span');
+                        originalSpan.style.fontSize = '11px';
+                        originalSpan.style.opacity = '0.6';
+                        originalSpan.style.display = 'none';
+                        originalSpan.style.whiteSpace = 'nowrap';
+                        originalSpan.textContent = `(orig: ${formatter.format(total)})`;
+                        
+                        qtyInput.addEventListener('input', () => {
+                            const current = parseFloat(qtyInput.value) || 0;
+                            const orig = parseFloat(qtyInput.dataset.original) || 0;
+                            if (Math.abs(current - orig) > 0.01) {
+                                originalSpan.style.display = 'inline';
+                            } else {
+                                originalSpan.style.display = 'none';
+                            }
+                        });
+                        
+                        // Discount button
+                        const discountBtn = document.createElement('button');
+                        discountBtn.className = 'press-btn';
+                        discountBtn.textContent = '📦';
+                        discountBtn.title = 'Descontar del inventario';
+                        discountBtn.style.padding = '4px 8px';
+                        discountBtn.style.fontSize = '16px';
+                        discountBtn.style.minWidth = '36px';
+                        discountBtn.dataset.used = 'false';
+                        
+                        discountBtn.addEventListener('click', async () => {
+                            if (discountBtn.dataset.used === 'true') return;
+                            
+                            const qtyToDiscount = parseFloat(qtyInput.value) || 0;
+                            if (qtyToDiscount <= 0) {
+                                alert('La cantidad debe ser mayor a 0');
+                                return;
+                            }
+                            
+                            discountBtn.disabled = true;
+                            discountBtn.textContent = '⏳';
+                            
+                            try {
+                                const response = await fetch('/api/inventory', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        action: 'ajuste',
+                                        ingredient: it.ingredient,
+                                        qty: -qtyToDiscount,
+                                        note: `Producción: ${dessertName}`,
+                                        actor_name: actor || null
+                                    })
+                                });
+                                
+                                if (!response.ok) throw new Error('Error al actualizar inventario');
+                                
+                                // Mark as used
+                                discountBtn.dataset.used = 'true';
+                                discountBtn.style.background = '#4CAF50';
+                                discountBtn.style.color = 'white';
+                                discountBtn.textContent = '✓';
+                                discountBtn.title = 'Ya descontado';
+                                
+                                // Show success popover
+                                showInventoryPopover(discountBtn);
+                                
+                            } catch (error) {
+                                console.error('Error:', error);
+                                discountBtn.disabled = false;
+                                discountBtn.textContent = '📦';
+                                alert('Error al actualizar el inventario');
+                            }
+                        });
+                        
+                        qtyContainer.append(qtyInput, originalSpan, discountBtn);
+                        tdQ.appendChild(qtyContainer);
 					tr.append(tdCheck, tdN, tdQ);
 					stepRows.push(tr);
 					tbody.appendChild(tr);
