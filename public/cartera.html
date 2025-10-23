@@ -505,6 +505,19 @@
 			countLabel.textContent = 'Cargando…';
 			dataset = [];
 			seenSaleIds.clear();
+			
+			// Auto-sync receipt payments to sales - ONLY ONCE EVER (permanent)
+			const syncKey = 'cartera_receipts_synced_v1';
+			if (!localStorage.getItem(syncKey)) {
+				try {
+					await fetchJSON(withActor('/api/sales?sync_receipts=true'));
+					localStorage.setItem(syncKey, new Date().toISOString());
+				} catch (err) {
+					console.warn('Auto-sync failed:', err);
+					// Don't mark as synced if it failed, so it can retry next time
+				}
+			}
+			
 			sellersList = await fetchJSON(withActor('/api/sellers'));
 			populateFilters();
 			countLabel.textContent = `Vendedores: ${sellersList.length} · Buscando ventas…`;
