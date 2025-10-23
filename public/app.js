@@ -7689,6 +7689,7 @@ async function openReceiptsGalleryPopover(saleId, anchorX, anchorY) {
 			e.stopPropagation(); // Prevent closing the gallery popover
 			// Open full-size view
 			const lightbox = document.createElement('div');
+			lightbox.className = 'image-lightbox'; // Add class for identification
 			lightbox.style.position = 'fixed';
 			lightbox.style.top = '0';
 			lightbox.style.left = '0';
@@ -7707,11 +7708,17 @@ async function openReceiptsGalleryPopover(saleId, anchorX, anchorY) {
 			fullImg.style.objectFit = 'contain';
 			lightbox.appendChild(fullImg);
 			document.body.appendChild(lightbox);
-			lightbox.addEventListener('click', (e) => {
+			
+			// Close lightbox on click (both mousedown and click for safety)
+			const closeLightbox = (e) => {
 				e.stopPropagation(); // Prevent event from reaching gallery popover
 				if (lightbox.parentNode) {
 					document.body.removeChild(lightbox);
 				}
+			};
+			lightbox.addEventListener('click', closeLightbox);
+			lightbox.addEventListener('mousedown', (e) => {
+				e.stopPropagation(); // Prevent triggering gallery's outside listener
 			});
 		});
 			imgContainer.appendChild(img);
@@ -7915,13 +7922,14 @@ async function openReceiptsGalleryPopover(saleId, anchorX, anchorY) {
 			if (pop.parentNode) pop.parentNode.removeChild(pop);
 		}
 
-		function outside(ev) {
-			// Don't close if clicking inside the payment date dialog
-			const isInsidePaymentDialog = ev.target.closest('.payment-date-popover');
-			if (!pop.contains(ev.target) && !isInsidePaymentDialog) {
-				cleanup();
-			}
+	function outside(ev) {
+		// Don't close if clicking inside the payment date dialog or image lightbox
+		const isInsidePaymentDialog = ev.target.closest('.payment-date-popover');
+		const isInsideLightbox = ev.target.closest('.image-lightbox');
+		if (!pop.contains(ev.target) && !isInsidePaymentDialog && !isInsideLightbox) {
+			cleanup();
 		}
+	}
 
 		setTimeout(() => {
 			document.addEventListener('mousedown', outside, true);
