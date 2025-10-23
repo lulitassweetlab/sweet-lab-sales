@@ -1722,13 +1722,21 @@ function renderTable() {
 					if (current === o.v) opt.selected = true;
 					sel.appendChild(opt);
 				}
-                // Lock editing for non-admins once a method is chosen, except when it's 'entregado'
+                // Lock editing for non-admins once a method is chosen, except when it's 'entregado' or 'transf'
                 const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
                 const pmNormalized = String(current || '').trim().toLowerCase();
-                const shouldLock = pmNormalized !== '' && pmNormalized !== 'entregado';
+                const shouldLock = pmNormalized !== '' && pmNormalized !== 'entregado' && pmNormalized !== 'transf';
                 if (!isAdminUser && shouldLock) {
                     sel.disabled = true;
                     wrap.classList.add('locked');
+                }
+                // For transf, keep it enabled but just show as readonly visually
+                // This allows the click listeners to work properly
+                if (!isAdminUser && pmNormalized === 'transf') {
+                    // Keep select enabled so wrap clicks work
+                    sel.disabled = false;
+                    // Prevent actual changes via change event
+                    wrap.dataset.readonlyTransf = 'true';
                 }
 				function applyPayClass() {
 					wrap.classList.remove('placeholder','method-efectivo','method-transf','method-marce','method-jorge','method-jorgebank','method-entregado');
@@ -1743,6 +1751,11 @@ function renderTable() {
 				}
 				applyPayClass();
 				sel.addEventListener('change', async () => {
+					// Prevent changes if readonly transf
+					if (wrap.dataset.readonlyTransf === 'true') {
+						sel.value = current; // Revert to original value
+						return;
+					}
 					await savePayMethod(tr, sale.id, sel.value);
 					try {
 						const val = (sel.value || '').toString();
@@ -1756,9 +1769,7 @@ function renderTable() {
 				});
             wrap.addEventListener('click', async (e) => { 
                 e.stopPropagation(); 
-                const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
                 const pm = String(sale.pay_method || '').trim().replace(/\.$/, '').toLowerCase();
-                const locked = pm !== '' && pm !== 'entregado';
                 
                 // If jorgebank (all receipts verified), open gallery for everyone
                 if (pm === 'jorgebank') {
@@ -1772,16 +1783,19 @@ function renderTable() {
                     openInlineFileUploadDialog(sale.id);
                     return;
                 }
-                if (!isAdminUser && locked) return; // block opening menu for non-admins, allow when 'entregado'
+                
+                // For other methods, check permissions
+                const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
+                const locked = pm !== '' && pm !== 'entregado';
+                if (!isAdminUser && locked) return; // block opening menu for non-admins
+                
                 openPayMenu(wrap, sel, e.clientX, e.clientY); 
             });
 				wrap.tabIndex = 0;
             wrap.addEventListener('keydown', async (e) => { 
                 if (e.key === 'Enter' || e.key === ' ') { 
                     e.preventDefault(); 
-                    const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
                     const pm = String(sale.pay_method || '').trim().replace(/\.$/, '').toLowerCase();
-                    const locked = pm !== '' && pm !== 'entregado';
                     
                     // If jorgebank (all receipts verified), open gallery
                     if (pm === 'jorgebank') {
@@ -1797,7 +1811,12 @@ function renderTable() {
                         openInlineFileUploadDialog(sale.id);
                         return;
                     }
+                    
+                    // For other methods, check permissions
+                    const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
+                    const locked = pm !== '' && pm !== 'entregado';
                     if (!isAdminUser && locked) return; 
+                    
                     openPayMenu(wrap, sel); 
                 } 
             });
