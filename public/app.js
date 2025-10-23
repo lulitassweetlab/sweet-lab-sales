@@ -7988,6 +7988,8 @@ async function openInlineFileUploadDialog(saleId) {
 			} else {
 				selectedFiles = Array.from(files);
 			}
+			
+			// Smooth transition
 			previewContainer.innerHTML = '';
 			previewGrid.innerHTML = '';
 			previewContainer.appendChild(previewTitle);
@@ -8008,9 +8010,15 @@ async function openInlineFileUploadDialog(saleId) {
 				imgContainer.style.overflow = 'hidden';
 				imgContainer.style.boxShadow = '0 4px 12px rgba(244, 166, 183, 0.2)';
 				imgContainer.style.aspectRatio = '1';
-				imgContainer.style.animation = 'fadeIn 0.3s ease';
 				imgContainer.style.opacity = '0';
-				setTimeout(() => { imgContainer.style.opacity = '1'; }, 10);
+				imgContainer.style.transform = 'scale(0.9)';
+				imgContainer.style.transition = 'all 0.3s ease';
+				requestAnimationFrame(() => {
+					requestAnimationFrame(() => {
+						imgContainer.style.opacity = '1';
+						imgContainer.style.transform = 'scale(1)';
+					});
+				});
 
 					const img = document.createElement('img');
 					img.src = e.target.result;
@@ -8089,24 +8097,45 @@ async function openInlineFileUploadDialog(saleId) {
 					});
 					removeBtn.addEventListener('click', (e) => {
 						e.stopPropagation();
-						// Remove this specific file
-						selectedFiles.splice(index, 1);
 						
-						// Re-render the preview without triggering change event
-						previewGrid.innerHTML = '';
+						// Animate out smoothly
+						imgContainer.style.opacity = '0';
+						imgContainer.style.transform = 'scale(0.7)';
 						
-						if (selectedFiles.length === 0) {
-							previewContainer.style.display = 'none';
-							previewTitle.style.display = 'none';
-							uploadMoreBtn.style.display = 'none';
-							uploadBtn.disabled = true;
-							uploadBtn.style.opacity = '0.5';
-							uploadBtn.style.cursor = 'not-allowed';
-							fileInput.value = '';
-							return;
-						}
-						
-						// Re-render all remaining files
+						setTimeout(() => {
+							// Remove this specific file
+							selectedFiles.splice(index, 1);
+							
+							// Update button text
+							if (selectedFiles.length === 0) {
+								previewContainer.style.opacity = '0';
+								setTimeout(() => {
+									previewContainer.style.display = 'none';
+									previewTitle.style.display = 'none';
+									uploadMoreBtn.style.display = 'none';
+									uploadBtn.disabled = true;
+									uploadBtn.style.opacity = '0.5';
+									uploadBtn.style.cursor = 'not-allowed';
+									uploadBtn.textContent = 'Subir Archivos';
+									previewGrid.innerHTML = '';
+									fileInput.value = '';
+									previewContainer.style.opacity = '1';
+								}, 300);
+								return;
+							}
+							
+							uploadBtn.textContent = `✓ Subir ${selectedFiles.length} Archivo${selectedFiles.length > 1 ? 's' : ''}`;
+							
+							// Fade out all current items
+							const allItems = Array.from(previewGrid.children);
+							allItems.forEach(item => {
+								item.style.opacity = '0';
+								item.style.transform = 'scale(0.9)';
+							});
+							
+							setTimeout(() => {
+								previewGrid.innerHTML = '';
+								// Re-render all remaining files
 						selectedFiles.forEach((f, idx) => {
 							const reader = new FileReader();
 							reader.onload = (ev) => {
@@ -8119,9 +8148,15 @@ async function openInlineFileUploadDialog(saleId) {
 							container.style.overflow = 'hidden';
 							container.style.boxShadow = '0 4px 12px rgba(244, 166, 183, 0.2)';
 							container.style.aspectRatio = '1';
-							container.style.animation = 'fadeIn 0.3s ease';
 							container.style.opacity = '0';
-							setTimeout(() => { container.style.opacity = '1'; }, 10);
+							container.style.transform = 'scale(0.9)';
+							container.style.transition = 'all 0.3s ease';
+							requestAnimationFrame(() => {
+								requestAnimationFrame(() => {
+									container.style.opacity = '1';
+									container.style.transform = 'scale(1)';
+								});
+							});
 
 								const i = document.createElement('img');
 								i.src = ev.target.result;
@@ -8218,6 +8253,8 @@ async function openInlineFileUploadDialog(saleId) {
 							};
 							reader.readAsDataURL(f);
 						});
+							}, 300); // Close setTimeout for fade out
+						}, 300); // Close setTimeout for imgContainer removal
 					});
 
 					imgContainer.appendChild(img);
@@ -8367,9 +8404,11 @@ async function openInlineFileUploadDialog(saleId) {
 					notify.success(`${successCount} archivo${successCount > 1 ? 's' : ''} subido${successCount > 1 ? 's' : ''} correctamente`);
 				} catch {}
 				
-				// Stay in sales table - reload to show updated data
+				// Stay in sales table - reload to show updated data with smooth transition
 				if (typeof renderSalesView === 'function') {
-					renderSalesView();
+					setTimeout(() => {
+						renderSalesView();
+					}, 100);
 				}
 			} else {
 				throw new Error('No se pudo subir ning\u00fan archivo');
@@ -8555,8 +8594,13 @@ function openGalleryWithUploadOption(saleId, receipts) {
 	uploadMoreBtn.style.textTransform = 'uppercase';
 	uploadMoreBtn.style.letterSpacing = '0.5px';
 	uploadMoreBtn.addEventListener('click', () => {
+		console.log('🔷 Click en Subir Más Archivos, saleId:', saleId);
 		cleanup();
-		setTimeout(() => openInlineFileUploadDialog(saleId), 100);
+		// Give more time for cleanup animation
+		setTimeout(() => {
+			console.log('🔷 Opening inline upload dialog');
+			openInlineFileUploadDialog(saleId);
+		}, 300);
 	});
 	uploadMoreBtn.addEventListener('mouseenter', () => {
 		uploadMoreBtn.style.background = 'linear-gradient(135deg, #e885a0 0%, #d66686 100%)';
