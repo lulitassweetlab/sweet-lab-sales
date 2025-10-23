@@ -7609,17 +7609,30 @@ function openInlineFileUploadDialog(saleId) {
 		dialog.style.background = 'var(--card, #fff)';
 		dialog.style.borderRadius = '12px';
 		dialog.style.padding = '24px';
-		dialog.style.maxWidth = '500px';
+		dialog.style.maxWidth = '560px';
 		dialog.style.width = '90%';
 		dialog.style.boxShadow = '0 8px 32px rgba(0,0,0,0.2)';
 		dialog.style.maxHeight = '90vh';
 		dialog.style.overflowY = 'auto';
 
-		const title = document.createElement('h2');
-		title.textContent = 'Subir comprobantes';
-		title.style.margin = '0 0 16px';
+		const title = document.createElement('h1');
+		title.textContent = 'Subir comprobante de transferencia';
+		title.style.margin = '0 0 8px';
 		title.style.fontSize = '18px';
 		title.style.fontWeight = '500';
+
+		const saleInfo = document.createElement('div');
+		saleInfo.className = 'note';
+		saleInfo.textContent = `Venta #${id}`;
+		saleInfo.style.fontSize = '12px';
+		saleInfo.style.color = '#6b7280';
+		saleInfo.style.marginBottom = '12px';
+
+		const fileLabel = document.createElement('label');
+		fileLabel.textContent = 'Foto(s) del comprobante';
+		fileLabel.style.display = 'block';
+		fileLabel.style.marginBottom = '6px';
+		fileLabel.style.fontSize = '14px';
 
 		const fileInput = document.createElement('input');
 		fileInput.type = 'file';
@@ -7627,99 +7640,109 @@ function openInlineFileUploadDialog(saleId) {
 		fileInput.multiple = true;
 		fileInput.style.display = 'block';
 		fileInput.style.width = '100%';
-		fileInput.style.marginBottom = '16px';
+		fileInput.style.marginBottom = '12px';
+
+		const noteLabel = document.createElement('label');
+		noteLabel.textContent = 'Nota (opcional)';
+		noteLabel.style.display = 'block';
+		noteLabel.style.marginBottom = '6px';
+		noteLabel.style.fontSize = '14px';
+
+		const noteInput = document.createElement('textarea');
+		noteInput.rows = 3;
+		noteInput.placeholder = 'Escribe una nota...';
+		noteInput.style.width = '100%';
+		noteInput.style.resize = 'vertical';
+		noteInput.style.padding = '8px';
+		noteInput.style.borderRadius = '6px';
+		noteInput.style.border = '1px solid var(--border, #e5e7eb)';
+		noteInput.style.marginBottom = '12px';
+		noteInput.style.fontFamily = 'inherit';
 
 		const previewContainer = document.createElement('div');
-		previewContainer.style.display = 'grid';
-		previewContainer.style.gridTemplateColumns = 'repeat(auto-fill, minmax(120px, 1fr))';
-		previewContainer.style.gap = '12px';
-		previewContainer.style.marginBottom = '16px';
-		previewContainer.style.maxHeight = '300px';
-		previewContainer.style.overflowY = 'auto';
+		previewContainer.className = 'preview';
+		previewContainer.style.display = 'none';
+		previewContainer.style.marginBottom = '12px';
 
 		const actions = document.createElement('div');
+		actions.className = 'actions';
 		actions.style.display = 'flex';
 		actions.style.gap = '8px';
 		actions.style.justifyContent = 'flex-end';
+		actions.style.marginBottom = '8px';
 
 		const cancelBtn = document.createElement('button');
-		cancelBtn.className = 'press-btn';
+		cancelBtn.className = 'btn press-btn';
 		cancelBtn.textContent = 'Cancelar';
-		cancelBtn.style.padding = '8px 16px';
+		cancelBtn.style.padding = '8px 12px';
 
 		const uploadBtn = document.createElement('button');
-		uploadBtn.className = 'press-btn btn-gold';
-		uploadBtn.textContent = 'Subir archivos';
-		uploadBtn.style.padding = '8px 16px';
+		uploadBtn.className = 'btn btn-primary press-btn btn-gold';
+		uploadBtn.textContent = 'Subir';
+		uploadBtn.style.padding = '8px 12px';
 		uploadBtn.disabled = true;
+
+		const helpText = document.createElement('div');
+		helpText.className = 'note';
+		helpText.textContent = 'Formatos comunes: JPG, PNG. Tamaño máximo recomendado 2MB.';
+		helpText.style.fontSize = '12px';
+		helpText.style.color = '#6b7280';
 
 		let selectedFiles = [];
 
 		fileInput.addEventListener('change', () => {
-			selectedFiles = Array.from(fileInput.files);
-			previewContainer.innerHTML = '';
-
-			if (selectedFiles.length === 0) {
+			const files = fileInput.files;
+			if (!files || files.length === 0) {
+				previewContainer.style.display = 'none';
+				previewContainer.innerHTML = '';
 				uploadBtn.disabled = true;
-				uploadBtn.textContent = 'Subir archivos';
+				selectedFiles = [];
 				return;
 			}
 
-			uploadBtn.disabled = false;
-			uploadBtn.textContent = `Subir ${selectedFiles.length} archivo${selectedFiles.length > 1 ? 's' : ''}`;
+			selectedFiles = Array.from(files);
+			previewContainer.innerHTML = '';
+			previewContainer.style.display = 'block';
 
-			selectedFiles.forEach((file, idx) => {
-				const previewCard = document.createElement('div');
-				previewCard.style.position = 'relative';
-				previewCard.style.border = '1px solid var(--border, #ddd)';
-				previewCard.style.borderRadius = '8px';
-				previewCard.style.overflow = 'hidden';
-				previewCard.style.aspectRatio = '1';
-
+			selectedFiles.forEach((file, index) => {
 				const reader = new FileReader();
 				reader.onload = (e) => {
+					const imgContainer = document.createElement('div');
+					imgContainer.style.marginBottom = '12px';
+
+					const label = document.createElement('div');
+					label.textContent = `Archivo ${index + 1}: ${file.name}`;
+					label.style.fontSize = '12px';
+					label.style.marginBottom = '4px';
+					label.style.opacity = '0.75';
+
 					const img = document.createElement('img');
 					img.src = e.target.result;
-					img.style.width = '100%';
-					img.style.height = '100%';
-					img.style.objectFit = 'cover';
-					previewCard.appendChild(img);
+					img.alt = `Vista previa ${index + 1}`;
+					img.style.maxWidth = '100%';
+					img.style.borderRadius = '8px';
+					img.style.border = '1px solid var(--border, #e5e7eb)';
+
+					imgContainer.appendChild(label);
+					imgContainer.appendChild(img);
+					previewContainer.appendChild(imgContainer);
 				};
 				reader.readAsDataURL(file);
-
-				const removeBtn = document.createElement('button');
-				removeBtn.innerHTML = '×';
-				removeBtn.style.position = 'absolute';
-				removeBtn.style.top = '4px';
-				removeBtn.style.right = '4px';
-				removeBtn.style.background = 'rgba(0,0,0,0.6)';
-				removeBtn.style.color = 'white';
-				removeBtn.style.border = 'none';
-				removeBtn.style.borderRadius = '50%';
-				removeBtn.style.width = '24px';
-				removeBtn.style.height = '24px';
-				removeBtn.style.cursor = 'pointer';
-				removeBtn.style.fontSize = '18px';
-				removeBtn.style.lineHeight = '1';
-				removeBtn.addEventListener('click', () => {
-					selectedFiles.splice(idx, 1);
-					fileInput.value = '';
-					fileInput.dispatchEvent(new Event('change'));
-				});
-
-				previewCard.appendChild(removeBtn);
-				previewContainer.appendChild(previewCard);
 			});
+
+			uploadBtn.disabled = false;
+			uploadBtn.textContent = `Subir ${selectedFiles.length} archivo${selectedFiles.length > 1 ? 's' : ''}`;
 		});
 
 		uploadBtn.addEventListener('click', async () => {
-			if (selectedFiles.length === 0) return;
-
+			if (selectedFiles.length === 0 || !id) return;
 			uploadBtn.disabled = true;
 			uploadBtn.textContent = 'Subiendo...';
 
 			try {
+				const note = noteInput.value.trim();
 				let successCount = 0;
+
 				for (const file of selectedFiles) {
 					try {
 						const reader = new FileReader();
@@ -7729,14 +7752,20 @@ function openInlineFileUploadDialog(saleId) {
 							reader.readAsDataURL(file);
 						});
 
-						await api('POST', API.Sales, {
+						const body = {
 							_upload_receipt_for: id,
 							file_base64: dataUrl,
 							file_name: file.name,
 							mime_type: file.type,
 							_actor_name: state.currentUser?.name || ''
-						});
+						};
 
+						// Add note only to the first file upload if provided
+						if (note && successCount === 0) {
+							body.note = note;
+						}
+
+						await api('POST', API.Sales, body);
 						successCount++;
 					} catch (err) {
 						console.error('Error uploading file:', file.name, err);
@@ -7748,11 +7777,9 @@ function openInlineFileUploadDialog(saleId) {
 						notify.success(`${successCount} archivo${successCount > 1 ? 's' : ''} subido${successCount > 1 ? 's' : ''} correctamente`);
 					} catch {}
 
-					// Close dialog
 					cleanup();
 
 					// Reload receipts gallery to show uploaded files
-					// Use a small delay to ensure backend has processed the uploads
 					setTimeout(() => {
 						openReceiptsGalleryPopover(id, window.innerWidth / 2, window.innerHeight / 2).catch(err => {
 							console.error('Error opening gallery after upload:', err);
@@ -7786,9 +7813,14 @@ function openInlineFileUploadDialog(saleId) {
 		actions.appendChild(uploadBtn);
 
 		dialog.appendChild(title);
+		dialog.appendChild(saleInfo);
+		dialog.appendChild(fileLabel);
 		dialog.appendChild(fileInput);
+		dialog.appendChild(noteLabel);
+		dialog.appendChild(noteInput);
 		dialog.appendChild(previewContainer);
 		dialog.appendChild(actions);
+		dialog.appendChild(helpText);
 
 		overlay.appendChild(dialog);
 		document.body.appendChild(overlay);
