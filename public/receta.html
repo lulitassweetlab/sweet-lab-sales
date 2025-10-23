@@ -81,6 +81,38 @@
 			font-size: 13px;
 			color: var(--muted);
 		}
+		
+		/* Recipe ingredient table styles */
+		.measure-section table td {
+			vertical-align: middle;
+		}
+		
+		.measure-section table td > div {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			justify-content: flex-end;
+		}
+		
+		/* Inventory button states */
+		button[data-used="true"] {
+			cursor: not-allowed;
+		}
+		
+		button[data-used="true"]:hover {
+			opacity: 0.9;
+		}
+		
+		/* Quantity display hover effect */
+		.measure-section table span[title="Click para editar"]:hover {
+			background: rgba(244, 166, 183, 0.1);
+		}
+		
+		/* Modified quantity indicator */
+		.measure-section table span.modified {
+			background: rgba(255, 193, 7, 0.1);
+			border: 1px solid rgba(255, 193, 7, 0.3);
+		}
 	</style>
 </head>
 <body>
@@ -256,18 +288,49 @@
 	function readHistory(){ try { return JSON.parse(localStorage.getItem('timesHistory') || '[]') || []; } catch { return []; } }
 	function writeHistory(arr){ try { localStorage.setItem('timesHistory', JSON.stringify(arr)); } catch {} }
 	function fmtMs(ms){ const total=Math.max(0,Math.floor(ms/1000)); const h=Math.floor(total/3600); const m=Math.floor((total%3600)/60); const s=total%60; const pad=n=>String(n).padStart(2,'0'); return (h>0?`${h}:`:'')+`${pad(m)}:${pad(s)}`; }
+	
+	// Show inventory update popover
+	function showInventoryPopover(targetElement) {
+		const popover = document.createElement('div');
+		popover.className = 'inventory-popover';
+		popover.textContent = '✓ Inventario actualizado';
+		popover.style.position = 'fixed';
+		popover.style.background = 'var(--primary)';
+		popover.style.color = 'white';
+		popover.style.padding = '8px 16px';
+		popover.style.borderRadius = '8px';
+		popover.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+		popover.style.zIndex = '10000';
+		popover.style.fontSize = '14px';
+		popover.style.fontWeight = '500';
+		popover.style.opacity = '0';
+		popover.style.transition = 'opacity 0.3s ease';
+		
+		// Position to the left (further away to not cover quantities)
+		const rect = targetElement.getBoundingClientRect();
+		const popoverWidth = 190; // Approximate width
+		const popoverHeight = 34; // Approximate height (padding + text)
+		popover.style.left = (rect.left - popoverWidth - 80) + 'px';
+		popover.style.top = (rect.top + (rect.height / 2) - (popoverHeight / 2)) + 'px';
+		
+		document.body.appendChild(popover);
+		
+		// Animate in
+		requestAnimationFrame(() => {
+			popover.style.opacity = '1';
+		});
+		
+		// Remove after 2 seconds
+		setTimeout(() => {
+			popover.style.opacity = '0';
+			setTimeout(() => {
+				if (popover.parentNode) {
+					popover.parentNode.removeChild(popover);
+				}
+			}, 300);
+		}, 2000);
+	}
 
-<<<<<<< HEAD
-	function buildTimerControls(associatedRows = [], stepName = '', dessertName = ''){
-		const stepState = { elapsedMs: 0, isRunning: false, startedAt: null };
-		const wrap = document.createElement('div'); wrap.style.display='flex'; wrap.style.alignItems='center'; wrap.style.gap='8px';
-		const display = document.createElement('div'); display.style.minWidth='84px'; display.style.textAlign='center'; display.style.fontVariantNumeric='tabular-nums';
-		const playBtn = document.createElement('button'); playBtn.className='press-btn'; playBtn.textContent='▶'; playBtn.title='Play';
-		const pauseBtn = document.createElement('button'); pauseBtn.className='press-btn'; pauseBtn.textContent='⏸'; pauseBtn.title='Pause';
-		const stopBtn = document.createElement('button'); stopBtn.className='press-btn'; stopBtn.textContent='⏹'; stopBtn.title='Stop';
-		const histBtn = document.createElement('button'); histBtn.className='press-btn'; histBtn.textContent='📊'; histBtn.title='Ver historial de este paso';
-		wrap.append(display, playBtn, pauseBtn, stopBtn, histBtn);
-=======
 		// Global container for active timer buttons (right side)
 		let activeTimersContainer = null;
 		let timerButtonIdCounter = 0;
@@ -319,7 +382,6 @@
 				}
 			}
 			
-			function readHistory(){ try { return JSON.parse(localStorage.getItem('timesHistory') || '[]') || []; } catch { return []; } }
 			function updateRowHighlight(){
 				for (const row of associatedRows){
 					if (stepState.isRunning) {
@@ -751,166 +813,7 @@
 			playBtn.addEventListener('click', play); pauseBtn.addEventListener('click', pause); stopBtn.addEventListener('click', stop);
 			render();
 			return { element: wrap, getElapsedMs: () => compute(), reset: () => { stop(); }, addRow: (row) => { associatedRows.push(row); } };
->>>>>>> origin/main
 		}
-		
-		function renderHistory() {
-			list.innerHTML = '';
-			const allHistory = readHistory();
-			
-			// Filter history for this specific dessert and step
-			const stepHistory = allHistory.filter(item => {
-				if (item.dessert !== dessertName) return false;
-				if (!item.steps || !Array.isArray(item.steps)) return false;
-				return item.steps.some(s => s.name === stepName);
-			}).map(item => {
-				// Extract only this step's data
-				const step = item.steps.find(s => s.name === stepName);
-				return {
-					id: item.id,
-					date_iso: item.date_iso,
-					dessert: item.dessert,
-					step_name: step.name,
-					qty_units: step.qty_units || item.qty_units || 0,
-					elapsed_ms: step.elapsed_ms || 0,
-					avg_ms_per_unit: step.avg_ms_per_unit || 0
-				};
-			}).reverse(); // Most recent first
-			
-			if (!stepHistory.length) {
-				const empty = document.createElement('div');
-				empty.textContent = 'Sin registros para este paso';
-				empty.style.padding = '20px';
-				empty.style.textAlign = 'center';
-				empty.style.opacity = '0.6';
-				list.appendChild(empty);
-			} else {
-				// Calculate overall average
-				const totalAvg = stepHistory.reduce((sum, item) => sum + (item.avg_ms_per_unit || 0), 0);
-				const overallAvg = stepHistory.length > 0 ? Math.round(totalAvg / stepHistory.length) : 0;
-				
-				// Header row
-				const header = document.createElement('div');
-				header.style.display = 'grid';
-				header.style.gridTemplateColumns = '1fr 120px 90px 90px 100px 60px';
-				header.style.gap = '8px';
-				header.style.padding = '8px';
-				header.style.fontWeight = '600';
-				header.style.borderBottom = '2px solid var(--border)';
-				header.style.background = 'var(--card)';
-				header.style.position = 'sticky';
-				header.style.top = '0';
-				header.style.zIndex = '1';
-				header.innerHTML = `
-					<div>Fecha</div>
-					<div style="text-align:center">Cantidad</div>
-					<div style="text-align:center">Tiempo</div>
-					<div style="text-align:center">Promedio</div>
-					<div></div>
-					<div></div>
-				`;
-				list.appendChild(header);
-				
-				// Data rows
-				for (const item of stepHistory) {
-					const row = document.createElement('div');
-					row.style.display = 'grid';
-					row.style.gridTemplateColumns = '1fr 120px 90px 90px 100px 60px';
-					row.style.gap = '8px';
-					row.style.padding = '8px';
-					row.style.borderBottom = '1px solid var(--border)';
-					row.style.alignItems = 'center';
-					
-					const when = new Date(item.date_iso || item.id || Date.now());
-					const dateStr = when.toLocaleDateString() + ' ' + when.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-					
-					const dateCell = document.createElement('div');
-					dateCell.textContent = dateStr;
-					dateCell.style.fontSize = '13px';
-					
-					const qtyCell = document.createElement('div');
-					qtyCell.textContent = item.qty_units || 0;
-					qtyCell.style.textAlign = 'center';
-					qtyCell.style.fontWeight = '500';
-					
-					const timeCell = document.createElement('div');
-					timeCell.textContent = fmtMs(item.elapsed_ms || 0);
-					timeCell.style.textAlign = 'center';
-					timeCell.style.fontVariantNumeric = 'tabular-nums';
-					
-					const avgCell = document.createElement('div');
-					avgCell.textContent = fmtMs(item.avg_ms_per_unit || 0);
-					avgCell.style.textAlign = 'center';
-					avgCell.style.fontVariantNumeric = 'tabular-nums';
-					avgCell.style.color = 'var(--accent)';
-					avgCell.style.fontWeight = '600';
-					
-					const spacer = document.createElement('div');
-					
-					const delBtn = document.createElement('button');
-					delBtn.className = 'press-btn';
-					delBtn.textContent = '🗑';
-					delBtn.title = 'Eliminar';
-					delBtn.style.padding = '4px 8px';
-					delBtn.style.fontSize = '16px';
-					delBtn.addEventListener('click', () => {
-						if (confirm('¿Eliminar este registro?')) {
-							deleteHistoryItem(item.id);
-							renderHistory();
-						}
-					});
-					
-					row.append(dateCell, qtyCell, timeCell, avgCell, spacer, delBtn);
-					list.appendChild(row);
-				}
-				
-				// Overall average footer
-				const footer = document.createElement('div');
-				footer.style.display = 'grid';
-				footer.style.gridTemplateColumns = '1fr 120px 90px 90px 100px 60px';
-				footer.style.gap = '8px';
-				footer.style.padding = '12px 8px';
-				footer.style.borderTop = '2px solid var(--border)';
-				footer.style.background = 'rgba(244, 166, 183, 0.1)';
-				footer.style.fontWeight = '600';
-				footer.style.marginTop = '8px';
-				footer.innerHTML = `
-					<div>Promedio general:</div>
-					<div></div>
-					<div></div>
-					<div style="text-align:center; color:var(--accent); font-size:16px;">${fmtMs(overallAvg)}</div>
-					<div></div>
-					<div></div>
-				`;
-				list.appendChild(footer);
-			}
-		}
-		
-		function deleteHistoryItem(id) {
-			const hist = readHistory();
-			const filtered = hist.filter(item => item.id !== id);
-			writeHistory(filtered);
-		}
-		
-		renderHistory();
-		
-		const actions = document.createElement('div');
-		actions.className = 'confirm-actions';
-		actions.style.marginTop = '12px';
-		
-		const close = document.createElement('button');
-		close.className = 'press-btn';
-		close.textContent = 'Cerrar';
-		actions.appendChild(close);
-		
-		pop.append(title, list, actions);
-		document.body.appendChild(pop);
-		pop.classList.add('aladdin-pop');
-		
-		close.addEventListener('click', () => {
-			if (pop.parentNode) pop.parentNode.removeChild(pop);
-		});
-	}
 
 		function normalizeKey(name){ const k=(name||'').toString().trim().toLowerCase(); if (k.startsWith('arco')) return 'arco'; if (k.startsWith('melo')) return 'melo'; if (k.startsWith('mara')) return 'mara'; if (k.startsWith('oreo')) return 'oreo'; if (k.startsWith('nute')) return 'nute'; return k; }
 		
@@ -1082,35 +985,158 @@
 				const stepRows = [];
                     for (const it of (step.items || [])){
 					const tr = document.createElement('tr');
-					const itemKey = `${dessertName}:${step.step_name}:${it.ingredient}`.toLowerCase();
-					const isChecked = !!checkedState[itemKey];
-					if (isChecked) tr.classList.add('row-checked');
 					
-					// Checkbox column
-					const tdCheck = document.createElement('td'); tdCheck.style.width='30px';
-					const checkbox = document.createElement('input');
-					checkbox.type = 'checkbox';
-					checkbox.className = 'ingredient-checkbox';
-					checkbox.checked = isChecked;
-					checkbox.addEventListener('change', () => {
-						const state = getCheckedState();
-						if (checkbox.checked) {
-							state[itemKey] = true;
-							tr.classList.add('row-checked');
-						} else {
-							delete state[itemKey];
-							tr.classList.remove('row-checked');
-						}
-						saveCheckedState(state);
-					});
-					tdCheck.appendChild(checkbox);
-					
-					const tdN = document.createElement('td'); tdN.textContent = it.ingredient; tdN.style.padding='8px 4px'; tdN.style.textAlign='center';
+					const tdN = document.createElement('td'); tdN.textContent = it.ingredient; tdN.style.padding='8px 4px'; tdN.style.textAlign='left';
                         const per = Number(it.qty_per_unit || 0) || 0;
                         const adj = Number(it.adjustment || 0) || 0;
                         const total = (per * qty) + adj;
-                        const tdQ = document.createElement('td'); tdQ.textContent = formatter.format(total); tdQ.style.textAlign='right'; tdQ.style.padding='5px 4px';
-					tr.append(tdCheck, tdN, tdQ);
+                        
+                        // Quantity cell with click-to-edit functionality
+                        const tdQ = document.createElement('td'); 
+                        tdQ.style.textAlign='right'; 
+                        tdQ.style.padding='5px 4px';
+                        
+                        // Container div for flex layout
+                        const qtyContainer = document.createElement('div');
+                        qtyContainer.style.display='flex';
+                        qtyContainer.style.alignItems='center';
+                        qtyContainer.style.gap='8px';
+                        qtyContainer.style.justifyContent='flex-end';
+                        
+                        // Quantity display (clickable to edit)
+                        const qtyDisplay = document.createElement('span');
+                        qtyDisplay.textContent = formatter.format(total);
+                        qtyDisplay.style.cursor = 'pointer';
+                        qtyDisplay.style.padding = '4px 8px';
+                        qtyDisplay.style.borderRadius = '4px';
+                        qtyDisplay.style.minWidth = '60px';
+                        qtyDisplay.style.display = 'inline-block';
+                        qtyDisplay.style.textAlign = 'right';
+                        qtyDisplay.title = 'Click para editar';
+                        
+                        // Hidden input for editing
+                        const qtyInput = document.createElement('input');
+                        qtyInput.type = 'number';
+                        qtyInput.step = '0.1';
+                        qtyInput.min = '0';
+                        qtyInput.value = total;
+                        qtyInput.className = 'input-cell';
+                        qtyInput.style.width = '80px';
+                        qtyInput.style.textAlign = 'right';
+                        qtyInput.style.display = 'none';
+                        qtyInput.dataset.original = total;
+                        qtyInput.dataset.currentQty = total;
+                        
+                        // Show original if different
+                        const originalSpan = document.createElement('span');
+                        originalSpan.style.fontSize = '11px';
+                        originalSpan.style.opacity = '0.6';
+                        originalSpan.style.display = 'none';
+                        originalSpan.style.whiteSpace = 'nowrap';
+                        originalSpan.textContent = `(orig: ${formatter.format(total)})`;
+                        
+                        // Click to edit
+                        qtyDisplay.addEventListener('click', () => {
+                            qtyDisplay.style.display = 'none';
+                            qtyInput.style.display = 'inline-block';
+                            qtyInput.focus();
+                            qtyInput.select();
+                        });
+                        
+                        // Blur to save
+                        qtyInput.addEventListener('blur', () => {
+                            const newValue = parseFloat(qtyInput.value) || 0;
+                            qtyInput.dataset.currentQty = newValue;
+                            qtyDisplay.textContent = formatter.format(newValue);
+                            qtyInput.style.display = 'none';
+                            qtyDisplay.style.display = 'inline-block';
+                            
+                            // Show/hide original
+                            const orig = parseFloat(qtyInput.dataset.original) || 0;
+                            if (Math.abs(newValue - orig) > 0.01) {
+                                originalSpan.style.display = 'inline';
+                                qtyDisplay.style.background = 'rgba(255, 193, 7, 0.1)';
+                            } else {
+                                originalSpan.style.display = 'none';
+                                qtyDisplay.style.background = 'transparent';
+                            }
+                        });
+                        
+                        // Enter to save
+                        qtyInput.addEventListener('keydown', (e) => {
+                            if (e.key === 'Enter') {
+                                qtyInput.blur();
+                            }
+                        });
+                        
+                        // Inventory discount button with "i" icon
+                        const discountBtn = document.createElement('button');
+                        discountBtn.className = 'press-btn';
+                        discountBtn.textContent = 'i';
+                        discountBtn.title = 'Descontar del inventario';
+                        discountBtn.style.padding = '4px 10px';
+                        discountBtn.style.fontSize = '14px';
+                        discountBtn.style.fontWeight = 'bold';
+                        discountBtn.style.fontStyle = 'italic';
+                        discountBtn.style.minWidth = '32px';
+                        discountBtn.style.borderRadius = '50%';
+                        discountBtn.style.width = '32px';
+                        discountBtn.style.height = '32px';
+                        discountBtn.dataset.used = 'false';
+                        
+                        discountBtn.addEventListener('click', async () => {
+                            if (discountBtn.dataset.used === 'true') return;
+                            
+                            const qtyToDiscount = parseFloat(qtyInput.dataset.currentQty) || 0;
+                            if (qtyToDiscount <= 0) {
+                                alert('La cantidad debe ser mayor a 0');
+                                return;
+                            }
+                            
+                            discountBtn.disabled = true;
+                            discountBtn.textContent = '⏳';
+                            discountBtn.style.fontStyle = 'normal';
+                            
+                            try {
+                                const response = await fetch('/api/inventory', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        action: 'ajuste',
+                                        ingredient: it.ingredient,
+                                        qty: -qtyToDiscount,
+                                        note: `Producción: ${dessertName}`,
+                                        actor_name: actor || null
+                                    })
+                                });
+                                
+                                if (!response.ok) throw new Error('Error al actualizar inventario');
+                                
+                                // Mark as used
+                                discountBtn.dataset.used = 'true';
+                                discountBtn.style.background = 'var(--primary)';
+                                discountBtn.style.color = 'white';
+                                discountBtn.textContent = '✓';
+                                discountBtn.title = 'Ya descontado';
+                                
+                                // Add row checked style
+                                tr.classList.add('row-checked');
+                                
+                                // Show success popover
+                                showInventoryPopover(discountBtn);
+                                
+                            } catch (error) {
+                                console.error('Error:', error);
+                                discountBtn.disabled = false;
+                                discountBtn.textContent = 'i';
+                                discountBtn.style.fontStyle = 'italic';
+                                alert('Error al actualizar el inventario');
+                            }
+                        });
+                        
+                        qtyContainer.append(qtyDisplay, qtyInput, originalSpan, discountBtn);
+                        tdQ.appendChild(qtyContainer);
+					tr.append(tdN, tdQ);
 					stepRows.push(tr);
 					tbody.appendChild(tr);
 				}
@@ -1368,43 +1394,14 @@
 				const items = readHistory().slice(-30).reverse();
 				const pop = document.createElement('div'); pop.className = 'confirm-popover'; pop.style.position='fixed'; pop.style.left=(window.innerWidth/2)+'px'; pop.style.top='12%'; pop.style.transform='translate(-50%,0)'; pop.style.zIndex='10000';
 				const title = document.createElement('h4'); title.textContent = 'Historial de tiempos'; title.style.margin='0 0 8px 0';
-<<<<<<< HEAD
-				const list = document.createElement('div'); list.style.maxHeight='60vh'; list.style.overflow='auto'; list.style.minWidth='min(92vw,600px)';
-=======
 				const list = document.createElement('div'); list.style.maxHeight='60vh'; list.style.overflow='auto'; list.style.minWidth='min(92vw,620px)';
->>>>>>> origin/main
 				if (!items.length) { const empty=document.createElement('div'); empty.textContent='Sin registros'; list.appendChild(empty); }
 				for (const it of items) {
 					const row = document.createElement('div'); row.style.borderBottom='1px solid var(--border)'; row.style.padding='8px 4px';
 					const when = new Date(it.date_iso || it.id || Date.now());
-<<<<<<< HEAD
-					
-					// Calculate overall average for all steps
-					let totalAvg = 0;
-					let stepCount = 0;
-					if (it.steps && Array.isArray(it.steps)) {
-						for (const step of it.steps) {
-							if (step.avg_ms_per_unit) {
-								totalAvg += step.avg_ms_per_unit;
-								stepCount++;
-							}
-						}
-					}
-					const overallAvg = stepCount > 0 ? Math.round(totalAvg / stepCount) : 0;
-					
-					// Show all steps
-					let stepsText = '';
-					if (it.steps && Array.isArray(it.steps)) {
-						const stepNames = it.steps.map(s => s.name).join(', ');
-						stepsText = ` · Pasos: ${stepNames}`;
-					}
-					
-					row.innerHTML = `<div><strong>${it.dessert}</strong> · ${when.toLocaleString()} · Cant: ${it.qty_units||0} · Total: ${fmtMs(it.total_elapsed_ms||0)} · Prom/postre: ${fmtMs(overallAvg)}${stepsText}</div>`;
-=======
 					const stepInfo = it.step_name ? ` · Paso: ${it.step_name}` : '';
 					const avgInfo = it.avg_ms_per_unit ? ` · Prom/u: ${fmtMs(it.avg_ms_per_unit)}` : '';
 					row.innerHTML = `<strong>${it.dessert}</strong>${stepInfo} · ${when.toLocaleString()} · Cant: ${it.qty_units||0} · Total: ${fmtMs(it.total_elapsed_ms||0)}${avgInfo}`;
->>>>>>> origin/main
 					list.appendChild(row);
 				}
 				const actions=document.createElement('div'); actions.className='confirm-actions'; const close=document.createElement('button'); close.className='press-btn'; close.textContent='Cerrar'; actions.appendChild(close);
@@ -1448,5 +1445,4 @@
 </body>
 </html>
 
-l>
 
