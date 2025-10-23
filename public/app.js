@@ -7651,9 +7651,9 @@ async function openReceiptsGalleryPopover(saleId, anchorX, anchorY) {
 		// Gallery container
 		const gallery = document.createElement('div');
 		gallery.style.display = 'grid';
-		gallery.style.gridTemplateColumns = 'repeat(auto-fit, minmax(300px, 1fr))';
+		gallery.style.gridTemplateColumns = 'repeat(auto-fit, minmax(600px, 1fr))';
 		gallery.style.gap = '16px';
-		gallery.style.maxHeight = '70vh';
+		gallery.style.maxHeight = '80vh';
 		gallery.style.overflowY = 'auto';
 
 		// Check if user is superadmin
@@ -7681,7 +7681,7 @@ async function openReceiptsGalleryPopover(saleId, anchorX, anchorY) {
 			img.alt = 'Comprobante';
 			img.style.width = '100%';
 			img.style.height = 'auto';
-			img.style.maxHeight = '300px';
+			img.style.maxHeight = '70vh';
 			img.style.objectFit = 'contain';
 			img.style.borderRadius = '6px';
 			img.style.cursor = 'pointer';
