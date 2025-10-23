@@ -8217,14 +8217,15 @@ async function openInlineFileUploadDialog(saleId) {
 		async function handleUpload() {
 			if (selectedFiles.length === 0 || !id) return;
 			
-			// Create separate loading overlay (full screen, white background)
+			// Create separate loading overlay (small centered box)
 			const fullLoadingOverlay = document.createElement('div');
 			fullLoadingOverlay.style.position = 'fixed';
 			fullLoadingOverlay.style.top = '0';
 			fullLoadingOverlay.style.left = '0';
 			fullLoadingOverlay.style.right = '0';
 			fullLoadingOverlay.style.bottom = '0';
-			fullLoadingOverlay.style.background = 'white';
+			fullLoadingOverlay.style.background = 'rgba(0, 0, 0, 0.4)';
+			fullLoadingOverlay.style.backdropFilter = 'blur(4px)';
 			fullLoadingOverlay.style.zIndex = '10000';
 			fullLoadingOverlay.style.display = 'flex';
 			fullLoadingOverlay.style.alignItems = 'center';
@@ -8232,42 +8233,46 @@ async function openInlineFileUploadDialog(saleId) {
 			fullLoadingOverlay.style.animation = 'fadeIn 0.3s ease';
 			
 			const fullLoadingContent = document.createElement('div');
+			fullLoadingContent.style.background = 'white';
+			fullLoadingContent.style.borderRadius = '20px';
+			fullLoadingContent.style.boxShadow = '0 20px 60px rgba(0,0,0,0.25)';
 			fullLoadingContent.style.textAlign = 'center';
-			fullLoadingContent.style.padding = '60px';
+			fullLoadingContent.style.padding = '40px 50px';
+			fullLoadingContent.style.minWidth = '320px';
 			
 			const fullSpinner = document.createElement('div');
-			fullSpinner.style.width = '70px';
-			fullSpinner.style.height = '70px';
-			fullSpinner.style.margin = '0 auto 28px';
-			fullSpinner.style.border = '6px solid #fce7ec';
+			fullSpinner.style.width = '60px';
+			fullSpinner.style.height = '60px';
+			fullSpinner.style.margin = '0 auto 24px';
+			fullSpinner.style.border = '5px solid #fce7ec';
 			fullSpinner.style.borderTopColor = '#f4a6b7';
 			fullSpinner.style.borderRadius = '50%';
 			fullSpinner.style.animation = 'spin 0.8s linear infinite';
 			
 			const fullSuccessIcon = document.createElement('div');
-			fullSuccessIcon.style.width = '90px';
-			fullSuccessIcon.style.height = '90px';
-			fullSuccessIcon.style.margin = '0 auto 28px';
+			fullSuccessIcon.style.width = '70px';
+			fullSuccessIcon.style.height = '70px';
+			fullSuccessIcon.style.margin = '0 auto 20px';
 			fullSuccessIcon.style.borderRadius = '50%';
 			fullSuccessIcon.style.background = '#f4a6b7';
 			fullSuccessIcon.style.display = 'none';
 			fullSuccessIcon.style.alignItems = 'center';
 			fullSuccessIcon.style.justifyContent = 'center';
-			fullSuccessIcon.style.fontSize = '52px';
+			fullSuccessIcon.style.fontSize = '42px';
 			fullSuccessIcon.style.color = 'white';
 			fullSuccessIcon.style.animation = 'successPop 0.5s ease';
-			fullSuccessIcon.style.boxShadow = '0 10px 30px rgba(244, 166, 183, 0.6)';
+			fullSuccessIcon.style.boxShadow = '0 8px 24px rgba(244, 166, 183, 0.5)';
 			fullSuccessIcon.textContent = '✓';
 			
 			const fullLoadingText = document.createElement('div');
-			fullLoadingText.style.fontSize = '20px';
+			fullLoadingText.style.fontSize = '18px';
 			fullLoadingText.style.fontWeight = '700';
 			fullLoadingText.style.color = '#111';
-			fullLoadingText.style.marginBottom = '10px';
+			fullLoadingText.style.marginBottom = '8px';
 			fullLoadingText.textContent = 'Subiendo archivos...';
 			
 			const fullLoadingSubtext = document.createElement('div');
-			fullLoadingSubtext.style.fontSize = '15px';
+			fullLoadingSubtext.style.fontSize = '13px';
 			fullLoadingSubtext.style.color = '#6b7280';
 			fullLoadingSubtext.style.fontWeight = '500';
 			
@@ -8317,45 +8322,56 @@ async function openInlineFileUploadDialog(saleId) {
 					}
 				}
 
-				if (successCount > 0) {
-					// Show success animation
-					spinner.style.display = 'none';
-					successIcon.style.display = 'flex';
-					const fileWord = successCount === 1 ? 'archivo' : 'archivos';
-					const uploadedWord = successCount === 1 ? 'subido' : 'subidos';
-					loadingText.textContent = `\u00a1${successCount} ${fileWord} ${uploadedWord}!`;
-					loadingSubtext.textContent = errorCount > 0 ? `\u26a0\ufe0f ${errorCount} con error` : '\u2713 Completado con \u00e9xito';
-					
-					// Wait to show success, then close
-					await new Promise(resolve => setTimeout(resolve, 1800));
-					
-					cleanup();
-					
-					// Show notification
-					try {
-						notify.success(`${successCount} archivo${successCount > 1 ? 's' : ''} subido${successCount > 1 ? 's' : ''} correctamente`);
-					} catch {}
-					
-					// Stay in sales table - optionally reload to show updated data
-					if (typeof renderSalesView === 'function') {
-						setTimeout(() => renderSalesView(), 100);
-					}
-				} else {
-					throw new Error('No se pudo subir ning\u00fan archivo');
+			if (successCount > 0) {
+				// Show success animation
+				fullSpinner.style.display = 'none';
+				fullSuccessIcon.style.display = 'flex';
+				const fileWord = successCount === 1 ? 'archivo' : 'archivos';
+				const uploadedWord = successCount === 1 ? 'subido' : 'subidos';
+				fullLoadingText.textContent = `\u00a1${successCount} ${fileWord} ${uploadedWord}!`;
+				fullLoadingSubtext.textContent = errorCount > 0 ? `\u26a0\ufe0f ${errorCount} con error` : '\u2713 Completado con \u00e9xito';
+				
+				// Wait to show success, then fade out
+				await new Promise(resolve => setTimeout(resolve, 1500));
+				
+				// Fade out the loading overlay
+				fullLoadingOverlay.style.animation = 'fadeOut 0.4s ease';
+				await new Promise(resolve => setTimeout(resolve, 400));
+				
+				// Remove overlay
+				if (fullLoadingOverlay.parentNode) {
+					fullLoadingOverlay.parentNode.removeChild(fullLoadingOverlay);
 				}
-			} catch (err) {
-				console.error('Upload error:', err);
-				spinner.style.display = 'none';
-				loadingText.textContent = '\u2717 Error al subir';
-				loadingSubtext.textContent = 'Intenta de nuevo';
 				
-				await new Promise(resolve => setTimeout(resolve, 2000));
-				loadingOverlay.style.display = 'none';
-				
+				// Show notification
 				try {
-					notify.error('Error al subir archivos');
+					notify.success(`${successCount} archivo${successCount > 1 ? 's' : ''} subido${successCount > 1 ? 's' : ''} correctamente`);
 				} catch {}
+				
+				// Stay in sales table - reload to show updated data
+				if (typeof renderSalesView === 'function') {
+					renderSalesView();
+				}
+			} else {
+				throw new Error('No se pudo subir ning\u00fan archivo');
 			}
+		} catch (err) {
+			console.error('Upload error:', err);
+			fullSpinner.style.display = 'none';
+			fullLoadingText.textContent = '\u2717 Error al subir';
+			fullLoadingSubtext.textContent = 'Intenta de nuevo';
+			
+			await new Promise(resolve => setTimeout(resolve, 2000));
+			
+			// Remove loading overlay
+			if (fullLoadingOverlay.parentNode) {
+				fullLoadingOverlay.parentNode.removeChild(fullLoadingOverlay);
+			}
+			
+			try {
+				notify.error('Error al subir archivos');
+			} catch {}
+		}
 		}
 		
 		uploadBtn.addEventListener('click', handleUpload);
