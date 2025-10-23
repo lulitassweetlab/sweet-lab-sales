@@ -1018,13 +1018,13 @@
                         qtyInput.type = 'number';
                         qtyInput.step = '0.1';
                         qtyInput.min = '0';
-                        qtyInput.value = formatter.format(total);
+                        qtyInput.value = total;
                         qtyInput.className = 'input-cell';
                         qtyInput.style.width = '80px';
                         qtyInput.style.textAlign = 'right';
                         qtyInput.style.display = 'none';
-                        qtyInput.dataset.original = formatter.format(total);
-                        qtyInput.dataset.currentQty = formatter.format(total);
+                        qtyInput.dataset.original = total;
+                        qtyInput.dataset.currentQty = total;
                         
                         // Show original if different
                         const originalSpan = document.createElement('span');
