@@ -7839,6 +7839,7 @@ async function openInlineFileUploadDialog(saleId) {
 		previewGrid.style.gridTemplateColumns = 'repeat(3, 1fr)';
 		previewGrid.style.gap = '12px';
 		previewGrid.style.marginBottom = '16px';
+		previewGrid.style.transition = 'all 0.3s ease';
 
 		
 		const bottomActions = document.createElement('div');
@@ -7873,6 +7874,12 @@ async function openInlineFileUploadDialog(saleId) {
 			cancelBtn.style.borderColor = '#e5e7eb';
 			cancelBtn.style.transform = 'translateY(0)';
 			cancelBtn.style.boxShadow = 'none';
+		});
+		cancelBtn.addEventListener('mousedown', () => {
+			cancelBtn.style.transform = 'translateY(0) scale(0.97)';
+		});
+		cancelBtn.addEventListener('mouseup', () => {
+			cancelBtn.style.transform = 'translateY(-2px) scale(1)';
 		});
 
 		// Upload button
@@ -7992,15 +7999,18 @@ async function openInlineFileUploadDialog(saleId) {
 			selectedFiles.forEach((file, index) => {
 				const reader = new FileReader();
 				reader.onload = (e) => {
-					const imgContainer = document.createElement('div');
-					imgContainer.style.position = 'relative';
-					imgContainer.style.padding = '0';
-					imgContainer.style.background = 'white';
-					imgContainer.style.borderRadius = '12px';
-					imgContainer.style.border = '3px solid #f4a6b7';
-					imgContainer.style.overflow = 'hidden';
-					imgContainer.style.boxShadow = '0 4px 12px rgba(244, 166, 183, 0.2)';
-					imgContainer.style.aspectRatio = '1';
+				const imgContainer = document.createElement('div');
+				imgContainer.style.position = 'relative';
+				imgContainer.style.padding = '0';
+				imgContainer.style.background = 'white';
+				imgContainer.style.borderRadius = '12px';
+				imgContainer.style.border = '3px solid #f4a6b7';
+				imgContainer.style.overflow = 'hidden';
+				imgContainer.style.boxShadow = '0 4px 12px rgba(244, 166, 183, 0.2)';
+				imgContainer.style.aspectRatio = '1';
+				imgContainer.style.animation = 'fadeIn 0.3s ease';
+				imgContainer.style.opacity = '0';
+				setTimeout(() => { imgContainer.style.opacity = '1'; }, 10);
 
 					const img = document.createElement('img');
 					img.src = e.target.result;
@@ -8100,15 +8110,18 @@ async function openInlineFileUploadDialog(saleId) {
 						selectedFiles.forEach((f, idx) => {
 							const reader = new FileReader();
 							reader.onload = (ev) => {
-								const container = document.createElement('div');
-								container.style.position = 'relative';
-								container.style.padding = '0';
-								container.style.background = 'white';
-								container.style.borderRadius = '12px';
-								container.style.border = '3px solid #f4a6b7';
-								container.style.overflow = 'hidden';
-								container.style.boxShadow = '0 4px 12px rgba(244, 166, 183, 0.2)';
-								container.style.aspectRatio = '1';
+							const container = document.createElement('div');
+							container.style.position = 'relative';
+							container.style.padding = '0';
+							container.style.background = 'white';
+							container.style.borderRadius = '12px';
+							container.style.border = '3px solid #f4a6b7';
+							container.style.overflow = 'hidden';
+							container.style.boxShadow = '0 4px 12px rgba(244, 166, 183, 0.2)';
+							container.style.aspectRatio = '1';
+							container.style.animation = 'fadeIn 0.3s ease';
+							container.style.opacity = '0';
+							setTimeout(() => { container.style.opacity = '1'; }, 10);
 
 								const i = document.createElement('img');
 								i.src = ev.target.result;
@@ -8181,17 +8194,23 @@ async function openInlineFileUploadDialog(saleId) {
 									btn.style.background = '#f4a6b7';
 									btn.style.transform = 'scale(1.15)';
 								});
-								btn.addEventListener('mouseleave', () => {
-									btn.style.background = 'rgba(0, 0, 0, 0.7)';
-									btn.style.transform = 'scale(1)';
-								});
-								btn.addEventListener('click', (evt) => {
-									evt.stopPropagation();
-									selectedFiles.splice(idx, 1);
-									
-									// Re-trigger the same logic recursively
-									removeBtn.dispatchEvent(new MouseEvent('click', { bubbles: false }));
-								});
+							btn.addEventListener('mouseleave', () => {
+								btn.style.background = 'rgba(0, 0, 0, 0.7)';
+								btn.style.transform = 'scale(1)';
+							});
+							btn.addEventListener('mousedown', () => {
+								btn.style.transform = 'scale(0.9)';
+							});
+							btn.addEventListener('mouseup', () => {
+								btn.style.transform = 'scale(1.15)';
+							});
+							btn.addEventListener('click', (evt) => {
+								evt.stopPropagation();
+								selectedFiles.splice(idx, 1);
+								
+								// Re-trigger the same logic recursively
+								removeBtn.dispatchEvent(new MouseEvent('click', { bubbles: false }));
+							});
 
 								container.appendChild(i);
 								container.appendChild(btn);
@@ -8548,6 +8567,12 @@ function openGalleryWithUploadOption(saleId, receipts) {
 		uploadMoreBtn.style.background = 'linear-gradient(135deg, #f4a6b7 0%, #e885a0 100%)';
 		uploadMoreBtn.style.transform = 'translateY(0) scale(1)';
 		uploadMoreBtn.style.boxShadow = 'none';
+	});
+	uploadMoreBtn.addEventListener('mousedown', () => {
+		uploadMoreBtn.style.transform = 'translateY(0) scale(0.97)';
+	});
+	uploadMoreBtn.addEventListener('mouseup', () => {
+		uploadMoreBtn.style.transform = 'translateY(-3px) scale(1.02)';
 	});
 	
 	const closeBtn = document.createElement('button');
@@ -9500,4 +9525,4 @@ function renderChangeMarkerIfNeeded(tdEl, saleId, field) {
 
 // (mobile bounce limiter removed per user preference);
 
-// (mobile bounce limiter removed per user preference)
+// (mobile bounce limiter removed per user preference)user preference)
