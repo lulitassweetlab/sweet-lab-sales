@@ -7626,6 +7626,14 @@ function openInlineFileUploadDialog(saleId) {
 					50% { transform: scale(1.15); }
 					100% { transform: scale(1); }
 				}
+				@keyframes spin {
+					to { transform: rotate(360deg); }
+				}
+				@keyframes successPop {
+					0% { transform: scale(0); }
+					50% { transform: scale(1.15); }
+					100% { transform: scale(1); }
+				}
 			`;
 			document.head.appendChild(style);
 		}
@@ -7679,60 +7687,116 @@ function openInlineFileUploadDialog(saleId) {
 		fileInput.style.transition = 'border-color 0.2s ease';
 
 		const noteLabel = document.createElement('label');
-		noteLabel.textContent = '💬 Nota (opcional)';
+		noteLabel.textContent = '💬 Agrega una nota (opcional)';
 		noteLabel.style.display = 'block';
-		noteLabel.style.marginBottom = '8px';
-		noteLabel.style.fontSize = '14px';
-		noteLabel.style.fontWeight = '500';
+		noteLabel.style.marginBottom = '10px';
+		noteLabel.style.fontSize = '15px';
+		noteLabel.style.fontWeight = '600';
 		noteLabel.style.color = 'var(--text, #111)';
 
 		const noteInput = document.createElement('textarea');
 		noteInput.rows = 3;
-		noteInput.placeholder = 'Agrega una nota si lo deseas...';
+		noteInput.placeholder = 'Escribe aquí cualquier observación...';
 		noteInput.style.width = '100%';
 		noteInput.style.resize = 'vertical';
-		noteInput.style.padding = '12px';
-		noteInput.style.borderRadius = '10px';
-		noteInput.style.border = '1px solid var(--border, #e5e7eb)';
-		noteInput.style.marginBottom = '16px';
+		noteInput.style.padding = '14px';
+		noteInput.style.borderRadius = '12px';
+		noteInput.style.border = '2px solid var(--border, #e5e7eb)';
+		noteInput.style.marginBottom = '20px';
 		noteInput.style.fontFamily = 'inherit';
 		noteInput.style.fontSize = '14px';
-		noteInput.style.transition = 'border-color 0.2s ease';
+		noteInput.style.transition = 'all 0.3s ease';
 		noteInput.addEventListener('focus', () => {
-			noteInput.style.borderColor = 'var(--primary, #f4a6b7)';
+			noteInput.style.borderColor = '#f4a6b7';
+			noteInput.style.boxShadow = '0 0 0 3px rgba(244, 166, 183, 0.15)';
 		});
 		noteInput.addEventListener('blur', () => {
 			noteInput.style.borderColor = 'var(--border, #e5e7eb)';
+			noteInput.style.boxShadow = 'none';
 		});
 
 		const previewContainer = document.createElement('div');
 		previewContainer.className = 'preview';
 		previewContainer.style.display = 'none';
-		previewContainer.style.marginBottom = '12px';
+		previewContainer.style.marginBottom = '20px';
+		
+		const previewTitle = document.createElement('div');
+		previewTitle.textContent = '👁️ Vista previa';
+		previewTitle.style.fontSize = '15px';
+		previewTitle.style.fontWeight = '600';
+		previewTitle.style.marginBottom = '12px';
+		previewTitle.style.color = 'var(--text, #111)';
+		previewTitle.style.display = 'none';
 
 		const actions = document.createElement('div');
 		actions.className = 'actions';
 		actions.style.display = 'flex';
-		actions.style.gap = '8px';
+		actions.style.gap = '10px';
 		actions.style.justifyContent = 'flex-end';
+		actions.style.marginTop = '20px';
 		actions.style.marginBottom = '8px';
 
 		const cancelBtn = document.createElement('button');
 		cancelBtn.className = 'btn press-btn';
 		cancelBtn.textContent = 'Cancelar';
-		cancelBtn.style.padding = '8px 12px';
+		cancelBtn.style.padding = '14px 28px';
+		cancelBtn.style.borderRadius = '12px';
+		cancelBtn.style.border = '2px solid #e5e7eb';
+		cancelBtn.style.background = 'white';
+		cancelBtn.style.cursor = 'pointer';
+		cancelBtn.style.fontSize = '15px';
+		cancelBtn.style.fontWeight = '600';
+		cancelBtn.style.transition = 'all 0.3s ease';
+		cancelBtn.style.color = '#6b7280';
+		cancelBtn.addEventListener('mouseenter', () => {
+			cancelBtn.style.background = '#f9fafb';
+			cancelBtn.style.borderColor = '#d1d5db';
+			cancelBtn.style.transform = 'translateY(-2px)';
+			cancelBtn.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+		});
+		cancelBtn.addEventListener('mouseleave', () => {
+			cancelBtn.style.background = 'white';
+			cancelBtn.style.borderColor = '#e5e7eb';
+			cancelBtn.style.transform = 'translateY(0)';
+			cancelBtn.style.boxShadow = 'none';
+		});
 
 		const uploadBtn = document.createElement('button');
 		uploadBtn.className = 'btn btn-primary press-btn btn-gold';
-		uploadBtn.textContent = 'Subir';
-		uploadBtn.style.padding = '8px 12px';
+		uploadBtn.textContent = 'Subir Archivos';
+		uploadBtn.style.padding = '14px 32px';
+		uploadBtn.style.borderRadius = '12px';
+		uploadBtn.style.border = 'none';
+		uploadBtn.style.background = '#f4a6b7';
+		uploadBtn.style.color = '#fff';
+		uploadBtn.style.cursor = 'pointer';
+		uploadBtn.style.fontSize = '16px';
+		uploadBtn.style.fontWeight = '700';
+		uploadBtn.style.transition = 'all 0.3s ease';
+		uploadBtn.style.textTransform = 'uppercase';
+		uploadBtn.style.letterSpacing = '0.5px';
+		uploadBtn.style.opacity = '0.5';
 		uploadBtn.disabled = true;
+		uploadBtn.addEventListener('mouseenter', () => {
+			if (!uploadBtn.disabled) {
+				uploadBtn.style.background = '#e885a0';
+				uploadBtn.style.transform = 'translateY(-3px) scale(1.02)';
+				uploadBtn.style.boxShadow = '0 8px 20px rgba(244, 166, 183, 0.6)';
+			}
+		});
+		uploadBtn.addEventListener('mouseleave', () => {
+			uploadBtn.style.background = '#f4a6b7';
+			uploadBtn.style.transform = 'translateY(0) scale(1)';
+			uploadBtn.style.boxShadow = 'none';
+		});
 
 		const helpText = document.createElement('div');
 		helpText.className = 'note';
-		helpText.textContent = 'Formatos comunes: JPG, PNG. Tamaño máximo recomendado 2MB.';
+		helpText.textContent = '💡 Formatos: JPG, PNG · Tamaño recomendado: < 2MB';
 		helpText.style.fontSize = '12px';
-		helpText.style.color = '#6b7280';
+		helpText.style.color = 'var(--muted, #6b7280)';
+		helpText.style.textAlign = 'center';
+		helpText.style.opacity = '0.75';
 
 		let selectedFiles = [];
 
@@ -7741,39 +7805,49 @@ function openInlineFileUploadDialog(saleId) {
 			if (!files || files.length === 0) {
 				previewContainer.style.display = 'none';
 				previewContainer.innerHTML = '';
+				previewTitle.style.display = 'none';
 				uploadBtn.disabled = true;
+				uploadBtn.style.opacity = '0.5';
+				uploadBtn.style.cursor = 'not-allowed';
 				selectedFiles = [];
 				return;
 			}
 
 			selectedFiles = Array.from(files);
 			previewContainer.innerHTML = '';
+			previewContainer.appendChild(previewTitle);
 			previewContainer.style.display = 'block';
+			previewTitle.style.display = 'block';
 
 			selectedFiles.forEach((file, index) => {
 				const reader = new FileReader();
 				reader.onload = (e) => {
 					const imgContainer = document.createElement('div');
 					imgContainer.style.marginBottom = '16px';
-					imgContainer.style.padding = '12px';
-					imgContainer.style.background = 'var(--background, #f9fafb)';
-					imgContainer.style.borderRadius = '12px';
-					imgContainer.style.border = '1px solid var(--border, #e5e7eb)';
+					imgContainer.style.padding = '0';
+					imgContainer.style.background = 'white';
+					imgContainer.style.borderRadius = '16px';
+					imgContainer.style.border = '3px solid #f4a6b7';
+					imgContainer.style.overflow = 'hidden';
+					imgContainer.style.boxShadow = '0 4px 12px rgba(244, 166, 183, 0.2)';
 
 					const label = document.createElement('div');
 					label.textContent = `📎 ${file.name}`;
-					label.style.fontSize = '13px';
-					label.style.marginBottom = '8px';
-					label.style.fontWeight = '500';
-					label.style.color = 'var(--text, #111)';
+					label.style.fontSize = '14px';
+					label.style.padding = '12px 16px';
+					label.style.fontWeight = '600';
+					label.style.color = 'white';
+					label.style.background = '#f4a6b7';
 
 					const img = document.createElement('img');
 					img.src = e.target.result;
 					img.alt = `Vista previa ${index + 1}`;
-					img.style.maxWidth = '100%';
-					img.style.borderRadius = '8px';
-					img.style.border = '1px solid var(--border, #e5e7eb)';
+					img.style.width = '100%';
+					img.style.height = 'auto';
 					img.style.display = 'block';
+					img.style.maxHeight = '300px';
+					img.style.objectFit = 'contain';
+					img.style.background = '#f9fafb';
 
 					imgContainer.appendChild(label);
 					imgContainer.appendChild(img);
@@ -7783,19 +7857,30 @@ function openInlineFileUploadDialog(saleId) {
 			});
 
 			uploadBtn.disabled = false;
-			uploadBtn.textContent = `Subir ${selectedFiles.length} archivo${selectedFiles.length > 1 ? 's' : ''}`;
+			uploadBtn.style.opacity = '1';
+			uploadBtn.style.cursor = 'pointer';
+			uploadBtn.textContent = `Subir ${selectedFiles.length} Archivo${selectedFiles.length > 1 ? 's' : ''}`;
 		});
 
 		uploadBtn.addEventListener('click', async () => {
 			if (selectedFiles.length === 0 || !id) return;
-			uploadBtn.disabled = true;
-			uploadBtn.textContent = 'Subiendo...';
+			
+			// Show loading overlay
+			loadingOverlay.style.display = 'flex';
+			spinner.style.display = 'block';
+			successIcon.style.display = 'none';
+			loadingText.textContent = 'Subiendo archivos...';
+			loadingSubtext.textContent = '';
 
 			try {
 				const note = noteInput.value.trim();
 				let successCount = 0;
+				let errorCount = 0;
 
-				for (const file of selectedFiles) {
+				for (let i = 0; i < selectedFiles.length; i++) {
+					const file = selectedFiles[i];
+					loadingSubtext.textContent = `${i + 1} de ${selectedFiles.length}`;
+					
 					try {
 						const reader = new FileReader();
 						const dataUrl = await new Promise((resolve, reject) => {
@@ -7819,32 +7904,48 @@ function openInlineFileUploadDialog(saleId) {
 						successCount++;
 					} catch (err) {
 						console.error('Error uploading file:', file.name, err);
+						errorCount++;
 					}
 				}
 
 				if (successCount > 0) {
+					// Show success animation
+					spinner.style.display = 'none';
+					successIcon.style.display = 'flex';
+					const fileWord = successCount === 1 ? 'archivo' : 'archivos';
+					const uploadedWord = successCount === 1 ? 'subido' : 'subidos';
+					loadingText.textContent = `\u00a1${successCount} ${fileWord} ${uploadedWord}!`;
+					loadingSubtext.textContent = errorCount > 0 ? `\u26a0\ufe0f ${errorCount} con error` : '\u2713 Completado con \u00e9xito';
+					
+					// Wait to show success, then close
+					await new Promise(resolve => setTimeout(resolve, 1800));
+					
+					cleanup();
+					
+					// Show notification
 					try {
 						notify.success(`${successCount} archivo${successCount > 1 ? 's' : ''} subido${successCount > 1 ? 's' : ''} correctamente`);
 					} catch {}
-
-					cleanup();
-
-					// Reload receipts gallery to show uploaded files
-					setTimeout(() => {
-						openReceiptsGalleryPopover(id, window.innerWidth / 2, window.innerHeight / 2).catch(err => {
-							console.error('Error opening gallery after upload:', err);
-						});
-					}, 300);
+					
+					// Stay in sales table - optionally reload to show updated data
+					if (typeof renderSalesView === 'function') {
+						setTimeout(() => renderSalesView(), 100);
+					}
 				} else {
-					throw new Error('No se pudo subir ningún archivo');
+					throw new Error('No se pudo subir ning\u00fan archivo');
 				}
 			} catch (err) {
 				console.error('Upload error:', err);
+				spinner.style.display = 'none';
+				loadingText.textContent = '\u2717 Error al subir';
+				loadingSubtext.textContent = 'Intenta de nuevo';
+				
+				await new Promise(resolve => setTimeout(resolve, 2000));
+				loadingOverlay.style.display = 'none';
+				
 				try {
-					notify.error('Error al subir archivos: ' + (err.message || 'Error desconocido'));
+					notify.error('Error al subir archivos');
 				} catch {}
-				uploadBtn.disabled = false;
-				uploadBtn.textContent = `Subir ${selectedFiles.length} archivo${selectedFiles.length > 1 ? 's' : ''}`;
 			}
 		});
 
@@ -7862,6 +7963,67 @@ function openInlineFileUploadDialog(saleId) {
 		actions.appendChild(cancelBtn);
 		actions.appendChild(uploadBtn);
 
+		// Create loading overlay inside dialog
+		const loadingOverlay = document.createElement('div');
+		loadingOverlay.style.display = 'none';
+		loadingOverlay.style.position = 'absolute';
+		loadingOverlay.style.top = '0';
+		loadingOverlay.style.left = '0';
+		loadingOverlay.style.right = '0';
+		loadingOverlay.style.bottom = '0';
+		loadingOverlay.style.background = 'rgba(255, 255, 255, 0.97)';
+		loadingOverlay.style.borderRadius = '16px';
+		loadingOverlay.style.alignItems = 'center';
+		loadingOverlay.style.justifyContent = 'center';
+		loadingOverlay.style.zIndex = '10';
+		
+		const loadingContent = document.createElement('div');
+		loadingContent.style.textAlign = 'center';
+		loadingContent.style.padding = '40px';
+		
+		const spinner = document.createElement('div');
+		spinner.style.width = '70px';
+		spinner.style.height = '70px';
+		spinner.style.margin = '0 auto 28px';
+		spinner.style.border = '6px solid #fce7ec';
+		spinner.style.borderTopColor = '#f4a6b7';
+		spinner.style.borderRadius = '50%';
+		spinner.style.animation = 'spin 0.8s linear infinite';
+		
+		const successIcon = document.createElement('div');
+		successIcon.style.width = '90px';
+		successIcon.style.height = '90px';
+		successIcon.style.margin = '0 auto 28px';
+		successIcon.style.borderRadius = '50%';
+		successIcon.style.background = '#f4a6b7';
+		successIcon.style.display = 'none';
+		successIcon.style.alignItems = 'center';
+		successIcon.style.justifyContent = 'center';
+		successIcon.style.fontSize = '52px';
+		successIcon.style.color = 'white';
+		successIcon.style.animation = 'successPop 0.5s ease';
+		successIcon.style.boxShadow = '0 10px 30px rgba(244, 166, 183, 0.6)';
+		successIcon.textContent = '\u2713';
+		
+		const loadingText = document.createElement('div');
+		loadingText.style.fontSize = '20px';
+		loadingText.style.fontWeight = '700';
+		loadingText.style.color = '#111';
+		loadingText.style.marginBottom = '10px';
+		loadingText.textContent = 'Subiendo archivos...';
+		
+		const loadingSubtext = document.createElement('div');
+		loadingSubtext.style.fontSize = '15px';
+		loadingSubtext.style.color = '#6b7280';
+		loadingSubtext.style.fontWeight = '500';
+		
+		loadingContent.appendChild(spinner);
+		loadingContent.appendChild(successIcon);
+		loadingContent.appendChild(loadingText);
+		loadingContent.appendChild(loadingSubtext);
+		loadingOverlay.appendChild(loadingContent);
+		
+		dialog.style.position = 'relative';
 		dialog.appendChild(title);
 		dialog.appendChild(saleInfo);
 		dialog.appendChild(fileLabel);
@@ -7871,6 +8033,7 @@ function openInlineFileUploadDialog(saleId) {
 		dialog.appendChild(previewContainer);
 		dialog.appendChild(actions);
 		dialog.appendChild(helpText);
+		dialog.appendChild(loadingOverlay);
 
 		overlay.appendChild(dialog);
 		document.body.appendChild(overlay);
