@@ -7685,31 +7685,35 @@ async function openReceiptsGalleryPopover(saleId, anchorX, anchorY) {
 			img.style.objectFit = 'contain';
 			img.style.borderRadius = '6px';
 			img.style.cursor = 'pointer';
-			img.addEventListener('click', () => {
-				// Open full-size view
-				const lightbox = document.createElement('div');
-				lightbox.style.position = 'fixed';
-				lightbox.style.top = '0';
-				lightbox.style.left = '0';
-				lightbox.style.width = '100%';
-				lightbox.style.height = '100%';
-				lightbox.style.background = 'rgba(0,0,0,0.9)';
-				lightbox.style.zIndex = '2000';
-				lightbox.style.display = 'flex';
-				lightbox.style.alignItems = 'center';
-				lightbox.style.justifyContent = 'center';
-				lightbox.style.cursor = 'pointer';
-				const fullImg = document.createElement('img');
-				fullImg.src = receipt.image_base64;
-				fullImg.style.maxWidth = '95%';
-				fullImg.style.maxHeight = '95%';
-				fullImg.style.objectFit = 'contain';
-				lightbox.appendChild(fullImg);
-				document.body.appendChild(lightbox);
-				lightbox.addEventListener('click', () => {
+		img.addEventListener('click', (e) => {
+			e.stopPropagation(); // Prevent closing the gallery popover
+			// Open full-size view
+			const lightbox = document.createElement('div');
+			lightbox.style.position = 'fixed';
+			lightbox.style.top = '0';
+			lightbox.style.left = '0';
+			lightbox.style.width = '100%';
+			lightbox.style.height = '100%';
+			lightbox.style.background = 'rgba(0,0,0,0.9)';
+			lightbox.style.zIndex = '2000';
+			lightbox.style.display = 'flex';
+			lightbox.style.alignItems = 'center';
+			lightbox.style.justifyContent = 'center';
+			lightbox.style.cursor = 'pointer';
+			const fullImg = document.createElement('img');
+			fullImg.src = receipt.image_base64;
+			fullImg.style.maxWidth = '95%';
+			fullImg.style.maxHeight = '95%';
+			fullImg.style.objectFit = 'contain';
+			lightbox.appendChild(fullImg);
+			document.body.appendChild(lightbox);
+			lightbox.addEventListener('click', (e) => {
+				e.stopPropagation(); // Prevent event from reaching gallery popover
+				if (lightbox.parentNode) {
 					document.body.removeChild(lightbox);
-				});
+				}
 			});
+		});
 			imgContainer.appendChild(img);
 			
 			// Payment selector overlay (only for superadmin)
