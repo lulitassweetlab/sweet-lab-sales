@@ -779,16 +779,16 @@
 			if (!start || !end) return;
 			
 			const hideLoading = showLoading('Cargando recetas...');
-			
-			rangeLabel.textContent = `${formatDay(start)} — ${formatDay(end)}`;
-			countLabel.textContent = 'Cargando…';
-			cardsWrap.innerHTML = '';
-			
-			updateLoadingProgress(10, 'Cargando postres...');
+			try {
+				rangeLabel.textContent = `${formatDay(start)} — ${formatDay(end)}`;
+				countLabel.textContent = 'Cargando…';
+				cardsWrap.innerHTML = '';
+				
+				updateLoadingProgress(10, 'Cargando postres...');
 			
 			// Load desserts first
 			try {
-				desserts = await fetchJSON('/api/desserts');
+				desserts = await fetchJSON(withActor('/api/desserts'));
 			} catch {
 				desserts = [
 					{ id: 1, name: 'Arco', short_code: 'arco', sale_price: 8500 },
@@ -1151,14 +1151,32 @@
 			}
 			countLabel.textContent = `Postres: ${totalDesserts}`;
 			
+			// If nothing to show, give a clear hint
+			if (renderedDesserts.length === 0) {
+				const msg = document.createElement('div');
+				msg.style.margin = '12px 0';
+				msg.style.opacity = '0.8';
+				msg.textContent = 'No hay postres con cantidad > 0 en este rango. Cambia fechas o edita cantidades en Ingredientes.';
+				cardsWrap.appendChild(msg);
+			}
+			
 			// Setup navigation
-			updateLoadingProgress(85, 'Configurando navegaci\u00f3n...');
+			updateLoadingProgress(85, 'Configurando navegación...');
 			setupNavigation(renderedDesserts);
 			
 			updateLoadingProgress(95, 'Finalizando...');
-			
-			// Hide loading overlay
-			hideLoading();
+			} catch (err) {
+				console.error('Receta load error:', err);
+				countLabel.textContent = 'Error al cargar recetas';
+				const msg = document.createElement('div');
+				msg.style.marginTop = '12px';
+				msg.style.color = 'crimson';
+				msg.textContent = 'Ocurrió un error cargando la receta. Intenta cambiar el rango o recargar la página.';
+				cardsWrap.appendChild(msg);
+			} finally {
+				// Hide loading overlay
+				hideLoading();
+			}
 			
 			// Actions: save times & view history
 			const actions = document.createElement('div'); actions.className = 'confirm-actions'; actions.style.marginTop='8px';
