@@ -319,6 +319,18 @@ export async function handler(event) {
                         const paymentSource = data.payment_source !== undefined ? (data.payment_source || null) : null;
                         const paymentDate = data.payment_date !== undefined ? (data.payment_date || null) : null;
                         [row] = await sql`INSERT INTO sale_receipts (sale_id, image_base64, note_text, pay_method, payment_source, payment_date) VALUES (${sid}, ${img}, ${note}, ${payMethod}, ${paymentSource}, ${paymentDate}) RETURNING *`;
+                        
+                        // IMPORTANTE: También actualizar la tabla sales con payment_source y payment_date
+                        // para que el reporte de cartera pueda mostrar esta información
+                        if (paymentSource !== null || paymentDate !== null) {
+                            if (paymentSource !== null && paymentDate !== null) {
+                                await sql`UPDATE sales SET payment_source=${paymentSource}, payment_date=${paymentDate} WHERE id=${sid}`;
+                            } else if (paymentSource !== null) {
+                                await sql`UPDATE sales SET payment_source=${paymentSource} WHERE id=${sid}`;
+                            } else if (paymentDate !== null) {
+                                await sql`UPDATE sales SET payment_date=${paymentDate} WHERE id=${sid}`;
+                            }
+                        }
                     } catch (err) {
                         // Fallback to old schema without payment columns
                         console.error('New columns not available, using old schema:', err.message);
@@ -392,6 +404,25 @@ export async function handler(event) {
 					}
 					
 					const [updated] = await sql`SELECT id, sale_id, pay_method, payment_source, payment_date FROM sale_receipts WHERE id=${receiptId}`;
+					
+					// IMPORTANTE: También actualizar la tabla sales con los mismos datos
+					// para que el reporte de cartera pueda mostrar esta información
+					if (updated && updated.sale_id) {
+						const saleId = updated.sale_id;
+						
+						// Construir el UPDATE dinámicamente según los campos que se actualizaron
+						if (payMethod !== undefined && paymentSource !== undefined && paymentDate !== undefined) {
+							await sql`UPDATE sales SET pay_method=${payMethod}, payment_source=${paymentSource}, payment_date=${paymentDate} WHERE id=${saleId}`;
+						} else if (paymentSource !== undefined && paymentDate !== undefined) {
+							await sql`UPDATE sales SET payment_source=${paymentSource}, payment_date=${paymentDate} WHERE id=${saleId}`;
+						} else if (paymentSource !== undefined) {
+							await sql`UPDATE sales SET payment_source=${paymentSource} WHERE id=${saleId}`;
+						} else if (paymentDate !== undefined) {
+							await sql`UPDATE sales SET payment_date=${paymentDate} WHERE id=${saleId}`;
+						}
+						// Si solo se actualiza pay_method, ya se maneja en otro lugar del código
+					}
+					
 					return json(updated || {});
 				} catch (err) {
 					// Columns might not exist yet - just return success anyway
