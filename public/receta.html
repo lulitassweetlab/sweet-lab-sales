@@ -295,7 +295,7 @@
 		popover.className = 'inventory-popover';
 		popover.textContent = '✅ Inventario actualizado';
 		popover.style.position = 'fixed';
-		popover.style.background = '#4CAF50';
+		popover.style.background = 'var(--primary)';
 		popover.style.color = 'white';
 		popover.style.padding = '8px 16px';
 		popover.style.borderRadius = '8px';
@@ -983,30 +983,8 @@
 				const stepRows = [];
                     for (const it of (step.items || [])){
 					const tr = document.createElement('tr');
-					const itemKey = `${dessertName}:${step.step_name}:${it.ingredient}`.toLowerCase();
-					const isChecked = !!checkedState[itemKey];
-					if (isChecked) tr.classList.add('row-checked');
 					
-					// Checkbox column
-					const tdCheck = document.createElement('td'); tdCheck.style.width='30px';
-					const checkbox = document.createElement('input');
-					checkbox.type = 'checkbox';
-					checkbox.className = 'ingredient-checkbox';
-					checkbox.checked = isChecked;
-					checkbox.addEventListener('change', () => {
-						const state = getCheckedState();
-						if (checkbox.checked) {
-							state[itemKey] = true;
-							tr.classList.add('row-checked');
-						} else {
-							delete state[itemKey];
-							tr.classList.remove('row-checked');
-						}
-						saveCheckedState(state);
-					});
-					tdCheck.appendChild(checkbox);
-					
-					const tdN = document.createElement('td'); tdN.textContent = it.ingredient; tdN.style.padding='8px 4px'; tdN.style.textAlign='center';
+					const tdN = document.createElement('td'); tdN.textContent = it.ingredient; tdN.style.padding='8px 4px'; tdN.style.textAlign='left';
                         const per = Number(it.qty_per_unit || 0) || 0;
                         const adj = Number(it.adjustment || 0) || 0;
                         const total = (per * qty) + adj;
@@ -1134,10 +1112,13 @@
                                 
                                 // Mark as used
                                 discountBtn.dataset.used = 'true';
-                                discountBtn.style.background = '#4CAF50';
+                                discountBtn.style.background = 'var(--primary)';
                                 discountBtn.style.color = 'white';
                                 discountBtn.textContent = '✓';
                                 discountBtn.title = 'Ya descontado';
+                                
+                                // Add row checked style
+                                tr.classList.add('row-checked');
                                 
                                 // Show success popover
                                 showInventoryPopover(discountBtn);
@@ -1153,7 +1134,7 @@
                         
                         qtyContainer.append(qtyDisplay, qtyInput, originalSpan, discountBtn);
                         tdQ.appendChild(qtyContainer);
-					tr.append(tdCheck, tdN, tdQ);
+					tr.append(tdN, tdQ);
 					stepRows.push(tr);
 					tbody.appendChild(tr);
 				}
