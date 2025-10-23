@@ -1948,26 +1948,7 @@ async function checkAndUpdateMainSelectorToJorgebank(saleId) {
 					}
 				}
 			}
-        } else {
-            // Not all receipts are jorgebank → ensure UI shows 'transf' if it was showing 'jorgebank'
-            const sale = state.sales?.find(s => Number(s.id) === Number(saleId));
-            if (sale && String(sale.pay_method || '').toLowerCase() === 'jorgebank') {
-                sale.pay_method = 'transf';
-                console.log(`🔄 Real-time update: Sale ${saleId} -> transf (not all receipts verified)`);
-                const row = document.querySelector(`tr[data-sale-id="${saleId}"]`);
-                if (row) {
-                    const selector = row.querySelector('.col-paid select');
-                    if (selector) {
-                        selector.value = 'transf';
-                        const wrap = selector.closest('.pay-wrap');
-                        if (wrap) {
-                            wrap.classList.remove('placeholder', 'method-efectivo', 'method-jorgebank', 'method-marce', 'method-jorge', 'method-entregado');
-                            wrap.classList.add('method-transf');
-                        }
-                    }
-                }
-            }
-		}
+        }
 	} catch (err) {
 		console.error('Error checking receipts for real-time update:', err);
 	}
@@ -1994,10 +1975,6 @@ async function enrichSalesWithReceiptStatus() {
             if (allJorgebank) {
                 sale.pay_method = 'jorgebank';
                 console.log(`✅ Sale ${sale.id} -> jorgebank (all ${receipts.length} receipts verified)`);
-            } else if (String(sale.pay_method || '').toLowerCase() === 'jorgebank') {
-                // Revert to 'transf' in UI if previously marked jorgebank but not all receipts are verified
-                sale.pay_method = 'transf';
-                console.log(`↩️ Sale ${sale.id} -> transf (not all receipts verified)`);
             }
 		} catch (err) {
 			console.error(`Error checking receipts for sale ${sale.id}:`, err);
