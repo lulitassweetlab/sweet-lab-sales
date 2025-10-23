@@ -726,162 +726,7 @@
             return { element: wrap, getElapsedMs: () => compute(), reset: () => { stop(); }, addRow: (row) => { associatedRows.push(row); } };
         }
 		
-		function renderHistory() {
-			list.innerHTML = '';
-			const allHistory = readHistory();
-			
-			// Filter history for this specific dessert and step
-			const stepHistory = allHistory.filter(item => {
-				if (item.dessert !== dessertName) return false;
-				if (!item.steps || !Array.isArray(item.steps)) return false;
-				return item.steps.some(s => s.name === stepName);
-			}).map(item => {
-				// Extract only this step's data
-				const step = item.steps.find(s => s.name === stepName);
-				return {
-					id: item.id,
-					date_iso: item.date_iso,
-					dessert: item.dessert,
-					step_name: step.name,
-					qty_units: step.qty_units || item.qty_units || 0,
-					elapsed_ms: step.elapsed_ms || 0,
-					avg_ms_per_unit: step.avg_ms_per_unit || 0
-				};
-			}).reverse(); // Most recent first
-			
-			if (!stepHistory.length) {
-				const empty = document.createElement('div');
-				empty.textContent = 'Sin registros para este paso';
-				empty.style.padding = '20px';
-				empty.style.textAlign = 'center';
-				empty.style.opacity = '0.6';
-				list.appendChild(empty);
-			} else {
-				// Calculate overall average
-				const totalAvg = stepHistory.reduce((sum, item) => sum + (item.avg_ms_per_unit || 0), 0);
-				const overallAvg = stepHistory.length > 0 ? Math.round(totalAvg / stepHistory.length) : 0;
-				
-				// Header row
-				const header = document.createElement('div');
-				header.style.display = 'grid';
-				header.style.gridTemplateColumns = '1fr 120px 90px 90px 100px 60px';
-				header.style.gap = '8px';
-				header.style.padding = '8px';
-				header.style.fontWeight = '600';
-				header.style.borderBottom = '2px solid var(--border)';
-				header.style.background = 'var(--card)';
-				header.style.position = 'sticky';
-				header.style.top = '0';
-				header.style.zIndex = '1';
-				header.innerHTML = `
-					<div>Fecha</div>
-					<div style="text-align:center">Cantidad</div>
-					<div style="text-align:center">Tiempo</div>
-					<div style="text-align:center">Promedio</div>
-					<div></div>
-					<div></div>
-				`;
-				list.appendChild(header);
-				
-				// Data rows
-				for (const item of stepHistory) {
-					const row = document.createElement('div');
-					row.style.display = 'grid';
-					row.style.gridTemplateColumns = '1fr 120px 90px 90px 100px 60px';
-					row.style.gap = '8px';
-					row.style.padding = '8px';
-					row.style.borderBottom = '1px solid var(--border)';
-					row.style.alignItems = 'center';
-					
-					const when = new Date(item.date_iso || item.id || Date.now());
-					const dateStr = when.toLocaleDateString() + ' ' + when.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-					
-					const dateCell = document.createElement('div');
-					dateCell.textContent = dateStr;
-					dateCell.style.fontSize = '13px';
-					
-					const qtyCell = document.createElement('div');
-					qtyCell.textContent = item.qty_units || 0;
-					qtyCell.style.textAlign = 'center';
-					qtyCell.style.fontWeight = '500';
-					
-					const timeCell = document.createElement('div');
-					timeCell.textContent = fmtMs(item.elapsed_ms || 0);
-					timeCell.style.textAlign = 'center';
-					timeCell.style.fontVariantNumeric = 'tabular-nums';
-					
-					const avgCell = document.createElement('div');
-					avgCell.textContent = fmtMs(item.avg_ms_per_unit || 0);
-					avgCell.style.textAlign = 'center';
-					avgCell.style.fontVariantNumeric = 'tabular-nums';
-					avgCell.style.color = 'var(--accent)';
-					avgCell.style.fontWeight = '600';
-					
-					const spacer = document.createElement('div');
-					
-					const delBtn = document.createElement('button');
-					delBtn.className = 'press-btn';
-					delBtn.textContent = '🗑';
-					delBtn.title = 'Eliminar';
-					delBtn.style.padding = '4px 8px';
-					delBtn.style.fontSize = '16px';
-					delBtn.addEventListener('click', () => {
-						if (confirm('¿Eliminar este registro?')) {
-							deleteHistoryItem(item.id);
-							renderHistory();
-						}
-					});
-					
-					row.append(dateCell, qtyCell, timeCell, avgCell, spacer, delBtn);
-					list.appendChild(row);
-				}
-				
-				// Overall average footer
-				const footer = document.createElement('div');
-				footer.style.display = 'grid';
-				footer.style.gridTemplateColumns = '1fr 120px 90px 90px 100px 60px';
-				footer.style.gap = '8px';
-				footer.style.padding = '12px 8px';
-				footer.style.borderTop = '2px solid var(--border)';
-				footer.style.background = 'rgba(244, 166, 183, 0.1)';
-				footer.style.fontWeight = '600';
-				footer.style.marginTop = '8px';
-				footer.innerHTML = `
-					<div>Promedio general:</div>
-					<div></div>
-					<div></div>
-					<div style="text-align:center; color:var(--accent); font-size:16px;">${fmtMs(overallAvg)}</div>
-					<div></div>
-					<div></div>
-				`;
-				list.appendChild(footer);
-			}
-		}
-		
-		function deleteHistoryItem(id) {
-			const hist = readHistory();
-			const filtered = hist.filter(item => item.id !== id);
-			writeHistory(filtered);
-		}
-		
-		renderHistory();
-		
-		const actions = document.createElement('div');
-		actions.className = 'confirm-actions';
-		actions.style.marginTop = '12px';
-		
-		const close = document.createElement('button');
-		close.className = 'press-btn';
-		close.textContent = 'Cerrar';
-		actions.appendChild(close);
-		
-		pop.append(title, list, actions);
-		document.body.appendChild(pop);
-		pop.classList.add('aladdin-pop');
-		
-		close.addEventListener('click', () => {
-			if (pop.parentNode) pop.parentNode.removeChild(pop);
-		});
+		// Removed stray history rendering block that caused runtime errors
 	}
 
 		function normalizeKey(name){ const k=(name||'').toString().trim().toLowerCase(); if (k.startsWith('arco')) return 'arco'; if (k.startsWith('melo')) return 'melo'; if (k.startsWith('mara')) return 'mara'; if (k.startsWith('oreo')) return 'oreo'; if (k.startsWith('nute')) return 'nute'; return k; }
@@ -954,50 +799,61 @@
 				];
 			}
 			
-			// 1) Build counts by dessert from sales in range
-			const sellers = await fetchJSON(withActor('/api/sellers'));
-			countLabel.textContent = `Vendedores: ${sellers.length} · Buscando días…`;
-			const isoBetween = (iso, a, b) => iso >= a && iso <= b;
-			async function mapLimit(items, limit, fn){ const out=[]; let idx=0; let running=0; let resolveAll; const done=new Promise(r=>resolveAll=r); function runNext(){ if(idx>=items.length && running===0) return resolveAll(); while(running<limit && idx<items.length){ const cur=items[idx++]; running++; Promise.resolve(fn(cur)).then(v=>{ out.push(v); running--; runNext(); }).catch(()=>{ running--; runNext(); }); } } runNext(); await done; return out; }
-			const sellerDays = [];
-			await mapLimit(sellers, 6, async (s) => {
+			// 1) Build counts by dessert from sales in range (with fallback to saved counts from Ingredientes)
+			const storeKey = `ingredients.counts:${start}:${end}`;
+			function getSavedCounts(){
 				try {
-					const days = await fetchJSON(withActor(`/api/days?seller_id=${encodeURIComponent(s.id)}`));
-					for (const d of (days||[])) { const iso = String(d.day).slice(0,10); if (isoBetween(iso, start, end)) sellerDays.push({ seller: s, day: d }); }
-				} catch {}
-			});
-			updateLoadingProgress(40, 'Buscando ventas...');
-			countLabel.textContent = `Días: ${sellerDays.length} · Buscando ventas…`;
-			
-			// Initialize counts dynamically
-			const counts = {};
-			for (const d of desserts) {
-				counts[d.short_code] = 0;
+					const v = localStorage.getItem(storeKey);
+					if (!v) return null;
+					const o = JSON.parse(v);
+					if (!o) return null;
+					const result = {};
+					for (const d of desserts) result[d.short_code] = Number(o[d.short_code] || 0) || 0;
+					return result;
+				} catch { return null; }
 			}
-			
-			await mapLimit(sellerDays, 6, async ({ seller, day }) => {
-				try {
-					const params = new URLSearchParams({ seller_id: String(seller.id), sale_day_id: String(day.id) });
-					const sales = await fetchJSON(withActor(`/api/sales?${params.toString()}`));
-					for (const r of (sales || [])) {
-						// Support both formats
-						if (Array.isArray(r.items) && r.items.length > 0) {
-							// New format
-							for (const item of r.items) {
-								const d = desserts.find(d => d.id === item.dessert_id || d.short_code === item.short_code);
-								if (d) {
-									counts[d.short_code] += Number(item.quantity || 0) || 0;
+			const savedCounts = getSavedCounts();
+			let counts = {};
+			if (savedCounts) {
+				// Use cached counts from Ingredientes page for instant render
+				counts = savedCounts;
+				countLabel.textContent = 'Usando cantidades guardadas…';
+			} else {
+				const sellers = await fetchJSON(withActor('/api/sellers'));
+				countLabel.textContent = `Vendedores: ${sellers.length} · Buscando días…`;
+				const isoBetween = (iso, a, b) => iso >= a && iso <= b;
+				async function mapLimit(items, limit, fn){ const out=[]; let idx=0; let running=0; let resolveAll; const done=new Promise(r=>resolveAll=r); function runNext(){ if(idx>=items.length && running===0) return resolveAll(); while(running<limit && idx<items.length){ const cur=items[idx++]; running++; Promise.resolve(fn(cur)).then(v=>{ out.push(v); running--; runNext(); }).catch(()=>{ running--; runNext(); }); } } runNext(); await done; return out; }
+				const sellerDays = [];
+				await mapLimit(sellers, 6, async (s) => {
+					try {
+						const days = await fetchJSON(withActor(`/api/days?seller_id=${encodeURIComponent(s.id)}`));
+						for (const d of (days||[])) { const iso = String(d.day).slice(0,10); if (isoBetween(iso, start, end)) sellerDays.push({ seller: s, day: d }); }
+					} catch {}
+				});
+				updateLoadingProgress(40, 'Buscando ventas...');
+				countLabel.textContent = `Días: ${sellerDays.length} · Buscando ventas…`;
+				// Initialize counts dynamically
+				for (const d of desserts) counts[d.short_code] = 0;
+				await mapLimit(sellerDays, 6, async ({ seller, day }) => {
+					try {
+						const params = new URLSearchParams({ seller_id: String(seller.id), sale_day_id: String(day.id) });
+						const sales = await fetchJSON(withActor(`/api/sales?${params.toString()}`));
+						for (const r of (sales || [])) {
+							// Support both formats
+							if (Array.isArray(r.items) && r.items.length > 0) {
+								// New format
+								for (const item of r.items) {
+									const d = desserts.find(d => d.id === item.dessert_id || d.short_code === item.short_code);
+									if (d) counts[d.short_code] += Number(item.quantity || 0) || 0;
 								}
-							}
-						} else {
-							// Old format
-							for (const d of desserts) {
-								counts[d.short_code] += Number(r[`qty_${d.short_code}`] || 0) || 0;
+							} else {
+								// Old format
+								for (const d of desserts) counts[d.short_code] += Number(r[`qty_${d.short_code}`] || 0) || 0;
 							}
 						}
-					}
-				} catch {}
-			});
+					} catch {}
+				});
+			}
 			
 			// Store original counts
 			originalCounts = { ...counts };
