@@ -1041,47 +1041,70 @@ function isSuperAdmin(user) {
 
 function bindLogin() {
 	const btn = document.getElementById('login-btn');
-	// Allow pressing Enter in user or password inputs to trigger login
 	const userInput = document.getElementById('login-user');
 	const passInput = document.getElementById('login-pass');
-	function triggerLoginOnEnter(e) { if (e.key === 'Enter') { e.preventDefault(); btn?.click(); } }
-	userInput?.addEventListener('keydown', triggerLoginOnEnter);
-	passInput?.addEventListener('keydown', triggerLoginOnEnter);
-	if (!btn) {
-		console.error('Login button not found in DOM');
+	
+	if (!btn || !userInput || !passInput) {
+		console.error('Login elements not found:', { btn: !!btn, userInput: !!userInput, passInput: !!passInput });
+		setTimeout(bindLogin, 100); // Retry after 100ms
 		return;
 	}
-	console.log('Login button found, adding click listener');
-	btn.addEventListener('click', () => {
-		console.log('Login button clicked');
-		const user = document.getElementById('login-user')?.value?.trim();
-		const pass = document.getElementById('login-pass')?.value ?? '';
+	
+	// Allow pressing Enter in user or password inputs to trigger login
+	function triggerLoginOnEnter(e) { if (e.key === 'Enter') { e.preventDefault(); btn?.click(); } }
+	userInput.addEventListener('keydown', triggerLoginOnEnter);
+	passInput.addEventListener('keydown', triggerLoginOnEnter);
+	
+	btn.addEventListener('click', async (e) => {
+		e.preventDefault();
+		const user = userInput.value?.trim();
+		const pass = passInput.value ?? '';
 		const err = document.getElementById('login-error');
-		console.log('User:', user, 'Pass length:', pass?.length);
-		if (!user) { if (err) { err.textContent = 'Ingresa el usuario'; err.classList.remove('hidden'); } return; }
-		(async () => {
-			try {
-				const res = await api('POST', API.Users, { username: user, password: pass });
-				if (err) err.classList.add('hidden');
-				state.currentUser = { name: res.username, isAdmin: res.role === 'admin' || res.role === 'superadmin', role: res.role, isSuperAdmin: res.role === 'superadmin', features: Array.isArray(res.features) ? res.features : [] };
-				try { localStorage.setItem('authUser', JSON.stringify(state.currentUser)); } catch {}
-				applyAuthVisibility();
-				await loadSellers();
-				renderSellerButtons();
-				const usernameLower = String(res.username || '').toLowerCase();
-				const feminineUsers = new Set(['marcela', 'aleja', 'kate', 'stefa', 'mariana', 'janeth']);
-				const welcome = feminineUsers.has(usernameLower) ? 'Bienvenida ' : 'Bienvenido ';
-				notify.success(welcome + res.username);
-				if (!state.currentUser.isAdmin) {
-					const seller = (state.sellers || []).find(s => String(s.name).toLowerCase() === String(res.username).toLowerCase());
-					if (seller) enterSeller(seller.id);
-				} else {
-					switchView('#view-select-seller');
-				}
-			} catch (e) {
-				if (err) { err.textContent = 'Usuario o contraseña inválidos'; err.classList.remove('hidden'); }
+		
+		if (!user) { 
+			if (err) { 
+				err.textContent = 'Ingresa el usuario'; 
+				err.classList.remove('hidden'); 
+			} 
+			return; 
+		}
+		
+		try {
+			const res = await api('POST', API.Users, { username: user, password: pass });
+			if (err) err.classList.add('hidden');
+			
+			state.currentUser = { 
+				name: res.username, 
+				isAdmin: res.role === 'admin' || res.role === 'superadmin', 
+				role: res.role, 
+				isSuperAdmin: res.role === 'superadmin', 
+				features: Array.isArray(res.features) ? res.features : [] 
+			};
+			
+			try { localStorage.setItem('authUser', JSON.stringify(state.currentUser)); } catch {}
+			
+			applyAuthVisibility();
+			await loadSellers();
+			renderSellerButtons();
+			
+			const usernameLower = String(res.username || '').toLowerCase();
+			const feminineUsers = new Set(['marcela', 'aleja', 'kate', 'stefa', 'mariana', 'janeth']);
+			const welcome = feminineUsers.has(usernameLower) ? 'Bienvenida ' : 'Bienvenido ';
+			notify.success(welcome + res.username);
+			
+			if (!state.currentUser.isAdmin) {
+				const seller = (state.sellers || []).find(s => String(s.name).toLowerCase() === String(res.username).toLowerCase());
+				if (seller) enterSeller(seller.id);
+			} else {
+				switchView('#view-select-seller');
 			}
-		})();
+		} catch (e) {
+			console.error('Login error:', e);
+			if (err) { 
+				err.textContent = 'Usuario o contraseña inválidos'; 
+				err.classList.remove('hidden'); 
+			}
+		}
 	});
 	// Change password from login screen
 	const changeBtn = document.getElementById('login-change-pass');
@@ -3982,6 +4005,7 @@ async function exportCarteraExcel(startIso, endIso) {
 	const inventoryBtn = document.getElementById('inventory-button');
 	const carteraBtn = document.getElementById('cartera-button');
 	const accountingBtn = document.getElementById('accounting-button');
+	const comprasBtn = document.getElementById('compras-button');
 	const dessertsBtn = document.getElementById('desserts-button');
 	const deliveriesBtn = document.getElementById('deliveries-button');
 	const input = document.getElementById('report-date');
