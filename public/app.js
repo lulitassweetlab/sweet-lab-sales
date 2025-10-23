@@ -7618,6 +7618,14 @@ function openInlineFileUploadDialog(saleId) {
 					from { opacity: 0; transform: scale(0.95) translateY(10px); }
 					to { opacity: 1; transform: scale(1) translateY(0); }
 				}
+				@keyframes spin {
+					to { transform: rotate(360deg); }
+				}
+				@keyframes successPop {
+					0% { transform: scale(0); }
+					50% { transform: scale(1.15); }
+					100% { transform: scale(1); }
+				}
 			`;
 			document.head.appendChild(style);
 		}
