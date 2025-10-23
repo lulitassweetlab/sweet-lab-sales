@@ -102,6 +102,17 @@
 		button[data-used="true"]:hover {
 			opacity: 0.9;
 		}
+		
+		/* Quantity display hover effect */
+		.measure-section table span[title="Click para editar"]:hover {
+			background: rgba(244, 166, 183, 0.1);
+		}
+		
+		/* Modified quantity indicator */
+		.measure-section table span.modified {
+			background: rgba(255, 193, 7, 0.1);
+			border: 1px solid rgba(255, 193, 7, 0.3);
+		}
 	</style>
 </head>
 <body>
@@ -1000,7 +1011,7 @@
                         const adj = Number(it.adjustment || 0) || 0;
                         const total = (per * qty) + adj;
                         
-                        // Editable quantity cell with original value shown
+                        // Quantity cell with click-to-edit functionality
                         const tdQ = document.createElement('td'); 
                         tdQ.style.textAlign='right'; 
                         tdQ.style.padding='5px 4px';
@@ -1012,7 +1023,18 @@
                         qtyContainer.style.gap='8px';
                         qtyContainer.style.justifyContent='flex-end';
                         
-                        // Editable input
+                        // Quantity display (clickable to edit)
+                        const qtyDisplay = document.createElement('span');
+                        qtyDisplay.textContent = formatter.format(total);
+                        qtyDisplay.style.cursor = 'pointer';
+                        qtyDisplay.style.padding = '4px 8px';
+                        qtyDisplay.style.borderRadius = '4px';
+                        qtyDisplay.style.minWidth = '60px';
+                        qtyDisplay.style.display = 'inline-block';
+                        qtyDisplay.style.textAlign = 'right';
+                        qtyDisplay.title = 'Click para editar';
+                        
+                        // Hidden input for editing
                         const qtyInput = document.createElement('input');
                         qtyInput.type = 'number';
                         qtyInput.step = '0.1';
@@ -1021,8 +1043,9 @@
                         qtyInput.className = 'input-cell';
                         qtyInput.style.width = '80px';
                         qtyInput.style.textAlign = 'right';
+                        qtyInput.style.display = 'none';
                         qtyInput.dataset.original = formatter.format(total);
-                        qtyInput.dataset.ingredient = it.ingredient;
+                        qtyInput.dataset.currentQty = formatter.format(total);
                         
                         // Show original if different
                         const originalSpan = document.createElement('span');
@@ -1032,30 +1055,59 @@
                         originalSpan.style.whiteSpace = 'nowrap';
                         originalSpan.textContent = `(orig: ${formatter.format(total)})`;
                         
-                        qtyInput.addEventListener('input', () => {
-                            const current = parseFloat(qtyInput.value) || 0;
+                        // Click to edit
+                        qtyDisplay.addEventListener('click', () => {
+                            qtyDisplay.style.display = 'none';
+                            qtyInput.style.display = 'inline-block';
+                            qtyInput.focus();
+                            qtyInput.select();
+                        });
+                        
+                        // Blur to save
+                        qtyInput.addEventListener('blur', () => {
+                            const newValue = parseFloat(qtyInput.value) || 0;
+                            qtyInput.dataset.currentQty = newValue;
+                            qtyDisplay.textContent = formatter.format(newValue);
+                            qtyInput.style.display = 'none';
+                            qtyDisplay.style.display = 'inline-block';
+                            
+                            // Show/hide original
                             const orig = parseFloat(qtyInput.dataset.original) || 0;
-                            if (Math.abs(current - orig) > 0.01) {
+                            if (Math.abs(newValue - orig) > 0.01) {
                                 originalSpan.style.display = 'inline';
+                                qtyDisplay.style.background = 'rgba(255, 193, 7, 0.1)';
                             } else {
                                 originalSpan.style.display = 'none';
+                                qtyDisplay.style.background = 'transparent';
                             }
                         });
                         
-                        // Discount button
+                        // Enter to save
+                        qtyInput.addEventListener('keydown', (e) => {
+                            if (e.key === 'Enter') {
+                                qtyInput.blur();
+                            }
+                        });
+                        
+                        // Inventory discount button with "i" icon
                         const discountBtn = document.createElement('button');
                         discountBtn.className = 'press-btn';
-                        discountBtn.textContent = '📦';
+                        discountBtn.textContent = 'i';
                         discountBtn.title = 'Descontar del inventario';
-                        discountBtn.style.padding = '4px 8px';
-                        discountBtn.style.fontSize = '16px';
-                        discountBtn.style.minWidth = '36px';
+                        discountBtn.style.padding = '4px 10px';
+                        discountBtn.style.fontSize = '14px';
+                        discountBtn.style.fontWeight = 'bold';
+                        discountBtn.style.fontStyle = 'italic';
+                        discountBtn.style.minWidth = '32px';
+                        discountBtn.style.borderRadius = '50%';
+                        discountBtn.style.width = '32px';
+                        discountBtn.style.height = '32px';
                         discountBtn.dataset.used = 'false';
                         
                         discountBtn.addEventListener('click', async () => {
                             if (discountBtn.dataset.used === 'true') return;
                             
-                            const qtyToDiscount = parseFloat(qtyInput.value) || 0;
+                            const qtyToDiscount = parseFloat(qtyInput.dataset.currentQty) || 0;
                             if (qtyToDiscount <= 0) {
                                 alert('La cantidad debe ser mayor a 0');
                                 return;
@@ -1063,6 +1115,7 @@
                             
                             discountBtn.disabled = true;
                             discountBtn.textContent = '⏳';
+                            discountBtn.style.fontStyle = 'normal';
                             
                             try {
                                 const response = await fetch('/api/inventory', {
@@ -1092,12 +1145,13 @@
                             } catch (error) {
                                 console.error('Error:', error);
                                 discountBtn.disabled = false;
-                                discountBtn.textContent = '📦';
+                                discountBtn.textContent = 'i';
+                                discountBtn.style.fontStyle = 'italic';
                                 alert('Error al actualizar el inventario');
                             }
                         });
                         
-                        qtyContainer.append(qtyInput, originalSpan, discountBtn);
+                        qtyContainer.append(qtyDisplay, qtyInput, originalSpan, discountBtn);
                         tdQ.appendChild(qtyContainer);
 					tr.append(tdCheck, tdN, tdQ);
 					stepRows.push(tr);
