@@ -264,9 +264,15 @@ function renderClientDetailTable(rows) {
 			function hasSeen(method){ try { return localStorage.getItem('seenPaymentDate_' + method + '_' + saleId) === '1'; } catch { return false; } }
 			function markSeen(method){ try { localStorage.setItem('seenPaymentDate_' + method + '_' + saleId, '1'); } catch {} }
 			
-			// If current is 'transf' -> open upload dialog (allow for everyone)
+			// If current is 'transf' -> check if receipts exist first
 			if (curr === 'transf') {
-				openInlineFileUploadDialog(saleId);
+				// For admin, open the pay menu to allow selection
+				if (isAdminUser) {
+					openPayMenu(wrap, sel, rect.left + rect.width / 2, rect.bottom);
+				} else {
+					// For non-admin, open upload dialog directly
+					openInlineFileUploadDialog(saleId);
+				}
 				return;
 			}
 			// If current is 'jorge' and first time -> open payment date dialog centered
@@ -8370,6 +8376,17 @@ async function openInlineFileUploadDialog(saleId) {
 				}
 
 			if (successCount > 0) {
+				// Update the parent sale's pay_method to 'transf'
+				try {
+					await api('PATCH', API.Sales, {
+						id: id,
+						pay_method: 'transf'
+					});
+					console.log('✅ Updated pay_method to transf for sale', id);
+				} catch (err) {
+					console.error('Error updating pay_method:', err);
+				}
+				
 				// Show success animation
 				fullSpinner.style.display = 'none';
 				fullSuccessIcon.style.display = 'flex';
