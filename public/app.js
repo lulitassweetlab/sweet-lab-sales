@@ -7769,12 +7769,15 @@ async function openReceiptsGalleryPopover(saleId, anchorX, anchorY) {
 				
 				// If selecting jorgebank, open payment date dialog
 				if (newValue === 'jorgebank') {
-					openPaymentDateDialogForReceipt(receipt, () => {
+					openPaymentDateDialogForReceipt(receipt, async () => {
 						// Callback after saving date - update receipt locally and refresh selector
 						receipt.pay_method = 'jorgebank';
 						sel.value = 'jorgebank';
 						applyPayClass();
 						notify.info('✓ Comprobante verificado');
+						
+						// Check if we need to update the main selector to jorgebank
+						await checkAndUpdateMainSelectorToJorgebank(receipt.sale_id);
 					});
 				} else {
 					// For other methods, just update pay_method
@@ -7786,6 +7789,9 @@ async function openReceiptsGalleryPopover(saleId, anchorX, anchorY) {
 						});
 						receipt.pay_method = newValue;
 						notify.info('✓ Método actualizado');
+						
+						// Also check if main selector needs update (in case changing FROM jorgebank)
+						await checkAndUpdateMainSelectorToJorgebank(receipt.sale_id);
 					} catch (err) {
 						console.error('Error updating receipt payment:', err);
 						notify.error('Error al actualizar');
