@@ -7629,10 +7629,9 @@ function openInlineFileUploadDialog(saleId) {
 				@keyframes spin {
 					to { transform: rotate(360deg); }
 				}
-				@keyframes successPop {
-					0% { transform: scale(0); }
-					50% { transform: scale(1.15); }
-					100% { transform: scale(1); }
+				@keyframes fadeOut {
+					from { opacity: 1; }
+					to { opacity: 0; }
 				}
 			`;
 			document.head.appendChild(style);
@@ -7652,12 +7651,13 @@ function openInlineFileUploadDialog(saleId) {
 
 		const title = document.createElement('h1');
 		title.textContent = 'Subir Comprobante';
-		title.style.margin = '0 0 24px';
-		title.style.fontSize = '32px';
-		title.style.fontWeight = '800';
+		title.style.margin = '0 0 28px';
+		title.style.fontSize = '40px';
+		title.style.fontWeight = '900';
 		title.style.color = '#f4a6b7';
 		title.style.textAlign = 'center';
-		title.style.letterSpacing = '0.5px';
+		title.style.letterSpacing = '1px';
+		title.style.textTransform = 'uppercase';
 
 		// Custom file input button
 		const fileInputWrapper = document.createElement('div');
@@ -7697,21 +7697,21 @@ function openInlineFileUploadDialog(saleId) {
 			fileLabel.style.boxShadow = '0 6px 20px rgba(244, 166, 183, 0.4)';
 			fileLabel.style.background = 'linear-gradient(135deg, #f4a6b7 0%, #e885a0 100%)';
 		});
+		fileLabel.addEventListener('mousedown', () => {
+			fileLabel.style.transform = 'translateY(2px) scale(0.98)';
+			fileLabel.style.boxShadow = '0 3px 10px rgba(244, 166, 183, 0.4)';
+		});
+		fileLabel.addEventListener('mouseup', () => {
+			fileLabel.style.transform = 'translateY(-3px) scale(1.05)';
+			fileLabel.style.boxShadow = '0 10px 30px rgba(244, 166, 183, 0.6)';
+		});
 		
 		fileInputWrapper.appendChild(fileInput);
 		fileInputWrapper.appendChild(fileLabel);
 
-		const noteLabel = document.createElement('label');
-		noteLabel.textContent = '💬 Agrega una nota (opcional)';
-		noteLabel.style.display = 'block';
-		noteLabel.style.marginBottom = '10px';
-		noteLabel.style.fontSize = '15px';
-		noteLabel.style.fontWeight = '600';
-		noteLabel.style.color = 'var(--text, #111)';
-
 		const noteInput = document.createElement('textarea');
 		noteInput.rows = 3;
-		noteInput.placeholder = 'Escribe aquí cualquier observación...';
+		noteInput.placeholder = 'Notas';
 		noteInput.style.width = '100%';
 		noteInput.style.resize = 'vertical';
 		noteInput.style.padding = '14px';
@@ -7720,14 +7720,26 @@ function openInlineFileUploadDialog(saleId) {
 		noteInput.style.marginBottom = '20px';
 		noteInput.style.fontFamily = 'inherit';
 		noteInput.style.fontSize = '14px';
+		noteInput.style.textAlign = 'center';
 		noteInput.style.transition = 'all 0.3s ease';
 		noteInput.addEventListener('focus', () => {
 			noteInput.style.borderColor = '#f4a6b7';
 			noteInput.style.boxShadow = '0 0 0 3px rgba(244, 166, 183, 0.15)';
+			noteInput.style.textAlign = 'left';
 		});
 		noteInput.addEventListener('blur', () => {
 			noteInput.style.borderColor = 'var(--border, #e5e7eb)';
 			noteInput.style.boxShadow = 'none';
+			if (!noteInput.value) {
+				noteInput.style.textAlign = 'center';
+			}
+		});
+		noteInput.addEventListener('input', () => {
+			if (noteInput.value) {
+				noteInput.style.textAlign = 'left';
+			} else {
+				noteInput.style.textAlign = 'center';
+			}
 		});
 
 		const previewContainer = document.createElement('div');
@@ -7750,13 +7762,6 @@ function openInlineFileUploadDialog(saleId) {
 		previewGrid.style.gap = '12px';
 		previewGrid.style.marginBottom = '16px';
 
-		const topActions = document.createElement('div');
-		topActions.className = 'actions';
-		topActions.style.display = 'none';
-		topActions.style.flexDirection = 'column';
-		topActions.style.gap = '12px';
-		topActions.style.alignItems = 'center';
-		topActions.style.marginBottom = '20px';
 		
 		const bottomActions = document.createElement('div');
 		bottomActions.className = 'actions';
@@ -7792,54 +7797,48 @@ function openInlineFileUploadDialog(saleId) {
 			cancelBtn.style.boxShadow = 'none';
 		});
 
-		// Upload button (will be cloned for top and bottom)
-		function createUploadButton() {
-			const btn = document.createElement('button');
-			btn.className = 'btn btn-primary press-btn btn-gold upload-btn';
-			btn.textContent = 'Subir Archivos';
-			btn.style.padding = '16px 48px';
-			btn.style.borderRadius = '14px';
-			btn.style.border = 'none';
-			btn.style.background = 'linear-gradient(135deg, #f4a6b7 0%, #e885a0 100%)';
-			btn.style.color = '#fff';
-			btn.style.cursor = 'pointer';
-			btn.style.fontSize = '18px';
-			btn.style.fontWeight = '800';
-			btn.style.transition = 'all 0.2s ease';
-			btn.style.textTransform = 'uppercase';
-			btn.style.letterSpacing = '1px';
-			btn.style.opacity = '0.5';
-			btn.style.boxShadow = '0 6px 20px rgba(244, 166, 183, 0.3)';
-			btn.disabled = true;
-			btn.addEventListener('mouseenter', () => {
-				if (!btn.disabled) {
-					btn.style.background = 'linear-gradient(135deg, #e885a0 0%, #d66686 100%)';
-					btn.style.transform = 'translateY(-4px) scale(1.03)';
-					btn.style.boxShadow = '0 12px 30px rgba(244, 166, 183, 0.7)';
-				}
-			});
-			btn.addEventListener('mouseleave', () => {
-				if (!btn.disabled) {
-					btn.style.background = 'linear-gradient(135deg, #f4a6b7 0%, #e885a0 100%)';
-					btn.style.transform = 'translateY(0) scale(1)';
-					btn.style.boxShadow = '0 6px 20px rgba(244, 166, 183, 0.3)';
-				}
-			});
-			btn.addEventListener('mousedown', () => {
-				if (!btn.disabled) {
-					btn.style.transform = 'translateY(-2px) scale(0.98)';
-				}
-			});
-			btn.addEventListener('mouseup', () => {
-				if (!btn.disabled) {
-					btn.style.transform = 'translateY(-4px) scale(1.03)';
-				}
-			});
-			return btn;
-		}
-		
-		const uploadBtnTop = createUploadButton();
-		const uploadBtnBottom = createUploadButton();
+		// Upload button
+		const uploadBtn = document.createElement('button');
+		uploadBtn.className = 'btn btn-primary press-btn btn-gold upload-btn';
+		uploadBtn.textContent = 'Subir Archivos';
+		uploadBtn.style.padding = '16px 48px';
+		uploadBtn.style.borderRadius = '14px';
+		uploadBtn.style.border = 'none';
+		uploadBtn.style.background = 'linear-gradient(135deg, #f4a6b7 0%, #e885a0 100%)';
+		uploadBtn.style.color = '#fff';
+		uploadBtn.style.cursor = 'pointer';
+		uploadBtn.style.fontSize = '18px';
+		uploadBtn.style.fontWeight = '800';
+		uploadBtn.style.transition = 'all 0.2s ease';
+		uploadBtn.style.textTransform = 'uppercase';
+		uploadBtn.style.letterSpacing = '1px';
+		uploadBtn.style.opacity = '0.5';
+		uploadBtn.style.boxShadow = '0 6px 20px rgba(244, 166, 183, 0.3)';
+		uploadBtn.disabled = true;
+		uploadBtn.addEventListener('mouseenter', () => {
+			if (!uploadBtn.disabled) {
+				uploadBtn.style.background = 'linear-gradient(135deg, #e885a0 0%, #d66686 100%)';
+				uploadBtn.style.transform = 'translateY(-4px) scale(1.03)';
+				uploadBtn.style.boxShadow = '0 12px 30px rgba(244, 166, 183, 0.7)';
+			}
+		});
+		uploadBtn.addEventListener('mouseleave', () => {
+			if (!uploadBtn.disabled) {
+				uploadBtn.style.background = 'linear-gradient(135deg, #f4a6b7 0%, #e885a0 100%)';
+				uploadBtn.style.transform = 'translateY(0) scale(1)';
+				uploadBtn.style.boxShadow = '0 6px 20px rgba(244, 166, 183, 0.3)';
+			}
+		});
+		uploadBtn.addEventListener('mousedown', () => {
+			if (!uploadBtn.disabled) {
+				uploadBtn.style.transform = 'translateY(-2px) scale(0.98)';
+			}
+		});
+		uploadBtn.addEventListener('mouseup', () => {
+			if (!uploadBtn.disabled) {
+				uploadBtn.style.transform = 'translateY(-4px) scale(1.03)';
+			}
+		});
 		
 		const uploadMoreBtn = document.createElement('button');
 		uploadMoreBtn.className = 'btn press-btn';
@@ -7884,20 +7883,13 @@ function openInlineFileUploadDialog(saleId) {
 				previewContainer.style.display = 'none';
 				previewContainer.innerHTML = '';
 				previewTitle.style.display = 'none';
-				topActions.style.display = 'none';
 				uploadMoreBtn.style.display = 'none';
-				uploadBtnTop.disabled = true;
-				uploadBtnTop.style.opacity = '0.5';
-				uploadBtnTop.style.cursor = 'not-allowed';
-				uploadBtnBottom.disabled = true;
-				uploadBtnBottom.style.opacity = '0.5';
-				uploadBtnBottom.style.cursor = 'not-allowed';
+				uploadBtn.disabled = true;
+				uploadBtn.style.opacity = '0.5';
+				uploadBtn.style.cursor = 'not-allowed';
 				selectedFiles = [];
 				return;
 			}
-			
-			topActions.style.display = 'flex';
-
 			selectedFiles = Array.from(files);
 			previewContainer.innerHTML = '';
 			previewGrid.innerHTML = '';
@@ -7969,26 +7961,78 @@ function openInlineFileUploadDialog(saleId) {
 				reader.readAsDataURL(file);
 			});
 
-			uploadBtnTop.disabled = false;
-			uploadBtnTop.style.opacity = '1';
-			uploadBtnTop.style.cursor = 'pointer';
-			uploadBtnTop.textContent = `✓ Subir ${selectedFiles.length} Archivo${selectedFiles.length > 1 ? 's' : ''}`;
-			
-			uploadBtnBottom.disabled = false;
-			uploadBtnBottom.style.opacity = '1';
-			uploadBtnBottom.style.cursor = 'pointer';
-			uploadBtnBottom.textContent = `✓ Subir ${selectedFiles.length} Archivo${selectedFiles.length > 1 ? 's' : ''}`;
+			uploadBtn.disabled = false;
+			uploadBtn.style.opacity = '1';
+			uploadBtn.style.cursor = 'pointer';
+			uploadBtn.textContent = `✓ Subir ${selectedFiles.length} Archivo${selectedFiles.length > 1 ? 's' : ''}`;
 		});
 
 		async function handleUpload() {
 			if (selectedFiles.length === 0 || !id) return;
 			
-			// Show loading overlay
-			loadingOverlay.style.display = 'flex';
-			spinner.style.display = 'block';
-			successIcon.style.display = 'none';
-			loadingText.textContent = 'Subiendo archivos...';
-			loadingSubtext.textContent = '';
+			// Create separate loading overlay (full screen, white background)
+			const fullLoadingOverlay = document.createElement('div');
+			fullLoadingOverlay.style.position = 'fixed';
+			fullLoadingOverlay.style.top = '0';
+			fullLoadingOverlay.style.left = '0';
+			fullLoadingOverlay.style.right = '0';
+			fullLoadingOverlay.style.bottom = '0';
+			fullLoadingOverlay.style.background = 'white';
+			fullLoadingOverlay.style.zIndex = '10000';
+			fullLoadingOverlay.style.display = 'flex';
+			fullLoadingOverlay.style.alignItems = 'center';
+			fullLoadingOverlay.style.justifyContent = 'center';
+			fullLoadingOverlay.style.animation = 'fadeIn 0.3s ease';
+			
+			const fullLoadingContent = document.createElement('div');
+			fullLoadingContent.style.textAlign = 'center';
+			fullLoadingContent.style.padding = '60px';
+			
+			const fullSpinner = document.createElement('div');
+			fullSpinner.style.width = '70px';
+			fullSpinner.style.height = '70px';
+			fullSpinner.style.margin = '0 auto 28px';
+			fullSpinner.style.border = '6px solid #fce7ec';
+			fullSpinner.style.borderTopColor = '#f4a6b7';
+			fullSpinner.style.borderRadius = '50%';
+			fullSpinner.style.animation = 'spin 0.8s linear infinite';
+			
+			const fullSuccessIcon = document.createElement('div');
+			fullSuccessIcon.style.width = '90px';
+			fullSuccessIcon.style.height = '90px';
+			fullSuccessIcon.style.margin = '0 auto 28px';
+			fullSuccessIcon.style.borderRadius = '50%';
+			fullSuccessIcon.style.background = '#f4a6b7';
+			fullSuccessIcon.style.display = 'none';
+			fullSuccessIcon.style.alignItems = 'center';
+			fullSuccessIcon.style.justifyContent = 'center';
+			fullSuccessIcon.style.fontSize = '52px';
+			fullSuccessIcon.style.color = 'white';
+			fullSuccessIcon.style.animation = 'successPop 0.5s ease';
+			fullSuccessIcon.style.boxShadow = '0 10px 30px rgba(244, 166, 183, 0.6)';
+			fullSuccessIcon.textContent = '✓';
+			
+			const fullLoadingText = document.createElement('div');
+			fullLoadingText.style.fontSize = '20px';
+			fullLoadingText.style.fontWeight = '700';
+			fullLoadingText.style.color = '#111';
+			fullLoadingText.style.marginBottom = '10px';
+			fullLoadingText.textContent = 'Subiendo archivos...';
+			
+			const fullLoadingSubtext = document.createElement('div');
+			fullLoadingSubtext.style.fontSize = '15px';
+			fullLoadingSubtext.style.color = '#6b7280';
+			fullLoadingSubtext.style.fontWeight = '500';
+			
+			fullLoadingContent.appendChild(fullSpinner);
+			fullLoadingContent.appendChild(fullSuccessIcon);
+			fullLoadingContent.appendChild(fullLoadingText);
+			fullLoadingContent.appendChild(fullLoadingSubtext);
+			fullLoadingOverlay.appendChild(fullLoadingContent);
+			
+			// Close the upload dialog and show loading overlay
+			cleanup();
+			document.body.appendChild(fullLoadingOverlay);
 
 			try {
 				const note = noteInput.value.trim();
@@ -7997,7 +8041,7 @@ function openInlineFileUploadDialog(saleId) {
 
 				for (let i = 0; i < selectedFiles.length; i++) {
 					const file = selectedFiles[i];
-					loadingSubtext.textContent = `${i + 1} de ${selectedFiles.length}`;
+					fullLoadingSubtext.textContent = `${i + 1} de ${selectedFiles.length}`;
 					
 					try {
 						const reader = new FileReader();
@@ -8081,82 +8125,19 @@ function openInlineFileUploadDialog(saleId) {
 			}
 		}
 
-		topActions.appendChild(uploadBtnTop);
-		topActions.appendChild(uploadMoreBtn);
-		
 		bottomActions.appendChild(cancelBtn);
-		bottomActions.appendChild(uploadBtnBottom);
+		bottomActions.appendChild(uploadMoreBtn);
+		bottomActions.appendChild(uploadBtn);
 
-		// Create loading overlay inside dialog
-		const loadingOverlay = document.createElement('div');
-		loadingOverlay.style.display = 'none';
-		loadingOverlay.style.position = 'absolute';
-		loadingOverlay.style.top = '0';
-		loadingOverlay.style.left = '0';
-		loadingOverlay.style.right = '0';
-		loadingOverlay.style.bottom = '0';
-		loadingOverlay.style.background = 'rgba(255, 255, 255, 0.97)';
-		loadingOverlay.style.borderRadius = '16px';
-		loadingOverlay.style.alignItems = 'center';
-		loadingOverlay.style.justifyContent = 'center';
-		loadingOverlay.style.zIndex = '10';
-		
-		const loadingContent = document.createElement('div');
-		loadingContent.style.textAlign = 'center';
-		loadingContent.style.padding = '40px';
-		
-		const spinner = document.createElement('div');
-		spinner.style.width = '70px';
-		spinner.style.height = '70px';
-		spinner.style.margin = '0 auto 28px';
-		spinner.style.border = '6px solid #fce7ec';
-		spinner.style.borderTopColor = '#f4a6b7';
-		spinner.style.borderRadius = '50%';
-		spinner.style.animation = 'spin 0.8s linear infinite';
-		
-		const successIcon = document.createElement('div');
-		successIcon.style.width = '90px';
-		successIcon.style.height = '90px';
-		successIcon.style.margin = '0 auto 28px';
-		successIcon.style.borderRadius = '50%';
-		successIcon.style.background = '#f4a6b7';
-		successIcon.style.display = 'none';
-		successIcon.style.alignItems = 'center';
-		successIcon.style.justifyContent = 'center';
-		successIcon.style.fontSize = '52px';
-		successIcon.style.color = 'white';
-		successIcon.style.animation = 'successPop 0.5s ease';
-		successIcon.style.boxShadow = '0 10px 30px rgba(244, 166, 183, 0.6)';
-		successIcon.textContent = '\u2713';
-		
-		const loadingText = document.createElement('div');
-		loadingText.style.fontSize = '20px';
-		loadingText.style.fontWeight = '700';
-		loadingText.style.color = '#111';
-		loadingText.style.marginBottom = '10px';
-		loadingText.textContent = 'Subiendo archivos...';
-		
-		const loadingSubtext = document.createElement('div');
-		loadingSubtext.style.fontSize = '15px';
-		loadingSubtext.style.color = '#6b7280';
-		loadingSubtext.style.fontWeight = '500';
-		
-		loadingContent.appendChild(spinner);
-		loadingContent.appendChild(successIcon);
-		loadingContent.appendChild(loadingText);
-		loadingContent.appendChild(loadingSubtext);
-		loadingOverlay.appendChild(loadingContent);
+		// Removed old loading overlay - now using full screen overlay
 		
 		dialog.style.position = 'relative';
 		dialog.appendChild(title);
 		dialog.appendChild(fileInputWrapper);
-		dialog.appendChild(topActions);
 		dialog.appendChild(previewContainer);
-		dialog.appendChild(noteLabel);
 		dialog.appendChild(noteInput);
 		dialog.appendChild(helpText);
 		dialog.appendChild(bottomActions);
-		dialog.appendChild(loadingOverlay);
 
 		overlay.appendChild(dialog);
 		document.body.appendChild(overlay);
