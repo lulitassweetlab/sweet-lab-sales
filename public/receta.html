@@ -257,17 +257,6 @@
 	function writeHistory(arr){ try { localStorage.setItem('timesHistory', JSON.stringify(arr)); } catch {} }
 	function fmtMs(ms){ const total=Math.max(0,Math.floor(ms/1000)); const h=Math.floor(total/3600); const m=Math.floor((total%3600)/60); const s=total%60; const pad=n=>String(n).padStart(2,'0'); return (h>0?`${h}:`:'')+`${pad(m)}:${pad(s)}`; }
 
-<<<<<<< HEAD
-	function buildTimerControls(associatedRows = [], stepName = '', dessertName = ''){
-		const stepState = { elapsedMs: 0, isRunning: false, startedAt: null };
-		const wrap = document.createElement('div'); wrap.style.display='flex'; wrap.style.alignItems='center'; wrap.style.gap='8px';
-		const display = document.createElement('div'); display.style.minWidth='84px'; display.style.textAlign='center'; display.style.fontVariantNumeric='tabular-nums';
-		const playBtn = document.createElement('button'); playBtn.className='press-btn'; playBtn.textContent='▶'; playBtn.title='Play';
-		const pauseBtn = document.createElement('button'); pauseBtn.className='press-btn'; pauseBtn.textContent='⏸'; pauseBtn.title='Pause';
-		const stopBtn = document.createElement('button'); stopBtn.className='press-btn'; stopBtn.textContent='⏹'; stopBtn.title='Stop';
-		const histBtn = document.createElement('button'); histBtn.className='press-btn'; histBtn.textContent='📊'; histBtn.title='Ver historial de este paso';
-		wrap.append(display, playBtn, pauseBtn, stopBtn, histBtn);
-=======
 		// Global container for active timer buttons (right side)
 		let activeTimersContainer = null;
 		let timerButtonIdCounter = 0;
@@ -751,7 +740,6 @@
 			playBtn.addEventListener('click', play); pauseBtn.addEventListener('click', pause); stopBtn.addEventListener('click', stop);
 			render();
 			return { element: wrap, getElapsedMs: () => compute(), reset: () => { stop(); }, addRow: (row) => { associatedRows.push(row); } };
->>>>>>> origin/main
 		}
 		
 		function renderHistory() {
@@ -1368,43 +1356,14 @@
 				const items = readHistory().slice(-30).reverse();
 				const pop = document.createElement('div'); pop.className = 'confirm-popover'; pop.style.position='fixed'; pop.style.left=(window.innerWidth/2)+'px'; pop.style.top='12%'; pop.style.transform='translate(-50%,0)'; pop.style.zIndex='10000';
 				const title = document.createElement('h4'); title.textContent = 'Historial de tiempos'; title.style.margin='0 0 8px 0';
-<<<<<<< HEAD
-				const list = document.createElement('div'); list.style.maxHeight='60vh'; list.style.overflow='auto'; list.style.minWidth='min(92vw,600px)';
-=======
 				const list = document.createElement('div'); list.style.maxHeight='60vh'; list.style.overflow='auto'; list.style.minWidth='min(92vw,620px)';
->>>>>>> origin/main
 				if (!items.length) { const empty=document.createElement('div'); empty.textContent='Sin registros'; list.appendChild(empty); }
 				for (const it of items) {
 					const row = document.createElement('div'); row.style.borderBottom='1px solid var(--border)'; row.style.padding='8px 4px';
 					const when = new Date(it.date_iso || it.id || Date.now());
-<<<<<<< HEAD
-					
-					// Calculate overall average for all steps
-					let totalAvg = 0;
-					let stepCount = 0;
-					if (it.steps && Array.isArray(it.steps)) {
-						for (const step of it.steps) {
-							if (step.avg_ms_per_unit) {
-								totalAvg += step.avg_ms_per_unit;
-								stepCount++;
-							}
-						}
-					}
-					const overallAvg = stepCount > 0 ? Math.round(totalAvg / stepCount) : 0;
-					
-					// Show all steps
-					let stepsText = '';
-					if (it.steps && Array.isArray(it.steps)) {
-						const stepNames = it.steps.map(s => s.name).join(', ');
-						stepsText = ` · Pasos: ${stepNames}`;
-					}
-					
-					row.innerHTML = `<div><strong>${it.dessert}</strong> · ${when.toLocaleString()} · Cant: ${it.qty_units||0} · Total: ${fmtMs(it.total_elapsed_ms||0)} · Prom/postre: ${fmtMs(overallAvg)}${stepsText}</div>`;
-=======
 					const stepInfo = it.step_name ? ` · Paso: ${it.step_name}` : '';
 					const avgInfo = it.avg_ms_per_unit ? ` · Prom/u: ${fmtMs(it.avg_ms_per_unit)}` : '';
 					row.innerHTML = `<strong>${it.dessert}</strong>${stepInfo} · ${when.toLocaleString()} · Cant: ${it.qty_units||0} · Total: ${fmtMs(it.total_elapsed_ms||0)}${avgInfo}`;
->>>>>>> origin/main
 					list.appendChild(row);
 				}
 				const actions=document.createElement('div'); actions.className='confirm-actions'; const close=document.createElement('button'); close.className='press-btn'; close.textContent='Cerrar'; actions.appendChild(close);
@@ -1448,5 +1407,4 @@
 </body>
 </html>
 
-l>
 
