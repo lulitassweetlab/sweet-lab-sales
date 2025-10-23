@@ -4,6 +4,73 @@ function json(body, status = 200) {
 	return { statusCode: status, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
 }
 
+async function syncReceiptPaymentsToSales() {
+	// Sync payment_date, payment_source, and pay_method from sale_receipts to sales
+	// for records that have these fields in receipts but not in sales
+	try {
+		const receipts = await sql`
+			SELECT sr.sale_id, sr.pay_method, sr.payment_source, sr.payment_date
+			FROM sale_receipts sr
+			WHERE sr.pay_method IS NOT NULL OR sr.payment_source IS NOT NULL OR sr.payment_date IS NOT NULL
+		`;
+		
+		let syncCount = 0;
+		for (const receipt of receipts) {
+			const saleId = receipt.sale_id;
+			if (!saleId) continue;
+			
+			// Get current sale data
+			const [sale] = await sql`SELECT id, pay_method, payment_source, payment_date FROM sales WHERE id=${saleId}`;
+			if (!sale) continue;
+			
+			let needsUpdate = false;
+			const updates = {};
+			
+			// Only update if the receipt has data and the sale doesn't
+			if (receipt.payment_source && !sale.payment_source) {
+				updates.payment_source = receipt.payment_source;
+				needsUpdate = true;
+			}
+			
+			if (receipt.payment_date && !sale.payment_date) {
+				updates.payment_date = receipt.payment_date;
+				needsUpdate = true;
+			}
+			
+			// For pay_method, prioritize jorgebank from receipts if sale has transf
+			if (receipt.pay_method === 'jorgebank' && (sale.pay_method === 'transf' || !sale.pay_method)) {
+				updates.pay_method = receipt.pay_method;
+				needsUpdate = true;
+			}
+			
+			if (needsUpdate) {
+				// Build dynamic update query
+				if (updates.pay_method && updates.payment_source && updates.payment_date) {
+					await sql`UPDATE sales SET pay_method=${updates.pay_method}, payment_source=${updates.payment_source}, payment_date=${updates.payment_date} WHERE id=${saleId}`;
+				} else if (updates.payment_source && updates.payment_date) {
+					await sql`UPDATE sales SET payment_source=${updates.payment_source}, payment_date=${updates.payment_date} WHERE id=${saleId}`;
+				} else if (updates.pay_method && updates.payment_source) {
+					await sql`UPDATE sales SET pay_method=${updates.pay_method}, payment_source=${updates.payment_source} WHERE id=${saleId}`;
+				} else if (updates.pay_method && updates.payment_date) {
+					await sql`UPDATE sales SET pay_method=${updates.pay_method}, payment_date=${updates.payment_date} WHERE id=${saleId}`;
+				} else if (updates.payment_source) {
+					await sql`UPDATE sales SET payment_source=${updates.payment_source} WHERE id=${saleId}`;
+				} else if (updates.payment_date) {
+					await sql`UPDATE sales SET payment_date=${updates.payment_date} WHERE id=${saleId}`;
+				} else if (updates.pay_method) {
+					await sql`UPDATE sales SET pay_method=${updates.pay_method} WHERE id=${saleId}`;
+				}
+				syncCount++;
+			}
+		}
+		
+		return { synced: syncCount, total: receipts.length };
+	} catch (err) {
+		console.error('Error syncing receipt payments:', err);
+		throw err;
+	}
+}
+
 export async function handler(event) {
 	try {
 		// Always ensure schema to allow migrations (payment_date column)
@@ -21,6 +88,32 @@ export async function handler(event) {
 						.join('&');
 				}
 				const params = new URLSearchParams(raw);
+				
+				// SYNC RECEIPTS ENDPOINT: Sync payment data from sale_receipts to sales
+				const syncReceipts = params.get('sync_receipts');
+				if (syncReceipts === 'true') {
+					try {
+						// Check admin permission
+						const headers = (event.headers || {});
+						const hActor = (headers['x-actor-name'] || headers['X-Actor-Name'] || headers['x-actor'] || '').toString();
+						let qActor = '';
+						try { const qs = new URLSearchParams(event.rawQuery || (event.queryStringParameters ? new URLSearchParams(event.queryStringParameters).toString() : '')); qActor = (qs.get('actor') || '').toString(); } catch {}
+						const actorName = (hActor || qActor || '').toString();
+						let role = 'user';
+						if (actorName) {
+							const r = await sql`SELECT role FROM users WHERE lower(username)=lower(${actorName}) LIMIT 1`;
+							role = (r && r[0] && r[0].role) ? String(r[0].role) : 'user';
+						}
+						if (role !== 'admin' && role !== 'superadmin') {
+							return json({ error: 'No autorizado' }, 403);
+						}
+						
+						const result = await syncReceiptPaymentsToSales();
+						return json({ ok: true, message: `Sincronizados ${result.synced} de ${result.total} recibos`, ...result });
+					} catch (err) {
+						return json({ error: 'Error en sincronización: ' + String(err) }, 500);
+					}
+				}
 				
 				// OPTIMIZED: Get all sales for a date range in a single query
 				const dateRangeStart = params.get('date_range_start') || (event.queryStringParameters && event.queryStringParameters.date_range_start) || null;

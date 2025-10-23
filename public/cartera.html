@@ -24,6 +24,7 @@
 		<div class="panel-header">
 			<h3 id="title">Cartera</h3>
 			<div class="panel-actions">
+				<button id="sync-receipts" class="press-btn" style="background:#ff9800; color:white;" title="Sincronizar datos de pagos desde imágenes a ventas">🔄 Sincronizar pagos</button>
 				<button id="change-range" class="press-btn">Cambiar fechas</button>
 				<button id="export-excel" class="excel-btn press-btn btn-gold">⤓ Generar Excel</button>
 			</div>
@@ -116,6 +117,7 @@
 		const backBtn = document.getElementById('back-btn');
 		const changeBtn = document.getElementById('change-range');
 		const exportBtn = document.getElementById('export-excel');
+		const syncBtn = document.getElementById('sync-receipts');
         const sellerFilterGroup = document.getElementById('seller-filter-group');
         const payMethodFilterGroup = document.getElementById('pay-method-filter-group');
         const paySourceFilterGroup = document.getElementById('pay-source-filter-group');
@@ -614,6 +616,31 @@
 
 		backBtn.addEventListener('click', () => { location.href = '/'; });
         changeBtn.addEventListener('click', (ev) => openCalendar(ev));
+		
+		// Sync receipts button - syncs payment data from sale_receipts to sales
+		syncBtn.addEventListener('click', async () => {
+			if (!confirm('¿Sincronizar datos de pago desde imágenes a ventas?\n\nEsto actualizará las ventas que tienen datos de pago en sus recibos (fecha, fuente, método) pero no en la venta principal.')) return;
+			try {
+				syncBtn.disabled = true;
+				syncBtn.textContent = '🔄 Sincronizando...';
+				const url = withActor('/api/sales?sync_receipts=true');
+				const response = await fetch(url);
+				const data = await response.json();
+				if (response.ok) {
+					alert(`✓ Sincronización completa:\n${data.message}`);
+					// Reload data to show updated results
+					await load();
+				} else {
+					alert('Error: ' + (data.error || 'Error desconocido'));
+				}
+			} catch (err) {
+				alert('Error al sincronizar: ' + String(err));
+			} finally {
+				syncBtn.disabled = false;
+				syncBtn.textContent = '🔄 Sincronizar pagos';
+			}
+		});
+		
 		setupSortListeners();
 		
 		// Payment date filter button
