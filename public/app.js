@@ -7612,12 +7612,14 @@ function openReceiptUploadPage(saleId) {
 
 // NEW: Inline file upload dialog that stays in the sales table
 function openInlineFileUploadDialog(saleId) {
+	console.log('🎯 openInlineFileUploadDialog called with saleId:', saleId);
 	try {
 		const id = Number(saleId);
 		if (!id) {
 			console.error('❌ openInlineFileUploadDialog: Invalid saleId', saleId);
 			return;
 		}
+		console.log('✅ Creating upload dialog for sale:', id);
 
 		const overlay = document.createElement('div');
 		overlay.className = 'file-upload-overlay';
