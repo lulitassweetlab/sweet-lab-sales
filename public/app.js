@@ -8142,8 +8142,7 @@ function openInlineFileUploadDialog(saleId) {
 			}
 		}
 		
-		uploadBtnTop.addEventListener('click', handleUpload);
-		uploadBtnBottom.addEventListener('click', handleUpload);
+		uploadBtn.addEventListener('click', handleUpload);
 
 		cancelBtn.addEventListener('click', cleanup);
 		overlay.addEventListener('click', (e) => {
