@@ -1953,11 +1953,36 @@ async function checkAndUpdateMainSelectorToJorgebank(saleId) {
 	}
 }
 
-// Check receipts for each sale (internal tracking only - does NOT change main selector)
+// Check receipts for each sale and update main selector to jorgebank if all receipts are verified
 async function enrichSalesWithReceiptStatus() {
-	// This function is now a no-op - jorgebank only exists at receipt level
-	// Main selector always shows what user selected (transf, jorge, etc.)
-	console.log('📸 Receipt status enrichment skipped - jorgebank is receipt-level only');
+	if (!Array.isArray(state.sales) || state.sales.length === 0) return;
+	
+	console.log('📸 Checking receipt status for all sales...');
+	
+	// Check each sale
+	for (const sale of state.sales) {
+		if (!sale || !sale.id) continue;
+		
+		try {
+			// Fetch all receipts for this sale
+			const receipts = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(sale.id)}`);
+			
+			if (!Array.isArray(receipts) || receipts.length === 0) continue;
+			
+			// Check if ALL receipts have jorgebank
+			const allJorgebank = receipts.every(r => (r.pay_method || '').trim().toLowerCase() === 'jorgebank');
+			
+			if (allJorgebank) {
+				// Update local state
+				sale.pay_method = 'jorgebank';
+				console.log(`✅ Sale ${sale.id} -> jorgebank (all ${receipts.length} receipts verified)`);
+			}
+		} catch (err) {
+			console.error(`Error checking receipts for sale ${sale.id}:`, err);
+		}
+	}
+	
+	console.log('📸 Receipt status enrichment complete');
 }
 
 async function loadSales() {
