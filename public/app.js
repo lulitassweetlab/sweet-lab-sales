@@ -8148,15 +8148,6 @@ async function openInlineFileUploadDialog(saleId) {
 							container.style.overflow = 'hidden';
 							container.style.boxShadow = '0 4px 12px rgba(244, 166, 183, 0.2)';
 							container.style.aspectRatio = '1';
-							container.style.opacity = '0';
-							container.style.transform = 'scale(0.9)';
-							container.style.transition = 'all 0.3s ease';
-							requestAnimationFrame(() => {
-								requestAnimationFrame(() => {
-									container.style.opacity = '1';
-									container.style.transform = 'scale(1)';
-								});
-							});
 
 								const i = document.createElement('img');
 								i.src = ev.target.result;
@@ -8406,9 +8397,20 @@ async function openInlineFileUploadDialog(saleId) {
 				
 				// Stay in sales table - reload to show updated data with smooth transition
 				if (typeof renderSalesView === 'function') {
-					setTimeout(() => {
-						renderSalesView();
-					}, 100);
+					// Smooth fade for table update
+					const mainContent = document.querySelector('.sales-table') || document.querySelector('main') || document.body;
+					if (mainContent) {
+						mainContent.style.transition = 'opacity 0.3s ease';
+						mainContent.style.opacity = '0.7';
+						setTimeout(() => {
+							renderSalesView();
+							setTimeout(() => {
+								mainContent.style.opacity = '1';
+							}, 50);
+						}, 150);
+					} else {
+						setTimeout(() => renderSalesView(), 100);
+					}
 				}
 			} else {
 				throw new Error('No se pudo subir ning\u00fan archivo');
@@ -9569,4 +9571,4 @@ function renderChangeMarkerIfNeeded(tdEl, saleId, field) {
 
 // (mobile bounce limiter removed per user preference);
 
-// (mobile bounce limiter removed per user preference)user preference)
+// (mobile bounce limiter removed per user preference)user preference) preference)
