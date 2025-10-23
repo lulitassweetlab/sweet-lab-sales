@@ -237,7 +237,8 @@ function renderClientDetailTable(rows) {
 		// If current value is 'jorge' but user is not Jorge, include it disabled so it displays
 		if (!isJorge && current === 'jorge') opts.push({ v: 'jorge', label: '' });
 		opts.push({ v: 'transf', label: '' });
-		// NOTE: jorgebank removed from main table selector - only available in receipt miniature selectors
+		// If current value is 'jorgebank', include it (read-only display)
+		if (current === 'jorgebank') opts.push({ v: 'jorgebank', label: '' });
 		for (const o of opts) { const opt = document.createElement('option'); opt.value = o.v; opt.textContent = o.label; if (!isMarcela && o.v === 'marce') opt.disabled = true; if (!isJorge && o.v === 'jorge') opt.disabled = true; if (current === o.v) opt.selected = true; sel.appendChild(opt); }
 		function applyPayClass() {
 			wrap.classList.remove('placeholder','method-efectivo','method-transf','method-marce','method-jorge','method-jorgebank','method-entregado');
