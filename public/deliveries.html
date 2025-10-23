@@ -88,10 +88,6 @@
 				try {
 					const sellers = await api('GET', `/api/deliveries?delivery_id=${r.id}`);
 					r.sellers = Array.isArray(sellers) ? sellers : [];
-					// Auto-expand if there are sellers
-					if (r.sellers.length > 0 && !expandedDeliveries.has(r.id)) {
-						expandedDeliveries.add(r.id);
-					}
 				} catch {
 					r.sellers = [];
 				}
@@ -112,6 +108,8 @@
 					}
 					// Add totals row
 					tbody.appendChild(renderSellerTotalsRow(r));
+					// Add spacing row
+					tbody.appendChild(renderSpacingRow());
 				}
 			}
 		}
@@ -213,7 +211,7 @@
 			tr.style.fontWeight = 'bold';
 			
 			const labelCell = document.createElement('td');
-			labelCell.textContent = '  \u2211 Total vendedores';
+			labelCell.textContent = 'Total vendedores';
 			labelCell.style.paddingLeft = '30px';
 			
 			// Calculate totals
@@ -237,6 +235,17 @@
 			const emptyCell = document.createElement('td');
 			
 			tr.append(labelCell, a, m, ma, o, n, emptyCell);
+			return tr;
+		}
+
+		function renderSpacingRow() {
+			const tr = document.createElement('tr');
+			tr.style.height = '20px';
+			tr.style.backgroundColor = 'transparent';
+			const td = document.createElement('td');
+			td.colSpan = 7;
+			td.innerHTML = '&nbsp;';
+			tr.appendChild(td);
 			return tr;
 		}
 
