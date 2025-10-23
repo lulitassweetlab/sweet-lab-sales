@@ -7758,6 +7758,10 @@ async function openInlineFileUploadDialog(saleId) {
 		fileInputWrapper.appendChild(fileInput);
 		fileInputWrapper.appendChild(fileLabel);
 
+		const noteInputWrapper = document.createElement('div');
+		noteInputWrapper.style.position = 'relative';
+		noteInputWrapper.style.marginBottom = '20px';
+		
 		const noteInput = document.createElement('textarea');
 		noteInput.rows = 3;
 		noteInput.value = '';
@@ -7766,47 +7770,55 @@ async function openInlineFileUploadDialog(saleId) {
 		noteInput.style.padding = '14px';
 		noteInput.style.borderRadius = '12px';
 		noteInput.style.border = '2px solid var(--border, #e5e7eb)';
-		noteInput.style.marginBottom = '20px';
 		noteInput.style.fontFamily = 'inherit';
 		noteInput.style.fontSize = '14px';
-		noteInput.style.textAlign = 'center';
 		noteInput.style.transition = 'all 0.3s ease';
-		noteInput.style.color = '#9ca3af';
-		noteInput.textContent = 'Notas';
+		noteInput.style.color = '#111';
+		
+		const notePlaceholder = document.createElement('div');
+		notePlaceholder.textContent = 'Notas';
+		notePlaceholder.style.position = 'absolute';
+		notePlaceholder.style.top = '14px';
+		notePlaceholder.style.left = '0';
+		notePlaceholder.style.right = '0';
+		notePlaceholder.style.textAlign = 'center';
+		notePlaceholder.style.color = '#9ca3af';
+		notePlaceholder.style.fontSize = '14px';
+		notePlaceholder.style.pointerEvents = 'none';
+		notePlaceholder.style.transition = 'opacity 0.2s ease';
+		
 		noteInput.addEventListener('click', () => {
-			if (noteInput.textContent === 'Notas' && noteInput.value === '') {
-				noteInput.textContent = '';
-				noteInput.value = '';
-				noteInput.style.color = '#111';
-				noteInput.focus();
-			}
+			notePlaceholder.style.opacity = '0';
+			noteInput.style.textAlign = 'left';
 		});
+		
 		noteInput.addEventListener('focus', () => {
 			noteInput.style.borderColor = '#f4a6b7';
 			noteInput.style.boxShadow = '0 0 0 3px rgba(244, 166, 183, 0.15)';
 			noteInput.style.textAlign = 'left';
-			noteInput.style.color = '#111';
-			if (noteInput.textContent === 'Notas') {
-				noteInput.textContent = '';
-				noteInput.value = '';
-			}
+			notePlaceholder.style.opacity = '0';
 		});
+		
 		noteInput.addEventListener('blur', () => {
 			noteInput.style.borderColor = 'var(--border, #e5e7eb)';
 			noteInput.style.boxShadow = 'none';
 			if (!noteInput.value || noteInput.value.trim() === '') {
 				noteInput.style.textAlign = 'center';
-				noteInput.style.color = '#9ca3af';
-				noteInput.textContent = 'Notas';
-				noteInput.value = '';
+				notePlaceholder.style.opacity = '1';
 			}
 		});
+		
 		noteInput.addEventListener('input', () => {
 			if (noteInput.value && noteInput.value.trim()) {
 				noteInput.style.textAlign = 'left';
-				noteInput.style.color = '#111';
+				notePlaceholder.style.opacity = '0';
+			} else {
+				notePlaceholder.style.opacity = '1';
 			}
 		});
+		
+		noteInputWrapper.appendChild(noteInput);
+		noteInputWrapper.appendChild(notePlaceholder);
 
 		const previewContainer = document.createElement('div');
 		previewContainer.className = 'preview';
@@ -7814,7 +7826,7 @@ async function openInlineFileUploadDialog(saleId) {
 		previewContainer.style.marginBottom = '20px';
 		
 		const previewTitle = document.createElement('div');
-		previewTitle.textContent = '👁️ Vista Previa';
+		previewTitle.textContent = 'Vista Previa';
 		previewTitle.style.fontSize = '18px';
 		previewTitle.style.fontWeight = '700';
 		previewTitle.style.marginBottom = '16px';
@@ -7920,6 +7932,7 @@ async function openInlineFileUploadDialog(saleId) {
 		uploadMoreBtn.style.transition = 'all 0.3s ease';
 		uploadMoreBtn.style.display = 'none';
 		uploadMoreBtn.addEventListener('click', () => {
+			isAddingMore = true;
 			fileInput.click();
 		});
 		uploadMoreBtn.addEventListener('mouseenter', () => {
@@ -7942,21 +7955,32 @@ async function openInlineFileUploadDialog(saleId) {
 		helpText.style.opacity = '0.75';
 
 		let selectedFiles = [];
+		let isAddingMore = false;
 
 		fileInput.addEventListener('change', () => {
 			const files = fileInput.files;
 			if (!files || files.length === 0) {
-				previewContainer.style.display = 'none';
-				previewContainer.innerHTML = '';
-				previewTitle.style.display = 'none';
-				uploadMoreBtn.style.display = 'none';
-				uploadBtn.disabled = true;
-				uploadBtn.style.opacity = '0.5';
-				uploadBtn.style.cursor = 'not-allowed';
-				selectedFiles = [];
+				// Only clear if not adding more files
+				if (!isAddingMore) {
+					previewContainer.style.display = 'none';
+					previewContainer.innerHTML = '';
+					previewTitle.style.display = 'none';
+					uploadMoreBtn.style.display = 'none';
+					uploadBtn.disabled = true;
+					uploadBtn.style.opacity = '0.5';
+					uploadBtn.style.cursor = 'not-allowed';
+					selectedFiles = [];
+				}
 				return;
 			}
-			selectedFiles = Array.from(files);
+			
+			// If adding more, append to existing files
+			if (isAddingMore) {
+				selectedFiles = [...selectedFiles, ...Array.from(files)];
+				isAddingMore = false;
+			} else {
+				selectedFiles = Array.from(files);
+			}
 			previewContainer.innerHTML = '';
 			previewGrid.innerHTML = '';
 			previewContainer.appendChild(previewTitle);
@@ -8055,9 +8079,126 @@ async function openInlineFileUploadDialog(saleId) {
 					});
 					removeBtn.addEventListener('click', (e) => {
 						e.stopPropagation();
+						// Remove this specific file
 						selectedFiles.splice(index, 1);
-						fileInput.value = '';
-						fileInput.dispatchEvent(new Event('change'));
+						
+						// Re-render the preview without triggering change event
+						previewGrid.innerHTML = '';
+						
+						if (selectedFiles.length === 0) {
+							previewContainer.style.display = 'none';
+							previewTitle.style.display = 'none';
+							uploadMoreBtn.style.display = 'none';
+							uploadBtn.disabled = true;
+							uploadBtn.style.opacity = '0.5';
+							uploadBtn.style.cursor = 'not-allowed';
+							fileInput.value = '';
+							return;
+						}
+						
+						// Re-render all remaining files
+						selectedFiles.forEach((f, idx) => {
+							const reader = new FileReader();
+							reader.onload = (ev) => {
+								const container = document.createElement('div');
+								container.style.position = 'relative';
+								container.style.padding = '0';
+								container.style.background = 'white';
+								container.style.borderRadius = '12px';
+								container.style.border = '3px solid #f4a6b7';
+								container.style.overflow = 'hidden';
+								container.style.boxShadow = '0 4px 12px rgba(244, 166, 183, 0.2)';
+								container.style.aspectRatio = '1';
+
+								const i = document.createElement('img');
+								i.src = ev.target.result;
+								i.alt = `Vista previa ${idx + 1}`;
+								i.style.width = '100%';
+								i.style.height = '100%';
+								i.style.display = 'block';
+								i.style.objectFit = 'cover';
+								i.style.cursor = 'pointer';
+								i.style.transition = 'transform 0.2s ease';
+								
+								// Lightbox on click
+								i.addEventListener('click', (evt) => {
+									evt.stopPropagation();
+									
+									const lightbox = document.createElement('div');
+									lightbox.style.position = 'fixed';
+									lightbox.style.top = '0';
+									lightbox.style.left = '0';
+									lightbox.style.width = '100%';
+									lightbox.style.height = '100%';
+									lightbox.style.background = 'rgba(0,0,0,0.95)';
+									lightbox.style.zIndex = '99999';
+									lightbox.style.display = 'flex';
+									lightbox.style.alignItems = 'center';
+									lightbox.style.justifyContent = 'center';
+									lightbox.style.cursor = 'pointer';
+									lightbox.style.animation = 'fadeIn 0.2s ease';
+									
+									const fullImg = document.createElement('img');
+									fullImg.src = i.src;
+									fullImg.style.maxWidth = '95%';
+									fullImg.style.maxHeight = '95%';
+									fullImg.style.objectFit = 'contain';
+									fullImg.style.borderRadius = '8px';
+									
+									lightbox.appendChild(fullImg);
+									document.body.appendChild(lightbox);
+									
+									lightbox.addEventListener('click', () => {
+										lightbox.style.animation = 'fadeOut 0.2s ease';
+										setTimeout(() => {
+											if (lightbox.parentNode) {
+												lightbox.parentNode.removeChild(lightbox);
+											}
+										}, 200);
+									});
+								});
+
+								const btn = document.createElement('button');
+								btn.innerHTML = '✕';
+								btn.style.position = 'absolute';
+								btn.style.top = '8px';
+								btn.style.right = '8px';
+								btn.style.width = '32px';
+								btn.style.height = '32px';
+								btn.style.borderRadius = '50%';
+								btn.style.border = 'none';
+								btn.style.background = 'rgba(0, 0, 0, 0.7)';
+								btn.style.color = 'white';
+								btn.style.fontSize = '18px';
+								btn.style.fontWeight = 'bold';
+								btn.style.cursor = 'pointer';
+								btn.style.display = 'flex';
+								btn.style.alignItems = 'center';
+								btn.style.justifyContent = 'center';
+								btn.style.transition = 'all 0.2s ease';
+								btn.style.zIndex = '2';
+								btn.addEventListener('mouseenter', () => {
+									btn.style.background = '#f4a6b7';
+									btn.style.transform = 'scale(1.15)';
+								});
+								btn.addEventListener('mouseleave', () => {
+									btn.style.background = 'rgba(0, 0, 0, 0.7)';
+									btn.style.transform = 'scale(1)';
+								});
+								btn.addEventListener('click', (evt) => {
+									evt.stopPropagation();
+									selectedFiles.splice(idx, 1);
+									
+									// Re-trigger the same logic recursively
+									removeBtn.dispatchEvent(new MouseEvent('click', { bubbles: false }));
+								});
+
+								container.appendChild(i);
+								container.appendChild(btn);
+								previewGrid.appendChild(container);
+							};
+							reader.readAsDataURL(f);
+						});
 					});
 
 					imgContainer.appendChild(img);
@@ -8240,7 +8381,7 @@ async function openInlineFileUploadDialog(saleId) {
 		dialog.appendChild(title);
 		dialog.appendChild(fileInputWrapper);
 		dialog.appendChild(previewContainer);
-		dialog.appendChild(noteInput);
+		dialog.appendChild(noteInputWrapper);
 		dialog.appendChild(helpText);
 		dialog.appendChild(bottomActions);
 
