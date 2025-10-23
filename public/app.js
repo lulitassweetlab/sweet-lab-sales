@@ -7393,7 +7393,8 @@ async function openClientsView() {
 
 async function loadClientsForSeller() {
 	const sellerId = state.currentSeller.id;
-	const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(sellerId)}`);
+	// Include archived days to count all client records
+	const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(sellerId)}&include_archived=1`);
 	const nameToCount = new Map();
 	for (const d of (days || [])) {
 		const params = new URLSearchParams({ seller_id: String(sellerId), sale_day_id: String(d.id) });
