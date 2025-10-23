@@ -271,10 +271,13 @@ function renderClientDetailTable(rows) {
 				openReceiptsGalleryPopover(saleId, rect.left + rect.width / 2, rect.bottom);
 				return;
 			}
-				// If current is 'jorgebank' and NOT seen -> show payment date popover first time
-				if (curr === 'jorgebank' && !hasSeen('jorgebank')) { markSeen('jorgebank'); openPaymentDateDialog(saleId); return; }
-				// If current is 'jorgebank' and NOT seen -> show payment date popover first time
-				if (curr === 'jorgebank' && !hasSeen('jorgebank')) { markSeen('jorgebank'); openPaymentDateDialog(saleId); return; }
+			// If current is 'jorgebank' and NOT seen -> show payment date popover first time
+			if (curr === 'jorgebank' && !hasSeen('jorgebank')) { markSeen('jorgebank'); openPaymentDateDialog(saleId); return; }
+			// If current is 'transf' -> open upload dialog
+			if (curr === 'transf') {
+				openInlineFileUploadDialog(saleId);
+				return;
+			}
 			// Otherwise open the selector menu
 			openPayMenu(wrap, sel, rect.left + rect.width / 2, rect.bottom);
 		});
@@ -294,6 +297,10 @@ function renderClientDetailTable(rows) {
 				if (curr === 'jorge' && !hasSeen('jorge')) { markSeen('jorge'); openPaymentDateDialog(saleId); return; }
 				if (curr === 'jorgebank' && hasSeen('jorgebank')) {
 					openReceiptsGalleryPopover(saleId, rect.left + rect.width / 2, rect.bottom);
+					return;
+				}
+				if (curr === 'transf') {
+					openInlineFileUploadDialog(saleId);
 					return;
 				}
 				openPayMenu(wrap, sel, rect.left + rect.width / 2, rect.bottom);
@@ -1751,10 +1758,9 @@ function renderTable() {
                     return;
                 }
                 
-                // If locked and current is transf, open receipt gallery for non-admins
-                if (!isAdminUser && locked && pm === 'transf') {
-                    const rect = wrap.getBoundingClientRect();
-                    openReceiptsGalleryPopover(sale.id, rect.left + rect.width / 2, rect.bottom);
+                // If current is transf, open upload dialog for everyone
+                if (pm === 'transf') {
+                    openInlineFileUploadDialog(sale.id);
                     return;
                 }
                 if (!isAdminUser && locked) return; // block opening menu for non-admins, allow when 'entregado'
@@ -1776,12 +1782,10 @@ function renderTable() {
                         } catch { openReceiptUploadPage(sale.id); }
                         return;
                     }
-                    
-                    if (!isAdminUser && locked && pm === 'transf') {
-                        try {
-                            const rect = wrap.getBoundingClientRect();
-                            openReceiptsGalleryPopover(sale.id, rect.left + rect.width / 2, rect.bottom);
-                        } catch { openReceiptUploadPage(sale.id); }
+
+                    // If current is transf, open upload dialog
+                    if (pm === 'transf') {
+                        openInlineFileUploadDialog(sale.id);
                         return;
                     }
                     if (!isAdminUser && locked) return; 
@@ -6486,15 +6490,12 @@ function openPayMenu(anchorEl, selectEl, clickX, clickY) {
 				return;
 			}
 		}
-		// If selecting transf, show existing receipt if any; otherwise open upload
+		// If selecting transf, open upload dialog directly
 		if (it.v === 'transf' && currentSaleId) {
 			cleanup();
-			// Use setTimeout to avoid blocking and ensure proper async execution
+			// Open upload dialog
 			setTimeout(() => {
-				openReceiptsGalleryPopover(currentSaleId, rect.left + rect.width / 2, rect.bottom).catch(err => {
-					console.error('Error opening gallery from menu:', err);
-					openReceiptUploadPage(currentSaleId);
-				});
+				openInlineFileUploadDialog(currentSaleId);
 			}, 0);
 			return;
 		}
