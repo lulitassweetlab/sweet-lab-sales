@@ -506,14 +506,15 @@
 			dataset = [];
 			seenSaleIds.clear();
 			
-			// Auto-sync receipt payments to sales on first load (silent, in background)
-			const syncKey = 'cartera_receipts_synced';
-			if (!sessionStorage.getItem(syncKey)) {
+			// Auto-sync receipt payments to sales - ONLY ONCE EVER (permanent)
+			const syncKey = 'cartera_receipts_synced_v1';
+			if (!localStorage.getItem(syncKey)) {
 				try {
 					await fetchJSON(withActor('/api/sales?sync_receipts=true'));
-					sessionStorage.setItem(syncKey, 'true');
+					localStorage.setItem(syncKey, new Date().toISOString());
 				} catch (err) {
 					console.warn('Auto-sync failed:', err);
+					// Don't mark as synced if it failed, so it can retry next time
 				}
 			}
 			
