@@ -3977,6 +3977,7 @@ async function exportCarteraExcel(startIso, endIso) {
 	const accountingBtn = document.getElementById('accounting-button');
 	const dessertsBtn = document.getElementById('desserts-button');
 	const deliveriesBtn = document.getElementById('deliveries-button');
+	const landingBtn = document.getElementById('landing-button');
 	const input = document.getElementById('report-date');
 	if (!reportBtn || !input) return;
 	reportBtn.addEventListener('click', (ev) => {
@@ -4066,6 +4067,10 @@ async function exportCarteraExcel(startIso, endIso) {
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 		if (!isAdminUser && !isSuper) { notify.error('Solo para admin/superadmin'); return; }
 		window.location.href = '/deliveries.html';
+	});
+	landingBtn?.addEventListener('click', (ev) => {
+		exitDeleteSellerModeIfActive();
+		window.location.href = '/melocoton.html';
 	});
 })();
 
