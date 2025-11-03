@@ -4373,7 +4373,7 @@ async function exportUsersExcel() {
 	try {
 		const XLSX = window.XLSX;
 		const users = await api('GET', API.Users);
-		const rows = (users || []).map(u => ({ Usuario: u.username, Contrase?a: u.password_hash }));
+		const rows = (users || []).map(u => ({ Usuario: u.username, 'Contrase\u00f1a': u.password_hash }));
 		const ws = XLSX.utils.json_to_sheet(rows);
 		const wb = XLSX.utils.book_new();
 		XLSX.utils.book_append_sheet(wb, ws, 'Usuarios');
