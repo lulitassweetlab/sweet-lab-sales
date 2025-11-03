@@ -662,7 +662,7 @@ const notify = (() => {
 				if (clickTimeout) return; // double click detected
 				clickTimeout = setTimeout(async () => {
 					clickTimeout = null;
-					// Single click: fetch and show only unread toasts
+					// Single click: fetch and show only unread toasts (don't mark as read)
 					try {
 						const url = '/api/notifications?limit=50';
 						const res = await fetch(url);
@@ -682,18 +682,6 @@ const notify = (() => {
 									const pm = (it.pay_method || '').toString();
 									const iconUrl = it.icon_url || (pm === 'efectivo' ? '/icons/bill.svg' : pm === 'transf' ? '/icons/bank.svg' : pm === 'jorgebank' ? '/icons/bank-yellow.svg' : pm === 'marce' ? '/icons/marce7.svg?v=1' : pm === 'jorge' ? '/icons/jorge7.svg?v=1' : null);
 									notify.info(msg, iconUrl || pm ? { iconUrl, payMethod: pm } : undefined);
-								}
-								// Mark shown notifications as read
-								for (const it of toShow) {
-									try {
-										await fetch('/api/notifications', {
-											method: 'PATCH',
-											headers: { 'Content-Type': 'application/json' },
-											body: JSON.stringify({ id: it.id, is_read: true })
-										});
-									} catch (patchErr) {
-										console.error('Error marking notification as read:', patchErr);
-									}
 								}
 							}
 						}
