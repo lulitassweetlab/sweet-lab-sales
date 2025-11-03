@@ -1,5 +1,12 @@
 import { ensureSchema, sql } from './_db.js';
 
+// Rate limiting cache to prevent excessive polling
+// Structure: Map<clientKey, { count: number, windowStart: timestamp, lastQuery: string }>
+const requestCache = new Map();
+const RATE_LIMIT_WINDOW = 5000; // 5 seconds
+const MAX_REQUESTS_PER_WINDOW = 2; // Maximum 2 requests every 5 seconds
+const CACHE_CLEANUP_THRESHOLD = 1000; // Clean up cache when it grows too large
+
 function json(body, status = 200) {
 	// Add cache headers to prevent unnecessary repeated calls
 	const headers = {
@@ -21,6 +28,50 @@ export async function handler(event) {
 		const query = event.rawQuery || '';
 		
 		console.log(`[NOTIFICATIONS] ${timestamp} | ${method} | IP: ${ip} | UA: ${userAgent} | Referer: ${referer} | Query: ${query}`);
+		
+		// 🛡️ RATE LIMITING: Prevent excessive polling
+		// Skip rate limiting for PATCH requests (marking as read/unread) and OPTIONS
+		if (method === 'GET') {
+			const now = Date.now();
+			const clientKey = `${ip}:${query}`; // Include query to allow different requests
+			const clientData = requestCache.get(clientKey) || { count: 0, windowStart: now, lastQuery: query };
+			
+			// Check if we're in the same time window
+			if (now - clientData.windowStart < RATE_LIMIT_WINDOW) {
+				clientData.count++;
+				
+				// Detect excessive polling (same query repeated too frequently)
+				if (clientData.count > MAX_REQUESTS_PER_WINDOW && clientData.lastQuery === query) {
+					const waitTime = Math.ceil((RATE_LIMIT_WINDOW - (now - clientData.windowStart)) / 1000);
+					console.warn(`[NOTIFICATIONS] 🚨 RATE LIMIT EXCEEDED | IP: ${ip} | Count: ${clientData.count} | Query: ${query}`);
+					
+					return json({ 
+						error: 'Demasiadas solicitudes. Por favor espera unos segundos.',
+						message: 'Too many requests detected. This may indicate automatic polling.',
+						retryAfter: waitTime,
+						hint: 'Si ves este mensaje frecuentemente, por favor recarga la página y limpia el caché del navegador.'
+					}, 429);
+				}
+			} else {
+				// New window, reset counter
+				clientData.count = 1;
+				clientData.windowStart = now;
+			}
+			
+			clientData.lastQuery = query;
+			requestCache.set(clientKey, clientData);
+			
+			// Cleanup old entries periodically
+			if (requestCache.size > CACHE_CLEANUP_THRESHOLD) {
+				const expirationTime = now - (RATE_LIMIT_WINDOW * 2);
+				for (const [key, data] of requestCache.entries()) {
+					if (data.windowStart < expirationTime) {
+						requestCache.delete(key);
+					}
+				}
+				console.log(`[NOTIFICATIONS] Cache cleanup: ${requestCache.size} entries remaining`);
+			}
+		}
 		
 		await ensureSchema();
 		if (event.httpMethod === 'OPTIONS') return json({ ok: true });
