@@ -340,7 +340,7 @@ function renderClientDetailTable(rows) {
 		delBtn.setAttribute('aria-label', 'Eliminar');
 		delBtn.addEventListener('click', async (e) => {
 			e.stopPropagation();
-			if (!confirm(`¿Estás seguro de eliminar esta compra de "${state._clientDetailName || 'este cliente'}"?`)) return;
+			if (!confirm(`?Est?s seguro de eliminar esta compra de "${state._clientDetailName || 'este cliente'}"?`)) return;
 			try {
 				await api('DELETE', `${API.Sales}?id=${encodeURIComponent(r.id)}`);
 				notify.info(`Compra eliminada`);
@@ -404,7 +404,7 @@ async function openEditClientNameDialog(currentName) {
 	}
 	
 	// Confirm the change
-	if (!confirm(`¿Cambiar el nombre del cliente de "${currentName}" a "${trimmedName}"?\n\nEsto actualizará todas las compras de este cliente.`)) {
+	if (!confirm(`?Cambiar el nombre del cliente de "${currentName}" a "${trimmedName}"?\n\nEsto actualizar? todas las compras de este cliente.`)) {
 		return;
 	}
 	
@@ -522,32 +522,44 @@ const state = {
 	globalClientSuggestions: [], // Global client suggestions for header search
 };
 
+function syncNotificationAccess() {
+	const isSuper = !!(state.currentUser?.role === 'superadmin' || state.currentUser?.isSuperAdmin);
+	if (notify && typeof notify.setSuperAdminAccess === 'function') {
+		notify.setSuperAdminAccess(isSuper);
+	}
+}
+
 // Toasts and Notifications
 const notify = (() => {
 	const container = () => document.getElementById('toast-container');
 	const STORAGE_KEY = 'notify_log_v1';
 	const STORAGE_HIDE_KEY = 'notify_hide_ids_v1';
-		const STORAGE_FILTER_KEY = 'notify_seller_filter_id_v1';
+	const STORAGE_FILTER_KEY = 'notify_seller_filter_id_v1';
 	let notifIcon = '/logo.png';
+	let isSuperAdminUser = false;
+	let notifButton = null;
+	let notifClickTimer = null;
+	let notifRequestInFlight = false;
+	let notifInitialized = false;
+	let lastServerNotifId = 0;
+
 	function buildPinkIcon() {
 		try {
 			const size = 128;
 			const c = document.createElement('canvas'); c.width = size; c.height = size;
 			const ctx = c.getContext('2d');
-			// background
 			ctx.fillStyle = '#ffffff';
 			ctx.fillRect(0, 0, size, size);
-			// pink rounded border
 			const r = 18; const pad = 6;
 			ctx.strokeStyle = '#d4567a';
 			ctx.lineWidth = 12;
 			ctx.beginPath();
-			const x=pad, y=pad, w=size-pad*2, h=size-pad*2;
-			ctx.moveTo(x+r, y);
-			ctx.arcTo(x+w, y, x+w, y+h, r);
-			ctx.arcTo(x+w, y+h, x, y+h, r);
-			ctx.arcTo(x, y+h, x, y, r);
-			ctx.arcTo(x, y, x+w, y, r);
+			const x = pad, y = pad, w = size - pad * 2, h = size - pad * 2;
+			ctx.moveTo(x + r, y);
+			ctx.arcTo(x + w, y, x + w, y + h, r);
+			ctx.arcTo(x + w, y + h, x, y + h, r);
+			ctx.arcTo(x, y + h, x, y, r);
+			ctx.arcTo(x, y, x + w, y, r);
 			ctx.closePath();
 			ctx.stroke();
 			notifIcon = c.toDataURL('image/png');
@@ -584,6 +596,10 @@ const notify = (() => {
 		try {
 			const btn = document.getElementById('notif-toggle');
 			if (!btn) return;
+			if (!isSuperAdminUser) {
+				btn.classList.remove('has-unread');
+				return;
+			}
 			const anyUnread = readLog().some(it => it && it.read === false);
 			btn.classList.toggle('has-unread', !!anyUnread);
 		} catch {}
@@ -607,14 +623,13 @@ const notify = (() => {
 		const msg = document.createElement('div');
 		msg.className = 'toast-msg';
 		msg.textContent = String(message || '');
-		const close = document.createElement('button'); close.className = 'toast-close'; close.type = 'button'; close.textContent = '×';
+		const close = document.createElement('button'); close.className = 'toast-close'; close.type = 'button'; close.textContent = '\u00d7';
 		close.addEventListener('click', () => dismiss(n));
 		n.append(msg, close);
-		// Optional icon support (e.g., payment method)
 		try {
 			let url = iconUrl;
 			if (!url && payMethod) {
-				url = payMethod === 'efectivo' ? '/icons/bill.svg' : payMethod === 'transf' ? '/icons/bank.svg' : payMethod === 'marce' ? '/icons/marce7.svg?v=1' : null;
+				url = payMethod === 'efectivo' ? '/icons/bill.svg' : payMethod === 'transf' ? '/icons/bank.svg' : payMethod === 'jorgebank' ? '/icons/bank-yellow.svg' : payMethod === 'marce' ? '/icons/marce7.svg?v=1' : payMethod === 'jorge' ? '/icons/jorge7.svg?v=1' : null;
 			}
 			if (url) {
 				const icon = document.createElement('span');
@@ -645,24 +660,104 @@ const notify = (() => {
 			new Notification(String(title || 'Sweet Lab'), { body: finalBody, icon: notifIcon });
 		} catch {}
 	}
+	async function pullServerNotifications(showToasts) {
+		if (!isSuperAdminUser) return [];
+		if (notifRequestInFlight) return [];
+		notifRequestInFlight = true;
+		try {
+			const url = lastServerNotifId ? `/api/notifications?after_id=${encodeURIComponent(lastServerNotifId)}` : '/api/notifications';
+			const res = await fetch(url);
+			if (!res.ok) return [];
+			const rows = await res.json();
+			if (!Array.isArray(rows) || rows.length === 0) {
+				if (!notifInitialized) notifInitialized = true;
+				return [];
+			}
+			const allowToasts = showToasts && notifInitialized;
+			if (!notifInitialized) notifInitialized = true;
+			for (const r of rows) {
+				const id = Number(r.id || 0);
+				if (id) lastServerNotifId = Math.max(lastServerNotifId, id);
+				if (allowToasts) {
+					const msg = String(r.message || '');
+					const pm = (r.pay_method || '').toString();
+					const iconUrl = r.icon_url || (pm === 'efectivo' ? '/icons/bill.svg' : pm === 'transf' ? '/icons/bank.svg' : pm === 'jorgebank' ? '/icons/bank-yellow.svg' : pm === 'marce' ? '/icons/marce7.svg?v=1' : pm === 'jorge' ? '/icons/jorge7.svg?v=1' : null);
+					render('info', msg, iconUrl || pm ? { iconUrl, payMethod: pm } : undefined);
+					showBrowser('Venta', msg);
+				}
+			}
+			return rows;
+		} catch {
+			return [];
+		} finally {
+			notifRequestInFlight = false;
+		}
+	}
+	function refreshPermissionState() {
+		if (!notifButton) notifButton = document.getElementById('notif-toggle');
+		if (!notifButton) return;
+		const ok = ('Notification' in window) && Notification.permission === 'granted';
+		notifButton.classList.toggle('enabled', !!ok);
+		notifButton.title = ok ? 'Notificaciones activas' : 'Activar notificaciones';
+	}
+	function updateToggleVisibility() {
+		if (!notifButton) notifButton = document.getElementById('notif-toggle');
+		if (!notifButton) return;
+		if (isSuperAdminUser) {
+			notifButton.style.display = '';
+			notifButton.disabled = false;
+		} else {
+			notifButton.style.display = 'none';
+			notifButton.disabled = true;
+			notifButton.classList.remove('enabled', 'has-unread');
+		}
+	}
 	function initToggle() {
-		document.addEventListener('DOMContentLoaded', async () => {
+		document.addEventListener('DOMContentLoaded', () => {
 			buildPinkIcon();
-			const btn = document.getElementById('notif-toggle');
-			if (!btn) return;
-			const refresh = () => {
-				const ok = ('Notification' in window) && Notification.permission === 'granted';
-				btn.classList.toggle('enabled', !!ok);
-				btn.title = ok ? 'Notificaciones activas' : 'Activar notificaciones';
-			};
-			refresh();
-			btn.addEventListener('click', async (ev) => {
-				openDialog(ev?.clientX, ev?.clientY);
-			});
+			notifButton = document.getElementById('notif-toggle');
+			if (!notifButton) return;
+			updateToggleVisibility();
+			refreshPermissionState();
 			refreshUnreadDot();
+			notifButton.addEventListener('click', (ev) => {
+				if (!isSuperAdminUser) return;
+				if (notifClickTimer) {
+					clearTimeout(notifClickTimer);
+					notifClickTimer = null;
+				}
+				if (ev.detail >= 2) {
+					(async () => {
+						await pullServerNotifications(true);
+						openDialog(ev?.clientX, ev?.clientY);
+					})();
+				} else {
+					notifClickTimer = window.setTimeout(() => {
+						notifClickTimer = null;
+						pullServerNotifications(true);
+					}, 220);
+				}
+			});
+			window.addEventListener('focus', refreshPermissionState, { passive: true });
 		});
 	}
+	function setSuperAdminAccess(flag) {
+		const next = !!flag;
+		if (!next) {
+			lastServerNotifId = 0;
+			notifInitialized = false;
+			if (notifClickTimer) {
+				clearTimeout(notifClickTimer);
+				notifClickTimer = null;
+			}
+		}
+		isSuperAdminUser = next;
+		updateToggleVisibility();
+		if (next) refreshPermissionState();
+		refreshUnreadDot();
+	}
 	async function openDialog(anchorX, anchorY) {
+		if (!isSuperAdminUser) return;
 		const backdrop = document.createElement('div');
 		backdrop.className = 'notif-dialog-backdrop';
 		const dlg = document.createElement('div');
@@ -672,14 +767,13 @@ const notify = (() => {
 		const actions = document.createElement('div'); actions.className = 'notif-actions';
 		const permBtn = document.createElement('button'); permBtn.className = 'notif-btn'; permBtn.textContent = 'Pedir permiso';
 		const clearBtn = document.createElement('button'); clearBtn.className = 'notif-btn'; clearBtn.textContent = 'Limpiar';
-		const closeBtn = document.createElement('button'); closeBtn.className = 'notif-close'; closeBtn.textContent = '✕';
+		const closeBtn = document.createElement('button'); closeBtn.className = 'notif-close'; closeBtn.textContent = '\u00d7';
 		actions.append(permBtn, clearBtn, closeBtn);
 		header.append(title, actions);
 		const body = document.createElement('div'); body.className = 'notif-body';
 		const toolbar = document.createElement('div'); toolbar.className = 'notif-toolbar';
-		const info = document.createElement('div'); info.style.fontSize = '12px'; info.style.opacity = '0.8'; info.textContent = 'Historial del servidor (más recientes primero)';
-		const loadMoreBtn = document.createElement('button'); loadMoreBtn.className = 'notif-btn'; loadMoreBtn.textContent = 'Cargar más';
-		// Superadmin-only seller/day filter
+		const info = document.createElement('div'); info.style.fontSize = '12px'; info.style.opacity = '0.8'; info.textContent = 'Historial del servidor (m\u00e1s recientes primero)';
+		const loadMoreBtn = document.createElement('button'); loadMoreBtn.className = 'notif-btn'; loadMoreBtn.textContent = 'Cargar m\u00e1s';
 		const isSuperAdmin = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 		let sellerSelect = null;
 		let daySelect = null;
@@ -697,20 +791,17 @@ const notify = (() => {
 					opt.textContent = s.name;
 					sellerSelect.appendChild(opt);
 				}
-				// Restore saved selection
 				try {
 					const saved = localStorage.getItem(STORAGE_FILTER_KEY) || '';
 					if (saved) sellerSelect.value = saved;
 				} catch {}
 			} catch {}
-			// Day select depends on seller
 			daySelect = document.createElement('select');
 			daySelect.className = 'notif-day-select';
 			daySelect.title = 'Filtrar por fecha (tabla)';
 			const optAllDays = document.createElement('option'); optAllDays.value = ''; optAllDays.textContent = 'Todas las fechas';
 			daySelect.appendChild(optAllDays);
 			async function loadDaysForSelectedSeller() {
-				// Reset options
 				while (daySelect.options.length > 1) daySelect.remove(1);
 				const sid = sellerSelect.value;
 				if (!sid) { try { localStorage.removeItem('notify_day_filter_id_v1'); } catch {}; return; }
@@ -719,11 +810,9 @@ const notify = (() => {
 					for (const d of (days || [])) {
 						const opt = document.createElement('option');
 						opt.value = String(d.id);
-						opt.textContent = String(d.day).slice(0,10);
+						opt.textContent = String(d.day).slice(0, 10);
 						daySelect.appendChild(opt);
 					}
-
-					// Restore saved day for this seller
 					try {
 						const savedDay = localStorage.getItem('notify_day_filter_id_v1') || '';
 						if (savedDay) daySelect.value = savedDay;
@@ -732,7 +821,6 @@ const notify = (() => {
 			}
 			sellerSelect.addEventListener('change', () => {
 				try { localStorage.setItem(STORAGE_FILTER_KEY, sellerSelect.value || ''); } catch {}
-				// Reset day filter on seller change
 				try { localStorage.removeItem('notify_day_filter_id_v1'); } catch {}
 				loadDaysForSelectedSeller();
 				fetchInitial();
@@ -748,7 +836,7 @@ const notify = (() => {
 		toolbar.append(info, loadMoreBtn);
 		const list = document.createElement('div'); list.className = 'notif-list';
 		let seenIds = new Set();
-		let minLoadedId = null; // track smallest id loaded (for before_id)
+		let minLoadedId = null;
 		let serverMode = true;
 		function renderLocalList() {
 			list.innerHTML = '';
@@ -758,76 +846,61 @@ const notify = (() => {
 				const empty = document.createElement('div'); empty.className = 'notif-empty'; empty.textContent = 'Sin notificaciones'; list.appendChild(empty); return;
 			}
 			for (const it of data.slice(-200).reverse()) {
-				appendItem({
-					id: it.id,
-					when: it.when,
-					text: it.text,
-					isServer: false,
-					original: it
-				});
+				appendItem({ id: it.id, when: it.when, text: it.text, isServer: false, original: it });
 			}
 		}
 		function appendItem(opts) {
 			const { id, when, text, isServer, original } = opts;
 			if (isServer) {
-				if (seenIds.has(id)) return; // de-dup
+				if (seenIds.has(id)) return;
 				const hidden = readHideSet();
-				if (hidden.has(String(id))) return; // locally hidden
+				if (hidden.has(String(id))) return;
 				seenIds.add(id);
 				minLoadedId = (minLoadedId == null) ? id : Math.min(minLoadedId, id);
 			}
 			const item = document.createElement('div'); item.className = 'notif-item';
 			const isRead = isServer && original.read_at !== null && original.read_at !== undefined;
 			if (isRead) item.classList.add('notif-read');
-			
-			// Check if user is superadmin
-			const isSuperAdmin = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
-			
-			// Add checkbox for superadmin to mark as read (server-backed only)
-			let checkboxEl = null;
-			if (isServer && isSuperAdmin) {
-				checkboxEl = document.createElement('input');
-				checkboxEl.type = 'checkbox';
-				checkboxEl.className = 'notif-checkbox';
-				checkboxEl.checked = isRead;
-				checkboxEl.title = isRead ? 'Marcar como no leída' : 'Marcar como leída';
-				checkboxEl.addEventListener('click', async (e) => {
-					e.stopPropagation();
-					const newReadState = e.target.checked;
-					try {
-						const res = await fetch('/api/notifications', {
-							method: 'PATCH',
-							headers: { 'Content-Type': 'application/json' },
-							body: JSON.stringify({ id: id, is_read: newReadState })
-						});
-						if (res.ok) {
-							// Update the visual state
-							if (newReadState) {
-								item.classList.add('notif-read');
-							} else {
-								item.classList.remove('notif-read');
-							}
-							checkboxEl.title = newReadState ? 'Marcar como no leída' : 'Marcar como leída';
+		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+		let checkboxEl = null;
+		if (isServer && isSuper) {
+			checkboxEl = document.createElement('input');
+			checkboxEl.type = 'checkbox';
+			checkboxEl.className = 'notif-checkbox';
+			checkboxEl.checked = isRead;
+			checkboxEl.title = isRead ? 'Marcar como no le\u00edda' : 'Marcar como le\u00edda';
+			checkboxEl.addEventListener('click', async (e) => {
+				e.stopPropagation();
+				const newReadState = e.target.checked;
+				try {
+					const res = await fetch('/api/notifications', {
+						method: 'PATCH',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ id: id, is_read: newReadState })
+					});
+					if (res.ok) {
+						if (newReadState) {
+							item.classList.add('notif-read');
 						} else {
-							// Revert checkbox on error
-							checkboxEl.checked = !newReadState;
-							notify.error('Error al actualizar notificación');
+							item.classList.remove('notif-read');
 						}
-					} catch (err) {
-						// Revert checkbox on error
+						checkboxEl.title = newReadState ? 'Marcar como no le\u00edda' : 'Marcar como le\u00edda';
+					} else {
 						checkboxEl.checked = !newReadState;
-						notify.error('Error al actualizar notificación');
+						notify.error('Error al actualizar notificaci\u00f3n');
 					}
-				});
-				item.style.gridTemplateColumns = 'auto 1fr auto';
-			} else {
-				item.style.gridTemplateColumns = '1fr auto';
-			}
-			
+				} catch (err) {
+					checkboxEl.checked = !newReadState;
+					notify.error('Error al actualizar notificaci\u00f3n');
+				}
+			});
+			item.style.gridTemplateColumns = 'auto 1fr auto';
+		} else {
+			item.style.gridTemplateColumns = '1fr auto';
+		}
 			const whenEl = document.createElement('div'); whenEl.className = 'when';
 			const d = new Date(when); whenEl.textContent = isNaN(d.getTime()) ? String(when || '') : d.toLocaleString();
 			const textEl = document.createElement('div'); textEl.className = 'text';
-			// Optional icon if server provided icon_url or pay_method
 			if (isServer) {
 				try {
 					let url = original.icon_url || null;
@@ -843,10 +916,8 @@ const notify = (() => {
 			}
 			const txt = document.createElement('span'); txt.textContent = String(text || '');
 			textEl.appendChild(txt);
-			
-			// Create delete button only for superadmin
 			let delBtn = null;
-			if (isSuperAdmin) {
+			if (isSuper) {
 				delBtn = document.createElement('button');
 				delBtn.type = 'button';
 				delBtn.className = 'notif-del';
@@ -866,7 +937,6 @@ const notify = (() => {
 					} catch {}
 				});
 			}
-			
 			if (checkboxEl && delBtn) {
 				item.append(checkboxEl, whenEl, delBtn, textEl);
 			} else if (checkboxEl) {
@@ -880,9 +950,7 @@ const notify = (() => {
 			if (isServer) {
 				item.style.cursor = 'pointer';
 				item.addEventListener('click', (e) => {
-					// Don't navigate if clicking on checkbox
 					if (e.target === checkboxEl) return;
-					// Deep link in a new tab so the dialog stays open
 					try {
 						const payload = {
 							sellerId: original.seller_id ?? original.sellerId ?? null,
@@ -938,14 +1006,13 @@ const notify = (() => {
 		document.body.appendChild(backdrop);
 		loadMoreBtn.addEventListener('click', () => { loadMore(); });
 		fetchInitial();
-		// mark all as read
 		try {
 			const data = readLog();
 			let changed = false;
 			for (const it of data) { if (it && it.read === false) { it.read = true; changed = true; } }
 			if (changed) writeLog(data);
 		} catch {}
-		function cleanup(){ if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop); }
+		function cleanup() { if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop); }
 		backdrop.addEventListener('click', (e) => { if (e.target === backdrop) cleanup(); });
 		closeBtn.addEventListener('click', cleanup);
 		clearBtn.addEventListener('click', () => { writeLog([]); if (!serverMode) { renderLocalList(); } });
@@ -954,7 +1021,7 @@ const notify = (() => {
 			if (res === 'granted') { render('success', 'Notificaciones activadas'); showBrowser('Sweet Lab', 'Notificaciones activadas'); }
 			else if (res === 'denied') { render('error', 'Permiso de notificaciones denegado'); }
 			else { render('info', 'Notificaciones no disponibles'); }
-			const btn = document.getElementById('notif-toggle'); if (btn) { const ok = ('Notification' in window) && Notification.permission === 'granted'; btn.classList.toggle('enabled', !!ok); }
+			refreshPermissionState();
 		});
 	}
 	function loading(message) {
@@ -974,7 +1041,7 @@ const notify = (() => {
 			update: (newMessage) => { msg.textContent = String(newMessage || 'Cargando...'); }
 		};
 	}
-	return { info: (m,t)=>render('info',m,t), success: (m,t)=>render('success',m,t), error: (m,t)=>render('error',m,t), loading, showBrowser, ensurePermission, initToggle, openDialog };
+	return { info: (m, t) => render('info', m, t), success: (m, t) => render('success', m, t), error: (m, t) => render('error', m, t), loading, showBrowser, ensurePermission, initToggle, openDialog, setSuperAdminAccess };
 })();
 
 // Theme management
@@ -1057,6 +1124,7 @@ function bindLogin() {
 				const res = await api('POST', API.Users, { username: user, password: pass });
 				if (err) err.classList.add('hidden');
 				state.currentUser = { name: res.username, isAdmin: res.role === 'admin' || res.role === 'superadmin', role: res.role, isSuperAdmin: res.role === 'superadmin', features: Array.isArray(res.features) ? res.features : [] };
+				syncNotificationAccess();
 				try { localStorage.setItem('authUser', JSON.stringify(state.currentUser)); } catch {}
 				applyAuthVisibility();
 				await loadSellers();
@@ -1072,7 +1140,7 @@ function bindLogin() {
 					switchView('#view-select-seller');
 				}
 			} catch (e) {
-				if (err) { err.textContent = 'Usuario o contraseña inválidos'; err.classList.remove('hidden'); }
+				if (err) { err.textContent = 'Usuario o contrase\u00f1a inv\u00e1lidos'; err.classList.remove('hidden'); }
 			}
 		})();
 	});
@@ -1080,21 +1148,22 @@ function bindLogin() {
 	const changeBtn = document.getElementById('login-change-pass');
 	changeBtn?.addEventListener('click', async () => {
 		const user = (document.getElementById('login-user')?.value || '').toString().trim();
-		if (!user) { const err = document.getElementById('login-error'); if (err) { err.textContent = 'Ingresa el usuario para cambiar la contraseña'; err.classList.remove('hidden'); } return; }
-		const current = prompt('Contraseña actual:') ?? '';
+		if (!user) { const err = document.getElementById('login-error'); if (err) { err.textContent = 'Ingresa el usuario para cambiar la contrase\u00f1a'; err.classList.remove('hidden'); } return; }
+		const current = prompt('Contrase\u00f1a actual:') ?? '';
 		if (!current) return;
-		const next = prompt('Nueva contraseña (mín 6 caracteres):') ?? '';
+		const next = prompt('Nueva contrase\u00f1a (m\u00edn 6 caracteres):') ?? '';
 		if (!next) return;
 		try {
 			await api('PUT', API.Users, { username: user, currentPassword: current, newPassword: next });
-			notify.success('Contraseña actualizada');
+			notify.success('Contrase\u00f1a actualizada');
 		} catch (e) {
-			notify.error('No se pudo actualizar la contraseña');
+			notify.error('No se pudo actualizar la contrase\u00f1a');
 		}
 	});
 	const logoutBtn = document.getElementById('logout-btn');
 	logoutBtn?.addEventListener('click', () => {
 		state.currentUser = null;
+		syncNotificationAccess();
 		try { localStorage.removeItem('authUser'); } catch {}
 		applyAuthVisibility();
 		renderSellerButtons();
@@ -1270,7 +1339,7 @@ function renderSellerButtons() {
         const btn = el('button', { class: 'seller-button', onclick: async (ev) => {
             if (isSuper && state.deleteSellerMode) {
                 ev.preventDefault();
-                const ok = await openConfirmPopover(`¿Eliminar al vendedor "${s.name}"?`, ev.clientX, ev.clientY);
+                const ok = await openConfirmPopover(`?Eliminar al vendedor "${s.name}"?`, ev.clientX, ev.clientY);
                 if (!ok) return;
                 try {
                     await api('DELETE', `${API.Sellers}?id=${encodeURIComponent(s.id)}`);
@@ -1823,7 +1892,7 @@ function renderTable() {
 						td.classList.add('has-reg');
 						const reg = document.createElement('span');
 						reg.className = 'client-reg-large';
-						reg.textContent = '®';
+						reg.textContent = '\u00ae';
 						reg.title = 'Cliente recurrente';
 						reg.addEventListener('click', async (ev) => { ev.stopPropagation(); await openClientDetailView(name); });
 						td.appendChild(reg);
@@ -1834,7 +1903,7 @@ function renderTable() {
 					td.classList.add('has-comment');
 					const commentMarker = document.createElement('span');
 					commentMarker.className = 'comment-marker';
-					commentMarker.textContent = '💬';
+					commentMarker.textContent = '\ud83d\udcac';
 					commentMarker.title = 'Ver/editar comentario';
 					commentMarker.addEventListener('click', async (ev) => {
 						ev.stopPropagation();
@@ -1872,7 +1941,7 @@ function renderTable() {
 			b.title = 'Eliminar';
 			b.addEventListener('click', async (ev) => {
 				ev.stopPropagation();
-				const ok = await openConfirmPopover('¿Seguro que quieres eliminar este pedido?', ev.clientX, ev.clientY);
+				const ok = await openConfirmPopover('\u00bfSeguro que quieres eliminar este pedido?', ev.clientX, ev.clientY);
 				if (!ok) return;
 				await deleteRow(sale.id);
 			});
@@ -1922,7 +1991,7 @@ async function checkAndUpdateMainSelectorToJorgebank(saleId) {
 			if (sale) {
 				// Update local state
 				sale.pay_method = 'jorgebank';
-				console.log(`🔄 Real-time update: Sale ${saleId} -> jorgebank (all ${receipts.length} receipts verified)`);
+				console.log(`?? Real-time update: Sale ${saleId} -> jorgebank (all ${receipts.length} receipts verified)`);
 				
 				// Update the selector in the DOM
 				const row = document.querySelector(`tr[data-sale-id="${saleId}"]`);
@@ -1958,7 +2027,7 @@ async function checkAndUpdateMainSelectorToJorgebank(saleId) {
 async function enrichSalesWithReceiptStatus() {
 	if (!Array.isArray(state.sales) || state.sales.length === 0) return;
 	
-	console.log('📸 Checking receipt status for all sales...');
+	console.log('?? Checking receipt status for all sales...');
 	
 	// Check each sale
 	for (const sale of state.sales) {
@@ -1974,14 +2043,14 @@ async function enrichSalesWithReceiptStatus() {
             const allJorgebank = receipts.every(r => (r.pay_method || '').trim().toLowerCase() === 'jorgebank');
             if (allJorgebank) {
                 sale.pay_method = 'jorgebank';
-                console.log(`✅ Sale ${sale.id} -> jorgebank (all ${receipts.length} receipts verified)`);
+                console.log(`? Sale ${sale.id} -> jorgebank (all ${receipts.length} receipts verified)`);
             }
 		} catch (err) {
 			console.error(`Error checking receipts for sale ${sale.id}:`, err);
 		}
 	}
 	
-	console.log('📸 Receipt status enrichment complete');
+	console.log('?? Receipt status enrichment complete');
 }
 
 async function loadSales() {
@@ -1994,7 +2063,7 @@ async function loadSales() {
 		'Cargando ventas...',
 		'Buscando pedidos...',
 		'Preparando la tabla...',
-		'Ya casi está...'
+		'Ya casi est\u00e1...'
 	];
 	let messageIndex = 0;
 	let messageInterval = null;
@@ -2463,7 +2532,7 @@ function openEditSalePopover(saleId, anchorX, anchorY, onCloseCallback) {
     try {
         const sale = state.sales.find(s => s.id === saleId);
         if (!sale) {
-            try { notify.error('No se encontró el pedido'); } catch {}
+            try { notify.error('No se encontr? el pedido'); } catch {}
             return;
         }
         
@@ -2779,7 +2848,7 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
         calHeader.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;';
         const calPrev = document.createElement('button'); 
         calPrev.className = 'date-nav'; 
-        calPrev.textContent = '‹';
+        calPrev.textContent = '?';
         calPrev.type = 'button';
         calPrev.style.cssText = 'padding:2px 6px;background:white;border:1px solid #ccc;border-radius:3px;cursor:pointer;font-size:14px;min-width:24px;';
         const calLabel = document.createElement('div'); 
@@ -2787,7 +2856,7 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
         calLabel.style.cssText = 'font-weight:500;font-size:12px;';
         const calNext = document.createElement('button'); 
         calNext.className = 'date-nav'; 
-        calNext.textContent = '›';
+        calNext.textContent = '?';
         calNext.type = 'button';
         calNext.style.cssText = 'padding:2px 6px;background:white;border:1px solid #ccc;border-radius:3px;cursor:pointer;font-size:14px;min-width:24px;';
         calHeader.append(calPrev, calLabel, calNext);
@@ -3149,7 +3218,7 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
                     }
                 }
             } catch (e) {
-                console.error('❌ Error completo:', e);
+                console.error('? Error completo:', e);
                 console.error('Error message:', e.message);
                 console.error('Error stack:', e.stack);
                 try { notify.error('Error: ' + (e.message || 'No se pudo guardar')); } catch {}
@@ -3729,7 +3798,7 @@ function exportTableToExcel() {
 	try {
 		// Check if XLSX library is loaded (use window.XLSX for module compatibility)
 		if (typeof window.XLSX === 'undefined') {
-			notify.error('Error: Librería Excel no cargada');
+			notify.error('Error: Librer?a Excel no cargada');
 			console.error('XLSX library is not loaded');
 			return;
 		}
@@ -3742,7 +3811,7 @@ function exportTableToExcel() {
 		if (tbody) {
 			for (const tr of Array.from(tbody.rows)) {
 				const paidCheckbox = tr.querySelector('td.col-paid input[type="checkbox"]');
-				const paid = paidCheckbox?.checked ? '✓' : '';
+				const paid = paidCheckbox?.checked ? '?' : '';
 				const paySel = tr.querySelector('td.col-paid select.pay-select');
 				const payRaw = paySel ? paySel.value : '';
 				const pay = payRaw === 'efectivo' ? 'Efectivo' : (payRaw === 'transf' || payRaw === 'jorgebank') ? 'Transf' : payRaw === 'marce' ? 'Marce' : payRaw === 'jorge' ? 'Jorge' : '-';
@@ -3828,7 +3897,7 @@ async function exportConsolidatedForDate(dayIso) {
 			tQa += qa; tQm += qm; tQma += qma; tQo += qo; tQn += qn; tGrand += (tot || 0);
 			rows.push([
 				s.name || '',
-				r.is_paid ? '✓' : '',
+				r.is_paid ? '?' : '',
 				pay,
 				r.client_name || '',
 				qa === 0 ? '' : qa,
@@ -3876,7 +3945,7 @@ async function exportConsolidatedForDates(isoList) {
 				const pm = (r.pay_method || '').toString();
 				const pay = pm === 'efectivo' ? 'Efectivo' : (pm === 'transf' || pm === 'jorgebank') ? 'Transf' : pm === 'marce' ? 'Marce' : pm === 'jorge' ? 'Jorge' : '-';
 				tQa += qa; tQm += qm; tQma += qma; tQo += qo; tQn += qn; tGrand += (tot || 0);
-				rows.push([iso, s.name || '', r.is_paid ? '✓' : '', pay,
+				rows.push([iso, s.name || '', r.is_paid ? '?' : '', pay,
 					r.client_name || '', qa === 0 ? '' : qa, qm === 0 ? '' : qm,
 					qma === 0 ? '' : qma, qo === 0 ? '' : qo, qn === 0 ? '' : qn, tot === 0 ? '' : tot]);
 			}
@@ -3928,7 +3997,7 @@ async function exportCarteraExcel(startIso, endIso) {
 				const payLabel = pm === '' ? '-' : (pm === 'efectivo' ? 'Efectivo' : pm === 'transf' ? 'Transf' : pm);
 				rows.push([
 					String(d.day).slice(0,10), s.name || '', r.client_name || '', payLabel,
-					r.is_paid ? '✓' : '',
+					r.is_paid ? '?' : '',
 					qa || '', qm || '', qma || '', qo || '', qn || '', tot || ''
 				]);
 			}
@@ -4102,12 +4171,12 @@ function openUsersMenu(anchorX, anchorY) {
 	pop.style.transform = 'translate(-50%, 0)';
 	pop.style.zIndex = '1000';
 	const list = document.createElement('div'); list.className = 'history-list';
-    const b1 = document.createElement('button'); b1.className = 'press-btn'; b1.textContent = 'Reporte';
-    const b2 = document.createElement('button'); b2.className = 'press-btn'; b2.textContent = 'Cambiar contraseñas';
-    const b3 = document.createElement('button'); b3.className = 'press-btn'; b3.textContent = 'Asignar roles';
-    const b4 = document.createElement('button'); b4.className = 'press-btn'; b4.textContent = 'Otorgar ver vendedor';
-    const b5 = document.createElement('button'); b5.className = 'press-btn'; b5.textContent = 'Revocar ver vendedor';
-    const b6 = document.createElement('button'); b6.className = 'press-btn'; b6.textContent = 'Gestionar permisos (UI)';
+    const b1 = document.createElement('button'); b1.className = 'press-btn'; b1.textContent = '\ud83d\udcc4 Reporte';
+    const b2 = document.createElement('button'); b2.className = 'press-btn'; b2.textContent = '\ud83d\udd11 Cambiar contrase\u00f1as';
+    const b3 = document.createElement('button'); b3.className = 'press-btn'; b3.textContent = '\ud83d\udee1\ufe0f Asignar roles';
+    const b4 = document.createElement('button'); b4.className = 'press-btn'; b4.textContent = '\ud83d\udc41\ufe0f Otorgar ver vendedor';
+    const b5 = document.createElement('button'); b5.className = 'press-btn'; b5.textContent = '\ud83d\udeab Revocar ver vendedor';
+    const b6 = document.createElement('button'); b6.className = 'press-btn'; b6.textContent = '\u2699\ufe0f Gestionar permisos (UI)';
     list.appendChild(b1); list.appendChild(b2); list.appendChild(b3); list.appendChild(b4); list.appendChild(b5); list.appendChild(b6);
 	pop.append(list);
 	document.body.appendChild(pop);
@@ -4130,8 +4199,8 @@ function openUsersMenu(anchorX, anchorY) {
 	b1.addEventListener('click', async () => { await exportUsersExcel(); cleanup(); });
 	b2.addEventListener('click', async () => {
 		const username = prompt('Usuario a modificar:'); if (!username) return;
-		const newPass = prompt('Nueva contraseña (mín 6 caracteres):'); if (!newPass) return;
-		try { await api('PATCH', API.Users, { action: 'setPassword', username, newPassword: newPass }); notify.success('Contraseña actualizada'); cleanup(); }
+	const newPass = prompt('Nueva contrase\u00f1a (m\u00edn 6 caracteres):'); if (!newPass) return;
+		try { await api('PATCH', API.Users, { action: 'setPassword', username, newPassword: newPass }); notify.success('Contrase\u00f1a actualizada'); cleanup(); }
 		catch { notify.error('No se pudo actualizar'); }
 	});
 	b3.addEventListener('click', async () => {
@@ -4141,7 +4210,7 @@ function openUsersMenu(anchorX, anchorY) {
 		catch { notify.error('No se pudo actualizar'); }
 	});
     b4.addEventListener('click', async () => {
-        const viewer = prompt('Usuario que podrá ver:'); if (!viewer) return;
+        const viewer = prompt('Usuario que podr? ver:'); if (!viewer) return;
         const seller = prompt('Vendedor a autorizar (nombre exacto):'); if (!seller) return;
         try {
             await api('PATCH', API.Users, { action: 'grantView', username: viewer, sellerName: seller });
@@ -4163,7 +4232,7 @@ function openUsersMenu(anchorX, anchorY) {
 function openPermissionsManager() {
     const overlay = document.createElement('div'); overlay.className = 'confirm-popover permissions-overlay'; overlay.style.position = 'fixed'; overlay.style.left = '0'; overlay.style.top = '0'; overlay.style.right = '0'; overlay.style.bottom = '0'; overlay.style.background = 'rgba(0,0,0,0.35)'; overlay.style.zIndex = '1000';
     const modal = document.createElement('div'); modal.className = 'confirm-popover permissions-modal'; modal.style.position = 'fixed'; modal.style.left = '50%'; modal.style.top = '50%'; modal.style.transform = 'translate(-50%, -50%)'; modal.style.maxWidth = '680px'; modal.style.width = '90%'; modal.style.maxHeight = '80vh'; modal.style.overflow = 'auto'; modal.style.background = 'var(--panel-bg, #fff)'; modal.style.padding = '16px'; modal.style.borderRadius = '12px';
-    const title = document.createElement('h3'); title.textContent = 'Gestión de permisos de visualización'; modal.appendChild(title);
+	const title = document.createElement('h3'); title.textContent = 'Gesti\u00f3n de permisos de visualizaci\u00f3n'; modal.appendChild(title);
     const row = document.createElement('div'); row.style.display = 'flex'; row.style.gap = '12px'; row.style.alignItems = 'flex-start';
     const left = document.createElement('div'); left.style.flex = '1'; const right = document.createElement('div'); right.style.flex = '1';
     const userLabel = document.createElement('label'); userLabel.textContent = 'Usuario (viewer)'; userLabel.style.display = 'block';
@@ -4181,15 +4250,15 @@ function openPermissionsManager() {
         return { wrap, cb };
     }
     // Reports
-    const featSales = makeFeat('Ver botón Ventas', 'reports.sales');
-    const featTransfers = makeFeat('Ver botón Transferencias', 'reports.transfers');
-    const featCartera = makeFeat('Ver botón Cartera', 'reports.cartera');
-    const featProjections = makeFeat('Ver botón Proyecciones', 'reports.projections');
+    const featSales = makeFeat('Ver bot?n Ventas', 'reports.sales');
+    const featTransfers = makeFeat('Ver bot?n Transferencias', 'reports.transfers');
+    const featCartera = makeFeat('Ver bot?n Cartera', 'reports.cartera');
+    const featProjections = makeFeat('Ver bot?n Proyecciones', 'reports.projections');
     // Nav
-    const featMaterials = makeFeat('Ver botón Materiales', 'nav.materials');
-    const featInventory = makeFeat('Ver botón Inventario', 'nav.inventory');
-    const featUsers = makeFeat('Ver botón Usuarios', 'nav.users');
-    const featAccounting = makeFeat('Ver botón Contabilidad', 'nav.accounting');
+    const featMaterials = makeFeat('Ver bot?n Materiales', 'nav.materials');
+    const featInventory = makeFeat('Ver bot?n Inventario', 'nav.inventory');
+    const featUsers = makeFeat('Ver bot?n Usuarios', 'nav.users');
+    const featAccounting = makeFeat('Ver bot?n Contabilidad', 'nav.accounting');
     right.appendChild(featureLabel);
     [featSales, featTransfers, featCartera, featProjections, featMaterials, featInventory, featUsers, featAccounting]
         .forEach(x => right.appendChild(x.wrap));
@@ -4270,11 +4339,11 @@ function openMaterialsMenu(anchorX, anchorY) {
 	pop.style.transform = 'translate(-50%, 0)';
 	pop.style.zIndex = '1000';
 	const list = document.createElement('div'); list.className = 'history-list';
-	const b1 = document.createElement('button'); b1.className = 'press-btn'; b1.textContent = 'Ingredientes';
-	const b2 = document.createElement('button'); b2.className = 'press-btn'; b2.textContent = 'Necesarios';
-	const b3 = document.createElement('button'); b3.className = 'press-btn'; b3.textContent = 'Producción';
-	const b4 = document.createElement('button'); b4.className = 'press-btn'; b4.textContent = 'Inventario';
-	const b5 = document.createElement('button'); b5.className = 'press-btn'; b5.textContent = 'Tiempos';
+    const b1 = document.createElement('button'); b1.className = 'press-btn'; b1.textContent = '\ud83e\udd63 Ingredientes';
+    const b2 = document.createElement('button'); b2.className = 'press-btn'; b2.textContent = '\ud83d\udccb Necesarios';
+    const b3 = document.createElement('button'); b3.className = 'press-btn'; b3.textContent = '\ud83c\udfed Producci\u00f3n';
+    const b4 = document.createElement('button'); b4.className = 'press-btn'; b4.textContent = '\ud83d\udce6 Inventario';
+    const b5 = document.createElement('button'); b5.className = 'press-btn'; b5.textContent = '\u23f1\ufe0f Tiempos';
 	list.appendChild(b1); list.appendChild(b2); list.appendChild(b3); list.appendChild(b4); list.appendChild(b5);
 	pop.append(list);
 	document.body.appendChild(pop);
@@ -4304,7 +4373,7 @@ async function exportUsersExcel() {
 	try {
 		const XLSX = window.XLSX;
 		const users = await api('GET', API.Users);
-		const rows = (users || []).map(u => ({ Usuario: u.username, Contraseña: u.password_hash }));
+		const rows = (users || []).map(u => ({ Usuario: u.username, 'Contrase\u00f1a': u.password_hash }));
 		const ws = XLSX.utils.json_to_sheet(rows);
 		const wb = XLSX.utils.book_new();
 		XLSX.utils.book_append_sheet(wb, ws, 'Usuarios');
@@ -4408,7 +4477,7 @@ function bindEvents() {
 	});
 
 	// Admin-only: Restore bugged sales
-	// (botón de reporte eliminado)
+	// (bot?n de reporte eliminado)
 
 	// Export Excel button - ensure event is attached
 	const exportExcelBtn = document.getElementById('export-excel');
@@ -4587,7 +4656,7 @@ function openIngredientsManager(anchorX, anchorY) {
 		const inMara = document.createElement('input'); inMara.type = 'number'; inMara.step = '0.01'; inMara.value = String(r?.per_mara ?? 0);
 		const inOreo = document.createElement('input'); inOreo.type = 'number'; inOreo.step = '0.01'; inOreo.value = String(r?.per_oreo ?? 0);
 		const inNute = document.createElement('input'); inNute.type = 'number'; inNute.step = '0.01'; inNute.value = String(r?.per_nute ?? 0);
-		const del = document.createElement('button'); del.className = 'press-btn'; del.textContent = '×';
+		const del = document.createElement('button'); del.className = 'press-btn'; del.textContent = '?';
 		row.append(inName, inUnit, inArco, inMelo, inMara, inOreo, inNute, del);
 		list.appendChild(row);
 		del.addEventListener('click', async () => {
@@ -4809,7 +4878,7 @@ async function renderInventoryView() {
 	resetBtn.addEventListener('click', async () => {
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 		if (!isSuper) { notify.error('Solo el superadministrador'); return; }
-		const ok = confirm('Esto borrará TODO el historial y pondrá todos los saldos en 0. ¿Continuar?');
+		const ok = confirm('Esto borrar? TODO el historial y pondr? todos los saldos en 0. ?Continuar?');
 		if (!ok) return;
 		try { await api('POST', API.Inventory, { action: 'reset' }); notify.success('Inventario reseteado'); await renderInventoryView(); }
 		catch { notify.error('No se pudo resetear'); }
@@ -4830,7 +4899,7 @@ async function renderInventoryAdjustView() {
 	try { items = await api('GET', API.Inventory); } catch { items = []; }
 	const table = document.createElement('table'); table.className = 'clients-table';
 	const thead = document.createElement('thead'); const hr = document.createElement('tr');
-	['Ingrediente','Saldo actual','Nueva cantidad','Δ',''].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
+	['Ingrediente','Saldo actual','Nueva cantidad','?',''].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
 	thead.appendChild(hr);
 	const tbody = document.createElement('tbody');
 	const rows = [];
@@ -4901,7 +4970,7 @@ async function openInventoryHistoryDialog(ingredient) {
 	const title = document.createElement('h4'); title.textContent = `Historial: ${ingredient}`; title.style.margin = '0 0 8px 0';
 	const table = document.createElement('table'); table.className = 'items-table';
 	const thead = document.createElement('thead'); const hr = document.createElement('tr');
-	['Fecha','Tipo','Cantidad','Producción','Nota','Actor'].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); }); thead.appendChild(hr);
+	['Fecha','Tipo','Cantidad','Producci\u00f3n','Nota','Actor'].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); }); thead.appendChild(hr);
 	const tbody = document.createElement('tbody');
 	for (const r of (rows || [])) {
 		const tr = document.createElement('tr');
@@ -5116,8 +5185,8 @@ async function renderTimesView() {
         display.style.minWidth = '84px';
         display.style.textAlign = 'center';
         display.style.fontVariantNumeric = 'tabular-nums';
-        const startBtn = document.createElement('button'); startBtn.className = 'press-btn'; startBtn.textContent = '▶'; startBtn.title = 'Iniciar';
-        const pauseBtn = document.createElement('button'); pauseBtn.className = 'press-btn'; pauseBtn.textContent = '⏸'; pauseBtn.title = 'Pausar';
+        const startBtn = document.createElement('button'); startBtn.className = 'press-btn'; startBtn.textContent = '?'; startBtn.title = 'Iniciar';
+        const pauseBtn = document.createElement('button'); pauseBtn.className = 'press-btn'; pauseBtn.textContent = '?'; pauseBtn.title = 'Pausar';
         const resetBtn = document.createElement('button'); resetBtn.className = 'press-btn'; resetBtn.textContent = 'Reset';
         wrap.append(display, startBtn, pauseBtn, resetBtn);
         let intervalId = null;
@@ -5246,7 +5315,7 @@ async function renderTimesView() {
 	for (const d of data) grid.appendChild(buildDessertCardLocal(d));
 	root.appendChild(grid);
 
-	// Botón para guardar snapshot de tiempos
+	// Bot?n para guardar snapshot de tiempos
 	const actions = document.createElement('div'); actions.className = 'confirm-actions'; actions.style.marginTop = '12px'; actions.style.marginBottom = '16px';
 	const saveBtn = document.createElement('button'); saveBtn.className = 'press-btn btn-primary'; saveBtn.textContent = 'Guardar tiempos';
 	actions.appendChild(saveBtn); root.appendChild(actions);
@@ -5473,8 +5542,8 @@ async function renderMeasuresView() {
 			const any = Object.values(payload.counts).some(n => Number(n||0) > 0);
 			if (!any) { notify.error('No hay cantidades para aprobar'); return; }
 			await api('POST', API.Inventory, payload);
-			notify.success('Producción aprobada y descontada del inventario');
-		} catch (e) { notify.error('No se pudo aprobar producción'); }
+			notify.success('Producci\u00f3n aprobada y descontada del inventario');
+		} catch (e) { notify.error('No se pudo aprobar producci\u00f3n'); }
 	});
 	// initial render
 	renderResults();
@@ -5492,7 +5561,7 @@ async function buildDessertCard(dessertName) {
 	const steps = document.createElement('div'); steps.className = 'steps-list';
 	for (const s of (data.steps || [])) steps.appendChild(buildStepCard(dessertName, s));
 	addStep.addEventListener('click', async () => {
-		const name = prompt('Nombre del paso (o vacío para sin paso):');
+		const name = prompt('Nombre del paso (o vac?o para sin paso):');
 		await api('POST', API.Recipes, { kind: 'step.upsert', dessert: dessertName, step_name: name || null });
 		const fresh = await buildDessertCard(dessertName); card.replaceWith(fresh);
 	});
@@ -5524,7 +5593,7 @@ async function buildDessertCard(dessertName) {
 	});
 	card.append(head, steps);
 	delDessert.addEventListener('click', async () => {
-		const ok = confirm(`¿Eliminar el postre "${dessertName}" y todas sus recetas?`); if (!ok) return;
+		const ok = confirm(`?Eliminar el postre "${dessertName}" y todas sus recetas?`); if (!ok) return;
 		try { await api('DELETE', `${API.Recipes}?kind=dessert&dessert=${encodeURIComponent(dessertName)}`); } catch {}
 		await renderIngredientsView();
 	});
@@ -5552,7 +5621,7 @@ function buildStepCard(dessertName, step) {
 		if (hasRealRows()) { removePlaceholder(); return; }
 		if (tbody.querySelector('tr.empty-drop')) return;
 		const tr = document.createElement('tr'); tr.className = 'empty-drop';
-		const td = document.createElement('td'); td.colSpan = 5; td.textContent = 'Suelta ingredientes aquí';
+		const td = document.createElement('td'); td.colSpan = 5; td.textContent = 'Suelta ingredientes aqu?';
 		td.style.opacity = '0.7'; td.style.textAlign = 'center'; td.style.padding = '14px'; td.style.border = '1px dashed var(--border)';
 		tr.appendChild(td); tbody.appendChild(tr);
 	}
@@ -5587,7 +5656,7 @@ function buildStepCard(dessertName, step) {
 		tbody.appendChild(buildItemRow(step.id, row));
 	});
 	del.addEventListener('click', async () => {
-		const ok = confirm('¿Eliminar este paso y sus ingredientes?'); if (!ok) return;
+		const ok = confirm('?Eliminar este paso y sus ingredientes?'); if (!ok) return;
 		await api('DELETE', `${API.Recipes}?kind=step&id=${encodeURIComponent(step.id)}`);
 		box.remove();
 	});
@@ -5691,7 +5760,7 @@ function buildItemRow(stepId, item) {
 	const tdAdj = document.createElement('td'); const inAdj = document.createElement('input'); inAdj.type = 'number'; inAdj.step = '0.01'; inAdj.value = String(item.adjustment || 0); tdAdj.appendChild(inAdj);
 	const tdP = document.createElement('td'); const inP = document.createElement('input'); inP.type = 'number'; inP.step = '0.01'; inP.value = String(item.price || 0); tdP.appendChild(inP);
 	const tdPack = document.createElement('td'); const inPack = document.createElement('input'); inPack.type = 'number'; inPack.step = '0.01'; inPack.value = String(item.pack_size || 0); tdPack.appendChild(inPack);
-	const tdA = document.createElement('td'); const del = document.createElement('button'); del.className = 'press-btn'; del.textContent = '×'; tdA.appendChild(del);
+	const tdA = document.createElement('td'); const del = document.createElement('button'); del.className = 'press-btn'; del.textContent = '?'; tdA.appendChild(del);
 	tr.append(tdN, tdQ, tdAdj, tdP, tdPack, tdA);
 	// DnD for ingredient rows
 	tr.draggable = true;
@@ -5752,7 +5821,7 @@ function buildExtrasRow(item, tbody) {
 	const tdQ = document.createElement('td'); const inQ = document.createElement('input'); inQ.type = 'number'; inQ.step = '0.01'; inQ.style.width = '76px'; inQ.value = String(item.qty_per_unit || 0); tdQ.appendChild(inQ);
 	const tdP = document.createElement('td'); const inP = document.createElement('input'); inP.type = 'number'; inP.step = '0.01'; inP.style.width = '88px'; inP.value = String(item.price || 0); tdP.appendChild(inP);
 	const tdPack = document.createElement('td'); const inPack = document.createElement('input'); inPack.type = 'number'; inPack.step = '0.01'; inPack.style.width = '88px'; inPack.value = String(item.pack_size || 0); tdPack.appendChild(inPack);
-	const tdA = document.createElement('td'); const del = document.createElement('button'); del.className = 'press-btn'; del.textContent = '×'; tdA.appendChild(del);
+	const tdA = document.createElement('td'); const del = document.createElement('button'); del.className = 'press-btn'; del.textContent = '?'; tdA.appendChild(del);
 	tr.append(tdN, tdQ, tdP, tdPack, tdA);
 	async function save() { try { await api('POST', API.Recipes, { kind: 'extras.upsert', id: item.id, ingredient: inN.value, unit: 'unidad', qty_per_unit: Number(inQ.value || 0) || 0, price: Number(inP.value || 0) || 0, pack_size: Number(inPack.value || 0) || 0, position: item.position || 0 }); } catch { notify.error('No se pudo guardar'); } }
 	[inN, inQ, inP, inPack].forEach(el => { el.addEventListener('change', save); el.addEventListener('blur', save); });
@@ -5812,7 +5881,7 @@ function openRestoreReportDialog(items, anchorX, anchorY) {
 	} else {
 		for (const it of items) {
 			const row = document.createElement('div'); row.className = 'history-item';
-			row.textContent = `${it.seller} | ${it.date} | ${it.client} → Ar:${it.qtys.arco} Me:${it.qtys.melo} Ma:${it.qtys.mara} Or:${it.qtys.oreo} Nu:${it.qtys.nute}`;
+			row.textContent = `${it.seller} | ${it.date} | ${it.client} ? Ar:${it.qtys.arco} Me:${it.qtys.melo} Ma:${it.qtys.mara} Or:${it.qtys.oreo} Nu:${it.qtys.nute}`;
 			list.appendChild(row);
 		}
 	}
@@ -5910,7 +5979,7 @@ function formatDayLabel(input) {
 	if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return String(input);
 	const d = new Date(iso + 'T00:00:00Z');
 	if (isNaN(d.getTime())) return iso;
-	const weekdays = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+	const weekdays = ['Domingo','Lunes','Martes','Mi?rcoles','Jueves','Viernes','S?bado'];
 	const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 	return `${weekdays[d.getUTCDay()]} ${months[d.getUTCMonth()]} ${d.getUTCDate()}`;
 }
@@ -5939,7 +6008,7 @@ function renderDaysList() {
 		del.textContent = '';
 		del.addEventListener('click', async (e) => {
 			e.stopPropagation();
-			const ok = await openConfirmPopover('¿Seguro que quieres eliminar esta fecha?', e.clientX, e.clientY);
+			const ok = await openConfirmPopover('?Seguro que quieres eliminar esta fecha?', e.clientX, e.clientY);
 			if (!ok) return;
 			await api('DELETE', `/api/days?id=${encodeURIComponent(d.id)}`);
 			if (state.selectedDayId === d.id) {
@@ -6084,9 +6153,9 @@ function openCalendarPopover(onPicked, anchorX, anchorY) {
 	
 	const header = document.createElement('div');
 	header.className = 'date-popover-header';
-	const prev = document.createElement('button'); prev.className = 'date-nav'; prev.textContent = '‹';
+	const prev = document.createElement('button'); prev.className = 'date-nav'; prev.textContent = '?';
 	const label = document.createElement('div'); label.className = 'date-label';
-	const next = document.createElement('button'); next.className = 'date-nav'; next.textContent = '›';
+	const next = document.createElement('button'); next.className = 'date-nav'; next.textContent = '?';
 	header.append(prev, label, next);
 	
 	const grid = document.createElement('div');
@@ -6199,9 +6268,9 @@ function openMultiCalendarPopover(onPickedList, anchorX, anchorY, opts) {
 	const selected = new Set();
 	
 	const header = document.createElement('div'); header.className = 'date-popover-header';
-	const prev = document.createElement('button'); prev.className = 'date-nav'; prev.textContent = '‹';
+	const prev = document.createElement('button'); prev.className = 'date-nav'; prev.textContent = '?';
 	const label = document.createElement('div'); label.className = 'date-label';
-	const next = document.createElement('button'); next.className = 'date-nav'; next.textContent = '›';
+	const next = document.createElement('button'); next.className = 'date-nav'; next.textContent = '?';
 	header.append(prev, label, next);
 	
 	const grid = document.createElement('div'); grid.className = 'date-grid';
@@ -6282,9 +6351,9 @@ function openRangeCalendarPopover(onPickedRange, anchorX, anchorY, opts) {
 	let startIso = null; let endIso = null;
 
 	const header = document.createElement('div'); header.className = 'date-popover-header';
-	const prev = document.createElement('button'); prev.className = 'date-nav'; prev.textContent = '‹';
+	const prev = document.createElement('button'); prev.className = 'date-nav'; prev.textContent = '?';
 	const label = document.createElement('div'); label.className = 'date-label';
-	const next = document.createElement('button'); next.className = 'date-nav'; next.textContent = '›';
+	const next = document.createElement('button'); next.className = 'date-nav'; next.textContent = '?';
 	header.append(prev, label, next);
 
 	const grid = document.createElement('div'); grid.className = 'date-grid';
@@ -6392,7 +6461,7 @@ async function openConfirmPopover(message, anchorX, anchorY) {
 		pop.style.wordBreak = 'break-word';
 		const text = document.createElement('div');
 		text.className = 'confirm-text';
-		text.textContent = message || '¿Confirmar?';
+		text.textContent = message || '?Confirmar?';
 		const actions = document.createElement('div');
 		actions.className = 'confirm-actions';
 		const noBtn = document.createElement('button'); noBtn.className = 'press-btn'; noBtn.textContent = 'Cancelar';
@@ -6605,7 +6674,7 @@ function openPaymentDateDialog(saleId, anchorX, anchorY, onCloseCallback) {
 	
 	const prevBtn = document.createElement('button');
 	prevBtn.className = 'calendar-nav-btn';
-	prevBtn.innerHTML = '◀';
+	prevBtn.innerHTML = '?';
 	prevBtn.type = 'button';
 	
 	const monthLabel = document.createElement('span');
@@ -6614,7 +6683,7 @@ function openPaymentDateDialog(saleId, anchorX, anchorY, onCloseCallback) {
 	
 	const nextBtn = document.createElement('button');
 	nextBtn.className = 'calendar-nav-btn';
-	nextBtn.innerHTML = '▶';
+	nextBtn.innerHTML = '?';
 	nextBtn.type = 'button';
 	
 	calendarHeader.appendChild(prevBtn);
@@ -6926,7 +6995,7 @@ function openClientActionBar(tdElement, saleId, clientName, clickX, clickY) {
 	// Edit button (opens edit popover or shows lock message)
 	const editBtn = document.createElement('button');
 	editBtn.className = 'client-action-bar-btn';
-	editBtn.innerHTML = '<span class="client-action-bar-btn-icon">✏️</span><span class="client-action-bar-btn-label">Editar</span>';
+	editBtn.innerHTML = '<span class="client-action-bar-btn-icon">??</span><span class="client-action-bar-btn-label">Editar</span>';
 	editBtn.title = 'Editar pedido';
 	editBtn.addEventListener('click', (e) => {
 		e.stopPropagation();
@@ -6949,7 +7018,7 @@ function openClientActionBar(tdElement, saleId, clientName, clickX, clickY) {
 	// Comment button (opens comment dialog directly)
 	const commentBtn = document.createElement('button');
 	commentBtn.className = 'client-action-bar-btn';
-	commentBtn.innerHTML = '<span class="client-action-bar-btn-icon">💬</span><span class="client-action-bar-btn-label">Comentario</span>';
+	commentBtn.innerHTML = '<span class="client-action-bar-btn-icon">??</span><span class="client-action-bar-btn-label">Comentario</span>';
 	commentBtn.title = 'Agregar/editar comentario';
 	commentBtn.addEventListener('click', async (e) => {
 		e.stopPropagation();
@@ -6974,7 +7043,7 @@ function openClientActionBar(tdElement, saleId, clientName, clickX, clickY) {
 	// History button (opens client detail view)
 	const historyBtn = document.createElement('button');
 	historyBtn.className = 'client-action-bar-btn';
-	historyBtn.innerHTML = '<span class="client-action-bar-btn-icon">📋</span><span class="client-action-bar-btn-label">Historial</span>';
+	historyBtn.innerHTML = '<span class="client-action-bar-btn-icon">??</span><span class="client-action-bar-btn-label">Historial</span>';
 	historyBtn.title = 'Historial del cliente';
 	historyBtn.addEventListener('click', async (e) => {
 		e.stopPropagation();
@@ -7009,16 +7078,16 @@ function openClientActionBar(tdElement, saleId, clientName, clickX, clickY) {
 		const dateParts = dateStr.split('-');
 		const displayDate = dateParts.length >= 3 ? `${dateParts[2]}/${dateParts[1]}` : dateStr;
 		const sourceOrMethod = sale.payment_source || sale.pay_method || '';
-		paymentBtn.innerHTML = `<span class="client-action-bar-btn-icon">📅</span><span class="client-action-bar-btn-label">${displayDate}</span>`;
+		paymentBtn.innerHTML = `<span class="client-action-bar-btn-icon">??</span><span class="client-action-bar-btn-label">${displayDate}</span>`;
 		paymentBtn.title = `Fecha de pago: ${displayDate}${sourceOrMethod ? ' - ' + sourceOrMethod : ''}`;
 		paymentBtn.style.fontWeight = 'bold';
 	} else if (isTransferMethod) {
 		// For transfer methods, show "Ver comprobantes" instead
-		paymentBtn.innerHTML = '<span class="client-action-bar-btn-icon">📷</span><span class="client-action-bar-btn-label">Comprobantes</span>';
+		paymentBtn.innerHTML = '<span class="client-action-bar-btn-icon">??</span><span class="client-action-bar-btn-label">Comprobantes</span>';
 		paymentBtn.title = 'Ver y gestionar comprobantes de pago';
 	} else {
-		paymentBtn.innerHTML = '<span class="client-action-bar-btn-icon">📅</span><span class="client-action-bar-btn-label">Fecha</span>';
-		paymentBtn.title = 'Fecha y método de pago';
+		paymentBtn.innerHTML = '<span class="client-action-bar-btn-icon">??</span><span class="client-action-bar-btn-label">Fecha</span>';
+		paymentBtn.title = 'Fecha y m?todo de pago';
 	}
 	
 	paymentBtn.addEventListener('click', (e) => {
@@ -7242,7 +7311,7 @@ function normalizeClientName(value) {
 		return String(value || '')
 			.trim()
 			.normalize('NFD')
-			// Remove accents (acute, diaeresis, grave, circumflex, macron) but keep tilde (ñ)
+			// Remove accents (acute, diaeresis, grave, circumflex, macron) but keep tilde (?)
 			.replace(/[\u0301\u0308\u0300\u0302\u0304]/g, '')
 			.toLowerCase();
 	} catch {
@@ -7575,13 +7644,13 @@ async function goToSaleFromNotification(sellerId, saleDayId, saleId) {
 
 // Open inline upload dialog (keeps user on the sales table)
 function openReceiptUploadPage(saleId) {
-    try { openInlineFileUploadDialog(Number(saleId)); } catch (err) { console.error('❌ Error opening inline upload:', err); }
+    try { openInlineFileUploadDialog(Number(saleId)); } catch (err) { console.error('? Error opening inline upload:', err); }
 }
 
 // Inline popover to upload one or more receipt images for a sale
 function openInlineFileUploadDialog(saleId) {
     const id = Number(saleId);
-    if (!id) { console.error('❌ openInlineFileUploadDialog: invalid saleId', saleId); return; }
+    if (!id) { console.error('? openInlineFileUploadDialog: invalid saleId', saleId); return; }
 
     // If there are existing receipts, prefer opening gallery instead
     (async () => {
@@ -7654,7 +7723,7 @@ function openInlineFileUploadDialog(saleId) {
         fileInput.style.display = 'none';
         const fileLabel = document.createElement('button');
         fileLabel.type = 'button';
-        fileLabel.textContent = '📷 Escoger archivos';
+        fileLabel.textContent = '?? Escoger archivos';
         fileLabel.className = 'press-btn btn-primary';
         fileLabel.style.minWidth = '260px';
         fileLabel.style.padding = '14px 22px';
@@ -7726,11 +7795,11 @@ function openInlineFileUploadDialog(saleId) {
         cancelBtn.className = 'press-btn';
         const uploadMoreBtn = document.createElement('button');
         uploadMoreBtn.type = 'button';
-        uploadMoreBtn.textContent = '➕ Subir más';
+        uploadMoreBtn.textContent = '\u2795 Subir m\u00e1s';
         uploadMoreBtn.className = 'press-btn';
         const uploadBtn = document.createElement('button');
         uploadBtn.type = 'button';
-        uploadBtn.textContent = '✓ Subir 0 archivos';
+        uploadBtn.textContent = '\u2b06\ufe0f Subir 0 archivos';
         uploadBtn.className = 'press-btn btn-primary';
 
         actions.append(cancelBtn, uploadMoreBtn, uploadBtn);
@@ -7751,7 +7820,7 @@ function openInlineFileUploadDialog(saleId) {
 
         function updateUploadButton() {
             const n = selectedFiles.length;
-            uploadBtn.textContent = `✓ Subir ${n} archivo${n === 1 ? '' : 's'}`;
+            uploadBtn.textContent = `\u2b06\ufe0f Subir ${n} archivo${n === 1 ? '' : 's'}`;
             uploadBtn.disabled = n === 0;
         }
 
@@ -7799,7 +7868,7 @@ function openInlineFileUploadDialog(saleId) {
                 });
                 const x = document.createElement('button');
                 x.type = 'button';
-                x.textContent = '✕';
+                x.textContent = '?';
                 x.className = 'press-btn';
                 x.style.position = 'absolute';
                 x.style.top = '6px';
@@ -7863,7 +7932,7 @@ function openInlineFileUploadDialog(saleId) {
             spinner.style.margin = '0 auto 10px';
             spinner.style.animation = 'spin 900ms linear infinite';
             const ok = document.createElement('div');
-            ok.textContent = '✓';
+            ok.textContent = '?';
             ok.style.display = 'none';
             ok.style.fontSize = '20px';
             ok.style.color = '#16a34a';
@@ -7935,7 +8004,7 @@ async function openReceiptsGalleryPopover(saleId, anchorX, anchorY) {
 	let receipts = [];
 	try {
 		receipts = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(saleId)}`);
-		console.log('📸 Receipts loaded from backend:', receipts.map(r => ({ id: r.id, pay_method: r.pay_method, payment_source: r.payment_source, payment_date: r.payment_date })));
+		console.log('?? Receipts loaded from backend:', receipts.map(r => ({ id: r.id, pay_method: r.pay_method, payment_source: r.payment_source, payment_date: r.payment_date })));
     } catch (err) {
         console.error('Error loading receipts:', err);
         // If error loading, open inline upload
@@ -8069,7 +8138,7 @@ async function openReceiptsGalleryPopover(saleId, anchorX, anchorY) {
 				
 				// Use saved pay_method or default to 'transf' for new receipts
 				const current = (receipt.pay_method || 'transf').replace(/\.$/, '');
-				console.log(`🎯 Receipt ${receipt.id} - pay_method from backend: "${receipt.pay_method}" -> current: "${current}"`);
+				console.log(`?? Receipt ${receipt.id} - pay_method from backend: "${receipt.pay_method}" -> current: "${current}"`);
 				
 				const isMarcela = String(state.currentUser?.name || '').toLowerCase() === 'marcela';
 				const isJorge = String(state.currentUser?.name || '').toLowerCase() === 'jorge';
@@ -8099,7 +8168,7 @@ async function openReceiptsGalleryPopover(saleId, anchorX, anchorY) {
 				
 				// Explicitly set selector value to match backend data
 				sel.value = current;
-				console.log(`✅ Selector initialized with value: "${sel.value}"`);
+				console.log(`? Selector initialized with value: "${sel.value}"`);
 				
 				function applyPayClass() {
 					wrap.classList.remove('placeholder', 'method-efectivo', 'method-transf', 'method-marce', 'method-jorge', 'method-jorgebank', 'method-entregado');
@@ -8139,7 +8208,7 @@ async function openReceiptsGalleryPopover(saleId, anchorX, anchorY) {
 						receipt.pay_method = 'jorgebank';
 						sel.value = 'jorgebank';
 						applyPayClass();
-						notify.info('✓ Comprobante verificado');
+						notify.info('? Comprobante verificado');
 						
 						// Check if we need to update the main selector to jorgebank
 						await checkAndUpdateMainSelectorToJorgebank(receipt.sale_id);
@@ -8153,7 +8222,7 @@ async function openReceiptsGalleryPopover(saleId, anchorX, anchorY) {
 							pay_method: newValue
 						});
 						receipt.pay_method = newValue;
-						notify.info('✓ Método actualizado');
+						notify.info('? M?todo actualizado');
 						
 						// Also check if main selector needs update (in case changing FROM jorgebank)
 						await checkAndUpdateMainSelectorToJorgebank(receipt.sale_id);
@@ -8202,7 +8271,7 @@ async function openReceiptsGalleryPopover(saleId, anchorX, anchorY) {
 				deleteBtn.style.marginTop = '8px';
 				deleteBtn.addEventListener('click', async () => {
 					try {
-						const ok = await openConfirmPopover('¿Eliminar este comprobante?', anchorX, anchorY);
+						const ok = await openConfirmPopover('?Eliminar este comprobante?', anchorX, anchorY);
 						if (!ok) return;
 						await fetch(`/api/sales?receipt_id=${encodeURIComponent(receipt.id)}`, { method: 'DELETE' });
 						cleanup();
@@ -8268,7 +8337,7 @@ async function openReceiptsGalleryPopover(saleId, anchorX, anchorY) {
 		}, 0);
     } catch (err) {
         console.error('Error rendering receipts gallery:', err);
-        notify.error('Error al mostrar galería');
+        notify.error('Error al mostrar galer?a');
         // Fallback to inline upload
         openInlineFileUploadDialog(saleId);
     }
@@ -8313,14 +8382,14 @@ function openPaymentDateDialogForReceipt(receipt, onSaved) {
 	const prevBtn = document.createElement('button');
 	prevBtn.className = 'calendar-nav-btn';
 	prevBtn.type = 'button';
-	prevBtn.innerHTML = '◀';
+	prevBtn.innerHTML = '?';
 	const monthLabel = document.createElement('span');
 	monthLabel.className = 'calendar-month-label';
 	monthLabel.textContent = `${monthNames[currentMonth]} ${currentYear}`;
 	const nextBtn = document.createElement('button');
 	nextBtn.className = 'calendar-nav-btn';
 	nextBtn.type = 'button';
-	nextBtn.innerHTML = '▶';
+	nextBtn.innerHTML = '?';
 	calendarHeader.append(prevBtn, monthLabel, nextBtn);
 
 	const calendarGrid = document.createElement('div');
@@ -8450,7 +8519,7 @@ function openPaymentDateDialogForReceipt(receipt, onSaved) {
 				if (typeof onSaved === 'function') onSaved();
 				
 				// Show success message
-				notify.info(`✓ Verificado: ${paymentSource} - ${paymentDate}`);
+				notify.info(`? Verificado: ${paymentSource} - ${paymentDate}`);
 				
 				// Close this dialog (but NOT the gallery)
 				cleanup();
@@ -8578,38 +8647,7 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 	bindLogin();
 	notify.initToggle();
 	// Asegurar que el login siempre quede vinculado, incluso si las llamadas iniciales fallan
-	// (la restauración automática fue removida; se mantiene reporte bajo demanda)
-	// Realtime polling of backend notifications
-	(function startRealtime(){
-		let lastId = 0;
-		let initialized = false;
-		async function tick() {
-			try {
-				const url = lastId ? `/api/notifications?after_id=${encodeURIComponent(lastId)}` : '/api/notifications';
-				const res = await fetch(url);
-				if (res.ok) {
-					const rows = await res.json();
-					if (Array.isArray(rows) && rows.length) {
-						for (const r of rows) {
-							lastId = Math.max(lastId, Number(r.id||0));
-							if (!initialized) continue; // skip showing notifications on first load
-							const msg = String(r.message || '');
-							const pm = (r.pay_method || '').toString();
-							const iconUrl = r.icon_url || (pm === 'efectivo' ? '/icons/bill.svg' : pm === 'transf' ? '/icons/bank.svg' : pm === 'jorgebank' ? '/icons/bank-yellow.svg' : pm === 'marce' ? '/icons/marce7.svg?v=1' : pm === 'jorge' ? '/icons/jorge7.svg?v=1' : null);
-							notify.info(msg, iconUrl || pm ? { iconUrl, payMethod: pm } : undefined);
-							notify.showBrowser('Venta', msg);
-						}
-						initialized = true;
-					} else if (!initialized) {
-						// no rows on first load; mark as initialized to show future events
-						initialized = true;
-					}
-				}
-			} catch {}
-			setTimeout(tick, 2500);
-		}
-		tick();
-	})();
+	// (la restauraci?n autom?tica fue removida; se mantiene reporte bajo demanda)
 	updateToolbarOffset();
 	try { const saved = localStorage.getItem('authUser'); if (saved) state.currentUser = JSON.parse(saved); } catch {}
 	// Backfill role fields if missing from older sessions
@@ -8621,6 +8659,7 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 		state.currentUser.features = Array.isArray(state.currentUser.features) ? state.currentUser.features : [];
 		try { localStorage.setItem('authUser', JSON.stringify(state.currentUser)); } catch {}
 	}
+	syncNotificationAccess();
 	try { await loadSellers(); } catch { /* Ignorar error de red para no bloquear el login */ }
 	let __handledPendingFocus = false;
 	// Handle deep link focus coming from Transfers or Notifications (pendingFocus in localStorage)
@@ -8792,11 +8831,11 @@ async function openHistoryPopover(saleId, field, anchorX, anchorY) {
 			if (lower === 'client_name') label = 'Cliente';
 			if (lower === 'pay_method') {
 				const fmt = (v) => v === 'efectivo' ? 'Efectivo' : v === 'transf' ? 'Transferencia' : '-';
-				item.textContent = `[${when.toLocaleString()}] Pago: ${fmt(oldV)} → ${fmt(newV)}`;
+				item.textContent = `[${when.toLocaleString()}] Pago: ${fmt(oldV)} ? ${fmt(newV)}`;
 			} else if (label) {
-				item.textContent = `[${when.toLocaleString()}] ${label}: ${oldV} → ${newV}`;
+				item.textContent = `[${when.toLocaleString()}] ${label}: ${oldV} ? ${newV}`;
 			} else {
-				item.textContent = `[${when.toLocaleString()}] ${oldV} → ${newV}`;
+				item.textContent = `[${when.toLocaleString()}] ${oldV} ? ${newV}`;
 			}
 			list.appendChild(item);
 		}
