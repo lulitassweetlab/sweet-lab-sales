@@ -311,14 +311,6 @@ function renderClientDetailTable(rows) {
 				pay_method: sel.value || null,
 				_actor_name: state.currentUser?.name || ''
 			});
-			try {
-				const val = (sel.value || '').toString();
-				const fmt = (v) => v === 'efectivo' ? 'Efectivo' : v === 'entregado' ? 'Entregado' : (v === 'transf' || v === 'jorgebank') ? 'Transferencia' : v === 'marce' ? 'Marce' : v === 'jorge' ? 'Jorge' : '-';
-				const client = (state._clientDetailName || '').toString().trim() || 'Cliente';
-				const seller = String((state?.currentSeller?.name || state?.currentUser?.name || '') || '');
-				const msg = `${client} pago: ${fmt(val)}` + (seller ? ` - ${seller}` : '');
-				notify.info(msg);
-			} catch {}
 			applyPayClass();
 		});
 		wrap.appendChild(sel); tdPay.appendChild(wrap);
@@ -343,7 +335,6 @@ function renderClientDetailTable(rows) {
 			if (!confirm(`¿Estás seguro de eliminar esta compra de "${state._clientDetailName || 'este cliente'}"?`)) return;
 			try {
 				await api('DELETE', `${API.Sales}?id=${encodeURIComponent(r.id)}`);
-				notify.info(`Compra eliminada`);
 				// Reload the client detail view
 				if (state._clientDetailFrom === 'global-search') {
 					await loadGlobalClientDetailRows(state._clientDetailName);
@@ -351,7 +342,7 @@ function renderClientDetailTable(rows) {
 					await loadClientDetailRows(state._clientDetailName);
 				}
 			} catch (err) {
-				notify.error('Error al eliminar: ' + String(err));
+				// Error handled silently
 			}
 		});
 		tdDel.appendChild(delBtn);
@@ -1104,7 +1095,7 @@ function bindLogin() {
 				const usernameLower = String(res.username || '').toLowerCase();
 				const feminineUsers = new Set(['marcela', 'aleja', 'kate', 'stefa', 'mariana', 'janeth']);
 				const welcome = feminineUsers.has(usernameLower) ? 'Bienvenida ' : 'Bienvenido ';
-				notify.success(welcome + res.username);
+				// notify.success(welcome + res.username);
 				if (!state.currentUser.isAdmin) {
 					const seller = (state.sellers || []).find(s => String(s.name).toLowerCase() === String(res.username).toLowerCase());
 					if (seller) enterSeller(seller.id);
@@ -1127,7 +1118,7 @@ function bindLogin() {
 		if (!next) return;
 		try {
 			await api('PUT', API.Users, { username: user, currentPassword: current, newPassword: next });
-			notify.success('Contraseña actualizada');
+			// notify.success('Contraseña actualizada');
 		} catch (e) {
 			notify.error('No se pudo actualizar la contraseña');
 		}
@@ -1318,7 +1309,7 @@ function renderSellerButtons() {
                     state.sellers = state.sellers.filter(x => x.id !== s.id);
                     // Exit delete mode after successful deletion
                     state.deleteSellerMode = false;
-                    notify.success('Vendedor eliminado');
+                    // notify.success('Vendedor eliminado');
                     renderSellerButtons();
                 } catch (e) {
                     try { notify.error('No se pudo eliminar el vendedor'); } catch {}
@@ -1344,7 +1335,7 @@ async function addSeller(name) {
 		const seller = await api('POST', API.Sellers, { name, _actor_name: state.currentUser?.name || '' });
 		state.sellers.push(seller);
 		renderSellerButtons();
-		notify.success('Vendedor agregado');
+		// notify.success('Vendedor agregado');
 	} catch (err) {
 		try {
 			const msg = (err && err.message || '').includes('403') ? 'No autorizado para agregar vendedores' : 'No se pudo agregar el vendedor';
@@ -1770,14 +1761,6 @@ function renderTable() {
 				applyPayClass();
 				sel.addEventListener('change', async () => {
 					await savePayMethod(tr, sale.id, sel.value);
-					try {
-						const val = (sel.value || '').toString();
-						const fmt = (v) => v === 'efectivo' ? 'Efectivo' : v === 'entregado' ? 'Entregado' : (v === 'transf' || v === 'jorgebank') ? 'Transferencia' : v === 'marce' ? 'Marce' : v === 'jorge' ? 'Jorge' : '-';
-						const client = (tr.querySelector('td.col-client input')?.value || '').trim() || 'Cliente';
-						const seller = String((state?.currentSeller?.name || state?.currentUser?.name || '') || '');
-						const msg = `${client} pago: ${fmt(val)}` + (seller ? ` - ${seller}` : '');
-						notify.info(msg);
-					} catch {}
 					applyPayClass();
 				});
             wrap.addEventListener('click', async (e) => { 
