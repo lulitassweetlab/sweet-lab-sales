@@ -1903,7 +1903,7 @@ function renderTable() {
 					td.classList.add('has-comment');
 					const commentMarker = document.createElement('span');
 					commentMarker.className = 'comment-marker';
-					commentMarker.textContent = '\u270e';
+					commentMarker.textContent = '\ud83d\udcac';
 					commentMarker.title = 'Ver/editar comentario';
 					commentMarker.addEventListener('click', async (ev) => {
 						ev.stopPropagation();
@@ -4171,12 +4171,12 @@ function openUsersMenu(anchorX, anchorY) {
 	pop.style.transform = 'translate(-50%, 0)';
 	pop.style.zIndex = '1000';
 	const list = document.createElement('div'); list.className = 'history-list';
-    const b1 = document.createElement('button'); b1.className = 'press-btn'; b1.textContent = 'Reporte';
-	const b2 = document.createElement('button'); b2.className = 'press-btn'; b2.textContent = 'Cambiar contrase\u00f1as';
-    const b3 = document.createElement('button'); b3.className = 'press-btn'; b3.textContent = 'Asignar roles';
-    const b4 = document.createElement('button'); b4.className = 'press-btn'; b4.textContent = 'Otorgar ver vendedor';
-    const b5 = document.createElement('button'); b5.className = 'press-btn'; b5.textContent = 'Revocar ver vendedor';
-    const b6 = document.createElement('button'); b6.className = 'press-btn'; b6.textContent = 'Gestionar permisos (UI)';
+    const b1 = document.createElement('button'); b1.className = 'press-btn'; b1.textContent = '\ud83d\udcc4 Reporte';
+    const b2 = document.createElement('button'); b2.className = 'press-btn'; b2.textContent = '\ud83d\udd11 Cambiar contrase\u00f1as';
+    const b3 = document.createElement('button'); b3.className = 'press-btn'; b3.textContent = '\ud83d\udee1\ufe0f Asignar roles';
+    const b4 = document.createElement('button'); b4.className = 'press-btn'; b4.textContent = '\ud83d\udc41\ufe0f Otorgar ver vendedor';
+    const b5 = document.createElement('button'); b5.className = 'press-btn'; b5.textContent = '\ud83d\udeab Revocar ver vendedor';
+    const b6 = document.createElement('button'); b6.className = 'press-btn'; b6.textContent = '\u2699\ufe0f Gestionar permisos (UI)';
     list.appendChild(b1); list.appendChild(b2); list.appendChild(b3); list.appendChild(b4); list.appendChild(b5); list.appendChild(b6);
 	pop.append(list);
 	document.body.appendChild(pop);
@@ -4339,11 +4339,11 @@ function openMaterialsMenu(anchorX, anchorY) {
 	pop.style.transform = 'translate(-50%, 0)';
 	pop.style.zIndex = '1000';
 	const list = document.createElement('div'); list.className = 'history-list';
-	const b1 = document.createElement('button'); b1.className = 'press-btn'; b1.textContent = 'Ingredientes';
-	const b2 = document.createElement('button'); b2.className = 'press-btn'; b2.textContent = 'Necesarios';
-	const b3 = document.createElement('button'); b3.className = 'press-btn'; b3.textContent = 'Producci\u00f3n';
-	const b4 = document.createElement('button'); b4.className = 'press-btn'; b4.textContent = 'Inventario';
-	const b5 = document.createElement('button'); b5.className = 'press-btn'; b5.textContent = 'Tiempos';
+    const b1 = document.createElement('button'); b1.className = 'press-btn'; b1.textContent = '\ud83e\udd63 Ingredientes';
+    const b2 = document.createElement('button'); b2.className = 'press-btn'; b2.textContent = '\ud83d\udccb Necesarios';
+    const b3 = document.createElement('button'); b3.className = 'press-btn'; b3.textContent = '\ud83c\udfed Producci\u00f3n';
+    const b4 = document.createElement('button'); b4.className = 'press-btn'; b4.textContent = '\ud83d\udce6 Inventario';
+    const b5 = document.createElement('button'); b5.className = 'press-btn'; b5.textContent = '\u23f1\ufe0f Tiempos';
 	list.appendChild(b1); list.appendChild(b2); list.appendChild(b3); list.appendChild(b4); list.appendChild(b5);
 	pop.append(list);
 	document.body.appendChild(pop);
@@ -7793,14 +7793,14 @@ function openInlineFileUploadDialog(saleId) {
         cancelBtn.type = 'button';
         cancelBtn.textContent = 'Cancelar';
         cancelBtn.className = 'press-btn';
-		const uploadMoreBtn = document.createElement('button');
-		uploadMoreBtn.type = 'button';
-		uploadMoreBtn.textContent = '\u00bfSubir m\u00e1s?';
-		uploadMoreBtn.className = 'press-btn';
-		const uploadBtn = document.createElement('button');
-		uploadBtn.type = 'button';
-		uploadBtn.textContent = 'Subir 0 archivos';
-		uploadBtn.className = 'press-btn btn-primary';
+        const uploadMoreBtn = document.createElement('button');
+        uploadMoreBtn.type = 'button';
+        uploadMoreBtn.textContent = '\u2795 Subir m\u00e1s';
+        uploadMoreBtn.className = 'press-btn';
+        const uploadBtn = document.createElement('button');
+        uploadBtn.type = 'button';
+        uploadBtn.textContent = '\u2b06\ufe0f Subir 0 archivos';
+        uploadBtn.className = 'press-btn btn-primary';
 
         actions.append(cancelBtn, uploadMoreBtn, uploadBtn);
 
@@ -7818,11 +7818,11 @@ function openInlineFileUploadDialog(saleId) {
         let selectedFiles = [];
         let isAddingMore = false;
 
-		function updateUploadButton() {
-			const n = selectedFiles.length;
-			uploadBtn.textContent = `Subir ${n} archivo${n === 1 ? '' : 's'}`;
-			uploadBtn.disabled = n === 0;
-		}
+        function updateUploadButton() {
+            const n = selectedFiles.length;
+            uploadBtn.textContent = `\u2b06\ufe0f Subir ${n} archivo${n === 1 ? '' : 's'}`;
+            uploadBtn.disabled = n === 0;
+        }
 
         function renderPreviews() {
             previewGrid.innerHTML = '';
