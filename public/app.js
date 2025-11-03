@@ -656,7 +656,39 @@ const notify = (() => {
 				btn.title = ok ? 'Notificaciones activas' : 'Activar notificaciones';
 			};
 			refresh();
+			let clickTimeout = null;
 			btn.addEventListener('click', async (ev) => {
+				ev.preventDefault();
+				if (clickTimeout) return; // double click detected
+				clickTimeout = setTimeout(async () => {
+					clickTimeout = null;
+					// Single click: fetch and show toasts
+					try {
+						const url = '/api/notifications?limit=50';
+						const res = await fetch(url);
+						if (res.ok) {
+							const data = await res.json();
+							if (Array.isArray(data)) {
+								for (const it of data.slice(0, 10)) { // Limit to 10 toasts
+									const msg = String(it.message || '');
+									const pm = (it.pay_method || '').toString();
+									const iconUrl = it.icon_url || (pm === 'efectivo' ? '/icons/bill.svg' : pm === 'transf' ? '/icons/bank.svg' : pm === 'jorgebank' ? '/icons/bank-yellow.svg' : pm === 'marce' ? '/icons/marce7.svg?v=1' : pm === 'jorge' ? '/icons/jorge7.svg?v=1' : null);
+									notify.info(msg, iconUrl || pm ? { iconUrl, payMethod: pm } : undefined);
+								}
+							}
+						}
+					} catch (err) {
+						console.error('Error fetching notifications for toasts:', err);
+					}
+				}, 300); // Wait for potential double click
+			});
+			btn.addEventListener('dblclick', async (ev) => {
+				ev.preventDefault();
+				if (clickTimeout) {
+					clearTimeout(clickTimeout);
+					clickTimeout = null;
+				}
+				// Double click: open notification center
 				openDialog(ev?.clientX, ev?.clientY);
 			});
 			refreshUnreadDot();
@@ -8579,8 +8611,12 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 	notify.initToggle();
 	// Asegurar que el login siempre quede vinculado, incluso si las llamadas iniciales fallan
 	// (la restauración automática fue removida; se mantiene reporte bajo demanda)
-	// Realtime polling of backend notifications
+	// Realtime polling of backend notifications - DISABLED for superadmin only
+	// Only superadmin gets notifications, and only on demand
 	(function startRealtime(){
+		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+		if (!isSuper) return; // No polling for non-superadmin users
+
 		let lastId = 0;
 		let initialized = false;
 		async function tick() {
