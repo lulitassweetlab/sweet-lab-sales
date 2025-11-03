@@ -662,18 +662,38 @@ const notify = (() => {
 				if (clickTimeout) return; // double click detected
 				clickTimeout = setTimeout(async () => {
 					clickTimeout = null;
-					// Single click: fetch and show toasts
+					// Single click: fetch and show only unread toasts
 					try {
 						const url = '/api/notifications?limit=50';
 						const res = await fetch(url);
 						if (res.ok) {
 							const data = await res.json();
 							if (Array.isArray(data)) {
-								for (const it of data.slice(0, 10)) { // Limit to 10 toasts
+								// Filter only unread notifications (those without read_at)
+								const unread = data.filter(it => !it.read_at);
+								if (unread.length === 0) {
+									notify.info('No hay notificaciones nuevas');
+									return;
+								}
+								// Show up to 10 unread toasts
+								const toShow = unread.slice(0, 10);
+								for (const it of toShow) {
 									const msg = String(it.message || '');
 									const pm = (it.pay_method || '').toString();
 									const iconUrl = it.icon_url || (pm === 'efectivo' ? '/icons/bill.svg' : pm === 'transf' ? '/icons/bank.svg' : pm === 'jorgebank' ? '/icons/bank-yellow.svg' : pm === 'marce' ? '/icons/marce7.svg?v=1' : pm === 'jorge' ? '/icons/jorge7.svg?v=1' : null);
 									notify.info(msg, iconUrl || pm ? { iconUrl, payMethod: pm } : undefined);
+								}
+								// Mark shown notifications as read
+								for (const it of toShow) {
+									try {
+										await fetch('/api/notifications', {
+											method: 'PATCH',
+											headers: { 'Content-Type': 'application/json' },
+											body: JSON.stringify({ id: it.id, is_read: true })
+										});
+									} catch (patchErr) {
+										console.error('Error marking notification as read:', patchErr);
+									}
 								}
 							}
 						}
