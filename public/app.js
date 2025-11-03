@@ -623,7 +623,7 @@ const notify = (() => {
 		const msg = document.createElement('div');
 		msg.className = 'toast-msg';
 		msg.textContent = String(message || '');
-		const close = document.createElement('button'); close.className = 'toast-close'; close.type = 'button'; close.textContent = '?';
+		const close = document.createElement('button'); close.className = 'toast-close'; close.type = 'button'; close.textContent = '\u00d7';
 		close.addEventListener('click', () => dismiss(n));
 		n.append(msg, close);
 		try {
@@ -767,13 +767,13 @@ const notify = (() => {
 		const actions = document.createElement('div'); actions.className = 'notif-actions';
 		const permBtn = document.createElement('button'); permBtn.className = 'notif-btn'; permBtn.textContent = 'Pedir permiso';
 		const clearBtn = document.createElement('button'); clearBtn.className = 'notif-btn'; clearBtn.textContent = 'Limpiar';
-		const closeBtn = document.createElement('button'); closeBtn.className = 'notif-close'; closeBtn.textContent = '?';
+		const closeBtn = document.createElement('button'); closeBtn.className = 'notif-close'; closeBtn.textContent = '\u00d7';
 		actions.append(permBtn, clearBtn, closeBtn);
 		header.append(title, actions);
 		const body = document.createElement('div'); body.className = 'notif-body';
 		const toolbar = document.createElement('div'); toolbar.className = 'notif-toolbar';
-		const info = document.createElement('div'); info.style.fontSize = '12px'; info.style.opacity = '0.8'; info.textContent = 'Historial del servidor (m?s recientes primero)';
-		const loadMoreBtn = document.createElement('button'); loadMoreBtn.className = 'notif-btn'; loadMoreBtn.textContent = 'Cargar m?s';
+		const info = document.createElement('div'); info.style.fontSize = '12px'; info.style.opacity = '0.8'; info.textContent = 'Historial del servidor (m\u00e1s recientes primero)';
+		const loadMoreBtn = document.createElement('button'); loadMoreBtn.className = 'notif-btn'; loadMoreBtn.textContent = 'Cargar m\u00e1s';
 		const isSuperAdmin = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 		let sellerSelect = null;
 		let daySelect = null;
@@ -861,43 +861,43 @@ const notify = (() => {
 			const item = document.createElement('div'); item.className = 'notif-item';
 			const isRead = isServer && original.read_at !== null && original.read_at !== undefined;
 			if (isRead) item.classList.add('notif-read');
-			const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
-			let checkboxEl = null;
-			if (isServer && isSuper) {
-				checkboxEl = document.createElement('input');
-				checkboxEl.type = 'checkbox';
-				checkboxEl.className = 'notif-checkbox';
-				checkboxEl.checked = isRead;
-				checkboxEl.title = isRead ? 'Marcar como no le?da' : 'Marcar como le?da';
-				checkboxEl.addEventListener('click', async (e) => {
-					e.stopPropagation();
-					const newReadState = e.target.checked;
-					try {
-						const res = await fetch('/api/notifications', {
-							method: 'PATCH',
-							headers: { 'Content-Type': 'application/json' },
-							body: JSON.stringify({ id: id, is_read: newReadState })
-						});
-						if (res.ok) {
-							if (newReadState) {
-								item.classList.add('notif-read');
-							} else {
-								item.classList.remove('notif-read');
-							}
-							checkboxEl.title = newReadState ? 'Marcar como no le?da' : 'Marcar como le?da';
+		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+		let checkboxEl = null;
+		if (isServer && isSuper) {
+			checkboxEl = document.createElement('input');
+			checkboxEl.type = 'checkbox';
+			checkboxEl.className = 'notif-checkbox';
+			checkboxEl.checked = isRead;
+			checkboxEl.title = isRead ? 'Marcar como no le\u00edda' : 'Marcar como le\u00edda';
+			checkboxEl.addEventListener('click', async (e) => {
+				e.stopPropagation();
+				const newReadState = e.target.checked;
+				try {
+					const res = await fetch('/api/notifications', {
+						method: 'PATCH',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ id: id, is_read: newReadState })
+					});
+					if (res.ok) {
+						if (newReadState) {
+							item.classList.add('notif-read');
 						} else {
-							checkboxEl.checked = !newReadState;
-							notify.error('Error al actualizar notificaci?n');
+							item.classList.remove('notif-read');
 						}
-					} catch (err) {
+						checkboxEl.title = newReadState ? 'Marcar como no le\u00edda' : 'Marcar como le\u00edda';
+					} else {
 						checkboxEl.checked = !newReadState;
-						notify.error('Error al actualizar notificaci?n');
+						notify.error('Error al actualizar notificaci\u00f3n');
 					}
-				});
-				item.style.gridTemplateColumns = 'auto 1fr auto';
-			} else {
-				item.style.gridTemplateColumns = '1fr auto';
-			}
+				} catch (err) {
+					checkboxEl.checked = !newReadState;
+					notify.error('Error al actualizar notificaci\u00f3n');
+				}
+			});
+			item.style.gridTemplateColumns = 'auto 1fr auto';
+		} else {
+			item.style.gridTemplateColumns = '1fr auto';
+		}
 			const whenEl = document.createElement('div'); whenEl.className = 'when';
 			const d = new Date(when); whenEl.textContent = isNaN(d.getTime()) ? String(when || '') : d.toLocaleString();
 			const textEl = document.createElement('div'); textEl.className = 'text';
@@ -1140,7 +1140,7 @@ function bindLogin() {
 					switchView('#view-select-seller');
 				}
 			} catch (e) {
-				if (err) { err.textContent = 'Usuario o contrase?a inv?lidos'; err.classList.remove('hidden'); }
+				if (err) { err.textContent = 'Usuario o contrase\u00f1a inv\u00e1lidos'; err.classList.remove('hidden'); }
 			}
 		})();
 	});
@@ -1148,16 +1148,16 @@ function bindLogin() {
 	const changeBtn = document.getElementById('login-change-pass');
 	changeBtn?.addEventListener('click', async () => {
 		const user = (document.getElementById('login-user')?.value || '').toString().trim();
-		if (!user) { const err = document.getElementById('login-error'); if (err) { err.textContent = 'Ingresa el usuario para cambiar la contrase?a'; err.classList.remove('hidden'); } return; }
-		const current = prompt('Contrase?a actual:') ?? '';
+		if (!user) { const err = document.getElementById('login-error'); if (err) { err.textContent = 'Ingresa el usuario para cambiar la contrase\u00f1a'; err.classList.remove('hidden'); } return; }
+		const current = prompt('Contrase\u00f1a actual:') ?? '';
 		if (!current) return;
-		const next = prompt('Nueva contrase?a (m?n 6 caracteres):') ?? '';
+		const next = prompt('Nueva contrase\u00f1a (m\u00edn 6 caracteres):') ?? '';
 		if (!next) return;
 		try {
 			await api('PUT', API.Users, { username: user, currentPassword: current, newPassword: next });
-			notify.success('Contrase?a actualizada');
+			notify.success('Contrase\u00f1a actualizada');
 		} catch (e) {
-			notify.error('No se pudo actualizar la contrase?a');
+			notify.error('No se pudo actualizar la contrase\u00f1a');
 		}
 	});
 	const logoutBtn = document.getElementById('logout-btn');
@@ -1892,7 +1892,7 @@ function renderTable() {
 						td.classList.add('has-reg');
 						const reg = document.createElement('span');
 						reg.className = 'client-reg-large';
-						reg.textContent = '?';
+						reg.textContent = '\u00ae';
 						reg.title = 'Cliente recurrente';
 						reg.addEventListener('click', async (ev) => { ev.stopPropagation(); await openClientDetailView(name); });
 						td.appendChild(reg);
@@ -1903,7 +1903,7 @@ function renderTable() {
 					td.classList.add('has-comment');
 					const commentMarker = document.createElement('span');
 					commentMarker.className = 'comment-marker';
-					commentMarker.textContent = '??';
+					commentMarker.textContent = '\u270e';
 					commentMarker.title = 'Ver/editar comentario';
 					commentMarker.addEventListener('click', async (ev) => {
 						ev.stopPropagation();
@@ -1941,7 +1941,7 @@ function renderTable() {
 			b.title = 'Eliminar';
 			b.addEventListener('click', async (ev) => {
 				ev.stopPropagation();
-				const ok = await openConfirmPopover('?Seguro que quieres eliminar este pedido?', ev.clientX, ev.clientY);
+				const ok = await openConfirmPopover('\u00bfSeguro que quieres eliminar este pedido?', ev.clientX, ev.clientY);
 				if (!ok) return;
 				await deleteRow(sale.id);
 			});
@@ -2063,7 +2063,7 @@ async function loadSales() {
 		'Cargando ventas...',
 		'Buscando pedidos...',
 		'Preparando la tabla...',
-		'Ya casi est?...'
+		'Ya casi est\u00e1...'
 	];
 	let messageIndex = 0;
 	let messageInterval = null;
@@ -4172,7 +4172,7 @@ function openUsersMenu(anchorX, anchorY) {
 	pop.style.zIndex = '1000';
 	const list = document.createElement('div'); list.className = 'history-list';
     const b1 = document.createElement('button'); b1.className = 'press-btn'; b1.textContent = 'Reporte';
-    const b2 = document.createElement('button'); b2.className = 'press-btn'; b2.textContent = 'Cambiar contrase?as';
+	const b2 = document.createElement('button'); b2.className = 'press-btn'; b2.textContent = 'Cambiar contrase\u00f1as';
     const b3 = document.createElement('button'); b3.className = 'press-btn'; b3.textContent = 'Asignar roles';
     const b4 = document.createElement('button'); b4.className = 'press-btn'; b4.textContent = 'Otorgar ver vendedor';
     const b5 = document.createElement('button'); b5.className = 'press-btn'; b5.textContent = 'Revocar ver vendedor';
@@ -4199,8 +4199,8 @@ function openUsersMenu(anchorX, anchorY) {
 	b1.addEventListener('click', async () => { await exportUsersExcel(); cleanup(); });
 	b2.addEventListener('click', async () => {
 		const username = prompt('Usuario a modificar:'); if (!username) return;
-		const newPass = prompt('Nueva contrase?a (m?n 6 caracteres):'); if (!newPass) return;
-		try { await api('PATCH', API.Users, { action: 'setPassword', username, newPassword: newPass }); notify.success('Contrase?a actualizada'); cleanup(); }
+	const newPass = prompt('Nueva contrase\u00f1a (m\u00edn 6 caracteres):'); if (!newPass) return;
+		try { await api('PATCH', API.Users, { action: 'setPassword', username, newPassword: newPass }); notify.success('Contrase\u00f1a actualizada'); cleanup(); }
 		catch { notify.error('No se pudo actualizar'); }
 	});
 	b3.addEventListener('click', async () => {
@@ -4232,7 +4232,7 @@ function openUsersMenu(anchorX, anchorY) {
 function openPermissionsManager() {
     const overlay = document.createElement('div'); overlay.className = 'confirm-popover permissions-overlay'; overlay.style.position = 'fixed'; overlay.style.left = '0'; overlay.style.top = '0'; overlay.style.right = '0'; overlay.style.bottom = '0'; overlay.style.background = 'rgba(0,0,0,0.35)'; overlay.style.zIndex = '1000';
     const modal = document.createElement('div'); modal.className = 'confirm-popover permissions-modal'; modal.style.position = 'fixed'; modal.style.left = '50%'; modal.style.top = '50%'; modal.style.transform = 'translate(-50%, -50%)'; modal.style.maxWidth = '680px'; modal.style.width = '90%'; modal.style.maxHeight = '80vh'; modal.style.overflow = 'auto'; modal.style.background = 'var(--panel-bg, #fff)'; modal.style.padding = '16px'; modal.style.borderRadius = '12px';
-    const title = document.createElement('h3'); title.textContent = 'Gesti?n de permisos de visualizaci?n'; modal.appendChild(title);
+	const title = document.createElement('h3'); title.textContent = 'Gesti\u00f3n de permisos de visualizaci\u00f3n'; modal.appendChild(title);
     const row = document.createElement('div'); row.style.display = 'flex'; row.style.gap = '12px'; row.style.alignItems = 'flex-start';
     const left = document.createElement('div'); left.style.flex = '1'; const right = document.createElement('div'); right.style.flex = '1';
     const userLabel = document.createElement('label'); userLabel.textContent = 'Usuario (viewer)'; userLabel.style.display = 'block';
@@ -4341,7 +4341,7 @@ function openMaterialsMenu(anchorX, anchorY) {
 	const list = document.createElement('div'); list.className = 'history-list';
 	const b1 = document.createElement('button'); b1.className = 'press-btn'; b1.textContent = 'Ingredientes';
 	const b2 = document.createElement('button'); b2.className = 'press-btn'; b2.textContent = 'Necesarios';
-	const b3 = document.createElement('button'); b3.className = 'press-btn'; b3.textContent = 'Producci?n';
+	const b3 = document.createElement('button'); b3.className = 'press-btn'; b3.textContent = 'Producci\u00f3n';
 	const b4 = document.createElement('button'); b4.className = 'press-btn'; b4.textContent = 'Inventario';
 	const b5 = document.createElement('button'); b5.className = 'press-btn'; b5.textContent = 'Tiempos';
 	list.appendChild(b1); list.appendChild(b2); list.appendChild(b3); list.appendChild(b4); list.appendChild(b5);
@@ -4970,7 +4970,7 @@ async function openInventoryHistoryDialog(ingredient) {
 	const title = document.createElement('h4'); title.textContent = `Historial: ${ingredient}`; title.style.margin = '0 0 8px 0';
 	const table = document.createElement('table'); table.className = 'items-table';
 	const thead = document.createElement('thead'); const hr = document.createElement('tr');
-	['Fecha','Tipo','Cantidad','Producci?n','Nota','Actor'].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); }); thead.appendChild(hr);
+	['Fecha','Tipo','Cantidad','Producci\u00f3n','Nota','Actor'].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); }); thead.appendChild(hr);
 	const tbody = document.createElement('tbody');
 	for (const r of (rows || [])) {
 		const tr = document.createElement('tr');
@@ -5542,8 +5542,8 @@ async function renderMeasuresView() {
 			const any = Object.values(payload.counts).some(n => Number(n||0) > 0);
 			if (!any) { notify.error('No hay cantidades para aprobar'); return; }
 			await api('POST', API.Inventory, payload);
-			notify.success('Producci?n aprobada y descontada del inventario');
-		} catch (e) { notify.error('No se pudo aprobar producci?n'); }
+			notify.success('Producci\u00f3n aprobada y descontada del inventario');
+		} catch (e) { notify.error('No se pudo aprobar producci\u00f3n'); }
 	});
 	// initial render
 	renderResults();
@@ -7793,14 +7793,14 @@ function openInlineFileUploadDialog(saleId) {
         cancelBtn.type = 'button';
         cancelBtn.textContent = 'Cancelar';
         cancelBtn.className = 'press-btn';
-        const uploadMoreBtn = document.createElement('button');
-        uploadMoreBtn.type = 'button';
-        uploadMoreBtn.textContent = '? Subir m?s';
-        uploadMoreBtn.className = 'press-btn';
-        const uploadBtn = document.createElement('button');
-        uploadBtn.type = 'button';
-        uploadBtn.textContent = '? Subir 0 archivos';
-        uploadBtn.className = 'press-btn btn-primary';
+		const uploadMoreBtn = document.createElement('button');
+		uploadMoreBtn.type = 'button';
+		uploadMoreBtn.textContent = '\u00bfSubir m\u00e1s?';
+		uploadMoreBtn.className = 'press-btn';
+		const uploadBtn = document.createElement('button');
+		uploadBtn.type = 'button';
+		uploadBtn.textContent = 'Subir 0 archivos';
+		uploadBtn.className = 'press-btn btn-primary';
 
         actions.append(cancelBtn, uploadMoreBtn, uploadBtn);
 
@@ -7818,11 +7818,11 @@ function openInlineFileUploadDialog(saleId) {
         let selectedFiles = [];
         let isAddingMore = false;
 
-        function updateUploadButton() {
-            const n = selectedFiles.length;
-            uploadBtn.textContent = `? Subir ${n} archivo${n === 1 ? '' : 's'}`;
-            uploadBtn.disabled = n === 0;
-        }
+		function updateUploadButton() {
+			const n = selectedFiles.length;
+			uploadBtn.textContent = `Subir ${n} archivo${n === 1 ? '' : 's'}`;
+			uploadBtn.disabled = n === 0;
+		}
 
         function renderPreviews() {
             previewGrid.innerHTML = '';
