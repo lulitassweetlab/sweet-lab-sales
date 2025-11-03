@@ -1,11 +1,27 @@
 import { ensureSchema, sql } from './_db.js';
 
 function json(body, status = 200) {
-	return { statusCode: status, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
+	// Add cache headers to prevent unnecessary repeated calls
+	const headers = {
+		'Content-Type': 'application/json',
+		'Cache-Control': 'no-cache, no-store, must-revalidate',
+		'X-Invocation-Time': new Date().toISOString()
+	};
+	return { statusCode: status, headers, body: JSON.stringify(body) };
 }
 
 export async function handler(event) {
 	try {
+		// ⚠️ CRITICAL LOGGING: Track all invocations to identify polling source
+		const timestamp = new Date().toISOString();
+		const ip = event.headers['x-forwarded-for'] || event.headers['client-ip'] || 'unknown';
+		const userAgent = event.headers['user-agent'] || 'unknown';
+		const referer = event.headers['referer'] || 'none';
+		const method = event.httpMethod;
+		const query = event.rawQuery || '';
+		
+		console.log(`[NOTIFICATIONS] ${timestamp} | ${method} | IP: ${ip} | UA: ${userAgent} | Referer: ${referer} | Query: ${query}`);
+		
 		await ensureSchema();
 		if (event.httpMethod === 'OPTIONS') return json({ ok: true });
 		

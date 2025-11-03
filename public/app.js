@@ -572,6 +572,8 @@ const notify = (() => {
 		writeLog(list);
 	}
 	function refreshUnreadDot() {
+		// IMPORTANT: This function ONLY reads from localStorage - NO API calls, NO network requests
+		// It just updates the visual indicator (red dot) based on local notification history
 		try {
 			const btn = document.getElementById('notif-toggle');
 			if (!btn) return;
@@ -651,12 +653,14 @@ const notify = (() => {
 			btn.addEventListener('click', async (ev) => {
 				ev.preventDefault();
 				if (clickTimeout) return; // double click detected
-				clickTimeout = setTimeout(async () => {
-					clickTimeout = null;
-					// Single click: fetch and show only unread toasts (don't mark as read)
-					try {
-						const url = '/api/notifications?limit=50';
-						const res = await fetch(url);
+			clickTimeout = setTimeout(async () => {
+				clickTimeout = null;
+				// Single click: fetch and show only unread toasts (don't mark as read)
+				// IMPORTANT: This is triggered ONLY by user click - NO automatic polling
+				try {
+					console.log('[Notifications] User clicked notification icon - fetching notifications');
+					const url = '/api/notifications?limit=50';
+					const res = await fetch(url);
 						if (res.ok) {
 							const data = await res.json();
 							if (Array.isArray(data)) {
@@ -687,13 +691,16 @@ const notify = (() => {
 					clearTimeout(clickTimeout);
 					clickTimeout = null;
 				}
-				// Double click: open notification center
-				openDialog(ev?.clientX, ev?.clientY);
+			// Double click: open notification center
+			// IMPORTANT: This is triggered ONLY by user double-click - NO automatic polling
+			console.log('[Notifications] User double-clicked notification icon - opening dialog');
+			openDialog(ev?.clientX, ev?.clientY);
 			});
 			refreshUnreadDot();
 		});
 	}
 	async function openDialog(anchorX, anchorY) {
+		// IMPORTANT: This dialog is opened ONLY by user action - NO automatic polling
 		const backdrop = document.createElement('div');
 		backdrop.className = 'notif-dialog-backdrop';
 		const dlg = document.createElement('div');
@@ -928,6 +935,8 @@ const notify = (() => {
 			list.appendChild(item);
 		}
 		async function fetchInitial() {
+			// IMPORTANT: This is called ONLY when user opens the notification dialog - NO automatic polling
+			console.log('[Notifications] fetchInitial called from user action');
 			serverMode = true;
 			list.innerHTML = '';
 			seenIds = new Set();
@@ -949,6 +958,8 @@ const notify = (() => {
 			}
 		}
 		async function loadMore() {
+			// IMPORTANT: This is called ONLY when user clicks "Cargar más" button - NO automatic polling
+			console.log('[Notifications] loadMore called from user action');
 			if (!serverMode || !minLoadedId) { renderLocalList(); return; }
 			try {
 				let url = `/api/notifications?before_id=${encodeURIComponent(minLoadedId)}&limit=100`;
@@ -8604,7 +8615,9 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 	notify.initToggle();
 	// Asegurar que el login siempre quede vinculado, incluso si las llamadas iniciales fallan
 	// (la restauración automática fue removida; se mantiene reporte bajo demanda)
-	// No automatic polling - notifications are fetched only on demand when superadmin clicks the button
+	// ⚠️ CRITICAL: NO automatic polling for notifications
+	// Notifications API is called ONLY when user explicitly clicks the notification icon
+	// All notification fetches are user-triggered actions - NO background requests
 	updateToolbarOffset();
 	try { const saved = localStorage.getItem('authUser'); if (saved) state.currentUser = JSON.parse(saved); } catch {}
 	// Backfill role fields if missing from older sessions
