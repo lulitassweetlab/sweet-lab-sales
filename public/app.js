@@ -1420,6 +1420,8 @@ function applyAuthVisibility() {
 	const canDeliveries = isSuper || isAdminUser;
 	if (dessertsBtn) dessertsBtn.style.display = canDesserts ? 'inline-block' : 'none';
 	if (deliveriesBtn) deliveriesBtn.style.display = canDeliveries ? 'inline-block' : 'none';
+	const notifBtn = document.getElementById('notif-toggle');
+	if (notifBtn) notifBtn.style.display = isSuper ? 'inline-flex' : 'none';
 }
 
 // Load desserts from API (runs once per session)
