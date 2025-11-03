@@ -29,6 +29,17 @@ export async function handler(event) {
 		
 		console.log(`[NOTIFICATIONS] ${timestamp} | ${method} | IP: ${ip} | UA: ${userAgent} | Referer: ${referer} | Query: ${query}`);
 		
+		// 🚫 BLOCK POLLING: Stop all requests with after_id parameter (polling pattern)
+		// This is a temporary measure to stop persistent polling until frontend is completely fixed
+		if (method === 'GET' && query.includes('after_id')) {
+			console.warn(`[NOTIFICATIONS] 🚫 BLOCKED POLLING REQUEST | IP: ${ip} | Query: ${query}`);
+			return json({ 
+				error: 'Polling bloqueado',
+				message: 'Las notificaciones automáticas están deshabilitadas. Por favor, limpia el caché de tu navegador y recarga la página.',
+				hint: 'Presiona Ctrl+Shift+R (Windows/Linux) o Cmd+Shift+R (Mac) para recargar sin caché.'
+			}, 403);
+		}
+		
 		// 🛡️ RATE LIMITING: Prevent excessive polling
 		// Skip rate limiting for PATCH requests (marking as read/unread) and OPTIONS
 		if (method === 'GET') {
