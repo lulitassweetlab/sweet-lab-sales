@@ -8621,41 +8621,7 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 	notify.initToggle();
 	// Asegurar que el login siempre quede vinculado, incluso si las llamadas iniciales fallan
 	// (la restauración automática fue removida; se mantiene reporte bajo demanda)
-	// Realtime polling of backend notifications - DISABLED for superadmin only
-	// Only superadmin gets notifications, and only on demand
-	(function startRealtime(){
-		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
-		if (!isSuper) return; // No polling for non-superadmin users
-
-		let lastId = 0;
-		let initialized = false;
-		async function tick() {
-			try {
-				const url = lastId ? `/api/notifications?after_id=${encodeURIComponent(lastId)}` : '/api/notifications';
-				const res = await fetch(url);
-				if (res.ok) {
-					const rows = await res.json();
-					if (Array.isArray(rows) && rows.length) {
-						for (const r of rows) {
-							lastId = Math.max(lastId, Number(r.id||0));
-							if (!initialized) continue; // skip showing notifications on first load
-							const msg = String(r.message || '');
-							const pm = (r.pay_method || '').toString();
-							const iconUrl = r.icon_url || (pm === 'efectivo' ? '/icons/bill.svg' : pm === 'transf' ? '/icons/bank.svg' : pm === 'jorgebank' ? '/icons/bank-yellow.svg' : pm === 'marce' ? '/icons/marce7.svg?v=1' : pm === 'jorge' ? '/icons/jorge7.svg?v=1' : null);
-							notify.info(msg, iconUrl || pm ? { iconUrl, payMethod: pm } : undefined);
-							notify.showBrowser('Venta', msg);
-						}
-						initialized = true;
-					} else if (!initialized) {
-						// no rows on first load; mark as initialized to show future events
-						initialized = true;
-					}
-				}
-			} catch {}
-			setTimeout(tick, 2500);
-		}
-		tick();
-	})();
+	// No automatic polling - notifications are fetched only on demand when superadmin clicks the button
 	updateToolbarOffset();
 	try { const saved = localStorage.getItem('authUser'); if (saved) state.currentUser = JSON.parse(saved); } catch {}
 	// Backfill role fields if missing from older sessions
