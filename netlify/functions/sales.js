@@ -657,6 +657,16 @@ export async function handler(event) {
 						await notifyDb({ type: 'pay', sellerId: Number(data.seller_id||0)||null, saleId: id, saleDayId: Number(data.sale_day_id||0)||null, message: msg, actorName: actor, iconUrl, payMethod: nextPm });
 					}
 				} catch {}
+				// emit notification for comment changes
+				try {
+					const prevComment = (current.comment_text || '').toString().trim();
+					const nextComment = (comment || '').toString().trim();
+					if (!withinGrace && prevComment !== nextComment && nextComment.length > 0) {
+						const displayComment = nextComment.length > 50 ? (nextComment.substring(0, 47) + '...') : nextComment;
+						const msg = `${client || 'Cliente'} comentario: "${displayComment}"` + (actor ? ` - ${actor}` : '');
+						await notifyDb({ type: 'comment', sellerId: Number(data.seller_id||0)||null, saleId: id, saleDayId: Number(data.sale_day_id||0)||null, message: msg, actorName: actor });
+					}
+				} catch {}
 				const row = await recalcTotalForId(id);
 				return json(row);
 			}

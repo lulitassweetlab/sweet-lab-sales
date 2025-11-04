@@ -22,6 +22,7 @@
 					<button id="client-search-toggle" class="press-btn client-search-toggle" title="Buscar cliente" aria-label="Buscar cliente"></button>
 					<input id="client-search-input" type="text" class="client-search-input" placeholder="Buscar cliente..." autocomplete="off" style="display:none" />
 				</div>
+				<button id="notification-center-btn" class="press-btn notification-center-btn" title="Centro de notificaciones" aria-label="Centro de notificaciones" style="display:none">🔔</button>
 				<button id="theme-toggle" class="press-btn theme-toggle" title="Modo oscuro" aria-label="Cambiar tema"></button>
 				<button id="logout-btn" class="press-btn" title="Cerrar sesión" style="display:none">Salir</button>
 			</div>
@@ -403,6 +404,20 @@
 
 	<!-- Toast container -->
 	<div id="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+	<!-- Notification Center Modal -->
+	<div id="notification-center-modal" class="notif-center-modal hidden">
+		<div class="notif-center-backdrop"></div>
+		<div class="notif-center-panel">
+			<div class="notif-center-header">
+				<h2>Centro de Notificaciones</h2>
+				<button id="notif-center-close" class="press-btn secondary">✕</button>
+			</div>
+			<div class="notif-center-body" id="notif-center-body">
+				<div class="notif-center-loading">Cargando notificaciones...</div>
+			</div>
+		</div>
+	</div>
 
 	<script src="/app.js?v=2025-11-04-1" type="module"></script>
 </body>

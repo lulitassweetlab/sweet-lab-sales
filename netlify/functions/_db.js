@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 11; // Bump when schema changes require a migration (add delivery_production_users table)
+const SCHEMA_VERSION = 12; // Bump when schema changes require a migration (add notification_checks and notification_center_visits tables)
 
 export async function ensureSchema() {
 	// If already ensured in this instance, skip immediately
@@ -345,6 +345,24 @@ export async function ensureSchema() {
 			ALTER TABLE notifications ADD COLUMN pay_method TEXT;
 		END IF;
 	END $$;`;
+	// Notification checks: track which notifications have been checked by superadmin
+	await sql`CREATE TABLE IF NOT EXISTS notification_checks (
+		id SERIAL PRIMARY KEY,
+		notification_id INTEGER NOT NULL REFERENCES notifications(id) ON DELETE CASCADE,
+		checked_by TEXT NOT NULL,
+		created_at TIMESTAMPTZ DEFAULT now(),
+		UNIQUE (notification_id, checked_by)
+	)`;
+	// Notification center visits: track when superadmin last visited the notification center
+	await sql`CREATE TABLE IF NOT EXISTS notification_center_visits (
+		id SERIAL PRIMARY KEY,
+		username TEXT NOT NULL,
+		visited_at TIMESTAMPTZ DEFAULT now(),
+		UNIQUE (username)
+	)`;
+	// Create indexes for notification queries
+	await sql`CREATE INDEX IF NOT EXISTS idx_notifications_created ON notifications(created_at DESC)`;
+	await sql`CREATE INDEX IF NOT EXISTS idx_notification_checks_notification ON notification_checks(notification_id)`;
 	// Accounting: ingresos/gastos ledger
 	await sql`CREATE TABLE IF NOT EXISTS accounting_entries (
 		id SERIAL PRIMARY KEY,
