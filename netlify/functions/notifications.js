@@ -59,32 +59,54 @@ export async function handler(event) {
 					LIMIT 1
 				`;
 				
-				const sinceDate = lastVisit.length && lastVisit[0].visited_at 
-					? lastVisit[0].visited_at 
-					: new Date(0); // If no previous visit, show all notifications
-				
-				// Fetch notifications with enhanced information
-				const notifications = await sql`
-					SELECT 
-						n.id,
-						n.type,
-						n.seller_id,
-						n.sale_id,
-						n.sale_day_id,
-						n.message,
-						n.actor_name,
-						n.icon_url,
-						n.pay_method,
-						n.created_at,
-						s.name AS seller_name,
-						CASE WHEN nc.id IS NOT NULL THEN true ELSE false END AS is_checked
-					FROM notifications n
-					LEFT JOIN sellers s ON s.id = n.seller_id
-					LEFT JOIN notification_checks nc ON nc.notification_id = n.id 
-						AND lower(nc.checked_by) = lower(${actorName})
-					WHERE n.created_at >= ${sinceDate.toISOString()}
-					ORDER BY n.created_at DESC
-				`;
+				// Get notifications since last visit (or all if first visit)
+				let notifications;
+				if (lastVisit.length && lastVisit[0].visited_at) {
+					const since = lastVisit[0].visited_at;
+					notifications = await sql`
+						SELECT 
+							n.id,
+							n.type,
+							n.seller_id,
+							n.sale_id,
+							n.sale_day_id,
+							n.message,
+							n.actor_name,
+							n.icon_url,
+							n.pay_method,
+							n.created_at,
+							s.name AS seller_name,
+							CASE WHEN nc.id IS NOT NULL THEN true ELSE false END AS is_checked
+						FROM notifications n
+						LEFT JOIN sellers s ON s.id = n.seller_id
+						LEFT JOIN notification_checks nc ON nc.notification_id = n.id 
+							AND lower(nc.checked_by) = lower(${actorName})
+						WHERE n.created_at >= ${since}
+						ORDER BY n.created_at DESC
+					`;
+				} else {
+					// First visit, get all notifications
+					notifications = await sql`
+						SELECT 
+							n.id,
+							n.type,
+							n.seller_id,
+							n.sale_id,
+							n.sale_day_id,
+							n.message,
+							n.actor_name,
+							n.icon_url,
+							n.pay_method,
+							n.created_at,
+							s.name AS seller_name,
+							CASE WHEN nc.id IS NOT NULL THEN true ELSE false END AS is_checked
+						FROM notifications n
+						LEFT JOIN sellers s ON s.id = n.seller_id
+						LEFT JOIN notification_checks nc ON nc.notification_id = n.id 
+							AND lower(nc.checked_by) = lower(${actorName})
+						ORDER BY n.created_at DESC
+					`;
+				}
 				
 				// Also fetch detailed sale information for each notification
 				const enriched = [];

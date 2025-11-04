@@ -8469,7 +8469,7 @@ const NotificationCenter = {
 		this.btn = document.getElementById('notification-center-btn');
 		const closeBtn = document.getElementById('notif-center-close');
 
-		if (!this.modal || !this.body || !this.btn) return;
+		if (!this.modal || !this.body || !this.btn || !closeBtn) return;
 
 		// Show button only for superadmin
 		this.updateButtonVisibility();
@@ -8479,10 +8479,16 @@ const NotificationCenter = {
 		closeBtn.addEventListener('click', () => this.close());
 		
 		// Click backdrop to close
-		this.modal.querySelector('.notif-center-backdrop').addEventListener('click', () => this.close());
+		const backdrop = this.modal.querySelector('.notif-center-backdrop');
+		if (backdrop) {
+			backdrop.addEventListener('click', () => this.close());
+		}
 
 		// Prevent closing when clicking inside panel
-		this.modal.querySelector('.notif-center-panel').addEventListener('click', (e) => e.stopPropagation());
+		const panel = this.modal.querySelector('.notif-center-panel');
+		if (panel) {
+			panel.addEventListener('click', (e) => e.stopPropagation());
+		}
 	},
 
 	updateButtonVisibility() {
@@ -8540,15 +8546,22 @@ const NotificationCenter = {
 		const actor = encodeURIComponent(state.currentUser?.name || '');
 		if (!actor) return [];
 		
-		const response = await fetch(`/api/notifications?actor=${actor}`, {
-			headers: { 'X-Actor-Name': state.currentUser?.name || '' }
-		});
-		
-		if (!response.ok) {
-			throw new Error('Failed to fetch notifications');
+		try {
+			const response = await fetch(`/api/notifications?actor=${actor}`, {
+				headers: { 'X-Actor-Name': state.currentUser?.name || '' }
+			});
+			
+			if (!response.ok) {
+				const errorText = await response.text();
+				console.error('Error response:', response.status, errorText);
+				throw new Error(`Failed to fetch notifications: ${response.status}`);
+			}
+			
+			return await response.json();
+		} catch (error) {
+			console.error('Error in fetchNotifications:', error);
+			throw error;
 		}
-		
-		return await response.json();
 	},
 
 	render(notifications) {
@@ -8739,15 +8752,13 @@ const NotificationCenter = {
 
 // Initialize notification center when DOM is ready
 if (document.readyState === 'loading') {
-	document.addEventListener('DOMContentLoaded', () => NotificationCenter.init());
+	document.addEventListener('DOMContentLoaded', () => {
+		if (typeof NotificationCenter !== 'undefined') {
+			NotificationCenter.init();
+		}
+	});
 } else {
-	NotificationCenter.init();
+	if (typeof NotificationCenter !== 'undefined') {
+		NotificationCenter.init();
+	}
 }
-
-// Update button visibility when user changes
-const originalRenderSellerList = renderSellerList;
-renderSellerList = function() {
-	const result = originalRenderSellerList.apply(this, arguments);
-	setTimeout(() => NotificationCenter.updateButtonVisibility(), 0);
-	return result;
-};
