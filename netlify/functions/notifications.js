@@ -6,10 +6,11 @@ const APP_VERSION = '2.0.0'; // Updated to force reload of old polling code
 const VERSION_HEADER = 'X-App-Version';
 
 // Rate limiting cache to prevent excessive polling
-// Structure: Map<clientKey, { count: number, windowStart: timestamp, lastQuery: string }>
+// Structure: Map<clientKey, { count: number, windowStart: timestamp, lastQuery: string, blockedUntil: timestamp }>
 const requestCache = new Map();
 const RATE_LIMIT_WINDOW = 5000; // 5 seconds
 const MAX_REQUESTS_PER_WINDOW = 2; // Maximum 2 requests every 5 seconds
+const POLLING_BLOCK_DURATION = 300000; // Block polling clients for 5 minutes after detection
 const CACHE_CLEANUP_THRESHOLD = 1000; // Clean up cache when it grows too large
 
 function json(body, status = 200) {
@@ -50,15 +51,44 @@ export async function handler(event) {
 		}
 		
 		// 🚫 BLOCK POLLING: Stop all requests with after_id parameter (polling pattern)
-		// This catches any old clients that don't send version headers
+		// Return 503 Service Unavailable with exponential backoff
 		if (method === 'GET' && query.includes('after_id')) {
-			console.warn(`[NOTIFICATIONS] 🚫 BLOCKED POLLING | IP: ${ip} | Version: ${clientVersion} | Query: ${query}`);
-			return json({ 
-				error: 'polling_blocked',
-				message: 'Las notificaciones automáticas están deshabilitadas. Cerrando sesión...',
-				hint: 'Tu sesión se cerrará automáticamente para actualizar la aplicación.',
-				action: 'force_logout'
-			}, 403);
+			const now = Date.now();
+			const clientKey = `${ip}:polling`;
+			
+			// Track how many times we've seen this client
+			const clientData = requestCache.get(clientKey) || { count: 0, firstSeen: now };
+			clientData.count++;
+			clientData.lastSeen = now;
+			requestCache.set(clientKey, clientData);
+			
+			// Calculate exponential backoff: 30s, 60s, 120s, 240s, 480s, 600s (max 10 min)
+			const backoffSeconds = Math.min(600, 30 * Math.pow(2, Math.min(clientData.count - 1, 4)));
+			
+			console.error(`[NOTIFICATIONS] 🚫🛑 POLLING BLOCKED #${clientData.count} | IP: ${ip} | Backoff: ${backoffSeconds}s | Query: ${query}`);
+			
+			// Return 503 Service Unavailable with Retry-After header
+			// Most well-behaved clients will respect this and stop polling
+			return {
+				statusCode: 503, // Service Unavailable
+				headers: {
+					'Content-Type': 'application/json',
+					'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+					'Pragma': 'no-cache',
+					'Expires': '0',
+					'Retry-After': String(backoffSeconds),
+					'X-Polling-Blocked': 'true',
+					'X-Block-Count': String(clientData.count),
+					'X-Message': 'Polling no longer supported. Please reload your browser with Ctrl+Shift+R (or Cmd+Shift+R on Mac)'
+				},
+				body: JSON.stringify({
+					error: 'service_unavailable',
+					message: 'El sistema de notificaciones ha cambiado. Por favor recarga la página presionando Ctrl+Shift+R (o Cmd+Shift+R en Mac).',
+					retry_after: backoffSeconds,
+					polling_blocked: true,
+					count: clientData.count
+				})
+			};
 		}
 		
 		// 🛡️ RATE LIMITING: Prevent excessive polling
