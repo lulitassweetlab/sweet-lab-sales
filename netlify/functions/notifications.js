@@ -2,7 +2,7 @@ import { ensureSchema, sql } from './_db.js';
 
 // ⚙️ APP VERSION: Increment this to force all clients to reload
 // This helps invalidate old cached code that may still be polling
-const APP_VERSION = '2.2.0'; // Bumped to force hard reload for old cached clients
+const APP_VERSION = '2.3.0'; // Bumped to force hard reload for old cached clients
 const VERSION_HEADER = 'X-App-Version';
 
 // Rate limiting cache to prevent excessive polling

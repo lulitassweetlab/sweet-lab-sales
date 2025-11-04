@@ -71,7 +71,7 @@ El código actual en `app.js` NO incluye polling automático. Las notificaciones
 1. El usuario hace clic en el icono de notificaciones (single click)
 2. El usuario hace doble clic para abrir el centro de notificaciones
 
-Todo el código usa `fetchWithVersion()` que envía el header `X-App-Version: 2.0.0`, permitiendo al servidor identificar clientes actualizados.
+Todo el código usa `fetchWithVersion()` que envía el header `X-App-Version: 2.3.0` y consume la ruta segura `/api/notifications-v2`, permitiendo al servidor identificar clientes actualizados y mantener el path legacy bloqueado (`410 Gone`).
 
 ## Archivos Modificados
 - `netlify/functions/notifications.js`: Implementa detección y exponential backoff
