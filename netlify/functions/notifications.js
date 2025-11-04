@@ -51,7 +51,7 @@ export async function handler(event) {
 		}
 		
 		// 🚫 BLOCK POLLING: Stop all requests with after_id parameter (polling pattern)
-		// For clients without version header (old cached code), force reload with HTML/JS response
+		// For clients without version header (old cached code), return response that breaks the polling loop
 		if (method === 'GET' && query.includes('after_id')) {
 			const now = Date.now();
 			const clientKey = `${ip}:polling`;
@@ -67,46 +67,37 @@ export async function handler(event) {
 			
 			console.error(`[NOTIFICATIONS] 🚫🛑 POLLING BLOCKED #${clientData.count} | IP: ${ip} | Backoff: ${backoffSeconds}s | Query: ${query}`);
 			
-			// For clients without version (old cached code), force hard reload with HTML+JS
+			// For clients without version (old cached code), return invalid response to break polling
 			if (clientVersion === 'unknown') {
-				console.error(`[NOTIFICATIONS] 💥 FORCING HARD RELOAD for client without version | IP: ${ip}`);
+				console.error(`[NOTIFICATIONS] 💥 KILLING OLD CACHED CLIENT | IP: ${ip} | Count: ${clientData.count}`);
+				// Return a response that will cause the old client's fetch to throw an error
+				// This stops the polling loop completely
 				return {
-					statusCode: 200, // Use 200 so old client processes it
+					statusCode: 410, // Gone - resource permanently unavailable
 					headers: {
-						'Content-Type': 'text/html',
-						'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+						'Content-Type': 'text/plain',
+						'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
 						'Pragma': 'no-cache',
 						'Expires': '0',
-						'X-Force-Reload': 'true'
+						'X-Polling-Blocked': 'PERMANENT',
+						'X-Block-Count': String(clientData.count),
+						'X-Client-Action': 'HARD_RELOAD_REQUIRED'
 					},
-					body: `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<title>Actualización Requerida</title>
-<style>body{font-family:sans-serif;text-align:center;padding:50px;background:#f0f0f0;}</style>
-</head>
-<body>
-<h1>🔄 Actualización del Sistema</h1>
-<p>Se ha detectado una versión antigua del sistema.</p>
-<p><strong>Recargando automáticamente...</strong></p>
-<script>
-// Force immediate hard reload to clear cache
-setTimeout(function() {
-	if (window.location) {
-		// Clear all caches and force reload
-		if ('caches' in window) {
-			caches.keys().then(function(names) {
-				names.forEach(function(name) { caches.delete(name); });
-			});
-		}
-		// Force hard reload
-		window.location.reload(true);
-	}
-}, 100);
-</script>
-</body>
-</html>`
+					body: `POLLING_DISABLED
+					
+Este endpoint ya no soporta polling con after_id.
+Por favor recarga la página con Ctrl+Shift+R (Windows/Linux) o Cmd+Shift+R (Mac).
+
+Bloqueo #${clientData.count}
+IP: ${ip}
+Timestamp: ${new Date().toISOString()}
+
+Si este mensaje persiste, limpia completamente el cache del navegador:
+1. Cierra TODAS las pestañas de la aplicación
+2. Presiona Ctrl+Shift+Delete (o Cmd+Shift+Delete en Mac)
+3. Selecciona "Todo el tiempo" y marca "Imágenes y archivos en caché"
+4. Haz clic en "Eliminar datos"
+5. Vuelve a abrir la aplicación`
 				};
 			}
 			
