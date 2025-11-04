@@ -485,9 +485,6 @@ async function openEditClientNameDialog(currentName) {
 const APP_VERSION = '2.3.0'; // Bumped to force logout of legacy sessions
 const VERSION_HEADER = 'X-App-Version';
 
-// Notifications API endpoint (v2 blocks legacy polling path)
-const NOTIFICATIONS_API = '/api/notifications-v2';
-
 const API = {
 	Sellers: '/api/sellers',
 	Sales: '/api/sales',
@@ -520,74 +517,9 @@ const state = {
 	globalClientSuggestions: [], // Global client suggestions for header search
 };
 
-// Toasts and Notifications
+// Toasts (simple notifications)
 const notify = (() => {
 	const container = () => document.getElementById('toast-container');
-	const STORAGE_KEY = 'notify_log_v1';
-	const STORAGE_HIDE_KEY = 'notify_hide_ids_v1';
-		const STORAGE_FILTER_KEY = 'notify_seller_filter_id_v1';
-	let notifIcon = '/logo.png';
-	function buildPinkIcon() {
-		try {
-			const size = 128;
-			const c = document.createElement('canvas'); c.width = size; c.height = size;
-			const ctx = c.getContext('2d');
-			// background
-			ctx.fillStyle = '#ffffff';
-			ctx.fillRect(0, 0, size, size);
-			// pink rounded border
-			const r = 18; const pad = 6;
-			ctx.strokeStyle = '#d4567a';
-			ctx.lineWidth = 12;
-			ctx.beginPath();
-			const x=pad, y=pad, w=size-pad*2, h=size-pad*2;
-			ctx.moveTo(x+r, y);
-			ctx.arcTo(x+w, y, x+w, y+h, r);
-			ctx.arcTo(x+w, y+h, x, y+h, r);
-			ctx.arcTo(x, y+h, x, y, r);
-			ctx.arcTo(x, y, x+w, y, r);
-			ctx.closePath();
-			ctx.stroke();
-			notifIcon = c.toDataURL('image/png');
-		} catch {}
-	}
-	function readLog() {
-		try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
-	}
-	function writeLog(items) {
-		try { localStorage.setItem(STORAGE_KEY, JSON.stringify(items.slice(-200))); } catch {}
-		refreshUnreadDot();
-	}
-	function readHideSet() {
-		try {
-			const raw = JSON.parse(localStorage.getItem(STORAGE_HIDE_KEY) || '[]');
-			return new Set(Array.isArray(raw) ? raw : []);
-		} catch { return new Set(); }
-	}
-	function writeHideSet(set) {
-		try { localStorage.setItem(STORAGE_HIDE_KEY, JSON.stringify(Array.from(set))); } catch {}
-	}
-	function pushLog(entry) {
-		const list = readLog();
-		list.push({
-			id: Date.now() + '-' + Math.random().toString(36).slice(2),
-			when: new Date().toISOString(),
-			type: entry?.type || 'info',
-			text: String(entry?.text || ''),
-			read: false
-		});
-		writeLog(list);
-	}
-	function refreshUnreadDot() {
-		// IMPORTANT: This function ONLY reads from localStorage - NO API calls, NO network requests
-		// It just updates the visual indicator (red dot) based on local notification history
-		try {
-			const btn = document.getElementById('notif-toggle');
-			if (!btn) return;
-			const anyUnread = readLog().some(it => it && it.read === false);
-			btn.classList.toggle('has-unread', !!anyUnread);
-		} catch {}
-	}
 	function render(type, message, optsOrTimeout) {
 		const c = container();
 		if (!c) return;
@@ -603,7 +535,6 @@ const notify = (() => {
 		}
 		const n = document.createElement('div');
 		n.className = 'toast toast-' + (type || 'info');
-		const actorName = String((state?.currentSeller?.name || state?.currentUser?.name || '') || '');
 		const msg = document.createElement('div');
 		msg.className = 'toast-msg';
 		msg.textContent = String(message || '');
@@ -625,386 +556,11 @@ const notify = (() => {
 		} catch {}
 		c.appendChild(n);
 		if (timeoutMs > 0) setTimeout(() => dismiss(n), timeoutMs);
-		pushLog({ type, text: String(message || ''), actor: actorName });
 	}
 	function dismiss(node) {
 		if (!node || !node.parentNode) return;
 		node.style.animation = 'toast-out 140ms ease-in forwards';
 		setTimeout(() => { if (node.parentNode) node.parentNode.removeChild(node); }, 140);
-	}
-	async function ensurePermission() {
-		if (!('Notification' in window)) return 'unsupported';
-		if (Notification.permission === 'granted') return 'granted';
-		if (Notification.permission === 'denied') return 'denied';
-		try { return await Notification.requestPermission(); } catch { return 'denied'; }
-	}
-	function showBrowser(title, body) {
-		if (!('Notification' in window) || Notification.permission !== 'granted') return;
-		try {
-			const finalBody = String(body || '');
-			new Notification(String(title || 'Sweet Lab'), { body: finalBody, icon: notifIcon });
-		} catch {}
-	}
-	function initToggle() {
-		document.addEventListener('DOMContentLoaded', async () => {
-			buildPinkIcon();
-			const btn = document.getElementById('notif-toggle');
-			if (!btn) return;
-			const refresh = () => {
-				const ok = ('Notification' in window) && Notification.permission === 'granted';
-				btn.classList.toggle('enabled', !!ok);
-				btn.title = ok ? 'Notificaciones activas' : 'Activar notificaciones';
-			};
-			refresh();
-			let clickTimeout = null;
-			btn.addEventListener('click', async (ev) => {
-				ev.preventDefault();
-				if (clickTimeout) return; // double click detected
-			clickTimeout = setTimeout(async () => {
-				clickTimeout = null;
-				// Single click: fetch and show only unread toasts (don't mark as read)
-				// IMPORTANT: This is triggered ONLY by user click - NO automatic polling
-				try {
-					console.log('[Notifications] User clicked notification icon - fetching notifications');
-					const url = `${NOTIFICATIONS_API}?limit=50`;
-					const res = await fetchWithVersion(url);
-						if (res.ok) {
-							const data = await res.json();
-							if (Array.isArray(data)) {
-								// Filter only unread notifications (those without read_at)
-								const unread = data.filter(it => !it.read_at);
-								if (unread.length === 0) {
-									notify.info('No hay notificaciones nuevas');
-									return;
-								}
-								// Show up to 10 unread toasts
-								const toShow = unread.slice(0, 10);
-								for (const it of toShow) {
-									const msg = String(it.message || '');
-									const pm = (it.pay_method || '').toString();
-									const iconUrl = it.icon_url || (pm === 'efectivo' ? '/icons/bill.svg' : pm === 'transf' ? '/icons/bank.svg' : pm === 'jorgebank' ? '/icons/bank-yellow.svg' : pm === 'marce' ? '/icons/marce7.svg?v=1' : pm === 'jorge' ? '/icons/jorge7.svg?v=1' : null);
-									notify.info(msg, iconUrl || pm ? { iconUrl, payMethod: pm } : undefined);
-								}
-							}
-						}
-					} catch (err) {
-						console.error('Error fetching notifications for toasts:', err);
-					}
-				}, 300); // Wait for potential double click
-			});
-			btn.addEventListener('dblclick', async (ev) => {
-				ev.preventDefault();
-				if (clickTimeout) {
-					clearTimeout(clickTimeout);
-					clickTimeout = null;
-				}
-			// Double click: open notification center
-			// IMPORTANT: This is triggered ONLY by user double-click - NO automatic polling
-			console.log('[Notifications] User double-clicked notification icon - opening dialog');
-			openDialog(ev?.clientX, ev?.clientY);
-			});
-			refreshUnreadDot();
-		});
-	}
-	async function openDialog(anchorX, anchorY) {
-		// IMPORTANT: This dialog is opened ONLY by user action - NO automatic polling
-		const backdrop = document.createElement('div');
-		backdrop.className = 'notif-dialog-backdrop';
-		const dlg = document.createElement('div');
-		dlg.className = 'notif-dialog';
-		const header = document.createElement('div'); header.className = 'notif-header';
-		const title = document.createElement('div'); title.className = 'notif-title'; title.textContent = 'Notificaciones';
-		const actions = document.createElement('div'); actions.className = 'notif-actions';
-		const permBtn = document.createElement('button'); permBtn.className = 'notif-btn'; permBtn.textContent = 'Pedir permiso';
-		const clearBtn = document.createElement('button'); clearBtn.className = 'notif-btn'; clearBtn.textContent = 'Limpiar';
-		const closeBtn = document.createElement('button'); closeBtn.className = 'notif-close'; closeBtn.textContent = '✕';
-		actions.append(permBtn, clearBtn, closeBtn);
-		header.append(title, actions);
-		const body = document.createElement('div'); body.className = 'notif-body';
-		const toolbar = document.createElement('div'); toolbar.className = 'notif-toolbar';
-		const info = document.createElement('div'); info.style.fontSize = '12px'; info.style.opacity = '0.8'; info.textContent = 'Historial del servidor (más recientes primero)';
-		const loadMoreBtn = document.createElement('button'); loadMoreBtn.className = 'notif-btn'; loadMoreBtn.textContent = 'Cargar más';
-		// Superadmin-only seller/day filter
-		const isSuperAdmin = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
-		let sellerSelect = null;
-		let daySelect = null;
-		if (isSuperAdmin) {
-			sellerSelect = document.createElement('select');
-			sellerSelect.className = 'notif-seller-select';
-			sellerSelect.title = 'Filtrar por vendedor';
-			const optAll = document.createElement('option'); optAll.value = ''; optAll.textContent = 'Todos los vendedores';
-			sellerSelect.appendChild(optAll);
-			try {
-				const sellers = Array.isArray(state.sellers) && state.sellers.length ? state.sellers : await api('GET', API.Sellers);
-				for (const s of sellers) {
-					const opt = document.createElement('option');
-					opt.value = String(s.id);
-					opt.textContent = s.name;
-					sellerSelect.appendChild(opt);
-				}
-				// Restore saved selection
-				try {
-					const saved = localStorage.getItem(STORAGE_FILTER_KEY) || '';
-					if (saved) sellerSelect.value = saved;
-				} catch {}
-			} catch {}
-			// Day select depends on seller
-			daySelect = document.createElement('select');
-			daySelect.className = 'notif-day-select';
-			daySelect.title = 'Filtrar por fecha (tabla)';
-			const optAllDays = document.createElement('option'); optAllDays.value = ''; optAllDays.textContent = 'Todas las fechas';
-			daySelect.appendChild(optAllDays);
-			async function loadDaysForSelectedSeller() {
-				// Reset options
-				while (daySelect.options.length > 1) daySelect.remove(1);
-				const sid = sellerSelect.value;
-				if (!sid) { try { localStorage.removeItem('notify_day_filter_id_v1'); } catch {}; return; }
-				try {
-					const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(sid)}`);
-					for (const d of (days || [])) {
-						const opt = document.createElement('option');
-						opt.value = String(d.id);
-						opt.textContent = String(d.day).slice(0,10);
-						daySelect.appendChild(opt);
-					}
-
-					// Restore saved day for this seller
-					try {
-						const savedDay = localStorage.getItem('notify_day_filter_id_v1') || '';
-						if (savedDay) daySelect.value = savedDay;
-					} catch {}
-				} catch {}
-			}
-			sellerSelect.addEventListener('change', () => {
-				try { localStorage.setItem(STORAGE_FILTER_KEY, sellerSelect.value || ''); } catch {}
-				// Reset day filter on seller change
-				try { localStorage.removeItem('notify_day_filter_id_v1'); } catch {}
-				loadDaysForSelectedSeller();
-				fetchInitial();
-			});
-			daySelect.addEventListener('change', () => {
-				try { localStorage.setItem('notify_day_filter_id_v1', daySelect.value || ''); } catch {}
-				fetchInitial();
-			});
-			toolbar.append(sellerSelect);
-			toolbar.append(daySelect);
-			await loadDaysForSelectedSeller();
-		}
-		toolbar.append(info, loadMoreBtn);
-		const list = document.createElement('div'); list.className = 'notif-list';
-		let seenIds = new Set();
-		let minLoadedId = null; // track smallest id loaded (for before_id)
-		let serverMode = true;
-		function renderLocalList() {
-			list.innerHTML = '';
-			let data = [];
-			try { data = readLog(); } catch { data = []; }
-			if (!Array.isArray(data) || data.length === 0) {
-				const empty = document.createElement('div'); empty.className = 'notif-empty'; empty.textContent = 'Sin notificaciones'; list.appendChild(empty); return;
-			}
-			for (const it of data.slice(-200).reverse()) {
-				appendItem({
-					id: it.id,
-					when: it.when,
-					text: it.text,
-					isServer: false,
-					original: it
-				});
-			}
-		}
-		function appendItem(opts) {
-			const { id, when, text, isServer, original } = opts;
-			if (isServer) {
-				if (seenIds.has(id)) return; // de-dup
-				const hidden = readHideSet();
-				if (hidden.has(String(id))) return; // locally hidden
-				seenIds.add(id);
-				minLoadedId = (minLoadedId == null) ? id : Math.min(minLoadedId, id);
-			}
-			const item = document.createElement('div'); item.className = 'notif-item';
-			const isRead = isServer && original.read_at !== null && original.read_at !== undefined;
-			if (isRead) item.classList.add('notif-read');
-			
-			// Check if user is superadmin
-			const isSuperAdmin = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
-			
-			// Add checkbox for superadmin to mark as read (server-backed only)
-			let checkboxEl = null;
-			if (isServer && isSuperAdmin) {
-				checkboxEl = document.createElement('input');
-				checkboxEl.type = 'checkbox';
-				checkboxEl.className = 'notif-checkbox';
-				checkboxEl.checked = isRead;
-				checkboxEl.title = isRead ? 'Marcar como no leída' : 'Marcar como leída';
-				checkboxEl.addEventListener('click', async (e) => {
-					e.stopPropagation();
-					const newReadState = e.target.checked;
-					try {
-						const res = await fetchWithVersion(NOTIFICATIONS_API, {
-							method: 'PATCH',
-							headers: { 'Content-Type': 'application/json' },
-							body: JSON.stringify({ id: id, is_read: newReadState })
-						});
-						if (res.ok) {
-							// Update the visual state
-							if (newReadState) {
-								item.classList.add('notif-read');
-							} else {
-								item.classList.remove('notif-read');
-							}
-							checkboxEl.title = newReadState ? 'Marcar como no leída' : 'Marcar como leída';
-						} else {
-							// Revert checkbox on error
-							checkboxEl.checked = !newReadState;
-							notify.error('Error al actualizar notificación');
-						}
-					} catch (err) {
-						// Revert checkbox on error
-						checkboxEl.checked = !newReadState;
-						notify.error('Error al actualizar notificación');
-					}
-				});
-				item.style.gridTemplateColumns = 'auto 1fr auto';
-			} else {
-				item.style.gridTemplateColumns = '1fr auto';
-			}
-			
-			const whenEl = document.createElement('div'); whenEl.className = 'when';
-			const d = new Date(when); whenEl.textContent = isNaN(d.getTime()) ? String(when || '') : d.toLocaleString();
-			const textEl = document.createElement('div'); textEl.className = 'text';
-			// Optional icon if server provided icon_url or pay_method
-			if (isServer) {
-				try {
-					let url = original.icon_url || null;
-					const pm = (original.pay_method || '').toString();
-					if (!url && pm) {
-						url = pm === 'efectivo' ? '/icons/bill.svg' : pm === 'transf' ? '/icons/bank.svg' : pm === 'jorgebank' ? '/icons/bank-yellow.svg' : pm === 'marce' ? '/icons/marce7.svg?v=1' : pm === 'jorge' ? '/icons/jorge7.svg?v=1' : null;
-					}
-					if (url) {
-						const icon = document.createElement('span'); icon.className = 'notif-icon'; icon.style.backgroundImage = `url('${url}')`;
-						textEl.appendChild(icon);
-					}
-				} catch {}
-			}
-			const txt = document.createElement('span'); txt.textContent = String(text || '');
-			textEl.appendChild(txt);
-			
-			// Create delete button only for superadmin
-			let delBtn = null;
-			if (isSuperAdmin) {
-				delBtn = document.createElement('button');
-				delBtn.type = 'button';
-				delBtn.className = 'notif-del';
-				delBtn.title = 'Eliminar';
-				delBtn.setAttribute('aria-label', 'Eliminar');
-				delBtn.addEventListener('click', (e) => {
-					e.stopPropagation();
-					try {
-						if (isServer) {
-							const hidden = readHideSet(); hidden.add(String(id)); writeHideSet(hidden);
-							item.remove();
-						} else {
-							const all = (readLog() || []).filter(x => x && x.id !== id);
-							writeLog(all);
-							item.remove();
-						}
-					} catch {}
-				});
-			}
-			
-			if (checkboxEl && delBtn) {
-				item.append(checkboxEl, whenEl, delBtn, textEl);
-			} else if (checkboxEl) {
-				item.append(checkboxEl, whenEl, textEl);
-			} else if (delBtn) {
-				item.append(whenEl, delBtn, textEl);
-			} else {
-				item.append(whenEl, textEl);
-			}
-			textEl.style.gridColumn = checkboxEl ? '2 / -1' : '1 / -1';
-			if (isServer) {
-				item.style.cursor = 'pointer';
-				item.addEventListener('click', (e) => {
-					// Don't navigate if clicking on checkbox
-					if (e.target === checkboxEl) return;
-					// Deep link in a new tab so the dialog stays open
-					try {
-						const payload = {
-							sellerId: original.seller_id ?? original.sellerId ?? null,
-							saleDayId: original.sale_day_id ?? original.saleDay_id ?? original.sale_dayId ?? original.saleDayId ?? null,
-							saleId: original.sale_id ?? original.saleId ?? null
-						};
-						localStorage.setItem('pendingFocus', JSON.stringify(payload));
-					} catch {}
-					try { window.open('/', '_blank', 'noopener'); } catch {}
-				});
-			}
-			list.appendChild(item);
-		}
-		async function fetchInitial() {
-			// IMPORTANT: This is called ONLY when user opens the notification dialog - NO automatic polling
-			console.log('[Notifications] fetchInitial called from user action');
-			serverMode = true;
-			list.innerHTML = '';
-			seenIds = new Set();
-			minLoadedId = null;
-		try {
-	let url = `${NOTIFICATIONS_API}?limit=50`;
-			if (sellerSelect && sellerSelect.value) url += `&seller_id=${encodeURIComponent(sellerSelect.value)}`;
-			if (daySelect && daySelect.value) url += `&sale_day_id=${encodeURIComponent(daySelect.value)}`;
-			const res = await fetchWithVersion(url);
-				if (!res.ok) throw new Error('bad');
-				const data = await res.json();
-				if (!Array.isArray(data) || data.length === 0) throw new Error('empty');
-				for (const it of data) {
-					appendItem({ id: Number(it.id), when: it.created_at || it.when, text: it.message || it.text, isServer: true, original: it });
-				}
-			} catch {
-				serverMode = false;
-				renderLocalList();
-			}
-		}
-		async function loadMore() {
-			// IMPORTANT: This is called ONLY when user clicks "Cargar más" button - NO automatic polling
-			console.log('[Notifications] loadMore called from user action');
-			if (!serverMode || !minLoadedId) { renderLocalList(); return; }
-		try {
-	let url = `${NOTIFICATIONS_API}?before_id=${encodeURIComponent(minLoadedId)}&limit=100`;
-			if (sellerSelect && sellerSelect.value) url += `&seller_id=${encodeURIComponent(sellerSelect.value)}`;
-			if (daySelect && daySelect.value) url += `&sale_day_id=${encodeURIComponent(daySelect.value)}`;
-			const res = await fetchWithVersion(url);
-				if (!res.ok) return;
-				const data = await res.json();
-				if (!Array.isArray(data) || data.length === 0) return;
-				for (const it of data) {
-					appendItem({ id: Number(it.id), when: it.created_at || it.when, text: it.message || it.text, isServer: true, original: it });
-				}
-			} catch {}
-		}
-		body.append(toolbar, list);
-		dlg.append(header, body);
-		backdrop.appendChild(dlg);
-		document.body.appendChild(backdrop);
-		loadMoreBtn.addEventListener('click', () => { loadMore(); });
-		fetchInitial();
-		// mark all as read
-		try {
-			const data = readLog();
-			let changed = false;
-			for (const it of data) { if (it && it.read === false) { it.read = true; changed = true; } }
-			if (changed) writeLog(data);
-		} catch {}
-		function cleanup(){ if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop); }
-		backdrop.addEventListener('click', (e) => { if (e.target === backdrop) cleanup(); });
-		closeBtn.addEventListener('click', cleanup);
-		clearBtn.addEventListener('click', () => { writeLog([]); if (!serverMode) { renderLocalList(); } });
-		permBtn.addEventListener('click', async () => {
-			const res = await ensurePermission();
-			if (res === 'granted') { render('success', 'Notificaciones activadas'); showBrowser('Sweet Lab', 'Notificaciones activadas'); }
-			else if (res === 'denied') { render('error', 'Permiso de notificaciones denegado'); }
-			else { render('info', 'Notificaciones no disponibles'); }
-			const btn = document.getElementById('notif-toggle'); if (btn) { const ok = ('Notification' in window) && Notification.permission === 'granted'; btn.classList.toggle('enabled', !!ok); }
-		});
 	}
 	function loading(message) {
 		const c = container();
@@ -1023,7 +579,7 @@ const notify = (() => {
 			update: (newMessage) => { msg.textContent = String(newMessage || 'Cargando...'); }
 		};
 	}
-	return { info: (m,t)=>render('info',m,t), success: (m,t)=>render('success',m,t), error: (m,t)=>render('error',m,t), loading, showBrowser, ensurePermission, initToggle, openDialog };
+	return { info: (m,t)=>render('info',m,t), success: (m,t)=>render('success',m,t), error: (m,t)=>render('error',m,t), loading };
 })();
 
 // Theme management
@@ -1193,22 +749,10 @@ async function fetchWithVersion(url, options = {}) {
 	
 	const res = await fetch(url, { ...options, headers });
 	
-	// 🚫 STOP POLLING: If server returns 503 (Service Unavailable), force reload
-	// This stops old cached code that may still be polling
+	// Check for service unavailable
 	if (res.status === 503) {
-		console.error('[POLLING BLOCKED] Server returned 503 - forcing reload to stop polling');
-		try {
-			const data = await res.json();
-			if (data.polling_blocked || data.error === 'service_unavailable') {
-				forceLogoutAndReload('El sistema de notificaciones ha cambiado. Recargando...');
-				throw new Error('force_reload');
-			}
-		} catch (e) {
-			if (e.message === 'force_reload') throw e;
-			// If we can't parse JSON, still force reload on 503
-			forceLogoutAndReload('El sistema de notificaciones ha cambiado. Recargando...');
-			throw new Error('force_reload');
-		}
+		console.error('[API] Server returned 503 - service temporarily unavailable');
+		throw new Error('service_unavailable');
 	}
 	
 	// Check for version mismatch or forced logout
@@ -1503,8 +1047,6 @@ function applyAuthVisibility() {
 	const canDeliveries = isSuper || isAdminUser;
 	if (dessertsBtn) dessertsBtn.style.display = canDesserts ? 'inline-block' : 'none';
 	if (deliveriesBtn) deliveriesBtn.style.display = canDeliveries ? 'inline-block' : 'none';
-	const notifBtn = document.getElementById('notif-toggle');
-	if (notifBtn) notifBtn.style.display = isSuper ? 'inline-flex' : 'none';
 }
 
 // Load desserts from API (runs once per session)
@@ -3621,7 +3163,7 @@ async function deleteRow(id) {
     }
     await api('DELETE', `${API.Sales}?id=${encodeURIComponent(id)}&actor=${actor}`);
 	state.sales = state.sales.filter(s => s.id !== id);
-	// Show immediate local toast for feedback; global notification will also arrive via polling
+	// Show immediate local toast for feedback
 	if (prev) {
 		try {
 			let sellerName = '';
@@ -7605,8 +7147,8 @@ async function resolveSaleContextBySaleId(rowId) {
 	return null;
 }
 
-// Navigate from a notification to the exact sale row
-async function goToSaleFromNotification(sellerId, saleDayId, saleId) {
+// Navigate to exact sale row (used for deep linking)
+async function goToSaleFromDeepLink(sellerId, saleDayId, saleId) {
 	try {
 		let sid = Number(sellerId || 0) || null;
 		let dayId = Number(saleDayId || 0) || null;
@@ -8685,12 +8227,6 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 (async function init() {
 	bindEvents();
 	bindLogin();
-	notify.initToggle();
-	// Asegurar que el login siempre quede vinculado, incluso si las llamadas iniciales fallan
-	// (la restauración automática fue removida; se mantiene reporte bajo demanda)
-	// ⚠️ CRITICAL: NO automatic polling for notifications
-	// Notifications API is called ONLY when user explicitly clicks the notification icon
-	// All notification fetches are user-triggered actions - NO background requests
 	updateToolbarOffset();
 	try { const saved = localStorage.getItem('authUser'); if (saved) state.currentUser = JSON.parse(saved); } catch {}
 	// Backfill role fields if missing from older sessions
@@ -8704,7 +8240,7 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 	}
 	try { await loadSellers(); } catch { /* Ignorar error de red para no bloquear el login */ }
 	let __handledPendingFocus = false;
-	// Handle deep link focus coming from Transfers or Notifications (pendingFocus in localStorage)
+	// Handle deep link focus coming from Transfers (pendingFocus in localStorage)
 	try {
 		const saved = localStorage.getItem('pendingFocus');
 		if (saved) {

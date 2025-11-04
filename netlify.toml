@@ -3,15 +3,6 @@
   publish = "public"
 
 [[redirects]]
-  from = "/api/notifications"
-  status = 410
-
-[[redirects]]
-  from = "/api/notifications-v2"
-  to = "/.netlify/functions/notifications"
-  status = 200
-
-[[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
   status = 200
