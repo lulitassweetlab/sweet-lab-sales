@@ -137,7 +137,7 @@ export async function ensureSchema() {
 		is_archived BOOLEAN NOT NULL DEFAULT false,
 		UNIQUE (seller_id, day)
 	)`;
-	// Ensure delivered columns and is_archived exist for older deployments
+	// Ensure delivered columns, commissions_paid, and is_archived exist for older deployments
 	await sql`DO $$ BEGIN
 		IF NOT EXISTS (
 			SELECT 1 FROM information_schema.columns
@@ -168,6 +168,12 @@ export async function ensureSchema() {
 			WHERE table_name = 'sale_days' AND column_name = 'delivered_nute'
 		) THEN
 			ALTER TABLE sale_days ADD COLUMN delivered_nute INTEGER NOT NULL DEFAULT 0;
+		END IF;
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'sale_days' AND column_name = 'commissions_paid'
+		) THEN
+			ALTER TABLE sale_days ADD COLUMN commissions_paid INTEGER NOT NULL DEFAULT 0;
 		END IF;
 		IF NOT EXISTS (
 			SELECT 1 FROM information_schema.columns

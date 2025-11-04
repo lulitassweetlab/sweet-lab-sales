@@ -1834,6 +1834,90 @@ function wireDeliveredRowEditors() {
     }
 }
 
+function wireCommissionsPaidEditor() {
+    const isSuper = state?.currentUser?.role === 'superadmin' || !!state?.currentUser?.isSuperAdmin;
+    const el = document.getElementById('comm-paid-total');
+    if (!el) return;
+    
+    function selectAllContent(el) {
+        try {
+            const range = document.createRange();
+            range.selectNodeContents(el);
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+        } catch {}
+    }
+    
+    // Toggle contenteditable based on role
+    if (isSuper) {
+        if (!el.isContentEditable) el.setAttribute('contenteditable', 'true');
+        el.style.cursor = 'text';
+        el.title = 'Editar comisiones pagadas';
+    } else {
+        if (el.isContentEditable) el.removeAttribute('contenteditable');
+        el.style.cursor = 'default';
+        el.title = '';
+    }
+    
+    if (el.dataset.boundCommPaid === '1') return;
+    el.dataset.boundCommPaid = '1';
+    
+    // Store original formatted value
+    let originalValue = '';
+    
+    // On focus, convert formatted value to raw number for easier editing
+    el.addEventListener('focus', () => {
+        originalValue = el.textContent;
+        // Remove formatting (remove commas, spaces, etc.) to show raw number
+        const raw = (el.textContent || '').replace(/[^0-9]/g, '');
+        el.textContent = raw || '0';
+        selectAllContent(el);
+    });
+    
+    el.addEventListener('mouseup', (ev) => { ev.preventDefault(); selectAllContent(el); });
+    el.addEventListener('click', () => { selectAllContent(el); });
+    
+    // Sanitize input to numbers only while typing
+    el.addEventListener('input', () => {
+        if (!el.isContentEditable) return;
+        let raw = (el.textContent || '').replace(/[^0-9]/g, '');
+        // Remove leading zeros
+        raw = raw.replace(/^0+(\d)/, '$1');
+        el.textContent = raw || '0';
+    });
+    
+    // Save on Enter or blur
+    el.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter') { ev.preventDefault(); el.blur(); }
+        if (ev.key === 'Escape') { 
+            ev.preventDefault(); 
+            el.textContent = originalValue;
+            el.blur(); 
+        }
+    });
+    
+    el.addEventListener('blur', async () => {
+        if (!isSuper) return;
+        const dayId = state?.selectedDayId || null;
+        if (!dayId) { try { notify.error('Selecciona una fecha'); } catch {} return; }
+        const rawValue = (el.textContent || '').replace(/[^0-9]/g, '');
+        const value = Math.max(0, parseInt(rawValue, 10) || 0);
+        const payload = { id: dayId, actor_name: state.currentUser?.name || '', commissions_paid: value };
+        try {
+            const updated = await api('PUT', '/api/days', payload);
+            const idx = (state.saleDays || []).findIndex(d => d && d.id === dayId);
+            if (idx !== -1) state.saleDays[idx] = updated;
+            // Re-render to show formatted value
+            updateSummary();
+        } catch (e) {
+            try { notify.error('No se pudo guardar las comisiones pagadas'); } catch {}
+            // Restore original value on error
+            el.textContent = originalValue;
+        }
+    });
+}
+
 // New order popover: allow entering client and quantities before creating the row
 function attachClientSuggestionsPopover(inputEl) {
     try {
@@ -3289,14 +3373,56 @@ function updateSummary() {
 	const grandStr = fmtNo.format(grand);
 	$('#sum-grand').textContent = grandStr;
 	
-	// Commissions: only paid desserts * 1000
+	// Commissions: tiered rates based on paid desserts quantity
 	let paidTotalQty = 0;
 	for (const d of state.desserts) {
 		paidTotalQty += paidQtys[d.short_code] || 0;
 	}
-	const commStr = fmtNo.format(paidTotalQty * 1000);
+	
+	// Determine commission rate based on quantity
+	let commRate = 1000;
+	let commRateLabel = 'x 1000';
+	if (paidTotalQty >= 60) {
+		commRate = 1500;
+		commRateLabel = 'x 1500';
+	} else if (paidTotalQty >= 30) {
+		commRate = 1300;
+		commRateLabel = 'x 1300';
+	}
+	
+	const commGenerated = paidTotalQty * commRate;
+	const commStr = fmtNo.format(commGenerated);
 	const commEl = document.getElementById('sum-comm');
 	if (commEl) commEl.textContent = commStr;
+	
+	// Update commission label to show rate
+	const commLabelEl = document.querySelector('#footer-comm-row td.label');
+	if (commLabelEl) commLabelEl.textContent = `Comisiones generadas ${commRateLabel}`;
+	
+	// Comisiones pagadas (per day, editable solo por superadmin)
+	try {
+		const day = (state && Array.isArray(state.saleDays) && state.selectedDayId)
+			? (state.saleDays || []).find(d => d && d.id === state.selectedDayId)
+			: null;
+		
+		const commPaid = Number(day?.commissions_paid || 0) || 0;
+		const commPaidStr = fmtNo.format(commPaid);
+		const elCP = document.getElementById('comm-paid-total');
+		if (elCP) elCP.textContent = commPaidStr;
+		wireCommissionsPaidEditor();
+	} catch {}
+	
+	// Update stacked commission paid row (mobile)
+	requestAnimationFrame(() => {
+		const commPaidLine = document.getElementById('comm-paid-total-2');
+		if (commPaidLine) {
+			const day = (state && Array.isArray(state.saleDays) && state.selectedDayId)
+				? (state.saleDays || []).find(d => d && d.id === state.selectedDayId)
+				: null;
+			const commPaid = Number(day?.commissions_paid || 0) || 0;
+			commPaidLine.textContent = fmtNo.format(commPaid);
+		}
+	});
 	// Postres entregados (per day, editable solo por superadmin)
 	try {
 		const day = (state && Array.isArray(state.saleDays) && state.selectedDayId)
@@ -3334,6 +3460,10 @@ function updateSummary() {
 		if (grandLine) grandLine.textContent = grandStr;
 		const commLine = document.getElementById('sum-comm-2');
 		if (commLine) commLine.textContent = commStr;
+		
+		// Update stacked commission label
+		const commLabelStacked = document.querySelector('#footer-comm-row-2 .st-label');
+		if (commLabelStacked) commLabelStacked.textContent = `Comisiones generadas ${commRateLabel}`;
 	});
 }
 
