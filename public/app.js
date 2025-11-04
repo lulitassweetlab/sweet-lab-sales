@@ -481,6 +481,10 @@ async function openEditClientNameDialog(currentName) {
 	}
 }
 
+// ⚙️ APP VERSION: Must match backend version
+const APP_VERSION = '2.0.0';
+const VERSION_HEADER = 'X-App-Version';
+
 const API = {
 	Sellers: '/api/sellers',
 	Sales: '/api/sales',
@@ -660,7 +664,7 @@ const notify = (() => {
 				try {
 					console.log('[Notifications] User clicked notification icon - fetching notifications');
 					const url = '/api/notifications?limit=50';
-					const res = await fetch(url);
+					const res = await fetchWithVersion(url);
 						if (res.ok) {
 							const data = await res.json();
 							if (Array.isArray(data)) {
@@ -832,12 +836,12 @@ const notify = (() => {
 				checkboxEl.addEventListener('click', async (e) => {
 					e.stopPropagation();
 					const newReadState = e.target.checked;
-					try {
-						const res = await fetch('/api/notifications', {
-							method: 'PATCH',
-							headers: { 'Content-Type': 'application/json' },
-							body: JSON.stringify({ id: id, is_read: newReadState })
-						});
+				try {
+					const res = await fetchWithVersion('/api/notifications', {
+						method: 'PATCH',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ id: id, is_read: newReadState })
+					});
 						if (res.ok) {
 							// Update the visual state
 							if (newReadState) {
@@ -941,11 +945,11 @@ const notify = (() => {
 			list.innerHTML = '';
 			seenIds = new Set();
 			minLoadedId = null;
-			try {
-				let url = '/api/notifications?limit=50';
-				if (sellerSelect && sellerSelect.value) url += `&seller_id=${encodeURIComponent(sellerSelect.value)}`;
-				if (daySelect && daySelect.value) url += `&sale_day_id=${encodeURIComponent(daySelect.value)}`;
-				const res = await fetch(url);
+		try {
+			let url = '/api/notifications?limit=50';
+			if (sellerSelect && sellerSelect.value) url += `&seller_id=${encodeURIComponent(sellerSelect.value)}`;
+			if (daySelect && daySelect.value) url += `&sale_day_id=${encodeURIComponent(daySelect.value)}`;
+			const res = await fetchWithVersion(url);
 				if (!res.ok) throw new Error('bad');
 				const data = await res.json();
 				if (!Array.isArray(data) || data.length === 0) throw new Error('empty');
@@ -961,11 +965,11 @@ const notify = (() => {
 			// IMPORTANT: This is called ONLY when user clicks "Cargar más" button - NO automatic polling
 			console.log('[Notifications] loadMore called from user action');
 			if (!serverMode || !minLoadedId) { renderLocalList(); return; }
-			try {
-				let url = `/api/notifications?before_id=${encodeURIComponent(minLoadedId)}&limit=100`;
-				if (sellerSelect && sellerSelect.value) url += `&seller_id=${encodeURIComponent(sellerSelect.value)}`;
-				if (daySelect && daySelect.value) url += `&sale_day_id=${encodeURIComponent(daySelect.value)}`;
-				const res = await fetch(url);
+		try {
+			let url = `/api/notifications?before_id=${encodeURIComponent(minLoadedId)}&limit=100`;
+			if (sellerSelect && sellerSelect.value) url += `&seller_id=${encodeURIComponent(sellerSelect.value)}`;
+			if (daySelect && daySelect.value) url += `&sale_day_id=${encodeURIComponent(daySelect.value)}`;
+			const res = await fetchWithVersion(url);
 				if (!res.ok) return;
 				const data = await res.json();
 				if (!Array.isArray(data) || data.length === 0) return;
@@ -1167,16 +1171,64 @@ function el(tag, attrs = {}, ...children) {
 	return node;
 }
 
+// Force logout and reload
+function forceLogoutAndReload(reason = 'Sesión expirada') {
+	console.warn('[AUTH] Forcing logout:', reason);
+	try { localStorage.clear(); } catch {}
+	state.currentUser = null;
+	state.currentSeller = null;
+	alert(reason + '\n\nLa página se recargará para actualizar la aplicación.');
+	window.location.reload(true); // Force reload from server
+}
+
+// Helper function for fetch with version header and error handling
+async function fetchWithVersion(url, options = {}) {
+	const headers = {
+		...options.headers,
+		[VERSION_HEADER]: APP_VERSION
+	};
+	
+	const res = await fetch(url, { ...options, headers });
+	
+	// Check for version mismatch or forced logout
+	if (res.status === 426 || res.status === 403) {
+		try {
+			const data = await res.json();
+			if (data.action === 'force_reload' || data.action === 'force_logout') {
+				forceLogoutAndReload(data.message || 'Tu aplicación está desactualizada');
+				throw new Error('force_reload'); // Prevent further execution
+			}
+		} catch (e) {
+			if (e.message === 'force_reload') throw e;
+		}
+	}
+	
+	return res;
+}
+
 async function api(method, url, body) {
     const actor = (state?.currentUser?.name || state?.currentUser?.username || '').toString();
     const res = await fetch(url, {
         method,
         headers: {
             'Content-Type': 'application/json',
+            [VERSION_HEADER]: APP_VERSION,
             ...(actor ? { 'X-Actor-Name': actor } : {})
         },
         body: body ? JSON.stringify(body) : undefined,
     });
+	
+	// Check for version mismatch or forced logout
+	if (res.status === 426 || res.status === 403) {
+		try {
+			const data = await res.json();
+			if (data.action === 'force_reload' || data.action === 'force_logout') {
+				forceLogoutAndReload(data.message || 'Tu aplicación está desactualizada');
+				return; // Prevent further execution
+			}
+		} catch {}
+	}
+	
 	if (!res.ok) {
 		const text = await res.text();
 		throw new Error(`API ${method} ${url} failed: ${res.status} ${text}`);
