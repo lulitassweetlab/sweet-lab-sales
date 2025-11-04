@@ -482,7 +482,7 @@ async function openEditClientNameDialog(currentName) {
 }
 
 // ⚙️ APP VERSION: Must match backend version
-const APP_VERSION = '2.0.0';
+const APP_VERSION = '2.1.0'; // Bumped to force reload and stop polling
 const VERSION_HEADER = 'X-App-Version';
 
 const API = {
@@ -1189,6 +1189,24 @@ async function fetchWithVersion(url, options = {}) {
 	};
 	
 	const res = await fetch(url, { ...options, headers });
+	
+	// 🚫 STOP POLLING: If server returns 503 (Service Unavailable), force reload
+	// This stops old cached code that may still be polling
+	if (res.status === 503) {
+		console.error('[POLLING BLOCKED] Server returned 503 - forcing reload to stop polling');
+		try {
+			const data = await res.json();
+			if (data.polling_blocked || data.error === 'service_unavailable') {
+				forceLogoutAndReload('El sistema de notificaciones ha cambiado. Recargando...');
+				throw new Error('force_reload');
+			}
+		} catch (e) {
+			if (e.message === 'force_reload') throw e;
+			// If we can't parse JSON, still force reload on 503
+			forceLogoutAndReload('El sistema de notificaciones ha cambiado. Recargando...');
+			throw new Error('force_reload');
+		}
+	}
 	
 	// Check for version mismatch or forced logout
 	if (res.status === 426 || res.status === 403) {
