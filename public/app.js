@@ -482,7 +482,7 @@ async function openEditClientNameDialog(currentName) {
 }
 
 // ⚙️ APP VERSION: Must match backend version
-const APP_VERSION = '2.1.0'; // Bumped to force reload and stop polling
+const APP_VERSION = '2.2.0'; // Bumped to match server and stop polling
 const VERSION_HEADER = 'X-App-Version';
 
 const API = {
