@@ -3400,47 +3400,28 @@ function updateSummary() {
 	if (commLabelEl) commLabelEl.textContent = `Comisiones generadas ${commRateLabel}`;
 	
 	// Comisiones pagadas (per day, editable solo por superadmin)
-	try {
-		const day = (state && Array.isArray(state.saleDays) && state.selectedDayId)
-			? (state.saleDays || []).find(d => d && d.id === state.selectedDayId)
-			: null;
-		
-		const commPaid = Number(day?.commissions_paid || 0) || 0;
-		const commPaidStr = fmtNo.format(commPaid);
-		const elCP = document.getElementById('comm-paid-total');
-		if (elCP) elCP.textContent = commPaidStr;
-		wireCommissionsPaidEditor();
-	} catch {}
+	const day = (state && Array.isArray(state.saleDays) && state.selectedDayId)
+		? (state.saleDays || []).find(d => d && d.id === state.selectedDayId)
+		: null;
 	
-	// Update stacked commission paid row (mobile)
-	requestAnimationFrame(() => {
-		const commPaidLine = document.getElementById('comm-paid-total-2');
-		if (commPaidLine) {
-			const day = (state && Array.isArray(state.saleDays) && state.selectedDayId)
-				? (state.saleDays || []).find(d => d && d.id === state.selectedDayId)
-				: null;
-			const commPaid = Number(day?.commissions_paid || 0) || 0;
-			commPaidLine.textContent = fmtNo.format(commPaid);
-		}
-	});
+	const commPaid = Number(day?.commissions_paid || 0) || 0;
+	const commPaidStr = fmtNo.format(commPaid);
+	const elCP = document.getElementById('comm-paid-total');
+	if (elCP) elCP.textContent = commPaidStr;
+	wireCommissionsPaidEditor();
+	
 	// Postres entregados (per day, editable solo por superadmin)
-	try {
-		const day = (state && Array.isArray(state.saleDays) && state.selectedDayId)
-			? (state.saleDays || []).find(d => d && d.id === state.selectedDayId)
-			: null;
-		
-		let totalDelivered = 0;
-		for (const d of state.desserts) {
-			const delivered = Number(day?.[`delivered_${d.short_code}`] || 0) || 0;
-			totalDelivered += delivered;
-			const elD = document.getElementById(`deliv-${d.short_code}`);
-			if (elD) elD.textContent = String(delivered);
-		}
-		
-		const elDt = document.getElementById('deliv-total');
-		if (elDt) elDt.textContent = String(totalDelivered);
-		wireDeliveredRowEditors();
-	} catch {}
+	let totalDelivered = 0;
+	for (const d of state.desserts) {
+		const delivered = Number(day?.[`delivered_${d.short_code}`] || 0) || 0;
+		totalDelivered += delivered;
+		const elD = document.getElementById(`deliv-${d.short_code}`);
+		if (elD) elD.textContent = String(delivered);
+	}
+	
+	const elDt = document.getElementById('deliv-total');
+	if (elDt) elDt.textContent = String(totalDelivered);
+	wireDeliveredRowEditors();
 	// Decide whether to stack totals to avoid overlap on small screens
 	requestAnimationFrame(() => {
 		const table = document.getElementById('sales-table');
@@ -3464,6 +3445,10 @@ function updateSummary() {
 		// Update stacked commission label
 		const commLabelStacked = document.querySelector('#footer-comm-row-2 .st-label');
 		if (commLabelStacked) commLabelStacked.textContent = `Comisiones generadas ${commRateLabel}`;
+		
+		// Update stacked commission paid row (mobile)
+		const commPaidLine = document.getElementById('comm-paid-total-2');
+		if (commPaidLine) commPaidLine.textContent = commPaidStr;
 	});
 }
 
