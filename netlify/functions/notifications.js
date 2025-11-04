@@ -2,7 +2,7 @@ import { ensureSchema, sql } from './_db.js';
 
 // ⚙️ APP VERSION: Increment this to force all clients to reload
 // This helps invalidate old cached code that may still be polling
-const APP_VERSION = '2.1.0'; // Bumped to force reload and stop polling (handles 503 responses)
+const APP_VERSION = '2.2.0'; // Bumped to force hard reload for old cached clients
 const VERSION_HEADER = 'X-App-Version';
 
 // Rate limiting cache to prevent excessive polling
@@ -51,7 +51,7 @@ export async function handler(event) {
 		}
 		
 		// 🚫 BLOCK POLLING: Stop all requests with after_id parameter (polling pattern)
-		// Return 503 Service Unavailable with exponential backoff
+		// For clients without version header (old cached code), force reload with HTML/JS response
 		if (method === 'GET' && query.includes('after_id')) {
 			const now = Date.now();
 			const clientKey = `${ip}:polling`;
@@ -67,8 +67,50 @@ export async function handler(event) {
 			
 			console.error(`[NOTIFICATIONS] 🚫🛑 POLLING BLOCKED #${clientData.count} | IP: ${ip} | Backoff: ${backoffSeconds}s | Query: ${query}`);
 			
-			// Return 503 Service Unavailable with Retry-After header
-			// Most well-behaved clients will respect this and stop polling
+			// For clients without version (old cached code), force hard reload with HTML+JS
+			if (clientVersion === 'unknown') {
+				console.error(`[NOTIFICATIONS] 💥 FORCING HARD RELOAD for client without version | IP: ${ip}`);
+				return {
+					statusCode: 200, // Use 200 so old client processes it
+					headers: {
+						'Content-Type': 'text/html',
+						'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+						'Pragma': 'no-cache',
+						'Expires': '0',
+						'X-Force-Reload': 'true'
+					},
+					body: `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Actualización Requerida</title>
+<style>body{font-family:sans-serif;text-align:center;padding:50px;background:#f0f0f0;}</style>
+</head>
+<body>
+<h1>🔄 Actualización del Sistema</h1>
+<p>Se ha detectado una versión antigua del sistema.</p>
+<p><strong>Recargando automáticamente...</strong></p>
+<script>
+// Force immediate hard reload to clear cache
+setTimeout(function() {
+	if (window.location) {
+		// Clear all caches and force reload
+		if ('caches' in window) {
+			caches.keys().then(function(names) {
+				names.forEach(function(name) { caches.delete(name); });
+			});
+		}
+		// Force hard reload
+		window.location.reload(true);
+	}
+}, 100);
+</script>
+</body>
+</html>`
+				};
+			}
+			
+			// For newer clients with version header, return JSON error
 			return {
 				statusCode: 503, // Service Unavailable
 				headers: {
