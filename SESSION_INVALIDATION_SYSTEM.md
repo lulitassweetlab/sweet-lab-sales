@@ -19,14 +19,15 @@ Los logs mostraban requests de polling cada 3 segundos desde la IP `190.248.131.
 
 Se agregó:
 
-- **Constante de versión**: `APP_VERSION = '2.0.0'`
+- **Constante de versión**: `APP_VERSION = '2.3.0'`
 - **Header HTTP**: `X-App-Version` en todas las respuestas
 - **Validación de versión**: Detecta clientes desactualizados y retorna HTTP 426 (Upgrade Required)
-- **Bloqueo de polling**: Requests con `after_id` retornan HTTP 403 con acción `force_logout`
+- **Bloqueo de polling**: Requests con `after_id` retornan HTTP 503 con encabezado `Retry-After` y acción `force_logout`
+- **Ruta v2**: El frontend usa `/api/notifications-v2`; la ruta legacy `/api/notifications` ahora devuelve `410 Gone` sin invocar la función
 
 ```javascript
 // ⚙️ APP VERSION: Increment this to force all clients to reload
-const APP_VERSION = '2.0.0';
+const APP_VERSION = '2.3.0';
 const VERSION_HEADER = 'X-App-Version';
 
 // 🔄 VERSION CHECK: Force reload for outdated clients
@@ -48,23 +49,25 @@ if (method === 'GET' && query.includes('after_id')) {
         error: 'polling_blocked',
         message: 'Las notificaciones automáticas están deshabilitadas. Cerrando sesión...',
         action: 'force_logout'
-    }, 403);
+    }, 503);
 }
 ```
+
+> Nota: En producción los clientes sin header de versión reciben `410 Gone` en texto plano para romper el bucle de polling, mientras que los clientes modernos reciben `503 Service Unavailable` con `Retry-After` exponencial.
 
 ### 2. Frontend: Cliente Versionado (`app.js`)
 
 Se agregó:
 
-- **Constante de versión**: `APP_VERSION = '2.0.0'` (debe coincidir con backend)
+- **Constante de versión**: `APP_VERSION = '2.3.0'` (debe coincidir con backend)
 - **Función `forceLogoutAndReload()`**: Limpia localStorage, cierra sesión y recarga la página
 - **Función `fetchWithVersion()`**: Helper que envía el header de versión y maneja errores de versión
 - **Header automático**: Se envía `X-App-Version` en todas las requests
-- **Detección de respuestas**: HTTP 426 o 403 con `action: 'force_reload'/'force_logout'`
+- **Detección de respuestas**: HTTP 426, 503 o 403 con `action: 'force_reload'/'force_logout'`
 
 ```javascript
 // ⚙️ APP VERSION: Must match backend version
-const APP_VERSION = '2.0.0';
+const APP_VERSION = '2.3.0';
 const VERSION_HEADER = 'X-App-Version';
 
 // Force logout and reload
@@ -87,6 +90,21 @@ async function fetchWithVersion(url, options = {}) {
     const res = await fetch(url, { ...options, headers });
     
     // Check for version mismatch or forced logout
+    if (res.status === 503) {
+        console.error('[POLLING BLOCKED] Server returned 503 - forcing reload');
+        try {
+            const data = await res.json();
+            if (data.polling_blocked || data.error === 'service_unavailable') {
+                forceLogoutAndReload(data.message || 'Tu aplicación está desactualizada');
+                throw new Error('force_reload');
+            }
+        } catch (e) {
+            if (e.message === 'force_reload') throw e;
+            forceLogoutAndReload('Tu aplicación está desactualizada');
+            throw new Error('force_reload');
+        }
+    }
+
     if (res.status === 426 || res.status === 403) {
         try {
             const data = await res.json();
@@ -114,15 +132,15 @@ async function fetchWithVersion(url, options = {}) {
 
 ## 🎯 Comportamiento Esperado
 
-### Cliente Actualizado (v2.0.0)
-1. Envía `X-App-Version: 2.0.0` en todas las requests
+### Cliente Actualizado (v2.3.0)
+1. Envía `X-App-Version: 2.3.0` en todas las requests
 2. Backend valida y acepta las requests
 3. Funciona normalmente
 
 ### Cliente Desactualizado (v1.x o sin versión)
 1. **Escenario A**: Cliente antiguo con código de polling activo
    - Intenta hacer request con `after_id=XXX`
-   - Backend retorna HTTP 403 con `action: 'force_logout'`
+   - Backend retorna HTTP 503 con `action: 'force_logout'` y `Retry-After`
    - Cliente moderno detecta y ejecuta `forceLogoutAndReload()`
    - Cliente antiguo recibe error y deja de funcionar
 
@@ -130,15 +148,15 @@ async function fetchWithVersion(url, options = {}) {
    - Envía `X-App-Version: 1.0.0` (o no envía header)
    - Backend retorna HTTP 426 con `action: 'force_reload'`
    - Cliente detecta y ejecuta `forceLogoutAndReload()`
-   - Usuario ve mensaje: "Tu aplicación está desactualizada. La página se recargará..."
-   - Página se recarga y obtiene código v2.0.0 actualizado
+     - Usuario ve mensaje: "Tu aplicación está desactualizada. La página se recargará..."
+     - Página se recarga y obtiene código v2.3.0 actualizado
 
 ## 🚀 Despliegue
 
 ### Pasos para Activar
 
-1. **Desplegar el backend actualizado** (`notifications.js` con `APP_VERSION = '2.0.0'`)
-2. **Desplegar el frontend actualizado** (`app.js` con `APP_VERSION = '2.0.0'`)
+1. **Desplegar el backend actualizado** (`notifications.js` con `APP_VERSION = '2.3.0'`)
+2. **Desplegar el frontend actualizado** (`app.js` con `APP_VERSION = '2.3.0'`)
 3. Los clientes actualizados comenzarán a enviar la versión en sus requests
 4. Los clientes desactualizados recibirán error y se forzará su recarga
 
@@ -150,7 +168,7 @@ Cuando necesites forzar recarga de todos los clientes:
    - `netlify/functions/notifications.js`
    - `public/app.js`
    
-2. Ejemplo: `'2.0.0'` → `'2.1.0'`
+2. Ejemplo: `'2.3.0'` → `'2.4.0'`
 
 3. Desplegar ambos archivos
 
@@ -165,12 +183,12 @@ Cuando necesites forzar recarga de todos los clientes:
 
 ### Después (Cliente Actualizado)
 ```
-[NOTIFICATIONS] 2025-11-04T00:01:44.621Z | GET | IP: 190.248.131.174 | Version: 2.0.0 | Query: limit=50
+[NOTIFICATIONS] 2025-11-04T00:01:44.621Z | GET | IP: 190.248.131.174 | Version: 2.3.0 | Query: limit=50
 ```
 
 ### Cliente Siendo Forzado a Actualizar
 ```
-[NOTIFICATIONS] ⚠️ OUTDATED CLIENT | IP: 190.248.131.174 | Client: 1.0.0 | Current: 2.0.0
+[NOTIFICATIONS] ⚠️ OUTDATED CLIENT | IP: 190.248.131.174 | Client: 1.0.0 | Current: 2.3.0
 ```
 
 ## 🔒 Seguridad
@@ -194,16 +212,16 @@ Para probar el sistema:
 1. **Simular cliente desactualizado**:
    - En consola del navegador: `localStorage.setItem('testOldVersion', '1.0.0')`
    - Modificar temporalmente `APP_VERSION` en el código local a `'1.0.0'`
-   - Hacer una request a `/api/notifications`
+   - Hacer una request a `/api/notifications-v2`
    - Debería forzar recarga
 
 2. **Simular polling bloqueado**:
-   - Intentar hacer request a `/api/notifications?after_id=123`
-   - Debería retornar HTTP 403 con acción de logout
+   - Intentar hacer request a `/api/notifications-v2?after_id=123`
+   - Debería retornar HTTP 503 con acción de logout y header `Retry-After`
 
 3. **Verificar cliente actualizado**:
-   - Hacer request normal a `/api/notifications`
-   - En DevTools > Network, verificar que se envía header `X-App-Version: 2.0.0`
+   - Hacer request normal a `/api/notifications-v2`
+   - En DevTools > Network, verificar que se envía header `X-App-Version: 2.3.0`
    - Request debería completarse exitosamente
 
 ## 🎉 Resultado Final

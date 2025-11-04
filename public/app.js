@@ -482,8 +482,11 @@ async function openEditClientNameDialog(currentName) {
 }
 
 // ⚙️ APP VERSION: Must match backend version
-const APP_VERSION = '2.2.0'; // Bumped to match server and stop polling
+const APP_VERSION = '2.3.0'; // Bumped to force logout of legacy sessions
 const VERSION_HEADER = 'X-App-Version';
+
+// Notifications API endpoint (v2 blocks legacy polling path)
+const NOTIFICATIONS_API = '/api/notifications-v2';
 
 const API = {
 	Sellers: '/api/sellers',
@@ -663,7 +666,7 @@ const notify = (() => {
 				// IMPORTANT: This is triggered ONLY by user click - NO automatic polling
 				try {
 					console.log('[Notifications] User clicked notification icon - fetching notifications');
-					const url = '/api/notifications?limit=50';
+					const url = `${NOTIFICATIONS_API}?limit=50`;
 					const res = await fetchWithVersion(url);
 						if (res.ok) {
 							const data = await res.json();
@@ -836,12 +839,12 @@ const notify = (() => {
 				checkboxEl.addEventListener('click', async (e) => {
 					e.stopPropagation();
 					const newReadState = e.target.checked;
-				try {
-					const res = await fetchWithVersion('/api/notifications', {
-						method: 'PATCH',
-						headers: { 'Content-Type': 'application/json' },
-						body: JSON.stringify({ id: id, is_read: newReadState })
-					});
+					try {
+						const res = await fetchWithVersion(NOTIFICATIONS_API, {
+							method: 'PATCH',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({ id: id, is_read: newReadState })
+						});
 						if (res.ok) {
 							// Update the visual state
 							if (newReadState) {
@@ -946,7 +949,7 @@ const notify = (() => {
 			seenIds = new Set();
 			minLoadedId = null;
 		try {
-			let url = '/api/notifications?limit=50';
+	let url = `${NOTIFICATIONS_API}?limit=50`;
 			if (sellerSelect && sellerSelect.value) url += `&seller_id=${encodeURIComponent(sellerSelect.value)}`;
 			if (daySelect && daySelect.value) url += `&sale_day_id=${encodeURIComponent(daySelect.value)}`;
 			const res = await fetchWithVersion(url);
@@ -966,7 +969,7 @@ const notify = (() => {
 			console.log('[Notifications] loadMore called from user action');
 			if (!serverMode || !minLoadedId) { renderLocalList(); return; }
 		try {
-			let url = `/api/notifications?before_id=${encodeURIComponent(minLoadedId)}&limit=100`;
+	let url = `${NOTIFICATIONS_API}?before_id=${encodeURIComponent(minLoadedId)}&limit=100`;
 			if (sellerSelect && sellerSelect.value) url += `&seller_id=${encodeURIComponent(sellerSelect.value)}`;
 			if (daySelect && daySelect.value) url += `&sale_day_id=${encodeURIComponent(daySelect.value)}`;
 			const res = await fetchWithVersion(url);
