@@ -1,5 +1,10 @@
 import { ensureSchema, sql } from './_db.js';
 
+// ⚙️ APP VERSION: Increment this to force all clients to reload
+// This helps invalidate old cached code that may still be polling
+const APP_VERSION = '2.0.0'; // Updated to force reload of old polling code
+const VERSION_HEADER = 'X-App-Version';
+
 // Rate limiting cache to prevent excessive polling
 // Structure: Map<clientKey, { count: number, windowStart: timestamp, lastQuery: string }>
 const requestCache = new Map();
@@ -12,7 +17,8 @@ function json(body, status = 200) {
 	const headers = {
 		'Content-Type': 'application/json',
 		'Cache-Control': 'no-cache, no-store, must-revalidate',
-		'X-Invocation-Time': new Date().toISOString()
+		'X-Invocation-Time': new Date().toISOString(),
+		[VERSION_HEADER]: APP_VERSION
 	};
 	return { statusCode: status, headers, body: JSON.stringify(body) };
 }
@@ -26,17 +32,32 @@ export async function handler(event) {
 		const referer = event.headers['referer'] || 'none';
 		const method = event.httpMethod;
 		const query = event.rawQuery || '';
+		const clientVersion = event.headers[VERSION_HEADER.toLowerCase()] || event.headers[VERSION_HEADER] || 'unknown';
 		
-		console.log(`[NOTIFICATIONS] ${timestamp} | ${method} | IP: ${ip} | UA: ${userAgent} | Referer: ${referer} | Query: ${query}`);
+		console.log(`[NOTIFICATIONS] ${timestamp} | ${method} | IP: ${ip} | Version: ${clientVersion} | Query: ${query}`);
+		
+		// 🔄 VERSION CHECK: Force reload for outdated clients
+		// This ensures old cached code with polling is replaced
+		if (clientVersion !== 'unknown' && clientVersion !== APP_VERSION) {
+			console.warn(`[NOTIFICATIONS] ⚠️ OUTDATED CLIENT | IP: ${ip} | Client: ${clientVersion} | Current: ${APP_VERSION}`);
+			return json({
+				error: 'version_outdated',
+				message: 'Tu aplicación está desactualizada. Por favor recarga la página.',
+				current_version: APP_VERSION,
+				client_version: clientVersion,
+				action: 'force_reload'
+			}, 426); // 426 Upgrade Required
+		}
 		
 		// 🚫 BLOCK POLLING: Stop all requests with after_id parameter (polling pattern)
-		// This is a temporary measure to stop persistent polling until frontend is completely fixed
+		// This catches any old clients that don't send version headers
 		if (method === 'GET' && query.includes('after_id')) {
-			console.warn(`[NOTIFICATIONS] 🚫 BLOCKED POLLING REQUEST | IP: ${ip} | Query: ${query}`);
+			console.warn(`[NOTIFICATIONS] 🚫 BLOCKED POLLING | IP: ${ip} | Version: ${clientVersion} | Query: ${query}`);
 			return json({ 
-				error: 'Polling bloqueado',
-				message: 'Las notificaciones automáticas están deshabilitadas. Por favor, limpia el caché de tu navegador y recarga la página.',
-				hint: 'Presiona Ctrl+Shift+R (Windows/Linux) o Cmd+Shift+R (Mac) para recargar sin caché.'
+				error: 'polling_blocked',
+				message: 'Las notificaciones automáticas están deshabilitadas. Cerrando sesión...',
+				hint: 'Tu sesión se cerrará automáticamente para actualizar la aplicación.',
+				action: 'force_logout'
 			}, 403);
 		}
 		
