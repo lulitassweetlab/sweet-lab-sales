@@ -135,21 +135,44 @@ export async function handler(event) {
 						console.error(`[DEBUG] Returned commissions_paid: ${row.commissions_paid}`);
 					}
 				} catch (e) {
-					// Fallback: If commissions_paid column doesn't exist yet, update without it
-					console.error('Error updating with commissions_paid, falling back:', e);
-					[row] = await sql`
-						UPDATE sale_days SET
-							day = COALESCE(${dayParam}, day),
-							delivered_arco = COALESCE(${daVal}, delivered_arco),
-							delivered_melo = COALESCE(${dmVal}, delivered_melo),
-							delivered_mara = COALESCE(${dmaVal}, delivered_mara),
-							delivered_oreo = COALESCE(${dorVal}, delivered_oreo),
-							delivered_nute = COALESCE(${dnuVal}, delivered_nute)
-						WHERE id=${id}
-						RETURNING id, day, delivered_arco, delivered_melo, delivered_mara, delivered_oreo, delivered_nute
-					`;
-					// Add default commissions_paid value
-					if (row) row.commissions_paid = 0;
+					// Fallback: If commissions_paid column doesn't exist yet, try to create it
+					console.error('Error updating with commissions_paid, trying to create column:', e.message);
+					try {
+						// Try to add the column
+						await sql`ALTER TABLE sale_days ADD COLUMN IF NOT EXISTS commissions_paid INTEGER NOT NULL DEFAULT 0`;
+						console.error('[DEBUG] Created commissions_paid column, retrying update...');
+						
+						// Retry the update
+						[row] = await sql`
+							UPDATE sale_days SET
+								day = COALESCE(${dayParam}, day),
+								delivered_arco = COALESCE(${daVal}, delivered_arco),
+								delivered_melo = COALESCE(${dmVal}, delivered_melo),
+								delivered_mara = COALESCE(${dmaVal}, delivered_mara),
+								delivered_oreo = COALESCE(${dorVal}, delivered_oreo),
+								delivered_nute = COALESCE(${dnuVal}, delivered_nute),
+								commissions_paid = COALESCE(${cpVal}, commissions_paid)
+							WHERE id=${id}
+							RETURNING id, day, delivered_arco, delivered_melo, delivered_mara, delivered_oreo, delivered_nute, commissions_paid
+						`;
+						console.error(`[DEBUG] Retry successful, commissions_paid: ${row.commissions_paid}`);
+					} catch (e2) {
+						// If still fails, fallback to update without commissions_paid
+						console.error('Still failing, using fallback without commissions_paid:', e2.message);
+						[row] = await sql`
+							UPDATE sale_days SET
+								day = COALESCE(${dayParam}, day),
+								delivered_arco = COALESCE(${daVal}, delivered_arco),
+								delivered_melo = COALESCE(${dmVal}, delivered_melo),
+								delivered_mara = COALESCE(${dmaVal}, delivered_mara),
+								delivered_oreo = COALESCE(${dorVal}, delivered_oreo),
+								delivered_nute = COALESCE(${dnuVal}, delivered_nute)
+							WHERE id=${id}
+							RETURNING id, day, delivered_arco, delivered_melo, delivered_mara, delivered_oreo, delivered_nute
+						`;
+						// Add default commissions_paid value
+						if (row) row.commissions_paid = 0;
+					}
 				}
 				return json(row || { id, day });
 			}
