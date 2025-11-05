@@ -662,9 +662,29 @@ export async function handler(event) {
 					const prevComment = (current.comment_text || '').toString().trim();
 					const nextComment = (comment || '').toString().trim();
 					if (!withinGrace && prevComment !== nextComment && nextComment.length > 0) {
-						const displayComment = nextComment.length > 50 ? (nextComment.substring(0, 47) + '...') : nextComment;
-						const msg = `${client || 'Sin nombre'}: "${displayComment}"`;
-						await notifyDb({ type: 'comment', sellerId: Number(data.seller_id||0)||null, saleId: id, saleDayId: Number(data.sale_day_id||0)||null, message: msg, actorName: actor });
+						// Evitar notificaciones duplicadas: verificar si hay una notificación de comentario reciente (últimos 20s)
+						const recentCommentNotif = await sql`
+							SELECT id, created_at 
+							FROM notifications 
+							WHERE sale_id = ${id} 
+							  AND type = 'comment' 
+							  AND actor_name = ${actor}
+							ORDER BY created_at DESC 
+							LIMIT 1
+						`;
+						
+						const shouldCreate = !recentCommentNotif.length || (new Date() - new Date(recentCommentNotif[0].created_at)) >= 20000;
+						
+						if (shouldCreate) {
+							const displayComment = nextComment.length > 50 ? (nextComment.substring(0, 47) + '...') : nextComment;
+							const msg = `${client || 'Sin nombre'}: "${displayComment}"`;
+							await notifyDb({ type: 'comment', sellerId: Number(data.seller_id||0)||null, saleId: id, saleDayId: Number(data.sale_day_id||0)||null, message: msg, actorName: actor });
+						} else {
+							// Actualizar la notificación existente con el nuevo comentario
+							const displayComment = nextComment.length > 50 ? (nextComment.substring(0, 47) + '...') : nextComment;
+							const msg = `${client || 'Sin nombre'}: "${displayComment}"`;
+							await sql`UPDATE notifications SET message = ${msg}, created_at = now() WHERE id = ${recentCommentNotif[0].id}`;
+						}
 					}
 				} catch {}
 				const row = await recalcTotalForId(id);
