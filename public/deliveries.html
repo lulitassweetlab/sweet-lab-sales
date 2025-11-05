@@ -540,8 +540,9 @@
 					// Container for input and user selector
 					const container = document.createElement('div');
 					container.style.display = 'flex';
-					container.style.flexDirection = 'column';
-					container.style.gap = '6px';
+					container.style.flexDirection = 'row';
+					container.style.alignItems = 'center';
+					container.style.gap = '8px';
 					
 					// Quantity input
 					const input = document.createElement('input');
@@ -564,10 +565,11 @@
 					const selectorBtn = document.createElement('button');
 					selectorBtn.type = 'button';
 					selectorBtn.className = 'press-btn';
-					selectorBtn.textContent = 'Seleccionar usuarios (0)';
+					selectorBtn.textContent = 'Quién (0)';
 					selectorBtn.style.fontSize = '11px';
 					selectorBtn.style.padding = '4px 8px';
-					selectorBtn.style.width = '100%';
+					selectorBtn.style.whiteSpace = 'nowrap';
+					selectorBtn.style.minWidth = '80px';
 					selectorBtn.style.textAlign = 'left';
 					
 					// Dropdown menu
@@ -620,8 +622,8 @@
 							// Update button text
 							const count = selectedUsers.size;
 							selectorBtn.textContent = count > 0 
-								? `Usuarios (${count})` 
-								: 'Seleccionar usuarios (0)';
+								? `Quién (${count})` 
+								: 'Quién (0)';
 						});
 						
 						label.appendChild(checkbox);
@@ -718,10 +720,10 @@
 							if (q > 0) items[code] = q; 
 						}
 						
-						// Apply selected users to all desserts with quantities
-						if (selectedUsers.size > 0) {
-							for (const code of Object.keys(items)) {
-								production_users[code] = Array.from(selectedUsers);
+						// Apply selected users for each dessert
+						for (const [code, selectedSet] of Object.entries(userSelections)) {
+							if (selectedSet.size > 0) {
+								production_users[code] = Array.from(selectedSet);
 							}
 						}
 						
