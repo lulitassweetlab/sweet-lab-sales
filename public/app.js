@@ -6594,9 +6594,14 @@ function openPayMenu(anchorEl, selectEl, clickX, clickY) {
 function updateCommentMarkerPosition(inputElement, markerElement) {
 	if (!inputElement || !markerElement) return;
 	
+	// Check if this cell also has a recurring client marker
+	const td = inputElement.closest('td.col-client');
+	const hasRecurring = td && td.classList.contains('has-reg');
+	
 	// Position at the end (right side) of the input
+	// If there's a recurring marker, position further left to avoid overlap
 	markerElement.style.left = 'auto';
-	markerElement.style.right = '8px';
+	markerElement.style.right = hasRecurring ? '36px' : '8px';
 }
 
 // Payment date dialog with calendar and payment method options
