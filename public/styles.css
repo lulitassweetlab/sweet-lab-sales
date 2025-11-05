@@ -1031,6 +1031,10 @@ tfoot td { font-weight: 700; }
 	color: var(--primary);
 	cursor: pointer;
 	z-index: 10;
+	transition: transform 0.2s ease;
+}
+.client-reg-large:hover {
+	transform: translateY(-50%) scale(1.15);
 }
 .col-client.has-reg .client-input { padding-right: 36px; }
 

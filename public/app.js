@@ -8740,7 +8740,8 @@ function clearAllMarkers() {
 }
 
 function addMarkersFromLogs() {
-	if (!state.currentUser?.isAdmin) return;
+	const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
+	if (!isAdminUser) return;
 	for (const [idStr, logs] of Object.entries(state.changeLogsBySale || {})) {
 		const id = Number(idStr);
 		const tr = document.querySelector(`#sales-tbody tr[data-id="${id}"]`);
@@ -8767,7 +8768,8 @@ function addMarkersFromLogs() {
 }
 
 function preloadChangeLogsForCurrentTable() {
-	if (!state.currentUser?.isAdmin) return;
+	const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
+	if (!isAdminUser) return;
 	const ids = (state.sales || []).map(s => s.id);
 	Promise.all(ids.map(id => fetchLogsForSale(id).then(rows => [id, rows])))
 		.then(pairs => {
@@ -8849,7 +8851,8 @@ async function openHistoryPopover(saleId, field, anchorX, anchorY) {
 }
 
 function renderChangeMarkerIfNeeded(tdEl, saleId, field) {
-	if (!state.currentUser?.isAdmin) return;
+	const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
+	if (!isAdminUser) return;
 	const mark = document.createElement('span');
 	mark.className = 'change-marker';
 	mark.textContent = '*';
