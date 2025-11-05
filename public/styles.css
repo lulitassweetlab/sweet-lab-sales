@@ -4438,18 +4438,18 @@ td.col-client.action-bar-fading .client-input {
 }
 
 .notification-center-btn .bell-icon {
-	font-size: 20px;
+	font-size: 16px;
 	line-height: 1;
 	transition: transform 140ms ease;
 	display: inline-block;
 }
 
 .notification-center-btn:hover .bell-icon {
-	transform: scale(1.5);
+	transform: scale(1.375);
 }
 
 .notification-center-btn:active .bell-icon {
-	transform: scale(1.4);
+	transform: scale(1.25);
 }
 
 [data-theme="dark"] .notification-center-btn {
