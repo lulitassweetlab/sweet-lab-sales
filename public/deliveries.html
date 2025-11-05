@@ -485,16 +485,11 @@
 				const pop = document.createElement('div');
 				pop.className = 'new-sale-popover';
 				pop.style.position = 'fixed';
-				const isSmall = window.matchMedia('(max-width: 640px)').matches;
-				if (typeof anchorX === 'number' && typeof anchorY === 'number' && !isSmall) {
-					pop.style.left = anchorX + 'px';
-					pop.style.top = anchorY + 'px';
-					pop.style.transform = 'translate(-50%, 0)';
-				} else {
-					pop.style.left = '50%';
-					pop.style.top = '20%';
-					pop.style.transform = 'translate(-50%, 0)';
-				}
+				pop.style.left = '50%';
+				pop.style.top = '50%';
+				pop.style.transform = 'translate(-50%, -50%)';
+				pop.style.maxHeight = '90vh';
+				pop.style.overflowY = 'auto';
 
 				const title = document.createElement('h4');
 				title.style.margin = '0 0 8px 0';
@@ -513,19 +508,21 @@
 				const grid = document.createElement('div');
 				grid.className = 'new-sale-grid';
 
-				function appendRow(labelText, inputEl) {
+				function appendRow(labelText, inputEl, noInteraction = false) {
 					const left = document.createElement('div'); left.className = 'new-sale-cell new-sale-left';
 					const right = document.createElement('div'); right.className = 'new-sale-cell new-sale-right';
 					const lbl = document.createElement('div'); lbl.className = 'new-sale-label-text'; lbl.textContent = labelText;
 					left.appendChild(lbl);
 					right.appendChild(inputEl);
-					right.addEventListener('mousedown', (ev) => { if (ev.target !== inputEl) { ev.preventDefault(); try { inputEl.focus(); inputEl.select?.(); } catch {} } });
-					right.addEventListener('click', (ev) => { if (ev.target !== inputEl) { ev.preventDefault(); try { inputEl.focus(); inputEl.select?.(); } catch {} } });
+					if (!noInteraction) {
+						right.addEventListener('mousedown', (ev) => { if (ev.target !== inputEl && !inputEl.contains(ev.target)) { ev.preventDefault(); try { inputEl.focus(); inputEl.select?.(); } catch {} } });
+						right.addEventListener('click', (ev) => { if (ev.target !== inputEl && !inputEl.contains(ev.target)) { ev.preventDefault(); try { inputEl.focus(); inputEl.select?.(); } catch {} } });
+					}
 					grid.appendChild(left);
 					grid.appendChild(right);
 				}
 
-				// Fecha row (replaces Cliente)
+				// Fecha row
 				const dateInput = document.createElement('input');
 				dateInput.type = 'date';
 				dateInput.className = 'input-cell';
@@ -533,119 +530,145 @@
 				dateInput.addEventListener('change', () => { title.textContent = formatTitle(dateInput.value); });
 				appendRow('Fecha', dateInput);
 
-				// Dessert rows from dynamic list
+				// User selection section (single selector for all production)
+				const selectedUsers = new Set();
+				const userContainer = document.createElement('div');
+				userContainer.style.display = 'flex';
+				userContainer.style.flexWrap = 'wrap';
+				userContainer.style.gap = '6px';
+				userContainer.style.padding = '8px';
+				userContainer.style.backgroundColor = '#f8f9fa';
+				userContainer.style.borderRadius = '6px';
+				userContainer.style.maxHeight = '120px';
+				userContainer.style.overflowY = 'auto';
+				
+				for (const u of users) {
+					const userChip = document.createElement('button');
+					userChip.type = 'button';
+					userChip.className = 'press-btn';
+					userChip.textContent = u.username;
+					userChip.style.fontSize = '12px';
+					userChip.style.padding = '4px 12px';
+					userChip.style.backgroundColor = '#e9ecef';
+					userChip.style.border = '1px solid #dee2e6';
+					userChip.style.transition = 'all 0.2s ease';
+					userChip.addEventListener('click', (e) => {
+						e.preventDefault();
+						if (selectedUsers.has(u.id)) {
+							selectedUsers.delete(u.id);
+							userChip.style.backgroundColor = '#e9ecef';
+							userChip.style.color = '';
+							userChip.style.fontWeight = 'normal';
+							userChip.style.border = '1px solid #dee2e6';
+						} else {
+							selectedUsers.add(u.id);
+							userChip.style.backgroundColor = '#4caf50';
+							userChip.style.color = 'white';
+							userChip.style.fontWeight = 'bold';
+							userChip.style.border = '1px solid #4caf50';
+						}
+					});
+					userContainer.appendChild(userChip);
+				}
+				appendRow('Usuarios en producción', userContainer, true);
+
+				// Dessert quantity rows
 				const qtyInputs = {};
-				const userSelections = {};
 				for (const d of desserts) {
 					if (d.is_active === false) continue;
 					
 					// Quantity input
 					const input = document.createElement('input');
-					input.type = 'number'; input.min = '0'; input.step = '1'; input.inputMode = 'numeric'; input.placeholder = '0';
+					input.type = 'number'; 
+					input.min = '0'; 
+					input.step = '1'; 
+					input.inputMode = 'numeric'; 
+					input.placeholder = '0';
 					input.className = 'input-cell input-qty';
 					qtyInputs[d.short_code] = input;
-					
-					// Container for quantity and user selection
-					const container = document.createElement('div');
-					container.style.display = 'flex';
-					container.style.flexDirection = 'column';
-					container.style.gap = '4px';
-					container.appendChild(input);
-					
-					// User selection for this dessert
-					const userContainer = document.createElement('div');
-					userContainer.style.display = 'flex';
-					userContainer.style.flexWrap = 'wrap';
-					userContainer.style.gap = '4px';
-					userContainer.style.marginTop = '4px';
-					
-					const selectedUsers = new Set();
-					userSelections[d.short_code] = selectedUsers;
-					
-					for (const u of users) {
-						const userChip = document.createElement('button');
-						userChip.type = 'button';
-						userChip.className = 'press-btn';
-						userChip.textContent = u.username;
-						userChip.style.fontSize = '11px';
-						userChip.style.padding = '2px 8px';
-						userChip.style.opacity = '0.5';
-						userChip.addEventListener('click', () => {
-							if (selectedUsers.has(u.id)) {
-								selectedUsers.delete(u.id);
-								userChip.style.opacity = '0.5';
-								userChip.style.backgroundColor = '';
-							} else {
-								selectedUsers.add(u.id);
-								userChip.style.opacity = '1';
-								userChip.style.backgroundColor = '#4caf50';
-								userChip.style.color = 'white';
-							}
-						});
-						userContainer.appendChild(userChip);
-					}
-					
-					container.appendChild(userContainer);
-					appendRow(d.name, container);
+					appendRow(d.name, input);
 				}
 
-				const actions = document.createElement('div'); actions.className = 'confirm-actions';
-				const cancelBtn = document.createElement('button'); cancelBtn.type = 'button'; cancelBtn.className = 'press-btn'; cancelBtn.textContent = 'Cancelar';
-				const saveBtn = document.createElement('button'); saveBtn.type = 'button'; saveBtn.className = 'press-btn btn-primary'; saveBtn.textContent = 'Guardar';
+				const actions = document.createElement('div'); 
+				actions.className = 'confirm-actions';
+				const cancelBtn = document.createElement('button'); 
+				cancelBtn.type = 'button'; 
+				cancelBtn.className = 'press-btn'; 
+				cancelBtn.textContent = 'Cancelar';
+				const saveBtn = document.createElement('button'); 
+				saveBtn.type = 'button'; 
+				saveBtn.className = 'press-btn btn-primary'; 
+				saveBtn.textContent = 'Guardar';
 				actions.append(cancelBtn, saveBtn);
 
 				pop.append(title, grid, actions);
-				pop.style.visibility = 'hidden'; pop.style.opacity = '0'; pop.style.transition = 'opacity 160ms ease-out';
+				pop.style.visibility = 'hidden'; 
+				pop.style.opacity = '0'; 
+				pop.style.transition = 'opacity 160ms ease-out';
 				document.body.appendChild(pop);
 
-				function clampWithinViewport() {
-					try {
-						const margin = 8; const vw = window.innerWidth; const vh = window.innerHeight; const r = pop.getBoundingClientRect();
-						const baseX = (typeof anchorX === 'number') ? anchorX : (vw / 2);
-						const baseY = (typeof anchorY === 'number') ? anchorY : (vh / 2);
-						let left = Math.round(baseX - r.width / 2);
-						let topBelow = Math.round(baseY + 8); let topAbove = Math.round(baseY - 8 - r.height); let top = topBelow;
-						if (top + r.height > vh - margin) top = topAbove;
-						if (top < margin) top = margin;
-						if (top + r.height > vh - margin) top = Math.max(margin, vh - margin - r.height);
-						if (left < margin) left = margin;
-						if (left + r.width > vw - margin) left = Math.max(margin, vw - margin - r.width);
-						pop.style.left = left + 'px'; pop.style.top = top + 'px'; pop.style.transform = 'none';
-					} catch {}
-				}
-				clampWithinViewport(); pop.style.visibility = 'visible'; requestAnimationFrame(() => { pop.style.opacity = '1'; });
+				// Center the popover
+				requestAnimationFrame(() => {
+					pop.style.visibility = 'visible';
+					pop.style.opacity = '1';
+				});
 
-				function cleanup(){ document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); if (pop.parentNode) pop.parentNode.removeChild(pop); }
-				function outside(ev){ const t = ev.target; if (!pop.contains(t)) cleanup(); }
-				setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
+				function cleanup(){ 
+					document.removeEventListener('mousedown', outside, true); 
+					document.removeEventListener('touchstart', outside, true); 
+					if (pop.parentNode) pop.parentNode.removeChild(pop); 
+				}
+				function outside(ev){ 
+					const t = ev.target; 
+					if (!pop.contains(t)) cleanup(); 
+				}
+				setTimeout(() => { 
+					document.addEventListener('mousedown', outside, true); 
+					document.addEventListener('touchstart', outside, true); 
+				}, 0);
 				cancelBtn.addEventListener('click', cleanup);
 
 				setTimeout(() => { try { dateInput.focus(); } catch {} }, 0);
 
 				async function doSave(){
 					try {
-						saveBtn.disabled = true; cancelBtn.disabled = true;
+						saveBtn.disabled = true; 
+						cancelBtn.disabled = true;
 						const items = {};
 						const production_users = {};
+						
+						// Collect quantities
 						for (const [code, input] of Object.entries(qtyInputs)) { 
 							const q = Math.max(0, parseInt(input?.value || '0', 10) || 0); 
 							if (q > 0) items[code] = q; 
 						}
-						for (const [code, selectedSet] of Object.entries(userSelections)) {
-							if (selectedSet.size > 0) {
-								production_users[code] = Array.from(selectedSet);
+						
+						// Apply selected users to all desserts with quantities
+						if (selectedUsers.size > 0) {
+							for (const code of Object.keys(items)) {
+								production_users[code] = Array.from(selectedUsers);
 							}
 						}
+						
 						const payload = { day: dateInput.value || todayIso, items, production_users };
 						await api('POST', '/api/deliveries', payload);
-						cleanup(); await load();
+						cleanup(); 
+						await load();
 					} catch (e) {
 						alert('No se pudo guardar: ' + (e?.message || e));
-						saveBtn.disabled = false; cancelBtn.disabled = false;
+						saveBtn.disabled = false; 
+						cancelBtn.disabled = false;
 					}
 				}
 				saveBtn.addEventListener('click', doSave);
-				Object.values(qtyInputs).forEach((el) => { el.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); doSave(); } }); });
+				Object.values(qtyInputs).forEach((el) => { 
+					el.addEventListener('keydown', (ev) => { 
+						if (ev.key === 'Enter') { 
+							ev.preventDefault(); 
+							doSave(); 
+						} 
+					}); 
+				});
 			} catch (e) {
 				alert('No se pudo abrir el formulario');
 			}
