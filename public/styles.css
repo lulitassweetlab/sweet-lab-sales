@@ -4535,14 +4535,13 @@ td.col-client.action-bar-fading .client-input {
 }
 
 .notif-type {
-	font-size: 16px;
+	font-size: 13px;
 	color: var(--primary);
 	font-weight: 700;
 	margin-top: 6px;
 	margin-bottom: 6px;
 	letter-spacing: 0.5px;
 	text-transform: uppercase;
-	font-size: 13px;
 }
 
 .notif-meta {
