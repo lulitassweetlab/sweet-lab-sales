@@ -4083,47 +4083,125 @@ function openPermissionsManager() {
     
     // Commissions section (separate, below the main row)
     const commissionsSection = document.createElement('div');
-    commissionsSection.style.marginTop = '20px';
-    commissionsSection.style.paddingTop = '16px';
-    commissionsSection.style.borderTop = '1px solid var(--border-color, #ddd)';
+    commissionsSection.style.marginTop = '24px';
+    commissionsSection.style.paddingTop = '20px';
+    commissionsSection.style.borderTop = '2px solid var(--border-color, #e0e0e0)';
     commissionsSection.style.display = 'none'; // Hidden by default
+    
+    const commissionsHeader = document.createElement('div');
+    commissionsHeader.style.display = 'flex';
+    commissionsHeader.style.alignItems = 'center';
+    commissionsHeader.style.gap = '8px';
+    commissionsHeader.style.marginBottom = '16px';
     
     const commissionsTitle = document.createElement('h4');
     commissionsTitle.textContent = 'Comisiones';
-    commissionsTitle.style.marginBottom = '12px';
+    commissionsTitle.style.margin = '0';
+    commissionsTitle.style.fontSize = '16px';
+    commissionsTitle.style.fontWeight = '600';
+    
+    const commissionsBadge = document.createElement('span');
+    commissionsBadge.textContent = 'Por rango de pedidos';
+    commissionsBadge.style.fontSize = '11px';
+    commissionsBadge.style.padding = '3px 8px';
+    commissionsBadge.style.borderRadius = '10px';
+    commissionsBadge.style.background = 'var(--primary-color, #4CAF50)';
+    commissionsBadge.style.color = 'white';
+    commissionsBadge.style.fontWeight = '500';
+    
+    commissionsHeader.appendChild(commissionsTitle);
+    commissionsHeader.appendChild(commissionsBadge);
     
     const commissionInputsContainer = document.createElement('div');
     commissionInputsContainer.style.display = 'grid';
-    commissionInputsContainer.style.gridTemplateColumns = '1fr 1fr';
-    commissionInputsContainer.style.gap = '12px';
+    commissionInputsContainer.style.gridTemplateColumns = 'repeat(auto-fit, minmax(200px, 1fr))';
+    commissionInputsContainer.style.gap = '16px';
     commissionInputsContainer.style.marginTop = '12px';
     
-    function makeCommField(labelText, placeholder) {
+    function makeCommField(labelText, rangeText, placeholder, accentColor) {
         const wrap = document.createElement('div');
+        wrap.style.background = 'var(--panel-bg, #fafafa)';
+        wrap.style.padding = '16px';
+        wrap.style.borderRadius = '8px';
+        wrap.style.border = `2px solid ${accentColor}`;
+        wrap.style.transition = 'transform 0.2s, box-shadow 0.2s';
+        
+        const header = document.createElement('div');
+        header.style.display = 'flex';
+        header.style.justifyContent = 'space-between';
+        header.style.alignItems = 'center';
+        header.style.marginBottom = '8px';
+        
         const label = document.createElement('label');
         label.textContent = labelText;
         label.style.display = 'block';
-        label.style.marginBottom = '4px';
         label.style.fontSize = '13px';
+        label.style.fontWeight = '600';
+        label.style.color = 'var(--text-primary, #333)';
+        
+        const range = document.createElement('span');
+        range.textContent = rangeText;
+        range.style.fontSize = '11px';
+        range.style.padding = '2px 6px';
+        range.style.borderRadius = '4px';
+        range.style.background = accentColor;
+        range.style.color = 'white';
+        range.style.fontWeight = '500';
+        
+        header.appendChild(label);
+        header.appendChild(range);
+        
+        const inputWrapper = document.createElement('div');
+        inputWrapper.style.position = 'relative';
+        
+        const currency = document.createElement('span');
+        currency.textContent = '$';
+        currency.style.position = 'absolute';
+        currency.style.left = '10px';
+        currency.style.top = '50%';
+        currency.style.transform = 'translateY(-50%)';
+        currency.style.color = 'var(--text-secondary, #666)';
+        currency.style.fontWeight = '600';
+        
         const input = document.createElement('input');
         input.type = 'number';
         input.className = 'input-cell';
         input.placeholder = placeholder;
         input.style.width = '100%';
-        wrap.appendChild(label);
-        wrap.appendChild(input);
+        input.style.paddingLeft = '28px';
+        input.style.fontSize = '16px';
+        input.style.fontWeight = '500';
+        input.style.border = '1px solid var(--border-color, #ddd)';
+        input.style.borderRadius = '6px';
+        
+        inputWrapper.appendChild(currency);
+        inputWrapper.appendChild(input);
+        
+        wrap.appendChild(header);
+        wrap.appendChild(inputWrapper);
+        
+        // Hover effect
+        wrap.addEventListener('mouseenter', () => {
+            wrap.style.transform = 'translateY(-2px)';
+            wrap.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+        });
+        wrap.addEventListener('mouseleave', () => {
+            wrap.style.transform = 'translateY(0)';
+            wrap.style.boxShadow = 'none';
+        });
+        
         return { wrap, input };
     }
     
-    const commLow = makeCommField('De 1 a 29 pedidos', '1000');
-    const commMid = makeCommField('De 30 a 59 pedidos', '1300');
-    const commHigh = makeCommField('De 60 en adelante', '1500');
+    const commLow = makeCommField('Nivel Básico', '1-29', '1000', '#9C27B0');
+    const commMid = makeCommField('Nivel Intermedio', '30-59', '1300', '#2196F3');
+    const commHigh = makeCommField('Nivel Avanzado', '60+', '1500', '#4CAF50');
     
     commissionInputsContainer.appendChild(commLow.wrap);
     commissionInputsContainer.appendChild(commMid.wrap);
     commissionInputsContainer.appendChild(commHigh.wrap);
     
-    commissionsSection.appendChild(commissionsTitle);
+    commissionsSection.appendChild(commissionsHeader);
     commissionsSection.appendChild(commissionInputsContainer);
     
     const actions = document.createElement('div'); actions.style.display = 'flex'; actions.style.justifyContent = 'flex-end'; actions.style.gap = '8px'; actions.style.marginTop = '14px';
