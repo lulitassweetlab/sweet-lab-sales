@@ -4168,17 +4168,20 @@ function openPermissionsManager() {
             [featSales.cb, featTransfers.cb, featCartera.cb, featProjections.cb, featMaterials.cb, featInventory.cb, featUsers.cb, featAccounting.cb]
                 .forEach(cb => { cb.checked = featuresSet.has(cb.dataset.feature); });
             
-            // Check if this user is also a seller and show commission section
+            // All users are sellers, so always show commission section
+            commissionsSection.style.display = 'block';
             const seller = sellersByName.get(viewerName.toLowerCase());
             if (seller) {
-                commissionsSection.style.display = 'block';
                 commissionsSection.dataset.sellerId = String(seller.id);
                 commLow.input.value = String(seller.commission_rate_low || 1000);
                 commMid.input.value = String(seller.commission_rate_mid || 1300);
                 commHigh.input.value = String(seller.commission_rate_high || 1500);
             } else {
-                commissionsSection.style.display = 'none';
+                // If no matching seller found, clear the fields and ID
                 commissionsSection.dataset.sellerId = '';
+                commLow.input.value = '1000';
+                commMid.input.value = '1300';
+                commHigh.input.value = '1500';
             }
         }
         userSelect.addEventListener('change', async () => {
