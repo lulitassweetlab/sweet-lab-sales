@@ -4433,17 +4433,23 @@ td.col-client.action-bar-fading .client-input {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	font-size: 35px;
 	position: relative;
-	transition: font-size 140ms ease;
+	overflow: visible;
 }
 
-.notification-center-btn:hover {
-	font-size: 45px;
+.notification-center-btn .bell-icon {
+	font-size: 35px;
+	line-height: 1;
+	transition: transform 140ms ease;
+	display: inline-block;
 }
 
-.notification-center-btn:active {
-	font-size: 43px;
+.notification-center-btn:hover .bell-icon {
+	transform: scale(1.29);
+}
+
+.notification-center-btn:active .bell-icon {
+	transform: scale(1.23);
 }
 
 [data-theme="dark"] .notification-center-btn {
