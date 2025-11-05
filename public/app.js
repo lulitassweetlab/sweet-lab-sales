@@ -6594,9 +6594,14 @@ function openPayMenu(anchorEl, selectEl, clickX, clickY) {
 function updateCommentMarkerPosition(inputElement, markerElement) {
 	if (!inputElement || !markerElement) return;
 	
+	// Check if this cell also has a recurring client marker
+	const td = inputElement.closest('td.col-client');
+	const hasRecurring = td && td.classList.contains('has-reg');
+	
 	// Position at the end (right side) of the input
+	// If there's a recurring marker, position further left to avoid overlap
 	markerElement.style.left = 'auto';
-	markerElement.style.right = '8px';
+	markerElement.style.right = hasRecurring ? '36px' : '8px';
 }
 
 // Payment date dialog with calendar and payment method options
@@ -8735,7 +8740,8 @@ function clearAllMarkers() {
 }
 
 function addMarkersFromLogs() {
-	if (!state.currentUser?.isAdmin) return;
+	const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
+	if (!isAdminUser) return;
 	for (const [idStr, logs] of Object.entries(state.changeLogsBySale || {})) {
 		const id = Number(idStr);
 		const tr = document.querySelector(`#sales-tbody tr[data-id="${id}"]`);
@@ -8762,7 +8768,8 @@ function addMarkersFromLogs() {
 }
 
 function preloadChangeLogsForCurrentTable() {
-	if (!state.currentUser?.isAdmin) return;
+	const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
+	if (!isAdminUser) return;
 	const ids = (state.sales || []).map(s => s.id);
 	Promise.all(ids.map(id => fetchLogsForSale(id).then(rows => [id, rows])))
 		.then(pairs => {
@@ -8844,7 +8851,8 @@ async function openHistoryPopover(saleId, field, anchorX, anchorY) {
 }
 
 function renderChangeMarkerIfNeeded(tdEl, saleId, field) {
-	if (!state.currentUser?.isAdmin) return;
+	const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
+	if (!isAdminUser) return;
 	const mark = document.createElement('span');
 	mark.className = 'change-marker';
 	mark.textContent = '*';
