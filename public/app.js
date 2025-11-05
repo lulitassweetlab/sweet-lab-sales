@@ -4055,8 +4055,8 @@ function openPermissionsManager() {
     const userLabel = document.createElement('label'); userLabel.textContent = 'Usuario (viewer)'; userLabel.style.display = 'block';
     const userSelect = document.createElement('select'); userSelect.style.width = '100%'; userSelect.className = 'input-cell';
     left.appendChild(userLabel); left.appendChild(userSelect);
-    const sellersLabel = document.createElement('label'); sellersLabel.textContent = 'Vendedores permitidos y comisiones'; sellersLabel.style.display = 'block';
-    const sellersBox = document.createElement('div'); sellersBox.style.display = 'flex'; sellersBox.style.flexDirection = 'column'; sellersBox.style.gap = '12px'; sellersBox.style.marginTop = '6px';
+    const sellersLabel = document.createElement('label'); sellersLabel.textContent = 'Vendedores permitidos'; sellersLabel.style.display = 'block';
+    const sellersBox = document.createElement('div'); sellersBox.style.display = 'grid'; sellersBox.style.gridTemplateColumns = 'repeat(2, minmax(0, 1fr))'; sellersBox.style.gap = '8px'; sellersBox.style.marginTop = '6px';
     right.appendChild(sellersLabel); right.appendChild(sellersBox);
     const featureLabel = document.createElement('label'); featureLabel.textContent = 'Permisos de funcionalidades'; featureLabel.style.display = 'block'; featureLabel.style.marginTop = '12px';
     function makeFeat(labelText, featureKey) {
@@ -4081,11 +4081,67 @@ function openPermissionsManager() {
         .forEach(x => right.appendChild(x.wrap));
     row.appendChild(left); row.appendChild(right);
     
+    // Commissions section (separate, below the main row)
+    const commissionsSection = document.createElement('div');
+    commissionsSection.style.marginTop = '20px';
+    commissionsSection.style.paddingTop = '16px';
+    commissionsSection.style.borderTop = '1px solid var(--border-color, #ddd)';
+    
+    const commissionsTitle = document.createElement('h4');
+    commissionsTitle.textContent = 'Comisiones';
+    commissionsTitle.style.marginBottom = '12px';
+    
+    const sellerCommLabel = document.createElement('label');
+    sellerCommLabel.textContent = 'Seleccionar vendedor para editar comisiones';
+    sellerCommLabel.style.display = 'block';
+    sellerCommLabel.style.marginBottom = '8px';
+    
+    const sellerCommSelect = document.createElement('select');
+    sellerCommSelect.style.width = '100%';
+    sellerCommSelect.className = 'input-cell';
+    sellerCommSelect.style.marginBottom = '12px';
+    
+    const commissionInputsContainer = document.createElement('div');
+    commissionInputsContainer.style.display = 'none'; // Hidden by default
+    commissionInputsContainer.style.gridTemplateColumns = '1fr 1fr';
+    commissionInputsContainer.style.gap = '12px';
+    commissionInputsContainer.style.marginTop = '12px';
+    
+    function makeCommField(labelText, placeholder) {
+        const wrap = document.createElement('div');
+        const label = document.createElement('label');
+        label.textContent = labelText;
+        label.style.display = 'block';
+        label.style.marginBottom = '4px';
+        label.style.fontSize = '13px';
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.className = 'input-cell';
+        input.placeholder = placeholder;
+        input.style.width = '100%';
+        wrap.appendChild(label);
+        wrap.appendChild(input);
+        return { wrap, input };
+    }
+    
+    const commLow = makeCommField('De 1 a 29 pedidos', '1000');
+    const commMid = makeCommField('De 30 a 59 pedidos', '1300');
+    const commHigh = makeCommField('De 60 en adelante', '1500');
+    
+    commissionInputsContainer.appendChild(commLow.wrap);
+    commissionInputsContainer.appendChild(commMid.wrap);
+    commissionInputsContainer.appendChild(commHigh.wrap);
+    
+    commissionsSection.appendChild(commissionsTitle);
+    commissionsSection.appendChild(sellerCommLabel);
+    commissionsSection.appendChild(sellerCommSelect);
+    commissionsSection.appendChild(commissionInputsContainer);
+    
     const actions = document.createElement('div'); actions.style.display = 'flex'; actions.style.justifyContent = 'flex-end'; actions.style.gap = '8px'; actions.style.marginTop = '14px';
     const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn'; closeBtn.textContent = 'Cerrar';
     const saveBtn = document.createElement('button'); saveBtn.className = 'press-btn btn-primary'; saveBtn.textContent = 'Guardar';
     actions.appendChild(closeBtn); actions.appendChild(saveBtn);
-    modal.appendChild(row); modal.appendChild(actions);
+    modal.appendChild(row); modal.appendChild(commissionsSection); modal.appendChild(actions);
     overlay.appendChild(modal); document.body.appendChild(overlay);
     function cleanup(){ if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }
     closeBtn.addEventListener('click', cleanup);
@@ -4099,86 +4155,40 @@ function openPermissionsManager() {
         });
         sellersBox.innerHTML = '';
         sellers.forEach(s => {
-            if (s.archived_at) return; // Skip archived sellers
-            
-            // Container for each seller
-            const sellerContainer = document.createElement('div');
-            sellerContainer.style.display = 'flex';
-            sellerContainer.style.flexDirection = 'column';
-            sellerContainer.style.gap = '6px';
-            sellerContainer.style.padding = '8px';
-            sellerContainer.style.border = '1px solid var(--border-color, #ddd)';
-            sellerContainer.style.borderRadius = '6px';
-            
-            // Top row: checkbox + name
-            const topRow = document.createElement('label');
-            topRow.style.display = 'flex';
-            topRow.style.alignItems = 'center';
-            topRow.style.gap = '8px';
-            topRow.style.fontWeight = '500';
-            const cb = document.createElement('input');
-            cb.type = 'checkbox';
-            cb.value = String(s.id);
-            const span = document.createElement('span');
-            span.textContent = String(s.name||'');
-            topRow.appendChild(cb);
-            topRow.appendChild(span);
-            
-            // Bottom row: commission inputs
-            const commRow = document.createElement('div');
-            commRow.style.display = 'grid';
-            commRow.style.gridTemplateColumns = 'auto 1fr 1fr 1fr';
-            commRow.style.gap = '6px';
-            commRow.style.alignItems = 'center';
-            commRow.style.fontSize = '12px';
-            commRow.style.paddingLeft = '28px'; // Indent to align with name
-            
-            const labelComm = document.createElement('span');
-            labelComm.textContent = 'Comisiones:';
-            labelComm.style.fontSize = '11px';
-            labelComm.style.color = 'var(--text-secondary, #666)';
-            
-            const inputLow = document.createElement('input');
-            inputLow.type = 'number';
-            inputLow.className = 'input-cell';
-            inputLow.style.width = '100%';
-            inputLow.style.fontSize = '12px';
-            inputLow.style.padding = '4px';
-            inputLow.placeholder = '1-29';
-            inputLow.value = String(s.commission_rate_low || 1000);
-            inputLow.dataset.sellerId = String(s.id);
-            inputLow.dataset.rateType = 'low';
-            
-            const inputMid = document.createElement('input');
-            inputMid.type = 'number';
-            inputMid.className = 'input-cell';
-            inputMid.style.width = '100%';
-            inputMid.style.fontSize = '12px';
-            inputMid.style.padding = '4px';
-            inputMid.placeholder = '30-59';
-            inputMid.value = String(s.commission_rate_mid || 1300);
-            inputMid.dataset.sellerId = String(s.id);
-            inputMid.dataset.rateType = 'mid';
-            
-            const inputHigh = document.createElement('input');
-            inputHigh.type = 'number';
-            inputHigh.className = 'input-cell';
-            inputHigh.style.width = '100%';
-            inputHigh.style.fontSize = '12px';
-            inputHigh.style.padding = '4px';
-            inputHigh.placeholder = '60+';
-            inputHigh.value = String(s.commission_rate_high || 1500);
-            inputHigh.dataset.sellerId = String(s.id);
-            inputHigh.dataset.rateType = 'high';
-            
-            commRow.appendChild(labelComm);
-            commRow.appendChild(inputLow);
-            commRow.appendChild(inputMid);
-            commRow.appendChild(inputHigh);
-            
-            sellerContainer.appendChild(topRow);
-            sellerContainer.appendChild(commRow);
-            sellersBox.appendChild(sellerContainer);
+            const wrap = document.createElement('label'); wrap.style.display = 'flex'; wrap.style.alignItems = 'center'; wrap.style.gap = '8px';
+            const cb = document.createElement('input'); cb.type = 'checkbox'; cb.value = String(s.id);
+            const span = document.createElement('span'); span.textContent = String(s.name||'');
+            wrap.appendChild(cb); wrap.appendChild(span); sellersBox.appendChild(wrap);
+        });
+        
+        // Populate seller select for commissions
+        const defaultOpt = document.createElement('option');
+        defaultOpt.value = '';
+        defaultOpt.textContent = '-- Seleccionar vendedor --';
+        sellerCommSelect.appendChild(defaultOpt);
+        
+        sellers.forEach(s => {
+            if (s.archived_at) return;
+            const opt = document.createElement('option');
+            opt.value = String(s.id);
+            opt.textContent = String(s.name||'');
+            opt.dataset.rateLow = String(s.commission_rate_low || 1000);
+            opt.dataset.rateMid = String(s.commission_rate_mid || 1300);
+            opt.dataset.rateHigh = String(s.commission_rate_high || 1500);
+            sellerCommSelect.appendChild(opt);
+        });
+        
+        // Show/hide commission inputs when seller is selected
+        sellerCommSelect.addEventListener('change', () => {
+            const selectedOpt = sellerCommSelect.selectedOptions[0];
+            if (selectedOpt && selectedOpt.value) {
+                commissionInputsContainer.style.display = 'grid';
+                commLow.input.value = selectedOpt.dataset.rateLow || '1000';
+                commMid.input.value = selectedOpt.dataset.rateMid || '1300';
+                commHigh.input.value = selectedOpt.dataset.rateHigh || '1500';
+            } else {
+                commissionInputsContainer.style.display = 'none';
+            }
         });
         async function loadViewerGrants(viewerName) {
             const grants = await api('GET', API.Users + '?view_permissions=1&viewer=' + encodeURIComponent(viewerName));
@@ -4221,19 +4231,15 @@ function openPermissionsManager() {
             for (const f of toGrantF) await api('PATCH', API.Users, { action: 'grantFeature', username: viewer, feature: f });
             for (const f of toRevokeF) await api('PATCH', API.Users, { action: 'revokeFeature', username: viewer, feature: f });
             
-            // Save commission rates
-            const commInputs = Array.from(sellersBox.querySelectorAll('input[type="number"]'));
-            for (const input of commInputs) {
-                const sellerId = Number(input.dataset.sellerId);
-                const rateType = input.dataset.rateType;
-                const value = Number(input.value) || 0;
-                if (!sellerId || !rateType) continue;
-                
-                const payload = { id: sellerId };
-                if (rateType === 'low') payload.commission_rate_low = value;
-                else if (rateType === 'mid') payload.commission_rate_mid = value;
-                else if (rateType === 'high') payload.commission_rate_high = value;
-                
+            // Save commission rates if a seller is selected
+            const selectedSellerId = Number(sellerCommSelect.value);
+            if (selectedSellerId) {
+                const payload = {
+                    id: selectedSellerId,
+                    commission_rate_low: Number(commLow.input.value) || 1000,
+                    commission_rate_mid: Number(commMid.input.value) || 1300,
+                    commission_rate_high: Number(commHigh.input.value) || 1500
+                };
                 await api('PATCH', API.Sellers, payload);
             }
             
