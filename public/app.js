@@ -4086,23 +4086,14 @@ function openPermissionsManager() {
     commissionsSection.style.marginTop = '20px';
     commissionsSection.style.paddingTop = '16px';
     commissionsSection.style.borderTop = '1px solid var(--border-color, #ddd)';
+    commissionsSection.style.display = 'none'; // Hidden by default
     
     const commissionsTitle = document.createElement('h4');
     commissionsTitle.textContent = 'Comisiones';
     commissionsTitle.style.marginBottom = '12px';
     
-    const sellerCommLabel = document.createElement('label');
-    sellerCommLabel.textContent = 'Seleccionar vendedor para editar comisiones';
-    sellerCommLabel.style.display = 'block';
-    sellerCommLabel.style.marginBottom = '8px';
-    
-    const sellerCommSelect = document.createElement('select');
-    sellerCommSelect.style.width = '100%';
-    sellerCommSelect.className = 'input-cell';
-    sellerCommSelect.style.marginBottom = '12px';
-    
     const commissionInputsContainer = document.createElement('div');
-    commissionInputsContainer.style.display = 'none'; // Hidden by default
+    commissionInputsContainer.style.display = 'grid';
     commissionInputsContainer.style.gridTemplateColumns = '1fr 1fr';
     commissionInputsContainer.style.gap = '12px';
     commissionInputsContainer.style.marginTop = '12px';
@@ -4133,8 +4124,6 @@ function openPermissionsManager() {
     commissionInputsContainer.appendChild(commHigh.wrap);
     
     commissionsSection.appendChild(commissionsTitle);
-    commissionsSection.appendChild(sellerCommLabel);
-    commissionsSection.appendChild(sellerCommSelect);
     commissionsSection.appendChild(commissionInputsContainer);
     
     const actions = document.createElement('div'); actions.style.display = 'flex'; actions.style.justifyContent = 'flex-end'; actions.style.gap = '8px'; actions.style.marginTop = '14px';
@@ -4161,33 +4150,11 @@ function openPermissionsManager() {
             wrap.appendChild(cb); wrap.appendChild(span); sellersBox.appendChild(wrap);
         });
         
-        // Populate seller select for commissions
-        const defaultOpt = document.createElement('option');
-        defaultOpt.value = '';
-        defaultOpt.textContent = '-- Seleccionar vendedor --';
-        sellerCommSelect.appendChild(defaultOpt);
-        
+        // Create a map of sellers by name for easy lookup
+        const sellersByName = new Map();
         sellers.forEach(s => {
-            if (s.archived_at) return;
-            const opt = document.createElement('option');
-            opt.value = String(s.id);
-            opt.textContent = String(s.name||'');
-            opt.dataset.rateLow = String(s.commission_rate_low || 1000);
-            opt.dataset.rateMid = String(s.commission_rate_mid || 1300);
-            opt.dataset.rateHigh = String(s.commission_rate_high || 1500);
-            sellerCommSelect.appendChild(opt);
-        });
-        
-        // Show/hide commission inputs when seller is selected
-        sellerCommSelect.addEventListener('change', () => {
-            const selectedOpt = sellerCommSelect.selectedOptions[0];
-            if (selectedOpt && selectedOpt.value) {
-                commissionInputsContainer.style.display = 'grid';
-                commLow.input.value = selectedOpt.dataset.rateLow || '1000';
-                commMid.input.value = selectedOpt.dataset.rateMid || '1300';
-                commHigh.input.value = selectedOpt.dataset.rateHigh || '1500';
-            } else {
-                commissionInputsContainer.style.display = 'none';
+            if (!s.archived_at) {
+                sellersByName.set(String(s.name||'').toLowerCase(), s);
             }
         });
         async function loadViewerGrants(viewerName) {
@@ -4200,6 +4167,19 @@ function openPermissionsManager() {
             const featuresSet = new Set((feats || []).map(f => String(f.feature)));
             [featSales.cb, featTransfers.cb, featCartera.cb, featProjections.cb, featMaterials.cb, featInventory.cb, featUsers.cb, featAccounting.cb]
                 .forEach(cb => { cb.checked = featuresSet.has(cb.dataset.feature); });
+            
+            // Check if this user is also a seller and show commission section
+            const seller = sellersByName.get(viewerName.toLowerCase());
+            if (seller) {
+                commissionsSection.style.display = 'block';
+                commissionsSection.dataset.sellerId = String(seller.id);
+                commLow.input.value = String(seller.commission_rate_low || 1000);
+                commMid.input.value = String(seller.commission_rate_mid || 1300);
+                commHigh.input.value = String(seller.commission_rate_high || 1500);
+            } else {
+                commissionsSection.style.display = 'none';
+                commissionsSection.dataset.sellerId = '';
+            }
         }
         userSelect.addEventListener('change', async () => {
             await loadViewerGrants(userSelect.value);
@@ -4231,8 +4211,8 @@ function openPermissionsManager() {
             for (const f of toGrantF) await api('PATCH', API.Users, { action: 'grantFeature', username: viewer, feature: f });
             for (const f of toRevokeF) await api('PATCH', API.Users, { action: 'revokeFeature', username: viewer, feature: f });
             
-            // Save commission rates if a seller is selected
-            const selectedSellerId = Number(sellerCommSelect.value);
+            // Save commission rates if a seller is being edited
+            const selectedSellerId = Number(commissionsSection.dataset.sellerId || 0);
             if (selectedSellerId) {
                 const payload = {
                     id: selectedSellerId,
