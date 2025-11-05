@@ -1034,7 +1034,9 @@ tfoot td { font-weight: 700; }
 }
 .col-client.has-reg .client-input { padding-right: 36px; }
 
-/* Comment marker follows text dynamically, no special positioning needed when reg is present */
+/* When both reg and comment are present, adjust positioning to show both */
+.col-client.has-reg.has-comment .client-input { padding-right: 60px; }
+.col-client.has-reg.has-comment .comment-marker { right: 36px; }
 .clients-row { cursor: pointer; }
 .clients-table tbody tr:hover td { background: #f3f4f6 !important; }
 [data-theme="dark"] .clients-table tbody tr:hover td { background: #1a1a1a !important; }
