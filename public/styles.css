@@ -368,6 +368,9 @@ html, body, button, input, select, textarea, th, td, h1, h2, h3, h4, p, small, l
 .header-actions #logout-btn { display: none; }
 .app-logo { height: 48px; width: auto; display: block; }
 .toolbar-logo { height: 36px; width: auto; }
+/* Landing hero (logo on landing page) */
+.landing-hero { display: grid; place-content: center; margin: 16px 0 8px; }
+.landing-logo { width: min(360px, 70vw); height: auto; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.06)); opacity: 0.95; }
 
 .app-footer { border-top: 1px solid var(--border); border-bottom: none; }
 
