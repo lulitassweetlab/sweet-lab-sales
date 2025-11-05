@@ -48,93 +48,128 @@ export async function handler(event) {
 
 		switch (event.httpMethod) {
 			case 'GET': {
-				// Fetch notifications with seller information and check status
-				// Only show notifications created since the last visit
-				
-				// Get last visit timestamp
-				const lastVisit = await sql`
-					SELECT visited_at 
-					FROM notification_center_visits 
-					WHERE lower(username) = lower(${actorName})
-					LIMIT 1
-				`;
-				
-				// Get notifications since last visit (or all if first visit)
-				let notifications;
-				if (lastVisit.length && lastVisit[0].visited_at) {
-					const since = lastVisit[0].visited_at;
-					notifications = await sql`
-						SELECT 
-							n.id,
-							n.type,
-							n.seller_id,
-							n.sale_id,
-							n.sale_day_id,
-							n.message,
-							n.actor_name,
-							n.icon_url,
-							n.pay_method,
-							n.created_at,
-							s.name AS seller_name,
-							CASE WHEN nc.id IS NOT NULL THEN true ELSE false END AS is_checked
-						FROM notifications n
-						LEFT JOIN sellers s ON s.id = n.seller_id
-						LEFT JOIN notification_checks nc ON nc.notification_id = n.id 
-							AND lower(nc.checked_by) = lower(${actorName})
-						WHERE n.created_at >= ${since}
-						ORDER BY n.created_at DESC
-					`;
-				} else {
-					// First visit, get all notifications
-					notifications = await sql`
-						SELECT 
-							n.id,
-							n.type,
-							n.seller_id,
-							n.sale_id,
-							n.sale_day_id,
-							n.message,
-							n.actor_name,
-							n.icon_url,
-							n.pay_method,
-							n.created_at,
-							s.name AS seller_name,
-							CASE WHEN nc.id IS NOT NULL THEN true ELSE false END AS is_checked
-						FROM notifications n
-						LEFT JOIN sellers s ON s.id = n.seller_id
-						LEFT JOIN notification_checks nc ON nc.notification_id = n.id 
-							AND lower(nc.checked_by) = lower(${actorName})
-						ORDER BY n.created_at DESC
-					`;
-				}
-				
-				// Also fetch detailed sale information for each notification
-				const enriched = [];
-				for (const notif of notifications) {
-					const item = { ...notif };
+				try {
+					console.log('Fetching notifications for:', actorName);
 					
-					// If there's a sale_id, fetch detailed dessert quantities
-					if (notif.sale_id) {
-						try {
-							const saleDetails = await sql`
-								SELECT s.client_name, s.qty_arco, s.qty_melo, s.qty_mara, s.qty_oreo, s.qty_nute
-								FROM sales s
-								WHERE s.id = ${notif.sale_id}
-								LIMIT 1
-							`;
-							if (saleDetails.length > 0) {
-								item.sale_details = saleDetails[0];
-							}
-						} catch (err) {
-							// Sale might have been deleted
-							item.sale_details = null;
-						}
+					// Check if tables exist
+					let tablesExist = true;
+					try {
+						await sql`SELECT 1 FROM notification_center_visits LIMIT 1`;
+						await sql`SELECT 1 FROM notification_checks LIMIT 1`;
+					} catch (err) {
+						console.warn('Notification tables do not exist yet:', err.message);
+						tablesExist = false;
 					}
 					
-					enriched.push(item);
-				}
+					if (!tablesExist) {
+						console.log('Tables do not exist, returning empty array');
+						return json([]);
+					}
+					
+					// Get last visit timestamp
+					let lastVisit = [];
+					try {
+						lastVisit = await sql`
+							SELECT visited_at 
+							FROM notification_center_visits 
+							WHERE lower(username) = lower(${actorName})
+							LIMIT 1
+						`;
+						console.log('Last visit query result:', lastVisit.length > 0 ? 'found' : 'not found');
+					} catch (err) {
+						console.error('Error fetching last visit:', err);
+					}
+					
+					// Get notifications since last visit (or all if first visit)
+					let notifications = [];
+					try {
+						if (lastVisit.length > 0 && lastVisit[0].visited_at) {
+							const since = lastVisit[0].visited_at;
+							console.log('Fetching notifications since:', since);
+							notifications = await sql`
+								SELECT 
+									n.id,
+									n.type,
+									n.seller_id,
+									n.sale_id,
+									n.sale_day_id,
+									n.message,
+									n.actor_name,
+									n.icon_url,
+									n.pay_method,
+									n.created_at,
+									s.name AS seller_name,
+									COALESCE((SELECT true FROM notification_checks nc WHERE nc.notification_id = n.id AND lower(nc.checked_by) = lower(${actorName}) LIMIT 1), false) AS is_checked
+								FROM notifications n
+								LEFT JOIN sellers s ON s.id = n.seller_id
+								WHERE n.created_at >= ${since}
+								ORDER BY n.created_at DESC
+							`;
+						} else {
+							// First visit, get all notifications
+							console.log('First visit - fetching all notifications');
+							notifications = await sql`
+								SELECT 
+									n.id,
+									n.type,
+									n.seller_id,
+									n.sale_id,
+									n.sale_day_id,
+									n.message,
+									n.actor_name,
+									n.icon_url,
+									n.pay_method,
+									n.created_at,
+									s.name AS seller_name,
+									COALESCE((SELECT true FROM notification_checks nc WHERE nc.notification_id = n.id AND lower(nc.checked_by) = lower(${actorName}) LIMIT 1), false) AS is_checked
+								FROM notifications n
+								LEFT JOIN sellers s ON s.id = n.seller_id
+								ORDER BY n.created_at DESC
+							`;
+						}
+						console.log('Notifications fetched:', notifications.length);
+					} catch (err) {
+						console.error('Error fetching notifications:', err.message);
+						// If notifications table doesn't exist, return empty array
+						if (err.message && err.message.includes('does not exist')) {
+							console.log('Notifications table does not exist, returning empty');
+							return json([]);
+						}
+						throw err;
+					}
 				
-				return json(enriched);
+					// Also fetch detailed sale information for each notification
+					const enriched = [];
+					for (const notif of notifications) {
+						const item = { ...notif };
+						
+						// If there's a sale_id, fetch detailed dessert quantities
+						if (notif.sale_id) {
+							try {
+								const saleDetails = await sql`
+									SELECT s.client_name, s.qty_arco, s.qty_melo, s.qty_mara, s.qty_oreo, s.qty_nute
+									FROM sales s
+									WHERE s.id = ${notif.sale_id}
+									LIMIT 1
+								`;
+								if (saleDetails.length > 0) {
+									item.sale_details = saleDetails[0];
+								}
+							} catch (err) {
+								// Sale might have been deleted
+								item.sale_details = null;
+							}
+						}
+						
+						enriched.push(item);
+					}
+					
+					console.log('Returning enriched notifications:', enriched.length);
+					return json(enriched);
+				} catch (err) {
+					console.error('GET notifications error:', err);
+					throw err;
+				}
 			}
 
 			case 'POST': {

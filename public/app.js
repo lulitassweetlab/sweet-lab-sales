@@ -8515,7 +8515,14 @@ const NotificationCenter = {
 			this.render(notifications);
 		} catch (err) {
 			console.error('Error loading notifications:', err);
-			this.body.innerHTML = '<div class="notif-center-loading">Error al cargar notificaciones</div>';
+			const errorMsg = err.message || 'Error desconocido';
+			this.body.innerHTML = `
+				<div class="notif-center-loading">
+					<div>Error al cargar notificaciones</div>
+					<div style="font-size: 11px; color: var(--muted); margin-top: 8px;">${errorMsg}</div>
+					<div style="font-size: 11px; color: var(--muted); margin-top: 4px;">Revisa la consola para más detalles</div>
+				</div>
+			`;
 		}
 	},
 
