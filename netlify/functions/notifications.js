@@ -31,15 +31,27 @@ async function getActorRole(event) {
 }
 
 export async function handler(event) {
+	console.log('=== Notifications Handler Start ===');
+	console.log('Method:', event.httpMethod);
+	console.log('Raw query:', event.rawQuery);
+	console.log('Query params:', event.queryStringParameters);
+	
 	try {
-		console.log('=== Notifications Handler Start ===');
-		console.log('Method:', event.httpMethod);
-		console.log('Query:', event.rawQuery || event.queryStringParameters);
+		// Test endpoint
+		const params = new URLSearchParams(event.rawQuery || '');
+		if (params.get('test') === '1') {
+			console.log('Test endpoint hit');
+			return json({ ok: true, message: 'Notifications endpoint is working', timestamp: new Date().toISOString() });
+		}
 		
+		console.log('Calling ensureSchema...');
 		await ensureSchema();
+		console.log('✓ ensureSchema completed');
+		
 		if (event.httpMethod === 'OPTIONS') return json({ ok: true });
 
 		// Only superadmin can access the notification center
+		console.log('Getting actor role...');
 		const role = await getActorRole(event);
 		console.log('Actor role:', role);
 		if (role !== 'superadmin') {
@@ -47,6 +59,7 @@ export async function handler(event) {
 			return json({ error: 'No autorizado' }, 403);
 		}
 
+		console.log('Getting actor name...');
 		const actorName = await getActorName(event);
 		console.log('Actor name:', actorName);
 		if (!actorName) {
