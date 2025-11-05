@@ -570,18 +570,20 @@
 						userChip.style.fontSize = '11px';
 						userChip.style.padding = '2px 8px';
 						userChip.style.opacity = '0.5';
-						userChip.addEventListener('click', () => {
-							if (selectedUsers.has(u.id)) {
-								selectedUsers.delete(u.id);
-								userChip.style.opacity = '0.5';
-								userChip.style.backgroundColor = '';
-							} else {
-								selectedUsers.add(u.id);
-								userChip.style.opacity = '1';
-								userChip.style.backgroundColor = '#4caf50';
-								userChip.style.color = 'white';
-							}
-						});
+					userChip.addEventListener('click', (ev) => {
+						ev.stopPropagation();
+						if (selectedUsers.has(u.id)) {
+							selectedUsers.delete(u.id);
+							userChip.style.opacity = '0.5';
+							userChip.style.backgroundColor = '';
+							userChip.style.color = '';
+						} else {
+							selectedUsers.add(u.id);
+							userChip.style.opacity = '1';
+							userChip.style.backgroundColor = '#d4567a';
+							userChip.style.color = 'white';
+						}
+					});
 						userContainer.appendChild(userChip);
 					}
 					
