@@ -8505,14 +8505,15 @@ const NotificationCenter = {
 		this.body.innerHTML = '<div class="notif-center-loading">Cargando notificaciones...</div>';
 		
 		try {
-			// Update last visit timestamp
-			await this.updateLastVisit();
-			
-			// Fetch notifications
+			// Fetch notifications FIRST (before updating last visit timestamp)
 			const notifications = await this.fetchNotifications();
 			
 			// Render notifications
 			this.render(notifications);
+			
+			// Update last visit timestamp AFTER showing notifications
+			// This ensures we don't miss any notifications
+			await this.updateLastVisit();
 		} catch (err) {
 			console.error('Error loading notifications:', err);
 			const errorMsg = err.message || 'Error desconocido';
@@ -8564,7 +8565,9 @@ const NotificationCenter = {
 				throw new Error(`Failed to fetch notifications: ${response.status}`);
 			}
 			
-			return await response.json();
+			const data = await response.json();
+			console.log('📬 Notificaciones recibidas:', data.length, data);
+			return data;
 		} catch (error) {
 			console.error('Error in fetchNotifications:', error);
 			throw error;
