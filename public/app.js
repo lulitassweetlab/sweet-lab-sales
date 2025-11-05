@@ -1853,7 +1853,7 @@ function wireCommissionsPaidEditor() {
     if (isSuper) {
         if (!el.isContentEditable) el.setAttribute('contenteditable', 'true');
         el.style.cursor = 'text';
-        el.title = 'Editar comisiones pagadas';
+        el.title = 'Editar comisiones pagadas (click para editar)';
     } else {
         if (el.isContentEditable) el.removeAttribute('contenteditable');
         el.style.cursor = 'default';
@@ -1863,47 +1863,87 @@ function wireCommissionsPaidEditor() {
     if (el.dataset.boundCommPaid === '1') return;
     el.dataset.boundCommPaid = '1';
     
-    // Store original formatted value
+    // Store original formatted value and editing state
     let originalValue = '';
+    let isEditing = false;
     
     // On focus, convert formatted value to raw number for easier editing
     el.addEventListener('focus', () => {
+        if (!isSuper) return;
+        isEditing = true;
         originalValue = el.textContent;
         // Remove formatting (remove commas, spaces, etc.) to show raw number
         const raw = (el.textContent || '').replace(/[^0-9]/g, '');
         el.textContent = raw || '0';
-        selectAllContent(el);
+        // Use setTimeout to ensure selection happens after textContent update
+        setTimeout(() => selectAllContent(el), 0);
     });
     
-    el.addEventListener('mouseup', (ev) => { ev.preventDefault(); selectAllContent(el); });
-    el.addEventListener('click', () => { selectAllContent(el); });
+    el.addEventListener('mouseup', (ev) => { 
+        if (isEditing) {
+            ev.preventDefault(); 
+            setTimeout(() => selectAllContent(el), 0);
+        }
+    });
     
-    // Sanitize input to numbers only while typing
+    // Sanitize input to numbers only while typing - allow any number of digits
     el.addEventListener('input', () => {
-        if (!el.isContentEditable) return;
+        if (!el.isContentEditable || !isSuper) return;
+        // Get cursor position before modification
+        const selection = window.getSelection();
+        const cursorPos = selection.anchorOffset;
+        
         let raw = (el.textContent || '').replace(/[^0-9]/g, '');
-        // Remove leading zeros
-        raw = raw.replace(/^0+(\d)/, '$1');
-        el.textContent = raw || '0';
+        // Remove leading zeros only if there are other digits
+        if (raw.length > 1) {
+            raw = raw.replace(/^0+/, '');
+        }
+        // If empty, default to 0
+        if (!raw) raw = '0';
+        
+        el.textContent = raw;
+        
+        // Restore cursor position
+        try {
+            const range = document.createRange();
+            const newPos = Math.min(cursorPos, el.textContent.length);
+            range.setStart(el.firstChild || el, newPos);
+            range.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(range);
+        } catch {}
     });
     
     // Save on Enter or blur
     el.addEventListener('keydown', (ev) => {
-        if (ev.key === 'Enter') { ev.preventDefault(); el.blur(); }
+        if (!isSuper) return;
+        if (ev.key === 'Enter') { 
+            ev.preventDefault(); 
+            el.blur(); 
+        }
         if (ev.key === 'Escape') { 
             ev.preventDefault(); 
+            isEditing = false;
             el.textContent = originalValue;
             el.blur(); 
         }
     });
     
     el.addEventListener('blur', async () => {
-        if (!isSuper) return;
+        if (!isSuper || !isEditing) return;
+        isEditing = false;
+        
         const dayId = state?.selectedDayId || null;
-        if (!dayId) { try { notify.error('Selecciona una fecha'); } catch {} return; }
+        if (!dayId) { 
+            el.textContent = originalValue;
+            try { notify.error('Selecciona una fecha'); } catch {} 
+            return; 
+        }
+        
         const rawValue = (el.textContent || '').replace(/[^0-9]/g, '');
         const value = Math.max(0, parseInt(rawValue, 10) || 0);
         const payload = { id: dayId, actor_name: state.currentUser?.name || '', commissions_paid: value };
+        
         try {
             const updated = await api('PUT', '/api/days', payload);
             const idx = (state.saleDays || []).findIndex(d => d && d.id === dayId);
@@ -1911,6 +1951,7 @@ function wireCommissionsPaidEditor() {
             // Re-render to show formatted value
             updateSummary();
         } catch (e) {
+            console.error('Error saving commissions paid:', e);
             try { notify.error('No se pudo guardar las comisiones pagadas'); } catch {}
             // Restore original value on error
             el.textContent = originalValue;
