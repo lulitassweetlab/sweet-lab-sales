@@ -4193,9 +4193,9 @@ function openPermissionsManager() {
         return { wrap, input };
     }
     
-    const commLow = makeCommField('Nivel Básico', '1-29', '1000', '#9C27B0');
-    const commMid = makeCommField('Nivel Intermedio', '30-59', '1300', '#2196F3');
-    const commHigh = makeCommField('Nivel Avanzado', '60+', '1500', '#4CAF50');
+    const commLow = makeCommField('Nivel Básico', '1-29', '1000', '#C2185B');
+    const commMid = makeCommField('Nivel Intermedio', '30-59', '1300', '#C2185B');
+    const commHigh = makeCommField('Nivel Avanzado', '60+', '1500', '#C2185B');
     
     commissionInputsContainer.appendChild(commLow.wrap);
     commissionInputsContainer.appendChild(commMid.wrap);
