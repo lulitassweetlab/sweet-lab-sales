@@ -8611,12 +8611,18 @@ const NotificationCenter = {
 		const content = document.createElement('div');
 		content.className = 'notif-content';
 
-		// Message
+		// Línea 1: Cliente y pedido
 		const message = document.createElement('div');
 		message.className = 'notif-message';
 		message.textContent = notif.message || 'Sin mensaje';
 
-		// Meta info (date, seller, icon)
+		// Línea 2: Tipo de notificación
+		const typeLabel = document.createElement('div');
+		typeLabel.className = 'notif-type';
+		const typeText = this.getNotificationType(notif.type);
+		typeLabel.textContent = typeText;
+
+		// Línea 3: Meta info (date, seller, icon)
 		const meta = document.createElement('div');
 		meta.className = 'notif-meta';
 		
@@ -8644,18 +8650,8 @@ const NotificationCenter = {
 			meta.appendChild(icon);
 		}
 
-		// Details (if there's sale information)
-		if (notif.sale_details) {
-			const details = this.formatSaleDetails(notif);
-			if (details) {
-				const detailsEl = document.createElement('div');
-				detailsEl.className = 'notif-details';
-				detailsEl.textContent = details;
-				content.appendChild(detailsEl);
-			}
-		}
-
 		content.appendChild(message);
+		content.appendChild(typeLabel);
 		content.appendChild(meta);
 
 		// Delete button
@@ -8670,6 +8666,17 @@ const NotificationCenter = {
 		item.appendChild(deleteBtn);
 
 		return item;
+	},
+
+	getNotificationType(type) {
+		const types = {
+			'create': '✨ Nuevo pedido',
+			'qty': '📝 Modificación',
+			'delete': '🗑️ Pedido eliminado',
+			'pay': '💳 Cambio de estatus',
+			'comment': '💬 Comentario'
+		};
+		return types[type] || 'Notificación';
 	},
 
 	formatSaleDetails(notif) {
