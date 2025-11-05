@@ -712,8 +712,8 @@ export async function handler(event) {
 					const ma = Number(prev.qty_mara||0); if (ma) parts.push(`${ma} mara`);
 					const or = Number(prev.qty_oreo||0); if (or) parts.push(`${or} oreo`);
 					const nu = Number(prev.qty_nute||0); if (nu) parts.push(`${nu} nute`);
-					const suffix = parts.length ? (': ' + parts.join(' + ')) : '';
-					const msg = `${name}${suffix}`;
+					const orderDetails = parts.length ? (': ' + parts.join(' + ')) : '';
+					const msg = `${name}${orderDetails}`;
 					const pm = (prev?.pay_method || '').toString();
 				const iconUrl = pm === 'efectivo' ? '/icons/bill.svg' : pm === 'entregado' ? '/icons/delivered-pink.svg' : pm === 'transf' ? '/icons/bank.svg' : pm === 'jorgebank' ? '/icons/bank-yellow.svg' : pm === 'marce' ? '/icons/marce7.svg?v=1' : pm === 'jorge' ? '/icons/jorge7.svg?v=1' : null;
 					// Do not reference deleted sale_id to avoid FK violation

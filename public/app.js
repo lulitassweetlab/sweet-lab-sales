@@ -8620,7 +8620,7 @@ const NotificationCenter = {
 		const typeLabel = document.createElement('div');
 		typeLabel.className = 'notif-type';
 		const typeText = this.getNotificationType(notif.type);
-		typeLabel.textContent = typeText;
+		typeLabel.innerHTML = typeText; // Usar innerHTML para permitir el span con color
 
 		// Línea 3: Meta info (date, seller, icon)
 		const meta = document.createElement('div');
@@ -8672,7 +8672,7 @@ const NotificationCenter = {
 		const types = {
 			'create': '✨ Nuevo pedido',
 			'qty': '📝 Modificación',
-			'delete': '🗑️ Pedido eliminado',
+			'delete': '<span style="color: #ef4444;">🗑️ Pedido eliminado</span>',
 			'pay': '💳 Cambio de estatus',
 			'comment': '💬 Comentario'
 		};
