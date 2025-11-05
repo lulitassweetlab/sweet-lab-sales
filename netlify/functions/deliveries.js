@@ -66,13 +66,26 @@ export async function handler(event) {
 					if (!id) return json({ error: 'production_users inválido' }, 400);
 					
 					const rows = await sql`
-						SELECT DISTINCT u.username
+						SELECT 
+							u.username,
+							des.short_code
 						FROM delivery_production_users dpu
 						JOIN users u ON u.id = dpu.user_id
+						JOIN desserts des ON des.id = dpu.dessert_id
 						WHERE dpu.delivery_id = ${id}
-						ORDER BY u.username ASC
+						ORDER BY des.position ASC, u.username ASC
 					`;
-					return json(rows.map(r => r.username));
+					
+					// Group by dessert
+					const byDessert = {};
+					for (const row of rows) {
+						if (!byDessert[row.short_code]) {
+							byDessert[row.short_code] = [];
+						}
+						byDessert[row.short_code].push(row.username);
+					}
+					
+					return json(byDessert);
 				}
 				
 				// Check if this is a production report request

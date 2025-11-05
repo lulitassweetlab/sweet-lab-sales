@@ -94,10 +94,10 @@
 					r.sellers = [];
 				}
 				try {
-					const users = await api('GET', `/api/deliveries?production_users=${r.id}`);
-					r.production_users = Array.isArray(users) ? users : [];
+					const usersByDessert = await api('GET', `/api/deliveries?production_users=${r.id}`);
+					r.production_users_by_dessert = (usersByDessert && typeof usersByDessert === 'object') ? usersByDessert : {};
 				} catch {
-					r.production_users = [];
+					r.production_users_by_dessert = {};
 				}
 			}
 			currentRows = rows;
@@ -109,7 +109,7 @@
 			for (const r of rows) {
 				tbody.appendChild(renderDeliveryRow(r));
 				// Show production users if any
-				if (r.production_users && r.production_users.length > 0) {
+				if (r.production_users_by_dessert && Object.keys(r.production_users_by_dessert).length > 0) {
 					tbody.appendChild(renderProductionUsersRow(r));
 				}
 				// Render seller rows below each delivery if expanded
@@ -253,14 +253,87 @@
 		function renderProductionUsersRow(delivery) {
 			const tr = document.createElement('tr');
 			tr.style.backgroundColor = '#fafafa';
-			const td = document.createElement('td');
-			td.colSpan = 7;
-			td.style.padding = '4px 8px';
-			td.style.fontSize = '11px';
-			td.style.fontStyle = 'italic';
-			td.style.color = '#666';
-			td.textContent = 'Producción: ' + delivery.production_users.join(', ');
-			tr.appendChild(td);
+			tr.style.borderTop = '1px solid #e9ecef';
+			
+			const labelCell = document.createElement('td');
+			labelCell.style.padding = '8px';
+			labelCell.style.fontSize = '11px';
+			labelCell.style.fontWeight = 'bold';
+			labelCell.style.color = '#495057';
+			labelCell.style.verticalAlign = 'top';
+			labelCell.textContent = 'Producción:';
+			
+			const contentCell = document.createElement('td');
+			contentCell.colSpan = 6;
+			contentCell.style.padding = '8px';
+			
+			const usersByDessert = delivery.production_users_by_dessert || {};
+			
+			// If we have per-dessert info, display it
+			if (Object.keys(usersByDessert).length > 0) {
+				const dessertNames = {
+					arco: 'Arco',
+					melo: 'Melo',
+					mara: 'Mara',
+					oreo: 'Oreo',
+					nute: 'Nute'
+				};
+				
+				const detailDiv = document.createElement('div');
+				detailDiv.style.display = 'flex';
+				detailDiv.style.flexDirection = 'column';
+				detailDiv.style.gap = '6px';
+				
+				for (const [code, users] of Object.entries(usersByDessert)) {
+					if (!users || users.length === 0) continue;
+					
+					const line = document.createElement('div');
+					line.style.fontSize = '11px';
+					line.style.color = '#666';
+					line.style.display = 'flex';
+					line.style.alignItems = 'center';
+					line.style.gap = '8px';
+					
+					const dessertLabel = document.createElement('strong');
+					dessertLabel.textContent = dessertNames[code];
+					dessertLabel.style.color = '#495057';
+					dessertLabel.style.minWidth = '50px';
+					
+					// Create user chips
+					const usersContainer = document.createElement('div');
+					usersContainer.style.display = 'flex';
+					usersContainer.style.flexWrap = 'wrap';
+					usersContainer.style.gap = '4px';
+					
+					for (const username of users) {
+						const chip = document.createElement('span');
+						chip.textContent = username;
+						chip.style.fontSize = '10px';
+						chip.style.padding = '2px 8px';
+						chip.style.backgroundColor = '#e3f2fd';
+						chip.style.color = '#1976d2';
+						chip.style.borderRadius = '12px';
+						chip.style.border = '1px solid #90caf9';
+						usersContainer.appendChild(chip);
+					}
+					
+					line.appendChild(dessertLabel);
+					line.appendChild(usersContainer);
+					detailDiv.appendChild(line);
+				}
+				
+				contentCell.appendChild(detailDiv);
+			} else {
+				const noData = document.createElement('span');
+				noData.style.fontSize = '11px';
+				noData.style.color = '#adb5bd';
+				noData.style.fontStyle = 'italic';
+				noData.textContent = 'No hay información de usuarios';
+				contentCell.appendChild(noData);
+			}
+			
+			tr.appendChild(labelCell);
+			tr.appendChild(contentCell);
 			return tr;
 		}
 
@@ -474,6 +547,137 @@
 			}
 		}
 
+		// User selection popover
+		function openUserSelectionPopover(dessertName, selectedUsers, triggerBtn) {
+			const userPop = document.createElement('div');
+			userPop.className = 'new-sale-popover';
+			userPop.style.position = 'fixed';
+			userPop.style.left = '50%';
+			userPop.style.top = '50%';
+			userPop.style.transform = 'translate(-50%, -50%)';
+			userPop.style.minWidth = '300px';
+			userPop.style.maxWidth = '400px';
+			
+			const title = document.createElement('h4');
+			title.style.margin = '0 0 12px 0';
+			title.textContent = `Usuarios - ${dessertName}`;
+			
+			const userGrid = document.createElement('div');
+			userGrid.style.display = 'grid';
+			userGrid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(100px, 1fr))';
+			userGrid.style.gap = '8px';
+			userGrid.style.marginBottom = '16px';
+			userGrid.style.minHeight = '60px';
+			userGrid.innerHTML = '<p style="color: #6c757d; text-align: center;">Cargando usuarios...</p>';
+			
+			// Load users
+			api('GET', '/api/users').then(r => {
+				const users = Array.isArray(r) ? r : [];
+				userGrid.innerHTML = '';
+				
+				if (users.length === 0) {
+					userGrid.innerHTML = '<p style="color: #dc3545;">No hay usuarios disponibles</p>';
+					return;
+				}
+				
+				// Create button for each user
+				for (const u of users) {
+					const userBtn = document.createElement('button');
+					userBtn.type = 'button';
+					userBtn.className = 'press-btn';
+					userBtn.textContent = u.username;
+					userBtn.style.fontSize = '12px';
+					userBtn.style.padding = '8px 12px';
+					userBtn.style.transition = 'all 0.2s ease';
+					userBtn.style.border = '2px solid #dee2e6';
+					
+					// Check if already selected
+					const isSelected = selectedUsers.has(u.id);
+					if (isSelected) {
+						userBtn.style.backgroundColor = '#4caf50';
+						userBtn.style.color = 'white';
+						userBtn.style.borderColor = '#4caf50';
+						userBtn.style.fontWeight = 'bold';
+					} else {
+						userBtn.style.backgroundColor = '#f8f9fa';
+						userBtn.style.color = '#212529';
+					}
+					
+					userBtn.addEventListener('click', (e) => {
+						e.preventDefault();
+						if (selectedUsers.has(u.id)) {
+							selectedUsers.delete(u.id);
+							userBtn.style.backgroundColor = '#f8f9fa';
+							userBtn.style.color = '#212529';
+							userBtn.style.borderColor = '#dee2e6';
+							userBtn.style.fontWeight = 'normal';
+						} else {
+							selectedUsers.add(u.id);
+							userBtn.style.backgroundColor = '#4caf50';
+							userBtn.style.color = 'white';
+							userBtn.style.borderColor = '#4caf50';
+							userBtn.style.fontWeight = 'bold';
+						}
+						// Update trigger button text
+						const count = selectedUsers.size;
+						triggerBtn.textContent = count > 0 ? `Quién (${count})` : 'Quién (0)';
+					});
+					
+					// Hover effects
+					userBtn.addEventListener('mouseenter', () => {
+						if (!selectedUsers.has(u.id)) {
+							userBtn.style.backgroundColor = '#e9ecef';
+							userBtn.style.borderColor = '#adb5bd';
+						}
+					});
+					userBtn.addEventListener('mouseleave', () => {
+						if (!selectedUsers.has(u.id)) {
+							userBtn.style.backgroundColor = '#f8f9fa';
+							userBtn.style.borderColor = '#dee2e6';
+						}
+					});
+					
+					userGrid.appendChild(userBtn);
+				}
+			}).catch((err) => {
+				userGrid.innerHTML = '<p style="color: #dc3545;">Error cargando usuarios</p>';
+				console.error('Error loading users:', err);
+			});
+			
+			const closeBtn = document.createElement('button');
+			closeBtn.type = 'button';
+			closeBtn.className = 'press-btn btn-primary';
+			closeBtn.textContent = 'Cerrar';
+			closeBtn.style.width = '100%';
+			
+			userPop.append(title, userGrid, closeBtn);
+			userPop.style.visibility = 'hidden';
+			userPop.style.opacity = '0';
+			userPop.style.transition = 'opacity 160ms ease-out';
+			document.body.appendChild(userPop);
+			
+			requestAnimationFrame(() => {
+				userPop.style.visibility = 'visible';
+				userPop.style.opacity = '1';
+			});
+			
+			function cleanup() {
+				document.removeEventListener('mousedown', outside, true);
+				if (userPop.parentNode) userPop.parentNode.removeChild(userPop);
+			}
+			
+			function outside(ev) {
+				const t = ev.target;
+				if (!userPop.contains(t) && t !== triggerBtn) cleanup();
+			}
+			
+			setTimeout(() => {
+				document.addEventListener('mousedown', outside, true);
+			}, 0);
+			
+			closeBtn.addEventListener('click', cleanup);
+		}
+
 		async function openProductionPopover(anchorX, anchorY) {
 			try {
 				// Load dynamic desserts and users
@@ -555,12 +759,9 @@
 					qtyInputs[d.short_code] = input;
 					container.appendChild(input);
 					
-					// User selector dropdown button
+					// User selector button
 					const selectedUsers = new Set();
 					userSelections[d.short_code] = selectedUsers;
-					
-					const dropdownWrapper = document.createElement('div');
-					dropdownWrapper.style.position = 'relative';
 					
 					const selectorBtn = document.createElement('button');
 					selectorBtn.type = 'button';
@@ -570,98 +771,15 @@
 					selectorBtn.style.padding = '4px 8px';
 					selectorBtn.style.whiteSpace = 'nowrap';
 					selectorBtn.style.minWidth = '80px';
-					selectorBtn.style.textAlign = 'left';
 					
-					// Dropdown menu
-					const dropdown = document.createElement('div');
-					dropdown.style.position = 'absolute';
-					dropdown.style.top = '100%';
-					dropdown.style.left = '0';
-					dropdown.style.right = '0';
-					dropdown.style.backgroundColor = 'white';
-					dropdown.style.border = '1px solid #dee2e6';
-					dropdown.style.borderRadius = '4px';
-					dropdown.style.maxHeight = '150px';
-					dropdown.style.overflowY = 'auto';
-					dropdown.style.zIndex = '1000';
-					dropdown.style.display = 'none';
-					dropdown.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)';
-					dropdown.style.marginTop = '2px';
-					
-					// Create checkboxes for each user
-					for (const u of users) {
-						const label = document.createElement('label');
-						label.style.display = 'flex';
-						label.style.alignItems = 'center';
-						label.style.padding = '6px 10px';
-						label.style.cursor = 'pointer';
-						label.style.fontSize = '12px';
-						label.style.transition = 'background-color 0.15s ease';
-						
-						label.addEventListener('mouseenter', () => {
-							label.style.backgroundColor = '#f8f9fa';
-						});
-						label.addEventListener('mouseleave', () => {
-							label.style.backgroundColor = 'white';
-						});
-						
-						const checkbox = document.createElement('input');
-						checkbox.type = 'checkbox';
-						checkbox.style.marginRight = '8px';
-						checkbox.style.cursor = 'pointer';
-						
-						const userName = document.createElement('span');
-						userName.textContent = u.username;
-						
-						checkbox.addEventListener('change', () => {
-							if (checkbox.checked) {
-								selectedUsers.add(u.id);
-							} else {
-								selectedUsers.delete(u.id);
-							}
-							// Update button text
-							const count = selectedUsers.size;
-							selectorBtn.textContent = count > 0 
-								? `Quién (${count})` 
-								: 'Quién (0)';
-						});
-						
-						label.appendChild(checkbox);
-						label.appendChild(userName);
-						dropdown.appendChild(label);
-					}
-					
-					// Toggle dropdown
-					let isOpen = false;
+					// Open user selection popover
 					selectorBtn.addEventListener('click', (e) => {
 						e.preventDefault();
 						e.stopPropagation();
-						isOpen = !isOpen;
-						dropdown.style.display = isOpen ? 'block' : 'none';
+						openUserSelectionPopover(d.name, selectedUsers, selectorBtn);
 					});
 					
-					// Close dropdown when clicking outside
-					const closeDropdown = (e) => {
-						if (!dropdownWrapper.contains(e.target)) {
-							isOpen = false;
-							dropdown.style.display = 'none';
-						}
-					};
-					
-					// Add click listener when dropdown is open
-					selectorBtn.addEventListener('click', () => {
-						if (isOpen) {
-							setTimeout(() => {
-								document.addEventListener('click', closeDropdown);
-							}, 0);
-						} else {
-							document.removeEventListener('click', closeDropdown);
-						}
-					});
-					
-					dropdownWrapper.appendChild(selectorBtn);
-					dropdownWrapper.appendChild(dropdown);
-					container.appendChild(dropdownWrapper);
+					container.appendChild(selectorBtn);
 					
 					appendRow(d.name, container, true);
 				}
