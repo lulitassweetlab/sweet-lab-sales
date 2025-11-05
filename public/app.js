@@ -1128,11 +1128,12 @@ function renderFooterDessertColumns() {
 	const amtRow = document.getElementById('footer-amt-row');
 	const delivRow = document.getElementById('footer-delivered-row');
 	const commRow = document.getElementById('footer-comm-row');
+	const commPaidRow = document.getElementById('footer-comm-paid-row');
 	
 	if (!qtyRow || !amtRow) return;
 	
 	// Remove existing dessert columns from footer
-	[qtyRow, amtRow, delivRow, commRow].forEach(row => {
+	[qtyRow, amtRow, delivRow, commRow, commPaidRow].forEach(row => {
 		if (!row) return;
 		const existing = row.querySelectorAll('td.col-dessert');
 		existing.forEach(td => td.remove());
@@ -1183,6 +1184,14 @@ function renderFooterDessertColumns() {
 			const td = document.createElement('td');
 			td.className = `col-dessert col-${d.short_code}`;
 			if (totalTd) commRow.insertBefore(td, totalTd);
+		}
+		
+		// Comm Paid row (empty cells)
+		if (commPaidRow) {
+			const totalTd = commPaidRow.querySelector('td.col-total');
+			const td = document.createElement('td');
+			td.className = `col-dessert col-${d.short_code}`;
+			if (totalTd) commPaidRow.insertBefore(td, totalTd);
 		}
 	}
 	
@@ -1836,6 +1845,165 @@ function wireDeliveredRowEditors() {
             }
         });
     }
+}
+
+function wireCommissionsPaidEditor() {
+    const isSuper = state?.currentUser?.role === 'superadmin' || !!state?.currentUser?.isSuperAdmin;
+    const el = document.getElementById('comm-paid-total');
+    if (!el) return;
+    
+    function selectAllContent(el) {
+        try {
+            const range = document.createRange();
+            range.selectNodeContents(el);
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+        } catch {}
+    }
+    
+    // Toggle contenteditable based on role
+    if (isSuper) {
+        if (!el.isContentEditable) el.setAttribute('contenteditable', 'true');
+        el.style.cursor = 'text';
+        el.title = 'Editar comisiones pagadas (click para editar)';
+    } else {
+        if (el.isContentEditable) el.removeAttribute('contenteditable');
+        el.style.cursor = 'default';
+        el.title = '';
+    }
+    
+    if (el.dataset.boundCommPaid === '1') return;
+    el.dataset.boundCommPaid = '1';
+    
+    // Store original formatted value and editing state
+    let originalValue = '';
+    let isEditing = false;
+    
+	// On focus, convert formatted value to raw number for easier editing
+	el.addEventListener('focus', () => {
+		if (!isSuper) return;
+		isEditing = true;
+		el.dataset.isEditing = '1';
+		originalValue = el.textContent;
+		// Remove formatting (remove commas, spaces, etc.) to show raw number
+		const raw = (el.textContent || '').replace(/[^0-9]/g, '');
+		el.textContent = raw || '0';
+		// Use setTimeout to ensure selection happens after textContent update
+		setTimeout(() => selectAllContent(el), 0);
+	});
+    
+    el.addEventListener('mouseup', (ev) => { 
+        if (isEditing) {
+            ev.preventDefault(); 
+            setTimeout(() => selectAllContent(el), 0);
+        }
+    });
+    
+    // Sanitize input to numbers only while typing - allow any number of digits
+    el.addEventListener('input', () => {
+        if (!el.isContentEditable || !isSuper) return;
+        // Get cursor position before modification
+        const selection = window.getSelection();
+        const cursorPos = selection.anchorOffset;
+        
+        let raw = (el.textContent || '').replace(/[^0-9]/g, '');
+        // Remove leading zeros only if there are other digits
+        if (raw.length > 1) {
+            raw = raw.replace(/^0+/, '');
+        }
+        // If empty, default to 0
+        if (!raw) raw = '0';
+        
+        el.textContent = raw;
+        
+        // Restore cursor position
+        try {
+            const range = document.createRange();
+            const newPos = Math.min(cursorPos, el.textContent.length);
+            range.setStart(el.firstChild || el, newPos);
+            range.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(range);
+        } catch {}
+    });
+    
+    // Save on Enter or blur
+    el.addEventListener('keydown', (ev) => {
+        if (!isSuper) return;
+        if (ev.key === 'Enter') { 
+            ev.preventDefault(); 
+            el.blur(); 
+        }
+        if (ev.key === 'Escape') { 
+            ev.preventDefault(); 
+            isEditing = false;
+            el.textContent = originalValue;
+            el.blur(); 
+        }
+    });
+    
+	el.addEventListener('blur', async () => {
+		if (!isSuper || !isEditing) {
+			delete el.dataset.isEditing;
+			return;
+		}
+		isEditing = false;
+		
+		const dayId = state?.selectedDayId || null;
+		console.log('Blur event - dayId:', dayId, 'isEditing:', isEditing, 'isSuper:', isSuper);
+		
+		if (!dayId) { 
+			el.textContent = originalValue;
+			delete el.dataset.isEditing;
+			try { notify.error('Selecciona una fecha'); } catch {} 
+			return; 
+		}
+		
+		const rawValue = (el.textContent || '').replace(/[^0-9]/g, '');
+		const value = Math.max(0, parseInt(rawValue, 10) || 0);
+		console.log('Saving commissions_paid:', value, 'dayId:', dayId);
+		console.log('state.currentUser:', state.currentUser);
+		console.log('actor_name:', state.currentUser?.name);
+		const payload = { id: dayId, actor_name: state.currentUser?.name || '', commissions_paid: value };
+		console.log('Full payload:', JSON.stringify(payload, null, 2));
+		
+		try {
+			const updated = await api('PUT', '/api/days', payload);
+			console.log('API response:', updated);
+			console.log('API response commissions_paid:', updated?.commissions_paid);
+			console.log('Full API response object:', JSON.stringify(updated, null, 2));
+			const idx = (state.saleDays || []).findIndex(d => d && d.id === dayId);
+			if (idx !== -1) {
+				state.saleDays[idx] = updated;
+				console.log('Updated state.saleDays[' + idx + ']:', state.saleDays[idx]);
+				console.log('commissions_paid in state:', state.saleDays[idx].commissions_paid);
+			}
+			delete el.dataset.isEditing;
+			// Format and display the saved value immediately
+			const formatted = fmtNo.format(value);
+			el.textContent = formatted;
+			
+			// Also update the mobile stacked version
+			const elMobile = document.getElementById('comm-paid-total-2');
+			if (elMobile) elMobile.textContent = formatted;
+			
+			console.log('Formatted value displayed:', formatted);
+			
+			// Don't call updateSummary immediately to avoid overwriting
+			setTimeout(() => {
+				if (!el.dataset.isEditing) {
+					updateSummary();
+				}
+			}, 100);
+		} catch (e) {
+			console.error('Error saving commissions paid:', e);
+			try { notify.error('No se pudo guardar las comisiones pagadas'); } catch {}
+			// Restore original value on error
+			el.textContent = originalValue;
+			delete el.dataset.isEditing;
+		}
+	});
 }
 
 // New order popover: allow entering client and quantities before creating the row
@@ -3293,14 +3461,59 @@ function updateSummary() {
 	const grandStr = fmtNo.format(grand);
 	$('#sum-grand').textContent = grandStr;
 	
-	// Commissions: only paid desserts * 1000
+	// Commissions: tiered rates based on paid desserts quantity
 	let paidTotalQty = 0;
 	for (const d of state.desserts) {
 		paidTotalQty += paidQtys[d.short_code] || 0;
 	}
-	const commStr = fmtNo.format(paidTotalQty * 1000);
+	
+	// Determine commission rate based on quantity using seller's custom rates
+	const seller = state.currentSeller || {};
+	const rateLow = Number(seller.commission_rate_low) || 1000;
+	const rateMid = Number(seller.commission_rate_mid) || 1300;
+	const rateHigh = Number(seller.commission_rate_high) || 1500;
+	
+	let commRate = rateLow;
+	let commRateLabel = `x ${rateLow}`;
+	if (paidTotalQty >= 60) {
+		commRate = rateHigh;
+		commRateLabel = `x ${rateHigh}`;
+	} else if (paidTotalQty >= 30) {
+		commRate = rateMid;
+		commRateLabel = `x ${rateMid}`;
+	}
+	
+	const commGenerated = paidTotalQty * commRate;
+	const commStr = fmtNo.format(commGenerated);
 	const commEl = document.getElementById('sum-comm');
 	if (commEl) commEl.textContent = commStr;
+	
+	// Update commission label to show rate
+	const commLabelEl = document.querySelector('#footer-comm-row td.label');
+	if (commLabelEl) commLabelEl.textContent = `Comisiones generadas ${commRateLabel}`;
+	
+	// Comisiones pagadas (per day, editable solo por superadmin)
+	try {
+		const day = (state && Array.isArray(state.saleDays) && state.selectedDayId)
+			? (state.saleDays || []).find(d => d && d.id === state.selectedDayId)
+			: null;
+		
+		const commPaid = Number(day?.commissions_paid || 0) || 0;
+		const commPaidStr = fmtNo.format(commPaid);
+		console.log('updateSummary - commissions_paid from day:', commPaid, 'formatted:', commPaidStr, 'day:', day);
+		const elCP = document.getElementById('comm-paid-total');
+		// Only update if not currently being edited
+		if (elCP && !elCP.dataset.isEditing) {
+			elCP.textContent = commPaidStr;
+			console.log('Updated comm-paid-total element to:', commPaidStr);
+		} else if (elCP) {
+			console.log('Skipped updating comm-paid-total (currently editing)');
+		}
+		wireCommissionsPaidEditor();
+	} catch (e) {
+		console.error('Error updating commissions paid:', e);
+	}
+	
 	// Postres entregados (per day, editable solo por superadmin)
 	try {
 		const day = (state && Array.isArray(state.saleDays) && state.selectedDayId)
@@ -3318,7 +3531,9 @@ function updateSummary() {
 		const elDt = document.getElementById('deliv-total');
 		if (elDt) elDt.textContent = String(totalDelivered);
 		wireDeliveredRowEditors();
-	} catch {}
+	} catch (e) {
+		console.error('Error updating delivered:', e);
+	}
 	// Decide whether to stack totals to avoid overlap on small screens
 	requestAnimationFrame(() => {
 		const table = document.getElementById('sales-table');
@@ -3338,6 +3553,26 @@ function updateSummary() {
 		if (grandLine) grandLine.textContent = grandStr;
 		const commLine = document.getElementById('sum-comm-2');
 		if (commLine) commLine.textContent = commStr;
+		
+		// Update stacked commission label
+		try {
+			const commLabelStacked = document.querySelector('#footer-comm-row-2 .st-label');
+			if (commLabelStacked) commLabelStacked.textContent = `Comisiones generadas ${commRateLabel}`;
+		} catch (e) {
+			console.error('Error updating stacked commission label:', e);
+		}
+		
+		// Update stacked commission paid row (mobile)
+		try {
+			const day = (state && Array.isArray(state.saleDays) && state.selectedDayId)
+				? (state.saleDays || []).find(d => d && d.id === state.selectedDayId)
+				: null;
+			const commPaid = Number(day?.commissions_paid || 0) || 0;
+			const commPaidLine = document.getElementById('comm-paid-total-2');
+			if (commPaidLine) commPaidLine.textContent = fmtNo.format(commPaid);
+		} catch (e) {
+			console.error('Error updating stacked commission paid:', e);
+		}
 	});
 }
 
@@ -3849,11 +4084,135 @@ function openPermissionsManager() {
     [featSales, featTransfers, featCartera, featProjections, featMaterials, featInventory, featUsers, featAccounting]
         .forEach(x => right.appendChild(x.wrap));
     row.appendChild(left); row.appendChild(right);
+    
+    // Commissions section (separate, below the main row)
+    const commissionsSection = document.createElement('div');
+    commissionsSection.style.marginTop = '24px';
+    commissionsSection.style.paddingTop = '20px';
+    commissionsSection.style.borderTop = '2px solid var(--border-color, #e0e0e0)';
+    commissionsSection.style.display = 'none'; // Hidden by default
+    
+    const commissionsHeader = document.createElement('div');
+    commissionsHeader.style.display = 'flex';
+    commissionsHeader.style.alignItems = 'center';
+    commissionsHeader.style.gap = '8px';
+    commissionsHeader.style.marginBottom = '16px';
+    
+    const commissionsTitle = document.createElement('h4');
+    commissionsTitle.textContent = 'Comisiones';
+    commissionsTitle.style.margin = '0';
+    commissionsTitle.style.fontSize = '16px';
+    commissionsTitle.style.fontWeight = '600';
+    
+    const commissionsBadge = document.createElement('span');
+    commissionsBadge.textContent = 'Por rango de pedidos';
+    commissionsBadge.style.fontSize = '11px';
+    commissionsBadge.style.padding = '3px 8px';
+    commissionsBadge.style.borderRadius = '10px';
+    commissionsBadge.style.background = 'var(--primary-color, #4CAF50)';
+    commissionsBadge.style.color = 'white';
+    commissionsBadge.style.fontWeight = '500';
+    
+    commissionsHeader.appendChild(commissionsTitle);
+    commissionsHeader.appendChild(commissionsBadge);
+    
+    const commissionInputsContainer = document.createElement('div');
+    commissionInputsContainer.style.display = 'grid';
+    commissionInputsContainer.style.gridTemplateColumns = 'repeat(auto-fit, minmax(200px, 1fr))';
+    commissionInputsContainer.style.gap = '16px';
+    commissionInputsContainer.style.marginTop = '12px';
+    
+    function makeCommField(labelText, rangeText, placeholder, accentColor) {
+        const wrap = document.createElement('div');
+        wrap.style.background = 'var(--panel-bg, #fafafa)';
+        wrap.style.padding = '16px';
+        wrap.style.borderRadius = '8px';
+        wrap.style.border = `2px solid ${accentColor}`;
+        wrap.style.transition = 'transform 0.2s, box-shadow 0.2s';
+        
+        const header = document.createElement('div');
+        header.style.display = 'flex';
+        header.style.justifyContent = 'space-between';
+        header.style.alignItems = 'center';
+        header.style.marginBottom = '8px';
+        
+        const label = document.createElement('label');
+        label.textContent = labelText;
+        label.style.display = 'block';
+        label.style.fontSize = '13px';
+        label.style.fontWeight = '600';
+        label.style.color = 'var(--text-primary, #333)';
+        
+        const range = document.createElement('span');
+        range.textContent = rangeText;
+        range.style.fontSize = '11px';
+        range.style.padding = '2px 6px';
+        range.style.borderRadius = '4px';
+        range.style.background = accentColor;
+        range.style.color = 'white';
+        range.style.fontWeight = '500';
+        
+        header.appendChild(label);
+        header.appendChild(range);
+        
+        const inputWrapper = document.createElement('div');
+        inputWrapper.style.position = 'relative';
+        
+        const currency = document.createElement('span');
+        currency.textContent = '$';
+        currency.style.position = 'absolute';
+        currency.style.left = '10px';
+        currency.style.top = '50%';
+        currency.style.transform = 'translateY(-50%)';
+        currency.style.color = 'var(--text-secondary, #666)';
+        currency.style.fontWeight = '600';
+        
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.className = 'input-cell';
+        input.placeholder = placeholder;
+        input.style.width = '100%';
+        input.style.paddingLeft = '28px';
+        input.style.fontSize = '16px';
+        input.style.fontWeight = '500';
+        input.style.border = '1px solid var(--border-color, #ddd)';
+        input.style.borderRadius = '6px';
+        
+        inputWrapper.appendChild(currency);
+        inputWrapper.appendChild(input);
+        
+        wrap.appendChild(header);
+        wrap.appendChild(inputWrapper);
+        
+        // Hover effect
+        wrap.addEventListener('mouseenter', () => {
+            wrap.style.transform = 'translateY(-2px)';
+            wrap.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+        });
+        wrap.addEventListener('mouseleave', () => {
+            wrap.style.transform = 'translateY(0)';
+            wrap.style.boxShadow = 'none';
+        });
+        
+        return { wrap, input };
+    }
+    
+    const commLow = makeCommField('Nivel Básico', '1-29', '1000', '#C2185B');
+    const commMid = makeCommField('Nivel Intermedio', '30-59', '1300', '#C2185B');
+    const commHigh = makeCommField('Nivel Avanzado', '60+', '1500', '#C2185B');
+    
+    commissionInputsContainer.appendChild(commLow.wrap);
+    commissionInputsContainer.appendChild(commMid.wrap);
+    commissionInputsContainer.appendChild(commHigh.wrap);
+    
+    commissionsSection.appendChild(commissionsHeader);
+    commissionsSection.appendChild(commissionInputsContainer);
+    
     const actions = document.createElement('div'); actions.style.display = 'flex'; actions.style.justifyContent = 'flex-end'; actions.style.gap = '8px'; actions.style.marginTop = '14px';
     const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn'; closeBtn.textContent = 'Cerrar';
     const saveBtn = document.createElement('button'); saveBtn.className = 'press-btn btn-primary'; saveBtn.textContent = 'Guardar';
     actions.appendChild(closeBtn); actions.appendChild(saveBtn);
-    modal.appendChild(row); modal.appendChild(actions);
+    modal.appendChild(row); modal.appendChild(commissionsSection); modal.appendChild(actions);
     overlay.appendChild(modal); document.body.appendChild(overlay);
     function cleanup(){ if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }
     closeBtn.addEventListener('click', cleanup);
@@ -3872,6 +4231,14 @@ function openPermissionsManager() {
             const span = document.createElement('span'); span.textContent = String(s.name||'');
             wrap.appendChild(cb); wrap.appendChild(span); sellersBox.appendChild(wrap);
         });
+        
+        // Create a map of sellers by name for easy lookup
+        const sellersByName = new Map();
+        sellers.forEach(s => {
+            if (!s.archived_at) {
+                sellersByName.set(String(s.name||'').toLowerCase(), s);
+            }
+        });
         async function loadViewerGrants(viewerName) {
             const grants = await api('GET', API.Users + '?view_permissions=1&viewer=' + encodeURIComponent(viewerName));
             const grantedIds = new Set(grants.map(g => Number(g.seller_id)));
@@ -3882,6 +4249,22 @@ function openPermissionsManager() {
             const featuresSet = new Set((feats || []).map(f => String(f.feature)));
             [featSales.cb, featTransfers.cb, featCartera.cb, featProjections.cb, featMaterials.cb, featInventory.cb, featUsers.cb, featAccounting.cb]
                 .forEach(cb => { cb.checked = featuresSet.has(cb.dataset.feature); });
+            
+            // All users are sellers, so always show commission section
+            commissionsSection.style.display = 'block';
+            const seller = sellersByName.get(viewerName.toLowerCase());
+            if (seller) {
+                commissionsSection.dataset.sellerId = String(seller.id);
+                commLow.input.value = String(seller.commission_rate_low || 1000);
+                commMid.input.value = String(seller.commission_rate_mid || 1300);
+                commHigh.input.value = String(seller.commission_rate_high || 1500);
+            } else {
+                // If no matching seller found, clear the fields and ID
+                commissionsSection.dataset.sellerId = '';
+                commLow.input.value = '1000';
+                commMid.input.value = '1300';
+                commHigh.input.value = '1500';
+            }
         }
         userSelect.addEventListener('change', async () => {
             await loadViewerGrants(userSelect.value);
@@ -3892,6 +4275,8 @@ function openPermissionsManager() {
         }
         saveBtn.addEventListener('click', async () => {
             const viewer = String(userSelect.value||''); if (!viewer) return;
+            
+            // Save view permissions
             const cbs = Array.from(sellersBox.querySelectorAll('input[type="checkbox"]'));
             const selectedIds = new Set(cbs.filter(el => el.checked).map(el => Number(el.value)));
             const current = await api('GET', API.Users + '?view_permissions=1&viewer=' + encodeURIComponent(viewer));
@@ -3900,6 +4285,8 @@ function openPermissionsManager() {
             const toRevoke = [...currentIds].filter(id => !selectedIds.has(id));
             for (const id of toGrant) { await api('PATCH', API.Users, { action: 'grantView', username: viewer, sellerId: id }); }
             for (const id of toRevoke) { await api('PATCH', API.Users, { action: 'revokeView', username: viewer, sellerId: id }); }
+            
+            // Save feature permissions
             const feats = await api('GET', API.Users + '?feature_permissions=1&username=' + encodeURIComponent(viewer));
             const currentFeat = new Set((feats || []).map(f => String(f.feature)));
             const desiredFeat = new Set([featSales.cb, featTransfers.cb, featCartera.cb, featProjections.cb, featMaterials.cb, featInventory.cb, featUsers.cb, featAccounting.cb]
@@ -3908,8 +4295,23 @@ function openPermissionsManager() {
             const toRevokeF = [...currentFeat].filter(f => !desiredFeat.has(f));
             for (const f of toGrantF) await api('PATCH', API.Users, { action: 'grantFeature', username: viewer, feature: f });
             for (const f of toRevokeF) await api('PATCH', API.Users, { action: 'revokeFeature', username: viewer, feature: f });
-            notify.success('Permisos actualizados');
+            
+            // Save commission rates if a seller is being edited
+            const selectedSellerId = Number(commissionsSection.dataset.sellerId || 0);
+            if (selectedSellerId) {
+                const payload = {
+                    id: selectedSellerId,
+                    commission_rate_low: Number(commLow.input.value) || 1000,
+                    commission_rate_mid: Number(commMid.input.value) || 1300,
+                    commission_rate_high: Number(commHigh.input.value) || 1500
+                };
+                await api('PATCH', API.Sellers, payload);
+            }
+            
+            notify.success('Permisos y comisiones actualizados');
             cleanup();
+            // Refresh sellers data in state
+            state.sellers = await api('GET', API.Sellers);
         });
     })();
 }

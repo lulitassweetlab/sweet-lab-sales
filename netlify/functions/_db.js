@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 12; // Bump when schema changes require a migration (add notification_checks and notification_center_visits tables)
+const SCHEMA_VERSION = 13; // Bump when schema changes require a migration (add commission rate columns to sellers + notification_checks and notification_center_visits tables)
 
 export async function ensureSchema() {
 	// If already ensured in this instance, skip immediately
@@ -99,7 +99,7 @@ export async function ensureSchema() {
 		archived_at TIMESTAMPTZ,
 		created_at TIMESTAMPTZ DEFAULT now()
 	)`;
-	// Ensure bill_color exists for older deployments
+	// Ensure bill_color, archived_at, and commission rates exist for older deployments
 	await sql`DO $$ BEGIN
 		IF NOT EXISTS (
 			SELECT 1 FROM information_schema.columns
@@ -112,6 +112,24 @@ export async function ensureSchema() {
 			WHERE table_name = 'sellers' AND column_name = 'archived_at'
 		) THEN
 			ALTER TABLE sellers ADD COLUMN archived_at TIMESTAMPTZ;
+		END IF;
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'sellers' AND column_name = 'commission_rate_low'
+		) THEN
+			ALTER TABLE sellers ADD COLUMN commission_rate_low INTEGER NOT NULL DEFAULT 1000;
+		END IF;
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'sellers' AND column_name = 'commission_rate_mid'
+		) THEN
+			ALTER TABLE sellers ADD COLUMN commission_rate_mid INTEGER NOT NULL DEFAULT 1300;
+		END IF;
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'sellers' AND column_name = 'commission_rate_high'
+		) THEN
+			ALTER TABLE sellers ADD COLUMN commission_rate_high INTEGER NOT NULL DEFAULT 1500;
 		END IF;
 	END $$;`;
 	// Delegated view permissions: which users can view which sellers
@@ -137,7 +155,7 @@ export async function ensureSchema() {
 		is_archived BOOLEAN NOT NULL DEFAULT false,
 		UNIQUE (seller_id, day)
 	)`;
-	// Ensure delivered columns and is_archived exist for older deployments
+	// Ensure delivered columns, commissions_paid, and is_archived exist for older deployments
 	await sql`DO $$ BEGIN
 		IF NOT EXISTS (
 			SELECT 1 FROM information_schema.columns
@@ -168,6 +186,12 @@ export async function ensureSchema() {
 			WHERE table_name = 'sale_days' AND column_name = 'delivered_nute'
 		) THEN
 			ALTER TABLE sale_days ADD COLUMN delivered_nute INTEGER NOT NULL DEFAULT 0;
+		END IF;
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'sale_days' AND column_name = 'commissions_paid'
+		) THEN
+			ALTER TABLE sale_days ADD COLUMN commissions_paid INTEGER NOT NULL DEFAULT 0;
 		END IF;
 		IF NOT EXISTS (
 			SELECT 1 FROM information_schema.columns
