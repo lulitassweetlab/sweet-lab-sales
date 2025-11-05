@@ -4426,8 +4426,9 @@ td.col-client.action-bar-fading .client-input {
 .notification-center-btn {
 	width: 32px;
 	height: 32px;
-	border: none;
-	background: transparent;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	background: var(--card);
 	padding: 0;
 	display: inline-flex;
 	align-items: center;
@@ -4444,6 +4445,11 @@ td.col-client.action-bar-fading .client-input {
 
 .notification-center-btn:active {
 	transform: scale(1.15);
+}
+
+[data-theme="dark"] .notification-center-btn {
+	background: var(--card);
+	border-color: var(--border);
 }
 
 [data-theme="dark"] .notification-center-btn:hover {
