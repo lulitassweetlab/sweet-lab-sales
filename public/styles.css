@@ -4424,9 +4424,30 @@ td.col-client.action-bar-fading .client-input {
 
 /* ==================== NOTIFICATION CENTER ==================== */
 .notification-center-btn {
-	font-size: 20px;
-	padding: 8px 12px;
+	width: 32px;
+	height: 32px;
+	border: none;
+	background: transparent;
+	padding: 0;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 24px;
 	position: relative;
+	transition: transform 140ms ease, filter 140ms ease;
+}
+
+.notification-center-btn:hover {
+	transform: scale(1.25);
+	filter: drop-shadow(0 0 10px rgba(0,0,0,0.35));
+}
+
+.notification-center-btn:active {
+	transform: scale(1.15);
+}
+
+[data-theme="dark"] .notification-center-btn:hover {
+	filter: drop-shadow(0 0 10px rgba(255,255,255,0.35));
 }
 
 .notif-center-modal {
