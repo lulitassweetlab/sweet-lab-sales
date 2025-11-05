@@ -1964,10 +1964,13 @@ function wireCommissionsPaidEditor() {
 		try {
 			const updated = await api('PUT', '/api/days', payload);
 			console.log('API response:', updated);
+			console.log('API response commissions_paid:', updated?.commissions_paid);
+			console.log('Full API response object:', JSON.stringify(updated, null, 2));
 			const idx = (state.saleDays || []).findIndex(d => d && d.id === dayId);
 			if (idx !== -1) {
 				state.saleDays[idx] = updated;
 				console.log('Updated state.saleDays[' + idx + ']:', state.saleDays[idx]);
+				console.log('commissions_paid in state:', state.saleDays[idx].commissions_paid);
 			}
 			delete el.dataset.isEditing;
 			// Format and display the saved value immediately

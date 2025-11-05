@@ -87,12 +87,15 @@ export async function handler(event) {
 				const dor = Number(data.delivered_oreo ?? NaN);
 				const dnu = Number(data.delivered_nute ?? NaN);
 				const cp = Number(data.commissions_paid ?? NaN);
+				console.log('PUT /api/days - Received commissions_paid:', data.commissions_paid, 'Parsed cp:', cp);
 				const actor = (data.actor_name || data._actor_name || '').toString();
+				console.log('PUT /api/days - Actor:', actor);
 				let role = 'user';
 				if (actor) {
 					try {
 						const r = await sql`SELECT role FROM users WHERE lower(username)=lower(${actor}) LIMIT 1`;
 						if (r && r[0] && r[0].role) role = String(r[0].role);
+						console.log('PUT /api/days - User role:', role);
 					} catch {}
 				}
 				const dayParam = day && day.length ? day : null;
@@ -102,6 +105,7 @@ export async function handler(event) {
 				const dorVal = (role === 'superadmin' && !Number.isNaN(dor)) ? Math.max(0, dor|0) : null;
 				const dnuVal = (role === 'superadmin' && !Number.isNaN(dnu)) ? Math.max(0, dnu|0) : null;
 				const cpVal = (role === 'superadmin' && !Number.isNaN(cp)) ? Math.max(0, cp|0) : null;
+				console.log('PUT /api/days - cpVal:', cpVal, 'role:', role, 'isNaN:', Number.isNaN(cp));
 				let row;
 				try {
 					[row] = await sql`
@@ -114,8 +118,9 @@ export async function handler(event) {
 							delivered_nute = COALESCE(${dnuVal}, delivered_nute),
 							commissions_paid = COALESCE(${cpVal}, commissions_paid)
 						WHERE id=${id}
-						RETURNING id, day, delivered_arco, delivered_melo, delivered_mara, delivered_oreo, delivered_nute, COALESCE(commissions_paid, 0) as commissions_paid
+						RETURNING id, day, delivered_arco, delivered_melo, delivered_mara, delivered_oreo, delivered_nute, commissions_paid
 					`;
+					console.log('PUT /api/days - Updated row:', row);
 				} catch (e) {
 					// Fallback: If commissions_paid column doesn't exist yet, update without it
 					console.error('Error updating with commissions_paid, falling back:', e);
