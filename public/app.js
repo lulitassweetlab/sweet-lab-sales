@@ -1124,11 +1124,12 @@ function renderFooterDessertColumns() {
 	const amtRow = document.getElementById('footer-amt-row');
 	const delivRow = document.getElementById('footer-delivered-row');
 	const commRow = document.getElementById('footer-comm-row');
+	const commPaidRow = document.getElementById('footer-comm-paid-row');
 	
 	if (!qtyRow || !amtRow) return;
 	
 	// Remove existing dessert columns from footer
-	[qtyRow, amtRow, delivRow, commRow].forEach(row => {
+	[qtyRow, amtRow, delivRow, commRow, commPaidRow].forEach(row => {
 		if (!row) return;
 		const existing = row.querySelectorAll('td.col-dessert');
 		existing.forEach(td => td.remove());
@@ -1179,6 +1180,14 @@ function renderFooterDessertColumns() {
 			const td = document.createElement('td');
 			td.className = `col-dessert col-${d.short_code}`;
 			if (totalTd) commRow.insertBefore(td, totalTd);
+		}
+		
+		// Comm Paid row (empty cells)
+		if (commPaidRow) {
+			const totalTd = commPaidRow.querySelector('td.col-total');
+			const td = document.createElement('td');
+			td.className = `col-dessert col-${d.short_code}`;
+			if (totalTd) commPaidRow.insertBefore(td, totalTd);
 		}
 	}
 	
@@ -1867,17 +1876,18 @@ function wireCommissionsPaidEditor() {
     let originalValue = '';
     let isEditing = false;
     
-    // On focus, convert formatted value to raw number for easier editing
-    el.addEventListener('focus', () => {
-        if (!isSuper) return;
-        isEditing = true;
-        originalValue = el.textContent;
-        // Remove formatting (remove commas, spaces, etc.) to show raw number
-        const raw = (el.textContent || '').replace(/[^0-9]/g, '');
-        el.textContent = raw || '0';
-        // Use setTimeout to ensure selection happens after textContent update
-        setTimeout(() => selectAllContent(el), 0);
-    });
+	// On focus, convert formatted value to raw number for easier editing
+	el.addEventListener('focus', () => {
+		if (!isSuper) return;
+		isEditing = true;
+		el.dataset.isEditing = '1';
+		originalValue = el.textContent;
+		// Remove formatting (remove commas, spaces, etc.) to show raw number
+		const raw = (el.textContent || '').replace(/[^0-9]/g, '');
+		el.textContent = raw || '0';
+		// Use setTimeout to ensure selection happens after textContent update
+		setTimeout(() => selectAllContent(el), 0);
+	});
     
     el.addEventListener('mouseup', (ev) => { 
         if (isEditing) {
@@ -1929,34 +1939,43 @@ function wireCommissionsPaidEditor() {
         }
     });
     
-    el.addEventListener('blur', async () => {
-        if (!isSuper || !isEditing) return;
-        isEditing = false;
-        
-        const dayId = state?.selectedDayId || null;
-        if (!dayId) { 
-            el.textContent = originalValue;
-            try { notify.error('Selecciona una fecha'); } catch {} 
-            return; 
-        }
-        
-        const rawValue = (el.textContent || '').replace(/[^0-9]/g, '');
-        const value = Math.max(0, parseInt(rawValue, 10) || 0);
-        const payload = { id: dayId, actor_name: state.currentUser?.name || '', commissions_paid: value };
-        
-        try {
-            const updated = await api('PUT', '/api/days', payload);
-            const idx = (state.saleDays || []).findIndex(d => d && d.id === dayId);
-            if (idx !== -1) state.saleDays[idx] = updated;
-            // Re-render to show formatted value
-            updateSummary();
-        } catch (e) {
-            console.error('Error saving commissions paid:', e);
-            try { notify.error('No se pudo guardar las comisiones pagadas'); } catch {}
-            // Restore original value on error
-            el.textContent = originalValue;
-        }
-    });
+	el.addEventListener('blur', async () => {
+		if (!isSuper || !isEditing) {
+			delete el.dataset.isEditing;
+			return;
+		}
+		isEditing = false;
+		
+		const dayId = state?.selectedDayId || null;
+		if (!dayId) { 
+			el.textContent = originalValue;
+			delete el.dataset.isEditing;
+			try { notify.error('Selecciona una fecha'); } catch {} 
+			return; 
+		}
+		
+		const rawValue = (el.textContent || '').replace(/[^0-9]/g, '');
+		const value = Math.max(0, parseInt(rawValue, 10) || 0);
+		const payload = { id: dayId, actor_name: state.currentUser?.name || '', commissions_paid: value };
+		
+		try {
+			const updated = await api('PUT', '/api/days', payload);
+			const idx = (state.saleDays || []).findIndex(d => d && d.id === dayId);
+			if (idx !== -1) {
+				state.saleDays[idx] = updated;
+				console.log('Commissions paid saved successfully:', value, 'Updated day:', updated);
+			}
+			delete el.dataset.isEditing;
+			// Re-render to show formatted value
+			updateSummary();
+		} catch (e) {
+			console.error('Error saving commissions paid:', e);
+			try { notify.error('No se pudo guardar las comisiones pagadas'); } catch {}
+			// Restore original value on error
+			el.textContent = originalValue;
+			delete el.dataset.isEditing;
+		}
+	});
 }
 
 // New order popover: allow entering client and quantities before creating the row
@@ -3449,7 +3468,10 @@ function updateSummary() {
 		const commPaid = Number(day?.commissions_paid || 0) || 0;
 		const commPaidStr = fmtNo.format(commPaid);
 		const elCP = document.getElementById('comm-paid-total');
-		if (elCP) elCP.textContent = commPaidStr;
+		// Only update if not currently being edited
+		if (elCP && !elCP.dataset.isEditing) {
+			elCP.textContent = commPaidStr;
+		}
 		wireCommissionsPaidEditor();
 	} catch (e) {
 		console.error('Error updating commissions paid:', e);
