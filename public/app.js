@@ -8657,7 +8657,7 @@ const NotificationCenter = {
 		// Delete button
 		const deleteBtn = document.createElement('button');
 		deleteBtn.className = 'notif-delete-btn';
-		deleteBtn.innerHTML = '🗑️';
+		deleteBtn.innerHTML = '✕';
 		deleteBtn.title = 'Eliminar notificación';
 		deleteBtn.addEventListener('click', () => this.deleteNotification(notif.id));
 
@@ -8672,7 +8672,7 @@ const NotificationCenter = {
 		const types = {
 			'create': '✨ Nuevo pedido',
 			'qty': '📝 Modificación',
-			'delete': '<span style="color: #ef4444;">🗑️ Pedido eliminado</span>',
+			'delete': '<span style="color: #ef4444; font-weight: 700;">🗑 Pedido eliminado</span>',
 			'pay': '💳 Cambio de estatus',
 			'comment': '💬 Comentario'
 		};
