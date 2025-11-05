@@ -3463,15 +3463,20 @@ function updateSummary() {
 		paidTotalQty += paidQtys[d.short_code] || 0;
 	}
 	
-	// Determine commission rate based on quantity
-	let commRate = 1000;
-	let commRateLabel = 'x 1000';
+	// Determine commission rate based on quantity using seller's custom rates
+	const seller = state.currentSeller || {};
+	const rateLow = Number(seller.commission_rate_low) || 1000;
+	const rateMid = Number(seller.commission_rate_mid) || 1300;
+	const rateHigh = Number(seller.commission_rate_high) || 1500;
+	
+	let commRate = rateLow;
+	let commRateLabel = `x ${rateLow}`;
 	if (paidTotalQty >= 60) {
-		commRate = 1500;
-		commRateLabel = 'x 1500';
+		commRate = rateHigh;
+		commRateLabel = `x ${rateHigh}`;
 	} else if (paidTotalQty >= 30) {
-		commRate = 1300;
-		commRateLabel = 'x 1300';
+		commRate = rateMid;
+		commRateLabel = `x ${rateMid}`;
 	}
 	
 	const commGenerated = paidTotalQty * commRate;
@@ -4075,11 +4080,39 @@ function openPermissionsManager() {
     [featSales, featTransfers, featCartera, featProjections, featMaterials, featInventory, featUsers, featAccounting]
         .forEach(x => right.appendChild(x.wrap));
     row.appendChild(left); row.appendChild(right);
+    
+    // Commissions section
+    const commissionsSection = document.createElement('div'); 
+    commissionsSection.style.marginTop = '20px'; 
+    commissionsSection.style.paddingTop = '16px'; 
+    commissionsSection.style.borderTop = '1px solid var(--border-color, #ddd)';
+    const commissionsTitle = document.createElement('h4'); 
+    commissionsTitle.textContent = 'Comisiones por vendedor'; 
+    commissionsTitle.style.marginBottom = '12px';
+    commissionsSection.appendChild(commissionsTitle);
+    const commissionsGrid = document.createElement('div'); 
+    commissionsGrid.className = 'commissions-grid'; 
+    commissionsGrid.style.display = 'grid'; 
+    commissionsGrid.style.gridTemplateColumns = 'auto 1fr 1fr 1fr'; 
+    commissionsGrid.style.gap = '8px'; 
+    commissionsGrid.style.alignItems = 'center';
+    commissionsGrid.style.fontSize = '13px';
+    // Headers
+    const headerVendor = document.createElement('div'); headerVendor.textContent = 'Vendedor'; headerVendor.style.fontWeight = 'bold';
+    const headerLow = document.createElement('div'); headerLow.textContent = '1-29'; headerLow.style.fontWeight = 'bold'; headerLow.style.textAlign = 'center';
+    const headerMid = document.createElement('div'); headerMid.textContent = '30-59'; headerMid.style.fontWeight = 'bold'; headerMid.style.textAlign = 'center';
+    const headerHigh = document.createElement('div'); headerHigh.textContent = '60+'; headerHigh.style.fontWeight = 'bold'; headerHigh.style.textAlign = 'center';
+    commissionsGrid.appendChild(headerVendor);
+    commissionsGrid.appendChild(headerLow);
+    commissionsGrid.appendChild(headerMid);
+    commissionsGrid.appendChild(headerHigh);
+    commissionsSection.appendChild(commissionsGrid);
+    
     const actions = document.createElement('div'); actions.style.display = 'flex'; actions.style.justifyContent = 'flex-end'; actions.style.gap = '8px'; actions.style.marginTop = '14px';
     const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn'; closeBtn.textContent = 'Cerrar';
     const saveBtn = document.createElement('button'); saveBtn.className = 'press-btn btn-primary'; saveBtn.textContent = 'Guardar';
     actions.appendChild(closeBtn); actions.appendChild(saveBtn);
-    modal.appendChild(row); modal.appendChild(actions);
+    modal.appendChild(row); modal.appendChild(commissionsSection); modal.appendChild(actions);
     overlay.appendChild(modal); document.body.appendChild(overlay);
     function cleanup(){ if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }
     closeBtn.addEventListener('click', cleanup);
@@ -4097,6 +4130,43 @@ function openPermissionsManager() {
             const cb = document.createElement('input'); cb.type = 'checkbox'; cb.value = String(s.id);
             const span = document.createElement('span'); span.textContent = String(s.name||'');
             wrap.appendChild(cb); wrap.appendChild(span); sellersBox.appendChild(wrap);
+        });
+        
+        // Populate commissions grid with sellers
+        sellers.forEach(s => {
+            if (s.archived_at) return; // Skip archived sellers
+            const nameDiv = document.createElement('div'); 
+            nameDiv.textContent = String(s.name||''); 
+            nameDiv.style.paddingRight = '8px';
+            
+            const inputLow = document.createElement('input'); 
+            inputLow.type = 'number'; 
+            inputLow.className = 'input-cell'; 
+            inputLow.style.width = '100%'; 
+            inputLow.value = String(s.commission_rate_low || 1000);
+            inputLow.dataset.sellerId = String(s.id);
+            inputLow.dataset.rateType = 'low';
+            
+            const inputMid = document.createElement('input'); 
+            inputMid.type = 'number'; 
+            inputMid.className = 'input-cell'; 
+            inputMid.style.width = '100%'; 
+            inputMid.value = String(s.commission_rate_mid || 1300);
+            inputMid.dataset.sellerId = String(s.id);
+            inputMid.dataset.rateType = 'mid';
+            
+            const inputHigh = document.createElement('input'); 
+            inputHigh.type = 'number'; 
+            inputHigh.className = 'input-cell'; 
+            inputHigh.style.width = '100%'; 
+            inputHigh.value = String(s.commission_rate_high || 1500);
+            inputHigh.dataset.sellerId = String(s.id);
+            inputHigh.dataset.rateType = 'high';
+            
+            commissionsGrid.appendChild(nameDiv);
+            commissionsGrid.appendChild(inputLow);
+            commissionsGrid.appendChild(inputMid);
+            commissionsGrid.appendChild(inputHigh);
         });
         async function loadViewerGrants(viewerName) {
             const grants = await api('GET', API.Users + '?view_permissions=1&viewer=' + encodeURIComponent(viewerName));
@@ -4118,6 +4188,8 @@ function openPermissionsManager() {
         }
         saveBtn.addEventListener('click', async () => {
             const viewer = String(userSelect.value||''); if (!viewer) return;
+            
+            // Save view permissions
             const cbs = Array.from(sellersBox.querySelectorAll('input[type="checkbox"]'));
             const selectedIds = new Set(cbs.filter(el => el.checked).map(el => Number(el.value)));
             const current = await api('GET', API.Users + '?view_permissions=1&viewer=' + encodeURIComponent(viewer));
@@ -4126,6 +4198,8 @@ function openPermissionsManager() {
             const toRevoke = [...currentIds].filter(id => !selectedIds.has(id));
             for (const id of toGrant) { await api('PATCH', API.Users, { action: 'grantView', username: viewer, sellerId: id }); }
             for (const id of toRevoke) { await api('PATCH', API.Users, { action: 'revokeView', username: viewer, sellerId: id }); }
+            
+            // Save feature permissions
             const feats = await api('GET', API.Users + '?feature_permissions=1&username=' + encodeURIComponent(viewer));
             const currentFeat = new Set((feats || []).map(f => String(f.feature)));
             const desiredFeat = new Set([featSales.cb, featTransfers.cb, featCartera.cb, featProjections.cb, featMaterials.cb, featInventory.cb, featUsers.cb, featAccounting.cb]
@@ -4134,8 +4208,27 @@ function openPermissionsManager() {
             const toRevokeF = [...currentFeat].filter(f => !desiredFeat.has(f));
             for (const f of toGrantF) await api('PATCH', API.Users, { action: 'grantFeature', username: viewer, feature: f });
             for (const f of toRevokeF) await api('PATCH', API.Users, { action: 'revokeFeature', username: viewer, feature: f });
-            notify.success('Permisos actualizados');
+            
+            // Save commission rates
+            const commInputs = Array.from(commissionsGrid.querySelectorAll('input[type="number"]'));
+            for (const input of commInputs) {
+                const sellerId = Number(input.dataset.sellerId);
+                const rateType = input.dataset.rateType;
+                const value = Number(input.value) || 0;
+                if (!sellerId || !rateType) continue;
+                
+                const payload = { id: sellerId };
+                if (rateType === 'low') payload.commission_rate_low = value;
+                else if (rateType === 'mid') payload.commission_rate_mid = value;
+                else if (rateType === 'high') payload.commission_rate_high = value;
+                
+                await api('PATCH', API.Sellers, payload);
+            }
+            
+            notify.success('Permisos y comisiones actualizados');
             cleanup();
+            // Refresh sellers data in state
+            state.sellers = await api('GET', API.Sellers);
         });
     })();
 }

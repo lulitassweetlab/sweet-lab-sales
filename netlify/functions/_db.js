@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 12; // Bump when schema changes require a migration (add commissions_paid column)
+const SCHEMA_VERSION = 13; // Bump when schema changes require a migration (add commission rate columns to sellers)
 
 export async function ensureSchema() {
 	// If already ensured in this instance, skip immediately
@@ -99,7 +99,7 @@ export async function ensureSchema() {
 		archived_at TIMESTAMPTZ,
 		created_at TIMESTAMPTZ DEFAULT now()
 	)`;
-	// Ensure bill_color exists for older deployments
+	// Ensure bill_color, archived_at, and commission rates exist for older deployments
 	await sql`DO $$ BEGIN
 		IF NOT EXISTS (
 			SELECT 1 FROM information_schema.columns
@@ -112,6 +112,24 @@ export async function ensureSchema() {
 			WHERE table_name = 'sellers' AND column_name = 'archived_at'
 		) THEN
 			ALTER TABLE sellers ADD COLUMN archived_at TIMESTAMPTZ;
+		END IF;
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'sellers' AND column_name = 'commission_rate_low'
+		) THEN
+			ALTER TABLE sellers ADD COLUMN commission_rate_low INTEGER NOT NULL DEFAULT 1000;
+		END IF;
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'sellers' AND column_name = 'commission_rate_mid'
+		) THEN
+			ALTER TABLE sellers ADD COLUMN commission_rate_mid INTEGER NOT NULL DEFAULT 1300;
+		END IF;
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'sellers' AND column_name = 'commission_rate_high'
+		) THEN
+			ALTER TABLE sellers ADD COLUMN commission_rate_high INTEGER NOT NULL DEFAULT 1500;
 		END IF;
 	END $$;`;
 	// Delegated view permissions: which users can view which sellers

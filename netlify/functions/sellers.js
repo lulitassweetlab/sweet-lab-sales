@@ -48,9 +48,9 @@ export async function handler(event) {
 				if (role === 'admin' || role === 'superadmin') {
 					let rows;
 					if (includeArchived) {
-						rows = await sql`SELECT id, name, bill_color, archived_at FROM sellers ORDER BY name`;
+						rows = await sql`SELECT id, name, bill_color, archived_at, commission_rate_low, commission_rate_mid, commission_rate_high FROM sellers ORDER BY name`;
 					} else {
-						rows = await sql`SELECT id, name, bill_color, archived_at FROM sellers WHERE archived_at IS NULL ORDER BY name`;
+						rows = await sql`SELECT id, name, bill_color, archived_at, commission_rate_low, commission_rate_mid, commission_rate_high FROM sellers WHERE archived_at IS NULL ORDER BY name`;
 					}
 					return json(rows);
 				}
@@ -68,7 +68,7 @@ export async function handler(event) {
 							FROM sellers s
 							WHERE lower(s.name) = lower(${actorName})
 						)
-						SELECT id, name, bill_color, archived_at
+						SELECT id, name, bill_color, archived_at, commission_rate_low, commission_rate_mid, commission_rate_high
 						FROM sellers
 						WHERE id IN (SELECT id FROM grants UNION SELECT id FROM own)
 						ORDER BY name
@@ -85,7 +85,7 @@ export async function handler(event) {
 							FROM sellers s
 							WHERE lower(s.name) = lower(${actorName})
 						)
-						SELECT id, name, bill_color, archived_at
+						SELECT id, name, bill_color, archived_at, commission_rate_low, commission_rate_mid, commission_rate_high
 						FROM sellers
 						WHERE id IN (SELECT id FROM grants UNION SELECT id FROM own) AND archived_at IS NULL
 						ORDER BY name
@@ -99,7 +99,7 @@ export async function handler(event) {
 				if (role !== 'superadmin') return json({ error: 'No autorizado' }, 403);
 				const name = (data.name || '').trim();
 				if (!name) return json({ error: 'Nombre requerido' }, 400);
-				const [row] = await sql`INSERT INTO sellers (name) VALUES (${name}) ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name RETURNING id, name, bill_color, archived_at`;
+				const [row] = await sql`INSERT INTO sellers (name) VALUES (${name}) ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name RETURNING id, name, bill_color, archived_at, commission_rate_low, commission_rate_mid, commission_rate_high`;
 				return json(row, 201);
 			}
 			case 'PATCH': {
@@ -111,6 +111,9 @@ export async function handler(event) {
 				const id = Number(data.id || 0) || null;
 				const rawName = (data.name || '').toString().trim();
 				const billColor = (data.bill_color ?? null);
+				const commRateLow = (data.commission_rate_low !== undefined) ? Number(data.commission_rate_low) : null;
+				const commRateMid = (data.commission_rate_mid !== undefined) ? Number(data.commission_rate_mid) : null;
+				const commRateHigh = (data.commission_rate_high !== undefined) ? Number(data.commission_rate_high) : null;
 				const action = (data.action || '').toString();
 				if (!id && !rawName) return json({ error: 'id o name requerido' }, 400);
 				if (billColor !== null && typeof billColor !== 'string') return json({ error: 'bill_color inválido' }, 400);
@@ -122,11 +125,20 @@ export async function handler(event) {
 				}
 				let row;
 				if (action === 'archive') {
-					[row] = await sql`UPDATE sellers SET archived_at=now() WHERE id=${targetId} RETURNING id, name, bill_color, archived_at`;
+					[row] = await sql`UPDATE sellers SET archived_at=now() WHERE id=${targetId} RETURNING id, name, bill_color, archived_at, commission_rate_low, commission_rate_mid, commission_rate_high`;
 				} else if (action === 'unarchive') {
-					[row] = await sql`UPDATE sellers SET archived_at=NULL WHERE id=${targetId} RETURNING id, name, bill_color, archived_at`;
-				} else if (billColor !== null) {
-					[row] = await sql`UPDATE sellers SET bill_color=${billColor} WHERE id=${targetId} RETURNING id, name, bill_color, archived_at`;
+					[row] = await sql`UPDATE sellers SET archived_at=NULL WHERE id=${targetId} RETURNING id, name, bill_color, archived_at, commission_rate_low, commission_rate_mid, commission_rate_high`;
+				} else if (billColor !== null || commRateLow !== null || commRateMid !== null || commRateHigh !== null) {
+					// Update any provided fields
+					[row] = await sql`
+						UPDATE sellers SET
+							bill_color = COALESCE(${billColor}, bill_color),
+							commission_rate_low = COALESCE(${commRateLow}, commission_rate_low),
+							commission_rate_mid = COALESCE(${commRateMid}, commission_rate_mid),
+							commission_rate_high = COALESCE(${commRateHigh}, commission_rate_high)
+						WHERE id=${targetId}
+						RETURNING id, name, bill_color, archived_at, commission_rate_low, commission_rate_mid, commission_rate_high
+					`;
 				} else {
 					return json({ error: 'Sin cambios' }, 400);
 				}
