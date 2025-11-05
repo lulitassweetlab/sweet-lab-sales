@@ -1947,6 +1947,8 @@ function wireCommissionsPaidEditor() {
 		isEditing = false;
 		
 		const dayId = state?.selectedDayId || null;
+		console.log('Blur event - dayId:', dayId, 'isEditing:', isEditing, 'isSuper:', isSuper);
+		
 		if (!dayId) { 
 			el.textContent = originalValue;
 			delete el.dataset.isEditing;
@@ -1956,18 +1958,34 @@ function wireCommissionsPaidEditor() {
 		
 		const rawValue = (el.textContent || '').replace(/[^0-9]/g, '');
 		const value = Math.max(0, parseInt(rawValue, 10) || 0);
+		console.log('Saving commissions_paid:', value, 'dayId:', dayId);
 		const payload = { id: dayId, actor_name: state.currentUser?.name || '', commissions_paid: value };
 		
 		try {
 			const updated = await api('PUT', '/api/days', payload);
+			console.log('API response:', updated);
 			const idx = (state.saleDays || []).findIndex(d => d && d.id === dayId);
 			if (idx !== -1) {
 				state.saleDays[idx] = updated;
-				console.log('Commissions paid saved successfully:', value, 'Updated day:', updated);
+				console.log('Updated state.saleDays[' + idx + ']:', state.saleDays[idx]);
 			}
 			delete el.dataset.isEditing;
-			// Re-render to show formatted value
-			updateSummary();
+			// Format and display the saved value immediately
+			const formatted = fmtNo.format(value);
+			el.textContent = formatted;
+			
+			// Also update the mobile stacked version
+			const elMobile = document.getElementById('comm-paid-total-2');
+			if (elMobile) elMobile.textContent = formatted;
+			
+			console.log('Formatted value displayed:', formatted);
+			
+			// Don't call updateSummary immediately to avoid overwriting
+			setTimeout(() => {
+				if (!el.dataset.isEditing) {
+					updateSummary();
+				}
+			}, 100);
 		} catch (e) {
 			console.error('Error saving commissions paid:', e);
 			try { notify.error('No se pudo guardar las comisiones pagadas'); } catch {}
@@ -3467,10 +3485,14 @@ function updateSummary() {
 		
 		const commPaid = Number(day?.commissions_paid || 0) || 0;
 		const commPaidStr = fmtNo.format(commPaid);
+		console.log('updateSummary - commissions_paid from day:', commPaid, 'formatted:', commPaidStr, 'day:', day);
 		const elCP = document.getElementById('comm-paid-total');
 		// Only update if not currently being edited
 		if (elCP && !elCP.dataset.isEditing) {
 			elCP.textContent = commPaidStr;
+			console.log('Updated comm-paid-total element to:', commPaidStr);
+		} else if (elCP) {
+			console.log('Skipped updating comm-paid-total (currently editing)');
 		}
 		wireCommissionsPaidEditor();
 	} catch (e) {
