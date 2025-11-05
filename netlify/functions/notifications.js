@@ -70,75 +70,31 @@ export async function handler(event) {
 		switch (event.httpMethod) {
 			case 'GET': {
 				try {
-					console.log('Fetching notifications for:', actorName);
+					console.log('Fetching ALL notifications for:', actorName);
 					
-					// Get last visit timestamp (with error handling)
-					let lastVisit = [];
-					try {
-						console.log('Querying last visit...');
-						lastVisit = await sql`
-							SELECT visited_at 
-							FROM notification_center_visits 
-							WHERE lower(username) = lower(${actorName})
-							LIMIT 1
-						`;
-						console.log('✓ Last visit query completed:', lastVisit.length > 0 ? 'found' : 'not found');
-					} catch (err) {
-						console.warn('⚠️ Error fetching last visit (table may not exist):', err.message);
-						// Table doesn't exist yet, return empty array
-						console.log('Returning empty array due to missing tables');
-						return json([]);
-					}
-					
-					// Get notifications since last visit (or all if first visit)
+					// Get ALL notifications (no filtering by last visit)
 					let notifications = [];
 					try {
-						if (lastVisit.length > 0 && lastVisit[0].visited_at) {
-							const since = lastVisit[0].visited_at;
-							console.log('Fetching notifications since:', since);
-							console.log('Query: notifications WHERE created_at >=', since);
-							notifications = await sql`
-								SELECT 
-									n.id,
-									n.type,
-									n.seller_id,
-									n.sale_id,
-									n.sale_day_id,
-									n.message,
-									n.actor_name,
-									n.icon_url,
-									n.pay_method,
-									n.created_at,
-									s.name AS seller_name,
-									false AS is_checked
-								FROM notifications n
-								LEFT JOIN sellers s ON s.id = n.seller_id
-								WHERE n.created_at >= ${since}
-								ORDER BY n.created_at DESC
-							`;
-						} else {
-							// First visit, get all notifications
-							console.log('First visit - fetching all notifications');
-							notifications = await sql`
-								SELECT 
-									n.id,
-									n.type,
-									n.seller_id,
-									n.sale_id,
-									n.sale_day_id,
-									n.message,
-									n.actor_name,
-									n.icon_url,
-									n.pay_method,
-									n.created_at,
-									s.name AS seller_name,
-									false AS is_checked
-								FROM notifications n
-								LEFT JOIN sellers s ON s.id = n.seller_id
-								ORDER BY n.created_at DESC
-								LIMIT 100
-							`;
-						}
+						console.log('Fetching all notifications...');
+						notifications = await sql`
+							SELECT 
+								n.id,
+								n.type,
+								n.seller_id,
+								n.sale_id,
+								n.sale_day_id,
+								n.message,
+								n.actor_name,
+								n.icon_url,
+								n.pay_method,
+								n.created_at,
+								s.name AS seller_name,
+								COALESCE((SELECT true FROM notification_checks nc WHERE nc.notification_id = n.id AND lower(nc.checked_by) = lower(${actorName}) LIMIT 1), false) AS is_checked
+							FROM notifications n
+							LEFT JOIN sellers s ON s.id = n.seller_id
+							ORDER BY n.created_at DESC
+							LIMIT 200
+						`;
 						console.log('✓ Notifications query completed:', notifications.length, 'rows');
 					} catch (err) {
 						console.error('❌ Error fetching notifications:', err.message);
@@ -195,14 +151,19 @@ export async function handler(event) {
 			case 'POST': {
 				const data = JSON.parse(event.body || '{}');
 				
-				// Update last visit timestamp
+				// Update last visit timestamp (guardado para referencia, pero no se usa para filtrar)
 				if (data.action === 'visit') {
-					await sql`
-						INSERT INTO notification_center_visits (username, visited_at)
-						VALUES (${actorName}, now())
-						ON CONFLICT (username) 
-						DO UPDATE SET visited_at = now()
-					`;
+					try {
+						await sql`
+							INSERT INTO notification_center_visits (username, visited_at)
+							VALUES (${actorName}, now())
+							ON CONFLICT (username) 
+							DO UPDATE SET visited_at = now()
+						`;
+					} catch (err) {
+						// Table might not exist, ignore error
+						console.warn('Could not update visit timestamp:', err.message);
+					}
 					return json({ ok: true });
 				}
 				
