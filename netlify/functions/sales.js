@@ -439,7 +439,7 @@ export async function handler(event) {
                             if (!isAlreadyBank) {
                                 await sql`UPDATE sales SET pay_method='transf' WHERE id=${sid}`;
                                 try {
-                                    const msg = `${prev.client_name || 'Cliente'} pago: - → Transferencia` + (actor ? ` - ${actor}` : '');
+                                    const msg = `${prev.client_name || 'Sin nombre'}: - → Transferencia`;
                                     const iconUrl = '/icons/bank.svg';
                                     await notifyDb({ type: 'pay', sellerId: Number(prev.seller_id||0)||null, saleId: sid, saleDayId: Number(prev.sale_day_id||0)||null, message: msg, actorName: actor, iconUrl, payMethod: 'transf' });
                                 } catch {}
@@ -618,7 +618,7 @@ export async function handler(event) {
 				async function emitQty(name, prev, next) {
 					if (String(prev) === String(next)) return;
 					const prevNote = (Number(prev||0) > 0) ? ` (antes ${prev})` : '';
-					const msg = `${client || 'Cliente'} + ${next} ${name}${prevNote}` + (actor ? ` - ${actor}` : '');
+					const msg = `${client || 'Sin nombre'}: ${next} ${name}${prevNote}`;
 					const sellerIdForNotif = Number(data.seller_id||0) || Number(current.seller_id||0) || null;
 					const saleDayIdForNotif = Number(data.sale_day_id||0) || Number(current.sale_day_id||0) || null;
 					await notifyDb({ type: 'qty', sellerId: sellerIdForNotif, saleId: id, saleDayId: saleDayIdForNotif, message: msg, actorName: actor });
@@ -643,7 +643,7 @@ export async function handler(event) {
 					if (Number(qn||0) > 0) parts.push(`${qn} nute`);
 					const sellerIdForNotif = Number(data.seller_id||0) || Number(current.seller_id||0) || null;
 					const saleDayIdForNotif = Number(data.sale_day_id||0) || Number(current.sale_day_id||0) || null;
-					const msg = `${client || 'Cliente'}: ${parts.join(' + ')}` + (actor ? ` - ${actor}` : '');
+					const msg = `${client || 'Sin nombre'}: ${parts.join(' + ')}`;
 					await notifyDb({ type: 'create', sellerId: sellerIdForNotif, saleId: id, saleDayId: saleDayIdForNotif, message: msg, actorName: actor });
 				}
 				// emit notification for payment method change
@@ -652,9 +652,39 @@ export async function handler(event) {
 					const nextPm = (payMethod || '').toString();
 					if (prevPm !== nextPm) {
 						const fmt = (v) => v === 'efectivo' ? 'Efectivo' : v === 'entregado' ? 'Entregado' : (v === 'transf' || v === 'jorgebank') ? 'Transferencia' : v === 'marce' ? 'Marce' : v === 'jorge' ? 'Jorge' : '-';
-						const msg = `${client || 'Cliente'} pago: ${fmt(prevPm)} → ${fmt(nextPm)}` + (actor ? ` - ${actor}` : '');
+						const msg = `${client || 'Sin nombre'}: ${fmt(prevPm)} → ${fmt(nextPm)}`;
 					const iconUrl = nextPm === 'efectivo' ? '/icons/bill.svg' : nextPm === 'entregado' ? '/icons/delivered-pink.svg' : nextPm === 'transf' ? '/icons/bank.svg' : nextPm === 'jorgebank' ? '/icons/bank-yellow.svg' : nextPm === 'marce' ? '/icons/marce7.svg?v=1' : nextPm === 'jorge' ? '/icons/jorge7.svg?v=1' : null;
 						await notifyDb({ type: 'pay', sellerId: Number(data.seller_id||0)||null, saleId: id, saleDayId: Number(data.sale_day_id||0)||null, message: msg, actorName: actor, iconUrl, payMethod: nextPm });
+					}
+				} catch {}
+				// emit notification for comment changes
+				try {
+					const prevComment = (current.comment_text || '').toString().trim();
+					const nextComment = (comment || '').toString().trim();
+					if (!withinGrace && prevComment !== nextComment && nextComment.length > 0) {
+						// Evitar notificaciones duplicadas: verificar si hay una notificación de comentario reciente (últimos 20s)
+						const recentCommentNotif = await sql`
+							SELECT id, created_at 
+							FROM notifications 
+							WHERE sale_id = ${id} 
+							  AND type = 'comment' 
+							  AND actor_name = ${actor}
+							ORDER BY created_at DESC 
+							LIMIT 1
+						`;
+						
+						const shouldCreate = !recentCommentNotif.length || (new Date() - new Date(recentCommentNotif[0].created_at)) >= 20000;
+						
+						if (shouldCreate) {
+							const displayComment = nextComment.length > 50 ? (nextComment.substring(0, 47) + '...') : nextComment;
+							const msg = `${client || 'Sin nombre'}: "${displayComment}"`;
+							await notifyDb({ type: 'comment', sellerId: Number(data.seller_id||0)||null, saleId: id, saleDayId: Number(data.sale_day_id||0)||null, message: msg, actorName: actor });
+						} else {
+							// Actualizar la notificación existente con el nuevo comentario
+							const displayComment = nextComment.length > 50 ? (nextComment.substring(0, 47) + '...') : nextComment;
+							const msg = `${client || 'Sin nombre'}: "${displayComment}"`;
+							await sql`UPDATE notifications SET message = ${msg}, created_at = now() WHERE id = ${recentCommentNotif[0].id}`;
+						}
 					}
 				} catch {}
 				const row = await recalcTotalForId(id);
@@ -695,21 +725,15 @@ export async function handler(event) {
 				await sql`DELETE FROM sales WHERE id=${id}`;
 				// emit deletion notification with client, quantities, and seller name
 				if (prev) {
-					const name = (prev.client_name || '') || 'Cliente';
+					const name = (prev.client_name || '') || 'Sin nombre';
 					const parts = [];
 					const ar = Number(prev.qty_arco||0); if (ar) parts.push(`${ar} arco`);
 					const me = Number(prev.qty_melo||0); if (me) parts.push(`${me} melo`);
 					const ma = Number(prev.qty_mara||0); if (ma) parts.push(`${ma} mara`);
 					const or = Number(prev.qty_oreo||0); if (or) parts.push(`${or} oreo`);
 					const nu = Number(prev.qty_nute||0); if (nu) parts.push(`${nu} nute`);
-					const suffix = parts.length ? (' + ' + parts.join(' + ')) : '';
-					let sellerName = '';
-					try {
-						const s = await sql`SELECT name FROM sellers WHERE id=${Number(prev.seller_id||0)}`;
-						sellerName = (s && s[0] && s[0].name) ? String(s[0].name) : '';
-					} catch {}
-					const tail = sellerName ? ` - ${sellerName}` : '';
-					const msg = `Eliminado: ${name}${suffix}${tail}`;
+					const orderDetails = parts.length ? (': ' + parts.join(' + ')) : '';
+					const msg = `${name}${orderDetails}`;
 					const pm = (prev?.pay_method || '').toString();
 				const iconUrl = pm === 'efectivo' ? '/icons/bill.svg' : pm === 'entregado' ? '/icons/delivered-pink.svg' : pm === 'transf' ? '/icons/bank.svg' : pm === 'jorgebank' ? '/icons/bank-yellow.svg' : pm === 'marce' ? '/icons/marce7.svg?v=1' : pm === 'jorge' ? '/icons/jorge7.svg?v=1' : null;
 					// Do not reference deleted sale_id to avoid FK violation

@@ -492,7 +492,8 @@ const API = {
 	Materials: '/api/materials',
 	Recipes: '/api/recipes',
 	Inventory: '/api/inventory',
-	Desserts: '/api/desserts'
+	Desserts: '/api/desserts',
+	Notifications: '/api/notifications'
 };
 
 const PRICES = {
@@ -1014,6 +1015,9 @@ function applyAuthVisibility() {
 	const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 	const logoutBtn = document.getElementById('logout-btn');
 	if (logoutBtn) logoutBtn.style.display = state.currentUser ? 'inline-flex' : 'none';
+	// Update notification center button visibility
+	const notifBtn = document.getElementById('notification-center-btn');
+	if (notifBtn) notifBtn.style.display = isSuper ? 'inline-flex' : 'none';
 	const addSellerWrap = document.querySelector('.seller-add');
 	if (addSellerWrap) addSellerWrap.style.display = isSuper ? 'grid' : 'none';
 	const usersBtn = document.getElementById('users-button');
@@ -8855,3 +8859,318 @@ function renderChangeMarkerIfNeeded(tdEl, saleId, field) {
 // (mobile bounce limiter removed per user preference);
 
 // (mobile bounce limiter removed per user preference)
+// ==================== NOTIFICATION CENTER ====================
+const NotificationCenter = {
+	modal: null,
+	body: null,
+	btn: null,
+
+	init() {
+		this.modal = document.getElementById('notification-center-modal');
+		this.body = document.getElementById('notif-center-body');
+		this.btn = document.getElementById('notification-center-btn');
+		const closeBtn = document.getElementById('notif-center-close');
+
+		if (!this.modal || !this.body || !this.btn || !closeBtn) return;
+
+		// Show button only for superadmin
+		this.updateButtonVisibility();
+
+		// Event listeners
+		this.btn.addEventListener('click', () => this.open());
+		closeBtn.addEventListener('click', () => this.close());
+		
+		// Click backdrop to close
+		const backdrop = this.modal.querySelector('.notif-center-backdrop');
+		if (backdrop) {
+			backdrop.addEventListener('click', () => this.close());
+		}
+
+		// Prevent closing when clicking inside panel
+		const panel = this.modal.querySelector('.notif-center-panel');
+		if (panel) {
+			panel.addEventListener('click', (e) => e.stopPropagation());
+		}
+	},
+
+	updateButtonVisibility() {
+		if (!this.btn) return;
+		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+		this.btn.style.display = isSuper ? 'inline-flex' : 'none';
+	},
+
+	async open() {
+		if (!this.modal) return;
+		this.modal.classList.remove('hidden');
+		
+		// Show loading state
+		this.body.innerHTML = '<div class="notif-center-loading">Cargando notificaciones...</div>';
+		
+		try {
+			// Fetch notifications FIRST (before updating last visit timestamp)
+			const notifications = await this.fetchNotifications();
+			
+			// Render notifications
+			this.render(notifications);
+			
+			// Update last visit timestamp AFTER showing notifications
+			// This ensures we don't miss any notifications
+			await this.updateLastVisit();
+		} catch (err) {
+			console.error('Error loading notifications:', err);
+			const errorMsg = err.message || 'Error desconocido';
+			this.body.innerHTML = `
+				<div class="notif-center-loading">
+					<div>Error al cargar notificaciones</div>
+					<div style="font-size: 11px; color: var(--muted); margin-top: 8px;">${errorMsg}</div>
+					<div style="font-size: 11px; color: var(--muted); margin-top: 4px;">Revisa la consola para más detalles</div>
+				</div>
+			`;
+		}
+	},
+
+	close() {
+		if (!this.modal) return;
+		this.modal.classList.add('hidden');
+	},
+
+	async updateLastVisit() {
+		const actor = encodeURIComponent(state.currentUser?.name || '');
+		if (!actor) return;
+		
+		try {
+			await fetch(`/api/notifications?actor=${actor}`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'X-Actor-Name': state.currentUser?.name || ''
+				},
+				body: JSON.stringify({ action: 'visit' })
+			});
+		} catch (err) {
+			console.error('Error updating last visit:', err);
+		}
+	},
+
+	async fetchNotifications() {
+		const actor = encodeURIComponent(state.currentUser?.name || '');
+		if (!actor) return [];
+		
+		try {
+			const response = await fetch(`/api/notifications?actor=${actor}`, {
+				headers: { 'X-Actor-Name': state.currentUser?.name || '' }
+			});
+			
+			if (!response.ok) {
+				const errorText = await response.text();
+				console.error('Error response:', response.status, errorText);
+				throw new Error(`Failed to fetch notifications: ${response.status}`);
+			}
+			
+			const data = await response.json();
+			console.log('📬 Notificaciones recibidas:', data.length, data);
+			return data;
+		} catch (error) {
+			console.error('Error in fetchNotifications:', error);
+			throw error;
+		}
+	},
+
+	render(notifications) {
+		if (!this.body) return;
+		
+		if (!notifications || notifications.length === 0) {
+			this.body.innerHTML = `
+				<div class="notif-empty">
+					<div class="notif-empty-icon">🔔</div>
+					<div>No hay notificaciones nuevas</div>
+				</div>
+			`;
+			return;
+		}
+
+		this.body.innerHTML = '';
+		
+		for (const notif of notifications) {
+			const item = this.createNotificationItem(notif);
+			this.body.appendChild(item);
+		}
+	},
+
+	createNotificationItem(notif) {
+		const item = document.createElement('div');
+		item.className = 'notif-item';
+		item.dataset.id = notif.id;
+
+		// Checkbox
+		const checkbox = document.createElement('input');
+		checkbox.type = 'checkbox';
+		checkbox.className = 'notif-checkbox';
+		checkbox.checked = notif.is_checked || false;
+		checkbox.addEventListener('change', () => this.toggleCheck(notif.id, checkbox.checked));
+
+		// Content
+		const content = document.createElement('div');
+		content.className = 'notif-content';
+
+		// Línea 1: Cliente y pedido
+		const message = document.createElement('div');
+		message.className = 'notif-message';
+		message.textContent = notif.message || 'Sin mensaje';
+
+		// Línea 2: Tipo de notificación
+		const typeLabel = document.createElement('div');
+		typeLabel.className = 'notif-type';
+		const typeText = this.getNotificationType(notif.type);
+		typeLabel.innerHTML = typeText; // Usar innerHTML para permitir el span con color
+
+		// Línea 3: Meta info (date, seller, icon)
+		const meta = document.createElement('div');
+		meta.className = 'notif-meta';
+		
+		const date = new Date(notif.created_at);
+		const dateStr = date.toLocaleString('es-CO', { 
+			year: 'numeric', 
+			month: '2-digit', 
+			day: '2-digit',
+			hour: '2-digit', 
+			minute: '2-digit' 
+		});
+		
+		meta.textContent = dateStr;
+		
+		if (notif.seller_name) {
+			meta.textContent += ` • ${notif.seller_name}`;
+		}
+
+		// Icon if available
+		if (notif.icon_url) {
+			const icon = document.createElement('img');
+			icon.className = 'notif-icon';
+			icon.src = notif.icon_url;
+			icon.alt = 'Icon';
+			meta.appendChild(icon);
+		}
+
+		content.appendChild(message);
+		content.appendChild(typeLabel);
+		content.appendChild(meta);
+
+		// Delete button
+		const deleteBtn = document.createElement('button');
+		deleteBtn.className = 'notif-delete-btn';
+		deleteBtn.title = 'Eliminar notificación';
+		deleteBtn.addEventListener('click', () => this.deleteNotification(notif.id));
+
+		item.appendChild(checkbox);
+		item.appendChild(content);
+		item.appendChild(deleteBtn);
+
+		return item;
+	},
+
+	getNotificationType(type) {
+		const types = {
+			'create': '✨ Nuevo pedido',
+			'qty': '📝 Modificación',
+			'delete': '<span style="color: #ef4444; font-weight: 700;">🗑 Pedido eliminado</span>',
+			'pay': '💳 Cambio de estatus',
+			'comment': '💬 Comentario'
+		};
+		return types[type] || 'Notificación';
+	},
+
+	formatSaleDetails(notif) {
+		const details = notif.sale_details;
+		if (!details) return '';
+
+		const parts = [];
+		if (details.client_name) parts.push(`Cliente: ${details.client_name}`);
+		
+		const desserts = [];
+		if (details.qty_arco > 0) desserts.push(`Arco: ${details.qty_arco}`);
+		if (details.qty_melo > 0) desserts.push(`Melo: ${details.qty_melo}`);
+		if (details.qty_mara > 0) desserts.push(`Mara: ${details.qty_mara}`);
+		if (details.qty_oreo > 0) desserts.push(`Oreo: ${details.qty_oreo}`);
+		if (details.qty_nute > 0) desserts.push(`Nute: ${details.qty_nute}`);
+		
+		if (desserts.length > 0) {
+			parts.push(desserts.join(', '));
+		}
+
+		return parts.join(' • ');
+	},
+
+	async toggleCheck(notificationId, checked) {
+		const actor = encodeURIComponent(state.currentUser?.name || '');
+		if (!actor) return;
+
+		try {
+			await fetch(`/api/notifications?actor=${actor}`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'X-Actor-Name': state.currentUser?.name || ''
+				},
+				body: JSON.stringify({
+					action: 'toggle_check',
+					notification_id: notificationId
+				})
+			});
+		} catch (err) {
+			console.error('Error toggling check:', err);
+			// Revert checkbox state on error
+			const checkbox = this.body.querySelector(`[data-id="${notificationId}"] .notif-checkbox`);
+			if (checkbox) checkbox.checked = !checked;
+		}
+	},
+
+	async deleteNotification(notificationId) {
+		const actor = encodeURIComponent(state.currentUser?.name || '');
+		if (!actor) return;
+
+		try {
+			await fetch(`/api/notifications?id=${notificationId}&actor=${actor}`, {
+				method: 'DELETE',
+				headers: { 'X-Actor-Name': state.currentUser?.name || '' }
+			});
+
+			// Remove from UI
+			const item = this.body.querySelector(`[data-id="${notificationId}"]`);
+			if (item) {
+				item.style.opacity = '0';
+				item.style.transform = 'translateX(-20px)';
+				item.style.transition = 'all 0.3s ease';
+				setTimeout(() => item.remove(), 300);
+			}
+
+			// Check if empty
+			setTimeout(() => {
+				const remaining = this.body.querySelectorAll('.notif-item');
+				if (remaining.length === 0) {
+					this.body.innerHTML = `
+						<div class="notif-empty">
+							<div class="notif-empty-icon">🔔</div>
+							<div>No hay notificaciones nuevas</div>
+						</div>
+					`;
+				}
+			}, 350);
+		} catch (err) {
+			console.error('Error deleting notification:', err);
+		}
+	}
+};
+
+// Initialize notification center when DOM is ready
+if (document.readyState === 'loading') {
+	document.addEventListener('DOMContentLoaded', () => {
+		if (typeof NotificationCenter !== 'undefined') {
+			NotificationCenter.init();
+		}
+	});
+} else {
+	if (typeof NotificationCenter !== 'undefined') {
+		NotificationCenter.init();
+	}
+}
