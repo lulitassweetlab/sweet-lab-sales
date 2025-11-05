@@ -94,10 +94,10 @@
 					r.sellers = [];
 				}
 				try {
-					const users = await api('GET', `/api/deliveries?production_users=${r.id}`);
-					r.production_users = Array.isArray(users) ? users : [];
+					const usersByDessert = await api('GET', `/api/deliveries?production_users=${r.id}`);
+					r.production_users_by_dessert = (usersByDessert && typeof usersByDessert === 'object') ? usersByDessert : {};
 				} catch {
-					r.production_users = [];
+					r.production_users_by_dessert = {};
 				}
 			}
 			currentRows = rows;
@@ -109,7 +109,7 @@
 			for (const r of rows) {
 				tbody.appendChild(renderDeliveryRow(r));
 				// Show production users if any
-				if (r.production_users && r.production_users.length > 0) {
+				if (r.production_users_by_dessert && Object.keys(r.production_users_by_dessert).length > 0) {
 					tbody.appendChild(renderProductionUsersRow(r));
 				}
 				// Render seller rows below each delivery if expanded
@@ -253,14 +253,87 @@
 		function renderProductionUsersRow(delivery) {
 			const tr = document.createElement('tr');
 			tr.style.backgroundColor = '#fafafa';
-			const td = document.createElement('td');
-			td.colSpan = 7;
-			td.style.padding = '4px 8px';
-			td.style.fontSize = '11px';
-			td.style.fontStyle = 'italic';
-			td.style.color = '#666';
-			td.textContent = 'Producción: ' + delivery.production_users.join(', ');
-			tr.appendChild(td);
+			tr.style.borderTop = '1px solid #e9ecef';
+			
+			const labelCell = document.createElement('td');
+			labelCell.style.padding = '8px';
+			labelCell.style.fontSize = '11px';
+			labelCell.style.fontWeight = 'bold';
+			labelCell.style.color = '#495057';
+			labelCell.style.verticalAlign = 'top';
+			labelCell.textContent = 'Producción:';
+			
+			const contentCell = document.createElement('td');
+			contentCell.colSpan = 6;
+			contentCell.style.padding = '8px';
+			
+			const usersByDessert = delivery.production_users_by_dessert || {};
+			
+			// If we have per-dessert info, display it
+			if (Object.keys(usersByDessert).length > 0) {
+				const dessertNames = {
+					arco: 'Arco',
+					melo: 'Melo',
+					mara: 'Mara',
+					oreo: 'Oreo',
+					nute: 'Nute'
+				};
+				
+				const detailDiv = document.createElement('div');
+				detailDiv.style.display = 'flex';
+				detailDiv.style.flexDirection = 'column';
+				detailDiv.style.gap = '6px';
+				
+				for (const [code, users] of Object.entries(usersByDessert)) {
+					if (!users || users.length === 0) continue;
+					
+					const line = document.createElement('div');
+					line.style.fontSize = '11px';
+					line.style.color = '#666';
+					line.style.display = 'flex';
+					line.style.alignItems = 'center';
+					line.style.gap = '8px';
+					
+					const dessertLabel = document.createElement('strong');
+					dessertLabel.textContent = dessertNames[code];
+					dessertLabel.style.color = '#495057';
+					dessertLabel.style.minWidth = '50px';
+					
+					// Create user chips
+					const usersContainer = document.createElement('div');
+					usersContainer.style.display = 'flex';
+					usersContainer.style.flexWrap = 'wrap';
+					usersContainer.style.gap = '4px';
+					
+					for (const username of users) {
+						const chip = document.createElement('span');
+						chip.textContent = username;
+						chip.style.fontSize = '10px';
+						chip.style.padding = '2px 8px';
+						chip.style.backgroundColor = '#e3f2fd';
+						chip.style.color = '#1976d2';
+						chip.style.borderRadius = '12px';
+						chip.style.border = '1px solid #90caf9';
+						usersContainer.appendChild(chip);
+					}
+					
+					line.appendChild(dessertLabel);
+					line.appendChild(usersContainer);
+					detailDiv.appendChild(line);
+				}
+				
+				contentCell.appendChild(detailDiv);
+			} else {
+				const noData = document.createElement('span');
+				noData.style.fontSize = '11px';
+				noData.style.color = '#adb5bd';
+				noData.style.fontStyle = 'italic';
+				noData.textContent = 'No hay información de usuarios';
+				contentCell.appendChild(noData);
+			}
+			
+			tr.appendChild(labelCell);
+			tr.appendChild(contentCell);
 			return tr;
 		}
 
@@ -474,6 +547,137 @@
 			}
 		}
 
+		// User selection popover
+		function openUserSelectionPopover(dessertName, selectedUsers, triggerBtn) {
+			const userPop = document.createElement('div');
+			userPop.className = 'new-sale-popover';
+			userPop.style.position = 'fixed';
+			userPop.style.left = '50%';
+			userPop.style.top = '50%';
+			userPop.style.transform = 'translate(-50%, -50%)';
+			userPop.style.minWidth = '300px';
+			userPop.style.maxWidth = '400px';
+			
+			const title = document.createElement('h4');
+			title.style.margin = '0 0 12px 0';
+			title.textContent = `Usuarios - ${dessertName}`;
+			
+			const userGrid = document.createElement('div');
+			userGrid.style.display = 'grid';
+			userGrid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(100px, 1fr))';
+			userGrid.style.gap = '8px';
+			userGrid.style.marginBottom = '16px';
+			userGrid.style.minHeight = '60px';
+			userGrid.innerHTML = '<p style="color: #6c757d; text-align: center;">Cargando usuarios...</p>';
+			
+			// Load users
+			api('GET', '/api/users').then(r => {
+				const users = Array.isArray(r) ? r : [];
+				userGrid.innerHTML = '';
+				
+				if (users.length === 0) {
+					userGrid.innerHTML = '<p style="color: #dc3545;">No hay usuarios disponibles</p>';
+					return;
+				}
+				
+				// Create button for each user
+				for (const u of users) {
+					const userBtn = document.createElement('button');
+					userBtn.type = 'button';
+					userBtn.className = 'press-btn';
+					userBtn.textContent = u.username;
+					userBtn.style.fontSize = '12px';
+					userBtn.style.padding = '8px 12px';
+					userBtn.style.transition = 'all 0.2s ease';
+					userBtn.style.border = '2px solid #dee2e6';
+					
+					// Check if already selected
+					const isSelected = selectedUsers.has(u.id);
+					if (isSelected) {
+						userBtn.style.backgroundColor = '#4caf50';
+						userBtn.style.color = 'white';
+						userBtn.style.borderColor = '#4caf50';
+						userBtn.style.fontWeight = 'bold';
+					} else {
+						userBtn.style.backgroundColor = '#f8f9fa';
+						userBtn.style.color = '#212529';
+					}
+					
+					userBtn.addEventListener('click', (e) => {
+						e.preventDefault();
+						if (selectedUsers.has(u.id)) {
+							selectedUsers.delete(u.id);
+							userBtn.style.backgroundColor = '#f8f9fa';
+							userBtn.style.color = '#212529';
+							userBtn.style.borderColor = '#dee2e6';
+							userBtn.style.fontWeight = 'normal';
+						} else {
+							selectedUsers.add(u.id);
+							userBtn.style.backgroundColor = '#4caf50';
+							userBtn.style.color = 'white';
+							userBtn.style.borderColor = '#4caf50';
+							userBtn.style.fontWeight = 'bold';
+						}
+						// Update trigger button text
+						const count = selectedUsers.size;
+						triggerBtn.textContent = count > 0 ? `Quién (${count})` : 'Quién (0)';
+					});
+					
+					// Hover effects
+					userBtn.addEventListener('mouseenter', () => {
+						if (!selectedUsers.has(u.id)) {
+							userBtn.style.backgroundColor = '#e9ecef';
+							userBtn.style.borderColor = '#adb5bd';
+						}
+					});
+					userBtn.addEventListener('mouseleave', () => {
+						if (!selectedUsers.has(u.id)) {
+							userBtn.style.backgroundColor = '#f8f9fa';
+							userBtn.style.borderColor = '#dee2e6';
+						}
+					});
+					
+					userGrid.appendChild(userBtn);
+				}
+			}).catch((err) => {
+				userGrid.innerHTML = '<p style="color: #dc3545;">Error cargando usuarios</p>';
+				console.error('Error loading users:', err);
+			});
+			
+			const closeBtn = document.createElement('button');
+			closeBtn.type = 'button';
+			closeBtn.className = 'press-btn btn-primary';
+			closeBtn.textContent = 'Cerrar';
+			closeBtn.style.width = '100%';
+			
+			userPop.append(title, userGrid, closeBtn);
+			userPop.style.visibility = 'hidden';
+			userPop.style.opacity = '0';
+			userPop.style.transition = 'opacity 160ms ease-out';
+			document.body.appendChild(userPop);
+			
+			requestAnimationFrame(() => {
+				userPop.style.visibility = 'visible';
+				userPop.style.opacity = '1';
+			});
+			
+			function cleanup() {
+				document.removeEventListener('mousedown', outside, true);
+				if (userPop.parentNode) userPop.parentNode.removeChild(userPop);
+			}
+			
+			function outside(ev) {
+				const t = ev.target;
+				if (!userPop.contains(t) && t !== triggerBtn) cleanup();
+			}
+			
+			setTimeout(() => {
+				document.addEventListener('mousedown', outside, true);
+			}, 0);
+			
+			closeBtn.addEventListener('click', cleanup);
+		}
+
 		async function openProductionPopover(anchorX, anchorY) {
 			try {
 				// Load dynamic desserts and users
@@ -485,16 +689,11 @@
 				const pop = document.createElement('div');
 				pop.className = 'new-sale-popover';
 				pop.style.position = 'fixed';
-				const isSmall = window.matchMedia('(max-width: 640px)').matches;
-				if (typeof anchorX === 'number' && typeof anchorY === 'number' && !isSmall) {
-					pop.style.left = anchorX + 'px';
-					pop.style.top = anchorY + 'px';
-					pop.style.transform = 'translate(-50%, 0)';
-				} else {
-					pop.style.left = '50%';
-					pop.style.top = '20%';
-					pop.style.transform = 'translate(-50%, 0)';
-				}
+				pop.style.left = '50%';
+				pop.style.top = '50%';
+				pop.style.transform = 'translate(-50%, -50%)';
+				pop.style.maxHeight = '90vh';
+				pop.style.overflowY = 'auto';
 
 				const title = document.createElement('h4');
 				title.style.margin = '0 0 8px 0';
@@ -513,19 +712,21 @@
 				const grid = document.createElement('div');
 				grid.className = 'new-sale-grid';
 
-				function appendRow(labelText, inputEl) {
+				function appendRow(labelText, inputEl, noInteraction = false) {
 					const left = document.createElement('div'); left.className = 'new-sale-cell new-sale-left';
 					const right = document.createElement('div'); right.className = 'new-sale-cell new-sale-right';
 					const lbl = document.createElement('div'); lbl.className = 'new-sale-label-text'; lbl.textContent = labelText;
 					left.appendChild(lbl);
 					right.appendChild(inputEl);
-					right.addEventListener('mousedown', (ev) => { if (ev.target !== inputEl) { ev.preventDefault(); try { inputEl.focus(); inputEl.select?.(); } catch {} } });
-					right.addEventListener('click', (ev) => { if (ev.target !== inputEl) { ev.preventDefault(); try { inputEl.focus(); inputEl.select?.(); } catch {} } });
+					if (!noInteraction) {
+						right.addEventListener('mousedown', (ev) => { if (ev.target !== inputEl && !inputEl.contains(ev.target)) { ev.preventDefault(); try { inputEl.focus(); inputEl.select?.(); } catch {} } });
+						right.addEventListener('click', (ev) => { if (ev.target !== inputEl && !inputEl.contains(ev.target)) { ev.preventDefault(); try { inputEl.focus(); inputEl.select?.(); } catch {} } });
+					}
 					grid.appendChild(left);
 					grid.appendChild(right);
 				}
 
-				// Fecha row (replaces Cliente)
+				// Fecha row
 				const dateInput = document.createElement('input');
 				dateInput.type = 'date';
 				dateInput.className = 'input-cell';
@@ -533,119 +734,136 @@
 				dateInput.addEventListener('change', () => { title.textContent = formatTitle(dateInput.value); });
 				appendRow('Fecha', dateInput);
 
-				// Dessert rows from dynamic list
+				// Dessert quantity rows with user selectors
 				const qtyInputs = {};
 				const userSelections = {};
+				
 				for (const d of desserts) {
 					if (d.is_active === false) continue;
 					
-					// Quantity input
-					const input = document.createElement('input');
-					input.type = 'number'; input.min = '0'; input.step = '1'; input.inputMode = 'numeric'; input.placeholder = '0';
-					input.className = 'input-cell input-qty';
-					qtyInputs[d.short_code] = input;
-					
-					// Container for quantity and user selection
+					// Container for input and user selector
 					const container = document.createElement('div');
 					container.style.display = 'flex';
-					container.style.flexDirection = 'column';
-					container.style.gap = '4px';
+					container.style.flexDirection = 'row';
+					container.style.alignItems = 'center';
+					container.style.gap = '8px';
+					
+					// Quantity input
+					const input = document.createElement('input');
+					input.type = 'number'; 
+					input.min = '0'; 
+					input.step = '1'; 
+					input.inputMode = 'numeric'; 
+					input.placeholder = '0';
+					input.className = 'input-cell input-qty';
+					qtyInputs[d.short_code] = input;
 					container.appendChild(input);
 					
-					// User selection for this dessert
-					const userContainer = document.createElement('div');
-					userContainer.style.display = 'flex';
-					userContainer.style.flexWrap = 'wrap';
-					userContainer.style.gap = '4px';
-					userContainer.style.marginTop = '4px';
-					
+					// User selector button
 					const selectedUsers = new Set();
 					userSelections[d.short_code] = selectedUsers;
 					
-					for (const u of users) {
-						const userChip = document.createElement('button');
-						userChip.type = 'button';
-						userChip.className = 'press-btn';
-						userChip.textContent = u.username;
-						userChip.style.fontSize = '11px';
-						userChip.style.padding = '2px 8px';
-						userChip.style.opacity = '0.5';
-						userChip.addEventListener('click', () => {
-							if (selectedUsers.has(u.id)) {
-								selectedUsers.delete(u.id);
-								userChip.style.opacity = '0.5';
-								userChip.style.backgroundColor = '';
-							} else {
-								selectedUsers.add(u.id);
-								userChip.style.opacity = '1';
-								userChip.style.backgroundColor = '#4caf50';
-								userChip.style.color = 'white';
-							}
-						});
-						userContainer.appendChild(userChip);
-					}
+					const selectorBtn = document.createElement('button');
+					selectorBtn.type = 'button';
+					selectorBtn.className = 'press-btn';
+					selectorBtn.textContent = 'Quién (0)';
+					selectorBtn.style.fontSize = '11px';
+					selectorBtn.style.padding = '4px 8px';
+					selectorBtn.style.whiteSpace = 'nowrap';
+					selectorBtn.style.minWidth = '80px';
 					
-					container.appendChild(userContainer);
-					appendRow(d.name, container);
+					// Open user selection popover
+					selectorBtn.addEventListener('click', (e) => {
+						e.preventDefault();
+						e.stopPropagation();
+						openUserSelectionPopover(d.name, selectedUsers, selectorBtn);
+					});
+					
+					container.appendChild(selectorBtn);
+					
+					appendRow(d.name, container, true);
 				}
 
-				const actions = document.createElement('div'); actions.className = 'confirm-actions';
-				const cancelBtn = document.createElement('button'); cancelBtn.type = 'button'; cancelBtn.className = 'press-btn'; cancelBtn.textContent = 'Cancelar';
-				const saveBtn = document.createElement('button'); saveBtn.type = 'button'; saveBtn.className = 'press-btn btn-primary'; saveBtn.textContent = 'Guardar';
+				const actions = document.createElement('div'); 
+				actions.className = 'confirm-actions';
+				const cancelBtn = document.createElement('button'); 
+				cancelBtn.type = 'button'; 
+				cancelBtn.className = 'press-btn'; 
+				cancelBtn.textContent = 'Cancelar';
+				const saveBtn = document.createElement('button'); 
+				saveBtn.type = 'button'; 
+				saveBtn.className = 'press-btn btn-primary'; 
+				saveBtn.textContent = 'Guardar';
 				actions.append(cancelBtn, saveBtn);
 
 				pop.append(title, grid, actions);
-				pop.style.visibility = 'hidden'; pop.style.opacity = '0'; pop.style.transition = 'opacity 160ms ease-out';
+				pop.style.visibility = 'hidden'; 
+				pop.style.opacity = '0'; 
+				pop.style.transition = 'opacity 160ms ease-out';
 				document.body.appendChild(pop);
 
-				function clampWithinViewport() {
-					try {
-						const margin = 8; const vw = window.innerWidth; const vh = window.innerHeight; const r = pop.getBoundingClientRect();
-						const baseX = (typeof anchorX === 'number') ? anchorX : (vw / 2);
-						const baseY = (typeof anchorY === 'number') ? anchorY : (vh / 2);
-						let left = Math.round(baseX - r.width / 2);
-						let topBelow = Math.round(baseY + 8); let topAbove = Math.round(baseY - 8 - r.height); let top = topBelow;
-						if (top + r.height > vh - margin) top = topAbove;
-						if (top < margin) top = margin;
-						if (top + r.height > vh - margin) top = Math.max(margin, vh - margin - r.height);
-						if (left < margin) left = margin;
-						if (left + r.width > vw - margin) left = Math.max(margin, vw - margin - r.width);
-						pop.style.left = left + 'px'; pop.style.top = top + 'px'; pop.style.transform = 'none';
-					} catch {}
-				}
-				clampWithinViewport(); pop.style.visibility = 'visible'; requestAnimationFrame(() => { pop.style.opacity = '1'; });
+				// Center the popover
+				requestAnimationFrame(() => {
+					pop.style.visibility = 'visible';
+					pop.style.opacity = '1';
+				});
 
-				function cleanup(){ document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); if (pop.parentNode) pop.parentNode.removeChild(pop); }
-				function outside(ev){ const t = ev.target; if (!pop.contains(t)) cleanup(); }
-				setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
+				function cleanup(){ 
+					document.removeEventListener('mousedown', outside, true); 
+					document.removeEventListener('touchstart', outside, true); 
+					if (pop.parentNode) pop.parentNode.removeChild(pop); 
+				}
+				function outside(ev){ 
+					const t = ev.target; 
+					if (!pop.contains(t)) cleanup(); 
+				}
+				setTimeout(() => { 
+					document.addEventListener('mousedown', outside, true); 
+					document.addEventListener('touchstart', outside, true); 
+				}, 0);
 				cancelBtn.addEventListener('click', cleanup);
 
 				setTimeout(() => { try { dateInput.focus(); } catch {} }, 0);
 
 				async function doSave(){
 					try {
-						saveBtn.disabled = true; cancelBtn.disabled = true;
+						saveBtn.disabled = true; 
+						cancelBtn.disabled = true;
 						const items = {};
 						const production_users = {};
+						
+						// Collect quantities
 						for (const [code, input] of Object.entries(qtyInputs)) { 
 							const q = Math.max(0, parseInt(input?.value || '0', 10) || 0); 
 							if (q > 0) items[code] = q; 
 						}
+						
+						// Apply selected users for each dessert
 						for (const [code, selectedSet] of Object.entries(userSelections)) {
 							if (selectedSet.size > 0) {
 								production_users[code] = Array.from(selectedSet);
 							}
 						}
+						
 						const payload = { day: dateInput.value || todayIso, items, production_users };
 						await api('POST', '/api/deliveries', payload);
-						cleanup(); await load();
+						cleanup(); 
+						await load();
 					} catch (e) {
 						alert('No se pudo guardar: ' + (e?.message || e));
-						saveBtn.disabled = false; cancelBtn.disabled = false;
+						saveBtn.disabled = false; 
+						cancelBtn.disabled = false;
 					}
 				}
 				saveBtn.addEventListener('click', doSave);
-				Object.values(qtyInputs).forEach((el) => { el.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); doSave(); } }); });
+				Object.values(qtyInputs).forEach((el) => { 
+					el.addEventListener('keydown', (ev) => { 
+						if (ev.key === 'Enter') { 
+							ev.preventDefault(); 
+							doSave(); 
+						} 
+					}); 
+				});
 			} catch (e) {
 				alert('No se pudo abrir el formulario');
 			}
