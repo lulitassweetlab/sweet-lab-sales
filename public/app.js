@@ -8657,7 +8657,6 @@ const NotificationCenter = {
 		// Delete button
 		const deleteBtn = document.createElement('button');
 		deleteBtn.className = 'notif-delete-btn';
-		deleteBtn.innerHTML = '✕';
 		deleteBtn.title = 'Eliminar notificación';
 		deleteBtn.addEventListener('click', () => this.deleteNotification(notif.id));
 
