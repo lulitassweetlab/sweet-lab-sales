@@ -8727,11 +8727,6 @@ const NotificationCenter = {
 		const actor = encodeURIComponent(state.currentUser?.name || '');
 		if (!actor) return;
 
-		// Confirm deletion
-		if (!confirm('¿Estás seguro de que deseas eliminar esta notificación?')) {
-			return;
-		}
-
 		try {
 			await fetch(`/api/notifications?id=${notificationId}&actor=${actor}`, {
 				method: 'DELETE',
@@ -8761,7 +8756,6 @@ const NotificationCenter = {
 			}, 350);
 		} catch (err) {
 			console.error('Error deleting notification:', err);
-			alert('Error al eliminar la notificación');
 		}
 	}
 };
