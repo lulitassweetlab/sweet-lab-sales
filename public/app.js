@@ -1959,7 +1959,10 @@ function wireCommissionsPaidEditor() {
 		const rawValue = (el.textContent || '').replace(/[^0-9]/g, '');
 		const value = Math.max(0, parseInt(rawValue, 10) || 0);
 		console.log('Saving commissions_paid:', value, 'dayId:', dayId);
+		console.log('state.currentUser:', state.currentUser);
+		console.log('actor_name:', state.currentUser?.name);
 		const payload = { id: dayId, actor_name: state.currentUser?.name || '', commissions_paid: value };
+		console.log('Full payload:', JSON.stringify(payload, null, 2));
 		
 		try {
 			const updated = await api('PUT', '/api/days', payload);
