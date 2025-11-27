@@ -706,7 +706,7 @@ export async function handler(event) {
 					}
 				}
 				
-				const isInitialCreation = withinGrace && prevSum === 0 && nextSum > 0 && !hasPrevDynamicItems;
+				const isInitialCreation = withinGrace && prevSum === 0 && !hasPrevDynamicItems && (nextSum > 0 || hasNewDynamicItems);
 				if (!isInitialCreation) {
 					await emitQty('arco', current.qty_arco ?? 0, qa ?? 0);
 					await emitQty('melo', current.qty_melo ?? 0, qm ?? 0);

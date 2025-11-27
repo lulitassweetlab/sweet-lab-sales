@@ -68,8 +68,10 @@ if (!['arco', 'melo', 'mara', 'oreo', 'nute'].includes(shortCode)) {
 #### Detección de Creación Inicial
 La lógica para detectar si es un nuevo pedido (vs. modificación) ahora también considera si hay postres dinámicos:
 ```javascript
-const isInitialCreation = withinGrace && prevSum === 0 && nextSum > 0 && !hasPrevDynamicItems;
+const isInitialCreation = withinGrace && prevSum === 0 && !hasPrevDynamicItems && (nextSum > 0 || hasNewDynamicItems);
 ```
+
+**Importante**: Esta condición ahora detecta correctamente pedidos que solo contienen postres dinámicos (como 3Lec). Antes solo contaba postres legacy en `nextSum`, causando que pedidos solo con 3Lec no se detectaran como creaciones iniciales.
 
 ### Compatibilidad
 
