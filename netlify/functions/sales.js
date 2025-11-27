@@ -578,7 +578,20 @@ export async function handler(event) {
 			await sql`UPDATE sales SET client_name=${client}, comment_text=${comment}, qty_arco=${qa}, qty_melo=${qm}, qty_mara=${qma}, qty_oreo=${qo}, qty_nute=${qn}, is_paid=${paid}, pay_method=${payMethod}, payment_date=${paymentDate}, payment_source=${paymentSource} WHERE id=${id}`;
 				
 				// If items are provided, update sale_items table
+				let previousDynamicItems = [];
 				if (items !== null) {
+					// Get previous dynamic items for comparison (to detect quantity changes)
+					try {
+						previousDynamicItems = await sql`
+							SELECT si.dessert_id, si.quantity, d.short_code
+							FROM sale_items si
+							JOIN desserts d ON d.id = si.dessert_id
+							WHERE si.sale_id = ${id}
+						`;
+					} catch (err) {
+						console.error('Error loading previous items:', err);
+					}
+					
 					// Delete existing items
 					await sql`DELETE FROM sale_items WHERE sale_id = ${id}`;
 					
@@ -614,6 +627,44 @@ export async function handler(event) {
 				await write('qty_oreo', current.qty_oreo ?? 0, qo ?? 0);
 				await write('qty_nute', current.qty_nute ?? 0, qn ?? 0);
 				await write('pay_method', current.pay_method ?? '', payMethod ?? '');
+				// Helper function to get all desserts from both legacy and dynamic tables
+				async function getAllDessertParts(saleId) {
+					const parts = [];
+					// Get legacy desserts from qty columns
+					const legacyDesserts = [
+						{ qty: qa, name: 'arco' },
+						{ qty: qm, name: 'melo' },
+						{ qty: qma, name: 'mara' },
+						{ qty: qo, name: 'oreo' },
+						{ qty: qn, name: 'nute' }
+					];
+					for (const d of legacyDesserts) {
+						if (Number(d.qty || 0) > 0) {
+							parts.push(`${d.qty} ${d.name}`);
+						}
+					}
+					// Get dynamic desserts from sale_items table
+					try {
+						const dynamicItems = await sql`
+							SELECT si.quantity, d.short_code
+							FROM sale_items si
+							JOIN desserts d ON d.id = si.dessert_id
+							WHERE si.sale_id = ${saleId} AND si.quantity > 0
+							ORDER BY d.position ASC, d.id ASC
+						`;
+						for (const item of dynamicItems) {
+							const shortCode = (item.short_code || '').toLowerCase();
+							// Skip if already in legacy desserts
+							if (!['arco', 'melo', 'mara', 'oreo', 'nute'].includes(shortCode)) {
+								parts.push(`${item.quantity} ${shortCode}`);
+							}
+						}
+					} catch (err) {
+						console.error('Error loading dynamic desserts for notification:', err);
+					}
+					return parts;
+				}
+				
 				// emit realtime notifications for qty changes
 				async function emitQty(name, prev, next) {
 					if (String(prev) === String(next)) return;
@@ -626,21 +677,93 @@ export async function handler(event) {
 				// Detect initial creation update: all previous quantities were 0 and now there are items
 				const prevSum = Number(current.qty_arco||0) + Number(current.qty_melo||0) + Number(current.qty_mara||0) + Number(current.qty_oreo||0) + Number(current.qty_nute||0);
 				const nextSum = Number(qa||0) + Number(qm||0) + Number(qma||0) + Number(qo||0) + Number(qn||0);
-				const isInitialCreation = withinGrace && prevSum === 0 && nextSum > 0;
+				
+				// Check if there are any previous or new dynamic items
+				let hasPrevDynamicItems = false;
+				let hasNewDynamicItems = false;
+				if (previousDynamicItems && previousDynamicItems.length > 0) {
+					for (const item of previousDynamicItems) {
+						const shortCode = (item.short_code || '').toLowerCase();
+						if (!['arco', 'melo', 'mara', 'oreo', 'nute'].includes(shortCode)) {
+							hasPrevDynamicItems = true;
+							break;
+						}
+					}
+				}
+				if (items && items.length > 0) {
+					for (const item of items) {
+						// Need to get short_code from dessert_id
+						try {
+							const [dessert] = await sql`SELECT short_code FROM desserts WHERE id = ${item.dessert_id}`;
+							if (dessert) {
+								const shortCode = (dessert.short_code || '').toLowerCase();
+								if (!['arco', 'melo', 'mara', 'oreo', 'nute'].includes(shortCode) && Number(item.quantity || 0) > 0) {
+									hasNewDynamicItems = true;
+									break;
+								}
+							}
+						} catch (err) {}
+					}
+				}
+				
+				const isInitialCreation = withinGrace && prevSum === 0 && !hasPrevDynamicItems && (nextSum > 0 || hasNewDynamicItems);
 				if (!isInitialCreation) {
 					await emitQty('arco', current.qty_arco ?? 0, qa ?? 0);
 					await emitQty('melo', current.qty_melo ?? 0, qm ?? 0);
 					await emitQty('mara', current.qty_mara ?? 0, qma ?? 0);
 					await emitQty('oreo', current.qty_oreo ?? 0, qo ?? 0);
 					await emitQty('nute', current.qty_nute ?? 0, qn ?? 0);
+					
+					// Emit quantity change notifications for dynamic desserts
+					if (items !== null && !withinGrace) {
+						try {
+							// Build a map of previous quantities by dessert_id
+							const prevQtyMap = {};
+							for (const item of previousDynamicItems) {
+								const shortCode = (item.short_code || '').toLowerCase();
+								if (!['arco', 'melo', 'mara', 'oreo', 'nute'].includes(shortCode)) {
+									prevQtyMap[item.dessert_id] = Number(item.quantity || 0);
+								}
+							}
+							
+							// Check new items for changes
+							for (const item of items) {
+								const dessertId = Number(item.dessert_id || 0);
+								if (dessertId > 0) {
+									const [dessert] = await sql`SELECT short_code FROM desserts WHERE id = ${dessertId}`;
+									if (dessert) {
+										const shortCode = (dessert.short_code || '').toLowerCase();
+										// Only process non-legacy desserts
+										if (!['arco', 'melo', 'mara', 'oreo', 'nute'].includes(shortCode)) {
+											const prevQty = prevQtyMap[dessertId] || 0;
+											const newQty = Number(item.quantity || 0);
+											if (prevQty !== newQty) {
+												await emitQty(shortCode, prevQty, newQty);
+											}
+											// Mark as processed
+											delete prevQtyMap[dessertId];
+										}
+									}
+								}
+							}
+							
+							// Check for desserts that were removed (existed before but not in new items)
+							for (const [dessertId, prevQty] of Object.entries(prevQtyMap)) {
+								if (prevQty > 0) {
+									const [dessert] = await sql`SELECT short_code FROM desserts WHERE id = ${dessertId}`;
+									if (dessert) {
+										const shortCode = (dessert.short_code || '').toLowerCase();
+										await emitQty(shortCode, prevQty, 0);
+									}
+								}
+							}
+						} catch (err) {
+							console.error('Error emitting dynamic dessert quantity notifications:', err);
+						}
+					}
 				} else {
 					// Emit a single detailed notification for the new order
-					const parts = [];
-					if (Number(qa||0) > 0) parts.push(`${qa} arco`);
-					if (Number(qm||0) > 0) parts.push(`${qm} melo`);
-					if (Number(qma||0) > 0) parts.push(`${qma} mara`);
-					if (Number(qo||0) > 0) parts.push(`${qo} oreo`);
-					if (Number(qn||0) > 0) parts.push(`${qn} nute`);
+					const parts = await getAllDessertParts(id);
 					const sellerIdForNotif = Number(data.seller_id||0) || Number(current.seller_id||0) || null;
 					const saleDayIdForNotif = Number(data.sale_day_id||0) || Number(current.sale_day_id||0) || null;
 					const msg = `${client || 'Sin nombre'}: ${parts.join(' + ')}`;
@@ -722,16 +845,41 @@ export async function handler(event) {
 						return json({ error: 'Pedido bloqueado: solo admin/superadmin puede eliminar' }, 403);
 					}
 				} catch {}
-				await sql`DELETE FROM sales WHERE id=${id}`;
-				// emit deletion notification with client, quantities, and seller name
+				
+				// Get all desserts (legacy + dynamic) before deleting
+				const parts = [];
 				if (prev) {
-					const name = (prev.client_name || '') || 'Sin nombre';
-					const parts = [];
+					// Legacy desserts
 					const ar = Number(prev.qty_arco||0); if (ar) parts.push(`${ar} arco`);
 					const me = Number(prev.qty_melo||0); if (me) parts.push(`${me} melo`);
 					const ma = Number(prev.qty_mara||0); if (ma) parts.push(`${ma} mara`);
 					const or = Number(prev.qty_oreo||0); if (or) parts.push(`${or} oreo`);
 					const nu = Number(prev.qty_nute||0); if (nu) parts.push(`${nu} nute`);
+					// Dynamic desserts from sale_items
+					try {
+						const dynamicItems = await sql`
+							SELECT si.quantity, d.short_code
+							FROM sale_items si
+							JOIN desserts d ON d.id = si.dessert_id
+							WHERE si.sale_id = ${id} AND si.quantity > 0
+							ORDER BY d.position ASC, d.id ASC
+						`;
+						for (const item of dynamicItems) {
+							const shortCode = (item.short_code || '').toLowerCase();
+							// Skip if already in legacy desserts
+							if (!['arco', 'melo', 'mara', 'oreo', 'nute'].includes(shortCode)) {
+								parts.push(`${item.quantity} ${shortCode}`);
+							}
+						}
+					} catch (err) {
+						console.error('Error loading dynamic desserts for delete notification:', err);
+					}
+				}
+				
+				await sql`DELETE FROM sales WHERE id=${id}`;
+				// emit deletion notification with client, quantities, and seller name
+				if (prev) {
+					const name = (prev.client_name || '') || 'Sin nombre';
 					const orderDetails = parts.length ? (': ' + parts.join(' + ')) : '';
 					const msg = `${name}${orderDetails}`;
 					const pm = (prev?.pay_method || '').toString();
