@@ -145,12 +145,18 @@
 		const qs = new URLSearchParams(location.search);
 		let start = (qs.get('start') || '').slice(0,10);
 		let end = (qs.get('end') || '').slice(0,10);
+		let actor = (qs.get('actor') || '').toString();
+		if (!actor) { try { const saved = JSON.parse(localStorage.getItem('authUser')||'null'); actor = (saved?.name||saved?.username||'').toString(); } catch {} }
 		const rangeLabel = document.getElementById('range-label');
 		const loadLabel = document.getElementById('load-label');
 		const kpisEl = document.getElementById('kpis');
 		const sellerFilterGroup = document.getElementById('seller-filter-group');
 		const payFilter = document.getElementById('pay-filter');
 		const tbody = document.getElementById('proj-tbody');
+		
+		// Dynamic desserts from API
+		let desserts = [];
+		let PRICES = {};
 		const totalEl = document.getElementById('proj-total');
 		const backBtn = document.getElementById('back-btn');
 		const changeBtn = document.getElementById('change-range');
@@ -280,17 +286,30 @@
 
 		function buildCountsChart(labels, series){
 			if (chartCounts) { chartCounts.destroy(); }
+			
+			// Build datasets dynamically from desserts
+			const colors = [
+				'rgba(59,130,246,0.6)',
+				'rgba(34,197,94,0.6)',
+				'rgba(244,63,94,0.6)',
+				'rgba(234,179,8,0.6)',
+				'rgba(99,102,241,0.6)',
+				'rgba(168,85,247,0.6)',
+				'rgba(236,72,153,0.6)',
+				'rgba(20,184,166,0.6)'
+			];
+			
+			const datasets = desserts.map((d, idx) => ({
+				label: d.name,
+				data: series.map(r => r[`q_${d.short_code}`] || 0),
+				backgroundColor: colors[idx % colors.length]
+			}));
+			
 			chartCounts = new Chart(chartCountsCanvas, {
 				type: 'bar',
 				data: {
 					labels,
-					datasets: [
-						{ label: 'Arco', data: series.map(r=>r.qa), backgroundColor: 'rgba(59,130,246,0.6)' },
-						{ label: 'Melo', data: series.map(r=>r.qm), backgroundColor: 'rgba(34,197,94,0.6)' },
-						{ label: 'Mara', data: series.map(r=>r.qma), backgroundColor: 'rgba(244,63,94,0.6)' },
-						{ label: 'Oreo', data: series.map(r=>r.qo), backgroundColor: 'rgba(234,179,8,0.6)' },
-						{ label: 'Nute', data: series.map(r=>r.qn), backgroundColor: 'rgba(99,102,241,0.6)' }
-					]
+					datasets
 				},
 				options: { responsive: true, plugins: { legend: { position: 'top' } }, scales: { x: { stacked: true }, y: { stacked: true } } }
 			});
@@ -389,16 +408,21 @@
 		async function load(){
 			if (!start || !end) { rangeLabel.textContent = 'Selecciona rango'; openCalendar(); return; }
 			rangeLabel.textContent = `${start} — ${end}`;
-			loadLabel.textContent = 'Cargando…';
+			loadLabel.textContent = 'Cargando postres…';
+			
+			// Load desserts first
+			await loadDesserts();
+			
+			loadLabel.textContent = 'Cargando vendedores…';
 			let sellers = [];
-			try { sellers = await fetchJSON('/api/sellers'); } catch { sellers = []; }
+			try { sellers = await fetchJSON(withActor('/api/sellers')); } catch { sellers = []; }
 			loadLabel.textContent = `Vendedores: ${sellers.length} · buscando días…`;
 			populateFilters(sellers);
 			const sellerDays = [];
 			const isoBetween = (iso, a, b) => iso >= a && iso <= b;
 			await mapLimit(sellers, 6, async (s) => {
 				try {
-					const days = await fetchJSON(`/api/days?seller_id=${encodeURIComponent(s.id)}`);
+					const days = await fetchJSON(withActor(`/api/days?seller_id=${encodeURIComponent(s.id)}`));
 					for (const d of (days||[])) {
 						const iso = String(d.day).slice(0,10);
 						if (isoBetween(iso, start, end)) sellerDays.push({ seller: s, day: d });
@@ -410,7 +434,7 @@
 			await mapLimit(sellerDays, 6, async ({ seller, day }) => {
 				try {
 					const params = new URLSearchParams({ seller_id: String(seller.id), sale_day_id: String(day.id) });
-					const sales = await fetchJSON(`/api/sales?${params.toString()}`);
+					const sales = await fetchJSON(withActor(`/api/sales?${params.toString()}`));
 					const iso = String(day.day).slice(0,10);
 					salesByDayBySeller.set(`${seller.name||''}|${iso}`, (sales||[]));
 				} catch {}
@@ -424,20 +448,46 @@
 			const selectedSellers = getSelectedSellers();
 			const selectedPay = (payFilter?.value || '').toString();
 			const byDate = new Map(); // iso -> sum dinero
-			const qtyByDate = new Map(); // iso -> {qa,qm,qma,qo,qn}
+			const qtyByDate = new Map(); // iso -> quantities object with dynamic dessert keys
 			for (const [key, rows] of (salesByDayBySeller?.entries() || [])){
 				const [sellerName, iso] = key.split('|');
 				if (selectedSellers.length && !selectedSellers.includes(sellerName)) continue;
-				let sum = 0; let qa=0,qm=0,qma=0,qo=0,qn=0;
+				let sum = 0;
+				
+				// Initialize quantities for all desserts
+				const quantities = {};
+				for (const d of desserts) {
+					quantities[d.short_code] = 0;
+				}
+				
 				for (const r of (rows||[])){
 					if (selectedPay && (r.pay_method || '') !== selectedPay) continue;
 					sum += Number(r.total_cents||0) || 0;
-					qa += Number(r.qty_arco||0) || 0; qm += Number(r.qty_melo||0) || 0; qma += Number(r.qty_mara||0) || 0; qo += Number(r.qty_oreo||0) || 0; qn += Number(r.qty_nute||0) || 0;
+					
+					// Process quantities dynamically
+					if (Array.isArray(r.items) && r.items.length > 0) {
+						// New format: use items array
+						for (const item of r.items) {
+							const code = item.short_code;
+							if (quantities[code] !== undefined) {
+								quantities[code] += Number(item.quantity || 0) || 0;
+							}
+						}
+					} else {
+						// Old format: use qty_* columns
+						for (const d of desserts) {
+							const qtyKey = `qty_${d.short_code}`;
+							quantities[d.short_code] += Number(r[qtyKey] || 0) || 0;
+						}
+					}
 				}
 				if (sum > 0) {
 					byDate.set(iso, (byDate.get(iso)||0) + sum);
-					const prev = qtyByDate.get(iso) || {qa:0,qm:0,qma:0,qo:0,qn:0};
-					prev.qa += qa; prev.qm += qm; prev.qma += qma; prev.qo += qo; prev.qn += qn;
+					const prev = qtyByDate.get(iso) || {};
+					for (const d of desserts) {
+						const key = d.short_code;
+						prev[key] = (prev[key] || 0) + quantities[key];
+					}
 					qtyByDate.set(iso, prev);
 				}
 			}
@@ -448,9 +498,12 @@
 				const wk = startOfWeekMonday(iso);
 				const cur = weekMap.get(wk) || { total:0 };
 				cur.total += amt; weekMap.set(wk, cur);
-				const qq = qtyByDate.get(iso) || {qa:0,qm:0,qma:0,qo:0,qn:0};
-				const qcur = weekQtyMap.get(wk) || { qa:0,qm:0,qma:0,qo:0,qn:0 };
-				qcur.qa += qq.qa; qcur.qm += qq.qm; qcur.qma += qq.qma; qcur.qo += qq.qo; qcur.qn += qq.qn;
+				const qq = qtyByDate.get(iso) || {};
+				const qcur = weekQtyMap.get(wk) || {};
+				for (const d of desserts) {
+					const key = d.short_code;
+					qcur[key] = (qcur[key] || 0) + (qq[key] || 0);
+				}
 				weekQtyMap.set(wk, qcur);
 			}
 			const weekStarts = Array.from(weekMap.keys()).sort((a,b)=> a < b ? -1 : 1);
@@ -461,7 +514,14 @@
 			const maxNeededWeek = addDaysIso(lastWeekStart, (horizonWeeks+1)*7);
 			const highWeeksSet = buildHighWeekSet(firstWeekStart, maxNeededWeek);
 			const weeks = weekStarts.map(ws => ({ weekStart: ws, total: (weekMap.get(ws)||{total:0}).total, isHigh: highWeeksSet.has(ws) }));
-			const weeksQty = weeks.map(w => { const q = weekQtyMap.get(w.weekStart) || {qa:0,qm:0,qma:0,qo:0,qn:0}; return { weekStart: w.weekStart, ...q }; });
+			const weeksQty = weeks.map(w => { 
+				const q = weekQtyMap.get(w.weekStart) || {};
+				const row = { weekStart: w.weekStart };
+				for (const d of desserts) {
+					row[`q_${d.short_code}`] = q[d.short_code] || 0;
+				}
+				return row;
+			});
 			const histLabels = weeks.map(w => fmtDate(fridayOfWeek(w.weekStart)));
 			const histVals = weeks.map(w => w.total);
 			const highVals = weeks.filter(w=>w.isHigh).map(w=>w.total);
