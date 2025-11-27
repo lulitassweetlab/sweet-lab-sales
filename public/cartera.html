@@ -56,7 +56,7 @@
 			<div class="table-wrapper" id="report-wrapper">
 				<table id="report-table">
 					<thead>
-						<tr>
+						<tr id="thead-row">
 							<th id="th-fecha" style="cursor:pointer; user-select:none;">Fecha <span id="sort-fecha"></span></th>
 							<th id="th-vendedor" style="cursor:pointer; user-select:none;">Vendedor <span id="sort-vendedor"></span></th>
 							<th>Cliente</th>
@@ -64,18 +64,14 @@
 							<th id="th-fuente" style="cursor:pointer; user-select:none;">Fuente <span id="sort-fuente"></span></th>
 							<th id="th-fecha-pago" style="cursor:pointer; user-select:none;">Fecha pago <span id="sort-fecha-pago"></span></th>
 							<th class="col-paid">$</th>
-							<th class="col-qty">Arco</th>
-							<th class="col-qty">Melo</th>
-							<th class="col-qty">Mara</th>
-							<th class="col-qty">Oreo</th>
-							<th class="col-qty">Nute</th>
+							<!-- Dynamic dessert columns will be inserted here -->
 							<th class="col-total">Total</th>
 							<th></th>
 						</tr>
 					</thead>
 					<tbody id="report-tbody"></tbody>
 					<tfoot>
-						<tr>
+						<tr id="tfoot-row">
 							<td></td>
 							<td></td>
 							<td></td>
@@ -83,11 +79,7 @@
 							<td></td>
 							<td class="label">Totales</td>
 							<td></td>
-							<td id="t-qa" class="col-qty"></td>
-							<td id="t-qm" class="col-qty"></td>
-							<td id="t-qma" class="col-qty"></td>
-							<td id="t-qo" class="col-qty"></td>
-							<td id="t-qn" class="col-qty"></td>
+							<!-- Dynamic dessert totals will be inserted here -->
 							<td id="t-grand" class="col-total"></td>
 							<td></td>
 						</tr>
@@ -107,11 +99,6 @@
 		const rangeLabel = document.getElementById('range-label');
 		const countLabel = document.getElementById('count-label');
 		const tbody = document.getElementById('report-tbody');
-		const tQaEl = document.getElementById('t-qa');
-		const tQmEl = document.getElementById('t-qm');
-		const tQmaEl = document.getElementById('t-qma');
-		const tQoEl = document.getElementById('t-qo');
-		const tQnEl = document.getElementById('t-qn');
 		const tGrandEl = document.getElementById('t-grand');
 		const backBtn = document.getElementById('back-btn');
 		const changeBtn = document.getElementById('change-range');
@@ -126,13 +113,53 @@
 
 		let dataset = [];
 		let sellersList = [];
+		let desserts = []; // Dynamic desserts from API
+		let PRICES = {}; // Dynamic prices from API
 		let salesMap = {}; // Maps composite key to sale_id
 		const seenSaleIds = new Set(); // Prevent duplicate rows per sale
 		let sortColumn = null;
 		let sortDirection = 'desc'; // 'asc' or 'desc'
 
-		// Precio de venta por postre (alineado con el backend)
-		const PRICES = { arco: 8500, melo: 9500, mara: 10500, oreo: 10500, nute: 13000 };
+		// Load desserts from API and render columns
+		async function loadDesserts() {
+			try {
+				desserts = await fetchJSON(withActor('/api/desserts'));
+				// Build PRICES map from desserts
+				PRICES = {};
+				for (const d of desserts) {
+					PRICES[d.short_code] = d.sale_price;
+				}
+				renderDessertColumns();
+			} catch (err) {
+				console.error('Error loading desserts:', err);
+			}
+		}
+		
+		function renderDessertColumns() {
+			const theadRow = document.getElementById('thead-row');
+			const tfootRow = document.getElementById('tfoot-row');
+			const totalTh = theadRow.querySelector('th.col-total');
+			const totalTd = tfootRow.querySelector('td.col-total');
+			
+			// Remove existing dessert columns
+			theadRow.querySelectorAll('th.col-qty').forEach(th => th.remove());
+			tfootRow.querySelectorAll('td.col-qty').forEach(td => td.remove());
+			
+			// Insert new columns
+			for (const d of desserts) {
+				// Header
+				const th = document.createElement('th');
+				th.className = 'col-qty';
+				th.textContent = d.name;
+				theadRow.insertBefore(th, totalTh);
+				
+				// Footer total
+				const td = document.createElement('td');
+				td.className = 'col-qty';
+				td.id = `t-q-${d.short_code}`;
+				tfootRow.insertBefore(td, totalTd);
+			}
+		}
 
         function payLabel(pm){
             const lower = (pm || '').toString().toLowerCase();
@@ -358,30 +385,45 @@
 				rows = sortData(rows, sortColumn, sortDirection);
 			}
 			tbody.innerHTML = '';
-			let tQa=0,tQm=0,tQma=0,tQo=0,tQn=0,tGrand=0;
+			
+			// Initialize totals dynamically
+			const totals = {};
+			for (const d of desserts) {
+				totals[d.short_code] = 0;
+			}
+			let tGrand = 0;
+			
 			for (const r of rows){
 				const tr = document.createElement('tr');
 				const payMethod = payLabel(r.pay_method||'');
 				const paySource = r.payment_source ? payLabel(r.payment_source) : '';
 				const payDate = r.payment_date ? String(r.payment_date).slice(0,10) : '';
-				tr.innerHTML = `
+				
+				let html = `
 					<td>${r.date}</td>
 					<td>${r.sellerName}</td>
 					<td>${r.client_name||''}</td>
 					<td>${payMethod}</td>
 					<td>${paySource}</td>
 					<td>${payDate}</td>
-					<td>${r.is_paid ? '✓' : ''}</td>
-					<td>${r.qa||''}</td>
-					<td>${r.qm||''}</td>
-					<td>${r.qma||''}</td>
-					<td>${r.qo||''}</td>
-					<td>${r.qn||''}</td>
+					<td>${r.is_paid ? '✓' : ''}</td>`;
+				
+				// Add dessert quantities dynamically
+				for (const d of desserts) {
+					const qty = r[`q_${d.short_code}`] || 0;
+					html += `<td>${qty || ''}</td>`;
+					totals[d.short_code] += qty;
+				}
+				
+				html += `
 					<td class="col-total">${r.tot||''}</td>
 					<td style="text-align:center;"><button class="row-delete delete-btn" data-sale-id="${r.saleId||''}" data-client-name="${(r.client_name||'').replace(/"/g,'&quot;')}" title="Eliminar"></button></td>`;
+				
+				tr.innerHTML = html;
 				tbody.appendChild(tr);
-				tQa += r.qa||0; tQm += r.qm||0; tQma += r.qma||0; tQo += r.qo||0; tQn += r.qn||0; tGrand += r.tot||0;
+				tGrand += r.tot||0;
 			}
+			
 			// Attach delete event listeners
 			const deleteBtns = tbody.querySelectorAll('.delete-btn');
 			for (const btn of deleteBtns) {
@@ -391,12 +433,13 @@
 					if (saleId) deleteSale(saleId, clientName);
 				});
 			}
-			tQaEl.textContent = tQa || '';
-			tQmEl.textContent = tQm || '';
-			tQmaEl.textContent = tQma || '';
-			 tQoEl.textContent = tQo || '';
-			 tQnEl.textContent = tQn || '';
-			 tGrandEl.textContent = tGrand || '';
+			
+			// Update totals dynamically
+			for (const d of desserts) {
+				const el = document.getElementById(`t-q-${d.short_code}`);
+				if (el) el.textContent = totals[d.short_code] || '';
+			}
+			tGrandEl.textContent = tGrand || '';
 			countLabel.textContent = `Filas: ${rows.length}`;
 			updateSortIndicators();
 		}
@@ -506,6 +549,9 @@
 			dataset = [];
 			seenSaleIds.clear();
 			
+			// Load desserts first
+			await loadDesserts();
+			
 			// Auto-sync receipt payments to sales - ONLY ONCE EVER (permanent)
 			const syncKey = 'cartera_receipts_synced_v1';
 			if (!localStorage.getItem(syncKey)) {
@@ -531,27 +577,32 @@
 				const pm = (r.pay_method || '').toString();
 				const ps = (r.payment_source || '').toString();
 				const pd = r.payment_date ? String(r.payment_date).slice(0, 10) : '';
-				// Cantidades por sabor (usar solo primera ocurrencia por postre, igual que consolidado)
-				let qa = Number(r.qty_arco || 0) || 0;
-				let qm = Number(r.qty_melo || 0) || 0;
-				let qma = Number(r.qty_mara || 0) || 0;
-				let qo = Number(r.qty_oreo || 0) || 0;
-				let qn = Number(r.qty_nute || 0) || 0;
+				
+				// Cantidades por sabor - dinámicas según desserts
+				const quantities = {};
+				for (const d of desserts) {
+					quantities[d.short_code] = 0;
+				}
+				
 				if (Array.isArray(r.items) && r.items.length > 0) {
-					qa = 0; qm = 0; qma = 0; qo = 0; qn = 0;
 					const seenQty = new Set();
 					for (const item of r.items) {
 						const code = (item.short_code || '').toLowerCase();
 						if (!code || seenQty.has(code)) continue;
 						seenQty.add(code);
 						const qty = Number(item.quantity || 0) || 0;
-						if (code === 'arco') qa = qty;
-						else if (code === 'melo') qm = qty;
-						else if (code === 'mara') qma = qty;
-						else if (code === 'oreo') qo = qty;
-						else if (code === 'nute') qn = qty;
+						if (quantities[code] !== undefined) {
+							quantities[code] = qty;
+						}
+					}
+				} else {
+					// Fallback: use qty_* columns
+					for (const d of desserts) {
+						const qtyKey = `qty_${d.short_code}`;
+						quantities[d.short_code] = Number(r[qtyKey] || 0) || 0;
 					}
 				}
+				
 				// Total robusto
 				let totCalc = 0;
 				if (Array.isArray(r.items) && r.items.length > 0) {
@@ -566,14 +617,19 @@
 						totCalc += qty * price;
 					}
 				} else {
-					totCalc = (qa * PRICES.arco) + (qm * PRICES.melo) + (qma * PRICES.mara) + (qo * PRICES.oreo) + (qn * PRICES.nute);
+					// Calculate from qty_* columns
+					for (const d of desserts) {
+						totCalc += quantities[d.short_code] * (PRICES[d.short_code] || 0);
+					}
 				}
 				const totDb = Number(r.total_cents || 0) || 0;
 				const tot = totCalc > 0 ? totCalc : totDb;
+				
 				// Evitar duplicados por id
 				if (seenSaleIds.has(r.id)) continue;
 				seenSaleIds.add(r.id);
-				dataset.push({
+				
+				const row = {
 					date: String(r.sale_day || '').slice(0,10),
 					sellerName: r.seller_name || '',
 					client_name: r.client_name || '',
@@ -581,9 +637,16 @@
 					payment_source: ps,
 					payment_date: pd,
 					is_paid: !!r.is_paid,
-					qa, qm, qma, qo, qn, tot,
+					tot,
 					saleId: r.id
-				});
+				};
+				
+				// Add dynamic quantities to row
+				for (const d of desserts) {
+					row[`q_${d.short_code}`] = quantities[d.short_code];
+				}
+				
+				dataset.push(row);
 			}
 			render();
 		}
@@ -598,28 +661,65 @@
 		}
 
 		exportBtn.addEventListener('click', () => {
-			const header = ['Fecha','Vendedor','Cliente','Método','Fuente','Fecha pago','$','Arco','Melo','Mara','Oreo','Nute','Total'];
+			// Build header dynamically
+			const header = ['Fecha','Vendedor','Cliente','Método','Fuente','Fecha pago','$'];
+			for (const d of desserts) {
+				header.push(d.name);
+			}
+			header.push('Total');
+			
 			const rows = [header];
-			let eGrand = 0, eQa=0,eQm=0,eQma=0,eQo=0,eQn=0;
+			
+			// Initialize totals dynamically
+			const totals = {};
+			for (const d of desserts) {
+				totals[d.short_code] = 0;
+			}
+			let eGrand = 0;
+			
 			for (const r of getFilteredData()){
 				const payMethod = payLabel(r.pay_method||'');
 				const paySource = r.payment_source ? payLabel(r.payment_source) : '';
 				const payDate = r.payment_date ? String(r.payment_date).slice(0,10) : '';
-				rows.push([
+				const row = [
 					r.date,
 					r.sellerName,
 					r.client_name||'',
 					payMethod,
 					paySource,
 					payDate,
-					r.is_paid ? '✓' : '',
-					r.qa||'', r.qm||'', r.qma||'', r.qo||'', r.qn||'', r.tot||''
-				]);
-				eQa += r.qa||0; eQm += r.qm||0; eQma += r.qma||0; eQo += r.qo||0; eQn += r.qn||0; eGrand += r.tot||0;
+					r.is_paid ? '✓' : ''
+				];
+				
+				// Add dessert quantities dynamically
+				for (const d of desserts) {
+					const qty = r[`q_${d.short_code}`] || 0;
+					row.push(qty || '');
+					totals[d.short_code] += qty;
+				}
+				
+				row.push(r.tot||'');
+				rows.push(row);
+				eGrand += r.tot||0;
 			}
-			rows.push(['','','','','','','Totales','','','','','', eGrand || '']);
+			
+			// Totals row
+			const totalRow = ['','','','','','','Totales'];
+			for (const d of desserts) {
+				totalRow.push(totals[d.short_code] || '');
+			}
+			totalRow.push(eGrand || '');
+			rows.push(totalRow);
+			
+			// Column widths
 			const ws = XLSX.utils.aoa_to_sheet(rows);
-			ws['!cols'] = [ {wch:10},{wch:18},{wch:24},{wch:10},{wch:14},{wch:12},{wch:3},{wch:6},{wch:6},{wch:6},{wch:6},{wch:6},{wch:10} ];
+			const colWidths = [{wch:10},{wch:18},{wch:24},{wch:10},{wch:14},{wch:12},{wch:3}];
+			for (const d of desserts) {
+				colWidths.push({wch:6});
+			}
+			colWidths.push({wch:10});
+			ws['!cols'] = colWidths;
+			
 			const wb = XLSX.utils.book_new();
 			XLSX.utils.book_append_sheet(wb, ws, 'Cartera');
 			XLSX.writeFile(wb, `Cartera_${(start||'')}_a_${(end||'')}.xlsx`);

@@ -31,13 +31,9 @@
 			<div class="table-wrapper">
 				<table id="deliveries-table">
 					<thead>
-						<tr>
+						<tr id="deliveries-thead-row">
 							<th>Fecha</th>
-							<th class="col-qty">Arco</th>
-							<th class="col-qty">Melo</th>
-							<th class="col-qty">Mara</th>
-							<th class="col-qty">Oreo</th>
-							<th class="col-qty">Nute</th>
+							<!-- Dynamic dessert columns will be inserted here -->
 							<th>Acciones</th>
 						</tr>
 					</thead>
@@ -58,6 +54,9 @@
 		const expandedDeliveries = new Set();
 		// Store current data for re-rendering
 		let currentRows = [];
+		// Dynamic desserts from API
+		let desserts = [];
+		let dessertsById = new Map();
 
 		function getCurrentUser(){
 			try { return JSON.parse(localStorage.getItem('authUser') || 'null'); } catch { return null; }
@@ -82,7 +81,42 @@
 			return res.json();
 		}
 
+		// Load desserts from API and render columns
+		async function loadDesserts() {
+			try {
+				desserts = await api('GET', '/api/desserts');
+				desserts = Array.isArray(desserts) ? desserts : [];
+				// Build map by id for quick lookup
+				dessertsById.clear();
+				for (const d of desserts) {
+					dessertsById.set(d.id, d);
+				}
+				renderDessertColumns();
+			} catch (err) {
+				console.error('Error loading desserts:', err);
+			}
+		}
+		
+		function renderDessertColumns() {
+			const theadRow = document.getElementById('deliveries-thead-row');
+			const actionsTh = theadRow.querySelector('th:last-child');
+			
+			// Remove existing dessert columns
+			theadRow.querySelectorAll('th.col-qty').forEach(th => th.remove());
+			
+			// Insert new columns before Actions
+			for (const d of desserts) {
+				const th = document.createElement('th');
+				th.className = 'col-qty';
+				th.textContent = d.name;
+				theadRow.insertBefore(th, actionsTh);
+			}
+		}
+
 		async function load() {
+			// Load desserts first
+			await loadDesserts();
+			
 			let rows = [];
 			try { rows = await api('GET', '/api/deliveries'); } catch {}
 			// Load seller assignments and production users for each delivery
@@ -165,11 +199,16 @@
 			dateText.textContent = formatIsoDate(r.day);
 			dateCell.appendChild(dateText);
 			
-			const a = document.createElement('td'); a.textContent = r.arco ?? 0; a.className = 'col-qty';
-			const m = document.createElement('td'); m.textContent = r.melo ?? 0; m.className = 'col-qty';
-			const ma = document.createElement('td'); ma.textContent = r.mara ?? 0; ma.className = 'col-qty';
-			const o = document.createElement('td'); o.textContent = r.oreo ?? 0; o.className = 'col-qty';
-			const n = document.createElement('td'); n.textContent = r.nute ?? 0; n.className = 'col-qty';
+			tr.appendChild(dateCell);
+			
+			// Add dessert columns dynamically
+			for (const d of desserts) {
+				const td = document.createElement('td');
+				td.className = 'col-qty';
+				td.textContent = r[d.short_code] ?? 0;
+				tr.appendChild(td);
+			}
+			
 			const act = document.createElement('td');
 			const edit = document.createElement('button'); edit.className = 'press-btn'; edit.textContent = 'Editar';
 			const notes = document.createElement('button'); notes.className = 'press-btn'; notes.textContent = 'Notas';
@@ -183,7 +222,7 @@
 			});
 			
 			act.style.display = 'flex'; act.style.gap = '6px'; act.append(edit, notes, addSeller);
-			tr.append(dateCell, a, m, ma, o, n, act);
+			tr.appendChild(act);
 			return tr;
 		}
 
@@ -195,12 +234,15 @@
 			const sellerCell = document.createElement('td');
 			sellerCell.textContent = `  → ${s.seller_name}`;
 			sellerCell.style.paddingLeft = '30px';
+			tr.appendChild(sellerCell);
 			
-			const a = document.createElement('td'); a.textContent = s.arco ?? 0; a.className = 'col-qty';
-			const m = document.createElement('td'); m.textContent = s.melo ?? 0; m.className = 'col-qty';
-			const ma = document.createElement('td'); ma.textContent = s.mara ?? 0; ma.className = 'col-qty';
-			const o = document.createElement('td'); o.textContent = s.oreo ?? 0; o.className = 'col-qty';
-			const n = document.createElement('td'); n.textContent = s.nute ?? 0; n.className = 'col-qty';
+			// Add dessert columns dynamically
+			for (const d of desserts) {
+				const td = document.createElement('td');
+				td.className = 'col-qty';
+				td.textContent = s[d.short_code] ?? 0;
+				tr.appendChild(td);
+			}
 			
 			const actCell = document.createElement('td');
 			const editBtn = document.createElement('button');
@@ -212,8 +254,8 @@
 				await openAddSellerPopover(delivery.id, rect.left + rect.width/2, rect.bottom + 8, s);
 			});
 			actCell.appendChild(editBtn);
+			tr.appendChild(actCell);
 			
-			tr.append(sellerCell, a, m, ma, o, n, actCell);
 			return tr;
 		}
 
@@ -225,28 +267,33 @@
 			const labelCell = document.createElement('td');
 			labelCell.textContent = 'Total vendedores';
 			labelCell.style.paddingLeft = '30px';
+			tr.appendChild(labelCell);
 			
-			// Calculate totals
-			const totals = { arco: 0, melo: 0, mara: 0, oreo: 0, nute: 0 };
+			// Calculate totals dynamically for all desserts
+			const totals = {};
+			for (const d of desserts) {
+				totals[d.short_code] = 0;
+			}
+			
 			if (delivery.sellers && Array.isArray(delivery.sellers)) {
 				for (const s of delivery.sellers) {
-					totals.arco += s.arco ?? 0;
-					totals.melo += s.melo ?? 0;
-					totals.mara += s.mara ?? 0;
-					totals.oreo += s.oreo ?? 0;
-					totals.nute += s.nute ?? 0;
+					for (const d of desserts) {
+						totals[d.short_code] += s[d.short_code] ?? 0;
+					}
 				}
 			}
 			
-			const a = document.createElement('td'); a.textContent = totals.arco; a.className = 'col-qty';
-			const m = document.createElement('td'); m.textContent = totals.melo; m.className = 'col-qty';
-			const ma = document.createElement('td'); ma.textContent = totals.mara; ma.className = 'col-qty';
-			const o = document.createElement('td'); o.textContent = totals.oreo; o.className = 'col-qty';
-			const n = document.createElement('td'); n.textContent = totals.nute; n.className = 'col-qty';
+			// Add totals columns dynamically
+			for (const d of desserts) {
+				const td = document.createElement('td');
+				td.className = 'col-qty';
+				td.textContent = totals[d.short_code];
+				tr.appendChild(td);
+			}
 			
 			const emptyCell = document.createElement('td');
+			tr.appendChild(emptyCell);
 			
-			tr.append(labelCell, a, m, ma, o, n, emptyCell);
 			return tr;
 		}
 
@@ -254,7 +301,8 @@
 			const tr = document.createElement('tr');
 			tr.style.backgroundColor = '#fafafa';
 			const td = document.createElement('td');
-			td.colSpan = 7;
+			// Colspan: 1 (Fecha) + desserts.length + 1 (Acciones)
+			td.colSpan = 1 + desserts.length + 1;
 			td.style.padding = '4px 8px';
 			td.style.fontSize = '11px';
 			td.style.fontStyle = 'italic';
@@ -269,7 +317,8 @@
 			tr.style.height = '20px';
 			tr.style.backgroundColor = 'transparent';
 			const td = document.createElement('td');
-			td.colSpan = 7;
+			// Colspan: 1 (Fecha) + desserts.length + 1 (Acciones)
+			td.colSpan = 1 + desserts.length + 1;
 			td.innerHTML = '&nbsp;';
 			tr.appendChild(td);
 			return tr;
@@ -795,30 +844,35 @@
 						table.style.borderCollapse = 'collapse';
 						table.style.fontSize = '12px';
 						
-						const thead = document.createElement('thead');
-						const headerRow = document.createElement('tr');
-						const headers = ['Usuario', 'Arco', 'Melo', 'Mara', 'Oreo', 'Nute'];
-						for (const h of headers) {
-							const th = document.createElement('th');
-							th.textContent = h;
-							th.style.borderBottom = '2px solid #ddd';
-							th.style.padding = '8px';
-							th.style.textAlign = 'left';
-							headerRow.appendChild(th);
-						}
-						thead.appendChild(headerRow);
-						table.appendChild(thead);
+					const thead = document.createElement('thead');
+					const headerRow = document.createElement('tr');
+					// Build headers dynamically
+					const headers = ['Usuario'];
+					for (const d of desserts) {
+						headers.push(d.name);
+					}
+					for (const h of headers) {
+						const th = document.createElement('th');
+						th.textContent = h;
+						th.style.borderBottom = '2px solid #ddd';
+						th.style.padding = '8px';
+						th.style.textAlign = 'left';
+						headerRow.appendChild(th);
+					}
+					thead.appendChild(headerRow);
+					table.appendChild(thead);
+					
+					const tbody = document.createElement('tbody');
+					for (const [username, quantities] of Object.entries(data)) {
+						const row = document.createElement('tr');
+						const userCell = document.createElement('td');
+						userCell.textContent = username;
+						userCell.style.padding = '6px 8px';
+						userCell.style.borderBottom = '1px solid #eee';
+						row.appendChild(userCell);
 						
-						const tbody = document.createElement('tbody');
-						for (const [username, quantities] of Object.entries(data)) {
-							const row = document.createElement('tr');
-							const userCell = document.createElement('td');
-							userCell.textContent = username;
-							userCell.style.padding = '6px 8px';
-							userCell.style.borderBottom = '1px solid #eee';
-							row.appendChild(userCell);
-							
-							for (const code of ['arco', 'melo', 'mara', 'oreo', 'nute']) {
+						for (const d of desserts) {
+							const code = d.short_code;
 								const cell = document.createElement('td');
 								cell.textContent = quantities[code] || 0;
 								cell.style.padding = '6px 8px';

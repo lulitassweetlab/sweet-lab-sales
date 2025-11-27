@@ -291,7 +291,7 @@
 			
 			updateLoadingProgress(10, 'Cargando postres...');
 			
-			// Load desserts from API
+			// Load desserts from API (always fetch fresh to see new desserts)
 			try {
 				DESSERTS = await fetchJSON(withActor('/api/desserts'));
 				// Build PRICES map from desserts
@@ -301,15 +301,10 @@
 				}
 			} catch (err) {
 				console.error('Error loading desserts:', err);
-				// Fallback to hardcoded if API fails
-				DESSERTS = [
-					{ name: 'Arco', short_code: 'arco', sale_price: 8500 },
-					{ name: 'Melo', short_code: 'melo', sale_price: 9500 },
-					{ name: 'Mara', short_code: 'mara', sale_price: 10500 },
-					{ name: 'Oreo', short_code: 'oreo', sale_price: 10500 },
-					{ name: 'Nute', short_code: 'nute', sale_price: 13000 }
-				];
-				PRICES = { arco: 8500, melo: 9500, mara: 10500, oreo: 10500, nute: 13000 };
+				// If API fails completely, show error to user
+				countLabel.textContent = 'Error al cargar postres. Por favor recarga la página.';
+				hideLoading();
+				return;
 			}
 			
 			// 1) Build counts by dessert from sales in range
