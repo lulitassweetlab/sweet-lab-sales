@@ -209,16 +209,60 @@
 
 	<script type="module">
 	(function(){
-		// OPTIMIZED: Pre-loaded desserts data (inline to avoid extra request)
-		const PRELOADED_DESSERTS = [
-			{ id: 1, name: 'Arco', short_code: 'arco', sale_price: 8500, is_active: true, position: 1 },
-			{ id: 2, name: 'Melo', short_code: 'melo', sale_price: 9500, is_active: true, position: 2 },
-			{ id: 3, name: 'Mara', short_code: 'mara', sale_price: 10500, is_active: true, position: 3 },
-			{ id: 4, name: 'Oreo', short_code: 'oreo', sale_price: 10500, is_active: true, position: 4 },
-			{ id: 5, name: 'Nute', short_code: 'nute', sale_price: 13000, is_active: true, position: 5 }
-		];
+		// Desserts will be loaded from API (no hardcoded list)
+		let PRELOADED_DESSERTS = [];
+		
+		// Clear old caches on page load to ensure fresh desserts data
+		try {
+			const dessertsCache = localStorage.getItem('dessertsCache');
+			if (dessertsCache) {
+				const parsed = JSON.parse(dessertsCache);
+				const cacheAge = Date.now() - (parsed.timestamp || 0);
+				// Clear cache if older than 1 hour (to ensure new desserts appear)
+				if (cacheAge > 3600000) {
+					localStorage.removeItem('dessertsCache');
+					console.log('Cleared old desserts cache');
+				}
+			}
+			
+			// Also clear sales caches older than 1 hour
+			const allKeys = Object.keys(localStorage);
+			for (const key of allKeys) {
+				if (key.startsWith('salesCache_')) {
+					try {
+						const cached = localStorage.getItem(key);
+						if (cached) {
+							const parsed = JSON.parse(cached);
+							const cacheAge = Date.now() - (parsed.timestamp || 0);
+							if (cacheAge > 3600000) {
+								localStorage.removeItem(key);
+								console.log('Cleared old sales cache:', key);
+							}
+						}
+					} catch {}
+				}
+			}
+		} catch {}
 		
 		const qs = new URLSearchParams(location.search);
+		
+		// Force refresh: clear all caches if ?refresh=1 parameter is present
+		if (qs.get('refresh') === '1') {
+			try {
+				localStorage.removeItem('dessertsCache');
+				const allKeys = Object.keys(localStorage);
+				for (const key of allKeys) {
+					if (key.startsWith('salesCache_')) {
+						localStorage.removeItem(key);
+					}
+				}
+				console.log('Force refresh: all caches cleared');
+				// Remove refresh parameter from URL
+				qs.delete('refresh');
+				const newUrl = window.location.pathname + (qs.toString() ? '?' + qs.toString() : '');
+				window.history.replaceState({}, '', newUrl);
+			} catch {}
+		}
 		
 		// OPTIMIZED: Set intelligent default dates if not provided
 		function getDefaultDates() {
@@ -531,51 +575,38 @@
 		}
 
 		async function loadDesserts() {
-			// OPTIMIZED: Use preloaded data immediately, then update in background
-			// Return preloaded data instantly
-			const preloaded = PRELOADED_DESSERTS.slice();
-			
-			// Try cache first (non-blocking)
-			Promise.resolve().then(async () => {
-				try {
-					const cached = localStorage.getItem('dessertsCache');
-					if (cached) {
-						const parsed = JSON.parse(cached);
-						const cacheAge = Date.now() - (parsed.timestamp || 0);
-						// Use cache if less than 1 hour old
-						if (cacheAge < 3600000 && parsed.data && parsed.data.length > 0) {
-							desserts = parsed.data;
-							renderDessertColumns();
-							return;
-						}
+			// Always load fresh data from API to ensure new desserts appear
+			try {
+				// Try to get from cache first (max 5 minutes old for better refresh)
+				const cached = localStorage.getItem('dessertsCache');
+				if (cached) {
+					const parsed = JSON.parse(cached);
+					const cacheAge = Date.now() - (parsed.timestamp || 0);
+					// Use cache if less than 5 minutes old (reduced from 1 hour for better updates)
+					if (cacheAge < 300000 && parsed.data && parsed.data.length > 0) {
+						return parsed.data;
 					}
-				} catch {}
-				
-				// Load from API in background
-				try {
-					const data = await fetchJSON('/api/desserts');
-					if (data && data.length > 0) {
-						// Cache for next time
-						try {
-							localStorage.setItem('dessertsCache', JSON.stringify({
-								data, timestamp: Date.now()
-							}));
-						} catch {}
-						
-						// Update if different from preloaded
-						if (JSON.stringify(data) !== JSON.stringify(preloaded)) {
-							desserts = data;
-							renderDessertColumns();
-							// Re-render if we already have data
-							if (dataset.length > 0) {
-								render();
-							}
-						}
-					}
-				} catch {}
-			});
+				}
+			} catch {}
 			
-			return preloaded;
+			// Load fresh from API
+			try {
+				const data = await fetchJSON('/api/desserts');
+				if (data && data.length > 0) {
+					// Cache for next time
+					try {
+						localStorage.setItem('dessertsCache', JSON.stringify({
+							data, timestamp: Date.now()
+						}));
+					} catch {}
+					return data;
+				}
+			} catch (err) {
+				console.error('Error loading desserts:', err);
+			}
+			
+			// Fallback to empty array if API fails
+			return [];
 		}
 
 		async function load(){
