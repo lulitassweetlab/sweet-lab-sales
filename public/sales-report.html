@@ -548,10 +548,16 @@
 						<td>${payLabel(r.pay_method||'')}</td>
 						<td>${r.client_name||''}</td>`;
 					
-					// Add dessert quantities dynamically
+					// Add dessert quantities dynamically with color based on special pricing
+					const bgColor = r.special_pricing_type === 'muestra' ? 'rgba(240, 98, 146, 0.65)' : 
+					                r.special_pricing_type === 'a_costo' ? 'rgba(240, 98, 146, 0.65)' : '';
+					const textColor = (r.special_pricing_type === 'muestra' || r.special_pricing_type === 'a_costo') ? 'white' : '';
+					const fontWeight = (r.special_pricing_type === 'muestra' || r.special_pricing_type === 'a_costo') ? 'font-weight: 600;' : '';
+					const styleAttr = bgColor ? ` style="background: ${bgColor}; color: ${textColor}; ${fontWeight}"` : '';
+					
 					for (const d of desserts) {
 						const qty = r[`q_${d.short_code}`] || 0;
-						html += `<td>${qty || ''}</td>`;
+						html += `<td${styleAttr}>${qty || ''}</td>`;
 					}
 					
 					html += `<td class="col-total">${r.tot||''}</td>`;
@@ -673,7 +679,8 @@
 								is_paid: !!r.is_paid,
 								pay_method: r.pay_method || '',
 								client_name: r.client_name || '',
-                                tot: Number(r.total_cents || 0) || 0
+                                tot: Number(r.total_cents || 0) || 0,
+								special_pricing_type: r.special_pricing_type || null
 							};
 							
 							for (const d of desserts) {
@@ -725,7 +732,8 @@
 										is_paid: !!r.is_paid,
 										pay_method: r.pay_method || '',
 										client_name: r.client_name || '',
-                                        tot: Number(r.total_cents || 0) || 0
+                                        tot: Number(r.total_cents || 0) || 0,
+										special_pricing_type: r.special_pricing_type || null
 									};
 									
 									for (const d of desserts) {
