@@ -1504,9 +1504,9 @@ function renderTable() {
 				if (sale.special_pricing_type) {
 					const badge = document.createElement('span');
 					badge.className = 'special-pricing-badge';
-					badge.style.cssText = 'background: #e91e63; color: white; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; margin-left: 6px; display: inline-block; vertical-align: middle;';
+					badge.style.cssText = 'background: rgba(240, 98, 146, 0.85); color: white; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; margin-left: 6px; white-space: nowrap;';
 					badge.textContent = sale.special_pricing_type === 'muestra' ? 'Muestra' : 'A costo';
-					td.appendChild(badge);
+					input.insertAdjacentElement('afterend', badge);
 				}
 				// Add comment marker if comment exists
 				if (sale.comment_text && sale.comment_text.trim()) {
