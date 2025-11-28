@@ -2641,14 +2641,120 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
             const month = calView.getMonth();
             const firstDay = (new Date(Date.UTC(year, month, 1)).getUTCDay() + 6) % 7;
             const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
-            for (let i = 0; i < firstDay; i++) {
+            
+            // Días del mes anterior
+            const prevMonthDays = new Date(Date.UTC(year, month, 0)).getUTCDate();
+            const prevMonth = month === 0 ? 11 : month - 1;
+            const prevYear = month === 0 ? year - 1 : year;
+            
+            for (let i = firstDay - 1; i >= 0; i--) {
+                const day = prevMonthDays - i;
                 const cell = document.createElement('button');
-                cell.className = 'date-cell disabled';
-                cell.disabled = true;
+                cell.className = 'date-cell other-month';
+                cell.textContent = String(day);
                 cell.type = 'button';
-                cell.style.cssText = 'padding:6px;background:#f5f5f5;border:1px solid #e0e0e0;border-radius:4px;cursor:not-allowed;font-size:12px;';
+                cell.style.cssText = 'padding:6px;background:white;border:1px solid #e0e0e0;border-radius:4px;cursor:pointer;font-size:12px;opacity:0.4;transition:all 0.15s;';
+                cell.addEventListener('mouseenter', () => {
+                    cell.style.background = '#f0f0f0';
+                    cell.style.opacity = '0.6';
+                });
+                cell.addEventListener('mouseleave', () => {
+                    cell.style.background = 'white';
+                    cell.style.opacity = '0.4';
+                });
+                const dayIso = isoUTC(prevYear, prevMonth, day);
+                cell.addEventListener('click', async () => {
+                    try {
+                        // Disable calendar while processing
+                        cell.disabled = true;
+                        cell.style.opacity = '0.5';
+                        
+                        // Create the new date
+                        const sellerId = state.currentSeller.id;
+                        await api('POST', '/api/days', { seller_id: sellerId, day: dayIso });
+                        
+                        // Reload days from server
+                        await loadDaysForSeller();
+                        
+                        // Find the newly created date (comparing ISO date part only)
+                        const added = (state.saleDays || []).find(d => {
+                            const dayPart = String(d.day).slice(0, 10);
+                            return dayPart === dayIso;
+                        });
+                        
+                        // Update the select with the new date
+                        if (added) {
+                            // Clear all options
+                            dateSelect.innerHTML = '';
+                            
+                            // Re-add placeholder
+                            const placeholderOpt = document.createElement('option');
+                            placeholderOpt.value = '';
+                            placeholderOpt.textContent = 'Seleccionar fecha...';
+                            placeholderOpt.disabled = true;
+                            dateSelect.appendChild(placeholderOpt);
+                            
+                            // Rebuild sorted dates
+                            const sorted = [...state.saleDays].sort((a, b) => {
+                                const dateA = new Date(a.day);
+                                const dateB = new Date(b.day);
+                                return dateB - dateA; // Most recent first
+                            });
+                            
+                            for (const d of sorted) {
+                                const opt = document.createElement('option');
+                                opt.value = d.id;
+                                opt.textContent = formatDayLabel(d.day);
+                                // Mark as selected if this is the newly created date
+                                if (d.id === added.id) {
+                                    opt.selected = true;
+                                }
+                                dateSelect.appendChild(opt);
+                            }
+                            
+                            // Re-add NEW_DATE option at the end
+                            const newDateOpt2 = document.createElement('option');
+                            newDateOpt2.value = 'NEW_DATE';
+                            newDateOpt2.textContent = '+ Nueva fecha...';
+                            dateSelect.appendChild(newDateOpt2);
+                            
+                            // Set the value and state
+                            isUpdatingProgrammatically = true;
+                            dateSelect.value = String(added.id);
+                            state.selectedDayId = added.id;
+                            
+                            // Force browser to update the display
+                            dateSelect.dispatchEvent(new Event('input', { bubbles: true }));
+                            
+                            // Show success notification
+                            const selectedText = dateSelect.options[dateSelect.selectedIndex]?.text;
+                            if (selectedText && selectedText !== 'Seleccionar fecha...') {
+                                try { notify.success('Fecha seleccionada: ' + selectedText); } catch {}
+                            }
+                        }
+                        
+                        // Hide calendar with animation
+                        calendarContainer.style.maxHeight = '0';
+                        calendarContainer.style.opacity = '0';
+                        calendarContainer.style.transform = 'scaleY(0)';
+                        
+                        // Actually hide after animation
+                        setTimeout(() => {
+                            calendarContainer.style.display = 'none';
+                            clampWithinViewport();
+                        }, 300);
+                    } catch (e) {
+                        console.error('Error creating date:', e);
+                        try { notify.error('Error al crear la fecha'); } catch {}
+                        // Re-enable calendar on error
+                        cell.disabled = false;
+                        cell.style.opacity = '1';
+                    }
+                });
                 calGrid.appendChild(cell);
             }
+            
+            // Días del mes actual
             for (let d = 1; d <= daysInMonth; d++) {
                 const cell = document.createElement('button');
                 cell.className = 'date-cell';
@@ -2662,6 +2768,118 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
                     cell.style.background = 'white';
                 });
                 const dayIso = isoUTC(year, month, d);
+                cell.addEventListener('click', async () => {
+                    try {
+                        // Disable calendar while processing
+                        cell.disabled = true;
+                        cell.style.opacity = '0.5';
+                        
+                        // Create the new date
+                        const sellerId = state.currentSeller.id;
+                        await api('POST', '/api/days', { seller_id: sellerId, day: dayIso });
+                        
+                        // Reload days from server
+                        await loadDaysForSeller();
+                        
+                        // Find the newly created date (comparing ISO date part only)
+                        const added = (state.saleDays || []).find(d => {
+                            const dayPart = String(d.day).slice(0, 10);
+                            return dayPart === dayIso;
+                        });
+                        
+                        // Update the select with the new date
+                        if (added) {
+                            // Clear all options
+                            dateSelect.innerHTML = '';
+                            
+                            // Re-add placeholder
+                            const placeholderOpt = document.createElement('option');
+                            placeholderOpt.value = '';
+                            placeholderOpt.textContent = 'Seleccionar fecha...';
+                            placeholderOpt.disabled = true;
+                            dateSelect.appendChild(placeholderOpt);
+                            
+                            // Rebuild sorted dates
+                            const sorted = [...state.saleDays].sort((a, b) => {
+                                const dateA = new Date(a.day);
+                                const dateB = new Date(b.day);
+                                return dateB - dateA; // Most recent first
+                            });
+                            
+                            for (const d of sorted) {
+                                const opt = document.createElement('option');
+                                opt.value = d.id;
+                                opt.textContent = formatDayLabel(d.day);
+                                // Mark as selected if this is the newly created date
+                                if (d.id === added.id) {
+                                    opt.selected = true;
+                                }
+                                dateSelect.appendChild(opt);
+                            }
+                            
+                            // Re-add NEW_DATE option at the end
+                            const newDateOpt2 = document.createElement('option');
+                            newDateOpt2.value = 'NEW_DATE';
+                            newDateOpt2.textContent = '+ Nueva fecha...';
+                            dateSelect.appendChild(newDateOpt2);
+                            
+                            // Set the value and state
+                            isUpdatingProgrammatically = true;
+                            dateSelect.value = String(added.id);
+                            state.selectedDayId = added.id;
+                            
+                            // Force browser to update the display
+                            dateSelect.dispatchEvent(new Event('input', { bubbles: true }));
+                            
+                            // Show success notification
+                            const selectedText = dateSelect.options[dateSelect.selectedIndex]?.text;
+                            if (selectedText && selectedText !== 'Seleccionar fecha...') {
+                                try { notify.success('Fecha seleccionada: ' + selectedText); } catch {}
+                            }
+                        }
+                        
+                        // Hide calendar with animation
+                        calendarContainer.style.maxHeight = '0';
+                        calendarContainer.style.opacity = '0';
+                        calendarContainer.style.transform = 'scaleY(0)';
+                        
+                        // Actually hide after animation
+                        setTimeout(() => {
+                            calendarContainer.style.display = 'none';
+                            clampWithinViewport();
+                        }, 300);
+                    } catch (e) {
+                        console.error('Error creating date:', e);
+                        try { notify.error('Error al crear la fecha'); } catch {}
+                        // Re-enable calendar on error
+                        cell.disabled = false;
+                        cell.style.opacity = '1';
+                    }
+                });
+                calGrid.appendChild(cell);
+            }
+            
+            // Días del mes siguiente
+            const totalCells = firstDay + daysInMonth;
+            const remainingCells = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+            const nextMonth = month === 11 ? 0 : month + 1;
+            const nextYear = month === 11 ? year + 1 : year;
+            
+            for (let d = 1; d <= remainingCells; d++) {
+                const cell = document.createElement('button');
+                cell.className = 'date-cell other-month';
+                cell.textContent = String(d);
+                cell.type = 'button';
+                cell.style.cssText = 'padding:6px;background:white;border:1px solid #e0e0e0;border-radius:4px;cursor:pointer;font-size:12px;opacity:0.4;transition:all 0.15s;';
+                cell.addEventListener('mouseenter', () => {
+                    cell.style.background = '#f0f0f0';
+                    cell.style.opacity = '0.6';
+                });
+                cell.addEventListener('mouseleave', () => {
+                    cell.style.background = 'white';
+                    cell.style.opacity = '0.4';
+                });
+                const dayIso = isoUTC(nextYear, nextMonth, d);
                 cell.addEventListener('click', async () => {
                     try {
                         // Disable calendar while processing
@@ -6161,12 +6379,26 @@ function openCalendarPopover(onPicked, anchorX, anchorY) {
 		const month = view.getMonth();
 		const firstDay = (new Date(Date.UTC(year, month, 1)).getUTCDay() + 6) % 7; // Monday=0
 		const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
-		for (let i = 0; i < firstDay; i++) {
+		
+		// Días del mes anterior
+		const prevMonthDays = new Date(Date.UTC(year, month, 0)).getUTCDate();
+		const prevMonth = month === 0 ? 11 : month - 1;
+		const prevYear = month === 0 ? year - 1 : year;
+		
+		for (let i = firstDay - 1; i >= 0; i--) {
+			const day = prevMonthDays - i;
 			const cell = document.createElement('button');
-			cell.className = 'date-cell disabled';
-			cell.disabled = true;
+			cell.className = 'date-cell other-month';
+			cell.textContent = String(day);
+			cell.style.opacity = '0.4';
+			cell.addEventListener('click', () => {
+				cleanup();
+				if (typeof onPicked === 'function') onPicked(isoUTC(prevYear, prevMonth, day));
+			});
 			grid.appendChild(cell);
 		}
+		
+		// Días del mes actual
 		for (let d = 1; d <= daysInMonth; d++) {
 			const cell = document.createElement('button');
 			cell.className = 'date-cell';
@@ -6174,6 +6406,24 @@ function openCalendarPopover(onPicked, anchorX, anchorY) {
 			cell.addEventListener('click', () => {
 				cleanup();
 				if (typeof onPicked === 'function') onPicked(isoUTC(year, month, d));
+			});
+			grid.appendChild(cell);
+		}
+		
+		// Días del mes siguiente
+		const totalCells = firstDay + daysInMonth;
+		const remainingCells = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+		const nextMonth = month === 11 ? 0 : month + 1;
+		const nextYear = month === 11 ? year + 1 : year;
+		
+		for (let d = 1; d <= remainingCells; d++) {
+			const cell = document.createElement('button');
+			cell.className = 'date-cell other-month';
+			cell.textContent = String(d);
+			cell.style.opacity = '0.4';
+			cell.addEventListener('click', () => {
+				cleanup();
+				if (typeof onPicked === 'function') onPicked(isoUTC(nextYear, nextMonth, d));
 			});
 			grid.appendChild(cell);
 		}
@@ -6275,12 +6525,45 @@ function openMultiCalendarPopover(onPickedList, anchorX, anchorY, opts) {
 		const month = view.getMonth();
 		const firstDay = (new Date(Date.UTC(year, month, 1)).getUTCDay() + 6) % 7;
 		const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
-		for (let i = 0; i < firstDay; i++) { const cell = document.createElement('button'); cell.className = 'date-cell disabled'; cell.disabled = true; grid.appendChild(cell); }
+		
+		// Días del mes anterior
+		const prevMonthDays = new Date(Date.UTC(year, month, 0)).getUTCDate();
+		const prevMonth = month === 0 ? 11 : month - 1;
+		const prevYear = month === 0 ? year - 1 : year;
+		
+		for (let i = firstDay - 1; i >= 0; i--) {
+			const day = prevMonthDays - i;
+			const iso = isoUTC(prevYear, prevMonth, day);
+			const cell = document.createElement('button');
+			cell.className = 'date-cell other-month' + (selected.has(iso) ? ' selected' : '');
+			cell.textContent = String(day);
+			cell.style.opacity = selected.has(iso) ? '1' : '0.4';
+			cell.addEventListener('click', () => { if (selected.has(iso)) selected.delete(iso); else selected.add(iso); render(); });
+			grid.appendChild(cell);
+		}
+		
+		// Días del mes actual
 		for (let d = 1; d <= daysInMonth; d++) {
 			const iso = isoUTC(year, month, d);
 			const cell = document.createElement('button');
 			cell.className = 'date-cell' + (selected.has(iso) ? ' selected' : '');
 			cell.textContent = String(d);
+			cell.addEventListener('click', () => { if (selected.has(iso)) selected.delete(iso); else selected.add(iso); render(); });
+			grid.appendChild(cell);
+		}
+		
+		// Días del mes siguiente
+		const totalCells = firstDay + daysInMonth;
+		const remainingCells = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+		const nextMonth = month === 11 ? 0 : month + 1;
+		const nextYear = month === 11 ? year + 1 : year;
+		
+		for (let d = 1; d <= remainingCells; d++) {
+			const iso = isoUTC(nextYear, nextMonth, d);
+			const cell = document.createElement('button');
+			cell.className = 'date-cell other-month' + (selected.has(iso) ? ' selected' : '');
+			cell.textContent = String(d);
+			cell.style.opacity = selected.has(iso) ? '1' : '0.4';
 			cell.addEventListener('click', () => { if (selected.has(iso)) selected.delete(iso); else selected.add(iso); render(); });
 			grid.appendChild(cell);
 		}
@@ -6359,7 +6642,40 @@ function openRangeCalendarPopover(onPickedRange, anchorX, anchorY, opts) {
 		const month = view.getMonth();
 		const firstDay = (new Date(Date.UTC(year, month, 1)).getUTCDay() + 6) % 7;
 		const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
-		for (let i = 0; i < firstDay; i++) { const cell = document.createElement('button'); cell.className = 'date-cell disabled'; cell.disabled = true; grid.appendChild(cell); }
+		
+		// Días del mes anterior
+		const prevMonthDays = new Date(Date.UTC(year, month, 0)).getUTCDate();
+		const prevMonth = month === 0 ? 11 : month - 1;
+		const prevYear = month === 0 ? year - 1 : year;
+		
+		for (let i = firstDay - 1; i >= 0; i--) {
+			const day = prevMonthDays - i;
+			const iso = isoUTC(prevYear, prevMonth, day);
+			const cell = document.createElement('button');
+			let cls = 'date-cell other-month';
+			if (startIso && !endIso && iso === startIso) cls += ' range-start selected';
+			if (startIso && endIso) {
+				if (iso === startIso) cls += ' range-start selected';
+				else if (iso === endIso) cls += ' range-end selected';
+				else if (isBetween(iso, startIso, endIso)) cls += ' in-range';
+			}
+			cell.className = cls;
+			cell.textContent = String(day);
+			const hasClass = cls.includes('selected') || cls.includes('in-range');
+			cell.style.opacity = hasClass ? '1' : '0.4';
+			cell.addEventListener('click', () => {
+				if (!startIso) { startIso = iso; endIso = null; render(); return; }
+				if (!endIso) {
+					if (iso < startIso) { endIso = startIso; startIso = iso; } else { endIso = iso; }
+					render();
+					return;
+				}
+				startIso = iso; endIso = null; render();
+			});
+			grid.appendChild(cell);
+		}
+		
+		// Días del mes actual
 		for (let d = 1; d <= daysInMonth; d++) {
 			const iso = isoUTC(year, month, d);
 			const cell = document.createElement('button');
@@ -6380,6 +6696,38 @@ function openRangeCalendarPopover(onPickedRange, anchorX, anchorY, opts) {
 					return;
 				}
 				// If both set, restart selection
+				startIso = iso; endIso = null; render();
+			});
+			grid.appendChild(cell);
+		}
+		
+		// Días del mes siguiente
+		const totalCells = firstDay + daysInMonth;
+		const remainingCells = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+		const nextMonth = month === 11 ? 0 : month + 1;
+		const nextYear = month === 11 ? year + 1 : year;
+		
+		for (let d = 1; d <= remainingCells; d++) {
+			const iso = isoUTC(nextYear, nextMonth, d);
+			const cell = document.createElement('button');
+			let cls = 'date-cell other-month';
+			if (startIso && !endIso && iso === startIso) cls += ' range-start selected';
+			if (startIso && endIso) {
+				if (iso === startIso) cls += ' range-start selected';
+				else if (iso === endIso) cls += ' range-end selected';
+				else if (isBetween(iso, startIso, endIso)) cls += ' in-range';
+			}
+			cell.className = cls;
+			cell.textContent = String(d);
+			const hasClass = cls.includes('selected') || cls.includes('in-range');
+			cell.style.opacity = hasClass ? '1' : '0.4';
+			cell.addEventListener('click', () => {
+				if (!startIso) { startIso = iso; endIso = null; render(); return; }
+				if (!endIso) {
+					if (iso < startIso) { endIso = startIso; startIso = iso; } else { endIso = iso; }
+					render();
+					return;
+				}
 				startIso = iso; endIso = null; render();
 			});
 			grid.appendChild(cell);
@@ -6705,14 +7053,39 @@ function openPaymentDateDialog(saleId, anchorX, anchorY, onCloseCallback) {
 		const firstDay = new Date(currentYear, currentMonth, 1).getDay();
 		const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
 		
-		// Empty cells for days before month starts
-		for (let i = 0; i < firstDay; i++) {
-			const emptyCell = document.createElement('div');
-			emptyCell.className = 'calendar-day empty';
-			calendarGrid.appendChild(emptyCell);
+		// Días del mes anterior
+		const prevMonthDays = new Date(currentYear, currentMonth, 0).getDate();
+		const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+		const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+		
+		for (let i = firstDay - 1; i >= 0; i--) {
+			const day = prevMonthDays - i;
+			const dayCell = document.createElement('div');
+			dayCell.className = 'calendar-day other-month';
+			dayCell.textContent = day;
+			dayCell.style.opacity = '0.4';
+			
+			const cellDate = new Date(prevYear, prevMonth, day);
+			
+			// Check if this date is selected
+			if (selectedDate && 
+				selectedDate.getDate() === day && 
+				selectedDate.getMonth() === prevMonth && 
+				selectedDate.getFullYear() === prevYear) {
+				dayCell.classList.add('selected');
+				dayCell.style.opacity = '1';
+			}
+			
+			dayCell.addEventListener('click', () => {
+				document.querySelectorAll('.calendar-day').forEach(d => d.classList.remove('selected'));
+				dayCell.classList.add('selected');
+				selectedDate = new Date(prevYear, prevMonth, day);
+			});
+			
+			calendarGrid.appendChild(dayCell);
 		}
 		
-		// Day cells
+		// Días del mes actual
 		for (let day = 1; day <= daysInMonth; day++) {
 			const dayCell = document.createElement('div');
 			dayCell.className = 'calendar-day';
@@ -6735,6 +7108,38 @@ function openPaymentDateDialog(saleId, anchorX, anchorY, onCloseCallback) {
 				document.querySelectorAll('.calendar-day').forEach(d => d.classList.remove('selected'));
 				dayCell.classList.add('selected');
 				selectedDate = new Date(currentYear, currentMonth, day);
+			});
+			
+			calendarGrid.appendChild(dayCell);
+		}
+		
+		// Días del mes siguiente
+		const totalCells = firstDay + daysInMonth;
+		const remainingCells = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+		const nextMonth = currentMonth === 11 ? 0 : currentMonth + 1;
+		const nextYear = currentMonth === 11 ? currentYear + 1 : currentYear;
+		
+		for (let d = 1; d <= remainingCells; d++) {
+			const dayCell = document.createElement('div');
+			dayCell.className = 'calendar-day other-month';
+			dayCell.textContent = d;
+			dayCell.style.opacity = '0.4';
+			
+			const cellDate = new Date(nextYear, nextMonth, d);
+			
+			// Check if this date is selected
+			if (selectedDate && 
+				selectedDate.getDate() === d && 
+				selectedDate.getMonth() === nextMonth && 
+				selectedDate.getFullYear() === nextYear) {
+				dayCell.classList.add('selected');
+				dayCell.style.opacity = '1';
+			}
+			
+			dayCell.addEventListener('click', () => {
+				document.querySelectorAll('.calendar-day').forEach(d => d.classList.remove('selected'));
+				dayCell.classList.add('selected');
+				selectedDate = new Date(nextYear, nextMonth, d);
 			});
 			
 			calendarGrid.appendChild(dayCell);
