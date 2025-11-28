@@ -563,7 +563,7 @@
 						html += `<td>${qty || ''}</td>`;
 					}
 					
-					html += `<td class="col-total">${r.tot||''}</td>`;
+					html += `<td class="col-total">${r.tot !== undefined && r.tot !== null ? r.tot : ''}</td>`;
 					row.innerHTML = html;
 					fragment.appendChild(row);
 				}
