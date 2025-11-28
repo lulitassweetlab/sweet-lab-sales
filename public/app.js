@@ -1476,27 +1476,31 @@ function renderTable() {
 				const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
 				const saleLocked = String(sale.pay_method || '').trim() !== '';
 				if (!isAdminUser && saleLocked) {
-					input.style.cursor = 'default';
-					input.title = 'Pedido bloqueado';
-				} else {
-					input.style.cursor = 'pointer';
-				}
-				// Add click listener to show action bar
-				input.addEventListener('click', (e) => {
-					e.stopPropagation();
-					const currentName = input.value || '';
-					openClientActionBar(td, sale.id, currentName, e.clientX, e.clientY);
-				});
-				td.appendChild(input);
-				
-				// Add special pricing badge if applicable (inline after input)
-				if (sale.special_pricing_type) {
-					const badge = document.createElement('span');
-					badge.className = 'special-pricing-badge';
-					badge.style.cssText = 'background: rgba(240, 98, 146, 0.65); color: white; font-size: 9px; font-weight: 600; padding: 1px 5px; border-radius: 3px; white-space: nowrap; margin-left: 4px; display: inline-block; vertical-align: middle;';
-					badge.textContent = sale.special_pricing_type === 'muestra' ? 'Muestra' : 'A costo';
-					td.appendChild(badge);
-				}
+				input.style.cursor = 'default';
+				input.title = 'Pedido bloqueado';
+			} else {
+				input.style.cursor = 'pointer';
+			}
+			// Make input width flexible to fit badge
+			input.style.width = 'auto';
+			input.style.maxWidth = sale.special_pricing_type ? '60%' : '100%';
+			input.style.display = 'inline-block';
+			// Add click listener to show action bar
+			input.addEventListener('click', (e) => {
+				e.stopPropagation();
+				const currentName = input.value || '';
+				openClientActionBar(td, sale.id, currentName, e.clientX, e.clientY);
+			});
+			td.appendChild(input);
+			
+			// Add special pricing badge if applicable (inline after input)
+			if (sale.special_pricing_type) {
+				const badge = document.createElement('span');
+				badge.className = 'special-pricing-badge';
+				badge.style.cssText = 'background: rgba(240, 98, 146, 0.65); color: white; font-size: 9px; font-weight: 600; padding: 1px 5px; border-radius: 3px; white-space: nowrap; margin-left: 4px; display: inline-block; vertical-align: middle; position: relative; top: 0;';
+				badge.textContent = sale.special_pricing_type === 'muestra' ? 'Muestra' : 'A costo';
+				td.appendChild(badge);
+			}
 				
 				const name = (sale.client_name || '').trim();
 				if (name) {

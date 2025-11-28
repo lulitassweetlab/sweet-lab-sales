@@ -408,12 +408,12 @@
 					<td>${payDate}</td>
 					<td>${r.is_paid ? '✓' : ''}</td>`;
 				
-				// Add dessert quantities dynamically with color based on special pricing
-				const bgColor = r.special_pricing_type === 'muestra' ? 'rgba(240, 98, 146, 0.65)' : 
-				                r.special_pricing_type === 'a_costo' ? 'rgba(240, 98, 146, 0.65)' : '';
-				const textColor = (r.special_pricing_type === 'muestra' || r.special_pricing_type === 'a_costo') ? 'white' : '';
-				const fontWeight = (r.special_pricing_type === 'muestra' || r.special_pricing_type === 'a_costo') ? 'font-weight: 600;' : '';
-				const styleAttr = bgColor ? ` style="background: ${bgColor}; color: ${textColor}; ${fontWeight}"` : '';
+				// Add dessert quantities dynamically with border color based on special pricing
+				const borderColor = r.special_pricing_type === 'muestra' ? '#FFA500' : 
+				                    r.special_pricing_type === 'a_costo' ? 'rgba(240, 98, 146, 0.9)' : '';
+				const borderStyle = borderColor ? `border: 3px solid ${borderColor};` : '';
+				const fontWeight = borderColor ? 'font-weight: 600;' : '';
+				const styleAttr = borderColor ? ` style="${borderStyle} ${fontWeight}"` : '';
 				
 				for (const d of desserts) {
 					const qty = r[`q_${d.short_code}`] || 0;
