@@ -1234,8 +1234,15 @@ function calcRowTotal(q) {
 			if (seen.has(key)) continue;
 			seen.add(key);
 			const qty = Number(item.quantity || 0) || 0;
-			let price = Number(item.unit_price || 0) || 0;
-			if (!price && code && PRICES[code] != null) price = Number(PRICES[code] || 0) || 0;
+			// Use unit_price from item if explicitly set, otherwise fallback to PRICES
+			let price;
+			if (item.hasOwnProperty('unit_price')) {
+				price = Number(item.unit_price || 0) || 0;
+			} else if (code && PRICES[code] != null) {
+				price = Number(PRICES[code] || 0) || 0;
+			} else {
+				price = 0;
+			}
 			total += qty * price;
 		}
 		return total;
@@ -1492,6 +1499,14 @@ function renderTable() {
 						reg.addEventListener('click', async (ev) => { ev.stopPropagation(); await openClientDetailView(name); });
 						td.appendChild(reg);
 					}
+				}
+				// Add special pricing badge if applicable
+				if (sale.special_pricing_type) {
+					const badge = document.createElement('span');
+					badge.className = 'special-pricing-badge';
+					badge.style.cssText = 'background: #e91e63; color: white; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; margin-left: 6px; display: inline-block; vertical-align: middle;';
+					badge.textContent = sale.special_pricing_type === 'muestra' ? 'Muestra' : 'A costo';
+					td.appendChild(badge);
 				}
 				// Add comment marker if comment exists
 				if (sale.comment_text && sale.comment_text.trim()) {
@@ -2169,7 +2184,7 @@ function openNewSalePopover(anchorX, anchorY) {
         muestraInput.type = 'checkbox';
         muestraInput.style.cursor = 'pointer';
         const muestraLabel = document.createElement('span');
-        muestraLabel.textContent = 'Muestra (precio 0)';
+        muestraLabel.textContent = 'Muestra';
         muestraCheckbox.append(muestraInput, muestraLabel);
 
         const costoCheckbox = document.createElement('label');
@@ -2182,7 +2197,7 @@ function openNewSalePopover(anchorX, anchorY) {
         costoInput.type = 'checkbox';
         costoInput.style.cursor = 'pointer';
         const costoLabel = document.createElement('span');
-        costoLabel.textContent = 'A costo (45% desc.)';
+        costoLabel.textContent = 'A costo';
         costoCheckbox.append(costoInput, costoLabel);
 
         specialPricingContainer.append(muestraCheckbox, costoCheckbox);
