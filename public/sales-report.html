@@ -681,25 +681,8 @@
 						}
 						
                         dataset = parsed.sales.map(r => {
-							// Calculate total respecting special pricing
-							let tot = 0;
-							if (Array.isArray(r.items) && r.items.length > 0) {
-								// New format with items - use unit_price which already has special pricing
-								for (const item of r.items) {
-									const qty = Number(item.quantity || 0) || 0;
-									const price = Number(item.unit_price || 0) || 0;
-									tot += qty * price;
-								}
-							} else {
-								// Old format - calculate based on special_pricing_type
-								const priceMultiplier = r.special_pricing_type === 'muestra' ? 0 : 
-								                        r.special_pricing_type === 'a_costo' ? 0.55 : 1;
-								for (const d of desserts) {
-									const qty = Number(r[`qty_${d.short_code}`] || 0) || 0;
-									const basePrice = PRICES[d.short_code] || 0;
-									tot += qty * Math.round(basePrice * priceMultiplier);
-								}
-							}
+							// Calculate total - use total_cents from DB if available
+							let tot = Number(r.total_cents) || 0;
 							
 							const row = {
 								date: String(r.sale_day || '').slice(0,10),
@@ -754,25 +737,8 @@
 								}
 								
                                 dataset = freshSales.map(r => {
-									// Calculate total respecting special pricing
-									let tot = 0;
-									if (Array.isArray(r.items) && r.items.length > 0) {
-										// New format with items - use unit_price which already has special pricing
-										for (const item of r.items) {
-											const qty = Number(item.quantity || 0) || 0;
-											const price = Number(item.unit_price || 0) || 0;
-											tot += qty * price;
-										}
-									} else {
-										// Old format - calculate based on special_pricing_type
-										const priceMultiplier = r.special_pricing_type === 'muestra' ? 0 : 
-										                        r.special_pricing_type === 'a_costo' ? 0.55 : 1;
-										for (const d of desserts) {
-											const qty = Number(r[`qty_${d.short_code}`] || 0) || 0;
-											const basePrice = PRICES[d.short_code] || 0;
-											tot += qty * Math.round(basePrice * priceMultiplier);
-										}
-									}
+									// Calculate total - use total_cents from DB if available
+									let tot = Number(r.total_cents) || 0;
 									
 									const row = {
 										date: String(r.sale_day || '').slice(0,10),
@@ -843,25 +809,8 @@
 			
 			// Process all sales in one pass
             dataset = salesData.map(r => {
-				// Calculate total respecting special pricing
-				let tot = 0;
-				if (Array.isArray(r.items) && r.items.length > 0) {
-					// New format with items - use unit_price which already has special pricing
-					for (const item of r.items) {
-						const qty = Number(item.quantity || 0) || 0;
-						const price = Number(item.unit_price || 0) || 0;
-						tot += qty * price;
-					}
-				} else {
-					// Old format - calculate based on special_pricing_type
-					const priceMultiplier = r.special_pricing_type === 'muestra' ? 0 : 
-					                        r.special_pricing_type === 'a_costo' ? 0.55 : 1;
-					for (const d of desserts) {
-						const qty = Number(r[`qty_${d.short_code}`] || 0) || 0;
-						const basePrice = PRICES[d.short_code] || 0;
-						tot += qty * Math.round(basePrice * priceMultiplier);
-					}
-				}
+				// Calculate total - use total_cents from DB if available
+				let tot = Number(r.total_cents) || 0;
 				
 				const row = {
 					date: String(r.sale_day || '').slice(0,10),
