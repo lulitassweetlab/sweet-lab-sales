@@ -1481,10 +1481,16 @@ function renderTable() {
 			} else {
 				input.style.cursor = 'pointer';
 			}
-			// Make input width flexible to fit badge
-			input.style.width = 'auto';
-			input.style.maxWidth = sale.special_pricing_type ? '60%' : '100%';
-			input.style.display = 'inline-block';
+			// Add background color based on special pricing
+			if (sale.special_pricing_type === 'muestra') {
+				input.style.background = '#FFA500';
+				input.style.color = 'white';
+				input.style.fontWeight = '600';
+			} else if (sale.special_pricing_type === 'a_costo') {
+				input.style.background = 'rgba(240, 98, 146, 0.85)';
+				input.style.color = 'white';
+				input.style.fontWeight = '600';
+			}
 			// Add click listener to show action bar
 			input.addEventListener('click', (e) => {
 				e.stopPropagation();
@@ -1492,15 +1498,6 @@ function renderTable() {
 				openClientActionBar(td, sale.id, currentName, e.clientX, e.clientY);
 			});
 			td.appendChild(input);
-			
-			// Add special pricing badge if applicable (inline after input)
-			if (sale.special_pricing_type) {
-				const badge = document.createElement('span');
-				badge.className = 'special-pricing-badge';
-				badge.style.cssText = 'background: rgba(240, 98, 146, 0.65); color: white; font-size: 9px; font-weight: 600; padding: 1px 5px; border-radius: 3px; white-space: nowrap; margin-left: 4px; display: inline-block; vertical-align: middle; position: relative; top: 0;';
-				badge.textContent = sale.special_pricing_type === 'muestra' ? 'Muestra' : 'A costo';
-				td.appendChild(badge);
-			}
 				
 				const name = (sale.client_name || '').trim();
 				if (name) {

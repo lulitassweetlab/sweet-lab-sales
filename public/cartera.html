@@ -399,25 +399,24 @@
 				const paySource = r.payment_source ? payLabel(r.payment_source) : '';
 				const payDate = r.payment_date ? String(r.payment_date).slice(0,10) : '';
 				
+				// Add background color to client name based on special pricing
+				const clientBgColor = r.special_pricing_type === 'muestra' ? '#FFA500' : 
+				                      r.special_pricing_type === 'a_costo' ? 'rgba(240, 98, 146, 0.85)' : '';
+				const clientStyle = clientBgColor ? ` style="background: ${clientBgColor}; color: white; font-weight: 600;"` : '';
+				
 				let html = `
 					<td>${r.date}</td>
 					<td>${r.sellerName}</td>
-					<td>${r.client_name||''}</td>
+					<td${clientStyle}>${r.client_name||''}</td>
 					<td>${payMethod}</td>
 					<td>${paySource}</td>
 					<td>${payDate}</td>
 					<td>${r.is_paid ? '✓' : ''}</td>`;
 				
-				// Add dessert quantities dynamically with border color based on special pricing
-				const borderColor = r.special_pricing_type === 'muestra' ? '#FFA500' : 
-				                    r.special_pricing_type === 'a_costo' ? 'rgba(240, 98, 146, 0.9)' : '';
-				const borderStyle = borderColor ? `border: 3px solid ${borderColor};` : '';
-				const fontWeight = borderColor ? 'font-weight: 600;' : '';
-				const styleAttr = borderColor ? ` style="${borderStyle} ${fontWeight}"` : '';
-				
+				// Add dessert quantities dynamically
 				for (const d of desserts) {
 					const qty = r[`q_${d.short_code}`] || 0;
-					html += `<td${styleAttr}>${qty || ''}</td>`;
+					html += `<td>${qty || ''}</td>`;
 					totals[d.short_code] += qty;
 				}
 				
