@@ -1485,14 +1485,18 @@ function renderTable() {
 					const currentName = input.value || '';
 					openClientActionBar(td, sale.id, currentName, e.clientX, e.clientY);
 				});
-				td.appendChild(input);
+				// Wrap input and badges in a container for proper inline layout
+				const container = document.createElement('div');
+				container.style.cssText = 'display: flex; align-items: center; gap: 6px;';
+				container.appendChild(input);
+				
 				// Add special pricing badge if applicable (before recurring client marker)
 				if (sale.special_pricing_type) {
 					const badge = document.createElement('span');
 					badge.className = 'special-pricing-badge';
-					badge.style.cssText = 'background: rgba(240, 98, 146, 0.65); color: white; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; margin-left: 6px; white-space: nowrap; display: inline-block; vertical-align: middle;';
+					badge.style.cssText = 'background: rgba(240, 98, 146, 0.65); color: white; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; white-space: nowrap; display: inline-block;';
 					badge.textContent = sale.special_pricing_type === 'muestra' ? 'Muestra' : 'A costo';
-					td.appendChild(badge);
+					container.appendChild(badge);
 				}
 				const name = (sale.client_name || '').trim();
 				if (name) {
@@ -1505,9 +1509,11 @@ function renderTable() {
 						reg.textContent = '®';
 						reg.title = 'Cliente recurrente';
 						reg.addEventListener('click', async (ev) => { ev.stopPropagation(); await openClientDetailView(name); });
-						td.appendChild(reg);
+						container.appendChild(reg);
 					}
 				}
+				
+				td.appendChild(container);
 				// Add comment marker if comment exists
 				if (sale.comment_text && sale.comment_text.trim()) {
 					td.classList.add('has-comment');
