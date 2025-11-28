@@ -142,7 +142,7 @@ export async function handler(event) {
 						rows = await sql`
 							SELECT s.id, s.seller_id, s.sale_day_id, s.client_name, s.qty_arco, s.qty_melo, 
 							       s.qty_mara, s.qty_oreo, s.qty_nute, s.is_paid, s.pay_method, s.payment_date, s.payment_source,
-							       s.total_cents,
+							       s.special_pricing_type, s.total_cents,
 							       sd.day AS sale_day,
 							       se.name AS seller_name
 							FROM sales s
@@ -156,7 +156,7 @@ export async function handler(event) {
 						rows = await sql`
 							SELECT s.id, s.seller_id, s.sale_day_id, s.client_name, s.qty_arco, s.qty_melo, 
 							       s.qty_mara, s.qty_oreo, s.qty_nute, s.is_paid, s.pay_method, s.payment_date, s.payment_source,
-							       s.total_cents,
+							       s.special_pricing_type, s.total_cents,
 							       sd.day AS sale_day,
 							       se.name AS seller_name
 							FROM sales s
@@ -289,7 +289,7 @@ export async function handler(event) {
 					const rows = await sql`
 						SELECT s.id, s.seller_id, s.sale_day_id, s.client_name, s.qty_arco, s.qty_melo, 
 						       s.qty_mara, s.qty_oreo, s.qty_nute, s.is_paid, s.pay_method, s.payment_date, 
-						       s.payment_source, s.comment_text, s.total_cents, s.created_at,
+						       s.payment_source, s.comment_text, s.special_pricing_type, s.total_cents, s.created_at,
 						       sd.day
 						FROM sales s
 						INNER JOIN sale_days sd ON sd.id = s.sale_day_id
@@ -362,9 +362,9 @@ export async function handler(event) {
 				} catch {}
 			let rows;
 			if (saleDayId) {
-				rows = await sql`SELECT id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, payment_date, payment_source, comment_text, total_cents, created_at FROM sales WHERE seller_id = ${sellerId} AND sale_day_id=${saleDayId} ORDER BY created_at DESC, id DESC`;
+				rows = await sql`SELECT id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, payment_date, payment_source, comment_text, special_pricing_type, total_cents, created_at FROM sales WHERE seller_id = ${sellerId} AND sale_day_id=${saleDayId} ORDER BY created_at DESC, id DESC`;
 			} else {
-				rows = await sql`SELECT id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, payment_date, payment_source, comment_text, total_cents, created_at FROM sales WHERE seller_id = ${sellerId} ORDER BY created_at DESC, id DESC`;
+				rows = await sql`SELECT id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, payment_date, payment_source, comment_text, special_pricing_type, total_cents, created_at FROM sales WHERE seller_id = ${sellerId} ORDER BY created_at DESC, id DESC`;
 			}
 				
 				// Enhance with sale_items data for each sale
@@ -456,7 +456,7 @@ export async function handler(event) {
 					const iso = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())).toISOString().slice(0,10);
 					saleDayId = await getOrCreateDayId(sellerId, iso);
 				}
-				const [row] = await sql`INSERT INTO sales (seller_id, sale_day_id) VALUES (${sellerId}, ${saleDayId}) RETURNING id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, payment_date, payment_source, comment_text, total_cents, created_at`;
+				const [row] = await sql`INSERT INTO sales (seller_id, sale_day_id) VALUES (${sellerId}, ${saleDayId}) RETURNING id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, payment_date, payment_source, comment_text, special_pricing_type, total_cents, created_at`;
 				// Note: detailed order notification is emitted after quantities are set (in PUT)
 				return json(row, 201);
 			}
@@ -526,7 +526,7 @@ export async function handler(event) {
 			}
 			const id = Number(data.id);
 			if (!id) return json({ error: 'id requerido' }, 400);
-			const current = (await sql`SELECT seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, payment_date, payment_source, comment_text, created_at FROM sales WHERE id=${id}`)[0] || {};
+			const current = (await sql`SELECT seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, payment_date, payment_source, comment_text, special_pricing_type, created_at FROM sales WHERE id=${id}`)[0] || {};
 			// Authorization: if sale has a pay_method already set, only admin/superadmin may edit
 			try {
 				const headers = (event.headers || {});
@@ -573,9 +573,10 @@ export async function handler(event) {
 			const payMethod = (Object.prototype.hasOwnProperty.call(data, 'pay_method')) ? (data.pay_method ?? null) : current.pay_method;
 			const paymentDate = (Object.prototype.hasOwnProperty.call(data, 'payment_date')) ? (data.payment_date ?? null) : current.payment_date;
 			const paymentSource = (Object.prototype.hasOwnProperty.call(data, 'payment_source')) ? (data.payment_source ?? null) : current.payment_source;
+			const specialPricingType = (Object.prototype.hasOwnProperty.call(data, 'special_pricing_type')) ? (data.special_pricing_type ?? null) : current.special_pricing_type;
 			
 			// Update sale basic info
-			await sql`UPDATE sales SET client_name=${client}, comment_text=${comment}, qty_arco=${qa}, qty_melo=${qm}, qty_mara=${qma}, qty_oreo=${qo}, qty_nute=${qn}, is_paid=${paid}, pay_method=${payMethod}, payment_date=${paymentDate}, payment_source=${paymentSource} WHERE id=${id}`;
+			await sql`UPDATE sales SET client_name=${client}, comment_text=${comment}, qty_arco=${qa}, qty_melo=${qm}, qty_mara=${qma}, qty_oreo=${qo}, qty_nute=${qn}, is_paid=${paid}, pay_method=${payMethod}, payment_date=${paymentDate}, payment_source=${paymentSource}, special_pricing_type=${specialPricingType} WHERE id=${id}`;
 				
 				// If items are provided, update sale_items table
 				let previousDynamicItems = [];
@@ -830,7 +831,7 @@ export async function handler(event) {
 				}
 				if (!id) return json({ error: 'id requerido' }, 400);
 				// fetch previous data and enforce authorization for locked sales
-				const prev = (await sql`SELECT seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, pay_method, payment_source FROM sales WHERE id=${id}`)[0] || null;
+				const prev = (await sql`SELECT seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, pay_method, payment_source, special_pricing_type FROM sales WHERE id=${id}`)[0] || null;
 				try {
 					const headers = (event.headers || {});
 					const hActor = (headers['x-actor-name'] || headers['X-Actor-Name'] || headers['x-actor'] || '').toString();

@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 13; // Bump when schema changes require a migration (add commission rate columns to sellers + notification_checks and notification_center_visits tables)
+const SCHEMA_VERSION = 14; // Bump when schema changes require a migration (add special_pricing_type column to sales)
 
 export async function ensureSchema() {
 	// If already ensured in this instance, skip immediately
@@ -215,6 +215,7 @@ export async function ensureSchema() {
 		payment_date DATE,
 		payment_source TEXT,
 		comment_text TEXT DEFAULT '',
+		special_pricing_type TEXT,
 		total_cents INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMPTZ DEFAULT now()
 	)`;
@@ -261,6 +262,12 @@ export async function ensureSchema() {
 			WHERE table_name = 'sales' AND column_name = 'payment_date'
 		) THEN
 			ALTER TABLE sales ADD COLUMN payment_date DATE;
+		END IF;
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'sales' AND column_name = 'special_pricing_type'
+		) THEN
+			ALTER TABLE sales ADD COLUMN special_pricing_type TEXT;
 		END IF;
 	END $$;`;
 	await sql`CREATE TABLE IF NOT EXISTS change_logs (
