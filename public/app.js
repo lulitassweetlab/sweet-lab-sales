@@ -1486,6 +1486,14 @@ function renderTable() {
 					openClientActionBar(td, sale.id, currentName, e.clientX, e.clientY);
 				});
 				td.appendChild(input);
+				// Add special pricing badge if applicable (before recurring client marker)
+				if (sale.special_pricing_type) {
+					const badge = document.createElement('span');
+					badge.className = 'special-pricing-badge';
+					badge.style.cssText = 'background: rgba(240, 98, 146, 0.65); color: white; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; margin-left: 6px; white-space: nowrap; display: inline-block; vertical-align: middle;';
+					badge.textContent = sale.special_pricing_type === 'muestra' ? 'Muestra' : 'A costo';
+					td.appendChild(badge);
+				}
 				const name = (sale.client_name || '').trim();
 				if (name) {
 					const key = normalizeClientName(name);
@@ -1499,14 +1507,6 @@ function renderTable() {
 						reg.addEventListener('click', async (ev) => { ev.stopPropagation(); await openClientDetailView(name); });
 						td.appendChild(reg);
 					}
-				}
-				// Add special pricing badge if applicable
-				if (sale.special_pricing_type) {
-					const badge = document.createElement('span');
-					badge.className = 'special-pricing-badge';
-					badge.style.cssText = 'background: rgba(240, 98, 146, 0.65); color: white; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; margin-left: 6px; white-space: nowrap; display: inline-block; vertical-align: middle;';
-					badge.textContent = sale.special_pricing_type === 'muestra' ? 'Muestra' : 'A costo';
-					td.appendChild(badge);
 				}
 				// Add comment marker if comment exists
 				if (sale.comment_text && sale.comment_text.trim()) {
