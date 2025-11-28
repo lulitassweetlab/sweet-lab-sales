@@ -400,8 +400,8 @@
 				const payDate = r.payment_date ? String(r.payment_date).slice(0,10) : '';
 				
 				// Add background color to client name based on special pricing (only around text)
-				const clientBgColor = r.special_pricing_type === 'muestra' ? 'rgba(255, 165, 0, 0.7)' : 
-				                      r.special_pricing_type === 'a_costo' ? 'rgba(240, 98, 146, 0.7)' : '';
+				const clientBgColor = r.special_pricing_type === 'muestra' ? 'rgba(255, 165, 0, 0.5)' : 
+				                      r.special_pricing_type === 'a_costo' ? 'rgba(240, 98, 146, 0.5)' : '';
 				const clientNameHtml = clientBgColor 
 					? `<span style="background: ${clientBgColor}; color: white; font-weight: 600; padding: 3px 8px; border-radius: 6px; display: inline-block;">${r.client_name||''}</span>`
 					: (r.client_name||'');

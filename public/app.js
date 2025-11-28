@@ -1483,7 +1483,7 @@ function renderTable() {
 			}
 			// Add background color based on special pricing
 			if (sale.special_pricing_type === 'muestra') {
-				input.style.background = 'rgba(255, 165, 0, 0.7)';
+				input.style.background = 'rgba(255, 165, 0, 0.5)';
 				input.style.color = 'white';
 				input.style.fontWeight = '600';
 				input.style.borderRadius = '6px';
@@ -1491,7 +1491,7 @@ function renderTable() {
 				input.style.width = 'auto';
 				input.style.display = 'inline-block';
 			} else if (sale.special_pricing_type === 'a_costo') {
-				input.style.background = 'rgba(240, 98, 146, 0.7)';
+				input.style.background = 'rgba(240, 98, 146, 0.5)';
 				input.style.color = 'white';
 				input.style.fontWeight = '600';
 				input.style.borderRadius = '6px';
