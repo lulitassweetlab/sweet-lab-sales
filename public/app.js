@@ -1470,6 +1470,8 @@ function renderTable() {
 				input.value = sale.client_name || '';
 				input.placeholder = '';
 				input.readOnly = true; // Make readonly - only editable via edit button
+				input.style.flexShrink = '1'; // Allow input to shrink if needed
+				input.style.minWidth = '0'; // Allow input to shrink below its content width
 				// Lock edit action for non-admins if pay_method chosen
 				const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
 				const saleLocked = String(sale.pay_method || '').trim() !== '';
@@ -1487,14 +1489,14 @@ function renderTable() {
 				});
 				// Wrap input and badges in a container for proper inline layout
 				const container = document.createElement('div');
-				container.style.cssText = 'display: flex; align-items: center; gap: 4px;';
+				container.style.cssText = 'display: flex; align-items: center; gap: 6px; flex-wrap: nowrap;';
 				container.appendChild(input);
 				
 				// Add special pricing badge if applicable (before recurring client marker)
 				if (sale.special_pricing_type) {
 					const badge = document.createElement('span');
 					badge.className = 'special-pricing-badge';
-					badge.style.cssText = 'background: rgba(240, 98, 146, 0.65); color: white; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; white-space: nowrap; display: inline-block; margin-right: 2px;';
+					badge.style.cssText = 'background: rgba(240, 98, 146, 0.65); color: white; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; white-space: nowrap; display: inline-block; flex-shrink: 0;';
 					badge.textContent = sale.special_pricing_type === 'muestra' ? 'Muestra' : 'A costo';
 					container.appendChild(badge);
 				}
@@ -1508,6 +1510,7 @@ function renderTable() {
 						reg.className = 'client-reg-large';
 						reg.textContent = '®';
 						reg.title = 'Cliente recurrente';
+						reg.style.flexShrink = '0'; // Don't let the ® shrink
 						reg.addEventListener('click', async (ev) => { ev.stopPropagation(); await openClientDetailView(name); });
 						container.appendChild(reg);
 					}
