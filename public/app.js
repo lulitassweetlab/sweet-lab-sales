@@ -1504,9 +1504,9 @@ function renderTable() {
 				if (sale.special_pricing_type) {
 					const badge = document.createElement('span');
 					badge.className = 'special-pricing-badge';
-					badge.style.cssText = 'background: rgba(240, 98, 146, 0.85); color: white; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; margin-left: 6px; white-space: nowrap;';
+					badge.style.cssText = 'background: rgba(240, 98, 146, 0.65); color: white; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; margin-left: 6px; white-space: nowrap; display: inline-block; vertical-align: middle;';
 					badge.textContent = sale.special_pricing_type === 'muestra' ? 'Muestra' : 'A costo';
-					input.insertAdjacentElement('afterend', badge);
+					td.appendChild(badge);
 				}
 				// Add comment marker if comment exists
 				if (sale.comment_text && sale.comment_text.trim()) {
@@ -3744,11 +3744,13 @@ async function savePayMethod(tr, id, method) {
 }
 
 function updateSummary() {
-	// Initialize counts dynamically for all desserts
+	// Initialize counts and amounts dynamically for all desserts
 	const qtys = {};
+	const amts = {};
 	const paidQtys = {};
 	for (const d of state.desserts) {
 		qtys[d.short_code] = 0;
+		amts[d.short_code] = 0;
 		paidQtys[d.short_code] = 0;
 	}
 	
@@ -3763,9 +3765,19 @@ function updateSummary() {
 		if (Array.isArray(s.items) && s.items.length > 0) {
 			for (const d of state.desserts) {
 				let qty = 0;
+				let itemPrice = 0;
 				const item = s.items.find(i => i.short_code === d.short_code || i.dessert_id === d.id);
-				qty = item ? Number(item.quantity || 0) : 0;
+				if (item) {
+					qty = Number(item.quantity || 0) || 0;
+					// Use unit_price from item if explicitly set, otherwise fallback to PRICES
+					if (item.hasOwnProperty('unit_price')) {
+						itemPrice = Number(item.unit_price || 0) || 0;
+					} else {
+						itemPrice = Number(PRICES[d.short_code] || 0) || 0;
+					}
+				}
 				qtys[d.short_code] += qty;
+				amts[d.short_code] += qty * itemPrice;
 				// Exclude special pricing from commission calculations
 				if ((pm === 'transf' || pm === 'jorgebank' || pm === 'marce' || pm === 'jorge') && !hasSpecialPricing) {
 					paidQtys[d.short_code] += qty;
@@ -3775,7 +3787,12 @@ function updateSummary() {
 			// Old format: use qty_* columns
 			for (const d of state.desserts) {
 				const qty = Number(s[`qty_${d.short_code}`] || 0);
+				// For old format without special pricing, use standard prices
+				const price = hasSpecialPricing && s.special_pricing_type === 'muestra' ? 0 : 
+				              hasSpecialPricing && s.special_pricing_type === 'a_costo' ? Math.round((PRICES[d.short_code] || 0) * 0.55) :
+				              (PRICES[d.short_code] || 0);
 				qtys[d.short_code] += qty;
+				amts[d.short_code] += qty * price;
 				// Exclude special pricing from commission calculations
 				if ((pm === 'transf' || pm === 'jorgebank' || pm === 'marce' || pm === 'jorge') && !hasSpecialPricing) {
 					paidQtys[d.short_code] += qty;
@@ -3790,7 +3807,7 @@ function updateSummary() {
 	let totalQty = 0;
 	for (const d of state.desserts) {
 		const qty = qtys[d.short_code] || 0;
-		const amt = qty * (PRICES[d.short_code] || 0);
+		const amt = amts[d.short_code] || 0;
 		totalQty += qty;
 		
 		// Update qty cell
