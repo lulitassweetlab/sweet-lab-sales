@@ -722,9 +722,27 @@ export async function recalcTotalForId(id) {
 		`;
 	} else {
 		// Fallback to old system for backward compatibility
+		// Get the sale to check for special pricing
+		const [sale] = await sql`SELECT special_pricing_type FROM sales WHERE id = ${id}`;
+		const specialPricing = sale ? sale.special_pricing_type : null;
+		
 		const p = prices();
+		let priceMultiplier = 1;
+		if (specialPricing === 'muestra') {
+			priceMultiplier = 0; // Free samples
+		} else if (specialPricing === 'a_costo') {
+			priceMultiplier = 0.55; // 45% discount (55% of original price)
+		}
+		
+		// Apply price multiplier to each price
+		const arcoPrice = Math.round(p.arco * priceMultiplier);
+		const meloPrice = Math.round(p.melo * priceMultiplier);
+		const maraPrice = Math.round(p.mara * priceMultiplier);
+		const oreoPrice = Math.round(p.oreo * priceMultiplier);
+		const nutePrice = Math.round(p.nute * priceMultiplier);
+		
 		[row] = await sql`
-			UPDATE sales SET total_cents = qty_arco * ${p.arco} + qty_melo * ${p.melo} + qty_mara * ${p.mara} + qty_oreo * ${p.oreo} + qty_nute * ${p.nute}
+			UPDATE sales SET total_cents = qty_arco * ${arcoPrice} + qty_melo * ${meloPrice} + qty_mara * ${maraPrice} + qty_oreo * ${oreoPrice} + qty_nute * ${nutePrice}
 			WHERE id = ${id}
 			RETURNING *
 		`;
