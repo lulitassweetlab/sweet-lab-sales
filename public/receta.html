@@ -211,100 +211,72 @@
 			}
 		}
 
-		// Build user selector component
+		// Build user selector component (compact version)
 		function buildUserSelector(dessertName, users) {
 			console.log(`🔧 Building user selector for ${dessertName}, users:`, users);
 			
 			const container = document.createElement('div');
-			container.className = 'user-selector-container';
-			container.style.margin = '16px 0';
-			container.style.padding = '16px';
-			container.style.background = 'linear-gradient(135deg, rgba(244, 166, 183, 0.12) 0%, rgba(255, 182, 193, 0.08) 100%)';
-			container.style.borderRadius = '12px';
-			container.style.border = '2px solid rgba(244, 166, 183, 0.4)';
-			container.style.boxShadow = '0 2px 8px rgba(244, 166, 183, 0.15)';
-
-			const labelRow = document.createElement('div');
-			labelRow.style.display = 'flex';
-			labelRow.style.justifyContent = 'space-between';
-			labelRow.style.alignItems = 'center';
-			labelRow.style.marginBottom = '12px';
-			
-			const label = document.createElement('div');
-			label.innerHTML = '👥 <strong>Participantes en producción</strong>';
-			label.style.fontSize = '15px';
-			label.style.color = 'var(--text)';
-			
-			const helpText = document.createElement('div');
-			helpText.textContent = 'Click para seleccionar';
-			helpText.style.fontSize = '12px';
-			helpText.style.color = 'rgba(0, 0, 0, 0.5)';
-			helpText.style.fontStyle = 'italic';
-			
-			labelRow.appendChild(label);
-			labelRow.appendChild(helpText);
-			container.appendChild(labelRow);
+			container.className = 'user-selector-compact';
+			container.style.margin = '8px 0';
+			container.style.padding = '0';
 
 			const usersWrap = document.createElement('div');
 			usersWrap.style.display = 'flex';
 			usersWrap.style.flexWrap = 'wrap';
-			usersWrap.style.gap = '8px';
+			usersWrap.style.gap = '6px';
+			usersWrap.style.alignItems = 'center';
 			
 			const selectedUsers = new Set();
+			const maxVisible = 4; // Show only 4 users initially
+			let isExpanded = false;
 
-			users.forEach(user => {
+			// Create user buttons
+			const userButtons = users.map((user, index) => {
 				const userBtn = document.createElement('button');
-				userBtn.className = 'user-select-btn';
+				userBtn.className = 'press-btn user-select-compact';
 				userBtn.dataset.userId = user.id;
-				userBtn.style.padding = '10px 18px';
-				userBtn.style.borderRadius = '25px';
-				userBtn.style.border = '2px solid #ddd';
-				userBtn.style.background = 'white';
-				userBtn.style.cursor = 'pointer';
-				userBtn.style.fontSize = '14px';
-				userBtn.style.fontWeight = '600';
-				userBtn.style.transition = 'all 0.25s ease';
+				userBtn.dataset.index = index;
+				userBtn.style.padding = '6px 12px';
+				userBtn.style.fontSize = '12px';
+				userBtn.style.minWidth = 'unset';
+				userBtn.style.transition = 'all 0.2s ease';
 				userBtn.style.position = 'relative';
-				userBtn.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.08)';
+				userBtn.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
+				userBtn.style.display = index < maxVisible ? 'inline-block' : 'none';
 				
 				// User name
 				const nameSpan = document.createElement('span');
 				nameSpan.textContent = user.username;
 				userBtn.appendChild(nameSpan);
 				
-				// Show participation count if > 0
+				// Show participation count if > 0 (as small badge)
 				if (user.participation_count > 0) {
 					const badge = document.createElement('span');
 					badge.textContent = user.participation_count;
-					badge.style.position = 'absolute';
-					badge.style.top = '-8px';
-					badge.style.right = '-8px';
-					badge.style.background = 'linear-gradient(135deg, #f4a6b7 0%, #ff69b4 100%)';
-					badge.style.color = 'white';
-					badge.style.fontSize = '11px';
+					badge.style.marginLeft = '4px';
+					badge.style.background = 'rgba(244, 166, 183, 0.3)';
+					badge.style.color = 'var(--text)';
+					badge.style.fontSize = '10px';
 					badge.style.fontWeight = '700';
-					badge.style.borderRadius = '12px';
-					badge.style.padding = '3px 7px';
-					badge.style.minWidth = '22px';
-					badge.style.textAlign = 'center';
-					badge.style.boxShadow = '0 2px 6px rgba(244, 166, 183, 0.4)';
+					badge.style.borderRadius = '8px';
+					badge.style.padding = '2px 5px';
 					badge.title = `Ha participado ${user.participation_count} ${user.participation_count === 1 ? 'vez' : 'veces'}`;
 					userBtn.appendChild(badge);
 				}
 				
-				// Hover effect
+				// Hover effect (same as dessert nav buttons)
 				userBtn.addEventListener('mouseenter', () => {
 					if (!selectedUsers.has(Number(userBtn.dataset.userId))) {
-						userBtn.style.transform = 'translateY(-2px)';
-						userBtn.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.15)';
-						userBtn.style.borderColor = 'var(--primary)';
+						userBtn.style.background = 'var(--hover-primary-pink)';
+						userBtn.style.color = 'white';
+						userBtn.style.boxShadow = '0 4px 16px var(--hover-shadow-pink)';
 					}
 				});
 				userBtn.addEventListener('mouseleave', () => {
 					if (!selectedUsers.has(Number(userBtn.dataset.userId))) {
-						userBtn.style.transform = 'translateY(0)';
-						userBtn.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.08)';
-						userBtn.style.borderColor = '#ddd';
+						userBtn.style.background = '';
+						userBtn.style.color = '';
+						userBtn.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
 					}
 				});
 
@@ -314,87 +286,65 @@
 					
 					if (isSelected) {
 						selectedUsers.delete(userId);
-						userBtn.style.background = 'white';
-						userBtn.style.borderColor = '#ddd';
-						userBtn.style.color = 'var(--text)';
-						userBtn.style.transform = 'scale(0.95)';
-						setTimeout(() => { userBtn.style.transform = 'scale(1)'; }, 150);
+						userBtn.style.background = '';
+						userBtn.style.color = '';
+						userBtn.style.fontWeight = '';
+						userBtn.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
 					} else {
 						selectedUsers.add(userId);
-						userBtn.style.background = 'linear-gradient(135deg, #f4a6b7 0%, #ff69b4 100%)';
-						userBtn.style.borderColor = '#f4a6b7';
+						// Style like active dessert nav button
+						userBtn.style.background = 'var(--primary)';
 						userBtn.style.color = 'white';
-						userBtn.style.boxShadow = '0 4px 12px rgba(244, 166, 183, 0.5)';
-						userBtn.style.transform = 'scale(1.05)';
-						setTimeout(() => { userBtn.style.transform = 'scale(1)'; }, 150);
+						userBtn.style.fontWeight = '600';
+						userBtn.style.boxShadow = '0 4px 16px var(--hover-shadow-pink)';
 					}
 					
 					// Auto-save selection
-					const success = await saveProductionUsers(dessertName, Array.from(selectedUsers));
-					if (success && !isSelected) {
-						// Show brief success checkmark for newly selected
-						const checkmark = document.createElement('span');
-						checkmark.textContent = ' ✓';
-						checkmark.style.fontSize = '14px';
-						checkmark.style.marginLeft = '4px';
-						nameSpan.appendChild(checkmark);
-						setTimeout(() => {
-							if (checkmark.parentNode) checkmark.parentNode.removeChild(checkmark);
-						}, 800);
-					}
+					await saveProductionUsers(dessertName, Array.from(selectedUsers));
 				});
 
-				usersWrap.appendChild(userBtn);
+				return userBtn;
 			});
+
+			// Add all buttons to wrapper
+			userButtons.forEach(btn => usersWrap.appendChild(btn));
+			
+			// Add expand/collapse button if there are more than maxVisible users
+			if (users.length > maxVisible) {
+				const expandBtn = document.createElement('button');
+				expandBtn.className = 'press-btn';
+				expandBtn.style.padding = '6px 10px';
+				expandBtn.style.fontSize = '12px';
+				expandBtn.style.minWidth = 'unset';
+				expandBtn.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
+				expandBtn.style.transition = 'all 0.2s ease';
+				expandBtn.innerHTML = '▼ +' + (users.length - maxVisible);
+				expandBtn.title = 'Ver todos los usuarios';
+				
+				expandBtn.addEventListener('click', () => {
+					isExpanded = !isExpanded;
+					userButtons.forEach((btn, index) => {
+						if (index >= maxVisible) {
+							btn.style.display = isExpanded ? 'inline-block' : 'none';
+						}
+					});
+					expandBtn.innerHTML = isExpanded 
+						? '▲ Menos' 
+						: '▼ +' + (users.length - maxVisible);
+				});
+				
+				// Hover effect
+				expandBtn.addEventListener('mouseenter', () => {
+					expandBtn.style.background = 'rgba(244, 166, 183, 0.2)';
+				});
+				expandBtn.addEventListener('mouseleave', () => {
+					expandBtn.style.background = '';
+				});
+				
+				usersWrap.appendChild(expandBtn);
+			}
 
 			container.appendChild(usersWrap);
-			
-			// Add quick select all / clear buttons
-			const actions = document.createElement('div');
-			actions.style.marginTop = '12px';
-			actions.style.display = 'flex';
-			actions.style.gap = '8px';
-			actions.style.justifyContent = 'flex-end';
-			
-			const selectAllBtn = document.createElement('button');
-			selectAllBtn.className = 'press-btn';
-			selectAllBtn.textContent = '✓ Todos';
-			selectAllBtn.style.fontSize = '12px';
-			selectAllBtn.style.padding = '6px 12px';
-			selectAllBtn.style.minWidth = 'unset';
-			selectAllBtn.style.background = 'linear-gradient(135deg, rgba(244, 166, 183, 0.2) 0%, rgba(255, 182, 193, 0.15) 100%)';
-			selectAllBtn.style.border = '1px solid rgba(244, 166, 183, 0.4)';
-			selectAllBtn.addEventListener('click', async () => {
-				users.forEach(u => selectedUsers.add(u.id));
-				usersWrap.querySelectorAll('.user-select-btn').forEach(btn => {
-					btn.style.background = 'linear-gradient(135deg, #f4a6b7 0%, #ff69b4 100%)';
-					btn.style.borderColor = '#f4a6b7';
-					btn.style.color = 'white';
-					btn.style.boxShadow = '0 4px 12px rgba(244, 166, 183, 0.5)';
-				});
-				await saveProductionUsers(dessertName, Array.from(selectedUsers));
-			});
-			
-			const clearBtn = document.createElement('button');
-			clearBtn.className = 'press-btn';
-			clearBtn.textContent = '✕ Limpiar';
-			clearBtn.style.fontSize = '12px';
-			clearBtn.style.padding = '6px 12px';
-			clearBtn.style.minWidth = 'unset';
-			clearBtn.style.background = 'white';
-			clearBtn.style.border = '1px solid #ddd';
-			clearBtn.addEventListener('click', async () => {
-				selectedUsers.clear();
-				usersWrap.querySelectorAll('.user-select-btn').forEach(btn => {
-					btn.style.background = 'white';
-					btn.style.borderColor = '#ddd';
-					btn.style.color = 'var(--text)';
-					btn.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.08)';
-				});
-			});
-			
-			actions.append(selectAllBtn, clearBtn);
-			container.appendChild(actions);
 
 			return { element: container, getSelectedUsers: () => Array.from(selectedUsers) };
 		}
@@ -1208,30 +1158,25 @@
 				const userSelector = buildUserSelector(dessertName, dessertUsers);
 				card.appendChild(userSelector.element);
 			} else {
-				// Show a helpful message when no users are available
+				// Show a compact warning when no users are available
 				const noUsersMsg = document.createElement('div');
-				noUsersMsg.style.margin = '16px 0';
-				noUsersMsg.style.padding = '16px';
-				noUsersMsg.style.background = 'rgba(255, 193, 7, 0.12)';
-				noUsersMsg.style.borderRadius = '8px';
-				noUsersMsg.style.border = '2px solid rgba(255, 193, 7, 0.4)';
-				noUsersMsg.style.fontSize = '14px';
-				noUsersMsg.style.color = 'rgba(0, 0, 0, 0.8)';
-				noUsersMsg.innerHTML = `
-					<div style="font-weight: 600; margin-bottom: 8px;">⚠️ No hay usuarios disponibles</div>
-					<div style="font-size: 13px; opacity: 0.9;">
-						No se encontraron usuarios en el sistema. Por favor verifica que existan usuarios o vendedores registrados.
-					</div>
-				`;
+				noUsersMsg.style.margin = '8px 0';
+				noUsersMsg.style.padding = '8px 12px';
+				noUsersMsg.style.background = 'rgba(255, 193, 7, 0.1)';
+				noUsersMsg.style.borderRadius = '6px';
+				noUsersMsg.style.border = '1px solid rgba(255, 193, 7, 0.3)';
+				noUsersMsg.style.fontSize = '12px';
+				noUsersMsg.style.color = 'rgba(0, 0, 0, 0.7)';
+				noUsersMsg.textContent = '⚠️ Sin usuarios disponibles';
 				card.appendChild(noUsersMsg);
 				console.warn('⚠️ No users found for dessert:', dessertName);
 			}
 			
-			// Add visual separator between participants and recipe steps
+			// Add subtle separator (much smaller)
 			const separator = document.createElement('div');
 			separator.style.height = '1px';
-			separator.style.background = 'linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.1) 50%, transparent 100%)';
-			separator.style.margin = '20px 0';
+			separator.style.background = 'rgba(0,0,0,0.06)';
+			separator.style.margin = '10px 0';
 			card.appendChild(separator);
 			
 			const session = { dessert: dessertName, qty, steps: [] };
