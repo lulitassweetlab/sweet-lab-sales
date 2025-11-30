@@ -230,14 +230,16 @@ export async function handler(event) {
 							deliveryId = deliveryRows[0].id;
 						}
 						
-						const dessertRows = await sql`
-							SELECT id FROM desserts 
-							WHERE lower(name) = lower(${dessert}) OR lower(short_code) = lower(${dessert})
-							LIMIT 1
-						`;
-						
-						if (dessertRows.length > 0) {
-							const dessertId = dessertRows[0].id;
+					const dessertRows = await sql`
+						SELECT id, name, short_code FROM desserts 
+						WHERE lower(name) = lower(${dessert}) OR lower(short_code) = lower(${dessert})
+						LIMIT 1
+					`;
+					
+					console.log(`🔍 Sync: Looking for dessert '${dessert}' - Found:`, dessertRows.length > 0 ? dessertRows[0] : 'NOT FOUND');
+					
+					if (dessertRows.length > 0) {
+						const dessertId = dessertRows[0].id;
 							await sql`DELETE FROM delivery_production_users WHERE delivery_id = ${deliveryId} AND dessert_id = ${dessertId}`;
 							
 							for (const userId of userIds) {
