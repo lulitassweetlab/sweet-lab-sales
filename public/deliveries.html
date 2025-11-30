@@ -5,6 +5,18 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
 	<title>Entregas</title>
 	<link rel="stylesheet" href="/styles.css?v=2025-09-17-1" />
+	<style>
+		/* Hide number input spinners */
+		input[type=number]::-webkit-inner-spin-button,
+		input[type=number]::-webkit-outer-spin-button {
+			-webkit-appearance: none;
+			margin: 0;
+		}
+		input[type=number] {
+			-moz-appearance: textfield;
+			appearance: textfield;
+		}
+	</style>
 </head>
 <body>
 	<header class="app-header">
@@ -244,7 +256,6 @@
 						deliveredRow.appendChild(labelCell);
 						
 						for (const d of desserts) {
-							const qty = seller.delivered_quantities[d.short_code] || 0;
 							const td = document.createElement('td');
 							td.className = 'col-qty';
 							td.style.padding = '4px';
@@ -254,10 +265,10 @@
 							input.type = 'number';
 							input.min = '0';
 							input.step = '1';
-							input.value = qty;
+							input.value = seller.delivered_quantities[d.short_code] || 0;
 							input.style.width = '50px';
 							input.style.textAlign = 'center';
-							input.style.backgroundColor = '#4caf50';
+							input.style.backgroundColor = 'rgba(76, 175, 80, 0.5)';
 							input.style.color = 'white';
 							input.style.border = 'none';
 							input.style.borderRadius = '12px';
@@ -267,14 +278,22 @@
 							input.style.outline = 'none';
 							input.title = 'Editar cantidad entregada';
 							
+							// Hide spinner arrows
+							input.style.MozAppearance = 'textfield';
+							input.style.webkitAppearance = 'none';
+							input.style.appearance = 'none';
+							
+							// Track the current saved value
+							let currentSavedValue = seller.delivered_quantities[d.short_code] || 0;
+							
 							// Save on blur or Enter
 							let saveTimeout;
 							const saveValue = async () => {
 								if (!requireAdmin()) return;
 								const newQty = Math.max(0, parseInt(input.value || '0', 10));
 								
-								// Only save if value changed
-								if (newQty !== qty) {
+								// Only save if value changed from last saved value
+								if (newQty !== currentSavedValue) {
 									try {
 										input.disabled = true;
 										input.style.opacity = '0.6';
@@ -288,19 +307,20 @@
 										
 										await api('PUT', '/api/deliveries?update_delivered=true', payload);
 										
-										// Update local data
+										// Update local data AND tracking variable
 										seller.delivered_quantities[d.short_code] = newQty;
+										currentSavedValue = newQty;
 										
 										// Visual feedback
-										input.style.backgroundColor = '#2196F3'; // Blue flash
+										input.style.backgroundColor = 'rgba(33, 150, 243, 0.7)'; // Blue flash
 										setTimeout(() => {
-											input.style.backgroundColor = '#4caf50';
+											input.style.backgroundColor = 'rgba(76, 175, 80, 0.5)';
 											input.disabled = false;
 											input.style.opacity = '1';
 										}, 300);
 									} catch (e) {
 										alert('Error al guardar: ' + (e?.message || e));
-										input.value = qty; // Revert
+										input.value = currentSavedValue; // Revert to last saved value
 										input.disabled = false;
 										input.style.opacity = '1';
 									}
