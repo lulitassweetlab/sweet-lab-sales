@@ -38,56 +38,67 @@ export async function handler(event) {
 					// Get all desserts dynamically
 					const desserts = await sql`SELECT id, short_code, name FROM desserts WHERE is_active = true ORDER BY position ASC, id ASC`;
 					
-					// OPTIMIZED: Get all sale_items in one query
-					const allItems = await sql`
-						SELECT 
-							sd.day,
-							s.seller_id,
-							se.name AS seller_name,
-							si.dessert_id,
-							SUM(si.quantity)::int AS total_qty
-						FROM sale_items si
-						INNER JOIN sales s ON s.id = si.sale_id
-						INNER JOIN sale_days sd ON sd.id = s.sale_day_id
-						INNER JOIN sellers se ON se.id = s.seller_id
-						GROUP BY sd.day, s.seller_id, se.name, si.dessert_id
-						ORDER BY sd.day DESC, se.name ASC
-					`;
+					// Create a map of dessert short_code to id
+					const dessertIdByCode = {};
+					for (const d of desserts) {
+						dessertIdByCode[d.short_code] = d.id;
+					}
 					
-					// OPTIMIZED: Get all legacy sales in one query
-					const allLegacySales = await sql`
+					// OPTIMIZED: Get all sales with quantities per dessert
+					// For each sale, use sale_items if they exist, otherwise use qty_* columns
+					const allSalesData = await sql`
 						SELECT 
+							s.id AS sale_id,
 							sd.day,
 							s.seller_id,
 							se.name AS seller_name,
-							COALESCE(SUM(s.qty_arco), 0)::int AS arco,
-							COALESCE(SUM(s.qty_melo), 0)::int AS melo,
-							COALESCE(SUM(s.qty_mara), 0)::int AS mara,
-							COALESCE(SUM(s.qty_oreo), 0)::int AS oreo,
-							COALESCE(SUM(s.qty_nute), 0)::int AS nute
+							s.qty_arco,
+							s.qty_melo,
+							s.qty_mara,
+							s.qty_oreo,
+							s.qty_nute,
+							-- Check if this sale has any sale_items
+							(SELECT COUNT(*) FROM sale_items WHERE sale_id = s.id) > 0 AS has_items
 						FROM sales s
 						INNER JOIN sale_days sd ON sd.id = s.sale_day_id
 						INNER JOIN sellers se ON se.id = s.seller_id
-						GROUP BY sd.day, s.seller_id, se.name
 						ORDER BY sd.day DESC, se.name ASC
 					`;
 					
-					// Build a map to organize data
+					// Get all sale_items in one query
+					const allItems = await sql`
+						SELECT 
+							si.sale_id,
+							si.dessert_id,
+							si.quantity
+						FROM sale_items si
+					`;
+					
+					// Create a map of sale_items by sale_id
+					const itemsBySaleId = {};
+					for (const item of allItems) {
+						if (!itemsBySaleId[item.sale_id]) {
+							itemsBySaleId[item.sale_id] = [];
+						}
+						itemsBySaleId[item.sale_id].push(item);
+					}
+					
+					// Build a map to organize data by date and seller
 					const dataByDate = {};
 					const sellersByDateAndId = {};
 					
-					// Process legacy sales first
-					for (const row of allLegacySales) {
-						const dateKey = row.day;
-						const sellerKey = `${dateKey}_${row.seller_id}`;
+					// Process each sale
+					for (const sale of allSalesData) {
+						const dateKey = sale.day;
+						const sellerKey = `${dateKey}_${sale.seller_id}`;
 						
+						// Initialize structures if needed
 						if (!dataByDate[dateKey]) {
 							dataByDate[dateKey] = {
 								day: dateKey,
 								sellers: [],
 								totals: {}
 							};
-							// Initialize totals for all desserts
 							for (const d of desserts) {
 								dataByDate[dateKey].totals[d.short_code] = 0;
 							}
@@ -95,59 +106,35 @@ export async function handler(event) {
 						
 						if (!sellersByDateAndId[sellerKey]) {
 							sellersByDateAndId[sellerKey] = {
-								seller_id: row.seller_id,
-								seller_name: row.seller_name
+								seller_id: sale.seller_id,
+								seller_name: sale.seller_name
 							};
-							// Initialize quantities for all desserts
 							for (const d of desserts) {
 								sellersByDateAndId[sellerKey][d.short_code] = 0;
 							}
 						}
 						
-						// Add legacy quantities
-						for (const d of desserts) {
-							const legacyKey = d.short_code;
-							if (row[legacyKey]) {
-								sellersByDateAndId[sellerKey][legacyKey] += row[legacyKey];
-								dataByDate[dateKey].totals[legacyKey] += row[legacyKey];
+						// Decide whether to use sale_items or legacy columns for this sale
+						if (sale.has_items && itemsBySaleId[sale.sale_id]) {
+							// Use sale_items data
+							for (const item of itemsBySaleId[sale.sale_id]) {
+								const dessert = desserts.find(d => d.id === item.dessert_id);
+								if (dessert) {
+									sellersByDateAndId[sellerKey][dessert.short_code] += item.quantity;
+									dataByDate[dateKey].totals[dessert.short_code] += item.quantity;
+								}
 							}
-						}
-					}
-					
-					// Process dynamic items
-					for (const item of allItems) {
-						const dateKey = item.day;
-						const sellerKey = `${dateKey}_${item.seller_id}`;
-						const dessert = desserts.find(d => d.id === item.dessert_id);
-						
-						if (!dessert) continue;
-						
-						if (!dataByDate[dateKey]) {
-							dataByDate[dateKey] = {
-								day: dateKey,
-								sellers: [],
-								totals: {}
-							};
-							// Initialize totals for all desserts
+						} else {
+							// Use legacy columns
 							for (const d of desserts) {
-								dataByDate[dateKey].totals[d.short_code] = 0;
+								const qtyKey = `qty_${d.short_code}`;
+								const qty = sale[qtyKey] || 0;
+								if (qty > 0) {
+									sellersByDateAndId[sellerKey][d.short_code] += qty;
+									dataByDate[dateKey].totals[d.short_code] += qty;
+								}
 							}
 						}
-						
-						if (!sellersByDateAndId[sellerKey]) {
-							sellersByDateAndId[sellerKey] = {
-								seller_id: item.seller_id,
-								seller_name: item.seller_name
-							};
-							// Initialize quantities for all desserts
-							for (const d of desserts) {
-								sellersByDateAndId[sellerKey][d.short_code] = 0;
-							}
-						}
-						
-						// Add item quantities
-						sellersByDateAndId[sellerKey][dessert.short_code] += item.total_qty;
-						dataByDate[dateKey].totals[dessert.short_code] += item.total_qty;
 					}
 					
 					// Convert sellers map to arrays organized by date
