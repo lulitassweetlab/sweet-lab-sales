@@ -83,6 +83,50 @@ export async function ensureSchema() {
 		console.error('Error seeding desserts:', err);
 	}
 	
+	// CRITICAL: Users table (needed for recipe_production_users FK)
+	await sql`CREATE TABLE IF NOT EXISTS users (
+		id SERIAL PRIMARY KEY,
+		username TEXT UNIQUE NOT NULL,
+		password_hash TEXT NOT NULL,
+		role TEXT NOT NULL DEFAULT 'user',
+		created_at TIMESTAMPTZ DEFAULT now()
+	)`;
+	
+	// CRITICAL: Deliveries table (needed for delivery_production_users FK)
+	await sql`CREATE TABLE IF NOT EXISTS deliveries (
+		id SERIAL PRIMARY KEY,
+		day DATE NOT NULL,
+		note TEXT DEFAULT '',
+		actor_name TEXT,
+		created_at TIMESTAMPTZ DEFAULT now()
+	)`;
+	
+	// CRITICAL: Recipe production users table (must be created before version check)
+	await sql`CREATE TABLE IF NOT EXISTS recipe_production_users (
+		id SERIAL PRIMARY KEY,
+		dessert TEXT NOT NULL,
+		user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		session_date DATE NOT NULL DEFAULT CURRENT_DATE,
+		created_at TIMESTAMPTZ DEFAULT now(),
+		UNIQUE (dessert, user_id, session_date)
+	)`;
+	await sql`CREATE INDEX IF NOT EXISTS idx_recipe_production_users_dessert ON recipe_production_users(dessert)`;
+	await sql`CREATE INDEX IF NOT EXISTS idx_recipe_production_users_user ON recipe_production_users(user_id)`;
+	await sql`CREATE INDEX IF NOT EXISTS idx_recipe_production_users_date ON recipe_production_users(session_date DESC)`;
+	
+	// CRITICAL: Delivery production users table (must be created before version check)
+	await sql`CREATE TABLE IF NOT EXISTS delivery_production_users (
+		id SERIAL PRIMARY KEY,
+		delivery_id INTEGER NOT NULL REFERENCES deliveries(id) ON DELETE CASCADE,
+		dessert_id INTEGER NOT NULL REFERENCES desserts(id) ON DELETE CASCADE,
+		user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		created_at TIMESTAMPTZ DEFAULT now(),
+		UNIQUE (delivery_id, dessert_id, user_id)
+	)`;
+	await sql`CREATE INDEX IF NOT EXISTS idx_delivery_production_users_delivery ON delivery_production_users(delivery_id)`;
+	await sql`CREATE INDEX IF NOT EXISTS idx_delivery_production_users_dessert ON delivery_production_users(dessert_id)`;
+	await sql`CREATE INDEX IF NOT EXISTS idx_delivery_production_users_user ON delivery_production_users(user_id)`;
+	
 	if (currentVersion >= SCHEMA_VERSION) { schemaEnsured = true; return; }
 	// Basic users table for authentication
 	await sql`CREATE TABLE IF NOT EXISTS users (
@@ -340,14 +384,7 @@ export async function ensureSchema() {
 		quantity INTEGER NOT NULL DEFAULT 0,
 		UNIQUE (delivery_id, seller_id, dessert_id)
 	)`;
-	await sql`CREATE TABLE IF NOT EXISTS delivery_production_users (
-		id SERIAL PRIMARY KEY,
-		delivery_id INTEGER NOT NULL REFERENCES deliveries(id) ON DELETE CASCADE,
-		dessert_id INTEGER NOT NULL REFERENCES desserts(id) ON DELETE CASCADE,
-		user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-		created_at TIMESTAMPTZ DEFAULT now(),
-		UNIQUE (delivery_id, dessert_id, user_id)
-	)`;
+	// Note: delivery_production_users table is now created earlier (before version check)
 	await sql`CREATE TABLE IF NOT EXISTS notifications (
 		id SERIAL PRIMARY KEY,
 		type TEXT NOT NULL,
@@ -673,18 +710,7 @@ END $$;`;
 	await sql`CREATE INDEX IF NOT EXISTS idx_delivery_production_users_delivery ON delivery_production_users(delivery_id)`;
 	await sql`CREATE INDEX IF NOT EXISTS idx_delivery_production_users_user ON delivery_production_users(user_id)`;
 	
-	// Recipe production users: track who participated in making desserts for recipes
-	await sql`CREATE TABLE IF NOT EXISTS recipe_production_users (
-		id SERIAL PRIMARY KEY,
-		dessert TEXT NOT NULL,
-		user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-		session_date DATE NOT NULL DEFAULT CURRENT_DATE,
-		created_at TIMESTAMPTZ DEFAULT now(),
-		UNIQUE (dessert, user_id, session_date)
-	)`;
-	await sql`CREATE INDEX IF NOT EXISTS idx_recipe_production_users_dessert ON recipe_production_users(dessert)`;
-	await sql`CREATE INDEX IF NOT EXISTS idx_recipe_production_users_user ON recipe_production_users(user_id)`;
-	await sql`CREATE INDEX IF NOT EXISTS idx_recipe_production_users_date ON recipe_production_users(session_date DESC)`;
+	// Note: recipe_production_users table is now created earlier (before version check)
 	
 			// 4) Persist target schema version so future requests short-circuit
 			await sql`UPDATE schema_meta SET version=${SCHEMA_VERSION}, updated_at=now()`;

@@ -153,26 +153,16 @@
 				<small id="count-label" style="opacity:.8"></small>
 			</div>
 			
-		<!-- Acciones de guardado (fecha automática) -->
+		<!-- Acciones de guardado -->
 		<div style="background: rgba(244, 166, 183, 0.08); padding: 16px; border-radius: 12px; margin-bottom: 16px; border: 2px solid rgba(244, 166, 183, 0.2);">
-			<div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between;">
-				<div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-					<span style="font-weight: 600; color: var(--primary); font-size: 15px;">📅 Registrando para:</span>
-					<strong id="session-date-display" style="font-size: 15px; color: var(--text);">-</strong>
-					<input 
-						type="date" 
-						id="session-date-picker" 
-						style="display: none;"
-					/>
-				</div>
-				<div style="display: flex; gap: 10px; flex-wrap: wrap;">
-					<button id="save-all-btn" class="press-btn" style="background: var(--primary); color: white; padding: 12px 24px; font-weight: 600; font-size: 14px;">
-						💾 Guardar Todo
-					</button>
-					<button id="view-records-btn" class="press-btn" style="padding: 12px 24px; font-size: 14px; background: white; border: 2px solid var(--primary); color: var(--primary);">
-						📋 Ver Registros
-					</button>
-				</div>
+			<div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: flex-end;">
+				<input type="date" id="session-date-picker" style="display: none;" />
+				<button id="save-all-btn" class="press-btn" style="background: var(--primary); color: white; padding: 12px 24px; font-weight: 600; font-size: 14px;">
+					💾 Guardar Participantes
+				</button>
+				<button id="view-records-btn" class="press-btn" style="padding: 12px 24px; font-size: 14px; background: white; border: 2px solid var(--primary); color: var(--primary);">
+					📋 Ver en Entregas
+				</button>
 			</div>
 		</div>
 			
@@ -199,7 +189,6 @@
 		const homeBtn = document.getElementById('home-btn');
 		const changeBtn = document.getElementById('change-range');
 	const sessionDatePicker = document.getElementById('session-date-picker');
-	const sessionDateDisplay = document.getElementById('session-date-display');
 	const saveAllBtn = document.getElementById('save-all-btn');
 	const viewRecordsBtn = document.getElementById('view-records-btn');
 	const saveStatus = document.getElementById('save-status');
@@ -1766,19 +1755,8 @@
 	// Initialize session date (automatic from URL param)
 	if (start) {
 		sessionDatePicker.value = start;
-		sessionDateDisplay.textContent = formatIsoDate(start);
 	} else {
-		const today = new Date().toISOString().split('T')[0];
-		sessionDatePicker.value = today;
-		sessionDateDisplay.textContent = formatIsoDate(today);
-	}
-	
-	// Helper to format date nicely
-	function formatIsoDate(isoDate) {
-		if (!isoDate) return '-';
-		const d = new Date(isoDate + 'T00:00:00');
-		const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-		return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+		sessionDatePicker.value = new Date().toISOString().split('T')[0];
 	}
 
 		if (!start || !end) {
