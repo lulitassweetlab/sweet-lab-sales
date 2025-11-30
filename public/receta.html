@@ -134,6 +134,7 @@
 				<h1>Receta por pasos</h1>
 			</div>
 			<div class="header-actions">
+				<button id="home-btn" class="press-btn" title="Ir a inicio">🏠 Inicio</button>
 				<button id="back-btn" class="press-btn">Volver</button>
 			</div>
 		</div>
@@ -151,6 +152,33 @@
 				<strong id="range-label"></strong>
 				<small id="count-label" style="opacity:.8"></small>
 			</div>
+			
+			<!-- Selector de fecha y acciones de guardado -->
+			<div style="background: rgba(244, 166, 183, 0.08); padding: 16px; border-radius: 12px; margin-bottom: 16px; border: 2px solid rgba(244, 166, 183, 0.2);">
+				<div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between;">
+					<div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+						<label style="font-weight: 600; color: var(--primary); font-size: 15px;">📅 Fecha de producción:</label>
+						<input 
+							type="date" 
+							id="session-date-picker" 
+							class="press-btn" 
+							style="padding: 10px 14px; font-size: 14px; border: 2px solid var(--primary); border-radius: 8px; background: white; font-weight: 500;"
+						/>
+					</div>
+					<div style="display: flex; gap: 10px; flex-wrap: wrap;">
+						<button id="save-all-btn" class="press-btn" style="background: var(--primary); color: white; padding: 12px 24px; font-weight: 600; font-size: 14px;">
+							💾 Guardar Todo
+						</button>
+						<button id="view-records-btn" class="press-btn" style="padding: 12px 24px; font-size: 14px; background: white; border: 2px solid var(--primary); color: var(--primary);">
+							📋 Ver Registros
+						</button>
+					</div>
+				</div>
+			</div>
+			
+			<!-- Status message -->
+			<div id="save-status" style="display: none; padding: 14px; border-radius: 10px; margin-bottom: 16px; font-weight: 500; font-size: 14px; text-align: center;"></div>
+			
 			<div id="counts-summary" style="display:flex; gap:10px; flex-wrap:wrap; margin:6px 0 12px 0"></div>
 			<div id="cards-wrap" style="display:flex; flex-direction:column; gap:22px; margin-top:8px"></div>
 		</div>
@@ -168,10 +196,16 @@
 		const countsSummary = document.getElementById('counts-summary');
 		const cardsWrap = document.getElementById('cards-wrap');
 		const backBtn = document.getElementById('back-btn');
+		const homeBtn = document.getElementById('home-btn');
 		const changeBtn = document.getElementById('change-range');
+		const sessionDatePicker = document.getElementById('session-date-picker');
+		const saveAllBtn = document.getElementById('save-all-btn');
+		const viewRecordsBtn = document.getElementById('view-records-btn');
+		const saveStatus = document.getElementById('save-status');
  		const sessions = [];
 		let desserts = [];
 		let allUsers = []; // Cache for all users
+		let selectedUsersByDessert = {}; // Track selected users per dessert
 
 		// Load all users sorted by participation frequency
 		async function loadUsers(dessertFilter = null) {
@@ -192,7 +226,8 @@
 		// Save production users for a dessert
 		async function saveProductionUsers(dessert, userIds, sessionDate = null) {
 			try {
-				const date = sessionDate || new Date().toISOString().split('T')[0];
+				const date = sessionDate || sessionDatePicker.value || new Date().toISOString().split('T')[0];
+				console.log(`💾 Saving users for ${dessert} on ${date}:`, userIds);
 				const response = await fetch(withActor('/api/recipes'), {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
@@ -204,10 +239,65 @@
 					})
 				});
 				if (!response.ok) throw new Error('Error al guardar');
+				const result = await response.json();
+				console.log(`✅ Saved successfully:`, result);
 				return true;
 			} catch (err) {
-				console.error('Error saving production users:', err);
+				console.error('❌ Error saving production users:', err);
 				return false;
+			}
+		}
+		
+		// Save all selected users
+		async function saveAllProductionUsers() {
+			const date = sessionDatePicker.value;
+			if (!date) {
+				showStatus('⚠️ Por favor selecciona una fecha', 'error');
+				return;
+			}
+			
+			showStatus('💾 Guardando...', 'info');
+			let savedCount = 0;
+			let errorCount = 0;
+			
+			for (const [dessert, userIds] of Object.entries(selectedUsersByDessert)) {
+				if (userIds && userIds.length > 0) {
+					const success = await saveProductionUsers(dessert, userIds, date);
+					if (success) savedCount++;
+					else errorCount++;
+				}
+			}
+			
+			if (errorCount > 0) {
+				showStatus(`⚠️ Guardado con errores: ${savedCount} OK, ${errorCount} fallos`, 'warning');
+			} else if (savedCount > 0) {
+				showStatus(`✅ Todo guardado correctamente (${savedCount} postres)`, 'success');
+			} else {
+				showStatus('⚠️ No hay participantes seleccionados', 'warning');
+			}
+		}
+		
+		// Show status message
+		function showStatus(message, type = 'info') {
+			saveStatus.textContent = message;
+			saveStatus.style.display = 'block';
+			
+			const colors = {
+				success: { bg: 'rgba(76, 175, 80, 0.1)', border: '#4CAF50', color: '#2E7D32' },
+				error: { bg: 'rgba(244, 67, 54, 0.1)', border: '#F44336', color: '#C62828' },
+				warning: { bg: 'rgba(255, 152, 0, 0.1)', border: '#FF9800', color: '#E65100' },
+				info: { bg: 'rgba(33, 150, 243, 0.1)', border: '#2196F3', color: '#1565C0' }
+			};
+			
+			const style = colors[type] || colors.info;
+			saveStatus.style.background = style.bg;
+			saveStatus.style.border = `2px solid ${style.border}`;
+			saveStatus.style.color = style.color;
+			
+			if (type === 'success') {
+				setTimeout(() => {
+					saveStatus.style.display = 'none';
+				}, 3000);
 			}
 		}
 
@@ -281,28 +371,29 @@
 					}
 				});
 
-				userBtn.addEventListener('click', async () => {
-					const userId = Number(userBtn.dataset.userId);
-					const isSelected = selectedUsers.has(userId);
-					
-					if (isSelected) {
-						selectedUsers.delete(userId);
-						userBtn.style.background = '';
-						userBtn.style.color = '';
-						userBtn.style.fontWeight = '';
-						userBtn.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
-					} else {
-						selectedUsers.add(userId);
-						// Style like active dessert nav button
-						userBtn.style.background = 'var(--primary)';
-						userBtn.style.color = 'white';
-						userBtn.style.fontWeight = '600';
-						userBtn.style.boxShadow = '0 4px 16px var(--hover-shadow-pink)';
-					}
-					
-					// Auto-save selection
-					await saveProductionUsers(dessertName, Array.from(selectedUsers));
-				});
+			userBtn.addEventListener('click', async () => {
+				const userId = Number(userBtn.dataset.userId);
+				const isSelected = selectedUsers.has(userId);
+				
+				if (isSelected) {
+					selectedUsers.delete(userId);
+					userBtn.style.background = '';
+					userBtn.style.color = '';
+					userBtn.style.fontWeight = '';
+					userBtn.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
+				} else {
+					selectedUsers.add(userId);
+					// Style like active dessert nav button
+					userBtn.style.background = 'var(--primary)';
+					userBtn.style.color = 'white';
+					userBtn.style.fontWeight = '600';
+					userBtn.style.boxShadow = '0 4px 16px var(--hover-shadow-pink)';
+				}
+				
+				// Store selection (don't auto-save, wait for "Save" button)
+				selectedUsersByDessert[dessertName] = Array.from(selectedUsers);
+				console.log('✏️ Updated selection for', dessertName, ':', selectedUsersByDessert[dessertName]);
+			});
 
 				return userBtn;
 			});
@@ -1618,22 +1709,44 @@
 			});
 		}
 
-		// Navigation
-		backBtn.addEventListener('click', () => {
-			const url = new URL('/sales-report.html', location.origin);
-			if (start) url.searchParams.set('start', start);
-			if (end) url.searchParams.set('end', end);
-			if (actor) url.searchParams.set('actor', actor);
-			location.href = url.toString();
-		});
-		changeBtn.addEventListener('click', (ev) => {
-			openRangeCalendarPopover((range) => {
-				if (!range || !range.start || !range.end) return;
-				start = range.start; end = range.end;
-				history.replaceState(null, '', `?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}${actor?`&actor=${encodeURIComponent(actor)}`:''}`);
-				load();
-			}, ev.clientX, ev.clientY);
-		});
+	// Navigation
+	backBtn.addEventListener('click', () => {
+		const url = new URL('/sales-report.html', location.origin);
+		if (start) url.searchParams.set('start', start);
+		if (end) url.searchParams.set('end', end);
+		if (actor) url.searchParams.set('actor', actor);
+		location.href = url.toString();
+	});
+	
+	homeBtn.addEventListener('click', () => {
+		location.href = '/';
+	});
+	
+	changeBtn.addEventListener('click', (ev) => {
+		openRangeCalendarPopover((range) => {
+			if (!range || !range.start || !range.end) return;
+			start = range.start; end = range.end;
+			history.replaceState(null, '', `?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}${actor?`&actor=${encodeURIComponent(actor)}`:''}`);
+			load();
+		}, ev.clientX, ev.clientY);
+	});
+	
+	// Production users actions
+	saveAllBtn.addEventListener('click', async () => {
+		await saveAllProductionUsers();
+	});
+	
+	viewRecordsBtn.addEventListener('click', () => {
+		// Navigate to deliveries page
+		location.href = '/deliveries.html';
+	});
+	
+	// Initialize session date picker with the start date
+	if (start) {
+		sessionDatePicker.value = start;
+	} else {
+		sessionDatePicker.value = new Date().toISOString().split('T')[0];
+	}
 
 		if (!start || !end) {
 			countLabel.textContent = 'Selecciona un rango de fechas';
