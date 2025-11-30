@@ -1221,6 +1221,11 @@ function renderFooterDessertColumns() {
 }
 
 function calcRowTotal(q) {
+	// If total_cents exists from database, use it directly (already accounts for special pricing)
+	if (q.hasOwnProperty('total_cents') && q.total_cents !== null && q.total_cents !== undefined) {
+		return Number(q.total_cents) || 0;
+	}
+	
 	// Support both old format and new dynamic format
 	let total = 0;
 	
@@ -1249,10 +1254,14 @@ function calcRowTotal(q) {
 	}
 	
 	// Fallback to old format with dynamic desserts (check qty_* properties)
+	// Apply special pricing if present
+	const priceMultiplier = q.special_pricing_type === 'muestra' ? 0 : 
+	                        q.special_pricing_type === 'a_costo' ? 0.55 : 1;
+	
 	for (const d of state.desserts) {
 		const qty = Number(q[`qty_${d.short_code}`] || 0);
-		const price = Number(PRICES[d.short_code] || 0);
-		total += qty * price;
+		const basePrice = Number(PRICES[d.short_code] || 0);
+		total += qty * Math.round(basePrice * priceMultiplier);
 	}
 	
 	return total;
