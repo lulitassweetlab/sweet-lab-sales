@@ -1208,17 +1208,23 @@
 				const userSelector = buildUserSelector(dessertName, dessertUsers);
 				card.appendChild(userSelector.element);
 			} else {
-				// Show a message when no users are available
+				// Show a helpful message when no users are available
 				const noUsersMsg = document.createElement('div');
 				noUsersMsg.style.margin = '16px 0';
-				noUsersMsg.style.padding = '12px';
-				noUsersMsg.style.background = 'rgba(255, 193, 7, 0.1)';
+				noUsersMsg.style.padding = '16px';
+				noUsersMsg.style.background = 'rgba(255, 193, 7, 0.12)';
 				noUsersMsg.style.borderRadius = '8px';
-				noUsersMsg.style.border = '1px solid rgba(255, 193, 7, 0.3)';
-				noUsersMsg.style.fontSize = '13px';
-				noUsersMsg.style.color = 'rgba(0, 0, 0, 0.7)';
-				noUsersMsg.textContent = '⚠️ No hay usuarios disponibles. Por favor, contacta al administrador.';
+				noUsersMsg.style.border = '2px solid rgba(255, 193, 7, 0.4)';
+				noUsersMsg.style.fontSize = '14px';
+				noUsersMsg.style.color = 'rgba(0, 0, 0, 0.8)';
+				noUsersMsg.innerHTML = `
+					<div style="font-weight: 600; margin-bottom: 8px;">⚠️ No hay usuarios disponibles</div>
+					<div style="font-size: 13px; opacity: 0.9;">
+						No se encontraron usuarios en el sistema. Por favor verifica que existan usuarios o vendedores registrados.
+					</div>
+				`;
 				card.appendChild(noUsersMsg);
+				console.warn('⚠️ No users found for dessert:', dessertName);
 			}
 			
 			// Add visual separator between participants and recipe steps

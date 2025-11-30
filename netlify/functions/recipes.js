@@ -21,36 +21,78 @@ export async function handler(event) {
 				// Get production users sorted by frequency
 				if (productionUsers) {
 					const dessertFilter = params.get('dessert_filter');
-					// Get users with their participation count, sorted by most frequent first
-					let query;
-					if (dessertFilter) {
-						query = sql`
-							SELECT 
-								u.id, 
-								u.username, 
-								COUNT(rpu.id) as participation_count,
-								MAX(rpu.session_date) as last_participation
-							FROM users u
-							LEFT JOIN recipe_production_users rpu ON u.id = rpu.user_id 
-								AND lower(rpu.dessert) = lower(${dessertFilter})
-							GROUP BY u.id, u.username
-							ORDER BY participation_count DESC, last_participation DESC NULLS LAST, u.username ASC
-						`;
-					} else {
-						query = sql`
-							SELECT 
-								u.id, 
-								u.username, 
-								COUNT(rpu.id) as participation_count,
-								MAX(rpu.session_date) as last_participation
-							FROM users u
-							LEFT JOIN recipe_production_users rpu ON u.id = rpu.user_id
-							GROUP BY u.id, u.username
-							ORDER BY participation_count DESC, last_participation DESC NULLS LAST, u.username ASC
-						`;
+					
+					// First, get all users from users table OR sellers table
+					let allUsers = [];
+					try {
+						// Get explicit users
+						const usersFromTable = await sql`SELECT id, username FROM users ORDER BY username ASC`;
+						allUsers = usersFromTable || [];
+						
+						// If no users in table, get from sellers as fallback
+						if (allUsers.length === 0) {
+							const sellers = await sql`SELECT id, name as username FROM sellers WHERE archived_at IS NULL ORDER BY name ASC`;
+							allUsers = sellers || [];
+						}
+					} catch (err) {
+						console.error('Error fetching users:', err);
 					}
-					const users = await query;
-					return json(users);
+					
+					// Now add participation counts
+					const usersWithCounts = [];
+					for (const user of allUsers) {
+						let participationCount = 0;
+						let lastParticipation = null;
+						
+						try {
+							if (dessertFilter) {
+								const counts = await sql`
+									SELECT 
+										COUNT(*)::int as count,
+										MAX(session_date) as last_date
+									FROM recipe_production_users
+									WHERE user_id = ${user.id} 
+										AND lower(dessert) = lower(${dessertFilter})
+								`;
+								participationCount = counts[0]?.count || 0;
+								lastParticipation = counts[0]?.last_date || null;
+							} else {
+								const counts = await sql`
+									SELECT 
+										COUNT(*)::int as count,
+										MAX(session_date) as last_date
+									FROM recipe_production_users
+									WHERE user_id = ${user.id}
+								`;
+								participationCount = counts[0]?.count || 0;
+								lastParticipation = counts[0]?.last_date || null;
+							}
+						} catch (err) {
+							// Table might not exist yet, that's OK
+						}
+						
+						usersWithCounts.push({
+							id: user.id,
+							username: user.username,
+							participation_count: participationCount,
+							last_participation: lastParticipation
+						});
+					}
+					
+					// Sort by participation count (desc), then last participation (desc), then name (asc)
+					usersWithCounts.sort((a, b) => {
+						if (b.participation_count !== a.participation_count) {
+							return b.participation_count - a.participation_count;
+						}
+						if (a.last_participation && b.last_participation) {
+							return new Date(b.last_participation) - new Date(a.last_participation);
+						}
+						if (a.last_participation) return -1;
+						if (b.last_participation) return 1;
+						return a.username.localeCompare(b.username);
+					});
+					
+					return json(usersWithCounts);
 				}
 				if (seed) {
 					await seedDefaults();
@@ -101,19 +143,49 @@ export async function handler(event) {
 					if (!dessert) return json({ error: 'dessert requerido' }, 400);
 					if (userIds.length === 0) return json({ error: 'user_ids requerido' }, 400);
 					
-					// First, delete existing entries for this dessert and date
-					await sql`DELETE FROM recipe_production_users WHERE lower(dessert) = lower(${dessert}) AND session_date = ${sessionDate}`;
-					
-					// Then insert new entries
+					// First, ensure all user IDs exist in users table
+					// This is important because recipe_production_users has a foreign key to users
 					for (const userId of userIds) {
-						await sql`
-							INSERT INTO recipe_production_users (dessert, user_id, session_date)
-							VALUES (${dessert}, ${userId}, ${sessionDate})
-							ON CONFLICT (dessert, user_id, session_date) DO NOTHING
-						`;
+						try {
+							// Check if user exists
+							const userExists = await sql`SELECT id FROM users WHERE id = ${userId}`;
+							if (userExists.length === 0) {
+								// User doesn't exist, try to create from sellers
+								const seller = await sql`SELECT id, name FROM sellers WHERE id = ${userId}`;
+								if (seller.length > 0) {
+									// Create user from seller
+									const defaultPass = seller[0].name.toLowerCase() + 'sweet';
+									await sql`
+										INSERT INTO users (username, password_hash, role)
+										VALUES (${seller[0].name}, ${defaultPass}, 'user')
+										ON CONFLICT (username) DO NOTHING
+									`;
+								}
+							}
+						} catch (err) {
+							console.error('Error ensuring user exists:', err);
+						}
 					}
 					
-					return json({ ok: true, saved: userIds.length });
+					// Delete existing entries for this dessert and date
+					await sql`DELETE FROM recipe_production_users WHERE lower(dessert) = lower(${dessert}) AND session_date = ${sessionDate}`;
+					
+					// Insert new entries
+					let savedCount = 0;
+					for (const userId of userIds) {
+						try {
+							await sql`
+								INSERT INTO recipe_production_users (dessert, user_id, session_date)
+								VALUES (${dessert}, ${userId}, ${sessionDate})
+								ON CONFLICT (dessert, user_id, session_date) DO NOTHING
+							`;
+							savedCount++;
+						} catch (err) {
+							console.error('Error saving user participation:', err);
+						}
+					}
+					
+					return json({ ok: true, saved: savedCount });
 				}
 				
 				if (kind === 'dessert.order') {
