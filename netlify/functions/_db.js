@@ -33,18 +33,29 @@ export async function ensureSchema() {
 				created_at TIMESTAMPTZ DEFAULT now()
 			)`;
 			
-			await sql`CREATE TABLE IF NOT EXISTS desserts (
-				id SERIAL PRIMARY KEY,
-				name TEXT UNIQUE NOT NULL,
-				short_code TEXT UNIQUE NOT NULL,
-				sale_price INTEGER NOT NULL DEFAULT 0,
-				is_active BOOLEAN NOT NULL DEFAULT true,
-				position INTEGER NOT NULL DEFAULT 0,
-				created_at TIMESTAMPTZ DEFAULT now(),
-				updated_at TIMESTAMPTZ DEFAULT now()
-			)`;
-			
-			await sql`CREATE TABLE IF NOT EXISTS recipe_production_users (
+		await sql`CREATE TABLE IF NOT EXISTS desserts (
+			id SERIAL PRIMARY KEY,
+			name TEXT UNIQUE NOT NULL,
+			short_code TEXT UNIQUE NOT NULL,
+			sale_price INTEGER NOT NULL DEFAULT 0,
+			is_active BOOLEAN NOT NULL DEFAULT true,
+			position INTEGER NOT NULL DEFAULT 0,
+			created_at TIMESTAMPTZ DEFAULT now(),
+			updated_at TIMESTAMPTZ DEFAULT now()
+		)`;
+		
+		// Recipe sessions: complete saved records with quantities, times, and participants
+		await sql`CREATE TABLE IF NOT EXISTS recipe_sessions (
+			id SERIAL PRIMARY KEY,
+			session_date DATE NOT NULL,
+			actor_name TEXT,
+			desserts_data JSONB NOT NULL,
+			created_at TIMESTAMPTZ DEFAULT now()
+		)`;
+		await sql`CREATE INDEX IF NOT EXISTS idx_recipe_sessions_date ON recipe_sessions(session_date DESC)`;
+		await sql`CREATE INDEX IF NOT EXISTS idx_recipe_sessions_created ON recipe_sessions(created_at DESC)`;
+		
+		await sql`CREATE TABLE IF NOT EXISTS recipe_production_users (
 				id SERIAL PRIMARY KEY,
 				dessert TEXT NOT NULL,
 				user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
