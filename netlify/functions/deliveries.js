@@ -57,6 +57,7 @@ export async function handler(event) {
 							s.qty_mara,
 							s.qty_oreo,
 							s.qty_nute,
+							s.special_pricing_type,
 							-- Check if this sale has any sale_items
 							(SELECT COUNT(*) FROM sale_items WHERE sale_id = s.id) > 0 AS has_items
 						FROM sales s
@@ -107,11 +108,20 @@ export async function handler(event) {
 						if (!sellersByDateAndId[sellerKey]) {
 							sellersByDateAndId[sellerKey] = {
 								seller_id: sale.seller_id,
-								seller_name: sale.seller_name
+								seller_name: sale.seller_name,
+								has_muestra: false,
+								has_a_costo: false
 							};
 							for (const d of desserts) {
 								sellersByDateAndId[sellerKey][d.short_code] = 0;
 							}
+						}
+						
+						// Track special pricing types
+						if (sale.special_pricing_type === 'muestra') {
+							sellersByDateAndId[sellerKey].has_muestra = true;
+						} else if (sale.special_pricing_type === 'a_costo') {
+							sellersByDateAndId[sellerKey].has_a_costo = true;
 						}
 						
 						// Decide whether to use sale_items or legacy columns for this sale

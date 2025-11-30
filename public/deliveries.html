@@ -154,19 +154,56 @@
 				salesTbody.appendChild(dateRow);
 				
 				// Render each seller
-				for (const seller of dateData.sellers) {
+				for (let i = 0; i < dateData.sellers.length; i++) {
+					const seller = dateData.sellers[i];
 					const tr = document.createElement('tr');
 					tr.style.backgroundColor = '#fafafa';
+					
+					// Add pink border between sellers (except first one)
+					if (i > 0) {
+						tr.style.borderTop = '1px solid rgba(255, 192, 203, 0.4)';
+					}
 					
 					// Empty cell for Fecha column (merge with date header visually)
 					const emptyDateCell = document.createElement('td');
 					emptyDateCell.textContent = '';
 					tr.appendChild(emptyDateCell);
 					
-					// Seller name
+					// Seller name with special pricing indicators
 					const sellerCell = document.createElement('td');
-					sellerCell.textContent = seller.seller_name;
 					sellerCell.style.paddingLeft = '16px';
+					
+					const sellerNameSpan = document.createElement('span');
+					sellerNameSpan.textContent = seller.seller_name;
+					sellerCell.appendChild(sellerNameSpan);
+					
+					// Add badges for special pricing
+					if (seller.has_muestra) {
+						const badge = document.createElement('span');
+						badge.textContent = 'Muestra';
+						badge.style.marginLeft = '6px';
+						badge.style.fontSize = '10px';
+						badge.style.padding = '2px 6px';
+						badge.style.backgroundColor = '#9c27b0';
+						badge.style.color = 'white';
+						badge.style.borderRadius = '3px';
+						badge.style.fontWeight = 'bold';
+						sellerCell.appendChild(badge);
+					}
+					
+					if (seller.has_a_costo) {
+						const badge = document.createElement('span');
+						badge.textContent = 'A Costo';
+						badge.style.marginLeft = '6px';
+						badge.style.fontSize = '10px';
+						badge.style.padding = '2px 6px';
+						badge.style.backgroundColor = '#ff9800';
+						badge.style.color = 'white';
+						badge.style.borderRadius = '3px';
+						badge.style.fontWeight = 'bold';
+						sellerCell.appendChild(badge);
+					}
+					
 					tr.appendChild(sellerCell);
 					
 					// Dessert quantities and calculate seller total
@@ -185,7 +222,6 @@
 					sellerTotalCell.className = 'col-qty';
 					sellerTotalCell.textContent = sellerTotal;
 					sellerTotalCell.style.fontWeight = 'bold';
-					sellerTotalCell.style.backgroundColor = '#fff3cd';
 					tr.appendChild(sellerTotalCell);
 					
 					salesTbody.appendChild(tr);
