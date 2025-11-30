@@ -764,6 +764,16 @@ END $$;`;
 	await sql`CREATE INDEX IF NOT EXISTS idx_delivery_production_users_user ON delivery_production_users(user_id)`;
 	
 	// Note: recipe_production_users table is now created earlier (before version check)
+	// But ensure recipe_session_id column exists if table was created before
+	await sql`DO $$ BEGIN
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'recipe_production_users' AND column_name = 'recipe_session_id'
+		) THEN
+			ALTER TABLE recipe_production_users ADD COLUMN recipe_session_id INTEGER REFERENCES recipe_sessions(id) ON DELETE SET NULL;
+			CREATE INDEX IF NOT EXISTS idx_recipe_production_users_session ON recipe_production_users(recipe_session_id);
+		END IF;
+	END $$;`;
 	
 			// 4) Persist target schema version so future requests short-circuit
 			await sql`UPDATE schema_meta SET version=${SCHEMA_VERSION}, updated_at=now()`;
