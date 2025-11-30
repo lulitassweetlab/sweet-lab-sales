@@ -345,19 +345,20 @@
 			const maxVisible = 4; // Show only 4 users initially
 			let isExpanded = false;
 
-			// Create user buttons
-			const userButtons = users.map((user, index) => {
-				const userBtn = document.createElement('button');
-				userBtn.className = 'press-btn user-select-compact';
-				userBtn.dataset.userId = user.id;
-				userBtn.dataset.index = index;
-				userBtn.style.padding = '6px 12px';
-				userBtn.style.fontSize = '12px';
-				userBtn.style.minWidth = 'unset';
-				userBtn.style.transition = 'all 0.2s ease';
-				userBtn.style.position = 'relative';
-				userBtn.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
-				userBtn.style.display = index < maxVisible ? 'inline-block' : 'none';
+		// Create user buttons
+		const userButtons = users.map((user, index) => {
+			const userBtn = document.createElement('button');
+			userBtn.className = 'press-btn user-select-compact';
+			userBtn.dataset.userId = user.id;
+			userBtn.dataset.dessert = dessertName; // Add dessert identifier for session restoration
+			userBtn.dataset.index = index;
+			userBtn.style.padding = '6px 12px';
+			userBtn.style.fontSize = '12px';
+			userBtn.style.minWidth = 'unset';
+			userBtn.style.transition = 'all 0.2s ease';
+			userBtn.style.position = 'relative';
+			userBtn.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
+			userBtn.style.display = index < maxVisible ? 'inline-block' : 'none';
 				
 				// User name
 				const nameSpan = document.createElement('span');
