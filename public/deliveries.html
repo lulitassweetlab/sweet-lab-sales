@@ -167,6 +167,55 @@
 				dateRow.appendChild(dateCell);
 				salesTbody.appendChild(dateRow);
 				
+				// Render production users row (if any)
+				if (dateData.production_users) {
+					const hasAnyUsers = Object.values(dateData.production_users).some(users => users && users.length > 0);
+					
+					if (hasAnyUsers) {
+						const usersRow = document.createElement('tr');
+						usersRow.style.backgroundColor = 'rgba(244, 166, 183, 0.08)';
+						usersRow.style.fontSize = '12px';
+						
+						// First cell (empty or label)
+						const labelCell = document.createElement('td');
+						labelCell.textContent = '👥 Participantes:';
+						labelCell.style.paddingLeft = '12px';
+						labelCell.style.fontWeight = '600';
+						labelCell.style.color = 'var(--primary)';
+						labelCell.style.textAlign = 'left';
+						usersRow.appendChild(labelCell);
+						
+						// One cell per dessert
+						for (const d of desserts) {
+							const td = document.createElement('td');
+							td.className = 'col-qty';
+							td.style.padding = '6px 4px';
+							td.style.textAlign = 'right';
+							
+							const users = dateData.production_users[d.short_code] || [];
+							if (users.length > 0) {
+								const usersText = users.join(', ');
+								td.textContent = usersText;
+								td.style.fontWeight = '500';
+								td.style.color = 'var(--text)';
+								td.title = `Participantes en ${d.name}: ${usersText}`;
+							} else {
+								td.textContent = '-';
+								td.style.opacity = '0.3';
+							}
+							
+							usersRow.appendChild(td);
+						}
+						
+						// Total cell (empty)
+						const totalCell = document.createElement('td');
+						totalCell.className = 'col-qty';
+						usersRow.appendChild(totalCell);
+						
+						salesTbody.appendChild(usersRow);
+					}
+				}
+				
 				// Render each seller
 				for (let i = 0; i < dateData.sellers.length; i++) {
 					const seller = dateData.sellers[i];

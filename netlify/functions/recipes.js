@@ -16,6 +16,101 @@ export async function handler(event) {
 				const includeExtras = params.get('include_extras') === '1' || params.get('include_extras') === 'true';
 				const allItems = params.get('all_items') === '1' || params.get('all_items') === 'true';
 				const seed = params.get('seed') === '1' || params.get('seed') === 'true';
+			const productionUsers = params.get('production_users') === '1' || params.get('production_users') === 'true';
+			const savedSessions = params.get('saved_sessions') === '1' || params.get('saved_sessions') === 'true';
+			
+			// Get saved recipe sessions
+			if (savedSessions) {
+				const sessions = await sql`
+					SELECT 
+						id,
+						session_date,
+						actor_name,
+						desserts_data,
+						created_at
+					FROM recipe_sessions
+					ORDER BY session_date DESC, created_at DESC
+					LIMIT 50
+				`;
+				return json(sessions);
+			}
+			
+			// Get production users sorted by frequency
+			if (productionUsers) {
+					const dessertFilter = params.get('dessert_filter');
+					
+					// First, get all users from users table OR sellers table
+					let allUsers = [];
+					try {
+						// Get explicit users
+						const usersFromTable = await sql`SELECT id, username FROM users ORDER BY username ASC`;
+						allUsers = usersFromTable || [];
+						
+						// If no users in table, get from sellers as fallback
+						if (allUsers.length === 0) {
+							const sellers = await sql`SELECT id, name as username FROM sellers WHERE archived_at IS NULL ORDER BY name ASC`;
+							allUsers = sellers || [];
+						}
+					} catch (err) {
+						console.error('Error fetching users:', err);
+					}
+					
+					// Now add participation counts
+					const usersWithCounts = [];
+					for (const user of allUsers) {
+						let participationCount = 0;
+						let lastParticipation = null;
+						
+						try {
+							if (dessertFilter) {
+								const counts = await sql`
+									SELECT 
+										COUNT(*)::int as count,
+										MAX(session_date) as last_date
+									FROM recipe_production_users
+									WHERE user_id = ${user.id} 
+										AND lower(dessert) = lower(${dessertFilter})
+								`;
+								participationCount = counts[0]?.count || 0;
+								lastParticipation = counts[0]?.last_date || null;
+							} else {
+								const counts = await sql`
+									SELECT 
+										COUNT(*)::int as count,
+										MAX(session_date) as last_date
+									FROM recipe_production_users
+									WHERE user_id = ${user.id}
+								`;
+								participationCount = counts[0]?.count || 0;
+								lastParticipation = counts[0]?.last_date || null;
+							}
+						} catch (err) {
+							// Table might not exist yet, that's OK
+						}
+						
+						usersWithCounts.push({
+							id: user.id,
+							username: user.username,
+							participation_count: participationCount,
+							last_participation: lastParticipation
+						});
+					}
+					
+					// Sort by participation count (desc), then last participation (desc), then name (asc)
+					usersWithCounts.sort((a, b) => {
+						if (b.participation_count !== a.participation_count) {
+							return b.participation_count - a.participation_count;
+						}
+						if (a.last_participation && b.last_participation) {
+							return new Date(b.last_participation) - new Date(a.last_participation);
+						}
+						if (a.last_participation) return -1;
+						if (b.last_participation) return 1;
+						return a.username.localeCompare(b.username);
+					});
+					
+					return json(usersWithCounts);
+				}
 				if (seed) {
 					await seedDefaults();
 					return json({ ok: true });
@@ -52,9 +147,245 @@ export async function handler(event) {
 				`;
 				return json(ds.map(r => r.dessert));
 			}
-			case 'POST': {
-				const data = JSON.parse(event.body || '{}');
-				const kind = (data.kind || '').toString();
+		case 'POST': {
+			const data = JSON.parse(event.body || '{}');
+			const kind = (data.kind || '').toString();
+			
+			// Save complete recipe session (quantities, times, participants)
+			if (kind === 'recipe.session') {
+				const sessionDate = (data.session_date || new Date().toISOString().split('T')[0]).toString().slice(0, 10);
+				const actorName = (data.actor_name || '').toString();
+				const dessertsData = data.desserts || []; // Array of { dessert, qty, participants: [userIds], steps: [{ step_name, times }] }
+				
+				console.log('📥 Received recipe.session request:', { sessionDate, actorName, dessertsCount: dessertsData.length });
+				
+				if (!Array.isArray(dessertsData) || dessertsData.length === 0) {
+					return json({ error: 'desserts data requerido' }, 400);
+				}
+				
+				// Save the complete session
+				const [session] = await sql`
+					INSERT INTO recipe_sessions (session_date, actor_name, desserts_data)
+					VALUES (${sessionDate}, ${actorName}, ${JSON.stringify(dessertsData)})
+					RETURNING id
+				`;
+				const sessionId = session.id;
+				console.log(`✅ Created recipe session ${sessionId}`);
+				
+				// Save participants with session reference
+				for (const dessertData of dessertsData) {
+					const dessert = dessertData.dessert;
+					const userIds = Array.isArray(dessertData.participants) ? dessertData.participants : [];
+					
+					if (userIds.length === 0) continue;
+					
+					// Ensure users exist
+					for (const userId of userIds) {
+						try {
+							const userExists = await sql`SELECT id FROM users WHERE id = ${userId}`;
+							if (userExists.length === 0) {
+								const seller = await sql`SELECT id, name FROM sellers WHERE id = ${userId}`;
+								if (seller.length > 0) {
+									await sql`
+										INSERT INTO users (username, password_hash, role)
+										VALUES (${seller[0].name}, ${seller[0].name.toLowerCase() + 'sweet'}, 'user')
+										ON CONFLICT (username) DO NOTHING
+									`;
+								}
+							}
+						} catch (err) {
+							console.error('Error ensuring user exists:', err);
+						}
+					}
+					
+					// Delete existing entries
+					await sql`DELETE FROM recipe_production_users WHERE lower(dessert) = lower(${dessert}) AND session_date = ${sessionDate}`;
+					
+					// Insert with session reference
+					for (const userId of userIds) {
+						try {
+							await sql`
+								INSERT INTO recipe_production_users (dessert, user_id, session_date, recipe_session_id)
+								VALUES (${dessert}, ${userId}, ${sessionDate}, ${sessionId})
+								ON CONFLICT (dessert, user_id, session_date) DO UPDATE SET recipe_session_id = ${sessionId}
+							`;
+						} catch (err) {
+							console.error(`Error saving participant ${userId} for ${dessert}:`, err);
+						}
+					}
+					
+					// Sync to delivery_production_users
+					try {
+						let deliveryRows = await sql`SELECT id FROM deliveries WHERE day = ${sessionDate} LIMIT 1`;
+						let deliveryId;
+						
+						if (deliveryRows.length === 0) {
+							const [newDelivery] = await sql`
+								INSERT INTO deliveries (day, note, actor_name)
+								VALUES (${sessionDate}, 'Auto-creado desde recetas', ${actorName})
+								RETURNING id
+							`;
+							deliveryId = newDelivery.id;
+						} else {
+							deliveryId = deliveryRows[0].id;
+						}
+						
+					const dessertRows = await sql`
+						SELECT id, name, short_code FROM desserts 
+						WHERE lower(name) = lower(${dessert}) OR lower(short_code) = lower(${dessert})
+						LIMIT 1
+					`;
+					
+					console.log(`🔍 Sync: Looking for dessert '${dessert}' - Found:`, dessertRows.length > 0 ? dessertRows[0] : 'NOT FOUND');
+					
+					if (dessertRows.length > 0) {
+						const dessertId = dessertRows[0].id;
+							await sql`DELETE FROM delivery_production_users WHERE delivery_id = ${deliveryId} AND dessert_id = ${dessertId}`;
+							
+							for (const userId of userIds) {
+								try {
+									await sql`
+										INSERT INTO delivery_production_users (delivery_id, dessert_id, user_id)
+										VALUES (${deliveryId}, ${dessertId}, ${userId})
+										ON CONFLICT DO NOTHING
+									`;
+								} catch (err) {
+									console.error(`Error saving to delivery_production_users:`, err);
+								}
+							}
+						}
+					} catch (err) {
+						console.error('Error syncing to deliveries:', err);
+					}
+				}
+				
+				return json({ ok: true, session_id: sessionId });
+			}
+			
+			// Save production users for a recipe session (OLD - kept for compatibility)
+			if (kind === 'production.users') {
+				const dessert = (data.dessert || '').toString();
+				const userIds = Array.isArray(data.user_ids) ? data.user_ids.map(x => Number(x) || 0).filter(Boolean) : [];
+				const sessionDate = (data.session_date || new Date().toISOString().split('T')[0]).toString().slice(0, 10);
+				
+				console.log('📥 Received production.users request:', { dessert, userIds, sessionDate });
+				
+				if (!dessert) return json({ error: 'dessert requerido' }, 400);
+				if (userIds.length === 0) return json({ error: 'user_ids requerido' }, 400);
+					
+					// First, ensure all user IDs exist in users table
+					// This is important because recipe_production_users has a foreign key to users
+					for (const userId of userIds) {
+						try {
+							// Check if user exists
+							const userExists = await sql`SELECT id FROM users WHERE id = ${userId}`;
+							if (userExists.length === 0) {
+								// User doesn't exist, try to create from sellers
+								const seller = await sql`SELECT id, name FROM sellers WHERE id = ${userId}`;
+								if (seller.length > 0) {
+									// Create user from seller
+									const defaultPass = seller[0].name.toLowerCase() + 'sweet';
+									await sql`
+										INSERT INTO users (username, password_hash, role)
+										VALUES (${seller[0].name}, ${defaultPass}, 'user')
+										ON CONFLICT (username) DO NOTHING
+									`;
+								}
+							}
+						} catch (err) {
+							console.error('Error ensuring user exists:', err);
+						}
+					}
+					
+				// Delete existing entries for this dessert and date
+				await sql`DELETE FROM recipe_production_users WHERE lower(dessert) = lower(${dessert}) AND session_date = ${sessionDate}`;
+				console.log(`🗑️ Deleted existing entries for ${dessert} on ${sessionDate}`);
+				
+				// Insert new entries
+				let savedCount = 0;
+				const insertErrors = [];
+				for (const userId of userIds) {
+					try {
+						await sql`
+							INSERT INTO recipe_production_users (dessert, user_id, session_date)
+							VALUES (${dessert}, ${userId}, ${sessionDate})
+							ON CONFLICT (dessert, user_id, session_date) DO NOTHING
+						`;
+						savedCount++;
+						console.log(`✅ Inserted ${dessert} - user ${userId}`);
+					} catch (err) {
+						console.error(`❌ Error saving user ${userId} for ${dessert}:`, err.message);
+						insertErrors.push({ userId, error: err.message });
+					}
+				}
+				
+				if (insertErrors.length > 0) {
+					console.error('Insert errors:', insertErrors);
+				}
+					
+					// ALSO save to delivery_production_users (for page "Entregas")
+					// First, get or create a delivery for this date
+					try {
+						// Check if delivery exists for this date
+						let deliveryRows = await sql`SELECT id FROM deliveries WHERE day = ${sessionDate} LIMIT 1`;
+						let deliveryId;
+						
+						if (deliveryRows.length === 0) {
+							// Create delivery for this date
+							const [newDelivery] = await sql`
+								INSERT INTO deliveries (day, note, actor_name)
+								VALUES (${sessionDate}, 'Auto-creado desde recetas', '')
+								RETURNING id
+							`;
+							deliveryId = newDelivery.id;
+						} else {
+							deliveryId = deliveryRows[0].id;
+						}
+						
+					// Get dessert ID from short_code/name
+					const dessertRows = await sql`
+						SELECT id, name, short_code FROM desserts 
+						WHERE lower(name) = lower(${dessert}) OR lower(short_code) = lower(${dessert})
+						LIMIT 1
+					`;
+					
+					console.log(`🔍 Looking for dessert '${dessert}':`, dessertRows);
+					
+					if (dessertRows.length > 0) {
+						const dessertId = dessertRows[0].id;
+						console.log(`✅ Found dessert: ${dessertRows[0].name} (id: ${dessertId})`);
+						
+						// Delete existing entries for this delivery, dessert
+						await sql`
+							DELETE FROM delivery_production_users 
+							WHERE delivery_id = ${deliveryId} AND dessert_id = ${dessertId}
+						`;
+						console.log(`🗑️ Deleted existing delivery_production_users for delivery ${deliveryId}, dessert ${dessertId}`);
+						
+						// Insert new entries
+						for (const userId of userIds) {
+							try {
+								await sql`
+									INSERT INTO delivery_production_users (delivery_id, dessert_id, user_id)
+									VALUES (${deliveryId}, ${dessertId}, ${userId})
+									ON CONFLICT DO NOTHING
+								`;
+								console.log(`✅ Inserted delivery_production_users: delivery ${deliveryId}, dessert ${dessertId}, user ${userId}`);
+							} catch (err) {
+								console.error(`❌ Error saving to delivery_production_users (user ${userId}):`, err.message);
+							}
+						}
+					} else {
+						console.error(`❌ Dessert '${dessert}' not found in desserts table!`);
+					}
+					} catch (err) {
+						console.error('Error syncing to deliveries:', err);
+						// Don't fail the whole request if delivery sync fails
+					}
+					
+					return json({ ok: true, saved: savedCount });
+				}
+				
 				if (kind === 'dessert.order') {
 					const names = Array.isArray(data.names) ? data.names : [];
 					for (let i=0;i<names.length;i++) {

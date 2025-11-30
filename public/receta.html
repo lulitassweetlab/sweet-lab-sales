@@ -134,6 +134,7 @@
 				<h1>Receta por pasos</h1>
 			</div>
 			<div class="header-actions">
+				<button id="home-btn" class="press-btn" title="Ir a inicio">🏠 Inicio</button>
 				<button id="back-btn" class="press-btn">Volver</button>
 			</div>
 		</div>
@@ -151,6 +152,23 @@
 				<strong id="range-label"></strong>
 				<small id="count-label" style="opacity:.8"></small>
 			</div>
+			
+		<!-- Acciones de guardado -->
+		<div style="background: rgba(244, 166, 183, 0.08); padding: 16px; border-radius: 12px; margin-bottom: 16px; border: 2px solid rgba(244, 166, 183, 0.2);">
+			<div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: flex-end;">
+				<input type="date" id="session-date-picker" style="display: none;" />
+				<button id="save-session-btn" class="press-btn" style="background: var(--primary); color: white; padding: 12px 24px; font-weight: 600; font-size: 14px;">
+					💾 Guardar Registro
+				</button>
+				<button id="view-records-btn" class="press-btn" style="padding: 12px 24px; font-size: 14px; background: white; border: 2px solid var(--primary); color: var(--primary);">
+					📋 Ver Registros
+				</button>
+			</div>
+		</div>
+			
+			<!-- Status message -->
+			<div id="save-status" style="display: none; padding: 14px; border-radius: 10px; margin-bottom: 16px; font-weight: 500; font-size: 14px; text-align: center;"></div>
+			
 			<div id="counts-summary" style="display:flex; gap:10px; flex-wrap:wrap; margin:6px 0 12px 0"></div>
 			<div id="cards-wrap" style="display:flex; flex-direction:column; gap:22px; margin-top:8px"></div>
 		</div>
@@ -168,9 +186,285 @@
 		const countsSummary = document.getElementById('counts-summary');
 		const cardsWrap = document.getElementById('cards-wrap');
 		const backBtn = document.getElementById('back-btn');
+		const homeBtn = document.getElementById('home-btn');
 		const changeBtn = document.getElementById('change-range');
- 		const sessions = [];
-		let desserts = [];
+	const sessionDatePicker = document.getElementById('session-date-picker');
+	const saveSessionBtn = document.getElementById('save-session-btn');
+	const viewRecordsBtn = document.getElementById('view-records-btn');
+	const saveStatus = document.getElementById('save-status');
+ 	const sessions = [];
+	let desserts = [];
+	let allUsers = []; // Cache for all users
+	let selectedUsersByDessert = {}; // Track selected users per dessert
+	let currentSessionData = {}; // Track complete session data (quantities, times)
+
+		// Load all users sorted by participation frequency
+		async function loadUsers(dessertFilter = null) {
+			try {
+				const url = dessertFilter 
+					? withActor(`/api/recipes?production_users=1&dessert_filter=${encodeURIComponent(dessertFilter)}`)
+					: withActor('/api/recipes?production_users=1');
+				console.log(`📥 Loading users for dessert: ${dessertFilter || 'all'}`);
+				const users = await fetchJSON(url);
+				console.log(`✅ Loaded ${users?.length || 0} users:`, users);
+				return users || [];
+			} catch (err) {
+				console.error('❌ Error loading users:', err);
+				return [];
+			}
+		}
+
+	// Save production users for a dessert
+	async function saveProductionUsers(dessert, userIds, sessionDate = null) {
+		try {
+			const date = sessionDate || sessionDatePicker.value || start || new Date().toISOString().split('T')[0];
+			console.log(`💾 Saving users for ${dessert} on ${date}:`, userIds);
+			const response = await fetch(withActor('/api/recipes'), {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					kind: 'production.users',
+					dessert: dessert,
+					user_ids: userIds,
+					session_date: date
+				})
+			});
+			if (!response.ok) {
+				const errorText = await response.text();
+				console.error(`❌ API Error (${response.status}):`, errorText);
+				throw new Error(`Error ${response.status}: ${errorText}`);
+			}
+			const result = await response.json();
+			console.log(`✅ Saved successfully:`, result);
+			return true;
+		} catch (err) {
+			console.error('❌ Error saving production users:', err);
+			return false;
+		}
+	}
+		
+	// Save complete recipe session (quantities, times, participants)
+	async function saveCompleteSession() {
+		const date = sessionDatePicker.value || start;
+		if (!date) {
+			showStatus('⚠️ Error: No se pudo determinar la fecha', 'error');
+			return;
+		}
+		
+		console.log(`📦 Saving complete recipe session for date: ${date}`);
+		
+		// Collect all dessert data
+		const dessertsData = [];
+		for (const session of sessions) {
+			const dessertData = {
+				dessert: session.dessert,
+				qty: session.qty || 0,
+				participants: selectedUsersByDessert[session.dessert] || [],
+				steps: session.steps || []
+			};
+			dessertsData.push(dessertData);
+		}
+		
+		console.log('📋 Session data:', dessertsData);
+		
+		if (dessertsData.length === 0) {
+			showStatus('⚠️ No hay datos para guardar', 'warning');
+			return;
+		}
+		
+		showStatus('💾 Guardando registro completo...', 'info');
+		
+		try {
+			const response = await fetch(withActor('/api/recipes'), {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					kind: 'recipe.session',
+					session_date: date,
+					actor_name: actor || '',
+					desserts: dessertsData
+				})
+			});
+			
+			if (!response.ok) {
+				const errorText = await response.text();
+				console.error(`❌ API Error (${response.status}):`, errorText);
+				throw new Error(`Error ${response.status}: ${errorText}`);
+			}
+			
+			const result = await response.json();
+			console.log(`✅ Session saved successfully:`, result);
+			showStatus(`✅ Registro guardado correctamente (ID: ${result.session_id})`, 'success');
+		} catch (err) {
+			console.error('❌ Error saving session:', err);
+			showStatus(`⚠️ Error al guardar: ${err.message}`, 'error');
+		}
+	}
+		
+		// Show status message
+		function showStatus(message, type = 'info') {
+			saveStatus.textContent = message;
+			saveStatus.style.display = 'block';
+			
+			const colors = {
+				success: { bg: 'rgba(76, 175, 80, 0.1)', border: '#4CAF50', color: '#2E7D32' },
+				error: { bg: 'rgba(244, 67, 54, 0.1)', border: '#F44336', color: '#C62828' },
+				warning: { bg: 'rgba(255, 152, 0, 0.1)', border: '#FF9800', color: '#E65100' },
+				info: { bg: 'rgba(33, 150, 243, 0.1)', border: '#2196F3', color: '#1565C0' }
+			};
+			
+			const style = colors[type] || colors.info;
+			saveStatus.style.background = style.bg;
+			saveStatus.style.border = `2px solid ${style.border}`;
+			saveStatus.style.color = style.color;
+			
+			if (type === 'success') {
+				setTimeout(() => {
+					saveStatus.style.display = 'none';
+				}, 3000);
+			}
+		}
+
+		// Build user selector component (compact version)
+		function buildUserSelector(dessertName, users) {
+			console.log(`🔧 Building user selector for ${dessertName}, users:`, users);
+			
+			const container = document.createElement('div');
+			container.className = 'user-selector-compact';
+			container.style.margin = '8px 0';
+			container.style.padding = '0';
+
+			const usersWrap = document.createElement('div');
+			usersWrap.style.display = 'flex';
+			usersWrap.style.flexWrap = 'wrap';
+			usersWrap.style.gap = '6px';
+			usersWrap.style.alignItems = 'center';
+			usersWrap.style.justifyContent = 'flex-end'; // Alineado a la derecha
+			
+			const selectedUsers = new Set();
+			const maxVisible = 4; // Show only 4 users initially
+			let isExpanded = false;
+
+		// Create user buttons
+		const userButtons = users.map((user, index) => {
+			const userBtn = document.createElement('button');
+			userBtn.className = 'press-btn user-select-compact';
+			userBtn.dataset.userId = user.id;
+			userBtn.dataset.dessert = dessertName; // Add dessert identifier for session restoration
+			userBtn.dataset.index = index;
+			userBtn.style.padding = '6px 12px';
+			userBtn.style.fontSize = '12px';
+			userBtn.style.minWidth = 'unset';
+			userBtn.style.transition = 'all 0.2s ease';
+			userBtn.style.position = 'relative';
+			userBtn.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
+			userBtn.style.display = index < maxVisible ? 'inline-block' : 'none';
+				
+				// User name
+				const nameSpan = document.createElement('span');
+				nameSpan.textContent = user.username;
+				userBtn.appendChild(nameSpan);
+				
+				// Show participation count if > 0 (as small badge)
+				if (user.participation_count > 0) {
+					const badge = document.createElement('span');
+					badge.textContent = user.participation_count;
+					badge.style.marginLeft = '4px';
+					badge.style.background = 'rgba(244, 166, 183, 0.3)';
+					badge.style.color = 'var(--text)';
+					badge.style.fontSize = '10px';
+					badge.style.fontWeight = '700';
+					badge.style.borderRadius = '8px';
+					badge.style.padding = '2px 5px';
+					badge.title = `Ha participado ${user.participation_count} ${user.participation_count === 1 ? 'vez' : 'veces'}`;
+					userBtn.appendChild(badge);
+				}
+				
+				// Hover effect (same as dessert nav buttons)
+				userBtn.addEventListener('mouseenter', () => {
+					if (!selectedUsers.has(Number(userBtn.dataset.userId))) {
+						userBtn.style.background = 'var(--hover-primary-pink)';
+						userBtn.style.color = 'white';
+						userBtn.style.boxShadow = '0 4px 16px var(--hover-shadow-pink)';
+					}
+				});
+				userBtn.addEventListener('mouseleave', () => {
+					if (!selectedUsers.has(Number(userBtn.dataset.userId))) {
+						userBtn.style.background = '';
+						userBtn.style.color = '';
+						userBtn.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
+					}
+				});
+
+			userBtn.addEventListener('click', async () => {
+				const userId = Number(userBtn.dataset.userId);
+				const isSelected = selectedUsers.has(userId);
+				
+				if (isSelected) {
+					selectedUsers.delete(userId);
+					userBtn.style.background = '';
+					userBtn.style.color = '';
+					userBtn.style.fontWeight = '';
+					userBtn.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
+				} else {
+					selectedUsers.add(userId);
+					// Style like active dessert nav button
+					userBtn.style.background = 'var(--primary)';
+					userBtn.style.color = 'white';
+					userBtn.style.fontWeight = '600';
+					userBtn.style.boxShadow = '0 4px 16px var(--hover-shadow-pink)';
+				}
+				
+				// Store selection (don't auto-save, wait for "Save" button)
+				selectedUsersByDessert[dessertName] = Array.from(selectedUsers);
+				console.log('✏️ Updated selection for', dessertName, ':', selectedUsersByDessert[dessertName]);
+			});
+
+				return userBtn;
+			});
+
+			// Add all buttons to wrapper
+			userButtons.forEach(btn => usersWrap.appendChild(btn));
+			
+			// Add expand/collapse button if there are more than maxVisible users
+			if (users.length > maxVisible) {
+				const expandBtn = document.createElement('button');
+				expandBtn.className = 'press-btn';
+				expandBtn.style.padding = '6px 10px';
+				expandBtn.style.fontSize = '12px';
+				expandBtn.style.minWidth = 'unset';
+				expandBtn.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
+				expandBtn.style.transition = 'all 0.2s ease';
+				expandBtn.innerHTML = '▼ +' + (users.length - maxVisible);
+				expandBtn.title = 'Ver todos los usuarios';
+				
+				expandBtn.addEventListener('click', () => {
+					isExpanded = !isExpanded;
+					userButtons.forEach((btn, index) => {
+						if (index >= maxVisible) {
+							btn.style.display = isExpanded ? 'inline-block' : 'none';
+						}
+					});
+					expandBtn.innerHTML = isExpanded 
+						? '▲ Menos' 
+						: '▼ +' + (users.length - maxVisible);
+				});
+				
+				// Hover effect
+				expandBtn.addEventListener('mouseenter', () => {
+					expandBtn.style.background = 'rgba(244, 166, 183, 0.2)';
+				});
+				expandBtn.addEventListener('mouseleave', () => {
+					expandBtn.style.background = '';
+				});
+				
+				usersWrap.appendChild(expandBtn);
+			}
+
+			container.appendChild(usersWrap);
+
+			return { element: container, getSelectedUsers: () => Array.from(selectedUsers) };
+		}
 
 		// Lightweight embed of openRangeCalendarPopover if not present
 		if (typeof window.openRangeCalendarPopover !== 'function') {
@@ -965,13 +1259,45 @@
 			// 3) Render a card per dessert with count > 0
 			const fmt1 = new Intl.NumberFormat('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 			
-			async function renderDessert(keyLabel, label, qty, byKeyMap, formatter){
-				if (!qty) return;
-				const dessertName = byKeyMap.get(keyLabel) || label;
-			let data = null; try { data = await fetchJSON(withActor(`/api/recipes?dessert=${encodeURIComponent(dessertName)}&include_extras=1`)); } catch { data = null; }
-				if (!data) return;
-				const card = document.createElement('div'); card.className = 'measure-card'; card.style.padding='12px'; card.style.border='1px solid rgba(0,0,0,0.15)'; card.style.borderRadius='10px'; card.style.boxShadow='0 8px 24px rgba(0,0,0,0.12)';
-				const title = document.createElement('h3'); title.textContent = `${dessertName} × ${qty}`; title.style.textAlign='center'; title.style.fontSize='28px'; title.style.margin='4px 0 12px 0'; title.style.background='rgba(255, 105, 180, 0.18)'; title.style.padding='8px 6px'; title.style.borderRadius='8px'; card.appendChild(title);
+		async function renderDessert(keyLabel, label, qty, byKeyMap, formatter){
+			if (!qty) return;
+			const dessertName = byKeyMap.get(keyLabel) || label;
+			const dessertCode = keyLabel; // Use short code (arco, melo, mara, oreo, nute) for saving
+		let data = null; try { data = await fetchJSON(withActor(`/api/recipes?dessert=${encodeURIComponent(dessertName)}&include_extras=1`)); } catch { data = null; }
+			if (!data) return;
+			const card = document.createElement('div'); card.className = 'measure-card'; card.style.padding='12px'; card.style.border='1px solid rgba(0,0,0,0.15)'; card.style.borderRadius='10px'; card.style.boxShadow='0 8px 24px rgba(0,0,0,0.12)';
+			const title = document.createElement('h3'); title.textContent = `${dessertName} × ${qty}`; title.style.textAlign='center'; title.style.fontSize='28px'; title.style.margin='4px 0 12px 0'; title.style.background='rgba(255, 105, 180, 0.18)'; title.style.padding='8px 6px'; title.style.borderRadius='8px'; card.appendChild(title);
+		
+		// Add user selector for this dessert (always show, even with no users)
+		// IMPORTANT: Use dessertCode (short code) for API calls, not dessertName
+		const dessertUsers = await loadUsers(dessertCode);
+		console.log(`🎨 Rendering user selector for ${dessertCode} (${dessertName}), found ${dessertUsers.length} users`);
+			
+		if (dessertUsers.length > 0) {
+			const userSelector = buildUserSelector(dessertCode, dessertUsers);
+			card.appendChild(userSelector.element);
+		} else {
+			// Show a compact warning when no users are available
+			const noUsersMsg = document.createElement('div');
+			noUsersMsg.style.margin = '8px 0';
+			noUsersMsg.style.padding = '8px 12px';
+			noUsersMsg.style.background = 'rgba(255, 193, 7, 0.1)';
+			noUsersMsg.style.borderRadius = '6px';
+			noUsersMsg.style.border = '1px solid rgba(255, 193, 7, 0.3)';
+			noUsersMsg.style.fontSize = '12px';
+			noUsersMsg.style.color = 'rgba(0, 0, 0, 0.7)';
+			noUsersMsg.textContent = '⚠️ Sin usuarios disponibles';
+			card.appendChild(noUsersMsg);
+			console.warn('⚠️ No users found for dessert:', dessertCode, dessertName);
+		}
+			
+			// Add subtle separator (much smaller)
+			const separator = document.createElement('div');
+			separator.style.height = '1px';
+			separator.style.background = 'rgba(0,0,0,0.06)';
+			separator.style.margin = '10px 0';
+			card.appendChild(separator);
+			
 			const session = { dessert: dessertName, qty, steps: [] };
 			const checkedState = getCheckedState();
 			for (const step of (Array.isArray(data.steps) ? data.steps : [])){
@@ -1410,22 +1736,229 @@
 			});
 		}
 
-		// Navigation
-		backBtn.addEventListener('click', () => {
-			const url = new URL('/sales-report.html', location.origin);
-			if (start) url.searchParams.set('start', start);
-			if (end) url.searchParams.set('end', end);
-			if (actor) url.searchParams.set('actor', actor);
-			location.href = url.toString();
-		});
-		changeBtn.addEventListener('click', (ev) => {
-			openRangeCalendarPopover((range) => {
-				if (!range || !range.start || !range.end) return;
-				start = range.start; end = range.end;
-				history.replaceState(null, '', `?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}${actor?`&actor=${encodeURIComponent(actor)}`:''}`);
-				load();
-			}, ev.clientX, ev.clientY);
-		});
+	// Navigation
+	backBtn.addEventListener('click', () => {
+		const url = new URL('/sales-report.html', location.origin);
+		if (start) url.searchParams.set('start', start);
+		if (end) url.searchParams.set('end', end);
+		if (actor) url.searchParams.set('actor', actor);
+		location.href = url.toString();
+	});
+	
+	homeBtn.addEventListener('click', () => {
+		location.href = '/';
+	});
+	
+	changeBtn.addEventListener('click', (ev) => {
+		openRangeCalendarPopover((range) => {
+			if (!range || !range.start || !range.end) return;
+			start = range.start; end = range.end;
+			history.replaceState(null, '', `?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}${actor?`&actor=${encodeURIComponent(actor)}`:''}`);
+			load();
+		}, ev.clientX, ev.clientY);
+	});
+	
+	// Session actions
+	saveSessionBtn.addEventListener('click', async () => {
+		await saveCompleteSession();
+	});
+	
+	viewRecordsBtn.addEventListener('click', async () => {
+		await showSavedRecords();
+	});
+	
+	// Show saved records in a modal
+	async function showSavedRecords() {
+		try {
+			const savedSessions = await fetchJSON(withActor('/api/recipes?saved_sessions=1'));
+			console.log('📚 Loaded saved sessions:', savedSessions);
+			
+			// Create modal
+			const modal = document.createElement('div');
+			modal.className = 'aladdin-pop';
+			modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;';
+			
+			const content = document.createElement('div');
+			content.style.cssText = 'background:white;border-radius:16px;max-width:800px;width:100%;max-height:80vh;overflow:auto;box-shadow:0 8px 32px rgba(0,0,0,0.2);';
+			
+			const header = document.createElement('div');
+			header.style.cssText = 'padding:24px;border-bottom:2px solid var(--border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:white;z-index:1;';
+			
+			const title = document.createElement('h2');
+			title.textContent = '📚 Registros Guardados';
+			title.style.cssText = 'margin:0;font-size:24px;color:var(--primary);';
+			
+			const closeBtn = document.createElement('button');
+			closeBtn.textContent = '✕';
+			closeBtn.className = 'press-btn';
+			closeBtn.style.cssText = 'width:40px;height:40px;font-size:20px;';
+			closeBtn.addEventListener('click', () => document.body.removeChild(modal));
+			
+			header.appendChild(title);
+			header.appendChild(closeBtn);
+			
+			const body = document.createElement('div');
+			body.style.cssText = 'padding:24px;';
+			
+			if (savedSessions.length === 0) {
+				body.innerHTML = '<p style="text-align:center;color:var(--muted);padding:40px;">No hay registros guardados aún</p>';
+			} else {
+				for (const session of savedSessions) {
+					const sessionCard = document.createElement('div');
+					sessionCard.style.cssText = 'border:2px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;cursor:pointer;transition:all 0.2s;';
+					sessionCard.addEventListener('mouseenter', () => {
+						sessionCard.style.borderColor = 'var(--primary)';
+						sessionCard.style.boxShadow = '0 4px 12px rgba(244,166,183,0.3)';
+					});
+					sessionCard.addEventListener('mouseleave', () => {
+						sessionCard.style.borderColor = 'var(--border)';
+						sessionCard.style.boxShadow = 'none';
+					});
+					
+					const sessionDate = new Date(session.session_date + 'T00:00:00');
+					const dateStr = `${sessionDate.getDate()} ${['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][sessionDate.getMonth()]} ${sessionDate.getFullYear()}`;
+					
+					const dessertsData = typeof session.desserts_data === 'string' ? JSON.parse(session.desserts_data) : session.desserts_data;
+					const dessertsList = dessertsData.map(d => `${d.dessert} (${d.qty})`).join(', ');
+					
+					sessionCard.innerHTML = `
+						<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px;">
+							<strong style="font-size:16px;color:var(--primary);">📅 ${dateStr}</strong>
+							<span style="font-size:12px;color:var(--muted);">ID: ${session.id}</span>
+						</div>
+						<div style="margin-bottom:8px;"><strong>Postres:</strong> ${dessertsList}</div>
+						${session.actor_name ? `<div style="font-size:13px;color:var(--muted);">Registrado por: ${session.actor_name}</div>` : ''}
+					`;
+					
+					sessionCard.addEventListener('click', () => {
+						if (confirm('¿Cargar este registro? (Los datos actuales se perderán)')) {
+							loadSession(session);
+							document.body.removeChild(modal);
+						}
+					});
+					
+					body.appendChild(sessionCard);
+				}
+			}
+			
+			content.appendChild(header);
+			content.appendChild(body);
+			modal.appendChild(content);
+			document.body.appendChild(modal);
+			
+		} catch (err) {
+			console.error('Error loading saved sessions:', err);
+			alert('Error al cargar registros guardados');
+		}
+	}
+	
+	// Load a saved session and continue working on it
+	async function loadSession(session) {
+		console.log('📂 Loading session:', session);
+		
+		try {
+			const dessertsData = typeof session.desserts_data === 'string' ? JSON.parse(session.desserts_data) : session.desserts_data;
+			
+			// Set the date
+			sessionDatePicker.value = session.session_date;
+			
+			// Load participants for each dessert
+			selectedUsersByDessert = {};
+			for (const dessertData of dessertsData) {
+				if (dessertData.participants && dessertData.participants.length > 0) {
+					selectedUsersByDessert[dessertData.dessert] = dessertData.participants;
+				}
+			}
+			
+			console.log('✅ Loaded session data:', {
+				date: session.session_date,
+				participants: selectedUsersByDessert,
+				desserts: dessertsData
+			});
+			
+			// Reload the page with the session date to show the correct data
+			const url = new URL(window.location.href);
+			url.searchParams.set('start', session.session_date);
+			url.searchParams.set('end', session.session_date);
+			url.searchParams.set('load_session', session.id);
+			
+			// Store session data in sessionStorage to restore after reload
+			sessionStorage.setItem('loadedSession', JSON.stringify({
+				id: session.id,
+				participants: selectedUsersByDessert,
+				dessertsData: dessertsData
+			}));
+			
+			window.location.href = url.toString();
+			
+		} catch (err) {
+			console.error('Error loading session:', err);
+			alert('Error al cargar la sesión: ' + err.message);
+		}
+	}
+	
+	// Initialize session date (automatic from URL param)
+	if (start) {
+		sessionDatePicker.value = start;
+	} else {
+		sessionDatePicker.value = new Date().toISOString().split('T')[0];
+	}
+	
+	// Check if we're loading a saved session
+	const urlParams = new URLSearchParams(window.location.search);
+	const loadSessionId = urlParams.get('load_session');
+	
+	if (loadSessionId) {
+		// Try to restore session data from sessionStorage
+		try {
+			const storedSession = sessionStorage.getItem('loadedSession');
+			if (storedSession) {
+				const sessionData = JSON.parse(storedSession);
+				console.log('🔄 Restoring loaded session:', sessionData);
+				
+				// Restore participants selection
+				selectedUsersByDessert = sessionData.participants || {};
+				
+				// Wait for the page to fully load, then restore UI state
+				setTimeout(() => {
+					restoreSessionUI(sessionData);
+					sessionStorage.removeItem('loadedSession'); // Clean up
+					
+					// Remove load_session param from URL
+					const cleanUrl = new URL(window.location.href);
+					cleanUrl.searchParams.delete('load_session');
+					history.replaceState(null, '', cleanUrl.toString());
+					
+					showStatus('✅ Sesión cargada correctamente', 'success');
+				}, 1000); // Wait for rendering to complete
+			}
+		} catch (err) {
+			console.error('Error restoring session:', err);
+		}
+	}
+	
+	// Restore UI state after loading session
+	function restoreSessionUI(sessionData) {
+		console.log('🎨 Restoring UI state for participants:', sessionData.participants);
+		
+		// Find and activate user buttons based on selections
+		for (const [dessert, userIds] of Object.entries(sessionData.participants || {})) {
+			console.log(`Restoring ${dessert}:`, userIds);
+			
+			// Find all user buttons for this dessert
+			userIds.forEach(userId => {
+				const btn = document.querySelector(`button[data-user-id="${userId}"][data-dessert="${dessert}"]`);
+				if (btn) {
+					// Apply selected style
+					btn.style.background = 'var(--primary)';
+					btn.style.color = 'white';
+					btn.style.fontWeight = '600';
+					btn.style.boxShadow = '0 4px 16px var(--hover-shadow-pink)';
+					console.log(`✓ Activated button for user ${userId} in ${dessert}`);
+				}
+			});
+		}
+	}
 
 		if (!start || !end) {
 			countLabel.textContent = 'Selecciona un rango de fechas';
