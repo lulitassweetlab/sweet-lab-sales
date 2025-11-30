@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head><title>Test Participantes</title></head>
+<body>
+<h1>Test de Guardado de Participantes</h1>
+<button onclick="testRecipeUsers()">1. Ver recipe_production_users</button>
+<button onclick="testDeliveryUsers()">2. Ver delivery_production_users</button>
+<button onclick="testDeliveries()">3. Ver deliveries</button>
+<pre id="result"></pre>
+
+<script>
+async function testRecipeUsers() {
+    const result = document.getElementById('result');
+    result.textContent = 'Cargando...';
+    try {
+        const response = await fetch('/api/recipes?production_users=1');
+        const data = await response.json();
+        result.textContent = '=== recipe_production_users (via API) ===\n' + JSON.stringify(data, null, 2);
+    } catch (err) {
+        result.textContent = 'Error: ' + err.message;
+    }
+}
+
+async function testDeliveryUsers() {
+    const result = document.getElementById('result');
+    result.textContent = 'Cargando...';
+    try {
+        // Get recent deliveries first
+        const deliveriesResp = await fetch('/api/deliveries');
+        const deliveries = await deliveriesResp.json();
+        result.textContent = '=== Deliveries recientes ===\n' + JSON.stringify(deliveries.slice(0, 3), null, 2);
+        
+        if (deliveries.length > 0) {
+            const deliveryId = deliveries[0].id;
+            result.textContent += '\n\n=== Participantes del delivery ' + deliveryId + ' ===\n';
+            
+            const usersResp = await fetch('/api/deliveries?production_users=' + deliveryId);
+            const users = await usersResp.json();
+            result.textContent += JSON.stringify(users, null, 2);
+        }
+    } catch (err) {
+        result.textContent = 'Error: ' + err.message;
+    }
+}
+
+async function testDeliveries() {
+    const result = document.getElementById('result');
+    result.textContent = 'Cargando...';
+    try {
+        const response = await fetch('/api/deliveries');
+        const data = await response.json();
+        result.textContent = '=== Deliveries (últimos 5) ===\n' + JSON.stringify(data.slice(0, 5), null, 2);
+    } catch (err) {
+        result.textContent = 'Error: ' + err.message;
+    }
+}
+</script>
+</body>
+</html>
