@@ -712,7 +712,34 @@ export async function recalcTotalForId(id) {
 	
 	let row;
 	if (items && items.length > 0) {
-		// Sale uses items format - calculate from items (respects unit_price which already has special pricing)
+		// Sale uses items format - but need to check for special pricing
+		const [sale] = await sql`SELECT special_pricing_type FROM sales WHERE id = ${id}`;
+		const specialPricing = sale ? sale.special_pricing_type : null;
+		
+		let priceMultiplier = 1;
+		if (specialPricing === 'muestra') {
+			priceMultiplier = 0;
+		} else if (specialPricing === 'a_costo') {
+			priceMultiplier = 0.55;
+		}
+		
+		// If special pricing, update unit_price in items to match
+		if (specialPricing) {
+			const desserts = await getDesserts();
+			const dessertPrices = {};
+			for (const d of desserts) {
+				dessertPrices[d.id] = Math.round(d.sale_price * priceMultiplier);
+			}
+			
+			// Update each item's unit_price
+			const allItems = await sql`SELECT id, dessert_id FROM sale_items WHERE sale_id = ${id}`;
+			for (const item of allItems) {
+				const newPrice = dessertPrices[item.dessert_id] || 0;
+				await sql`UPDATE sale_items SET unit_price = ${newPrice} WHERE id = ${item.id}`;
+			}
+		}
+		
+		// Now calculate total from updated items
 		const itemsTotal = await sql`
 			SELECT COALESCE(SUM(quantity * unit_price), 0)::int AS total
 			FROM sale_items
@@ -721,7 +748,7 @@ export async function recalcTotalForId(id) {
 		
 		const total = (itemsTotal && itemsTotal[0]) ? itemsTotal[0].total : 0;
 		
-		console.log(`🔄 recalcTotalForId(${id}): Using items format, calculated total=${total}`);
+		console.log(`🔄 recalcTotalForId(${id}): Using items format, special_pricing=${specialPricing}, calculated total=${total}`);
 		
 		[row] = await sql`
 			UPDATE sales SET total_cents = ${total}
