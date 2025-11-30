@@ -445,7 +445,57 @@ button:hover { filter: brightness(1.1); }
 .table-wrapper { overflow-x: auto; border: none; border-radius: 12px; background: var(--card); box-shadow: none; }
 
 /* Make table wrapper the scroll container so sticky thead works reliably */
-.table-wrapper { position: relative; max-height: calc(100vh - var(--toolbarH, 56px) - 24px); overflow-y: auto; overflow-x: auto; }
+.table-wrapper { 
+	position: relative; 
+	max-height: calc(100vh - var(--toolbarH, 56px) - 24px); 
+	overflow-y: auto; 
+	overflow-x: auto;
+	/* Mejoras para scroll en móvil */
+	-webkit-overflow-scrolling: touch;
+	overscroll-behavior: contain;
+}
+
+/* Mejoras específicas para móvil: hacer scroll más fácil */
+@media (max-width: 768px) {
+	/* Hacer el body y main scrollables para que puedas tocar fuera de la tabla */
+	body {
+		overflow-y: auto;
+		-webkit-overflow-scrolling: touch;
+	}
+	
+	.sales-panel {
+		/* El panel principal debe permitir scroll vertical */
+		overflow-y: visible;
+		-webkit-overflow-scrolling: touch;
+	}
+	
+	.panel-body {
+		/* El contenedor principal debe ser scrollable */
+		overflow-y: visible;
+		-webkit-overflow-scrolling: touch;
+	}
+	
+	/* IMPORTANTE: En móvil, el scroll vertical debe ser manejado por el body,
+	   no por el wrapper de la tabla. Esto permite tocar en cualquier parte
+	   de la pantalla para hacer scroll vertical. */
+	.table-wrapper {
+		/* Remover restricción de altura máxima en móvil para permitir scroll del body */
+		max-height: none !important;
+		/* Mantener scroll horizontal solo para la tabla */
+		overflow-y: visible !important;
+		overflow-x: auto !important;
+		/* Permitir interacción táctil normal (pan y zoom) */
+		touch-action: manipulation;
+		/* Agregar margen para crear espacio táctil alrededor de la tabla */
+		margin: 0 -4px;
+		padding: 0 4px;
+	}
+	
+	/* La tabla puede desbordar horizontalmente */
+	.table-wrapper table {
+		min-width: 100%;
+	}
+}
 
 /* Sticky native thead at top of the scroll container */
 #sales-table thead th { position: sticky; top: 0; background: var(--card); z-index: 20; font-weight: 400; }
@@ -546,7 +596,8 @@ th, td { border-bottom: 1px solid var(--border); padding: 6px 6px; text-align: c
 
 /* Remove mobile stacking and enforce compact fixed layout on phones */
 @media (max-width: 600px) {
-	.table-wrapper { overflow-x: hidden; border-radius: 8px; }
+	/* NOTA: overflow-x debe ser auto, no hidden, para permitir scroll horizontal cuando sea necesario */
+	.table-wrapper { overflow-x: auto !important; border-radius: 8px; }
 	table { width: 100%; min-width: 0; table-layout: fixed; }
 	#sales-table thead { display: table-header-group; }
 	#sales-table thead th { position: sticky; top: 0; }
@@ -646,7 +697,8 @@ th, td { border-bottom: 1px solid var(--border); padding: 6px 6px; text-align: c
 
 /* Remove mobile stacking and enforce compact fixed layout on phones */
 @media (max-width: 600px) {
-	.table-wrapper { overflow-x: hidden; border-radius: 8px; }
+	/* NOTA: overflow-x debe ser auto, no hidden, para permitir scroll horizontal cuando sea necesario */
+	.table-wrapper { overflow-x: auto !important; border-radius: 8px; }
 	table { width: 100%; min-width: 0; table-layout: fixed; }
 	#sales-table thead { display: table-header-group; }
 	#sales-table thead th { position: sticky; top: 0; }
@@ -1103,7 +1155,7 @@ tfoot td { font-weight: 700; }
 	html, body { overscroll-behavior-y: auto; touch-action: pan-y; }
 	body { -webkit-overflow-scrolling: touch; }
 	/* Evita encadenamiento de scroll desde contenedores internos que genera múltiples rebotes */
-	.table-wrapper,
+	/* NOTA: NO aplicar overscroll-behavior: contain a .table-wrapper para permitir scroll vertical fácil */
 	.sales-panel,
 	.dates-section,
 	main { overscroll-behavior: contain; }
