@@ -76,6 +76,24 @@ export async function handler(event) {
 						FROM sale_items si
 					`;
 					
+					// Get delivered quantities from sale_days
+					const deliveredData = await sql`
+						SELECT 
+							sd.day,
+							sd.seller_id,
+							sd.delivered_arco,
+							sd.delivered_melo,
+							sd.delivered_mara,
+							sd.delivered_oreo,
+							sd.delivered_nute
+						FROM sale_days sd
+						WHERE sd.delivered_arco > 0 
+						   OR sd.delivered_melo > 0 
+						   OR sd.delivered_mara > 0 
+						   OR sd.delivered_oreo > 0 
+						   OR sd.delivered_nute > 0
+					`;
+					
 					// Create a map of sale_items by sale_id
 					const itemsBySaleId = {};
 					for (const item of allItems) {
@@ -83,6 +101,19 @@ export async function handler(event) {
 							itemsBySaleId[item.sale_id] = [];
 						}
 						itemsBySaleId[item.sale_id].push(item);
+					}
+					
+					// Create a map of delivered quantities by date and seller
+					const deliveredByKey = {};
+					for (const delivered of deliveredData) {
+						const key = `${delivered.day}_${delivered.seller_id}`;
+						deliveredByKey[key] = {
+							arco: delivered.delivered_arco || 0,
+							melo: delivered.delivered_melo || 0,
+							mara: delivered.delivered_mara || 0,
+							oreo: delivered.delivered_oreo || 0,
+							nute: delivered.delivered_nute || 0
+						};
 					}
 					
 					// Build a map to organize data by date and seller
@@ -113,12 +144,17 @@ export async function handler(event) {
 								has_muestra: false,
 								has_a_costo: false,
 								muestra_quantities: {},
-								a_costo_quantities: {}
+								a_costo_quantities: {},
+								delivered_quantities: deliveredByKey[sellerKey] || {}
 							};
 							for (const d of desserts) {
 								sellersByDateAndId[sellerKey][d.short_code] = 0;
 								sellersByDateAndId[sellerKey].muestra_quantities[d.short_code] = 0;
 								sellersByDateAndId[sellerKey].a_costo_quantities[d.short_code] = 0;
+								// Initialize delivered quantities
+								if (!sellersByDateAndId[sellerKey].delivered_quantities[d.short_code]) {
+									sellersByDateAndId[sellerKey].delivered_quantities[d.short_code] = 0;
+								}
 							}
 						}
 						

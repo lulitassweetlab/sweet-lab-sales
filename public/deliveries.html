@@ -160,6 +160,10 @@
 					const seller = dateData.sellers[i];
 					const sellerKey = `${dateData.day}_${seller.seller_id}`;
 					const hasSpecial = seller.has_muestra || seller.has_a_costo;
+					
+					// Check if has delivered quantities
+					const hasDelivered = seller.delivered_quantities && Object.values(seller.delivered_quantities).some(q => q > 0);
+					const hasExpandable = hasSpecial || hasDelivered;
 					const isExpanded = expandedSellers.has(sellerKey);
 					
 					const tr = document.createElement('tr');
@@ -173,16 +177,21 @@
 					// Seller name with expand button
 					const sellerCell = document.createElement('td');
 					sellerCell.style.paddingLeft = '16px';
+					sellerCell.style.position = 'relative';
 					
-					// Add expand button if has special pricing
-					if (hasSpecial) {
-						const expandBtn = document.createElement('button');
-						expandBtn.className = 'press-btn';
-						expandBtn.textContent = isExpanded ? '▼' : '▶';
-						expandBtn.style.marginRight = '8px';
-						expandBtn.style.fontSize = '10px';
-						expandBtn.style.padding = '2px 6px';
-						expandBtn.addEventListener('click', () => {
+					// Add expand arrow if has special pricing or delivered quantities
+					if (hasExpandable) {
+						const expandArrow = document.createElement('span');
+						expandArrow.textContent = '▼';
+						expandArrow.style.position = 'absolute';
+						expandArrow.style.left = '4px';
+						expandArrow.style.top = '50%';
+						expandArrow.style.transform = isExpanded ? 'translateY(-50%) rotate(0deg)' : 'translateY(-50%) rotate(-90deg)';
+						expandArrow.style.fontSize = '10px';
+						expandArrow.style.color = '#999';
+						expandArrow.style.cursor = 'pointer';
+						expandArrow.style.transition = 'transform 0.2s ease';
+						expandArrow.addEventListener('click', () => {
 							if (expandedSellers.has(sellerKey)) {
 								expandedSellers.delete(sellerKey);
 							} else {
@@ -190,11 +199,12 @@
 							}
 							renderSalesConsolidated();
 						});
-						sellerCell.appendChild(expandBtn);
+						sellerCell.appendChild(expandArrow);
 					}
 					
 					const sellerNameSpan = document.createElement('span');
 					sellerNameSpan.textContent = seller.seller_name;
+					sellerNameSpan.style.marginLeft = hasExpandable ? '12px' : '0';
 					sellerCell.appendChild(sellerNameSpan);
 					
 					tr.appendChild(sellerCell);
@@ -220,7 +230,49 @@
 					salesTbody.appendChild(tr);
 					
 					// Render expanded detail rows if expanded
-					if (isExpanded && hasSpecial) {
+					if (isExpanded && hasExpandable) {
+						// Delivered row
+						if (hasDelivered) {
+							const deliveredRow = document.createElement('tr');
+							deliveredRow.style.backgroundColor = '#e8f5e9';
+							deliveredRow.style.fontStyle = 'italic';
+							
+							const labelCell = document.createElement('td');
+							labelCell.textContent = '  → Entregados';
+							labelCell.style.paddingLeft = '40px';
+							labelCell.style.fontSize = '13px';
+							deliveredRow.appendChild(labelCell);
+							
+							for (const d of desserts) {
+								const qty = seller.delivered_quantities[d.short_code] || 0;
+								const td = document.createElement('td');
+								td.className = 'col-qty';
+								
+								if (qty > 0) {
+									const badge = document.createElement('span');
+									badge.textContent = qty;
+									badge.style.backgroundColor = '#4caf50';
+									badge.style.color = 'white';
+									badge.style.padding = '3px 8px';
+									badge.style.borderRadius = '12px';
+									badge.style.fontSize = '12px';
+									badge.style.fontWeight = 'bold';
+									badge.style.display = 'inline-block';
+									td.appendChild(badge);
+								} else {
+									td.textContent = '-';
+								}
+								
+								deliveredRow.appendChild(td);
+							}
+							
+							// Empty total cell
+							const emptyTotalCell = document.createElement('td');
+							deliveredRow.appendChild(emptyTotalCell);
+							
+							salesTbody.appendChild(deliveredRow);
+						}
+						
 						// Muestra row
 						if (seller.has_muestra) {
 							const muestraRow = document.createElement('tr');
