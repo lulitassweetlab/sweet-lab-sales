@@ -15,6 +15,59 @@ export async function ensureSchema() {
 	// Start schema check
 	schemaCheckPromise = (async () => {
 		try {
+			// CRITICAL: Always ensure these tables exist first (before any version checks)
+			// This runs on EVERY cold start to ensure new tables are created
+			await sql`CREATE TABLE IF NOT EXISTS users (
+				id SERIAL PRIMARY KEY,
+				username TEXT UNIQUE NOT NULL,
+				password_hash TEXT NOT NULL,
+				role TEXT NOT NULL DEFAULT 'user',
+				created_at TIMESTAMPTZ DEFAULT now()
+			)`;
+			
+			await sql`CREATE TABLE IF NOT EXISTS deliveries (
+				id SERIAL PRIMARY KEY,
+				day DATE NOT NULL,
+				note TEXT DEFAULT '',
+				actor_name TEXT,
+				created_at TIMESTAMPTZ DEFAULT now()
+			)`;
+			
+			await sql`CREATE TABLE IF NOT EXISTS desserts (
+				id SERIAL PRIMARY KEY,
+				name TEXT UNIQUE NOT NULL,
+				short_code TEXT UNIQUE NOT NULL,
+				sale_price INTEGER NOT NULL DEFAULT 0,
+				is_active BOOLEAN NOT NULL DEFAULT true,
+				position INTEGER NOT NULL DEFAULT 0,
+				created_at TIMESTAMPTZ DEFAULT now(),
+				updated_at TIMESTAMPTZ DEFAULT now()
+			)`;
+			
+			await sql`CREATE TABLE IF NOT EXISTS recipe_production_users (
+				id SERIAL PRIMARY KEY,
+				dessert TEXT NOT NULL,
+				user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+				session_date DATE NOT NULL DEFAULT CURRENT_DATE,
+				created_at TIMESTAMPTZ DEFAULT now(),
+				UNIQUE (dessert, user_id, session_date)
+			)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_recipe_production_users_dessert ON recipe_production_users(dessert)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_recipe_production_users_user ON recipe_production_users(user_id)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_recipe_production_users_date ON recipe_production_users(session_date DESC)`;
+			
+			await sql`CREATE TABLE IF NOT EXISTS delivery_production_users (
+				id SERIAL PRIMARY KEY,
+				delivery_id INTEGER NOT NULL REFERENCES deliveries(id) ON DELETE CASCADE,
+				dessert_id INTEGER NOT NULL REFERENCES desserts(id) ON DELETE CASCADE,
+				user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+				created_at TIMESTAMPTZ DEFAULT now(),
+				UNIQUE (delivery_id, dessert_id, user_id)
+			)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_delivery_production_users_delivery ON delivery_production_users(delivery_id)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_delivery_production_users_dessert ON delivery_production_users(dessert_id)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_delivery_production_users_user ON delivery_production_users(user_id)`;
+			
 			// FAST PATH: Just check if schema_meta exists and has correct version
 			try {
 				const cur = await sql`SELECT version FROM schema_meta LIMIT 1`;
