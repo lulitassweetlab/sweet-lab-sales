@@ -721,6 +721,8 @@ export async function recalcTotalForId(id) {
 		
 		const total = (itemsTotal && itemsTotal[0]) ? itemsTotal[0].total : 0;
 		
+		console.log(`🔄 recalcTotalForId(${id}): Using items format, calculated total=${total}`);
+		
 		[row] = await sql`
 			UPDATE sales SET total_cents = ${total}
 			WHERE id = ${id}
@@ -728,11 +730,16 @@ export async function recalcTotalForId(id) {
 		`;
 	} else {
 		// Fallback to old system for backward compatibility
-		// Get the sale to check for special pricing
-		const [sale] = await sql`SELECT special_pricing_type FROM sales WHERE id = ${id}`;
-		const specialPricing = sale ? sale.special_pricing_type : null;
+		// Get the sale to check for special pricing and quantities
+		const [sale] = await sql`SELECT * FROM sales WHERE id = ${id}`;
+		if (!sale) {
+			throw new Error(`Sale ${id} not found`);
+		}
 		
-		const p = prices();
+		const specialPricing = sale.special_pricing_type || null;
+		
+		console.log(`🔄 recalcTotalForId(${id}): Using old format, special_pricing_type=${specialPricing}`);
+		
 		let priceMultiplier = 1;
 		if (specialPricing === 'muestra') {
 			priceMultiplier = 0; // Free samples
@@ -740,15 +747,24 @@ export async function recalcTotalForId(id) {
 			priceMultiplier = 0.55; // 45% discount (55% of original price)
 		}
 		
-		// Apply price multiplier to each price
-		const arcoPrice = Math.round(p.arco * priceMultiplier);
-		const meloPrice = Math.round(p.melo * priceMultiplier);
-		const maraPrice = Math.round(p.mara * priceMultiplier);
-		const oreoPrice = Math.round(p.oreo * priceMultiplier);
-		const nutePrice = Math.round(p.nute * priceMultiplier);
+		// Get all desserts dynamically
+		const desserts = await getDesserts();
+		
+		// Calculate total dynamically for all desserts
+		let total = 0;
+		for (const d of desserts) {
+			const qtyKey = `qty_${d.short_code}`;
+			const qty = Number(sale[qtyKey] || 0) || 0;
+			if (qty > 0) {
+				const adjustedPrice = Math.round(d.sale_price * priceMultiplier);
+				total += qty * adjustedPrice;
+			}
+		}
+		
+		console.log(`🔄 recalcTotalForId(${id}): Calculated total=${total} with multiplier=${priceMultiplier}`);
 		
 		[row] = await sql`
-			UPDATE sales SET total_cents = qty_arco * ${arcoPrice} + qty_melo * ${meloPrice} + qty_mara * ${maraPrice} + qty_oreo * ${oreoPrice} + qty_nute * ${nutePrice}
+			UPDATE sales SET total_cents = ${total}
 			WHERE id = ${id}
 			RETURNING *
 		`;

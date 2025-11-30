@@ -449,13 +449,15 @@ export async function handler(event) {
                     
                     // Recalculate total to ensure special pricing is correctly reflected
                     // (especially important for sales created before the special pricing feature was fully implemented)
+                    let updatedSale = null;
                     try {
-                        await recalcTotalForId(sid);
+                        updatedSale = await recalcTotalForId(sid);
                     } catch (err) {
                         console.error('Error recalculating total after receipt upload:', err);
                     }
                     
-                    return json(row, 201);
+                    // Return both the receipt and the updated sale info
+                    return json({ receipt: row, sale: updatedSale }, 201);
                 }
 				const sellerId = Number(data.seller_id);
 				let saleDayId = data.sale_day_id ? Number(data.sale_day_id) : null;
