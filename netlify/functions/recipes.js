@@ -16,6 +16,42 @@ export async function handler(event) {
 				const includeExtras = params.get('include_extras') === '1' || params.get('include_extras') === 'true';
 				const allItems = params.get('all_items') === '1' || params.get('all_items') === 'true';
 				const seed = params.get('seed') === '1' || params.get('seed') === 'true';
+				const productionUsers = params.get('production_users') === '1' || params.get('production_users') === 'true';
+				
+				// Get production users sorted by frequency
+				if (productionUsers) {
+					const dessertFilter = params.get('dessert_filter');
+					// Get users with their participation count, sorted by most frequent first
+					let query;
+					if (dessertFilter) {
+						query = sql`
+							SELECT 
+								u.id, 
+								u.username, 
+								COUNT(rpu.id) as participation_count,
+								MAX(rpu.session_date) as last_participation
+							FROM users u
+							LEFT JOIN recipe_production_users rpu ON u.id = rpu.user_id 
+								AND lower(rpu.dessert) = lower(${dessertFilter})
+							GROUP BY u.id, u.username
+							ORDER BY participation_count DESC, last_participation DESC NULLS LAST, u.username ASC
+						`;
+					} else {
+						query = sql`
+							SELECT 
+								u.id, 
+								u.username, 
+								COUNT(rpu.id) as participation_count,
+								MAX(rpu.session_date) as last_participation
+							FROM users u
+							LEFT JOIN recipe_production_users rpu ON u.id = rpu.user_id
+							GROUP BY u.id, u.username
+							ORDER BY participation_count DESC, last_participation DESC NULLS LAST, u.username ASC
+						`;
+					}
+					const users = await query;
+					return json(users);
+				}
 				if (seed) {
 					await seedDefaults();
 					return json({ ok: true });
@@ -55,6 +91,31 @@ export async function handler(event) {
 			case 'POST': {
 				const data = JSON.parse(event.body || '{}');
 				const kind = (data.kind || '').toString();
+				
+				// Save production users for a recipe session
+				if (kind === 'production.users') {
+					const dessert = (data.dessert || '').toString();
+					const userIds = Array.isArray(data.user_ids) ? data.user_ids.map(x => Number(x) || 0).filter(Boolean) : [];
+					const sessionDate = (data.session_date || new Date().toISOString().split('T')[0]).toString().slice(0, 10);
+					
+					if (!dessert) return json({ error: 'dessert requerido' }, 400);
+					if (userIds.length === 0) return json({ error: 'user_ids requerido' }, 400);
+					
+					// First, delete existing entries for this dessert and date
+					await sql`DELETE FROM recipe_production_users WHERE lower(dessert) = lower(${dessert}) AND session_date = ${sessionDate}`;
+					
+					// Then insert new entries
+					for (const userId of userIds) {
+						await sql`
+							INSERT INTO recipe_production_users (dessert, user_id, session_date)
+							VALUES (${dessert}, ${userId}, ${sessionDate})
+							ON CONFLICT (dessert, user_id, session_date) DO NOTHING
+						`;
+					}
+					
+					return json({ ok: true, saved: userIds.length });
+				}
+				
 				if (kind === 'dessert.order') {
 					const names = Array.isArray(data.names) ? data.names : [];
 					for (let i=0;i<names.length;i++) {

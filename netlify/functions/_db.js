@@ -673,6 +673,19 @@ END $$;`;
 	await sql`CREATE INDEX IF NOT EXISTS idx_delivery_production_users_delivery ON delivery_production_users(delivery_id)`;
 	await sql`CREATE INDEX IF NOT EXISTS idx_delivery_production_users_user ON delivery_production_users(user_id)`;
 	
+	// Recipe production users: track who participated in making desserts for recipes
+	await sql`CREATE TABLE IF NOT EXISTS recipe_production_users (
+		id SERIAL PRIMARY KEY,
+		dessert TEXT NOT NULL,
+		user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		session_date DATE NOT NULL DEFAULT CURRENT_DATE,
+		created_at TIMESTAMPTZ DEFAULT now(),
+		UNIQUE (dessert, user_id, session_date)
+	)`;
+	await sql`CREATE INDEX IF NOT EXISTS idx_recipe_production_users_dessert ON recipe_production_users(dessert)`;
+	await sql`CREATE INDEX IF NOT EXISTS idx_recipe_production_users_user ON recipe_production_users(user_id)`;
+	await sql`CREATE INDEX IF NOT EXISTS idx_recipe_production_users_date ON recipe_production_users(session_date DESC)`;
+	
 			// 4) Persist target schema version so future requests short-circuit
 			await sql`UPDATE schema_meta SET version=${SCHEMA_VERSION}, updated_at=now()`;
 			schemaEnsured = true;

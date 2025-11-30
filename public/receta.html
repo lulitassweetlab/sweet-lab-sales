@@ -171,6 +171,181 @@
 		const changeBtn = document.getElementById('change-range');
  		const sessions = [];
 		let desserts = [];
+		let allUsers = []; // Cache for all users
+
+		// Load all users sorted by participation frequency
+		async function loadUsers(dessertFilter = null) {
+			try {
+				const url = dessertFilter 
+					? withActor(`/api/recipes?production_users=1&dessert_filter=${encodeURIComponent(dessertFilter)}`)
+					: withActor('/api/recipes?production_users=1');
+				const users = await fetchJSON(url);
+				return users || [];
+			} catch {
+				return [];
+			}
+		}
+
+		// Save production users for a dessert
+		async function saveProductionUsers(dessert, userIds, sessionDate = null) {
+			try {
+				const date = sessionDate || new Date().toISOString().split('T')[0];
+				const response = await fetch(withActor('/api/recipes'), {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						kind: 'production.users',
+						dessert: dessert,
+						user_ids: userIds,
+						session_date: date
+					})
+				});
+				if (!response.ok) throw new Error('Error al guardar');
+				return true;
+			} catch (err) {
+				console.error('Error saving production users:', err);
+				return false;
+			}
+		}
+
+		// Build user selector component
+		function buildUserSelector(dessertName, users) {
+			const container = document.createElement('div');
+			container.className = 'user-selector-container';
+			container.style.margin = '12px 0';
+			container.style.padding = '12px';
+			container.style.background = 'rgba(244, 166, 183, 0.08)';
+			container.style.borderRadius = '8px';
+			container.style.border = '1px solid rgba(244, 166, 183, 0.3)';
+
+			const label = document.createElement('div');
+			label.textContent = '👥 Participantes en producción:';
+			label.style.fontWeight = '600';
+			label.style.marginBottom = '8px';
+			label.style.fontSize = '14px';
+			label.style.color = 'var(--text)';
+			container.appendChild(label);
+
+			const usersWrap = document.createElement('div');
+			usersWrap.style.display = 'flex';
+			usersWrap.style.flexWrap = 'wrap';
+			usersWrap.style.gap = '8px';
+			
+			const selectedUsers = new Set();
+
+			users.forEach(user => {
+				const userBtn = document.createElement('button');
+				userBtn.className = 'user-select-btn';
+				userBtn.textContent = user.username;
+				userBtn.dataset.userId = user.id;
+				userBtn.style.padding = '6px 12px';
+				userBtn.style.borderRadius = '20px';
+				userBtn.style.border = '2px solid var(--border)';
+				userBtn.style.background = 'white';
+				userBtn.style.cursor = 'pointer';
+				userBtn.style.fontSize = '13px';
+				userBtn.style.fontWeight = '500';
+				userBtn.style.transition = 'all 0.2s ease';
+				userBtn.style.position = 'relative';
+				
+				// Show participation count if > 0
+				if (user.participation_count > 0) {
+					const badge = document.createElement('span');
+					badge.textContent = user.participation_count;
+					badge.style.position = 'absolute';
+					badge.style.top = '-6px';
+					badge.style.right = '-6px';
+					badge.style.background = 'var(--primary)';
+					badge.style.color = 'white';
+					badge.style.fontSize = '10px';
+					badge.style.fontWeight = '700';
+					badge.style.borderRadius = '10px';
+					badge.style.padding = '2px 6px';
+					badge.style.minWidth = '18px';
+					badge.style.textAlign = 'center';
+					badge.title = `Ha participado ${user.participation_count} ${user.participation_count === 1 ? 'vez' : 'veces'}`;
+					userBtn.appendChild(badge);
+				}
+
+				userBtn.addEventListener('click', async () => {
+					const userId = Number(userBtn.dataset.userId);
+					if (selectedUsers.has(userId)) {
+						selectedUsers.delete(userId);
+						userBtn.style.background = 'white';
+						userBtn.style.borderColor = 'var(--border)';
+						userBtn.style.color = 'var(--text)';
+					} else {
+						selectedUsers.add(userId);
+						userBtn.style.background = 'var(--primary)';
+						userBtn.style.borderColor = 'var(--primary)';
+						userBtn.style.color = 'white';
+					}
+					
+					// Auto-save selection
+					const success = await saveProductionUsers(dessertName, Array.from(selectedUsers));
+					if (success) {
+						// Show brief success indicator
+						const originalText = userBtn.textContent;
+						const wasSelected = selectedUsers.has(userId);
+						if (wasSelected) {
+							const checkmark = document.createElement('span');
+							checkmark.textContent = ' ✓';
+							checkmark.style.fontSize = '12px';
+							userBtn.appendChild(checkmark);
+							setTimeout(() => {
+								if (checkmark.parentNode) checkmark.parentNode.removeChild(checkmark);
+							}, 1000);
+						}
+					}
+				});
+
+				usersWrap.appendChild(userBtn);
+			});
+
+			container.appendChild(usersWrap);
+			
+			// Add quick select all / clear buttons
+			const actions = document.createElement('div');
+			actions.style.marginTop = '8px';
+			actions.style.display = 'flex';
+			actions.style.gap = '6px';
+			
+			const selectAllBtn = document.createElement('button');
+			selectAllBtn.className = 'press-btn';
+			selectAllBtn.textContent = 'Seleccionar todos';
+			selectAllBtn.style.fontSize = '11px';
+			selectAllBtn.style.padding = '4px 8px';
+			selectAllBtn.style.minWidth = 'unset';
+			selectAllBtn.addEventListener('click', async () => {
+				users.forEach(u => selectedUsers.add(u.id));
+				usersWrap.querySelectorAll('.user-select-btn').forEach(btn => {
+					btn.style.background = 'var(--primary)';
+					btn.style.borderColor = 'var(--primary)';
+					btn.style.color = 'white';
+				});
+				await saveProductionUsers(dessertName, Array.from(selectedUsers));
+			});
+			
+			const clearBtn = document.createElement('button');
+			clearBtn.className = 'press-btn';
+			clearBtn.textContent = 'Limpiar';
+			clearBtn.style.fontSize = '11px';
+			clearBtn.style.padding = '4px 8px';
+			clearBtn.style.minWidth = 'unset';
+			clearBtn.addEventListener('click', async () => {
+				selectedUsers.clear();
+				usersWrap.querySelectorAll('.user-select-btn').forEach(btn => {
+					btn.style.background = 'white';
+					btn.style.borderColor = 'var(--border)';
+					btn.style.color = 'var(--text)';
+				});
+			});
+			
+			actions.append(selectAllBtn, clearBtn);
+			container.appendChild(actions);
+
+			return { element: container, getSelectedUsers: () => Array.from(selectedUsers) };
+		}
 
 		// Lightweight embed of openRangeCalendarPopover if not present
 		if (typeof window.openRangeCalendarPopover !== 'function') {
@@ -972,6 +1147,14 @@
 				if (!data) return;
 				const card = document.createElement('div'); card.className = 'measure-card'; card.style.padding='12px'; card.style.border='1px solid rgba(0,0,0,0.15)'; card.style.borderRadius='10px'; card.style.boxShadow='0 8px 24px rgba(0,0,0,0.12)';
 				const title = document.createElement('h3'); title.textContent = `${dessertName} × ${qty}`; title.style.textAlign='center'; title.style.fontSize='28px'; title.style.margin='4px 0 12px 0'; title.style.background='rgba(255, 105, 180, 0.18)'; title.style.padding='8px 6px'; title.style.borderRadius='8px'; card.appendChild(title);
+			
+			// Add user selector for this dessert
+			const dessertUsers = await loadUsers(dessertName);
+			if (dessertUsers.length > 0) {
+				const userSelector = buildUserSelector(dessertName, dessertUsers);
+				card.appendChild(userSelector.element);
+			}
+			
 			const session = { dessert: dessertName, qty, steps: [] };
 			const checkedState = getCheckedState();
 			for (const step of (Array.isArray(data.steps) ? data.steps : [])){
