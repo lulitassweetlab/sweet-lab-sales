@@ -134,14 +134,16 @@ export async function handler(event) {
 				const data = JSON.parse(event.body || '{}');
 				const kind = (data.kind || '').toString();
 				
-				// Save production users for a recipe session
-				if (kind === 'production.users') {
-					const dessert = (data.dessert || '').toString();
-					const userIds = Array.isArray(data.user_ids) ? data.user_ids.map(x => Number(x) || 0).filter(Boolean) : [];
-					const sessionDate = (data.session_date || new Date().toISOString().split('T')[0]).toString().slice(0, 10);
-					
-					if (!dessert) return json({ error: 'dessert requerido' }, 400);
-					if (userIds.length === 0) return json({ error: 'user_ids requerido' }, 400);
+			// Save production users for a recipe session
+			if (kind === 'production.users') {
+				const dessert = (data.dessert || '').toString();
+				const userIds = Array.isArray(data.user_ids) ? data.user_ids.map(x => Number(x) || 0).filter(Boolean) : [];
+				const sessionDate = (data.session_date || new Date().toISOString().split('T')[0]).toString().slice(0, 10);
+				
+				console.log('📥 Received production.users request:', { dessert, userIds, sessionDate });
+				
+				if (!dessert) return json({ error: 'dessert requerido' }, 400);
+				if (userIds.length === 0) return json({ error: 'user_ids requerido' }, 400);
 					
 					// First, ensure all user IDs exist in users table
 					// This is important because recipe_production_users has a foreign key to users
@@ -167,23 +169,31 @@ export async function handler(event) {
 						}
 					}
 					
-					// Delete existing entries for this dessert and date
-					await sql`DELETE FROM recipe_production_users WHERE lower(dessert) = lower(${dessert}) AND session_date = ${sessionDate}`;
-					
-					// Insert new entries
-					let savedCount = 0;
-					for (const userId of userIds) {
-						try {
-							await sql`
-								INSERT INTO recipe_production_users (dessert, user_id, session_date)
-								VALUES (${dessert}, ${userId}, ${sessionDate})
-								ON CONFLICT (dessert, user_id, session_date) DO NOTHING
-							`;
-							savedCount++;
-						} catch (err) {
-							console.error('Error saving user participation:', err);
-						}
+				// Delete existing entries for this dessert and date
+				await sql`DELETE FROM recipe_production_users WHERE lower(dessert) = lower(${dessert}) AND session_date = ${sessionDate}`;
+				console.log(`🗑️ Deleted existing entries for ${dessert} on ${sessionDate}`);
+				
+				// Insert new entries
+				let savedCount = 0;
+				const insertErrors = [];
+				for (const userId of userIds) {
+					try {
+						await sql`
+							INSERT INTO recipe_production_users (dessert, user_id, session_date)
+							VALUES (${dessert}, ${userId}, ${sessionDate})
+							ON CONFLICT (dessert, user_id, session_date) DO NOTHING
+						`;
+						savedCount++;
+						console.log(`✅ Inserted ${dessert} - user ${userId}`);
+					} catch (err) {
+						console.error(`❌ Error saving user ${userId} for ${dessert}:`, err.message);
+						insertErrors.push({ userId, error: err.message });
 					}
+				}
+				
+				if (insertErrors.length > 0) {
+					console.error('Insert errors:', insertErrors);
+				}
 					
 					// ALSO save to delivery_production_users (for page "Entregas")
 					// First, get or create a delivery for this date
@@ -204,35 +214,42 @@ export async function handler(event) {
 							deliveryId = deliveryRows[0].id;
 						}
 						
-						// Get dessert ID from short_code/name
-						const dessertRows = await sql`
-							SELECT id FROM desserts 
-							WHERE lower(name) = lower(${dessert}) OR lower(short_code) = lower(${dessert})
-							LIMIT 1
-						`;
+					// Get dessert ID from short_code/name
+					const dessertRows = await sql`
+						SELECT id, name, short_code FROM desserts 
+						WHERE lower(name) = lower(${dessert}) OR lower(short_code) = lower(${dessert})
+						LIMIT 1
+					`;
+					
+					console.log(`🔍 Looking for dessert '${dessert}':`, dessertRows);
+					
+					if (dessertRows.length > 0) {
+						const dessertId = dessertRows[0].id;
+						console.log(`✅ Found dessert: ${dessertRows[0].name} (id: ${dessertId})`);
 						
-						if (dessertRows.length > 0) {
-							const dessertId = dessertRows[0].id;
-							
-							// Delete existing entries for this delivery, dessert
-							await sql`
-								DELETE FROM delivery_production_users 
-								WHERE delivery_id = ${deliveryId} AND dessert_id = ${dessertId}
-							`;
-							
-							// Insert new entries
-							for (const userId of userIds) {
-								try {
-									await sql`
-										INSERT INTO delivery_production_users (delivery_id, dessert_id, user_id)
-										VALUES (${deliveryId}, ${dessertId}, ${userId})
-										ON CONFLICT DO NOTHING
-									`;
-								} catch (err) {
-									console.error('Error saving to delivery_production_users:', err);
-								}
+						// Delete existing entries for this delivery, dessert
+						await sql`
+							DELETE FROM delivery_production_users 
+							WHERE delivery_id = ${deliveryId} AND dessert_id = ${dessertId}
+						`;
+						console.log(`🗑️ Deleted existing delivery_production_users for delivery ${deliveryId}, dessert ${dessertId}`);
+						
+						// Insert new entries
+						for (const userId of userIds) {
+							try {
+								await sql`
+									INSERT INTO delivery_production_users (delivery_id, dessert_id, user_id)
+									VALUES (${deliveryId}, ${dessertId}, ${userId})
+									ON CONFLICT DO NOTHING
+								`;
+								console.log(`✅ Inserted delivery_production_users: delivery ${deliveryId}, dessert ${dessertId}, user ${userId}`);
+							} catch (err) {
+								console.error(`❌ Error saving to delivery_production_users (user ${userId}):`, err.message);
 							}
 						}
+					} else {
+						console.error(`❌ Dessert '${dessert}' not found in desserts table!`);
+					}
 					} catch (err) {
 						console.error('Error syncing to deliveries:', err);
 						// Don't fail the whole request if delivery sync fails
