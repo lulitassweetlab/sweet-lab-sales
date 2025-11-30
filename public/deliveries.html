@@ -20,25 +20,58 @@
 	</header>
 
 	<main class="sales-panel">
-		<div class="panel-header">
-			<h3>Producciones de postres</h3>
-			<div class="panel-actions">
-				<button id="production-report-btn" class="press-btn">Reporte de producción</button>
-				<button id="add-delivery-btn" class="press-btn btn-primary">+ Nueva entrega</button>
+		<!-- View Tabs -->
+		<div style="display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 2px solid #eee;">
+			<button id="tab-production" class="press-btn" style="border-bottom: 3px solid #4caf50; font-weight: bold;">Producciones</button>
+			<button id="tab-sales" class="press-btn">Ventas Consolidadas</button>
+		</div>
+		
+		<!-- Production View -->
+		<div id="view-production">
+			<div class="panel-header">
+				<h3>Producciones de postres</h3>
+				<div class="panel-actions">
+					<button id="production-report-btn" class="press-btn">Reporte de producción</button>
+					<button id="add-delivery-btn" class="press-btn btn-primary">+ Nueva entrega</button>
+				</div>
+			</div>
+			<div class="panel-body">
+				<div class="table-wrapper">
+					<table id="deliveries-table">
+						<thead>
+							<tr id="deliveries-thead-row">
+								<th>Fecha</th>
+								<!-- Dynamic dessert columns will be inserted here -->
+								<th>Acciones</th>
+							</tr>
+						</thead>
+						<tbody id="deliveries-tbody"></tbody>
+					</table>
+				</div>
 			</div>
 		</div>
-		<div class="panel-body">
-			<div class="table-wrapper">
-				<table id="deliveries-table">
-					<thead>
-						<tr id="deliveries-thead-row">
-							<th>Fecha</th>
-							<!-- Dynamic dessert columns will be inserted here -->
-							<th>Acciones</th>
-						</tr>
-					</thead>
-					<tbody id="deliveries-tbody"></tbody>
-				</table>
+		
+		<!-- Sales Consolidated View -->
+		<div id="view-sales" style="display: none;">
+			<div class="panel-header">
+				<h3>Ventas Consolidadas por Fecha</h3>
+				<div class="panel-actions">
+					<button id="refresh-sales-btn" class="press-btn">Actualizar</button>
+				</div>
+			</div>
+			<div class="panel-body">
+				<div class="table-wrapper">
+					<table id="sales-consolidated-table">
+						<thead>
+							<tr id="sales-thead-row">
+								<th>Fecha</th>
+								<th>Vendedor</th>
+								<!-- Dynamic dessert columns will be inserted here -->
+							</tr>
+						</thead>
+						<tbody id="sales-tbody"></tbody>
+					</table>
+				</div>
 			</div>
 		</div>
 	</main>
@@ -898,6 +931,157 @@
 		}
 
 		backBtn.addEventListener('click', () => { window.location.href = '/index.html'; });
+		
+		// Tab switching logic
+		const tabProduction = document.getElementById('tab-production');
+		const tabSales = document.getElementById('tab-sales');
+		const viewProduction = document.getElementById('view-production');
+		const viewSales = document.getElementById('view-sales');
+		const refreshSalesBtn = document.getElementById('refresh-sales-btn');
+		const salesTbody = document.getElementById('sales-tbody');
+		
+		let currentView = 'production';
+		let salesData = [];
+		
+		function switchTab(tab) {
+			if (tab === 'production') {
+				currentView = 'production';
+				viewProduction.style.display = 'block';
+				viewSales.style.display = 'none';
+				tabProduction.style.borderBottom = '3px solid #4caf50';
+				tabProduction.style.fontWeight = 'bold';
+				tabSales.style.borderBottom = 'none';
+				tabSales.style.fontWeight = 'normal';
+			} else {
+				currentView = 'sales';
+				viewProduction.style.display = 'none';
+				viewSales.style.display = 'block';
+				tabProduction.style.borderBottom = 'none';
+				tabProduction.style.fontWeight = 'normal';
+				tabSales.style.borderBottom = '3px solid #4caf50';
+				tabSales.style.fontWeight = 'bold';
+				loadSalesConsolidated();
+			}
+		}
+		
+		tabProduction.addEventListener('click', () => switchTab('production'));
+		tabSales.addEventListener('click', () => switchTab('sales'));
+		refreshSalesBtn.addEventListener('click', () => loadSalesConsolidated());
+		
+		async function loadSalesConsolidated() {
+			try {
+				const data = await api('GET', '/api/deliveries?sales_consolidated=true');
+				salesData = Array.isArray(data) ? data : [];
+				renderSalesConsolidated();
+			} catch (err) {
+				console.error('Error loading sales consolidated:', err);
+				alert('Error al cargar ventas consolidadas: ' + (err.message || err));
+			}
+		}
+		
+		function renderSalesConsolidated() {
+			// First render the header columns dynamically
+			const theadRow = document.getElementById('sales-thead-row');
+			// Remove existing dessert columns
+			theadRow.querySelectorAll('th.col-qty').forEach(th => th.remove());
+			
+			// Insert new columns after Vendedor
+			for (const d of desserts) {
+				const th = document.createElement('th');
+				th.className = 'col-qty';
+				th.textContent = d.name;
+				theadRow.appendChild(th);
+			}
+			
+			// Clear tbody
+			salesTbody.innerHTML = '';
+			
+			// Render each date
+			for (const dateData of salesData) {
+				// Render date header row (just the date with colspan)
+				const dateRow = document.createElement('tr');
+				dateRow.style.backgroundColor = '#e3f2fd';
+				dateRow.style.fontWeight = 'bold';
+				const dateCell = document.createElement('td');
+				dateCell.colSpan = 2 + desserts.length; // Fecha + Vendedor + all desserts
+				dateCell.textContent = formatIsoDate(dateData.day);
+				dateCell.style.padding = '12px 8px';
+				dateRow.appendChild(dateCell);
+				salesTbody.appendChild(dateRow);
+				
+				// Render each seller
+				for (const seller of dateData.sellers) {
+					const tr = document.createElement('tr');
+					tr.style.backgroundColor = '#fafafa';
+					
+					// Empty cell for Fecha column (merge with date header visually)
+					const emptyDateCell = document.createElement('td');
+					emptyDateCell.textContent = '';
+					tr.appendChild(emptyDateCell);
+					
+					// Seller name
+					const sellerCell = document.createElement('td');
+					sellerCell.textContent = seller.seller_name;
+					sellerCell.style.paddingLeft = '16px';
+					tr.appendChild(sellerCell);
+					
+					// Dessert quantities
+					for (const d of desserts) {
+						const td = document.createElement('td');
+						td.className = 'col-qty';
+						td.textContent = seller[d.short_code] || 0;
+						tr.appendChild(td);
+					}
+					
+					salesTbody.appendChild(tr);
+				}
+				
+				// Render totals row
+				const totalsRow = document.createElement('tr');
+				totalsRow.style.backgroundColor = '#c8e6c9';
+				totalsRow.style.fontWeight = 'bold';
+				
+				const emptyTotalDateCell = document.createElement('td');
+				totalsRow.appendChild(emptyTotalDateCell);
+				
+				const totalLabel = document.createElement('td');
+				totalLabel.textContent = 'TOTAL';
+				totalLabel.style.paddingLeft = '16px';
+				totalsRow.appendChild(totalLabel);
+				
+				for (const d of desserts) {
+					const td = document.createElement('td');
+					td.className = 'col-qty';
+					td.textContent = dateData.totals[d.short_code] || 0;
+					totalsRow.appendChild(td);
+				}
+				
+				salesTbody.appendChild(totalsRow);
+				
+				// Add spacing row
+				const spacingRow = document.createElement('tr');
+				spacingRow.style.height = '20px';
+				spacingRow.style.backgroundColor = 'transparent';
+				const spacingCell = document.createElement('td');
+				spacingCell.colSpan = 2 + desserts.length;
+				spacingCell.innerHTML = '&nbsp;';
+				spacingRow.appendChild(spacingCell);
+				salesTbody.appendChild(spacingRow);
+			}
+			
+			if (salesData.length === 0) {
+				const emptyRow = document.createElement('tr');
+				const emptyCell = document.createElement('td');
+				emptyCell.colSpan = 2 + desserts.length;
+				emptyCell.textContent = 'No hay datos de ventas consolidadas';
+				emptyCell.style.textAlign = 'center';
+				emptyCell.style.padding = '32px';
+				emptyCell.style.color = '#999';
+				emptyRow.appendChild(emptyCell);
+				salesTbody.appendChild(emptyRow);
+			}
+		}
+		
 		requireAdmin();
 		load();
 	})();

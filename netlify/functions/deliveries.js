@@ -32,6 +32,143 @@ export async function handler(event) {
 				}
 				const params = new URLSearchParams(raw);
 				
+				// Check if this is a request for consolidated sales by date
+				const salesConsolidated = params.get('sales_consolidated');
+				if (salesConsolidated === 'true') {
+					// Get all desserts dynamically
+					const desserts = await sql`SELECT id, short_code, name FROM desserts WHERE is_active = true ORDER BY position ASC, id ASC`;
+					
+					// OPTIMIZED: Get all sale_items in one query
+					const allItems = await sql`
+						SELECT 
+							sd.day,
+							s.seller_id,
+							se.name AS seller_name,
+							si.dessert_id,
+							SUM(si.quantity)::int AS total_qty
+						FROM sale_items si
+						INNER JOIN sales s ON s.id = si.sale_id
+						INNER JOIN sale_days sd ON sd.id = s.sale_day_id
+						INNER JOIN sellers se ON se.id = s.seller_id
+						GROUP BY sd.day, s.seller_id, se.name, si.dessert_id
+						ORDER BY sd.day DESC, se.name ASC
+					`;
+					
+					// OPTIMIZED: Get all legacy sales in one query
+					const allLegacySales = await sql`
+						SELECT 
+							sd.day,
+							s.seller_id,
+							se.name AS seller_name,
+							COALESCE(SUM(s.qty_arco), 0)::int AS arco,
+							COALESCE(SUM(s.qty_melo), 0)::int AS melo,
+							COALESCE(SUM(s.qty_mara), 0)::int AS mara,
+							COALESCE(SUM(s.qty_oreo), 0)::int AS oreo,
+							COALESCE(SUM(s.qty_nute), 0)::int AS nute
+						FROM sales s
+						INNER JOIN sale_days sd ON sd.id = s.sale_day_id
+						INNER JOIN sellers se ON se.id = s.seller_id
+						GROUP BY sd.day, s.seller_id, se.name
+						ORDER BY sd.day DESC, se.name ASC
+					`;
+					
+					// Build a map to organize data
+					const dataByDate = {};
+					const sellersByDateAndId = {};
+					
+					// Process legacy sales first
+					for (const row of allLegacySales) {
+						const dateKey = row.day;
+						const sellerKey = `${dateKey}_${row.seller_id}`;
+						
+						if (!dataByDate[dateKey]) {
+							dataByDate[dateKey] = {
+								day: dateKey,
+								sellers: [],
+								totals: {}
+							};
+							// Initialize totals for all desserts
+							for (const d of desserts) {
+								dataByDate[dateKey].totals[d.short_code] = 0;
+							}
+						}
+						
+						if (!sellersByDateAndId[sellerKey]) {
+							sellersByDateAndId[sellerKey] = {
+								seller_id: row.seller_id,
+								seller_name: row.seller_name
+							};
+							// Initialize quantities for all desserts
+							for (const d of desserts) {
+								sellersByDateAndId[sellerKey][d.short_code] = 0;
+							}
+						}
+						
+						// Add legacy quantities
+						for (const d of desserts) {
+							const legacyKey = d.short_code;
+							if (row[legacyKey]) {
+								sellersByDateAndId[sellerKey][legacyKey] += row[legacyKey];
+								dataByDate[dateKey].totals[legacyKey] += row[legacyKey];
+							}
+						}
+					}
+					
+					// Process dynamic items
+					for (const item of allItems) {
+						const dateKey = item.day;
+						const sellerKey = `${dateKey}_${item.seller_id}`;
+						const dessert = desserts.find(d => d.id === item.dessert_id);
+						
+						if (!dessert) continue;
+						
+						if (!dataByDate[dateKey]) {
+							dataByDate[dateKey] = {
+								day: dateKey,
+								sellers: [],
+								totals: {}
+							};
+							// Initialize totals for all desserts
+							for (const d of desserts) {
+								dataByDate[dateKey].totals[d.short_code] = 0;
+							}
+						}
+						
+						if (!sellersByDateAndId[sellerKey]) {
+							sellersByDateAndId[sellerKey] = {
+								seller_id: item.seller_id,
+								seller_name: item.seller_name
+							};
+							// Initialize quantities for all desserts
+							for (const d of desserts) {
+								sellersByDateAndId[sellerKey][d.short_code] = 0;
+							}
+						}
+						
+						// Add item quantities
+						sellersByDateAndId[sellerKey][dessert.short_code] += item.total_qty;
+						dataByDate[dateKey].totals[dessert.short_code] += item.total_qty;
+					}
+					
+					// Convert sellers map to arrays organized by date
+					for (const [sellerKey, sellerData] of Object.entries(sellersByDateAndId)) {
+						const [dateKey] = sellerKey.split('_');
+						if (dataByDate[dateKey]) {
+							dataByDate[dateKey].sellers.push(sellerData);
+						}
+					}
+					
+					// Sort sellers within each date
+					for (const dateData of Object.values(dataByDate)) {
+						dateData.sellers.sort((a, b) => a.seller_name.localeCompare(b.seller_name));
+					}
+					
+					// Convert to array and return
+					const result = Object.values(dataByDate);
+					
+					return json(result);
+				}
+				
 				// Check if this is a request for seller assignments
 				const deliveryId = params.get('delivery_id');
 				if (deliveryId) {
