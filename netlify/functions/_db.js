@@ -705,18 +705,24 @@ export async function getDesserts() {
 
 export async function recalcTotalForId(id) {
 	await ensureSchema();
-	// First try to calculate from sale_items (new system)
-	const itemsTotal = await sql`
-		SELECT COALESCE(SUM(quantity * unit_price), 0)::int AS total
-		FROM sale_items
-		WHERE sale_id = ${id}
+	// First check if sale has items (new system)
+	const items = await sql`
+		SELECT id FROM sale_items WHERE sale_id = ${id} LIMIT 1
 	`;
 	
 	let row;
-	if (itemsTotal && itemsTotal[0] && itemsTotal[0].total > 0) {
-		// Update using sale_items
+	if (items && items.length > 0) {
+		// Sale uses items format - calculate from items (respects unit_price which already has special pricing)
+		const itemsTotal = await sql`
+			SELECT COALESCE(SUM(quantity * unit_price), 0)::int AS total
+			FROM sale_items
+			WHERE sale_id = ${id}
+		`;
+		
+		const total = (itemsTotal && itemsTotal[0]) ? itemsTotal[0].total : 0;
+		
 		[row] = await sql`
-			UPDATE sales SET total_cents = ${itemsTotal[0].total}
+			UPDATE sales SET total_cents = ${total}
 			WHERE id = ${id}
 			RETURNING *
 		`;
