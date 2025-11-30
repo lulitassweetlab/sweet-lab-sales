@@ -410,13 +410,18 @@ export async function handler(event) {
 						saleDayId = newSaleDay.id;
 					}
 					
-					// Update the delivered quantity for this dessert
-					const columnName = `delivered_${dessertCode}`;
-					await sql.unsafe(`
-						UPDATE sale_days 
-						SET ${columnName} = ${quantity}
-						WHERE id = ${saleDayId}
-					`);
+					// Update the delivered quantity using parameterized query
+					if (dessertCode === 'arco') {
+						await sql`UPDATE sale_days SET delivered_arco = ${quantity} WHERE id = ${saleDayId}`;
+					} else if (dessertCode === 'melo') {
+						await sql`UPDATE sale_days SET delivered_melo = ${quantity} WHERE id = ${saleDayId}`;
+					} else if (dessertCode === 'mara') {
+						await sql`UPDATE sale_days SET delivered_mara = ${quantity} WHERE id = ${saleDayId}`;
+					} else if (dessertCode === 'oreo') {
+						await sql`UPDATE sale_days SET delivered_oreo = ${quantity} WHERE id = ${saleDayId}`;
+					} else if (dessertCode === 'nute') {
+						await sql`UPDATE sale_days SET delivered_nute = ${quantity} WHERE id = ${saleDayId}`;
+					}
 					
 					return json({ ok: true, sale_day_id: saleDayId });
 				}
@@ -449,23 +454,20 @@ export async function handler(event) {
 						saleDayId = newSaleDay.id;
 					}
 					
-					// Update all delivered quantities
-					const updates = [];
-					const desserts = await sql`SELECT short_code FROM desserts WHERE is_active = true`;
-					for (const d of desserts) {
-						const code = d.short_code;
-						if (quantities[code] !== undefined) {
-							const qty = Number(quantities[code] || 0) || 0;
-							updates.push(`delivered_${code} = ${qty}`);
+					// Update all delivered quantities using individual updates
+					for (const [code, qty] of Object.entries(quantities)) {
+						const quantity = Number(qty || 0) || 0;
+						if (code === 'arco') {
+							await sql`UPDATE sale_days SET delivered_arco = ${quantity} WHERE id = ${saleDayId}`;
+						} else if (code === 'melo') {
+							await sql`UPDATE sale_days SET delivered_melo = ${quantity} WHERE id = ${saleDayId}`;
+						} else if (code === 'mara') {
+							await sql`UPDATE sale_days SET delivered_mara = ${quantity} WHERE id = ${saleDayId}`;
+						} else if (code === 'oreo') {
+							await sql`UPDATE sale_days SET delivered_oreo = ${quantity} WHERE id = ${saleDayId}`;
+						} else if (code === 'nute') {
+							await sql`UPDATE sale_days SET delivered_nute = ${quantity} WHERE id = ${saleDayId}`;
 						}
-					}
-					
-					if (updates.length > 0) {
-						await sql.unsafe(`
-							UPDATE sale_days 
-							SET ${updates.join(', ')}
-							WHERE id = ${saleDayId}
-						`);
 					}
 					
 					return json({ ok: true, sale_day_id: saleDayId });

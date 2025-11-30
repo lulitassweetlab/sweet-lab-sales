@@ -247,50 +247,87 @@
 							const qty = seller.delivered_quantities[d.short_code] || 0;
 							const td = document.createElement('td');
 							td.className = 'col-qty';
-							td.style.cursor = 'pointer';
-							td.title = 'Click para editar';
+							td.style.padding = '4px';
 							
-							if (qty > 0) {
-								const badge = document.createElement('span');
-								badge.textContent = qty;
-								badge.style.backgroundColor = '#4caf50';
-								badge.style.color = 'white';
-								badge.style.padding = '3px 8px';
-								badge.style.borderRadius = '12px';
-								badge.style.fontSize = '12px';
-								badge.style.fontWeight = 'bold';
-								badge.style.display = 'inline-block';
-								td.appendChild(badge);
-							} else {
-								const badge = document.createElement('span');
-								badge.textContent = '-';
-								badge.style.color = '#999';
-								badge.style.fontSize = '12px';
-								td.appendChild(badge);
-							}
+							// Create inline editable input
+							const input = document.createElement('input');
+							input.type = 'number';
+							input.min = '0';
+							input.step = '1';
+							input.value = qty;
+							input.style.width = '50px';
+							input.style.textAlign = 'center';
+							input.style.backgroundColor = '#4caf50';
+							input.style.color = 'white';
+							input.style.border = 'none';
+							input.style.borderRadius = '12px';
+							input.style.padding = '3px 8px';
+							input.style.fontSize = '12px';
+							input.style.fontWeight = 'bold';
+							input.style.outline = 'none';
+							input.title = 'Editar cantidad entregada';
 							
-							// Make editable on click
-							td.addEventListener('click', async () => {
+							// Save on blur or Enter
+							let saveTimeout;
+							const saveValue = async () => {
 								if (!requireAdmin()) return;
-								await openEditDeliveredPopover(dateData.day, seller.seller_id, seller.seller_name, d.short_code, d.name, qty);
+								const newQty = Math.max(0, parseInt(input.value || '0', 10));
+								
+								// Only save if value changed
+								if (newQty !== qty) {
+									try {
+										input.disabled = true;
+										input.style.opacity = '0.6';
+										
+										const payload = {
+											day: dateData.day,
+											seller_id: seller.seller_id,
+											dessert_code: d.short_code,
+											quantity: newQty
+										};
+										
+										await api('PUT', '/api/deliveries?update_delivered=true', payload);
+										
+										// Update local data
+										seller.delivered_quantities[d.short_code] = newQty;
+										
+										// Visual feedback
+										input.style.backgroundColor = '#2196F3'; // Blue flash
+										setTimeout(() => {
+											input.style.backgroundColor = '#4caf50';
+											input.disabled = false;
+											input.style.opacity = '1';
+										}, 300);
+									} catch (e) {
+										alert('Error al guardar: ' + (e?.message || e));
+										input.value = qty; // Revert
+										input.disabled = false;
+										input.style.opacity = '1';
+									}
+								}
+							};
+							
+							input.addEventListener('blur', saveValue);
+							input.addEventListener('keydown', (e) => {
+								if (e.key === 'Enter') {
+									e.preventDefault();
+									input.blur();
+								}
 							});
 							
+							// Debounce on input (save after 1 second of no typing)
+							input.addEventListener('input', () => {
+								clearTimeout(saveTimeout);
+								saveTimeout = setTimeout(saveValue, 1000);
+							});
+							
+							td.appendChild(input);
 							deliveredRow.appendChild(td);
 						}
 						
-						// Edit all button in total cell
-						const editAllCell = document.createElement('td');
-						const editAllBtn = document.createElement('button');
-						editAllBtn.className = 'press-btn';
-						editAllBtn.textContent = 'Editar';
-						editAllBtn.style.fontSize = '11px';
-						editAllBtn.style.padding = '2px 8px';
-						editAllBtn.addEventListener('click', async () => {
-							if (!requireAdmin()) return;
-							await openEditAllDeliveredPopover(dateData.day, seller.seller_id, seller.seller_name, seller.delivered_quantities);
-						});
-						editAllCell.appendChild(editAllBtn);
-						deliveredRow.appendChild(editAllCell);
+						// Empty total cell
+						const emptyTotalCell = document.createElement('td');
+						deliveredRow.appendChild(emptyTotalCell);
 						
 						salesTbody.appendChild(deliveredRow);
 						
@@ -434,185 +471,6 @@
 				emptyRow.appendChild(emptyCell);
 				salesTbody.appendChild(emptyRow);
 			}
-		}
-
-		// Open popover to edit single dessert delivered quantity
-		async function openEditDeliveredPopover(day, sellerId, sellerName, dessertCode, dessertName, currentQty) {
-			const pop = document.createElement('div');
-			pop.className = 'new-sale-popover';
-			pop.style.position = 'fixed';
-			pop.style.left = '50%';
-			pop.style.top = '30%';
-			pop.style.transform = 'translate(-50%, 0)';
-			pop.style.zIndex = '1000';
-
-			const title = document.createElement('h4');
-			title.style.margin = '0 0 12px 0';
-			title.textContent = `Editar entregados - ${sellerName}`;
-
-			const grid = document.createElement('div');
-			grid.className = 'new-sale-grid';
-
-			const label = document.createElement('div');
-			label.style.marginBottom = '8px';
-			label.textContent = `${dessertName} entregados:`;
-
-			const input = document.createElement('input');
-			input.type = 'number';
-			input.min = '0';
-			input.step = '1';
-			input.value = currentQty;
-			input.className = 'input-cell input-qty';
-			input.style.width = '100%';
-
-			grid.appendChild(label);
-			grid.appendChild(input);
-
-			const actions = document.createElement('div');
-			actions.className = 'confirm-actions';
-			const cancelBtn = document.createElement('button');
-			cancelBtn.className = 'press-btn';
-			cancelBtn.textContent = 'Cancelar';
-			const saveBtn = document.createElement('button');
-			saveBtn.className = 'press-btn btn-primary';
-			saveBtn.textContent = 'Guardar';
-			actions.append(cancelBtn, saveBtn);
-
-			pop.append(title, grid, actions);
-			document.body.appendChild(pop);
-
-			function cleanup() {
-				if (pop.parentNode) pop.parentNode.removeChild(pop);
-			}
-
-			cancelBtn.addEventListener('click', cleanup);
-
-			saveBtn.addEventListener('click', async () => {
-				try {
-					saveBtn.disabled = true;
-					const qty = Math.max(0, parseInt(input.value || '0', 10));
-					
-					const payload = {
-						day,
-						seller_id: sellerId,
-						dessert_code: dessertCode,
-						quantity: qty
-					};
-					
-					await api('PUT', '/api/deliveries?update_delivered=true', payload);
-					cleanup();
-					await loadSalesConsolidated();
-				} catch (e) {
-					alert('Error al guardar: ' + (e?.message || e));
-					saveBtn.disabled = false;
-				}
-			});
-
-			input.addEventListener('keydown', (ev) => {
-				if (ev.key === 'Enter') {
-					ev.preventDefault();
-					saveBtn.click();
-				}
-			});
-
-			setTimeout(() => { try { input.focus(); input.select(); } catch {} }, 0);
-		}
-
-		// Open popover to edit all delivered quantities
-		async function openEditAllDeliveredPopover(day, sellerId, sellerName, currentQuantities) {
-			const pop = document.createElement('div');
-			pop.className = 'new-sale-popover';
-			pop.style.position = 'fixed';
-			pop.style.left = '50%';
-			pop.style.top = '20%';
-			pop.style.transform = 'translate(-50%, 0)';
-			pop.style.zIndex = '1000';
-
-			const title = document.createElement('h4');
-			title.style.margin = '0 0 12px 0';
-			title.textContent = `Editar todos los entregados - ${sellerName}`;
-
-			const grid = document.createElement('div');
-			grid.className = 'new-sale-grid';
-
-			const inputs = {};
-			for (const d of desserts) {
-				const label = document.createElement('div');
-				label.className = 'new-sale-label-text';
-				label.textContent = d.name;
-
-				const input = document.createElement('input');
-				input.type = 'number';
-				input.min = '0';
-				input.step = '1';
-				input.value = currentQuantities[d.short_code] || 0;
-				input.className = 'input-cell input-qty';
-				inputs[d.short_code] = input;
-
-				const left = document.createElement('div');
-				left.className = 'new-sale-cell new-sale-left';
-				left.appendChild(label);
-
-				const right = document.createElement('div');
-				right.className = 'new-sale-cell new-sale-right';
-				right.appendChild(input);
-
-				grid.appendChild(left);
-				grid.appendChild(right);
-			}
-
-			const actions = document.createElement('div');
-			actions.className = 'confirm-actions';
-			const cancelBtn = document.createElement('button');
-			cancelBtn.className = 'press-btn';
-			cancelBtn.textContent = 'Cancelar';
-			const saveBtn = document.createElement('button');
-			saveBtn.className = 'press-btn btn-primary';
-			saveBtn.textContent = 'Guardar';
-			actions.append(cancelBtn, saveBtn);
-
-			pop.append(title, grid, actions);
-			document.body.appendChild(pop);
-
-			function cleanup() {
-				if (pop.parentNode) pop.parentNode.removeChild(pop);
-			}
-
-			cancelBtn.addEventListener('click', cleanup);
-
-			saveBtn.addEventListener('click', async () => {
-				try {
-					saveBtn.disabled = true;
-					
-					const quantities = {};
-					for (const [code, input] of Object.entries(inputs)) {
-						quantities[code] = Math.max(0, parseInt(input.value || '0', 10));
-					}
-					
-					const payload = {
-						day,
-						seller_id: sellerId,
-						quantities
-					};
-					
-					await api('PUT', '/api/deliveries?update_all_delivered=true', payload);
-					cleanup();
-					await loadSalesConsolidated();
-				} catch (e) {
-					alert('Error al guardar: ' + (e?.message || e));
-					saveBtn.disabled = false;
-				}
-			});
-
-			setTimeout(() => { 
-				try { 
-					const firstInput = Object.values(inputs)[0];
-					if (firstInput) {
-						firstInput.focus();
-						firstInput.select();
-					}
-				} catch {} 
-			}, 0);
 		}
 
 		backBtn.addEventListener('click', () => { window.location.href = '/index.html'; });
