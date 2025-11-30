@@ -16,10 +16,27 @@ export async function handler(event) {
 				const includeExtras = params.get('include_extras') === '1' || params.get('include_extras') === 'true';
 				const allItems = params.get('all_items') === '1' || params.get('all_items') === 'true';
 				const seed = params.get('seed') === '1' || params.get('seed') === 'true';
-				const productionUsers = params.get('production_users') === '1' || params.get('production_users') === 'true';
-				
-				// Get production users sorted by frequency
-				if (productionUsers) {
+			const productionUsers = params.get('production_users') === '1' || params.get('production_users') === 'true';
+			const savedSessions = params.get('saved_sessions') === '1' || params.get('saved_sessions') === 'true';
+			
+			// Get saved recipe sessions
+			if (savedSessions) {
+				const sessions = await sql`
+					SELECT 
+						id,
+						session_date,
+						actor_name,
+						desserts_data,
+						created_at
+					FROM recipe_sessions
+					ORDER BY session_date DESC, created_at DESC
+					LIMIT 50
+				`;
+				return json(sessions);
+			}
+			
+			// Get production users sorted by frequency
+			if (productionUsers) {
 					const dessertFilter = params.get('dessert_filter');
 					
 					// First, get all users from users table OR sellers table
@@ -130,11 +147,120 @@ export async function handler(event) {
 				`;
 				return json(ds.map(r => r.dessert));
 			}
-			case 'POST': {
-				const data = JSON.parse(event.body || '{}');
-				const kind = (data.kind || '').toString();
+		case 'POST': {
+			const data = JSON.parse(event.body || '{}');
+			const kind = (data.kind || '').toString();
+			
+			// Save complete recipe session (quantities, times, participants)
+			if (kind === 'recipe.session') {
+				const sessionDate = (data.session_date || new Date().toISOString().split('T')[0]).toString().slice(0, 10);
+				const actorName = (data.actor_name || '').toString();
+				const dessertsData = data.desserts || []; // Array of { dessert, qty, participants: [userIds], steps: [{ step_name, times }] }
 				
-			// Save production users for a recipe session
+				console.log('📥 Received recipe.session request:', { sessionDate, actorName, dessertsCount: dessertsData.length });
+				
+				if (!Array.isArray(dessertsData) || dessertsData.length === 0) {
+					return json({ error: 'desserts data requerido' }, 400);
+				}
+				
+				// Save the complete session
+				const [session] = await sql`
+					INSERT INTO recipe_sessions (session_date, actor_name, desserts_data)
+					VALUES (${sessionDate}, ${actorName}, ${JSON.stringify(dessertsData)})
+					RETURNING id
+				`;
+				const sessionId = session.id;
+				console.log(`✅ Created recipe session ${sessionId}`);
+				
+				// Save participants with session reference
+				for (const dessertData of dessertsData) {
+					const dessert = dessertData.dessert;
+					const userIds = Array.isArray(dessertData.participants) ? dessertData.participants : [];
+					
+					if (userIds.length === 0) continue;
+					
+					// Ensure users exist
+					for (const userId of userIds) {
+						try {
+							const userExists = await sql`SELECT id FROM users WHERE id = ${userId}`;
+							if (userExists.length === 0) {
+								const seller = await sql`SELECT id, name FROM sellers WHERE id = ${userId}`;
+								if (seller.length > 0) {
+									await sql`
+										INSERT INTO users (username, password_hash, role)
+										VALUES (${seller[0].name}, ${seller[0].name.toLowerCase() + 'sweet'}, 'user')
+										ON CONFLICT (username) DO NOTHING
+									`;
+								}
+							}
+						} catch (err) {
+							console.error('Error ensuring user exists:', err);
+						}
+					}
+					
+					// Delete existing entries
+					await sql`DELETE FROM recipe_production_users WHERE lower(dessert) = lower(${dessert}) AND session_date = ${sessionDate}`;
+					
+					// Insert with session reference
+					for (const userId of userIds) {
+						try {
+							await sql`
+								INSERT INTO recipe_production_users (dessert, user_id, session_date, recipe_session_id)
+								VALUES (${dessert}, ${userId}, ${sessionDate}, ${sessionId})
+								ON CONFLICT (dessert, user_id, session_date) DO UPDATE SET recipe_session_id = ${sessionId}
+							`;
+						} catch (err) {
+							console.error(`Error saving participant ${userId} for ${dessert}:`, err);
+						}
+					}
+					
+					// Sync to delivery_production_users
+					try {
+						let deliveryRows = await sql`SELECT id FROM deliveries WHERE day = ${sessionDate} LIMIT 1`;
+						let deliveryId;
+						
+						if (deliveryRows.length === 0) {
+							const [newDelivery] = await sql`
+								INSERT INTO deliveries (day, note, actor_name)
+								VALUES (${sessionDate}, 'Auto-creado desde recetas', ${actorName})
+								RETURNING id
+							`;
+							deliveryId = newDelivery.id;
+						} else {
+							deliveryId = deliveryRows[0].id;
+						}
+						
+						const dessertRows = await sql`
+							SELECT id FROM desserts 
+							WHERE lower(name) = lower(${dessert}) OR lower(short_code) = lower(${dessert})
+							LIMIT 1
+						`;
+						
+						if (dessertRows.length > 0) {
+							const dessertId = dessertRows[0].id;
+							await sql`DELETE FROM delivery_production_users WHERE delivery_id = ${deliveryId} AND dessert_id = ${dessertId}`;
+							
+							for (const userId of userIds) {
+								try {
+									await sql`
+										INSERT INTO delivery_production_users (delivery_id, dessert_id, user_id)
+										VALUES (${deliveryId}, ${dessertId}, ${userId})
+										ON CONFLICT DO NOTHING
+									`;
+								} catch (err) {
+									console.error(`Error saving to delivery_production_users:`, err);
+								}
+							}
+						}
+					} catch (err) {
+						console.error('Error syncing to deliveries:', err);
+					}
+				}
+				
+				return json({ ok: true, session_id: sessionId });
+			}
+			
+			// Save production users for a recipe session (OLD - kept for compatibility)
 			if (kind === 'production.users') {
 				const dessert = (data.dessert || '').toString();
 				const userIds = Array.isArray(data.user_ids) ? data.user_ids.map(x => Number(x) || 0).filter(Boolean) : [];
