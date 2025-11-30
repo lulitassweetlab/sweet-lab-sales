@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head><title>Debug Participantes</title></head>
+<body>
+<h1>Debug Participantes en Entregas</h1>
+<button onclick="checkData()">Ver Datos</button>
+<pre id="result"></pre>
+
+<script>
+async function checkData() {
+    const result = document.getElementById('result');
+    result.textContent = 'Cargando...';
+    
+    try {
+        // 1. Ver datos consolidados
+        const response = await fetch('/api/deliveries?sales_consolidated=true');
+        const data = await response.json();
+        
+        result.textContent = '=== DATOS DE ENTREGAS ===\n\n';
+        
+        // Mostrar primer día con participantes
+        if (data.length > 0) {
+            const firstDay = data[0];
+            result.textContent += `Fecha: ${firstDay.day}\n\n`;
+            result.textContent += `production_users:\n${JSON.stringify(firstDay.production_users, null, 2)}\n\n`;
+            
+            // Ver todos los días
+            result.textContent += '\n=== TODOS LOS DÍAS ===\n';
+            data.forEach(day => {
+                result.textContent += `\n${day.day}:\n`;
+                if (day.production_users) {
+                    Object.entries(day.production_users).forEach(([dessert, users]) => {
+                        if (users && users.length > 0) {
+                            result.textContent += `  ${dessert}: ${users.join(', ')}\n`;
+                        }
+                    });
+                } else {
+                    result.textContent += '  (sin production_users)\n';
+                }
+            });
+        }
+        
+        // 2. Ver delivery_production_users directamente
+        result.textContent += '\n\n=== QUERY DIRECTA delivery_production_users ===\n';
+        const dpuResponse = await fetch('/api/deliveries?debug_production_users=true');
+        if (dpuResponse.ok) {
+            const dpuData = await dpuResponse.json();
+            result.textContent += JSON.stringify(dpuData, null, 2);
+        }
+        
+    } catch (err) {
+        result.textContent = 'Error: ' + err.message;
+    }
+}
+</script>
+</body>
+</html>

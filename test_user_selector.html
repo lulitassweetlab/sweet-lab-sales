@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Test User Selector</title>
+<style>
+body { font-family: Arial; padding: 20px; }
+.test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px; }
+.success { color: green; }
+.error { color: red; }
+</style>
+</head>
+<body>
+<h1>🧪 Test User Selector - Recipe Page</h1>
+
+<div class="test-section">
+<h3>1. Test API Endpoint - Get Users</h3>
+<button onclick="testGetUsers()">Test Get Users</button>
+<pre id="users-result"></pre>
+</div>
+
+<div class="test-section">
+<h3>2. Test API Endpoint - Save Users</h3>
+<button onclick="testSaveUsers()">Test Save Users</button>
+<pre id="save-result"></pre>
+</div>
+
+<div class="test-section">
+<h3>3. Console Logs</h3>
+<div id="console-logs"></div>
+</div>
+
+<script>
+const originalLog = console.log;
+const logs = [];
+
+console.log = function(...args) {
+    logs.push(args.join(' '));
+    document.getElementById('console-logs').innerHTML = logs.slice(-10).join('<br>');
+    originalLog.apply(console, args);
+};
+
+async function testGetUsers() {
+    try {
+        const response = await fetch('/api/recipes?production_users=1');
+        const data = await response.json();
+        document.getElementById('users-result').textContent = JSON.stringify(data, null, 2);
+        document.getElementById('users-result').className = 'success';
+        console.log('✅ Users loaded:', data.length);
+    } catch (err) {
+        document.getElementById('users-result').textContent = 'ERROR: ' + err.message;
+        document.getElementById('users-result').className = 'error';
+        console.log('❌ Error:', err);
+    }
+}
+
+async function testSaveUsers() {
+    try {
+        const response = await fetch('/api/recipes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                kind: 'production.users',
+                dessert: 'Arco',
+                user_ids: [1, 2],
+                session_date: new Date().toISOString().split('T')[0]
+            })
+        });
+        const data = await response.json();
+        document.getElementById('save-result').textContent = JSON.stringify(data, null, 2);
+        document.getElementById('save-result').className = 'success';
+        console.log('✅ Users saved:', data);
+    } catch (err) {
+        document.getElementById('save-result').textContent = 'ERROR: ' + err.message;
+        document.getElementById('save-result').className = 'error';
+        console.log('❌ Error:', err);
+    }
+}
+
+console.log('🚀 Test page loaded');
+</script>
+</body>
+</html>

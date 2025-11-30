@@ -94,6 +94,19 @@ export async function handler(event) {
 						   OR sd.delivered_nute > 0
 					`;
 					
+					// Get production users by date and dessert from deliveries
+					const productionUsersData = await sql`
+						SELECT 
+							d.day,
+							des.short_code,
+							u.username
+						FROM delivery_production_users dpu
+						JOIN deliveries d ON d.id = dpu.delivery_id
+						JOIN desserts des ON des.id = dpu.dessert_id
+						JOIN users u ON u.id = dpu.user_id
+						ORDER BY d.day, des.short_code, u.username
+					`;
+					
 					// Create a map of sale_items by sale_id
 					const itemsBySaleId = {};
 					for (const item of allItems) {
@@ -101,6 +114,16 @@ export async function handler(event) {
 							itemsBySaleId[item.sale_id] = [];
 						}
 						itemsBySaleId[item.sale_id].push(item);
+					}
+					
+					// Create a map of production users by date and dessert
+					const productionUsersByDateDessert = {};
+					for (const pu of productionUsersData) {
+						const key = `${pu.day}_${pu.short_code}`;
+						if (!productionUsersByDateDessert[key]) {
+							productionUsersByDateDessert[key] = [];
+						}
+						productionUsersByDateDessert[key].push(pu.username);
 					}
 					
 					// Create a map of delivered quantities by date and seller
@@ -213,6 +236,15 @@ export async function handler(event) {
 					// Sort sellers within each date
 					for (const dateData of Object.values(dataByDate)) {
 						dateData.sellers.sort((a, b) => a.seller_name.localeCompare(b.seller_name));
+					}
+					
+					// Add production users to each date
+					for (const [dateKey, dateData] of Object.entries(dataByDate)) {
+						dateData.production_users = {};
+						for (const d of desserts) {
+							const key = `${dateKey}_${d.short_code}`;
+							dateData.production_users[d.short_code] = productionUsersByDateDessert[key] || [];
+						}
 					}
 					
 					// Convert to array and return

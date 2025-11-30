@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Diagnóstico - Usuarios</title>
+	<style>
+		body {
+			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+			padding: 20px;
+			background: #f5f5f5;
+		}
+		.container {
+			max-width: 900px;
+			margin: 0 auto;
+			background: white;
+			padding: 30px;
+			border-radius: 12px;
+			box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+		}
+		h1 {
+			color: #333;
+			border-bottom: 3px solid #f4a6b7;
+			padding-bottom: 10px;
+		}
+		.section {
+			margin: 20px 0;
+			padding: 20px;
+			background: #fafafa;
+			border-radius: 8px;
+			border-left: 4px solid #f4a6b7;
+		}
+		.success {
+			color: #28a745;
+			font-weight: 600;
+		}
+		.error {
+			color: #dc3545;
+			font-weight: 600;
+		}
+		.warning {
+			color: #ffc107;
+			font-weight: 600;
+		}
+		button {
+			background: linear-gradient(135deg, #f4a6b7 0%, #ff69b4 100%);
+			color: white;
+			border: none;
+			padding: 12px 24px;
+			border-radius: 6px;
+			cursor: pointer;
+			font-size: 15px;
+			font-weight: 600;
+			margin: 5px;
+			box-shadow: 0 2px 6px rgba(244, 166, 183, 0.4);
+		}
+		button:hover {
+			transform: translateY(-2px);
+			box-shadow: 0 4px 12px rgba(244, 166, 183, 0.5);
+		}
+		pre {
+			background: #2d2d2d;
+			color: #f8f8f2;
+			padding: 15px;
+			border-radius: 6px;
+			overflow-x: auto;
+			font-size: 13px;
+		}
+		.user-card {
+			display: inline-block;
+			background: white;
+			border: 2px solid #f4a6b7;
+			border-radius: 20px;
+			padding: 10px 18px;
+			margin: 5px;
+			font-weight: 600;
+			box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+		}
+	</style>
+</head>
+<body>
+	<div class="container">
+		<h1>🔍 Diagnóstico de Usuarios - Selector de Participantes</h1>
+		
+		<div class="section">
+			<h3>1. Estado del Sistema</h3>
+			<div id="status">Verificando...</div>
+		</div>
+		
+		<div class="section">
+			<h3>2. Usuarios Disponibles en la Tabla USERS</h3>
+			<button onclick="loadUsers()">🔄 Cargar Usuarios</button>
+			<div id="users-result" style="margin-top: 15px;"></div>
+		</div>
+		
+		<div class="section">
+			<h3>3. Vendedores Disponibles (Sellers)</h3>
+			<button onclick="loadSellers()">🔄 Cargar Vendedores</button>
+			<div id="sellers-result" style="margin-top: 15px;"></div>
+		</div>
+		
+		<div class="section">
+			<h3>4. Test API - Production Users</h3>
+			<button onclick="testProductionUsers()">🧪 Probar API</button>
+			<div id="api-result" style="margin-top: 15px;"></div>
+		</div>
+		
+		<div class="section">
+			<h3>5. Test Guardar Participantes</h3>
+			<button onclick="testSaveParticipants()">💾 Test Guardar</button>
+			<div id="save-result" style="margin-top: 15px;"></div>
+		</div>
+		
+		<div class="section">
+			<h3>📋 Logs de Consola</h3>
+			<pre id="console-logs" style="max-height: 300px; overflow-y: auto;"></pre>
+		</div>
+	</div>
+	
+	<script>
+		const logs = [];
+		const originalLog = console.log;
+		const originalError = console.error;
+		
+		function addLog(msg, type = 'log') {
+			const timestamp = new Date().toLocaleTimeString();
+			const prefix = type === 'error' ? '❌' : '✅';
+			logs.push(`[${timestamp}] ${prefix} ${msg}`);
+			document.getElementById('console-logs').textContent = logs.slice(-20).join('\n');
+		}
+		
+		console.log = function(...args) {
+			addLog(args.join(' '), 'log');
+			originalLog.apply(console, args);
+		};
+		
+		console.error = function(...args) {
+			addLog(args.join(' '), 'error');
+			originalError.apply(console, args);
+		};
+		
+		async function loadUsers() {
+			const result = document.getElementById('users-result');
+			result.innerHTML = '<em>Cargando...</em>';
+			
+			try {
+				const response = await fetch('/api/users');
+				const users = await response.json();
+				
+				if (users && users.length > 0) {
+					result.innerHTML = `
+						<div class="success">✅ Se encontraron ${users.length} usuarios</div>
+						<div style="margin-top: 10px;">
+							${users.map(u => `<div class="user-card">${u.username} (ID: ${u.id})</div>`).join('')}
+						</div>
+						<pre style="margin-top: 10px;">${JSON.stringify(users.slice(0, 5), null, 2)}</pre>
+					`;
+					console.log(`✅ Usuarios cargados: ${users.length}`);
+				} else {
+					result.innerHTML = '<div class="warning">⚠️ No se encontraron usuarios en la tabla users</div>';
+					console.error('No users found');
+				}
+			} catch (err) {
+				result.innerHTML = `<div class="error">❌ Error: ${err.message}</div>`;
+				console.error('Error loading users:', err);
+			}
+		}
+		
+		async function loadSellers() {
+			const result = document.getElementById('sellers-result');
+			result.innerHTML = '<em>Cargando...</em>';
+			
+			try {
+				const response = await fetch('/api/sellers');
+				const sellers = await response.json();
+				
+				if (sellers && sellers.length > 0) {
+					result.innerHTML = `
+						<div class="success">✅ Se encontraron ${sellers.length} vendedores</div>
+						<div style="margin-top: 10px;">
+							${sellers.map(s => `<div class="user-card">${s.name} (ID: ${s.id})</div>`).join('')}
+						</div>
+						<pre style="margin-top: 10px;">${JSON.stringify(sellers.slice(0, 5), null, 2)}</pre>
+					`;
+					console.log(`✅ Vendedores cargados: ${sellers.length}`);
+				} else {
+					result.innerHTML = '<div class="warning">⚠️ No se encontraron vendedores</div>';
+					console.error('No sellers found');
+				}
+			} catch (err) {
+				result.innerHTML = `<div class="error">❌ Error: ${err.message}</div>`;
+				console.error('Error loading sellers:', err);
+			}
+		}
+		
+		async function testProductionUsers() {
+			const result = document.getElementById('api-result');
+			result.innerHTML = '<em>Probando API...</em>';
+			
+			try {
+				const response = await fetch('/api/recipes?production_users=1');
+				const data = await response.json();
+				
+				if (data && data.length > 0) {
+					result.innerHTML = `
+						<div class="success">✅ API funciona correctamente - ${data.length} usuarios disponibles</div>
+						<div style="margin-top: 10px;">
+							${data.map(u => `
+								<div class="user-card">
+									${u.username} 
+									${u.participation_count > 0 ? `<span style="background:#f4a6b7;color:white;padding:2px 6px;border-radius:10px;font-size:11px;margin-left:4px;">${u.participation_count}</span>` : ''}
+								</div>
+							`).join('')}
+						</div>
+						<pre style="margin-top: 10px;">${JSON.stringify(data, null, 2)}</pre>
+					`;
+					console.log(`✅ API Production Users OK: ${data.length} usuarios`);
+				} else {
+					result.innerHTML = '<div class="error">❌ La API no devuelve usuarios</div>';
+					console.error('API returned no users');
+				}
+			} catch (err) {
+				result.innerHTML = `<div class="error">❌ Error: ${err.message}</div>`;
+				console.error('Error testing API:', err);
+			}
+		}
+		
+		async function testSaveParticipants() {
+			const result = document.getElementById('save-result');
+			result.innerHTML = '<em>Guardando...</em>';
+			
+			try {
+				// First, get available users
+				const usersResp = await fetch('/api/recipes?production_users=1');
+				const users = await usersResp.json();
+				
+				if (!users || users.length === 0) {
+					result.innerHTML = '<div class="error">❌ No hay usuarios para probar</div>';
+					return;
+				}
+				
+				// Try to save first 2 users for Arco
+				const userIds = users.slice(0, 2).map(u => u.id);
+				
+				const response = await fetch('/api/recipes', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						kind: 'production.users',
+						dessert: 'Arco',
+						user_ids: userIds,
+						session_date: new Date().toISOString().split('T')[0]
+					})
+				});
+				
+				const data = await response.json();
+				
+				if (data.ok) {
+					result.innerHTML = `
+						<div class="success">✅ Guardado exitoso - ${data.saved} participantes registrados</div>
+						<pre style="margin-top: 10px;">${JSON.stringify(data, null, 2)}</pre>
+						<div style="margin-top: 10px;">
+							<strong>Usuarios guardados:</strong> ${users.slice(0, 2).map(u => u.username).join(', ')}
+						</div>
+					`;
+					console.log('✅ Guardado exitoso:', data);
+				} else {
+					result.innerHTML = `<div class="error">❌ Error al guardar: ${data.error || 'desconocido'}</div>`;
+					console.error('Save failed:', data);
+				}
+			} catch (err) {
+				result.innerHTML = `<div class="error">❌ Error: ${err.message}</div>`;
+				console.error('Error saving:', err);
+			}
+		}
+		
+		// Auto-check on load
+		window.addEventListener('load', () => {
+			document.getElementById('status').innerHTML = '<div class="success">✅ Página cargada correctamente</div>';
+			console.log('🚀 Página de diagnóstico cargada');
+			
+			// Auto-run basic tests
+			setTimeout(() => {
+				loadUsers();
+				setTimeout(() => loadSellers(), 500);
+				setTimeout(() => testProductionUsers(), 1000);
+			}, 500);
+		});
+	</script>
+</body>
+</html>
