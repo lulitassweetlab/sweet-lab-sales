@@ -185,6 +185,59 @@ export async function handler(event) {
 						}
 					}
 					
+					// ALSO save to delivery_production_users (for page "Entregas")
+					// First, get or create a delivery for this date
+					try {
+						// Check if delivery exists for this date
+						let deliveryRows = await sql`SELECT id FROM deliveries WHERE day = ${sessionDate} LIMIT 1`;
+						let deliveryId;
+						
+						if (deliveryRows.length === 0) {
+							// Create delivery for this date
+							const [newDelivery] = await sql`
+								INSERT INTO deliveries (day, note, actor_name)
+								VALUES (${sessionDate}, 'Auto-creado desde recetas', '')
+								RETURNING id
+							`;
+							deliveryId = newDelivery.id;
+						} else {
+							deliveryId = deliveryRows[0].id;
+						}
+						
+						// Get dessert ID from short_code/name
+						const dessertRows = await sql`
+							SELECT id FROM desserts 
+							WHERE lower(name) = lower(${dessert}) OR lower(short_code) = lower(${dessert})
+							LIMIT 1
+						`;
+						
+						if (dessertRows.length > 0) {
+							const dessertId = dessertRows[0].id;
+							
+							// Delete existing entries for this delivery, dessert
+							await sql`
+								DELETE FROM delivery_production_users 
+								WHERE delivery_id = ${deliveryId} AND dessert_id = ${dessertId}
+							`;
+							
+							// Insert new entries
+							for (const userId of userIds) {
+								try {
+									await sql`
+										INSERT INTO delivery_production_users (delivery_id, dessert_id, user_id)
+										VALUES (${deliveryId}, ${dessertId}, ${userId})
+										ON CONFLICT DO NOTHING
+									`;
+								} catch (err) {
+									console.error('Error saving to delivery_production_users:', err);
+								}
+							}
+						}
+					} catch (err) {
+						console.error('Error syncing to deliveries:', err);
+						// Don't fail the whole request if delivery sync fails
+					}
+					
 					return json({ ok: true, saved: savedCount });
 				}
 				
