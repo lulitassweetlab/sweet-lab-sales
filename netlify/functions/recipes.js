@@ -622,6 +622,17 @@ async function seedDefaults() {
 			{ ingredient: 'Ferrero', unit: 'unidad', qty: 1 },
 		]);
 	}
+	// 3Lec (Tres Leches - single step)
+	{
+		const [s] = await step('3Lec', null, 1);
+		await items(s.id, [
+			{ ingredient: 'Bizcocho', unit: 'g', qty: 40 },
+			{ ingredient: 'Lechera', unit: 'g', qty: 50 },
+			{ ingredient: 'Leche evaporada', unit: 'g', qty: 50 },
+			{ ingredient: 'Crema de leche', unit: 'g', qty: 50 },
+			{ ingredient: 'Arequipe', unit: 'g', qty: 20 },
+		]);
+	}
 	// Extras
 	await sql`INSERT INTO extras_items (ingredient, unit, qty_per_unit, position) VALUES ('Cuchara', 'unidad', 1, 1), ('Bolsa cuchara', 'unidad', 1, 2), ('Contenedor 8 oz', 'unidad', 1, 3), ('Sticker', 'unidad', 1, 4)`;
 }
