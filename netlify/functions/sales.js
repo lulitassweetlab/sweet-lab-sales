@@ -173,13 +173,13 @@ export async function handler(event) {
 						// Enhance with sale_items data for each sale (optimized with a single query)
 						if (rows.length > 0) {
 							const saleIds = rows.map(r => r.id);
-							const allItems = await sql`
-								SELECT si.sale_id, si.dessert_id, si.quantity, d.short_code
-								FROM sale_items si
-								INNER JOIN desserts d ON d.id = si.dessert_id
-								WHERE si.sale_id = ANY(${saleIds})
-								ORDER BY si.sale_id, d.position ASC
-							`;
+						const allItems = await sql`
+							SELECT si.sale_id, si.dessert_id, si.quantity, si.unit_price, d.short_code
+							FROM sale_items si
+							INNER JOIN desserts d ON d.id = si.dessert_id
+							WHERE si.sale_id = ANY(${saleIds})
+							ORDER BY si.sale_id, d.position ASC
+						`;
 							
 							// Group items by sale_id (more efficient)
 							const itemsBySaleId = {};
@@ -190,6 +190,7 @@ export async function handler(event) {
 								itemsBySaleId[item.sale_id].push({
 									dessert_id: item.dessert_id,
 									quantity: item.quantity,
+									unit_price: item.unit_price,
 									short_code: item.short_code
 								});
 							}
@@ -383,6 +384,8 @@ export async function handler(event) {
 						row.items = [];
 					}
 				}
+				
+				console.log(`✅ GET sales for seller ${sellerId}: returning ${rows.length} sales with total_cents and items`);
 				
 				return json(rows);
 			}
