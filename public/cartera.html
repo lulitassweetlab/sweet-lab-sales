@@ -610,30 +610,8 @@
 					}
 				}
 				
-				// Total robusto - respecting special pricing
-				let totCalc = 0;
-				if (Array.isArray(r.items) && r.items.length > 0) {
-					const seenTot = new Set();
-					for (const item of r.items) {
-						const code = (item.short_code || '').toLowerCase();
-						if (!code || seenTot.has(code)) continue;
-						seenTot.add(code);
-						const qty = Number(item.quantity || 0) || 0;
-						let price = Number(item.unit_price || 0) || 0;
-						if (!price) price = PRICES[code] || 0;
-						totCalc += qty * price;
-					}
-				} else {
-					// Calculate from qty_* columns - apply special pricing
-					const priceMultiplier = r.special_pricing_type === 'muestra' ? 0 : 
-					                        r.special_pricing_type === 'a_costo' ? 0.55 : 1;
-					for (const d of desserts) {
-						const basePrice = PRICES[d.short_code] || 0;
-						totCalc += quantities[d.short_code] * Math.round(basePrice * priceMultiplier);
-					}
-				}
-				const totDb = Number(r.total_cents || 0) || 0;
-				const tot = totCalc > 0 ? totCalc : totDb;
+				// Total - use total_cents from DB which already has special pricing applied
+				const tot = Number(r.total_cents || 0) || 0;
 				
 				// Evitar duplicados por id
 				if (seenSaleIds.has(r.id)) continue;
