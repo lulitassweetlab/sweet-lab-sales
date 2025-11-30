@@ -1223,8 +1223,12 @@ function renderFooterDessertColumns() {
 function calcRowTotal(q) {
 	// If total_cents exists from database, use it directly (already accounts for special pricing)
 	if (q.hasOwnProperty('total_cents') && q.total_cents !== null && q.total_cents !== undefined) {
-		return Number(q.total_cents) || 0;
+		const total = Number(q.total_cents) || 0;
+		console.log(`💰 calcRowTotal(sale ${q.id}): Using total_cents=${q.total_cents}, special_pricing=${q.special_pricing_type}, returning ${total}`);
+		return total;
 	}
+	
+	console.log(`⚠️ calcRowTotal(sale ${q.id}): total_cents not found, calculating... special_pricing=${q.special_pricing_type}`);
 	
 	// Support both old format and new dynamic format
 	let total = 0;
