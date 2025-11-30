@@ -369,10 +369,109 @@ export async function handler(event) {
 				return json({ ok: true, id: row.id, day: row.day }, 201);
 			}
 			case 'PUT': {
-				// Update items or note
+				// Check if this is a request to update delivered quantities
+				let raw = '';
+				if (event.rawQuery && typeof event.rawQuery === 'string') raw = event.rawQuery;
+				else if (event.queryStringParameters && typeof event.queryStringParameters === 'object') {
+					raw = Object.entries(event.queryStringParameters).map(([k,v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v ?? '')}`).join('&');
+				}
+				const params = new URLSearchParams(raw);
+				
 				const data = JSON.parse(event.body || '{}');
 				const role = await getActorRole(event, data);
 				if (role !== 'admin' && role !== 'superadmin') return json({ error: 'No autorizado' }, 403);
+				
+				// Update single delivered quantity
+				if (params.get('update_delivered') === 'true') {
+					const day = (data.day || '').toString().slice(0,10);
+					const sellerId = Number(data.seller_id || 0) || 0;
+					const dessertCode = (data.dessert_code || '').toString();
+					const quantity = Number(data.quantity || 0) || 0;
+					
+					if (!day || !sellerId || !dessertCode) {
+						return json({ error: 'day, seller_id y dessert_code requeridos' }, 400);
+					}
+					
+					// Get or create sale_day
+					const saleDayRows = await sql`
+						SELECT id FROM sale_days 
+						WHERE seller_id = ${sellerId} AND day = ${day}
+					`;
+					
+					let saleDayId;
+					if (saleDayRows.length > 0) {
+						saleDayId = saleDayRows[0].id;
+					} else {
+						const [newSaleDay] = await sql`
+							INSERT INTO sale_days (seller_id, day)
+							VALUES (${sellerId}, ${day})
+							RETURNING id
+						`;
+						saleDayId = newSaleDay.id;
+					}
+					
+					// Update the delivered quantity for this dessert
+					const columnName = `delivered_${dessertCode}`;
+					await sql.unsafe(`
+						UPDATE sale_days 
+						SET ${columnName} = ${quantity}
+						WHERE id = ${saleDayId}
+					`);
+					
+					return json({ ok: true, sale_day_id: saleDayId });
+				}
+				
+				// Update all delivered quantities at once
+				if (params.get('update_all_delivered') === 'true') {
+					const day = (data.day || '').toString().slice(0,10);
+					const sellerId = Number(data.seller_id || 0) || 0;
+					const quantities = data.quantities || {};
+					
+					if (!day || !sellerId) {
+						return json({ error: 'day y seller_id requeridos' }, 400);
+					}
+					
+					// Get or create sale_day
+					const saleDayRows = await sql`
+						SELECT id FROM sale_days 
+						WHERE seller_id = ${sellerId} AND day = ${day}
+					`;
+					
+					let saleDayId;
+					if (saleDayRows.length > 0) {
+						saleDayId = saleDayRows[0].id;
+					} else {
+						const [newSaleDay] = await sql`
+							INSERT INTO sale_days (seller_id, day)
+							VALUES (${sellerId}, ${day})
+							RETURNING id
+						`;
+						saleDayId = newSaleDay.id;
+					}
+					
+					// Update all delivered quantities
+					const updates = [];
+					const desserts = await sql`SELECT short_code FROM desserts WHERE is_active = true`;
+					for (const d of desserts) {
+						const code = d.short_code;
+						if (quantities[code] !== undefined) {
+							const qty = Number(quantities[code] || 0) || 0;
+							updates.push(`delivered_${code} = ${qty}`);
+						}
+					}
+					
+					if (updates.length > 0) {
+						await sql.unsafe(`
+							UPDATE sale_days 
+							SET ${updates.join(', ')}
+							WHERE id = ${saleDayId}
+						`);
+					}
+					
+					return json({ ok: true, sale_day_id: saleDayId });
+				}
+				
+				// Original update items or note logic
 				const id = Number(data.id || 0) || 0;
 				if (!id) return json({ error: 'id requerido' }, 400);
 				if (data.note != null) await sql`UPDATE deliveries SET note=${String(data.note)} WHERE id=${id}`;
