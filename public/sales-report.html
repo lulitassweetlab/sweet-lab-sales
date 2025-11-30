@@ -324,6 +324,7 @@
 		let dataset = [];
 		let sellersList = [];
 		let desserts = [];
+		let PRICES = {}; // Dynamic prices from API
 		let sortKey = 'date'; // 'date' | 'seller' | 'pay'
 		let sortDir = 'asc'; // 'asc' | 'desc'
 		let isLoading = false; // Prevent concurrent loads
@@ -541,12 +542,20 @@
 				for (let i = start; i < end; i++) {
 					const r = rows[i];
 					const row = document.createElement('tr');
+					
+					// Add background color to client name based on special pricing (only around text)
+					const clientBgColor = r.special_pricing_type === 'muestra' ? 'rgba(255, 165, 0, 0.5)' : 
+					                      r.special_pricing_type === 'a_costo' ? 'rgba(240, 98, 146, 0.5)' : '';
+					const clientNameHtml = clientBgColor 
+						? `<span style="background: ${clientBgColor}; color: white; font-weight: 600; padding: 3px 8px; border-radius: 6px; display: inline-block;">${r.client_name||''}</span>`
+						: (r.client_name||'');
+					
 					let html = `
 						<td>${r.date}</td>
 						<td>${r.sellerName}</td>
 						<td>${r.is_paid ? '✓' : ''}</td>
 						<td>${payLabel(r.pay_method||'')}</td>
-						<td>${r.client_name||''}</td>`;
+						<td>${clientNameHtml}</td>`;
 					
 					// Add dessert quantities dynamically
 					for (const d of desserts) {
@@ -554,7 +563,7 @@
 						html += `<td>${qty || ''}</td>`;
 					}
 					
-					html += `<td class="col-total">${r.tot||''}</td>`;
+					html += `<td class="col-total">${r.tot !== undefined && r.tot !== null ? r.tot : ''}</td>`;
 					row.innerHTML = html;
 					fragment.appendChild(row);
 				}
@@ -640,6 +649,11 @@
 				
 				// Load desserts (with cache)
 				desserts = await loadDesserts();
+				// Build PRICES map from desserts
+				PRICES = {};
+				for (const d of desserts) {
+					PRICES[d.short_code] = d.sale_price;
+				}
 				renderDessertColumns();
 				
 				updateLoadingProgress(40, 'Obteniendo ventas...');
@@ -667,13 +681,17 @@
 						}
 						
                         dataset = parsed.sales.map(r => {
+							// Calculate total - use total_cents from DB if available
+							let tot = Number(r.total_cents) || 0;
+							
 							const row = {
 								date: String(r.sale_day || '').slice(0,10),
 								sellerName: r.seller_name || '',
 								is_paid: !!r.is_paid,
 								pay_method: r.pay_method || '',
 								client_name: r.client_name || '',
-                                tot: Number(r.total_cents || 0) || 0
+                                tot: tot,
+								special_pricing_type: r.special_pricing_type || null
 							};
 							
 							for (const d of desserts) {
@@ -719,13 +737,17 @@
 								}
 								
                                 dataset = freshSales.map(r => {
+									// Calculate total - use total_cents from DB if available
+									let tot = Number(r.total_cents) || 0;
+									
 									const row = {
 										date: String(r.sale_day || '').slice(0,10),
 										sellerName: r.seller_name || '',
 										is_paid: !!r.is_paid,
 										pay_method: r.pay_method || '',
 										client_name: r.client_name || '',
-                                        tot: Number(r.total_cents || 0) || 0
+                                        tot: tot,
+										special_pricing_type: r.special_pricing_type || null
 									};
 									
 									for (const d of desserts) {
@@ -787,13 +809,17 @@
 			
 			// Process all sales in one pass
             dataset = salesData.map(r => {
+				// Calculate total - use total_cents from DB if available
+				let tot = Number(r.total_cents) || 0;
+				
 				const row = {
 					date: String(r.sale_day || '').slice(0,10),
 					sellerName: r.seller_name || '',
 					is_paid: !!r.is_paid,
 					pay_method: r.pay_method || '',
 					client_name: r.client_name || '',
-                    tot: Number(r.total_cents || 0) || 0
+                    tot: tot,
+					special_pricing_type: r.special_pricing_type || null
 				};
 				
 				// Process dessert quantities dynamically

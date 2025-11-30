@@ -1221,6 +1221,15 @@ function renderFooterDessertColumns() {
 }
 
 function calcRowTotal(q) {
+	// If total_cents exists from database, use it directly (already accounts for special pricing)
+	if (q.hasOwnProperty('total_cents') && q.total_cents !== null && q.total_cents !== undefined) {
+		const total = Number(q.total_cents) || 0;
+		console.log(`💰 calcRowTotal(sale ${q.id}): Using total_cents=${q.total_cents}, special_pricing=${q.special_pricing_type}, returning ${total}`);
+		return total;
+	}
+	
+	console.log(`⚠️ calcRowTotal(sale ${q.id}): total_cents not found, calculating... special_pricing=${q.special_pricing_type}`);
+	
 	// Support both old format and new dynamic format
 	let total = 0;
 	
@@ -1234,18 +1243,29 @@ function calcRowTotal(q) {
 			if (seen.has(key)) continue;
 			seen.add(key);
 			const qty = Number(item.quantity || 0) || 0;
-			let price = Number(item.unit_price || 0) || 0;
-			if (!price && code && PRICES[code] != null) price = Number(PRICES[code] || 0) || 0;
+			// Use unit_price from item if explicitly set, otherwise fallback to PRICES
+			let price;
+			if (item.hasOwnProperty('unit_price')) {
+				price = Number(item.unit_price || 0) || 0;
+			} else if (code && PRICES[code] != null) {
+				price = Number(PRICES[code] || 0) || 0;
+			} else {
+				price = 0;
+			}
 			total += qty * price;
 		}
 		return total;
 	}
 	
 	// Fallback to old format with dynamic desserts (check qty_* properties)
+	// Apply special pricing if present
+	const priceMultiplier = q.special_pricing_type === 'muestra' ? 0 : 
+	                        q.special_pricing_type === 'a_costo' ? 0.55 : 1;
+	
 	for (const d of state.desserts) {
 		const qty = Number(q[`qty_${d.short_code}`] || 0);
-		const price = Number(PRICES[d.short_code] || 0);
-		total += qty * price;
+		const basePrice = Number(PRICES[d.short_code] || 0);
+		total += qty * Math.round(basePrice * priceMultiplier);
 	}
 	
 	return total;
@@ -1463,22 +1483,43 @@ function renderTable() {
 				input.value = sale.client_name || '';
 				input.placeholder = '';
 				input.readOnly = true; // Make readonly - only editable via edit button
+				input.style.flexShrink = '1'; // Allow input to shrink if needed
+				input.style.minWidth = '0'; // Allow input to shrink below its content width
 				// Lock edit action for non-admins if pay_method chosen
 				const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
 				const saleLocked = String(sale.pay_method || '').trim() !== '';
 				if (!isAdminUser && saleLocked) {
-					input.style.cursor = 'default';
-					input.title = 'Pedido bloqueado';
-				} else {
-					input.style.cursor = 'pointer';
-				}
-				// Add click listener to show action bar
-				input.addEventListener('click', (e) => {
-					e.stopPropagation();
-					const currentName = input.value || '';
-					openClientActionBar(td, sale.id, currentName, e.clientX, e.clientY);
-				});
-				td.appendChild(input);
+				input.style.cursor = 'default';
+				input.title = 'Pedido bloqueado';
+			} else {
+				input.style.cursor = 'pointer';
+			}
+			// Add background color based on special pricing
+			if (sale.special_pricing_type === 'muestra') {
+				input.style.background = 'rgba(255, 165, 0, 0.5)';
+				input.style.color = 'white';
+				input.style.fontWeight = '600';
+				input.style.borderRadius = '6px';
+				input.style.padding = '3px 8px';
+				input.style.width = 'auto';
+				input.style.display = 'inline-block';
+			} else if (sale.special_pricing_type === 'a_costo') {
+				input.style.background = 'rgba(240, 98, 146, 0.5)';
+				input.style.color = 'white';
+				input.style.fontWeight = '600';
+				input.style.borderRadius = '6px';
+				input.style.padding = '3px 8px';
+				input.style.width = 'auto';
+				input.style.display = 'inline-block';
+			}
+			// Add click listener to show action bar
+			input.addEventListener('click', (e) => {
+				e.stopPropagation();
+				const currentName = input.value || '';
+				openClientActionBar(td, sale.id, currentName, e.clientX, e.clientY);
+			});
+			td.appendChild(input);
+				
 				const name = (sale.client_name || '').trim();
 				if (name) {
 					const key = normalizeClientName(name);
@@ -2151,6 +2192,50 @@ function openNewSalePopover(anchorX, anchorY) {
             appendRow(d.name, input);
         }
 
+        // Special pricing checkboxes
+        const specialPricingContainer = document.createElement('div');
+        specialPricingContainer.style.display = 'flex';
+        specialPricingContainer.style.gap = '16px';
+        specialPricingContainer.style.padding = '12px 0';
+        specialPricingContainer.style.borderTop = '1px solid rgba(0,0,0,0.1)';
+        specialPricingContainer.style.marginTop = '8px';
+
+        const muestraCheckbox = document.createElement('label');
+        muestraCheckbox.style.display = 'flex';
+        muestraCheckbox.style.alignItems = 'center';
+        muestraCheckbox.style.gap = '6px';
+        muestraCheckbox.style.cursor = 'pointer';
+        muestraCheckbox.style.fontSize = '14px';
+        const muestraInput = document.createElement('input');
+        muestraInput.type = 'checkbox';
+        muestraInput.style.cursor = 'pointer';
+        const muestraLabel = document.createElement('span');
+        muestraLabel.textContent = 'Muestra';
+        muestraCheckbox.append(muestraInput, muestraLabel);
+
+        const costoCheckbox = document.createElement('label');
+        costoCheckbox.style.display = 'flex';
+        costoCheckbox.style.alignItems = 'center';
+        costoCheckbox.style.gap = '6px';
+        costoCheckbox.style.cursor = 'pointer';
+        costoCheckbox.style.fontSize = '14px';
+        const costoInput = document.createElement('input');
+        costoInput.type = 'checkbox';
+        costoInput.style.cursor = 'pointer';
+        const costoLabel = document.createElement('span');
+        costoLabel.textContent = 'A costo';
+        costoCheckbox.append(costoInput, costoLabel);
+
+        specialPricingContainer.append(muestraCheckbox, costoCheckbox);
+
+        // Make checkboxes mutually exclusive
+        muestraInput.addEventListener('change', () => {
+            if (muestraInput.checked) costoInput.checked = false;
+        });
+        costoInput.addEventListener('change', () => {
+            if (costoInput.checked) muestraInput.checked = false;
+        });
+
         const actions = document.createElement('div');
         actions.className = 'confirm-actions';
         const cancelBtn = document.createElement('button');
@@ -2163,7 +2248,7 @@ function openNewSalePopover(anchorX, anchorY) {
         saveBtn.textContent = 'Guardar';
         actions.append(cancelBtn, saveBtn);
 
-        pop.append(title, grid, actions);
+        pop.append(title, grid, specialPricingContainer, actions);
         // Prepare hidden mount to avoid visible jump before clamping
         pop.style.visibility = 'hidden';
         pop.style.opacity = '0';
@@ -2227,6 +2312,17 @@ function openNewSalePopover(anchorX, anchorY) {
                 if (state?.selectedDayId) payload.sale_day_id = state.selectedDayId;
                 const created = await api('POST', API.Sales, payload);
                 
+                // Determine special pricing type
+                let specialPricingType = null;
+                let priceMultiplier = 1;
+                if (muestraInput.checked) {
+                    specialPricingType = 'muestra';
+                    priceMultiplier = 0;
+                } else if (costoInput.checked) {
+                    specialPricingType = 'a_costo';
+                    priceMultiplier = 0.55; // 45% discount = 55% of original price
+                }
+                
                 // Build items array and legacy qty_* properties dynamically
                 const items = [];
                 const body = {
@@ -2234,6 +2330,7 @@ function openNewSalePopover(anchorX, anchorY) {
                     client_name: (clientInput.value || '').trim(),
                     is_paid: false,
                     pay_method: null,
+                    special_pricing_type: specialPricingType,
                     _actor_name: state.currentUser?.name || ''
                 };
                 
@@ -2244,12 +2341,12 @@ function openNewSalePopover(anchorX, anchorY) {
                     // Legacy format for backward compatibility
                     body[`qty_${d.short_code}`] = qty;
                     
-                    // New format - items array
+                    // New format - items array with adjusted price
                     if (qty > 0) {
                         items.push({
                             dessert_id: d.id,
                             quantity: qty,
-                            unit_price: d.sale_price
+                            unit_price: Math.round(d.sale_price * priceMultiplier)
                         });
                     }
                 }
@@ -2363,6 +2460,52 @@ function openEditSalePopover(saleId, anchorX, anchorY, onCloseCallback) {
             appendRow(d.name, input);
         }
 
+        // Special pricing checkboxes
+        const specialPricingContainer = document.createElement('div');
+        specialPricingContainer.style.display = 'flex';
+        specialPricingContainer.style.gap = '16px';
+        specialPricingContainer.style.padding = '12px 0';
+        specialPricingContainer.style.borderTop = '1px solid rgba(0,0,0,0.1)';
+        specialPricingContainer.style.marginTop = '8px';
+
+        const muestraCheckbox = document.createElement('label');
+        muestraCheckbox.style.display = 'flex';
+        muestraCheckbox.style.alignItems = 'center';
+        muestraCheckbox.style.gap = '6px';
+        muestraCheckbox.style.cursor = 'pointer';
+        muestraCheckbox.style.fontSize = '14px';
+        const muestraInput = document.createElement('input');
+        muestraInput.type = 'checkbox';
+        muestraInput.style.cursor = 'pointer';
+        muestraInput.checked = (sale.special_pricing_type === 'muestra');
+        const muestraLabel = document.createElement('span');
+        muestraLabel.textContent = 'Muestra (precio 0)';
+        muestraCheckbox.append(muestraInput, muestraLabel);
+
+        const costoCheckbox = document.createElement('label');
+        costoCheckbox.style.display = 'flex';
+        costoCheckbox.style.alignItems = 'center';
+        costoCheckbox.style.gap = '6px';
+        costoCheckbox.style.cursor = 'pointer';
+        costoCheckbox.style.fontSize = '14px';
+        const costoInput = document.createElement('input');
+        costoInput.type = 'checkbox';
+        costoInput.style.cursor = 'pointer';
+        costoInput.checked = (sale.special_pricing_type === 'a_costo');
+        const costoLabel = document.createElement('span');
+        costoLabel.textContent = 'A costo (45% desc.)';
+        costoCheckbox.append(costoInput, costoLabel);
+
+        specialPricingContainer.append(muestraCheckbox, costoCheckbox);
+
+        // Make checkboxes mutually exclusive
+        muestraInput.addEventListener('change', () => {
+            if (muestraInput.checked) costoInput.checked = false;
+        });
+        costoInput.addEventListener('change', () => {
+            if (costoInput.checked) muestraInput.checked = false;
+        });
+
         const actions = document.createElement('div');
         actions.className = 'confirm-actions';
         const cancelBtn = document.createElement('button');
@@ -2375,7 +2518,7 @@ function openEditSalePopover(saleId, anchorX, anchorY, onCloseCallback) {
         saveBtn.textContent = 'Guardar';
         actions.append(cancelBtn, saveBtn);
 
-        pop.append(title, grid, actions);
+        pop.append(title, grid, specialPricingContainer, actions);
         pop.style.visibility = 'hidden';
         pop.style.opacity = '0';
         pop.style.transition = 'opacity 160ms ease-out';
@@ -2431,6 +2574,17 @@ function openEditSalePopover(saleId, anchorX, anchorY, onCloseCallback) {
             try {
                 saveBtn.disabled = true; cancelBtn.disabled = true;
                 
+                // Determine special pricing type
+                let specialPricingType = null;
+                let priceMultiplier = 1;
+                if (muestraInput.checked) {
+                    specialPricingType = 'muestra';
+                    priceMultiplier = 0;
+                } else if (costoInput.checked) {
+                    specialPricingType = 'a_costo';
+                    priceMultiplier = 0.55; // 45% discount = 55% of original price
+                }
+                
                 // Build items array and legacy qty_* properties
                 const items = [];
                 const body = {
@@ -2439,6 +2593,7 @@ function openEditSalePopover(saleId, anchorX, anchorY, onCloseCallback) {
                     is_paid: sale.is_paid || false,
                     pay_method: sale.pay_method || null,
                     comment_text: sale.comment_text || '',
+                    special_pricing_type: specialPricingType,
                     _actor_name: state.currentUser?.name || ''
                 };
                 
@@ -2449,12 +2604,12 @@ function openEditSalePopover(saleId, anchorX, anchorY, onCloseCallback) {
                     // Legacy format
                     body[`qty_${d.short_code}`] = qty;
                     
-                    // New format
+                    // New format with adjusted price
                     if (qty > 0) {
                         items.push({
                             dessert_id: d.id,
                             quantity: qty,
-                            unit_price: d.sale_price
+                            unit_price: Math.round(d.sale_price * priceMultiplier)
                         });
                     }
                 }
@@ -3615,11 +3770,13 @@ async function savePayMethod(tr, id, method) {
 }
 
 function updateSummary() {
-	// Initialize counts dynamically for all desserts
+	// Initialize counts and amounts dynamically for all desserts
 	const qtys = {};
+	const amts = {};
 	const paidQtys = {};
 	for (const d of state.desserts) {
 		qtys[d.short_code] = 0;
+		amts[d.short_code] = 0;
 		paidQtys[d.short_code] = 0;
 	}
 	
@@ -3628,13 +3785,27 @@ function updateSummary() {
 	for (const s of state.sales) {
 		// Support both formats; align with visible per-flavor qty (first occurrence per dessert)
 		const pm = (s.pay_method || '').toString();
+		// Check if this sale has special pricing (muestra or a_costo)
+		const hasSpecialPricing = (s.special_pricing_type === 'muestra' || s.special_pricing_type === 'a_costo');
+		
 		if (Array.isArray(s.items) && s.items.length > 0) {
 			for (const d of state.desserts) {
 				let qty = 0;
+				let itemPrice = 0;
 				const item = s.items.find(i => i.short_code === d.short_code || i.dessert_id === d.id);
-				qty = item ? Number(item.quantity || 0) : 0;
+				if (item) {
+					qty = Number(item.quantity || 0) || 0;
+					// Use unit_price from item if explicitly set, otherwise fallback to PRICES
+					if (item.hasOwnProperty('unit_price')) {
+						itemPrice = Number(item.unit_price || 0) || 0;
+					} else {
+						itemPrice = Number(PRICES[d.short_code] || 0) || 0;
+					}
+				}
 				qtys[d.short_code] += qty;
-				if (pm === 'transf' || pm === 'jorgebank' || pm === 'marce' || pm === 'jorge') {
+				amts[d.short_code] += qty * itemPrice;
+				// Exclude special pricing from commission calculations
+				if ((pm === 'transf' || pm === 'jorgebank' || pm === 'marce' || pm === 'jorge') && !hasSpecialPricing) {
 					paidQtys[d.short_code] += qty;
 				}
 			}
@@ -3642,8 +3813,14 @@ function updateSummary() {
 			// Old format: use qty_* columns
 			for (const d of state.desserts) {
 				const qty = Number(s[`qty_${d.short_code}`] || 0);
+				// For old format without special pricing, use standard prices
+				const price = hasSpecialPricing && s.special_pricing_type === 'muestra' ? 0 : 
+				              hasSpecialPricing && s.special_pricing_type === 'a_costo' ? Math.round((PRICES[d.short_code] || 0) * 0.55) :
+				              (PRICES[d.short_code] || 0);
 				qtys[d.short_code] += qty;
-				if (pm === 'transf' || pm === 'jorgebank' || pm === 'marce' || pm === 'jorge') {
+				amts[d.short_code] += qty * price;
+				// Exclude special pricing from commission calculations
+				if ((pm === 'transf' || pm === 'jorgebank' || pm === 'marce' || pm === 'jorge') && !hasSpecialPricing) {
 					paidQtys[d.short_code] += qty;
 				}
 			}
@@ -3656,7 +3833,7 @@ function updateSummary() {
 	let totalQty = 0;
 	for (const d of state.desserts) {
 		const qty = qtys[d.short_code] || 0;
-		const amt = qty * (PRICES[d.short_code] || 0);
+		const amt = amts[d.short_code] || 0;
 		totalQty += qty;
 		
 		// Update qty cell

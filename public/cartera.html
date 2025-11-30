@@ -399,10 +399,17 @@
 				const paySource = r.payment_source ? payLabel(r.payment_source) : '';
 				const payDate = r.payment_date ? String(r.payment_date).slice(0,10) : '';
 				
+				// Add background color to client name based on special pricing (only around text)
+				const clientBgColor = r.special_pricing_type === 'muestra' ? 'rgba(255, 165, 0, 0.5)' : 
+				                      r.special_pricing_type === 'a_costo' ? 'rgba(240, 98, 146, 0.5)' : '';
+				const clientNameHtml = clientBgColor 
+					? `<span style="background: ${clientBgColor}; color: white; font-weight: 600; padding: 3px 8px; border-radius: 6px; display: inline-block;">${r.client_name||''}</span>`
+					: (r.client_name||'');
+				
 				let html = `
 					<td>${r.date}</td>
 					<td>${r.sellerName}</td>
-					<td>${r.client_name||''}</td>
+					<td>${clientNameHtml}</td>
 					<td>${payMethod}</td>
 					<td>${paySource}</td>
 					<td>${payDate}</td>
@@ -416,7 +423,7 @@
 				}
 				
 				html += `
-					<td class="col-total">${r.tot||''}</td>
+					<td class="col-total">${r.tot !== undefined && r.tot !== null ? r.tot : ''}</td>
 					<td style="text-align:center;"><button class="row-delete delete-btn" data-sale-id="${r.saleId||''}" data-client-name="${(r.client_name||'').replace(/"/g,'&quot;')}" title="Eliminar"></button></td>`;
 				
 				tr.innerHTML = html;
@@ -603,27 +610,8 @@
 					}
 				}
 				
-				// Total robusto
-				let totCalc = 0;
-				if (Array.isArray(r.items) && r.items.length > 0) {
-					const seenTot = new Set();
-					for (const item of r.items) {
-						const code = (item.short_code || '').toLowerCase();
-						if (!code || seenTot.has(code)) continue;
-						seenTot.add(code);
-						const qty = Number(item.quantity || 0) || 0;
-						let price = Number(item.unit_price || 0) || 0;
-						if (!price) price = PRICES[code] || 0;
-						totCalc += qty * price;
-					}
-				} else {
-					// Calculate from qty_* columns
-					for (const d of desserts) {
-						totCalc += quantities[d.short_code] * (PRICES[d.short_code] || 0);
-					}
-				}
-				const totDb = Number(r.total_cents || 0) || 0;
-				const tot = totCalc > 0 ? totCalc : totDb;
+				// Total - use total_cents from DB which already has special pricing applied
+				const tot = Number(r.total_cents || 0) || 0;
 				
 				// Evitar duplicados por id
 				if (seenSaleIds.has(r.id)) continue;
@@ -637,6 +625,7 @@
 					payment_source: ps,
 					payment_date: pd,
 					is_paid: !!r.is_paid,
+					special_pricing_type: r.special_pricing_type || null,
 					tot,
 					saleId: r.id
 				};

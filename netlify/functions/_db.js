@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 13; // Bump when schema changes require a migration (add commission rate columns to sellers + notification_checks and notification_center_visits tables)
+const SCHEMA_VERSION = 14; // Bump when schema changes require a migration (add special_pricing_type column to sales)
 
 export async function ensureSchema() {
 	// If already ensured in this instance, skip immediately
@@ -215,6 +215,7 @@ export async function ensureSchema() {
 		payment_date DATE,
 		payment_source TEXT,
 		comment_text TEXT DEFAULT '',
+		special_pricing_type TEXT,
 		total_cents INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMPTZ DEFAULT now()
 	)`;
@@ -261,6 +262,12 @@ export async function ensureSchema() {
 			WHERE table_name = 'sales' AND column_name = 'payment_date'
 		) THEN
 			ALTER TABLE sales ADD COLUMN payment_date DATE;
+		END IF;
+		IF NOT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'sales' AND column_name = 'special_pricing_type'
+		) THEN
+			ALTER TABLE sales ADD COLUMN special_pricing_type TEXT;
 		END IF;
 	END $$;`;
 	await sql`CREATE TABLE IF NOT EXISTS change_logs (
@@ -698,26 +705,93 @@ export async function getDesserts() {
 
 export async function recalcTotalForId(id) {
 	await ensureSchema();
-	// First try to calculate from sale_items (new system)
-	const itemsTotal = await sql`
-		SELECT COALESCE(SUM(quantity * unit_price), 0)::int AS total
-		FROM sale_items
-		WHERE sale_id = ${id}
+	// First check if sale has items (new system)
+	const items = await sql`
+		SELECT id FROM sale_items WHERE sale_id = ${id} LIMIT 1
 	`;
 	
 	let row;
-	if (itemsTotal && itemsTotal[0] && itemsTotal[0].total > 0) {
-		// Update using sale_items
+	if (items && items.length > 0) {
+		// Sale uses items format - but need to check for special pricing
+		const [sale] = await sql`SELECT special_pricing_type FROM sales WHERE id = ${id}`;
+		const specialPricing = sale ? sale.special_pricing_type : null;
+		
+		let priceMultiplier = 1;
+		if (specialPricing === 'muestra') {
+			priceMultiplier = 0;
+		} else if (specialPricing === 'a_costo') {
+			priceMultiplier = 0.55;
+		}
+		
+		// If special pricing, update unit_price in items to match
+		if (specialPricing) {
+			const desserts = await getDesserts();
+			const dessertPrices = {};
+			for (const d of desserts) {
+				dessertPrices[d.id] = Math.round(d.sale_price * priceMultiplier);
+			}
+			
+			// Update each item's unit_price
+			const allItems = await sql`SELECT id, dessert_id FROM sale_items WHERE sale_id = ${id}`;
+			for (const item of allItems) {
+				const newPrice = dessertPrices[item.dessert_id] || 0;
+				await sql`UPDATE sale_items SET unit_price = ${newPrice} WHERE id = ${item.id}`;
+			}
+		}
+		
+		// Now calculate total from updated items
+		const itemsTotal = await sql`
+			SELECT COALESCE(SUM(quantity * unit_price), 0)::int AS total
+			FROM sale_items
+			WHERE sale_id = ${id}
+		`;
+		
+		const total = (itemsTotal && itemsTotal[0]) ? itemsTotal[0].total : 0;
+		
+		console.log(`🔄 recalcTotalForId(${id}): Using items format, special_pricing=${specialPricing}, calculated total=${total}`);
+		
 		[row] = await sql`
-			UPDATE sales SET total_cents = ${itemsTotal[0].total}
+			UPDATE sales SET total_cents = ${total}
 			WHERE id = ${id}
 			RETURNING *
 		`;
 	} else {
 		// Fallback to old system for backward compatibility
-		const p = prices();
+		// Get the sale to check for special pricing and quantities
+		const [sale] = await sql`SELECT * FROM sales WHERE id = ${id}`;
+		if (!sale) {
+			throw new Error(`Sale ${id} not found`);
+		}
+		
+		const specialPricing = sale.special_pricing_type || null;
+		
+		console.log(`🔄 recalcTotalForId(${id}): Using old format, special_pricing_type=${specialPricing}`);
+		
+		let priceMultiplier = 1;
+		if (specialPricing === 'muestra') {
+			priceMultiplier = 0; // Free samples
+		} else if (specialPricing === 'a_costo') {
+			priceMultiplier = 0.55; // 45% discount (55% of original price)
+		}
+		
+		// Get all desserts dynamically
+		const desserts = await getDesserts();
+		
+		// Calculate total dynamically for all desserts
+		let total = 0;
+		for (const d of desserts) {
+			const qtyKey = `qty_${d.short_code}`;
+			const qty = Number(sale[qtyKey] || 0) || 0;
+			if (qty > 0) {
+				const adjustedPrice = Math.round(d.sale_price * priceMultiplier);
+				total += qty * adjustedPrice;
+			}
+		}
+		
+		console.log(`🔄 recalcTotalForId(${id}): Calculated total=${total} with multiplier=${priceMultiplier}`);
+		
 		[row] = await sql`
-			UPDATE sales SET total_cents = qty_arco * ${p.arco} + qty_melo * ${p.melo} + qty_mara * ${p.mara} + qty_oreo * ${p.oreo} + qty_nute * ${p.nute}
+			UPDATE sales SET total_cents = ${total}
 			WHERE id = ${id}
 			RETURNING *
 		`;
