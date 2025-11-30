@@ -1851,11 +1851,49 @@
 		}
 	}
 	
-	// Load a saved session
-	function loadSession(session) {
+	// Load a saved session and continue working on it
+	async function loadSession(session) {
 		console.log('📂 Loading session:', session);
-		// TODO: Implement loading logic - reload page with session data
-		alert('Funcionalidad de carga en desarrollo');
+		
+		try {
+			const dessertsData = typeof session.desserts_data === 'string' ? JSON.parse(session.desserts_data) : session.desserts_data;
+			
+			// Set the date
+			sessionDatePicker.value = session.session_date;
+			
+			// Load participants for each dessert
+			selectedUsersByDessert = {};
+			for (const dessertData of dessertsData) {
+				if (dessertData.participants && dessertData.participants.length > 0) {
+					selectedUsersByDessert[dessertData.dessert] = dessertData.participants;
+				}
+			}
+			
+			console.log('✅ Loaded session data:', {
+				date: session.session_date,
+				participants: selectedUsersByDessert,
+				desserts: dessertsData
+			});
+			
+			// Reload the page with the session date to show the correct data
+			const url = new URL(window.location.href);
+			url.searchParams.set('start', session.session_date);
+			url.searchParams.set('end', session.session_date);
+			url.searchParams.set('load_session', session.id);
+			
+			// Store session data in sessionStorage to restore after reload
+			sessionStorage.setItem('loadedSession', JSON.stringify({
+				id: session.id,
+				participants: selectedUsersByDessert,
+				dessertsData: dessertsData
+			}));
+			
+			window.location.href = url.toString();
+			
+		} catch (err) {
+			console.error('Error loading session:', err);
+			alert('Error al cargar la sesión: ' + err.message);
+		}
 	}
 	
 	// Initialize session date (automatic from URL param)
@@ -1863,6 +1901,62 @@
 		sessionDatePicker.value = start;
 	} else {
 		sessionDatePicker.value = new Date().toISOString().split('T')[0];
+	}
+	
+	// Check if we're loading a saved session
+	const urlParams = new URLSearchParams(window.location.search);
+	const loadSessionId = urlParams.get('load_session');
+	
+	if (loadSessionId) {
+		// Try to restore session data from sessionStorage
+		try {
+			const storedSession = sessionStorage.getItem('loadedSession');
+			if (storedSession) {
+				const sessionData = JSON.parse(storedSession);
+				console.log('🔄 Restoring loaded session:', sessionData);
+				
+				// Restore participants selection
+				selectedUsersByDessert = sessionData.participants || {};
+				
+				// Wait for the page to fully load, then restore UI state
+				setTimeout(() => {
+					restoreSessionUI(sessionData);
+					sessionStorage.removeItem('loadedSession'); // Clean up
+					
+					// Remove load_session param from URL
+					const cleanUrl = new URL(window.location.href);
+					cleanUrl.searchParams.delete('load_session');
+					history.replaceState(null, '', cleanUrl.toString());
+					
+					showStatus('✅ Sesión cargada correctamente', 'success');
+				}, 1000); // Wait for rendering to complete
+			}
+		} catch (err) {
+			console.error('Error restoring session:', err);
+		}
+	}
+	
+	// Restore UI state after loading session
+	function restoreSessionUI(sessionData) {
+		console.log('🎨 Restoring UI state for participants:', sessionData.participants);
+		
+		// Find and activate user buttons based on selections
+		for (const [dessert, userIds] of Object.entries(sessionData.participants || {})) {
+			console.log(`Restoring ${dessert}:`, userIds);
+			
+			// Find all user buttons for this dessert
+			userIds.forEach(userId => {
+				const btn = document.querySelector(`button[data-user-id="${userId}"][data-dessert="${dessert}"]`);
+				if (btn) {
+					// Apply selected style
+					btn.style.background = 'var(--primary)';
+					btn.style.color = 'white';
+					btn.style.fontWeight = '600';
+					btn.style.boxShadow = '0 4px 16px var(--hover-shadow-pink)';
+					console.log(`✓ Activated button for user ${userId} in ${dessert}`);
+				}
+			});
+		}
 	}
 
 		if (!start || !end) {
