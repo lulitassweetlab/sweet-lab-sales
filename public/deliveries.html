@@ -31,7 +31,6 @@
 				<table id="sales-consolidated-table">
 					<thead>
 						<tr id="sales-thead-row">
-							<th>Fecha</th>
 							<th>Vendedor</th>
 							<!-- Dynamic dessert columns will be inserted here -->
 							<th>Total</th>
@@ -53,6 +52,9 @@
 		let desserts = [];
 		let dessertsById = new Map();
 		let salesData = [];
+		
+		// Track expanded sellers (date_sellerId format)
+		const expandedSellers = new Set();
 
 		function getCurrentUser(){
 			try { return JSON.parse(localStorage.getItem('authUser') || 'null'); } catch { return null; }
@@ -147,7 +149,7 @@
 				dateRow.style.backgroundColor = '#e3f2fd';
 				dateRow.style.fontWeight = 'bold';
 				const dateCell = document.createElement('td');
-				dateCell.colSpan = 2 + desserts.length + 1; // Fecha + Vendedor + all desserts + Total
+				dateCell.colSpan = 1 + desserts.length + 1; // Vendedor + all desserts + Total
 				dateCell.textContent = formatIsoDate(dateData.day);
 				dateCell.style.padding = '12px 8px';
 				dateRow.appendChild(dateCell);
@@ -156,6 +158,10 @@
 				// Render each seller
 				for (let i = 0; i < dateData.sellers.length; i++) {
 					const seller = dateData.sellers[i];
+					const sellerKey = `${dateData.day}_${seller.seller_id}`;
+					const hasSpecial = seller.has_muestra || seller.has_a_costo;
+					const isExpanded = expandedSellers.has(sellerKey);
+					
 					const tr = document.createElement('tr');
 					tr.style.backgroundColor = '#fafafa';
 					
@@ -164,45 +170,32 @@
 						tr.style.borderTop = '1px solid rgba(255, 192, 203, 0.4)';
 					}
 					
-					// Empty cell for Fecha column (merge with date header visually)
-					const emptyDateCell = document.createElement('td');
-					emptyDateCell.textContent = '';
-					tr.appendChild(emptyDateCell);
-					
-					// Seller name with special pricing indicators
+					// Seller name with expand button
 					const sellerCell = document.createElement('td');
 					sellerCell.style.paddingLeft = '16px';
+					
+					// Add expand button if has special pricing
+					if (hasSpecial) {
+						const expandBtn = document.createElement('button');
+						expandBtn.className = 'press-btn';
+						expandBtn.textContent = isExpanded ? '▼' : '▶';
+						expandBtn.style.marginRight = '8px';
+						expandBtn.style.fontSize = '10px';
+						expandBtn.style.padding = '2px 6px';
+						expandBtn.addEventListener('click', () => {
+							if (expandedSellers.has(sellerKey)) {
+								expandedSellers.delete(sellerKey);
+							} else {
+								expandedSellers.add(sellerKey);
+							}
+							renderSalesConsolidated();
+						});
+						sellerCell.appendChild(expandBtn);
+					}
 					
 					const sellerNameSpan = document.createElement('span');
 					sellerNameSpan.textContent = seller.seller_name;
 					sellerCell.appendChild(sellerNameSpan);
-					
-					// Add badges for special pricing
-					if (seller.has_muestra) {
-						const badge = document.createElement('span');
-						badge.textContent = 'Muestra';
-						badge.style.marginLeft = '6px';
-						badge.style.fontSize = '10px';
-						badge.style.padding = '2px 6px';
-						badge.style.backgroundColor = '#9c27b0';
-						badge.style.color = 'white';
-						badge.style.borderRadius = '3px';
-						badge.style.fontWeight = 'bold';
-						sellerCell.appendChild(badge);
-					}
-					
-					if (seller.has_a_costo) {
-						const badge = document.createElement('span');
-						badge.textContent = 'A Costo';
-						badge.style.marginLeft = '6px';
-						badge.style.fontSize = '10px';
-						badge.style.padding = '2px 6px';
-						badge.style.backgroundColor = '#ff9800';
-						badge.style.color = 'white';
-						badge.style.borderRadius = '3px';
-						badge.style.fontWeight = 'bold';
-						sellerCell.appendChild(badge);
-					}
 					
 					tr.appendChild(sellerCell);
 					
@@ -225,15 +218,99 @@
 					tr.appendChild(sellerTotalCell);
 					
 					salesTbody.appendChild(tr);
+					
+					// Render expanded detail rows if expanded
+					if (isExpanded && hasSpecial) {
+						// Muestra row
+						if (seller.has_muestra) {
+							const muestraRow = document.createElement('tr');
+							muestraRow.style.backgroundColor = '#f3e5f5';
+							muestraRow.style.fontStyle = 'italic';
+							
+							const labelCell = document.createElement('td');
+							labelCell.textContent = '  → Muestra';
+							labelCell.style.paddingLeft = '40px';
+							labelCell.style.fontSize = '13px';
+							muestraRow.appendChild(labelCell);
+							
+							for (const d of desserts) {
+								const qty = seller.muestra_quantities[d.short_code] || 0;
+								const td = document.createElement('td');
+								td.className = 'col-qty';
+								
+								if (qty > 0) {
+									const badge = document.createElement('span');
+									badge.textContent = qty;
+									badge.style.backgroundColor = '#9c27b0';
+									badge.style.color = 'white';
+									badge.style.padding = '3px 8px';
+									badge.style.borderRadius = '12px';
+									badge.style.fontSize = '12px';
+									badge.style.fontWeight = 'bold';
+									badge.style.display = 'inline-block';
+									td.appendChild(badge);
+								} else {
+									td.textContent = '-';
+								}
+								
+								muestraRow.appendChild(td);
+							}
+							
+							// Empty total cell
+							const emptyTotalCell = document.createElement('td');
+							muestraRow.appendChild(emptyTotalCell);
+							
+							salesTbody.appendChild(muestraRow);
+						}
+						
+						// A Costo row
+						if (seller.has_a_costo) {
+							const costoRow = document.createElement('tr');
+							costoRow.style.backgroundColor = '#fff3e0';
+							costoRow.style.fontStyle = 'italic';
+							
+							const labelCell = document.createElement('td');
+							labelCell.textContent = '  → A Costo';
+							labelCell.style.paddingLeft = '40px';
+							labelCell.style.fontSize = '13px';
+							costoRow.appendChild(labelCell);
+							
+							for (const d of desserts) {
+								const qty = seller.a_costo_quantities[d.short_code] || 0;
+								const td = document.createElement('td');
+								td.className = 'col-qty';
+								
+								if (qty > 0) {
+									const badge = document.createElement('span');
+									badge.textContent = qty;
+									badge.style.backgroundColor = '#ff9800';
+									badge.style.color = 'white';
+									badge.style.padding = '3px 8px';
+									badge.style.borderRadius = '12px';
+									badge.style.fontSize = '12px';
+									badge.style.fontWeight = 'bold';
+									badge.style.display = 'inline-block';
+									td.appendChild(badge);
+								} else {
+									td.textContent = '-';
+								}
+								
+								costoRow.appendChild(td);
+							}
+							
+							// Empty total cell
+							const emptyTotalCell = document.createElement('td');
+							costoRow.appendChild(emptyTotalCell);
+							
+							salesTbody.appendChild(costoRow);
+						}
+					}
 				}
 				
 				// Render totals row
 				const totalsRow = document.createElement('tr');
 				totalsRow.style.backgroundColor = '#c8e6c9';
 				totalsRow.style.fontWeight = 'bold';
-				
-				const emptyTotalDateCell = document.createElement('td');
-				totalsRow.appendChild(emptyTotalDateCell);
 				
 				const totalLabel = document.createElement('td');
 				totalLabel.textContent = 'TOTAL';
@@ -267,7 +344,7 @@
 				spacingRow.style.height = '20px';
 				spacingRow.style.backgroundColor = 'transparent';
 				const spacingCell = document.createElement('td');
-				spacingCell.colSpan = 2 + desserts.length + 1;
+				spacingCell.colSpan = 1 + desserts.length + 1;
 				spacingCell.innerHTML = '&nbsp;';
 				spacingRow.appendChild(spacingCell);
 				salesTbody.appendChild(spacingRow);
@@ -276,7 +353,7 @@
 			if (salesData.length === 0) {
 				const emptyRow = document.createElement('tr');
 				const emptyCell = document.createElement('td');
-				emptyCell.colSpan = 2 + desserts.length + 1;
+				emptyCell.colSpan = 1 + desserts.length + 1;
 				emptyCell.textContent = 'No hay datos de entregas';
 				emptyCell.style.textAlign = 'center';
 				emptyCell.style.padding = '32px';

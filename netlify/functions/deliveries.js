@@ -58,6 +58,7 @@ export async function handler(event) {
 							s.qty_oreo,
 							s.qty_nute,
 							s.special_pricing_type,
+							s.client_name,
 							-- Check if this sale has any sale_items
 							(SELECT COUNT(*) FROM sale_items WHERE sale_id = s.id) > 0 AS has_items
 						FROM sales s
@@ -110,19 +111,19 @@ export async function handler(event) {
 								seller_id: sale.seller_id,
 								seller_name: sale.seller_name,
 								has_muestra: false,
-								has_a_costo: false
+								has_a_costo: false,
+								muestra_quantities: {},
+								a_costo_quantities: {}
 							};
 							for (const d of desserts) {
 								sellersByDateAndId[sellerKey][d.short_code] = 0;
+								sellersByDateAndId[sellerKey].muestra_quantities[d.short_code] = 0;
+								sellersByDateAndId[sellerKey].a_costo_quantities[d.short_code] = 0;
 							}
 						}
 						
-						// Track special pricing types
-						if (sale.special_pricing_type === 'muestra') {
-							sellersByDateAndId[sellerKey].has_muestra = true;
-						} else if (sale.special_pricing_type === 'a_costo') {
-							sellersByDateAndId[sellerKey].has_a_costo = true;
-						}
+						// Track special pricing types and quantities
+						const specialType = sale.special_pricing_type;
 						
 						// Decide whether to use sale_items or legacy columns for this sale
 						if (sale.has_items && itemsBySaleId[sale.sale_id]) {
@@ -132,6 +133,15 @@ export async function handler(event) {
 								if (dessert) {
 									sellersByDateAndId[sellerKey][dessert.short_code] += item.quantity;
 									dataByDate[dateKey].totals[dessert.short_code] += item.quantity;
+									
+									// Track special pricing quantities
+									if (specialType === 'muestra') {
+										sellersByDateAndId[sellerKey].has_muestra = true;
+										sellersByDateAndId[sellerKey].muestra_quantities[dessert.short_code] += item.quantity;
+									} else if (specialType === 'a_costo') {
+										sellersByDateAndId[sellerKey].has_a_costo = true;
+										sellersByDateAndId[sellerKey].a_costo_quantities[dessert.short_code] += item.quantity;
+									}
 								}
 							}
 						} else {
@@ -142,6 +152,15 @@ export async function handler(event) {
 								if (qty > 0) {
 									sellersByDateAndId[sellerKey][d.short_code] += qty;
 									dataByDate[dateKey].totals[d.short_code] += qty;
+									
+									// Track special pricing quantities
+									if (specialType === 'muestra') {
+										sellersByDateAndId[sellerKey].has_muestra = true;
+										sellersByDateAndId[sellerKey].muestra_quantities[d.short_code] += qty;
+									} else if (specialType === 'a_costo') {
+										sellersByDateAndId[sellerKey].has_a_costo = true;
+										sellersByDateAndId[sellerKey].a_costo_quantities[d.short_code] += qty;
+									}
 								}
 							}
 						}
