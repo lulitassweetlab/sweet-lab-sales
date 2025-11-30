@@ -137,7 +137,8 @@ export async function ensureSchema() {
 				{ name: 'Melo', short_code: 'melo', sale_price: 9500, position: 2 },
 				{ name: 'Mara', short_code: 'mara', sale_price: 10500, position: 3 },
 				{ name: 'Oreo', short_code: 'oreo', sale_price: 10500, position: 4 },
-				{ name: 'Nute', short_code: 'nute', sale_price: 13000, position: 5 }
+				{ name: 'Nute', short_code: 'nute', sale_price: 13000, position: 5 },
+				{ name: '3Lec', short_code: '3lec', sale_price: 9000, position: 6 }
 			];
 			for (const d of defaultDesserts) {
 				await sql`INSERT INTO desserts (name, short_code, sale_price, position) VALUES (${d.name}, ${d.short_code}, ${d.sale_price}, ${d.position}) ON CONFLICT (name) DO NOTHING`;
@@ -802,7 +803,7 @@ END $$;`;
 }
 
 export function prices() {
-	return { arco: 8500, melo: 9500, mara: 10500, oreo: 10500, nute: 13000 };
+	return { arco: 8500, melo: 9500, mara: 10500, oreo: 10500, nute: 13000, '3lec': 9000 };
 }
 
 export async function getDesserts() {
