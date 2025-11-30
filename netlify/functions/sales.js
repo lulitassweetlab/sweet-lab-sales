@@ -446,6 +446,15 @@ export async function handler(event) {
                             }
                         }
                     } catch {}
+                    
+                    // Recalculate total to ensure special pricing is correctly reflected
+                    // (especially important for sales created before the special pricing feature was fully implemented)
+                    try {
+                        await recalcTotalForId(sid);
+                    } catch (err) {
+                        console.error('Error recalculating total after receipt upload:', err);
+                    }
+                    
                     return json(row, 201);
                 }
 				const sellerId = Number(data.seller_id);
