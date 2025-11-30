@@ -179,9 +179,12 @@
 				const url = dessertFilter 
 					? withActor(`/api/recipes?production_users=1&dessert_filter=${encodeURIComponent(dessertFilter)}`)
 					: withActor('/api/recipes?production_users=1');
+				console.log(`📥 Loading users for dessert: ${dessertFilter || 'all'}`);
 				const users = await fetchJSON(url);
+				console.log(`✅ Loaded ${users?.length || 0} users:`, users);
 				return users || [];
-			} catch {
+			} catch (err) {
+				console.error('❌ Error loading users:', err);
 				return [];
 			}
 		}
@@ -210,21 +213,37 @@
 
 		// Build user selector component
 		function buildUserSelector(dessertName, users) {
+			console.log(`🔧 Building user selector for ${dessertName}, users:`, users);
+			
 			const container = document.createElement('div');
 			container.className = 'user-selector-container';
-			container.style.margin = '12px 0';
-			container.style.padding = '12px';
-			container.style.background = 'rgba(244, 166, 183, 0.08)';
-			container.style.borderRadius = '8px';
-			container.style.border = '1px solid rgba(244, 166, 183, 0.3)';
+			container.style.margin = '16px 0';
+			container.style.padding = '16px';
+			container.style.background = 'linear-gradient(135deg, rgba(244, 166, 183, 0.12) 0%, rgba(255, 182, 193, 0.08) 100%)';
+			container.style.borderRadius = '12px';
+			container.style.border = '2px solid rgba(244, 166, 183, 0.4)';
+			container.style.boxShadow = '0 2px 8px rgba(244, 166, 183, 0.15)';
 
+			const labelRow = document.createElement('div');
+			labelRow.style.display = 'flex';
+			labelRow.style.justifyContent = 'space-between';
+			labelRow.style.alignItems = 'center';
+			labelRow.style.marginBottom = '12px';
+			
 			const label = document.createElement('div');
-			label.textContent = '👥 Participantes en producción:';
-			label.style.fontWeight = '600';
-			label.style.marginBottom = '8px';
-			label.style.fontSize = '14px';
+			label.innerHTML = '👥 <strong>Participantes en producción</strong>';
+			label.style.fontSize = '15px';
 			label.style.color = 'var(--text)';
-			container.appendChild(label);
+			
+			const helpText = document.createElement('div');
+			helpText.textContent = 'Click para seleccionar';
+			helpText.style.fontSize = '12px';
+			helpText.style.color = 'rgba(0, 0, 0, 0.5)';
+			helpText.style.fontStyle = 'italic';
+			
+			labelRow.appendChild(label);
+			labelRow.appendChild(helpText);
+			container.appendChild(labelRow);
 
 			const usersWrap = document.createElement('div');
 			usersWrap.style.display = 'flex';
@@ -236,66 +255,92 @@
 			users.forEach(user => {
 				const userBtn = document.createElement('button');
 				userBtn.className = 'user-select-btn';
-				userBtn.textContent = user.username;
 				userBtn.dataset.userId = user.id;
-				userBtn.style.padding = '6px 12px';
-				userBtn.style.borderRadius = '20px';
-				userBtn.style.border = '2px solid var(--border)';
+				userBtn.style.padding = '10px 18px';
+				userBtn.style.borderRadius = '25px';
+				userBtn.style.border = '2px solid #ddd';
 				userBtn.style.background = 'white';
 				userBtn.style.cursor = 'pointer';
-				userBtn.style.fontSize = '13px';
-				userBtn.style.fontWeight = '500';
-				userBtn.style.transition = 'all 0.2s ease';
+				userBtn.style.fontSize = '14px';
+				userBtn.style.fontWeight = '600';
+				userBtn.style.transition = 'all 0.25s ease';
 				userBtn.style.position = 'relative';
+				userBtn.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.08)';
+				
+				// User name
+				const nameSpan = document.createElement('span');
+				nameSpan.textContent = user.username;
+				userBtn.appendChild(nameSpan);
 				
 				// Show participation count if > 0
 				if (user.participation_count > 0) {
 					const badge = document.createElement('span');
 					badge.textContent = user.participation_count;
 					badge.style.position = 'absolute';
-					badge.style.top = '-6px';
-					badge.style.right = '-6px';
-					badge.style.background = 'var(--primary)';
+					badge.style.top = '-8px';
+					badge.style.right = '-8px';
+					badge.style.background = 'linear-gradient(135deg, #f4a6b7 0%, #ff69b4 100%)';
 					badge.style.color = 'white';
-					badge.style.fontSize = '10px';
+					badge.style.fontSize = '11px';
 					badge.style.fontWeight = '700';
-					badge.style.borderRadius = '10px';
-					badge.style.padding = '2px 6px';
-					badge.style.minWidth = '18px';
+					badge.style.borderRadius = '12px';
+					badge.style.padding = '3px 7px';
+					badge.style.minWidth = '22px';
 					badge.style.textAlign = 'center';
+					badge.style.boxShadow = '0 2px 6px rgba(244, 166, 183, 0.4)';
 					badge.title = `Ha participado ${user.participation_count} ${user.participation_count === 1 ? 'vez' : 'veces'}`;
 					userBtn.appendChild(badge);
 				}
+				
+				// Hover effect
+				userBtn.addEventListener('mouseenter', () => {
+					if (!selectedUsers.has(Number(userBtn.dataset.userId))) {
+						userBtn.style.transform = 'translateY(-2px)';
+						userBtn.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.15)';
+						userBtn.style.borderColor = 'var(--primary)';
+					}
+				});
+				userBtn.addEventListener('mouseleave', () => {
+					if (!selectedUsers.has(Number(userBtn.dataset.userId))) {
+						userBtn.style.transform = 'translateY(0)';
+						userBtn.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.08)';
+						userBtn.style.borderColor = '#ddd';
+					}
+				});
 
 				userBtn.addEventListener('click', async () => {
 					const userId = Number(userBtn.dataset.userId);
-					if (selectedUsers.has(userId)) {
+					const isSelected = selectedUsers.has(userId);
+					
+					if (isSelected) {
 						selectedUsers.delete(userId);
 						userBtn.style.background = 'white';
-						userBtn.style.borderColor = 'var(--border)';
+						userBtn.style.borderColor = '#ddd';
 						userBtn.style.color = 'var(--text)';
+						userBtn.style.transform = 'scale(0.95)';
+						setTimeout(() => { userBtn.style.transform = 'scale(1)'; }, 150);
 					} else {
 						selectedUsers.add(userId);
-						userBtn.style.background = 'var(--primary)';
-						userBtn.style.borderColor = 'var(--primary)';
+						userBtn.style.background = 'linear-gradient(135deg, #f4a6b7 0%, #ff69b4 100%)';
+						userBtn.style.borderColor = '#f4a6b7';
 						userBtn.style.color = 'white';
+						userBtn.style.boxShadow = '0 4px 12px rgba(244, 166, 183, 0.5)';
+						userBtn.style.transform = 'scale(1.05)';
+						setTimeout(() => { userBtn.style.transform = 'scale(1)'; }, 150);
 					}
 					
 					// Auto-save selection
 					const success = await saveProductionUsers(dessertName, Array.from(selectedUsers));
-					if (success) {
-						// Show brief success indicator
-						const originalText = userBtn.textContent;
-						const wasSelected = selectedUsers.has(userId);
-						if (wasSelected) {
-							const checkmark = document.createElement('span');
-							checkmark.textContent = ' ✓';
-							checkmark.style.fontSize = '12px';
-							userBtn.appendChild(checkmark);
-							setTimeout(() => {
-								if (checkmark.parentNode) checkmark.parentNode.removeChild(checkmark);
-							}, 1000);
-						}
+					if (success && !isSelected) {
+						// Show brief success checkmark for newly selected
+						const checkmark = document.createElement('span');
+						checkmark.textContent = ' ✓';
+						checkmark.style.fontSize = '14px';
+						checkmark.style.marginLeft = '4px';
+						nameSpan.appendChild(checkmark);
+						setTimeout(() => {
+							if (checkmark.parentNode) checkmark.parentNode.removeChild(checkmark);
+						}, 800);
 					}
 				});
 
@@ -306,38 +351,45 @@
 			
 			// Add quick select all / clear buttons
 			const actions = document.createElement('div');
-			actions.style.marginTop = '8px';
+			actions.style.marginTop = '12px';
 			actions.style.display = 'flex';
-			actions.style.gap = '6px';
+			actions.style.gap = '8px';
+			actions.style.justifyContent = 'flex-end';
 			
 			const selectAllBtn = document.createElement('button');
 			selectAllBtn.className = 'press-btn';
-			selectAllBtn.textContent = 'Seleccionar todos';
-			selectAllBtn.style.fontSize = '11px';
-			selectAllBtn.style.padding = '4px 8px';
+			selectAllBtn.textContent = '✓ Todos';
+			selectAllBtn.style.fontSize = '12px';
+			selectAllBtn.style.padding = '6px 12px';
 			selectAllBtn.style.minWidth = 'unset';
+			selectAllBtn.style.background = 'linear-gradient(135deg, rgba(244, 166, 183, 0.2) 0%, rgba(255, 182, 193, 0.15) 100%)';
+			selectAllBtn.style.border = '1px solid rgba(244, 166, 183, 0.4)';
 			selectAllBtn.addEventListener('click', async () => {
 				users.forEach(u => selectedUsers.add(u.id));
 				usersWrap.querySelectorAll('.user-select-btn').forEach(btn => {
-					btn.style.background = 'var(--primary)';
-					btn.style.borderColor = 'var(--primary)';
+					btn.style.background = 'linear-gradient(135deg, #f4a6b7 0%, #ff69b4 100%)';
+					btn.style.borderColor = '#f4a6b7';
 					btn.style.color = 'white';
+					btn.style.boxShadow = '0 4px 12px rgba(244, 166, 183, 0.5)';
 				});
 				await saveProductionUsers(dessertName, Array.from(selectedUsers));
 			});
 			
 			const clearBtn = document.createElement('button');
 			clearBtn.className = 'press-btn';
-			clearBtn.textContent = 'Limpiar';
-			clearBtn.style.fontSize = '11px';
-			clearBtn.style.padding = '4px 8px';
+			clearBtn.textContent = '✕ Limpiar';
+			clearBtn.style.fontSize = '12px';
+			clearBtn.style.padding = '6px 12px';
 			clearBtn.style.minWidth = 'unset';
+			clearBtn.style.background = 'white';
+			clearBtn.style.border = '1px solid #ddd';
 			clearBtn.addEventListener('click', async () => {
 				selectedUsers.clear();
 				usersWrap.querySelectorAll('.user-select-btn').forEach(btn => {
 					btn.style.background = 'white';
-					btn.style.borderColor = 'var(--border)';
+					btn.style.borderColor = '#ddd';
 					btn.style.color = 'var(--text)';
+					btn.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.08)';
 				});
 			});
 			
@@ -1148,12 +1200,33 @@
 				const card = document.createElement('div'); card.className = 'measure-card'; card.style.padding='12px'; card.style.border='1px solid rgba(0,0,0,0.15)'; card.style.borderRadius='10px'; card.style.boxShadow='0 8px 24px rgba(0,0,0,0.12)';
 				const title = document.createElement('h3'); title.textContent = `${dessertName} × ${qty}`; title.style.textAlign='center'; title.style.fontSize='28px'; title.style.margin='4px 0 12px 0'; title.style.background='rgba(255, 105, 180, 0.18)'; title.style.padding='8px 6px'; title.style.borderRadius='8px'; card.appendChild(title);
 			
-			// Add user selector for this dessert
+			// Add user selector for this dessert (always show, even with no users)
 			const dessertUsers = await loadUsers(dessertName);
+			console.log(`🎨 Rendering user selector for ${dessertName}, found ${dessertUsers.length} users`);
+			
 			if (dessertUsers.length > 0) {
 				const userSelector = buildUserSelector(dessertName, dessertUsers);
 				card.appendChild(userSelector.element);
+			} else {
+				// Show a message when no users are available
+				const noUsersMsg = document.createElement('div');
+				noUsersMsg.style.margin = '16px 0';
+				noUsersMsg.style.padding = '12px';
+				noUsersMsg.style.background = 'rgba(255, 193, 7, 0.1)';
+				noUsersMsg.style.borderRadius = '8px';
+				noUsersMsg.style.border = '1px solid rgba(255, 193, 7, 0.3)';
+				noUsersMsg.style.fontSize = '13px';
+				noUsersMsg.style.color = 'rgba(0, 0, 0, 0.7)';
+				noUsersMsg.textContent = '⚠️ No hay usuarios disponibles. Por favor, contacta al administrador.';
+				card.appendChild(noUsersMsg);
 			}
+			
+			// Add visual separator between participants and recipe steps
+			const separator = document.createElement('div');
+			separator.style.height = '1px';
+			separator.style.background = 'linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.1) 50%, transparent 100%)';
+			separator.style.margin = '20px 0';
+			card.appendChild(separator);
 			
 			const session = { dessert: dessertName, qty, steps: [] };
 			const checkedState = getCheckedState();
