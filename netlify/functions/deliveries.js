@@ -32,6 +32,195 @@ export async function handler(event) {
 				}
 				const params = new URLSearchParams(raw);
 				
+				// Check if this is a request for consolidated sales by date
+				const salesConsolidated = params.get('sales_consolidated');
+				if (salesConsolidated === 'true') {
+					// Get all desserts dynamically
+					const desserts = await sql`SELECT id, short_code, name FROM desserts WHERE is_active = true ORDER BY position ASC, id ASC`;
+					
+					// Create a map of dessert short_code to id
+					const dessertIdByCode = {};
+					for (const d of desserts) {
+						dessertIdByCode[d.short_code] = d.id;
+					}
+					
+					// OPTIMIZED: Get all sales with quantities per dessert
+					// For each sale, use sale_items if they exist, otherwise use qty_* columns
+					const allSalesData = await sql`
+						SELECT 
+							s.id AS sale_id,
+							sd.day,
+							s.seller_id,
+							se.name AS seller_name,
+							s.qty_arco,
+							s.qty_melo,
+							s.qty_mara,
+							s.qty_oreo,
+							s.qty_nute,
+							s.special_pricing_type,
+							s.client_name,
+							-- Check if this sale has any sale_items
+							(SELECT COUNT(*) FROM sale_items WHERE sale_id = s.id) > 0 AS has_items
+						FROM sales s
+						INNER JOIN sale_days sd ON sd.id = s.sale_day_id
+						INNER JOIN sellers se ON se.id = s.seller_id
+						ORDER BY sd.day DESC, se.name ASC
+					`;
+					
+					// Get all sale_items in one query
+					const allItems = await sql`
+						SELECT 
+							si.sale_id,
+							si.dessert_id,
+							si.quantity
+						FROM sale_items si
+					`;
+					
+					// Get delivered quantities from sale_days
+					const deliveredData = await sql`
+						SELECT 
+							sd.day,
+							sd.seller_id,
+							sd.delivered_arco,
+							sd.delivered_melo,
+							sd.delivered_mara,
+							sd.delivered_oreo,
+							sd.delivered_nute
+						FROM sale_days sd
+						WHERE sd.delivered_arco > 0 
+						   OR sd.delivered_melo > 0 
+						   OR sd.delivered_mara > 0 
+						   OR sd.delivered_oreo > 0 
+						   OR sd.delivered_nute > 0
+					`;
+					
+					// Create a map of sale_items by sale_id
+					const itemsBySaleId = {};
+					for (const item of allItems) {
+						if (!itemsBySaleId[item.sale_id]) {
+							itemsBySaleId[item.sale_id] = [];
+						}
+						itemsBySaleId[item.sale_id].push(item);
+					}
+					
+					// Create a map of delivered quantities by date and seller
+					const deliveredByKey = {};
+					for (const delivered of deliveredData) {
+						const key = `${delivered.day}_${delivered.seller_id}`;
+						deliveredByKey[key] = {
+							arco: delivered.delivered_arco || 0,
+							melo: delivered.delivered_melo || 0,
+							mara: delivered.delivered_mara || 0,
+							oreo: delivered.delivered_oreo || 0,
+							nute: delivered.delivered_nute || 0
+						};
+					}
+					
+					// Build a map to organize data by date and seller
+					const dataByDate = {};
+					const sellersByDateAndId = {};
+					
+					// Process each sale
+					for (const sale of allSalesData) {
+						const dateKey = sale.day;
+						const sellerKey = `${dateKey}_${sale.seller_id}`;
+						
+						// Initialize structures if needed
+						if (!dataByDate[dateKey]) {
+							dataByDate[dateKey] = {
+								day: dateKey,
+								sellers: [],
+								totals: {}
+							};
+							for (const d of desserts) {
+								dataByDate[dateKey].totals[d.short_code] = 0;
+							}
+						}
+						
+						if (!sellersByDateAndId[sellerKey]) {
+							sellersByDateAndId[sellerKey] = {
+								seller_id: sale.seller_id,
+								seller_name: sale.seller_name,
+								has_muestra: false,
+								has_a_costo: false,
+								muestra_quantities: {},
+								a_costo_quantities: {},
+								delivered_quantities: deliveredByKey[sellerKey] || {}
+							};
+							for (const d of desserts) {
+								sellersByDateAndId[sellerKey][d.short_code] = 0;
+								sellersByDateAndId[sellerKey].muestra_quantities[d.short_code] = 0;
+								sellersByDateAndId[sellerKey].a_costo_quantities[d.short_code] = 0;
+								// Initialize delivered quantities
+								if (!sellersByDateAndId[sellerKey].delivered_quantities[d.short_code]) {
+									sellersByDateAndId[sellerKey].delivered_quantities[d.short_code] = 0;
+								}
+							}
+						}
+						
+						// Track special pricing types and quantities
+						const specialType = sale.special_pricing_type;
+						
+						// Decide whether to use sale_items or legacy columns for this sale
+						if (sale.has_items && itemsBySaleId[sale.sale_id]) {
+							// Use sale_items data
+							for (const item of itemsBySaleId[sale.sale_id]) {
+								const dessert = desserts.find(d => d.id === item.dessert_id);
+								if (dessert) {
+									sellersByDateAndId[sellerKey][dessert.short_code] += item.quantity;
+									dataByDate[dateKey].totals[dessert.short_code] += item.quantity;
+									
+									// Track special pricing quantities
+									if (specialType === 'muestra') {
+										sellersByDateAndId[sellerKey].has_muestra = true;
+										sellersByDateAndId[sellerKey].muestra_quantities[dessert.short_code] += item.quantity;
+									} else if (specialType === 'a_costo') {
+										sellersByDateAndId[sellerKey].has_a_costo = true;
+										sellersByDateAndId[sellerKey].a_costo_quantities[dessert.short_code] += item.quantity;
+									}
+								}
+							}
+						} else {
+							// Use legacy columns
+							for (const d of desserts) {
+								const qtyKey = `qty_${d.short_code}`;
+								const qty = sale[qtyKey] || 0;
+								if (qty > 0) {
+									sellersByDateAndId[sellerKey][d.short_code] += qty;
+									dataByDate[dateKey].totals[d.short_code] += qty;
+									
+									// Track special pricing quantities
+									if (specialType === 'muestra') {
+										sellersByDateAndId[sellerKey].has_muestra = true;
+										sellersByDateAndId[sellerKey].muestra_quantities[d.short_code] += qty;
+									} else if (specialType === 'a_costo') {
+										sellersByDateAndId[sellerKey].has_a_costo = true;
+										sellersByDateAndId[sellerKey].a_costo_quantities[d.short_code] += qty;
+									}
+								}
+							}
+						}
+					}
+					
+					// Convert sellers map to arrays organized by date
+					for (const [sellerKey, sellerData] of Object.entries(sellersByDateAndId)) {
+						const [dateKey] = sellerKey.split('_');
+						if (dataByDate[dateKey]) {
+							dataByDate[dateKey].sellers.push(sellerData);
+						}
+					}
+					
+					// Sort sellers within each date
+					for (const dateData of Object.values(dataByDate)) {
+						dateData.sellers.sort((a, b) => a.seller_name.localeCompare(b.seller_name));
+					}
+					
+					// Convert to array and return
+					const result = Object.values(dataByDate);
+					
+					return json(result);
+				}
+				
 				// Check if this is a request for seller assignments
 				const deliveryId = params.get('delivery_id');
 				if (deliveryId) {
@@ -180,10 +369,111 @@ export async function handler(event) {
 				return json({ ok: true, id: row.id, day: row.day }, 201);
 			}
 			case 'PUT': {
-				// Update items or note
+				// Check if this is a request to update delivered quantities
+				let raw = '';
+				if (event.rawQuery && typeof event.rawQuery === 'string') raw = event.rawQuery;
+				else if (event.queryStringParameters && typeof event.queryStringParameters === 'object') {
+					raw = Object.entries(event.queryStringParameters).map(([k,v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v ?? '')}`).join('&');
+				}
+				const params = new URLSearchParams(raw);
+				
 				const data = JSON.parse(event.body || '{}');
 				const role = await getActorRole(event, data);
 				if (role !== 'admin' && role !== 'superadmin') return json({ error: 'No autorizado' }, 403);
+				
+				// Update single delivered quantity
+				if (params.get('update_delivered') === 'true') {
+					const day = (data.day || '').toString().slice(0,10);
+					const sellerId = Number(data.seller_id || 0) || 0;
+					const dessertCode = (data.dessert_code || '').toString();
+					const quantity = Number(data.quantity || 0) || 0;
+					
+					if (!day || !sellerId || !dessertCode) {
+						return json({ error: 'day, seller_id y dessert_code requeridos' }, 400);
+					}
+					
+					// Get or create sale_day
+					const saleDayRows = await sql`
+						SELECT id FROM sale_days 
+						WHERE seller_id = ${sellerId} AND day = ${day}
+					`;
+					
+					let saleDayId;
+					if (saleDayRows.length > 0) {
+						saleDayId = saleDayRows[0].id;
+					} else {
+						const [newSaleDay] = await sql`
+							INSERT INTO sale_days (seller_id, day)
+							VALUES (${sellerId}, ${day})
+							RETURNING id
+						`;
+						saleDayId = newSaleDay.id;
+					}
+					
+					// Update the delivered quantity using parameterized query
+					if (dessertCode === 'arco') {
+						await sql`UPDATE sale_days SET delivered_arco = ${quantity} WHERE id = ${saleDayId}`;
+					} else if (dessertCode === 'melo') {
+						await sql`UPDATE sale_days SET delivered_melo = ${quantity} WHERE id = ${saleDayId}`;
+					} else if (dessertCode === 'mara') {
+						await sql`UPDATE sale_days SET delivered_mara = ${quantity} WHERE id = ${saleDayId}`;
+					} else if (dessertCode === 'oreo') {
+						await sql`UPDATE sale_days SET delivered_oreo = ${quantity} WHERE id = ${saleDayId}`;
+					} else if (dessertCode === 'nute') {
+						await sql`UPDATE sale_days SET delivered_nute = ${quantity} WHERE id = ${saleDayId}`;
+					}
+					
+					return json({ ok: true, sale_day_id: saleDayId });
+				}
+				
+				// Update all delivered quantities at once
+				if (params.get('update_all_delivered') === 'true') {
+					const day = (data.day || '').toString().slice(0,10);
+					const sellerId = Number(data.seller_id || 0) || 0;
+					const quantities = data.quantities || {};
+					
+					if (!day || !sellerId) {
+						return json({ error: 'day y seller_id requeridos' }, 400);
+					}
+					
+					// Get or create sale_day
+					const saleDayRows = await sql`
+						SELECT id FROM sale_days 
+						WHERE seller_id = ${sellerId} AND day = ${day}
+					`;
+					
+					let saleDayId;
+					if (saleDayRows.length > 0) {
+						saleDayId = saleDayRows[0].id;
+					} else {
+						const [newSaleDay] = await sql`
+							INSERT INTO sale_days (seller_id, day)
+							VALUES (${sellerId}, ${day})
+							RETURNING id
+						`;
+						saleDayId = newSaleDay.id;
+					}
+					
+					// Update all delivered quantities using individual updates
+					for (const [code, qty] of Object.entries(quantities)) {
+						const quantity = Number(qty || 0) || 0;
+						if (code === 'arco') {
+							await sql`UPDATE sale_days SET delivered_arco = ${quantity} WHERE id = ${saleDayId}`;
+						} else if (code === 'melo') {
+							await sql`UPDATE sale_days SET delivered_melo = ${quantity} WHERE id = ${saleDayId}`;
+						} else if (code === 'mara') {
+							await sql`UPDATE sale_days SET delivered_mara = ${quantity} WHERE id = ${saleDayId}`;
+						} else if (code === 'oreo') {
+							await sql`UPDATE sale_days SET delivered_oreo = ${quantity} WHERE id = ${saleDayId}`;
+						} else if (code === 'nute') {
+							await sql`UPDATE sale_days SET delivered_nute = ${quantity} WHERE id = ${saleDayId}`;
+						}
+					}
+					
+					return json({ ok: true, sale_day_id: saleDayId });
+				}
+				
+				// Original update items or note logic
 				const id = Number(data.id || 0) || 0;
 				if (!id) return json({ error: 'id requerido' }, 400);
 				if (data.note != null) await sql`UPDATE deliveries SET note=${String(data.note)} WHERE id=${id}`;

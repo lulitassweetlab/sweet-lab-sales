@@ -5,6 +5,18 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
 	<title>Entregas</title>
 	<link rel="stylesheet" href="/styles.css?v=2025-09-17-1" />
+	<style>
+		/* Hide number input spinners */
+		input[type=number]::-webkit-inner-spin-button,
+		input[type=number]::-webkit-outer-spin-button {
+			-webkit-appearance: none;
+			margin: 0;
+		}
+		input[type=number] {
+			-moz-appearance: textfield;
+			appearance: textfield;
+		}
+	</style>
 </head>
 <body>
 	<header class="app-header">
@@ -21,23 +33,22 @@
 
 	<main class="sales-panel">
 		<div class="panel-header">
-			<h3>Producciones de postres</h3>
+			<h3>Entregas</h3>
 			<div class="panel-actions">
-				<button id="production-report-btn" class="press-btn">Reporte de producción</button>
-				<button id="add-delivery-btn" class="press-btn btn-primary">+ Nueva entrega</button>
+				<button id="refresh-sales-btn" class="press-btn">Actualizar</button>
 			</div>
 		</div>
 		<div class="panel-body">
 			<div class="table-wrapper">
-				<table id="deliveries-table">
+				<table id="sales-consolidated-table">
 					<thead>
-						<tr id="deliveries-thead-row">
-							<th>Fecha</th>
+						<tr id="sales-thead-row">
+							<th>Vendedor</th>
 							<!-- Dynamic dessert columns will be inserted here -->
-							<th>Acciones</th>
+							<th>Total</th>
 						</tr>
 					</thead>
-					<tbody id="deliveries-tbody"></tbody>
+					<tbody id="sales-tbody"></tbody>
 				</table>
 			</div>
 		</div>
@@ -45,18 +56,17 @@
 
 	<script type="module">
 	(function(){
-		const tbody = document.getElementById('deliveries-tbody');
-		const addBtn = document.getElementById('add-delivery-btn');
-		const productionReportBtn = document.getElementById('production-report-btn');
 		const backBtn = document.getElementById('back-btn');
+		const refreshSalesBtn = document.getElementById('refresh-sales-btn');
+		const salesTbody = document.getElementById('sales-tbody');
 		
-		// Track which deliveries are expanded
-		const expandedDeliveries = new Set();
-		// Store current data for re-rendering
-		let currentRows = [];
 		// Dynamic desserts from API
 		let desserts = [];
 		let dessertsById = new Map();
+		let salesData = [];
+		
+		// Track expanded sellers (date_sellerId format)
+		const expandedSellers = new Set();
 
 		function getCurrentUser(){
 			try { return JSON.parse(localStorage.getItem('authUser') || 'null'); } catch { return null; }
@@ -81,7 +91,7 @@
 			return res.json();
 		}
 
-		// Load desserts from API and render columns
+		// Load desserts from API
 		async function loadDesserts() {
 			try {
 				desserts = await api('GET', '/api/desserts');
@@ -91,73 +101,16 @@
 				for (const d of desserts) {
 					dessertsById.set(d.id, d);
 				}
-				renderDessertColumns();
 			} catch (err) {
 				console.error('Error loading desserts:', err);
-			}
-		}
-		
-		function renderDessertColumns() {
-			const theadRow = document.getElementById('deliveries-thead-row');
-			const actionsTh = theadRow.querySelector('th:last-child');
-			
-			// Remove existing dessert columns
-			theadRow.querySelectorAll('th.col-qty').forEach(th => th.remove());
-			
-			// Insert new columns before Actions
-			for (const d of desserts) {
-				const th = document.createElement('th');
-				th.className = 'col-qty';
-				th.textContent = d.name;
-				theadRow.insertBefore(th, actionsTh);
 			}
 		}
 
 		async function load() {
 			// Load desserts first
 			await loadDesserts();
-			
-			let rows = [];
-			try { rows = await api('GET', '/api/deliveries'); } catch {}
-			// Load seller assignments and production users for each delivery
-			for (const r of rows) {
-				try {
-					const sellers = await api('GET', `/api/deliveries?delivery_id=${r.id}`);
-					r.sellers = Array.isArray(sellers) ? sellers : [];
-				} catch {
-					r.sellers = [];
-				}
-				try {
-					const users = await api('GET', `/api/deliveries?production_users=${r.id}`);
-					r.production_users = Array.isArray(users) ? users : [];
-				} catch {
-					r.production_users = [];
-				}
-			}
-			currentRows = rows;
-			render(rows);
-		}
-
-		function render(rows) {
-			tbody.innerHTML = '';
-			for (const r of rows) {
-				tbody.appendChild(renderDeliveryRow(r));
-				// Show production users if any
-				if (r.production_users && r.production_users.length > 0) {
-					tbody.appendChild(renderProductionUsersRow(r));
-				}
-				// Render seller rows below each delivery if expanded
-				const isExpanded = expandedDeliveries.has(r.id);
-				if (r.sellers && Array.isArray(r.sellers) && r.sellers.length > 0 && isExpanded) {
-					for (const s of r.sellers) {
-						tbody.appendChild(renderSellerRow(s, r));
-					}
-					// Add totals row
-					tbody.appendChild(renderSellerTotalsRow(r));
-					// Add spacing row
-					tbody.appendChild(renderSpacingRow());
-				}
-			}
+			// Load sales consolidated data
+			await loadSalesConsolidated();
 		}
 
 		function formatIsoDate(value) {
@@ -170,734 +123,387 @@
 			} catch { return String(value || '').slice(0,10); }
 		}
 
-		function renderDeliveryRow(r) {
-			const tr = document.createElement('tr');
-			const dateCell = document.createElement('td');
-			
-			// Add toggle button if there are sellers
-			const hasSellers = r.sellers && Array.isArray(r.sellers) && r.sellers.length > 0;
-			if (hasSellers) {
-				const isExpanded = expandedDeliveries.has(r.id);
-				const toggleBtn = document.createElement('button');
-				toggleBtn.className = 'press-btn';
-				toggleBtn.textContent = isExpanded ? '▼' : '▶';
-				toggleBtn.style.marginRight = '8px';
-				toggleBtn.style.fontSize = '10px';
-				toggleBtn.style.padding = '2px 6px';
-				toggleBtn.addEventListener('click', () => {
-					if (expandedDeliveries.has(r.id)) {
-						expandedDeliveries.delete(r.id);
-					} else {
-						expandedDeliveries.add(r.id);
-					}
-					render(currentRows);
-				});
-				dateCell.appendChild(toggleBtn);
-			}
-			
-			const dateText = document.createElement('span');
-			dateText.textContent = formatIsoDate(r.day);
-			dateCell.appendChild(dateText);
-			
-			tr.appendChild(dateCell);
-			
-			// Add dessert columns dynamically
-			for (const d of desserts) {
-				const td = document.createElement('td');
-				td.className = 'col-qty';
-				td.textContent = r[d.short_code] ?? 0;
-				tr.appendChild(td);
-			}
-			
-			const act = document.createElement('td');
-			const edit = document.createElement('button'); edit.className = 'press-btn'; edit.textContent = 'Editar';
-			const notes = document.createElement('button'); notes.className = 'press-btn'; notes.textContent = 'Notas';
-			const addSeller = document.createElement('button'); addSeller.className = 'press-btn'; addSeller.textContent = 'Agregar vendedor';
-			
-			// Add event listener for "Agregar vendedor" button
-			addSeller.addEventListener('click', async () => {
-				if (!requireAdmin()) return;
-				const rect = addSeller.getBoundingClientRect();
-				await openAddSellerPopover(r.id, rect.left + rect.width/2, rect.bottom + 8);
-			});
-			
-			act.style.display = 'flex'; act.style.gap = '6px'; act.append(edit, notes, addSeller);
-			tr.appendChild(act);
-			return tr;
-		}
-
-		function renderSellerRow(s, delivery) {
-			const tr = document.createElement('tr');
-			tr.style.backgroundColor = '#f5f5f5';
-			tr.style.fontStyle = 'italic';
-			
-			const sellerCell = document.createElement('td');
-			sellerCell.textContent = `  → ${s.seller_name}`;
-			sellerCell.style.paddingLeft = '30px';
-			tr.appendChild(sellerCell);
-			
-			// Add dessert columns dynamically
-			for (const d of desserts) {
-				const td = document.createElement('td');
-				td.className = 'col-qty';
-				td.textContent = s[d.short_code] ?? 0;
-				tr.appendChild(td);
-			}
-			
-			const actCell = document.createElement('td');
-			const editBtn = document.createElement('button');
-			editBtn.className = 'press-btn';
-			editBtn.textContent = 'Editar';
-			editBtn.addEventListener('click', async () => {
-				if (!requireAdmin()) return;
-				const rect = editBtn.getBoundingClientRect();
-				await openAddSellerPopover(delivery.id, rect.left + rect.width/2, rect.bottom + 8, s);
-			});
-			actCell.appendChild(editBtn);
-			tr.appendChild(actCell);
-			
-			return tr;
-		}
-
-		function renderSellerTotalsRow(delivery) {
-			const tr = document.createElement('tr');
-			tr.style.backgroundColor = '#e8f5e9';
-			tr.style.fontWeight = 'bold';
-			
-			const labelCell = document.createElement('td');
-			labelCell.textContent = 'Total vendedores';
-			labelCell.style.paddingLeft = '30px';
-			tr.appendChild(labelCell);
-			
-			// Calculate totals dynamically for all desserts
-			const totals = {};
-			for (const d of desserts) {
-				totals[d.short_code] = 0;
-			}
-			
-			if (delivery.sellers && Array.isArray(delivery.sellers)) {
-				for (const s of delivery.sellers) {
-					for (const d of desserts) {
-						totals[d.short_code] += s[d.short_code] ?? 0;
-					}
-				}
-			}
-			
-			// Add totals columns dynamically
-			for (const d of desserts) {
-				const td = document.createElement('td');
-				td.className = 'col-qty';
-				td.textContent = totals[d.short_code];
-				tr.appendChild(td);
-			}
-			
-			const emptyCell = document.createElement('td');
-			tr.appendChild(emptyCell);
-			
-			return tr;
-		}
-
-		function renderProductionUsersRow(delivery) {
-			const tr = document.createElement('tr');
-			tr.style.backgroundColor = '#fafafa';
-			const td = document.createElement('td');
-			// Colspan: 1 (Fecha) + desserts.length + 1 (Acciones)
-			td.colSpan = 1 + desserts.length + 1;
-			td.style.padding = '4px 8px';
-			td.style.fontSize = '11px';
-			td.style.fontStyle = 'italic';
-			td.style.color = '#666';
-			td.textContent = 'Producción: ' + delivery.production_users.join(', ');
-			tr.appendChild(td);
-			return tr;
-		}
-
-		function renderSpacingRow() {
-			const tr = document.createElement('tr');
-			tr.style.height = '20px';
-			tr.style.backgroundColor = 'transparent';
-			const td = document.createElement('td');
-			// Colspan: 1 (Fecha) + desserts.length + 1 (Acciones)
-			td.colSpan = 1 + desserts.length + 1;
-			td.innerHTML = '&nbsp;';
-			tr.appendChild(td);
-			return tr;
-		}
-
-		async function openAddSellerPopover(deliveryId, anchorX, anchorY, existingSeller = null) {
+		async function loadSalesConsolidated() {
 			try {
-				// Load sellers and desserts
-				let sellers = [];
-				let desserts = [];
-				try { 
-					sellers = await api('GET', '/api/sellers'); 
-					sellers = Array.isArray(sellers) ? sellers : [];
-				} catch {}
-				try { 
-					const r = await api('GET', '/api/desserts'); 
-					desserts = Array.isArray(r) ? r : [];
-				} catch {}
-
-				const pop = document.createElement('div');
-				pop.className = 'new-sale-popover';
-				pop.style.position = 'fixed';
-				const isSmall = window.matchMedia('(max-width: 640px)').matches;
-				if (typeof anchorX === 'number' && typeof anchorY === 'number' && !isSmall) {
-					pop.style.left = anchorX + 'px';
-					pop.style.top = anchorY + 'px';
-					pop.style.transform = 'translate(-50%, 0)';
-				} else {
-					pop.style.left = '50%';
-					pop.style.top = '20%';
-					pop.style.transform = 'translate(-50%, 0)';
-				}
-
-				const title = document.createElement('h4');
-				title.style.margin = '0 0 8px 0';
-				title.textContent = existingSeller ? 'Editar asignación' : 'Agregar vendedor a entrega';
-
-				const grid = document.createElement('div');
-				grid.className = 'new-sale-grid';
-
-				function appendRow(labelText, inputEl) {
-					const left = document.createElement('div'); left.className = 'new-sale-cell new-sale-left';
-					const right = document.createElement('div'); right.className = 'new-sale-cell new-sale-right';
-					const lbl = document.createElement('div'); lbl.className = 'new-sale-label-text'; lbl.textContent = labelText;
-					left.appendChild(lbl);
-					right.appendChild(inputEl);
-					right.addEventListener('mousedown', (ev) => { if (ev.target !== inputEl) { ev.preventDefault(); try { inputEl.focus(); inputEl.select?.(); } catch {} } });
-					right.addEventListener('click', (ev) => { if (ev.target !== inputEl) { ev.preventDefault(); try { inputEl.focus(); inputEl.select?.(); } catch {} } });
-					grid.appendChild(left);
-					grid.appendChild(right);
-				}
-
-				// Seller dropdown
-				const sellerSelect = document.createElement('select');
-				sellerSelect.className = 'input-cell';
-				const defaultOption = document.createElement('option');
-				defaultOption.value = '';
-				defaultOption.textContent = 'Seleccionar vendedor...';
-				sellerSelect.appendChild(defaultOption);
+				const data = await api('GET', '/api/deliveries?sales_consolidated=true');
+				salesData = Array.isArray(data) ? data : [];
+				renderSalesConsolidated();
+			} catch (err) {
+				console.error('Error loading sales consolidated:', err);
+				alert('Error al cargar entregas: ' + (err.message || err));
+			}
+		}
+		
+		function renderSalesConsolidated() {
+			// First render the header columns dynamically
+			const theadRow = document.getElementById('sales-thead-row');
+			// Remove existing dessert columns
+			theadRow.querySelectorAll('th.col-qty').forEach(th => th.remove());
+			
+			// Get the Total column
+			const totalTh = theadRow.querySelector('th:last-child');
+			
+			// Insert new dessert columns before Total
+			for (const d of desserts) {
+				const th = document.createElement('th');
+				th.className = 'col-qty';
+				th.textContent = d.name;
+				theadRow.insertBefore(th, totalTh);
+			}
+			
+			// Clear tbody
+			salesTbody.innerHTML = '';
+			
+			// Render each date
+			for (const dateData of salesData) {
+				// Render date header row (just the date with colspan)
+				const dateRow = document.createElement('tr');
+				dateRow.style.backgroundColor = '#e3f2fd';
+				dateRow.style.fontWeight = 'bold';
+				const dateCell = document.createElement('td');
+				dateCell.colSpan = 1 + desserts.length + 1; // Vendedor + all desserts + Total
+				dateCell.textContent = formatIsoDate(dateData.day);
+				dateCell.style.padding = '12px 8px';
+				dateRow.appendChild(dateCell);
+				salesTbody.appendChild(dateRow);
 				
-				for (const s of sellers) {
-					const opt = document.createElement('option');
-					opt.value = s.id;
-					opt.textContent = s.name;
-					if (existingSeller && existingSeller.seller_id === s.id) {
-						opt.selected = true;
-					}
-					sellerSelect.appendChild(opt);
-				}
-				appendRow('Vendedor', sellerSelect);
-
-				// Dessert quantity inputs
-				const qtyInputs = {};
-				for (const d of desserts) {
-					if (d.is_active === false) continue;
-					const input = document.createElement('input');
-					input.type = 'number'; 
-					input.min = '0'; 
-					input.step = '1'; 
-					input.inputMode = 'numeric'; 
-					input.placeholder = '0';
-					input.className = 'input-cell input-qty';
+				// Render each seller
+				for (let i = 0; i < dateData.sellers.length; i++) {
+					const seller = dateData.sellers[i];
+					const sellerKey = `${dateData.day}_${seller.seller_id}`;
+					const hasSpecial = seller.has_muestra || seller.has_a_costo;
 					
-					// Pre-fill if editing
-					if (existingSeller) {
-						const val = existingSeller[d.short_code];
-						if (val !== undefined && val !== null) {
-							input.value = val;
-						}
+					// Check if has delivered quantities
+					const hasDelivered = seller.delivered_quantities && Object.values(seller.delivered_quantities).some(q => q > 0);
+					const hasExpandable = hasSpecial || hasDelivered;
+					const isExpanded = expandedSellers.has(sellerKey);
+					
+					const tr = document.createElement('tr');
+					tr.style.backgroundColor = '#fafafa';
+					
+					// Add pink border between sellers (except first one)
+					if (i > 0) {
+						tr.style.borderTop = '1px solid rgba(255, 192, 203, 0.4)';
 					}
 					
-					qtyInputs[d.short_code] = input;
-					appendRow(d.name, input);
-				}
-
-				const actions = document.createElement('div'); 
-				actions.className = 'confirm-actions';
-				const cancelBtn = document.createElement('button'); 
-				cancelBtn.type = 'button'; 
-				cancelBtn.className = 'press-btn'; 
-				cancelBtn.textContent = 'Cancelar';
-				const saveBtn = document.createElement('button'); 
-				saveBtn.type = 'button'; 
-				saveBtn.className = 'press-btn btn-primary'; 
-				saveBtn.textContent = 'Guardar';
-				actions.append(cancelBtn, saveBtn);
-
-				pop.append(title, grid, actions);
-				pop.style.visibility = 'hidden'; 
-				pop.style.opacity = '0'; 
-				pop.style.transition = 'opacity 160ms ease-out';
-				document.body.appendChild(pop);
-
-				function clampWithinViewport() {
-					try {
-						const margin = 8; 
-						const vw = window.innerWidth; 
-						const vh = window.innerHeight; 
-						const r = pop.getBoundingClientRect();
-						const baseX = (typeof anchorX === 'number') ? anchorX : (vw / 2);
-						const baseY = (typeof anchorY === 'number') ? anchorY : (vh / 2);
-						let left = Math.round(baseX - r.width / 2);
-						let topBelow = Math.round(baseY + 8); 
-						let topAbove = Math.round(baseY - 8 - r.height); 
-						let top = topBelow;
-						if (top + r.height > vh - margin) top = topAbove;
-						if (top < margin) top = margin;
-						if (top + r.height > vh - margin) top = Math.max(margin, vh - margin - r.height);
-						if (left < margin) left = margin;
-						if (left + r.width > vw - margin) left = Math.max(margin, vw - margin - r.width);
-						pop.style.left = left + 'px'; 
-						pop.style.top = top + 'px'; 
-						pop.style.transform = 'none';
-					} catch {}
-				}
-				clampWithinViewport(); 
-				pop.style.visibility = 'visible'; 
-				requestAnimationFrame(() => { pop.style.opacity = '1'; });
-
-				function cleanup(){ 
-					document.removeEventListener('mousedown', outside, true); 
-					document.removeEventListener('touchstart', outside, true); 
-					if (pop.parentNode) pop.parentNode.removeChild(pop); 
-				}
-				function outside(ev){ 
-					const t = ev.target; 
-					if (!pop.contains(t)) cleanup(); 
-				}
-				setTimeout(() => { 
-					document.addEventListener('mousedown', outside, true); 
-					document.addEventListener('touchstart', outside, true); 
-				}, 0);
-				cancelBtn.addEventListener('click', cleanup);
-
-				setTimeout(() => { try { sellerSelect.focus(); } catch {} }, 0);
-
-				async function doSave(){
-					try {
-						saveBtn.disabled = true; 
-						cancelBtn.disabled = true;
-						
-						const sellerId = sellerSelect.value;
-						if (!sellerId) {
-							alert('Por favor selecciona un vendedor');
-							saveBtn.disabled = false;
-							cancelBtn.disabled = false;
-							return;
-						}
-
-						const items = {};
-						for (const [code, input] of Object.entries(qtyInputs)) { 
-							const q = Math.max(0, parseInt(input?.value || '0', 10) || 0); 
-							items[code] = q;
-						}
-						
-						const payload = { 
-							id: deliveryId, 
-							seller_id: parseInt(sellerId, 10),
-							items 
-						};
-						
-						await api('PATCH', '/api/deliveries', payload);
-						cleanup(); 
-						await load();
-					} catch (e) {
-						alert('No se pudo guardar: ' + (e?.message || e));
-						saveBtn.disabled = false; 
-						cancelBtn.disabled = false;
-					}
-				}
-				saveBtn.addEventListener('click', doSave);
-				Object.values(qtyInputs).forEach((el) => { 
-					el.addEventListener('keydown', (ev) => { 
-						if (ev.key === 'Enter') { 
-							ev.preventDefault(); 
-							doSave(); 
-						} 
-					}); 
-				});
-			} catch (e) {
-				alert('No se pudo abrir el formulario: ' + (e?.message || e));
-			}
-		}
-
-		async function openProductionPopover(anchorX, anchorY) {
-			try {
-				// Load dynamic desserts and users
-				let desserts = [];
-				let users = [];
-				try { const r = await api('GET', '/api/desserts'); desserts = Array.isArray(r) ? r : []; } catch {}
-				try { const r = await api('GET', '/api/users'); users = Array.isArray(r) ? r : []; } catch {}
-				// Build popover similar to Nuevo pedido
-				const pop = document.createElement('div');
-				pop.className = 'new-sale-popover';
-				pop.style.position = 'fixed';
-				const isSmall = window.matchMedia('(max-width: 640px)').matches;
-				if (typeof anchorX === 'number' && typeof anchorY === 'number' && !isSmall) {
-					pop.style.left = anchorX + 'px';
-					pop.style.top = anchorY + 'px';
-					pop.style.transform = 'translate(-50%, 0)';
-				} else {
-					pop.style.left = '50%';
-					pop.style.top = '20%';
-					pop.style.transform = 'translate(-50%, 0)';
-				}
-
-				const title = document.createElement('h4');
-				title.style.margin = '0 0 8px 0';
-				function formatTitle(iso){
-					try {
-						const d = iso ? new Date(iso + 'T00:00:00Z') : new Date();
-						const mes = d.toLocaleString('es-CO', { month: 'long', timeZone: 'UTC' });
-						const dia = d.getUTCDate();
-						const cap = mes.charAt(0).toUpperCase() + mes.slice(1);
-						return `Producción ${cap} ${dia}`;
-					} catch { return 'Producción'; }
-				}
-				const todayIso = new Date().toISOString().slice(0,10);
-				title.textContent = formatTitle(todayIso);
-
-				const grid = document.createElement('div');
-				grid.className = 'new-sale-grid';
-
-				function appendRow(labelText, inputEl) {
-					const left = document.createElement('div'); left.className = 'new-sale-cell new-sale-left';
-					const right = document.createElement('div'); right.className = 'new-sale-cell new-sale-right';
-					const lbl = document.createElement('div'); lbl.className = 'new-sale-label-text'; lbl.textContent = labelText;
-					left.appendChild(lbl);
-					right.appendChild(inputEl);
-					right.addEventListener('mousedown', (ev) => { if (ev.target !== inputEl) { ev.preventDefault(); try { inputEl.focus(); inputEl.select?.(); } catch {} } });
-					right.addEventListener('click', (ev) => { if (ev.target !== inputEl) { ev.preventDefault(); try { inputEl.focus(); inputEl.select?.(); } catch {} } });
-					grid.appendChild(left);
-					grid.appendChild(right);
-				}
-
-				// Fecha row (replaces Cliente)
-				const dateInput = document.createElement('input');
-				dateInput.type = 'date';
-				dateInput.className = 'input-cell';
-				dateInput.value = todayIso;
-				dateInput.addEventListener('change', () => { title.textContent = formatTitle(dateInput.value); });
-				appendRow('Fecha', dateInput);
-
-				// Dessert rows from dynamic list
-				const qtyInputs = {};
-				const userSelections = {};
-				for (const d of desserts) {
-					if (d.is_active === false) continue;
+					// Seller name with expand button
+					const sellerCell = document.createElement('td');
+					sellerCell.style.paddingLeft = '8px';
+					sellerCell.style.textAlign = 'left';
 					
-					// Quantity input
-					const input = document.createElement('input');
-					input.type = 'number'; input.min = '0'; input.step = '1'; input.inputMode = 'numeric'; input.placeholder = '0';
-					input.className = 'input-cell input-qty';
-					qtyInputs[d.short_code] = input;
-					
-					// Container for quantity and user selection
-					const container = document.createElement('div');
-					container.style.display = 'flex';
-					container.style.flexDirection = 'column';
-					container.style.gap = '4px';
-					container.appendChild(input);
-					
-					// User selection for this dessert
-					const userContainer = document.createElement('div');
-					userContainer.style.display = 'flex';
-					userContainer.style.flexWrap = 'wrap';
-					userContainer.style.gap = '4px';
-					userContainer.style.marginTop = '4px';
-					
-					const selectedUsers = new Set();
-					userSelections[d.short_code] = selectedUsers;
-					
-					for (const u of users) {
-						const userChip = document.createElement('button');
-						userChip.type = 'button';
-						userChip.className = 'press-btn';
-						userChip.textContent = u.username;
-						userChip.style.fontSize = '11px';
-						userChip.style.padding = '2px 8px';
-						userChip.style.opacity = '0.5';
-						userChip.addEventListener('click', () => {
-							if (selectedUsers.has(u.id)) {
-								selectedUsers.delete(u.id);
-								userChip.style.opacity = '0.5';
-								userChip.style.backgroundColor = '';
+					// Add expand arrow if has special pricing or delivered quantities
+					if (hasExpandable) {
+						const expandArrow = document.createElement('span');
+						expandArrow.textContent = '▼';
+						expandArrow.style.display = 'inline-block';
+						expandArrow.style.marginRight = '6px';
+						expandArrow.style.transform = isExpanded ? 'rotate(0deg)' : 'rotate(-90deg)';
+						expandArrow.style.fontSize = '10px';
+						expandArrow.style.color = '#999';
+						expandArrow.style.cursor = 'pointer';
+						expandArrow.style.transition = 'transform 0.2s ease';
+						expandArrow.style.width = '12px';
+						expandArrow.style.textAlign = 'center';
+						expandArrow.addEventListener('click', () => {
+							if (expandedSellers.has(sellerKey)) {
+								expandedSellers.delete(sellerKey);
 							} else {
-								selectedUsers.add(u.id);
-								userChip.style.opacity = '1';
-								userChip.style.backgroundColor = '#4caf50';
-								userChip.style.color = 'white';
+								expandedSellers.add(sellerKey);
 							}
+							renderSalesConsolidated();
 						});
-						userContainer.appendChild(userChip);
+						sellerCell.appendChild(expandArrow);
 					}
 					
-					container.appendChild(userContainer);
-					appendRow(d.name, container);
-				}
-
-				const actions = document.createElement('div'); actions.className = 'confirm-actions';
-				const cancelBtn = document.createElement('button'); cancelBtn.type = 'button'; cancelBtn.className = 'press-btn'; cancelBtn.textContent = 'Cancelar';
-				const saveBtn = document.createElement('button'); saveBtn.type = 'button'; saveBtn.className = 'press-btn btn-primary'; saveBtn.textContent = 'Guardar';
-				actions.append(cancelBtn, saveBtn);
-
-				pop.append(title, grid, actions);
-				pop.style.visibility = 'hidden'; pop.style.opacity = '0'; pop.style.transition = 'opacity 160ms ease-out';
-				document.body.appendChild(pop);
-
-				function clampWithinViewport() {
-					try {
-						const margin = 8; const vw = window.innerWidth; const vh = window.innerHeight; const r = pop.getBoundingClientRect();
-						const baseX = (typeof anchorX === 'number') ? anchorX : (vw / 2);
-						const baseY = (typeof anchorY === 'number') ? anchorY : (vh / 2);
-						let left = Math.round(baseX - r.width / 2);
-						let topBelow = Math.round(baseY + 8); let topAbove = Math.round(baseY - 8 - r.height); let top = topBelow;
-						if (top + r.height > vh - margin) top = topAbove;
-						if (top < margin) top = margin;
-						if (top + r.height > vh - margin) top = Math.max(margin, vh - margin - r.height);
-						if (left < margin) left = margin;
-						if (left + r.width > vw - margin) left = Math.max(margin, vw - margin - r.width);
-						pop.style.left = left + 'px'; pop.style.top = top + 'px'; pop.style.transform = 'none';
-					} catch {}
-				}
-				clampWithinViewport(); pop.style.visibility = 'visible'; requestAnimationFrame(() => { pop.style.opacity = '1'; });
-
-				function cleanup(){ document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); if (pop.parentNode) pop.parentNode.removeChild(pop); }
-				function outside(ev){ const t = ev.target; if (!pop.contains(t)) cleanup(); }
-				setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
-				cancelBtn.addEventListener('click', cleanup);
-
-				setTimeout(() => { try { dateInput.focus(); } catch {} }, 0);
-
-				async function doSave(){
-					try {
-						saveBtn.disabled = true; cancelBtn.disabled = true;
-						const items = {};
-						const production_users = {};
-						for (const [code, input] of Object.entries(qtyInputs)) { 
-							const q = Math.max(0, parseInt(input?.value || '0', 10) || 0); 
-							if (q > 0) items[code] = q; 
-						}
-						for (const [code, selectedSet] of Object.entries(userSelections)) {
-							if (selectedSet.size > 0) {
-								production_users[code] = Array.from(selectedSet);
-							}
-						}
-						const payload = { day: dateInput.value || todayIso, items, production_users };
-						await api('POST', '/api/deliveries', payload);
-						cleanup(); await load();
-					} catch (e) {
-						alert('No se pudo guardar: ' + (e?.message || e));
-						saveBtn.disabled = false; cancelBtn.disabled = false;
-					}
-				}
-				saveBtn.addEventListener('click', doSave);
-				Object.values(qtyInputs).forEach((el) => { el.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); doSave(); } }); });
-			} catch (e) {
-				alert('No se pudo abrir el formulario');
-			}
-		}
-
-		addBtn.addEventListener('click', async () => {
-			if (!requireAdmin()) return;
-			const rect = addBtn.getBoundingClientRect();
-			await openProductionPopover(rect.left + rect.width/2, rect.bottom + 8);
-		});
-
-		productionReportBtn.addEventListener('click', async () => {
-			if (!requireAdmin()) return;
-			const rect = productionReportBtn.getBoundingClientRect();
-			await openProductionReportPopover(rect.left + rect.width/2, rect.bottom + 8);
-		});
-
-		async function openProductionReportPopover(anchorX, anchorY) {
-			try {
-				const pop = document.createElement('div');
-				pop.className = 'new-sale-popover';
-				pop.style.position = 'fixed';
-				const isSmall = window.matchMedia('(max-width: 640px)').matches;
-				if (typeof anchorX === 'number' && typeof anchorY === 'number' && !isSmall) {
-					pop.style.left = anchorX + 'px';
-					pop.style.top = anchorY + 'px';
-					pop.style.transform = 'translate(-50%, 0)';
-				} else {
-					pop.style.left = '50%';
-					pop.style.top = '20%';
-					pop.style.transform = 'translate(-50%, 0)';
-				}
-
-				const title = document.createElement('h4');
-				title.style.margin = '0 0 12px 0';
-				title.textContent = 'Reporte de producción';
-
-				const grid = document.createElement('div');
-				grid.className = 'new-sale-grid';
-
-				function appendRow(labelText, inputEl) {
-					const left = document.createElement('div'); left.className = 'new-sale-cell new-sale-left';
-					const right = document.createElement('div'); right.className = 'new-sale-cell new-sale-right';
-					const lbl = document.createElement('div'); lbl.className = 'new-sale-label-text'; lbl.textContent = labelText;
-					left.appendChild(lbl);
-					right.appendChild(inputEl);
-					grid.appendChild(left);
-					grid.appendChild(right);
-				}
-
-				// Date inputs
-				const todayIso = new Date().toISOString().slice(0,10);
-				const startDate = document.createElement('input');
-				startDate.type = 'date';
-				startDate.className = 'input-cell';
-				startDate.value = todayIso;
-				appendRow('Fecha inicio', startDate);
-
-				const endDate = document.createElement('input');
-				endDate.type = 'date';
-				endDate.className = 'input-cell';
-				endDate.value = todayIso;
-				appendRow('Fecha fin', endDate);
-
-				// Results container
-				const resultsDiv = document.createElement('div');
-				resultsDiv.style.marginTop = '16px';
-				resultsDiv.style.maxHeight = '400px';
-				resultsDiv.style.overflowY = 'auto';
-
-				const actions = document.createElement('div');
-				actions.className = 'confirm-actions';
-				const cancelBtn = document.createElement('button');
-				cancelBtn.type = 'button';
-				cancelBtn.className = 'press-btn';
-				cancelBtn.textContent = 'Cancelar';
-				const generateBtn = document.createElement('button');
-				generateBtn.type = 'button';
-				generateBtn.className = 'press-btn btn-primary';
-				generateBtn.textContent = 'Generar';
-				actions.append(cancelBtn, generateBtn);
-
-				pop.append(title, grid, resultsDiv, actions);
-				pop.style.visibility = 'hidden';
-				pop.style.opacity = '0';
-				pop.style.transition = 'opacity 160ms ease-out';
-				document.body.appendChild(pop);
-
-				function clampWithinViewport() {
-					try {
-						const margin = 8;
-						const vw = window.innerWidth;
-						const vh = window.innerHeight;
-						const r = pop.getBoundingClientRect();
-						const baseX = (typeof anchorX === 'number') ? anchorX : (vw / 2);
-						const baseY = (typeof anchorY === 'number') ? anchorY : (vh / 2);
-						let left = Math.round(baseX - r.width / 2);
-						let topBelow = Math.round(baseY + 8);
-						let topAbove = Math.round(baseY - 8 - r.height);
-						let top = topBelow;
-						if (top + r.height > vh - margin) top = topAbove;
-						if (top < margin) top = margin;
-						if (top + r.height > vh - margin) top = Math.max(margin, vh - margin - r.height);
-						if (left < margin) left = margin;
-						if (left + r.width > vw - margin) left = Math.max(margin, vw - margin - r.width);
-						pop.style.left = left + 'px';
-						pop.style.top = top + 'px';
-						pop.style.transform = 'none';
-					} catch {}
-				}
-				clampWithinViewport();
-				pop.style.visibility = 'visible';
-				requestAnimationFrame(() => { pop.style.opacity = '1'; });
-
-				function cleanup() {
-					document.removeEventListener('mousedown', outside, true);
-					document.removeEventListener('touchstart', outside, true);
-					if (pop.parentNode) pop.parentNode.removeChild(pop);
-				}
-				function outside(ev) {
-					const t = ev.target;
-					if (!pop.contains(t)) cleanup();
-				}
-				setTimeout(() => {
-					document.addEventListener('mousedown', outside, true);
-					document.addEventListener('touchstart', outside, true);
-				}, 0);
-				cancelBtn.addEventListener('click', cleanup);
-
-				async function generateReport() {
-					try {
-						generateBtn.disabled = true;
-						const start = startDate.value;
-						const end = endDate.value;
-						if (!start || !end) {
-							alert('Por favor selecciona ambas fechas');
-							generateBtn.disabled = false;
-							return;
-						}
-
-						const data = await api('GET', `/api/deliveries?report=production&start=${start}&end=${end}`);
-						
-						// Create table
-						resultsDiv.innerHTML = '';
-						const table = document.createElement('table');
-						table.style.width = '100%';
-						table.style.borderCollapse = 'collapse';
-						table.style.fontSize = '12px';
-						
-					const thead = document.createElement('thead');
-					const headerRow = document.createElement('tr');
-					// Build headers dynamically
-					const headers = ['Usuario'];
+					const sellerNameSpan = document.createElement('span');
+					sellerNameSpan.textContent = seller.seller_name;
+					sellerCell.appendChild(sellerNameSpan);
+					
+					tr.appendChild(sellerCell);
+					
+					// Dessert quantities and calculate seller total
+					let sellerTotal = 0;
 					for (const d of desserts) {
-						headers.push(d.name);
+						const qty = seller[d.short_code] || 0;
+						const td = document.createElement('td');
+						td.className = 'col-qty';
+						td.textContent = qty;
+						tr.appendChild(td);
+						sellerTotal += qty;
 					}
-					for (const h of headers) {
-						const th = document.createElement('th');
-						th.textContent = h;
-						th.style.borderBottom = '2px solid #ddd';
-						th.style.padding = '8px';
-						th.style.textAlign = 'left';
-						headerRow.appendChild(th);
-					}
-					thead.appendChild(headerRow);
-					table.appendChild(thead);
 					
-					const tbody = document.createElement('tbody');
-					for (const [username, quantities] of Object.entries(data)) {
-						const row = document.createElement('tr');
-						const userCell = document.createElement('td');
-						userCell.textContent = username;
-						userCell.style.padding = '6px 8px';
-						userCell.style.borderBottom = '1px solid #eee';
-						row.appendChild(userCell);
+					// Seller total column
+					const sellerTotalCell = document.createElement('td');
+					sellerTotalCell.className = 'col-qty';
+					sellerTotalCell.textContent = sellerTotal;
+					sellerTotalCell.style.fontWeight = 'bold';
+					tr.appendChild(sellerTotalCell);
+					
+					salesTbody.appendChild(tr);
+					
+					// Render expanded detail rows if expanded
+					if (isExpanded && hasExpandable) {
+						// Delivered row (always show for expanded sellers)
+						const deliveredRow = document.createElement('tr');
+						deliveredRow.style.backgroundColor = 'rgba(76, 175, 80, 0.1)';
+						deliveredRow.style.fontStyle = 'italic';
+						
+						const labelCell = document.createElement('td');
+						labelCell.textContent = '  → Entregados';
+						labelCell.style.paddingLeft = '32px';
+						labelCell.style.fontSize = '13px';
+						labelCell.style.textAlign = 'left';
+						deliveredRow.appendChild(labelCell);
 						
 						for (const d of desserts) {
-							const code = d.short_code;
-								const cell = document.createElement('td');
-								cell.textContent = quantities[code] || 0;
-								cell.style.padding = '6px 8px';
-								cell.style.textAlign = 'center';
-								cell.style.borderBottom = '1px solid #eee';
-								row.appendChild(cell);
-							}
-							tbody.appendChild(row);
+							const td = document.createElement('td');
+							td.className = 'col-qty';
+							td.style.padding = '4px';
+							
+							// Create inline editable input
+							const input = document.createElement('input');
+							input.type = 'number';
+							input.min = '0';
+							input.step = '1';
+							input.value = seller.delivered_quantities[d.short_code] || 0;
+							input.style.width = '50px';
+							input.style.textAlign = 'center';
+							input.style.backgroundColor = 'rgba(76, 175, 80, 0.5)';
+							input.style.color = 'white';
+							input.style.border = 'none';
+							input.style.borderRadius = '12px';
+							input.style.padding = '3px 8px';
+							input.style.fontSize = '12px';
+							input.style.fontWeight = 'bold';
+							input.style.outline = 'none';
+							input.title = 'Editar cantidad entregada';
+							
+							// Hide spinner arrows
+							input.style.MozAppearance = 'textfield';
+							input.style.webkitAppearance = 'none';
+							input.style.appearance = 'none';
+							
+							// Track the current saved value
+							let currentSavedValue = seller.delivered_quantities[d.short_code] || 0;
+							
+							// Save on blur or Enter
+							let saveTimeout;
+							const saveValue = async () => {
+								if (!requireAdmin()) return;
+								const newQty = Math.max(0, parseInt(input.value || '0', 10));
+								
+								// Only save if value changed from last saved value
+								if (newQty !== currentSavedValue) {
+									try {
+										input.disabled = true;
+										input.style.opacity = '0.6';
+										
+										const payload = {
+											day: dateData.day,
+											seller_id: seller.seller_id,
+											dessert_code: d.short_code,
+											quantity: newQty
+										};
+										
+										await api('PUT', '/api/deliveries?update_delivered=true', payload);
+										
+										// Update local data AND tracking variable
+										seller.delivered_quantities[d.short_code] = newQty;
+										currentSavedValue = newQty;
+										
+										// Visual feedback
+										input.style.backgroundColor = 'rgba(33, 150, 243, 0.7)'; // Blue flash
+										setTimeout(() => {
+											input.style.backgroundColor = 'rgba(76, 175, 80, 0.5)';
+											input.disabled = false;
+											input.style.opacity = '1';
+										}, 300);
+									} catch (e) {
+										alert('Error al guardar: ' + (e?.message || e));
+										input.value = currentSavedValue; // Revert to last saved value
+										input.disabled = false;
+										input.style.opacity = '1';
+									}
+								}
+							};
+							
+							// Auto-select text on focus/click
+							input.addEventListener('focus', () => {
+								input.select();
+							});
+							input.addEventListener('click', () => {
+								input.select();
+							});
+							
+							input.addEventListener('blur', saveValue);
+							input.addEventListener('keydown', (e) => {
+								if (e.key === 'Enter') {
+									e.preventDefault();
+									input.blur();
+								}
+							});
+							
+							// Debounce on input (save after 1 second of no typing)
+							input.addEventListener('input', () => {
+								clearTimeout(saveTimeout);
+								saveTimeout = setTimeout(saveValue, 1000);
+							});
+							
+							td.appendChild(input);
+							deliveredRow.appendChild(td);
 						}
-						table.appendChild(tbody);
-						resultsDiv.appendChild(table);
 						
-						generateBtn.disabled = false;
-					} catch (e) {
-						alert('Error al generar reporte: ' + (e?.message || e));
-						generateBtn.disabled = false;
+						// Empty total cell
+						const emptyTotalCell = document.createElement('td');
+						deliveredRow.appendChild(emptyTotalCell);
+						
+						salesTbody.appendChild(deliveredRow);
+						
+						// Muestra row
+						if (seller.has_muestra) {
+							const muestraRow = document.createElement('tr');
+							muestraRow.style.backgroundColor = '#f3e5f5';
+							muestraRow.style.fontStyle = 'italic';
+							
+							const labelCell = document.createElement('td');
+							labelCell.textContent = '  → Muestra';
+							labelCell.style.paddingLeft = '40px';
+							labelCell.style.fontSize = '13px';
+							muestraRow.appendChild(labelCell);
+							
+							for (const d of desserts) {
+								const qty = seller.muestra_quantities[d.short_code] || 0;
+								const td = document.createElement('td');
+								td.className = 'col-qty';
+								
+								if (qty > 0) {
+									const badge = document.createElement('span');
+									badge.textContent = qty;
+									badge.style.backgroundColor = '#9c27b0';
+									badge.style.color = 'white';
+									badge.style.padding = '3px 8px';
+									badge.style.borderRadius = '12px';
+									badge.style.fontSize = '12px';
+									badge.style.fontWeight = 'bold';
+									badge.style.display = 'inline-block';
+									td.appendChild(badge);
+								} else {
+									td.textContent = '-';
+								}
+								
+								muestraRow.appendChild(td);
+							}
+							
+							// Empty total cell
+							const emptyTotalCell = document.createElement('td');
+							muestraRow.appendChild(emptyTotalCell);
+							
+							salesTbody.appendChild(muestraRow);
+						}
+						
+						// A Costo row
+						if (seller.has_a_costo) {
+							const costoRow = document.createElement('tr');
+							costoRow.style.backgroundColor = '#fff3e0';
+							costoRow.style.fontStyle = 'italic';
+							
+							const labelCell = document.createElement('td');
+							labelCell.textContent = '  → A Costo';
+							labelCell.style.paddingLeft = '40px';
+							labelCell.style.fontSize = '13px';
+							costoRow.appendChild(labelCell);
+							
+							for (const d of desserts) {
+								const qty = seller.a_costo_quantities[d.short_code] || 0;
+								const td = document.createElement('td');
+								td.className = 'col-qty';
+								
+								if (qty > 0) {
+									const badge = document.createElement('span');
+									badge.textContent = qty;
+									badge.style.backgroundColor = '#ff9800';
+									badge.style.color = 'white';
+									badge.style.padding = '3px 8px';
+									badge.style.borderRadius = '12px';
+									badge.style.fontSize = '12px';
+									badge.style.fontWeight = 'bold';
+									badge.style.display = 'inline-block';
+									td.appendChild(badge);
+								} else {
+									td.textContent = '-';
+								}
+								
+								costoRow.appendChild(td);
+							}
+							
+							// Empty total cell
+							const emptyTotalCell = document.createElement('td');
+							costoRow.appendChild(emptyTotalCell);
+							
+							salesTbody.appendChild(costoRow);
+						}
 					}
 				}
-				generateBtn.addEventListener('click', generateReport);
-			} catch (e) {
-				alert('No se pudo abrir el formulario: ' + (e?.message || e));
+				
+				// Render totals row
+				const totalsRow = document.createElement('tr');
+				totalsRow.style.backgroundColor = '#c8e6c9';
+				totalsRow.style.fontWeight = 'bold';
+				
+				const totalLabel = document.createElement('td');
+				totalLabel.textContent = 'TOTAL';
+				totalLabel.style.paddingLeft = '16px';
+				totalsRow.appendChild(totalLabel);
+				
+				// Calculate grand total for the date
+				let grandTotal = 0;
+				for (const d of desserts) {
+					const qty = dateData.totals[d.short_code] || 0;
+					const td = document.createElement('td');
+					td.className = 'col-qty';
+					td.textContent = qty;
+					totalsRow.appendChild(td);
+					grandTotal += qty;
+				}
+				
+				// Grand total column
+				const grandTotalCell = document.createElement('td');
+				grandTotalCell.className = 'col-qty';
+				grandTotalCell.textContent = grandTotal;
+				grandTotalCell.style.fontWeight = 'bold';
+				grandTotalCell.style.fontSize = '16px';
+				grandTotalCell.style.backgroundColor = '#81c784';
+				totalsRow.appendChild(grandTotalCell);
+				
+				salesTbody.appendChild(totalsRow);
+				
+				// Add spacing row
+				const spacingRow = document.createElement('tr');
+				spacingRow.style.height = '20px';
+				spacingRow.style.backgroundColor = 'transparent';
+				const spacingCell = document.createElement('td');
+				spacingCell.colSpan = 1 + desserts.length + 1;
+				spacingCell.innerHTML = '&nbsp;';
+				spacingRow.appendChild(spacingCell);
+				salesTbody.appendChild(spacingRow);
+			}
+			
+			if (salesData.length === 0) {
+				const emptyRow = document.createElement('tr');
+				const emptyCell = document.createElement('td');
+				emptyCell.colSpan = 1 + desserts.length + 1;
+				emptyCell.textContent = 'No hay datos de entregas';
+				emptyCell.style.textAlign = 'center';
+				emptyCell.style.padding = '32px';
+				emptyCell.style.color = '#999';
+				emptyRow.appendChild(emptyCell);
+				salesTbody.appendChild(emptyRow);
 			}
 		}
 
 		backBtn.addEventListener('click', () => { window.location.href = '/index.html'; });
+		refreshSalesBtn.addEventListener('click', () => loadSalesConsolidated());
+		
 		requireAdmin();
 		load();
 	})();
