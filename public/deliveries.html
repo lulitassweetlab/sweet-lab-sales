@@ -327,6 +327,14 @@
 								}
 							};
 							
+							// Auto-select text on focus/click
+							input.addEventListener('focus', () => {
+								input.select();
+							});
+							input.addEventListener('click', () => {
+								input.select();
+							});
+							
 							input.addEventListener('blur', saveValue);
 							input.addEventListener('keydown', (e) => {
 								if (e.key === 'Enter') {
