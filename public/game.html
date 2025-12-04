@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -43,21 +44,71 @@
 			animation: float 15s infinite ease-in-out;
 		}
 
-		.particle:nth-child(1) { left: 10%; animation-delay: 0s; }
-		.particle:nth-child(2) { left: 20%; animation-delay: 2s; }
-		.particle:nth-child(3) { left: 30%; animation-delay: 4s; }
-		.particle:nth-child(4) { left: 40%; animation-delay: 1s; }
-		.particle:nth-child(5) { left: 50%; animation-delay: 3s; }
-		.particle:nth-child(6) { left: 60%; animation-delay: 5s; }
-		.particle:nth-child(7) { left: 70%; animation-delay: 2.5s; }
-		.particle:nth-child(8) { left: 80%; animation-delay: 4.5s; }
-		.particle:nth-child(9) { left: 90%; animation-delay: 1.5s; }
+		.particle:nth-child(1) {
+			left: 10%;
+			animation-delay: 0s;
+		}
+
+		.particle:nth-child(2) {
+			left: 20%;
+			animation-delay: 2s;
+		}
+
+		.particle:nth-child(3) {
+			left: 30%;
+			animation-delay: 4s;
+		}
+
+		.particle:nth-child(4) {
+			left: 40%;
+			animation-delay: 1s;
+		}
+
+		.particle:nth-child(5) {
+			left: 50%;
+			animation-delay: 3s;
+		}
+
+		.particle:nth-child(6) {
+			left: 60%;
+			animation-delay: 5s;
+		}
+
+		.particle:nth-child(7) {
+			left: 70%;
+			animation-delay: 2.5s;
+		}
+
+		.particle:nth-child(8) {
+			left: 80%;
+			animation-delay: 4.5s;
+		}
+
+		.particle:nth-child(9) {
+			left: 90%;
+			animation-delay: 1.5s;
+		}
 
 		@keyframes float {
-			0%, 100% { transform: translateY(100vh) scale(0); opacity: 0; }
-			10% { opacity: 1; }
-			90% { opacity: 1; }
-			100% { transform: translateY(-100px) scale(1); opacity: 0; }
+
+			0%,
+			100% {
+				transform: translateY(100vh) scale(0);
+				opacity: 0;
+			}
+
+			10% {
+				opacity: 1;
+			}
+
+			90% {
+				opacity: 1;
+			}
+
+			100% {
+				transform: translateY(-100px) scale(1);
+				opacity: 0;
+			}
 		}
 
 		.game-container {
@@ -306,6 +357,7 @@
 				opacity: 0;
 				transform: translateY(30px);
 			}
+
 			to {
 				opacity: 1;
 				transform: translateY(0);
@@ -319,8 +371,15 @@
 		}
 
 		@keyframes bounce {
-			0%, 100% { transform: translateY(0); }
-			50% { transform: translateY(-10px); }
+
+			0%,
+			100% {
+				transform: translateY(0);
+			}
+
+			50% {
+				transform: translateY(-10px);
+			}
 		}
 
 		.prize-title {
@@ -406,7 +465,9 @@
 		}
 
 		@keyframes spin {
-			to { transform: rotate(360deg); }
+			to {
+				transform: rotate(360deg);
+			}
 		}
 
 		/* Mobile responsive */
@@ -433,6 +494,7 @@
 		}
 	</style>
 </head>
+
 <body>
 	<!-- Background particles -->
 	<div class="bg-particles">
@@ -461,25 +523,13 @@
 			<form id="registration-form">
 				<div class="form-group">
 					<label class="form-label" for="customer-name">Nombre Completo</label>
-					<input 
-						type="text" 
-						id="customer-name" 
-						class="form-input" 
-						placeholder="Ej: María García"
-						required
-					/>
+					<input type="text" id="customer-name" class="form-input" placeholder="Ej: María García" required />
 					<div class="error-message" id="name-error">Por favor ingresa tu nombre completo</div>
 				</div>
 
 				<div class="form-group">
 					<label class="form-label" for="customer-whatsapp">WhatsApp</label>
-					<input 
-						type="tel" 
-						id="customer-whatsapp" 
-						class="form-input" 
-						placeholder="Ej: 3001234567"
-						required
-					/>
+					<input type="tel" id="customer-whatsapp" class="form-input" placeholder="Ej: 3001234567" required />
 					<div class="error-message" id="whatsapp-error">Por favor ingresa un número válido</div>
 				</div>
 
@@ -536,7 +586,7 @@
 			prize: null
 		};
 
-		// Prize configuration with probabilities
+		// Prize configuration with probabilities (for backend)
 		const prizes = [
 			{ type: 'free', label: 'POSTRE GRATIS', value: '🎂', probability: 5, color: '#fbbf24' },
 			{ type: 'discount', label: '70% DESC', value: '70%', probability: 2, color: '#f43f5e' },
@@ -547,13 +597,19 @@
 			{ type: 'discount', label: '5% DESC', value: '5%', probability: 38, color: '#fce7f3' }
 		];
 
-		// Expand prizes array based on probability
-		const wheelSegments = [];
-		prizes.forEach(prize => {
-			for (let i = 0; i < prize.probability; i++) {
-				wheelSegments.push(prize);
-			}
-		});
+		// Wheel segments - exactly 10 for visual simplicity
+		const wheelSegments = [
+			{ type: 'discount', label: '5% DESC', value: '5%', color: '#fce7f3' },
+			{ type: 'discount', label: '10% DESC', value: '10%', color: '#fbcfe8' },
+			{ type: 'discount', label: '20% DESC', value: '20%', color: '#f9a8d4' },
+			{ type: 'discount', label: '5% DESC', value: '5%', color: '#fce7f3' },
+			{ type: 'discount', label: '30% DESC', value: '30%', color: '#f472b6' },
+			{ type: 'discount', label: '10% DESC', value: '10%', color: '#fbcfe8' },
+			{ type: 'discount', label: '50% DESC', value: '50%', color: '#ec4899' },
+			{ type: 'discount', label: '5% DESC', value: '5%', color: '#fce7f3' },
+			{ type: 'discount', label: '70% DESC', value: '70%', color: '#f43f5e' },
+			{ type: 'free', label: 'POSTRE GRATIS', value: '🎂', color: '#fbbf24' }
+		];
 
 		// Initialize
 		document.addEventListener('DOMContentLoaded', async () => {
@@ -567,7 +623,7 @@
 			try {
 				const response = await fetch('/.netlify/functions/get-sellers');
 				const sellers = await response.json();
-				
+
 				const select = document.getElementById('seller-name');
 				sellers.forEach(seller => {
 					const option = document.createElement('option');
@@ -740,7 +796,7 @@
 
 				// Find the prize index
 				const prizeIndex = wheelSegments.findIndex(s => s.label === data.prize.label);
-				
+
 				// Calculate rotation
 				const segmentAngle = 360 / wheelSegments.length;
 				const targetAngle = prizeIndex * segmentAngle;
@@ -772,12 +828,12 @@
 			if (prize.type === 'free') {
 				document.getElementById('prize-icon').textContent = '🎂';
 				document.getElementById('prize-value').textContent = '¡POSTRE GRATIS!';
-				document.getElementById('prize-message').textContent = 
+				document.getElementById('prize-message').textContent =
 					'¡Increíble! Has ganado un postre completamente gratis. Muestra este resultado a tu vendedor.';
 			} else {
 				document.getElementById('prize-icon').textContent = '🎁';
 				document.getElementById('prize-value').textContent = prize.value;
-				document.getElementById('prize-message').textContent = 
+				document.getElementById('prize-message').textContent =
 					`¡Felicitaciones! Has ganado un descuento del ${prize.value}. Muestra este resultado a tu vendedor para aplicarlo en tu próxima compra.`;
 			}
 
@@ -807,10 +863,10 @@
 		// Handle share
 		function handleShare() {
 			const prize = gameState.prize;
-			const message = prize.type === 'free' 
+			const message = prize.type === 'free'
 				? `¡Gané un postre GRATIS en Sweet Lab! 🎂🎉`
 				: `¡Gané un ${prize.value} de descuento en Sweet Lab! 🎁🎉`;
-			
+
 			const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
 			window.open(url, '_blank');
 		}
@@ -825,4 +881,5 @@
 		}
 	</script>
 </body>
+
 </html>

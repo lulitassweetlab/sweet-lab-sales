@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sweet Lab - Reporte de Juegos</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles.css" />
+    <style>
+        body {
+            font-family: 'DM Sans', sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            margin: 0;
+            color: #2a2a2a;
+        }
+
+        .btn-back {
+            padding: 10px 20px;
+            background: #f4a6b7;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-back:hover {
+            background: #e27a90;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-card h3 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            color: #666;
+            text-transform: uppercase;
+        }
+
+        .stat-card .value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #f4a6b7;
+        }
+
+        .table-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: #f4a6b7;
+            color: white;
+        }
+
+        th {
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #eee;
+        }
+
+        tbody tr:hover {
+            background: #f9f9f9;
+        }
+
+        .prize-free {
+            background: #fbbf24;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+        .prize-discount {
+            background: #f4a6b7;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1>🎮 Reporte de Juegos</h1>
+        <a href="/" class="btn-back">← Volver</a>
+    </div>
+
+    <div class="stats">
+        <div class="stat-card">
+            <h3>Total Jugadores</h3>
+            <div class="value" id="total-plays">-</div>
+        </div>
+        <div class="stat-card">
+            <h3>Postres Gratis</h3>
+            <div class="value" id="total-free">-</div>
+        </div>
+        <div class="stat-card">
+            <h3>Descuentos</h3>
+            <div class="value" id="total-discounts">-</div>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Nombre</th>
+                    <th>WhatsApp</th>
+                    <th>Vendedor</th>
+                    <th>Premio</th>
+                </tr>
+            </thead>
+            <tbody id="games-tbody">
+                <tr>
+                    <td colspan="5" class="loading">Cargando...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        async function loadGamePlays() {
+            try {
+                const response = await fetch('/.netlify/functions/game-plays');
+                const plays = await response.json();
+
+                // Update stats
+                document.getElementById('total-plays').textContent = plays.length;
+                const freePlays = plays.filter(p => p.prize_type === 'free');
+                document.getElementById('total-free').textContent = freePlays.length;
+                document.getElementById('total-discounts').textContent = plays.length - freePlays.length;
+
+                // Render table
+                const tbody = document.getElementById('games-tbody');
+                tbody.innerHTML = '';
+
+                if (plays.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="loading">No hay registros de juegos</td></tr>';
+                    return;
+                }
+
+                plays.forEach(play => {
+                    const tr = document.createElement('tr');
+
+                    // Format date
+                    const date = new Date(play.played_at);
+                    const dateStr = date.toLocaleDateString('es-CO', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+
+                    // Prize display
+                    const prizeClass = play.prize_type === 'free' ? 'prize-free' : 'prize-discount';
+                    const prizeText = play.prize_type === 'free' ? '🎂 Postre Gratis' : `${play.prize_value} Descuento`;
+
+                    tr.innerHTML = `
+						<td>${dateStr}</td>
+						<td>${play.customer_name}</td>
+						<td>${play.whatsapp}</td>
+						<td>${play.seller_name}</td>
+						<td><span class="${prizeClass}">${prizeText}</span></td>
+					`;
+
+                    tbody.appendChild(tr);
+                });
+
+            } catch (error) {
+                console.error('Error loading game plays:', error);
+                const tbody = document.getElementById('games-tbody');
+                tbody.innerHTML = '<tr><td colspan="5" class="loading">Error al cargar los datos</td></tr>';
+            }
+        }
+
+        // Load on page load
+        document.addEventListener('DOMContentLoaded', loadGamePlays);
+    </script>
+</body>
+
+</html>
