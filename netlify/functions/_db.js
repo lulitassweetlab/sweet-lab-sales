@@ -8,10 +8,10 @@ const SCHEMA_VERSION = 14; // Bump when schema changes require a migration (add 
 export async function ensureSchema() {
 	// If already ensured in this instance, skip immediately
 	if (schemaEnsured) return;
-	
+
 	// If another request is currently checking schema, wait for it
 	if (schemaCheckPromise) return schemaCheckPromise;
-	
+
 	// Start schema check
 	schemaCheckPromise = (async () => {
 		try {
@@ -24,7 +24,7 @@ export async function ensureSchema() {
 				role TEXT NOT NULL DEFAULT 'user',
 				created_at TIMESTAMPTZ DEFAULT now()
 			)`;
-			
+
 			await sql`CREATE TABLE IF NOT EXISTS deliveries (
 				id SERIAL PRIMARY KEY,
 				day DATE NOT NULL,
@@ -32,8 +32,8 @@ export async function ensureSchema() {
 				actor_name TEXT,
 				created_at TIMESTAMPTZ DEFAULT now()
 			)`;
-			
-		await sql`CREATE TABLE IF NOT EXISTS desserts (
+
+			await sql`CREATE TABLE IF NOT EXISTS desserts (
 			id SERIAL PRIMARY KEY,
 			name TEXT UNIQUE NOT NULL,
 			short_code TEXT UNIQUE NOT NULL,
@@ -43,19 +43,19 @@ export async function ensureSchema() {
 			created_at TIMESTAMPTZ DEFAULT now(),
 			updated_at TIMESTAMPTZ DEFAULT now()
 		)`;
-		
-		// Recipe sessions: complete saved records with quantities, times, and participants
-		await sql`CREATE TABLE IF NOT EXISTS recipe_sessions (
+
+			// Recipe sessions: complete saved records with quantities, times, and participants
+			await sql`CREATE TABLE IF NOT EXISTS recipe_sessions (
 			id SERIAL PRIMARY KEY,
 			session_date DATE NOT NULL,
 			actor_name TEXT,
 			desserts_data JSONB NOT NULL,
 			created_at TIMESTAMPTZ DEFAULT now()
 		)`;
-		await sql`CREATE INDEX IF NOT EXISTS idx_recipe_sessions_date ON recipe_sessions(session_date DESC)`;
-		await sql`CREATE INDEX IF NOT EXISTS idx_recipe_sessions_created ON recipe_sessions(created_at DESC)`;
-		
-		await sql`CREATE TABLE IF NOT EXISTS recipe_production_users (
+			await sql`CREATE INDEX IF NOT EXISTS idx_recipe_sessions_date ON recipe_sessions(session_date DESC)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_recipe_sessions_created ON recipe_sessions(created_at DESC)`;
+
+			await sql`CREATE TABLE IF NOT EXISTS recipe_production_users (
 				id SERIAL PRIMARY KEY,
 				dessert TEXT NOT NULL,
 				user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -66,7 +66,7 @@ export async function ensureSchema() {
 			await sql`CREATE INDEX IF NOT EXISTS idx_recipe_production_users_dessert ON recipe_production_users(dessert)`;
 			await sql`CREATE INDEX IF NOT EXISTS idx_recipe_production_users_user ON recipe_production_users(user_id)`;
 			await sql`CREATE INDEX IF NOT EXISTS idx_recipe_production_users_date ON recipe_production_users(session_date DESC)`;
-			
+
 			await sql`CREATE TABLE IF NOT EXISTS delivery_production_users (
 				id SERIAL PRIMARY KEY,
 				delivery_id INTEGER NOT NULL REFERENCES deliveries(id) ON DELETE CASCADE,
@@ -78,12 +78,12 @@ export async function ensureSchema() {
 			await sql`CREATE INDEX IF NOT EXISTS idx_delivery_production_users_delivery ON delivery_production_users(delivery_id)`;
 			await sql`CREATE INDEX IF NOT EXISTS idx_delivery_production_users_dessert ON delivery_production_users(dessert_id)`;
 			await sql`CREATE INDEX IF NOT EXISTS idx_delivery_production_users_user ON delivery_production_users(user_id)`;
-			
+
 			// FAST PATH: Just check if schema_meta exists and has correct version
 			try {
 				const cur = await sql`SELECT version FROM schema_meta LIMIT 1`;
 				const currentVersion = Number(cur?.[0]?.version || 0);
-				
+
 				if (currentVersion >= SCHEMA_VERSION) {
 					schemaEnsured = true;
 					return; // Schema is up to date, skip all DDL
@@ -105,10 +105,10 @@ export async function ensureSchema() {
 			// 3) Read current version
 			const cur = await sql`SELECT version FROM schema_meta LIMIT 1`;
 			const currentVersion = Number(cur?.[0]?.version || 0);
-	
-	// Always ensure these critical tables exist (even if version is up to date)
-	// This handles the case where version was bumped but tables weren't created
-	await sql`CREATE TABLE IF NOT EXISTS desserts (
+
+			// Always ensure these critical tables exist (even if version is up to date)
+			// This handles the case where version was bumped but tables weren't created
+			await sql`CREATE TABLE IF NOT EXISTS desserts (
 		id SERIAL PRIMARY KEY,
 		name TEXT UNIQUE NOT NULL,
 		short_code TEXT UNIQUE NOT NULL,
@@ -118,7 +118,7 @@ export async function ensureSchema() {
 		created_at TIMESTAMPTZ DEFAULT now(),
 		updated_at TIMESTAMPTZ DEFAULT now()
 	)`;
-	await sql`CREATE TABLE IF NOT EXISTS sale_items (
+			await sql`CREATE TABLE IF NOT EXISTS sale_items (
 		id SERIAL PRIMARY KEY,
 		sale_id INTEGER NOT NULL REFERENCES sales(id) ON DELETE CASCADE,
 		dessert_id INTEGER NOT NULL REFERENCES desserts(id) ON DELETE CASCADE,
@@ -127,46 +127,46 @@ export async function ensureSchema() {
 		created_at TIMESTAMPTZ DEFAULT now(),
 		updated_at TIMESTAMPTZ DEFAULT now()
 	)`;
-	
-	// Seed default desserts if table is empty (always run this)
-	try {
-		const dessertCount = await sql`SELECT COUNT(*)::int AS c FROM desserts`;
-		if ((dessertCount[0]?.c || 0) === 0) {
-			const defaultDesserts = [
-				{ name: 'Arco', short_code: 'arco', sale_price: 8500, position: 1 },
-				{ name: 'Melo', short_code: 'melo', sale_price: 9500, position: 2 },
-				{ name: 'Mara', short_code: 'mara', sale_price: 10500, position: 3 },
-				{ name: 'Oreo', short_code: 'oreo', sale_price: 10500, position: 4 },
-				{ name: 'Nute', short_code: 'nute', sale_price: 13000, position: 5 }
-			];
-			for (const d of defaultDesserts) {
-				await sql`INSERT INTO desserts (name, short_code, sale_price, position) VALUES (${d.name}, ${d.short_code}, ${d.sale_price}, ${d.position}) ON CONFLICT (name) DO NOTHING`;
+
+			// Seed default desserts if table is empty (always run this)
+			try {
+				const dessertCount = await sql`SELECT COUNT(*)::int AS c FROM desserts`;
+				if ((dessertCount[0]?.c || 0) === 0) {
+					const defaultDesserts = [
+						{ name: 'Arco', short_code: 'arco', sale_price: 8500, position: 1 },
+						{ name: 'Melo', short_code: 'melo', sale_price: 9500, position: 2 },
+						{ name: 'Mara', short_code: 'mara', sale_price: 10500, position: 3 },
+						{ name: 'Oreo', short_code: 'oreo', sale_price: 10500, position: 4 },
+						{ name: 'Nute', short_code: 'nute', sale_price: 13000, position: 5 }
+					];
+					for (const d of defaultDesserts) {
+						await sql`INSERT INTO desserts (name, short_code, sale_price, position) VALUES (${d.name}, ${d.short_code}, ${d.sale_price}, ${d.position}) ON CONFLICT (name) DO NOTHING`;
+					}
+				}
+			} catch (err) {
+				console.error('Error seeding desserts:', err);
 			}
-		}
-	} catch (err) {
-		console.error('Error seeding desserts:', err);
-	}
-	
-	// CRITICAL: Users table (needed for recipe_production_users FK)
-	await sql`CREATE TABLE IF NOT EXISTS users (
+
+			// CRITICAL: Users table (needed for recipe_production_users FK)
+			await sql`CREATE TABLE IF NOT EXISTS users (
 		id SERIAL PRIMARY KEY,
 		username TEXT UNIQUE NOT NULL,
 		password_hash TEXT NOT NULL,
 		role TEXT NOT NULL DEFAULT 'user',
 		created_at TIMESTAMPTZ DEFAULT now()
 	)`;
-	
-	// CRITICAL: Deliveries table (needed for delivery_production_users FK)
-	await sql`CREATE TABLE IF NOT EXISTS deliveries (
+
+			// CRITICAL: Deliveries table (needed for delivery_production_users FK)
+			await sql`CREATE TABLE IF NOT EXISTS deliveries (
 		id SERIAL PRIMARY KEY,
 		day DATE NOT NULL,
 		note TEXT DEFAULT '',
 		actor_name TEXT,
 		created_at TIMESTAMPTZ DEFAULT now()
 	)`;
-	
-	// CRITICAL: Recipe production users table (must be created before version check)
-	await sql`CREATE TABLE IF NOT EXISTS recipe_production_users (
+
+			// CRITICAL: Recipe production users table (must be created before version check)
+			await sql`CREATE TABLE IF NOT EXISTS recipe_production_users (
 		id SERIAL PRIMARY KEY,
 		dessert TEXT NOT NULL,
 		user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -174,12 +174,12 @@ export async function ensureSchema() {
 		created_at TIMESTAMPTZ DEFAULT now(),
 		UNIQUE (dessert, user_id, session_date)
 	)`;
-	await sql`CREATE INDEX IF NOT EXISTS idx_recipe_production_users_dessert ON recipe_production_users(dessert)`;
-	await sql`CREATE INDEX IF NOT EXISTS idx_recipe_production_users_user ON recipe_production_users(user_id)`;
-	await sql`CREATE INDEX IF NOT EXISTS idx_recipe_production_users_date ON recipe_production_users(session_date DESC)`;
-	
-	// CRITICAL: Delivery production users table (must be created before version check)
-	await sql`CREATE TABLE IF NOT EXISTS delivery_production_users (
+			await sql`CREATE INDEX IF NOT EXISTS idx_recipe_production_users_dessert ON recipe_production_users(dessert)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_recipe_production_users_user ON recipe_production_users(user_id)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_recipe_production_users_date ON recipe_production_users(session_date DESC)`;
+
+			// CRITICAL: Delivery production users table (must be created before version check)
+			await sql`CREATE TABLE IF NOT EXISTS delivery_production_users (
 		id SERIAL PRIMARY KEY,
 		delivery_id INTEGER NOT NULL REFERENCES deliveries(id) ON DELETE CASCADE,
 		dessert_id INTEGER NOT NULL REFERENCES desserts(id) ON DELETE CASCADE,
@@ -187,28 +187,28 @@ export async function ensureSchema() {
 		created_at TIMESTAMPTZ DEFAULT now(),
 		UNIQUE (delivery_id, dessert_id, user_id)
 	)`;
-	await sql`CREATE INDEX IF NOT EXISTS idx_delivery_production_users_delivery ON delivery_production_users(delivery_id)`;
-	await sql`CREATE INDEX IF NOT EXISTS idx_delivery_production_users_dessert ON delivery_production_users(dessert_id)`;
-	await sql`CREATE INDEX IF NOT EXISTS idx_delivery_production_users_user ON delivery_production_users(user_id)`;
-	
-	if (currentVersion >= SCHEMA_VERSION) { schemaEnsured = true; return; }
-	// Basic users table for authentication
-	await sql`CREATE TABLE IF NOT EXISTS users (
+			await sql`CREATE INDEX IF NOT EXISTS idx_delivery_production_users_delivery ON delivery_production_users(delivery_id)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_delivery_production_users_dessert ON delivery_production_users(dessert_id)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_delivery_production_users_user ON delivery_production_users(user_id)`;
+
+			if (currentVersion >= SCHEMA_VERSION) { schemaEnsured = true; return; }
+			// Basic users table for authentication
+			await sql`CREATE TABLE IF NOT EXISTS users (
 		id SERIAL PRIMARY KEY,
 		username TEXT UNIQUE NOT NULL,
 		password_hash TEXT NOT NULL,
 		role TEXT NOT NULL DEFAULT 'user',
 		created_at TIMESTAMPTZ DEFAULT now()
 	)`;
-	await sql`CREATE TABLE IF NOT EXISTS sellers (
+			await sql`CREATE TABLE IF NOT EXISTS sellers (
 		id SERIAL PRIMARY KEY,
 		name TEXT UNIQUE NOT NULL,
 		bill_color TEXT,
 		archived_at TIMESTAMPTZ,
 		created_at TIMESTAMPTZ DEFAULT now()
 	)`;
-	// Ensure bill_color, archived_at, and commission rates exist for older deployments
-	await sql`DO $$ BEGIN
+			// Ensure bill_color, archived_at, and commission rates exist for older deployments
+			await sql`DO $$ BEGIN
 		IF NOT EXISTS (
 			SELECT 1 FROM information_schema.columns
 			WHERE table_name = 'sellers' AND column_name = 'bill_color'
@@ -240,31 +240,31 @@ export async function ensureSchema() {
 			ALTER TABLE sellers ADD COLUMN commission_rate_high INTEGER NOT NULL DEFAULT 1500;
 		END IF;
 	END $$;`;
-	// Delegated view permissions: which users can view which sellers
-	await sql`CREATE TABLE IF NOT EXISTS user_view_permissions (
+			// Delegated view permissions: which users can view which sellers
+			await sql`CREATE TABLE IF NOT EXISTS user_view_permissions (
 		id SERIAL PRIMARY KEY,
 		viewer_username TEXT NOT NULL,
 		seller_id INTEGER NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
 		created_at TIMESTAMPTZ DEFAULT now(),
 		UNIQUE (viewer_username, seller_id)
 	)`;
-	// Feature permissions: grant specific features to users (e.g., 'reports')
-	await sql`CREATE TABLE IF NOT EXISTS user_feature_permissions (
+			// Feature permissions: grant specific features to users (e.g., 'reports')
+			await sql`CREATE TABLE IF NOT EXISTS user_feature_permissions (
 		id SERIAL PRIMARY KEY,
 		username TEXT NOT NULL,
 		feature TEXT NOT NULL,
 		created_at TIMESTAMPTZ DEFAULT now(),
 		UNIQUE (username, feature)
 	)`;
-	await sql`CREATE TABLE IF NOT EXISTS sale_days (
+			await sql`CREATE TABLE IF NOT EXISTS sale_days (
 		id SERIAL PRIMARY KEY,
 		seller_id INTEGER NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
 		day DATE NOT NULL,
 		is_archived BOOLEAN NOT NULL DEFAULT false,
 		UNIQUE (seller_id, day)
 	)`;
-	// Ensure delivered columns, commissions_paid, and is_archived exist for older deployments
-	await sql`DO $$ BEGIN
+			// Ensure delivered columns, commissions_paid, and is_archived exist for older deployments
+			await sql`DO $$ BEGIN
 		IF NOT EXISTS (
 			SELECT 1 FROM information_schema.columns
 			WHERE table_name = 'sale_days' AND column_name = 'delivered_arco'
@@ -308,7 +308,7 @@ export async function ensureSchema() {
 			ALTER TABLE sale_days ADD COLUMN is_archived BOOLEAN NOT NULL DEFAULT false;
 		END IF;
 	END $$;`;
-	await sql`CREATE TABLE IF NOT EXISTS sales (
+			await sql`CREATE TABLE IF NOT EXISTS sales (
 		id SERIAL PRIMARY KEY,
 		seller_id INTEGER NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
 		sale_day_id INTEGER REFERENCES sale_days(id) ON DELETE CASCADE,
@@ -327,8 +327,8 @@ export async function ensureSchema() {
 		total_cents INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMPTZ DEFAULT now()
 	)`;
-	// Ensure columns exist for older deployments
-	await sql`DO $$ BEGIN
+			// Ensure columns exist for older deployments
+			await sql`DO $$ BEGIN
 		IF NOT EXISTS (
 			SELECT 1 FROM information_schema.columns
 			WHERE table_name = 'sales' AND column_name = 'sale_day_id'
@@ -378,7 +378,7 @@ export async function ensureSchema() {
 			ALTER TABLE sales ADD COLUMN special_pricing_type TEXT;
 		END IF;
 	END $$;`;
-	await sql`CREATE TABLE IF NOT EXISTS change_logs (
+			await sql`CREATE TABLE IF NOT EXISTS change_logs (
 		id SERIAL PRIMARY KEY,
 		sale_id INTEGER NOT NULL REFERENCES sales(id) ON DELETE CASCADE,
 		field TEXT NOT NULL,
@@ -387,8 +387,8 @@ export async function ensureSchema() {
 		user_name TEXT,
 		created_at TIMESTAMPTZ DEFAULT now()
 	)`;
-	// Optional receipt storage (base64) per sale
-	await sql`CREATE TABLE IF NOT EXISTS sale_receipts (
+			// Optional receipt storage (base64) per sale
+			await sql`CREATE TABLE IF NOT EXISTS sale_receipts (
 		id SERIAL PRIMARY KEY,
 		sale_id INTEGER NOT NULL REFERENCES sales(id) ON DELETE CASCADE,
 		image_base64 TEXT NOT NULL,
@@ -398,8 +398,8 @@ export async function ensureSchema() {
 		payment_date DATE,
 		created_at TIMESTAMPTZ DEFAULT now()
 	)`;
-	// Ensure note_text, pay_method, payment_source, and payment_date columns exist on older deployments
-	await sql`DO $$ BEGIN
+			// Ensure note_text, pay_method, payment_source, and payment_date columns exist on older deployments
+			await sql`DO $$ BEGIN
 		IF NOT EXISTS (
 			SELECT 1 FROM information_schema.columns
 			WHERE table_name = 'sale_receipts' AND column_name = 'note_text'
@@ -425,22 +425,22 @@ export async function ensureSchema() {
 			ALTER TABLE sale_receipts ADD COLUMN payment_date DATE;
 		END IF;
 	END $$;`;
-	// Deliveries: record production by day and assignments to sellers
-	await sql`CREATE TABLE IF NOT EXISTS deliveries (
+			// Deliveries: record production by day and assignments to sellers
+			await sql`CREATE TABLE IF NOT EXISTS deliveries (
 		id SERIAL PRIMARY KEY,
 		day DATE NOT NULL,
 		note TEXT DEFAULT '',
 		actor_name TEXT,
 		created_at TIMESTAMPTZ DEFAULT now()
 	)`;
-	await sql`CREATE TABLE IF NOT EXISTS delivery_items (
+			await sql`CREATE TABLE IF NOT EXISTS delivery_items (
 		id SERIAL PRIMARY KEY,
 		delivery_id INTEGER NOT NULL REFERENCES deliveries(id) ON DELETE CASCADE,
 		dessert_id INTEGER NOT NULL REFERENCES desserts(id) ON DELETE CASCADE,
 		quantity INTEGER NOT NULL DEFAULT 0,
 		UNIQUE (delivery_id, dessert_id)
 	)`;
-	await sql`CREATE TABLE IF NOT EXISTS delivery_seller_items (
+			await sql`CREATE TABLE IF NOT EXISTS delivery_seller_items (
 		id SERIAL PRIMARY KEY,
 		delivery_id INTEGER NOT NULL REFERENCES deliveries(id) ON DELETE CASCADE,
 		seller_id INTEGER NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
@@ -448,8 +448,8 @@ export async function ensureSchema() {
 		quantity INTEGER NOT NULL DEFAULT 0,
 		UNIQUE (delivery_id, seller_id, dessert_id)
 	)`;
-	// Note: delivery_production_users table is now created earlier (before version check)
-	await sql`CREATE TABLE IF NOT EXISTS notifications (
+			// Note: delivery_production_users table is now created earlier (before version check)
+			await sql`CREATE TABLE IF NOT EXISTS notifications (
 		id SERIAL PRIMARY KEY,
 		type TEXT NOT NULL,
 		seller_id INTEGER REFERENCES sellers(id) ON DELETE SET NULL,
@@ -462,8 +462,8 @@ export async function ensureSchema() {
 		created_at TIMESTAMPTZ DEFAULT now(),
 		read_at TIMESTAMPTZ
 	)`;
-	// Ensure optional columns exist for older deployments
-	await sql`DO $$ BEGIN
+			// Ensure optional columns exist for older deployments
+			await sql`DO $$ BEGIN
 		IF NOT EXISTS (
 			SELECT 1 FROM information_schema.columns
 			WHERE table_name = 'notifications' AND column_name = 'icon_url'
@@ -477,26 +477,26 @@ export async function ensureSchema() {
 			ALTER TABLE notifications ADD COLUMN pay_method TEXT;
 		END IF;
 	END $$;`;
-	// Notification checks: track which notifications have been checked by superadmin
-	await sql`CREATE TABLE IF NOT EXISTS notification_checks (
+			// Notification checks: track which notifications have been checked by superadmin
+			await sql`CREATE TABLE IF NOT EXISTS notification_checks (
 		id SERIAL PRIMARY KEY,
 		notification_id INTEGER NOT NULL REFERENCES notifications(id) ON DELETE CASCADE,
 		checked_by TEXT NOT NULL,
 		created_at TIMESTAMPTZ DEFAULT now(),
 		UNIQUE (notification_id, checked_by)
 	)`;
-	// Notification center visits: track when superadmin last visited the notification center
-	await sql`CREATE TABLE IF NOT EXISTS notification_center_visits (
+			// Notification center visits: track when superadmin last visited the notification center
+			await sql`CREATE TABLE IF NOT EXISTS notification_center_visits (
 		id SERIAL PRIMARY KEY,
 		username TEXT NOT NULL,
 		visited_at TIMESTAMPTZ DEFAULT now(),
 		UNIQUE (username)
 	)`;
-	// Create indexes for notification queries
-	await sql`CREATE INDEX IF NOT EXISTS idx_notifications_created ON notifications(created_at DESC)`;
-	await sql`CREATE INDEX IF NOT EXISTS idx_notification_checks_notification ON notification_checks(notification_id)`;
-	// Accounting: ingresos/gastos ledger
-	await sql`CREATE TABLE IF NOT EXISTS accounting_entries (
+			// Create indexes for notification queries
+			await sql`CREATE INDEX IF NOT EXISTS idx_notifications_created ON notifications(created_at DESC)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_notification_checks_notification ON notification_checks(notification_id)`;
+			// Accounting: ingresos/gastos ledger
+			await sql`CREATE TABLE IF NOT EXISTS accounting_entries (
 		id SERIAL PRIMARY KEY,
 		kind TEXT NOT NULL, -- 'gasto' | 'ingreso'
 		entry_date DATE NOT NULL,
@@ -505,8 +505,8 @@ export async function ensureSchema() {
 		actor_name TEXT,
 		created_at TIMESTAMPTZ DEFAULT now()
 	)`;
-	// Optional: attachments per accounting entry (image or file as base64)
-	await sql`CREATE TABLE IF NOT EXISTS accounting_attachments (
+			// Optional: attachments per accounting entry (image or file as base64)
+			await sql`CREATE TABLE IF NOT EXISTS accounting_attachments (
 		id SERIAL PRIMARY KEY,
 		entry_id INTEGER NOT NULL REFERENCES accounting_entries(id) ON DELETE CASCADE,
 		file_base64 TEXT NOT NULL,
@@ -514,8 +514,8 @@ export async function ensureSchema() {
 		file_name TEXT,
 		created_at TIMESTAMPTZ DEFAULT now()
 	)`;
-	// Ensure columns exist for older deployments
-	await sql`DO $$ BEGIN
+			// Ensure columns exist for older deployments
+			await sql`DO $$ BEGIN
 		IF NOT EXISTS (
 			SELECT 1 FROM information_schema.columns
 			WHERE table_name = 'accounting_entries' AND column_name = 'actor_name'
@@ -547,8 +547,8 @@ export async function ensureSchema() {
 			ALTER TABLE accounting_entries ADD COLUMN amount_cents INTEGER NOT NULL DEFAULT 0;
 		END IF;
 	END $$;`;
-	// Materials: per-flavor ingredient formulas
-	await sql`CREATE TABLE IF NOT EXISTS ingredient_formulas (
+			// Materials: per-flavor ingredient formulas
+			await sql`CREATE TABLE IF NOT EXISTS ingredient_formulas (
 		id SERIAL PRIMARY KEY,
 		ingredient TEXT UNIQUE NOT NULL,
 		unit TEXT NOT NULL DEFAULT 'g',
@@ -560,8 +560,8 @@ export async function ensureSchema() {
 		created_at TIMESTAMPTZ DEFAULT now(),
 		updated_at TIMESTAMPTZ DEFAULT now()
 	)`;
-	// Ensure all per_* columns exist for older deployments
-	await sql`DO $$ BEGIN
+			// Ensure all per_* columns exist for older deployments
+			await sql`DO $$ BEGIN
 		IF NOT EXISTS (
 			SELECT 1 FROM information_schema.columns
 			WHERE table_name = 'ingredient_formulas' AND column_name = 'per_nute'
@@ -576,8 +576,8 @@ export async function ensureSchema() {
 		END IF;
 	END $$;`;
 
-	// Recipes schema: steps and items per dessert + global extras
-	await sql`CREATE TABLE IF NOT EXISTS dessert_recipes (
+			// Recipes schema: steps and items per dessert + global extras
+			await sql`CREATE TABLE IF NOT EXISTS dessert_recipes (
 		id SERIAL PRIMARY KEY,
 		dessert TEXT NOT NULL,
 		step_name TEXT,
@@ -585,13 +585,13 @@ export async function ensureSchema() {
 		created_at TIMESTAMPTZ DEFAULT now(),
 		updated_at TIMESTAMPTZ DEFAULT now()
 	)`;
-	// Optional: explicit dessert ordering table
-	await sql`CREATE TABLE IF NOT EXISTS dessert_order (
+			// Optional: explicit dessert ordering table
+			await sql`CREATE TABLE IF NOT EXISTS dessert_order (
 		dessert TEXT PRIMARY KEY,
 		position INTEGER NOT NULL DEFAULT 0,
 		updated_at TIMESTAMPTZ DEFAULT now()
 	)`;
-	await sql`CREATE TABLE IF NOT EXISTS dessert_recipe_items (
+			await sql`CREATE TABLE IF NOT EXISTS dessert_recipe_items (
 		id SERIAL PRIMARY KEY,
 		recipe_id INTEGER NOT NULL REFERENCES dessert_recipes(id) ON DELETE CASCADE,
 		ingredient TEXT NOT NULL,
@@ -604,8 +604,8 @@ export async function ensureSchema() {
 		created_at TIMESTAMPTZ DEFAULT now(),
 		updated_at TIMESTAMPTZ DEFAULT now()
 	)`;
-	// Ensure new numeric columns exist for older deployments
-	await sql`DO $$ BEGIN
+			// Ensure new numeric columns exist for older deployments
+			await sql`DO $$ BEGIN
 		IF NOT EXISTS (
 			SELECT 1 FROM information_schema.columns
 			WHERE table_name = 'dessert_recipe_items' AND column_name = 'adjustment'
@@ -625,7 +625,7 @@ export async function ensureSchema() {
 		ALTER TABLE dessert_recipe_items ADD COLUMN pack_size NUMERIC NOT NULL DEFAULT 0;
 	END IF;
 	END $$;`;
-await sql`CREATE TABLE IF NOT EXISTS extras_items (
+			await sql`CREATE TABLE IF NOT EXISTS extras_items (
 		id SERIAL PRIMARY KEY,
 		ingredient TEXT NOT NULL,
 		unit TEXT NOT NULL DEFAULT 'g',
@@ -636,8 +636,8 @@ await sql`CREATE TABLE IF NOT EXISTS extras_items (
 		created_at TIMESTAMPTZ DEFAULT now(),
 		updated_at TIMESTAMPTZ DEFAULT now()
 	)`;
-// Ensure new numeric columns exist for older deployments (extras price)
-await sql`DO $$ BEGIN
+			// Ensure new numeric columns exist for older deployments (extras price)
+			await sql`DO $$ BEGIN
 	IF NOT EXISTS (
 		SELECT 1 FROM information_schema.columns
 		WHERE table_name = 'extras_items' AND column_name = 'price'
@@ -645,8 +645,8 @@ await sql`DO $$ BEGIN
 		ALTER TABLE extras_items ADD COLUMN price NUMERIC NOT NULL DEFAULT 0;
 	END IF;
 END $$;`;
-// Ensure extras pack_size
-await sql`DO $$ BEGIN
+			// Ensure extras pack_size
+			await sql`DO $$ BEGIN
 	IF NOT EXISTS (
 		SELECT 1 FROM information_schema.columns
 		WHERE table_name = 'extras_items' AND column_name = 'pack_size'
@@ -654,15 +654,15 @@ await sql`DO $$ BEGIN
 		ALTER TABLE extras_items ADD COLUMN pack_size NUMERIC NOT NULL DEFAULT 0;
 	END IF;
 END $$;`;
-	// Inventory: master items and movements ledger
-	await sql`CREATE TABLE IF NOT EXISTS inventory_items (
+			// Inventory: master items and movements ledger
+			await sql`CREATE TABLE IF NOT EXISTS inventory_items (
 		id SERIAL PRIMARY KEY,
 		ingredient TEXT UNIQUE NOT NULL,
 		unit TEXT NOT NULL DEFAULT 'g',
 		created_at TIMESTAMPTZ DEFAULT now(),
 		updated_at TIMESTAMPTZ DEFAULT now()
 	)`;
-	await sql`DO $$ BEGIN
+			await sql`DO $$ BEGIN
 		IF NOT EXISTS (
 			SELECT 1 FROM information_schema.columns
 			WHERE table_name = 'inventory_items' AND column_name = 'unit'
@@ -670,7 +670,7 @@ END $$;`;
 			ALTER TABLE inventory_items ADD COLUMN unit TEXT NOT NULL DEFAULT 'g';
 		END IF;
 	END $$;`;
-	await sql`CREATE TABLE IF NOT EXISTS inventory_movements (
+			await sql`CREATE TABLE IF NOT EXISTS inventory_movements (
 		id SERIAL PRIMARY KEY,
 		ingredient TEXT NOT NULL,
 		kind TEXT NOT NULL,
@@ -680,8 +680,8 @@ END $$;`;
 		metadata JSONB DEFAULT '{}'::jsonb,
 		created_at TIMESTAMPTZ DEFAULT now()
 	)`;
-	// Time sessions for production timings per dessert
-	await sql`CREATE TABLE IF NOT EXISTS time_sessions (
+			// Time sessions for production timings per dessert
+			await sql`CREATE TABLE IF NOT EXISTS time_sessions (
 		id SERIAL PRIMARY KEY,
 		dessert TEXT NOT NULL,
 		steps JSONB NOT NULL,
@@ -689,94 +689,94 @@ END $$;`;
 		actor_name TEXT,
 		created_at TIMESTAMPTZ DEFAULT now()
 	)`;
-	// Tables created at top of function before version check
-	// Seed default users if table is empty
-	const existing = await sql`SELECT COUNT(*)::int AS c FROM users`;
-	if ((existing[0]?.c || 0) === 0) {
-		// Default simple passwords; in production you'd hash. Here we store as plain for simplicity in this demo.
-		await sql`INSERT INTO users (username, password_hash, role) VALUES ('jorge', 'Jorge123', 'superadmin') ON CONFLICT (username) DO NOTHING`;
-		await sql`INSERT INTO users (username, password_hash, role) VALUES ('marcela', 'marcelasweet', 'admin') ON CONFLICT (username) DO NOTHING`;
-		await sql`INSERT INTO users (username, password_hash, role) VALUES ('aleja', 'alejasweet', 'admin') ON CONFLICT (username) DO NOTHING`;
-	}
-	// Ensure Marcela has a default yellow bill color if seller exists and not set
-	await sql`UPDATE sellers SET bill_color=${'#fdd835'} WHERE lower(name)='marcela' AND (bill_color IS NULL OR bill_color='')`;
-	
-	// Migration: Migrate existing sales to sale_items if needed
-	// This only runs once - checks if there are sales with old qty columns but no sale_items
-	try {
-		const needsMigration = await sql`
+			// Tables created at top of function before version check
+			// Seed default users if table is empty
+			const existing = await sql`SELECT COUNT(*)::int AS c FROM users`;
+			if ((existing[0]?.c || 0) === 0) {
+				// Default simple passwords; in production you'd hash. Here we store as plain for simplicity in this demo.
+				await sql`INSERT INTO users (username, password_hash, role) VALUES ('jorge', 'Jorge123', 'superadmin') ON CONFLICT (username) DO NOTHING`;
+				await sql`INSERT INTO users (username, password_hash, role) VALUES ('marcela', 'marcelasweet', 'admin') ON CONFLICT (username) DO NOTHING`;
+				await sql`INSERT INTO users (username, password_hash, role) VALUES ('aleja', 'alejasweet', 'admin') ON CONFLICT (username) DO NOTHING`;
+			}
+			// Ensure Marcela has a default yellow bill color if seller exists and not set
+			await sql`UPDATE sellers SET bill_color=${'#fdd835'} WHERE lower(name)='marcela' AND (bill_color IS NULL OR bill_color='')`;
+
+			// Migration: Migrate existing sales to sale_items if needed
+			// This only runs once - checks if there are sales with old qty columns but no sale_items
+			try {
+				const needsMigration = await sql`
 			SELECT COUNT(*)::int AS c FROM sales s
 			WHERE (s.qty_arco > 0 OR s.qty_melo > 0 OR s.qty_mara > 0 OR s.qty_oreo > 0 OR s.qty_nute > 0)
 			AND NOT EXISTS (SELECT 1 FROM sale_items si WHERE si.sale_id = s.id)
 			LIMIT 1
 		`;
-		if ((needsMigration[0]?.c || 0) > 0) {
-			// Get dessert IDs
-			const dessertMap = {};
-			const desserts = await sql`SELECT id, short_code FROM desserts WHERE short_code IN ('arco', 'melo', 'mara', 'oreo', 'nute')`;
-			for (const d of desserts) {
-				dessertMap[d.short_code] = d.id;
-			}
-			
-			// Only migrate if we have the desserts
-			if (Object.keys(dessertMap).length > 0) {
-				// Migrate all existing sales
-				const salesToMigrate = await sql`
+				if ((needsMigration[0]?.c || 0) > 0) {
+					// Get dessert IDs
+					const dessertMap = {};
+					const desserts = await sql`SELECT id, short_code FROM desserts WHERE short_code IN ('arco', 'melo', 'mara', 'oreo', 'nute')`;
+					for (const d of desserts) {
+						dessertMap[d.short_code] = d.id;
+					}
+
+					// Only migrate if we have the desserts
+					if (Object.keys(dessertMap).length > 0) {
+						// Migrate all existing sales
+						const salesToMigrate = await sql`
 					SELECT id, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute FROM sales
 					WHERE (qty_arco > 0 OR qty_melo > 0 OR qty_mara > 0 OR qty_oreo > 0 OR qty_nute > 0)
 					AND NOT EXISTS (SELECT 1 FROM sale_items si WHERE si.sale_id = sales.id)
 				`;
-				
-				const prices = { arco: 8500, melo: 9500, mara: 10500, oreo: 10500, nute: 13000 };
-				
-				for (const sale of salesToMigrate) {
-					const items = [];
-					if (sale.qty_arco > 0 && dessertMap.arco) {
-						items.push({ dessert_id: dessertMap.arco, quantity: sale.qty_arco, unit_price: prices.arco });
-					}
-					if (sale.qty_melo > 0 && dessertMap.melo) {
-						items.push({ dessert_id: dessertMap.melo, quantity: sale.qty_melo, unit_price: prices.melo });
-					}
-					if (sale.qty_mara > 0 && dessertMap.mara) {
-						items.push({ dessert_id: dessertMap.mara, quantity: sale.qty_mara, unit_price: prices.mara });
-					}
-					if (sale.qty_oreo > 0 && dessertMap.oreo) {
-						items.push({ dessert_id: dessertMap.oreo, quantity: sale.qty_oreo, unit_price: prices.oreo });
-					}
-					if (sale.qty_nute > 0 && dessertMap.nute) {
-						items.push({ dessert_id: dessertMap.nute, quantity: sale.qty_nute, unit_price: prices.nute });
-					}
-					
-					for (const item of items) {
-						await sql`INSERT INTO sale_items (sale_id, dessert_id, quantity, unit_price) 
+
+						const prices = { arco: 8500, melo: 9500, mara: 10500, oreo: 10500, nute: 13000 };
+
+						for (const sale of salesToMigrate) {
+							const items = [];
+							if (sale.qty_arco > 0 && dessertMap.arco) {
+								items.push({ dessert_id: dessertMap.arco, quantity: sale.qty_arco, unit_price: prices.arco });
+							}
+							if (sale.qty_melo > 0 && dessertMap.melo) {
+								items.push({ dessert_id: dessertMap.melo, quantity: sale.qty_melo, unit_price: prices.melo });
+							}
+							if (sale.qty_mara > 0 && dessertMap.mara) {
+								items.push({ dessert_id: dessertMap.mara, quantity: sale.qty_mara, unit_price: prices.mara });
+							}
+							if (sale.qty_oreo > 0 && dessertMap.oreo) {
+								items.push({ dessert_id: dessertMap.oreo, quantity: sale.qty_oreo, unit_price: prices.oreo });
+							}
+							if (sale.qty_nute > 0 && dessertMap.nute) {
+								items.push({ dessert_id: dessertMap.nute, quantity: sale.qty_nute, unit_price: prices.nute });
+							}
+
+							for (const item of items) {
+								await sql`INSERT INTO sale_items (sale_id, dessert_id, quantity, unit_price) 
 							VALUES (${sale.id}, ${item.dessert_id}, ${item.quantity}, ${item.unit_price})`;
+							}
+						}
 					}
 				}
+			} catch (err) {
+				console.error('Error migrating sales to sale_items:', err);
+				// Continue anyway - migration will retry on next cold start
 			}
-		}
-	} catch (err) {
-		console.error('Error migrating sales to sale_items:', err);
-		// Continue anyway - migration will retry on next cold start
-	}
-	
-	// Create critical indexes for performance
-	await sql`CREATE INDEX IF NOT EXISTS idx_sales_seller_day ON sales(seller_id, sale_day_id)`;
-	await sql`CREATE INDEX IF NOT EXISTS idx_sales_created ON sales(created_at DESC)`;
-	await sql`CREATE INDEX IF NOT EXISTS idx_sale_days_seller_day ON sale_days(seller_id, day)`;
-	await sql`CREATE INDEX IF NOT EXISTS idx_sale_days_day ON sale_days(day)`;
-	await sql`CREATE INDEX IF NOT EXISTS idx_sale_items_sale ON sale_items(sale_id)`;
-	await sql`CREATE INDEX IF NOT EXISTS idx_sellers_name ON sellers(lower(name))`;
-	await sql`CREATE INDEX IF NOT EXISTS idx_user_view_permissions_lookup ON user_view_permissions(lower(viewer_username), seller_id)`;
-	await sql`CREATE INDEX IF NOT EXISTS idx_deliveries_day ON deliveries(day DESC)`;
-	await sql`CREATE INDEX IF NOT EXISTS idx_delivery_items_delivery ON delivery_items(delivery_id)`;
-	await sql`CREATE INDEX IF NOT EXISTS idx_delivery_seller_items_delivery ON delivery_seller_items(delivery_id)`;
-	await sql`CREATE INDEX IF NOT EXISTS idx_delivery_seller_items_delivery_seller ON delivery_seller_items(delivery_id, seller_id)`;
-	await sql`CREATE INDEX IF NOT EXISTS idx_delivery_production_users_delivery ON delivery_production_users(delivery_id)`;
-	await sql`CREATE INDEX IF NOT EXISTS idx_delivery_production_users_user ON delivery_production_users(user_id)`;
-	
-	// Note: recipe_production_users table is now created earlier (before version check)
-	// But ensure recipe_session_id column exists if table was created before
-	await sql`DO $$ BEGIN
+
+			// Create critical indexes for performance
+			await sql`CREATE INDEX IF NOT EXISTS idx_sales_seller_day ON sales(seller_id, sale_day_id)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_sales_created ON sales(created_at DESC)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_sale_days_seller_day ON sale_days(seller_id, day)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_sale_days_day ON sale_days(day)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_sale_items_sale ON sale_items(sale_id)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_sellers_name ON sellers(lower(name))`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_user_view_permissions_lookup ON user_view_permissions(lower(viewer_username), seller_id)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_deliveries_day ON deliveries(day DESC)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_delivery_items_delivery ON delivery_items(delivery_id)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_delivery_seller_items_delivery ON delivery_seller_items(delivery_id)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_delivery_seller_items_delivery_seller ON delivery_seller_items(delivery_id, seller_id)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_delivery_production_users_delivery ON delivery_production_users(delivery_id)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_delivery_production_users_user ON delivery_production_users(user_id)`;
+
+			// Note: recipe_production_users table is now created earlier (before version check)
+			// But ensure recipe_session_id column exists if table was created before
+			await sql`DO $$ BEGIN
 		IF NOT EXISTS (
 			SELECT 1 FROM information_schema.columns
 			WHERE table_name = 'recipe_production_users' AND column_name = 'recipe_session_id'
@@ -785,7 +785,21 @@ END $$;`;
 			CREATE INDEX IF NOT EXISTS idx_recipe_production_users_session ON recipe_production_users(recipe_session_id);
 		END IF;
 	END $$;`;
-	
+
+			// Game plays: customer game tracking
+			await sql`CREATE TABLE IF NOT EXISTS game_plays (
+		id SERIAL PRIMARY KEY,
+		customer_name VARCHAR(255) NOT NULL,
+		whatsapp VARCHAR(20) NOT NULL UNIQUE,
+		seller_name VARCHAR(100) NOT NULL,
+		prize_type VARCHAR(50) NOT NULL,
+		prize_value VARCHAR(20) NOT NULL,
+		played_at TIMESTAMPTZ DEFAULT now(),
+		ip_address VARCHAR(45)
+	)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_game_plays_whatsapp ON game_plays(whatsapp)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_game_plays_played_at ON game_plays(played_at DESC)`;
+
 			// 4) Persist target schema version so future requests short-circuit
 			await sql`UPDATE schema_meta SET version=${SCHEMA_VERSION}, updated_at=now()`;
 			schemaEnsured = true;
@@ -797,7 +811,7 @@ END $$;`;
 			schemaCheckPromise = null; // Reset for potential retries
 		}
 	})();
-	
+
 	return schemaCheckPromise;
 }
 
@@ -822,20 +836,20 @@ export async function recalcTotalForId(id) {
 	const items = await sql`
 		SELECT id FROM sale_items WHERE sale_id = ${id} LIMIT 1
 	`;
-	
+
 	let row;
 	if (items && items.length > 0) {
 		// Sale uses items format - but need to check for special pricing
 		const [sale] = await sql`SELECT special_pricing_type FROM sales WHERE id = ${id}`;
 		const specialPricing = sale ? sale.special_pricing_type : null;
-		
+
 		let priceMultiplier = 1;
 		if (specialPricing === 'muestra') {
 			priceMultiplier = 0;
 		} else if (specialPricing === 'a_costo') {
 			priceMultiplier = 0.55;
 		}
-		
+
 		// If special pricing, update unit_price in items to match
 		if (specialPricing) {
 			const desserts = await getDesserts();
@@ -843,7 +857,7 @@ export async function recalcTotalForId(id) {
 			for (const d of desserts) {
 				dessertPrices[d.id] = Math.round(d.sale_price * priceMultiplier);
 			}
-			
+
 			// Update each item's unit_price
 			const allItems = await sql`SELECT id, dessert_id FROM sale_items WHERE sale_id = ${id}`;
 			for (const item of allItems) {
@@ -851,18 +865,18 @@ export async function recalcTotalForId(id) {
 				await sql`UPDATE sale_items SET unit_price = ${newPrice} WHERE id = ${item.id}`;
 			}
 		}
-		
+
 		// Now calculate total from updated items
 		const itemsTotal = await sql`
 			SELECT COALESCE(SUM(quantity * unit_price), 0)::int AS total
 			FROM sale_items
 			WHERE sale_id = ${id}
 		`;
-		
+
 		const total = (itemsTotal && itemsTotal[0]) ? itemsTotal[0].total : 0;
-		
+
 		console.log(`🔄 recalcTotalForId(${id}): Using items format, special_pricing=${specialPricing}, calculated total=${total}`);
-		
+
 		[row] = await sql`
 			UPDATE sales SET total_cents = ${total}
 			WHERE id = ${id}
@@ -875,21 +889,21 @@ export async function recalcTotalForId(id) {
 		if (!sale) {
 			throw new Error(`Sale ${id} not found`);
 		}
-		
+
 		const specialPricing = sale.special_pricing_type || null;
-		
+
 		console.log(`🔄 recalcTotalForId(${id}): Using old format, special_pricing_type=${specialPricing}`);
-		
+
 		let priceMultiplier = 1;
 		if (specialPricing === 'muestra') {
 			priceMultiplier = 0; // Free samples
 		} else if (specialPricing === 'a_costo') {
 			priceMultiplier = 0.55; // 45% discount (55% of original price)
 		}
-		
+
 		// Get all desserts dynamically
 		const desserts = await getDesserts();
-		
+
 		// Calculate total dynamically for all desserts
 		let total = 0;
 		for (const d of desserts) {
@@ -900,16 +914,16 @@ export async function recalcTotalForId(id) {
 				total += qty * adjustedPrice;
 			}
 		}
-		
+
 		console.log(`🔄 recalcTotalForId(${id}): Calculated total=${total} with multiplier=${priceMultiplier}`);
-		
+
 		[row] = await sql`
 			UPDATE sales SET total_cents = ${total}
 			WHERE id = ${id}
 			RETURNING *
 		`;
 	}
-	
+
 	// Load sale_items to include in response
 	try {
 		const items = await sql`
@@ -923,7 +937,7 @@ export async function recalcTotalForId(id) {
 	} catch (err) {
 		row.items = [];
 	}
-	
+
 	return row;
 }
 
@@ -936,17 +950,17 @@ export async function getOrCreateDayId(sellerId, day) {
 }
 
 export async function notify({ type, sellerId = null, saleId = null, saleDayId = null, message = '', actorName = '', iconUrl = null, payMethod = null }) {
-    await ensureSchema();
-    // Suppress all notifications generated by superadmin actions
-    try {
-        const actor = (actorName || '').toString().trim();
-        if (actor) {
-            const r = await sql`SELECT role FROM users WHERE lower(username)=lower(${actor}) LIMIT 1`;
-            const role = (r && r[0] && r[0].role) ? String(r[0].role) : 'user';
-            if (role === 'superadmin') return; // Do not create notification for superadmin actions
-        }
-    } catch {}
-    await sql`INSERT INTO notifications (type, seller_id, sale_id, sale_day_id, message, actor_name, icon_url, pay_method) VALUES (${type}, ${sellerId}, ${saleId}, ${saleDayId}, ${message}, ${actorName}, ${iconUrl}, ${payMethod})`;
+	await ensureSchema();
+	// Suppress all notifications generated by superadmin actions
+	try {
+		const actor = (actorName || '').toString().trim();
+		if (actor) {
+			const r = await sql`SELECT role FROM users WHERE lower(username)=lower(${actor}) LIMIT 1`;
+			const role = (r && r[0] && r[0].role) ? String(r[0].role) : 'user';
+			if (role === 'superadmin') return; // Do not create notification for superadmin actions
+		}
+	} catch { }
+	await sql`INSERT INTO notifications (type, seller_id, sale_id, sale_day_id, message, actor_name, icon_url, pay_method) VALUES (${type}, ${sellerId}, ${saleId}, ${saleDayId}, ${message}, ${actorName}, ${iconUrl}, ${payMethod})`;
 }
 
 export function canonicalizeIngredientName(name) {
