@@ -191,6 +191,20 @@ export async function ensureSchema() {
 			await sql`CREATE INDEX IF NOT EXISTS idx_delivery_production_users_dessert ON delivery_production_users(dessert_id)`;
 			await sql`CREATE INDEX IF NOT EXISTS idx_delivery_production_users_user ON delivery_production_users(user_id)`;
 
+			// CRITICAL: Game plays table (customer game tracking)
+			await sql`CREATE TABLE IF NOT EXISTS game_plays (
+				id SERIAL PRIMARY KEY,
+				customer_name VARCHAR(255) NOT NULL,
+				whatsapp VARCHAR(20) NOT NULL UNIQUE,
+				seller_name VARCHAR(100) NOT NULL,
+				prize_type VARCHAR(50) NOT NULL,
+				prize_value VARCHAR(20) NOT NULL,
+				played_at TIMESTAMPTZ DEFAULT now(),
+				ip_address VARCHAR(45)
+			)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_game_plays_whatsapp ON game_plays(whatsapp)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_game_plays_played_at ON game_plays(played_at DESC)`;
+
 			if (currentVersion >= SCHEMA_VERSION) { schemaEnsured = true; return; }
 			// Basic users table for authentication
 			await sql`CREATE TABLE IF NOT EXISTS users (
@@ -785,20 +799,6 @@ END $$;`;
 			CREATE INDEX IF NOT EXISTS idx_recipe_production_users_session ON recipe_production_users(recipe_session_id);
 		END IF;
 	END $$;`;
-
-			// Game plays: customer game tracking
-			await sql`CREATE TABLE IF NOT EXISTS game_plays (
-		id SERIAL PRIMARY KEY,
-		customer_name VARCHAR(255) NOT NULL,
-		whatsapp VARCHAR(20) NOT NULL UNIQUE,
-		seller_name VARCHAR(100) NOT NULL,
-		prize_type VARCHAR(50) NOT NULL,
-		prize_value VARCHAR(20) NOT NULL,
-		played_at TIMESTAMPTZ DEFAULT now(),
-		ip_address VARCHAR(45)
-	)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_game_plays_whatsapp ON game_plays(whatsapp)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_game_plays_played_at ON game_plays(played_at DESC)`;
 
 			// 4) Persist target schema version so future requests short-circuit
 			await sql`UPDATE schema_meta SET version=${SCHEMA_VERSION}, updated_at=now()`;
