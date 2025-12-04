@@ -6,7 +6,12 @@ function json(body, status = 200) {
 
 export async function handler(event) {
     try {
+        console.log('game-register: Starting handler');
+
+        // Ensure schema
+        console.log('game-register: Calling ensureSchema');
         await ensureSchema();
+        console.log('game-register: Schema ensured successfully');
 
         if (event.httpMethod === 'OPTIONS') return json({ ok: true });
 
@@ -14,10 +19,13 @@ export async function handler(event) {
             return json({ error: 'Método no permitido' }, 405);
         }
 
+        console.log('game-register: Parsing request body');
         const data = JSON.parse(event.body || '{}');
         const name = (data.name || '').trim();
         const whatsapp = (data.whatsapp || '').trim();
         const seller = (data.seller || '').trim();
+
+        console.log('game-register: Validating input', { name, whatsapp, seller });
 
         // Validate input
         if (!name || name.length < 3) {
@@ -33,12 +41,14 @@ export async function handler(event) {
         }
 
         // Check if WhatsApp has already played
+        console.log('game-register: Checking if user has already played');
         const existing = await sql`
 			SELECT id, customer_name, prize_type, prize_value, played_at
 			FROM game_plays
 			WHERE whatsapp = ${whatsapp}
 			LIMIT 1
 		`;
+        console.log('game-register: Query completed', { found: existing.length });
 
         if (existing.length > 0) {
             return json({
@@ -49,6 +59,7 @@ export async function handler(event) {
         }
 
         // Registration successful - customer can proceed to play
+        console.log('game-register: Registration successful');
         return json({
             ok: true,
             canPlay: true,
@@ -56,7 +67,13 @@ export async function handler(event) {
         });
 
     } catch (err) {
-        console.error('Error in game-register:', err);
-        return json({ error: String(err) }, 500);
+        console.error('game-register ERROR:', err);
+        console.error('game-register ERROR stack:', err.stack);
+        console.error('game-register ERROR message:', err.message);
+        return json({
+            error: String(err),
+            message: err.message,
+            stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+        }, 500);
     }
 }
