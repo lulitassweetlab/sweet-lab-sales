@@ -312,27 +312,32 @@
 		}
 
 		.btn-spin {
-			padding: 18px 48px;
+			position: absolute;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%);
+			padding: 16px 40px;
 			background: linear-gradient(135deg, #f4a6b7 0%, #e27a90 100%);
 			color: white;
 			border: none;
 			border-radius: 50px;
-			font-size: 20px;
+			font-size: 18px;
 			font-weight: 700;
 			cursor: pointer;
 			transition: all 0.3s ease;
 			box-shadow: 0 6px 24px rgba(244, 166, 183, 0.4);
 			text-transform: uppercase;
 			letter-spacing: 2px;
+			z-index: 10;
 		}
 
-		.btn-spin:hover {
-			transform: translateY(-3px) scale(1.05);
+		.btn-spin:hover:not(:disabled) {
+			transform: translate(-50%, -50%) scale(1.05);
 			box-shadow: 0 8px 32px rgba(244, 166, 183, 0.6);
 		}
 
-		.btn-spin:active {
-			transform: translateY(0) scale(1);
+		.btn-spin:active:not(:disabled) {
+			transform: translate(-50%, -50%) scale(0.95);
 		}
 
 		.btn-spin:disabled {
@@ -532,10 +537,9 @@
 				<div class="wheel-pointer"></div>
 				<div class="wheel-wrapper">
 					<canvas id="wheel-canvas" class="wheel" width="400" height="400"></canvas>
-					<div class="wheel-center">Sweet Lab</div>
 				</div>
+				<button class="btn-spin" id="spin-btn">¡GIRAR!</button>
 			</div>
-			<button class="btn-spin" id="spin-btn">¡GIRAR!</button>
 		</div>
 
 		<!-- Prize Section -->
@@ -564,7 +568,7 @@
 
 		// Prize configuration with probabilities (for backend)
 		const prizes = [
-			{ type: 'free', label: 'POSTRE GRATIS', value: '🎂', probability: 5, color: '#f9a8d4' },
+			{ type: 'free', label: 'POSTRE GRATIS', value: '🎂', probability: 5, color: '#ff6b9d' },
 			{ type: 'discount', label: '70% DESC', value: '70%', probability: 2, color: '#f43f5e' },
 			{ type: 'discount', label: '50% DESC', value: '50%', probability: 5, color: '#ec4899' },
 			{ type: 'discount', label: '30% DESC', value: '30%', probability: 10, color: '#f472b6' },
@@ -576,18 +580,18 @@
 			{ type: 'discount', label: '0% DESC', value: '0%', probability: 38, color: '#fce7f3' }
 		];
 
-		// Wheel segments - exactly 10 with specific percentages (all pink tones)
+		// Wheel segments - exactly 10 with shuffled order (all pink tones)
 		const wheelSegments = [
-			{ type: 'discount', label: '0% DESC', value: '0%', color: '#fef3f7' },      // Lightest pink
-			{ type: 'discount', label: '5% DESC', value: '5%', color: '#fce7f3' },      // Very light pink
-			{ type: 'discount', label: '10% DESC', value: '10%', color: '#fbcfe8' },    // Light pink
-			{ type: 'discount', label: '15% DESC', value: '15%', color: '#f9a8d4' },    // Soft pink
 			{ type: 'discount', label: '20% DESC', value: '20%', color: '#f472b6' },    // Medium pink
-			{ type: 'discount', label: '25% DESC', value: '25%', color: '#ec4899' },    // Bright pink
-			{ type: 'discount', label: '30% DESC', value: '30%', color: '#db2777' },    // Strong pink
+			{ type: 'discount', label: '5% DESC', value: '5%', color: '#fce7f3' },      // Very light pink
 			{ type: 'discount', label: '50% DESC', value: '50%', color: '#be185d' },    // Deep pink
+			{ type: 'discount', label: '0% DESC', value: '0%', color: '#fef3f7' },      // Lightest pink
+			{ type: 'discount', label: '30% DESC', value: '30%', color: '#db2777' },    // Strong pink
+			{ type: 'discount', label: '10% DESC', value: '10%', color: '#fbcfe8' },    // Light pink
+			{ type: 'free', label: 'POSTRE GRATIS', value: '🎂', color: '#ff6b9d' },     // Orange-pink for emphasis
+			{ type: 'discount', label: '15% DESC', value: '15%', color: '#f9a8d4' },    // Soft pink
 			{ type: 'discount', label: '70% DESC', value: '70%', color: '#9f1239' },    // Very deep pink
-			{ type: 'free', label: 'POSTRE GRATIS', value: '🎂', color: '#fbbf24' }     // Gold for emphasis
+			{ type: 'discount', label: '25% DESC', value: '25%', color: '#ec4899' }     // Bright pink
 		];
 
 		// Initialize
@@ -776,11 +780,12 @@
 				// Find the prize index
 				const prizeIndex = wheelSegments.findIndex(s => s.label === data.prize.label);
 
-				// Calculate rotation
+				// Calculate rotation to land exactly in the CENTER of the winning segment
 				const segmentAngle = 360 / wheelSegments.length;
 				const targetAngle = prizeIndex * segmentAngle;
 				const spins = 5; // Number of full rotations
-				const finalRotation = (spins * 360) + (360 - targetAngle) + (segmentAngle / 2);
+				// Point to the CENTER of the segment (no offset needed since pointer is at top)
+				const finalRotation = (spins * 360) + (360 - targetAngle);
 
 				// Spin the wheel
 				const wheel = document.getElementById('wheel-canvas');
