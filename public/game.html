@@ -405,27 +405,6 @@
 			margin-bottom: 30px;
 		}
 
-		.btn-share {
-			padding: 14px 32px;
-			background: #25D366;
-			color: white;
-			border: none;
-			border-radius: 12px;
-			font-size: 16px;
-			font-weight: 600;
-			cursor: pointer;
-			transition: all 0.3s ease;
-			box-shadow: 0 4px 16px rgba(37, 211, 102, 0.3);
-			display: inline-flex;
-			align-items: center;
-			gap: 8px;
-		}
-
-		.btn-share:hover {
-			transform: translateY(-2px);
-			box-shadow: 0 6px 24px rgba(37, 211, 102, 0.5);
-		}
-
 		/* Confetti */
 		.confetti-container {
 			position: fixed;
@@ -567,9 +546,6 @@
 			<p class="prize-message" id="prize-message">
 				Has ganado un descuento increíble. Muestra este resultado a tu vendedor para aplicarlo.
 			</p>
-			<button class="btn-share" id="share-btn">
-				<span>📱</span> Compartir en WhatsApp
-			</button>
 		</div>
 	</div>
 
@@ -592,23 +568,26 @@
 			{ type: 'discount', label: '70% DESC', value: '70%', probability: 2, color: '#f43f5e' },
 			{ type: 'discount', label: '50% DESC', value: '50%', probability: 5, color: '#ec4899' },
 			{ type: 'discount', label: '30% DESC', value: '30%', probability: 10, color: '#f472b6' },
+			{ type: 'discount', label: '25% DESC', value: '25%', probability: 10, color: '#f472b6' },
 			{ type: 'discount', label: '20% DESC', value: '20%', probability: 15, color: '#f9a8d4' },
+			{ type: 'discount', label: '15% DESC', value: '15%', probability: 15, color: '#f9a8d4' },
 			{ type: 'discount', label: '10% DESC', value: '10%', probability: 25, color: '#fbcfe8' },
-			{ type: 'discount', label: '5% DESC', value: '5%', probability: 38, color: '#fce7f3' }
+			{ type: 'discount', label: '5% DESC', value: '5%', probability: 38, color: '#fce7f3' },
+			{ type: 'discount', label: '0% DESC', value: '0%', probability: 38, color: '#fce7f3' }
 		];
 
-		// Wheel segments - exactly 10 for visual simplicity (all pink tones)
+		// Wheel segments - exactly 10 with specific percentages (all pink tones)
 		const wheelSegments = [
-			{ type: 'discount', label: '5% DESC', value: '5%', color: '#fce7f3' },
-			{ type: 'discount', label: '10% DESC', value: '10%', color: '#fbcfe8' },
-			{ type: 'discount', label: '20% DESC', value: '20%', color: '#f9a8d4' },
-			{ type: 'discount', label: '5% DESC', value: '5%', color: '#fce7f3' },
-			{ type: 'discount', label: '30% DESC', value: '30%', color: '#f472b6' },
-			{ type: 'discount', label: '10% DESC', value: '10%', color: '#fbcfe8' },
-			{ type: 'discount', label: '50% DESC', value: '50%', color: '#ec4899' },
-			{ type: 'discount', label: '5% DESC', value: '5%', color: '#fce7f3' },
-			{ type: 'discount', label: '70% DESC', value: '70%', color: '#f43f5e' },
-			{ type: 'free', label: 'POSTRE GRATIS', value: '🎂', color: '#f9a8d4' }
+			{ type: 'discount', label: '0% DESC', value: '0%', color: '#fef3f7' },      // Lightest pink
+			{ type: 'discount', label: '5% DESC', value: '5%', color: '#fce7f3' },      // Very light pink
+			{ type: 'discount', label: '10% DESC', value: '10%', color: '#fbcfe8' },    // Light pink
+			{ type: 'discount', label: '15% DESC', value: '15%', color: '#f9a8d4' },    // Soft pink
+			{ type: 'discount', label: '20% DESC', value: '20%', color: '#f472b6' },    // Medium pink
+			{ type: 'discount', label: '25% DESC', value: '25%', color: '#ec4899' },    // Bright pink
+			{ type: 'discount', label: '30% DESC', value: '30%', color: '#db2777' },    // Strong pink
+			{ type: 'discount', label: '50% DESC', value: '50%', color: '#be185d' },    // Deep pink
+			{ type: 'discount', label: '70% DESC', value: '70%', color: '#9f1239' },    // Very deep pink
+			{ type: 'free', label: 'POSTRE GRATIS', value: '🎂', color: '#fbbf24' }     // Gold for emphasis
 		];
 
 		// Initialize
