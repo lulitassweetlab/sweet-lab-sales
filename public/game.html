@@ -793,14 +793,23 @@
 				gameState.prize = data.prize;
 				gameState.hasPlayed = true;
 
+				// DEBUG: Log what we received from backend
+				console.log('Backend prize:', data.prize);
+				console.log('Wheel segments:', wheelSegments);
+
 				// Find the prize index - CRITICAL FIX: buscar por label Y value para match exacto
 				const prizeIndex = wheelSegments.findIndex(s =>
 					s.label === data.prize.label && s.value === data.prize.value
 				);
 
+				console.log('First search (label + value):', prizeIndex);
+
 				// Si no se encuentra, buscar solo por label (fallback)
 				const finalPrizeIndex = prizeIndex >= 0 ? prizeIndex :
 					wheelSegments.findIndex(s => s.label === data.prize.label);
+
+				console.log('Final prize index:', finalPrizeIndex);
+				console.log('Matched segment:', wheelSegments[finalPrizeIndex]);
 
 				if (finalPrizeIndex === -1) {
 					console.error('Prize not found in wheel segments:', data.prize);
