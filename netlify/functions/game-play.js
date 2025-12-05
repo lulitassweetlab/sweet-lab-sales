@@ -4,15 +4,18 @@ function json(body, status = 200) {
     return { statusCode: status, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
 }
 
-// Prize configuration with probabilities
+// Prize configuration with probabilities - MUST MATCH frontend exactly
 const prizes = [
-    { type: 'free', label: 'POSTRE GRATIS', value: '🎂', probability: 5, color: '#fbbf24' },
+    { type: 'free', label: 'POSTRE GRATIS', value: '🎂', probability: 5, color: '#ff6b9d' },
     { type: 'discount', label: '70% DESC', value: '70%', probability: 2, color: '#f43f5e' },
     { type: 'discount', label: '50% DESC', value: '50%', probability: 5, color: '#ec4899' },
     { type: 'discount', label: '30% DESC', value: '30%', probability: 10, color: '#f472b6' },
+    { type: 'discount', label: '25% DESC', value: '25%', probability: 10, color: '#f472b6' },
     { type: 'discount', label: '20% DESC', value: '20%', probability: 15, color: '#f9a8d4' },
-    { type: 'discount', label: '10% DESC', value: '10%', probability: 25, color: '#fbcfe8' },
-    { type: 'discount', label: '5% DESC', value: '5%', probability: 38, color: '#fce7f3' }
+    { type: 'discount', label: '15% DESC', value: '15%', probability: 15, color: '#f9a8d4' },
+    { type: 'discount', label: '10% DESC', value: '10%', probability: 20, color: '#fbcfe8' },
+    { type: 'discount', label: '5% DESC', value: '5%', probability: 13, color: '#fce7f3' },
+    { type: 'discount', label: '0% DESC', value: '0%', probability: 5, color: '#fce7f3' }
 ];
 
 // Generate weighted random prize
