@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -10,6 +11,7 @@
 	<link rel="stylesheet" href="/styles.css?v=2025-09-17-1" />
 	<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
+
 <body>
 	<header class="app-header">
 		<div class="header-row">
@@ -19,11 +21,16 @@
 			</div>
 			<div class="header-actions">
 				<div id="client-search-container" class="client-search-container">
-					<button id="client-search-toggle" class="press-btn client-search-toggle" title="Buscar cliente" aria-label="Buscar cliente"></button>
-					<input id="client-search-input" type="text" class="client-search-input" placeholder="Buscar cliente..." autocomplete="off" style="display:none" />
+					<button id="client-search-toggle" class="press-btn client-search-toggle" title="Buscar cliente"
+						aria-label="Buscar cliente"></button>
+					<input id="client-search-input" type="text" class="client-search-input"
+						placeholder="Buscar cliente..." autocomplete="off" style="display:none" />
 				</div>
-				<button id="notification-center-btn" class="press-btn notification-center-btn" title="Centro de notificaciones" aria-label="Centro de notificaciones" style="display:none"><span class="bell-icon">🔔</span></button>
-				<button id="theme-toggle" class="press-btn theme-toggle" title="Modo oscuro" aria-label="Cambiar tema"></button>
+				<button id="notification-center-btn" class="press-btn notification-center-btn"
+					title="Centro de notificaciones" aria-label="Centro de notificaciones" style="display:none"><span
+						class="bell-icon">🔔</span></button>
+				<button id="theme-toggle" class="press-btn theme-toggle" title="Modo oscuro"
+					aria-label="Cambiar tema"></button>
 				<button id="logout-btn" class="press-btn" title="Cerrar sesión" style="display:none">Salir</button>
 			</div>
 		</div>
@@ -32,7 +39,9 @@
 	<main id="app">
 		<section id="view-login" class="view">
 			<div class="sellers-panel">
-				<div class="panel-header"><h3>Iniciar sesión</h3></div>
+				<div class="panel-header">
+					<h3>Iniciar sesión</h3>
+				</div>
 				<div class="panel-body">
 					<div class="login-form">
 						<input id="login-user" type="text" placeholder="Usuario" class="input-cell" />
@@ -66,13 +75,14 @@
 						<button id="report-button" class="press-btn report-btn btn-primary">Ventas</button>
 						<button id="transfers-button" class="press-btn report-btn">Transferencias</button>
 						<button id="cartera-button" class="press-btn report-btn">Cartera</button>
-					<button id="projections-button" class="press-btn report-btn">Proyecciones</button>
+						<button id="projections-button" class="press-btn report-btn">Proyecciones</button>
 						<button id="materials-button" class="press-btn report-btn">Materiales</button>
 						<button id="inventory-button" class="press-btn report-btn">Inventario</button>
 						<button id="desserts-button" class="press-btn report-btn">Postres</button>
 						<button id="users-button" class="press-btn report-btn">Usuarios</button>
 						<button id="accounting-button" class="press-btn report-btn">Contabilidad</button>
 						<button id="deliveries-button" class="press-btn report-btn">Entregas</button>
+						<button id="games-button" class="press-btn report-btn">Games</button>
 					</div>
 				</div>
 				<input id="report-date" type="date" class="hidden" />
@@ -87,7 +97,7 @@
 					<div class="sales-loading-text" id="sales-loading-text">Cargando ventas...</div>
 				</div>
 			</div>
-			
+
 			<div class="header-sticky">
 				<div class="toolbar">
 					<div class="toolbar-left">
@@ -96,7 +106,8 @@
 					</div>
 					<h2 id="current-seller"></h2>
 					<div class="toolbar-actions">
-						<button id="undo-btn" class="secondary press-btn" title="Deshacer" aria-label="Deshacer"></button>
+						<button id="undo-btn" class="secondary press-btn" title="Deshacer"
+							aria-label="Deshacer"></button>
 						<button id="redo-btn" class="secondary press-btn" title="Rehacer" aria-label="Rehacer"></button>
 						<button id="date-new" class="press-btn btn-primary">+ Nueva Fecha</button>
 					</div>
@@ -104,7 +115,9 @@
 			</div>
 
 			<div id="dates-section" class="dates-section">
-				<div class="clients-actions"><button id="clients-button" class="press-btn">Clientes</button><button id="archive-button" class="press-btn" title="Ver archivo" aria-label="Ver archivo">Archivo</button></div>
+				<div class="clients-actions"><button id="clients-button" class="press-btn">Clientes</button><button
+						id="archive-button" class="press-btn" title="Ver archivo"
+						aria-label="Ver archivo">Archivo</button></div>
 				<div class="dates-list" id="dates-list"></div>
 				<input id="new-date" type="date" class="hidden" />
 			</div>
@@ -119,86 +132,88 @@
 				</div>
 				<div class="panel-body">
 					<div class="table-wrapper hidden" id="sales-wrapper">
-				<table id="sales-table">
-					<caption id="sales-caption"><strong></strong></caption>
-					<colgroup id="sales-table-colgroup">
-						<col class="w-paid" />
-						<col class="w-client" />
-						<!-- Dessert cols will be inserted dynamically here -->
-						<col class="w-total" />
-						<col class="w-actions" />
-					</colgroup>
-					<thead>
-						<tr id="sales-table-header">
-							<th class="col-paid">$</th>
-							<th class="col-client">Cliente</th>
-							<!-- Dessert columns will be inserted dynamically here -->
-							<th class="col-total">Total</th>
-							<th class="col-actions"></th>
-						</tr>
-					</thead>
-					<tbody id="sales-tbody"></tbody>
-					<tfoot id="sales-table-footer">
-						<tr class="tfoot-qty" id="footer-qty-row">
-							<td class="col-paid"></td>
-							<td class="col-client label">Totales</td>
-							<!-- Dessert qty columns will be inserted dynamically here -->
-							<td class="col-total"><span id="sum-total-qty"> </span></td>
-							<td class="col-actions"></td>
-						</tr>
-						<tr class="tfoot-amt" id="footer-amt-row">
-							<td class="col-paid"></td>
-							<td class="col-client label"></td>
-							<!-- Dessert amt columns will be inserted dynamically here -->
-							<td class="col-total"><span id="sum-grand">0</span></td>
-							<td class="col-actions"></td>
-						</tr>
-					<tr class="tfoot-amt-stack t-am-grand">
-						<td class="col-paid"></td>
-						<td class="col-client" colspan="7"></td>
-						<td class="col-total"><span class="st-amt st-grand" id="sum-grand-2"></span></td>
-						<td class="col-actions"></td>
-					</tr>
-					<tr class="tfoot-delivered" id="footer-delivered-row">
-						<td class="col-paid"></td>
-						<td class="col-client label">Postres entregados</td>
-						<!-- Dessert delivered columns will be inserted dynamically here -->
-						<td class="col-total"><span id="deliv-total">0</span></td>
-						<td class="col-actions"></td>
-					</tr>
-				<tr class="tfoot-comm" id="footer-comm-row">
-					<td class="col-paid"></td>
-					<td class="col-client label">Comisiones generadas x 1000</td>
-					<!-- Dessert comm columns will be inserted dynamically here -->
-					<td class="col-total"><span id="sum-comm">0</span></td>
-					<td class="col-actions"></td>
-				</tr>
-				<tr class="tfoot-comm-stack" id="footer-comm-row-2">
-					<td class="col-paid"></td>
-					<td class="col-client" colspan="10"><span class="st-label">Comisiones generadas x 1000</span></td>
-					<td class="col-total"><span class="st-amt" id="sum-comm-2">0</span></td>
-					<td class="col-actions"></td>
-				</tr>
-				<tr class="tfoot-comm-paid" id="footer-comm-paid-row">
-					<td class="col-paid"></td>
-					<td class="col-client label">Comisiones pagadas</td>
-					<!-- Dessert comm paid columns will be inserted dynamically here -->
-					<td class="col-total"><span id="comm-paid-total">0</span></td>
-					<td class="col-actions"></td>
-				</tr>
-				<tr class="tfoot-comm-paid-stack" id="footer-comm-paid-row-2">
-					<td class="col-paid"></td>
-					<td class="col-client" colspan="10"><span class="st-label">Comisiones pagadas</span></td>
-					<td class="col-total"><span class="st-amt" id="comm-paid-total-2">0</span></td>
-					<td class="col-actions"></td>
-				</tr>
-				<!-- Stacked rows will be inserted dynamically here -->
-					</tfoot>
-				</table>
-				<div class="table-actions end">
-					
-				</div>
-			</div>
+						<table id="sales-table">
+							<caption id="sales-caption"><strong></strong></caption>
+							<colgroup id="sales-table-colgroup">
+								<col class="w-paid" />
+								<col class="w-client" />
+								<!-- Dessert cols will be inserted dynamically here -->
+								<col class="w-total" />
+								<col class="w-actions" />
+							</colgroup>
+							<thead>
+								<tr id="sales-table-header">
+									<th class="col-paid">$</th>
+									<th class="col-client">Cliente</th>
+									<!-- Dessert columns will be inserted dynamically here -->
+									<th class="col-total">Total</th>
+									<th class="col-actions"></th>
+								</tr>
+							</thead>
+							<tbody id="sales-tbody"></tbody>
+							<tfoot id="sales-table-footer">
+								<tr class="tfoot-qty" id="footer-qty-row">
+									<td class="col-paid"></td>
+									<td class="col-client label">Totales</td>
+									<!-- Dessert qty columns will be inserted dynamically here -->
+									<td class="col-total"><span id="sum-total-qty"> </span></td>
+									<td class="col-actions"></td>
+								</tr>
+								<tr class="tfoot-amt" id="footer-amt-row">
+									<td class="col-paid"></td>
+									<td class="col-client label"></td>
+									<!-- Dessert amt columns will be inserted dynamically here -->
+									<td class="col-total"><span id="sum-grand">0</span></td>
+									<td class="col-actions"></td>
+								</tr>
+								<tr class="tfoot-amt-stack t-am-grand">
+									<td class="col-paid"></td>
+									<td class="col-client" colspan="7"></td>
+									<td class="col-total"><span class="st-amt st-grand" id="sum-grand-2"></span></td>
+									<td class="col-actions"></td>
+								</tr>
+								<tr class="tfoot-delivered" id="footer-delivered-row">
+									<td class="col-paid"></td>
+									<td class="col-client label">Postres entregados</td>
+									<!-- Dessert delivered columns will be inserted dynamically here -->
+									<td class="col-total"><span id="deliv-total">0</span></td>
+									<td class="col-actions"></td>
+								</tr>
+								<tr class="tfoot-comm" id="footer-comm-row">
+									<td class="col-paid"></td>
+									<td class="col-client label">Comisiones generadas x 1000</td>
+									<!-- Dessert comm columns will be inserted dynamically here -->
+									<td class="col-total"><span id="sum-comm">0</span></td>
+									<td class="col-actions"></td>
+								</tr>
+								<tr class="tfoot-comm-stack" id="footer-comm-row-2">
+									<td class="col-paid"></td>
+									<td class="col-client" colspan="10"><span class="st-label">Comisiones generadas x
+											1000</span></td>
+									<td class="col-total"><span class="st-amt" id="sum-comm-2">0</span></td>
+									<td class="col-actions"></td>
+								</tr>
+								<tr class="tfoot-comm-paid" id="footer-comm-paid-row">
+									<td class="col-paid"></td>
+									<td class="col-client label">Comisiones pagadas</td>
+									<!-- Dessert comm paid columns will be inserted dynamically here -->
+									<td class="col-total"><span id="comm-paid-total">0</span></td>
+									<td class="col-actions"></td>
+								</tr>
+								<tr class="tfoot-comm-paid-stack" id="footer-comm-paid-row-2">
+									<td class="col-paid"></td>
+									<td class="col-client" colspan="10"><span class="st-label">Comisiones pagadas</span>
+									</td>
+									<td class="col-total"><span class="st-amt" id="comm-paid-total-2">0</span></td>
+									<td class="col-actions"></td>
+								</tr>
+								<!-- Stacked rows will be inserted dynamically here -->
+							</tfoot>
+						</table>
+						<div class="table-actions end">
+
+						</div>
+					</div>
 		</section>
 
 		<section id="view-ingredients" class="view hidden">
@@ -440,4 +455,5 @@
 
 	<script src="/app.js?v=2025-11-04-1" type="module"></script>
 </body>
+
 </html>

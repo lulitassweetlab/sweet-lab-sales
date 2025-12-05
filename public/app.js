@@ -11,10 +11,10 @@ async function openClientDetailView(clientName) {
 async function openGlobalClientDetailView(clientName) {
 	const name = String(clientName || '').trim();
 	if (!name) return;
-	
+
 	state._clientDetailName = name;
 	state._clientDetailFrom = 'global-search';
-	
+
 	await loadGlobalClientDetailRows(name);
 	switchView('#view-client-detail');
 }
@@ -23,40 +23,40 @@ async function openGlobalClientDetailView(clientName) {
 async function loadGlobalClientDetailRows(clientName) {
 	const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 	const isAdmin = !!state.currentUser?.isAdmin;
-	
+
 	const allRows = [];
 	let sellersToSearch = [];
-	
+
 	if (isSuper || isAdmin) {
 		// Admin/SuperAdmin: search in all sellers
 		sellersToSearch = state.sellers || [];
 	} else {
 		// Regular user: search only in their own seller
-		sellersToSearch = (state.sellers || []).filter(s => 
+		sellersToSearch = (state.sellers || []).filter(s =>
 			String(s.name).toLowerCase() === String(state.currentUser.name || '').toLowerCase()
 		);
 	}
-	
+
 	// Use optimized endpoint to get all sales for this client across all sellers
 	for (const seller of sellersToSearch) {
 		try {
-			const params = new URLSearchParams({ 
+			const params = new URLSearchParams({
 				client_name: clientName,
 				client_seller_id: String(seller.id)
 			});
 			const sales = await api('GET', `${API.Sales}?${params.toString()}`);
-			
+
 			for (const s of (sales || [])) {
 				allRows.push({
 					id: s.id,
-					dayIso: String(s.day).slice(0,10),
+					dayIso: String(s.day).slice(0, 10),
 					sellerName: seller.name || '',
 					sellerId: seller.id,
-					qty_arco: Number(s.qty_arco||0),
-					qty_melo: Number(s.qty_melo||0),
-					qty_mara: Number(s.qty_mara||0),
-					qty_oreo: Number(s.qty_oreo||0),
-					qty_nute: Number(s.qty_nute||0),
+					qty_arco: Number(s.qty_arco || 0),
+					qty_melo: Number(s.qty_melo || 0),
+					qty_mara: Number(s.qty_mara || 0),
+					qty_oreo: Number(s.qty_oreo || 0),
+					qty_nute: Number(s.qty_nute || 0),
 					pay_method: s.pay_method || '',
 					is_paid: !!s.is_paid,
 					items: s.items || []
@@ -66,52 +66,52 @@ async function loadGlobalClientDetailRows(clientName) {
 			console.error('Error loading client details for seller:', seller.name, e);
 		}
 	}
-	
+
 	// Sort by date descending
-	allRows.sort((a,b) => (a.dayIso < b.dayIso ? 1 : a.dayIso > b.dayIso ? -1 : 0));
-	
+	allRows.sort((a, b) => (a.dayIso < b.dayIso ? 1 : a.dayIso > b.dayIso ? -1 : 0));
+
 	// Save the primary seller for this client (from the most recent order)
 	if (allRows.length > 0) {
 		state._clientDetailSellerId = allRows[0].sellerId;
 	}
-	
+
 	renderClientDetailTable(allRows);
 }
 
 async function loadClientDetailRows(clientName) {
 	const sellerId = state.currentSeller.id;
 	const sellerName = state.currentSeller.name || '';
-	
+
 	// Use optimized endpoint to get all sales for this client (including archived) in one query
-	const params = new URLSearchParams({ 
+	const params = new URLSearchParams({
 		client_name: clientName,
 		client_seller_id: String(sellerId)
 	});
 	const sales = await api('GET', `${API.Sales}?${params.toString()}`);
-	
+
 	const allRows = [];
 	for (const s of (sales || [])) {
 		allRows.push({
 			id: s.id,
-			dayIso: String(s.day).slice(0,10),
+			dayIso: String(s.day).slice(0, 10),
 			sellerName: sellerName,
 			sellerId: sellerId,
-			qty_arco: Number(s.qty_arco||0),
-			qty_melo: Number(s.qty_melo||0),
-			qty_mara: Number(s.qty_mara||0),
-			qty_oreo: Number(s.qty_oreo||0),
-			qty_nute: Number(s.qty_nute||0),
+			qty_arco: Number(s.qty_arco || 0),
+			qty_melo: Number(s.qty_melo || 0),
+			qty_mara: Number(s.qty_mara || 0),
+			qty_oreo: Number(s.qty_oreo || 0),
+			qty_nute: Number(s.qty_nute || 0),
 			pay_method: s.pay_method || '',
 			is_paid: !!s.is_paid,
 			items: s.items || []
 		});
 	}
-	
+
 	// Data already sorted by backend (day DESC)
-	
+
 	// Save the seller ID for this client
 	state._clientDetailSellerId = sellerId;
-	
+
 	renderClientDetailTable(allRows);
 }
 
@@ -127,7 +127,7 @@ async function restoreBuggedSalesForSeller() {
 		let sales = [];
 		try { sales = await api('GET', `${API.Sales}?${params.toString()}`); } catch { sales = []; }
 		for (const s of (sales || [])) {
-			const isAllZero = !Number(s.qty_arco||0) && !Number(s.qty_melo||0) && !Number(s.qty_mara||0) && !Number(s.qty_oreo||0) && !Number(s.qty_nute||0);
+			const isAllZero = !Number(s.qty_arco || 0) && !Number(s.qty_melo || 0) && !Number(s.qty_mara || 0) && !Number(s.qty_oreo || 0) && !Number(s.qty_nute || 0);
 			if (!isAllZero) continue;
 			// Fetch history for this sale id to find last non-zero per qty field
 			let logs = [];
@@ -140,7 +140,7 @@ async function restoreBuggedSalesForSeller() {
 					if (prev > 0) { byField[f] = prev; }
 				}
 			}
-			const any = Object.values(byField).some(v => Number(v||0) > 0);
+			const any = Object.values(byField).some(v => Number(v || 0) > 0);
 			if (!any) continue;
 			await api('PUT', API.Sales, {
 				id: s.id,
@@ -163,7 +163,7 @@ function renderClientDetailTable(rows) {
 	const tbody = document.getElementById('client-detail-tbody');
 	if (!tbody) return;
 	tbody.innerHTML = '';
-	
+
 	// Helper function to get quantity for a dessert from a sale row (supports both items array and legacy qty_* columns)
 	const getQtyForDessert = (row, shortCode) => {
 		// Try items array first (new format)
@@ -174,7 +174,7 @@ function renderClientDetailTable(rows) {
 		// Fallback to legacy qty_* columns
 		return Number(row[`qty_${shortCode}`] || 0);
 	};
-	
+
 	// Update title with client name and seller name
 	const title = document.getElementById('client-detail-title');
 	if (title) {
@@ -191,18 +191,18 @@ function renderClientDetailTable(rows) {
 		clientNameSpan.addEventListener('click', () => {
 			openEditClientNameDialog(state._clientDetailName);
 		});
-		
+
 		const sellerNameSpan = document.createElement('span');
 		if (rows && rows.length > 0 && rows[0].sellerName) {
 			sellerNameSpan.textContent = '  -  ' + rows[0].sellerName;
 			sellerNameSpan.style.opacity = '0.7';
 			sellerNameSpan.style.marginRight = '5px';
 		}
-		
+
 		title.appendChild(clientNameSpan);
 		title.appendChild(sellerNameSpan);
 	}
-	
+
 	if (!rows || rows.length === 0) {
 		const tr = document.createElement('tr');
 		const td = document.createElement('td'); td.colSpan = 9; td.textContent = 'Sin compras'; td.style.opacity = '0.8';
@@ -241,7 +241,7 @@ function renderClientDetailTable(rows) {
 		if (current === 'jorgebank') opts.push({ v: 'jorgebank', label: '' });
 		for (const o of opts) { const opt = document.createElement('option'); opt.value = o.v; opt.textContent = o.label; if (!isMarcela && o.v === 'marce') opt.disabled = true; if (!isJorge && o.v === 'jorge') opt.disabled = true; if (current === o.v) opt.selected = true; sel.appendChild(opt); }
 		function applyPayClass() {
-			wrap.classList.remove('placeholder','method-efectivo','method-transf','method-marce','method-jorge','method-jorgebank','method-entregado');
+			wrap.classList.remove('placeholder', 'method-efectivo', 'method-transf', 'method-marce', 'method-jorge', 'method-jorgebank', 'method-entregado');
 			const val = sel.value;
 			if (!val) wrap.classList.add('placeholder');
 			else if (val === 'efectivo') wrap.classList.add('method-efectivo');
@@ -253,17 +253,17 @@ function renderClientDetailTable(rows) {
 		}
 		applyPayClass();
 		// Click: first-time behaviors and shortcuts
-        wrap.addEventListener('click', async (e) => {
+		wrap.addEventListener('click', async (e) => {
 			e.stopPropagation();
 			const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
-            const pm = String(r.pay_method || '').trim().replace(/\.$/, '').toLowerCase();
-            const locked = pm !== '' && pm !== 'entregado';
-            if (!isAdminUser && locked) return; // block for non-admins, allow when 'entregado'
+			const pm = String(r.pay_method || '').trim().replace(/\.$/, '').toLowerCase();
+			const locked = pm !== '' && pm !== 'entregado';
+			if (!isAdminUser && locked) return; // block for non-admins, allow when 'entregado'
 			const curr = String(sel.value || '');
 			const saleId = Number(r.id);
 			const rect = wrap.getBoundingClientRect();
-			function hasSeen(method){ try { return localStorage.getItem('seenPaymentDate_' + method + '_' + saleId) === '1'; } catch { return false; } }
-			function markSeen(method){ try { localStorage.setItem('seenPaymentDate_' + method + '_' + saleId, '1'); } catch {} }
+			function hasSeen(method) { try { return localStorage.getItem('seenPaymentDate_' + method + '_' + saleId) === '1'; } catch { return false; } }
+			function markSeen(method) { try { localStorage.setItem('seenPaymentDate_' + method + '_' + saleId, '1'); } catch { } }
 			// If current is 'jorge' and first time -> open payment date dialog centered
 			if (curr === 'jorge' && !hasSeen('jorge')) { markSeen('jorge'); openPaymentDateDialog(saleId); return; }
 			// If current is 'jorgebank' and already seen -> open receipt gallery
@@ -271,26 +271,26 @@ function renderClientDetailTable(rows) {
 				openReceiptsGalleryPopover(saleId, rect.left + rect.width / 2, rect.bottom);
 				return;
 			}
-				// If current is 'jorgebank' and NOT seen -> show payment date popover first time
-				if (curr === 'jorgebank' && !hasSeen('jorgebank')) { markSeen('jorgebank'); openPaymentDateDialog(saleId); return; }
-				// If current is 'jorgebank' and NOT seen -> show payment date popover first time
-				if (curr === 'jorgebank' && !hasSeen('jorgebank')) { markSeen('jorgebank'); openPaymentDateDialog(saleId); return; }
+			// If current is 'jorgebank' and NOT seen -> show payment date popover first time
+			if (curr === 'jorgebank' && !hasSeen('jorgebank')) { markSeen('jorgebank'); openPaymentDateDialog(saleId); return; }
+			// If current is 'jorgebank' and NOT seen -> show payment date popover first time
+			if (curr === 'jorgebank' && !hasSeen('jorgebank')) { markSeen('jorgebank'); openPaymentDateDialog(saleId); return; }
 			// Otherwise open the selector menu
 			openPayMenu(wrap, sel, rect.left + rect.width / 2, rect.bottom);
 		});
 		wrap.tabIndex = 0;
-        wrap.addEventListener('keydown', async (e) => {
+		wrap.addEventListener('keydown', async (e) => {
 			if (e.key === 'Enter' || e.key === ' ') {
 				e.preventDefault();
 				const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
-                const pm = String(r.pay_method || '').trim().replace(/\.$/, '').toLowerCase();
-                const locked = pm !== '' && pm !== 'entregado';
-                if (!isAdminUser && locked) return;
+				const pm = String(r.pay_method || '').trim().replace(/\.$/, '').toLowerCase();
+				const locked = pm !== '' && pm !== 'entregado';
+				if (!isAdminUser && locked) return;
 				const curr = String(sel.value || '');
 				const saleId = Number(r.id);
 				const rect = wrap.getBoundingClientRect();
-				function hasSeen(method){ try { return localStorage.getItem('seenPaymentDate_' + method + '_' + saleId) === '1'; } catch { return false; } }
-				function markSeen(method){ try { localStorage.setItem('seenPaymentDate_' + method + '_' + saleId, '1'); } catch {} }
+				function hasSeen(method) { try { return localStorage.getItem('seenPaymentDate_' + method + '_' + saleId) === '1'; } catch { return false; } }
+				function markSeen(method) { try { localStorage.setItem('seenPaymentDate_' + method + '_' + saleId, '1'); } catch { } }
 				if (curr === 'jorge' && !hasSeen('jorge')) { markSeen('jorge'); openPaymentDateDialog(saleId); return; }
 				if (curr === 'jorgebank' && hasSeen('jorgebank')) {
 					openReceiptsGalleryPopover(saleId, rect.left + rect.width / 2, rect.bottom);
@@ -350,7 +350,7 @@ function renderClientDetailTable(rows) {
 		tr.addEventListener('mousedown', () => { tr.classList.add('row-highlight'); setTimeout(() => tr.classList.remove('row-highlight'), 3200); });
 		tbody.appendChild(tr);
 	}
-	
+
 	// Add a separator row at the end of tbody
 	const separatorRow = document.createElement('tr');
 	separatorRow.className = 'separator-row';
@@ -361,7 +361,7 @@ function renderClientDetailTable(rows) {
 	separatorCell.style.background = 'transparent';
 	separatorRow.appendChild(separatorCell);
 	tbody.appendChild(separatorRow);
-	
+
 	// Calculate and display totals
 	let totalArco = 0, totalMelo = 0, totalMara = 0, totalOreo = 0, totalNute = 0, totalGrand = 0;
 	for (const r of rows) {
@@ -373,7 +373,7 @@ function renderClientDetailTable(rows) {
 		const rowTotal = calcRowTotal(r);
 		totalGrand += rowTotal;
 	}
-	
+
 	document.getElementById('client-detail-total-arco').textContent = totalArco || '';
 	document.getElementById('client-detail-total-melo').textContent = totalMelo || '';
 	document.getElementById('client-detail-total-mara').textContent = totalMara || '';
@@ -388,27 +388,27 @@ async function openEditClientNameDialog(currentName) {
 	if (!newName || newName.trim() === '') {
 		return; // User cancelled or entered empty name
 	}
-	
+
 	const trimmedName = newName.trim();
 	if (trimmedName === currentName) {
 		return; // No change
 	}
-	
+
 	// Confirm the change
 	if (!confirm(`¿Cambiar el nombre del cliente de "${currentName}" a "${trimmedName}"?\n\nEsto actualizará todas las compras de este cliente.`)) {
 		return;
 	}
-	
+
 	try {
 		let updatedCount = 0;
-		
+
 		// Determine which sellers to update
 		const isGlobalView = state._clientDetailFrom === 'global-search';
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 		const isAdmin = !!state.currentUser?.isAdmin;
-		
+
 		let sellersToUpdate = [];
-		
+
 		if (isGlobalView && (isSuper || isAdmin)) {
 			// Update across all sellers
 			sellersToUpdate = state.sellers || [];
@@ -420,39 +420,39 @@ async function openEditClientNameDialog(currentName) {
 			// Fallback to current seller
 			sellersToUpdate = [state.currentSeller];
 		}
-		
+
 		if (sellersToUpdate.length === 0) {
 			notify.error('No se pudo determinar el vendedor');
 			return;
 		}
-		
+
 		// Update sales for all relevant sellers
 		for (const seller of sellersToUpdate) {
 			const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(seller.id)}`);
-			
+
 			for (const d of (days || [])) {
 				const params = new URLSearchParams({ seller_id: String(seller.id), sale_day_id: String(d.id) });
 				let sales = [];
-				try { 
-					sales = await api('GET', `${API.Sales}?${params.toString()}`); 
-				} catch { 
-					sales = []; 
+				try {
+					sales = await api('GET', `${API.Sales}?${params.toString()}`);
+				} catch {
+					sales = [];
 				}
-				
+
 				for (const s of (sales || [])) {
 					const n = (s?.client_name || '').trim();
 					if (!n) continue;
 					if (normalizeClientName(n) !== normalizeClientName(currentName)) continue;
-					
+
 					// Update this sale with the new name
 					await api('PUT', API.Sales, {
 						id: s.id,
 						client_name: trimmedName,
-						qty_arco: Number(s.qty_arco||0),
-						qty_melo: Number(s.qty_melo||0),
-						qty_mara: Number(s.qty_mara||0),
-						qty_oreo: Number(s.qty_oreo||0),
-						qty_nute: Number(s.qty_nute||0),
+						qty_arco: Number(s.qty_arco || 0),
+						qty_melo: Number(s.qty_melo || 0),
+						qty_mara: Number(s.qty_mara || 0),
+						qty_oreo: Number(s.qty_oreo || 0),
+						qty_nute: Number(s.qty_nute || 0),
 						pay_method: s.pay_method || null,
 						_actor_name: state.currentUser?.name || ''
 					});
@@ -460,18 +460,18 @@ async function openEditClientNameDialog(currentName) {
 				}
 			}
 		}
-		
+
 		// Update state and reload
 		state._clientDetailName = trimmedName;
 		notify.success(`Nombre actualizado: ${updatedCount} compra(s) modificadas`);
-		
+
 		// Reload the client detail view with new name
 		if (state._clientDetailFrom === 'global-search') {
 			await loadGlobalClientDetailRows(trimmedName);
 		} else {
 			await loadClientDetailRows(trimmedName);
 		}
-		
+
 		// Update client counts if necessary
 		if (typeof loadGlobalClientSuggestions === 'function') {
 			await loadGlobalClientSuggestions();
@@ -554,7 +554,7 @@ const notify = (() => {
 				icon.style.backgroundImage = `url('${url}')`;
 				n.insertBefore(icon, msg);
 			}
-		} catch {}
+		} catch { }
 		c.appendChild(n);
 		if (timeoutMs > 0) setTimeout(() => dismiss(n), timeoutMs);
 	}
@@ -565,7 +565,7 @@ const notify = (() => {
 	}
 	function loading(message) {
 		const c = container();
-		if (!c) return { close: () => {} };
+		if (!c) return { close: () => { } };
 		const n = document.createElement('div');
 		n.className = 'toast toast-loading';
 		const spinner = document.createElement('span');
@@ -580,11 +580,11 @@ const notify = (() => {
 			update: (newMessage) => { msg.textContent = String(newMessage || 'Cargando...'); }
 		};
 	}
-	return { info: (m,t)=>render('info',m,t), success: (m,t)=>render('success',m,t), error: (m,t)=>render('error',m,t), loading };
+	return { info: (m, t) => render('info', m, t), success: (m, t) => render('success', m, t), error: (m, t) => render('error', m, t), loading };
 })();
 
 // Theme management
-(function initTheme(){
+(function initTheme() {
 	try {
 		const saved = localStorage.getItem('theme');
 		if (saved === 'dark') {
@@ -592,7 +592,7 @@ const notify = (() => {
 		} else {
 			document.documentElement.removeAttribute('data-theme');
 		}
-	} catch {}
+	} catch { }
 	document.addEventListener('DOMContentLoaded', () => {
 		const btn = document.getElementById('theme-toggle');
 		if (!btn) return;
@@ -601,17 +601,17 @@ const notify = (() => {
 			const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
 			if (isDark) {
 				document.documentElement.removeAttribute('data-theme');
-				try { localStorage.setItem('theme', 'light'); } catch {}
+				try { localStorage.setItem('theme', 'light'); } catch { }
 			} else {
 				document.documentElement.setAttribute('data-theme', 'dark');
-				try { localStorage.setItem('theme', 'dark'); } catch {}
+				try { localStorage.setItem('theme', 'dark'); } catch { }
 			}
 			updateThemeButton(btn);
 		});
 	});
 })();
 
-function updateThemeButton(btn){
+function updateThemeButton(btn) {
 	const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
 	btn.title = isDark ? 'Modo claro' : 'Modo oscuro';
 }
@@ -663,7 +663,7 @@ function bindLogin() {
 				const res = await api('POST', API.Users, { username: user, password: pass });
 				if (err) err.classList.add('hidden');
 				state.currentUser = { name: res.username, isAdmin: res.role === 'admin' || res.role === 'superadmin', role: res.role, isSuperAdmin: res.role === 'superadmin', features: Array.isArray(res.features) ? res.features : [] };
-				try { localStorage.setItem('authUser', JSON.stringify(state.currentUser)); } catch {}
+				try { localStorage.setItem('authUser', JSON.stringify(state.currentUser)); } catch { }
 				applyAuthVisibility();
 				await loadSellers();
 				renderSellerButtons();
@@ -701,7 +701,7 @@ function bindLogin() {
 	const logoutBtn = document.getElementById('logout-btn');
 	logoutBtn?.addEventListener('click', () => {
 		state.currentUser = null;
-		try { localStorage.removeItem('authUser'); } catch {}
+		try { localStorage.removeItem('authUser'); } catch { }
 		applyAuthVisibility();
 		renderSellerButtons();
 		switchView('#view-login');
@@ -734,7 +734,7 @@ function el(tag, attrs = {}, ...children) {
 // Force logout and reload
 function forceLogoutAndReload(reason = 'Sesión expirada') {
 	console.warn('[AUTH] Forcing logout:', reason);
-	try { localStorage.clear(); } catch {}
+	try { localStorage.clear(); } catch { }
 	state.currentUser = null;
 	state.currentSeller = null;
 	alert(reason + '\n\nLa página se recargará para actualizar la aplicación.');
@@ -747,15 +747,15 @@ async function fetchWithVersion(url, options = {}) {
 		...options.headers,
 		[VERSION_HEADER]: APP_VERSION
 	};
-	
+
 	const res = await fetch(url, { ...options, headers });
-	
+
 	// Check for service unavailable
 	if (res.status === 503) {
 		console.error('[API] Server returned 503 - service temporarily unavailable');
 		throw new Error('service_unavailable');
 	}
-	
+
 	// Check for version mismatch or forced logout
 	if (res.status === 426 || res.status === 403) {
 		try {
@@ -768,22 +768,22 @@ async function fetchWithVersion(url, options = {}) {
 			if (e.message === 'force_reload') throw e;
 		}
 	}
-	
+
 	return res;
 }
 
 async function api(method, url, body) {
-    const actor = (state?.currentUser?.name || state?.currentUser?.username || '').toString();
-    const res = await fetch(url, {
-        method,
-        headers: {
-            'Content-Type': 'application/json',
-            [VERSION_HEADER]: APP_VERSION,
-            ...(actor ? { 'X-Actor-Name': actor } : {})
-        },
-        body: body ? JSON.stringify(body) : undefined,
-    });
-	
+	const actor = (state?.currentUser?.name || state?.currentUser?.username || '').toString();
+	const res = await fetch(url, {
+		method,
+		headers: {
+			'Content-Type': 'application/json',
+			[VERSION_HEADER]: APP_VERSION,
+			...(actor ? { 'X-Actor-Name': actor } : {})
+		},
+		body: body ? JSON.stringify(body) : undefined,
+	});
+
 	// Check for version mismatch or forced logout
 	if (res.status === 426 || res.status === 403) {
 		try {
@@ -792,9 +792,9 @@ async function api(method, url, body) {
 				forceLogoutAndReload(data.message || 'Tu aplicación está desactualizada');
 				return; // Prevent further execution
 			}
-		} catch {}
+		} catch { }
 	}
-	
+
 	if (!res.ok) {
 		const text = await res.text();
 		throw new Error(`API ${method} ${url} failed: ${res.status} ${text}`);
@@ -827,7 +827,7 @@ async function loadGlobalClientSuggestions() {
 			state.globalClientSuggestions = [];
 			return;
 		}
-		
+
 		// Check if already loaded and still fresh (cache for 5 minutes)
 		if (state._globalSuggestionsLoadedAt && (Date.now() - state._globalSuggestionsLoadedAt) < 300000) {
 			return; // Use cached data
@@ -835,47 +835,47 @@ async function loadGlobalClientSuggestions() {
 
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 		const isAdmin = !!state.currentUser?.isAdmin;
-		
+
 		const counts = new Map();
 		const namesByKey = new Map();
-		
+
 		// Determine which sellers to load clients from
 		let sellersToLoad = [];
-		
+
 		if (isSuper || isAdmin) {
 			// Admin/SuperAdmin: load from all sellers
 			sellersToLoad = state.sellers || [];
 		} else {
 			// Regular user: load only their own clients
-			sellersToLoad = (state.sellers || []).filter(s => 
+			sellersToLoad = (state.sellers || []).filter(s =>
 				String(s.name).toLowerCase() === String(state.currentUser.name || '').toLowerCase()
 			);
 		}
-		
+
 		// Load clients from all authorized sellers IN PARALLEL
 		const sellerPromises = sellersToLoad.map(async (seller) => {
 			try {
 				const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(seller.id)}`);
-				
+
 				// Limit to last 180 days for faster loading (about 6 months)
 				const recentDays = (days || []).slice(0, 180);
-				
+
 				// Load all sales for this seller in parallel
 				const salesPromises = recentDays.map(async (d) => {
 					const p = new URLSearchParams({ seller_id: String(seller.id), sale_day_id: String(d.id) });
-					try { 
-						return await api('GET', `${API.Sales}?${p.toString()}`); 
-					} catch { 
-						return []; 
+					try {
+						return await api('GET', `${API.Sales}?${p.toString()}`);
+					} catch {
+						return [];
 					}
 				});
-				
+
 				const salesArrays = await Promise.all(salesPromises);
-				
+
 				// Process all sales
 				const sellerClients = new Map();
 				const sellerNames = new Map();
-				
+
 				for (const sales of salesArrays) {
 					for (const s of (sales || [])) {
 						const raw = (s?.client_name || '').trim();
@@ -885,17 +885,17 @@ async function loadGlobalClientSuggestions() {
 						if (!sellerNames.has(key)) sellerNames.set(key, raw);
 					}
 				}
-				
+
 				return { clients: sellerClients, names: sellerNames };
 			} catch (e) {
 				console.error('Error loading clients for seller:', seller.name, e);
 				return { clients: new Map(), names: new Map() };
 			}
 		});
-		
+
 		// Wait for all sellers to complete
 		const sellerResults = await Promise.all(sellerPromises);
-		
+
 		// Merge all results
 		for (const result of sellerResults) {
 			for (const [key, count] of result.clients) {
@@ -903,7 +903,7 @@ async function loadGlobalClientSuggestions() {
 				if (!namesByKey.has(key)) namesByKey.set(key, result.names.get(key) || '');
 			}
 		}
-		
+
 		// Prepare suggestion list (all clients, including those with count = 1)
 		const arr = Array.from(counts.entries())
 			.map(([key, count]) => ({ key, name: namesByKey.get(key) || '', count: Number(count) || 0 }))
@@ -912,7 +912,7 @@ async function loadGlobalClientSuggestions() {
 			if (b.count !== a.count) return b.count - a.count;
 			return (a.name || '').localeCompare(b.name || '', 'es');
 		});
-		
+
 		state.globalClientSuggestions = arr;
 		state._globalSuggestionsLoadedAt = Date.now(); // Cache timestamp
 	} catch (e) {
@@ -924,39 +924,41 @@ async function loadGlobalClientSuggestions() {
 function renderSellerButtons() {
 	const list = $('#seller-list');
 	list.innerHTML = '';
-    // Server already filters sellers by permissions. Render all returned.
-    const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
-    for (const s of state.sellers) {
-        const btn = el('button', { class: 'seller-button', onclick: async (ev) => {
-            if (isSuper && state.deleteSellerMode) {
-                ev.preventDefault();
-                const ok = await openConfirmPopover(`¿Eliminar al vendedor "${s.name}"?`, ev.clientX, ev.clientY);
-                if (!ok) return;
-                try {
-                    await api('DELETE', `${API.Sellers}?id=${encodeURIComponent(s.id)}`);
-                    // Remove locally and re-render
-                    state.sellers = state.sellers.filter(x => x.id !== s.id);
-                    // Exit delete mode after successful deletion
-                    state.deleteSellerMode = false;
-                    // notify.success('Vendedor eliminado');
-                    renderSellerButtons();
-                } catch (e) {
-                    try { notify.error('No se pudo eliminar el vendedor'); } catch {}
-                }
-                return;
-            }
-            await enterSeller(s.id);
-        } }, s.name);
-        if (isSuper && state.deleteSellerMode) btn.classList.add('delete-mode');
-        list.appendChild(btn);
-    }
+	// Server already filters sellers by permissions. Render all returned.
+	const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+	for (const s of state.sellers) {
+		const btn = el('button', {
+			class: 'seller-button', onclick: async (ev) => {
+				if (isSuper && state.deleteSellerMode) {
+					ev.preventDefault();
+					const ok = await openConfirmPopover(`¿Eliminar al vendedor "${s.name}"?`, ev.clientX, ev.clientY);
+					if (!ok) return;
+					try {
+						await api('DELETE', `${API.Sellers}?id=${encodeURIComponent(s.id)}`);
+						// Remove locally and re-render
+						state.sellers = state.sellers.filter(x => x.id !== s.id);
+						// Exit delete mode after successful deletion
+						state.deleteSellerMode = false;
+						// notify.success('Vendedor eliminado');
+						renderSellerButtons();
+					} catch (e) {
+						try { notify.error('No se pudo eliminar el vendedor'); } catch { }
+					}
+					return;
+				}
+				await enterSeller(s.id);
+			}
+		}, s.name);
+		if (isSuper && state.deleteSellerMode) btn.classList.add('delete-mode');
+		list.appendChild(btn);
+	}
 }
 
 function exitDeleteSellerModeIfActive() {
-    if (state.deleteSellerMode) {
-        state.deleteSellerMode = false;
-        renderSellerButtons();
-    }
+	if (state.deleteSellerMode) {
+		state.deleteSellerMode = false;
+		renderSellerButtons();
+	}
 }
 
 async function addSeller(name) {
@@ -969,7 +971,7 @@ async function addSeller(name) {
 		try {
 			const msg = (err && err.message || '').includes('403') ? 'No autorizado para agregar vendedores' : 'No se pudo agregar el vendedor';
 			notify.error(msg);
-		} catch {}
+		} catch { }
 	}
 }
 
@@ -981,17 +983,17 @@ async function enterSeller(id) {
 	try {
 		const letter = (seller.name || '').trim().charAt(0).toUpperCase();
 		// seller-specific icon removed
-	} catch {}
+	} catch { }
 	state.saleDays = [];
 	state.selectedDayId = null;
 	state.clientCounts = new Map();
 	$('#current-seller').textContent = seller.name;
 	switchView('#view-sales');
-	
+
 	// Load desserts and render columns
 	await loadDesserts();
 	renderDessertColumns();
-	
+
 	// Show dates section, hide table until a date is selected, then load real dates
 	const datesSection = document.getElementById('dates-section');
 	const datesList = document.querySelector('#dates-section .dates-list');
@@ -1084,15 +1086,15 @@ function renderDessertColumns() {
 	const headerRow = document.getElementById('sales-table-header');
 	const colgroup = document.getElementById('sales-table-colgroup');
 	if (!headerRow || !colgroup) return;
-	
+
 	// Remove existing dessert columns from header
 	const existingDesserts = headerRow.querySelectorAll('th.col-dessert');
 	existingDesserts.forEach(th => th.remove());
-	
+
 	// Remove existing dessert cols from colgroup
 	const existingCols = colgroup.querySelectorAll('col.w-qty');
 	existingCols.forEach(col => col.remove());
-	
+
 	// Insert new cols in colgroup before w-total
 	const totalCol = colgroup.querySelector('col.w-total');
 	if (totalCol) {
@@ -1102,7 +1104,7 @@ function renderDessertColumns() {
 			colgroup.insertBefore(col, totalCol);
 		}
 	}
-	
+
 	// Insert new th columns before col-total
 	const totalTh = headerRow.querySelector('th.col-total');
 	if (totalTh) {
@@ -1118,7 +1120,7 @@ function renderDessertColumns() {
 			headerRow.insertBefore(th, totalTh);
 		}
 	}
-	
+
 	// Also update footer rows
 	renderFooterDessertColumns();
 }
@@ -1129,16 +1131,16 @@ function renderFooterDessertColumns() {
 	const delivRow = document.getElementById('footer-delivered-row');
 	const commRow = document.getElementById('footer-comm-row');
 	const commPaidRow = document.getElementById('footer-comm-paid-row');
-	
+
 	if (!qtyRow || !amtRow) return;
-	
+
 	// Remove existing dessert columns from footer
 	[qtyRow, amtRow, delivRow, commRow, commPaidRow].forEach(row => {
 		if (!row) return;
 		const existing = row.querySelectorAll('td.col-dessert');
 		existing.forEach(td => td.remove());
 	});
-	
+
 	// Insert new columns before col-total
 	for (const d of state.desserts) {
 		// Qty row
@@ -1152,7 +1154,7 @@ function renderFooterDessertColumns() {
 			td.appendChild(span);
 			if (totalTd) qtyRow.insertBefore(td, totalTd);
 		}
-		
+
 		// Amt row
 		if (amtRow) {
 			const totalTd = amtRow.querySelector('td.col-total');
@@ -1164,7 +1166,7 @@ function renderFooterDessertColumns() {
 			td.appendChild(span);
 			if (totalTd) amtRow.insertBefore(td, totalTd);
 		}
-		
+
 		// Delivered row
 		if (delivRow) {
 			const totalTd = delivRow.querySelector('td.col-total');
@@ -1177,7 +1179,7 @@ function renderFooterDessertColumns() {
 			td.appendChild(span);
 			if (totalTd) delivRow.insertBefore(td, totalTd);
 		}
-		
+
 		// Comm row (empty cells)
 		if (commRow) {
 			const totalTd = commRow.querySelector('td.col-total');
@@ -1185,7 +1187,7 @@ function renderFooterDessertColumns() {
 			td.className = `col-dessert col-${d.short_code}`;
 			if (totalTd) commRow.insertBefore(td, totalTd);
 		}
-		
+
 		// Comm Paid row (empty cells)
 		if (commPaidRow) {
 			const totalTd = commPaidRow.querySelector('td.col-total');
@@ -1194,14 +1196,14 @@ function renderFooterDessertColumns() {
 			if (totalTd) commPaidRow.insertBefore(td, totalTd);
 		}
 	}
-	
+
 	// Add stacked summary rows
 	const footer = document.getElementById('sales-table-footer');
 	if (footer) {
 		// Remove existing stacked rows
 		const existing = footer.querySelectorAll('tr.tfoot-amt-stack:not(.t-am-grand)');
 		existing.forEach(tr => tr.remove());
-		
+
 		// Add stacked row for each dessert
 		for (const d of state.desserts) {
 			const tr = document.createElement('tr');
@@ -1227,12 +1229,12 @@ function calcRowTotal(q) {
 		console.log(`💰 calcRowTotal(sale ${q.id}): Using total_cents=${q.total_cents}, special_pricing=${q.special_pricing_type}, returning ${total}`);
 		return total;
 	}
-	
+
 	console.log(`⚠️ calcRowTotal(sale ${q.id}): total_cents not found, calculating... special_pricing=${q.special_pricing_type}`);
-	
+
 	// Support both old format and new dynamic format
 	let total = 0;
-	
+
 	// If using items array (new format) - only if array has elements
 	if (Array.isArray(q.items) && q.items.length > 0) {
 		// Use only the first occurrence per dessert (to match visible per-flavor qty)
@@ -1256,18 +1258,18 @@ function calcRowTotal(q) {
 		}
 		return total;
 	}
-	
+
 	// Fallback to old format with dynamic desserts (check qty_* properties)
 	// Apply special pricing if present
-	const priceMultiplier = q.special_pricing_type === 'muestra' ? 0 : 
-	                        q.special_pricing_type === 'a_costo' ? 0.55 : 1;
-	
+	const priceMultiplier = q.special_pricing_type === 'muestra' ? 0 :
+		q.special_pricing_type === 'a_costo' ? 0.55 : 1;
+
 	for (const d of state.desserts) {
 		const qty = Number(q[`qty_${d.short_code}`] || 0);
 		const basePrice = Number(PRICES[d.short_code] || 0);
 		total += qty * Math.round(basePrice * priceMultiplier);
 	}
-	
+
 	return total;
 }
 
@@ -1276,7 +1278,7 @@ function formatSaleSummary(sale) {
 	if (!sale) return '';
 	const name = (sale.client_name || '').trim() || 'Cliente';
 	const parts = [];
-	
+
 	// Support new items format (only if array has elements)
 	if (Array.isArray(sale.items) && sale.items.length > 0) {
 		for (const item of sale.items) {
@@ -1294,7 +1296,7 @@ function formatSaleSummary(sale) {
 			}
 		}
 	}
-	
+
 	const suffix = parts.length ? (' + ' + parts.join(' + ')) : '';
 	return name + suffix;
 }
@@ -1311,7 +1313,7 @@ function createDessertQtyCell(sale, dessert, tr) {
 	input.inputMode = 'numeric';
 	input.dataset.dessertId = dessert.id;
 	input.dataset.shortCode = dessert.short_code;
-	
+
 	// Get quantity from sale - support both formats
 	let qty = 0;
 	if (Array.isArray(sale.items) && sale.items.length > 0) {
@@ -1320,7 +1322,7 @@ function createDessertQtyCell(sale, dessert, tr) {
 	} else {
 		qty = Number(sale[`qty_${dessert.short_code}`] || 0);
 	}
-	
+
 	input.value = qty > 0 ? String(qty) : '';
 	input.placeholder = '';
 	input.readOnly = true; // Make readonly - only editable via edit button
@@ -1335,7 +1337,7 @@ function createDessertQtyCell(sale, dessert, tr) {
 			openClientActionBar(clientTd, sale.id, clientName, e.clientX, e.clientY);
 		}
 	});
-	
+
 	td.appendChild(input);
 	return td;
 }
@@ -1354,18 +1356,18 @@ function renderTable() {
 			let label = '';
 			if (state && Array.isArray(state.saleDays) && state.selectedDayId) {
 				const day = (state.saleDays || []).find(d => d && d.id === state.selectedDayId);
-				if (day && day.day) label = formatDayLabel(String(day.day).slice(0,10));
+				if (day && day.day) label = formatDayLabel(String(day.day).slice(0, 10));
 			}
 			strong.textContent = label || '';
 			if (!cap.contains(strong)) cap.appendChild(strong);
 		}
-	} catch {}
+	} catch { }
 	tbody.innerHTML = '';
 	for (const sale of state.sales) {
 		const total = calcRowTotal(sale);
 		const isPaid = !!sale.is_paid;
 		const tr = el('tr', { 'data-sale-id': sale.id },
-			el('td', { class: 'col-paid' }, (function(){
+			el('td', { class: 'col-paid' }, (function () {
 				const wrap = document.createElement('span');
 				wrap.className = 'pay-wrap';
 				const sel = document.createElement('select');
@@ -1398,16 +1400,16 @@ function renderTable() {
 					if (current === o.v) opt.selected = true;
 					sel.appendChild(opt);
 				}
-                // Lock editing for non-admins once a method is chosen, except when it's 'entregado'
-                const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
-                const pmNormalized = String(current || '').trim().toLowerCase();
-                const shouldLock = pmNormalized !== '' && pmNormalized !== 'entregado';
-                if (!isAdminUser && shouldLock) {
-                    sel.disabled = true;
-                    wrap.classList.add('locked');
-                }
+				// Lock editing for non-admins once a method is chosen, except when it's 'entregado'
+				const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
+				const pmNormalized = String(current || '').trim().toLowerCase();
+				const shouldLock = pmNormalized !== '' && pmNormalized !== 'entregado';
+				if (!isAdminUser && shouldLock) {
+					sel.disabled = true;
+					wrap.classList.add('locked');
+				}
 				function applyPayClass() {
-					wrap.classList.remove('placeholder','method-efectivo','method-transf','method-marce','method-jorge','method-jorgebank','method-entregado');
+					wrap.classList.remove('placeholder', 'method-efectivo', 'method-transf', 'method-marce', 'method-jorge', 'method-jorgebank', 'method-entregado');
 					const val = sel.value;
 					if (!val) wrap.classList.add('placeholder');
 					else if (val === 'efectivo') wrap.classList.add('method-efectivo');
@@ -1422,60 +1424,60 @@ function renderTable() {
 					await savePayMethod(tr, sale.id, sel.value);
 					applyPayClass();
 				});
-            wrap.addEventListener('click', async (e) => { 
-                e.stopPropagation(); 
-                const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
-                const pm = String(sale.pay_method || '').trim().replace(/\.$/, '').toLowerCase();
-                const locked = pm !== '' && pm !== 'entregado';
-                
-                // If jorgebank (all receipts verified), open gallery for everyone
-                if (pm === 'jorgebank') {
-                    const rect = wrap.getBoundingClientRect();
-                    openReceiptsGalleryPopover(sale.id, rect.left + rect.width / 2, rect.bottom);
-                    return;
-                }
-                
-                // If locked and current is transf, open receipt gallery for non-admins
-                if (!isAdminUser && locked && pm === 'transf') {
-                    const rect = wrap.getBoundingClientRect();
-                    openReceiptsGalleryPopover(sale.id, rect.left + rect.width / 2, rect.bottom);
-                    return;
-                }
-                if (!isAdminUser && locked) return; // block opening menu for non-admins, allow when 'entregado'
-                openPayMenu(wrap, sel, e.clientX, e.clientY); 
-            });
+				wrap.addEventListener('click', async (e) => {
+					e.stopPropagation();
+					const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
+					const pm = String(sale.pay_method || '').trim().replace(/\.$/, '').toLowerCase();
+					const locked = pm !== '' && pm !== 'entregado';
+
+					// If jorgebank (all receipts verified), open gallery for everyone
+					if (pm === 'jorgebank') {
+						const rect = wrap.getBoundingClientRect();
+						openReceiptsGalleryPopover(sale.id, rect.left + rect.width / 2, rect.bottom);
+						return;
+					}
+
+					// If locked and current is transf, open receipt gallery for non-admins
+					if (!isAdminUser && locked && pm === 'transf') {
+						const rect = wrap.getBoundingClientRect();
+						openReceiptsGalleryPopover(sale.id, rect.left + rect.width / 2, rect.bottom);
+						return;
+					}
+					if (!isAdminUser && locked) return; // block opening menu for non-admins, allow when 'entregado'
+					openPayMenu(wrap, sel, e.clientX, e.clientY);
+				});
 				wrap.tabIndex = 0;
-            wrap.addEventListener('keydown', async (e) => { 
-                if (e.key === 'Enter' || e.key === ' ') { 
-                    e.preventDefault(); 
-                    const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
-                    const pm = String(sale.pay_method || '').trim().replace(/\.$/, '').toLowerCase();
-                    const locked = pm !== '' && pm !== 'entregado';
-                    
-                    // If jorgebank (all receipts verified), open gallery
-                    if (pm === 'jorgebank') {
-                        try {
-                            const rect = wrap.getBoundingClientRect();
-                            openReceiptsGalleryPopover(sale.id, rect.left + rect.width / 2, rect.bottom);
-                        } catch { openReceiptUploadPage(sale.id); }
-                        return;
-                    }
-                    
-                    if (!isAdminUser && locked && pm === 'transf') {
-                        try {
-                            const rect = wrap.getBoundingClientRect();
-                            openReceiptsGalleryPopover(sale.id, rect.left + rect.width / 2, rect.bottom);
-                        } catch { openReceiptUploadPage(sale.id); }
-                        return;
-                    }
-                    if (!isAdminUser && locked) return; 
-                    openPayMenu(wrap, sel); 
-                } 
-            });
+				wrap.addEventListener('keydown', async (e) => {
+					if (e.key === 'Enter' || e.key === ' ') {
+						e.preventDefault();
+						const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
+						const pm = String(sale.pay_method || '').trim().replace(/\.$/, '').toLowerCase();
+						const locked = pm !== '' && pm !== 'entregado';
+
+						// If jorgebank (all receipts verified), open gallery
+						if (pm === 'jorgebank') {
+							try {
+								const rect = wrap.getBoundingClientRect();
+								openReceiptsGalleryPopover(sale.id, rect.left + rect.width / 2, rect.bottom);
+							} catch { openReceiptUploadPage(sale.id); }
+							return;
+						}
+
+						if (!isAdminUser && locked && pm === 'transf') {
+							try {
+								const rect = wrap.getBoundingClientRect();
+								openReceiptsGalleryPopover(sale.id, rect.left + rect.width / 2, rect.bottom);
+							} catch { openReceiptUploadPage(sale.id); }
+							return;
+						}
+						if (!isAdminUser && locked) return;
+						openPayMenu(wrap, sel);
+					}
+				});
 				wrap.appendChild(sel);
 				return wrap;
 			})()),
-			(function(){
+			(function () {
 				const td = document.createElement('td');
 				td.className = 'col-client';
 				const input = document.createElement('input');
@@ -1489,37 +1491,37 @@ function renderTable() {
 				const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
 				const saleLocked = String(sale.pay_method || '').trim() !== '';
 				if (!isAdminUser && saleLocked) {
-				input.style.cursor = 'default';
-				input.title = 'Pedido bloqueado';
-			} else {
-				input.style.cursor = 'pointer';
-			}
-			// Add background color based on special pricing
-			if (sale.special_pricing_type === 'muestra') {
-				input.style.background = 'rgba(255, 165, 0, 0.5)';
-				input.style.color = 'white';
-				input.style.fontWeight = '600';
-				input.style.borderRadius = '6px';
-				input.style.padding = '3px 8px';
-				input.style.width = 'auto';
-				input.style.display = 'inline-block';
-			} else if (sale.special_pricing_type === 'a_costo') {
-				input.style.background = 'rgba(240, 98, 146, 0.5)';
-				input.style.color = 'white';
-				input.style.fontWeight = '600';
-				input.style.borderRadius = '6px';
-				input.style.padding = '3px 8px';
-				input.style.width = 'auto';
-				input.style.display = 'inline-block';
-			}
-			// Add click listener to show action bar
-			input.addEventListener('click', (e) => {
-				e.stopPropagation();
-				const currentName = input.value || '';
-				openClientActionBar(td, sale.id, currentName, e.clientX, e.clientY);
-			});
-			td.appendChild(input);
-				
+					input.style.cursor = 'default';
+					input.title = 'Pedido bloqueado';
+				} else {
+					input.style.cursor = 'pointer';
+				}
+				// Add background color based on special pricing
+				if (sale.special_pricing_type === 'muestra') {
+					input.style.background = 'rgba(255, 165, 0, 0.5)';
+					input.style.color = 'white';
+					input.style.fontWeight = '600';
+					input.style.borderRadius = '6px';
+					input.style.padding = '3px 8px';
+					input.style.width = 'auto';
+					input.style.display = 'inline-block';
+				} else if (sale.special_pricing_type === 'a_costo') {
+					input.style.background = 'rgba(240, 98, 146, 0.5)';
+					input.style.color = 'white';
+					input.style.fontWeight = '600';
+					input.style.borderRadius = '6px';
+					input.style.padding = '3px 8px';
+					input.style.width = 'auto';
+					input.style.display = 'inline-block';
+				}
+				// Add click listener to show action bar
+				input.addEventListener('click', (e) => {
+					e.stopPropagation();
+					const currentName = input.value || '';
+					openClientActionBar(td, sale.id, currentName, e.clientX, e.clientY);
+				});
+				td.appendChild(input);
+
 				const name = (sale.client_name || '').trim();
 				if (name) {
 					const key = normalizeClientName(name);
@@ -1562,16 +1564,16 @@ function renderTable() {
 				return td;
 			})()
 		);
-		
+
 		// Add dynamic dessert columns
 		for (const dessert of state.desserts) {
 			const dessertCell = createDessertQtyCell(sale, dessert, tr);
 			tr.appendChild(dessertCell);
 		}
-		
+
 		// Continue with total and actions columns
 		tr.appendChild(el('td', { class: 'total col-total' }, fmtNo.format(total)));
-		tr.appendChild(el('td', { class: 'col-actions' }, (function(){
+		tr.appendChild(el('td', { class: 'col-actions' }, (function () {
 			const b = document.createElement('button');
 			b.className = 'row-delete';
 			b.title = 'Eliminar';
@@ -1583,7 +1585,7 @@ function renderTable() {
 			});
 			return b;
 		})()));
-		
+
 		tr.dataset.id = String(sale.id);
 		tbody.appendChild(tr);
 		// Comment trigger removed per request
@@ -1594,19 +1596,19 @@ function renderTable() {
 	addTr.className = 'add-row-line';
 	const td = document.createElement('td');
 	td.colSpan = colCount;
-    const btn = document.createElement('button');
+	const btn = document.createElement('button');
 	btn.className = 'inline-add-btn btn-primary';
 	btn.textContent = 'Nuevo pedido';
-    btn.addEventListener('click', (ev) => {
-        const rect = ev.currentTarget.getBoundingClientRect();
-        openNewSalePopover(rect.left + rect.width / 2, rect.top - 8);
-    });
+	btn.addEventListener('click', (ev) => {
+		const rect = ev.currentTarget.getBoundingClientRect();
+		openNewSalePopover(rect.left + rect.width / 2, rect.top - 8);
+	});
 	td.appendChild(btn);
 	addTr.appendChild(td);
 	tbody.appendChild(addTr);
 
 	updateSummary();
-    // Keep bottom add button present so both triggers work
+	// Keep bottom add button present so both triggers work
 	preloadChangeLogsForCurrentTable();
 }
 
@@ -1615,20 +1617,20 @@ async function checkAndUpdateMainSelectorToJorgebank(saleId) {
 	try {
 		// Fetch all receipts for this sale
 		const receipts = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(saleId)}`);
-		
+
 		if (!Array.isArray(receipts) || receipts.length === 0) return;
-		
+
 		// Check if ALL receipts have jorgebank
-        const allJorgebank = receipts.every(r => (r.pay_method || '').trim().toLowerCase() === 'jorgebank');
-        
-        if (allJorgebank) {
+		const allJorgebank = receipts.every(r => (r.pay_method || '').trim().toLowerCase() === 'jorgebank');
+
+		if (allJorgebank) {
 			// Find the sale in state.sales
 			const sale = state.sales?.find(s => Number(s.id) === Number(saleId));
 			if (sale) {
 				// Update local state
 				sale.pay_method = 'jorgebank';
 				console.log(`🔄 Real-time update: Sale ${saleId} -> jorgebank (all ${receipts.length} receipts verified)`);
-				
+
 				// Update the selector in the DOM
 				const row = document.querySelector(`tr[data-sale-id="${saleId}"]`);
 				if (row) {
@@ -1643,7 +1645,7 @@ async function checkAndUpdateMainSelectorToJorgebank(saleId) {
 							selector.appendChild(opt);
 						}
 						selector.value = 'jorgebank';
-						
+
 						// Update visual class
 						const wrap = selector.closest('.pay-wrap');
 						if (wrap) {
@@ -1653,7 +1655,7 @@ async function checkAndUpdateMainSelectorToJorgebank(saleId) {
 					}
 				}
 			}
-        }
+		}
 	} catch (err) {
 		console.error('Error checking receipts for real-time update:', err);
 	}
@@ -1662,30 +1664,30 @@ async function checkAndUpdateMainSelectorToJorgebank(saleId) {
 // Check receipts for each sale and update main selector to jorgebank if all receipts are verified
 async function enrichSalesWithReceiptStatus() {
 	if (!Array.isArray(state.sales) || state.sales.length === 0) return;
-	
+
 	console.log('📸 Checking receipt status for all sales...');
-	
+
 	// Check each sale
 	for (const sale of state.sales) {
 		if (!sale || !sale.id) continue;
-		
+
 		try {
 			// Fetch all receipts for this sale
 			const receipts = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(sale.id)}`);
-			
+
 			if (!Array.isArray(receipts) || receipts.length === 0) continue;
-			
-            // Check if ALL receipts have jorgebank
-            const allJorgebank = receipts.every(r => (r.pay_method || '').trim().toLowerCase() === 'jorgebank');
-            if (allJorgebank) {
-                sale.pay_method = 'jorgebank';
-                console.log(`✅ Sale ${sale.id} -> jorgebank (all ${receipts.length} receipts verified)`);
-            }
+
+			// Check if ALL receipts have jorgebank
+			const allJorgebank = receipts.every(r => (r.pay_method || '').trim().toLowerCase() === 'jorgebank');
+			if (allJorgebank) {
+				sale.pay_method = 'jorgebank';
+				console.log(`✅ Sale ${sale.id} -> jorgebank (all ${receipts.length} receipts verified)`);
+			}
 		} catch (err) {
 			console.error(`Error checking receipts for sale ${sale.id}:`, err);
 		}
 	}
-	
+
 	console.log('📸 Receipt status enrichment complete');
 }
 
@@ -1693,7 +1695,7 @@ async function loadSales() {
 	// Show loading indicator with dynamic messages
 	const loadingEl = document.getElementById('sales-loading');
 	const loadingTextEl = document.getElementById('sales-loading-text');
-	
+
 	// Messages that will rotate
 	const messages = [
 		'Cargando ventas...',
@@ -1703,25 +1705,25 @@ async function loadSales() {
 	];
 	let messageIndex = 0;
 	let messageInterval = null;
-	
+
 	if (loadingEl) {
 		loadingEl.classList.remove('hidden');
-		
+
 		// Change message every 1.5 seconds
 		messageInterval = setInterval(() => {
 			messageIndex = (messageIndex + 1) % messages.length;
 			if (loadingTextEl) loadingTextEl.textContent = messages[messageIndex];
 		}, 1500);
 	}
-	
+
 	try {
 		const sellerId = state.currentSeller.id;
 		const params = new URLSearchParams({ seller_id: String(sellerId) });
 		if (state.selectedDayId) params.set('sale_day_id', String(state.selectedDayId));
-		
+
 		if (loadingTextEl) loadingTextEl.textContent = messages[0];
 		state.sales = await api('GET', `${API.Sales}?${params.toString()}`);
-		
+
 		// Initialize _paymentInfo from database fields (payment_date and payment_source)
 		if (Array.isArray(state.sales)) {
 			for (const sale of state.sales) {
@@ -1734,11 +1736,11 @@ async function loadSales() {
 				}
 			}
 		}
-		
+
 		// Check if all receipts for each sale have jorgebank - if so, update sale.pay_method
 		if (loadingTextEl) loadingTextEl.textContent = 'Verificando pagos...';
 		await enrichSalesWithReceiptStatus();
-		
+
 		// Build recurrence counts across all dates for this seller
 		if (loadingTextEl) loadingTextEl.textContent = 'Procesando clientes...';
 		try {
@@ -1771,12 +1773,12 @@ async function loadSales() {
 				state.clientSuggestions = arr;
 			} catch { state.clientSuggestions = []; }
 		} catch { state.clientCounts = new Map(); }
-		
+
 		// Ensure desserts are loaded before rendering table
 		if (loadingTextEl) loadingTextEl.textContent = 'Preparando la tabla...';
 		await loadDesserts();
 		renderDessertColumns();
-		
+
 		renderTable();
 		preloadChangeLogsForCurrentTable();
 	} catch (error) {
@@ -1811,7 +1813,7 @@ async function performRedo() {
 }
 
 // Wire toolbar buttons
-(function wireUndoRedo(){
+(function wireUndoRedo() {
 	const undoBtn = document.getElementById('undo-btn');
 	const redoBtn = document.getElementById('redo-btn');
 	undoBtn?.addEventListener('click', () => { performUndo().catch(console.error); });
@@ -1820,14 +1822,14 @@ async function performRedo() {
 
 // Superadmin-only editors for delivered counts per day (inline editable)
 function wireDeliveredRowEditors() {
-    const isSuper = state?.currentUser?.role === 'superadmin' || !!state?.currentUser?.isSuperAdmin;
-    const cells = [
-        { key: 'arco', el: document.getElementById('deliv-arco') },
-        { key: 'melo', el: document.getElementById('deliv-melo') },
-        { key: 'mara', el: document.getElementById('deliv-mara') },
-        { key: 'oreo', el: document.getElementById('deliv-oreo') },
-        { key: 'nute', el: document.getElementById('deliv-nute') },
-    ];
+	const isSuper = state?.currentUser?.role === 'superadmin' || !!state?.currentUser?.isSuperAdmin;
+	const cells = [
+		{ key: 'arco', el: document.getElementById('deliv-arco') },
+		{ key: 'melo', el: document.getElementById('deliv-melo') },
+		{ key: 'mara', el: document.getElementById('deliv-mara') },
+		{ key: 'oreo', el: document.getElementById('deliv-oreo') },
+		{ key: 'nute', el: document.getElementById('deliv-nute') },
+	];
 	function selectAllContent(el) {
 		try {
 			const range = document.createRange();
@@ -1835,92 +1837,92 @@ function wireDeliveredRowEditors() {
 			const sel = window.getSelection();
 			sel.removeAllRanges();
 			sel.addRange(range);
-		} catch {}
+		} catch { }
 	}
-    for (const item of cells) {
-        const el = item.el;
-        if (!el) continue;
-        // Toggle contenteditable based on role
-        if (isSuper) {
-            if (!el.isContentEditable) el.setAttribute('contenteditable', 'true');
-            el.style.cursor = 'text';
-            el.title = 'Editar cantidad entregada';
-        } else {
-            if (el.isContentEditable) el.removeAttribute('contenteditable');
-            el.style.cursor = 'default';
-            el.title = '';
-        }
-        if (el.dataset.bound === '1') continue;
-        el.dataset.bound = '1';
+	for (const item of cells) {
+		const el = item.el;
+		if (!el) continue;
+		// Toggle contenteditable based on role
+		if (isSuper) {
+			if (!el.isContentEditable) el.setAttribute('contenteditable', 'true');
+			el.style.cursor = 'text';
+			el.title = 'Editar cantidad entregada';
+		} else {
+			if (el.isContentEditable) el.removeAttribute('contenteditable');
+			el.style.cursor = 'default';
+			el.title = '';
+		}
+		if (el.dataset.bound === '1') continue;
+		el.dataset.bound = '1';
 		// Al enfocar/clic, seleccionar todo para reemplazar con la nueva cifra
 		el.addEventListener('focus', () => { selectAllContent(el); });
 		el.addEventListener('mouseup', (ev) => { ev.preventDefault(); selectAllContent(el); });
 		el.addEventListener('click', () => { selectAllContent(el); });
-        // Sanitize input to numbers only while typing
-        el.addEventListener('input', () => {
-            if (!el.isContentEditable) return;
-            let raw = (el.textContent || '').replace(/[^0-9]/g, '');
-            // Remove leading zeros
-            raw = raw.replace(/^0+(\d)/, '$1');
-            el.textContent = raw;
-        });
-        // Save on Enter or blur
-        el.addEventListener('keydown', (ev) => {
-            if (ev.key === 'Enter') { ev.preventDefault(); el.blur(); }
-        });
-        el.addEventListener('blur', async () => {
-            if (!isSuper) return;
-            const dayId = state?.selectedDayId || null;
-            if (!dayId) { try { notify.error('Selecciona una fecha'); } catch {} return; }
-            const flavor = item.key;
-            const value = Math.max(0, parseInt((el.textContent || '0').trim(), 10) || 0);
-            const payload = { id: dayId, actor_name: state.currentUser?.name || '' };
-            payload[`delivered_${flavor}`] = value;
-            try {
-                const updated = await api('PUT', '/api/days', payload);
-                const idx = (state.saleDays || []).findIndex(d => d && d.id === dayId);
-                if (idx !== -1) state.saleDays[idx] = updated;
-                updateSummary();
-            } catch (e) {
-                try { notify.error('No se pudo guardar'); } catch {}
-            }
-        });
-    }
+		// Sanitize input to numbers only while typing
+		el.addEventListener('input', () => {
+			if (!el.isContentEditable) return;
+			let raw = (el.textContent || '').replace(/[^0-9]/g, '');
+			// Remove leading zeros
+			raw = raw.replace(/^0+(\d)/, '$1');
+			el.textContent = raw;
+		});
+		// Save on Enter or blur
+		el.addEventListener('keydown', (ev) => {
+			if (ev.key === 'Enter') { ev.preventDefault(); el.blur(); }
+		});
+		el.addEventListener('blur', async () => {
+			if (!isSuper) return;
+			const dayId = state?.selectedDayId || null;
+			if (!dayId) { try { notify.error('Selecciona una fecha'); } catch { } return; }
+			const flavor = item.key;
+			const value = Math.max(0, parseInt((el.textContent || '0').trim(), 10) || 0);
+			const payload = { id: dayId, actor_name: state.currentUser?.name || '' };
+			payload[`delivered_${flavor}`] = value;
+			try {
+				const updated = await api('PUT', '/api/days', payload);
+				const idx = (state.saleDays || []).findIndex(d => d && d.id === dayId);
+				if (idx !== -1) state.saleDays[idx] = updated;
+				updateSummary();
+			} catch (e) {
+				try { notify.error('No se pudo guardar'); } catch { }
+			}
+		});
+	}
 }
 
 function wireCommissionsPaidEditor() {
-    const isSuper = state?.currentUser?.role === 'superadmin' || !!state?.currentUser?.isSuperAdmin;
-    const el = document.getElementById('comm-paid-total');
-    if (!el) return;
-    
-    function selectAllContent(el) {
-        try {
-            const range = document.createRange();
-            range.selectNodeContents(el);
-            const sel = window.getSelection();
-            sel.removeAllRanges();
-            sel.addRange(range);
-        } catch {}
-    }
-    
-    // Toggle contenteditable based on role
-    if (isSuper) {
-        if (!el.isContentEditable) el.setAttribute('contenteditable', 'true');
-        el.style.cursor = 'text';
-        el.title = 'Editar comisiones pagadas (click para editar)';
-    } else {
-        if (el.isContentEditable) el.removeAttribute('contenteditable');
-        el.style.cursor = 'default';
-        el.title = '';
-    }
-    
-    if (el.dataset.boundCommPaid === '1') return;
-    el.dataset.boundCommPaid = '1';
-    
-    // Store original formatted value and editing state
-    let originalValue = '';
-    let isEditing = false;
-    
+	const isSuper = state?.currentUser?.role === 'superadmin' || !!state?.currentUser?.isSuperAdmin;
+	const el = document.getElementById('comm-paid-total');
+	if (!el) return;
+
+	function selectAllContent(el) {
+		try {
+			const range = document.createRange();
+			range.selectNodeContents(el);
+			const sel = window.getSelection();
+			sel.removeAllRanges();
+			sel.addRange(range);
+		} catch { }
+	}
+
+	// Toggle contenteditable based on role
+	if (isSuper) {
+		if (!el.isContentEditable) el.setAttribute('contenteditable', 'true');
+		el.style.cursor = 'text';
+		el.title = 'Editar comisiones pagadas (click para editar)';
+	} else {
+		if (el.isContentEditable) el.removeAttribute('contenteditable');
+		el.style.cursor = 'default';
+		el.title = '';
+	}
+
+	if (el.dataset.boundCommPaid === '1') return;
+	el.dataset.boundCommPaid = '1';
+
+	// Store original formatted value and editing state
+	let originalValue = '';
+	let isEditing = false;
+
 	// On focus, convert formatted value to raw number for easier editing
 	el.addEventListener('focus', () => {
 		if (!isSuper) return;
@@ -1933,74 +1935,74 @@ function wireCommissionsPaidEditor() {
 		// Use setTimeout to ensure selection happens after textContent update
 		setTimeout(() => selectAllContent(el), 0);
 	});
-    
-    el.addEventListener('mouseup', (ev) => { 
-        if (isEditing) {
-            ev.preventDefault(); 
-            setTimeout(() => selectAllContent(el), 0);
-        }
-    });
-    
-    // Sanitize input to numbers only while typing - allow any number of digits
-    el.addEventListener('input', () => {
-        if (!el.isContentEditable || !isSuper) return;
-        // Get cursor position before modification
-        const selection = window.getSelection();
-        const cursorPos = selection.anchorOffset;
-        
-        let raw = (el.textContent || '').replace(/[^0-9]/g, '');
-        // Remove leading zeros only if there are other digits
-        if (raw.length > 1) {
-            raw = raw.replace(/^0+/, '');
-        }
-        // If empty, default to 0
-        if (!raw) raw = '0';
-        
-        el.textContent = raw;
-        
-        // Restore cursor position
-        try {
-            const range = document.createRange();
-            const newPos = Math.min(cursorPos, el.textContent.length);
-            range.setStart(el.firstChild || el, newPos);
-            range.collapse(true);
-            selection.removeAllRanges();
-            selection.addRange(range);
-        } catch {}
-    });
-    
-    // Save on Enter or blur
-    el.addEventListener('keydown', (ev) => {
-        if (!isSuper) return;
-        if (ev.key === 'Enter') { 
-            ev.preventDefault(); 
-            el.blur(); 
-        }
-        if (ev.key === 'Escape') { 
-            ev.preventDefault(); 
-            isEditing = false;
-            el.textContent = originalValue;
-            el.blur(); 
-        }
-    });
-    
+
+	el.addEventListener('mouseup', (ev) => {
+		if (isEditing) {
+			ev.preventDefault();
+			setTimeout(() => selectAllContent(el), 0);
+		}
+	});
+
+	// Sanitize input to numbers only while typing - allow any number of digits
+	el.addEventListener('input', () => {
+		if (!el.isContentEditable || !isSuper) return;
+		// Get cursor position before modification
+		const selection = window.getSelection();
+		const cursorPos = selection.anchorOffset;
+
+		let raw = (el.textContent || '').replace(/[^0-9]/g, '');
+		// Remove leading zeros only if there are other digits
+		if (raw.length > 1) {
+			raw = raw.replace(/^0+/, '');
+		}
+		// If empty, default to 0
+		if (!raw) raw = '0';
+
+		el.textContent = raw;
+
+		// Restore cursor position
+		try {
+			const range = document.createRange();
+			const newPos = Math.min(cursorPos, el.textContent.length);
+			range.setStart(el.firstChild || el, newPos);
+			range.collapse(true);
+			selection.removeAllRanges();
+			selection.addRange(range);
+		} catch { }
+	});
+
+	// Save on Enter or blur
+	el.addEventListener('keydown', (ev) => {
+		if (!isSuper) return;
+		if (ev.key === 'Enter') {
+			ev.preventDefault();
+			el.blur();
+		}
+		if (ev.key === 'Escape') {
+			ev.preventDefault();
+			isEditing = false;
+			el.textContent = originalValue;
+			el.blur();
+		}
+	});
+
 	el.addEventListener('blur', async () => {
 		if (!isSuper || !isEditing) {
 			delete el.dataset.isEditing;
 			return;
 		}
 		isEditing = false;
-		
+
 		const dayId = state?.selectedDayId || null;
 		console.log('Blur event - dayId:', dayId, 'isEditing:', isEditing, 'isSuper:', isSuper);
-		
-		if (!dayId) { 
+
+		if (!dayId) {
 			el.textContent = originalValue;
 			delete el.dataset.isEditing;
-			try { notify.error('Selecciona una fecha'); } catch {} 
-			return; 
+			try { notify.error('Selecciona una fecha'); } catch { }
+			return;
 		}
-		
+
 		const rawValue = (el.textContent || '').replace(/[^0-9]/g, '');
 		const value = Math.max(0, parseInt(rawValue, 10) || 0);
 		console.log('Saving commissions_paid:', value, 'dayId:', dayId);
@@ -2008,7 +2010,7 @@ function wireCommissionsPaidEditor() {
 		console.log('actor_name:', state.currentUser?.name);
 		const payload = { id: dayId, actor_name: state.currentUser?.name || '', commissions_paid: value };
 		console.log('Full payload:', JSON.stringify(payload, null, 2));
-		
+
 		try {
 			const updated = await api('PUT', '/api/days', payload);
 			console.log('API response:', updated);
@@ -2024,13 +2026,13 @@ function wireCommissionsPaidEditor() {
 			// Format and display the saved value immediately
 			const formatted = fmtNo.format(value);
 			el.textContent = formatted;
-			
+
 			// Also update the mobile stacked version
 			const elMobile = document.getElementById('comm-paid-total-2');
 			if (elMobile) elMobile.textContent = formatted;
-			
+
 			console.log('Formatted value displayed:', formatted);
-			
+
 			// Don't call updateSummary immediately to avoid overwriting
 			setTimeout(() => {
 				if (!el.dataset.isEditing) {
@@ -2039,7 +2041,7 @@ function wireCommissionsPaidEditor() {
 			}, 100);
 		} catch (e) {
 			console.error('Error saving commissions paid:', e);
-			try { notify.error('No se pudo guardar las comisiones pagadas'); } catch {}
+			try { notify.error('No se pudo guardar las comisiones pagadas'); } catch { }
 			// Restore original value on error
 			el.textContent = originalValue;
 			delete el.dataset.isEditing;
@@ -2049,687 +2051,687 @@ function wireCommissionsPaidEditor() {
 
 // New order popover: allow entering client and quantities before creating the row
 function attachClientSuggestionsPopover(inputEl) {
-    try {
-        let pop = null;
-        let visible = false;
-        function buildList(queryRaw) {
-            const list = Array.isArray(state.clientSuggestions) ? state.clientSuggestions : [];
-            const q = normalizeClientName(queryRaw || '');
-            if (!q) return [];
-            const out = [];
-            for (const it of list) {
-                const key = String(it.key || '');
-                if (key.startsWith(q)) out.push(it);
-                if (out.length >= 10) break;
-            }
-            return out;
-        }
-        function ensurePop() {
-            if (pop) return pop;
-            pop = document.createElement('div');
-            pop.className = 'client-suggest-popover';
-            pop.style.position = 'fixed';
-            pop.style.zIndex = '1001';
-            document.body.appendChild(pop);
-            return pop;
-        }
-    function positionPop() {
-            if (!pop) return;
-            const rect = inputEl.getBoundingClientRect();
-        const cs = getComputedStyle(inputEl);
-        const padL = parseFloat(cs.paddingLeft) || 0;
-        const padR = parseFloat(cs.paddingRight) || 0;
-        pop.style.left = (rect.left + padL) + 'px';
-        pop.style.top = (rect.bottom + 2) + 'px';
-        const w = Math.max(120, rect.width - padL - padR);
-        pop.style.width = w + 'px';
-        }
-        function closePop() {
-            visible = false;
-            if (pop && pop.parentNode) pop.parentNode.removeChild(pop);
-            pop = null;
-            document.removeEventListener('mousedown', handleOutside, true);
-            window.removeEventListener('resize', positionPop);
-            window.removeEventListener('scroll', positionPop, true);
-        }
-        function handleOutside(ev) { if (pop && !pop.contains(ev.target) && ev.target !== inputEl) closePop(); }
-        function render(query) {
-            const data = buildList(query);
-            if (!data || data.length === 0) { closePop(); return; }
-            ensurePop();
-            pop.innerHTML = '';
-            for (const it of data) {
-                const row = document.createElement('div');
-                row.className = 'client-suggest-item';
-                row.textContent = String(it.name || '');
-                row.addEventListener('mousedown', (ev) => { ev.preventDefault(); ev.stopPropagation(); });
-                row.addEventListener('click', (ev) => {
-                    ev.preventDefault(); ev.stopPropagation();
-                    inputEl.value = String(it.name || '');
-                    inputEl.dispatchEvent(new Event('input'));
-                    inputEl.focus();
-                    // Close suggestions after selecting
-                    closePop();
-                });
-                pop.appendChild(row);
-            }
-            positionPop();
-            if (!visible) {
-                visible = true;
-                setTimeout(() => { document.addEventListener('mousedown', handleOutside, true); }, 0);
-                window.addEventListener('resize', positionPop);
-                window.addEventListener('scroll', positionPop, true);
-            }
-        }
-        inputEl.addEventListener('focus', () => { /* do not open on focus alone */ });
-        inputEl.addEventListener('input', () => { render(inputEl.value || ''); });
-        inputEl.addEventListener('blur', () => { setTimeout(closePop, 120); });
-    } catch {}
+	try {
+		let pop = null;
+		let visible = false;
+		function buildList(queryRaw) {
+			const list = Array.isArray(state.clientSuggestions) ? state.clientSuggestions : [];
+			const q = normalizeClientName(queryRaw || '');
+			if (!q) return [];
+			const out = [];
+			for (const it of list) {
+				const key = String(it.key || '');
+				if (key.startsWith(q)) out.push(it);
+				if (out.length >= 10) break;
+			}
+			return out;
+		}
+		function ensurePop() {
+			if (pop) return pop;
+			pop = document.createElement('div');
+			pop.className = 'client-suggest-popover';
+			pop.style.position = 'fixed';
+			pop.style.zIndex = '1001';
+			document.body.appendChild(pop);
+			return pop;
+		}
+		function positionPop() {
+			if (!pop) return;
+			const rect = inputEl.getBoundingClientRect();
+			const cs = getComputedStyle(inputEl);
+			const padL = parseFloat(cs.paddingLeft) || 0;
+			const padR = parseFloat(cs.paddingRight) || 0;
+			pop.style.left = (rect.left + padL) + 'px';
+			pop.style.top = (rect.bottom + 2) + 'px';
+			const w = Math.max(120, rect.width - padL - padR);
+			pop.style.width = w + 'px';
+		}
+		function closePop() {
+			visible = false;
+			if (pop && pop.parentNode) pop.parentNode.removeChild(pop);
+			pop = null;
+			document.removeEventListener('mousedown', handleOutside, true);
+			window.removeEventListener('resize', positionPop);
+			window.removeEventListener('scroll', positionPop, true);
+		}
+		function handleOutside(ev) { if (pop && !pop.contains(ev.target) && ev.target !== inputEl) closePop(); }
+		function render(query) {
+			const data = buildList(query);
+			if (!data || data.length === 0) { closePop(); return; }
+			ensurePop();
+			pop.innerHTML = '';
+			for (const it of data) {
+				const row = document.createElement('div');
+				row.className = 'client-suggest-item';
+				row.textContent = String(it.name || '');
+				row.addEventListener('mousedown', (ev) => { ev.preventDefault(); ev.stopPropagation(); });
+				row.addEventListener('click', (ev) => {
+					ev.preventDefault(); ev.stopPropagation();
+					inputEl.value = String(it.name || '');
+					inputEl.dispatchEvent(new Event('input'));
+					inputEl.focus();
+					// Close suggestions after selecting
+					closePop();
+				});
+				pop.appendChild(row);
+			}
+			positionPop();
+			if (!visible) {
+				visible = true;
+				setTimeout(() => { document.addEventListener('mousedown', handleOutside, true); }, 0);
+				window.addEventListener('resize', positionPop);
+				window.addEventListener('scroll', positionPop, true);
+			}
+		}
+		inputEl.addEventListener('focus', () => { /* do not open on focus alone */ });
+		inputEl.addEventListener('input', () => { render(inputEl.value || ''); });
+		inputEl.addEventListener('blur', () => { setTimeout(closePop, 120); });
+	} catch { }
 }
 
 function openNewSalePopover(anchorX, anchorY) {
-    try {
-        const pop = document.createElement('div');
-        pop.className = 'new-sale-popover';
-        pop.style.position = 'fixed';
-        const isSmall = window.matchMedia('(max-width: 640px)').matches;
-        if (typeof anchorX === 'number' && typeof anchorY === 'number' && !isSmall) {
-            pop.style.left = anchorX + 'px';
-            pop.style.top = anchorY + 'px';
-            pop.style.transform = 'translate(-50%, 0)';
-        } else {
-            pop.style.left = '50%';
-            pop.style.top = '20%';
-            pop.style.transform = 'translate(-50%, 0)';
-        }
+	try {
+		const pop = document.createElement('div');
+		pop.className = 'new-sale-popover';
+		pop.style.position = 'fixed';
+		const isSmall = window.matchMedia('(max-width: 640px)').matches;
+		if (typeof anchorX === 'number' && typeof anchorY === 'number' && !isSmall) {
+			pop.style.left = anchorX + 'px';
+			pop.style.top = anchorY + 'px';
+			pop.style.transform = 'translate(-50%, 0)';
+		} else {
+			pop.style.left = '50%';
+			pop.style.top = '20%';
+			pop.style.transform = 'translate(-50%, 0)';
+		}
 
-        const title = document.createElement('h4');
-        title.textContent = 'Nuevo pedido';
-        title.style.margin = '0 0 8px 0';
+		const title = document.createElement('h4');
+		title.textContent = 'Nuevo pedido';
+		title.style.margin = '0 0 8px 0';
 
-        const grid = document.createElement('div');
-        grid.className = 'new-sale-grid';
+		const grid = document.createElement('div');
+		grid.className = 'new-sale-grid';
 
-        function appendRow(labelText, inputEl) {
-            const left = document.createElement('div'); left.className = 'new-sale-cell new-sale-left';
-            const right = document.createElement('div'); right.className = 'new-sale-cell new-sale-right';
-            const lbl = document.createElement('div'); lbl.className = 'new-sale-label-text'; lbl.textContent = labelText;
-            left.appendChild(lbl);
-            right.appendChild(inputEl);
-            // Make whole right cell focus the input when clicked
-            right.addEventListener('mousedown', (ev) => {
-                if (ev.target !== inputEl) { ev.preventDefault(); try { inputEl.focus(); inputEl.select(); } catch {} }
-            });
-            right.addEventListener('click', (ev) => {
-                if (ev.target !== inputEl) { ev.preventDefault(); try { inputEl.focus(); inputEl.select(); } catch {} }
-            });
-            grid.appendChild(left);
-            grid.appendChild(right);
-        }
+		function appendRow(labelText, inputEl) {
+			const left = document.createElement('div'); left.className = 'new-sale-cell new-sale-left';
+			const right = document.createElement('div'); right.className = 'new-sale-cell new-sale-right';
+			const lbl = document.createElement('div'); lbl.className = 'new-sale-label-text'; lbl.textContent = labelText;
+			left.appendChild(lbl);
+			right.appendChild(inputEl);
+			// Make whole right cell focus the input when clicked
+			right.addEventListener('mousedown', (ev) => {
+				if (ev.target !== inputEl) { ev.preventDefault(); try { inputEl.focus(); inputEl.select(); } catch { } }
+			});
+			right.addEventListener('click', (ev) => {
+				if (ev.target !== inputEl) { ev.preventDefault(); try { inputEl.focus(); inputEl.select(); } catch { } }
+			});
+			grid.appendChild(left);
+			grid.appendChild(right);
+		}
 
-        // Client row
-        const clientInput = document.createElement('input');
-        clientInput.type = 'text';
-        clientInput.placeholder = 'Nombre del cliente';
-        clientInput.className = 'input-cell client-input';
-        clientInput.autocomplete = 'off';
-        // Custom inline suggestions below the first character (left-aligned)
-        attachClientSuggestionsPopover(clientInput);
-        appendRow('Cliente', clientInput);
+		// Client row
+		const clientInput = document.createElement('input');
+		clientInput.type = 'text';
+		clientInput.placeholder = 'Nombre del cliente';
+		clientInput.className = 'input-cell client-input';
+		clientInput.autocomplete = 'off';
+		// Custom inline suggestions below the first character (left-aligned)
+		attachClientSuggestionsPopover(clientInput);
+		appendRow('Cliente', clientInput);
 
-        // Dessert rows (dynamic from state.desserts)
-        const qtyInputs = {};
-        for (const d of state.desserts) {
-            const input = document.createElement('input');
-            input.type = 'number';
-            input.min = '0';
-            input.step = '1';
-            input.inputMode = 'numeric';
-            input.placeholder = '0';
-            input.className = 'input-cell input-qty';
-            input.dataset.dessertId = d.id;
-            qtyInputs[d.short_code] = input;
-            appendRow(d.name, input);
-        }
+		// Dessert rows (dynamic from state.desserts)
+		const qtyInputs = {};
+		for (const d of state.desserts) {
+			const input = document.createElement('input');
+			input.type = 'number';
+			input.min = '0';
+			input.step = '1';
+			input.inputMode = 'numeric';
+			input.placeholder = '0';
+			input.className = 'input-cell input-qty';
+			input.dataset.dessertId = d.id;
+			qtyInputs[d.short_code] = input;
+			appendRow(d.name, input);
+		}
 
-        // Special pricing checkboxes
-        const specialPricingContainer = document.createElement('div');
-        specialPricingContainer.style.display = 'flex';
-        specialPricingContainer.style.gap = '16px';
-        specialPricingContainer.style.padding = '12px 0';
-        specialPricingContainer.style.borderTop = '1px solid rgba(0,0,0,0.1)';
-        specialPricingContainer.style.marginTop = '8px';
+		// Special pricing checkboxes
+		const specialPricingContainer = document.createElement('div');
+		specialPricingContainer.style.display = 'flex';
+		specialPricingContainer.style.gap = '16px';
+		specialPricingContainer.style.padding = '12px 0';
+		specialPricingContainer.style.borderTop = '1px solid rgba(0,0,0,0.1)';
+		specialPricingContainer.style.marginTop = '8px';
 
-        const muestraCheckbox = document.createElement('label');
-        muestraCheckbox.style.display = 'flex';
-        muestraCheckbox.style.alignItems = 'center';
-        muestraCheckbox.style.gap = '6px';
-        muestraCheckbox.style.cursor = 'pointer';
-        muestraCheckbox.style.fontSize = '14px';
-        const muestraInput = document.createElement('input');
-        muestraInput.type = 'checkbox';
-        muestraInput.style.cursor = 'pointer';
-        const muestraLabel = document.createElement('span');
-        muestraLabel.textContent = 'Muestra';
-        muestraCheckbox.append(muestraInput, muestraLabel);
+		const muestraCheckbox = document.createElement('label');
+		muestraCheckbox.style.display = 'flex';
+		muestraCheckbox.style.alignItems = 'center';
+		muestraCheckbox.style.gap = '6px';
+		muestraCheckbox.style.cursor = 'pointer';
+		muestraCheckbox.style.fontSize = '14px';
+		const muestraInput = document.createElement('input');
+		muestraInput.type = 'checkbox';
+		muestraInput.style.cursor = 'pointer';
+		const muestraLabel = document.createElement('span');
+		muestraLabel.textContent = 'Muestra';
+		muestraCheckbox.append(muestraInput, muestraLabel);
 
-        const costoCheckbox = document.createElement('label');
-        costoCheckbox.style.display = 'flex';
-        costoCheckbox.style.alignItems = 'center';
-        costoCheckbox.style.gap = '6px';
-        costoCheckbox.style.cursor = 'pointer';
-        costoCheckbox.style.fontSize = '14px';
-        const costoInput = document.createElement('input');
-        costoInput.type = 'checkbox';
-        costoInput.style.cursor = 'pointer';
-        const costoLabel = document.createElement('span');
-        costoLabel.textContent = 'A costo';
-        costoCheckbox.append(costoInput, costoLabel);
+		const costoCheckbox = document.createElement('label');
+		costoCheckbox.style.display = 'flex';
+		costoCheckbox.style.alignItems = 'center';
+		costoCheckbox.style.gap = '6px';
+		costoCheckbox.style.cursor = 'pointer';
+		costoCheckbox.style.fontSize = '14px';
+		const costoInput = document.createElement('input');
+		costoInput.type = 'checkbox';
+		costoInput.style.cursor = 'pointer';
+		const costoLabel = document.createElement('span');
+		costoLabel.textContent = 'A costo';
+		costoCheckbox.append(costoInput, costoLabel);
 
-        specialPricingContainer.append(muestraCheckbox, costoCheckbox);
+		specialPricingContainer.append(muestraCheckbox, costoCheckbox);
 
-        // Make checkboxes mutually exclusive
-        muestraInput.addEventListener('change', () => {
-            if (muestraInput.checked) costoInput.checked = false;
-        });
-        costoInput.addEventListener('change', () => {
-            if (costoInput.checked) muestraInput.checked = false;
-        });
+		// Make checkboxes mutually exclusive
+		muestraInput.addEventListener('change', () => {
+			if (muestraInput.checked) costoInput.checked = false;
+		});
+		costoInput.addEventListener('change', () => {
+			if (costoInput.checked) muestraInput.checked = false;
+		});
 
-        const actions = document.createElement('div');
-        actions.className = 'confirm-actions';
-        const cancelBtn = document.createElement('button');
-        cancelBtn.type = 'button';
-        cancelBtn.className = 'press-btn';
-        cancelBtn.textContent = 'Cancelar';
-        const saveBtn = document.createElement('button');
-        saveBtn.type = 'button';
-        saveBtn.className = 'press-btn btn-primary';
-        saveBtn.textContent = 'Guardar';
-        actions.append(cancelBtn, saveBtn);
+		const actions = document.createElement('div');
+		actions.className = 'confirm-actions';
+		const cancelBtn = document.createElement('button');
+		cancelBtn.type = 'button';
+		cancelBtn.className = 'press-btn';
+		cancelBtn.textContent = 'Cancelar';
+		const saveBtn = document.createElement('button');
+		saveBtn.type = 'button';
+		saveBtn.className = 'press-btn btn-primary';
+		saveBtn.textContent = 'Guardar';
+		actions.append(cancelBtn, saveBtn);
 
-        pop.append(title, grid, specialPricingContainer, actions);
-        // Prepare hidden mount to avoid visible jump before clamping
-        pop.style.visibility = 'hidden';
-        pop.style.opacity = '0';
-        pop.style.transition = 'opacity 160ms ease-out';
-        document.body.appendChild(pop);
+		pop.append(title, grid, specialPricingContainer, actions);
+		// Prepare hidden mount to avoid visible jump before clamping
+		pop.style.visibility = 'hidden';
+		pop.style.opacity = '0';
+		pop.style.transition = 'opacity 160ms ease-out';
+		document.body.appendChild(pop);
 
-        // Clamp within viewport so the popover is fully visible
-        function clampWithinViewport() {
-            try {
-                const margin = 8;
-                const vw = window.innerWidth;
-                const vh = window.innerHeight;
-                const r = pop.getBoundingClientRect();
-                const baseX = (typeof anchorX === 'number') ? anchorX : (vw / 2);
-                const baseY = (typeof anchorY === 'number') ? anchorY : (vh / 2);
-                let left = Math.round(baseX - r.width / 2);
-                let topBelow = Math.round(baseY + 8);
-                let topAbove = Math.round(baseY - 8 - r.height);
-                let top = topBelow;
-                if (top + r.height > vh - margin) {
-                    // Prefer above if below overflows
-                    top = topAbove;
-                }
-                // If still overflows, clamp to margins
-                if (top < margin) top = margin;
-                if (top + r.height > vh - margin) top = Math.max(margin, vh - margin - r.height);
-                if (left < margin) left = margin;
-                if (left + r.width > vw - margin) left = Math.max(margin, vw - margin - r.width);
-                pop.style.left = left + 'px';
-                pop.style.top = top + 'px';
-                pop.style.transform = 'none';
-            } catch {}
-        }
-        // Clamp immediately before showing to prevent jump
-        clampWithinViewport();
-        // Reveal with a light fade-in
-        pop.style.visibility = 'visible';
-        requestAnimationFrame(() => { pop.style.opacity = '1'; });
+		// Clamp within viewport so the popover is fully visible
+		function clampWithinViewport() {
+			try {
+				const margin = 8;
+				const vw = window.innerWidth;
+				const vh = window.innerHeight;
+				const r = pop.getBoundingClientRect();
+				const baseX = (typeof anchorX === 'number') ? anchorX : (vw / 2);
+				const baseY = (typeof anchorY === 'number') ? anchorY : (vh / 2);
+				let left = Math.round(baseX - r.width / 2);
+				let topBelow = Math.round(baseY + 8);
+				let topAbove = Math.round(baseY - 8 - r.height);
+				let top = topBelow;
+				if (top + r.height > vh - margin) {
+					// Prefer above if below overflows
+					top = topAbove;
+				}
+				// If still overflows, clamp to margins
+				if (top < margin) top = margin;
+				if (top + r.height > vh - margin) top = Math.max(margin, vh - margin - r.height);
+				if (left < margin) left = margin;
+				if (left + r.width > vw - margin) left = Math.max(margin, vw - margin - r.width);
+				pop.style.left = left + 'px';
+				pop.style.top = top + 'px';
+				pop.style.transform = 'none';
+			} catch { }
+		}
+		// Clamp immediately before showing to prevent jump
+		clampWithinViewport();
+		// Reveal with a light fade-in
+		pop.style.visibility = 'visible';
+		requestAnimationFrame(() => { pop.style.opacity = '1'; });
 
-        function cleanup() {
-            document.removeEventListener('mousedown', outside, true);
-            document.removeEventListener('touchstart', outside, true);
-            if (pop.parentNode) pop.parentNode.removeChild(pop);
-        }
-        function outside(ev) {
-            const t = ev.target;
-            if (!pop.contains(t) && !t.closest?.('.client-suggest-popover')) cleanup();
-        }
-        setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
-        cancelBtn.addEventListener('click', cleanup);
+		function cleanup() {
+			document.removeEventListener('mousedown', outside, true);
+			document.removeEventListener('touchstart', outside, true);
+			if (pop.parentNode) pop.parentNode.removeChild(pop);
+		}
+		function outside(ev) {
+			const t = ev.target;
+			if (!pop.contains(t) && !t.closest?.('.client-suggest-popover')) cleanup();
+		}
+		setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
+		cancelBtn.addEventListener('click', cleanup);
 
-        // Focus client by default
-        setTimeout(() => { try { clientInput.focus(); clientInput.select(); } catch {} }, 0);
+		// Focus client by default
+		setTimeout(() => { try { clientInput.focus(); clientInput.select(); } catch { } }, 0);
 
-        async function doSave() {
-            try {
-                saveBtn.disabled = true; cancelBtn.disabled = true;
-                const sellerId = state?.currentSeller?.id;
-                if (!sellerId) { try { notify.error('Selecciona un vendedor'); } catch {} return; }
-                const payload = { seller_id: sellerId };
-                if (state?.selectedDayId) payload.sale_day_id = state.selectedDayId;
-                const created = await api('POST', API.Sales, payload);
-                
-                // Determine special pricing type
-                let specialPricingType = null;
-                let priceMultiplier = 1;
-                if (muestraInput.checked) {
-                    specialPricingType = 'muestra';
-                    priceMultiplier = 0;
-                } else if (costoInput.checked) {
-                    specialPricingType = 'a_costo';
-                    priceMultiplier = 0.55; // 45% discount = 55% of original price
-                }
-                
-                // Build items array and legacy qty_* properties dynamically
-                const items = [];
-                const body = {
-                    id: created.id,
-                    client_name: (clientInput.value || '').trim(),
-                    is_paid: false,
-                    pay_method: null,
-                    special_pricing_type: specialPricingType,
-                    _actor_name: state.currentUser?.name || ''
-                };
-                
-                for (const d of state.desserts) {
-                    const input = qtyInputs[d.short_code];
-                    const qty = Math.max(0, parseInt(input?.value || '0', 10) || 0);
-                    
-                    // Legacy format for backward compatibility
-                    body[`qty_${d.short_code}`] = qty;
-                    
-                    // New format - items array with adjusted price
-                    if (qty > 0) {
-                        items.push({
-                            dessert_id: d.id,
-                            quantity: qty,
-                            unit_price: Math.round(d.sale_price * priceMultiplier)
-                        });
-                    }
-                }
-                
-                body.items = items;
-                const updated = await api('PUT', API.Sales, body);
-                // Prepend and render
-                state.sales.unshift(updated);
-                renderTable();
-                try { notify.success('Guardado exitosamente'); } catch {}
-                cleanup();
-            } catch (e) {
-                try { notify.error('No se pudo guardar'); } catch {}
-                saveBtn.disabled = false; cancelBtn.disabled = false;
-            }
-        }
+		async function doSave() {
+			try {
+				saveBtn.disabled = true; cancelBtn.disabled = true;
+				const sellerId = state?.currentSeller?.id;
+				if (!sellerId) { try { notify.error('Selecciona un vendedor'); } catch { } return; }
+				const payload = { seller_id: sellerId };
+				if (state?.selectedDayId) payload.sale_day_id = state.selectedDayId;
+				const created = await api('POST', API.Sales, payload);
 
-        saveBtn.addEventListener('click', doSave);
-        // Submit on Enter in any input
-        const allInputs = [clientInput, ...Object.values(qtyInputs)];
-        allInputs.forEach((el) => {
-            el.addEventListener('keydown', (ev) => {
-                if (ev.key === 'Enter') { ev.preventDefault(); doSave(); }
-            });
-        });
-    } catch (e) {
-        // Fallback to old inline add if popover fails
-        try { addRow(); } catch {}
-    }
+				// Determine special pricing type
+				let specialPricingType = null;
+				let priceMultiplier = 1;
+				if (muestraInput.checked) {
+					specialPricingType = 'muestra';
+					priceMultiplier = 0;
+				} else if (costoInput.checked) {
+					specialPricingType = 'a_costo';
+					priceMultiplier = 0.55; // 45% discount = 55% of original price
+				}
+
+				// Build items array and legacy qty_* properties dynamically
+				const items = [];
+				const body = {
+					id: created.id,
+					client_name: (clientInput.value || '').trim(),
+					is_paid: false,
+					pay_method: null,
+					special_pricing_type: specialPricingType,
+					_actor_name: state.currentUser?.name || ''
+				};
+
+				for (const d of state.desserts) {
+					const input = qtyInputs[d.short_code];
+					const qty = Math.max(0, parseInt(input?.value || '0', 10) || 0);
+
+					// Legacy format for backward compatibility
+					body[`qty_${d.short_code}`] = qty;
+
+					// New format - items array with adjusted price
+					if (qty > 0) {
+						items.push({
+							dessert_id: d.id,
+							quantity: qty,
+							unit_price: Math.round(d.sale_price * priceMultiplier)
+						});
+					}
+				}
+
+				body.items = items;
+				const updated = await api('PUT', API.Sales, body);
+				// Prepend and render
+				state.sales.unshift(updated);
+				renderTable();
+				try { notify.success('Guardado exitosamente'); } catch { }
+				cleanup();
+			} catch (e) {
+				try { notify.error('No se pudo guardar'); } catch { }
+				saveBtn.disabled = false; cancelBtn.disabled = false;
+			}
+		}
+
+		saveBtn.addEventListener('click', doSave);
+		// Submit on Enter in any input
+		const allInputs = [clientInput, ...Object.values(qtyInputs)];
+		allInputs.forEach((el) => {
+			el.addEventListener('keydown', (ev) => {
+				if (ev.key === 'Enter') { ev.preventDefault(); doSave(); }
+			});
+		});
+	} catch (e) {
+		// Fallback to old inline add if popover fails
+		try { addRow(); } catch { }
+	}
 }
 
 // Open edit sale popover with existing sale data
 function openEditSalePopover(saleId, anchorX, anchorY, onCloseCallback) {
-    try {
-        const sale = state.sales.find(s => s.id === saleId);
-        if (!sale) {
-            try { notify.error('No se encontró el pedido'); } catch {}
-            return;
-        }
-        
-        const pop = document.createElement('div');
-        pop.className = 'new-sale-popover';
-        pop.style.position = 'fixed';
-        const isSmall = window.matchMedia('(max-width: 640px)').matches;
-        if (typeof anchorX === 'number' && typeof anchorY === 'number' && !isSmall) {
-            pop.style.left = anchorX + 'px';
-            pop.style.top = anchorY + 'px';
-            pop.style.transform = 'translate(-50%, 0)';
-        } else {
-            pop.style.left = '50%';
-            pop.style.top = '20%';
-            pop.style.transform = 'translate(-50%, 0)';
-        }
+	try {
+		const sale = state.sales.find(s => s.id === saleId);
+		if (!sale) {
+			try { notify.error('No se encontró el pedido'); } catch { }
+			return;
+		}
 
-        const title = document.createElement('h4');
-        title.textContent = 'Editar pedido';
-        title.style.margin = '0 0 8px 0';
+		const pop = document.createElement('div');
+		pop.className = 'new-sale-popover';
+		pop.style.position = 'fixed';
+		const isSmall = window.matchMedia('(max-width: 640px)').matches;
+		if (typeof anchorX === 'number' && typeof anchorY === 'number' && !isSmall) {
+			pop.style.left = anchorX + 'px';
+			pop.style.top = anchorY + 'px';
+			pop.style.transform = 'translate(-50%, 0)';
+		} else {
+			pop.style.left = '50%';
+			pop.style.top = '20%';
+			pop.style.transform = 'translate(-50%, 0)';
+		}
 
-        const grid = document.createElement('div');
-        grid.className = 'new-sale-grid';
+		const title = document.createElement('h4');
+		title.textContent = 'Editar pedido';
+		title.style.margin = '0 0 8px 0';
 
-        function appendRow(labelText, inputEl) {
-            const left = document.createElement('div'); left.className = 'new-sale-cell new-sale-left';
-            const right = document.createElement('div'); right.className = 'new-sale-cell new-sale-right';
-            const lbl = document.createElement('div'); lbl.className = 'new-sale-label-text'; lbl.textContent = labelText;
-            left.appendChild(lbl);
-            right.appendChild(inputEl);
-            right.addEventListener('mousedown', (ev) => {
-                if (ev.target !== inputEl) { ev.preventDefault(); try { inputEl.focus(); inputEl.select(); } catch {} }
-            });
-            right.addEventListener('click', (ev) => {
-                if (ev.target !== inputEl) { ev.preventDefault(); try { inputEl.focus(); inputEl.select(); } catch {} }
-            });
-            grid.appendChild(left);
-            grid.appendChild(right);
-        }
+		const grid = document.createElement('div');
+		grid.className = 'new-sale-grid';
 
-        // Client row - prefilled
-        const clientInput = document.createElement('input');
-        clientInput.type = 'text';
-        clientInput.placeholder = 'Nombre del cliente';
-        clientInput.className = 'input-cell client-input';
-        clientInput.autocomplete = 'off';
-        clientInput.value = sale.client_name || '';
-        attachClientSuggestionsPopover(clientInput);
-        appendRow('Cliente', clientInput);
+		function appendRow(labelText, inputEl) {
+			const left = document.createElement('div'); left.className = 'new-sale-cell new-sale-left';
+			const right = document.createElement('div'); right.className = 'new-sale-cell new-sale-right';
+			const lbl = document.createElement('div'); lbl.className = 'new-sale-label-text'; lbl.textContent = labelText;
+			left.appendChild(lbl);
+			right.appendChild(inputEl);
+			right.addEventListener('mousedown', (ev) => {
+				if (ev.target !== inputEl) { ev.preventDefault(); try { inputEl.focus(); inputEl.select(); } catch { } }
+			});
+			right.addEventListener('click', (ev) => {
+				if (ev.target !== inputEl) { ev.preventDefault(); try { inputEl.focus(); inputEl.select(); } catch { } }
+			});
+			grid.appendChild(left);
+			grid.appendChild(right);
+		}
 
-        // Dessert rows (dynamic from state.desserts) - prefilled
-        const qtyInputs = {};
-        for (const d of state.desserts) {
-            const input = document.createElement('input');
-            input.type = 'number';
-            input.min = '0';
-            input.step = '1';
-            input.inputMode = 'numeric';
-            input.placeholder = '0';
-            input.className = 'input-cell input-qty';
-            input.dataset.dessertId = d.id;
-            
-            // Get current quantity from sale
-            let qty = 0;
-            if (Array.isArray(sale.items) && sale.items.length > 0) {
-                const item = sale.items.find(i => i.dessert_id === d.id || i.short_code === d.short_code);
-                qty = item ? Number(item.quantity || 0) : 0;
-            } else {
-                qty = Number(sale[`qty_${d.short_code}`] || 0);
-            }
-            
-            input.value = qty > 0 ? String(qty) : '';
-            qtyInputs[d.short_code] = input;
-            appendRow(d.name, input);
-        }
+		// Client row - prefilled
+		const clientInput = document.createElement('input');
+		clientInput.type = 'text';
+		clientInput.placeholder = 'Nombre del cliente';
+		clientInput.className = 'input-cell client-input';
+		clientInput.autocomplete = 'off';
+		clientInput.value = sale.client_name || '';
+		attachClientSuggestionsPopover(clientInput);
+		appendRow('Cliente', clientInput);
 
-        // Special pricing checkboxes
-        const specialPricingContainer = document.createElement('div');
-        specialPricingContainer.style.display = 'flex';
-        specialPricingContainer.style.gap = '16px';
-        specialPricingContainer.style.padding = '12px 0';
-        specialPricingContainer.style.borderTop = '1px solid rgba(0,0,0,0.1)';
-        specialPricingContainer.style.marginTop = '8px';
+		// Dessert rows (dynamic from state.desserts) - prefilled
+		const qtyInputs = {};
+		for (const d of state.desserts) {
+			const input = document.createElement('input');
+			input.type = 'number';
+			input.min = '0';
+			input.step = '1';
+			input.inputMode = 'numeric';
+			input.placeholder = '0';
+			input.className = 'input-cell input-qty';
+			input.dataset.dessertId = d.id;
 
-        const muestraCheckbox = document.createElement('label');
-        muestraCheckbox.style.display = 'flex';
-        muestraCheckbox.style.alignItems = 'center';
-        muestraCheckbox.style.gap = '6px';
-        muestraCheckbox.style.cursor = 'pointer';
-        muestraCheckbox.style.fontSize = '14px';
-        const muestraInput = document.createElement('input');
-        muestraInput.type = 'checkbox';
-        muestraInput.style.cursor = 'pointer';
-        muestraInput.checked = (sale.special_pricing_type === 'muestra');
-        const muestraLabel = document.createElement('span');
-        muestraLabel.textContent = 'Muestra (precio 0)';
-        muestraCheckbox.append(muestraInput, muestraLabel);
+			// Get current quantity from sale
+			let qty = 0;
+			if (Array.isArray(sale.items) && sale.items.length > 0) {
+				const item = sale.items.find(i => i.dessert_id === d.id || i.short_code === d.short_code);
+				qty = item ? Number(item.quantity || 0) : 0;
+			} else {
+				qty = Number(sale[`qty_${d.short_code}`] || 0);
+			}
 
-        const costoCheckbox = document.createElement('label');
-        costoCheckbox.style.display = 'flex';
-        costoCheckbox.style.alignItems = 'center';
-        costoCheckbox.style.gap = '6px';
-        costoCheckbox.style.cursor = 'pointer';
-        costoCheckbox.style.fontSize = '14px';
-        const costoInput = document.createElement('input');
-        costoInput.type = 'checkbox';
-        costoInput.style.cursor = 'pointer';
-        costoInput.checked = (sale.special_pricing_type === 'a_costo');
-        const costoLabel = document.createElement('span');
-        costoLabel.textContent = 'A costo (45% desc.)';
-        costoCheckbox.append(costoInput, costoLabel);
+			input.value = qty > 0 ? String(qty) : '';
+			qtyInputs[d.short_code] = input;
+			appendRow(d.name, input);
+		}
 
-        specialPricingContainer.append(muestraCheckbox, costoCheckbox);
+		// Special pricing checkboxes
+		const specialPricingContainer = document.createElement('div');
+		specialPricingContainer.style.display = 'flex';
+		specialPricingContainer.style.gap = '16px';
+		specialPricingContainer.style.padding = '12px 0';
+		specialPricingContainer.style.borderTop = '1px solid rgba(0,0,0,0.1)';
+		specialPricingContainer.style.marginTop = '8px';
 
-        // Make checkboxes mutually exclusive
-        muestraInput.addEventListener('change', () => {
-            if (muestraInput.checked) costoInput.checked = false;
-        });
-        costoInput.addEventListener('change', () => {
-            if (costoInput.checked) muestraInput.checked = false;
-        });
+		const muestraCheckbox = document.createElement('label');
+		muestraCheckbox.style.display = 'flex';
+		muestraCheckbox.style.alignItems = 'center';
+		muestraCheckbox.style.gap = '6px';
+		muestraCheckbox.style.cursor = 'pointer';
+		muestraCheckbox.style.fontSize = '14px';
+		const muestraInput = document.createElement('input');
+		muestraInput.type = 'checkbox';
+		muestraInput.style.cursor = 'pointer';
+		muestraInput.checked = (sale.special_pricing_type === 'muestra');
+		const muestraLabel = document.createElement('span');
+		muestraLabel.textContent = 'Muestra (precio 0)';
+		muestraCheckbox.append(muestraInput, muestraLabel);
 
-        const actions = document.createElement('div');
-        actions.className = 'confirm-actions';
-        const cancelBtn = document.createElement('button');
-        cancelBtn.type = 'button';
-        cancelBtn.className = 'press-btn';
-        cancelBtn.textContent = 'Cancelar';
-        const saveBtn = document.createElement('button');
-        saveBtn.type = 'button';
-        saveBtn.className = 'press-btn btn-primary';
-        saveBtn.textContent = 'Guardar';
-        actions.append(cancelBtn, saveBtn);
+		const costoCheckbox = document.createElement('label');
+		costoCheckbox.style.display = 'flex';
+		costoCheckbox.style.alignItems = 'center';
+		costoCheckbox.style.gap = '6px';
+		costoCheckbox.style.cursor = 'pointer';
+		costoCheckbox.style.fontSize = '14px';
+		const costoInput = document.createElement('input');
+		costoInput.type = 'checkbox';
+		costoInput.style.cursor = 'pointer';
+		costoInput.checked = (sale.special_pricing_type === 'a_costo');
+		const costoLabel = document.createElement('span');
+		costoLabel.textContent = 'A costo (45% desc.)';
+		costoCheckbox.append(costoInput, costoLabel);
 
-        pop.append(title, grid, specialPricingContainer, actions);
-        pop.style.visibility = 'hidden';
-        pop.style.opacity = '0';
-        pop.style.transition = 'opacity 160ms ease-out';
-        document.body.appendChild(pop);
+		specialPricingContainer.append(muestraCheckbox, costoCheckbox);
 
-        // Clamp within viewport
-        function clampWithinViewport() {
-            try {
-                const margin = 8;
-                const vw = window.innerWidth;
-                const vh = window.innerHeight;
-                const r = pop.getBoundingClientRect();
-                const baseX = (typeof anchorX === 'number') ? anchorX : (vw / 2);
-                const baseY = (typeof anchorY === 'number') ? anchorY : (vh / 2);
-                let left = Math.round(baseX - r.width / 2);
-                let topBelow = Math.round(baseY + 8);
-                let topAbove = Math.round(baseY - 8 - r.height);
-                let top = topBelow;
-                if (top + r.height > vh - margin) top = topAbove;
-                if (top < margin) top = margin;
-                if (top + r.height > vh - margin) top = Math.max(margin, vh - margin - r.height);
-                if (left < margin) left = margin;
-                if (left + r.width > vw - margin) left = Math.max(margin, vw - margin - r.width);
-                pop.style.left = left + 'px';
-                pop.style.top = top + 'px';
-                pop.style.transform = 'none';
-            } catch {}
-        }
-        clampWithinViewport();
-        pop.style.visibility = 'visible';
-        requestAnimationFrame(() => { pop.style.opacity = '1'; });
+		// Make checkboxes mutually exclusive
+		muestraInput.addEventListener('change', () => {
+			if (muestraInput.checked) costoInput.checked = false;
+		});
+		costoInput.addEventListener('change', () => {
+			if (costoInput.checked) muestraInput.checked = false;
+		});
 
-        function cleanup() {
-            document.removeEventListener('mousedown', outside, true);
-            document.removeEventListener('touchstart', outside, true);
-            if (pop.parentNode) pop.parentNode.removeChild(pop);
-            // Call the callback to close action bar with fade animation
-            if (typeof onCloseCallback === 'function') {
-                onCloseCallback();
-            }
-        }
-        function outside(ev) {
-            const t = ev.target;
-            if (!pop.contains(t) && !t.closest?.('.client-suggest-popover')) cleanup();
-        }
-        setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
-        cancelBtn.addEventListener('click', cleanup);
+		const actions = document.createElement('div');
+		actions.className = 'confirm-actions';
+		const cancelBtn = document.createElement('button');
+		cancelBtn.type = 'button';
+		cancelBtn.className = 'press-btn';
+		cancelBtn.textContent = 'Cancelar';
+		const saveBtn = document.createElement('button');
+		saveBtn.type = 'button';
+		saveBtn.className = 'press-btn btn-primary';
+		saveBtn.textContent = 'Guardar';
+		actions.append(cancelBtn, saveBtn);
 
-        // Focus client by default
-        setTimeout(() => { try { clientInput.focus(); clientInput.select(); } catch {} }, 0);
+		pop.append(title, grid, specialPricingContainer, actions);
+		pop.style.visibility = 'hidden';
+		pop.style.opacity = '0';
+		pop.style.transition = 'opacity 160ms ease-out';
+		document.body.appendChild(pop);
 
-        async function doSave() {
-            try {
-                saveBtn.disabled = true; cancelBtn.disabled = true;
-                
-                // Determine special pricing type
-                let specialPricingType = null;
-                let priceMultiplier = 1;
-                if (muestraInput.checked) {
-                    specialPricingType = 'muestra';
-                    priceMultiplier = 0;
-                } else if (costoInput.checked) {
-                    specialPricingType = 'a_costo';
-                    priceMultiplier = 0.55; // 45% discount = 55% of original price
-                }
-                
-                // Build items array and legacy qty_* properties
-                const items = [];
-                const body = {
-                    id: saleId,
-                    client_name: (clientInput.value || '').trim(),
-                    is_paid: sale.is_paid || false,
-                    pay_method: sale.pay_method || null,
-                    comment_text: sale.comment_text || '',
-                    special_pricing_type: specialPricingType,
-                    _actor_name: state.currentUser?.name || ''
-                };
-                
-                for (const d of state.desserts) {
-                    const input = qtyInputs[d.short_code];
-                    const qty = Math.max(0, parseInt(input?.value || '0', 10) || 0);
-                    
-                    // Legacy format
-                    body[`qty_${d.short_code}`] = qty;
-                    
-                    // New format with adjusted price
-                    if (qty > 0) {
-                        items.push({
-                            dessert_id: d.id,
-                            quantity: qty,
-                            unit_price: Math.round(d.sale_price * priceMultiplier)
-                        });
-                    }
-                }
-                
-                body.items = items;
-                const updated = await api('PUT', API.Sales, body);
-                
-                // Update state and re-render
-                const idx = state.sales.findIndex(s => s.id === saleId);
-                if (idx !== -1) state.sales[idx] = updated;
-                renderTable();
-                try { notify.success('Guardado exitosamente'); } catch {}
-                cleanup();
-            } catch (e) {
-                try { notify.error('No se pudo guardar'); } catch {}
-                saveBtn.disabled = false; cancelBtn.disabled = false;
-            }
-        }
+		// Clamp within viewport
+		function clampWithinViewport() {
+			try {
+				const margin = 8;
+				const vw = window.innerWidth;
+				const vh = window.innerHeight;
+				const r = pop.getBoundingClientRect();
+				const baseX = (typeof anchorX === 'number') ? anchorX : (vw / 2);
+				const baseY = (typeof anchorY === 'number') ? anchorY : (vh / 2);
+				let left = Math.round(baseX - r.width / 2);
+				let topBelow = Math.round(baseY + 8);
+				let topAbove = Math.round(baseY - 8 - r.height);
+				let top = topBelow;
+				if (top + r.height > vh - margin) top = topAbove;
+				if (top < margin) top = margin;
+				if (top + r.height > vh - margin) top = Math.max(margin, vh - margin - r.height);
+				if (left < margin) left = margin;
+				if (left + r.width > vw - margin) left = Math.max(margin, vw - margin - r.width);
+				pop.style.left = left + 'px';
+				pop.style.top = top + 'px';
+				pop.style.transform = 'none';
+			} catch { }
+		}
+		clampWithinViewport();
+		pop.style.visibility = 'visible';
+		requestAnimationFrame(() => { pop.style.opacity = '1'; });
 
-        saveBtn.addEventListener('click', doSave);
-        const allInputs = [clientInput, ...Object.values(qtyInputs)];
-        allInputs.forEach((el) => {
-            el.addEventListener('keydown', (ev) => {
-                if (ev.key === 'Enter') { ev.preventDefault(); doSave(); }
-            });
-        });
-    } catch (e) {
-        console.error('Error opening edit popover:', e);
-        try { notify.error('Error al abrir el editor'); } catch {}
-    }
+		function cleanup() {
+			document.removeEventListener('mousedown', outside, true);
+			document.removeEventListener('touchstart', outside, true);
+			if (pop.parentNode) pop.parentNode.removeChild(pop);
+			// Call the callback to close action bar with fade animation
+			if (typeof onCloseCallback === 'function') {
+				onCloseCallback();
+			}
+		}
+		function outside(ev) {
+			const t = ev.target;
+			if (!pop.contains(t) && !t.closest?.('.client-suggest-popover')) cleanup();
+		}
+		setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
+		cancelBtn.addEventListener('click', cleanup);
+
+		// Focus client by default
+		setTimeout(() => { try { clientInput.focus(); clientInput.select(); } catch { } }, 0);
+
+		async function doSave() {
+			try {
+				saveBtn.disabled = true; cancelBtn.disabled = true;
+
+				// Determine special pricing type
+				let specialPricingType = null;
+				let priceMultiplier = 1;
+				if (muestraInput.checked) {
+					specialPricingType = 'muestra';
+					priceMultiplier = 0;
+				} else if (costoInput.checked) {
+					specialPricingType = 'a_costo';
+					priceMultiplier = 0.55; // 45% discount = 55% of original price
+				}
+
+				// Build items array and legacy qty_* properties
+				const items = [];
+				const body = {
+					id: saleId,
+					client_name: (clientInput.value || '').trim(),
+					is_paid: sale.is_paid || false,
+					pay_method: sale.pay_method || null,
+					comment_text: sale.comment_text || '',
+					special_pricing_type: specialPricingType,
+					_actor_name: state.currentUser?.name || ''
+				};
+
+				for (const d of state.desserts) {
+					const input = qtyInputs[d.short_code];
+					const qty = Math.max(0, parseInt(input?.value || '0', 10) || 0);
+
+					// Legacy format
+					body[`qty_${d.short_code}`] = qty;
+
+					// New format with adjusted price
+					if (qty > 0) {
+						items.push({
+							dessert_id: d.id,
+							quantity: qty,
+							unit_price: Math.round(d.sale_price * priceMultiplier)
+						});
+					}
+				}
+
+				body.items = items;
+				const updated = await api('PUT', API.Sales, body);
+
+				// Update state and re-render
+				const idx = state.sales.findIndex(s => s.id === saleId);
+				if (idx !== -1) state.sales[idx] = updated;
+				renderTable();
+				try { notify.success('Guardado exitosamente'); } catch { }
+				cleanup();
+			} catch (e) {
+				try { notify.error('No se pudo guardar'); } catch { }
+				saveBtn.disabled = false; cancelBtn.disabled = false;
+			}
+		}
+
+		saveBtn.addEventListener('click', doSave);
+		const allInputs = [clientInput, ...Object.values(qtyInputs)];
+		allInputs.forEach((el) => {
+			el.addEventListener('keydown', (ev) => {
+				if (ev.key === 'Enter') { ev.preventDefault(); doSave(); }
+			});
+		});
+	} catch (e) {
+		console.error('Error opening edit popover:', e);
+		try { notify.error('Error al abrir el editor'); } catch { }
+	}
 }
 
 // Open "Nuevo pedido" popover with date selection for client detail view
 async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName) {
-    try {
-        // Ensure desserts and days are loaded before building the popover
-        if (state.currentSeller) {
-            try {
-                await loadDesserts();
-                await loadDaysForSeller();
-            } catch (e) {
-                console.error('Error loading data in popover:', e);
-            }
-        }
-        
-        const pop = document.createElement('div');
-        pop.className = 'new-sale-popover';
-        pop.style.position = 'fixed';
-        const isSmall = window.matchMedia('(max-width: 640px)').matches;
-        if (typeof anchorX === 'number' && typeof anchorY === 'number' && !isSmall) {
-            pop.style.left = anchorX + 'px';
-            pop.style.top = anchorY + 'px';
-            pop.style.transform = 'translate(-50%, 0)';
-        } else {
-            pop.style.left = '50%';
-            pop.style.top = '20%';
-            pop.style.transform = 'translate(-50%, 0)';
-        }
+	try {
+		// Ensure desserts and days are loaded before building the popover
+		if (state.currentSeller) {
+			try {
+				await loadDesserts();
+				await loadDaysForSeller();
+			} catch (e) {
+				console.error('Error loading data in popover:', e);
+			}
+		}
 
-        const title = document.createElement('h4');
-        title.textContent = 'Nuevo pedido';
-        title.style.margin = '0 0 8px 0';
+		const pop = document.createElement('div');
+		pop.className = 'new-sale-popover';
+		pop.style.position = 'fixed';
+		const isSmall = window.matchMedia('(max-width: 640px)').matches;
+		if (typeof anchorX === 'number' && typeof anchorY === 'number' && !isSmall) {
+			pop.style.left = anchorX + 'px';
+			pop.style.top = anchorY + 'px';
+			pop.style.transform = 'translate(-50%, 0)';
+		} else {
+			pop.style.left = '50%';
+			pop.style.top = '20%';
+			pop.style.transform = 'translate(-50%, 0)';
+		}
 
-        const grid = document.createElement('div');
-        grid.className = 'new-sale-grid';
+		const title = document.createElement('h4');
+		title.textContent = 'Nuevo pedido';
+		title.style.margin = '0 0 8px 0';
 
-        function appendRow(labelText, inputEl) {
-            const left = document.createElement('div'); left.className = 'new-sale-cell new-sale-left';
-            const right = document.createElement('div'); right.className = 'new-sale-cell new-sale-right';
-            const lbl = document.createElement('div'); lbl.className = 'new-sale-label-text'; lbl.textContent = labelText;
-            left.appendChild(lbl);
-            right.appendChild(inputEl);
-            // Make whole right cell focus the input when clicked
-            right.addEventListener('mousedown', (ev) => {
-                if (ev.target !== inputEl) { ev.preventDefault(); try { inputEl.focus(); inputEl.select(); } catch {} }
-            });
-            right.addEventListener('click', (ev) => {
-                if (ev.target !== inputEl) { ev.preventDefault(); try { inputEl.focus(); inputEl.select(); } catch {} }
-            });
-            grid.appendChild(left);
-            grid.appendChild(right);
-        }
+		const grid = document.createElement('div');
+		grid.className = 'new-sale-grid';
 
-        // Date selection row
-        const dateSelect = document.createElement('select');
-        dateSelect.className = 'input-cell';
-        const placeholderOpt = document.createElement('option');
-        placeholderOpt.value = '';
-        placeholderOpt.textContent = 'Seleccionar fecha...';
-        placeholderOpt.disabled = true;
-        placeholderOpt.selected = true;
-        dateSelect.appendChild(placeholderOpt);
-        
-        // Add existing dates
-        if (state.currentSeller && Array.isArray(state.saleDays)) {
-            const sorted = [...state.saleDays].sort((a, b) => {
-                const dateA = new Date(a.day);
-                const dateB = new Date(b.day);
-                return dateB - dateA; // Most recent first
-            });
-            for (const d of sorted) {
-                const opt = document.createElement('option');
-                opt.value = d.id;
-                opt.textContent = formatDayLabel(d.day);
-                dateSelect.appendChild(opt);
-            }
-        }
-        
-        // Add "Nueva fecha..." option
-        const newDateOpt = document.createElement('option');
-        newDateOpt.value = 'NEW_DATE';
-        newDateOpt.textContent = '+ Nueva fecha...';
-        dateSelect.appendChild(newDateOpt);
-        
-        appendRow('Fecha', dateSelect);
+		function appendRow(labelText, inputEl) {
+			const left = document.createElement('div'); left.className = 'new-sale-cell new-sale-left';
+			const right = document.createElement('div'); right.className = 'new-sale-cell new-sale-right';
+			const lbl = document.createElement('div'); lbl.className = 'new-sale-label-text'; lbl.textContent = labelText;
+			left.appendChild(lbl);
+			right.appendChild(inputEl);
+			// Make whole right cell focus the input when clicked
+			right.addEventListener('mousedown', (ev) => {
+				if (ev.target !== inputEl) { ev.preventDefault(); try { inputEl.focus(); inputEl.select(); } catch { } }
+			});
+			right.addEventListener('click', (ev) => {
+				if (ev.target !== inputEl) { ev.preventDefault(); try { inputEl.focus(); inputEl.select(); } catch { } }
+			});
+			grid.appendChild(left);
+			grid.appendChild(right);
+		}
 
-        // Integrated calendar (hidden by default) - appears between date select and client input
-        const calendarContainer = document.createElement('div');
-        calendarContainer.className = 'integrated-calendar';
-        calendarContainer.style.cssText = `
+		// Date selection row
+		const dateSelect = document.createElement('select');
+		dateSelect.className = 'input-cell';
+		const placeholderOpt = document.createElement('option');
+		placeholderOpt.value = '';
+		placeholderOpt.textContent = 'Seleccionar fecha...';
+		placeholderOpt.disabled = true;
+		placeholderOpt.selected = true;
+		dateSelect.appendChild(placeholderOpt);
+
+		// Add existing dates
+		if (state.currentSeller && Array.isArray(state.saleDays)) {
+			const sorted = [...state.saleDays].sort((a, b) => {
+				const dateA = new Date(a.day);
+				const dateB = new Date(b.day);
+				return dateB - dateA; // Most recent first
+			});
+			for (const d of sorted) {
+				const opt = document.createElement('option');
+				opt.value = d.id;
+				opt.textContent = formatDayLabel(d.day);
+				dateSelect.appendChild(opt);
+			}
+		}
+
+		// Add "Nueva fecha..." option
+		const newDateOpt = document.createElement('option');
+		newDateOpt.value = 'NEW_DATE';
+		newDateOpt.textContent = '+ Nueva fecha...';
+		dateSelect.appendChild(newDateOpt);
+
+		appendRow('Fecha', dateSelect);
+
+		// Integrated calendar (hidden by default) - appears between date select and client input
+		const calendarContainer = document.createElement('div');
+		calendarContainer.className = 'integrated-calendar';
+		calendarContainer.style.cssText = `
             display: none;
             grid-column: 2 / 3;
             margin-top: 0;
@@ -2747,632 +2749,632 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
                         opacity 0.3s ease, 
                         transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         `.replace(/\s+/g, ' ').trim();
-        
-        const months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-        let calView = new Date();
-        calView.setDate(1);
-        
-        const calHeader = document.createElement('div');
-        calHeader.className = 'date-popover-header';
-        calHeader.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;';
-        const calPrev = document.createElement('button'); 
-        calPrev.className = 'date-nav'; 
-        calPrev.textContent = '‹';
-        calPrev.type = 'button';
-        calPrev.style.cssText = 'padding:2px 6px;background:white;border:1px solid #ccc;border-radius:3px;cursor:pointer;font-size:14px;min-width:24px;';
-        const calLabel = document.createElement('div'); 
-        calLabel.className = 'date-label';
-        calLabel.style.cssText = 'font-weight:500;font-size:12px;';
-        const calNext = document.createElement('button'); 
-        calNext.className = 'date-nav'; 
-        calNext.textContent = '›';
-        calNext.type = 'button';
-        calNext.style.cssText = 'padding:2px 6px;background:white;border:1px solid #ccc;border-radius:3px;cursor:pointer;font-size:14px;min-width:24px;';
-        calHeader.append(calPrev, calLabel, calNext);
-        
-        const calGrid = document.createElement('div');
-        calGrid.className = 'date-grid';
-        calGrid.style.cssText = 'display:grid;grid-template-columns:repeat(7,1fr);gap:2px;';
-        
-        const weekdays = ['L','M','X','J','V','S','D'];
-        const calWeekdays = document.createElement('div'); 
-        calWeekdays.className = 'date-weekdays';
-        calWeekdays.style.cssText = 'display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:2px;';
-        for (const w of weekdays) { 
-            const c = document.createElement('div'); 
-            c.textContent = w; 
-            c.style.cssText = 'text-align:center;font-size:10px;font-weight:600;color:#666;padding:2px 0;';
-            calWeekdays.appendChild(c); 
-        }
-        
-        function isoUTC(y, m, d) { 
-            return new Date(Date.UTC(y, m, d)).toISOString().slice(0,10); 
-        }
-        
-        function renderCalendar() {
-            calLabel.textContent = months[calView.getMonth()] + ' ' + calView.getFullYear();
-            calGrid.innerHTML = '';
-            const year = calView.getFullYear();
-            const month = calView.getMonth();
-            const firstDay = (new Date(Date.UTC(year, month, 1)).getUTCDay() + 6) % 7;
-            const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
-            
-            // Días del mes anterior
-            const prevMonthDays = new Date(Date.UTC(year, month, 0)).getUTCDate();
-            const prevMonth = month === 0 ? 11 : month - 1;
-            const prevYear = month === 0 ? year - 1 : year;
-            
-            for (let i = firstDay - 1; i >= 0; i--) {
-                const day = prevMonthDays - i;
-                const cell = document.createElement('button');
-                cell.className = 'date-cell other-month';
-                cell.textContent = String(day);
-                cell.type = 'button';
-                cell.style.cssText = 'padding:6px;background:white;border:1px solid #e0e0e0;border-radius:4px;cursor:pointer;font-size:12px;opacity:0.4;transition:all 0.15s;';
-                cell.addEventListener('mouseenter', () => {
-                    cell.style.background = '#f0f0f0';
-                    cell.style.opacity = '0.6';
-                });
-                cell.addEventListener('mouseleave', () => {
-                    cell.style.background = 'white';
-                    cell.style.opacity = '0.4';
-                });
-                const dayIso = isoUTC(prevYear, prevMonth, day);
-                cell.addEventListener('click', async () => {
-                    try {
-                        // Disable calendar while processing
-                        cell.disabled = true;
-                        cell.style.opacity = '0.5';
-                        
-                        // Create the new date
-                        const sellerId = state.currentSeller.id;
-                        await api('POST', '/api/days', { seller_id: sellerId, day: dayIso });
-                        
-                        // Reload days from server
-                        await loadDaysForSeller();
-                        
-                        // Find the newly created date (comparing ISO date part only)
-                        const added = (state.saleDays || []).find(d => {
-                            const dayPart = String(d.day).slice(0, 10);
-                            return dayPart === dayIso;
-                        });
-                        
-                        // Update the select with the new date
-                        if (added) {
-                            // Clear all options
-                            dateSelect.innerHTML = '';
-                            
-                            // Re-add placeholder
-                            const placeholderOpt = document.createElement('option');
-                            placeholderOpt.value = '';
-                            placeholderOpt.textContent = 'Seleccionar fecha...';
-                            placeholderOpt.disabled = true;
-                            dateSelect.appendChild(placeholderOpt);
-                            
-                            // Rebuild sorted dates
-                            const sorted = [...state.saleDays].sort((a, b) => {
-                                const dateA = new Date(a.day);
-                                const dateB = new Date(b.day);
-                                return dateB - dateA; // Most recent first
-                            });
-                            
-                            for (const d of sorted) {
-                                const opt = document.createElement('option');
-                                opt.value = d.id;
-                                opt.textContent = formatDayLabel(d.day);
-                                // Mark as selected if this is the newly created date
-                                if (d.id === added.id) {
-                                    opt.selected = true;
-                                }
-                                dateSelect.appendChild(opt);
-                            }
-                            
-                            // Re-add NEW_DATE option at the end
-                            const newDateOpt2 = document.createElement('option');
-                            newDateOpt2.value = 'NEW_DATE';
-                            newDateOpt2.textContent = '+ Nueva fecha...';
-                            dateSelect.appendChild(newDateOpt2);
-                            
-                            // Set the value and state
-                            isUpdatingProgrammatically = true;
-                            dateSelect.value = String(added.id);
-                            state.selectedDayId = added.id;
-                            
-                            // Force browser to update the display
-                            dateSelect.dispatchEvent(new Event('input', { bubbles: true }));
-                            
-                            // Show success notification
-                            const selectedText = dateSelect.options[dateSelect.selectedIndex]?.text;
-                            if (selectedText && selectedText !== 'Seleccionar fecha...') {
-                                try { notify.success('Fecha seleccionada: ' + selectedText); } catch {}
-                            }
-                        }
-                        
-                        // Hide calendar with animation
-                        calendarContainer.style.maxHeight = '0';
-                        calendarContainer.style.opacity = '0';
-                        calendarContainer.style.transform = 'scaleY(0)';
-                        
-                        // Actually hide after animation
-                        setTimeout(() => {
-                            calendarContainer.style.display = 'none';
-                            clampWithinViewport();
-                        }, 300);
-                    } catch (e) {
-                        console.error('Error creating date:', e);
-                        try { notify.error('Error al crear la fecha'); } catch {}
-                        // Re-enable calendar on error
-                        cell.disabled = false;
-                        cell.style.opacity = '1';
-                    }
-                });
-                calGrid.appendChild(cell);
-            }
-            
-            // Días del mes actual
-            for (let d = 1; d <= daysInMonth; d++) {
-                const cell = document.createElement('button');
-                cell.className = 'date-cell';
-                cell.textContent = String(d);
-                cell.type = 'button';
-                cell.style.cssText = 'padding:6px;background:white;border:1px solid #ddd;border-radius:4px;cursor:pointer;font-size:12px;transition:all 0.15s;';
-                cell.addEventListener('mouseenter', () => {
-                    cell.style.background = '#f0f0f0';
-                });
-                cell.addEventListener('mouseleave', () => {
-                    cell.style.background = 'white';
-                });
-                const dayIso = isoUTC(year, month, d);
-                cell.addEventListener('click', async () => {
-                    try {
-                        // Disable calendar while processing
-                        cell.disabled = true;
-                        cell.style.opacity = '0.5';
-                        
-                        // Create the new date
-                        const sellerId = state.currentSeller.id;
-                        await api('POST', '/api/days', { seller_id: sellerId, day: dayIso });
-                        
-                        // Reload days from server
-                        await loadDaysForSeller();
-                        
-                        // Find the newly created date (comparing ISO date part only)
-                        const added = (state.saleDays || []).find(d => {
-                            const dayPart = String(d.day).slice(0, 10);
-                            return dayPart === dayIso;
-                        });
-                        
-                        // Update the select with the new date
-                        if (added) {
-                            // Clear all options
-                            dateSelect.innerHTML = '';
-                            
-                            // Re-add placeholder
-                            const placeholderOpt = document.createElement('option');
-                            placeholderOpt.value = '';
-                            placeholderOpt.textContent = 'Seleccionar fecha...';
-                            placeholderOpt.disabled = true;
-                            dateSelect.appendChild(placeholderOpt);
-                            
-                            // Rebuild sorted dates
-                            const sorted = [...state.saleDays].sort((a, b) => {
-                                const dateA = new Date(a.day);
-                                const dateB = new Date(b.day);
-                                return dateB - dateA; // Most recent first
-                            });
-                            
-                            for (const d of sorted) {
-                                const opt = document.createElement('option');
-                                opt.value = d.id;
-                                opt.textContent = formatDayLabel(d.day);
-                                // Mark as selected if this is the newly created date
-                                if (d.id === added.id) {
-                                    opt.selected = true;
-                                }
-                                dateSelect.appendChild(opt);
-                            }
-                            
-                            // Re-add NEW_DATE option at the end
-                            const newDateOpt2 = document.createElement('option');
-                            newDateOpt2.value = 'NEW_DATE';
-                            newDateOpt2.textContent = '+ Nueva fecha...';
-                            dateSelect.appendChild(newDateOpt2);
-                            
-                            // Set the value and state
-                            isUpdatingProgrammatically = true;
-                            dateSelect.value = String(added.id);
-                            state.selectedDayId = added.id;
-                            
-                            // Force browser to update the display
-                            dateSelect.dispatchEvent(new Event('input', { bubbles: true }));
-                            
-                            // Show success notification
-                            const selectedText = dateSelect.options[dateSelect.selectedIndex]?.text;
-                            if (selectedText && selectedText !== 'Seleccionar fecha...') {
-                                try { notify.success('Fecha seleccionada: ' + selectedText); } catch {}
-                            }
-                        }
-                        
-                        // Hide calendar with animation
-                        calendarContainer.style.maxHeight = '0';
-                        calendarContainer.style.opacity = '0';
-                        calendarContainer.style.transform = 'scaleY(0)';
-                        
-                        // Actually hide after animation
-                        setTimeout(() => {
-                            calendarContainer.style.display = 'none';
-                            clampWithinViewport();
-                        }, 300);
-                    } catch (e) {
-                        console.error('Error creating date:', e);
-                        try { notify.error('Error al crear la fecha'); } catch {}
-                        // Re-enable calendar on error
-                        cell.disabled = false;
-                        cell.style.opacity = '1';
-                    }
-                });
-                calGrid.appendChild(cell);
-            }
-            
-            // Días del mes siguiente
-            const totalCells = firstDay + daysInMonth;
-            const remainingCells = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
-            const nextMonth = month === 11 ? 0 : month + 1;
-            const nextYear = month === 11 ? year + 1 : year;
-            
-            for (let d = 1; d <= remainingCells; d++) {
-                const cell = document.createElement('button');
-                cell.className = 'date-cell other-month';
-                cell.textContent = String(d);
-                cell.type = 'button';
-                cell.style.cssText = 'padding:6px;background:white;border:1px solid #e0e0e0;border-radius:4px;cursor:pointer;font-size:12px;opacity:0.4;transition:all 0.15s;';
-                cell.addEventListener('mouseenter', () => {
-                    cell.style.background = '#f0f0f0';
-                    cell.style.opacity = '0.6';
-                });
-                cell.addEventListener('mouseleave', () => {
-                    cell.style.background = 'white';
-                    cell.style.opacity = '0.4';
-                });
-                const dayIso = isoUTC(nextYear, nextMonth, d);
-                cell.addEventListener('click', async () => {
-                    try {
-                        // Disable calendar while processing
-                        cell.disabled = true;
-                        cell.style.opacity = '0.5';
-                        
-                        // Create the new date
-                        const sellerId = state.currentSeller.id;
-                        await api('POST', '/api/days', { seller_id: sellerId, day: dayIso });
-                        
-                        // Reload days from server
-                        await loadDaysForSeller();
-                        
-                        // Find the newly created date (comparing ISO date part only)
-                        const added = (state.saleDays || []).find(d => {
-                            const dayPart = String(d.day).slice(0, 10);
-                            return dayPart === dayIso;
-                        });
-                        
-                        // Update the select with the new date
-                        if (added) {
-                            // Clear all options
-                            dateSelect.innerHTML = '';
-                            
-                            // Re-add placeholder
-                            const placeholderOpt = document.createElement('option');
-                            placeholderOpt.value = '';
-                            placeholderOpt.textContent = 'Seleccionar fecha...';
-                            placeholderOpt.disabled = true;
-                            dateSelect.appendChild(placeholderOpt);
-                            
-                            // Rebuild sorted dates
-                            const sorted = [...state.saleDays].sort((a, b) => {
-                                const dateA = new Date(a.day);
-                                const dateB = new Date(b.day);
-                                return dateB - dateA; // Most recent first
-                            });
-                            
-                            for (const d of sorted) {
-                                const opt = document.createElement('option');
-                                opt.value = d.id;
-                                opt.textContent = formatDayLabel(d.day);
-                                // Mark as selected if this is the newly created date
-                                if (d.id === added.id) {
-                                    opt.selected = true;
-                                }
-                                dateSelect.appendChild(opt);
-                            }
-                            
-                            // Re-add NEW_DATE option at the end
-                            const newDateOpt2 = document.createElement('option');
-                            newDateOpt2.value = 'NEW_DATE';
-                            newDateOpt2.textContent = '+ Nueva fecha...';
-                            dateSelect.appendChild(newDateOpt2);
-                            
-                            // Set the value and state
-                            isUpdatingProgrammatically = true;
-                            dateSelect.value = String(added.id);
-                            state.selectedDayId = added.id;
-                            
-                            // Force browser to update the display
-                            dateSelect.dispatchEvent(new Event('input', { bubbles: true }));
-                            
-                            // Show success notification
-                            const selectedText = dateSelect.options[dateSelect.selectedIndex]?.text;
-                            if (selectedText && selectedText !== 'Seleccionar fecha...') {
-                                try { notify.success('Fecha seleccionada: ' + selectedText); } catch {}
-                            }
-                        }
-                        
-                        // Hide calendar with animation
-                        calendarContainer.style.maxHeight = '0';
-                        calendarContainer.style.opacity = '0';
-                        calendarContainer.style.transform = 'scaleY(0)';
-                        
-                        // Actually hide after animation
-                        setTimeout(() => {
-                            calendarContainer.style.display = 'none';
-                            clampWithinViewport();
-                        }, 300);
-                    } catch (e) {
-                        console.error('Error creating date:', e);
-                        try { notify.error('Error al crear la fecha'); } catch {}
-                        // Re-enable calendar on error
-                        cell.disabled = false;
-                        cell.style.opacity = '1';
-                    }
-                });
-                calGrid.appendChild(cell);
-            }
-        }
-        
-        calPrev.addEventListener('click', (e) => { 
-            e.preventDefault();
-            calView.setMonth(calView.getMonth() - 1); 
-            renderCalendar(); 
-        });
-        calNext.addEventListener('click', (e) => { 
-            e.preventDefault();
-            calView.setMonth(calView.getMonth() + 1); 
-            renderCalendar(); 
-        });
-        
-        calendarContainer.append(calHeader, calWeekdays, calGrid);
-        
-        // Insert calendar right after the date row, before client input
-        grid.appendChild(calendarContainer);
 
-        // Client row (prefilled if provided)
-        const clientInput = document.createElement('input');
-        clientInput.type = 'text';
-        clientInput.placeholder = 'Nombre del cliente';
-        clientInput.className = 'input-cell client-input';
-        clientInput.autocomplete = 'off';
-        if (prefilledClientName) clientInput.value = prefilledClientName;
-        // Custom inline suggestions below the first character (left-aligned)
-        attachClientSuggestionsPopover(clientInput);
-        appendRow('Cliente', clientInput);
+		const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+		let calView = new Date();
+		calView.setDate(1);
 
-        // Dessert rows (dynamic from state.desserts)
-        const qtyInputs = {};
-        for (const d of state.desserts) {
-            const input = document.createElement('input');
-            input.type = 'number';
-            input.min = '0';
-            input.step = '1';
-            input.inputMode = 'numeric';
-            input.placeholder = '0';
-            input.className = 'input-cell input-qty';
-            input.dataset.dessertId = d.id;
-            qtyInputs[d.short_code] = input;
-            appendRow(d.name, input);
-        }
+		const calHeader = document.createElement('div');
+		calHeader.className = 'date-popover-header';
+		calHeader.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;';
+		const calPrev = document.createElement('button');
+		calPrev.className = 'date-nav';
+		calPrev.textContent = '‹';
+		calPrev.type = 'button';
+		calPrev.style.cssText = 'padding:2px 6px;background:white;border:1px solid #ccc;border-radius:3px;cursor:pointer;font-size:14px;min-width:24px;';
+		const calLabel = document.createElement('div');
+		calLabel.className = 'date-label';
+		calLabel.style.cssText = 'font-weight:500;font-size:12px;';
+		const calNext = document.createElement('button');
+		calNext.className = 'date-nav';
+		calNext.textContent = '›';
+		calNext.type = 'button';
+		calNext.style.cssText = 'padding:2px 6px;background:white;border:1px solid #ccc;border-radius:3px;cursor:pointer;font-size:14px;min-width:24px;';
+		calHeader.append(calPrev, calLabel, calNext);
 
-        const actions = document.createElement('div');
-        actions.className = 'confirm-actions';
-        const cancelBtn = document.createElement('button');
-        cancelBtn.type = 'button';
-        cancelBtn.className = 'press-btn';
-        cancelBtn.textContent = 'Cancelar';
-        const saveBtn = document.createElement('button');
-        saveBtn.type = 'button';
-        saveBtn.className = 'press-btn btn-primary';
-        saveBtn.textContent = 'Guardar';
-        actions.append(cancelBtn, saveBtn);
+		const calGrid = document.createElement('div');
+		calGrid.className = 'date-grid';
+		calGrid.style.cssText = 'display:grid;grid-template-columns:repeat(7,1fr);gap:2px;';
 
-        pop.append(title, grid, actions);
-        // Prepare hidden mount to avoid visible jump before clamping
-        pop.style.visibility = 'hidden';
-        pop.style.opacity = '0';
-        pop.style.transition = 'opacity 160ms ease-out';
-        document.body.appendChild(pop);
+		const weekdays = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+		const calWeekdays = document.createElement('div');
+		calWeekdays.className = 'date-weekdays';
+		calWeekdays.style.cssText = 'display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:2px;';
+		for (const w of weekdays) {
+			const c = document.createElement('div');
+			c.textContent = w;
+			c.style.cssText = 'text-align:center;font-size:10px;font-weight:600;color:#666;padding:2px 0;';
+			calWeekdays.appendChild(c);
+		}
 
-        // Clamp within viewport so the popover is fully visible
-        function clampWithinViewport() {
-            try {
-                const margin = 8;
-                const vw = window.innerWidth;
-                const vh = window.innerHeight;
-                const r = pop.getBoundingClientRect();
-                const baseX = (typeof anchorX === 'number') ? anchorX : (vw / 2);
-                const baseY = (typeof anchorY === 'number') ? anchorY : (vh / 2);
-                let left = Math.round(baseX - r.width / 2);
-                let topBelow = Math.round(baseY + 8);
-                let topAbove = Math.round(baseY - 8 - r.height);
-                let top = topBelow;
-                if (top + r.height > vh - margin) {
-                    // Prefer above if below overflows
-                    top = topAbove;
-                }
-                // If still overflows, clamp to margins
-                if (top < margin) top = margin;
-                if (top + r.height > vh - margin) top = Math.max(margin, vh - margin - r.height);
-                if (left < margin) left = margin;
-                if (left + r.width > vw - margin) left = Math.max(margin, vw - margin - r.width);
-                pop.style.left = left + 'px';
-                pop.style.top = top + 'px';
-                pop.style.transform = 'none';
-            } catch {}
-        }
-        // Clamp immediately before showing to prevent jump
-        clampWithinViewport();
-        // Reveal with a light fade-in
-        pop.style.visibility = 'visible';
-        requestAnimationFrame(() => { pop.style.opacity = '1'; });
+		function isoUTC(y, m, d) {
+			return new Date(Date.UTC(y, m, d)).toISOString().slice(0, 10);
+		}
 
-        function cleanup() {
-            document.removeEventListener('mousedown', outside, true);
-            document.removeEventListener('touchstart', outside, true);
-            if (pop.parentNode) pop.parentNode.removeChild(pop);
-        }
-        function outside(ev) {
-            const t = ev.target;
-            if (!pop.contains(t) && !t.closest?.('.client-suggest-popover')) cleanup();
-        }
-        setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
-        cancelBtn.addEventListener('click', cleanup);
+		function renderCalendar() {
+			calLabel.textContent = months[calView.getMonth()] + ' ' + calView.getFullYear();
+			calGrid.innerHTML = '';
+			const year = calView.getFullYear();
+			const month = calView.getMonth();
+			const firstDay = (new Date(Date.UTC(year, month, 1)).getUTCDay() + 6) % 7;
+			const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
 
-        // Handle date selection change
-        let isUpdatingProgrammatically = false;
-        dateSelect.addEventListener('change', async (e) => {
-            // Skip if this is a programmatic update from calendar
-            if (isUpdatingProgrammatically) {
-                isUpdatingProgrammatically = false;
-                return;
-            }
-            
-            if (dateSelect.value === 'NEW_DATE') {
-                // Show integrated calendar with animation
-                calendarContainer.style.display = 'block';
-                renderCalendar();
-                // Reset select to placeholder
-                dateSelect.value = '';
-                e.preventDefault();
-                
-                // Trigger animation
-                requestAnimationFrame(() => {
-                    calendarContainer.style.maxHeight = '400px';
-                    calendarContainer.style.opacity = '1';
-                    calendarContainer.style.transform = 'scaleY(1)';
-                });
-                
-                // Re-clamp popover to ensure it's visible after animation
-                setTimeout(() => clampWithinViewport(), 320);
-            } else if (dateSelect.value) {
-                // Hide calendar with animation
-                calendarContainer.style.maxHeight = '0';
-                calendarContainer.style.opacity = '0';
-                calendarContainer.style.transform = 'scaleY(0)';
-                
-                // Actually hide after animation
-                setTimeout(() => {
-                    calendarContainer.style.display = 'none';
-                    clampWithinViewport();
-                }, 300);
-            }
-        });
+			// Días del mes anterior
+			const prevMonthDays = new Date(Date.UTC(year, month, 0)).getUTCDate();
+			const prevMonth = month === 0 ? 11 : month - 1;
+			const prevYear = month === 0 ? year - 1 : year;
 
-        // Focus date select by default
-        setTimeout(() => { try { dateSelect.focus(); } catch {} }, 0);
+			for (let i = firstDay - 1; i >= 0; i--) {
+				const day = prevMonthDays - i;
+				const cell = document.createElement('button');
+				cell.className = 'date-cell other-month';
+				cell.textContent = String(day);
+				cell.type = 'button';
+				cell.style.cssText = 'padding:6px;background:white;border:1px solid #e0e0e0;border-radius:4px;cursor:pointer;font-size:12px;opacity:0.4;transition:all 0.15s;';
+				cell.addEventListener('mouseenter', () => {
+					cell.style.background = '#f0f0f0';
+					cell.style.opacity = '0.6';
+				});
+				cell.addEventListener('mouseleave', () => {
+					cell.style.background = 'white';
+					cell.style.opacity = '0.4';
+				});
+				const dayIso = isoUTC(prevYear, prevMonth, day);
+				cell.addEventListener('click', async () => {
+					try {
+						// Disable calendar while processing
+						cell.disabled = true;
+						cell.style.opacity = '0.5';
 
-        let isSaving = false;
-        async function doSave() {
-            if (isSaving) return;
-            isSaving = true;
-            
-            try {
-                const selectedDayId = dateSelect.value;
-                
-                if (!selectedDayId || selectedDayId === 'NEW_DATE') {
-                    try { notify.error('Por favor selecciona una fecha'); } catch {}
-                    isSaving = false;
-                    return;
-                }
-                
-                saveBtn.disabled = true; 
-                cancelBtn.disabled = true;
-                
-                const sellerId = state?.currentSeller?.id;
-                if (!sellerId) { 
-                    try { notify.error('Selecciona un vendedor'); } catch {}
-                    isSaving = false;
-                    return; 
-                }
-                
-                const payload = { seller_id: sellerId, sale_day_id: selectedDayId };
-                const created = await api('POST', API.Sales, payload);
-                
-                // Build items array and legacy qty_* properties dynamically
-                const items = [];
-                const body = {
-                    id: created.id,
-                    client_name: (clientInput.value || '').trim(),
-                    is_paid: false,
-                    pay_method: null,
-                    _actor_name: state.currentUser?.name || ''
-                };
-                
-                for (const d of state.desserts) {
-                    const val = parseInt(qtyInputs[d.short_code]?.value, 10) || 0;
-                    // Legacy: set qty_<short_code>
-                    body[`qty_${d.short_code}`] = val;
-                    // New: build items
-                    if (val > 0) {
-                        items.push({
-                            dessert_id: d.id,
-                            qty: val,
-                            amount: val * d.price
-                        });
-                    }
-                }
-                body.items = items;
-                
-                await api('PUT', API.Sales, body);
-                
-                // Close the popover IMMEDIATELY
-                cleanup();
-                
-                // Show success notification
-                try { notify.success('Pedido guardado exitosamente'); } catch {}
-                
-                // Reload client detail in background to show the new order
-                if (state._clientDetailName) {
-                    if (state._clientDetailFrom === 'global-search') {
-                        loadGlobalClientDetailRows(state._clientDetailName).catch(e => console.error('Error reloading:', e));
-                    } else {
-                        loadClientDetailRows(state._clientDetailName).catch(e => console.error('Error reloading:', e));
-                    }
-                }
-            } catch (e) {
-                console.error('❌ Error completo:', e);
-                console.error('Error message:', e.message);
-                console.error('Error stack:', e.stack);
-                try { notify.error('Error: ' + (e.message || 'No se pudo guardar')); } catch {}
-                saveBtn.disabled = false; cancelBtn.disabled = false;
-                isSaving = false;
-            } finally {
-                isSaving = false;
-            }
-        }
+						// Create the new date
+						const sellerId = state.currentSeller.id;
+						await api('POST', '/api/days', { seller_id: sellerId, day: dayIso });
 
-        // Ensure only one click handler
-        saveBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            doSave();
-        });
-        
-        // Submit on Enter in any input
-        const allInputs = [clientInput, ...Object.values(qtyInputs)];
-        allInputs.forEach((el) => {
-            el.addEventListener('keydown', (ev) => {
-                if (ev.key === 'Enter') { ev.preventDefault(); doSave(); }
-            });
-        });
-    } catch (e) {
-        console.error('Error opening new sale popover with date:', e);
-    }
+						// Reload days from server
+						await loadDaysForSeller();
+
+						// Find the newly created date (comparing ISO date part only)
+						const added = (state.saleDays || []).find(d => {
+							const dayPart = String(d.day).slice(0, 10);
+							return dayPart === dayIso;
+						});
+
+						// Update the select with the new date
+						if (added) {
+							// Clear all options
+							dateSelect.innerHTML = '';
+
+							// Re-add placeholder
+							const placeholderOpt = document.createElement('option');
+							placeholderOpt.value = '';
+							placeholderOpt.textContent = 'Seleccionar fecha...';
+							placeholderOpt.disabled = true;
+							dateSelect.appendChild(placeholderOpt);
+
+							// Rebuild sorted dates
+							const sorted = [...state.saleDays].sort((a, b) => {
+								const dateA = new Date(a.day);
+								const dateB = new Date(b.day);
+								return dateB - dateA; // Most recent first
+							});
+
+							for (const d of sorted) {
+								const opt = document.createElement('option');
+								opt.value = d.id;
+								opt.textContent = formatDayLabel(d.day);
+								// Mark as selected if this is the newly created date
+								if (d.id === added.id) {
+									opt.selected = true;
+								}
+								dateSelect.appendChild(opt);
+							}
+
+							// Re-add NEW_DATE option at the end
+							const newDateOpt2 = document.createElement('option');
+							newDateOpt2.value = 'NEW_DATE';
+							newDateOpt2.textContent = '+ Nueva fecha...';
+							dateSelect.appendChild(newDateOpt2);
+
+							// Set the value and state
+							isUpdatingProgrammatically = true;
+							dateSelect.value = String(added.id);
+							state.selectedDayId = added.id;
+
+							// Force browser to update the display
+							dateSelect.dispatchEvent(new Event('input', { bubbles: true }));
+
+							// Show success notification
+							const selectedText = dateSelect.options[dateSelect.selectedIndex]?.text;
+							if (selectedText && selectedText !== 'Seleccionar fecha...') {
+								try { notify.success('Fecha seleccionada: ' + selectedText); } catch { }
+							}
+						}
+
+						// Hide calendar with animation
+						calendarContainer.style.maxHeight = '0';
+						calendarContainer.style.opacity = '0';
+						calendarContainer.style.transform = 'scaleY(0)';
+
+						// Actually hide after animation
+						setTimeout(() => {
+							calendarContainer.style.display = 'none';
+							clampWithinViewport();
+						}, 300);
+					} catch (e) {
+						console.error('Error creating date:', e);
+						try { notify.error('Error al crear la fecha'); } catch { }
+						// Re-enable calendar on error
+						cell.disabled = false;
+						cell.style.opacity = '1';
+					}
+				});
+				calGrid.appendChild(cell);
+			}
+
+			// Días del mes actual
+			for (let d = 1; d <= daysInMonth; d++) {
+				const cell = document.createElement('button');
+				cell.className = 'date-cell';
+				cell.textContent = String(d);
+				cell.type = 'button';
+				cell.style.cssText = 'padding:6px;background:white;border:1px solid #ddd;border-radius:4px;cursor:pointer;font-size:12px;transition:all 0.15s;';
+				cell.addEventListener('mouseenter', () => {
+					cell.style.background = '#f0f0f0';
+				});
+				cell.addEventListener('mouseleave', () => {
+					cell.style.background = 'white';
+				});
+				const dayIso = isoUTC(year, month, d);
+				cell.addEventListener('click', async () => {
+					try {
+						// Disable calendar while processing
+						cell.disabled = true;
+						cell.style.opacity = '0.5';
+
+						// Create the new date
+						const sellerId = state.currentSeller.id;
+						await api('POST', '/api/days', { seller_id: sellerId, day: dayIso });
+
+						// Reload days from server
+						await loadDaysForSeller();
+
+						// Find the newly created date (comparing ISO date part only)
+						const added = (state.saleDays || []).find(d => {
+							const dayPart = String(d.day).slice(0, 10);
+							return dayPart === dayIso;
+						});
+
+						// Update the select with the new date
+						if (added) {
+							// Clear all options
+							dateSelect.innerHTML = '';
+
+							// Re-add placeholder
+							const placeholderOpt = document.createElement('option');
+							placeholderOpt.value = '';
+							placeholderOpt.textContent = 'Seleccionar fecha...';
+							placeholderOpt.disabled = true;
+							dateSelect.appendChild(placeholderOpt);
+
+							// Rebuild sorted dates
+							const sorted = [...state.saleDays].sort((a, b) => {
+								const dateA = new Date(a.day);
+								const dateB = new Date(b.day);
+								return dateB - dateA; // Most recent first
+							});
+
+							for (const d of sorted) {
+								const opt = document.createElement('option');
+								opt.value = d.id;
+								opt.textContent = formatDayLabel(d.day);
+								// Mark as selected if this is the newly created date
+								if (d.id === added.id) {
+									opt.selected = true;
+								}
+								dateSelect.appendChild(opt);
+							}
+
+							// Re-add NEW_DATE option at the end
+							const newDateOpt2 = document.createElement('option');
+							newDateOpt2.value = 'NEW_DATE';
+							newDateOpt2.textContent = '+ Nueva fecha...';
+							dateSelect.appendChild(newDateOpt2);
+
+							// Set the value and state
+							isUpdatingProgrammatically = true;
+							dateSelect.value = String(added.id);
+							state.selectedDayId = added.id;
+
+							// Force browser to update the display
+							dateSelect.dispatchEvent(new Event('input', { bubbles: true }));
+
+							// Show success notification
+							const selectedText = dateSelect.options[dateSelect.selectedIndex]?.text;
+							if (selectedText && selectedText !== 'Seleccionar fecha...') {
+								try { notify.success('Fecha seleccionada: ' + selectedText); } catch { }
+							}
+						}
+
+						// Hide calendar with animation
+						calendarContainer.style.maxHeight = '0';
+						calendarContainer.style.opacity = '0';
+						calendarContainer.style.transform = 'scaleY(0)';
+
+						// Actually hide after animation
+						setTimeout(() => {
+							calendarContainer.style.display = 'none';
+							clampWithinViewport();
+						}, 300);
+					} catch (e) {
+						console.error('Error creating date:', e);
+						try { notify.error('Error al crear la fecha'); } catch { }
+						// Re-enable calendar on error
+						cell.disabled = false;
+						cell.style.opacity = '1';
+					}
+				});
+				calGrid.appendChild(cell);
+			}
+
+			// Días del mes siguiente
+			const totalCells = firstDay + daysInMonth;
+			const remainingCells = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+			const nextMonth = month === 11 ? 0 : month + 1;
+			const nextYear = month === 11 ? year + 1 : year;
+
+			for (let d = 1; d <= remainingCells; d++) {
+				const cell = document.createElement('button');
+				cell.className = 'date-cell other-month';
+				cell.textContent = String(d);
+				cell.type = 'button';
+				cell.style.cssText = 'padding:6px;background:white;border:1px solid #e0e0e0;border-radius:4px;cursor:pointer;font-size:12px;opacity:0.4;transition:all 0.15s;';
+				cell.addEventListener('mouseenter', () => {
+					cell.style.background = '#f0f0f0';
+					cell.style.opacity = '0.6';
+				});
+				cell.addEventListener('mouseleave', () => {
+					cell.style.background = 'white';
+					cell.style.opacity = '0.4';
+				});
+				const dayIso = isoUTC(nextYear, nextMonth, d);
+				cell.addEventListener('click', async () => {
+					try {
+						// Disable calendar while processing
+						cell.disabled = true;
+						cell.style.opacity = '0.5';
+
+						// Create the new date
+						const sellerId = state.currentSeller.id;
+						await api('POST', '/api/days', { seller_id: sellerId, day: dayIso });
+
+						// Reload days from server
+						await loadDaysForSeller();
+
+						// Find the newly created date (comparing ISO date part only)
+						const added = (state.saleDays || []).find(d => {
+							const dayPart = String(d.day).slice(0, 10);
+							return dayPart === dayIso;
+						});
+
+						// Update the select with the new date
+						if (added) {
+							// Clear all options
+							dateSelect.innerHTML = '';
+
+							// Re-add placeholder
+							const placeholderOpt = document.createElement('option');
+							placeholderOpt.value = '';
+							placeholderOpt.textContent = 'Seleccionar fecha...';
+							placeholderOpt.disabled = true;
+							dateSelect.appendChild(placeholderOpt);
+
+							// Rebuild sorted dates
+							const sorted = [...state.saleDays].sort((a, b) => {
+								const dateA = new Date(a.day);
+								const dateB = new Date(b.day);
+								return dateB - dateA; // Most recent first
+							});
+
+							for (const d of sorted) {
+								const opt = document.createElement('option');
+								opt.value = d.id;
+								opt.textContent = formatDayLabel(d.day);
+								// Mark as selected if this is the newly created date
+								if (d.id === added.id) {
+									opt.selected = true;
+								}
+								dateSelect.appendChild(opt);
+							}
+
+							// Re-add NEW_DATE option at the end
+							const newDateOpt2 = document.createElement('option');
+							newDateOpt2.value = 'NEW_DATE';
+							newDateOpt2.textContent = '+ Nueva fecha...';
+							dateSelect.appendChild(newDateOpt2);
+
+							// Set the value and state
+							isUpdatingProgrammatically = true;
+							dateSelect.value = String(added.id);
+							state.selectedDayId = added.id;
+
+							// Force browser to update the display
+							dateSelect.dispatchEvent(new Event('input', { bubbles: true }));
+
+							// Show success notification
+							const selectedText = dateSelect.options[dateSelect.selectedIndex]?.text;
+							if (selectedText && selectedText !== 'Seleccionar fecha...') {
+								try { notify.success('Fecha seleccionada: ' + selectedText); } catch { }
+							}
+						}
+
+						// Hide calendar with animation
+						calendarContainer.style.maxHeight = '0';
+						calendarContainer.style.opacity = '0';
+						calendarContainer.style.transform = 'scaleY(0)';
+
+						// Actually hide after animation
+						setTimeout(() => {
+							calendarContainer.style.display = 'none';
+							clampWithinViewport();
+						}, 300);
+					} catch (e) {
+						console.error('Error creating date:', e);
+						try { notify.error('Error al crear la fecha'); } catch { }
+						// Re-enable calendar on error
+						cell.disabled = false;
+						cell.style.opacity = '1';
+					}
+				});
+				calGrid.appendChild(cell);
+			}
+		}
+
+		calPrev.addEventListener('click', (e) => {
+			e.preventDefault();
+			calView.setMonth(calView.getMonth() - 1);
+			renderCalendar();
+		});
+		calNext.addEventListener('click', (e) => {
+			e.preventDefault();
+			calView.setMonth(calView.getMonth() + 1);
+			renderCalendar();
+		});
+
+		calendarContainer.append(calHeader, calWeekdays, calGrid);
+
+		// Insert calendar right after the date row, before client input
+		grid.appendChild(calendarContainer);
+
+		// Client row (prefilled if provided)
+		const clientInput = document.createElement('input');
+		clientInput.type = 'text';
+		clientInput.placeholder = 'Nombre del cliente';
+		clientInput.className = 'input-cell client-input';
+		clientInput.autocomplete = 'off';
+		if (prefilledClientName) clientInput.value = prefilledClientName;
+		// Custom inline suggestions below the first character (left-aligned)
+		attachClientSuggestionsPopover(clientInput);
+		appendRow('Cliente', clientInput);
+
+		// Dessert rows (dynamic from state.desserts)
+		const qtyInputs = {};
+		for (const d of state.desserts) {
+			const input = document.createElement('input');
+			input.type = 'number';
+			input.min = '0';
+			input.step = '1';
+			input.inputMode = 'numeric';
+			input.placeholder = '0';
+			input.className = 'input-cell input-qty';
+			input.dataset.dessertId = d.id;
+			qtyInputs[d.short_code] = input;
+			appendRow(d.name, input);
+		}
+
+		const actions = document.createElement('div');
+		actions.className = 'confirm-actions';
+		const cancelBtn = document.createElement('button');
+		cancelBtn.type = 'button';
+		cancelBtn.className = 'press-btn';
+		cancelBtn.textContent = 'Cancelar';
+		const saveBtn = document.createElement('button');
+		saveBtn.type = 'button';
+		saveBtn.className = 'press-btn btn-primary';
+		saveBtn.textContent = 'Guardar';
+		actions.append(cancelBtn, saveBtn);
+
+		pop.append(title, grid, actions);
+		// Prepare hidden mount to avoid visible jump before clamping
+		pop.style.visibility = 'hidden';
+		pop.style.opacity = '0';
+		pop.style.transition = 'opacity 160ms ease-out';
+		document.body.appendChild(pop);
+
+		// Clamp within viewport so the popover is fully visible
+		function clampWithinViewport() {
+			try {
+				const margin = 8;
+				const vw = window.innerWidth;
+				const vh = window.innerHeight;
+				const r = pop.getBoundingClientRect();
+				const baseX = (typeof anchorX === 'number') ? anchorX : (vw / 2);
+				const baseY = (typeof anchorY === 'number') ? anchorY : (vh / 2);
+				let left = Math.round(baseX - r.width / 2);
+				let topBelow = Math.round(baseY + 8);
+				let topAbove = Math.round(baseY - 8 - r.height);
+				let top = topBelow;
+				if (top + r.height > vh - margin) {
+					// Prefer above if below overflows
+					top = topAbove;
+				}
+				// If still overflows, clamp to margins
+				if (top < margin) top = margin;
+				if (top + r.height > vh - margin) top = Math.max(margin, vh - margin - r.height);
+				if (left < margin) left = margin;
+				if (left + r.width > vw - margin) left = Math.max(margin, vw - margin - r.width);
+				pop.style.left = left + 'px';
+				pop.style.top = top + 'px';
+				pop.style.transform = 'none';
+			} catch { }
+		}
+		// Clamp immediately before showing to prevent jump
+		clampWithinViewport();
+		// Reveal with a light fade-in
+		pop.style.visibility = 'visible';
+		requestAnimationFrame(() => { pop.style.opacity = '1'; });
+
+		function cleanup() {
+			document.removeEventListener('mousedown', outside, true);
+			document.removeEventListener('touchstart', outside, true);
+			if (pop.parentNode) pop.parentNode.removeChild(pop);
+		}
+		function outside(ev) {
+			const t = ev.target;
+			if (!pop.contains(t) && !t.closest?.('.client-suggest-popover')) cleanup();
+		}
+		setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
+		cancelBtn.addEventListener('click', cleanup);
+
+		// Handle date selection change
+		let isUpdatingProgrammatically = false;
+		dateSelect.addEventListener('change', async (e) => {
+			// Skip if this is a programmatic update from calendar
+			if (isUpdatingProgrammatically) {
+				isUpdatingProgrammatically = false;
+				return;
+			}
+
+			if (dateSelect.value === 'NEW_DATE') {
+				// Show integrated calendar with animation
+				calendarContainer.style.display = 'block';
+				renderCalendar();
+				// Reset select to placeholder
+				dateSelect.value = '';
+				e.preventDefault();
+
+				// Trigger animation
+				requestAnimationFrame(() => {
+					calendarContainer.style.maxHeight = '400px';
+					calendarContainer.style.opacity = '1';
+					calendarContainer.style.transform = 'scaleY(1)';
+				});
+
+				// Re-clamp popover to ensure it's visible after animation
+				setTimeout(() => clampWithinViewport(), 320);
+			} else if (dateSelect.value) {
+				// Hide calendar with animation
+				calendarContainer.style.maxHeight = '0';
+				calendarContainer.style.opacity = '0';
+				calendarContainer.style.transform = 'scaleY(0)';
+
+				// Actually hide after animation
+				setTimeout(() => {
+					calendarContainer.style.display = 'none';
+					clampWithinViewport();
+				}, 300);
+			}
+		});
+
+		// Focus date select by default
+		setTimeout(() => { try { dateSelect.focus(); } catch { } }, 0);
+
+		let isSaving = false;
+		async function doSave() {
+			if (isSaving) return;
+			isSaving = true;
+
+			try {
+				const selectedDayId = dateSelect.value;
+
+				if (!selectedDayId || selectedDayId === 'NEW_DATE') {
+					try { notify.error('Por favor selecciona una fecha'); } catch { }
+					isSaving = false;
+					return;
+				}
+
+				saveBtn.disabled = true;
+				cancelBtn.disabled = true;
+
+				const sellerId = state?.currentSeller?.id;
+				if (!sellerId) {
+					try { notify.error('Selecciona un vendedor'); } catch { }
+					isSaving = false;
+					return;
+				}
+
+				const payload = { seller_id: sellerId, sale_day_id: selectedDayId };
+				const created = await api('POST', API.Sales, payload);
+
+				// Build items array and legacy qty_* properties dynamically
+				const items = [];
+				const body = {
+					id: created.id,
+					client_name: (clientInput.value || '').trim(),
+					is_paid: false,
+					pay_method: null,
+					_actor_name: state.currentUser?.name || ''
+				};
+
+				for (const d of state.desserts) {
+					const val = parseInt(qtyInputs[d.short_code]?.value, 10) || 0;
+					// Legacy: set qty_<short_code>
+					body[`qty_${d.short_code}`] = val;
+					// New: build items
+					if (val > 0) {
+						items.push({
+							dessert_id: d.id,
+							qty: val,
+							amount: val * d.price
+						});
+					}
+				}
+				body.items = items;
+
+				await api('PUT', API.Sales, body);
+
+				// Close the popover IMMEDIATELY
+				cleanup();
+
+				// Show success notification
+				try { notify.success('Pedido guardado exitosamente'); } catch { }
+
+				// Reload client detail in background to show the new order
+				if (state._clientDetailName) {
+					if (state._clientDetailFrom === 'global-search') {
+						loadGlobalClientDetailRows(state._clientDetailName).catch(e => console.error('Error reloading:', e));
+					} else {
+						loadClientDetailRows(state._clientDetailName).catch(e => console.error('Error reloading:', e));
+					}
+				}
+			} catch (e) {
+				console.error('❌ Error completo:', e);
+				console.error('Error message:', e.message);
+				console.error('Error stack:', e.stack);
+				try { notify.error('Error: ' + (e.message || 'No se pudo guardar')); } catch { }
+				saveBtn.disabled = false; cancelBtn.disabled = false;
+				isSaving = false;
+			} finally {
+				isSaving = false;
+			}
+		}
+
+		// Ensure only one click handler
+		saveBtn.addEventListener('click', (e) => {
+			e.preventDefault();
+			e.stopPropagation();
+			doSave();
+		});
+
+		// Submit on Enter in any input
+		const allInputs = [clientInput, ...Object.values(qtyInputs)];
+		allInputs.forEach((el) => {
+			el.addEventListener('keydown', (ev) => {
+				if (ev.key === 'Enter') { ev.preventDefault(); doSave(); }
+			});
+		});
+	} catch (e) {
+		console.error('Error opening new sale popover with date:', e);
+	}
 }
 
 // Wrap API operations to record undo/redo
@@ -3421,11 +3423,11 @@ async function saveRow(tr, id) {
 		if (prev) {
 			const client = (updated.client_name || '').trim() || 'Cliente';
 			const seller = String((state?.currentSeller?.name || state?.currentUser?.name || '') || '');
-			
+
 			for (const d of state.desserts) {
 				const prevQty = Number(prev[`qty_${d.short_code}`] || 0);
 				const newQty = Number(updated[`qty_${d.short_code}`] || 0);
-				
+
 				if (newQty !== prevQty) {
 					const prevNote = prevQty > 0 ? ` (antes ${prevQty})` : '';
 					const msg = `${client} + ${newQty} ${d.short_code}${prevNote}` + (seller ? ` - ${seller}` : '');
@@ -3433,7 +3435,7 @@ async function saveRow(tr, id) {
 				}
 			}
 		}
-	} catch {}
+	} catch { }
 	// Refresh markers from backend logs only
 	preloadChangeLogsForCurrentTable();
 	// Push undo: restore prev snapshot
@@ -3480,36 +3482,36 @@ async function saveClientWithCommentFlow(tr, id) {
 async function saveComment(id, text) {
 	const sale = state.sales.find(s => s.id === id);
 	if (!sale) return;
-	
+
 	// Support for new items format
 	let payload;
 	if (sale.items && Array.isArray(sale.items)) {
-		payload = { 
-			id, 
-			client_name: sale.client_name || '', 
+		payload = {
+			id,
+			client_name: sale.client_name || '',
 			items: sale.items,
-			is_paid: !!sale.is_paid, 
-			pay_method: sale.pay_method ?? null, 
-			comment_text: text, 
-			_actor_name: state.currentUser?.name || '' 
+			is_paid: !!sale.is_paid,
+			pay_method: sale.pay_method ?? null,
+			comment_text: text,
+			_actor_name: state.currentUser?.name || ''
 		};
 	} else {
 		// Legacy format with qty columns
-		payload = { 
-			id, 
-			client_name: sale.client_name || '', 
-			qty_arco: sale.qty_arco||0, 
-			qty_melo: sale.qty_melo||0, 
-			qty_mara: sale.qty_mara||0, 
-			qty_oreo: sale.qty_oreo||0, 
-			qty_nute: sale.qty_nute||0, 
-			is_paid: !!sale.is_paid, 
-			pay_method: sale.pay_method ?? null, 
-			comment_text: text, 
-			_actor_name: state.currentUser?.name || '' 
+		payload = {
+			id,
+			client_name: sale.client_name || '',
+			qty_arco: sale.qty_arco || 0,
+			qty_melo: sale.qty_melo || 0,
+			qty_mara: sale.qty_mara || 0,
+			qty_oreo: sale.qty_oreo || 0,
+			qty_nute: sale.qty_nute || 0,
+			is_paid: !!sale.is_paid,
+			pay_method: sale.pay_method ?? null,
+			comment_text: text,
+			_actor_name: state.currentUser?.name || ''
 		};
 	}
-	
+
 	const updated = await api('PUT', API.Sales, payload);
 	const idx = state.sales.findIndex(s => s.id === id);
 	if (idx !== -1) state.sales[idx] = updated;
@@ -3555,22 +3557,22 @@ function openCommentDialog(anchorEl, initial = '', anchorX, anchorY, saleId = nu
 		pop.style.position = 'fixed';
 		pop.style.visibility = 'hidden'; // Hide initially to measure size
 		const rect = anchorEl.getBoundingClientRect();
-		
+
 		// Append to body first to measure
 		pop.style.zIndex = '1000';
 		// Size: medium compact size
 		const isSmallScreen = window.matchMedia('(max-width: 600px)').matches;
 		pop.style.minWidth = isSmallScreen ? 'min(85vw, 300px)' : '360px';
 		pop.style.maxWidth = isSmallScreen ? '90vw' : '480px';
-		
+
 		// Textarea
-		const ta = document.createElement('textarea'); 
-		ta.className = 'comment-input'; 
-		ta.placeholder = 'Escribe un comentario...'; 
-		ta.value = initial || ''; 
+		const ta = document.createElement('textarea');
+		ta.className = 'comment-input';
+		ta.placeholder = 'Escribe un comentario...';
+		ta.value = initial || '';
 		ta.style.minHeight = isSmallScreen ? '120px' : '160px';
 		ta.style.marginBottom = '0'; // No margin since no buttons below
-		
+
 		// Auto-save with debounce (saves without closing)
 		let saveTimeout;
 		ta.addEventListener('input', () => {
@@ -3585,10 +3587,10 @@ function openCommentDialog(anchorEl, initial = '', anchorX, anchorY, saleId = nu
 				}
 			}, 800); // Save after 800ms of no typing
 		});
-		
+
 		pop.append(ta);
 		document.body.appendChild(pop);
-		
+
 		// Position after appending to get accurate dimensions
 		if (typeof anchorX === 'number' && typeof anchorY === 'number') {
 			const popRect = pop.getBoundingClientRect();
@@ -3604,7 +3606,7 @@ function openCommentDialog(anchorEl, initial = '', anchorX, anchorY, saleId = nu
 			pop.style.top = (rect.top) + 'px';
 			pop.style.transform = 'none';
 		}
-		
+
 		// Make visible
 		pop.style.visibility = 'visible';
 		// Clamp within the visible viewport (accounts for on-screen keyboard via visualViewport)
@@ -3681,12 +3683,12 @@ function openCommentDialog(anchorEl, initial = '', anchorX, anchorY, saleId = nu
 				onCloseCallback();
 			}
 		}
-		function outside(ev) { 
-			if (!pop.contains(ev.target)) { 
+		function outside(ev) {
+			if (!pop.contains(ev.target)) {
 				const v = ta.value.trim();
-				cleanup(); 
+				cleanup();
 				resolve(v);
-			} 
+			}
 		}
 		setTimeout(() => {
 			document.addEventListener('mousedown', outside, true);
@@ -3699,14 +3701,14 @@ function openCommentDialog(anchorEl, initial = '', anchorX, anchorY, saleId = nu
 async function deleteRow(id) {
 	const prev = state.sales.find(s => s.id === id);
 	const actor = encodeURIComponent(state.currentUser?.name || '');
-    // Block delete in UI for non-admins if sale is locked
-    const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
-    const locked = String(prev?.pay_method || '').trim() !== '';
-    if (!isAdminUser && locked) {
-        try { notify.error('Pedido bloqueado: solo admin/superadmin puede eliminar'); } catch {}
-        return;
-    }
-    await api('DELETE', `${API.Sales}?id=${encodeURIComponent(id)}&actor=${actor}`);
+	// Block delete in UI for non-admins if sale is locked
+	const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
+	const locked = String(prev?.pay_method || '').trim() !== '';
+	if (!isAdminUser && locked) {
+		try { notify.error('Pedido bloqueado: solo admin/superadmin puede eliminar'); } catch { }
+		return;
+	}
+	await api('DELETE', `${API.Sales}?id=${encodeURIComponent(id)}&actor=${actor}`);
 	state.sales = state.sales.filter(s => s.id !== id);
 	// Show immediate local toast for feedback
 	if (prev) {
@@ -3715,12 +3717,12 @@ async function deleteRow(id) {
 			try {
 				const match = (state.sellers || []).find(s => s && s.id === prev.seller_id);
 				sellerName = match && match.name ? String(match.name) : '';
-			} catch {}
+			} catch { }
 			const tail = sellerName ? (' - ' + sellerName) : '';
 			const msg = 'Eliminado: ' + formatSaleSummary(prev) + tail;
 			const pay = (prev?.pay_method || '').toString();
 			notify.info(msg, pay ? { payMethod: pay } : undefined);
-		} catch {}
+		} catch { }
 	}
 	// Push undo: re-create previous row
 	if (prev) {
@@ -3779,15 +3781,15 @@ function updateSummary() {
 		amts[d.short_code] = 0;
 		paidQtys[d.short_code] = 0;
 	}
-	
+
 	let grand = 0;
-	
+
 	for (const s of state.sales) {
 		// Support both formats; align with visible per-flavor qty (first occurrence per dessert)
 		const pm = (s.pay_method || '').toString();
 		// Check if this sale has special pricing (muestra or a_costo)
 		const hasSpecialPricing = (s.special_pricing_type === 'muestra' || s.special_pricing_type === 'a_costo');
-		
+
 		if (Array.isArray(s.items) && s.items.length > 0) {
 			for (const d of state.desserts) {
 				let qty = 0;
@@ -3814,9 +3816,9 @@ function updateSummary() {
 			for (const d of state.desserts) {
 				const qty = Number(s[`qty_${d.short_code}`] || 0);
 				// For old format without special pricing, use standard prices
-				const price = hasSpecialPricing && s.special_pricing_type === 'muestra' ? 0 : 
-				              hasSpecialPricing && s.special_pricing_type === 'a_costo' ? Math.round((PRICES[d.short_code] || 0) * 0.55) :
-				              (PRICES[d.short_code] || 0);
+				const price = hasSpecialPricing && s.special_pricing_type === 'muestra' ? 0 :
+					hasSpecialPricing && s.special_pricing_type === 'a_costo' ? Math.round((PRICES[d.short_code] || 0) * 0.55) :
+						(PRICES[d.short_code] || 0);
 				qtys[d.short_code] += qty;
 				amts[d.short_code] += qty * price;
 				// Exclude special pricing from commission calculations
@@ -3825,49 +3827,49 @@ function updateSummary() {
 				}
 			}
 		}
-		
+
 		grand += calcRowTotal(s);
 	}
-	
+
 	// Update UI dynamically for all desserts
 	let totalQty = 0;
 	for (const d of state.desserts) {
 		const qty = qtys[d.short_code] || 0;
 		const amt = amts[d.short_code] || 0;
 		totalQty += qty;
-		
+
 		// Update qty cell
 		const qtyEl = document.getElementById(`sum-${d.short_code}-qty`);
 		if (qtyEl) qtyEl.textContent = String(qty);
-		
+
 		// Update amt cell
 		const amtEl = document.getElementById(`sum-${d.short_code}-amt`);
 		if (amtEl) amtEl.textContent = fmtNo.format(amt);
-		
+
 		// Update stacked rows (mobile)
 		const qty2El = document.getElementById(`sum-${d.short_code}-qty-2`);
 		if (qty2El) qty2El.textContent = String(qty);
-		
+
 		const amt2El = document.getElementById(`sum-${d.short_code}-amt-2`);
 		if (amt2El) amt2El.textContent = fmtNo.format(amt);
 	}
-	
+
 	$('#sum-total-qty').textContent = String(totalQty);
 	const grandStr = fmtNo.format(grand);
 	$('#sum-grand').textContent = grandStr;
-	
+
 	// Commissions: tiered rates based on paid desserts quantity
 	let paidTotalQty = 0;
 	for (const d of state.desserts) {
 		paidTotalQty += paidQtys[d.short_code] || 0;
 	}
-	
+
 	// Determine commission rate based on quantity using seller's custom rates
 	const seller = state.currentSeller || {};
 	const rateLow = Number(seller.commission_rate_low) || 1000;
 	const rateMid = Number(seller.commission_rate_mid) || 1300;
 	const rateHigh = Number(seller.commission_rate_high) || 1500;
-	
+
 	let commRate = rateLow;
 	let commRateLabel = `x ${rateLow}`;
 	if (paidTotalQty >= 60) {
@@ -3877,22 +3879,22 @@ function updateSummary() {
 		commRate = rateMid;
 		commRateLabel = `x ${rateMid}`;
 	}
-	
+
 	const commGenerated = paidTotalQty * commRate;
 	const commStr = fmtNo.format(commGenerated);
 	const commEl = document.getElementById('sum-comm');
 	if (commEl) commEl.textContent = commStr;
-	
+
 	// Update commission label to show rate
 	const commLabelEl = document.querySelector('#footer-comm-row td.label');
 	if (commLabelEl) commLabelEl.textContent = `Comisiones generadas ${commRateLabel}`;
-	
+
 	// Comisiones pagadas (per day, editable solo por superadmin)
 	try {
 		const day = (state && Array.isArray(state.saleDays) && state.selectedDayId)
 			? (state.saleDays || []).find(d => d && d.id === state.selectedDayId)
 			: null;
-		
+
 		const commPaid = Number(day?.commissions_paid || 0) || 0;
 		const commPaidStr = fmtNo.format(commPaid);
 		console.log('updateSummary - commissions_paid from day:', commPaid, 'formatted:', commPaidStr, 'day:', day);
@@ -3908,13 +3910,13 @@ function updateSummary() {
 	} catch (e) {
 		console.error('Error updating commissions paid:', e);
 	}
-	
+
 	// Postres entregados (per day, editable solo por superadmin)
 	try {
 		const day = (state && Array.isArray(state.saleDays) && state.selectedDayId)
 			? (state.saleDays || []).find(d => d && d.id === state.selectedDayId)
 			: null;
-		
+
 		let totalDelivered = 0;
 		for (const d of state.desserts) {
 			const delivered = Number(day?.[`delivered_${d.short_code}`] || 0) || 0;
@@ -3922,7 +3924,7 @@ function updateSummary() {
 			const elD = document.getElementById(`deliv-${d.short_code}`);
 			if (elD) elD.textContent = String(delivered);
 		}
-		
+
 		const elDt = document.getElementById('deliv-total');
 		if (elDt) elDt.textContent = String(totalDelivered);
 		wireDeliveredRowEditors();
@@ -3948,7 +3950,7 @@ function updateSummary() {
 		if (grandLine) grandLine.textContent = grandStr;
 		const commLine = document.getElementById('sum-comm-2');
 		if (commLine) commLine.textContent = commStr;
-		
+
 		// Update stacked commission label
 		try {
 			const commLabelStacked = document.querySelector('#footer-comm-row-2 .st-label');
@@ -3956,7 +3958,7 @@ function updateSummary() {
 		} catch (e) {
 			console.error('Error updating stacked commission label:', e);
 		}
-		
+
 		// Update stacked commission paid row (mobile)
 		try {
 			const day = (state && Array.isArray(state.saleDays) && state.selectedDayId)
@@ -3976,16 +3978,16 @@ function readRow(tr) {
 	const result = {
 		client_name: clientEl ? clientEl.value.trim() : '',
 	};
-	
+
 	// Read quantities dynamically for all desserts
 	const items = [];
 	for (const d of state.desserts) {
 		const input = tr.querySelector(`td.col-dessert[class*="col-${d.short_code}"] input`);
 		const qty = input && input.value !== '' ? Number(input.value) : 0;
-		
+
 		// Store in both formats for backward compatibility
 		result[`qty_${d.short_code}`] = qty;
-		
+
 		// Build items array (new format)
 		if (qty > 0) {
 			items.push({
@@ -3995,10 +3997,10 @@ function readRow(tr) {
 			});
 		}
 	}
-	
+
 	// Include items array for new format
 	result.items = items;
-	
+
 	return result;
 }
 
@@ -4081,13 +4083,13 @@ function exportTableToExcel() {
 		const wb = XLSX.utils.book_new();
 		XLSX.utils.book_append_sheet(wb, ws, 'Ventas');
 		const sellerName = state.currentSeller?.name?.replace(/[^\w\-]+/g, '_') || 'ventas';
-		const dateStr = new Date().toISOString().slice(0,10);
+		const dateStr = new Date().toISOString().slice(0, 10);
 		XLSX.writeFile(wb, `${sellerName}_${dateStr}.xlsx`);
-		try { notify.success('Excel exportado'); } catch {}
+		try { notify.success('Excel exportado'); } catch { }
 	} catch (error) {
 		console.error('Error al exportar Excel:', error);
 		const errorMsg = error.message ? `Error al exportar Excel: ${error.message}` : 'Error al exportar Excel';
-		try { notify.error(errorMsg); } catch {}
+		try { notify.error(errorMsg); } catch { }
 	}
 }
 
@@ -4097,7 +4099,7 @@ async function exportConsolidatedForDate(dayIso) {
 	let tQa = 0, tQm = 0, tQma = 0, tQo = 0, tQn = 0, tGrand = 0;
 	for (const s of sellers) {
 		const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(s.id)}`);
-		const day = (days || []).find(d => (String(d.day).slice(0,10) === String(dayIso).slice(0,10)));
+		const day = (days || []).find(d => (String(d.day).slice(0, 10) === String(dayIso).slice(0, 10)));
 		if (!day) continue;
 		const params = new URLSearchParams({ seller_id: String(s.id), sale_day_id: String(day.id) });
 		const sales = await api('GET', `${API.Sales}?${params.toString()}`);
@@ -4132,22 +4134,22 @@ async function exportConsolidatedForDate(dayIso) {
 	rows.push(['', '', '', 'Total postres', '', '', '', '', '', tSumAll || '']);
 	const XLSX = window.XLSX;
 	const ws = XLSX.utils.aoa_to_sheet(rows);
-	ws['!cols'] = [ {wch:18},{wch:3},{wch:10},{wch:24},{wch:6},{wch:6},{wch:6},{wch:6},{wch:6},{wch:10} ];
+	ws['!cols'] = [{ wch: 18 }, { wch: 3 }, { wch: 10 }, { wch: 24 }, { wch: 6 }, { wch: 6 }, { wch: 6 }, { wch: 6 }, { wch: 6 }, { wch: 10 }];
 	const wb = XLSX.utils.book_new();
 	XLSX.utils.book_append_sheet(wb, ws, 'Consolidado');
-	const dateLabel = formatDayLabel(String(dayIso).slice(0,10)).replace(/\s+/g, '_');
+	const dateLabel = formatDayLabel(String(dayIso).slice(0, 10)).replace(/\s+/g, '_');
 	XLSX.writeFile(wb, `Consolidado_${dateLabel}.xlsx`);
 }
 
 async function exportConsolidatedForDates(isoList) {
-	const unique = Array.from(new Set((isoList || []).map(iso => String(iso).slice(0,10))));
+	const unique = Array.from(new Set((isoList || []).map(iso => String(iso).slice(0, 10))));
 	const sellers = await api('GET', API.Sellers);
-	const rows = [['Fecha','Vendedor', '$', 'Pago', 'Cliente', 'Arco', 'Melo', 'Mara', 'Oreo', 'Nute', 'Total']];
+	const rows = [['Fecha', 'Vendedor', '$', 'Pago', 'Cliente', 'Arco', 'Melo', 'Mara', 'Oreo', 'Nute', 'Total']];
 	let tQa = 0, tQm = 0, tQma = 0, tQo = 0, tQn = 0, tGrand = 0;
 	for (const iso of unique) {
 		for (const s of sellers) {
 			const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(s.id)}`);
-			const day = (days || []).find(d => (String(d.day).slice(0,10) === iso));
+			const day = (days || []).find(d => (String(d.day).slice(0, 10) === iso));
 			if (!day) continue;
 			const params = new URLSearchParams({ seller_id: String(s.id), sale_day_id: String(day.id) });
 			const sales = await api('GET', `${API.Sales}?${params.toString()}`);
@@ -4173,25 +4175,25 @@ async function exportConsolidatedForDates(isoList) {
 	rows.push(['', '', '', '', 'Total postres', '', '', '', '', '', tSumAll || '']);
 	const XLSX = window.XLSX;
 	const ws = XLSX.utils.aoa_to_sheet(rows);
-	ws['!cols'] = [ {wch:10},{wch:18},{wch:3},{wch:10},{wch:24},{wch:6},{wch:6},{wch:6},{wch:6},{wch:6},{wch:10} ];
+	ws['!cols'] = [{ wch: 10 }, { wch: 18 }, { wch: 3 }, { wch: 10 }, { wch: 24 }, { wch: 6 }, { wch: 6 }, { wch: 6 }, { wch: 6 }, { wch: 6 }, { wch: 10 }];
 	const wb = XLSX.utils.book_new();
 	XLSX.utils.book_append_sheet(wb, ws, 'Consolidado');
-	XLSX.writeFile(wb, `Consolidado_varios_${new Date().toISOString().slice(0,10)}.xlsx`);
+	XLSX.writeFile(wb, `Consolidado_varios_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
 
-(async function exportHelpers(){})();
+(async function exportHelpers() { })();
 
 async function exportCarteraExcel(startIso, endIso) {
 	// Normalize
-	const start = String(startIso).slice(0,10);
-	const end = String(endIso).slice(0,10);
+	const start = String(startIso).slice(0, 10);
+	const end = String(endIso).slice(0, 10);
 	const sellers = await api('GET', API.Sellers);
-	const rows = [['Fecha','Vendedor','Cliente','Pago','$','Arco','Melo','Mara','Oreo','Nute','Total']];
+	const rows = [['Fecha', 'Vendedor', 'Cliente', 'Pago', '$', 'Arco', 'Melo', 'Mara', 'Oreo', 'Nute', 'Total']];
 	let totalGrand = 0;
 	for (const s of sellers) {
 		const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(s.id)}`);
 		const within = (days || []).filter(d => {
-			const iso = String(d.day).slice(0,10);
+			const iso = String(d.day).slice(0, 10);
 			return iso >= start && iso <= end;
 		});
 		for (const d of within) {
@@ -4212,31 +4214,31 @@ async function exportCarteraExcel(startIso, endIso) {
 				totalGrand += (tot || 0);
 				const payLabel = pm === '' ? '-' : (pm === 'efectivo' ? 'Efectivo' : pm === 'transf' ? 'Transf' : pm);
 				rows.push([
-					String(d.day).slice(0,10), s.name || '', r.client_name || '', payLabel,
+					String(d.day).slice(0, 10), s.name || '', r.client_name || '', payLabel,
 					r.is_paid ? '✓' : '',
 					qa || '', qm || '', qma || '', qo || '', qn || '', tot || ''
 				]);
 			}
 		}
 	}
-	rows.push(['','','','','Totales','','','','','', totalGrand || '']);
+	rows.push(['', '', '', '', 'Totales', '', '', '', '', '', totalGrand || '']);
 	const XLSX = window.XLSX;
 	const ws = XLSX.utils.aoa_to_sheet(rows);
-	ws['!cols'] = [ {wch:10},{wch:18},{wch:24},{wch:10},{wch:3},{wch:6},{wch:6},{wch:6},{wch:6},{wch:6},{wch:10} ];
+	ws['!cols'] = [{ wch: 10 }, { wch: 18 }, { wch: 24 }, { wch: 10 }, { wch: 3 }, { wch: 6 }, { wch: 6 }, { wch: 6 }, { wch: 6 }, { wch: 6 }, { wch: 10 }];
 	const wb = XLSX.utils.book_new();
 	XLSX.utils.book_append_sheet(wb, ws, 'Cartera');
 	XLSX.writeFile(wb, `Cartera_${start}_a_${end}.xlsx`);
 }
 
-(function wireGlobalDates(){
+(function wireGlobalDates() {
 	const globalList = document.getElementById('global-dates-list');
 	if (!globalList) return;
 	// Load unique dates across sellers by querying one seller (or better: consolidate server-side). Here, we'll show last 7 days from today.
 	const today = new Date();
 	const days = [];
-	for (let i=0;i<7;i++) {
-		const d = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()-i));
-		days.push(d.toISOString().slice(0,10));
+	for (let i = 0; i < 7; i++) {
+		const d = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate() - i));
+		days.push(d.toISOString().slice(0, 10));
 	}
 	for (const iso of days) {
 		const item = document.createElement('div');
@@ -4251,7 +4253,7 @@ async function exportCarteraExcel(startIso, endIso) {
 })();
 
 
-(function wireReportButton(){
+(function wireReportButton() {
 	const reportBtn = document.getElementById('report-button');
 	const transfersBtn = document.getElementById('transfers-button');
 	const projectionsBtn = document.getElementById('projections-button');
@@ -4287,22 +4289,22 @@ async function exportCarteraExcel(startIso, endIso) {
 			window.location.href = url;
 		}, ev.clientX, ev.clientY, { preferUp: true });
 	});
-    carteraBtn?.addEventListener('click', (ev) => {
-        exitDeleteSellerModeIfActive();
-        const feats = new Set((state.currentUser?.features || []));
-        const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
-        if (!isSuper && !feats.has('reports.cartera')) { notify.error('Sin permiso de cartera'); return; }
-        openRangeCalendarPopover((range) => {
-            if (!range || !range.start || !range.end) return;
-            const url = `/cartera.html?start=${encodeURIComponent(range.start)}&end=${encodeURIComponent(range.end)}`;
-            window.location.href = url;
-        }, ev.clientX, ev.clientY, { preferUp: true });
-    });
+	carteraBtn?.addEventListener('click', (ev) => {
+		exitDeleteSellerModeIfActive();
+		const feats = new Set((state.currentUser?.features || []));
+		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+		if (!isSuper && !feats.has('reports.cartera')) { notify.error('Sin permiso de cartera'); return; }
+		openRangeCalendarPopover((range) => {
+			if (!range || !range.start || !range.end) return;
+			const url = `/cartera.html?start=${encodeURIComponent(range.start)}&end=${encodeURIComponent(range.end)}`;
+			window.location.href = url;
+		}, ev.clientX, ev.clientY, { preferUp: true });
+	});
 
 	transfersBtn?.addEventListener('click', (ev) => {
 		exitDeleteSellerModeIfActive();
-	const feats = new Set((state.currentUser?.features || []));
-	const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+		const feats = new Set((state.currentUser?.features || []));
+		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 		if (!isSuper && !feats.has('reports.transfers')) { notify.error('Sin permiso de transferencias'); return; }
 		openRangeCalendarPopover((range) => {
 			if (!range || !range.start || !range.end) return;
@@ -4317,22 +4319,22 @@ async function exportCarteraExcel(startIso, endIso) {
 		if (!isSuper && !feats.has('nav.users')) { notify.error('Sin permiso de usuarios'); return; }
 		openUsersMenu(ev.clientX, ev.clientY);
 	});
-    materialsBtn?.addEventListener('click', async (ev) => {
-        exitDeleteSellerModeIfActive();
+	materialsBtn?.addEventListener('click', async (ev) => {
+		exitDeleteSellerModeIfActive();
 		const feats = new Set((state.currentUser?.features || []));
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 		if (!isSuper && !feats.has('nav.materials')) { notify.error('Sin permiso de materiales'); return; }
 		openMaterialsMenu(ev.clientX, ev.clientY);
 	});
-    inventoryBtn?.addEventListener('click', async (ev) => {
-        exitDeleteSellerModeIfActive();
+	inventoryBtn?.addEventListener('click', async (ev) => {
+		exitDeleteSellerModeIfActive();
 		const feats = new Set((state.currentUser?.features || []));
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 		if (!isSuper && !feats.has('nav.inventory')) { notify.error('Sin permiso de inventario'); return; }
 		openInventoryView();
 	});
-    accountingBtn?.addEventListener('click', (ev) => {
-        exitDeleteSellerModeIfActive();
+	accountingBtn?.addEventListener('click', (ev) => {
+		exitDeleteSellerModeIfActive();
 		const feats = new Set((state.currentUser?.features || []));
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 		if (!isSuper && !feats.has('nav.accounting')) { notify.error('Sin permiso de contabilidad'); return; }
@@ -4352,27 +4354,35 @@ async function exportCarteraExcel(startIso, endIso) {
 		if (!isAdminUser && !isSuper) { notify.error('Solo para admin/superadmin'); return; }
 		window.location.href = '/deliveries.html';
 	});
+	const gamesBtn = document.getElementById('games-button');
+	gamesBtn?.addEventListener('click', (ev) => {
+		exitDeleteSellerModeIfActive();
+		const isAdminUser = !!(state?.currentUser?.isAdmin);
+		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+		if (!isAdminUser && !isSuper) { notify.error('Solo para admin/superadmin'); return; }
+		window.location.href = '/games-report.html';
+	});
 })();
 
 // Build list of ISO dates (YYYY-MM-DD) from inclusive range using UTC arithmetic
 function buildIsoListFromRange(startIso, endIso) {
-    if (!startIso || !endIso) return [];
-    const parseIso = (iso) => {
-        const parts = String(iso).split('-').map(v => parseInt(v, 10));
-        if (parts.length !== 3 || parts.some(n => Number.isNaN(n))) return null;
-        return new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
-    };
-    let start = parseIso(startIso);
-    let end = parseIso(endIso);
-    if (!start || !end) return [];
-    if (start > end) { const tmp = start; start = end; end = tmp; }
-    const out = [];
-    const cur = new Date(start.getTime());
-    while (cur <= end) {
-        out.push(cur.toISOString().slice(0, 10));
-        cur.setUTCDate(cur.getUTCDate() + 1);
-    }
-    return out;
+	if (!startIso || !endIso) return [];
+	const parseIso = (iso) => {
+		const parts = String(iso).split('-').map(v => parseInt(v, 10));
+		if (parts.length !== 3 || parts.some(n => Number.isNaN(n))) return null;
+		return new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+	};
+	let start = parseIso(startIso);
+	let end = parseIso(endIso);
+	if (!start || !end) return [];
+	if (start > end) { const tmp = start; start = end; end = tmp; }
+	const out = [];
+	const cur = new Date(start.getTime());
+	while (cur <= end) {
+		out.push(cur.toISOString().slice(0, 10));
+		cur.setUTCDate(cur.getUTCDate() + 1);
+	}
+	return out;
 }
 
 function openUsersMenu(anchorX, anchorY) {
@@ -4387,13 +4397,13 @@ function openUsersMenu(anchorX, anchorY) {
 	pop.style.transform = 'translate(-50%, 0)';
 	pop.style.zIndex = '1000';
 	const list = document.createElement('div'); list.className = 'history-list';
-    const b1 = document.createElement('button'); b1.className = 'press-btn'; b1.textContent = 'Reporte';
-    const b2 = document.createElement('button'); b2.className = 'press-btn'; b2.textContent = 'Cambiar contraseñas';
-    const b3 = document.createElement('button'); b3.className = 'press-btn'; b3.textContent = 'Asignar roles';
-    const b4 = document.createElement('button'); b4.className = 'press-btn'; b4.textContent = 'Otorgar ver vendedor';
-    const b5 = document.createElement('button'); b5.className = 'press-btn'; b5.textContent = 'Revocar ver vendedor';
-    const b6 = document.createElement('button'); b6.className = 'press-btn'; b6.textContent = 'Gestionar permisos (UI)';
-    list.appendChild(b1); list.appendChild(b2); list.appendChild(b3); list.appendChild(b4); list.appendChild(b5); list.appendChild(b6);
+	const b1 = document.createElement('button'); b1.className = 'press-btn'; b1.textContent = 'Reporte';
+	const b2 = document.createElement('button'); b2.className = 'press-btn'; b2.textContent = 'Cambiar contraseñas';
+	const b3 = document.createElement('button'); b3.className = 'press-btn'; b3.textContent = 'Asignar roles';
+	const b4 = document.createElement('button'); b4.className = 'press-btn'; b4.textContent = 'Otorgar ver vendedor';
+	const b5 = document.createElement('button'); b5.className = 'press-btn'; b5.textContent = 'Revocar ver vendedor';
+	const b6 = document.createElement('button'); b6.className = 'press-btn'; b6.textContent = 'Gestionar permisos (UI)';
+	list.appendChild(b1); list.appendChild(b2); list.appendChild(b3); list.appendChild(b4); list.appendChild(b5); list.appendChild(b6);
 	pop.append(list);
 	document.body.appendChild(pop);
 
@@ -4409,8 +4419,8 @@ function openUsersMenu(anchorX, anchorY) {
 	pop.style.top = topY + 'px';
 	// Trigger animation class
 	pop.classList.add('aladdin-pop');
-	function cleanup(){ document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); if (pop.parentNode) pop.parentNode.removeChild(pop); }
-	function outside(ev){ if (!pop.contains(ev.target)) cleanup(); }
+	function cleanup() { document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); if (pop.parentNode) pop.parentNode.removeChild(pop); }
+	function outside(ev) { if (!pop.contains(ev.target)) cleanup(); }
 	setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
 	b1.addEventListener('click', async () => { await exportUsersExcel(); cleanup(); });
 	b2.addEventListener('click', async () => {
@@ -4425,290 +4435,290 @@ function openUsersMenu(anchorX, anchorY) {
 		try { await api('PATCH', API.Users, { action: 'setRole', username, role }); notify.success('Rol actualizado'); cleanup(); }
 		catch { notify.error('No se pudo actualizar'); }
 	});
-    b4.addEventListener('click', async () => {
-        const viewer = prompt('Usuario que podrá ver:'); if (!viewer) return;
-        const seller = prompt('Vendedor a autorizar (nombre exacto):'); if (!seller) return;
-        try {
-            await api('PATCH', API.Users, { action: 'grantView', username: viewer, sellerName: seller });
-            notify.success('Permiso otorgado'); cleanup();
-        } catch { notify.error('No se pudo otorgar'); }
-    });
-    b5.addEventListener('click', async () => {
-        const viewer = prompt('Usuario a revocar:'); if (!viewer) return;
-        const seller = prompt('Vendedor a revocar (nombre exacto):'); if (!seller) return;
-        try {
-            await api('PATCH', API.Users, { action: 'revokeView', username: viewer, sellerName: seller });
-            notify.success('Permiso revocado'); cleanup();
-        } catch { notify.error('No se pudo revocar'); }
-    });
-    b6.addEventListener('click', async () => { cleanup(); openPermissionsManager(); });
-    // Removed Assign Icons
+	b4.addEventListener('click', async () => {
+		const viewer = prompt('Usuario que podrá ver:'); if (!viewer) return;
+		const seller = prompt('Vendedor a autorizar (nombre exacto):'); if (!seller) return;
+		try {
+			await api('PATCH', API.Users, { action: 'grantView', username: viewer, sellerName: seller });
+			notify.success('Permiso otorgado'); cleanup();
+		} catch { notify.error('No se pudo otorgar'); }
+	});
+	b5.addEventListener('click', async () => {
+		const viewer = prompt('Usuario a revocar:'); if (!viewer) return;
+		const seller = prompt('Vendedor a revocar (nombre exacto):'); if (!seller) return;
+		try {
+			await api('PATCH', API.Users, { action: 'revokeView', username: viewer, sellerName: seller });
+			notify.success('Permiso revocado'); cleanup();
+		} catch { notify.error('No se pudo revocar'); }
+	});
+	b6.addEventListener('click', async () => { cleanup(); openPermissionsManager(); });
+	// Removed Assign Icons
 }
 
 function openPermissionsManager() {
-    const overlay = document.createElement('div'); overlay.className = 'confirm-popover permissions-overlay'; overlay.style.position = 'fixed'; overlay.style.left = '0'; overlay.style.top = '0'; overlay.style.right = '0'; overlay.style.bottom = '0'; overlay.style.background = 'rgba(0,0,0,0.35)'; overlay.style.zIndex = '1000';
-    const modal = document.createElement('div'); modal.className = 'confirm-popover permissions-modal'; modal.style.position = 'fixed'; modal.style.left = '50%'; modal.style.top = '50%'; modal.style.transform = 'translate(-50%, -50%)'; modal.style.maxWidth = '680px'; modal.style.width = '90%'; modal.style.maxHeight = '80vh'; modal.style.overflow = 'auto'; modal.style.background = 'var(--panel-bg, #fff)'; modal.style.padding = '16px'; modal.style.borderRadius = '12px';
-    const title = document.createElement('h3'); title.textContent = 'Gestión de permisos de visualización'; modal.appendChild(title);
-    const row = document.createElement('div'); row.style.display = 'flex'; row.style.gap = '12px'; row.style.alignItems = 'flex-start';
-    const left = document.createElement('div'); left.style.flex = '1'; const right = document.createElement('div'); right.style.flex = '1';
-    const userLabel = document.createElement('label'); userLabel.textContent = 'Usuario (viewer)'; userLabel.style.display = 'block';
-    const userSelect = document.createElement('select'); userSelect.style.width = '100%'; userSelect.className = 'input-cell';
-    left.appendChild(userLabel); left.appendChild(userSelect);
-    const sellersLabel = document.createElement('label'); sellersLabel.textContent = 'Vendedores permitidos'; sellersLabel.style.display = 'block';
-    const sellersBox = document.createElement('div'); sellersBox.style.display = 'grid'; sellersBox.style.gridTemplateColumns = 'repeat(2, minmax(0, 1fr))'; sellersBox.style.gap = '8px'; sellersBox.style.marginTop = '6px';
-    right.appendChild(sellersLabel); right.appendChild(sellersBox);
-    const featureLabel = document.createElement('label'); featureLabel.textContent = 'Permisos de funcionalidades'; featureLabel.style.display = 'block'; featureLabel.style.marginTop = '12px';
-    function makeFeat(labelText, featureKey) {
-        const wrap = document.createElement('label'); wrap.style.display = 'flex'; wrap.style.alignItems = 'center'; wrap.style.gap = '8px'; wrap.style.marginTop = '6px';
-        const cb = document.createElement('input'); cb.type = 'checkbox'; cb.value = featureKey; cb.dataset.feature = featureKey;
-        const span = document.createElement('span'); span.textContent = labelText;
-        wrap.appendChild(cb); wrap.appendChild(span);
-        return { wrap, cb };
-    }
-    // Reports
-    const featSales = makeFeat('Ver botón Ventas', 'reports.sales');
-    const featTransfers = makeFeat('Ver botón Transferencias', 'reports.transfers');
-    const featCartera = makeFeat('Ver botón Cartera', 'reports.cartera');
-    const featProjections = makeFeat('Ver botón Proyecciones', 'reports.projections');
-    // Nav
-    const featMaterials = makeFeat('Ver botón Materiales', 'nav.materials');
-    const featInventory = makeFeat('Ver botón Inventario', 'nav.inventory');
-    const featUsers = makeFeat('Ver botón Usuarios', 'nav.users');
-    const featAccounting = makeFeat('Ver botón Contabilidad', 'nav.accounting');
-    right.appendChild(featureLabel);
-    [featSales, featTransfers, featCartera, featProjections, featMaterials, featInventory, featUsers, featAccounting]
-        .forEach(x => right.appendChild(x.wrap));
-    row.appendChild(left); row.appendChild(right);
-    
-    // Commissions section (separate, below the main row)
-    const commissionsSection = document.createElement('div');
-    commissionsSection.style.marginTop = '24px';
-    commissionsSection.style.paddingTop = '20px';
-    commissionsSection.style.borderTop = '2px solid var(--border-color, #e0e0e0)';
-    commissionsSection.style.display = 'none'; // Hidden by default
-    
-    const commissionsHeader = document.createElement('div');
-    commissionsHeader.style.display = 'flex';
-    commissionsHeader.style.alignItems = 'center';
-    commissionsHeader.style.gap = '8px';
-    commissionsHeader.style.marginBottom = '16px';
-    
-    const commissionsTitle = document.createElement('h4');
-    commissionsTitle.textContent = 'Comisiones';
-    commissionsTitle.style.margin = '0';
-    commissionsTitle.style.fontSize = '16px';
-    commissionsTitle.style.fontWeight = '600';
-    
-    const commissionsBadge = document.createElement('span');
-    commissionsBadge.textContent = 'Por rango de pedidos';
-    commissionsBadge.style.fontSize = '11px';
-    commissionsBadge.style.padding = '3px 8px';
-    commissionsBadge.style.borderRadius = '10px';
-    commissionsBadge.style.background = 'var(--primary-color, #4CAF50)';
-    commissionsBadge.style.color = 'white';
-    commissionsBadge.style.fontWeight = '500';
-    
-    commissionsHeader.appendChild(commissionsTitle);
-    commissionsHeader.appendChild(commissionsBadge);
-    
-    const commissionInputsContainer = document.createElement('div');
-    commissionInputsContainer.style.display = 'grid';
-    commissionInputsContainer.style.gridTemplateColumns = 'repeat(auto-fit, minmax(200px, 1fr))';
-    commissionInputsContainer.style.gap = '16px';
-    commissionInputsContainer.style.marginTop = '12px';
-    
-    function makeCommField(labelText, rangeText, placeholder, accentColor) {
-        const wrap = document.createElement('div');
-        wrap.style.background = 'var(--panel-bg, #fafafa)';
-        wrap.style.padding = '16px';
-        wrap.style.borderRadius = '8px';
-        wrap.style.border = `2px solid ${accentColor}`;
-        wrap.style.transition = 'transform 0.2s, box-shadow 0.2s';
-        
-        const header = document.createElement('div');
-        header.style.display = 'flex';
-        header.style.justifyContent = 'space-between';
-        header.style.alignItems = 'center';
-        header.style.marginBottom = '8px';
-        
-        const label = document.createElement('label');
-        label.textContent = labelText;
-        label.style.display = 'block';
-        label.style.fontSize = '13px';
-        label.style.fontWeight = '600';
-        label.style.color = 'var(--text-primary, #333)';
-        
-        const range = document.createElement('span');
-        range.textContent = rangeText;
-        range.style.fontSize = '11px';
-        range.style.padding = '2px 6px';
-        range.style.borderRadius = '4px';
-        range.style.background = accentColor;
-        range.style.color = 'white';
-        range.style.fontWeight = '500';
-        
-        header.appendChild(label);
-        header.appendChild(range);
-        
-        const inputWrapper = document.createElement('div');
-        inputWrapper.style.position = 'relative';
-        
-        const currency = document.createElement('span');
-        currency.textContent = '$';
-        currency.style.position = 'absolute';
-        currency.style.left = '10px';
-        currency.style.top = '50%';
-        currency.style.transform = 'translateY(-50%)';
-        currency.style.color = 'var(--text-secondary, #666)';
-        currency.style.fontWeight = '600';
-        
-        const input = document.createElement('input');
-        input.type = 'number';
-        input.className = 'input-cell';
-        input.placeholder = placeholder;
-        input.style.width = '100%';
-        input.style.paddingLeft = '28px';
-        input.style.fontSize = '16px';
-        input.style.fontWeight = '500';
-        input.style.border = '1px solid var(--border-color, #ddd)';
-        input.style.borderRadius = '6px';
-        
-        inputWrapper.appendChild(currency);
-        inputWrapper.appendChild(input);
-        
-        wrap.appendChild(header);
-        wrap.appendChild(inputWrapper);
-        
-        // Hover effect
-        wrap.addEventListener('mouseenter', () => {
-            wrap.style.transform = 'translateY(-2px)';
-            wrap.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
-        });
-        wrap.addEventListener('mouseleave', () => {
-            wrap.style.transform = 'translateY(0)';
-            wrap.style.boxShadow = 'none';
-        });
-        
-        return { wrap, input };
-    }
-    
-    const commLow = makeCommField('Nivel Básico', '1-29', '1000', '#C2185B');
-    const commMid = makeCommField('Nivel Intermedio', '30-59', '1300', '#C2185B');
-    const commHigh = makeCommField('Nivel Avanzado', '60+', '1500', '#C2185B');
-    
-    commissionInputsContainer.appendChild(commLow.wrap);
-    commissionInputsContainer.appendChild(commMid.wrap);
-    commissionInputsContainer.appendChild(commHigh.wrap);
-    
-    commissionsSection.appendChild(commissionsHeader);
-    commissionsSection.appendChild(commissionInputsContainer);
-    
-    const actions = document.createElement('div'); actions.style.display = 'flex'; actions.style.justifyContent = 'flex-end'; actions.style.gap = '8px'; actions.style.marginTop = '14px';
-    const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn'; closeBtn.textContent = 'Cerrar';
-    const saveBtn = document.createElement('button'); saveBtn.className = 'press-btn btn-primary'; saveBtn.textContent = 'Guardar';
-    actions.appendChild(closeBtn); actions.appendChild(saveBtn);
-    modal.appendChild(row); modal.appendChild(commissionsSection); modal.appendChild(actions);
-    overlay.appendChild(modal); document.body.appendChild(overlay);
-    function cleanup(){ if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }
-    closeBtn.addEventListener('click', cleanup);
+	const overlay = document.createElement('div'); overlay.className = 'confirm-popover permissions-overlay'; overlay.style.position = 'fixed'; overlay.style.left = '0'; overlay.style.top = '0'; overlay.style.right = '0'; overlay.style.bottom = '0'; overlay.style.background = 'rgba(0,0,0,0.35)'; overlay.style.zIndex = '1000';
+	const modal = document.createElement('div'); modal.className = 'confirm-popover permissions-modal'; modal.style.position = 'fixed'; modal.style.left = '50%'; modal.style.top = '50%'; modal.style.transform = 'translate(-50%, -50%)'; modal.style.maxWidth = '680px'; modal.style.width = '90%'; modal.style.maxHeight = '80vh'; modal.style.overflow = 'auto'; modal.style.background = 'var(--panel-bg, #fff)'; modal.style.padding = '16px'; modal.style.borderRadius = '12px';
+	const title = document.createElement('h3'); title.textContent = 'Gestión de permisos de visualización'; modal.appendChild(title);
+	const row = document.createElement('div'); row.style.display = 'flex'; row.style.gap = '12px'; row.style.alignItems = 'flex-start';
+	const left = document.createElement('div'); left.style.flex = '1'; const right = document.createElement('div'); right.style.flex = '1';
+	const userLabel = document.createElement('label'); userLabel.textContent = 'Usuario (viewer)'; userLabel.style.display = 'block';
+	const userSelect = document.createElement('select'); userSelect.style.width = '100%'; userSelect.className = 'input-cell';
+	left.appendChild(userLabel); left.appendChild(userSelect);
+	const sellersLabel = document.createElement('label'); sellersLabel.textContent = 'Vendedores permitidos'; sellersLabel.style.display = 'block';
+	const sellersBox = document.createElement('div'); sellersBox.style.display = 'grid'; sellersBox.style.gridTemplateColumns = 'repeat(2, minmax(0, 1fr))'; sellersBox.style.gap = '8px'; sellersBox.style.marginTop = '6px';
+	right.appendChild(sellersLabel); right.appendChild(sellersBox);
+	const featureLabel = document.createElement('label'); featureLabel.textContent = 'Permisos de funcionalidades'; featureLabel.style.display = 'block'; featureLabel.style.marginTop = '12px';
+	function makeFeat(labelText, featureKey) {
+		const wrap = document.createElement('label'); wrap.style.display = 'flex'; wrap.style.alignItems = 'center'; wrap.style.gap = '8px'; wrap.style.marginTop = '6px';
+		const cb = document.createElement('input'); cb.type = 'checkbox'; cb.value = featureKey; cb.dataset.feature = featureKey;
+		const span = document.createElement('span'); span.textContent = labelText;
+		wrap.appendChild(cb); wrap.appendChild(span);
+		return { wrap, cb };
+	}
+	// Reports
+	const featSales = makeFeat('Ver botón Ventas', 'reports.sales');
+	const featTransfers = makeFeat('Ver botón Transferencias', 'reports.transfers');
+	const featCartera = makeFeat('Ver botón Cartera', 'reports.cartera');
+	const featProjections = makeFeat('Ver botón Proyecciones', 'reports.projections');
+	// Nav
+	const featMaterials = makeFeat('Ver botón Materiales', 'nav.materials');
+	const featInventory = makeFeat('Ver botón Inventario', 'nav.inventory');
+	const featUsers = makeFeat('Ver botón Usuarios', 'nav.users');
+	const featAccounting = makeFeat('Ver botón Contabilidad', 'nav.accounting');
+	right.appendChild(featureLabel);
+	[featSales, featTransfers, featCartera, featProjections, featMaterials, featInventory, featUsers, featAccounting]
+		.forEach(x => right.appendChild(x.wrap));
+	row.appendChild(left); row.appendChild(right);
 
-    (async () => {
-        const users = await api('GET', API.Users);
-        const sellers = await api('GET', API.Sellers + '?include_archived=1');
-        const sortedUsers = [...users].sort((a,b) => String(a.username||'').localeCompare(String(b.username||'')));
-        sortedUsers.forEach(u => {
-            const opt = document.createElement('option'); opt.value = String(u.username||''); opt.textContent = String(u.username||''); userSelect.appendChild(opt);
-        });
-        sellersBox.innerHTML = '';
-        sellers.forEach(s => {
-            const wrap = document.createElement('label'); wrap.style.display = 'flex'; wrap.style.alignItems = 'center'; wrap.style.gap = '8px';
-            const cb = document.createElement('input'); cb.type = 'checkbox'; cb.value = String(s.id);
-            const span = document.createElement('span'); span.textContent = String(s.name||'');
-            wrap.appendChild(cb); wrap.appendChild(span); sellersBox.appendChild(wrap);
-        });
-        
-        // Create a map of sellers by name for easy lookup
-        const sellersByName = new Map();
-        sellers.forEach(s => {
-            if (!s.archived_at) {
-                sellersByName.set(String(s.name||'').toLowerCase(), s);
-            }
-        });
-        async function loadViewerGrants(viewerName) {
-            const grants = await api('GET', API.Users + '?view_permissions=1&viewer=' + encodeURIComponent(viewerName));
-            const grantedIds = new Set(grants.map(g => Number(g.seller_id)));
-            Array.from(sellersBox.querySelectorAll('input[type="checkbox"]')).forEach((el) => {
-                el.checked = grantedIds.has(Number(el.value));
-            });
-            const feats = await api('GET', API.Users + '?feature_permissions=1&username=' + encodeURIComponent(viewerName));
-            const featuresSet = new Set((feats || []).map(f => String(f.feature)));
-            [featSales.cb, featTransfers.cb, featCartera.cb, featProjections.cb, featMaterials.cb, featInventory.cb, featUsers.cb, featAccounting.cb]
-                .forEach(cb => { cb.checked = featuresSet.has(cb.dataset.feature); });
-            
-            // All users are sellers, so always show commission section
-            commissionsSection.style.display = 'block';
-            const seller = sellersByName.get(viewerName.toLowerCase());
-            if (seller) {
-                commissionsSection.dataset.sellerId = String(seller.id);
-                commLow.input.value = String(seller.commission_rate_low || 1000);
-                commMid.input.value = String(seller.commission_rate_mid || 1300);
-                commHigh.input.value = String(seller.commission_rate_high || 1500);
-            } else {
-                // If no matching seller found, clear the fields and ID
-                commissionsSection.dataset.sellerId = '';
-                commLow.input.value = '1000';
-                commMid.input.value = '1300';
-                commHigh.input.value = '1500';
-            }
-        }
-        userSelect.addEventListener('change', async () => {
-            await loadViewerGrants(userSelect.value);
-        });
-        if (sortedUsers.length) {
-            userSelect.value = String(sortedUsers[0].username||'');
-            await loadViewerGrants(userSelect.value);
-        }
-        saveBtn.addEventListener('click', async () => {
-            const viewer = String(userSelect.value||''); if (!viewer) return;
-            
-            // Save view permissions
-            const cbs = Array.from(sellersBox.querySelectorAll('input[type="checkbox"]'));
-            const selectedIds = new Set(cbs.filter(el => el.checked).map(el => Number(el.value)));
-            const current = await api('GET', API.Users + '?view_permissions=1&viewer=' + encodeURIComponent(viewer));
-            const currentIds = new Set(current.map(g => Number(g.seller_id)));
-            const toGrant = [...selectedIds].filter(id => !currentIds.has(id));
-            const toRevoke = [...currentIds].filter(id => !selectedIds.has(id));
-            for (const id of toGrant) { await api('PATCH', API.Users, { action: 'grantView', username: viewer, sellerId: id }); }
-            for (const id of toRevoke) { await api('PATCH', API.Users, { action: 'revokeView', username: viewer, sellerId: id }); }
-            
-            // Save feature permissions
-            const feats = await api('GET', API.Users + '?feature_permissions=1&username=' + encodeURIComponent(viewer));
-            const currentFeat = new Set((feats || []).map(f => String(f.feature)));
-            const desiredFeat = new Set([featSales.cb, featTransfers.cb, featCartera.cb, featProjections.cb, featMaterials.cb, featInventory.cb, featUsers.cb, featAccounting.cb]
-                .filter(cb => cb.checked).map(cb => cb.dataset.feature));
-            const toGrantF = [...desiredFeat].filter(f => !currentFeat.has(f));
-            const toRevokeF = [...currentFeat].filter(f => !desiredFeat.has(f));
-            for (const f of toGrantF) await api('PATCH', API.Users, { action: 'grantFeature', username: viewer, feature: f });
-            for (const f of toRevokeF) await api('PATCH', API.Users, { action: 'revokeFeature', username: viewer, feature: f });
-            
-            // Save commission rates if a seller is being edited
-            const selectedSellerId = Number(commissionsSection.dataset.sellerId || 0);
-            if (selectedSellerId) {
-                const payload = {
-                    id: selectedSellerId,
-                    commission_rate_low: Number(commLow.input.value) || 1000,
-                    commission_rate_mid: Number(commMid.input.value) || 1300,
-                    commission_rate_high: Number(commHigh.input.value) || 1500
-                };
-                await api('PATCH', API.Sellers, payload);
-            }
-            
-            notify.success('Permisos y comisiones actualizados');
-            cleanup();
-            // Refresh sellers data in state
-            state.sellers = await api('GET', API.Sellers);
-        });
-    })();
+	// Commissions section (separate, below the main row)
+	const commissionsSection = document.createElement('div');
+	commissionsSection.style.marginTop = '24px';
+	commissionsSection.style.paddingTop = '20px';
+	commissionsSection.style.borderTop = '2px solid var(--border-color, #e0e0e0)';
+	commissionsSection.style.display = 'none'; // Hidden by default
+
+	const commissionsHeader = document.createElement('div');
+	commissionsHeader.style.display = 'flex';
+	commissionsHeader.style.alignItems = 'center';
+	commissionsHeader.style.gap = '8px';
+	commissionsHeader.style.marginBottom = '16px';
+
+	const commissionsTitle = document.createElement('h4');
+	commissionsTitle.textContent = 'Comisiones';
+	commissionsTitle.style.margin = '0';
+	commissionsTitle.style.fontSize = '16px';
+	commissionsTitle.style.fontWeight = '600';
+
+	const commissionsBadge = document.createElement('span');
+	commissionsBadge.textContent = 'Por rango de pedidos';
+	commissionsBadge.style.fontSize = '11px';
+	commissionsBadge.style.padding = '3px 8px';
+	commissionsBadge.style.borderRadius = '10px';
+	commissionsBadge.style.background = 'var(--primary-color, #4CAF50)';
+	commissionsBadge.style.color = 'white';
+	commissionsBadge.style.fontWeight = '500';
+
+	commissionsHeader.appendChild(commissionsTitle);
+	commissionsHeader.appendChild(commissionsBadge);
+
+	const commissionInputsContainer = document.createElement('div');
+	commissionInputsContainer.style.display = 'grid';
+	commissionInputsContainer.style.gridTemplateColumns = 'repeat(auto-fit, minmax(200px, 1fr))';
+	commissionInputsContainer.style.gap = '16px';
+	commissionInputsContainer.style.marginTop = '12px';
+
+	function makeCommField(labelText, rangeText, placeholder, accentColor) {
+		const wrap = document.createElement('div');
+		wrap.style.background = 'var(--panel-bg, #fafafa)';
+		wrap.style.padding = '16px';
+		wrap.style.borderRadius = '8px';
+		wrap.style.border = `2px solid ${accentColor}`;
+		wrap.style.transition = 'transform 0.2s, box-shadow 0.2s';
+
+		const header = document.createElement('div');
+		header.style.display = 'flex';
+		header.style.justifyContent = 'space-between';
+		header.style.alignItems = 'center';
+		header.style.marginBottom = '8px';
+
+		const label = document.createElement('label');
+		label.textContent = labelText;
+		label.style.display = 'block';
+		label.style.fontSize = '13px';
+		label.style.fontWeight = '600';
+		label.style.color = 'var(--text-primary, #333)';
+
+		const range = document.createElement('span');
+		range.textContent = rangeText;
+		range.style.fontSize = '11px';
+		range.style.padding = '2px 6px';
+		range.style.borderRadius = '4px';
+		range.style.background = accentColor;
+		range.style.color = 'white';
+		range.style.fontWeight = '500';
+
+		header.appendChild(label);
+		header.appendChild(range);
+
+		const inputWrapper = document.createElement('div');
+		inputWrapper.style.position = 'relative';
+
+		const currency = document.createElement('span');
+		currency.textContent = '$';
+		currency.style.position = 'absolute';
+		currency.style.left = '10px';
+		currency.style.top = '50%';
+		currency.style.transform = 'translateY(-50%)';
+		currency.style.color = 'var(--text-secondary, #666)';
+		currency.style.fontWeight = '600';
+
+		const input = document.createElement('input');
+		input.type = 'number';
+		input.className = 'input-cell';
+		input.placeholder = placeholder;
+		input.style.width = '100%';
+		input.style.paddingLeft = '28px';
+		input.style.fontSize = '16px';
+		input.style.fontWeight = '500';
+		input.style.border = '1px solid var(--border-color, #ddd)';
+		input.style.borderRadius = '6px';
+
+		inputWrapper.appendChild(currency);
+		inputWrapper.appendChild(input);
+
+		wrap.appendChild(header);
+		wrap.appendChild(inputWrapper);
+
+		// Hover effect
+		wrap.addEventListener('mouseenter', () => {
+			wrap.style.transform = 'translateY(-2px)';
+			wrap.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+		});
+		wrap.addEventListener('mouseleave', () => {
+			wrap.style.transform = 'translateY(0)';
+			wrap.style.boxShadow = 'none';
+		});
+
+		return { wrap, input };
+	}
+
+	const commLow = makeCommField('Nivel Básico', '1-29', '1000', '#C2185B');
+	const commMid = makeCommField('Nivel Intermedio', '30-59', '1300', '#C2185B');
+	const commHigh = makeCommField('Nivel Avanzado', '60+', '1500', '#C2185B');
+
+	commissionInputsContainer.appendChild(commLow.wrap);
+	commissionInputsContainer.appendChild(commMid.wrap);
+	commissionInputsContainer.appendChild(commHigh.wrap);
+
+	commissionsSection.appendChild(commissionsHeader);
+	commissionsSection.appendChild(commissionInputsContainer);
+
+	const actions = document.createElement('div'); actions.style.display = 'flex'; actions.style.justifyContent = 'flex-end'; actions.style.gap = '8px'; actions.style.marginTop = '14px';
+	const closeBtn = document.createElement('button'); closeBtn.className = 'press-btn'; closeBtn.textContent = 'Cerrar';
+	const saveBtn = document.createElement('button'); saveBtn.className = 'press-btn btn-primary'; saveBtn.textContent = 'Guardar';
+	actions.appendChild(closeBtn); actions.appendChild(saveBtn);
+	modal.appendChild(row); modal.appendChild(commissionsSection); modal.appendChild(actions);
+	overlay.appendChild(modal); document.body.appendChild(overlay);
+	function cleanup() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }
+	closeBtn.addEventListener('click', cleanup);
+
+	(async () => {
+		const users = await api('GET', API.Users);
+		const sellers = await api('GET', API.Sellers + '?include_archived=1');
+		const sortedUsers = [...users].sort((a, b) => String(a.username || '').localeCompare(String(b.username || '')));
+		sortedUsers.forEach(u => {
+			const opt = document.createElement('option'); opt.value = String(u.username || ''); opt.textContent = String(u.username || ''); userSelect.appendChild(opt);
+		});
+		sellersBox.innerHTML = '';
+		sellers.forEach(s => {
+			const wrap = document.createElement('label'); wrap.style.display = 'flex'; wrap.style.alignItems = 'center'; wrap.style.gap = '8px';
+			const cb = document.createElement('input'); cb.type = 'checkbox'; cb.value = String(s.id);
+			const span = document.createElement('span'); span.textContent = String(s.name || '');
+			wrap.appendChild(cb); wrap.appendChild(span); sellersBox.appendChild(wrap);
+		});
+
+		// Create a map of sellers by name for easy lookup
+		const sellersByName = new Map();
+		sellers.forEach(s => {
+			if (!s.archived_at) {
+				sellersByName.set(String(s.name || '').toLowerCase(), s);
+			}
+		});
+		async function loadViewerGrants(viewerName) {
+			const grants = await api('GET', API.Users + '?view_permissions=1&viewer=' + encodeURIComponent(viewerName));
+			const grantedIds = new Set(grants.map(g => Number(g.seller_id)));
+			Array.from(sellersBox.querySelectorAll('input[type="checkbox"]')).forEach((el) => {
+				el.checked = grantedIds.has(Number(el.value));
+			});
+			const feats = await api('GET', API.Users + '?feature_permissions=1&username=' + encodeURIComponent(viewerName));
+			const featuresSet = new Set((feats || []).map(f => String(f.feature)));
+			[featSales.cb, featTransfers.cb, featCartera.cb, featProjections.cb, featMaterials.cb, featInventory.cb, featUsers.cb, featAccounting.cb]
+				.forEach(cb => { cb.checked = featuresSet.has(cb.dataset.feature); });
+
+			// All users are sellers, so always show commission section
+			commissionsSection.style.display = 'block';
+			const seller = sellersByName.get(viewerName.toLowerCase());
+			if (seller) {
+				commissionsSection.dataset.sellerId = String(seller.id);
+				commLow.input.value = String(seller.commission_rate_low || 1000);
+				commMid.input.value = String(seller.commission_rate_mid || 1300);
+				commHigh.input.value = String(seller.commission_rate_high || 1500);
+			} else {
+				// If no matching seller found, clear the fields and ID
+				commissionsSection.dataset.sellerId = '';
+				commLow.input.value = '1000';
+				commMid.input.value = '1300';
+				commHigh.input.value = '1500';
+			}
+		}
+		userSelect.addEventListener('change', async () => {
+			await loadViewerGrants(userSelect.value);
+		});
+		if (sortedUsers.length) {
+			userSelect.value = String(sortedUsers[0].username || '');
+			await loadViewerGrants(userSelect.value);
+		}
+		saveBtn.addEventListener('click', async () => {
+			const viewer = String(userSelect.value || ''); if (!viewer) return;
+
+			// Save view permissions
+			const cbs = Array.from(sellersBox.querySelectorAll('input[type="checkbox"]'));
+			const selectedIds = new Set(cbs.filter(el => el.checked).map(el => Number(el.value)));
+			const current = await api('GET', API.Users + '?view_permissions=1&viewer=' + encodeURIComponent(viewer));
+			const currentIds = new Set(current.map(g => Number(g.seller_id)));
+			const toGrant = [...selectedIds].filter(id => !currentIds.has(id));
+			const toRevoke = [...currentIds].filter(id => !selectedIds.has(id));
+			for (const id of toGrant) { await api('PATCH', API.Users, { action: 'grantView', username: viewer, sellerId: id }); }
+			for (const id of toRevoke) { await api('PATCH', API.Users, { action: 'revokeView', username: viewer, sellerId: id }); }
+
+			// Save feature permissions
+			const feats = await api('GET', API.Users + '?feature_permissions=1&username=' + encodeURIComponent(viewer));
+			const currentFeat = new Set((feats || []).map(f => String(f.feature)));
+			const desiredFeat = new Set([featSales.cb, featTransfers.cb, featCartera.cb, featProjections.cb, featMaterials.cb, featInventory.cb, featUsers.cb, featAccounting.cb]
+				.filter(cb => cb.checked).map(cb => cb.dataset.feature));
+			const toGrantF = [...desiredFeat].filter(f => !currentFeat.has(f));
+			const toRevokeF = [...currentFeat].filter(f => !desiredFeat.has(f));
+			for (const f of toGrantF) await api('PATCH', API.Users, { action: 'grantFeature', username: viewer, feature: f });
+			for (const f of toRevokeF) await api('PATCH', API.Users, { action: 'revokeFeature', username: viewer, feature: f });
+
+			// Save commission rates if a seller is being edited
+			const selectedSellerId = Number(commissionsSection.dataset.sellerId || 0);
+			if (selectedSellerId) {
+				const payload = {
+					id: selectedSellerId,
+					commission_rate_low: Number(commLow.input.value) || 1000,
+					commission_rate_mid: Number(commMid.input.value) || 1300,
+					commission_rate_high: Number(commHigh.input.value) || 1500
+				};
+				await api('PATCH', API.Sellers, payload);
+			}
+
+			notify.success('Permisos y comisiones actualizados');
+			cleanup();
+			// Refresh sellers data in state
+			state.sellers = await api('GET', API.Sellers);
+		});
+	})();
 }
 
 function openMaterialsMenu(anchorX, anchorY) {
@@ -4739,8 +4749,8 @@ function openMaterialsMenu(anchorX, anchorY) {
 	if (topY < minTop) topY = minTop;
 	pop.style.top = topY + 'px';
 	pop.classList.add('aladdin-pop');
-	function cleanup(){ document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); if (pop.parentNode) pop.parentNode.removeChild(pop); }
-	function outside(ev){ if (!pop.contains(ev.target)) cleanup(); }
+	function cleanup() { document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); if (pop.parentNode) pop.parentNode.removeChild(pop); }
+	function outside(ev) { if (!pop.contains(ev.target)) cleanup(); }
 	setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
 
 	b1.addEventListener('click', async () => { cleanup(); openIngredientsView(); });
@@ -4763,11 +4773,11 @@ async function exportUsersExcel() {
 		// Add Permissions sheet
 		try {
 			const perms = await api('GET', API.Users + '?view_permissions=1');
-			const permRows = (perms || []).map(p => ({ Usuario: p.viewer_username, Vendedor: p.seller_name, Otorgado: (p.created_at || '').toString().slice(0,19).replace('T',' ') }));
+			const permRows = (perms || []).map(p => ({ Usuario: p.viewer_username, Vendedor: p.seller_name, Otorgado: (p.created_at || '').toString().slice(0, 19).replace('T', ' ') }));
 			const ws2 = XLSX.utils.json_to_sheet(permRows);
 			XLSX.utils.book_append_sheet(wb, ws2, 'Permisos');
-		} catch {}
-		XLSX.writeFile(wb, `Usuarios_${new Date().toISOString().slice(0,10)}.xlsx`);
+		} catch { }
+		XLSX.writeFile(wb, `Usuarios_${new Date().toISOString().slice(0, 10)}.xlsx`);
 		notify.success('Excel de usuarios generado');
 	} catch (e) {
 		notify.error('No se pudo generar el reporte de usuarios');
@@ -4776,32 +4786,32 @@ async function exportUsersExcel() {
 
 function bindEvents() {
 	// No header password button; handled in login view
-    $('#add-seller').addEventListener('click', async () => {
+	$('#add-seller').addEventListener('click', async () => {
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 		if (!isSuper) { notify.error('Solo Jorge puede agregar vendedores'); return; }
-        // Leaving delete mode if active
-        if (state.deleteSellerMode) { state.deleteSellerMode = false; renderSellerButtons(); }
+		// Leaving delete mode if active
+		if (state.deleteSellerMode) { state.deleteSellerMode = false; renderSellerButtons(); }
 		const name = (prompt('Nombre del nuevo vendedor:') || '').trim();
 		if (!name) return;
 		await addSeller(name);
 	});
 
-    const delBtn = document.getElementById('delete-seller');
-    delBtn?.addEventListener('click', () => {
-        const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
-        if (!isSuper) { notify.error('Solo el superadministrador'); return; }
-        state.deleteSellerMode = !state.deleteSellerMode;
-        renderSellerButtons();
-        try {
-            if (state.deleteSellerMode) notify.info('Modo eliminar vendedor activo');
-            else notify.info('Modo eliminar vendedor desactivado');
-        } catch {}
-    });
+	const delBtn = document.getElementById('delete-seller');
+	delBtn?.addEventListener('click', () => {
+		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+		if (!isSuper) { notify.error('Solo el superadministrador'); return; }
+		state.deleteSellerMode = !state.deleteSellerMode;
+		renderSellerButtons();
+		try {
+			if (state.deleteSellerMode) notify.info('Modo eliminar vendedor activo');
+			else notify.info('Modo eliminar vendedor desactivado');
+		} catch { }
+	});
 
-    $('#add-row').addEventListener('click', (ev) => {
-        const rect = ev.currentTarget.getBoundingClientRect();
-        openNewSalePopover(rect.left + rect.width / 2, rect.bottom + 8);
-    });
+	$('#add-row').addEventListener('click', (ev) => {
+		const rect = ev.currentTarget.getBoundingClientRect();
+		openNewSalePopover(rect.left + rect.width / 2, rect.bottom + 8);
+	});
 	$('#go-home').addEventListener('click', () => {
 		state.currentSeller = null;
 		state.sales = [];
@@ -4834,7 +4844,7 @@ function bindEvents() {
 		try {
 			// Determine which seller to use
 			let sellerToUse = state.currentSeller;
-			
+
 			// If no seller is currently selected, use the client's primary seller
 			if (!sellerToUse && state._clientDetailSellerId) {
 				const seller = (state.sellers || []).find(s => s.id === state._clientDetailSellerId);
@@ -4844,12 +4854,12 @@ function bindEvents() {
 					sellerToUse = seller;
 				}
 			}
-			
+
 			if (!sellerToUse) {
-				try { notify.error('No se pudo determinar el vendedor'); } catch {}
+				try { notify.error('No se pudo determinar el vendedor'); } catch { }
 				return;
 			}
-			
+
 			// Open the popover (it will load days internally)
 			const rect = ev.currentTarget.getBoundingClientRect();
 			const clientName = state._clientDetailName || '';
@@ -4903,7 +4913,7 @@ function bindEvents() {
 	// Client search functionality
 	const searchToggle = document.getElementById('client-search-toggle');
 	const searchInput = document.getElementById('client-search-input');
-	
+
 	if (searchToggle && searchInput) {
 		// Toggle search bar expansion
 		searchToggle.addEventListener('click', () => {
@@ -4938,13 +4948,13 @@ function bindEvents() {
 				searchInput.style.display = 'none';
 				const dropdown = searchInput.parentElement?.querySelector('.client-search-dropdown');
 				if (dropdown) dropdown.style.display = 'none';
-				
+
 				// Show loading notification with spinner
 				let loadingToast = null;
 				try {
 					loadingToast = notify.loading(`Buscando cliente: ${clientName}...`);
-				} catch {}
-				
+				} catch { }
+
 				// Navigate to client detail page using global search
 				try {
 					await openGlobalClientDetailView(clientName);
@@ -4957,7 +4967,7 @@ function bindEvents() {
 					if (loadingToast) loadingToast.close();
 					try {
 						notify.error('Error al buscar el cliente');
-					} catch {}
+					} catch { }
 				}
 			}
 		};
@@ -5006,7 +5016,7 @@ function openIngredientsManager(anchorX, anchorY) {
 	pop.style.transform = 'translate(-50%, 0)';
 	const title = document.createElement('h4'); title.textContent = 'Ingredientes por sabor (por 1 unidad)';
 	const header = document.createElement('div'); header.className = 'ingredients-row ingredients-header';
-	['Ingrediente','Unidad','Arco','Melo','Mara','Oreo','Nute',''].forEach(t => { const d = document.createElement('div'); d.textContent = t; header.appendChild(d); });
+	['Ingrediente', 'Unidad', 'Arco', 'Melo', 'Mara', 'Oreo', 'Nute', ''].forEach(t => { const d = document.createElement('div'); d.textContent = t; header.appendChild(d); });
 	const list = document.createElement('div'); list.className = 'ingredients-list';
 	list.appendChild(header);
 	const actions = document.createElement('div'); actions.className = 'ingredients-actions';
@@ -5016,8 +5026,8 @@ function openIngredientsManager(anchorX, anchorY) {
 	pop.append(title, list, actions);
 	document.body.appendChild(pop);
 	pop.classList.add('aladdin-pop');
-	function cleanup(){ document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); if (pop.parentNode) pop.parentNode.removeChild(pop); }
-	function outside(ev){ if (!pop.contains(ev.target)) cleanup(); }
+	function cleanup() { document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); if (pop.parentNode) pop.parentNode.removeChild(pop); }
+	function outside(ev) { if (!pop.contains(ev.target)) cleanup(); }
 	setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
 	closeBtn.addEventListener('click', cleanup);
 
@@ -5082,7 +5092,7 @@ function openMaterialsNeededFlow(anchorX, anchorY) {
 			const ws = XLSX.utils.json_to_sheet(rows);
 			const wb = XLSX.utils.book_new();
 			XLSX.utils.book_append_sheet(wb, ws, 'Materiales');
-			const label = `${(res?.range?.start||'').replaceAll('-','')}_${(res?.range?.end||'').replaceAll('-','')}`;
+			const label = `${(res?.range?.start || '').replaceAll('-', '')}_${(res?.range?.end || '').replaceAll('-', '')}`;
 			XLSX.writeFile(wb, `Materiales_${label}.xlsx`);
 		} catch {
 			notify.error('No se pudo calcular materiales');
@@ -5105,7 +5115,7 @@ function openMaterialsReport(data, anchorX, anchorY) {
 	const table = document.createElement('table');
 	const thead = document.createElement('thead');
 	const trh = document.createElement('tr');
-	['Ingrediente','Unidad','Cantidad total'].forEach(t => { const th = document.createElement('th'); th.textContent = t; trh.appendChild(th); });
+	['Ingrediente', 'Unidad', 'Cantidad total'].forEach(t => { const th = document.createElement('th'); th.textContent = t; trh.appendChild(th); });
 	thead.appendChild(trh);
 	const tbody = document.createElement('tbody');
 	for (const m of (data?.materials || [])) {
@@ -5130,8 +5140,8 @@ function openMaterialsReport(data, anchorX, anchorY) {
 	const rect = pop.getBoundingClientRect();
 	const popHeight = rect.height; let topY = baseY - popHeight; const minTop = 8; if (topY < minTop) topY = minTop; pop.style.top = topY + 'px';
 	pop.classList.add('aladdin-pop');
-	function cleanup(){ document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); if (pop.parentNode) pop.parentNode.removeChild(pop); }
-	function outside(ev){ if (!pop.contains(ev.target)) cleanup(); }
+	function cleanup() { document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); if (pop.parentNode) pop.parentNode.removeChild(pop); }
+	function outside(ev) { if (!pop.contains(ev.target)) cleanup(); }
 	setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
 	close.addEventListener('click', cleanup);
 	exportBtn.addEventListener('click', () => {
@@ -5140,7 +5150,7 @@ function openMaterialsReport(data, anchorX, anchorY) {
 			const ws = XLSX.utils.json_to_sheet(rows);
 			const wb = XLSX.utils.book_new();
 			XLSX.utils.book_append_sheet(wb, ws, 'Materiales');
-			const label = `${(data?.range?.start||'').replaceAll('-','')}_${(data?.range?.end||'').replaceAll('-','')}`;
+			const label = `${(data?.range?.start || '').replaceAll('-', '')}_${(data?.range?.end || '').replaceAll('-', '')}`;
 			XLSX.writeFile(wb, `Materiales_${label}.xlsx`);
 		} catch { notify.error('No se pudo exportar'); }
 	});
@@ -5152,13 +5162,13 @@ async function openIngredientsView() {
 }
 
 async function openTimesView() {
-    switchView('#view-times');
-    await renderTimesView();
+	switchView('#view-times');
+	await renderTimesView();
 }
 
 async function openInventoryView() {
 	switchView('#view-inventory');
-	try { await api('POST', API.Inventory, { action: 'sync' }); } catch {}
+	try { await api('POST', API.Inventory, { action: 'sync' }); } catch { }
 	await renderInventoryView();
 }
 
@@ -5181,7 +5191,7 @@ async function renderInventoryView() {
 	// Table
 	const table = document.createElement('table'); table.className = 'clients-table';
 	const thead = document.createElement('thead'); const hr = document.createElement('tr');
-	['Ingrediente','Saldo','Valor','Ingresar',''].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
+	['Ingrediente', 'Saldo', 'Valor', 'Ingresar', ''].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
 	thead.appendChild(hr); const tbody = document.createElement('tbody');
 	const rowInputs = [];
 	let totalValor = 0;
@@ -5191,14 +5201,14 @@ async function renderInventoryView() {
 		const tdS = document.createElement('td');
 		const inSaldo = document.createElement('input'); inSaldo.type = 'number'; inSaldo.step = '0.1'; inSaldo.className = 'input-cell'; inSaldo.style.width = '100%'; inSaldo.style.maxWidth = '120px'; inSaldo.style.textAlign = 'right'; inSaldo.value = (Number(it.saldo || 0) || 0).toFixed(1);
 		tdS.append(inSaldo);
-		const tdV = document.createElement('td'); const valor = (Number(it.saldo||0)||0) * (Number(it.price||0)||0); tdV.textContent = fmtMoney.format(valor); tdV.style.textAlign = 'right';
+		const tdV = document.createElement('td'); const valor = (Number(it.saldo || 0) || 0) * (Number(it.price || 0) || 0); tdV.textContent = fmtMoney.format(valor); tdV.style.textAlign = 'right';
 		const tdI = document.createElement('td'); const inQty = document.createElement('input'); inQty.type = 'number'; inQty.step = '0.1'; inQty.min = '0'; inQty.placeholder = '0.0'; inQty.className = 'input-cell'; inQty.style.width = '100%'; inQty.style.maxWidth = '120px'; inQty.style.textAlign = 'right'; tdI.appendChild(inQty);
 		const tdA = document.createElement('td'); const saveBtn = document.createElement('button'); saveBtn.className = 'press-btn'; saveBtn.textContent = 'Guardar'; const histBtn = document.createElement('button'); histBtn.className = 'press-btn'; histBtn.textContent = 'Historial'; tdA.append(saveBtn, histBtn);
 		tr.append(tdN, tdS, tdV, tdI, tdA); tbody.appendChild(tr);
 		rowInputs.push({ ingredient: it.ingredient, unit: it.unit || 'g', input: inQty });
 		totalValor += valor;
 		histBtn.addEventListener('click', async () => { openInventoryHistoryDialog(it.ingredient); });
-		async function saveSaldo(){
+		async function saveSaldo() {
 			try {
 				const prev = Number(it.saldo || 0) || 0;
 				const next = Number(inSaldo.value || 0) || 0;
@@ -5282,7 +5292,7 @@ async function renderInventoryAdjustView() {
 	try { items = await api('GET', API.Inventory); } catch { items = []; }
 	const table = document.createElement('table'); table.className = 'clients-table';
 	const thead = document.createElement('thead'); const hr = document.createElement('tr');
-	['Ingrediente','Saldo actual','Nueva cantidad','Δ',''].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
+	['Ingrediente', 'Saldo actual', 'Nueva cantidad', 'Δ', ''].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
 	thead.appendChild(hr);
 	const tbody = document.createElement('tbody');
 	const rows = [];
@@ -5309,7 +5319,7 @@ async function renderInventoryAdjustView() {
 		}
 		inNew.addEventListener('input', renderDelta);
 		renderDelta();
-		async function saveRow(){
+		async function saveRow() {
 			try {
 				const delta = computeDelta();
 				if (!isFinite(delta) || Math.abs(delta) < 1e-9) { return; }
@@ -5349,23 +5359,23 @@ async function openInventoryHistoryDialog(ingredient) {
 	let rows = [];
 	try { rows = await api('GET', `${API.Inventory}?history_for=${encodeURIComponent(ingredient)}`); } catch { rows = []; }
 	const pop = document.createElement('div'); pop.className = 'confirm-popover'; pop.style.position = 'fixed';
-	pop.style.left = (window.innerWidth/2) + 'px'; pop.style.top = '12%'; pop.style.transform = 'translate(-50%, 0)';
+	pop.style.left = (window.innerWidth / 2) + 'px'; pop.style.top = '12%'; pop.style.transform = 'translate(-50%, 0)';
 	const title = document.createElement('h4'); title.textContent = `Historial: ${ingredient}`; title.style.margin = '0 0 8px 0';
 	const table = document.createElement('table'); table.className = 'items-table';
 	const thead = document.createElement('thead'); const hr = document.createElement('tr');
-	['Fecha','Tipo','Cantidad','Producción','Nota','Actor'].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); }); thead.appendChild(hr);
+	['Fecha', 'Tipo', 'Cantidad', 'Producción', 'Nota', 'Actor'].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); }); thead.appendChild(hr);
 	const tbody = document.createElement('tbody');
 	for (const r of (rows || [])) {
 		const tr = document.createElement('tr');
-		const tdD = document.createElement('td'); tdD.textContent = String(r.created_at || '').slice(0,19).replace('T',' ');
+		const tdD = document.createElement('td'); tdD.textContent = String(r.created_at || '').slice(0, 19).replace('T', ' ');
 		const tdK = document.createElement('td'); tdK.textContent = r.kind;
-		const tdQ = document.createElement('td'); tdQ.textContent = new Intl.NumberFormat('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(Number(r.qty||0)); tdQ.style.textAlign = 'right';
+		const tdQ = document.createElement('td'); tdQ.textContent = new Intl.NumberFormat('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(Number(r.qty || 0)); tdQ.style.textAlign = 'right';
 		const tdProd = document.createElement('td');
 		if ((r.kind || '') === 'produccion') {
 			let meta = r.metadata;
-			try { if (typeof meta === 'string') meta = JSON.parse(meta); } catch {}
+			try { if (typeof meta === 'string') meta = JSON.parse(meta); } catch { }
 			const counts = (meta && meta.counts && typeof meta.counts === 'object') ? meta.counts : {};
-			const labels = [ ['arco','Arco'], ['melo','Melo'], ['mara','Mara'], ['oreo','Oreo'], ['nute','Nute'] ];
+			const labels = [['arco', 'Arco'], ['melo', 'Melo'], ['mara', 'Mara'], ['oreo', 'Oreo'], ['nute', 'Nute']];
 			const parts = [];
 			for (const [key, label] of labels) {
 				const n = Number(counts[key] || 0) || 0;
@@ -5397,20 +5407,20 @@ async function renderInventoryHistoryPage() {
 	try { rows = await api('GET', `${API.Inventory}?history_all=1`); } catch { rows = []; }
 	const table = document.createElement('table'); table.className = 'clients-table';
 	const thead = document.createElement('thead'); const hr = document.createElement('tr');
-	['Fecha','Ingrediente','Tipo','Cantidad','Nota','Actor'].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); }); thead.appendChild(hr);
+	['Fecha', 'Ingrediente', 'Tipo', 'Cantidad', 'Nota', 'Actor'].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); }); thead.appendChild(hr);
 	const tbody = document.createElement('tbody');
 	for (const r of (rows || [])) {
 		const tr = document.createElement('tr');
-		const tdD = document.createElement('td'); tdD.textContent = String(r.created_at || '').slice(0,19).replace('T',' ');
+		const tdD = document.createElement('td'); tdD.textContent = String(r.created_at || '').slice(0, 19).replace('T', ' ');
 		const tdN = document.createElement('td'); tdN.textContent = r.ingredient || '';
 		const tdK = document.createElement('td'); tdK.textContent = r.kind;
-		const tdQ = document.createElement('td'); tdQ.textContent = new Intl.NumberFormat('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(Number(r.qty||0)); tdQ.style.textAlign = 'right';
+		const tdQ = document.createElement('td'); tdQ.textContent = new Intl.NumberFormat('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(Number(r.qty || 0)); tdQ.style.textAlign = 'right';
 		const tdNo = document.createElement('td');
 		if ((r.kind || '') === 'produccion') {
 			let meta = r.metadata;
-			try { if (typeof meta === 'string') meta = JSON.parse(meta); } catch {}
+			try { if (typeof meta === 'string') meta = JSON.parse(meta); } catch { }
 			const counts = (meta && meta.counts && typeof meta.counts === 'object') ? meta.counts : {};
-			const labels = [ ['arco','Arco'], ['melo','Melo'], ['mara','Mara'], ['oreo','Oreo'], ['nute','Nute'] ];
+			const labels = [['arco', 'Arco'], ['melo', 'Melo'], ['mara', 'Mara'], ['oreo', 'Oreo'], ['nute', 'Nute']];
 			const parts = [];
 			for (const [key, label] of labels) {
 				const n = Number(counts[key] || 0) || 0;
@@ -5430,27 +5440,27 @@ async function renderIngredientsView() {
 	const root = document.getElementById('ingredients-content');
 	if (!root) return;
 	root.innerHTML = '';
-	
+
 	// Get desserts from both sources:
 	// 1. Desserts with recipes (from dessert_recipes)
 	let recipeDesserts = [];
 	try { recipeDesserts = await api('GET', API.Recipes); } catch { recipeDesserts = []; }
 	if (!recipeDesserts || recipeDesserts.length === 0) {
 		try { await api('GET', `${API.Recipes}?seed=1`); recipeDesserts = await api('GET', API.Recipes); }
-		catch {}
+		catch { }
 	}
-	
+
 	// 2. ALL active desserts (from desserts table)
 	let allDesserts = [];
 	try { allDesserts = await api('GET', API.Desserts); } catch { allDesserts = []; }
-	
+
 	// Merge: show all desserts from desserts table
 	// If they have recipe, use recipe data; otherwise just show the name
 	const dessertNames = new Set(recipeDesserts || []);
 	for (const d of allDesserts) {
 		dessertNames.add(d.name);
 	}
-	
+
 	const grid = document.createElement('div'); grid.className = 'ingredients-grid';
 	for (const name of Array.from(dessertNames).sort()) {
 		const card = await buildDessertCard(name);
@@ -5473,61 +5483,61 @@ async function renderIngredientsView() {
 		if (after == null) grid.appendChild(dragging); else grid.insertBefore(dragging, after);
 	});
 	root.appendChild(grid);
-    // Top actions (use onclick to avoid duplicate listeners on re-render)
-    const addDessertBtn = document.getElementById('ingredients-add-dessert');
-    if (addDessertBtn) addDessertBtn.onclick = async () => {
-        const name = (prompt('Nombre del postre:') || '').trim();
-        if (!name) return;
-        await api('POST', API.Recipes, { kind: 'step.upsert', dessert: name, step_name: null, position: 0 });
-        await renderIngredientsView();
-        try { document.dispatchEvent(new CustomEvent('recipes:changed', { detail: { action: 'addDessert', dessert: name } })); } catch {}
-    };
-    const extrasBtn = document.getElementById('ingredients-add-extras');
-    if (extrasBtn) extrasBtn.onclick = () => { openExtrasEditor(); };
+	// Top actions (use onclick to avoid duplicate listeners on re-render)
+	const addDessertBtn = document.getElementById('ingredients-add-dessert');
+	if (addDessertBtn) addDessertBtn.onclick = async () => {
+		const name = (prompt('Nombre del postre:') || '').trim();
+		if (!name) return;
+		await api('POST', API.Recipes, { kind: 'step.upsert', dessert: name, step_name: null, position: 0 });
+		await renderIngredientsView();
+		try { document.dispatchEvent(new CustomEvent('recipes:changed', { detail: { action: 'addDessert', dessert: name } })); } catch { }
+	};
+	const extrasBtn = document.getElementById('ingredients-add-extras');
+	if (extrasBtn) extrasBtn.onclick = () => { openExtrasEditor(); };
 }
 
 // ====== Local-only TIEMPOS ======
 function readTimesState() {
-    try { return JSON.parse(localStorage.getItem('timesState') || '[]') || []; } catch { return []; }
+	try { return JSON.parse(localStorage.getItem('timesState') || '[]') || []; } catch { return []; }
 }
 function writeTimesState(data) {
-    try { localStorage.setItem('timesState', JSON.stringify(data)); } catch {}
+	try { localStorage.setItem('timesState', JSON.stringify(data)); } catch { }
 }
 function formatMs(ms) {
-    const total = Math.max(0, Math.floor(ms / 1000));
-    const h = Math.floor(total / 3600);
-    const m = Math.floor((total % 3600) / 60);
-    const s = total % 60;
-    const pad = (n) => String(n).padStart(2, '0');
-    return (h > 0 ? `${h}:` : '') + `${pad(m)}:${pad(s)}`;
+	const total = Math.max(0, Math.floor(ms / 1000));
+	const h = Math.floor(total / 3600);
+	const m = Math.floor((total % 3600) / 60);
+	const s = total % 60;
+	const pad = (n) => String(n).padStart(2, '0');
+	return (h > 0 ? `${h}:` : '') + `${pad(m)}:${pad(s)}`;
 }
 
 async function renderTimesView() {
-    const root = document.getElementById('times-content');
-    if (!root) return;
-    root.innerHTML = '';
-    let data = readTimesState();
-    // Seed from Ingredientes on first use (local-only copy)
-    if (!data || (Array.isArray(data) && data.length === 0)) {
-        try {
-            const desserts = await api('GET', API.Recipes);
-            const imported = [];
-            for (const name of (desserts || [])) {
-                try {
-                    const r = await api('GET', `${API.Recipes}?dessert=${encodeURIComponent(name)}&include_extras=1`);
-                    const steps = (Array.isArray(r?.steps) ? r.steps : []).map(s => ({
-                        name: s?.step_name || 'Sin nombre',
-                        note: '',
-                        elapsedMs: 0,
-                        isRunning: false,
-                        startedAt: null
-                    }));
-                    imported.push({ name, steps });
-                } catch {}
-            }
-            if (imported.length) { data = imported; writeTimesState(data); }
-        } catch {}
-    }
+	const root = document.getElementById('times-content');
+	if (!root) return;
+	root.innerHTML = '';
+	let data = readTimesState();
+	// Seed from Ingredientes on first use (local-only copy)
+	if (!data || (Array.isArray(data) && data.length === 0)) {
+		try {
+			const desserts = await api('GET', API.Recipes);
+			const imported = [];
+			for (const name of (desserts || [])) {
+				try {
+					const r = await api('GET', `${API.Recipes}?dessert=${encodeURIComponent(name)}&include_extras=1`);
+					const steps = (Array.isArray(r?.steps) ? r.steps : []).map(s => ({
+						name: s?.step_name || 'Sin nombre',
+						note: '',
+						elapsedMs: 0,
+						isRunning: false,
+						startedAt: null
+					}));
+					imported.push({ name, steps });
+				} catch { }
+			}
+			if (imported.length) { data = imported; writeTimesState(data); }
+		} catch { }
+	}
 
 	const grid = document.createElement('div');
 	grid.className = 'ingredients-grid';
@@ -5546,7 +5556,7 @@ async function renderTimesView() {
 
 	// Historial local de tiempos guardados
 	function readTimesHistory() { try { return JSON.parse(localStorage.getItem('timesHistory') || '[]') || []; } catch { return []; } }
-	function writeTimesHistory(rows) { try { localStorage.setItem('timesHistory', JSON.stringify(rows)); } catch {} }
+	function writeTimesHistory(rows) { try { localStorage.setItem('timesHistory', JSON.stringify(rows)); } catch { } }
 	function buildSnapshot() {
 		const now = new Date();
 		const snapshot = { id: now.toISOString(), date_iso: now.toISOString(), desserts: [] };
@@ -5559,48 +5569,48 @@ async function renderTimesView() {
 		return snapshot;
 	}
 
-    function buildTimerControls(step, onTick) {
-        const wrap = document.createElement('div');
-        wrap.style.display = 'flex';
-        wrap.style.alignItems = 'center';
-        wrap.style.gap = '8px';
-        const display = document.createElement('div');
-        display.style.minWidth = '84px';
-        display.style.textAlign = 'center';
-        display.style.fontVariantNumeric = 'tabular-nums';
-        const startBtn = document.createElement('button'); startBtn.className = 'press-btn'; startBtn.textContent = '▶'; startBtn.title = 'Iniciar';
-        const pauseBtn = document.createElement('button'); pauseBtn.className = 'press-btn'; pauseBtn.textContent = '⏸'; pauseBtn.title = 'Pausar';
-        const resetBtn = document.createElement('button'); resetBtn.className = 'press-btn'; resetBtn.textContent = 'Reset';
-        wrap.append(display, startBtn, pauseBtn, resetBtn);
-        let intervalId = null;
-        function computeElapsed() {
-            const base = Number(step.elapsedMs || 0) || 0;
-            if (step.isRunning && step.startedAt) return base + (Date.now() - step.startedAt);
-            return base;
-        }
-        function renderTime(){ display.textContent = formatMs(computeElapsed()); if (typeof onTick === 'function') onTick(); }
-        renderTime();
-        function start(){ if (step.isRunning) return; step.isRunning = true; step.startedAt = Date.now(); writeTimesState(data); clearInterval(intervalId); intervalId = setInterval(renderTime, 250); }
-        function pause(){ if (!step.isRunning) return; step.elapsedMs = computeElapsed(); step.isRunning = false; step.startedAt = null; writeTimesState(data); clearInterval(intervalId); intervalId = null; renderTime(); }
-        function reset(){ step.elapsedMs = 0; step.isRunning = false; step.startedAt = null; writeTimesState(data); clearInterval(intervalId); intervalId = null; renderTime(); }
-        startBtn.addEventListener('click', start);
-        pauseBtn.addEventListener('click', pause);
-        resetBtn.addEventListener('click', reset);
-        // Ensure timer runs if already active
-        if (step.isRunning) { clearInterval(intervalId); intervalId = setInterval(renderTime, 250); }
-        return { element: wrap, stop: () => { if (intervalId) clearInterval(intervalId); } };
-    }
+	function buildTimerControls(step, onTick) {
+		const wrap = document.createElement('div');
+		wrap.style.display = 'flex';
+		wrap.style.alignItems = 'center';
+		wrap.style.gap = '8px';
+		const display = document.createElement('div');
+		display.style.minWidth = '84px';
+		display.style.textAlign = 'center';
+		display.style.fontVariantNumeric = 'tabular-nums';
+		const startBtn = document.createElement('button'); startBtn.className = 'press-btn'; startBtn.textContent = '▶'; startBtn.title = 'Iniciar';
+		const pauseBtn = document.createElement('button'); pauseBtn.className = 'press-btn'; pauseBtn.textContent = '⏸'; pauseBtn.title = 'Pausar';
+		const resetBtn = document.createElement('button'); resetBtn.className = 'press-btn'; resetBtn.textContent = 'Reset';
+		wrap.append(display, startBtn, pauseBtn, resetBtn);
+		let intervalId = null;
+		function computeElapsed() {
+			const base = Number(step.elapsedMs || 0) || 0;
+			if (step.isRunning && step.startedAt) return base + (Date.now() - step.startedAt);
+			return base;
+		}
+		function renderTime() { display.textContent = formatMs(computeElapsed()); if (typeof onTick === 'function') onTick(); }
+		renderTime();
+		function start() { if (step.isRunning) return; step.isRunning = true; step.startedAt = Date.now(); writeTimesState(data); clearInterval(intervalId); intervalId = setInterval(renderTime, 250); }
+		function pause() { if (!step.isRunning) return; step.elapsedMs = computeElapsed(); step.isRunning = false; step.startedAt = null; writeTimesState(data); clearInterval(intervalId); intervalId = null; renderTime(); }
+		function reset() { step.elapsedMs = 0; step.isRunning = false; step.startedAt = null; writeTimesState(data); clearInterval(intervalId); intervalId = null; renderTime(); }
+		startBtn.addEventListener('click', start);
+		pauseBtn.addEventListener('click', pause);
+		resetBtn.addEventListener('click', reset);
+		// Ensure timer runs if already active
+		if (step.isRunning) { clearInterval(intervalId); intervalId = setInterval(renderTime, 250); }
+		return { element: wrap, stop: () => { if (intervalId) clearInterval(intervalId); } };
+	}
 
-	function buildStep(step, dessert, stepIndex){
-        const box = document.createElement('div'); box.className = 'step-card';
-        const head = document.createElement('div'); head.className = 'step-header';
-        const name = document.createElement('input'); name.type = 'text'; name.value = step.name || 'Paso'; name.style.flex = '1'; name.style.fontWeight = '600'; name.style.border = '0'; name.style.background = 'transparent';
-        const actions = document.createElement('div'); actions.className = 'items-actions';
-        const del = document.createElement('button'); del.className = 'press-btn'; del.textContent = 'Eliminar paso';
-        actions.append(del);
-        head.append(name, actions);
+	function buildStep(step, dessert, stepIndex) {
+		const box = document.createElement('div'); box.className = 'step-card';
+		const head = document.createElement('div'); head.className = 'step-header';
+		const name = document.createElement('input'); name.type = 'text'; name.value = step.name || 'Paso'; name.style.flex = '1'; name.style.fontWeight = '600'; name.style.border = '0'; name.style.background = 'transparent';
+		const actions = document.createElement('div'); actions.className = 'items-actions';
+		const del = document.createElement('button'); del.className = 'press-btn'; del.textContent = 'Eliminar paso';
+		actions.append(del);
+		head.append(name, actions);
 		const body = document.createElement('div'); body.style.display = 'flex'; body.style.flexDirection = 'column'; body.style.gap = '8px'; body.style.padding = '8px 0';
-        const note = document.createElement('input'); note.type = 'text'; note.placeholder = 'Nota (opcional)'; note.value = step.note || ''; note.className = 'input-cell'; note.style.flex = '1';
+		const note = document.createElement('input'); note.type = 'text'; note.placeholder = 'Nota (opcional)'; note.value = step.note || ''; note.className = 'input-cell'; note.style.flex = '1';
 		const timer = buildTimerControls(step);
 		const timerRow = document.createElement('div'); timerRow.style.display = 'flex'; timerRow.style.justifyContent = 'space-between'; timerRow.style.alignItems = 'center'; timerRow.style.gap = '8px';
 		timerRow.append(note, timer.element);
@@ -5608,8 +5618,8 @@ async function renderTimesView() {
 		// Contenedor de ingredientes por paso
 		const ingWrap = document.createElement('div');
 		ingWrap.style.margin = '4px 0 8px 0';
-		function fmtQty(n) { try { return new Intl.NumberFormat('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(Number(n||0)); } catch { return String(Number(n||0).toFixed(1)); } }
-		async function renderIngredients(){
+		function fmtQty(n) { try { return new Intl.NumberFormat('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(Number(n || 0)); } catch { return String(Number(n || 0).toFixed(1)); } }
+		async function renderIngredients() {
 			ingWrap.innerHTML = '';
 			const recipe = await getRecipeForDessert(dessert.name || '');
 			if (!recipe || !Array.isArray(recipe.steps)) return;
@@ -5621,79 +5631,79 @@ async function renderTimesView() {
 				match = recipe.steps.find(s => String(s.step_name || 'Paso').trim().toLowerCase() === stepNameKey) || null;
 			}
 			if (!match || !Array.isArray(match.items) || match.items.length === 0) { const small = document.createElement('div'); small.style.opacity = '0.7'; small.textContent = 'Sin ingredientes definidos para este paso'; ingWrap.appendChild(small); return; }
-            const table = document.createElement('table'); table.className = 'items-table';
-            const thead = document.createElement('thead'); const trh = document.createElement('tr');
-            ['Ingrediente','Cantidad'].forEach(t => { const th = document.createElement('th'); th.textContent = t; trh.appendChild(th); }); thead.appendChild(trh);
+			const table = document.createElement('table'); table.className = 'items-table';
+			const thead = document.createElement('thead'); const trh = document.createElement('tr');
+			['Ingrediente', 'Cantidad'].forEach(t => { const th = document.createElement('th'); th.textContent = t; trh.appendChild(th); }); thead.appendChild(trh);
 			const tbody = document.createElement('tbody');
 			for (const it of match.items) {
 				const tr = document.createElement('tr');
 				const tdN = document.createElement('td'); tdN.textContent = it.ingredient;
 				const tdQ = document.createElement('td');
-                const qty = Number(it.qty_per_unit || 0) || 0;
-                const adj = Number(it.adjustment || 0) || 0;
-                const total = qty + adj;
-                tdQ.textContent = fmtQty(total);
+				const qty = Number(it.qty_per_unit || 0) || 0;
+				const adj = Number(it.adjustment || 0) || 0;
+				const total = qty + adj;
+				tdQ.textContent = fmtQty(total);
 				tr.append(tdN, tdQ); tbody.appendChild(tr);
 			}
 			table.appendChild(tbody); ingWrap.appendChild(table);
 		}
 		renderIngredients();
-        box.append(head, body);
-        name.addEventListener('change', () => { step.name = (name.value || '').trim() || 'Paso'; writeTimesState(data); });
-		name.addEventListener('change', () => { try { renderIngredients(); } catch {} });
-        note.addEventListener('change', () => { step.note = note.value || ''; writeTimesState(data); });
-        del.addEventListener('click', () => {
-            const idx = (dessert.steps || []).indexOf(step);
-            if (idx >= 0) dessert.steps.splice(idx, 1);
-            saveAndRerender();
-        });
+		box.append(head, body);
+		name.addEventListener('change', () => { step.name = (name.value || '').trim() || 'Paso'; writeTimesState(data); });
+		name.addEventListener('change', () => { try { renderIngredients(); } catch { } });
+		note.addEventListener('change', () => { step.note = note.value || ''; writeTimesState(data); });
+		del.addEventListener('click', () => {
+			const idx = (dessert.steps || []).indexOf(step);
+			if (idx >= 0) dessert.steps.splice(idx, 1);
+			saveAndRerender();
+		});
 		// Insertar ingredientes bajo el cuerpo
 		box.appendChild(ingWrap);
 		return box;
-    }
+	}
 
-    function buildDessertCardLocal(d){
-        const card = document.createElement('div'); card.className = 'dessert-card';
-        const head = document.createElement('div'); head.className = 'dessert-header';
-        const title = document.createElement('h3'); title.textContent = d.name || 'Postre';
-        const rename = document.createElement('button'); rename.className = 'press-btn'; rename.textContent = 'Renombrar';
-        const addStep = document.createElement('button'); addStep.className = 'press-btn'; addStep.textContent = 'Agregar paso';
-        const delDessert = document.createElement('button'); delDessert.className = 'press-btn'; delDessert.textContent = 'Eliminar postre';
-        const actionsWrap = document.createElement('div'); actionsWrap.className = 'dessert-actions'; actionsWrap.append(rename, addStep, delDessert);
-        head.append(title, actionsWrap);
-        const stepsWrap = document.createElement('div'); stepsWrap.className = 'steps-list';
+	function buildDessertCardLocal(d) {
+		const card = document.createElement('div'); card.className = 'dessert-card';
+		const head = document.createElement('div'); head.className = 'dessert-header';
+		const title = document.createElement('h3'); title.textContent = d.name || 'Postre';
+		const rename = document.createElement('button'); rename.className = 'press-btn'; rename.textContent = 'Renombrar';
+		const addStep = document.createElement('button'); addStep.className = 'press-btn'; addStep.textContent = 'Agregar paso';
+		const delDessert = document.createElement('button'); delDessert.className = 'press-btn'; delDessert.textContent = 'Eliminar postre';
+		const actionsWrap = document.createElement('div'); actionsWrap.className = 'dessert-actions'; actionsWrap.append(rename, addStep, delDessert);
+		head.append(title, actionsWrap);
+		const stepsWrap = document.createElement('div'); stepsWrap.className = 'steps-list';
 		(d.steps || []).forEach((s, i) => stepsWrap.appendChild(buildStep(s, d, i)));
-        addStep.addEventListener('click', () => { d.steps = d.steps || []; d.steps.push({ name: 'Paso', note: '', elapsedMs: 0, isRunning: false, startedAt: null }); saveAndRerender(); });
-        delDessert.addEventListener('click', () => { const idx = data.indexOf(d); if (idx >= 0) { data.splice(idx, 1); saveAndRerender(); } });
+		addStep.addEventListener('click', () => { d.steps = d.steps || []; d.steps.push({ name: 'Paso', note: '', elapsedMs: 0, isRunning: false, startedAt: null }); saveAndRerender(); });
+		delDessert.addEventListener('click', () => { const idx = data.indexOf(d); if (idx >= 0) { data.splice(idx, 1); saveAndRerender(); } });
 		rename.addEventListener('click', () => { const n = (prompt('Nuevo nombre:') || '').trim(); if (!n) return; d.name = n; title.textContent = n; saveAndRerender(); });
-        card.append(head, stepsWrap);
-        // Drag for dessert reordering
-        card.draggable = true;
-        card.addEventListener('dragstart', () => { card.classList.add('dragging'); });
-        card.addEventListener('dragend', () => { card.classList.remove('dragging'); writeTimesState(data); });
-        return card;
-    }
+		card.append(head, stepsWrap);
+		// Drag for dessert reordering
+		card.draggable = true;
+		card.addEventListener('dragstart', () => { card.classList.add('dragging'); });
+		card.addEventListener('dragend', () => { card.classList.remove('dragging'); writeTimesState(data); });
+		return card;
+	}
 
-    // Render grid
-    grid.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        const dragging = grid.querySelector('.dessert-card.dragging');
-        if (!dragging) return;
-        const after = (() => {
-            const els = [...grid.querySelectorAll('.dessert-card:not(.dragging)')];
-            return els.reduce((closest, child) => {
-                const rect = child.getBoundingClientRect();
-                const offset = e.clientY - rect.top - rect.height / 2;
-                if (offset < 0 && offset > closest.offset) return { offset, element: child };
-                else return closest;
-            }, { offset: Number.NEGATIVE_INFINITY, element: null }).element;
-        })();
-        if (after == null) grid.appendChild(dragging); else grid.insertBefore(dragging, after);
-        // Sync order in data
-        const names = Array.from(grid.querySelectorAll('.dessert-card h3')).map(h => h.textContent || '');
-        data.sort((a, b) => names.indexOf(a.name) - names.indexOf(b.name));
-        writeTimesState(data);
-    });
+	// Render grid
+	grid.addEventListener('dragover', (e) => {
+		e.preventDefault();
+		const dragging = grid.querySelector('.dessert-card.dragging');
+		if (!dragging) return;
+		const after = (() => {
+			const els = [...grid.querySelectorAll('.dessert-card:not(.dragging)')];
+			return els.reduce((closest, child) => {
+				const rect = child.getBoundingClientRect();
+				const offset = e.clientY - rect.top - rect.height / 2;
+				if (offset < 0 && offset > closest.offset) return { offset, element: child };
+				else return closest;
+			}, { offset: Number.NEGATIVE_INFINITY, element: null }).element;
+		})();
+		if (after == null) grid.appendChild(dragging); else grid.insertBefore(dragging, after);
+		// Sync order in data
+		const names = Array.from(grid.querySelectorAll('.dessert-card h3')).map(h => h.textContent || '');
+		data.sort((a, b) => names.indexOf(a.name) - names.indexOf(b.name));
+		writeTimesState(data);
+	});
 
 	for (const d of data) grid.appendChild(buildDessertCardLocal(d));
 	root.appendChild(grid);
@@ -5708,22 +5718,22 @@ async function renderTimesView() {
 			let saved = 0;
 			for (const d of (snapshot.desserts || [])) {
 				if (!Number(d.total_ms || 0)) continue;
-				await fetch('/api/times', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dessert: d.name || 'Postre', steps: d.steps || [], total_elapsed_ms: Number(d.total_ms||0)||0, actor_name: state.currentUser?.username || state.currentUser?.name || null }) });
+				await fetch('/api/times', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dessert: d.name || 'Postre', steps: d.steps || [], total_elapsed_ms: Number(d.total_ms || 0) || 0, actor_name: state.currentUser?.username || state.currentUser?.name || null }) });
 				saved++;
 			}
 			// keep local history too for quick reference
 			const hist = readTimesHistory(); hist.push(snapshot); writeTimesHistory(hist);
 			if (saved > 0) notify?.success ? notify.success(`Tiempos guardados (${saved})`) : alert(`Tiempos guardados (${saved})`);
 			else notify?.error ? notify.error('No hay tiempos para guardar') : alert('No hay tiempos para guardar');
-		} catch { try { alert('No se pudieron guardar los tiempos'); } catch {} }
+		} catch { try { alert('No se pudieron guardar los tiempos'); } catch { } }
 	});
 
-    const addDessertBtn = document.getElementById('times-add-dessert');
-    addDessertBtn?.addEventListener('click', () => {
-        const name = (prompt('Nombre del postre:') || '').trim(); if (!name) return;
-        data.push({ name, steps: [] });
-        saveAndRerender();
-    });
+	const addDessertBtn = document.getElementById('times-add-dessert');
+	addDessertBtn?.addEventListener('click', () => {
+		const name = (prompt('Nombre del postre:') || '').trim(); if (!name) return;
+		data.push({ name, steps: [] });
+		saveAndRerender();
+	});
 }
 
 async function openMeasuresView() {
@@ -5739,23 +5749,23 @@ async function renderMeasuresView() {
 	let dessertNames = [];
 	try { dessertNames = await api('GET', API.Recipes); } catch { dessertNames = []; }
 	if (!dessertNames || dessertNames.length === 0) {
-		try { await api('GET', `${API.Recipes}?seed=1`); dessertNames = await api('GET', API.Recipes); } catch {}
+		try { await api('GET', `${API.Recipes}?seed=1`); dessertNames = await api('GET', API.Recipes); } catch { }
 	}
 	// Build input form for counts
 	const form = document.createElement('div'); form.className = 'measures-form'; form.style.display = 'flex'; form.style.justifyContent = 'center'; form.style.margin = '0 0 12px 0';
 	const grid = document.createElement('div'); grid.className = 'measures-grid'; grid.style.display = 'grid'; grid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(180px, 1fr))'; grid.style.gap = '12px 16px'; grid.style.maxWidth = '880px'; grid.style.width = '100%';
 	const counts = new Map();
-	function normalizeKey(name){ const k = String(name||'').trim().toLowerCase(); if (k.startsWith('arco')) return 'arco'; if (k.startsWith('melo')) return 'melo'; if (k.startsWith('mara')) return 'mara'; if (k.startsWith('oreo')) return 'oreo'; if (k.startsWith('nute')) return 'nute'; return k; }
+	function normalizeKey(name) { const k = String(name || '').trim().toLowerCase(); if (k.startsWith('arco')) return 'arco'; if (k.startsWith('melo')) return 'melo'; if (k.startsWith('mara')) return 'mara'; if (k.startsWith('oreo')) return 'oreo'; if (k.startsWith('nute')) return 'nute'; return k; }
 	const byKey = new Map();
-	for (const name of (dessertNames||[])) { const key = normalizeKey(name); byKey.set(key, name); }
+	for (const name of (dessertNames || [])) { const key = normalizeKey(name); byKey.set(key, name); }
 	for (const [k, name] of byKey.entries()) {
 		const row = document.createElement('div'); row.className = 'measures-row'; row.style.display = 'flex'; row.style.alignItems = 'center'; row.style.justifyContent = 'center'; row.style.gap = '8px'; row.style.border = '1px solid rgba(0,0,0,0.12)'; row.style.borderRadius = '10px'; row.style.padding = '8px 10px'; row.style.cursor = 'pointer'; row.style.background = 'white';
 		const label = document.createElement('div'); label.textContent = name; label.style.fontWeight = '600'; label.style.textAlign = 'center'; label.style.flex = '1';
 		const input = document.createElement('input'); input.type = 'number'; input.min = '0'; input.step = '1'; input.value = '0'; input.className = 'input-cell'; input.style.width = '86px'; input.style.textAlign = 'center';
 		counts.set(k, 0);
-		input.addEventListener('focus', () => { try { input.select(); } catch {} });
+		input.addEventListener('focus', () => { try { input.select(); } catch { } });
 		row.addEventListener('click', (ev) => { if (ev.target !== input) { input.focus(); input.select(); } });
-		input.addEventListener('input', () => { counts.set(k, Math.max(0, Number(input.value||0) || 0)); renderResults(); });
+		input.addEventListener('input', () => { counts.set(k, Math.max(0, Number(input.value || 0) || 0)); renderResults(); });
 		row.append(label, input); grid.appendChild(row);
 	}
 	form.appendChild(grid);
@@ -5786,26 +5796,27 @@ async function renderMeasuresView() {
 		}
 		// Extras also needed even if a dessert has none in its payload
 		let globalExtras = [];
-		try { const exData = await api('GET', `${API.Recipes}?dessert=${encodeURIComponent(names[0]||'dummy')}&include_extras=1`); globalExtras = exData.extras || []; } catch {}
+		try { const exData = await api('GET', `${API.Recipes}?dessert=${encodeURIComponent(names[0] || 'dummy')}&include_extras=1`); globalExtras = exData.extras || []; } catch { }
 		return { byDessert, extras: globalExtras };
 	}
 
 	let recipeCache = null;
-	async function ensureRecipes(){ if (!recipeCache) recipeCache = await fetchRecipeMap(); return recipeCache; }
+	async function ensureRecipes() { if (!recipeCache) recipeCache = await fetchRecipeMap(); return recipeCache; }
 
 	// Refresh when recipes change (e.g., new dessert added)
-	function onRecipesChanged(){ recipeCache = null; // clear cache
+	function onRecipesChanged() {
+		recipeCache = null; // clear cache
 		// Rebuild inputs grid with any new dessert
 		while (grid.firstChild) grid.removeChild(grid.firstChild);
 		byKey.clear();
-		for (const name of (dessertNames||[])) { const key = normalizeKey(name); byKey.set(key, name); }
+		for (const name of (dessertNames || [])) { const key = normalizeKey(name); byKey.set(key, name); }
 		for (const [k, name] of byKey.entries()) {
 			const row = document.createElement('div'); row.className = 'measures-row'; row.style.display = 'flex'; row.style.alignItems = 'center'; row.style.justifyContent = 'center'; row.style.gap = '8px'; row.style.border = '1px solid rgba(0,0,0,0.12)'; row.style.borderRadius = '10px'; row.style.padding = '8px 10px'; row.style.cursor = 'pointer'; row.style.background = 'white';
 			const label = document.createElement('div'); label.textContent = name; label.style.fontWeight = '600'; label.style.textAlign = 'center'; label.style.flex = '1';
 			const input = document.createElement('input'); input.type = 'number'; input.min = '0'; input.step = '1'; input.value = String(counts.get(k) || 0); input.className = 'input-cell'; input.style.width = '86px'; input.style.textAlign = 'center';
-			input.addEventListener('focus', () => { try { input.select(); } catch {} });
+			input.addEventListener('focus', () => { try { input.select(); } catch { } });
 			row.addEventListener('click', (ev) => { if (ev.target !== input) { input.focus(); input.select(); } });
-			input.addEventListener('input', () => { counts.set(k, Math.max(0, Number(input.value||0) || 0)); renderResults(); });
+			input.addEventListener('input', () => { counts.set(k, Math.max(0, Number(input.value || 0) || 0)); renderResults(); });
 			grid.appendChild(row); row.append(label, input);
 		}
 		renderResults();
@@ -5815,11 +5826,11 @@ async function renderMeasuresView() {
 			// refetch dessert names to include new ones
 			dessertNames = await api('GET', API.Recipes);
 			onRecipesChanged();
-		} catch {}
+		} catch { }
 	};
-	try { document.addEventListener('recipes:changed', recipesChangedHandler); } catch {}
+	try { document.addEventListener('recipes:changed', recipesChangedHandler); } catch { }
 
-	function clearCards(){ while (cardsWrap.firstChild) cardsWrap.removeChild(cardsWrap.firstChild); }
+	function clearCards() { while (cardsWrap.firstChild) cardsWrap.removeChild(cardsWrap.firstChild); }
 
 	async function renderResults() {
 		await ensureRecipes();
@@ -5840,7 +5851,7 @@ async function renderMeasuresView() {
 			card.style.border = '1px solid rgba(0,0,0,0.15)';
 			card.style.borderRadius = '10px';
 			card.style.boxShadow = '0 8px 24px rgba(0,0,0,0.12)';
-	const title = document.createElement('h3'); title.textContent = dessertName; title.style.textAlign = 'center'; title.style.fontSize = '32px'; title.style.margin = '4px 0 12px 0'; title.style.background = 'rgba(255, 105, 180, 0.18)'; title.style.padding = '8px 6px'; title.style.borderRadius = '8px';
+			const title = document.createElement('h3'); title.textContent = dessertName; title.style.textAlign = 'center'; title.style.fontSize = '32px'; title.style.margin = '4px 0 12px 0'; title.style.background = 'rgba(255, 105, 180, 0.18)'; title.style.padding = '8px 6px'; title.style.borderRadius = '8px';
 			card.appendChild(title);
 			// Steps sections in order
 			for (const step of (d.steps || [])) {
@@ -5890,7 +5901,7 @@ async function renderMeasuresView() {
 	}
 
 	function exportRows() {
-		const fmtNum = (n) => Number((Number(n||0)).toFixed(1));
+		const fmtNum = (n) => Number((Number(n || 0)).toFixed(1));
 		const rows = [];
 		for (const [key, qty] of Object.entries(counts)) {
 			const qtyNum = Number(qty || 0);
@@ -5909,7 +5920,7 @@ async function renderMeasuresView() {
 		const ws = XLSX.utils.json_to_sheet(rows);
 		const wb = XLSX.utils.book_new();
 		XLSX.utils.book_append_sheet(wb, ws, 'Medidas');
-		const label = new Date().toISOString().slice(0,10).replaceAll('-','');
+		const label = new Date().toISOString().slice(0, 10).replaceAll('-', '');
 		XLSX.writeFile(wb, `Medidas_${label}.xlsx`);
 	}
 
@@ -5922,7 +5933,7 @@ async function renderMeasuresView() {
 			for (const [k, v] of counts.entries()) {
 				if (k === 'arco' || k === 'melo' || k === 'mara' || k === 'oreo' || k === 'nute') payload.counts[k] = Number(v || 0) || 0;
 			}
-			const any = Object.values(payload.counts).some(n => Number(n||0) > 0);
+			const any = Object.values(payload.counts).some(n => Number(n || 0) > 0);
 			if (!any) { notify.error('No hay cantidades para aprobar'); return; }
 			await api('POST', API.Inventory, payload);
 			notify.success('Producción aprobada y descontada del inventario');
@@ -5956,7 +5967,7 @@ async function buildDessertCard(dessertName) {
 		const grid = card.parentElement;
 		if (!grid) return;
 		const names = Array.from(grid.querySelectorAll('.dessert-card h3')).map(h => (h.textContent || '').toString());
-		try { await api('POST', API.Recipes, { kind: 'dessert.order', names }); } catch {}
+		try { await api('POST', API.Recipes, { kind: 'dessert.order', names }); } catch { }
 	});
 	// Step-level DnD container
 	steps.addEventListener('dragover', (e) => {
@@ -5977,7 +5988,7 @@ async function buildDessertCard(dessertName) {
 	card.append(head, steps);
 	delDessert.addEventListener('click', async () => {
 		const ok = confirm(`¿Eliminar el postre "${dessertName}" y todas sus recetas?`); if (!ok) return;
-		try { await api('DELETE', `${API.Recipes}?kind=dessert&dessert=${encodeURIComponent(dessertName)}`); } catch {}
+		try { await api('DELETE', `${API.Recipes}?kind=dessert&dessert=${encodeURIComponent(dessertName)}`); } catch { }
 		await renderIngredientsView();
 	});
 	return card;
@@ -5994,13 +6005,13 @@ function buildStepCard(dessertName, step) {
 	head.append(label, actions);
 	const table = document.createElement('table'); table.className = 'items-table';
 	const thead = document.createElement('thead'); const hr = document.createElement('tr');
-	['Ingrediente','Cantidad por unidad','Ajuste','Precio','Por paquete',''].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
+	['Ingrediente', 'Cantidad por unidad', 'Ajuste', 'Precio', 'Por paquete', ''].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
 	thead.appendChild(hr);
 	const tbody = document.createElement('tbody');
 	for (const it of (step.items || [])) tbody.appendChild(buildItemRow(step.id, it));
 	// Ensure empty steps have a visible drop target
-	function hasRealRows(){ return !!tbody.querySelector('tr:not(.empty-drop)'); }
-	function ensurePlaceholder(){
+	function hasRealRows() { return !!tbody.querySelector('tr:not(.empty-drop)'); }
+	function ensurePlaceholder() {
 		if (hasRealRows()) { removePlaceholder(); return; }
 		if (tbody.querySelector('tr.empty-drop')) return;
 		const tr = document.createElement('tr'); tr.className = 'empty-drop';
@@ -6008,7 +6019,7 @@ function buildStepCard(dessertName, step) {
 		td.style.opacity = '0.7'; td.style.textAlign = 'center'; td.style.padding = '14px'; td.style.border = '1px dashed var(--border)';
 		tr.appendChild(td); tbody.appendChild(tr);
 	}
-	function removePlaceholder(){ const ph = tbody.querySelector('tr.empty-drop'); if (ph) ph.remove(); }
+	function removePlaceholder() { const ph = tbody.querySelector('tr.empty-drop'); if (ph) ph.remove(); }
 	ensurePlaceholder();
 	table.append(thead, tbody);
 	box.append(head, table);
@@ -6016,7 +6027,7 @@ function buildStepCard(dessertName, step) {
 	box.draggable = false;
 	head.draggable = true;
 	head.addEventListener('dragstart', (e) => {
-		try { if (e && e.dataTransfer) e.dataTransfer.setData('text/plain', 'step'); } catch {}
+		try { if (e && e.dataTransfer) e.dataTransfer.setData('text/plain', 'step'); } catch { }
 		box.__isStepDrag = true;
 		box.classList.add('dragging');
 	});
@@ -6027,14 +6038,14 @@ function buildStepCard(dessertName, step) {
 		const list = box.parentElement;
 		if (!list) return;
 		// Build ids from DOM order
-		const stepIds = Array.from(list.querySelectorAll('.step-card')).map(el => Number(el.getAttribute('data-step-id')||'0')||0).filter(Boolean);
+		const stepIds = Array.from(list.querySelectorAll('.step-card')).map(el => Number(el.getAttribute('data-step-id') || '0') || 0).filter(Boolean);
 		if (!stepIds.length) return;
-		try { await api('POST', API.Recipes, { kind: 'step.reorder', ids: stepIds }); } catch {}
+		try { await api('POST', API.Recipes, { kind: 'step.reorder', ids: stepIds }); } catch { }
 	});
 	add.addEventListener('click', async () => {
 		const ing = (prompt('Ingrediente:') || '').trim(); if (!ing) return;
 		const qty = Number(prompt('Cantidad por unidad:') || '0') || 0;
-		const row = await api('POST', API.Recipes, { kind: 'item.upsert', recipe_id: step.id, ingredient: ing, unit: 'g', qty_per_unit: qty, adjustment: 0, price: 0, position: (step.items?.length||0)+1 });
+		const row = await api('POST', API.Recipes, { kind: 'item.upsert', recipe_id: step.id, ingredient: ing, unit: 'g', qty_per_unit: qty, adjustment: 0, price: 0, position: (step.items?.length || 0) + 1 });
 		removePlaceholder();
 		tbody.appendChild(buildItemRow(step.id, row));
 	});
@@ -6124,11 +6135,11 @@ function buildStepCard(dessertName, step) {
 				position: newIndex + 1
 			});
 			// Reorder positions in target and source tbodys
-			const targetIds = Array.from(tbody.querySelectorAll('tr')).map(r => Number(r.getAttribute('data-item-id')||'0')||0).filter(Boolean);
-			if (targetIds.length) { try { await api('POST', API.Recipes, { kind: 'item.reorder', ids: targetIds }); } catch {} }
+			const targetIds = Array.from(tbody.querySelectorAll('tr')).map(r => Number(r.getAttribute('data-item-id') || '0') || 0).filter(Boolean);
+			if (targetIds.length) { try { await api('POST', API.Recipes, { kind: 'item.reorder', ids: targetIds }); } catch { } }
 			if (info.fromTbody && info.fromTbody.isConnected) {
-				const srcIds = Array.from(info.fromTbody.querySelectorAll('tr')).map(r => Number(r.getAttribute('data-item-id')||'0')||0).filter(Boolean);
-				if (srcIds.length) { try { await api('POST', API.Recipes, { kind: 'item.reorder', ids: srcIds }); } catch {} }
+				const srcIds = Array.from(info.fromTbody.querySelectorAll('tr')).map(r => Number(r.getAttribute('data-item-id') || '0') || 0).filter(Boolean);
+				if (srcIds.length) { try { await api('POST', API.Recipes, { kind: 'item.reorder', ids: srcIds }); } catch { } }
 			}
 			ensurePlaceholder();
 		} catch { notify.error('No se pudo mover el ingrediente'); }
@@ -6155,10 +6166,10 @@ function buildItemRow(stepId, item) {
 		tr.classList.remove('dragging');
 		const tbody = tr.parentElement;
 		if (!tbody) return;
-		const ids = Array.from(tbody.querySelectorAll('tr')).map(r => Number(r.getAttribute('data-item-id')||'0')||0).filter(Boolean);
+		const ids = Array.from(tbody.querySelectorAll('tr')).map(r => Number(r.getAttribute('data-item-id') || '0') || 0).filter(Boolean);
 		if (!ids.length) return;
-		try { await api('POST', API.Recipes, { kind: 'item.reorder', ids }); } catch {}
-		try { delete window.__draggingItemInfo; } catch {}
+		try { await api('POST', API.Recipes, { kind: 'item.reorder', ids }); } catch { }
+		try { delete window.__draggingItemInfo; } catch { }
 	});
 	async function save() {
 		try {
@@ -6176,11 +6187,11 @@ async function openExtrasEditor() {
 	const data = await api('GET', `${API.Recipes}?dessert=${encodeURIComponent('dummy')}&include_extras=1`);
 	const extras = Array.isArray(data?.extras) ? data.extras : [];
 	const pop = document.createElement('div'); pop.className = 'confirm-popover'; pop.style.position = 'fixed';
-	pop.style.left = (window.innerWidth/2) + 'px'; pop.style.top = '12%'; pop.style.transform = 'translate(-50%, 0)';
+	pop.style.left = (window.innerWidth / 2) + 'px'; pop.style.top = '12%'; pop.style.transform = 'translate(-50%, 0)';
 	const title = document.createElement('h4'); title.textContent = 'Extras por unidad'; title.style.margin = '0 0 8px 0';
 	const table = document.createElement('table'); table.className = 'items-table';
 	const thead = document.createElement('thead'); const hr = document.createElement('tr');
-	['Ingrediente','Cantidad','Precio','Por paquete',''].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); }); thead.appendChild(hr);
+	['Ingrediente', 'Cantidad', 'Precio', 'Por paquete', ''].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); }); thead.appendChild(hr);
 	const tbody = document.createElement('tbody');
 	for (const it of extras) tbody.appendChild(buildExtrasRow(it, tbody));
 	const tfoot = document.createElement('tfoot'); const fr = document.createElement('tr'); const td = document.createElement('td'); td.colSpan = 4; const add = document.createElement('button'); add.className = 'press-btn'; add.textContent = '+ Extra'; td.appendChild(add); fr.appendChild(td); tfoot.appendChild(fr);
@@ -6191,7 +6202,7 @@ async function openExtrasEditor() {
 		const qty = Number(prompt('Cantidad por unidad:') || '1') || 0;
 		const price = Number(prompt('Precio unitario:') || '0') || 0;
 		const pack = Number(prompt('Cantidad por paquete (0 si no aplica):') || '0') || 0;
-		const row = await api('POST', API.Recipes, { kind: 'extras.upsert', ingredient: ing, unit, qty_per_unit: qty, price, pack_size: pack, position: (extras.length||0)+1 });
+		const row = await api('POST', API.Recipes, { kind: 'extras.upsert', ingredient: ing, unit, qty_per_unit: qty, price, pack_size: pack, position: (extras.length || 0) + 1 });
 		tbody.appendChild(buildExtrasRow(row, tbody));
 	});
 	close.addEventListener('click', () => { if (pop.parentNode) pop.parentNode.removeChild(pop); });
@@ -6222,7 +6233,7 @@ async function buildRestoreReport() {
 			let sales = [];
 			try { sales = await api('GET', `${API.Sales}?${params.toString()}`); } catch { sales = []; }
 			for (const row of (sales || [])) {
-				const isAllZero = !Number(row.qty_arco||0) && !Number(row.qty_melo||0) && !Number(row.qty_mara||0) && !Number(row.qty_oreo||0) && !Number(row.qty_nute||0);
+				const isAllZero = !Number(row.qty_arco || 0) && !Number(row.qty_melo || 0) && !Number(row.qty_mara || 0) && !Number(row.qty_oreo || 0) && !Number(row.qty_nute || 0);
 				if (!isAllZero) continue;
 				let logs = [];
 				try { logs = await api('GET', `${API.Sales}?history_for=${encodeURIComponent(row.id)}`); } catch { logs = []; }
@@ -6235,11 +6246,11 @@ async function buildRestoreReport() {
 						if (prev > 0) { restored[key] = prev; }
 					}
 				}
-				const any = Object.values(restored).some(v => Number(v||0) > 0);
+				const any = Object.values(restored).some(v => Number(v || 0) > 0);
 				if (!any) continue;
 				report.push({
 					seller: s.name,
-					date: String(d.day).slice(0,10),
+					date: String(d.day).slice(0, 10),
 					client: row.client_name || '',
 					qtys: restored
 				});
@@ -6273,8 +6284,8 @@ function openRestoreReportDialog(items, anchorX, anchorY) {
 	actions.append(closeBtn);
 	pop.append(title, list, actions);
 	document.body.appendChild(pop);
-	function cleanup(){ document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); if (pop.parentNode) pop.parentNode.removeChild(pop); }
-	function outside(ev){ if (!pop.contains(ev.target)) cleanup(); }
+	function cleanup() { document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); if (pop.parentNode) pop.parentNode.removeChild(pop); }
+	function outside(ev) { if (!pop.contains(ev.target)) cleanup(); }
 	setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
 	closeBtn.addEventListener('click', cleanup);
 }
@@ -6362,8 +6373,8 @@ function formatDayLabel(input) {
 	if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return String(input);
 	const d = new Date(iso + 'T00:00:00Z');
 	if (isNaN(d.getTime())) return iso;
-	const weekdays = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-	const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+	const weekdays = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+	const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 	return `${weekdays[d.getUTCDay()]} ${months[d.getUTCMonth()]} ${d.getUTCDate()}`;
 }
 
@@ -6413,7 +6424,7 @@ function renderDaysList() {
 				const makeArchived = !d.is_archived;
 				await api('PATCH', '/api/days', { id: d.id, is_archived: makeArchived });
 				await loadDaysForSeller();
-				try { notify.success(makeArchived ? 'Fecha archivada' : 'Fecha desarchivada'); } catch {}
+				try { notify.success(makeArchived ? 'Fecha archivada' : 'Fecha desarchivada'); } catch { }
 			});
 			item.appendChild(arch);
 		}
@@ -6426,20 +6437,20 @@ function renderDaysList() {
 			const days = Array.isArray(state.saleDays) ? state.saleDays.slice() : [];
 			if (days.length) {
 				let latest = days[0];
-				let latestTs = Date.parse(String(latest.day).slice(0,10));
+				let latestTs = Date.parse(String(latest.day).slice(0, 10));
 				for (let i = 1; i < days.length; i++) {
-					const ts = Date.parse(String(days[i].day).slice(0,10));
+					const ts = Date.parse(String(days[i].day).slice(0, 10));
 					if (!isNaN(ts) && (isNaN(latestTs) || ts > latestTs)) { latest = days[i]; latestTs = ts; }
 				}
 				if (latest && latest.id) {
 					state.selectedDayId = latest.id;
 					const wrap = document.getElementById('sales-wrapper');
 					if (wrap) wrap.classList.remove('hidden');
-					loadSales().catch(()=>{});
+					loadSales().catch(() => { });
 				}
 			}
 		}
-	} catch {}
+	} catch { }
 }
 
 async function addNewDate() {
@@ -6447,7 +6458,7 @@ async function addNewDate() {
 	let day = document.getElementById('new-date')?.value;
 	if (!day) {
 		const now = new Date();
-		day = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())).toISOString().slice(0,10);
+		day = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())).toISOString().slice(0, 10);
 	}
 	await api('POST', '/api/days', { seller_id: sellerId, day });
 	await loadDaysForSeller();
@@ -6496,7 +6507,7 @@ function openDatePickerAndGetISO(onPicked, anchorX, anchorY) {
 	}, 0);
 	// Open native picker
 	if (typeof input.showPicker === 'function') {
-		try { input.showPicker(); return; } catch {}
+		try { input.showPicker(); return; } catch { }
 	}
 	input.focus();
 	input.click();
@@ -6529,26 +6540,26 @@ function openCalendarPopover(onPicked, anchorX, anchorY) {
 	pop.style.transform = 'translate(-50%, 0)';
 	pop.style.zIndex = '10000';
 	pop.setAttribute('role', 'dialog');
-	
-	const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+	const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 	let view = new Date();
 	view.setDate(1);
-	
+
 	const header = document.createElement('div');
 	header.className = 'date-popover-header';
 	const prev = document.createElement('button'); prev.className = 'date-nav'; prev.textContent = '‹';
 	const label = document.createElement('div'); label.className = 'date-label';
 	const next = document.createElement('button'); next.className = 'date-nav'; next.textContent = '›';
 	header.append(prev, label, next);
-	
+
 	const grid = document.createElement('div');
 	grid.className = 'date-grid';
-	
-	const weekdays = ['L','M','X','J','V','S','D'];
+
+	const weekdays = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 	const wk = document.createElement('div'); wk.className = 'date-weekdays';
 	for (const w of weekdays) { const c = document.createElement('div'); c.textContent = w; wk.appendChild(c); }
-	
-	function isoUTC(y, m, d) { return new Date(Date.UTC(y, m, d)).toISOString().slice(0,10); }
+
+	function isoUTC(y, m, d) { return new Date(Date.UTC(y, m, d)).toISOString().slice(0, 10); }
 	function render() {
 		label.textContent = months[view.getMonth()] + ' ' + view.getFullYear();
 		grid.innerHTML = '';
@@ -6556,12 +6567,12 @@ function openCalendarPopover(onPicked, anchorX, anchorY) {
 		const month = view.getMonth();
 		const firstDay = (new Date(Date.UTC(year, month, 1)).getUTCDay() + 6) % 7; // Monday=0
 		const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
-		
+
 		// Días del mes anterior
 		const prevMonthDays = new Date(Date.UTC(year, month, 0)).getUTCDate();
 		const prevMonth = month === 0 ? 11 : month - 1;
 		const prevYear = month === 0 ? year - 1 : year;
-		
+
 		for (let i = firstDay - 1; i >= 0; i--) {
 			const day = prevMonthDays - i;
 			const cell = document.createElement('button');
@@ -6574,7 +6585,7 @@ function openCalendarPopover(onPicked, anchorX, anchorY) {
 			});
 			grid.appendChild(cell);
 		}
-		
+
 		// Días del mes actual
 		for (let d = 1; d <= daysInMonth; d++) {
 			const cell = document.createElement('button');
@@ -6586,13 +6597,13 @@ function openCalendarPopover(onPicked, anchorX, anchorY) {
 			});
 			grid.appendChild(cell);
 		}
-		
+
 		// Días del mes siguiente
 		const totalCells = firstDay + daysInMonth;
 		const remainingCells = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
 		const nextMonth = month === 11 ? 0 : month + 1;
 		const nextYear = month === 11 ? year + 1 : year;
-		
+
 		for (let d = 1; d <= remainingCells; d++) {
 			const cell = document.createElement('button');
 			cell.className = 'date-cell other-month';
@@ -6605,23 +6616,23 @@ function openCalendarPopover(onPicked, anchorX, anchorY) {
 			grid.appendChild(cell);
 		}
 	}
-	
+
 	function cleanup() {
 		document.removeEventListener('mousedown', outside, true);
 		document.removeEventListener('touchstart', outside, true);
 		if (pop.parentNode) pop.parentNode.removeChild(pop);
 	}
 	function outside(ev) { if (!pop.contains(ev.target)) cleanup(); }
-	
+
 	prev.addEventListener('click', () => { view.setMonth(view.getMonth() - 1); render(); });
 	next.addEventListener('click', () => { view.setMonth(view.getMonth() + 1); render(); });
-	
+
 	pop.append(header, wk, grid);
-	
+
 	// Hide initially to avoid flash
 	pop.style.visibility = 'hidden';
 	document.body.appendChild(pop);
-	
+
 	// Positioning/clamping: ensure visible; on mobile, prefer above if near bottom
 	requestAnimationFrame(() => {
 		const margin = 8;
@@ -6632,30 +6643,30 @@ function openCalendarPopover(onPicked, anchorX, anchorY) {
 		const viewTop = (vv && typeof vv.offsetTop === 'number') ? vv.offsetTop : 0;
 		const isSmall = window.matchMedia('(max-width: 600px)').matches;
 		const r = pop.getBoundingClientRect();
-		
+
 		// Calculate position centered below anchor
 		let left = baseX - r.width / 2;
 		let top = baseY + 8;
-		
+
 		// Check if it fits below; if not, place above
 		if (top + r.height > viewTop + viewH - margin) {
 			top = baseY - 8 - r.height;
 		}
-		
+
 		// Clamp horizontal position within viewport
 		if (left < viewLeft + margin) left = viewLeft + margin;
 		if (left + r.width > viewLeft + viewW - margin) left = viewLeft + viewW - margin - r.width;
-		
+
 		// Clamp vertical position within viewport
 		if (top < viewTop + margin) top = viewTop + margin;
 		if (top + r.height > viewTop + viewH - margin) top = viewTop + viewH - margin - r.height;
-		
+
 		// On very small screens, center it
 		if (isSmall && (r.width > viewW * 0.9 || r.height > viewH * 0.9)) {
 			left = viewLeft + (viewW - r.width) / 2;
 			top = viewTop + (viewH - r.height) / 2;
 		}
-		
+
 		pop.style.left = left + 'px';
 		pop.style.top = top + 'px';
 		pop.style.transform = 'none';
@@ -6677,24 +6688,24 @@ function openMultiCalendarPopover(onPickedList, anchorX, anchorY, opts) {
 	pop.style.transform = 'translate(-50%, 0)';
 	pop.style.zIndex = '1000';
 	pop.setAttribute('role', 'dialog');
-	
-	const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+	const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 	let view = new Date(); view.setDate(1);
 	const selected = new Set();
-	
+
 	const header = document.createElement('div'); header.className = 'date-popover-header';
 	const prev = document.createElement('button'); prev.className = 'date-nav'; prev.textContent = '‹';
 	const label = document.createElement('div'); label.className = 'date-label';
 	const next = document.createElement('button'); next.className = 'date-nav'; next.textContent = '›';
 	header.append(prev, label, next);
-	
+
 	const grid = document.createElement('div'); grid.className = 'date-grid';
-	const weekdays = ['L','M','X','J','V','S','D'];
+	const weekdays = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 	const wk = document.createElement('div'); wk.className = 'date-weekdays';
 	for (const w of weekdays) { const c = document.createElement('div'); c.textContent = w; wk.appendChild(c); }
-	
-	function isoUTC(y, m, d) { return new Date(Date.UTC(y, m, d)).toISOString().slice(0,10); }
-	
+
+	function isoUTC(y, m, d) { return new Date(Date.UTC(y, m, d)).toISOString().slice(0, 10); }
+
 	function render() {
 		label.textContent = months[view.getMonth()] + ' ' + view.getFullYear();
 		grid.innerHTML = '';
@@ -6702,12 +6713,12 @@ function openMultiCalendarPopover(onPickedList, anchorX, anchorY, opts) {
 		const month = view.getMonth();
 		const firstDay = (new Date(Date.UTC(year, month, 1)).getUTCDay() + 6) % 7;
 		const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
-		
+
 		// Días del mes anterior
 		const prevMonthDays = new Date(Date.UTC(year, month, 0)).getUTCDate();
 		const prevMonth = month === 0 ? 11 : month - 1;
 		const prevYear = month === 0 ? year - 1 : year;
-		
+
 		for (let i = firstDay - 1; i >= 0; i--) {
 			const day = prevMonthDays - i;
 			const iso = isoUTC(prevYear, prevMonth, day);
@@ -6718,7 +6729,7 @@ function openMultiCalendarPopover(onPickedList, anchorX, anchorY, opts) {
 			cell.addEventListener('click', () => { if (selected.has(iso)) selected.delete(iso); else selected.add(iso); render(); });
 			grid.appendChild(cell);
 		}
-		
+
 		// Días del mes actual
 		for (let d = 1; d <= daysInMonth; d++) {
 			const iso = isoUTC(year, month, d);
@@ -6728,13 +6739,13 @@ function openMultiCalendarPopover(onPickedList, anchorX, anchorY, opts) {
 			cell.addEventListener('click', () => { if (selected.has(iso)) selected.delete(iso); else selected.add(iso); render(); });
 			grid.appendChild(cell);
 		}
-		
+
 		// Días del mes siguiente
 		const totalCells = firstDay + daysInMonth;
 		const remainingCells = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
 		const nextMonth = month === 11 ? 0 : month + 1;
 		const nextYear = month === 11 ? year + 1 : year;
-		
+
 		for (let d = 1; d <= remainingCells; d++) {
 			const iso = isoUTC(nextYear, nextMonth, d);
 			const cell = document.createElement('button');
@@ -6745,25 +6756,25 @@ function openMultiCalendarPopover(onPickedList, anchorX, anchorY, opts) {
 			grid.appendChild(cell);
 		}
 	}
-	
+
 	function cleanup() { document.removeEventListener('mousedown', outside, true); document.removeEventListener('touchstart', outside, true); if (pop.parentNode) pop.parentNode.removeChild(pop); }
 	function outside(ev) { if (!pop.contains(ev.target)) cleanup(); }
-	
+
 	const actions = document.createElement('div'); actions.style.display = 'flex'; actions.style.justifyContent = 'space-between'; actions.style.marginTop = '8px';
 	const clearBtn = document.createElement('button'); clearBtn.className = 'date-nav'; clearBtn.textContent = 'Limpiar';
 	const applyBtn = document.createElement('button'); applyBtn.className = 'date-nav'; applyBtn.textContent = 'Aplicar';
 	clearBtn.addEventListener('click', () => { selected.clear(); render(); });
 	applyBtn.addEventListener('click', () => { const list = Array.from(selected); cleanup(); if (typeof onPickedList === 'function') onPickedList(list); });
 	actions.append(clearBtn, applyBtn);
-	
+
 	prev.addEventListener('click', () => { view.setMonth(view.getMonth() - 1); render(); });
 	next.addEventListener('click', () => { view.setMonth(view.getMonth() + 1); render(); });
-	
+
 	pop.append(header, wk, grid, actions);
 	document.body.appendChild(pop);
 	// Aladdin style animation
 	pop.classList.add('aladdin-pop');
-	
+
 	requestAnimationFrame(() => {
 		const margin = 8;
 		const vv = window.visualViewport;
@@ -6794,7 +6805,7 @@ function openRangeCalendarPopover(onPickedRange, anchorX, anchorY, opts) {
 	pop.style.zIndex = '1000';
 	pop.setAttribute('role', 'dialog');
 
-	const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+	const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 	let view = new Date(); view.setDate(1);
 	let startIso = null; let endIso = null;
 
@@ -6805,11 +6816,11 @@ function openRangeCalendarPopover(onPickedRange, anchorX, anchorY, opts) {
 	header.append(prev, label, next);
 
 	const grid = document.createElement('div'); grid.className = 'date-grid';
-	const weekdays = ['L','M','X','J','V','S','D'];
+	const weekdays = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 	const wk = document.createElement('div'); wk.className = 'date-weekdays';
 	for (const w of weekdays) { const c = document.createElement('div'); c.textContent = w; wk.appendChild(c); }
 
-	function isoUTC(y, m, d) { return new Date(Date.UTC(y, m, d)).toISOString().slice(0,10); }
+	function isoUTC(y, m, d) { return new Date(Date.UTC(y, m, d)).toISOString().slice(0, 10); }
 	function isBetween(x, a, b) { return x >= a && x <= b; }
 
 	function render() {
@@ -6819,12 +6830,12 @@ function openRangeCalendarPopover(onPickedRange, anchorX, anchorY, opts) {
 		const month = view.getMonth();
 		const firstDay = (new Date(Date.UTC(year, month, 1)).getUTCDay() + 6) % 7;
 		const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
-		
+
 		// Días del mes anterior
 		const prevMonthDays = new Date(Date.UTC(year, month, 0)).getUTCDate();
 		const prevMonth = month === 0 ? 11 : month - 1;
 		const prevYear = month === 0 ? year - 1 : year;
-		
+
 		for (let i = firstDay - 1; i >= 0; i--) {
 			const day = prevMonthDays - i;
 			const iso = isoUTC(prevYear, prevMonth, day);
@@ -6851,7 +6862,7 @@ function openRangeCalendarPopover(onPickedRange, anchorX, anchorY, opts) {
 			});
 			grid.appendChild(cell);
 		}
-		
+
 		// Días del mes actual
 		for (let d = 1; d <= daysInMonth; d++) {
 			const iso = isoUTC(year, month, d);
@@ -6877,13 +6888,13 @@ function openRangeCalendarPopover(onPickedRange, anchorX, anchorY, opts) {
 			});
 			grid.appendChild(cell);
 		}
-		
+
 		// Días del mes siguiente
 		const totalCells = firstDay + daysInMonth;
 		const remainingCells = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
 		const nextMonth = month === 11 ? 0 : month + 1;
 		const nextYear = month === 11 ? year + 1 : year;
-		
+
 		for (let d = 1; d <= remainingCells; d++) {
 			const iso = isoUTC(nextYear, nextMonth, d);
 			const cell = document.createElement('button');
@@ -6928,7 +6939,7 @@ function openRangeCalendarPopover(onPickedRange, anchorX, anchorY, opts) {
 
 	// wrap original render to update actions
 	const origRender = render;
-	render = function(){ origRender(); updateActions(); };
+	render = function () { origRender(); updateActions(); };
 
 	pop.append(header, wk, grid, actions);
 	document.body.appendChild(pop);
@@ -7028,7 +7039,7 @@ function openPayMenu(anchorEl, selectEl, clickX, clickY) {
 		try { return localStorage.getItem('seenPaymentDate_' + String(method || '') + '_' + String(saleId || '')) === '1'; } catch { return false; }
 	}
 	function markSeenPaymentDateDialogForSale(saleId, method) {
-		try { localStorage.setItem('seenPaymentDate_' + String(method || '') + '_' + String(saleId || ''), '1'); } catch {}
+		try { localStorage.setItem('seenPaymentDate_' + String(method || '') + '_' + String(saleId || ''), '1'); } catch { }
 	}
 	const items = [
 		{ v: 'efectivo', cls: 'menu-efectivo' },
@@ -7066,19 +7077,19 @@ function openPayMenu(anchorEl, selectEl, clickX, clickY) {
 					return;
 				}
 			}
-		// If selecting transf, show existing receipt if any; otherwise open upload
-		if (it.v === 'transf' && currentSaleId) {
+			// If selecting transf, show existing receipt if any; otherwise open upload
+			if (it.v === 'transf' && currentSaleId) {
+				cleanup();
+				// Use setTimeout to avoid blocking and ensure proper async execution
+				setTimeout(() => {
+					openReceiptsGalleryPopover(currentSaleId, rect.left + rect.width / 2, rect.bottom).catch(err => {
+						console.error('Error opening gallery from menu:', err);
+						openReceiptUploadPage(currentSaleId);
+					});
+				}, 0);
+				return;
+			}
 			cleanup();
-			// Use setTimeout to avoid blocking and ensure proper async execution
-			setTimeout(() => {
-				openReceiptsGalleryPopover(currentSaleId, rect.left + rect.width / 2, rect.bottom).catch(err => {
-					console.error('Error opening gallery from menu:', err);
-					openReceiptUploadPage(currentSaleId);
-				});
-			}, 0);
-			return;
-		}
-		cleanup();
 		});
 		menu.appendChild(btn);
 	}
@@ -7118,11 +7129,11 @@ function openPayMenu(anchorEl, selectEl, clickX, clickY) {
 // Function to position comment marker dynamically after client name text
 function updateCommentMarkerPosition(inputElement, markerElement) {
 	if (!inputElement || !markerElement) return;
-	
+
 	// Check if this cell also has a recurring client marker
 	const td = inputElement.closest('td.col-client');
 	const hasRecurring = td && td.classList.contains('has-reg');
-	
+
 	// Position at the end (right side) of the input
 	// If there's a recurring marker, position further left to avoid overlap
 	markerElement.style.left = 'auto';
@@ -7133,27 +7144,27 @@ function updateCommentMarkerPosition(inputElement, markerElement) {
 function openPaymentDateDialog(saleId, anchorX, anchorY, onCloseCallback) {
 	const sale = state.sales.find(s => s.id === saleId);
 	if (!sale) return;
-	
+
 	const pop = document.createElement('div');
 	pop.className = 'payment-date-popover';
 	pop.style.position = 'fixed';
 	pop.style.zIndex = '1000';
 	// Position will be set after content is rendered
-	
+
 	// Title
 	const title = document.createElement('div');
 	title.className = 'payment-date-title';
 	title.textContent = 'Fecha de pago';
-	
+
 	// Create inline calendar
 	const calendarContainer = document.createElement('div');
 	calendarContainer.className = 'inline-calendar';
-	
+
 	const today = new Date();
-	
+
 	// Use previously saved date if exists, otherwise use today
 	let initialDate = new Date();
-	
+
 	// Try to get saved date from multiple sources
 	const savedDate = sale.payment_date || (sale._paymentInfo && sale._paymentInfo.date);
 	if (savedDate) {
@@ -7167,9 +7178,9 @@ function openPaymentDateDialog(saleId, anchorX, anchorY, onCloseCallback) {
 			} else {
 				dateStr = String(savedDate).slice(0, 10);
 			}
-			
+
 			initialDate = new Date(dateStr + 'T00:00:00');
-			
+
 			// Validate the date is valid
 			if (isNaN(initialDate.getTime())) {
 				console.warn('Invalid date, using today. Original value:', savedDate);
@@ -7180,43 +7191,43 @@ function openPaymentDateDialog(saleId, anchorX, anchorY, onCloseCallback) {
 			initialDate = new Date();
 		}
 	}
-	
+
 	let currentMonth = initialDate.getMonth();
 	let currentYear = initialDate.getFullYear();
 	let selectedDate = new Date(initialDate);
-	
+
 	// Calendar header with navigation
 	const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 	const calendarHeader = document.createElement('div');
 	calendarHeader.className = 'calendar-header';
-	
+
 	const prevBtn = document.createElement('button');
 	prevBtn.className = 'calendar-nav-btn';
 	prevBtn.innerHTML = '◀';
 	prevBtn.type = 'button';
-	
+
 	const monthLabel = document.createElement('span');
 	monthLabel.className = 'calendar-month-label';
 	monthLabel.textContent = `${monthNames[currentMonth]} ${currentYear}`;
-	
+
 	const nextBtn = document.createElement('button');
 	nextBtn.className = 'calendar-nav-btn';
 	nextBtn.innerHTML = '▶';
 	nextBtn.type = 'button';
-	
+
 	calendarHeader.appendChild(prevBtn);
 	calendarHeader.appendChild(monthLabel);
 	calendarHeader.appendChild(nextBtn);
-	
+
 	// Calendar days grid
 	const calendarGrid = document.createElement('div');
 	calendarGrid.className = 'calendar-grid';
-	
+
 	// Function to render/re-render calendar
 	function renderCalendar() {
 		calendarGrid.innerHTML = '';
 		monthLabel.textContent = `${monthNames[currentMonth]} ${currentYear}`;
-		
+
 		// Day headers
 		const dayNames = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
 		dayNames.forEach(day => {
@@ -7225,104 +7236,104 @@ function openPaymentDateDialog(saleId, anchorX, anchorY, onCloseCallback) {
 			dayHeader.textContent = day;
 			calendarGrid.appendChild(dayHeader);
 		});
-		
+
 		// Get first day of month and number of days
 		const firstDay = new Date(currentYear, currentMonth, 1).getDay();
 		const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-		
+
 		// Días del mes anterior
 		const prevMonthDays = new Date(currentYear, currentMonth, 0).getDate();
 		const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
 		const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
-		
+
 		for (let i = firstDay - 1; i >= 0; i--) {
 			const day = prevMonthDays - i;
 			const dayCell = document.createElement('div');
 			dayCell.className = 'calendar-day other-month';
 			dayCell.textContent = day;
 			dayCell.style.opacity = '0.4';
-			
+
 			const cellDate = new Date(prevYear, prevMonth, day);
-			
+
 			// Check if this date is selected
-			if (selectedDate && 
-				selectedDate.getDate() === day && 
-				selectedDate.getMonth() === prevMonth && 
+			if (selectedDate &&
+				selectedDate.getDate() === day &&
+				selectedDate.getMonth() === prevMonth &&
 				selectedDate.getFullYear() === prevYear) {
 				dayCell.classList.add('selected');
 				dayCell.style.opacity = '1';
 			}
-			
+
 			dayCell.addEventListener('click', () => {
 				document.querySelectorAll('.calendar-day').forEach(d => d.classList.remove('selected'));
 				dayCell.classList.add('selected');
 				selectedDate = new Date(prevYear, prevMonth, day);
 			});
-			
+
 			calendarGrid.appendChild(dayCell);
 		}
-		
+
 		// Días del mes actual
 		for (let day = 1; day <= daysInMonth; day++) {
 			const dayCell = document.createElement('div');
 			dayCell.className = 'calendar-day';
 			dayCell.textContent = day;
-			
+
 			const cellDate = new Date(currentYear, currentMonth, day);
 			if (cellDate.toDateString() === today.toDateString()) {
 				dayCell.classList.add('today');
 			}
-			
+
 			// Check if this date is selected
-			if (selectedDate && 
-				selectedDate.getDate() === day && 
-				selectedDate.getMonth() === currentMonth && 
+			if (selectedDate &&
+				selectedDate.getDate() === day &&
+				selectedDate.getMonth() === currentMonth &&
 				selectedDate.getFullYear() === currentYear) {
 				dayCell.classList.add('selected');
 			}
-			
+
 			dayCell.addEventListener('click', () => {
 				document.querySelectorAll('.calendar-day').forEach(d => d.classList.remove('selected'));
 				dayCell.classList.add('selected');
 				selectedDate = new Date(currentYear, currentMonth, day);
 			});
-			
+
 			calendarGrid.appendChild(dayCell);
 		}
-		
+
 		// Días del mes siguiente
 		const totalCells = firstDay + daysInMonth;
 		const remainingCells = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
 		const nextMonth = currentMonth === 11 ? 0 : currentMonth + 1;
 		const nextYear = currentMonth === 11 ? currentYear + 1 : currentYear;
-		
+
 		for (let d = 1; d <= remainingCells; d++) {
 			const dayCell = document.createElement('div');
 			dayCell.className = 'calendar-day other-month';
 			dayCell.textContent = d;
 			dayCell.style.opacity = '0.4';
-			
+
 			const cellDate = new Date(nextYear, nextMonth, d);
-			
+
 			// Check if this date is selected
-			if (selectedDate && 
-				selectedDate.getDate() === d && 
-				selectedDate.getMonth() === nextMonth && 
+			if (selectedDate &&
+				selectedDate.getDate() === d &&
+				selectedDate.getMonth() === nextMonth &&
 				selectedDate.getFullYear() === nextYear) {
 				dayCell.classList.add('selected');
 				dayCell.style.opacity = '1';
 			}
-			
+
 			dayCell.addEventListener('click', () => {
 				document.querySelectorAll('.calendar-day').forEach(d => d.classList.remove('selected'));
 				dayCell.classList.add('selected');
 				selectedDate = new Date(nextYear, nextMonth, d);
 			});
-			
+
 			calendarGrid.appendChild(dayCell);
 		}
 	}
-	
+
 	// Add event listeners for prev/next buttons
 	prevBtn.addEventListener('click', (e) => {
 		e.preventDefault();
@@ -7333,7 +7344,7 @@ function openPaymentDateDialog(saleId, anchorX, anchorY, onCloseCallback) {
 		}
 		renderCalendar();
 	});
-	
+
 	nextBtn.addEventListener('click', (e) => {
 		e.preventDefault();
 		currentMonth++;
@@ -7343,23 +7354,23 @@ function openPaymentDateDialog(saleId, anchorX, anchorY, onCloseCallback) {
 		}
 		renderCalendar();
 	});
-	
+
 	calendarContainer.appendChild(calendarHeader);
 	calendarContainer.appendChild(calendarGrid);
-	
+
 	// Initial render
 	renderCalendar();
-	
+
 	// Payment method label
 	const methodLabel = document.createElement('div');
 	methodLabel.className = 'payment-date-label';
 	methodLabel.textContent = 'Fuente de pago:';
 	methodLabel.style.marginTop = '14px';
-	
+
 	// Payment method buttons - auto-save on click
 	const methodsContainer = document.createElement('div');
 	methodsContainer.className = 'payment-methods-container';
-	
+
 	const methods = [
 		{ value: 'bancolombia', label: 'Bancolombia' },
 		{ value: 'nequi', label: 'Nequi' },
@@ -7368,150 +7379,150 @@ function openPaymentDateDialog(saleId, anchorX, anchorY, onCloseCallback) {
 		{ value: 'bancolombia_aleja', label: 'Bancolombia Aleja' },
 		{ value: 'otro', label: 'Otro' }
 	];
-	
+
 	// Get previously selected source if exists (try multiple sources)
 	const previousSource = sale.payment_source || (sale._paymentInfo && sale._paymentInfo.source);
-	
+
 	methods.forEach(method => {
 		const btn = document.createElement('button');
 		btn.type = 'button';
 		btn.className = 'payment-method-btn';
 		btn.textContent = method.label;
 		btn.dataset.value = method.value;
-		
+
 		// Pre-select if this was the previously chosen source
 		// Check both label and value for matching
 		const isSelected = previousSource && (
-			method.label === previousSource || 
+			method.label === previousSource ||
 			method.label.toLowerCase() === previousSource.toLowerCase() ||
 			method.value === previousSource.toLowerCase()
 		);
-		
+
 		if (isSelected) {
 			btn.classList.add('selected');
 		}
-		
-	btn.addEventListener('click', async () => {
-		// Disable all buttons while saving
-		methodsContainer.querySelectorAll('button').forEach(b => b.disabled = true);
-		
-		try {
-			const paymentDate = selectedDate.toISOString().split('T')[0];
-			const paymentSource = method.label;
-			
-			// Get current sale data
-			const idx = state.sales.findIndex(s => s.id === saleId);
-			if (idx === -1) {
-				throw new Error('Venta no encontrada');
-			}
-			
-		const currentSale = state.sales[idx];
-		
-		// Update the database with payment date and source
-		// IMPORTANT: Include all fields to prevent overwriting existing data
-		// NOTE: payment_source is separate from pay_method to avoid overwriting old payment methods
-		const body = {
-			id: saleId,
-			seller_id: currentSale.seller_id,
-			sale_day_id: currentSale.sale_day_id,
-			client_name: currentSale.client_name || '',
-			payment_date: paymentDate,
-			payment_source: paymentSource,
-			comment_text: currentSale.comment_text || '',
-			is_paid: currentSale.is_paid || false,
-			_actor_name: state.actorName || ''
-		};
-		
-		// Include quantities for all desserts (support both formats)
-		if (Array.isArray(currentSale.items) && currentSale.items.length > 0) {
-			body.items = currentSale.items;
-		} else {
-			// Legacy format: include qty_* fields for all desserts (dynamic)
-			if (Array.isArray(state.desserts)) {
-				for (const d of state.desserts) {
-					const fieldName = `qty_${d.short_code}`;
-					body[fieldName] = currentSale[fieldName] || 0;
+
+		btn.addEventListener('click', async () => {
+			// Disable all buttons while saving
+			methodsContainer.querySelectorAll('button').forEach(b => b.disabled = true);
+
+			try {
+				const paymentDate = selectedDate.toISOString().split('T')[0];
+				const paymentSource = method.label;
+
+				// Get current sale data
+				const idx = state.sales.findIndex(s => s.id === saleId);
+				if (idx === -1) {
+					throw new Error('Venta no encontrada');
 				}
-			} else {
-				// Fallback to hardcoded original desserts
-				body.qty_arco = currentSale.qty_arco || 0;
-				body.qty_melo = currentSale.qty_melo || 0;
-				body.qty_mara = currentSale.qty_mara || 0;
-				body.qty_oreo = currentSale.qty_oreo || 0;
-				body.qty_nute = currentSale.qty_nute || 0;
-			}
-		}
-		
-		const updated = await api('PUT', API.Sales, body);
-			
-			// Update in memory
-			if (updated) {
-				state.sales[idx].payment_date = paymentDate;
-				state.sales[idx].payment_source = paymentSource;
-				state.sales[idx]._paymentInfo = {
-					date: paymentDate,
-					source: paymentSource,
-					sourceValue: method.value
+
+				const currentSale = state.sales[idx];
+
+				// Update the database with payment date and source
+				// IMPORTANT: Include all fields to prevent overwriting existing data
+				// NOTE: payment_source is separate from pay_method to avoid overwriting old payment methods
+				const body = {
+					id: saleId,
+					seller_id: currentSale.seller_id,
+					sale_day_id: currentSale.sale_day_id,
+					client_name: currentSale.client_name || '',
+					payment_date: paymentDate,
+					payment_source: paymentSource,
+					comment_text: currentSale.comment_text || '',
+					is_paid: currentSale.is_paid || false,
+					_actor_name: state.actorName || ''
 				};
-			}
-			
-			try { notify.success(`Fecha de pago guardada: ${paymentDate} - ${paymentSource}`); } catch {}
-			
-			// Save sale ID to preserve border after re-render
-			const preserveBorderForSaleId = saleId;
-			
-			cleanup(false); // Close popup without triggering fade yet
-			
-			// Refresh the UI to show the updated payment info
-			if (typeof renderSalesView === 'function') {
-				renderSalesView();
-			}
-			
-			// Re-apply border to the updated element and then fade it
-			setTimeout(() => {
-				// Find the new TD element for this sale after re-render
-				const allClientInputs = document.querySelectorAll('.client-input');
-				for (const input of allClientInputs) {
-					const td = input.closest('td');
-					const row = td?.closest('tr');
-					if (row && row.dataset.saleId == preserveBorderForSaleId) {
-						// Apply classes to show border
-						td.classList.add('action-bar-active');
-						// Then immediately start fade
-						requestAnimationFrame(() => {
-							td.classList.remove('action-bar-active');
-							td.classList.add('action-bar-fading');
-							setTimeout(() => {
-								td.classList.remove('action-bar-fading');
-							}, 2000);
-						});
-						break;
+
+				// Include quantities for all desserts (support both formats)
+				if (Array.isArray(currentSale.items) && currentSale.items.length > 0) {
+					body.items = currentSale.items;
+				} else {
+					// Legacy format: include qty_* fields for all desserts (dynamic)
+					if (Array.isArray(state.desserts)) {
+						for (const d of state.desserts) {
+							const fieldName = `qty_${d.short_code}`;
+							body[fieldName] = currentSale[fieldName] || 0;
+						}
+					} else {
+						// Fallback to hardcoded original desserts
+						body.qty_arco = currentSale.qty_arco || 0;
+						body.qty_melo = currentSale.qty_melo || 0;
+						body.qty_mara = currentSale.qty_mara || 0;
+						body.qty_oreo = currentSale.qty_oreo || 0;
+						body.qty_nute = currentSale.qty_nute || 0;
 					}
 				}
-			}, 50); // Small delay to ensure re-render is complete
-		} catch (e) {
-			console.error('Error al guardar fecha de pago:', e);
-			try { notify.error('Error al guardar: ' + (e.message || 'Error desconocido')); } catch {}
-			methodsContainer.querySelectorAll('button').forEach(b => b.disabled = false);
-		}
-	});
-		
+
+				const updated = await api('PUT', API.Sales, body);
+
+				// Update in memory
+				if (updated) {
+					state.sales[idx].payment_date = paymentDate;
+					state.sales[idx].payment_source = paymentSource;
+					state.sales[idx]._paymentInfo = {
+						date: paymentDate,
+						source: paymentSource,
+						sourceValue: method.value
+					};
+				}
+
+				try { notify.success(`Fecha de pago guardada: ${paymentDate} - ${paymentSource}`); } catch { }
+
+				// Save sale ID to preserve border after re-render
+				const preserveBorderForSaleId = saleId;
+
+				cleanup(false); // Close popup without triggering fade yet
+
+				// Refresh the UI to show the updated payment info
+				if (typeof renderSalesView === 'function') {
+					renderSalesView();
+				}
+
+				// Re-apply border to the updated element and then fade it
+				setTimeout(() => {
+					// Find the new TD element for this sale after re-render
+					const allClientInputs = document.querySelectorAll('.client-input');
+					for (const input of allClientInputs) {
+						const td = input.closest('td');
+						const row = td?.closest('tr');
+						if (row && row.dataset.saleId == preserveBorderForSaleId) {
+							// Apply classes to show border
+							td.classList.add('action-bar-active');
+							// Then immediately start fade
+							requestAnimationFrame(() => {
+								td.classList.remove('action-bar-active');
+								td.classList.add('action-bar-fading');
+								setTimeout(() => {
+									td.classList.remove('action-bar-fading');
+								}, 2000);
+							});
+							break;
+						}
+					}
+				}, 50); // Small delay to ensure re-render is complete
+			} catch (e) {
+				console.error('Error al guardar fecha de pago:', e);
+				try { notify.error('Error al guardar: ' + (e.message || 'Error desconocido')); } catch { }
+				methodsContainer.querySelectorAll('button').forEach(b => b.disabled = false);
+			}
+		});
+
 		methodsContainer.appendChild(btn);
 	});
-	
+
 	pop.append(title, calendarContainer, methodLabel, methodsContainer);
 	document.body.appendChild(pop);
-	
+
 	// Position popover in center of viewport after appending to measure dimensions
 	requestAnimationFrame(() => {
 		const popRect = pop.getBoundingClientRect();
 		const viewportWidth = window.innerWidth;
 		const viewportHeight = window.innerHeight;
-		
+
 		// Calculate center position
 		let left = (viewportWidth - popRect.width) / 2;
 		let top = (viewportHeight - popRect.height) / 2;
-		
+
 		// Ensure popover stays within viewport bounds with padding
 		const padding = 16;
 		if (left < padding) left = padding;
@@ -7522,12 +7533,12 @@ function openPaymentDateDialog(saleId, anchorX, anchorY, onCloseCallback) {
 		if (top + popRect.height > viewportHeight - padding) {
 			top = viewportHeight - popRect.height - padding;
 		}
-		
+
 		pop.style.left = left + 'px';
 		pop.style.top = top + 'px';
 		pop.style.transform = 'none';
 	});
-	
+
 	function cleanup(triggerFade = true) {
 		document.removeEventListener('mousedown', outside, true);
 		document.removeEventListener('touchstart', outside, true);
@@ -7537,11 +7548,11 @@ function openPaymentDateDialog(saleId, anchorX, anchorY, onCloseCallback) {
 			onCloseCallback();
 		}
 	}
-	
+
 	function outside(ev) {
 		if (!pop.contains(ev.target)) cleanup(true); // Manual close, trigger fade
 	}
-	
+
 	setTimeout(() => {
 		document.addEventListener('mousedown', outside, true);
 		document.addEventListener('touchstart', outside, true);
@@ -7554,19 +7565,19 @@ let activeClientActionBar = null;
 function openClientActionBar(tdElement, saleId, clientName, clickX, clickY) {
 	// Close any existing action bar
 	closeClientActionBar();
-	
+
 	// Create action bar
 	const actionBar = document.createElement('div');
 	actionBar.className = 'client-action-bar';
 	actionBar.style.position = 'fixed';
-	
+
 	// Position at click coordinates if provided
 	if (typeof clickX === 'number' && typeof clickY === 'number') {
 		actionBar.style.left = clickX + 'px';
 		actionBar.style.top = (clickY - 10) + 'px'; // 10px above click
 		actionBar.style.transform = 'translate(-50%, -100%)';
 	}
-	
+
 	// Edit button (opens edit popover or shows lock message)
 	const editBtn = document.createElement('button');
 	editBtn.className = 'client-action-bar-btn';
@@ -7578,7 +7589,7 @@ function openClientActionBar(tdElement, saleId, clientName, clickX, clickY) {
 		const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
 		const locked = String(sale?.pay_method || '').trim() !== '';
 		if (!isAdminUser && locked) {
-			try { notify.error('Ya no es posible editar este pedido ya que ha sido entregado al cliente. Para editarlo por favor pide soporte.'); } catch {}
+			try { notify.error('Ya no es posible editar este pedido ya que ha sido entregado al cliente. Para editarlo por favor pide soporte.'); } catch { }
 			return;
 		}
 		// Hide the action bar but keep the outline active
@@ -7589,7 +7600,7 @@ function openClientActionBar(tdElement, saleId, clientName, clickX, clickY) {
 			closeClientActionBar();
 		});
 	});
-	
+
 	// Comment button (opens comment dialog directly)
 	const commentBtn = document.createElement('button');
 	commentBtn.className = 'client-action-bar-btn';
@@ -7614,7 +7625,7 @@ function openClientActionBar(tdElement, saleId, clientName, clickX, clickY) {
 			renderTable();
 		}
 	});
-	
+
 	// History button (opens client detail view)
 	const historyBtn = document.createElement('button');
 	historyBtn.className = 'client-action-bar-btn';
@@ -7628,84 +7639,84 @@ function openClientActionBar(tdElement, saleId, clientName, clickX, clickY) {
 			await openClientDetailView(clientName.trim());
 		}
 	});
-	
+
 	actionBar.appendChild(editBtn);
 	actionBar.appendChild(commentBtn);
 	actionBar.appendChild(historyBtn);
-	
+
 	// Payment date button (only for superadmin)
 	const isSuperAdmin = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 	if (isSuperAdmin) {
 		const paymentBtn = document.createElement('button');
 		paymentBtn.className = 'client-action-bar-btn';
-		
+
 		// Get sale data to check if payment date is set
 		const sale = state.sales.find(s => s.id === saleId);
-	// Check if sale has transfer/bank method to show receipts gallery instead
-	const payMethod = (sale?.pay_method || '').toLowerCase();
-	const isTransferMethod = payMethod === 'transf' || payMethod === 'jorgebank';
-	
-	const hasPaymentInfo = sale?.payment_date && (sale?.payment_source || sale?.pay_method);
-	
-	if (hasPaymentInfo) {
-		// Format date for display (DD/MM)
-		const dateStr = sale.payment_date;
-		const dateParts = dateStr.split('-');
-		const displayDate = dateParts.length >= 3 ? `${dateParts[2]}/${dateParts[1]}` : dateStr;
-		const sourceOrMethod = sale.payment_source || sale.pay_method || '';
-		paymentBtn.innerHTML = `<span class="client-action-bar-btn-icon">📅</span><span class="client-action-bar-btn-label">${displayDate}</span>`;
-		paymentBtn.title = `Fecha de pago: ${displayDate}${sourceOrMethod ? ' - ' + sourceOrMethod : ''}`;
-		paymentBtn.style.fontWeight = 'bold';
-	} else if (isTransferMethod) {
-		// For transfer methods, show "Ver comprobantes" instead
-		paymentBtn.innerHTML = '<span class="client-action-bar-btn-icon">📷</span><span class="client-action-bar-btn-label">Comprobantes</span>';
-		paymentBtn.title = 'Ver y gestionar comprobantes de pago';
-	} else {
-		paymentBtn.innerHTML = '<span class="client-action-bar-btn-icon">📅</span><span class="client-action-bar-btn-label">Fecha</span>';
-		paymentBtn.title = 'Fecha y método de pago';
-	}
-	
-	paymentBtn.addEventListener('click', (e) => {
-		e.stopPropagation();
-		const btnClickX = e.clientX;
-		const btnClickY = e.clientY;
-		// Hide the action bar but keep the outline active
-		actionBar.classList.remove('active');
-		
-		// If transfer/bank method, open receipts gallery instead of single date dialog
-		if (isTransferMethod) {
-			openReceiptsGalleryPopover(saleId, btnClickX, btnClickY);
-			closeClientActionBar();
+		// Check if sale has transfer/bank method to show receipts gallery instead
+		const payMethod = (sale?.pay_method || '').toLowerCase();
+		const isTransferMethod = payMethod === 'transf' || payMethod === 'jorgebank';
+
+		const hasPaymentInfo = sale?.payment_date && (sale?.payment_source || sale?.pay_method);
+
+		if (hasPaymentInfo) {
+			// Format date for display (DD/MM)
+			const dateStr = sale.payment_date;
+			const dateParts = dateStr.split('-');
+			const displayDate = dateParts.length >= 3 ? `${dateParts[2]}/${dateParts[1]}` : dateStr;
+			const sourceOrMethod = sale.payment_source || sale.pay_method || '';
+			paymentBtn.innerHTML = `<span class="client-action-bar-btn-icon">📅</span><span class="client-action-bar-btn-label">${displayDate}</span>`;
+			paymentBtn.title = `Fecha de pago: ${displayDate}${sourceOrMethod ? ' - ' + sourceOrMethod : ''}`;
+			paymentBtn.style.fontWeight = 'bold';
+		} else if (isTransferMethod) {
+			// For transfer methods, show "Ver comprobantes" instead
+			paymentBtn.innerHTML = '<span class="client-action-bar-btn-icon">📷</span><span class="client-action-bar-btn-label">Comprobantes</span>';
+			paymentBtn.title = 'Ver y gestionar comprobantes de pago';
 		} else {
-			// For other methods, use the single date dialog
-			openPaymentDateDialog(saleId, btnClickX, btnClickY, () => {
-				closeClientActionBar();
-			});
+			paymentBtn.innerHTML = '<span class="client-action-bar-btn-icon">📅</span><span class="client-action-bar-btn-label">Fecha</span>';
+			paymentBtn.title = 'Fecha y método de pago';
 		}
-	});
+
+		paymentBtn.addEventListener('click', (e) => {
+			e.stopPropagation();
+			const btnClickX = e.clientX;
+			const btnClickY = e.clientY;
+			// Hide the action bar but keep the outline active
+			actionBar.classList.remove('active');
+
+			// If transfer/bank method, open receipts gallery instead of single date dialog
+			if (isTransferMethod) {
+				openReceiptsGalleryPopover(saleId, btnClickX, btnClickY);
+				closeClientActionBar();
+			} else {
+				// For other methods, use the single date dialog
+				openPaymentDateDialog(saleId, btnClickX, btnClickY, () => {
+					closeClientActionBar();
+				});
+			}
+		});
 		actionBar.appendChild(paymentBtn);
 	}
-	
+
 	tdElement.appendChild(actionBar);
 	tdElement.classList.add('action-bar-active');
-	
+
 	// Show with animation
 	setTimeout(() => actionBar.classList.add('active'), 10);
-	
+
 	activeClientActionBar = { bar: actionBar, td: tdElement };
-	
+
 	// Close on outside click
 	const outsideClick = (e) => {
 		if (!tdElement.contains(e.target)) {
 			closeClientActionBar();
 		}
 	};
-	
+
 	setTimeout(() => {
 		document.addEventListener('mousedown', outsideClick, true);
 		document.addEventListener('touchstart', outsideClick, true);
 	}, 0);
-	
+
 	// Store cleanup function
 	activeClientActionBar.cleanup = () => {
 		document.removeEventListener('mousedown', outsideClick, true);
@@ -7723,11 +7734,11 @@ function closeClientActionBar(skipFade = false) {
 		}
 		if (activeClientActionBar.td && !skipFade) {
 			const td = activeClientActionBar.td;
-			
+
 			// Remove active class and add fading class to start fade animation
 			td.classList.remove('action-bar-active');
 			td.classList.add('action-bar-fading');
-			
+
 			// After 2 seconds, remove the fading class
 			setTimeout(() => {
 				td.classList.remove('action-bar-fading');
@@ -7746,22 +7757,22 @@ if (!('saleDays' in state)) state.saleDays = [];
 if (!('selectedDayId' in state)) state.selectedDayId = null;
 
 // Enhance events
-(function enhanceDateEvents(){
+(function enhanceDateEvents() {
 	const addBtn = document.getElementById('add-date');
 	addBtn?.addEventListener('click', addNewDate);
 })();
 
 // Update enterSeller to load dates
-(async function patchEnterSeller(){
+(async function patchEnterSeller() {
 	const origEnter = enterSeller;
-	enterSeller = async function(id) {
+	enterSeller = async function (id) {
 		await origEnter(id);
 		await loadDaysForSeller();
 	};
 })();
 
 // Update '+ Nueva Fecha' to use the custom calendar
-(function enhanceStaticButtons(){
+(function enhanceStaticButtons() {
 	const newBtn = document.getElementById('date-new');
 	newBtn?.addEventListener('click', (ev) => {
 		const rect = ev.currentTarget.getBoundingClientRect();
@@ -7840,7 +7851,7 @@ async function openArchiveManager(anchorX, anchorY, sellerName) {
 			const un = document.createElement('button'); un.className = 'press-btn'; un.textContent = 'Desarchivar';
 			un.addEventListener('click', async () => {
 				await api('PATCH', '/api/days', { id: d.id, is_archived: false });
-				try { notify.success('Fecha desarchivada'); } catch {}
+				try { notify.success('Fecha desarchivada'); } catch { }
 				if (pop.parentNode) pop.parentNode.removeChild(pop);
 				await loadDaysForSeller();
 			});
@@ -7852,9 +7863,9 @@ async function openArchiveManager(anchorX, anchorY, sellerName) {
 	const applyBtn = document.createElement('button'); applyBtn.className = 'press-btn btn-primary'; applyBtn.textContent = 'Archivar seleccionadas';
 	applyBtn.addEventListener('click', async () => {
 		const ids = Array.from(listWrap.querySelectorAll('input[type="checkbox"]')).filter(i => i.checked).map(i => Number(i.value)).filter(Boolean);
-		if (ids.length === 0) { try { notify.info('Selecciona al menos una fecha'); } catch {} return; }
+		if (ids.length === 0) { try { notify.info('Selecciona al menos una fecha'); } catch { } return; }
 		await api('PATCH', '/api/days', { ids, is_archived: true });
-		try { notify.success('Fechas archivadas'); } catch {}
+		try { notify.success('Fechas archivadas'); } catch { }
 		if (pop.parentNode) pop.parentNode.removeChild(pop);
 		await loadDaysForSeller();
 	});
@@ -7896,135 +7907,135 @@ function normalizeClientName(value) {
 
 // Autocomplete: ensure global datalist element for client suggestions exists
 function ensureClientDatalist() {
-    let dl = document.getElementById('client-datalist');
-    if (!dl) {
-        dl = document.createElement('datalist');
-        dl.id = 'client-datalist';
-        document.body.appendChild(dl);
-    }
-    return dl;
+	let dl = document.getElementById('client-datalist');
+	if (!dl) {
+		dl = document.createElement('datalist');
+		dl.id = 'client-datalist';
+		document.body.appendChild(dl);
+	}
+	return dl;
 }
 
 // Autocomplete: update datalist options based on current query
 function updateClientDatalistForQuery(queryRaw) {
-    const dl = ensureClientDatalist();
-    const list = Array.isArray(state.clientSuggestions) ? state.clientSuggestions : [];
-    const q = normalizeClientName(queryRaw || '');
-    // Rebuild <option> list and only show suggestions when user typed something
-    dl.innerHTML = '';
-    if (!q) return; // do not show any options until typing begins
-    // Match typed sequence anywhere in the name
-    const filtered = list.filter(it => (it.key || '').includes(q)).slice(0, 12);
-    for (const it of filtered) {
-        const opt = document.createElement('option');
-        opt.value = it.name;
-        dl.appendChild(opt);
-    }
+	const dl = ensureClientDatalist();
+	const list = Array.isArray(state.clientSuggestions) ? state.clientSuggestions : [];
+	const q = normalizeClientName(queryRaw || '');
+	// Rebuild <option> list and only show suggestions when user typed something
+	dl.innerHTML = '';
+	if (!q) return; // do not show any options until typing begins
+	// Match typed sequence anywhere in the name
+	const filtered = list.filter(it => (it.key || '').includes(q)).slice(0, 12);
+	for (const it of filtered) {
+		const opt = document.createElement('option');
+		opt.value = it.name;
+		dl.appendChild(opt);
+	}
 }
 
 // Autocomplete: attach to a given client input element
 function wireClientAutocompleteForInput(inputEl) {
-    if (!(inputEl instanceof HTMLInputElement)) return;
-    // Attach datalist and refresh on user input/focus
-    inputEl.setAttribute('list', 'client-datalist');
-    const refresh = () => updateClientDatalistForQuery(inputEl.value || '');
-    // Avoid duplicate listeners
-    if (inputEl.dataset.autoCompleteBound === '1') { refresh(); return; }
-    inputEl.dataset.autoCompleteBound = '1';
-    // Show suggestions only after typing begins
-    inputEl.addEventListener('input', refresh);
+	if (!(inputEl instanceof HTMLInputElement)) return;
+	// Attach datalist and refresh on user input/focus
+	inputEl.setAttribute('list', 'client-datalist');
+	const refresh = () => updateClientDatalistForQuery(inputEl.value || '');
+	// Avoid duplicate listeners
+	if (inputEl.dataset.autoCompleteBound === '1') { refresh(); return; }
+	inputEl.dataset.autoCompleteBound = '1';
+	// Show suggestions only after typing begins
+	inputEl.addEventListener('input', refresh);
 }
 
 // Global autocomplete: ensure global datalist element for global client suggestions exists
 function ensureGlobalClientDatalist() {
-    let dl = document.getElementById('global-client-datalist');
-    if (!dl) {
-        dl = document.createElement('datalist');
-        dl.id = 'global-client-datalist';
-        document.body.appendChild(dl);
-    }
-    return dl;
+	let dl = document.getElementById('global-client-datalist');
+	if (!dl) {
+		dl = document.createElement('datalist');
+		dl.id = 'global-client-datalist';
+		document.body.appendChild(dl);
+	}
+	return dl;
 }
 
 // Global autocomplete: update datalist options based on current query using global suggestions
 function updateGlobalClientDatalistForQuery(queryRaw) {
-    const dl = ensureGlobalClientDatalist();
-    const list = Array.isArray(state.globalClientSuggestions) ? state.globalClientSuggestions : [];
-    const q = normalizeClientName(queryRaw || '');
-    // Rebuild <option> list and only show suggestions when user typed something
-    dl.innerHTML = '';
-    if (!q) return; // do not show any options until typing begins
-    // Match typed sequence anywhere in the name
-    const filtered = list.filter(it => (it.key || '').includes(q)).slice(0, 12);
-    for (const it of filtered) {
-        const opt = document.createElement('option');
-        opt.value = it.name;
-        dl.appendChild(opt);
-    }
+	const dl = ensureGlobalClientDatalist();
+	const list = Array.isArray(state.globalClientSuggestions) ? state.globalClientSuggestions : [];
+	const q = normalizeClientName(queryRaw || '');
+	// Rebuild <option> list and only show suggestions when user typed something
+	dl.innerHTML = '';
+	if (!q) return; // do not show any options until typing begins
+	// Match typed sequence anywhere in the name
+	const filtered = list.filter(it => (it.key || '').includes(q)).slice(0, 12);
+	for (const it of filtered) {
+		const opt = document.createElement('option');
+		opt.value = it.name;
+		dl.appendChild(opt);
+	}
 }
 
 // Global autocomplete: attach custom dropdown to input element (for global search)
 function wireGlobalClientAutocompleteForInput(inputEl) {
-    if (!(inputEl instanceof HTMLInputElement)) return;
-    if (inputEl.dataset.globalAutoCompleteBound === '1') return;
-    inputEl.dataset.globalAutoCompleteBound = '1';
-    
-    // Remove datalist if it exists (we'll use custom dropdown)
-    inputEl.removeAttribute('list');
-    
-    // Create custom dropdown
-    let dropdown = document.createElement('div');
-    dropdown.className = 'client-search-dropdown';
-    dropdown.style.display = 'none';
-    inputEl.parentElement?.appendChild(dropdown);
-    
-    function updateDropdown() {
-        const query = inputEl.value.trim();
-        const list = Array.isArray(state.globalClientSuggestions) ? state.globalClientSuggestions : [];
-        const q = normalizeClientName(query || '');
-        
-        if (!q) {
-            dropdown.style.display = 'none';
-            dropdown.innerHTML = '';
-            return;
-        }
-        
-        // Filter suggestions - match typed sequence anywhere in the name
-        const filtered = list.filter(it => (it.key || '').includes(q)).slice(0, 12);
-        
-        if (filtered.length === 0) {
-            dropdown.style.display = 'none';
-            dropdown.innerHTML = '';
-            return;
-        }
-        
-        // Render dropdown
-        dropdown.innerHTML = '';
-        filtered.forEach(item => {
-            const option = document.createElement('div');
-            option.className = 'client-search-option';
-            option.textContent = item.name;
-            option.addEventListener('mousedown', (e) => {
-                e.preventDefault(); // Prevent blur
-                inputEl.value = item.name;
-                dropdown.style.display = 'none';
-                // Trigger navigation
-                inputEl.dispatchEvent(new Event('client-selected', { bubbles: true }));
-            });
-            dropdown.appendChild(option);
-        });
-        
-        dropdown.style.display = 'block';
-    }
-    
-    inputEl.addEventListener('input', updateDropdown);
-    inputEl.addEventListener('focus', updateDropdown);
-    inputEl.addEventListener('blur', () => {
-        // Delay to allow click on option
-        setTimeout(() => {
-            dropdown.style.display = 'none';
-        }, 200);
-    });
+	if (!(inputEl instanceof HTMLInputElement)) return;
+	if (inputEl.dataset.globalAutoCompleteBound === '1') return;
+	inputEl.dataset.globalAutoCompleteBound = '1';
+
+	// Remove datalist if it exists (we'll use custom dropdown)
+	inputEl.removeAttribute('list');
+
+	// Create custom dropdown
+	let dropdown = document.createElement('div');
+	dropdown.className = 'client-search-dropdown';
+	dropdown.style.display = 'none';
+	inputEl.parentElement?.appendChild(dropdown);
+
+	function updateDropdown() {
+		const query = inputEl.value.trim();
+		const list = Array.isArray(state.globalClientSuggestions) ? state.globalClientSuggestions : [];
+		const q = normalizeClientName(query || '');
+
+		if (!q) {
+			dropdown.style.display = 'none';
+			dropdown.innerHTML = '';
+			return;
+		}
+
+		// Filter suggestions - match typed sequence anywhere in the name
+		const filtered = list.filter(it => (it.key || '').includes(q)).slice(0, 12);
+
+		if (filtered.length === 0) {
+			dropdown.style.display = 'none';
+			dropdown.innerHTML = '';
+			return;
+		}
+
+		// Render dropdown
+		dropdown.innerHTML = '';
+		filtered.forEach(item => {
+			const option = document.createElement('div');
+			option.className = 'client-search-option';
+			option.textContent = item.name;
+			option.addEventListener('mousedown', (e) => {
+				e.preventDefault(); // Prevent blur
+				inputEl.value = item.name;
+				dropdown.style.display = 'none';
+				// Trigger navigation
+				inputEl.dispatchEvent(new Event('client-selected', { bubbles: true }));
+			});
+			dropdown.appendChild(option);
+		});
+
+		dropdown.style.display = 'block';
+	}
+
+	inputEl.addEventListener('input', updateDropdown);
+	inputEl.addEventListener('focus', updateDropdown);
+	inputEl.addEventListener('blur', () => {
+		// Delay to allow click on option
+		setTimeout(() => {
+			dropdown.style.display = 'none';
+		}, 200);
+	});
 }
 
 async function openClientsView() {
@@ -8050,7 +8061,7 @@ async function loadClientsForSeller() {
 			nameToCount.get(key).count++;
 		}
 	}
-	const rows = Array.from(nameToCount.values()).sort((a,b) => a.name.localeCompare(b.name, 'es'));
+	const rows = Array.from(nameToCount.values()).sort((a, b) => a.name.localeCompare(b.name, 'es'));
 	renderClientsTable(rows);
 }
 
@@ -8091,11 +8102,11 @@ function focusClientRow(name) {
 			if (v === targetLower) { targetTr = tr; break; }
 			if (!targetTr && v.includes(targetLower)) { targetTr = tr; }
 		}
-		if (!targetTr) { try { notify.info('Cliente no encontrado en esta fecha'); } catch {} return; }
+		if (!targetTr) { try { notify.info('Cliente no encontrado en esta fecha'); } catch { } return; }
 		targetTr.scrollIntoView({ behavior: 'smooth', block: 'center' });
 		targetTr.classList.add('row-highlight');
 		setTimeout(() => targetTr.classList.remove('row-highlight'), 3200);
-	} catch {}
+	} catch { }
 }
 
 // Focus and highlight a sale row by its sale_id in the current table
@@ -8123,7 +8134,7 @@ async function resolveSaleContextBySaleId(rowId) {
 			if (fast && Number(fast.seller_id) && Number(fast.sale_day_id)) {
 				return { sellerId: Number(fast.seller_id), saleDayId: Number(fast.sale_day_id) };
 			}
-		} catch {}
+		} catch { }
 		const sellers = await api('GET', API.Sellers);
 		for (const s of (sellers || [])) {
 			const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(s.id)}`);
@@ -8136,7 +8147,7 @@ async function resolveSaleContextBySaleId(rowId) {
 				}
 			}
 		}
-	} catch {}
+	} catch { }
 	return null;
 }
 
@@ -8170,7 +8181,7 @@ async function goToSaleFromDeepLink(sellerId, saleDayId, saleId) {
 			}
 		} else {
 			// If we still don't know seller and there is no currentSeller, abort quietly
-			if (!state.currentSeller) { try { notify.info('No se pudo ubicar el vendedor del movimiento'); } catch {} return; }
+			if (!state.currentSeller) { try { notify.info('No se pudo ubicar el vendedor del movimiento'); } catch { } return; }
 		}
 
 		// Ensure days are loaded, select the target day, and load sales
@@ -8193,15 +8204,15 @@ async function goToSaleFromDeepLink(sellerId, saleDayId, saleId) {
 		// Focus the specific row if provided
 		if (rowId) {
 			const ok = focusSaleRowById(rowId);
-			if (!ok) { try { notify.info('Registro no encontrado en esta fecha'); } catch {} }
+			if (!ok) { try { notify.info('Registro no encontrado en esta fecha'); } catch { } }
 		} else {
 			// If only date was provided, bring table into view
 			document.getElementById('sales-table')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 		}
-	} catch {}
+	} catch { }
 }
 
-(function wireClientsButton(){
+(function wireClientsButton() {
 	const btn = document.getElementById('clients-button');
 	if (!btn) return;
 	btn.addEventListener('click', async () => {
@@ -8209,369 +8220,369 @@ async function goToSaleFromDeepLink(sellerId, saleDayId, saleId) {
 	});
 })();
 
-(function bindBottomAdd(){
-    const btn = document.getElementById('add-row-bottom');
-    btn?.addEventListener('click', (ev) => {
-        const rect = ev.currentTarget.getBoundingClientRect();
-        openNewSalePopover(rect.left + rect.width / 2, rect.bottom + 8);
-    });
+(function bindBottomAdd() {
+	const btn = document.getElementById('add-row-bottom');
+	btn?.addEventListener('click', (ev) => {
+		const rect = ev.currentTarget.getBoundingClientRect();
+		openNewSalePopover(rect.left + rect.width / 2, rect.bottom + 8);
+	});
 })();
 
 // Open inline upload dialog (keeps user on the sales table)
 function openReceiptUploadPage(saleId) {
-    try { openInlineFileUploadDialog(Number(saleId)); } catch (err) { console.error('❌ Error opening inline upload:', err); }
+	try { openInlineFileUploadDialog(Number(saleId)); } catch (err) { console.error('❌ Error opening inline upload:', err); }
 }
 
 // Inline popover to upload one or more receipt images for a sale
 function openInlineFileUploadDialog(saleId) {
-    const id = Number(saleId);
-    if (!id) { console.error('❌ openInlineFileUploadDialog: invalid saleId', saleId); return; }
+	const id = Number(saleId);
+	if (!id) { console.error('❌ openInlineFileUploadDialog: invalid saleId', saleId); return; }
 
-    // If there are existing receipts, prefer opening gallery instead
-    (async () => {
-        try {
-            const existing = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(id)}`);
-            if (Array.isArray(existing) && existing.length > 0) {
-                openReceiptsGalleryPopover(id, window.innerWidth / 2, window.innerHeight / 2);
-                return;
-            }
-        } catch {}
+	// If there are existing receipts, prefer opening gallery instead
+	(async () => {
+		try {
+			const existing = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(id)}`);
+			if (Array.isArray(existing) && existing.length > 0) {
+				openReceiptsGalleryPopover(id, window.innerWidth / 2, window.innerHeight / 2);
+				return;
+			}
+		} catch { }
 
-        // Ensure animations are present once
-        try {
-            if (!document.getElementById('upload-popover-animations')) {
-                const style = document.createElement('style');
-                style.id = 'upload-popover-animations';
-                style.textContent = `
+		// Ensure animations are present once
+		try {
+			if (!document.getElementById('upload-popover-animations')) {
+				const style = document.createElement('style');
+				style.id = 'upload-popover-animations';
+				style.textContent = `
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
 @keyframes dialogFadeIn { from { opacity: 0; transform: translateY(-16px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes successPop { 0% { transform: scale(0); } 60% { transform: scale(1.12); } 100% { transform: scale(1); } }
 `;
-                document.head.appendChild(style);
-            }
-        } catch {}
+				document.head.appendChild(style);
+			}
+		} catch { }
 
-        const overlay = document.createElement('div');
-        overlay.style.position = 'fixed';
-        overlay.style.inset = '0';
-        overlay.style.background = 'rgba(17, 24, 39, 0.55)';
-        overlay.style.backdropFilter = 'blur(6px)';
-        overlay.style.display = 'flex';
-        overlay.style.alignItems = 'center';
-        overlay.style.justifyContent = 'center';
-        overlay.style.zIndex = '9999';
-        overlay.style.animation = 'fadeIn 180ms ease-out';
+		const overlay = document.createElement('div');
+		overlay.style.position = 'fixed';
+		overlay.style.inset = '0';
+		overlay.style.background = 'rgba(17, 24, 39, 0.55)';
+		overlay.style.backdropFilter = 'blur(6px)';
+		overlay.style.display = 'flex';
+		overlay.style.alignItems = 'center';
+		overlay.style.justifyContent = 'center';
+		overlay.style.zIndex = '9999';
+		overlay.style.animation = 'fadeIn 180ms ease-out';
 
-        const dialog = document.createElement('div');
-        dialog.style.width = 'min(92vw, 560px)';
-        dialog.style.maxHeight = '86vh';
-        dialog.style.overflow = 'auto';
-        dialog.style.background = '#fff';
-        dialog.style.borderRadius = '14px';
-        dialog.style.boxShadow = '0 12px 40px rgba(0,0,0,0.25)';
-        dialog.style.padding = '18px 16px 14px';
-        dialog.style.animation = 'dialogFadeIn 160ms ease-out';
+		const dialog = document.createElement('div');
+		dialog.style.width = 'min(92vw, 560px)';
+		dialog.style.maxHeight = '86vh';
+		dialog.style.overflow = 'auto';
+		dialog.style.background = '#fff';
+		dialog.style.borderRadius = '14px';
+		dialog.style.boxShadow = '0 12px 40px rgba(0,0,0,0.25)';
+		dialog.style.padding = '18px 16px 14px';
+		dialog.style.animation = 'dialogFadeIn 160ms ease-out';
 
-        const title = document.createElement('div');
-        title.textContent = 'Subir comprobante';
-        title.style.fontSize = '20px';
-        title.style.fontWeight = '700';
-        title.style.letterSpacing = '0.2px';
-        title.style.textAlign = 'center';
-        title.style.marginBottom = '10px';
-        title.style.color = '#d66686';
+		const title = document.createElement('div');
+		title.textContent = 'Subir comprobante';
+		title.style.fontSize = '20px';
+		title.style.fontWeight = '700';
+		title.style.letterSpacing = '0.2px';
+		title.style.textAlign = 'center';
+		title.style.marginBottom = '10px';
+		title.style.color = '#d66686';
 
-        const fileInputWrapper = document.createElement('div');
-        fileInputWrapper.style.border = 'none'; // remove dashed border
-        fileInputWrapper.style.borderRadius = '12px';
-        fileInputWrapper.style.padding = '8px 0 0';
-        fileInputWrapper.style.textAlign = 'center';
-        fileInputWrapper.style.background = '#fff';
-        fileInputWrapper.style.cursor = 'pointer';
+		const fileInputWrapper = document.createElement('div');
+		fileInputWrapper.style.border = 'none'; // remove dashed border
+		fileInputWrapper.style.borderRadius = '12px';
+		fileInputWrapper.style.padding = '8px 0 0';
+		fileInputWrapper.style.textAlign = 'center';
+		fileInputWrapper.style.background = '#fff';
+		fileInputWrapper.style.cursor = 'pointer';
 
-        const fileInput = document.createElement('input');
-        fileInput.type = 'file';
-        fileInput.accept = 'image/*';
-        fileInput.multiple = true;
-        fileInput.style.display = 'none';
-        const fileLabel = document.createElement('button');
-        fileLabel.type = 'button';
-        fileLabel.textContent = '📷 Escoger archivos';
-        fileLabel.className = 'press-btn btn-primary';
-        fileLabel.style.minWidth = '260px';
-        fileLabel.style.padding = '14px 22px';
-        fileLabel.style.fontSize = '16px';
-        fileLabel.style.borderRadius = '12px';
-        fileLabel.addEventListener('click', () => fileInput.click());
-        fileInputWrapper.addEventListener('click', (e) => { if (e.target === fileInputWrapper) fileInput.click(); });
+		const fileInput = document.createElement('input');
+		fileInput.type = 'file';
+		fileInput.accept = 'image/*';
+		fileInput.multiple = true;
+		fileInput.style.display = 'none';
+		const fileLabel = document.createElement('button');
+		fileLabel.type = 'button';
+		fileLabel.textContent = '📷 Escoger archivos';
+		fileLabel.className = 'press-btn btn-primary';
+		fileLabel.style.minWidth = '260px';
+		fileLabel.style.padding = '14px 22px';
+		fileLabel.style.fontSize = '16px';
+		fileLabel.style.borderRadius = '12px';
+		fileLabel.addEventListener('click', () => fileInput.click());
+		fileInputWrapper.addEventListener('click', (e) => { if (e.target === fileInputWrapper) fileInput.click(); });
 
-        fileInputWrapper.appendChild(fileLabel);
+		fileInputWrapper.appendChild(fileLabel);
 
-        const helpText = document.createElement('div');
-        helpText.textContent = 'JPG, PNG o HEIC. Puedes seleccionar varios.';
-        helpText.style.fontSize = '12px';
-        helpText.style.opacity = '0.7';
-        helpText.style.marginTop = '8px';
-        helpText.style.textAlign = 'center';
+		const helpText = document.createElement('div');
+		helpText.textContent = 'JPG, PNG o HEIC. Puedes seleccionar varios.';
+		helpText.style.fontSize = '12px';
+		helpText.style.opacity = '0.7';
+		helpText.style.marginTop = '8px';
+		helpText.style.textAlign = 'center';
 
-        const previewContainer = document.createElement('div');
-        previewContainer.style.marginTop = '12px';
-        const previewTitle = document.createElement('div');
-        previewTitle.textContent = 'Vista previa';
-        previewTitle.style.fontWeight = '600';
-        previewTitle.style.fontSize = '12px';
-        previewTitle.style.opacity = '0.8';
-        previewTitle.style.margin = '4px 0 6px';
-        const previewGrid = document.createElement('div');
-        previewGrid.style.display = 'grid';
-        previewGrid.style.gridTemplateColumns = 'repeat(3, 1fr)';
-        previewGrid.style.gap = '8px';
+		const previewContainer = document.createElement('div');
+		previewContainer.style.marginTop = '12px';
+		const previewTitle = document.createElement('div');
+		previewTitle.textContent = 'Vista previa';
+		previewTitle.style.fontWeight = '600';
+		previewTitle.style.fontSize = '12px';
+		previewTitle.style.opacity = '0.8';
+		previewTitle.style.margin = '4px 0 6px';
+		const previewGrid = document.createElement('div');
+		previewGrid.style.display = 'grid';
+		previewGrid.style.gridTemplateColumns = 'repeat(3, 1fr)';
+		previewGrid.style.gap = '8px';
 
-        const noteInputWrapper = document.createElement('div');
-        noteInputWrapper.style.position = 'relative';
-        noteInputWrapper.style.marginTop = '10px';
-        const noteInput = document.createElement('textarea');
-        noteInput.rows = 3;
-        noteInput.style.width = '100%';
-        noteInput.style.border = '2px solid #f4a6b7';
-        noteInput.style.borderRadius = '12px';
-        noteInput.style.padding = '14px 12px';
-        noteInput.style.fontSize = '14px';
-        noteInput.style.resize = 'vertical';
-        noteInput.style.textAlign = 'center';
-        noteInput.style.background = '#fff7fa';
-        const notePlaceholder = document.createElement('div');
-        notePlaceholder.textContent = 'Notas';
-        notePlaceholder.style.position = 'absolute';
-        notePlaceholder.style.left = '0';
-        notePlaceholder.style.right = '0';
-        notePlaceholder.style.top = '10px';
-        notePlaceholder.style.textAlign = 'center';
-        notePlaceholder.style.color = '#6b7280'; // darker for readability
-        notePlaceholder.style.fontWeight = '600';
-        notePlaceholder.style.background = 'transparent';
-        notePlaceholder.style.pointerEvents = 'none';
-        notePlaceholder.style.transition = 'opacity 140ms ease';
-        noteInput.addEventListener('focus', () => { notePlaceholder.style.opacity = '0'; });
-        noteInput.addEventListener('blur', () => { if (!noteInput.value.trim()) notePlaceholder.style.opacity = '1'; });
-        noteInputWrapper.appendChild(noteInput);
-        noteInputWrapper.appendChild(notePlaceholder);
+		const noteInputWrapper = document.createElement('div');
+		noteInputWrapper.style.position = 'relative';
+		noteInputWrapper.style.marginTop = '10px';
+		const noteInput = document.createElement('textarea');
+		noteInput.rows = 3;
+		noteInput.style.width = '100%';
+		noteInput.style.border = '2px solid #f4a6b7';
+		noteInput.style.borderRadius = '12px';
+		noteInput.style.padding = '14px 12px';
+		noteInput.style.fontSize = '14px';
+		noteInput.style.resize = 'vertical';
+		noteInput.style.textAlign = 'center';
+		noteInput.style.background = '#fff7fa';
+		const notePlaceholder = document.createElement('div');
+		notePlaceholder.textContent = 'Notas';
+		notePlaceholder.style.position = 'absolute';
+		notePlaceholder.style.left = '0';
+		notePlaceholder.style.right = '0';
+		notePlaceholder.style.top = '10px';
+		notePlaceholder.style.textAlign = 'center';
+		notePlaceholder.style.color = '#6b7280'; // darker for readability
+		notePlaceholder.style.fontWeight = '600';
+		notePlaceholder.style.background = 'transparent';
+		notePlaceholder.style.pointerEvents = 'none';
+		notePlaceholder.style.transition = 'opacity 140ms ease';
+		noteInput.addEventListener('focus', () => { notePlaceholder.style.opacity = '0'; });
+		noteInput.addEventListener('blur', () => { if (!noteInput.value.trim()) notePlaceholder.style.opacity = '1'; });
+		noteInputWrapper.appendChild(noteInput);
+		noteInputWrapper.appendChild(notePlaceholder);
 
-        const actions = document.createElement('div');
-        actions.style.display = 'flex';
-        actions.style.gap = '8px';
-        actions.style.justifyContent = 'center';
-        actions.style.marginTop = '12px';
-        const cancelBtn = document.createElement('button');
-        cancelBtn.type = 'button';
-        cancelBtn.textContent = 'Cancelar';
-        cancelBtn.className = 'press-btn';
-        const uploadMoreBtn = document.createElement('button');
-        uploadMoreBtn.type = 'button';
-        uploadMoreBtn.textContent = '➕ Subir más';
-        uploadMoreBtn.className = 'press-btn';
-        const uploadBtn = document.createElement('button');
-        uploadBtn.type = 'button';
-        uploadBtn.textContent = '✓ Subir 0 archivos';
-        uploadBtn.className = 'press-btn btn-primary';
+		const actions = document.createElement('div');
+		actions.style.display = 'flex';
+		actions.style.gap = '8px';
+		actions.style.justifyContent = 'center';
+		actions.style.marginTop = '12px';
+		const cancelBtn = document.createElement('button');
+		cancelBtn.type = 'button';
+		cancelBtn.textContent = 'Cancelar';
+		cancelBtn.className = 'press-btn';
+		const uploadMoreBtn = document.createElement('button');
+		uploadMoreBtn.type = 'button';
+		uploadMoreBtn.textContent = '➕ Subir más';
+		uploadMoreBtn.className = 'press-btn';
+		const uploadBtn = document.createElement('button');
+		uploadBtn.type = 'button';
+		uploadBtn.textContent = '✓ Subir 0 archivos';
+		uploadBtn.className = 'press-btn btn-primary';
 
-        actions.append(cancelBtn, uploadMoreBtn, uploadBtn);
+		actions.append(cancelBtn, uploadMoreBtn, uploadBtn);
 
-        // extra spacing around notes
-        dialog.append(title, fileInputWrapper, helpText, previewContainer);
-        const spacer = document.createElement('div');
-        spacer.style.height = '10px';
-        dialog.append(spacer, noteInputWrapper, actions);
-        previewContainer.append(previewTitle, previewGrid);
-        overlay.appendChild(dialog);
-        // Hidden input lives on overlay to keep outside layout clean
-        overlay.appendChild(fileInput);
-        document.body.appendChild(overlay);
+		// extra spacing around notes
+		dialog.append(title, fileInputWrapper, helpText, previewContainer);
+		const spacer = document.createElement('div');
+		spacer.style.height = '10px';
+		dialog.append(spacer, noteInputWrapper, actions);
+		previewContainer.append(previewTitle, previewGrid);
+		overlay.appendChild(dialog);
+		// Hidden input lives on overlay to keep outside layout clean
+		overlay.appendChild(fileInput);
+		document.body.appendChild(overlay);
 
-        let selectedFiles = [];
-        let isAddingMore = false;
+		let selectedFiles = [];
+		let isAddingMore = false;
 
-        function updateUploadButton() {
-            const n = selectedFiles.length;
-            uploadBtn.textContent = `✓ Subir ${n} archivo${n === 1 ? '' : 's'}`;
-            uploadBtn.disabled = n === 0;
-        }
+		function updateUploadButton() {
+			const n = selectedFiles.length;
+			uploadBtn.textContent = `✓ Subir ${n} archivo${n === 1 ? '' : 's'}`;
+			uploadBtn.disabled = n === 0;
+		}
 
-        function renderPreviews() {
-            previewGrid.innerHTML = '';
-            if (!selectedFiles.length) return;
-            selectedFiles.forEach((file, index) => {
-                const cont = document.createElement('div');
-                cont.style.position = 'relative';
-                cont.style.border = '1px solid #e5e7eb';
-                cont.style.borderRadius = '8px';
-                cont.style.overflow = 'hidden';
-                cont.style.aspectRatio = '1';
-                const img = document.createElement('img');
-                img.style.width = '100%';
-                img.style.height = '100%';
-                img.style.objectFit = 'cover';
-                const reader = new FileReader();
-                reader.onload = (e) => { img.src = e.target.result; };
-                reader.readAsDataURL(file);
-                // Toggle fullscreen preview on click
-                img.style.cursor = 'zoom-in';
-                img.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const lightbox = document.createElement('div');
-                    lightbox.className = 'image-lightbox';
-                    lightbox.style.position = 'fixed';
-                    lightbox.style.inset = '0';
-                    lightbox.style.background = 'rgba(0,0,0,0.9)';
-                    lightbox.style.zIndex = '10000';
-                    lightbox.style.display = 'flex';
-                    lightbox.style.alignItems = 'center';
-                    lightbox.style.justifyContent = 'center';
-                    lightbox.style.cursor = 'zoom-out';
-                    const full = document.createElement('img');
-                    full.src = img.src;
-                    full.style.maxWidth = '95%';
-                    full.style.maxHeight = '95%';
-                    full.style.objectFit = 'contain';
-                    lightbox.appendChild(full);
-                    const close = () => { if (lightbox.parentNode) lightbox.parentNode.removeChild(lightbox); };
-                    lightbox.addEventListener('click', (ev) => { ev.stopPropagation(); close(); });
-                    lightbox.addEventListener('mousedown', (ev) => ev.stopPropagation());
-                    document.body.appendChild(lightbox);
-                });
-                const x = document.createElement('button');
-                x.type = 'button';
-                x.textContent = '✕';
-                x.className = 'press-btn';
-                x.style.position = 'absolute';
-                x.style.top = '6px';
-                x.style.right = '6px';
-                x.style.padding = '2px 6px';
-                x.style.fontSize = '12px';
-                x.addEventListener('click', (ev) => {
-                    ev.stopPropagation();
-                    cont.style.transition = 'all 180ms ease';
-                    cont.style.opacity = '0';
-                    cont.style.transform = 'scale(0.9)';
-                    setTimeout(() => {
-                        selectedFiles.splice(index, 1);
-                        renderPreviews();
-                        updateUploadButton();
-                    }, 190);
-                });
-                cont.append(img, x);
-                previewGrid.appendChild(cont);
-            });
-        }
+		function renderPreviews() {
+			previewGrid.innerHTML = '';
+			if (!selectedFiles.length) return;
+			selectedFiles.forEach((file, index) => {
+				const cont = document.createElement('div');
+				cont.style.position = 'relative';
+				cont.style.border = '1px solid #e5e7eb';
+				cont.style.borderRadius = '8px';
+				cont.style.overflow = 'hidden';
+				cont.style.aspectRatio = '1';
+				const img = document.createElement('img');
+				img.style.width = '100%';
+				img.style.height = '100%';
+				img.style.objectFit = 'cover';
+				const reader = new FileReader();
+				reader.onload = (e) => { img.src = e.target.result; };
+				reader.readAsDataURL(file);
+				// Toggle fullscreen preview on click
+				img.style.cursor = 'zoom-in';
+				img.addEventListener('click', (e) => {
+					e.stopPropagation();
+					const lightbox = document.createElement('div');
+					lightbox.className = 'image-lightbox';
+					lightbox.style.position = 'fixed';
+					lightbox.style.inset = '0';
+					lightbox.style.background = 'rgba(0,0,0,0.9)';
+					lightbox.style.zIndex = '10000';
+					lightbox.style.display = 'flex';
+					lightbox.style.alignItems = 'center';
+					lightbox.style.justifyContent = 'center';
+					lightbox.style.cursor = 'zoom-out';
+					const full = document.createElement('img');
+					full.src = img.src;
+					full.style.maxWidth = '95%';
+					full.style.maxHeight = '95%';
+					full.style.objectFit = 'contain';
+					lightbox.appendChild(full);
+					const close = () => { if (lightbox.parentNode) lightbox.parentNode.removeChild(lightbox); };
+					lightbox.addEventListener('click', (ev) => { ev.stopPropagation(); close(); });
+					lightbox.addEventListener('mousedown', (ev) => ev.stopPropagation());
+					document.body.appendChild(lightbox);
+				});
+				const x = document.createElement('button');
+				x.type = 'button';
+				x.textContent = '✕';
+				x.className = 'press-btn';
+				x.style.position = 'absolute';
+				x.style.top = '6px';
+				x.style.right = '6px';
+				x.style.padding = '2px 6px';
+				x.style.fontSize = '12px';
+				x.addEventListener('click', (ev) => {
+					ev.stopPropagation();
+					cont.style.transition = 'all 180ms ease';
+					cont.style.opacity = '0';
+					cont.style.transform = 'scale(0.9)';
+					setTimeout(() => {
+						selectedFiles.splice(index, 1);
+						renderPreviews();
+						updateUploadButton();
+					}, 190);
+				});
+				cont.append(img, x);
+				previewGrid.appendChild(cont);
+			});
+		}
 
-        fileInput.addEventListener('change', () => {
-            const files = Array.from(fileInput.files || []);
-            if (isAddingMore) {
-                selectedFiles = selectedFiles.concat(files);
-                isAddingMore = false;
-            } else {
-                selectedFiles = files;
-            }
-            renderPreviews();
-            updateUploadButton();
-        });
+		fileInput.addEventListener('change', () => {
+			const files = Array.from(fileInput.files || []);
+			if (isAddingMore) {
+				selectedFiles = selectedFiles.concat(files);
+				isAddingMore = false;
+			} else {
+				selectedFiles = files;
+			}
+			renderPreviews();
+			updateUploadButton();
+		});
 
-        uploadMoreBtn.addEventListener('click', () => { isAddingMore = true; fileInput.click(); });
-        cancelBtn.addEventListener('click', () => { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); });
+		uploadMoreBtn.addEventListener('click', () => { isAddingMore = true; fileInput.click(); });
+		cancelBtn.addEventListener('click', () => { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); });
 
-        function buildFullLoadingOverlay() {
-            const full = document.createElement('div');
-            full.style.position = 'fixed';
-            full.style.inset = '0';
-            full.style.background = 'rgba(17,24,39,0.45)';
-            full.style.backdropFilter = 'blur(4px)';
-            full.style.display = 'flex';
-            full.style.alignItems = 'center';
-            full.style.justifyContent = 'center';
-            full.style.zIndex = '10000';
-            full.style.animation = 'fadeIn 180ms ease-out';
-            const card = document.createElement('div');
-            card.style.background = '#fff';
-            card.style.borderRadius = '14px';
-            card.style.padding = '20px 18px';
-            card.style.minWidth = '260px';
-            card.style.textAlign = 'center';
-            const spinner = document.createElement('div');
-            spinner.style.width = '28px';
-            spinner.style.height = '28px';
-            spinner.style.border = '3px solid #f4a6b7';
-            spinner.style.borderTopColor = '#fff';
-            spinner.style.borderRadius = '50%';
-            spinner.style.margin = '0 auto 10px';
-            spinner.style.animation = 'spin 900ms linear infinite';
-            const ok = document.createElement('div');
-            ok.textContent = '✓';
-            ok.style.display = 'none';
-            ok.style.fontSize = '20px';
-            ok.style.color = '#16a34a';
-            const t = document.createElement('div');
-            t.textContent = 'Subiendo archivos...';
-            t.style.marginTop = '4px';
-            const sub = document.createElement('div');
-            sub.style.fontSize = '12px';
-            sub.style.opacity = '0.7';
-            sub.style.marginTop = '2px';
-            sub.textContent = '0 de 0';
-            card.append(spinner, ok, t, sub);
-            full.appendChild(card);
-            return { full, spinner, ok, t, sub };
-        }
+		function buildFullLoadingOverlay() {
+			const full = document.createElement('div');
+			full.style.position = 'fixed';
+			full.style.inset = '0';
+			full.style.background = 'rgba(17,24,39,0.45)';
+			full.style.backdropFilter = 'blur(4px)';
+			full.style.display = 'flex';
+			full.style.alignItems = 'center';
+			full.style.justifyContent = 'center';
+			full.style.zIndex = '10000';
+			full.style.animation = 'fadeIn 180ms ease-out';
+			const card = document.createElement('div');
+			card.style.background = '#fff';
+			card.style.borderRadius = '14px';
+			card.style.padding = '20px 18px';
+			card.style.minWidth = '260px';
+			card.style.textAlign = 'center';
+			const spinner = document.createElement('div');
+			spinner.style.width = '28px';
+			spinner.style.height = '28px';
+			spinner.style.border = '3px solid #f4a6b7';
+			spinner.style.borderTopColor = '#fff';
+			spinner.style.borderRadius = '50%';
+			spinner.style.margin = '0 auto 10px';
+			spinner.style.animation = 'spin 900ms linear infinite';
+			const ok = document.createElement('div');
+			ok.textContent = '✓';
+			ok.style.display = 'none';
+			ok.style.fontSize = '20px';
+			ok.style.color = '#16a34a';
+			const t = document.createElement('div');
+			t.textContent = 'Subiendo archivos...';
+			t.style.marginTop = '4px';
+			const sub = document.createElement('div');
+			sub.style.fontSize = '12px';
+			sub.style.opacity = '0.7';
+			sub.style.marginTop = '2px';
+			sub.textContent = '0 de 0';
+			card.append(spinner, ok, t, sub);
+			full.appendChild(card);
+			return { full, spinner, ok, t, sub };
+		}
 
-        async function readAsDataUrl(file) {
-            return new Promise((resolve, reject) => {
-                const fr = new FileReader();
-                fr.onload = () => resolve(fr.result);
-                fr.onerror = (e) => reject(e);
-                fr.readAsDataURL(file);
-            });
-        }
+		async function readAsDataUrl(file) {
+			return new Promise((resolve, reject) => {
+				const fr = new FileReader();
+				fr.onload = () => resolve(fr.result);
+				fr.onerror = (e) => reject(e);
+				fr.readAsDataURL(file);
+			});
+		}
 
-        uploadBtn.addEventListener('click', async () => {
-            if (!selectedFiles.length) return;
-            const note = (noteInput.value || '').trim();
-            // Close dialog
-            if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-            const { full, spinner, ok, sub } = buildFullLoadingOverlay();
-            document.body.appendChild(full);
-            let success = 0;
-            for (let i = 0; i < selectedFiles.length; i++) {
-                const f = selectedFiles[i];
-                sub.textContent = `${i + 1} de ${selectedFiles.length}`;
-                try {
-                    const dataUrl = await readAsDataUrl(f);
-                    const body = {
-                        _upload_receipt_for: id,
-                        image_base64: dataUrl,
-                        _actor_name: state.currentUser?.name || ''
-                    };
-                    if (note && i === 0) body.note_text = note;
-                    await api('POST', API.Sales, body);
-                    success++;
-                } catch (err) {
-                    console.error('Error uploading file', f?.name, err);
-                }
-            }
-            // Show success
-            spinner.style.display = 'none';
-            ok.style.display = '';
-            ok.style.animation = 'successPop 220ms ease-out';
-            try { notify.success(`Comprobante${success === 1 ? '' : 's'} subido${success === 1 ? '' : 's'}: ${success}`); } catch {}
-            try { await loadSales(); } catch {}
-            setTimeout(() => {
-                full.style.animation = 'fadeOut 220ms ease-in forwards';
-                setTimeout(() => { if (full.parentNode) full.parentNode.removeChild(full); }, 230);
-            }, 900);
-        });
+		uploadBtn.addEventListener('click', async () => {
+			if (!selectedFiles.length) return;
+			const note = (noteInput.value || '').trim();
+			// Close dialog
+			if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+			const { full, spinner, ok, sub } = buildFullLoadingOverlay();
+			document.body.appendChild(full);
+			let success = 0;
+			for (let i = 0; i < selectedFiles.length; i++) {
+				const f = selectedFiles[i];
+				sub.textContent = `${i + 1} de ${selectedFiles.length}`;
+				try {
+					const dataUrl = await readAsDataUrl(f);
+					const body = {
+						_upload_receipt_for: id,
+						image_base64: dataUrl,
+						_actor_name: state.currentUser?.name || ''
+					};
+					if (note && i === 0) body.note_text = note;
+					await api('POST', API.Sales, body);
+					success++;
+				} catch (err) {
+					console.error('Error uploading file', f?.name, err);
+				}
+			}
+			// Show success
+			spinner.style.display = 'none';
+			ok.style.display = '';
+			ok.style.animation = 'successPop 220ms ease-out';
+			try { notify.success(`Comprobante${success === 1 ? '' : 's'} subido${success === 1 ? '' : 's'}: ${success}`); } catch { }
+			try { await loadSales(); } catch { }
+			setTimeout(() => {
+				full.style.animation = 'fadeOut 220ms ease-in forwards';
+				setTimeout(() => { if (full.parentNode) full.parentNode.removeChild(full); }, 230);
+			}, 900);
+		});
 
-        updateUploadButton();
-    })();
+		updateUploadButton();
+	})();
 }
 
 // Gallery viewer for multiple receipts with independent payment selectors
@@ -8580,19 +8591,19 @@ async function openReceiptsGalleryPopover(saleId, anchorX, anchorY) {
 	try {
 		receipts = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(saleId)}`);
 		console.log('📸 Receipts loaded from backend:', receipts.map(r => ({ id: r.id, pay_method: r.pay_method, payment_source: r.payment_source, payment_date: r.payment_date })));
-    } catch (err) {
-        console.error('Error loading receipts:', err);
-        // If error loading, open inline upload
-        openInlineFileUploadDialog(saleId);
-        return;
-    }
-	
-    if (!Array.isArray(receipts) || receipts.length === 0) {
-        // No receipts yet, open inline upload
-        openInlineFileUploadDialog(saleId);
-        return;
-    }
-	
+	} catch (err) {
+		console.error('Error loading receipts:', err);
+		// If error loading, open inline upload
+		openInlineFileUploadDialog(saleId);
+		return;
+	}
+
+	if (!Array.isArray(receipts) || receipts.length === 0) {
+		// No receipts yet, open inline upload
+		openInlineFileUploadDialog(saleId);
+		return;
+	}
+
 	try {
 
 		const pop = document.createElement('div');
@@ -8631,7 +8642,7 @@ async function openReceiptsGalleryPopover(saleId, anchorX, anchorY) {
 
 		// Permissions: admin or superadmin can edit receipts (methods/date/source/delete)
 		const canEditReceipts = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
-		
+
 		for (const receipt of receipts) {
 			// Each receipt preserves its own pay_method from database
 			// Don't force defaults - respect the saved value
@@ -8647,7 +8658,7 @@ async function openReceiptsGalleryPopover(saleId, anchorX, anchorY) {
 			// Image container with payment selector overlay
 			const imgContainer = document.createElement('div');
 			imgContainer.style.position = 'relative';
-			
+
 			// Image
 			const img = document.createElement('img');
 			img.src = receipt.image_base64;
@@ -8658,66 +8669,66 @@ async function openReceiptsGalleryPopover(saleId, anchorX, anchorY) {
 			img.style.objectFit = 'contain';
 			img.style.borderRadius = '6px';
 			img.style.cursor = 'pointer';
-		img.addEventListener('click', (e) => {
-			e.stopPropagation(); // Prevent closing the gallery popover
-			// Open full-size view
-			const lightbox = document.createElement('div');
-			lightbox.className = 'image-lightbox'; // Add class for identification
-			lightbox.style.position = 'fixed';
-			lightbox.style.top = '0';
-			lightbox.style.left = '0';
-			lightbox.style.width = '100%';
-			lightbox.style.height = '100%';
-			lightbox.style.background = 'rgba(0,0,0,0.9)';
-			lightbox.style.zIndex = '2000';
-			lightbox.style.display = 'flex';
-			lightbox.style.alignItems = 'center';
-			lightbox.style.justifyContent = 'center';
-			lightbox.style.cursor = 'pointer';
-			const fullImg = document.createElement('img');
-			fullImg.src = receipt.image_base64;
-			fullImg.style.maxWidth = '95%';
-			fullImg.style.maxHeight = '95%';
-			fullImg.style.objectFit = 'contain';
-			lightbox.appendChild(fullImg);
-			document.body.appendChild(lightbox);
-			
-			// Close lightbox on click (both mousedown and click for safety)
-			const closeLightbox = (e) => {
-				e.stopPropagation(); // Prevent event from reaching gallery popover
-				if (lightbox.parentNode) {
-					document.body.removeChild(lightbox);
-				}
-			};
-			lightbox.addEventListener('click', closeLightbox);
-			lightbox.addEventListener('mousedown', (e) => {
-				e.stopPropagation(); // Prevent triggering gallery's outside listener
+			img.addEventListener('click', (e) => {
+				e.stopPropagation(); // Prevent closing the gallery popover
+				// Open full-size view
+				const lightbox = document.createElement('div');
+				lightbox.className = 'image-lightbox'; // Add class for identification
+				lightbox.style.position = 'fixed';
+				lightbox.style.top = '0';
+				lightbox.style.left = '0';
+				lightbox.style.width = '100%';
+				lightbox.style.height = '100%';
+				lightbox.style.background = 'rgba(0,0,0,0.9)';
+				lightbox.style.zIndex = '2000';
+				lightbox.style.display = 'flex';
+				lightbox.style.alignItems = 'center';
+				lightbox.style.justifyContent = 'center';
+				lightbox.style.cursor = 'pointer';
+				const fullImg = document.createElement('img');
+				fullImg.src = receipt.image_base64;
+				fullImg.style.maxWidth = '95%';
+				fullImg.style.maxHeight = '95%';
+				fullImg.style.objectFit = 'contain';
+				lightbox.appendChild(fullImg);
+				document.body.appendChild(lightbox);
+
+				// Close lightbox on click (both mousedown and click for safety)
+				const closeLightbox = (e) => {
+					e.stopPropagation(); // Prevent event from reaching gallery popover
+					if (lightbox.parentNode) {
+						document.body.removeChild(lightbox);
+					}
+				};
+				lightbox.addEventListener('click', closeLightbox);
+				lightbox.addEventListener('mousedown', (e) => {
+					e.stopPropagation(); // Prevent triggering gallery's outside listener
+				});
 			});
-		});
 			imgContainer.appendChild(img);
-			
+
 			// Payment selector overlay (only for admin/superadmin)
 			if (canEditReceipts) {
 				const payOverlay = document.createElement('div');
 				payOverlay.className = 'transfer-pay';
-				
+
 				const col = document.createElement('div');
 				col.className = 'col-paid';
-				
+
 				const wrap = document.createElement('span');
 				wrap.className = 'pay-wrap';
-				
+
 				const sel = document.createElement('select');
 				sel.className = 'input-cell pay-select';
 				sel.style.display = 'none';
-				
+
 				// Use saved pay_method or default to 'transf' for new receipts
 				const current = (receipt.pay_method || 'transf').replace(/\.$/, '');
 				console.log(`🎯 Receipt ${receipt.id} - pay_method from backend: "${receipt.pay_method}" -> current: "${current}"`);
-				
+
 				const isMarcela = String(state.currentUser?.name || '').toLowerCase() === 'marcela';
 				const isJorge = String(state.currentUser?.name || '').toLowerCase() === 'jorge';
-				
+
 				const opts = [
 					{ v: '', label: '-' },
 					{ v: 'efectivo', label: '' },
@@ -8730,7 +8741,7 @@ async function openReceiptsGalleryPopover(saleId, anchorX, anchorY) {
 				opts.push({ v: 'transf', label: '' });
 				if (isJorge) opts.push({ v: 'jorgebank', label: '' });
 				if (!isJorge && current === 'jorgebank') opts.push({ v: 'jorgebank', label: '' });
-				
+
 				for (const o of opts) {
 					const opt = document.createElement('option');
 					opt.value = o.v;
@@ -8740,11 +8751,11 @@ async function openReceiptsGalleryPopover(saleId, anchorX, anchorY) {
 					if (current === o.v) opt.selected = true;
 					sel.appendChild(opt);
 				}
-				
+
 				// Explicitly set selector value to match backend data
 				sel.value = current;
 				console.log(`✅ Selector initialized with value: "${sel.value}"`);
-				
+
 				function applyPayClass() {
 					wrap.classList.remove('placeholder', 'method-efectivo', 'method-transf', 'method-marce', 'method-jorge', 'method-jorgebank', 'method-entregado');
 					const val = sel.value;
@@ -8757,13 +8768,13 @@ async function openReceiptsGalleryPopover(saleId, anchorX, anchorY) {
 					else if (val === 'jorgebank') wrap.classList.add('method-jorgebank');
 				}
 				applyPayClass();
-				
+
 				wrap.addEventListener('click', (e) => {
 					e.stopPropagation();
 					const rect = wrap.getBoundingClientRect();
 					openPayMenuForReceipt(wrap, sel, receipt, rect.left + rect.width / 2, rect.bottom, applyPayClass);
 				});
-				
+
 				wrap.tabIndex = 0;
 				wrap.addEventListener('keydown', (e) => {
 					if (e.key === 'Enter' || e.key === ' ') {
@@ -8772,49 +8783,49 @@ async function openReceiptsGalleryPopover(saleId, anchorX, anchorY) {
 						openPayMenuForReceipt(wrap, sel, receipt, rect.left + rect.width / 2, rect.bottom, applyPayClass);
 					}
 				});
-				
-			sel.addEventListener('change', async () => {
-				const newValue = sel.value || null;
-				
-				// If selecting jorgebank, open payment date dialog
-				if (newValue === 'jorgebank') {
-					openPaymentDateDialogForReceipt(receipt, async () => {
-						// Callback after saving date - update receipt locally and refresh selector
-						receipt.pay_method = 'jorgebank';
-						sel.value = 'jorgebank';
-						applyPayClass();
-						notify.info('✓ Comprobante verificado');
-						
-						// Check if we need to update the main selector to jorgebank
-						await checkAndUpdateMainSelectorToJorgebank(receipt.sale_id);
-					});
-				} else {
-					// For other methods, just update pay_method
-					try {
-						await api('PUT', API.Sales, {
-							_update_receipt_payment: true,
-							receipt_id: receipt.id,
-							pay_method: newValue
+
+				sel.addEventListener('change', async () => {
+					const newValue = sel.value || null;
+
+					// If selecting jorgebank, open payment date dialog
+					if (newValue === 'jorgebank') {
+						openPaymentDateDialogForReceipt(receipt, async () => {
+							// Callback after saving date - update receipt locally and refresh selector
+							receipt.pay_method = 'jorgebank';
+							sel.value = 'jorgebank';
+							applyPayClass();
+							notify.info('✓ Comprobante verificado');
+
+							// Check if we need to update the main selector to jorgebank
+							await checkAndUpdateMainSelectorToJorgebank(receipt.sale_id);
 						});
-						receipt.pay_method = newValue;
-						notify.info('✓ Método actualizado');
-						
-						// Also check if main selector needs update (in case changing FROM jorgebank)
-						await checkAndUpdateMainSelectorToJorgebank(receipt.sale_id);
-					} catch (err) {
-						console.error('Error updating receipt payment:', err);
-						notify.error('Error al actualizar');
+					} else {
+						// For other methods, just update pay_method
+						try {
+							await api('PUT', API.Sales, {
+								_update_receipt_payment: true,
+								receipt_id: receipt.id,
+								pay_method: newValue
+							});
+							receipt.pay_method = newValue;
+							notify.info('✓ Método actualizado');
+
+							// Also check if main selector needs update (in case changing FROM jorgebank)
+							await checkAndUpdateMainSelectorToJorgebank(receipt.sale_id);
+						} catch (err) {
+							console.error('Error updating receipt payment:', err);
+							notify.error('Error al actualizar');
+						}
+						applyPayClass();
 					}
-					applyPayClass();
-				}
-			});
-				
+				});
+
 				wrap.appendChild(sel);
 				col.appendChild(wrap);
 				payOverlay.appendChild(col);
 				imgContainer.appendChild(payOverlay);
 			}
-			
+
 			card.appendChild(imgContainer);
 
 			// Metadata
@@ -8873,13 +8884,13 @@ async function openReceiptsGalleryPopover(saleId, anchorX, anchorY) {
 		actions.style.flexShrink = '0';
 		actions.style.marginTop = '12px';
 
-        const addBtn = document.createElement('button');
-        addBtn.className = 'press-btn btn-primary';
-        addBtn.textContent = '+ Subir otro comprobante';
-        addBtn.addEventListener('click', () => {
-            cleanup();
-            setTimeout(() => openInlineFileUploadDialog(saleId), 0);
-        });
+		const addBtn = document.createElement('button');
+		addBtn.className = 'press-btn btn-primary';
+		addBtn.textContent = '+ Subir otro comprobante';
+		addBtn.addEventListener('click', () => {
+			cleanup();
+			setTimeout(() => openInlineFileUploadDialog(saleId), 0);
+		});
 
 		const closeBtn = document.createElement('button');
 		closeBtn.className = 'press-btn';
@@ -8897,25 +8908,25 @@ async function openReceiptsGalleryPopover(saleId, anchorX, anchorY) {
 			if (pop.parentNode) pop.parentNode.removeChild(pop);
 		}
 
-	function outside(ev) {
-		// Don't close if clicking inside the payment date dialog or image lightbox
-		const isInsidePaymentDialog = ev.target.closest('.payment-date-popover');
-		const isInsideLightbox = ev.target.closest('.image-lightbox');
-		if (!pop.contains(ev.target) && !isInsidePaymentDialog && !isInsideLightbox) {
-			cleanup();
+		function outside(ev) {
+			// Don't close if clicking inside the payment date dialog or image lightbox
+			const isInsidePaymentDialog = ev.target.closest('.payment-date-popover');
+			const isInsideLightbox = ev.target.closest('.image-lightbox');
+			if (!pop.contains(ev.target) && !isInsidePaymentDialog && !isInsideLightbox) {
+				cleanup();
+			}
 		}
-	}
 
 		setTimeout(() => {
 			document.addEventListener('mousedown', outside, true);
 			document.addEventListener('touchstart', outside, true);
 		}, 0);
-    } catch (err) {
-        console.error('Error rendering receipts gallery:', err);
-        notify.error('Error al mostrar galería');
-        // Fallback to inline upload
-        openInlineFileUploadDialog(saleId);
-    }
+	} catch (err) {
+		console.error('Error rendering receipts gallery:', err);
+		notify.error('Error al mostrar galería');
+		// Fallback to inline upload
+		openInlineFileUploadDialog(saleId);
+	}
 }
 
 // Open payment date dialog for individual receipt
@@ -8945,7 +8956,7 @@ function openPaymentDateDialogForReceipt(receipt, onSaved) {
 			const dateStr = typeof savedDate === 'string' ? savedDate.slice(0, 10) : String(savedDate).slice(0, 10);
 			const parsed = new Date(dateStr + 'T00:00:00');
 			if (!isNaN(parsed.getTime())) initialDate = parsed;
-		} catch {}
+		} catch { }
 	}
 	let currentMonth = initialDate.getMonth();
 	let currentYear = initialDate.getFullYear();
@@ -9060,14 +9071,14 @@ function openPaymentDateDialogForReceipt(receipt, onSaved) {
 			try {
 				const paymentDate = selectedDate.toISOString().split('T')[0];
 				const paymentSource = m.label;
-				
+
 				console.log('Guardando recibo:', {
 					receipt_id: receipt.id,
 					pay_method: 'jorgebank',
 					payment_date: paymentDate,
 					payment_source: paymentSource
 				});
-				
+
 				// Update receipt payment info
 				const result = await api('PUT', API.Sales, {
 					_update_receipt_payment: true,
@@ -9076,9 +9087,9 @@ function openPaymentDateDialogForReceipt(receipt, onSaved) {
 					payment_date: paymentDate,
 					payment_source: paymentSource
 				});
-				
+
 				console.log('Guardado exitoso:', result);
-				
+
 				// Update local receipt object with the response data
 				if (result) {
 					receipt.pay_method = result.pay_method || 'jorgebank';
@@ -9089,19 +9100,19 @@ function openPaymentDateDialogForReceipt(receipt, onSaved) {
 					receipt.payment_date = paymentDate;
 					receipt.payment_source = paymentSource;
 				}
-				
+
 				// Call the callback to update the selector in the UI
 				if (typeof onSaved === 'function') onSaved();
-				
+
 				// Show success message
 				notify.info(`✓ Verificado: ${paymentSource} - ${paymentDate}`);
-				
+
 				// Close this dialog (but NOT the gallery)
 				cleanup();
-				
+
 				// Check if we need to update the main selector to jorgebank
 				await checkAndUpdateMainSelectorToJorgebank(receipt.sale_id);
-				
+
 				// Re-enable buttons
 				methodsContainer.querySelectorAll('button').forEach(x => x.disabled = false);
 			} catch (err) {
@@ -9141,10 +9152,10 @@ function openPayMenuForReceipt(anchorEl, selectEl, receipt, clickX, clickY, appl
 	menu.style.position = 'fixed';
 	menu.style.transform = 'translateX(-50%)';
 	menu.style.zIndex = '1001';
-	
+
 	const isMarcela = String(state.currentUser?.name || '').toLowerCase() === 'marcela';
 	const isJorge = String(state.currentUser?.name || '').toLowerCase() === 'jorge';
-	
+
 	const items = [
 		{ v: 'efectivo', cls: 'menu-efectivo' },
 		{ v: 'entregado', cls: 'menu-entregado' }
@@ -9157,7 +9168,7 @@ function openPayMenuForReceipt(anchorEl, selectEl, receipt, clickX, clickY, appl
 		items.push({ v: 'jorgebank', cls: 'menu-jorgebank' });
 	}
 	items.push({ v: '', cls: 'menu-clear' }, { v: 'transf', cls: 'menu-transf' });
-	
+
 	for (const it of items) {
 		const btn = document.createElement('button');
 		btn.type = 'button';
@@ -9171,13 +9182,13 @@ function openPayMenuForReceipt(anchorEl, selectEl, receipt, clickX, clickY, appl
 		});
 		menu.appendChild(btn);
 	}
-	
+
 	menu.style.left = '0px';
 	menu.style.top = '0px';
 	menu.style.visibility = 'hidden';
 	menu.style.pointerEvents = 'none';
 	document.body.appendChild(menu);
-	
+
 	const dashBtn = menu.querySelector('.menu-clear');
 	const menuRect = menu.getBoundingClientRect();
 	const dashRect = dashBtn ? dashBtn.getBoundingClientRect() : menuRect;
@@ -9193,17 +9204,17 @@ function openPayMenuForReceipt(anchorEl, selectEl, receipt, clickX, clickY, appl
 	menu.style.top = top + 'px';
 	menu.style.visibility = '';
 	menu.style.pointerEvents = '';
-	
+
 	function outside(e) {
 		if (!menu.contains(e.target)) cleanup();
 	}
-	
+
 	function cleanup() {
 		document.removeEventListener('mousedown', outside, true);
 		document.removeEventListener('touchstart', outside, true);
 		if (menu.parentNode) menu.parentNode.removeChild(menu);
 	}
-	
+
 	setTimeout(() => {
 		document.addEventListener('mousedown', outside, true);
 		document.addEventListener('touchstart', outside, true);
@@ -9221,7 +9232,7 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 	bindEvents();
 	bindLogin();
 	updateToolbarOffset();
-	try { const saved = localStorage.getItem('authUser'); if (saved) state.currentUser = JSON.parse(saved); } catch {}
+	try { const saved = localStorage.getItem('authUser'); if (saved) state.currentUser = JSON.parse(saved); } catch { }
 	// Backfill role fields if missing from older sessions
 	if (state.currentUser && !state.currentUser.role) {
 		const name = state.currentUser.name;
@@ -9229,7 +9240,7 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 		state.currentUser.isSuperAdmin = isSuperAdmin(name);
 		state.currentUser.isAdmin = isAdmin(name);
 		state.currentUser.features = Array.isArray(state.currentUser.features) ? state.currentUser.features : [];
-		try { localStorage.setItem('authUser', JSON.stringify(state.currentUser)); } catch {}
+		try { localStorage.setItem('authUser', JSON.stringify(state.currentUser)); } catch { }
 	}
 	try { await loadSellers(); } catch { /* Ignorar error de red para no bloquear el login */ }
 	let __handledPendingFocus = false;
@@ -9255,9 +9266,9 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 				} else if (dayIso) {
 					try {
 						const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(seller.id)}`);
-						const d = (days || []).find(x => String(x.day).slice(0,10) === String(dayIso).slice(0,10));
+						const d = (days || []).find(x => String(x.day).slice(0, 10) === String(dayIso).slice(0, 10));
 						if (d) state.selectedDayId = d.id;
-					} catch {}
+					} catch { }
 				}
 				document.getElementById('sales-wrapper')?.classList.remove('hidden');
 				await loadSales();
@@ -9268,7 +9279,7 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 				}
 			}
 		}
-	} catch {}
+	} catch { }
 	// Route initial view (skip if we just navigated from Transfers)
 	if (!__handledPendingFocus) {
 		if (!state.currentUser) {
@@ -9283,7 +9294,7 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 	window.addEventListener('resize', debounce(updateSummary, 150));
 })();
 
-(function enforceDesktopHeaderHorizontal(){
+(function enforceDesktopHeaderHorizontal() {
 	function apply() {
 		const isDesktop = window.matchMedia('(min-width: 601px)').matches;
 		const labels = document.querySelectorAll('#sales-table thead th.col-arco .v-label, #sales-table thead th.col-melo .v-label, #sales-table thead th.col-mara .v-label, #sales-table thead th.col-oreo .v-label');
@@ -9337,7 +9348,7 @@ function addMarkersFromLogs() {
 		}
 		let hasNet = false;
 		for (const arr of Object.values(byField)) {
-			const sorted = arr.sort((a,b) => new Date(a.created_at || a.time) - new Date(b.created_at || b.time));
+			const sorted = arr.sort((a, b) => new Date(a.created_at || a.time) - new Date(b.created_at || b.time));
 			const firstOld = String(sorted[0].old_value ?? sorted[0].oldValue ?? '');
 			const lastNew = String(sorted[sorted.length - 1].new_value ?? sorted[sorted.length - 1].newValue ?? '');
 			if (lastNew !== firstOld) { hasNet = true; break; }
@@ -9360,7 +9371,7 @@ function preloadChangeLogsForCurrentTable() {
 			state.changeLogsBySale = map;
 			clearAllMarkers();
 			addMarkersFromLogs();
-		}).catch(() => {});
+		}).catch(() => { });
 }
 
 async function openHistoryPopover(saleId, field, anchorX, anchorY) {
@@ -9469,7 +9480,7 @@ const NotificationCenter = {
 		// Event listeners
 		this.btn.addEventListener('click', () => this.open());
 		closeBtn.addEventListener('click', () => this.close());
-		
+
 		// Click backdrop to close
 		const backdrop = this.modal.querySelector('.notif-center-backdrop');
 		if (backdrop) {
@@ -9492,17 +9503,17 @@ const NotificationCenter = {
 	async open() {
 		if (!this.modal) return;
 		this.modal.classList.remove('hidden');
-		
+
 		// Show loading state
 		this.body.innerHTML = '<div class="notif-center-loading">Cargando notificaciones...</div>';
-		
+
 		try {
 			// Fetch notifications FIRST (before updating last visit timestamp)
 			const notifications = await this.fetchNotifications();
-			
+
 			// Render notifications
 			this.render(notifications);
-			
+
 			// Update last visit timestamp AFTER showing notifications
 			// This ensures we don't miss any notifications
 			await this.updateLastVisit();
@@ -9527,7 +9538,7 @@ const NotificationCenter = {
 	async updateLastVisit() {
 		const actor = encodeURIComponent(state.currentUser?.name || '');
 		if (!actor) return;
-		
+
 		try {
 			await fetch(`/api/notifications?actor=${actor}`, {
 				method: 'POST',
@@ -9545,18 +9556,18 @@ const NotificationCenter = {
 	async fetchNotifications() {
 		const actor = encodeURIComponent(state.currentUser?.name || '');
 		if (!actor) return [];
-		
+
 		try {
 			const response = await fetch(`/api/notifications?actor=${actor}`, {
 				headers: { 'X-Actor-Name': state.currentUser?.name || '' }
 			});
-			
+
 			if (!response.ok) {
 				const errorText = await response.text();
 				console.error('Error response:', response.status, errorText);
 				throw new Error(`Failed to fetch notifications: ${response.status}`);
 			}
-			
+
 			const data = await response.json();
 			console.log('📬 Notificaciones recibidas:', data.length, data);
 			return data;
@@ -9568,7 +9579,7 @@ const NotificationCenter = {
 
 	render(notifications) {
 		if (!this.body) return;
-		
+
 		if (!notifications || notifications.length === 0) {
 			this.body.innerHTML = `
 				<div class="notif-empty">
@@ -9580,7 +9591,7 @@ const NotificationCenter = {
 		}
 
 		this.body.innerHTML = '';
-		
+
 		for (const notif of notifications) {
 			const item = this.createNotificationItem(notif);
 			this.body.appendChild(item);
@@ -9617,18 +9628,18 @@ const NotificationCenter = {
 		// Línea 3: Meta info (date, seller, icon)
 		const meta = document.createElement('div');
 		meta.className = 'notif-meta';
-		
+
 		const date = new Date(notif.created_at);
-		const dateStr = date.toLocaleString('es-CO', { 
-			year: 'numeric', 
-			month: '2-digit', 
+		const dateStr = date.toLocaleString('es-CO', {
+			year: 'numeric',
+			month: '2-digit',
 			day: '2-digit',
-			hour: '2-digit', 
-			minute: '2-digit' 
+			hour: '2-digit',
+			minute: '2-digit'
 		});
-		
+
 		meta.textContent = dateStr;
-		
+
 		if (notif.seller_name) {
 			meta.textContent += ` • ${notif.seller_name}`;
 		}
@@ -9676,14 +9687,14 @@ const NotificationCenter = {
 
 		const parts = [];
 		if (details.client_name) parts.push(`Cliente: ${details.client_name}`);
-		
+
 		const desserts = [];
 		if (details.qty_arco > 0) desserts.push(`Arco: ${details.qty_arco}`);
 		if (details.qty_melo > 0) desserts.push(`Melo: ${details.qty_melo}`);
 		if (details.qty_mara > 0) desserts.push(`Mara: ${details.qty_mara}`);
 		if (details.qty_oreo > 0) desserts.push(`Oreo: ${details.qty_oreo}`);
 		if (details.qty_nute > 0) desserts.push(`Nute: ${details.qty_nute}`);
-		
+
 		if (desserts.length > 0) {
 			parts.push(desserts.join(', '));
 		}
