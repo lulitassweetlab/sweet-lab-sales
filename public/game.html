@@ -652,9 +652,11 @@
 			const radius = canvas.width / 2;
 
 			const segmentAngle = (2 * Math.PI) / wheelSegments.length;
+			// Offset to start at top (12 o'clock) instead of right (3 o'clock)
+			const startOffset = -Math.PI / 2;
 
 			wheelSegments.forEach((segment, index) => {
-				const startAngle = index * segmentAngle;
+				const startAngle = (index * segmentAngle) + startOffset;
 				const endAngle = startAngle + segmentAngle;
 
 				// Draw segment
