@@ -824,11 +824,13 @@
 				const segmentAngle = 360 / wheelSegments.length;
 				const targetAngle = finalPrizeIndex * segmentAngle;
 				const spins = 5; // Number of full rotations
-				// Point to the CENTER of the segment (no offset needed since pointer is at top)
-				const finalRotation = (spins * 360) + (360 - targetAngle);
+				// Add half segment to point to CENTER instead of edge
+				const centerOffset = segmentAngle / 2;
+				const finalRotation = (spins * 360) + (360 - targetAngle - centerOffset);
 
 				console.log('Segment angle:', segmentAngle);
 				console.log('Target angle for index', finalPrizeIndex, ':', targetAngle);
+				console.log('Center offset:', centerOffset);
 				console.log('Final rotation:', finalRotation);
 
 				// Spin the wheel
