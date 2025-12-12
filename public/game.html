@@ -129,6 +129,7 @@
 			height: auto;
 			margin-bottom: 20px;
 			filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.1));
+
 		}
 
 		.game-title {
@@ -859,12 +860,18 @@
 				document.getElementById('prize-icon').textContent = '🎂';
 				document.getElementById('prize-value').textContent = '¡POSTRE GRATIS!';
 				document.getElementById('prize-message').textContent =
-					'¡Increíble! Has ganado un postre completamente gratis. Muestra este resultado a tu vendedor.';
+					'¡Increíble! Has ganado un postre completamente gratis. Este premio se aplicará en tu próxima compra.';
+			} else if (prize.value === '0%') {
+				// Special message for 0% discount
+				document.getElementById('prize-icon').textContent = '😔';
+				document.getElementById('prize-value').textContent = prize.value;
+				document.getElementById('prize-message').textContent =
+					'Lo sentimos, esta vez no hubo suerte. ¡Esperamos que tengas mejor fortuna la próxima!';
 			} else {
 				document.getElementById('prize-icon').textContent = '🎁';
 				document.getElementById('prize-value').textContent = prize.value;
 				document.getElementById('prize-message').textContent =
-					`¡Felicitaciones! Has ganado un descuento del ${prize.value}. Muestra este resultado a tu vendedor para aplicarlo en tu próxima compra.`;
+
 			}
 
 			// Show confetti
