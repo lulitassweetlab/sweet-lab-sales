@@ -581,6 +581,7 @@ const state = {
 	deleteSellerMode: false,
 	desserts: [], // Dynamic desserts loaded from API
 	dessertsLoaded: false,
+	visibleDesserts: [], // Desserts currently visible in sales table (sold in selected day)
 	globalClientSuggestions: [], // Global client suggestions for header search
 };
 
@@ -1158,6 +1159,7 @@ async function loadDesserts() {
 
 // Render dynamic dessert columns in table header
 function renderDessertColumns() {
+	const visibleDesserts = getVisibleDessertsForSalesTable();
 	const headerRow = document.getElementById('sales-table-header');
 	const colgroup = document.getElementById('sales-table-colgroup');
 	if (!headerRow || !colgroup) return;
@@ -1173,7 +1175,7 @@ function renderDessertColumns() {
 	// Insert new cols in colgroup before w-total
 	const totalCol = colgroup.querySelector('col.w-total');
 	if (totalCol) {
-		for (const d of state.desserts) {
+		for (const d of visibleDesserts) {
 			const col = document.createElement('col');
 			col.className = 'w-qty';
 			colgroup.insertBefore(col, totalCol);
@@ -1183,7 +1185,7 @@ function renderDessertColumns() {
 	// Insert new th columns before col-total
 	const totalTh = headerRow.querySelector('th.col-total');
 	if (totalTh) {
-		for (const d of state.desserts) {
+		for (const d of visibleDesserts) {
 			const th = document.createElement('th');
 			th.className = `col-dessert col-${d.short_code}`;
 			th.dataset.label = d.name;
@@ -1197,10 +1199,62 @@ function renderDessertColumns() {
 	}
 
 	// Also update footer rows
-	renderFooterDessertColumns();
+	renderFooterDessertColumns(visibleDesserts);
 }
 
-function renderFooterDessertColumns() {
+function getVisibleDessertsForSalesTable() {
+	// Without selected day there is no "current table", so hide dessert columns.
+	if (!state.selectedDayId || !Array.isArray(state.desserts) || state.desserts.length === 0) {
+		state.visibleDesserts = [];
+		return state.visibleDesserts;
+	}
+
+	const soldShortCodes = new Set();
+	const shortCodeByDessertId = new Map();
+	for (const d of state.desserts) {
+		const shortCode = String(d?.short_code || '').trim().toLowerCase();
+		if (!shortCode) continue;
+		shortCodeByDessertId.set(Number(d.id), shortCode);
+	}
+
+	for (const sale of (state.sales || [])) {
+		if (!sale) continue;
+
+		if (Array.isArray(sale.items) && sale.items.length > 0) {
+			for (const item of sale.items) {
+				const qty = Number(item?.quantity || 0) || 0;
+				if (qty <= 0) continue;
+
+				const itemShortCode = String(item?.short_code || '').trim().toLowerCase();
+				if (itemShortCode) {
+					soldShortCodes.add(itemShortCode);
+					continue;
+				}
+
+				const dessertId = Number(item?.dessert_id || 0) || 0;
+				const mappedShortCode = shortCodeByDessertId.get(dessertId);
+				if (mappedShortCode) soldShortCodes.add(mappedShortCode);
+			}
+			continue;
+		}
+
+		for (const d of state.desserts) {
+			const shortCode = String(d?.short_code || '').trim().toLowerCase();
+			if (!shortCode) continue;
+			const qty = Number(sale[`qty_${shortCode}`] || 0) || 0;
+			if (qty > 0) soldShortCodes.add(shortCode);
+		}
+	}
+
+	state.visibleDesserts = state.desserts.filter(d => {
+		const shortCode = String(d?.short_code || '').trim().toLowerCase();
+		return shortCode && soldShortCodes.has(shortCode);
+	});
+
+	return state.visibleDesserts;
+}
+
+function renderFooterDessertColumns(visibleDesserts = state.visibleDesserts || []) {
 	const qtyRow = document.getElementById('footer-qty-row');
 	const amtRow = document.getElementById('footer-amt-row');
 	const delivRow = document.getElementById('footer-delivered-row');
@@ -1217,7 +1271,7 @@ function renderFooterDessertColumns() {
 	});
 
 	// Insert new columns before col-total
-	for (const d of state.desserts) {
+	for (const d of visibleDesserts) {
 		// Qty row
 		if (qtyRow) {
 			const totalTd = qtyRow.querySelector('td.col-total');
@@ -1280,7 +1334,7 @@ function renderFooterDessertColumns() {
 		existing.forEach(tr => tr.remove());
 
 		// Add stacked row for each dessert
-		for (const d of state.desserts) {
+		for (const d of visibleDesserts) {
 			const tr = document.createElement('tr');
 			tr.className = `tfoot-amt-stack t-am-${d.short_code}`;
 			const td1 = document.createElement('td');
@@ -1390,6 +1444,8 @@ function renderTable() {
 	if (typeof closeClientActionBar === 'function') {
 		closeClientActionBar(true); // Skip fade on re-render
 	}
+	renderDessertColumns();
+	const visibleDesserts = state.visibleDesserts || [];
 	const tbody = $('#sales-tbody');
 	// Update caption with selected date label
 	try {
@@ -1609,7 +1665,7 @@ function renderTable() {
 		);
 
 		// Add dynamic dessert columns
-		for (const dessert of state.desserts) {
+		for (const dessert of visibleDesserts) {
 			const dessertCell = createDessertQtyCell(sale, dessert, tr);
 			tr.appendChild(dessertCell);
 		}
@@ -3809,11 +3865,13 @@ async function savePayMethod(tr, id, method) {
 }
 
 function updateSummary() {
+	const visibleDesserts = getVisibleDessertsForSalesTable();
+
 	// Initialize counts and amounts dynamically for all desserts
 	const qtys = {};
 	const amts = {};
 	const paidQtys = {};
-	for (const d of state.desserts) {
+	for (const d of visibleDesserts) {
 		qtys[d.short_code] = 0;
 		amts[d.short_code] = 0;
 		paidQtys[d.short_code] = 0;
@@ -3826,7 +3884,7 @@ function updateSummary() {
 		const pm = (s.pay_method || '').toString();
 		// Check if this sale has special pricing (muestra or a_costo)
 		const hasSpecialPricing = (s.special_pricing_type === 'muestra' || s.special_pricing_type === 'a_costo');
-		for (const d of state.desserts) {
+		for (const d of visibleDesserts) {
 			const qty = getSaleDessertQty(s, d);
 			const amount = getDessertAmountForSale(d, qty, s.special_pricing_type);
 			qtys[d.short_code] += qty;
@@ -3842,7 +3900,7 @@ function updateSummary() {
 
 	// Update UI dynamically for all desserts
 	let totalQty = 0;
-	for (const d of state.desserts) {
+	for (const d of visibleDesserts) {
 		const qty = qtys[d.short_code] || 0;
 		const amt = amts[d.short_code] || 0;
 		totalQty += qty;
@@ -3869,7 +3927,7 @@ function updateSummary() {
 
 	// Commissions: tiered rates based on paid desserts quantity
 	let paidTotalQty = 0;
-	for (const d of state.desserts) {
+	for (const d of visibleDesserts) {
 		paidTotalQty += paidQtys[d.short_code] || 0;
 	}
 
@@ -3927,7 +3985,7 @@ function updateSummary() {
 			: null;
 
 		let totalDelivered = 0;
-		for (const d of state.desserts) {
+		for (const d of visibleDesserts) {
 			const delivered = Number(day?.[`delivered_${d.short_code}`] || 0) || 0;
 			totalDelivered += delivered;
 			const elD = document.getElementById(`deliv-${d.short_code}`);
@@ -3948,7 +4006,7 @@ function updateSummary() {
 		let overlap = false;
 		if (isSmall) {
 			// Check all dessert amt cells dynamically
-			for (const d of state.desserts) {
+			for (const d of visibleDesserts) {
 				const el = document.getElementById(`sum-${d.short_code}-amt`);
 				if (!el) continue;
 				if (el.scrollWidth > el.clientWidth) { overlap = true; break; }
