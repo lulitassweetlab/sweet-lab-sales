@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 15; // Bump when schema changes require a migration (add game_plays table for customer game)
+const SCHEMA_VERSION = 16; // Bump when schema changes require a migration (add configurable cost_price in desserts)
 
 export async function ensureSchema() {
 	// If already ensured in this instance, skip immediately
@@ -38,11 +38,24 @@ export async function ensureSchema() {
 			name TEXT UNIQUE NOT NULL,
 			short_code TEXT UNIQUE NOT NULL,
 			sale_price INTEGER NOT NULL DEFAULT 0,
+			cost_price INTEGER,
 			is_active BOOLEAN NOT NULL DEFAULT true,
 			position INTEGER NOT NULL DEFAULT 0,
 			created_at TIMESTAMPTZ DEFAULT now(),
 			updated_at TIMESTAMPTZ DEFAULT now()
 		)`;
+			// Ensure configurable cost price exists and backfill legacy rows
+			await sql`DO $$ BEGIN
+				IF NOT EXISTS (
+					SELECT 1 FROM information_schema.columns
+					WHERE table_name = 'desserts' AND column_name = 'cost_price'
+				) THEN
+					ALTER TABLE desserts ADD COLUMN cost_price INTEGER;
+				END IF;
+				UPDATE desserts
+				SET cost_price = ROUND(sale_price * 0.55)::int
+				WHERE cost_price IS NULL;
+			END $$;`;
 
 			// Recipe sessions: complete saved records with quantities, times, and participants
 			await sql`CREATE TABLE IF NOT EXISTS recipe_sessions (
@@ -113,6 +126,7 @@ export async function ensureSchema() {
 		name TEXT UNIQUE NOT NULL,
 		short_code TEXT UNIQUE NOT NULL,
 		sale_price INTEGER NOT NULL DEFAULT 0,
+		cost_price INTEGER,
 		is_active BOOLEAN NOT NULL DEFAULT true,
 		position INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMPTZ DEFAULT now(),
@@ -133,14 +147,14 @@ export async function ensureSchema() {
 				const dessertCount = await sql`SELECT COUNT(*)::int AS c FROM desserts`;
 				if ((dessertCount[0]?.c || 0) === 0) {
 					const defaultDesserts = [
-						{ name: 'Arco', short_code: 'arco', sale_price: 8500, position: 1 },
-						{ name: 'Melo', short_code: 'melo', sale_price: 9500, position: 2 },
-						{ name: 'Mara', short_code: 'mara', sale_price: 10500, position: 3 },
-						{ name: 'Oreo', short_code: 'oreo', sale_price: 10500, position: 4 },
-						{ name: 'Nute', short_code: 'nute', sale_price: 13000, position: 5 }
+						{ name: 'Arco', short_code: 'arco', sale_price: 8500, cost_price: 4675, position: 1 },
+						{ name: 'Melo', short_code: 'melo', sale_price: 9500, cost_price: 5225, position: 2 },
+						{ name: 'Mara', short_code: 'mara', sale_price: 10500, cost_price: 5775, position: 3 },
+						{ name: 'Oreo', short_code: 'oreo', sale_price: 10500, cost_price: 5775, position: 4 },
+						{ name: 'Nute', short_code: 'nute', sale_price: 13000, cost_price: 7150, position: 5 }
 					];
 					for (const d of defaultDesserts) {
-						await sql`INSERT INTO desserts (name, short_code, sale_price, position) VALUES (${d.name}, ${d.short_code}, ${d.sale_price}, ${d.position}) ON CONFLICT (name) DO NOTHING`;
+						await sql`INSERT INTO desserts (name, short_code, sale_price, cost_price, position) VALUES (${d.name}, ${d.short_code}, ${d.sale_price}, ${d.cost_price}, ${d.position}) ON CONFLICT (name) DO NOTHING`;
 					}
 				}
 			} catch (err) {
@@ -819,10 +833,24 @@ export function prices() {
 	return { arco: 8500, melo: 9500, mara: 10500, oreo: 10500, nute: 13000 };
 }
 
+function fallbackCostPrice(salePrice) {
+	return Math.round((Number(salePrice || 0) || 0) * 0.55);
+}
+
+function getDessertUnitPriceForSpecialPricing(dessert, specialPricing) {
+	if (specialPricing === 'muestra') return 0;
+	if (specialPricing === 'a_costo') {
+		const configuredCost = Number(dessert?.cost_price);
+		if (Number.isFinite(configuredCost) && configuredCost >= 0) return Math.round(configuredCost);
+		return fallbackCostPrice(dessert?.sale_price);
+	}
+	return Number(dessert?.sale_price || 0) || 0;
+}
+
 export async function getDesserts() {
 	await ensureSchema();
 	try {
-		return await sql`SELECT id, name, short_code, sale_price, is_active, position FROM desserts WHERE is_active = true ORDER BY position ASC, id ASC`;
+		return await sql`SELECT id, name, short_code, sale_price, cost_price, is_active, position FROM desserts WHERE is_active = true ORDER BY position ASC, id ASC`;
 	} catch (err) {
 		console.error('Error getting desserts:', err);
 		// Return empty array if table doesn't exist yet
@@ -843,19 +871,12 @@ export async function recalcTotalForId(id) {
 		const [sale] = await sql`SELECT special_pricing_type FROM sales WHERE id = ${id}`;
 		const specialPricing = sale ? sale.special_pricing_type : null;
 
-		let priceMultiplier = 1;
-		if (specialPricing === 'muestra') {
-			priceMultiplier = 0;
-		} else if (specialPricing === 'a_costo') {
-			priceMultiplier = 0.55;
-		}
-
 		// If special pricing, update unit_price in items to match
 		if (specialPricing) {
 			const desserts = await getDesserts();
 			const dessertPrices = {};
 			for (const d of desserts) {
-				dessertPrices[d.id] = Math.round(d.sale_price * priceMultiplier);
+				dessertPrices[d.id] = getDessertUnitPriceForSpecialPricing(d, specialPricing);
 			}
 
 			// Update each item's unit_price
@@ -894,13 +915,6 @@ export async function recalcTotalForId(id) {
 
 		console.log(`🔄 recalcTotalForId(${id}): Using old format, special_pricing_type=${specialPricing}`);
 
-		let priceMultiplier = 1;
-		if (specialPricing === 'muestra') {
-			priceMultiplier = 0; // Free samples
-		} else if (specialPricing === 'a_costo') {
-			priceMultiplier = 0.55; // 45% discount (55% of original price)
-		}
-
 		// Get all desserts dynamically
 		const desserts = await getDesserts();
 
@@ -910,12 +924,12 @@ export async function recalcTotalForId(id) {
 			const qtyKey = `qty_${d.short_code}`;
 			const qty = Number(sale[qtyKey] || 0) || 0;
 			if (qty > 0) {
-				const adjustedPrice = Math.round(d.sale_price * priceMultiplier);
+				const adjustedPrice = getDessertUnitPriceForSpecialPricing(d, specialPricing);
 				total += qty * adjustedPrice;
 			}
 		}
 
-		console.log(`🔄 recalcTotalForId(${id}): Calculated total=${total} with multiplier=${priceMultiplier}`);
+		console.log(`🔄 recalcTotalForId(${id}): Calculated total=${total} with special_pricing=${specialPricing}`);
 
 		[row] = await sql`
 			UPDATE sales SET total_cents = ${total}

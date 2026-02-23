@@ -53,10 +53,33 @@
 		const addBtn = document.getElementById('add-dessert-btn');
 		
 		const fmtMoney = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
-		const COST_PRICE_MULTIPLIER = 0.55; // A costo = 45% descuento
+		const DEFAULT_COST_PRICE_MULTIPLIER = 0.55;
 		
-		function getCostPrice(salePrice) {
-			return Math.round((Number(salePrice || 0) || 0) * COST_PRICE_MULTIPLIER);
+		function getDefaultCostPrice(salePrice) {
+			return Math.round((Number(salePrice || 0) || 0) * DEFAULT_COST_PRICE_MULTIPLIER);
+		}
+		
+		function getEffectiveCostPrice(dessert) {
+			const configured = Number(dessert?.cost_price);
+			if (Number.isFinite(configured) && configured >= 0) return Math.round(configured);
+			return getDefaultCostPrice(dessert?.sale_price);
+		}
+		
+		async function updateDessertCostPrice(dessert, costPrice) {
+			const response = await fetch('/api/desserts', {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					id: dessert.id,
+					name: dessert.name,
+					sale_price: dessert.sale_price,
+					cost_price: costPrice,
+					position: dessert.position,
+					is_active: dessert.is_active
+				})
+			});
+			if (!response.ok) throw new Error('Failed to update cost price');
+			return response.json();
 		}
 		
 		async function loadDesserts() {
@@ -86,7 +109,50 @@
 				tdPrice.textContent = fmtMoney.format(d.sale_price);
 				
 				const tdCostPrice = document.createElement('td');
-				tdCostPrice.textContent = fmtMoney.format(getCostPrice(d.sale_price));
+				const costInput = document.createElement('input');
+				costInput.className = 'input-cell';
+				costInput.type = 'number';
+				costInput.min = '0';
+				costInput.step = '100';
+				costInput.inputMode = 'numeric';
+				costInput.value = String(getEffectiveCostPrice(d));
+				costInput.title = 'Presiona Enter o sal del campo para guardar';
+				let savingCost = false;
+				
+				const saveCostFromInput = async () => {
+					if (savingCost) return;
+					const prevCost = getEffectiveCostPrice(d);
+					const nextCost = Math.max(0, Math.round(Number(costInput.value || 0) || 0));
+					if (nextCost === prevCost) {
+						costInput.value = String(prevCost);
+						return;
+					}
+					
+					savingCost = true;
+					costInput.disabled = true;
+					try {
+						const updated = await updateDessertCostPrice(d, nextCost);
+						const savedCost = Number(updated?.cost_price);
+						d.cost_price = Number.isFinite(savedCost) && savedCost >= 0 ? Math.round(savedCost) : nextCost;
+						costInput.value = String(d.cost_price);
+					} catch (err) {
+						console.error('Error updating cost price:', err);
+						costInput.value = String(prevCost);
+						alert('Error al guardar el precio a costo');
+					} finally {
+						savingCost = false;
+						costInput.disabled = false;
+					}
+				};
+				
+				costInput.addEventListener('blur', saveCostFromInput);
+				costInput.addEventListener('keydown', (ev) => {
+					if (ev.key === 'Enter') {
+						ev.preventDefault();
+						costInput.blur();
+					}
+				});
+				tdCostPrice.appendChild(costInput);
 				
 				const tdPos = document.createElement('td');
 				tdPos.textContent = d.position;
@@ -143,6 +209,7 @@
 						id: dessert.id, 
 						name: dessert.name,
 						sale_price: dessert.sale_price,
+						cost_price: getEffectiveCostPrice(dessert),
 						position: dessert.position,
 						is_active: !dessert.is_active
 					})
@@ -271,8 +338,8 @@
 				try {
 					const method = dessert ? 'PUT' : 'POST';
 					const body = dessert 
-						? { id: dessert.id, name, sale_price: price, position, is_active: dessert.is_active }
-						: { name, short_code: code, sale_price: price, position };
+						? { id: dessert.id, name, sale_price: price, cost_price: getEffectiveCostPrice(dessert), position, is_active: dessert.is_active }
+						: { name, short_code: code, sale_price: price, cost_price: getDefaultCostPrice(price), position };
 					
 					const response = await fetch('/api/desserts', {
 						method,

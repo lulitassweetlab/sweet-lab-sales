@@ -503,6 +503,34 @@ const PRICES = {
 	oreo: 10500,
 	nute: 13000,
 };
+const COST_PRICES = {
+	arco: 4675,
+	melo: 5225,
+	mara: 5775,
+	oreo: 5775,
+	nute: 7150,
+};
+const DEFAULT_A_COSTO_MULTIPLIER = 0.55;
+
+function getDefaultCostPriceFromSalePrice(salePrice) {
+	return Math.round((Number(salePrice || 0) || 0) * DEFAULT_A_COSTO_MULTIPLIER);
+}
+
+function getCostPriceForDessert(dessert) {
+	if (!dessert) return 0;
+	const directCost = Number(dessert.cost_price);
+	if (Number.isFinite(directCost) && directCost >= 0) return Math.round(directCost);
+	const mapCost = Number(COST_PRICES[dessert.short_code]);
+	if (Number.isFinite(mapCost) && mapCost >= 0) return Math.round(mapCost);
+	const salePrice = Number(dessert.sale_price ?? PRICES[dessert.short_code] ?? 0) || 0;
+	return getDefaultCostPriceFromSalePrice(salePrice);
+}
+
+function getUnitPriceForDessertByPricingType(dessert, specialPricingType) {
+	if (specialPricingType === 'muestra') return 0;
+	if (specialPricingType === 'a_costo') return getCostPriceForDessert(dessert);
+	return Number(dessert?.sale_price ?? PRICES[dessert?.short_code] ?? 0) || 0;
+}
 
 const fmtNo = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 });
 
@@ -1062,20 +1090,29 @@ async function loadDesserts() {
 		state.desserts = await api('GET', API.Desserts);
 		state.dessertsLoaded = true;
 		// Update PRICES map
+		for (const key of Object.keys(PRICES)) delete PRICES[key];
+		for (const key of Object.keys(COST_PRICES)) delete COST_PRICES[key];
 		for (const d of state.desserts) {
 			PRICES[d.short_code] = d.sale_price;
+			COST_PRICES[d.short_code] = getCostPriceForDessert(d);
 		}
 		return state.desserts;
 	} catch (err) {
 		console.error('Error loading desserts:', err);
 		// Fallback to defaults
 		state.desserts = [
-			{ id: 1, name: 'Arco', short_code: 'arco', sale_price: 8500, position: 1 },
-			{ id: 2, name: 'Melo', short_code: 'melo', sale_price: 9500, position: 2 },
-			{ id: 3, name: 'Mara', short_code: 'mara', sale_price: 10500, position: 3 },
-			{ id: 4, name: 'Oreo', short_code: 'oreo', sale_price: 10500, position: 4 },
-			{ id: 5, name: 'Nute', short_code: 'nute', sale_price: 13000, position: 5 }
+			{ id: 1, name: 'Arco', short_code: 'arco', sale_price: 8500, cost_price: 4675, position: 1 },
+			{ id: 2, name: 'Melo', short_code: 'melo', sale_price: 9500, cost_price: 5225, position: 2 },
+			{ id: 3, name: 'Mara', short_code: 'mara', sale_price: 10500, cost_price: 5775, position: 3 },
+			{ id: 4, name: 'Oreo', short_code: 'oreo', sale_price: 10500, cost_price: 5775, position: 4 },
+			{ id: 5, name: 'Nute', short_code: 'nute', sale_price: 13000, cost_price: 7150, position: 5 }
 		];
+		for (const key of Object.keys(PRICES)) delete PRICES[key];
+		for (const key of Object.keys(COST_PRICES)) delete COST_PRICES[key];
+		for (const d of state.desserts) {
+			PRICES[d.short_code] = d.sale_price;
+			COST_PRICES[d.short_code] = getCostPriceForDessert(d);
+		}
 		state.dessertsLoaded = true;
 		return state.desserts;
 	}
@@ -1260,14 +1297,9 @@ function calcRowTotal(q) {
 	}
 
 	// Fallback to old format with dynamic desserts (check qty_* properties)
-	// Apply special pricing if present
-	const priceMultiplier = q.special_pricing_type === 'muestra' ? 0 :
-		q.special_pricing_type === 'a_costo' ? 0.55 : 1;
-
 	for (const d of state.desserts) {
 		const qty = Number(q[`qty_${d.short_code}`] || 0);
-		const basePrice = Number(PRICES[d.short_code] || 0);
-		total += qty * Math.round(basePrice * priceMultiplier);
+		total += qty * getUnitPriceForDessertByPricingType(d, q.special_pricing_type);
 	}
 
 	return total;
@@ -2316,13 +2348,10 @@ function openNewSalePopover(anchorX, anchorY) {
 
 				// Determine special pricing type
 				let specialPricingType = null;
-				let priceMultiplier = 1;
 				if (muestraInput.checked) {
 					specialPricingType = 'muestra';
-					priceMultiplier = 0;
 				} else if (costoInput.checked) {
 					specialPricingType = 'a_costo';
-					priceMultiplier = 0.55; // 45% discount = 55% of original price
 				}
 
 				// Build items array and legacy qty_* properties dynamically
@@ -2348,7 +2377,7 @@ function openNewSalePopover(anchorX, anchorY) {
 						items.push({
 							dessert_id: d.id,
 							quantity: qty,
-							unit_price: Math.round(d.sale_price * priceMultiplier)
+							unit_price: getUnitPriceForDessertByPricingType(d, specialPricingType)
 						});
 					}
 				}
@@ -2495,7 +2524,7 @@ function openEditSalePopover(saleId, anchorX, anchorY, onCloseCallback) {
 		costoInput.style.cursor = 'pointer';
 		costoInput.checked = (sale.special_pricing_type === 'a_costo');
 		const costoLabel = document.createElement('span');
-		costoLabel.textContent = 'A costo (45% desc.)';
+		costoLabel.textContent = 'A costo';
 		costoCheckbox.append(costoInput, costoLabel);
 
 		specialPricingContainer.append(muestraCheckbox, costoCheckbox);
@@ -2578,13 +2607,10 @@ function openEditSalePopover(saleId, anchorX, anchorY, onCloseCallback) {
 
 				// Determine special pricing type
 				let specialPricingType = null;
-				let priceMultiplier = 1;
 				if (muestraInput.checked) {
 					specialPricingType = 'muestra';
-					priceMultiplier = 0;
 				} else if (costoInput.checked) {
 					specialPricingType = 'a_costo';
-					priceMultiplier = 0.55; // 45% discount = 55% of original price
 				}
 
 				// Build items array and legacy qty_* properties
@@ -2611,7 +2637,7 @@ function openEditSalePopover(saleId, anchorX, anchorY, onCloseCallback) {
 						items.push({
 							dessert_id: d.id,
 							quantity: qty,
-							unit_price: Math.round(d.sale_price * priceMultiplier)
+							unit_price: getUnitPriceForDessertByPricingType(d, specialPricingType)
 						});
 					}
 				}
@@ -3815,10 +3841,7 @@ function updateSummary() {
 			// Old format: use qty_* columns
 			for (const d of state.desserts) {
 				const qty = Number(s[`qty_${d.short_code}`] || 0);
-				// For old format without special pricing, use standard prices
-				const price = hasSpecialPricing && s.special_pricing_type === 'muestra' ? 0 :
-					hasSpecialPricing && s.special_pricing_type === 'a_costo' ? Math.round((PRICES[d.short_code] || 0) * 0.55) :
-						(PRICES[d.short_code] || 0);
+				const price = getUnitPriceForDessertByPricingType(d, s.special_pricing_type);
 				qtys[d.short_code] += qty;
 				amts[d.short_code] += qty * price;
 				// Exclude special pricing from commission calculations
