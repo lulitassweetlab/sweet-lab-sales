@@ -1077,6 +1077,10 @@ function switchView(id) {
 	if (typeof closeClientActionBar === 'function') {
 		closeClientActionBar();
 	}
+	// Recompute toolbar offset when sales view becomes visible (used by sticky table header).
+	if (id === '#view-sales') {
+		requestAnimationFrame(() => updateToolbarOffset());
+	}
 }
 
 function applyAuthVisibility() {
