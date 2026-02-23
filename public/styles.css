@@ -4753,3 +4753,18 @@ td.col-client.action-bar-fading .client-input {
 [data-theme="dark"] .notif-details {
 	color: var(--muted);
 }
+
+/* Sales table: keep header row visible on long scrolls */
+#view-sales #sales-wrapper.table-wrapper {
+	overflow-y: visible !important;
+	max-height: none !important;
+}
+#view-sales #sales-table thead {
+	display: table-header-group !important;
+}
+#view-sales #sales-table thead th {
+	position: sticky !important;
+	top: var(--toolbarH, 56px) !important;
+	z-index: 40 !important;
+	background: var(--card) !important;
+}
