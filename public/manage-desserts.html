@@ -34,6 +34,7 @@
 							<th>Nombre</th>
 							<th>Código</th>
 							<th>Precio de Venta</th>
+							<th>Precio a Costo</th>
 							<th>Posición</th>
 							<th>Estado</th>
 							<th>Acciones</th>
@@ -52,6 +53,11 @@
 		const addBtn = document.getElementById('add-dessert-btn');
 		
 		const fmtMoney = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
+		const COST_PRICE_MULTIPLIER = 0.55; // A costo = 45% descuento
+		
+		function getCostPrice(salePrice) {
+			return Math.round((Number(salePrice || 0) || 0) * COST_PRICE_MULTIPLIER);
+		}
 		
 		async function loadDesserts() {
 			try {
@@ -78,6 +84,9 @@
 				
 				const tdPrice = document.createElement('td');
 				tdPrice.textContent = fmtMoney.format(d.sale_price);
+				
+				const tdCostPrice = document.createElement('td');
+				tdCostPrice.textContent = fmtMoney.format(getCostPrice(d.sale_price));
 				
 				const tdPos = document.createElement('td');
 				tdPos.textContent = d.position;
@@ -120,7 +129,7 @@
 				tdActions.appendChild(toggleBtn);
 				tdActions.appendChild(deleteBtn);
 				
-				tr.append(tdName, tdCode, tdPrice, tdPos, tdStatus, tdActions);
+				tr.append(tdName, tdCode, tdPrice, tdCostPrice, tdPos, tdStatus, tdActions);
 				tbody.appendChild(tr);
 			}
 		}
