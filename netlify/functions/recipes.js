@@ -420,9 +420,10 @@ export async function handler(event) {
 					// If sale_price is provided, upsert into desserts table
 					if (salePrice !== null && salePrice > 0) {
 						const shortCode = dessert.toLowerCase().slice(0, 4);
+						const costPrice = Math.round(salePrice * 0.55);
 						await sql`
-							INSERT INTO desserts (name, short_code, sale_price, position)
-							VALUES (${dessert}, ${shortCode}, ${salePrice}, 0)
+							INSERT INTO desserts (name, short_code, sale_price, cost_price, position)
+							VALUES (${dessert}, ${shortCode}, ${salePrice}, ${costPrice}, 0)
 							ON CONFLICT (name) DO UPDATE SET sale_price = EXCLUDED.sale_price, updated_at = now()
 						`;
 					}

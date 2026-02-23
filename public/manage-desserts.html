@@ -5,6 +5,49 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
 	<title>Administrar Postres</title>
 	<link rel="stylesheet" href="/styles.css?v=2025-09-17-1" />
+	<style>
+		.dessert-config-input {
+			border: 1px solid transparent;
+			cursor: text;
+			transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+			-moz-appearance: textfield;
+			appearance: textfield;
+		}
+		.dessert-config-input:hover {
+			background: var(--secondary);
+			border-color: var(--border);
+			box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+		}
+		.dessert-config-input:focus {
+			background: var(--secondary);
+			border-color: var(--border);
+		}
+		[data-theme="dark"] .dessert-config-input:hover {
+			background: #2a2a2a;
+			box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+		}
+		.cost-price-input {
+			width: 10ch;
+			min-width: 10ch;
+			text-align: right;
+		}
+		.promo-qty-input {
+			width: 6ch;
+			min-width: 6ch;
+			text-align: center;
+		}
+		.promo-price-input {
+			width: 10ch;
+			min-width: 10ch;
+			text-align: right;
+		}
+
+		.dessert-config-input::-webkit-outer-spin-button,
+		.dessert-config-input::-webkit-inner-spin-button {
+			-webkit-appearance: none;
+			margin: 0;
+		}
+	</style>
 </head>
 <body>
 	<header class="app-header">
@@ -31,12 +74,18 @@
 				<table id="desserts-table">
 					<thead>
 						<tr>
-							<th>Nombre</th>
-							<th>Código</th>
-							<th>Precio de Venta</th>
-							<th>Posición</th>
-							<th>Estado</th>
-							<th>Acciones</th>
+							<th rowspan="2">Nombre</th>
+							<th rowspan="2">Código</th>
+							<th rowspan="2">Precio de Venta</th>
+							<th rowspan="2">Precio a Costo</th>
+							<th colspan="2">Promoción</th>
+							<th rowspan="2">Posición</th>
+							<th rowspan="2">Estado</th>
+							<th rowspan="2">Acciones</th>
+						</tr>
+						<tr>
+							<th>Cantidad</th>
+							<th>Precio</th>
 						</tr>
 					</thead>
 					<tbody id="desserts-tbody"></tbody>
@@ -52,6 +101,63 @@
 		const addBtn = document.getElementById('add-dessert-btn');
 		
 		const fmtMoney = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
+		const DEFAULT_COST_PRICE_MULTIPLIER = 0.55;
+		
+		function getDefaultCostPrice(salePrice) {
+			return Math.round((Number(salePrice || 0) || 0) * DEFAULT_COST_PRICE_MULTIPLIER);
+		}
+		
+		function getEffectiveCostPrice(dessert) {
+			const configured = Number(dessert?.cost_price);
+			if (Number.isFinite(configured) && configured >= 0) return Math.round(configured);
+			return getDefaultCostPrice(dessert?.sale_price);
+		}
+		
+		function getEffectivePromotionQty(dessert) {
+			const qty = Number(dessert?.promo_qty);
+			if (Number.isFinite(qty) && qty >= 2) return Math.floor(qty);
+			return '';
+		}
+		
+		function getEffectivePromotionPrice(dessert) {
+			const price = Number(dessert?.promo_price);
+			if (Number.isFinite(price) && price >= 0) return Math.round(price);
+			return '';
+		}
+		
+		function getPromotionPayload(dessert) {
+			const qty = getEffectivePromotionQty(dessert);
+			const price = getEffectivePromotionPrice(dessert);
+			return {
+				promo_qty: qty === '' ? null : qty,
+				promo_price: price === '' ? null : price
+			};
+		}
+		
+		function buildDessertPayload(dessert, overrides = {}) {
+			const promotion = getPromotionPayload(dessert);
+			const body = {
+				id: dessert.id,
+				name: dessert.name,
+				sale_price: dessert.sale_price,
+				cost_price: getEffectiveCostPrice(dessert),
+				promo_qty: promotion.promo_qty,
+				promo_price: promotion.promo_price,
+				position: dessert.position,
+				is_active: dessert.is_active
+			};
+			return { ...body, ...overrides };
+		}
+		
+		async function updateDessert(dessert, overrides = {}) {
+			const response = await fetch('/api/desserts', {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(buildDessertPayload(dessert, overrides))
+			});
+			if (!response.ok) throw new Error('Failed to update dessert');
+			return response.json();
+		}
 		
 		async function loadDesserts() {
 			try {
@@ -78,6 +184,179 @@
 				
 				const tdPrice = document.createElement('td');
 				tdPrice.textContent = fmtMoney.format(d.sale_price);
+				
+				const tdCostPrice = document.createElement('td');
+				const costInput = document.createElement('input');
+				costInput.className = 'input-cell dessert-config-input cost-price-input';
+				costInput.type = 'number';
+				costInput.min = '0';
+				costInput.step = '100';
+				costInput.inputMode = 'numeric';
+				costInput.value = String(getEffectiveCostPrice(d));
+				costInput.title = 'Presiona Enter o sal del campo para guardar';
+				let savingCost = false;
+				const selectAllCostInput = () => {
+					if (savingCost || costInput.disabled) return;
+					try {
+						costInput.select();
+					} catch {}
+				};
+				
+				const saveCostFromInput = async () => {
+					if (savingCost) return;
+					const prevCost = getEffectiveCostPrice(d);
+					const nextCost = Math.max(0, Math.round(Number(costInput.value || 0) || 0));
+					if (nextCost === prevCost) {
+						costInput.value = String(prevCost);
+						return;
+					}
+					
+					savingCost = true;
+					costInput.disabled = true;
+					try {
+						const updated = await updateDessert(d, { cost_price: nextCost });
+						const savedCost = Number(updated?.cost_price);
+						d.cost_price = Number.isFinite(savedCost) && savedCost >= 0 ? Math.round(savedCost) : nextCost;
+						costInput.value = String(d.cost_price);
+					} catch (err) {
+						console.error('Error updating cost price:', err);
+						costInput.value = String(prevCost);
+						alert('Error al guardar el precio a costo');
+					} finally {
+						savingCost = false;
+						costInput.disabled = false;
+					}
+				};
+				
+				costInput.addEventListener('focus', () => {
+					requestAnimationFrame(selectAllCostInput);
+				});
+				costInput.addEventListener('click', () => {
+					requestAnimationFrame(selectAllCostInput);
+				});
+				costInput.addEventListener('blur', saveCostFromInput);
+				costInput.addEventListener('keydown', (ev) => {
+					if (ev.key === 'Enter') {
+						ev.preventDefault();
+						costInput.blur();
+					}
+				});
+				tdCostPrice.appendChild(costInput);
+
+				const tdPromoQty = document.createElement('td');
+				const promoQtyInput = document.createElement('input');
+				promoQtyInput.className = 'input-cell dessert-config-input promo-qty-input';
+				promoQtyInput.type = 'number';
+				promoQtyInput.min = '2';
+				promoQtyInput.step = '1';
+				promoQtyInput.inputMode = 'numeric';
+				promoQtyInput.placeholder = '-';
+				promoQtyInput.value = getEffectivePromotionQty(d) === '' ? '' : String(getEffectivePromotionQty(d));
+				promoQtyInput.title = 'Cantidad para activar promoción';
+
+				const tdPromoPrice = document.createElement('td');
+				const promoPriceInput = document.createElement('input');
+				promoPriceInput.className = 'input-cell dessert-config-input promo-price-input';
+				promoPriceInput.type = 'number';
+				promoPriceInput.min = '0';
+				promoPriceInput.step = '100';
+				promoPriceInput.inputMode = 'numeric';
+				promoPriceInput.placeholder = '-';
+				promoPriceInput.value = getEffectivePromotionPrice(d) === '' ? '' : String(getEffectivePromotionPrice(d));
+				promoPriceInput.title = 'Precio total de la promoción';
+
+				let savingPromotion = false;
+				const selectAllPromoInput = (input) => {
+					if (savingPromotion || input.disabled) return;
+					try { input.select(); } catch {}
+				};
+				const syncPromotionInputsFromDessert = () => {
+					const qty = getEffectivePromotionQty(d);
+					const price = getEffectivePromotionPrice(d);
+					promoQtyInput.value = qty === '' ? '' : String(qty);
+					promoPriceInput.value = price === '' ? '' : String(price);
+				};
+
+				const savePromotionFromInputs = async () => {
+					if (savingPromotion) return;
+
+					const prevQty = getEffectivePromotionQty(d);
+					const prevPrice = getEffectivePromotionPrice(d);
+					const prevQtyValue = prevQty === '' ? null : prevQty;
+					const prevPriceValue = prevPrice === '' ? null : prevPrice;
+
+					const qtyText = String(promoQtyInput.value || '').trim();
+					const priceText = String(promoPriceInput.value || '').trim();
+					let nextQty = null;
+					let nextPrice = null;
+
+					if (qtyText || priceText) {
+						const parsedQty = Math.floor(Number(qtyText) || 0);
+						const parsedPrice = Math.round(Number(priceText) || 0);
+						if (!qtyText || !priceText || parsedQty < 2 || parsedPrice < 0) {
+							alert('Para promoción debes completar cantidad (mínimo 2) y precio (mínimo 0)');
+							syncPromotionInputsFromDessert();
+							return;
+						}
+						nextQty = parsedQty;
+						nextPrice = parsedPrice;
+					}
+
+					if (nextQty === prevQtyValue && nextPrice === prevPriceValue) {
+						syncPromotionInputsFromDessert();
+						return;
+					}
+
+					savingPromotion = true;
+					promoQtyInput.disabled = true;
+					promoPriceInput.disabled = true;
+					try {
+						const updated = await updateDessert(d, { promo_qty: nextQty, promo_price: nextPrice });
+						const savedQty = Number(updated?.promo_qty);
+						const savedPrice = Number(updated?.promo_price);
+						d.promo_qty = Number.isFinite(savedQty) && savedQty >= 2 ? Math.floor(savedQty) : null;
+						d.promo_price = Number.isFinite(savedPrice) && savedPrice >= 0 ? Math.round(savedPrice) : null;
+						syncPromotionInputsFromDessert();
+					} catch (err) {
+						console.error('Error updating promotion:', err);
+						syncPromotionInputsFromDessert();
+						alert('Error al guardar la promoción');
+					} finally {
+						savingPromotion = false;
+						promoQtyInput.disabled = false;
+						promoPriceInput.disabled = false;
+					}
+				};
+
+				const handlePromoBlur = () => {
+					setTimeout(() => {
+						const active = document.activeElement;
+						if (active === promoQtyInput || active === promoPriceInput) return;
+						savePromotionFromInputs();
+					}, 0);
+				};
+
+				promoQtyInput.addEventListener('focus', () => requestAnimationFrame(() => selectAllPromoInput(promoQtyInput)));
+				promoQtyInput.addEventListener('click', () => requestAnimationFrame(() => selectAllPromoInput(promoQtyInput)));
+				promoPriceInput.addEventListener('focus', () => requestAnimationFrame(() => selectAllPromoInput(promoPriceInput)));
+				promoPriceInput.addEventListener('click', () => requestAnimationFrame(() => selectAllPromoInput(promoPriceInput)));
+				promoQtyInput.addEventListener('blur', handlePromoBlur);
+				promoPriceInput.addEventListener('blur', handlePromoBlur);
+				promoQtyInput.addEventListener('keydown', (ev) => {
+					if (ev.key === 'Enter') {
+						ev.preventDefault();
+						savePromotionFromInputs();
+					}
+				});
+				promoPriceInput.addEventListener('keydown', (ev) => {
+					if (ev.key === 'Enter') {
+						ev.preventDefault();
+						savePromotionFromInputs();
+					}
+				});
+
+				tdPromoQty.appendChild(promoQtyInput);
+				tdPromoPrice.appendChild(promoPriceInput);
 				
 				const tdPos = document.createElement('td');
 				tdPos.textContent = d.position;
@@ -120,7 +399,7 @@
 				tdActions.appendChild(toggleBtn);
 				tdActions.appendChild(deleteBtn);
 				
-				tr.append(tdName, tdCode, tdPrice, tdPos, tdStatus, tdActions);
+				tr.append(tdName, tdCode, tdPrice, tdCostPrice, tdPromoQty, tdPromoPrice, tdPos, tdStatus, tdActions);
 				tbody.appendChild(tr);
 			}
 		}
@@ -130,13 +409,7 @@
 				const response = await fetch('/api/desserts', {
 					method: 'PUT',
 					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ 
-						id: dessert.id, 
-						name: dessert.name,
-						sale_price: dessert.sale_price,
-						position: dessert.position,
-						is_active: !dessert.is_active
-					})
+					body: JSON.stringify(buildDessertPayload(dessert, { is_active: !dessert.is_active }))
 				});
 				if (!response.ok) throw new Error('Failed to toggle dessert');
 				alert(dessert.is_active ? 'Postre desactivado' : 'Postre activado');
@@ -262,8 +535,8 @@
 				try {
 					const method = dessert ? 'PUT' : 'POST';
 					const body = dessert 
-						? { id: dessert.id, name, sale_price: price, position, is_active: dessert.is_active }
-						: { name, short_code: code, sale_price: price, position };
+						? buildDessertPayload(dessert, { name, sale_price: price, position, is_active: dessert.is_active })
+						: { name, short_code: code, sale_price: price, cost_price: getDefaultCostPrice(price), position };
 					
 					const response = await fetch('/api/desserts', {
 						method,
