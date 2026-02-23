@@ -5,6 +5,21 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
 	<title>Administrar Postres</title>
 	<link rel="stylesheet" href="/styles.css?v=2025-09-17-1" />
+	<style>
+		.cost-price-input {
+			width: 10ch;
+			min-width: 10ch;
+			text-align: right;
+			-moz-appearance: textfield;
+			appearance: textfield;
+		}
+
+		.cost-price-input::-webkit-outer-spin-button,
+		.cost-price-input::-webkit-inner-spin-button {
+			-webkit-appearance: none;
+			margin: 0;
+		}
+	</style>
 </head>
 <body>
 	<header class="app-header">
@@ -110,7 +125,7 @@
 				
 				const tdCostPrice = document.createElement('td');
 				const costInput = document.createElement('input');
-				costInput.className = 'input-cell';
+				costInput.className = 'input-cell cost-price-input';
 				costInput.type = 'number';
 				costInput.min = '0';
 				costInput.step = '100';
