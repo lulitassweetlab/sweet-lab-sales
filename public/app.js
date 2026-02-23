@@ -532,6 +532,44 @@ function getUnitPriceForDessertByPricingType(dessert, specialPricingType) {
 	return Number(dessert?.sale_price ?? PRICES[dessert?.short_code] ?? 0) || 0;
 }
 
+function getPromotionForDessert(dessert) {
+	if (!dessert) return null;
+	const qty = Math.floor(Number(dessert.promo_qty || 0) || 0);
+	const price = Math.round(Number(dessert.promo_price || 0) || 0);
+	if (qty < 2 || price < 0) return null;
+	return { qty, price };
+}
+
+function getSaleDessertQty(sale, dessert) {
+	if (!sale || !dessert) return 0;
+	if (Array.isArray(sale.items) && sale.items.length > 0) {
+		let totalQty = 0;
+		for (const item of sale.items) {
+			const sameDessert = item?.dessert_id === dessert.id || item?.short_code === dessert.short_code;
+			if (sameDessert) totalQty += Number(item?.quantity || 0) || 0;
+		}
+		return totalQty;
+	}
+	return Number(sale[`qty_${dessert.short_code}`] || 0) || 0;
+}
+
+function getDessertAmountForSale(dessert, qty, specialPricingType) {
+	const quantity = Math.max(0, Math.floor(Number(qty || 0) || 0));
+	if (!quantity) return 0;
+
+	const unitPrice = getUnitPriceForDessertByPricingType(dessert, specialPricingType);
+	if (specialPricingType === 'muestra' || specialPricingType === 'a_costo') {
+		return quantity * unitPrice;
+	}
+
+	const promotion = getPromotionForDessert(dessert);
+	if (!promotion) return quantity * unitPrice;
+
+	const bundleCount = Math.floor(quantity / promotion.qty);
+	const remainder = quantity % promotion.qty;
+	return (bundleCount * promotion.price) + (remainder * unitPrice);
+}
+
 const fmtNo = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 });
 
 const state = {
@@ -1101,11 +1139,11 @@ async function loadDesserts() {
 		console.error('Error loading desserts:', err);
 		// Fallback to defaults
 		state.desserts = [
-			{ id: 1, name: 'Arco', short_code: 'arco', sale_price: 8500, cost_price: 4675, position: 1 },
-			{ id: 2, name: 'Melo', short_code: 'melo', sale_price: 9500, cost_price: 5225, position: 2 },
-			{ id: 3, name: 'Mara', short_code: 'mara', sale_price: 10500, cost_price: 5775, position: 3 },
-			{ id: 4, name: 'Oreo', short_code: 'oreo', sale_price: 10500, cost_price: 5775, position: 4 },
-			{ id: 5, name: 'Nute', short_code: 'nute', sale_price: 13000, cost_price: 7150, position: 5 }
+			{ id: 1, name: 'Arco', short_code: 'arco', sale_price: 8500, cost_price: 4675, promo_qty: null, promo_price: null, position: 1 },
+			{ id: 2, name: 'Melo', short_code: 'melo', sale_price: 9500, cost_price: 5225, promo_qty: null, promo_price: null, position: 2 },
+			{ id: 3, name: 'Mara', short_code: 'mara', sale_price: 10500, cost_price: 5775, promo_qty: null, promo_price: null, position: 3 },
+			{ id: 4, name: 'Oreo', short_code: 'oreo', sale_price: 10500, cost_price: 5775, promo_qty: null, promo_price: null, position: 4 },
+			{ id: 5, name: 'Nute', short_code: 'nute', sale_price: 13000, cost_price: 7150, promo_qty: null, promo_price: null, position: 5 }
 		];
 		for (const key of Object.keys(PRICES)) delete PRICES[key];
 		for (const key of Object.keys(COST_PRICES)) delete COST_PRICES[key];
@@ -1269,37 +1307,10 @@ function calcRowTotal(q) {
 
 	console.log(`⚠️ calcRowTotal(sale ${q.id}): total_cents not found, calculating... special_pricing=${q.special_pricing_type}`);
 
-	// Support both old format and new dynamic format
 	let total = 0;
-
-	// If using items array (new format) - only if array has elements
-	if (Array.isArray(q.items) && q.items.length > 0) {
-		// Use only the first occurrence per dessert (to match visible per-flavor qty)
-		const seen = new Set();
-		for (const item of q.items) {
-			const code = (item.short_code || '').toString() || (state.desserts.find(d => d.id === item.dessert_id)?.short_code || '');
-			const key = code || `id:${item.dessert_id}`;
-			if (seen.has(key)) continue;
-			seen.add(key);
-			const qty = Number(item.quantity || 0) || 0;
-			// Use unit_price from item if explicitly set, otherwise fallback to PRICES
-			let price;
-			if (item.hasOwnProperty('unit_price')) {
-				price = Number(item.unit_price || 0) || 0;
-			} else if (code && PRICES[code] != null) {
-				price = Number(PRICES[code] || 0) || 0;
-			} else {
-				price = 0;
-			}
-			total += qty * price;
-		}
-		return total;
-	}
-
-	// Fallback to old format with dynamic desserts (check qty_* properties)
 	for (const d of state.desserts) {
-		const qty = Number(q[`qty_${d.short_code}`] || 0);
-		total += qty * getUnitPriceForDessertByPricingType(d, q.special_pricing_type);
+		const qty = getSaleDessertQty(q, d);
+		total += getDessertAmountForSale(d, qty, q.special_pricing_type);
 	}
 
 	return total;
@@ -3815,39 +3826,14 @@ function updateSummary() {
 		const pm = (s.pay_method || '').toString();
 		// Check if this sale has special pricing (muestra or a_costo)
 		const hasSpecialPricing = (s.special_pricing_type === 'muestra' || s.special_pricing_type === 'a_costo');
-
-		if (Array.isArray(s.items) && s.items.length > 0) {
-			for (const d of state.desserts) {
-				let qty = 0;
-				let itemPrice = 0;
-				const item = s.items.find(i => i.short_code === d.short_code || i.dessert_id === d.id);
-				if (item) {
-					qty = Number(item.quantity || 0) || 0;
-					// Use unit_price from item if explicitly set, otherwise fallback to PRICES
-					if (item.hasOwnProperty('unit_price')) {
-						itemPrice = Number(item.unit_price || 0) || 0;
-					} else {
-						itemPrice = Number(PRICES[d.short_code] || 0) || 0;
-					}
-				}
-				qtys[d.short_code] += qty;
-				amts[d.short_code] += qty * itemPrice;
-				// Exclude special pricing from commission calculations
-				if ((pm === 'transf' || pm === 'jorgebank' || pm === 'marce' || pm === 'jorge') && !hasSpecialPricing) {
-					paidQtys[d.short_code] += qty;
-				}
-			}
-		} else {
-			// Old format: use qty_* columns
-			for (const d of state.desserts) {
-				const qty = Number(s[`qty_${d.short_code}`] || 0);
-				const price = getUnitPriceForDessertByPricingType(d, s.special_pricing_type);
-				qtys[d.short_code] += qty;
-				amts[d.short_code] += qty * price;
-				// Exclude special pricing from commission calculations
-				if ((pm === 'transf' || pm === 'jorgebank' || pm === 'marce' || pm === 'jorge') && !hasSpecialPricing) {
-					paidQtys[d.short_code] += qty;
-				}
+		for (const d of state.desserts) {
+			const qty = getSaleDessertQty(s, d);
+			const amount = getDessertAmountForSale(d, qty, s.special_pricing_type);
+			qtys[d.short_code] += qty;
+			amts[d.short_code] += amount;
+			// Exclude special pricing from commission calculations
+			if ((pm === 'transf' || pm === 'jorgebank' || pm === 'marce' || pm === 'jorge') && !hasSpecialPricing) {
+				paidQtys[d.short_code] += qty;
 			}
 		}
 
