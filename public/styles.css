@@ -4754,17 +4754,18 @@ td.col-client.action-bar-fading .client-input {
 	color: var(--muted);
 }
 
-/* Sales table: keep header row visible on long scrolls */
+/* Sales table: sticky header with internal table scroll */
 #view-sales #sales-wrapper.table-wrapper {
-	overflow-y: visible !important;
-	max-height: none !important;
+	overflow-y: auto !important;
+	max-height: calc(100vh - var(--toolbarH, 56px) - 24px) !important;
+	overscroll-behavior: auto !important;
 }
 #view-sales #sales-table thead {
 	display: table-header-group !important;
 }
 #view-sales #sales-table thead th {
 	position: sticky !important;
-	top: var(--toolbarH, 56px) !important;
+	top: 0 !important;
 	z-index: 40 !important;
 	background: var(--card) !important;
 }
