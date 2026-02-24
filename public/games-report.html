@@ -9,6 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         body {
             font-family: 'DM Sans', sans-serif;
@@ -309,6 +310,11 @@
         .probabilities-save-status.error {
             color: #b91c1c;
         }
+
+        .row-action-cell {
+            text-align: center;
+            white-space: nowrap;
+        }
     </style>
 </head>
 
@@ -317,6 +323,7 @@
         <h1>🎮 Reporte de Juegos</h1>
         <div>
             <a href="/game.html" class="btn-qr" style="background: #10b981; margin-right: 10px;">🎮 Ir al Juego</a>
+            <button id="export-games-excel" class="excel-btn press-btn btn-gold" style="margin-right: 10px;">⤓ Descargar Excel</button>
             <button class="btn-qr" id="show-qr-btn">📱 Ver QR</button>
             <a href="/" class="btn-back">← Volver</a>
         </div>
@@ -370,11 +377,12 @@
                     <th>WhatsApp</th>
                     <th>Vendedor</th>
                     <th>Regalo</th>
+                    <th>Acciones</th>
                 </tr>
             </thead>
             <tbody id="games-tbody">
                 <tr>
-                    <td colspan="5" class="loading">Cargando...</td>
+                    <td colspan="6" class="loading">Cargando...</td>
                 </tr>
             </tbody>
         </table>
@@ -385,6 +393,8 @@
             valuesByLabel: {},
             timersByLabel: new Map()
         };
+        let gamePlaysData = [];
+        let loadingGamePlays = false;
 
         function setProbabilitySaveStatus(message, tone = 'default') {
             const statusEl = document.getElementById('probabilities-save-status');
@@ -586,58 +596,162 @@
             }
         }
 
+        function formatGamePlayDate(playedAt) {
+            const date = new Date(playedAt);
+            return date.toLocaleDateString('es-CO', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        function updateGameStats(plays) {
+            const total = Array.isArray(plays) ? plays.length : 0;
+            const freePlays = (plays || []).filter((p) => p.prize_type === 'free').length;
+            document.getElementById('total-plays').textContent = total;
+            document.getElementById('total-free').textContent = freePlays;
+            document.getElementById('total-discounts').textContent = total - freePlays;
+        }
+
+        function renderGamePlaysTable(plays) {
+            const tbody = document.getElementById('games-tbody');
+            tbody.innerHTML = '';
+
+            if (!Array.isArray(plays) || plays.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="loading">No hay registros de juegos</td></tr>';
+                return;
+            }
+
+            plays.forEach((play) => {
+                const tr = document.createElement('tr');
+                const prizeClass = play.prize_type === 'free' ? 'prize-free' : 'prize-discount';
+                const prizeText = play.prize_type === 'free' ? '🎂 Postre Gratis' : `${play.prize_value} Descuento`;
+
+                const tdDate = document.createElement('td');
+                tdDate.textContent = formatGamePlayDate(play.played_at);
+
+                const tdName = document.createElement('td');
+                tdName.textContent = play.customer_name || '';
+
+                const tdWhatsapp = document.createElement('td');
+                tdWhatsapp.textContent = play.whatsapp || '';
+
+                const tdSeller = document.createElement('td');
+                tdSeller.textContent = play.seller_name || '';
+
+                const tdPrize = document.createElement('td');
+                const prizeBadge = document.createElement('span');
+                prizeBadge.className = prizeClass;
+                prizeBadge.textContent = prizeText;
+                tdPrize.appendChild(prizeBadge);
+
+                const tdActions = document.createElement('td');
+                tdActions.className = 'row-action-cell';
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'row-delete';
+                deleteBtn.title = 'Eliminar';
+                deleteBtn.setAttribute('aria-label', `Eliminar registro de ${play.customer_name || 'participante'}`);
+                deleteBtn.addEventListener('click', () => handleDeletePlay(play));
+                tdActions.appendChild(deleteBtn);
+
+                tr.append(tdDate, tdName, tdWhatsapp, tdSeller, tdPrize, tdActions);
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function handleDeletePlay(play) {
+            const id = Number(play?.id || 0);
+            if (!id) return;
+
+            const customerName = (play?.customer_name || 'este participante').toString();
+            const confirmed = confirm(`¿Seguro que quieres eliminar el registro de "${customerName}"? Esta acción no se puede deshacer.`);
+            if (!confirmed) return;
+
+            try {
+                const response = await fetch(`/.netlify/functions/game-plays?id=${encodeURIComponent(id)}`, {
+                    method: 'DELETE'
+                });
+                const data = await response.json();
+                if (!response.ok || !data?.ok) {
+                    throw new Error(data?.error || 'No se pudo eliminar el registro');
+                }
+
+                gamePlaysData = gamePlaysData.filter((item) => Number(item.id) !== id);
+                updateGameStats(gamePlaysData);
+                renderGamePlaysTable(gamePlaysData);
+            } catch (error) {
+                console.error('Error deleting game play:', error);
+                alert('Error al eliminar el registro');
+            }
+        }
+
+        function exportGamePlaysExcel() {
+            if (!Array.isArray(gamePlaysData) || gamePlaysData.length === 0) {
+                alert('No hay participantes para exportar');
+                return;
+            }
+
+            const XLSX = window.XLSX;
+            if (!XLSX) {
+                alert('No se pudo cargar la librería de Excel');
+                return;
+            }
+
+            const rows = [
+                ['Fecha', 'Nombre', 'WhatsApp', 'Vendedor', 'Tipo premio', 'Premio']
+            ];
+
+            gamePlaysData.forEach((play) => {
+                const isFree = play.prize_type === 'free';
+                rows.push([
+                    formatGamePlayDate(play.played_at),
+                    play.customer_name || '',
+                    play.whatsapp || '',
+                    play.seller_name || '',
+                    isFree ? 'Postre Gratis' : 'Descuento',
+                    isFree ? '🎂' : (play.prize_value || '')
+                ]);
+            });
+
+            const ws = XLSX.utils.aoa_to_sheet(rows);
+            ws['!cols'] = [
+                { wch: 24 },
+                { wch: 28 },
+                { wch: 16 },
+                { wch: 20 },
+                { wch: 18 },
+                { wch: 12 }
+            ];
+
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Participantes');
+            const dateLabel = new Date().toISOString().slice(0, 10);
+            XLSX.writeFile(wb, `Participantes_Juego_${dateLabel}.xlsx`);
+        }
+
         async function loadGamePlays() {
+            if (loadingGamePlays) return;
+            loadingGamePlays = true;
+
             try {
                 const response = await fetch('/.netlify/functions/game-plays');
                 const plays = await response.json();
-
-                // Update stats
-                document.getElementById('total-plays').textContent = plays.length;
-                const freePlays = plays.filter(p => p.prize_type === 'free');
-                document.getElementById('total-free').textContent = freePlays.length;
-                document.getElementById('total-discounts').textContent = plays.length - freePlays.length;
-
-                // Render table
-                const tbody = document.getElementById('games-tbody');
-                tbody.innerHTML = '';
-
-                if (plays.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="5" class="loading">No hay registros de juegos</td></tr>';
-                    return;
+                if (!response.ok || !Array.isArray(plays)) {
+                    throw new Error('No se pudo cargar la lista de participantes');
                 }
 
-                plays.forEach(play => {
-                    const tr = document.createElement('tr');
-
-                    // Format date
-                    const date = new Date(play.played_at);
-                    const dateStr = date.toLocaleDateString('es-CO', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    });
-
-                    // Prize display
-                    const prizeClass = play.prize_type === 'free' ? 'prize-free' : 'prize-discount';
-                    const prizeText = play.prize_type === 'free' ? '🎂 Postre Gratis' : `${play.prize_value} Descuento`;
-
-                    tr.innerHTML = `
-						<td>${dateStr}</td>
-						<td>${play.customer_name}</td>
-						<td>${play.whatsapp}</td>
-						<td>${play.seller_name}</td>
-						<td><span class="${prizeClass}">${prizeText}</span></td>
-					`;
-
-                    tbody.appendChild(tr);
-                });
-
+                gamePlaysData = plays;
+                updateGameStats(gamePlaysData);
+                renderGamePlaysTable(gamePlaysData);
             } catch (error) {
                 console.error('Error loading game plays:', error);
+                updateGameStats([]);
                 const tbody = document.getElementById('games-tbody');
-                tbody.innerHTML = '<tr><td colspan="5" class="loading">Error al cargar los datos</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" class="loading">Error al cargar los datos</td></tr>';
+            } finally {
+                loadingGamePlays = false;
             }
         }
 
@@ -651,6 +765,7 @@
         const qrModal = document.getElementById('qr-modal');
         const showQrBtn = document.getElementById('show-qr-btn');
         const closeQrBtn = document.getElementById('close-qr-btn');
+        const exportGamesExcelBtn = document.getElementById('export-games-excel');
 
         showQrBtn.addEventListener('click', () => {
             qrModal.classList.add('active');
@@ -658,6 +773,10 @@
 
         closeQrBtn.addEventListener('click', () => {
             qrModal.classList.remove('active');
+        });
+
+        exportGamesExcelBtn.addEventListener('click', () => {
+            exportGamePlaysExcel();
         });
 
         qrModal.addEventListener('click', (e) => {
