@@ -1256,7 +1256,7 @@ tfoot td { font-weight: 700; }
 .new-sale-popover h4 { margin: 0 0 10px 0; font-weight: 700; text-align: center; font-size: 20px; }
 .new-sale-grid {
   display: grid;
-  grid-template-columns: 8ch 1fr;
+  grid-template-columns: 6.8ch 1fr;
   gap: 6px 10px;
   align-items: center;
   margin-bottom: 10px;
@@ -1295,7 +1295,7 @@ tfoot td { font-weight: 700; }
   }
   .new-sale-popover h4 { font-size: 18px; margin: 0 0 8px 0; }
   .new-sale-grid { 
-    grid-template-columns: 8ch 1fr; 
+    grid-template-columns: 6.8ch 1fr; 
     gap: 5px 8px;
   }
   .new-sale-cell {
