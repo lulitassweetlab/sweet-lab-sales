@@ -608,17 +608,60 @@
             });
         }
 
+        function parseBirthDate(rawValue) {
+            const normalized = String(rawValue || '').trim();
+            if (!normalized) return null;
+
+            const datePartMatch = normalized.match(/^(\d{4}-\d{2}-\d{2})/);
+            const datePart = datePartMatch ? datePartMatch[1] : '';
+            if (!datePart) return null;
+
+            const [yRaw, mRaw, dRaw] = datePart.split('-');
+            const year = Number(yRaw);
+            const month = Number(mRaw);
+            const day = Number(dRaw);
+            if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) return null;
+
+            const date = new Date(Date.UTC(year, month - 1, day));
+            if (!Number.isFinite(date.getTime())) return null;
+            if (date.getUTCFullYear() !== year || (date.getUTCMonth() + 1) !== month || date.getUTCDate() !== day) return null;
+            return date;
+        }
+
+        function calculateAgeFromBirthDate(date) {
+            if (!date) return null;
+            const today = new Date();
+            const todayYear = today.getUTCFullYear();
+            const todayMonth = today.getUTCMonth() + 1;
+            const todayDay = today.getUTCDate();
+            const birthYear = date.getUTCFullYear();
+            const birthMonth = date.getUTCMonth() + 1;
+            const birthDay = date.getUTCDate();
+
+            let age = todayYear - birthYear;
+            if (todayMonth < birthMonth || (todayMonth === birthMonth && todayDay < birthDay)) {
+                age -= 1;
+            }
+
+            if (!Number.isFinite(age) || age < 0 || age > 130) return null;
+            return age;
+        }
+
         function formatBirthDate(birthDate) {
-            const normalized = String(birthDate || '').trim();
-            if (!normalized) return '-';
-            const date = new Date(`${normalized}T00:00:00Z`);
-            if (!Number.isFinite(date.getTime())) return normalized;
-            return date.toLocaleDateString('es-CO', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                timeZone: 'UTC'
-            });
+            const date = parseBirthDate(birthDate);
+            if (!date) return '-';
+
+            const monthNames = [
+                'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+                'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'
+            ];
+
+            const day = date.getUTCDate();
+            const monthName = monthNames[date.getUTCMonth()] || '';
+            const age = calculateAgeFromBirthDate(date);
+            if (age === null) return `${day} ${monthName}`;
+
+            return `${day} ${monthName} (${age} ${age === 1 ? 'año' : 'años'})`;
         }
 
         function updateGameStats(plays) {
