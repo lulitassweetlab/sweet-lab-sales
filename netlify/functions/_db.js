@@ -108,6 +108,29 @@ export async function ensureSchema() {
 			await sql`CREATE INDEX IF NOT EXISTS idx_delivery_production_users_dessert ON delivery_production_users(dessert_id)`;
 			await sql`CREATE INDEX IF NOT EXISTS idx_delivery_production_users_user ON delivery_production_users(user_id)`;
 
+			// Game plays table (used by game register/play/report)
+			await sql`CREATE TABLE IF NOT EXISTS game_plays (
+				id SERIAL PRIMARY KEY,
+				customer_name VARCHAR(255) NOT NULL,
+				whatsapp VARCHAR(20) NOT NULL UNIQUE,
+				birth_date DATE,
+				seller_name VARCHAR(100) NOT NULL,
+				prize_type VARCHAR(50) NOT NULL,
+				prize_value VARCHAR(20) NOT NULL,
+				played_at TIMESTAMPTZ DEFAULT now(),
+				ip_address VARCHAR(45)
+			)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_game_plays_whatsapp ON game_plays(whatsapp)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_game_plays_played_at ON game_plays(played_at DESC)`;
+			await sql`DO $$ BEGIN
+				IF NOT EXISTS (
+					SELECT 1 FROM information_schema.columns
+					WHERE table_name = 'game_plays' AND column_name = 'birth_date'
+				) THEN
+					ALTER TABLE game_plays ADD COLUMN birth_date DATE;
+				END IF;
+			END $$;`;
+
 			// FAST PATH: Just check if schema_meta exists and has correct version
 			try {
 				const cur = await sql`SELECT version FROM schema_meta LIMIT 1`;
@@ -228,6 +251,7 @@ export async function ensureSchema() {
 				id SERIAL PRIMARY KEY,
 				customer_name VARCHAR(255) NOT NULL,
 				whatsapp VARCHAR(20) NOT NULL UNIQUE,
+				birth_date DATE,
 				seller_name VARCHAR(100) NOT NULL,
 				prize_type VARCHAR(50) NOT NULL,
 				prize_value VARCHAR(20) NOT NULL,

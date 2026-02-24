@@ -1,30 +1,37 @@
 import { ensureSchema, sql } from './_db.js';
+import { getConfiguredGamePrizes } from './_game-prizes.js';
 
 function json(body, status = 200) {
     return { statusCode: status, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
 }
 
-// Prize configuration with probabilities - MUST MATCH frontend exactly
-const prizes = [
-    { type: 'free', label: 'POSTRE GRATIS', value: '🎂', probability: 5, color: '#ff6b9d' },
-    { type: 'discount', label: '70% DESC', value: '70%', probability: 2, color: '#f43f5e' },
-    { type: 'discount', label: '50% DESC', value: '50%', probability: 5, color: '#ec4899' },
-    { type: 'discount', label: '30% DESC', value: '30%', probability: 10, color: '#f472b6' },
-    { type: 'discount', label: '25% DESC', value: '25%', probability: 10, color: '#f472b6' },
-    { type: 'discount', label: '20% DESC', value: '20%', probability: 15, color: '#f9a8d4' },
-    { type: 'discount', label: '15% DESC', value: '15%', probability: 15, color: '#f9a8d4' },
-    { type: 'discount', label: '10% DESC', value: '10%', probability: 20, color: '#fbcfe8' },
-    { type: 'discount', label: '5% DESC', value: '5%', probability: 13, color: '#fce7f3' },
-    { type: 'discount', label: '0% DESC', value: '0%', probability: 5, color: '#fce7f3' }
-];
+function normalizeBirthDate(rawValue) {
+    const text = String(rawValue || '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return '';
+    if (text < '1900-01-01') return '';
+    if (text > new Date().toISOString().slice(0, 10)) return '';
+
+    const parsed = new Date(`${text}T00:00:00Z`);
+    if (!Number.isFinite(parsed.getTime())) return '';
+    if (parsed.toISOString().slice(0, 10) !== text) return '';
+    return text;
+}
 
 // Generate weighted random prize
-function getRandomPrize() {
-    const totalWeight = prizes.reduce((sum, p) => sum + p.probability, 0);
+function getRandomPrize(prizes) {
+    if (!Array.isArray(prizes) || prizes.length === 0) {
+        throw new Error('No hay premios configurados');
+    }
+
+    const totalWeight = prizes.reduce((sum, p) => sum + Math.max(0, Number(p?.probability || 0) || 0), 0);
+    if (totalWeight <= 0) {
+        return prizes[prizes.length - 1];
+    }
+
     let random = Math.random() * totalWeight;
 
     for (const prize of prizes) {
-        random -= prize.probability;
+        random -= Math.max(0, Number(prize?.probability || 0) || 0);
         if (random <= 0) {
             return prize;
         }
@@ -47,10 +54,11 @@ export async function handler(event) {
         const data = JSON.parse(event.body || '{}');
         const name = (data.name || '').trim();
         const whatsapp = (data.whatsapp || '').trim();
+        const birthDate = normalizeBirthDate(data.birthDate || data.birth_date || '');
         const seller = (data.seller || '').trim();
 
         // Validate input
-        if (!name || !whatsapp || !seller) {
+        if (!name || !whatsapp || !seller || !birthDate) {
             return json({ error: 'Datos incompletos' }, 400);
         }
 
@@ -67,7 +75,8 @@ export async function handler(event) {
         }
 
         // Generate random prize
-        const prize = getRandomPrize();
+        const configuredPrizes = await getConfiguredGamePrizes();
+        const prize = getRandomPrize(configuredPrizes);
 
         // Get IP address for tracking
         const ip = event.headers['x-forwarded-for'] ||
@@ -79,6 +88,7 @@ export async function handler(event) {
 			INSERT INTO game_plays (
 				customer_name,
 				whatsapp,
+				birth_date,
 				seller_name,
 				prize_type,
 				prize_value,
@@ -86,12 +96,13 @@ export async function handler(event) {
 			) VALUES (
 				${name},
 				${whatsapp},
+				${birthDate},
 				${seller},
 				${prize.type},
 				${prize.value},
 				${ip}
 			)
-			RETURNING id, customer_name, prize_type, prize_value, played_at
+			RETURNING id, customer_name, birth_date, prize_type, prize_value, played_at
 		`;
 
         return json({
