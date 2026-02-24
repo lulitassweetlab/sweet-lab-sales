@@ -153,7 +153,7 @@
         }
 
         thead {
-            background: #ec4899;
+            background: #f4a6b7;
             color: white;
         }
 
@@ -164,7 +164,7 @@
         }
 
         thead th {
-            background: #ec4899 !important;
+            background: #f4a6b7 !important;
             color: #ffffff !important;
         }
 
@@ -351,7 +351,6 @@
         <h1>🎮 Reporte de Juegos</h1>
         <div>
             <a href="/game.html" class="btn-qr" style="background: #10b981; margin-right: 10px;">🎮 Ir al Juego</a>
-            <button id="export-games-excel" class="excel-btn press-btn btn-gold" style="margin-right: 10px;">⤓ Descargar Excel</button>
             <button class="btn-qr" id="show-qr-btn">📱 Ver QR</button>
             <a href="/" class="btn-back">← Volver</a>
         </div>
@@ -412,7 +411,9 @@
                     <th id="th-discount" class="sortable-header" tabindex="0" title="Ordenar por descuento">
                         <span class="sort-header-label">Regalo <span class="sort-indicator" data-sort-indicator="discount">↕</span></span>
                     </th>
-                    <th>Acciones</th>
+                    <th>
+                        <button id="export-games-excel" class="excel-btn press-btn btn-gold" style="padding: 6px 10px; font-size: 12px; min-height: auto;">⤓ Excel</button>
+                    </th>
                 </tr>
             </thead>
             <tbody id="games-tbody">
