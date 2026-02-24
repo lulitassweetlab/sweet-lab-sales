@@ -592,6 +592,8 @@
 		};
 
 		const PRACTICE_SHORTCUT_NAME = '1';
+		const SPIN_DURATION_MS = 4000;
+		const RESULT_DELAY_AFTER_SPIN_MS = 500;
 
 		// ===== CONFIGURACIÓN DE PROBABILIDADES =====
 		// Ajusta estos números para cambiar las probabilidades de cada premio
@@ -834,11 +836,30 @@
 			const finalRotation = (spins * 360) + (360 - targetAngle - centerOffset);
 
 			const wheel = document.getElementById('wheel-canvas');
-			wheel.style.transform = `rotate(${finalRotation}deg)`;
+			let resultShown = false;
+			const showResultWithDelay = () => {
+				if (resultShown) return;
+				resultShown = true;
+				setTimeout(() => {
+					showPrize(prize);
+				}, RESULT_DELAY_AFTER_SPIN_MS);
+			};
 
-			setTimeout(() => {
-				showPrize(prize);
-			}, 7000);
+			const onSpinEnd = (event) => {
+				if (event.target !== wheel) return;
+				if (event.propertyName && event.propertyName !== 'transform') return;
+				wheel.removeEventListener('transitionend', onSpinEnd);
+				clearTimeout(spinFallbackTimer);
+				showResultWithDelay();
+			};
+
+			wheel.addEventListener('transitionend', onSpinEnd);
+			const spinFallbackTimer = setTimeout(() => {
+				wheel.removeEventListener('transitionend', onSpinEnd);
+				showResultWithDelay();
+			}, SPIN_DURATION_MS + 150);
+
+			wheel.style.transform = `rotate(${finalRotation}deg)`;
 
 			return true;
 		}
