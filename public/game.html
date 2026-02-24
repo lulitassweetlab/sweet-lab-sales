@@ -519,11 +519,12 @@
 
 		<!-- Registration Section -->
 		<div class="registration-section glass-card" id="registration-section">
-			<form id="registration-form">
+			<form id="registration-form" novalidate>
 				<div class="form-group">
 					<label class="form-label" for="customer-name">Nombre Completo</label>
 					<input type="text" id="customer-name" class="form-input" placeholder="Ej: María García" required />
 					<div class="error-message" id="name-error">Por favor ingresa tu nombre completo</div>
+					<div class="form-hint">Tip de ensayo: escribe <strong>1</strong> para probar sin llenar más datos y sin guardar registro.</div>
 				</div>
 
 				<div class="form-group">
@@ -586,8 +587,11 @@
 			birthDate: '',
 			sellerName: '',
 			hasPlayed: false,
-			prize: null
+			prize: null,
+			isPracticeMode: false
 		};
+
+		const PRACTICE_SHORTCUT_NAME = '1';
 
 		// ===== CONFIGURACIÓN DE PROBABILIDADES =====
 		// Ajusta estos números para cambiar las probabilidades de cada premio
@@ -618,6 +622,7 @@
 			{ type: 'discount', label: '5% DESC', value: '5%', probability: PROBABILITIES['5% DESC'], color: '#fce7f3' },
 			{ type: 'discount', label: '0% DESC', value: '0%', probability: PROBABILITIES['0% DESC'], color: '#fce7f3' }
 		];
+		let spinPrizes = prizes.map(prize => ({ ...prize }));
 
 		// Wheel segments - exactly 10 with shuffled order (colores más claros que #ff6b9d)
 		const wheelSegments = [
@@ -636,6 +641,7 @@
 		// Initialize
 		document.addEventListener('DOMContentLoaded', async () => {
 			setBirthDateFieldConfig();
+			await loadConfiguredPrizes();
 			await loadSellers();
 			drawWheel();
 			setupEventListeners();
@@ -662,6 +668,31 @@
 			if (!birthDateInput) return;
 			birthDateInput.min = '1900-01-01';
 			birthDateInput.max = todayIsoDate();
+		}
+
+		function normalizeProbability(value) {
+			const parsed = Math.round(Number(value || 0) || 0);
+			return parsed > 0 ? parsed : 0;
+		}
+
+		async function loadConfiguredPrizes() {
+			try {
+				const response = await fetch('/.netlify/functions/game-probabilities');
+				const data = await response.json();
+				if (!response.ok || !data?.ok || !Array.isArray(data.prizes) || data.prizes.length === 0) {
+					return;
+				}
+
+				spinPrizes = data.prizes.map((prize) => ({
+					type: prize.type,
+					label: prize.label,
+					value: prize.value,
+					color: prize.color,
+					probability: normalizeProbability(prize.probability)
+				}));
+			} catch (error) {
+				console.error('Error loading configurable prizes:', error);
+			}
 		}
 
 		// Load sellers from API
@@ -733,7 +764,7 @@
 		function setupEventListeners() {
 			document.getElementById('registration-form').addEventListener('submit', handleRegistration);
 			document.getElementById('spin-btn').addEventListener('click', handleSpin);
-			document.getElementById('share-btn').addEventListener('click', handleShare);
+			document.getElementById('share-btn')?.addEventListener('click', handleShare);
 
 			const birthDateInput = document.getElementById('customer-birthdate');
 			const openDatePicker = () => {
@@ -747,6 +778,71 @@
 			birthDateInput?.addEventListener('focus', openDatePicker);
 		}
 
+		function hideRegistrationErrors() {
+			['name-error', 'whatsapp-error', 'birthdate-error', 'seller-error'].forEach(hideError);
+		}
+
+		function enterPracticeMode() {
+			hideRegistrationErrors();
+			gameState.customerName = PRACTICE_SHORTCUT_NAME;
+			gameState.whatsapp = '';
+			gameState.birthDate = '';
+			gameState.sellerName = '';
+			gameState.prize = null;
+			gameState.hasPlayed = false;
+			gameState.isPracticeMode = true;
+
+			document.getElementById('registration-section').classList.add('hidden');
+			document.getElementById('game-section').classList.add('active');
+			document.getElementById('prize-section').classList.remove('active');
+			document.getElementById('spin-btn').disabled = false;
+
+			alert('Modo ensayo activado. Esta partida no se guardará.');
+		}
+
+		function pickWeightedPrize(prizeList) {
+			const safeList = Array.isArray(prizeList) && prizeList.length ? prizeList : prizes;
+			const totalWeight = safeList.reduce((sum, prize) => sum + normalizeProbability(prize?.probability), 0);
+			if (totalWeight <= 0) return safeList[safeList.length - 1];
+
+			let random = Math.random() * totalWeight;
+			for (const prize of safeList) {
+				random -= normalizeProbability(prize?.probability);
+				if (random <= 0) return prize;
+			}
+			return safeList[safeList.length - 1];
+		}
+
+		function spinWheelToPrize(prize, spinBtn) {
+			const prizeIndex = wheelSegments.findIndex((segment) =>
+				segment.label === prize.label && segment.value === prize.value
+			);
+			const finalPrizeIndex = prizeIndex >= 0 ? prizeIndex :
+				wheelSegments.findIndex((segment) => segment.label === prize.label);
+
+			if (finalPrizeIndex === -1) {
+				console.error('Prize not found in wheel segments:', prize);
+				alert('Error: Premio no encontrado en la ruleta');
+				spinBtn.disabled = false;
+				return false;
+			}
+
+			const segmentAngle = 360 / wheelSegments.length;
+			const targetAngle = finalPrizeIndex * segmentAngle;
+			const spins = 5;
+			const centerOffset = segmentAngle / 2;
+			const finalRotation = (spins * 360) + (360 - targetAngle - centerOffset);
+
+			const wheel = document.getElementById('wheel-canvas');
+			wheel.style.transform = `rotate(${finalRotation}deg)`;
+
+			setTimeout(() => {
+				showPrize(prize);
+			}, 7000);
+
+			return true;
+		}
+
 		// Handle registration
 		async function handleRegistration(e) {
 			e.preventDefault();
@@ -755,6 +851,12 @@
 			const whatsapp = document.getElementById('customer-whatsapp').value.trim();
 			const birthDate = normalizeBirthDate(document.getElementById('customer-birthdate').value);
 			const seller = document.getElementById('seller-name').value;
+
+			// Shortcut for internal practice mode (no required fields, no DB writes)
+			if (name === PRACTICE_SHORTCUT_NAME) {
+				enterPracticeMode();
+				return;
+			}
 
 			// Validate
 			let isValid = true;
@@ -788,6 +890,7 @@
 			}
 
 			if (!isValid) return;
+			gameState.isPracticeMode = false;
 
 			// Show loading
 			const submitBtn = document.getElementById('submit-btn');
@@ -840,6 +943,17 @@
 			spinBtn.disabled = true;
 
 			try {
+				if (gameState.isPracticeMode) {
+					const practicePrize = pickWeightedPrize(spinPrizes);
+					gameState.prize = practicePrize;
+					gameState.hasPlayed = true;
+					const spinStarted = spinWheelToPrize(practicePrize, spinBtn);
+					if (!spinStarted) {
+						gameState.hasPlayed = false;
+					}
+					return;
+				}
+
 				// Get prize from server
 				const response = await fetch('/.netlify/functions/game-play', {
 					method: 'POST',
@@ -862,53 +976,10 @@
 
 				gameState.prize = data.prize;
 				gameState.hasPlayed = true;
-
-				// DEBUG: Log what we received from backend
-				console.log('Backend prize:', data.prize);
-				console.log('Wheel segments:', wheelSegments);
-
-				// Find the prize index - CRITICAL FIX: buscar por label Y value para match exacto
-				const prizeIndex = wheelSegments.findIndex(s =>
-					s.label === data.prize.label && s.value === data.prize.value
-				);
-
-				console.log('First search (label + value):', prizeIndex);
-
-				// Si no se encuentra, buscar solo por label (fallback)
-				const finalPrizeIndex = prizeIndex >= 0 ? prizeIndex :
-					wheelSegments.findIndex(s => s.label === data.prize.label);
-
-				console.log('Final prize index:', finalPrizeIndex);
-				console.log('Matched segment:', wheelSegments[finalPrizeIndex]);
-
-				if (finalPrizeIndex === -1) {
-					console.error('Prize not found in wheel segments:', data.prize);
-					alert('Error: Premio no encontrado en la ruleta');
-					spinBtn.disabled = false;
-					return;
+				const spinStarted = spinWheelToPrize(data.prize, spinBtn);
+				if (!spinStarted) {
+					gameState.hasPlayed = false;
 				}
-
-				// Calculate rotation to land exactly in the CENTER of the winning segment
-				const segmentAngle = 360 / wheelSegments.length;
-				const targetAngle = finalPrizeIndex * segmentAngle;
-				const spins = 5; // Number of full rotations
-				// Add half segment to point to CENTER instead of edge
-				const centerOffset = segmentAngle / 2;
-				const finalRotation = (spins * 360) + (360 - targetAngle - centerOffset);
-
-				console.log('Segment angle:', segmentAngle);
-				console.log('Target angle for index', finalPrizeIndex, ':', targetAngle);
-				console.log('Center offset:', centerOffset);
-				console.log('Final rotation:', finalRotation);
-
-				// Spin the wheel
-				const wheel = document.getElementById('wheel-canvas');
-				wheel.style.transform = `rotate(${finalRotation}deg)`;
-
-				// Show prize after animation (4s spin + 3s pause = 7s total)
-				setTimeout(() => {
-					showPrize(data.prize);
-				}, 7000);
 
 			} catch (error) {
 				console.error('Spin error:', error);
