@@ -3096,7 +3096,7 @@ tfoot td {
 	border-radius: 14px;
 	box-shadow: 0 12px 32px rgba(0, 0, 0, 0.24);
 	padding: 14px;
-	min-width: 520px;
+	min-width: 312px;
 	max-width: 95vw;
 	z-index: 1000;
 }
@@ -3110,7 +3110,7 @@ tfoot td {
 
 .new-sale-grid {
 	display: grid;
-	grid-template-columns: 3.4ch 1fr;
+	grid-template-columns: 3fr 7fr;
 	gap: 6px 10px;
 	align-items: center;
 	margin-bottom: 10px;
@@ -3146,8 +3146,8 @@ tfoot td {
 @media (max-width: 640px) {
 	.new-sale-popover {
 		min-width: 0;
-		width: 88vw;
-		max-width: 400px;
+		width: 53vw;
+		max-width: 240px;
 		max-height: 85vh;
 		overflow-y: auto;
 		left: 50% !important;
@@ -3162,7 +3162,7 @@ tfoot td {
 	}
 
 	.new-sale-grid {
-		grid-template-columns: 3.4ch 1fr;
+		grid-template-columns: 3fr 7fr;
 		gap: 5px 8px;
 	}
 
