@@ -200,6 +200,21 @@
 			color: #9ca3af;
 		}
 
+		.form-input[type="date"] {
+			cursor: pointer;
+		}
+
+		.form-input[type="date"]::-webkit-calendar-picker-indicator {
+			cursor: pointer;
+			opacity: 0.85;
+		}
+
+		.form-hint {
+			font-size: 12px;
+			color: #6b7280;
+			margin-top: 6px;
+		}
+
 		.error-message {
 			display: none;
 			color: #ef4444;
@@ -518,6 +533,13 @@
 				</div>
 
 				<div class="form-group">
+					<label class="form-label" for="customer-birthdate">Fecha de Nacimiento</label>
+					<input type="date" id="customer-birthdate" class="form-input" required />
+					<div class="error-message" id="birthdate-error">Por favor selecciona una fecha de nacimiento válida</div>
+					<div class="form-hint">Toca el campo para abrir el calendario.</div>
+				</div>
+
+				<div class="form-group">
 					<label class="form-label" for="seller-name">¿Quién te atendió?</label>
 					<select id="seller-name" class="form-select" required>
 						<option value="">Selecciona un vendedor</option>
@@ -561,6 +583,7 @@
 		let gameState = {
 			customerName: '',
 			whatsapp: '',
+			birthDate: '',
 			sellerName: '',
 			hasPlayed: false,
 			prize: null
@@ -612,10 +635,34 @@
 
 		// Initialize
 		document.addEventListener('DOMContentLoaded', async () => {
+			setBirthDateFieldConfig();
 			await loadSellers();
 			drawWheel();
 			setupEventListeners();
 		});
+
+		function todayIsoDate() {
+			return new Date().toISOString().slice(0, 10);
+		}
+
+		function normalizeBirthDate(rawValue) {
+			const text = String(rawValue || '').trim();
+			if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return '';
+			if (text < '1900-01-01') return '';
+			if (text > todayIsoDate()) return '';
+
+			const parsed = new Date(`${text}T00:00:00Z`);
+			if (!Number.isFinite(parsed.getTime())) return '';
+			if (parsed.toISOString().slice(0, 10) !== text) return '';
+			return text;
+		}
+
+		function setBirthDateFieldConfig() {
+			const birthDateInput = document.getElementById('customer-birthdate');
+			if (!birthDateInput) return;
+			birthDateInput.min = '1900-01-01';
+			birthDateInput.max = todayIsoDate();
+		}
 
 		// Load sellers from API
 		async function loadSellers() {
@@ -687,6 +734,17 @@
 			document.getElementById('registration-form').addEventListener('submit', handleRegistration);
 			document.getElementById('spin-btn').addEventListener('click', handleSpin);
 			document.getElementById('share-btn').addEventListener('click', handleShare);
+
+			const birthDateInput = document.getElementById('customer-birthdate');
+			const openDatePicker = () => {
+				if (typeof birthDateInput?.showPicker === 'function') {
+					try {
+						birthDateInput.showPicker();
+					} catch { }
+				}
+			};
+			birthDateInput?.addEventListener('click', openDatePicker);
+			birthDateInput?.addEventListener('focus', openDatePicker);
 		}
 
 		// Handle registration
@@ -695,6 +753,7 @@
 
 			const name = document.getElementById('customer-name').value.trim();
 			const whatsapp = document.getElementById('customer-whatsapp').value.trim();
+			const birthDate = normalizeBirthDate(document.getElementById('customer-birthdate').value);
 			const seller = document.getElementById('seller-name').value;
 
 			// Validate
@@ -712,6 +771,13 @@
 				isValid = false;
 			} else {
 				hideError('whatsapp-error');
+			}
+
+			if (!birthDate) {
+				showError('birthdate-error');
+				isValid = false;
+			} else {
+				hideError('birthdate-error');
 			}
 
 			if (!seller) {
@@ -733,7 +799,7 @@
 				const response = await fetch('/.netlify/functions/game-register', {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ name, whatsapp, seller })
+					body: JSON.stringify({ name, whatsapp, birthDate, seller })
 				});
 
 				const data = await response.json();
@@ -752,6 +818,7 @@
 				// Save state and show game
 				gameState.customerName = name;
 				gameState.whatsapp = whatsapp;
+				gameState.birthDate = birthDate;
 				gameState.sellerName = seller;
 
 				document.getElementById('registration-section').classList.add('hidden');
@@ -780,6 +847,7 @@
 					body: JSON.stringify({
 						whatsapp: gameState.whatsapp,
 						name: gameState.customerName,
+						birthDate: gameState.birthDate,
 						seller: gameState.sellerName
 					})
 				});

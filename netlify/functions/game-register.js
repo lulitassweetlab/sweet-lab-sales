@@ -4,6 +4,18 @@ function json(body, status = 200) {
     return { statusCode: status, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
 }
 
+function normalizeBirthDate(rawValue) {
+    const text = String(rawValue || '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return '';
+    if (text < '1900-01-01') return '';
+    if (text > new Date().toISOString().slice(0, 10)) return '';
+
+    const parsed = new Date(`${text}T00:00:00Z`);
+    if (!Number.isFinite(parsed.getTime())) return '';
+    if (parsed.toISOString().slice(0, 10) !== text) return '';
+    return text;
+}
+
 export async function handler(event) {
     try {
         console.log('game-register: Starting handler');
@@ -23,9 +35,10 @@ export async function handler(event) {
         const data = JSON.parse(event.body || '{}');
         const name = (data.name || '').trim();
         const whatsapp = (data.whatsapp || '').trim();
+        const birthDate = normalizeBirthDate(data.birthDate || data.birth_date || '');
         const seller = (data.seller || '').trim();
 
-        console.log('game-register: Validating input', { name, whatsapp, seller });
+        console.log('game-register: Validating input', { name, whatsapp, birthDate, seller });
 
         // Validate input
         if (!name || name.length < 3) {
@@ -40,10 +53,14 @@ export async function handler(event) {
             return json({ error: 'Vendedor requerido' }, 400);
         }
 
+        if (!birthDate) {
+            return json({ error: 'Fecha de nacimiento inválida' }, 400);
+        }
+
         // Check if WhatsApp has already played
         console.log('game-register: Checking if user has already played');
         const existing = await sql`
-			SELECT id, customer_name, prize_type, prize_value, played_at
+			SELECT id, customer_name, birth_date, prize_type, prize_value, played_at
 			FROM game_plays
 			WHERE whatsapp = ${whatsapp}
 			LIMIT 1

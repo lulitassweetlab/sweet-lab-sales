@@ -29,6 +29,7 @@ export async function handler(event) {
 					id,
 					customer_name,
 					whatsapp,
+					birth_date,
 					seller_name,
 					prize_type,
 					prize_value,

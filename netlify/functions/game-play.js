@@ -5,6 +5,18 @@ function json(body, status = 200) {
     return { statusCode: status, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
 }
 
+function normalizeBirthDate(rawValue) {
+    const text = String(rawValue || '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return '';
+    if (text < '1900-01-01') return '';
+    if (text > new Date().toISOString().slice(0, 10)) return '';
+
+    const parsed = new Date(`${text}T00:00:00Z`);
+    if (!Number.isFinite(parsed.getTime())) return '';
+    if (parsed.toISOString().slice(0, 10) !== text) return '';
+    return text;
+}
+
 // Generate weighted random prize
 function getRandomPrize(prizes) {
     if (!Array.isArray(prizes) || prizes.length === 0) {
@@ -42,10 +54,11 @@ export async function handler(event) {
         const data = JSON.parse(event.body || '{}');
         const name = (data.name || '').trim();
         const whatsapp = (data.whatsapp || '').trim();
+        const birthDate = normalizeBirthDate(data.birthDate || data.birth_date || '');
         const seller = (data.seller || '').trim();
 
         // Validate input
-        if (!name || !whatsapp || !seller) {
+        if (!name || !whatsapp || !seller || !birthDate) {
             return json({ error: 'Datos incompletos' }, 400);
         }
 
@@ -75,6 +88,7 @@ export async function handler(event) {
 			INSERT INTO game_plays (
 				customer_name,
 				whatsapp,
+				birth_date,
 				seller_name,
 				prize_type,
 				prize_value,
@@ -82,12 +96,13 @@ export async function handler(event) {
 			) VALUES (
 				${name},
 				${whatsapp},
+				${birthDate},
 				${seller},
 				${prize.type},
 				${prize.value},
 				${ip}
 			)
-			RETURNING id, customer_name, prize_type, prize_value, played_at
+			RETURNING id, customer_name, birth_date, prize_type, prize_value, played_at
 		`;
 
         return json({

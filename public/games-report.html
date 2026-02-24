@@ -374,6 +374,7 @@
                 <tr>
                     <th>Fecha</th>
                     <th>Nombre</th>
+                    <th>Fecha Nacimiento</th>
                     <th>WhatsApp</th>
                     <th>Vendedor</th>
                     <th>Regalo</th>
@@ -382,7 +383,7 @@
             </thead>
             <tbody id="games-tbody">
                 <tr>
-                    <td colspan="6" class="loading">Cargando...</td>
+                    <td colspan="7" class="loading">Cargando...</td>
                 </tr>
             </tbody>
         </table>
@@ -607,6 +608,19 @@
             });
         }
 
+        function formatBirthDate(birthDate) {
+            const normalized = String(birthDate || '').trim();
+            if (!normalized) return '-';
+            const date = new Date(`${normalized}T00:00:00Z`);
+            if (!Number.isFinite(date.getTime())) return normalized;
+            return date.toLocaleDateString('es-CO', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                timeZone: 'UTC'
+            });
+        }
+
         function updateGameStats(plays) {
             const total = Array.isArray(plays) ? plays.length : 0;
             const freePlays = (plays || []).filter((p) => p.prize_type === 'free').length;
@@ -620,7 +634,7 @@
             tbody.innerHTML = '';
 
             if (!Array.isArray(plays) || plays.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" class="loading">No hay registros de juegos</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" class="loading">No hay registros de juegos</td></tr>';
                 return;
             }
 
@@ -634,6 +648,9 @@
 
                 const tdName = document.createElement('td');
                 tdName.textContent = play.customer_name || '';
+
+                const tdBirthDate = document.createElement('td');
+                tdBirthDate.textContent = formatBirthDate(play.birth_date);
 
                 const tdWhatsapp = document.createElement('td');
                 tdWhatsapp.textContent = play.whatsapp || '';
@@ -656,7 +673,7 @@
                 deleteBtn.addEventListener('click', () => handleDeletePlay(play));
                 tdActions.appendChild(deleteBtn);
 
-                tr.append(tdDate, tdName, tdWhatsapp, tdSeller, tdPrize, tdActions);
+                tr.append(tdDate, tdName, tdBirthDate, tdWhatsapp, tdSeller, tdPrize, tdActions);
                 tbody.appendChild(tr);
             });
         }
@@ -700,7 +717,7 @@
             }
 
             const rows = [
-                ['Fecha', 'Nombre', 'WhatsApp', 'Vendedor', 'Tipo premio', 'Premio']
+                ['Fecha', 'Nombre', 'Fecha Nacimiento', 'WhatsApp', 'Vendedor', 'Tipo premio', 'Premio']
             ];
 
             gamePlaysData.forEach((play) => {
@@ -708,6 +725,7 @@
                 rows.push([
                     formatGamePlayDate(play.played_at),
                     play.customer_name || '',
+                    formatBirthDate(play.birth_date),
                     play.whatsapp || '',
                     play.seller_name || '',
                     isFree ? 'Postre Gratis' : 'Descuento',
@@ -719,6 +737,7 @@
             ws['!cols'] = [
                 { wch: 24 },
                 { wch: 28 },
+                { wch: 16 },
                 { wch: 16 },
                 { wch: 20 },
                 { wch: 18 },
@@ -749,7 +768,7 @@
                 console.error('Error loading game plays:', error);
                 updateGameStats([]);
                 const tbody = document.getElementById('games-tbody');
-                tbody.innerHTML = '<tr><td colspan="6" class="loading">Error al cargar los datos</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" class="loading">Error al cargar los datos</td></tr>';
             } finally {
                 loadingGamePlays = false;
             }
