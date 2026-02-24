@@ -1,30 +1,25 @@
 import { ensureSchema, sql } from './_db.js';
+import { getConfiguredGamePrizes } from './_game-prizes.js';
 
 function json(body, status = 200) {
     return { statusCode: status, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
 }
 
-// Prize configuration with probabilities - MUST MATCH frontend exactly
-const prizes = [
-    { type: 'free', label: 'POSTRE GRATIS', value: '🎂', probability: 5, color: '#ff6b9d' },
-    { type: 'discount', label: '70% DESC', value: '70%', probability: 2, color: '#f43f5e' },
-    { type: 'discount', label: '50% DESC', value: '50%', probability: 5, color: '#ec4899' },
-    { type: 'discount', label: '30% DESC', value: '30%', probability: 10, color: '#f472b6' },
-    { type: 'discount', label: '25% DESC', value: '25%', probability: 10, color: '#f472b6' },
-    { type: 'discount', label: '20% DESC', value: '20%', probability: 15, color: '#f9a8d4' },
-    { type: 'discount', label: '15% DESC', value: '15%', probability: 15, color: '#f9a8d4' },
-    { type: 'discount', label: '10% DESC', value: '10%', probability: 20, color: '#fbcfe8' },
-    { type: 'discount', label: '5% DESC', value: '5%', probability: 13, color: '#fce7f3' },
-    { type: 'discount', label: '0% DESC', value: '0%', probability: 5, color: '#fce7f3' }
-];
-
 // Generate weighted random prize
-function getRandomPrize() {
-    const totalWeight = prizes.reduce((sum, p) => sum + p.probability, 0);
+function getRandomPrize(prizes) {
+    if (!Array.isArray(prizes) || prizes.length === 0) {
+        throw new Error('No hay premios configurados');
+    }
+
+    const totalWeight = prizes.reduce((sum, p) => sum + Math.max(0, Number(p?.probability || 0) || 0), 0);
+    if (totalWeight <= 0) {
+        return prizes[prizes.length - 1];
+    }
+
     let random = Math.random() * totalWeight;
 
     for (const prize of prizes) {
-        random -= prize.probability;
+        random -= Math.max(0, Number(prize?.probability || 0) || 0);
         if (random <= 0) {
             return prize;
         }
@@ -67,7 +62,8 @@ export async function handler(event) {
         }
 
         // Generate random prize
-        const prize = getRandomPrize();
+        const configuredPrizes = await getConfiguredGamePrizes();
+        const prize = getRandomPrize(configuredPrizes);
 
         // Get IP address for tracking
         const ip = event.headers['x-forwarded-for'] ||

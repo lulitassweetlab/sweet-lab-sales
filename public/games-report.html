@@ -194,6 +194,121 @@
             padding: 40px;
             color: #666;
         }
+
+        .probabilities-card {
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .probabilities-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .probabilities-header h2 {
+            margin: 0;
+            color: #2a2a2a;
+        }
+
+        .probabilities-help {
+            color: #666;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+
+        .probabilities-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 10px;
+            font-size: 14px;
+        }
+
+        .probability-item {
+            padding: 10px;
+            background: #f9f9f9;
+            border-radius: 6px;
+            text-align: center;
+            border: 1px solid transparent;
+            transition: border-color 0.2s ease, background 0.2s ease;
+        }
+
+        .probability-item:focus-within {
+            border-color: #f4a6b7;
+            background: #fff7fa;
+        }
+
+        .probability-label {
+            font-weight: 600;
+            color: #2a2a2a;
+            margin-bottom: 8px;
+        }
+
+        .probability-label.free {
+            color: #ff6b9d;
+        }
+
+        .probability-input-wrap {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        .probability-input {
+            width: 72px;
+            border: 1px solid #d9d9d9;
+            border-radius: 6px;
+            text-align: center;
+            font-size: 20px;
+            font-weight: 700;
+            color: #2a2a2a;
+            background: white;
+            padding: 4px 6px;
+            font-family: 'DM Sans', sans-serif;
+        }
+
+        .probability-input:focus {
+            outline: none;
+            border-color: #f4a6b7;
+            box-shadow: 0 0 0 3px rgba(244, 166, 183, 0.15);
+        }
+
+        .probability-input.saving {
+            border-color: #10b981;
+        }
+
+        .probability-input.error {
+            border-color: #ef4444;
+            background: #fff5f5;
+        }
+
+        .probabilities-total {
+            margin-top: 12px;
+            font-size: 13px;
+            color: #666;
+            font-weight: 600;
+        }
+
+        .probabilities-total.is-invalid {
+            color: #b91c1c;
+        }
+
+        .probabilities-save-status {
+            font-size: 12px;
+            color: #666;
+            min-height: 18px;
+        }
+
+        .probabilities-save-status.success {
+            color: #059669;
+        }
+
+        .probabilities-save-status.error {
+            color: #b91c1c;
+        }
     </style>
 </head>
 
@@ -234,52 +349,16 @@
     </div>
 
     <!-- Probability Configuration -->
-    <div class="table-container" style="padding: 20px; margin-bottom: 20px;">
-        <h2 style="margin-bottom: 15px; color: #2a2a2a;">⚙️ Probabilidades Actuales</h2>
-        <p style="color: #666; margin-bottom: 15px; font-size: 14px;">Para modificar, edita PROBABILITIES en game.html y
-            prizes en game-play.js</p>
-        <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; font-size: 14px;">
-            <div style="padding: 10px; background: #f9f9f9; border-radius: 6px; text-align: center;">
-                <div style="font-weight: 600; color: #ff6b9d;">🎂 Gratis</div>
-                <div style="font-size: 20px; font-weight: 700; color: #2a2a2a;">5%</div>
-            </div>
-            <div style="padding: 10px; background: #f9f9f9; border-radius: 6px; text-align: center;">
-                <div style="font-weight: 600;">70% DESC</div>
-                <div style="font-size: 20px; font-weight: 700; color: #2a2a2a;">2%</div>
-            </div>
-            <div style="padding: 10px; background: #f9f9f9; border-radius: 6px; text-align: center;">
-                <div style="font-weight: 600;">50% DESC</div>
-                <div style="font-size: 20px; font-weight: 700; color: #2a2a2a;">5%</div>
-            </div>
-            <div style="padding: 10px; background: #f9f9f9; border-radius: 6px; text-align: center;">
-                <div style="font-weight: 600;">30% DESC</div>
-                <div style="font-size: 20px; font-weight: 700; color: #2a2a2a;">10%</div>
-            </div>
-            <div style="padding: 10px; background: #f9f9f9; border-radius: 6px; text-align: center;">
-                <div style="font-weight: 600;">25% DESC</div>
-                <div style="font-size: 20px; font-weight: 700; color: #2a2a2a;">10%</div>
-            </div>
-            <div style="padding: 10px; background: #f9f9f9; border-radius: 6px; text-align: center;">
-                <div style="font-weight: 600;">20% DESC</div>
-                <div style="font-size: 20px; font-weight: 700; color: #2a2a2a;">15%</div>
-            </div>
-            <div style="padding: 10px; background: #f9f9f9; border-radius: 6px; text-align: center;">
-                <div style="font-weight: 600;">15% DESC</div>
-                <div style="font-size: 20px; font-weight: 700; color: #2a2a2a;">15%</div>
-            </div>
-            <div style="padding: 10px; background: #f9f9f9; border-radius: 6px; text-align: center;">
-                <div style="font-weight: 600;">10% DESC</div>
-                <div style="font-size: 20px; font-weight: 700; color: #2a2a2a;">20%</div>
-            </div>
-            <div style="padding: 10px; background: #f9f9f9; border-radius: 6px; text-align: center;">
-                <div style="font-weight: 600;">5% DESC</div>
-                <div style="font-size: 20px; font-weight: 700; color: #2a2a2a;">13%</div>
-            </div>
-            <div style="padding: 10px; background: #f9f9f9; border-radius: 6px; text-align: center;">
-                <div style="font-weight: 600;">0% DESC</div>
-                <div style="font-size: 20px; font-weight: 700; color: #2a2a2a;">5%</div>
-            </div>
+    <div class="table-container probabilities-card">
+        <div class="probabilities-header">
+            <h2>⚙️ Probabilidades Actuales</h2>
+            <span id="probabilities-save-status" class="probabilities-save-status"></span>
         </div>
+        <p class="probabilities-help">Haz click en una probabilidad, se selecciona y con solo escribir se cambia.</p>
+        <div id="probabilities-grid" class="probabilities-grid">
+            <div class="loading">Cargando probabilidades...</div>
+        </div>
+        <div id="probabilities-total" class="probabilities-total"></div>
     </div>
 
     <div class="table-container">
@@ -302,6 +381,211 @@
     </div>
 
     <script>
+        const probabilityState = {
+            valuesByLabel: {},
+            timersByLabel: new Map()
+        };
+
+        function setProbabilitySaveStatus(message, tone = 'default') {
+            const statusEl = document.getElementById('probabilities-save-status');
+            if (!statusEl) return;
+
+            statusEl.textContent = message || '';
+            statusEl.classList.remove('success', 'error');
+            if (tone === 'success') statusEl.classList.add('success');
+            if (tone === 'error') statusEl.classList.add('error');
+        }
+
+        function updateProbabilityTotal(total) {
+            const totalEl = document.getElementById('probabilities-total');
+            if (!totalEl) return;
+
+            const parsedTotal = Number(total) || 0;
+            totalEl.textContent = `Total actual: ${parsedTotal}%${parsedTotal === 100 ? '' : ' (ideal: 100%)'}`;
+            totalEl.classList.toggle('is-invalid', parsedTotal !== 100);
+        }
+
+        function syncProbabilityInputs(skipInput = null) {
+            const allInputs = document.querySelectorAll('.probability-input');
+            allInputs.forEach((inputEl) => {
+                if (skipInput && inputEl === skipInput) return;
+                if (document.activeElement === inputEl) return;
+
+                const label = String(inputEl?.dataset?.label || '').trim();
+                const nextValue = probabilityState.valuesByLabel[label];
+                if (!Number.isFinite(nextValue)) return;
+                inputEl.value = String(nextValue);
+                inputEl.classList.remove('error');
+            });
+        }
+
+        function scheduleProbabilitySave(inputEl) {
+            if (inputEl?.dataset?.saving === '1') return;
+
+            const label = String(inputEl?.dataset?.label || '').trim();
+            if (!label) return;
+
+            const existingTimer = probabilityState.timersByLabel.get(label);
+            if (existingTimer) {
+                clearTimeout(existingTimer);
+            }
+
+            const timer = setTimeout(() => {
+                saveProbabilityInput(inputEl);
+            }, 450);
+
+            probabilityState.timersByLabel.set(label, timer);
+        }
+
+        async function saveProbabilityInput(inputEl) {
+            const label = String(inputEl?.dataset?.label || '').trim();
+            if (!label || inputEl?.dataset?.saving === '1') return;
+
+            const pendingTimer = probabilityState.timersByLabel.get(label);
+            if (pendingTimer) {
+                clearTimeout(pendingTimer);
+                probabilityState.timersByLabel.delete(label);
+            }
+
+            const rawValue = String(inputEl.value || '').trim();
+            const parsedValue = Math.round(Number(rawValue));
+            if (!rawValue || !Number.isFinite(parsedValue) || parsedValue < 0) {
+                inputEl.classList.add('error');
+                setProbabilitySaveStatus('Ingresa una probabilidad válida (0 o mayor).', 'error');
+                return;
+            }
+
+            if (probabilityState.valuesByLabel[label] === parsedValue) {
+                inputEl.value = String(parsedValue);
+                inputEl.classList.remove('error');
+                return;
+            }
+
+            inputEl.dataset.saving = '1';
+            inputEl.disabled = true;
+            inputEl.classList.remove('error');
+            inputEl.classList.add('saving');
+            setProbabilitySaveStatus('Guardando...');
+
+            try {
+                const response = await fetch('/.netlify/functions/game-probabilities', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ label, probability: parsedValue })
+                });
+                const data = await response.json();
+
+                if (!response.ok || !data?.ok) {
+                    throw new Error(data?.error || 'No se pudo guardar la probabilidad');
+                }
+
+                const prizes = Array.isArray(data.prizes) ? data.prizes : [];
+                prizes.forEach((prize) => {
+                    const probability = Math.max(0, Math.round(Number(prize?.probability || 0) || 0));
+                    probabilityState.valuesByLabel[prize.label] = probability;
+                });
+
+                syncProbabilityInputs(inputEl);
+                inputEl.value = String(probabilityState.valuesByLabel[label] ?? parsedValue);
+                updateProbabilityTotal(data.totalProbability);
+                setProbabilitySaveStatus('Guardado', 'success');
+            } catch (error) {
+                console.error('Error saving game probability:', error);
+                const previous = probabilityState.valuesByLabel[label];
+                if (Number.isFinite(previous)) {
+                    inputEl.value = String(previous);
+                }
+                inputEl.classList.add('error');
+                setProbabilitySaveStatus('Error al guardar. Intenta de nuevo.', 'error');
+            } finally {
+                inputEl.disabled = false;
+                inputEl.classList.remove('saving');
+                delete inputEl.dataset.saving;
+            }
+        }
+
+        function renderGameProbabilities(prizes) {
+            const grid = document.getElementById('probabilities-grid');
+            grid.innerHTML = '';
+            probabilityState.valuesByLabel = {};
+
+            prizes.forEach((prize) => {
+                const normalizedProbability = Math.max(0, Math.round(Number(prize?.probability || 0) || 0));
+                probabilityState.valuesByLabel[prize.label] = normalizedProbability;
+
+                const card = document.createElement('div');
+                card.className = 'probability-item';
+
+                const labelEl = document.createElement('div');
+                labelEl.className = `probability-label${prize.type === 'free' ? ' free' : ''}`;
+                labelEl.textContent = prize.type === 'free' ? '🎂 Gratis' : prize.label;
+
+                const valueWrap = document.createElement('div');
+                valueWrap.className = 'probability-input-wrap';
+
+                const inputEl = document.createElement('input');
+                inputEl.className = 'probability-input';
+                inputEl.type = 'number';
+                inputEl.min = '0';
+                inputEl.step = '1';
+                inputEl.inputMode = 'numeric';
+                inputEl.value = String(normalizedProbability);
+                inputEl.dataset.label = prize.label;
+                inputEl.title = 'Haz click, escribe y se guarda automáticamente';
+
+                const percentEl = document.createElement('span');
+                percentEl.textContent = '%';
+
+                const selectInputText = () => {
+                    requestAnimationFrame(() => {
+                        try {
+                            inputEl.select();
+                        } catch { }
+                    });
+                };
+
+                inputEl.addEventListener('focus', selectInputText);
+                inputEl.addEventListener('click', selectInputText);
+                inputEl.addEventListener('input', () => scheduleProbabilitySave(inputEl));
+                inputEl.addEventListener('blur', () => saveProbabilityInput(inputEl));
+                inputEl.addEventListener('keydown', (ev) => {
+                    if (ev.key === 'Enter') {
+                        ev.preventDefault();
+                        saveProbabilityInput(inputEl);
+                        inputEl.blur();
+                    }
+                });
+
+                valueWrap.appendChild(inputEl);
+                valueWrap.appendChild(percentEl);
+                card.appendChild(labelEl);
+                card.appendChild(valueWrap);
+                grid.appendChild(card);
+            });
+        }
+
+        async function loadGameProbabilities() {
+            try {
+                setProbabilitySaveStatus('Cargando...');
+                const response = await fetch('/.netlify/functions/game-probabilities');
+                const data = await response.json();
+
+                if (!response.ok || !data?.ok) {
+                    throw new Error(data?.error || 'No se pudieron cargar las probabilidades');
+                }
+
+                const prizes = Array.isArray(data.prizes) ? data.prizes : [];
+                renderGameProbabilities(prizes);
+                updateProbabilityTotal(data.totalProbability);
+                setProbabilitySaveStatus('Haz click en una probabilidad y escribe para cambiarla.');
+            } catch (error) {
+                console.error('Error loading game probabilities:', error);
+                const grid = document.getElementById('probabilities-grid');
+                grid.innerHTML = '<div class="loading">Error al cargar probabilidades</div>';
+                setProbabilitySaveStatus('No se pudieron cargar las probabilidades.', 'error');
+            }
+        }
+
         async function loadGamePlays() {
             try {
                 const response = await fetch('/.netlify/functions/game-plays');
@@ -358,7 +642,10 @@
         }
 
         // Load on page load
-        document.addEventListener('DOMContentLoaded', loadGamePlays);
+        document.addEventListener('DOMContentLoaded', () => {
+            loadGamePlays();
+            loadGameProbabilities();
+        });
 
         // QR Modal handlers
         const qrModal = document.getElementById('qr-modal');
