@@ -315,6 +315,36 @@
             text-align: center;
             white-space: nowrap;
         }
+
+        .sortable-header {
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.15s ease;
+        }
+
+        .sortable-header:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .sortable-header.is-active {
+            background: rgba(255, 255, 255, 0.16);
+        }
+
+        .sort-header-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .sort-indicator {
+            font-size: 11px;
+            line-height: 1;
+            opacity: 0.8;
+        }
+
+        .sortable-header.is-active .sort-indicator {
+            opacity: 1;
+        }
     </style>
 </head>
 
@@ -372,12 +402,18 @@
         <table>
             <thead>
                 <tr>
-                    <th>Fecha</th>
+                    <th id="th-played-at" class="sortable-header" tabindex="0" title="Ordenar por fecha de registro">
+                        <span class="sort-header-label">Fecha <span class="sort-indicator" data-sort-indicator="registrationDate">↕</span></span>
+                    </th>
                     <th>Nombre</th>
-                    <th>Fecha Nacimiento</th>
+                    <th id="th-birth-date" class="sortable-header" tabindex="0" title="Ordenar por día y mes de cumpleaños">
+                        <span class="sort-header-label">Fecha Nacimiento <span class="sort-indicator" data-sort-indicator="birthdayDayMonth">↕</span></span>
+                    </th>
                     <th>WhatsApp</th>
                     <th>Vendedor</th>
-                    <th>Regalo</th>
+                    <th id="th-discount" class="sortable-header" tabindex="0" title="Ordenar por descuento">
+                        <span class="sort-header-label">Regalo <span class="sort-indicator" data-sort-indicator="discount">↕</span></span>
+                    </th>
                     <th>Acciones</th>
                 </tr>
             </thead>
@@ -396,6 +432,10 @@
         };
         let gamePlaysData = [];
         let loadingGamePlays = false;
+        const sortState = {
+            key: 'registrationDate',
+            direction: 'desc'
+        };
 
         function setProbabilitySaveStatus(message, tone = 'default') {
             const statusEl = document.getElementById('probabilities-save-status');
@@ -664,6 +704,139 @@
             return `${day} ${monthName} (${age} ${age === 1 ? 'año' : 'años'})`;
         }
 
+        function getRegistrationTimestamp(play) {
+            const date = new Date(play?.played_at || '');
+            const timestamp = date.getTime();
+            return Number.isFinite(timestamp) ? timestamp : null;
+        }
+
+        function getBirthdayDayMonthKey(play) {
+            const date = parseBirthDate(play?.birth_date);
+            if (!date) return null;
+            return ((date.getUTCMonth() + 1) * 100) + date.getUTCDate();
+        }
+
+        function getDiscountSortValue(play) {
+            if ((play?.prize_type || '') === 'free') return 100;
+            const valueSource = `${play?.prize_value || ''} ${play?.prize_label || ''}`;
+            const match = valueSource.match(/(\d+(?:\.\d+)?)/);
+            if (!match) return null;
+            const parsed = Number(match[1]);
+            return Number.isFinite(parsed) ? parsed : null;
+        }
+
+        function compareNullableNumbers(aValue, bValue, direction = 'asc') {
+            const aValid = Number.isFinite(aValue);
+            const bValid = Number.isFinite(bValue);
+            if (!aValid && !bValid) return 0;
+            if (!aValid) return 1;
+            if (!bValid) return -1;
+            if (aValue === bValue) return 0;
+
+            if (direction === 'asc') return aValue < bValue ? -1 : 1;
+            return aValue > bValue ? -1 : 1;
+        }
+
+        function compareTextEs(aValue, bValue) {
+            return String(aValue || '').localeCompare(String(bValue || ''), 'es', {
+                sensitivity: 'base'
+            });
+        }
+
+        function getSortedGamePlays(plays) {
+            const rows = Array.isArray(plays) ? [...plays] : [];
+            rows.sort((a, b) => {
+                let primary = 0;
+
+                if (sortState.key === 'registrationDate') {
+                    primary = compareNullableNumbers(
+                        getRegistrationTimestamp(a),
+                        getRegistrationTimestamp(b),
+                        sortState.direction
+                    );
+                } else if (sortState.key === 'birthdayDayMonth') {
+                    primary = compareNullableNumbers(
+                        getBirthdayDayMonthKey(a),
+                        getBirthdayDayMonthKey(b),
+                        sortState.direction
+                    );
+                } else if (sortState.key === 'discount') {
+                    primary = compareNullableNumbers(
+                        getDiscountSortValue(a),
+                        getDiscountSortValue(b),
+                        sortState.direction
+                    );
+                }
+
+                if (primary !== 0) return primary;
+
+                const byRegistrationDesc = compareNullableNumbers(
+                    getRegistrationTimestamp(a),
+                    getRegistrationTimestamp(b),
+                    'desc'
+                );
+                if (byRegistrationDesc !== 0) return byRegistrationDesc;
+
+                return compareTextEs(a?.customer_name, b?.customer_name);
+            });
+            return rows;
+        }
+
+        function updateSortIndicators() {
+            const headers = [
+                { id: 'th-played-at', key: 'registrationDate' },
+                { id: 'th-birth-date', key: 'birthdayDayMonth' },
+                { id: 'th-discount', key: 'discount' }
+            ];
+
+            headers.forEach(({ id, key }) => {
+                const headerEl = document.getElementById(id);
+                if (!headerEl) return;
+
+                const isActive = sortState.key === key;
+                headerEl.classList.toggle('is-active', isActive);
+
+                const indicatorEl = headerEl.querySelector('[data-sort-indicator]');
+                if (!indicatorEl) return;
+                indicatorEl.textContent = isActive
+                    ? (sortState.direction === 'asc' ? '▲' : '▼')
+                    : '↕';
+            });
+        }
+
+        function applySort(sortKey) {
+            if (!sortKey) return;
+
+            if (sortState.key === sortKey) {
+                sortState.direction = sortState.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortState.key = sortKey;
+                sortState.direction = sortKey === 'registrationDate' ? 'desc' : 'asc';
+            }
+
+            renderGamePlaysTable(gamePlaysData);
+            updateSortIndicators();
+        }
+
+        function bindSortableHeader(elementId, sortKey) {
+            const headerEl = document.getElementById(elementId);
+            if (!headerEl) return;
+
+            headerEl.addEventListener('click', () => applySort(sortKey));
+            headerEl.addEventListener('keydown', (ev) => {
+                if (ev.key !== 'Enter' && ev.key !== ' ') return;
+                ev.preventDefault();
+                applySort(sortKey);
+            });
+        }
+
+        function setupSortingControls() {
+            bindSortableHeader('th-played-at', 'registrationDate');
+            bindSortableHeader('th-birth-date', 'birthdayDayMonth');
+            bindSortableHeader('th-discount', 'discount');
+            updateSortIndicators();
+        }
+
         function updateGameStats(plays) {
             const total = Array.isArray(plays) ? plays.length : 0;
             const freePlays = (plays || []).filter((p) => p.prize_type === 'free').length;
@@ -675,13 +848,14 @@
         function renderGamePlaysTable(plays) {
             const tbody = document.getElementById('games-tbody');
             tbody.innerHTML = '';
+            const sortedPlays = getSortedGamePlays(plays);
 
-            if (!Array.isArray(plays) || plays.length === 0) {
+            if (!Array.isArray(sortedPlays) || sortedPlays.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="7" class="loading">No hay registros de juegos</td></tr>';
                 return;
             }
 
-            plays.forEach((play) => {
+            sortedPlays.forEach((play) => {
                 const tr = document.createElement('tr');
                 const prizeClass = play.prize_type === 'free' ? 'prize-free' : 'prize-discount';
                 const prizeText = play.prize_type === 'free' ? '🎂 Postre Gratis' : `${play.prize_value} Descuento`;
@@ -763,7 +937,8 @@
                 ['Fecha', 'Nombre', 'Fecha Nacimiento', 'WhatsApp', 'Vendedor', 'Tipo premio', 'Premio']
             ];
 
-            gamePlaysData.forEach((play) => {
+            const sortedPlays = getSortedGamePlays(gamePlaysData);
+            sortedPlays.forEach((play) => {
                 const isFree = play.prize_type === 'free';
                 rows.push([
                     formatGamePlayDate(play.played_at),
@@ -819,6 +994,7 @@
 
         // Load on page load
         document.addEventListener('DOMContentLoaded', () => {
+            setupSortingControls();
             loadGamePlays();
             loadGameProbabilities();
         });
