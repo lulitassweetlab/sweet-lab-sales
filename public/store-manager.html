@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Administrar Tienda</title>
+    <link rel="stylesheet" href="/styles.css?v=2025-09-17-1" />
+    <style>
+        .dessert-config-input {
+            border: 1px solid transparent;
+            cursor: text;
+            transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+            -moz-appearance: textfield;
+            appearance: textfield;
+        }
+
+        .dessert-config-input:hover {
+            background: var(--secondary);
+            border-color: var(--border);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+        }
+
+        .dessert-config-input:focus {
+            background: var(--secondary);
+            border-color: var(--border);
+        }
+
+        [data-theme="dark"] .dessert-config-input:hover {
+            background: #2a2a2a;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .promo-qty-input {
+            width: 6ch;
+            min-width: 6ch;
+            text-align: center;
+        }
+
+        .promo-price-input {
+            width: 10ch;
+            min-width: 10ch;
+            text-align: right;
+        }
+
+        .product-price-input {
+            width: 10ch;
+            min-width: 10ch;
+            text-align: right;
+        }
+
+        .dessert-config-input::-webkit-outer-spin-button,
+        .dessert-config-input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .product-thumb {
+            width: 60px;
+            height: 60px;
+            object-fit: cover;
+            border-radius: 8px;
+            background-color: var(--secondary);
+            display: block;
+            margin: 0 auto;
+        }
+
+        .product-image-upload {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            align-items: center;
+        }
+
+        .upload-lbl {
+            cursor: pointer;
+            color: var(--primary);
+            font-size: 0.85em;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+
+<body>
+    <header class="app-header">
+        <div class="header-row">
+            <div class="header-left">
+                <img src="/logo.png" alt="Lulitas Logo" class="app-logo" />
+                <h1>Administrar Productos de Tienda</h1>
+            </div>
+            <div class="header-actions">
+                <button id="go-store-btn" class="press-btn btn-primary" style="margin-right: 8px;">🛒 Ir a la
+                    Tienda</button>
+                <button id="back-btn" class="press-btn">Volver</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="sales-panel" style="margin-bottom: 24px;">
+        <div class="panel-header">
+            <h3>Configuración de Tienda</h3>
+        </div>
+        <div class="panel-body" style="display: flex; gap: 40px; align-items: flex-start; flex-wrap: wrap;">
+            <div class="product-image-upload" style="align-items: flex-start;">
+                <img id="logo-preview" class="product-thumb"
+                    style="width: 200px; height: 80px; object-fit: contain; background: transparent; border: 1px dashed var(--border);"
+                    src="/logo.png" />
+                <input type="file" id="logo-upload" accept="image/*" style="display: none;" />
+                <label for="logo-upload" class="upload-lbl" style="margin-top: 8px;">Cambiar Logo</label>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 15px; min-width: 280px; flex: 1;">
+                <div>
+                    <label style="font-weight: bold; display: block; margin-bottom: 8px;">Tamaño del Logo (Alto en px):
+                        <span id="logo-height-val">80</span>px</label>
+                    <input type="range" id="logo-height-input" min="40" max="250" value="80" style="width: 100%;" />
+                </div>
+                <button id="save-settings-btn" class="press-btn btn-primary" style="align-self: flex-start;">Guardar
+                    Configuración</button>
+            </div>
+        </div>
+    </main>
+
+    <main class="sales-panel">
+        <div class="panel-header">
+            <h3>Productos para Tienda Online</h3>
+            <div class="panel-actions">
+                <button id="add-product-btn" class="press-btn btn-primary">+ Nuevo Producto</button>
+            </div>
+        </div>
+        <div class="panel-body">
+            <div class="table-wrapper">
+                <table id="products-table">
+                    <thead>
+                        <tr>
+                            <th rowspan="2">Foto</th>
+                            <th rowspan="2">Nombre / Descripción</th>
+                            <th rowspan="2">Precio Base</th>
+                            <th colspan="2">Promoción</th>
+                            <th rowspan="2">Posición</th>
+                            <th rowspan="2">Estado</th>
+                            <th rowspan="2">Acciones</th>
+                        </tr>
+                        <tr>
+                            <th>Cantidad</th>
+                            <th>Precio</th>
+                        </tr>
+                    </thead>
+                    <tbody id="products-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Toast container -->
+    <div id="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+    <script type="module">
+        import '/app.js'; // To inherit themes and basic toast if needed, but we'll re-implement simple UI here
+
+        (function () {
+            const tbody = document.getElementById('products-tbody');
+            const backBtn = document.getElementById('back-btn');
+            const addBtn = document.getElementById('add-product-btn');
+
+            const fmtMoney = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
+
+            function getEffectivePromotionQty(d) {
+                const qty = Number(d?.promo_qty);
+                if (Number.isFinite(qty) && qty >= 2) return Math.floor(qty);
+                return '';
+            }
+
+            function getEffectivePromotionPrice(d) {
+                const price = Number(d?.promo_price);
+                if (Number.isFinite(price) && price > 0) return Math.round(price);
+                return '';
+            }
+
+            async function loadProducts() {
+                try {
+                    const response = await fetch('/api/store-products');
+                    if (!response.ok) throw new Error('Failed to load products');
+                    const products = await response.json();
+                    renderProducts(products);
+                } catch (err) {
+                    console.error('Error loading products:', err);
+                    alert('Error al cargar los productos');
+                }
+            }
+
+            async function updateProduct(product, overrides = {}) {
+                const body = {
+                    id: product.id,
+                    name: product.name,
+                    description: product.description,
+                    price: product.price,
+                    promo_qty: product.promo_qty,
+                    promo_price: product.promo_price,
+                    image_base64: product.image_base64,
+                    position: product.position,
+                    is_active: product.is_active,
+                    ...overrides
+                };
+                const response = await fetch('/api/store-products', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                if (!response.ok) throw new Error('Failed to update product');
+                return response.json();
+            }
+
+            function renderProducts(products) {
+                tbody.innerHTML = '';
+                for (const d of products) {
+                    const tr = document.createElement('tr');
+
+                    // Photo
+                    const tdImg = document.createElement('td');
+                    const img = document.createElement('img');
+                    img.className = 'product-thumb';
+                    img.src = d.image_base64 || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23ddd"/><text x="50" y="50" font-family="sans-serif" font-size="14" fill="%23666" text-anchor="middle" dominant-baseline="middle">Sin foto</text></svg>';
+                    tdImg.appendChild(img);
+
+                    // Name / Desc
+                    const tdName = document.createElement('td');
+                    const nameDiv = document.createElement('div');
+                    nameDiv.style.fontWeight = 'bold';
+                    nameDiv.textContent = d.name;
+                    const descDiv = document.createElement('div');
+                    descDiv.style.fontSize = '0.85em';
+                    descDiv.style.opacity = '0.7';
+                    descDiv.textContent = d.description || '-';
+                    tdName.append(nameDiv, descDiv);
+
+                    // Price
+                    const tdPrice = document.createElement('td');
+                    tdPrice.textContent = fmtMoney.format(d.price);
+
+                    // Promo Qty
+                    const tdPromoQty = document.createElement('td');
+                    tdPromoQty.textContent = getEffectivePromotionQty(d);
+
+                    // Promo Price
+                    const tdPromoPrice = document.createElement('td');
+                    const promoPrice = getEffectivePromotionPrice(d);
+                    tdPromoPrice.textContent = promoPrice ? fmtMoney.format(promoPrice) : '';
+
+                    // Pos
+                    const tdPos = document.createElement('td');
+                    tdPos.textContent = d.position;
+
+                    // Status
+                    const tdStatus = document.createElement('td');
+                    tdStatus.textContent = d.is_active ? 'Activo' : 'Inactivo';
+                    tdStatus.style.color = d.is_active ? 'green' : 'gray';
+
+                    // Actions
+                    const tdActions = document.createElement('td');
+                    tdActions.style.display = 'flex';
+                    tdActions.style.gap = '6px';
+                    tdActions.style.justifyContent = 'center';
+
+                    const editBtn = document.createElement('button');
+                    editBtn.className = 'press-btn';
+                    editBtn.textContent = 'Editar';
+                    editBtn.addEventListener('click', () => openEditProduct(d));
+
+                    const toggleBtn = document.createElement('button');
+                    toggleBtn.className = 'press-btn';
+                    toggleBtn.textContent = d.is_active ? 'Desactivar' : 'Activar';
+                    toggleBtn.addEventListener('click', async () => {
+                        await updateProduct(d, { is_active: !d.is_active });
+                        loadProducts();
+                    });
+
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.className = 'row-delete';
+                    deleteBtn.title = 'Eliminar';
+                    deleteBtn.setAttribute('aria-label', 'Eliminar');
+                    deleteBtn.addEventListener('click', async () => {
+                        const confirmed = confirm(`¿Seguro que quieres eliminar "${d.name}"? Esta acción no se puede deshacer.`);
+                        if (confirmed) {
+                            await deleteProduct(d.id);
+                            loadProducts();
+                        }
+                    });
+
+                    tdActions.appendChild(editBtn);
+                    tdActions.appendChild(toggleBtn);
+                    tdActions.appendChild(deleteBtn);
+
+                    tr.append(tdImg, tdName, tdPrice, tdPromoQty, tdPromoPrice, tdPos, tdStatus, tdActions);
+                    tbody.appendChild(tr);
+                }
+            }
+
+            async function deleteProduct(id) {
+                try {
+                    const response = await fetch(`/api/store-products?id=${id}`, {
+                        method: 'DELETE'
+                    });
+                    if (!response.ok) throw new Error('Failed to delete product');
+                    alert('Producto eliminado exitosamente');
+                } catch (err) {
+                    console.error('Error deleting product:', err);
+                    alert('Error al eliminar el producto');
+                }
+            }
+
+            function openEditProduct(product) {
+                const pop = document.createElement('div');
+                pop.className = 'confirm-popover';
+                pop.style.position = 'absolute';
+                pop.style.left = '50%';
+                // Avoid cutoff on small screens
+                pop.style.top = Math.max(80, window.scrollY + 80) + 'px';
+                pop.style.transform = 'translate(-50%, 0)';
+                pop.style.zIndex = '1000';
+
+                const title = document.createElement('h4');
+                title.textContent = product ? 'Editar Producto' : 'Nuevo Producto';
+                title.style.margin = '0 0 12px 0';
+
+                const form = document.createElement('div');
+                form.style.display = 'flex';
+                form.style.flexDirection = 'column';
+                form.style.gap = '10px';
+                form.style.minWidth = '320px';
+
+                // Photo Preview and Upload
+                const photoWrap = document.createElement('div');
+                photoWrap.className = 'product-image-upload';
+
+                const imgPreview = document.createElement('img');
+                imgPreview.className = 'product-thumb';
+                imgPreview.style.width = '100px';
+                imgPreview.style.height = '100px';
+                imgPreview.src = product && product.image_base64 ? product.image_base64 : 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23ddd"/><text x="50" y="50" font-family="sans-serif" font-size="24" fill="%23666" text-anchor="middle" dominant-baseline="middle">+</text></svg>';
+
+                const fileInput = document.createElement('input');
+                fileInput.type = 'file';
+                fileInput.accept = 'image/*';
+                fileInput.style.display = 'none';
+                fileInput.id = 'product-img-upload';
+
+                const uploadLbl = document.createElement('label');
+                uploadLbl.className = 'upload-lbl';
+                uploadLbl.htmlFor = 'product-img-upload';
+                uploadLbl.textContent = 'Subir/Cambiar Foto';
+
+                let currentBase64 = product ? product.image_base64 : '';
+
+                fileInput.addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    const maxSize = 2 * 1024 * 1024; // 2MB limit
+                    if (file.size > maxSize) {
+                        alert('La imagen es muy grande (Max 2MB).');
+                        return;
+                    }
+                    const reader = new FileReader();
+                    reader.onload = function (evt) {
+                        currentBase64 = evt.target.result;
+                        imgPreview.src = currentBase64;
+                    };
+                    reader.readAsDataURL(file);
+                });
+
+                photoWrap.append(imgPreview, uploadLbl, fileInput);
+
+                const nameLabel = document.createElement('label');
+                nameLabel.textContent = 'Nombre:';
+                const nameInput = document.createElement('input');
+                nameInput.className = 'input-cell';
+                nameInput.type = 'text';
+                nameInput.value = product ? product.name : '';
+
+                const descLabel = document.createElement('label');
+                descLabel.textContent = 'Descripción:';
+                const descInput = document.createElement('textarea');
+                descInput.className = 'input-cell';
+                descInput.rows = 2;
+                descInput.value = product ? (product.description || '') : '';
+
+                const priceLabel = document.createElement('label');
+                priceLabel.textContent = 'Precio Base ($):';
+                const priceInput = document.createElement('input');
+                priceInput.className = 'input-cell';
+                priceInput.type = 'number';
+                priceInput.min = '0';
+                priceInput.step = '100';
+                priceInput.value = product ? product.price : '0';
+
+                // Optional: split promotions side by side
+                const promoRow = document.createElement('div');
+                promoRow.style.display = 'flex';
+                promoRow.style.gap = '10px';
+
+                const promoQtyWrap = document.createElement('div');
+                promoQtyWrap.style.flex = '1';
+                const promoQtyLabel = document.createElement('label');
+                promoQtyLabel.textContent = 'Promoción (Cant.):';
+                const promoQtyInput = document.createElement('input');
+                promoQtyInput.className = 'input-cell';
+                promoQtyInput.type = 'number';
+                promoQtyInput.min = '2';
+                promoQtyInput.placeholder = 'Ej: 5';
+                promoQtyInput.value = product && product.promo_qty ? product.promo_qty : '';
+                promoQtyWrap.append(promoQtyLabel, promoQtyInput);
+
+                const promoPriceWrap = document.createElement('div');
+                promoPriceWrap.style.flex = '1';
+                const promoPriceLabel = document.createElement('label');
+                promoPriceLabel.textContent = 'Precio Promoción:';
+                const promoPriceInput = document.createElement('input');
+                promoPriceInput.className = 'input-cell';
+                promoPriceInput.type = 'number';
+                promoPriceInput.min = '0';
+                promoPriceInput.step = '100';
+                promoPriceInput.placeholder = 'Ej: 40000';
+                promoPriceInput.value = product && product.promo_price ? product.promo_price : '';
+                promoPriceWrap.append(promoPriceLabel, promoPriceInput);
+
+                promoRow.append(promoQtyWrap, promoPriceWrap);
+
+                const posLabel = document.createElement('label');
+                posLabel.textContent = 'Posición (Orden):';
+                const posInput = document.createElement('input');
+                posInput.className = 'input-cell';
+                posInput.type = 'number';
+                posInput.min = '0';
+                posInput.step = '1';
+                posInput.value = product ? product.position : '0';
+
+                const actions = document.createElement('div');
+                actions.className = 'confirm-actions';
+                actions.style.marginTop = '12px';
+
+                const saveBtn = document.createElement('button');
+                saveBtn.className = 'press-btn btn-primary';
+                saveBtn.textContent = product ? 'Guardar' : 'Crear';
+
+                const cancelBtn = document.createElement('button');
+                cancelBtn.className = 'press-btn';
+                cancelBtn.textContent = 'Cancelar';
+
+                actions.append(saveBtn, cancelBtn);
+
+                form.append(
+                    photoWrap,
+                    nameLabel, nameInput,
+                    descLabel, descInput,
+                    priceLabel, priceInput,
+                    promoRow,
+                    posLabel, posInput
+                );
+
+                pop.append(title, form, actions);
+
+                // Make popover easily closable by clicking outside
+                const backdrop = document.createElement('div');
+                backdrop.style.position = 'fixed';
+                backdrop.style.inset = '0';
+                backdrop.style.backgroundColor = 'rgba(0,0,0,0.5)';
+                backdrop.style.zIndex = '999';
+
+                document.body.appendChild(backdrop);
+                document.body.appendChild(pop);
+                pop.classList.add('aladdin-pop');
+
+                const closePop = () => {
+                    if (document.body.contains(pop)) document.body.removeChild(pop);
+                    if (document.body.contains(backdrop)) document.body.removeChild(backdrop);
+                };
+
+                backdrop.addEventListener('click', closePop);
+                cancelBtn.addEventListener('click', closePop);
+
+                saveBtn.addEventListener('click', async () => {
+                    const name = nameInput.value.trim();
+                    const description = descInput.value.trim();
+                    const price = Number(priceInput.value) || 0;
+                    let pQty = parseInt(promoQtyInput.value, 10);
+                    let pPrice = parseInt(promoPriceInput.value, 10);
+                    const position = Number(posInput.value) || 0;
+
+                    pQty = Number.isNaN(pQty) || pQty < 2 ? null : pQty;
+                    pPrice = Number.isNaN(pPrice) || pPrice < 0 ? null : pPrice;
+
+                    if (!name) {
+                        alert('El nombre es requerido');
+                        return;
+                    }
+                    if (price <= 0) {
+                        alert('El precio base debe ser mayor a 0');
+                        return;
+                    }
+
+                    saveBtn.disabled = true;
+                    saveBtn.textContent = 'Guardando...';
+
+                    try {
+                        const method = product ? 'PUT' : 'POST';
+                        const body = {
+                            name,
+                            description,
+                            price,
+                            promo_qty: pQty,
+                            promo_price: pPrice,
+                            position,
+                            image_base64: currentBase64 || null
+                        };
+                        if (product) {
+                            body.id = product.id;
+                            body.is_active = product.is_active;
+                        }
+
+                        const response = await fetch('/api/store-products', {
+                            method,
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(body)
+                        });
+
+                        if (!response.ok) throw new Error('Failed to save product');
+
+                        closePop();
+                        loadProducts();
+                    } catch (err) {
+                        console.error('Error saving product:', err);
+                        alert('Error al guardar el producto');
+                        saveBtn.disabled = false;
+                        saveBtn.textContent = product ? 'Guardar' : 'Crear';
+                    }
+                });
+
+                nameInput.focus();
+            }
+
+            addBtn.addEventListener('click', () => openEditProduct(null));
+
+            const goStoreBtn = document.getElementById('go-store-btn');
+            if (goStoreBtn) {
+                goStoreBtn.addEventListener('click', () => {
+                    window.open('/store.html', '_blank');
+                });
+            }
+
+            backBtn.addEventListener('click', () => {
+                window.location.href = '/index.html';
+            });
+
+            // Store Settings Logic
+            const logoPreview = document.getElementById('logo-preview');
+            const logoUpload = document.getElementById('logo-upload');
+            const logoHeightInput = document.getElementById('logo-height-input');
+            const logoHeightVal = document.getElementById('logo-height-val');
+            const saveSettingsBtn = document.getElementById('save-settings-btn');
+
+            let currentLogoBase64 = null;
+
+            logoHeightInput.addEventListener('input', (e) => {
+                logoHeightVal.textContent = e.target.value;
+                logoPreview.style.height = e.target.value + 'px';
+            });
+
+            logoUpload.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                if (file.size > 2 * 1024 * 1024) {
+                    alert('El logo es muy grande (Max 2MB).');
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = function (evt) {
+                    currentLogoBase64 = evt.target.result;
+                    logoPreview.src = currentLogoBase64;
+                };
+                reader.readAsDataURL(file);
+            });
+
+            async function loadSettings() {
+                try {
+                    const res = await fetch('/api/store-settings');
+                    if (res.ok) {
+                        const settings = await res.json();
+                        if (settings.logo_base64) {
+                            currentLogoBase64 = settings.logo_base64;
+                            logoPreview.src = currentLogoBase64;
+                        }
+                        if (settings.logo_height) {
+                            logoHeightInput.value = settings.logo_height;
+                            logoHeightVal.textContent = settings.logo_height;
+                            logoPreview.style.height = settings.logo_height + 'px';
+                        } else {
+                            logoPreview.style.height = '80px';
+                        }
+                    }
+                } catch (err) {
+                    console.error('Error loading settings', err);
+                }
+            }
+
+            saveSettingsBtn.addEventListener('click', async () => {
+                saveSettingsBtn.disabled = true;
+                saveSettingsBtn.textContent = 'Guardando...';
+                try {
+                    const body = {
+                        logo_height: logoHeightInput.value
+                    };
+                    if (currentLogoBase64) {
+                        body.logo_base64 = currentLogoBase64;
+                    }
+                    const res = await fetch('/api/store-settings', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(body)
+                    });
+                    if (!res.ok) throw new Error('Error al guardar');
+                    alert('Configuración guardada exitosamente');
+                } catch (err) {
+                    console.error(err);
+                    alert('Error al guardar la configuración');
+                } finally {
+                    saveSettingsBtn.disabled = false;
+                    saveSettingsBtn.textContent = 'Guardar Configuración';
+                }
+            });
+
+            loadSettings();
+            loadProducts();
+        })();
+    </script>
+</body>
+
+</html>

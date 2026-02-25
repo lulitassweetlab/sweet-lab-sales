@@ -4433,6 +4433,15 @@ async function exportCarteraExcel(startIso, endIso) {
 		if (!isAdminUser && !isSuper) { notify.error('Solo para admin/superadmin'); return; }
 		window.location.href = '/games-report.html';
 	});
+
+	const storeBtn = document.getElementById('store-button');
+	storeBtn?.addEventListener('click', (ev) => {
+		exitDeleteSellerModeIfActive();
+		const isAdminUser = !!(state?.currentUser?.isAdmin);
+		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+		if (!isAdminUser && !isSuper) { notify.error('Solo para admin/superadmin'); return; }
+		window.location.href = '/store-manager.html';
+	});
 })();
 
 // Build list of ISO dates (YYYY-MM-DD) from inclusive range using UTC arithmetic

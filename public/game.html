@@ -524,7 +524,8 @@
 					<label class="form-label" for="customer-name">Nombre Completo</label>
 					<input type="text" id="customer-name" class="form-input" placeholder="Ej: María García" required />
 					<div class="error-message" id="name-error">Por favor ingresa tu nombre completo</div>
-					<div class="form-hint">Tip de ensayo: escribe <strong>1</strong> para probar sin llenar más datos y sin guardar registro.</div>
+					<div class="form-hint">Tip de ensayo: escribe <strong>1</strong> para probar sin llenar más datos y
+						sin guardar registro.</div>
 				</div>
 
 				<div class="form-group">
@@ -536,7 +537,8 @@
 				<div class="form-group">
 					<label class="form-label" for="customer-birthdate">Fecha de Nacimiento</label>
 					<input type="date" id="customer-birthdate" class="form-input" required />
-					<div class="error-message" id="birthdate-error">Por favor selecciona una fecha de nacimiento válida</div>
+					<div class="error-message" id="birthdate-error">Por favor selecciona una fecha de nacimiento válida
+					</div>
 					<div class="form-hint">Toca el campo para abrir el calendario.</div>
 				</div>
 
@@ -1018,13 +1020,27 @@
 			if (prize.type === 'free') {
 				document.getElementById('prize-icon').textContent = '🎂';
 				document.getElementById('prize-value').textContent = '¡POSTRE GRATIS!';
-				document.getElementById('prize-message').textContent =
-					'¡Increíble! Has ganado un postre completamente gratis. Muestra este resultado a tu vendedor.';
+				document.getElementById('prize-message').innerText =
+					`¡Felicidades! 🎉
+Has ganado un POSTRE GRATIS en tu próximo pedido.
+
+Tu premio ya fue registrado y acabamos de enviar la información a tu vendedor para que lo aplique automáticamente. Además, en breve recibirás en tu WhatsApp todos los detalles de tu regalo.
+
+⏳ Este beneficio estará vigente durante los próximos 20 días, así que no dejes pasar la oportunidad.
+
+¡Prepárate para disfrutarlo! ✨`;
 			} else {
 				document.getElementById('prize-icon').textContent = '🎁';
 				document.getElementById('prize-value').textContent = prize.value;
-				document.getElementById('prize-message').textContent =
-					`¡Felicitaciones! Has ganado un descuento del ${prize.value}. Muestra este resultado a tu vendedor para aplicarlo en tu próxima compra.`;
+				document.getElementById('prize-message').innerText =
+					`¡Felicidades! 🎉
+Has ganado un ${prize.value} de descuento en tu próximo pedido.
+
+Tu premio ya fue registrado y acabamos de enviar la información a tu vendedor para que lo aplique automáticamente. Además, en breve recibirás en tu WhatsApp todos los detalles de tu descuento.
+
+⏳ Este beneficio estará vigente durante los próximos 20 días, así que no dejes pasar la oportunidad.
+
+¡Prepárate para disfrutarlo! ✨`;
 			}
 
 			// Show confetti
