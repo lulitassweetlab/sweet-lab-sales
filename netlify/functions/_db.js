@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 18; // Bump when schema changes require a migration (add store_products table)
+const SCHEMA_VERSION = 19; // Bump when schema changes require a migration (add store_settings)
 
 export async function ensureSchema() {
 	// If already ensured in this instance, skip immediately
@@ -288,6 +288,13 @@ export async function ensureSchema() {
 				is_active BOOLEAN NOT NULL DEFAULT true,
 				position INTEGER NOT NULL DEFAULT 0,
 				created_at TIMESTAMPTZ DEFAULT now(),
+				updated_at TIMESTAMPTZ DEFAULT now()
+			)`;
+
+			// CRITICAL: Store Settings table
+			await sql`CREATE TABLE IF NOT EXISTS store_settings (
+				key TEXT PRIMARY KEY,
+				value TEXT NOT NULL,
 				updated_at TIMESTAMPTZ DEFAULT now()
 			)`;
 

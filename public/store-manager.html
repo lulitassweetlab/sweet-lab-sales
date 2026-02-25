@@ -89,10 +89,36 @@
                 <h1>Administrar Productos de Tienda</h1>
             </div>
             <div class="header-actions">
+                <button id="go-store-btn" class="press-btn btn-primary" style="margin-right: 8px;">🛒 Ir a la
+                    Tienda</button>
                 <button id="back-btn" class="press-btn">Volver</button>
             </div>
         </div>
     </header>
+
+    <main class="sales-panel" style="margin-bottom: 24px;">
+        <div class="panel-header">
+            <h3>Configuración de Tienda</h3>
+        </div>
+        <div class="panel-body" style="display: flex; gap: 40px; align-items: flex-start; flex-wrap: wrap;">
+            <div class="product-image-upload" style="align-items: flex-start;">
+                <img id="logo-preview" class="product-thumb"
+                    style="width: 200px; height: 80px; object-fit: contain; background: transparent; border: 1px dashed var(--border);"
+                    src="/logo.png" />
+                <input type="file" id="logo-upload" accept="image/*" style="display: none;" />
+                <label for="logo-upload" class="upload-lbl" style="margin-top: 8px;">Cambiar Logo</label>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 15px; min-width: 280px; flex: 1;">
+                <div>
+                    <label style="font-weight: bold; display: block; margin-bottom: 8px;">Tamaño del Logo (Alto en px):
+                        <span id="logo-height-val">80</span>px</label>
+                    <input type="range" id="logo-height-input" min="40" max="250" value="80" style="width: 100%;" />
+                </div>
+                <button id="save-settings-btn" class="press-btn btn-primary" style="align-self: flex-start;">Guardar
+                    Configuración</button>
+            </div>
+        </div>
+    </main>
 
     <main class="sales-panel">
         <div class="panel-header">
@@ -513,10 +539,95 @@
 
             addBtn.addEventListener('click', () => openEditProduct(null));
 
+            const goStoreBtn = document.getElementById('go-store-btn');
+            if (goStoreBtn) {
+                goStoreBtn.addEventListener('click', () => {
+                    window.open('/store.html', '_blank');
+                });
+            }
+
             backBtn.addEventListener('click', () => {
                 window.location.href = '/index.html';
             });
 
+            // Store Settings Logic
+            const logoPreview = document.getElementById('logo-preview');
+            const logoUpload = document.getElementById('logo-upload');
+            const logoHeightInput = document.getElementById('logo-height-input');
+            const logoHeightVal = document.getElementById('logo-height-val');
+            const saveSettingsBtn = document.getElementById('save-settings-btn');
+
+            let currentLogoBase64 = null;
+
+            logoHeightInput.addEventListener('input', (e) => {
+                logoHeightVal.textContent = e.target.value;
+                logoPreview.style.height = e.target.value + 'px';
+            });
+
+            logoUpload.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                if (file.size > 2 * 1024 * 1024) {
+                    alert('El logo es muy grande (Max 2MB).');
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = function (evt) {
+                    currentLogoBase64 = evt.target.result;
+                    logoPreview.src = currentLogoBase64;
+                };
+                reader.readAsDataURL(file);
+            });
+
+            async function loadSettings() {
+                try {
+                    const res = await fetch('/api/store-settings');
+                    if (res.ok) {
+                        const settings = await res.json();
+                        if (settings.logo_base64) {
+                            currentLogoBase64 = settings.logo_base64;
+                            logoPreview.src = currentLogoBase64;
+                        }
+                        if (settings.logo_height) {
+                            logoHeightInput.value = settings.logo_height;
+                            logoHeightVal.textContent = settings.logo_height;
+                            logoPreview.style.height = settings.logo_height + 'px';
+                        } else {
+                            logoPreview.style.height = '80px';
+                        }
+                    }
+                } catch (err) {
+                    console.error('Error loading settings', err);
+                }
+            }
+
+            saveSettingsBtn.addEventListener('click', async () => {
+                saveSettingsBtn.disabled = true;
+                saveSettingsBtn.textContent = 'Guardando...';
+                try {
+                    const body = {
+                        logo_height: logoHeightInput.value
+                    };
+                    if (currentLogoBase64) {
+                        body.logo_base64 = currentLogoBase64;
+                    }
+                    const res = await fetch('/api/store-settings', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(body)
+                    });
+                    if (!res.ok) throw new Error('Error al guardar');
+                    alert('Configuración guardada exitosamente');
+                } catch (err) {
+                    console.error(err);
+                    alert('Error al guardar la configuración');
+                } finally {
+                    saveSettingsBtn.disabled = false;
+                    saveSettingsBtn.textContent = 'Guardar Configuración';
+                }
+            });
+
+            loadSettings();
             loadProducts();
         })();
     </script>

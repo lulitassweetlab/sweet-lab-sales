@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tienda Lulitas Sweet Lab</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet" />
+    <style>
+        :root {
+            --bg: #fdf7f8;
+            --surface: #ffffff;
+            --text: #2a2a2a;
+            --muted: #5a5a5a;
+            --primary: #f4a6b7;
+            --primary-hover: #e27a90;
+            --secondary: #f5e6e8;
+            --border: #f4a6b7;
+            --shadow: rgba(244, 166, 183, 0.15);
+            --radius: 16px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background-color: var(--surface);
+            padding: 24px;
+            box-shadow: 0 4px 12px var(--shadow);
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            max-width: 140px;
+            height: auto;
+            transition: all 0.3s ease;
+        }
+
+        main {
+            flex: 1;
+            padding: 40px 24px;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .store-title {
+            text-align: center;
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: var(--primary-hover);
+        }
+
+        .store-subtitle {
+            text-align: center;
+            font-size: 1.1rem;
+            color: var(--muted);
+            margin-bottom: 40px;
+        }
+
+        .product-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 24px;
+        }
+
+        .product-card {
+            background: var(--surface);
+            border-radius: var(--radius);
+            overflow: hidden;
+            box-shadow: 0 6px 16px var(--shadow);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid rgba(244, 166, 183, 0.3);
+        }
+
+        .product-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 12px 24px rgba(244, 166, 183, 0.3);
+        }
+
+        .product-image-container {
+            position: relative;
+            width: 100%;
+            padding-top: 100%;
+            /* 1:1 Aspect Ratio */
+            background-color: var(--secondary);
+            overflow: hidden;
+        }
+
+        .product-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.5s ease;
+        }
+
+        .product-card:hover .product-image {
+            transform: scale(1.05);
+        }
+
+        .product-promo-badge {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: #facc15;
+            color: #854d0e;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 0.85rem;
+            box-shadow: 0 2px 8px rgba(250, 204, 21, 0.4);
+            z-index: 10;
+        }
+
+        .product-content {
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+        }
+
+        .product-name {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: var(--text);
+        }
+
+        .product-desc {
+            font-size: 0.95rem;
+            color: var(--muted);
+            margin-bottom: 16px;
+            flex: 1;
+        }
+
+        .product-prices {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-bottom: 20px;
+        }
+
+        .price-normal {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--primary-hover);
+        }
+
+        .price-promo {
+            font-size: 0.95rem;
+            color: #d97706;
+            /* Amber/Orange for promo */
+            font-weight: 500;
+            background: #fef3c7;
+            padding: 6px 10px;
+            border-radius: 8px;
+            display: inline-block;
+            align-self: flex-start;
+        }
+
+        .buy-btn {
+            width: 100%;
+            padding: 14px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.05rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s ease, transform 0.1s ease;
+            font-family: inherit;
+        }
+
+        .buy-btn:hover {
+            background: var(--primary-hover);
+        }
+
+        .buy-btn:active {
+            transform: scale(0.98);
+        }
+
+        footer {
+            background: var(--surface);
+            padding: 30px 24px;
+            text-align: center;
+            border-top: 1px solid var(--border);
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+
+        /* Loading Skeleton */
+        .skeleton {
+            background: linear-gradient(90deg, var(--secondary) 25%, #fff0f3 50%, var(--secondary) 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+        }
+
+        @keyframes loading {
+            0% {
+                background-position: 200% 0;
+            }
+
+            100% {
+                background-position: -200% 0;
+            }
+        }
+
+        .skeleton-card {
+            height: 400px;
+            border-radius: var(--radius);
+        }
+
+        .empty-state {
+            text-align: center;
+            grid-column: 1 / -1;
+            padding: 60px 20px;
+            background: var(--surface);
+            border-radius: var(--radius);
+            border: 2px dashed var(--border);
+            color: var(--muted);
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <img src="/logo.png" alt="Lulitas Sweet Lab" class="logo" />
+    </header>
+
+    <main>
+        <h1 class="store-title">Menú de Postres</h1>
+        <p class="store-subtitle">Descubre nuestra selección de delicias hechas con amor 💕</p>
+
+        <div class="product-grid" id="product-grid">
+            <!-- Loading Skeletons -->
+            <div class="product-card skeleton-card skeleton"></div>
+            <div class="product-card skeleton-card skeleton"></div>
+            <div class="product-card skeleton-card skeleton"></div>
+            <div class="product-card skeleton-card skeleton"></div>
+        </div>
+    </main>
+
+    <footer>
+        <p>© 2026 Lulitas Sweet Lab. Todos los derechos reservados.</p>
+        <p style="margin-top: 8px;">Hecho con 💕</p>
+    </footer>
+
+    <script>
+        const fmtMoney = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
+        const grid = document.getElementById('product-grid');
+
+        // Fallback SVG for products without images
+        const fallbackImage = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" fill="%23f5e6e8"><rect width="400" height="400"/><path d="M200 120 C150 120 120 160 120 200 C120 250 160 280 200 280 C240 280 280 250 280 200 C280 160 250 120 200 120 Z" fill="%23f4a6b7"/><circle cx="170" cy="180" r="10" fill="white"/><circle cx="230" cy="180" r="10" fill="white"/><path d="M180 230 Q200 250 220 230" stroke="white" stroke-width="8" stroke-linecap="round" fill="none"/></svg>`;
+
+        async function loadStore() {
+            try {
+                const res = await fetch('/api/store-products');
+                if (!res.ok) throw new Error('Error de red');
+                const products = await res.json();
+
+                const activeProducts = products.filter(p => p.is_active);
+
+                if (activeProducts.length === 0) {
+                    grid.innerHTML = `
+						<div class="empty-state">
+							<h2 style="font-size: 1.5rem; margin-bottom: 12px; color: var(--text);">¡Pronto tendremos delicias aquí!</h2>
+							<p>Actualmente estamos horneando nuevas sorpresas. Vuelve pronto.</p>
+						</div>
+					`;
+                    return;
+                }
+
+                grid.innerHTML = '';
+
+                activeProducts.forEach(storeRenderProduct);
+
+            } catch (err) {
+                console.error('Error loading store:', err);
+                grid.innerHTML = `
+					<div class="empty-state">
+						<h2 style="font-size: 1.5rem; margin-bottom: 12px; color: var(--danger);">¡Ups! Algo salió mal.</h2>
+						<p>No pudimos cargar el menú en este momento. Por favor, recarga la página.</p>
+					</div>
+				`;
+            }
+        }
+
+        function storeRenderProduct(product) {
+            const card = document.createElement('div');
+            card.className = 'product-card';
+
+            const imgContainer = document.createElement('div');
+            imgContainer.className = 'product-image-container';
+
+            const img = document.createElement('img');
+            img.className = 'product-image';
+            img.src = product.image_base64 || fallbackImage;
+            img.alt = product.name;
+            img.loading = 'lazy';
+
+            imgContainer.appendChild(img);
+
+            // Promotion Badge
+            const hasPromo = product.promo_qty >= 2 && product.promo_price > 0;
+            if (hasPromo) {
+                const badge = document.createElement('div');
+                badge.className = 'product-promo-badge';
+                badge.textContent = '¡Promoción!';
+                imgContainer.appendChild(badge);
+            }
+
+            const content = document.createElement('div');
+            content.className = 'product-content';
+
+            const name = document.createElement('h3');
+            name.className = 'product-name';
+            name.textContent = product.name;
+
+            const desc = document.createElement('p');
+            desc.className = 'product-desc';
+            desc.textContent = product.description || 'Delicioso postre de Lulitas Sweet Lab';
+
+            const prices = document.createElement('div');
+            prices.className = 'product-prices';
+
+            const priceNormal = document.createElement('div');
+            priceNormal.className = 'price-normal';
+            priceNormal.textContent = fmtMoney.format(product.price);
+            prices.appendChild(priceNormal);
+
+            if (hasPromo) {
+                const pricePromo = document.createElement('div');
+                pricePromo.className = 'price-promo';
+                pricePromo.textContent = `Lleva ${product.promo_qty} por solo ${fmtMoney.format(product.promo_price)}`;
+                prices.appendChild(pricePromo);
+            }
+
+            const buyBtn = document.createElement('button');
+            buyBtn.className = 'buy-btn';
+            buyBtn.textContent = 'Lo quiero 💝';
+
+            // Open WhatsApp with pre-filled message
+            buyBtn.addEventListener('click', () => {
+                const message = encodeURIComponent(`¡Hola Lulitas! Me encantaría pedir: *${product.name}*\n\nPrecio listado: ${fmtMoney.format(product.price)}`);
+                window.open(`https://wa.me/573000000000?text=${message}`, '_blank');
+            });
+
+            content.append(name, desc, prices, buyBtn);
+            card.append(imgContainer, content);
+            grid.appendChild(card);
+        }
+
+        async function loadSettings() {
+            try {
+                const res = await fetch('/api/store-settings');
+                if (res.ok) {
+                    const settings = await res.json();
+                    const logoImg = document.querySelector('.logo');
+                    if (settings.logo_base64) {
+                        logoImg.src = settings.logo_base64;
+                    }
+                    if (settings.logo_height) {
+                        logoImg.style.height = settings.logo_height + 'px';
+                        logoImg.style.maxWidth = 'none'; // allow height to dictate size
+                    }
+                }
+            } catch (err) {
+                console.error('Error loading store settings:', err);
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadSettings();
+            loadStore();
+        });
+    </script>
+</body>
+
+</html>
