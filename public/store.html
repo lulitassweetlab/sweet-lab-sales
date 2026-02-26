@@ -40,16 +40,32 @@
 
         header {
             background-color: transparent;
-            padding: 24px;
+            padding: 24px 5%;
             display: flex;
             align-items: center;
-            justify-content: flex-start;
+            position: relative;
+            justify-content: center;
+            min-height: 140px;
             z-index: 100;
         }
 
+        .header-left {
+            position: absolute;
+            left: 5%;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .header-center {
+            text-align: center;
+        }
+
         .logo {
-            max-width: 140px;
+            max-width: 250px;
+            max-height: 180px;
+            width: auto;
             height: auto;
+            object-fit: contain;
             transition: all 0.3s ease;
         }
 
@@ -65,7 +81,7 @@
             text-align: center;
             font-size: 2rem;
             font-weight: 700;
-            margin-bottom: 8px;
+            margin-bottom: 4px;
             color: var(--primary-hover);
         }
 
@@ -73,10 +89,11 @@
             text-align: center;
             font-size: 1.1rem;
             color: var(--muted);
-            margin-bottom: 40px;
+            margin-bottom: 0;
         }
 
         .product-grid {
+            margin-top: 16px;
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(224px, 1fr));
             gap: 6px;
@@ -437,6 +454,18 @@
 
         /* Mobile View - Reveal All Data & Reset Sizes */
         @media (max-width: 768px) {
+            header {
+                flex-direction: column;
+                position: static;
+                gap: 16px;
+                padding: 24px 16px;
+            }
+
+            .header-left {
+                position: static;
+                transform: none;
+            }
+
             .product-grid {
                 display: grid;
                 grid-template-columns: 1fr;
@@ -452,13 +481,16 @@
 
 <body>
     <header>
-        <img src="/logo.png" alt="Lulitas Sweet Lab" class="logo" />
+        <div class="header-left">
+            <img src="/logo.png" alt="Lulitas Sweet Lab" class="logo" />
+        </div>
+        <div class="header-center">
+            <h1 class="store-title">Menú de Postres</h1>
+            <p class="store-subtitle">Descubre nuestra selección de delicias hechas con amor 💕</p>
+        </div>
     </header>
 
     <main>
-        <h1 class="store-title">Menú de Postres</h1>
-        <p class="store-subtitle">Descubre nuestra selección de delicias hechas con amor 💕</p>
-
         <div class="product-grid" id="product-grid">
             <!-- Loading Skeletons -->
             <div class="product-card skeleton-card skeleton"></div>
