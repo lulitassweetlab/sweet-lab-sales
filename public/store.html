@@ -300,6 +300,66 @@
             width: 100%;
         }
 
+        /* Floating Cart */
+        .floating-cart {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(150%);
+            background: var(--surface);
+            border: 2px solid var(--primary);
+            border-radius: 30px;
+            padding: 12px 24px;
+            box-shadow: 0 10px 25px rgba(244, 166, 183, 0.5);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            z-index: 1000;
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .floating-cart.visible {
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .cart-info {
+            display: flex;
+            flex-direction: column;
+            color: var(--text);
+        }
+
+        .cart-items {
+            font-size: 0.9rem;
+            color: var(--muted);
+            font-weight: 500;
+        }
+
+        .cart-total {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--primary-hover);
+        }
+
+        .cart-checkout-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        .cart-checkout-btn:hover {
+            background: var(--primary-hover);
+        }
+
+        .cart-checkout-btn:active {
+            transform: scale(0.95);
+        }
+
         /* Mobile View - Reveal All Data & Reset Sizes */
         @media (max-width: 768px) {
             .product-grid {
@@ -338,9 +398,61 @@
         <p style="margin-top: 8px;">Hecho con 💕</p>
     </footer>
 
+    <div class="floating-cart" id="floating-cart">
+        <div class="cart-info">
+            <span class="cart-items" id="cart-items-count">0 artículos</span>
+            <span class="cart-total" id="cart-total-price">$ 0</span>
+        </div>
+        <button class="cart-checkout-btn" id="cart-checkout-btn">Pedir por WhatsApp 🛒</button>
+    </div>
+
     <script>
         const fmtMoney = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
         const grid = document.getElementById('product-grid');
+        const floatingCart = document.getElementById('floating-cart');
+        const cartItemsCount = document.getElementById('cart-items-count');
+        const cartTotalPrice = document.getElementById('cart-total-price');
+        const cartCheckoutBtn = document.getElementById('cart-checkout-btn');
+
+        // Global cart state: { productId: { product, qty, total } }
+        let cart = {};
+
+        function updateCartUI() {
+            let totalQty = 0;
+            let grandTotal = 0;
+            let hasItems = false;
+
+            for (const id in cart) {
+                totalQty += cart[id].qty;
+                grandTotal += cart[id].total;
+                if (cart[id].qty > 0) hasItems = true;
+            }
+
+            if (hasItems) {
+                cartItemsCount.textContent = totalQty === 1 ? '1 artículo' : `${totalQty} artículos`;
+                cartTotalPrice.textContent = fmtMoney.format(grandTotal);
+                floatingCart.classList.add('visible');
+            } else {
+                floatingCart.classList.remove('visible');
+            }
+        }
+
+        cartCheckoutBtn.addEventListener('click', () => {
+            let message = '¡Hola Lulitas! Me encantaría hacer este pedido:\n\n';
+            let grandTotal = 0;
+
+            for (const id in cart) {
+                const item = cart[id];
+                if (item.qty > 0) {
+                    message += `*${item.qty}x ${item.product.name}* (${fmtMoney.format(item.total)})\n`;
+                    grandTotal += item.total;
+                }
+            }
+
+            message += `\n*Total a pagar: ${fmtMoney.format(grandTotal)}*`;
+            const encoded = encodeURIComponent(message);
+            window.open(`https://wa.me/573332268889?text=${encoded}`, '_blank');
+        });
 
         // Fallback SVG for products without images
         const fallbackImage = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" fill="%23f5e6e8"><rect width="400" height="400"/><path d="M200 120 C150 120 120 160 120 200 C120 250 160 280 200 280 C240 280 280 250 280 200 C280 160 250 120 200 120 Z" fill="%23f4a6b7"/><circle cx="170" cy="180" r="10" fill="white"/><circle cx="230" cy="180" r="10" fill="white"/><path d="M180 230 Q200 250 220 230" stroke="white" stroke-width="8" stroke-linecap="round" fill="none"/></svg>`;
@@ -440,15 +552,20 @@
             qtyContainer.className = 'qty-container';
             qtyContainer.style.display = 'none';
 
-            let qty = 1;
+            let qty = 0; // Starts at 0 until they click buy
 
-            const renderQty = () => {
-                let total = product.price * qty;
+            const calculateTotal = (productQty) => {
+                let total = product.price * productQty;
                 if (hasPromo) {
-                    let promoGroups = Math.floor(qty / product.promo_qty);
-                    let remainder = qty % product.promo_qty;
+                    let promoGroups = Math.floor(productQty / product.promo_qty);
+                    let remainder = productQty % product.promo_qty;
                     total = (promoGroups * product.promo_price) + (remainder * product.price);
                 }
+                return total;
+            };
+
+            const renderQty = () => {
+                const total = calculateTotal(qty);
 
                 qtyContainer.innerHTML = `
                     <div class="qty-controls">
@@ -456,29 +573,38 @@
                         <span class="qty-val">${qty}</span>
                         <button class="qty-btn plus">+</button>
                     </div>
-                    <div class="qty-total">Total: ${fmtMoney.format(total)}</div>
-                    <button class="buy-btn confirm-btn">Pedir por WhatsApp</button>
                 `;
 
                 qtyContainer.querySelector('.minus').addEventListener('click', (e) => {
                     e.stopPropagation();
-                    if (qty > 1) { qty--; renderQty(); }
+                    qty--;
+                    handleQtyChange();
                 });
                 qtyContainer.querySelector('.plus').addEventListener('click', (e) => {
                     e.stopPropagation();
-                    qty++; renderQty();
-                });
-                qtyContainer.querySelector('.confirm-btn').addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const message = encodeURIComponent(`¡Hola Lulitas! Me encantaría pedir:\n\n*${qty}x ${product.name}*\nTotal aproximado: ${fmtMoney.format(total)}`);
-                    window.open(`https://wa.me/573000000000?text=${message}`, '_blank');
+                    qty++;
+                    handleQtyChange();
                 });
             };
 
+            const handleQtyChange = () => {
+                if (qty <= 0) {
+                    qty = 0;
+                    qtyContainer.style.display = 'none';
+                    buyBtn.style.display = 'block';
+                    delete cart[product.id];
+                } else {
+                    renderQty();
+                    cart[product.id] = { product, qty, total: calculateTotal(qty) };
+                }
+                updateCartUI();
+            };
+
             buyBtn.addEventListener('click', () => {
+                qty = 1;
                 buyBtn.style.display = 'none';
                 qtyContainer.style.display = 'flex';
-                renderQty();
+                handleQtyChange();
             });
 
             actionContainer.append(buyBtn, qtyContainer);
@@ -500,6 +626,12 @@
                     if (settings.logo_height) {
                         logoImg.style.height = settings.logo_height + 'px';
                         logoImg.style.maxWidth = 'none'; // allow height to dictate size
+                    }
+                    if (settings.grid_gap_x !== undefined) {
+                        grid.style.columnGap = settings.grid_gap_x + 'px';
+                    }
+                    if (settings.grid_gap_y !== undefined) {
+                        grid.style.rowGap = settings.grid_gap_y + 'px';
                     }
                 }
             } catch (err) {

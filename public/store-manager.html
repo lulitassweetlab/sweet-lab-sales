@@ -114,6 +114,20 @@
                         <span id="logo-height-val">80</span>px</label>
                     <input type="range" id="logo-height-input" min="40" max="250" value="80" style="width: 100%;" />
                 </div>
+                <div style="display: flex; gap: 16px;">
+                    <div style="flex: 1;">
+                        <label style="font-weight: bold; display: block; margin-bottom: 8px;">Separación Horizontal
+                            (px):</label>
+                        <input type="number" id="grid-gap-x" class="input-light" min="0" max="100" value="12"
+                            style="width: 100%" />
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="font-weight: bold; display: block; margin-bottom: 8px;">Separación Vertical
+                            (px):</label>
+                        <input type="number" id="grid-gap-y" class="input-light" min="0" max="100" value="20"
+                            style="width: 100%" />
+                    </div>
+                </div>
                 <button id="save-settings-btn" class="press-btn btn-primary" style="align-self: flex-start;">Guardar
                     Configuración</button>
             </div>
@@ -585,6 +599,8 @@
             const logoUpload = document.getElementById('logo-upload');
             const logoHeightInput = document.getElementById('logo-height-input');
             const logoHeightVal = document.getElementById('logo-height-val');
+            const gridGapX = document.getElementById('grid-gap-x');
+            const gridGapY = document.getElementById('grid-gap-y');
             const saveSettingsBtn = document.getElementById('save-settings-btn');
 
             let currentLogoBase64 = null;
@@ -625,6 +641,12 @@
                         } else {
                             logoPreview.style.height = '80px';
                         }
+                        if (settings.grid_gap_x !== undefined) {
+                            gridGapX.value = settings.grid_gap_x;
+                        }
+                        if (settings.grid_gap_y !== undefined) {
+                            gridGapY.value = settings.grid_gap_y;
+                        }
                     }
                 } catch (err) {
                     console.error('Error loading settings', err);
@@ -636,7 +658,9 @@
                 saveSettingsBtn.textContent = 'Guardando...';
                 try {
                     const body = {
-                        logo_height: logoHeightInput.value
+                        logo_height: logoHeightInput.value,
+                        grid_gap_x: gridGapX.value,
+                        grid_gap_y: gridGapY.value
                     };
                     if (currentLogoBase64) {
                         body.logo_base64 = currentLogoBase64;
