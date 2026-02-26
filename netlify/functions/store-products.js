@@ -23,10 +23,7 @@ function normalizePromotionFields({ promoQtyRaw, promoPriceRaw }) {
 
 export async function handler(event) {
     try {
-        // OPTIMIZED: Skip ensureSchema for GET requests
-        if (event.httpMethod !== 'GET') {
-            await ensureSchema();
-        }
+        await ensureSchema();
         if (event.httpMethod === 'OPTIONS') return json({ ok: true });
 
         switch (event.httpMethod) {
