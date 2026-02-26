@@ -163,6 +163,38 @@
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
         }
 
+        .carousel-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.4);
+            color: white;
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 10;
+            font-size: 1.2rem;
+            backdrop-filter: blur(2px);
+            transition: background 0.3s;
+        }
+
+        .carousel-btn:hover {
+            background: rgba(255, 255, 255, 0.7);
+        }
+
+        .carousel-btn.prev {
+            left: 8px;
+        }
+
+        .carousel-btn.next {
+            right: 8px;
+        }
+
         .product-promo-badge {
             position: absolute;
             top: 12px;
@@ -347,7 +379,8 @@
             position: fixed;
             bottom: 24px;
             left: 50%;
-            transform: translateX(-50%) translateY(150%);
+            /* Use css var for custom scaling, defaults to 1.3 (+30%) */
+            transform: translateX(-50%) translateY(150%) scale(var(--cart-scale, 1.3));
             background: var(--surface);
             border: 2px solid var(--primary);
             border-radius: 30px;
@@ -361,7 +394,7 @@
         }
 
         .floating-cart.visible {
-            transform: translateX(-50%) translateY(0);
+            transform: translateX(-50%) translateY(0) scale(var(--cart-scale, 1.3));
         }
 
         .cart-info {
@@ -594,7 +627,29 @@
             });
 
             imgContainer.appendChild(track);
+
             if (mediaItems.length > 1) {
+                // Navigation Arrows
+                const btnPrev = document.createElement('button');
+                btnPrev.className = 'carousel-btn prev';
+                btnPrev.innerHTML = '&#10094;'; // Left-pointing chevron
+
+                const btnNext = document.createElement('button');
+                btnNext.className = 'carousel-btn next';
+                btnNext.innerHTML = '&#10095;'; // Right-pointing chevron
+
+                btnPrev.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    track.scrollBy({ left: -track.clientWidth, behavior: 'smooth' });
+                });
+
+                btnNext.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    track.scrollBy({ left: track.clientWidth, behavior: 'smooth' });
+                });
+
+                imgContainer.appendChild(btnPrev);
+                imgContainer.appendChild(btnNext);
                 imgContainer.appendChild(dotsContainer);
             }
 
@@ -725,6 +780,10 @@
                     }
                     if (settings.grid_gap_y !== undefined) {
                         grid.style.rowGap = settings.grid_gap_y + 'px';
+                    }
+                    if (settings.cart_scale !== undefined) {
+                        const scaleDec = settings.cart_scale / 100;
+                        document.documentElement.style.setProperty('--cart-scale', scaleDec);
                     }
                 }
             } catch (err) {

@@ -127,6 +127,12 @@
                         <input type="number" id="grid-gap-y" class="input-light" min="0" max="100" value="20"
                             style="width: 100%" />
                     </div>
+                    <div style="flex: 1;">
+                        <label style="font-weight: bold; display: block; margin-bottom: 8px;">Tamaño Carrito
+                            (100% - 200%):</label>
+                        <input type="number" id="cart-scale" class="input-light" min="100" max="200" value="130"
+                            style="width: 100%" />
+                    </div>
                 </div>
                 <button id="save-settings-btn" class="press-btn btn-primary" style="align-self: flex-start;">Guardar
                     Configuración</button>
@@ -702,6 +708,7 @@
             const logoHeightVal = document.getElementById('logo-height-val');
             const gridGapX = document.getElementById('grid-gap-x');
             const gridGapY = document.getElementById('grid-gap-y');
+            const cartScale = document.getElementById('cart-scale');
             const saveSettingsBtn = document.getElementById('save-settings-btn');
 
             let currentLogoBase64 = null;
@@ -748,6 +755,9 @@
                         if (settings.grid_gap_y !== undefined) {
                             gridGapY.value = settings.grid_gap_y;
                         }
+                        if (settings.cart_scale !== undefined) {
+                            cartScale.value = settings.cart_scale;
+                        }
                     }
                 } catch (err) {
                     console.error('Error loading settings', err);
@@ -761,7 +771,8 @@
                     const body = {
                         logo_height: logoHeightInput.value,
                         grid_gap_x: gridGapX.value,
-                        grid_gap_y: gridGapY.value
+                        grid_gap_y: gridGapY.value,
+                        cart_scale: cartScale.value
                     };
                     if (currentLogoBase64) {
                         body.logo_base64 = currentLogoBase64;
