@@ -354,7 +354,7 @@
                 fileInput.addEventListener('change', (e) => {
                     const file = e.target.files[0];
                     if (!file) return;
-                    
+
                     if (!file.type.startsWith('image/')) {
                         alert('Por favor sube una imagen válida.');
                         return;
@@ -363,7 +363,7 @@
                     const reader = new FileReader();
                     reader.onload = function (evt) {
                         const img = new Image();
-                        img.onload = function() {
+                        img.onload = function () {
                             const canvas = document.createElement('canvas');
                             const MAX_WIDTH = 800;
                             const MAX_HEIGHT = 800;
@@ -385,10 +385,11 @@
                             canvas.width = width;
                             canvas.height = height;
                             const ctx = canvas.getContext('2d');
+                            // WebP compression preserves alpha channel
                             ctx.drawImage(img, 0, 0, width, height);
-                            
-                            // Compress to base64 jpeg
-                            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.8);
+
+                            // Compress to base64 webp
+                            const compressedBase64 = canvas.toDataURL('image/webp', 0.8);
                             currentBase64 = compressedBase64;
                             imgPreview.src = currentBase64;
                         };
