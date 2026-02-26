@@ -203,6 +203,61 @@
             transform: scale(0.98);
         }
 
+        .action-container {
+            margin-top: auto;
+        }
+
+        .qty-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .qty-controls {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--secondary);
+            border-radius: 12px;
+            padding: 4px;
+        }
+
+        .qty-btn {
+            background: white;
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--primary-hover);
+            cursor: pointer;
+            box-shadow: 0 2px 4px var(--shadow);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        .qty-btn:active {
+            transform: scale(0.95);
+        }
+
+        .qty-val {
+            font-weight: bold;
+            font-size: 1.1rem;
+            width: 40px;
+            text-align: center;
+            color: var(--text);
+        }
+
+        .qty-total {
+            text-align: center;
+            font-weight: bold;
+            font-size: 1.2rem;
+            color: var(--primary-hover);
+        }
+
         footer {
             background: var(--surface);
             padding: 30px 24px;
@@ -373,17 +428,62 @@
                 prices.appendChild(pricePromo);
             }
 
+            // Action Container
+            const actionContainer = document.createElement('div');
+            actionContainer.className = 'action-container';
+
             const buyBtn = document.createElement('button');
             buyBtn.className = 'buy-btn';
             buyBtn.textContent = 'Lo quiero 💝';
 
-            // Open WhatsApp with pre-filled message
+            const qtyContainer = document.createElement('div');
+            qtyContainer.className = 'qty-container';
+            qtyContainer.style.display = 'none';
+
+            let qty = 1;
+
+            const renderQty = () => {
+                let total = product.price * qty;
+                if (hasPromo) {
+                    let promoGroups = Math.floor(qty / product.promo_qty);
+                    let remainder = qty % product.promo_qty;
+                    total = (promoGroups * product.promo_price) + (remainder * product.price);
+                }
+
+                qtyContainer.innerHTML = `
+                    <div class="qty-controls">
+                        <button class="qty-btn minus">-</button>
+                        <span class="qty-val">${qty}</span>
+                        <button class="qty-btn plus">+</button>
+                    </div>
+                    <div class="qty-total">Total: ${fmtMoney.format(total)}</div>
+                    <button class="buy-btn confirm-btn">Pedir por WhatsApp</button>
+                `;
+
+                qtyContainer.querySelector('.minus').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (qty > 1) { qty--; renderQty(); }
+                });
+                qtyContainer.querySelector('.plus').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    qty++; renderQty();
+                });
+                qtyContainer.querySelector('.confirm-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const message = encodeURIComponent(`¡Hola Lulitas! Me encantaría pedir:\n\n*${qty}x ${product.name}*\nTotal aproximado: ${fmtMoney.format(total)}`);
+                    window.open(`https://wa.me/573000000000?text=${message}`, '_blank');
+                });
+            };
+
             buyBtn.addEventListener('click', () => {
-                const message = encodeURIComponent(`¡Hola Lulitas! Me encantaría pedir: *${product.name}*\n\nPrecio listado: ${fmtMoney.format(product.price)}`);
-                window.open(`https://wa.me/573000000000?text=${message}`, '_blank');
+                buyBtn.style.display = 'none';
+                qtyContainer.style.display = 'flex';
+                renderQty();
             });
 
-            content.append(name, desc, prices, buyBtn);
+            actionContainer.append(buyBtn, qtyContainer);
+
+            content.append(name, desc, prices, actionContainer);
             card.append(imgContainer, content);
             grid.appendChild(card);
         }
