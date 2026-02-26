@@ -32,11 +32,15 @@ export async function handler(event) {
         switch (event.httpMethod) {
             case 'GET': {
                 const products = await sql`
-					SELECT id, name, description, price, promo_qty, promo_price, image_base64, is_active, position
+					SELECT id, name, description, price, promo_qty, promo_price, image_base64, media, is_active, position
 					FROM store_products
 					ORDER BY position ASC, name ASC
 				`;
-                return json(products);
+                // Parse media JSONB if needed (Neon returns objects for JSONB usually, but just in case)
+                return json(products.map(p => ({
+                    ...p,
+                    media: typeof p.media === 'string' ? JSON.parse(p.media || '[]') : (p.media || [])
+                })));
             }
             case 'POST': {
                 const data = JSON.parse(event.body || '{}');
@@ -44,6 +48,8 @@ export async function handler(event) {
                 const description = (data.description || '').toString().trim();
                 const price = Number(data.price || 0) || 0;
                 const image_base64 = data.image_base64 || null;
+                const rawMedia = Array.isArray(data.media) ? data.media : [];
+                const mediaJson = JSON.stringify(rawMedia);
                 const promotion = normalizePromotionFields({ promoQtyRaw: data.promo_qty, promoPriceRaw: data.promo_price });
                 const position = Number(data.position || 0) || 0;
 
@@ -52,11 +58,11 @@ export async function handler(event) {
                 if (promotion.error) return json({ error: promotion.error }, 400);
 
                 const [row] = await sql`
-					INSERT INTO store_products (name, description, price, promo_qty, promo_price, image_base64, position)
-					VALUES (${name}, ${description}, ${price}, ${promotion.promoQty}, ${promotion.promoPrice}, ${image_base64}, ${position})
-					RETURNING id, name, description, price, promo_qty, promo_price, image_base64, is_active, position
+					INSERT INTO store_products (name, description, price, promo_qty, promo_price, image_base64, media, position)
+					VALUES (${name}, ${description}, ${price}, ${promotion.promoQty}, ${promotion.promoPrice}, ${image_base64}, ${mediaJson}::jsonb, ${position})
+					RETURNING id, name, description, price, promo_qty, promo_price, image_base64, media, is_active, position
 				`;
-                return json(row, 201);
+                return json({ ...row, media: typeof row.media === 'string' ? JSON.parse(row.media) : (row.media || []) }, 201);
             }
             case 'PUT': {
                 const data = JSON.parse(event.body || '{}');
@@ -70,6 +76,7 @@ export async function handler(event) {
                 const description = (data.description || '').toString().trim();
                 const price = Number(data.price || 0) || 0;
                 const image_base64 = data.image_base64 !== undefined ? data.image_base64 : null;
+                const rawMedia = data.media !== undefined ? (Array.isArray(data.media) ? data.media : []) : null;
 
                 const promotion = normalizePromotionFields({
                     promoQtyRaw: Object.prototype.hasOwnProperty.call(data, 'promo_qty') ? data.promo_qty : existing.promo_qty,
@@ -82,13 +89,24 @@ export async function handler(event) {
                 if (price <= 0) return json({ error: 'price debe ser mayor a 0' }, 400);
                 if (promotion.error) return json({ error: promotion.error }, 400);
 
-                const [row] = await sql`
-					UPDATE store_products
-					SET name = ${name}, description = ${description}, price = ${price}, promo_qty = ${promotion.promoQty}, promo_price = ${promotion.promoPrice}, image_base64 = ${image_base64}, position = ${position}, is_active = ${isActive}, updated_at = now()
-					WHERE id = ${id}
-					RETURNING id, name, description, price, promo_qty, promo_price, image_base64, is_active, position
-				`;
-                return json(row);
+                let row;
+                if (rawMedia !== null) {
+                    const mediaJson = JSON.stringify(rawMedia);
+                    [row] = await sql`
+                        UPDATE store_products
+                        SET name = ${name}, description = ${description}, price = ${price}, promo_qty = ${promotion.promoQty}, promo_price = ${promotion.promoPrice}, image_base64 = ${image_base64}, media = ${mediaJson}::jsonb, position = ${position}, is_active = ${isActive}, updated_at = now()
+                        WHERE id = ${id}
+                        RETURNING id, name, description, price, promo_qty, promo_price, image_base64, media, is_active, position
+                    `;
+                } else {
+                    [row] = await sql`
+                        UPDATE store_products
+                        SET name = ${name}, description = ${description}, price = ${price}, promo_qty = ${promotion.promoQty}, promo_price = ${promotion.promoPrice}, image_base64 = ${image_base64}, position = ${position}, is_active = ${isActive}, updated_at = now()
+                        WHERE id = ${id}
+                        RETURNING id, name, description, price, promo_qty, promo_price, image_base64, media, is_active, position
+                    `;
+                }
+                return json({ ...row, media: typeof row.media === 'string' ? JSON.parse(row.media) : (row.media || []) });
             }
             case 'DELETE': {
                 const raw = typeof event.rawQuery === 'string' ? event.rawQuery : (event.queryStringParameters ? new URLSearchParams(event.queryStringParameters).toString() : '');

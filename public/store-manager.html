@@ -342,76 +342,174 @@
                 form.style.gap = '10px';
                 form.style.minWidth = '320px';
 
-                // Photo Preview and Upload
-                const photoWrap = document.createElement('div');
-                photoWrap.className = 'product-image-upload';
+                // Multi-Media Upload Support (Max 6 Images, 1 Video)
+                const mediaWrap = document.createElement('div');
+                mediaWrap.className = 'product-media-upload';
+                mediaWrap.style.display = 'flex';
+                mediaWrap.style.flexDirection = 'column';
+                mediaWrap.style.gap = '16px';
+                mediaWrap.style.padding = '16px';
+                mediaWrap.style.border = '1px dashed var(--border)';
+                mediaWrap.style.borderRadius = 'var(--radius)';
 
-                const imgPreview = document.createElement('img');
-                imgPreview.className = 'product-thumb';
-                imgPreview.style.width = '100px';
-                imgPreview.style.height = '100px';
-                imgPreview.src = product && product.image_base64 ? product.image_base64 : 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23ddd"/><text x="50" y="50" font-family="sans-serif" font-size="24" fill="%23666" text-anchor="middle" dominant-baseline="middle">+</text></svg>';
+                const mediaGallery = document.createElement('div');
+                mediaGallery.style.display = 'flex';
+                mediaGallery.style.flexWrap = 'wrap';
+                mediaGallery.style.gap = '10px';
 
                 const fileInput = document.createElement('input');
                 fileInput.type = 'file';
-                fileInput.accept = 'image/*';
+                fileInput.accept = 'image/*,video/mp4,video/webm';
+                fileInput.multiple = true;
                 fileInput.style.display = 'none';
-                fileInput.id = 'product-img-upload';
+                fileInput.id = 'product-media-upload';
 
                 const uploadLbl = document.createElement('label');
                 uploadLbl.className = 'upload-lbl';
-                uploadLbl.htmlFor = 'product-img-upload';
-                uploadLbl.textContent = 'Subir/Cambiar Foto';
+                uploadLbl.htmlFor = 'product-media-upload';
+                uploadLbl.style.alignSelf = 'flex-start';
+                uploadLbl.textContent = 'Añadir Fotos / Videos';
 
-                let currentBase64 = product ? product.image_base64 : '';
+                // We'll store an array of objects: { type: 'image'|'video', base64: '...' }
+                let currentMedia = [];
+                // Compatibility for older image_base64
+                if (product && Array.isArray(product.media) && product.media.length > 0) {
+                    currentMedia = [...product.media];
+                } else if (product && product.image_base64) {
+                    currentMedia = [{ type: 'image', base64: product.image_base64 }];
+                }
 
-                fileInput.addEventListener('change', (e) => {
-                    const file = e.target.files[0];
-                    if (!file) return;
+                const renderGallery = () => {
+                    mediaGallery.innerHTML = '';
+                    currentMedia.forEach((m, idx) => {
+                        const itemWrap = document.createElement('div');
+                        itemWrap.style.position = 'relative';
+                        itemWrap.style.width = '80px';
+                        itemWrap.style.height = '80px';
+                        itemWrap.style.borderRadius = '8px';
+                        itemWrap.style.overflow = 'hidden';
+                        itemWrap.style.border = '1px solid var(--border)';
 
-                    if (!file.type.startsWith('image/')) {
-                        alert('Por favor sube una imagen válida.');
-                        return;
-                    }
+                        let visual;
+                        if (m.type === 'video') {
+                            visual = document.createElement('video');
+                            visual.src = m.base64;
+                            visual.muted = true;
+                            visual.loop = true;
+                            visual.autoplay = true;
+                        } else {
+                            visual = document.createElement('img');
+                            visual.src = m.base64;
+                        }
+                        visual.style.width = '100%';
+                        visual.style.height = '100%';
+                        visual.style.objectFit = 'cover';
 
-                    const reader = new FileReader();
-                    reader.onload = function (evt) {
-                        const img = new Image();
-                        img.onload = function () {
-                            const canvas = document.createElement('canvas');
-                            const MAX_WIDTH = 800;
-                            const MAX_HEIGHT = 800;
-                            let width = img.width;
-                            let height = img.height;
+                        const delBtn = document.createElement('button');
+                        delBtn.innerHTML = '&times;';
+                        delBtn.style.position = 'absolute';
+                        delBtn.style.top = '4px';
+                        delBtn.style.right = '4px';
+                        delBtn.style.background = 'rgba(0,0,0,0.6)';
+                        delBtn.style.color = 'white';
+                        delBtn.style.border = 'none';
+                        delBtn.style.borderRadius = '50%';
+                        delBtn.style.width = '24px';
+                        delBtn.style.height = '24px';
+                        delBtn.style.cursor = 'pointer';
+                        delBtn.style.display = 'flex';
+                        delBtn.style.alignItems = 'center';
+                        delBtn.style.justifyContent = 'center';
+                        delBtn.style.fontSize = '14px';
 
-                            if (width > height) {
-                                if (width > MAX_WIDTH) {
-                                    height *= MAX_WIDTH / width;
-                                    width = MAX_WIDTH;
-                                }
-                            } else {
-                                if (height > MAX_HEIGHT) {
-                                    width *= MAX_HEIGHT / height;
-                                    height = MAX_HEIGHT;
-                                }
+                        delBtn.addEventListener('click', () => {
+                            currentMedia.splice(idx, 1);
+                            renderGallery();
+                        });
+
+                        itemWrap.append(visual, delBtn);
+                        mediaGallery.appendChild(itemWrap);
+                    });
+                };
+                renderGallery(); // Initial render
+
+                fileInput.addEventListener('change', async (e) => {
+                    const files = Array.from(e.target.files);
+                    if (!files.length) return;
+
+                    let imgCount = currentMedia.filter(m => m.type === 'image').length;
+                    let vidCount = currentMedia.filter(m => m.type === 'video').length;
+
+                    for (const file of files) {
+                        const isVideo = file.type.startsWith('video/');
+                        const isImage = file.type.startsWith('image/');
+
+                        if (isVideo) {
+                            if (vidCount >= 1) {
+                                alert('Solo se permite 1 video por postre.');
+                                continue;
+                            }
+                            // Check size (max 5MB arbitrarily to avoid payload issues)
+                            if (file.size > 5 * 1024 * 1024) {
+                                alert(`El video ${file.name} es muy grande (Max 5MB).`);
+                                continue;
                             }
 
-                            canvas.width = width;
-                            canvas.height = height;
-                            const ctx = canvas.getContext('2d');
-                            // WebP compression preserves alpha channel
-                            ctx.drawImage(img, 0, 0, width, height);
+                            const base64 = await new Promise((resolve) => {
+                                const reader = new FileReader();
+                                reader.onload = (evt) => resolve(evt.target.result);
+                                reader.readAsDataURL(file);
+                            });
+                            currentMedia.push({ type: 'video', base64 });
+                            vidCount++;
+                        } else if (isImage) {
+                            if (imgCount >= 6) {
+                                alert('Solo se permiten hasta 6 imágenes por postre.');
+                                continue;
+                            }
 
-                            // Compress to base64 webp
-                            const compressedBase64 = canvas.toDataURL('image/webp', 0.8);
-                            currentBase64 = compressedBase64;
-                            imgPreview.src = currentBase64;
-                        };
-                        img.src = evt.target.result;
-                    };
-                    reader.readAsDataURL(file);
+                            const base64 = await new Promise((resolve) => {
+                                const reader = new FileReader();
+                                reader.onload = function (evt) {
+                                    const img = new Image();
+                                    img.onload = function () {
+                                        const canvas = document.createElement('canvas');
+                                        const MAX_WIDTH = 800;
+                                        const MAX_HEIGHT = 800;
+                                        let width = img.width;
+                                        let height = img.height;
+
+                                        if (width > height) {
+                                            if (width > MAX_WIDTH) {
+                                                height *= MAX_WIDTH / width;
+                                                width = MAX_WIDTH;
+                                            }
+                                        } else {
+                                            if (height > MAX_HEIGHT) {
+                                                width *= MAX_HEIGHT / height;
+                                                height = MAX_HEIGHT;
+                                            }
+                                        }
+
+                                        canvas.width = width;
+                                        canvas.height = height;
+                                        const ctx = canvas.getContext('2d');
+                                        ctx.drawImage(img, 0, 0, width, height);
+                                        resolve(canvas.toDataURL('image/webp', 0.8));
+                                    };
+                                    img.src = evt.target.result;
+                                }
+                                reader.readAsDataURL(file);
+                            });
+                            currentMedia.push({ type: 'image', base64 });
+                            imgCount++;
+                        }
+                    }
+                    fileInput.value = ''; // Reset
+                    renderGallery();
                 });
-                photoWrap.append(imgPreview, uploadLbl, fileInput);
+
+                mediaWrap.append(mediaGallery, uploadLbl, fileInput);
 
                 const nameLabel = document.createElement('label');
                 nameLabel.textContent = 'Nombre:';
@@ -492,7 +590,7 @@
                 actions.append(saveBtn, cancelBtn);
 
                 form.append(
-                    photoWrap,
+                    mediaWrap,
                     nameLabel, nameInput,
                     descLabel, descInput,
                     priceLabel, priceInput,
@@ -553,7 +651,10 @@
                             promo_qty: pQty,
                             promo_price: pPrice,
                             position,
-                            image_base64: currentBase64 || null
+                            // Send the first image as legacy image_base64 for backward compatibility, 
+                            // and the full array as media
+                            image_base64: currentMedia.find(m => m.type === 'image')?.base64 || null,
+                            media: currentMedia
                         };
                         if (product) {
                             body.id = product.id;

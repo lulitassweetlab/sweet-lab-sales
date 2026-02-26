@@ -107,18 +107,60 @@
             overflow: hidden;
         }
 
-        .product-image {
+        .carousel-track {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            object-fit: cover;
-            transition: transform 0.5s ease;
+            display: flex;
+            overflow-x: auto;
+            scroll-snap-type: x mandatory;
+            scrollbar-width: none;
+            -webkit-overflow-scrolling: touch;
         }
 
-        .product-card:hover .product-image {
-            transform: scale(1.05);
+        .carousel-track::-webkit-scrollbar {
+            display: none;
+        }
+
+        .carousel-slide {
+            flex: 0 0 100%;
+            width: 100%;
+            height: 100%;
+            scroll-snap-align: start;
+            position: relative;
+        }
+
+        .carousel-slide img,
+        .carousel-slide video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .carousel-dots {
+            position: absolute;
+            bottom: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 6px;
+            z-index: 10;
+        }
+
+        .carousel-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.5);
+            transition: background 0.3s;
+        }
+
+        .carousel-dot.active {
+            background: white;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
         }
 
         .product-promo-badge {
@@ -497,13 +539,64 @@
             const imgContainer = document.createElement('div');
             imgContainer.className = 'product-image-container';
 
-            const img = document.createElement('img');
-            img.className = 'product-image';
-            img.src = product.image_base64 || fallbackImage;
-            img.alt = product.name;
-            img.loading = 'lazy';
+            const track = document.createElement('div');
+            track.className = 'carousel-track';
 
-            imgContainer.appendChild(img);
+            let mediaItems = [];
+            if (Array.isArray(product.media) && product.media.length > 0) {
+                mediaItems = product.media;
+            } else {
+                mediaItems = [{ type: 'image', base64: product.image_base64 || fallbackImage }];
+            }
+
+            const dotsContainer = document.createElement('div');
+            dotsContainer.className = 'carousel-dots';
+
+            mediaItems.forEach((m, idx) => {
+                const slide = document.createElement('div');
+                slide.className = 'carousel-slide';
+
+                if (m.type === 'video') {
+                    const vid = document.createElement('video');
+                    vid.src = m.base64;
+                    vid.muted = true;
+                    vid.controls = true; // allow play/pause if they want, but loop default
+                    vid.loop = true;
+                    vid.playsInline = true;
+                    // Attempt auto-play on mobile/desktop
+                    vid.autoplay = true;
+                    slide.appendChild(vid);
+                } else {
+                    const img = document.createElement('img');
+                    img.src = m.base64;
+                    img.alt = product.name;
+                    img.loading = idx === 0 ? 'eager' : 'lazy'; // only lazy load off-screen dots
+                    slide.appendChild(img);
+                }
+                track.appendChild(slide);
+
+                if (mediaItems.length > 1) {
+                    const dot = document.createElement('div');
+                    dot.className = `carousel-dot ${idx === 0 ? 'active' : ''}`;
+                    dotsContainer.appendChild(dot);
+                }
+            });
+
+            track.addEventListener('scroll', () => {
+                if (mediaItems.length > 1) {
+                    const scrollLeft = track.scrollLeft;
+                    const width = track.clientWidth;
+                    const activeIndex = Math.round(scrollLeft / width);
+                    Array.from(dotsContainer.children).forEach((dot, i) => {
+                        dot.classList.toggle('active', i === activeIndex);
+                    });
+                }
+            });
+
+            imgContainer.appendChild(track);
+            if (mediaItems.length > 1) {
+                imgContainer.appendChild(dotsContainer);
+            }
 
             // Promotion Badge
             const hasPromo = product.promo_qty >= 2 && product.promo_price > 0;
