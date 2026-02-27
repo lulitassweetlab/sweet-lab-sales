@@ -35,7 +35,7 @@ export async function handler(event) {
                 await sql`UPDATE store_products SET image_base64 = null WHERE length(image_base64::text) > 3000000`;
 
                 const products = await sql`
-					SELECT id, name, description, price, promo_qty, promo_price, image_base64, media, is_active, position
+					SELECT id, name, description, price, promo_qty, promo_price, image_base64, media, is_promo, is_active, position
 					FROM store_products
 					ORDER BY position ASC, name ASC
 				`;
@@ -56,6 +56,8 @@ export async function handler(event) {
                 const promotion = normalizePromotionFields({ promoQtyRaw: data.promo_qty, promoPriceRaw: data.promo_price });
                 const position = Number(data.position || 0) || 0;
 
+                const isPromo = data.is_promo !== undefined ? Boolean(data.is_promo) : false;
+
                 if (!name) return json({ error: 'name requerido' }, 400);
                 if (price <= 0) return json({ error: 'price debe ser mayor a 0' }, 400);
                 if (promotion.error) return json({ error: promotion.error }, 400);
@@ -63,9 +65,9 @@ export async function handler(event) {
                 if (image_base64 && image_base64.length > 3000000) return json({ error: 'La imagen principal es demasiado pesada (Máximo 3MB).' }, 413);
 
                 const [row] = await sql`
-					INSERT INTO store_products (name, description, price, promo_qty, promo_price, image_base64, media, position)
-					VALUES (${name}, ${description}, ${price}, ${promotion.promoQty}, ${promotion.promoPrice}, ${image_base64}, ${mediaJson}::jsonb, ${position})
-					RETURNING id, name, description, price, promo_qty, promo_price, image_base64, media, is_active, position
+					INSERT INTO store_products (name, description, price, promo_qty, promo_price, image_base64, media, is_promo, position)
+					VALUES (${name}, ${description}, ${price}, ${promotion.promoQty}, ${promotion.promoPrice}, ${image_base64}, ${mediaJson}::jsonb, ${isPromo}, ${position})
+					RETURNING id, name, description, price, promo_qty, promo_price, image_base64, media, is_promo, is_active, position
 				`;
                 return json({ ...row, media: typeof row.media === 'string' ? JSON.parse(row.media) : (row.media || []) }, 201);
             }
@@ -87,6 +89,7 @@ export async function handler(event) {
                     promoQtyRaw: Object.prototype.hasOwnProperty.call(data, 'promo_qty') ? data.promo_qty : existing.promo_qty,
                     promoPriceRaw: Object.prototype.hasOwnProperty.call(data, 'promo_price') ? data.promo_price : existing.promo_price
                 });
+                const isPromo = data.is_promo !== undefined ? Boolean(data.is_promo) : false;
                 const position = Number(data.position || 0) || 0;
                 const isActive = data.is_active !== undefined ? Boolean(data.is_active) : true;
 
@@ -101,16 +104,16 @@ export async function handler(event) {
                     if (mediaJson.length > 3000000) return json({ error: 'Los archivos multimedia son demasiado pesados (Máximo 3MB en total permitir). Por favor, comprime el video o imagen.' }, 413);
                     [row] = await sql`
                         UPDATE store_products
-                        SET name = ${name}, description = ${description}, price = ${price}, promo_qty = ${promotion.promoQty}, promo_price = ${promotion.promoPrice}, image_base64 = ${image_base64}, media = ${mediaJson}::jsonb, position = ${position}, is_active = ${isActive}, updated_at = now()
+                        SET name = ${name}, description = ${description}, price = ${price}, promo_qty = ${promotion.promoQty}, promo_price = ${promotion.promoPrice}, image_base64 = ${image_base64}, media = ${mediaJson}::jsonb, is_promo = ${isPromo}, position = ${position}, is_active = ${isActive}, updated_at = now()
                         WHERE id = ${id}
-                        RETURNING id, name, description, price, promo_qty, promo_price, image_base64, media, is_active, position
+                        RETURNING id, name, description, price, promo_qty, promo_price, image_base64, media, is_promo, is_active, position
                     `;
                 } else {
                     [row] = await sql`
                         UPDATE store_products
-                        SET name = ${name}, description = ${description}, price = ${price}, promo_qty = ${promotion.promoQty}, promo_price = ${promotion.promoPrice}, image_base64 = ${image_base64}, position = ${position}, is_active = ${isActive}, updated_at = now()
+                        SET name = ${name}, description = ${description}, price = ${price}, promo_qty = ${promotion.promoQty}, promo_price = ${promotion.promoPrice}, image_base64 = ${image_base64}, is_promo = ${isPromo}, position = ${position}, is_active = ${isActive}, updated_at = now()
                         WHERE id = ${id}
-                        RETURNING id, name, description, price, promo_qty, promo_price, image_base64, media, is_active, position
+                        RETURNING id, name, description, price, promo_qty, promo_price, image_base64, media, is_promo, is_active, position
                     `;
                 }
                 return json({ ...row, media: typeof row.media === 'string' ? JSON.parse(row.media) : (row.media || []) });

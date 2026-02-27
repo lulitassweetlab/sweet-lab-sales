@@ -1048,14 +1048,16 @@
                 imgContainer.appendChild(dotsContainer);
             }
 
-            // Promotion Badge
-            const hasPromo = product.promo_qty >= 2 && product.promo_price > 0;
-            if (hasPromo) {
+            // Promotion Badge (Dynamic from Store Manager)
+            if (product.is_promo) {
                 const badge = document.createElement('div');
                 badge.className = 'product-promo-badge';
-                badge.textContent = '¡Promoción!';
+                badge.textContent = 'Promoción ✨';
                 imgContainer.appendChild(badge);
             }
+
+            // Calculate Volume Discount text
+            const hasPromo = product.promo_qty >= 2 && product.promo_price > 0;
 
             const content = document.createElement('div');
             content.className = 'product-content';

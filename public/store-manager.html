@@ -168,12 +168,13 @@
                             <th rowspan="2">Foto</th>
                             <th rowspan="2">Nombre / Descripción</th>
                             <th rowspan="2">Precio Base</th>
-                            <th colspan="2">Promoción</th>
+                            <th colspan="3">Promoción</th>
                             <th rowspan="2">Posición</th>
                             <th rowspan="2">Estado</th>
                             <th rowspan="2">Acciones</th>
                         </tr>
                         <tr>
+                            <th>Badge</th>
                             <th>Cantidad</th>
                             <th>Precio</th>
                         </tr>
@@ -229,6 +230,7 @@
                     price: product.price,
                     promo_qty: product.promo_qty,
                     promo_price: product.promo_price,
+                    is_promo: product.is_promo,
                     image_base64: product.image_base64,
                     position: product.position,
                     is_active: product.is_active,
@@ -269,6 +271,10 @@
                     // Price
                     const tdPrice = document.createElement('td');
                     tdPrice.textContent = fmtMoney.format(d.price);
+
+                    // Promo Badge
+                    const tdPromoBadge = document.createElement('td');
+                    tdPromoBadge.textContent = d.is_promo ? '⭐' : '';
 
                     // Promo Qty
                     const tdPromoQty = document.createElement('td');
@@ -323,7 +329,7 @@
                     tdActions.appendChild(toggleBtn);
                     tdActions.appendChild(deleteBtn);
 
-                    tr.append(tdImg, tdName, tdPrice, tdPromoQty, tdPromoPrice, tdPos, tdStatus, tdActions);
+                    tr.append(tdImg, tdName, tdPrice, tdPromoBadge, tdPromoQty, tdPromoPrice, tdPos, tdStatus, tdActions);
                     tbody.appendChild(tr);
                 }
             }
@@ -585,6 +591,21 @@
 
                 promoRow.append(promoQtyWrap, promoPriceWrap);
 
+                const promoBadgeWrap = document.createElement('div');
+                promoBadgeWrap.style.marginTop = '8px';
+                promoBadgeWrap.style.display = 'flex';
+                promoBadgeWrap.style.alignItems = 'center';
+                promoBadgeWrap.style.gap = '8px';
+                const promoBadgeCheckbox = document.createElement('input');
+                promoBadgeCheckbox.type = 'checkbox';
+                promoBadgeCheckbox.id = 'product-is-promo';
+                promoBadgeCheckbox.checked = product ? !!product.is_promo : false;
+                const promoBadgeLabel = document.createElement('label');
+                promoBadgeLabel.htmlFor = 'product-is-promo';
+                promoBadgeLabel.textContent = 'Destacar como Promoción ⭐';
+                promoBadgeLabel.style.cursor = 'pointer';
+                promoBadgeWrap.append(promoBadgeCheckbox, promoBadgeLabel);
+
                 const posLabel = document.createElement('label');
                 posLabel.textContent = 'Posición (Orden):';
                 const posInput = document.createElement('input');
@@ -614,6 +635,7 @@
                     descLabel, descInput,
                     priceLabel, priceInput,
                     promoRow,
+                    promoBadgeWrap,
                     posLabel, posInput
                 );
 
@@ -669,6 +691,7 @@
                             price,
                             promo_qty: pQty,
                             promo_price: pPrice,
+                            is_promo: promoBadgeCheckbox.checked,
                             position,
                             // Send the first image as legacy image_base64 for backward compatibility, 
                             // and the full array as media
