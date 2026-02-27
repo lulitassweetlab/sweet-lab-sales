@@ -662,7 +662,7 @@
     </div>
 
     <div id="store-toast"
-        style="position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #4CAF50; color: white; padding: 12px 24px; border-radius: 8px; z-index: 3000; font-weight: bold; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+        style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--primary); color: white; padding: 24px 40px; border-radius: 16px; z-index: 3000; font-size: 1.5rem; font-weight: bold; text-align: center; display: none; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
         Se agregó con éxito
     </div>
 
@@ -1360,7 +1360,7 @@
                 // Success
                 const toast = document.getElementById('store-toast');
                 toast.textContent = 'Se agregó con exito.';
-                toast.style.backgroundColor = '#4CAF50'; // Green for success
+                toast.style.backgroundColor = 'var(--primary)'; // Pink for success
                 toast.style.display = 'block';
                 setTimeout(() => toast.style.display = 'none', 2000);
 
@@ -1381,6 +1381,8 @@
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
+            updateAuthUI();
+            updateCartUI();
             loadSettings();
             loadStore();
         });
