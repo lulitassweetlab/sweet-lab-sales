@@ -28,6 +28,12 @@ export async function handler(event) {
 
         switch (event.httpMethod) {
             case 'GET': {
+                // EMERGENCY RESCUE: AWS API Gateway drops connections (502) if response > 6MB.
+                // If a user uploaded a massive video, the DB stores it, but reading it crashes the API.
+                // We purge oversized media directly from the DB before querying to guarantee recovery.
+                await sql`UPDATE store_products SET media = '[]'::jsonb WHERE length(media::text) > 3000000`;
+                await sql`UPDATE store_products SET image_base64 = null WHERE length(image_base64::text) > 3000000`;
+
                 const products = await sql`
 					SELECT id, name, description, price, promo_qty, promo_price, image_base64, media, is_active, position
 					FROM store_products
@@ -53,6 +59,8 @@ export async function handler(event) {
                 if (!name) return json({ error: 'name requerido' }, 400);
                 if (price <= 0) return json({ error: 'price debe ser mayor a 0' }, 400);
                 if (promotion.error) return json({ error: promotion.error }, 400);
+                if (mediaJson.length > 3000000) return json({ error: 'Los archivos multimedia son demasiado pesados (Máximo 3MB en total permitir). Por favor, comprime el video o imagen.' }, 413);
+                if (image_base64 && image_base64.length > 3000000) return json({ error: 'La imagen principal es demasiado pesada (Máximo 3MB).' }, 413);
 
                 const [row] = await sql`
 					INSERT INTO store_products (name, description, price, promo_qty, promo_price, image_base64, media, position)
@@ -85,10 +93,12 @@ export async function handler(event) {
                 if (!name) return json({ error: 'name requerido' }, 400);
                 if (price <= 0) return json({ error: 'price debe ser mayor a 0' }, 400);
                 if (promotion.error) return json({ error: promotion.error }, 400);
+                if (image_base64 && image_base64.length > 3000000) return json({ error: 'La imagen principal es demasiado pesada (Máximo 3MB).' }, 413);
 
                 let row;
                 if (rawMedia !== null) {
                     const mediaJson = JSON.stringify(rawMedia);
+                    if (mediaJson.length > 3000000) return json({ error: 'Los archivos multimedia son demasiado pesados (Máximo 3MB en total permitir). Por favor, comprime el video o imagen.' }, 413);
                     [row] = await sql`
                         UPDATE store_products
                         SET name = ${name}, description = ${description}, price = ${price}, promo_qty = ${promotion.promoQty}, promo_price = ${promotion.promoPrice}, image_base64 = ${image_base64}, media = ${mediaJson}::jsonb, position = ${position}, is_active = ${isActive}, updated_at = now()
