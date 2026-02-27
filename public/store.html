@@ -623,7 +623,7 @@
     <!-- Modals added for Seller Login & Checkout -->
     <div class="modal-overlay" id="store-login-modal">
         <div class="modal-content" style="max-width: 320px; text-align: center;">
-            <h3 id="login-modal-title" style="margin-bottom: 20px; color: var(--primary-hover);">Ingreso Exclusivo</h3>
+            <h3 id="login-modal-title" style="margin-bottom: 20px; color: var(--primary-hover);">Ingreso</h3>
             <input id="login-user" type="text" placeholder="Usuario" class="internal-checkout-input"
                 style="margin-bottom: 20px;" />
             <input id="login-pass" type="password" placeholder="Contraseña" class="internal-checkout-input"
@@ -1033,7 +1033,7 @@
                 }
             } else {
                 loginStep = 1;
-                document.getElementById('login-modal-title').textContent = 'Ingreso Exclusivo';
+                document.getElementById('login-modal-title').textContent = 'Ingreso';
                 document.getElementById('login-user').style.display = 'block';
                 document.getElementById('login-pass').style.display = 'none';
                 document.getElementById('login-user').value = '';
@@ -1122,13 +1122,20 @@
                 if (!res.ok) throw new Error('Error al cargar vendedores');
                 const allSellers = await res.json();
 
+                // 1. Try to automatically match by username or name
+                const matchedSeller = allSellers.find(s =>
+                    s.name.toLowerCase() === (storeAuthUser.username || '').toLowerCase() ||
+                    s.name.toLowerCase() === (storeAuthUser.name || '').toLowerCase()
+                );
+
+                if (matchedSeller) {
+                    setSeller(matchedSeller);
+                    return;
+                }
+
                 // Allow superadmins to see all sellers, otherwise find matching name/permissions (simplified: filter by permissions if we had them, but we'll show all and let them pick their name or just filter by their username if it matches)
                 const isSuper = storeAuthUser.role === 'superadmin' || storeAuthUser.isSuperAdmin;
                 let allowedSellers = allSellers;
-
-                if (!isSuper) {
-                    // For now, if not superadmin, just match their username exactly or show all active ones they have access to. We simplify by showing all active sellers and trusting them if they logged in.
-                }
 
                 if (allowedSellers.length === 1) {
                     setSeller(allowedSellers[0]);
