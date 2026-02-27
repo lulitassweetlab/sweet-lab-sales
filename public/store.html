@@ -59,6 +59,30 @@
             grid-column: 2;
         }
 
+        .header-right {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            grid-column: 3;
+        }
+
+        .store-login-btn {
+            background: transparent;
+            color: var(--primary);
+            border: 1px solid var(--primary);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .store-login-btn:hover {
+            background: var(--primary);
+            color: white;
+        }
+
         .logo {
             max-width: 100vw;
             max-height: 400px;
@@ -451,6 +475,53 @@
             transform: scale(0.95);
         }
 
+        /* Internal Checkout Section */
+        .internal-checkout-container {
+            display: none;
+            flex-direction: column;
+            gap: 8px;
+            width: 100%;
+        }
+
+        .internal-checkout-input {
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 1rem;
+            outline: none;
+            width: 100%;
+        }
+
+        .internal-checkout-btn,
+        .internal-checkout-danger {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 20px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        .internal-checkout-btn:hover {
+            background: var(--primary-hover);
+        }
+
+        .internal-checkout-danger {
+            background: var(--danger);
+        }
+
+        .internal-checkout-danger:hover {
+            background: #d32f2f;
+        }
+
+        .internal-checkout-btn:active,
+        .internal-checkout-danger:active {
+            transform: scale(0.95);
+        }
+
         /* Mobile View - Reveal All Data & Reset Sizes */
         @media (max-width: 768px) {
             header {
@@ -507,12 +578,48 @@
         <p style="margin-top: 8px;">Hecho con 💕</p>
     </footer>
 
+    <!-- Modals added for Seller Login & Checkout -->
+    <div class="modal-overlay" id="store-login-modal">
+        <div class="modal-content" style="max-width: 320px; text-align: center;">
+            <h3 style="margin-bottom: 20px; color: var(--primary-hover);">Ingreso Exclusivo</h3>
+            <input id="login-user" type="text" placeholder="Usuario" class="internal-checkout-input"
+                style="margin-bottom: 12px;" />
+            <input id="login-pass" type="password" placeholder="Contraseña" class="internal-checkout-input"
+                style="margin-bottom: 20px;" />
+            <div style="display: flex; gap: 10px; justify-content: space-between;">
+                <button id="close-login-modal" class="internal-checkout-danger"
+                    style="flex: 1; padding: 8px;">Cancelar</button>
+                <button id="submit-login-btn" class="internal-checkout-btn"
+                    style="flex: 1; padding: 8px;">Entrar</button>
+            </div>
+            <div id="login-error" style="color: var(--danger); font-size: 0.9rem; margin-top: 10px; display: none;">
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="store-seller-modal">
+        <div class="modal-content" style="max-width: 320px; text-align: center;">
+            <h3 style="margin-bottom: 20px; color: var(--primary-hover);">¿Quién eres?</h3>
+            <p style="font-size: 0.9rem; margin-bottom: 16px;">Elige tu perfil activo para registrar las ventas:</p>
+            <div id="seller-buttons-container"
+                style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px;"></div>
+            <button id="close-seller-modal" class="internal-checkout-danger"
+                style="width: 100%; padding: 8px;">Cancelar</button>
+        </div>
+    </div>
+
     <div class="floating-cart" id="floating-cart">
         <div class="cart-info">
             <span class="cart-items" id="cart-items-count">0 artículos</span>
             <span class="cart-total" id="cart-total-price">$ 0</span>
         </div>
         <button class="cart-checkout-btn" id="cart-checkout-btn">Pedir por WhatsApp 🛒</button>
+
+        <div class="internal-checkout-container" id="internal-checkout-container">
+            <input type="text" id="store-customer-name" class="internal-checkout-input"
+                placeholder="Nombre de tu cliente">
+            <button class="internal-checkout-btn" id="internal-checkout-btn">Agregar pedido</button>
+        </div>
     </div>
 
     <script>
@@ -525,6 +632,37 @@
 
         // Global cart state: { productId: { product, qty, total } }
         let cart = {};
+
+        // Auth State
+        let storeAuthUser = null;
+        try {
+            const saved = localStorage.getItem('storeAuthUser');
+            if (saved) storeAuthUser = JSON.parse(saved);
+        } catch { }
+
+        let storeActiveSeller = null;
+        try {
+            const savedSeller = localStorage.getItem('storeActiveSeller');
+            if (savedSeller) storeActiveSeller = JSON.parse(savedSeller);
+        } catch { }
+
+        const storeAuthBtn = document.getElementById('store-auth-btn');
+        const loginModal = document.getElementById('store-login-modal');
+        const sellerModal = document.getElementById('store-seller-modal');
+        const internalCheckoutContainer = document.getElementById('internal-checkout-container');
+        const customerNameInput = document.getElementById('store-customer-name');
+
+        function updateAuthUI() {
+            if (storeAuthUser && storeActiveSeller) {
+                storeAuthBtn.textContent = `Salir (${storeActiveSeller.name})`;
+                storeAuthBtn.style.color = 'var(--danger)';
+                storeAuthBtn.style.borderColor = 'var(--danger)';
+            } else {
+                storeAuthBtn.textContent = 'Soy Vendedor';
+                storeAuthBtn.style.color = 'var(--primary)';
+                storeAuthBtn.style.borderColor = 'var(--primary)';
+            }
+        }
 
         function updateCartUI() {
             let totalQty = 0;
@@ -541,6 +679,14 @@
                 cartItemsCount.textContent = totalQty === 1 ? '1 artículo' : `${totalQty} artículos`;
                 cartTotalPrice.textContent = fmtMoney.format(grandTotal);
                 floatingCart.classList.add('visible');
+
+                if (storeAuthUser && storeActiveSeller) {
+                    cartCheckoutBtn.style.display = 'none';
+                    internalCheckoutContainer.style.display = 'flex';
+                } else {
+                    cartCheckoutBtn.style.display = 'block';
+                    internalCheckoutContainer.style.display = 'none';
+                }
             } else {
                 floatingCart.classList.remove('visible');
             }
@@ -553,12 +699,12 @@
             for (const id in cart) {
                 const item = cart[id];
                 if (item.qty > 0) {
-                    message += `*${item.qty}x ${item.product.name}* (${fmtMoney.format(item.total)})\n`;
+                    message += `* ${item.qty}x ${item.product.name}* (${fmtMoney.format(item.total)}) \n`;
                     grandTotal += item.total;
                 }
             }
 
-            message += `\n*Total a pagar: ${fmtMoney.format(grandTotal)}*`;
+            message += `\n * Total a pagar: ${fmtMoney.format(grandTotal)}* `;
             const encoded = encodeURIComponent(message);
             window.open(`https://wa.me/573332268889?text=${encoded}`, '_blank');
         });
@@ -825,6 +971,223 @@
                 console.error('Error loading store settings:', err);
             }
         }
+
+        }
+
+        // --- AUTH & CHECKOUT LOGIC ---
+
+        storeAuthBtn.addEventListener('click', () => {
+            if (storeAuthUser) {
+                if (confirm('¿Deseas cerrar sesión?')) {
+                    storeAuthUser = null;
+                    storeActiveSeller = null;
+                    localStorage.removeItem('storeAuthUser');
+                    localStorage.removeItem('storeActiveSeller');
+                    updateAuthUI();
+                    updateCartUI();
+                }
+            } else {
+                loginModal.style.display = 'flex';
+            }
+        });
+
+        document.getElementById('close-login-modal').addEventListener('click', () => {
+            loginModal.style.display = 'none';
+        });
+
+        document.getElementById('close-seller-modal').addEventListener('click', () => {
+            sellerModal.style.display = 'none';
+        });
+
+        document.getElementById('submit-login-btn').addEventListener('click', async () => {
+            const user = document.getElementById('login-user').value.trim();
+            const pass = document.getElementById('login-pass').value.trim();
+            const errDiv = document.getElementById('login-error');
+
+            if (!user || !pass) {
+                errDiv.textContent = 'Ingresa usuario y contraseña.';
+                errDiv.style.display = 'block';
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/users?action=login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: user, password: pass })
+                });
+
+                if (!res.ok) {
+                    const data = await res.json();
+                    throw new Error(data.error || 'Credenciales incorrectas');
+                }
+
+                storeAuthUser = await res.json();
+                localStorage.setItem('storeAuthUser', JSON.stringify(storeAuthUser));
+                loginModal.style.display = 'none';
+                errDiv.style.display = 'none';
+                document.getElementById('login-pass').value = '';
+
+                await showSellerSelection();
+
+            } catch (err) {
+                errDiv.textContent = String(err.message || err);
+                errDiv.style.display = 'block';
+            }
+        });
+
+        async function showSellerSelection() {
+            try {
+                const res = await fetch('/api/get-sellers');
+                if (!res.ok) throw new Error('Error al cargar vendedores');
+                const allSellers = await res.json();
+
+                // Allow superadmins to see all sellers, otherwise find matching name/permissions (simplified: filter by permissions if we had them, but we'll show all and let them pick their name or just filter by their username if it matches)
+                const isSuper = storeAuthUser.role === 'superadmin' || storeAuthUser.isSuperAdmin;
+                let allowedSellers = allSellers;
+
+                if (!isSuper) {
+                    // For now, if not superadmin, just match their username exactly or show all active ones they have access to. We simplify by showing all active sellers and trusting them if they logged in.
+                }
+
+                if (allowedSellers.length === 1) {
+                    setSeller(allowedSellers[0]);
+                } else {
+                    const container = document.getElementById('seller-buttons-container');
+                    container.innerHTML = '';
+                    allowedSellers.forEach(s => {
+                        const btn = document.createElement('button');
+                        btn.className = 'internal-checkout-btn';
+                        btn.style.background = 'var(--surface)';
+                        btn.style.color = 'var(--text)';
+                        btn.style.border = '1px solid var(--border)';
+                        btn.textContent = s.name;
+                        btn.addEventListener('click', () => setSeller(s));
+                        container.appendChild(btn);
+                    });
+                    sellerModal.style.display = 'flex';
+                }
+            } catch (err) {
+                alert('No se pudieron cargar los vendedores: ' + err.message);
+            }
+        }
+
+        function setSeller(seller) {
+            storeActiveSeller = seller;
+            localStorage.setItem('storeActiveSeller', JSON.stringify(seller));
+            sellerModal.style.display = 'none';
+            updateAuthUI();
+            updateCartUI();
+        }
+
+        document.getElementById('internal-checkout-btn').addEventListener('click', async () => {
+            const customerName = customerNameInput.value.trim();
+            if (!customerName) {
+                alert('Por favor, ingresa el nombre del cliente.');
+                customerNameInput.focus();
+                return;
+            }
+
+            if (!storeActiveSeller) {
+                alert('No hay un vendedor activo seleccionado.');
+                return;
+            }
+
+            try {
+                const btn = document.getElementById('internal-checkout-btn');
+                const origText = btn.textContent;
+                btn.textContent = 'Procesando...';
+                btn.disabled = true;
+
+                // 1. Fetch active day for this seller
+                const daysRes = await fetch(`/api/days?seller_id=${storeActiveSeller.id}`);
+                const days = await daysRes.json();
+                if (!daysRes.ok) throw new Error(days.error || 'Error fetching days');
+
+                let targetDay = days.find(d => !d.is_archived);
+
+                // 2. Auto-create today if none open
+                if (!targetDay) {
+                    // Get 'YYYY-MM-DD' from timezone Bogotá
+                    const isoDate = new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Bogota' }).format(new Date());
+                    const createRes = await fetch('/api/days', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ seller_id: storeActiveSeller.id, day: isoDate, _actor_name: storeAuthUser.name })
+                    });
+                    if (!createRes.ok) throw new Error('No se pudo crear el día de venta automático.');
+                    targetDay = await createRes.json();
+                }
+
+                // 3. Prepare payload format matching POST /api/sales
+                const cartItems = Object.values(cart).map(item => ({
+                    dessert_id: item.product.id,
+                    quantity: item.qty,
+                    unit_price: item.product.price
+                }));
+
+                const payload = {
+                    seller_id: storeActiveSeller.id,
+                    sale_day_id: targetDay.id,
+                    client_name: customerName,
+                    _actor_name: storeAuthUser.name
+                };
+
+                // Add legacy qty_* fields to payload just in case backend still demands it directly for backward compatibility
+                // store_products don't have short_codes, so we need to rely on the backend supporting arbitrary items via the JSONB column. 
+                // Since this is the store, we'll map product IDs directly to items.
+
+                const saleRes = await fetch('/api/sales', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!saleRes.ok) {
+                    const errBody = await saleRes.json();
+                    throw new Error(errBody.error || 'Error al guardar la venta inicial');
+                }
+
+                const createdSale = await saleRes.json();
+
+                // 4. Update the created sale with the dynamic items
+                const fullPayload = {
+                    id: createdSale.id, // ID of the newly created sale
+                    seller_id: storeActiveSeller.id,
+                    sale_day_id: targetDay.id,
+                    client_name: customerName,
+                    items: cartItems, // Dynamic items array
+                    _actor_name: storeAuthUser.name
+                };
+
+                const updateRes = await fetch('/api/sales', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(fullPayload)
+                });
+
+                if (!updateRes.ok) {
+                    const errBody = await updateRes.json();
+                    throw new Error(errBody.error || 'Error al actualizar los items de la venta');
+                }
+
+                // Success
+                alert(`¡Pedido de ${customerName} registrado con éxito!`);
+
+                // Reset Cart & UI
+                for (const id in cart) delete cart[id];
+                customerNameInput.value = '';
+                updateCartUI();
+                loadStore(); // Re-render everything to reset quantities
+
+            } catch (err) {
+                alert('Error al procesar el pedido: ' + err.message);
+            } finally {
+                const btn = document.getElementById('internal-checkout-btn');
+                btn.textContent = 'Agregar pedido';
+                btn.disabled = false;
+            }
+        });
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
