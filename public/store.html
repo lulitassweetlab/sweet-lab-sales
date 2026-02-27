@@ -632,6 +632,31 @@
             transform: translate(-50%, -50%) scale(1);
         }
 
+        /* --- AGILE SELLER VIEW --- */
+        body.is-seller-active .product-desc {
+            display: none !important;
+        }
+
+        body.is-seller-active .add-btn {
+            display: none !important;
+        }
+
+        body.is-seller-active .qty-controls {
+            display: flex !important;
+        }
+
+        /* Make quantity controls a bit more compact for sellers so they fit */
+        body.is-seller-active .qty-btn {
+            width: 30px;
+            height: 30px;
+            font-size: 1rem;
+        }
+
+        body.is-seller-active .qty-val {
+            font-size: 1rem;
+            width: 30px;
+        }
+
         /* Mobile View - Reveal All Data & Reset Sizes */
         @media (max-width: 768px) {
             header {
@@ -658,6 +683,26 @@
                 display: grid;
                 grid-template-columns: 1fr;
                 gap: 24px;
+            }
+
+            /* For Sellers on Mobile: 2 Columns */
+            body.is-seller-active .product-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 12px;
+            }
+
+            body.is-seller-active .product-info {
+                padding: 12px;
+            }
+
+            body.is-seller-active .product-title {
+                font-size: 0.95rem;
+                margin-bottom: 4px;
+            }
+
+            body.is-seller-active .product-price {
+                font-size: 0.9rem;
+                margin-bottom: 8px;
             }
 
             .skeleton-card {
@@ -784,12 +829,14 @@
                 storeAuthBtn.style.borderColor = 'transparent';
                 storeAuthBtn.style.background = 'transparent';
                 storeAuthBtn.style.boxShadow = 'none';
+                document.body.classList.add('is-seller-active');
             } else {
                 storeAuthBtn.textContent = 'Ingresar';
                 storeAuthBtn.style.color = 'var(--primary)';
                 storeAuthBtn.style.borderColor = 'var(--primary)';
                 storeAuthBtn.style.background = 'transparent';
                 storeAuthBtn.style.boxShadow = 'none';
+                document.body.classList.remove('is-seller-active');
             }
         }
 
