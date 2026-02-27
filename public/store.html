@@ -88,11 +88,13 @@
 
         .logo {
             max-width: 100vw;
-            max-height: 400px;
+            height: 80px;
+            /* Default height to prevent flash of huge image */
             width: auto;
-            height: auto;
             object-fit: contain;
-            transition: all 0.3s ease;
+            opacity: 0;
+            /* Hidden initially until settings load */
+            transition: opacity 0.5s ease;
         }
 
         main {
@@ -673,7 +675,8 @@
 
         <div class="internal-checkout-container" id="internal-checkout-container">
             <input type="text" id="store-customer-name" class="internal-checkout-input"
-                placeholder="Nombre de tu cliente">
+                placeholder="Nombre de tu cliente" list="store-client-list">
+            <datalist id="store-client-list"></datalist>
             <button class="internal-checkout-btn" id="internal-checkout-btn">Agregar pedido</button>
         </div>
     </div>
@@ -743,6 +746,7 @@
                 if (storeAuthUser && storeActiveSeller) {
                     cartCheckoutBtn.style.display = 'none';
                     internalCheckoutContainer.style.display = 'flex';
+                    populateClientDatalist();
                 } else {
                     cartCheckoutBtn.style.display = 'block';
                     internalCheckoutContainer.style.display = 'none';
@@ -1003,11 +1007,11 @@
         }
 
         async function loadSettings() {
+            const logoImg = document.querySelector('.logo');
             try {
                 const res = await fetch('/api/store-settings');
                 if (res.ok) {
                     const settings = await res.json();
-                    const logoImg = document.querySelector('.logo');
                     if (settings.logo_base64) {
                         logoImg.src = settings.logo_base64;
                     }
@@ -1035,6 +1039,36 @@
                 }
             } catch (err) {
                 console.error('Error loading store settings:', err);
+            } finally {
+                if (logoImg) logoImg.style.opacity = '1';
+            }
+        }
+
+        async function populateClientDatalist() {
+            if (!storeAuthUser || !storeActiveSeller) return;
+            try {
+                const headers = { 'Content-Type': 'application/json' };
+                if (storeAuthUser.token) headers['Authorization'] = 'Bearer ' + storeAuthUser.token;
+                if (storeAuthUser.username) headers['x-actor-name'] = storeAuthUser.username;
+
+                const clientsRes = await fetch(`/api/clients?seller_id=${storeActiveSeller.id}`, { headers });
+                if (!clientsRes.ok) return;
+
+                const clientNames = await clientsRes.json();
+
+                if (Array.isArray(clientNames)) {
+                    const dataList = document.getElementById('store-client-list');
+                    dataList.innerHTML = '';
+                    clientNames.forEach(name => {
+                        if (name) {
+                            const opt = document.createElement('option');
+                            opt.value = name;
+                            dataList.appendChild(opt);
+                        }
+                    });
+                }
+            } catch (err) {
+                console.error('Error fetching clients for autocomplete:', err);
             }
         }
 
