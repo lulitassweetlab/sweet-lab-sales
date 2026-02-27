@@ -19,6 +19,7 @@
             --secondary: #f5e6e8;
             --border: #f4a6b7;
             --shadow: rgba(244, 166, 183, 0.15);
+            --danger: #ff4d4f;
             --radius: 5%;
         }
 
@@ -26,6 +27,7 @@
             box-sizing: border-box;
             margin: 0;
             padding: 0;
+            touch-action: manipulation;
         }
 
         body {
@@ -567,7 +569,7 @@
             header {
                 display: flex;
                 flex-direction: column;
-                position: static;
+                position: relative;
                 gap: 16px;
                 padding: 24px 16px;
             }
@@ -576,6 +578,12 @@
                 position: static;
                 transform: none;
                 justify-content: center;
+            }
+
+            .header-right {
+                position: absolute;
+                top: 24px;
+                right: 16px;
             }
 
             .product-grid {
