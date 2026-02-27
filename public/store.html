@@ -1227,14 +1227,32 @@
                 // 3. Convert cart items to legacy quantities based on product names
                 let qty_arco = 0, qty_melo = 0, qty_mara = 0, qty_oreo = 0, qty_nute = 0;
 
+                // Fetch desserts to map store products to dessert IDs for the sale_items table
+                const dessertsRes = await fetch('/api/desserts', { headers: getAuthHeaders() });
+                const adminDesserts = await dessertsRes.json();
+                const dynamicItems = [];
+
                 for (const id in cart) {
                     const item = cart[id];
                     const name = (item.product.name || '').toLowerCase();
-                    if (name.includes('arcoiris') || name.includes('arco')) qty_arco += item.qty;
-                    else if (name.includes('melocoton') || name.includes('melo')) qty_melo += item.qty;
-                    else if (name.includes('maracuya') || name.includes('mara')) qty_mara += item.qty;
-                    else if (name.includes('oreo')) qty_oreo += item.qty;
-                    else if (name.includes('nutella') || name.includes('nute')) qty_nute += item.qty;
+                    let shortCode = '';
+
+                    if (name.includes('arcoiris') || name.includes('arco')) { qty_arco += item.qty; shortCode = 'arco'; }
+                    else if (name.includes('melocoton') || name.includes('melo')) { qty_melo += item.qty; shortCode = 'melo'; }
+                    else if (name.includes('maracumango') || name.includes('mara')) { qty_mara += item.qty; shortCode = 'mara'; }
+                    else if (name.includes('oreo')) { qty_oreo += item.qty; shortCode = 'oreo'; }
+                    else if (name.includes('nutella') || name.includes('nute')) { qty_nute += item.qty; shortCode = 'nute'; }
+                    else if (name.includes('leches') || name.includes('3lec')) { shortCode = '3lec'; }
+                    else if (name.includes('brigadeiro') || name.includes('brig')) { shortCode = 'brig'; }
+
+                    const matchedDessert = adminDesserts.find(d => (d.short_code || '').toLowerCase() === shortCode);
+                    if (matchedDessert) {
+                        dynamicItems.push({
+                            dessert_id: matchedDessert.id,
+                            quantity: item.qty,
+                            unit_price: item.product.price
+                        });
+                    }
                 }
 
                 const payload = {
@@ -1266,9 +1284,28 @@
 
                 const createdSale = await saleRes.json();
 
-                // 4. Update the created sale if dynamic items exist (optional fallback)
-                // Assuming legacy columns covered the products!
+                // 4. Update the created sale with the dynamic items (which covers 3lec and brig)
+                if (dynamicItems.length > 0) {
+                    const fullPayload = {
+                        id: createdSale.id, // ID of the newly created sale
+                        seller_id: storeActiveSeller.id,
+                        sale_day_id: targetDay.id,
+                        client_name: customerName,
+                        items: dynamicItems, // Dynamic items array based on REAL dessert IDs
+                        _actor_name: storeAuthUser.name
+                    };
 
+                    const updateRes = await fetch('/api/sales', {
+                        method: 'PUT',
+                        headers: getAuthHeaders(),
+                        body: JSON.stringify(fullPayload)
+                    });
+
+                    if (!updateRes.ok) {
+                        const errBody = await updateRes.json();
+                        throw new Error(errBody.error || 'Error al actualizar los items de la venta');
+                    }
+                }
 
                 // Success
                 const toast = document.getElementById('store-toast');
