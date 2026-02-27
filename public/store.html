@@ -685,29 +685,24 @@
                 gap: 24px;
             }
 
-            /* For Sellers on Mobile: 3 Columns */
+            /* For Sellers on Mobile: 2 Columns */
             body.is-seller-active .product-grid {
-                grid-template-columns: repeat(3, 1fr);
-                gap: 8px;
-                /* reduce gap to fit 3 columns */
+                grid-template-columns: repeat(2, 1fr);
+                gap: 12px;
             }
 
             body.is-seller-active .product-info {
-                padding: 8px;
-                /* smaller padding to save horizontal space */
+                padding: 12px;
                 text-align: center;
-                /* center text */
             }
 
             body.is-seller-active .product-title {
-                font-size: 0.85rem;
-                /* smaller font to fit 3 columns */
+                font-size: 0.95rem;
                 margin-bottom: 4px;
             }
 
             body.is-seller-active .product-price {
-                font-size: 0.8rem;
-                /* smaller font */
+                font-size: 0.9rem;
                 margin-bottom: 8px;
             }
 
@@ -836,6 +831,11 @@
                 storeAuthBtn.style.background = 'transparent';
                 storeAuthBtn.style.boxShadow = 'none';
                 document.body.classList.add('is-seller-active');
+
+                // Force sync for already rendered cards
+                document.querySelectorAll('.buy-btn').forEach(b => b.style.display = 'none');
+                document.querySelectorAll('.qty-container').forEach(q => q.style.display = 'flex');
+                document.querySelectorAll('.product-desc').forEach(d => d.style.display = 'none');
             } else {
                 storeAuthBtn.textContent = 'Ingresar';
                 storeAuthBtn.style.color = 'var(--primary)';
@@ -843,6 +843,15 @@
                 storeAuthBtn.style.background = 'transparent';
                 storeAuthBtn.style.boxShadow = 'none';
                 document.body.classList.remove('is-seller-active');
+
+                // Force sync for already rendered cards
+                document.querySelectorAll('.buy-btn').forEach(b => b.style.display = 'block');
+                document.querySelectorAll('.product-desc').forEach(d => d.style.display = '-webkit-box');
+                document.querySelectorAll('.qty-container').forEach(q => {
+                    // Only hide if qty is 0, since we can't reliably read internal JS state here, 
+                    // it will be corrected on reload or if they interact. But setting to none is safer default.
+                    q.style.display = 'none';
+                });
             }
         }
 
@@ -1101,8 +1110,10 @@
             const handleQtyChange = () => {
                 if (qty <= 0) {
                     qty = 0;
-                    qtyContainer.style.display = 'none';
-                    buyBtn.style.display = 'block';
+                    if (!document.body.classList.contains('is-seller-active')) {
+                        qtyContainer.style.display = 'none';
+                        buyBtn.style.display = 'block';
+                    }
                     delete cart[product.id];
                 } else {
                     renderQty();
@@ -1112,6 +1123,12 @@
             };
 
             renderQty(); // Run immediately so HTML exists for CSS !important toggles
+
+            if (document.body.classList.contains('is-seller-active')) {
+                buyBtn.style.display = 'none';
+                qtyContainer.style.display = 'flex';
+                desc.style.display = 'none';
+            }
 
             buyBtn.addEventListener('click', () => {
                 qty = 1;
