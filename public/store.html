@@ -650,6 +650,17 @@
         </div>
     </div>
 
+    <div id="store-toast"
+        style="position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #4CAF50; color: white; padding: 12px 24px; border-radius: 8px; z-index: 3000; font-weight: bold; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+        Se agregó con éxito
+    </div>
+    <div id="seller-buttons-container" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px;">
+    </div>
+    <button id="close-seller-modal" class="internal-checkout-danger"
+        style="width: 100%; padding: 8px;">Cancelar</button>
+    </div>
+    </div>
+
     <div class="floating-cart" id="floating-cart">
         <div class="cart-info">
             <span class="cart-items" id="cart-items-count">0 artículos</span>
@@ -1175,10 +1186,17 @@
                 return;
             }
 
-            if (!storeActiveSeller) {
-                alert('No hay un vendedor activo seleccionado.');
+            if (!storeActiveSeller || !storeAuthUser) {
+                alert('No hay un vendedor activo seleccionado o no has ingresado.');
                 return;
             }
+
+            const getAuthHeaders = () => {
+                const headers = { 'Content-Type': 'application/json' };
+                if (storeAuthUser.token) headers['Authorization'] = 'Bearer ' + storeAuthUser.token;
+                if (storeAuthUser.username) headers['x-actor-name'] = storeAuthUser.username;
+                return headers;
+            };
 
             try {
                 const btn = document.getElementById('internal-checkout-btn');
@@ -1187,7 +1205,7 @@
                 btn.disabled = true;
 
                 // 1. Fetch active day for this seller
-                const daysRes = await fetch(`/api/days?seller_id=${storeActiveSeller.id}`);
+                const daysRes = await fetch(`/api/days?seller_id=${storeActiveSeller.id}`, { headers: getAuthHeaders() });
                 const days = await daysRes.json();
                 if (!daysRes.ok) throw new Error(days.error || 'Error fetching days');
 
@@ -1199,7 +1217,7 @@
                     const isoDate = new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Bogota' }).format(new Date());
                     const createRes = await fetch('/api/days', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: getAuthHeaders(),
                         body: JSON.stringify({ seller_id: storeActiveSeller.id, day: isoDate, _actor_name: storeAuthUser.name })
                     });
                     if (!createRes.ok) throw new Error('No se pudo crear el día de venta automático.');
@@ -1226,7 +1244,7 @@
 
                 const saleRes = await fetch('/api/sales', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: getAuthHeaders(),
                     body: JSON.stringify(payload)
                 });
 
@@ -1249,7 +1267,7 @@
 
                 const updateRes = await fetch('/api/sales', {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: getAuthHeaders(),
                     body: JSON.stringify(fullPayload)
                 });
 
@@ -1259,7 +1277,11 @@
                 }
 
                 // Success
-                alert(`¡Pedido de ${customerName} registrado con éxito!`);
+                const toast = document.getElementById('store-toast');
+                toast.textContent = 'Se agregó con exito.';
+                toast.style.backgroundColor = '#4CAF50'; // Green for success
+                toast.style.display = 'block';
+                setTimeout(() => toast.style.display = 'none', 2000);
 
                 // Reset Cart & UI
                 for (const id in cart) delete cart[id];
