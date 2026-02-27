@@ -605,8 +605,9 @@
             <img src="/logo.png" alt="Lulitas Sweet Lab" class="logo" />
         </div>
         <div class="header-center">
-            <h1 class="store-title">Menú de Postres</h1>
-            <p class="store-subtitle">Descubre nuestra selección de delicias hechas con amor 💕</p>
+            <h1 id="store-title-display" class="store-title">Menú de Postres</h1>
+            <p id="store-subtitle-display" class="store-subtitle">Descubre nuestra selección de delicias hechas con amor
+                💕</p>
         </div>
         <div class="header-right">
             <button id="store-auth-btn" class="store-login-btn">Ingresar</button>
@@ -708,7 +709,7 @@
         const customerNameInput = document.getElementById('store-customer-name');
 
         function updateAuthUI() {
-            if (storeAuthUser && storeActiveSeller) {
+            if (storeAuthUser && storeAuthUser.token && storeActiveSeller) {
                 storeAuthBtn.textContent = storeActiveSeller.name;
                 storeAuthBtn.style.color = 'var(--text)';
                 storeAuthBtn.style.borderColor = 'transparent';
@@ -719,6 +720,7 @@
                 storeAuthBtn.style.color = 'var(--primary)';
                 storeAuthBtn.style.borderColor = 'var(--primary)';
                 storeAuthBtn.style.background = 'transparent';
+                storeAuthBtn.style.boxShadow = 'none';
             }
         }
 
@@ -1024,6 +1026,12 @@
                         const scaleDec = settings.cart_scale / 100;
                         document.documentElement.style.setProperty('--cart-scale', scaleDec);
                     }
+                    if (settings.store_title) {
+                        document.getElementById('store-title-display').textContent = settings.store_title;
+                    }
+                    if (settings.store_subtitle) {
+                        document.getElementById('store-subtitle-display').textContent = settings.store_subtitle;
+                    }
                 }
             } catch (err) {
                 console.error('Error loading store settings:', err);
@@ -1035,7 +1043,7 @@
         let loginStep = 1;
 
         storeAuthBtn.addEventListener('click', () => {
-            if (storeAuthUser) {
+            if (storeAuthUser && storeAuthUser.token) {
                 if (confirm('¿Deseas cerrar sesión?')) {
                     storeAuthUser = null;
                     storeActiveSeller = null;
@@ -1045,6 +1053,12 @@
                     updateCartUI();
                 }
             } else {
+                // Auto-cleanup any corrupted state
+                storeAuthUser = null;
+                storeActiveSeller = null;
+                localStorage.removeItem('storeAuthUser');
+                localStorage.removeItem('storeActiveSeller');
+                updateAuthUI();
                 loginStep = 1;
                 document.getElementById('login-modal-title').textContent = 'Ingreso';
                 document.getElementById('login-user').style.display = 'block';

@@ -114,6 +114,19 @@
                         <span id="logo-height-val">80</span>px</label>
                     <input type="range" id="logo-height-input" min="40" max="400" value="80" style="width: 100%;" />
                 </div>
+                <div>
+                    <label style="font-weight: bold; display: block; margin-bottom: 8px;">Título de la tienda
+                        (Opcional):</label>
+                    <input type="text" id="store-title-input" class="input-light" placeholder="Ej: Menú de postres"
+                        style="width: 100%;" />
+                </div>
+                <div>
+                    <label style="font-weight: bold; display: block; margin-bottom: 8px;">Subtítulo de la tienda
+                        (Opcional):</label>
+                    <input type="text" id="store-subtitle-input" class="input-light"
+                        placeholder="Ej: Descubre nuestra selección de delicias hechas con amor 💕"
+                        style="width: 100%;" />
+                </div>
                 <div style="display: flex; gap: 16px;">
                     <div style="flex: 1;">
                         <label style="font-weight: bold; display: block; margin-bottom: 8px;">Separación Horizontal
@@ -709,6 +722,8 @@
             const gridGapX = document.getElementById('grid-gap-x');
             const gridGapY = document.getElementById('grid-gap-y');
             const cartScale = document.getElementById('cart-scale');
+            const storeTitleInput = document.getElementById('store-title-input');
+            const storeSubtitleInput = document.getElementById('store-subtitle-input');
             const saveSettingsBtn = document.getElementById('save-settings-btn');
 
             let currentLogoBase64 = null;
@@ -758,6 +773,12 @@
                         if (settings.cart_scale !== undefined) {
                             cartScale.value = settings.cart_scale;
                         }
+                        if (settings.store_title !== undefined) {
+                            storeTitleInput.value = settings.store_title;
+                        }
+                        if (settings.store_subtitle !== undefined) {
+                            storeSubtitleInput.value = settings.store_subtitle;
+                        }
                     }
                 } catch (err) {
                     console.error('Error loading settings', err);
@@ -772,7 +793,9 @@
                         logo_height: logoHeightInput.value,
                         grid_gap_x: gridGapX.value,
                         grid_gap_y: gridGapY.value,
-                        cart_scale: cartScale.value
+                        cart_scale: cartScale.value,
+                        store_title: storeTitleInput.value.trim() || null,
+                        store_subtitle: storeSubtitleInput.value.trim() || null
                     };
                     if (currentLogoBase64) {
                         body.logo_base64 = currentLogoBase64;
