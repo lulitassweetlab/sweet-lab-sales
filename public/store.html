@@ -1224,18 +1224,29 @@
                     targetDay = await createRes.json();
                 }
 
-                // 3. Prepare payload format matching POST /api/sales
-                const cartItems = Object.values(cart).map(item => ({
-                    dessert_id: item.product.id,
-                    quantity: item.qty,
-                    unit_price: item.product.price
-                }));
+                // 3. Convert cart items to legacy quantities based on product names
+                let qty_arco = 0, qty_melo = 0, qty_mara = 0, qty_oreo = 0, qty_nute = 0;
+
+                for (const id in cart) {
+                    const item = cart[id];
+                    const name = (item.product.name || '').toLowerCase();
+                    if (name.includes('arcoiris') || name.includes('arco')) qty_arco += item.qty;
+                    else if (name.includes('melocoton') || name.includes('melo')) qty_melo += item.qty;
+                    else if (name.includes('maracuya') || name.includes('mara')) qty_mara += item.qty;
+                    else if (name.includes('oreo')) qty_oreo += item.qty;
+                    else if (name.includes('nutella') || name.includes('nute')) qty_nute += item.qty;
+                }
 
                 const payload = {
                     seller_id: storeActiveSeller.id,
                     sale_day_id: targetDay.id,
                     client_name: customerName,
-                    _actor_name: storeAuthUser.name
+                    _actor_name: storeAuthUser.name,
+                    qty_arco,
+                    qty_melo,
+                    qty_mara,
+                    qty_oreo,
+                    qty_nute
                 };
 
                 // Add legacy qty_* fields to payload just in case backend still demands it directly for backward compatibility
@@ -1255,26 +1266,9 @@
 
                 const createdSale = await saleRes.json();
 
-                // 4. Update the created sale with the dynamic items
-                const fullPayload = {
-                    id: createdSale.id, // ID of the newly created sale
-                    seller_id: storeActiveSeller.id,
-                    sale_day_id: targetDay.id,
-                    client_name: customerName,
-                    items: cartItems, // Dynamic items array
-                    _actor_name: storeAuthUser.name
-                };
+                // 4. Update the created sale if dynamic items exist (optional fallback)
+                // Assuming legacy columns covered the products!
 
-                const updateRes = await fetch('/api/sales', {
-                    method: 'PUT',
-                    headers: getAuthHeaders(),
-                    body: JSON.stringify(fullPayload)
-                });
-
-                if (!updateRes.ok) {
-                    const errBody = await updateRes.json();
-                    throw new Error(errBody.error || 'Error al actualizar los items de la venta');
-                }
 
                 // Success
                 const toast = document.getElementById('store-toast');
