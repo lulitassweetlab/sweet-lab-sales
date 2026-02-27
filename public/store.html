@@ -637,11 +637,11 @@
             display: none !important;
         }
 
-        body.is-seller-active .add-btn {
+        body.is-seller-active .buy-btn {
             display: none !important;
         }
 
-        body.is-seller-active .qty-controls {
+        body.is-seller-active .qty-container {
             display: flex !important;
         }
 
@@ -685,23 +685,29 @@
                 gap: 24px;
             }
 
-            /* For Sellers on Mobile: 2 Columns */
+            /* For Sellers on Mobile: 3 Columns */
             body.is-seller-active .product-grid {
-                grid-template-columns: repeat(2, 1fr);
-                gap: 12px;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 8px;
+                /* reduce gap to fit 3 columns */
             }
 
             body.is-seller-active .product-info {
-                padding: 12px;
+                padding: 8px;
+                /* smaller padding to save horizontal space */
+                text-align: center;
+                /* center text */
             }
 
             body.is-seller-active .product-title {
-                font-size: 0.95rem;
+                font-size: 0.85rem;
+                /* smaller font to fit 3 columns */
                 margin-bottom: 4px;
             }
 
             body.is-seller-active .product-price {
-                font-size: 0.9rem;
+                font-size: 0.8rem;
+                /* smaller font */
                 margin-bottom: 8px;
             }
 
@@ -1104,6 +1110,8 @@
                 }
                 updateCartUI();
             };
+
+            renderQty(); // Run immediately so HTML exists for CSS !important toggles
 
             buyBtn.addEventListener('click', () => {
                 qty = 1;
