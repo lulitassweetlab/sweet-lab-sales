@@ -41,14 +41,15 @@
         header {
             background-color: transparent;
             padding: 24px 5%;
-            display: grid;
-            grid-template-columns: 1fr auto 1fr;
+            display: flex;
+            justify-content: space-between;
             align-items: center;
             gap: 20px;
             z-index: 100;
         }
 
         .header-left {
+            flex: 1;
             display: flex;
             justify-content: flex-start;
             min-width: 0;
@@ -56,14 +57,14 @@
 
         .header-center {
             text-align: center;
-            grid-column: 2;
+            flex: 2;
         }
 
         .header-right {
+            flex: 1;
             display: flex;
             justify-content: flex-end;
             align-items: center;
-            grid-column: 3;
         }
 
         .store-login-btn {
@@ -522,6 +523,45 @@
             transform: scale(0.95);
         }
 
+        /* Modals */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            padding: 20px;
+            backdrop-filter: blur(3px);
+            -webkit-backdrop-filter: blur(3px);
+        }
+
+        .modal-content {
+            background: var(--surface);
+            padding: 24px;
+            border-radius: var(--radius);
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            animation: modalFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes modalFadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px) scale(0.95);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
         /* Mobile View - Reveal All Data & Reset Sizes */
         @media (max-width: 768px) {
             header {
@@ -560,7 +600,9 @@
             <h1 class="store-title">Menú de Postres</h1>
             <p class="store-subtitle">Descubre nuestra selección de delicias hechas con amor 💕</p>
         </div>
-        <div class="header-right"></div>
+        <div class="header-right">
+            <button id="store-auth-btn" class="store-login-btn">Ingresar</button>
+        </div>
     </header>
 
     <main>
@@ -581,16 +623,16 @@
     <!-- Modals added for Seller Login & Checkout -->
     <div class="modal-overlay" id="store-login-modal">
         <div class="modal-content" style="max-width: 320px; text-align: center;">
-            <h3 style="margin-bottom: 20px; color: var(--primary-hover);">Ingreso Exclusivo</h3>
+            <h3 id="login-modal-title" style="margin-bottom: 20px; color: var(--primary-hover);">Ingreso Exclusivo</h3>
             <input id="login-user" type="text" placeholder="Usuario" class="internal-checkout-input"
-                style="margin-bottom: 12px;" />
-            <input id="login-pass" type="password" placeholder="Contraseña" class="internal-checkout-input"
                 style="margin-bottom: 20px;" />
+            <input id="login-pass" type="password" placeholder="Contraseña" class="internal-checkout-input"
+                style="margin-bottom: 20px; display: none;" />
             <div style="display: flex; gap: 10px; justify-content: space-between;">
                 <button id="close-login-modal" class="internal-checkout-danger"
                     style="flex: 1; padding: 8px;">Cancelar</button>
                 <button id="submit-login-btn" class="internal-checkout-btn"
-                    style="flex: 1; padding: 8px;">Entrar</button>
+                    style="flex: 1; padding: 8px;">Siguiente</button>
             </div>
             <div id="login-error" style="color: var(--danger); font-size: 0.9rem; margin-top: 10px; display: none;">
             </div>
@@ -654,13 +696,16 @@
 
         function updateAuthUI() {
             if (storeAuthUser && storeActiveSeller) {
-                storeAuthBtn.textContent = `Salir (${storeActiveSeller.name})`;
-                storeAuthBtn.style.color = 'var(--danger)';
-                storeAuthBtn.style.borderColor = 'var(--danger)';
+                storeAuthBtn.textContent = storeActiveSeller.name;
+                storeAuthBtn.style.color = 'var(--text)';
+                storeAuthBtn.style.borderColor = 'transparent';
+                storeAuthBtn.style.background = 'transparent';
+                storeAuthBtn.style.boxShadow = 'none';
             } else {
-                storeAuthBtn.textContent = 'Soy Vendedor';
+                storeAuthBtn.textContent = 'Ingresar';
                 storeAuthBtn.style.color = 'var(--primary)';
                 storeAuthBtn.style.borderColor = 'var(--primary)';
+                storeAuthBtn.style.background = 'transparent';
             }
         }
 
@@ -972,9 +1017,9 @@
             }
         }
 
-        }
-
         // --- AUTH & CHECKOUT LOGIC ---
+
+        let loginStep = 1;
 
         storeAuthBtn.addEventListener('click', () => {
             if (storeAuthUser) {
@@ -987,12 +1032,29 @@
                     updateCartUI();
                 }
             } else {
+                loginStep = 1;
+                document.getElementById('login-modal-title').textContent = 'Ingreso Exclusivo';
+                document.getElementById('login-user').style.display = 'block';
+                document.getElementById('login-pass').style.display = 'none';
+                document.getElementById('login-user').value = '';
+                document.getElementById('login-pass').value = '';
+                document.getElementById('submit-login-btn').textContent = 'Siguiente';
+                document.getElementById('login-error').style.display = 'none';
                 loginModal.style.display = 'flex';
+                document.getElementById('login-user').focus();
             }
         });
 
         document.getElementById('close-login-modal').addEventListener('click', () => {
             loginModal.style.display = 'none';
+        });
+
+        document.getElementById('login-user').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') document.getElementById('submit-login-btn').click();
+        });
+
+        document.getElementById('login-pass').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') document.getElementById('submit-login-btn').click();
         });
 
         document.getElementById('close-seller-modal').addEventListener('click', () => {
@@ -1001,11 +1063,29 @@
 
         document.getElementById('submit-login-btn').addEventListener('click', async () => {
             const user = document.getElementById('login-user').value.trim();
-            const pass = document.getElementById('login-pass').value.trim();
+            const passInput = document.getElementById('login-pass');
+            const pass = passInput.value.trim();
             const errDiv = document.getElementById('login-error');
 
-            if (!user || !pass) {
-                errDiv.textContent = 'Ingresa usuario y contraseña.';
+            errDiv.style.display = 'none';
+
+            if (loginStep === 1) {
+                if (!user) {
+                    errDiv.textContent = 'Ingresa tu usuario.';
+                    errDiv.style.display = 'block';
+                    return;
+                }
+                loginStep = 2;
+                document.getElementById('login-user').style.display = 'none';
+                passInput.style.display = 'block';
+                document.getElementById('submit-login-btn').textContent = 'Entrar';
+                document.getElementById('login-modal-title').textContent = `Hola, ${user}`;
+                passInput.focus();
+                return;
+            }
+
+            if (!pass) {
+                errDiv.textContent = 'Ingresa tu contraseña.';
                 errDiv.style.display = 'block';
                 return;
             }
