@@ -293,6 +293,23 @@
             }
         }
 
+        /* Embedded Sales Table */
+        #seller-embedded-sales-container {
+            width: 100%;
+            margin-top: 40px;
+            display: none;
+            /* hidden by default */
+        }
+
+        .embedded-sales-iframe {
+            width: 100%;
+            height: 1200px;
+            border: none;
+            border-radius: var(--radius);
+            box-shadow: 0 10px 30px var(--shadow);
+            background: var(--surface);
+        }
+
         .product-content {
             padding: 16px;
             display: flex;
@@ -800,6 +817,9 @@
         </div>
         <!-- Contenedor Banners Publicitarios -->
         <div id="promo-banners-container"></div>
+
+        <!-- Embedded Sales Table para Vendedores -->
+        <div id="seller-embedded-sales-container"></div>
     </main>
 
     <footer>
@@ -900,6 +920,17 @@
                 document.querySelectorAll('.buy-btn').forEach(b => b.style.display = 'none');
                 document.querySelectorAll('.qty-container').forEach(q => q.style.display = 'flex');
                 document.querySelectorAll('.product-desc').forEach(d => d.style.display = 'none');
+
+                // Embed the sales table
+                const embedContainer = document.getElementById('seller-embedded-sales-container');
+                if (embedContainer && !embedContainer.querySelector('iframe')) {
+                    embedContainer.style.display = 'block';
+                    const iframe = document.createElement('iframe');
+                    iframe.src = '/index.html?embed=true';
+                    iframe.className = 'embedded-sales-iframe';
+                    iframe.title = 'Registro de Ventas';
+                    embedContainer.appendChild(iframe);
+                }
             } else {
                 storeAuthBtn.textContent = 'Ingresar';
                 storeAuthBtn.style.color = 'var(--primary)';
@@ -916,6 +947,13 @@
                     // it will be corrected on reload or if they interact. But setting to none is safer default.
                     q.style.display = 'none';
                 });
+
+                // Remove embedded sales table
+                const embedContainer = document.getElementById('seller-embedded-sales-container');
+                if (embedContainer) {
+                    embedContainer.innerHTML = '';
+                    embedContainer.style.display = 'none';
+                }
             }
         }
 

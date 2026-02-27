@@ -9360,8 +9360,29 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 			}
 		}
 	} catch { }
-	// Route initial view (skip if we just navigated from Transfers)
-	if (!__handledPendingFocus) {
+
+	// Handle Embedded Store Auth Bypass
+	let __handledEmbedded = false;
+	if (window.location.search.includes('embed=true')) {
+		try {
+			const storeUserStr = localStorage.getItem('storeAuthUser');
+			const storeSellerStr = localStorage.getItem('storeActiveSeller');
+			if (storeUserStr && storeSellerStr) {
+				state.currentUser = JSON.parse(storeUserStr);
+				const activeSeller = JSON.parse(storeSellerStr);
+
+				await loadSellers(); // Ensure sellers are fully loaded before entering
+
+				__handledEmbedded = true;
+				await enterSeller(activeSeller.id);
+			}
+		} catch (err) {
+			console.error('Embedded auth bypass failed', err);
+		}
+	}
+
+	// Route initial view (skip if we just navigated from Transfers or Embedded)
+	if (!__handledPendingFocus && !__handledEmbedded) {
 		if (!state.currentUser) {
 			switchView('#view-login');
 		} else if (state.currentUser.isAdmin) {

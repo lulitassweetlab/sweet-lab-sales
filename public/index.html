@@ -10,6 +10,24 @@
 	<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
 	<link rel="stylesheet" href="/styles.css?v=2026-02-23-1" />
 	<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+	<style>
+		/* Estilos para el modo incrustado (iframe) */
+		body.is-embedded .app-header,
+		body.is-embedded #global-dates-section,
+		body.is-embedded .toolbar-left {
+			display: none !important;
+		}
+
+		body.is-embedded main {
+			padding: 0;
+			max-width: none;
+		}
+
+		body.is-embedded .sales-panel {
+			box-shadow: none;
+			border-radius: 0;
+		}
+	</style>
 </head>
 
 <body>
@@ -455,6 +473,12 @@
 		</div>
 	</div>
 
+	<script>
+		// Activar modo incrustado si viene embed=true
+		if (window.location.search.includes('embed=true')) {
+			document.body.classList.add('is-embedded');
+		}
+	</script>
 	<script src="/app.js?v=2025-11-04-1" type="module"></script>
 </body>
 
