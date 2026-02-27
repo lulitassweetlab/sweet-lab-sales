@@ -1173,6 +1173,21 @@
                 });
             };
 
+            const handleQtyChange = () => {
+                if (qty <= 0) {
+                    qty = 0;
+                    if (!document.body.classList.contains('is-seller-active')) {
+                        qtyContainer.style.display = 'none';
+                        buyBtn.style.display = 'block';
+                    }
+                    delete cart[product.id];
+                } else {
+                    renderQty();
+                    cart[product.id] = { product, qty, total: calculateTotal(qty) };
+                }
+                updateCartUI();
+            };
+
             renderQty(); // Run immediately so HTML exists for CSS !important toggles
 
             if (document.body.classList.contains('is-seller-active')) {
