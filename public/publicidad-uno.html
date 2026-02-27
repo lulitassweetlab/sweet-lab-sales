@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Publicidad 1 - Lulitas Sweet Lab</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css">
+    <style>
+        body {
+            padding: 40px 20px;
+            text-align: center;
+        }
+
+        .promo-container {
+            max-width: 600px;
+            margin: 40px auto;
+            background: var(--surface);
+            padding: 40px;
+            border-radius: var(--radius);
+            box-shadow: 0 10px 30px var(--shadow);
+        }
+
+        .promo-title {
+            font-size: 2rem;
+            color: var(--primary-hover);
+            margin-bottom: 20px;
+        }
+
+        .promo-text {
+            font-size: 1.1rem;
+            color: var(--muted);
+            margin-bottom: 30px;
+        }
+    </style>
+</head>
+
+<body>
+    <header class="app-header">
+        <div class="header-row">
+            <div class="header-left">
+                <img src="/logo.png" alt="Lulitas Logo" class="app-logo" />
+                <h1>Novedades</h1>
+            </div>
+            <div class="header-actions">
+                <button onclick="window.location.href='/store.html'" class="press-btn btn-primary">Volver a la
+                    Tienda</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="promo-container">
+        <h2 class="promo-title">¡Espacio Publicitario 1!</h2>
+        <p class="promo-text">Esta es la página de destino para el primer banner de publicidad. Aquí puedes agregar más
+            información sobre la oferta, descuentos especiales, o detalles del producto promocionado.</p>
+        <button onclick="window.location.href='/store.html'" class="press-btn btn-primary"
+            style="font-size: 1.2rem; padding: 12px 24px;">¡Quiero comprar!</button>
+    </div>
+</body>
+
+</html>

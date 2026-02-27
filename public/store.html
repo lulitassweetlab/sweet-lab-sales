@@ -248,14 +248,53 @@
             color: #854d0e;
             padding: 6px 12px;
             border-radius: 20px;
+            font-size: 0.8rem;
             font-weight: 700;
-            font-size: 0.85rem;
-            box-shadow: 0 2px 8px rgba(250, 204, 21, 0.4);
             z-index: 10;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+        }
+
+        /* Promo Banners */
+        #promo-banners-container {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            width: 100%;
+        }
+
+        .promo-banner-link {
+            display: block;
+            width: 100%;
+            border-radius: var(--radius);
+            overflow: hidden;
+            box-shadow: 0 4px 12px var(--shadow);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .promo-banner-link:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(244, 166, 183, 0.4);
+        }
+
+        .promo-banner-img {
+            width: 100%;
+            display: block;
+            object-fit: cover;
+        }
+
+        @media (min-width: 768px) {
+            .promo-banner-link {
+                width: 50%;
+                margin: 0 auto;
+            }
         }
 
         .product-content {
-            padding: 20px;
+            padding: 16px;
             display: flex;
             flex-direction: column;
             flex: 1;
@@ -759,6 +798,8 @@
             <div class="product-card skeleton-card skeleton"></div>
             <div class="product-card skeleton-card skeleton"></div>
         </div>
+        <!-- Contenedor Banners Publicitarios -->
+        <div id="promo-banners-container"></div>
     </main>
 
     <footer>
@@ -1132,21 +1173,6 @@
                 });
             };
 
-            const handleQtyChange = () => {
-                if (qty <= 0) {
-                    qty = 0;
-                    if (!document.body.classList.contains('is-seller-active')) {
-                        qtyContainer.style.display = 'none';
-                        buyBtn.style.display = 'block';
-                    }
-                    delete cart[product.id];
-                } else {
-                    renderQty();
-                    cart[product.id] = { product, qty, total: calculateTotal(qty) };
-                }
-                updateCartUI();
-            };
-
             renderQty(); // Run immediately so HTML exists for CSS !important toggles
 
             if (document.body.classList.contains('is-seller-active')) {
@@ -1199,9 +1225,36 @@
                     if (settings.store_subtitle) {
                         document.getElementById('store-subtitle-display').textContent = settings.store_subtitle;
                     }
+
+                    const bannersContainer = document.getElementById('promo-banners-container');
+                    bannersContainer.innerHTML = ''; // Limpiar banners actuales
+
+                    if (settings.promo_banner_1) {
+                        const a1 = document.createElement('a');
+                        a1.href = '/publicidad-uno.html';
+                        a1.className = 'promo-banner-link';
+                        const img1 = document.createElement('img');
+                        img1.src = settings.promo_banner_1;
+                        img1.className = 'promo-banner-img';
+                        img1.alt = 'Banner Promocional 1';
+                        a1.appendChild(img1);
+                        bannersContainer.appendChild(a1);
+                    }
+
+                    if (settings.promo_banner_2) {
+                        const a2 = document.createElement('a');
+                        a2.href = '/publicidad-dos.html';
+                        a2.className = 'promo-banner-link';
+                        const img2 = document.createElement('img');
+                        img2.src = settings.promo_banner_2;
+                        img2.className = 'promo-banner-img';
+                        img2.alt = 'Banner Promocional 2';
+                        a2.appendChild(img2);
+                        bannersContainer.appendChild(a2);
+                    }
                 }
             } catch (err) {
-                console.error('Error loading store settings:', err);
+                console.error('Error loading settings', err);
             } finally {
                 if (logoImg) logoImg.style.opacity = '1';
             }

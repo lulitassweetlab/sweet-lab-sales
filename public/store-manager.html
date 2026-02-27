@@ -147,7 +147,51 @@
                             style="width: 100%" />
                     </div>
                 </div>
-                <button id="save-settings-btn" class="press-btn btn-primary" style="align-self: flex-start;">Guardar
+
+                <!-- Banners Publicitarios -->
+                <div style="margin-top: 10px; padding-top: 15px; border-top: 1px solid var(--border);">
+                    <h4 style="margin-top: 0; margin-bottom: 12px;">Banners Publicitarios</h4>
+                    <p style="font-size: 0.85em; color: var(--text); opacity: 0.8; margin-bottom: 15px;">
+                        Imágenes horizontales que aparecerán al final de la tienda y dirigirán a páginas de publicidad
+                        separadas. Si no subes una, simplemente no se mostrará.
+                    </p>
+
+                    <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                        <!-- Banner 1 -->
+                        <div class="product-image-upload"
+                            style="flex: 1; min-width: 200px; border: 1px solid var(--border); padding: 10px; border-radius: var(--radius); position: relative;">
+                            <span style="font-weight: bold; margin-bottom: 8px; display: block;">Banner 1
+                                (Arriba)</span>
+                            <img id="banner1-preview" class="product-thumb"
+                                style="width: 100%; height: 60px; object-fit: cover; background: transparent; border: 1px dashed var(--border);"
+                                src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 30'><rect width='100' height='30' fill='%23eee'/><text x='50' y='15' font-family='sans-serif' font-size='6' fill='%23999' text-anchor='middle' dominant-baseline='middle'>Sin imagen</text></svg>" />
+                            <input type="file" id="banner1-upload" accept="image/*" style="display: none;" />
+                            <div style="display: flex; gap: 10px; margin-top: 8px;">
+                                <label for="banner1-upload" class="upload-lbl">Cambiar Banner 1</label>
+                                <button id="banner1-remove" class="upload-lbl"
+                                    style="background: none; border: none; padding: 0; color: var(--danger); font-family: inherit;">Eliminar</button>
+                            </div>
+                        </div>
+
+                        <!-- Banner 2 -->
+                        <div class="product-image-upload"
+                            style="flex: 1; min-width: 200px; border: 1px solid var(--border); padding: 10px; border-radius: var(--radius); position: relative;">
+                            <span style="font-weight: bold; margin-bottom: 8px; display: block;">Banner 2 (Abajo)</span>
+                            <img id="banner2-preview" class="product-thumb"
+                                style="width: 100%; height: 60px; object-fit: cover; background: transparent; border: 1px dashed var(--border);"
+                                src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 30'><rect width='100' height='30' fill='%23eee'/><text x='50' y='15' font-family='sans-serif' font-size='6' fill='%23999' text-anchor='middle' dominant-baseline='middle'>Sin imagen</text></svg>" />
+                            <input type="file" id="banner2-upload" accept="image/*" style="display: none;" />
+                            <div style="display: flex; gap: 10px; margin-top: 8px;">
+                                <label for="banner2-upload" class="upload-lbl">Cambiar Banner 2</label>
+                                <button id="banner2-remove" class="upload-lbl"
+                                    style="background: none; border: none; padding: 0; color: var(--danger); font-family: inherit;">Eliminar</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <button id="save-settings-btn" class="press-btn btn-primary"
+                    style="align-self: flex-start; margin-top: 15px;">Guardar
                     Configuración</button>
             </div>
         </div>
@@ -771,6 +815,51 @@
                 reader.readAsDataURL(file);
             });
 
+            const banner1Preview = document.getElementById('banner1-preview');
+            const banner1Upload = document.getElementById('banner1-upload');
+            const banner1Remove = document.getElementById('banner1-remove');
+            const defaultBanner1Src = banner1Preview.src;
+            let currentBanner1Base64 = null;
+
+            const banner2Preview = document.getElementById('banner2-preview');
+            const banner2Upload = document.getElementById('banner2-upload');
+            const banner2Remove = document.getElementById('banner2-remove');
+            const defaultBanner2Src = banner2Preview.src;
+            let currentBanner2Base64 = null;
+
+            function handleBannerUpload(file, previewEl, callback) {
+                if (!file) return;
+                if (file.size > 2 * 1024 * 1024) {
+                    alert('El banner es muy grande (Max 2MB). Si la guardas así podría no cargar. Intenta comprimir la imagen.');
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = function (evt) {
+                    const result = evt.target.result;
+                    previewEl.src = result;
+                    callback(result);
+                };
+                reader.readAsDataURL(file);
+            }
+
+            banner1Upload.addEventListener('change', (e) => {
+                handleBannerUpload(e.target.files[0], banner1Preview, (base64) => currentBanner1Base64 = base64);
+            });
+            banner1Remove.addEventListener('click', () => {
+                currentBanner1Base64 = null;
+                banner1Preview.src = defaultBanner1Src;
+                banner1Upload.value = '';
+            });
+
+            banner2Upload.addEventListener('change', (e) => {
+                handleBannerUpload(e.target.files[0], banner2Preview, (base64) => currentBanner2Base64 = base64);
+            });
+            banner2Remove.addEventListener('click', () => {
+                currentBanner2Base64 = null;
+                banner2Preview.src = defaultBanner2Src;
+                banner2Upload.value = '';
+            });
+
             async function loadSettings() {
                 try {
                     const res = await fetch('/api/store-settings');
@@ -802,6 +891,14 @@
                         if (settings.store_subtitle !== undefined) {
                             storeSubtitleInput.value = settings.store_subtitle;
                         }
+                        if (settings.promo_banner_1) {
+                            currentBanner1Base64 = settings.promo_banner_1;
+                            banner1Preview.src = settings.promo_banner_1;
+                        }
+                        if (settings.promo_banner_2) {
+                            currentBanner2Base64 = settings.promo_banner_2;
+                            banner2Preview.src = settings.promo_banner_2;
+                        }
                     }
                 } catch (err) {
                     console.error('Error loading settings', err);
@@ -823,6 +920,12 @@
                     if (currentLogoBase64) {
                         body.logo_base64 = currentLogoBase64;
                     }
+                    if (currentBanner1Base64 !== null) body.promo_banner_1 = currentBanner1Base64;
+                    // Send literal null so the backend DELETEs it if explicitly removed
+                    else if (banner1Preview.src === defaultBanner1Src) body.promo_banner_1 = null;
+
+                    if (currentBanner2Base64 !== null) body.promo_banner_2 = currentBanner2Base64;
+                    else if (banner2Preview.src === defaultBanner2Src) body.promo_banner_2 = null;
                     const res = await fetch('/api/store-settings', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
