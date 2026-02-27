@@ -486,6 +486,7 @@
             flex-direction: column;
             gap: 8px;
             width: 100%;
+            position: relative;
         }
 
         .internal-checkout-input {
@@ -564,6 +565,71 @@
                 opacity: 1;
                 transform: translateY(0) scale(1);
             }
+        }
+
+        .custom-client-dropdown {
+            position: absolute;
+            bottom: calc(100% + 5px);
+            /* Position above the input container */
+            left: 0;
+            width: 100%;
+            max-height: 250px;
+            overflow-y: auto;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.15);
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            z-index: 2000;
+            display: none;
+        }
+
+        .custom-client-dropdown.show {
+            display: block;
+        }
+
+        .custom-client-dropdown li {
+            padding: 12px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border);
+            color: var(--text);
+            font-size: 1rem;
+            transition: background 0.2s;
+        }
+
+        .custom-client-dropdown li:last-child {
+            border-bottom: none;
+        }
+
+        .custom-client-dropdown li:hover,
+        .custom-client-dropdown li:active {
+            background: #ffe6eb;
+        }
+
+        .animated-toast {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.5);
+            background: var(--primary-hover);
+            color: white;
+            padding: 24px 40px;
+            border-radius: 16px;
+            z-index: 3000;
+            font-size: 1.5rem;
+            font-weight: bold;
+            text-align: center;
+            opacity: 0;
+            pointer-events: none;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            transition: opacity 0.3s ease, transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .animated-toast.show {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
         }
 
         /* Mobile View - Reveal All Data & Reset Sizes */
@@ -661,8 +727,7 @@
         </div>
     </div>
 
-    <div id="store-toast"
-        style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--primary); color: white; padding: 24px 40px; border-radius: 16px; z-index: 3000; font-size: 1.5rem; font-weight: bold; text-align: center; display: none; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+    <div id="store-toast" class="animated-toast">
         Se agregó con éxito
     </div>
 
@@ -675,8 +740,8 @@
 
         <div class="internal-checkout-container" id="internal-checkout-container">
             <input type="text" id="store-customer-name" class="internal-checkout-input"
-                placeholder="Nombre de tu cliente" list="store-client-list">
-            <datalist id="store-client-list"></datalist>
+                placeholder="Nombre de tu cliente" autocomplete="off">
+            <ul id="store-client-dropdown" class="custom-client-dropdown"></ul>
             <button class="internal-checkout-btn" id="internal-checkout-btn">Agregar pedido</button>
         </div>
     </div>
@@ -694,6 +759,7 @@
 
         // Auth State
         let storeAuthUser = null;
+        let storeClientList = [];
         try {
             const saved = localStorage.getItem('storeAuthUser');
             if (saved) storeAuthUser = JSON.parse(saved);
@@ -712,7 +778,7 @@
         const customerNameInput = document.getElementById('store-customer-name');
 
         function updateAuthUI() {
-            if (storeAuthUser && storeAuthUser.token && storeActiveSeller) {
+            if (storeAuthUser && storeAuthUser.username && storeActiveSeller) {
                 storeAuthBtn.textContent = storeActiveSeller.name;
                 storeAuthBtn.style.color = 'var(--text)';
                 storeAuthBtn.style.borderColor = 'transparent';
@@ -746,7 +812,7 @@
                 if (storeAuthUser && storeActiveSeller) {
                     cartCheckoutBtn.style.display = 'none';
                     internalCheckoutContainer.style.display = 'flex';
-                    populateClientDatalist();
+                    loadSellerClients();
                 } else {
                     cartCheckoutBtn.style.display = 'block';
                     internalCheckoutContainer.style.display = 'none';
@@ -1044,7 +1110,7 @@
             }
         }
 
-        async function populateClientDatalist() {
+        async function loadSellerClients() {
             if (!storeAuthUser || !storeActiveSeller) return;
             try {
                 const headers = { 'Content-Type': 'application/json' };
@@ -1057,19 +1123,45 @@
                 const clientNames = await clientsRes.json();
 
                 if (Array.isArray(clientNames)) {
-                    const dataList = document.getElementById('store-client-list');
-                    dataList.innerHTML = '';
-                    clientNames.forEach(name => {
-                        if (name) {
-                            const opt = document.createElement('option');
-                            opt.value = name;
-                            dataList.appendChild(opt);
-                        }
-                    });
+                    storeClientList = clientNames.filter(n => typeof n === 'string' && n.trim() !== '');
                 }
             } catch (err) {
                 console.error('Error fetching clients for autocomplete:', err);
             }
+        }
+
+        function setupClientAutocomplete() {
+            const input = document.getElementById('store-customer-name');
+            const dropdown = document.getElementById('store-client-dropdown');
+
+            function renderDropdown(filterValue = '') {
+                const lowerVal = filterValue.toLowerCase();
+                const matches = storeClientList.filter(name => name.toLowerCase().includes(lowerVal));
+
+                dropdown.innerHTML = '';
+
+                if (matches.length === 0 || !storeAuthUser || !storeActiveSeller) {
+                    dropdown.classList.remove('show');
+                    return;
+                }
+
+                matches.slice(0, 30).forEach(name => {
+                    const li = document.createElement('li');
+                    li.textContent = name;
+                    li.addEventListener('mousedown', (e) => {
+                        e.preventDefault();
+                        input.value = name;
+                        dropdown.classList.remove('show');
+                    });
+                    dropdown.appendChild(li);
+                });
+
+                dropdown.classList.add('show');
+            }
+
+            input.addEventListener('focus', () => renderDropdown(input.value));
+            input.addEventListener('input', () => renderDropdown(input.value));
+            input.addEventListener('blur', () => dropdown.classList.remove('show'));
         }
 
         // --- AUTH & CHECKOUT LOGIC ---
@@ -1077,7 +1169,7 @@
         let loginStep = 1;
 
         storeAuthBtn.addEventListener('click', () => {
-            if (storeAuthUser && storeAuthUser.token) {
+            if (storeAuthUser && storeAuthUser.username) {
                 if (confirm('¿Deseas cerrar sesión?')) {
                     storeAuthUser = null;
                     storeActiveSeller = null;
@@ -1359,10 +1451,9 @@
 
                 // Success
                 const toast = document.getElementById('store-toast');
-                toast.textContent = 'Se agregó con exito.';
-                toast.style.backgroundColor = 'var(--primary)'; // Pink for success
-                toast.style.display = 'block';
-                setTimeout(() => toast.style.display = 'none', 2000);
+                toast.textContent = '¡Pedido agregado con éxito! 🎉';
+                toast.classList.add('show');
+                setTimeout(() => toast.classList.remove('show'), 2500);
 
                 // Reset Cart & UI
                 for (const id in cart) delete cart[id];
@@ -1383,6 +1474,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             updateAuthUI();
             updateCartUI();
+            setupClientAutocomplete();
             loadSettings();
             loadStore();
         });
