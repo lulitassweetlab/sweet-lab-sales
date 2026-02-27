@@ -131,30 +131,7 @@ export async function ensureSchema() {
 				END IF;
 			END $$;`;
 
-			// Store Products table for the customer-facing online store
-			await sql`CREATE TABLE IF NOT EXISTS store_products (
-				id SERIAL PRIMARY KEY,
-				name TEXT NOT NULL,
-				description TEXT DEFAULT '',
-				price INTEGER NOT NULL DEFAULT 0,
-				promo_qty INTEGER,
-				promo_price INTEGER,
-				image_base64 TEXT,
-				media JSONB DEFAULT '[]'::jsonb,
-				is_active BOOLEAN NOT NULL DEFAULT true,
-				position INTEGER NOT NULL DEFAULT 0,
-				created_at TIMESTAMPTZ DEFAULT now(),
-				updated_at TIMESTAMPTZ DEFAULT now()
-			)`;
 
-			await sql`DO $$ BEGIN
-				IF NOT EXISTS (
-					SELECT 1 FROM information_schema.columns
-					WHERE table_name = 'store_products' AND column_name = 'media'
-				) THEN
-					ALTER TABLE store_products ADD COLUMN media JSONB DEFAULT '[]'::jsonb;
-				END IF;
-			END $$;`;
 
 			// FAST PATH: Just check if schema_meta exists and has correct version
 			try {
@@ -198,6 +175,31 @@ export async function ensureSchema() {
 		created_at TIMESTAMPTZ DEFAULT now(),
 		updated_at TIMESTAMPTZ DEFAULT now()
 	)`;
+
+			// Store Products table for the customer-facing online store
+			await sql`CREATE TABLE IF NOT EXISTS store_products (
+				id SERIAL PRIMARY KEY,
+				name TEXT NOT NULL,
+				description TEXT DEFAULT '',
+				price INTEGER NOT NULL DEFAULT 0,
+				promo_qty INTEGER,
+				promo_price INTEGER,
+				image_base64 TEXT,
+				media JSONB DEFAULT '[]'::jsonb,
+				is_active BOOLEAN NOT NULL DEFAULT true,
+				position INTEGER NOT NULL DEFAULT 0,
+				created_at TIMESTAMPTZ DEFAULT now(),
+				updated_at TIMESTAMPTZ DEFAULT now()
+			)`;
+
+			await sql`DO $$ BEGIN
+				IF NOT EXISTS (
+					SELECT 1 FROM information_schema.columns
+					WHERE table_name = 'store_products' AND column_name = 'media'
+				) THEN
+					ALTER TABLE store_products ADD COLUMN media JSONB DEFAULT '[]'::jsonb;
+				END IF;
+			END $$;`;
 			await sql`CREATE TABLE IF NOT EXISTS sale_items (
 		id SERIAL PRIMARY KEY,
 		sale_id INTEGER NOT NULL REFERENCES sales(id) ON DELETE CASCADE,
