@@ -296,7 +296,7 @@
         /* Embedded Sales Table */
         #seller-embedded-sales-container {
             width: 100%;
-            margin-top: 40px;
+            margin-top: 50px;
             display: none;
             /* hidden by default */
         }
@@ -305,7 +305,7 @@
             width: 100%;
             height: 1200px;
             border: none;
-            border-radius: var(--radius);
+            border-radius: 0;
             box-shadow: 0 10px 30px var(--shadow);
             background: var(--surface);
         }
@@ -475,7 +475,6 @@
             width: 100%;
         }
 
-        /* Floating Cart */
         .floating-cart {
             position: fixed;
             bottom: 24px;
@@ -485,13 +484,23 @@
             background: var(--surface);
             border: 2px solid var(--primary);
             border-radius: 30px;
-            padding: 12px 24px;
+            padding: 16px 24px;
             box-shadow: 0 10px 25px rgba(244, 166, 183, 0.5);
             display: flex;
             align-items: center;
             gap: 16px;
             z-index: 1000;
             transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            width: max-content;
+            max-width: 95vw;
+        }
+
+        /* When seller is active, change flex layout to column */
+        body.is-seller-active .floating-cart {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 12px;
+            border-radius: 20px;
         }
 
         .floating-cart.visible {
@@ -502,6 +511,14 @@
             display: flex;
             flex-direction: column;
             color: var(--text);
+            align-items: flex-start;
+        }
+
+        body.is-seller-active .cart-info {
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
         }
 
         .cart-items {
@@ -540,18 +557,27 @@
         .internal-checkout-container {
             display: none;
             flex-direction: column;
-            gap: 8px;
+            gap: 12px;
             width: 100%;
             position: relative;
+            order: -1;
+            /* Push to top inside the flex-column container */
         }
 
         .internal-checkout-input {
-            padding: 10px;
+            padding: 12px 16px;
             border: 1px solid var(--border);
             border-radius: 8px;
-            font-size: 1rem;
+            font-size: 0.95rem;
+            /* slightly smaller for mobile */
             outline: none;
             width: 100%;
+        }
+
+        @media (max-width: 600px) {
+            .internal-checkout-input {
+                font-size: 0.85rem;
+            }
         }
 
         .internal-checkout-btn,
@@ -862,18 +888,20 @@
     </div>
 
     <div class="floating-cart" id="floating-cart">
-        <div class="cart-info">
-            <span class="cart-items" id="cart-items-count">0 artículos</span>
-            <span class="cart-total" id="cart-total-price">$ 0</span>
-        </div>
-        <button class="cart-checkout-btn" id="cart-checkout-btn">Pedir por WhatsApp 🛒</button>
-
         <div class="internal-checkout-container" id="internal-checkout-container">
             <input type="text" id="store-customer-name" class="internal-checkout-input"
                 placeholder="Nombre de tu cliente" autocomplete="off">
             <ul id="store-client-dropdown" class="custom-client-dropdown"></ul>
-            <button class="internal-checkout-btn" id="internal-checkout-btn">Agregar pedido</button>
         </div>
+
+        <div class="cart-info">
+            <span class="cart-items" id="cart-items-count">0 artículos</span>
+            <span class="cart-total" id="cart-total-price">$ 0</span>
+        </div>
+
+        <button class="cart-checkout-btn" id="cart-checkout-btn">Pedir por WhatsApp 🛒</button>
+        <button class="internal-checkout-btn" id="internal-checkout-btn" style="display:none; width: 100%;">Agregar
+            pedido</button>
     </div>
 
     <script>
@@ -976,10 +1004,12 @@
                 if (storeAuthUser && storeActiveSeller) {
                     cartCheckoutBtn.style.display = 'none';
                     internalCheckoutContainer.style.display = 'flex';
+                    document.getElementById('internal-checkout-btn').style.display = 'block';
                     loadSellerClients();
                 } else {
                     cartCheckoutBtn.style.display = 'block';
                     internalCheckoutContainer.style.display = 'none';
+                    document.getElementById('internal-checkout-btn').style.display = 'none';
                 }
             } else {
                 floatingCart.classList.remove('visible');
@@ -1217,6 +1247,8 @@
                     if (!document.body.classList.contains('is-seller-active')) {
                         qtyContainer.style.display = 'none';
                         buyBtn.style.display = 'block';
+                    } else {
+                        renderQty(); // Sellers always see the counter, so it needs to render '0'
                     }
                     delete cart[product.id];
                 } else {
@@ -1657,6 +1689,13 @@
                 toast.textContent = '¡Pedido agregado con éxito! 🎉';
                 toast.classList.add('show');
                 setTimeout(() => toast.classList.remove('show'), 2500);
+
+                // Reload the embedded iframe so the table updates
+                const iframe = document.querySelector('.embedded-sales-iframe');
+                if (iframe) {
+                    // Force a reload without interrupting user view
+                    iframe.contentWindow.location.reload();
+                }
 
                 // Reset Cart & UI
                 for (const id in cart) delete cart[id];
