@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 22; // Bump when schema changes require a migration (add store_products is_promo)
+const SCHEMA_VERSION = 23; // Bump when schema changes require a migration (add clients table)
 
 export async function ensureSchema() {
 	// If already ensured in this instance, skip immediately
@@ -130,6 +130,19 @@ export async function ensureSchema() {
 					ALTER TABLE game_plays ADD COLUMN birth_date DATE;
 				END IF;
 			END $$;`;
+
+			// Clients table for the seller client database
+			await sql`CREATE TABLE IF NOT EXISTS clients (
+				id SERIAL PRIMARY KEY,
+				name VARCHAR(255) NOT NULL,
+				whatsapp VARCHAR(20),
+				birth_date DATE,
+				seller_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+				created_at TIMESTAMPTZ DEFAULT now(),
+				UNIQUE (name, seller_id)
+			)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_clients_seller ON clients(seller_id)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_clients_name ON clients(name)`;
 
 
 

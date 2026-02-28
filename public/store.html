@@ -856,7 +856,9 @@
             <p id="store-subtitle-display" class="store-subtitle">Descubre nuestra selección de delicias hechas con amor
                 💕</p>
         </div>
-        <div class="header-right">
+        <div class="header-right" style="display: flex; gap: 8px; align-items: center;">
+            <button id="store-clients-btn" class="store-login-btn"
+                style="display: none; background: var(--primary); color: white; border: none;">Clientes</button>
             <button id="store-auth-btn" class="store-login-btn">Ingresar</button>
         </div>
     </header>
@@ -964,12 +966,15 @@
         const customerNameInput = document.getElementById('store-customer-name');
 
         function updateAuthUI() {
+            const storeClientsBtn = document.getElementById('store-clients-btn');
+
             if (storeAuthUser && storeAuthUser.username && storeActiveSeller) {
                 storeAuthBtn.textContent = storeActiveSeller.name;
                 storeAuthBtn.style.color = 'var(--text)';
                 storeAuthBtn.style.borderColor = 'transparent';
                 storeAuthBtn.style.background = 'transparent';
                 storeAuthBtn.style.boxShadow = 'none';
+                storeClientsBtn.style.display = 'block'; // Show clients button
                 document.body.classList.add('is-seller-active');
 
                 // Force sync for already rendered cards
@@ -993,6 +998,7 @@
                 storeAuthBtn.style.borderColor = 'var(--primary)';
                 storeAuthBtn.style.background = 'transparent';
                 storeAuthBtn.style.boxShadow = 'none';
+                storeClientsBtn.style.display = 'none'; // Hide clients button
                 document.body.classList.remove('is-seller-active');
 
                 // Force sync for already rendered cards
@@ -1737,6 +1743,13 @@
                 const btn = document.getElementById('internal-checkout-btn');
                 btn.textContent = 'Agregar pedido';
                 btn.disabled = false;
+            }
+        });
+
+        // Navigate to clients page
+        document.getElementById('store-clients-btn').addEventListener('click', () => {
+            if (storeAuthUser && storeActiveSeller) {
+                window.location.href = '/clients.html';
             }
         });
 

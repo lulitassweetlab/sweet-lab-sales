@@ -8126,9 +8126,11 @@ async function openClientsView() {
 
 async function loadClientsForSeller() {
 	const sellerId = state.currentSeller.id;
-	// Include archived days to count all client records
+
+	// 1. Fetch sales history to count records
 	const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(sellerId)}&include_archived=1`);
-	const nameToCount = new Map();
+	const nameToData = new Map();
+
 	for (const d of (days || [])) {
 		const params = new URLSearchParams({ seller_id: String(sellerId), sale_day_id: String(d.id) });
 		let sales = [];
@@ -8137,11 +8139,34 @@ async function loadClientsForSeller() {
 			const raw = (s?.client_name || '').trim();
 			if (!raw) continue;
 			const key = normalizeClientName(raw);
-			if (!nameToCount.has(key)) nameToCount.set(key, { name: raw, count: 0 });
-			nameToCount.get(key).count++;
+			if (!nameToData.has(key)) nameToData.set(key, { name: raw, count: 0, whatsapp: '', birth_date: '' });
+			nameToData.get(key).count++;
 		}
 	}
-	const rows = Array.from(nameToCount.values()).sort((a, b) => a.name.localeCompare(b.name, 'es'));
+
+	// 2. Fetch explicit client records from DB
+	try {
+		const clientsDB = await api('GET', `/api/clients?seller_id=${encodeURIComponent(sellerId)}`);
+		for (const c of (clientsDB || [])) {
+			const raw = (c?.name || '').trim();
+			if (!raw) continue;
+			const key = normalizeClientName(raw);
+
+			if (nameToData.has(key)) {
+				// Update existing dynamically counted client with DB info
+				const existing = nameToData.get(key);
+				existing.whatsapp = c.whatsapp || '';
+				existing.birth_date = c.birth_date || '';
+			} else {
+				// Add explicit database client even if they have 0 sales currently
+				nameToData.set(key, { name: raw, count: 0, whatsapp: c.whatsapp || '', birth_date: c.birth_date || '' });
+			}
+		}
+	} catch (err) {
+		console.error('Error fetching clients database:', err);
+	}
+
+	const rows = Array.from(nameToData.values()).sort((a, b) => a.name.localeCompare(b.name, 'es'));
 	renderClientsTable(rows);
 }
 
@@ -8151,20 +8176,167 @@ function renderClientsTable(rows) {
 	tbody.innerHTML = '';
 	if (!rows || rows.length === 0) {
 		const tr = document.createElement('tr');
-		const td = document.createElement('td'); td.colSpan = 2; td.textContent = 'Sin clientes'; td.style.opacity = '0.8';
+		const td = document.createElement('td'); td.colSpan = 5; td.textContent = 'Sin clientes'; td.style.opacity = '0.8'; td.style.textAlign = 'center';
 		tr.appendChild(td); tbody.appendChild(tr); return;
 	}
+
 	for (const r of rows) {
 		const tr = document.createElement('tr'); tr.className = 'clients-row';
+
 		const tdN = document.createElement('td');
 		tdN.textContent = r.name;
-		// No marker in clients list per request
-		const tdC = document.createElement('td'); tdC.textContent = String(r.count); tdC.style.textAlign = 'center';
-		tr.append(tdN, tdC);
+		tdN.style.cursor = 'pointer';
+		tdN.style.color = 'var(--primary)';
+		tdN.style.fontWeight = '500';
+		tdN.title = 'Clic para ver historial';
+		tdN.addEventListener('click', async () => { await openClientDetailView(r.name); });
+
+		const tdW = document.createElement('td');
+		tdW.textContent = r.whatsapp || '-';
+
+		const tdB = document.createElement('td');
+		tdB.textContent = r.birth_date ? new Date(r.birth_date).toLocaleDateString() : '-';
+
+		const tdC = document.createElement('td');
+		tdC.textContent = String(r.count);
+		tdC.style.textAlign = 'center';
+
+		const tdA = document.createElement('td');
+		tdA.style.textAlign = 'center';
+
+		const editBtn = document.createElement('button');
+		editBtn.className = 'icon-btn';
+		editBtn.textContent = '✏️';
+		editBtn.title = 'Editar datos';
+		editBtn.style.background = 'transparent';
+		editBtn.style.border = 'none';
+		editBtn.style.fontSize = '1.2rem';
+		editBtn.addEventListener('click', (e) => {
+			e.stopPropagation();
+			openClientEditPopover(r, e.clientX, e.clientY);
+		});
+		tdA.appendChild(editBtn);
+
+		tr.append(tdN, tdW, tdB, tdC, tdA);
 		tr.addEventListener('mousedown', () => { tr.classList.add('row-highlight'); setTimeout(() => tr.classList.remove('row-highlight'), 3200); });
-		tr.addEventListener('click', async () => { await openClientDetailView(r.name); });
 		tbody.appendChild(tr);
 	}
+}
+
+function openClientEditPopover(clientData, clientX, clientY) {
+	cleanupPopovers();
+	const pop = document.createElement('div');
+	pop.className = 'popover active';
+	pop.style.padding = '20px';
+	pop.style.minWidth = '260px';
+
+	const title = document.createElement('h3');
+	title.textContent = 'Editar Cliente';
+	title.style.margin = '0 0 16px 0';
+	title.style.fontSize = '1.1rem';
+	title.style.color = 'var(--primary)';
+
+	const nameLabel = document.createElement('label');
+	nameLabel.textContent = 'Nombre:';
+	nameLabel.style.display = 'block';
+	nameLabel.style.fontSize = '0.9rem';
+	nameLabel.style.marginBottom = '4px';
+
+	const nameInput = document.createElement('input');
+	nameInput.type = 'text';
+	nameInput.value = clientData.name;
+	nameInput.readOnly = true;
+	nameInput.className = 'client-input';
+	nameInput.style.width = '100%';
+	nameInput.style.marginBottom = '12px';
+	nameInput.style.background = 'var(--muted-bg)';
+
+	const waLabel = document.createElement('label');
+	waLabel.textContent = 'WhatsApp:';
+	waLabel.style.display = 'block';
+	waLabel.style.fontSize = '0.9rem';
+	waLabel.style.marginBottom = '4px';
+
+	const waInput = document.createElement('input');
+	waInput.type = 'tel';
+	waInput.value = clientData.whatsapp;
+	waInput.className = 'client-input';
+	waInput.style.width = '100%';
+	waInput.style.marginBottom = '12px';
+	waInput.placeholder = 'Ej: 3001234567';
+
+	const birthLabel = document.createElement('label');
+	birthLabel.textContent = 'Fecha de Nacimiento:';
+	birthLabel.style.display = 'block';
+	birthLabel.style.fontSize = '0.9rem';
+	birthLabel.style.marginBottom = '4px';
+
+	const birthInput = document.createElement('input');
+	birthInput.type = 'date';
+	birthInput.value = clientData.birth_date ? new Date(clientData.birth_date).toISOString().split('T')[0] : '';
+	birthInput.className = 'client-input';
+	birthInput.style.width = '100%';
+	birthInput.style.marginBottom = '20px';
+
+	const saveBtn = document.createElement('button');
+	saveBtn.className = 'press-btn btn-primary';
+	saveBtn.textContent = 'Guardar';
+	saveBtn.style.width = '100%';
+
+	pop.append(title, nameLabel, nameInput, waLabel, waInput, birthLabel, birthInput, saveBtn);
+
+	let left = clientX;
+	let top = clientY;
+	pop.style.left = left + 'px';
+	pop.style.top = top + 'px';
+	pop.style.opacity = '0';
+	document.body.appendChild(pop);
+
+	// Adjust bounds
+	const rect = pop.getBoundingClientRect();
+	if (rect.right > window.innerWidth) left -= (rect.right - window.innerWidth + 10);
+	if (rect.bottom > window.innerHeight) top -= (rect.bottom - window.innerHeight + 10);
+	pop.style.left = Math.max(10, left) + 'px';
+	pop.style.top = Math.max(10, top) + 'px';
+
+	requestAnimationFrame(() => pop.style.opacity = '1');
+
+	saveBtn.addEventListener('click', async () => {
+		try {
+			saveBtn.disabled = true;
+			saveBtn.textContent = 'Guardando...';
+
+			const payload = {
+				seller_id: state.currentSeller.id,
+				name: clientData.name,
+				whatsapp: waInput.value.trim(),
+				birth_date: birthInput.value || null
+			};
+
+			await api('POST', '/api/clients', payload);
+			cleanupPopovers();
+			await loadClientsForSeller(); // Refresh table
+		} catch (err) {
+			alert('Error al guardar: ' + err.message);
+			saveBtn.disabled = false;
+			saveBtn.textContent = 'Guardar';
+		}
+	});
+
+	activePopovers.push(pop);
+
+	function cleanup() {
+		if (pop && pop.parentNode) pop.parentNode.removeChild(pop);
+		activePopovers = activePopovers.filter(p => p !== pop);
+		document.removeEventListener('mousedown', outside, true);
+		document.removeEventListener('touchstart', outside, true);
+	}
+
+	function outside(ev) { if (!pop.contains(ev.target)) cleanup(); }
+	setTimeout(() => {
+		document.addEventListener('mousedown', outside, true);
+		document.addEventListener('touchstart', outside, true);
+	}, 0);
 }
 
 function focusClientRow(name) {
