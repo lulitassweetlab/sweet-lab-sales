@@ -151,11 +151,10 @@
 						<!-- Active Table Search -->
 						<div id="active-table-search-container"
 							style="position: relative; flex: 1; max-width: 300px; min-width: 200px;">
-							<input type="text" id="active-table-client-search"
-								placeholder="🔍 Buscar cliente en tabla..."
-								style="width: 100%; padding: 8px 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface); color: var(--text); outline: none; font-size: 0.95rem;">
+							<input type="text" id="active-table-client-search" placeholder="🔍 Buscar"
+								style="width: 100%; padding: 8px 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface); color: var(--text); outline: none; font-size: 0.95rem; text-align: center;">
 							<ul id="active-table-client-suggestions" class="client-suggest-popover"
-								style="display: none; position: absolute; top: 100%; left: 0; width: 100%; margin-top: 4px; border-radius: 12px; overflow: hidden; max-height: 250px; overflow-y: auto;">
+								style="display: none; position: absolute; top: calc(100% + 4px); left: 0; width: 100%; border-radius: 12px; overflow: hidden; max-height: 250px; overflow-y: auto; z-index: 9999; box-shadow: 0 4px 15px rgba(0,0,0,0.15); background: var(--surface);">
 							</ul>
 						</div>
 

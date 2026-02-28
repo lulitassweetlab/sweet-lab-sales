@@ -501,16 +501,24 @@
             align-items: stretch;
             gap: 6px;
             border-radius: 12px;
-            width: 95vw;
-            max-width: 400px;
+            width: 90vw;
+            max-width: 360px;
             padding: 8px 12px;
+        }
+
+        body.is-seller-active .floating-cart.visible {
+            transform: translateX(-50%) translateY(0) scale(1) !important;
         }
 
         @media (min-width: 601px) {
             body.is-seller-active .floating-cart {
                 width: 600px;
-                max-width: 95vw;
+                max-width: 90vw;
                 padding: 20px 32px;
+            }
+
+            body.is-seller-active .floating-cart.visible {
+                transform: translateX(-50%) translateY(0) scale(var(--cart-scale, 1.2)) !important;
             }
         }
 
