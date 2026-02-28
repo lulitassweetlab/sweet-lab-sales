@@ -4918,6 +4918,19 @@ function bindEvents() {
 		}
 	});
 
+	// New Client button
+	const newClientBtn = document.getElementById('new-client-btn');
+	newClientBtn?.addEventListener('click', (ev) => {
+		const rect = ev.currentTarget.getBoundingClientRect();
+		openNewClientPopover(rect.left + rect.width / 2, rect.bottom + 8);
+	});
+
+	// Merge Suggestions button
+	const mergeSuggestionsBtn = document.getElementById('merge-suggestions-btn');
+	mergeSuggestionsBtn?.addEventListener('click', () => {
+		openMergeSuggestionsModal();
+	});
+
 	// Nuevo pedido button from Client Detail view
 	const clientDetailAddOrderBtn = document.getElementById('client-detail-add-order');
 	clientDetailAddOrderBtn?.addEventListener('click', async (ev) => {
@@ -8228,6 +8241,176 @@ function renderClientsTable(rows) {
 	}
 }
 
+// Simple Levenshtein distance function for string similarity
+function levDistance(a, b) {
+	const matrix = [];
+	for (let i = 0; i <= b.length; i++) {
+		matrix[i] = [i];
+	}
+	for (let j = 0; j <= a.length; j++) {
+		matrix[0][j] = j;
+	}
+	for (let i = 1; i <= b.length; i++) {
+		for (let j = 1; j <= a.length; j++) {
+			if (b.charAt(i - 1) === a.charAt(j - 1)) {
+				matrix[i][j] = matrix[i - 1][j - 1];
+			} else {
+				matrix[i][j] = Math.min(
+					matrix[i - 1][j - 1] + 1, // substitution
+					Math.min(matrix[i][j - 1] + 1, // insertion
+						matrix[i - 1][j] + 1) // deletion
+				);
+			}
+		}
+	}
+	return matrix[b.length][a.length];
+}
+
+async function openMergeSuggestionsModal() {
+	const modal = document.getElementById('merge-suggestions-modal');
+	const container = document.getElementById('merge-groups-container');
+	const emptyMsg = document.getElementById('merge-groups-empty');
+	const closeBtn = document.getElementById('close-merge-modal');
+
+	if (!modal || !container || !emptyMsg) return;
+
+	modal.classList.add('visible');
+	container.innerHTML = '';
+	emptyMsg.style.display = 'none';
+
+	// Grab all current clients on the table (since loadClientsForSeller populated nameToData theoretically, but we can reconstruct from the rows)
+	const tbody = document.getElementById('clients-tbody');
+	if (!tbody) return;
+
+	const allNames = Array.from(tbody.querySelectorAll('.clients-row td:first-child'))
+		.map(td => td.textContent.trim())
+		.filter(Boolean);
+
+	// Group similar names
+	const groups = [];
+	const visitedNames = new Set();
+	const THRESHOLD = 3; // Max 3 edits to be considered similar (e.g., "Andres" vs "andras")
+
+	for (let i = 0; i < allNames.length; i++) {
+		const nameA = allNames[i];
+		if (visitedNames.has(nameA)) continue;
+
+		const currentGroup = [nameA];
+		visitedNames.add(nameA);
+
+		const normalizedA = nameA.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+		for (let j = i + 1; j < allNames.length; j++) {
+			const nameB = allNames[j];
+			if (visitedNames.has(nameB)) continue;
+
+			const normalizedB = nameB.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+			// Detect pure substrings or short lev distances
+			if (normalizedB.includes(normalizedA) || normalizedA.includes(normalizedB) || levDistance(normalizedA, normalizedB) <= THRESHOLD) {
+				currentGroup.push(nameB);
+				visitedNames.add(nameB);
+			}
+		}
+
+		if (currentGroup.length > 1) {
+			groups.push(currentGroup);
+		}
+	}
+
+	if (groups.length === 0) {
+		emptyMsg.style.display = 'block';
+	} else {
+		// Render groups
+		groups.forEach((group, index) => {
+			const groupCard = document.createElement('div');
+			groupCard.style.border = '1px solid var(--border)';
+			groupCard.style.borderRadius = '8px';
+			groupCard.style.padding = '16px';
+			groupCard.style.background = 'var(--background)';
+
+			const groupTitle = document.createElement('h4');
+			groupTitle.textContent = `Grupo ${index + 1} (${group.length} coincidencias)`;
+			groupTitle.style.margin = '0 0 12px 0';
+			groupTitle.style.color = 'var(--primary)';
+			groupCard.appendChild(groupTitle);
+
+			const radioGroupName = `merge_group_${index}`;
+
+			group.forEach((name, i) => {
+				const row = document.createElement('div');
+				row.style.display = 'flex';
+				row.style.alignItems = 'center';
+				row.style.gap = '8px';
+				row.style.marginBottom = '8px';
+
+				const radio = document.createElement('input');
+				radio.type = 'radio';
+				radio.name = radioGroupName;
+				radio.value = name;
+				radio.id = `${radioGroupName}_${i}`;
+				if (i === 0) radio.checked = true; // Default first option
+
+				const label = document.createElement('label');
+				label.setAttribute('for', radio.id);
+				label.textContent = name;
+				label.style.cursor = 'pointer';
+				label.style.flex = '1';
+
+				row.appendChild(radio);
+				row.appendChild(label);
+				groupCard.appendChild(row);
+			});
+
+			const mergeBtn = document.createElement('button');
+			mergeBtn.className = 'press-btn btn-primary';
+			mergeBtn.textContent = 'Fusionar bajo el nombre seleccionado';
+			mergeBtn.style.marginTop = '12px';
+			mergeBtn.style.width = '100%';
+
+			mergeBtn.addEventListener('click', async () => {
+				mergeBtn.disabled = true;
+				mergeBtn.textContent = 'Fusionando...';
+
+				const selectedRadio = groupCard.querySelector(`input[name="${radioGroupName}"]:checked`);
+				const targetName = selectedRadio.value;
+				const sourceNames = group.filter(n => n !== targetName);
+
+				try {
+					const sellerId = state.currentSeller.id;
+					const payload = {
+						seller_id: sellerId,
+						name: targetName,
+						source_names: group // We send all, backend ignores target if inside source
+					};
+
+					await api('POST', `/api/clients?action=merge`, payload);
+
+					groupCard.innerHTML = '<div style="color: var(--success); text-align: center; padding: 10px;">¡Fusión exitosa! ✓</div>';
+					setTimeout(() => { groupCard.style.display = 'none'; }, 2000);
+
+					// Pre-emptively reload the table behind the scenes
+					await loadClientsForSeller();
+
+				} catch (err) {
+					alert('Error al fusionar: ' + err.message);
+					mergeBtn.disabled = false;
+					mergeBtn.textContent = 'Fusionar bajo el nombre seleccionado';
+				}
+			});
+
+			groupCard.appendChild(mergeBtn);
+			container.appendChild(groupCard);
+		});
+	}
+
+	const handleClose = () => {
+		modal.classList.remove('visible');
+		closeBtn?.removeEventListener('click', handleClose);
+	};
+	closeBtn?.addEventListener('click', handleClose);
+}
+
 function openClientEditPopover(clientData, clientX, clientY) {
 	// Native cleanup to fix undefined array errors
 	document.querySelectorAll('.edit-client-popover').forEach(p => p.remove());
@@ -8236,6 +8419,12 @@ function openClientEditPopover(clientData, clientX, clientY) {
 	pop.className = 'popover active edit-client-popover';
 	pop.style.padding = '20px';
 	pop.style.minWidth = '260px';
+	pop.style.position = 'fixed';
+	pop.style.zIndex = '9999';
+	pop.style.background = 'var(--surface, #fff)';
+	pop.style.boxShadow = '0 8px 32px rgba(0,0,0,0.2)';
+	pop.style.borderRadius = '12px';
+	pop.style.border = '1px solid var(--border, #ddd)';
 
 	const title = document.createElement('h3');
 	title.textContent = 'Editar Cliente';
@@ -8316,6 +8505,128 @@ function openClientEditPopover(clientData, clientX, clientY) {
 			const payload = {
 				seller_id: state.currentSeller.id,
 				name: clientData.name,
+				whatsapp: waInput.value.trim(),
+				birth_date: birthInput.value || null
+			};
+
+			await api('POST', '/api/clients', payload);
+			cleanup();
+			await loadClientsForSeller(); // Refresh table
+		} catch (err) {
+			alert('Error al guardar: ' + err.message);
+			saveBtn.disabled = false;
+			saveBtn.textContent = 'Guardar';
+		}
+	});
+
+	function cleanup() {
+		if (pop && pop.parentNode) pop.parentNode.removeChild(pop);
+		document.removeEventListener('mousedown', outside, true);
+		document.removeEventListener('touchstart', outside, true);
+	}
+
+	function outside(ev) { if (!pop.contains(ev.target)) cleanup(); }
+	setTimeout(() => {
+		document.addEventListener('mousedown', outside, true);
+		document.addEventListener('touchstart', outside, true);
+	}, 0);
+}
+
+function openNewClientPopover(clientX, clientY) {
+	document.querySelectorAll('.edit-client-popover').forEach(p => p.remove());
+
+	const pop = document.createElement('div');
+	pop.className = 'popover active edit-client-popover';
+	pop.style.padding = '20px';
+	pop.style.minWidth = '260px';
+	pop.style.position = 'fixed';
+	pop.style.zIndex = '9999';
+	pop.style.background = 'var(--surface, #fff)';
+	pop.style.boxShadow = '0 8px 32px rgba(0,0,0,0.2)';
+	pop.style.borderRadius = '12px';
+	pop.style.border = '1px solid var(--border, #ddd)';
+
+	const title = document.createElement('h3');
+	title.textContent = 'Nuevo Cliente';
+	title.style.margin = '0 0 16px 0';
+	title.style.fontSize = '1.1rem';
+	title.style.color = 'var(--primary)';
+
+	const nameLabel = document.createElement('label');
+	nameLabel.textContent = 'Nombre del Cliente:';
+	nameLabel.style.display = 'block';
+	nameLabel.style.fontSize = '0.9rem';
+	nameLabel.style.marginBottom = '4px';
+
+	const nameInput = document.createElement('input');
+	nameInput.type = 'text';
+	nameInput.className = 'client-input';
+	nameInput.style.width = '100%';
+	nameInput.style.marginBottom = '12px';
+	nameInput.placeholder = 'Ej: Maria Perez';
+
+	const waLabel = document.createElement('label');
+	waLabel.textContent = 'WhatsApp:';
+	waLabel.style.display = 'block';
+	waLabel.style.fontSize = '0.9rem';
+	waLabel.style.marginBottom = '4px';
+
+	const waInput = document.createElement('input');
+	waInput.type = 'tel';
+	waInput.className = 'client-input';
+	waInput.style.width = '100%';
+	waInput.style.marginBottom = '12px';
+	waInput.placeholder = 'Ej: 3001234567';
+
+	const birthLabel = document.createElement('label');
+	birthLabel.textContent = 'Fecha de Nacimiento:';
+	birthLabel.style.display = 'block';
+	birthLabel.style.fontSize = '0.9rem';
+	birthLabel.style.marginBottom = '4px';
+
+	const birthInput = document.createElement('input');
+	birthInput.type = 'date';
+	birthInput.className = 'client-input';
+	birthInput.style.width = '100%';
+	birthInput.style.marginBottom = '20px';
+
+	const saveBtn = document.createElement('button');
+	saveBtn.className = 'press-btn btn-primary';
+	saveBtn.textContent = 'Guardar';
+	saveBtn.style.width = '100%';
+
+	pop.append(title, nameLabel, nameInput, waLabel, waInput, birthLabel, birthInput, saveBtn);
+
+	let left = clientX;
+	let top = clientY;
+	pop.style.left = left + 'px';
+	pop.style.top = top + 'px';
+	pop.style.opacity = '0';
+	document.body.appendChild(pop);
+
+	// Adjust bounds
+	const rect = pop.getBoundingClientRect();
+	if (rect.right > window.innerWidth) left -= (rect.right - window.innerWidth + 10);
+	if (rect.bottom > window.innerHeight) top -= (rect.bottom - window.innerHeight + 10);
+	pop.style.left = Math.max(10, left) + 'px';
+	pop.style.top = Math.max(10, top) + 'px';
+
+	requestAnimationFrame(() => pop.style.opacity = '1');
+
+	saveBtn.addEventListener('click', async () => {
+		const customerName = nameInput.value.trim();
+		if (!customerName) {
+			alert('El nombre es obligatorio.');
+			return;
+		}
+
+		try {
+			saveBtn.disabled = true;
+			saveBtn.textContent = 'Guardando...';
+
+			const payload = {
+				seller_id: state.currentSeller.id,
+				name: customerName,
 				whatsapp: waInput.value.trim(),
 				birth_date: birthInput.value || null
 			};

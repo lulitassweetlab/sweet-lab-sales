@@ -57,6 +57,52 @@ export default async (req) => {
                 return new Response(JSON.stringify({ error: 'El nombre del cliente es obligatorio' }), { status: 400 });
             }
 
+            // ========================
+            // Handle Merge Action
+            // ========================
+            if (url.searchParams.get('action') === 'merge') {
+                const sourceNames = body.source_names || [];
+                if (!Array.isArray(sourceNames) || sourceNames.length === 0) {
+                    return new Response(JSON.stringify({ error: 'Se requiere una lista de nombres para fusionar' }), { status: 400 });
+                }
+
+                // Ensure the target name exists in the database
+                const [targetClient] = await sql`
+                    INSERT INTO clients (seller_id, name, whatsapp, birth_date)
+                    VALUES (${sellerId}, ${name}, ${whatsapp}, ${birthDate})
+                    ON CONFLICT (name, seller_id) DO UPDATE SET
+                        whatsapp = COALESCE(clients.whatsapp, EXCLUDED.whatsapp),
+                        birth_date = COALESCE(clients.birth_date, EXCLUDED.birth_date)
+                    RETURNING *
+                `;
+
+                // Update all sales history for this seller that match the source names
+                // Using `= ANY(...)` to match the array of old names
+                await sql`
+                    UPDATE sales 
+                    SET client_name = ${name}
+                    WHERE seller_id = ${sellerId} AND LOWER(client_name) = ANY(${sourceNames.map(n => n.toLowerCase())})
+                `;
+
+                // Delete the old clients from the clients table 
+                // We do not delete the target name even if it was in the sourceNames list just in case
+                const lowerNamesToDelete = sourceNames.map(n => n.toLowerCase()).filter(n => n !== name.toLowerCase());
+                if (lowerNamesToDelete.length > 0) {
+                    await sql`
+                        DELETE FROM clients
+                        WHERE seller_id = ${sellerId} AND LOWER(name) = ANY(${lowerNamesToDelete})
+                    `;
+                }
+
+                return new Response(JSON.stringify({ success: true, target_client: targetClient }), {
+                    status: 200,
+                    headers: { 'Content-Type': 'application/json' }
+                });
+            }
+
+            // ========================
+            // Standard Create / Update
+            // ========================
             // Check if client exists to either insert or update
             const [existing] = await sql`
 				SELECT id FROM clients 
