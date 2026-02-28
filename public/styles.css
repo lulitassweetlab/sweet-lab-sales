@@ -7909,3 +7909,13 @@ td.col-client.action-bar-fading .client-input {
 	z-index: 40 !important;
 	background: var(--card) !important;
 }
+/* Active Table Client Search Highlight */
+@keyframes rowHighlightPulse {
+    0% { background-color: rgba(233, 30, 99, 0.4); }
+    50% { background-color: rgba(233, 30, 99, 0.2); }
+    100% { background-color: transparent; }
+}
+
+.row-highlight td {
+    animation: rowHighlightPulse 2.5s ease-out forwards !important;
+}

@@ -9311,6 +9311,7 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 (async function init() {
 	bindEvents();
 	bindLogin();
+	bindActiveTableSearch();
 	updateToolbarOffset();
 	try { const saved = localStorage.getItem('authUser'); if (saved) state.currentUser = JSON.parse(saved); } catch { }
 	// Backfill role fields if missing from older sessions
@@ -9863,6 +9864,92 @@ const NotificationCenter = {
 		}
 	}
 };
+
+// ==========================================
+// Active Day Table Client Search
+// ==========================================
+function bindActiveTableSearch() {
+	const searchInput = document.getElementById('active-table-client-search');
+	const pop = document.getElementById('active-table-client-suggestions');
+	if (!searchInput || !pop) return;
+
+	let blurTimeout;
+
+	function renderSuggestions(query) {
+		pop.innerHTML = '';
+		if (!query) {
+			pop.style.display = 'none';
+			return;
+		}
+
+		const lowerQ = query.toLowerCase();
+
+		// Get unique clients from CURRENT table sales only
+		const uniqueClients = [...new Set((state.sales || []).map(s => (s.client_name || '').trim()).filter(Boolean))];
+
+		// Filter by query
+		const matches = uniqueClients.filter(c => c.toLowerCase().includes(lowerQ));
+
+		if (matches.length === 0) {
+			pop.style.display = 'none';
+			return;
+		}
+
+		for (const m of matches) {
+			const li = document.createElement('li');
+			li.style.padding = '10px 16px';
+			li.style.cursor = 'pointer';
+			li.style.borderBottom = '1px solid var(--border)';
+			li.style.background = 'var(--surface)';
+			li.style.color = 'var(--text)';
+			li.textContent = m;
+
+			li.addEventListener('mouseenter', () => li.style.background = 'rgba(0,0,0,0.05)');
+			li.addEventListener('mouseleave', () => li.style.background = 'var(--surface)');
+
+			li.addEventListener('mousedown', (e) => {
+				e.preventDefault(); // Prevent input blur
+				searchInput.value = '';
+				pop.style.display = 'none';
+
+				// Find first matching sale in the table
+				const sale = state.sales.find(s => (s.client_name || '').trim().toLowerCase() === m.toLowerCase());
+				if (sale) {
+					const tr = document.querySelector(`#sales-tbody tr[data-id="${sale.id}"]`);
+					if (tr) {
+						tr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+						// Remove any existing highlight first
+						tr.classList.remove('row-highlight');
+						// Force reflow
+						void tr.offsetWidth;
+						// Add animation class
+						tr.classList.add('row-highlight');
+
+						// Clean up animation class after it finishes (2.5s defined in css)
+						setTimeout(() => tr.classList.remove('row-highlight'), 3000);
+					}
+				}
+			});
+			pop.appendChild(li);
+		}
+		pop.style.display = 'block';
+	}
+
+	searchInput.addEventListener('input', () => {
+		renderSuggestions(searchInput.value.trim());
+	});
+
+	searchInput.addEventListener('focus', () => {
+		clearTimeout(blurTimeout);
+		if (searchInput.value.trim()) renderSuggestions(searchInput.value.trim());
+	});
+
+	searchInput.addEventListener('blur', () => {
+		blurTimeout = setTimeout(() => {
+			pop.style.display = 'none';
+		}, 150);
+	});
+}
 
 // Initialize notification center when DOM is ready
 if (document.readyState === 'loading') {
