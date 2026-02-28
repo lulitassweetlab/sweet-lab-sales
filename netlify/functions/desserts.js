@@ -37,7 +37,7 @@ export async function handler(event) {
 			await ensureSchema();
 		}
 		if (event.httpMethod === 'OPTIONS') return json({ ok: true });
-		
+
 		switch (event.httpMethod) {
 			case 'GET': {
 				// Use in-memory cache if available
@@ -45,8 +45,8 @@ export async function handler(event) {
 				if (dessertsCache && (now - cacheTime) < CACHE_TTL) {
 					return json(dessertsCache);
 				}
-				
-				const desserts = await getDesserts();
+
+				const desserts = await sql`SELECT id, name, short_code, sale_price, cost_price, promo_qty, promo_price, store_name, store_product_id, is_active, position, created_at FROM desserts ORDER BY position ASC, name ASC`;
 				dessertsCache = desserts;
 				cacheTime = now;
 				return json(desserts);
@@ -61,17 +61,34 @@ export async function handler(event) {
 				const costPrice = Math.round(hasCostPrice ? (Number(costPriceRaw) || 0) : defaultCostPrice(salePrice));
 				const promotion = normalizePromotionFields({ promoQtyRaw: data.promo_qty, promoPriceRaw: data.promo_price });
 				const position = Number(data.position || 0) || 0;
-				
+				const storeName = (data.store_name || '').toString().trim();
+				let storeProductId = null;
+
 				if (!name) return json({ error: 'name requerido' }, 400);
 				if (!shortCode) return json({ error: 'short_code requerido' }, 400);
 				if (salePrice <= 0) return json({ error: 'sale_price debe ser mayor a 0' }, 400);
 				if (costPrice < 0) return json({ error: 'cost_price no puede ser negativo' }, 400);
 				if (promotion.error) return json({ error: promotion.error }, 400);
-				
+
+				// Handle store_products linking/creation
+				if (storeName) {
+					const [existingStoreProduct] = await sql`SELECT id FROM store_products WHERE name = ${storeName} LIMIT 1`;
+					if (existingStoreProduct) {
+						storeProductId = existingStoreProduct.id;
+					} else {
+						const [newStoreProduct] = await sql`
+							INSERT INTO store_products (name, price, promo_qty, promo_price)
+							VALUES (${storeName}, ${salePrice}, ${promotion.promoQty}, ${promotion.promoPrice})
+							RETURNING id
+						`;
+						storeProductId = newStoreProduct.id;
+					}
+				}
+
 				const [row] = await sql`
-					INSERT INTO desserts (name, short_code, sale_price, cost_price, promo_qty, promo_price, position)
-					VALUES (${name}, ${shortCode}, ${salePrice}, ${costPrice}, ${promotion.promoQty}, ${promotion.promoPrice}, ${position})
-					RETURNING id, name, short_code, sale_price, cost_price, promo_qty, promo_price, is_active, position
+					INSERT INTO desserts (name, short_code, sale_price, cost_price, promo_qty, promo_price, store_name, store_product_id, position)
+					VALUES (${name}, ${shortCode}, ${salePrice}, ${costPrice}, ${promotion.promoQty}, ${promotion.promoPrice}, ${storeName || null}, ${storeProductId}, ${position})
+					RETURNING id, name, short_code, sale_price, cost_price, promo_qty, promo_price, store_name, store_product_id, is_active, position
 				`;
 				dessertsCache = null;
 				cacheTime = 0;
@@ -81,10 +98,10 @@ export async function handler(event) {
 				const data = JSON.parse(event.body || '{}');
 				const id = Number(data.id || 0) || 0;
 				if (!id) return json({ error: 'id requerido' }, 400);
-				
-				const [existing] = await sql`SELECT id, cost_price, promo_qty, promo_price FROM desserts WHERE id = ${id}`;
+
+				const [existing] = await sql`SELECT id, cost_price, promo_qty, promo_price, store_product_id FROM desserts WHERE id = ${id}`;
 				if (!existing) return json({ error: 'dessert no encontrado' }, 404);
-				
+
 				const name = (data.name || '').toString().trim();
 				const salePrice = Number(data.sale_price || 0) || 0;
 				const hasCostPrice = Object.prototype.hasOwnProperty.call(data, 'cost_price');
@@ -105,18 +122,63 @@ export async function handler(event) {
 				});
 				const position = Number(data.position || 0) || 0;
 				const isActive = data.is_active !== undefined ? Boolean(data.is_active) : true;
-				
+
+				const hasStoreName = Object.prototype.hasOwnProperty.call(data, 'store_name');
+				const storeName = hasStoreName ? (data.store_name || '').toString().trim() : null;
+				let storeProductId = existing.store_product_id;
+
 				if (!name) return json({ error: 'name requerido' }, 400);
 				if (salePrice <= 0) return json({ error: 'sale_price debe ser mayor a 0' }, 400);
 				if (costPrice < 0) return json({ error: 'cost_price no puede ser negativo' }, 400);
 				if (promotion.error) return json({ error: promotion.error }, 400);
-				
-				const [row] = await sql`
-					UPDATE desserts
-					SET name = ${name}, sale_price = ${salePrice}, cost_price = ${costPrice}, promo_qty = ${promotion.promoQty}, promo_price = ${promotion.promoPrice}, position = ${position}, is_active = ${isActive}, updated_at = now()
-					WHERE id = ${id}
-					RETURNING id, name, short_code, sale_price, cost_price, promo_qty, promo_price, is_active, position
-				`;
+
+				// Handle store_products linking/syncing
+				if (hasStoreName && storeName) {
+					if (storeProductId) {
+						// Update existing linked store_product
+						await sql`
+							UPDATE store_products 
+							SET name = ${storeName}, price = ${salePrice}, is_active = ${isActive}, updated_at = now()
+							WHERE id = ${storeProductId}
+						`;
+					} else {
+						// It doesn't have a linked ID. Does the storeName already exist independently?
+						const [existingStoreProduct] = await sql`SELECT id FROM store_products WHERE name = ${storeName} LIMIT 1`;
+						if (existingStoreProduct) {
+							storeProductId = existingStoreProduct.id;
+						} else {
+							// Create new link
+							const [newStoreProduct] = await sql`
+								INSERT INTO store_products (name, price, promo_qty, promo_price, is_active)
+								VALUES (${storeName}, ${salePrice}, ${promotion.promoQty}, ${promotion.promoPrice}, ${isActive})
+								RETURNING id
+							`;
+							storeProductId = newStoreProduct.id;
+						}
+					}
+				} else if (hasStoreName && !storeName) {
+					// Client wants to unlink/remove store name
+					storeProductId = null;
+				}
+
+				let query;
+				if (hasStoreName) {
+					query = sql`
+						UPDATE desserts
+						SET name = ${name}, sale_price = ${salePrice}, cost_price = ${costPrice}, promo_qty = ${promotion.promoQty}, promo_price = ${promotion.promoPrice}, position = ${position}, is_active = ${isActive}, store_name = ${storeName || null}, store_product_id = ${storeProductId}, updated_at = now()
+						WHERE id = ${id}
+						RETURNING id, name, short_code, sale_price, cost_price, promo_qty, promo_price, store_name, store_product_id, is_active, position
+					`;
+				} else {
+					query = sql`
+						UPDATE desserts
+						SET name = ${name}, sale_price = ${salePrice}, cost_price = ${costPrice}, promo_qty = ${promotion.promoQty}, promo_price = ${promotion.promoPrice}, position = ${position}, is_active = ${isActive}, updated_at = now()
+						WHERE id = ${id}
+						RETURNING id, name, short_code, sale_price, cost_price, promo_qty, promo_price, store_name, store_product_id, is_active, position
+					`;
+				}
+
+				const [row] = await query;
 				dessertsCache = null;
 				cacheTime = 0;
 				return json(row);
@@ -125,9 +187,9 @@ export async function handler(event) {
 				const raw = typeof event.rawQuery === 'string' ? event.rawQuery : (event.queryStringParameters ? new URLSearchParams(event.queryStringParameters).toString() : '');
 				const params = new URLSearchParams(raw);
 				const id = Number(params.get('id') || 0) || 0;
-				
+
 				if (!id) return json({ error: 'id requerido' }, 400);
-				
+
 				// Soft delete: just mark as inactive
 				await sql`UPDATE desserts SET is_active = false, updated_at = now() WHERE id = ${id}`;
 				dessertsCache = null;

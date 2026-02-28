@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -13,29 +14,35 @@
 			-moz-appearance: textfield;
 			appearance: textfield;
 		}
+
 		.dessert-config-input:hover {
 			background: var(--secondary);
 			border-color: var(--border);
 			box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 		}
+
 		.dessert-config-input:focus {
 			background: var(--secondary);
 			border-color: var(--border);
 		}
+
 		[data-theme="dark"] .dessert-config-input:hover {
 			background: #2a2a2a;
 			box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 		}
+
 		.cost-price-input {
 			width: 10ch;
 			min-width: 10ch;
 			text-align: right;
 		}
+
 		.promo-qty-input {
 			width: 6ch;
 			min-width: 6ch;
 			text-align: center;
 		}
+
 		.promo-price-input {
 			width: 10ch;
 			min-width: 10ch;
@@ -49,6 +56,7 @@
 		}
 	</style>
 </head>
+
 <body>
 	<header class="app-header">
 		<div class="header-row">
@@ -75,6 +83,7 @@
 					<thead>
 						<tr>
 							<th rowspan="2">Nombre</th>
+							<th rowspan="2">Nombre en Tienda</th>
 							<th rowspan="2">Código</th>
 							<th rowspan="2">Precio de Venta</th>
 							<th rowspan="2">Precio a Costo</th>
@@ -95,481 +104,501 @@
 	</main>
 
 	<script type="module">
-	(function(){
-		const tbody = document.getElementById('desserts-tbody');
-		const backBtn = document.getElementById('back-btn');
-		const addBtn = document.getElementById('add-dessert-btn');
-		
-		const fmtMoney = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
-		const DEFAULT_COST_PRICE_MULTIPLIER = 0.55;
-		
-		function getDefaultCostPrice(salePrice) {
-			return Math.round((Number(salePrice || 0) || 0) * DEFAULT_COST_PRICE_MULTIPLIER);
-		}
-		
-		function getEffectiveCostPrice(dessert) {
-			const configured = Number(dessert?.cost_price);
-			if (Number.isFinite(configured) && configured >= 0) return Math.round(configured);
-			return getDefaultCostPrice(dessert?.sale_price);
-		}
-		
-		function getEffectivePromotionQty(dessert) {
-			const qty = Number(dessert?.promo_qty);
-			if (Number.isFinite(qty) && qty >= 2) return Math.floor(qty);
-			return '';
-		}
-		
-		function getEffectivePromotionPrice(dessert) {
-			const price = Number(dessert?.promo_price);
-			if (Number.isFinite(price) && price >= 0) return Math.round(price);
-			return '';
-		}
-		
-		function getPromotionPayload(dessert) {
-			const qty = getEffectivePromotionQty(dessert);
-			const price = getEffectivePromotionPrice(dessert);
-			return {
-				promo_qty: qty === '' ? null : qty,
-				promo_price: price === '' ? null : price
-			};
-		}
-		
-		function buildDessertPayload(dessert, overrides = {}) {
-			const promotion = getPromotionPayload(dessert);
-			const body = {
-				id: dessert.id,
-				name: dessert.name,
-				sale_price: dessert.sale_price,
-				cost_price: getEffectiveCostPrice(dessert),
-				promo_qty: promotion.promo_qty,
-				promo_price: promotion.promo_price,
-				position: dessert.position,
-				is_active: dessert.is_active
-			};
-			return { ...body, ...overrides };
-		}
-		
-		async function updateDessert(dessert, overrides = {}) {
-			const response = await fetch('/api/desserts', {
-				method: 'PUT',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(buildDessertPayload(dessert, overrides))
-			});
-			if (!response.ok) throw new Error('Failed to update dessert');
-			return response.json();
-		}
-		
-		async function loadDesserts() {
-			try {
-				const response = await fetch('/api/desserts');
-				if (!response.ok) throw new Error('Failed to load desserts');
-				const desserts = await response.json();
-				renderDesserts(desserts);
-			} catch (err) {
-				console.error('Error loading desserts:', err);
-				alert('Error al cargar los postres');
+		(function () {
+			const tbody = document.getElementById('desserts-tbody');
+			const backBtn = document.getElementById('back-btn');
+			const addBtn = document.getElementById('add-dessert-btn');
+
+			const fmtMoney = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
+			const DEFAULT_COST_PRICE_MULTIPLIER = 0.55;
+
+			function getDefaultCostPrice(salePrice) {
+				return Math.round((Number(salePrice || 0) || 0) * DEFAULT_COST_PRICE_MULTIPLIER);
 			}
-		}
-		
-		function renderDesserts(desserts) {
-			tbody.innerHTML = '';
-			for (const d of desserts) {
-				const tr = document.createElement('tr');
-				
-				const tdName = document.createElement('td');
-				tdName.textContent = d.name;
-				
-				const tdCode = document.createElement('td');
-				tdCode.textContent = d.short_code;
-				
-				const tdPrice = document.createElement('td');
-				tdPrice.textContent = fmtMoney.format(d.sale_price);
-				
-				const tdCostPrice = document.createElement('td');
-				const costInput = document.createElement('input');
-				costInput.className = 'input-cell dessert-config-input cost-price-input';
-				costInput.type = 'number';
-				costInput.min = '0';
-				costInput.step = '100';
-				costInput.inputMode = 'numeric';
-				costInput.value = String(getEffectiveCostPrice(d));
-				costInput.title = 'Presiona Enter o sal del campo para guardar';
-				let savingCost = false;
-				const selectAllCostInput = () => {
-					if (savingCost || costInput.disabled) return;
-					try {
-						costInput.select();
-					} catch {}
-				};
-				
-				const saveCostFromInput = async () => {
-					if (savingCost) return;
-					const prevCost = getEffectiveCostPrice(d);
-					const nextCost = Math.max(0, Math.round(Number(costInput.value || 0) || 0));
-					if (nextCost === prevCost) {
-						costInput.value = String(prevCost);
-						return;
-					}
-					
-					savingCost = true;
-					costInput.disabled = true;
-					try {
-						const updated = await updateDessert(d, { cost_price: nextCost });
-						const savedCost = Number(updated?.cost_price);
-						d.cost_price = Number.isFinite(savedCost) && savedCost >= 0 ? Math.round(savedCost) : nextCost;
-						costInput.value = String(d.cost_price);
-					} catch (err) {
-						console.error('Error updating cost price:', err);
-						costInput.value = String(prevCost);
-						alert('Error al guardar el precio a costo');
-					} finally {
-						savingCost = false;
-						costInput.disabled = false;
-					}
-				};
-				
-				costInput.addEventListener('focus', () => {
-					requestAnimationFrame(selectAllCostInput);
-				});
-				costInput.addEventListener('click', () => {
-					requestAnimationFrame(selectAllCostInput);
-				});
-				costInput.addEventListener('blur', saveCostFromInput);
-				costInput.addEventListener('keydown', (ev) => {
-					if (ev.key === 'Enter') {
-						ev.preventDefault();
-						costInput.blur();
-					}
-				});
-				tdCostPrice.appendChild(costInput);
 
-				const tdPromoQty = document.createElement('td');
-				const promoQtyInput = document.createElement('input');
-				promoQtyInput.className = 'input-cell dessert-config-input promo-qty-input';
-				promoQtyInput.type = 'number';
-				promoQtyInput.min = '2';
-				promoQtyInput.step = '1';
-				promoQtyInput.inputMode = 'numeric';
-				promoQtyInput.placeholder = '-';
-				promoQtyInput.value = getEffectivePromotionQty(d) === '' ? '' : String(getEffectivePromotionQty(d));
-				promoQtyInput.title = 'Cantidad para activar promoción';
-
-				const tdPromoPrice = document.createElement('td');
-				const promoPriceInput = document.createElement('input');
-				promoPriceInput.className = 'input-cell dessert-config-input promo-price-input';
-				promoPriceInput.type = 'number';
-				promoPriceInput.min = '0';
-				promoPriceInput.step = '100';
-				promoPriceInput.inputMode = 'numeric';
-				promoPriceInput.placeholder = '-';
-				promoPriceInput.value = getEffectivePromotionPrice(d) === '' ? '' : String(getEffectivePromotionPrice(d));
-				promoPriceInput.title = 'Precio total de la promoción';
-
-				let savingPromotion = false;
-				const selectAllPromoInput = (input) => {
-					if (savingPromotion || input.disabled) return;
-					try { input.select(); } catch {}
-				};
-				const syncPromotionInputsFromDessert = () => {
-					const qty = getEffectivePromotionQty(d);
-					const price = getEffectivePromotionPrice(d);
-					promoQtyInput.value = qty === '' ? '' : String(qty);
-					promoPriceInput.value = price === '' ? '' : String(price);
-				};
-
-				const savePromotionFromInputs = async () => {
-					if (savingPromotion) return;
-
-					const prevQty = getEffectivePromotionQty(d);
-					const prevPrice = getEffectivePromotionPrice(d);
-					const prevQtyValue = prevQty === '' ? null : prevQty;
-					const prevPriceValue = prevPrice === '' ? null : prevPrice;
-
-					const qtyText = String(promoQtyInput.value || '').trim();
-					const priceText = String(promoPriceInput.value || '').trim();
-					let nextQty = null;
-					let nextPrice = null;
-
-					if (qtyText || priceText) {
-						const parsedQty = Math.floor(Number(qtyText) || 0);
-						const parsedPrice = Math.round(Number(priceText) || 0);
-						if (!qtyText || !priceText || parsedQty < 2 || parsedPrice < 0) {
-							alert('Para promoción debes completar cantidad (mínimo 2) y precio (mínimo 0)');
-							syncPromotionInputsFromDessert();
-							return;
-						}
-						nextQty = parsedQty;
-						nextPrice = parsedPrice;
-					}
-
-					if (nextQty === prevQtyValue && nextPrice === prevPriceValue) {
-						syncPromotionInputsFromDessert();
-						return;
-					}
-
-					savingPromotion = true;
-					promoQtyInput.disabled = true;
-					promoPriceInput.disabled = true;
-					try {
-						const updated = await updateDessert(d, { promo_qty: nextQty, promo_price: nextPrice });
-						const savedQty = Number(updated?.promo_qty);
-						const savedPrice = Number(updated?.promo_price);
-						d.promo_qty = Number.isFinite(savedQty) && savedQty >= 2 ? Math.floor(savedQty) : null;
-						d.promo_price = Number.isFinite(savedPrice) && savedPrice >= 0 ? Math.round(savedPrice) : null;
-						syncPromotionInputsFromDessert();
-					} catch (err) {
-						console.error('Error updating promotion:', err);
-						syncPromotionInputsFromDessert();
-						alert('Error al guardar la promoción');
-					} finally {
-						savingPromotion = false;
-						promoQtyInput.disabled = false;
-						promoPriceInput.disabled = false;
-					}
-				};
-
-				const handlePromoBlur = () => {
-					setTimeout(() => {
-						const active = document.activeElement;
-						if (active === promoQtyInput || active === promoPriceInput) return;
-						savePromotionFromInputs();
-					}, 0);
-				};
-
-				promoQtyInput.addEventListener('focus', () => requestAnimationFrame(() => selectAllPromoInput(promoQtyInput)));
-				promoQtyInput.addEventListener('click', () => requestAnimationFrame(() => selectAllPromoInput(promoQtyInput)));
-				promoPriceInput.addEventListener('focus', () => requestAnimationFrame(() => selectAllPromoInput(promoPriceInput)));
-				promoPriceInput.addEventListener('click', () => requestAnimationFrame(() => selectAllPromoInput(promoPriceInput)));
-				promoQtyInput.addEventListener('blur', handlePromoBlur);
-				promoPriceInput.addEventListener('blur', handlePromoBlur);
-				promoQtyInput.addEventListener('keydown', (ev) => {
-					if (ev.key === 'Enter') {
-						ev.preventDefault();
-						savePromotionFromInputs();
-					}
-				});
-				promoPriceInput.addEventListener('keydown', (ev) => {
-					if (ev.key === 'Enter') {
-						ev.preventDefault();
-						savePromotionFromInputs();
-					}
-				});
-
-				tdPromoQty.appendChild(promoQtyInput);
-				tdPromoPrice.appendChild(promoPriceInput);
-				
-				const tdPos = document.createElement('td');
-				tdPos.textContent = d.position;
-				
-				const tdStatus = document.createElement('td');
-				tdStatus.textContent = d.is_active ? 'Activo' : 'Inactivo';
-				tdStatus.style.color = d.is_active ? 'green' : 'gray';
-				
-				const tdActions = document.createElement('td');
-				tdActions.style.display = 'flex';
-				tdActions.style.gap = '6px';
-				tdActions.style.justifyContent = 'center';
-				
-				const editBtn = document.createElement('button');
-				editBtn.className = 'press-btn';
-				editBtn.textContent = 'Editar';
-				editBtn.addEventListener('click', () => openEditDessert(d));
-				
-				const toggleBtn = document.createElement('button');
-				toggleBtn.className = 'press-btn';
-				toggleBtn.textContent = d.is_active ? 'Desactivar' : 'Activar';
-				toggleBtn.addEventListener('click', async () => {
-					await toggleDessert(d);
-					loadDesserts();
-				});
-				
-				const deleteBtn = document.createElement('button');
-				deleteBtn.className = 'row-delete';
-				deleteBtn.title = 'Eliminar';
-				deleteBtn.setAttribute('aria-label', 'Eliminar');
-				deleteBtn.addEventListener('click', async () => {
-					const confirmed = confirm(`¿Seguro que quieres eliminar "${d.name}"? Esta acción no se puede deshacer.`);
-					if (confirmed) {
-						await deleteDessert(d.id);
-						loadDesserts();
-					}
-				});
-				
-				tdActions.appendChild(editBtn);
-				tdActions.appendChild(toggleBtn);
-				tdActions.appendChild(deleteBtn);
-				
-				tr.append(tdName, tdCode, tdPrice, tdCostPrice, tdPromoQty, tdPromoPrice, tdPos, tdStatus, tdActions);
-				tbody.appendChild(tr);
+			function getEffectiveCostPrice(dessert) {
+				const configured = Number(dessert?.cost_price);
+				if (Number.isFinite(configured) && configured >= 0) return Math.round(configured);
+				return getDefaultCostPrice(dessert?.sale_price);
 			}
-		}
-		
-		async function toggleDessert(dessert) {
-			try {
+
+			function getEffectivePromotionQty(dessert) {
+				const qty = Number(dessert?.promo_qty);
+				if (Number.isFinite(qty) && qty >= 2) return Math.floor(qty);
+				return '';
+			}
+
+			function getEffectivePromotionPrice(dessert) {
+				const price = Number(dessert?.promo_price);
+				if (Number.isFinite(price) && price >= 0) return Math.round(price);
+				return '';
+			}
+
+			function getPromotionPayload(dessert) {
+				const qty = getEffectivePromotionQty(dessert);
+				const price = getEffectivePromotionPrice(dessert);
+				return {
+					promo_qty: qty === '' ? null : qty,
+					promo_price: price === '' ? null : price
+				};
+			}
+
+			function buildDessertPayload(dessert, overrides = {}) {
+				const promotion = getPromotionPayload(dessert);
+				const body = {
+					id: dessert.id,
+					name: dessert.name,
+					sale_price: dessert.sale_price,
+					cost_price: getEffectiveCostPrice(dessert),
+					promo_qty: promotion.promo_qty,
+					promo_price: promotion.promo_price,
+					store_name: dessert.store_name,
+					position: dessert.position,
+					is_active: dessert.is_active
+				};
+				return { ...body, ...overrides };
+			}
+
+			async function updateDessert(dessert, overrides = {}) {
 				const response = await fetch('/api/desserts', {
 					method: 'PUT',
 					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify(buildDessertPayload(dessert, { is_active: !dessert.is_active }))
+					body: JSON.stringify(buildDessertPayload(dessert, overrides))
 				});
-				if (!response.ok) throw new Error('Failed to toggle dessert');
-				alert(dessert.is_active ? 'Postre desactivado' : 'Postre activado');
-			} catch (err) {
-				console.error('Error toggling dessert:', err);
-				alert('Error al cambiar el estado del postre');
+				if (!response.ok) throw new Error('Failed to update dessert');
+				return response.json();
 			}
-		}
-		
-		async function deleteDessert(id) {
-			try {
-				const response = await fetch(`/api/desserts?id=${id}`, {
-					method: 'DELETE'
-				});
-				if (!response.ok) throw new Error('Failed to delete dessert');
-				alert('Postre eliminado exitosamente');
-			} catch (err) {
-				console.error('Error deleting dessert:', err);
-				alert('Error al eliminar el postre');
-			}
-		}
-		
-		function openEditDessert(dessert) {
-			const pop = document.createElement('div');
-			pop.className = 'confirm-popover';
-			pop.style.position = 'fixed';
-			pop.style.left = (window.innerWidth / 2) + 'px';
-			pop.style.top = '12%';
-			pop.style.transform = 'translate(-50%, 0)';
-			pop.style.zIndex = '1000';
-			
-			const title = document.createElement('h4');
-			title.textContent = dessert ? 'Editar Postre' : 'Nuevo Postre';
-			title.style.margin = '0 0 12px 0';
-			
-			const form = document.createElement('div');
-			form.style.display = 'flex';
-			form.style.flexDirection = 'column';
-			form.style.gap = '10px';
-			form.style.minWidth = '320px';
-			
-			const nameLabel = document.createElement('label');
-			nameLabel.textContent = 'Nombre:';
-			const nameInput = document.createElement('input');
-			nameInput.className = 'input-cell';
-			nameInput.type = 'text';
-			nameInput.value = dessert ? dessert.name : '';
-			nameInput.placeholder = 'Ej: Cheesecake';
-			
-			const codeLabel = document.createElement('label');
-			codeLabel.textContent = 'Código (4 letras):';
-			const codeInput = document.createElement('input');
-			codeInput.className = 'input-cell';
-			codeInput.type = 'text';
-			codeInput.maxLength = 4;
-			codeInput.value = dessert ? dessert.short_code : '';
-			codeInput.placeholder = 'Ej: chee';
-			codeInput.disabled = !!dessert; // Can't change code after creation
-			
-			const priceLabel = document.createElement('label');
-			priceLabel.textContent = 'Precio de Venta:';
-			const priceInput = document.createElement('input');
-			priceInput.className = 'input-cell';
-			priceInput.type = 'number';
-			priceInput.min = '0';
-			priceInput.step = '100';
-			priceInput.value = dessert ? dessert.sale_price : '';
-			priceInput.placeholder = 'Ej: 15000';
-			
-			const posLabel = document.createElement('label');
-			posLabel.textContent = 'Posición:';
-			const posInput = document.createElement('input');
-			posInput.className = 'input-cell';
-			posInput.type = 'number';
-			posInput.min = '0';
-			posInput.step = '1';
-			posInput.value = dessert ? dessert.position : '0';
-			
-			const actions = document.createElement('div');
-			actions.className = 'confirm-actions';
-			actions.style.marginTop = '12px';
-			
-			const saveBtn = document.createElement('button');
-			saveBtn.className = 'press-btn btn-primary';
-			saveBtn.textContent = dessert ? 'Guardar' : 'Crear';
-			
-			const cancelBtn = document.createElement('button');
-			cancelBtn.className = 'press-btn';
-			cancelBtn.textContent = 'Cancelar';
-			
-			actions.append(saveBtn, cancelBtn);
-			
-			form.append(
-				nameLabel, nameInput,
-				codeLabel, codeInput,
-				priceLabel, priceInput,
-				posLabel, posInput
-			);
-			
-			pop.append(title, form, actions);
-			document.body.appendChild(pop);
-			pop.classList.add('aladdin-pop');
-			
-			saveBtn.addEventListener('click', async () => {
-				const name = nameInput.value.trim();
-				const code = codeInput.value.trim().toLowerCase();
-				const price = Number(priceInput.value) || 0;
-				const position = Number(posInput.value) || 0;
-				
-				if (!name) {
-					alert('El nombre es requerido');
-					return;
-				}
-				if (!code || code.length !== 4) {
-					alert('El código debe tener exactamente 4 letras');
-					return;
-				}
-				if (price <= 0) {
-					alert('El precio debe ser mayor a 0');
-					return;
-				}
-				
+
+			async function loadDesserts() {
 				try {
-					const method = dessert ? 'PUT' : 'POST';
-					const body = dessert 
-						? buildDessertPayload(dessert, { name, sale_price: price, position, is_active: dessert.is_active })
-						: { name, short_code: code, sale_price: price, cost_price: getDefaultCostPrice(price), position };
-					
-					const response = await fetch('/api/desserts', {
-						method,
-						headers: { 'Content-Type': 'application/json' },
-						body: JSON.stringify(body)
-					});
-					
-					if (!response.ok) throw new Error('Failed to save dessert');
-					
-					document.body.removeChild(pop);
-					loadDesserts();
-					alert(dessert ? 'Postre actualizado' : 'Postre creado exitosamente');
+					const response = await fetch('/api/desserts');
+					if (!response.ok) throw new Error('Failed to load desserts');
+					const desserts = await response.json();
+					renderDesserts(desserts);
 				} catch (err) {
-					console.error('Error saving dessert:', err);
-					alert('Error al guardar el postre');
+					console.error('Error loading desserts:', err);
+					alert('Error al cargar los postres');
 				}
+			}
+
+			function renderDesserts(desserts) {
+				tbody.innerHTML = '';
+				for (const d of desserts) {
+					const tr = document.createElement('tr');
+
+					const tdName = document.createElement('td');
+					tdName.textContent = d.name;
+
+					const tdStoreName = document.createElement('td');
+					tdStoreName.textContent = d.store_name || '-';
+					tdStoreName.style.color = d.store_name ? 'var(--text)' : 'var(--muted)';
+
+					const tdCode = document.createElement('td');
+					tdCode.textContent = d.short_code;
+
+					const tdPrice = document.createElement('td');
+					tdPrice.textContent = fmtMoney.format(d.sale_price);
+
+					const tdCostPrice = document.createElement('td');
+					const costInput = document.createElement('input');
+					costInput.className = 'input-cell dessert-config-input cost-price-input';
+					costInput.type = 'number';
+					costInput.min = '0';
+					costInput.step = '100';
+					costInput.inputMode = 'numeric';
+					costInput.value = String(getEffectiveCostPrice(d));
+					costInput.title = 'Presiona Enter o sal del campo para guardar';
+					let savingCost = false;
+					const selectAllCostInput = () => {
+						if (savingCost || costInput.disabled) return;
+						try {
+							costInput.select();
+						} catch { }
+					};
+
+					const saveCostFromInput = async () => {
+						if (savingCost) return;
+						const prevCost = getEffectiveCostPrice(d);
+						const nextCost = Math.max(0, Math.round(Number(costInput.value || 0) || 0));
+						if (nextCost === prevCost) {
+							costInput.value = String(prevCost);
+							return;
+						}
+
+						savingCost = true;
+						costInput.disabled = true;
+						try {
+							const updated = await updateDessert(d, { cost_price: nextCost });
+							const savedCost = Number(updated?.cost_price);
+							d.cost_price = Number.isFinite(savedCost) && savedCost >= 0 ? Math.round(savedCost) : nextCost;
+							costInput.value = String(d.cost_price);
+						} catch (err) {
+							console.error('Error updating cost price:', err);
+							costInput.value = String(prevCost);
+							alert('Error al guardar el precio a costo');
+						} finally {
+							savingCost = false;
+							costInput.disabled = false;
+						}
+					};
+
+					costInput.addEventListener('focus', () => {
+						requestAnimationFrame(selectAllCostInput);
+					});
+					costInput.addEventListener('click', () => {
+						requestAnimationFrame(selectAllCostInput);
+					});
+					costInput.addEventListener('blur', saveCostFromInput);
+					costInput.addEventListener('keydown', (ev) => {
+						if (ev.key === 'Enter') {
+							ev.preventDefault();
+							costInput.blur();
+						}
+					});
+					tdCostPrice.appendChild(costInput);
+
+					const tdPromoQty = document.createElement('td');
+					const promoQtyInput = document.createElement('input');
+					promoQtyInput.className = 'input-cell dessert-config-input promo-qty-input';
+					promoQtyInput.type = 'number';
+					promoQtyInput.min = '2';
+					promoQtyInput.step = '1';
+					promoQtyInput.inputMode = 'numeric';
+					promoQtyInput.placeholder = '-';
+					promoQtyInput.value = getEffectivePromotionQty(d) === '' ? '' : String(getEffectivePromotionQty(d));
+					promoQtyInput.title = 'Cantidad para activar promoción';
+
+					const tdPromoPrice = document.createElement('td');
+					const promoPriceInput = document.createElement('input');
+					promoPriceInput.className = 'input-cell dessert-config-input promo-price-input';
+					promoPriceInput.type = 'number';
+					promoPriceInput.min = '0';
+					promoPriceInput.step = '100';
+					promoPriceInput.inputMode = 'numeric';
+					promoPriceInput.placeholder = '-';
+					promoPriceInput.value = getEffectivePromotionPrice(d) === '' ? '' : String(getEffectivePromotionPrice(d));
+					promoPriceInput.title = 'Precio total de la promoción';
+
+					let savingPromotion = false;
+					const selectAllPromoInput = (input) => {
+						if (savingPromotion || input.disabled) return;
+						try { input.select(); } catch { }
+					};
+					const syncPromotionInputsFromDessert = () => {
+						const qty = getEffectivePromotionQty(d);
+						const price = getEffectivePromotionPrice(d);
+						promoQtyInput.value = qty === '' ? '' : String(qty);
+						promoPriceInput.value = price === '' ? '' : String(price);
+					};
+
+					const savePromotionFromInputs = async () => {
+						if (savingPromotion) return;
+
+						const prevQty = getEffectivePromotionQty(d);
+						const prevPrice = getEffectivePromotionPrice(d);
+						const prevQtyValue = prevQty === '' ? null : prevQty;
+						const prevPriceValue = prevPrice === '' ? null : prevPrice;
+
+						const qtyText = String(promoQtyInput.value || '').trim();
+						const priceText = String(promoPriceInput.value || '').trim();
+						let nextQty = null;
+						let nextPrice = null;
+
+						if (qtyText || priceText) {
+							const parsedQty = Math.floor(Number(qtyText) || 0);
+							const parsedPrice = Math.round(Number(priceText) || 0);
+							if (!qtyText || !priceText || parsedQty < 2 || parsedPrice < 0) {
+								alert('Para promoción debes completar cantidad (mínimo 2) y precio (mínimo 0)');
+								syncPromotionInputsFromDessert();
+								return;
+							}
+							nextQty = parsedQty;
+							nextPrice = parsedPrice;
+						}
+
+						if (nextQty === prevQtyValue && nextPrice === prevPriceValue) {
+							syncPromotionInputsFromDessert();
+							return;
+						}
+
+						savingPromotion = true;
+						promoQtyInput.disabled = true;
+						promoPriceInput.disabled = true;
+						try {
+							const updated = await updateDessert(d, { promo_qty: nextQty, promo_price: nextPrice });
+							const savedQty = Number(updated?.promo_qty);
+							const savedPrice = Number(updated?.promo_price);
+							d.promo_qty = Number.isFinite(savedQty) && savedQty >= 2 ? Math.floor(savedQty) : null;
+							d.promo_price = Number.isFinite(savedPrice) && savedPrice >= 0 ? Math.round(savedPrice) : null;
+							syncPromotionInputsFromDessert();
+						} catch (err) {
+							console.error('Error updating promotion:', err);
+							syncPromotionInputsFromDessert();
+							alert('Error al guardar la promoción');
+						} finally {
+							savingPromotion = false;
+							promoQtyInput.disabled = false;
+							promoPriceInput.disabled = false;
+						}
+					};
+
+					const handlePromoBlur = () => {
+						setTimeout(() => {
+							const active = document.activeElement;
+							if (active === promoQtyInput || active === promoPriceInput) return;
+							savePromotionFromInputs();
+						}, 0);
+					};
+
+					promoQtyInput.addEventListener('focus', () => requestAnimationFrame(() => selectAllPromoInput(promoQtyInput)));
+					promoQtyInput.addEventListener('click', () => requestAnimationFrame(() => selectAllPromoInput(promoQtyInput)));
+					promoPriceInput.addEventListener('focus', () => requestAnimationFrame(() => selectAllPromoInput(promoPriceInput)));
+					promoPriceInput.addEventListener('click', () => requestAnimationFrame(() => selectAllPromoInput(promoPriceInput)));
+					promoQtyInput.addEventListener('blur', handlePromoBlur);
+					promoPriceInput.addEventListener('blur', handlePromoBlur);
+					promoQtyInput.addEventListener('keydown', (ev) => {
+						if (ev.key === 'Enter') {
+							ev.preventDefault();
+							savePromotionFromInputs();
+						}
+					});
+					promoPriceInput.addEventListener('keydown', (ev) => {
+						if (ev.key === 'Enter') {
+							ev.preventDefault();
+							savePromotionFromInputs();
+						}
+					});
+
+					tdPromoQty.appendChild(promoQtyInput);
+					tdPromoPrice.appendChild(promoPriceInput);
+
+					const tdPos = document.createElement('td');
+					tdPos.textContent = d.position;
+
+					const tdStatus = document.createElement('td');
+					tdStatus.textContent = d.is_active ? 'Activo' : 'Inactivo';
+					tdStatus.style.color = d.is_active ? 'green' : 'gray';
+
+					const tdActions = document.createElement('td');
+					tdActions.style.display = 'flex';
+					tdActions.style.gap = '6px';
+					tdActions.style.justifyContent = 'center';
+
+					const editBtn = document.createElement('button');
+					editBtn.className = 'press-btn';
+					editBtn.textContent = 'Editar';
+					editBtn.addEventListener('click', () => openEditDessert(d));
+
+					const toggleBtn = document.createElement('button');
+					toggleBtn.className = 'press-btn';
+					toggleBtn.textContent = d.is_active ? 'Desactivar' : 'Activar';
+					toggleBtn.addEventListener('click', async () => {
+						await toggleDessert(d);
+						loadDesserts();
+					});
+
+					const deleteBtn = document.createElement('button');
+					deleteBtn.className = 'row-delete';
+					deleteBtn.title = 'Eliminar';
+					deleteBtn.setAttribute('aria-label', 'Eliminar');
+					deleteBtn.addEventListener('click', async () => {
+						const confirmed = confirm(`¿Seguro que quieres eliminar "${d.name}"? Esta acción no se puede deshacer.`);
+						if (confirmed) {
+							await deleteDessert(d.id);
+							loadDesserts();
+						}
+					});
+
+					tdActions.appendChild(editBtn);
+					tdActions.appendChild(toggleBtn);
+					tdActions.appendChild(deleteBtn);
+
+					tr.append(tdName, tdStoreName, tdCode, tdPrice, tdCostPrice, tdPromoQty, tdPromoPrice, tdPos, tdStatus, tdActions);
+					tbody.appendChild(tr);
+				}
+			}
+
+			async function toggleDessert(dessert) {
+				try {
+					const response = await fetch('/api/desserts', {
+						method: 'PUT',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify(buildDessertPayload(dessert, { is_active: !dessert.is_active }))
+					});
+					if (!response.ok) throw new Error('Failed to toggle dessert');
+					alert(dessert.is_active ? 'Postre desactivado' : 'Postre activado');
+				} catch (err) {
+					console.error('Error toggling dessert:', err);
+					alert('Error al cambiar el estado del postre');
+				}
+			}
+
+			async function deleteDessert(id) {
+				try {
+					const response = await fetch(`/api/desserts?id=${id}`, {
+						method: 'DELETE'
+					});
+					if (!response.ok) throw new Error('Failed to delete dessert');
+					alert('Postre eliminado exitosamente');
+				} catch (err) {
+					console.error('Error deleting dessert:', err);
+					alert('Error al eliminar el postre');
+				}
+			}
+
+			function openEditDessert(dessert) {
+				const pop = document.createElement('div');
+				pop.className = 'confirm-popover';
+				pop.style.position = 'fixed';
+				pop.style.left = (window.innerWidth / 2) + 'px';
+				pop.style.top = '12%';
+				pop.style.transform = 'translate(-50%, 0)';
+				pop.style.zIndex = '1000';
+
+				const title = document.createElement('h4');
+				title.textContent = dessert ? 'Editar Postre' : 'Nuevo Postre';
+				title.style.margin = '0 0 12px 0';
+
+				const form = document.createElement('div');
+				form.style.display = 'flex';
+				form.style.flexDirection = 'column';
+				form.style.gap = '10px';
+				form.style.minWidth = '320px';
+
+				const nameLabel = document.createElement('label');
+				nameLabel.textContent = 'Nombre:';
+				const nameInput = document.createElement('input');
+				nameInput.className = 'input-cell';
+				nameInput.type = 'text';
+				nameInput.value = dessert ? dessert.name : '';
+				nameInput.placeholder = 'Ej: Cheesecake';
+
+				const storeNameLabel = document.createElement('label');
+				storeNameLabel.textContent = 'Nombre en Tienda (opcional):';
+				storeNameLabel.title = 'Si dejas esto en blanco, no se creará el producto en la tienda. Si pones el nombre de uno existente, se vincularán.';
+				const storeNameInput = document.createElement('input');
+				storeNameInput.className = 'input-cell';
+				storeNameInput.type = 'text';
+				storeNameInput.value = (dessert && dessert.store_name) ? dessert.store_name : '';
+				storeNameInput.placeholder = 'Ej: Caja de Brigadeiro x 5';
+
+				const codeLabel = document.createElement('label');
+				codeLabel.textContent = 'Código (4 letras):';
+				const codeInput = document.createElement('input');
+				codeInput.className = 'input-cell';
+				codeInput.type = 'text';
+				codeInput.maxLength = 4;
+				codeInput.value = dessert ? dessert.short_code : '';
+				codeInput.placeholder = 'Ej: chee';
+				codeInput.disabled = !!dessert; // Can't change code after creation
+
+				const priceLabel = document.createElement('label');
+				priceLabel.textContent = 'Precio de Venta:';
+				const priceInput = document.createElement('input');
+				priceInput.className = 'input-cell';
+				priceInput.type = 'number';
+				priceInput.min = '0';
+				priceInput.step = '100';
+				priceInput.value = dessert ? dessert.sale_price : '';
+				priceInput.placeholder = 'Ej: 15000';
+
+				const posLabel = document.createElement('label');
+				posLabel.textContent = 'Posición:';
+				const posInput = document.createElement('input');
+				posInput.className = 'input-cell';
+				posInput.type = 'number';
+				posInput.min = '0';
+				posInput.step = '1';
+				posInput.value = dessert ? dessert.position : '0';
+
+				const actions = document.createElement('div');
+				actions.className = 'confirm-actions';
+				actions.style.marginTop = '12px';
+
+				const saveBtn = document.createElement('button');
+				saveBtn.className = 'press-btn btn-primary';
+				saveBtn.textContent = dessert ? 'Guardar' : 'Crear';
+
+				const cancelBtn = document.createElement('button');
+				cancelBtn.className = 'press-btn';
+				cancelBtn.textContent = 'Cancelar';
+
+				actions.append(saveBtn, cancelBtn);
+
+				form.append(
+					nameLabel, nameInput,
+					storeNameLabel, storeNameInput,
+					codeLabel, codeInput,
+					priceLabel, priceInput,
+					posLabel, posInput
+				);
+
+				pop.append(title, form, actions);
+				document.body.appendChild(pop);
+				pop.classList.add('aladdin-pop');
+
+				saveBtn.addEventListener('click', async () => {
+					const name = nameInput.value.trim();
+					const store_name = storeNameInput.value.trim() || null;
+					const code = codeInput.value.trim().toLowerCase();
+					const price = Number(priceInput.value) || 0;
+					const position = Number(posInput.value) || 0;
+
+					if (!name) {
+						alert('El nombre es requerido');
+						return;
+					}
+					if (!code || code.length !== 4) {
+						alert('El código debe tener exactamente 4 letras');
+						return;
+					}
+					if (price <= 0) {
+						alert('El precio debe ser mayor a 0');
+						return;
+					}
+
+					saveBtn.disabled = true;
+					saveBtn.textContent = 'Guardando...';
+
+					try {
+						const method = dessert ? 'PUT' : 'POST';
+						const body = dessert
+							? buildDessertPayload(dessert, { name, store_name, sale_price: price, position, is_active: dessert.is_active })
+							: { name, store_name, short_code: code, sale_price: price, cost_price: getDefaultCostPrice(price), position };
+
+						const response = await fetch('/api/desserts', {
+							method,
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify(body)
+						});
+
+						if (!response.ok) throw new Error('Failed to save dessert');
+
+						document.body.removeChild(pop);
+						loadDesserts();
+						alert(dessert ? 'Postre actualizado' : 'Postre creado exitosamente');
+					} catch (err) {
+						console.error('Error saving dessert:', err);
+						alert('Error al guardar el postre');
+					}
+				});
+
+				cancelBtn.addEventListener('click', () => {
+					document.body.removeChild(pop);
+				});
+
+				nameInput.focus();
+			}
+
+			addBtn.addEventListener('click', () => openEditDessert(null));
+
+			backBtn.addEventListener('click', () => {
+				window.location.href = '/index.html';
 			});
-			
-			cancelBtn.addEventListener('click', () => {
-				document.body.removeChild(pop);
-			});
-			
-			nameInput.focus();
-		}
-		
-		addBtn.addEventListener('click', () => openEditDessert(null));
-		
-		backBtn.addEventListener('click', () => {
-			window.location.href = '/index.html';
-		});
-		
-		loadDesserts();
-	})();
+
+			loadDesserts();
+		})();
 	</script>
 </body>
+
 </html>

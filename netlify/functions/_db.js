@@ -66,6 +66,20 @@ export async function ensureSchema() {
 				) THEN
 					ALTER TABLE desserts ADD COLUMN promo_price INTEGER;
 				END IF;
+				IF NOT EXISTS (
+					SELECT 1 FROM information_schema.columns
+					WHERE table_name = 'desserts' AND column_name = 'store_name'
+				) THEN
+					ALTER TABLE desserts ADD COLUMN store_name TEXT;
+				END IF;
+				IF NOT EXISTS (
+					SELECT 1 FROM information_schema.columns
+					WHERE table_name = 'desserts' AND column_name = 'store_product_id'
+				) THEN
+					-- We create this column but cannot add the foreign key constraint directly here 
+					-- if store_products doesn't exist yet in the flow. We'll add it, but it's just an INTEGER.
+					ALTER TABLE desserts ADD COLUMN store_product_id INTEGER;
+				END IF;
 				UPDATE desserts
 				SET cost_price = ROUND(sale_price * 0.55)::int
 				WHERE cost_price IS NULL;
@@ -218,6 +232,21 @@ export async function ensureSchema() {
 					WHERE table_name = 'store_products' AND column_name = 'is_promo'
 				) THEN
 					ALTER TABLE store_products ADD COLUMN is_promo BOOLEAN NOT NULL DEFAULT false;
+				END IF;
+			END $$;`;
+
+			// Now we can safely add the FK from desserts to store_products if it doesn't exist, since both tables exist
+			await sql`DO $$ BEGIN
+				IF NOT EXISTS (
+					SELECT 1 FROM information_schema.table_constraints
+					WHERE constraint_name = 'desserts_store_product_id_fkey'
+				) THEN
+					-- Ensure the column exists first (handled earlier) then safely add constraint
+					BEGIN
+						ALTER TABLE desserts ADD CONSTRAINT desserts_store_product_id_fkey FOREIGN KEY (store_product_id) REFERENCES store_products(id) ON DELETE SET NULL;
+					EXCEPTION WHEN duplicate_object THEN
+						-- Constraint might exist under a different name, ignore if it fails due to existing
+					END;
 				END IF;
 			END $$;`;
 			await sql`CREATE TABLE IF NOT EXISTS sale_items (
