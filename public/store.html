@@ -1749,7 +1749,8 @@
         // Navigate to clients page
         document.getElementById('store-clients-btn').addEventListener('click', () => {
             if (storeAuthUser && storeActiveSeller) {
-                window.location.href = '/clients.html';
+                // Navigate to the main app interface but embedded directly into the clients view
+                window.location.href = '/index.html?embed=true&view=clients';
             }
         });
 

@@ -9548,6 +9548,11 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 
 				__handledEmbedded = true;
 				await enterSeller(activeSeller.id);
+
+				const urlParams = new URLSearchParams(window.location.search);
+				if (urlParams.get('view') === 'clients') {
+					await openClientsView();
+				}
 			}
 		} catch (err) {
 			console.error('Embedded auth bypass failed', err);
