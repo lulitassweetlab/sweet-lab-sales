@@ -478,8 +478,10 @@
 		</section>
 
 		<!-- Merge Suggestions Modal -->
-		<div id="merge-suggestions-modal" class="modal">
-			<div class="modal-content" style="max-width: 600px; width: 95%;">
+		<div id="merge-suggestions-modal"
+			style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 99999; align-items: center; justify-content: center;">
+			<div class="modal-content"
+				style="background: var(--background, #fff); border-radius: 12px; max-width: 600px; width: 95%; padding: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); border: 1px solid var(--border, #eee);">
 				<div class="modal-header" style="display: flex; justify-content: space-between; align-items: center;">
 					<h2 style="font-size: 1.25rem;">Sugerencias de Fusión</h2>
 					<button class="icon-btn" id="close-merge-modal"

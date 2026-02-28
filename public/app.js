@@ -8274,7 +8274,7 @@ async function openMergeSuggestionsModal() {
 
 	if (!modal || !container || !emptyMsg) return;
 
-	modal.classList.add('visible');
+	modal.style.display = 'flex';
 	container.innerHTML = '';
 	emptyMsg.style.display = 'none';
 
@@ -8405,7 +8405,7 @@ async function openMergeSuggestionsModal() {
 	}
 
 	const handleClose = () => {
-		modal.classList.remove('visible');
+		modal.style.display = 'none';
 		closeBtn?.removeEventListener('click', handleClose);
 	};
 	closeBtn?.addEventListener('click', handleClose);
