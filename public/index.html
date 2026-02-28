@@ -144,13 +144,11 @@
 
 			<div class="sales-panel">
 				<div class="panel-header">
-					<div
-						style="display: flex; align-items: center; justify-content: space-between; width: 100%; flex-wrap: wrap; gap: 10px;">
-						<h3 id="sales-title" style="margin: 0;">Registro de Ventas de Postres</h3>
+					<div class="panel-header-toolbar">
+						<h3 id="sales-title" style="display: none;">Registro de Ventas de Postres</h3>
 
 						<!-- Active Table Search -->
-						<div id="active-table-search-container"
-							style="position: relative; flex: 1; max-width: 300px; min-width: 200px;">
+						<div id="active-table-search-container" class="active-table-search">
 							<input type="text" id="active-table-client-search" placeholder="🔍 Buscar"
 								style="width: 100%; padding: 8px 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface); color: var(--text); outline: none; font-size: 0.95rem; text-align: center;">
 							<ul id="active-table-client-suggestions" class="client-suggest-popover"
