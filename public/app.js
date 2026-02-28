@@ -8176,7 +8176,7 @@ function renderClientsTable(rows) {
 	tbody.innerHTML = '';
 	if (!rows || rows.length === 0) {
 		const tr = document.createElement('tr');
-		const td = document.createElement('td'); td.colSpan = 5; td.textContent = 'Sin clientes'; td.style.opacity = '0.8'; td.style.textAlign = 'center';
+		const td = document.createElement('td'); td.colSpan = 6; td.textContent = 'Sin clientes'; td.style.opacity = '0.8'; td.style.textAlign = 'center';
 		tr.appendChild(td); tbody.appendChild(tr); return;
 	}
 
@@ -8190,6 +8190,11 @@ function renderClientsTable(rows) {
 		tdN.style.fontWeight = '500';
 		tdN.title = 'Clic para ver historial';
 		tdN.addEventListener('click', async () => { await openClientDetailView(r.name); });
+
+		const tdVendedor = document.createElement('td');
+		tdVendedor.textContent = state.currentSeller ? state.currentSeller.name : '-';
+		tdVendedor.style.color = 'var(--muted)';
+		tdVendedor.style.fontSize = '0.9em';
 
 		const tdW = document.createElement('td');
 		tdW.textContent = r.whatsapp || '-';
@@ -8217,16 +8222,18 @@ function renderClientsTable(rows) {
 		});
 		tdA.appendChild(editBtn);
 
-		tr.append(tdN, tdW, tdB, tdC, tdA);
+		tr.append(tdN, tdVendedor, tdW, tdB, tdC, tdA);
 		tr.addEventListener('mousedown', () => { tr.classList.add('row-highlight'); setTimeout(() => tr.classList.remove('row-highlight'), 3200); });
 		tbody.appendChild(tr);
 	}
 }
 
 function openClientEditPopover(clientData, clientX, clientY) {
-	cleanupPopovers();
+	// Native cleanup to fix undefined array errors
+	document.querySelectorAll('.edit-client-popover').forEach(p => p.remove());
+
 	const pop = document.createElement('div');
-	pop.className = 'popover active';
+	pop.className = 'popover active edit-client-popover';
 	pop.style.padding = '20px';
 	pop.style.minWidth = '260px';
 
@@ -8314,7 +8321,7 @@ function openClientEditPopover(clientData, clientX, clientY) {
 			};
 
 			await api('POST', '/api/clients', payload);
-			cleanupPopovers();
+			cleanup();
 			await loadClientsForSeller(); // Refresh table
 		} catch (err) {
 			alert('Error al guardar: ' + err.message);
@@ -8323,11 +8330,8 @@ function openClientEditPopover(clientData, clientX, clientY) {
 		}
 	});
 
-	activePopovers.push(pop);
-
 	function cleanup() {
 		if (pop && pop.parentNode) pop.parentNode.removeChild(pop);
-		activePopovers = activePopovers.filter(p => p !== pop);
 		document.removeEventListener('mousedown', outside, true);
 		document.removeEventListener('touchstart', outside, true);
 	}

@@ -367,16 +367,19 @@
 					<div class="toolbar-actions"></div>
 				</div>
 			</div>
-			<div class="sales-panel">
+			<div class="sales-panel"
+				style="display: flex; flex-direction: column; overflow: hidden; max-height: 100vh;">
 				<div class="panel-header">
 					<h3>Todos los clientes</h3>
 				</div>
-				<div class="panel-body">
-					<div class="table-wrapper" id="clients-wrapper">
+				<div class="panel-body" style="flex: 1; overflow: hidden; display: flex; flex-direction: column;">
+					<div class="table-wrapper" id="clients-wrapper"
+						style="overflow-y: auto; flex: 1; -webkit-overflow-scrolling: touch;">
 						<table id="clients-table" class="clients-table">
 							<thead>
 								<tr>
 									<th>Cliente</th>
+									<th>Vendedor</th>
 									<th>WhatsApp</th>
 									<th>Cumpleaños</th>
 									<th class="col-qty"># Registros</th>
