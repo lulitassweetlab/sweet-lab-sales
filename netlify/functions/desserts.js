@@ -138,7 +138,7 @@ export async function handler(event) {
 						// Update existing linked store_product
 						await sql`
 							UPDATE store_products 
-							SET name = ${storeName}, price = ${salePrice}, is_active = ${isActive}, updated_at = now()
+							SET name = ${storeName}, price = ${salePrice}, position = ${position}, is_active = ${isActive}, updated_at = now()
 							WHERE id = ${storeProductId}
 						`;
 					} else {
