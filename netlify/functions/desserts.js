@@ -190,8 +190,14 @@ export async function handler(event) {
 
 				if (!id) return json({ error: 'id requerido' }, 400);
 
-				// Soft delete: just mark as inactive
-				await sql`UPDATE desserts SET is_active = false, updated_at = now() WHERE id = ${id}`;
+				// Check if there are sales registered
+				const [hasSales] = await sql`SELECT 1 FROM sale_items WHERE dessert_id = ${id} LIMIT 1`;
+				if (hasSales) {
+					return json({ error: 'No se puede eliminar de la base de datos porque ya tiene ventas históricas registradas. Si ya no lo vendes, te sugerimos usar el botón "Desactivar".' }, 400);
+				}
+
+				// Hard delete
+				await sql`DELETE FROM desserts WHERE id = ${id}`;
 				dessertsCache = null;
 				cacheTime = 0;
 				return json({ ok: true });

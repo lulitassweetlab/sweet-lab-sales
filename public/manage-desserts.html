@@ -54,6 +54,16 @@
 			-webkit-appearance: none;
 			margin: 0;
 		}
+
+		/* Mobile scrolling fix */
+		html,
+		body {
+			height: 100dvh;
+			display: flex;
+			flex-direction: column;
+			margin: 0;
+			overflow: hidden;
+		}
 	</style>
 </head>
 
@@ -438,11 +448,14 @@
 					const response = await fetch(`/api/desserts?id=${id}`, {
 						method: 'DELETE'
 					});
-					if (!response.ok) throw new Error('Failed to delete dessert');
+					if (!response.ok) {
+						const data = await response.json().catch(() => ({}));
+						throw new Error(data.error || 'Failed to delete dessert');
+					}
 					alert('Postre eliminado exitosamente');
 				} catch (err) {
 					console.error('Error deleting dessert:', err);
-					alert('Error al eliminar el postre');
+					alert(err.message || 'Error al eliminar el postre');
 				}
 			}
 
@@ -572,14 +585,22 @@
 							body: JSON.stringify(body)
 						});
 
-						if (!response.ok) throw new Error('Failed to save dessert');
+						if (!response.ok) {
+							const data = await response.json().catch(() => ({}));
+							throw new Error(data.error || 'Failed to save dessert');
+						}
 
 						document.body.removeChild(pop);
 						loadDesserts();
 						alert(dessert ? 'Postre actualizado' : 'Postre creado exitosamente');
 					} catch (err) {
 						console.error('Error saving dessert:', err);
-						alert('Error al guardar el postre');
+						let msg = err.message || 'Error al guardar el postre';
+						if (msg.includes('duplicate key')) msg = 'Ya existe un postre con ese nombre o código.';
+						alert(msg);
+					} finally {
+						saveBtn.disabled = false;
+						saveBtn.textContent = dessert ? 'Guardar' : 'Crear';
 					}
 				});
 
