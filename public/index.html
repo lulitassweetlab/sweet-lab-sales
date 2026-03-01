@@ -3,13 +3,31 @@
 
 <head>
 	<meta charset="UTF-8" />
-	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
 	<title>Sweet Lab - Ventas</title>
 	<link rel="preconnect" href="https://fonts.googleapis.com" />
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 	<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
 	<link rel="stylesheet" href="/styles.css?v=2026-02-23-1" />
 	<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+	<style>
+		/* Estilos para el modo incrustado (iframe) */
+		body.is-embedded .app-header,
+		body.is-embedded #global-dates-section,
+		body.is-embedded .toolbar-left {
+			display: none !important;
+		}
+
+		body.is-embedded main {
+			padding: 0;
+			max-width: none;
+		}
+
+		body.is-embedded .sales-panel {
+			box-shadow: none;
+			border-radius: 0;
+		}
+	</style>
 </head>
 
 <body>
@@ -126,10 +144,22 @@
 
 			<div class="sales-panel">
 				<div class="panel-header">
-					<h3 id="sales-title">Registro de Ventas de Postres</h3>
-					<div class="panel-actions">
-						<button id="add-row" class="press-btn btn-primary">Nuevo pedido</button>
-						<button id="export-excel" class="excel-btn press-btn btn-gold">⤓ Exportar Excel</button>
+					<div class="panel-header-toolbar">
+						<h3 id="sales-title" style="display: none;">Registro de Ventas de Postres</h3>
+
+						<!-- Active Table Search -->
+						<div id="active-table-search-container" class="active-table-search">
+							<input type="text" id="active-table-client-search" placeholder="🔍 Buscar"
+								style="width: 100%; padding: 8px 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface); color: var(--text); outline: none; font-size: 0.95rem; text-align: center;">
+							<ul id="active-table-client-suggestions" class="client-suggest-popover"
+								style="display: none; position: absolute; top: calc(100% + 4px); left: 0; width: 100%; border-radius: 12px; overflow: hidden; max-height: 250px; overflow-y: auto; z-index: 9999; box-shadow: 0 4px 15px rgba(0,0,0,0.15); background: var(--surface);">
+							</ul>
+						</div>
+
+						<div class="panel-actions" style="margin-left: auto;">
+							<button id="add-row" class="press-btn btn-primary">Nuevo pedido</button>
+							<button id="export-excel" class="excel-btn press-btn btn-gold">⤓ Exportar Excel</button>
+						</div>
 					</div>
 				</div>
 				<div class="panel-body">
@@ -334,20 +364,33 @@
 						<button id="clients-back" class="secondary press-btn">Volver</button>
 					</div>
 					<h2>Clientes</h2>
-					<div class="toolbar-actions"></div>
+					<div class="toolbar-actions">
+						<button id="merge-suggestions-btn" class="secondary press-btn"
+							style="font-size: 0.85rem; padding: 6px 14px;">
+							Sugerencias de Fusión 🪄
+						</button>
+					</div>
 				</div>
 			</div>
-			<div class="sales-panel">
-				<div class="panel-header">
+			<div class="sales-panel"
+				style="display: flex; flex-direction: column; overflow: hidden; max-height: 100vh;">
+				<div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
 					<h3>Todos los clientes</h3>
+					<button id="new-client-btn" class="press-btn btn-primary"
+						style="font-size: 0.85rem; padding: 6px 14px;">+ Nuevo Cliente</button>
 				</div>
-				<div class="panel-body">
-					<div class="table-wrapper" id="clients-wrapper">
+				<div class="panel-body" style="flex: 1; overflow: hidden; display: flex; flex-direction: column;">
+					<div class="table-wrapper" id="clients-wrapper"
+						style="overflow-y: auto; flex: 1; -webkit-overflow-scrolling: touch;">
 						<table id="clients-table" class="clients-table">
 							<thead>
 								<tr>
 									<th>Cliente</th>
+									<th>WhatsApp</th>
+									<th>Cumpleaños</th>
 									<th class="col-qty"># Registros</th>
+									<th>Vendedor</th>
+									<th style="width: 40px;"></th>
 								</tr>
 							</thead>
 							<tbody id="clients-tbody"></tbody>
@@ -431,7 +474,35 @@
 					<div id="times-content"></div>
 				</div>
 			</div>
+			</div>
 		</section>
+
+		<!-- Merge Suggestions Modal -->
+		<div id="merge-suggestions-modal"
+			style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 99999; align-items: center; justify-content: center;">
+			<div class="modal-content"
+				style="display: block; background: var(--background, #fff); border-radius: 12px; max-width: 600px; width: 95%; padding: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); border: 1px solid var(--border, #eee);">
+				<div class="modal-header" style="display: flex; justify-content: space-between; align-items: center;">
+					<h2 style="font-size: 1.25rem;">Sugerencias de Fusión</h2>
+					<button class="icon-btn" id="close-merge-modal"
+						style="font-size: 1.5rem; border: none; background: transparent; cursor: pointer;">&times;</button>
+				</div>
+				<div class="modal-body" style="max-height: 70vh; overflow-y: auto; padding-top: 10px;">
+					<p style="margin-bottom: 20px; color: var(--muted); font-size: 0.95rem;">
+						Selecciona el nombre principal haciendo clic en uno de los círculos para agrupar todas las
+						compras de esos nombres similares.
+					</p>
+					<div id="merge-groups-container" style="display: flex; flex-direction: column; gap: 16px;">
+						<!-- Grupos renderizados acá dinámicamente -->
+					</div>
+					<div id="merge-groups-empty"
+						style="display: none; padding: 40px; text-align: center; color: var(--muted);">
+						¡Todo perfecto! No detectamos clientes duplicados o con nombres similares.
+					</div>
+				</div>
+			</div>
+		</div>
+
 	</main>
 
 	<footer class="app-footer">
@@ -455,6 +526,12 @@
 		</div>
 	</div>
 
+	<script>
+		// Activar modo incrustado si viene embed=true
+		if (window.location.search.includes('embed=true')) {
+			document.body.classList.add('is-embedded');
+		}
+	</script>
 	<script src="/app.js?v=2025-11-04-1" type="module"></script>
 </body>
 

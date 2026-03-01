@@ -593,6 +593,25 @@
 			isPracticeMode: false
 		};
 
+		let customMessages = {
+			free: `¡Felicidades! 🎉
+Has ganado un POSTRE GRATIS en tu próximo pedido.
+
+Tu premio ya fue registrado y acabamos de enviar la información a tu vendedor para que lo aplique automáticamente. Además, en breve recibirás en tu WhatsApp todos los detalles de tu regalo.
+
+⏳ Este beneficio estará vigente durante los próximos 20 días, así que no dejes pasar la oportunidad.
+
+¡Prepárate para disfrutarlo! ✨`,
+			discount: `¡Felicidades! 🎉
+Has ganado un {premio} de descuento en tu próximo pedido.
+
+Tu premio ya fue registrado y acabamos de enviar la información a tu vendedor para que lo aplique automáticamente. Además, en breve recibirás en tu WhatsApp todos los detalles de tu descuento.
+
+⏳ Este beneficio estará vigente durante los próximos 20 días, así que no dejes pasar la oportunidad.
+
+¡Prepárate para disfrutarlo! ✨`
+		};
+
 		const PRACTICE_SHORTCUT_NAME = '1';
 		const SPIN_DURATION_MS = 4000;
 		const RESULT_DELAY_AFTER_SPIN_MS = 500;
@@ -645,6 +664,13 @@
 		// Initialize
 		document.addEventListener('DOMContentLoaded', async () => {
 			setBirthDateFieldConfig();
+
+			// Load messages concurrently with other requests
+			fetch('/api/store-settings').then(res => res.json()).then(settings => {
+				if (settings.game_msg_free) customMessages.free = settings.game_msg_free;
+				if (settings.game_msg_discount) customMessages.discount = settings.game_msg_discount;
+			}).catch(err => console.error('Error loading custom messages', err));
+
 			await loadConfiguredPrizes();
 			await loadSellers();
 			drawWheel();
@@ -1020,27 +1046,11 @@
 			if (prize.type === 'free') {
 				document.getElementById('prize-icon').textContent = '🎂';
 				document.getElementById('prize-value').textContent = '¡POSTRE GRATIS!';
-				document.getElementById('prize-message').innerText =
-					`¡Felicidades! 🎉
-Has ganado un POSTRE GRATIS en tu próximo pedido.
-
-Tu premio ya fue registrado y acabamos de enviar la información a tu vendedor para que lo aplique automáticamente. Además, en breve recibirás en tu WhatsApp todos los detalles de tu regalo.
-
-⏳ Este beneficio estará vigente durante los próximos 20 días, así que no dejes pasar la oportunidad.
-
-¡Prepárate para disfrutarlo! ✨`;
+				document.getElementById('prize-message').innerText = customMessages.free.replace(/\{premio\}/g, 'POSTRE GRATIS');
 			} else {
 				document.getElementById('prize-icon').textContent = '🎁';
 				document.getElementById('prize-value').textContent = prize.value;
-				document.getElementById('prize-message').innerText =
-					`¡Felicidades! 🎉
-Has ganado un ${prize.value} de descuento en tu próximo pedido.
-
-Tu premio ya fue registrado y acabamos de enviar la información a tu vendedor para que lo aplique automáticamente. Además, en breve recibirás en tu WhatsApp todos los detalles de tu descuento.
-
-⏳ Este beneficio estará vigente durante los próximos 20 días, así que no dejes pasar la oportunidad.
-
-¡Prepárate para disfrutarlo! ✨`;
+				document.getElementById('prize-message').innerText = customMessages.discount.replace(/\{premio\}/g, prize.value);
 			}
 
 			// Show confetti

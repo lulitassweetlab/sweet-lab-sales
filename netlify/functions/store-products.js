@@ -23,20 +23,27 @@ function normalizePromotionFields({ promoQtyRaw, promoPriceRaw }) {
 
 export async function handler(event) {
     try {
-        // OPTIMIZED: Skip ensureSchema for GET requests
-        if (event.httpMethod !== 'GET') {
-            await ensureSchema();
-        }
+        await ensureSchema();
         if (event.httpMethod === 'OPTIONS') return json({ ok: true });
 
         switch (event.httpMethod) {
             case 'GET': {
+                // EMERGENCY RESCUE: AWS API Gateway drops connections (502) if response > 6MB.
+                // If a user uploaded a massive video, the DB stores it, but reading it crashes the API.
+                // We purge oversized media directly from the DB before querying to guarantee recovery.
+                await sql`UPDATE store_products SET media = '[]'::jsonb WHERE length(media::text) > 3000000`;
+                await sql`UPDATE store_products SET image_base64 = null WHERE length(image_base64::text) > 3000000`;
+
                 const products = await sql`
-					SELECT id, name, description, price, promo_qty, promo_price, image_base64, is_active, position
+					SELECT id, name, description, price, promo_qty, promo_price, image_base64, media, is_promo, is_active, position
 					FROM store_products
 					ORDER BY position ASC, name ASC
 				`;
-                return json(products);
+                // Parse media JSONB if needed (Neon returns objects for JSONB usually, but just in case)
+                return json(products.map(p => ({
+                    ...p,
+                    media: typeof p.media === 'string' ? JSON.parse(p.media || '[]') : (p.media || [])
+                })));
             }
             case 'POST': {
                 const data = JSON.parse(event.body || '{}');
@@ -44,19 +51,25 @@ export async function handler(event) {
                 const description = (data.description || '').toString().trim();
                 const price = Number(data.price || 0) || 0;
                 const image_base64 = data.image_base64 || null;
+                const rawMedia = Array.isArray(data.media) ? data.media : [];
+                const mediaJson = JSON.stringify(rawMedia);
                 const promotion = normalizePromotionFields({ promoQtyRaw: data.promo_qty, promoPriceRaw: data.promo_price });
                 const position = Number(data.position || 0) || 0;
+
+                const isPromo = data.is_promo !== undefined ? Boolean(data.is_promo) : false;
 
                 if (!name) return json({ error: 'name requerido' }, 400);
                 if (price <= 0) return json({ error: 'price debe ser mayor a 0' }, 400);
                 if (promotion.error) return json({ error: promotion.error }, 400);
+                if (mediaJson.length > 3000000) return json({ error: 'Los archivos multimedia son demasiado pesados (Máximo 3MB en total permitir). Por favor, comprime el video o imagen.' }, 413);
+                if (image_base64 && image_base64.length > 3000000) return json({ error: 'La imagen principal es demasiado pesada (Máximo 3MB).' }, 413);
 
                 const [row] = await sql`
-					INSERT INTO store_products (name, description, price, promo_qty, promo_price, image_base64, position)
-					VALUES (${name}, ${description}, ${price}, ${promotion.promoQty}, ${promotion.promoPrice}, ${image_base64}, ${position})
-					RETURNING id, name, description, price, promo_qty, promo_price, image_base64, is_active, position
+					INSERT INTO store_products (name, description, price, promo_qty, promo_price, image_base64, media, is_promo, position)
+					VALUES (${name}, ${description}, ${price}, ${promotion.promoQty}, ${promotion.promoPrice}, ${image_base64}, ${mediaJson}::jsonb, ${isPromo}, ${position})
+					RETURNING id, name, description, price, promo_qty, promo_price, image_base64, media, is_promo, is_active, position
 				`;
-                return json(row, 201);
+                return json({ ...row, media: typeof row.media === 'string' ? JSON.parse(row.media) : (row.media || []) }, 201);
             }
             case 'PUT': {
                 const data = JSON.parse(event.body || '{}');
@@ -70,25 +83,40 @@ export async function handler(event) {
                 const description = (data.description || '').toString().trim();
                 const price = Number(data.price || 0) || 0;
                 const image_base64 = data.image_base64 !== undefined ? data.image_base64 : null;
+                const rawMedia = data.media !== undefined ? (Array.isArray(data.media) ? data.media : []) : null;
 
                 const promotion = normalizePromotionFields({
                     promoQtyRaw: Object.prototype.hasOwnProperty.call(data, 'promo_qty') ? data.promo_qty : existing.promo_qty,
                     promoPriceRaw: Object.prototype.hasOwnProperty.call(data, 'promo_price') ? data.promo_price : existing.promo_price
                 });
+                const isPromo = data.is_promo !== undefined ? Boolean(data.is_promo) : false;
                 const position = Number(data.position || 0) || 0;
                 const isActive = data.is_active !== undefined ? Boolean(data.is_active) : true;
 
                 if (!name) return json({ error: 'name requerido' }, 400);
                 if (price <= 0) return json({ error: 'price debe ser mayor a 0' }, 400);
                 if (promotion.error) return json({ error: promotion.error }, 400);
+                if (image_base64 && image_base64.length > 3000000) return json({ error: 'La imagen principal es demasiado pesada (Máximo 3MB).' }, 413);
 
-                const [row] = await sql`
-					UPDATE store_products
-					SET name = ${name}, description = ${description}, price = ${price}, promo_qty = ${promotion.promoQty}, promo_price = ${promotion.promoPrice}, image_base64 = ${image_base64}, position = ${position}, is_active = ${isActive}, updated_at = now()
-					WHERE id = ${id}
-					RETURNING id, name, description, price, promo_qty, promo_price, image_base64, is_active, position
-				`;
-                return json(row);
+                let row;
+                if (rawMedia !== null) {
+                    const mediaJson = JSON.stringify(rawMedia);
+                    if (mediaJson.length > 3000000) return json({ error: 'Los archivos multimedia son demasiado pesados (Máximo 3MB en total permitir). Por favor, comprime el video o imagen.' }, 413);
+                    [row] = await sql`
+                        UPDATE store_products
+                        SET name = ${name}, description = ${description}, price = ${price}, promo_qty = ${promotion.promoQty}, promo_price = ${promotion.promoPrice}, image_base64 = ${image_base64}, media = ${mediaJson}::jsonb, is_promo = ${isPromo}, position = ${position}, is_active = ${isActive}, updated_at = now()
+                        WHERE id = ${id}
+                        RETURNING id, name, description, price, promo_qty, promo_price, image_base64, media, is_promo, is_active, position
+                    `;
+                } else {
+                    [row] = await sql`
+                        UPDATE store_products
+                        SET name = ${name}, description = ${description}, price = ${price}, promo_qty = ${promotion.promoQty}, promo_price = ${promotion.promoPrice}, image_base64 = ${image_base64}, is_promo = ${isPromo}, position = ${position}, is_active = ${isActive}, updated_at = now()
+                        WHERE id = ${id}
+                        RETURNING id, name, description, price, promo_qty, promo_price, image_base64, media, is_promo, is_active, position
+                    `;
+                }
+                return json({ ...row, media: typeof row.media === 'string' ? JSON.parse(row.media) : (row.media || []) });
             }
             case 'DELETE': {
                 const raw = typeof event.rawQuery === 'string' ? event.rawQuery : (event.queryStringParameters ? new URLSearchParams(event.queryStringParameters).toString() : '');

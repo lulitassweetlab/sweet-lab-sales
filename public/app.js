@@ -4918,6 +4918,19 @@ function bindEvents() {
 		}
 	});
 
+	// New Client button
+	const newClientBtn = document.getElementById('new-client-btn');
+	newClientBtn?.addEventListener('click', (ev) => {
+		const rect = ev.currentTarget.getBoundingClientRect();
+		openNewClientPopover(rect.left + rect.width / 2, rect.bottom + 8);
+	});
+
+	// Merge Suggestions button
+	const mergeSuggestionsBtn = document.getElementById('merge-suggestions-btn');
+	mergeSuggestionsBtn?.addEventListener('click', () => {
+		openMergeSuggestionsModal();
+	});
+
 	// Nuevo pedido button from Client Detail view
 	const clientDetailAddOrderBtn = document.getElementById('client-detail-add-order');
 	clientDetailAddOrderBtn?.addEventListener('click', async (ev) => {
@@ -8126,9 +8139,11 @@ async function openClientsView() {
 
 async function loadClientsForSeller() {
 	const sellerId = state.currentSeller.id;
-	// Include archived days to count all client records
+
+	// 1. Fetch sales history to count records
 	const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(sellerId)}&include_archived=1`);
-	const nameToCount = new Map();
+	const nameToData = new Map();
+
 	for (const d of (days || [])) {
 		const params = new URLSearchParams({ seller_id: String(sellerId), sale_day_id: String(d.id) });
 		let sales = [];
@@ -8137,11 +8152,34 @@ async function loadClientsForSeller() {
 			const raw = (s?.client_name || '').trim();
 			if (!raw) continue;
 			const key = normalizeClientName(raw);
-			if (!nameToCount.has(key)) nameToCount.set(key, { name: raw, count: 0 });
-			nameToCount.get(key).count++;
+			if (!nameToData.has(key)) nameToData.set(key, { name: raw, count: 0, whatsapp: '', birth_date: '' });
+			nameToData.get(key).count++;
 		}
 	}
-	const rows = Array.from(nameToCount.values()).sort((a, b) => a.name.localeCompare(b.name, 'es'));
+
+	// 2. Fetch explicit client records from DB
+	try {
+		const clientsDB = await api('GET', `/api/clients?seller_id=${encodeURIComponent(sellerId)}`);
+		for (const c of (clientsDB || [])) {
+			const raw = (c?.name || '').trim();
+			if (!raw) continue;
+			const key = normalizeClientName(raw);
+
+			if (nameToData.has(key)) {
+				// Update existing dynamically counted client with DB info
+				const existing = nameToData.get(key);
+				existing.whatsapp = c.whatsapp || '';
+				existing.birth_date = c.birth_date || '';
+			} else {
+				// Add explicit database client even if they have 0 sales currently
+				nameToData.set(key, { name: raw, count: 0, whatsapp: c.whatsapp || '', birth_date: c.birth_date || '' });
+			}
+		}
+	} catch (err) {
+		console.error('Error fetching clients database:', err);
+	}
+
+	const rows = Array.from(nameToData.values()).sort((a, b) => a.name.localeCompare(b.name, 'es'));
 	renderClientsTable(rows);
 }
 
@@ -8151,20 +8189,469 @@ function renderClientsTable(rows) {
 	tbody.innerHTML = '';
 	if (!rows || rows.length === 0) {
 		const tr = document.createElement('tr');
-		const td = document.createElement('td'); td.colSpan = 2; td.textContent = 'Sin clientes'; td.style.opacity = '0.8';
+		const td = document.createElement('td'); td.colSpan = 6; td.textContent = 'Sin clientes'; td.style.opacity = '0.8'; td.style.textAlign = 'center';
 		tr.appendChild(td); tbody.appendChild(tr); return;
 	}
+
 	for (const r of rows) {
 		const tr = document.createElement('tr'); tr.className = 'clients-row';
+
 		const tdN = document.createElement('td');
 		tdN.textContent = r.name;
-		// No marker in clients list per request
-		const tdC = document.createElement('td'); tdC.textContent = String(r.count); tdC.style.textAlign = 'center';
-		tr.append(tdN, tdC);
+		tdN.style.cursor = 'pointer';
+		tdN.style.color = 'var(--primary)';
+		tdN.style.fontWeight = '500';
+		tdN.title = 'Clic para ver historial';
+		tdN.addEventListener('click', async () => { await openClientDetailView(r.name); });
+
+		const tdVendedor = document.createElement('td');
+		tdVendedor.textContent = state.currentSeller ? state.currentSeller.name : '-';
+		tdVendedor.style.color = 'var(--muted)';
+		tdVendedor.style.fontSize = '0.9em';
+
+		const tdW = document.createElement('td');
+		tdW.textContent = r.whatsapp || '-';
+
+		const tdB = document.createElement('td');
+		tdB.textContent = r.birth_date ? new Date(r.birth_date).toLocaleDateString() : '-';
+
+		const tdC = document.createElement('td');
+		tdC.textContent = String(r.count);
+		tdC.style.textAlign = 'center';
+
+		const tdA = document.createElement('td');
+		tdA.style.textAlign = 'center';
+
+		const editBtn = document.createElement('button');
+		editBtn.className = 'icon-btn';
+		editBtn.textContent = '✏️';
+		editBtn.title = 'Editar datos';
+		editBtn.style.background = 'transparent';
+		editBtn.style.border = 'none';
+		editBtn.style.fontSize = '1.2rem';
+		editBtn.addEventListener('click', (e) => {
+			e.stopPropagation();
+			openClientEditPopover(r, e.clientX, e.clientY);
+		});
+		tdA.appendChild(editBtn);
+
+		tr.append(tdN, tdVendedor, tdW, tdB, tdC, tdA);
 		tr.addEventListener('mousedown', () => { tr.classList.add('row-highlight'); setTimeout(() => tr.classList.remove('row-highlight'), 3200); });
-		tr.addEventListener('click', async () => { await openClientDetailView(r.name); });
 		tbody.appendChild(tr);
 	}
+}
+
+// Simple Levenshtein distance function for string similarity
+function levDistance(a, b) {
+	const matrix = [];
+	for (let i = 0; i <= b.length; i++) {
+		matrix[i] = [i];
+	}
+	for (let j = 0; j <= a.length; j++) {
+		matrix[0][j] = j;
+	}
+	for (let i = 1; i <= b.length; i++) {
+		for (let j = 1; j <= a.length; j++) {
+			if (b.charAt(i - 1) === a.charAt(j - 1)) {
+				matrix[i][j] = matrix[i - 1][j - 1];
+			} else {
+				matrix[i][j] = Math.min(
+					matrix[i - 1][j - 1] + 1, // substitution
+					Math.min(matrix[i][j - 1] + 1, // insertion
+						matrix[i - 1][j] + 1) // deletion
+				);
+			}
+		}
+	}
+	return matrix[b.length][a.length];
+}
+
+async function openMergeSuggestionsModal() {
+	const modal = document.getElementById('merge-suggestions-modal');
+	const container = document.getElementById('merge-groups-container');
+	const emptyMsg = document.getElementById('merge-groups-empty');
+	const closeBtn = document.getElementById('close-merge-modal');
+
+	if (!modal || !container || !emptyMsg) return;
+
+	modal.style.display = 'flex';
+	container.innerHTML = '';
+	emptyMsg.style.display = 'none';
+
+	// Grab all current clients on the table (since loadClientsForSeller populated nameToData theoretically, but we can reconstruct from the rows)
+	const tbody = document.getElementById('clients-tbody');
+	if (!tbody) return;
+
+	const allNames = Array.from(tbody.querySelectorAll('.clients-row td:first-child'))
+		.map(td => td.textContent.trim())
+		.filter(Boolean);
+
+	// Group similar names
+	const groups = [];
+	const visitedNames = new Set();
+	const THRESHOLD = 3; // Max 3 edits to be considered similar (e.g., "Andres" vs "andras")
+
+	for (let i = 0; i < allNames.length; i++) {
+		const nameA = allNames[i];
+		if (visitedNames.has(nameA)) continue;
+
+		const currentGroup = [nameA];
+		visitedNames.add(nameA);
+
+		const normalizedA = nameA.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+		for (let j = i + 1; j < allNames.length; j++) {
+			const nameB = allNames[j];
+			if (visitedNames.has(nameB)) continue;
+
+			const normalizedB = nameB.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+			// Detect pure substrings or short lev distances
+			if (normalizedB.includes(normalizedA) || normalizedA.includes(normalizedB) || levDistance(normalizedA, normalizedB) <= THRESHOLD) {
+				currentGroup.push(nameB);
+				visitedNames.add(nameB);
+			}
+		}
+
+		if (currentGroup.length > 1) {
+			groups.push(currentGroup);
+		}
+	}
+
+	if (groups.length === 0) {
+		emptyMsg.style.display = 'block';
+	} else {
+		// Render groups
+		groups.forEach((group, index) => {
+			const groupCard = document.createElement('div');
+			groupCard.style.border = '1px solid var(--border)';
+			groupCard.style.borderRadius = '8px';
+			groupCard.style.padding = '16px';
+			groupCard.style.background = 'var(--background)';
+
+			const groupTitle = document.createElement('h4');
+			groupTitle.textContent = `Grupo ${index + 1} (${group.length} coincidencias)`;
+			groupTitle.style.margin = '0 0 12px 0';
+			groupTitle.style.color = 'var(--primary)';
+			groupCard.appendChild(groupTitle);
+
+			const radioGroupName = `merge_group_${index}`;
+
+			group.forEach((name, i) => {
+				const row = document.createElement('div');
+				row.style.display = 'flex';
+				row.style.alignItems = 'center';
+				row.style.gap = '8px';
+				row.style.marginBottom = '8px';
+
+				const radio = document.createElement('input');
+				radio.type = 'radio';
+				radio.name = radioGroupName;
+				radio.value = name;
+				radio.id = `${radioGroupName}_${i}`;
+				if (i === 0) radio.checked = true; // Default first option
+
+				const label = document.createElement('label');
+				label.setAttribute('for', radio.id);
+				label.textContent = name;
+				label.style.cursor = 'pointer';
+				label.style.flex = '1';
+
+				row.appendChild(radio);
+				row.appendChild(label);
+				groupCard.appendChild(row);
+			});
+
+			const mergeBtn = document.createElement('button');
+			mergeBtn.className = 'press-btn btn-primary';
+			mergeBtn.textContent = 'Fusionar bajo el nombre seleccionado';
+			mergeBtn.style.marginTop = '12px';
+			mergeBtn.style.width = '100%';
+
+			mergeBtn.addEventListener('click', async () => {
+				mergeBtn.disabled = true;
+				mergeBtn.textContent = 'Fusionando...';
+
+				const selectedRadio = groupCard.querySelector(`input[name="${radioGroupName}"]:checked`);
+				const targetName = selectedRadio.value;
+				const sourceNames = group.filter(n => n !== targetName);
+
+				try {
+					const sellerId = state.currentSeller.id;
+					const payload = {
+						seller_id: sellerId,
+						name: targetName,
+						source_names: group // We send all, backend ignores target if inside source
+					};
+
+					await api('POST', `/api/clients?action=merge`, payload);
+
+					groupCard.innerHTML = '<div style="color: var(--success); text-align: center; padding: 10px;">¡Fusión exitosa! ✓</div>';
+					setTimeout(() => { groupCard.style.display = 'none'; }, 2000);
+
+					// Pre-emptively reload the table behind the scenes
+					await loadClientsForSeller();
+
+				} catch (err) {
+					alert('Error al fusionar: ' + err.message);
+					mergeBtn.disabled = false;
+					mergeBtn.textContent = 'Fusionar bajo el nombre seleccionado';
+				}
+			});
+
+			groupCard.appendChild(mergeBtn);
+			container.appendChild(groupCard);
+		});
+	}
+
+	const handleClose = () => {
+		modal.style.display = 'none';
+		closeBtn?.removeEventListener('click', handleClose);
+	};
+	closeBtn?.addEventListener('click', handleClose);
+}
+
+function openClientEditPopover(clientData, clientX, clientY) {
+	// Native cleanup to fix undefined array errors
+	document.querySelectorAll('.edit-client-popover').forEach(p => p.remove());
+
+	const pop = document.createElement('div');
+	pop.className = 'popover active edit-client-popover';
+	pop.style.padding = '20px';
+	pop.style.minWidth = '260px';
+	pop.style.position = 'fixed';
+	pop.style.zIndex = '9999';
+	pop.style.background = 'var(--surface, #fff)';
+	pop.style.boxShadow = '0 8px 32px rgba(0,0,0,0.2)';
+	pop.style.borderRadius = '12px';
+	pop.style.border = '1px solid var(--border, #ddd)';
+
+	const title = document.createElement('h3');
+	title.textContent = 'Editar Cliente';
+	title.style.margin = '0 0 16px 0';
+	title.style.fontSize = '1.1rem';
+	title.style.color = 'var(--primary)';
+
+	const nameLabel = document.createElement('label');
+	nameLabel.textContent = 'Nombre:';
+	nameLabel.style.display = 'block';
+	nameLabel.style.fontSize = '0.9rem';
+	nameLabel.style.marginBottom = '4px';
+
+	const nameInput = document.createElement('input');
+	nameInput.type = 'text';
+	nameInput.value = clientData.name;
+	nameInput.readOnly = true;
+	nameInput.className = 'client-input';
+	nameInput.style.width = '100%';
+	nameInput.style.marginBottom = '12px';
+	nameInput.style.background = 'var(--muted-bg)';
+
+	const waLabel = document.createElement('label');
+	waLabel.textContent = 'WhatsApp:';
+	waLabel.style.display = 'block';
+	waLabel.style.fontSize = '0.9rem';
+	waLabel.style.marginBottom = '4px';
+
+	const waInput = document.createElement('input');
+	waInput.type = 'tel';
+	waInput.value = clientData.whatsapp;
+	waInput.className = 'client-input';
+	waInput.style.width = '100%';
+	waInput.style.marginBottom = '12px';
+	waInput.placeholder = 'Ej: 3001234567';
+
+	const birthLabel = document.createElement('label');
+	birthLabel.textContent = 'Fecha de Nacimiento:';
+	birthLabel.style.display = 'block';
+	birthLabel.style.fontSize = '0.9rem';
+	birthLabel.style.marginBottom = '4px';
+
+	const birthInput = document.createElement('input');
+	birthInput.type = 'date';
+	birthInput.value = clientData.birth_date ? new Date(clientData.birth_date).toISOString().split('T')[0] : '';
+	birthInput.className = 'client-input';
+	birthInput.style.width = '100%';
+	birthInput.style.marginBottom = '20px';
+
+	const saveBtn = document.createElement('button');
+	saveBtn.className = 'press-btn btn-primary';
+	saveBtn.textContent = 'Guardar';
+	saveBtn.style.width = '100%';
+
+	pop.append(title, nameLabel, nameInput, waLabel, waInput, birthLabel, birthInput, saveBtn);
+
+	let left = clientX;
+	let top = clientY;
+	pop.style.left = left + 'px';
+	pop.style.top = top + 'px';
+	pop.style.opacity = '0';
+	document.body.appendChild(pop);
+
+	// Adjust bounds
+	const rect = pop.getBoundingClientRect();
+	if (rect.right > window.innerWidth) left -= (rect.right - window.innerWidth + 10);
+	if (rect.bottom > window.innerHeight) top -= (rect.bottom - window.innerHeight + 10);
+	pop.style.left = Math.max(10, left) + 'px';
+	pop.style.top = Math.max(10, top) + 'px';
+
+	requestAnimationFrame(() => pop.style.opacity = '1');
+
+	saveBtn.addEventListener('click', async () => {
+		try {
+			saveBtn.disabled = true;
+			saveBtn.textContent = 'Guardando...';
+
+			const payload = {
+				seller_id: state.currentSeller.id,
+				name: clientData.name,
+				whatsapp: waInput.value.trim(),
+				birth_date: birthInput.value || null
+			};
+
+			await api('POST', '/api/clients', payload);
+			cleanup();
+			await loadClientsForSeller(); // Refresh table
+		} catch (err) {
+			alert('Error al guardar: ' + err.message);
+			saveBtn.disabled = false;
+			saveBtn.textContent = 'Guardar';
+		}
+	});
+
+	function cleanup() {
+		if (pop && pop.parentNode) pop.parentNode.removeChild(pop);
+		document.removeEventListener('mousedown', outside, true);
+		document.removeEventListener('touchstart', outside, true);
+	}
+
+	function outside(ev) { if (!pop.contains(ev.target)) cleanup(); }
+	setTimeout(() => {
+		document.addEventListener('mousedown', outside, true);
+		document.addEventListener('touchstart', outside, true);
+	}, 0);
+}
+
+function openNewClientPopover(clientX, clientY) {
+	document.querySelectorAll('.edit-client-popover').forEach(p => p.remove());
+
+	const pop = document.createElement('div');
+	pop.className = 'popover active edit-client-popover';
+	pop.style.padding = '20px';
+	pop.style.minWidth = '260px';
+	pop.style.position = 'fixed';
+	pop.style.zIndex = '9999';
+	pop.style.background = 'var(--surface, #fff)';
+	pop.style.boxShadow = '0 8px 32px rgba(0,0,0,0.2)';
+	pop.style.borderRadius = '12px';
+	pop.style.border = '1px solid var(--border, #ddd)';
+
+	const title = document.createElement('h3');
+	title.textContent = 'Nuevo Cliente';
+	title.style.margin = '0 0 16px 0';
+	title.style.fontSize = '1.1rem';
+	title.style.color = 'var(--primary)';
+
+	const nameLabel = document.createElement('label');
+	nameLabel.textContent = 'Nombre del Cliente:';
+	nameLabel.style.display = 'block';
+	nameLabel.style.fontSize = '0.9rem';
+	nameLabel.style.marginBottom = '4px';
+
+	const nameInput = document.createElement('input');
+	nameInput.type = 'text';
+	nameInput.className = 'client-input';
+	nameInput.style.width = '100%';
+	nameInput.style.marginBottom = '12px';
+	nameInput.placeholder = 'Ej: Maria Perez';
+
+	const waLabel = document.createElement('label');
+	waLabel.textContent = 'WhatsApp:';
+	waLabel.style.display = 'block';
+	waLabel.style.fontSize = '0.9rem';
+	waLabel.style.marginBottom = '4px';
+
+	const waInput = document.createElement('input');
+	waInput.type = 'tel';
+	waInput.className = 'client-input';
+	waInput.style.width = '100%';
+	waInput.style.marginBottom = '12px';
+	waInput.placeholder = 'Ej: 3001234567';
+
+	const birthLabel = document.createElement('label');
+	birthLabel.textContent = 'Fecha de Nacimiento:';
+	birthLabel.style.display = 'block';
+	birthLabel.style.fontSize = '0.9rem';
+	birthLabel.style.marginBottom = '4px';
+
+	const birthInput = document.createElement('input');
+	birthInput.type = 'date';
+	birthInput.className = 'client-input';
+	birthInput.style.width = '100%';
+	birthInput.style.marginBottom = '20px';
+
+	const saveBtn = document.createElement('button');
+	saveBtn.className = 'press-btn btn-primary';
+	saveBtn.textContent = 'Guardar';
+	saveBtn.style.width = '100%';
+
+	pop.append(title, nameLabel, nameInput, waLabel, waInput, birthLabel, birthInput, saveBtn);
+
+	let left = clientX;
+	let top = clientY;
+	pop.style.left = left + 'px';
+	pop.style.top = top + 'px';
+	pop.style.opacity = '0';
+	document.body.appendChild(pop);
+
+	// Adjust bounds
+	const rect = pop.getBoundingClientRect();
+	if (rect.right > window.innerWidth) left -= (rect.right - window.innerWidth + 10);
+	if (rect.bottom > window.innerHeight) top -= (rect.bottom - window.innerHeight + 10);
+	pop.style.left = Math.max(10, left) + 'px';
+	pop.style.top = Math.max(10, top) + 'px';
+
+	requestAnimationFrame(() => pop.style.opacity = '1');
+
+	saveBtn.addEventListener('click', async () => {
+		const customerName = nameInput.value.trim();
+		if (!customerName) {
+			alert('El nombre es obligatorio.');
+			return;
+		}
+
+		try {
+			saveBtn.disabled = true;
+			saveBtn.textContent = 'Guardando...';
+
+			const payload = {
+				seller_id: state.currentSeller.id,
+				name: customerName,
+				whatsapp: waInput.value.trim(),
+				birth_date: birthInput.value || null
+			};
+
+			await api('POST', '/api/clients', payload);
+			cleanup();
+			await loadClientsForSeller(); // Refresh table
+		} catch (err) {
+			alert('Error al guardar: ' + err.message);
+			saveBtn.disabled = false;
+			saveBtn.textContent = 'Guardar';
+		}
+	});
+
+	function cleanup() {
+		if (pop && pop.parentNode) pop.parentNode.removeChild(pop);
+		document.removeEventListener('mousedown', outside, true);
+		document.removeEventListener('touchstart', outside, true);
+	}
+
+	function outside(ev) { if (!pop.contains(ev.target)) cleanup(); }
+	setTimeout(() => {
+		document.addEventListener('mousedown', outside, true);
+		document.addEventListener('touchstart', outside, true);
+	}, 0);
 }
 
 function focusClientRow(name) {
@@ -9311,6 +9798,7 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 (async function init() {
 	bindEvents();
 	bindLogin();
+	bindActiveTableSearch();
 	updateToolbarOffset();
 	try { const saved = localStorage.getItem('authUser'); if (saved) state.currentUser = JSON.parse(saved); } catch { }
 	// Backfill role fields if missing from older sessions
@@ -9360,8 +9848,34 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 			}
 		}
 	} catch { }
-	// Route initial view (skip if we just navigated from Transfers)
-	if (!__handledPendingFocus) {
+
+	// Handle Embedded Store Auth Bypass
+	let __handledEmbedded = false;
+	if (window.location.search.includes('embed=true')) {
+		try {
+			const storeUserStr = localStorage.getItem('storeAuthUser');
+			const storeSellerStr = localStorage.getItem('storeActiveSeller');
+			if (storeUserStr && storeSellerStr) {
+				state.currentUser = JSON.parse(storeUserStr);
+				const activeSeller = JSON.parse(storeSellerStr);
+
+				await loadSellers(); // Ensure sellers are fully loaded before entering
+
+				__handledEmbedded = true;
+				await enterSeller(activeSeller.id);
+
+				const urlParams = new URLSearchParams(window.location.search);
+				if (urlParams.get('view') === 'clients') {
+					await openClientsView();
+				}
+			}
+		} catch (err) {
+			console.error('Embedded auth bypass failed', err);
+		}
+	}
+
+	// Route initial view (skip if we just navigated from Transfers or Embedded)
+	if (!__handledPendingFocus && !__handledEmbedded) {
 		if (!state.currentUser) {
 			switchView('#view-login');
 		} else if (state.currentUser.isAdmin) {
@@ -9842,6 +10356,92 @@ const NotificationCenter = {
 		}
 	}
 };
+
+// ==========================================
+// Active Day Table Client Search
+// ==========================================
+function bindActiveTableSearch() {
+	const searchInput = document.getElementById('active-table-client-search');
+	const pop = document.getElementById('active-table-client-suggestions');
+	if (!searchInput || !pop) return;
+
+	let blurTimeout;
+
+	function renderSuggestions(query) {
+		pop.innerHTML = '';
+		if (!query) {
+			pop.style.display = 'none';
+			return;
+		}
+
+		const lowerQ = query.toLowerCase();
+
+		// Get unique clients from CURRENT table sales only
+		const uniqueClients = [...new Set((state.sales || []).map(s => (s.client_name || '').trim()).filter(Boolean))];
+
+		// Filter by query
+		const matches = uniqueClients.filter(c => c.toLowerCase().includes(lowerQ));
+
+		if (matches.length === 0) {
+			pop.style.display = 'none';
+			return;
+		}
+
+		for (const m of matches) {
+			const li = document.createElement('li');
+			li.style.padding = '10px 16px';
+			li.style.cursor = 'pointer';
+			li.style.borderBottom = '1px solid var(--border)';
+			li.style.background = 'var(--surface)';
+			li.style.color = 'var(--text)';
+			li.textContent = m;
+
+			li.addEventListener('mouseenter', () => li.style.background = 'rgba(0,0,0,0.05)');
+			li.addEventListener('mouseleave', () => li.style.background = 'var(--surface)');
+
+			li.addEventListener('mousedown', (e) => {
+				e.preventDefault(); // Prevent input blur
+				searchInput.value = '';
+				pop.style.display = 'none';
+
+				// Find first matching sale in the table
+				const sale = state.sales.find(s => (s.client_name || '').trim().toLowerCase() === m.toLowerCase());
+				if (sale) {
+					const tr = document.querySelector(`#sales-tbody tr[data-id="${sale.id}"]`);
+					if (tr) {
+						tr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+						// Remove any existing highlight first
+						tr.classList.remove('row-highlight');
+						// Force reflow
+						void tr.offsetWidth;
+						// Add animation class
+						tr.classList.add('row-highlight');
+
+						// Clean up animation class after it finishes (2.5s defined in css)
+						setTimeout(() => tr.classList.remove('row-highlight'), 3000);
+					}
+				}
+			});
+			pop.appendChild(li);
+		}
+		pop.style.display = 'block';
+	}
+
+	searchInput.addEventListener('input', () => {
+		renderSuggestions(searchInput.value.trim());
+	});
+
+	searchInput.addEventListener('focus', () => {
+		clearTimeout(blurTimeout);
+		if (searchInput.value.trim()) renderSuggestions(searchInput.value.trim());
+	});
+
+	searchInput.addEventListener('blur', () => {
+		blurTimeout = setTimeout(() => {
+			pop.style.display = 'none';
+		}, 150);
+	});
+}
 
 // Initialize notification center when DOM is ready
 if (document.readyState === 'loading') {

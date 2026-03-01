@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 19; // Bump when schema changes require a migration (add store_settings)
+const SCHEMA_VERSION = 23; // Bump when schema changes require a migration (add clients table)
 
 export async function ensureSchema() {
 	// If already ensured in this instance, skip immediately
@@ -65,6 +65,20 @@ export async function ensureSchema() {
 					WHERE table_name = 'desserts' AND column_name = 'promo_price'
 				) THEN
 					ALTER TABLE desserts ADD COLUMN promo_price INTEGER;
+				END IF;
+				IF NOT EXISTS (
+					SELECT 1 FROM information_schema.columns
+					WHERE table_name = 'desserts' AND column_name = 'store_name'
+				) THEN
+					ALTER TABLE desserts ADD COLUMN store_name TEXT;
+				END IF;
+				IF NOT EXISTS (
+					SELECT 1 FROM information_schema.columns
+					WHERE table_name = 'desserts' AND column_name = 'store_product_id'
+				) THEN
+					-- We create this column but cannot add the foreign key constraint directly here 
+					-- if store_products doesn't exist yet in the flow. We'll add it, but it's just an INTEGER.
+					ALTER TABLE desserts ADD COLUMN store_product_id INTEGER;
 				END IF;
 				UPDATE desserts
 				SET cost_price = ROUND(sale_price * 0.55)::int
@@ -131,20 +145,20 @@ export async function ensureSchema() {
 				END IF;
 			END $$;`;
 
-			// Store Products table for the customer-facing online store
-			await sql`CREATE TABLE IF NOT EXISTS store_products (
+			// Clients table for the seller client database
+			await sql`CREATE TABLE IF NOT EXISTS clients (
 				id SERIAL PRIMARY KEY,
-				name TEXT NOT NULL,
-				description TEXT DEFAULT '',
-				price INTEGER NOT NULL DEFAULT 0,
-				promo_qty INTEGER,
-				promo_price INTEGER,
-				image_base64 TEXT,
-				is_active BOOLEAN NOT NULL DEFAULT true,
-				position INTEGER NOT NULL DEFAULT 0,
+				name VARCHAR(255) NOT NULL,
+				whatsapp VARCHAR(20),
+				birth_date DATE,
+				seller_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 				created_at TIMESTAMPTZ DEFAULT now(),
-				updated_at TIMESTAMPTZ DEFAULT now()
+				UNIQUE (name, seller_id)
 			)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_clients_seller ON clients(seller_id)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_clients_name ON clients(name)`;
+
+
 
 			// FAST PATH: Just check if schema_meta exists and has correct version
 			try {
@@ -188,6 +202,53 @@ export async function ensureSchema() {
 		created_at TIMESTAMPTZ DEFAULT now(),
 		updated_at TIMESTAMPTZ DEFAULT now()
 	)`;
+
+			// Store Products table for the customer-facing online store
+			await sql`CREATE TABLE IF NOT EXISTS store_products (
+				id SERIAL PRIMARY KEY,
+				name TEXT NOT NULL,
+				description TEXT DEFAULT '',
+				price INTEGER NOT NULL DEFAULT 0,
+				promo_qty INTEGER,
+				promo_price INTEGER,
+				image_base64 TEXT,
+				media JSONB DEFAULT '[]'::jsonb,
+				is_promo BOOLEAN NOT NULL DEFAULT false,
+				is_active BOOLEAN NOT NULL DEFAULT true,
+				position INTEGER NOT NULL DEFAULT 0,
+				created_at TIMESTAMPTZ DEFAULT now(),
+				updated_at TIMESTAMPTZ DEFAULT now()
+			)`;
+
+			await sql`DO $$ BEGIN
+				IF NOT EXISTS (
+					SELECT 1 FROM information_schema.columns
+					WHERE table_name = 'store_products' AND column_name = 'media'
+				) THEN
+					ALTER TABLE store_products ADD COLUMN media JSONB DEFAULT '[]'::jsonb;
+				END IF;
+				IF NOT EXISTS (
+					SELECT 1 FROM information_schema.columns
+					WHERE table_name = 'store_products' AND column_name = 'is_promo'
+				) THEN
+					ALTER TABLE store_products ADD COLUMN is_promo BOOLEAN NOT NULL DEFAULT false;
+				END IF;
+			END $$;`;
+
+			// Now we can safely add the FK from desserts to store_products if it doesn't exist, since both tables exist
+			await sql`DO $$ BEGIN
+				IF NOT EXISTS (
+					SELECT 1 FROM information_schema.table_constraints
+					WHERE constraint_name = 'desserts_store_product_id_fkey'
+				) THEN
+					-- Ensure the column exists first (handled earlier) then safely add constraint
+					BEGIN
+						ALTER TABLE desserts ADD CONSTRAINT desserts_store_product_id_fkey FOREIGN KEY (store_product_id) REFERENCES store_products(id) ON DELETE SET NULL;
+					EXCEPTION WHEN duplicate_object THEN
+						-- Constraint might exist under a different name, ignore if it fails due to existing
+					END;
+				END IF;
+			END $$;`;
 			await sql`CREATE TABLE IF NOT EXISTS sale_items (
 		id SERIAL PRIMARY KEY,
 		sale_id INTEGER NOT NULL REFERENCES sales(id) ON DELETE CASCADE,
@@ -276,20 +337,7 @@ export async function ensureSchema() {
 			await sql`CREATE INDEX IF NOT EXISTS idx_game_plays_whatsapp ON game_plays(whatsapp)`;
 			await sql`CREATE INDEX IF NOT EXISTS idx_game_plays_played_at ON game_plays(played_at DESC)`;
 
-			// CRITICAL: Store Products table
-			await sql`CREATE TABLE IF NOT EXISTS store_products (
-				id SERIAL PRIMARY KEY,
-				name TEXT NOT NULL,
-				description TEXT DEFAULT '',
-				price INTEGER NOT NULL DEFAULT 0,
-				promo_qty INTEGER,
-				promo_price INTEGER,
-				image_base64 TEXT,
-				is_active BOOLEAN NOT NULL DEFAULT true,
-				position INTEGER NOT NULL DEFAULT 0,
-				created_at TIMESTAMPTZ DEFAULT now(),
-				updated_at TIMESTAMPTZ DEFAULT now()
-			)`;
+
 
 			// CRITICAL: Store Settings table
 			await sql`CREATE TABLE IF NOT EXISTS store_settings (

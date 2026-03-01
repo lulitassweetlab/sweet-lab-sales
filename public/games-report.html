@@ -350,6 +350,8 @@
     <div class="header">
         <h1>🎮 Reporte de Juegos</h1>
         <div>
+            <button class="btn-qr" id="edit-msgs-btn" style="background: #a855f7; margin-right: 10px;">✏️ Editar
+                Mensajes</button>
             <a href="/game.html" class="btn-qr" style="background: #10b981; margin-right: 10px;">🎮 Ir al Juego</a>
             <button class="btn-qr" id="show-qr-btn">📱 Ver QR</button>
             <a href="/" class="btn-back">← Volver</a>
@@ -364,6 +366,34 @@
             <img src="/game-qr.png" alt="QR Code" />
             <p style="font-size: 12px; color: #999; margin-top: 10px;">https://sweetlabsales.netlify.app/game.html</p>
             <button class="btn-close" id="close-qr-btn">Cerrar</button>
+        </div>
+    </div>
+
+    <!-- Edit Messages Modal -->
+    <div class="qr-modal" id="edit-msgs-modal">
+        <div class="qr-content" style="max-width: 600px; text-align: left;">
+            <h2 style="text-align: center;">Editar Mensajes de Premio</h2>
+
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; font-weight: bold; margin-bottom: 8px;">Mensaje de Postre Gratis</label>
+                <textarea id="msg-free-input" rows="5"
+                    style="width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-family: 'DM Sans', sans-serif; resize: vertical; box-sizing: border-box;"></textarea>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; font-weight: bold; margin-bottom: 8px;">Mensaje de Descuento</label>
+                <textarea id="msg-discount-input" rows="5"
+                    style="width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-family: 'DM Sans', sans-serif; resize: vertical; box-sizing: border-box;"></textarea>
+                <p style="font-size: 13px; color: #666; margin-top: 8px;">Usa <strong>{premio}</strong> en el texto para
+                    que sea reemplazado automáticamente por el porcentaje ganado (ej: 10% DESC).</p>
+            </div>
+
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 30px;">
+                <button class="btn-close" id="close-msgs-btn"
+                    style="margin-top: 0; background: #9ca3af;">Cancelar</button>
+                <button class="btn-close" id="save-msgs-btn" style="margin-top: 0; background: #10b981;">Guardar
+                    Mensajes</button>
+            </div>
         </div>
     </div>
 
@@ -400,19 +430,24 @@
             <thead>
                 <tr>
                     <th id="th-played-at" class="sortable-header" tabindex="0" title="Ordenar por fecha de registro">
-                        <span class="sort-header-label">Fecha <span class="sort-indicator" data-sort-indicator="registrationDate">↕</span></span>
+                        <span class="sort-header-label">Fecha <span class="sort-indicator"
+                                data-sort-indicator="registrationDate">↕</span></span>
                     </th>
                     <th>Nombre</th>
-                    <th id="th-birth-date" class="sortable-header" tabindex="0" title="Ordenar por día y mes de cumpleaños">
-                        <span class="sort-header-label">Fecha Nacimiento <span class="sort-indicator" data-sort-indicator="birthdayDayMonth">↕</span></span>
+                    <th id="th-birth-date" class="sortable-header" tabindex="0"
+                        title="Ordenar por día y mes de cumpleaños">
+                        <span class="sort-header-label">Fecha Nacimiento <span class="sort-indicator"
+                                data-sort-indicator="birthdayDayMonth">↕</span></span>
                     </th>
                     <th>WhatsApp</th>
                     <th>Vendedor</th>
                     <th id="th-discount" class="sortable-header" tabindex="0" title="Ordenar por descuento">
-                        <span class="sort-header-label">Regalo <span class="sort-indicator" data-sort-indicator="discount">↕</span></span>
+                        <span class="sort-header-label">Regalo <span class="sort-indicator"
+                                data-sort-indicator="discount">↕</span></span>
                     </th>
                     <th>
-                        <button id="export-games-excel" class="excel-btn press-btn btn-gold" style="padding: 6px 10px; font-size: 12px; min-height: auto;">⤓ Excel</button>
+                        <button id="export-games-excel" class="excel-btn press-btn btn-gold"
+                            style="padding: 6px 10px; font-size: 12px; min-height: auto;">⤓ Excel</button>
                     </th>
                 </tr>
             </thead>
@@ -998,11 +1033,18 @@
             loadGameProbabilities();
         });
 
-        // QR Modal handlers
+        // Modal handlers
         const qrModal = document.getElementById('qr-modal');
         const showQrBtn = document.getElementById('show-qr-btn');
         const closeQrBtn = document.getElementById('close-qr-btn');
         const exportGamesExcelBtn = document.getElementById('export-games-excel');
+
+        const editMsgsModal = document.getElementById('edit-msgs-modal');
+        const editMsgsBtn = document.getElementById('edit-msgs-btn');
+        const closeMsgsBtn = document.getElementById('close-msgs-btn');
+        const saveMsgsBtn = document.getElementById('save-msgs-btn');
+        const msgFreeInput = document.getElementById('msg-free-input');
+        const msgDiscountInput = document.getElementById('msg-discount-input');
 
         showQrBtn.addEventListener('click', () => {
             qrModal.classList.add('active');
@@ -1012,6 +1054,52 @@
             qrModal.classList.remove('active');
         });
 
+        editMsgsBtn.addEventListener('click', async () => {
+            msgFreeInput.value = 'Cargando...';
+            msgDiscountInput.value = 'Cargando...';
+            editMsgsModal.classList.add('active');
+
+            try {
+                const res = await fetch('/api/store-settings');
+                if (res.ok) {
+                    const settings = await res.json();
+                    msgFreeInput.value = settings.game_msg_free || '¡Increíble! Has ganado un postre completamente gratis. Muestra este resultado a tu vendedor.';
+                    msgDiscountInput.value = settings.game_msg_discount || '¡Felicitaciones! Has ganado un descuento del {premio}. Muestra este resultado a tu vendedor para aplicarlo en tu próxima compra.';
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        });
+
+        closeMsgsBtn.addEventListener('click', () => {
+            editMsgsModal.classList.remove('active');
+        });
+
+        saveMsgsBtn.addEventListener('click', async () => {
+            saveMsgsBtn.textContent = 'Guardando...';
+            saveMsgsBtn.disabled = true;
+            try {
+                const body = {
+                    game_msg_free: msgFreeInput.value.trim(),
+                    game_msg_discount: msgDiscountInput.value.trim()
+                };
+                const res = await fetch('/api/store-settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                if (!res.ok) throw new Error('Error al guardar mensajes');
+                alert('Mensajes guardados exitosamente');
+                editMsgsModal.classList.remove('active');
+            } catch (e) {
+                console.error(e);
+                alert('Error al guardar los mensajes');
+            } finally {
+                saveMsgsBtn.textContent = 'Guardar Mensajes';
+                saveMsgsBtn.disabled = false;
+            }
+        });
+
         exportGamesExcelBtn.addEventListener('click', () => {
             exportGamePlaysExcel();
         });
@@ -1019,6 +1107,12 @@
         qrModal.addEventListener('click', (e) => {
             if (e.target === qrModal) {
                 qrModal.classList.remove('active');
+            }
+        });
+
+        editMsgsModal.addEventListener('click', (e) => {
+            if (e.target === editMsgsModal) {
+                editMsgsModal.classList.remove('active');
             }
         });
     </script>

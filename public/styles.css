@@ -7909,3 +7909,60 @@ td.col-client.action-bar-fading .client-input {
 	z-index: 40 !important;
 	background: var(--card) !important;
 }
+
+/* Active Table Client Search Highlight */
+@keyframes rowHighlightPulse {
+	0% {
+		background-color: rgba(233, 30, 99, 0.4);
+	}
+
+	50% {
+		background-color: rgba(233, 30, 99, 0.2);
+	}
+
+	100% {
+		background-color: transparent;
+	}
+}
+
+.row-highlight td {
+	animation: rowHighlightPulse 2.5s ease-out forwards !important;
+}
+
+/* Panel Header Flex Layout */
+.panel-header-toolbar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	width: 100%;
+	flex-wrap: wrap;
+	gap: 10px;
+}
+
+.active-table-search {
+	position: relative;
+	flex: 1;
+	max-width: 300px;
+	min-width: 200px;
+}
+
+@media (max-width: 600px) {
+	.panel-header-toolbar {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.panel-header-toolbar .panel-actions {
+		width: 100%;
+		display: flex;
+		justify-content: space-between;
+		margin-left: 0 !important;
+		order: 2;
+	}
+
+	.active-table-search {
+		max-width: 100%;
+		order: 3;
+		margin-top: 4px;
+	}
+}
