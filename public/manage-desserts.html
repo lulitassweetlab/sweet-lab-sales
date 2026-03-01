@@ -127,19 +127,19 @@
 			}
 
 			function getEffectiveCostPrice(dessert) {
-				const configured = Number(dessert?.cost_price);
+				const configured = dessert?.cost_price != null ? Number(dessert.cost_price) : NaN;
 				if (Number.isFinite(configured) && configured >= 0) return Math.round(configured);
 				return getDefaultCostPrice(dessert?.sale_price);
 			}
 
 			function getEffectivePromotionQty(dessert) {
-				const qty = Number(dessert?.promo_qty);
+				const qty = dessert?.promo_qty != null ? Number(dessert.promo_qty) : NaN;
 				if (Number.isFinite(qty) && qty >= 2) return Math.floor(qty);
 				return '';
 			}
 
 			function getEffectivePromotionPrice(dessert) {
-				const price = Number(dessert?.promo_price);
+				const price = dessert?.promo_price != null ? Number(dessert.promo_price) : NaN;
 				if (Number.isFinite(price) && price >= 0) return Math.round(price);
 				return '';
 			}
@@ -513,7 +513,6 @@
 				priceInput.min = '0';
 				priceInput.step = '100';
 				priceInput.value = dessert ? dessert.sale_price : '';
-				priceInput.placeholder = 'Ej: 15000';
 
 				const posLabel = document.createElement('label');
 				posLabel.textContent = 'Posición:';

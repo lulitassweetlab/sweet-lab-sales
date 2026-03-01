@@ -1659,26 +1659,43 @@
                 const adminDesserts = await dessertsRes.json();
                 const dynamicItems = [];
 
-                for (const id in cart) {
-                    const item = cart[id];
+                for (const productId in cart) {
+                    const item = cart[productId];
                     const name = (item.product.name || '').toLowerCase();
+
+                    // 1. Precise Match via Database Link
+                    let matchedDessert = adminDesserts.find(d => d.store_product_id === item.product.id);
+
+                    // 2. Legacy Fallback (Name heuristics)
                     let shortCode = '';
+                    if (!matchedDessert) {
+                        if (name.includes('arcoiris') || name.includes('arco')) { shortCode = 'arco'; }
+                        else if (name.includes('melocoton') || name.includes('melo')) { shortCode = 'melo'; }
+                        else if (name.includes('maracumango') || name.includes('mara')) { shortCode = 'mara'; }
+                        else if (name.includes('oreo')) { shortCode = 'oreo'; }
+                        else if (name.includes('nutella') || name.includes('nute')) { shortCode = 'nute'; }
+                        else if (name.includes('leches') || name.includes('3lec')) { shortCode = '3lec'; }
+                        else if (name.includes('brigadeiro') || name.includes('brig')) { shortCode = 'brig'; }
 
-                    if (name.includes('arcoiris') || name.includes('arco')) { qty_arco += item.qty; shortCode = 'arco'; }
-                    else if (name.includes('melocoton') || name.includes('melo')) { qty_melo += item.qty; shortCode = 'melo'; }
-                    else if (name.includes('maracumango') || name.includes('mara')) { qty_mara += item.qty; shortCode = 'mara'; }
-                    else if (name.includes('oreo')) { qty_oreo += item.qty; shortCode = 'oreo'; }
-                    else if (name.includes('nutella') || name.includes('nute')) { qty_nute += item.qty; shortCode = 'nute'; }
-                    else if (name.includes('leches') || name.includes('3lec')) { shortCode = '3lec'; }
-                    else if (name.includes('brigadeiro') || name.includes('brig')) { shortCode = 'brig'; }
+                        if (shortCode) {
+                            matchedDessert = adminDesserts.find(d => (d.short_code || '').toLowerCase() === shortCode);
+                        }
+                    }
 
-                    const matchedDessert = adminDesserts.find(d => (d.short_code || '').toLowerCase() === shortCode);
                     if (matchedDessert) {
                         dynamicItems.push({
                             dessert_id: matchedDessert.id,
                             quantity: item.qty,
                             unit_price: item.product.price
                         });
+
+                        // Legacy top-level quantities for backward compatibility logic
+                        const sc = (matchedDessert.short_code || '').toLowerCase();
+                        if (sc === 'arco') qty_arco += item.qty;
+                        if (sc === 'melo') qty_melo += item.qty;
+                        if (sc === 'mara') qty_mara += item.qty;
+                        if (sc === 'oreo') qty_oreo += item.qty;
+                        if (sc === 'nute') qty_nute += item.qty;
                     }
                 }
 
