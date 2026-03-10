@@ -8235,7 +8235,7 @@ function renderClientsTable(rows) {
 		});
 		tdA.appendChild(editBtn);
 
-		tr.append(tdN, tdVendedor, tdW, tdB, tdC, tdA);
+		tr.append(tdN, tdW, tdB, tdC, tdVendedor, tdA);
 		tr.addEventListener('mousedown', () => { tr.classList.add('row-highlight'); setTimeout(() => tr.classList.remove('row-highlight'), 3200); });
 		tbody.appendChild(tr);
 	}
