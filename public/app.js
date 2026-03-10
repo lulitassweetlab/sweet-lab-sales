@@ -4442,7 +4442,125 @@ async function exportCarteraExcel(startIso, endIso) {
 		if (!isAdminUser && !isSuper) { notify.error('Solo para admin/superadmin'); return; }
 		window.location.href = '/store-manager.html';
 	});
+
+	const globalDbBtn = document.getElementById('global-clients-button');
+	globalDbBtn?.addEventListener('click', () => {
+		exitDeleteSellerModeIfActive();
+		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+		if (!isSuper) { notify.error('Solo para superadmin'); return; }
+		openGlobalClientsView();
+	});
+
+	const globalDbBackBtn = document.getElementById('global-clients-back');
+	globalDbBackBtn?.addEventListener('click', () => {
+		switchView('#view-select-seller');
+	});
 })();
+
+async function openGlobalClientsView() {
+	if (!state.currentUser?.isSuperAdmin && state.currentUser?.role !== 'superadmin') return;
+	await loadGlobalClients();
+	switchView('#view-global-clients');
+}
+
+async function loadGlobalClients() {
+	// 1. Fetch sales history across all days to count records dynamically (without specifying seller_id)
+	const days = await api('GET', `/api/days?include_archived=1`);
+	const nameToData = new Map();
+
+	for (const d of (days || [])) {
+		// Only check valid days (requires seller_id) - we might have to fetch sales slightly differently or query one by one
+		if (!d.seller_id) continue;
+		const params = new URLSearchParams({ seller_id: String(d.seller_id), sale_day_id: String(d.id) });
+		let sales = [];
+		try { sales = await api('GET', `${API.Sales}?${params.toString()}`); } catch { sales = []; }
+		for (const s of (sales || [])) {
+			const raw = (s?.client_name || '').trim();
+			if (!raw) continue;
+			const key = normalizeClientName(raw);
+			if (!nameToData.has(key)) nameToData.set(key, { name: raw, count: 0, whatsapp: '', birth_date: '', seller_name: 'Desconocido' });
+			nameToData.get(key).count++;
+		}
+	}
+
+	// 2. Fetch explicit global client records from DB
+	try {
+		const clientsDB = await api('GET', `/api/clients?global=1`);
+		for (const c of (clientsDB || [])) {
+			const raw = (c?.name || '').trim();
+			if (!raw) continue;
+			const key = normalizeClientName(raw);
+
+			if (nameToData.has(key)) {
+				// Update existing dynamically counted client with DB info
+				const existing = nameToData.get(key);
+				existing.whatsapp = c.whatsapp || existing.whatsapp;
+				existing.birth_date = c.birth_date || existing.birth_date;
+				existing.seller_name = c.seller_name || existing.seller_name;
+			} else {
+				// Add explicit database client even if they have 0 recent sales
+				nameToData.set(key, {
+					name: raw,
+					count: 0,
+					whatsapp: c.whatsapp || '',
+					birth_date: c.birth_date || '',
+					seller_name: c.seller_name || 'Desconocido'
+				});
+			}
+		}
+	} catch (err) {
+		console.error('Error fetching global clients database:', err);
+	}
+
+	const rows = Array.from(nameToData.values()).sort((a, b) => a.name.localeCompare(b.name, 'es'));
+	renderGlobalClientsTable(rows);
+}
+
+function renderGlobalClientsTable(rows) {
+	const tbody = document.getElementById('global-clients-tbody');
+	if (!tbody) return;
+	tbody.innerHTML = '';
+	if (!rows || rows.length === 0) {
+		const tr = document.createElement('tr');
+		const td = document.createElement('td'); td.colSpan = 5; td.textContent = 'Sin clientes en toda la base de datos'; td.style.opacity = '0.8'; td.style.textAlign = 'center';
+		tr.appendChild(td); tbody.appendChild(tr); return;
+	}
+
+	for (const r of rows) {
+		const tr = document.createElement('tr'); tr.className = 'clients-row';
+
+		const tdN = document.createElement('td');
+		tdN.textContent = r.name;
+		tdN.style.cursor = 'pointer';
+		tdN.style.color = 'var(--primary)';
+		tdN.style.fontWeight = '500';
+		tdN.title = 'Ver historial (solo nombre)';
+		tdN.addEventListener('click', async () => {
+			// Superadmins shouldn't dive into seller-specific histories from here, or maybe they just do a global search
+			// We can route this to global detail if needed, but for now we simply alert.
+		});
+
+		const tdW = document.createElement('td');
+		tdW.textContent = r.whatsapp || '-';
+
+		const tdB = document.createElement('td');
+		tdB.textContent = r.birth_date ? new Date(r.birth_date).toLocaleDateString() : '-';
+
+		const tdVendedor = document.createElement('td');
+		tdVendedor.textContent = r.seller_name || '-';
+		tdVendedor.style.color = 'var(--text-muted)';
+		tdVendedor.style.fontSize = '0.9em';
+
+		const tdA = document.createElement('td');
+		tdA.style.textAlign = 'center';
+
+		// Reused edit button logic but omitted for global db (could be added with seller_id mapped later)
+
+		tr.append(tdN, tdW, tdB, tdVendedor, tdA);
+		tr.addEventListener('mousedown', () => { tr.classList.add('row-highlight'); setTimeout(() => tr.classList.remove('row-highlight'), 3200); });
+		tbody.appendChild(tr);
+	}
+}
 
 // Build list of ISO dates (YYYY-MM-DD) from inclusive range using UTC arithmetic
 function buildIsoListFromRange(startIso, endIso) {

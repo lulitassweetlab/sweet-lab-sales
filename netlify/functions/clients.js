@@ -16,22 +16,37 @@ export default async (req) => {
         if (method === 'GET') {
             const sellerIdStr = url.searchParams.get('seller_id');
 
-            if (!sellerIdStr) {
+            // Global fetch for superadmins
+            const isGlobal = url.searchParams.get('global') === '1';
+
+            if (!isGlobal && !sellerIdStr) {
                 return new Response(JSON.stringify({ error: 'Falta seller_id' }), { status: 400 });
             }
 
-            const sellerId = parseInt(sellerIdStr, 10);
-            if (isNaN(sellerId)) {
-                return new Response(JSON.stringify({ error: 'seller_id inválido' }), { status: 400 });
-            }
+            let clients = [];
 
-            // Return all clients, ordered by name alphabetically
-            const clients = await sql`
-				SELECT * 
-				FROM clients 
-				WHERE seller_id = ${sellerId}
-				ORDER BY name ASC
-			`;
+            if (isGlobal) {
+                // Return all clients, joining with sellers to get the seller name
+                clients = await sql`
+                    SELECT c.*, s.name as seller_name
+                    FROM clients c
+                    LEFT JOIN sellers s ON c.seller_id = s.id
+                    ORDER BY c.name ASC
+                `;
+            } else {
+                const sellerId = parseInt(sellerIdStr, 10);
+                if (isNaN(sellerId)) {
+                    return new Response(JSON.stringify({ error: 'seller_id inválido' }), { status: 400 });
+                }
+
+                // Return all clients, ordered by name alphabetically
+                clients = await sql`
+                    SELECT * 
+                    FROM clients 
+                    WHERE seller_id = ${sellerId}
+                    ORDER BY name ASC
+                `;
+            }
 
             return new Response(JSON.stringify(clients), {
                 status: 200,
