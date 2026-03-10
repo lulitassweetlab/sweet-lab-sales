@@ -869,7 +869,6 @@ button:hover {
 	overflow-x: auto;
 	/* Mejoras para scroll en móvil */
 	-webkit-overflow-scrolling: touch;
-	overscroll-behavior: contain;
 }
 
 /* Mejoras específicas para móvil: hacer scroll más fácil */
