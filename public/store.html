@@ -1104,6 +1104,9 @@
             <p style="font-size: 0.9rem; margin-bottom: 16px;">Registra los datos de <b
                     id="new-client-name-display"></b></p>
 
+            <input id="new-client-shortname" type="text" placeholder="Nombre Corto (Para WhatsApp)"
+                class="internal-checkout-input" style="margin-bottom: 12px;" />
+
             <input id="new-client-whatsapp" type="tel" placeholder="WhatsApp" class="internal-checkout-input"
                 style="margin-bottom: 12px;" />
 
@@ -1998,6 +2001,7 @@
 
         function openNewClientModal(name) {
             document.getElementById('new-client-name-display').textContent = name;
+            document.getElementById('new-client-shortname').value = '';
             document.getElementById('new-client-whatsapp').value = '';
             document.getElementById('new-client-birthdate').value = '';
             document.getElementById('new-client-error').style.display = 'none';
@@ -2018,6 +2022,7 @@
 
         document.getElementById('submit-new-client-btn').addEventListener('click', async () => {
             const name = document.getElementById('new-client-name-display').textContent;
+            const short_name = document.getElementById('new-client-shortname').value.trim();
             const whatsapp = document.getElementById('new-client-whatsapp').value.trim();
             const birth_date = document.getElementById('new-client-birthdate').value;
             const errDiv = document.getElementById('new-client-error');
@@ -2031,6 +2036,7 @@
                 const payload = {
                     seller_id: storeActiveSeller.id,
                     name,
+                    short_name: short_name || null,
                     whatsapp: whatsapp || null,
                     birth_date: birth_date || null
                 };
@@ -2201,21 +2207,38 @@
                         const msgs = await msgsRes.json();
                         const newOrderMsg = msgs.find(m => m.event_type === 'new_order');
 
-                        // Check if active and we have a WhatsApp number
-                        const waNumber = document.getElementById('new-client-whatsapp')?.value || customerNameInput.dataset.whatsapp;
+                        if (newOrderMsg && newOrderMsg.is_active) {
+                            // Fetch client's short name and phone number natively
+                            let waNumber = document.getElementById('new-client-whatsapp')?.value || customerNameInput.dataset.whatsapp;
+                            let shortName = null;
 
-                        if (newOrderMsg && newOrderMsg.is_active && waNumber && waNumber.trim() !== '') {
-                            // Calculate total
-                            let total = 0;
-                            for (const id in cart) {
-                                total += cart[id].qty * cart[id].product.price;
+                            try {
+                                const clientsRes = await fetch(`/api/clients?seller_id=${storeActiveSeller.id}`, { headers: getAuthHeaders() });
+                                if (clientsRes.ok) {
+                                    const allCli = await clientsRes.json();
+                                    const c = allCli.find(cli => cli.name.toLowerCase() === customerName.toLowerCase());
+                                    if (c) {
+                                        if (!waNumber && c.whatsapp) waNumber = c.whatsapp;
+                                        if (c.short_name) shortName = c.short_name;
+                                    }
+                                }
+                            } catch (e) {
+                                console.error('Error fetching client details for WA auto msg:', e);
                             }
 
-                            // Format template
-                            let text = newOrderMsg.message_text || '';
-                            text = text.replace(/{cliente}/g, customerName);
-                            text = text.replace(/{vendedor}/g, storeActiveSeller.name);
-                            text = text.replace(/{total}/g, `$${total.toLocaleString('es-CO')}`);
+                            if (waNumber && waNumber.trim() !== '') {
+                                // Calculate total
+                                let total = 0;
+                                for (const id in cart) {
+                                    total += cart[id].qty * cart[id].product.price;
+                                }
+
+                                // Format template
+                                const displayClientName = shortName || customerName;
+                                let text = newOrderMsg.message_text || '';
+                                text = text.replace(/{cliente}/g, displayClientName);
+                                text = text.replace(/{vendedor}/g, storeActiveSeller.name);
+                                text = text.replace(/{total}/g, `$${total.toLocaleString('es-CO')}`);
 
                             // Format number (strip non-digits, prepend 57 if needed for Colombia default)
                             let cleanNum = waNumber.replace(/\D/g, '');

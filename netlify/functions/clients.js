@@ -30,12 +30,14 @@ export default async (req) => {
                 clients = await sql`
                     SELECT 
                         name, 
+                        MAX(short_name) AS short_name,
                         MAX(whatsapp) AS whatsapp,
                         MAX(birth_date) AS birth_date,
                         MAX(seller_name) AS seller_name
                     FROM (
                         SELECT 
                             c.name, 
+                            c.short_name,
                             c.whatsapp, 
                             CAST(c.birth_date AS VARCHAR) AS birth_date,
                             s.name as seller_name
@@ -46,6 +48,7 @@ export default async (req) => {
                         
                         SELECT
                             sa.client_name as name,
+                            NULL::VARCHAR as short_name,
                             NULL::VARCHAR as whatsapp,
                             NULL::VARCHAR as birth_date,
                             s.name as seller_name
@@ -84,6 +87,7 @@ export default async (req) => {
             const body = await req.json();
             const sellerId = parseInt(body.seller_id, 10);
             const name = (body.name || '').trim();
+            const shortName = (body.short_name || '').trim() || null;
             const whatsapp = (body.whatsapp || '').trim() || null;
             const birthDate = body.birth_date || null;
 
@@ -106,9 +110,10 @@ export default async (req) => {
 
                 // Ensure the target name exists in the database
                 const [targetClient] = await sql`
-                    INSERT INTO clients (seller_id, name, whatsapp, birth_date)
-                    VALUES (${sellerId}, ${name}, ${whatsapp}, ${birthDate})
+                    INSERT INTO clients (seller_id, name, short_name, whatsapp, birth_date)
+                    VALUES (${sellerId}, ${name}, ${shortName}, ${whatsapp}, ${birthDate})
                     ON CONFLICT (name, seller_id) DO UPDATE SET
+                        short_name = COALESCE(EXCLUDED.short_name, clients.short_name),
                         whatsapp = COALESCE(clients.whatsapp, EXCLUDED.whatsapp),
                         birth_date = COALESCE(clients.birth_date, EXCLUDED.birth_date)
                     RETURNING *
@@ -154,6 +159,7 @@ export default async (req) => {
                 const [updated] = await sql`
 					UPDATE clients 
 					SET 
+                        short_name = COALESCE(${shortName}, short_name),
 						whatsapp = COALESCE(${whatsapp}, whatsapp),
 						birth_date = COALESCE(${birthDate}, birth_date)
 					WHERE id = ${existing.id}
@@ -163,8 +169,8 @@ export default async (req) => {
             } else {
                 // Insert new
                 const [inserted] = await sql`
-					INSERT INTO clients (seller_id, name, whatsapp, birth_date)
-					VALUES (${sellerId}, ${name}, ${whatsapp}, ${birthDate})
+					INSERT INTO clients (seller_id, name, short_name, whatsapp, birth_date)
+					VALUES (${sellerId}, ${name}, ${shortName}, ${whatsapp}, ${birthDate})
 					RETURNING *
 				`;
                 result = inserted;

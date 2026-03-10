@@ -149,6 +149,7 @@ export async function ensureSchema() {
 			await sql`CREATE TABLE IF NOT EXISTS clients (
 				id SERIAL PRIMARY KEY,
 				name VARCHAR(255) NOT NULL,
+				short_name VARCHAR(100),
 				whatsapp VARCHAR(20),
 				birth_date DATE,
 				seller_id INTEGER NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
@@ -157,6 +158,15 @@ export async function ensureSchema() {
 			)`;
 			await sql`CREATE INDEX IF NOT EXISTS idx_clients_seller ON clients(seller_id)`;
 			await sql`CREATE INDEX IF NOT EXISTS idx_clients_name ON clients(name)`;
+
+			await sql`DO $$ BEGIN
+				IF NOT EXISTS (
+					SELECT 1 FROM information_schema.columns 
+					WHERE table_name = 'clients' AND column_name = 'short_name'
+				) THEN
+					ALTER TABLE clients ADD COLUMN short_name VARCHAR(100);
+				END IF;
+			END $$;`;
 
 			// Seller personalized WhatsApp automated messages settings
 			await sql`CREATE TABLE IF NOT EXISTS seller_messages (

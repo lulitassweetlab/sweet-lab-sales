@@ -4593,6 +4593,7 @@ function renderGlobalClientsTable(rows) {
 		thead.innerHTML = '';
 		const cols = [
 			{ key: 'name', label: 'Cliente' },
+			{ key: 'short_name', label: 'Nombre Corto' },
 			{ key: 'whatsapp', label: 'WhatsApp' },
 			{ key: 'birth_date', label: 'Cumpleaños' },
 			{ key: 'seller_name', label: 'Vendedor' }
@@ -4646,6 +4647,11 @@ function renderGlobalClientsTable(rows) {
 			// We can route this to global detail if needed, but for now we simply alert.
 		});
 
+		const tdS = document.createElement('td');
+		tdS.textContent = r.short_name || '-';
+		tdS.style.color = 'var(--text-muted)';
+		tdS.style.fontSize = '0.9em';
+
 		const tdW = document.createElement('td');
 		tdW.textContent = r.whatsapp || '-';
 
@@ -4662,7 +4668,7 @@ function renderGlobalClientsTable(rows) {
 
 		// Reused edit button logic but omitted for global db (could be added with seller_id mapped later)
 
-		tr.append(tdN, tdW, tdB, tdVendedor, tdA);
+		tr.append(tdN, tdS, tdW, tdB, tdVendedor, tdA); // Updated append to include tdS
 		tr.addEventListener('mousedown', () => { tr.classList.add('row-highlight'); setTimeout(() => tr.classList.remove('row-highlight'), 3200); });
 		tbody.appendChild(tr);
 	}
@@ -6842,7 +6848,7 @@ function openNewDatePicker(ev) {
 		await api('POST', '/api/days', { seller_id: sellerId, day: iso });
 		await loadDaysForSeller();
 		// Auto-select newly added date
-		const added = (state.saleDays || []).find(d => d.day === iso);
+		const added = (state.saleDays || []).Ễfind(d => d.day === iso);
 		if (added) {
 			state.selectedDayId = added.id;
 			document.getElementById('sales-wrapper').classList.remove('hidden');
@@ -8382,27 +8388,26 @@ async function loadClientsForSeller() {
 			const raw = (s?.client_name || '').trim();
 			if (!raw) continue;
 			const key = normalizeClientName(raw);
-			if (!nameToData.has(key)) nameToData.set(key, { name: raw, count: 0, whatsapp: '', birth_date: '' });
+			if (!nameToData.has(key)) nameToData.set(key, { name: raw, count: 0, short_name: '', whatsapp: '', birth_date: '' }); // Added short_name
 			nameToData.get(key).count++;
 		}
 	}
 
 	// 2. Fetch explicit client records from DB
 	try {
-		const clientsDB = await api('GET', `/api/clients?seller_id=${encodeURIComponent(sellerId)}`);
-		for (const c of (clientsDB || [])) {
-			const raw = (c?.name || '').trim();
+		const dbClients = await api('GET', `/api/clients?seller_id=${sellerId}`);
+		for (const c of (dbClients || [])) {
+			const raw = (c.name || '').trim();
 			if (!raw) continue;
 			const key = normalizeClientName(raw);
-
 			if (nameToData.has(key)) {
-				// Update existing dynamically counted client with DB info
 				const existing = nameToData.get(key);
+				existing.short_name = c.short_name || ''; // Added short_name
 				existing.whatsapp = c.whatsapp || '';
 				existing.birth_date = c.birth_date || '';
 			} else {
 				// Add explicit database client even if they have 0 sales currently
-				nameToData.set(key, { name: raw, count: 0, whatsapp: c.whatsapp || '', birth_date: c.birth_date || '' });
+				nameToData.set(key, { name: raw, count: 0, short_name: c.short_name || '', whatsapp: c.whatsapp || '', birth_date: c.birth_date || '' }); // Added short_name
 			}
 		}
 	} catch (err) {
@@ -8434,10 +8439,10 @@ function renderClientsTable(rows) {
 		tdN.title = 'Clic para ver historial';
 		tdN.addEventListener('click', async () => { await openClientDetailView(r.name); });
 
-		const tdVendedor = document.createElement('td');
-		tdVendedor.textContent = state.currentSeller ? state.currentSeller.name : '-';
-		tdVendedor.style.color = 'var(--muted)';
-		tdVendedor.style.fontSize = '0.9em';
+		const tdS = document.createElement('td'); // Added short_name cell
+		tdS.textContent = r.short_name || '-';
+		tdS.style.color = 'var(--text-muted)';
+		tdS.style.fontSize = '0.9em';
 
 		const tdW = document.createElement('td');
 		tdW.textContent = r.whatsapp || '-';
@@ -8448,6 +8453,11 @@ function renderClientsTable(rows) {
 		const tdC = document.createElement('td');
 		tdC.textContent = String(r.count);
 		tdC.style.textAlign = 'center';
+
+		const tdVendedor = document.createElement('td');
+		tdVendedor.textContent = state.currentSeller ? state.currentSeller.name : '-';
+		tdVendedor.style.color = 'var(--muted)';
+		tdVendedor.style.fontSize = '0.9em';
 
 		const tdA = document.createElement('td');
 		tdA.style.textAlign = 'center';
@@ -8465,7 +8475,7 @@ function renderClientsTable(rows) {
 		});
 		tdA.appendChild(editBtn);
 
-		tr.append(tdN, tdW, tdB, tdC, tdVendedor, tdA);
+		tr.append(tdN, tdS, tdW, tdB, tdC, tdVendedor, tdA); // Updated append to include tdS
 		tr.addEventListener('mousedown', () => { tr.classList.add('row-highlight'); setTimeout(() => tr.classList.remove('row-highlight'), 3200); });
 		tbody.appendChild(tr);
 	}
@@ -8677,6 +8687,20 @@ function openClientEditPopover(clientData, clientX, clientY) {
 	nameInput.style.marginBottom = '12px';
 	nameInput.style.background = 'var(--muted-bg)';
 
+	const shortNameLabel = document.createElement('label');
+	shortNameLabel.textContent = 'Nombre Corto (WhatsApp):';
+	shortNameLabel.style.display = 'block';
+	shortNameLabel.style.fontSize = '0.9rem';
+	shortNameLabel.style.marginBottom = '4px';
+
+	const shortNameInput = document.createElement('input');
+	shortNameInput.type = 'text';
+	shortNameInput.value = clientData.short_name || '';
+	shortNameInput.className = 'client-input';
+	shortNameInput.style.width = '100%';
+	shortNameInput.style.marginBottom = '12px';
+	shortNameInput.placeholder = 'Ej: Maria';
+
 	const waLabel = document.createElement('label');
 	waLabel.textContent = 'WhatsApp:';
 	waLabel.style.display = 'block';
@@ -8709,7 +8733,7 @@ function openClientEditPopover(clientData, clientX, clientY) {
 	saveBtn.textContent = 'Guardar';
 	saveBtn.style.width = '100%';
 
-	pop.append(title, nameLabel, nameInput, waLabel, waInput, birthLabel, birthInput, saveBtn);
+	pop.append(title, nameLabel, nameInput, shortNameLabel, shortNameInput, waLabel, waInput, birthLabel, birthInput, saveBtn);
 
 	let left = clientX;
 	let top = clientY;
@@ -8735,6 +8759,7 @@ function openClientEditPopover(clientData, clientX, clientY) {
 			const payload = {
 				seller_id: state.currentSeller.id,
 				name: clientData.name,
+				short_name: shortNameInput.value.trim(),
 				whatsapp: waInput.value.trim(),
 				birth_date: birthInput.value || null
 			};
@@ -8795,6 +8820,19 @@ function openNewClientPopover(clientX, clientY) {
 	nameInput.style.marginBottom = '12px';
 	nameInput.placeholder = 'Ej: Maria Perez';
 
+	const shortNameLabel = document.createElement('label');
+	shortNameLabel.textContent = 'Nombre Corto (WhatsApp):';
+	shortNameLabel.style.display = 'block';
+	shortNameLabel.style.fontSize = '0.9rem';
+	shortNameLabel.style.marginBottom = '4px';
+
+	const shortNameInput = document.createElement('input');
+	shortNameInput.type = 'text';
+	shortNameInput.className = 'client-input';
+	shortNameInput.style.width = '100%';
+	shortNameInput.style.marginBottom = '12px';
+	shortNameInput.placeholder = 'Ej: Maria';
+
 	const waLabel = document.createElement('label');
 	waLabel.textContent = 'WhatsApp:';
 	waLabel.style.display = 'block';
@@ -8825,7 +8863,7 @@ function openNewClientPopover(clientX, clientY) {
 	saveBtn.textContent = 'Guardar';
 	saveBtn.style.width = '100%';
 
-	pop.append(title, nameLabel, nameInput, waLabel, waInput, birthLabel, birthInput, saveBtn);
+	pop.append(title, nameLabel, nameInput, shortNameLabel, shortNameInput, waLabel, waInput, birthLabel, birthInput, saveBtn);
 
 	let left = clientX;
 	let top = clientY;
@@ -8857,6 +8895,7 @@ function openNewClientPopover(clientX, clientY) {
 			const payload = {
 				seller_id: state.currentSeller.id,
 				name: customerName,
+				short_name: shortNameInput.value.trim(),
 				whatsapp: waInput.value.trim(),
 				birth_date: birthInput.value || null
 			};
