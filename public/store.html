@@ -1104,12 +1104,12 @@
             <p style="font-size: 0.9rem; margin-bottom: 16px;">Registra los datos de <b
                     id="new-client-name-display"></b></p>
 
-            <input id="new-client-whatsapp" type="tel" placeholder="WhatsApp (Opcional)" class="internal-checkout-input"
+            <input id="new-client-whatsapp" type="tel" placeholder="WhatsApp" class="internal-checkout-input"
                 style="margin-bottom: 12px;" />
 
-            <div style="text-align: left; margin-bottom: 4px; font-size: 0.85rem; color: var(--text-muted);">Cumpleaños
-                (Opcional)</div>
-            <input id="new-client-birthdate" type="date" class="internal-checkout-input" style="margin-bottom: 20px;" />
+            <input id="new-client-birthdate" type="text" onfocus="this.type='date'"
+                onblur="if(!this.value) this.type='text'" placeholder="Cumpleaños" class="internal-checkout-input"
+                style="margin-bottom: 20px;" />
 
             <div style="display: flex; gap: 10px; justify-content: space-between;">
                 <button id="close-new-client-modal" class="internal-checkout-btn"

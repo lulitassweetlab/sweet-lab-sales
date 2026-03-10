@@ -4901,7 +4901,13 @@ function bindEvents() {
 	// Back from Clients view
 	const backBtn = document.getElementById('clients-back');
 	backBtn?.addEventListener('click', () => {
-		if (state.currentSeller) switchView('#view-sales'); else switchView('#view-select-seller');
+		if (window.location.search.includes('embed=true')) {
+			window.location.href = '/store.html';
+		} else if (state.currentSeller) {
+			switchView('#view-sales');
+		} else {
+			switchView('#view-select-seller');
+		}
 	});
 
 	// Back from Client Detail view
