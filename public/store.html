@@ -860,6 +860,157 @@
                 height: 350px;
             }
         }
+
+        /* Fullscreen Gallery */
+        .gallery-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 9999;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .gallery-modal.show {
+            display: flex;
+            opacity: 1;
+        }
+
+        .gallery-content {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .gallery-track {
+            display: flex;
+            width: 100%;
+            height: 100%;
+            overflow-x: auto;
+            scroll-snap-type: x mandatory;
+            scrollbar-width: none;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .gallery-track::-webkit-scrollbar {
+            display: none;
+        }
+
+        .gallery-slide {
+            flex: 0 0 100%;
+            width: 100%;
+            height: 100%;
+            scroll-snap-align: center;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .gallery-slide img,
+        .gallery-slide video {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            user-select: none;
+        }
+
+        .gallery-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            font-size: 28px;
+            line-height: 1;
+            cursor: pointer;
+            z-index: 10000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background 0.2s;
+        }
+
+        .gallery-close:hover {
+            background: rgba(255, 255, 255, 0.4);
+        }
+
+        .gallery-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            font-size: 24px;
+            cursor: pointer;
+            z-index: 10000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background 0.2s;
+        }
+
+        .gallery-btn:hover {
+            background: rgba(255, 255, 255, 0.4);
+        }
+
+        .gallery-btn.prev {
+            left: 20px;
+        }
+
+        .gallery-btn.next {
+            right: 20px;
+        }
+
+        .gallery-dots {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            z-index: 10000;
+        }
+
+        .gallery-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.5);
+            transition: background 0.3s;
+        }
+
+        .gallery-dot.active {
+            background: white;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+        }
+
+        @media (max-width: 768px) {
+            .gallery-btn {
+                display: none;
+            }
+
+            /* On mobile, use swipe instead of buttons */
+            .gallery-close {
+                top: 15px;
+                right: 15px;
+            }
+        }
     </style>
 </head>
 
@@ -950,6 +1101,17 @@
             pedido</button>
     </div>
 
+    <!-- Fullscreen Image Gallery -->
+    <div id="gallery-modal" class="gallery-modal">
+        <button id="gallery-close" class="gallery-close">&times;</button>
+        <button id="gallery-prev" class="gallery-btn prev">&#10094;</button>
+        <button id="gallery-next" class="gallery-btn next">&#10095;</button>
+        <div class="gallery-content">
+            <div id="gallery-track" class="gallery-track"></div>
+            <div id="gallery-dots" class="gallery-dots"></div>
+        </div>
+    </div>
+
     <script>
         const fmtMoney = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
         const grid = document.getElementById('product-grid');
@@ -980,6 +1142,107 @@
         const sellerModal = document.getElementById('store-seller-modal');
         const internalCheckoutContainer = document.getElementById('internal-checkout-container');
         const customerNameInput = document.getElementById('store-customer-name');
+
+        // Gallery Modal Elements
+        const galleryModal = document.getElementById('gallery-modal');
+        const galleryTrack = document.getElementById('gallery-track');
+        const galleryDots = document.getElementById('gallery-dots');
+        const galleryClose = document.getElementById('gallery-close');
+        const galleryPrev = document.getElementById('gallery-prev');
+        const galleryNext = document.getElementById('gallery-next');
+
+        let currentGalleryItems = [];
+
+        function openFullscreenGallery(mediaItems, startIndex) {
+            currentGalleryItems = mediaItems;
+            galleryTrack.innerHTML = '';
+            galleryDots.innerHTML = '';
+
+            mediaItems.forEach((m, idx) => {
+                const slide = document.createElement('div');
+                slide.className = 'gallery-slide';
+                slide.addEventListener('click', (e) => {
+                    if (e.target === slide) closeGallery();
+                });
+
+                if (m.type === 'video') {
+                    const vid = document.createElement('video');
+                    vid.src = m.base64;
+                    vid.controls = true;
+                    vid.playsInline = true;
+                    vid.autoplay = idx === startIndex;
+                    slide.appendChild(vid);
+                } else {
+                    const img = document.createElement('img');
+                    img.src = m.base64;
+                    img.style.cursor = 'zoom-out';
+                    img.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        closeGallery();
+                    });
+                    slide.appendChild(img);
+                }
+                galleryTrack.appendChild(slide);
+
+                if (mediaItems.length > 1) {
+                    const dot = document.createElement('div');
+                    dot.className = `gallery-dot ${idx === startIndex ? 'active' : ''}`;
+                    galleryDots.appendChild(dot);
+                }
+            });
+
+            galleryPrev.style.display = mediaItems.length > 1 ? '' : 'none';
+            galleryNext.style.display = mediaItems.length > 1 ? '' : 'none';
+
+            galleryModal.style.display = 'flex';
+            void galleryModal.offsetWidth;
+            galleryModal.classList.add('show');
+            document.body.style.overflow = 'hidden';
+
+            if (startIndex > 0) {
+                setTimeout(() => {
+                    galleryTrack.scrollLeft = startIndex * galleryTrack.clientWidth;
+                }, 50);
+            }
+        }
+
+        function closeGallery() {
+            galleryModal.classList.remove('show');
+            setTimeout(() => {
+                galleryModal.style.display = 'none';
+                galleryTrack.innerHTML = '';
+                galleryDots.innerHTML = '';
+                document.body.style.overflow = '';
+            }, 300);
+        }
+
+        galleryClose.addEventListener('click', closeGallery);
+        galleryModal.addEventListener('click', (e) => {
+            if (e.target === galleryModal || e.target === galleryModal.querySelector('.gallery-content')) {
+                closeGallery();
+            }
+        });
+
+        galleryPrev.addEventListener('click', (e) => {
+            e.stopPropagation();
+            galleryTrack.scrollBy({ left: -galleryTrack.clientWidth, behavior: 'smooth' });
+        });
+
+        galleryNext.addEventListener('click', (e) => {
+            e.stopPropagation();
+            galleryTrack.scrollBy({ left: galleryTrack.clientWidth, behavior: 'smooth' });
+        });
+
+        galleryTrack.addEventListener('scroll', () => {
+            if (currentGalleryItems.length > 1) {
+                const scrollLeft = galleryTrack.scrollLeft;
+                const width = galleryTrack.clientWidth;
+                const activeIndex = Math.round(scrollLeft / width);
+                Array.from(galleryDots.children).forEach((dot, i) => {
+                    dot.classList.toggle('active', i === activeIndex);
+                });
+            }
+        });
 
         function updateAuthUI() {
             const storeClientsBtn = document.getElementById('store-clients-btn');
@@ -1158,6 +1421,8 @@
                     img.src = m.base64;
                     img.alt = product.name;
                     img.loading = idx === 0 ? 'eager' : 'lazy'; // only lazy load off-screen dots
+                    img.style.cursor = 'zoom-in';
+                    img.addEventListener('click', () => openFullscreenGallery(mediaItems, idx));
                     slide.appendChild(img);
                 }
                 track.appendChild(slide);
