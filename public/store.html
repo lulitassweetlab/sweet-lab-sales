@@ -860,6 +860,157 @@
                 height: 350px;
             }
         }
+
+        /* Fullscreen Gallery */
+        .gallery-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.98);
+            z-index: 9999;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .gallery-modal.show {
+            display: flex;
+            opacity: 1;
+        }
+
+        .gallery-content {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .gallery-track {
+            display: flex;
+            width: 100%;
+            height: 100%;
+            overflow-x: auto;
+            scroll-snap-type: x mandatory;
+            scrollbar-width: none;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .gallery-track::-webkit-scrollbar {
+            display: none;
+        }
+
+        .gallery-slide {
+            flex: 0 0 100%;
+            width: 100%;
+            height: 100%;
+            scroll-snap-align: center;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .gallery-slide img,
+        .gallery-slide video {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            user-select: none;
+        }
+
+        .gallery-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.1);
+            color: #2a2a2a;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            font-size: 28px;
+            line-height: 1;
+            cursor: pointer;
+            z-index: 10000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background 0.2s;
+        }
+
+        .gallery-close:hover {
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .gallery-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(0, 0, 0, 0.1);
+            color: #2a2a2a;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            font-size: 24px;
+            cursor: pointer;
+            z-index: 10000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background 0.2s;
+        }
+
+        .gallery-btn:hover {
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .gallery-btn.prev {
+            left: 20px;
+        }
+
+        .gallery-btn.next {
+            right: 20px;
+        }
+
+        .gallery-dots {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            z-index: 10000;
+        }
+
+        .gallery-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.2);
+            transition: background 0.3s;
+        }
+
+        .gallery-dot.active {
+            background: var(--primary-hover);
+            box-shadow: 0 0 5px rgba(244, 166, 183, 0.5);
+        }
+
+        @media (max-width: 768px) {
+            .gallery-btn {
+                display: none;
+            }
+
+            /* On mobile, use swipe instead of buttons */
+            .gallery-close {
+                top: 15px;
+                right: 15px;
+            }
+        }
     </style>
 </head>
 
@@ -929,6 +1080,51 @@
         </div>
     </div>
 
+    <div class="modal-overlay" id="store-similar-client-modal">
+        <div class="modal-content" style="max-width: 350px; text-align: center;">
+            <h3 style="margin-bottom: 10px; color: var(--primary-hover);">Cliente no encontrado</h3>
+            <p style="font-size: 0.9rem; margin-bottom: 16px;">¿Quisiste decir alguno de estos clientes?</p>
+            <div id="similar-clients-container"
+                style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; max-height: 200px; overflow-y: auto;">
+                <!-- Botones dinamicos de clientes similares -->
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+                <button id="similar-client-new-btn" class="internal-checkout-btn"
+                    style="background: var(--surface); color: var(--text); border: 1px solid var(--border);">No,
+                    registrar nuevo cliente</button>
+                <button id="similar-client-cancel-btn" class="internal-checkout-btn" style="padding: 8px;">Cancelar
+                    pedido</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="store-new-client-modal">
+        <div class="modal-content" style="max-width: 320px; text-align: center;">
+            <h3 style="margin-bottom: 10px; color: var(--primary-hover);">Nuevo Cliente</h3>
+            <p style="font-size: 0.9rem; margin-bottom: 16px;">Registra los datos de <b
+                    id="new-client-name-display"></b></p>
+
+            <input id="new-client-shortname" type="text" placeholder="Nombre Corto (Para WhatsApp)"
+                class="internal-checkout-input" style="margin-bottom: 12px;" />
+
+            <input id="new-client-whatsapp" type="tel" placeholder="WhatsApp" class="internal-checkout-input"
+                style="margin-bottom: 12px;" />
+
+            <input id="new-client-birthdate" type="text" onfocus="this.type='date'"
+                onblur="if(!this.value) this.type='text'" placeholder="Cumpleaños" class="internal-checkout-input"
+                style="margin-bottom: 20px;" />
+
+            <div style="display: flex; gap: 10px; justify-content: space-between;">
+                <button id="close-new-client-modal" class="internal-checkout-btn"
+                    style="flex: 1; padding: 8px; background: var(--surface); color: var(--text); border: 1px solid var(--border);">Cancelar</button>
+                <button id="submit-new-client-btn" class="internal-checkout-btn" style="flex: 1; padding: 8px;">Guardar
+                    y Continuar</button>
+            </div>
+            <div id="new-client-error"
+                style="color: var(--danger); font-size: 0.9rem; margin-top: 10px; display: none;"></div>
+        </div>
+    </div>
+
     <div id="store-toast" class="animated-toast">
         Se agregó con éxito
     </div>
@@ -948,6 +1144,17 @@
         <button class="cart-checkout-btn" id="cart-checkout-btn">Pedir por WhatsApp 🛒</button>
         <button class="internal-checkout-btn" id="internal-checkout-btn" style="display:none; width: 100%;">Agregar
             pedido</button>
+    </div>
+
+    <!-- Fullscreen Image Gallery -->
+    <div id="gallery-modal" class="gallery-modal">
+        <button id="gallery-close" class="gallery-close">&times;</button>
+        <button id="gallery-prev" class="gallery-btn prev">&#10094;</button>
+        <button id="gallery-next" class="gallery-btn next">&#10095;</button>
+        <div class="gallery-content">
+            <div id="gallery-track" class="gallery-track"></div>
+            <div id="gallery-dots" class="gallery-dots"></div>
+        </div>
     </div>
 
     <script>
@@ -980,6 +1187,107 @@
         const sellerModal = document.getElementById('store-seller-modal');
         const internalCheckoutContainer = document.getElementById('internal-checkout-container');
         const customerNameInput = document.getElementById('store-customer-name');
+
+        // Gallery Modal Elements
+        const galleryModal = document.getElementById('gallery-modal');
+        const galleryTrack = document.getElementById('gallery-track');
+        const galleryDots = document.getElementById('gallery-dots');
+        const galleryClose = document.getElementById('gallery-close');
+        const galleryPrev = document.getElementById('gallery-prev');
+        const galleryNext = document.getElementById('gallery-next');
+
+        let currentGalleryItems = [];
+
+        function openFullscreenGallery(mediaItems, startIndex) {
+            currentGalleryItems = mediaItems;
+            galleryTrack.innerHTML = '';
+            galleryDots.innerHTML = '';
+
+            mediaItems.forEach((m, idx) => {
+                const slide = document.createElement('div');
+                slide.className = 'gallery-slide';
+                slide.addEventListener('click', (e) => {
+                    if (e.target === slide) closeGallery();
+                });
+
+                if (m.type === 'video') {
+                    const vid = document.createElement('video');
+                    vid.src = m.base64;
+                    vid.controls = true;
+                    vid.playsInline = true;
+                    vid.autoplay = idx === startIndex;
+                    slide.appendChild(vid);
+                } else {
+                    const img = document.createElement('img');
+                    img.src = m.base64;
+                    img.style.cursor = 'zoom-out';
+                    img.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        closeGallery();
+                    });
+                    slide.appendChild(img);
+                }
+                galleryTrack.appendChild(slide);
+
+                if (mediaItems.length > 1) {
+                    const dot = document.createElement('div');
+                    dot.className = `gallery-dot ${idx === startIndex ? 'active' : ''}`;
+                    galleryDots.appendChild(dot);
+                }
+            });
+
+            galleryPrev.style.display = mediaItems.length > 1 ? '' : 'none';
+            galleryNext.style.display = mediaItems.length > 1 ? '' : 'none';
+
+            galleryModal.style.display = 'flex';
+            void galleryModal.offsetWidth;
+            galleryModal.classList.add('show');
+            document.body.style.overflow = 'hidden';
+
+            if (startIndex > 0) {
+                setTimeout(() => {
+                    galleryTrack.scrollLeft = startIndex * galleryTrack.clientWidth;
+                }, 50);
+            }
+        }
+
+        function closeGallery() {
+            galleryModal.classList.remove('show');
+            setTimeout(() => {
+                galleryModal.style.display = 'none';
+                galleryTrack.innerHTML = '';
+                galleryDots.innerHTML = '';
+                document.body.style.overflow = '';
+            }, 300);
+        }
+
+        galleryClose.addEventListener('click', closeGallery);
+        galleryModal.addEventListener('click', (e) => {
+            if (e.target === galleryModal || e.target === galleryModal.querySelector('.gallery-content')) {
+                closeGallery();
+            }
+        });
+
+        galleryPrev.addEventListener('click', (e) => {
+            e.stopPropagation();
+            galleryTrack.scrollBy({ left: -galleryTrack.clientWidth, behavior: 'smooth' });
+        });
+
+        galleryNext.addEventListener('click', (e) => {
+            e.stopPropagation();
+            galleryTrack.scrollBy({ left: galleryTrack.clientWidth, behavior: 'smooth' });
+        });
+
+        galleryTrack.addEventListener('scroll', () => {
+            if (currentGalleryItems.length > 1) {
+                const scrollLeft = galleryTrack.scrollLeft;
+                const width = galleryTrack.clientWidth;
+                const activeIndex = Math.round(scrollLeft / width);
+                Array.from(galleryDots.children).forEach((dot, i) => {
+                    dot.classList.toggle('active', i === activeIndex);
+                });
+            }
+        });
 
         function updateAuthUI() {
             const storeClientsBtn = document.getElementById('store-clients-btn');
@@ -1067,18 +1375,18 @@
         }
 
         cartCheckoutBtn.addEventListener('click', () => {
-            let message = '¡Hola Lulitas! Me encantaría hacer este pedido:\n\n';
+            let message = '¡Hola! Me encantaría hacer este pedido:\n\n';
             let grandTotal = 0;
 
             for (const id in cart) {
                 const item = cart[id];
                 if (item.qty > 0) {
-                    message += `* ${item.qty}x ${item.product.name}* (${fmtMoney.format(item.total)}) \n`;
+                    message += `* ${item.qty} ${item.product.name} ${fmtMoney.format(item.total)}\n`;
                     grandTotal += item.total;
                 }
             }
 
-            message += `\n * Total a pagar: ${fmtMoney.format(grandTotal)}* `;
+            message += `\n * Total a pagar: ${fmtMoney.format(grandTotal)}`;
             const encoded = encodeURIComponent(message);
             window.open(`https://wa.me/573332268889?text=${encoded}`, '_blank');
         });
@@ -1158,6 +1466,8 @@
                     img.src = m.base64;
                     img.alt = product.name;
                     img.loading = idx === 0 ? 'eager' : 'lazy'; // only lazy load off-screen dots
+                    img.style.cursor = 'zoom-in';
+                    img.addEventListener('click', () => openFullscreenGallery(mediaItems, idx));
                     slide.appendChild(img);
                 }
                 track.appendChild(slide);
@@ -1408,7 +1718,7 @@
                 const clientNames = await clientsRes.json();
 
                 if (Array.isArray(clientNames)) {
-                    storeClientList = clientNames.filter(n => typeof n === 'string' && n.trim() !== '');
+                    storeClientList = clientNames.map(c => c.name).filter(n => typeof n === 'string' && n.trim() !== '');
                 }
             } catch (err) {
                 console.error('Error fetching clients for autocomplete:', err);
@@ -1605,6 +1915,36 @@
             updateCartUI();
         }
 
+        function levenshteinDistance(s, t) {
+            if (!s.length) return t.length;
+            if (!t.length) return s.length;
+            const arr = [];
+            for (let i = 0; i <= t.length; i++) {
+                arr[i] = [i];
+                for (let j = 1; j <= s.length; j++) {
+                    arr[i][j] = i === 0 ? j : Math.min(
+                        arr[i - 1][j] + 1,
+                        arr[i][j - 1] + 1,
+                        arr[i - 1][j - 1] + (s[j - 1] === t[i - 1] ? 0 : 1)
+                    );
+                }
+            }
+            return arr[t.length][s.length];
+        }
+
+        function findSimilarClients(name) {
+            const lowerName = name.toLowerCase().trim();
+            const threshold = 3;
+            const matches = storeClientList.map(c => {
+                const lowerC = c.toLowerCase();
+                const dist = levenshteinDistance(lowerName, lowerC);
+                return { name: c, dist, includes: lowerC.includes(lowerName) || lowerName.includes(lowerC) };
+            }).filter(c => c.dist <= threshold || c.includes)
+                .sort((a, b) => a.dist - b.dist)
+                .slice(0, 3);
+            return matches.map(m => m.name);
+        }
+
         document.getElementById('internal-checkout-btn').addEventListener('click', async () => {
             const customerName = customerNameInput.value.trim();
             if (!customerName) {
@@ -1618,13 +1958,116 @@
                 return;
             }
 
-            const getAuthHeaders = () => {
-                const headers = { 'Content-Type': 'application/json' };
-                if (storeAuthUser.token) headers['Authorization'] = 'Bearer ' + storeAuthUser.token;
-                if (storeAuthUser.username) headers['x-actor-name'] = storeAuthUser.username;
-                return headers;
-            };
+            // Exists exactly?
+            const exactMatch = storeClientList.find(c => c.trim().toLowerCase() === customerName.toLowerCase());
+            if (exactMatch) {
+                await executeCheckout(exactMatch);
+                return;
+            }
 
+            // Provide similar options or register new
+            const similar = findSimilarClients(customerName);
+            if (similar.length > 0) {
+                const container = document.getElementById('similar-clients-container');
+                container.innerHTML = '';
+                similar.forEach(simName => {
+                    const btn = document.createElement('button');
+                    btn.className = 'internal-checkout-btn';
+                    btn.style.background = 'var(--surface)';
+                    btn.style.color = 'var(--text)';
+                    btn.style.border = '1px solid var(--border)';
+                    btn.textContent = simName;
+                    btn.addEventListener('click', () => {
+                        document.getElementById('store-similar-client-modal').style.display = 'none';
+                        customerNameInput.value = simName; // Auto-update input
+                        executeCheckout(simName);
+                    });
+                    container.appendChild(btn);
+                });
+                document.getElementById('store-similar-client-modal').style.display = 'flex';
+            } else {
+                openNewClientModal(customerName);
+            }
+        });
+
+        document.getElementById('similar-client-cancel-btn').addEventListener('click', () => {
+            document.getElementById('store-similar-client-modal').style.display = 'none';
+        });
+
+        document.getElementById('similar-client-new-btn').addEventListener('click', () => {
+            document.getElementById('store-similar-client-modal').style.display = 'none';
+            openNewClientModal(customerNameInput.value.trim());
+        });
+
+        function openNewClientModal(name) {
+            document.getElementById('new-client-name-display').textContent = name;
+            document.getElementById('new-client-shortname').value = '';
+            document.getElementById('new-client-whatsapp').value = '';
+            document.getElementById('new-client-birthdate').value = '';
+            document.getElementById('new-client-error').style.display = 'none';
+            document.getElementById('store-new-client-modal').style.display = 'flex';
+        }
+
+        document.getElementById('close-new-client-modal').addEventListener('click', () => {
+            document.getElementById('store-new-client-modal').style.display = 'none';
+        });
+
+        // Util to format getting auth headers repeatedly
+        const getAuthHeaders = () => {
+            const headers = { 'Content-Type': 'application/json' };
+            if (storeAuthUser && storeAuthUser.token) headers['Authorization'] = 'Bearer ' + storeAuthUser.token;
+            if (storeAuthUser && storeAuthUser.username) headers['x-actor-name'] = storeAuthUser.username;
+            return headers;
+        };
+
+        document.getElementById('submit-new-client-btn').addEventListener('click', async () => {
+            const name = document.getElementById('new-client-name-display').textContent;
+            const short_name = document.getElementById('new-client-shortname').value.trim();
+            const whatsapp = document.getElementById('new-client-whatsapp').value.trim();
+            const birth_date = document.getElementById('new-client-birthdate').value;
+            const errDiv = document.getElementById('new-client-error');
+            const btn = document.getElementById('submit-new-client-btn');
+
+            errDiv.style.display = 'none';
+            btn.disabled = true;
+            btn.textContent = 'Guardando...';
+
+            try {
+                const payload = {
+                    seller_id: storeActiveSeller.id,
+                    name,
+                    short_name: short_name || null,
+                    whatsapp: whatsapp || null,
+                    birth_date: birth_date || null
+                };
+
+                const res = await fetch('/api/clients', {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify(payload)
+                });
+
+                if (!res.ok) {
+                    const data = await res.json();
+                    throw new Error(data.error || 'Error al guardar cliente');
+                }
+
+                storeClientList.push(name); // Locally update
+                document.getElementById('store-new-client-modal').style.display = 'none';
+
+                // Continue with checkout using new client
+                await executeCheckout(name);
+
+            } catch (err) {
+                errDiv.textContent = err.message;
+                errDiv.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Guardar y Continuar';
+            }
+        });
+
+        async function executeCheckout(customerName) {
             try {
                 const btn = document.getElementById('internal-checkout-btn');
                 const origText = btn.textContent;
@@ -1757,6 +2200,60 @@
                 toast.classList.add('show');
                 setTimeout(() => toast.classList.remove('show'), 2500);
 
+                // --- WhatsApp Automated Messages ---
+                try {
+                    const msgsRes = await fetch(`/api/seller-messages?seller_id=${storeActiveSeller.id}`, { headers: getAuthHeaders() });
+                    if (msgsRes.ok) {
+                        const msgs = await msgsRes.json();
+                        const newOrderMsg = msgs.find(m => m.event_type === 'new_order');
+
+                        if (newOrderMsg && newOrderMsg.is_active) {
+                            // Fetch client's short name and phone number natively
+                            let waNumber = document.getElementById('new-client-whatsapp')?.value || customerNameInput.dataset.whatsapp;
+                            let shortName = null;
+
+                            try {
+                                const clientsRes = await fetch(`/api/clients?seller_id=${storeActiveSeller.id}`, { headers: getAuthHeaders() });
+                                if (clientsRes.ok) {
+                                    const allCli = await clientsRes.json();
+                                    const c = allCli.find(cli => cli.name.toLowerCase() === customerName.toLowerCase());
+                                    if (c) {
+                                        if (!waNumber && c.whatsapp) waNumber = c.whatsapp;
+                                        if (c.short_name) shortName = c.short_name;
+                                    }
+                                }
+                            } catch (e) {
+                                console.error('Error fetching client details for WA auto msg:', e);
+                            }
+
+                            if (waNumber && waNumber.trim() !== '') {
+                                // Calculate total
+                                let total = 0;
+                                for (const id in cart) {
+                                    total += cart[id].qty * cart[id].product.price;
+                                }
+
+                                // Format template
+                                const displayClientName = shortName || customerName;
+                                let text = newOrderMsg.message_text || '';
+                                text = text.replace(/{cliente}/g, displayClientName);
+                                text = text.replace(/{vendedor}/g, storeActiveSeller.name);
+                                text = text.replace(/{total}/g, `$${total.toLocaleString('es-CO')}`);
+
+                                // Format number (strip non-digits, prepend 57 if needed for Colombia default)
+                                let cleanNum = waNumber.replace(/\D/g, '');
+                                if (cleanNum.length === 10) cleanNum = '57' + cleanNum;
+
+                                const waUrl = `https://wa.me/${cleanNum}?text=${encodeURIComponent(text)}`;
+                                window.open(waUrl, '_blank');
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error('Error triggering WhatsApp message:', e);
+                }
+                // -----------------------------------
+
                 // Reload the embedded iframe so the table updates
                 const iframe = document.querySelector('.embedded-sales-iframe');
                 if (iframe) {
@@ -1777,7 +2274,7 @@
                 btn.textContent = 'Agregar pedido';
                 btn.disabled = false;
             }
-        });
+        }
 
         // Navigate to clients page
         document.getElementById('store-clients-btn').addEventListener('click', () => {

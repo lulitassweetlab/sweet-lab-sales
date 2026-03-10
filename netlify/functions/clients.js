@@ -16,22 +16,63 @@ export default async (req) => {
         if (method === 'GET') {
             const sellerIdStr = url.searchParams.get('seller_id');
 
-            if (!sellerIdStr) {
+            // Global fetch for superadmins
+            const isGlobal = url.searchParams.get('global') === '1';
+
+            if (!isGlobal && !sellerIdStr) {
                 return new Response(JSON.stringify({ error: 'Falta seller_id' }), { status: 400 });
             }
 
-            const sellerId = parseInt(sellerIdStr, 10);
-            if (isNaN(sellerId)) {
-                return new Response(JSON.stringify({ error: 'seller_id inválido' }), { status: 400 });
-            }
+            let clients = [];
 
-            // Return all clients, ordered by name alphabetically
-            const clients = await sql`
-				SELECT * 
-				FROM clients 
-				WHERE seller_id = ${sellerId}
-				ORDER BY name ASC
-			`;
+            if (isGlobal) {
+                // Combine explicit clients with implicit historical clients from the sales table
+                clients = await sql`
+                    SELECT 
+                        name, 
+                        MAX(short_name) AS short_name,
+                        MAX(whatsapp) AS whatsapp,
+                        MAX(birth_date) AS birth_date,
+                        MAX(seller_name) AS seller_name
+                    FROM (
+                        SELECT 
+                            c.name, 
+                            c.short_name,
+                            c.whatsapp, 
+                            CAST(c.birth_date AS VARCHAR) AS birth_date,
+                            s.name as seller_name
+                        FROM clients c
+                        LEFT JOIN sellers s ON c.seller_id = s.id
+                        
+                        UNION ALL
+                        
+                        SELECT
+                            sa.client_name as name,
+                            NULL::VARCHAR as short_name,
+                            NULL::VARCHAR as whatsapp,
+                            NULL::VARCHAR as birth_date,
+                            s.name as seller_name
+                        FROM sales sa
+                        LEFT JOIN sellers s ON sa.seller_id = s.id
+                        WHERE sa.client_name IS NOT NULL AND TRIM(sa.client_name) != ''
+                    ) subq
+                    GROUP BY name
+                    ORDER BY name ASC
+                `;
+            } else {
+                const sellerId = parseInt(sellerIdStr, 10);
+                if (isNaN(sellerId)) {
+                    return new Response(JSON.stringify({ error: 'seller_id inválido' }), { status: 400 });
+                }
+
+                // Return all clients, ordered by name alphabetically
+                clients = await sql`
+                    SELECT * 
+                    FROM clients 
+                    WHERE seller_id = ${sellerId}
+                    ORDER BY name ASC
+                `;
+            }
 
             return new Response(JSON.stringify(clients), {
                 status: 200,
@@ -46,6 +87,7 @@ export default async (req) => {
             const body = await req.json();
             const sellerId = parseInt(body.seller_id, 10);
             const name = (body.name || '').trim();
+            const shortName = (body.short_name || '').trim() || null;
             const whatsapp = (body.whatsapp || '').trim() || null;
             const birthDate = body.birth_date || null;
 
@@ -68,9 +110,10 @@ export default async (req) => {
 
                 // Ensure the target name exists in the database
                 const [targetClient] = await sql`
-                    INSERT INTO clients (seller_id, name, whatsapp, birth_date)
-                    VALUES (${sellerId}, ${name}, ${whatsapp}, ${birthDate})
+                    INSERT INTO clients (seller_id, name, short_name, whatsapp, birth_date)
+                    VALUES (${sellerId}, ${name}, ${shortName}, ${whatsapp}, ${birthDate})
                     ON CONFLICT (name, seller_id) DO UPDATE SET
+                        short_name = COALESCE(EXCLUDED.short_name, clients.short_name),
                         whatsapp = COALESCE(clients.whatsapp, EXCLUDED.whatsapp),
                         birth_date = COALESCE(clients.birth_date, EXCLUDED.birth_date)
                     RETURNING *
@@ -116,6 +159,7 @@ export default async (req) => {
                 const [updated] = await sql`
 					UPDATE clients 
 					SET 
+                        short_name = COALESCE(${shortName}, short_name),
 						whatsapp = COALESCE(${whatsapp}, whatsapp),
 						birth_date = COALESCE(${birthDate}, birth_date)
 					WHERE id = ${existing.id}
@@ -125,8 +169,8 @@ export default async (req) => {
             } else {
                 // Insert new
                 const [inserted] = await sql`
-					INSERT INTO clients (seller_id, name, whatsapp, birth_date)
-					VALUES (${sellerId}, ${name}, ${whatsapp}, ${birthDate})
+					INSERT INTO clients (seller_id, name, short_name, whatsapp, birth_date)
+					VALUES (${sellerId}, ${name}, ${shortName}, ${whatsapp}, ${birthDate})
 					RETURNING *
 				`;
                 result = inserted;

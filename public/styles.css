@@ -101,6 +101,18 @@ tr.row-checked td {
 	accent-color: var(--primary);
 }
 
+.clickable-name {
+	cursor: pointer;
+	color: var(--primary);
+	font-weight: 500;
+	transition: all 0.2s ease;
+}
+
+.clickable-name:hover {
+	color: var(--primary-dark, #b52b55);
+	text-decoration: underline;
+}
+
 /* Floating dessert navigation buttons */
 .dessert-nav-btn {
 	transition: all 0.2s ease;
@@ -869,7 +881,6 @@ button:hover {
 	overflow-x: auto;
 	/* Mejoras para scroll en móvil */
 	-webkit-overflow-scrolling: touch;
-	overscroll-behavior: contain;
 }
 
 /* Mejoras específicas para móvil: hacer scroll más fácil */

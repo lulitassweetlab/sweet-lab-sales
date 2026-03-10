@@ -1124,6 +1124,9 @@ function applyAuthVisibility() {
 	const canDeliveries = isSuper || isAdminUser;
 	if (dessertsBtn) dessertsBtn.style.display = canDesserts ? 'inline-block' : 'none';
 	if (deliveriesBtn) deliveriesBtn.style.display = canDeliveries ? 'inline-block' : 'none';
+
+	const globalDbBtn = document.getElementById('global-clients-button');
+	if (globalDbBtn) globalDbBtn.style.display = isSuper ? 'inline-block' : 'none';
 }
 
 // Load desserts from API (runs once per session)
@@ -4442,7 +4445,645 @@ async function exportCarteraExcel(startIso, endIso) {
 		if (!isAdminUser && !isSuper) { notify.error('Solo para admin/superadmin'); return; }
 		window.location.href = '/store-manager.html';
 	});
+
+	const globalDbBtn = document.getElementById('global-clients-button');
+	globalDbBtn?.addEventListener('click', () => {
+		exitDeleteSellerModeIfActive();
+		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
+		if (!isSuper) { notify.error('Solo para superadmin'); return; }
+		openGlobalClientsView();
+	});
+
+	const globalDbBackBtn = document.getElementById('global-clients-back');
+	globalDbBackBtn?.addEventListener('click', () => {
+		switchView('#view-select-seller');
+	});
+
+	// Messages Feature
+	const manageMsgsBtn = document.getElementById('manage-messages-btn');
+	manageMsgsBtn?.addEventListener('click', () => {
+		openSellerMessagesView();
+	});
+
+	const messagesBackBtn = document.getElementById('messages-back');
+	messagesBackBtn?.addEventListener('click', () => {
+		switchView('#view-clients');
+	});
+
+	const saveMessagesBtn = document.getElementById('save-messages-btn');
+	saveMessagesBtn?.addEventListener('click', async () => {
+		const btn = saveMessagesBtn;
+		const origText = btn.textContent;
+		btn.textContent = 'Guardando...';
+		btn.disabled = true;
+
+		try {
+			const txt = document.getElementById('msg-new-order-text').value;
+			const isActive = document.getElementById('msg-new-order-active').checked;
+			const targetSellerId = state.currentSeller ? state.currentSeller.id : state.currentUser?.id;
+
+			const res = await api('POST', '/api/seller-messages', {
+				seller_id: targetSellerId,
+				event_type: 'new_order',
+				message_text: txt,
+				is_active: isActive
+			});
+
+			notify.success('Configuración de mensajes guardada');
+		} catch (err) {
+			notify.error('Error al guardar configuración');
+			console.error(err);
+		} finally {
+			btn.textContent = origText;
+			btn.disabled = false;
+		}
+	});
+
 })();
+
+async function openSellerMessagesView() {
+	switchView('#view-seller-messages');
+
+	// Reset UI while loading
+	document.getElementById('msg-new-order-active').checked = false;
+	document.getElementById('msg-new-order-text').value = '';
+
+	const targetSellerId = state.currentSeller ? state.currentSeller.id : state.currentUser?.id;
+	if (!targetSellerId) {
+		notify.error('No se pudo determinar el vendedor');
+		return;
+	}
+
+	try {
+		const msgs = await api('GET', `/api/seller-messages?seller_id=${targetSellerId}`);
+		const newOrderMsg = (msgs || []).find(m => m.event_type === 'new_order');
+
+		if (newOrderMsg) {
+			document.getElementById('msg-new-order-active').checked = !!newOrderMsg.is_active;
+			document.getElementById('msg-new-order-text').value = newOrderMsg.message_text;
+		} else {
+			// Leave defaults/empty
+		}
+	} catch (err) {
+		console.error('Error loading seller messages', err);
+		notify.error('No se pudieron cargar los mensajes automáticos');
+	}
+
+	await loadBroadcastTemplates(targetSellerId);
+}
+
+// ------ BROADCAST TEMPLATES LOGIC ------
+async function loadBroadcastTemplates(sellerId) {
+	const container = document.getElementById('broadcast-templates-container');
+	if (!container) return;
+
+	container.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-muted);">Cargando plantillas...</div>';
+
+	try {
+		const templates = await api('GET', `/api/broadcast-templates?seller_id=${sellerId}`);
+		container.innerHTML = '';
+
+		if (!templates || templates.length === 0) {
+			container.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-muted);">No tienes plantillas creadas. ¡Crea una para enviar masivamente!</div>';
+			return;
+		}
+
+		templates.forEach(t => {
+			const card = document.createElement('div');
+			card.style.border = '1px solid var(--border)';
+			card.style.borderRadius = '8px';
+			card.style.padding = '16px';
+			card.style.background = 'var(--background)';
+
+			const headerRow = document.createElement('div');
+			headerRow.style.display = 'flex';
+			headerRow.style.justifyContent = 'space-between';
+			headerRow.style.alignItems = 'center';
+			headerRow.style.marginBottom = '8px';
+
+			const titleEl = document.createElement('h4');
+			titleEl.textContent = t.title;
+			titleEl.style.margin = '0';
+			titleEl.style.color = 'var(--text)';
+
+			const actionsDiv = document.createElement('div');
+			actionsDiv.style.display = 'flex';
+			actionsDiv.style.gap = '8px';
+
+			const editBtn = document.createElement('button');
+			editBtn.className = 'icon-btn';
+			editBtn.textContent = '✏️';
+			editBtn.title = 'Editar plantilla';
+			editBtn.style.background = 'transparent';
+			editBtn.style.border = 'none';
+			editBtn.addEventListener('click', () => editBroadcastTemplate(t));
+
+			const delBtn = document.createElement('button');
+			delBtn.className = 'icon-btn';
+			delBtn.textContent = '🗑️';
+			delBtn.title = 'Eliminar plantilla';
+			delBtn.style.background = 'transparent';
+			delBtn.style.border = 'none';
+			delBtn.addEventListener('click', async () => {
+				if (confirm(`¿Seguro que deseas eliminar la plantilla "${t.title}"?`)) {
+					try {
+						await api('DELETE', `/api/broadcast-templates?id=${t.id}&seller_id=${sellerId}`);
+						notify.success('Plantilla eliminada');
+						loadBroadcastTemplates(sellerId);
+					} catch (e) {
+						notify.error('Error al eliminar');
+					}
+				}
+			});
+
+			actionsDiv.append(editBtn, delBtn);
+			headerRow.append(titleEl, actionsDiv);
+
+			const textEl = document.createElement('p');
+			textEl.textContent = t.message_text;
+			textEl.style.fontSize = '0.9rem';
+			textEl.style.color = 'var(--text-muted)';
+			textEl.style.margin = '0 0 16px 0';
+			textEl.style.whiteSpace = 'pre-wrap';
+			textEl.style.display = '-webkit-box';
+			textEl.style.webkitLineClamp = '2';
+			textEl.style.webkitBoxOrient = 'vertical';
+			textEl.style.overflow = 'hidden';
+
+			const sendBtn = document.createElement('button');
+			sendBtn.className = 'press-btn';
+			sendBtn.textContent = '🛒 Enviar a Clientes';
+			sendBtn.style.width = '100%';
+			sendBtn.style.background = 'var(--surface)';
+			sendBtn.style.color = 'var(--primary)';
+			sendBtn.style.border = '1px solid var(--primary)';
+			sendBtn.addEventListener('click', () => openBroadcastSelectionModal(t));
+
+			card.append(headerRow, textEl, sendBtn);
+			container.appendChild(card);
+		});
+
+	} catch (err) {
+		console.error('Error loading broadcast templates', err);
+		container.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--danger);">Error al cargar plantillas.</div>';
+	}
+}
+
+function editBroadcastTemplate(template = null) {
+	// Re-using popover logic to create/edit prompt
+	document.querySelectorAll('.broadcast-popover').forEach(p => p.remove());
+
+	const pop = document.createElement('div');
+	pop.className = 'popover active broadcast-popover';
+	pop.style.padding = '20px';
+	pop.style.minWidth = '300px';
+	pop.style.maxWidth = '90vw';
+	pop.style.position = 'fixed';
+	pop.style.zIndex = '9999';
+	pop.style.background = 'var(--surface, #fff)';
+	pop.style.boxShadow = '0 8px 32px rgba(0,0,0,0.3)';
+	pop.style.borderRadius = '12px';
+	pop.style.border = '1px solid var(--border, #ddd)';
+	pop.style.top = '50%';
+	pop.style.left = '50%';
+	pop.style.transform = 'translate(-50%, -50%)';
+
+	const title = document.createElement('h3');
+	title.textContent = template ? 'Editar Plantilla' : 'Nueva Plantilla';
+	title.style.margin = '0 0 16px 0';
+
+	const nameLabel = document.createElement('label');
+	nameLabel.textContent = 'Nombre / Propósito:';
+	nameLabel.style.display = 'block';
+	nameLabel.style.fontSize = '0.9rem';
+	nameLabel.style.marginBottom = '4px';
+
+	const nameInput = document.createElement('input');
+	nameInput.type = 'text';
+	nameInput.className = 'client-input';
+	nameInput.style.width = '100%';
+	nameInput.style.marginBottom = '12px';
+	nameInput.placeholder = 'Ej: Promoción Día de la Madre';
+	if (template) nameInput.value = template.title;
+
+	const msgLabel = document.createElement('label');
+	msgLabel.textContent = 'Mensaje de WhatsApp:';
+	msgLabel.style.display = 'block';
+	msgLabel.style.fontSize = '0.9rem';
+	msgLabel.style.marginBottom = '4px';
+
+	const helpTxt = document.createElement('p');
+	helpTxt.innerHTML = 'Usa <b>{cliente}</b> para insertar su nombre.';
+	helpTxt.style.fontSize = '0.8rem';
+	helpTxt.style.color = 'var(--text-muted)';
+	helpTxt.style.margin = '0 0 8px 0';
+
+	const msgInput = document.createElement('textarea');
+	msgInput.className = 'client-input';
+	msgInput.rows = 6;
+	msgInput.style.width = '100%';
+	msgInput.style.resize = 'vertical';
+	msgInput.style.marginBottom = '16px';
+	msgInput.placeholder = '¡Hola {cliente}! Te extrañamos mucho...';
+	if (template) msgInput.value = template.message_text;
+
+	const btnRow = document.createElement('div');
+	btnRow.style.display = 'flex';
+	btnRow.style.gap = '8px';
+
+	const cancelBtn = document.createElement('button');
+	cancelBtn.className = 'press-btn';
+	cancelBtn.textContent = 'Cancelar';
+	cancelBtn.style.flex = 1;
+	cancelBtn.addEventListener('click', () => pop.remove());
+
+	const saveBtn = document.createElement('button');
+	saveBtn.className = 'press-btn btn-primary';
+	saveBtn.textContent = 'Guardar';
+	saveBtn.style.flex = 1;
+
+	btnRow.append(cancelBtn, saveBtn);
+	pop.append(title, nameLabel, nameInput, msgLabel, helpTxt, msgInput, btnRow);
+
+	document.body.appendChild(pop);
+
+	saveBtn.addEventListener('click', async () => {
+		const tTitle = nameInput.value.trim();
+		const tMsg = msgInput.value.trim();
+
+		if (!tTitle || !tMsg) {
+			notify.error('Completa los campos');
+			return;
+		}
+
+		saveBtn.disabled = true;
+		saveBtn.textContent = '...';
+		const sellerId = state.currentSeller ? state.currentSeller.id : state.currentUser?.id;
+
+		try {
+			await api('POST', '/api/broadcast-templates', {
+				id: template ? template.id : null,
+				seller_id: sellerId,
+				title: tTitle,
+				message_text: tMsg
+			});
+			notify.success('Plantilla guardada');
+			pop.remove();
+			loadBroadcastTemplates(sellerId);
+		} catch (e) {
+			notify.error('Error al guardar');
+			saveBtn.disabled = false;
+			saveBtn.textContent = 'Guardar';
+		}
+	});
+}
+
+(function () {
+	// Hook the Add button
+	document.getElementById('add-broadcast-btn')?.addEventListener('click', () => editBroadcastTemplate(null));
+})();
+
+// ------ BROADCAST DISPATCH & QUEUE ------
+let broadcastState = {
+	template: null,
+	clients: [],
+	selectedIds: new Set(),
+	queue: [],
+	currentIndex: 0
+};
+
+async function openBroadcastSelectionModal(template) {
+	broadcastState.template = template;
+	broadcastState.selectedIds.clear();
+
+	const modal = document.getElementById('broadcast-dispatch-modal');
+	const stepSelection = document.getElementById('broadcast-step-selection');
+	const stepQueue = document.getElementById('broadcast-step-queue');
+	const tbody = document.getElementById('broadcast-clients-tbody');
+
+	modal.style.display = 'flex';
+	stepSelection.style.display = 'flex';
+	stepQueue.style.display = 'none';
+	tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 20px;">Cargando clientes...</td></tr>';
+
+	// Load all clients for this seller
+	const sellerId = state.currentSeller ? state.currentSeller.id : state.currentUser?.id;
+	try {
+		const clients = await api('GET', `/api/clients?seller_id=${sellerId}`);
+		const validClients = (clients || []).filter(c => c.whatsapp && c.whatsapp.trim() !== '');
+		validClients.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+		broadcastState.clients = validClients;
+
+		// By default select all
+		validClients.forEach(c => broadcastState.selectedIds.add(c.id));
+		updateBroadcastSelectionUI();
+
+	} catch (e) {
+		console.error(e);
+		tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--danger);">Error cargando clientes.</td></tr>';
+	}
+}
+
+function updateBroadcastSelectionUI() {
+	const tbody = document.getElementById('broadcast-clients-tbody');
+	tbody.innerHTML = '';
+
+	broadcastState.clients.forEach(c => {
+		const tr = document.createElement('tr');
+		tr.style.borderBottom = '1px solid var(--border)';
+
+		const tdCheck = document.createElement('td');
+		tdCheck.style.padding = '10px';
+		tdCheck.style.textAlign = 'center';
+
+		const chk = document.createElement('input');
+		chk.type = 'checkbox';
+		chk.style.width = '16px';
+		chk.style.height = '16px';
+		chk.checked = broadcastState.selectedIds.has(c.id);
+		chk.addEventListener('change', (e) => {
+			if (e.target.checked) broadcastState.selectedIds.add(c.id);
+			else broadcastState.selectedIds.delete(c.id);
+
+			document.getElementById('broadcast-selected-count').textContent = `${broadcastState.selectedIds.size} seleccionados`;
+			document.getElementById('broadcast-select-all').checked = broadcastState.selectedIds.size === broadcastState.clients.length;
+		});
+
+		tdCheck.appendChild(chk);
+
+		const tdName = document.createElement('td');
+		tdName.style.padding = '10px';
+		tdName.innerHTML = `<div style="font-weight: 500;">${c.name}</div><div style="font-size: 0.8rem; color: var(--text-muted);">${c.short_name ? `(${c.short_name})` : ''}</div>`;
+
+		const tdWa = document.createElement('td');
+		tdWa.style.padding = '10px';
+		tdWa.style.color = 'var(--text-muted)';
+		tdWa.textContent = c.whatsapp;
+
+		tr.append(tdCheck, tdName, tdWa);
+		tbody.appendChild(tr);
+	});
+
+	document.getElementById('broadcast-selected-count').textContent = `${broadcastState.selectedIds.size} seleccionados`;
+	document.getElementById('broadcast-select-all').checked = broadcastState.selectedIds.size === broadcastState.clients.length;
+}
+
+(function initBroadcastEvents() {
+	document.getElementById('close-broadcast-modal')?.addEventListener('click', () => {
+		document.getElementById('broadcast-dispatch-modal').style.display = 'none';
+	});
+
+	document.getElementById('broadcast-select-all')?.addEventListener('change', (e) => {
+		const checked = e.target.checked;
+		if (checked) {
+			broadcastState.clients.forEach(c => broadcastState.selectedIds.add(c.id));
+		} else {
+			broadcastState.selectedIds.clear();
+		}
+		updateBroadcastSelectionUI();
+	});
+
+	document.getElementById('broadcast-start-queue-btn')?.addEventListener('click', () => {
+		if (broadcastState.selectedIds.size === 0) {
+			notify.error('Selecciona al menos un cliente');
+			return;
+		}
+
+		// Prepare Queue
+		broadcastState.queue = broadcastState.clients.filter(c => broadcastState.selectedIds.has(c.id));
+		broadcastState.currentIndex = 0;
+		renderBroadcastQueue();
+
+		document.getElementById('broadcast-step-selection').style.display = 'none';
+		document.getElementById('broadcast-step-queue').style.display = 'flex';
+	});
+
+	document.getElementById('broadcast-finish-btn')?.addEventListener('click', () => {
+		document.getElementById('broadcast-dispatch-modal').style.display = 'none';
+	});
+})();
+
+function renderBroadcastQueue() {
+	const list = document.getElementById('broadcast-queue-list');
+	list.innerHTML = '';
+
+	const total = broadcastState.queue.length;
+	let sentCount = 0;
+
+	broadcastState.queue.forEach((client, index) => {
+		if (client._sent) sentCount++;
+
+		const row = document.createElement('div');
+		row.style.display = 'flex';
+		row.style.alignItems = 'center';
+		row.style.justifyContent = 'space-between';
+		row.style.padding = '12px';
+		row.style.border = '1px solid var(--border)';
+		row.style.borderRadius = '8px';
+		row.style.background = client._sent ? 'var(--surface)' : 'var(--background)';
+
+		const info = document.createElement('div');
+
+		const nameSpan = document.createElement('div');
+		nameSpan.style.fontWeight = '500';
+		nameSpan.textContent = client.name;
+		if (client._sent) {
+			nameSpan.style.textDecoration = 'line-through';
+			nameSpan.style.color = 'var(--text-muted)';
+		}
+
+		info.appendChild(nameSpan);
+
+		const sendBtn = document.createElement('button');
+		sendBtn.className = 'press-btn btn-primary';
+		sendBtn.style.padding = '8px 16px';
+
+		if (client._sent) {
+			sendBtn.textContent = 'Reenviar';
+			sendBtn.className = 'press-btn secondary';
+		} else {
+			sendBtn.textContent = 'Enviar WhatsApp';
+		}
+
+		sendBtn.addEventListener('click', () => {
+			sendBroadcastToClient(client, index);
+		});
+
+		row.append(info, sendBtn);
+		list.appendChild(row);
+	});
+
+	// Progress Update
+	document.getElementById('broadcast-progress-text').textContent = `${sentCount} / ${total}`;
+	const pct = total === 0 ? 0 : Math.round((sentCount / total) * 100);
+	document.getElementById('broadcast-progress-bar').style.width = pct + '%';
+
+	if (sentCount === total && total > 0) {
+		document.getElementById('broadcast-finish-btn').style.display = 'block';
+	} else {
+		document.getElementById('broadcast-finish-btn').style.display = 'none';
+	}
+}
+
+function sendBroadcastToClient(client, activeIndex) {
+	// Format text
+	let text = broadcastState.template.message_text || '';
+	const displayName = client.short_name || client.name;
+	text = text.replace(/{cliente}/g, displayName);
+
+	// Open WA
+	let cleanNum = client.whatsapp.replace(/\D/g, '');
+	if (cleanNum.length === 10) cleanNum = '57' + cleanNum;
+
+	const waUrl = `https://wa.me/${cleanNum}?text=${encodeURIComponent(text)}`;
+	window.open(waUrl, '_blank');
+
+	// Mark as sent
+	broadcastState.queue[activeIndex]._sent = true;
+	renderBroadcastQueue();
+}
+
+async function openGlobalClientsView() {
+	if (!state.currentUser?.isSuperAdmin && state.currentUser?.role !== 'superadmin') return;
+	await loadGlobalClients();
+	switchView('#view-global-clients');
+}
+
+let globalClientsState = { rows: [], sortCol: 'name', sortAsc: true };
+
+async function loadGlobalClients() {
+	const nameToData = new Map();
+
+	// Fetch explicit global client records from DB
+	try {
+		const clientsDB = await api('GET', `/api/clients?global=1`);
+		for (const c of (clientsDB || [])) {
+			const raw = (c?.name || '').trim();
+			if (!raw) continue;
+			const key = normalizeClientName(raw);
+
+			if (nameToData.has(key)) {
+				const existing = nameToData.get(key);
+				existing.whatsapp = c.whatsapp || existing.whatsapp;
+				existing.birth_date = c.birth_date || existing.birth_date;
+				existing.seller_name = c.seller_name || existing.seller_name;
+			} else {
+				nameToData.set(key, {
+					name: raw,
+					whatsapp: c.whatsapp || '',
+					birth_date: c.birth_date || '',
+					seller_name: c.seller_name || 'Desconocido'
+				});
+			}
+		}
+	} catch (err) {
+		console.error('Error fetching global clients database:', err);
+	}
+
+	globalClientsState.rows = Array.from(nameToData.values());
+	sortGlobalClients('name', true);
+}
+
+function sortGlobalClients(col, asc) {
+	globalClientsState.sortCol = col;
+	globalClientsState.sortAsc = asc;
+	globalClientsState.rows.sort((a, b) => {
+		let valA = a[col] || '';
+		let valB = b[col] || '';
+		if (typeof valA === 'string') valA = valA.toLowerCase();
+		if (typeof valB === 'string') valB = valB.toLowerCase();
+
+		if (valA < valB) return asc ? -1 : 1;
+		if (valA > valB) return asc ? 1 : -1;
+		return 0;
+	});
+	renderGlobalClientsTable(globalClientsState.rows);
+}
+
+function renderGlobalClientsTable(rows) {
+	const thead = document.querySelector('#global-clients-table thead tr');
+	if (thead) {
+		thead.innerHTML = '';
+		const cols = [
+			{ key: 'name', label: 'Cliente' },
+			{ key: 'short_name', label: 'Nombre Corto' },
+			{ key: 'whatsapp', label: 'WhatsApp' },
+			{ key: 'birth_date', label: 'Cumpleaños' },
+			{ key: 'seller_name', label: 'Vendedor' }
+		];
+
+		cols.forEach(col => {
+			const th = document.createElement('th');
+			th.style.cursor = 'pointer';
+			th.style.userSelect = 'none';
+
+			// Show sorting arrow if this is the active column
+			let arrow = '';
+			if (globalClientsState.sortCol === col.key) {
+				arrow = globalClientsState.sortAsc ? ' 🔼' : ' 🔽';
+			}
+
+			th.textContent = col.label + arrow;
+			th.addEventListener('click', () => {
+				const isAsc = globalClientsState.sortCol === col.key ? !globalClientsState.sortAsc : true;
+				sortGlobalClients(col.key, isAsc);
+			});
+			thead.appendChild(th);
+		});
+
+		// Empty header for padding
+		const padTh = document.createElement('th');
+		padTh.style.width = '40px';
+		thead.appendChild(padTh);
+	}
+
+	const tbody = document.getElementById('global-clients-tbody');
+	if (!tbody) return;
+	tbody.innerHTML = '';
+	if (!rows || rows.length === 0) {
+		const tr = document.createElement('tr');
+		const td = document.createElement('td'); td.colSpan = 5; td.textContent = 'Sin clientes en toda la base de datos'; td.style.opacity = '0.8'; td.style.textAlign = 'center';
+		tr.appendChild(td); tbody.appendChild(tr); return;
+	}
+
+	for (const r of rows) {
+		const tr = document.createElement('tr'); tr.className = 'clients-row';
+
+		const tdN = document.createElement('td');
+		tdN.textContent = r.name;
+		tdN.className = 'clickable-name';
+		tdN.title = 'Ver historial detallado';
+		tdN.addEventListener('click', async () => {
+			await openGlobalClientDetailView(r.name);
+		});
+
+		const tdS = document.createElement('td');
+		tdS.textContent = r.short_name || '-';
+		tdS.style.color = 'var(--text-muted)';
+		tdS.style.fontSize = '0.9em';
+
+		const tdW = document.createElement('td');
+		tdW.textContent = r.whatsapp || '-';
+
+		const tdB = document.createElement('td');
+		tdB.textContent = r.birth_date ? new Date(r.birth_date).toLocaleDateString() : '-';
+
+		const tdVendedor = document.createElement('td');
+		tdVendedor.textContent = r.seller_name || '-';
+		tdVendedor.style.color = 'var(--text-muted)';
+		tdVendedor.style.fontSize = '0.9em';
+
+		const tdA = document.createElement('td');
+		tdA.style.textAlign = 'center';
+
+		// Reused edit button logic but omitted for global db (could be added with seller_id mapped later)
+
+		tr.append(tdN, tdS, tdW, tdB, tdVendedor, tdA); // Updated append to include tdS
+		tr.addEventListener('mousedown', () => { tr.classList.add('row-highlight'); setTimeout(() => tr.classList.remove('row-highlight'), 3200); });
+		tbody.appendChild(tr);
+	}
+}
 
 // Build list of ISO dates (YYYY-MM-DD) from inclusive range using UTC arithmetic
 function buildIsoListFromRange(startIso, endIso) {
@@ -4901,7 +5542,13 @@ function bindEvents() {
 	// Back from Clients view
 	const backBtn = document.getElementById('clients-back');
 	backBtn?.addEventListener('click', () => {
-		if (state.currentSeller) switchView('#view-sales'); else switchView('#view-select-seller');
+		if (window.location.search.includes('embed=true')) {
+			window.location.href = '/store.html';
+		} else if (state.currentSeller) {
+			switchView('#view-sales');
+		} else {
+			switchView('#view-select-seller');
+		}
 	});
 
 	// Back from Client Detail view
@@ -6612,7 +7259,7 @@ function openNewDatePicker(ev) {
 		await api('POST', '/api/days', { seller_id: sellerId, day: iso });
 		await loadDaysForSeller();
 		// Auto-select newly added date
-		const added = (state.saleDays || []).find(d => d.day === iso);
+		const added = (state.saleDays || []).Ễfind(d => d.day === iso);
 		if (added) {
 			state.selectedDayId = added.id;
 			document.getElementById('sales-wrapper').classList.remove('hidden');
@@ -8152,27 +8799,26 @@ async function loadClientsForSeller() {
 			const raw = (s?.client_name || '').trim();
 			if (!raw) continue;
 			const key = normalizeClientName(raw);
-			if (!nameToData.has(key)) nameToData.set(key, { name: raw, count: 0, whatsapp: '', birth_date: '' });
+			if (!nameToData.has(key)) nameToData.set(key, { name: raw, count: 0, short_name: '', whatsapp: '', birth_date: '' }); // Added short_name
 			nameToData.get(key).count++;
 		}
 	}
 
 	// 2. Fetch explicit client records from DB
 	try {
-		const clientsDB = await api('GET', `/api/clients?seller_id=${encodeURIComponent(sellerId)}`);
-		for (const c of (clientsDB || [])) {
-			const raw = (c?.name || '').trim();
+		const dbClients = await api('GET', `/api/clients?seller_id=${sellerId}`);
+		for (const c of (dbClients || [])) {
+			const raw = (c.name || '').trim();
 			if (!raw) continue;
 			const key = normalizeClientName(raw);
-
 			if (nameToData.has(key)) {
-				// Update existing dynamically counted client with DB info
 				const existing = nameToData.get(key);
+				existing.short_name = c.short_name || ''; // Added short_name
 				existing.whatsapp = c.whatsapp || '';
 				existing.birth_date = c.birth_date || '';
 			} else {
 				// Add explicit database client even if they have 0 sales currently
-				nameToData.set(key, { name: raw, count: 0, whatsapp: c.whatsapp || '', birth_date: c.birth_date || '' });
+				nameToData.set(key, { name: raw, count: 0, short_name: c.short_name || '', whatsapp: c.whatsapp || '', birth_date: c.birth_date || '' }); // Added short_name
 			}
 		}
 	} catch (err) {
@@ -8198,16 +8844,14 @@ function renderClientsTable(rows) {
 
 		const tdN = document.createElement('td');
 		tdN.textContent = r.name;
-		tdN.style.cursor = 'pointer';
-		tdN.style.color = 'var(--primary)';
-		tdN.style.fontWeight = '500';
+		tdN.className = 'clickable-name';
 		tdN.title = 'Clic para ver historial';
 		tdN.addEventListener('click', async () => { await openClientDetailView(r.name); });
 
-		const tdVendedor = document.createElement('td');
-		tdVendedor.textContent = state.currentSeller ? state.currentSeller.name : '-';
-		tdVendedor.style.color = 'var(--muted)';
-		tdVendedor.style.fontSize = '0.9em';
+		const tdS = document.createElement('td'); // Added short_name cell
+		tdS.textContent = r.short_name || '-';
+		tdS.style.color = 'var(--text-muted)';
+		tdS.style.fontSize = '0.9em';
 
 		const tdW = document.createElement('td');
 		tdW.textContent = r.whatsapp || '-';
@@ -8218,6 +8862,11 @@ function renderClientsTable(rows) {
 		const tdC = document.createElement('td');
 		tdC.textContent = String(r.count);
 		tdC.style.textAlign = 'center';
+
+		const tdVendedor = document.createElement('td');
+		tdVendedor.textContent = state.currentSeller ? state.currentSeller.name : '-';
+		tdVendedor.style.color = 'var(--muted)';
+		tdVendedor.style.fontSize = '0.9em';
 
 		const tdA = document.createElement('td');
 		tdA.style.textAlign = 'center';
@@ -8235,7 +8884,7 @@ function renderClientsTable(rows) {
 		});
 		tdA.appendChild(editBtn);
 
-		tr.append(tdN, tdVendedor, tdW, tdB, tdC, tdA);
+		tr.append(tdN, tdS, tdW, tdB, tdC, tdVendedor, tdA); // Updated append to include tdS
 		tr.addEventListener('mousedown', () => { tr.classList.add('row-highlight'); setTimeout(() => tr.classList.remove('row-highlight'), 3200); });
 		tbody.appendChild(tr);
 	}
@@ -8447,6 +9096,20 @@ function openClientEditPopover(clientData, clientX, clientY) {
 	nameInput.style.marginBottom = '12px';
 	nameInput.style.background = 'var(--muted-bg)';
 
+	const shortNameLabel = document.createElement('label');
+	shortNameLabel.textContent = 'Nombre Corto (WhatsApp):';
+	shortNameLabel.style.display = 'block';
+	shortNameLabel.style.fontSize = '0.9rem';
+	shortNameLabel.style.marginBottom = '4px';
+
+	const shortNameInput = document.createElement('input');
+	shortNameInput.type = 'text';
+	shortNameInput.value = clientData.short_name || '';
+	shortNameInput.className = 'client-input';
+	shortNameInput.style.width = '100%';
+	shortNameInput.style.marginBottom = '12px';
+	shortNameInput.placeholder = 'Ej: Maria';
+
 	const waLabel = document.createElement('label');
 	waLabel.textContent = 'WhatsApp:';
 	waLabel.style.display = 'block';
@@ -8479,7 +9142,7 @@ function openClientEditPopover(clientData, clientX, clientY) {
 	saveBtn.textContent = 'Guardar';
 	saveBtn.style.width = '100%';
 
-	pop.append(title, nameLabel, nameInput, waLabel, waInput, birthLabel, birthInput, saveBtn);
+	pop.append(title, nameLabel, nameInput, shortNameLabel, shortNameInput, waLabel, waInput, birthLabel, birthInput, saveBtn);
 
 	let left = clientX;
 	let top = clientY;
@@ -8505,6 +9168,7 @@ function openClientEditPopover(clientData, clientX, clientY) {
 			const payload = {
 				seller_id: state.currentSeller.id,
 				name: clientData.name,
+				short_name: shortNameInput.value.trim(),
 				whatsapp: waInput.value.trim(),
 				birth_date: birthInput.value || null
 			};
@@ -8565,6 +9229,19 @@ function openNewClientPopover(clientX, clientY) {
 	nameInput.style.marginBottom = '12px';
 	nameInput.placeholder = 'Ej: Maria Perez';
 
+	const shortNameLabel = document.createElement('label');
+	shortNameLabel.textContent = 'Nombre Corto (WhatsApp):';
+	shortNameLabel.style.display = 'block';
+	shortNameLabel.style.fontSize = '0.9rem';
+	shortNameLabel.style.marginBottom = '4px';
+
+	const shortNameInput = document.createElement('input');
+	shortNameInput.type = 'text';
+	shortNameInput.className = 'client-input';
+	shortNameInput.style.width = '100%';
+	shortNameInput.style.marginBottom = '12px';
+	shortNameInput.placeholder = 'Ej: Maria';
+
 	const waLabel = document.createElement('label');
 	waLabel.textContent = 'WhatsApp:';
 	waLabel.style.display = 'block';
@@ -8595,7 +9272,7 @@ function openNewClientPopover(clientX, clientY) {
 	saveBtn.textContent = 'Guardar';
 	saveBtn.style.width = '100%';
 
-	pop.append(title, nameLabel, nameInput, waLabel, waInput, birthLabel, birthInput, saveBtn);
+	pop.append(title, nameLabel, nameInput, shortNameLabel, shortNameInput, waLabel, waInput, birthLabel, birthInput, saveBtn);
 
 	let left = clientX;
 	let top = clientY;
@@ -8627,6 +9304,7 @@ function openNewClientPopover(clientX, clientY) {
 			const payload = {
 				seller_id: state.currentSeller.id,
 				name: customerName,
+				short_name: shortNameInput.value.trim(),
 				whatsapp: waInput.value.trim(),
 				birth_date: birthInput.value || null
 			};
