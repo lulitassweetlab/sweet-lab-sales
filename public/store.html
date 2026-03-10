@@ -2240,12 +2240,13 @@
                                 text = text.replace(/{vendedor}/g, storeActiveSeller.name);
                                 text = text.replace(/{total}/g, `$${total.toLocaleString('es-CO')}`);
 
-                            // Format number (strip non-digits, prepend 57 if needed for Colombia default)
-                            let cleanNum = waNumber.replace(/\D/g, '');
-                            if (cleanNum.length === 10) cleanNum = '57' + cleanNum;
+                                // Format number (strip non-digits, prepend 57 if needed for Colombia default)
+                                let cleanNum = waNumber.replace(/\D/g, '');
+                                if (cleanNum.length === 10) cleanNum = '57' + cleanNum;
 
-                            const waUrl = `https://wa.me/${cleanNum}?text=${encodeURIComponent(text)}`;
-                            window.open(waUrl, '_blank');
+                                const waUrl = `https://wa.me/${cleanNum}?text=${encodeURIComponent(text)}`;
+                                window.open(waUrl, '_blank');
+                            }
                         }
                     }
                 } catch (e) {
