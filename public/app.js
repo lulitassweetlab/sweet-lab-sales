@@ -1124,6 +1124,9 @@ function applyAuthVisibility() {
 	const canDeliveries = isSuper || isAdminUser;
 	if (dessertsBtn) dessertsBtn.style.display = canDesserts ? 'inline-block' : 'none';
 	if (deliveriesBtn) deliveriesBtn.style.display = canDeliveries ? 'inline-block' : 'none';
+
+	const globalDbBtn = document.getElementById('global-clients-button');
+	if (globalDbBtn) globalDbBtn.style.display = isSuper ? 'inline-block' : 'none';
 }
 
 // Load desserts from API (runs once per session)
