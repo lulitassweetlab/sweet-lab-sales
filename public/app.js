@@ -4466,6 +4466,8 @@ async function openGlobalClientsView() {
 	switchView('#view-global-clients');
 }
 
+let globalClientsState = { rows: [], sortCol: 'name', sortAsc: true };
+
 async function loadGlobalClients() {
 	const nameToData = new Map();
 
@@ -4495,11 +4497,62 @@ async function loadGlobalClients() {
 		console.error('Error fetching global clients database:', err);
 	}
 
-	const rows = Array.from(nameToData.values()).sort((a, b) => a.name.localeCompare(b.name, 'es'));
-	renderGlobalClientsTable(rows);
+	globalClientsState.rows = Array.from(nameToData.values());
+	sortGlobalClients('name', true);
+}
+
+function sortGlobalClients(col, asc) {
+	globalClientsState.sortCol = col;
+	globalClientsState.sortAsc = asc;
+	globalClientsState.rows.sort((a, b) => {
+		let valA = a[col] || '';
+		let valB = b[col] || '';
+		if (typeof valA === 'string') valA = valA.toLowerCase();
+		if (typeof valB === 'string') valB = valB.toLowerCase();
+
+		if (valA < valB) return asc ? -1 : 1;
+		if (valA > valB) return asc ? 1 : -1;
+		return 0;
+	});
+	renderGlobalClientsTable(globalClientsState.rows);
 }
 
 function renderGlobalClientsTable(rows) {
+	const thead = document.querySelector('#global-clients-table thead tr');
+	if (thead) {
+		thead.innerHTML = '';
+		const cols = [
+			{ key: 'name', label: 'Cliente' },
+			{ key: 'whatsapp', label: 'WhatsApp' },
+			{ key: 'birth_date', label: 'Cumpleaños' },
+			{ key: 'seller_name', label: 'Vendedor' }
+		];
+
+		cols.forEach(col => {
+			const th = document.createElement('th');
+			th.style.cursor = 'pointer';
+			th.style.userSelect = 'none';
+
+			// Show sorting arrow if this is the active column
+			let arrow = '';
+			if (globalClientsState.sortCol === col.key) {
+				arrow = globalClientsState.sortAsc ? ' 🔼' : ' 🔽';
+			}
+
+			th.textContent = col.label + arrow;
+			th.addEventListener('click', () => {
+				const isAsc = globalClientsState.sortCol === col.key ? !globalClientsState.sortAsc : true;
+				sortGlobalClients(col.key, isAsc);
+			});
+			thead.appendChild(th);
+		});
+
+		// Empty header for padding
+		const padTh = document.createElement('th');
+		padTh.style.width = '40px';
+		thead.appendChild(padTh);
+	}
+
 	const tbody = document.getElementById('global-clients-tbody');
 	if (!tbody) return;
 	tbody.innerHTML = '';
