@@ -1330,18 +1330,18 @@
         }
 
         cartCheckoutBtn.addEventListener('click', () => {
-            let message = '¡Hola Lulitas! Me encantaría hacer este pedido:\n\n';
+            let message = '¡Hola! Me encantaría hacer este pedido:\n\n';
             let grandTotal = 0;
 
             for (const id in cart) {
                 const item = cart[id];
                 if (item.qty > 0) {
-                    message += `* ${item.qty}x ${item.product.name}* (${fmtMoney.format(item.total)}) \n`;
+                    message += `* ${item.qty} ${item.product.name} ${fmtMoney.format(item.total)}\n`;
                     grandTotal += item.total;
                 }
             }
 
-            message += `\n * Total a pagar: ${fmtMoney.format(grandTotal)}* `;
+            message += `\n * Total a pagar: ${fmtMoney.format(grandTotal)}`;
             const encoded = encodeURIComponent(message);
             window.open(`https://wa.me/573332268889?text=${encoded}`, '_blank');
         });
