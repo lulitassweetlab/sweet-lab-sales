@@ -26,12 +26,35 @@ export default async (req) => {
             let clients = [];
 
             if (isGlobal) {
-                // Return all clients, joining with sellers to get the seller name
+                // Combine explicit clients with implicit historical clients from the sales table
                 clients = await sql`
-                    SELECT c.*, s.name as seller_name
-                    FROM clients c
-                    LEFT JOIN sellers s ON c.seller_id = s.id
-                    ORDER BY c.name ASC
+                    SELECT 
+                        name, 
+                        MAX(whatsapp) AS whatsapp,
+                        MAX(birth_date) AS birth_date,
+                        MAX(seller_name) AS seller_name
+                    FROM (
+                        SELECT 
+                            c.name, 
+                            c.whatsapp, 
+                            CAST(c.birth_date AS VARCHAR) AS birth_date,
+                            s.name as seller_name
+                        FROM clients c
+                        LEFT JOIN sellers s ON c.seller_id = s.id
+                        
+                        UNION ALL
+                        
+                        SELECT
+                            sa.client_name as name,
+                            NULL::VARCHAR as whatsapp,
+                            NULL::VARCHAR as birth_date,
+                            s.name as seller_name
+                        FROM sales sa
+                        LEFT JOIN sellers s ON sa.seller_id = s.id
+                        WHERE sa.client_name IS NOT NULL AND TRIM(sa.client_name) != ''
+                    ) subq
+                    GROUP BY name
+                    ORDER BY name ASC
                 `;
             } else {
                 const sellerId = parseInt(sellerIdStr, 10);

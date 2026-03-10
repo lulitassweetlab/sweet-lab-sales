@@ -4477,13 +4477,19 @@ async function loadGlobalClients() {
 			if (!raw) continue;
 			const key = normalizeClientName(raw);
 
-			// Add explicit database client 
-			nameToData.set(key, {
-				name: raw,
-				whatsapp: c.whatsapp || '',
-				birth_date: c.birth_date || '',
-				seller_name: c.seller_name || 'Desconocido'
-			});
+			if (nameToData.has(key)) {
+				const existing = nameToData.get(key);
+				existing.whatsapp = c.whatsapp || existing.whatsapp;
+				existing.birth_date = c.birth_date || existing.birth_date;
+				existing.seller_name = c.seller_name || existing.seller_name;
+			} else {
+				nameToData.set(key, {
+					name: raw,
+					whatsapp: c.whatsapp || '',
+					birth_date: c.birth_date || '',
+					seller_name: c.seller_name || 'Desconocido'
+				});
+			}
 		}
 	} catch (err) {
 		console.error('Error fetching global clients database:', err);
