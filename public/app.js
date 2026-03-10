@@ -4467,26 +4467,9 @@ async function openGlobalClientsView() {
 }
 
 async function loadGlobalClients() {
-	// 1. Fetch sales history across all days to count records dynamically (without specifying seller_id)
-	const days = await api('GET', `/api/days?include_archived=1`);
 	const nameToData = new Map();
 
-	for (const d of (days || [])) {
-		// Only check valid days (requires seller_id) - we might have to fetch sales slightly differently or query one by one
-		if (!d.seller_id) continue;
-		const params = new URLSearchParams({ seller_id: String(d.seller_id), sale_day_id: String(d.id) });
-		let sales = [];
-		try { sales = await api('GET', `${API.Sales}?${params.toString()}`); } catch { sales = []; }
-		for (const s of (sales || [])) {
-			const raw = (s?.client_name || '').trim();
-			if (!raw) continue;
-			const key = normalizeClientName(raw);
-			if (!nameToData.has(key)) nameToData.set(key, { name: raw, count: 0, whatsapp: '', birth_date: '', seller_name: 'Desconocido' });
-			nameToData.get(key).count++;
-		}
-	}
-
-	// 2. Fetch explicit global client records from DB
+	// Fetch explicit global client records from DB
 	try {
 		const clientsDB = await api('GET', `/api/clients?global=1`);
 		for (const c of (clientsDB || [])) {
@@ -4494,22 +4477,13 @@ async function loadGlobalClients() {
 			if (!raw) continue;
 			const key = normalizeClientName(raw);
 
-			if (nameToData.has(key)) {
-				// Update existing dynamically counted client with DB info
-				const existing = nameToData.get(key);
-				existing.whatsapp = c.whatsapp || existing.whatsapp;
-				existing.birth_date = c.birth_date || existing.birth_date;
-				existing.seller_name = c.seller_name || existing.seller_name;
-			} else {
-				// Add explicit database client even if they have 0 recent sales
-				nameToData.set(key, {
-					name: raw,
-					count: 0,
-					whatsapp: c.whatsapp || '',
-					birth_date: c.birth_date || '',
-					seller_name: c.seller_name || 'Desconocido'
-				});
-			}
+			// Add explicit database client 
+			nameToData.set(key, {
+				name: raw,
+				whatsapp: c.whatsapp || '',
+				birth_date: c.birth_date || '',
+				seller_name: c.seller_name || 'Desconocido'
+			});
 		}
 	} catch (err) {
 		console.error('Error fetching global clients database:', err);
