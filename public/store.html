@@ -869,7 +869,7 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0, 0, 0, 0.9);
+            background: rgba(255, 255, 255, 0.98);
             z-index: 9999;
             opacity: 0;
             transition: opacity 0.3s ease;
@@ -926,8 +926,8 @@
             position: absolute;
             top: 20px;
             right: 20px;
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
+            background: rgba(0, 0, 0, 0.1);
+            color: #2a2a2a;
             border: none;
             width: 40px;
             height: 40px;
@@ -943,15 +943,15 @@
         }
 
         .gallery-close:hover {
-            background: rgba(255, 255, 255, 0.4);
+            background: rgba(0, 0, 0, 0.2);
         }
 
         .gallery-btn {
             position: absolute;
             top: 50%;
             transform: translateY(-50%);
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
+            background: rgba(0, 0, 0, 0.1);
+            color: #2a2a2a;
             border: none;
             width: 50px;
             height: 50px;
@@ -966,7 +966,7 @@
         }
 
         .gallery-btn:hover {
-            background: rgba(255, 255, 255, 0.4);
+            background: rgba(0, 0, 0, 0.2);
         }
 
         .gallery-btn.prev {
@@ -991,13 +991,13 @@
             width: 10px;
             height: 10px;
             border-radius: 50%;
-            background: rgba(255, 255, 255, 0.5);
+            background: rgba(0, 0, 0, 0.2);
             transition: background 0.3s;
         }
 
         .gallery-dot.active {
-            background: white;
-            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+            background: var(--primary-hover);
+            box-shadow: 0 0 5px rgba(244, 166, 183, 0.5);
         }
 
         @media (max-width: 768px) {
