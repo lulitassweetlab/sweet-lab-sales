@@ -2194,6 +2194,42 @@
                 toast.classList.add('show');
                 setTimeout(() => toast.classList.remove('show'), 2500);
 
+                // --- WhatsApp Automated Messages ---
+                try {
+                    const msgsRes = await fetch(`/api/seller-messages?seller_id=${storeActiveSeller.id}`, { headers: getAuthHeaders() });
+                    if (msgsRes.ok) {
+                        const msgs = await msgsRes.json();
+                        const newOrderMsg = msgs.find(m => m.event_type === 'new_order');
+
+                        // Check if active and we have a WhatsApp number
+                        const waNumber = document.getElementById('new-client-whatsapp')?.value || customerNameInput.dataset.whatsapp;
+
+                        if (newOrderMsg && newOrderMsg.is_active && waNumber && waNumber.trim() !== '') {
+                            // Calculate total
+                            let total = 0;
+                            for (const id in cart) {
+                                total += cart[id].qty * cart[id].product.price;
+                            }
+
+                            // Format template
+                            let text = newOrderMsg.message_text || '';
+                            text = text.replace(/{cliente}/g, customerName);
+                            text = text.replace(/{vendedor}/g, storeActiveSeller.name);
+                            text = text.replace(/{total}/g, `$${total.toLocaleString('es-CO')}`);
+
+                            // Format number (strip non-digits, prepend 57 if needed for Colombia default)
+                            let cleanNum = waNumber.replace(/\D/g, '');
+                            if (cleanNum.length === 10) cleanNum = '57' + cleanNum;
+
+                            const waUrl = `https://wa.me/${cleanNum}?text=${encodeURIComponent(text)}`;
+                            window.open(waUrl, '_blank');
+                        }
+                    }
+                } catch (e) {
+                    console.error('Error triggering WhatsApp message:', e);
+                }
+                // -----------------------------------
+
                 // Reload the embedded iframe so the table updates
                 const iframe = document.querySelector('.embedded-sales-iframe');
                 if (iframe) {

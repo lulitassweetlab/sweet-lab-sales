@@ -158,6 +158,18 @@ export async function ensureSchema() {
 			await sql`CREATE INDEX IF NOT EXISTS idx_clients_seller ON clients(seller_id)`;
 			await sql`CREATE INDEX IF NOT EXISTS idx_clients_name ON clients(name)`;
 
+			// Seller personalized WhatsApp automated messages settings
+			await sql`CREATE TABLE IF NOT EXISTS seller_messages (
+				id SERIAL PRIMARY KEY,
+				seller_id INTEGER NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
+				event_type VARCHAR(50) NOT NULL,
+				message_text TEXT NOT NULL,
+				is_active BOOLEAN DEFAULT false,
+				created_at TIMESTAMPTZ DEFAULT now(),
+				UNIQUE (seller_id, event_type)
+			)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_seller_messages_seller ON seller_messages(seller_id)`;
+
 			// Ensure clients table references sellers instead of users (fix for earlier schema bug)
 			await sql`DO $$ BEGIN
 				IF EXISTS (

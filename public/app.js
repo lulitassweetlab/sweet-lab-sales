@@ -4458,7 +4458,77 @@ async function exportCarteraExcel(startIso, endIso) {
 	globalDbBackBtn?.addEventListener('click', () => {
 		switchView('#view-select-seller');
 	});
+
+	// Messages Feature
+	const manageMsgsBtn = document.getElementById('manage-messages-btn');
+	manageMsgsBtn?.addEventListener('click', () => {
+		openSellerMessagesView();
+	});
+
+	const messagesBackBtn = document.getElementById('messages-back');
+	messagesBackBtn?.addEventListener('click', () => {
+		switchView('#view-clients');
+	});
+
+	const saveMessagesBtn = document.getElementById('save-messages-btn');
+	saveMessagesBtn?.addEventListener('click', async () => {
+		const btn = saveMessagesBtn;
+		const origText = btn.textContent;
+		btn.textContent = 'Guardando...';
+		btn.disabled = true;
+
+		try {
+			const txt = document.getElementById('msg-new-order-text').value;
+			const isActive = document.getElementById('msg-new-order-active').checked;
+			const targetSellerId = state.currentSeller ? state.currentSeller.id : state.currentUser?.id;
+
+			const res = await api('POST', '/api/seller-messages', {
+				seller_id: targetSellerId,
+				event_type: 'new_order',
+				message_text: txt,
+				is_active: isActive
+			});
+
+			notify.success('Configuración de mensajes guardada');
+		} catch (err) {
+			notify.error('Error al guardar configuración');
+			console.error(err);
+		} finally {
+			btn.textContent = origText;
+			btn.disabled = false;
+		}
+	});
+
 })();
+
+async function openSellerMessagesView() {
+	switchView('#view-seller-messages');
+
+	// Reset UI while loading
+	document.getElementById('msg-new-order-active').checked = false;
+	document.getElementById('msg-new-order-text').value = '';
+
+	const targetSellerId = state.currentSeller ? state.currentSeller.id : state.currentUser?.id;
+	if (!targetSellerId) {
+		notify.error('No se pudo determinar el vendedor');
+		return;
+	}
+
+	try {
+		const msgs = await api('GET', `/api/seller-messages?seller_id=${targetSellerId}`);
+		const newOrderMsg = (msgs || []).find(m => m.event_type === 'new_order');
+
+		if (newOrderMsg) {
+			document.getElementById('msg-new-order-active').checked = !!newOrderMsg.is_active;
+			document.getElementById('msg-new-order-text').value = newOrderMsg.message_text;
+		} else {
+			// Leave defaults/empty
+		}
+	} catch (err) {
+		console.error('Error loading seller messages', err);
+		notify.error('No se pudieron cargar los mensajes');
+	}
+}
 
 async function openGlobalClientsView() {
 	if (!state.currentUser?.isSuperAdmin && state.currentUser?.role !== 'superadmin') return;
