@@ -178,6 +178,15 @@ export async function ensureSchema() {
 				created_at TIMESTAMPTZ DEFAULT now(),
 				UNIQUE (seller_id, event_type)
 			)`;
+
+			// Seller WhatsApp Broadcast templates
+			await sql`CREATE TABLE IF NOT EXISTS broadcast_templates (
+				id SERIAL PRIMARY KEY,
+				seller_id INTEGER NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
+				title VARCHAR(100) NOT NULL,
+				message_text TEXT NOT NULL,
+				created_at TIMESTAMPTZ DEFAULT now()
+			)`;
 			await sql`CREATE INDEX IF NOT EXISTS idx_seller_messages_seller ON seller_messages(seller_id)`;
 
 			// Ensure clients table references sellers instead of users (fix for earlier schema bug)
