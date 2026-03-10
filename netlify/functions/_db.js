@@ -151,15 +151,29 @@ export async function ensureSchema() {
 				name VARCHAR(255) NOT NULL,
 				whatsapp VARCHAR(20),
 				birth_date DATE,
-				seller_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+				seller_id INTEGER NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
 				created_at TIMESTAMPTZ DEFAULT now(),
 				UNIQUE (name, seller_id)
 			)`;
 			await sql`CREATE INDEX IF NOT EXISTS idx_clients_seller ON clients(seller_id)`;
 			await sql`CREATE INDEX IF NOT EXISTS idx_clients_name ON clients(name)`;
 
-
-
+			// Ensure clients table references sellers instead of users (fix for earlier schema bug)
+			await sql`DO $$ BEGIN
+				IF EXISTS (
+					SELECT 1 FROM information_schema.key_column_usage
+					WHERE table_name = 'clients' AND constraint_name = 'clients_seller_id_fkey'
+				) THEN
+					-- Verify what it refers to
+					IF NOT EXISTS (
+						SELECT 1 FROM information_schema.constraint_column_usage 
+						WHERE constraint_name = 'clients_seller_id_fkey' AND table_name = 'sellers'
+					) THEN
+						ALTER TABLE clients DROP CONSTRAINT clients_seller_id_fkey;
+						ALTER TABLE clients ADD CONSTRAINT clients_seller_id_fkey FOREIGN KEY (seller_id) REFERENCES sellers(id) ON DELETE CASCADE;
+					END IF;
+				END IF;
+			END $$;`;
 			// FAST PATH: Just check if schema_meta exists and has correct version
 			try {
 				const cur = await sql`SELECT version FROM schema_meta LIMIT 1`;
