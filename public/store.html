@@ -1080,6 +1080,48 @@
         </div>
     </div>
 
+    <div class="modal-overlay" id="store-similar-client-modal">
+        <div class="modal-content" style="max-width: 350px; text-align: center;">
+            <h3 style="margin-bottom: 10px; color: var(--primary-hover);">Cliente no encontrado</h3>
+            <p style="font-size: 0.9rem; margin-bottom: 16px;">¿Quisiste decir alguno de estos clientes?</p>
+            <div id="similar-clients-container"
+                style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; max-height: 200px; overflow-y: auto;">
+                <!-- Botones dinamicos de clientes similares -->
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+                <button id="similar-client-new-btn" class="internal-checkout-btn"
+                    style="background: var(--surface); color: var(--text); border: 1px solid var(--border);">No,
+                    registrar nuevo cliente</button>
+                <button id="similar-client-cancel-btn" class="internal-checkout-btn" style="padding: 8px;">Cancelar
+                    pedido</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="store-new-client-modal">
+        <div class="modal-content" style="max-width: 320px; text-align: center;">
+            <h3 style="margin-bottom: 10px; color: var(--primary-hover);">Nuevo Cliente</h3>
+            <p style="font-size: 0.9rem; margin-bottom: 16px;">Registra los datos de <b
+                    id="new-client-name-display"></b></p>
+
+            <input id="new-client-whatsapp" type="tel" placeholder="WhatsApp (Opcional)" class="internal-checkout-input"
+                style="margin-bottom: 12px;" />
+
+            <div style="text-align: left; margin-bottom: 4px; font-size: 0.85rem; color: var(--text-muted);">Cumpleaños
+                (Opcional)</div>
+            <input id="new-client-birthdate" type="date" class="internal-checkout-input" style="margin-bottom: 20px;" />
+
+            <div style="display: flex; gap: 10px; justify-content: space-between;">
+                <button id="close-new-client-modal" class="internal-checkout-btn"
+                    style="flex: 1; padding: 8px; background: var(--surface); color: var(--text); border: 1px solid var(--border);">Cancelar</button>
+                <button id="submit-new-client-btn" class="internal-checkout-btn" style="flex: 1; padding: 8px;">Guardar
+                    y Continuar</button>
+            </div>
+            <div id="new-client-error"
+                style="color: var(--danger); font-size: 0.9rem; margin-top: 10px; display: none;"></div>
+        </div>
+    </div>
+
     <div id="store-toast" class="animated-toast">
         Se agregó con éxito
     </div>
@@ -1870,6 +1912,36 @@
             updateCartUI();
         }
 
+        function levenshteinDistance(s, t) {
+            if (!s.length) return t.length;
+            if (!t.length) return s.length;
+            const arr = [];
+            for (let i = 0; i <= t.length; i++) {
+                arr[i] = [i];
+                for (let j = 1; j <= s.length; j++) {
+                    arr[i][j] = i === 0 ? j : Math.min(
+                        arr[i - 1][j] + 1,
+                        arr[i][j - 1] + 1,
+                        arr[i - 1][j - 1] + (s[j - 1] === t[i - 1] ? 0 : 1)
+                    );
+                }
+            }
+            return arr[t.length][s.length];
+        }
+
+        function findSimilarClients(name) {
+            const lowerName = name.toLowerCase().trim();
+            const threshold = 3;
+            const matches = storeClientList.map(c => {
+                const lowerC = c.toLowerCase();
+                const dist = levenshteinDistance(lowerName, lowerC);
+                return { name: c, dist, includes: lowerC.includes(lowerName) || lowerName.includes(lowerC) };
+            }).filter(c => c.dist <= threshold || c.includes)
+                .sort((a, b) => a.dist - b.dist)
+                .slice(0, 3);
+            return matches.map(m => m.name);
+        }
+
         document.getElementById('internal-checkout-btn').addEventListener('click', async () => {
             const customerName = customerNameInput.value.trim();
             if (!customerName) {
@@ -1883,13 +1955,113 @@
                 return;
             }
 
-            const getAuthHeaders = () => {
-                const headers = { 'Content-Type': 'application/json' };
-                if (storeAuthUser.token) headers['Authorization'] = 'Bearer ' + storeAuthUser.token;
-                if (storeAuthUser.username) headers['x-actor-name'] = storeAuthUser.username;
-                return headers;
-            };
+            // Exists exactly?
+            const exactMatch = storeClientList.find(c => c.trim().toLowerCase() === customerName.toLowerCase());
+            if (exactMatch) {
+                await executeCheckout(exactMatch);
+                return;
+            }
 
+            // Provide similar options or register new
+            const similar = findSimilarClients(customerName);
+            if (similar.length > 0) {
+                const container = document.getElementById('similar-clients-container');
+                container.innerHTML = '';
+                similar.forEach(simName => {
+                    const btn = document.createElement('button');
+                    btn.className = 'internal-checkout-btn';
+                    btn.style.background = 'var(--surface)';
+                    btn.style.color = 'var(--text)';
+                    btn.style.border = '1px solid var(--border)';
+                    btn.textContent = simName;
+                    btn.addEventListener('click', () => {
+                        document.getElementById('store-similar-client-modal').style.display = 'none';
+                        customerNameInput.value = simName; // Auto-update input
+                        executeCheckout(simName);
+                    });
+                    container.appendChild(btn);
+                });
+                document.getElementById('store-similar-client-modal').style.display = 'flex';
+            } else {
+                openNewClientModal(customerName);
+            }
+        });
+
+        document.getElementById('similar-client-cancel-btn').addEventListener('click', () => {
+            document.getElementById('store-similar-client-modal').style.display = 'none';
+        });
+
+        document.getElementById('similar-client-new-btn').addEventListener('click', () => {
+            document.getElementById('store-similar-client-modal').style.display = 'none';
+            openNewClientModal(customerNameInput.value.trim());
+        });
+
+        function openNewClientModal(name) {
+            document.getElementById('new-client-name-display').textContent = name;
+            document.getElementById('new-client-whatsapp').value = '';
+            document.getElementById('new-client-birthdate').value = '';
+            document.getElementById('new-client-error').style.display = 'none';
+            document.getElementById('store-new-client-modal').style.display = 'flex';
+        }
+
+        document.getElementById('close-new-client-modal').addEventListener('click', () => {
+            document.getElementById('store-new-client-modal').style.display = 'none';
+        });
+
+        // Util to format getting auth headers repeatedly
+        const getAuthHeaders = () => {
+            const headers = { 'Content-Type': 'application/json' };
+            if (storeAuthUser && storeAuthUser.token) headers['Authorization'] = 'Bearer ' + storeAuthUser.token;
+            if (storeAuthUser && storeAuthUser.username) headers['x-actor-name'] = storeAuthUser.username;
+            return headers;
+        };
+
+        document.getElementById('submit-new-client-btn').addEventListener('click', async () => {
+            const name = document.getElementById('new-client-name-display').textContent;
+            const whatsapp = document.getElementById('new-client-whatsapp').value.trim();
+            const birth_date = document.getElementById('new-client-birthdate').value;
+            const errDiv = document.getElementById('new-client-error');
+            const btn = document.getElementById('submit-new-client-btn');
+
+            errDiv.style.display = 'none';
+            btn.disabled = true;
+            btn.textContent = 'Guardando...';
+
+            try {
+                const payload = {
+                    seller_id: storeActiveSeller.id,
+                    name,
+                    whatsapp: whatsapp || null,
+                    birth_date: birth_date || null
+                };
+
+                const res = await fetch('/api/clients', {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify(payload)
+                });
+
+                if (!res.ok) {
+                    const data = await res.json();
+                    throw new Error(data.error || 'Error al guardar cliente');
+                }
+
+                storeClientList.push(name); // Locally update
+                document.getElementById('store-new-client-modal').style.display = 'none';
+
+                // Continue with checkout using new client
+                await executeCheckout(name);
+
+            } catch (err) {
+                errDiv.textContent = err.message;
+                errDiv.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Guardar y Continuar';
+            }
+        });
+
+        async function executeCheckout(customerName) {
             try {
                 const btn = document.getElementById('internal-checkout-btn');
                 const origText = btn.textContent;
@@ -2042,7 +2214,7 @@
                 btn.textContent = 'Agregar pedido';
                 btn.disabled = false;
             }
-        });
+        }
 
         // Navigate to clients page
         document.getElementById('store-clients-btn').addEventListener('click', () => {
