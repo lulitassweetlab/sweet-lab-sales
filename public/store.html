@@ -1715,7 +1715,7 @@
                 const clientNames = await clientsRes.json();
 
                 if (Array.isArray(clientNames)) {
-                    storeClientList = clientNames.filter(n => typeof n === 'string' && n.trim() !== '');
+                    storeClientList = clientNames.map(c => c.name).filter(n => typeof n === 'string' && n.trim() !== '');
                 }
             } catch (err) {
                 console.error('Error fetching clients for autocomplete:', err);
