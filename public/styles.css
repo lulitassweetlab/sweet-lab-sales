@@ -101,6 +101,18 @@ tr.row-checked td {
 	accent-color: var(--primary);
 }
 
+.clickable-name {
+	cursor: pointer;
+	color: var(--primary);
+	font-weight: 500;
+	transition: all 0.2s ease;
+}
+
+.clickable-name:hover {
+	color: var(--primary-dark, #b52b55);
+	text-decoration: underline;
+}
+
 /* Floating dessert navigation buttons */
 .dessert-nav-btn {
 	transition: all 0.2s ease;

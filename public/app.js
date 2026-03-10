@@ -5052,13 +5052,10 @@ function renderGlobalClientsTable(rows) {
 
 		const tdN = document.createElement('td');
 		tdN.textContent = r.name;
-		tdN.style.cursor = 'pointer';
-		tdN.style.color = 'var(--primary)';
-		tdN.style.fontWeight = '500';
-		tdN.title = 'Ver historial (solo nombre)';
+		tdN.className = 'clickable-name';
+		tdN.title = 'Ver historial detallado';
 		tdN.addEventListener('click', async () => {
-			// Superadmins shouldn't dive into seller-specific histories from here, or maybe they just do a global search
-			// We can route this to global detail if needed, but for now we simply alert.
+			await openGlobalClientDetailView(r.name);
 		});
 
 		const tdS = document.createElement('td');
@@ -8847,9 +8844,7 @@ function renderClientsTable(rows) {
 
 		const tdN = document.createElement('td');
 		tdN.textContent = r.name;
-		tdN.style.cursor = 'pointer';
-		tdN.style.color = 'var(--primary)';
-		tdN.style.fontWeight = '500';
+		tdN.className = 'clickable-name';
 		tdN.title = 'Clic para ver historial';
 		tdN.addEventListener('click', async () => { await openClientDetailView(r.name); });
 
