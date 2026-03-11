@@ -259,6 +259,7 @@ export async function ensureSchema() {
 				image_base64 TEXT,
 				media JSONB DEFAULT '[]'::jsonb,
 				is_promo BOOLEAN NOT NULL DEFAULT false,
+				is_new BOOLEAN NOT NULL DEFAULT false,
 				is_active BOOLEAN NOT NULL DEFAULT true,
 				position INTEGER NOT NULL DEFAULT 0,
 				created_at TIMESTAMPTZ DEFAULT now(),
@@ -277,6 +278,12 @@ export async function ensureSchema() {
 					WHERE table_name = 'store_products' AND column_name = 'is_promo'
 				) THEN
 					ALTER TABLE store_products ADD COLUMN is_promo BOOLEAN NOT NULL DEFAULT false;
+				END IF;
+				IF NOT EXISTS (
+					SELECT 1 FROM information_schema.columns
+					WHERE table_name = 'store_products' AND column_name = 'is_new'
+				) THEN
+					ALTER TABLE store_products ADD COLUMN is_new BOOLEAN NOT NULL DEFAULT false;
 				END IF;
 			END $$;`;
 
