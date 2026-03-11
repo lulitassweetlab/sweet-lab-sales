@@ -241,6 +241,7 @@
         <div class="dashboard-grid">
             <div class="card col-span-8">
                 <div class="card-title">🏆 Tabla de Vendedores (Acumulado)</div>
+                <div style="overflow-x: auto;">
                 <table id="tableSellers">
                     <thead>
                         <tr>
@@ -258,6 +259,7 @@
                         <!-- Sellers rows go here -->
                     </tbody>
                 </table>
+                </div>
             </div>
 
             <div class="card col-span-4">
@@ -272,6 +274,7 @@
         <h2 style="font-size: 1.1rem; margin-bottom: 16px; color: var(--text-main);">3. Top Clientes (Mayor Valor Histórico)</h2>
         <div class="dashboard-grid">
             <div class="card col-span-12">
+                <div style="overflow-x: auto;">
                 <table id="tableTopClients">
                     <thead>
                         <tr>
@@ -284,7 +287,10 @@
                         <!-- Top clients go here -->
                     </tbody>
                 </table>
+                </div>
             </div>
+        </div>
+        
         <!-- ROW 5: Product Commissions Manager -->
         <h2 style="font-size: 1.1rem; margin-top: 30px; margin-bottom: 16px; color: var(--text-main);">4. Gestor de Tarifas y Comisiones</h2>
         <div class="dashboard-grid">
@@ -293,6 +299,7 @@
                     <div class="card-title" style="margin: 0;">Reglas Activas e Históricas</div>
                     <button class="btn btn-primary" onclick="addCommissionRow()">+ Nueva Regla</button>
                 </div>
+                <div style="overflow-x: auto;">
                 <table id="tableCommissions">
                     <thead>
                         <tr>
@@ -308,6 +315,7 @@
                         <!-- Commission forms go here -->
                     </tbody>
                 </table>
+                </div>
                 <div style="margin-top: 16px; text-align: right;">
                     <button class="btn btn-primary bg-success" onclick="saveCommissions()" id="btnSaveCommissions">Guardar Cambios</button>
                 </div>
