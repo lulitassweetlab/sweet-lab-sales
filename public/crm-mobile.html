@@ -144,7 +144,7 @@
     <main>
         <!-- SCREEN 1: Dashboard -->
         <div id="screen-dashboard" class="screen active">
-            <div class="card" style="display: flex; gap: 10px;">
+            <div class="card" style="display: flex; gap: 10px; cursor: pointer;" onclick="navTo('directory')">
                 <div style="flex:1; text-align:center;">
                     <div style="font-size:0.8rem; color:var(--text-muted);">Mis Clientes</div>
                     <div id="dashTotalClients" style="font-size:1.5rem; font-weight:700;">-</div>
@@ -297,6 +297,20 @@
                 // If no context is found, redirect back to store login
                 window.location.replace('/store.html');
             }
+
+            // Search Bar filter logic
+            document.getElementById('searchInput').addEventListener('input', (e) => {
+                const term = e.target.value.toLowerCase();
+                if(!term) {
+                    renderDirectory(directoryData);
+                    return;
+                }
+                const filtered = directoryData.filter(c => 
+                    (c.name && c.name.toLowerCase().includes(term)) || 
+                    (c.whatsapp && c.whatsapp.toLowerCase().includes(term))
+                );
+                renderDirectory(filtered);
+            });
         });
 
         // SPA NAVIGATION
@@ -317,8 +331,9 @@
         }
 
         // FORMATTERS
+        const fmtMoney = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
         function formatMoney(cents) {
-            return '$' + (cents / 100).toLocaleString('en-US');
+            return fmtMoney.format(cents);
         }
 
         function wappLink(phone, msg="") {
@@ -414,9 +429,9 @@
                 const card = document.createElement('div');
                 card.className = 'card';
                 card.style.padding = '12px';
-                card.style.marginBottom = '10px';
+                 card.style.marginBottom = '10px';
                 card.innerHTML = `
-                    <div style="display:flex; justify-content:space-between; align-items:center;" onclick="loadProfile(${c.id})">
+                    <div style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="loadProfile(${c.id})">
                         <div style="flex:1;">
                             <div style="font-weight:700; font-size:1.1rem; margin-bottom:4px;">${c.name}</div>
                             <div style="margin-bottom:8px;">${badges}</div>
@@ -498,7 +513,8 @@
                 salesDiv.innerHTML = '<h4 style="margin-bottom: 10px;">Historial Completo de Compras</h4>';
                 if(data.sales && data.sales.length > 0) {
                     data.sales.forEach(s => {
-                        const paidMark = s.is_paid ? '<span style="color:var(--success);">Pagado</span>' : '<span style="color:var(--danger); font-weight:bold;">Debe</span>';
+                        const isDebt = (!s.pay_method || s.pay_method === '' || s.pay_method === '-' || s.pay_method === 'entregado');
+                        const paidMark = !isDebt ? '<span style="color:var(--success);">Pagado</span>' : '<span style="color:var(--danger); font-weight:bold;">Debe</span>';
                         
                         // Detalle postres
                         let items = [];
@@ -510,7 +526,7 @@
                         const itemsStr = items.join(', ');
 
                         salesDiv.innerHTML += `
-                            <div class="card" style="padding:12px; margin-bottom:10px; border-left: 4px solid ${s.is_paid ? 'var(--success)' : 'var(--danger)'}">
+                            <div class="card" style="padding:12px; margin-bottom:10px; border-left: 4px solid ${!isDebt ? 'var(--success)' : 'var(--danger)'}">
                                 <div style="display:flex; justify-content:space-between; margin-bottom:4px; align-items:center;">
                                     <strong style="font-size:1.1rem;">${s.created_at.split('T')[0]}</strong>
                                     <span style="font-size:1.1rem; font-weight:bold;">${formatMoney(s.total_cents)}</span>

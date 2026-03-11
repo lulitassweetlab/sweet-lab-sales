@@ -35,7 +35,7 @@ export async function handler(event) {
                         COUNT(s.id) as total_orders,
                         COALESCE(SUM(s.total_cents), 0) as lifetime_value_cents,
                         MAX(s.created_at) as last_purchase_date,
-                        COALESCE(SUM(CASE WHEN s.is_paid = false THEN s.total_cents ELSE 0 END), 0) as total_debt_cents
+                        COALESCE(SUM(CASE WHEN s.pay_method IS NULL OR s.pay_method = '' OR s.pay_method = '-' OR s.pay_method = 'entregado' THEN s.total_cents ELSE 0 END), 0) as total_debt_cents
                     FROM clients c
                     LEFT JOIN crm_client_sales cs ON c.id = cs.client_id
                     LEFT JOIN sales s ON cs.sale_id = s.id
@@ -47,7 +47,7 @@ export async function handler(event) {
 
                 // 2. Sales History (Read-only directly from sales table via bridge)
                 const sales = await sql`
-                    SELECT s.id, s.created_at, s.total_cents, s.is_paid, 
+                    SELECT s.id, s.created_at, s.total_cents, s.is_paid, s.pay_method,
                            s.qty_arco, s.qty_melo, s.qty_mara, s.qty_oreo, s.qty_nute
                     FROM sales s
                     JOIN crm_client_sales cs ON s.id = cs.sale_id
@@ -86,7 +86,7 @@ export async function handler(event) {
                     COUNT(s.id) as total_orders,
                     COALESCE(SUM(s.total_cents), 0) as lifetime_value_cents,
                     MAX(s.created_at) as last_purchase_date,
-                    COALESCE(SUM(CASE WHEN s.is_paid = false THEN s.total_cents ELSE 0 END), 0) as total_debt_cents
+                    COALESCE(SUM(CASE WHEN s.pay_method IS NULL OR s.pay_method = '' OR s.pay_method = '-' OR s.pay_method = 'entregado' THEN s.total_cents ELSE 0 END), 0) as total_debt_cents
                 FROM clients c
                 LEFT JOIN crm_client_sales cs ON c.id = cs.client_id
                 LEFT JOIN sales s ON cs.sale_id = s.id

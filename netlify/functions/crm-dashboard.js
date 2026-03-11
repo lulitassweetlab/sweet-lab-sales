@@ -36,7 +36,7 @@ export async function handler(event) {
         const statsQuery = await sql`
             SELECT 
                 COUNT(DISTINCT c.id) as total_clients,
-                COALESCE(SUM(CASE WHEN s.is_paid = false THEN s.total_cents ELSE 0 END), 0) as total_debt_cents
+                COALESCE(SUM(CASE WHEN s.pay_method IS NULL OR s.pay_method = '' OR s.pay_method = '-' OR s.pay_method = 'entregado' THEN s.total_cents ELSE 0 END), 0) as total_debt_cents
             FROM clients c
             LEFT JOIN crm_client_sales cs ON c.id = cs.client_id
             LEFT JOIN sales s ON cs.sale_id = s.id
