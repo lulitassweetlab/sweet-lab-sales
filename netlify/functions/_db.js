@@ -473,6 +473,71 @@ export async function ensureSchema() {
 			)`;
 			await sql`CREATE INDEX IF NOT EXISTS idx_crm_wa_logs_client ON crm_whatsapp_logs(client_id)`;
 
+			// --- PHASE 9: CRM STAGES & PIPELINE ---
+			
+			// 1. Stages Definition
+			await sql`CREATE TABLE IF NOT EXISTS crm_stages (
+				id SERIAL PRIMARY KEY,
+				name VARCHAR(100) NOT NULL,
+				color VARCHAR(20) DEFAULT '#808080',
+				order_index INTEGER DEFAULT 0,
+				is_active BOOLEAN DEFAULT true,
+				created_at TIMESTAMPTZ DEFAULT now()
+			)`;
+			
+			// Auto-insert default stages if empty
+			const stageCount = await sql`SELECT count(*) FROM crm_stages`;
+			if (parseInt(stageCount[0].count) === 0) {
+				await sql`
+					INSERT INTO crm_stages (name, color, order_index) VALUES
+					('Prospecto', '#9E9E9E', 1),
+					('Visitado', '#2196F3', 2),
+					('Muestra entregada', '#9C27B0', 3),
+					('Negociación', '#FF9800', 4),
+					('Cliente nuevo', '#4CAF50', 5),
+					('Cliente activo', '#8BC34A', 6),
+					('Cliente frecuente', '#009688', 7),
+					('Cliente VIP', '#FFD700', 8),
+					('En riesgo', '#FF5722', 9),
+					('Intentando recuperar', '#F44336', 10),
+					('Recuperado', '#03A9F4', 11),
+					('Perdido', '#607D8B', 12)
+				`;
+			}
+
+			// 2. Client Current Stage (1-to-1 relation ideally, but keeping history separate)
+			await sql`CREATE TABLE IF NOT EXISTS crm_client_stage (
+				id SERIAL PRIMARY KEY,
+				client_id INTEGER UNIQUE REFERENCES clients(id) ON DELETE CASCADE,
+				stage_id INTEGER REFERENCES crm_stages(id) ON DELETE SET NULL,
+				updated_by INTEGER REFERENCES sellers(id) ON DELETE SET NULL,
+				updated_at TIMESTAMPTZ DEFAULT now()
+			)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_crm_client_stage_sid ON crm_client_stage(stage_id)`;
+
+			// 3. Stage History (Append-only log)
+			await sql`CREATE TABLE IF NOT EXISTS crm_stage_history (
+				id SERIAL PRIMARY KEY,
+				client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE,
+				old_stage_id INTEGER REFERENCES crm_stages(id) ON DELETE SET NULL,
+				new_stage_id INTEGER REFERENCES crm_stages(id) ON DELETE SET NULL,
+				note TEXT,
+				changed_by INTEGER REFERENCES sellers(id) ON DELETE SET NULL,
+				changed_at TIMESTAMPTZ DEFAULT now()
+			)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_crm_stage_history_client ON crm_stage_history(client_id)`;
+
+			// 4. Independent Actions
+			await sql`CREATE TABLE IF NOT EXISTS crm_stage_actions (
+				id SERIAL PRIMARY KEY,
+				client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE,
+				action_type VARCHAR(50) NOT NULL,
+				note TEXT,
+				seller_id INTEGER REFERENCES sellers(id) ON DELETE SET NULL,
+				created_at TIMESTAMPTZ DEFAULT now()
+			)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_crm_stage_act_client ON crm_stage_actions(client_id)`;
+
 			// CRM Product Commissions (Phase 5: Scalable time/seller based)
 			await sql`CREATE TABLE IF NOT EXISTS crm_product_commissions (
 				id SERIAL PRIMARY KEY,

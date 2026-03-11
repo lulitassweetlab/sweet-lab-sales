@@ -206,12 +206,21 @@
                 </div>
             </div>
             
+            <!-- CRM Stage Section -->
+            <div class="card" style="padding:12px; margin-bottom:16px;">
+                <div style="font-size:0.8rem; font-weight:700; margin-bottom:6px; color:var(--text-muted);">Etapa Actual (Pipeline)</div>
+                <div style="display:flex; gap:8px;">
+                    <select id="profStageSelect" class="btn" style="flex:1; border-color:var(--border);"></select>
+                    <button class="btn-primary" onclick="changeProfileStage()" style="padding:8px 16px;">Mover</button>
+                </div>
+            </div>
+
             <!-- Quick Actions -->
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px;">
                 <button class="btn-primary" id="btnRegistrarVenta" onclick="goToStore()" style="padding: 12px; background:var(--text-main);">🛒 Registrar Venta</button>
                 <button id="btnProfileWa" onclick="sendDirectWhatsApp()" class="btn-primary" style="padding: 12px; background:#25D366; text-decoration:none; border:none;">🟢 WhatsApp</button>
-                <button class="btn-primary" onclick="alert('Funcionalidad en desarrollo')" style="padding: 12px; background:var(--info);">+ Tarea</button>
-                <button class="btn-primary" onclick="alert('Funcionalidad en desarrollo')" style="padding: 12px; background:var(--warning); color:black;">+ Nota</button>
+                <button class="btn-primary" onclick="addProfileLogAction()" style="padding: 12px; background:var(--primary);">+ Registrar Acción</button>
+                <button class="btn-primary" onclick="alert('Funcionalidad en desarrollo')" style="padding: 12px; background:var(--info);">+ Tarea (Beta)</button>
             </div>
             
             <!-- Metrics Grid -->
@@ -287,9 +296,16 @@
         let currentSellerId = null;
         let currentSellerName = '';
         let directoryData = [];
+        let crmStages = [];
 
         // ON LOAD
         document.addEventListener('DOMContentLoaded', async () => {
+            // Load stages right away
+            try {
+                const sRes = await fetch('/api/crm-stages?action=get_stages');
+                crmStages = await sRes.json();
+            } catch(e) { console.error('Error fetching stages', e); }
+
             const savedSeller = localStorage.getItem('storeActiveSeller');
             if (savedSeller) {
                 const parsed = JSON.parse(savedSeller);
@@ -425,6 +441,7 @@
                 const freq = Number(c.total_orders);
 
                 let badges = '';
+                if(c.stage_name) badges += `<span class="badge" style="background:${c.stage_color || '#808080'}">${c.stage_name}</span> `;
                 if(debt > 0) badges += `<span class="badge bg-danger">Deuda ${formatMoney(debt)}</span> `;
                 if(freq >= 10) badges += `<span class="badge bg-success">Frecuente</span> `;
                 if(freq === 1) badges += `<span class="badge bg-info">Nuevo</span> `;
@@ -592,6 +609,61 @@
                     }
                 } catch(e) { console.error("Could not fetch WA logs", e); }
 
+                // Render Stage UI Updates & History
+                const stageSelect = document.getElementById('profStageSelect');
+                stageSelect.innerHTML = '<option value="">(Sin etapa asignada)</option>' + crmStages.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+                
+                try {
+                    const stRes = await fetch(`/api/crm-stages?action=get_client_stage&client_id=${id}`);
+                    const stData = await stRes.json();
+                    if(stData && stData.stage_id) {
+                        stageSelect.value = stData.stage_id;
+                        stageSelect.style.borderLeft = `4px solid ${stData.color}`;
+                    } else {
+                        stageSelect.value = '';
+                        stageSelect.style.borderLeft = 'none';
+                    }
+                } catch(e) {}
+
+                try {
+                    const hRes = await fetch(`/api/crm-stages?action=get_history&client_id=${id}`);
+                    const history = await hRes.json();
+                    
+                    if(history && history.length > 0) {
+                        salesDiv.innerHTML += '<h4 style="margin-top:20px; margin-bottom:10px;">Historial de Etapas (Pipeline)</h4>';
+                        history.forEach(h => {
+                            const date = new Date(h.changed_at).toLocaleString();
+                            const oldS = h.old_stage_name || '(Ninguna)';
+                            const newS = h.new_stage_name || '(Ninguna)';
+                            salesDiv.innerHTML += `
+                                <div style="padding:10px; background:var(--bg); border-radius:8px; margin-bottom:8px; font-size:0.85rem;">
+                                    <div style="color:var(--text-muted); margin-bottom:4px;">${date} - Cambiado por: ${h.changed_by_name || 'Sistema'}</div>
+                                    <div>De <b>${oldS}</b> a <span style="background:${h.new_stage_color || '#ccc'}; color:#fff; padding:2px 6px; border-radius:4px; font-weight:bold;">${newS}</span></div>
+                                    ${h.note ? `<div style="margin-top:6px; font-style:italic;">"${h.note}"</div>` : ''}
+                                </div>
+                            `;
+                        });
+                    }
+                } catch(e) {}
+
+                try {
+                    const aRes = await fetch(`/api/crm-stages?action=get_actions&client_id=${id}`);
+                    const actions = await aRes.json();
+                    
+                    if(actions && actions.length > 0) {
+                        salesDiv.innerHTML += '<h4 style="margin-top:20px; margin-bottom:10px;">Acciones Registradas</h4>';
+                        actions.forEach(a => {
+                            const date = new Date(a.created_at).toLocaleString();
+                            salesDiv.innerHTML += `
+                                <div style="padding:10px; background:var(--surface); border:1px solid var(--border); border-radius:8px; margin-bottom:8px; font-size:0.85rem;">
+                                    <div style="color:var(--text-muted); margin-bottom:4px;">${date} - Tipo: <b style="color:var(--text-main);">${a.action_type.toUpperCase()}</b></div>
+                                    <div>${a.note || 'Sin detalles.'}</div>
+                                </div>
+                            `;
+                        });
+                    }
+                } catch(e) {}
+
             } catch (err) {
                 console.error(err);
             }
@@ -698,6 +770,71 @@
             
             // Reload to fetch the updated logs
             loadProfile(currentProfileId);
+        }
+
+        async function changeProfileStage() {
+            if(!currentProfileId) return;
+            const select = document.getElementById('profStageSelect');
+            const newStageId = select.value;
+            if(!newStageId) return;
+            
+            const note = prompt('Opcional: ¿Por qué cambias a esta etapa? (Nota o motivo)');
+            if(note === null) return; // Cancelled
+            
+            try {
+                select.disabled = true;
+                await fetch('/api/crm-stages', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        action: 'set_stage',
+                        client_id: currentProfileId,
+                        stage_id: Number(newStageId),
+                        note: note,
+                        user_id: currentSellerId
+                    })
+                });
+                await loadProfile(currentProfileId);
+            } catch(e) {
+                alert('Error al cambiar la etapa.');
+            } finally {
+                select.disabled = false;
+            }
+        }
+
+        async function addProfileLogAction() {
+            if(!currentProfileId) return;
+            
+            const types = ['Visita', 'Llamada', 'Descuento', 'Muestra', 'Whatsapp', 'Followup', 'Otro'];
+            const typeStr = types.map((t, i) => `${i+1}. ${t}`).join('\n');
+            const num = prompt(`Selecciona el tipo de acción (número):\n${typeStr}`);
+            
+            if(!num) return;
+            const idx = parseInt(num) - 1;
+            if(idx < 0 || idx >= types.length) {
+                alert('Opción inválida'); return;
+            }
+            
+            const actionType = types[idx].toLowerCase();
+            const note = prompt('Detalles de la acción / Resultado:');
+            if(note === null) return;
+            
+            try {
+                await fetch('/api/crm-stages', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        action: 'add_action',
+                        client_id: currentProfileId,
+                        action_type: actionType,
+                        note: note,
+                        seller_id: currentSellerId
+                    })
+                });
+                await loadProfile(currentProfileId);
+            } catch(e) {
+                alert('Error al guardar la acción.');
+            }
         }
 
     </script>

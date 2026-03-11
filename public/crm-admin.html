@@ -294,8 +294,40 @@
             </div>
         </div>
         
-        <!-- ROW 5: Product Commissions Manager -->
-        <h2 style="font-size: 1.1rem; margin-top: 30px; margin-bottom: 16px; color: var(--text-main);">4. Gestor de Tarifas y Comisiones</h2>
+        <!-- ROW 5: Embudo de Ventas (CRM Pipeline) -->
+        <h2 style="font-size: 1.1rem; margin-top: 30px; margin-bottom: 16px; color: var(--text-main);">4. Embudo de Ventas (Pipeline)</h2>
+        <div class="dashboard-grid">
+            <div class="card col-span-12">
+                <div style="display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap;" id="adminPipelineCounters">
+                    <!-- Counters injected by JS -->
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 10px; align-items:center;">
+                    <div style="font-weight:600;">Listado por Etapa</div>
+                    <select id="adminPipelineFilter" class="btn" style="border-color:var(--border);" onchange="renderAdminPipelineTable()">
+                        <option value="all">Todas las etapas</option>
+                    </select>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table id="tableAdminPipeline">
+                        <thead>
+                            <tr>
+                                <th>Cliente</th>
+                                <th>Etapa (Pipeline)</th>
+                                <th>Ventas</th>
+                                <th>LTV</th>
+                                <th>Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyAdminPipeline">
+                            <!-- Filtered pipeline clients here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ROW 6: Product Commissions Manager -->
+        <h2 style="font-size: 1.1rem; margin-top: 30px; margin-bottom: 16px; color: var(--text-main);">5. Gestor de Tarifas y Comisiones</h2>
         <div class="dashboard-grid">
             <div class="card col-span-12">
                 <div class="flex-between" style="margin-bottom: 16px;">
@@ -887,6 +919,151 @@
             renderAdminQueueUI();
         }
 
+        // --- CRM PIPELINE METRICS & UI ---
+        async function loadAdminPipeline() {
+            try {
+                const [stagesRes, clientsRes] = await Promise.all([
+                    fetch('/api/crm-stages?action=get_stages'),
+                    fetch('/api/crm-segments?type=all')
+                ]);
+                adminStages = await stagesRes.json();
+                const clientsData = await clientsRes.json();
+                adminAllClients = clientsData.clients || [];
+
+                renderAdminPipelineUI();
+            } catch(e) {
+                console.error("Error loading pipeline", e);
+            }
+        }
+
+        function renderAdminPipelineUI() {
+            // 1. Build Counters
+            const countersDiv = document.getElementById('adminPipelineCounters');
+            countersDiv.innerHTML = '';
+            
+            // Map counts
+            const counts = {};
+            adminStages.forEach(s => counts[s.id] = 0);
+            let unassignedCount = 0;
+
+            adminAllClients.forEach(c => {
+                if(c.stage_id) counts[c.stage_id] = (counts[c.stage_id] || 0) + 1;
+                else unassignedCount++;
+            });
+
+            adminStages.forEach(s => {
+                countersDiv.innerHTML += `
+                    <div style="background:var(--bg); border-left:4px solid ${s.color}; padding:8px 12px; border-radius:6px; font-size:0.85rem; font-weight:600; cursor:pointer;" onclick="document.getElementById('adminPipelineFilter').value='${s.id}'; renderAdminPipelineTable();">
+                        ${s.name} <span style="background:var(--surface); padding:2px 6px; border-radius:12px; margin-left:6px;">${counts[s.id]}</span>
+                    </div>
+                `;
+            });
+            if(unassignedCount > 0) {
+                countersDiv.innerHTML += `
+                    <div style="background:var(--bg); border-left:4px solid #ccc; padding:8px 12px; border-radius:6px; font-size:0.85rem; font-weight:600; cursor:pointer;" onclick="document.getElementById('adminPipelineFilter').value='none'; renderAdminPipelineTable();">
+                        Sin Etapa <span style="background:var(--surface); padding:2px 6px; border-radius:12px; margin-left:6px;">${unassignedCount}</span>
+                    </div>
+                `;
+            }
+
+            // 2. Build Select Options
+            const filterSelect = document.getElementById('adminPipelineFilter');
+            filterSelect.innerHTML = '<option value="all">Todas las etapas</option>';
+            filterSelect.innerHTML += '<option value="none">Sin Etapa</option>';
+            adminStages.forEach(s => {
+                filterSelect.innerHTML += `<option value="${s.id}">${s.name} (${counts[s.id]})</option>`;
+            });
+
+            renderAdminPipelineTable();
+        }
+
+        function renderAdminPipelineTable() {
+            const tbody = document.getElementById('tbodyAdminPipeline');
+            tbody.innerHTML = '';
+            
+            const filterId = document.getElementById('adminPipelineFilter').value;
+            let filtered = adminAllClients;
+
+            if (filterId === 'none') {
+                filtered = filtered.filter(c => !c.stage_id);
+            } else if (filterId !== 'all') {
+                filtered = filtered.filter(c => String(c.stage_id) === filterId);
+            }
+
+            // Sort by LTV descending
+            filtered.sort((a,b) => b.lifetime_value - a.lifetime_value);
+
+            // Stage dropdown options template
+            const stageOptions = `<option value="">(Sin Etapa)</option>` + 
+                adminStages.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+
+            filtered.forEach(c => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>
+                        <div style="font-weight:600;">${c.name}</div>
+                        <div style="font-size:0.8rem; color:var(--text-muted);">${c.whatsapp}</div>
+                    </td>
+                    <td>
+                        <select class="btn" style="padding:4px 8px; font-size:0.8rem; border-color:var(--border);" onchange="quickChangeStage(${c.id}, this)">
+                            ${stageOptions}
+                        </select>
+                    </td>
+                    <td>${c.lifetime_value ? (c.lifetime_value/1000).toFixed(0) + 'k' : '0'} comprados</td>
+                    <td style="font-weight:700; color:var(--success);">${formatMoney(c.lifetime_value)}</td>
+                    <td>
+                        <a href="https://wa.me/${c.whatsapp.replace(/\D/g, '')}" target="_blank" class="btn" style="background:#25D366; color:white; padding:4px 8px; font-size:0.8rem; border:none;">WA</a>
+                    </td>
+                `;
+                
+                // Set the current stage in the dropdown
+                const selectElement = tr.querySelector('select');
+                if (c.stage_id) selectElement.value = c.stage_id;
+                
+                tbody.appendChild(tr);
+            });
+
+            if(filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:var(--text-muted);">No hay clientes en esta etapa.</td></tr>';
+            }
+        }
+
+        async function quickChangeStage(clientId, selectEl) {
+            const newStageId = selectEl.value;
+            selectEl.disabled = true;
+
+            try {
+                await fetch('/api/crm-stages', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        action: 'set_stage',
+                        client_id: clientId,
+                        stage_id: Number(newStageId),
+                        note: "Cambiado desde Admin Dashboard",
+                        user_id: null // Admin context
+                    })
+                });
+                
+                // Refresh client local data and re-render
+                const c = adminAllClients.find(cx => cx.id === clientId);
+                if(c) {
+                    c.stage_id = newStageId;
+                    if(newStageId) {
+                        const sObj = adminStages.find(st => st.id == newStageId);
+                        c.stage_name = sObj ? sObj.name : null;
+                        c.stage_color = sObj ? sObj.color : null;
+                    } else {
+                        c.stage_name = null; c.stage_color = null;
+                    }
+                }
+                renderAdminPipelineUI();
+                
+            } catch(e) {
+                alert('No se pudo actualizar la etapa.');
+                selectEl.disabled = false;
+            }
+        }
     </script>
 </body>
 </html>
