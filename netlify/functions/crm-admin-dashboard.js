@@ -34,25 +34,27 @@ export async function handler(event) {
             dtEnd.setHours(23, 59, 59, 999);
         }
 
-        // 1. General Stats (Total month/today remain fixed semantics, but let's map them to "Total Selected Period" and "Total Today")
+        // 1. General Stats (Total Selected Period and Total Today)
         const [generalStats] = await sql`
             SELECT 
-                COUNT(*) FILTER (WHERE created_at >= CURRENT_DATE) as sales_today_count,
-                COALESCE(SUM(total_cents) FILTER (WHERE created_at >= CURRENT_DATE), 0) as sales_today_cents,
-                COALESCE(SUM(total_cents) FILTER (WHERE created_at >= ${dtStart} AND created_at <= ${dtEnd}), 0) as sales_month_cents,
+                COUNT(s.id) FILTER (WHERE sd.day = CURRENT_DATE) as sales_today_count,
+                COALESCE(SUM(s.total_cents) FILTER (WHERE sd.day = CURRENT_DATE), 0) as sales_today_cents,
+                COALESCE(SUM(s.total_cents) FILTER (WHERE sd.day >= ${dtStart} AND sd.day <= ${dtEnd}), 0) as sales_month_cents,
                 (SELECT COUNT(DISTINCT client_id) FROM crm_client_sales) as active_clients_count
-            FROM sales;
+            FROM sales s
+            LEFT JOIN sale_days sd ON sd.id = s.sale_day_id;
         `;
 
         // 2. Seller Control
         // Combine sales joined with sellers, plus subqueries for activities
         const sellerStats = await sql`
             WITH unpivoted_sales AS (
-                SELECT s.id as sale_id, s.seller_id, s.created_at::DATE as sale_date, 'arco' as product_name, s.qty_arco as qty FROM sales s WHERE s.qty_arco > 0 AND s.created_at >= ${dtStart} AND s.created_at <= ${dtEnd}
-                UNION ALL SELECT s.id, s.seller_id, s.created_at::DATE, 'melo', s.qty_melo FROM sales s WHERE s.qty_melo > 0 AND s.created_at >= ${dtStart} AND s.created_at <= ${dtEnd}
-                UNION ALL SELECT s.id, s.seller_id, s.created_at::DATE, 'mara', s.qty_mara FROM sales s WHERE s.qty_mara > 0 AND s.created_at >= ${dtStart} AND s.created_at <= ${dtEnd}
-                UNION ALL SELECT s.id, s.seller_id, s.created_at::DATE, 'oreo', s.qty_oreo FROM sales s WHERE s.qty_oreo > 0 AND s.created_at >= ${dtStart} AND s.created_at <= ${dtEnd}
-                UNION ALL SELECT s.id, s.seller_id, s.created_at::DATE, 'nute', s.qty_nute FROM sales s WHERE s.qty_nute > 0 AND s.created_at >= ${dtStart} AND s.created_at <= ${dtEnd}
+                SELECT s.id as sale_id, s.seller_id, sd.day as sale_date, 'arco' as product_name, s.qty_arco as qty FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_arco > 0 AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd}
+                UNION ALL SELECT s.id, s.seller_id, sd.day, 'melo', s.qty_melo FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_melo > 0 AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd}
+                UNION ALL SELECT s.id, s.seller_id, sd.day, 'mara', s.qty_mara FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_mara > 0 AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd}
+                UNION ALL SELECT s.id, s.seller_id, sd.day, 'oreo', s.qty_oreo FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_oreo > 0 AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd}
+                UNION ALL SELECT s.id, s.seller_id, sd.day, 'nute', s.qty_nute FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_nute > 0 AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd}
+                UNION ALL SELECT s.id, s.seller_id, sd.day, d.short_code, si.quantity FROM sales s JOIN sale_items si ON s.id = si.sale_id JOIN desserts d ON si.dessert_id = d.id JOIN sale_days sd ON s.sale_day_id = sd.id WHERE si.quantity > 0 AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd}
             ),
             sales_with_commissions AS (
                 SELECT 
@@ -79,11 +81,12 @@ export async function handler(event) {
                 COALESCE(sc.total_commission, 0) as total_commission,
                 COALESCE(sc.total_commission / NULLIF(COUNT(s.id), 0), 0) as avg_commission,
                 MAX(s.created_at) as last_sale,
-                COUNT(s.id) FILTER (WHERE s.created_at >= CURRENT_DATE) as sales_today,
+                COUNT(s.id) FILTER (WHERE sd.day = CURRENT_DATE) as sales_today,
                 (SELECT COUNT(*) FROM crm_reminders r WHERE r.seller_id = sl.id AND r.created_at >= ${dtStart} AND r.created_at <= ${dtEnd}) as reminders_created,
                 (SELECT COUNT(*) FROM crm_activities a WHERE a.seller_id = sl.id AND a.created_at >= ${dtStart} AND a.created_at <= ${dtEnd}) as notes_created
             FROM sellers sl
-            LEFT JOIN sales s ON s.seller_id = sl.id AND s.created_at >= ${dtStart} AND s.created_at <= ${dtEnd}
+            LEFT JOIN sales s ON s.seller_id = sl.id 
+            LEFT JOIN sale_days sd ON s.sale_day_id = sd.id AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd}
             LEFT JOIN seller_commissions sc ON sc.seller_id = sl.id
             GROUP BY sl.id, sl.name, sc.total_commission
             ORDER BY total_cents DESC;
@@ -134,20 +137,23 @@ export async function handler(event) {
         });
 
         // 4. Product Metrics (from sales table)
-        const [productMetrics] = await sql`
+        // 4. Product Metrics (from legacy columns + dynamic sale_items)
+        const productMetrics = await sql`
+            WITH all_products AS (
+                SELECT 'arco' as name, s.qty_arco as qty, sd.day as date FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_arco > 0 AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd}
+                UNION ALL SELECT 'melo', s.qty_melo, sd.day FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_melo > 0 AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd}
+                UNION ALL SELECT 'mara', s.qty_mara, sd.day FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_mara > 0 AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd}
+                UNION ALL SELECT 'oreo', s.qty_oreo, sd.day FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_oreo > 0 AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd}
+                UNION ALL SELECT 'nute', s.qty_nute, sd.day FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_nute > 0 AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd}
+                UNION ALL SELECT d.short_code, si.quantity, sd.day FROM sales s JOIN sale_items si ON s.id = si.sale_id JOIN desserts d ON si.dessert_id = d.id JOIN sale_days sd ON s.sale_day_id = sd.id WHERE si.quantity > 0 AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd}
+            )
             SELECT
-                COALESCE(SUM(qty_arco), 0) as arco,
-                COALESCE(SUM(qty_melo), 0) as melo,
-                COALESCE(SUM(qty_mara), 0) as mara,
-                COALESCE(SUM(qty_oreo), 0) as oreo,
-                COALESCE(SUM(qty_nute), 0) as nute,
-                COALESCE(SUM(qty_arco) FILTER (WHERE created_at >= CURRENT_DATE), 0) as arco_today,
-                COALESCE(SUM(qty_melo) FILTER (WHERE created_at >= CURRENT_DATE), 0) as melo_today,
-                COALESCE(SUM(qty_mara) FILTER (WHERE created_at >= CURRENT_DATE), 0) as mara_today,
-                COALESCE(SUM(qty_oreo) FILTER (WHERE created_at >= CURRENT_DATE), 0) as oreo_today,
-                COALESCE(SUM(qty_nute) FILTER (WHERE created_at >= CURRENT_DATE), 0) as nute_today
-            FROM sales
-            WHERE created_at >= ${dtStart} AND created_at <= ${dtEnd};
+                name as short_code,
+                COALESCE(SUM(qty), 0) as total_qty,
+                COALESCE(SUM(qty) FILTER (WHERE date = CURRENT_DATE), 0) as qty_today
+            FROM all_products
+            GROUP BY name
+            ORDER BY total_qty DESC;
         `;
 
         // 5. CRM Activity

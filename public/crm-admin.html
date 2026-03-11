@@ -130,7 +130,7 @@
         }
         .btn:hover { background: var(--bg); }
         .btn-primary { background: var(--text-main); color: white; border: none; }
-        .btn-primary:hover { opacity: 0.9; }
+        .btn-primary:hover { background: #222; color: #fff; }
 
         /* Layout specific rows */
         .flex-between { display: flex; justify-content: space-between; align-items: center; }
@@ -363,6 +363,11 @@
                 const res = await fetch(`/.netlify/functions/crm-admin-dashboard${qs}`);
                 const data = await res.json();
                 
+                try {
+                    const desRes = await fetch('/.netlify/functions/desserts');
+                    activeDesserts = await desRes.json();
+                } catch(e) { console.error('Error fetching desserts list', e); }
+                
                 if(data.error) throw new Error(data.error);
 
                 populateGeneral(data.general);
@@ -441,23 +446,23 @@
             const chart = document.getElementById('productChart');
             chart.innerHTML = '';
 
-            // We calculate totals by multiplying quantity by average prices if needed, 
-            // but the purest metric is just the Quantity.
-            const list = [
-                { name: 'Arcoiris', qty: Number(prods.arco), qtyToday: Number(prods.arco_today), color: '#fb923c' },
-                { name: 'Melocotón', qty: Number(prods.melo), qtyToday: Number(prods.melo_today), color: '#fca5a5' },
-                { name: 'Maracuyá', qty: Number(prods.mara), qtyToday: Number(prods.mara_today), color: '#fde047' },
-                { name: 'Oreo', qty: Number(prods.oreo), qtyToday: Number(prods.oreo_today), color: '#94a3b8' },
-                { name: 'Nutella', qty: Number(prods.nute), qtyToday: Number(prods.nute_today), color: '#78350f' },
-            ];
+            // Map dynamic SQL array to visual list
+            const palette = ['#fb923c', '#fca5a5', '#fde047', '#94a3b8', '#78350f', '#3b82f6', '#10b981', '#8b5cf6', '#ec4899', '#f97316'];
+            const list = prods.map((p, idx) => ({
+                name: p.short_code.charAt(0).toUpperCase() + p.short_code.slice(1), 
+                qty: Number(p.total_qty), 
+                qtyToday: Number(p.qty_today), 
+                color: palette[idx % palette.length]
+            }));
 
             list.sort((a,b) => b.qty - a.qty);
-            const maxQty = list[0].qty || 1; // Prevent division by 0
+            const maxQty = list[0]?.qty || 1; // Prevent division by 0
 
             list.forEach(p => {
+                if(p.qty === 0 && p.qtyToday === 0) return; // Hide products with 0 movement in the period
                 const pct = Math.max((p.qty / maxQty) * 100, 5); // Minimum width 5%
                 const barHtml = `
-                    <div>
+                    <div style="margin-bottom: 12px;">
                         <div class="flex-between" style="font-size:0.85rem; margin-bottom:4px; font-weight:600;">
                             <span>${p.name} <span style="color:var(--text-muted); font-weight:normal;">(${p.qtyToday} hoy)</span></span>
                             <span>${p.qty} unid.</span>
@@ -469,6 +474,10 @@
                 `;
                 chart.innerHTML += barHtml;
             });
+            
+            if (chart.innerHTML === '') {
+                chart.innerHTML = '<div style="text-align:center; color:var(--text-muted); font-size:0.9rem;">Sin ventas en el periodo</div>';
+            }
         }
 
         function populateTopClients(clients) {
@@ -521,11 +530,7 @@
                 tr.innerHTML = `
                     <td>
                         <select class="btn" style="background:white;width:100%;" onchange="updateComm(${idx}, 'product_name', this.value)">
-                            <option value="arco" ${c.product_name==='arco'?'selected':''}>Arcoíris</option>
-                            <option value="melo" ${c.product_name==='melo'?'selected':''}>Melocotón</option>
-                            <option value="mara" ${c.product_name==='mara'?'selected':''}>Maracuyá</option>
-                            <option value="oreo" ${c.product_name==='oreo'?'selected':''}>Oreo</option>
-                            <option value="nute" ${c.product_name==='nute'?'selected':''}>Nutella</option>
+                            ${selectedOptions}
                         </select>
                     </td>
                     <td>
@@ -554,8 +559,9 @@
         }
 
         window.addCommissionRow = function() {
+            const defaultDessert = activeDesserts.length > 0 ? activeDesserts[0].short_code : 'arco';
             currentCommissions.unshift({
-                product_name: 'arco',
+                product_name: defaultDessert,
                 commission_cents: 0,
                 valid_from: new Date().toISOString().split('T')[0],
                 valid_to: null,
