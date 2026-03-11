@@ -339,7 +339,7 @@
 
                     // New Badge
                     const tdNewBadge = document.createElement('td');
-                    tdNewBadge.textContent = d.is_new ? '🆕' : '';
+                    tdNewBadge.textContent = d.is_new ? 'Nuevo' : '';
                     tdNewBadge.style.textAlign = 'center';
 
                     // Pos
@@ -678,7 +678,7 @@
                 newBadgeCheckbox.checked = product ? !!product.is_new : false;
                 const newBadgeLabel = document.createElement('label');
                 newBadgeLabel.htmlFor = 'product-is-new';
-                newBadgeLabel.textContent = 'Destacar como Nuevo 🆕';
+                newBadgeLabel.textContent = 'Destacar como Nuevo';
                 newBadgeLabel.style.cursor = 'pointer';
                 newBadgeWrap.append(newBadgeCheckbox, newBadgeLabel);
 

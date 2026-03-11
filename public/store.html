@@ -277,16 +277,18 @@
             position: absolute;
             top: 12px;
             left: 12px;
-            background: #10b981;
+            background: #3b82f6;
             color: white;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: 700;
+            padding: 8px 16px;
+            border-radius: 24px;
+            font-size: 1rem;
+            font-weight: 800;
             z-index: 10;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
             backdrop-filter: blur(4px);
             border: 1px solid rgba(255, 255, 255, 0.4);
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
         }
 
         /* Promo Banners */
@@ -1545,7 +1547,7 @@
             if (product.is_new) {
                 const newBadge = document.createElement('div');
                 newBadge.className = 'product-new-badge';
-                newBadge.textContent = 'Nuevo 🆕';
+                newBadge.textContent = 'Nuevo';
                 imgContainer.appendChild(newBadge);
             }
 
