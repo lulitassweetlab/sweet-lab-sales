@@ -128,6 +128,11 @@
         .badge.bg-success { background-color: var(--success); }
         .badge.bg-info { background-color: var(--info); }
         
+        .nav-ghost {
+            opacity: 0.4;
+            background-color: var(--surface);
+            border-radius: 8px;
+        }
     </style>
 </head>
 <body>
@@ -291,6 +296,8 @@
         </div>
     </nav>
 
+    <!-- SortableJS library for touch-friendly drag and drop -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <script>
         // GLOBALS
         let currentSellerId = null;
@@ -300,6 +307,37 @@
 
         // ON LOAD
         document.addEventListener('DOMContentLoaded', async () => {
+            // Enable Drag and Drop on Bottom Navigation
+            const navBar = document.querySelector('.bottom-bar');
+            if (navBar && typeof Sortable !== 'undefined') {
+                // Restore saved order
+                try {
+                    const savedOrderStr = localStorage.getItem('crm_mobile_nav_order');
+                    if (savedOrderStr) {
+                        const savedOrder = JSON.parse(savedOrderStr);
+                        if (savedOrder && savedOrder.length > 0) {
+                            savedOrder.forEach(id => {
+                                const el = document.getElementById(id);
+                                if (el) navBar.appendChild(el);
+                            });
+                        }
+                    }
+                } catch(e){}
+
+                // Initialize Sortable
+                Sortable.create(navBar, {
+                    delay: 200, // Important: requires holding for 200ms on mobile before dragging
+                    delayOnTouchOnly: true, // Standard clicks will continue to work instantly
+                    animation: 150,
+                    ghostClass: 'nav-ghost',
+                    onEnd: function () {
+                        // Array of element IDs in their new order
+                        const order = Array.from(navBar.children).map(c => c.id);
+                        localStorage.setItem('crm_mobile_nav_order', JSON.stringify(order));
+                    }
+                });
+            }
+
             // Load stages right away
             try {
                 const sRes = await fetch('/api/crm-stages?action=get_stages');
