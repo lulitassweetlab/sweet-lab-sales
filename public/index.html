@@ -105,6 +105,8 @@
 						<button id="global-clients-button" class="press-btn report-btn">Base de Datos</button>
 						<button id="store-button" class="press-btn report-btn"
 							style="background:#e91e63;color:white;border-color:#e91e63;">Tienda</button>
+						<button id="crm-admin-button" class="press-btn report-btn"
+							style="background:var(--text);color:white;border-color:var(--text);">CRM Admin</button>
 					</div>
 				</div>
 				<input id="report-date" type="date" class="hidden" />
@@ -734,6 +736,18 @@
 		if (window.location.search.includes('embed=true')) {
 			document.body.classList.add('is-embedded');
 		}
+		
+		// Event Listener for the new CRM Admin button
+		document.addEventListener('DOMContentLoaded', () => {
+			const crmBtn = document.getElementById('crm-admin-button');
+			if(crmBtn) {
+				crmBtn.addEventListener('click', () => {
+					// Pasa un flag básico por URL u otro método. 
+					// En una app SPA basada en Auth local, el token/auth reside en localStorage. 
+					window.location.href = '/crm-admin.html?auth=admin';
+				});
+			}
+		});
 	</script>
 	<script src="/app.js?v=2025-11-04-1" type="module"></script>
 </body>

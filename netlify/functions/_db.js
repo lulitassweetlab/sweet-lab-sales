@@ -461,6 +461,20 @@ export async function ensureSchema() {
 			await sql`CREATE INDEX IF NOT EXISTS idx_crm_reminders_seller ON crm_reminders(seller_id)`;
 			await sql`CREATE INDEX IF NOT EXISTS idx_crm_reminders_due_date ON crm_reminders(due_date)`;
 
+			// CRM Product Commissions (Phase 5: Scalable time/seller based)
+			await sql`CREATE TABLE IF NOT EXISTS crm_product_commissions (
+				id SERIAL PRIMARY KEY,
+				product_name VARCHAR(50) NOT NULL,
+				commission_cents INTEGER NOT NULL DEFAULT 0,
+				seller_id INTEGER REFERENCES sellers(id) ON DELETE CASCADE,
+				valid_from DATE NOT NULL DEFAULT CURRENT_DATE,
+				valid_to DATE,
+				updated_at TIMESTAMPTZ DEFAULT now()
+			)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_crm_comm_product ON crm_product_commissions(product_name)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_crm_comm_seller ON crm_product_commissions(seller_id)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_crm_comm_dates ON crm_product_commissions(valid_from, valid_to)`;
+
 			if (currentVersion >= SCHEMA_VERSION) { schemaEnsured = true; return; }
 			// Basic users table for authentication
 			await sql`CREATE TABLE IF NOT EXISTS users (

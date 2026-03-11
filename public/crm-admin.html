@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRM Admin Dashboard - Lulitas</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #f4f6f8;
+            --surface: #ffffff;
+            --primary: #f4a6b7;
+            --primary-dark: #e27a90;
+            --text-main: #1d1d1f;
+            --text-muted: #86868b;
+            --border: #e2e8f0;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #3b82f6;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            --radius: 12px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'DM Sans', sans-serif; }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text-main);
+            padding: 30px;
+            min-height: 100vh;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        h1 { font-size: 1.8rem; font-weight: 700; color: #111827; }
+        .subtitle { color: var(--text-muted); font-size: 0.95rem; margin-top: 4px; }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: var(--surface);
+            border-radius: var(--radius);
+            padding: 24px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+        }
+
+        .card-title {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            font-weight: 700;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Span blocks */
+        .col-span-3 { grid-column: span 3; }
+        .col-span-4 { grid-column: span 4; }
+        .col-span-6 { grid-column: span 6; }
+        .col-span-8 { grid-column: span 8; }
+        .col-span-12 { grid-column: span 12; }
+
+        @media (max-width: 1024px) {
+            .col-span-3, .col-span-4 { grid-column: span 6; }
+        }
+        @media (max-width: 768px) {
+            .col-span-3, .col-span-4, .col-span-6, .col-span-8 { grid-column: span 12; }
+            body { padding: 15px; }
+        }
+
+        /* Metric styles */
+        .metric-value { font-size: 2rem; font-weight: 700; color: var(--text-main); line-height: 1.2; }
+        .metric-label { font-size: 0.85rem; color: var(--text-muted); margin-top: 4px; }
+        .metric-color-primary { color: var(--primary-dark); }
+        .metric-color-success { color: var(--success); }
+        .metric-color-danger { color: var(--danger); }
+        .metric-color-warning { color: var(--warning); }
+        .metric-color-info { color: var(--info); }
+
+        /* Tables for lists */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+        th {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            padding-bottom: 12px;
+            border-bottom: 2px solid var(--border);
+        }
+        td {
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.95rem;
+            color: var(--text-main);
+        }
+        tr:last-child td { border-bottom: none; }
+
+        .badge {
+            display: inline-block; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; color: white;
+        }
+        .bg-danger { background-color: var(--danger); }
+        .bg-warning { background-color: var(--warning); color: #000; }
+        .bg-success { background-color: var(--success); }
+        .bg-info { background-color: var(--info); }
+
+        .spinner { text-align: center; padding: 40px; color: var(--text-muted); font-size: 1.2rem; }
+
+        .btn {
+            background: var(--surface); border: 1px solid var(--border); padding: 8px 16px;
+            border-radius: 8px; cursor: pointer; font-weight: 600; color: var(--text-main);
+            text-decoration: none; display: inline-block;
+        }
+        .btn:hover { background: var(--bg); }
+        .btn-primary { background: var(--text-main); color: white; border: none; }
+        .btn-primary:hover { opacity: 0.9; }
+
+        /* Layout specific rows */
+        .flex-between { display: flex; justify-content: space-between; align-items: center; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <div>
+            <h1>CRM Admin Dashboard</h1>
+            <p class="subtitle">Panel de Control General y Resultados en Vivo</p>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <select id="dateFilter" class="btn" style="background: white; cursor: pointer; border-color: var(--border);" onchange="handleDateChange()">
+                <option value="today">Hoy</option>
+                <option value="week">Esta semana</option>
+                <option value="month" selected>Este mes</option>
+                <option value="custom">Rango personalizado...</option>
+            </select>
+            <div id="customDateRange" style="display: none; align-items: center; gap: 8px;">
+                <input type="date" id="dateStart" class="btn" style="background: white;">
+                <span>a</span>
+                <input type="date" id="dateEnd" class="btn" style="background: white;">
+                <button class="btn btn-primary" onclick="loadDashboard()">Ir</button>
+            </div>
+            
+            <button class="btn" onclick="loadDashboard()">🔄</button>
+            <a href="/index.html" class="btn btn-primary">Volver al Reporte</a>
+        </div>
+    </header>
+
+    <div id="loading" class="spinner">Calculando métricas en tiempo real...</div>
+
+    <div id="dashboard-content" style="display: none;">
+        
+        <!-- ROW 1: General Stats -->
+        <h2 style="font-size: 1.1rem; margin-bottom: 16px; color: var(--text-main);">1. Rendimiento de Ventas</h2>
+        <div class="dashboard-grid">
+            <div class="card col-span-3">
+                <div class="card-title">💵 Vendido Hoy</div>
+                <div class="metric-value metric-color-primary" id="valSalesToday">-</div>
+                <div class="metric-label" id="valSalesCountToday">- tickets emitidos hoy</div>
+            </div>
+            <div class="card col-span-3">
+                <div class="card-title">📅 Vendido Este Mes</div>
+                <div class="metric-value metric-color-success" id="valSalesMonth">-</div>
+                <div class="metric-label">Ventas acumuladas del mes actual</div>
+            </div>
+            <div class="card col-span-3">
+                <div class="card-title">👥 Clientes Activos</div>
+                <div class="metric-value metric-color-info" id="valActiveClients">-</div>
+                <div class="metric-label">Han comprado en los últimos 30 días</div>
+            </div>
+            <div class="card col-span-3">
+                <div class="card-title">⚡ Termómetro Diario (Notas)</div>
+                <div class="metric-value" id="valNotesToday">-</div>
+                <div class="metric-label">Notas e interacciones registradas hoy</div>
+            </div>
+        </div>
+
+        <!-- ROW 2: Alerts & Activity -->
+        <h2 style="font-size: 1.1rem; margin-bottom: 16px; color: var(--text-main);">2. Estado de la Cartera & Alertas CRM</h2>
+        <div class="dashboard-grid">
+            <div class="card col-span-8">
+                <div class="card-title">🔴 Alertas de Negocio (Atención Requerida)</div>
+                <div class="grid-2" style="margin-bottom: 20px;">
+                    <div style="padding: 16px; background: rgba(239, 68, 68, 0.1); border-radius: 8px;">
+                        <div class="metric-value metric-color-danger" id="valDebtClients">-</div>
+                        <div style="font-weight: 700; color: var(--danger);">Clientes con Deuda</div>
+                    </div>
+                    <div style="padding: 16px; background: rgba(245, 158, 11, 0.1); border-radius: 8px;">
+                        <div class="metric-value metric-color-warning" id="valInactiveClients">-</div>
+                        <div style="font-weight: 700; color: var(--warning);">Inactivos (> 30 días)</div>
+                    </div>
+                    <div style="padding: 16px; background: rgba(107, 114, 128, 0.1); border-radius: 8px;">
+                        <div class="metric-value" id="valChurnedClients">-</div>
+                        <div style="font-weight: 700; color: var(--text-muted);">Perdidos (> 60 días)</div>
+                    </div>
+                    <div style="padding: 16px; background: rgba(16, 185, 129, 0.1); border-radius: 8px;">
+                        <div class="metric-value metric-color-success" id="valNewWeek">-</div>
+                        <div style="font-weight: 700; color: var(--success);">Nuevos esta semana</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card col-span-4">
+                <div class="card-title">📞 Tracción de Ventas (Hoy)</div>
+                <table style="margin-top: 10px;">
+                    <tr>
+                        <td style="color:var(--text-muted);">Clientes contactados hoy</td>
+                        <td style="font-weight:700; text-align:right;" id="valContactedToday">-</td>
+                    </tr>
+                    <tr>
+                        <td style="color:var(--text-muted);">Recordatorios pendientes</td>
+                        <td style="font-weight:700; text-align:right;" class="metric-color-danger" id="valPendingReminders">-</td>
+                    </tr>
+                    <tr>
+                        <td style="color:var(--text-muted);">Prospectos Ganados (Histórico)</td>
+                        <td style="font-weight:700; text-align:right;" class="metric-color-success" id="valWonProspects">-</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- ROW 3: Sellers and Products -->
+        <div class="dashboard-grid">
+            <div class="card col-span-8">
+                <div class="card-title">🏆 Tabla de Vendedores (Acumulado)</div>
+                <table id="tableSellers">
+                    <thead>
+                        <tr>
+                            <th>Vendedor</th>
+                            <th>Total Mes</th>
+                            <th>Ticket Prom.</th>
+                            <th>Ventas Hoy</th>
+                            <th>Comisión (Total)</th>
+                            <th>Prom. Comis.</th>
+                            <th>Actividad CRM</th>
+                            <th>Última Venta</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Sellers rows go here -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="card col-span-4">
+                <div class="card-title">🍰 Top Productos Vendidos (Mes)</div>
+                <div id="productChart" style="margin-top: 16px; display: flex; flex-direction: column; gap: 12px;">
+                    <!-- Product bars go here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- ROW 4: Top Clients -->
+        <h2 style="font-size: 1.1rem; margin-bottom: 16px; color: var(--text-main);">3. Top Clientes (Mayor Valor Histórico)</h2>
+        <div class="dashboard-grid">
+            <div class="card col-span-12">
+                <table id="tableTopClients">
+                    <thead>
+                        <tr>
+                            <th>Cliente</th>
+                            <th>LTV (Total Ingresado)</th>
+                            <th>Fecha Última Compra</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Top clients go here -->
+                    </tbody>
+                </table>
+            </div>
+        <!-- ROW 5: Product Commissions Manager -->
+        <h2 style="font-size: 1.1rem; margin-top: 30px; margin-bottom: 16px; color: var(--text-main);">4. Gestor de Tarifas y Comisiones</h2>
+        <div class="dashboard-grid">
+            <div class="card col-span-12">
+                <div class="flex-between" style="margin-bottom: 16px;">
+                    <div class="card-title" style="margin: 0;">Reglas Activas e Históricas</div>
+                    <button class="btn btn-primary" onclick="addCommissionRow()">+ Nueva Regla</button>
+                </div>
+                <table id="tableCommissions">
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th>Comisión ($)</th>
+                            <th>Válido Desde</th>
+                            <th>Válido Hasta</th>
+                            <th>Vendedor (Opcional)</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="commissionsBody">
+                        <!-- Commission forms go here -->
+                    </tbody>
+                </table>
+                <div style="margin-top: 16px; text-align: right;">
+                    <button class="btn btn-primary bg-success" onclick="saveCommissions()" id="btnSaveCommissions">Guardar Cambios</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Security check
+        const urlParams = new URLSearchParams(window.location.search);
+        if(urlParams.get('auth') !== 'admin') {
+            window.location.replace('/index.html');
+        }
+
+        const fmtMoney = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
+
+        document.addEventListener('DOMContentLoaded', loadDashboard);
+
+        function handleDateChange() {
+            const val = document.getElementById('dateFilter').value;
+            const customDiv = document.getElementById('customDateRange');
+            if(val === 'custom') {
+                customDiv.style.display = 'flex';
+            } else {
+                customDiv.style.display = 'none';
+                loadDashboard();
+            }
+        }
+
+        async function loadDashboard() {
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('dashboard-content').style.display = 'none';
+
+            try {
+                const tr = document.getElementById('dateFilter').value;
+                let qs = `?time_range=${tr}`;
+                
+                if (tr === 'custom') {
+                    const start = document.getElementById('dateStart').value;
+                    const end = document.getElementById('dateEnd').value;
+                    if(start && end) qs += `&start=${start}&end=${end}`;
+                }
+
+                const res = await fetch(`/.netlify/functions/crm-admin-dashboard${qs}`);
+                const data = await res.json();
+                
+                if(data.error) throw new Error(data.error);
+
+                populateGeneral(data.general);
+                populateAlerts(data.businessAlerts);
+                populateCrmActivity(data.crmActivity);
+                populateSellers(data.sellers);
+                populateProducts(data.products);
+                populateTopClients(data.businessAlerts.top_ltv);
+
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('dashboard-content').style.display = 'block';
+
+            } catch (err) {
+                document.getElementById('loading').innerHTML = `<span style="color:var(--danger)">Error cargando dashboard: ${err.message}</span>`;
+            }
+
+            // Also load commissions dynamically
+            loadCommissions();
+        }
+
+        function populateGeneral(gen) {
+            document.getElementById('valSalesToday').innerText = fmtMoney.format(gen.sales_today_cents);
+            document.getElementById('valSalesCountToday').innerText = `${gen.sales_today_count} tickets emitidos hoy`;
+            document.getElementById('valSalesMonth').innerText = fmtMoney.format(gen.sales_month_cents);
+            document.getElementById('valActiveClients').innerText = gen.active_clients_count;
+        }
+
+        function populateAlerts(alerts) {
+            document.getElementById('valDebtClients').innerText = alerts.with_debt;
+            document.getElementById('valInactiveClients').innerText = alerts.inactive;
+            document.getElementById('valChurnedClients').innerText = alerts.churned;
+            document.getElementById('valNewWeek').innerText = alerts.new_this_week;
+        }
+
+        function populateCrmActivity(act) {
+            document.getElementById('valContactedToday').innerText = act.contacted_today;
+            document.getElementById('valPendingReminders').innerText = act.pending_reminders;
+            document.getElementById('valNotesToday').innerText = act.notes_today;
+            document.getElementById('valWonProspects').innerText = act.won_prospects;
+        }
+
+        function populateSellers(sellers) {
+            const tbody = document.querySelector('#tableSellers tbody');
+            tbody.innerHTML = '';
+            
+            if(sellers.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Sin datos de vendedores</td></tr>';
+                return;
+            }
+
+            sellers.forEach(s => {
+                const tr = document.createElement('tr');
+                const lastSaleDate = s.last_sale ? s.last_sale.split('T')[0] : 'Nunca';
+                
+                const crmActivityTag = `
+                    <div style="font-size:0.8rem; color:var(--text-muted);">
+                        ${s.notes_created} Notas | ${s.reminders_created} Rec.
+                    </div>
+                `;
+
+                tr.innerHTML = `
+                    <td style="font-weight:700;">${s.name}</td>
+                    <td style="color:var(--success); font-weight:700;">${fmtMoney.format(s.total_cents)}</td>
+                    <td>${fmtMoney.format(s.avg_ticket)}</td>
+                    <td><span class="badge ${s.sales_today > 0 ? 'bg-info' : ''}" style="color:${s.sales_today > 0 ? 'white' : 'var(--text-muted)'}">${s.sales_today} hoy</span></td>
+                    <td style="color:var(--primary-dark); font-weight:700;">${fmtMoney.format(s.total_commission || 0)}</td>
+                    <td>${fmtMoney.format(s.avg_commission || 0)}</td>
+                    <td>${crmActivityTag}</td>
+                    <td style="color:var(--text-muted); font-size:0.85rem;">${lastSaleDate}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function populateProducts(prods) {
+            const chart = document.getElementById('productChart');
+            chart.innerHTML = '';
+
+            // We calculate totals by multiplying quantity by average prices if needed, 
+            // but the purest metric is just the Quantity.
+            const list = [
+                { name: 'Arcoiris', qty: Number(prods.arco), qtyToday: Number(prods.arco_today), color: '#fb923c' },
+                { name: 'Melocotón', qty: Number(prods.melo), qtyToday: Number(prods.melo_today), color: '#fca5a5' },
+                { name: 'Maracuyá', qty: Number(prods.mara), qtyToday: Number(prods.mara_today), color: '#fde047' },
+                { name: 'Oreo', qty: Number(prods.oreo), qtyToday: Number(prods.oreo_today), color: '#94a3b8' },
+                { name: 'Nutella', qty: Number(prods.nute), qtyToday: Number(prods.nute_today), color: '#78350f' },
+            ];
+
+            list.sort((a,b) => b.qty - a.qty);
+            const maxQty = list[0].qty || 1; // Prevent division by 0
+
+            list.forEach(p => {
+                const pct = Math.max((p.qty / maxQty) * 100, 5); // Minimum width 5%
+                const barHtml = `
+                    <div>
+                        <div class="flex-between" style="font-size:0.85rem; margin-bottom:4px; font-weight:600;">
+                            <span>${p.name} <span style="color:var(--text-muted); font-weight:normal;">(${p.qtyToday} hoy)</span></span>
+                            <span>${p.qty} unid.</span>
+                        </div>
+                        <div style="width:100%; height:12px; background:var(--bg); border-radius:6px; overflow:hidden;">
+                            <div style="width:${pct}%; height:100%; background:${p.color}; border-radius:6px;"></div>
+                        </div>
+                    </div>
+                `;
+                chart.innerHTML += barHtml;
+            });
+        }
+
+        function populateTopClients(clients) {
+            const tbody = document.querySelector('#tableTopClients tbody');
+            tbody.innerHTML = '';
+
+            if(!clients || clients.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">Sin datos de clientes</td></tr>';
+                return;
+            }
+
+            clients.forEach(c => {
+                const tr = document.createElement('tr');
+                const lastDate = c.last_purchase_date ? c.last_purchase_date.split('T')[0] : '';
+                tr.innerHTML = `
+                    <td style="font-weight:700;">${c.name}</td>
+                    <td style="color:var(--success); font-weight:700;">${fmtMoney.format(c.lifetime_value)}</td>
+                    <td style="color:var(--text-muted);">${lastDate}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // --- Commissions Logic ---
+        let currentCommissions = [];
+        let deletedCommissions = [];
+
+        async function loadCommissions() {
+            try {
+                const res = await fetch('/.netlify/functions/crm-commissions');
+                const rules = await res.json();
+                currentCommissions = Array.isArray(rules) ? rules : [];
+                deletedCommissions = [];
+                renderCommissions();
+            } catch (err) {
+                console.error("Error loading commissions", err);
+            }
+        }
+
+        function renderCommissions() {
+            const tbody = document.getElementById('commissionsBody');
+            tbody.innerHTML = '';
+            
+            if (currentCommissions.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);">Sin reglas de comisión. Usa "+ Nueva Regla" para añadir una.</td></tr>';
+            }
+
+            currentCommissions.forEach((c, idx) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>
+                        <select class="btn" style="background:white;width:100%;" onchange="updateComm(${idx}, 'product_name', this.value)">
+                            <option value="arco" ${c.product_name==='arco'?'selected':''}>Arcoíris</option>
+                            <option value="melo" ${c.product_name==='melo'?'selected':''}>Melocotón</option>
+                            <option value="mara" ${c.product_name==='mara'?'selected':''}>Maracuyá</option>
+                            <option value="oreo" ${c.product_name==='oreo'?'selected':''}>Oreo</option>
+                            <option value="nute" ${c.product_name==='nute'?'selected':''}>Nutella</option>
+                        </select>
+                    </td>
+                    <td>
+                        <input type="number" class="btn" style="background:white;width:100px;" value="${c.commission_cents}" oninput="updateComm(${idx}, 'commission_cents', this.value)">
+                    </td>
+                    <td>
+                        <input type="date" class="btn" style="background:white;" value="${c.valid_from || ''}" onchange="updateComm(${idx}, 'valid_from', this.value)">
+                    </td>
+                    <td>
+                        <input type="date" class="btn" style="background:white;" value="${c.valid_to || ''}" onchange="updateComm(${idx}, 'valid_to', this.value)">
+                    </td>
+                    <td>
+                        <input type="number" class="btn" style="background:white;width:100px;" placeholder="Cualquiera" value="${c.seller_id || ''}" oninput="updateComm(${idx}, 'seller_id', this.value)">
+                    </td>
+                    <td>
+                        <button class="btn metric-color-danger" onclick="removeCommission(${idx})" title="Eliminar regla">🗑️</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Must be attached to window since we inline them in HTML strings
+        window.updateComm = function(idx, field, val) {
+            currentCommissions[idx][field] = val === '' ? null : val;
+        }
+
+        window.addCommissionRow = function() {
+            currentCommissions.unshift({
+                product_name: 'arco',
+                commission_cents: 0,
+                valid_from: new Date().toISOString().split('T')[0],
+                valid_to: null,
+                seller_id: null
+            });
+            renderCommissions();
+        }
+
+        window.removeCommission = function(idx) {
+            const rule = currentCommissions[idx];
+            if (rule.id) {
+                deletedCommissions.push(rule.id);
+            }
+            currentCommissions.splice(idx, 1);
+            renderCommissions();
+        }
+
+        window.saveCommissions = async function() {
+            const btn = document.getElementById('btnSaveCommissions');
+            btn.innerText = 'Guardando...';
+            btn.disabled = true;
+
+            try {
+                // Delete removed rows first
+                for (const dId of deletedCommissions) {
+                    await fetch(`/.netlify/functions/crm-commissions?id=${dId}`, { method: 'DELETE' });
+                }
+
+                // Save current list
+                const res = await fetch('/.netlify/functions/crm-commissions', {
+                    method: 'POST',
+                    body: JSON.stringify(currentCommissions)
+                });
+                
+                if(!res.ok) throw new Error("Error al guardar reglas");
+                
+                await loadDashboard(); // Redraw whole UI
+                btn.innerText = 'Guardado ✔️';
+                setTimeout(() => { btn.innerText = 'Guardar Cambios'; btn.disabled = false; }, 2000);
+
+            } catch(e) {
+                alert(e.message);
+                btn.innerText = 'Guardar Cambios'; 
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
