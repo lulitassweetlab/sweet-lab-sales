@@ -9090,7 +9090,7 @@ function openClientEditPopover(clientData, clientX, clientY) {
 	const nameInput = document.createElement('input');
 	nameInput.type = 'text';
 	nameInput.value = clientData.name;
-	nameInput.readOnly = true;
+	// nameInput.readOnly = true; // REMOVED so users can rename
 	nameInput.className = 'client-input';
 	nameInput.style.width = '100%';
 	nameInput.style.marginBottom = '12px';
@@ -9162,18 +9162,31 @@ function openClientEditPopover(clientData, clientX, clientY) {
 
 	saveBtn.addEventListener('click', async () => {
 		try {
+			const newName = nameInput.value.trim();
+			if (!newName) {
+				alert('El nombre es obligatorio.');
+				return;
+			}
+
 			saveBtn.disabled = true;
 			saveBtn.textContent = 'Guardando...';
 
 			const payload = {
 				seller_id: state.currentSeller.id,
-				name: clientData.name,
+				name: newName,
 				short_name: shortNameInput.value.trim(),
 				whatsapp: waInput.value.trim(),
 				birth_date: birthInput.value || null
 			};
 
-			await api('POST', '/api/clients', payload);
+			// If the user modified the name, trigger a rename action which merges if the new name exists
+			let url = '/api/clients';
+			if (newName.toLowerCase() !== (clientData.name || '').trim().toLowerCase()) {
+				url = '/api/clients?action=rename';
+				payload.old_name = clientData.name;
+			}
+
+			await api('POST', url, payload);
 			cleanup();
 			await loadClientsForSeller(); // Refresh table
 		} catch (err) {
