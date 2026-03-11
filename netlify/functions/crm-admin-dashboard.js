@@ -13,51 +13,25 @@ export async function handler(event) {
         // Date Logic processing
         let timeRange = event.queryStringParameters?.time_range || 'month';
         
-        // Define base dates for dynamic substitution
-        let startDateFilter;
-        let startClauseStr = `date_trunc('month', CURRENT_DATE)`; // default JS string representation for Postgres evaluation
-
-        if (timeRange === 'today') {
-            startClauseStr = 'CURRENT_DATE';
-        } else if (timeRange === 'week') {
-            startClauseStr = `date_trunc('week', CURRENT_DATE)`;
-        } else if (timeRange === 'custom') {
-            const start = event.queryStringParameters?.start;
-            const end = event.queryStringParameters?.end;
-            if(start && end) {
-                // If custom, we overwrite the direct string with bound parameters, 
-                // but since neon sql tag doesn't easily compose raw text with tagged values dynamically in nested scopes simply, 
-                // we'll cast the string to a direct SQL literal via sql.raw for time ranges where safe, or parameterize.
-                // For safety, let's just pass actual Date objects as parameters.
-            }
-        }
-
-        // To make it simple and secure with Neon's sql tagged template:
-        // We will build a WHERE query fragment dynamically. 
-        let sDateClause, rDateClause, aDateClause, uDateClause;
+        let dtStart = new Date();
+        let dtEnd = new Date();
+        
         if (timeRange === 'custom' && event.queryStringParameters?.start && event.queryStringParameters?.end) {
-            const dtStart = new Date(event.queryStringParameters.start);
-            const dtEnd = new Date(event.queryStringParameters.end);
-            dtEnd.setHours(23, 59, 59, 999);
-            sDateClause = sql`s.created_at >= ${dtStart} AND s.created_at <= ${dtEnd}`;
-            uDateClause = sql`created_at >= ${dtStart} AND created_at <= ${dtEnd}`;
-            rDateClause = sql`r.created_at >= ${dtStart} AND r.created_at <= ${dtEnd}`;
-            aDateClause = sql`a.created_at >= ${dtStart} AND a.created_at <= ${dtEnd}`;
+            dtStart = new Date(event.queryStringParameters.start + 'T00:00:00');
+            dtEnd = new Date(event.queryStringParameters.end + 'T23:59:59');
         } else if (timeRange === 'today') {
-            sDateClause = sql`s.created_at >= CURRENT_DATE`;
-            uDateClause = sql`created_at >= CURRENT_DATE`;
-            rDateClause = sql`r.created_at >= CURRENT_DATE`;
-            aDateClause = sql`a.created_at >= CURRENT_DATE`;
+            dtStart.setHours(0, 0, 0, 0);
+            dtEnd.setHours(23, 59, 59, 999);
         } else if (timeRange === 'week') {
-            sDateClause = sql`s.created_at >= date_trunc('week', CURRENT_DATE)`;
-            uDateClause = sql`created_at >= date_trunc('week', CURRENT_DATE)`;
-            rDateClause = sql`r.created_at >= date_trunc('week', CURRENT_DATE)`;
-            aDateClause = sql`a.created_at >= date_trunc('week', CURRENT_DATE)`;
+            const day = dtStart.getDay() || 7; // Sunday is 0 -> 7
+            if (day !== 1) dtStart.setHours(-24 * (day - 1));
+            dtStart.setHours(0, 0, 0, 0);
+            dtEnd.setHours(23, 59, 59, 999);
         } else {
-            sDateClause = sql`s.created_at >= date_trunc('month', CURRENT_DATE)`;
-            uDateClause = sql`created_at >= date_trunc('month', CURRENT_DATE)`;
-            rDateClause = sql`r.created_at >= date_trunc('month', CURRENT_DATE)`;
-            aDateClause = sql`a.created_at >= date_trunc('month', CURRENT_DATE)`;
+            // month (default)
+            dtStart = new Date(dtStart.getFullYear(), dtStart.getMonth(), 1);
+            dtStart.setHours(0, 0, 0, 0);
+            dtEnd.setHours(23, 59, 59, 999);
         }
 
         // 1. General Stats (Total month/today remain fixed semantics, but let's map them to "Total Selected Period" and "Total Today")
@@ -65,7 +39,7 @@ export async function handler(event) {
             SELECT 
                 COUNT(*) FILTER (WHERE created_at >= CURRENT_DATE) as sales_today_count,
                 COALESCE(SUM(total_cents) FILTER (WHERE created_at >= CURRENT_DATE), 0) as sales_today_cents,
-                COALESCE(SUM(total_cents) FILTER (WHERE ${uDateClause}), 0) as sales_month_cents,
+                COALESCE(SUM(total_cents) FILTER (WHERE created_at >= ${dtStart} AND created_at <= ${dtEnd}), 0) as sales_month_cents,
                 (SELECT COUNT(DISTINCT client_id) FROM crm_client_sales) as active_clients_count
             FROM sales;
         `;
@@ -74,11 +48,11 @@ export async function handler(event) {
         // Combine sales joined with sellers, plus subqueries for activities
         const sellerStats = await sql`
             WITH unpivoted_sales AS (
-                SELECT s.id as sale_id, s.seller_id, s.created_at::DATE as sale_date, 'arco' as product_name, s.qty_arco as qty FROM sales s WHERE s.qty_arco > 0 AND ${sDateClause}
-                UNION ALL SELECT s.id, s.seller_id, s.created_at::DATE, 'melo', s.qty_melo FROM sales s WHERE s.qty_melo > 0 AND ${sDateClause}
-                UNION ALL SELECT s.id, s.seller_id, s.created_at::DATE, 'mara', s.qty_mara FROM sales s WHERE s.qty_mara > 0 AND ${sDateClause}
-                UNION ALL SELECT s.id, s.seller_id, s.created_at::DATE, 'oreo', s.qty_oreo FROM sales s WHERE s.qty_oreo > 0 AND ${sDateClause}
-                UNION ALL SELECT s.id, s.seller_id, s.created_at::DATE, 'nute', s.qty_nute FROM sales s WHERE s.qty_nute > 0 AND ${sDateClause}
+                SELECT s.id as sale_id, s.seller_id, s.created_at::DATE as sale_date, 'arco' as product_name, s.qty_arco as qty FROM sales s WHERE s.qty_arco > 0 AND s.created_at >= ${dtStart} AND s.created_at <= ${dtEnd}
+                UNION ALL SELECT s.id, s.seller_id, s.created_at::DATE, 'melo', s.qty_melo FROM sales s WHERE s.qty_melo > 0 AND s.created_at >= ${dtStart} AND s.created_at <= ${dtEnd}
+                UNION ALL SELECT s.id, s.seller_id, s.created_at::DATE, 'mara', s.qty_mara FROM sales s WHERE s.qty_mara > 0 AND s.created_at >= ${dtStart} AND s.created_at <= ${dtEnd}
+                UNION ALL SELECT s.id, s.seller_id, s.created_at::DATE, 'oreo', s.qty_oreo FROM sales s WHERE s.qty_oreo > 0 AND s.created_at >= ${dtStart} AND s.created_at <= ${dtEnd}
+                UNION ALL SELECT s.id, s.seller_id, s.created_at::DATE, 'nute', s.qty_nute FROM sales s WHERE s.qty_nute > 0 AND s.created_at >= ${dtStart} AND s.created_at <= ${dtEnd}
             ),
             sales_with_commissions AS (
                 SELECT 
@@ -106,10 +80,10 @@ export async function handler(event) {
                 COALESCE(sc.total_commission / NULLIF(COUNT(s.id), 0), 0) as avg_commission,
                 MAX(s.created_at) as last_sale,
                 COUNT(s.id) FILTER (WHERE s.created_at >= CURRENT_DATE) as sales_today,
-                (SELECT COUNT(*) FROM crm_reminders r WHERE r.seller_id = sl.id AND ${rDateClause}) as reminders_created,
-                (SELECT COUNT(*) FROM crm_activities a WHERE a.seller_id = sl.id AND ${aDateClause}) as notes_created
+                (SELECT COUNT(*) FROM crm_reminders r WHERE r.seller_id = sl.id AND r.created_at >= ${dtStart} AND r.created_at <= ${dtEnd}) as reminders_created,
+                (SELECT COUNT(*) FROM crm_activities a WHERE a.seller_id = sl.id AND a.created_at >= ${dtStart} AND a.created_at <= ${dtEnd}) as notes_created
             FROM sellers sl
-            LEFT JOIN sales s ON s.seller_id = sl.id AND ${sDateClause}
+            LEFT JOIN sales s ON s.seller_id = sl.id AND s.created_at >= ${dtStart} AND s.created_at <= ${dtEnd}
             LEFT JOIN seller_commissions sc ON sc.seller_id = sl.id
             GROUP BY sl.id, sl.name, sc.total_commission
             ORDER BY total_cents DESC;
@@ -173,7 +147,7 @@ export async function handler(event) {
                 COALESCE(SUM(qty_oreo) FILTER (WHERE created_at >= CURRENT_DATE), 0) as oreo_today,
                 COALESCE(SUM(qty_nute) FILTER (WHERE created_at >= CURRENT_DATE), 0) as nute_today
             FROM sales
-            WHERE ${uDateClause};
+            WHERE created_at >= ${dtStart} AND created_at <= ${dtEnd};
         `;
 
         // 5. CRM Activity
