@@ -48,7 +48,13 @@ export async function handler(event) {
                 // 2. Sales History (Read-only directly from sales table via bridge)
                 const sales = await sql`
                     SELECT s.id, s.created_at, s.total_cents, s.is_paid, s.pay_method,
-                           s.qty_arco, s.qty_melo, s.qty_mara, s.qty_oreo, s.qty_nute
+                           s.qty_arco, s.qty_melo, s.qty_mara, s.qty_oreo, s.qty_nute,
+                           (
+                               SELECT json_agg(json_build_object('name', d.short_code, 'name_full', d.name, 'qty', si.quantity))
+                               FROM sale_items si
+                               JOIN desserts d ON d.id = si.dessert_id
+                               WHERE si.sale_id = s.id
+                           ) as dynamic_items
                     FROM sales s
                     JOIN crm_client_sales cs ON s.id = cs.sale_id
                     WHERE cs.client_id = ${id}

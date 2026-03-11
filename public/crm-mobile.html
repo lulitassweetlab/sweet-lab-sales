@@ -58,6 +58,7 @@
             padding: 16px;
             animation: fadeIn 0.3s ease;
         }
+        #screen-profile { padding-bottom: 120px; }
         .screen.active { display: block; }
 
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -523,6 +524,16 @@
                         if(s.qty_mara > 0) items.push(`${s.qty_mara} Mara`);
                         if(s.qty_oreo > 0) items.push(`${s.qty_oreo} Oreo`);
                         if(s.qty_nute > 0) items.push(`${s.qty_nute} Nute`);
+                        
+                        if(s.dynamic_items && s.dynamic_items.length > 0) {
+                            s.dynamic_items.forEach(di => {
+                                const displayName = di.name || di.name_full || 'Item';
+                                // capitalize first letter
+                                const capName = displayName.charAt(0).toUpperCase() + displayName.slice(1).toLowerCase();
+                                items.push(`${di.qty} ${capName}`);
+                            });
+                        }
+                        
                         const itemsStr = items.join(', ');
 
                         salesDiv.innerHTML += `
