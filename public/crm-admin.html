@@ -159,6 +159,9 @@
                 <button class="btn btn-primary" onclick="loadDashboard()">Ir</button>
             </div>
             
+            <button class="btn btn-success" onclick="openAdminWhatsAppModal()" style="background: var(--success); color: white; border: none; font-weight: bold; display: flex; align-items: center; gap: 6px;">
+                <span style="font-size: 1.1rem;">💬</span> Enviar WhatsApp
+            </button>
             <button class="btn" onclick="loadDashboard()">🔄</button>
             <a href="/index.html" class="btn">Volver</a>
         </div>
@@ -608,6 +611,282 @@
                 btn.disabled = false;
             }
         }
+    </script>
+
+    <!-- Admin WhatsApp Broadcast Modal -->
+    <div id="admin-broadcast-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 99999; align-items: center; justify-content: center;">
+        <div class="card" style="display: flex; flex-direction: column; width: 90%; max-width: 600px; max-height: 90vh; overflow: hidden; position: relative;">
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
+                <h2 style="font-size: 1.25rem;">Enviar WhatsApp Masivo</h2>
+                <button class="btn" onclick="closeAdminWhatsAppModal()" style="border: none; background: transparent; font-size: 1.5rem; cursor: pointer; padding: 0;">&times;</button>
+            </div>
+
+            <!-- Paso 1: Configurar Segmento y Mensaje -->
+            <div id="admin-broadcast-step-1" style="display: flex; flex-direction: column; gap: 16px; overflow-y: auto;">
+                <div>
+                    <label style="display: block; font-size: 0.9rem; font-weight: 500; margin-bottom: 6px;">1. Seleccionar Destinatarios</label>
+                    <select id="admin-broadcast-segment" class="btn" style="width: 100%; border-color: var(--border); cursor: pointer;" onchange="loadAdminBroadcastClients()">
+                        <option value="all">Todos los clientes (Riesgoso)</option>
+                        <option value="debt" selected>Clientes con Deuda Pendiente</option>
+                        <option value="inactive">Clientes Inactivos (30-60 días sin comprar)</option>
+                        <option value="lost">Clientes Perdidos (+60 días sin comprar)</option>
+                        <option value="new">Clientes Nuevos (Últimos 7 días)</option>
+                        <option value="vip">Clientes VIP (Top 20% más compras)</option>
+                        <option value="reminders">Clientes con Recordatorios Pendientes</option>
+                        <option value="birthday">Cumpleañeros del Mes</option>
+                        <option value="product">Compradores de un Producto Específico...</option>
+                    </select>
+                </div>
+
+                <div id="admin-broadcast-product-picker" style="display: none;">
+                    <label style="display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 6px;">Selecciona el producto:</label>
+                    <select id="admin-broadcast-product-select" class="btn" style="width: 100%; border-color: var(--border);" onchange="loadAdminBroadcastClients()">
+                        <option value="">Cargando catálogo...</option>
+                    </select>
+                </div>
+
+                <div style="background: var(--bg); padding: 12px; border-radius: 8px; border: 1px dashed var(--border);">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 0.9rem; font-weight: 500;">Clientes encontrados:</span>
+                        <span id="admin-broadcast-count" style="font-weight: bold; color: var(--primary); font-size: 1.1rem;">0</span>
+                    </div>
+                </div>
+
+                <div>
+                    <label style="display: block; font-size: 0.9rem; font-weight: 500; margin-bottom: 6px;">2. Redactar Mensaje</label>
+                    <textarea id="admin-broadcast-msg" rows="5" placeholder="Hola {cliente}, te escribimos de Lulita's Sweets para..." style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border); font-family: inherit; resize: vertical;"></textarea>
+                    <small style="color: var(--text-muted); display: block; margin-top: 4px;">Usa <b>{cliente}</b> para insertar el nombre corto automáticamente.</small>
+                </div>
+
+                <button id="admin-broadcast-continue-btn" class="btn btn-primary" style="padding: 14px; font-size: 1rem; margin-top: 10px;" onclick="startAdminBroadcastQueue()">
+                    Ir a la Cola de Envío →
+                </button>
+            </div>
+
+            <!-- Paso 2: Ejecutar Cola Uno a Uno -->
+            <div id="admin-broadcast-step-2" style="display: none; flex-direction: column; overflow: hidden; flex: 1;">
+                <p style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0; margin-bottom: 16px;">
+                    Para evitar bloqueos de WhatsApp, los envíos deben hacerse uno a uno. Aprieta el botón verde junto a cada cliente y regresa a esta ventana para continuar.
+                </p>
+
+                <div style="margin-bottom: 12px;">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 4px;">
+                        <span>Progreso</span>
+                        <span id="admin-broadcast-progress-text">0 / 0</span>
+                    </div>
+                    <div style="width: 100%; background: var(--bg); height: 8px; border-radius: 4px; overflow: hidden;">
+                        <div id="admin-broadcast-progress-bar" style="height: 100%; width: 0%; background: var(--success); transition: width 0.3s ease;"></div>
+                    </div>
+                </div>
+
+                <div id="admin-broadcast-queue" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; border: 1px solid var(--border); border-radius: 8px; padding: 8px;">
+                    <!-- Lista inyectada por JS -->
+                </div>
+
+                <button class="btn" style="margin-top: 16px; width: 100%;" onclick="closeAdminWhatsAppModal()">Cerrar Administrador de Envíos</button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Admin Broadcast JS Logic -->
+    <script>
+        let adminBroadcastState = {
+            clients: [],
+            queue: [],
+            sentCount: 0
+        };
+
+        function openAdminWhatsAppModal() {
+            document.getElementById('admin-broadcast-modal').style.display = 'flex';
+            document.getElementById('admin-broadcast-step-1').style.display = 'flex';
+            document.getElementById('admin-broadcast-step-2').style.display = 'none';
+            document.getElementById('admin-broadcast-msg').value = '';
+            
+            populateProductSelect();
+            loadAdminBroadcastClients();
+        }
+
+        function closeAdminWhatsAppModal() {
+            document.getElementById('admin-broadcast-modal').style.display = 'none';
+        }
+
+        async function populateProductSelect() {
+            const select = document.getElementById('admin-broadcast-product-select');
+            if(select.options.length > 1) return; // Ya cargó
+            
+            try {
+                const res = await fetch('/api/store-products');
+                const products = await res.json();
+                
+                let html = '<option value="">Elige un postre...</option>';
+                // Legacy
+                html += '<option value="arco">Arco</option>';
+                html += '<option value="melo">Melo</option>';
+                html += '<option value="mara">Mara</option>';
+                html += '<option value="oreo">Oreo</option>';
+                html += '<option value="nute">Nute</option>';
+                
+                // Dynamic
+                if(!products.error) {
+                    products.forEach(p => {
+                        html += `<option value="${p.short_code}">${p.name} (${p.short_code})</option>`;
+                    });
+                }
+                select.innerHTML = html;
+            } catch(e) {
+                console.error(e);
+            }
+        }
+
+        async function loadAdminBroadcastClients() {
+            const segment = document.getElementById('admin-broadcast-segment').value;
+            const productPicker = document.getElementById('admin-broadcast-product-picker');
+            const countUI = document.getElementById('admin-broadcast-count');
+            const btn = document.getElementById('admin-broadcast-continue-btn');
+            
+            productPicker.style.display = (segment === 'product') ? 'block' : 'none';
+            
+            let url = `/api/crm-segments?type=${segment}`;
+            if(segment === 'product') {
+                const prod = document.getElementById('admin-broadcast-product-select').value;
+                if(!prod) {
+                    countUI.textContent = 'Selecciona un producto ↑';
+                    adminBroadcastState.clients = [];
+                    btn.disabled = true;
+                    return;
+                }
+                url += `&product_name=${encodeURIComponent(prod)}`;
+            }
+
+            countUI.textContent = 'Calculando...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+                
+                if(data.error) throw new Error(data.error);
+                
+                adminBroadcastState.clients = data.clients || [];
+                countUI.textContent = adminBroadcastState.clients.length;
+                btn.disabled = adminBroadcastState.clients.length === 0;
+                
+            } catch(e) {
+                console.error('Broadcast fetch error', e);
+                countUI.textContent = 'Error calculando segmento';
+            }
+        }
+
+        function startAdminBroadcastQueue() {
+            const msg = document.getElementById('admin-broadcast-msg').value.trim();
+            if(!msg) {
+                alert('Escribe un mensaje para continuar.');
+                return;
+            }
+
+            if(adminBroadcastState.clients.length === 0) return;
+
+            // Prepare Queue
+            adminBroadcastState.queue = adminBroadcastState.clients.map(c => ({...c, _sent: false}));
+            adminBroadcastState.sentCount = 0;
+            
+            document.getElementById('admin-broadcast-step-1').style.display = 'none';
+            document.getElementById('admin-broadcast-step-2').style.display = 'flex';
+            
+            renderAdminQueueUI();
+        }
+
+        function renderAdminQueueUI() {
+            const container = document.getElementById('admin-broadcast-queue');
+            container.innerHTML = '';
+            
+            const total = adminBroadcastState.queue.length;
+            adminBroadcastState.sentCount = adminBroadcastState.queue.filter(c => c._sent).length;
+            
+            document.getElementById('admin-broadcast-progress-text').textContent = `${adminBroadcastState.sentCount} / ${total}`;
+            const pct = total === 0 ? 0 : Math.round((adminBroadcastState.sentCount / total) * 100);
+            document.getElementById('admin-broadcast-progress-bar').style.width = pct + '%';
+
+            adminBroadcastState.queue.forEach((client, index) => {
+                const row = document.createElement('div');
+                row.style.display = 'flex';
+                row.style.alignItems = 'center';
+                row.style.justifyContent = 'space-between';
+                row.style.padding = '12px';
+                row.style.border = '1px solid var(--border)';
+                row.style.borderRadius = '8px';
+                row.style.background = client._sent ? 'var(--surface)' : 'var(--bg)';
+
+                const infoBox = document.createElement('div');
+                const nameTag = document.createElement('div');
+                nameTag.style.fontWeight = '500';
+                nameTag.style.fontSize = '0.95rem';
+                nameTag.textContent = client.name;
+                
+                const phoneTag = document.createElement('div');
+                phoneTag.style.fontSize = '0.8rem';
+                phoneTag.style.color = 'var(--text-muted)';
+                phoneTag.textContent = client.whatsapp;
+
+                if (client._sent) {
+                    nameTag.style.textDecoration = 'line-through';
+                    nameTag.style.color = 'var(--text-muted)';
+                }
+                
+                infoBox.appendChild(nameTag);
+                infoBox.appendChild(phoneTag);
+
+                const sendBtn = document.createElement('button');
+                sendBtn.className = client._sent ? 'btn' : 'btn btn-success';
+                if(!client._sent) {
+                    sendBtn.style.background = 'var(--success)';
+                    sendBtn.style.color = 'white';
+                    sendBtn.style.border = 'none';
+                }
+                sendBtn.textContent = client._sent ? 'Reenviar' : '↗ WhatsApp';
+                
+                sendBtn.onclick = () => executeAdminSend(index);
+
+                row.appendChild(infoBox);
+                row.appendChild(sendBtn);
+                container.appendChild(row);
+            });
+        }
+
+        async function executeAdminSend(index) {
+            const client = adminBroadcastState.queue[index];
+            const rawMsg = document.getElementById('admin-broadcast-msg').value;
+            const segment = document.getElementById('admin-broadcast-segment').value;
+            
+            const displayName = client.short_name || client.name.split(' ')[0];
+            const parsedMsg = rawMsg.replace(/{cliente}/g, displayName);
+
+            // LOG IN DATABASE (Fire & Forget)
+            fetch('/api/crm-whatsapp-logs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    client_id: client.id,
+                    phone: client.whatsapp,
+                    message: parsedMsg,
+                    segment: segment,
+                    // sent_by missing as we are in admin, will be left null or we could fetch actual admin ID if supported
+                })
+            }).catch(e => console.error("Error logging whatsapp event", e));
+
+            // OPEN WA.ME NATIVELY
+            let cleanNum = client.whatsapp.replace(/\D/g, '');
+            if (cleanNum.length === 10) cleanNum = '57' + cleanNum;
+            const waUrl = `https://wa.me/${cleanNum}?text=${encodeURIComponent(parsedMsg)}`;
+            window.open(waUrl, '_blank');
+
+            // UPDATE UI
+            adminBroadcastState.queue[index]._sent = true;
+            renderAdminQueueUI();
+        }
+
     </script>
 </body>
 </html>

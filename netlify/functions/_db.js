@@ -461,6 +461,18 @@ export async function ensureSchema() {
 			await sql`CREATE INDEX IF NOT EXISTS idx_crm_reminders_seller ON crm_reminders(seller_id)`;
 			await sql`CREATE INDEX IF NOT EXISTS idx_crm_reminders_due_date ON crm_reminders(due_date)`;
 
+			// CRM WhatsApp Logs
+			await sql`CREATE TABLE IF NOT EXISTS crm_whatsapp_logs (
+				id SERIAL PRIMARY KEY,
+				client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE,
+				phone VARCHAR(20),
+				message TEXT NOT NULL,
+				segment VARCHAR(50) NOT NULL,
+				sent_by INTEGER REFERENCES sellers(id) ON DELETE SET NULL,
+				sent_at TIMESTAMPTZ DEFAULT now()
+			)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_crm_wa_logs_client ON crm_whatsapp_logs(client_id)`;
+
 			// CRM Product Commissions (Phase 5: Scalable time/seller based)
 			await sql`CREATE TABLE IF NOT EXISTS crm_product_commissions (
 				id SERIAL PRIMARY KEY,

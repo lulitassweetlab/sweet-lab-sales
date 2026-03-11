@@ -381,10 +381,16 @@
 				</div>
 			</div>
 			<div class="sales-panel" style="display: flex; flex-direction: column; overflow: hidden; flex: 1;">
-				<div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+				<div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
 					<h3>Todos los clientes</h3>
-					<button id="new-client-btn" class="press-btn btn-primary"
-						style="font-size: 0.85rem; padding: 6px 14px;">+ Nuevo Cliente</button>
+					<div style="display: flex; gap: 10px; align-items: center;">
+						<div id="clients-list-search-container" class="client-search-container">
+							<input id="clients-list-search-input" type="text" class="client-search-input"
+								placeholder="🔍 Buscar..." autocomplete="off">
+						</div>
+						<button id="new-client-btn" class="press-btn btn-primary"
+							style="font-size: 0.85rem; padding: 6px 14px; white-space: nowrap;">+ Nuevo Cliente</button>
+					</div>
 				</div>
 				<div class="panel-body" style="flex: 1; overflow: hidden; display: flex; flex-direction: column;">
 					<div class="table-wrapper" id="clients-wrapper"

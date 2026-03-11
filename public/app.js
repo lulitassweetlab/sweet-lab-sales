@@ -4956,8 +4956,23 @@ function sendBroadcastToClient(client, activeIndex) {
 	const displayName = client.short_name || client.name;
 	text = text.replace(/{cliente}/g, displayName);
 
+	// Log it quietly
+	try {
+		fetch('/api/crm-whatsapp-logs', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				client_id: client.id,
+				phone: client.whatsapp,
+				message: text,
+				segment: 'plantilla_' + (broadcastState.template.title || 'store'),
+				sent_by: state.currentSeller ? state.currentSeller.id : (state.sellers ? state.sellers[0]?.id : null)
+			})
+		}).catch(e => console.error(e));
+	} catch(e) {}
+
 	// Open WA
-	let cleanNum = client.whatsapp.replace(/\D/g, '');
+	let cleanNum = (client.whatsapp || '').replace(/\D/g, '');
 	if (cleanNum.length === 10) cleanNum = '57' + cleanNum;
 
 	const waUrl = `https://wa.me/${cleanNum}?text=${encodeURIComponent(text)}`;
@@ -8802,6 +8817,9 @@ function wireGlobalClientAutocompleteForInput(inputEl) {
 	});
 }
 
+// Global state to hold fetched clients for local search filtering in the Store view
+let clientsState = { rows: [] };
+
 async function openClientsView() {
 	if (!state.currentSeller) return;
 	await loadClientsForSeller();
@@ -8849,9 +8867,45 @@ async function loadClientsForSeller() {
 		console.error('Error fetching clients database:', err);
 	}
 
-	const rows = Array.from(nameToData.values()).sort((a, b) => a.name.localeCompare(b.name, 'es'));
-	renderClientsTable(rows);
+	clientsState.rows = Array.from(nameToData.values()).sort((a, b) => a.name.localeCompare(b.name, 'es'));
+	
+	const searchInput = document.getElementById('clients-list-search-input');
+	const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
+	
+	if (query) {
+		const filtered = clientsState.rows.filter(r => 
+			r.name.toLowerCase().includes(query) || 
+			(r.whatsapp && r.whatsapp.includes(query)) ||
+			(r.short_name && r.short_name.toLowerCase().includes(query))
+		);
+		renderClientsTable(filtered);
+	} else {
+		renderClientsTable(clientsState.rows);
+	}
 }
+
+// Add event listener for the client search input
+document.addEventListener('DOMContentLoaded', () => {
+	const searchInput = document.getElementById('clients-list-search-input');
+	if (searchInput) {
+		searchInput.addEventListener('input', (e) => {
+			const query = e.target.value.trim().toLowerCase();
+			if (!clientsState.rows) return;
+			
+			if (!query) {
+				renderClientsTable(clientsState.rows);
+				return;
+			}
+			
+			const filtered = clientsState.rows.filter(r => 
+				r.name.toLowerCase().includes(query) || 
+				(r.whatsapp && r.whatsapp.includes(query)) ||
+				(r.short_name && r.short_name.toLowerCase().includes(query))
+			);
+			renderClientsTable(filtered);
+		});
+	}
+});
 
 function renderClientsTable(rows) {
 	const tbody = document.getElementById('clients-tbody');
