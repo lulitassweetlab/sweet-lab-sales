@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 24; // Bump when schema changes require a migration
+const SCHEMA_VERSION = 25; // Bump when schema changes require a migration
 
 export async function ensureSchema() {
 	// If already ensured in this instance, skip immediately
@@ -397,6 +397,69 @@ export async function ensureSchema() {
 				value TEXT NOT NULL,
 				updated_at TIMESTAMPTZ DEFAULT now()
 			)`;
+
+			// --- CRM MODULE PHASE 1 ---
+			// Bridge table: Connect sales to clients cleanly
+			await sql`CREATE TABLE IF NOT EXISTS crm_client_sales (
+				client_id INTEGER NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+				sale_id INTEGER NOT NULL REFERENCES sales(id) ON DELETE CASCADE,
+				seller_id INTEGER NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
+				created_by TEXT,
+				notes TEXT,
+				created_at TIMESTAMPTZ DEFAULT now(),
+				UNIQUE(sale_id)
+			)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_crm_client_sales_client ON crm_client_sales(client_id)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_crm_client_sales_seller ON crm_client_sales(seller_id)`;
+
+			// CRM Activities
+			await sql`CREATE TABLE IF NOT EXISTS crm_activities (
+				id SERIAL PRIMARY KEY,
+				seller_id INTEGER NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
+				client_id INTEGER NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+				related_sale_id INTEGER REFERENCES sales(id) ON DELETE SET NULL,
+				activity_type VARCHAR(50) NOT NULL,
+				description TEXT DEFAULT '',
+				metadata JSONB DEFAULT '{}'::jsonb,
+				created_by TEXT,
+				created_at TIMESTAMPTZ DEFAULT now()
+			)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_crm_activities_client ON crm_activities(client_id)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_crm_activities_seller ON crm_activities(seller_id)`;
+
+			// CRM Prospects
+			await sql`CREATE TABLE IF NOT EXISTS crm_prospects (
+				id SERIAL PRIMARY KEY,
+				seller_id INTEGER NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
+				name VARCHAR(255) NOT NULL,
+				whatsapp VARCHAR(20),
+				status VARCHAR(50) NOT NULL DEFAULT 'new',
+				source TEXT,
+				priority INTEGER DEFAULT 0,
+				notes TEXT DEFAULT '',
+				last_contact_at TIMESTAMPTZ,
+				created_at TIMESTAMPTZ DEFAULT now(),
+				updated_at TIMESTAMPTZ DEFAULT now()
+			)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_crm_prospects_seller ON crm_prospects(seller_id)`;
+
+			// CRM Reminders
+			await sql`CREATE TABLE IF NOT EXISTS crm_reminders (
+				id SERIAL PRIMARY KEY,
+				seller_id INTEGER NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
+				client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE,
+				prospect_id INTEGER REFERENCES crm_prospects(id) ON DELETE CASCADE,
+				reminder_type VARCHAR(50) NOT NULL DEFAULT 'general',
+				title VARCHAR(255) NOT NULL,
+				description TEXT DEFAULT '',
+				priority INTEGER DEFAULT 0,
+				due_date TIMESTAMPTZ NOT NULL,
+				completed BOOLEAN NOT NULL DEFAULT false,
+				created_at TIMESTAMPTZ DEFAULT now(),
+				completed_at TIMESTAMPTZ
+			)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_crm_reminders_seller ON crm_reminders(seller_id)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_crm_reminders_due_date ON crm_reminders(due_date)`;
 
 			if (currentVersion >= SCHEMA_VERSION) { schemaEnsured = true; return; }
 			// Basic users table for authentication

@@ -2317,6 +2317,14 @@
             setupClientAutocomplete();
             loadSettings();
             loadStore();
+
+            // Support direct navigation from the new CRM
+            const urlParams = new URLSearchParams(window.location.search);
+            const crmName = urlParams.get('crm_client_name');
+            if (crmName) {
+                const input = document.getElementById('store-customer-name');
+                if (input) input.value = crmName;
+            }
         });
     </script>
 </body>

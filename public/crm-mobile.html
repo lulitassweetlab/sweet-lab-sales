@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
+    <title>CRM Ventas - Lulitas</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #f8f9fa;
+            --surface: #ffffff;
+            --primary: #f4a6b7;
+            --primary-dark: #e27a90;
+            --text-main: #1d1d1f;
+            --text-muted: #86868b;
+            --border: #e5e5ea;
+            --success: #34c759;
+            --warning: #ffcc00;
+            --danger: #ff3b30;
+            --info: #007aff;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'DM Sans', sans-serif; -webkit-tap-highlight-color: transparent; }
+        
+        body {
+            background-color: var(--bg);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden; /* Prevent body scroll, handle scroll in screens */
+        }
+
+        /* App Bar Header */
+        header {
+            background: var(--surface);
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            z-index: 10;
+        }
+        .header-title { font-size: 1.2rem; font-weight: 700; }
+
+        /* Screens Area */
+        main {
+            flex: 1;
+            overflow-y: auto;
+            position: relative;
+            padding-bottom: 80px; /* Space for Bottom Nav */
+        }
+
+        .screen {
+            display: none;
+            padding: 16px;
+            animation: fadeIn 0.3s ease;
+        }
+        .screen.active { display: block; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Bottom Navigation */
+        nav.bottom-bar {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            background: var(--surface);
+            display: flex;
+            justify-content: space-around;
+            padding: 12px 0;
+            border-top: 1px solid var(--border);
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.03);
+            z-index: 100;
+            padding-bottom: calc(12px + env(safe-area-inset-bottom));
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.75rem;
+            font-weight: 500;
+            gap: 4px;
+            cursor: pointer;
+            width: 25%;
+        }
+        .nav-item.active { color: var(--primary-dark); }
+        .nav-item.active svg path { fill: var(--primary-dark); }
+        .nav-icon { width: 24px; height: 24px; fill: currentColor; }
+
+        /* Utility Classes */
+        .card {
+            background: var(--surface);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            border: 1px solid var(--border);
+        }
+        
+        .title-sec {
+            font-size: 1.1rem; font-weight: 700; margin-bottom: 12px; color: var(--text-main);
+        }
+
+        .btn-primary {
+            display: block; width: 100%; text-align: center;
+            background: var(--primary); color: white; border: none;
+            padding: 16px; border-radius: 12px; font-size: 1rem; font-weight: 700;
+            cursor: pointer; transition: 0.2s;
+        }
+        .btn-primary:active { opacity: 0.8; transform: scale(0.98); }
+
+        .spinner {
+            text-align: center; color: var(--text-muted); padding: 40px;
+        }
+
+        /* Specific Badges */
+        .badge {
+            display: inline-block; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; color: white;
+        }
+        .badge.bg-danger { background-color: var(--danger); }
+        .badge.bg-warning { background-color: var(--warning); color: #000; }
+        .badge.bg-success { background-color: var(--success); }
+        .badge.bg-info { background-color: var(--info); }
+        
+        /* Seller Selection Overlay */
+        #authOverlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: var(--bg); z-index: 999;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px;
+        }
+        #authOverlay h2 { margin-bottom: 20px; }
+        .seller-list { width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 12px; }
+        .seller-btn {
+            background: var(--surface); border: 1px solid var(--border); padding: 16px;
+            border-radius: 12px; font-size: 1.1rem; font-weight: 600; cursor: pointer; text-align: center;
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- Auth Overlay (Select Seller) -->
+    <div id="authOverlay">
+        <h2>Hola, ¿quién eres?</h2>
+        <div class="seller-list" id="sellerList">
+            <div class="spinner">Cargando vendedores...</div>
+        </div>
+    </div>
+
+    <!-- Main Header -->
+    <header>
+        <div class="header-title">Mi CRM</div>
+        <div id="sellerNameLabel" style="font-weight: 500; color: var(--primary-dark); font-size: 0.9rem;"></div>
+    </header>
+
+    <!-- Main Screens Container -->
+    <main>
+        <!-- SCREEN 1: Dashboard -->
+        <div id="screen-dashboard" class="screen active">
+            <div class="card" style="display: flex; gap: 10px;">
+                <div style="flex:1; text-align:center;">
+                    <div style="font-size:0.8rem; color:var(--text-muted);">Mis Clientes</div>
+                    <div id="dashTotalClients" style="font-size:1.5rem; font-weight:700;">-</div>
+                </div>
+                <div style="width:1px; background:var(--border);"></div>
+                <div style="flex:1; text-align:center;">
+                    <div style="font-size:0.8rem; color:var(--text-muted);">Deuda en Calle</div>
+                    <div id="dashTotalDebt" style="font-size:1.5rem; font-weight:700; color:var(--danger);">-</div>
+                </div>
+            </div>
+
+            <h3 class="title-sec">💡 Contactar Hoy</h3>
+            <div id="dashContactList">
+                <div class="spinner">Cargando resumen del día...</div>
+            </div>
+        </div>
+
+        <!-- SCREEN 2: Directory -->
+        <div id="screen-directory" class="screen">
+            <h3 class="title-sec">Directorio de Clientes</h3>
+            <input type="text" id="searchInput" placeholder="Buscar cliente..." style="width: 100%; padding: 16px; border-radius: 12px; border: 1px solid var(--border); font-size: 1rem; margin-bottom: 16px;">
+            
+            <div style="display: flex; gap: 8px; margin-bottom: 16px; overflow-x: auto; padding-bottom: 4px;">
+                <button class="badge bg-danger" style="border:none;" onclick="filterClients('deuda')">Con Deuda</button>
+                <button class="badge bg-warning" style="border:none;" onclick="filterClients('inactivo')">Inactivos</button>
+                <button class="badge bg-info" style="border:none; color:white;" onclick="filterClients('todos')">Ver Todos</button>
+            </div>
+
+            <div id="directoryList">
+                <!-- Clients populated here -->
+            </div>
+        </div>
+
+        <!-- SCREEN 3: Profile (Modal Style over Screen) -->
+        <div id="screen-profile" class="screen" style="background:var(--surface); position:absolute; top:0; left:0; width:100%; min-height:100%; z-index:50;">
+            <div style="display: flex; align-items: center; margin-bottom: 20px; gap: 10px;">
+                <button onclick="navTo('directory')" style="background:none; border:none; font-size: 1.5rem; cursor:pointer;">←</button>
+                <h2 id="profileName">Cargando Perfil...</h2>
+            </div>
+            
+            <button class="btn-primary" id="btnRegistrarVenta" onclick="goToStore()" style="margin-bottom: 20px;">🛒 Registrar Venta</button>
+            
+            <div class="card" style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div>
+                    <div style="font-size:0.8rem; color:var(--text-muted);">Última Compra</div>
+                    <div id="profLastPurchase" style="font-weight:700;">-</div>
+                </div>
+                <div>
+                    <div style="font-size:0.8rem; color:var(--text-muted);">Deuda</div>
+                    <div id="profDebt" style="font-weight:700; color:var(--danger);">-</div>
+                </div>
+                <div>
+                    <div style="font-size:0.8rem; color:var(--text-muted);">Compras (Freq)</div>
+                    <div id="profFreq" style="font-weight:700;">-</div>
+                </div>
+                <div>
+                    <div style="font-size:0.8rem; color:var(--text-muted);">Total (LTV)</div>
+                    <div id="profLtv" style="font-weight:700;">-</div>
+                </div>
+            </div>
+
+            <!-- Profile Tabs -->
+            <div style="display:flex; border-bottom:1px solid var(--border); margin-bottom: 16px;">
+                <div style="flex:1; text-align:center; padding:10px; font-weight:700; border-bottom:2px solid var(--primary-dark);">Ventas</div>
+                <div style="flex:1; text-align:center; padding:10px; color:var(--text-muted);">Notas</div>
+            </div>
+            
+            <div id="profileSalesList">
+                <div class="spinner">Cargando...</div>
+            </div>
+        </div>
+
+        <!-- SCREEN 4: Prospects -->
+        <div id="screen-prospects" class="screen">
+            <h3 class="title-sec">Embudo de Prospectos</h3>
+            <button class="btn-primary" style="margin-bottom: 16px;">+ Nuevo Prospecto</button>
+            <div id="prospectList">
+                <div class="spinner">Próximamente...</div>
+            </div>
+        </div>
+
+        <!-- SCREEN 5: Activities -->
+        <div id="screen-activities" class="screen">
+            <h3 class="title-sec">Mis Tareas</h3>
+            <div class="spinner">Próximamente...</div>
+        </div>
+    </main>
+
+    <!-- Bottom Navigation -->
+    <nav class="bottom-bar">
+        <div class="nav-item active" onclick="navTo('dashboard')" id="nav-dashboard">
+            <svg class="nav-icon" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+            Hoy
+        </div>
+        <div class="nav-item" onclick="navTo('directory')" id="nav-directory">
+            <svg class="nav-icon" viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+            Directorio
+        </div>
+        <div class="nav-item" onclick="navTo('prospects')" id="nav-prospects">
+            <svg class="nav-icon" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 9h-2V7h-2v5H6v2h2v5h2v-5h2v-2z"/></svg>
+            Prospectos
+        </div>
+        <div class="nav-item" onclick="navTo('activities')" id="nav-activities">
+            <svg class="nav-icon" viewBox="0 0 24 24"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+            Tareas
+        </div>
+    </nav>
+
+    <script>
+        // GLOBALS
+        let currentSellerId = null;
+        let currentSellerName = '';
+        let directoryData = [];
+
+        // ON LOAD
+        document.addEventListener('DOMContentLoaded', async () => {
+            const savedSeller = localStorage.getItem('storeSellerContext');
+            if (savedSeller) {
+                const parsed = JSON.parse(savedSeller);
+                selectSeller(parsed.id, parsed.name);
+            } else {
+                await loadSellers();
+            }
+        });
+
+        async function loadSellers() {
+            try {
+                const res = await fetch('/.netlify/functions/get-sellers');
+                const sellers = await res.json();
+                const list = document.getElementById('sellerList');
+                list.innerHTML = '';
+                sellers.forEach(s => {
+                    const btn = document.createElement('div');
+                    btn.className = 'seller-btn';
+                    btn.innerText = s.name;
+                    btn.onclick = () => {
+                        localStorage.setItem('storeSellerContext', JSON.stringify({id: s.id, name: s.name}));
+                        selectSeller(s.id, s.name);
+                    };
+                    list.appendChild(btn);
+                });
+            } catch (err) {
+                document.getElementById('sellerList').innerHTML = `<p style="color:red;">Error cargando vendedores</p>`;
+            }
+        }
+
+        function selectSeller(id, name) {
+            currentSellerId = id;
+            currentSellerName = name;
+            document.getElementById('authOverlay').style.display = 'none';
+            document.getElementById('sellerNameLabel').innerText = name;
+            
+            // Initial load
+            loadDashboard();
+        }
+
+        // SPA NAVIGATION
+        function navTo(screenId) {
+            // Hide all
+            document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            
+            // Show target
+            document.getElementById(`screen-${screenId}`).classList.add('active');
+            
+            const navBtn = document.getElementById(`nav-${screenId}`);
+            if(navBtn) navBtn.classList.add('active');
+
+            // Trigger loaders if needed
+            if (screenId === 'dashboard') loadDashboard();
+            if (screenId === 'directory') loadDirectory();
+        }
+
+        // FORMATTERS
+        function formatMoney(cents) {
+            return '$' + (cents / 100).toLocaleString('en-US');
+        }
+
+        function wappLink(phone, msg="") {
+            if(!phone) return "#";
+            let c = phone.replace(/\\D/g, '');
+            if(!c.startsWith('57')) c = '57' + c;
+            return `https://wa.me/${c}?text=${encodeURIComponent(msg)}`;
+        }
+
+        // LOAD DASHBOARD
+        async function loadDashboard() {
+            try {
+                const res = await fetch(`/.netlify/functions/crm-dashboard?seller_id=${currentSellerId}`);
+                const data = await res.json();
+                
+                document.getElementById('dashTotalClients').innerText = data.stats.total_clients;
+                document.getElementById('dashTotalDebt').innerText = formatMoney(data.stats.total_debt_cents);
+
+                const list = document.getElementById('dashContactList');
+                list.innerHTML = '';
+
+                // Combine alerts into one priority list (mocking priority here for simplicity)
+                // 1. Reminders (Due Today/Overdue)
+                data.remindersToday.forEach(r => {
+                    list.innerHTML += buildDashCard('📌 Recordatorio', r.title, 'bg-info', 
+                        `<button class="btn-primary" style="padding:8px; font-size:0.8rem; border-radius:8px;" onclick="loadProfile(${r.client_id})">Ver Cliente</button>`
+                    );
+                });
+
+                // 2. Deudores (Can derive from inactive or fetch if we had it, fallback: we just show inactive and birthdays)
+                
+                // 3. Birthdays
+                data.upcomingBirthdays.forEach(b => {
+                    list.innerHTML += buildDashCard('🎂 Cumpleaños', b.name, 'bg-success', 
+                        `<a href="${wappLink(b.whatsapp, '¡Feliz cumple!')}" target="_blank" class="btn-primary" style="padding:8px; font-size:0.8rem; border-radius:8px; text-decoration:none;">WhatsApp</a>`
+                    );
+                });
+
+                // 4. Inactives
+                data.inactiveClients.forEach(c => {
+                    const days = Math.floor((new Date() - new Date(c.last_purchase_date)) / (1000 * 60 * 60 * 24));
+                    list.innerHTML += buildDashCard('⏳ Inactivo', `${c.name} (${days} días)`, 'bg-warning', 
+                        `<button class="btn-primary" style="padding:8px; font-size:0.8rem; border-radius:8px; background:#1d1d1f;" onclick="loadProfile(${c.id})">Perfil</button>`
+                    );
+                });
+
+                if(list.innerHTML === '') {
+                    list.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-muted);">Todo al día. No hay pendientes por contactar.</div>';
+                }
+
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function buildDashCard(badgeText, mainText, badgeClass, actionHtml) {
+            return `
+            <div class="card" style="display:flex; justify-content:space-between; align-items:center; padding: 12px; margin-bottom:10px;">
+                <div>
+                    <span class="badge ${badgeClass}" style="margin-bottom:6px;">${badgeText}</span>
+                    <div style="font-weight:700;">${mainText}</div>
+                </div>
+                <div>${actionHtml}</div>
+            </div>`;
+        }
+
+        // LOAD DIRECTORY
+        async function loadDirectory() {
+            try {
+                const res = await fetch(`/.netlify/functions/crm-clients?seller_id=${currentSellerId}`);
+                directoryData = await res.json();
+                renderDirectory(directoryData);
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function renderDirectory(arr) {
+            const list = document.getElementById('directoryList');
+            list.innerHTML = '';
+
+            arr.forEach(c => {
+                const debt = Number(c.total_debt_cents);
+                const ltv = Number(c.lifetime_value_cents);
+                const freq = Number(c.total_orders);
+
+                let badges = '';
+                if(debt > 0) badges += `<span class="badge bg-danger">Deuda ${formatMoney(debt)}</span> `;
+                if(freq >= 10) badges += `<span class="badge bg-success">Frecuente</span> `;
+                if(freq === 1) badges += `<span class="badge bg-info">Nuevo</span> `;
+                
+                // Card
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.style.padding = '12px';
+                card.style.marginBottom = '10px';
+                card.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center;" onclick="loadProfile(${c.id})">
+                        <div style="flex:1;">
+                            <div style="font-weight:700; font-size:1.1rem; margin-bottom:4px;">${c.name}</div>
+                            <div style="margin-bottom:8px;">${badges}</div>
+                            <div style="font-size:0.8rem; color:var(--text-muted);">Histórico: ${formatMoney(ltv)} | Compras: ${freq}</div>
+                        </div>
+                        <div style="display:flex; gap:8px;">
+                            <a href="${wappLink(c.whatsapp)}" target="_blank" onclick="event.stopPropagation()" style="background:#25D366; color:white; padding:10px; border-radius:12px; text-decoration:none;">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.571-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
+                            </a>
+                        </div>
+                    </div>
+                `;
+                list.appendChild(card);
+            });
+        }
+
+        function filterClients(type) {
+            if(type === 'todos') {
+                renderDirectory(directoryData);
+                return;
+            }
+            if(type === 'deuda') {
+                renderDirectory(directoryData.filter(c => Number(c.total_debt_cents) > 0));
+                return;
+            }
+            if(type === 'inactivo') {
+                const thirtyDays = new Date();
+                thirtyDays.setDate(thirtyDays.getDate() - 30);
+                renderDirectory(directoryData.filter(c => new Date(c.last_purchase_date) < thirtyDays));
+            }
+        }
+
+        // LOAD PROFILE
+        let currentProfileId = null;
+        async function loadProfile(id) {
+            currentProfileId = id;
+            navTo('profile'); // Show modal
+            
+            document.getElementById('profileName').innerText = 'Cargando...';
+            document.getElementById('profileSalesList').innerHTML = '<div class="spinner">Cargando datos...</div>';
+            
+            try {
+                const res = await fetch(`/.netlify/functions/crm-clients?seller_id=${currentSellerId}&id=${id}`);
+                const data = await res.json();
+                const pf = data.profile;
+                
+                document.getElementById('profileName').innerText = pf.name;
+                document.getElementById('profLastPurchase').innerText = pf.last_purchase_date ? pf.last_purchase_date.split('T')[0] : 'Nunca';
+                document.getElementById('profDebt').innerText = formatMoney(pf.total_debt_cents);
+                document.getElementById('profFreq').innerText = pf.total_orders;
+                document.getElementById('profLtv').innerText = formatMoney(pf.lifetime_value_cents);
+
+                // Render Sales
+                const salesDiv = document.getElementById('profileSalesList');
+                salesDiv.innerHTML = '';
+                if(data.sales && data.sales.length > 0) {
+                    data.sales.forEach(s => {
+                        const paidMark = s.is_paid ? '<span style="color:var(--success);">Pagado</span>' : '<span style="color:var(--danger); font-weight:bold;">Debe</span>';
+                        salesDiv.innerHTML += `
+                            <div class="card" style="padding:10px; margin-bottom:8px;">
+                                <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                                    <strong>${s.created_at.split('T')[0]}</strong>
+                                    <span>${formatMoney(s.total_cents)}</span>
+                                </div>
+                                <div style="font-size:0.8rem; color:var(--text-muted);">${paidMark}</div>
+                            </div>
+                        `;
+                    });
+                } else {
+                    salesDiv.innerHTML = '<p style="text-align:center; color:var(--text-muted);">Sin compras registradas</p>';
+                }
+
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        // GO TO STORE TO REGISTER SALE
+        function goToStore() {
+            if(!currentProfileId) return;
+            const name = document.getElementById('profileName').innerText;
+            // Go to store and pass context
+            window.location.href = `/store.html?crm_client_id=${currentProfileId}&crm_client_name=${encodeURIComponent(name)}`;
+        }
+
+    </script>
+</body>
+</html>
