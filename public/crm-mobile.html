@@ -127,30 +127,9 @@
         .badge.bg-success { background-color: var(--success); }
         .badge.bg-info { background-color: var(--info); }
         
-        /* Seller Selection Overlay */
-        #authOverlay {
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: var(--bg); z-index: 999;
-            display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px;
-        }
-        #authOverlay h2 { margin-bottom: 20px; }
-        .seller-list { width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 12px; }
-        .seller-btn {
-            background: var(--surface); border: 1px solid var(--border); padding: 16px;
-            border-radius: 12px; font-size: 1.1rem; font-weight: 600; cursor: pointer; text-align: center;
-        }
-
     </style>
 </head>
 <body>
-
-    <!-- Auth Overlay (Select Seller) -->
-    <div id="authOverlay">
-        <h2>Hola, ¿quién eres?</h2>
-        <div class="seller-list" id="sellerList">
-            <div class="spinner">Cargando vendedores...</div>
-        </div>
-    </div>
 
     <!-- Main Header -->
     <header>
@@ -198,36 +177,61 @@
 
         <!-- SCREEN 3: Profile (Modal Style over Screen) -->
         <div id="screen-profile" class="screen" style="background:var(--surface); position:absolute; top:0; left:0; width:100%; min-height:100%; z-index:50;">
-            <div style="display: flex; align-items: center; margin-bottom: 20px; gap: 10px;">
-                <button onclick="navTo('directory')" style="background:none; border:none; font-size: 1.5rem; cursor:pointer;">←</button>
-                <h2 id="profileName">Cargando Perfil...</h2>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <button onclick="navTo('directory')" style="background:none; border:none; font-size: 1.5rem; cursor:pointer;">←</button>
+                    <h2 id="profileName" style="font-size: 1.5rem;">Cargando Perfil...</h2>
+                </div>
+                <div id="profileBadges" style="display: flex; gap: 4px;"></div>
+            </div>
+
+            <!-- Contact data -->
+            <div class="card" style="padding: 12px; margin-bottom: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <span style="font-size: 1.2rem;">📱</span>
+                        <span id="profPhone" style="font-weight: 500;">-</span>
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <span style="font-size: 1.2rem;">🎂</span>
+                        <span id="profBirthday">-</span>
+                    </div>
+                </div>
             </div>
             
-            <button class="btn-primary" id="btnRegistrarVenta" onclick="goToStore()" style="margin-bottom: 20px;">🛒 Registrar Venta</button>
+            <!-- Quick Actions -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px;">
+                <button class="btn-primary" id="btnRegistrarVenta" onclick="goToStore()" style="padding: 12px; background:var(--text-main);">🛒 Registrar Venta</button>
+                <a id="btnProfileWa" href="#" target="_blank" class="btn-primary" style="padding: 12px; background:#25D366; text-decoration:none;">🟢 WhatsApp</a>
+                <button class="btn-primary" onclick="alert('Funcionalidad en desarrollo')" style="padding: 12px; background:var(--info);">+ Tarea</button>
+                <button class="btn-primary" onclick="alert('Funcionalidad en desarrollo')" style="padding: 12px; background:var(--warning); color:black;">+ Nota</button>
+            </div>
             
-            <div class="card" style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+            <!-- Metrics Grid -->
+            <div class="card" style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
                 <div>
                     <div style="font-size:0.8rem; color:var(--text-muted);">Última Compra</div>
                     <div id="profLastPurchase" style="font-weight:700;">-</div>
+                    <div id="profDaysSince" style="font-size:0.75rem; color:var(--danger); margin-top: 2px;"></div>
                 </div>
                 <div>
-                    <div style="font-size:0.8rem; color:var(--text-muted);">Deuda</div>
+                    <div style="font-size:0.8rem; color:var(--text-muted);">Total Comprado (LTV)</div>
+                    <div id="profLtv" style="font-weight:700; color:var(--success);">-</div>
+                </div>
+                <div>
+                    <div style="font-size:0.8rem; color:var(--text-muted);">Deuda Actual</div>
                     <div id="profDebt" style="font-weight:700; color:var(--danger);">-</div>
                 </div>
                 <div>
-                    <div style="font-size:0.8rem; color:var(--text-muted);">Compras (Freq)</div>
+                    <div style="font-size:0.8rem; color:var(--text-muted);">Nº de Compras</div>
                     <div id="profFreq" style="font-weight:700;">-</div>
-                </div>
-                <div>
-                    <div style="font-size:0.8rem; color:var(--text-muted);">Total (LTV)</div>
-                    <div id="profLtv" style="font-weight:700;">-</div>
                 </div>
             </div>
 
             <!-- Profile Tabs -->
             <div style="display:flex; border-bottom:1px solid var(--border); margin-bottom: 16px;">
                 <div style="flex:1; text-align:center; padding:10px; font-weight:700; border-bottom:2px solid var(--primary-dark);">Ventas</div>
-                <div style="flex:1; text-align:center; padding:10px; color:var(--text-muted);">Notas</div>
+                <div style="flex:1; text-align:center; padding:10px; color:var(--text-muted);">Notas/Actividades</div>
             </div>
             
             <div id="profileSalesList">
@@ -282,42 +286,15 @@
             const savedSeller = localStorage.getItem('storeSellerContext');
             if (savedSeller) {
                 const parsed = JSON.parse(savedSeller);
-                selectSeller(parsed.id, parsed.name);
+                currentSellerId = parsed.id;
+                currentSellerName = parsed.name;
+                document.getElementById('sellerNameLabel').innerText = currentSellerName;
+                loadDashboard();
             } else {
-                await loadSellers();
+                // If no context is found, redirect back to store login
+                window.location.replace('/store.html');
             }
         });
-
-        async function loadSellers() {
-            try {
-                const res = await fetch('/.netlify/functions/get-sellers');
-                const sellers = await res.json();
-                const list = document.getElementById('sellerList');
-                list.innerHTML = '';
-                sellers.forEach(s => {
-                    const btn = document.createElement('div');
-                    btn.className = 'seller-btn';
-                    btn.innerText = s.name;
-                    btn.onclick = () => {
-                        localStorage.setItem('storeSellerContext', JSON.stringify({id: s.id, name: s.name}));
-                        selectSeller(s.id, s.name);
-                    };
-                    list.appendChild(btn);
-                });
-            } catch (err) {
-                document.getElementById('sellerList').innerHTML = `<p style="color:red;">Error cargando vendedores</p>`;
-            }
-        }
-
-        function selectSeller(id, name) {
-            currentSellerId = id;
-            currentSellerName = name;
-            document.getElementById('authOverlay').style.display = 'none';
-            document.getElementById('sellerNameLabel').innerText = name;
-            
-            // Initial load
-            loadDashboard();
-        }
 
         // SPA NAVIGATION
         function navTo(screenId) {
@@ -483,30 +460,81 @@
                 const data = await res.json();
                 const pf = data.profile;
                 
-                document.getElementById('profileName').innerText = pf.name;
+                document.getElementById('profileName').innerText = pf.name || 'Sin Nombre';
+                document.getElementById('profPhone').innerText = pf.whatsapp || 'Sin número';
+                document.getElementById('profBirthday').innerText = pf.birth_date ? pf.birth_date.split('T')[0] : 'Sin fecha';
+                document.getElementById('btnProfileWa').href = wappLink(pf.whatsapp);
+
+                // Calculate days since last purchase
+                let daysSince = '';
+                let isInactive = false;
+                if(pf.last_purchase_date) {
+                    const days = Math.floor((new Date() - new Date(pf.last_purchase_date)) / (1000 * 60 * 60 * 24));
+                    daysSince = `Hace ${days} días`;
+                    isInactive = (days >= 30);
+                }
+
                 document.getElementById('profLastPurchase').innerText = pf.last_purchase_date ? pf.last_purchase_date.split('T')[0] : 'Nunca';
+                document.getElementById('profDaysSince').innerText = daysSince;
                 document.getElementById('profDebt').innerText = formatMoney(pf.total_debt_cents);
                 document.getElementById('profFreq').innerText = pf.total_orders;
                 document.getElementById('profLtv').innerText = formatMoney(pf.lifetime_value_cents);
 
+                // Badges
+                const debt = Number(pf.total_debt_cents);
+                const freq = Number(pf.total_orders);
+                let badgesHtml = '';
+                if(debt > 0) badgesHtml += `<span class="badge bg-danger">Deuda</span>`;
+                if(isInactive) badgesHtml += `<span class="badge bg-warning">Inactivo</span>`;
+                if(freq >= 10) badgesHtml += `<span class="badge bg-success">Frecuente</span>`;
+                if(freq === 1) badgesHtml += `<span class="badge bg-info">Nuevo</span>`;
+                document.getElementById('profileBadges').innerHTML = badgesHtml;
+
                 // Render Sales
                 const salesDiv = document.getElementById('profileSalesList');
-                salesDiv.innerHTML = '';
+                salesDiv.innerHTML = '<h4 style="margin-bottom: 10px;">Historial Completo de Compras</h4>';
                 if(data.sales && data.sales.length > 0) {
                     data.sales.forEach(s => {
                         const paidMark = s.is_paid ? '<span style="color:var(--success);">Pagado</span>' : '<span style="color:var(--danger); font-weight:bold;">Debe</span>';
+                        
+                        // Detalle postres
+                        let items = [];
+                        if(s.qty_arco > 0) items.push(`${s.qty_arco} Arco`);
+                        if(s.qty_melo > 0) items.push(`${s.qty_melo} Melo`);
+                        if(s.qty_mara > 0) items.push(`${s.qty_mara} Mara`);
+                        if(s.qty_oreo > 0) items.push(`${s.qty_oreo} Oreo`);
+                        if(s.qty_nute > 0) items.push(`${s.qty_nute} Nute`);
+                        const itemsStr = items.join(', ');
+
                         salesDiv.innerHTML += `
-                            <div class="card" style="padding:10px; margin-bottom:8px;">
-                                <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-                                    <strong>${s.created_at.split('T')[0]}</strong>
-                                    <span>${formatMoney(s.total_cents)}</span>
+                            <div class="card" style="padding:12px; margin-bottom:10px; border-left: 4px solid ${s.is_paid ? 'var(--success)' : 'var(--danger)'}">
+                                <div style="display:flex; justify-content:space-between; margin-bottom:4px; align-items:center;">
+                                    <strong style="font-size:1.1rem;">${s.created_at.split('T')[0]}</strong>
+                                    <span style="font-size:1.1rem; font-weight:bold;">${formatMoney(s.total_cents)}</span>
                                 </div>
-                                <div style="font-size:0.8rem; color:var(--text-muted);">${paidMark}</div>
+                                <div style="font-size:0.9rem; margin-bottom:4px; color:var(--text-main);">${itemsStr}</div>
+                                <div style="font-size:0.85rem; display:flex; justify-content:space-between; align-items:flex-end;">
+                                    <span>${paidMark}</span>
+                                    <span style="color:var(--text-muted);">ID: ${s.id}</span>
+                                </div>
                             </div>
                         `;
                     });
                 } else {
-                    salesDiv.innerHTML = '<p style="text-align:center; color:var(--text-muted);">Sin compras registradas</p>';
+                    salesDiv.innerHTML += '<p style="text-align:center; color:var(--text-muted); padding: 20px;">Sin compras registradas</p>';
+                }
+
+                // Render Acitivites as notes at the bottom
+                if(data.activities && data.activities.length > 0) {
+                    salesDiv.innerHTML += '<h4 style="margin-top:20px; margin-bottom:10px;">Notas y Actividades</h4>';
+                    data.activities.forEach(a => {
+                        salesDiv.innerHTML += `
+                            <div style="padding:10px; background:var(--bg); border-radius:8px; margin-bottom:8px;">
+                                <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:4px;">${a.created_at.split('T')[0]} - ${a.activity_type}</div>
+                                <div>${a.description || 'Sin notas.'}</div>
+                            </div>
+                        `;
+                    });
                 }
 
             } catch (err) {
