@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 26; // Bump when schema changes require a migration
+const SCHEMA_VERSION = 27; // Bumped to 27: ensure CRM stage tables created on all environments
 
 export async function ensureSchema() {
 	// If already ensured in this instance, skip immediately
@@ -17,6 +17,61 @@ export async function ensureSchema() {
 		try {
 			// CRITICAL: Always ensure these tables exist first (before any version checks)
 			// This runs on EVERY cold start to ensure new tables are created
+
+			// --- CRM STAGE TABLES (always-create, added here after v26 missed them) ---
+			await sql`CREATE TABLE IF NOT EXISTS crm_stages (
+				id SERIAL PRIMARY KEY,
+				name VARCHAR(100) NOT NULL,
+				color VARCHAR(20) DEFAULT '#808080',
+				order_index INTEGER DEFAULT 0,
+				is_active BOOLEAN DEFAULT true,
+				created_at TIMESTAMPTZ DEFAULT now()
+			)`;
+			// Auto-seed default stages if empty
+			const _stageCount = await sql`SELECT count(*) FROM crm_stages`;
+			if (parseInt(_stageCount[0].count) === 0) {
+				await sql`INSERT INTO crm_stages (name, color, order_index) VALUES
+					('Prospecto', '#9E9E9E', 1),
+					('Visitado', '#2196F3', 2),
+					('Muestra entregada', '#9C27B0', 3),
+					('Negociación', '#FF9800', 4),
+					('Cliente nuevo', '#4CAF50', 5),
+					('Cliente activo', '#8BC34A', 6),
+					('Cliente frecuente', '#009688', 7),
+					('Cliente VIP', '#FFD700', 8),
+					('En riesgo', '#FF5722', 9),
+					('Intentando recuperar', '#F44336', 10),
+					('Recuperado', '#03A9F4', 11),
+					('Perdido', '#607D8B', 12)`;
+			}
+
+			await sql`CREATE TABLE IF NOT EXISTS crm_client_stage (
+				id SERIAL PRIMARY KEY,
+				client_id INTEGER UNIQUE REFERENCES clients(id) ON DELETE CASCADE,
+				stage_id INTEGER REFERENCES crm_stages(id) ON DELETE SET NULL,
+				updated_by INTEGER REFERENCES sellers(id) ON DELETE SET NULL,
+				updated_at TIMESTAMPTZ DEFAULT now()
+			)`;
+
+			await sql`CREATE TABLE IF NOT EXISTS crm_stage_history (
+				id SERIAL PRIMARY KEY,
+				client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE,
+				old_stage_id INTEGER REFERENCES crm_stages(id) ON DELETE SET NULL,
+				new_stage_id INTEGER REFERENCES crm_stages(id) ON DELETE SET NULL,
+				note TEXT,
+				changed_by INTEGER REFERENCES sellers(id) ON DELETE SET NULL,
+				changed_at TIMESTAMPTZ DEFAULT now()
+			)`;
+
+			await sql`CREATE TABLE IF NOT EXISTS crm_stage_actions (
+				id SERIAL PRIMARY KEY,
+				client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE,
+				action_type VARCHAR(50) NOT NULL,
+				note TEXT,
+				seller_id INTEGER REFERENCES sellers(id) ON DELETE SET NULL,
+				created_at TIMESTAMPTZ DEFAULT now()
+			)`;
+			// End CRM stage tables
 			await sql`CREATE TABLE IF NOT EXISTS users (
 				id SERIAL PRIMARY KEY,
 				username TEXT UNIQUE NOT NULL,
