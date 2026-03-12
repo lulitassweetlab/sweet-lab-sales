@@ -470,8 +470,28 @@ export async function handler(event) {
 					const iso = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())).toISOString().slice(0,10);
 					saleDayId = await getOrCreateDayId(sellerId, iso);
 				}
-				const [row] = await sql`INSERT INTO sales (seller_id, sale_day_id) VALUES (${sellerId}, ${saleDayId}) RETURNING id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, payment_date, payment_source, comment_text, special_pricing_type, total_cents, created_at`;
-				// Note: detailed order notification is emitted after quantities are set (in PUT)
+				// Include client_name in the initial INSERT so it is stored even if PUT is never called
+				const clientNamePost = (data.client_name ?? '').toString().trim();
+				const [row] = await sql`INSERT INTO sales (seller_id, sale_day_id, client_name) VALUES (${sellerId}, ${saleDayId}, ${clientNamePost || null}) RETURNING id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, payment_date, payment_source, comment_text, special_pricing_type, total_cents, created_at`;
+				// Auto-Link to CRM immediately on POST so sales appear in CRM timeline right away
+				if (clientNamePost && row && row.id) {
+					try {
+						let [crmClient] = await sql`SELECT id FROM clients WHERE seller_id = ${sellerId} AND lower(name) = lower(${clientNamePost})`;
+						if (!crmClient) {
+							const shortName = clientNamePost.split(' ')[0] || clientNamePost;
+							[crmClient] = await sql`INSERT INTO clients (seller_id, name, short_name) VALUES (${sellerId}, ${clientNamePost}, ${shortName}) RETURNING id`;
+						}
+						if (crmClient && crmClient.id) {
+							const [existingLink] = await sql`SELECT 1 FROM crm_client_sales WHERE client_id = ${crmClient.id} AND sale_id = ${row.id} LIMIT 1`;
+							if (!existingLink) {
+								await sql`INSERT INTO crm_client_sales (client_id, sale_id, seller_id) VALUES (${crmClient.id}, ${row.id}, ${sellerId})`;
+							}
+						}
+					} catch (crmErr) {
+						console.error('Error auto-linking POST sale to CRM:', crmErr);
+					}
+				}
+				// Note: detailed order notification and items are set in the subsequent PUT
 				return json(row, 201);
 			}
 			case 'PUT': {
