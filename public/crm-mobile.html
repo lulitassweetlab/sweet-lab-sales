@@ -133,6 +133,34 @@
             background-color: var(--surface);
             border-radius: 8px;
         }
+
+        /* Birthday picker buttons */
+        .bda-month-btn, .bda-day-btn {
+            padding: 9px 4px;
+            border-radius: 10px;
+            border: 1.5px solid var(--border);
+            background: var(--surface);
+            color: var(--text-main);
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.12s;
+            text-align: center;
+            width: 100%;
+        }
+        .bda-month-btn:hover, .bda-month-btn:active,
+        .bda-day-btn:hover, .bda-day-btn:active {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+            transform: scale(0.97);
+        }
+        .bda-day-btn.selected {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+        }
+
     </style>
 </head>
 <body>
@@ -337,8 +365,40 @@
                     <input type="tel" id="npWhatsApp" placeholder="Ej: 3001234567" style="width:100%; padding:12px; border:1px solid var(--border); border-radius:8px;">
                 </div>
                 <div style="margin-bottom:20px;">
-                    <label style="display:block; font-size:0.8rem; color:var(--text-muted); margin-bottom:5px;">Cumpleaños (Opcional)</label>
-                    <input type="date" id="npBirthday" style="width:100%; padding:12px; border:1px solid var(--border); border-radius:8px;">
+                    <label style="display:block; font-size:0.8rem; color:var(--text-muted); margin-bottom:8px;">🎂 Cumpleaños (Opcional)</label>
+                    <!-- Hidden input stores the final value as 1900-MM-DD -->
+                    <input type="hidden" id="npBirthday" />
+                    <!-- Step 1: Month picker -->
+                    <div id="bdaMonthPicker">
+                        <div style="font-size:0.78rem; color:var(--text-muted); margin-bottom:8px;">Selecciona el mes:</div>
+                        <div style="display:grid; grid-template-columns: repeat(4,1fr); gap:6px;">
+                            <button type="button" onclick="bdaSelectMonth(1,'Enero')"    class="bda-month-btn">Ene</button>
+                            <button type="button" onclick="bdaSelectMonth(2,'Febrero')"  class="bda-month-btn">Feb</button>
+                            <button type="button" onclick="bdaSelectMonth(3,'Marzo')"    class="bda-month-btn">Mar</button>
+                            <button type="button" onclick="bdaSelectMonth(4,'Abril')"    class="bda-month-btn">Abr</button>
+                            <button type="button" onclick="bdaSelectMonth(5,'Mayo')"     class="bda-month-btn">May</button>
+                            <button type="button" onclick="bdaSelectMonth(6,'Junio')"    class="bda-month-btn">Jun</button>
+                            <button type="button" onclick="bdaSelectMonth(7,'Julio')"    class="bda-month-btn">Jul</button>
+                            <button type="button" onclick="bdaSelectMonth(8,'Agosto')"   class="bda-month-btn">Ago</button>
+                            <button type="button" onclick="bdaSelectMonth(9,'Septiembre')" class="bda-month-btn">Sep</button>
+                            <button type="button" onclick="bdaSelectMonth(10,'Octubre')" class="bda-month-btn">Oct</button>
+                            <button type="button" onclick="bdaSelectMonth(11,'Noviembre')" class="bda-month-btn">Nov</button>
+                            <button type="button" onclick="bdaSelectMonth(12,'Diciembre')" class="bda-month-btn">Dic</button>
+                        </div>
+                    </div>
+                    <!-- Step 2: Day picker (hidden until month is selected) -->
+                    <div id="bdaDayPicker" style="display:none;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                            <span id="bdaDayPickerLabel" style="font-size:0.78rem; color:var(--text-muted); font-weight:700;">Día:</span>
+                            <button type="button" onclick="bdaReset()" style="background:none; border:none; color:var(--text-muted); font-size:0.78rem; cursor:pointer; padding:2px 6px;">✕ Cambiar mes</button>
+                        </div>
+                        <div id="bdaDayGrid" style="display:grid; grid-template-columns:repeat(7,1fr); gap:5px;"></div>
+                    </div>
+                    <!-- Selected result display -->
+                    <div id="bdaResult" style="display:none; margin-top:10px; padding:10px 14px; border-radius:10px; background:var(--primary)22; border:1.5px solid var(--primary); display:flex; justify-content:space-between; align-items:center;">
+                        <span>🎂 <span id="bdaResultText" style="font-weight:700;"></span></span>
+                        <button type="button" onclick="bdaReset()" style="background:none; border:none; color:var(--text-muted); font-size:1rem; cursor:pointer;">✕</button>
+                    </div>
                 </div>
                 <button class="btn-primary" onclick="saveNewProspect()">Guardar Prospecto</button>
             </div>
@@ -1074,12 +1134,64 @@
             document.getElementById('npShortName').value = '';
             document.getElementById('npWhatsApp').value = '';
             document.getElementById('npBirthday').value = '';
+            bdaReset();
             document.getElementById('modalNewProspect').style.display = 'block';
         }
 
         function closeNewProspectModal() {
             document.getElementById('modalNewProspect').style.display = 'none';
         }
+
+        // ── BIRTHDAY PICKER ──────────────────────────────────────────────────────
+        let _bdaMonth = null;
+        let _bdaMonthName = '';
+        const _bdaDaysInMonth = [0,31,29,31,30,31,30,31,31,30,31,30,31]; // index 1-12, Feb=29
+
+        function bdaSelectMonth(month, name) {
+            _bdaMonth = month;
+            _bdaMonthName = name;
+            document.getElementById('bdaMonthPicker').style.display = 'none';
+            document.getElementById('bdaDayPicker').style.display = 'block';
+            document.getElementById('bdaDayPickerLabel').textContent = `Día de ${name}:`;
+            // Build day grid
+            const grid = document.getElementById('bdaDayGrid');
+            grid.innerHTML = '';
+            const days = _bdaDaysInMonth[month];
+            for (let d = 1; d <= days; d++) {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'bda-day-btn';
+                btn.textContent = d;
+                btn.onclick = () => bdaSelectDay(d, btn);
+                grid.appendChild(btn);
+            }
+        }
+
+        function bdaSelectDay(day, btn) {
+            // Highlight selection
+            document.querySelectorAll('.bda-day-btn').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            // Build date string MM-DD padded, year 1900 (dummy year, only month+day matter)
+            const mm = String(_bdaMonth).padStart(2, '0');
+            const dd = String(day).padStart(2, '0');
+            document.getElementById('npBirthday').value = `1900-${mm}-${dd}`;
+            // Show result chip, hide pickers
+            document.getElementById('bdaDayPicker').style.display = 'none';
+            document.getElementById('bdaResultText').textContent = `${day} de ${_bdaMonthName}`;
+            const result = document.getElementById('bdaResult');
+            result.style.display = 'flex';
+        }
+
+        function bdaReset() {
+            _bdaMonth = null;
+            _bdaMonthName = '';
+            document.getElementById('npBirthday').value = '';
+            document.getElementById('bdaMonthPicker').style.display = 'block';
+            document.getElementById('bdaDayPicker').style.display = 'none';
+            document.getElementById('bdaResult').style.display = 'none';
+            document.getElementById('bdaDayGrid').innerHTML = '';
+        }
+        // ── END BIRTHDAY PICKER ──────────────────────────────────────────────────
 
         async function saveNewProspect() {
             const name = document.getElementById('npFullName').value.trim();

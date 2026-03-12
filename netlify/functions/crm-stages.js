@@ -30,6 +30,13 @@ export async function handler(event) {
                 return json(stages);
             }
 
+            if (action === 'get_all_stages') {
+                // Returns ALL stages including inactive (for admin use)
+                const stages = await sql`SELECT * FROM crm_stages ORDER BY order_index ASC`;
+                return json(stages);
+            }
+
+
             if (action === 'get_stage_summary') {
                 // Returns all active stages with the count of clients for this seller in each stage
                 const sellerId = Number(params.get('seller_id'));
@@ -162,7 +169,70 @@ export async function handler(event) {
                 return json({ success: true, action: insert[0] });
             }
 
+            if (action === 'create_stage') {
+                const { name, color, order_index } = body;
+                if (!name) return json({ error: 'Falta el nombre de la etapa' }, 400);
+
+                // Auto-assign highest order if not provided
+                let orderIdx = order_index;
+                if (!orderIdx) {
+                    const maxRow = await sql`SELECT COALESCE(MAX(order_index), 0) as mx FROM crm_stages`;
+                    orderIdx = Number(maxRow[0].mx) + 1;
+                }
+
+                const inserted = await sql`
+                    INSERT INTO crm_stages (name, color, order_index, is_active)
+                    VALUES (${name.trim()}, ${color || '#808080'}, ${orderIdx}, true)
+                    RETURNING *
+                `;
+                return json({ success: true, stage: inserted[0] });
+            }
+
+            if (action === 'update_stage') {
+                const { id, name, color, order_index, is_active } = body;
+                if (!id) return json({ error: 'Falta id de etapa' }, 400);
+
+                const updated = await sql`
+                    UPDATE crm_stages SET
+                        name = ${name},
+                        color = ${color || '#808080'},
+                        order_index = ${order_index},
+                        is_active = ${is_active !== false}
+                    WHERE id = ${id}
+                    RETURNING *
+                `;
+                return json({ success: true, stage: updated[0] });
+            }
+
+            if (action === 'delete_stage') {
+                const { id } = body;
+                if (!id) return json({ error: 'Falta id de etapa' }, 400);
+
+                // Check if any clients are in this stage
+                const inUse = await sql`SELECT COUNT(*) as cnt FROM crm_client_stage WHERE stage_id = ${id}`;
+                if (Number(inUse[0].cnt) > 0) {
+                    // Soft-delete: mark inactive so existing client assignments remain valid
+                    await sql`UPDATE crm_stages SET is_active = false WHERE id = ${id}`;
+                    return json({ success: true, soft_deleted: true, message: `${inUse[0].cnt} clientes tenían esta etapa. La etapa quedó oculta (inactiva) pero sus registros se conservan.` });
+                }
+                // Hard delete only if no clients assigned
+                await sql`DELETE FROM crm_stages WHERE id = ${id}`;
+                return json({ success: true, deleted: true });
+            }
+
+            if (action === 'reorder_stages') {
+                // body.order: array of { id, order_index }
+                const order = body.order;
+                if (!Array.isArray(order) || order.length === 0) return json({ error: 'Falta array order' }, 400);
+
+                for (const item of order) {
+                    await sql`UPDATE crm_stages SET order_index = ${item.order_index} WHERE id = ${item.id}`;
+                }
+                return json({ success: true });
+            }
+
             return json({ error: 'Invalid POST action' }, 400);
+
         }
 
         return json({ error: 'Method not supported' }, 405);

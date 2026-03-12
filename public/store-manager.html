@@ -981,6 +981,220 @@
             loadProducts();
         })();
     </script>
-</body>
 
+    <!-- CRM Stages Management Panel -->
+    <main class="sales-panel" style="margin-bottom: 48px;">
+
+        <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center;">
+            <h3>🏷️ Etapas CRM</h3>
+            <button id="add-stage-btn" class="press-btn btn-primary">+ Nueva Etapa</button>
+        </div>
+        <div class="panel-body">
+            <p style="font-size:0.85em; color:var(--muted); margin-bottom:16px;">
+                Las etapas aplican a todos los vendedores. Puedes arrastrar para reordenar.
+                Las etapas con clientes asignados se desactivan (no se eliminan) para preservar el historial.
+            </p>
+            <div id="stages-list" style="display:flex; flex-direction:column; gap:8px;">
+                <div style="text-align:center; padding:20px; color:var(--muted);">Cargando etapas...</div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Stage Edit Modal -->
+    <div id="stage-modal-backdrop" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; display:flex; align-items:center; justify-content:center;">
+        <div id="stage-modal" style="background:var(--card); border-radius:16px; padding:28px; min-width:320px; max-width:420px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,0.25);">
+            <h4 id="stage-modal-title" style="margin:0 0 20px;">Nueva Etapa</h4>
+            <div style="display:flex; flex-direction:column; gap:12px;">
+                <div>
+                    <label style="font-weight:600; display:block; margin-bottom:6px;">Nombre de la etapa</label>
+                    <input id="stage-name-input" type="text" class="input-cell" placeholder="Ej: Cliente VIP" style="width:100%;" />
+                </div>
+                <div>
+                    <label style="font-weight:600; display:block; margin-bottom:6px;">Color</label>
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <input id="stage-color-input" type="color" value="#6366f1" style="width:52px; height:40px; border-radius:8px; border:1px solid var(--border); cursor:pointer; padding:2px;" />
+                        <div style="display:flex; flex-wrap:wrap; gap:6px;">
+                            <!-- Color presets -->
+                            <span onclick="document.getElementById('stage-color-input').value='#9E9E9E'" style="width:22px;height:22px;border-radius:50%;background:#9E9E9E;cursor:pointer;border:2px solid transparent;" title="Gris"></span>
+                            <span onclick="document.getElementById('stage-color-input').value='#2196F3'" style="width:22px;height:22px;border-radius:50%;background:#2196F3;cursor:pointer;" title="Azul"></span>
+                            <span onclick="document.getElementById('stage-color-input').value='#9C27B0'" style="width:22px;height:22px;border-radius:50%;background:#9C27B0;cursor:pointer;" title="Morado"></span>
+                            <span onclick="document.getElementById('stage-color-input').value='#FF9800'" style="width:22px;height:22px;border-radius:50%;background:#FF9800;cursor:pointer;" title="Naranja"></span>
+                            <span onclick="document.getElementById('stage-color-input').value='#4CAF50'" style="width:22px;height:22px;border-radius:50%;background:#4CAF50;cursor:pointer;" title="Verde"></span>
+                            <span onclick="document.getElementById('stage-color-input').value='#009688'" style="width:22px;height:22px;border-radius:50%;background:#009688;cursor:pointer;" title="Teal"></span>
+                            <span onclick="document.getElementById('stage-color-input').value='#FFD700'" style="width:22px;height:22px;border-radius:50%;background:#FFD700;cursor:pointer;" title="Oro"></span>
+                            <span onclick="document.getElementById('stage-color-input').value='#FF5722'" style="width:22px;height:22px;border-radius:50%;background:#FF5722;cursor:pointer;" title="Rojo-naranja"></span>
+                            <span onclick="document.getElementById('stage-color-input').value='#F44336'" style="width:22px;height:22px;border-radius:50%;background:#F44336;cursor:pointer;" title="Rojo"></span>
+                            <span onclick="document.getElementById('stage-color-input').value='#03A9F4'" style="width:22px;height:22px;border-radius:50%;background:#03A9F4;cursor:pointer;" title="Celeste"></span>
+                            <span onclick="document.getElementById('stage-color-input').value='#607D8B'" style="width:22px;height:22px;border-radius:50%;background:#607D8B;cursor:pointer;" title="Grafico"></span>
+                            <span onclick="document.getElementById('stage-color-input').value='#E91E63'" style="width:22px;height:22px;border-radius:50%;background:#E91E63;cursor:pointer;" title="Rosa"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div style="display:flex; gap:10px; margin-top:24px; justify-content:flex-end;">
+                <button id="stage-modal-cancel" class="press-btn">Cancelar</button>
+                <button id="stage-modal-save" class="press-btn btn-primary">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // ── CRM STAGES MANAGER ──────────────────────────────────────────────────
+        let stagesData = [];
+        let editingStageId = null;
+
+        const stagesList = document.getElementById('stages-list');
+        const modal = document.getElementById('stage-modal-backdrop');
+        const modalTitle = document.getElementById('stage-modal-title');
+        const nameInput = document.getElementById('stage-name-input');
+        const colorInput = document.getElementById('stage-color-input');
+        const saveBtn = document.getElementById('stage-modal-save');
+        const cancelBtn = document.getElementById('stage-modal-cancel');
+        const addBtn = document.getElementById('add-stage-btn');
+
+        async function loadStages() {
+            stagesList.innerHTML = '<div style="text-align:center; padding:20px; color:var(--muted);">Cargando...</div>';
+            const res = await fetch('/api/crm-stages?action=get_stages');
+            // get_stages only returns is_active=true, but we need all for admin
+            const resAll = await fetch('/api/crm-stages?action=get_all_stages');
+            let stages;
+            if (resAll.ok) {
+                stages = await resAll.json();
+            } else {
+                stages = await res.json();
+            }
+            if (!Array.isArray(stages)) stages = [];
+            stagesData = stages;
+            renderStages();
+        }
+
+        function renderStages() {
+            if (!stagesData.length) {
+                stagesList.innerHTML = '<p style="color:var(--muted); text-align:center;">No hay etapas. Crea la primera.</p>';
+                return;
+            }
+            stagesList.innerHTML = '';
+            stagesData.forEach((s, idx) => {
+                const row = document.createElement('div');
+                row.dataset.id = s.id;
+                row.style.cssText = `
+                    display:flex; align-items:center; gap:12px; padding:12px 16px;
+                    background:var(--card); border:1px solid var(--border); border-radius:12px;
+                    opacity:${s.is_active ? '1' : '0.5'}; transition:box-shadow 0.15s;
+                `;
+                row.innerHTML = `
+                    <span style="cursor:grab; color:var(--muted); font-size:1.1rem; user-select:none;" title="Arrastrar para reordenar">⠿</span>
+                    <span style="width:18px; height:18px; border-radius:50%; background:${s.color}; flex-shrink:0; border:2px solid ${s.color}44;"></span>
+                    <span style="flex:1; font-weight:700;">${s.name}</span>
+                    <span style="font-size:0.78rem; color:var(--muted); min-width:60px; text-align:right;">orden ${s.order_index}</span>
+                    ${!s.is_active ? '<span style="font-size:0.75rem; background:#f3f4f6; color:#888; border-radius:6px; padding:2px 8px;">Inactiva</span>' : ''}
+                    <button onclick="openEditStage(${s.id})" class="press-btn" style="padding:6px 12px; font-size:0.8rem;">✏️ Editar</button>
+                    <button onclick="toggleStageActive(${s.id}, ${s.is_active})" class="press-btn" style="padding:6px 12px; font-size:0.8rem;">${s.is_active ? '🙈 Ocultar' : '👁 Activar'}</button>
+                    <button onclick="deleteStage(${s.id}, '${s.name.replace(/'/g, "\\'")}'); " class="row-delete" title="Eliminar" style="padding:6px;"></button>
+                `;
+                stagesList.appendChild(row);
+            });
+            initDragSort();
+        }
+
+        function initDragSort() {
+            let draggingEl = null;
+            const rows = stagesList.querySelectorAll('[data-id]');
+            rows.forEach(el => {
+                const handle = el.querySelector('[title="Arrastrar para reordenar"]');
+                el.setAttribute('draggable', 'true');
+                el.addEventListener('dragstart', () => { draggingEl = el; el.style.opacity = '0.4'; });
+                el.addEventListener('dragend', async () => {
+                    el.style.opacity = '';
+                    draggingEl = null;
+                    // Save new order
+                    const allRows = [...stagesList.querySelectorAll('[data-id]')];
+                    const orderPayload = allRows.map((r, i) => ({ id: Number(r.dataset.id), order_index: i + 1 }));
+                    await fetch('/api/crm-stages', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ action: 'reorder_stages', order: orderPayload }) });
+                    loadStages();
+                });
+                el.addEventListener('dragover', e => {
+                    e.preventDefault();
+                    if (!draggingEl || draggingEl === el) return;
+                    const rect = el.getBoundingClientRect();
+                    const mid = rect.top + rect.height / 2;
+                    if (e.clientY < mid) stagesList.insertBefore(draggingEl, el);
+                    else stagesList.insertBefore(draggingEl, el.nextSibling);
+                });
+            });
+        }
+
+        function openAddStage() {
+            editingStageId = null;
+            modalTitle.textContent = 'Nueva Etapa';
+            nameInput.value = '';
+            colorInput.value = '#6366f1';
+            modal.style.display = 'flex';
+            setTimeout(() => nameInput.focus(), 100);
+        }
+
+        function openEditStage(id) {
+            const s = stagesData.find(x => x.id === id);
+            if (!s) return;
+            editingStageId = id;
+            modalTitle.textContent = 'Editar Etapa';
+            nameInput.value = s.name;
+            colorInput.value = s.color;
+            modal.style.display = 'flex';
+            setTimeout(() => nameInput.focus(), 100);
+        }
+        window.openEditStage = openEditStage;
+
+        function closeModal() { modal.style.display = 'none'; }
+        cancelBtn.addEventListener('click', closeModal);
+        modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+
+        saveBtn.addEventListener('click', async () => {
+            const name = nameInput.value.trim();
+            const color = colorInput.value;
+            if (!name) { alert('El nombre es requerido'); return; }
+
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Guardando...';
+            try {
+                const body = editingStageId
+                    ? { action: 'update_stage', id: editingStageId, name, color, order_index: stagesData.find(s=>s.id===editingStageId)?.order_index || 99, is_active: true }
+                    : { action: 'create_stage', name, color };
+
+                const res = await fetch('/api/crm-stages', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+                const data = await res.json();
+                if (data.error) { alert('Error: ' + data.error); return; }
+                closeModal();
+                loadStages();
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Guardar';
+            }
+        });
+
+        async function toggleStageActive(id, isActive) {
+            const s = stagesData.find(x => x.id === id);
+            if (!s) return;
+            const action = isActive ? 'Ocultar' : 'Activar';
+            if (!confirm(`¿${action} la etapa "${s.name}"?`)) return;
+            await fetch('/api/crm-stages', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ action: 'update_stage', id, name: s.name, color: s.color, order_index: s.order_index, is_active: !isActive }) });
+            loadStages();
+        }
+        window.toggleStageActive = toggleStageActive;
+
+        async function deleteStage(id, name) {
+            if (!confirm(`¿Eliminar la etapa "${name}"?\n\nSi tiene clientes asignados, quedará oculta (inactiva) para preservar el historial.`)) return;
+            const res = await fetch('/api/crm-stages', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ action: 'delete_stage', id }) });
+            const data = await res.json();
+            if (data.message) alert(data.message);
+            loadStages();
+        }
+        window.deleteStage = deleteStage;
+
+        addBtn.addEventListener('click', openAddStage);
+
+        loadStages();
+    </script>
+
+</body>
 </html>
