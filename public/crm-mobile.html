@@ -222,10 +222,10 @@
 
             <!-- Quick Actions -->
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px;">
-                <button class="btn-primary" id="btnRegistrarVenta" onclick="goToStore()" style="padding: 12px; background:var(--text-main);">🛒 Registrar Venta</button>
-                <button id="btnProfileWa" onclick="sendDirectWhatsApp()" class="btn-primary" style="padding: 12px; background:#25D366; text-decoration:none; border:none;">🟢 WhatsApp</button>
-                <button class="btn-primary" onclick="openNoteModal()" style="padding: 12px; background:#6366f1;">📝 Nota</button>
-                <button class="btn-primary" onclick="deleteProfile()" style="padding: 12px; background:var(--danger);">🗑 Eliminar</button>
+                <button class="btn-primary" id="btnRegistrarVenta" onclick="goToStore()" style="padding: 12px; background:#323338; border-color:#323338;">🛒 Registrar Venta</button>
+                <button id="btnProfileWa" onclick="sendDirectWhatsApp()" class="btn-primary" style="padding: 12px; background:#00c875; border-color:#00c875; text-decoration:none;">🟢 WhatsApp</button>
+                <button class="btn-primary" onclick="openNoteModal()" style="padding: 12px; background:#a25ddc; border-color:#a25ddc;">📝 Nota</button>
+                <button class="btn-primary" onclick="deleteProfile()" style="padding: 12px; background:#e2445c; border-color:#e2445c;">🗑 Eliminar</button>
             </div>
             
             <!-- Metrics Grid -->
@@ -655,12 +655,19 @@
                         const isDebt = (!s.pay_method || s.pay_method === '' || s.pay_method === '-' || s.pay_method === 'entregado');
                         
                         let items = [];
-                        if(s.qty_arco > 0) items.push(`${s.qty_arco} Arco`);
-                        if(s.qty_melo > 0) items.push(`${s.qty_melo} Melo`);
-                        if(s.qty_mara > 0) items.push(`${s.qty_mara} Mara`);
-                        if(s.qty_oreo > 0) items.push(`${s.qty_oreo} Oreo`);
-                        if(s.qty_nute > 0) items.push(`${s.qty_nute} Nute`);
-                        if(s.dynamic_items) s.dynamic_items.forEach(di => items.push(`${di.qty} ${di.name}`));
+                        // If dynamic_items exist (new store orders via sale_items), use ONLY those
+                        // to avoid duplicating with the legacy qty_* columns
+                        const hasDynamic = Array.isArray(s.dynamic_items) && s.dynamic_items.length > 0;
+                        if (hasDynamic) {
+                            s.dynamic_items.forEach(di => items.push(`${di.qty} ${di.name || di.short_code || 'Item'}`));
+                        } else {
+                            // Fall back to legacy columns
+                            if(s.qty_arco > 0) items.push(`${s.qty_arco} Arco`);
+                            if(s.qty_melo > 0) items.push(`${s.qty_melo} Melo`);
+                            if(s.qty_mara > 0) items.push(`${s.qty_mara} Mara`);
+                            if(s.qty_oreo > 0) items.push(`${s.qty_oreo} Oreo`);
+                            if(s.qty_nute > 0) items.push(`${s.qty_nute} Nute`);
+                        }
 
                         timeline.push({
                             date: new Date(s.created_at),
@@ -1052,7 +1059,7 @@
             if (btn) { btn.disabled = true; btn.innerText = '...'; }
 
             try {
-                await fetch('/api/crm-stages', {
+                const noteRes = await fetch('/api/crm-stages', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
@@ -1063,6 +1070,11 @@
                         seller_id: currentSellerId
                     })
                 });
+                const noteData = await noteRes.json();
+                if (noteData.error) {
+                    alert('Error guardando nota: ' + noteData.error);
+                    return;
+                }
                 closeNoteModal();
                 await loadProfile(currentProfileId);
             } catch(e) {
