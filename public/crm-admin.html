@@ -326,8 +326,62 @@
             </div>
         </div>
 
-        <!-- ROW 6: Product Commissions Manager -->
-        <h2 style="font-size: 1.1rem; margin-top: 30px; margin-bottom: 16px; color: var(--text-main);">5. Gestor de Tarifas y Comisiones</h2>
+        <!-- ROW 6: CRM Stages Manager -->
+        <h2 style="font-size: 1.1rem; margin-top: 30px; margin-bottom: 16px; color: var(--text-main);">5. Gestión de Etapas CRM</h2>
+        <div class="dashboard-grid">
+            <div class="card col-span-12">
+                <div class="flex-between" style="margin-bottom: 16px;">
+                    <div class="card-title" style="margin:0;">🏷️ Etapas del Pipeline (aplican a todos los vendedores)</div>
+                    <button class="btn btn-primary" onclick="openAddStage()">+ Nueva Etapa</button>
+                </div>
+                <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:16px;">
+                    Puedes arrastrar para reordenar. Las etapas con clientes asignados se desactivan automáticamente al eliminarlas para preservar el historial.
+                </p>
+                <div id="crm-stages-list" style="display:flex; flex-direction:column; gap:8px;">
+                    <div style="text-align:center; padding:24px; color:var(--text-muted);">Cargando etapas...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stage Edit Modal -->
+        <div id="stage-modal-backdrop" onclick="if(event.target===this)closeStageModal()" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:1000; align-items:center; justify-content:center;">
+            <div id="stage-modal" style="background:#fff; border-radius:16px; padding:28px; min-width:340px; max-width:440px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,0.2);">
+                <h4 id="stage-modal-title" style="margin:0 0 20px; font-size:1.1rem;">Nueva Etapa</h4>
+                <div style="display:flex; flex-direction:column; gap:14px;">
+                    <div>
+                        <label style="font-weight:600; display:block; margin-bottom:6px; font-size:0.9rem;">Nombre de la etapa</label>
+                        <input id="stage-name-input" type="text" placeholder="Ej: Cliente VIP" style="width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:8px; font-size:0.95rem;" />
+                    </div>
+                    <div>
+                        <label style="font-weight:600; display:block; margin-bottom:8px; font-size:0.9rem;">Color</label>
+                        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+                            <input id="stage-color-input" type="color" value="#6366f1" style="width:52px; height:40px; border-radius:8px; border:1px solid var(--border); cursor:pointer; padding:2px;" />
+                            <div style="display:flex; flex-wrap:wrap; gap:7px;">
+                                <span onclick="document.getElementById('stage-color-input').value='#9E9E9E'" style="width:24px;height:24px;border-radius:50%;background:#9E9E9E;cursor:pointer;" title="Gris"></span>
+                                <span onclick="document.getElementById('stage-color-input').value='#2196F3'" style="width:24px;height:24px;border-radius:50%;background:#2196F3;cursor:pointer;" title="Azul"></span>
+                                <span onclick="document.getElementById('stage-color-input').value='#9C27B0'" style="width:24px;height:24px;border-radius:50%;background:#9C27B0;cursor:pointer;" title="Morado"></span>
+                                <span onclick="document.getElementById('stage-color-input').value='#FF9800'" style="width:24px;height:24px;border-radius:50%;background:#FF9800;cursor:pointer;" title="Naranja"></span>
+                                <span onclick="document.getElementById('stage-color-input').value='#4CAF50'" style="width:24px;height:24px;border-radius:50%;background:#4CAF50;cursor:pointer;" title="Verde"></span>
+                                <span onclick="document.getElementById('stage-color-input').value='#009688'" style="width:24px;height:24px;border-radius:50%;background:#009688;cursor:pointer;" title="Teal"></span>
+                                <span onclick="document.getElementById('stage-color-input').value='#FFD700'" style="width:24px;height:24px;border-radius:50%;background:#FFD700;cursor:pointer;" title="Oro"></span>
+                                <span onclick="document.getElementById('stage-color-input').value='#FF5722'" style="width:24px;height:24px;border-radius:50%;background:#FF5722;cursor:pointer;" title="Rojo-naranja"></span>
+                                <span onclick="document.getElementById('stage-color-input').value='#F44336'" style="width:24px;height:24px;border-radius:50%;background:#F44336;cursor:pointer;" title="Rojo"></span>
+                                <span onclick="document.getElementById('stage-color-input').value='#03A9F4'" style="width:24px;height:24px;border-radius:50%;background:#03A9F4;cursor:pointer;" title="Celeste"></span>
+                                <span onclick="document.getElementById('stage-color-input').value='#E91E63'" style="width:24px;height:24px;border-radius:50%;background:#E91E63;cursor:pointer;" title="Rosa"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div style="display:flex; gap:10px; margin-top:24px; justify-content:flex-end;">
+                    <button class="btn" onclick="closeStageModal()">Cancelar</button>
+                    <button class="btn btn-primary" id="stage-modal-save-btn" onclick="saveStage()">Guardar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ROW 7: Product Commissions Manager -->
+        <h2 style="font-size: 1.1rem; margin-top: 30px; margin-bottom: 16px; color: var(--text-main);">6. Gestor de Tarifas y Comisiones</h2>
+
         <div class="dashboard-grid">
             <div class="card col-span-12">
                 <div class="flex-between" style="margin-bottom: 16px;">
@@ -421,6 +475,8 @@
 
             // Also load commissions dynamically
             loadCommissions();
+            // Also load CRM stages
+            loadStages();
         }
 
         function populateGeneral(gen) {
@@ -643,7 +699,136 @@
                 btn.disabled = false;
             }
         }
+
+        // ── CRM STAGES MANAGER ──────────────────────────────────────────────
+        let stagesData = [];
+        let editingStageId = null;
+
+        async function loadStages() {
+            const container = document.getElementById('crm-stages-list');
+            if (!container) return;
+            container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);">Cargando...</div>';
+            try {
+                const res = await fetch('/api/crm-stages?action=get_all_stages');
+                const stages = await res.json();
+                stagesData = Array.isArray(stages) ? stages : [];
+                renderStages();
+            } catch(e) {
+                container.innerHTML = '<p style="color:var(--danger);text-align:center;">Error cargando etapas</p>';
+            }
+        }
+
+        function renderStages() {
+            const container = document.getElementById('crm-stages-list');
+            if (!stagesData.length) {
+                container.innerHTML = '<p style="color:var(--text-muted);text-align:center;">No hay etapas. Crea la primera con "+ Nueva Etapa".</p>';
+                return;
+            }
+            container.innerHTML = '';
+            stagesData.forEach(s => {
+                const row = document.createElement('div');
+                row.dataset.id = s.id;
+                row.style.cssText = `display:flex; align-items:center; gap:12px; padding:12px 16px; background:var(--bg); border:1px solid var(--border); border-radius:10px; opacity:${s.is_active ? '1' : '0.5'};`;
+                row.setAttribute('draggable', 'true');
+                row.innerHTML = `
+                    <span style="cursor:grab;color:var(--text-muted);font-size:1.1rem;user-select:none;" title="Arrastrar para reordenar">⠿</span>
+                    <span style="width:16px;height:16px;border-radius:50%;background:${s.color};flex-shrink:0;"></span>
+                    <span style="flex:1;font-weight:700;">${s.name}</span>
+                    <span style="font-size:0.78rem;color:var(--text-muted);min-width:55px;text-align:right;">orden ${s.order_index}</span>
+                    ${!s.is_active ? '<span style="font-size:0.75rem;background:#f3f4f6;color:#888;border-radius:6px;padding:2px 8px;">Inactiva</span>' : ''}
+                    <button class="btn" style="padding:5px 12px;font-size:0.8rem;" onclick="openEditStage(${s.id})">✏️ Editar</button>
+                    <button class="btn" style="padding:5px 12px;font-size:0.8rem;" onclick="toggleStageActive(${s.id},${s.is_active})">${s.is_active ? '🙈 Ocultar' : '👁 Activar'}</button>
+                    <button class="btn" style="padding:5px 10px;font-size:0.8rem;color:var(--danger);" onclick="deleteStageAdmin(${s.id},'${s.name.replace(/'/g,"\\'")}')">🗑️</button>
+                `;
+                container.appendChild(row);
+            });
+            initStagesDrag();
+        }
+
+        function initStagesDrag() {
+            const container = document.getElementById('crm-stages-list');
+            let dragging = null;
+            container.querySelectorAll('[data-id]').forEach(el => {
+                el.addEventListener('dragstart', () => { dragging = el; el.style.opacity = '0.4'; });
+                el.addEventListener('dragend', async () => {
+                    el.style.opacity = '';
+                    dragging = null;
+                    const rows = [...container.querySelectorAll('[data-id]')];
+                    const order = rows.map((r, i) => ({ id: Number(r.dataset.id), order_index: i + 1 }));
+                    await fetch('/api/crm-stages', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'reorder_stages', order }) });
+                    loadStages();
+                });
+                el.addEventListener('dragover', e => {
+                    e.preventDefault();
+                    if (!dragging || dragging === el) return;
+                    const mid = el.getBoundingClientRect().top + el.getBoundingClientRect().height / 2;
+                    container.insertBefore(dragging, e.clientY < mid ? el : el.nextSibling);
+                });
+            });
+        }
+
+        window.openAddStage = function() {
+            editingStageId = null;
+            document.getElementById('stage-modal-title').textContent = 'Nueva Etapa';
+            document.getElementById('stage-name-input').value = '';
+            document.getElementById('stage-color-input').value = '#6366f1';
+            const backdrop = document.getElementById('stage-modal-backdrop');
+            backdrop.style.display = 'flex';
+            setTimeout(() => document.getElementById('stage-name-input').focus(), 100);
+        }
+
+        window.openEditStage = function(id) {
+            const s = stagesData.find(x => x.id === id);
+            if (!s) return;
+            editingStageId = id;
+            document.getElementById('stage-modal-title').textContent = 'Editar Etapa';
+            document.getElementById('stage-name-input').value = s.name;
+            document.getElementById('stage-color-input').value = s.color;
+            document.getElementById('stage-modal-backdrop').style.display = 'flex';
+            setTimeout(() => document.getElementById('stage-name-input').focus(), 100);
+        }
+
+        window.closeStageModal = function() {
+            document.getElementById('stage-modal-backdrop').style.display = 'none';
+        }
+
+        window.saveStage = async function() {
+            const name = document.getElementById('stage-name-input').value.trim();
+            const color = document.getElementById('stage-color-input').value;
+            if (!name) { alert('El nombre es requerido'); return; }
+            const btn = document.getElementById('stage-modal-save-btn');
+            btn.disabled = true; btn.textContent = 'Guardando...';
+            try {
+                const body = editingStageId
+                    ? { action:'update_stage', id:editingStageId, name, color, order_index: stagesData.find(s=>s.id===editingStageId)?.order_index||99, is_active:true }
+                    : { action:'create_stage', name, color };
+                const res = await fetch('/api/crm-stages', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+                const data = await res.json();
+                if (data.error) { alert('Error: '+data.error); return; }
+                closeStageModal();
+                loadStages();
+            } finally { btn.disabled=false; btn.textContent='Guardar'; }
+        }
+
+        window.toggleStageActive = async function(id, isActive) {
+            const s = stagesData.find(x => x.id === id);
+            if (!s) return;
+            if (!confirm(`¿${isActive?'Ocultar':'Activar'} la etapa "${s.name}"?`)) return;
+            await fetch('/api/crm-stages', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ action:'update_stage', id, name:s.name, color:s.color, order_index:s.order_index, is_active:!isActive }) });
+            loadStages();
+        }
+
+        window.deleteStageAdmin = async function(id, name) {
+            if (!confirm(`¿Eliminar la etapa "${name}"?\n\nSi tiene clientes asignados, quedará inactiva para preservar el historial.`)) return;
+            const res = await fetch('/api/crm-stages', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ action:'delete_stage', id }) });
+            const data = await res.json();
+            if (data.message) alert(data.message);
+            loadStages();
+        }
+        // ── END CRM STAGES MANAGER ───────────────────────────────────────────
+
     </script>
+
 
     <!-- Admin WhatsApp Broadcast Modal -->
     <div id="admin-broadcast-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 99999; align-items: center; justify-content: center;">
