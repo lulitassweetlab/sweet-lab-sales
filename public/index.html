@@ -381,16 +381,21 @@
 				</div>
 			</div>
 			<div class="sales-panel" style="display: flex; flex-direction: column; overflow: hidden; flex: 1;">
-				<div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-					<h3>Todos los clientes</h3>
-					<div style="display: flex; gap: 10px; align-items: center;">
-						<div id="clients-list-search-container" class="client-search-container">
-							<input id="clients-list-search-input" type="text" class="client-search-input"
-								placeholder="🔍 Buscar..." autocomplete="off">
-						</div>
-						<button id="new-client-btn" class="press-btn btn-primary"
-							style="font-size: 0.85rem; padding: 6px 14px; white-space: nowrap;">+ Nuevo Cliente</button>
+				<div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; padding-bottom: 0;">
+					<h3 style="margin:0;">Todos los clientes</h3>
+					<button id="new-client-btn" class="press-btn btn-primary"
+						style="font-size: 0.85rem; padding: 6px 14px; white-space: nowrap;">+ Nuevo Cliente</button>
+				</div>
+				<!-- Prominent full-width search bar -->
+				<div style="padding: 12px 16px 4px; border-bottom: 1px solid var(--border, #e0e0e0);">
+					<div style="position:relative;">
+						<span style="position:absolute; left:14px; top:50%; transform:translateY(-50%); font-size:1.1rem; pointer-events:none;">🔍</span>
+						<input id="clients-list-search-input" type="text" class="client-search-input"
+							placeholder="Buscar por nombre, apodo o WhatsApp..." autocomplete="off"
+							style="width:100%; box-sizing:border-box; padding: 12px 14px 12px 42px; border-radius:12px; border:1.5px solid var(--border, #ddd); font-size:1rem; background:var(--bg, #fff); outline:none; transition:border-color 0.2s;"
+							onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='var(--border, #ddd)'">
 					</div>
+					<div id="clients-search-count" style="font-size:0.8rem; color:var(--text-muted, #888); padding:6px 2px 0; min-height:18px;"></div>
 				</div>
 				<div class="panel-body" style="flex: 1; overflow: hidden; display: flex; flex-direction: column;">
 					<div class="table-wrapper" id="clients-wrapper"
@@ -412,6 +417,7 @@
 					</div>
 				</div>
 			</div>
+
 		</section>
 
 		<section id="view-seller-messages" class="view hidden"

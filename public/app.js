@@ -8870,17 +8870,22 @@ async function loadClientsForSeller() {
 	clientsState.rows = Array.from(nameToData.values()).sort((a, b) => a.name.localeCompare(b.name, 'es'));
 	
 	const searchInput = document.getElementById('clients-list-search-input');
+	const countLabel = document.getElementById('clients-search-count');
 	const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
 	
+	let displayed;
 	if (query) {
-		const filtered = clientsState.rows.filter(r => 
+		displayed = clientsState.rows.filter(r => 
 			r.name.toLowerCase().includes(query) || 
 			(r.whatsapp && r.whatsapp.includes(query)) ||
 			(r.short_name && r.short_name.toLowerCase().includes(query))
 		);
-		renderClientsTable(filtered);
 	} else {
-		renderClientsTable(clientsState.rows);
+		displayed = clientsState.rows;
+	}
+	renderClientsTable(displayed);
+	if (countLabel) {
+		countLabel.textContent = `${displayed.length} cliente${displayed.length !== 1 ? 's' : ''} en total`;
 	}
 }
 
@@ -8890,19 +8895,25 @@ document.addEventListener('DOMContentLoaded', () => {
 	if (searchInput) {
 		searchInput.addEventListener('input', (e) => {
 			const query = e.target.value.trim().toLowerCase();
+			const countLabel = document.getElementById('clients-search-count');
 			if (!clientsState.rows) return;
 			
+			let displayed;
 			if (!query) {
-				renderClientsTable(clientsState.rows);
-				return;
+				displayed = clientsState.rows;
+			} else {
+				displayed = clientsState.rows.filter(r => 
+					r.name.toLowerCase().includes(query) || 
+					(r.whatsapp && r.whatsapp.includes(query)) ||
+					(r.short_name && r.short_name.toLowerCase().includes(query))
+				);
 			}
-			
-			const filtered = clientsState.rows.filter(r => 
-				r.name.toLowerCase().includes(query) || 
-				(r.whatsapp && r.whatsapp.includes(query)) ||
-				(r.short_name && r.short_name.toLowerCase().includes(query))
-			);
-			renderClientsTable(filtered);
+			renderClientsTable(displayed);
+			if (countLabel) {
+				countLabel.textContent = query
+					? `${displayed.length} resultado${displayed.length !== 1 ? 's' : ''} encontrado${displayed.length !== 1 ? 's' : ''}`
+					: `${displayed.length} cliente${displayed.length !== 1 ? 's' : ''} en total`;
+			}
 		});
 	}
 });
