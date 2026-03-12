@@ -105,6 +105,7 @@
 						<button id="global-clients-button" class="press-btn report-btn">Base de Datos</button>
 						<button id="store-button" class="press-btn report-btn"
 							style="background:#e91e63;color:white;border-color:#e91e63;">Tienda</button>
+						<button id="crm-admin-button" class="press-btn report-btn">CRM</button>
 					</div>
 				</div>
 				<input id="report-date" type="date" class="hidden" />
@@ -380,10 +381,21 @@
 				</div>
 			</div>
 			<div class="sales-panel" style="display: flex; flex-direction: column; overflow: hidden; flex: 1;">
-				<div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
-					<h3>Todos los clientes</h3>
+				<div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; padding-bottom: 0;">
+					<h3 style="margin:0;">Todos los clientes</h3>
 					<button id="new-client-btn" class="press-btn btn-primary"
-						style="font-size: 0.85rem; padding: 6px 14px;">+ Nuevo Cliente</button>
+						style="font-size: 0.85rem; padding: 6px 14px; white-space: nowrap;">+ Nuevo Cliente</button>
+				</div>
+				<!-- Prominent full-width search bar -->
+				<div style="padding: 12px 16px 4px; border-bottom: 1px solid var(--border, #e0e0e0);">
+					<div style="position:relative;">
+						<span style="position:absolute; left:14px; top:50%; transform:translateY(-50%); font-size:1.1rem; pointer-events:none; z-index:1;">🔍</span>
+						<input id="clients-list-search-input" type="text"
+							placeholder="Buscar por nombre, apodo o WhatsApp..." autocomplete="off"
+							style="display:block; width:100%; box-sizing:border-box; padding: 12px 14px 12px 42px; border-radius:12px; border:1.5px solid var(--border, #ddd); font-size:1rem !important; background:var(--card, #fff); color:var(--text, #111); outline:none; transition:border-color 0.2s; position:static; opacity:1; pointer-events:all;"
+							onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor=''">
+					</div>
+					<div id="clients-search-count" style="font-size:0.8rem; color:var(--muted, #888); padding:6px 2px 0; min-height:18px;"></div>
 				</div>
 				<div class="panel-body" style="flex: 1; overflow: hidden; display: flex; flex-direction: column;">
 					<div class="table-wrapper" id="clients-wrapper"
@@ -405,6 +417,7 @@
 					</div>
 				</div>
 			</div>
+
 		</section>
 
 		<section id="view-seller-messages" class="view hidden"
@@ -536,11 +549,7 @@
 								<tr>
 									<th class="col-paid">$</th>
 									<th class="col-date">Fecha</th>
-									<th class="col-arco">Arco</th>
-									<th class="col-melo">Melo</th>
-									<th class="col-mara">Mara</th>
-									<th class="col-oreo">Oreo</th>
-									<th class="col-nute">Nute</th>
+									<th class="col-detalle">Detalle de Productos</th>
 									<th class="col-total">Total</th>
 									<th></th>
 								</tr>
@@ -550,11 +559,7 @@
 								<tr>
 									<td></td>
 									<td class="label">Totales</td>
-									<td id="client-detail-total-arco"></td>
-									<td id="client-detail-total-melo"></td>
-									<td id="client-detail-total-mara"></td>
-									<td id="client-detail-total-oreo"></td>
-									<td id="client-detail-total-nute"></td>
+									<td id="client-detail-total-items" style="color:var(--text-muted); font-size:0.9em; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></td>
 									<td id="client-detail-total-grand" class="col-total"></td>
 									<td></td>
 								</tr>
@@ -734,6 +739,18 @@
 		if (window.location.search.includes('embed=true')) {
 			document.body.classList.add('is-embedded');
 		}
+		
+		// Event Listener for the new CRM Admin button
+		document.addEventListener('DOMContentLoaded', () => {
+			const crmBtn = document.getElementById('crm-admin-button');
+			if(crmBtn) {
+				crmBtn.addEventListener('click', () => {
+					// Pasa un flag básico por URL u otro método. 
+					// En una app SPA basada en Auth local, el token/auth reside en localStorage. 
+					window.location.href = '/crm-admin.html?auth=admin';
+				});
+			}
+		});
 	</script>
 	<script src="/app.js?v=2025-11-04-1" type="module"></script>
 </body>

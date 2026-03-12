@@ -592,6 +592,28 @@ export async function handler(event) {
 			// Update sale basic info
 			await sql`UPDATE sales SET client_name=${client}, comment_text=${comment}, qty_arco=${qa}, qty_melo=${qm}, qty_mara=${qma}, qty_oreo=${qo}, qty_nute=${qn}, is_paid=${paid}, pay_method=${payMethod}, payment_date=${paymentDate}, payment_source=${paymentSource}, special_pricing_type=${specialPricingType} WHERE id=${id}`;
 				
+			// Auto-Link to CRM: Create or find CRM client
+			if (client.trim() !== '') {
+				try {
+					const activeSellerId = Number(data.seller_id || 0) || Number(current.seller_id || 0);
+					if (activeSellerId) {
+						let [crmClient] = await sql`SELECT id FROM clients WHERE seller_id = ${activeSellerId} AND lower(name) = lower(${client.trim()})`;
+						if (!crmClient) {
+							let shortName = client.trim().split(' ')[0] || client.trim();
+							[crmClient] = await sql`INSERT INTO clients (seller_id, name, short_name) VALUES (${activeSellerId}, ${client.trim()}, ${shortName}) RETURNING id`;
+						}
+						if (crmClient && crmClient.id) {
+							const [existingLink] = await sql`SELECT 1 FROM crm_client_sales WHERE client_id = ${crmClient.id} AND sale_id = ${id} LIMIT 1`;
+							if (!existingLink) {
+								await sql`INSERT INTO crm_client_sales (client_id, sale_id, seller_id) VALUES (${crmClient.id}, ${id}, ${activeSellerId})`;
+							}
+						}
+					}
+				} catch (err) {
+					console.error('Error auto-linking sale to CRM:', err);
+				}
+			}
+
 				// If items are provided, update sale_items table
 				let previousDynamicItems = [];
 				if (items !== null) {

@@ -127,15 +127,122 @@ export default async (req) => {
                     WHERE seller_id = ${sellerId} AND LOWER(client_name) = ANY(${sourceNames.map(n => n.toLowerCase())})
                 `;
 
-                // Delete the old clients from the clients table 
-                // We do not delete the target name even if it was in the sourceNames list just in case
+                // Delete the old clients from the clients table, but first transfer CRM data to the combined profile
                 const lowerNamesToDelete = sourceNames.map(n => n.toLowerCase()).filter(n => n !== name.toLowerCase());
                 if (lowerNamesToDelete.length > 0) {
+                    
+                    // 1. Rebind CRM bridge so we don't lose links when we delete clients matching sourceNames
+                    await sql`
+                        UPDATE crm_client_sales cs
+                        SET client_id = ${targetClient.id}
+                        FROM clients c
+                        WHERE cs.client_id = c.id
+                          AND c.seller_id = ${sellerId}
+                          AND LOWER(c.name) = ANY(${lowerNamesToDelete})
+                    `;
+                    
+                    // 2. Rebind Activities & Reminders
+                    await sql`
+                        UPDATE crm_activities ca
+                        SET client_id = ${targetClient.id}
+                        FROM clients c
+                        WHERE ca.client_id = c.id
+                          AND c.seller_id = ${sellerId}
+                          AND LOWER(c.name) = ANY(${lowerNamesToDelete})
+                    `;
+                    
+                    await sql`
+                        UPDATE crm_reminders cr
+                        SET client_id = ${targetClient.id}
+                        FROM clients c
+                        WHERE cr.client_id = c.id
+                          AND c.seller_id = ${sellerId}
+                          AND LOWER(c.name) = ANY(${lowerNamesToDelete})
+                    `;
+
+                    // 3. Delete old implicit profiles safely
                     await sql`
                         DELETE FROM clients
                         WHERE seller_id = ${sellerId} AND LOWER(name) = ANY(${lowerNamesToDelete})
                     `;
                 }
+
+                return new Response(JSON.stringify({ success: true, target_client: targetClient }), {
+                    status: 200,
+                    headers: { 'Content-Type': 'application/json' }
+                });
+            }
+
+            // ========================
+            // Handle Rename Action
+            // ========================
+            if (url.searchParams.get('action') === 'rename') {
+                const oldName = (body.old_name || '').trim();
+                if (!oldName) return new Response(JSON.stringify({ error: 'Falta old_name' }), { status: 400 });
+
+                // Find old client profile (if it exists)
+                const [oldClient] = await sql`
+                    SELECT * FROM clients WHERE seller_id = ${sellerId} AND LOWER(name) = LOWER(${oldName})
+                `;
+
+                // Check if the NEW name already exists as a client profile
+                let [targetClient] = await sql`
+                    SELECT * FROM clients WHERE seller_id = ${sellerId} AND LOWER(name) = LOWER(${name})
+                `;
+
+                if (targetClient && oldClient && targetClient.id !== oldClient.id) {
+                    // MERGE SCENARIO
+                    // Target already exists. We update its details picking the best available.
+                    [targetClient] = await sql`
+                        UPDATE clients SET 
+                            short_name = COALESCE(clients.short_name, ${shortName}),
+                            whatsapp = COALESCE(clients.whatsapp, ${whatsapp}),
+                            birth_date = COALESCE(clients.birth_date, ${birthDate})
+                        WHERE id = ${targetClient.id}
+                        RETURNING *
+                    `;
+
+                    // Relink crm_client_sales to avoid CASCADE delete loss
+                    await sql`UPDATE crm_client_sales SET client_id = ${targetClient.id} WHERE client_id = ${oldClient.id}`;
+                    await sql`UPDATE crm_activities SET client_id = ${targetClient.id} WHERE client_id = ${oldClient.id}`;
+                    
+                    // For CRM reminders we need to make sure the table exists, ignoring if error (as it's a newer phase table)
+                    try { await sql`UPDATE crm_reminders SET client_id = ${targetClient.id} WHERE client_id = ${oldClient.id}`; } catch(e){}
+
+                    // Delete old client
+                    await sql`DELETE FROM clients WHERE id = ${oldClient.id}`;
+                } else if (!targetClient && oldClient) {
+                    // RENAME SCENARIO (Target doesn't exist)
+                    [targetClient] = await sql`
+                        UPDATE clients SET 
+                            name = ${name},
+                            short_name = COALESCE(${shortName}, short_name),
+                            whatsapp = COALESCE(${whatsapp}, whatsapp),
+                            birth_date = COALESCE(${birthDate}, birth_date)
+                        WHERE id = ${oldClient.id}
+                        RETURNING *
+                    `;
+                } else if (!targetClient && !oldClient) {
+                    // NEITHER EXIST (just creating new)
+                    [targetClient] = await sql`
+                        INSERT INTO clients (seller_id, name, short_name, whatsapp, birth_date)
+                        VALUES (${sellerId}, ${name}, ${shortName}, ${whatsapp}, ${birthDate})
+                        RETURNING *
+                    `;
+                } else if (targetClient && !oldClient) {
+                    // Target exists, old doesn't. Just update target.
+                    [targetClient] = await sql`
+                        UPDATE clients SET 
+                            short_name = COALESCE(${shortName}, short_name),
+                            whatsapp = COALESCE(${whatsapp}, whatsapp),
+                            birth_date = COALESCE(${birthDate}, birth_date)
+                        WHERE id = ${targetClient.id}
+                        RETURNING *
+                    `;
+                }
+
+                // Update sales string so history reflects the new name regardless of whether oldClient existed as a formal profile
+                await sql`UPDATE sales SET client_name = ${name} WHERE seller_id = ${sellerId} AND LOWER(client_name) = LOWER(${oldName})`;
 
                 return new Response(JSON.stringify({ success: true, target_client: targetClient }), {
                     status: 200,
@@ -177,6 +284,36 @@ export default async (req) => {
             }
 
             return new Response(JSON.stringify(result), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
+
+
+        // ========================
+        // DELETE: Remove a client profile
+        // ========================
+        if (method === 'DELETE') {
+            const clientId = parseInt(url.searchParams.get('id'), 10);
+            const sellerId = parseInt(url.searchParams.get('seller_id'), 10);
+
+            if (!clientId || isNaN(clientId)) {
+                return new Response(JSON.stringify({ error: 'Falta id de cliente' }), { status: 400 });
+            }
+            if (!sellerId || isNaN(sellerId)) {
+                return new Response(JSON.stringify({ error: 'Falta seller_id' }), { status: 400 });
+            }
+
+            // Ensure the client belongs to this seller before deleting
+            const [client] = await sql`
+                SELECT id FROM clients WHERE id = ${clientId} AND seller_id = ${sellerId}
+            `;
+            if (!client) {
+                return new Response(JSON.stringify({ error: 'Cliente no encontrado o sin permiso' }), { status: 404 });
+            }
+
+            await sql`DELETE FROM clients WHERE id = ${clientId}`;
+            return new Response(JSON.stringify({ success: true }), {
                 status: 200,
                 headers: { 'Content-Type': 'application/json' }
             });

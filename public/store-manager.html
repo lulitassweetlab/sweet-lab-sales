@@ -219,6 +219,7 @@
                             <th rowspan="2">Nombre / Descripción</th>
                             <th rowspan="2">Precio Base</th>
                             <th colspan="3">Promoción</th>
+                            <th rowspan="2">Nuevo</th>
                             <th rowspan="2">Posición</th>
                             <th rowspan="2">Estado</th>
                             <th rowspan="2">Acciones</th>
@@ -281,6 +282,7 @@
                     promo_qty: product.promo_qty,
                     promo_price: product.promo_price,
                     is_promo: product.is_promo,
+                    is_new: product.is_new,
                     image_base64: product.image_base64,
                     position: product.position,
                     is_active: product.is_active,
@@ -335,6 +337,11 @@
                     const promoPrice = getEffectivePromotionPrice(d);
                     tdPromoPrice.textContent = promoPrice ? fmtMoney.format(promoPrice) : '';
 
+                    // New Badge
+                    const tdNewBadge = document.createElement('td');
+                    tdNewBadge.textContent = d.is_new ? 'Nuevo' : '';
+                    tdNewBadge.style.textAlign = 'center';
+
                     // Pos
                     const tdPos = document.createElement('td');
                     tdPos.textContent = d.position;
@@ -379,7 +386,7 @@
                     tdActions.appendChild(toggleBtn);
                     tdActions.appendChild(deleteBtn);
 
-                    tr.append(tdImg, tdName, tdPrice, tdPromoBadge, tdPromoQty, tdPromoPrice, tdPos, tdStatus, tdActions);
+                    tr.append(tdImg, tdName, tdPrice, tdPromoBadge, tdPromoQty, tdPromoPrice, tdNewBadge, tdPos, tdStatus, tdActions);
                     tbody.appendChild(tr);
                 }
             }
@@ -641,8 +648,13 @@
 
                 promoRow.append(promoQtyWrap, promoPriceWrap);
 
+                const badgesWrap = document.createElement('div');
+                badgesWrap.style.marginTop = '8px';
+                badgesWrap.style.display = 'flex';
+                badgesWrap.style.alignItems = 'center';
+                badgesWrap.style.gap = '16px';
+
                 const promoBadgeWrap = document.createElement('div');
-                promoBadgeWrap.style.marginTop = '8px';
                 promoBadgeWrap.style.display = 'flex';
                 promoBadgeWrap.style.alignItems = 'center';
                 promoBadgeWrap.style.gap = '8px';
@@ -655,6 +667,22 @@
                 promoBadgeLabel.textContent = 'Destacar como Promoción ⭐';
                 promoBadgeLabel.style.cursor = 'pointer';
                 promoBadgeWrap.append(promoBadgeCheckbox, promoBadgeLabel);
+
+                const newBadgeWrap = document.createElement('div');
+                newBadgeWrap.style.display = 'flex';
+                newBadgeWrap.style.alignItems = 'center';
+                newBadgeWrap.style.gap = '8px';
+                const newBadgeCheckbox = document.createElement('input');
+                newBadgeCheckbox.type = 'checkbox';
+                newBadgeCheckbox.id = 'product-is-new';
+                newBadgeCheckbox.checked = product ? !!product.is_new : false;
+                const newBadgeLabel = document.createElement('label');
+                newBadgeLabel.htmlFor = 'product-is-new';
+                newBadgeLabel.textContent = 'Destacar como Nuevo';
+                newBadgeLabel.style.cursor = 'pointer';
+                newBadgeWrap.append(newBadgeCheckbox, newBadgeLabel);
+
+                badgesWrap.append(promoBadgeWrap, newBadgeWrap);
 
                 const posLabel = document.createElement('label');
                 posLabel.textContent = 'Posición (Orden):';
@@ -685,7 +713,7 @@
                     descLabel, descInput,
                     priceLabel, priceInput,
                     promoRow,
-                    promoBadgeWrap,
+                    badgesWrap,
                     posLabel, posInput
                 );
 
@@ -742,6 +770,7 @@
                             promo_qty: pQty,
                             promo_price: pPrice,
                             is_promo: promoBadgeCheckbox.checked,
+                            is_new: newBadgeCheckbox.checked,
                             position,
                             // Send the first image as legacy image_base64 for backward compatibility, 
                             // and the full array as media
@@ -952,6 +981,6 @@
             loadProducts();
         })();
     </script>
-</body>
 
+</body>
 </html>

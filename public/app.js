@@ -208,11 +208,7 @@ function renderClientDetailTable(rows) {
 		const td = document.createElement('td'); td.colSpan = 9; td.textContent = 'Sin compras'; td.style.opacity = '0.8';
 		tr.appendChild(td); tbody.appendChild(tr);
 		// Clear totals
-		document.getElementById('client-detail-total-arco').textContent = '';
-		document.getElementById('client-detail-total-melo').textContent = '';
-		document.getElementById('client-detail-total-mara').textContent = '';
-		document.getElementById('client-detail-total-oreo').textContent = '';
-		document.getElementById('client-detail-total-nute').textContent = '';
+		document.getElementById('client-detail-total-items').textContent = '';
 		document.getElementById('client-detail-total-grand').textContent = '';
 		return;
 	}
@@ -317,11 +313,29 @@ function renderClientDetailTable(rows) {
 		// Add a visible dash '-' like the main table when no method, using CSS class 'placeholder'
 		if (!sel.value) { /* wrap already has placeholder class to show '-' via styles */ }
 		const tdDate = document.createElement('td'); tdDate.textContent = formatDayLabel(r.dayIso);
-		const tdAr = document.createElement('td'); tdAr.textContent = getQtyForDessert(r, 'arco') ? String(getQtyForDessert(r, 'arco')) : '';
-		const tdMe = document.createElement('td'); tdMe.textContent = getQtyForDessert(r, 'melo') ? String(getQtyForDessert(r, 'melo')) : '';
-		const tdMa = document.createElement('td'); tdMa.textContent = getQtyForDessert(r, 'mara') ? String(getQtyForDessert(r, 'mara')) : '';
-		const tdOr = document.createElement('td'); tdOr.textContent = getQtyForDessert(r, 'oreo') ? String(getQtyForDessert(r, 'oreo')) : '';
-		const tdNu = document.createElement('td'); tdNu.textContent = getQtyForDessert(r, 'nute') ? String(getQtyForDessert(r, 'nute')) : '';
+		
+		const tdDetalle = document.createElement('td');
+		tdDetalle.style.fontSize = '0.9em';
+		tdDetalle.style.color = 'var(--text-muted)';
+		let parts = [];
+		const legacy = [
+			{ q: getQtyForDessert(r, 'arco'), n: 'Arco' },
+			{ q: getQtyForDessert(r, 'melo'), n: 'Melo' },
+			{ q: getQtyForDessert(r, 'mara'), n: 'Mara' },
+			{ q: getQtyForDessert(r, 'oreo'), n: 'Oreo' },
+			{ q: getQtyForDessert(r, 'nute'), n: 'Nute' }
+		];
+		legacy.forEach(l => { if(l.q > 0) parts.push(`${l.q} ${l.n}`); });
+		
+		if(r.items && r.items.length > 0) {
+			r.items.forEach(i => {
+				const nom = i.name || i.short_code || 'Item';
+				const capNom = nom.charAt(0).toUpperCase() + nom.slice(1).toLowerCase();
+				parts.push(`${i.quantity} ${capNom}`);
+			});
+		}
+		tdDetalle.textContent = parts.join(', ');
+
 		const total = calcRowTotal(r);
 		const tdTot = document.createElement('td'); tdTot.className = 'col-total'; tdTot.textContent = fmtNo.format(total);
 		// Delete button
@@ -346,7 +360,7 @@ function renderClientDetailTable(rows) {
 			}
 		});
 		tdDel.appendChild(delBtn);
-		tr.append(tdPay, tdDate, tdAr, tdMe, tdMa, tdOr, tdNu, tdTot, tdDel);
+		tr.append(tdPay, tdDate, tdDetalle, tdTot, tdDel);
 		tr.addEventListener('mousedown', () => { tr.classList.add('row-highlight'); setTimeout(() => tr.classList.remove('row-highlight'), 3200); });
 		tbody.appendChild(tr);
 	}
@@ -363,22 +377,32 @@ function renderClientDetailTable(rows) {
 	tbody.appendChild(separatorRow);
 
 	// Calculate and display totals
-	let totalArco = 0, totalMelo = 0, totalMara = 0, totalOreo = 0, totalNute = 0, totalGrand = 0;
+	const totalsMap = {};
+	let totalGrand = 0;
 	for (const r of rows) {
-		totalArco += getQtyForDessert(r, 'arco');
-		totalMelo += getQtyForDessert(r, 'melo');
-		totalMara += getQtyForDessert(r, 'mara');
-		totalOreo += getQtyForDessert(r, 'oreo');
-		totalNute += getQtyForDessert(r, 'nute');
-		const rowTotal = calcRowTotal(r);
-		totalGrand += rowTotal;
+		const legacy = [
+			{ q: getQtyForDessert(r, 'arco'), n: 'Arco' },
+			{ q: getQtyForDessert(r, 'melo'), n: 'Melo' },
+			{ q: getQtyForDessert(r, 'mara'), n: 'Mara' },
+			{ q: getQtyForDessert(r, 'oreo'), n: 'Oreo' },
+			{ q: getQtyForDessert(r, 'nute'), n: 'Nute' }
+		];
+		legacy.forEach(l => { if(l.q > 0) { totalsMap[l.n] = (totalsMap[l.n] || 0) + l.q; } });
+		
+		if(r.items && r.items.length > 0) {
+			r.items.forEach(i => {
+				const nom = i.name || i.short_code || 'Item';
+				const capNom = nom.charAt(0).toUpperCase() + nom.slice(1).toLowerCase();
+				totalsMap[capNom] = (totalsMap[capNom] || 0) + Number(i.quantity);
+			});
+		}
+		totalGrand += calcRowTotal(r);
 	}
 
-	document.getElementById('client-detail-total-arco').textContent = totalArco || '';
-	document.getElementById('client-detail-total-melo').textContent = totalMelo || '';
-	document.getElementById('client-detail-total-mara').textContent = totalMara || '';
-	document.getElementById('client-detail-total-oreo').textContent = totalOreo || '';
-	document.getElementById('client-detail-total-nute').textContent = totalNute || '';
+	const totalsStr = Object.entries(totalsMap).map(([k,v]) => `${v} ${k}`).join(', ');
+	const itemEl = document.getElementById('client-detail-total-items');
+	itemEl.textContent = totalsStr;
+	itemEl.title = totalsStr;
 	document.getElementById('client-detail-total-grand').textContent = fmtNo.format(totalGrand);
 }
 
@@ -4932,8 +4956,23 @@ function sendBroadcastToClient(client, activeIndex) {
 	const displayName = client.short_name || client.name;
 	text = text.replace(/{cliente}/g, displayName);
 
+	// Log it quietly
+	try {
+		fetch('/api/crm-whatsapp-logs', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				client_id: client.id,
+				phone: client.whatsapp,
+				message: text,
+				segment: 'plantilla_' + (broadcastState.template.title || 'store'),
+				sent_by: state.currentSeller ? state.currentSeller.id : (state.sellers ? state.sellers[0]?.id : null)
+			})
+		}).catch(e => console.error(e));
+	} catch(e) {}
+
 	// Open WA
-	let cleanNum = client.whatsapp.replace(/\D/g, '');
+	let cleanNum = (client.whatsapp || '').replace(/\D/g, '');
 	if (cleanNum.length === 10) cleanNum = '57' + cleanNum;
 
 	const waUrl = `https://wa.me/${cleanNum}?text=${encodeURIComponent(text)}`;
@@ -8778,6 +8817,9 @@ function wireGlobalClientAutocompleteForInput(inputEl) {
 	});
 }
 
+// Global state to hold fetched clients for local search filtering in the Store view
+let clientsState = { rows: [] };
+
 async function openClientsView() {
 	if (!state.currentSeller) return;
 	await loadClientsForSeller();
@@ -8825,9 +8867,56 @@ async function loadClientsForSeller() {
 		console.error('Error fetching clients database:', err);
 	}
 
-	const rows = Array.from(nameToData.values()).sort((a, b) => a.name.localeCompare(b.name, 'es'));
-	renderClientsTable(rows);
+	clientsState.rows = Array.from(nameToData.values()).sort((a, b) => a.name.localeCompare(b.name, 'es'));
+	
+	const searchInput = document.getElementById('clients-list-search-input');
+	const countLabel = document.getElementById('clients-search-count');
+	const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
+	
+	let displayed;
+	if (query) {
+		displayed = clientsState.rows.filter(r => 
+			r.name.toLowerCase().includes(query) || 
+			(r.whatsapp && r.whatsapp.includes(query)) ||
+			(r.short_name && r.short_name.toLowerCase().includes(query))
+		);
+	} else {
+		displayed = clientsState.rows;
+	}
+	renderClientsTable(displayed);
+	if (countLabel) {
+		countLabel.textContent = `${displayed.length} cliente${displayed.length !== 1 ? 's' : ''} en total`;
+	}
 }
+
+// Add event listener for the client search input
+document.addEventListener('DOMContentLoaded', () => {
+	const searchInput = document.getElementById('clients-list-search-input');
+	if (searchInput) {
+		searchInput.addEventListener('input', (e) => {
+			const query = e.target.value.trim().toLowerCase();
+			const countLabel = document.getElementById('clients-search-count');
+			if (!clientsState.rows) return;
+			
+			let displayed;
+			if (!query) {
+				displayed = clientsState.rows;
+			} else {
+				displayed = clientsState.rows.filter(r => 
+					r.name.toLowerCase().includes(query) || 
+					(r.whatsapp && r.whatsapp.includes(query)) ||
+					(r.short_name && r.short_name.toLowerCase().includes(query))
+				);
+			}
+			renderClientsTable(displayed);
+			if (countLabel) {
+				countLabel.textContent = query
+					? `${displayed.length} resultado${displayed.length !== 1 ? 's' : ''} encontrado${displayed.length !== 1 ? 's' : ''}`
+					: `${displayed.length} cliente${displayed.length !== 1 ? 's' : ''} en total`;
+			}
+		});
+	}
+});
 
 function renderClientsTable(rows) {
 	const tbody = document.getElementById('clients-tbody');
@@ -9090,7 +9179,7 @@ function openClientEditPopover(clientData, clientX, clientY) {
 	const nameInput = document.createElement('input');
 	nameInput.type = 'text';
 	nameInput.value = clientData.name;
-	nameInput.readOnly = true;
+	// nameInput.readOnly = true; // REMOVED so users can rename
 	nameInput.className = 'client-input';
 	nameInput.style.width = '100%';
 	nameInput.style.marginBottom = '12px';
@@ -9162,18 +9251,31 @@ function openClientEditPopover(clientData, clientX, clientY) {
 
 	saveBtn.addEventListener('click', async () => {
 		try {
+			const newName = nameInput.value.trim();
+			if (!newName) {
+				alert('El nombre es obligatorio.');
+				return;
+			}
+
 			saveBtn.disabled = true;
 			saveBtn.textContent = 'Guardando...';
 
 			const payload = {
 				seller_id: state.currentSeller.id,
-				name: clientData.name,
+				name: newName,
 				short_name: shortNameInput.value.trim(),
 				whatsapp: waInput.value.trim(),
 				birth_date: birthInput.value || null
 			};
 
-			await api('POST', '/api/clients', payload);
+			// If the user modified the name, trigger a rename action which merges if the new name exists
+			let url = '/api/clients';
+			if (newName.toLowerCase() !== (clientData.name || '').trim().toLowerCase()) {
+				url = '/api/clients?action=rename';
+				payload.old_name = clientData.name;
+			}
+
+			await api('POST', url, payload);
 			cleanup();
 			await loadClientsForSeller(); // Refresh table
 		} catch (err) {

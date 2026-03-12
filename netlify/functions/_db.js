@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 23; // Bump when schema changes require a migration (add clients table)
+const SCHEMA_VERSION = 27; // Bumped to 27: ensure CRM stage tables created on all environments
 
 export async function ensureSchema() {
 	// If already ensured in this instance, skip immediately
@@ -17,6 +17,61 @@ export async function ensureSchema() {
 		try {
 			// CRITICAL: Always ensure these tables exist first (before any version checks)
 			// This runs on EVERY cold start to ensure new tables are created
+
+			// --- CRM STAGE TABLES (always-create, added here after v26 missed them) ---
+			await sql`CREATE TABLE IF NOT EXISTS crm_stages (
+				id SERIAL PRIMARY KEY,
+				name VARCHAR(100) NOT NULL,
+				color VARCHAR(20) DEFAULT '#808080',
+				order_index INTEGER DEFAULT 0,
+				is_active BOOLEAN DEFAULT true,
+				created_at TIMESTAMPTZ DEFAULT now()
+			)`;
+			// Auto-seed default stages if empty
+			const _stageCount = await sql`SELECT count(*) FROM crm_stages`;
+			if (parseInt(_stageCount[0].count) === 0) {
+				await sql`INSERT INTO crm_stages (name, color, order_index) VALUES
+					('Prospecto', '#9E9E9E', 1),
+					('Visitado', '#2196F3', 2),
+					('Muestra entregada', '#9C27B0', 3),
+					('Negociación', '#FF9800', 4),
+					('Cliente nuevo', '#4CAF50', 5),
+					('Cliente activo', '#8BC34A', 6),
+					('Cliente frecuente', '#009688', 7),
+					('Cliente VIP', '#FFD700', 8),
+					('En riesgo', '#FF5722', 9),
+					('Intentando recuperar', '#F44336', 10),
+					('Recuperado', '#03A9F4', 11),
+					('Perdido', '#607D8B', 12)`;
+			}
+
+			await sql`CREATE TABLE IF NOT EXISTS crm_client_stage (
+				id SERIAL PRIMARY KEY,
+				client_id INTEGER UNIQUE REFERENCES clients(id) ON DELETE CASCADE,
+				stage_id INTEGER REFERENCES crm_stages(id) ON DELETE SET NULL,
+				updated_by INTEGER REFERENCES sellers(id) ON DELETE SET NULL,
+				updated_at TIMESTAMPTZ DEFAULT now()
+			)`;
+
+			await sql`CREATE TABLE IF NOT EXISTS crm_stage_history (
+				id SERIAL PRIMARY KEY,
+				client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE,
+				old_stage_id INTEGER REFERENCES crm_stages(id) ON DELETE SET NULL,
+				new_stage_id INTEGER REFERENCES crm_stages(id) ON DELETE SET NULL,
+				note TEXT,
+				changed_by INTEGER REFERENCES sellers(id) ON DELETE SET NULL,
+				changed_at TIMESTAMPTZ DEFAULT now()
+			)`;
+
+			await sql`CREATE TABLE IF NOT EXISTS crm_stage_actions (
+				id SERIAL PRIMARY KEY,
+				client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE,
+				action_type VARCHAR(50) NOT NULL,
+				note TEXT,
+				seller_id INTEGER REFERENCES sellers(id) ON DELETE SET NULL,
+				created_at TIMESTAMPTZ DEFAULT now()
+			)`;
+			// End CRM stage tables
 			await sql`CREATE TABLE IF NOT EXISTS users (
 				id SERIAL PRIMARY KEY,
 				username TEXT UNIQUE NOT NULL,
@@ -259,6 +314,7 @@ export async function ensureSchema() {
 				image_base64 TEXT,
 				media JSONB DEFAULT '[]'::jsonb,
 				is_promo BOOLEAN NOT NULL DEFAULT false,
+				is_new BOOLEAN NOT NULL DEFAULT false,
 				is_active BOOLEAN NOT NULL DEFAULT true,
 				position INTEGER NOT NULL DEFAULT 0,
 				created_at TIMESTAMPTZ DEFAULT now(),
@@ -277,6 +333,12 @@ export async function ensureSchema() {
 					WHERE table_name = 'store_products' AND column_name = 'is_promo'
 				) THEN
 					ALTER TABLE store_products ADD COLUMN is_promo BOOLEAN NOT NULL DEFAULT false;
+				END IF;
+				IF NOT EXISTS (
+					SELECT 1 FROM information_schema.columns
+					WHERE table_name = 'store_products' AND column_name = 'is_new'
+				) THEN
+					ALTER TABLE store_products ADD COLUMN is_new BOOLEAN NOT NULL DEFAULT false;
 				END IF;
 			END $$;`;
 
@@ -390,6 +452,160 @@ export async function ensureSchema() {
 				value TEXT NOT NULL,
 				updated_at TIMESTAMPTZ DEFAULT now()
 			)`;
+
+			// --- CRM MODULE PHASE 1 ---
+			// Bridge table: Connect sales to clients cleanly
+			await sql`CREATE TABLE IF NOT EXISTS crm_client_sales (
+				client_id INTEGER NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+				sale_id INTEGER NOT NULL REFERENCES sales(id) ON DELETE CASCADE,
+				seller_id INTEGER NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
+				created_by TEXT,
+				notes TEXT,
+				created_at TIMESTAMPTZ DEFAULT now(),
+				UNIQUE(sale_id)
+			)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_crm_client_sales_client ON crm_client_sales(client_id)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_crm_client_sales_seller ON crm_client_sales(seller_id)`;
+
+			// CRM Activities
+			await sql`CREATE TABLE IF NOT EXISTS crm_activities (
+				id SERIAL PRIMARY KEY,
+				seller_id INTEGER NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
+				client_id INTEGER NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+				related_sale_id INTEGER REFERENCES sales(id) ON DELETE SET NULL,
+				activity_type VARCHAR(50) NOT NULL,
+				description TEXT DEFAULT '',
+				metadata JSONB DEFAULT '{}'::jsonb,
+				created_by TEXT,
+				created_at TIMESTAMPTZ DEFAULT now()
+			)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_crm_activities_client ON crm_activities(client_id)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_crm_activities_seller ON crm_activities(seller_id)`;
+
+			// CRM Prospects
+			await sql`CREATE TABLE IF NOT EXISTS crm_prospects (
+				id SERIAL PRIMARY KEY,
+				seller_id INTEGER NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
+				name VARCHAR(255) NOT NULL,
+				whatsapp VARCHAR(20),
+				status VARCHAR(50) NOT NULL DEFAULT 'new',
+				source TEXT,
+				priority INTEGER DEFAULT 0,
+				notes TEXT DEFAULT '',
+				last_contact_at TIMESTAMPTZ,
+				created_at TIMESTAMPTZ DEFAULT now(),
+				updated_at TIMESTAMPTZ DEFAULT now()
+			)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_crm_prospects_seller ON crm_prospects(seller_id)`;
+
+			// CRM Reminders
+			await sql`CREATE TABLE IF NOT EXISTS crm_reminders (
+				id SERIAL PRIMARY KEY,
+				seller_id INTEGER NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
+				client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE,
+				prospect_id INTEGER REFERENCES crm_prospects(id) ON DELETE CASCADE,
+				reminder_type VARCHAR(50) NOT NULL DEFAULT 'general',
+				title VARCHAR(255) NOT NULL,
+				description TEXT DEFAULT '',
+				priority INTEGER DEFAULT 0,
+				due_date TIMESTAMPTZ NOT NULL,
+				completed BOOLEAN NOT NULL DEFAULT false,
+				created_at TIMESTAMPTZ DEFAULT now(),
+				completed_at TIMESTAMPTZ
+			)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_crm_reminders_seller ON crm_reminders(seller_id)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_crm_reminders_due_date ON crm_reminders(due_date)`;
+
+			// CRM WhatsApp Logs
+			await sql`CREATE TABLE IF NOT EXISTS crm_whatsapp_logs (
+				id SERIAL PRIMARY KEY,
+				client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE,
+				phone VARCHAR(20),
+				message TEXT NOT NULL,
+				segment VARCHAR(50) NOT NULL,
+				sent_by INTEGER REFERENCES sellers(id) ON DELETE SET NULL,
+				sent_at TIMESTAMPTZ DEFAULT now()
+			)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_crm_wa_logs_client ON crm_whatsapp_logs(client_id)`;
+
+			// --- PHASE 9: CRM STAGES & PIPELINE ---
+			
+			// 1. Stages Definition
+			await sql`CREATE TABLE IF NOT EXISTS crm_stages (
+				id SERIAL PRIMARY KEY,
+				name VARCHAR(100) NOT NULL,
+				color VARCHAR(20) DEFAULT '#808080',
+				order_index INTEGER DEFAULT 0,
+				is_active BOOLEAN DEFAULT true,
+				created_at TIMESTAMPTZ DEFAULT now()
+			)`;
+			
+			// Auto-insert default stages if empty
+			const stageCount = await sql`SELECT count(*) FROM crm_stages`;
+			if (parseInt(stageCount[0].count) === 0) {
+				await sql`
+					INSERT INTO crm_stages (name, color, order_index) VALUES
+					('Prospecto', '#9E9E9E', 1),
+					('Visitado', '#2196F3', 2),
+					('Muestra entregada', '#9C27B0', 3),
+					('Negociación', '#FF9800', 4),
+					('Cliente nuevo', '#4CAF50', 5),
+					('Cliente activo', '#8BC34A', 6),
+					('Cliente frecuente', '#009688', 7),
+					('Cliente VIP', '#FFD700', 8),
+					('En riesgo', '#FF5722', 9),
+					('Intentando recuperar', '#F44336', 10),
+					('Recuperado', '#03A9F4', 11),
+					('Perdido', '#607D8B', 12)
+				`;
+			}
+
+			// 2. Client Current Stage (1-to-1 relation ideally, but keeping history separate)
+			await sql`CREATE TABLE IF NOT EXISTS crm_client_stage (
+				id SERIAL PRIMARY KEY,
+				client_id INTEGER UNIQUE REFERENCES clients(id) ON DELETE CASCADE,
+				stage_id INTEGER REFERENCES crm_stages(id) ON DELETE SET NULL,
+				updated_by INTEGER REFERENCES sellers(id) ON DELETE SET NULL,
+				updated_at TIMESTAMPTZ DEFAULT now()
+			)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_crm_client_stage_sid ON crm_client_stage(stage_id)`;
+
+			// 3. Stage History (Append-only log)
+			await sql`CREATE TABLE IF NOT EXISTS crm_stage_history (
+				id SERIAL PRIMARY KEY,
+				client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE,
+				old_stage_id INTEGER REFERENCES crm_stages(id) ON DELETE SET NULL,
+				new_stage_id INTEGER REFERENCES crm_stages(id) ON DELETE SET NULL,
+				note TEXT,
+				changed_by INTEGER REFERENCES sellers(id) ON DELETE SET NULL,
+				changed_at TIMESTAMPTZ DEFAULT now()
+			)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_crm_stage_history_client ON crm_stage_history(client_id)`;
+
+			// 4. Independent Actions
+			await sql`CREATE TABLE IF NOT EXISTS crm_stage_actions (
+				id SERIAL PRIMARY KEY,
+				client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE,
+				action_type VARCHAR(50) NOT NULL,
+				note TEXT,
+				seller_id INTEGER REFERENCES sellers(id) ON DELETE SET NULL,
+				created_at TIMESTAMPTZ DEFAULT now()
+			)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_crm_stage_act_client ON crm_stage_actions(client_id)`;
+
+			// CRM Product Commissions (Phase 5: Scalable time/seller based)
+			await sql`CREATE TABLE IF NOT EXISTS crm_product_commissions (
+				id SERIAL PRIMARY KEY,
+				product_name VARCHAR(50) NOT NULL,
+				commission_cents INTEGER NOT NULL DEFAULT 0,
+				seller_id INTEGER REFERENCES sellers(id) ON DELETE CASCADE,
+				valid_from DATE NOT NULL DEFAULT CURRENT_DATE,
+				valid_to DATE,
+				updated_at TIMESTAMPTZ DEFAULT now()
+			)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_crm_comm_product ON crm_product_commissions(product_name)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_crm_comm_seller ON crm_product_commissions(seller_id)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_crm_comm_dates ON crm_product_commissions(valid_from, valid_to)`;
 
 			if (currentVersion >= SCHEMA_VERSION) { schemaEnsured = true; return; }
 			// Basic users table for authentication
