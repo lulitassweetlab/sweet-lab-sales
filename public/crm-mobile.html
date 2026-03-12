@@ -216,7 +216,7 @@
                 <div style="font-size:0.8rem; font-weight:700; margin-bottom:6px; color:var(--text-muted);">Etapa Actual (Pipeline)</div>
                 <div style="display:flex; gap:8px;">
                     <select id="profStageSelect" class="btn" style="flex:1; border-color:var(--border);"></select>
-                    <button class="btn-primary" onclick="changeProfileStage()" style="padding:8px 16px;">Mover</button>
+                    <button class="btn-primary" id="btnChangeStage" onclick="changeProfileStage()" style="padding:8px 16px; background:#6366f1; width: auto;">Mover</button>
                 </div>
             </div>
 
@@ -249,23 +249,51 @@
                 </div>
             </div>
 
-            <!-- Profile Tabs -->
+            <!-- Profile Navigation -->
             <div style="display:flex; border-bottom:1px solid var(--border); margin-bottom: 16px;">
-                <div style="flex:1; text-align:center; padding:10px; font-weight:700; border-bottom:2px solid var(--primary-dark);">Ventas</div>
-                <div style="flex:1; text-align:center; padding:10px; color:var(--text-muted);">Mensajes/Notas</div>
+                <div style="flex:1; text-align:center; padding:10px; font-weight:700; border-bottom:2px solid var(--primary-dark);">Línea de Tiempo Unificada</div>
             </div>
             
-            <div id="profileSalesList">
-                <div class="spinner">Cargando...</div>
+            <div id="profileTimelineContainer">
+                <div class="spinner">Cargando eventos...</div>
             </div>
         </div>
 
         <!-- SCREEN 4: Prospects -->
         <div id="screen-prospects" class="screen">
-            <h3 class="title-sec">Embudo de Prospectos</h3>
-            <button class="btn-primary" style="margin-bottom: 16px;">+ Nuevo Prospecto</button>
-            <div id="prospectList">
-                <div class="spinner">Próximamente...</div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h3 class="title-sec" style="margin:0;">Embudo de Prospectos</h3>
+                <button class="btn-primary" onclick="openNewProspectModal()" style="padding: 10px 20px; font-size:0.9rem; width:auto;">+ Nuevo</button>
+            </div>
+            <div id="prospectListContainer">
+                <div class="spinner">Cargando prospectos...</div>
+            </div>
+        </div>
+
+        <!-- NEW PROSPECT MODAL -->
+        <div id="modalNewProspect" class="screen" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:100; background:var(--bg); padding:20px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h2 style="font-size:1.5rem; margin:0;">Nuevo Prospecto</h2>
+                <button onclick="closeNewProspectModal()" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">✕</button>
+            </div>
+            <div class="card" style="padding:20px;">
+                <div style="margin-bottom:15px;">
+                    <label style="display:block; font-size:0.8rem; color:var(--text-muted); margin-bottom:5px;">Nombre Completo</label>
+                    <input type="text" id="npFullName" placeholder="Ej: Juan Perez" style="width:100%; padding:12px; border:1px solid var(--border); border-radius:8px;">
+                </div>
+                <div style="margin-bottom:15px;">
+                    <label style="display:block; font-size:0.8rem; color:var(--text-muted); margin-bottom:5px;">Nombre Corto (Apodo)</label>
+                    <input type="text" id="npShortName" placeholder="Ej: Juan" style="width:100%; padding:12px; border:1px solid var(--border); border-radius:8px;">
+                </div>
+                <div style="margin-bottom:15px;">
+                    <label style="display:block; font-size:0.8rem; color:var(--text-muted); margin-bottom:5px;">Teléfono / WhatsApp</label>
+                    <input type="tel" id="npWhatsApp" placeholder="Ej: 3001234567" style="width:100%; padding:12px; border:1px solid var(--border); border-radius:8px;">
+                </div>
+                <div style="margin-bottom:20px;">
+                    <label style="display:block; font-size:0.8rem; color:var(--text-muted); margin-bottom:5px;">Cumpleaños (Opcional)</label>
+                    <input type="date" id="npBirthday" style="width:100%; padding:12px; border:1px solid var(--border); border-radius:8px;">
+                </div>
+                <button class="btn-primary" onclick="saveNewProspect()">Guardar Prospecto</button>
             </div>
         </div>
 
@@ -386,6 +414,7 @@
             // Trigger loaders if needed
             if (screenId === 'dashboard') loadDashboard();
             if (screenId === 'directory') loadDirectory();
+            if (screenId === 'prospects') loadProspects();
         }
 
         // FORMATTERS
@@ -523,26 +552,38 @@
             }
         }
 
-        // LOAD PROFILE
-        let currentProfileId = null;
         async function loadProfile(id) {
             currentProfileId = id;
             navTo('profile'); // Show modal
             
             document.getElementById('profileName').innerText = 'Cargando...';
-            document.getElementById('profileSalesList').innerHTML = '<div class="spinner">Cargando datos...</div>';
+            const timelineContainer = document.getElementById('profileTimelineContainer');
+            timelineContainer.innerHTML = '<div class="spinner">Construyendo línea de tiempo...</div>';
             
             try {
-                const res = await fetch(`/.netlify/functions/crm-clients?seller_id=${currentSellerId}&id=${id}`);
-                const data = await res.json();
-                const pf = data.profile;
+                // Parallel fetch for all data
+                const [clientRes, waRes, stRes, actRes, histRes] = await Promise.all([
+                    fetch(`/.netlify/functions/crm-clients?seller_id=${currentSellerId}&id=${id}`),
+                    fetch(`/api/crm-whatsapp-logs?client_id=${id}`),
+                    fetch(`/api/crm-stages?action=get_client_stage&client_id=${id}`),
+                    fetch(`/api/crm-stages?action=get_actions&client_id=${id}`),
+                    fetch(`/api/crm-stages?action=get_history&client_id=${id}`)
+                ]);
+
+                const clientData = await clientRes.json();
+                const waLogs = await waRes.json();
+                const currentStage = await stRes.json();
+                const actions = await actRes.json();
+                const stageHistory = await histRes.json();
+
+                const pf = clientData.profile;
                 
                 document.getElementById('profileName').innerText = pf.name || 'Sin Nombre';
                 document.getElementById('profPhone').innerText = pf.whatsapp || 'Sin número';
                 document.getElementById('profBirthday').innerText = pf.birth_date ? pf.birth_date.split('T')[0] : 'Sin fecha';
                 document.getElementById('btnProfileWa').href = wappLink(pf.whatsapp);
 
-                // Calculate days since last purchase
+                // --- TOP CARDS ---
                 let daysSince = '';
                 let isInactive = false;
                 if(pf.last_purchase_date) {
@@ -567,143 +608,148 @@
                 if(freq === 1) badgesHtml += `<span class="badge bg-info">Nuevo</span>`;
                 document.getElementById('profileBadges').innerHTML = badgesHtml;
 
-                // Render Sales
-                const salesDiv = document.getElementById('profileSalesList');
-                salesDiv.innerHTML = '<h4 style="margin-bottom: 10px;">Historial Completo de Compras</h4>';
-                if(data.sales && data.sales.length > 0) {
-                    data.sales.forEach(s => {
+                // --- STAGE DROPDOWN ---
+                const stageSelect = document.getElementById('profStageSelect');
+                stageSelect.innerHTML = '<option value="">(Sin etapa asignada)</option>' + crmStages.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+                if(currentStage && currentStage.stage_id) {
+                    stageSelect.value = currentStage.stage_id;
+                    stageSelect.style.borderLeft = `4px solid ${currentStage.color}`;
+                } else {
+                    stageSelect.value = '';
+                    stageSelect.style.borderLeft = 'none';
+                }
+
+                // --- BUILD TIMELINE ---
+                let timeline = [];
+
+                // 1. Sales
+                if(clientData.sales) {
+                    clientData.sales.forEach(s => {
                         const isDebt = (!s.pay_method || s.pay_method === '' || s.pay_method === '-' || s.pay_method === 'entregado');
-                        const paidMark = !isDebt ? '<span style="color:var(--success);">Pagado</span>' : '<span style="color:var(--danger); font-weight:bold;">Debe</span>';
                         
-                        // Detalle postres
                         let items = [];
                         if(s.qty_arco > 0) items.push(`${s.qty_arco} Arco`);
                         if(s.qty_melo > 0) items.push(`${s.qty_melo} Melo`);
                         if(s.qty_mara > 0) items.push(`${s.qty_mara} Mara`);
                         if(s.qty_oreo > 0) items.push(`${s.qty_oreo} Oreo`);
                         if(s.qty_nute > 0) items.push(`${s.qty_nute} Nute`);
-                        
-                        if(s.dynamic_items && s.dynamic_items.length > 0) {
-                            s.dynamic_items.forEach(di => {
-                                const displayName = di.name || di.name_full || 'Item';
-                                // capitalize first letter
-                                const capName = displayName.charAt(0).toUpperCase() + displayName.slice(1).toLowerCase();
-                                items.push(`${di.qty} ${capName}`);
-                            });
-                        }
-                        
-                        const itemsStr = items.join(', ');
+                        if(s.dynamic_items) s.dynamic_items.forEach(di => items.push(`${di.qty} ${di.name}`));
 
-                        salesDiv.innerHTML += `
-                            <div class="card" style="padding:12px; margin-bottom:10px; border-left: 4px solid ${!isDebt ? 'var(--success)' : 'var(--danger)'}">
-                                <div style="display:flex; justify-content:space-between; margin-bottom:4px; align-items:center;">
-                                    <strong style="font-size:1.1rem;">${s.created_at.split('T')[0]}</strong>
-                                    <span style="font-size:1.1rem; font-weight:bold;">${formatMoney(s.total_cents)}</span>
-                                </div>
-                                <div style="font-size:0.9rem; margin-bottom:4px; color:var(--text-main);">${itemsStr}</div>
-                                <div style="font-size:0.85rem; display:flex; justify-content:space-between; align-items:flex-end;">
-                                    <span>${paidMark}</span>
-                                    <span style="color:var(--text-muted);">ID: ${s.id}</span>
-                                </div>
-                            </div>
-                        `;
+                        timeline.push({
+                            date: new Date(s.created_at),
+                            type: 'venta',
+                            icon: '🛒',
+                            title: `Venta Registrada - ${formatMoney(s.total_cents)}`,
+                            body: items.join(', '),
+                            footer: isDebt ? '<b style="color:var(--danger)">DEBE</b>' : '<b style="color:var(--success)">PAGADO</b>',
+                            color: isDebt ? 'var(--danger)' : 'var(--success)'
+                        });
                     });
+                }
+
+                // 2. WhatsApp Logs
+                if(Array.isArray(waLogs)) {
+                    waLogs.forEach(log => {
+                        timeline.push({
+                            date: new Date(log.sent_at),
+                            type: 'whatsapp',
+                            icon: '💬',
+                            title: `Mensaje WhatsApp (${log.segment})`,
+                            body: log.message,
+                            color: '#25D366'
+                        });
+                    });
+                }
+
+                // 3. Actions / Notes
+                if(Array.isArray(actions)) {
+                    actions.forEach(a => {
+                        timeline.push({
+                            date: new Date(a.created_at),
+                            type: 'accion',
+                            icon: '📝',
+                            title: a.action_type.toUpperCase(),
+                            body: a.note || 'Sin detalles.',
+                            footer: `Registrado por: ${a.seller_name || 'Vendedor'}`,
+                            color: 'var(--primary)'
+                        });
+                    });
+                }
+
+                // 4. Stage History
+                if(Array.isArray(stageHistory)) {
+                    stageHistory.forEach(h => {
+                        timeline.push({
+                            date: new Date(h.changed_at),
+                            type: 'etapa',
+                            icon: '🚀',
+                            title: 'Cambio de Etapa',
+                            body: `De <b>${h.old_stage_name || 'Inicio'}</b> a <b>${h.new_stage_name}</b>`,
+                            footer: h.note ? `"${h.note}"` : `Por: ${h.changed_by_name || 'Admin'}`,
+                            color: h.new_stage_color || '#ccc'
+                        });
+                    });
+                }
+
+                // Sort Descending
+                timeline.sort((a,b) => b.date - a.date);
+
+                // Render
+                if(timeline.length === 0) {
+                    timelineContainer.innerHTML = '<p style="text-align:center; padding:40px; color:var(--text-muted);">Sin actividad registrada.</p>';
                 } else {
-                    salesDiv.innerHTML += '<p style="text-align:center; color:var(--text-muted); padding: 20px;">Sin compras registradas</p>';
-                }
-
-                // Render Acitivites as notes at the bottom
-                if(data.activities && data.activities.length > 0) {
-                    salesDiv.innerHTML += '<h4 style="margin-top:20px; margin-bottom:10px;">Notas y Actividades</h4>';
-                    data.activities.forEach(a => {
-                        salesDiv.innerHTML += `
-                            <div style="padding:10px; background:var(--bg); border-radius:8px; margin-bottom:8px;">
-                                <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:4px;">${a.created_at.split('T')[0]} - ${a.activity_type}</div>
-                                <div>${a.description || 'Sin notas.'}</div>
+                    timelineContainer.innerHTML = timeline.map(ev => `
+                        <div class="card" style="padding:15px; margin-bottom:12px; border-left:4px solid ${ev.color || 'var(--border)'}; position:relative;">
+                            <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:8px; display:flex; justify-content:space-between;">
+                                <span>${ev.date.toLocaleString()}</span>
+                                <span>${ev.icon}</span>
                             </div>
-                        `;
-                    });
+                            <div style="font-weight:700; margin-bottom:5px; font-size:1rem;">${ev.title}</div>
+                            <div style="font-size:0.9rem; margin-bottom:8px; color:var(--text-main); white-space:pre-wrap;">${ev.body}</div>
+                            ${ev.footer ? `<div style="font-size:0.75rem; border-top:1px solid var(--border); padding-top:6px; margin-top:5px; color:var(--text-muted);">${ev.footer}</div>` : ''}
+                        </div>
+                    `).join('');
                 }
-
-                // Render WhatsApp Logs
-                try {
-                    const waRes = await fetch(`/api/crm-whatsapp-logs?client_id=${id}`);
-                    const waLogs = await waRes.json();
-                    
-                    if(waLogs && waLogs.length > 0) {
-                        salesDiv.innerHTML += '<h4 style="margin-top:20px; margin-bottom:10px;">Historial de WhatsApp</h4>';
-                        waLogs.forEach(log => {
-                            const date = new Date(log.sent_at).toLocaleString();
-                            salesDiv.innerHTML += `
-                                <div style="padding:12px; background:#e8f5e9; border-radius:8px; margin-bottom:8px; border-left:4px solid #4caf50;">
-                                    <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-                                        <b style="font-size:0.85rem; color:#2e7d32;">Enviado: ${date}</b>
-                                        <span class="badge" style="background:#2e7d32; font-size:0.7rem;">${log.segment.toUpperCase()}</span>
-                                    </div>
-                                    <div style="font-size:0.9rem; color:var(--text-main); white-space:pre-wrap;">${log.message}</div>
-                                </div>
-                            `;
-                        });
-                    }
-                } catch(e) { console.error("Could not fetch WA logs", e); }
-
-                // Render Stage UI Updates & History
-                const stageSelect = document.getElementById('profStageSelect');
-                stageSelect.innerHTML = '<option value="">(Sin etapa asignada)</option>' + crmStages.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
-                
-                try {
-                    const stRes = await fetch(`/api/crm-stages?action=get_client_stage&client_id=${id}`);
-                    const stData = await stRes.json();
-                    if(stData && stData.stage_id) {
-                        stageSelect.value = stData.stage_id;
-                        stageSelect.style.borderLeft = `4px solid ${stData.color}`;
-                    } else {
-                        stageSelect.value = '';
-                        stageSelect.style.borderLeft = 'none';
-                    }
-                } catch(e) {}
-
-                try {
-                    const hRes = await fetch(`/api/crm-stages?action=get_history&client_id=${id}`);
-                    const history = await hRes.json();
-                    
-                    if(history && history.length > 0) {
-                        salesDiv.innerHTML += '<h4 style="margin-top:20px; margin-bottom:10px;">Historial de Etapas (Pipeline)</h4>';
-                        history.forEach(h => {
-                            const date = new Date(h.changed_at).toLocaleString();
-                            const oldS = h.old_stage_name || '(Ninguna)';
-                            const newS = h.new_stage_name || '(Ninguna)';
-                            salesDiv.innerHTML += `
-                                <div style="padding:10px; background:var(--bg); border-radius:8px; margin-bottom:8px; font-size:0.85rem;">
-                                    <div style="color:var(--text-muted); margin-bottom:4px;">${date} - Cambiado por: ${h.changed_by_name || 'Sistema'}</div>
-                                    <div>De <b>${oldS}</b> a <span style="background:${h.new_stage_color || '#ccc'}; color:#fff; padding:2px 6px; border-radius:4px; font-weight:bold;">${newS}</span></div>
-                                    ${h.note ? `<div style="margin-top:6px; font-style:italic;">"${h.note}"</div>` : ''}
-                                </div>
-                            `;
-                        });
-                    }
-                } catch(e) {}
-
-                try {
-                    const aRes = await fetch(`/api/crm-stages?action=get_actions&client_id=${id}`);
-                    const actions = await aRes.json();
-                    
-                    if(actions && actions.length > 0) {
-                        salesDiv.innerHTML += '<h4 style="margin-top:20px; margin-bottom:10px;">Acciones Registradas</h4>';
-                        actions.forEach(a => {
-                            const date = new Date(a.created_at).toLocaleString();
-                            salesDiv.innerHTML += `
-                                <div style="padding:10px; background:var(--surface); border:1px solid var(--border); border-radius:8px; margin-bottom:8px; font-size:0.85rem;">
-                                    <div style="color:var(--text-muted); margin-bottom:4px;">${date} - Tipo: <b style="color:var(--text-main);">${a.action_type.toUpperCase()}</b></div>
-                                    <div>${a.note || 'Sin detalles.'}</div>
-                                </div>
-                            `;
-                        });
-                    }
-                } catch(e) {}
 
             } catch (err) {
                 console.error(err);
+                timelineContainer.innerHTML = '<div style="color:var(--danger); padding:20px;">Error cargando línea de tiempo.</div>';
+            }
+        }
+
+        async function changeProfileStage() {
+            if(!currentProfileId) return;
+            const select = document.getElementById('profStageSelect');
+            const newStageId = select.value;
+            if(!newStageId) {
+                alert('Por favor selecciona una etapa primero.');
+                return;
+            }
+            
+            const btn = document.getElementById('btnChangeStage');
+            const note = prompt('Opcional: ¿Por qué cambias a esta etapa? (Nota o motivo)');
+            if(note === null) return; // Cancelled
+            
+            try {
+                btn.disabled = true;
+                btn.innerText = '...';
+                await fetch('/api/crm-stages', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        action: 'set_stage',
+                        client_id: currentProfileId,
+                        stage_id: Number(newStageId),
+                        note: note,
+                        user_id: currentSellerId
+                    })
+                });
+                await loadProfile(currentProfileId);
+            } catch(e) {
+                alert('Error al mover etapa.');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Mover';
             }
         }
 
@@ -840,10 +886,112 @@
             }
         }
 
+        // PROSPECTS LOGIC
+        async function loadProspects() {
+            const container = document.getElementById('prospectListContainer');
+            container.innerHTML = '<div class="spinner">Cargando pipeline...</div>';
+            
+            try {
+                // We'll fetch the 'new' segment or just all and filter for those in 'Prospecto' stage
+                // For now, let's fetch all clients for this seller and filter them
+                const res = await fetch(`/.netlify/functions/crm-clients?seller_id=${currentSellerId}`);
+                const data = await res.json();
+                
+                // Filter for clients who are in 'Prospecto' stage (ID 1 usually) or have 0 orders
+                const prospects = data.filter(c => Number(c.total_orders) === 0);
+                
+                if (prospects.length === 0) {
+                    container.innerHTML = '<p style="text-align:center; padding:40px; color:var(--text-muted);">No hay prospectos nuevos en este momento.</p>';
+                    return;
+                }
+
+                container.innerHTML = prospects.map(c => `
+                    <div class="card" style="padding:15px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+                        <div onclick="loadProfile(${c.id})" style="flex:1; cursor:pointer;">
+                            <div style="font-weight:700;">${c.name}</div>
+                            <div style="font-size:0.8rem; color:var(--text-muted);">${c.whatsapp || 'Sin WA'}</div>
+                        </div>
+                        <div style="display:flex; gap:10px;">
+                            <a href="${wappLink(c.whatsapp)}" target="_blank" style="text-decoration:none; font-size:1.2rem;">💬</a>
+                        </div>
+                    </div>
+                `).join('');
+
+            } catch (err) {
+                console.error(err);
+                container.innerHTML = '<p style="color:var(--danger);">Error cargando prospectos.</p>';
+            }
+        }
+
+        function openNewProspectModal() {
+            document.getElementById('npFullName').value = '';
+            document.getElementById('npShortName').value = '';
+            document.getElementById('npWhatsApp').value = '';
+            document.getElementById('npBirthday').value = '';
+            document.getElementById('modalNewProspect').style.display = 'block';
+        }
+
+        function closeNewProspectModal() {
+            document.getElementById('modalNewProspect').style.display = 'none';
+        }
+
+        async function saveNewProspect() {
+            const name = document.getElementById('npFullName').value.trim();
+            const shortName = document.getElementById('npShortName').value.trim();
+            const whatsapp = document.getElementById('npWhatsApp').value.trim();
+            const birthday = document.getElementById('npBirthday').value;
+
+            if (!name || !whatsapp) {
+                alert('Nombre y WhatsApp son obligatorios.');
+                return;
+            }
+
+            try {
+                // 1. Create client
+                const res = await fetch('/api/clients', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        seller_id: currentSellerId,
+                        name: name,
+                        short_name: shortName,
+                        whatsapp: whatsapp,
+                        birth_date: birthday
+                    })
+                });
+                const client = await res.json();
+                
+                if (client.success && client.target_client) {
+                    // 2. Set initial stage to 'Prospecto' (Stage ID 1)
+                    await fetch('/api/crm-stages', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            action: 'set_stage',
+                            client_id: client.target_client.id,
+                            stage_id: 1, // Default Prospecto
+                            note: 'Nuevo prospecto creado manualmente',
+                            user_id: currentSellerId
+                        })
+                    });
+
+                    closeNewProspectModal();
+                    loadProspects();
+                    // Optionally open their profile directly
+                    loadProfile(client.target_client.id);
+                } else {
+                    alert('Error al crear perfil: ' + (client.error || 'Vuelve a intentarlo'));
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Error de conexión.');
+            }
+        }
+
         async function addProfileLogAction() {
             if(!currentProfileId) return;
             
-            const types = ['Visita', 'Llamada', 'Descuento', 'Muestra', 'Whatsapp', 'Followup', 'Otro'];
+            const types = ['Nota', 'Visita', 'Llamada', 'Descuento', 'Muestra', 'Whatsapp', 'Followup', 'Otro'];
             const typeStr = types.map((t, i) => `${i+1}. ${t}`).join('\n');
             const num = prompt(`Selecciona el tipo de acción (número):\n${typeStr}`);
             
@@ -854,7 +1002,7 @@
             }
             
             const actionType = types[idx].toLowerCase();
-            const note = prompt('Detalles de la acción / Resultado:');
+            const note = prompt('Detalles / Contenido de la nota:');
             if(note === null) return;
             
             try {
@@ -871,7 +1019,7 @@
                 });
                 await loadProfile(currentProfileId);
             } catch(e) {
-                alert('Error al guardar la acción.');
+                alert('Error al guardar.');
             }
         }
 
