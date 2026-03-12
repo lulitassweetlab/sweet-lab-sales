@@ -150,16 +150,22 @@
     <main>
         <!-- SCREEN 1: Dashboard -->
         <div id="screen-dashboard" class="screen active">
-            <div class="card" style="display: flex; gap: 10px; cursor: pointer;" onclick="navTo('directory')">
-                <div style="flex:1; text-align:center;">
-                    <div style="font-size:0.8rem; color:var(--text-muted);">Mis Clientes</div>
-                    <div id="dashTotalClients" style="font-size:1.5rem; font-weight:700;">-</div>
+            <!-- Header row with stats + new prospect button -->
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+                <div class="card" style="display: flex; gap: 10px; cursor: pointer; flex:1; margin-bottom:0;" onclick="navTo('directory')">
+                    <div style="flex:1; text-align:center;">
+                        <div style="font-size:0.8rem; color:var(--text-muted);">Mis Clientes</div>
+                        <div id="dashTotalClients" style="font-size:1.5rem; font-weight:700;">-</div>
+                    </div>
+                    <div style="width:1px; background:var(--border);"></div>
+                    <div style="flex:1; text-align:center;">
+                        <div style="font-size:0.8rem; color:var(--text-muted);">Deuda en Calle</div>
+                        <div id="dashTotalDebt" style="font-size:1.5rem; font-weight:700; color:var(--danger);">-</div>
+                    </div>
                 </div>
-                <div style="width:1px; background:var(--border);"></div>
-                <div style="flex:1; text-align:center;">
-                    <div style="font-size:0.8rem; color:var(--text-muted);">Deuda en Calle</div>
-                    <div id="dashTotalDebt" style="font-size:1.5rem; font-weight:700; color:var(--danger);">-</div>
-                </div>
+                <!-- Floating + button to add a new prospect -->
+                <button onclick="openNewProspectModal()" title="Agregar Prospecto"
+                    style="margin-left:12px; width:52px; height:52px; border-radius:50%; border:none; background:#555bdc; color:#fff; font-size:1.6rem; font-weight:700; cursor:pointer; flex-shrink:0; box-shadow: 0 4px 14px rgba(85,91,220,0.4); display:flex; align-items:center; justify-content:center; line-height:1;">+</button>
             </div>
 
             <h3 class="title-sec">💡 Contactar Hoy</h3>
@@ -458,25 +464,23 @@
                 // Combine alerts into one priority list (mocking priority here for simplicity)
                 // 1. Reminders (Due Today/Overdue)
                 data.remindersToday.forEach(r => {
-                    list.innerHTML += buildDashCard('📌 Recordatorio', r.title, 'bg-info', 
-                        `<button class="btn-primary" style="padding:8px; font-size:0.8rem; border-radius:8px;" onclick="loadProfile(${r.client_id})">Ver Cliente</button>`
+                    list.innerHTML += buildDashCard('📌 Recordatorio', r.title, 'bg-info', r.client_id,
+                        `<button class="btn-primary" style="padding:8px; font-size:0.8rem; border-radius:8px; width:auto;" onclick="event.stopPropagation(); loadProfile(${r.client_id})">Ver →</button>`
                     );
                 });
 
-                // 2. Deudores (Can derive from inactive or fetch if we had it, fallback: we just show inactive and birthdays)
-                
                 // 3. Birthdays
                 data.upcomingBirthdays.forEach(b => {
-                    list.innerHTML += buildDashCard('🎂 Cumpleaños', b.name, 'bg-success', 
-                        `<a href="${wappLink(b.whatsapp, '¡Feliz cumple!')}" target="_blank" class="btn-primary" style="padding:8px; font-size:0.8rem; border-radius:8px; text-decoration:none;">WhatsApp</a>`
+                    list.innerHTML += buildDashCard('🎂 Cumpleaños', b.name, 'bg-success', b.id,
+                        `<a href="${wappLink(b.whatsapp, '¡Feliz cumple!')}" target="_blank" class="btn-primary" onclick="event.stopPropagation()" style="padding:8px; font-size:0.8rem; border-radius:8px; text-decoration:none; width:auto; display:inline-block;">WA 🎉</a>`
                     );
                 });
 
                 // 4. Inactives
                 data.inactiveClients.forEach(c => {
                     const days = Math.floor((new Date() - new Date(c.last_purchase_date)) / (1000 * 60 * 60 * 24));
-                    list.innerHTML += buildDashCard('⏳ Inactivo', `${c.name} (${days} días)`, 'bg-warning', 
-                        `<button class="btn-primary" style="padding:8px; font-size:0.8rem; border-radius:8px; background:#1d1d1f;" onclick="loadProfile(${c.id})">Perfil</button>`
+                    list.innerHTML += buildDashCard('⏳ Inactivo', `${c.name} · ${days} días`, 'bg-warning', c.id,
+                        `<button class="btn-primary" style="padding:8px; font-size:0.8rem; border-radius:8px; background:#1d1d1f; width:auto;" onclick="event.stopPropagation(); loadProfile(${c.id})">Perfil →</button>`
                     );
                 });
 
@@ -489,14 +493,17 @@
             }
         }
 
-        function buildDashCard(badgeText, mainText, badgeClass, actionHtml) {
+        function buildDashCard(badgeText, mainText, badgeClass, clientId, actionHtml) {
+            // If clientId is provided, the whole card is clickable and shows a pointer cursor
+            const cardClick = clientId ? `onclick="loadProfile(${clientId})" style="display:flex; justify-content:space-between; align-items:center; padding: 14px; margin-bottom:10px; cursor:pointer;" ` 
+                                      : `style="display:flex; justify-content:space-between; align-items:center; padding: 14px; margin-bottom:10px;"`;
             return `
-            <div class="card" style="display:flex; justify-content:space-between; align-items:center; padding: 12px; margin-bottom:10px;">
+            <div class="card" ${cardClick}>
                 <div>
                     <span class="badge ${badgeClass}" style="margin-bottom:6px;">${badgeText}</span>
-                    <div style="font-weight:700;">${mainText}</div>
+                    <div style="font-weight:700; margin-top:4px;">${mainText}</div>
                 </div>
-                <div>${actionHtml}</div>
+                <div>${actionHtml || ''}</div>
             </div>`;
         }
 
