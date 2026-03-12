@@ -389,13 +389,13 @@
 				<!-- Prominent full-width search bar -->
 				<div style="padding: 12px 16px 4px; border-bottom: 1px solid var(--border, #e0e0e0);">
 					<div style="position:relative;">
-						<span style="position:absolute; left:14px; top:50%; transform:translateY(-50%); font-size:1.1rem; pointer-events:none;">🔍</span>
-						<input id="clients-list-search-input" type="text" class="client-search-input"
+						<span style="position:absolute; left:14px; top:50%; transform:translateY(-50%); font-size:1.1rem; pointer-events:none; z-index:1;">🔍</span>
+						<input id="clients-list-search-input" type="text"
 							placeholder="Buscar por nombre, apodo o WhatsApp..." autocomplete="off"
-							style="width:100%; box-sizing:border-box; padding: 12px 14px 12px 42px; border-radius:12px; border:1.5px solid var(--border, #ddd); font-size:1rem; background:var(--bg, #fff); outline:none; transition:border-color 0.2s;"
-							onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='var(--border, #ddd)'">
+							style="display:block; width:100%; box-sizing:border-box; padding: 12px 14px 12px 42px; border-radius:12px; border:1.5px solid var(--border, #ddd); font-size:1rem !important; background:var(--card, #fff); color:var(--text, #111); outline:none; transition:border-color 0.2s; position:static; opacity:1; pointer-events:all;"
+							onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor=''">
 					</div>
-					<div id="clients-search-count" style="font-size:0.8rem; color:var(--text-muted, #888); padding:6px 2px 0; min-height:18px;"></div>
+					<div id="clients-search-count" style="font-size:0.8rem; color:var(--muted, #888); padding:6px 2px 0; min-height:18px;"></div>
 				</div>
 				<div class="panel-body" style="flex: 1; overflow: hidden; display: flex; flex-direction: column;">
 					<div class="table-wrapper" id="clients-wrapper"
