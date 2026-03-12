@@ -561,22 +561,35 @@
             timelineContainer.innerHTML = '<div class="spinner">Construyendo línea de tiempo...</div>';
             
             try {
-                // Parallel fetch for all data
-                const [clientRes, waRes, stRes, actRes, histRes] = await Promise.all([
-                    fetch(`/.netlify/functions/crm-clients?seller_id=${currentSellerId}&id=${id}`),
-                    fetch(`/api/crm-whatsapp-logs?client_id=${id}`),
-                    fetch(`/api/crm-stages?action=get_client_stage&client_id=${id}`),
-                    fetch(`/api/crm-stages?action=get_actions&client_id=${id}`),
-                    fetch(`/api/crm-stages?action=get_history&client_id=${id}`)
+                // Use allSettled so one failing API doesn't crash everything
+                const [clientResult, waResult, stResult, actResult, histResult] = await Promise.allSettled([
+                    fetch(`/.netlify/functions/crm-clients?seller_id=${currentSellerId}&id=${id}`).then(r => r.json()),
+                    fetch(`/api/crm-whatsapp-logs?client_id=${id}`).then(r => r.json()).catch(() => []),
+                    fetch(`/api/crm-stages?action=get_client_stage&client_id=${id}`).then(r => r.json()).catch(() => null),
+                    fetch(`/api/crm-stages?action=get_actions&client_id=${id}`).then(r => r.json()).catch(() => []),
+                    fetch(`/api/crm-stages?action=get_history&client_id=${id}`).then(r => r.json()).catch(() => [])
                 ]);
 
-                const clientData = await clientRes.json();
-                const waLogs = await waRes.json();
-                const currentStage = await stRes.json();
-                const actions = await actRes.json();
-                const stageHistory = await histRes.json();
+                const clientData = clientResult.status === 'fulfilled' ? clientResult.value : {};
+                const waLogs    = waResult.status   === 'fulfilled' ? (waResult.value   || []) : [];
+                const currentStage = stResult.status === 'fulfilled' ? stResult.value : null;
+                const actions   = actResult.status  === 'fulfilled' ? (actResult.value  || []) : [];
+                const stageHistory = histResult.status === 'fulfilled' ? (histResult.value || []) : [];
+
+                // Reload stages list if empty (table may have just been created this cold-start)
+                if (!Array.isArray(crmStages) || crmStages.length === 0) {
+                    try {
+                        const sRes = await fetch('/api/crm-stages?action=get_stages');
+                        const fetched = await sRes.json();
+                        if (Array.isArray(fetched)) crmStages = fetched;
+                    } catch(e) {}
+                }
 
                 const pf = clientData.profile;
+                if (!pf) {
+                    timelineContainer.innerHTML = '<div style="color:var(--danger); padding:20px; text-align:center;">No se pudo cargar el perfil del cliente.</div>';
+                    return;
+                }
                 
                 document.getElementById('profileName').innerText = pf.name || 'Sin Nombre';
                 document.getElementById('profPhone').innerText = pf.whatsapp || 'Sin número';
@@ -610,7 +623,8 @@
 
                 // --- STAGE DROPDOWN ---
                 const stageSelect = document.getElementById('profStageSelect');
-                stageSelect.innerHTML = '<option value="">(Sin etapa asignada)</option>' + crmStages.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+                const stagesList = Array.isArray(crmStages) ? crmStages : [];
+                stageSelect.innerHTML = '<option value="">(Sin etapa asignada)</option>' + stagesList.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
                 if(currentStage && currentStage.stage_id) {
                     stageSelect.value = currentStage.stage_id;
                     stageSelect.style.borderLeft = `4px solid ${currentStage.color}`;
@@ -895,7 +909,8 @@
                 // We'll fetch the 'new' segment or just all and filter for those in 'Prospecto' stage
                 // For now, let's fetch all clients for this seller and filter them
                 const res = await fetch(`/.netlify/functions/crm-clients?seller_id=${currentSellerId}`);
-                const data = await res.json();
+                let data = await res.json();
+                if(!Array.isArray(data)) data = [];
                 
                 // Filter for clients who are in 'Prospecto' stage (ID 1 usually) or have 0 orders
                 const prospects = data.filter(c => Number(c.total_orders) === 0);
@@ -947,44 +962,60 @@
             }
 
             try {
-                // 1. Create client
+                // 1. Create client — /api/clients standard POST returns the record directly: { id, name, ... }
                 const res = await fetch('/api/clients', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
                         seller_id: currentSellerId,
                         name: name,
-                        short_name: shortName,
+                        short_name: shortName || null,
                         whatsapp: whatsapp,
-                        birth_date: birthday
+                        birth_date: birthday || null
                     })
                 });
                 const client = await res.json();
                 
-                if (client.success && client.target_client) {
-                    // 2. Set initial stage to 'Prospecto' (Stage ID 1)
+                // The standard POST returns the record directly {id, name, ...}
+                // error responses have an 'error' key
+                if (client.error) {
+                    alert('Error al crear perfil: ' + client.error);
+                    return;
+                }
+
+                const clientId = client.id;
+                if (!clientId) {
+                    alert('Error inesperado: no se recibió ID del cliente.');
+                    return;
+                }
+
+                // 2. Set initial stage to 'Prospecto'
+                const prospectStage = Array.isArray(crmStages)
+                    ? crmStages.find(s => s.name && s.name.toLowerCase().includes('prospecto'))
+                    : null;
+                const prospectStageId = prospectStage ? prospectStage.id : 1;
+
+                try {
                     await fetch('/api/crm-stages', {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
                         body: JSON.stringify({
                             action: 'set_stage',
-                            client_id: client.target_client.id,
-                            stage_id: 1, // Default Prospecto
+                            client_id: clientId,
+                            stage_id: prospectStageId,
                             note: 'Nuevo prospecto creado manualmente',
                             user_id: currentSellerId
                         })
                     });
+                } catch(stErr) { console.warn('Stage not set, continuing.', stErr); }
 
-                    closeNewProspectModal();
-                    loadProspects();
-                    // Optionally open their profile directly
-                    loadProfile(client.target_client.id);
-                } else {
-                    alert('Error al crear perfil: ' + (client.error || 'Vuelve a intentarlo'));
-                }
+                closeNewProspectModal();
+                loadProspects();
+                loadProfile(clientId);
+
             } catch (err) {
                 console.error(err);
-                alert('Error de conexión.');
+                alert('Error de conexión al guardar.');
             }
         }
 
