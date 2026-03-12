@@ -224,8 +224,8 @@
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px;">
                 <button class="btn-primary" id="btnRegistrarVenta" onclick="goToStore()" style="padding: 12px; background:var(--text-main);">🛒 Registrar Venta</button>
                 <button id="btnProfileWa" onclick="sendDirectWhatsApp()" class="btn-primary" style="padding: 12px; background:#25D366; text-decoration:none; border:none;">🟢 WhatsApp</button>
-                <button class="btn-primary" onclick="addProfileLogAction()" style="padding: 12px; background:var(--primary);">+ Registrar Acción</button>
-                <button class="btn-primary" onclick="alert('Funcionalidad en desarrollo')" style="padding: 12px; background:var(--info);">+ Tarea (Beta)</button>
+                <button class="btn-primary" onclick="openNoteModal()" style="padding: 12px; background:#6366f1;">📝 Nota</button>
+                <button class="btn-primary" onclick="deleteProfile()" style="padding: 12px; background:var(--danger);">🗑 Eliminar</button>
             </div>
             
             <!-- Metrics Grid -->
@@ -256,6 +256,19 @@
             
             <div id="profileTimelineContainer">
                 <div class="spinner">Cargando eventos...</div>
+            </div>
+        </div>
+
+        <!-- NOTE MODAL -->
+        <div id="modalNote" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:200; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); align-items:center; justify-content:center;">
+            <div style="background:var(--surface); border-radius:20px; padding:28px 24px; width:calc(100% - 48px); max-width:460px; margin:0 auto; box-shadow:0 20px 60px rgba(0,0,0,0.4);">
+                <div style="font-size:1.3rem; font-weight:800; margin-bottom:6px; color:var(--text-main);">📝 Nueva Nota</div>
+                <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:20px;">Esta nota quedará registrada en la línea de tiempo.</div>
+                <textarea id="noteContent" placeholder="Escribe aqui tu nota..." rows="7" style="width:100%; padding:16px; border:1.5px solid var(--border); border-radius:14px; font-size:1rem; line-height:1.6; resize:none; background:var(--bg); color:var(--text-main); font-family:inherit; box-sizing:border-box; transition:border-color 0.2s;" onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='var(--border)'"></textarea>
+                <div style="display:flex; gap:12px; margin-top:18px;">
+                    <button onclick="closeNoteModal()" style="flex:1; padding:14px; border-radius:12px; border:1.5px solid var(--border); background:transparent; color:var(--text-main); font-size:1rem; font-weight:600; cursor:pointer;">Cancelar</button>
+                    <button onclick="saveNote()" style="flex:2; padding:14px; border-radius:12px; border:none; background:#6366f1; color:#fff; font-size:1rem; font-weight:700; cursor:pointer; letter-spacing:0.3px;">Guardar Nota</button>
+                </div>
             </div>
         </div>
 
@@ -1019,23 +1032,25 @@
             }
         }
 
-        async function addProfileLogAction() {
+        function openNoteModal() {
             if(!currentProfileId) return;
-            
-            const types = ['Nota', 'Visita', 'Llamada', 'Descuento', 'Muestra', 'Whatsapp', 'Followup', 'Otro'];
-            const typeStr = types.map((t, i) => `${i+1}. ${t}`).join('\n');
-            const num = prompt(`Selecciona el tipo de acción (número):\n${typeStr}`);
-            
-            if(!num) return;
-            const idx = parseInt(num) - 1;
-            if(idx < 0 || idx >= types.length) {
-                alert('Opción inválida'); return;
-            }
-            
-            const actionType = types[idx].toLowerCase();
-            const note = prompt('Detalles / Contenido de la nota:');
-            if(note === null) return;
-            
+            document.getElementById('noteContent').value = '';
+            const modal = document.getElementById('modalNote');
+            modal.style.display = 'flex';
+            setTimeout(() => document.getElementById('noteContent').focus(), 100);
+        }
+
+        function closeNoteModal() {
+            document.getElementById('modalNote').style.display = 'none';
+        }
+
+        async function saveNote() {
+            const note = document.getElementById('noteContent').value.trim();
+            if (!note) { alert('La nota no puede estar vacía.'); return; }
+
+            const btn = document.querySelector('#modalNote button[onclick="saveNote()"]');
+            if (btn) { btn.disabled = true; btn.innerText = '...'; }
+
             try {
                 await fetch('/api/crm-stages', {
                     method: 'POST',
@@ -1043,14 +1058,35 @@
                     body: JSON.stringify({
                         action: 'add_action',
                         client_id: currentProfileId,
-                        action_type: actionType,
+                        action_type: 'nota',
                         note: note,
                         seller_id: currentSellerId
                     })
                 });
+                closeNoteModal();
                 await loadProfile(currentProfileId);
             } catch(e) {
-                alert('Error al guardar.');
+                alert('Error al guardar la nota.');
+            } finally {
+                if (btn) { btn.disabled = false; btn.innerText = 'Guardar Nota'; }
+            }
+        }
+
+        async function deleteProfile() {
+            if(!currentProfileId) return;
+            const name = document.getElementById('profileName').innerText;
+            if (!confirm(`¿Eliminar permanentemente a "${name}"?\n\nEsto no eliminará sus ventas históricas, solo el perfil CRM.`)) return;
+
+            try {
+                const res = await fetch(`/api/clients?id=${currentProfileId}&seller_id=${currentSellerId}`, {
+                    method: 'DELETE'
+                });
+                const data = await res.json();
+                if (data.error) { alert('Error: ' + data.error); return; }
+                navTo('directory');
+                loadDirectory();
+            } catch(e) {
+                alert('Error al eliminar el cliente.');
             }
         }
 

@@ -289,6 +289,36 @@ export default async (req) => {
             });
         }
 
+
+        // ========================
+        // DELETE: Remove a client profile
+        // ========================
+        if (method === 'DELETE') {
+            const clientId = parseInt(url.searchParams.get('id'), 10);
+            const sellerId = parseInt(url.searchParams.get('seller_id'), 10);
+
+            if (!clientId || isNaN(clientId)) {
+                return new Response(JSON.stringify({ error: 'Falta id de cliente' }), { status: 400 });
+            }
+            if (!sellerId || isNaN(sellerId)) {
+                return new Response(JSON.stringify({ error: 'Falta seller_id' }), { status: 400 });
+            }
+
+            // Ensure the client belongs to this seller before deleting
+            const [client] = await sql`
+                SELECT id FROM clients WHERE id = ${clientId} AND seller_id = ${sellerId}
+            `;
+            if (!client) {
+                return new Response(JSON.stringify({ error: 'Cliente no encontrado o sin permiso' }), { status: 404 });
+            }
+
+            await sql`DELETE FROM clients WHERE id = ${clientId}`;
+            return new Response(JSON.stringify({ success: true }), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
+
         return new Response(JSON.stringify({ error: 'Method Not Allowed' }), { status: 405 });
 
     } catch (err) {
