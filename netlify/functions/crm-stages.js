@@ -29,6 +29,44 @@ export async function handler(event) {
                 const stages = await sql`SELECT * FROM crm_stages WHERE is_active = true ORDER BY order_index ASC`;
                 return json(stages);
             }
+
+            if (action === 'get_stage_summary') {
+                // Returns all active stages with the count of clients for this seller in each stage
+                const sellerId = Number(params.get('seller_id'));
+                if (!sellerId) return json({ error: 'Missing seller_id' }, 400);
+
+                const summary = await sql`
+                    SELECT 
+                        s.id, s.name, s.color, s.order_index,
+                        COUNT(cs.client_id) as client_count
+                    FROM crm_stages s
+                    LEFT JOIN crm_client_stage cs ON cs.stage_id = s.id
+                    LEFT JOIN clients c ON cs.client_id = c.id AND c.seller_id = ${sellerId}
+                    WHERE s.is_active = true
+                    GROUP BY s.id, s.name, s.color, s.order_index
+                    ORDER BY s.order_index ASC
+                `;
+                return json(summary);
+            }
+
+            if (action === 'get_clients_by_stage') {
+                const stageId = Number(params.get('stage_id'));
+                const sellerId = Number(params.get('seller_id'));
+                if (!stageId || !sellerId) return json({ error: 'Missing stage_id or seller_id' }, 400);
+
+                const clients = await sql`
+                    SELECT 
+                        c.id, c.name, c.whatsapp, c.birth_date,
+                        cs.updated_at as stage_assigned_at,
+                        sh.changed_at as last_stage_change
+                    FROM clients c
+                    JOIN crm_client_stage cs ON cs.client_id = c.id
+                    LEFT JOIN crm_stage_history sh ON sh.client_id = c.id AND sh.new_stage_id = ${stageId}
+                    WHERE cs.stage_id = ${stageId} AND c.seller_id = ${sellerId}
+                    ORDER BY cs.updated_at DESC
+                `;
+                return json(clients);
+            }
             
             if (action === 'get_client_stage') {
                 const clientId = Number(params.get('client_id'));
