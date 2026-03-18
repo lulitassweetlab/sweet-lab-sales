@@ -511,9 +511,43 @@
         }
 
         .skeleton-card {
-            height: 400px;
+            height: 480px;
             border-radius: var(--radius);
+            display: flex;
+            flex-direction: column;
+            padding: 0;
+            gap: 0;
+            background: var(--surface);
         }
+
+        .skeleton-image {
+            width: 100%;
+            padding-top: 100%;
+            background: linear-gradient(90deg, var(--secondary) 25%, #fff0f3 50%, var(--secondary) 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+        }
+
+        .skeleton-content {
+            padding: 16px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .skeleton-line {
+            height: 20px;
+            background: linear-gradient(90deg, var(--secondary) 25%, #fff0f3 50%, var(--secondary) 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+            border-radius: 4px;
+        }
+
+        .skeleton-line.title { width: 70%; height: 24px; }
+        .skeleton-line.desc { width: 90%; height: 16px; }
+        .skeleton-line.price { width: 40%; height: 28px; margin-top: auto; }
+        .skeleton-line.button { width: 100%; height: 44px; border-radius: 12px; }
 
         .empty-state {
             text-align: center;
@@ -1074,10 +1108,43 @@
     <main>
         <div class="product-grid" id="product-grid">
             <!-- Loading Skeletons -->
-            <div class="product-card skeleton-card skeleton"></div>
-            <div class="product-card skeleton-card skeleton"></div>
-            <div class="product-card skeleton-card skeleton"></div>
-            <div class="product-card skeleton-card skeleton"></div>
+            <!-- Detailed Skeletons -->
+            <div class="product-card skeleton-card">
+                <div class="skeleton-image"></div>
+                <div class="skeleton-content">
+                    <div class="skeleton-line title"></div>
+                    <div class="skeleton-line desc"></div>
+                    <div class="skeleton-line price"></div>
+                    <div class="skeleton-line button"></div>
+                </div>
+            </div>
+            <div class="product-card skeleton-card">
+                <div class="skeleton-image"></div>
+                <div class="skeleton-content">
+                    <div class="skeleton-line title"></div>
+                    <div class="skeleton-line desc"></div>
+                    <div class="skeleton-line price"></div>
+                    <div class="skeleton-line button"></div>
+                </div>
+            </div>
+            <div class="product-card skeleton-card">
+                <div class="skeleton-image"></div>
+                <div class="skeleton-content">
+                    <div class="skeleton-line title"></div>
+                    <div class="skeleton-line desc"></div>
+                    <div class="skeleton-line price"></div>
+                    <div class="skeleton-line button"></div>
+                </div>
+            </div>
+            <div class="product-card skeleton-card">
+                <div class="skeleton-image"></div>
+                <div class="skeleton-content">
+                    <div class="skeleton-line title"></div>
+                    <div class="skeleton-line desc"></div>
+                    <div class="skeleton-line price"></div>
+                    <div class="skeleton-line button"></div>
+                </div>
+            </div>
         </div>
         <!-- Contenedor Banners Publicitarios -->
         <div id="promo-banners-container"></div>
@@ -1198,624 +1265,64 @@
         </div>
     </div>
 
+    <!-- Optimization: Split logic and defer execution -->
+    <script src="/store-core.js" defer></script>
+    <script src="/store-transactions.js" defer></script>
+
     <script>
+        // Global constants and utilities
         const fmtMoney = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
-        const grid = document.getElementById('product-grid');
-        const floatingCart = document.getElementById('floating-cart');
-        const cartItemsCount = document.getElementById('cart-items-count');
-        const cartTotalPrice = document.getElementById('cart-total-price');
-        const cartCheckoutBtn = document.getElementById('cart-checkout-btn');
-
-        // Global cart state: { productId: { product, qty, total } }
-        let cart = {};
-
-        // Auth State
-        let storeAuthUser = null;
-        let storeClientList = [];
-        try {
-            const saved = localStorage.getItem('storeAuthUser');
-            if (saved) storeAuthUser = JSON.parse(saved);
-        } catch { }
-
-        let storeActiveSeller = null;
-        try {
-            const savedSeller = localStorage.getItem('storeActiveSeller');
-            if (savedSeller) storeActiveSeller = JSON.parse(savedSeller);
-        } catch { }
-
-        const storeAuthBtn = document.getElementById('store-auth-btn');
-        const loginModal = document.getElementById('store-login-modal');
-        const sellerModal = document.getElementById('store-seller-modal');
-        const internalCheckoutContainer = document.getElementById('internal-checkout-container');
-        const customerNameInput = document.getElementById('store-customer-name');
-
-        // Gallery Modal Elements
-        const galleryModal = document.getElementById('gallery-modal');
-        const galleryTrack = document.getElementById('gallery-track');
-        const galleryDots = document.getElementById('gallery-dots');
-        const galleryClose = document.getElementById('gallery-close');
-        const galleryPrev = document.getElementById('gallery-prev');
-        const galleryNext = document.getElementById('gallery-next');
-
-        let currentGalleryItems = [];
-
-        function openFullscreenGallery(mediaItems, startIndex) {
-            currentGalleryItems = mediaItems;
-            galleryTrack.innerHTML = '';
-            galleryDots.innerHTML = '';
-
-            mediaItems.forEach((m, idx) => {
-                const slide = document.createElement('div');
-                slide.className = 'gallery-slide';
-                slide.addEventListener('click', (e) => {
-                    if (e.target === slide) closeGallery();
-                });
-
-                if (m.type === 'video') {
-                    const vid = document.createElement('video');
-                    vid.src = m.base64;
-                    vid.controls = true;
-                    vid.playsInline = true;
-                    vid.autoplay = idx === startIndex;
-                    slide.appendChild(vid);
-                } else {
-                    const img = document.createElement('img');
-                    img.src = m.base64;
-                    img.style.cursor = 'zoom-out';
-                    img.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        closeGallery();
-                    });
-                    slide.appendChild(img);
-                }
-                galleryTrack.appendChild(slide);
-
-                if (mediaItems.length > 1) {
-                    const dot = document.createElement('div');
-                    dot.className = `gallery-dot ${idx === startIndex ? 'active' : ''}`;
-                    galleryDots.appendChild(dot);
-                }
-            });
-
-            galleryPrev.style.display = mediaItems.length > 1 ? '' : 'none';
-            galleryNext.style.display = mediaItems.length > 1 ? '' : 'none';
-
-            galleryModal.style.display = 'flex';
-            void galleryModal.offsetWidth;
-            galleryModal.classList.add('show');
-            document.body.style.overflow = 'hidden';
-
-            if (startIndex > 0) {
-                setTimeout(() => {
-                    galleryTrack.scrollLeft = startIndex * galleryTrack.clientWidth;
-                }, 50);
-            }
-        }
-
-        function closeGallery() {
-            galleryModal.classList.remove('show');
-            setTimeout(() => {
-                galleryModal.style.display = 'none';
-                galleryTrack.innerHTML = '';
-                galleryDots.innerHTML = '';
-                document.body.style.overflow = '';
-            }, 300);
-        }
-
-        galleryClose.addEventListener('click', closeGallery);
-        galleryModal.addEventListener('click', (e) => {
-            if (e.target === galleryModal || e.target === galleryModal.querySelector('.gallery-content')) {
-                closeGallery();
-            }
-        });
-
-        galleryPrev.addEventListener('click', (e) => {
-            e.stopPropagation();
-            galleryTrack.scrollBy({ left: -galleryTrack.clientWidth, behavior: 'smooth' });
-        });
-
-        galleryNext.addEventListener('click', (e) => {
-            e.stopPropagation();
-            galleryTrack.scrollBy({ left: galleryTrack.clientWidth, behavior: 'smooth' });
-        });
-
-        galleryTrack.addEventListener('scroll', () => {
-            if (currentGalleryItems.length > 1) {
-                const scrollLeft = galleryTrack.scrollLeft;
-                const width = galleryTrack.clientWidth;
-                const activeIndex = Math.round(scrollLeft / width);
-                Array.from(galleryDots.children).forEach((dot, i) => {
-                    dot.classList.toggle('active', i === activeIndex);
-                });
-            }
-        });
-
-        function updateAuthUI() {
-            const storeClientsBtn = document.getElementById('store-clients-btn');
-            const storeCrmBtn = document.getElementById('store-crm-btn');
-
-            if (storeAuthUser && storeAuthUser.username && storeActiveSeller) {
-                storeAuthBtn.textContent = storeActiveSeller.name;
-                storeAuthBtn.style.color = 'var(--text)';
-                storeAuthBtn.style.borderColor = 'transparent';
-                storeAuthBtn.style.background = 'transparent';
-                storeAuthBtn.style.boxShadow = 'none';
-                storeClientsBtn.style.display = 'block'; // Show clients button
-                storeCrmBtn.style.display = 'block'; // Show CRM button
-                document.body.classList.add('is-seller-active');
-
-                // Force sync for already rendered cards
-                document.querySelectorAll('.buy-btn').forEach(b => b.style.display = 'none');
-                document.querySelectorAll('.qty-container').forEach(q => q.style.display = 'flex');
-                document.querySelectorAll('.product-desc').forEach(d => d.style.display = 'none');
-
-                // Embed the sales table
-                const embedContainer = document.getElementById('seller-embedded-sales-container');
-                if (embedContainer && !embedContainer.querySelector('iframe')) {
-                    embedContainer.style.display = 'block';
-                    const iframe = document.createElement('iframe');
-                    iframe.src = '/index.html?embed=true';
-                    iframe.className = 'embedded-sales-iframe';
-                    iframe.title = 'Registro de Ventas';
-                    embedContainer.appendChild(iframe);
-                }
-            } else {
-                storeAuthBtn.textContent = 'Ingresar';
-                storeAuthBtn.style.color = 'var(--primary)';
-                storeAuthBtn.style.borderColor = 'var(--primary)';
-                storeAuthBtn.style.background = 'transparent';
-                storeAuthBtn.style.boxShadow = 'none';
-                storeClientsBtn.style.display = 'none'; // Hide clients button
-                storeCrmBtn.style.display = 'none'; // Hide CRM button
-                document.body.classList.remove('is-seller-active');
-
-                // Force sync for already rendered cards
-                document.querySelectorAll('.buy-btn').forEach(b => b.style.display = 'block');
-                document.querySelectorAll('.product-desc').forEach(d => d.style.display = '-webkit-box');
-                document.querySelectorAll('.qty-container').forEach(q => {
-                    // Only hide if qty is 0, since we can't reliably read internal JS state here, 
-                    // it will be corrected on reload or if they interact. But setting to none is safer default.
-                    q.style.display = 'none';
-                });
-
-                // Remove embedded sales table
-                const embedContainer = document.getElementById('seller-embedded-sales-container');
-                if (embedContainer) {
-                    embedContainer.innerHTML = '';
-                    embedContainer.style.display = 'none';
-                }
-            }
-        }
-
-        function updateCartUI() {
-            let totalQty = 0;
-            let grandTotal = 0;
-            let hasItems = false;
-
-            for (const id in cart) {
-                totalQty += cart[id].qty;
-                grandTotal += cart[id].total;
-                if (cart[id].qty > 0) hasItems = true;
-            }
-
-            if (hasItems) {
-                cartItemsCount.textContent = totalQty === 1 ? '1 artículo' : `${totalQty} artículos`;
-                cartTotalPrice.textContent = fmtMoney.format(grandTotal);
-                floatingCart.classList.add('visible');
-
-                if (storeAuthUser && storeActiveSeller) {
-                    cartCheckoutBtn.style.display = 'none';
-                    internalCheckoutContainer.style.display = 'flex';
-                    document.getElementById('internal-checkout-btn').style.display = 'block';
-                    loadSellerClients();
-                } else {
-                    cartCheckoutBtn.style.display = 'block';
-                    internalCheckoutContainer.style.display = 'none';
-                    document.getElementById('internal-checkout-btn').style.display = 'none';
-                }
-            } else {
-                floatingCart.classList.remove('visible');
-            }
-        }
-
-        cartCheckoutBtn.addEventListener('click', () => {
-            let message = '¡Hola! Me encantaría hacer este pedido:\n\n';
-            let grandTotal = 0;
-
-            for (const id in cart) {
-                const item = cart[id];
-                if (item.qty > 0) {
-                    message += `* ${item.qty} ${item.product.name} ${fmtMoney.format(item.total)}\n`;
-                    grandTotal += item.total;
-                }
-            }
-
-            message += `\n * Total a pagar: ${fmtMoney.format(grandTotal)}`;
-            const encoded = encodeURIComponent(message);
-            window.open(`https://wa.me/573332268889?text=${encoded}`, '_blank');
-        });
-
-        // Fallback SVG for products without images
         const fallbackImage = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" fill="%23f5e6e8"><rect width="400" height="400"/><path d="M200 120 C150 120 120 160 120 200 C120 250 160 280 200 280 C240 280 280 250 280 200 C280 160 250 120 200 120 Z" fill="%23f4a6b7"/><circle cx="170" cy="180" r="10" fill="white"/><circle cx="230" cy="180" r="10" fill="white"/><path d="M180 230 Q200 250 220 230" stroke="white" stroke-width="8" stroke-linecap="round" fill="none"/></svg>`;
 
-        async function loadStore() {
-            try {
-                const res = await fetch('/api/store-products');
-                if (!res.ok) throw new Error('Error de red');
-                const products = await res.json();
+        const getAuthHeaders = () => {
+            const headers = { 'Content-Type': 'application/json' };
+            if (storeAuthUser && storeAuthUser.token) headers['Authorization'] = 'Bearer ' + storeAuthUser.token;
+            if (storeAuthUser && storeAuthUser.username) headers['x-actor-name'] = storeAuthUser.username;
+            return headers;
+        };
 
-                const activeProducts = products.filter(p => p.is_active);
-
-                if (activeProducts.length === 0) {
-                    grid.innerHTML = `
-						<div class="empty-state">
-							<h2 style="font-size: 1.5rem; margin-bottom: 12px; color: var(--text);">¡Pronto tendremos delicias aquí!</h2>
-							<p>Actualmente estamos horneando nuevas sorpresas. Vuelve pronto.</p>
-						</div>
-					`;
-                    return;
-                }
-
-                grid.innerHTML = '';
-
-                activeProducts.forEach(storeRenderProduct);
-
-            } catch (err) {
-                console.error('Error loading store:', err);
-                grid.innerHTML = `
-					<div class="empty-state">
-						<h2 style="font-size: 1.5rem; margin-bottom: 12px; color: var(--danger);">¡Ups! Algo salió mal.</h2>
-						<p>No pudimos cargar el menú en este momento. Por favor, recarga la página.</p>
-					</div>
-				`;
-            }
-        }
-
-        function storeRenderProduct(product) {
-            const card = document.createElement('div');
-            card.className = 'product-card';
-
-            const imgContainer = document.createElement('div');
-            imgContainer.className = 'product-image-container';
-
-            const track = document.createElement('div');
-            track.className = 'carousel-track';
-
-            let mediaItems = [];
-            if (Array.isArray(product.media) && product.media.length > 0) {
-                mediaItems = product.media;
-            } else {
-                mediaItems = [{ type: 'image', base64: product.image_base64 || fallbackImage }];
-            }
-
-            const dotsContainer = document.createElement('div');
-            dotsContainer.className = 'carousel-dots';
-
-            mediaItems.forEach((m, idx) => {
-                const slide = document.createElement('div');
-                slide.className = 'carousel-slide';
-
-                if (m.type === 'video') {
-                    const vid = document.createElement('video');
-                    vid.src = m.base64;
-                    vid.muted = true;
-                    vid.controls = true; // allow play/pause if they want, but loop default
-                    vid.loop = true;
-                    vid.playsInline = true;
-                    // Attempt auto-play on mobile/desktop
-                    vid.autoplay = true;
-                    slide.appendChild(vid);
-                } else {
-                    const img = document.createElement('img');
-                    img.src = m.base64;
-                    img.alt = product.name;
-                    img.loading = idx === 0 ? 'eager' : 'lazy'; // only lazy load off-screen dots
-                    img.style.cursor = 'zoom-in';
-                    img.addEventListener('click', () => openFullscreenGallery(mediaItems, idx));
-                    slide.appendChild(img);
-                }
-                track.appendChild(slide);
-
-                if (mediaItems.length > 1) {
-                    const dot = document.createElement('div');
-                    dot.className = `carousel-dot ${idx === 0 ? 'active' : ''}`;
-                    dotsContainer.appendChild(dot);
-                }
-            });
-
-            track.addEventListener('scroll', () => {
-                if (mediaItems.length > 1) {
-                    const scrollLeft = track.scrollLeft;
-                    const width = track.clientWidth;
-                    const activeIndex = Math.round(scrollLeft / width);
-                    Array.from(dotsContainer.children).forEach((dot, i) => {
-                        dot.classList.toggle('active', i === activeIndex);
-                    });
-                }
-            });
-
-            imgContainer.appendChild(track);
-
-            if (mediaItems.length > 1) {
-                // Navigation Arrows
-                const btnPrev = document.createElement('button');
-                btnPrev.className = 'carousel-btn prev';
-                btnPrev.innerHTML = '&#10094;'; // Left-pointing chevron
-
-                const btnNext = document.createElement('button');
-                btnNext.className = 'carousel-btn next';
-                btnNext.innerHTML = '&#10095;'; // Right-pointing chevron
-
-                btnPrev.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    track.scrollBy({ left: -track.clientWidth, behavior: 'smooth' });
-                });
-
-                btnNext.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    track.scrollBy({ left: track.clientWidth, behavior: 'smooth' });
-                });
-
-                imgContainer.appendChild(btnPrev);
-                imgContainer.appendChild(btnNext);
-                imgContainer.appendChild(dotsContainer);
-            }
-
-            // Promotion Badge (Dynamic from Store Manager)
-            if (product.is_promo) {
-                const badge = document.createElement('div');
-                badge.className = 'product-promo-badge';
-                badge.textContent = 'Promoción ✨';
-                imgContainer.appendChild(badge);
-            }
-
-            // New Badge (Dynamic from Store Manager)
-            if (product.is_new) {
-                const newBadge = document.createElement('div');
-                newBadge.className = 'product-new-badge';
-                newBadge.textContent = 'Nuevo';
-                imgContainer.appendChild(newBadge);
-            }
-
-            // Calculate Volume Discount text
-            const hasPromo = product.promo_qty >= 2 && product.promo_price > 0;
-
-            const content = document.createElement('div');
-            content.className = 'product-content';
-
-            const name = document.createElement('h3');
-            name.className = 'product-name';
-            name.textContent = product.name;
-
-            const desc = document.createElement('p');
-            desc.className = 'product-desc';
-            desc.textContent = product.description || 'Delicioso postre de Lulitas Sweet Lab';
-
-            const prices = document.createElement('div');
-            prices.className = 'product-prices';
-
-            const priceNormal = document.createElement('div');
-            priceNormal.className = 'price-normal';
-            priceNormal.textContent = fmtMoney.format(product.price);
-            prices.appendChild(priceNormal);
-
-            if (hasPromo) {
-                const pricePromo = document.createElement('div');
-                pricePromo.className = 'price-promo';
-                pricePromo.textContent = `Lleva ${product.promo_qty} por solo ${fmtMoney.format(product.promo_price)}`;
-                prices.appendChild(pricePromo);
-            }
-
-            // Action Container
-            const actionContainer = document.createElement('div');
-            actionContainer.className = 'action-container';
-
-            const buyBtn = document.createElement('button');
-            buyBtn.className = 'buy-btn';
-            buyBtn.textContent = 'Lo quiero 💝';
-
-            const qtyContainer = document.createElement('div');
-            qtyContainer.className = 'qty-container';
-            qtyContainer.style.display = 'none';
-
-            let qty = 0; // Starts at 0 until they click buy
-
-            const calculateTotal = (productQty) => {
-                let total = product.price * productQty;
-                if (hasPromo) {
-                    let promoGroups = Math.floor(productQty / product.promo_qty);
-                    let remainder = productQty % product.promo_qty;
-                    total = (promoGroups * product.promo_price) + (remainder * product.price);
-                }
-                return total;
-            };
-
-            const renderQty = () => {
-                const total = calculateTotal(qty);
-
-                qtyContainer.innerHTML = `
-                    <div class="qty-controls">
-                        <button class="qty-btn minus">-</button>
-                        <span class="qty-val">${qty}</span>
-                        <button class="qty-btn plus">+</button>
-                    </div>
-                `;
-
-                qtyContainer.querySelector('.minus').addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    qty--;
-                    handleQtyChange();
-                });
-                qtyContainer.querySelector('.plus').addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    qty++;
-                    handleQtyChange();
-                });
-            };
-
-            const handleQtyChange = () => {
-                if (qty <= 0) {
-                    qty = 0;
-                    if (!document.body.classList.contains('is-seller-active')) {
-                        qtyContainer.style.display = 'none';
-                        buyBtn.style.display = 'block';
-                    } else {
-                        renderQty(); // Sellers always see the counter, so it needs to render '0'
-                    }
-                    delete cart[product.id];
-                } else {
-                    renderQty();
-                    cart[product.id] = { product, qty, total: calculateTotal(qty) };
-                }
-                updateCartUI();
-            };
-
-            renderQty(); // Run immediately so HTML exists for CSS !important toggles
-
-            if (document.body.classList.contains('is-seller-active')) {
-                buyBtn.style.display = 'none';
-                qtyContainer.style.display = 'flex';
-                desc.style.display = 'none';
-            }
-
-            buyBtn.addEventListener('click', () => {
-                qty = 1;
-                buyBtn.style.display = 'none';
-                qtyContainer.style.display = 'flex';
-                handleQtyChange();
-            });
-
-            actionContainer.append(buyBtn, qtyContainer);
-
-            content.append(name, desc, prices, actionContainer);
-            card.append(imgContainer, content);
-            grid.appendChild(card);
-        }
-
-        async function loadSettings() {
-            const logoImg = document.querySelector('.logo');
-            try {
-                const res = await fetch('/api/store-settings');
-                if (res.ok) {
-                    const settings = await res.json();
-                    if (settings.logo_base64) {
-                        logoImg.src = settings.logo_base64;
-                    }
-                    if (settings.logo_height) {
-                        logoImg.style.height = settings.logo_height + 'px';
-                        logoImg.style.maxWidth = '100vw'; // allow width to grow naturally
-                        logoImg.style.maxHeight = 'none'; // allow height to be set by the variable
-                    }
-                    if (settings.grid_gap_x !== undefined) {
-                        grid.style.columnGap = settings.grid_gap_x + 'px';
-                    }
-                    if (settings.grid_gap_y !== undefined) {
-                        grid.style.rowGap = settings.grid_gap_y + 'px';
-                    }
-                    if (settings.cart_scale !== undefined) {
-                        const scaleDec = settings.cart_scale / 100;
-                        document.documentElement.style.setProperty('--cart-scale', scaleDec);
-                    }
-                    if (settings.store_title) {
-                        document.getElementById('store-title-display').textContent = settings.store_title;
-                    }
-                    if (settings.store_subtitle) {
-                        document.getElementById('store-subtitle-display').textContent = settings.store_subtitle;
-                    }
-
-                    const bannersContainer = document.getElementById('promo-banners-container');
-                    bannersContainer.innerHTML = ''; // Limpiar banners actuales
-
-                    if (settings.promo_banner_1) {
-                        const a1 = document.createElement('a');
-                        a1.href = '/publicidad-uno.html';
-                        a1.className = 'promo-banner-link';
-                        const img1 = document.createElement('img');
-                        img1.src = settings.promo_banner_1;
-                        img1.className = 'promo-banner-img';
-                        img1.alt = 'Banner Promocional 1';
-                        a1.appendChild(img1);
-                        bannersContainer.appendChild(a1);
-                    }
-
-                    if (settings.promo_banner_2) {
-                        const a2 = document.createElement('a');
-                        a2.href = '/publicidad-dos.html';
-                        a2.className = 'promo-banner-link';
-                        const img2 = document.createElement('img');
-                        img2.src = settings.promo_banner_2;
-                        img2.className = 'promo-banner-img';
-                        img2.alt = 'Banner Promocional 2';
-                        a2.appendChild(img2);
-                        bannersContainer.appendChild(a2);
-                    }
-                }
-            } catch (err) {
-                console.error('Error loading settings', err);
-            } finally {
-                if (logoImg) logoImg.style.opacity = '1';
-            }
-        }
-
-        async function loadSellerClients() {
-            if (!storeAuthUser || !storeActiveSeller) return;
-            try {
-                const headers = { 'Content-Type': 'application/json' };
-                if (storeAuthUser.token) headers['Authorization'] = 'Bearer ' + storeAuthUser.token;
-                if (storeAuthUser.username) headers['x-actor-name'] = storeAuthUser.username;
-
-                const clientsRes = await fetch(`/api/clients?seller_id=${storeActiveSeller.id}`, { headers });
-                if (!clientsRes.ok) return;
-
-                const clientNames = await clientsRes.json();
-
-                if (Array.isArray(clientNames)) {
-                    storeClientList = clientNames.map(c => c.name).filter(n => typeof n === 'string' && n.trim() !== '');
-                }
-            } catch (err) {
-                console.error('Error fetching clients for autocomplete:', err);
-            }
-        }
-
-        function setupClientAutocomplete() {
-            const input = document.getElementById('store-customer-name');
-            const dropdown = document.getElementById('store-client-dropdown');
-
-            function renderDropdown(filterValue = '') {
-                const lowerVal = filterValue.toLowerCase();
-                const matches = storeClientList.filter(name => name.toLowerCase().includes(lowerVal));
-
-                dropdown.innerHTML = '';
-
-                if (matches.length === 0 || !storeAuthUser || !storeActiveSeller) {
-                    dropdown.classList.remove('show');
-                    return;
-                }
-
-                matches.slice(0, 30).forEach(name => {
-                    const li = document.createElement('li');
-                    li.textContent = name;
-                    li.addEventListener('mousedown', (e) => {
-                        e.preventDefault();
-                        input.value = name;
-                        dropdown.classList.remove('show');
-                    });
-                    dropdown.appendChild(li);
-                });
-
-                dropdown.classList.add('show');
-            }
-
-            input.addEventListener('focus', () => renderDropdown(input.value));
-            input.addEventListener('input', () => renderDropdown(input.value));
-            input.addEventListener('blur', () => dropdown.classList.remove('show'));
-        }
-
-        // --- AUTH & CHECKOUT LOGIC ---
-
+        // Global state shared across logic files
+        let cart = {};
+        let storeAuthUser = null;
+        let storeActiveSeller = null;
+        let storeClientList = [];
+        let currentGalleryItems = [];
         let loginStep = 1;
 
-        storeAuthBtn.addEventListener('click', () => {
+        // Initialize state from localStorage
+        try {
+            const savedUser = localStorage.getItem('storeAuthUser');
+            if (savedUser) storeAuthUser = JSON.parse(savedUser);
+            const savedSeller = localStorage.getItem('storeActiveSeller');
+            if (savedSeller) storeActiveSeller = JSON.parse(savedSeller);
+        } catch (e) { console.error('Error loading session:', e); }
+
+        // Core Event Listeners (Some remain here for direct DOM interaction)
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Initial UI Sync
+            if (typeof updateAuthUI === 'function') updateAuthUI();
+            if (typeof updateCartUI === 'function') updateCartUI();
+            if (typeof setupClientAutocomplete === 'function') setupClientAutocomplete();
+
+            // Parallel Data Fetching
+            try {
+                await Promise.all([
+                    typeof loadSettings === 'function' ? loadSettings() : Promise.resolve(),
+                    typeof loadStore === 'function' ? loadStore() : Promise.resolve()
+                ]);
+            } catch (err) { console.error('Initialization error:', err); }
+
+            // URL Params support
+            const urlParams = new URLSearchParams(window.location.search);
+            const crmName = urlParams.get('crm_client_name');
+            if (crmName) {
+                const input = document.getElementById('store-customer-name');
+                if (input) input.value = crmName;
+            }
+        });
+
+        // Bridge Listeners (connecting HTML elements to logic in external files)
+        document.getElementById('store-auth-btn')?.addEventListener('click', () => {
             if (storeAuthUser && storeAuthUser.username) {
                 if (confirm('¿Deseas cerrar sesión?')) {
                     storeAuthUser = null;
@@ -1826,7 +1333,6 @@
                     updateCartUI();
                 }
             } else {
-                // Auto-cleanup any corrupted state
                 storeAuthUser = null;
                 storeActiveSeller = null;
                 localStorage.removeItem('storeAuthUser');
@@ -1840,41 +1346,24 @@
                 document.getElementById('login-pass').value = '';
                 document.getElementById('submit-login-btn').textContent = 'Siguiente';
                 document.getElementById('login-error').style.display = 'none';
-                loginModal.style.display = 'flex';
+                document.getElementById('store-login-modal').style.display = 'flex';
                 document.getElementById('login-user').focus();
             }
         });
 
-        document.getElementById('close-login-modal').addEventListener('click', () => {
-            loginModal.style.display = 'none';
+        document.getElementById('close-login-modal')?.addEventListener('click', () => {
+            document.getElementById('store-login-modal').style.display = 'none';
         });
 
-        document.getElementById('login-user').addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') document.getElementById('submit-login-btn').click();
-        });
-
-        document.getElementById('login-pass').addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') document.getElementById('submit-login-btn').click();
-        });
-
-        document.getElementById('close-seller-modal').addEventListener('click', () => {
-            sellerModal.style.display = 'none';
-        });
-
-        document.getElementById('submit-login-btn').addEventListener('click', async () => {
+        document.getElementById('submit-login-btn')?.addEventListener('click', async () => {
             const user = document.getElementById('login-user').value.trim();
             const passInput = document.getElementById('login-pass');
             const pass = passInput.value.trim();
             const errDiv = document.getElementById('login-error');
-
             errDiv.style.display = 'none';
 
             if (loginStep === 1) {
-                if (!user) {
-                    errDiv.textContent = 'Ingresa tu usuario.';
-                    errDiv.style.display = 'block';
-                    return;
-                }
+                if (!user) { errDiv.textContent = 'Ingresa tu usuario.'; errDiv.style.display = 'block'; return; }
                 loginStep = 2;
                 document.getElementById('login-user').style.display = 'none';
                 passInput.style.display = 'block';
@@ -1883,12 +1372,7 @@
                 passInput.focus();
                 return;
             }
-
-            if (!pass) {
-                errDiv.textContent = 'Ingresa tu contraseña.';
-                errDiv.style.display = 'block';
-                return;
-            }
+            if (!pass) { errDiv.textContent = 'Ingresa tu contraseña.'; errDiv.style.display = 'block'; return; }
 
             try {
                 const res = await fetch('/api/users?action=login', {
@@ -1896,128 +1380,44 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username: user, password: pass })
                 });
-
                 if (!res.ok) {
                     const data = await res.json();
                     throw new Error(data.error || 'Credenciales incorrectas');
                 }
-
                 storeAuthUser = await res.json();
                 localStorage.setItem('storeAuthUser', JSON.stringify(storeAuthUser));
-                loginModal.style.display = 'none';
-                errDiv.style.display = 'none';
+                document.getElementById('store-login-modal').style.display = 'none';
                 document.getElementById('login-pass').value = '';
-
                 await showSellerSelection();
-
             } catch (err) {
                 errDiv.textContent = String(err.message || err);
                 errDiv.style.display = 'block';
             }
         });
 
-        async function showSellerSelection() {
-            try {
-                const res = await fetch('/api/get-sellers');
-                if (!res.ok) throw new Error('Error al cargar vendedores');
-                const allSellers = await res.json();
-
-                // 1. Try to automatically match by username or name
-                const matchedSeller = allSellers.find(s =>
-                    s.name.toLowerCase() === (storeAuthUser.username || '').toLowerCase() ||
-                    s.name.toLowerCase() === (storeAuthUser.name || '').toLowerCase()
-                );
-
-                if (matchedSeller) {
-                    setSeller(matchedSeller);
-                    return;
-                }
-
-                // Allow superadmins to see all sellers, otherwise find matching name/permissions (simplified: filter by permissions if we had them, but we'll show all and let them pick their name or just filter by their username if it matches)
-                const isSuper = storeAuthUser.role === 'superadmin' || storeAuthUser.isSuperAdmin;
-                let allowedSellers = allSellers;
-
-                if (allowedSellers.length === 1) {
-                    setSeller(allowedSellers[0]);
-                } else {
-                    const container = document.getElementById('seller-buttons-container');
-                    container.innerHTML = '';
-                    allowedSellers.forEach(s => {
-                        const btn = document.createElement('button');
-                        btn.className = 'internal-checkout-btn';
-                        btn.style.background = 'var(--surface)';
-                        btn.style.color = 'var(--text)';
-                        btn.style.border = '1px solid var(--border)';
-                        btn.textContent = s.name;
-                        btn.addEventListener('click', () => setSeller(s));
-                        container.appendChild(btn);
-                    });
-                    sellerModal.style.display = 'flex';
-                }
-            } catch (err) {
-                alert('No se pudieron cargar los vendedores: ' + err.message);
-            }
-        }
-
-        function setSeller(seller) {
-            storeActiveSeller = seller;
-            localStorage.setItem('storeActiveSeller', JSON.stringify(seller));
-            sellerModal.style.display = 'none';
-            updateAuthUI();
-            updateCartUI();
-        }
-
-        function levenshteinDistance(s, t) {
-            if (!s.length) return t.length;
-            if (!t.length) return s.length;
-            const arr = [];
-            for (let i = 0; i <= t.length; i++) {
-                arr[i] = [i];
-                for (let j = 1; j <= s.length; j++) {
-                    arr[i][j] = i === 0 ? j : Math.min(
-                        arr[i - 1][j] + 1,
-                        arr[i][j - 1] + 1,
-                        arr[i - 1][j - 1] + (s[j - 1] === t[i - 1] ? 0 : 1)
-                    );
+        document.getElementById('cart-checkout-btn')?.addEventListener('click', () => {
+            let message = '¡Hola! Me encantaría hacer este pedido:\n\n';
+            let grandTotal = 0;
+            for (const id in cart) {
+                const item = cart[id];
+                if (item.qty > 0) {
+                    message += `* ${item.qty} ${item.product.name} ${fmtMoney.format(item.total)}\n`;
+                    grandTotal += item.total;
                 }
             }
-            return arr[t.length][s.length];
-        }
+            message += `\n * Total a pagar: ${fmtMoney.format(grandTotal)}`;
+            window.open(`https://wa.me/573332268889?text=${encodeURIComponent(message)}`, '_blank');
+        });
 
-        function findSimilarClients(name) {
-            const lowerName = name.toLowerCase().trim();
-            const threshold = 3;
-            const matches = storeClientList.map(c => {
-                const lowerC = c.toLowerCase();
-                const dist = levenshteinDistance(lowerName, lowerC);
-                return { name: c, dist, includes: lowerC.includes(lowerName) || lowerName.includes(lowerC) };
-            }).filter(c => c.dist <= threshold || c.includes)
-                .sort((a, b) => a.dist - b.dist)
-                .slice(0, 3);
-            return matches.map(m => m.name);
-        }
-
-        document.getElementById('internal-checkout-btn').addEventListener('click', async () => {
+        document.getElementById('internal-checkout-btn')?.addEventListener('click', async () => {
+            const customerNameInput = document.getElementById('store-customer-name');
             const customerName = customerNameInput.value.trim();
-            if (!customerName) {
-                alert('Por favor, ingresa el nombre del cliente.');
-                customerNameInput.focus();
-                return;
-            }
+            if (!customerName) { alert('Por favor, ingresa el nombre del cliente.'); customerNameInput.focus(); return; }
+            if (!storeActiveSeller || !storeAuthUser) { alert('No hay un vendedor activo seleccionado o no has ingresado.'); return; }
 
-            if (!storeActiveSeller || !storeAuthUser) {
-                alert('No hay un vendedor activo seleccionado o no has ingresado.');
-                return;
-            }
-
-            // Exists exactly?
             const exactMatch = storeClientList.find(c => c.trim().toLowerCase() === customerName.toLowerCase());
-            if (exactMatch) {
-                await executeCheckout(exactMatch);
-                return;
-            }
+            if (exactMatch) { await executeCheckout(exactMatch); return; }
 
-            // Provide similar options or register new
             const similar = findSimilarClients(customerName);
             if (similar.length > 0) {
                 const container = document.getElementById('similar-clients-container');
@@ -2031,7 +1431,7 @@
                     btn.textContent = simName;
                     btn.addEventListener('click', () => {
                         document.getElementById('store-similar-client-modal').style.display = 'none';
-                        customerNameInput.value = simName; // Auto-update input
+                        document.getElementById('store-customer-name').value = simName;
                         executeCheckout(simName);
                     });
                     container.appendChild(btn);
@@ -2042,37 +1442,16 @@
             }
         });
 
-        document.getElementById('similar-client-cancel-btn').addEventListener('click', () => {
+        document.getElementById('similar-client-cancel-btn')?.addEventListener('click', () => {
             document.getElementById('store-similar-client-modal').style.display = 'none';
         });
 
-        document.getElementById('similar-client-new-btn').addEventListener('click', () => {
+        document.getElementById('similar-client-new-btn')?.addEventListener('click', () => {
             document.getElementById('store-similar-client-modal').style.display = 'none';
-            openNewClientModal(customerNameInput.value.trim());
+            openNewClientModal(document.getElementById('store-customer-name').value.trim());
         });
 
-        function openNewClientModal(name) {
-            document.getElementById('new-client-name-display').textContent = name;
-            document.getElementById('new-client-shortname').value = '';
-            document.getElementById('new-client-whatsapp').value = '';
-            document.getElementById('new-client-birthdate').value = '';
-            document.getElementById('new-client-error').style.display = 'none';
-            document.getElementById('store-new-client-modal').style.display = 'flex';
-        }
-
-        document.getElementById('close-new-client-modal').addEventListener('click', () => {
-            document.getElementById('store-new-client-modal').style.display = 'none';
-        });
-
-        // Util to format getting auth headers repeatedly
-        const getAuthHeaders = () => {
-            const headers = { 'Content-Type': 'application/json' };
-            if (storeAuthUser && storeAuthUser.token) headers['Authorization'] = 'Bearer ' + storeAuthUser.token;
-            if (storeAuthUser && storeAuthUser.username) headers['x-actor-name'] = storeAuthUser.username;
-            return headers;
-        };
-
-        document.getElementById('submit-new-client-btn').addEventListener('click', async () => {
+        document.getElementById('submit-new-client-btn')?.addEventListener('click', async () => {
             const name = document.getElementById('new-client-name-display').textContent;
             const short_name = document.getElementById('new-client-shortname').value.trim();
             const whatsapp = document.getElementById('new-client-whatsapp').value.trim();
@@ -2085,31 +1464,19 @@
             btn.textContent = 'Guardando...';
 
             try {
-                const payload = {
-                    seller_id: storeActiveSeller.id,
-                    name,
-                    short_name: short_name || null,
-                    whatsapp: whatsapp || null,
-                    birth_date: birth_date || null
-                };
+                const headers = { 'Content-Type': 'application/json' };
+                if (storeAuthUser && storeAuthUser.token) headers['Authorization'] = 'Bearer ' + storeAuthUser.token;
+                if (storeAuthUser && storeAuthUser.username) headers['x-actor-name'] = storeAuthUser.username;
 
                 const res = await fetch('/api/clients', {
                     method: 'POST',
-                    headers: getAuthHeaders(),
-                    body: JSON.stringify(payload)
+                    headers,
+                    body: JSON.stringify({ seller_id: storeActiveSeller.id, name, short_name: short_name || null, whatsapp: whatsapp || null, birth_date: birth_date || null })
                 });
-
-                if (!res.ok) {
-                    const data = await res.json();
-                    throw new Error(data.error || 'Error al guardar cliente');
-                }
-
-                storeClientList.push(name); // Locally update
+                if (!res.ok) throw new Error((await res.json()).error || 'Error al guardar cliente');
+                storeClientList.push(name);
                 document.getElementById('store-new-client-modal').style.display = 'none';
-
-                // Continue with checkout using new client
                 await executeCheckout(name);
-
             } catch (err) {
                 errDiv.textContent = err.message;
                 errDiv.style.display = 'block';
@@ -2119,245 +1486,37 @@
             }
         });
 
-        async function executeCheckout(customerName) {
-            try {
-                const btn = document.getElementById('internal-checkout-btn');
-                const origText = btn.textContent;
-                btn.textContent = 'Procesando...';
-                btn.disabled = true;
+        document.getElementById('close-new-client-modal')?.addEventListener('click', () => {
+            document.getElementById('store-new-client-modal').style.display = 'none';
+        });
 
-                // 1. Fetch active day for this seller
-                const daysRes = await fetch(`/api/days?seller_id=${storeActiveSeller.id}`, { headers: getAuthHeaders() });
-                const days = await daysRes.json();
-                if (!daysRes.ok) throw new Error(days.error || 'Error fetching days');
+        document.getElementById('close-seller-modal')?.addEventListener('click', () => {
+            document.getElementById('store-seller-modal').style.display = 'none';
+        });
 
-                let targetDay = days.find(d => !d.is_archived);
-
-                // 2. Auto-create today if none open
-                if (!targetDay) {
-                    // Get 'YYYY-MM-DD' from timezone Bogotá
-                    const isoDate = new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Bogota' }).format(new Date());
-                    const createRes = await fetch('/api/days', {
-                        method: 'POST',
-                        headers: getAuthHeaders(),
-                        body: JSON.stringify({ seller_id: storeActiveSeller.id, day: isoDate, _actor_name: storeAuthUser.name })
-                    });
-                    if (!createRes.ok) throw new Error('No se pudo crear el día de venta automático.');
-                    targetDay = await createRes.json();
-                }
-
-                // 3. Convert cart items to legacy quantities based on product names
-                let qty_arco = 0, qty_melo = 0, qty_mara = 0, qty_oreo = 0, qty_nute = 0;
-
-                // Fetch desserts to map store products to dessert IDs for the sale_items table
-                const dessertsRes = await fetch('/api/desserts', { headers: getAuthHeaders() });
-                const adminDesserts = await dessertsRes.json();
-                const dynamicItems = [];
-
-                for (const productId in cart) {
-                    const item = cart[productId];
-                    const name = (item.product.name || '').toLowerCase();
-
-                    // 1. Precise Match via Database Link
-                    let matchedDessert = adminDesserts.find(d => d.store_product_id === item.product.id);
-
-                    // 2. Legacy Fallback (Name heuristics)
-                    let shortCode = '';
-                    if (!matchedDessert) {
-                        if (name.includes('arcoiris') || name.includes('arco')) { shortCode = 'arco'; }
-                        else if (name.includes('melocoton') || name.includes('melo')) { shortCode = 'melo'; }
-                        else if (name.includes('maracumango') || name.includes('mara')) { shortCode = 'mara'; }
-                        else if (name.includes('oreo')) { shortCode = 'oreo'; }
-                        else if (name.includes('nutella') || name.includes('nute')) { shortCode = 'nute'; }
-                        else if (name.includes('leches') || name.includes('3lec')) { shortCode = '3lec'; }
-                        else if (name.includes('brigadeiro') || name.includes('brig')) { shortCode = 'brig'; }
-
-                        if (shortCode) {
-                            matchedDessert = adminDesserts.find(d => (d.short_code || '').toLowerCase() === shortCode);
-                        }
-                    }
-
-                    if (matchedDessert) {
-                        dynamicItems.push({
-                            dessert_id: matchedDessert.id,
-                            quantity: item.qty,
-                            unit_price: item.product.price
-                        });
-
-                        // Legacy top-level quantities for backward compatibility logic
-                        const sc = (matchedDessert.short_code || '').toLowerCase();
-                        if (sc === 'arco') qty_arco += item.qty;
-                        if (sc === 'melo') qty_melo += item.qty;
-                        if (sc === 'mara') qty_mara += item.qty;
-                        if (sc === 'oreo') qty_oreo += item.qty;
-                        if (sc === 'nute') qty_nute += item.qty;
-                    }
-                }
-
-                const payload = {
-                    seller_id: storeActiveSeller.id,
-                    sale_day_id: targetDay.id,
-                    client_name: customerName,
-                    _actor_name: storeAuthUser.name,
-                    qty_arco,
-                    qty_melo,
-                    qty_mara,
-                    qty_oreo,
-                    qty_nute
-                };
-
-                // Add legacy qty_* fields to payload just in case backend still demands it directly for backward compatibility
-                // store_products don't have short_codes, so we need to rely on the backend supporting arbitrary items via the JSONB column. 
-                // Since this is the store, we'll map product IDs directly to items.
-
-                const saleRes = await fetch('/api/sales', {
-                    method: 'POST',
-                    headers: getAuthHeaders(),
-                    body: JSON.stringify(payload)
-                });
-
-                if (!saleRes.ok) {
-                    const errBody = await saleRes.json();
-                    throw new Error(errBody.error || 'Error al guardar la venta inicial');
-                }
-
-                const createdSale = await saleRes.json();
-
-                // 4. Update the created sale with the dynamic items (which covers 3lec and brig)
-                if (dynamicItems.length > 0) {
-                    const fullPayload = {
-                        id: createdSale.id, // ID of the newly created sale
-                        seller_id: storeActiveSeller.id,
-                        sale_day_id: targetDay.id,
-                        client_name: customerName,
-                        items: dynamicItems, // Dynamic items array based on REAL dessert IDs
-                        _actor_name: storeAuthUser.name
-                    };
-
-                    const updateRes = await fetch('/api/sales', {
-                        method: 'PUT',
-                        headers: getAuthHeaders(),
-                        body: JSON.stringify(fullPayload)
-                    });
-
-                    if (!updateRes.ok) {
-                        const errBody = await updateRes.json();
-                        throw new Error(errBody.error || 'Error al actualizar los items de la venta');
-                    }
-                }
-
-                // Success
-                const toast = document.getElementById('store-toast');
-                toast.textContent = '¡Pedido agregado con éxito! 🎉';
-                toast.classList.add('show');
-                setTimeout(() => toast.classList.remove('show'), 2500);
-
-                // --- WhatsApp Automated Messages ---
-                try {
-                    const msgsRes = await fetch(`/api/seller-messages?seller_id=${storeActiveSeller.id}`, { headers: getAuthHeaders() });
-                    if (msgsRes.ok) {
-                        const msgs = await msgsRes.json();
-                        const newOrderMsg = msgs.find(m => m.event_type === 'new_order');
-
-                        if (newOrderMsg && newOrderMsg.is_active) {
-                            // Fetch client's short name and phone number natively
-                            let waNumber = document.getElementById('new-client-whatsapp')?.value || customerNameInput.dataset.whatsapp;
-                            let shortName = null;
-
-                            try {
-                                const clientsRes = await fetch(`/api/clients?seller_id=${storeActiveSeller.id}`, { headers: getAuthHeaders() });
-                                if (clientsRes.ok) {
-                                    const allCli = await clientsRes.json();
-                                    const c = allCli.find(cli => cli.name.toLowerCase() === customerName.toLowerCase());
-                                    if (c) {
-                                        if (!waNumber && c.whatsapp) waNumber = c.whatsapp;
-                                        if (c.short_name) shortName = c.short_name;
-                                    }
-                                }
-                            } catch (e) {
-                                console.error('Error fetching client details for WA auto msg:', e);
-                            }
-
-                            if (waNumber && waNumber.trim() !== '') {
-                                // Calculate total
-                                let total = 0;
-                                for (const id in cart) {
-                                    total += cart[id].qty * cart[id].product.price;
-                                }
-
-                                // Format template
-                                const displayClientName = shortName || customerName;
-                                let text = newOrderMsg.message_text || '';
-                                text = text.replace(/{cliente}/g, displayClientName);
-                                text = text.replace(/{vendedor}/g, storeActiveSeller.name);
-                                text = text.replace(/{total}/g, `$${total.toLocaleString('es-CO')}`);
-
-                                // Format number (strip non-digits, prepend 57 if needed for Colombia default)
-                                let cleanNum = waNumber.replace(/\D/g, '');
-                                if (cleanNum.length === 10) cleanNum = '57' + cleanNum;
-
-                                const waUrl = `https://wa.me/${cleanNum}?text=${encodeURIComponent(text)}`;
-                                window.open(waUrl, '_blank');
-                            }
-                        }
-                    }
-                } catch (e) {
-                    console.error('Error triggering WhatsApp message:', e);
-                }
-                // -----------------------------------
-
-                // Reload the embedded iframe so the table updates
-                const iframe = document.querySelector('.embedded-sales-iframe');
-                if (iframe) {
-                    // Force a reload without interrupting user view
-                    iframe.contentWindow.location.reload();
-                }
-
-                // Reset Cart & UI
-                for (const id in cart) delete cart[id];
-                customerNameInput.value = '';
-                updateCartUI();
-                loadStore(); // Re-render everything to reset quantities
-
-            } catch (err) {
-                alert('Error al procesar el pedido: ' + err.message);
-            } finally {
-                const btn = document.getElementById('internal-checkout-btn');
-                btn.textContent = 'Agregar pedido';
-                btn.disabled = false;
-            }
-        }
-
-        // Navigate to clients page
-        document.getElementById('store-clients-btn').addEventListener('click', () => {
-            if (storeAuthUser && storeActiveSeller) {
-                // Navigate to the main app interface but embedded directly into the clients view
-                window.location.href = '/index.html?embed=true&view=clients';
+        document.getElementById('gallery-close')?.addEventListener('click', () => closeGallery());
+        document.getElementById('gallery-prev')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.getElementById('gallery-track').scrollBy({ left: -document.getElementById('gallery-track').clientWidth, behavior: 'smooth' });
+        });
+        document.getElementById('gallery-next')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.getElementById('gallery-track').scrollBy({ left: document.getElementById('gallery-track').clientWidth, behavior: 'smooth' });
+        });
+        document.getElementById('gallery-track')?.addEventListener('scroll', () => {
+            if (currentGalleryItems.length > 1) {
+                const track = document.getElementById('gallery-track');
+                const dots = document.getElementById('gallery-dots');
+                const activeIndex = Math.round(track.scrollLeft / track.clientWidth);
+                Array.from(dots.children).forEach((dot, i) => dot.classList.toggle('active', i === activeIndex));
             }
         });
 
-        // Navigate to CRM
-        document.getElementById('store-crm-btn').addEventListener('click', () => {
-            if (storeAuthUser && storeActiveSeller) {
-                window.location.href = '/crm-mobile.html';
-            }
+        document.getElementById('store-clients-btn')?.addEventListener('click', () => {
+            if (storeAuthUser && storeActiveSeller) window.location.href = '/index.html?embed=true&view=clients';
         });
-
-        // Initialize
-        document.addEventListener('DOMContentLoaded', () => {
-            updateAuthUI();
-            updateCartUI();
-            setupClientAutocomplete();
-            loadSettings();
-            loadStore();
-
-            // Support direct navigation from the new CRM
-            const urlParams = new URLSearchParams(window.location.search);
-            const crmName = urlParams.get('crm_client_name');
-            if (crmName) {
-                const input = document.getElementById('store-customer-name');
-                if (input) input.value = crmName;
-            }
+        document.getElementById('store-crm-btn')?.addEventListener('click', () => {
+            if (storeAuthUser && storeActiveSeller) window.location.href = '/crm-mobile.html';
         });
     </script>
 </body>

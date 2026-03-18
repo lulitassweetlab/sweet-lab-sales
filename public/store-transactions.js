@@ -1,0 +1,352 @@
+/**
+ * Lulitas Sweet Lab - Store Transactions & Auth
+ * Handles checkout, authentication, seller tools, and client autocomplete.
+ */
+
+function updateCartUI() {
+    const cartItemsCount = document.getElementById('cart-items-count');
+    const cartTotalPrice = document.getElementById('cart-total-price');
+    const floatingCart = document.getElementById('floating-cart');
+    const cartCheckoutBtn = document.getElementById('cart-checkout-btn');
+    const internalCheckoutContainer = document.getElementById('internal-checkout-container');
+
+    let totalQty = 0;
+    let grandTotal = 0;
+    let hasItems = false;
+
+    for (const id in cart) {
+        totalQty += cart[id].qty;
+        grandTotal += cart[id].total;
+        if (cart[id].qty > 0) hasItems = true;
+    }
+
+    if (hasItems) {
+        cartItemsCount.textContent = totalQty === 1 ? '1 artículo' : `${totalQty} artículos`;
+        cartTotalPrice.textContent = fmtMoney.format(grandTotal);
+        floatingCart.classList.add('visible');
+
+        if (storeAuthUser && storeActiveSeller) {
+            cartCheckoutBtn.style.display = 'none';
+            internalCheckoutContainer.style.display = 'flex';
+            document.getElementById('internal-checkout-btn').style.display = 'block';
+            loadSellerClients();
+        } else {
+            cartCheckoutBtn.style.display = 'block';
+            internalCheckoutContainer.style.display = 'none';
+            document.getElementById('internal-checkout-btn').style.display = 'none';
+        }
+    } else {
+        floatingCart.classList.remove('visible');
+    }
+}
+
+function updateAuthUI() {
+    const storeAuthBtn = document.getElementById('store-auth-btn');
+    const storeClientsBtn = document.getElementById('store-clients-btn');
+    const storeCrmBtn = document.getElementById('store-crm-btn');
+
+    if (storeAuthUser && storeAuthUser.username && storeActiveSeller) {
+        storeAuthBtn.textContent = storeActiveSeller.name;
+        storeAuthBtn.style.color = 'var(--text)';
+        storeAuthBtn.style.borderColor = 'transparent';
+        storeAuthBtn.style.background = 'transparent';
+        storeAuthBtn.style.boxShadow = 'none';
+        storeClientsBtn.style.display = 'block';
+        storeCrmBtn.style.display = 'block';
+        document.body.classList.add('is-seller-active');
+
+        document.querySelectorAll('.buy-btn').forEach(b => b.style.display = 'none');
+        document.querySelectorAll('.qty-container').forEach(q => q.style.display = 'flex');
+        document.querySelectorAll('.product-desc').forEach(d => d.style.display = 'none');
+
+        const embedContainer = document.getElementById('seller-embedded-sales-container');
+        if (embedContainer && !embedContainer.querySelector('iframe')) {
+            embedContainer.style.display = 'block';
+            const iframe = document.createElement('iframe');
+            iframe.src = '/index.html?embed=true';
+            iframe.className = 'embedded-sales-iframe';
+            iframe.title = 'Registro de Ventas';
+            embedContainer.appendChild(iframe);
+        }
+    } else {
+        storeAuthBtn.textContent = 'Ingresar';
+        storeAuthBtn.style.color = 'var(--primary)';
+        storeAuthBtn.style.borderColor = 'var(--primary)';
+        storeAuthBtn.style.background = 'transparent';
+        storeAuthBtn.style.boxShadow = 'none';
+        storeClientsBtn.style.display = 'none';
+        storeCrmBtn.style.display = 'none';
+        document.body.classList.remove('is-seller-active');
+
+        document.querySelectorAll('.buy-btn').forEach(b => b.style.display = 'block');
+        document.querySelectorAll('.product-desc').forEach(d => d.style.display = '-webkit-box');
+        document.querySelectorAll('.qty-container').forEach(q => { q.style.display = 'none'; });
+
+        const embedContainer = document.getElementById('seller-embedded-sales-container');
+        if (embedContainer) {
+            embedContainer.innerHTML = '';
+            embedContainer.style.display = 'none';
+        }
+    }
+}
+
+async function loadSellerClients() {
+    if (!storeAuthUser || !storeActiveSeller) return;
+    try {
+        const headers = { 'Content-Type': 'application/json' };
+        if (storeAuthUser.token) headers['Authorization'] = 'Bearer ' + storeAuthUser.token;
+        if (storeAuthUser.username) headers['x-actor-name'] = storeAuthUser.username;
+
+        const clientsRes = await fetch(`/api/clients?seller_id=${storeActiveSeller.id}`, { headers });
+        if (!clientsRes.ok) return;
+
+        const clientNames = await clientsRes.json();
+        if (Array.isArray(clientNames)) {
+            storeClientList = clientNames.map(c => c.name).filter(n => typeof n === 'string' && n.trim() !== '');
+        }
+    } catch (err) {
+        console.error('Error fetching clients for autocomplete:', err);
+    }
+}
+
+function setupClientAutocomplete() {
+    const input = document.getElementById('store-customer-name');
+    const dropdown = document.getElementById('store-client-dropdown');
+    if (!input || !dropdown) return;
+
+    function renderDropdown(filterValue = '') {
+        const lowerVal = filterValue.toLowerCase();
+        const matches = storeClientList.filter(name => name.toLowerCase().includes(lowerVal));
+        dropdown.innerHTML = '';
+        if (matches.length === 0 || !storeAuthUser || !storeActiveSeller) {
+            dropdown.classList.remove('show');
+            return;
+        }
+        matches.slice(0, 30).forEach(name => {
+            const li = document.createElement('li');
+            li.textContent = name;
+            li.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                input.value = name;
+                dropdown.classList.remove('show');
+            });
+            dropdown.appendChild(li);
+        });
+        dropdown.classList.add('show');
+    }
+
+    input.addEventListener('focus', () => renderDropdown(input.value));
+    input.addEventListener('input', () => renderDropdown(input.value));
+    input.addEventListener('blur', () => dropdown.classList.remove('show'));
+}
+
+async function showSellerSelection() {
+    try {
+        const res = await fetch('/api/get-sellers');
+        if (!res.ok) throw new Error('Error al cargar vendedores');
+        const allSellers = await res.json();
+
+        const matchedSeller = allSellers.find(s =>
+            s.name.toLowerCase() === (storeAuthUser.username || '').toLowerCase() ||
+            s.name.toLowerCase() === (storeAuthUser.name || '').toLowerCase()
+        );
+
+        if (matchedSeller) {
+            setSeller(matchedSeller);
+            return;
+        }
+
+        if (allSellers.length === 1) {
+            setSeller(allSellers[0]);
+        } else {
+            const container = document.getElementById('seller-buttons-container');
+            container.innerHTML = '';
+            allSellers.forEach(s => {
+                const btn = document.createElement('button');
+                btn.className = 'internal-checkout-btn';
+                btn.style.background = 'var(--surface)';
+                btn.style.color = 'var(--text)';
+                btn.style.border = '1px solid var(--border)';
+                btn.textContent = s.name;
+                btn.addEventListener('click', () => setSeller(s));
+                container.appendChild(btn);
+            });
+            document.getElementById('store-seller-modal').style.display = 'flex';
+        }
+    } catch (err) {
+        alert('No se pudieron cargar los vendedores: ' + err.message);
+    }
+}
+
+function setSeller(seller) {
+    storeActiveSeller = seller;
+    localStorage.setItem('storeActiveSeller', JSON.stringify(seller));
+    document.getElementById('store-seller-modal').style.display = 'none';
+    updateAuthUI();
+    updateCartUI();
+}
+
+function levenshteinDistance(s, t) {
+    if (!s.length) return t.length;
+    if (!t.length) return s.length;
+    const arr = [];
+    for (let i = 0; i <= t.length; i++) {
+        arr[i] = [i];
+        for (let j = 1; j <= s.length; j++) {
+            arr[i][j] = i === 0 ? j : Math.min(
+                arr[i - 1][j] + 1,
+                arr[i][j - 1] + 1,
+                arr[i - 1][j - 1] + (s[j - 1] === t[i - 1] ? 0 : 1)
+            );
+        }
+    }
+    return arr[t.length][s.length];
+}
+
+function findSimilarClients(name) {
+    const lowerName = name.toLowerCase().trim();
+    const threshold = 3;
+    const matches = storeClientList.map(c => {
+        const lowerC = c.toLowerCase();
+        const dist = levenshteinDistance(lowerName, lowerC);
+        return { name: c, dist, includes: lowerC.includes(lowerName) || lowerName.includes(lowerC) };
+    }).filter(c => c.dist <= threshold || c.includes)
+        .sort((a, b) => a.dist - b.dist)
+        .slice(0, 3);
+    return matches.map(m => m.name);
+}
+
+function openNewClientModal(name) {
+    document.getElementById('new-client-name-display').textContent = name;
+    document.getElementById('new-client-shortname').value = '';
+    document.getElementById('new-client-whatsapp').value = '';
+    document.getElementById('new-client-birthdate').value = '';
+    document.getElementById('new-client-error').style.display = 'none';
+    document.getElementById('store-new-client-modal').style.display = 'flex';
+}
+
+async function executeCheckout(customerName) {
+    try {
+        const btn = document.getElementById('internal-checkout-btn');
+        const customerNameInput = document.getElementById('store-customer-name');
+        btn.textContent = 'Procesando...';
+        btn.disabled = true;
+
+        const daysRes = await fetch(`/api/days?seller_id=${storeActiveSeller.id}`, { headers: getAuthHeaders() });
+        const days = await daysRes.json();
+        if (!daysRes.ok) throw new Error(days.error || 'Error fetching days');
+
+        let targetDay = days.find(d => !d.is_archived);
+        if (!targetDay) {
+            const isoDate = new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Bogota' }).format(new Date());
+            const createRes = await fetch('/api/days', {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({ seller_id: storeActiveSeller.id, day: isoDate, _actor_name: storeAuthUser.name })
+            });
+            if (!createRes.ok) throw new Error('No se pudo crear el día de venta automático.');
+            targetDay = await createRes.json();
+        }
+
+        let qty_arco = 0, qty_melo = 0, qty_mara = 0, qty_oreo = 0, qty_nute = 0;
+        const dessertsRes = await fetch('/api/desserts', { headers: getAuthHeaders() });
+        const adminDesserts = await dessertsRes.json();
+        const dynamicItems = [];
+
+        for (const productId in cart) {
+            const item = cart[productId];
+            const name = (item.product.name || '').toLowerCase();
+            let matchedDessert = adminDesserts.find(d => d.store_product_id === item.product.id);
+            let shortCode = '';
+            if (!matchedDessert) {
+                if (name.includes('arcoiris') || name.includes('arco')) { shortCode = 'arco'; }
+                else if (name.includes('melocoton') || name.includes('melo')) { shortCode = 'melo'; }
+                else if (name.includes('maracumango') || name.includes('mara')) { shortCode = 'mara'; }
+                else if (name.includes('oreo')) { shortCode = 'oreo'; }
+                else if (name.includes('nutella') || name.includes('nute')) { shortCode = 'nute'; }
+                else if (name.includes('leches') || name.includes('3lec')) { shortCode = '3lec'; }
+                else if (name.includes('brigadeiro') || name.includes('brig')) { shortCode = 'brig'; }
+                if (shortCode) matchedDessert = adminDesserts.find(d => (d.short_code || '').toLowerCase() === shortCode);
+            }
+            if (matchedDessert) {
+                dynamicItems.push({ dessert_id: matchedDessert.id, quantity: item.qty, unit_price: item.product.price });
+                const sc = (matchedDessert.short_code || '').toLowerCase();
+                if (sc === 'arco') qty_arco += item.qty;
+                if (sc === 'melo') qty_melo += item.qty;
+                if (sc === 'mara') qty_mara += item.qty;
+                if (sc === 'oreo') qty_oreo += item.qty;
+                if (sc === 'nute') qty_nute += item.qty;
+            }
+        }
+
+        const payload = { seller_id: storeActiveSeller.id, sale_day_id: targetDay.id, client_name: customerName, _actor_name: storeAuthUser.name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute };
+        const saleRes = await fetch('/api/sales', { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(payload) });
+        if (!saleRes.ok) {
+            const errBody = await saleRes.json();
+            throw new Error(errBody.error || 'Error al guardar la venta inicial');
+        }
+        const createdSale = await saleRes.json();
+
+        if (dynamicItems.length > 0) {
+            const updateRes = await fetch('/api/sales', {
+                method: 'PUT',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({ id: createdSale.id, seller_id: storeActiveSeller.id, sale_day_id: targetDay.id, client_name: customerName, items: dynamicItems, _actor_name: storeAuthUser.name })
+            });
+            if (!updateRes.ok) {
+                const errBody = await updateRes.json();
+                throw new Error(errBody.error || 'Error al actualizar los items de la venta');
+            }
+        }
+
+        const toast = document.getElementById('store-toast');
+        toast.textContent = '¡Pedido agregado con éxito! 🎉';
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 2500);
+
+        try {
+            const msgsRes = await fetch(`/api/seller-messages?seller_id=${storeActiveSeller.id}`, { headers: getAuthHeaders() });
+            if (msgsRes.ok) {
+                const msgs = await msgsRes.json();
+                const newOrderMsg = msgs.find(m => m.event_type === 'new_order');
+                if (newOrderMsg && newOrderMsg.is_active) {
+                    let waNumber = document.getElementById('new-client-whatsapp')?.value || customerNameInput.dataset.whatsapp;
+                    let shortName = null;
+                    const clientsRes = await fetch(`/api/clients?seller_id=${storeActiveSeller.id}`, { headers: getAuthHeaders() });
+                    if (clientsRes.ok) {
+                        const allCli = await clientsRes.json();
+                        const c = allCli.find(cli => cli.name.toLowerCase() === customerName.toLowerCase());
+                        if (c) {
+                            if (!waNumber && c.whatsapp) waNumber = c.whatsapp;
+                            if (c.short_name) shortName = c.short_name;
+                        }
+                    }
+                    if (waNumber && waNumber.trim() !== '') {
+                        let total = 0;
+                        for (const id in cart) total += cart[id].qty * cart[id].product.price;
+                        let text = newOrderMsg.message_text || '';
+                        text = text.replace(/{cliente}/g, shortName || customerName).replace(/{vendedor}/g, storeActiveSeller.name).replace(/{total}/g, `$${total.toLocaleString('es-CO')}`);
+                        let cleanNum = waNumber.replace(/\D/g, '');
+                        if (cleanNum.length === 10) cleanNum = '57' + cleanNum;
+                        window.open(`https://wa.me/${cleanNum}?text=${encodeURIComponent(text)}`, '_blank');
+                    }
+                }
+            }
+        } catch (e) { console.error('Error triggering WhatsApp message:', e); }
+
+        const iframe = document.querySelector('.embedded-sales-iframe');
+        if (iframe) iframe.contentWindow.location.reload();
+
+        for (const id in cart) delete cart[id];
+        customerNameInput.value = '';
+        updateCartUI();
+        loadStore();
+
+    } catch (err) {
+        alert('Error al procesar el pedido: ' + err.message);
+    } finally {
+        const btn = document.getElementById('internal-checkout-btn');
+        btn.textContent = 'Agregar pedido';
+        btn.disabled = false;
+    }
+}
