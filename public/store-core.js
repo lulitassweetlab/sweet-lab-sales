@@ -2,34 +2,55 @@
 
 async function loadStore() {
     const grid = document.getElementById('product-grid');
+    
+    // SWR: Load from cache first for instant feel
+    const cached = localStorage.getItem('store_products_cache');
+    if (cached) {
+        try {
+            const products = JSON.parse(cached);
+            if (Array.isArray(products) && products.length > 0) {
+                grid.innerHTML = '';
+                products.filter(p => p.is_active).forEach(storeRenderProduct);
+            }
+        } catch (e) {
+            console.error('Error parsing product cache', e);
+        }
+    }
+
     try {
         const res = await fetch('/api/store-products');
         if (!res.ok) throw new Error('Error de red');
         const products = await res.json();
 
-        const activeProducts = products.filter(p => p.is_active);
+        // If data changed compared to cache, update UI
+        if (JSON.stringify(products) !== cached) {
+            localStorage.setItem('store_products_cache', JSON.stringify(products));
+            const activeProducts = products.filter(p => p.is_active);
 
-        if (activeProducts.length === 0) {
-            grid.innerHTML = `
-                <div class="empty-state">
-                    <h2 style="font-size: 1.5rem; margin-bottom: 12px; color: var(--text);">¡Pronto tendremos delicias aquí!</h2>
-                    <p>Actualmente estamos horneando nuevas sorpresas. Vuelve pronto.</p>
-                </div>
-            `;
-            return;
+            if (activeProducts.length === 0) {
+                grid.innerHTML = `
+                    <div class="empty-state">
+                        <h2 style="font-size: 1.5rem; margin-bottom: 12px; color: var(--text);">¡Pronto tendremos delicias aquí!</h2>
+                        <p>Actualmente estamos horneando nuevas sorpresas. Vuelve pronto.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = '';
+            activeProducts.forEach(storeRenderProduct);
         }
-
-        grid.innerHTML = '';
-        activeProducts.forEach(storeRenderProduct);
 
     } catch (err) {
         console.error('Error loading store:', err);
-        grid.innerHTML = `
-            <div class="empty-state">
-                <h2 style="font-size: 1.5rem; margin-bottom: 12px; color: var(--danger);">¡Ups! Algo salió mal.</h2>
-                <p>No pudimos cargar el menú en este momento. Por favor, recarga la página.</p>
-            </div>
-        `;
+        if (!cached) {
+            grid.innerHTML = `
+                <div class="empty-state">
+                    <h2 style="font-size: 1.5rem; margin-bottom: 12px; color: var(--danger);">¡Ups! Algo salió mal.</h2>
+                    <p>No pudimos cargar el menú en este momento. Por favor, recarga la página.</p>
+                </div>
+            `;
+        }
     }
 }
 
@@ -248,56 +269,78 @@ function storeRenderProduct(product) {
 async function loadSettings() {
     const logoImg = document.querySelector('.logo');
     const grid = document.getElementById('product-grid');
+    
+    // SWR: Load from cache first
+    const cached = localStorage.getItem('store_settings_cache');
+    if (cached) {
+        try {
+            renderSettings(JSON.parse(cached));
+        } catch (e) {
+            console.error('Error parsing settings cache', e);
+        }
+    }
+
     try {
         const res = await fetch('/api/store-settings');
         if (res.ok) {
             const settings = await res.json();
-            if (settings.logo_base64) logoImg.src = settings.logo_base64;
-            if (settings.logo_height) {
-                logoImg.style.height = settings.logo_height + 'px';
-                logoImg.style.maxWidth = '100vw';
-                logoImg.style.maxHeight = 'none';
-            }
-            if (settings.grid_gap_x !== undefined) grid.style.columnGap = settings.grid_gap_x + 'px';
-            if (settings.grid_gap_y !== undefined) grid.style.rowGap = settings.grid_gap_y + 'px';
-            if (settings.cart_scale !== undefined) {
-                const scaleDec = settings.cart_scale / 100;
-                document.documentElement.style.setProperty('--cart-scale', scaleDec);
-            }
-            if (settings.store_title) document.getElementById('store-title-display').textContent = settings.store_title;
-            if (settings.store_subtitle) document.getElementById('store-subtitle-display').textContent = settings.store_subtitle;
-
-            const bannersContainer = document.getElementById('promo-banners-container');
-            bannersContainer.innerHTML = '';
-
-            if (settings.promo_banner_1) {
-                const a1 = document.createElement('a');
-                a1.href = '/publicidad-uno.html';
-                a1.className = 'promo-banner-link';
-                const img1 = document.createElement('img');
-                img1.src = settings.promo_banner_1;
-                img1.className = 'promo-banner-img';
-                img1.alt = 'Banner Promocional 1';
-                a1.appendChild(img1);
-                bannersContainer.appendChild(a1);
-            }
-
-            if (settings.promo_banner_2) {
-                const a2 = document.createElement('a');
-                a2.href = '/publicidad-dos.html';
-                a2.className = 'promo-banner-link';
-                const img2 = document.createElement('img');
-                img2.src = settings.promo_banner_2;
-                img2.className = 'promo-banner-img';
-                img2.alt = 'Banner Promocional 2';
-                a2.appendChild(img2);
-                bannersContainer.appendChild(a2);
+            if (JSON.stringify(settings) !== cached) {
+                localStorage.setItem('store_settings_cache', JSON.stringify(settings));
+                renderSettings(settings);
             }
         }
     } catch (err) {
         console.error('Error loading settings', err);
     } finally {
         if (logoImg) logoImg.style.opacity = '1';
+    }
+}
+
+function renderSettings(settings) {
+    const logoImg = document.querySelector('.logo');
+    const grid = document.getElementById('product-grid');
+    if (!settings) return;
+
+    if (settings.logo_base64) logoImg.src = settings.logo_base64;
+    if (settings.logo_height) {
+        logoImg.style.height = settings.logo_height + 'px';
+        logoImg.style.maxWidth = '100vw';
+        logoImg.style.maxHeight = 'none';
+    }
+    if (settings.grid_gap_x !== undefined) grid.style.columnGap = settings.grid_gap_x + 'px';
+    if (settings.grid_gap_y !== undefined) grid.style.rowGap = settings.grid_gap_y + 'px';
+    if (settings.cart_scale !== undefined) {
+        const scaleDec = settings.cart_scale / 100;
+        document.documentElement.style.setProperty('--cart-scale', scaleDec);
+    }
+    if (settings.store_title) document.getElementById('store-title-display').textContent = settings.store_title;
+    if (settings.store_subtitle) document.getElementById('store-subtitle-display').textContent = settings.store_subtitle;
+
+    const bannersContainer = document.getElementById('promo-banners-container');
+    bannersContainer.innerHTML = '';
+
+    if (settings.promo_banner_1) {
+        const a1 = document.createElement('a');
+        a1.href = '/publicidad-uno.html';
+        a1.className = 'promo-banner-link';
+        const img1 = document.createElement('img');
+        img1.src = settings.promo_banner_1;
+        img1.className = 'promo-banner-img';
+        img1.alt = 'Banner Promocional 1';
+        a1.appendChild(img1);
+        bannersContainer.appendChild(a1);
+    }
+
+    if (settings.promo_banner_2) {
+        const a2 = document.createElement('a');
+        a2.href = '/publicidad-dos.html';
+        a2.className = 'promo-banner-link';
+        const img2 = document.createElement('img');
+        img2.src = settings.promo_banner_2;
+        img2.className = 'promo-banner-img';
+        img2.alt = 'Banner Promocional 2';
+        a2.appendChild(img2);
+        bannersContainer.appendChild(a2);
     }
 }
 
