@@ -4,7 +4,7 @@ async function loadStore() {
     const grid = document.getElementById('product-grid');
     
     // SWR: Load from cache first for instant feel
-    const cached = localStorage.getItem('store_products_cache');
+    const cached = safeLS.getItem('store_products_cache');
     if (cached) {
         try {
             const products = JSON.parse(cached);
@@ -24,7 +24,7 @@ async function loadStore() {
 
         // If data changed compared to cache, update UI
         if (JSON.stringify(products) !== cached) {
-            localStorage.setItem('store_products_cache', JSON.stringify(products));
+            safeLS.setItem('store_products_cache', JSON.stringify(products));
             const activeProducts = products.filter(p => p.is_active);
 
             if (activeProducts.length === 0) {
@@ -271,7 +271,7 @@ async function loadSettings() {
     const grid = document.getElementById('product-grid');
     
     // SWR: Load from cache first
-    const cached = localStorage.getItem('store_settings_cache');
+    const cached = safeLS.getItem('store_settings_cache');
     if (cached) {
         try {
             renderSettings(JSON.parse(cached));
@@ -285,7 +285,7 @@ async function loadSettings() {
         if (res.ok) {
             const settings = await res.json();
             if (JSON.stringify(settings) !== cached) {
-                localStorage.setItem('store_settings_cache', JSON.stringify(settings));
+                safeLS.setItem('store_settings_cache', JSON.stringify(settings));
                 renderSettings(settings);
             }
         }

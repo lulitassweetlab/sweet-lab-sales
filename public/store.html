@@ -1271,7 +1271,12 @@
 
     <script>
         // Global constants and utilities
-        const fmtMoney = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
+        let fmtMoney;
+        try {
+            fmtMoney = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
+        } catch (e) {
+            fmtMoney = { format: (v) => '$' + Number(v || 0).toLocaleString() };
+        }
         const fallbackImage = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" fill="%23f5e6e8"><rect width="400" height="400"/><path d="M200 120 C150 120 120 160 120 200 C120 250 160 280 200 280 C240 280 280 250 280 200 C280 160 250 120 200 120 Z" fill="%23f4a6b7"/><circle cx="170" cy="180" r="10" fill="white"/><circle cx="230" cy="180" r="10" fill="white"/><path d="M180 230 Q200 250 220 230" stroke="white" stroke-width="8" stroke-linecap="round" fill="none"/></svg>`;
 
         const getAuthHeaders = () => {
@@ -1279,6 +1284,13 @@
             if (storeAuthUser && storeAuthUser.token) headers['Authorization'] = 'Bearer ' + storeAuthUser.token;
             if (storeAuthUser && storeAuthUser.username) headers['x-actor-name'] = storeAuthUser.username;
             return headers;
+        };
+
+        // Safety Helpers
+        window.safeLS = {
+            getItem: (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } },
+            setItem: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} },
+            removeItem: (k) => { try { localStorage.removeItem(k); } catch (e) {} }
         };
 
         // Global state shared across logic files
@@ -1291,11 +1303,17 @@
 
         // Initialize state from localStorage
         try {
-            const savedUser = localStorage.getItem('storeAuthUser');
+            const savedUser = safeLS.getItem('storeAuthUser');
             if (savedUser) storeAuthUser = JSON.parse(savedUser);
-            const savedSeller = localStorage.getItem('storeActiveSeller');
+            const savedSeller = safeLS.getItem('storeActiveSeller');
             if (savedSeller) storeActiveSeller = JSON.parse(savedSeller);
         } catch (e) { console.error('Error loading session:', e); }
+
+        // Compatibility Helper
+        function on(id, evt, cb) {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener(evt, cb);
+        }
 
         // Core Event Listeners (Some remain here for direct DOM interaction)
         document.addEventListener('DOMContentLoaded', async () => {
@@ -1322,21 +1340,21 @@
         });
 
         // Bridge Listeners (connecting HTML elements to logic in external files)
-        document.getElementById('store-auth-btn')?.addEventListener('click', () => {
+        on('store-auth-btn', 'click', () => {
             if (storeAuthUser && storeAuthUser.username) {
                 if (confirm('¿Deseas cerrar sesión?')) {
                     storeAuthUser = null;
                     storeActiveSeller = null;
-                    localStorage.removeItem('storeAuthUser');
-                    localStorage.removeItem('storeActiveSeller');
+                    safeLS.removeItem('storeAuthUser');
+                    safeLS.removeItem('storeActiveSeller');
                     updateAuthUI();
                     updateCartUI();
                 }
             } else {
                 storeAuthUser = null;
                 storeActiveSeller = null;
-                localStorage.removeItem('storeAuthUser');
-                localStorage.removeItem('storeActiveSeller');
+                safeLS.removeItem('storeAuthUser');
+                safeLS.removeItem('storeActiveSeller');
                 updateAuthUI();
                 loginStep = 1;
                 document.getElementById('login-modal-title').textContent = 'Ingreso';
@@ -1351,11 +1369,11 @@
             }
         });
 
-        document.getElementById('close-login-modal')?.addEventListener('click', () => {
+        on('close-login-modal', 'click', () => {
             document.getElementById('store-login-modal').style.display = 'none';
         });
 
-        document.getElementById('submit-login-btn')?.addEventListener('click', async () => {
+        on('submit-login-btn', 'click', async () => {
             const user = document.getElementById('login-user').value.trim();
             const passInput = document.getElementById('login-pass');
             const pass = passInput.value.trim();
@@ -1385,7 +1403,7 @@
                     throw new Error(data.error || 'Credenciales incorrectas');
                 }
                 storeAuthUser = await res.json();
-                localStorage.setItem('storeAuthUser', JSON.stringify(storeAuthUser));
+                safeLS.setItem('storeAuthUser', JSON.stringify(storeAuthUser));
                 document.getElementById('store-login-modal').style.display = 'none';
                 document.getElementById('login-pass').value = '';
                 await showSellerSelection();
@@ -1395,7 +1413,7 @@
             }
         });
 
-        document.getElementById('cart-checkout-btn')?.addEventListener('click', () => {
+        on('cart-checkout-btn', 'click', () => {
             let message = '¡Hola! Me encantaría hacer este pedido:\n\n';
             let grandTotal = 0;
             for (const id in cart) {
@@ -1409,7 +1427,7 @@
             window.open(`https://wa.me/573332268889?text=${encodeURIComponent(message)}`, '_blank');
         });
 
-        document.getElementById('internal-checkout-btn')?.addEventListener('click', async () => {
+        on('internal-checkout-btn', 'click', async () => {
             const customerNameInput = document.getElementById('store-customer-name');
             const customerName = customerNameInput.value.trim();
             if (!customerName) { alert('Por favor, ingresa el nombre del cliente.'); customerNameInput.focus(); return; }
@@ -1442,16 +1460,16 @@
             }
         });
 
-        document.getElementById('similar-client-cancel-btn')?.addEventListener('click', () => {
+        on('similar-client-cancel-btn', 'click', () => {
             document.getElementById('store-similar-client-modal').style.display = 'none';
         });
 
-        document.getElementById('similar-client-new-btn')?.addEventListener('click', () => {
+        on('similar-client-new-btn', 'click', () => {
             document.getElementById('store-similar-client-modal').style.display = 'none';
             openNewClientModal(document.getElementById('store-customer-name').value.trim());
         });
 
-        document.getElementById('submit-new-client-btn')?.addEventListener('click', async () => {
+        on('submit-new-client-btn', 'click', async () => {
             const name = document.getElementById('new-client-name-display').textContent;
             const short_name = document.getElementById('new-client-shortname').value.trim();
             const whatsapp = document.getElementById('new-client-whatsapp').value.trim();
@@ -1485,24 +1503,24 @@
             }
         });
 
-        document.getElementById('close-new-client-modal')?.addEventListener('click', () => {
+        on('close-new-client-modal', 'click', () => {
             document.getElementById('store-new-client-modal').style.display = 'none';
         });
 
-        document.getElementById('close-seller-modal')?.addEventListener('click', () => {
+        on('close-seller-modal', 'click', () => {
             document.getElementById('store-seller-modal').style.display = 'none';
         });
 
-        document.getElementById('gallery-close')?.addEventListener('click', () => closeGallery());
-        document.getElementById('gallery-prev')?.addEventListener('click', (e) => {
+        on('gallery-close', 'click', () => closeGallery());
+        on('gallery-prev', 'click', (e) => {
             e.stopPropagation();
             document.getElementById('gallery-track').scrollBy({ left: -document.getElementById('gallery-track').clientWidth, behavior: 'smooth' });
         });
-        document.getElementById('gallery-next')?.addEventListener('click', (e) => {
+        on('gallery-next', 'click', (e) => {
             e.stopPropagation();
             document.getElementById('gallery-track').scrollBy({ left: document.getElementById('gallery-track').clientWidth, behavior: 'smooth' });
         });
-        document.getElementById('gallery-track')?.addEventListener('scroll', () => {
+        on('gallery-track', 'scroll', () => {
             if (currentGalleryItems.length > 1) {
                 const track = document.getElementById('gallery-track');
                 const dots = document.getElementById('gallery-dots');
@@ -1511,10 +1529,10 @@
             }
         });
 
-        document.getElementById('store-clients-btn')?.addEventListener('click', () => {
+        on('store-clients-btn', 'click', () => {
             if (storeAuthUser && storeActiveSeller) window.location.href = '/index.html?embed=true&view=clients';
         });
-        document.getElementById('store-crm-btn')?.addEventListener('click', () => {
+        on('store-crm-btn', 'click', () => {
             if (storeAuthUser && storeActiveSeller) window.location.href = '/crm-mobile.html';
         });
     </script>

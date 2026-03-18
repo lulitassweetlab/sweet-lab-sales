@@ -3,7 +3,11 @@
  * Handles checkout, authentication, seller tools, and client autocomplete.
  */
 
-let pendingSales = JSON.parse(localStorage.getItem('pending_sales') || '[]');
+let pendingSales = [];
+try {
+    const savedPending = window.safeLS ? safeLS.getItem('pending_sales') : localStorage.getItem('pending_sales');
+    pendingSales = JSON.parse(savedPending || '[]');
+} catch (e) { console.error('Error initializing pending sales', e); }
 let isSyncing = false;
 
 function updateCartUI() {
@@ -183,7 +187,7 @@ async function showSellerSelection() {
 
 function setSeller(seller) {
     storeActiveSeller = seller;
-    localStorage.setItem('storeActiveSeller', JSON.stringify(seller));
+    safeLS.setItem('storeActiveSeller', JSON.stringify(seller));
     document.getElementById('store-seller-modal').style.display = 'none';
     updateAuthUI();
     updateCartUI();
@@ -234,7 +238,8 @@ function openNewClientModal(name) {
 async function executeCheckout(customerName) {
     // Collect all data BEFORE clearing the UI
     const customerNameInput = document.getElementById('store-customer-name');
-    const whatsappValue = document.getElementById('new-client-whatsapp')?.value || customerNameInput.dataset.whatsapp || '';
+    const newClientWhatsApp = document.getElementById('new-client-whatsapp');
+    const whatsappValue = (newClientWhatsApp ? newClientWhatsApp.value : '') || customerNameInput.dataset.whatsapp || '';
     
     const saleItems = [];
     for (const productId in cart) {
@@ -258,7 +263,7 @@ async function executeCheckout(customerName) {
 
     // 1. Queue immediately
     pendingSales.push(saleData);
-    localStorage.setItem('pending_sales', JSON.stringify(pendingSales));
+    safeLS.setItem('pending_sales', JSON.stringify(pendingSales));
 
     // 2. Clear UI instantly for "Fast" experience
     for (const id in cart) delete cart[id];
@@ -290,7 +295,7 @@ async function syncPendingSales() {
             
             if (success) {
                 pendingSales.shift();
-                localStorage.setItem('pending_sales', JSON.stringify(pendingSales));
+                safeLS.setItem('pending_sales', JSON.stringify(pendingSales));
             } else {
                 // If it failed due to network, stop and retry later
                 break;
@@ -308,8 +313,8 @@ async function processSingleSale(sale) {
     try {
         const authHeaders = { 
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + (sale.user?.token || ''),
-            'x-actor-name': sale.user?.username || ''
+            'Authorization': 'Bearer ' + (sale.user && sale.user.token ? sale.user.token : ''),
+            'x-actor-name': (sale.user && sale.user.username ? sale.user.username : '')
         };
 
         // 1. Get Day
