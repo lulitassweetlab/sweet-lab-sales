@@ -221,9 +221,12 @@ function findSimilarClients(name) {
 
 function openNewClientModal(name) {
     document.getElementById('new-client-name-display').textContent = name;
-    document.getElementById('new-client-shortname').value = '';
+    
+    // Extract first name for short name suggestion
+    const firstName = (name || '').trim().split(' ')[0];
+    document.getElementById('new-client-shortname').value = firstName;
+    
     document.getElementById('new-client-whatsapp').value = '';
-    document.getElementById('new-client-birthdate').value = '';
     document.getElementById('new-client-error').style.display = 'none';
     document.getElementById('store-new-client-modal').style.display = 'flex';
 }

@@ -1220,10 +1220,6 @@
                 class="internal-checkout-input" style="margin-bottom: 12px;" />
 
             <input id="new-client-whatsapp" type="tel" placeholder="WhatsApp" class="internal-checkout-input"
-                style="margin-bottom: 12px;" />
-
-            <input id="new-client-birthdate" type="text" onfocus="this.type='date'"
-                onblur="if(!this.value) this.type='text'" placeholder="Cumpleaños" class="internal-checkout-input"
                 style="margin-bottom: 20px;" />
 
             <div style="display: flex; gap: 10px; justify-content: space-between;">
@@ -1459,7 +1455,6 @@
             const name = document.getElementById('new-client-name-display').textContent;
             const short_name = document.getElementById('new-client-shortname').value.trim();
             const whatsapp = document.getElementById('new-client-whatsapp').value.trim();
-            const birth_date = document.getElementById('new-client-birthdate').value;
             const errDiv = document.getElementById('new-client-error');
             const btn = document.getElementById('submit-new-client-btn');
 
@@ -1475,7 +1470,7 @@
                 const res = await fetch('/api/clients', {
                     method: 'POST',
                     headers,
-                    body: JSON.stringify({ seller_id: storeActiveSeller.id, name, short_name: short_name || null, whatsapp: whatsapp || null, birth_date: birth_date || null })
+                    body: JSON.stringify({ seller_id: storeActiveSeller.id, name, short_name: short_name || null, whatsapp: whatsapp || null })
                 });
                 if (!res.ok) throw new Error((await res.json()).error || 'Error al guardar cliente');
                 storeClientList.push(name);
