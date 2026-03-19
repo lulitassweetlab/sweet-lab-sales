@@ -383,7 +383,7 @@ async function processSingleSale(sale) {
         if (!daysRes.ok) return false;
         const days = await daysRes.json();
 
-        let targetDay = days.find(d => !d.is_archived);
+        let targetDay = days[0];
         if (!targetDay) {
             const isoDate = new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Bogota' }).format(new Date(sale.timestamp));
             const createRes = await fetch('/api/days', {
