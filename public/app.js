@@ -1802,8 +1802,8 @@ async function enrichSalesWithReceiptStatus() {
 		if (!sale || !sale.id) continue;
 
 		try {
-			// Fetch all receipts for this sale
-			const receipts = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(sale.id)}`);
+			// Fetch receipts metadata ONLY (exclude large images)
+			const receipts = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(sale.id)}&exclude_images=true`);
 
 			if (!Array.isArray(receipts) || receipts.length === 0) continue;
 
@@ -1871,24 +1871,22 @@ async function loadSales() {
 		if (loadingTextEl) loadingTextEl.textContent = 'Verificando pagos...';
 		await enrichSalesWithReceiptStatus();
 
-		// Build recurrence counts across all dates for this seller
+		// Build recurrence counts efficiently using the new optimized endpoint
 		if (loadingTextEl) loadingTextEl.textContent = 'Procesando clientes...';
 		try {
-			const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(sellerId)}`);
+			const countsData = await api('GET', `${API.Sales}?action=client_counts&seller_id=${encodeURIComponent(sellerId)}`);
 			const counts = new Map();
 			const namesByKey = new Map();
-			for (const d of (days || [])) {
-				const p = new URLSearchParams({ seller_id: String(sellerId), sale_day_id: String(d.id) });
-				let sales = [];
-				try { sales = await api('GET', `${API.Sales}?${p.toString()}`); } catch { sales = []; }
-				for (const s of (sales || [])) {
-					const raw = (s?.client_name || '').trim();
-					if (!raw) continue;
-					const key = normalizeClientName(raw);
-					counts.set(key, (counts.get(key) || 0) + 1);
-					if (!namesByKey.has(key)) namesByKey.set(key, raw);
-				}
+			
+			for (const item of (countsData || [])) {
+				const raw = (item.client_name || '').trim();
+				if (!raw) continue;
+				const key = normalizeClientName(raw);
+				const currentCount = counts.get(key) || 0;
+				counts.set(key, currentCount + Number(item.count || 0));
+				if (!namesByKey.has(key)) namesByKey.set(key, raw);
 			}
+			
 			state.clientCounts = counts;
 			// Prepare suggestion list of regular clients (count > 1)
 			try {
@@ -1902,7 +1900,10 @@ async function loadSales() {
 				});
 				state.clientSuggestions = arr;
 			} catch { state.clientSuggestions = []; }
-		} catch { state.clientCounts = new Map(); }
+		} catch (err) {
+			console.error('Error loading optimized client counts:', err);
+			state.clientCounts = new Map();
+		}
 
 		// Ensure desserts are loaded before rendering table
 		if (loadingTextEl) loadingTextEl.textContent = 'Preparando la tabla...';

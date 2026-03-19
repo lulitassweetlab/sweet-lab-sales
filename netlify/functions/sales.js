@@ -173,13 +173,13 @@ export async function handler(event) {
 						// Enhance with sale_items data for each sale (optimized with a single query)
 						if (rows.length > 0) {
 							const saleIds = rows.map(r => r.id);
-						const allItems = await sql`
-							SELECT si.sale_id, si.dessert_id, si.quantity, si.unit_price, d.short_code
-							FROM sale_items si
-							INNER JOIN desserts d ON d.id = si.dessert_id
-							WHERE si.sale_id = ANY(${saleIds})
-							ORDER BY si.sale_id, d.position ASC
-						`;
+							const allItems = await sql`
+								SELECT si.sale_id, si.dessert_id, si.quantity, si.unit_price, d.short_code
+								FROM sale_items si
+								INNER JOIN desserts d ON d.id = si.dessert_id
+								WHERE si.sale_id = ANY(${saleIds})
+								ORDER BY si.sale_id, d.position ASC
+							`;
 							
 							// Group items by sale_id (more efficient)
 							const itemsBySaleId = {};
@@ -246,15 +246,42 @@ export async function handler(event) {
 				if (receiptFor) {
 					const saleId = Number(receiptFor);
 					if (!saleId) return json({ error: 'receipt_for inválido' }, 400);
+					
+					const excludeImages = params.get('exclude_images') === 'true';
+					const columns = excludeImages 
+						? sql`id, sale_id, note_text, pay_method, payment_source, payment_date, created_at` 
+						: sql`id, sale_id, image_base64, note_text, pay_method, payment_source, payment_date, created_at`;
+
 					// Try to fetch with new columns, fallback to old schema if they don't exist
 					let rows;
 					try {
-						rows = await sql`SELECT id, sale_id, image_base64, note_text, pay_method, payment_source, payment_date, created_at FROM sale_receipts WHERE sale_id=${saleId} ORDER BY created_at DESC, id DESC`;
+						if (excludeImages) {
+							rows = await sql`SELECT id, sale_id, note_text, pay_method, payment_source, payment_date, created_at FROM sale_receipts WHERE sale_id=${saleId} ORDER BY created_at DESC, id DESC`;
+						} else {
+							rows = await sql`SELECT id, sale_id, image_base64, note_text, pay_method, payment_source, payment_date, created_at FROM sale_receipts WHERE sale_id=${saleId} ORDER BY created_at DESC, id DESC`;
+						}
 					} catch (err) {
 						// Fallback to old schema
-						rows = await sql`SELECT id, sale_id, image_base64, note_text, created_at FROM sale_receipts WHERE sale_id=${saleId} ORDER BY created_at DESC, id DESC`;
+						if (excludeImages) {
+							rows = await sql`SELECT id, sale_id, note_text, created_at FROM sale_receipts WHERE sale_id=${saleId} ORDER BY created_at DESC, id DESC`;
+						} else {
+							rows = await sql`SELECT id, sale_id, image_base64, note_text, created_at FROM sale_receipts WHERE sale_id=${saleId} ORDER BY created_at DESC, id DESC`;
+						}
 					}
 					return json(rows);
+				}
+				
+				// New action to get client occurrence counts efficiently
+				const action = params.get('action') || (event.queryStringParameters && event.queryStringParameters.action);
+				if (action === 'client_counts' && params.get('seller_id')) {
+					const sellerId = Number(params.get('seller_id'));
+					const counts = await sql`
+						SELECT client_name, COUNT(*)::int as count 
+						FROM sales 
+						WHERE seller_id = ${sellerId} AND client_name IS NOT NULL AND TRIM(client_name) != ''
+						GROUP BY client_name
+					`;
+					return json(counts);
 				}
 				// Optimized client history: get all sales for a client across all days (including archived)
 				const clientName = params.get('client_name') || (event.queryStringParameters && event.queryStringParameters.client_name);
@@ -368,20 +395,32 @@ export async function handler(event) {
 				rows = await sql`SELECT id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, payment_date, payment_source, comment_text, special_pricing_type, total_cents, created_at FROM sales WHERE seller_id = ${sellerId} ORDER BY created_at DESC, id DESC`;
 			}
 				
-				// Enhance with sale_items data for each sale
-				for (const row of rows) {
-					try {
-						const items = await sql`
-							SELECT si.id, si.dessert_id, si.quantity, si.unit_price, d.name, d.short_code
-							FROM sale_items si
-							JOIN desserts d ON d.id = si.dessert_id
-							WHERE si.sale_id = ${row.id}
-							ORDER BY d.position ASC, d.id ASC
-						`;
-						row.items = items || [];
-					} catch (err) {
-						// Table might not exist yet, or no items for this sale
-						row.items = [];
+				// Enhance with sale_items data for each sale (OPTIMIZED BATCH FETCH)
+				if (rows.length > 0) {
+					const saleIds = rows.map(r => r.id);
+					const allItems = await sql`
+						SELECT si.sale_id, si.id, si.dessert_id, si.quantity, si.unit_price, d.name, d.short_code
+						FROM sale_items si
+						JOIN desserts d ON d.id = si.dessert_id
+						WHERE si.sale_id = ANY(${saleIds})
+						ORDER BY si.sale_id, d.position ASC, d.id ASC
+					`;
+					
+					const itemsBySaleId = {};
+					for (const item of allItems) {
+						if (!itemsBySaleId[item.sale_id]) itemsBySaleId[item.sale_id] = [];
+						itemsBySaleId[item.sale_id].push({
+							id: item.id,
+							dessert_id: item.dessert_id,
+							quantity: item.quantity,
+							unit_price: item.unit_price,
+							name: item.name,
+							short_code: item.short_code
+						});
+					}
+					
+					for (const row of rows) {
+						row.items = itemsBySaleId[row.id] || [];
 					}
 				}
 				
