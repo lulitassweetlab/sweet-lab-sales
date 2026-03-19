@@ -501,8 +501,9 @@ async function processSingleSale(sale) {
                                 return `${qty} ${label}`;
                             }
 
-                            // Regular desserts: prefix with "un postre de"
-                            return `${qty} un postre de ${name}`;
+                            // Regular desserts: "postre de" or "postres de"
+                            const label = qty === 1 ? 'postre' : 'postres';
+                            return `${qty} ${label} de ${name}`;
                         })
                         .join(', ') || 'tu pedido';
 
