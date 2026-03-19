@@ -388,21 +388,19 @@ async function processSingleSale(sale) {
         }
         const actorName = sale.user ? (sale.user.name || sale.user.username) : 'Tienda Online';
 
-        // 1. Determine Target Day (Only for logged-in sellers)
+        // 1. Determine Target Day (Always attempt to find the latest table)
         let targetDayId = null;
-        if (sale.user) {
-            try {
-                const daysRes = await fetch(`/api/days?seller_id=${sale.seller.id}`, { headers: authHeaders });
-                if (daysRes.ok) {
-                    const days = await daysRes.json();
-                    const targetDay = days[0];
-                    if (targetDay) targetDayId = targetDay.id;
-                }
-            } catch (err) {
-                console.warn('Could not fetch days, will let backend handle it:', err);
+        try {
+            const daysRes = await fetch(`/api/days?seller_id=${sale.seller.id}`, { headers: authHeaders });
+            if (daysRes.ok) {
+                const days = await daysRes.json();
+                const targetDay = days[0];
+                if (targetDay) targetDayId = targetDay.id;
             }
+        } catch (err) {
+            console.warn('Could not fetch days, will let backend handle it:', err);
         }
-        // If targetDayId is null, the backend POST /api/sales will handle it (creating for "today")
+        // If targetDayId is still null, the backend POST /api/sales will handle it (creating for "today")
 
         // 2. Get Desserts to map
         const dessertsRes = await fetch('/api/desserts', { headers: authHeaders });
