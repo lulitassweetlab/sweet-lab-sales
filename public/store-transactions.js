@@ -497,37 +497,43 @@ async function processSingleSale(sale) {
                     // Resolve {vendedor}
                     const vendedorName = (sale.seller && sale.seller.name) ? sale.seller.name : '';
 
+                    // Fetch client to get short name and WhatsApp number
+                    let clientShortName = clientDisplayName;
+                    let clientWhatsapp = sale.whatsapp;
+
+                    try {
+                        const clientsRes = await fetch(`/api/clients?seller_id=${sale.seller.id}`, { headers: authHeaders });
+                        if (clientsRes.ok) {
+                            const clientsArr = await clientsRes.json();
+                            const clientRecord = Array.isArray(clientsArr)
+                                ? clientsArr.find(c => (c.name || '').toLowerCase().trim() === clientDisplayName.toLowerCase().trim())
+                                : null;
+
+                            if (clientRecord) {
+                                if (clientRecord.short_name) {
+                                    clientShortName = clientRecord.short_name;
+                                }
+                                if (clientRecord.whatsapp) {
+                                    clientWhatsapp = clientRecord.whatsapp;
+                                }
+                            }
+                        }
+                    } catch (clientErr) {
+                        console.error('Error fetching client for WhatsApp tags:', clientErr);
+                    }
+
                     // Apply all tag replacements
                     let text = newOrderMsg.message_text;
-                    text = text.replace(/{cliente}/g, clientDisplayName);
+                    text = text.replace(/{cliente}/g, clientShortName);
                     text = text.replace(/{pedido}/g, pedidoStr);
                     text = text.replace(/{total}/g, fmtTotal);
                     text = text.replace(/{vendedor}/g, vendedorName);
 
-                    // Fetch client to get WhatsApp number (if registered)
-                    try {
-                        const clientsRes = await fetch(`/api/clients?seller_id=${sale.seller.id}`, { headers: authHeaders });
-                        if (clientsRes.ok) {
-                            const clients = await clientsRes.json();
-                            const clientRecord = Array.isArray(clients)
-                                ? clients.find(c => (c.name || '').toLowerCase().trim() === clientDisplayName.toLowerCase().trim())
-                                : null;
-
-                            // If the client found has a WhatsApp number, use their short name for {cliente} too
-                            if (clientRecord && clientRecord.short_name) {
-                                text = text.replace(/{cliente}/g, clientRecord.short_name);
-                            }
-
-                            const clientWhatsapp = clientRecord && clientRecord.whatsapp ? clientRecord.whatsapp : sale.whatsapp;
-                            if (clientWhatsapp) {
-                                let cleanNum = clientWhatsapp.replace(/\D/g, '');
-                                if (cleanNum.length === 10) cleanNum = '57' + cleanNum;
-                                const waUrl = `https://wa.me/${cleanNum}?text=${encodeURIComponent(text)}`;
-                                window.open(waUrl, '_blank');
-                            }
-                        }
-                    } catch (clientErr) {
-                        console.error('Error fetching client for WhatsApp:', clientErr);
+                    if (clientWhatsapp) {
+                        let cleanNum = clientWhatsapp.replace(/\D/g, '');
+                        if (cleanNum.length === 10) cleanNum = '57' + cleanNum;
+                        const waUrl = `https://wa.me/${cleanNum}?text=${encodeURIComponent(text)}`;
+                        window.open(waUrl, '_blank');
                     }
                 }
             }
