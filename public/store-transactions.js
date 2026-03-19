@@ -460,7 +460,8 @@ async function processSingleSale(sale) {
         }
 
         // 5. WhatsApp — send seller-configured new_order message with tag replacement
-        try {
+        // Only trigger for seller-initiated checkouts (where sale.user is present)
+        if (sale.user) try {
             const msgRes = await fetch(`/api/seller-messages?seller_id=${sale.seller.id}`, { headers: authHeaders });
             if (msgRes.ok) {
                 const msgs = await msgRes.json();
