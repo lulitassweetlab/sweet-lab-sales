@@ -482,10 +482,28 @@ async function processSingleSale(sale) {
                     // Resolve {cliente} — use short name if available
                     const clientDisplayName = sale.customerName || '';
 
-                    // Resolve {pedido} — comma-separated list of items
+                    // Resolve {pedido} — customized formatting
                     const pedidoStr = (sale.items || [])
                         .filter(item => item.qty > 0)
-                        .map(item => `${item.qty} ${item.name}`)
+                        .map(item => {
+                            const name = item.name || '';
+                            const lowerName = name.toLowerCase();
+                            const qty = item.qty || 0;
+
+                            // Brigadeiro rules
+                            if (lowerName.includes('brigadeiro')) {
+                                // If it's a box, leave as is
+                                if (lowerName.includes('caja')) {
+                                    return `${qty} ${name}`;
+                                }
+                                // Otherwise, use brigadeiro/brigadeiros
+                                const label = qty === 1 ? 'brigadeiro' : 'brigadeiros';
+                                return `${qty} ${label}`;
+                            }
+
+                            // Regular desserts: prefix with "un postre de"
+                            return `${qty} un postre de ${name}`;
+                        })
                         .join(', ') || 'tu pedido';
 
                     // Resolve {total} — formatted as COP currency
