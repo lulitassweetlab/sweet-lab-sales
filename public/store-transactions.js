@@ -323,7 +323,14 @@ async function uploadStoreOrder(customerName, phone) {
 
         // 4. Show confirmation message
         const confirmMsg = window.storeUploadConfirmMsg || 'Hemos recibido tu pedido, te contactaremos pronto';
-        alert(confirmMsg);
+        const successModal = document.getElementById('store-order-success-modal');
+        const successMsgEl = document.getElementById('order-success-msg');
+        if (successModal && successMsgEl) {
+            successMsgEl.textContent = confirmMsg;
+            successModal.style.display = 'flex';
+        } else {
+            alert(confirmMsg);
+        }
 
         // 5. Sync
         syncPendingSales();

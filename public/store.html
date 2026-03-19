@@ -1252,6 +1252,15 @@
         </div>
     </div>
 
+    <div class="modal-overlay" id="store-order-success-modal">
+        <div class="modal-content" style="max-width: 320px; text-align: center;">
+            <h3 style="margin-bottom: 20px; color: var(--primary-hover);">¡Pedido Recibido!</h3>
+            <p id="order-success-msg" style="font-size: 1rem; margin-bottom: 24px; color: var(--text); line-height: 1.5;"></p>
+            <button id="close-success-modal" class="internal-checkout-btn"
+                style="width: 100%; padding: 12px; font-size: 1rem;">Entendido</button>
+        </div>
+    </div>
+
     <div id="store-toast" class="animated-toast">
         Se agregó con éxito
     </div>
@@ -1487,6 +1496,10 @@
 
         on('close-client-info-modal', 'click', () => {
             document.getElementById('store-client-info-modal').style.display = 'none';
+        });
+
+        on('close-success-modal', 'click', () => {
+            document.getElementById('store-order-success-modal').style.display = 'none';
         });
 
         on('submit-client-info-btn', 'click', async () => {
