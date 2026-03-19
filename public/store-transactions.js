@@ -347,17 +347,20 @@ async function syncPendingSales() {
     document.getElementById('sync-indicator').style.display = 'flex';
 
     try {
+        console.log(`[Sync] Starting synchronization of ${pendingSales.length} sales...`);
         while (pendingSales.length > 0) {
             if (!navigator.onLine) break;
 
             const sale = pendingSales[0];
+            console.log(`[Sync] Processing sale for ${sale.customerName}...`);
             const success = await processSingleSale(sale);
             
             if (success) {
                 pendingSales.shift();
                 safeLS.setItem('pending_sales', JSON.stringify(pendingSales));
+                console.log(`[Sync] Successfully processed sale for ${sale.customerName}.`);
             } else {
-                // If it failed due to network, stop and retry later
+                console.warn(`[Sync] Failed to process sale for ${sale.customerName}. Will retry later.`);
                 break;
             }
         }
@@ -366,6 +369,7 @@ async function syncPendingSales() {
     } finally {
         isSyncing = false;
         document.getElementById('sync-indicator').style.display = 'none';
+        console.log('[Sync] Synchronization cycle finished.');
     }
 }
 
@@ -378,22 +382,21 @@ async function processSingleSale(sale) {
         }
         const actorName = sale.user ? (sale.user.name || sale.user.username) : 'Tienda Online';
 
-        // 1. Get Day
-        const daysRes = await fetch(`/api/days?seller_id=${sale.seller.id}`, { headers: authHeaders });
-        if (!daysRes.ok) return false;
-        const days = await daysRes.json();
-
-        let targetDay = days[0];
-        if (!targetDay) {
-            const isoDate = new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Bogota' }).format(new Date(sale.timestamp));
-            const createRes = await fetch('/api/days', {
-                method: 'POST',
-                headers: authHeaders,
-                body: JSON.stringify({ seller_id: sale.seller.id, day: isoDate, _actor_name: actorName })
-            });
-            if (!createRes.ok) return false;
-            targetDay = await createRes.json();
+        // 1. Determine Target Day (Only for logged-in sellers)
+        let targetDayId = null;
+        if (sale.user) {
+            try {
+                const daysRes = await fetch(`/api/days?seller_id=${sale.seller.id}`, { headers: authHeaders });
+                if (daysRes.ok) {
+                    const days = await daysRes.json();
+                    const targetDay = days[0];
+                    if (targetDay) targetDayId = targetDay.id;
+                }
+            } catch (err) {
+                console.warn('Could not fetch days, will let backend handle it:', err);
+            }
         }
+        // If targetDayId is null, the backend POST /api/sales will handle it (creating for "today")
 
         // 2. Get Desserts to map
         const dessertsRes = await fetch('/api/desserts', { headers: authHeaders });
@@ -429,7 +432,13 @@ async function processSingleSale(sale) {
         }
 
         // 3. Post Sale
-        const payload = { seller_id: sale.seller.id, sale_day_id: targetDay.id, client_name: sale.customerName, _actor_name: actorName, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute };
+        const payload = { 
+            seller_id: sale.seller.id, 
+            sale_day_id: targetDayId, 
+            client_name: sale.customerName, 
+            _actor_name: actorName, 
+            qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute 
+        };
         const saleRes = await fetch('/api/sales', { method: 'POST', headers: authHeaders, body: JSON.stringify(payload) });
         if (!saleRes.ok) return false;
         const createdSale = await saleRes.json();
@@ -439,7 +448,7 @@ async function processSingleSale(sale) {
             const updateRes = await fetch('/api/sales', {
                 method: 'PUT',
                 headers: authHeaders,
-                body: JSON.stringify({ id: createdSale.id, seller_id: sale.seller.id, sale_day_id: targetDay.id, client_name: sale.customerName, items: dynamicItems, _actor_name: actorName })
+                body: JSON.stringify({ id: createdSale.id, seller_id: sale.seller.id, sale_day_id: createdSale.sale_day_id, client_name: sale.customerName, items: dynamicItems, _actor_name: actorName })
             });
             if (!updateRes.ok) return false;
         }
