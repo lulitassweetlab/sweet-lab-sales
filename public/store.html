@@ -1424,7 +1424,8 @@
                 }
             }
             message += `\n * Total a pagar: ${fmtMoney.format(grandTotal)}`;
-            window.open(`https://wa.me/573004147471?text=${encodeURIComponent(message)}`, '_blank');
+            const waNumber = window.storeWhatsappNumber || '573004147471';
+            window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(message)}`, '_blank');
         });
 
         on('internal-checkout-btn', 'click', async () => {

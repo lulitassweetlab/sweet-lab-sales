@@ -133,6 +133,12 @@
                         placeholder="Ej: Descubre nuestra selección de delicias hechas con amor 💕"
                         style="width: 100%;" />
                 </div>
+                <div>
+                    <label style="font-weight: bold; display: block; margin-bottom: 8px;">WhatsApp de Pedidos (57...):</label>
+                    <input type="text" id="store-whatsapp-input" class="input-light"
+                        placeholder="Ej: 573004147471"
+                        style="width: 100%;" />
+                </div>
                 <div style="display: flex; gap: 16px;">
                     <div style="flex: 1;">
                         <label style="font-weight: bold; display: block; margin-bottom: 8px;">Separación Horizontal
@@ -826,6 +832,7 @@
             const cartScale = document.getElementById('cart-scale');
             const storeTitleInput = document.getElementById('store-title-input');
             const storeSubtitleInput = document.getElementById('store-subtitle-input');
+            const storeWhatsappInput = document.getElementById('store-whatsapp-input');
             const saveSettingsBtn = document.getElementById('save-settings-btn');
 
             let currentLogoBase64 = null;
@@ -926,6 +933,9 @@
                         if (settings.store_subtitle !== undefined) {
                             storeSubtitleInput.value = settings.store_subtitle;
                         }
+                        if (settings.whatsapp_number !== undefined) {
+                            storeWhatsappInput.value = settings.whatsapp_number;
+                        }
                         if (settings.promo_banner_1) {
                             currentBanner1Base64 = settings.promo_banner_1;
                             banner1Preview.src = settings.promo_banner_1;
@@ -950,7 +960,8 @@
                         grid_gap_y: gridGapY.value,
                         cart_scale: cartScale.value,
                         store_title: storeTitleInput.value.trim() || null,
-                        store_subtitle: storeSubtitleInput.value.trim() || null
+                        store_subtitle: storeSubtitleInput.value.trim() || null,
+                        whatsapp_number: storeWhatsappInput.value.trim() || null
                     };
                     if (currentLogoBase64) {
                         body.logo_base64 = currentLogoBase64;
