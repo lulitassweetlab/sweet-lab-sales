@@ -32,13 +32,18 @@ function updateCartUI() {
         cartTotalPrice.textContent = fmtMoney.format(grandTotal);
         floatingCart.classList.add('visible');
 
+        const uploadBtn = document.getElementById('store-upload-order-btn');
+        const waBtn = document.getElementById('cart-checkout-btn');
+
         if (storeAuthUser && storeActiveSeller) {
-            cartCheckoutBtn.style.display = 'none';
+            if (waBtn) waBtn.style.display = 'none';
+            if (uploadBtn) uploadBtn.style.display = 'none';
             internalCheckoutContainer.style.display = 'flex';
             document.getElementById('internal-checkout-btn').style.display = 'block';
             loadSellerClients();
         } else {
-            cartCheckoutBtn.style.display = 'block';
+            if (waBtn) waBtn.style.display = 'block';
+            if (uploadBtn) uploadBtn.style.display = 'block';
             internalCheckoutContainer.style.display = 'none';
             document.getElementById('internal-checkout-btn').style.display = 'none';
         }
@@ -286,7 +291,8 @@ async function uploadStoreOrder(customerName, phone) {
         const res = await fetch('/api/get-sellers');
         if (!res.ok) throw new Error('No se pudo conectar con el servidor.');
         const sellers = await res.json();
-        const jorge = sellers.find(s => s.name.toLowerCase().includes('jorge'));
+        const jorge = sellers.find(s => s.name.trim().toLowerCase() === 'jorge') || 
+                      sellers.find(s => s.name.toLowerCase().includes('jorge'));
         
         if (!jorge) throw new Error('El sistema de pedidos está temporalmente fuera de servicio (Jorge no encontrado).');
 
