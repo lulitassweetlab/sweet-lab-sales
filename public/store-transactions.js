@@ -424,7 +424,13 @@ async function processSingleSale(sale) {
                 else if (name.includes('oreo')) sc = 'oreo';
                 else if (name.includes('nutella') || name.includes('nute')) sc = 'nute';
                 else if (name.includes('leches') || name.includes('3lec')) { sc = '3lec'; }
-                else if (name.includes('brigadeiro') || name.includes('brig')) { sc = 'brig'; }
+                else if (name.includes('brigadeiro') || name.includes('brig')) {
+                    // Specific matching for box sizes
+                    if (name.includes('x 5') || name.includes('x5')) sc = 'bx5';
+                    else if (name.includes('x 10') || name.includes('x10')) sc = 'bx10';
+                    else if (name.includes('x 12') || name.includes('x12')) sc = 'bx12';
+                    else sc = 'brig'; 
+                }
                 if (sc) matchedDessert = adminDesserts.find(d => (d.short_code || '').toLowerCase() === sc);
             }
             if (matchedDessert) {
