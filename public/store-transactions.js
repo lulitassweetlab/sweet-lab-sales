@@ -280,6 +280,59 @@ async function executeCheckout(customerName) {
     syncPendingSales();
 }
 
+async function uploadStoreOrder(customerName, phone) {
+    try {
+        // 1. Find "Jorge" seller
+        const res = await fetch('/api/get-sellers');
+        if (!res.ok) throw new Error('No se pudo conectar con el servidor.');
+        const sellers = await res.json();
+        const jorge = sellers.find(s => s.name.toLowerCase().includes('jorge'));
+        
+        if (!jorge) throw new Error('El sistema de pedidos está temporalmente fuera de servicio (Jorge no encontrado).');
+
+        // 2. Prepare sale data
+        const saleItems = [];
+        for (const productId in cart) {
+            saleItems.push({ 
+                id: productId, 
+                qty: cart[productId].qty, 
+                price: cart[productId].product.price,
+                name: cart[productId].product.name
+            });
+        }
+
+        const saleData = {
+            id: 'store_' + Date.now(),
+            customerName: customerName,
+            whatsapp: phone,
+            items: saleItems,
+            seller: jorge, // Dedicated seller: Jorge
+            user: null,    // Anonymous store order
+            timestamp: new Date().toISOString()
+        };
+
+        // 3. Queue and clear
+        pendingSales.push(saleData);
+        if (window.safeLS) safeLS.setItem('pending_sales', JSON.stringify(pendingSales));
+        
+        for (const id in cart) delete cart[id];
+        const nameInput = document.getElementById('store-customer-name');
+        if (nameInput) nameInput.value = '';
+        updateCartUI();
+        if (typeof loadStore === 'function') loadStore();
+
+        // 4. Show confirmation message
+        const confirmMsg = window.storeUploadConfirmMsg || 'Hemos recibido tu pedido, te contactaremos pronto';
+        alert(confirmMsg);
+
+        // 5. Sync
+        syncPendingSales();
+    } catch (err) {
+        alert('Error al subir el pedido: ' + err.message);
+        throw err;
+    }
+}
+
 async function syncPendingSales() {
     if (isSyncing || pendingSales.length === 0) return;
     
@@ -311,11 +364,12 @@ async function syncPendingSales() {
 
 async function processSingleSale(sale) {
     try {
-        const authHeaders = { 
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + (sale.user && sale.user.token ? sale.user.token : ''),
-            'x-actor-name': (sale.user && sale.user.username ? sale.user.username : '')
-        };
+        const authHeaders = { 'Content-Type': 'application/json' };
+        if (sale.user) {
+            if (sale.user.token) authHeaders['Authorization'] = 'Bearer ' + sale.user.token;
+            if (sale.user.username) authHeaders['x-actor-name'] = sale.user.username;
+        }
+        const actorName = sale.user ? (sale.user.name || sale.user.username) : 'Tienda Online';
 
         // 1. Get Day
         const daysRes = await fetch(`/api/days?seller_id=${sale.seller.id}`, { headers: authHeaders });
@@ -328,7 +382,7 @@ async function processSingleSale(sale) {
             const createRes = await fetch('/api/days', {
                 method: 'POST',
                 headers: authHeaders,
-                body: JSON.stringify({ seller_id: sale.seller.id, day: isoDate, _actor_name: sale.user.name })
+                body: JSON.stringify({ seller_id: sale.seller.id, day: isoDate, _actor_name: actorName })
             });
             if (!createRes.ok) return false;
             targetDay = await createRes.json();
@@ -368,7 +422,7 @@ async function processSingleSale(sale) {
         }
 
         // 3. Post Sale
-        const payload = { seller_id: sale.seller.id, sale_day_id: targetDay.id, client_name: sale.customerName, _actor_name: sale.user.name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute };
+        const payload = { seller_id: sale.seller.id, sale_day_id: targetDay.id, client_name: sale.customerName, _actor_name: actorName, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute };
         const saleRes = await fetch('/api/sales', { method: 'POST', headers: authHeaders, body: JSON.stringify(payload) });
         if (!saleRes.ok) return false;
         const createdSale = await saleRes.json();
@@ -378,7 +432,7 @@ async function processSingleSale(sale) {
             const updateRes = await fetch('/api/sales', {
                 method: 'PUT',
                 headers: authHeaders,
-                body: JSON.stringify({ id: createdSale.id, seller_id: sale.seller.id, sale_day_id: targetDay.id, client_name: sale.customerName, items: dynamicItems, _actor_name: sale.user.name })
+                body: JSON.stringify({ id: createdSale.id, seller_id: sale.seller.id, sale_day_id: targetDay.id, client_name: sale.customerName, items: dynamicItems, _actor_name: actorName })
             });
             if (!updateRes.ok) return false;
         }

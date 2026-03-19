@@ -1233,6 +1233,25 @@
         </div>
     </div>
 
+    <div class="modal-overlay" id="store-client-info-modal">
+        <div class="modal-content" style="max-width: 320px; text-align: center;">
+            <h3 style="margin-bottom: 20px; color: var(--primary-hover);">Tus Datos</h3>
+            <p style="font-size: 0.9rem; margin-bottom: 16px;">Por favor, ingresa tu información para registrar el pedido:</p>
+            <input id="client-info-name" type="text" placeholder="Tu Nombre" class="internal-checkout-input"
+                style="margin-bottom: 12px;" />
+            <input id="client-info-phone" type="tel" placeholder="Tu WhatsApp / Teléfono" class="internal-checkout-input"
+                style="margin-bottom: 20px;" />
+            <div style="display: flex; gap: 10px; justify-content: space-between;">
+                <button id="close-client-info-modal" class="internal-checkout-btn"
+                    style="flex: 1; padding: 8px; background: var(--surface); color: var(--text); border: 1px solid var(--border);">Cancelar</button>
+                <button id="submit-client-info-btn" class="internal-checkout-btn"
+                    style="flex: 1; padding: 8px;">Subir Pedido</button>
+            </div>
+            <div id="client-info-error"
+                style="color: var(--danger); font-size: 0.9rem; margin-top: 10px; display: none;"></div>
+        </div>
+    </div>
+
     <div id="store-toast" class="animated-toast">
         Se agregó con éxito
     </div>
@@ -1250,6 +1269,7 @@
         </div>
 
         <button class="cart-checkout-btn" id="cart-checkout-btn">Pedir por WhatsApp 🛒</button>
+        <button class="cart-checkout-btn" id="store-upload-order-btn" style="background: var(--text); margin-top: 8px;">Subir pedido 🚀</button>
         <button class="internal-checkout-btn" id="internal-checkout-btn" style="display:none; width: 100%;">Agregar
             pedido</button>
     </div>
@@ -1426,6 +1446,74 @@
             message += `\n * Total a pagar: ${fmtMoney.format(grandTotal)}`;
             const waNumber = window.storeWhatsappNumber || '573004147471';
             window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(message)}`, '_blank');
+        });
+
+        on('store-upload-order-btn', 'click', () => {
+            if (storeAuthUser && storeActiveSeller) {
+                const customerNameInput = document.getElementById('store-customer-name');
+                const customerName = customerNameInput.value.trim();
+                if (!customerName) { alert('Por favor, ingresa el nombre del cliente.'); customerNameInput.focus(); return; }
+                
+                const exactMatch = storeClientList.find(c => c.trim().toLowerCase() === customerName.toLowerCase());
+                if (exactMatch) { executeCheckout(exactMatch); return; }
+
+                const similar = findSimilarClients(customerName);
+                if (similar.length > 0) {
+                    const container = document.getElementById('similar-clients-container');
+                    container.innerHTML = '';
+                    similar.forEach(simName => {
+                        const btn = document.createElement('button');
+                        btn.className = 'internal-checkout-btn';
+                        btn.style.background = 'var(--surface)';
+                        btn.style.color = 'var(--text)';
+                        btn.style.border = '1px solid var(--border)';
+                        btn.textContent = simName;
+                        btn.addEventListener('click', () => {
+                            document.getElementById('store-similar-client-modal').style.display = 'none';
+                            document.getElementById('store-customer-name').value = simName;
+                            executeCheckout(simName);
+                        });
+                        container.appendChild(btn);
+                    });
+                    document.getElementById('store-similar-client-modal').style.display = 'flex';
+                } else {
+                    openNewClientModal(customerName);
+                }
+            } else {
+                document.getElementById('store-client-info-modal').style.display = 'flex';
+                document.getElementById('client-info-name').focus();
+            }
+        });
+
+        on('close-client-info-modal', 'click', () => {
+            document.getElementById('store-client-info-modal').style.display = 'none';
+        });
+
+        on('submit-client-info-btn', 'click', async () => {
+            const name = document.getElementById('client-info-name').value.trim();
+            const phone = document.getElementById('client-info-phone').value.trim();
+            const errDiv = document.getElementById('client-info-error');
+            const submitBtn = document.getElementById('submit-client-info-btn');
+
+            if (!name) { errDiv.textContent = 'Por favor, ingresa tu nombre.'; errDiv.style.display = 'block'; return; }
+            if (!phone) { errDiv.textContent = 'Por favor, ingresa tu teléfono.'; errDiv.style.display = 'block'; return; }
+
+            errDiv.style.display = 'none';
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Subiendo...';
+            
+            try {
+                if (typeof uploadStoreOrder === 'function') {
+                    await uploadStoreOrder(name, phone);
+                    document.getElementById('store-client-info-modal').style.display = 'none';
+                }
+            } catch (err) {
+                errDiv.textContent = 'Error: ' + err.message;
+                errDiv.style.display = 'block';
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Subir Pedido';
+            }
         });
 
         on('internal-checkout-btn', 'click', async () => {

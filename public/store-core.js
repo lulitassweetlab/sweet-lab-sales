@@ -316,6 +316,7 @@ function renderSettings(settings) {
     if (settings.store_title) document.getElementById('store-title-display').textContent = settings.store_title;
     if (settings.store_subtitle) document.getElementById('store-subtitle-display').textContent = settings.store_subtitle;
     if (settings.whatsapp_number) window.storeWhatsappNumber = settings.whatsapp_number;
+    if (settings.upload_confirmation_message) window.storeUploadConfirmMsg = settings.upload_confirmation_message;
 
     const bannersContainer = document.getElementById('promo-banners-container');
     bannersContainer.innerHTML = '';
