@@ -383,9 +383,80 @@ async function processSingleSale(sale) {
             if (!updateRes.ok) return false;
         }
 
-        // 5. WhatsApp (Trigger only if manually called via browser, this will open a tab)
-        // Note: For background sync, we might want to skip automatic WhatsApp popups 
-        // OR trigger them via a notification. For now, let's skip for simplicity in bg sync.
+        // 5. WhatsApp — send seller-configured new_order message with tag replacement
+        try {
+            const msgRes = await fetch(`/api/seller-messages?seller_id=${sale.seller.id}`, { headers: authHeaders });
+            if (msgRes.ok) {
+                const msgs = await msgRes.json();
+                const newOrderMsg = Array.isArray(msgs) ? msgs.find(m => m.event_type === 'new_order') : null;
+
+                if (newOrderMsg && newOrderMsg.is_active && newOrderMsg.message_text) {
+                    // Only open WhatsApp if we can — requires user gesture context.
+                    // We rely on the fact that executeCheckout is called from a button click,
+                    // which keeps the user-gesture context for a short time window.
+
+                    // Resolve {cliente} — use short name if available
+                    const clientDisplayName = sale.customerName || '';
+
+                    // Resolve {pedido} — comma-separated list of items
+                    const pedidoStr = (sale.items || [])
+                        .filter(item => item.qty > 0)
+                        .map(item => `${item.qty} ${item.name}`)
+                        .join(', ') || 'tu pedido';
+
+                    // Resolve {total} — formatted as COP currency
+                    let grandTotal = 0;
+                    for (const item of (sale.items || [])) {
+                        grandTotal += (item.qty || 0) * (item.price || 0);
+                    }
+                    let fmtTotal;
+                    try {
+                        fmtTotal = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(grandTotal);
+                    } catch (e) {
+                        fmtTotal = '$' + grandTotal.toLocaleString();
+                    }
+
+                    // Resolve {vendedor}
+                    const vendedorName = (sale.seller && sale.seller.name) ? sale.seller.name : '';
+
+                    // Apply all tag replacements
+                    let text = newOrderMsg.message_text;
+                    text = text.replace(/{cliente}/g, clientDisplayName);
+                    text = text.replace(/{pedido}/g, pedidoStr);
+                    text = text.replace(/{total}/g, fmtTotal);
+                    text = text.replace(/{vendedor}/g, vendedorName);
+
+                    // Fetch client to get WhatsApp number (if registered)
+                    try {
+                        const clientsRes = await fetch(`/api/clients?seller_id=${sale.seller.id}`, { headers: authHeaders });
+                        if (clientsRes.ok) {
+                            const clients = await clientsRes.json();
+                            const clientRecord = Array.isArray(clients)
+                                ? clients.find(c => (c.name || '').toLowerCase().trim() === clientDisplayName.toLowerCase().trim())
+                                : null;
+
+                            // If the client found has a WhatsApp number, use their short name for {cliente} too
+                            if (clientRecord && clientRecord.short_name) {
+                                text = text.replace(/{cliente}/g, clientRecord.short_name);
+                            }
+
+                            const clientWhatsapp = clientRecord && clientRecord.whatsapp ? clientRecord.whatsapp : sale.whatsapp;
+                            if (clientWhatsapp) {
+                                let cleanNum = clientWhatsapp.replace(/\D/g, '');
+                                if (cleanNum.length === 10) cleanNum = '57' + cleanNum;
+                                const waUrl = `https://wa.me/${cleanNum}?text=${encodeURIComponent(text)}`;
+                                window.open(waUrl, '_blank');
+                            }
+                        }
+                    } catch (clientErr) {
+                        console.error('Error fetching client for WhatsApp:', clientErr);
+                    }
+                }
+            }
+        } catch (waErr) {
+            // WhatsApp is optional — don't fail the sale if it errors
+            console.error('Error sending WhatsApp on new order:', waErr);
+        }
 
         return true;
     } catch (err) {
