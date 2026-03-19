@@ -447,14 +447,13 @@
 						</label>
 					</div>
 					<p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 16px; line-height: 1.5;">
-						Este mensaje se abrirá en WhatsApp automáticamente cuando finalices una compra para un cliente
-						desde tu tienda. Puedes usar las etiquetas <b>{cliente}</b>, <b>{total}</b> y <b>{vendedor}</b>
+						desde tu tienda. Puedes usar las etiquetas <b>{cliente}</b>, <b>{pedido}</b>, <b>{total}</b> y <b>{vendedor}</b>
 						para personalizarlo magnéticamente.
 					</p>
 
 					<textarea id="msg-new-order-text" rows="5"
 						style="width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 12px; font-family: inherit; font-size: 0.95rem; resize: vertical; outline: none; transition: border-color 0.2s;"
-						placeholder="¡Hola {cliente}! 🎉 Gracias por tu pedido en Sweet Lab. El total a pagar es de {total}. Soy {vendedor}, quedo atent@ a tu comprobante de pago."></textarea>
+						placeholder="¡Hola {cliente}! 🎉 Gracias por tu pedido de {pedido}. El total a pagar es de {total}. Soy {vendedor}, quedo atent@ a tu comprobante de pago."></textarea>
 
 					<div style="margin-top: 16px; display: flex; justify-content: flex-end;">
 						<button id="save-messages-btn" class="press-btn btn-primary" style="padding: 10px 24px;">Guardar
