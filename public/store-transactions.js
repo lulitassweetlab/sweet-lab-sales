@@ -34,16 +34,19 @@ function updateCartUI() {
 
         const uploadBtn = document.getElementById('store-upload-order-btn');
         const waBtn = document.getElementById('cart-checkout-btn');
+        const separator = document.getElementById('cart-separator');
 
         if (storeAuthUser && storeActiveSeller) {
             if (waBtn) waBtn.style.display = 'none';
             if (uploadBtn) uploadBtn.style.display = 'none';
+            if (separator) separator.style.display = 'none';
             internalCheckoutContainer.style.display = 'flex';
             document.getElementById('internal-checkout-btn').style.display = 'block';
             loadSellerClients();
         } else {
             if (waBtn) waBtn.style.display = 'block';
             if (uploadBtn) uploadBtn.style.display = 'block';
+            if (separator) separator.style.display = 'inline';
             internalCheckoutContainer.style.display = 'none';
             document.getElementById('internal-checkout-btn').style.display = 'none';
         }
