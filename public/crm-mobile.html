@@ -891,10 +891,12 @@
                         timeline.push({
                             date: new Date(s.created_at),
                             type: 'venta',
-                            icon: '🛒',
-                            title: `Venta Registrada - ${formatMoney(s.total_cents)}`,
-                            body: items.join(', '),
-                            footer: isDebt ? '<b style="color:var(--danger)">DEBE</b>' : '<b style="color:var(--success)">PAGADO</b>',
+                            title: new Date(s.created_at).toLocaleString(),
+                            body: `<div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+                                     <span style="font-weight:700;">🛒 Venta: ${items.join(', ')}</span>
+                                     <span style="font-weight:800; color:var(--text-main);">${formatMoney(s.total_cents)}</span>
+                                   </div>`,
+                            footer: isDebt ? '<span style="display:inline-block; padding:2px 8px; border-radius:6px; background:var(--danger); color:#fff; font-size:0.65rem; font-weight:800; text-transform:uppercase; margin-top:6px;">DEBE</span>' : '',
                             color: isDebt ? 'var(--danger)' : 'var(--success)'
                         });
                     });
@@ -906,8 +908,7 @@
                         timeline.push({
                             date: new Date(log.sent_at),
                             type: 'whatsapp',
-                            icon: '💬',
-                            title: `Mensaje WhatsApp (${log.segment})`,
+                            title: `${new Date(log.sent_at).toLocaleString()} - WhatsApp (${log.segment})`,
                             body: log.message,
                             color: '#25D366'
                         });
@@ -920,10 +921,9 @@
                         timeline.push({
                             date: new Date(a.created_at),
                             type: 'accion',
-                            icon: '📝',
-                            title: a.action_type.toUpperCase(),
+                            title: `${new Date(a.created_at).toLocaleString()} - ${a.action_type.toUpperCase()}`,
                             body: a.note || 'Sin detalles.',
-                            footer: `Registrado por: ${a.seller_name || 'Vendedor'}`,
+                            footer: `Por: ${a.seller_name || 'Vendedor'}`,
                             color: 'var(--primary)'
                         });
                     });
@@ -935,8 +935,7 @@
                         timeline.push({
                             date: new Date(h.changed_at),
                             type: 'etapa',
-                            icon: '🚀',
-                            title: 'Cambio de Etapa',
+                            title: `${new Date(h.changed_at).toLocaleString()} - Cambio de Etapa`,
                             body: `De <b>${h.old_stage_name || 'Inicio'}</b> a <b>${h.new_stage_name}</b>`,
                             footer: h.note ? `"${h.note}"` : `Por: ${h.changed_by_name || 'Admin'}`,
                             color: h.new_stage_color || '#ccc'
@@ -952,14 +951,12 @@
                     timelineContainer.innerHTML = '<p style="text-align:center; padding:40px; color:var(--text-muted);">Sin actividad registrada.</p>';
                 } else {
                     timelineContainer.innerHTML = timeline.map(ev => `
-                        <div class="card" style="padding:15px; margin-bottom:12px; border-left:4px solid ${ev.color || 'var(--border)'}; position:relative;">
-                            <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:8px; display:flex; justify-content:space-between;">
-                                <span>${ev.date.toLocaleString()}</span>
-                                <span>${ev.icon}</span>
+                        <div class="card" style="padding:12px; margin-bottom:12px; border-left:4px solid ${ev.color || 'var(--border)'}; background:var(--surface);">
+                            <div style="font-size:0.7rem; color:var(--text-muted); margin-bottom:6px; font-weight:600; text-transform:uppercase; letter-spacing:0.02em;">
+                                ${ev.title}
                             </div>
-                            <div style="font-weight:700; margin-bottom:5px; font-size:1rem;">${ev.title}</div>
-                            <div style="font-size:0.9rem; margin-bottom:8px; color:var(--text-main); white-space:pre-wrap;">${ev.body}</div>
-                            ${ev.footer ? `<div style="font-size:0.75rem; border-top:1px solid var(--border); padding-top:6px; margin-top:5px; color:var(--text-muted);">${ev.footer}</div>` : ''}
+                            <div style="font-size:0.92rem; color:var(--text-main); white-space:pre-wrap; line-height:1.4;">${ev.body}</div>
+                            ${ev.footer ? `<div style="font-size:0.75rem; border-top:1px solid var(--border); padding-top:6px; margin-top:8px; color:var(--text-muted); font-style:italic;">${ev.footer}</div>` : ''}
                         </div>
                     `).join('');
                 }
