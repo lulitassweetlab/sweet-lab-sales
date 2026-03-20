@@ -1235,8 +1235,6 @@
         }
 
         async function deleteTimelineEntry(table, id) {
-            if(!confirm('¿Estás seguro de que quieres eliminar este registro?')) return;
-            
             try {
                 let url = '';
                 let method = 'POST';
