@@ -264,34 +264,41 @@
 
         <!-- SCREEN 3: Profile (Modal Style over Screen) -->
         <div id="screen-profile" class="screen" style="background:var(--surface); position:absolute; top:0; left:0; width:100%; min-height:100%; z-index:50;">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <button onclick="navTo('directory')" style="background:none; border:none; font-size: 1.5rem; cursor:pointer;">←</button>
-                    <div style="flex:1;">
+            <div class="card" style="padding: 12px; margin-bottom: 16px; border-radius: 12px; border:none; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+                <!-- ROW 1: Name, Phone, Birthday, Stage, Debt -->
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 8px;">
+                    <div style="display: flex; align-items: center; gap: 6px; flex: 1; min-width: 200px;">
+                        <button onclick="navTo('directory')" style="background:none; border:none; font-size: 1.2rem; cursor:pointer; padding: 4px; color: var(--text-main);">←</button>
                         <h2 id="profileName" 
                             contenteditable="true" 
                             spellcheck="false"
-                            style="font-size: 1.5rem; margin: 0; word-break: break-all; outline: none; padding: 2px 4px; border-radius: 6px; transition: background 0.2s;"
+                            style="font-size: 1.3rem; font-weight: 800; margin: 0; word-break: break-all; outline: none; padding: 2px 4px; border-radius: 6px; transition: background 0.2s;"
                             onfocus="this.style.background='rgba(99,102,241,0.1)'"
                             onblur="this.style.background='transparent'; editProfileName(this.innerText)"
                             onkeydown="if(event.key==='Enter'){ event.preventDefault(); this.blur(); }">
-                            Cargando Perfil...
+                            Cargando...
                         </h2>
+                        <div style="display: flex; align-items: center; gap: 4px; color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">
+                            <span>•</span>
+                            <span id="profPhone" style="white-space:nowrap;">-</span>
+                            <span>•</span>
+                            <span id="profBirthday" style="white-space:nowrap;">-</span>
+                        </div>
+                    </div>
+                    <div id="profileBadges" style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap; justify-content: flex-end;">
+                        <!-- Stage and Debt Tags -->
                     </div>
                 </div>
-                <div id="profileBadges" style="display: flex; gap: 4px;"></div>
-            </div>
-
-            <!-- Contact data -->
-            <div class="card" style="padding: 12px; margin-bottom: 16px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <div style="display: flex; gap: 8px; align-items: center;">
-                        <span style="font-size: 1.2rem;">📱</span>
-                        <span id="profPhone" style="font-weight: 500;">-</span>
-                    </div>
-                    <div style="display: flex; gap: 8px; align-items: center;">
-                        <span style="font-size: 1.2rem;">🎂</span>
-                        <span id="profBirthday">-</span>
+                
+                <!-- ROW 2: Description -->
+                <div style="border-top: 1px solid rgba(0,0,0,0.05); padding-top: 8px;">
+                    <div id="profDescription" 
+                        contenteditable="true" 
+                        spellcheck="false"
+                        style="font-size: 0.85rem; color: var(--text-muted); font-style: italic; outline: none; min-height: 1.2rem; padding: 2px 4px; border-radius: 6px; transition: background 0.2s;"
+                        onfocus="this.style.background='rgba(99,102,241,0.05)'; if(this.innerText==='Descripción...') this.innerText='';"
+                        onblur="this.style.background='transparent'; if(this.innerText.trim()==='') this.innerText='Descripción...'; saveClientDescription(this.innerText)">
+                        Descripción...
                     </div>
                 </div>
             </div>
@@ -821,7 +828,14 @@
                 document.getElementById('profileName').innerText = pf.name || 'Sin Nombre';
                 document.getElementById('profPhone').innerText = pf.whatsapp || 'Sin número';
                 document.getElementById('profBirthday').innerText = pf.birth_date ? pf.birth_date.split('T')[0] : 'Sin fecha';
-                document.getElementById('btnProfileWa').href = wappLink(pf.whatsapp);
+                
+                // Description
+                const desc = pf.description || '';
+                const descEl = document.getElementById('profDescription');
+                if (descEl) {
+                    descEl.innerText = desc || 'Descripción...';
+                    descEl.style.opacity = desc ? '1' : '0.6';
+                }
 
                 // --- TOP CARDS ---
                 let daysSince = '';
@@ -840,18 +854,25 @@
 
                 // Badges
                 const debt = Number(pf.total_debt_cents);
-                const freq = Number(pf.total_orders);
+                const currentId = (currentStage && currentStage.stage_id) ? Number(currentStage.stage_id) : null;
+                const stagesList = Array.isArray(crmStages) ? crmStages : [];
+                
                 let badgesHtml = '';
-                if(debt > 0) badgesHtml += `<span class="badge bg-danger">Deuda</span>`;
-                if(isInactive) badgesHtml += `<span class="badge bg-warning">Inactivo</span>`;
-                if(freq >= 10) badgesHtml += `<span class="badge bg-success">Frecuente</span>`;
-                if(freq === 1) badgesHtml += `<span class="badge bg-info">Nuevo</span>`;
+                
+                // --- CURRENT STAGE TAG (Now in header row) ---
+                if (currentStage) {
+                    const st = stagesList.find(s => Number(s.id) === currentId);
+                    if (st) {
+                        badgesHtml += `<span class="badge" style="background:${st.color}; color:#fff; font-size:0.7rem; padding: 3px 7px; border-radius: 6px; font-weight: 800; text-transform: uppercase; box-shadow: 0 2px 4px ${st.color}44;">${st.name}</span>`;
+                    }
+                }
+                
+                if(debt > 0) badgesHtml += `<span class="badge" style="background:var(--danger); color:#fff; font-size:0.7rem; padding: 3px 7px; border-radius: 6px; font-weight: 800; text-transform: uppercase; box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2);">DEBE</span>`;
+                
                 document.getElementById('profileBadges').innerHTML = badgesHtml;
 
                 // --- STAGE TAGS ---
                 const stageTagsContainer = document.getElementById('profStageTags');
-                const stagesList = Array.isArray(crmStages) ? crmStages : [];
-                const currentId = (currentStage && currentStage.stage_id) ? Number(currentStage.stage_id) : null;
                 
                 stageTagsContainer.innerHTML = stagesList.map(s => {
                     const isActive = Number(s.id) === currentId;
@@ -1010,6 +1031,32 @@
             const name = document.getElementById('profileName').innerText;
             // Go to store and pass context
             window.location.href = `/store.html?crm_client_id=${currentProfileId}&crm_client_name=${encodeURIComponent(name)}`;
+        }
+
+        async function saveClientDescription(text) {
+            if(!currentProfileId) return;
+            const desc = (text === 'Descripción...' || text.trim() === '') ? '' : text.trim();
+            
+            try {
+                const response = await fetch('/api/clients', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        seller_id: currentSellerId,
+                        name: lastLoadedProfileName,
+                        description: desc
+                    })
+                });
+                
+                if (!response.ok) throw new Error('Error guardando descripción');
+                
+                const descEl = document.getElementById('profDescription');
+                if (descEl) descEl.style.opacity = desc ? '1' : '0.6';
+                
+            } catch (err) {
+                console.error(err);
+                // Silently fail or minimal feedback to avoid blocking user flow
+            }
         }
 
         async function editProfileName(newText) {
