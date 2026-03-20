@@ -196,18 +196,34 @@
                     style="margin-left:12px; width:52px; height:52px; border-radius:50%; border:none; background:#555bdc; color:#fff; font-size:1.6rem; font-weight:700; cursor:pointer; flex-shrink:0; box-shadow: 0 4px 14px rgba(85,91,220,0.4); display:flex; align-items:center; justify-content:center; line-height:1;">+</button>
             </div>
 
-            <!-- Stage Pipeline Tags -->
-            <div style="margin-bottom:18px;">
-                <div style="font-size:0.8rem; font-weight:700; color:var(--text-muted); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.05em;">Pipeline de clientes</div>
-                <div id="dashStageTags" style="display:flex; flex-wrap:wrap; gap:8px;">
-                    <div class="spinner" style="padding:10px 0;">Cargando etapas...</div>
+            <!-- Two-column Layout for Dashboard -->
+            <div style="display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap;">
+                
+                <!-- LEFT SIDEBAR: Pipeline Tags -->
+                <div style="width: 140px; flex-shrink: 0;" class="dash-sidebar">
+                    <div style="font-size:0.7rem; font-weight:700; color:var(--text-muted); margin-bottom:10px; text-transform:uppercase; letter-spacing:0.05em;">Pipeline</div>
+                    <div id="dashStageTags" style="display:flex; flex-direction:column; gap:4px;">
+                        <div class="spinner" style="padding:10px 0; font-size:0.8rem;">Cargando...</div>
+                    </div>
                 </div>
+
+                <!-- RIGHT CONTENT: Contact List -->
+                <div style="flex: 1; min-width: 200px;">
+                    <h3 class="title-sec" style="margin-bottom:16px;">💡 Contactar Hoy</h3>
+                    <div id="dashContactList">
+                        <div class="spinner">Cargando resumen...</div>
+                    </div>
+                </div>
+
             </div>
 
-            <h3 class="title-sec">💡 Contactar Hoy</h3>
-            <div id="dashContactList">
-                <div class="spinner">Cargando resumen del día...</div>
-            </div>
+            <style>
+                @media (max-width: 360px) {
+                    .dash-sidebar { width: 100% !important; margin-bottom: 20px; }
+                    #dashStageTags { flex-direction: row !important; flex-wrap: wrap; }
+                    #dashStageTags button { width: auto !important; }
+                }
+            </style>
         </div>
 
         <!-- STAGE CLIENTS OVERLAY (bottom sheet) -->
@@ -598,11 +614,13 @@
                     const opacity = count === 0 ? '0.4' : '1';
                     return `
                     <button onclick="openStageClients(${s.id}, '${s.name.replace(/'/g,"\\'")}', '${s.color}')"
-                        style="display:inline-flex; align-items:center; gap:6px; padding:7px 14px; border-radius:20px; border:2px solid ${s.color}; background:${count > 0 ? s.color + '22' : 'transparent'}; color:var(--text-main); cursor:pointer; font-size:0.82rem; font-weight:700; opacity:${opacity}; transition:all 0.15s;"
-                        onmouseover="this.style.background='${s.color}33'" onmouseout="this.style.background='${count > 0 ? s.color + '22' : 'transparent'}'">
-                        <span style="width:8px; height:8px; border-radius:50%; background:${s.color}; display:inline-block; flex-shrink:0;"></span>
-                        ${s.name}
-                        <span style="background:${s.color}; color:#fff; border-radius:10px; padding:1px 7px; font-size:0.75rem;">${count}</span>
+                        style="display:flex; width:100%; align-items:center; justify-content:space-between; gap:6px; padding:8px 12px; border-radius:12px; border:1px solid ${s.color}; background:${count > 0 ? s.color + '15' : 'transparent'}; color:var(--text-main); cursor:pointer; font-size:0.78rem; font-weight:700; opacity:${opacity}; transition:all 0.15s; text-align:left; margin-bottom:4px;"
+                        onmouseover="this.style.background='${s.color}22'" onmouseout="this.style.background='${count > 0 ? s.color + '15' : 'transparent'}'">
+                        <div style="display:flex; align-items:center; gap:6px; overflow:hidden;">
+                            <span style="width:6px; height:6px; border-radius:50%; background:${s.color}; display:inline-block; flex-shrink:0;"></span>
+                            <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${s.name}</span>
+                        </div>
+                        <span style="background:${s.color}; color:#fff; border-radius:8px; padding:1px 6px; font-size:0.7rem; flex-shrink:0;">${count}</span>
                     </button>`;
                 }).join('');
             } catch(e) {
