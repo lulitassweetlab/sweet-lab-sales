@@ -1238,20 +1238,38 @@
                 let detectedAddress = '';
                 try {
                     // Reverse geocoding via Nominatim (OpenStreetMap)
+                    // Nominatim policy prefers a valid User-Agent
                     const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`, {
-                        headers: { 'Accept-Language': 'es' }
+                        headers: { 
+                            'Accept-Language': 'es'
+                        }
                     });
                     const geoData = await geoRes.json();
+                    console.log('GeoData debug:', geoData);
+
                     if (geoData && geoData.address) {
                         const a = geoData.address;
-                        // Build a shorter, readable address: "Road HouseNumber, Suburb, City"
-                        const road = a.road || a.pedestrian || '';
+                        // Colombian style: "Calle/Carrera Road # HouseNumber, City"
+                        const road = a.road || a.pedestrian || a.path || '';
                         const house = a.house_number || '';
+                        const suburb = a.suburb || a.neighbourhood || '';
                         const city = a.city || a.town || a.village || '';
-                        detectedAddress = `${road} ${house}`.trim();
-                        if (city) detectedAddress += (detectedAddress ? ', ' : '') + city;
-                    } else {
-                        detectedAddress = geoData.display_name || '';
+                        
+                        if (road) {
+                            detectedAddress = road;
+                            if (house) {
+                                // Add '#' if not already present in house number
+                                detectedAddress += (house.includes('#') ? ' ' : ' #') + house;
+                            }
+                            if (city) detectedAddress += ', ' + city;
+                        } else if (suburb) {
+                            detectedAddress = suburb + (city ? ', ' + city : '');
+                        } else {
+                            // Last resort: truncated display name
+                            detectedAddress = geoData.display_name.split(',').slice(0, 3).join(',').trim();
+                        }
+                    } else if (geoData && geoData.display_name) {
+                        detectedAddress = geoData.display_name.split(',').slice(0, 3).join(',').trim();
                     }
                 } catch (e) {
                     console.error('Error in reverse geocoding:', e);
