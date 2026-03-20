@@ -272,6 +272,8 @@
                             <span id="profPhone" style="white-space:nowrap; cursor:pointer; color: var(--text-main);" onclick="showContactMenu(event)">-</span>
                             <span>•</span>
                             <span id="profBirthday" style="white-space:nowrap; cursor:pointer;" onclick="startBirthdayEdit()">-</span>
+                            <span>•</span>
+                            <span id="profAddress" style="white-space:nowrap; cursor:pointer; color: var(--primary);" onclick="showAddressMenu(event)">📍 Ubicación...</span>
                         </div>
                         
                         <!-- ROW 3: Description -->
@@ -360,6 +362,31 @@
             
             <div id="profileTimelineContainer">
                 <div class="spinner">Cargando eventos...</div>
+            </div>
+        </div>
+
+        <!-- POPOVER: Address Actions -->
+        <div id="addressPopover" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:500; align-items:flex-end;" onclick="this.style.display='none'">
+            <div style="background:var(--surface); width:100%; border-radius:24px 24px 0 0; padding:24px 20px 40px; box-sizing:border-box; position:absolute; bottom:0;" onclick="event.stopPropagation()">
+                <div style="width:40px; height:5px; background:var(--border); border-radius:10px; margin:0 auto 20px;"></div>
+                <h3 style="margin:0 0 20px; font-size:1.2rem; font-weight:800; text-align:center;">📍 Opciones de Ubicación</h3>
+                
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <button class="btn-primary" id="linkGoogleMaps" style="height:auto; min-height:80px; flex-direction:column; padding:16px; background:#4285F4; gap:8px; border:none; border-radius:18px; color:white; font-weight:700; display:flex; align-items:center; justify-content:center;">
+                        <span style="font-size:1.5rem;">🌍</span> Google Maps
+                    </button>
+                    <button class="btn-primary" id="linkWaze" style="height:auto; min-height:80px; flex-direction:column; padding:16px; background:#33CCFF; gap:8px; border:none; border-radius:18px; color:white; font-weight:700; display:flex; align-items:center; justify-content:center;">
+                        <span style="font-size:1.5rem;">🚙</span> Waze
+                    </button>
+                    <button class="btn-primary" onclick="startAddressEdit()" style="height:auto; min-height:80px; flex-direction:column; padding:16px; background:var(--secondary); gap:8px; border:none; border-radius:18px; color:white; font-weight:700; display:flex; align-items:center; justify-content:center;">
+                        <span style="font-size:1.5rem;">✏️</span> Editar Texto
+                    </button>
+                    <button class="btn-primary" onclick="captureGPSCoords(event)" style="height:auto; min-height:80px; flex-direction:column; padding:16px; background:var(--primary); gap:8px; border:none; border-radius:18px; color:white; font-weight:700; display:flex; align-items:center; justify-content:center;">
+                        <span style="font-size:1.5rem;">🛰️</span> Capturar GPS
+                    </button>
+                </div>
+                
+                <button class="btn-secondary" style="margin-top:20px; width:100%; height:50px; border-radius:12px; border:none; background:var(--border); font-weight:700;" onclick="document.getElementById('addressPopover').style.display='none'">Cerrar</button>
             </div>
         </div>
 
@@ -914,6 +941,14 @@
                 document.getElementById('profPhone').innerText = pf.whatsapp || 'Sin número';
                 document.getElementById('profBirthday').innerText = pf.birth_date ? pf.birth_date.split('T')[0] : 'Sin fecha';
                 
+                // Address
+                const addEl = document.getElementById('profAddress');
+                if (addEl) {
+                    addEl.innerText = pf.address || '📍 Ubicación...';
+                    addEl.dataset.lat = pf.latitude || '';
+                    addEl.dataset.lng = pf.longitude || '';
+                }
+                
                 // Description
                 const desc = pf.description || '';
                 const descEl = document.getElementById('profDescription');
@@ -1136,6 +1171,105 @@
             const name = document.getElementById('profileName').innerText;
             // Go to store and pass context
             window.location.href = `/store.html?crm_client_id=${currentProfileId}&crm_client_name=${encodeURIComponent(name)}`;
+        }
+
+        function showAddressMenu(event) {
+            event.stopPropagation();
+            const el = document.getElementById('profAddress');
+            const address = el.innerText === '📍 Ubicación...' ? '' : el.innerText;
+            const lat = el.dataset.lat;
+            const lng = el.dataset.lng;
+            
+            const pop = document.getElementById('addressPopover');
+            pop.style.display = 'flex';
+
+            // Google Maps
+            const btnG = document.getElementById('linkGoogleMaps');
+            btnG.onclick = () => {
+                let url = 'https://www.google.com/maps/search/?api=1&query=';
+                if (lat && lng) url += `${lat},${lng}`;
+                else if (address) url += encodeURIComponent(address);
+                else { alert('Asigna una dirección o captura GPS primero.'); return; }
+                window.open(url, '_blank');
+            };
+
+            // Waze
+            const btnW = document.getElementById('linkWaze');
+            btnW.onclick = () => {
+                let url = 'https://waze.com/ul?';
+                if (lat && lng) url += `ll=${lat},${lng}&navigate=yes`;
+                else if (address) url += `q=${encodeURIComponent(address)}&navigate=yes`;
+                else { alert('Asigna una dirección o captura GPS primero.'); return; }
+                window.open(url, '_blank');
+            };
+        }
+
+        async function startAddressEdit() {
+            const el = document.getElementById('profAddress');
+            const currentAddress = el.innerText === '📍 Ubicación...' ? '' : el.innerText;
+            const newAddress = prompt('Ingresa la dirección del cliente:', currentAddress);
+            
+            if (newAddress !== null) {
+                await updateClientLocation({ address: newAddress.trim() });
+            }
+            document.getElementById('addressPopover').style.display = 'none';
+        }
+
+        function captureGPSCoords() {
+            if (!navigator.geolocation) {
+                alert('GPS no soportado en este navegador.');
+                return;
+            }
+
+            const btn = event.currentTarget;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<span>⏳</span> Capturando...';
+            btn.disabled = true;
+
+            navigator.geolocation.getCurrentPosition(async (pos) => {
+                const lat = pos.coords.latitude;
+                const lng = pos.coords.longitude;
+                
+                if (confirm(`Ubicación capturada: ${lat.toFixed(4)}, ${lng.toFixed(4)}. ¿Deseas guardarla como ubicación principal de este cliente?`)) {
+                    await updateClientLocation({ latitude: lat, longitude: lng });
+                }
+                
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                document.getElementById('addressPopover').style.display = 'none';
+
+            }, (err) => {
+                console.error(err);
+                alert('No se pudo obtener la ubicación. Asegúrate de dar permisos de GPS.');
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }, { enableHighAccuracy: true });
+        }
+
+        async function updateClientLocation(data) {
+            if (!currentProfileId) return;
+
+            try {
+                const res = await fetch(`/.netlify/functions/clients`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        seller_id: currentSellerId,
+                        name: lastLoadedProfileName,
+                        ...data
+                    })
+                });
+                
+                if (res.ok) {
+                    await loadProfile(currentProfileId);
+                } else {
+                    const err = await res.json();
+                    alert('Error: ' + (err.error || 'No se pudo guardar.'));
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Error de conexión al guardar ubicación.');
+            }
         }
 
         function showContactMenu(event) {

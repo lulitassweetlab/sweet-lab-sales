@@ -91,6 +91,9 @@ export default async (req) => {
             const whatsapp = (body.whatsapp || '').trim() || null;
             const birthDate = body.birth_date || null;
             const description = body.description === undefined ? null : body.description;
+            const address = body.address || null;
+            const latitude = body.latitude || null;
+            const longitude = body.longitude || null;
 
             if (!sellerId || isNaN(sellerId)) {
                 return new Response(JSON.stringify({ error: 'seller_id inválido o faltante' }), { status: 400 });
@@ -111,13 +114,16 @@ export default async (req) => {
 
                 // Ensure the target name exists in the database
                 const [targetClient] = await sql`
-                    INSERT INTO clients (seller_id, name, short_name, whatsapp, birth_date, description)
-                    VALUES (${sellerId}, ${name}, ${shortName}, ${whatsapp}, ${birthDate}, ${description})
+                    INSERT INTO clients (seller_id, name, short_name, whatsapp, birth_date, description, address, latitude, longitude)
+                    VALUES (${sellerId}, ${name}, ${shortName}, ${whatsapp}, ${birthDate}, ${description}, ${address}, ${latitude}, ${longitude})
                     ON CONFLICT (name, seller_id) DO UPDATE SET
                         short_name = COALESCE(EXCLUDED.short_name, clients.short_name),
                         whatsapp = COALESCE(clients.whatsapp, EXCLUDED.whatsapp),
                         birth_date = COALESCE(clients.birth_date, EXCLUDED.birth_date),
-                        description = COALESCE(clients.description, EXCLUDED.description)
+                        description = COALESCE(clients.description, EXCLUDED.description),
+                        address = COALESCE(clients.address, EXCLUDED.address),
+                        latitude = COALESCE(clients.latitude, EXCLUDED.latitude),
+                        longitude = COALESCE(clients.longitude, EXCLUDED.longitude)
                     RETURNING *
                 `;
 
@@ -195,12 +201,15 @@ export default async (req) => {
                 if (targetClient && oldClient && targetClient.id !== oldClient.id) {
                     // MERGE SCENARIO
                     // Target already exists. We update its details picking the best available from both and the request body.
-                    [targetClient] = await sql`
+                        [targetClient] = await sql`
                         UPDATE clients SET 
                             short_name = COALESCE(clients.short_name, ${oldClient.short_name}, ${shortName}),
                             whatsapp = COALESCE(clients.whatsapp, ${oldClient.whatsapp}, ${whatsapp}),
                             birth_date = COALESCE(clients.birth_date, ${oldClient.birth_date}, ${birthDate}),
-                            description = COALESCE(clients.description, ${oldClient.description}, ${description})
+                            description = COALESCE(clients.description, ${oldClient.description}, ${description}),
+                            address = COALESCE(clients.address, ${oldClient.address}, ${address}),
+                            latitude = COALESCE(clients.latitude, ${oldClient.latitude}, ${latitude}),
+                            longitude = COALESCE(clients.longitude, ${oldClient.longitude}, ${longitude})
                         WHERE id = ${targetClient.id}
                         RETURNING *
                     `;
@@ -236,15 +245,18 @@ export default async (req) => {
                             short_name = COALESCE(${shortName}, short_name),
                             whatsapp = COALESCE(${whatsapp}, whatsapp),
                             birth_date = COALESCE(${birthDate}, birth_date),
-                            description = COALESCE(${description}, description)
+                            description = COALESCE(${description}, description),
+                            address = COALESCE(${address}, address),
+                            latitude = COALESCE(${latitude}, latitude),
+                            longitude = COALESCE(${longitude}, longitude)
                         WHERE id = ${oldClient.id}
                         RETURNING *
                     `;
                 } else if (!targetClient && !oldClient) {
                     // NEITHER EXIST (just creating new)
                     [targetClient] = await sql`
-                        INSERT INTO clients (seller_id, name, short_name, whatsapp, birth_date, description)
-                        VALUES (${sellerId}, ${name}, ${shortName}, ${whatsapp}, ${birthDate}, ${description})
+                        INSERT INTO clients (seller_id, name, short_name, whatsapp, birth_date, description, address, latitude, longitude)
+                        VALUES (${sellerId}, ${name}, ${shortName}, ${whatsapp}, ${birthDate}, ${description}, ${address}, ${latitude}, ${longitude})
                         RETURNING *
                     `;
                 } else if (targetClient && !oldClient) {
@@ -254,7 +266,10 @@ export default async (req) => {
                             short_name = COALESCE(${shortName}, short_name),
                             whatsapp = COALESCE(${whatsapp}, whatsapp),
                             birth_date = COALESCE(${birthDate}, birth_date),
-                            description = COALESCE(${description}, description)
+                            description = COALESCE(${description}, description),
+                            address = COALESCE(${address}, address),
+                            latitude = COALESCE(${latitude}, latitude),
+                            longitude = COALESCE(${longitude}, longitude)
                         WHERE id = ${targetClient.id}
                         RETURNING *
                     `;
@@ -288,7 +303,10 @@ export default async (req) => {
                         short_name = COALESCE(${shortName}, short_name),
 						whatsapp = COALESCE(${whatsapp}, whatsapp),
 						birth_date = COALESCE(${birthDate}, birth_date),
-                        description = COALESCE(${description}, description)
+                        description = COALESCE(${description}, description),
+                        address = COALESCE(${address}, address),
+                        latitude = COALESCE(${latitude}, latitude),
+                        longitude = COALESCE(${longitude}, longitude)
 					WHERE id = ${existing.id}
 					RETURNING *
 				`;
@@ -296,8 +314,8 @@ export default async (req) => {
             } else {
                 // Insert new
                 const [inserted] = await sql`
-					INSERT INTO clients (seller_id, name, short_name, whatsapp, birth_date, description)
-					VALUES (${sellerId}, ${name}, ${shortName}, ${whatsapp}, ${birthDate}, ${description})
+					INSERT INTO clients (seller_id, name, short_name, whatsapp, birth_date, description, address, latitude, longitude)
+					VALUES (${sellerId}, ${name}, ${shortName}, ${whatsapp}, ${birthDate}, ${description}, ${address}, ${latitude}, ${longitude})
 					RETURNING *
 				`;
                 result = inserted;
