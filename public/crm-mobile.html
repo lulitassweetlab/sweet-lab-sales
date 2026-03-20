@@ -486,11 +486,11 @@
         </div>
     </div>
 
-    <!-- LOCATION ACTION POPOVER (Refined Labels) -->
+    <!-- LOCATION ACTION POPOVER (Uniform Color) -->
     <div id="locationPopover" style="display:none; position:fixed; z-index:250; background:var(--surface); border-radius:12px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); border: 1px solid var(--border); overflow: hidden; min-width: 190px; animation: popIn 0.2s ease;">
         <div style="display: flex; flex-direction: column;">
             <!-- Capturar -->
-            <div id="locCapture" onclick="captureGPSCoords(event)" style="display:flex; align-items:center; gap:10px; padding:12px 16px; cursor:pointer; color:var(--primary); font-weight:700; font-size: 0.9rem; border-bottom: 1px solid var(--border); transition:background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
+            <div id="locCapture" onclick="captureGPSCoords(event)" style="display:flex; align-items:center; gap:10px; padding:12px 16px; cursor:pointer; color:var(--text-main); font-weight:700; font-size: 0.9rem; border-bottom: 1px solid var(--border); transition:background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
                 <span style="font-size: 1.2rem;">🛰️</span> Capturar
             </div>
             <!-- Ingresar -->
@@ -506,27 +506,27 @@
                 <span style="font-size: 1.2rem;">🚙</span> Waze
             </div>
             <!-- Señalar en mapa -->
-            <div onclick="openMapPicker()" style="display:flex; align-items:center; gap:10px; padding:12px 16px; cursor:pointer; color:var(--info); font-weight:700; font-size:0.9rem; transition:background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
+            <div onclick="openMapPicker()" style="display:flex; align-items:center; gap:10px; padding:12px 16px; cursor:pointer; color:var(--text-main); font-weight:700; font-size:0.9rem; transition:background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
                 <span style="font-size: 1.2rem;">📍</span> Señalar en mapa
             </div>
         </div>
     </div>
 
-    <!-- MAP PICKER MODAL -->
-    <div id="mapPickerModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:1000; background:var(--bg); flex-direction:column;">
-        <header style="padding:12px 20px;">
-            <button onclick="closeMapPicker()" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">✕</button>
-            <div style="font-weight:800; font-size:1.1rem;">Elegir Ubicación</div>
+    <!-- MAP PICKER MODAL (Solid Background Fix) -->
+    <div id="mapPickerModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:1000; background:var(--bg) !important; opacity: 1 !important; flex-direction:column; -webkit-tap-highlight-color: transparent;">
+        <header style="padding:12px 20px; background:var(--bg);">
+            <button onclick="closeMapPicker()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-main);">✕</button>
+            <div style="font-weight:800; font-size:1.1rem; color:var(--text-main);">Elegir Ubicación</div>
             <div style="width:30px;"></div>
         </header>
-        <div style="flex:1; position:relative;">
-            <div id="mapPickerContainer" style="width:100%; height:100%;"></div>
+        <div style="flex:1; position:relative; background:white;">
+            <div id="mapPickerContainer" style="width:100%; height:100%; opacity: 1 !important;"></div>
             <!-- Crosshair overlay -->
             <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -100%); z-index:500; pointer-events:none; font-size:2rem;">
                 📍
             </div>
         </div>
-        <div style="padding:20px; background:var(--surface); border-top:1px solid var(--border);">
+        <div style="padding:20px; background:var(--surface); border-top:1px solid var(--border); opacity: 1 !important;">
             <div id="mapPickerAddress" style="font-size:0.85rem; color:var(--text-muted); margin-bottom:12px; text-align:center;">Mueve el mapa para marcar la ubicación</div>
             <button class="btn-primary" onclick="confirmMapPicker()" style="width:100%; height:55px; border-radius:14px; font-weight:800;">Confirmar Ubicación</button>
         </div>
