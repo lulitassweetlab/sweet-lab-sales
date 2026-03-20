@@ -312,7 +312,7 @@
             </div>
             
             <!-- CRM Stage Section -->
-            <div class="card" style="padding:12px; margin-bottom:16px;">
+            <div class="card" style="padding:12px; margin-bottom:16px; border-radius: 12px; border:none; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
                 <div style="display:flex; align-items:center; gap:8px;">
                     <div id="profStageTags" style="display:flex; flex-wrap:wrap; gap:8px;">
                         <div class="spinner" style="padding:10px 0; font-size:0.8rem;">Cargando etapas...</div>
@@ -368,7 +368,7 @@
 
             <!-- Profile Navigation -->
             <div style="display:flex; border-bottom:1px solid var(--border); margin-bottom: 16px;">
-                <div style="flex:1; text-align:center; padding:10px; font-weight:700; border-bottom:2px solid var(--primary-dark);">Línea de Tiempo Unificada</div>
+                <div style="flex:1; text-align:center; padding:10px; font-weight:700; border-bottom:2px solid var(--primary-dark); font-size:1.1rem;">Línea de Tiempo</div>
             </div>
             
             <div id="profileTimelineContainer">
@@ -1016,7 +1016,7 @@
                     timelineContainer.innerHTML = timeline.map(ev => `
                         <div class="card" style="padding:8px 12px; margin-bottom:8px; border-left:3px solid ${ev.color || 'var(--border)'}; background:var(--surface); display:flex; flex-wrap:wrap; align-items:baseline; gap:6px; font-size:0.85rem; line-height:1.3;">
                             <span style="font-size:0.65rem; color:var(--text-muted); font-weight:700; white-space:nowrap; text-transform:uppercase;">${ev.date.toLocaleString()}</span>
-                            <span style="flex:1; min-width:180px; color:var(--text-main);">${ev.body}</span>
+                            <span style="flex:1; min-width:180px; color:var(--text-main); font-size: 1rem;">${ev.body}</span>
                             ${ev.footer ? `<span style="font-weight:700; color:var(--text-main); white-space:nowrap;">${ev.footer}</span>` : ''}
                         </div>
                     `).join('');
