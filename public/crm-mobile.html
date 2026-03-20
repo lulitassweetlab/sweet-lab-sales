@@ -971,6 +971,8 @@
                         }
 
                         timeline.push({
+                            id: s.id,
+                            table: 'sales',
                             date: new Date(s.created_at),
                             type: 'venta',
                             title: new Date(s.created_at).toLocaleString(),
@@ -985,6 +987,8 @@
                 if(Array.isArray(waLogs)) {
                     waLogs.forEach(log => {
                         timeline.push({
+                            id: log.id,
+                            table: 'whatsapp',
                             date: new Date(log.sent_at),
                             type: 'whatsapp',
                             title: `${new Date(log.sent_at).toLocaleString()} - WhatsApp (${log.segment})`,
@@ -998,6 +1002,8 @@
                 if(Array.isArray(actions)) {
                     actions.forEach(a => {
                         timeline.push({
+                            id: a.id,
+                            table: 'action',
                             date: new Date(a.created_at),
                             type: 'accion',
                             title: `${new Date(a.created_at).toLocaleString()} - ${a.action_type.toUpperCase()}`,
@@ -1012,6 +1018,8 @@
                 if(Array.isArray(stageHistory)) {
                     stageHistory.forEach(h => {
                         timeline.push({
+                            id: h.id,
+                            table: 'history',
                             date: new Date(h.changed_at),
                             type: 'etapa',
                             title: `${new Date(h.changed_at).toLocaleString()} - Cambio de Etapa`,
@@ -1030,10 +1038,15 @@
                     timelineContainer.innerHTML = '<p style="text-align:center; padding:40px; color:var(--text-muted);">Sin actividad registrada.</p>';
                 } else {
                     timelineContainer.innerHTML = timeline.map(ev => `
-                        <div class="card" style="padding:8px 12px; margin-bottom:8px; border-left:3px solid ${ev.color || 'var(--border)'}; background:var(--surface); display:flex; flex-wrap:wrap; align-items:baseline; gap:6px; font-size:0.85rem; line-height:1.3;">
-                            <span style="font-size:0.65rem; color:var(--text-muted); font-weight:700; white-space:nowrap; text-transform:uppercase;">${ev.date.toLocaleString()}</span>
-                            <span style="flex:1; min-width:180px; color:var(--text-main); font-size: 1rem;">${ev.body}</span>
-                            ${ev.footer ? `<span style="font-weight:700; color:var(--text-main); white-space:nowrap;">${ev.footer}</span>` : ''}
+                        <div class="card" style="padding:8px 12px; margin-bottom:8px; border-left:3px solid ${ev.color || 'var(--border)'}; background:var(--surface); display:flex; flex-wrap:wrap; align-items:center; gap:6px; font-size:0.85rem; line-height:1.3; position:relative;">
+                            <div style="flex:1; display:flex; flex-wrap:wrap; align-items:baseline; gap:6px; min-width:0;">
+                                <span style="font-size:0.65rem; color:var(--text-muted); font-weight:700; white-space:nowrap; text-transform:uppercase;">${ev.date.toLocaleString()}</span>
+                                <span style="flex:1; min-width:160px; color:var(--text-main); font-size: 1rem;">${ev.body}</span>
+                                ${ev.footer ? `<span style="font-weight:700; color:var(--text-main); white-space:nowrap;">${ev.footer}</span>` : ''}
+                            </div>
+                            <button onclick="deleteTimelineEntry('${ev.table}', ${ev.id})" style="background:none; border:none; padding:4px; cursor:pointer; font-size:1.1rem; opacity:0.4; transition:opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.4'">
+                                🗑️
+                            </button>
                         </div>
                     `).join('');
                 }
@@ -1060,7 +1073,6 @@
                         action: 'set_stage',
                         client_id: currentProfileId,
                         stage_id: Number(newStageId),
-                        note: 'Cambio rápido desde ficha de cliente',
                         user_id: currentSellerId
                     })
                 });
@@ -1219,6 +1231,41 @@
             } catch(e) {
                 alert("Error actualizando cumpleaños. Use formato AAAA-MM-DD");
                 loadProfile(currentProfileId);
+            }
+        }
+
+        async function deleteTimelineEntry(table, id) {
+            if(!confirm('¿Estás seguro de que quieres eliminar este registro?')) return;
+            
+            try {
+                let url = '';
+                let method = 'POST';
+                let body = null;
+                
+                if(table === 'whatsapp') {
+                    url = `/api/crm-whatsapp-logs?id=${id}`;
+                    method = 'DELETE';
+                } else if(table === 'action') {
+                    url = '/api/crm-stages';
+                    body = { action: 'delete_action', id: id };
+                } else if(table === 'history') {
+                    url = '/api/crm-stages';
+                    body = { action: 'delete_history', id: id };
+                } else if(table === 'sales') {
+                    url = `/api/sales?id=${id}&actor=${encodeURIComponent(currentSellerName)}`;
+                    method = 'DELETE';
+                }
+                
+                const response = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: body ? JSON.stringify(body) : null
+                });
+                
+                if(!response.ok) throw new Error();
+                loadProfile(currentProfileId);
+            } catch(e) {
+                alert("Error eliminando registro");
             }
         }
 

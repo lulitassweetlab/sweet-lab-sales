@@ -231,6 +231,20 @@ export async function handler(event) {
                 return json({ success: true });
             }
 
+            if (action === 'delete_history') {
+                const { id } = body;
+                if (!id) return json({ error: 'Falta id' }, 400);
+                await sql`DELETE FROM crm_stage_history WHERE id = ${id}`;
+                return json({ success: true });
+            }
+
+            if (action === 'delete_action') {
+                const { id } = body;
+                if (!id) return json({ error: 'Falta id' }, 400);
+                await sql`DELETE FROM crm_stage_actions WHERE id = ${id}`;
+                return json({ success: true });
+            }
+
             return json({ error: 'Invalid POST action' }, 400);
 
         }
