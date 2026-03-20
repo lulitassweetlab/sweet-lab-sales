@@ -183,16 +183,17 @@
             <!-- Header row with stats + new prospect button -->
             <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
                 <div class="card" style="display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; gap: 0; flex:1; margin-bottom:0; padding:12px 0; align-items: center; justify-content: center;">
-                    <div style="display: flex; align-items: center; justify-content: center; cursor:pointer; height:100%;" onclick="resetDashboardView()" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
+                    <div style="display: flex; align-items: center; justify-content: center; cursor:pointer; height:100%;" onclick="navTo('dashboard')" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
                         <svg width="24" height="24" viewBox="0 0 24 24" style="fill:#86868b;"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
                     </div>
                     <div style="width:1px; background:var(--border); height:30px;"></div>
-                    <div style="text-align:center; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor:pointer; height:100%;" onclick="loadFullDirectoryInline()" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
+                    <div style="text-align:center; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor:pointer; height:100%;" onclick="navTo('dashSearch')" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
+                        <div style="font-size: 1.5rem; margin-bottom: 2px;">👥</div>
                         <div style="font-size:0.72rem; color:var(--text-muted); font-weight:700; text-transform:uppercase; letter-spacing:0.02em;">Clientes</div>
                         <div id="dashTotalClients" style="font-size:1.4rem; font-weight:800; line-height: 1.1; margin-top:2px;">-</div>
                     </div>
                     <div style="width:1px; background:var(--border); height:30px;"></div>
-                    <div style="text-align:center; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor:pointer; height:100%;" onclick="loadDebtClients()" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
+                    <div style="text-align:center; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor:pointer; height:100%;" onclick="navTo('dashDebt')" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
                         <div style="font-size:0.72rem; color:var(--text-muted); font-weight:700; text-transform:uppercase; letter-spacing:0.02em;">Por cobrar</div>
                         <div id="dashTotalDebt" style="font-size:1.4rem; font-weight:800; color:var(--danger); line-height: 1.1; margin-top:2px;">-</div>
                     </div>
@@ -640,8 +641,9 @@
         let scrollMemory = {};
         let currentScreen = 'dashboard';
         let lastScreen = 'dashboard';
+        let dashStageParams = null; // Store stage details for restoration
 
-        function navTo(screenId) {
+        function navTo(screenId, params = null) {
             const main = document.querySelector('main');
             
             // 1. Save scroll position of outgoing screen
@@ -656,22 +658,21 @@
             document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
             
-            const target = document.getElementById(`screen-${screenId}`);
-            if (target) {
-                target.classList.add('active');
-            } else {
-                // Fallback for screens like 'dashboard' vs 'dashSearch' logic
-                const screenBase = screenId === 'dashSearch' ? 'dashboard' : screenId;
-                document.getElementById(`screen-${screenBase}`).classList.add('active');
-            }
+            // Sub-dashboard views all point to 'screen-dashboard'
+            const isDashSub = ['dashboard', 'dashSearch', 'dashDebt', 'dashStage'].includes(screenId);
+            const targetId = isDashSub ? 'screen-dashboard' : `screen-${screenId}`;
+            const targetEl = document.getElementById(targetId);
+            if (targetEl) targetEl.classList.add('active');
             
-            const navBase = ['dashboard', 'dashSearch'].includes(screenId) ? 'dashboard' : screenId;
+            const navBase = isDashSub ? 'dashboard' : screenId;
             const navBtn = document.getElementById(`nav-${navBase}`);
             if (navBtn) navBtn.classList.add('active');
 
-            // 4. Restoration Logic
+            // 4. Update State
             currentScreen = screenId;
-            
+            if (params) dashStageParams = params;
+
+            // 5. Restore scroll key or reset
             if (screenId === 'profile') {
                 main.scrollTop = 0;
             } else if (scrollMemory[screenId] !== undefined) {
@@ -680,11 +681,12 @@
                 main.scrollTop = 0;
             }
 
-            // 5. Trigger loaders with scroll restoration check
-            if (screenId === 'dashboard' || screenId === 'dashSearch') {
-                const isSearch = (document.getElementById('dashSearchContainer').style.display === 'block');
-                if (isSearch) loadFullDirectoryInline(true);
-                else loadDashboard(true);
+            // 6. Trigger loaders with scroll restoration check
+            if (screenId === 'dashboard') loadDashboard(true);
+            if (screenId === 'dashSearch') loadFullDirectoryInline(true);
+            if (screenId === 'dashDebt') loadDebtClients(true);
+            if (screenId === 'dashStage' && dashStageParams) {
+                openStageClients(dashStageParams.id, dashStageParams.name, dashStageParams.color, true);
             }
             if (screenId === 'prospects') loadProspects(true);
             if (screenId === 'activities') loadActivities(true);
@@ -693,10 +695,10 @@
         function restoreScroll(screenId) {
             if (scrollMemory[screenId] !== undefined) {
                 const main = document.querySelector('main');
-                // Use a slight timeout to ensure innerHTML rendering is complete
-                requestAnimationFrame(() => {
-                    main.scrollTop = scrollMemory[screenId];
-                });
+                // Use a proper timeout to ensure the browser has finished layout after innerHTML
+                setTimeout(() => {
+                    main.scrollTo({ top: scrollMemory[screenId], behavior: 'instant' });
+                }, 50);
             }
         }
 
@@ -809,7 +811,7 @@
                     const count = Number(s.client_count || 0);
                     const bgColor = s.color;
                     return `
-                    <button onclick="openStageClients(${s.id}, '${s.name.replace(/'/g,"\\'")}', '${s.color}')"
+                    <button onclick="navTo('dashStage', {id: ${s.id}, name: '${s.name.replace(/'/g,"\\'")}', color: '${s.color}'})"
                         style="display:flex; width:100%; height:42px; align-items:center; justify-content:space-between; gap:6px; padding:0 10px; border-radius:10px; border:none; background:${bgColor}; color:#fff; cursor:pointer; font-size:0.74rem; font-weight:800; transition:all 0.15s; text-align:left; margin-bottom:4px;"
                         onmouseover="this.style.filter='brightness(1.1)'; this.style.transform='translateX(4px)'" onmouseout="this.style.filter='none'; this.style.transform='none'">
                         <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1; letter-spacing: -0.01em;">${s.name}</span>
@@ -821,9 +823,10 @@
             }
         }
 
-        async function openStageClients(stageId, stageName, stageColor) {
+        async function openStageClients(stageId, stageName, stageColor, shouldRestore = false) {
             const title = document.getElementById('dashContentTitle');
             const listEl = document.getElementById('dashContactList');
+            document.getElementById('dashSearchContainer').style.display = 'none';
 
             title.innerHTML = `<span style="display:inline-block; width:12px; height:12px; border-radius:3px; background:${stageColor}; margin-right:8px;"></span> ${stageName}`;
             listEl.innerHTML = '<div class="spinner">Cargando clientes...</div>';
@@ -836,6 +839,7 @@
                     return;
                 }
                 listEl.innerHTML = clients.map(c => renderClientCardHtml(c)).join('');
+                if (shouldRestore) restoreScroll('dashStage');
             } catch(e) {
                 listEl.innerHTML = '<p style="color:var(--danger); text-align:center; padding:20px;">Error cargando clientes.</p>';
             }
@@ -849,7 +853,7 @@
             loadDashboard();
         }
 
-        async function loadDebtClients() {
+        async function loadDebtClients(shouldRestore = false) {
             const title = document.getElementById('dashContentTitle');
             const listEl = document.getElementById('dashContactList');
 
@@ -867,6 +871,7 @@
                 }
 
                 listEl.innerHTML = debtClients.map(c => renderClientCardHtml(c)).join('');
+                if (shouldRestore) restoreScroll('dashDebt');
             } catch(e) {
                 listEl.innerHTML = '<p style="color:var(--danger); text-align:center; padding:20px;">Error cargando deudores.</p>';
             }
@@ -901,7 +906,7 @@
                 const res = await fetch(`/.netlify/functions/crm-clients?seller_id=${currentSellerId}`);
                 directoryData = await res.json();
                 renderFullDirectoryInline(directoryData);
-                if (shouldRestore) restoreScroll('dashSearch');
+                if (shouldRestore || currentScreen === 'dashSearch') restoreScroll('dashSearch');
             } catch (err) {
                 console.error(err);
             }
