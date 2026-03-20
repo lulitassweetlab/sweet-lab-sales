@@ -499,10 +499,11 @@
     <style>
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
         @keyframes popIn { from { opacity: 0; transform: scale(0.9) translateY(-10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
-        @keyframes arrowBounce { 0%, 100% { transform: translateX(-50%) translateY(0) rotate(-2deg); } 50% { transform: translateX(-50%) translateY(4px) rotate(1deg); } }
+        @keyframes arrowBounce { 0%, 100% { transform: translateX(-50%) translateY(0) rotate(-2deg); } 50% { transform: translateX(-50%) translateY(2px) rotate(1deg); } }
         
-        .pipeline-watermark { font-size:1.125rem; letter-spacing:0.45em; }
-        @media (max-width: 480px) { .pipeline-watermark { font-size:0.7rem; letter-spacing:0.15em; } }
+        .pipeline-watermark { font-size:1.125rem; letter-spacing:0.45em; display: inline-block; }
+        @media (max-width: 480px) { .pipeline-watermark { font-size:0.75rem; letter-spacing:0.15em; } }
+        @media (max-width: 350px) { .pipeline-watermark { font-size:0.6rem; letter-spacing:0.05em; } }
     </style>
 
     <!-- SortableJS library for touch-friendly drag and drop -->
@@ -919,7 +920,7 @@
                     const textColor = isActive ? '#fff' : 'var(--text-main)';
 
                     const highlightHtml = isActive ? `
-                        <svg width="16" height="22" viewBox="0 0 20 28" style="position:absolute; top:-25px; left:50%; transform:translateX(-50%); pointer-events:none; z-index:1; animation: arrowBounce 1.5s infinite ease-in-out;">
+                        <svg width="16" height="22" viewBox="0 0 20 28" style="position:absolute; top:-25px; left:50%; transform:translateX(-50%); pointer-events:none; z-index:1; animation: arrowBounce 3s infinite ease-in-out;">
                             <path d="M10 2 Q 13 8 10 22 M 10 22 L 3 14 M 10 22 L 17 14" stroke="#ff4d4d" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" />
                         </svg>
                     ` : '';
