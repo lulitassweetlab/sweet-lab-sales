@@ -1270,15 +1270,43 @@
                 const geoData = await geoRes.json();
                 if (geoData && geoData.address) {
                     const a = geoData.address;
-                    const road = a.road || a.pedestrian || a.path || '';
+                    
+                    // 1. Road handling with abbreviations
+                    let road = a.road || a.pedestrian || a.path || '';
+                    if (road) {
+                        road = road.replace(/^Calle\b/i, 'Cl.')
+                                   .replace(/^Carrera\b/i, 'Cr.')
+                                   .replace(/^Avenida\b/i, 'Av.')
+                                   .replace(/^Diagonal\b/i, 'Dg.')
+                                   .replace(/^Transversal\b/i, 'Tv.');
+                    }
+                    
+                    // 2. Connector for house number
                     const house = a.house_number || '';
-                    const city = a.city || a.town || '';
                     let addr = road;
-                    if (house) addr += (house.includes('#') ? ' ' : ' #') + house;
+                    if (house) {
+                        addr += (house.includes('#') ? ' ' : ' #') + house;
+                    }
+                    
+                    // 3. Suburb/Neighbourhood (Villa Hermosa...)
+                    const suburb = a.suburb || a.neighbourhood || '';
+                    if (suburb) addr += (addr ? ', ' : '') + suburb;
+                    
+                    // 4. City/Town (Medellín...)
+                    let city = a.city || a.town || a.village || '';
+                    // Filter out generic "Perímetro Urbano" if redundant
+                    if (city && city.toLowerCase().includes('perímetro urbano')) {
+                        city = ''; 
+                    }
                     if (city) addr += (addr ? ', ' : '') + city;
+                    
+                    // 5. State (Antioquia...)
+                    const state = a.state || '';
+                    if (state) addr += (addr ? ', ' : '') + state;
+
                     return addr || geoData.display_name.split(',').slice(0, 3).join(',').trim();
                 }
-                return geoData.display_name ? geoData.display_name.split(',').slice(0,3).join(',').trim() : null;
+                return geoData.display_name ? geoData.display_name.split(',').slice(0,3).join(',').trim() : (lat.toFixed(6) + ', ' + lng.toFixed(6));
             } catch (e) { return null; }
         }
 
