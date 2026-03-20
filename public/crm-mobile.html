@@ -267,9 +267,16 @@
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
                 <div style="display: flex; align-items: center; gap: 10px;">
                     <button onclick="navTo('directory')" style="background:none; border:none; font-size: 1.5rem; cursor:pointer;">←</button>
-                    <div style="display: flex; align-items: center; gap: 6px; cursor: pointer; flex: 1;" onclick="editProfileName()">
-                        <h2 id="profileName" style="font-size: 1.5rem; margin: 0; word-break: break-all;">Cargando Perfil...</h2>
-                        <span style="font-size: 1.2rem; color: var(--primary);">✏️</span>
+                    <div style="flex:1;">
+                        <h2 id="profileName" 
+                            contenteditable="true" 
+                            spellcheck="false"
+                            style="font-size: 1.5rem; margin: 0; word-break: break-all; outline: none; padding: 2px 4px; border-radius: 6px; transition: background 0.2s;"
+                            onfocus="this.style.background='rgba(99,102,241,0.1)'"
+                            onblur="this.style.background='transparent'; editProfileName(this.innerText)"
+                            onkeydown="if(event.key==='Enter'){ event.preventDefault(); this.blur(); }">
+                            Cargando Perfil...
+                        </h2>
                     </div>
                 </div>
                 <div id="profileBadges" style="display: flex; gap: 4px;"></div>
@@ -470,6 +477,8 @@
         let currentSellerName = '';
         let directoryData = [];
         let crmStages = [];
+        let currentProfileId = null;
+        let lastLoadedProfileName = '';
 
         // ON LOAD
         document.addEventListener('DOMContentLoaded', async () => {
@@ -808,6 +817,7 @@
                     return;
                 }
                 
+                lastLoadedProfileName = pf.name || '';
                 document.getElementById('profileName').innerText = pf.name || 'Sin Nombre';
                 document.getElementById('profPhone').innerText = pf.whatsapp || 'Sin número';
                 document.getElementById('profBirthday').innerText = pf.birth_date ? pf.birth_date.split('T')[0] : 'Sin fecha';
@@ -1002,17 +1012,18 @@
             window.location.href = `/store.html?crm_client_id=${currentProfileId}&crm_client_name=${encodeURIComponent(name)}`;
         }
 
-        async function editProfileName() {
+        async function editProfileName(newText) {
             if(!currentProfileId) return;
-            const currentName = document.getElementById('profileName').innerText;
-            const newName = prompt('Editar nombre del cliente:', currentName);
+            const currentName = lastLoadedProfileName;
+            const newName = (newText || '').trim();
             
-            if (!newName || newName.trim() === '' || newName.trim() === currentName) {
-                return; // User cancelled or entered same/empty name
+            if (!newName || newName === '' || newName === currentName) {
+                document.getElementById('profileName').innerText = currentName;
+                return; // No change or invalid
             }
             
-            const trimmedName = newName.trim();
-            if (!confirm(`¿Cambiar el nombre del cliente de "${currentName}" a "${trimmedName}"?\nSi el nuevo nombre ya existe, se fusionarán sus historiales y datos de contacto.`)) {
+            if (!confirm(`¿Cambiar el nombre del cliente de "${currentName}" a "${newName}"?\nSi el nuevo nombre ya existe, se fusionarán sus historiales y datos de contacto.`)) {
+                document.getElementById('profileName').innerText = currentName;
                 return;
             }
             
@@ -1022,6 +1033,7 @@
                 
                 if(!sellerId) {
                     alert('Error: No se detectó un vendedor activo en la sesión.');
+                    document.getElementById('profileName').innerText = currentName;
                     return;
                 }
 
@@ -1034,8 +1046,8 @@
                     body: JSON.stringify({
                         seller_id: sellerId,
                         old_name: currentName,
-                        name: trimmedName,
-                        short_name: trimmedName.split(' ')[0]
+                        name: newName,
+                        short_name: newName.split(' ')[0]
                     })
                 });
                 
