@@ -118,12 +118,12 @@ export default async (req) => {
                     VALUES (${sellerId}, ${name}, ${shortName}, ${whatsapp}, ${birthDate}, ${description}, ${address}, ${latitude}, ${longitude})
                     ON CONFLICT (name, seller_id) DO UPDATE SET
                         short_name = COALESCE(EXCLUDED.short_name, clients.short_name),
-                        whatsapp = COALESCE(clients.whatsapp, EXCLUDED.whatsapp),
-                        birth_date = COALESCE(clients.birth_date, EXCLUDED.birth_date),
-                        description = COALESCE(clients.description, EXCLUDED.description),
-                        address = COALESCE(clients.address, EXCLUDED.address),
-                        latitude = COALESCE(clients.latitude, EXCLUDED.latitude),
-                        longitude = COALESCE(clients.longitude, EXCLUDED.longitude)
+                        whatsapp = COALESCE(EXCLUDED.whatsapp, clients.whatsapp),
+                        birth_date = COALESCE(EXCLUDED.birth_date, clients.birth_date),
+                        description = COALESCE(EXCLUDED.description, clients.description),
+                        address = EXCLUDED.address,
+                        latitude = EXCLUDED.latitude,
+                        longitude = EXCLUDED.longitude
                     RETURNING *
                 `;
 
@@ -304,9 +304,9 @@ export default async (req) => {
 						whatsapp = COALESCE(${whatsapp}, whatsapp),
 						birth_date = COALESCE(${birthDate}, birth_date),
                         description = COALESCE(${description}, description),
-                        address = COALESCE(${address}, address),
-                        latitude = COALESCE(${latitude}, latitude),
-                        longitude = COALESCE(${longitude}, longitude)
+                        address = ${address},
+                        latitude = ${latitude},
+                        longitude = ${longitude}
 					WHERE id = ${existing.id}
 					RETURNING *
 				`;

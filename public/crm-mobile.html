@@ -915,6 +915,7 @@
         }
 
         async function loadProfile(id) {
+            if (!id) return;
             currentProfileId = id;
             navTo('profile'); // Show modal
             
@@ -925,11 +926,11 @@
             try {
                 // Use allSettled so one failing API doesn't crash everything
                 const [clientResult, waResult, stResult, actResult, histResult] = await Promise.allSettled([
-                    fetch(`/.netlify/functions/crm-clients?seller_id=${currentSellerId}&id=${id}`).then(r => r.json()),
-                    fetch(`/api/crm-whatsapp-logs?client_id=${id}`).then(r => r.json()).catch(() => []),
-                    fetch(`/api/crm-stages?action=get_client_stage&client_id=${id}`).then(r => r.json()).catch(() => null),
-                    fetch(`/api/crm-stages?action=get_actions&client_id=${id}`).then(r => r.json()).catch(() => []),
-                    fetch(`/api/crm-stages?action=get_history&client_id=${id}`).then(r => r.json()).catch(() => [])
+                    fetch(`/.netlify/functions/crm-clients?seller_id=${currentSellerId}&id=${id}&_t=${Date.now()}`).then(r => r.json()),
+                    fetch(`/api/crm-whatsapp-logs?client_id=${id}&_t=${Date.now()}`).then(r => r.json()).catch(() => []),
+                    fetch(`/api/crm-stages?action=get_client_stage&client_id=${id}&_t=${Date.now()}`).then(r => r.json()).catch(() => null),
+                    fetch(`/api/crm-stages?action=get_actions&client_id=${id}&_t=${Date.now()}`).then(r => r.json()).catch(() => []),
+                    fetch(`/api/crm-stages?action=get_history&client_id=${id}&_t=${Date.now()}`).then(r => r.json()).catch(() => [])
                 ]);
 
                 const clientData = clientResult.status === 'fulfilled' ? clientResult.value : {};
@@ -1394,7 +1395,9 @@
             const center = mapPicker.getCenter();
             const addr = document.getElementById('mapPickerAddress').innerText;
             
-            if (confirm(`¿Guardar esta ubicación?\n${addr}`)) {
+            // Temporary debug alert to ensure we are sending the right string
+            const msg = `¿Guardar esta ubicación?\n\nDirección detectada:\n${addr}`;
+            if (confirm(msg)) {
                 await updateClientLocation({
                     latitude: center.lat,
                     longitude: center.lng,
