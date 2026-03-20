@@ -192,24 +192,38 @@ export default async (req) => {
 
                 if (targetClient && oldClient && targetClient.id !== oldClient.id) {
                     // MERGE SCENARIO
-                    // Target already exists. We update its details picking the best available.
+                    // Target already exists. We update its details picking the best available from both and the request body.
                     [targetClient] = await sql`
                         UPDATE clients SET 
-                            short_name = COALESCE(clients.short_name, ${shortName}),
-                            whatsapp = COALESCE(clients.whatsapp, ${whatsapp}),
-                            birth_date = COALESCE(clients.birth_date, ${birthDate})
+                            short_name = COALESCE(clients.short_name, ${oldClient.short_name}, ${shortName}),
+                            whatsapp = COALESCE(clients.whatsapp, ${oldClient.whatsapp}, ${whatsapp}),
+                            birth_date = COALESCE(clients.birth_date, ${oldClient.birth_date}, ${birthDate})
                         WHERE id = ${targetClient.id}
                         RETURNING *
                     `;
 
-                    // Relink crm_client_sales to avoid CASCADE delete loss
+                    // Relink all referencing tables
                     await sql`UPDATE crm_client_sales SET client_id = ${targetClient.id} WHERE client_id = ${oldClient.id}`;
                     await sql`UPDATE crm_activities SET client_id = ${targetClient.id} WHERE client_id = ${oldClient.id}`;
+                    await sql`UPDATE crm_whatsapp_logs SET client_id = ${targetClient.id} WHERE client_id = ${oldClient.id}`;
+                    await sql`UPDATE crm_stage_history SET client_id = ${targetClient.id} WHERE client_id = ${oldClient.id}`;
+                    await sql`UPDATE crm_stage_actions SET client_id = ${targetClient.id} WHERE client_id = ${oldClient.id}`;
                     
-                    // For CRM reminders we need to make sure the table exists, ignoring if error (as it's a newer phase table)
+                    // CRM Reminders and other optional tables
                     try { await sql`UPDATE crm_reminders SET client_id = ${targetClient.id} WHERE client_id = ${oldClient.id}`; } catch(e){}
+                    
+                    // Handle current stage: If target has no stage but old one does, move it
+                    try {
+                        const [targetStage] = await sql`SELECT 1 FROM crm_client_stage WHERE client_id = ${targetClient.id}`;
+                        if (!targetStage) {
+                            await sql`UPDATE crm_client_stage SET client_id = ${targetClient.id} WHERE client_id = ${oldClient.id}`;
+                        } else {
+                            // If both have stages, we keep target's stage and just delete the old record to avoid unique constraint error
+                            await sql`DELETE FROM crm_client_stage WHERE client_id = ${oldClient.id}`;
+                        }
+                    } catch(e){}
 
-                    // Delete old client
+                    // Delete old client profile
                     await sql`DELETE FROM clients WHERE id = ${oldClient.id}`;
                 } else if (!targetClient && oldClient) {
                     // RENAME SCENARIO (Target doesn't exist)
