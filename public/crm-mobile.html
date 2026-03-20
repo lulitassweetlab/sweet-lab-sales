@@ -291,10 +291,9 @@
             
             <!-- CRM Stage Section -->
             <div class="card" style="padding:12px; margin-bottom:16px;">
-                <div style="font-size:0.8rem; font-weight:700; margin-bottom:6px; color:var(--text-muted);">Etapa Actual (Pipeline)</div>
-                <div style="display:flex; gap:8px;">
-                    <select id="profStageSelect" class="btn" style="flex:1; border-color:var(--border);"></select>
-                    <button class="btn-primary" id="btnChangeStage" onclick="changeProfileStage()" style="padding:8px 16px; background:#6366f1; width: auto;">Mover</button>
+                <div style="font-size:0.75rem; font-weight:700; margin-bottom:10px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;">Etapa en el Pipeline</div>
+                <div id="profStageTags" style="display:flex; flex-wrap:wrap; gap:8px;">
+                    <div class="spinner" style="padding:10px 0; font-size:0.8rem;">Cargando etapas...</div>
                 </div>
             </div>
 
@@ -823,17 +822,26 @@
                 if(freq === 1) badgesHtml += `<span class="badge bg-info">Nuevo</span>`;
                 document.getElementById('profileBadges').innerHTML = badgesHtml;
 
-                // --- STAGE DROPDOWN ---
-                const stageSelect = document.getElementById('profStageSelect');
+                // --- STAGE TAGS ---
+                const stageTagsContainer = document.getElementById('profStageTags');
                 const stagesList = Array.isArray(crmStages) ? crmStages : [];
-                stageSelect.innerHTML = '<option value="">(Sin etapa asignada)</option>' + stagesList.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
-                if(currentStage && currentStage.stage_id) {
-                    stageSelect.value = currentStage.stage_id;
-                    stageSelect.style.borderLeft = `4px solid ${currentStage.color}`;
-                } else {
-                    stageSelect.value = '';
-                    stageSelect.style.borderLeft = 'none';
-                }
+                const currentId = (currentStage && currentStage.stage_id) ? Number(currentStage.stage_id) : null;
+                
+                stageTagsContainer.innerHTML = stagesList.map(s => {
+                    const isActive = Number(s.id) === currentId;
+                    return `
+                        <button onclick="changeProfileStage(${s.id})"
+                            style="padding:6px 14px; border-radius:30px; border:2px solid ${s.color}; 
+                                   background:${isActive ? s.color : 'transparent'}; 
+                                   color:${isActive ? '#fff' : 'var(--text-main)'}; 
+                                   font-size:0.75rem; font-weight:700; cursor:pointer; 
+                                   transition:all 0.15s; box-shadow:${isActive ? '0 3px 8px ' + s.color + '44' : 'none'};"
+                            onmouseover="if(!${isActive}) this.style.background='${s.color}15'" 
+                            onmouseout="if(!${isActive}) this.style.background='transparent'">
+                            ${s.name}
+                        </button>
+                    `;
+                }).join('') || '<div style="font-size:0.8rem; color:var(--text-muted);">Sin etapas configuradas</div>';
 
                 // --- BUILD TIMELINE ---
                 let timeline = [];
@@ -940,22 +948,15 @@
             }
         }
 
-        async function changeProfileStage() {
-            if(!currentProfileId) return;
-            const select = document.getElementById('profStageSelect');
-            const newStageId = select.value;
-            if(!newStageId) {
-                alert('Por favor selecciona una etapa primero.');
-                return;
-            }
-            
-            const btn = document.getElementById('btnChangeStage');
-            const note = prompt('Opcional: ¿Por qué cambias a esta etapa? (Nota o motivo)');
-            if(note === null) return; // Cancelled
+        async function changeProfileStage(newStageId) {
+            if(!currentProfileId || !newStageId) return;
             
             try {
-                btn.disabled = true;
-                btn.innerText = '...';
+                // Instant Visual feedback
+                const container = document.getElementById('profStageTags');
+                container.style.opacity = '0.5';
+                container.style.pointerEvents = 'none';
+
                 await fetch('/api/crm-stages', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
@@ -963,7 +964,7 @@
                         action: 'set_stage',
                         client_id: currentProfileId,
                         stage_id: Number(newStageId),
-                        note: note,
+                        note: 'Cambio rápido desde ficha de cliente',
                         user_id: currentSellerId
                     })
                 });
@@ -971,8 +972,11 @@
             } catch(e) {
                 alert('Error al mover etapa.');
             } finally {
-                btn.disabled = false;
-                btn.innerText = 'Mover';
+                const container = document.getElementById('profStageTags');
+                if (container) {
+                    container.style.opacity = '1';
+                    container.style.pointerEvents = 'auto';
+                }
             }
         }
 
@@ -1078,7 +1082,7 @@
             loadProfile(currentProfileId);
         }
 
-        async function changeProfileStage() {
+        async function changeProfileStageFromSelect() {
             if(!currentProfileId) return;
             const select = document.getElementById('profStageSelect');
             const newStageId = select.value;
