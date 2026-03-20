@@ -651,20 +651,42 @@ export async function handler(event) {
 			// Update sale basic info
 			await sql`UPDATE sales SET client_name=${client}, comment_text=${comment}, qty_arco=${qa}, qty_melo=${qm}, qty_mara=${qma}, qty_oreo=${qo}, qty_nute=${qn}, is_paid=${paid}, pay_method=${payMethod}, payment_date=${paymentDate}, payment_source=${paymentSource}, special_pricing_type=${specialPricingType} WHERE id=${id}`;
 				
-			// Auto-Link to CRM: Create or find CRM client
+			// Auto-Link to CRM: Create, Update or Relink CRM client
 			if (client.trim() !== '') {
 				try {
 					const activeSellerId = Number(data.seller_id || 0) || Number(current.seller_id || 0);
 					if (activeSellerId) {
-						let [crmClient] = await sql`SELECT id FROM clients WHERE seller_id = ${activeSellerId} AND lower(name) = lower(${client.trim()})`;
-						if (!crmClient) {
-							let shortName = client.trim().split(' ')[0] || client.trim();
-							[crmClient] = await sql`INSERT INTO clients (seller_id, name, short_name) VALUES (${activeSellerId}, ${client.trim()}, ${shortName}) RETURNING id`;
-						}
-						if (crmClient && crmClient.id) {
-							const [existingLink] = await sql`SELECT 1 FROM crm_client_sales WHERE client_id = ${crmClient.id} AND sale_id = ${id} LIMIT 1`;
-							if (!existingLink) {
-								await sql`INSERT INTO crm_client_sales (client_id, sale_id, seller_id) VALUES (${crmClient.id}, ${id}, ${activeSellerId})`;
+						// 1. Check if this specific sale is already linked to a client
+						const [existingLink] = await sql`SELECT client_id FROM crm_client_sales WHERE sale_id = ${id} LIMIT 1`;
+						
+						if (existingLink) {
+							const oldClientId = existingLink.client_id;
+							// Find if a client already exists with the NEW name
+							let [targetClient] = await sql`SELECT id, name FROM clients WHERE seller_id = ${activeSellerId} AND lower(name) = lower(${client.trim()})`;
+							
+							if (targetClient) {
+								if (targetClient.id !== oldClientId) {
+									// RELINK: The new name belongs to a DIFFERENT existing client. Point the sale to them.
+									await sql`UPDATE crm_client_sales SET client_id = ${targetClient.id} WHERE sale_id = ${id}`;
+								} else {
+									// SAME CLIENT: Name matches (might be a case correction). Update the formal name if needed.
+									if (targetClient.name !== client.trim()) {
+										await sql`UPDATE clients SET name = ${client.trim()} WHERE id = ${oldClientId}`;
+									}
+								}
+							} else {
+								// RENAME: No client exists with the new name. Rename the currently linked client.
+								await sql`UPDATE clients SET name = ${client.trim()} WHERE id = ${oldClientId}`;
+							}
+						} else {
+							// 2. No existing link: Standard find-or-create and link logic
+							let [crmClient] = await sql`SELECT id FROM clients WHERE seller_id = ${activeSellerId} AND lower(name) = lower(${client.trim()})`;
+							if (!crmClient) {
+								let shortName = client.trim().split(' ')[0] || client.trim();
+								[crmClient] = await sql`INSERT INTO clients (seller_id, name, short_name) VALUES (${activeSellerId}, ${client.trim()}, ${shortName}) RETURNING id`;
+							}
+							if (crmClient && crmClient.id) {
+								await sql`INSERT INTO crm_client_sales (client_id, sale_id, seller_id) VALUES (${crmClient.id}, ${id}, ${activeSellerId}) ON CONFLICT (sale_id) DO UPDATE SET client_id = EXCLUDED.client_id`;
 							}
 						}
 					}
