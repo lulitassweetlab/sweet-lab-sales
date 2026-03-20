@@ -486,28 +486,28 @@
         </div>
     </div>
 
-    <!-- LOCATION ACTION POPOVER (Updated Order & New Options) -->
-    <div id="locationPopover" style="display:none; position:fixed; z-index:250; background:var(--surface); border-radius:12px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); border: 1px solid var(--border); overflow: hidden; min-width: 210px; animation: popIn 0.2s ease;">
+    <!-- LOCATION ACTION POPOVER (Refined Labels) -->
+    <div id="locationPopover" style="display:none; position:fixed; z-index:250; background:var(--surface); border-radius:12px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); border: 1px solid var(--border); overflow: hidden; min-width: 190px; animation: popIn 0.2s ease;">
         <div style="display: flex; flex-direction: column;">
-            <!-- 1. Capturar (GPS) -->
+            <!-- Capturar -->
             <div id="locCapture" onclick="captureGPSCoords(event)" style="display:flex; align-items:center; gap:10px; padding:12px 16px; cursor:pointer; color:var(--primary); font-weight:700; font-size: 0.9rem; border-bottom: 1px solid var(--border); transition:background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
-                <span style="font-size: 1.2rem;">🛰️</span> 1. Capturar Ubicación
+                <span style="font-size: 1.2rem;">🛰️</span> Capturar
             </div>
-            <!-- 2. Ingresar (Manual) -->
-            <div onclick="startAddressEdit()" style="display:flex; align-items:center; gap:10px; padding:12px 16px; cursor:pointer; color:var(--text-main); font-weight:700; font-size:0.9rem; border-bottom:1px solid var(--border); transition:background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
-                <span style="font-size: 1.2rem;">✏️</span> 2. Ingresar Dirección
+            <!-- Ingresar -->
+            <div onclick="startAddressEdit()" style="display:flex; align-items:center; gap:10px; padding:12px 16px; cursor:pointer; color:var(--text-main); font-weight:700; font-size:0.9rem; border-bottom: 1px solid var(--border); transition:background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
+                <span style="font-size: 1.2rem;">✏️</span> Ingresar
             </div>
-            <!-- 3. Google Maps -->
+            <!-- Google Maps -->
             <div id="locGoogle" style="display: flex; align-items: center; gap: 10px; padding: 12px 16px; cursor:pointer; color: var(--text-main); font-weight: 700; font-size: 0.9rem; border-bottom: 1px solid var(--border); transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
-                <span style="font-size: 1.2rem;">🌍</span> 3. Google Maps (Ruta)
+                <span style="font-size: 1.2rem;">🌍</span> Google Maps
             </div>
-            <!-- 4. Waze -->
-            <div id="locWaze" style="display:flex; align-items:center; gap:10px; padding:12px 16px; cursor:pointer; color:var(--text-main); font-weight:700; font-size:0.9rem; border-bottom:1px solid var(--border); transition:background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
-                <span style="font-size: 1.2rem;">🚙</span> 4. Waze (Ruta)
+            <!-- Waze -->
+            <div id="locWaze" style="display:flex; align-items:center; gap:10px; padding:12px 16px; cursor:pointer; color:var(--text-main); font-weight:700; font-size:0.9rem; border-bottom: 1px solid var(--border); transition:background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
+                <span style="font-size: 1.2rem;">🚙</span> Waze
             </div>
-            <!-- 5. Elegir en Mapa (Leaflet) -->
+            <!-- Señalar en mapa -->
             <div onclick="openMapPicker()" style="display:flex; align-items:center; gap:10px; padding:12px 16px; cursor:pointer; color:var(--info); font-weight:700; font-size:0.9rem; transition:background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
-                <span style="font-size: 1.2rem;">🗺️</span> 5. Elegir en Mapa
+                <span style="font-size: 1.2rem;">📍</span> Señalar en mapa
             </div>
         </div>
     </div>
@@ -1395,9 +1395,7 @@
             const center = mapPicker.getCenter();
             const addr = document.getElementById('mapPickerAddress').innerText;
             
-            // Temporary debug alert to ensure we are sending the right string
-            const msg = `¿Guardar esta ubicación?\n\nDirección detectada:\n${addr}`;
-            if (confirm(msg)) {
+            if (confirm(`¿Guardar esta ubicación?\n${addr}`)) {
                 await updateClientLocation({
                     latitude: center.lat,
                     longitude: center.lng,
