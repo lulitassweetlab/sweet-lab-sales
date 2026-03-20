@@ -90,6 +90,10 @@ export default async (req) => {
             const shortName = (body.short_name || '').trim() || null;
             const whatsapp = (body.whatsapp || '').trim() || null;
             const birthDate = body.birth_date || null;
+            const description = body.description === undefined ? null : body.description;
+            const address = body.address || null;
+            const latitude = body.latitude || null;
+            const longitude = body.longitude || null;
 
             if (!sellerId || isNaN(sellerId)) {
                 return new Response(JSON.stringify({ error: 'seller_id inválido o faltante' }), { status: 400 });
@@ -110,12 +114,16 @@ export default async (req) => {
 
                 // Ensure the target name exists in the database
                 const [targetClient] = await sql`
-                    INSERT INTO clients (seller_id, name, short_name, whatsapp, birth_date)
-                    VALUES (${sellerId}, ${name}, ${shortName}, ${whatsapp}, ${birthDate})
+                    INSERT INTO clients (seller_id, name, short_name, whatsapp, birth_date, description, address, latitude, longitude)
+                    VALUES (${sellerId}, ${name}, ${shortName}, ${whatsapp}, ${birthDate}, ${description}, ${address}, ${latitude}, ${longitude})
                     ON CONFLICT (name, seller_id) DO UPDATE SET
                         short_name = COALESCE(EXCLUDED.short_name, clients.short_name),
-                        whatsapp = COALESCE(clients.whatsapp, EXCLUDED.whatsapp),
-                        birth_date = COALESCE(clients.birth_date, EXCLUDED.birth_date)
+                        whatsapp = COALESCE(EXCLUDED.whatsapp, clients.whatsapp),
+                        birth_date = COALESCE(EXCLUDED.birth_date, clients.birth_date),
+                        description = COALESCE(EXCLUDED.description, clients.description),
+                        address = EXCLUDED.address,
+                        latitude = EXCLUDED.latitude,
+                        longitude = EXCLUDED.longitude
                     RETURNING *
                 `;
 
@@ -192,24 +200,42 @@ export default async (req) => {
 
                 if (targetClient && oldClient && targetClient.id !== oldClient.id) {
                     // MERGE SCENARIO
-                    // Target already exists. We update its details picking the best available.
-                    [targetClient] = await sql`
+                    // Target already exists. We update its details picking the best available from both and the request body.
+                        [targetClient] = await sql`
                         UPDATE clients SET 
-                            short_name = COALESCE(clients.short_name, ${shortName}),
-                            whatsapp = COALESCE(clients.whatsapp, ${whatsapp}),
-                            birth_date = COALESCE(clients.birth_date, ${birthDate})
+                            short_name = COALESCE(clients.short_name, ${oldClient.short_name}, ${shortName}),
+                            whatsapp = COALESCE(clients.whatsapp, ${oldClient.whatsapp}, ${whatsapp}),
+                            birth_date = COALESCE(clients.birth_date, ${oldClient.birth_date}, ${birthDate}),
+                            description = COALESCE(clients.description, ${oldClient.description}, ${description}),
+                            address = COALESCE(clients.address, ${oldClient.address}, ${address}),
+                            latitude = COALESCE(clients.latitude, ${oldClient.latitude}, ${latitude}),
+                            longitude = COALESCE(clients.longitude, ${oldClient.longitude}, ${longitude})
                         WHERE id = ${targetClient.id}
                         RETURNING *
                     `;
 
-                    // Relink crm_client_sales to avoid CASCADE delete loss
+                    // Relink all referencing tables
                     await sql`UPDATE crm_client_sales SET client_id = ${targetClient.id} WHERE client_id = ${oldClient.id}`;
                     await sql`UPDATE crm_activities SET client_id = ${targetClient.id} WHERE client_id = ${oldClient.id}`;
+                    await sql`UPDATE crm_whatsapp_logs SET client_id = ${targetClient.id} WHERE client_id = ${oldClient.id}`;
+                    await sql`UPDATE crm_stage_history SET client_id = ${targetClient.id} WHERE client_id = ${oldClient.id}`;
+                    await sql`UPDATE crm_stage_actions SET client_id = ${targetClient.id} WHERE client_id = ${oldClient.id}`;
                     
-                    // For CRM reminders we need to make sure the table exists, ignoring if error (as it's a newer phase table)
+                    // CRM Reminders and other optional tables
                     try { await sql`UPDATE crm_reminders SET client_id = ${targetClient.id} WHERE client_id = ${oldClient.id}`; } catch(e){}
+                    
+                    // Handle current stage: If target has no stage but old one does, move it
+                    try {
+                        const [targetStage] = await sql`SELECT 1 FROM crm_client_stage WHERE client_id = ${targetClient.id}`;
+                        if (!targetStage) {
+                            await sql`UPDATE crm_client_stage SET client_id = ${targetClient.id} WHERE client_id = ${oldClient.id}`;
+                        } else {
+                            // If both have stages, we keep target's stage and just delete the old record to avoid unique constraint error
+                            await sql`DELETE FROM crm_client_stage WHERE client_id = ${oldClient.id}`;
+                        }
+                    } catch(e){}
 
-                    // Delete old client
+                    // Delete old client profile
                     await sql`DELETE FROM clients WHERE id = ${oldClient.id}`;
                 } else if (!targetClient && oldClient) {
                     // RENAME SCENARIO (Target doesn't exist)
@@ -218,15 +244,19 @@ export default async (req) => {
                             name = ${name},
                             short_name = COALESCE(${shortName}, short_name),
                             whatsapp = COALESCE(${whatsapp}, whatsapp),
-                            birth_date = COALESCE(${birthDate}, birth_date)
+                            birth_date = COALESCE(${birthDate}, birth_date),
+                            description = COALESCE(${description}, description),
+                            address = COALESCE(${address}, address),
+                            latitude = COALESCE(${latitude}, latitude),
+                            longitude = COALESCE(${longitude}, longitude)
                         WHERE id = ${oldClient.id}
                         RETURNING *
                     `;
                 } else if (!targetClient && !oldClient) {
                     // NEITHER EXIST (just creating new)
                     [targetClient] = await sql`
-                        INSERT INTO clients (seller_id, name, short_name, whatsapp, birth_date)
-                        VALUES (${sellerId}, ${name}, ${shortName}, ${whatsapp}, ${birthDate})
+                        INSERT INTO clients (seller_id, name, short_name, whatsapp, birth_date, description, address, latitude, longitude)
+                        VALUES (${sellerId}, ${name}, ${shortName}, ${whatsapp}, ${birthDate}, ${description}, ${address}, ${latitude}, ${longitude})
                         RETURNING *
                     `;
                 } else if (targetClient && !oldClient) {
@@ -235,7 +265,11 @@ export default async (req) => {
                         UPDATE clients SET 
                             short_name = COALESCE(${shortName}, short_name),
                             whatsapp = COALESCE(${whatsapp}, whatsapp),
-                            birth_date = COALESCE(${birthDate}, birth_date)
+                            birth_date = COALESCE(${birthDate}, birth_date),
+                            description = COALESCE(${description}, description),
+                            address = COALESCE(${address}, address),
+                            latitude = COALESCE(${latitude}, latitude),
+                            longitude = COALESCE(${longitude}, longitude)
                         WHERE id = ${targetClient.id}
                         RETURNING *
                     `;
@@ -268,7 +302,11 @@ export default async (req) => {
 					SET 
                         short_name = COALESCE(${shortName}, short_name),
 						whatsapp = COALESCE(${whatsapp}, whatsapp),
-						birth_date = COALESCE(${birthDate}, birth_date)
+						birth_date = COALESCE(${birthDate}, birth_date),
+                        description = COALESCE(${description}, description),
+                        address = ${address},
+                        latitude = ${latitude},
+                        longitude = ${longitude}
 					WHERE id = ${existing.id}
 					RETURNING *
 				`;
@@ -276,8 +314,8 @@ export default async (req) => {
             } else {
                 // Insert new
                 const [inserted] = await sql`
-					INSERT INTO clients (seller_id, name, short_name, whatsapp, birth_date)
-					VALUES (${sellerId}, ${name}, ${shortName}, ${whatsapp}, ${birthDate})
+					INSERT INTO clients (seller_id, name, short_name, whatsapp, birth_date, description, address, latitude, longitude)
+					VALUES (${sellerId}, ${name}, ${shortName}, ${whatsapp}, ${birthDate}, ${description}, ${address}, ${latitude}, ${longitude})
 					RETURNING *
 				`;
                 result = inserted;

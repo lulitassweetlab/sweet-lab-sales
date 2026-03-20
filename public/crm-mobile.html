@@ -7,6 +7,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
         :root {
             --bg: #f8f9fa;
@@ -180,15 +182,20 @@
         <div id="screen-dashboard" class="screen active">
             <!-- Header row with stats + new prospect button -->
             <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
-                <div class="card" style="display: flex; gap: 10px; cursor: pointer; flex:1; margin-bottom:0;" onclick="navTo('directory')">
-                    <div style="flex:1; text-align:center;">
-                        <div style="font-size:0.8rem; color:var(--text-muted);">Mis Clientes</div>
-                        <div id="dashTotalClients" style="font-size:1.5rem; font-weight:700;">-</div>
+                <div class="card" style="display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; gap: 0; flex:1; margin-bottom:0; padding:12px 0; align-items: center; justify-content: center;">
+                    <div style="display: flex; align-items: center; justify-content: center; cursor:pointer; height:100%;" onclick="navTo('dashboard')" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
+                        <svg width="24" height="24" viewBox="0 0 24 24" style="fill:#86868b;"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
                     </div>
-                    <div style="width:1px; background:var(--border);"></div>
-                    <div style="flex:1; text-align:center;">
-                        <div style="font-size:0.8rem; color:var(--text-muted);">Deuda en Calle</div>
-                        <div id="dashTotalDebt" style="font-size:1.5rem; font-weight:700; color:var(--danger);">-</div>
+                    <div style="width:1px; background:var(--border); height:30px;"></div>
+                    <div style="text-align:center; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor:pointer; height:100%;" onclick="navTo('dashSearch')" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
+                        <div style="font-size: 1.5rem; margin-bottom: 2px;">👥</div>
+                        <div style="font-size:0.72rem; color:var(--text-muted); font-weight:700; text-transform:uppercase; letter-spacing:0.02em;">Clientes</div>
+                        <div id="dashTotalClients" style="font-size:1.4rem; font-weight:800; line-height: 1.1; margin-top:2px;">-</div>
+                    </div>
+                    <div style="width:1px; background:var(--border); height:30px;"></div>
+                    <div style="text-align:center; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor:pointer; height:100%;" onclick="navTo('dashDebt')" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
+                        <div style="font-size:0.72rem; color:var(--text-muted); font-weight:700; text-transform:uppercase; letter-spacing:0.02em;">Por cobrar</div>
+                        <div id="dashTotalDebt" style="font-size:1.4rem; font-weight:800; color:var(--danger); line-height: 1.1; margin-top:2px;">-</div>
                     </div>
                 </div>
                 <!-- Floating + button to add a new prospect -->
@@ -196,98 +203,143 @@
                     style="margin-left:12px; width:52px; height:52px; border-radius:50%; border:none; background:#555bdc; color:#fff; font-size:1.6rem; font-weight:700; cursor:pointer; flex-shrink:0; box-shadow: 0 4px 14px rgba(85,91,220,0.4); display:flex; align-items:center; justify-content:center; line-height:1;">+</button>
             </div>
 
-            <!-- Stage Pipeline Tags -->
-            <div style="margin-bottom:18px;">
-                <div style="font-size:0.8rem; font-weight:700; color:var(--text-muted); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.05em;">Pipeline de clientes</div>
-                <div id="dashStageTags" style="display:flex; flex-wrap:wrap; gap:8px;">
-                    <div class="spinner" style="padding:10px 0;">Cargando etapas...</div>
-                </div>
-            </div>
-
-            <h3 class="title-sec">💡 Contactar Hoy</h3>
-            <div id="dashContactList">
-                <div class="spinner">Cargando resumen del día...</div>
-            </div>
-        </div>
-
-        <!-- STAGE CLIENTS OVERLAY (bottom sheet) -->
-        <div id="stageClientsOverlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:150; background:rgba(0,0,0,0.55); backdrop-filter:blur(3px);" onclick="closeStageClients()">
-            <div onclick="event.stopPropagation()" style="position:absolute; bottom:0; left:0; width:100%; max-height:85vh; background:var(--surface); border-radius:22px 22px 0 0; overflow:hidden; display:flex; flex-direction:column;">
-                <!-- Handle -->
-                <div style="width:40px; height:4px; background:var(--border); border-radius:2px; margin:14px auto 0;"></div>
-                <!-- Header -->
-                <div style="display:flex; justify-content:space-between; align-items:center; padding:16px 20px 12px;">
-                    <div>
-                        <span id="stageOverlayBadge" style="display:inline-block; padding:4px 12px; border-radius:20px; font-size:0.8rem; font-weight:700; color:#fff; margin-bottom:4px;">Etapa</span>
-                        <div id="stageOverlayTitle" style="font-size:1.2rem; font-weight:800;">Clientes</div>
+            <!-- Two-column Layout for Dashboard -->
+            <div style="display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap;">
+                
+                <!-- LEFT SIDEBAR: Pipeline Tags -->
+                <div style="width: 140px; flex-shrink: 0;" class="dash-sidebar">
+                    <div style="font-size:0.7rem; font-weight:700; color:var(--text-muted); margin-bottom:10px; text-transform:uppercase; letter-spacing:0.05em;">Pipeline</div>
+                    <div id="dashStageTags" style="display:flex; flex-direction:column; gap:4px;">
+                        <div class="spinner" style="padding:10px 0; font-size:0.8rem;">Cargando...</div>
                     </div>
-                    <button onclick="closeStageClients()" style="background:var(--border); border:none; border-radius:50%; width:36px; height:36px; font-size:1.2rem; cursor:pointer;">✕</button>
                 </div>
-                <!-- Client list -->
-                <div id="stageClientsList" style="overflow-y:auto; padding:0 16px 32px; flex:1;">
-                    <div class="spinner">Cargando...</div>
+
+                <!-- RIGHT CONTENT: Contact List -->
+                <div style="flex: 1; min-width: 200px;">
+                    <h3 id="dashContentTitle" class="title-sec" style="margin-bottom:16px;">💡 Contactar Hoy</h3>
+                    
+                    <!-- Inline Search (Hidden by default) -->
+                    <div id="dashSearchContainer" style="display:none; margin-bottom:16px;">
+                        <input type="text" id="dashSearchInput" placeholder="Buscar por nombre o celular..." 
+                            style="width: 100%; padding: 14px; border-radius: 12px; border: 1.5px solid var(--border); font-size: 1rem; background: var(--surface); outline:none; transition: border-color 0.2s;"
+                            onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
+                    </div>
+
+                    <div id="dashContactList">
+                        <div class="spinner">Cargando resumen...</div>
+                    </div>
                 </div>
+
             </div>
+
+            <style>
+                @media (max-width: 360px) {
+                    .dash-sidebar { width: 100% !important; margin-bottom: 20px; }
+                    #dashStageTags { flex-direction: row !important; flex-wrap: wrap; }
+                    #dashStageTags button { width: auto !important; }
+                }
+            </style>
         </div>
 
-        <!-- SCREEN 2: Directory -->
-        <div id="screen-directory" class="screen">
-            <h3 class="title-sec">Directorio de Clientes</h3>
-            <input type="text" id="searchInput" placeholder="Buscar cliente..." style="width: 100%; padding: 16px; border-radius: 12px; border: 1px solid var(--border); font-size: 1rem; margin-bottom: 16px;">
-            
-            <div style="display: flex; gap: 8px; margin-bottom: 16px; overflow-x: auto; padding-bottom: 4px;">
-                <button class="badge bg-danger" style="border:none;" onclick="filterClients('deuda')">Con Deuda</button>
-                <button class="badge bg-warning" style="border:none;" onclick="filterClients('inactivo')">Inactivos</button>
-                <button class="badge bg-info" style="border:none; color:white;" onclick="filterClients('todos')">Ver Todos</button>
-            </div>
 
-            <div id="directoryList">
-                <!-- Clients populated here -->
-            </div>
-        </div>
 
         <!-- SCREEN 3: Profile (Modal Style over Screen) -->
         <div id="screen-profile" class="screen" style="background:var(--surface); position:absolute; top:0; left:0; width:100%; min-height:100%; z-index:50;">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <button onclick="navTo('directory')" style="background:none; border:none; font-size: 1.5rem; cursor:pointer;">←</button>
-                    <div style="display: flex; align-items: center; gap: 6px; cursor: pointer; flex: 1;" onclick="editProfileName()">
-                        <h2 id="profileName" style="font-size: 1.5rem; margin: 0; word-break: break-all;">Cargando Perfil...</h2>
-                        <span style="font-size: 1.2rem; color: var(--primary);">✏️</span>
+            <div class="card" style="padding: 12px; margin-bottom: 16px; border-radius: 12px; border:none; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+                <div style="display: flex; gap: 4px;">
+                    <!-- Back Button Column -->
+                    <div style="flex-shrink: 0; width: 32px;">
+                        <button onclick="navTo(lastScreen || 'dashboard')" style="background:none; border:none; font-size: 1.4rem; cursor:pointer; padding: 4px; color: var(--text-main); margin-top: -2px;">←</button>
                     </div>
-                </div>
-                <div id="profileBadges" style="display: flex; gap: 4px;"></div>
-            </div>
-
-            <!-- Contact data -->
-            <div class="card" style="padding: 12px; margin-bottom: 16px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <div style="display: flex; gap: 8px; align-items: center;">
-                        <span style="font-size: 1.2rem;">📱</span>
-                        <span id="profPhone" style="font-weight: 500;">-</span>
-                    </div>
-                    <div style="display: flex; gap: 8px; align-items: center;">
-                        <span style="font-size: 1.2rem;">🎂</span>
-                        <span id="profBirthday">-</span>
+                    
+                    <!-- Content Column -->
+                    <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                        <!-- ROW 1: Name and Badges -->
+                        <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
+                            <h2 id="profileName" 
+                                contenteditable="true" 
+                                spellcheck="false"
+                                style="font-size: 1.85rem; font-weight: 800; margin: 0; word-break: break-all; outline: none; padding: 0 4px; border-radius: 6px; transition: background 0.2s; line-height: 1.2;"
+                                onfocus="this.style.background='rgba(99,102,241,0.1)'"
+                                onblur="this.style.background='transparent'; editProfileName(this.innerText)"
+                                onkeydown="if(event.key==='Enter'){ event.preventDefault(); this.blur(); }">
+                                Cargando...
+                            </h2>
+                            <div id="profileBadges" style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-top: 4px;">
+                                <!-- Stage and Debt Tags -->
+                            </div>
+                        </div>
+                        
+                        <!-- ROW 2: Contact Info (Phone & Birth) -->
+                        <div style="display: flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: 1.1rem; font-weight: 600; flex-wrap: wrap; padding-left: 4px;">
+                            <span id="profPhone" style="white-space:nowrap; cursor:pointer; color: var(--text-main);" onclick="showContactMenu(event)">-</span>
+                            <span>•</span>
+                            <span id="profBirthday" style="white-space:nowrap; cursor:pointer;" onclick="startBirthdayEdit()">-</span>
+                            <span>•</span>
+                            <span id="profAddress" 
+                                style="cursor:pointer; color: var(--text-muted); outline:none; transition: all 0.2s;" 
+                                onclick="showAddressMenu(event)"
+                                onblur="saveAddressInline(event)"
+                                onkeydown="handleAddressKey(event)"
+                                spellcheck="false">📍 Ubicación...</span>
+                        </div>
+                        
+                        <!-- ROW 3: Description -->
+                        <div style="margin-top: 4px;">
+                            <div id="profDescription" 
+                                contenteditable="true" 
+                                spellcheck="false"
+                                style="font-size: 1.1rem; color: var(--text-muted); font-style: italic; outline: none; min-height: 1.5rem; padding: 4px; border-radius: 6px; transition: background 0.2s;"
+                                onfocus="this.style.background='rgba(99,102,241,0.05)'; if(this.innerText==='Descripción...') this.innerText='';"
+                                onblur="this.style.background='transparent'; if(this.innerText.trim()==='') this.innerText='Descripción...'; saveClientDescription(this.innerText)">
+                                Descripción...
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
             
             <!-- CRM Stage Section -->
-            <div class="card" style="padding:12px; margin-bottom:16px;">
-                <div style="font-size:0.8rem; font-weight:700; margin-bottom:6px; color:var(--text-muted);">Etapa Actual (Pipeline)</div>
-                <div style="display:flex; gap:8px;">
-                    <select id="profStageSelect" class="btn" style="flex:1; border-color:var(--border);"></select>
-                    <button class="btn-primary" id="btnChangeStage" onclick="changeProfileStage()" style="padding:8px 16px; background:#6366f1; width: auto;">Mover</button>
+            <div class="card" style="padding:24px 12px 12px; margin-bottom:32px; border-radius: 12px; border:none; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <div id="profStageTags" style="flex:1; display:flex; flex-wrap:wrap; gap:8px;">
+                        <div class="spinner" style="padding:10px 0; font-size:0.8rem;">Cargando etapas...</div>
+                    </div>
+                    <div style="flex-shrink:0; min-width:70px; display:flex; justify-content:center; align-items:center;">
+                        <div class="pipeline-watermark" style="font-weight:900; color:rgba(0,0,0,0.12); text-transform:uppercase; white-space:nowrap; text-shadow: -1px -1px 0px rgba(255,255,255,0.6), 1px 1px 0px rgba(0,0,0,0.08); user-select:none;">
+                            Pipeline
+                        </div>
+                    </div>
                 </div>
             </div>
 
             <!-- Quick Actions -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px;">
-                <button class="btn-primary" id="btnRegistrarVenta" onclick="goToStore()" style="padding: 12px; background:#faac40; border-color:#faac40; color:#fff;">🛒 Registrar Venta</button>
-                <button id="btnProfileWa" onclick="sendDirectWhatsApp()" class="btn-primary" style="padding: 12px; background:#06c474; border-color:#06c474; color:#fff; text-decoration:none;">🟢 WhatsApp</button>
-                <button class="btn-primary" onclick="openNoteModal()" style="padding: 12px; background:#555bdc; border-color:#555bdc; color:#fff;">📝 Nota</button>
-                <button class="btn-primary" onclick="deleteProfile()" style="padding: 12px; background:#db3c54; border-color:#db3c54; color:#fff;">🗑 Eliminar</button>
+            <!-- Quick Actions -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 24px;">
+                <button class="btn-primary" id="btnRegistrarVenta" onclick="goToStore()" 
+                    style="height: 75px; padding: 0; background:#FF9800; border:none; border-radius:18px; color:#fff; font-weight:800; transition:all 0.2s; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; font-size:1.1rem;"
+                    onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 10px 25px rgba(255,152,0,0.4)'; this.style.filter='brightness(1.05)'"
+                    onmouseout="this.style.transform='none'; this.style.boxShadow='none'; this.style.filter='none'">
+                    <span style="font-size:1.5rem;">🛒</span> Venta
+                </button>
+                <button id="btnProfileWa" onclick="sendDirectWhatsApp()" class="btn-primary" 
+                    style="height: 75px; padding: 0; background:#4CAF50; border:none; border-radius:18px; color:#fff; font-weight:800; transition:all 0.2s; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; font-size:1.1rem;"
+                    onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 10px 25px rgba(76,175,80,0.4)'; this.style.filter='brightness(1.05)'"
+                    onmouseout="this.style.transform='none'; this.style.boxShadow='none'; this.style.filter='none'">
+                    <span style="font-size:1.5rem;">🟢</span> WhatsApp
+                </button>
+                <button class="btn-primary" onclick="openNoteModal()" 
+                    style="height: 75px; padding: 0; background:#2196F3; border:none; border-radius:18px; color:#fff; font-weight:800; transition:all 0.2s; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; font-size:1.1rem;"
+                    onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 10px 25px rgba(33,150,243,0.4)'; this.style.filter='brightness(1.05)'"
+                    onmouseout="this.style.transform='none'; this.style.boxShadow='none'; this.style.filter='none'">
+                    <span style="font-size:1.5rem;">📝</span> Nota
+                </button>
+                <button class="btn-primary" onclick="deleteProfile()" 
+                    style="height: 75px; padding: 0; background:#EF4444; border:none; border-radius:18px; color:#fff; font-weight:800; transition:all 0.2s; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; font-size:1.1rem;"
+                    onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 10px 25px rgba(239, 68, 68, 0.4)'; this.style.filter='brightness(1.05)'"
+                    onmouseout="this.style.transform='none'; this.style.boxShadow='none'; this.style.filter='none'">
+                    <span style="font-size:1.5rem;">🗑</span> Eliminar
+                </button>
             </div>
             
             <!-- Metrics Grid -->
@@ -313,7 +365,7 @@
 
             <!-- Profile Navigation -->
             <div style="display:flex; border-bottom:1px solid var(--border); margin-bottom: 16px;">
-                <div style="flex:1; text-align:center; padding:10px; font-weight:700; border-bottom:2px solid var(--primary-dark);">Línea de Tiempo Unificada</div>
+                <div style="flex:1; text-align:center; padding:10px; font-weight:700; border-bottom:2px solid var(--primary-dark); font-size:1.1rem;">Línea de Tiempo</div>
             </div>
             
             <div id="profileTimelineContainer">
@@ -417,10 +469,6 @@
             <svg class="nav-icon" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
             Hoy
         </div>
-        <div class="nav-item" onclick="navTo('directory')" id="nav-directory">
-            <svg class="nav-icon" viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
-            Directorio
-        </div>
         <div class="nav-item" onclick="navTo('prospects')" id="nav-prospects">
             <svg class="nav-icon" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 9h-2V7h-2v5H6v2h2v5h2v-5h2v-2z"/></svg>
             Prospectos
@@ -429,7 +477,88 @@
             <svg class="nav-icon" viewBox="0 0 24 24"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
             Tareas
         </div>
-    </nav>
+    <!-- CONTACT ACTION POPOVER -->
+    <div id="contactPopover" style="display:none; position:fixed; z-index:250; background:var(--surface); border-radius:12px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); border: 1px solid var(--border); overflow: hidden; min-width: 150px; animation: popIn 0.2s ease;">
+        <div style="display: flex; flex-direction: column;">
+            <a id="linkCall" href="#" style="display: flex; align-items: center; gap: 10px; padding: 12px 16px; text-decoration: none; color: var(--text-main); font-weight: 700; font-size: 0.9rem; border-bottom: 1px solid var(--border); transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
+                <span style="font-size: 1.2rem;">📞</span> Llamar
+            </a>
+            <a id="linkWa" href="#" target="_blank" style="display:flex; align-items:center; gap:10px; padding:12px 16px; text-decoration:none; color:var(--text-main); font-weight:700; font-size:0.9rem; transition:background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
+                <span style="font-size: 1.2rem;">💬</span> WhatsApp
+            </a>
+            <div onclick="startPhoneEdit()" style="display:flex; align-items:center; gap:10px; padding:12px 16px; cursor:pointer; color:var(--text-main); font-weight:700; font-size:0.9rem; border-top:1px solid var(--border); transition:background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
+                <span style="font-size: 1.2rem;">✏️</span> Actualizar
+            </div>
+        </div>
+    </div>
+
+    <!-- LOCATION ACTION POPOVER (Uniform Color) -->
+    <div id="locationPopover" style="display:none; position:fixed; z-index:250; background:var(--surface); border-radius:12px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); border: 1px solid var(--border); overflow: hidden; min-width: 190px; animation: popIn 0.2s ease;">
+        <div style="display: flex; flex-direction: column;">
+            <!-- Capturar -->
+            <div id="locCapture" onclick="captureGPSCoords(event)" style="display:flex; align-items:center; gap:10px; padding:12px 16px; cursor:pointer; color:var(--text-main); font-weight:700; font-size: 0.9rem; border-bottom: 1px solid var(--border); transition:background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
+                <span style="font-size: 1.2rem;">🛰️</span> Capturar
+            </div>
+            <!-- Ingresar -->
+            <div onclick="startAddressEdit()" style="display:flex; align-items:center; gap:10px; padding:12px 16px; cursor:pointer; color:var(--text-main); font-weight:700; font-size:0.9rem; border-bottom: 1px solid var(--border); transition:background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
+                <span style="font-size: 1.2rem;">✏️</span> Ingresar
+            </div>
+            <!-- Google Maps -->
+            <div id="locGoogle" style="display: flex; align-items: center; gap: 10px; padding: 12px 16px; cursor:pointer; color: var(--text-main); font-weight: 700; font-size: 0.9rem; border-bottom: 1px solid var(--border); transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
+                <span style="font-size: 1.2rem;">🌍</span> Google Maps
+            </div>
+            <!-- Waze -->
+            <div id="locWaze" style="display:flex; align-items:center; gap:10px; padding:12px 16px; cursor:pointer; color:var(--text-main); font-weight:700; font-size:0.9rem; border-bottom: 1px solid var(--border); transition:background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
+                <span style="font-size: 1.2rem;">🚙</span> Waze
+            </div>
+            <!-- Señalar en mapa -->
+            <div onclick="openMapPicker()" style="display:flex; align-items:center; gap:10px; padding:12px 16px; cursor:pointer; color:var(--text-main); font-weight:700; font-size:0.9rem; transition:background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
+                <span style="font-size: 1.2rem;">📍</span> Señalar en mapa
+            </div>
+        </div>
+    </div>
+
+    <!-- MAP PICKER MODAL (Solid Background Fix) -->
+    <div id="mapPickerModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:1000; background:var(--bg) !important; opacity: 1 !important; flex-direction:column; -webkit-tap-highlight-color: transparent;">
+        <header style="padding:12px 20px; background:var(--bg);">
+            <button onclick="closeMapPicker()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-main);">✕</button>
+            <div style="font-weight:800; font-size:1.1rem; color:var(--text-main);">Elegir Ubicación</div>
+            <div style="width:30px;"></div>
+        </header>
+        <div style="flex:1; position:relative; background:white;">
+            <div id="mapPickerContainer" style="width:100%; height:100%; opacity: 1 !important;"></div>
+            <!-- Crosshair overlay -->
+            <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -100%); z-index:500; pointer-events:none; font-size:2rem;">
+                📍
+            </div>
+        </div>
+        <div style="padding:20px; background:var(--surface); border-top:1px solid var(--border); opacity: 1 !important;">
+            <div id="mapPickerAddress" style="font-size:0.85rem; color:var(--text-muted); margin-bottom:12px; text-align:center;">Mueve el mapa para marcar la ubicación</div>
+            <button class="btn-primary" onclick="confirmMapPicker()" style="width:100%; height:55px; border-radius:14px; font-weight:800;">Confirmar Ubicación</button>
+        </div>
+    </div>
+
+    <style>
+        .leaflet-container { font-family: inherit; }
+        #profAddress[contenteditable="true"] { 
+            background: rgba(0,0,0,0.03); 
+            border-radius: 6px; 
+            padding: 2px 8px; 
+            cursor: text; 
+            color: var(--text-main) !important; 
+            box-shadow: inset 0 0 0 1px var(--border);
+        }
+        
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        @keyframes popIn { from { opacity: 0; transform: scale(0.9) translateY(-10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        @keyframes arrowBounce { 0%, 100% { transform: translateX(-50%) translateY(0) rotate(-2deg); } 50% { transform: translateX(-50%) translateY(2px) rotate(1deg); } }
+        
+        .pipeline-watermark { font-size:1.125rem; letter-spacing:0.45em; display: inline-block; }
+        @media (max-width: 420px) { .pipeline-watermark { font-size:0.75rem; letter-spacing:0.12em; } }
+        @media (max-width: 340px) { .pipeline-watermark { font-size:0.6rem; letter-spacing:0.02em; } }
+    </style>
+
+    <!-- SortableJS library for touch-friendly drag and drop -->
 
     <!-- SortableJS library for touch-friendly drag and drop -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
@@ -439,6 +568,8 @@
         let currentSellerName = '';
         let directoryData = [];
         let crmStages = [];
+        let currentProfileId = null;
+        let lastLoadedProfileName = '';
 
         // ON LOAD
         document.addEventListener('DOMContentLoaded', async () => {
@@ -491,37 +622,117 @@
                 window.location.replace('/store.html');
             }
 
-            // Search Bar filter logic
-            document.getElementById('searchInput').addEventListener('input', (e) => {
+            // Search Bar filter logic (Unificado en Dashboard)
+            document.getElementById('dashSearchInput').addEventListener('input', (e) => {
                 const term = e.target.value.toLowerCase();
                 if(!term) {
-                    renderDirectory(directoryData);
+                    renderFullDirectoryInline(directoryData);
                     return;
                 }
                 const filtered = directoryData.filter(c => 
                     (c.name && c.name.toLowerCase().includes(term)) || 
                     (c.whatsapp && c.whatsapp.toLowerCase().includes(term))
                 );
-                renderDirectory(filtered);
+                renderFullDirectoryInline(filtered);
             });
         });
 
-        // SPA NAVIGATION
-        function navTo(screenId) {
-            // Hide all
+        // CACHING ENGINE (SWR: Stale-While-Revalidate)
+        const CACHE_PREFIX = 'crm_cache_';
+        async function fetchWithCache(key, url, onSuccess, shouldRestore = false) {
+            const cacheKey = CACHE_PREFIX + key + '_' + currentSellerId;
+            const cached = localStorage.getItem(cacheKey);
+            let cachedJson = null;
+
+            if (cached) {
+                try {
+                    cachedJson = JSON.parse(cached);
+                    onSuccess(cachedJson, true); // Render from cache immediately
+                } catch(e) { console.warn("Cache parse failed", e); }
+            }
+
+            try {
+                const res = await fetch(url);
+                const freshData = await res.json();
+                
+                // Anti-flicker: Only re-render if data changed
+                if (!cachedJson || JSON.stringify(cachedJson) !== JSON.stringify(freshData)) {
+                    localStorage.setItem(cacheKey, JSON.stringify(freshData));
+                    onSuccess(freshData, false);
+                }
+            } catch (err) {
+                console.warn("Network fetch failed for", url, err);
+                if (!cached) {
+                    // Critical failure if no cache
+                    const list = document.getElementById('dashContactList') || document.getElementById('prospectListContainer');
+                    if (list) list.innerHTML = '<div style="text-align:center; padding:32px; color:var(--danger);">Sin conexión. Revisa tu internet.</div>';
+                }
+            }
+        }
+
+        // SPA NAVIGATION & SCROLL MEMORY
+        let scrollMemory = {};
+        let currentScreen = 'dashboard';
+        let lastScreen = 'dashboard';
+        let dashStageParams = null; // Store stage details for restoration
+
+        function navTo(screenId, params = null) {
+            const main = document.querySelector('main');
+            
+            // 1. Save scroll position of outgoing screen
+            scrollMemory[currentScreen] = main.scrollTop;
+
+            // 2. Track lineage for profile back button
+            if (screenId === 'profile') {
+                lastScreen = currentScreen;
+            }
+
+            // 3. Toggle visibility
             document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
             
-            // Show target
-            document.getElementById(`screen-${screenId}`).classList.add('active');
+            // Sub-dashboard views all point to 'screen-dashboard'
+            const isDashSub = ['dashboard', 'dashSearch', 'dashDebt', 'dashStage'].includes(screenId);
+            const targetId = isDashSub ? 'screen-dashboard' : `screen-${screenId}`;
+            const targetEl = document.getElementById(targetId);
+            if (targetEl) targetEl.classList.add('active');
             
-            const navBtn = document.getElementById(`nav-${screenId}`);
-            if(navBtn) navBtn.classList.add('active');
+            const navBase = isDashSub ? 'dashboard' : screenId;
+            const navBtn = document.getElementById(`nav-${navBase}`);
+            if (navBtn) navBtn.classList.add('active');
 
-            // Trigger loaders if needed
-            if (screenId === 'dashboard') loadDashboard();
-            if (screenId === 'directory') loadDirectory();
-            if (screenId === 'prospects') loadProspects();
+            // 4. Update State
+            currentScreen = screenId;
+            if (params) dashStageParams = params;
+
+            // 5. Restore scroll key or reset
+            if (screenId === 'profile') {
+                main.scrollTop = 0;
+            } else if (scrollMemory[screenId] !== undefined) {
+                main.scrollTop = scrollMemory[screenId];
+            } else {
+                main.scrollTop = 0;
+            }
+
+            // 6. Trigger loaders with scroll restoration check
+            if (screenId === 'dashboard') loadDashboard(true);
+            if (screenId === 'dashSearch') loadFullDirectoryInline(true);
+            if (screenId === 'dashDebt') loadDebtClients(true);
+            if (screenId === 'dashStage' && dashStageParams) {
+                openStageClients(dashStageParams.id, dashStageParams.name, dashStageParams.color, true);
+            }
+            if (screenId === 'prospects') loadProspects(true);
+            if (screenId === 'activities') loadActivities(true);
+        }
+
+        function restoreScroll(screenId) {
+            if (scrollMemory[screenId] !== undefined) {
+                const main = document.querySelector('main');
+                // Use a proper timeout to ensure the browser has finished layout after innerHTML
+                setTimeout(() => {
+                    main.scrollTo({ top: scrollMemory[screenId], behavior: 'instant' });
+                }, 50);
+            }
         }
 
         // FORMATTERS
@@ -537,12 +748,40 @@
             return `https://wa.me/${c}?text=${encodeURIComponent(msg)}`;
         }
 
+        function renderClientCardHtml(c) {
+            const debt = Number(c.total_debt_cents || 0);
+            const ltv = Number(c.lifetime_value_cents || 0);
+            const freq = Number(c.total_orders || 0);
+
+            let badges = '';
+            if(c.stage_name) badges += `<span class="badge" style="background:${c.stage_color || '#808080'}">${c.stage_name}</span> `;
+            if(debt > 0) badges += `<span class="badge bg-danger">Deuda ${formatMoney(debt)}</span> `;
+            
+            const metricsHtml = ltv > 0 ? `<div style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">Histórico: ${formatMoney(ltv)} | Compras: ${freq}</div>` : '';
+
+            return `
+                <div class="card" onclick="loadProfile(${c.id})" 
+                    style="padding:14px; margin-bottom:10px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; transition: transform 0.1s;"
+                    onmouseover="this.style.transform='translateX(4px)'" onmouseout="this.style.transform='none'">
+                    <div style="flex:1;">
+                        <div style="font-weight:700; font-size:1.05rem; margin-bottom:6px;">${c.name}</div>
+                        <div style="display:flex; flex-wrap:wrap; gap:4px;">${badges}</div>
+                        ${metricsHtml}
+                    </div>
+                    <div style="display:flex; gap:8px;">
+                        <button onclick="event.stopPropagation(); window.open(wappLink('${c.whatsapp}'), '_blank');" 
+                            style="background:#25D366; border:none;  color:white; padding:10px 12px; border-radius:12px; cursor:pointer; transition: filter 0.2s;"
+                            onmouseover="this.style.filter='brightness(1.1)'" onmouseout="this.style.filter='none'">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.571-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
+                        </button>
+                    </div>
+                </div>`;
+        }
+
         // LOAD DASHBOARD
-        async function loadDashboard() {
-            try {
-                const res = await fetch(`/.netlify/functions/crm-dashboard?seller_id=${currentSellerId}`);
-                const data = await res.json();
-                
+        async function loadDashboard(shouldRestore = false) {
+            const url = `/.netlify/functions/crm-dashboard?seller_id=${currentSellerId}`;
+            fetchWithCache('dashboard', url, (data, isFromCache) => {
                 document.getElementById('dashTotalClients').innerText = data.stats.total_clients;
                 document.getElementById('dashTotalDebt').innerText = formatMoney(data.stats.total_debt_cents);
 
@@ -550,37 +789,38 @@
                 list.innerHTML = '';
 
                 // 1. Reminders (Due Today/Overdue)
-                data.remindersToday.forEach(r => {
-                    list.innerHTML += buildDashCard('📌 Recordatorio', r.title, 'bg-info', r.client_id,
-                        `<button class="btn-primary" style="padding:8px; font-size:0.8rem; border-radius:8px; width:auto;" onclick="event.stopPropagation(); loadProfile(${r.client_id})">Ver →</button>`
-                    );
-                });
-
-                // 3. Birthdays
-                data.upcomingBirthdays.forEach(b => {
-                    list.innerHTML += buildDashCard('🎂 Cumpleaños', b.name, 'bg-success', b.id,
-                        `<a href="${wappLink(b.whatsapp, '¡Feliz cumple!')}" target="_blank" class="btn-primary" onclick="event.stopPropagation()" style="padding:8px; font-size:0.8rem; border-radius:8px; text-decoration:none; width:auto; display:inline-block;">WA 🎉</a>`
-                    );
-                });
-
-                // 4. Inactives
-                data.inactiveClients.forEach(c => {
-                    const days = Math.floor((new Date() - new Date(c.last_purchase_date)) / (1000 * 60 * 60 * 24));
-                    list.innerHTML += buildDashCard('⏳ Inactivo', `${c.name} · ${days} días`, 'bg-warning', c.id,
-                        `<button class="btn-primary" style="padding:8px; font-size:0.8rem; border-radius:8px; background:#1d1d1f; width:auto;" onclick="event.stopPropagation(); loadProfile(${c.id})">Perfil →</button>`
-                    );
-                });
-
-                if(list.innerHTML === '') {
-                    list.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-muted);">Todo al día. No hay pendientes por contactar.</div>';
+                if (data.remindersToday && data.remindersToday.length > 0) {
+                    list.innerHTML += `<h4 style="margin:16px 0 10px; font-size:0.9rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;">Recordatorios</h4>`;
+                    data.remindersToday.forEach(r => {
+                        list.innerHTML += buildDashCard('📌 Recordatorio', r.title, 'bg-info', r.client_id,
+                            `<button class="btn-primary" style="padding:8px; font-size:0.8rem; border-radius:8px; width:auto;" onclick="event.stopPropagation(); loadProfile(${r.client_id})">Ver →</button>`
+                        );
+                    });
                 }
 
-                // Load stage tags in parallel (non-blocking)
-                loadStageSummary();
+                // 2. Birthdays
+                if (data.upcomingBirthdays && data.upcomingBirthdays.length > 0) {
+                    list.innerHTML += `<h4 style="margin:24px 0 10px; font-size:0.9rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;">Cumpleaños</h4>`;
+                    data.upcomingBirthdays.forEach(c => {
+                        list.innerHTML += renderClientCardHtml(c);
+                    });
+                }
 
-            } catch (err) {
-                console.error(err);
-            }
+                // 3. Inactive
+                if (data.inactiveClients && data.inactiveClients.length > 0) {
+                    list.innerHTML += `<h4 style="margin:24px 0 10px; font-size:0.9rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;">Reactivar (Inactivos > 30 días)</h4>`;
+                    data.inactiveClients.forEach(c => {
+                        list.innerHTML += renderClientCardHtml(c);
+                    });
+                }
+
+                if(list.innerHTML === '') {
+                    list.innerHTML = '<div style="text-align:center; padding:32px; color:var(--text-muted);">Todo al día. No hay pendientes por contactar.</div>';
+                }
+
+                if (shouldRestore) restoreScroll('dashboard');
+                loadStageSummary();
+            }, shouldRestore);
         }
 
         async function loadStageSummary() {
@@ -595,14 +835,13 @@
                 }
                 container.innerHTML = stages.map(s => {
                     const count = Number(s.client_count || 0);
-                    const opacity = count === 0 ? '0.4' : '1';
+                    const bgColor = s.color;
                     return `
-                    <button onclick="openStageClients(${s.id}, '${s.name.replace(/'/g,"\\'")}', '${s.color}')"
-                        style="display:inline-flex; align-items:center; gap:6px; padding:7px 14px; border-radius:20px; border:2px solid ${s.color}; background:${count > 0 ? s.color + '22' : 'transparent'}; color:var(--text-main); cursor:pointer; font-size:0.82rem; font-weight:700; opacity:${opacity}; transition:all 0.15s;"
-                        onmouseover="this.style.background='${s.color}33'" onmouseout="this.style.background='${count > 0 ? s.color + '22' : 'transparent'}'">
-                        <span style="width:8px; height:8px; border-radius:50%; background:${s.color}; display:inline-block; flex-shrink:0;"></span>
-                        ${s.name}
-                        <span style="background:${s.color}; color:#fff; border-radius:10px; padding:1px 7px; font-size:0.75rem;">${count}</span>
+                    <button onclick="navTo('dashStage', {id: ${s.id}, name: '${s.name.replace(/'/g,"\\'")}', color: '${s.color}'})"
+                        style="display:flex; width:100%; height:42px; align-items:center; justify-content:space-between; gap:6px; padding:0 10px; border-radius:10px; border:none; background:${bgColor}; color:#fff; cursor:pointer; font-size:0.74rem; font-weight:800; transition:all 0.15s; text-align:left; margin-bottom:4px;"
+                        onmouseover="this.style.filter='brightness(1.1)'; this.style.transform='translateX(4px)'" onmouseout="this.style.filter='none'; this.style.transform='none'">
+                        <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1; letter-spacing: -0.01em;">${s.name}</span>
+                        <span style="background:rgba(255,255,255,0.28); color:#fff; border-radius:8px; padding:3px 7px; font-size:0.82rem; font-weight:800; flex-shrink:0;">${count}</span>
                     </button>`;
                 }).join('');
             } catch(e) {
@@ -610,17 +849,13 @@
             }
         }
 
-        async function openStageClients(stageId, stageName, stageColor) {
-            const overlay = document.getElementById('stageClientsOverlay');
-            const badge = document.getElementById('stageOverlayBadge');
-            const title = document.getElementById('stageOverlayTitle');
-            const listEl = document.getElementById('stageClientsList');
+        async function openStageClients(stageId, stageName, stageColor, shouldRestore = false) {
+            const title = document.getElementById('dashContentTitle');
+            const listEl = document.getElementById('dashContactList');
+            document.getElementById('dashSearchContainer').style.display = 'none';
 
-            badge.style.background = stageColor;
-            badge.innerText = stageName;
-            title.innerText = `Clientes en "${stageName}"`;
-            listEl.innerHTML = '<div class="spinner">Cargando...</div>';
-            overlay.style.display = 'block';
+            title.innerHTML = `<span style="display:inline-block; width:12px; height:12px; border-radius:3px; background:${stageColor}; margin-right:8px;"></span> ${stageName}`;
+            listEl.innerHTML = '<div class="spinner">Cargando clientes...</div>';
 
             try {
                 const res = await fetch(`/api/crm-stages?action=get_clients_by_stage&stage_id=${stageId}&seller_id=${currentSellerId}`);
@@ -629,31 +864,36 @@
                     listEl.innerHTML = '<p style="text-align:center; padding:24px; color:var(--text-muted);">No hay clientes en esta etapa.</p>';
                     return;
                 }
-                listEl.innerHTML = clients.map(c => {
-                    const since = c.stage_assigned_at ? new Date(c.stage_assigned_at).toLocaleDateString('es-CO', {day:'2-digit', month:'short', year:'numeric'}) : '-';
-                    return `
-                    <div class="card" onclick="closeStageClients(); loadProfile(${c.id})"
-                        style="padding:14px; margin-bottom:10px; cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
-                        <div>
-                            <div style="font-weight:800; font-size:1rem; margin-bottom:4px;">${c.name}</div>
-                            <div style="font-size:0.78rem; color:var(--text-muted);">Desde: ${since}</div>
-                        </div>
-                        <div style="display:flex; gap:8px; align-items:center;">
-                            ${c.whatsapp ? `<button onclick="event.stopPropagation(); window.open('${wappLink(c.whatsapp)}', '_blank')" 
-                                style="background:#06c474; border:none; color:white; padding:9px; border-radius:10px; cursor:pointer; line-height:1;">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.571-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
-                            </button>` : ''}
-                            <span style="font-size:1.2rem; color:var(--text-muted);">›</span>
-                        </div>
-                    </div>`;
-                }).join('');
+                listEl.innerHTML = clients.map(c => renderClientCardHtml(c)).join('');
+                if (shouldRestore) restoreScroll('dashStage');
             } catch(e) {
                 listEl.innerHTML = '<p style="color:var(--danger); text-align:center; padding:20px;">Error cargando clientes.</p>';
             }
         }
 
-        function closeStageClients() {
-            document.getElementById('stageClientsOverlay').style.display = 'none';
+        function resetDashboardView() {
+            const title = document.getElementById('dashContentTitle');
+            const search = document.getElementById('dashSearchContainer');
+            search.style.display = 'none';
+            title.innerHTML = `💡 Contactar Hoy`;
+            loadDashboard();
+        }
+
+        async function loadDebtClients(shouldRestore = false) {
+            const url = `/.netlify/functions/crm-clients?seller_id=${currentSellerId}`;
+            fetchWithCache('debt', url, (allClients, isCache) => {
+                const title = document.getElementById('dashContentTitle');
+                const listEl = document.getElementById('dashContactList');
+                title.innerHTML = `💸 Clientes con saldo`;
+                
+                const debtClients = allClients.filter(c => Number(c.total_debt_cents) > 0);
+                if (!Array.isArray(debtClients) || debtClients.length === 0) {
+                    listEl.innerHTML = '<p style="text-align:center; padding:24px; color:var(--text-muted);">No hay clientes con deuda pendiente.</p>';
+                    return;
+                }
+                listEl.innerHTML = debtClients.map(c => renderClientCardHtml(c)).join('');
+                if (shouldRestore) restoreScroll('dashDebt');
+            }, shouldRestore);
         }
 
 
@@ -671,53 +911,74 @@
             </div>`;
         }
 
-        // LOAD DIRECTORY
-        async function loadDirectory() {
-            try {
-                const res = await fetch(`/.netlify/functions/crm-clients?seller_id=${currentSellerId}`);
-                directoryData = await res.json();
-                renderDirectory(directoryData);
-            } catch (err) {
-                console.error(err);
-            }
+        // LOAD DIRECTORY (Inline Dashboard)
+        async function loadFullDirectoryInline(shouldRestore = false) {
+            const url = `/.netlify/functions/crm-clients?seller_id=${currentSellerId}`;
+            fetchWithCache('directory', url, (data, isCache) => {
+                const title = document.getElementById('dashContentTitle');
+                const listEl = document.getElementById('dashContactList');
+                const search = document.getElementById('dashSearchContainer');
+
+                search.style.display = 'block';
+                title.innerHTML = `👥 Directorio de Clientes`;
+                
+                directoryData = data;
+                renderFullDirectoryInline(data);
+                if (shouldRestore || currentScreen === 'dashSearch') restoreScroll('dashSearch');
+            }, shouldRestore);
         }
 
-        function renderDirectory(arr) {
-            const list = document.getElementById('directoryList');
+        function renderFullDirectoryInline(arr) {
+            const list = document.getElementById('dashContactList');
             list.innerHTML = '';
 
-            arr.forEach(c => {
-                const debt = Number(c.total_debt_cents);
-                const ltv = Number(c.lifetime_value_cents);
-                const freq = Number(c.total_orders);
+            if (arr.length === 0) {
+                list.innerHTML = '<p style="text-align:center; padding:24px; color:var(--text-muted);">No se encontraron clientes.</p>';
+                return;
+            }
 
-                let badges = '';
-                if(c.stage_name) badges += `<span class="badge" style="background:${c.stage_color || '#808080'}">${c.stage_name}</span> `;
-                if(debt > 0) badges += `<span class="badge bg-danger">Deuda ${formatMoney(debt)}</span> `;
-                if(freq >= 10) badges += `<span class="badge bg-success">Frecuente</span> `;
-                if(freq === 1) badges += `<span class="badge bg-info">Nuevo</span> `;
-                
-                // Card
-                const card = document.createElement('div');
-                card.className = 'card';
-                card.style.padding = '12px';
-                 card.style.marginBottom = '10px';
-                card.innerHTML = `
-                    <div style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="loadProfile(${c.id})">
-                        <div style="flex:1;">
-                            <div style="font-weight:700; font-size:1.1rem; margin-bottom:4px;">${c.name}</div>
-                            <div style="margin-bottom:8px;">${badges}</div>
-                            <div style="font-size:0.8rem; color:var(--text-muted);">Histórico: ${formatMoney(ltv)} | Compras: ${freq}</div>
-                        </div>
-                        <div style="display:flex; gap:8px;">
-                            <button onclick="event.stopPropagation(); window.open(wappLink('${c.whatsapp}'), '_blank');" style="background:#25D366; border:none;  color:white; padding:10px; border-radius:12px; cursor:pointer;">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.571-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
-                            </button>
-                        </div>
+            list.innerHTML = arr.map(c => renderClientCardHtml(c)).join('');
+        }
+
+        function renderClientCardHtml(c) {
+            const debt = Number(c.total_debt_cents || 0);
+            const ltv = Number(c.lifetime_value_cents || 0);
+            const freq = Number(c.total_orders || 0);
+
+            let badges = '';
+            if(c.stage_name) badges += `<span class="badge" style="background:${c.stage_color || '#808080'}">${c.stage_name}</span> `;
+            if(debt > 0) badges += `<span class="badge bg-danger">Deuda ${formatMoney(debt)}</span> `;
+            
+            const metricsHtml = ltv > 0 ? `<div style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">Histórico: ${formatMoney(ltv)} | Compras: ${freq}</div>` : '';
+
+            return `
+                <div class="card" onclick="loadProfile(${c.id})" 
+                    style="padding:14px; margin-bottom:10px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; transition: transform 0.1s;"
+                    onmouseover="this.style.transform='translateX(4px)'" onmouseout="this.style.transform='none'">
+                    <div style="flex:1;">
+                        <div style="font-weight:700; font-size:1.05rem; margin-bottom:6px;">${c.name}</div>
+                        <div style="display:flex; flex-wrap:wrap; gap:4px;">${badges}</div>
+                        ${metricsHtml}
                     </div>
-                `;
-                list.appendChild(card);
-            });
+                    <div style="display:flex; gap:8px;">
+                        <button onclick="event.stopPropagation(); window.open(wappLink('${c.whatsapp}'), '_blank');" 
+                            style="background:#25D366; border:none;  color:white; padding:10px 12px; border-radius:12px; cursor:pointer; transition: filter 0.2s;"
+                            onmouseover="this.style.filter='brightness(1.1)'" onmouseout="this.style.filter='none'">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.571-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
+                        </button>
+                    </div>
+                </div>`;
+        }
+
+
+        // (Deprecated) LOAD DIRECTORY - Now using loadFullDirectoryInline
+        async function loadDirectory() {
+            loadFullDirectoryInline();
+        }
+
+        // (Deprecated) RENDER DIRECTORY - Now using renderFullDirectoryInline
+        function renderDirectory(arr) {
+            renderFullDirectoryInline(arr);
         }
 
         function filterClients(type) {
@@ -737,28 +998,59 @@
         }
 
         async function loadProfile(id) {
+            if (!id) return;
             currentProfileId = id;
             navTo('profile'); // Show modal
-            
-            document.getElementById('profileName').innerText = 'Cargando...';
-            const timelineContainer = document.getElementById('profileTimelineContainer');
-            timelineContainer.innerHTML = '<div class="spinner">Construyendo línea de tiempo...</div>';
-            
+
+            const cacheKey = CACHE_PREFIX + 'profile_' + id;
+            const cached = localStorage.getItem(cacheKey);
+            let cachedJson = null;
+
+            if (cached) {
+                try {
+                    cachedJson = JSON.parse(cached);
+                    renderProfileData(cachedJson);
+                } catch(e) { console.warn("Profile cache fail", e); }
+            } else {
+                document.getElementById('profileName').innerText = 'Cargando...';
+                document.getElementById('profileTimelineContainer').innerHTML = '<div class="spinner">Construyendo línea de tiempo...</div>';
+            }
+
             try {
-                // Use allSettled so one failing API doesn't crash everything
+                // Fetch all 5 sources with cache-busting to ensure we eventually get fresh data
                 const [clientResult, waResult, stResult, actResult, histResult] = await Promise.allSettled([
-                    fetch(`/.netlify/functions/crm-clients?seller_id=${currentSellerId}&id=${id}`).then(r => r.json()),
-                    fetch(`/api/crm-whatsapp-logs?client_id=${id}`).then(r => r.json()).catch(() => []),
-                    fetch(`/api/crm-stages?action=get_client_stage&client_id=${id}`).then(r => r.json()).catch(() => null),
-                    fetch(`/api/crm-stages?action=get_actions&client_id=${id}`).then(r => r.json()).catch(() => []),
-                    fetch(`/api/crm-stages?action=get_history&client_id=${id}`).then(r => r.json()).catch(() => [])
+                    fetch(`/.netlify/functions/crm-clients?seller_id=${currentSellerId}&id=${id}&_t=${Date.now()}`).then(r => r.json()),
+                    fetch(`/api/crm-whatsapp-logs?client_id=${id}&_t=${Date.now()}`).then(r => r.json()).catch(() => []),
+                    fetch(`/api/crm-stages?action=get_client_stage&client_id=${id}&_t=${Date.now()}`).then(r => r.json()).catch(() => null),
+                    fetch(`/api/crm-stages?action=get_actions&client_id=${id}&_t=${Date.now()}`).then(r => r.json()).catch(() => []),
+                    fetch(`/api/crm-stages?action=get_history&client_id=${id}&_t=${Date.now()}`).then(r => r.json()).catch(() => [])
                 ]);
 
-                const clientData = clientResult.status === 'fulfilled' ? clientResult.value : {};
-                const waLogs    = waResult.status   === 'fulfilled' ? (waResult.value   || []) : [];
-                const currentStage = stResult.status === 'fulfilled' ? stResult.value : null;
-                const actions   = actResult.status  === 'fulfilled' ? (actResult.value  || []) : [];
-                const stageHistory = histResult.status === 'fulfilled' ? (histResult.value || []) : [];
+                const freshData = {
+                    clientData: clientResult.status === 'fulfilled' ? clientResult.value : {},
+                    waLogs: waResult.status === 'fulfilled' ? (waResult.value || []) : [],
+                    currentStage: stResult.status === 'fulfilled' ? stResult.value : null,
+                    actions: actResult.status === 'fulfilled' ? (actResult.value || []) : [],
+                    stageHistory: histResult.status === 'fulfilled' ? (histResult.value || []) : []
+                };
+
+                // Anti-flicker and Persist
+                if (!cachedJson || JSON.stringify(cachedJson) !== JSON.stringify(freshData)) {
+                    // Evict old profile caches if too many (keep last 30)
+                    const allKeys = Object.keys(localStorage).filter(k => k.startsWith(CACHE_PREFIX + 'profile_'));
+                    if (allKeys.length > 30) localStorage.removeItem(allKeys[0]); 
+
+                    localStorage.setItem(cacheKey, JSON.stringify(freshData));
+                    renderProfileData(freshData);
+                }
+            } catch (err) {
+                console.error("Profile refresh failed", err);
+            }
+        }
+
+        async function renderProfileData(data) {
+            const { clientData, waLogs, currentStage, actions, stageHistory } = data;
+            const timelineContainer = document.getElementById('profileTimelineContainer');
 
                 // Reload stages list if empty (table may have just been created this cold-start)
                 if (!Array.isArray(crmStages) || crmStages.length === 0) {
@@ -775,10 +1067,34 @@
                     return;
                 }
                 
-                document.getElementById('profileName').innerText = pf.name || 'Sin Nombre';
+                lastLoadedProfileName = pf.name || '';
+                
+                // Two-tone name styling: First name bold, rest muted
+                const nameStr = pf.name || 'Sin Nombre';
+                const nameParts = nameStr.split(' ');
+                const firstName = nameParts[0];
+                const restOfName = nameParts.slice(1).join(' ');
+                const nameHtml = `<span>${firstName}</span>${restOfName ? ' <span style="color: var(--text-muted); font-weight: 500; margin-left:1px;">' + restOfName + '</span>' : ''}`;
+                
+                document.getElementById('profileName').innerHTML = nameHtml;
                 document.getElementById('profPhone').innerText = pf.whatsapp || 'Sin número';
                 document.getElementById('profBirthday').innerText = pf.birth_date ? pf.birth_date.split('T')[0] : 'Sin fecha';
-                document.getElementById('btnProfileWa').href = wappLink(pf.whatsapp);
+                
+                // Address
+                const addEl = document.getElementById('profAddress');
+                if (addEl) {
+                    addEl.innerText = pf.address || '📍 Ubicación...';
+                    addEl.dataset.lat = pf.latitude || '';
+                    addEl.dataset.lng = pf.longitude || '';
+                }
+                
+                // Description
+                const desc = pf.description || '';
+                const descEl = document.getElementById('profDescription');
+                if (descEl) {
+                    descEl.innerText = desc || 'Descripción...';
+                    descEl.style.opacity = desc ? '1' : '0.6';
+                }
 
                 // --- TOP CARDS ---
                 let daysSince = '';
@@ -797,25 +1113,55 @@
 
                 // Badges
                 const debt = Number(pf.total_debt_cents);
-                const freq = Number(pf.total_orders);
+                const currentId = (currentStage && currentStage.stage_id) ? Number(currentStage.stage_id) : null;
+                const stagesList = Array.isArray(crmStages) ? crmStages : [];
+                
                 let badgesHtml = '';
-                if(debt > 0) badgesHtml += `<span class="badge bg-danger">Deuda</span>`;
-                if(isInactive) badgesHtml += `<span class="badge bg-warning">Inactivo</span>`;
-                if(freq >= 10) badgesHtml += `<span class="badge bg-success">Frecuente</span>`;
-                if(freq === 1) badgesHtml += `<span class="badge bg-info">Nuevo</span>`;
+                
+                // --- CURRENT STAGE TAG (Now in header row) ---
+                if (currentStage) {
+                    const st = stagesList.find(s => Number(s.id) === currentId);
+                    if (st) {
+                        badgesHtml += `<span class="badge" style="background:${st.color}; color:#fff; font-size:0.7rem; padding: 3px 7px; border-radius: 6px; font-weight: 800; text-transform: uppercase; box-shadow: 0 2px 4px ${st.color}44;">${st.name}</span>`;
+                    }
+                }
+                
+                if(debt > 0) badgesHtml += `<span class="badge" style="background:var(--danger); color:#fff; font-size:0.7rem; padding: 3px 7px; border-radius: 6px; font-weight: 800; text-transform: uppercase; box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2);">DEBE</span>`;
+                
                 document.getElementById('profileBadges').innerHTML = badgesHtml;
 
-                // --- STAGE DROPDOWN ---
-                const stageSelect = document.getElementById('profStageSelect');
-                const stagesList = Array.isArray(crmStages) ? crmStages : [];
-                stageSelect.innerHTML = '<option value="">(Sin etapa asignada)</option>' + stagesList.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
-                if(currentStage && currentStage.stage_id) {
-                    stageSelect.value = currentStage.stage_id;
-                    stageSelect.style.borderLeft = `4px solid ${currentStage.color}`;
-                } else {
-                    stageSelect.value = '';
-                    stageSelect.style.borderLeft = 'none';
-                }
+                // --- STAGE TAGS ---
+                const stageTagsContainer = document.getElementById('profStageTags');
+                
+                stageTagsContainer.innerHTML = stagesList.map(s => {
+                    const isActive = Number(s.id) === currentId;
+                    const bgColor = isActive ? s.color : s.color + '33'; 
+                    const textColor = isActive ? '#fff' : 'var(--text-main)';
+
+                    const highlightHtml = isActive ? `
+                        <svg width="16" height="22" viewBox="0 0 20 28" style="position:absolute; top:-25px; left:50%; transform:translateX(-50%); pointer-events:none; z-index:1; animation: arrowBounce 3s infinite ease-in-out;">
+                            <path d="M10 2 Q 13 8 10 22 M 10 22 L 3 14 M 10 22 L 17 14" stroke="#ff4d4d" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    ` : '';
+
+                    return `
+                        <div style="position:relative; display:flex; align-items:center; justify-content:center;">
+                            ${highlightHtml}
+                            <button onclick="changeProfileStage(${s.id})"
+                                style="width:84px; height:36px; padding:4px; border-radius:10px; border:none; 
+                                       background:${bgColor}; 
+                                       color:${textColor}; 
+                                       font-size:0.67rem; font-weight:700; cursor:pointer; 
+                                       transition:all 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+                                       box-shadow:${isActive ? '0 4px 10px ' + s.color + '33' : 'none'};
+                                       display:flex; align-items:center; justify-content:center; text-align:center; line-height:1.1; flex-shrink:0;"
+                                onmouseover="this.style.background='${isActive ? s.color : s.color + '35'}'; this.style.transform='translateY(-5px) scale(1.05)'; this.style.boxShadow='0 8px 20px ${s.color}66'" 
+                                onmouseout="this.style.background='${bgColor}'; this.style.transform='none'; this.style.boxShadow='${isActive ? '0 4px 10px ' + s.color + '33' : 'none'}'">
+                                ${s.name}
+                            </button>
+                        </div>
+                    `;
+                }).join('') || '<div style="font-size:0.8rem; color:var(--text-muted);">Sin etapas configuradas</div>';
 
                 // --- BUILD TIMELINE ---
                 let timeline = [];
@@ -841,12 +1187,13 @@
                         }
 
                         timeline.push({
+                            id: s.id,
+                            table: 'sales',
                             date: new Date(s.created_at),
                             type: 'venta',
-                            icon: '🛒',
-                            title: `Venta Registrada - ${formatMoney(s.total_cents)}`,
-                            body: items.join(', '),
-                            footer: isDebt ? '<b style="color:var(--danger)">DEBE</b>' : '<b style="color:var(--success)">PAGADO</b>',
+                            title: new Date(s.created_at).toLocaleString(),
+                            body: `<span style="font-weight:700;">Venta:</span> ${items.join(', ')}`,
+                            footer: `${formatMoney(s.total_cents)} ${isDebt ? '<span style="display:inline-block; padding:1px 6px; border-radius:4px; background:var(--danger); color:#fff; font-size:0.6rem; font-weight:800; vertical-align:middle; margin-left:4px;">DEBE</span>' : ''}`,
                             color: isDebt ? 'var(--danger)' : 'var(--success)'
                         });
                     });
@@ -856,10 +1203,11 @@
                 if(Array.isArray(waLogs)) {
                     waLogs.forEach(log => {
                         timeline.push({
+                            id: log.id,
+                            table: 'whatsapp',
                             date: new Date(log.sent_at),
                             type: 'whatsapp',
-                            icon: '💬',
-                            title: `Mensaje WhatsApp (${log.segment})`,
+                            title: `${new Date(log.sent_at).toLocaleString()} - WhatsApp (${log.segment})`,
                             body: log.message,
                             color: '#25D366'
                         });
@@ -870,12 +1218,13 @@
                 if(Array.isArray(actions)) {
                     actions.forEach(a => {
                         timeline.push({
+                            id: a.id,
+                            table: 'action',
                             date: new Date(a.created_at),
                             type: 'accion',
-                            icon: '📝',
-                            title: a.action_type.toUpperCase(),
+                            title: `${new Date(a.created_at).toLocaleString()} - ${a.action_type.toUpperCase()}`,
                             body: a.note || 'Sin detalles.',
-                            footer: `Registrado por: ${a.seller_name || 'Vendedor'}`,
+                            footer: `Por: ${a.seller_name || 'Vendedor'}`,
                             color: 'var(--primary)'
                         });
                     });
@@ -885,10 +1234,11 @@
                 if(Array.isArray(stageHistory)) {
                     stageHistory.forEach(h => {
                         timeline.push({
+                            id: h.id,
+                            table: 'history',
                             date: new Date(h.changed_at),
                             type: 'etapa',
-                            icon: '🚀',
-                            title: 'Cambio de Etapa',
+                            title: `${new Date(h.changed_at).toLocaleString()} - Cambio de Etapa`,
                             body: `De <b>${h.old_stage_name || 'Inicio'}</b> a <b>${h.new_stage_name}</b>`,
                             footer: h.note ? `"${h.note}"` : `Por: ${h.changed_by_name || 'Admin'}`,
                             color: h.new_stage_color || '#ccc'
@@ -904,40 +1254,29 @@
                     timelineContainer.innerHTML = '<p style="text-align:center; padding:40px; color:var(--text-muted);">Sin actividad registrada.</p>';
                 } else {
                     timelineContainer.innerHTML = timeline.map(ev => `
-                        <div class="card" style="padding:15px; margin-bottom:12px; border-left:4px solid ${ev.color || 'var(--border)'}; position:relative;">
-                            <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:8px; display:flex; justify-content:space-between;">
-                                <span>${ev.date.toLocaleString()}</span>
-                                <span>${ev.icon}</span>
+                        <div class="card" style="padding:8px 12px; margin-bottom:8px; border-left:3px solid ${ev.color || 'var(--border)'}; background:var(--surface); display:flex; flex-wrap:wrap; align-items:center; gap:6px; font-size:0.85rem; line-height:1.3; position:relative;">
+                            <div style="flex:1; display:flex; flex-wrap:wrap; align-items:baseline; gap:6px; min-width:0;">
+                                <span style="font-size:0.65rem; color:var(--text-muted); font-weight:700; white-space:nowrap; text-transform:uppercase;">${ev.date.toLocaleString()}</span>
+                                <span style="flex:1; min-width:160px; color:var(--text-main); font-size: 1rem;">${ev.body}</span>
+                                ${ev.footer ? `<span style="font-weight:700; color:var(--text-main); white-space:nowrap;">${ev.footer}</span>` : ''}
                             </div>
-                            <div style="font-weight:700; margin-bottom:5px; font-size:1rem;">${ev.title}</div>
-                            <div style="font-size:0.9rem; margin-bottom:8px; color:var(--text-main); white-space:pre-wrap;">${ev.body}</div>
-                            ${ev.footer ? `<div style="font-size:0.75rem; border-top:1px solid var(--border); padding-top:6px; margin-top:5px; color:var(--text-muted);">${ev.footer}</div>` : ''}
+                            <button onclick="deleteTimelineEntry('${ev.table}', ${ev.id})" style="background:none; border:none; width:28px; height:28px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:rgba(239, 68, 68, 0.35); transition:all 0.2s; flex-shrink:0;" onmouseover="this.style.color='rgba(239, 68, 68, 1)'; this.style.transform='scale(1.2)';" onmouseout="this.style.color='rgba(239, 68, 68, 0.35)'; this.style.transform='scale(1)';">
+                                <span style="font-family: 'Inter', 'Outfit', sans-serif; font-weight:300; font-size:1.4rem; line-height:1;">&times;</span>
+                            </button>
                         </div>
                     `).join('');
                 }
-
-            } catch (err) {
-                console.error(err);
-                timelineContainer.innerHTML = '<div style="color:var(--danger); padding:20px;">Error cargando línea de tiempo.</div>';
-            }
         }
 
-        async function changeProfileStage() {
-            if(!currentProfileId) return;
-            const select = document.getElementById('profStageSelect');
-            const newStageId = select.value;
-            if(!newStageId) {
-                alert('Por favor selecciona una etapa primero.');
-                return;
-            }
-            
-            const btn = document.getElementById('btnChangeStage');
-            const note = prompt('Opcional: ¿Por qué cambias a esta etapa? (Nota o motivo)');
-            if(note === null) return; // Cancelled
+        async function changeProfileStage(newStageId) {
+            if(!currentProfileId || !newStageId) return;
             
             try {
-                btn.disabled = true;
-                btn.innerText = '...';
+                // Instant Visual feedback
+                const container = document.getElementById('profStageTags');
+                container.style.opacity = '0.5';
+                container.style.pointerEvents = 'none';
+
                 await fetch('/api/crm-stages', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
@@ -945,7 +1284,6 @@
                         action: 'set_stage',
                         client_id: currentProfileId,
                         stage_id: Number(newStageId),
-                        note: note,
                         user_id: currentSellerId
                     })
                 });
@@ -953,8 +1291,11 @@
             } catch(e) {
                 alert('Error al mover etapa.');
             } finally {
-                btn.disabled = false;
-                btn.innerText = 'Mover';
+                const container = document.getElementById('profStageTags');
+                if (container) {
+                    container.style.opacity = '1';
+                    container.style.pointerEvents = 'auto';
+                }
             }
         }
 
@@ -966,27 +1307,485 @@
             window.location.href = `/store.html?crm_client_id=${currentProfileId}&crm_client_name=${encodeURIComponent(name)}`;
         }
 
-        async function editProfileName() {
-            if(!currentProfileId) return;
-            const currentName = document.getElementById('profileName').innerText;
-            const newName = prompt('Editar nombre del cliente:', currentName);
+        function showAddressMenu(event) {
+            event.stopPropagation();
+            const el = document.getElementById('profAddress');
+            const address = el.innerText === '📍 Ubicación...' ? '' : el.innerText;
+            const lat = el.dataset.lat;
+            const lng = el.dataset.lng;
             
-            if (!newName || newName.trim() === '' || newName.trim() === currentName) {
-                return; // User cancelled or entered same/empty name
+            const popover = document.getElementById('locationPopover');
+            
+            // Google Maps (Ruta desde ubicación actual)
+            document.getElementById('locGoogle').onclick = () => {
+                let url = 'https://www.google.com/maps/dir/?api=1&origin=Current+Location&destination=';
+                if (lat && lng) url += `${lat},${lng}`;
+                else if (address) url += encodeURIComponent(address);
+                else { alert('Asigna una dirección o captura GPS primero.'); return; }
+                window.open(url, '_blank');
+                popover.style.display = 'none';
+            };
+
+            // Waze (Ruta)
+            document.getElementById('locWaze').onclick = () => {
+                let url = 'https://waze.com/ul?navigate=yes&';
+                if (lat && lng) url += `ll=${lat},${lng}`;
+                else if (address) url += `q=${encodeURIComponent(address)}`;
+                else { alert('Asigna una dirección o captura GPS primero.'); return; }
+                window.open(url, '_blank');
+                popover.style.display = 'none';
+            };
+
+            // Position
+            const rect = event.currentTarget.getBoundingClientRect();
+            popover.style.top = (rect.bottom + 8) + 'px';
+            popover.style.left = Math.min(rect.left, window.innerWidth - 220) + 'px'; 
+            popover.style.display = 'block';
+
+            // Dismissal
+            const closePop = () => {
+                popover.style.display = 'none';
+                window.removeEventListener('click', closePop);
+            };
+            setTimeout(() => window.addEventListener('click', closePop), 20);
+        }
+
+        function startAddressEdit() {
+            const el = document.getElementById('profAddress');
+            el.contentEditable = "true";
+            el.focus();
+            
+            // Select all text if it's not the placeholder
+            if (el.innerText !== '📍 Ubicación...') {
+                const range = document.createRange();
+                range.selectNodeContents(el);
+                const sel = window.getSelection();
+                sel.removeAllRanges();
+                sel.addRange(range);
+            } else {
+                el.innerText = '';
             }
             
-            const trimmedName = newName.trim();
-            if (!confirm(`¿Cambiar el nombre del cliente de "${currentName}" a "${trimmedName}"?\nSi el nuevo nombre ya existe, se fusionarán sus historiales y datos de contacto.`)) {
+            document.getElementById('locationPopover').style.display = 'none';
+        }
+
+        async function handleAddressKey(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                event.currentTarget.blur();
+            }
+        }
+
+        async function saveAddressInline(event) {
+            const el = event.currentTarget;
+            if (el.contentEditable !== "true") return;
+            el.contentEditable = "false";
+            
+            const text = el.innerText.trim();
+            if (text === '') {
+                el.innerText = '📍 Ubicación...';
+                return;
+            }
+
+            // Check if it looks like lat, lng (e.g. 6.12, -75.12)
+            const coordMatch = text.match(/^(-?\d+\.\d+),\s*(-?\d+\.\d+)$/);
+            if (coordMatch) {
+                const lat = parseFloat(coordMatch[1]);
+                const lng = parseFloat(coordMatch[2]);
+                const human = await reverseGeocodeHuman(lat, lng);
+                await updateClientLocation({ latitude: lat, longitude: lng, address: human });
+            } else {
+                await updateClientLocation({ address: text });
+            }
+        }
+
+        async function reverseGeocodeHuman(lat, lng) {
+            try {
+                const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`, {
+                    headers: { 'Accept-Language': 'es' }
+                });
+                const geoData = await geoRes.json();
+                if (geoData && geoData.address) {
+                    const a = geoData.address;
+                    
+                    // Filter function to clean technical noise
+                    const clean = (str) => {
+                        if (!str) return '';
+                        return str.replace(/Perímetro Urbano/gi, '').replace(/Valle de Aburrá/gi, '').trim();
+                    };
+
+                    // 1. Road handling with abbreviations
+                    let road = clean(a.road || a.pedestrian || a.path || '');
+                    if (road) {
+                        road = road.replace(/^Calle\b/i, 'Cl.')
+                                   .replace(/^Carrera\b/i, 'Cr.')
+                                   .replace(/^Avenida\b/i, 'Av.')
+                                   .replace(/^Diagonal\b/i, 'Dg.')
+                                   .replace(/^Transversal\b/i, 'Tv.');
+                    }
+                    
+                    // 2. Connector for house number
+                    const house = clean(a.house_number || '');
+                    let addr = road;
+                    if (house) {
+                        addr += (house.includes('#') ? ' ' : ' #') + house;
+                    }
+                    
+                    // 3. Components to join (Suburb, City, State)
+                    const suburb = clean(a.suburb || a.neighbourhood || '');
+                    const city = clean(a.city || a.town || a.village || '');
+                    const state = clean(a.state || '');
+
+                    // Collect and deduplicate parts
+                    const parts = [addr, suburb, city, state].filter(p => !!p);
+                    // Deduplicate adjacent identical parts
+                    const finalParts = [];
+                    parts.forEach(p => {
+                        if (!finalParts.includes(p)) finalParts.push(p);
+                    });
+
+                    return finalParts.join(', ');
+                }
+                // Fallback to coordinates if completely empty
+                return geoData.display_name ? geoData.display_name.split(',').slice(0,3).join(',').trim() : (lat.toFixed(6) + ', ' + lng.toFixed(6));
+            } catch (e) { return null; }
+        }
+
+        function captureGPSCoords(event) {
+            if (!navigator.geolocation) {
+                alert('GPS no soportado en este navegador.');
+                return;
+            }
+
+            const btn = event.currentTarget;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<span>⏳</span> Capturando...';
+            btn.disabled = true;
+
+            navigator.geolocation.getCurrentPosition(async (pos) => {
+                const lat = pos.coords.latitude;
+                const lng = pos.coords.longitude;
+                
+                const detectedAddress = await reverseGeocodeHuman(lat, lng);
+
+                const msg = detectedAddress 
+                    ? `Ubicación detectada:\n${detectedAddress}\n\n¿Deseas guardarla para este cliente?`
+                    : `Coordenadas capturadas: ${lat.toFixed(6)}, ${lng.toFixed(6)}.\n\n¿Deseas guardarlas?`;
+
+                if (confirm(msg)) {
+                    await updateClientLocation({ 
+                        latitude: lat, 
+                        longitude: lng,
+                        address: detectedAddress || null 
+                    });
+                }
+                
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                document.getElementById('locationPopover').style.display = 'none';
+
+            }, (err) => {
+                console.error(err);
+                alert('No se pudo obtener la ubicación.');
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }, { enableHighAccuracy: true });
+        }
+
+        let mapPicker = null;
+
+        function openMapPicker() {
+            document.getElementById('locationPopover').style.display = 'none';
+            const modal = document.getElementById('mapPickerModal');
+            modal.style.display = 'flex';
+            
+            // Start at client location or default Medellín
+            const el = document.getElementById('profAddress');
+            let lat = parseFloat(el.dataset.lat) || 6.2442;
+            let lng = parseFloat(el.dataset.lng) || -75.5812;
+
+            if (!mapPicker) {
+                mapPicker = L.map('mapPickerContainer').setView([lat, lng], 15);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; OpenStreetMap'
+                }).addTo(mapPicker);
+                
+                mapPicker.on('moveend', async () => {
+                    const center = mapPicker.getCenter();
+                    const addr = await reverseGeocodeHuman(center.lat, center.lng);
+                    document.getElementById('mapPickerAddress').innerText = addr || 'Coordenadas: ' + center.lat.toFixed(4) + ', ' + center.lng.toFixed(4);
+                });
+            } else {
+                mapPicker.setView([lat, lng], 15);
+            }
+            
+            // Trigger moveend to update initial address
+            mapPicker.fire('moveend');
+        }
+
+        function closeMapPicker() {
+            document.getElementById('mapPickerModal').style.display = 'none';
+        }
+
+        async function confirmMapPicker() {
+            const center = mapPicker.getCenter();
+            const addr = document.getElementById('mapPickerAddress').innerText;
+            
+            if (confirm(`¿Guardar esta ubicación?\n${addr}`)) {
+                await updateClientLocation({
+                    latitude: center.lat,
+                    longitude: center.lng,
+                    address: addr.includes('Coordenadas:') ? null : addr
+                });
+                closeMapPicker();
+            }
+        }
+
+        async function updateClientLocation(data) {
+            if (!currentProfileId) return;
+
+            try {
+                const res = await fetch(`/.netlify/functions/clients`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        seller_id: currentSellerId,
+                        name: lastLoadedProfileName,
+                        ...data
+                    })
+                });
+                
+                if (res.ok) {
+                    await loadProfile(currentProfileId);
+                } else {
+                    const err = await res.json();
+                    alert('Error: ' + (err.error || 'No se pudo guardar.'));
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Error de conexión al guardar ubicación.');
+            }
+        }
+
+        function showContactMenu(event) {
+            event.stopPropagation();
+            const phone = document.getElementById('profPhone').innerText;
+            if(!phone || phone === 'Sin número' || phone === '-') return;
+            
+            const popover = document.getElementById('contactPopover');
+            const linkCall = document.getElementById('linkCall');
+            const linkWa = document.getElementById('linkWa');
+            
+            // Format phone for tel: link
+            let cleanPhone = phone.replace(/\D/g, '');
+            if (cleanPhone.length > 0 && !cleanPhone.startsWith('57')) {
+                cleanPhone = '57' + cleanPhone;
+            }
+            
+            linkCall.href = `tel:+${cleanPhone}`;
+            linkWa.href = wappLink(phone);
+            
+            // Position
+            const rect = event.currentTarget.getBoundingClientRect();
+            popover.style.top = (rect.bottom + 8) + 'px';
+            popover.style.left = rect.left + 'px';
+            popover.style.display = 'block';
+            
+            // Dismissal
+            const closePop = () => {
+                popover.style.display = 'none';
+                window.removeEventListener('click', closePop);
+            };
+            setTimeout(() => window.addEventListener('click', closePop), 20);
+        }
+
+        function startPhoneEdit() {
+            document.getElementById('contactPopover').style.display = 'none';
+            const el = document.getElementById('profPhone');
+            el.contentEditable = "true";
+            el.focus();
+            
+            // Temporary style to show it's editable
+            el.style.background = 'rgba(99,102,241,0.1)';
+            el.style.padding = '0 6px';
+            el.style.borderRadius = '4px';
+            
+            // Remove click listener temporarily
+            const oldOnclick = el.getAttribute('onclick');
+            el.onclick = null;
+            
+            const blurHandler = () => {
+                el.contentEditable = "false";
+                el.style.background = 'transparent';
+                el.style.padding = '0';
+                saveClientPhone(el.innerText);
+                setTimeout(() => {
+                    el.onclick = (e) => showContactMenu(e);
+                }, 100);
+                el.removeEventListener('blur', blurHandler);
+            };
+            el.addEventListener('blur', blurHandler);
+            
+            el.onkeydown = (e) => {
+                if(e.key === 'Enter') {
+                    e.preventDefault();
+                    el.blur();
+                }
+            };
+        }
+
+        async function saveClientPhone(newPhone) {
+            if(!currentProfileId) return;
+            // Clean phone? Maybe keep it as is if they want custom formatting
+            try {
+                const response = await fetch('/api/clients', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        seller_id: currentSellerId,
+                        name: lastLoadedProfileName,
+                        whatsapp: newPhone
+                    })
+                });
+                if(!response.ok) throw new Error();
+            } catch(e) {
+                alert("Error actualizando teléfono");
+                loadProfile(currentProfileId);
+            }
+        }
+
+        function startBirthdayEdit() {
+            const el = document.getElementById('profBirthday');
+            el.contentEditable = "true";
+            el.focus();
+            
+            el.style.background = 'rgba(99,102,241,0.1)';
+            el.style.padding = '0 6px';
+            el.style.borderRadius = '4px';
+            
+            const oldOnclick = el.onclick;
+            el.onclick = null;
+            
+            const blurHandler = () => {
+                el.contentEditable = "false";
+                el.style.background = 'transparent';
+                el.style.padding = '0';
+                saveClientBirthday(el.innerText);
+                setTimeout(() => {
+                    el.onclick = oldOnclick;
+                }, 100);
+                el.removeEventListener('blur', blurHandler);
+            };
+            el.addEventListener('blur', blurHandler);
+            
+            el.onkeydown = (e) => {
+                if(e.key === 'Enter') {
+                    e.preventDefault();
+                    el.blur();
+                }
+            };
+        }
+
+        async function saveClientBirthday(newDate) {
+            if(!currentProfileId) return;
+            try {
+                const response = await fetch('/api/clients', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        seller_id: currentSellerId,
+                        name: lastLoadedProfileName,
+                        birth_date: newDate
+                    })
+                });
+                if(!response.ok) throw new Error();
+            } catch(e) {
+                alert("Error actualizando cumpleaños. Use formato AAAA-MM-DD");
+                loadProfile(currentProfileId);
+            }
+        }
+
+        async function deleteTimelineEntry(table, id) {
+            try {
+                let url = '';
+                let method = 'POST';
+                let body = null;
+                
+                if(table === 'whatsapp') {
+                    url = `/api/crm-whatsapp-logs?id=${id}`;
+                    method = 'DELETE';
+                } else if(table === 'action') {
+                    url = '/api/crm-stages';
+                    body = { action: 'delete_action', id: id };
+                } else if(table === 'history') {
+                    url = '/api/crm-stages';
+                    body = { action: 'delete_history', id: id };
+                } else if(table === 'sales') {
+                    url = `/api/sales?id=${id}&actor=${encodeURIComponent(currentSellerName)}`;
+                    method = 'DELETE';
+                }
+                
+                const response = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: body ? JSON.stringify(body) : null
+                });
+                
+                if(!response.ok) throw new Error();
+                loadProfile(currentProfileId);
+            } catch(e) {
+                alert("Error eliminando registro");
+            }
+        }
+
+        async function saveClientDescription(text) {
+            if(!currentProfileId) return;
+            const desc = (text === 'Descripción...' || text.trim() === '') ? '' : text.trim();
+            
+            try {
+                const response = await fetch('/api/clients', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        seller_id: currentSellerId,
+                        name: lastLoadedProfileName,
+                        description: desc
+                    })
+                });
+                
+                if (!response.ok) throw new Error('Error guardando descripción');
+                
+                const descEl = document.getElementById('profDescription');
+                if (descEl) descEl.style.opacity = desc ? '1' : '0.6';
+                
+            } catch (err) {
+                console.error(err);
+                // Silently fail or minimal feedback to avoid blocking user flow
+            }
+        }
+
+        async function editProfileName(newText) {
+            if(!currentProfileId) return;
+            const currentName = lastLoadedProfileName;
+            const newName = (newText || '').trim();
+            
+            if (!newName || newName === '' || newName === currentName) {
+                document.getElementById('profileName').innerText = currentName;
+                return; // No change or invalid
+            }
+            
+            if (!confirm(`¿Cambiar el nombre del cliente de "${currentName}" a "${newName}"?\nSi el nuevo nombre ya existe, se fusionarán sus historiales y datos de contacto.`)) {
+                document.getElementById('profileName').innerText = currentName;
                 return;
             }
             
             try {
-                // Get the current seller ID context locally
-                const state = JSON.parse(localStorage.getItem('sweet_lab_state') || '{}');
-                const sellerId = state.currentSeller ? state.currentSeller.id : (state.sellers ? state.sellers[0]?.id : null);
+                // Use the globally already loaded currentSellerId
+                const sellerId = currentSellerId;
                 
                 if(!sellerId) {
                     alert('Error: No se detectó un vendedor activo en la sesión.');
+                    document.getElementById('profileName').innerText = currentName;
                     return;
                 }
 
@@ -999,8 +1798,8 @@
                     body: JSON.stringify({
                         seller_id: sellerId,
                         old_name: currentName,
-                        name: trimmedName,
-                        short_name: trimmedName.split(' ')[0]
+                        name: newName,
+                        short_name: newName.split(' ')[0]
                     })
                 });
                 
@@ -1061,7 +1860,7 @@
             loadProfile(currentProfileId);
         }
 
-        async function changeProfileStage() {
+        async function changeProfileStageFromSelect() {
             if(!currentProfileId) return;
             const select = document.getElementById('profStageSelect');
             const newStageId = select.value;
@@ -1092,20 +1891,13 @@
         }
 
         // PROSPECTS LOGIC
-        async function loadProspects() {
-            const container = document.getElementById('prospectListContainer');
-            container.innerHTML = '<div class="spinner">Cargando pipeline...</div>';
-            
-            try {
-                // We'll fetch the 'new' segment or just all and filter for those in 'Prospecto' stage
-                // For now, let's fetch all clients for this seller and filter them
-                const res = await fetch(`/.netlify/functions/crm-clients?seller_id=${currentSellerId}`);
-                let data = await res.json();
+        async function loadProspects(shouldRestore = false) {
+            const url = `/.netlify/functions/crm-clients?seller_id=${currentSellerId}`;
+            fetchWithCache('prospects', url, (data, isCache) => {
+                const container = document.getElementById('prospectListContainer');
                 if(!Array.isArray(data)) data = [];
                 
-                // Filter for clients who are in 'Prospecto' stage (ID 1 usually) or have 0 orders
                 const prospects = data.filter(c => Number(c.total_orders) === 0);
-                
                 if (prospects.length === 0) {
                     container.innerHTML = '<p style="text-align:center; padding:40px; color:var(--text-muted);">No hay prospectos nuevos en este momento.</p>';
                     return;
@@ -1123,10 +1915,8 @@
                     </div>
                 `).join('');
 
-            } catch (err) {
-                console.error(err);
-                container.innerHTML = '<p style="color:var(--danger);">Error cargando prospectos.</p>';
-            }
+                if (shouldRestore) restoreScroll('prospects');
+            }, shouldRestore);
         }
 
         function openNewProspectModal() {
@@ -1318,8 +2108,8 @@
                 });
                 const data = await res.json();
                 if (data.error) { alert('Error: ' + data.error); return; }
-                navTo('directory');
-                loadDirectory();
+                navTo('dashboard');
+                loadFullDirectoryInline();
             } catch(e) {
                 alert('Error al eliminar el cliente.');
             }

@@ -424,7 +424,13 @@ async function processSingleSale(sale) {
                 else if (name.includes('oreo')) sc = 'oreo';
                 else if (name.includes('nutella') || name.includes('nute')) sc = 'nute';
                 else if (name.includes('leches') || name.includes('3lec')) { sc = '3lec'; }
-                else if (name.includes('brigadeiro') || name.includes('brig')) { sc = 'brig'; }
+                else if (name.includes('brigadeiro') || name.includes('brig')) {
+                    // Specific matching for box sizes
+                    if (name.includes('x 5') || name.includes('x5')) sc = 'bx5';
+                    else if (name.includes('x 10') || name.includes('x10')) sc = 'bx10';
+                    else if (name.includes('x 12') || name.includes('x12')) sc = 'bx12';
+                    else sc = 'brig'; 
+                }
                 if (sc) matchedDessert = adminDesserts.find(d => (d.short_code || '').toLowerCase() === sc);
             }
             if (matchedDessert) {
@@ -476,10 +482,29 @@ async function processSingleSale(sale) {
                     // Resolve {cliente} — use short name if available
                     const clientDisplayName = sale.customerName || '';
 
-                    // Resolve {pedido} — comma-separated list of items
+                    // Resolve {pedido} — customized formatting
                     const pedidoStr = (sale.items || [])
                         .filter(item => item.qty > 0)
-                        .map(item => `${item.qty} ${item.name}`)
+                        .map(item => {
+                            const name = item.name || '';
+                            const lowerName = name.toLowerCase();
+                            const qty = item.qty || 0;
+
+                            // Brigadeiro rules
+                            if (lowerName.includes('brigadeiro')) {
+                                // If it's a box, leave as is
+                                if (lowerName.includes('caja')) {
+                                    return `${qty} ${name}`;
+                                }
+                                // Otherwise, use brigadeiro/brigadeiros
+                                const label = qty === 1 ? 'brigadeiro' : 'brigadeiros';
+                                return `${qty} ${label}`;
+                            }
+
+                            // Regular desserts: "postre de" or "postres de"
+                            const label = qty === 1 ? 'postre' : 'postres';
+                            return `${qty} ${label} de ${name}`;
+                        })
                         .join(', ') || 'tu pedido';
 
                     // Resolve {total} — formatted as COP currency
@@ -497,37 +522,43 @@ async function processSingleSale(sale) {
                     // Resolve {vendedor}
                     const vendedorName = (sale.seller && sale.seller.name) ? sale.seller.name : '';
 
+                    // Fetch client to get short name and WhatsApp number
+                    let clientShortName = clientDisplayName;
+                    let clientWhatsapp = sale.whatsapp;
+
+                    try {
+                        const clientsRes = await fetch(`/api/clients?seller_id=${sale.seller.id}`, { headers: authHeaders });
+                        if (clientsRes.ok) {
+                            const clientsArr = await clientsRes.json();
+                            const clientRecord = Array.isArray(clientsArr)
+                                ? clientsArr.find(c => (c.name || '').toLowerCase().trim() === clientDisplayName.toLowerCase().trim())
+                                : null;
+
+                            if (clientRecord) {
+                                if (clientRecord.short_name) {
+                                    clientShortName = clientRecord.short_name;
+                                }
+                                if (clientRecord.whatsapp) {
+                                    clientWhatsapp = clientRecord.whatsapp;
+                                }
+                            }
+                        }
+                    } catch (clientErr) {
+                        console.error('Error fetching client for WhatsApp tags:', clientErr);
+                    }
+
                     // Apply all tag replacements
                     let text = newOrderMsg.message_text;
-                    text = text.replace(/{cliente}/g, clientDisplayName);
+                    text = text.replace(/{cliente}/g, clientShortName);
                     text = text.replace(/{pedido}/g, pedidoStr);
                     text = text.replace(/{total}/g, fmtTotal);
                     text = text.replace(/{vendedor}/g, vendedorName);
 
-                    // Fetch client to get WhatsApp number (if registered)
-                    try {
-                        const clientsRes = await fetch(`/api/clients?seller_id=${sale.seller.id}`, { headers: authHeaders });
-                        if (clientsRes.ok) {
-                            const clients = await clientsRes.json();
-                            const clientRecord = Array.isArray(clients)
-                                ? clients.find(c => (c.name || '').toLowerCase().trim() === clientDisplayName.toLowerCase().trim())
-                                : null;
-
-                            // If the client found has a WhatsApp number, use their short name for {cliente} too
-                            if (clientRecord && clientRecord.short_name) {
-                                text = text.replace(/{cliente}/g, clientRecord.short_name);
-                            }
-
-                            const clientWhatsapp = clientRecord && clientRecord.whatsapp ? clientRecord.whatsapp : sale.whatsapp;
-                            if (clientWhatsapp) {
-                                let cleanNum = clientWhatsapp.replace(/\D/g, '');
-                                if (cleanNum.length === 10) cleanNum = '57' + cleanNum;
-                                const waUrl = `https://wa.me/${cleanNum}?text=${encodeURIComponent(text)}`;
-                                window.open(waUrl, '_blank');
-                            }
-                        }
-                    } catch (clientErr) {
-                        console.error('Error fetching client for WhatsApp:', clientErr);
+                    if (clientWhatsapp) {
+                        let cleanNum = clientWhatsapp.replace(/\D/g, '');
+                        if (cleanNum.length === 10) cleanNum = '57' + cleanNum;
+                        const waUrl = `https://wa.me/${cleanNum}?text=${encodeURIComponent(text)}`;
+                        window.open(waUrl, '_blank');
                     }
                 }
             }

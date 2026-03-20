@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 27; // Bumped to 27: ensure CRM stage tables created on all environments
+const SCHEMA_VERSION = 29; // Bumped to 29: add address, lat, long to clients
 
 export async function ensureSchema() {
 	// If already ensured in this instance, skip immediately
@@ -220,6 +220,30 @@ export async function ensureSchema() {
 					WHERE table_name = 'clients' AND column_name = 'short_name'
 				) THEN
 					ALTER TABLE clients ADD COLUMN short_name VARCHAR(100);
+				END IF;
+				IF NOT EXISTS (
+					SELECT 1 FROM information_schema.columns 
+					WHERE table_name = 'clients' AND column_name = 'description'
+				) THEN
+					ALTER TABLE clients ADD COLUMN description TEXT;
+				END IF;
+				IF NOT EXISTS (
+					SELECT 1 FROM information_schema.columns 
+					WHERE table_name = 'clients' AND column_name = 'address'
+				) THEN
+					ALTER TABLE clients ADD COLUMN address TEXT;
+				END IF;
+				IF NOT EXISTS (
+					SELECT 1 FROM information_schema.columns 
+					WHERE table_name = 'clients' AND column_name = 'latitude'
+				) THEN
+					ALTER TABLE clients ADD COLUMN latitude DECIMAL(12, 9);
+				END IF;
+				IF NOT EXISTS (
+					SELECT 1 FROM information_schema.columns 
+					WHERE table_name = 'clients' AND column_name = 'longitude'
+				) THEN
+					ALTER TABLE clients ADD COLUMN longitude DECIMAL(12, 9);
 				END IF;
 			END $$;`;
 

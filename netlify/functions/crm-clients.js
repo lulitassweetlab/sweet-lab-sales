@@ -31,7 +31,8 @@ export async function handler(event) {
                 // 1. Basic client info + advanced metrics
                 const clientQuery = await sql`
                     SELECT 
-                        c.id, c.name, c.short_name, c.whatsapp, c.birth_date,
+                        c.id, c.name, c.short_name, c.whatsapp, c.birth_date, c.description,
+                        c.address, c.latitude, c.longitude,
                         COUNT(s.id) as total_orders,
                         COALESCE(SUM(s.total_cents), 0) as lifetime_value_cents,
                         MAX(s.created_at) as last_purchase_date,
@@ -40,7 +41,7 @@ export async function handler(event) {
                     LEFT JOIN crm_client_sales cs ON c.id = cs.client_id
                     LEFT JOIN sales s ON cs.sale_id = s.id
                     WHERE c.seller_id = ${sellerId} AND c.id = ${id}
-                    GROUP BY c.id, c.name, c.short_name, c.whatsapp, c.birth_date
+                    GROUP BY c.id, c.name, c.short_name, c.whatsapp, c.birth_date, c.description, c.address, c.latitude, c.longitude
                 `;
                 if (!clientQuery.length) return json({ error: 'Cliente no encontrado' }, 404);
                 const profile = clientQuery[0];
@@ -89,6 +90,7 @@ export async function handler(event) {
             const directory = await sql`
                 SELECT 
                     c.id, c.name, c.whatsapp,
+                    st.name as stage_name, st.color as stage_color,
                     COUNT(s.id) as total_orders,
                     COALESCE(SUM(s.total_cents), 0) as lifetime_value_cents,
                     MAX(s.created_at) as last_purchase_date,
@@ -96,8 +98,10 @@ export async function handler(event) {
                 FROM clients c
                 LEFT JOIN crm_client_sales cs ON c.id = cs.client_id
                 LEFT JOIN sales s ON cs.sale_id = s.id
+                LEFT JOIN crm_client_stage cst ON c.id = cst.client_id
+                LEFT JOIN crm_stages st ON cst.stage_id = st.id
                 WHERE c.seller_id = ${sellerId}
-                GROUP BY c.id, c.name, c.whatsapp
+                GROUP BY c.id, c.name, c.whatsapp, st.name, st.color
                 ORDER BY MAX(s.created_at) DESC NULLS LAST, c.name ASC
             `;
             return json(directory);

@@ -45,7 +45,7 @@ export async function handler(event) {
                 const summary = await sql`
                     SELECT 
                         s.id, s.name, s.color, s.order_index,
-                        COUNT(cs.client_id) as client_count
+                        COUNT(c.id) as client_count
                     FROM crm_stages s
                     LEFT JOIN crm_client_stage cs ON cs.stage_id = s.id
                     LEFT JOIN clients c ON cs.client_id = c.id AND c.seller_id = ${sellerId}
@@ -64,10 +64,18 @@ export async function handler(event) {
                 const clients = await sql`
                     SELECT 
                         c.id, c.name, c.whatsapp, c.birth_date,
+                        st.name as stage_name, st.color as stage_color,
                         cs.updated_at as stage_assigned_at,
-                        sh.changed_at as last_stage_change
+                        sh.changed_at as last_stage_change,
+                        COALESCE((
+                            SELECT SUM(CASE WHEN s2.pay_method IS NULL OR s2.pay_method = '' OR s2.pay_method = '-' OR s2.pay_method = 'entregado' THEN s2.total_cents ELSE 0 END)
+                            FROM sales s2
+                            JOIN crm_client_sales cs2 ON s2.id = cs2.sale_id
+                            WHERE cs2.client_id = c.id
+                        ), 0) as total_debt_cents
                     FROM clients c
                     JOIN crm_client_stage cs ON cs.client_id = c.id
+                    JOIN crm_stages st ON cs.stage_id = st.id
                     LEFT JOIN crm_stage_history sh ON sh.client_id = c.id AND sh.new_stage_id = ${stageId}
                     WHERE cs.stage_id = ${stageId} AND c.seller_id = ${sellerId}
                     ORDER BY cs.updated_at DESC
@@ -228,6 +236,20 @@ export async function handler(event) {
                 for (const item of order) {
                     await sql`UPDATE crm_stages SET order_index = ${item.order_index} WHERE id = ${item.id}`;
                 }
+                return json({ success: true });
+            }
+
+            if (action === 'delete_history') {
+                const { id } = body;
+                if (!id) return json({ error: 'Falta id' }, 400);
+                await sql`DELETE FROM crm_stage_history WHERE id = ${id}`;
+                return json({ success: true });
+            }
+
+            if (action === 'delete_action') {
+                const { id } = body;
+                if (!id) return json({ error: 'Falta id' }, 400);
+                await sql`DELETE FROM crm_stage_actions WHERE id = ${id}`;
                 return json({ success: true });
             }
 

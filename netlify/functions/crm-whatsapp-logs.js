@@ -74,6 +74,14 @@ export async function handler(event) {
             return json({ error: 'Falta client_id o seller_id' }, 400);
         }
 
+        if (event.httpMethod === 'DELETE') {
+            const params = getQueryParams(event);
+            const id = Number(params.get('id'));
+            if (!id) return json({ error: 'Falta id' }, 400);
+            await sql`DELETE FROM crm_whatsapp_logs WHERE id = ${id}`;
+            return json({ success: true });
+        }
+
         return json({ error: 'Método no soportado' }, 405);
     } catch (err) {
         console.error('Error in crm-whatsapp-logs API:', err);
