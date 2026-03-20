@@ -1050,6 +1050,7 @@
 
         async function renderProfileData(data) {
             const { clientData, waLogs, currentStage, actions, stageHistory } = data;
+            const timelineContainer = document.getElementById('profileTimelineContainer');
 
                 // Reload stages list if empty (table may have just been created this cold-start)
                 if (!Array.isArray(crmStages) || crmStages.length === 0) {
