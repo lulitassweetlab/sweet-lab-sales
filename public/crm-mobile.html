@@ -834,14 +834,14 @@
 
                     return `
                         <button onclick="changeProfileStage(${s.id})"
-                            style="flex:1; min-width:45px; padding:6px 2px; border-radius:10px; border:1px solid ${s.color}; 
+                            style="width:84px; height:36px; padding:4px; border-radius:10px; border:1px solid ${s.color}; 
                                    border-color:${s.color}${isActive?'':'77'};
                                    background:${bgColor}; 
                                    color:${textColor}; 
-                                   font-size:0.68rem; font-weight:700; cursor:pointer; 
+                                   font-size:0.67rem; font-weight:700; cursor:pointer; 
                                    transition:all 0.15s ease-out; 
                                    box-shadow:${isActive ? '0 4px 10px ' + s.color + '33' : 'none'};
-                                   display:flex; align-items:center; justify-content:center; text-align:center; line-height:1.1;"
+                                   display:flex; align-items:center; justify-content:center; text-align:center; line-height:1.1; flex-shrink:0;"
                             onmouseover="this.style.background='${isActive ? s.color : s.color + '35'}'; this.style.transform='translateY(-3px)'; this.style.boxShadow='0 6px 15px ${s.color}44'" 
                             onmouseout="this.style.background='${bgColor}'; this.style.transform='none'; this.style.boxShadow='${isActive ? '0 4px 10px ' + s.color + '33' : 'none'}'">
                             ${s.name}
