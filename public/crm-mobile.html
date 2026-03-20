@@ -1271,8 +1271,14 @@
                 if (geoData && geoData.address) {
                     const a = geoData.address;
                     
+                    // Filter function to clean technical noise
+                    const clean = (str) => {
+                        if (!str) return '';
+                        return str.replace(/Perímetro Urbano/gi, '').replace(/Valle de Aburrá/gi, '').trim();
+                    };
+
                     // 1. Road handling with abbreviations
-                    let road = a.road || a.pedestrian || a.path || '';
+                    let road = clean(a.road || a.pedestrian || a.path || '');
                     if (road) {
                         road = road.replace(/^Calle\b/i, 'Cl.')
                                    .replace(/^Carrera\b/i, 'Cr.')
@@ -1282,30 +1288,28 @@
                     }
                     
                     // 2. Connector for house number
-                    const house = a.house_number || '';
+                    const house = clean(a.house_number || '');
                     let addr = road;
                     if (house) {
                         addr += (house.includes('#') ? ' ' : ' #') + house;
                     }
                     
-                    // 3. Suburb/Neighbourhood (Villa Hermosa...)
-                    const suburb = a.suburb || a.neighbourhood || '';
-                    if (suburb) addr += (addr ? ', ' : '') + suburb;
-                    
-                    // 4. City/Town (Medellín...)
-                    let city = a.city || a.town || a.village || '';
-                    // Filter out generic "Perímetro Urbano" if redundant
-                    if (city && city.toLowerCase().includes('perímetro urbano')) {
-                        city = ''; 
-                    }
-                    if (city) addr += (addr ? ', ' : '') + city;
-                    
-                    // 5. State (Antioquia...)
-                    const state = a.state || '';
-                    if (state) addr += (addr ? ', ' : '') + state;
+                    // 3. Components to join (Suburb, City, State)
+                    const suburb = clean(a.suburb || a.neighbourhood || '');
+                    const city = clean(a.city || a.town || a.village || '');
+                    const state = clean(a.state || '');
 
-                    return addr || geoData.display_name.split(',').slice(0, 3).join(',').trim();
+                    // Collect and deduplicate parts
+                    const parts = [addr, suburb, city, state].filter(p => !!p);
+                    // Deduplicate adjacent identical parts
+                    const finalParts = [];
+                    parts.forEach(p => {
+                        if (!finalParts.includes(p)) finalParts.push(p);
+                    });
+
+                    return finalParts.join(', ');
                 }
+                // Fallback to coordinates if completely empty
                 return geoData.display_name ? geoData.display_name.split(',').slice(0,3).join(',').trim() : (lat.toFixed(6) + ', ' + lng.toFixed(6));
             } catch (e) { return null; }
         }
