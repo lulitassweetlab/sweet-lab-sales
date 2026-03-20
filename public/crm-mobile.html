@@ -499,6 +499,7 @@
     <style>
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
         @keyframes popIn { from { opacity: 0; transform: scale(0.9) translateY(-10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        @keyframes handPulse { 0% { transform: scale(1) rotate(-2deg); opacity: 0.7; } 50% { transform: scale(1.03) rotate(1deg); opacity: 1; } 100% { transform: scale(1) rotate(-2deg); opacity: 0.7; } }
     </style>
 
     <!-- SortableJS library for touch-friendly drag and drop -->
@@ -914,19 +915,26 @@
                     const bgColor = isActive ? s.color : s.color + '33'; 
                     const textColor = isActive ? '#fff' : 'var(--text-main)';
 
+                    const highlightHtml = isActive ? `
+                        <div style="position:absolute; top:-6px; left:-8px; right:-8px; bottom:-6px; border:2.3px solid #ff4d4d; border-radius:18px; border-bottom-color:transparent; transform:rotate(-2deg); pointer-events:none; z-index:1; animation: handPulse 2.5s infinite ease-in-out;"></div>
+                    ` : '';
+
                     return `
-                        <button onclick="changeProfileStage(${s.id})"
-                            style="width:84px; height:36px; padding:4px; border-radius:10px; border:none; 
-                                   background:${bgColor}; 
-                                   color:${textColor}; 
-                                   font-size:0.67rem; font-weight:700; cursor:pointer; 
-                                   transition:all 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
-                                   box-shadow:${isActive ? '0 4px 10px ' + s.color + '33' : 'none'};
-                                   display:flex; align-items:center; justify-content:center; text-align:center; line-height:1.1; flex-shrink:0;"
-                            onmouseover="this.style.background='${isActive ? s.color : s.color + '35'}'; this.style.transform='translateY(-5px) scale(1.05)'; this.style.boxShadow='0 8px 20px ${s.color}66'" 
-                            onmouseout="this.style.background='${bgColor}'; this.style.transform='none'; this.style.boxShadow='${isActive ? '0 4px 10px ' + s.color + '33' : 'none'}'">
-                            ${s.name}
-                        </button>
+                        <div style="position:relative; display:flex; align-items:center; justify-content:center;">
+                            ${highlightHtml}
+                            <button onclick="changeProfileStage(${s.id})"
+                                style="width:84px; height:36px; padding:4px; border-radius:10px; border:none; 
+                                       background:${bgColor}; 
+                                       color:${textColor}; 
+                                       font-size:0.67rem; font-weight:700; cursor:pointer; 
+                                       transition:all 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+                                       box-shadow:${isActive ? '0 4px 10px ' + s.color + '33' : 'none'};
+                                       display:flex; align-items:center; justify-content:center; text-align:center; line-height:1.1; flex-shrink:0;"
+                                onmouseover="this.style.background='${isActive ? s.color : s.color + '35'}'; this.style.transform='translateY(-5px) scale(1.05)'; this.style.boxShadow='0 8px 20px ${s.color}66'" 
+                                onmouseout="this.style.background='${bgColor}'; this.style.transform='none'; this.style.boxShadow='${isActive ? '0 4px 10px ' + s.color + '33' : 'none'}'">
+                                ${s.name}
+                            </button>
+                        </div>
                     `;
                 }).join('') || '<div style="font-size:0.8rem; color:var(--text-muted);">Sin etapas configuradas</div>';
 
