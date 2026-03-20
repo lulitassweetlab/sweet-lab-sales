@@ -317,7 +317,7 @@
                     <div id="profStageTags" style="display:flex; flex-wrap:wrap; gap:8px;">
                         <div class="spinner" style="padding:10px 0; font-size:0.8rem;">Cargando etapas...</div>
                     </div>
-                    <div style="flex: 1; display: flex; justify-content: center; align-items: center; min-width: 60px; padding-bottom: 2px;">
+                    <div style="flex: 1; display: flex; justify-content: flex-end; align-items: center; padding-bottom: 2px; min-width: 0; overflow: hidden;">
                         <div class="pipeline-watermark" style="font-weight:900; color:rgba(0,0,0,0.12); text-transform:uppercase; white-space:nowrap; text-shadow: -1px -1px 0px rgba(255,255,255,0.6), 1px 1px 0px rgba(0,0,0,0.08); user-select:none;">
                             Pipeline
                         </div>
@@ -502,8 +502,8 @@
         @keyframes arrowBounce { 0%, 100% { transform: translateX(-50%) translateY(0) rotate(-2deg); } 50% { transform: translateX(-50%) translateY(2px) rotate(1deg); } }
         
         .pipeline-watermark { font-size:1.125rem; letter-spacing:0.45em; display: inline-block; }
-        @media (max-width: 480px) { .pipeline-watermark { font-size:0.75rem; letter-spacing:0.15em; } }
-        @media (max-width: 350px) { .pipeline-watermark { font-size:0.6rem; letter-spacing:0.05em; } }
+        @media (max-width: 420px) { .pipeline-watermark { font-size:0.75rem; letter-spacing:0.12em; } }
+        @media (max-width: 340px) { .pipeline-watermark { font-size:0.6rem; letter-spacing:0.02em; } }
     </style>
 
     <!-- SortableJS library for touch-friendly drag and drop -->
