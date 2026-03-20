@@ -45,7 +45,7 @@ export async function handler(event) {
                 const summary = await sql`
                     SELECT 
                         s.id, s.name, s.color, s.order_index,
-                        COUNT(cs.client_id) as client_count
+                        COUNT(c.id) as client_count
                     FROM crm_stages s
                     LEFT JOIN crm_client_stage cs ON cs.stage_id = s.id
                     LEFT JOIN clients c ON cs.client_id = c.id AND c.seller_id = ${sellerId}
