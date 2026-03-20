@@ -637,6 +637,39 @@
             });
         });
 
+        // CACHING ENGINE (SWR: Stale-While-Revalidate)
+        const CACHE_PREFIX = 'crm_cache_';
+        async function fetchWithCache(key, url, onSuccess, shouldRestore = false) {
+            const cacheKey = CACHE_PREFIX + key + '_' + currentSellerId;
+            const cached = localStorage.getItem(cacheKey);
+            let cachedJson = null;
+
+            if (cached) {
+                try {
+                    cachedJson = JSON.parse(cached);
+                    onSuccess(cachedJson, true); // Render from cache immediately
+                } catch(e) { console.warn("Cache parse failed", e); }
+            }
+
+            try {
+                const res = await fetch(url);
+                const freshData = await res.json();
+                
+                // Anti-flicker: Only re-render if data changed
+                if (!cachedJson || JSON.stringify(cachedJson) !== JSON.stringify(freshData)) {
+                    localStorage.setItem(cacheKey, JSON.stringify(freshData));
+                    onSuccess(freshData, false);
+                }
+            } catch (err) {
+                console.warn("Network fetch failed for", url, err);
+                if (!cached) {
+                    // Critical failure if no cache
+                    const list = document.getElementById('dashContactList') || document.getElementById('prospectListContainer');
+                    if (list) list.innerHTML = '<div style="text-align:center; padding:32px; color:var(--danger);">Sin conexión. Revisa tu internet.</div>';
+                }
+            }
+        }
+
         // SPA NAVIGATION & SCROLL MEMORY
         let scrollMemory = {};
         let currentScreen = 'dashboard';
@@ -747,10 +780,8 @@
 
         // LOAD DASHBOARD
         async function loadDashboard(shouldRestore = false) {
-            try {
-                const res = await fetch(`/.netlify/functions/crm-dashboard?seller_id=${currentSellerId}`);
-                const data = await res.json();
-                
+            const url = `/.netlify/functions/crm-dashboard?seller_id=${currentSellerId}`;
+            fetchWithCache('dashboard', url, (data, isFromCache) => {
                 document.getElementById('dashTotalClients').innerText = data.stats.total_clients;
                 document.getElementById('dashTotalDebt').innerText = formatMoney(data.stats.total_debt_cents);
 
@@ -758,7 +789,7 @@
                 list.innerHTML = '';
 
                 // 1. Reminders (Due Today/Overdue)
-                if (data.remindersToday.length > 0) {
+                if (data.remindersToday && data.remindersToday.length > 0) {
                     list.innerHTML += `<h4 style="margin:16px 0 10px; font-size:0.9rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;">Recordatorios</h4>`;
                     data.remindersToday.forEach(r => {
                         list.innerHTML += buildDashCard('📌 Recordatorio', r.title, 'bg-info', r.client_id,
@@ -768,7 +799,7 @@
                 }
 
                 // 2. Birthdays
-                if (data.upcomingBirthdays.length > 0) {
+                if (data.upcomingBirthdays && data.upcomingBirthdays.length > 0) {
                     list.innerHTML += `<h4 style="margin:24px 0 10px; font-size:0.9rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;">Cumpleaños</h4>`;
                     data.upcomingBirthdays.forEach(c => {
                         list.innerHTML += renderClientCardHtml(c);
@@ -776,7 +807,7 @@
                 }
 
                 // 3. Inactive
-                if (data.inactiveClients.length > 0) {
+                if (data.inactiveClients && data.inactiveClients.length > 0) {
                     list.innerHTML += `<h4 style="margin:24px 0 10px; font-size:0.9rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;">Reactivar (Inactivos > 30 días)</h4>`;
                     data.inactiveClients.forEach(c => {
                         list.innerHTML += renderClientCardHtml(c);
@@ -788,13 +819,8 @@
                 }
 
                 if (shouldRestore) restoreScroll('dashboard');
-
-                // Load stage tags in parallel (non-blocking)
                 loadStageSummary();
-
-            } catch (err) {
-                console.error(err);
-            }
+            }, shouldRestore);
         }
 
         async function loadStageSummary() {
@@ -854,27 +880,20 @@
         }
 
         async function loadDebtClients(shouldRestore = false) {
-            const title = document.getElementById('dashContentTitle');
-            const listEl = document.getElementById('dashContactList');
-
-            title.innerHTML = `💸 Clientes con saldo`;
-            listEl.innerHTML = '<div class="spinner">Cargando deudores...</div>';
-
-            try {
-                const res = await fetch(`/.netlify/functions/crm-clients?seller_id=${currentSellerId}`);
-                const allClients = await res.json();
+            const url = `/.netlify/functions/crm-clients?seller_id=${currentSellerId}`;
+            fetchWithCache('debt', url, (allClients, isCache) => {
+                const title = document.getElementById('dashContentTitle');
+                const listEl = document.getElementById('dashContactList');
+                title.innerHTML = `💸 Clientes con saldo`;
+                
                 const debtClients = allClients.filter(c => Number(c.total_debt_cents) > 0);
-
                 if (!Array.isArray(debtClients) || debtClients.length === 0) {
                     listEl.innerHTML = '<p style="text-align:center; padding:24px; color:var(--text-muted);">No hay clientes con deuda pendiente.</p>';
                     return;
                 }
-
                 listEl.innerHTML = debtClients.map(c => renderClientCardHtml(c)).join('');
                 if (shouldRestore) restoreScroll('dashDebt');
-            } catch(e) {
-                listEl.innerHTML = '<p style="color:var(--danger); text-align:center; padding:20px;">Error cargando deudores.</p>';
-            }
+            }, shouldRestore);
         }
 
 
@@ -894,22 +913,19 @@
 
         // LOAD DIRECTORY (Inline Dashboard)
         async function loadFullDirectoryInline(shouldRestore = false) {
-            const title = document.getElementById('dashContentTitle');
-            const listEl = document.getElementById('dashContactList');
-            const search = document.getElementById('dashSearchContainer');
+            const url = `/.netlify/functions/crm-clients?seller_id=${currentSellerId}`;
+            fetchWithCache('directory', url, (data, isCache) => {
+                const title = document.getElementById('dashContentTitle');
+                const listEl = document.getElementById('dashContactList');
+                const search = document.getElementById('dashSearchContainer');
 
-            search.style.display = 'block';
-            title.innerHTML = `👥 Directorio de Clientes`;
-            listEl.innerHTML = '<div class="spinner">Cargando directorio...</div>';
-
-            try {
-                const res = await fetch(`/.netlify/functions/crm-clients?seller_id=${currentSellerId}`);
-                directoryData = await res.json();
-                renderFullDirectoryInline(directoryData);
+                search.style.display = 'block';
+                title.innerHTML = `👥 Directorio de Clientes`;
+                
+                directoryData = data;
+                renderFullDirectoryInline(data);
                 if (shouldRestore || currentScreen === 'dashSearch') restoreScroll('dashSearch');
-            } catch (err) {
-                console.error(err);
-            }
+            }, shouldRestore);
         }
 
         function renderFullDirectoryInline(arr) {
@@ -985,13 +1001,23 @@
             if (!id) return;
             currentProfileId = id;
             navTo('profile'); // Show modal
-            
-            document.getElementById('profileName').innerText = 'Cargando...';
-            const timelineContainer = document.getElementById('profileTimelineContainer');
-            timelineContainer.innerHTML = '<div class="spinner">Construyendo línea de tiempo...</div>';
-            
+
+            const cacheKey = CACHE_PREFIX + 'profile_' + id;
+            const cached = localStorage.getItem(cacheKey);
+            let cachedJson = null;
+
+            if (cached) {
+                try {
+                    cachedJson = JSON.parse(cached);
+                    renderProfileData(cachedJson);
+                } catch(e) { console.warn("Profile cache fail", e); }
+            } else {
+                document.getElementById('profileName').innerText = 'Cargando...';
+                document.getElementById('profileTimelineContainer').innerHTML = '<div class="spinner">Construyendo línea de tiempo...</div>';
+            }
+
             try {
-                // Use allSettled so one failing API doesn't crash everything
+                // Fetch all 5 sources with cache-busting to ensure we eventually get fresh data
                 const [clientResult, waResult, stResult, actResult, histResult] = await Promise.allSettled([
                     fetch(`/.netlify/functions/crm-clients?seller_id=${currentSellerId}&id=${id}&_t=${Date.now()}`).then(r => r.json()),
                     fetch(`/api/crm-whatsapp-logs?client_id=${id}&_t=${Date.now()}`).then(r => r.json()).catch(() => []),
@@ -1000,11 +1026,30 @@
                     fetch(`/api/crm-stages?action=get_history&client_id=${id}&_t=${Date.now()}`).then(r => r.json()).catch(() => [])
                 ]);
 
-                const clientData = clientResult.status === 'fulfilled' ? clientResult.value : {};
-                const waLogs    = waResult.status   === 'fulfilled' ? (waResult.value   || []) : [];
-                const currentStage = stResult.status === 'fulfilled' ? stResult.value : null;
-                const actions   = actResult.status  === 'fulfilled' ? (actResult.value  || []) : [];
-                const stageHistory = histResult.status === 'fulfilled' ? (histResult.value || []) : [];
+                const freshData = {
+                    clientData: clientResult.status === 'fulfilled' ? clientResult.value : {},
+                    waLogs: waResult.status === 'fulfilled' ? (waResult.value || []) : [],
+                    currentStage: stResult.status === 'fulfilled' ? stResult.value : null,
+                    actions: actResult.status === 'fulfilled' ? (actResult.value || []) : [],
+                    stageHistory: histResult.status === 'fulfilled' ? (histResult.value || []) : []
+                };
+
+                // Anti-flicker and Persist
+                if (!cachedJson || JSON.stringify(cachedJson) !== JSON.stringify(freshData)) {
+                    // Evict old profile caches if too many (keep last 30)
+                    const allKeys = Object.keys(localStorage).filter(k => k.startsWith(CACHE_PREFIX + 'profile_'));
+                    if (allKeys.length > 30) localStorage.removeItem(allKeys[0]); 
+
+                    localStorage.setItem(cacheKey, JSON.stringify(freshData));
+                    renderProfileData(freshData);
+                }
+            } catch (err) {
+                console.error("Profile refresh failed", err);
+            }
+        }
+
+        async function renderProfileData(data) {
+            const { clientData, waLogs, currentStage, actions, stageHistory } = data;
 
                 // Reload stages list if empty (table may have just been created this cold-start)
                 if (!Array.isArray(crmStages) || crmStages.length === 0) {
@@ -1220,11 +1265,6 @@
                         </div>
                     `).join('');
                 }
-
-            } catch (err) {
-                console.error(err);
-                timelineContainer.innerHTML = '<div style="color:var(--danger); padding:20px;">Error cargando línea de tiempo.</div>';
-            }
         }
 
         async function changeProfileStage(newStageId) {
@@ -1851,19 +1891,12 @@
 
         // PROSPECTS LOGIC
         async function loadProspects(shouldRestore = false) {
-            const container = document.getElementById('prospectListContainer');
-            container.innerHTML = '<div class="spinner">Cargando pipeline...</div>';
-            
-            try {
-                // We'll fetch the 'new' segment or just all and filter for those in 'Prospecto' stage
-                // For now, let's fetch all clients for this seller and filter them
-                const res = await fetch(`/.netlify/functions/crm-clients?seller_id=${currentSellerId}`);
-                let data = await res.json();
+            const url = `/.netlify/functions/crm-clients?seller_id=${currentSellerId}`;
+            fetchWithCache('prospects', url, (data, isCache) => {
+                const container = document.getElementById('prospectListContainer');
                 if(!Array.isArray(data)) data = [];
                 
-                // Filter for clients who are in 'Prospecto' stage (ID 1 usually) or have 0 orders
                 const prospects = data.filter(c => Number(c.total_orders) === 0);
-                
                 if (prospects.length === 0) {
                     container.innerHTML = '<p style="text-align:center; padding:40px; color:var(--text-muted);">No hay prospectos nuevos en este momento.</p>';
                     return;
@@ -1882,10 +1915,7 @@
                 `).join('');
 
                 if (shouldRestore) restoreScroll('prospects');
-            } catch (err) {
-                console.error(err);
-                container.innerHTML = '<p style="color:var(--danger);">Error cargando prospectos.</p>';
-            }
+            }, shouldRestore);
         }
 
         function openNewProspectModal() {
