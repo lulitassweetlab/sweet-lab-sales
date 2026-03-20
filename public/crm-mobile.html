@@ -7,6 +7,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
         :root {
             --bg: #f8f9fa;
@@ -484,25 +486,55 @@
         </div>
     </div>
 
-    <!-- LOCATION ACTION POPOVER -->
-    <div id="locationPopover" style="display:none; position:fixed; z-index:250; background:var(--surface); border-radius:12px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); border: 1px solid var(--border); overflow: hidden; min-width: 180px; animation: popIn 0.2s ease;">
+    <!-- LOCATION ACTION POPOVER (Updated Order & New Options) -->
+    <div id="locationPopover" style="display:none; position:fixed; z-index:250; background:var(--surface); border-radius:12px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); border: 1px solid var(--border); overflow: hidden; min-width: 210px; animation: popIn 0.2s ease;">
         <div style="display: flex; flex-direction: column;">
-            <div id="locGoogle" style="display: flex; align-items: center; gap: 10px; padding: 12px 16px; cursor:pointer; color: var(--text-main); font-weight: 700; font-size: 0.9rem; border-bottom: 1px solid var(--border); transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
-                <span style="font-size: 1.2rem;">🌍</span> Google Maps
+            <!-- 1. Capturar (GPS) -->
+            <div id="locCapture" onclick="captureGPSCoords(event)" style="display:flex; align-items:center; gap:10px; padding:12px 16px; cursor:pointer; color:var(--primary); font-weight:700; font-size: 0.9rem; border-bottom: 1px solid var(--border); transition:background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
+                <span style="font-size: 1.2rem;">🛰️</span> 1. Capturar Ubicación
             </div>
-            <div id="locWaze" style="display:flex; align-items:center; gap:10px; padding:12px 16px; cursor:pointer; color:var(--text-main); font-weight:700; font-size:0.9rem; border-bottom:1px solid var(--border); transition:background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
-                <span style="font-size: 1.2rem;">🚙</span> Waze
-            </div>
+            <!-- 2. Ingresar (Manual) -->
             <div onclick="startAddressEdit()" style="display:flex; align-items:center; gap:10px; padding:12px 16px; cursor:pointer; color:var(--text-main); font-weight:700; font-size:0.9rem; border-bottom:1px solid var(--border); transition:background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
-                <span style="font-size: 1.2rem;">✏️</span> Editar Texto
+                <span style="font-size: 1.2rem;">✏️</span> 2. Ingresar Dirección
             </div>
-            <div id="locCapture" onclick="captureGPSCoords(event)" style="display:flex; align-items:center; gap:10px; padding:12px 16px; cursor:pointer; color:var(--primary); font-weight:700; font-size:0.9rem; transition:background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
-                <span style="font-size: 1.2rem;">🛰️</span> Capturar GPS
+            <!-- 3. Google Maps -->
+            <div id="locGoogle" style="display: flex; align-items: center; gap: 10px; padding: 12px 16px; cursor:pointer; color: var(--text-main); font-weight: 700; font-size: 0.9rem; border-bottom: 1px solid var(--border); transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
+                <span style="font-size: 1.2rem;">🌍</span> 3. Google Maps (Ruta)
+            </div>
+            <!-- 4. Waze -->
+            <div id="locWaze" style="display:flex; align-items:center; gap:10px; padding:12px 16px; cursor:pointer; color:var(--text-main); font-weight:700; font-size:0.9rem; border-bottom:1px solid var(--border); transition:background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
+                <span style="font-size: 1.2rem;">🚙</span> 4. Waze (Ruta)
+            </div>
+            <!-- 5. Elegir en Mapa (Leaflet) -->
+            <div onclick="openMapPicker()" style="display:flex; align-items:center; gap:10px; padding:12px 16px; cursor:pointer; color:var(--info); font-weight:700; font-size:0.9rem; transition:background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
+                <span style="font-size: 1.2rem;">🗺️</span> 5. Elegir en Mapa
             </div>
         </div>
     </div>
 
+    <!-- MAP PICKER MODAL -->
+    <div id="mapPickerModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:1000; background:var(--bg); flex-direction:column;">
+        <header style="padding:12px 20px;">
+            <button onclick="closeMapPicker()" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">✕</button>
+            <div style="font-weight:800; font-size:1.1rem;">Elegir Ubicación</div>
+            <div style="width:30px;"></div>
+        </header>
+        <div style="flex:1; position:relative;">
+            <div id="mapPickerContainer" style="width:100%; height:100%;"></div>
+            <!-- Crosshair overlay -->
+            <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -100%); z-index:500; pointer-events:none; font-size:2rem;">
+                📍
+            </div>
+        </div>
+        <div style="padding:20px; background:var(--surface); border-top:1px solid var(--border);">
+            <div id="mapPickerAddress" style="font-size:0.85rem; color:var(--text-muted); margin-bottom:12px; text-align:center;">Mueve el mapa para marcar la ubicación</div>
+            <button class="btn-primary" onclick="confirmMapPicker()" style="width:100%; height:55px; border-radius:14px; font-weight:800;">Confirmar Ubicación</button>
+        </div>
+    </div>
+
     <style>
+        .leaflet-container { font-family: inherit; }
+        
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
         @keyframes popIn { from { opacity: 0; transform: scale(0.9) translateY(-10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
         @keyframes arrowBounce { 0%, 100% { transform: translateX(-50%) translateY(0) rotate(-2deg); } 50% { transform: translateX(-50%) translateY(2px) rotate(1deg); } }
@@ -1175,9 +1207,9 @@
             
             const popover = document.getElementById('locationPopover');
             
-            // Google Maps
+            // Google Maps (Ruta desde ubicación actual)
             document.getElementById('locGoogle').onclick = () => {
-                let url = 'https://www.google.com/maps/search/?api=1&query=';
+                let url = 'https://www.google.com/maps/dir/?api=1&origin=Current+Location&destination=';
                 if (lat && lng) url += `${lat},${lng}`;
                 else if (address) url += encodeURIComponent(address);
                 else { alert('Asigna una dirección o captura GPS primero.'); return; }
@@ -1185,11 +1217,11 @@
                 popover.style.display = 'none';
             };
 
-            // Waze
+            // Waze (Ruta)
             document.getElementById('locWaze').onclick = () => {
-                let url = 'https://waze.com/ul?';
-                if (lat && lng) url += `ll=${lat},${lng}&navigate=yes`;
-                else if (address) url += `q=${encodeURIComponent(address)}&navigate=yes`;
+                let url = 'https://waze.com/ul?navigate=yes&';
+                if (lat && lng) url += `ll=${lat},${lng}`;
+                else if (address) url += `q=${encodeURIComponent(address)}`;
                 else { alert('Asigna una dirección o captura GPS primero.'); return; }
                 window.open(url, '_blank');
                 popover.style.display = 'none';
@@ -1198,7 +1230,7 @@
             // Position
             const rect = event.currentTarget.getBoundingClientRect();
             popover.style.top = (rect.bottom + 8) + 'px';
-            popover.style.left = Math.min(rect.left, window.innerWidth - 200) + 'px'; // Ensure it doesn't go off screen
+            popover.style.left = Math.min(rect.left, window.innerWidth - 220) + 'px'; 
             popover.style.display = 'block';
 
             // Dismissal
@@ -1212,12 +1244,42 @@
         async function startAddressEdit() {
             const el = document.getElementById('profAddress');
             const currentAddress = el.innerText === '📍 Ubicación...' ? '' : el.innerText;
-            const newAddress = prompt('Ingresa la dirección del cliente:', currentAddress);
+            const input = prompt('Ingresa la dirección o coordenadas (lat, lng):', currentAddress);
             
-            if (newAddress !== null) {
-                await updateClientLocation({ address: newAddress.trim() });
+            if (input !== null) {
+                const text = input.trim();
+                // Check if it looks like lat, lng (e.g. 6.12, -75.12)
+                const coordMatch = text.match(/^(-?\d+\.\d+),\s*(-?\d+\.\d+)$/);
+                if (coordMatch) {
+                    const lat = parseFloat(coordMatch[1]);
+                    const lng = parseFloat(coordMatch[2]);
+                    const human = await reverseGeocodeHuman(lat, lng);
+                    await updateClientLocation({ latitude: lat, longitude: lng, address: human });
+                } else {
+                    await updateClientLocation({ address: text });
+                }
             }
             document.getElementById('locationPopover').style.display = 'none';
+        }
+
+        async function reverseGeocodeHuman(lat, lng) {
+            try {
+                const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`, {
+                    headers: { 'Accept-Language': 'es' }
+                });
+                const geoData = await geoRes.json();
+                if (geoData && geoData.address) {
+                    const a = geoData.address;
+                    const road = a.road || a.pedestrian || a.path || '';
+                    const house = a.house_number || '';
+                    const city = a.city || a.town || '';
+                    let addr = road;
+                    if (house) addr += (house.includes('#') ? ' ' : ' #') + house;
+                    if (city) addr += (addr ? ', ' : '') + city;
+                    return addr || geoData.display_name.split(',').slice(0, 3).join(',').trim();
+                }
+                return geoData.display_name ? geoData.display_name.split(',').slice(0,3).join(',').trim() : null;
+            } catch (e) { return null; }
         }
 
         function captureGPSCoords(event) {
@@ -1235,45 +1297,7 @@
                 const lat = pos.coords.latitude;
                 const lng = pos.coords.longitude;
                 
-                let detectedAddress = '';
-                try {
-                    // Reverse geocoding via Nominatim (OpenStreetMap)
-                    // Nominatim policy prefers a valid User-Agent
-                    const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`, {
-                        headers: { 
-                            'Accept-Language': 'es'
-                        }
-                    });
-                    const geoData = await geoRes.json();
-                    console.log('GeoData debug:', geoData);
-
-                    if (geoData && geoData.address) {
-                        const a = geoData.address;
-                        // Colombian style: "Calle/Carrera Road # HouseNumber, City"
-                        const road = a.road || a.pedestrian || a.path || '';
-                        const house = a.house_number || '';
-                        const suburb = a.suburb || a.neighbourhood || '';
-                        const city = a.city || a.town || a.village || '';
-                        
-                        if (road) {
-                            detectedAddress = road;
-                            if (house) {
-                                // Add '#' if not already present in house number
-                                detectedAddress += (house.includes('#') ? ' ' : ' #') + house;
-                            }
-                            if (city) detectedAddress += ', ' + city;
-                        } else if (suburb) {
-                            detectedAddress = suburb + (city ? ', ' + city : '');
-                        } else {
-                            // Last resort: truncated display name
-                            detectedAddress = geoData.display_name.split(',').slice(0, 3).join(',').trim();
-                        }
-                    } else if (geoData && geoData.display_name) {
-                        detectedAddress = geoData.display_name.split(',').slice(0, 3).join(',').trim();
-                    }
-                } catch (e) {
-                    console.error('Error in reverse geocoding:', e);
-                }
+                const detectedAddress = await reverseGeocodeHuman(lat, lng);
 
                 const msg = detectedAddress 
                     ? `Ubicación detectada:\n${detectedAddress}\n\n¿Deseas guardarla para este cliente?`
@@ -1293,10 +1317,59 @@
 
             }, (err) => {
                 console.error(err);
-                alert('No se pudo obtener la ubicación. Asegúrate de dar permisos de GPS.');
+                alert('No se pudo obtener la ubicación.');
                 btn.innerHTML = originalText;
                 btn.disabled = false;
             }, { enableHighAccuracy: true });
+        }
+
+        let mapPicker = null;
+
+        function openMapPicker() {
+            document.getElementById('locationPopover').style.display = 'none';
+            const modal = document.getElementById('mapPickerModal');
+            modal.style.display = 'flex';
+            
+            // Start at client location or default Medellín
+            const el = document.getElementById('profAddress');
+            let lat = parseFloat(el.dataset.lat) || 6.2442;
+            let lng = parseFloat(el.dataset.lng) || -75.5812;
+
+            if (!mapPicker) {
+                mapPicker = L.map('mapPickerContainer').setView([lat, lng], 15);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; OpenStreetMap'
+                }).addTo(mapPicker);
+                
+                mapPicker.on('moveend', async () => {
+                    const center = mapPicker.getCenter();
+                    const addr = await reverseGeocodeHuman(center.lat, center.lng);
+                    document.getElementById('mapPickerAddress').innerText = addr || 'Coordenadas: ' + center.lat.toFixed(4) + ', ' + center.lng.toFixed(4);
+                });
+            } else {
+                mapPicker.setView([lat, lng], 15);
+            }
+            
+            // Trigger moveend to update initial address
+            mapPicker.fire('moveend');
+        }
+
+        function closeMapPicker() {
+            document.getElementById('mapPickerModal').style.display = 'none';
+        }
+
+        async function confirmMapPicker() {
+            const center = mapPicker.getCenter();
+            const addr = document.getElementById('mapPickerAddress').innerText;
+            
+            if (confirm(`¿Guardar esta ubicación?\n${addr}`)) {
+                await updateClientLocation({
+                    latitude: center.lat,
+                    longitude: center.lng,
+                    address: addr.includes('Coordenadas:') ? null : addr
+                });
+                closeMapPicker();
+            }
         }
 
         async function updateClientLocation(data) {
