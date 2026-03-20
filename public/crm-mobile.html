@@ -892,11 +892,8 @@
                             date: new Date(s.created_at),
                             type: 'venta',
                             title: new Date(s.created_at).toLocaleString(),
-                            body: `<div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
-                                     <span style="font-weight:700;">🛒 Venta: ${items.join(', ')}</span>
-                                     <span style="font-weight:800; color:var(--text-main);">${formatMoney(s.total_cents)}</span>
-                                   </div>`,
-                            footer: isDebt ? '<span style="display:inline-block; padding:2px 8px; border-radius:6px; background:var(--danger); color:#fff; font-size:0.65rem; font-weight:800; text-transform:uppercase; margin-top:6px;">DEBE</span>' : '',
+                            body: `<span style="font-weight:700;">Venta:</span> ${items.join(', ')}`,
+                            footer: `${formatMoney(s.total_cents)} ${isDebt ? '<span style="display:inline-block; padding:1px 6px; border-radius:4px; background:var(--danger); color:#fff; font-size:0.6rem; font-weight:800; vertical-align:middle; margin-left:4px;">DEBE</span>' : ''}`,
                             color: isDebt ? 'var(--danger)' : 'var(--success)'
                         });
                     });
@@ -951,12 +948,10 @@
                     timelineContainer.innerHTML = '<p style="text-align:center; padding:40px; color:var(--text-muted);">Sin actividad registrada.</p>';
                 } else {
                     timelineContainer.innerHTML = timeline.map(ev => `
-                        <div class="card" style="padding:12px; margin-bottom:12px; border-left:4px solid ${ev.color || 'var(--border)'}; background:var(--surface);">
-                            <div style="font-size:0.7rem; color:var(--text-muted); margin-bottom:6px; font-weight:600; text-transform:uppercase; letter-spacing:0.02em;">
-                                ${ev.title}
-                            </div>
-                            <div style="font-size:0.92rem; color:var(--text-main); white-space:pre-wrap; line-height:1.4;">${ev.body}</div>
-                            ${ev.footer ? `<div style="font-size:0.75rem; border-top:1px solid var(--border); padding-top:6px; margin-top:8px; color:var(--text-muted); font-style:italic;">${ev.footer}</div>` : ''}
+                        <div class="card" style="padding:8px 12px; margin-bottom:8px; border-left:3px solid ${ev.color || 'var(--border)'}; background:var(--surface); display:flex; flex-wrap:wrap; align-items:baseline; gap:6px; font-size:0.85rem; line-height:1.3;">
+                            <span style="font-size:0.65rem; color:var(--text-muted); font-weight:700; white-space:nowrap; text-transform:uppercase;">${ev.date.toLocaleString()}</span>
+                            <span style="flex:1; min-width:180px; color:var(--text-main);">${ev.body}</span>
+                            ${ev.footer ? `<span style="font-weight:700; color:var(--text-main); white-space:nowrap;">${ev.footer}</span>` : ''}
                         </div>
                     `).join('');
                 }
