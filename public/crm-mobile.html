@@ -312,7 +312,7 @@
             </div>
             
             <!-- CRM Stage Section -->
-            <div class="card" style="padding:12px; margin-bottom:16px; border-radius: 12px; border:none; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+            <div class="card" style="padding:12px; margin-bottom:32px; border-radius: 12px; border:none; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
                 <div style="display:flex; align-items:center; gap:8px;">
                     <div id="profStageTags" style="display:flex; flex-wrap:wrap; gap:8px;">
                         <div class="spinner" style="padding:10px 0; font-size:0.8rem;">Cargando etapas...</div>
@@ -911,13 +911,12 @@
                 
                 stageTagsContainer.innerHTML = stagesList.map(s => {
                     const isActive = Number(s.id) === currentId;
-                    const bgColor = isActive ? s.color : s.color + '15'; 
+                    const bgColor = isActive ? s.color : s.color + '33'; 
                     const textColor = isActive ? '#fff' : 'var(--text-main)';
 
                     return `
                         <button onclick="changeProfileStage(${s.id})"
-                            style="width:84px; height:36px; padding:4px; border-radius:10px; border:1px solid ${s.color}; 
-                                   border-color:${s.color}${isActive?'':'77'};
+                            style="width:84px; height:36px; padding:4px; border-radius:10px; border:none; 
                                    background:${bgColor}; 
                                    color:${textColor}; 
                                    font-size:0.67rem; font-weight:700; cursor:pointer; 
