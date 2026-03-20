@@ -248,7 +248,7 @@
                 <div style="display: flex; gap: 4px;">
                     <!-- Back Button Column -->
                     <div style="flex-shrink: 0; width: 32px;">
-                        <button onclick="navTo('dashboard')" style="background:none; border:none; font-size: 1.4rem; cursor:pointer; padding: 4px; color: var(--text-main); margin-top: -2px;">←</button>
+                        <button onclick="navTo(lastScreen || 'dashboard')" style="background:none; border:none; font-size: 1.4rem; cursor:pointer; padding: 4px; color: var(--text-main); margin-top: -2px;">←</button>
                     </div>
                     
                     <!-- Content Column -->
@@ -636,22 +636,68 @@
             });
         });
 
-        // SPA NAVIGATION
+        // SPA NAVIGATION & SCROLL MEMORY
+        let scrollMemory = {};
+        let currentScreen = 'dashboard';
+        let lastScreen = 'dashboard';
+
         function navTo(screenId) {
-            // Hide all
+            const main = document.querySelector('main');
+            
+            // 1. Save scroll position of outgoing screen
+            scrollMemory[currentScreen] = main.scrollTop;
+
+            // 2. Track lineage for profile back button
+            if (screenId === 'profile') {
+                lastScreen = currentScreen;
+            }
+
+            // 3. Toggle visibility
             document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
             
-            // Show target
-            document.getElementById(`screen-${screenId}`).classList.add('active');
+            const target = document.getElementById(`screen-${screenId}`);
+            if (target) {
+                target.classList.add('active');
+            } else {
+                // Fallback for screens like 'dashboard' vs 'dashSearch' logic
+                const screenBase = screenId === 'dashSearch' ? 'dashboard' : screenId;
+                document.getElementById(`screen-${screenBase}`).classList.add('active');
+            }
             
-            const navBtn = document.getElementById(`nav-${screenId}`);
-            if(navBtn) navBtn.classList.add('active');
+            const navBase = ['dashboard', 'dashSearch'].includes(screenId) ? 'dashboard' : screenId;
+            const navBtn = document.getElementById(`nav-${navBase}`);
+            if (navBtn) navBtn.classList.add('active');
 
-            // Trigger loaders if needed
-            if (screenId === 'dashboard') (document.getElementById('dashSearchContainer').style.display === 'block') ? loadFullDirectoryInline() : loadDashboard();
-            if (screenId === 'prospects') loadProspects();
-            if (screenId === 'activities') loadActivities();
+            // 4. Restoration Logic
+            currentScreen = screenId;
+            
+            if (screenId === 'profile') {
+                main.scrollTop = 0;
+            } else if (scrollMemory[screenId] !== undefined) {
+                main.scrollTop = scrollMemory[screenId];
+            } else {
+                main.scrollTop = 0;
+            }
+
+            // 5. Trigger loaders with scroll restoration check
+            if (screenId === 'dashboard' || screenId === 'dashSearch') {
+                const isSearch = (document.getElementById('dashSearchContainer').style.display === 'block');
+                if (isSearch) loadFullDirectoryInline(true);
+                else loadDashboard(true);
+            }
+            if (screenId === 'prospects') loadProspects(true);
+            if (screenId === 'activities') loadActivities(true);
+        }
+
+        function restoreScroll(screenId) {
+            if (scrollMemory[screenId] !== undefined) {
+                const main = document.querySelector('main');
+                // Use a slight timeout to ensure innerHTML rendering is complete
+                requestAnimationFrame(() => {
+                    main.scrollTop = scrollMemory[screenId];
+                });
+            }
         }
 
         // FORMATTERS
@@ -698,7 +744,7 @@
         }
 
         // LOAD DASHBOARD
-        async function loadDashboard() {
+        async function loadDashboard(shouldRestore = false) {
             try {
                 const res = await fetch(`/.netlify/functions/crm-dashboard?seller_id=${currentSellerId}`);
                 const data = await res.json();
@@ -738,6 +784,8 @@
                 if(list.innerHTML === '') {
                     list.innerHTML = '<div style="text-align:center; padding:32px; color:var(--text-muted);">Todo al día. No hay pendientes por contactar.</div>';
                 }
+
+                if (shouldRestore) restoreScroll('dashboard');
 
                 // Load stage tags in parallel (non-blocking)
                 loadStageSummary();
@@ -840,7 +888,7 @@
         }
 
         // LOAD DIRECTORY (Inline Dashboard)
-        async function loadFullDirectoryInline() {
+        async function loadFullDirectoryInline(shouldRestore = false) {
             const title = document.getElementById('dashContentTitle');
             const listEl = document.getElementById('dashContactList');
             const search = document.getElementById('dashSearchContainer');
@@ -853,6 +901,7 @@
                 const res = await fetch(`/.netlify/functions/crm-clients?seller_id=${currentSellerId}`);
                 directoryData = await res.json();
                 renderFullDirectoryInline(directoryData);
+                if (shouldRestore) restoreScroll('dashSearch');
             } catch (err) {
                 console.error(err);
             }
@@ -1796,7 +1845,7 @@
         }
 
         // PROSPECTS LOGIC
-        async function loadProspects() {
+        async function loadProspects(shouldRestore = false) {
             const container = document.getElementById('prospectListContainer');
             container.innerHTML = '<div class="spinner">Cargando pipeline...</div>';
             
@@ -1827,6 +1876,7 @@
                     </div>
                 `).join('');
 
+                if (shouldRestore) restoreScroll('prospects');
             } catch (err) {
                 console.error(err);
                 container.innerHTML = '<p style="color:var(--danger);">Error cargando prospectos.</p>';
