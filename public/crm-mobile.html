@@ -676,7 +676,7 @@
         let lastScreen = 'dashboard';
         let dashStageParams = null; // Store stage details for restoration
 
-        function navTo(screenId, params = null) {
+        function navTo(screenId, params = null, isPopstate = false) {
             const main = document.querySelector('main');
             
             // 1. Save scroll position of outgoing screen
@@ -687,7 +687,13 @@
                 lastScreen = currentScreen;
             }
 
-            // 3. Toggle visibility
+            // 3. History API Integration
+            if (!isPopstate) {
+                const state = { screenId, params: (screenId === 'dashStage' ? params : null) };
+                history.pushState(state, '', '#' + screenId);
+            }
+
+            // 4. Toggle visibility
             document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
             
@@ -701,11 +707,11 @@
             const navBtn = document.getElementById(`nav-${navBase}`);
             if (navBtn) navBtn.classList.add('active');
 
-            // 4. Update State
+            // 5. Update State
             currentScreen = screenId;
             if (params) dashStageParams = params;
 
-            // 5. Restore scroll key or reset
+            // 6. Restore scroll key or reset
             if (screenId === 'profile') {
                 main.scrollTop = 0;
             } else if (scrollMemory[screenId] !== undefined) {
@@ -714,7 +720,7 @@
                 main.scrollTop = 0;
             }
 
-            // 6. Trigger loaders with scroll restoration check
+            // 7. Trigger loaders with scroll restoration check
             if (screenId === 'dashboard') loadDashboard(true);
             if (screenId === 'dashSearch') loadFullDirectoryInline(true);
             if (screenId === 'dashDebt') loadDebtClients(true);
@@ -724,6 +730,16 @@
             if (screenId === 'prospects') loadProspects(true);
             if (screenId === 'activities') loadActivities(true);
         }
+
+        // Deep Link/Back Button Sync
+        window.addEventListener('popstate', (e) => {
+            const state = e.state;
+            if (state && state.screenId) {
+                navTo(state.screenId, state.params, true);
+            } else {
+                navTo('dashboard', null, true);
+            }
+        });
 
         function restoreScroll(screenId) {
             if (scrollMemory[screenId] !== undefined) {
@@ -2100,30 +2116,6 @@
                 if (btn) { btn.disabled = false; btn.innerText = 'Guardar Nota'; }
             }
         }
-
-        // SWIPE-TO-BACK GESTURE (Mobile experience)
-        let touchStartX = 0;
-        let touchStartY = 0;
-        window.addEventListener('touchstart', (e) => {
-            touchStartX = e.touches[0].clientX;
-            touchStartY = e.touches[0].clientY;
-        }, {passive: true});
-
-        window.addEventListener('touchend', (e) => {
-            const touchEndX = e.changedTouches[0].clientX;
-            const touchEndY = e.changedTouches[0].clientY;
-            const deltaX = touchEndX - touchStartX;
-            const deltaY = Math.abs(touchEndY - touchStartY);
-
-            // Trigger if: 
-            // 1. Starts from very left edge (0-35px)
-            // 2. Swipes right at least 100px
-            // 3. Not a vertical scroll (Y movement < 40px)
-            // 4. We are on 'profile' screen
-            if (touchStartX < 35 && deltaX > 100 && deltaY < 40 && currentScreen === 'profile') {
-                navTo(lastScreen || 'dashboard');
-            }
-        }, {passive: true});
 
         async function deleteProfile() {
             if(!currentProfileId) return;
