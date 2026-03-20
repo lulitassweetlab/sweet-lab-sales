@@ -90,7 +90,7 @@ export default async (req) => {
             const shortName = (body.short_name || '').trim() || null;
             const whatsapp = (body.whatsapp || '').trim() || null;
             const birthDate = body.birth_date || null;
-            const description = body.description || null;
+            const description = body.description === undefined ? null : body.description;
 
             if (!sellerId || isNaN(sellerId)) {
                 return new Response(JSON.stringify({ error: 'seller_id inválido o faltante' }), { status: 400 });
