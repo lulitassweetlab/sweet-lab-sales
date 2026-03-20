@@ -293,7 +293,7 @@
                         <div style="display: flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: 1.1rem; font-weight: 600; flex-wrap: wrap; padding-left: 4px;">
                             <span id="profPhone" style="white-space:nowrap; cursor:pointer; color: var(--text-main);" onclick="showContactMenu(event)">-</span>
                             <span>•</span>
-                            <span id="profBirthday" style="white-space:nowrap;">-</span>
+                            <span id="profBirthday" style="white-space:nowrap; cursor:pointer;" onclick="startBirthdayEdit()">-</span>
                         </div>
                         
                         <!-- ROW 3: Description -->
@@ -314,10 +314,10 @@
             <!-- CRM Stage Section -->
             <div class="card" style="padding:24px 12px 12px; margin-bottom:32px; border-radius: 12px; border:none; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
                 <div style="display:flex; align-items:center; gap:8px;">
-                    <div id="profStageTags" style="display:flex; flex-wrap:wrap; gap:8px;">
+                    <div id="profStageTags" style="flex:1; display:flex; flex-wrap:wrap; gap:8px;">
                         <div class="spinner" style="padding:10px 0; font-size:0.8rem;">Cargando etapas...</div>
                     </div>
-                    <div style="flex: 1; display: flex; justify-content: flex-end; align-items: center; padding-bottom: 2px; min-width: 0; overflow: hidden;">
+                    <div style="flex-shrink:0; min-width:70px; display:flex; justify-content:center; align-items:center;">
                         <div class="pipeline-watermark" style="font-weight:900; color:rgba(0,0,0,0.12); text-transform:uppercase; white-space:nowrap; text-shadow: -1px -1px 0px rgba(255,255,255,0.6), 1px 1px 0px rgba(0,0,0,0.08); user-select:none;">
                             Pipeline
                         </div>
@@ -1167,6 +1167,57 @@
                 if(!response.ok) throw new Error();
             } catch(e) {
                 alert("Error actualizando teléfono");
+                loadProfile(currentProfileId);
+            }
+        }
+
+        function startBirthdayEdit() {
+            const el = document.getElementById('profBirthday');
+            el.contentEditable = "true";
+            el.focus();
+            
+            el.style.background = 'rgba(99,102,241,0.1)';
+            el.style.padding = '0 6px';
+            el.style.borderRadius = '4px';
+            
+            const oldOnclick = el.onclick;
+            el.onclick = null;
+            
+            const blurHandler = () => {
+                el.contentEditable = "false";
+                el.style.background = 'transparent';
+                el.style.padding = '0';
+                saveClientBirthday(el.innerText);
+                setTimeout(() => {
+                    el.onclick = oldOnclick;
+                }, 100);
+                el.removeEventListener('blur', blurHandler);
+            };
+            el.addEventListener('blur', blurHandler);
+            
+            el.onkeydown = (e) => {
+                if(e.key === 'Enter') {
+                    e.preventDefault();
+                    el.blur();
+                }
+            };
+        }
+
+        async function saveClientBirthday(newDate) {
+            if(!currentProfileId) return;
+            try {
+                const response = await fetch('/api/clients', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        seller_id: currentSellerId,
+                        name: lastLoadedProfileName,
+                        birth_date: newDate
+                    })
+                });
+                if(!response.ok) throw new Error();
+            } catch(e) {
+                alert("Error actualizando cumpleaños. Use formato AAAA-MM-DD");
                 loadProfile(currentProfileId);
             }
         }
