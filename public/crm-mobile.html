@@ -490,9 +490,12 @@
             <a id="linkCall" href="#" style="display: flex; align-items: center; gap: 10px; padding: 12px 16px; text-decoration: none; color: var(--text-main); font-weight: 700; font-size: 0.9rem; border-bottom: 1px solid var(--border); transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
                 <span style="font-size: 1.2rem;">📞</span> Llamar
             </a>
-            <a id="linkWa" href="#" target="_blank" style="display: flex; align-items: center; gap: 10px; padding: 12px 16px; text-decoration: none; color: var(--text-main); font-weight: 700; font-size: 0.9rem; transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
+            <a id="linkWa" href="#" target="_blank" style="display:flex; align-items:center; gap:10px; padding:12px 16px; text-decoration:none; color:var(--text-main); font-weight:700; font-size:0.9rem; transition:background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
                 <span style="font-size: 1.2rem;">💬</span> WhatsApp
             </a>
+            <div onclick="startPhoneEdit()" style="display:flex; align-items:center; gap:10px; padding:12px 16px; cursor:pointer; color:var(--text-main); font-weight:700; font-size:0.9rem; border-top:1px solid var(--border); transition:background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
+                <span style="font-size: 1.2rem;">✏️</span> Actualizar
+            </div>
         </div>
     </div>
 
@@ -1111,6 +1114,61 @@
                 window.removeEventListener('click', closePop);
             };
             setTimeout(() => window.addEventListener('click', closePop), 20);
+        }
+
+        function startPhoneEdit() {
+            document.getElementById('contactPopover').style.display = 'none';
+            const el = document.getElementById('profPhone');
+            el.contentEditable = "true";
+            el.focus();
+            
+            // Temporary style to show it's editable
+            el.style.background = 'rgba(99,102,241,0.1)';
+            el.style.padding = '0 6px';
+            el.style.borderRadius = '4px';
+            
+            // Remove click listener temporarily
+            const oldOnclick = el.getAttribute('onclick');
+            el.onclick = null;
+            
+            const blurHandler = () => {
+                el.contentEditable = "false";
+                el.style.background = 'transparent';
+                el.style.padding = '0';
+                saveClientPhone(el.innerText);
+                setTimeout(() => {
+                    el.onclick = (e) => showContactMenu(e);
+                }, 100);
+                el.removeEventListener('blur', blurHandler);
+            };
+            el.addEventListener('blur', blurHandler);
+            
+            el.onkeydown = (e) => {
+                if(e.key === 'Enter') {
+                    e.preventDefault();
+                    el.blur();
+                }
+            };
+        }
+
+        async function saveClientPhone(newPhone) {
+            if(!currentProfileId) return;
+            // Clean phone? Maybe keep it as is if they want custom formatting
+            try {
+                const response = await fetch('/api/clients', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        seller_id: currentSellerId,
+                        name: lastLoadedProfileName,
+                        whatsapp: newPhone
+                    })
+                });
+                if(!response.ok) throw new Error();
+            } catch(e) {
+                alert("Error actualizando teléfono");
+                loadProfile(currentProfileId);
+            }
         }
 
         async function saveClientDescription(text) {
