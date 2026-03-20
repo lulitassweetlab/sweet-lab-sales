@@ -291,11 +291,11 @@
             
             <!-- CRM Stage Section -->
             <div class="card" style="padding:12px; margin-bottom:16px;">
-                <div style="display:flex; justify-content:space-between; align-items:flex-end; gap:8px;">
-                    <div id="profStageTags" style="display:flex; flex-wrap:wrap; gap:6px; flex:1;">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+                    <div id="profStageTags" style="display:flex; flex-wrap:wrap; gap:8px; flex:1;">
                         <div class="spinner" style="padding:10px 0; font-size:0.8rem;">Cargando etapas...</div>
                     </div>
-                    <div style="font-size:0.65rem; font-weight:800; color:rgba(0,0,0,0.25); text-transform:uppercase; letter-spacing:0.1em; transform:rotate(-90deg) translateX(4px); transform-origin:right; white-space:nowrap; text-shadow: -1px -1px 1px rgba(255,255,255,0.5), 1px 1px 1px rgba(0,0,0,0.1); margin-left:-10px;">
+                    <div style="font-size:0.85rem; font-weight:900; color:rgba(0,0,0,0.22); text-transform:uppercase; letter-spacing:0.15em; white-space:nowrap; text-shadow: -1px -1px 0px rgba(255,255,255,0.6), 1px 1px 0px rgba(0,0,0,0.08); padding-bottom:2px; user-select:none;">
                         Pipeline
                     </div>
                 </div>
@@ -303,10 +303,22 @@
 
             <!-- Quick Actions -->
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px;">
-                <button class="btn-primary" id="btnRegistrarVenta" onclick="goToStore()" style="padding: 12px; background:#faac40; border-color:#faac40; color:#fff;">🛒 Registrar Venta</button>
-                <button id="btnProfileWa" onclick="sendDirectWhatsApp()" class="btn-primary" style="padding: 12px; background:#06c474; border-color:#06c474; color:#fff; text-decoration:none;">🟢 WhatsApp</button>
-                <button class="btn-primary" onclick="openNoteModal()" style="padding: 12px; background:#555bdc; border-color:#555bdc; color:#fff;">📝 Nota</button>
-                <button class="btn-primary" onclick="deleteProfile()" style="padding: 12px; background:#db3c54; border-color:#db3c54; color:#fff;">🗑 Eliminar</button>
+                <button class="btn-primary" id="btnRegistrarVenta" onclick="goToStore()" 
+                    style="padding: 12px; background:#faac40; border-color:#faac40; color:#fff; transition:all 0.2s;"
+                    onmouseover="this.style.transform='translateY(-2px) scale(1.02)'; this.style.boxShadow='0 5px 15px rgba(250,172,64,0.4)'; this.style.filter='brightness(1.05)'"
+                    onmouseout="this.style.transform='none'; this.style.boxShadow='none'; this.style.filter='none'">🛒 Registrar Venta</button>
+                <button id="btnProfileWa" onclick="sendDirectWhatsApp()" class="btn-primary" 
+                    style="padding: 12px; background:#06c474; border-color:#06c474; color:#fff; text-decoration:none; transition:all 0.2s;"
+                    onmouseover="this.style.transform='translateY(-2px) scale(1.02)'; this.style.boxShadow='0 5px 15px rgba(6,196,116,0.4)'; this.style.filter='brightness(1.05)'"
+                    onmouseout="this.style.transform='none'; this.style.boxShadow='none'; this.style.filter='none'">🟢 WhatsApp</button>
+                <button class="btn-primary" onclick="openNoteModal()" 
+                    style="padding: 12px; background:#555bdc; border-color:#555bdc; color:#fff; transition:all 0.2s;"
+                    onmouseover="this.style.transform='translateY(-2px) scale(1.02)'; this.style.boxShadow='0 5px 15px rgba(85,91,220,0.4)'; this.style.filter='brightness(1.05)'"
+                    onmouseout="this.style.transform='none'; this.style.boxShadow='none'; this.style.filter='none'">📝 Nota</button>
+                <button class="btn-primary" onclick="deleteProfile()" 
+                    style="padding: 12px; background:#db3c54; border-color:#db3c54; color:#fff; transition:all 0.2s;"
+                    onmouseover="this.style.transform='translateY(-2px) scale(1.02)'; this.style.boxShadow='0 5px 15px rgba(219,60,84,0.4)'; this.style.filter='brightness(1.05)'"
+                    onmouseout="this.style.transform='none'; this.style.boxShadow='none'; this.style.filter='none'">🗑 Eliminar</button>
             </div>
             
             <!-- Metrics Grid -->
@@ -843,10 +855,10 @@
                                    background:${bgColor}; 
                                    color:${textColor}; 
                                    font-size:0.67rem; font-weight:700; cursor:pointer; 
-                                   transition:all 0.15s ease-out; 
+                                   transition:all 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
                                    box-shadow:${isActive ? '0 4px 10px ' + s.color + '33' : 'none'};
                                    display:flex; align-items:center; justify-content:center; text-align:center; line-height:1.1; flex-shrink:0;"
-                            onmouseover="this.style.background='${isActive ? s.color : s.color + '35'}'; this.style.transform='translateY(-3px)'; this.style.boxShadow='0 6px 15px ${s.color}44'" 
+                            onmouseover="this.style.background='${isActive ? s.color : s.color + '35'}'; this.style.transform='translateY(-5px) scale(1.05)'; this.style.boxShadow='0 8px 20px ${s.color}66'" 
                             onmouseout="this.style.background='${bgColor}'; this.style.transform='none'; this.style.boxShadow='${isActive ? '0 4px 10px ' + s.color + '33' : 'none'}'">
                             ${s.name}
                         </button>
