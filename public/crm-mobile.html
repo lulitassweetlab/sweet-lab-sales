@@ -829,22 +829,21 @@
                 
                 stageTagsContainer.innerHTML = stagesList.map(s => {
                     const isActive = Number(s.id) === currentId;
-                    const bgColor = isActive ? s.color : s.color + '18'; // Solid if active, semi-transparent otherwise
+                    const bgColor = isActive ? s.color : s.color + '15'; 
                     const textColor = isActive ? '#fff' : 'var(--text-main)';
-                    const borderOpacity = isActive ? '1' : '0.6';
 
                     return `
                         <button onclick="changeProfileStage(${s.id})"
-                            style="flex:1; min-width:90px; padding:9px 6px; border-radius:12px; border:1.5px solid ${s.color}; 
-                                   border-color:${s.color}${isActive?'':'88'};
+                            style="flex:1; min-width:80px; padding:6px 4px; border-radius:10px; border:1px solid ${s.color}; 
+                                   border-color:${s.color}${isActive?'':'77'};
                                    background:${bgColor}; 
                                    color:${textColor}; 
-                                   font-size:0.75rem; font-weight:700; cursor:pointer; 
-                                   transition:all 0.2s cubic-bezier(0.4, 0, 0.2, 1); 
-                                   box-shadow:${isActive ? '0 4px 12px ' + s.color + '44' : 'none'};
-                                   display:flex; align-items:center; justify-content:center; text-align:center; line-height:1.2;"
-                            onmouseover="this.style.background='${isActive ? s.color : s.color + '25'}'; this.style.transform='translateY(-1px)'" 
-                            onmouseout="this.style.background='${bgColor}'; this.style.transform='none'">
+                                   font-size:0.7rem; font-weight:700; cursor:pointer; 
+                                   transition:all 0.15s ease-out; 
+                                   box-shadow:${isActive ? '0 4px 10px ' + s.color + '33' : 'none'};
+                                   display:flex; align-items:center; justify-content:center; text-align:center; line-height:1.1;"
+                            onmouseover="this.style.background='${isActive ? s.color : s.color + '35'}'; this.style.transform='translateY(-3px)'; this.style.boxShadow='0 6px 15px ${s.color}44'" 
+                            onmouseout="this.style.background='${bgColor}'; this.style.transform='none'; this.style.boxShadow='${isActive ? '0 4px 10px ' + s.color + '33' : 'none'}'">
                             ${s.name}
                         </button>
                     `;
