@@ -71,6 +71,47 @@ async function syncReceiptPaymentsToSales() {
 	}
 }
 
+// Auto-update CRM stage to 'Cliente nuevo' if it's the first order
+async function autoUpdateClientStage(clientId, sellerId) {
+    if (!clientId || !sellerId) return;
+    try {
+        // 1. Count sales for this client
+        const [countRow] = await sql`SELECT count(*) FROM crm_client_sales WHERE client_id = ${clientId}`;
+        const totalSales = parseInt(countRow.count);
+
+        if (totalSales === 1) {
+            // 2. Get stage IDs for 'Prospecto' and 'Cliente nuevo'
+            const stages = await sql`SELECT id, name FROM crm_stages WHERE name IN ('Prospecto', 'Cliente nuevo')`;
+            const prospectStage = stages.find(s => s.name === 'Prospecto');
+            const newClientStage = stages.find(s => s.name === 'Cliente nuevo');
+
+            if (newClientStage) {
+                // 3. Check current stage
+                const [current] = await sql`SELECT stage_id FROM crm_client_stage WHERE client_id = ${clientId}`;
+                const currentStageId = current ? current.stage_id : null;
+
+                // Only upgrade if current is null or 'Prospecto'
+                if (!currentStageId || (prospectStage && currentStageId === prospectStage.id)) {
+                    // Move to 'Cliente nuevo'
+                    await sql`
+                        INSERT INTO crm_client_stage (client_id, stage_id, updated_by, updated_at)
+                        VALUES (${clientId}, ${newClientStage.id}, ${sellerId}, now())
+                        ON CONFLICT (client_id) DO UPDATE SET stage_id = EXCLUDED.stage_id, updated_by = EXCLUDED.updated_by, updated_at = now()
+                    `;
+
+                    // Log in history
+                    await sql`
+                        INSERT INTO crm_stage_history (client_id, old_stage_id, new_stage_id, note, changed_by, changed_at)
+                        VALUES (${clientId}, ${currentStageId}, ${newClientStage.id}, 'Automatización: Primer pedido registrado', ${sellerId}, now())
+                    `;
+                }
+            }
+        }
+    } catch (err) {
+        console.error('Error in autoUpdateClientStage:', err);
+    }
+}
+
 export async function handler(event) {
 	try {
 		// Always ensure schema to allow migrations (payment_date column)
@@ -524,6 +565,8 @@ export async function handler(event) {
 							const [existingLink] = await sql`SELECT 1 FROM crm_client_sales WHERE client_id = ${crmClient.id} AND sale_id = ${row.id} LIMIT 1`;
 							if (!existingLink) {
 								await sql`INSERT INTO crm_client_sales (client_id, sale_id, seller_id) VALUES (${crmClient.id}, ${row.id}, ${sellerId})`;
+								// Automated pipeline update
+								await autoUpdateClientStage(crmClient.id, sellerId);
 							}
 						}
 					} catch (crmErr) {
@@ -668,6 +711,8 @@ export async function handler(event) {
 								if (targetClient.id !== oldClientId) {
 									// RELINK: The new name belongs to a DIFFERENT existing client. Point the sale to them.
 									await sql`UPDATE crm_client_sales SET client_id = ${targetClient.id} WHERE sale_id = ${id}`;
+									// Automated pipeline update
+									await autoUpdateClientStage(targetClient.id, activeSellerId);
 								} else {
 									// SAME CLIENT: Name matches (might be a case correction). Update the formal name if needed.
 									if (targetClient.name !== client.trim()) {
@@ -687,6 +732,8 @@ export async function handler(event) {
 							}
 							if (crmClient && crmClient.id) {
 								await sql`INSERT INTO crm_client_sales (client_id, sale_id, seller_id) VALUES (${crmClient.id}, ${id}, ${activeSellerId}) ON CONFLICT (sale_id) DO UPDATE SET client_id = EXCLUDED.client_id`;
+								// Automated pipeline update
+								await autoUpdateClientStage(crmClient.id, activeSellerId);
 							}
 						}
 					}
