@@ -64,10 +64,18 @@ export async function handler(event) {
                 const clients = await sql`
                     SELECT 
                         c.id, c.name, c.whatsapp, c.birth_date,
+                        st.name as stage_name, st.color as stage_color,
                         cs.updated_at as stage_assigned_at,
-                        sh.changed_at as last_stage_change
+                        sh.changed_at as last_stage_change,
+                        COALESCE((
+                            SELECT SUM(CASE WHEN s2.pay_method IS NULL OR s2.pay_method = '' OR s2.pay_method = '-' OR s2.pay_method = 'entregado' THEN s2.total_cents ELSE 0 END)
+                            FROM sales s2
+                            JOIN crm_client_sales cs2 ON s2.id = cs2.sale_id
+                            WHERE cs2.client_id = c.id
+                        ), 0) as total_debt_cents
                     FROM clients c
                     JOIN crm_client_stage cs ON cs.client_id = c.id
+                    JOIN crm_stages st ON cs.stage_id = st.id
                     LEFT JOIN crm_stage_history sh ON sh.client_id = c.id AND sh.new_stage_id = ${stageId}
                     WHERE cs.stage_id = ${stageId} AND c.seller_id = ${sellerId}
                     ORDER BY cs.updated_at DESC
