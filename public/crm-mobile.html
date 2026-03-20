@@ -185,7 +185,7 @@
                         <svg width="24" height="24" viewBox="0 0 24 24" style="fill:#86868b;"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
                     </div>
                     <div style="width:1px; background:var(--border); height:30px;"></div>
-                    <div style="text-align:center; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor:pointer; height:100%;" onclick="navTo('directory')" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
+                    <div style="text-align:center; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor:pointer; height:100%;" onclick="loadFullDirectoryInline()" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
                         <div style="font-size:0.72rem; color:var(--text-muted); font-weight:700; text-transform:uppercase; letter-spacing:0.02em;">Clientes</div>
                         <div id="dashTotalClients" style="font-size:1.4rem; font-weight:800; line-height: 1.1; margin-top:2px;">-</div>
                     </div>
@@ -214,6 +214,14 @@
                 <!-- RIGHT CONTENT: Contact List -->
                 <div style="flex: 1; min-width: 200px;">
                     <h3 id="dashContentTitle" class="title-sec" style="margin-bottom:16px;">💡 Contactar Hoy</h3>
+                    
+                    <!-- Inline Search (Hidden by default) -->
+                    <div id="dashSearchContainer" style="display:none; margin-bottom:16px;">
+                        <input type="text" id="dashSearchInput" placeholder="Buscar por nombre o celular..." 
+                            style="width: 100%; padding: 14px; border-radius: 12px; border: 1.5px solid var(--border); font-size: 1rem; background: var(--surface); outline:none; transition: border-color 0.2s;"
+                            onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
+                    </div>
+
                     <div id="dashContactList">
                         <div class="spinner">Cargando resumen...</div>
                     </div>
@@ -231,21 +239,6 @@
         </div>
 
 
-        <!-- SCREEN 2: Directory -->
-        <div id="screen-directory" class="screen">
-            <h3 class="title-sec">Directorio de Clientes</h3>
-            <input type="text" id="searchInput" placeholder="Buscar cliente..." style="width: 100%; padding: 16px; border-radius: 12px; border: 1px solid var(--border); font-size: 1rem; margin-bottom: 16px;">
-            
-            <div style="display: flex; gap: 8px; margin-bottom: 16px; overflow-x: auto; padding-bottom: 4px;">
-                <button class="badge bg-danger" style="border:none;" onclick="filterClients('deuda')">Con Deuda</button>
-                <button class="badge bg-warning" style="border:none;" onclick="filterClients('inactivo')">Inactivos</button>
-                <button class="badge bg-info" style="border:none; color:white;" onclick="filterClients('todos')">Ver Todos</button>
-            </div>
-
-            <div id="directoryList">
-                <!-- Clients populated here -->
-            </div>
-        </div>
 
         <!-- SCREEN 3: Profile (Modal Style over Screen) -->
         <div id="screen-profile" class="screen" style="background:var(--surface); position:absolute; top:0; left:0; width:100%; min-height:100%; z-index:50;">
@@ -253,7 +246,7 @@
                 <div style="display: flex; gap: 4px;">
                     <!-- Back Button Column -->
                     <div style="flex-shrink: 0; width: 32px;">
-                        <button onclick="navTo('directory')" style="background:none; border:none; font-size: 1.4rem; cursor:pointer; padding: 4px; color: var(--text-main); margin-top: -2px;">←</button>
+                        <button onclick="navTo('dashboard')" style="background:none; border:none; font-size: 1.4rem; cursor:pointer; padding: 4px; color: var(--text-main); margin-top: -2px;">←</button>
                     </div>
                     
                     <!-- Content Column -->
@@ -466,10 +459,6 @@
             <svg class="nav-icon" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
             Hoy
         </div>
-        <div class="nav-item" onclick="navTo('directory')" id="nav-directory">
-            <svg class="nav-icon" viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
-            Directorio
-        </div>
         <div class="nav-item" onclick="navTo('prospects')" id="nav-prospects">
             <svg class="nav-icon" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 9h-2V7h-2v5H6v2h2v5h2v-5h2v-2z"/></svg>
             Prospectos
@@ -567,18 +556,18 @@
                 window.location.replace('/store.html');
             }
 
-            // Search Bar filter logic
-            document.getElementById('searchInput').addEventListener('input', (e) => {
+            // Search Bar filter logic (Unificado en Dashboard)
+            document.getElementById('dashSearchInput').addEventListener('input', (e) => {
                 const term = e.target.value.toLowerCase();
                 if(!term) {
-                    renderDirectory(directoryData);
+                    renderFullDirectoryInline(directoryData);
                     return;
                 }
                 const filtered = directoryData.filter(c => 
                     (c.name && c.name.toLowerCase().includes(term)) || 
                     (c.whatsapp && c.whatsapp.toLowerCase().includes(term))
                 );
-                renderDirectory(filtered);
+                renderFullDirectoryInline(filtered);
             });
         });
 
@@ -595,9 +584,9 @@
             if(navBtn) navBtn.classList.add('active');
 
             // Trigger loaders if needed
-            if (screenId === 'dashboard') loadDashboard();
-            if (screenId === 'directory') loadDirectory();
+            if (screenId === 'dashboard') (document.getElementById('dashSearchContainer').style.display === 'block') ? loadFullDirectoryInline() : loadDashboard();
             if (screenId === 'prospects') loadProspects();
+            if (screenId === 'activities') loadActivities();
         }
 
         // FORMATTERS
@@ -724,6 +713,8 @@
 
         function resetDashboardView() {
             const title = document.getElementById('dashContentTitle');
+            const search = document.getElementById('dashSearchContainer');
+            search.style.display = 'none';
             title.innerHTML = `💡 Contactar Hoy`;
             loadDashboard();
         }
@@ -783,20 +774,33 @@
             </div>`;
         }
 
-        // LOAD DIRECTORY
-        async function loadDirectory() {
+        // LOAD DIRECTORY (Inline Dashboard)
+        async function loadFullDirectoryInline() {
+            const title = document.getElementById('dashContentTitle');
+            const listEl = document.getElementById('dashContactList');
+            const search = document.getElementById('dashSearchContainer');
+
+            search.style.display = 'block';
+            title.innerHTML = `👥 Directorio de Clientes`;
+            listEl.innerHTML = '<div class="spinner">Cargando directorio...</div>';
+
             try {
                 const res = await fetch(`/.netlify/functions/crm-clients?seller_id=${currentSellerId}`);
                 directoryData = await res.json();
-                renderDirectory(directoryData);
+                renderFullDirectoryInline(directoryData);
             } catch (err) {
                 console.error(err);
             }
         }
 
-        function renderDirectory(arr) {
-            const list = document.getElementById('directoryList');
+        function renderFullDirectoryInline(arr) {
+            const list = document.getElementById('dashContactList');
             list.innerHTML = '';
+
+            if (arr.length === 0) {
+                list.innerHTML = '<p style="text-align:center; padding:24px; color:var(--text-muted);">No se encontraron clientes.</p>';
+                return;
+            }
 
             arr.forEach(c => {
                 const debt = Number(c.total_debt_cents);
@@ -806,30 +810,34 @@
                 let badges = '';
                 if(c.stage_name) badges += `<span class="badge" style="background:${c.stage_color || '#808080'}">${c.stage_name}</span> `;
                 if(debt > 0) badges += `<span class="badge bg-danger">Deuda ${formatMoney(debt)}</span> `;
-                if(freq >= 10) badges += `<span class="badge bg-success">Frecuente</span> `;
-                if(freq === 1) badges += `<span class="badge bg-info">Nuevo</span> `;
                 
-                // Card
-                const card = document.createElement('div');
-                card.className = 'card';
-                card.style.padding = '12px';
-                 card.style.marginBottom = '10px';
-                card.innerHTML = `
-                    <div style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="loadProfile(${c.id})">
+                const card = `
+                    <div class="card" onclick="loadProfile(${c.id})" 
+                        style="padding:14px; margin-bottom:10px; cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
                         <div style="flex:1;">
                             <div style="font-weight:700; font-size:1.1rem; margin-bottom:4px;">${c.name}</div>
                             <div style="margin-bottom:8px;">${badges}</div>
-                            <div style="font-size:0.8rem; color:var(--text-muted);">Histórico: ${formatMoney(ltv)} | Compras: ${freq}</div>
+                            <div style="font-size:0.78rem; color:var(--text-muted);">Histórico: ${formatMoney(ltv)} | Compras: ${freq}</div>
                         </div>
                         <div style="display:flex; gap:8px;">
                             <button onclick="event.stopPropagation(); window.open(wappLink('${c.whatsapp}'), '_blank');" style="background:#25D366; border:none;  color:white; padding:10px; border-radius:12px; cursor:pointer;">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.571-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.571-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
                             </button>
                         </div>
-                    </div>
-                `;
-                list.appendChild(card);
+                    </div>`;
+                list.innerHTML += card;
             });
+        }
+
+
+        // (Deprecated) LOAD DIRECTORY - Now using loadFullDirectoryInline
+        async function loadDirectory() {
+            loadFullDirectoryInline();
+        }
+
+        // (Deprecated) RENDER DIRECTORY - Now using renderFullDirectoryInline
+        function renderDirectory(arr) {
+            renderFullDirectoryInline(arr);
         }
 
         function filterClients(type) {
@@ -1674,8 +1682,8 @@
                 });
                 const data = await res.json();
                 if (data.error) { alert('Error: ' + data.error); return; }
-                navTo('directory');
-                loadDirectory();
+                navTo('dashboard');
+                loadFullDirectoryInline();
             } catch(e) {
                 alert('Error al eliminar el cliente.');
             }
