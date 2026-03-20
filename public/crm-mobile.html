@@ -682,8 +682,8 @@
             // 1. Save scroll position of outgoing screen
             scrollMemory[currentScreen] = main.scrollTop;
 
-            // 2. Track lineage for profile back button
-            if (screenId === 'profile') {
+            // 2. Track lineage for profile back button (avoid circular reference)
+            if (screenId === 'profile' && currentScreen !== 'profile') {
                 lastScreen = currentScreen;
             }
 
@@ -1917,6 +1917,10 @@
 
                 if (shouldRestore) restoreScroll('prospects');
             }, shouldRestore);
+        }
+
+        async function loadActivities(shouldRestore = false) {
+            // Coming soon - prevents ReferenceError in navTo
         }
 
         function openNewProspectModal() {
