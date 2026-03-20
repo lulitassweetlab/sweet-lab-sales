@@ -2101,6 +2101,30 @@
             }
         }
 
+        // SWIPE-TO-BACK GESTURE (Mobile experience)
+        let touchStartX = 0;
+        let touchStartY = 0;
+        window.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+        }, {passive: true});
+
+        window.addEventListener('touchend', (e) => {
+            const touchEndX = e.changedTouches[0].clientX;
+            const touchEndY = e.changedTouches[0].clientY;
+            const deltaX = touchEndX - touchStartX;
+            const deltaY = Math.abs(touchEndY - touchStartY);
+
+            // Trigger if: 
+            // 1. Starts from very left edge (0-35px)
+            // 2. Swipes right at least 100px
+            // 3. Not a vertical scroll (Y movement < 40px)
+            // 4. We are on 'profile' screen
+            if (touchStartX < 35 && deltaX > 100 && deltaY < 40 && currentScreen === 'profile') {
+                navTo(lastScreen || 'dashboard');
+            }
+        }, {passive: true});
+
         async function deleteProfile() {
             if(!currentProfileId) return;
             const name = document.getElementById('profileName').innerText;
