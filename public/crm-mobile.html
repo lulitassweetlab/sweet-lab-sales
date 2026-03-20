@@ -273,7 +273,7 @@
                             <span>•</span>
                             <span id="profBirthday" style="white-space:nowrap; cursor:pointer;" onclick="startBirthdayEdit()">-</span>
                             <span>•</span>
-                            <span id="profAddress" style="white-space:nowrap; cursor:pointer; color: var(--text-muted);" onclick="showAddressMenu(event)">📍 Ubicación...</span>
+                            <span id="profAddress" style="cursor:pointer; color: var(--text-muted);" onclick="showAddressMenu(event)">📍 Ubicación...</span>
                         </div>
                         
                         <!-- ROW 3: Description -->
@@ -1220,7 +1220,7 @@
             document.getElementById('locationPopover').style.display = 'none';
         }
 
-        function captureGPSCoords() {
+        function captureGPSCoords(event) {
             if (!navigator.geolocation) {
                 alert('GPS no soportado en este navegador.');
                 return;
@@ -1235,8 +1235,38 @@
                 const lat = pos.coords.latitude;
                 const lng = pos.coords.longitude;
                 
-                if (confirm(`Ubicación capturada: ${lat.toFixed(4)}, ${lng.toFixed(4)}. ¿Deseas guardarla como ubicación principal de este cliente?`)) {
-                    await updateClientLocation({ latitude: lat, longitude: lng });
+                let detectedAddress = '';
+                try {
+                    // Reverse geocoding via Nominatim (OpenStreetMap)
+                    const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`, {
+                        headers: { 'Accept-Language': 'es' }
+                    });
+                    const geoData = await geoRes.json();
+                    if (geoData && geoData.address) {
+                        const a = geoData.address;
+                        // Build a shorter, readable address: "Road HouseNumber, Suburb, City"
+                        const road = a.road || a.pedestrian || '';
+                        const house = a.house_number || '';
+                        const city = a.city || a.town || a.village || '';
+                        detectedAddress = `${road} ${house}`.trim();
+                        if (city) detectedAddress += (detectedAddress ? ', ' : '') + city;
+                    } else {
+                        detectedAddress = geoData.display_name || '';
+                    }
+                } catch (e) {
+                    console.error('Error in reverse geocoding:', e);
+                }
+
+                const msg = detectedAddress 
+                    ? `Ubicación detectada:\n${detectedAddress}\n\n¿Deseas guardarla para este cliente?`
+                    : `Coordenadas capturadas: ${lat.toFixed(6)}, ${lng.toFixed(6)}.\n\n¿Deseas guardarlas?`;
+
+                if (confirm(msg)) {
+                    await updateClientLocation({ 
+                        latitude: lat, 
+                        longitude: lng,
+                        address: detectedAddress || null 
+                    });
                 }
                 
                 btn.innerHTML = originalText;
