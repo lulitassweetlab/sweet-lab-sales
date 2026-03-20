@@ -981,9 +981,8 @@
             }
             
             try {
-                // Get the current seller ID context locally
-                const state = JSON.parse(localStorage.getItem('sweet_lab_state') || '{}');
-                const sellerId = state.currentSeller ? state.currentSeller.id : (state.sellers ? state.sellers[0]?.id : null);
+                // Use the globally already loaded currentSellerId
+                const sellerId = currentSellerId;
                 
                 if(!sellerId) {
                     alert('Error: No se detectó un vendedor activo en la sesión.');
