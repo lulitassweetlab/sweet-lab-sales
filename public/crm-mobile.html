@@ -767,17 +767,17 @@
             let badges = '';
             // Basic Stage Badge
             if(c.stage_name) {
-                badges += `<span class="badge" style="background:${c.stage_color || '#808080'}; color:#fff; font-weight:800; text-transform:uppercase; font-size:0.7rem; padding:3px 8px; border-radius:6px; margin-right:4px;">${c.stage_name}</span>`;
+                badges += `<span class="badge" style="background:${c.stage_color || '#808080'}; color:#fff; font-weight:800; text-transform:uppercase; font-size:0.7rem; padding:3px 8px; border-radius:6px; margin-right:4px; margin-bottom:4px;">${c.stage_name}</span>`;
             }
 
             // Custom Tags from API
             if(Array.isArray(c.custom_tags)) {
                 c.custom_tags.forEach(t => {
-                    badges += `<span class="badge" style="background:${t.color}; color:#fff; font-weight:800; text-transform:uppercase; font-size:0.7rem; padding:3px 8px; border-radius:6px; margin-right:4px;">${t.name}</span>`;
+                    badges += `<span class="badge" style="background:${t.color}; color:#fff; font-weight:800; text-transform:uppercase; font-size:0.7rem; padding:3px 8px; border-radius:6px; margin-right:4px; margin-bottom:4px;">${t.name}</span>`;
                 });
             }
 
-            if(debt > 0) badges += `<span class="badge bg-danger" style="color:#fff; font-weight:800; text-transform:uppercase; font-size:0.7rem; padding:3px 8px; border-radius:6px; margin-right:4px;">DEUDA ${formatMoney(debt)}</span>`;
+            if(debt > 0) badges += `<span class="badge bg-danger" style="color:#fff; font-weight:800; text-transform:uppercase; font-size:0.7rem; padding:3px 8px; border-radius:6px; margin-right:4px; margin-bottom:4px;">DEUDA ${formatMoney(debt)}</span>`;
             
             const metricsHtml = ltv > 0 ? `<div style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">Histórico: ${formatMoney(ltv)} | Compras: ${freq}</div>` : '';
 
@@ -1164,11 +1164,11 @@
                 if (currentStage) {
                     const st = stagesList.find(s => Number(s.id) === currentId);
                     if (st) {
-                        badgesHtml += `<span class="badge" style="background:${st.color}; color:#fff; font-size:0.7rem; padding: 3px 8px; border-radius: 6px; font-weight: 800; text-transform: uppercase;">${st.name}</span>`;
+                        badgesHtml += `<span class="badge" style="background:${st.color}; color:#fff; font-size:0.7rem; padding: 3px 8px; border-radius: 6px; font-weight: 800; text-transform: uppercase; margin-bottom:4px; margin-right:4px;">${st.name}</span>`;
                     }
                 }
                 
-                if(debt > 0) badgesHtml += `<span class="badge" style="background:var(--danger); color:#fff; font-size:0.7rem; padding: 3px 8px; border-radius: 6px; font-weight: 800; text-transform: uppercase;">DEBE ${formatMoney(debt)}</span>`;
+                if(debt > 0) badgesHtml += `<span class="badge" style="background:var(--danger); color:#fff; font-size:0.7rem; padding: 3px 8px; border-radius: 6px; font-weight: 800; text-transform: uppercase; margin-bottom:4px; margin-right:4px;">DEUDA ${formatMoney(debt)}</span>`;
                 
                 document.getElementById('profileBadges').innerHTML = badgesHtml;
 
