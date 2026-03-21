@@ -247,13 +247,17 @@
                                 onkeydown="if(event.key==='Enter'){ event.preventDefault(); this.blur(); }">
                                 Cargando...
                             </h2>
-                            <div id="profileBadges" style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-top: 4px;">
-                                <!-- Stage and Debt Tags -->
+                        </div>
+
+                        <!-- UNIFIED TAGS ROW -->
+                        <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 4px; padding-left: 4px;">
+                            <div id="profileBadges" style="display: contents;">
+                                <!-- Stage and Debt Tags will appear here -->
                             </div>
                             <!-- Custom Tags Container -->
-                            <div id="profileCustomTags" style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-top: 4px;"></div>
+                            <div id="profileCustomTags" style="display: contents;"></div>
                             <button onclick="openTagSelectionPopover(event)" 
-                                style="background:var(--bg); border:1px dashed var(--border); color:var(--text-muted); font-size:0.7rem; font-weight:700; padding:2px 8px; border-radius:12px; cursor:pointer; margin-top:4px;">+ añadir etiqueta</button>
+                                style="background:var(--bg); border:1px dashed var(--border); color:var(--text-muted); font-size:0.7rem; font-weight:700; padding:2px 8px; border-radius:12px; cursor:pointer;">+ añadir etiqueta</button>
                         </div>
                         
                         <!-- ROW 2: Contact Info (Phone & Birth) -->
