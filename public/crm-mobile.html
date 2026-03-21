@@ -457,28 +457,28 @@
                 <span style="font-size: 1.2rem;">🛰️</span> Capturar
             </div>
             <!-- Ingresar -->
-            </div>
+    <!-- POPOVER OVERLAY / BACKDROP -->
+    <div id="popoverOverlay" onclick="closePopovers()" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:290; backdrop-filter: blur(2px);"></div>
+
+    <!-- TAG POPOVERS (Mobile-First Centered) -->
+    <div id="popoverCreateTag" style="display:none; position:fixed; z-index:300; background:var(--surface); border-radius:20px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); border: 1px solid var(--border); overflow: hidden; width: 260px; padding:20px; animation: popIn 0.2s ease; left: 50%; top: 50%; transform: translate(-50%, -50%);">
+        <div style="font-size:0.85rem; font-weight:800; color:var(--text-muted); text-transform:uppercase; margin-bottom:15px; text-align:center;">Nueva Etiqueta</div>
+        <input type="text" id="newTagName" placeholder="ingresa la nueva etiqueta" style="width:100%; padding:14px; border-radius:12px; border:1.5px solid var(--border); font-size:1rem; margin-bottom:15px; background:var(--bg); color:var(--text-main); outline:none; box-sizing:border-box;">
+        <div style="display:flex; justify-content:space-around; margin-bottom:20px;">
+            <div onclick="setNewTagColor('#818cf8', this)" style="width:28px; height:28px; border-radius:50%; background:#818cf8; cursor:pointer; border:3px solid #fff; box-shadow:0 0 0 1px #818cf8;"></div>
+            <div onclick="setNewTagColor('#f43f5e', this)" style="width:28px; height:28px; border-radius:50%; background:#f43f5e; cursor:pointer; border:3px solid transparent;"></div>
+            <div onclick="setNewTagColor('#fbbf24', this)" style="width:28px; height:28px; border-radius:50%; background:#fbbf24; cursor:pointer; border:3px solid transparent;"></div>
+            <div onclick="setNewTagColor('#10b981', this)" style="width:28px; height:28px; border-radius:50%; background:#10b981; cursor:pointer; border:3px solid transparent;"></div>
+            <div onclick="setNewTagColor('#a855f7', this)" style="width:28px; height:28px; border-radius:50%; background:#a855f7; cursor:pointer; border:2px solid transparent;"></div>
         </div>
+        <button onclick="saveNewTag()" style="width:100%; padding:16px; border-radius:14px; border:none; background:var(--primary); color:#fff; font-weight:800; font-size:1rem; cursor:pointer;">Crear Etiqueta</button>
     </div>
 
-    <!-- TAG POPOVERS -->
-    <div id="popoverCreateTag" style="display:none; position:fixed; z-index:300; background:var(--surface); border-radius:14px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); border: 1px solid var(--border); overflow: hidden; width: 220px; padding:12px; animation: popIn 0.2s ease;">
-        <div style="font-size:0.75rem; font-weight:800; color:var(--text-muted); text-transform:uppercase; margin-bottom:10px;">Nueva Etiqueta</div>
-        <input type="text" id="newTagName" placeholder="ingresa la nueva etiqueta" style="width:100%; padding:8px; border-radius:8px; border:1.5px solid var(--border); font-size:0.85rem; margin-bottom:10px; background:var(--bg); color:var(--text-main); outline:none; box-sizing:border-box;">
-        <div style="display:flex; justify-content:space-between; margin-bottom:12px;">
-            <div onclick="setNewTagColor('#818cf8', this)" style="width:18px; height:18px; border-radius:50%; background:#818cf8; cursor:pointer; border:2px solid #fff; box-shadow:0 0 0 1px #818cf8;"></div>
-            <div onclick="setNewTagColor('#f43f5e', this)" style="width:18px; height:18px; border-radius:50%; background:#f43f5e; cursor:pointer; border:2px solid transparent;"></div>
-            <div onclick="setNewTagColor('#fbbf24', this)" style="width:18px; height:18px; border-radius:50%; background:#fbbf24; cursor:pointer; border:2px solid transparent;"></div>
-            <div onclick="setNewTagColor('#10b981', this)" style="width:18px; height:18px; border-radius:50%; background:#10b981; cursor:pointer; border:2px solid transparent;"></div>
-            <div onclick="setNewTagColor('#a855f7', this)" style="width:18px; height:18px; border-radius:50%; background:#a855f7; cursor:pointer; border:2px solid transparent;"></div>
-        </div>
-        <button onclick="saveNewTag()" style="width:100%; padding:8px; border-radius:8px; border:none; background:var(--primary); color:#fff; font-weight:700; font-size:0.8rem; cursor:pointer;">Crear</button>
-    </div>
-
-    <div id="popoverTagAssign" style="display:none; position:fixed; z-index:300; background:var(--surface); border-radius:14px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); border: 1px solid var(--border); overflow: hidden; width: 180px; padding:12px; animation: popIn 0.2s ease;">
-        <div style="font-size:0.75rem; font-weight:800; color:var(--text-muted); text-transform:uppercase; margin-bottom:10px;">Asignar Etiqueta</div>
-        <div id="assignTagList" style="display:flex; flex-direction:column; gap:4px; max-height:200px; overflow-y:auto; margin-bottom:8px;"></div>
-        <div id="assignTagEmpty" style="display:none; font-size:0.7rem; color:var(--text-muted); text-align:center; padding:10px 0;">No tienes etiquetas creadas. Cr éalas en el Dashboard.</div>
+    <div id="popoverTagAssign" style="display:none; position:fixed; z-index:300; background:var(--surface); border-radius:20px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); border: 1px solid var(--border); overflow: hidden; width: 240px; padding:20px; animation: popIn 0.2s ease; left: 50%; top: 50%; transform: translate(-50%, -50%);">
+        <div style="font-size:0.85rem; font-weight:800; color:var(--text-muted); text-transform:uppercase; margin-bottom:15px; text-align:center;">Asignar Etiqueta</div>
+        <div id="assignTagList" style="display:flex; flex-direction:column; gap:8px; max-height:250px; overflow-y:auto; margin-bottom:10px;"></div>
+        <div id="assignTagEmpty" style="display:none; font-size:0.8rem; color:var(--text-muted); text-align:center; padding:20px 0;">No tienes etiquetas creadas. Cr éalas en el Dashboard.</div>
+        <button onclick="closePopovers()" style="width:100%; padding:12px; border-radius:12px; border:none; background:var(--bg); color:var(--text-muted); font-weight:700; font-size:0.9rem; cursor:pointer;">Cerrar</button>
     </div>
 
     <!-- MAP PICKER MODAL (Solid Background Fix) -->
@@ -2091,17 +2091,25 @@
         }
 
         function openCreateTagPopover(e) {
-            e.stopPropagation();
+            if(e) e.stopPropagation();
             const pop = document.getElementById('popoverCreateTag');
-            const rect = e.target.getBoundingClientRect();
-            pop.style.top = (rect.bottom + window.scrollY + 5) + 'px';
-            pop.style.left = rect.left + 'px';
+            const overlay = document.getElementById('popoverOverlay');
+            overlay.style.display = 'block';
             pop.style.display = 'block';
+            // Centered fixed position (independent of anchor) for best mobile UX
+            pop.style.top = '50%';
+            pop.style.left = '50%';
+            pop.style.transform = 'translate(-50%, -50%)';
             document.getElementById('newTagName').focus();
-            
-            const close = () => { pop.style.display='none'; document.removeEventListener('click', close); };
-            setTimeout(() => document.addEventListener('click', close), 10);
-            pop.onclick = (ev) => ev.stopPropagation();
+        }
+
+        function closePopovers() {
+            const pops = ['popoverCreateTag', 'popoverTagAssign', 'popoverOverlay', 'locationPopover', 'contactPopover', 'copyPopover', 'statusPopover'];
+            pops.forEach(id => {
+                const el = document.getElementById(id);
+                if(el) el.style.display = 'none';
+            });
+            document.removeEventListener('click', closePopovers);
         }
 
         function setNewTagColor(hex, el) {
@@ -2126,7 +2134,7 @@
                 const data = await res.json();
                 if(data.success) {
                     document.getElementById('newTagName').value = '';
-                    document.getElementById('popoverCreateTag').style.display = 'none';
+                    closePopovers();
                     await loadSellerTags();
                 }
             } catch(e) { alert('Error al crear etiqueta'); }
@@ -2147,12 +2155,10 @@
         }
 
         function openTagSelectionPopover(e) {
-            e.stopPropagation();
+            if(e) e.stopPropagation();
             const pop = document.getElementById('popoverTagAssign');
-            const rect = e.target.getBoundingClientRect();
-            pop.style.left = 'unset';
-            pop.style.right = '10px';
-            pop.style.top = (rect.bottom + window.scrollY + 5) + 'px';
+            const overlay = document.getElementById('popoverOverlay');
+            overlay.style.display = 'block';
             
             const list = document.getElementById('assignTagList');
             const empty = document.getElementById('assignTagEmpty');
@@ -2164,17 +2170,14 @@
                 list.style.display = 'flex';
                 empty.style.display = 'none';
                 list.innerHTML = sellerTags.map(t => `
-                    <div onclick="assignTag(${t.id})" style="padding:8px; border-radius:8px; background:var(--bg); cursor:pointer; font-size:0.8rem; font-weight:600; display:flex; align-items:center; gap:8px;">
-                        <div style="width:10px; height:10px; border-radius:50%; background:${t.color}"></div>
+                    <div onclick="assignTag(${t.id})" style="padding:12px; border-radius:12px; background:var(--bg); cursor:pointer; font-size:0.9rem; font-weight:700; display:flex; align-items:center; gap:10px; border:1px solid var(--border);">
+                        <div style="width:14px; height:14px; border-radius:50%; background:${t.color}"></div>
                         ${t.name}
                     </div>
                 `).join('');
             }
             
             pop.style.display = 'block';
-            const close = () => { if(pop.style.display==='block'){ pop.style.display='none'; document.removeEventListener('click', close); } };
-            setTimeout(() => document.addEventListener('click', close), 10);
-            pop.onclick = (ev) => ev.stopPropagation();
         }
 
         async function assignTag(tagId) {
@@ -2184,7 +2187,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ action: 'assign_tag', client_id: currentProfileId, tag_id: tagId })
                 });
-                document.getElementById('popoverTagAssign').style.display = 'none';
+                closePopovers();
                 await loadClientTags(currentProfileId);
             } catch(e) { alert('Error al asignar etiqueta'); }
         }
