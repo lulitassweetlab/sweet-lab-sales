@@ -598,6 +598,7 @@
             window.bulkTagType = ''; // 'stage' or 'custom'
             window.longPressTimer = null;
             window.bulkTagColor = '';
+            window.bulkModeActiveClients = new Set();
 
             const savedSeller = localStorage.getItem('storeActiveSeller');
             if (savedSeller) {
@@ -762,13 +763,22 @@
 
             // Handle Bulk Mode Logic
             const isBulk = window.isBulkMode;
+            const hasTag = isBulk && (
+                window.bulkTagType === 'stage' 
+                ? Number(c.stage_id) === Number(window.bulkTagId)
+                : window.bulkModeActiveClients.has(Number(c.id))
+            );
+
             const clickAction = isBulk ? `toggleBulkAction(${c.id}, this)` : `loadProfile(${c.id})`;
-            const bulkBorder = isBulk ? `2px dashed ${window.bulkTagColor || 'var(--border)'}` : '2px solid transparent';
+            
+            // Visual Styles for Bulk Mode
+            const bulkBg = hasTag ? 'rgba(16, 185, 129, 0.1)' : 'transparent';
+            const bulkBorder = hasTag ? '2px solid rgba(16, 185, 129, 0.4)' : (isBulk ? '2px solid transparent' : '2px solid transparent');
 
             return `
                 <div class="card client-card-bulk-target" data-client-id="${c.id}" 
                     onclick="${clickAction}" 
-                    style="padding:14px; margin-bottom:10px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; transition: all 0.2s; border: ${bulkBorder};"
+                    style="padding:14px; margin-bottom:10px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; transition: all 0.2s; border: ${bulkBorder}; background: ${bulkBg};"
                     onmouseover="if(!window.isBulkMode) this.style.transform='translateX(4px)'" onmouseout="this.style.transform='none'">
                     <div style="flex:1;">
                         <div style="font-weight:700; font-size:1.05rem; margin-bottom:6px;">${c.name}</div>
@@ -2239,12 +2249,22 @@
             }
         }
 
-        function enterBulkMode(id, name, type, color) {
+        async function enterBulkMode(id, name, type, color) {
             window.isBulkMode = true;
             window.bulkTagId = id;
             window.bulkTagName = name;
             window.bulkTagType = type;
             window.bulkTagColor = color;
+            window.bulkModeActiveClients.clear();
+
+            // Perform active client lookup for highlighting
+            if(type === 'custom') {
+                try {
+                    const res = await fetch(`/.netlify/functions/crm-tags?action=get_tag_clients&tag_id=${id}`);
+                    const ids = await res.json();
+                    if(Array.isArray(ids)) ids.forEach(cid => window.bulkModeActiveClients.add(Number(cid)));
+                } catch(e) { console.error('Error fetching bulk targets', e); }
+            }
             
             document.getElementById('bulkModeBanner').style.display = 'flex';
             document.getElementById('bulkModeTagName').innerText = name;
@@ -2282,23 +2302,27 @@
                 } else {
                     // Toggle Custom Tag
                     // Check if already has it (optimistic check)
-                    const res = await fetch(`/.netlify/functions/crm-tags?action=get_client_tags&client_id=${clientId}`);
-                    const tags = await res.json();
-                    const hasTag = tags.some(t => Number(t.id) === Number(window.bulkTagId));
-                    
                     const action = hasTag ? 'remove_tag' : 'assign_tag';
                     await fetch('/.netlify/functions/crm-tags', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ action, client_id: clientId, tag_id: window.bulkTagId })
                     });
+
+                    // Update local state for visual toggle
+                    if(hasTag) window.bulkModeActiveClients.delete(Number(clientId));
+                    else window.bulkModeActiveClients.add(Number(clientId));
+                    
                     showToast(hasTag ? 'Etiqueta quitada' : 'Etiqueta asignada');
                 }
                 
-                // Refresh only this card's labels if possible, or just stay simple
-                // We'll add a checkmark or border to indicate success
-                cardEl.style.borderColor = window.bulkTagColor;
-                setTimeout(() => cardEl.style.borderColor = 'transparent', 1000);
+                // Real-time Visual Update
+                const updatedHasTag = window.bulkTagType === 'stage' 
+                    ? true // Stages migration is always one-way in this toggle for now (or move to)
+                    : window.bulkModeActiveClients.has(Number(clientId));
+                
+                cardEl.style.background = updatedHasTag ? 'rgba(16, 185, 129, 0.1)' : 'transparent';
+                cardEl.style.borderColor = updatedHasTag ? 'rgba(16, 185, 129, 0.4)' : 'transparent';
                 
             } catch(e) {
                 console.error('Bulk toggle failed', e);

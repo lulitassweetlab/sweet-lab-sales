@@ -45,6 +45,13 @@ export async function handler(event) {
                 return json(tags);
             }
 
+            if (action === 'get_tag_clients') {
+                const tagId = Number(params.get('tag_id'));
+                if (!tagId) return json({ error: 'Falta tag_id' }, 400);
+                const clients = await sql`SELECT client_id FROM crm_client_tags WHERE tag_id = ${tagId}`;
+                return json(clients.map(c => c.client_id));
+            }
+
             return json({ error: 'Acción GET no válida' }, 400);
         }
 
