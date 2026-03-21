@@ -269,7 +269,7 @@
                             <!-- Custom Tags Container -->
                             <div id="profileCustomTags" style="display: contents;"></div>
                             <button onclick="openTagSelectionPopover(event)" 
-                                style="background:var(--bg); border:1px dashed var(--border); color:var(--text-muted); font-size:0.7rem; font-weight:700; padding:2px 8px; border-radius:12px; cursor:pointer;">+ añadir etiqueta</button>
+                                style="background:var(--bg); border:1px dashed var(--border); color:var(--text-muted); font-size:0.7rem; font-weight:700; padding:2px 8px; border-radius:12px; cursor:pointer; margin-bottom:4px;">+ añadir etiqueta</button>
                         </div>
                         
                         <!-- ROW 2: Contact Info (Phone & Birth) -->
@@ -2220,7 +2220,7 @@
                 const res = await fetch(`/.netlify/functions/crm-tags?action=get_client_tags&client_id=${clientId}`);
                 const tags = await res.json();
                 container.innerHTML = tags.map(t => `
-                    <span class="badge" style="background:${t.color}; color:#fff; padding:3px 8px; border-radius:6px; font-size:0.7rem; margin-bottom:4px; font-weight:800; text-transform:uppercase;">
+                    <span class="badge" style="background:${t.color}; color:#fff; padding:3px 8px; border-radius:6px; font-size:0.7rem; margin-bottom:4px; margin-right:4px; font-weight:800; text-transform:uppercase;">
                         ${t.name} <span onclick="event.stopPropagation(); removeTag(${t.id})" style="margin-left:4px; cursor:pointer; opacity:0.8; font-weight:900;">✕</span>
                     </span>
                 `).join('');
