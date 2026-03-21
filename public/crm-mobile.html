@@ -2082,7 +2082,7 @@
             const container = document.getElementById('dashCustomTags');
             if(!container) return;
             container.innerHTML = sellerTags.map(t => `
-                <button class="stage-tag" style="background:${t.color}; border:none; opacity:0.8; padding:6px 2px; height:auto; min-height:24px; font-size:0.6rem; margin-bottom:2px;" onclick="filterByTag('${t.name}')">
+                <button class="stage-tag" style="background:${t.color}; color:#fff; border:none; opacity:1; padding:6px 2px; height:auto; min-height:24px; font-size:0.6rem; margin-bottom:2px; font-weight:700;" onclick="filterByTag('${t.name}')">
                     ${t.name}
                 </button>
             `).join('');
@@ -2150,8 +2150,8 @@
                 const res = await fetch(`/.netlify/functions/crm-tags?action=get_client_tags&client_id=${clientId}`);
                 const tags = await res.json();
                 container.innerHTML = tags.map(t => `
-                    <span class="badge" style="background:${t.color}; padding:4px 8px; border-radius:8px; font-size:0.75rem; margin-bottom:4px;">
-                        ${t.name} <span onclick="event.stopPropagation(); removeTag(${t.id})" style="margin-left:4px; cursor:pointer; opacity:0.6;">✕</span>
+                    <span class="badge" style="background:${t.color}; color:#fff; padding:4px 8px; border-radius:8px; font-size:0.75rem; margin-bottom:4px; font-weight:700;">
+                        ${t.name} <span onclick="event.stopPropagation(); removeTag(${t.id})" style="margin-left:4px; cursor:pointer; opacity:0.8; font-weight:800;">✕</span>
                     </span>
                 `).join('');
             } catch(e) { container.innerHTML = ''; }
