@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 29; // Bumped to 29: add address, lat, long to clients
+const SCHEMA_VERSION = 30; // Bumped to 30: add crm_tags and crm_client_tags
 
 export async function ensureSchema() {
 	// If already ensured in this instance, skip immediately
@@ -630,6 +630,24 @@ export async function ensureSchema() {
 			await sql`CREATE INDEX IF NOT EXISTS idx_crm_comm_product ON crm_product_commissions(product_name)`;
 			await sql`CREATE INDEX IF NOT EXISTS idx_crm_comm_seller ON crm_product_commissions(seller_id)`;
 			await sql`CREATE INDEX IF NOT EXISTS idx_crm_comm_dates ON crm_product_commissions(valid_from, valid_to)`;
+			
+			// Custom Client Tags
+			await sql`CREATE TABLE IF NOT EXISTS crm_tags (
+				id SERIAL PRIMARY KEY,
+				seller_id INTEGER NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
+				name VARCHAR(100) NOT NULL,
+				color VARCHAR(20) DEFAULT '#818cf8',
+				created_at TIMESTAMPTZ DEFAULT now(),
+				UNIQUE(seller_id, name)
+			)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_crm_tags_seller ON crm_tags(seller_id)`;
+
+			await sql`CREATE TABLE IF NOT EXISTS crm_client_tags (
+				client_id INTEGER NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+				tag_id INTEGER NOT NULL REFERENCES crm_tags(id) ON DELETE CASCADE,
+				assigned_at TIMESTAMPTZ DEFAULT now(),
+				PRIMARY KEY (client_id, tag_id)
+			)`;
 
 			if (currentVersion >= SCHEMA_VERSION) { schemaEnsured = true; return; }
 			// Basic users table for authentication
