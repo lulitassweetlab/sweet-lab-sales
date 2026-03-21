@@ -36,7 +36,13 @@ export async function handler(event) {
                         COUNT(s.id) as total_orders,
                         COALESCE(SUM(s.total_cents), 0) as lifetime_value_cents,
                         MAX(s.created_at) as last_purchase_date,
-                        COALESCE(SUM(CASE WHEN s.pay_method IS NULL OR s.pay_method = '' OR s.pay_method = '-' OR s.pay_method = 'entregado' THEN s.total_cents ELSE 0 END), 0) as total_debt_cents
+                        COALESCE(SUM(CASE WHEN s.pay_method IS NULL OR s.pay_method = '' OR s.pay_method = '-' OR s.pay_method = 'entregado' THEN s.total_cents ELSE 0 END), 0) as total_debt_cents,
+                        (
+                            SELECT json_agg(json_build_object('id', t.id, 'name', t.name, 'color', t.color))
+                            FROM crm_client_tags ct
+                            JOIN crm_tags t ON ct.tag_id = t.id
+                            WHERE ct.client_id = c.id
+                        ) as custom_tags
                     FROM clients c
                     LEFT JOIN crm_client_sales cs ON c.id = cs.client_id
                     LEFT JOIN sales s ON cs.sale_id = s.id
@@ -94,14 +100,20 @@ export async function handler(event) {
                     COUNT(s.id) as total_orders,
                     COALESCE(SUM(s.total_cents), 0) as lifetime_value_cents,
                     MAX(s.created_at) as last_purchase_date,
-                    COALESCE(SUM(CASE WHEN s.pay_method IS NULL OR s.pay_method = '' OR s.pay_method = '-' OR s.pay_method = 'entregado' THEN s.total_cents ELSE 0 END), 0) as total_debt_cents
+                    COALESCE(SUM(CASE WHEN s.pay_method IS NULL OR s.pay_method = '' OR s.pay_method = '-' OR s.pay_method = 'entregado' THEN s.total_cents ELSE 0 END), 0) as total_debt_cents,
+                    (
+                        SELECT json_agg(json_build_object('id', t.id, 'name', t.name, 'color', t.color))
+                        FROM crm_client_tags ct
+                        JOIN crm_tags t ON ct.tag_id = t.id
+                        WHERE ct.client_id = c.id
+                    ) as custom_tags
                 FROM clients c
                 LEFT JOIN crm_client_sales cs ON c.id = cs.client_id
                 LEFT JOIN sales s ON cs.sale_id = s.id
                 LEFT JOIN crm_client_stage cst ON c.id = cst.client_id
                 LEFT JOIN crm_stages st ON cst.stage_id = st.id
                 WHERE c.seller_id = ${sellerId}
-                GROUP BY c.id, c.name, c.whatsapp, st.name, st.color
+                GROUP BY c.id, c.name, c.whatsapp, st.name, st.color, st.id
                 ORDER BY MAX(s.created_at) DESC NULLS LAST, c.name ASC
             `;
             return json(directory);
