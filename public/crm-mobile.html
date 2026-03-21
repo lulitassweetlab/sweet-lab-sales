@@ -1331,7 +1331,7 @@
                 });
                 await loadProfile(currentProfileId);
             } catch(e) {
-                alert('Error al mover etapa.');
+                console.error('Error al mover etapa.', e);
             } finally {
                 const container = document.getElementById('profStageTags');
                 if (container) {
@@ -1495,7 +1495,7 @@
 
         function captureGPSCoords(event) {
             if (!navigator.geolocation) {
-                alert('GPS no soportado en este navegador.');
+                console.error('GPS no soportado');
                 return;
             }
 
@@ -1528,7 +1528,7 @@
 
             }, (err) => {
                 console.error(err);
-                alert('No se pudo obtener la ubicación.');
+                console.error('Error localización');
                 btn.innerHTML = originalText;
                 btn.disabled = false;
             }, { enableHighAccuracy: true });
@@ -2126,7 +2126,7 @@
                 navTo('dashboard');
                 loadFullDirectoryInline();
             } catch(e) {
-                alert('Error al eliminar el cliente.');
+                console.error('Error al eliminar el cliente.');
             }
         }
 
@@ -2210,7 +2210,7 @@
                     closePopovers();
                     await loadSellerTags();
                 }
-            } catch(e) { alert('Error al crear etiqueta'); }
+            } catch(e) { console.error('Error al crear etiqueta', e); }
         }
 
         async function loadClientTags(clientId) {
@@ -2262,7 +2262,7 @@
                 });
                 closePopovers();
                 await loadClientTags(currentProfileId);
-            } catch(e) { alert('Error al asignar etiqueta'); }
+            } catch(e) { console.error('Error al asignar etiqueta', e); }
         }
 
         async function removeTag(tagId) {
@@ -2274,7 +2274,7 @@
                     body: JSON.stringify({ action: 'remove_tag', client_id: currentProfileId, tag_id: tagId })
                 });
                 await loadClientTags(currentProfileId);
-            } catch(e) { alert('Error al quitar etiqueta'); }
+            } catch(e) { console.error('Error al quitar etiqueta', e); }
         }
 
         // ── BULK MODE LOGIC ───────────────────────────────────────────────────
@@ -2325,7 +2325,7 @@
             loadDashboard(); // Return to standard dashboard
         }
 
-        async function toggleBulkAction(clientId, cardEl) {
+        async function toggleBulkAction(clientIdParam, cardEl) {
             if(!window.isBulkMode) return;
             
             // Visual pulse
@@ -2333,9 +2333,12 @@
             setTimeout(() => cardEl.style.transform = 'none', 100);
 
             try {
+                const clientId = Number(clientIdParam);
+                const hasTag = window.bulkModeActiveClients.has(clientId);
+
                 if(window.bulkTagType === 'stage') {
-                    // Update Pipeline Stage
-                    await fetch('/api/crm-stages', {
+                    // Move to Stage
+                    await fetch(`/.netlify/functions/crm-stages`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ action: 'update_stage', client_id: clientId, stage_id: window.bulkTagId, seller_id: currentSellerId })
@@ -2343,7 +2346,6 @@
                     showToast(`Cliente movido a ${window.bulkTagName}`);
                 } else {
                     // Toggle Custom Tag
-                    // Check if already has it (optimistic check)
                     const action = hasTag ? 'remove_tag' : 'assign_tag';
                     await fetch('/.netlify/functions/crm-tags', {
                         method: 'POST',
@@ -2352,16 +2354,16 @@
                     });
 
                     // Update local state for visual toggle
-                    if(hasTag) window.bulkModeActiveClients.delete(Number(clientId));
-                    else window.bulkModeActiveClients.add(Number(clientId));
+                    if(hasTag) window.bulkModeActiveClients.delete(clientId);
+                    else window.bulkModeActiveClients.add(clientId);
                     
                     showToast(hasTag ? 'Etiqueta quitada' : 'Etiqueta asignada');
                 }
                 
                 // Real-time Visual Update
                 const updatedHasTag = window.bulkTagType === 'stage' 
-                    ? true // Stages migration is always one-way in this toggle for now (or move to)
-                    : window.bulkModeActiveClients.has(Number(clientId));
+                    ? true // Stages migration is always one-way in this toggle for now
+                    : window.bulkModeActiveClients.has(clientId);
                 
                 cardEl.style.background = updatedHasTag ? 'rgba(16, 185, 129, 0.1)' : 'transparent';
                 cardEl.style.borderColor = updatedHasTag ? 'rgba(16, 185, 129, 0.4)' : 'transparent';
