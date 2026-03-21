@@ -52,6 +52,35 @@ export async function handler(event) {
                 return json(clients.map(c => c.client_id));
             }
 
+            if (action === 'get_clients_by_tag') {
+                const tagId = Number(params.get('tag_id'));
+                if (!tagId) return json({ error: 'Falta tag_id' }, 400);
+                const clients = await sql`
+                    SELECT 
+                        c.id, c.name, c.whatsapp,
+                        st.name as stage_name, st.color as stage_color, st.id as stage_id,
+                        COUNT(s.id) as total_orders,
+                        COALESCE(SUM(s.total_cents), 0) as lifetime_value_cents,
+                        COALESCE(SUM(CASE WHEN s.pay_method IS NULL OR s.pay_method = '' OR s.pay_method = '-' OR s.pay_method = 'entregado' THEN s.total_cents ELSE 0 END), 0) as total_debt_cents,
+                        (
+                            SELECT json_agg(json_build_object('id', t2.id, 'name', t2.name, 'color', t2.color))
+                            FROM crm_client_tags ct2
+                            JOIN crm_tags t2 ON ct2.tag_id = t2.id
+                            WHERE ct2.client_id = c.id
+                        ) as custom_tags
+                    FROM clients c
+                    JOIN crm_client_tags ct ON c.id = ct.client_id
+                    LEFT JOIN crm_client_sales cs ON c.id = cs.client_id
+                    LEFT JOIN sales s ON cs.sale_id = s.id
+                    LEFT JOIN crm_client_stage cst ON c.id = cst.client_id
+                    LEFT JOIN crm_stages st ON cst.stage_id = st.id
+                    WHERE ct.tag_id = ${tagId}
+                    GROUP BY c.id, c.name, c.whatsapp, st.name, st.color, st.id
+                    ORDER BY c.name ASC
+                `;
+                return json(clients);
+            }
+
             return json({ error: 'Acción GET no válida' }, 400);
         }
 

@@ -599,6 +599,8 @@
             window.longPressTimer = null;
             window.bulkTagColor = '';
             window.bulkModeActiveClients = new Set();
+            window.dashStageParams = null;
+            window.dashTagParams = null;
 
             const savedSeller = localStorage.getItem('storeActiveSeller');
             if (savedSeller) {
@@ -679,7 +681,10 @@
 
             // 3. History API Integration
             if (!isPopstate) {
-                const state = { screenId, params: (screenId === 'dashStage' ? params : null) };
+                const state = { 
+                    screenId, 
+                    params: (['dashStage', 'dashTag'].includes(screenId) ? params : null) 
+                };
                 history.pushState(state, '', '#' + screenId);
             }
 
@@ -687,7 +692,7 @@
             document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
             
             // Sub-dashboard views all point to 'screen-dashboard'
-            const isDashSub = ['dashboard', 'dashSearch', 'dashDebt', 'dashStage'].includes(screenId);
+            const isDashSub = ['dashboard', 'dashSearch', 'dashDebt', 'dashStage', 'dashTag'].includes(screenId);
             const targetId = isDashSub ? 'screen-dashboard' : `screen-${screenId}`;
             const targetEl = document.getElementById(targetId);
             if (targetEl) targetEl.classList.add('active');
@@ -695,7 +700,10 @@
 
             // 5. Update State
             currentScreen = screenId;
-            if (params) dashStageParams = params;
+            if (params) {
+                if(screenId === 'dashStage') dashStageParams = params;
+                if(screenId === 'dashTag') dashTagParams = params;
+            }
 
             // 6. Restore scroll key or reset
             if (screenId === 'profile') {
@@ -712,6 +720,9 @@
             if (screenId === 'dashDebt') loadDebtClients(true);
             if (screenId === 'dashStage' && dashStageParams) {
                 openStageClients(dashStageParams.id, dashStageParams.name, dashStageParams.color, true);
+            }
+            if (screenId === 'dashTag' && dashTagParams) {
+                openTagClients(dashTagParams.id, dashTagParams.name, dashTagParams.color, true);
             }
         }
 
@@ -930,6 +941,31 @@
         }
 
 
+        async function openTagClients(tagId, tagName, tagColor, shouldRestore = false) {
+            const title = document.getElementById('dashContentTitle');
+            const listEl = document.getElementById('dashContactList');
+            document.getElementById('dashSearchContainer').style.display = 'none';
+
+            title.innerHTML = `<span style="display:inline-block; width:12px; height:12px; border-radius:3px; background:${tagColor}; margin-right:8px;"></span> ${tagName}`;
+            listEl.innerHTML = '<div class="spinner">Cargando clientes...</div>';
+
+            try {
+                const res = await fetch(`/.netlify/functions/crm-tags?action=get_clients_by_tag&tag_id=${tagId}`);
+                const clients = await res.json();
+                if (!Array.isArray(clients) || clients.length === 0) {
+                    listEl.innerHTML = '<p style="text-align:center; padding:24px; color:var(--text-muted);">No hay clientes con esta etiqueta.</p>';
+                    return;
+                }
+                listEl.innerHTML = clients.map(c => renderClientCardHtml(c)).join('');
+                if (shouldRestore) restoreScroll('dashTag');
+            } catch(e) {
+                listEl.innerHTML = '<p style="color:var(--danger); text-align:center; padding:20px;">Error cargando clientes.</p>';
+            }
+        }
+
+        function filterByTag(id, name, color) {
+            navTo('dashTag', {id, name, color});
+        }
         function buildDashCard(badgeText, mainText, badgeClass, clientId, actionHtml) {
             // If clientId is provided, the whole card is clickable and shows a pointer cursor
             const cardClick = clientId ? `onclick="loadProfile(${clientId})" style="display:flex; justify-content:space-between; align-items:center; padding: 14px; margin-bottom:10px; cursor:pointer;" ` 
@@ -1275,7 +1311,7 @@
         }
 
         async function changeProfileStage(newStageId) {
-            if(!currentProfileId || !newStageId) return;
+            if(!currentProfileId) return;
             
             try {
                 // Instant Visual feedback
@@ -2113,7 +2149,7 @@
                 const escapedName = t.name.replace(/'/g,"\\'");
                 return `
                 <button class="stage-tag" 
-                    onclick="if(!window.isBulkMode) filterByTag('${escapedName}')"
+                    onclick="if(!window.isBulkMode) filterByTag(${t.id}, '${escapedName}', '${t.color}')"
                     onmousedown="startTagLongPress(event, ${t.id}, '${escapedName}', 'custom', '${t.color}')" 
                     onmouseup="endTagLongPress()" 
                     onmouseleave="endTagLongPress()"
@@ -2125,10 +2161,7 @@
             `;}).join('');
         }
 
-        async function filterByTag(tagName) {
-            // Future filtering logic
-            alert('Filtrando por: ' + tagName);
-        }
+        // Function filterByTag moved up for consistency
 
         function openCreateTagPopover(e) {
             if(e) e.stopPropagation();
