@@ -183,9 +183,17 @@
                 <!-- LEFT SIDEBAR: Pipeline Tags (Narrowed) -->
                 <div style="width: 85px; flex-shrink: 0;" class="dash-sidebar">
                     <div style="font-size:0.65rem; font-weight:700; color:var(--text-muted); margin-bottom:10px; text-transform:uppercase; letter-spacing:0.05em;">Pipeline</div>
-                    <div id="dashStageTags" style="display:flex; flex-direction:column; gap:4px;">
+                    <div id="dashStageTags" style="display:flex; flex-direction:column; gap:4px; margin-bottom: 20px;">
                         <div class="spinner" style="padding:10px 0; font-size:0.8rem;">...</div>
                     </div>
+
+                    <div style="font-size:0.65rem; font-weight:700; color:var(--text-muted); margin-bottom:10px; text-transform:uppercase; letter-spacing:0.05em; border-top:1px solid var(--border); padding-top:12px;">Etiquetas</div>
+                    <div id="dashCustomTags" style="display:flex; flex-direction:column; gap:4px; margin-bottom:8px;"></div>
+                    <button onclick="openCreateTagPopover(event)" 
+                        style="width:100%; padding:8px; border-radius:8px; border:1px dashed var(--border); background:var(--surface); color:var(--text-muted); font-size:0.7rem; font-weight:600; cursor:pointer; transition:all 0.2s;"
+                        onmouseover="this.style.borderColor='var(--primary)'; this.style.color='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'; this.style.color='var(--text-muted)'">
+                        + Nueva
+                    </button>
                 </div>
 
                 <!-- RIGHT CONTENT: Contact List -->
@@ -242,6 +250,10 @@
                             <div id="profileBadges" style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-top: 4px;">
                                 <!-- Stage and Debt Tags -->
                             </div>
+                            <!-- Custom Tags Container -->
+                            <div id="profileCustomTags" style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-top: 4px;"></div>
+                            <button onclick="openTagSelectionPopover(event)" 
+                                style="background:var(--bg); border:1px dashed var(--border); color:var(--text-muted); font-size:0.7rem; font-weight:700; padding:2px 8px; border-radius:12px; cursor:pointer; margin-top:4px;">+ añadir etiqueta</button>
                         </div>
                         
                         <!-- ROW 2: Contact Info (Phone & Birth) -->
@@ -447,20 +459,24 @@
             <!-- Ingresar -->
             <div onclick="startAddressEdit()" style="display:flex; align-items:center; gap:10px; padding:12px 16px; cursor:pointer; color:var(--text-main); font-weight:700; font-size:0.9rem; border-bottom: 1px solid var(--border); transition:background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
                 <span style="font-size: 1.2rem;">✏️</span> Ingresar
-            </div>
-            <!-- Google Maps -->
-            <div id="locGoogle" style="display: flex; align-items: center; gap: 10px; padding: 12px 16px; cursor:pointer; color: var(--text-main); font-weight: 700; font-size: 0.9rem; border-bottom: 1px solid var(--border); transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
-                <span style="font-size: 1.2rem;">🌍</span> Google Maps
-            </div>
-            <!-- Waze -->
-            <div id="locWaze" style="display:flex; align-items:center; gap:10px; padding:12px 16px; cursor:pointer; color:var(--text-main); font-weight:700; font-size:0.9rem; border-bottom: 1px solid var(--border); transition:background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
-                <span style="font-size: 1.2rem;">🚙</span> Waze
-            </div>
-            <!-- Señalar en mapa -->
-            <div onclick="openMapPicker()" style="display:flex; align-items:center; gap:10px; padding:12px 16px; cursor:pointer; color:var(--text-main); font-weight:700; font-size:0.9rem; transition:background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
-                <span style="font-size: 1.2rem;">📍</span> Señalar en mapa
-            </div>
+    <!-- TAG POPOVERS -->
+    <div id="popoverCreateTag" style="display:none; position:fixed; z-index:300; background:var(--surface); border-radius:14px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); border: 1px solid var(--border); overflow: hidden; width: 200px; padding:12px; animation: popIn 0.2s ease;">
+        <div style="font-size:0.75rem; font-weight:800; color:var(--text-muted); text-transform:uppercase; margin-bottom:10px;">Nueva Etiqueta</div>
+        <input type="text" id="newTagName" placeholder="Ej: Mayorista" style="width:100%; padding:8px; border-radius:8px; border:1.5px solid var(--border); font-size:0.85rem; margin-bottom:10px; background:var(--bg); color:var(--text-main); outline:none; box-sizing:border-box;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:12px;">
+            <div onclick="setNewTagColor('#818cf8', this)" style="width:18px; height:18px; border-radius:50%; background:#818cf8; cursor:pointer; border:2px solid #fff; box-shadow:0 0 0 1px #818cf8;"></div>
+            <div onclick="setNewTagColor('#f43f5e', this)" style="width:18px; height:18px; border-radius:50%; background:#f43f5e; cursor:pointer; border:2px solid transparent;"></div>
+            <div onclick="setNewTagColor('#fbbf24', this)" style="width:18px; height:18px; border-radius:50%; background:#fbbf24; cursor:pointer; border:2px solid transparent;"></div>
+            <div onclick="setNewTagColor('#10b981', this)" style="width:18px; height:18px; border-radius:50%; background:#10b981; cursor:pointer; border:2px solid transparent;"></div>
+            <div onclick="setNewTagColor('#a855f7', this)" style="width:18px; height:18px; border-radius:50%; background:#a855f7; cursor:pointer; border:2px solid transparent;"></div>
         </div>
+        <button onclick="saveNewTag()" style="width:100%; padding:8px; border-radius:8px; border:none; background:var(--primary); color:#fff; font-weight:700; font-size:0.8rem; cursor:pointer;">Crear</button>
+    </div>
+
+    <div id="popoverTagAssign" style="display:none; position:fixed; z-index:300; background:var(--surface); border-radius:14px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); border: 1px solid var(--border); overflow: hidden; width: 180px; padding:12px; animation: popIn 0.2s ease;">
+        <div style="font-size:0.75rem; font-weight:800; color:var(--text-muted); text-transform:uppercase; margin-bottom:10px;">Asignar Etiqueta</div>
+        <div id="assignTagList" style="display:flex; flex-direction:column; gap:4px; max-height:200px; overflow-y:auto; margin-bottom:8px;"></div>
+        <div id="assignTagEmpty" style="display:none; font-size:0.7rem; color:var(--text-muted); text-align:center; padding:10px 0;">No tienes etiquetas creadas. Cr éalas en el Dashboard.</div>
     </div>
 
     <!-- MAP PICKER MODAL (Solid Background Fix) -->
@@ -736,6 +752,7 @@
         // LOAD DASHBOARD
         async function loadDashboard(shouldRestore = false) {
             const url = `/.netlify/functions/crm-dashboard?seller_id=${currentSellerId}`;
+            loadSellerTags(); // Background load of seller custom tags
             fetchWithCache('dashboard', url, (data, isFromCache) => {
                 document.getElementById('dashTotalClients').innerText = data.stats.total_clients;
                 document.getElementById('dashTotalDebt').innerText = formatMoney(data.stats.total_debt_cents);
@@ -956,6 +973,7 @@
             if (!id) return;
             currentProfileId = id;
             navTo('profile'); // Show modal
+            loadClientTags(id); // Load custom tags in background
 
             const cacheKey = CACHE_PREFIX + 'profile_' + id;
             const cached = localStorage.getItem(cacheKey);
@@ -2041,6 +2059,144 @@
             } catch(e) {
                 alert('Error al eliminar el cliente.');
             }
+        }
+
+        // ── CUSTOM TAGS ─────────────────────────────────────────────────────────
+        let sellerTags = [];
+        let newTagColor = '#818cf8';
+
+        async function loadSellerTags() {
+            try {
+                const res = await fetch(`/.netlify/functions/crm-tags?action=get_seller_tags&seller_id=${currentSellerId}`);
+                sellerTags = await res.json();
+                renderDashTags();
+            } catch(e) { console.error('Error loading tags', e); }
+        }
+
+        function renderDashTags() {
+            const container = document.getElementById('dashCustomTags');
+            if(!container) return;
+            container.innerHTML = sellerTags.map(t => `
+                <button class="stage-tag" style="background:${t.color}; border:none; opacity:0.8; padding:6px 2px; height:auto; min-height:24px; font-size:0.6rem; margin-bottom:2px;" onclick="filterByTag('${t.name}')">
+                    ${t.name}
+                </button>
+            `).join('');
+        }
+
+        async function filterByTag(tagName) {
+            // Future filtering logic
+            alert('Filtrando por: ' + tagName);
+        }
+
+        function openCreateTagPopover(e) {
+            e.stopPropagation();
+            const pop = document.getElementById('popoverCreateTag');
+            const rect = e.target.getBoundingClientRect();
+            pop.style.top = (rect.bottom + window.scrollY + 5) + 'px';
+            pop.style.left = rect.left + 'px';
+            pop.style.display = 'block';
+            document.getElementById('newTagName').focus();
+            
+            const close = () => { pop.style.display='none'; document.removeEventListener('click', close); };
+            setTimeout(() => document.addEventListener('click', close), 10);
+            pop.onclick = (ev) => ev.stopPropagation();
+        }
+
+        function setNewTagColor(hex, el) {
+            newTagColor = hex;
+            el.parentElement.querySelectorAll('div').forEach(d => {
+                d.style.borderColor = 'transparent';
+                d.style.boxShadow = 'none';
+            });
+            el.style.borderColor = '#fff';
+            el.style.boxShadow = `0 0 0 1px ${hex}`;
+        }
+
+        async function saveNewTag() {
+            const name = document.getElementById('newTagName').value.trim();
+            if(!name) return;
+            try {
+                const res = await fetch('/.netlify/functions/crm-tags', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'create_tag', seller_id: currentSellerId, name, color: newTagColor })
+                });
+                const data = await res.json();
+                if(data.success) {
+                    document.getElementById('newTagName').value = '';
+                    document.getElementById('popoverCreateTag').style.display = 'none';
+                    await loadSellerTags();
+                }
+            } catch(e) { alert('Error al crear etiqueta'); }
+        }
+
+        async function loadClientTags(clientId) {
+            const container = document.getElementById('profileCustomTags');
+            container.innerHTML = '<div class="spinner" style="font-size:0.6rem;">...</div>';
+            try {
+                const res = await fetch(`/.netlify/functions/crm-tags?action=get_client_tags&client_id=${clientId}`);
+                const tags = await res.json();
+                container.innerHTML = tags.map(t => `
+                    <span class="badge" style="background:${t.color}; padding:4px 8px; border-radius:8px; font-size:0.75rem; margin-bottom:4px;">
+                        ${t.name} <span onclick="event.stopPropagation(); removeTag(${t.id})" style="margin-left:4px; cursor:pointer; opacity:0.6;">✕</span>
+                    </span>
+                `).join('');
+            } catch(e) { container.innerHTML = ''; }
+        }
+
+        function openTagSelectionPopover(e) {
+            e.stopPropagation();
+            const pop = document.getElementById('popoverTagAssign');
+            const rect = e.target.getBoundingClientRect();
+            pop.style.left = 'unset';
+            pop.style.right = '10px';
+            pop.style.top = (rect.bottom + window.scrollY + 5) + 'px';
+            
+            const list = document.getElementById('assignTagList');
+            const empty = document.getElementById('assignTagEmpty');
+            
+            if(sellerTags.length === 0) {
+                list.style.display = 'none';
+                empty.style.display = 'block';
+            } else {
+                list.style.display = 'flex';
+                empty.style.display = 'none';
+                list.innerHTML = sellerTags.map(t => `
+                    <div onclick="assignTag(${t.id})" style="padding:8px; border-radius:8px; background:var(--bg); cursor:pointer; font-size:0.8rem; font-weight:600; display:flex; align-items:center; gap:8px;">
+                        <div style="width:10px; height:10px; border-radius:50%; background:${t.color}"></div>
+                        ${t.name}
+                    </div>
+                `).join('');
+            }
+            
+            pop.style.display = 'block';
+            const close = () => { if(pop.style.display==='block'){ pop.style.display='none'; document.removeEventListener('click', close); } };
+            setTimeout(() => document.addEventListener('click', close), 10);
+            pop.onclick = (ev) => ev.stopPropagation();
+        }
+
+        async function assignTag(tagId) {
+            try {
+                await fetch('/.netlify/functions/crm-tags', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'assign_tag', client_id: currentProfileId, tag_id: tagId })
+                });
+                document.getElementById('popoverTagAssign').style.display = 'none';
+                await loadClientTags(currentProfileId);
+            } catch(e) { alert('Error al asignar etiqueta'); }
+        }
+
+        async function removeTag(tagId) {
+            if(!confirm('¿Quitar esta etiqueta del cliente?')) return;
+            try {
+                await fetch('/.netlify/functions/crm-tags', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'remove_tag', client_id: currentProfileId, tag_id: tagId })
+                });
+                await loadClientTags(currentProfileId);
+            } catch(e) { alert('Error al quitar etiqueta'); }
         }
 
     </script>
