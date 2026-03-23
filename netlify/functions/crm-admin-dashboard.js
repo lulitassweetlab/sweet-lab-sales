@@ -103,7 +103,7 @@ export async function handler(event) {
             LEFT JOIN sale_days sd ON s.sale_day_id = sd.id AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd}
             LEFT JOIN seller_commissions sc ON sc.seller_id = sl.id
             WHERE (${!filterSellers}::boolean OR sl.id = ANY(${sellerIds}::int[]))
-            GROUP BY sl.id, sl.name, sc.total_commission
+            GROUP BY sl.id, sl.name, sc.total_commission, sc.total_desserts
             ORDER BY total_cents DESC;
         `;
 
