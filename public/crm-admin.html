@@ -153,6 +153,24 @@
                 <button class="btn btn-primary" id="btn-month" onclick="setDateFilter('month')">Este mes</button>
                 <button class="btn" id="btn-custom" onclick="setDateFilter('custom')">Personalizado</button>
             </div>
+            
+            <div style="position: relative;">
+                <button class="btn" style="background: white; border-color: var(--border);" onclick="toggleSellerSelect()">
+                    👥 Vendedores: <span id="seller-btn-text" style="font-weight:700;">Todos</span>
+                </button>
+                <div id="seller-dropdown" style="display:none; position:absolute; top:100%; left:0; margin-top:5px; background:white; border:1px solid var(--border); border-radius:8px; padding:10px; box-shadow:var(--shadow); z-index:100; min-width:200px; max-height: 300px; overflow-y: auto;">
+                    <div style="margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid var(--border);">
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:bold;">
+                            <input type="checkbox" id="seller-all" checked onchange="toggleAllSellers(this)"> Todos
+                        </label>
+                    </div>
+                    <div id="seller-list" style="display:flex; flex-direction:column; gap:6px;">
+                        <span style="color:var(--text-muted); font-size:0.8rem;">Cargando...</span>
+                    </div>
+                    <button class="btn btn-primary" style="width:100%; margin-top:10px; padding:6px; font-size:0.9rem;" onclick="applySellerFilter()">Aplicar Filtro</button>
+                    <button class="btn" style="width:100%; margin-top:6px; padding:6px; font-size:0.9rem; text-align:center;" onclick="toggleSellerSelect()">Cerrar</button>
+                </div>
+            </div>
             <div id="customDateRange" style="display: none; align-items: center; gap: 8px;">
                 <input type="date" id="dateStart" class="btn" style="background: white;">
                 <span>a</span>
@@ -423,7 +441,74 @@
 
         const fmtMoney = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
 
-        document.addEventListener('DOMContentLoaded', loadDashboard);
+        document.addEventListener('DOMContentLoaded', () => {
+            initSellersFilter();
+            loadDashboard();
+        });
+
+        let allSellersData = [];
+
+        async function initSellersFilter() {
+            try {
+                const res = await fetch('/.netlify/functions/get-sellers');
+                allSellersData = await res.json();
+                const list = document.getElementById('seller-list');
+                list.innerHTML = '';
+                allSellersData.forEach(s => {
+                    list.innerHTML += `
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.95rem;">
+                            <input type="checkbox" value="${s.id}" class="seller-checkbox" onchange="handleSingleSellerCheck()"> 
+                            <span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:${s.bill_color || '#ccc'}"></span>
+                            ${s.name}
+                        </label>
+                    `;
+                });
+            } catch (e) {
+                document.getElementById('seller-list').innerHTML = '<span style="color:red;font-size:0.8rem;">Error loading</span>';
+            }
+        }
+
+        function toggleSellerSelect() {
+            const el = document.getElementById('seller-dropdown');
+            el.style.display = el.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function toggleAllSellers(checkbox) {
+            const boxes = document.querySelectorAll('.seller-checkbox');
+            boxes.forEach(b => {
+                b.checked = false;
+            });
+            updateSellerBtnText();
+        }
+
+        function handleSingleSellerCheck() {
+            document.getElementById('seller-all').checked = false;
+            updateSellerBtnText();
+        }
+
+        function updateSellerBtnText() {
+            const allChecked = document.getElementById('seller-all').checked;
+            const boxes = Array.from(document.querySelectorAll('.seller-checkbox'));
+            
+            if (allChecked) {
+                document.getElementById('seller-btn-text').innerText = 'Todos';
+            } else {
+                const checkedBoxes = boxes.filter(b => b.checked);
+                if (checkedBoxes.length === 0) {
+                    document.getElementById('seller-btn-text').innerText = 'Ninguno';
+                } else if (checkedBoxes.length === 1) {
+                    const name = allSellersData.find(s => s.id == checkedBoxes[0].value)?.name;
+                    document.getElementById('seller-btn-text').innerText = name || '1 Selecc.';
+                } else {
+                    document.getElementById('seller-btn-text').innerText = checkedBoxes.length + ' Selecc.';
+                }
+            }
+        }
+
+        function applySellerFilter() {
+            document.getElementById('seller-dropdown').style.display = 'none';
+            loadDashboard();
+        }
 
         function setDateFilter(range) {
             document.getElementById('dateFilter').value = range;
@@ -459,6 +544,19 @@
                     const start = document.getElementById('dateStart').value;
                     const end = document.getElementById('dateEnd').value;
                     if(start && end) qs += `&start=${start}&end=${end}`;
+                }
+
+                // Add seller filter parameter
+                const isAll = document.getElementById('seller-all')?.checked ?? true;
+                if (!isAll) {
+                    const checkedIds = Array.from(document.querySelectorAll('.seller-checkbox'))
+                        .filter(b => b.checked)
+                        .map(b => b.value);
+                    if (checkedIds.length > 0) {
+                        qs += `&sellers=${checkedIds.join(',')}`;
+                    } else {
+                        qs += `&sellers=-1`; // "Ninguno" basically matches non-existent ID
+                    }
                 }
 
                 const res = await fetch(`/.netlify/functions/crm-admin-dashboard${qs}`);

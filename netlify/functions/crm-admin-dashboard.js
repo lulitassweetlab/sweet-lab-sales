@@ -13,6 +13,13 @@ export async function handler(event) {
         // Date Logic processing
         let timeRange = event.queryStringParameters?.time_range || 'month';
         
+        let sellersParam = event.queryStringParameters?.sellers || 'all';
+        let sellerIds = [];
+        if (sellersParam !== 'all') {
+            sellerIds = sellersParam.split(',').map(n => parseInt(n)).filter(n => !isNaN(n));
+        }
+        let filterSellers = sellerIds.length > 0;
+        
         let dtStart = new Date();
         let dtEnd = new Date();
         
@@ -23,9 +30,10 @@ export async function handler(event) {
             dtStart.setHours(0, 0, 0, 0);
             dtEnd.setHours(23, 59, 59, 999);
         } else if (timeRange === 'week') {
-            const day = dtStart.getDay() || 7; // Sunday is 0 -> 7
-            if (day !== 1) dtStart.setHours(-24 * (day - 1));
+            const day = dtStart.getDay() || 7; // Monday is 1, Sunday is 7
+            dtStart.setDate(dtStart.getDate() - (day - 1));
             dtStart.setHours(0, 0, 0, 0);
+            dtEnd.setDate(dtStart.getDate() + 6);
             dtEnd.setHours(23, 59, 59, 999);
         } else {
             // month (default)
@@ -37,10 +45,10 @@ export async function handler(event) {
         // 1. General Stats (Total Selected Period and Total Today)
         const [generalStats] = await sql`
             SELECT 
-                COUNT(s.id) FILTER (WHERE sd.day = CURRENT_DATE) as sales_today_count,
-                COALESCE(SUM(s.total_cents) FILTER (WHERE sd.day = CURRENT_DATE), 0) as sales_today_cents,
-                COALESCE(SUM(s.total_cents) FILTER (WHERE sd.day >= ${dtStart} AND sd.day <= ${dtEnd}), 0) as sales_month_cents,
-                (SELECT COUNT(DISTINCT client_id) FROM crm_client_sales) as active_clients_count
+                COUNT(s.id) FILTER (WHERE sd.day = CURRENT_DATE AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))) as sales_today_count,
+                COALESCE(SUM(s.total_cents) FILTER (WHERE sd.day = CURRENT_DATE AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))), 0) as sales_today_cents,
+                COALESCE(SUM(s.total_cents) FILTER (WHERE sd.day >= ${dtStart} AND sd.day <= ${dtEnd} AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))), 0) as sales_month_cents,
+                (SELECT COUNT(DISTINCT client_id) FROM crm_client_sales WHERE ${!filterSellers}::boolean OR seller_id = ANY(${sellerIds}::int[])) as active_clients_count
             FROM sales s
             LEFT JOIN sale_days sd ON sd.id = s.sale_day_id;
         `;
@@ -49,12 +57,12 @@ export async function handler(event) {
         // Combine sales joined with sellers, plus subqueries for activities
         const sellerStats = await sql`
             WITH unpivoted_sales AS (
-                SELECT s.id as sale_id, s.seller_id, sd.day as sale_date, 'arco' as product_name, s.qty_arco as qty FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_arco > 0 AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd}
-                UNION ALL SELECT s.id, s.seller_id, sd.day, 'melo', s.qty_melo FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_melo > 0 AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd}
-                UNION ALL SELECT s.id, s.seller_id, sd.day, 'mara', s.qty_mara FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_mara > 0 AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd}
-                UNION ALL SELECT s.id, s.seller_id, sd.day, 'oreo', s.qty_oreo FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_oreo > 0 AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd}
-                UNION ALL SELECT s.id, s.seller_id, sd.day, 'nute', s.qty_nute FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_nute > 0 AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd}
-                UNION ALL SELECT s.id, s.seller_id, sd.day, d.short_code, si.quantity FROM sales s JOIN sale_items si ON s.id = si.sale_id JOIN desserts d ON si.dessert_id = d.id JOIN sale_days sd ON s.sale_day_id = sd.id WHERE si.quantity > 0 AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd}
+                SELECT s.id as sale_id, s.seller_id, sd.day as sale_date, 'arco' as product_name, s.qty_arco as qty FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_arco > 0 AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd} AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))
+                UNION ALL SELECT s.id, s.seller_id, sd.day, 'melo', s.qty_melo FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_melo > 0 AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd} AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))
+                UNION ALL SELECT s.id, s.seller_id, sd.day, 'mara', s.qty_mara FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_mara > 0 AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd} AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))
+                UNION ALL SELECT s.id, s.seller_id, sd.day, 'oreo', s.qty_oreo FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_oreo > 0 AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd} AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))
+                UNION ALL SELECT s.id, s.seller_id, sd.day, 'nute', s.qty_nute FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_nute > 0 AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd} AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))
+                UNION ALL SELECT s.id, s.seller_id, sd.day, d.short_code, si.quantity FROM sales s JOIN sale_items si ON s.id = si.sale_id JOIN desserts d ON si.dessert_id = d.id JOIN sale_days sd ON s.sale_day_id = sd.id WHERE si.quantity > 0 AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd} AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))
             ),
             sales_with_commissions AS (
                 SELECT 
@@ -85,9 +93,10 @@ export async function handler(event) {
                 (SELECT COUNT(*) FROM crm_reminders r WHERE r.seller_id = sl.id AND r.created_at >= ${dtStart} AND r.created_at <= ${dtEnd}) as reminders_created,
                 (SELECT COUNT(*) FROM crm_activities a WHERE a.seller_id = sl.id AND a.created_at >= ${dtStart} AND a.created_at <= ${dtEnd}) as notes_created
             FROM sellers sl
-            LEFT JOIN sales s ON s.seller_id = sl.id 
+            LEFT JOIN sales s ON s.seller_id = sl.id AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))
             LEFT JOIN sale_days sd ON s.sale_day_id = sd.id AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd}
             LEFT JOIN seller_commissions sc ON sc.seller_id = sl.id
+            WHERE (${!filterSellers}::boolean OR sl.id = ANY(${sellerIds}::int[]))
             GROUP BY sl.id, sl.name, sc.total_commission
             ORDER BY total_cents DESC;
         `;
@@ -102,6 +111,7 @@ export async function handler(event) {
             FROM clients c
             LEFT JOIN crm_client_sales cs ON c.id = cs.client_id
             LEFT JOIN sales s ON cs.sale_id = s.id
+            WHERE (${!filterSellers}::boolean OR c.seller_id = ANY(${sellerIds}::int[]))
             GROUP BY c.id, c.name, c.created_at
         `;
 
@@ -140,12 +150,12 @@ export async function handler(event) {
         // 4. Product Metrics (from legacy columns + dynamic sale_items)
         const productMetrics = await sql`
             WITH all_products AS (
-                SELECT 'arco' as name, s.qty_arco as qty, sd.day as date FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_arco > 0 AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd}
-                UNION ALL SELECT 'melo', s.qty_melo, sd.day FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_melo > 0 AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd}
-                UNION ALL SELECT 'mara', s.qty_mara, sd.day FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_mara > 0 AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd}
-                UNION ALL SELECT 'oreo', s.qty_oreo, sd.day FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_oreo > 0 AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd}
-                UNION ALL SELECT 'nute', s.qty_nute, sd.day FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_nute > 0 AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd}
-                UNION ALL SELECT d.short_code, si.quantity, sd.day FROM sales s JOIN sale_items si ON s.id = si.sale_id JOIN desserts d ON si.dessert_id = d.id JOIN sale_days sd ON s.sale_day_id = sd.id WHERE si.quantity > 0 AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd}
+                SELECT 'arco' as name, s.qty_arco as qty, sd.day as date FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_arco > 0 AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd} AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))
+                UNION ALL SELECT 'melo', s.qty_melo, sd.day FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_melo > 0 AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd} AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))
+                UNION ALL SELECT 'mara', s.qty_mara, sd.day FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_mara > 0 AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd} AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))
+                UNION ALL SELECT 'oreo', s.qty_oreo, sd.day FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_oreo > 0 AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd} AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))
+                UNION ALL SELECT 'nute', s.qty_nute, sd.day FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_nute > 0 AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd} AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))
+                UNION ALL SELECT d.short_code, si.quantity, sd.day FROM sales s JOIN sale_items si ON s.id = si.sale_id JOIN desserts d ON si.dessert_id = d.id JOIN sale_days sd ON s.sale_day_id = sd.id WHERE si.quantity > 0 AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd} AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))
             )
             SELECT
                 name as short_code,
@@ -159,10 +169,10 @@ export async function handler(event) {
         // 5. CRM Activity
         const [crmActivity] = await sql`
             SELECT 
-                (SELECT COUNT(DISTINCT client_id) FROM crm_activities WHERE created_at >= CURRENT_DATE) as contacted_today,
-                (SELECT COUNT(*) FROM crm_reminders WHERE completed = false) as pending_reminders,
-                (SELECT COUNT(*) FROM crm_activities WHERE created_at >= CURRENT_DATE) as notes_today,
-                (SELECT COUNT(*) FROM crm_prospects WHERE status = 'won') as won_prospects
+                (SELECT COUNT(DISTINCT client_id) FROM crm_activities WHERE created_at >= CURRENT_DATE AND (${!filterSellers}::boolean OR seller_id = ANY(${sellerIds}::int[]))) as contacted_today,
+                (SELECT COUNT(*) FROM crm_reminders WHERE completed = false AND (${!filterSellers}::boolean OR seller_id = ANY(${sellerIds}::int[]))) as pending_reminders,
+                (SELECT COUNT(*) FROM crm_activities WHERE created_at >= CURRENT_DATE AND (${!filterSellers}::boolean OR seller_id = ANY(${sellerIds}::int[]))) as notes_today,
+                (SELECT COUNT(*) FROM crm_prospects WHERE status = 'won' AND (${!filterSellers}::boolean OR seller_id = ANY(${sellerIds}::int[]))) as won_prospects
         `;
 
         return json({
