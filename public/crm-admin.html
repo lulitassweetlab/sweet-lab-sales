@@ -198,10 +198,12 @@
                 <div class="metric-value metric-color-primary" id="valSalesPeriod">-</div>
                 <div class="metric-label" id="valSalesCountPeriod">- tickets emitidos</div>
             </div>
-            <div class="card col-span-4">
-                <div class="card-title">📅 Vendido Hoy (Ref.)</div>
-                <div class="metric-value metric-color-success" id="valSalesToday">-</div>
-                <div class="metric-label">Ventas del día actual para filtros</div>
+            <div class="card col-span-4" style="cursor: pointer; position: relative; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="openDessertChartModal()">
+                <div class="card-title" id="titleDessertsPeriod">🍰 Postres del Periodo</div>
+                <div id="miniDessertChart" style="height: 60px; display: flex; align-items: flex-end; justify-content: space-around; gap: 4px; overflow: hidden; opacity: 0.9;">
+                    <!-- Mini bars -->
+                </div>
+                <div style="text-align: right; margin-top: 8px; font-size: 0.75rem; color: var(--primary); font-weight:700;">Ver detalle 🔍</div>
             </div>
             <div class="card col-span-4">
                 <div class="card-title">👥 Clientes Activos</div>
@@ -269,7 +271,7 @@
 
         <!-- ROW 3: Sellers and Products -->
         <div class="dashboard-grid">
-            <div class="card col-span-8">
+            <div class="card col-span-12">
                 <div class="card-title">🏆 Tabla de Vendedores (Acumulado)</div>
                 <div style="overflow-x: auto;">
                 <table id="tableSellers">
@@ -291,11 +293,17 @@
                 </table>
                 </div>
             </div>
+        </div>
 
-            <div class="card col-span-4">
-                <div class="card-title">🍰 Top Productos Vendidos (Mes)</div>
-                <div id="productChart" style="margin-top: 16px; display: flex; flex-direction: column; gap: 12px;">
-                    <!-- Product bars go here -->
+        <!-- Dessert Chart Modal -->
+        <div id="dessert-chart-modal-backdrop" onclick="if(event.target===this)closeDessertChartModal()" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:1100; align-items:center; justify-content:center;">
+            <div id="dessert-chart-modal" style="background:var(--surface); border-radius:16px; padding:28px; width:70vw; max-width: 900px; min-height: 400px; box-shadow:0 20px 60px rgba(0,0,0,0.2); display: flex; flex-direction: column;">
+                <div class="flex-between">
+                    <h4 id="dessert-chart-modal-title" style="margin:0 0 20px; font-size:1.3rem; font-weight:700;">🍰 Postres Vendidos (<span id="modal-period-text"></span>)</h4>
+                    <button class="btn" onclick="closeDessertChartModal()" style="border:none; font-size:1.2rem; cursor:pointer;" title="Cerrar">✖</button>
+                </div>
+                <div id="expandedDessertChart" style="flex:1; display:flex; align-items:flex-end; gap:2%; justify-content:space-around; padding: 20px 10px 10px 10px; border-bottom:1px solid var(--border); overflow-x: auto; min-height: 250px;">
+                    <!-- Full bars go here -->
                 </div>
             </div>
         </div>
@@ -597,9 +605,17 @@
             loadStages();
         }
 
-        function populateGeneral(gen) {
+        function getPeriodText() {
             const tr = document.getElementById('dateFilter').value;
+            if (tr === 'today') return 'Hoy';
+            if (tr === 'week') return 'Esta Semana';
+            if (tr === 'custom') return 'P. Seleccionado';
+            return 'Este Mes';
+        }
+
+        function populateGeneral(gen) {
             let periodText = 'Vendido Este Mes';
+            const tr = document.getElementById('dateFilter').value;
             if (tr === 'today') periodText = 'Vendido Hoy';
             else if (tr === 'week') periodText = 'Vendido Esta Semana';
             else if (tr === 'custom') periodText = 'Vendido (P. Seleccionado)';
@@ -608,7 +624,7 @@
             document.getElementById('valSalesPeriod').innerText = fmtMoney.format(gen.sales_period_cents);
             document.getElementById('valSalesCountPeriod').innerText = `${gen.sales_period_count} tickets emitidos`;
 
-            document.getElementById('valSalesToday').innerText = fmtMoney.format(gen.sales_today_cents);
+            document.getElementById('titleDessertsPeriod').innerHTML = `🍰 Postres (${getPeriodText()})`;
             document.getElementById('valActiveClients').innerText = gen.active_clients_count;
         }
 
@@ -714,42 +730,81 @@
             }
         }
 
-        function populateProducts(prods) {
-            const chart = document.getElementById('productChart');
-            chart.innerHTML = '';
+        let lastProductsData = [];
 
-            // Map dynamic SQL array to visual list
-            const palette = ['#fb923c', '#fca5a5', '#fde047', '#94a3b8', '#78350f', '#3b82f6', '#10b981', '#8b5cf6', '#ec4899', '#f97316'];
+        function populateProducts(prods) {
+            lastProductsData = prods;
+            const miniChart = document.getElementById('miniDessertChart');
+            if(!miniChart) return;
+            miniChart.innerHTML = '';
+
             const list = prods.map((p, idx) => ({
                 name: p.short_code.charAt(0).toUpperCase() + p.short_code.slice(1), 
                 qty: Number(p.total_qty), 
-                qtyToday: Number(p.qty_today), 
-                color: palette[idx % palette.length]
+                color: ['#fb923c', '#fca5a5', '#fde047', '#94a3b8', '#78350f', '#3b82f6', '#10b981', '#8b5cf6', '#ec4899', '#f97316'][idx % 10]
             }));
 
             list.sort((a,b) => b.qty - a.qty);
-            const maxQty = list[0]?.qty || 1; // Prevent division by 0
+            const filteredList = list.filter(p => p.qty > 0);
+            
+            if (filteredList.length === 0) {
+                miniChart.style.alignItems = 'center';
+                miniChart.style.justifyContent = 'center';
+                miniChart.innerHTML = '<span style="color:var(--text-muted); font-size:0.8rem; height:100%; display:flex; align-items:center;">Sin ventas</span>';
+                return;
+            }
 
-            list.forEach(p => {
-                if(p.qty === 0 && p.qtyToday === 0) return; // Hide products with 0 movement in the period
-                const pct = Math.max((p.qty / maxQty) * 100, 5); // Minimum width 5%
-                const barHtml = `
-                    <div style="margin-bottom: 12px;">
-                        <div class="flex-between" style="font-size:0.85rem; margin-bottom:4px; font-weight:600;">
-                            <span>${p.name} <span style="color:var(--text-muted); font-weight:normal;">(${p.qtyToday} hoy)</span></span>
-                            <span>${p.qty} unid.</span>
-                        </div>
-                        <div style="width:100%; height:12px; background:var(--bg); border-radius:6px; overflow:hidden;">
-                            <div style="width:${pct}%; height:100%; background:${p.color}; border-radius:6px;"></div>
-                        </div>
+            miniChart.style.alignItems = 'flex-end';
+            miniChart.style.justifyContent = 'space-around';
+
+            const maxQty = filteredList[0].qty;
+            
+            filteredList.forEach(p => {
+                const pct = Math.max((p.qty / maxQty) * 100, 10);
+                miniChart.innerHTML += `
+                    <div style="display:flex; flex-direction:column; align-items:center; height:100%; justify-content:flex-end;">
+                        <span style="font-size:0.6rem; font-weight:bold; color:var(--text-main); line-height:1;">${p.qty}</span>
+                        <div style="width:16px; height:${pct}%; background:${p.color}; border-radius:3px 3px 0 0; margin-top:2px;"></div>
                     </div>
                 `;
-                chart.innerHTML += barHtml;
             });
+        }
+
+        function openDessertChartModal() {
+            document.getElementById('modal-period-text').innerText = getPeriodText();
+            document.getElementById('dessert-chart-modal-backdrop').style.display = 'flex';
             
-            if (chart.innerHTML === '') {
-                chart.innerHTML = '<div style="text-align:center; color:var(--text-muted); font-size:0.9rem;">Sin ventas en el periodo</div>';
+            const expanded = document.getElementById('expandedDessertChart');
+            expanded.innerHTML = '';
+            
+            const list = lastProductsData.map((p, idx) => ({
+                name: p.short_code.charAt(0).toUpperCase() + p.short_code.slice(1), 
+                qty: Number(p.total_qty), 
+                color: ['#fb923c', '#fca5a5', '#fde047', '#94a3b8', '#78350f', '#3b82f6', '#10b981', '#8b5cf6', '#ec4899', '#f97316'][idx % 10]
+            })).filter(p => p.qty > 0).sort((a,b) => b.qty - a.qty);
+
+            if(list.length === 0) {
+                expanded.innerHTML = '<div style="margin:auto; color:var(--text-muted);">Sin ventas de postres en este periodo</div>';
+                return;
             }
+
+            const maxQty = list[0].qty;
+
+            list.forEach(p => {
+                const pct = Math.max((p.qty / maxQty) * 100, 5);
+                expanded.innerHTML += `
+                    <div style="display:flex; flex-direction:column; align-items:center; height:100%; justify-content:flex-end; min-width: 50px;">
+                        <span style="font-size:1.1rem; font-weight:bold; color:var(--text-main); margin-bottom:8px;">${p.qty}</span>
+                        <div style="width:40px; height:${pct}%; background:${p.color}; border-radius:6px 6px 0 0; position:relative; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
+                        </div>
+                        <span style="font-size:0.9rem; color:var(--text-muted); margin-top:10px; font-weight:600;">${p.name}</span>
+                    </div>
+                `;
+            });
+        }
+
+        function closeDessertChartModal() {
+            document.getElementById('dessert-chart-modal-backdrop').style.display = 'none';
         }
 
         function populateTopClients(clients) {
