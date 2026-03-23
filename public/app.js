@@ -1793,32 +1793,8 @@ async function checkAndUpdateMainSelectorToJorgebank(saleId) {
 
 // Check receipts for each sale and update main selector to jorgebank if all receipts are verified
 async function enrichSalesWithReceiptStatus() {
-	if (!Array.isArray(state.sales) || state.sales.length === 0) return;
-
-	console.log('📸 Checking receipt status for all sales...');
-
-	// Check each sale
-	for (const sale of state.sales) {
-		if (!sale || !sale.id) continue;
-
-		try {
-			// Fetch receipts metadata ONLY (exclude large images)
-			const receipts = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(sale.id)}&exclude_images=true`);
-
-			if (!Array.isArray(receipts) || receipts.length === 0) continue;
-
-			// Check if ALL receipts have jorgebank
-			const allJorgebank = receipts.every(r => (r.pay_method || '').trim().toLowerCase() === 'jorgebank');
-			if (allJorgebank) {
-				sale.pay_method = 'jorgebank';
-				console.log(`✅ Sale ${sale.id} -> jorgebank (all ${receipts.length} receipts verified)`);
-			}
-		} catch (err) {
-			console.error(`Error checking receipts for sale ${sale.id}:`, err);
-		}
-	}
-
-	console.log('📸 Receipt status enrichment complete');
+	// Obsolete: server syncs pay_method automatically
+	return;
 }
 
 async function loadSales() {
@@ -1901,9 +1877,7 @@ async function loadSales() {
 			}
 		}
 
-		// Check if all receipts for each sale have jorgebank - if so, update sale.pay_method
-		if (loadingTextEl) loadingTextEl.textContent = 'Verificando pagos...';
-		await enrichSalesWithReceiptStatus();
+		// (Obsolete network loop for receipts removed)
 
 		// Build recurrence counts efficiently using the new optimized endpoint
 		if (loadingTextEl) loadingTextEl.textContent = 'Procesando clientes...';
