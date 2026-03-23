@@ -180,7 +180,7 @@ export async function handler(event) {
 
         const periodClients = await sql`
             SELECT 
-                c.id, c.name, c.phone,
+                c.id, c.name, c.whatsapp as phone,
                 COUNT(s.id) as period_orders,
                 COALESCE(SUM(s.total_cents), 0) as period_total_cents,
                 MAX(sl.name) as seller_name,
@@ -192,7 +192,7 @@ export async function handler(event) {
             JOIN sale_days sd ON s.sale_day_id = sd.id
             WHERE sd.day >= ${dtStart} AND sd.day <= ${dtEnd}
             AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))
-            GROUP BY c.id, c.name, c.phone
+            GROUP BY c.id, c.name, c.whatsapp
             ORDER BY period_total_cents DESC;
         `;
 
