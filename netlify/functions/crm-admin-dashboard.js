@@ -82,7 +82,7 @@ export async function handler(event) {
                 SELECT seller_id, SUM(comm) as total_commission FROM sales_with_commissions GROUP BY seller_id
             )
             SELECT 
-                sl.id, sl.name,
+                sl.id, sl.name, sl.bill_color,
                 COALESCE(SUM(s.total_cents), 0) as total_cents,
                 COUNT(s.id) as total_sales,
                 COALESCE(SUM(s.total_cents) / NULLIF(COUNT(s.id), 0), 0) as avg_ticket,
