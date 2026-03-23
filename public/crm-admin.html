@@ -314,7 +314,7 @@
                     <h4 style="margin:0 0 20px; font-size:1.3rem; font-weight:700;">👥 Clientes del Periodo (<span id="modal-clients-period-text"></span>)</h4>
                     <button class="btn" onclick="closePeriodClientsModal()" style="border:none; font-size:1.2rem; cursor:pointer;" title="Cerrar">✖</button>
                 </div>
-                <div id="expandedPeriodClients" style="flex:1; display:grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px; overflow-y: auto; padding: 16px;">
+                <div id="expandedPeriodClients" style="flex:1; display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; overflow-y: auto; padding: 10px;">
                     <!-- Client cards go here -->
                 </div>
             </div>
@@ -327,7 +327,7 @@
                     <h4 style="margin:0 0 20px; font-size:1.3rem; font-weight:700; color: var(--danger);">⚠️ Deudas del Periodo (<span id="modal-debts-period-text"></span>)</h4>
                     <button class="btn" onclick="closePeriodDebtsModal()" style="border:none; font-size:1.2rem; cursor:pointer;" title="Cerrar">✖</button>
                 </div>
-                <div id="expandedPeriodDebts" style="flex:1; display:grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px; overflow-y: auto; padding: 16px;">
+                <div id="expandedPeriodDebts" style="flex:1; display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; overflow-y: auto; padding: 10px;">
                     <!-- Debt cards go here -->
                 </div>
             </div>
@@ -679,22 +679,22 @@
                 const fmtTotal = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(c.period_total_cents);
                 
                 container.innerHTML += `
-                    <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+                    <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
                         <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                            <strong style="font-size: 1.25rem; color: var(--text-main); word-break: break-word;">${c.name}</strong>
-                            <span style="font-size: 0.85rem; padding: 4px 10px; border-radius: 6px; background: ${badgeColor}20; color: ${badgeColor}; font-weight: bold; border: 1px solid ${badgeColor}50;">${fStage}</span>
+                            <strong style="font-size: 1.05rem; color: var(--text-main); word-break: break-word;">${c.name}</strong>
+                            <span style="font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; background: ${badgeColor}20; color: ${badgeColor}; font-weight: bold; border: 1px solid ${badgeColor}50;">${fStage}</span>
                         </div>
-                        <div style="font-size: 1.05rem; color: var(--text-muted); display: flex; align-items: center; gap: 8px;">
+                        <div style="font-size: 0.85rem; color: var(--text-muted); display: flex; align-items: center; gap: 6px;">
                             📞 <a href="https://wa.me/${c.phone}" target="_blank" style="color:var(--primary); text-decoration:none;">${c.phone || 'Desconocido'}</a>
                         </div>
-                        <div style="margin-top: auto; padding-top: 16px; border-top: 1px dashed var(--border); display: flex; justify-content: space-between; align-items: flex-end;">
-                            <div style="display: flex; flex-direction: column; gap: 6px;">
-                                <span style="font-size: 0.9rem; color: var(--text-muted);">Pedidos: <b style="color:var(--text-main); font-size: 1rem;">${c.period_orders}</b></span>
-                                <span style="font-size: 0.9rem; color: var(--text-muted); display:flex; align-items:center; gap:6px;">
-                                    Asignado: <div style="width:12px; height:12px; border-radius:50%; background:${sColor};"></div> <span style="font-weight:600; color:var(--text-main);">${sName}</span>
+                        <div style="margin-top: auto; padding-top: 12px; border-top: 1px dashed var(--border); display: flex; justify-content: space-between; align-items: flex-end;">
+                            <div style="display: flex; flex-direction: column; gap: 4px;">
+                                <span style="font-size: 0.75rem; color: var(--text-muted);">Pedidos: <b style="color:var(--text-main);">${c.period_orders}</b></span>
+                                <span style="font-size: 0.75rem; color: var(--text-muted); display:flex; align-items:center; gap:4px;">
+                                    Asignado: <div style="width:10px; height:10px; border-radius:50%; background:${sColor};"></div> <span style="font-weight:600; color:var(--text-main);">${sName}</span>
                                 </span>
                             </div>
-                            <strong style="color: var(--success); font-size: 1.4rem;">${fmtTotal}</strong>
+                            <strong style="color: var(--success); font-size: 1.15rem;">${fmtTotal}</strong>
                         </div>
                     </div>
                 `;
@@ -729,22 +729,22 @@
                 const fmtTotal = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(c.period_total_cents);
                 
                 container.innerHTML += `
-                    <div style="background: var(--surface); border: 2px solid var(--danger); border-radius: 12px; padding: 24px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); position: relative; overflow: hidden;">
-                        <div style="position: absolute; top:0; right:0; background: var(--danger); color: white; font-size: 0.8rem; font-weight: bold; padding: 6px 16px; border-bottom-left-radius: 8px;">Por Cobrar</div>
-                        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-top:8px;">
-                            <strong style="font-size: 1.25rem; color: var(--text-main); word-break: break-word;">${c.name}</strong>
+                    <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                            <strong style="font-size: 1.05rem; color: var(--text-main); word-break: break-word;">${c.name}</strong>
+                            <span style="font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; background: var(--danger)20; color: var(--danger); font-weight: bold; border: 1px solid var(--danger)50;">DEUDA PENDIENTE</span>
                         </div>
-                        <div style="font-size: 1.05rem; color: var(--text-muted); display: flex; align-items: center; gap: 8px;">
+                        <div style="font-size: 0.85rem; color: var(--text-muted); display: flex; align-items: center; gap: 6px;">
                             📞 <a href="https://wa.me/${c.phone}" target="_blank" style="color:var(--primary); text-decoration:none;">${c.phone || 'Desconocido'}</a>
                         </div>
-                        <div style="margin-top: auto; padding-top: 16px; border-top: 1px dashed var(--danger); display: flex; justify-content: space-between; align-items: flex-end;">
-                            <div style="display: flex; flex-direction: column; gap: 6px;">
-                                <span style="font-size: 0.9rem; color: var(--text-muted);">Tickets sin cobro: <b style="color:var(--danger); font-size: 1rem;">${c.period_orders}</b></span>
-                                <span style="font-size: 0.9rem; color: var(--text-muted); display:flex; align-items:center; gap:6px;">
-                                    Asignado: <div style="width:12px; height:12px; border-radius:50%; background:${sColor};"></div> <span style="font-weight:600; color:var(--text-main);">${sName}</span>
+                        <div style="margin-top: auto; padding-top: 12px; border-top: 1px dashed var(--border); display: flex; justify-content: space-between; align-items: flex-end;">
+                            <div style="display: flex; flex-direction: column; gap: 4px;">
+                                <span style="font-size: 0.75rem; color: var(--text-muted);">Pedidos sin cobro: <b style="color:var(--text-main);">${c.period_orders}</b></span>
+                                <span style="font-size: 0.75rem; color: var(--text-muted); display:flex; align-items:center; gap:4px;">
+                                    Asignado: <div style="width:10px; height:10px; border-radius:50%; background:${sColor};"></div> <span style="font-weight:600; color:var(--text-main);">${sName}</span>
                                 </span>
                             </div>
-                            <strong style="color: var(--danger); font-size: 1.4rem;">${fmtTotal}</strong>
+                            <strong style="color: var(--danger); font-size: 1.15rem;">${fmtTotal}</strong>
                         </div>
                     </div>
                 `;
