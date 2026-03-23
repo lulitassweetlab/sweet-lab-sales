@@ -263,8 +263,9 @@
         <div id="sellerChartContainer" style="display: none; margin-bottom: 30px;">
             <div class="dashboard-grid">
                 <div class="card col-span-12">
-                    <div class="card-title">📊 Ventas por Vendedor (Comparativa)</div>
-                    <div id="sellerChart" style="margin-top: 16px; display: flex; flex-direction: column; gap: 12px;">
+                    <div class="card-title">📊 Ventas del Periodo Seleccionado por Vendedor</div>
+                    <!-- Contenedor flex horizontal para barras verticales -->
+                    <div id="sellerChart" style="margin-top: 16px; height: 180px; display: flex; align-items: flex-end; gap: 15px; overflow-x: auto; padding-bottom: 10px;">
                         <!-- Seller bars go here -->
                     </div>
                 </div>
@@ -670,35 +671,42 @@
             chart.innerHTML = '';
 
             const list = sellers.map((s, idx) => ({
-                name: s.name,
-                total: Number(s.total_cents),
-                salesCount: Number(s.total_sales),
+                name: s.name.split(' ')[0], // Solo primer nombre para ahorrar espacio
+                total: Number(s.period_total_cents),
+                salesCount: Number(s.period_sales_count),
                 color: s.bill_color || ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f43f5e', '#8b5cf6', '#d946ef'][idx % 10]
             }));
 
+            // Ordenar por total del periodo
             list.sort((a,b) => b.total - a.total);
             const maxVal = list[0]?.total || 1;
+            let hasBars = false;
 
             list.forEach(s => {
                 if(s.total === 0) return;
-                const pct = Math.max((s.total / maxVal) * 100, 5); // min 5%
-                const fmtTotal = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(s.total);
+                hasBars = true;
+                const pct = Math.max((s.total / maxVal) * 100, 5); // min 5% altura
+                const fmtTotal = new Intl.NumberFormat('es-CO', { notation: "compact", maximumFractionDigits: 1 }).format(s.total); // e.g. 1.2M
+                
                 const barHtml = `
-                    <div style="margin-bottom: 12px;">
-                        <div class="flex-between" style="font-size:0.85rem; margin-bottom:4px; font-weight:600;">
-                            <span>${s.name} <span style="color:var(--text-muted); font-weight:normal;">(${s.salesCount} ventas)</span></span>
-                            <span>${fmtTotal}</span>
+                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; min-width: 60px;">
+                        <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-main); margin-bottom: 4px;" title="${s.total}">$${fmtTotal}</span>
+                        <div style="width: 32px; height: ${pct}%; background: ${s.color}; border-radius: 4px 4px 0 0; position: relative;">
+                            <span style="position: absolute; width: 100%; text-align: center; bottom: 4px; color: white; font-size: 0.7rem; font-weight: bold; text-shadow: 0px 0px 2px rgba(0,0,0,0.5);">${s.salesCount}</span>
                         </div>
-                        <div style="width:100%; height:12px; background:var(--bg); border-radius:6px; overflow:hidden;">
-                            <div style="width:${pct}%; height:100%; background:${s.color}; border-radius:6px;"></div>
-                        </div>
+                        <span style="font-size: 0.75rem; color: var(--text-muted); margin-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 65px; text-align: center;">${s.name}</span>
                     </div>
                 `;
                 chart.innerHTML += barHtml;
             });
             
-            if (chart.innerHTML === '') {
-                chart.innerHTML = '<div style="text-align:center; color:var(--text-muted); font-size:0.9rem;">Sin ventas en el periodo</div>';
+            if (!hasBars) {
+                chart.style.alignItems = 'center';
+                chart.style.justifyContent = 'center';
+                chart.innerHTML = '<div style="color:var(--text-muted); font-size:0.9rem; width:100%; text-align:center;">Sin ventas en el periodo</div>';
+            } else {
+                chart.style.alignItems = 'flex-end';
+                chart.style.justifyContent = 'flex-start';
             }
         }
 
