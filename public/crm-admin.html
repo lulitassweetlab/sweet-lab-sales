@@ -622,7 +622,8 @@
         function populateCrmActivity(act) {
             document.getElementById('valContactedToday').innerText = act.contacted_today;
             document.getElementById('valPendingReminders').innerText = act.pending_reminders;
-            document.getElementById('valNotesToday').innerText = act.notes_today;
+            // Termómetro ha sido removido del DOM
+            if(document.getElementById('valNotesToday')) document.getElementById('valNotesToday').innerText = act.notes_today;
             document.getElementById('valWonProspects').innerText = act.won_prospects;
         }
 
