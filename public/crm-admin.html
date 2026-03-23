@@ -269,27 +269,26 @@
             </div>
         </div>
         <!-- ROW 3: Sellers and Products -->
+        <h2 style="font-size: 1.1rem; margin-bottom: 16px; color: var(--text-main);">3. Rendimiento de Vendedores y Productos</h2>
+        <!-- ROW 5: Sellers Table -->
         <div class="dashboard-grid">
-            <div class="card col-span-12">
-                <div class="card-title">🏆 Tabla de Vendedores (Acumulado)</div>
-                <div style="overflow-x: auto;">
-                <table id="tableSellers">
-                    <thead>
-                        <tr>
-                            <th>Vendedor</th>
-                            <th>Total Mes</th>
-                            <th>Ticket Prom.</th>
-                            <th>Ventas Hoy</th>
-                            <th>Comisión (Total)</th>
-                            <th>Prom. Comis.</th>
-                            <th>Actividad CRM</th>
-                            <th>Última Venta</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- Sellers rows go here -->
-                    </tbody>
-                </table>
+            <div class="card" style="grid-column: span 12;">
+                <div class="card-title" id="titleSellersTable">💰 Tabla de Comisiones</div>
+                <div style="overflow-x:auto;">
+                    <table class="table" id="tableSellers">
+                        <thead>
+                            <tr>
+                                <th>Vendedor</th>
+                                <th>Postres Vendidos</th>
+                                <th>Total Vendido</th>
+                                <th>Comisión Promedio</th>
+                                <th>Total Comisiones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Sellers go here -->
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -770,6 +769,7 @@
             document.getElementById('titleDessertsPeriod').innerHTML = `🍰 Postres (${getPeriodText()})`;
             
             document.getElementById('titleTopClients').innerHTML = `🏆 Top Clientes (${periodText})`;
+            document.getElementById('titleSellersTable').innerHTML = `💰 Tabla de Comisiones (${periodText})`;
             
             document.getElementById('valDebtPeriod').innerText = fmtMoney.format(gen.debt_period_cents);
             document.getElementById('valDebtCountPeriod').innerText = `${gen.debt_period_count} pedidos sin pagar`;
@@ -794,30 +794,21 @@
             const tbody = document.querySelector('#tableSellers tbody');
             tbody.innerHTML = '';
             
-            if(sellers.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Sin datos de vendedores</td></tr>';
+            if(!sellers || sellers.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Sin datos de vendedores</td></tr>';
                 return;
             }
 
-            sellers.forEach(s => {
-                const tr = document.createElement('tr');
-                const lastSaleDate = s.last_sale ? s.last_sale.split('T')[0] : 'Nunca';
-                
-                const crmActivityTag = `
-                    <div style="font-size:0.8rem; color:var(--text-muted);">
-                        ${s.notes_created} Notas | ${s.reminders_created} Rec.
-                    </div>
-                `;
+            const sortedSellers = [...sellers].sort((a,b) => b.total_commission - a.total_commission);
 
+            sortedSellers.forEach(s => {
+                const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td style="font-weight:700;">${s.name}</td>
-                    <td style="color:var(--success); font-weight:700;">${fmtMoney.format(s.total_cents)}</td>
-                    <td>${fmtMoney.format(s.avg_ticket)}</td>
-                    <td><span class="badge ${s.sales_today > 0 ? 'bg-info' : ''}" style="color:${s.sales_today > 0 ? 'white' : 'var(--text-muted)'}">${s.sales_today} hoy</span></td>
-                    <td style="color:var(--primary-dark); font-weight:700;">${fmtMoney.format(s.total_commission || 0)}</td>
+                    <td style="font-weight:700;"><span style="display:inline-block; width:10px; height:10px; border-radius:50%; background-color:${s.bill_color || '#3b82f6'}; margin-right:6px;"></span>${s.name}</td>
+                    <td>${s.period_desserts_count || 0}</td>
+                    <td style="color:var(--success); font-weight:700;">${fmtMoney.format(s.period_total_cents || 0)}</td>
                     <td>${fmtMoney.format(s.avg_commission || 0)}</td>
-                    <td>${crmActivityTag}</td>
-                    <td style="color:var(--text-muted); font-size:0.85rem;">${lastSaleDate}</td>
+                    <td style="color:var(--primary); font-weight:700;">${fmtMoney.format(s.total_commission || 0)}</td>
                 `;
                 tbody.appendChild(tr);
             });
