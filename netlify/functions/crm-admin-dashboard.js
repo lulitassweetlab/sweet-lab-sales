@@ -49,8 +49,6 @@ export async function handler(event) {
                 COALESCE(SUM(s.total_cents) FILTER (WHERE sd.day = CURRENT_DATE AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))), 0) as sales_today_cents,
                 COALESCE(SUM(s.total_cents) FILTER (WHERE sd.day >= ${dtStart} AND sd.day <= ${dtEnd} AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))), 0) as sales_period_cents,
                 COUNT(s.id) FILTER (WHERE sd.day >= ${dtStart} AND sd.day <= ${dtEnd} AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))) as sales_period_count,
-                COALESCE(SUM(s.total_cents) FILTER (WHERE sd.day >= ${dtStart} AND sd.day <= ${dtEnd} AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[])) AND (s.pay_method IS NULL OR s.pay_method = '' OR s.pay_method = '-' OR s.pay_method = 'entregado') AND s.total_cents > 0), 0) as debt_period_cents,
-                COUNT(s.id) FILTER (WHERE sd.day >= ${dtStart} AND sd.day <= ${dtEnd} AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[])) AND (s.pay_method IS NULL OR s.pay_method = '' OR s.pay_method = '-' OR s.pay_method = 'entregado') AND s.total_cents > 0) as debt_period_count,
                 (SELECT COUNT(DISTINCT client_id) FROM crm_client_sales WHERE ${!filterSellers}::boolean OR seller_id = ANY(${sellerIds}::int[])) as active_clients_count
             FROM sales s
             LEFT JOIN sale_days sd ON sd.id = s.sale_day_id;
@@ -210,14 +208,24 @@ export async function handler(event) {
             JOIN crm_client_sales cs ON c.id = cs.client_id
             JOIN sales s ON cs.sale_id = s.id
             LEFT JOIN sellers sl ON c.seller_id = sl.id
-            JOIN sale_days sd ON s.sale_day_id = sd.id
-            WHERE sd.day >= ${dtStart} AND sd.day <= ${dtEnd}
-            AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))
+            WHERE (${!filterSellers}::boolean OR c.seller_id = ANY(${sellerIds}::int[]))
             AND (s.pay_method IS NULL OR s.pay_method = '' OR s.pay_method = '-' OR s.pay_method = 'entregado') 
             AND s.total_cents > 0
             GROUP BY c.id, c.name, c.whatsapp
             ORDER BY period_total_cents DESC;
         `;
+
+        let debt_period_cents = 0;
+        let debt_period_count = 0;
+        periodDebts.forEach(d => {
+            debt_period_cents += Number(d.period_total_cents);
+            debt_period_count += Number(d.period_orders);
+        });
+
+        if (generalStats && generalStats.length > 0) {
+            generalStats[0].debt_period_cents = debt_period_cents;
+            generalStats[0].debt_period_count = debt_period_count;
+        }
 
         return json({
             general: generalStats,
