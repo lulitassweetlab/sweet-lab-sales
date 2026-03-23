@@ -347,22 +347,23 @@
         </div>
 
         <!-- ROW 4: Top Clients -->
-        <h2 style="font-size: 1.1rem; margin-bottom: 16px; color: var(--text-main);">3. Top Clientes (Mayor Valor Histórico)</h2>
         <div class="dashboard-grid">
-            <div class="card col-span-12">
-                <div style="overflow-x: auto;">
-                <table id="tableTopClients">
-                    <thead>
-                        <tr>
-                            <th>Cliente</th>
-                            <th>LTV (Total Ingresado)</th>
-                            <th>Fecha Última Compra</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- Top clients go here -->
-                    </tbody>
-                </table>
+            <div class="card" style="grid-column: span 12;">
+                <div class="card-title" id="titleTopClients">🏆 Top Clientes</div>
+                <div style="overflow-x:auto;">
+                    <table class="table" id="top-clients-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Cliente</th>
+                                <th>Total Periodo</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Top clients go here -->
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -628,7 +629,7 @@
                 populateCrmActivity(data.crmActivity);
                 populateSellers(data.sellers);
                 populateProducts(data.products);
-                populateTopClients(data.businessAlerts.top_ltv);
+                populateTopClients(data.periodClients ? data.periodClients.slice(0, 10) : []);
                 if(data.periodClients) populatePeriodClients(data.periodClients);
                 if(data.periodDebts) populatePeriodDebts(data.periodDebts);
 
@@ -766,6 +767,8 @@
             document.getElementById('valSalesCountPeriod').innerText = `${gen.period_desserts_total || 0} postres vendidos`;
 
             document.getElementById('titleDessertsPeriod').innerHTML = `🍰 Postres (${getPeriodText()})`;
+            
+            document.getElementById('titleTopClients').innerHTML = `🏆 Top Clientes (${periodText})`;
             
             document.getElementById('valDebtPeriod').innerText = fmtMoney.format(gen.debt_period_cents);
             document.getElementById('valDebtCountPeriod').innerText = `${gen.debt_period_count} pedidos sin pagar`;
@@ -979,21 +982,21 @@
         }
 
         function populateTopClients(clients) {
-            const tbody = document.querySelector('#tableTopClients tbody');
+            const tbody = document.querySelector('#top-clients-table tbody');
             tbody.innerHTML = '';
 
             if(!clients || clients.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">Sin datos de clientes</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Sin datos de clientes</td></tr>';
                 return;
             }
 
-            clients.forEach(c => {
+            clients.forEach((c, idx) => {
                 const tr = document.createElement('tr');
-                const lastDate = c.last_purchase_date ? c.last_purchase_date.split('T')[0] : '';
                 tr.innerHTML = `
+                    <td>#${idx+1}</td>
                     <td style="font-weight:700;">${c.name}</td>
-                    <td style="color:var(--success); font-weight:700;">${fmtMoney.format(c.lifetime_value)}</td>
-                    <td style="color:var(--text-muted);">${lastDate}</td>
+                    <td style="color:var(--success); font-weight:700;">${fmtMoney.format(c.period_total_cents || c.lifetime_value || 0)}</td>
+                    <td><span class="status-badge status-active">Cliente Activo</span></td>
                 `;
                 tbody.appendChild(tr);
             });
