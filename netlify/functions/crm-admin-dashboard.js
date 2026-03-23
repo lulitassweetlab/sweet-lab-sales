@@ -47,7 +47,8 @@ export async function handler(event) {
             SELECT 
                 COUNT(s.id) FILTER (WHERE sd.day = CURRENT_DATE AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))) as sales_today_count,
                 COALESCE(SUM(s.total_cents) FILTER (WHERE sd.day = CURRENT_DATE AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))), 0) as sales_today_cents,
-                COALESCE(SUM(s.total_cents) FILTER (WHERE sd.day >= ${dtStart} AND sd.day <= ${dtEnd} AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))), 0) as sales_month_cents,
+                COALESCE(SUM(s.total_cents) FILTER (WHERE sd.day >= ${dtStart} AND sd.day <= ${dtEnd} AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))), 0) as sales_period_cents,
+                COUNT(s.id) FILTER (WHERE sd.day >= ${dtStart} AND sd.day <= ${dtEnd} AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))) as sales_period_count,
                 (SELECT COUNT(DISTINCT client_id) FROM crm_client_sales WHERE ${!filterSellers}::boolean OR seller_id = ANY(${sellerIds}::int[])) as active_clients_count
             FROM sales s
             LEFT JOIN sale_days sd ON sd.id = s.sale_day_id;

@@ -193,25 +193,20 @@
         <!-- ROW 1: General Stats -->
         <h2 style="font-size: 1.1rem; margin-bottom: 16px; color: var(--text-main);">1. Rendimiento de Ventas</h2>
         <div class="dashboard-grid">
-            <div class="card col-span-3">
-                <div class="card-title">💵 Vendido Hoy</div>
-                <div class="metric-value metric-color-primary" id="valSalesToday">-</div>
-                <div class="metric-label" id="valSalesCountToday">- tickets emitidos hoy</div>
+            <div class="card col-span-4">
+                <div class="card-title" id="titleSalesPeriod">💵 Vendido Hoy</div>
+                <div class="metric-value metric-color-primary" id="valSalesPeriod">-</div>
+                <div class="metric-label" id="valSalesCountPeriod">- tickets emitidos</div>
             </div>
-            <div class="card col-span-3">
-                <div class="card-title">📅 Vendido Este Mes</div>
-                <div class="metric-value metric-color-success" id="valSalesMonth">-</div>
-                <div class="metric-label">Ventas acumuladas del mes actual</div>
+            <div class="card col-span-4">
+                <div class="card-title">📅 Vendido Hoy (Ref.)</div>
+                <div class="metric-value metric-color-success" id="valSalesToday">-</div>
+                <div class="metric-label">Ventas del día actual para filtros</div>
             </div>
-            <div class="card col-span-3">
+            <div class="card col-span-4">
                 <div class="card-title">👥 Clientes Activos</div>
                 <div class="metric-value metric-color-info" id="valActiveClients">-</div>
                 <div class="metric-label">Han comprado en los últimos 30 días</div>
-            </div>
-            <div class="card col-span-3">
-                <div class="card-title">⚡ Termómetro Diario (Notas)</div>
-                <div class="metric-value" id="valNotesToday">-</div>
-                <div class="metric-label">Notas e interacciones registradas hoy</div>
             </div>
         </div>
 
@@ -603,9 +598,17 @@
         }
 
         function populateGeneral(gen) {
+            const tr = document.getElementById('dateFilter').value;
+            let periodText = 'Vendido Este Mes';
+            if (tr === 'today') periodText = 'Vendido Hoy';
+            else if (tr === 'week') periodText = 'Vendido Esta Semana';
+            else if (tr === 'custom') periodText = 'Vendido (P. Seleccionado)';
+
+            document.getElementById('titleSalesPeriod').innerHTML = `💵 ${periodText}`;
+            document.getElementById('valSalesPeriod').innerText = fmtMoney.format(gen.sales_period_cents);
+            document.getElementById('valSalesCountPeriod').innerText = `${gen.sales_period_count} tickets emitidos`;
+
             document.getElementById('valSalesToday').innerText = fmtMoney.format(gen.sales_today_cents);
-            document.getElementById('valSalesCountToday').innerText = `${gen.sales_today_count} tickets emitidos hoy`;
-            document.getElementById('valSalesMonth').innerText = fmtMoney.format(gen.sales_month_cents);
             document.getElementById('valActiveClients').innerText = gen.active_clients_count;
         }
 
