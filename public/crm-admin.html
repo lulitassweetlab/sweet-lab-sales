@@ -146,12 +146,13 @@
             <p class="subtitle">Panel de Control General y Resultados en Vivo</p>
         </div>
         <div style="display: flex; gap: 10px; align-items: center;">
-            <select id="dateFilter" class="btn" style="background: white; cursor: pointer; border-color: var(--border);" onchange="handleDateChange()">
-                <option value="today">Hoy</option>
-                <option value="week">Esta semana</option>
-                <option value="month" selected>Este mes</option>
-                <option value="custom">Rango personalizado...</option>
-            </select>
+            <input type="hidden" id="dateFilter" value="month">
+            <div class="date-buttons" style="display: flex; gap: 5px;">
+                <button class="btn" id="btn-today" onclick="setDateFilter('today')">Hoy</button>
+                <button class="btn" id="btn-week" onclick="setDateFilter('week')">Esta semana</button>
+                <button class="btn btn-primary" id="btn-month" onclick="setDateFilter('month')">Este mes</button>
+                <button class="btn" id="btn-custom" onclick="setDateFilter('custom')">Personalizado</button>
+            </div>
             <div id="customDateRange" style="display: none; align-items: center; gap: 8px;">
                 <input type="date" id="dateStart" class="btn" style="background: white;">
                 <span>a</span>
@@ -424,10 +425,21 @@
 
         document.addEventListener('DOMContentLoaded', loadDashboard);
 
-        function handleDateChange() {
-            const val = document.getElementById('dateFilter').value;
+        function setDateFilter(range) {
+            document.getElementById('dateFilter').value = range;
+            
+            // Update button styles
+            ['today', 'week', 'month', 'custom'].forEach(r => {
+                const btn = document.getElementById('btn-' + r);
+                if (r === range) {
+                    btn.classList.add('btn-primary');
+                } else {
+                    btn.classList.remove('btn-primary');
+                }
+            });
+
             const customDiv = document.getElementById('customDateRange');
-            if(val === 'custom') {
+            if(range === 'custom') {
                 customDiv.style.display = 'flex';
             } else {
                 customDiv.style.display = 'none';
