@@ -69,7 +69,7 @@ export async function handler(event) {
             ),
             sales_with_commissions AS (
                 SELECT 
-                    u.sale_id, u.seller_id,
+                    u.sale_id, u.seller_id, u.qty,
                     (u.qty * COALESCE((
                         SELECT c.commission_cents 
                         FROM crm_product_commissions c 
