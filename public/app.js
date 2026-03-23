@@ -1851,8 +1851,42 @@ async function loadSales() {
 		const params = new URLSearchParams({ seller_id: String(sellerId) });
 		if (state.selectedDayId) params.set('sale_day_id', String(state.selectedDayId));
 
+		const cacheKey = `sales_cache_${sellerId}_${state.selectedDayId || 'all'}`;
+		
+		try {
+			const cached = localStorage.getItem(cacheKey);
+			if (cached) {
+				const parsed = JSON.parse(cached);
+				if (Array.isArray(parsed) && parsed.length > 0) {
+					state.sales = parsed;
+					// Re-hydrate quick props
+					for (const sale of state.sales) {
+						if (sale && sale.payment_date && sale.payment_source) {
+							sale._paymentInfo = { date: sale.payment_date, source: sale.payment_source, sourceValue: (sale.payment_source || '').toLowerCase() };
+						}
+					}
+					// Load cached counts
+					const ccCached = localStorage.getItem(`counts_cache_${sellerId}`);
+					if (ccCached) {
+						try { state.clientCounts = new Map(JSON.parse(ccCached)); } catch(e){}
+					}
+					
+					// Pre-render optimistic table, hide loader
+					await loadDesserts();
+					renderDessertColumns();
+					renderTable();
+					if (loadingEl) loadingEl.classList.add('hidden');
+				}
+			}
+		} catch(e) { console.warn('Cache read error', e); }
+
 		if (loadingTextEl) loadingTextEl.textContent = messages[0];
 		state.sales = await api('GET', `${API.Sales}?${params.toString()}`);
+		
+		try {
+			localStorage.setItem(cacheKey, JSON.stringify(state.sales));
+		} catch(e) {}
+
 
 		// Initialize _paymentInfo from database fields (payment_date and payment_source)
 		if (Array.isArray(state.sales)) {
@@ -1888,6 +1922,9 @@ async function loadSales() {
 			}
 			
 			state.clientCounts = counts;
+			try {
+				localStorage.setItem(`counts_cache_${sellerId}`, JSON.stringify(Array.from(counts.entries())));
+			} catch(e) {}
 			// Prepare suggestion list of regular clients (count > 1)
 			try {
 				const arr = Array.from(counts.entries())
