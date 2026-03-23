@@ -302,7 +302,7 @@
                     <h4 id="dessert-chart-modal-title" style="margin:0 0 20px; font-size:1.3rem; font-weight:700;">🍰 Postres Vendidos (<span id="modal-period-text"></span>)</h4>
                     <button class="btn" onclick="closeDessertChartModal()" style="border:none; font-size:1.2rem; cursor:pointer;" title="Cerrar">✖</button>
                 </div>
-                <div id="expandedDessertChart" style="flex:1; display:flex; align-items:flex-end; gap:2%; justify-content:space-around; padding: 20px 10px 10px 10px; border-bottom:1px solid var(--border); overflow-x: auto; min-height: 250px;">
+                <div id="expandedDessertChart" style="display:flex; align-items:flex-end; gap:16px; justify-content:center; padding: 20px 10px 10px 10px; border-bottom:1px solid var(--border); overflow-x: auto; height: 350px; width: 100%;">
                     <!-- Full bars go here -->
                 </div>
             </div>
@@ -709,12 +709,12 @@
                 const fmtTotal = new Intl.NumberFormat('es-CO', { notation: "compact", maximumFractionDigits: 1 }).format(s.total); // e.g. 1.2M
                 
                 const barHtml = `
-                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; min-width: 60px;">
+                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; flex: 1; max-width: 90px; min-width: 50px;">
                         <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-main); margin-bottom: 4px;" title="${s.total}">$${fmtTotal}</span>
-                        <div style="width: 32px; height: ${pct}%; background: ${s.color}; border-radius: 4px 4px 0 0; position: relative;">
+                        <div style="width: 100%; height: ${pct}%; background: ${s.color}; border-radius: 6px 6px 0 0; position: relative;">
                             <span style="position: absolute; width: 100%; text-align: center; bottom: 4px; color: white; font-size: 0.7rem; font-weight: bold; text-shadow: 0px 0px 2px rgba(0,0,0,0.5);">${s.salesCount}</span>
                         </div>
-                        <span style="font-size: 0.75rem; color: var(--text-muted); margin-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 65px; text-align: center;">${s.name}</span>
+                        <span style="font-size: 0.75rem; color: var(--text-muted); margin-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; text-align: center; word-break: break-word;">${s.name}</span>
                     </div>
                 `;
                 chart.innerHTML += barHtml;
@@ -755,16 +755,17 @@
             }
 
             miniChart.style.alignItems = 'flex-end';
-            miniChart.style.justifyContent = 'space-around';
+            miniChart.style.justifyContent = 'center';
+            miniChart.style.gap = '8px';
 
             const maxQty = filteredList[0].qty;
             
             filteredList.forEach(p => {
                 const pct = Math.max((p.qty / maxQty) * 100, 10);
                 miniChart.innerHTML += `
-                    <div style="display:flex; flex-direction:column; align-items:center; height:100%; justify-content:flex-end;">
-                        <span style="font-size:0.6rem; font-weight:bold; color:var(--text-main); line-height:1;">${p.qty}</span>
-                        <div style="width:16px; height:${pct}%; background:${p.color}; border-radius:3px 3px 0 0; margin-top:2px;"></div>
+                    <div style="display:flex; flex-direction:column; align-items:center; height:100%; justify-content:flex-end; flex:1; max-width:35px; min-width:15px;">
+                        <span style="font-size:0.7rem; font-weight:bold; color:var(--text-main); line-height:1; margin-bottom:2px;">${p.qty}</span>
+                        <div style="width:100%; height:${pct}%; background:${p.color}; border-radius:4px 4px 0 0;"></div>
                     </div>
                 `;
             });
@@ -793,11 +794,11 @@
             list.forEach(p => {
                 const pct = Math.max((p.qty / maxQty) * 100, 5);
                 expanded.innerHTML += `
-                    <div style="display:flex; flex-direction:column; align-items:center; height:100%; justify-content:flex-end; min-width: 50px;">
+                    <div style="display:flex; flex-direction:column; align-items:center; height:100%; justify-content:flex-end; flex:1; max-width:100px; min-width:40px;">
                         <span style="font-size:1.1rem; font-weight:bold; color:var(--text-main); margin-bottom:8px;">${p.qty}</span>
-                        <div style="width:40px; height:${pct}%; background:${p.color}; border-radius:6px 6px 0 0; position:relative; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
+                        <div style="width:100%; height:${pct}%; background:${p.color}; border-radius:6px 6px 0 0; position:relative; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
                         </div>
-                        <span style="font-size:0.9rem; color:var(--text-muted); margin-top:10px; font-weight:600;">${p.name}</span>
+                        <span style="font-size:0.9rem; color:var(--text-muted); margin-top:10px; font-weight:600; text-align:center; word-break:break-word;">${p.name}</span>
                     </div>
                 `;
             });
