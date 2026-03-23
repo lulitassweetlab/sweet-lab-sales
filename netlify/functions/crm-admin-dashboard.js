@@ -227,7 +227,7 @@ export async function handler(event) {
         generalData.debt_period_count = debt_period_count;
 
         return json({
-            general: [generalData],
+            general: generalData,
             sellers: sellerStats,
             businessAlerts: {
                 with_debt: clientsWithDebt,
