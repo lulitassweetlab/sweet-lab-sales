@@ -206,19 +206,17 @@
                 <div class="metric-value metric-color-primary" id="valSalesPeriod">-</div>
                 <div class="metric-label" id="valSalesCountPeriod">- tickets emitidos</div>
             </div>
-            <div class="card col-span-4" style="cursor: pointer; position: relative; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="openDessertChartModal()">
+            <div class="card col-span-4" style="cursor: pointer; position: relative; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="openDessertChartModal()" title="Ver detalle">
                 <div class="card-title" id="titleDessertsPeriod">🍰 Postres del Periodo</div>
-                <div id="miniDessertChart" style="height: 75px; display: flex; align-items: flex-end; justify-content: space-around; gap: 4px; overflow: hidden; opacity: 0.9;">
+                <div id="miniDessertChart" style="height: 90px; display: flex; align-items: flex-end; justify-content: space-around; gap: 4px; overflow: hidden; opacity: 0.9;">
                     <!-- Mini bars -->
                 </div>
-                <div style="text-align: right; margin-top: 8px; font-size: 0.75rem; color: var(--primary); font-weight:700;">Ver detalle 🔍</div>
             </div>
-            <div class="card col-span-4" style="cursor: pointer; position: relative; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="openSellerChartModal()">
+            <div class="card col-span-4" style="cursor: pointer; position: relative; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="openSellerChartModal()" title="Ver detalle">
                 <div class="card-title">📊 Ventas por Vendedor</div>
-                <div id="miniSellerChart" style="height: 75px; display: flex; align-items: flex-end; justify-content: center; gap: 8px; overflow: hidden; opacity: 0.9;">
+                <div id="miniSellerChart" style="height: 90px; display: flex; align-items: flex-end; justify-content: center; gap: 8px; overflow: hidden; opacity: 0.9;">
                     <!-- Mini seller bars -->
                 </div>
-                <div style="text-align: right; margin-top: 8px; font-size: 0.75rem; color: var(--primary); font-weight:700;">Ver detalle 🔍</div>
             </div>
         </div>
 
@@ -714,10 +712,10 @@
             list.forEach(s => {
                 const pct = Math.max((s.total / maxVal) * 100, 10);
                 miniChart.innerHTML += `
-                    <div style="display:flex; flex-direction:column; align-items:center; height:100%; justify-content:flex-end; flex:1; max-width:35px; min-width:15px;">
+                    <div style="display:flex; flex-direction:column; align-items:center; height:100%; justify-content:flex-end; flex:1; max-width:40px; min-width:15px;">
                         <span style="font-size:0.6rem; font-weight:bold; color:var(--text-main); line-height:1; margin-bottom:2px;">${s.salesCount}</span>
-                        <div style="width:100%; height:${pct}%; background:${s.color}; border-radius:4px 4px 0 0;"></div>
-                        <span style="font-size:0.55rem; color:var(--text-muted); margin-top:2px; height:10px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; width:100%; text-align:center;">${s.name.substring(0,4)}</span>
+                        <div style="width:100%; height:${pct}%; min-height:4px; background:${s.color}; border-radius:4px 4px 0 0;"></div>
+                        <span style="font-size:0.65rem; color:var(--text-muted); margin-top:4px; height:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; width:100%; text-align:center;" title="${s.name}">${s.name}</span>
                     </div>
                 `;
             });
@@ -797,10 +795,10 @@
             filteredList.forEach(p => {
                 const pct = Math.max((p.qty / maxQty) * 100, 10);
                 miniChart.innerHTML += `
-                    <div style="display:flex; flex-direction:column; align-items:center; height:100%; justify-content:flex-end; flex:1; max-width:35px; min-width:15px;">
+                    <div style="display:flex; flex-direction:column; align-items:center; height:100%; justify-content:flex-end; flex:1; max-width:40px; min-width:15px;">
                         <span style="font-size:0.7rem; font-weight:bold; color:var(--text-main); line-height:1; margin-bottom:2px;">${p.qty}</span>
-                        <div style="width:100%; height:${pct}%; background:${p.color}; border-radius:4px 4px 0 0;"></div>
-                        <span style="font-size:0.55rem; color:var(--text-muted); margin-top:2px; height:10px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; width:100%; text-align:center;">${p.name.substring(0,4)}</span>
+                        <div style="width:100%; height:${pct}%; min-height:4px; background:${p.color}; border-radius:4px 4px 0 0;"></div>
+                        <span style="font-size:0.65rem; color:var(--text-muted); margin-top:4px; height:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; width:100%; text-align:center;" title="${p.name}">${p.name}</span>
                     </div>
                 `;
             });
