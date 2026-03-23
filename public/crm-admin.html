@@ -136,6 +136,14 @@
         .flex-between { display: flex; justify-content: space-between; align-items: center; }
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 
+        @keyframes aladdinIn {
+            0% { opacity: 0; transform: scale(0.5) translateY(50px); }
+            100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .modal-aladdin {
+            animation: aladdinIn 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+        }
+
     </style>
 </head>
 <body>
@@ -200,15 +208,17 @@
             </div>
             <div class="card col-span-4" style="cursor: pointer; position: relative; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="openDessertChartModal()">
                 <div class="card-title" id="titleDessertsPeriod">🍰 Postres del Periodo</div>
-                <div id="miniDessertChart" style="height: 60px; display: flex; align-items: flex-end; justify-content: space-around; gap: 4px; overflow: hidden; opacity: 0.9;">
+                <div id="miniDessertChart" style="height: 75px; display: flex; align-items: flex-end; justify-content: space-around; gap: 4px; overflow: hidden; opacity: 0.9;">
                     <!-- Mini bars -->
                 </div>
                 <div style="text-align: right; margin-top: 8px; font-size: 0.75rem; color: var(--primary); font-weight:700;">Ver detalle 🔍</div>
             </div>
-            <div class="card col-span-4">
-                <div class="card-title">👥 Clientes Activos</div>
-                <div class="metric-value metric-color-info" id="valActiveClients">-</div>
-                <div class="metric-label">Han comprado en los últimos 30 días</div>
+            <div class="card col-span-4" style="cursor: pointer; position: relative; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="openSellerChartModal()">
+                <div class="card-title">📊 Ventas por Vendedor</div>
+                <div id="miniSellerChart" style="height: 75px; display: flex; align-items: flex-end; justify-content: center; gap: 8px; overflow: hidden; opacity: 0.9;">
+                    <!-- Mini seller bars -->
+                </div>
+                <div style="text-align: right; margin-top: 8px; font-size: 0.75rem; color: var(--primary); font-weight:700;">Ver detalle 🔍</div>
             </div>
         </div>
 
@@ -255,20 +265,6 @@
                 </table>
             </div>
         </div>
-
-        <!-- ROW: Seller Chart -->
-        <div id="sellerChartContainer" style="display: none; margin-bottom: 30px;">
-            <div class="dashboard-grid">
-                <div class="card col-span-12">
-                    <div class="card-title">📊 Ventas del Periodo Seleccionado por Vendedor</div>
-                    <!-- Contenedor flex horizontal para barras verticales -->
-                    <div id="sellerChart" style="margin-top: 16px; height: 180px; display: flex; align-items: flex-end; gap: 15px; overflow-x: auto; padding-bottom: 10px;">
-                        <!-- Seller bars go here -->
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <!-- ROW 3: Sellers and Products -->
         <div class="dashboard-grid">
             <div class="card col-span-12">
@@ -297,12 +293,25 @@
 
         <!-- Dessert Chart Modal -->
         <div id="dessert-chart-modal-backdrop" onclick="if(event.target===this)closeDessertChartModal()" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:1100; align-items:center; justify-content:center;">
-            <div id="dessert-chart-modal" style="background:var(--surface); border-radius:16px; padding:28px; width:70vw; max-width: 900px; min-height: 400px; box-shadow:0 20px 60px rgba(0,0,0,0.2); display: flex; flex-direction: column;">
+            <div id="dessert-chart-modal" class="modal-aladdin" style="background:var(--surface); border-radius:16px; padding:28px; width:70vw; max-width: 900px; min-height: 400px; box-shadow:0 20px 60px rgba(0,0,0,0.2); display: flex; flex-direction: column;">
                 <div class="flex-between">
                     <h4 id="dessert-chart-modal-title" style="margin:0 0 20px; font-size:1.3rem; font-weight:700;">🍰 Postres Vendidos (<span id="modal-period-text"></span>)</h4>
                     <button class="btn" onclick="closeDessertChartModal()" style="border:none; font-size:1.2rem; cursor:pointer;" title="Cerrar">✖</button>
                 </div>
                 <div id="expandedDessertChart" style="display:flex; align-items:flex-end; gap:16px; justify-content:center; padding: 20px 10px 10px 10px; border-bottom:1px solid var(--border); overflow-x: auto; height: 350px; width: 100%;">
+                    <!-- Full bars go here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Seller Chart Modal -->
+        <div id="seller-chart-modal-backdrop" onclick="if(event.target===this)closeSellerChartModal()" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:1100; align-items:center; justify-content:center;">
+            <div class="modal-aladdin" style="background:var(--surface); border-radius:16px; padding:28px; width:70vw; max-width: 900px; min-height: 400px; box-shadow:0 20px 60px rgba(0,0,0,0.2); display: flex; flex-direction: column;">
+                <div class="flex-between">
+                    <h4 style="margin:0 0 20px; font-size:1.3rem; font-weight:700;">📊 Ventas por Vendedor (<span id="modal-seller-period-text"></span>)</h4>
+                    <button class="btn" onclick="closeSellerChartModal()" style="border:none; font-size:1.2rem; cursor:pointer;" title="Cerrar">✖</button>
+                </div>
+                <div id="expandedSellerChart" style="display:flex; align-items:flex-end; gap:16px; justify-content:center; padding: 20px 10px 10px 10px; border-bottom:1px solid var(--border); overflow-x: auto; height: 350px; width: 100%;">
                     <!-- Full bars go here -->
                 </div>
             </div>
@@ -625,7 +634,6 @@
             document.getElementById('valSalesCountPeriod').innerText = `${gen.sales_period_count} tickets emitidos`;
 
             document.getElementById('titleDessertsPeriod').innerHTML = `🍰 Postres (${getPeriodText()})`;
-            document.getElementById('valActiveClients').innerText = gen.active_clients_count;
         }
 
         function populateAlerts(alerts) {
@@ -676,39 +684,71 @@
             });
 
             // Add chart logic
-            const isAll = document.getElementById('seller-all')?.checked ?? true;
-            const chartContainer = document.getElementById('sellerChartContainer');
-            if (isAll && sellers.length > 0) {
-                chartContainer.style.display = 'block';
-                renderSellerChart(sellers);
-            } else {
-                chartContainer.style.display = 'none';
-            }
+            renderSellerChart(sellers);
         }
 
+        let lastSellersData = [];
+
         function renderSellerChart(sellers) {
-            const chart = document.getElementById('sellerChart');
-            chart.innerHTML = '';
+            lastSellersData = sellers;
+            const miniChart = document.getElementById('miniSellerChart');
+            if(!miniChart) return;
+            miniChart.innerHTML = '';
 
             const list = sellers.map((s, idx) => ({
-                name: s.name.split(' ')[0], // Solo primer nombre para ahorrar espacio
+                name: s.name.split(' ')[0], 
                 total: Number(s.period_total_cents),
                 salesCount: Number(s.period_sales_count),
                 color: s.bill_color || ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f43f5e', '#8b5cf6', '#d946ef'][idx % 10]
-            }));
+            })).filter(s => s.total > 0).sort((a,b) => b.total - a.total);
 
-            // Ordenar por total del periodo
-            list.sort((a,b) => b.total - a.total);
-            const maxVal = list[0]?.total || 1;
-            let hasBars = false;
+            if (list.length === 0) {
+                miniChart.style.alignItems = 'center';
+                miniChart.innerHTML = '<span style="color:var(--text-muted); font-size:0.8rem; height:100%; display:flex; align-items:center;">Sin ventas</span>';
+                return;
+            }
+
+            miniChart.style.alignItems = 'flex-end';
+            const maxVal = list[0].total;
 
             list.forEach(s => {
-                if(s.total === 0) return;
-                hasBars = true;
-                const pct = Math.max((s.total / maxVal) * 100, 5); // min 5% altura
-                const fmtTotal = new Intl.NumberFormat('es-CO', { notation: "compact", maximumFractionDigits: 1 }).format(s.total); // e.g. 1.2M
+                const pct = Math.max((s.total / maxVal) * 100, 10);
+                miniChart.innerHTML += `
+                    <div style="display:flex; flex-direction:column; align-items:center; height:100%; justify-content:flex-end; flex:1; max-width:35px; min-width:15px;">
+                        <span style="font-size:0.6rem; font-weight:bold; color:var(--text-main); line-height:1; margin-bottom:2px;">${s.salesCount}</span>
+                        <div style="width:100%; height:${pct}%; background:${s.color}; border-radius:4px 4px 0 0;"></div>
+                        <span style="font-size:0.55rem; color:var(--text-muted); margin-top:2px; height:10px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; width:100%; text-align:center;">${s.name.substring(0,4)}</span>
+                    </div>
+                `;
+            });
+        }
+
+        function openSellerChartModal() {
+            document.getElementById('modal-seller-period-text').innerText = getPeriodText();
+            document.getElementById('seller-chart-modal-backdrop').style.display = 'flex';
+            
+            const expanded = document.getElementById('expandedSellerChart');
+            expanded.innerHTML = '';
+            
+            const list = lastSellersData.map((s, idx) => ({
+                name: s.name.split(' ')[0], 
+                total: Number(s.period_total_cents),
+                salesCount: Number(s.period_sales_count),
+                color: s.bill_color || ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f43f5e', '#8b5cf6', '#d946ef'][idx % 10]
+            })).filter(s => s.total > 0).sort((a,b) => b.total - a.total);
+
+            if(list.length === 0) {
+                expanded.innerHTML = '<div style="margin:auto; color:var(--text-muted);">Sin ventas en este periodo</div>';
+                return;
+            }
+
+            const maxVal = list[0].total;
+
+            list.forEach(s => {
+                const pct = Math.max((s.total / maxVal) * 100, 5);
+                const fmtTotal = new Intl.NumberFormat('es-CO', { notation: "compact", maximumFractionDigits: 1 }).format(s.total); 
                 
-                const barHtml = `
+                expanded.innerHTML += `
                     <div style="display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; flex: 1; max-width: 90px; min-width: 50px;">
                         <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-main); margin-bottom: 4px;" title="${s.total}">$${fmtTotal}</span>
                         <div style="width: 100%; height: ${pct}%; background: ${s.color}; border-radius: 6px 6px 0 0; position: relative;">
@@ -717,17 +757,11 @@
                         <span style="font-size: 0.75rem; color: var(--text-muted); margin-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; text-align: center; word-break: break-word;">${s.name}</span>
                     </div>
                 `;
-                chart.innerHTML += barHtml;
             });
-            
-            if (!hasBars) {
-                chart.style.alignItems = 'center';
-                chart.style.justifyContent = 'center';
-                chart.innerHTML = '<div style="color:var(--text-muted); font-size:0.9rem; width:100%; text-align:center;">Sin ventas en el periodo</div>';
-            } else {
-                chart.style.alignItems = 'flex-end';
-                chart.style.justifyContent = 'flex-start';
-            }
+        }
+
+        function closeSellerChartModal() {
+            document.getElementById('seller-chart-modal-backdrop').style.display = 'none';
         }
 
         let lastProductsData = [];
@@ -766,6 +800,7 @@
                     <div style="display:flex; flex-direction:column; align-items:center; height:100%; justify-content:flex-end; flex:1; max-width:35px; min-width:15px;">
                         <span style="font-size:0.7rem; font-weight:bold; color:var(--text-main); line-height:1; margin-bottom:2px;">${p.qty}</span>
                         <div style="width:100%; height:${pct}%; background:${p.color}; border-radius:4px 4px 0 0;"></div>
+                        <span style="font-size:0.55rem; color:var(--text-muted); margin-top:2px; height:10px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; width:100%; text-align:center;">${p.name.substring(0,4)}</span>
                     </div>
                 `;
             });
