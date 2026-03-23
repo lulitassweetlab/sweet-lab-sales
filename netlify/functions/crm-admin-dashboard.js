@@ -222,9 +222,15 @@ export async function handler(event) {
             debt_period_count += Number(d.period_orders);
         });
 
+        let period_desserts_total = 0;
+        sellerStats.forEach(s => {
+            period_desserts_total += Number(s.period_desserts_count) || 0;
+        });
+
         let generalData = generalStats ? { ...generalStats } : {};
         generalData.debt_period_cents = debt_period_cents;
         generalData.debt_period_count = debt_period_count;
+        generalData.period_desserts_total = period_desserts_total;
 
         return json({
             general: generalData,

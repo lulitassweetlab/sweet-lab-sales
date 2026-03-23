@@ -763,7 +763,7 @@
 
             document.getElementById('titleSalesPeriod').innerHTML = `💵 Vendido ${periodText}`;
             document.getElementById('valSalesPeriod').innerText = fmtMoney.format(gen.sales_period_cents);
-            document.getElementById('valSalesCountPeriod').innerText = `${gen.sales_period_count} tickets emitidos`;
+            document.getElementById('valSalesCountPeriod').innerText = `${gen.period_desserts_total || 0} postres vendidos`;
 
             document.getElementById('titleDessertsPeriod').innerHTML = `🍰 Postres (${getPeriodText()})`;
             
