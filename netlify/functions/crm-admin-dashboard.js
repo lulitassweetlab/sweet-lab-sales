@@ -178,6 +178,24 @@ export async function handler(event) {
                 (SELECT COUNT(*) FROM crm_prospects WHERE status = 'won' AND (${!filterSellers}::boolean OR seller_id = ANY(${sellerIds}::int[]))) as won_prospects
         `;
 
+        const periodClients = await sql`
+            SELECT 
+                c.id, c.name, c.phone,
+                COUNT(s.id) as period_orders,
+                COALESCE(SUM(s.total_cents), 0) as period_total_cents,
+                MAX(sl.name) as seller_name,
+                MAX(sl.bill_color) as seller_color
+            FROM clients c
+            JOIN crm_client_sales cs ON c.id = cs.client_id
+            JOIN sales s ON cs.sale_id = s.id
+            LEFT JOIN sellers sl ON c.seller_id = sl.id
+            JOIN sale_days sd ON s.sale_day_id = sd.id
+            WHERE sd.day >= ${dtStart} AND sd.day <= ${dtEnd}
+            AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))
+            GROUP BY c.id, c.name, c.phone
+            ORDER BY period_total_cents DESC;
+        `;
+
         return json({
             general: generalStats,
             sellers: sellerStats,
@@ -190,7 +208,8 @@ export async function handler(event) {
                 top_ltv: topLtvClients
             },
             products: productMetrics,
-            crmActivity: crmActivity
+            crmActivity: crmActivity,
+            periodClients: periodClients
         });
 
     } catch (err) {
