@@ -222,7 +222,7 @@ export async function handler(event) {
             debt_period_count += Number(d.period_orders);
         });
 
-        let generalData = generalStats && generalStats.length > 0 ? { ...generalStats[0] } : {};
+        let generalData = generalStats ? { ...generalStats } : {};
         generalData.debt_period_cents = debt_period_cents;
         generalData.debt_period_count = debt_period_count;
 
