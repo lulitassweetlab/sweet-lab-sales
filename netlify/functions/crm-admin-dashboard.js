@@ -222,13 +222,12 @@ export async function handler(event) {
             debt_period_count += Number(d.period_orders);
         });
 
-        if (generalStats && generalStats.length > 0) {
-            generalStats[0].debt_period_cents = debt_period_cents;
-            generalStats[0].debt_period_count = debt_period_count;
-        }
+        let generalData = generalStats && generalStats.length > 0 ? { ...generalStats[0] } : {};
+        generalData.debt_period_cents = debt_period_cents;
+        generalData.debt_period_count = debt_period_count;
 
         return json({
-            general: generalStats,
+            general: [generalData],
             sellers: sellerStats,
             businessAlerts: {
                 with_debt: clientsWithDebt,
