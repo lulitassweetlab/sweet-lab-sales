@@ -835,7 +835,7 @@
             const list = sellers.map((s, idx) => ({
                 name: s.name.split(' ')[0], 
                 total: Number(s.period_total_cents),
-                salesCount: Number(s.period_sales_count),
+                salesCount: Number(s.period_desserts_count),
                 color: s.bill_color || ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f43f5e', '#8b5cf6', '#d946ef'][idx % 10]
             })).filter(s => s.total > 0).sort((a,b) => b.total - a.total);
 
@@ -870,7 +870,7 @@
             const list = lastSellersData.map((s, idx) => ({
                 name: s.name.split(' ')[0], 
                 total: Number(s.period_total_cents),
-                salesCount: Number(s.period_sales_count),
+                salesCount: Number(s.period_desserts_count),
                 color: s.bill_color || ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f43f5e', '#8b5cf6', '#d946ef'][idx % 10]
             })).filter(s => s.total > 0).sort((a,b) => b.total - a.total);
 

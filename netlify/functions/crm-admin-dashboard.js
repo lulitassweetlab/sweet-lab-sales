@@ -82,7 +82,7 @@ export async function handler(event) {
                 FROM unpivoted_sales u
             ),
             seller_commissions AS (
-                SELECT seller_id, SUM(comm) as total_commission FROM sales_with_commissions GROUP BY seller_id
+                SELECT seller_id, SUM(comm) as total_commission, SUM(qty) as total_desserts FROM sales_with_commissions GROUP BY seller_id
             )
             SELECT 
                 sl.id, sl.name, sl.bill_color,
@@ -90,6 +90,7 @@ export async function handler(event) {
                 COUNT(s.id) as total_sales,
                 COALESCE(SUM(s.total_cents) FILTER (WHERE sd.id IS NOT NULL), 0) as period_total_cents,
                 COUNT(s.id) FILTER (WHERE sd.id IS NOT NULL) as period_sales_count,
+                COALESCE(sc.total_desserts, 0) as period_desserts_count,
                 COALESCE(SUM(s.total_cents) / NULLIF(COUNT(s.id), 0), 0) as avg_ticket,
                 COALESCE(sc.total_commission, 0) as total_commission,
                 COALESCE(sc.total_commission / NULLIF(COUNT(s.id), 0), 0) as avg_commission,
