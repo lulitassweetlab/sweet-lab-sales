@@ -201,22 +201,27 @@
         <!-- ROW 1: General Stats -->
         <h2 style="font-size: 1.1rem; margin-bottom: 16px; color: var(--text-main);">1. Rendimiento de Ventas</h2>
         <div class="dashboard-grid">
-            <div class="card col-span-4" style="cursor: pointer; position: relative; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="openPeriodClientsModal()" title="Ver clientes del periodo">
+            <div class="card col-span-3" style="cursor: pointer; position: relative; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="openPeriodClientsModal()" title="Ver clientes del periodo">
                 <div class="card-title" id="titleSalesPeriod">💵 Vendido Hoy</div>
                 <div class="metric-value metric-color-primary" id="valSalesPeriod">-</div>
                 <div class="metric-label" id="valSalesCountPeriod">- tickets emitidos</div>
             </div>
-            <div class="card col-span-4" style="cursor: pointer; position: relative; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="openDessertChartModal()" title="Ver detalle">
+            <div class="card col-span-3" style="cursor: pointer; position: relative; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="openDessertChartModal()" title="Ver detalle">
                 <div class="card-title" id="titleDessertsPeriod">🍰 Postres del Periodo</div>
                 <div id="miniDessertChart" style="height: 90px; display: flex; align-items: flex-end; justify-content: space-around; gap: 4px; overflow: hidden; opacity: 0.9;">
                     <!-- Mini bars -->
                 </div>
             </div>
-            <div class="card col-span-4" style="cursor: pointer; position: relative; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="openSellerChartModal()" title="Ver detalle">
+            <div class="card col-span-3" style="cursor: pointer; position: relative; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="openSellerChartModal()" title="Ver detalle">
                 <div class="card-title">📊 Ventas por Vendedor</div>
                 <div id="miniSellerChart" style="height: 90px; display: flex; align-items: flex-end; justify-content: center; gap: 8px; overflow: hidden; opacity: 0.9;">
                     <!-- Mini seller bars -->
                 </div>
+            </div>
+            <div class="card col-span-3" style="cursor: pointer; position: relative; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="openPeriodDebtsModal()" title="Ver deudas">
+                <div class="card-title" id="titleDebtPeriod">⚠️ Deudas Hoy</div>
+                <div class="metric-value metric-color-danger" id="valDebtPeriod">-</div>
+                <div class="metric-label" id="valDebtCountPeriod">- pedidos sin pagar</div>
             </div>
         </div>
 
@@ -311,6 +316,19 @@
                 </div>
                 <div id="expandedPeriodClients" style="flex:1; display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; overflow-y: auto; padding: 10px;">
                     <!-- Client cards go here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Period Debts Modal -->
+        <div id="period-debts-modal-backdrop" onclick="if(event.target===this)closePeriodDebtsModal()" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:1100; align-items:center; justify-content:center;">
+            <div class="modal-aladdin" style="background:var(--bg); border-radius:16px; padding:28px; width:80vw; max-width: 1000px; max-height: 85vh; box-shadow:0 20px 60px rgba(0,0,0,0.2); display: flex; flex-direction: column;">
+                <div class="flex-between">
+                    <h4 style="margin:0 0 20px; font-size:1.3rem; font-weight:700; color: var(--danger);">⚠️ Deudas del Periodo (<span id="modal-debts-period-text"></span>)</h4>
+                    <button class="btn" onclick="closePeriodDebtsModal()" style="border:none; font-size:1.2rem; cursor:pointer;" title="Cerrar">✖</button>
+                </div>
+                <div id="expandedPeriodDebts" style="flex:1; display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; overflow-y: auto; padding: 10px;">
+                    <!-- Debt cards go here -->
                 </div>
             </div>
         </div>
@@ -612,6 +630,7 @@
                 populateProducts(data.products);
                 populateTopClients(data.businessAlerts.top_ltv);
                 if(data.periodClients) populatePeriodClients(data.periodClients);
+                if(data.periodDebts) populatePeriodDebts(data.periodDebts);
 
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('dashboard-content').style.display = 'block';
@@ -686,18 +705,72 @@
             document.getElementById('period-clients-modal-backdrop').style.display = 'none';
         }
 
-        function populateGeneral(gen) {
-            let periodText = 'Vendido Este Mes';
-            const tr = document.getElementById('dateFilter').value;
-            if (tr === 'today') periodText = 'Vendido Hoy';
-            else if (tr === 'week') periodText = 'Vendido Esta Semana';
-            else if (tr === 'custom') periodText = 'Vendido (P. Seleccionado)';
+        let lastPeriodDebts = [];
 
-            document.getElementById('titleSalesPeriod').innerHTML = `💵 ${periodText}`;
+        function populatePeriodDebts(debts) {
+            lastPeriodDebts = debts;
+        }
+
+        function openPeriodDebtsModal() {
+            document.getElementById('modal-debts-period-text').innerText = getPeriodText();
+            document.getElementById('period-debts-modal-backdrop').style.display = 'flex';
+            
+            const container = document.getElementById('expandedPeriodDebts');
+            container.innerHTML = '';
+            
+            if(!lastPeriodDebts || lastPeriodDebts.length === 0) {
+                container.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding: 40px; color:var(--text-muted); width:100%;">No hay deudas registradas en este periodo con los filtros actuales.</div>';
+                return;
+            }
+
+            lastPeriodDebts.forEach(c => {
+                const sColor = c.seller_color || '#ccc';
+                const sName = c.seller_name || 'Sin Asignar';
+                const fmtTotal = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(c.period_total_cents);
+                
+                container.innerHTML += `
+                    <div style="background: var(--surface); border: 2px solid var(--danger); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); position: relative; overflow: hidden;">
+                        <div style="position: absolute; top:0; right:0; background: var(--danger); color: white; font-size: 0.65rem; font-weight: bold; padding: 4px 12px; border-bottom-left-radius: 8px;">Por Cobrar</div>
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-top:4px;">
+                            <strong style="font-size: 1.05rem; color: var(--text-main); word-break: break-word;">${c.name}</strong>
+                        </div>
+                        <div style="font-size: 0.85rem; color: var(--text-muted); display: flex; align-items: center; gap: 6px;">
+                            📞 <a href="https://wa.me/${c.phone}" target="_blank" style="color:var(--primary); text-decoration:none;">${c.phone || 'Desconocido'}</a>
+                        </div>
+                        <div style="margin-top: auto; padding-top: 12px; border-top: 1px dashed var(--danger); display: flex; justify-content: space-between; align-items: flex-end;">
+                            <div style="display: flex; flex-direction: column; gap: 4px;">
+                                <span style="font-size: 0.75rem; color: var(--text-muted);">Tickets sin cobro: <b style="color:var(--danger);">${c.period_orders}</b></span>
+                                <span style="font-size: 0.75rem; color: var(--text-muted); display:flex; align-items:center; gap:4px;">
+                                    Asignado: <div style="width:10px; height:10px; border-radius:50%; background:${sColor};"></div> <span style="font-weight:600; color:var(--text-main);">${sName}</span>
+                                </span>
+                            </div>
+                            <strong style="color: var(--danger); font-size: 1.15rem;">${fmtTotal}</strong>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function closePeriodDebtsModal() {
+            document.getElementById('period-debts-modal-backdrop').style.display = 'none';
+        }
+
+        function populateGeneral(gen) {
+            let periodText = 'Este Mes';
+            const tr = document.getElementById('dateFilter').value;
+            if (tr === 'today') periodText = 'Hoy';
+            else if (tr === 'week') periodText = 'Esta Semana';
+            else if (tr === 'custom') periodText = '(P. Seleccionado)';
+
+            document.getElementById('titleSalesPeriod').innerHTML = `💵 Vendido ${periodText}`;
             document.getElementById('valSalesPeriod').innerText = fmtMoney.format(gen.sales_period_cents);
             document.getElementById('valSalesCountPeriod').innerText = `${gen.sales_period_count} tickets emitidos`;
 
             document.getElementById('titleDessertsPeriod').innerHTML = `🍰 Postres (${getPeriodText()})`;
+            
+            document.getElementById('titleDebtPeriod').innerHTML = `⚠️ Deudas ${periodText}`;
+            document.getElementById('valDebtPeriod').innerText = fmtMoney.format(gen.debt_period_cents);
+            document.getElementById('valDebtCountPeriod').innerText = `${gen.debt_period_count} pedidos sin pagar`;
         }
 
         function populateAlerts(alerts) {

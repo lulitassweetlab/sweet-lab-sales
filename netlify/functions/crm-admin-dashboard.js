@@ -49,6 +49,8 @@ export async function handler(event) {
                 COALESCE(SUM(s.total_cents) FILTER (WHERE sd.day = CURRENT_DATE AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))), 0) as sales_today_cents,
                 COALESCE(SUM(s.total_cents) FILTER (WHERE sd.day >= ${dtStart} AND sd.day <= ${dtEnd} AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))), 0) as sales_period_cents,
                 COUNT(s.id) FILTER (WHERE sd.day >= ${dtStart} AND sd.day <= ${dtEnd} AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))) as sales_period_count,
+                COALESCE(SUM(s.total_cents) FILTER (WHERE sd.day >= ${dtStart} AND sd.day <= ${dtEnd} AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[])) AND s.is_paid = false), 0) as debt_period_cents,
+                COUNT(s.id) FILTER (WHERE sd.day >= ${dtStart} AND sd.day <= ${dtEnd} AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[])) AND s.is_paid = false) as debt_period_count,
                 (SELECT COUNT(DISTINCT client_id) FROM crm_client_sales WHERE ${!filterSellers}::boolean OR seller_id = ANY(${sellerIds}::int[])) as active_clients_count
             FROM sales s
             LEFT JOIN sale_days sd ON sd.id = s.sale_day_id;
@@ -196,6 +198,25 @@ export async function handler(event) {
             ORDER BY period_total_cents DESC;
         `;
 
+        const periodDebts = await sql`
+            SELECT 
+                c.id, c.name, c.whatsapp as phone,
+                COUNT(s.id) as period_orders,
+                COALESCE(SUM(s.total_cents), 0) as period_total_cents,
+                MAX(sl.name) as seller_name,
+                MAX(sl.bill_color) as seller_color
+            FROM clients c
+            JOIN crm_client_sales cs ON c.id = cs.client_id
+            JOIN sales s ON cs.sale_id = s.id
+            LEFT JOIN sellers sl ON c.seller_id = sl.id
+            JOIN sale_days sd ON s.sale_day_id = sd.id
+            WHERE sd.day >= ${dtStart} AND sd.day <= ${dtEnd}
+            AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))
+            AND s.is_paid = false
+            GROUP BY c.id, c.name, c.whatsapp
+            ORDER BY period_total_cents DESC;
+        `;
+
         return json({
             general: generalStats,
             sellers: sellerStats,
@@ -209,7 +230,8 @@ export async function handler(event) {
             },
             products: productMetrics,
             crmActivity: crmActivity,
-            periodClients: periodClients
+            periodClients: periodClients,
+            periodDebts: periodDebts
         });
 
     } catch (err) {
