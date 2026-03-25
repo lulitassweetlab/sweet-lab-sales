@@ -1380,21 +1380,20 @@
 
         // Bridge Listeners (connecting HTML elements to logic in external files)
         on('store-auth-btn', 'click', () => {
-            if (storeAuthUser && storeAuthUser.username) {
-                if (confirm('¿Deseas cerrar sesión?')) {
+            if (storeAuthUser && storeAuthUser.username && storeActiveSeller) {
+                // Fully active: offer logout
+                if (confirm(`¿Deseas cerrar sesión de ${storeActiveSeller.name}?`)) {
                     storeAuthUser = null;
                     storeActiveSeller = null;
                     safeLS.removeItem('storeAuthUser');
                     safeLS.removeItem('storeActiveSeller');
-                    updateAuthUI();
-                    updateCartUI();
+                    window.location.reload();
                 }
+            } else if (storeAuthUser && storeAuthUser.username) {
+                // Logged in but no seller — show seller picker
+                if (typeof showSellerSelection === 'function') showSellerSelection();
             } else {
-                storeAuthUser = null;
-                storeActiveSeller = null;
-                safeLS.removeItem('storeAuthUser');
-                safeLS.removeItem('storeActiveSeller');
-                updateAuthUI();
+                // Not logged in — show login modal
                 loginStep = 1;
                 document.getElementById('login-modal-title').textContent = 'Ingreso';
                 document.getElementById('login-user').style.display = 'block';

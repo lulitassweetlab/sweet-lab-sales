@@ -83,6 +83,19 @@ function updateAuthUI() {
             iframe.title = 'Registro de Ventas';
             embedContainer.appendChild(iframe);
         }
+    } else if (storeAuthUser && storeAuthUser.username) {
+        // Logged in but no seller selected yet
+        storeAuthBtn.textContent = 'Seleccionar Vendedor';
+        storeAuthBtn.style.color = 'var(--primary)';
+        storeAuthBtn.style.borderColor = 'var(--primary)';
+        storeAuthBtn.style.background = 'transparent';
+        storeAuthBtn.style.boxShadow = 'none';
+        storeClientsBtn.style.display = 'none';
+        storeCrmBtn.style.display = 'none';
+        document.body.classList.remove('is-seller-active');
+
+        const embedContainer = document.getElementById('seller-embedded-sales-container');
+        if (embedContainer) { embedContainer.innerHTML = ''; embedContainer.style.display = 'none'; }
     } else {
         storeAuthBtn.textContent = 'Ingresar';
         storeAuthBtn.style.color = 'var(--primary)';
