@@ -540,6 +540,10 @@
         @media (max-width: 340px) { .pipeline-watermark { font-size:0.6rem; letter-spacing:0.02em; } }
         @keyframes blink { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.97); } }
         .is-blinking { animation: blink 0.8s infinite ease-in-out; position: relative; z-index: 10; box-shadow: 0 0 12px rgba(255,255,255,0.6) !important; }
+        @keyframes popCenter { 
+            from { opacity: 0; transform: translate(-50%, -45%) scale(0.9); } 
+            to { opacity: 1; transform: translate(-50%, -50%) scale(1); } 
+        }
     </style>
 
     <!-- SortableJS library for touch-friendly drag and drop -->
@@ -2313,9 +2317,9 @@
                 msg.style.cssText = 'position:fixed; background:var(--primary); color:white; padding:6px 12px; border-radius:8px; font-size:0.75rem; font-weight:800; z-index:1000; pointer-events:none; box-shadow:0 4px 12px rgba(0,0,0,0.2); transition:opacity 0.3s;';
                 
                 const rect = btnElement.getBoundingClientRect();
-                msg.style.left = (rect.left + rect.width/2) + 'px';
-                msg.style.top = (rect.top - 30) + 'px';
-                msg.style.transform = 'translateX(-50%)';
+                msg.style.left = (rect.right + 10) + 'px';
+                msg.style.top = (rect.top + rect.height/2) + 'px';
+                msg.style.transform = 'translateY(-50%)';
                 
                 document.body.appendChild(msg);
                 setTimeout(() => { msg.style.opacity = '0'; setTimeout(() => msg.remove(), 300); }, 1000);
@@ -2365,7 +2369,7 @@
             // Central deactivation message
             const msg = document.createElement('div');
             msg.innerText = 'Modo masivo desactivado';
-            msg.style.cssText = 'position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:rgba(0,0,0,0.85); color:white; padding:18px 28px; border-radius:18px; font-weight:800; z-index:10000; pointer-events:none; animation: popIn 0.3s ease; box-shadow: 0 10px 40px rgba(0,0,0,0.4);';
+            msg.style.cssText = 'position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:rgba(0,0,0,0.85); color:white; padding:18px 28px; border-radius:18px; font-weight:800; z-index:10000; pointer-events:none; animation: popCenter 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); box-shadow: 0 10px 40px rgba(0,0,0,0.4);';
             document.body.appendChild(msg);
             setTimeout(() => { msg.style.opacity = '0'; setTimeout(() => msg.remove(), 300); }, 1200);
 
