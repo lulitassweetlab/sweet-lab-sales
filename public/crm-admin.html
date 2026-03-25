@@ -54,6 +54,8 @@
             padding: 24px;
             box-shadow: var(--shadow);
             border: 1px solid var(--border);
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
         .card-title {
@@ -136,6 +138,30 @@
         .flex-between { display: flex; justify-content: space-between; align-items: center; }
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 
+        .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; }
+
+        @media (max-width: 768px) {
+            header { flex-direction: column; align-items: flex-start !important; gap: 15px; }
+            header > div:last-child { flex-direction: column; width: 100%; align-items: stretch !important; gap: 10px !important; }
+            .date-buttons { flex-wrap: wrap; justify-content: center; width: 100%; }
+            .date-buttons .btn { flex: 1; text-align: center; padding: 8px 4px; font-size: 0.85rem; }
+            .grid-2 { grid-template-columns: 1fr; }
+            .flex-between { flex-direction: column; align-items: flex-start; gap: 10px !important; }
+            .flex-between select, .flex-between input, .flex-between button { width: 100%; }
+            table.table, table#tableCommissions, table#tableAdminPipeline, table#tableListDebtClients { min-width: 600px; }
+            table#tableAdminPipeline { min-width: 800px; }
+            h1 { font-size: 1.4rem; }
+            .modal-content { width: 95% !important; padding: 15px !important; margin: 10% auto !important; overflow-x: auto; }
+        }
+
+        @keyframes aladdinIn {
+            0% { opacity: 0; transform: scale(0.5) translateY(50px); }
+            100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .modal-aladdin {
+            animation: aladdinIn 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+        }
+
     </style>
 </head>
 <body>
@@ -146,12 +172,31 @@
             <p class="subtitle">Panel de Control General y Resultados en Vivo</p>
         </div>
         <div style="display: flex; gap: 10px; align-items: center;">
-            <select id="dateFilter" class="btn" style="background: white; cursor: pointer; border-color: var(--border);" onchange="handleDateChange()">
-                <option value="today">Hoy</option>
-                <option value="week">Esta semana</option>
-                <option value="month" selected>Este mes</option>
-                <option value="custom">Rango personalizado...</option>
-            </select>
+            <input type="hidden" id="dateFilter" value="month">
+            <div class="date-buttons" style="display: flex; gap: 5px;">
+                <button class="btn" id="btn-today" onclick="setDateFilter('today')">Hoy</button>
+                <button class="btn" id="btn-week" onclick="setDateFilter('week')">Esta semana</button>
+                <button class="btn btn-primary" id="btn-month" onclick="setDateFilter('month')">Este mes</button>
+                <button class="btn" id="btn-custom" onclick="setDateFilter('custom')">Personalizado</button>
+            </div>
+            
+            <div style="position: relative;">
+                <button class="btn" style="background: white; border-color: var(--border);" onclick="toggleSellerSelect()">
+                    👥 Vendedores: <span id="seller-btn-text" style="font-weight:700;">Todos</span>
+                </button>
+                <div id="seller-dropdown" style="display:none; position:absolute; top:100%; left:0; margin-top:5px; background:white; border:1px solid var(--border); border-radius:8px; padding:10px; box-shadow:var(--shadow); z-index:100; min-width:200px; max-height: 300px; overflow-y: auto;">
+                    <div style="margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid var(--border);">
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:bold;">
+                            <input type="checkbox" id="seller-all" checked onchange="toggleAllSellers(this)"> Todos
+                        </label>
+                    </div>
+                    <div id="seller-list" style="display:flex; flex-direction:column; gap:6px;">
+                        <span style="color:var(--text-muted); font-size:0.8rem;">Cargando...</span>
+                    </div>
+                    <button class="btn btn-primary" style="width:100%; margin-top:10px; padding:6px; font-size:0.9rem;" onclick="applySellerFilter()">Aplicar Filtro</button>
+                    <button class="btn" style="width:100%; margin-top:6px; padding:6px; font-size:0.9rem; text-align:center;" onclick="toggleSellerSelect()">Cerrar</button>
+                </div>
+            </div>
             <div id="customDateRange" style="display: none; align-items: center; gap: 8px;">
                 <input type="date" id="dateStart" class="btn" style="background: white;">
                 <span>a</span>
@@ -174,25 +219,27 @@
         <!-- ROW 1: General Stats -->
         <h2 style="font-size: 1.1rem; margin-bottom: 16px; color: var(--text-main);">1. Rendimiento de Ventas</h2>
         <div class="dashboard-grid">
-            <div class="card col-span-3">
-                <div class="card-title">💵 Vendido Hoy</div>
-                <div class="metric-value metric-color-primary" id="valSalesToday">-</div>
-                <div class="metric-label" id="valSalesCountToday">- tickets emitidos hoy</div>
+            <div class="card col-span-3" style="cursor: pointer; position: relative; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="openPeriodClientsModal()" title="Ver clientes del periodo">
+                <div class="card-title" id="titleSalesPeriod">💵 Vendido Hoy</div>
+                <div class="metric-value metric-color-primary" id="valSalesPeriod">-</div>
+                <div class="metric-label" id="valSalesCountPeriod">- tickets emitidos</div>
             </div>
-            <div class="card col-span-3">
-                <div class="card-title">📅 Vendido Este Mes</div>
-                <div class="metric-value metric-color-success" id="valSalesMonth">-</div>
-                <div class="metric-label">Ventas acumuladas del mes actual</div>
+            <div class="card col-span-3" style="cursor: pointer; position: relative; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="openDessertChartModal()" title="Ver detalle">
+                <div class="card-title" id="titleDessertsPeriod">🍰 Postres del Periodo</div>
+                <div id="miniDessertChart" style="height: 90px; display: flex; align-items: flex-end; justify-content: space-around; gap: 4px; overflow: hidden; opacity: 0.9;">
+                    <!-- Mini bars -->
+                </div>
             </div>
-            <div class="card col-span-3">
-                <div class="card-title">👥 Clientes Activos</div>
-                <div class="metric-value metric-color-info" id="valActiveClients">-</div>
-                <div class="metric-label">Han comprado en los últimos 30 días</div>
+            <div class="card col-span-3" style="cursor: pointer; position: relative; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="openSellerChartModal()" title="Ver detalle">
+                <div class="card-title">📊 Ventas por Vendedor</div>
+                <div id="miniSellerChart" style="height: 90px; display: flex; align-items: flex-end; justify-content: center; gap: 8px; overflow: hidden; opacity: 0.9;">
+                    <!-- Mini seller bars -->
+                </div>
             </div>
-            <div class="card col-span-3">
-                <div class="card-title">⚡ Termómetro Diario (Notas)</div>
-                <div class="metric-value" id="valNotesToday">-</div>
-                <div class="metric-label">Notas e interacciones registradas hoy</div>
+            <div class="card col-span-3" style="cursor: pointer; position: relative; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="openPeriodDebtsModal()" title="Ver deudas">
+                <div class="card-title" id="titleDebtPeriod">⚠️ Deuda Actual</div>
+                <div class="metric-value metric-color-danger" id="valDebtPeriod">-</div>
+                <div class="metric-label" id="valDebtCountPeriod">- pedidos sin pagar</div>
             </div>
         </div>
 
@@ -239,57 +286,102 @@
                 </table>
             </div>
         </div>
-
         <!-- ROW 3: Sellers and Products -->
+        <h2 style="font-size: 1.1rem; margin-bottom: 16px; color: var(--text-main);">3. Rendimiento de Vendedores y Productos</h2>
+        <!-- ROW 5: Sellers Table -->
         <div class="dashboard-grid">
-            <div class="card col-span-8">
-                <div class="card-title">🏆 Tabla de Vendedores (Acumulado)</div>
-                <div style="overflow-x: auto;">
-                <table id="tableSellers">
-                    <thead>
-                        <tr>
-                            <th>Vendedor</th>
-                            <th>Total Mes</th>
-                            <th>Ticket Prom.</th>
-                            <th>Ventas Hoy</th>
-                            <th>Comisión (Total)</th>
-                            <th>Prom. Comis.</th>
-                            <th>Actividad CRM</th>
-                            <th>Última Venta</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- Sellers rows go here -->
-                    </tbody>
-                </table>
+            <div class="card" style="grid-column: span 12;">
+                <div class="card-title" id="titleSellersTable">💰 Tabla de Comisiones</div>
+                <div style="overflow-x:auto;">
+                    <table class="table" id="tableSellers">
+                        <thead>
+                            <tr>
+                                <th>Vendedor</th>
+                                <th>Postres Vendidos</th>
+                                <th>Total Vendido</th>
+                                <th>Comisión Promedio</th>
+                                <th>Total Comisiones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Sellers go here -->
+                        </tbody>
+                    </table>
                 </div>
             </div>
+        </div>
 
-            <div class="card col-span-4">
-                <div class="card-title">🍰 Top Productos Vendidos (Mes)</div>
-                <div id="productChart" style="margin-top: 16px; display: flex; flex-direction: column; gap: 12px;">
-                    <!-- Product bars go here -->
+        <!-- Dessert Chart Modal -->
+        <div id="dessert-chart-modal-backdrop" onclick="if(event.target===this)closeDessertChartModal()" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:1100; align-items:center; justify-content:center;">
+            <div id="dessert-chart-modal" class="modal-aladdin" style="background:var(--surface); border-radius:16px; padding:28px; width:70vw; max-width: 900px; min-height: 400px; box-shadow:0 20px 60px rgba(0,0,0,0.2); display: flex; flex-direction: column;">
+                <div class="flex-between">
+                    <h4 id="dessert-chart-modal-title" style="margin:0 0 20px; font-size:1.3rem; font-weight:700;">🍰 Postres Vendidos (<span id="modal-period-text"></span>)</h4>
+                    <button class="btn" onclick="closeDessertChartModal()" style="border:none; font-size:1.2rem; cursor:pointer;" title="Cerrar">✖</button>
+                </div>
+                <div id="expandedDessertChart" style="display:flex; align-items:flex-end; gap:16px; justify-content:center; padding: 20px 10px 10px 10px; border-bottom:1px solid var(--border); overflow-x: auto; height: 350px; width: 100%;">
+                    <!-- Full bars go here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Period Clients Modal -->
+        <div id="period-clients-modal-backdrop" onclick="if(event.target===this)closePeriodClientsModal()" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:1100; align-items:center; justify-content:center;">
+            <div class="modal-aladdin" style="background:var(--bg); border-radius:16px; padding:28px; width:80vw; max-width: 1000px; max-height: 85vh; box-shadow:0 20px 60px rgba(0,0,0,0.2); display: flex; flex-direction: column;">
+                <div class="flex-between">
+                    <h4 style="margin:0 0 20px; font-size:1.3rem; font-weight:700;">👥 Clientes del Periodo (<span id="modal-clients-period-text"></span>)</h4>
+                    <button class="btn" onclick="closePeriodClientsModal()" style="border:none; font-size:1.2rem; cursor:pointer;" title="Cerrar">✖</button>
+                </div>
+                <div id="expandedPeriodClients" style="flex:1; display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; overflow-y: auto; padding: 10px;">
+                    <!-- Client cards go here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Period Debts Modal -->
+        <div id="period-debts-modal-backdrop" onclick="if(event.target===this)closePeriodDebtsModal()" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:1100; align-items:center; justify-content:center;">
+            <div class="modal-aladdin" style="background:var(--bg); border-radius:16px; padding:28px; width:80vw; max-width: 1000px; max-height: 85vh; box-shadow:0 20px 60px rgba(0,0,0,0.2); display: flex; flex-direction: column;">
+                <div class="flex-between">
+                    <h4 style="margin:0 0 20px; font-size:1.3rem; font-weight:700; color: var(--danger);">⚠️ Deuda Actual</h4>
+                    <button class="btn" onclick="closePeriodDebtsModal()" style="border:none; font-size:1.2rem; cursor:pointer;" title="Cerrar">✖</button>
+                </div>
+                <div id="expandedPeriodDebts" style="flex:1; display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; overflow-y: auto; padding: 10px;">
+                    <!-- Debt cards go here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Seller Chart Modal -->
+        <div id="seller-chart-modal-backdrop" onclick="if(event.target===this)closeSellerChartModal()" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:1100; align-items:center; justify-content:center;">
+            <div class="modal-aladdin" style="background:var(--surface); border-radius:16px; padding:28px; width:70vw; max-width: 900px; min-height: 400px; box-shadow:0 20px 60px rgba(0,0,0,0.2); display: flex; flex-direction: column;">
+                <div class="flex-between">
+                    <h4 style="margin:0 0 20px; font-size:1.3rem; font-weight:700;">📊 Ventas por Vendedor (<span id="modal-seller-period-text"></span>)</h4>
+                    <button class="btn" onclick="closeSellerChartModal()" style="border:none; font-size:1.2rem; cursor:pointer;" title="Cerrar">✖</button>
+                </div>
+                <div id="expandedSellerChart" style="display:flex; align-items:flex-end; gap:16px; justify-content:center; padding: 20px 10px 10px 10px; border-bottom:1px solid var(--border); overflow-x: auto; height: 350px; width: 100%;">
+                    <!-- Full bars go here -->
                 </div>
             </div>
         </div>
 
         <!-- ROW 4: Top Clients -->
-        <h2 style="font-size: 1.1rem; margin-bottom: 16px; color: var(--text-main);">3. Top Clientes (Mayor Valor Histórico)</h2>
         <div class="dashboard-grid">
-            <div class="card col-span-12">
-                <div style="overflow-x: auto;">
-                <table id="tableTopClients">
-                    <thead>
-                        <tr>
-                            <th>Cliente</th>
-                            <th>LTV (Total Ingresado)</th>
-                            <th>Fecha Última Compra</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- Top clients go here -->
-                    </tbody>
-                </table>
+            <div class="card" style="grid-column: span 12;">
+                <div class="card-title" id="titleTopClients">🏆 Top Clientes</div>
+                <div style="overflow-x:auto;">
+                    <table class="table" id="top-clients-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Cliente</th>
+                                <th>Vendedor</th>
+                                <th>Total Periodo</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Top clients go here -->
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -422,12 +514,90 @@
 
         const fmtMoney = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
 
-        document.addEventListener('DOMContentLoaded', loadDashboard);
+        document.addEventListener('DOMContentLoaded', () => {
+            initSellersFilter();
+            loadDashboard();
+        });
 
-        function handleDateChange() {
-            const val = document.getElementById('dateFilter').value;
+        let allSellersData = [];
+
+        async function initSellersFilter() {
+            try {
+                const res = await fetch('/.netlify/functions/get-sellers');
+                allSellersData = await res.json();
+                const list = document.getElementById('seller-list');
+                list.innerHTML = '';
+                allSellersData.forEach(s => {
+                    list.innerHTML += `
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.95rem;">
+                            <input type="checkbox" value="${s.id}" class="seller-checkbox" onchange="handleSingleSellerCheck()"> 
+                            <span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:${s.bill_color || '#ccc'}"></span>
+                            ${s.name}
+                        </label>
+                    `;
+                });
+            } catch (e) {
+                document.getElementById('seller-list').innerHTML = '<span style="color:red;font-size:0.8rem;">Error loading</span>';
+            }
+        }
+
+        function toggleSellerSelect() {
+            const el = document.getElementById('seller-dropdown');
+            el.style.display = el.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function toggleAllSellers(checkbox) {
+            const boxes = document.querySelectorAll('.seller-checkbox');
+            boxes.forEach(b => {
+                b.checked = false;
+            });
+            updateSellerBtnText();
+        }
+
+        function handleSingleSellerCheck() {
+            document.getElementById('seller-all').checked = false;
+            updateSellerBtnText();
+        }
+
+        function updateSellerBtnText() {
+            const allChecked = document.getElementById('seller-all').checked;
+            const boxes = Array.from(document.querySelectorAll('.seller-checkbox'));
+            
+            if (allChecked) {
+                document.getElementById('seller-btn-text').innerText = 'Todos';
+            } else {
+                const checkedBoxes = boxes.filter(b => b.checked);
+                if (checkedBoxes.length === 0) {
+                    document.getElementById('seller-btn-text').innerText = 'Ninguno';
+                } else if (checkedBoxes.length === 1) {
+                    const name = allSellersData.find(s => s.id == checkedBoxes[0].value)?.name;
+                    document.getElementById('seller-btn-text').innerText = name || '1 Selecc.';
+                } else {
+                    document.getElementById('seller-btn-text').innerText = checkedBoxes.length + ' Selecc.';
+                }
+            }
+        }
+
+        function applySellerFilter() {
+            document.getElementById('seller-dropdown').style.display = 'none';
+            loadDashboard();
+        }
+
+        function setDateFilter(range) {
+            document.getElementById('dateFilter').value = range;
+            
+            // Update button styles
+            ['today', 'week', 'month', 'custom'].forEach(r => {
+                const btn = document.getElementById('btn-' + r);
+                if (r === range) {
+                    btn.classList.add('btn-primary');
+                } else {
+                    btn.classList.remove('btn-primary');
+                }
+            });
+
             const customDiv = document.getElementById('customDateRange');
-            if(val === 'custom') {
+            if(range === 'custom') {
                 customDiv.style.display = 'flex';
             } else {
                 customDiv.style.display = 'none';
@@ -449,6 +619,19 @@
                     if(start && end) qs += `&start=${start}&end=${end}`;
                 }
 
+                // Add seller filter parameter
+                const isAll = document.getElementById('seller-all')?.checked ?? true;
+                if (!isAll) {
+                    const checkedIds = Array.from(document.querySelectorAll('.seller-checkbox'))
+                        .filter(b => b.checked)
+                        .map(b => b.value);
+                    if (checkedIds.length > 0) {
+                        qs += `&sellers=${checkedIds.join(',')}`;
+                    } else {
+                        qs += `&sellers=-1`; // "Ninguno" basically matches non-existent ID
+                    }
+                }
+
                 const res = await fetch(`/.netlify/functions/crm-admin-dashboard${qs}`);
                 const data = await res.json();
                 
@@ -464,7 +647,9 @@
                 populateCrmActivity(data.crmActivity);
                 populateSellers(data.sellers);
                 populateProducts(data.products);
-                populateTopClients(data.businessAlerts.top_ltv);
+                populateTopClients(data.periodClients ? data.periodClients.slice(0, 10) : []);
+                if(data.periodClients) populatePeriodClients(data.periodClients);
+                if(data.periodDebts) populatePeriodDebts(data.periodDebts);
 
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('dashboard-content').style.display = 'block';
@@ -479,11 +664,133 @@
             loadStages();
         }
 
+        function getPeriodText() {
+            const tr = document.getElementById('dateFilter').value;
+            if (tr === 'today') return 'Hoy';
+            if (tr === 'week') return 'Esta Semana';
+            if (tr === 'custom') return 'P. Seleccionado';
+            return 'Este Mes';
+        }
+
+        let lastPeriodClients = [];
+
+        function populatePeriodClients(clients) {
+            lastPeriodClients = clients;
+        }
+
+        function openPeriodClientsModal() {
+            document.getElementById('modal-clients-period-text').innerText = getPeriodText();
+            document.getElementById('period-clients-modal-backdrop').style.display = 'flex';
+            
+            const container = document.getElementById('expandedPeriodClients');
+            container.innerHTML = '';
+            
+            if(!lastPeriodClients || lastPeriodClients.length === 0) {
+                container.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding: 40px; color:var(--text-muted); width:100%;">Ningún cliente hizo pedidos en este periodo con los filtros actuales.</div>';
+                return;
+            }
+
+            lastPeriodClients.forEach(c => {
+                const sColor = c.seller_color || '#ccc';
+                const sName = c.seller_name || 'Sin Asignar';
+                const fStage = c.funnel_stage || 'Nuevo';
+                const badgeColor = fStage === 'Cierre-Ganado' ? 'var(--success)' : (fStage === 'Perdido' ? 'var(--danger)' : 'var(--primary)');
+                const fmtTotal = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(c.period_total_cents);
+                
+                container.innerHTML += `
+                    <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                            <strong style="font-size: 1.05rem; color: var(--text-main); word-break: break-word;">${c.name}</strong>
+                            <span style="font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; background: ${badgeColor}20; color: ${badgeColor}; font-weight: bold; border: 1px solid ${badgeColor}50;">${fStage}</span>
+                        </div>
+                        <div style="font-size: 0.85rem; color: var(--text-muted); display: flex; align-items: center; gap: 6px;">
+                            📞 <a href="https://wa.me/${c.phone}" target="_blank" style="color:var(--primary); text-decoration:none;">${c.phone || 'Desconocido'}</a>
+                        </div>
+                        <div style="margin-top: auto; padding-top: 12px; border-top: 1px dashed var(--border); display: flex; justify-content: space-between; align-items: flex-end;">
+                            <div style="display: flex; flex-direction: column; gap: 4px;">
+                                <span style="font-size: 0.75rem; color: var(--text-muted);">Pedidos: <b style="color:var(--text-main);">${c.period_orders}</b></span>
+                                <span style="font-size: 0.75rem; color: var(--text-muted); display:flex; align-items:center; gap:4px;">
+                                    Asignado: <div style="width:10px; height:10px; border-radius:50%; background:${sColor};"></div> <span style="font-weight:600; color:var(--text-main);">${sName}</span>
+                                </span>
+                            </div>
+                            <strong style="color: var(--success); font-size: 1.15rem;">${fmtTotal}</strong>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function closePeriodClientsModal() {
+            document.getElementById('period-clients-modal-backdrop').style.display = 'none';
+        }
+
+        let lastPeriodDebts = [];
+
+        function populatePeriodDebts(debts) {
+            lastPeriodDebts = debts;
+        }
+
+        function openPeriodDebtsModal() {
+            document.getElementById('period-debts-modal-backdrop').style.display = 'flex';
+            
+            const container = document.getElementById('expandedPeriodDebts');
+            container.innerHTML = '';
+            
+            if(!lastPeriodDebts || lastPeriodDebts.length === 0) {
+                container.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding: 40px; color:var(--text-muted); width:100%;">No hay deudas registradas en este periodo con los filtros actuales.</div>';
+                return;
+            }
+
+            lastPeriodDebts.forEach(c => {
+                const sColor = c.seller_color || '#ccc';
+                const sName = c.seller_name || 'Sin Asignar';
+                const fmtTotal = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(c.period_total_cents);
+                
+                container.innerHTML += `
+                    <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                            <strong style="font-size: 1.05rem; color: var(--text-main); word-break: break-word;">${c.name}</strong>
+                            <span style="font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; background: var(--danger)20; color: var(--danger); font-weight: bold; border: 1px solid var(--danger)50;">DEUDA PENDIENTE</span>
+                        </div>
+                        <div style="font-size: 0.85rem; color: var(--text-muted); display: flex; align-items: center; gap: 6px;">
+                            📞 <a href="https://wa.me/${c.phone}" target="_blank" style="color:var(--primary); text-decoration:none;">${c.phone || 'Desconocido'}</a>
+                        </div>
+                        <div style="margin-top: auto; padding-top: 12px; border-top: 1px dashed var(--border); display: flex; justify-content: space-between; align-items: flex-end;">
+                            <div style="display: flex; flex-direction: column; gap: 4px;">
+                                <span style="font-size: 0.75rem; color: var(--text-muted);">Pedidos sin cobro: <b style="color:var(--text-main);">${c.period_orders}</b></span>
+                                <span style="font-size: 0.75rem; color: var(--text-muted); display:flex; align-items:center; gap:4px;">
+                                    Asignado: <div style="width:10px; height:10px; border-radius:50%; background:${sColor};"></div> <span style="font-weight:600; color:var(--text-main);">${sName}</span>
+                                </span>
+                            </div>
+                            <strong style="color: var(--danger); font-size: 1.15rem;">${fmtTotal}</strong>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function closePeriodDebtsModal() {
+            document.getElementById('period-debts-modal-backdrop').style.display = 'none';
+        }
+
         function populateGeneral(gen) {
-            document.getElementById('valSalesToday').innerText = fmtMoney.format(gen.sales_today_cents);
-            document.getElementById('valSalesCountToday').innerText = `${gen.sales_today_count} tickets emitidos hoy`;
-            document.getElementById('valSalesMonth').innerText = fmtMoney.format(gen.sales_month_cents);
-            document.getElementById('valActiveClients').innerText = gen.active_clients_count;
+            let periodText = 'Este Mes';
+            const tr = document.getElementById('dateFilter').value;
+            if (tr === 'today') periodText = 'Hoy';
+            else if (tr === 'week') periodText = 'Esta Semana';
+            else if (tr === 'custom') periodText = '(P. Seleccionado)';
+
+            document.getElementById('titleSalesPeriod').innerHTML = `💵 Vendido ${periodText}`;
+            document.getElementById('valSalesPeriod').innerText = fmtMoney.format(gen.sales_period_cents);
+            document.getElementById('valSalesCountPeriod').innerText = `${gen.period_desserts_total || 0} postres vendidos`;
+
+            document.getElementById('titleDessertsPeriod').innerHTML = `🍰 Postres (${getPeriodText()})`;
+            
+            document.getElementById('titleTopClients').innerHTML = `🏆 Top Clientes (${periodText})`;
+            document.getElementById('titleSellersTable').innerHTML = `💰 Tabla de Comisiones (${periodText})`;
+            
+            document.getElementById('valDebtPeriod').innerText = fmtMoney.format(gen.debt_period_cents);
+            document.getElementById('valDebtCountPeriod').innerText = `${gen.debt_period_count} pedidos sin pagar`;
         }
 
         function populateAlerts(alerts) {
@@ -496,7 +803,8 @@
         function populateCrmActivity(act) {
             document.getElementById('valContactedToday').innerText = act.contacted_today;
             document.getElementById('valPendingReminders').innerText = act.pending_reminders;
-            document.getElementById('valNotesToday').innerText = act.notes_today;
+            // Termómetro ha sido removido del DOM
+            if(document.getElementById('valNotesToday')) document.getElementById('valNotesToday').innerText = act.notes_today;
             document.getElementById('valWonProspects').innerText = act.won_prospects;
         }
 
@@ -504,89 +812,202 @@
             const tbody = document.querySelector('#tableSellers tbody');
             tbody.innerHTML = '';
             
-            if(sellers.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Sin datos de vendedores</td></tr>';
+            if(!sellers || sellers.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Sin datos de vendedores</td></tr>';
                 return;
             }
 
-            sellers.forEach(s => {
-                const tr = document.createElement('tr');
-                const lastSaleDate = s.last_sale ? s.last_sale.split('T')[0] : 'Nunca';
-                
-                const crmActivityTag = `
-                    <div style="font-size:0.8rem; color:var(--text-muted);">
-                        ${s.notes_created} Notas | ${s.reminders_created} Rec.
-                    </div>
-                `;
+            const sortedSellers = [...sellers].sort((a,b) => b.total_commission - a.total_commission);
 
+            sortedSellers.forEach(s => {
+                const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td style="font-weight:700;">${s.name}</td>
-                    <td style="color:var(--success); font-weight:700;">${fmtMoney.format(s.total_cents)}</td>
-                    <td>${fmtMoney.format(s.avg_ticket)}</td>
-                    <td><span class="badge ${s.sales_today > 0 ? 'bg-info' : ''}" style="color:${s.sales_today > 0 ? 'white' : 'var(--text-muted)'}">${s.sales_today} hoy</span></td>
-                    <td style="color:var(--primary-dark); font-weight:700;">${fmtMoney.format(s.total_commission || 0)}</td>
+                    <td style="font-weight:700;"><span style="display:inline-block; width:10px; height:10px; border-radius:50%; background-color:${s.bill_color || '#3b82f6'}; margin-right:6px;"></span>${s.name}</td>
+                    <td>${s.period_desserts_count || 0}</td>
+                    <td style="color:var(--success); font-weight:700;">${fmtMoney.format(s.period_total_cents || 0)}</td>
                     <td>${fmtMoney.format(s.avg_commission || 0)}</td>
-                    <td>${crmActivityTag}</td>
-                    <td style="color:var(--text-muted); font-size:0.85rem;">${lastSaleDate}</td>
+                    <td style="color:var(--primary); font-weight:700;">${fmtMoney.format(s.total_commission || 0)}</td>
                 `;
                 tbody.appendChild(tr);
             });
+
+            // Add chart logic
+            renderSellerChart(sellers);
         }
 
-        function populateProducts(prods) {
-            const chart = document.getElementById('productChart');
-            chart.innerHTML = '';
+        let lastSellersData = [];
 
-            // Map dynamic SQL array to visual list
-            const palette = ['#fb923c', '#fca5a5', '#fde047', '#94a3b8', '#78350f', '#3b82f6', '#10b981', '#8b5cf6', '#ec4899', '#f97316'];
-            const list = prods.map((p, idx) => ({
-                name: p.short_code.charAt(0).toUpperCase() + p.short_code.slice(1), 
-                qty: Number(p.total_qty), 
-                qtyToday: Number(p.qty_today), 
-                color: palette[idx % palette.length]
-            }));
+        function renderSellerChart(sellers) {
+            lastSellersData = sellers;
+            const miniChart = document.getElementById('miniSellerChart');
+            if(!miniChart) return;
+            miniChart.innerHTML = '';
 
-            list.sort((a,b) => b.qty - a.qty);
-            const maxQty = list[0]?.qty || 1; // Prevent division by 0
+            const list = sellers.map((s, idx) => ({
+                name: s.name.split(' ')[0], 
+                total: Number(s.period_total_cents),
+                salesCount: Number(s.period_desserts_count),
+                color: s.bill_color || ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f43f5e', '#8b5cf6', '#d946ef'][idx % 10]
+            })).filter(s => s.total > 0).sort((a,b) => b.total - a.total);
 
-            list.forEach(p => {
-                if(p.qty === 0 && p.qtyToday === 0) return; // Hide products with 0 movement in the period
-                const pct = Math.max((p.qty / maxQty) * 100, 5); // Minimum width 5%
-                const barHtml = `
-                    <div style="margin-bottom: 12px;">
-                        <div class="flex-between" style="font-size:0.85rem; margin-bottom:4px; font-weight:600;">
-                            <span>${p.name} <span style="color:var(--text-muted); font-weight:normal;">(${p.qtyToday} hoy)</span></span>
-                            <span>${p.qty} unid.</span>
-                        </div>
-                        <div style="width:100%; height:12px; background:var(--bg); border-radius:6px; overflow:hidden;">
-                            <div style="width:${pct}%; height:100%; background:${p.color}; border-radius:6px;"></div>
-                        </div>
-                    </div>
-                `;
-                chart.innerHTML += barHtml;
-            });
-            
-            if (chart.innerHTML === '') {
-                chart.innerHTML = '<div style="text-align:center; color:var(--text-muted); font-size:0.9rem;">Sin ventas en el periodo</div>';
-            }
-        }
-
-        function populateTopClients(clients) {
-            const tbody = document.querySelector('#tableTopClients tbody');
-            tbody.innerHTML = '';
-
-            if(!clients || clients.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">Sin datos de clientes</td></tr>';
+            if (list.length === 0) {
+                miniChart.style.alignItems = 'center';
+                miniChart.innerHTML = '<span style="color:var(--text-muted); font-size:0.8rem; height:100%; display:flex; align-items:center;">Sin ventas</span>';
                 return;
             }
 
-            clients.forEach(c => {
+            miniChart.style.alignItems = 'flex-end';
+            const maxVal = list[0].total;
+
+            list.forEach(s => {
+                const pct = Math.max((s.total / maxVal) * 100, 10);
+                miniChart.innerHTML += `
+                    <div style="display:flex; flex-direction:column; align-items:center; height:100%; justify-content:flex-end; flex:1; max-width:40px; min-width:15px;">
+                        <span style="font-size:0.6rem; font-weight:bold; color:var(--text-main); line-height:1; margin-bottom:2px;">${s.salesCount}</span>
+                        <div style="width:100%; height:${pct}%; min-height:4px; background:${s.color}; border-radius:4px 4px 0 0;"></div>
+                        <span style="font-size:0.65rem; color:var(--text-muted); margin-top:4px; height:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; width:100%; text-align:center;" title="${s.name}">${s.name}</span>
+                    </div>
+                `;
+            });
+        }
+
+        function openSellerChartModal() {
+            document.getElementById('modal-seller-period-text').innerText = getPeriodText();
+            document.getElementById('seller-chart-modal-backdrop').style.display = 'flex';
+            
+            const expanded = document.getElementById('expandedSellerChart');
+            expanded.innerHTML = '';
+            
+            const list = lastSellersData.map((s, idx) => ({
+                name: s.name.split(' ')[0], 
+                total: Number(s.period_total_cents),
+                salesCount: Number(s.period_desserts_count),
+                color: s.bill_color || ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f43f5e', '#8b5cf6', '#d946ef'][idx % 10]
+            })).filter(s => s.total > 0).sort((a,b) => b.total - a.total);
+
+            if(list.length === 0) {
+                expanded.innerHTML = '<div style="margin:auto; color:var(--text-muted);">Sin ventas en este periodo</div>';
+                return;
+            }
+
+            const maxVal = list[0].total;
+
+            list.forEach(s => {
+                const pct = Math.max((s.total / maxVal) * 100, 5);
+                const fmtTotal = new Intl.NumberFormat('es-CO', { notation: "compact", maximumFractionDigits: 1 }).format(s.total); 
+                
+                expanded.innerHTML += `
+                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; flex: 1; max-width: 90px; min-width: 50px;">
+                        <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-main); margin-bottom: 4px;" title="${s.total}">$${fmtTotal}</span>
+                        <div style="width: 100%; height: ${pct}%; background: ${s.color}; border-radius: 6px 6px 0 0; position: relative;">
+                            <span style="position: absolute; width: 100%; text-align: center; bottom: 4px; color: white; font-size: 0.7rem; font-weight: bold; text-shadow: 0px 0px 2px rgba(0,0,0,0.5);">${s.salesCount}</span>
+                        </div>
+                        <span style="font-size: 0.75rem; color: var(--text-muted); margin-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; text-align: center; word-break: break-word;">${s.name}</span>
+                    </div>
+                `;
+            });
+        }
+
+        function closeSellerChartModal() {
+            document.getElementById('seller-chart-modal-backdrop').style.display = 'none';
+        }
+
+        let lastProductsData = [];
+
+        function populateProducts(prods) {
+            lastProductsData = prods;
+            const miniChart = document.getElementById('miniDessertChart');
+            if(!miniChart) return;
+            miniChart.innerHTML = '';
+
+            const list = prods.map((p, idx) => ({
+                name: p.short_code.charAt(0).toUpperCase() + p.short_code.slice(1), 
+                qty: Number(p.total_qty), 
+                color: ['#fb923c', '#fca5a5', '#fde047', '#94a3b8', '#78350f', '#3b82f6', '#10b981', '#8b5cf6', '#ec4899', '#f97316'][idx % 10]
+            }));
+
+            list.sort((a,b) => b.qty - a.qty);
+            const filteredList = list.filter(p => p.qty > 0);
+            
+            if (filteredList.length === 0) {
+                miniChart.style.alignItems = 'center';
+                miniChart.style.justifyContent = 'center';
+                miniChart.innerHTML = '<span style="color:var(--text-muted); font-size:0.8rem; height:100%; display:flex; align-items:center;">Sin ventas</span>';
+                return;
+            }
+
+            miniChart.style.alignItems = 'flex-end';
+            miniChart.style.justifyContent = 'center';
+            miniChart.style.gap = '8px';
+
+            const maxQty = filteredList[0].qty;
+            
+            filteredList.forEach(p => {
+                const pct = Math.max((p.qty / maxQty) * 100, 10);
+                miniChart.innerHTML += `
+                    <div style="display:flex; flex-direction:column; align-items:center; height:100%; justify-content:flex-end; flex:1; max-width:40px; min-width:15px;">
+                        <span style="font-size:0.7rem; font-weight:bold; color:var(--text-main); line-height:1; margin-bottom:2px;">${p.qty}</span>
+                        <div style="width:100%; height:${pct}%; min-height:4px; background:${p.color}; border-radius:4px 4px 0 0;"></div>
+                        <span style="font-size:0.65rem; color:var(--text-muted); margin-top:4px; height:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; width:100%; text-align:center;" title="${p.name}">${p.name}</span>
+                    </div>
+                `;
+            });
+        }
+
+        function openDessertChartModal() {
+            document.getElementById('modal-period-text').innerText = getPeriodText();
+            document.getElementById('dessert-chart-modal-backdrop').style.display = 'flex';
+            
+            const expanded = document.getElementById('expandedDessertChart');
+            expanded.innerHTML = '';
+            
+            const list = lastProductsData.map((p, idx) => ({
+                name: p.short_code.charAt(0).toUpperCase() + p.short_code.slice(1), 
+                qty: Number(p.total_qty), 
+                color: ['#fb923c', '#fca5a5', '#fde047', '#94a3b8', '#78350f', '#3b82f6', '#10b981', '#8b5cf6', '#ec4899', '#f97316'][idx % 10]
+            })).filter(p => p.qty > 0).sort((a,b) => b.qty - a.qty);
+
+            if(list.length === 0) {
+                expanded.innerHTML = '<div style="margin:auto; color:var(--text-muted);">Sin ventas de postres en este periodo</div>';
+                return;
+            }
+
+            const maxQty = list[0].qty;
+
+            list.forEach(p => {
+                const pct = Math.max((p.qty / maxQty) * 100, 5);
+                expanded.innerHTML += `
+                    <div style="display:flex; flex-direction:column; align-items:center; height:100%; justify-content:flex-end; flex:1; max-width:100px; min-width:40px;">
+                        <span style="font-size:1.1rem; font-weight:bold; color:var(--text-main); margin-bottom:8px;">${p.qty}</span>
+                        <div style="width:100%; height:${pct}%; background:${p.color}; border-radius:6px 6px 0 0; position:relative; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
+                        </div>
+                        <span style="font-size:0.9rem; color:var(--text-muted); margin-top:10px; font-weight:600; text-align:center; word-break:break-word;">${p.name}</span>
+                    </div>
+                `;
+            });
+        }
+
+        function closeDessertChartModal() {
+            document.getElementById('dessert-chart-modal-backdrop').style.display = 'none';
+        }
+
+        function populateTopClients(clients) {
+            const tbody = document.querySelector('#top-clients-table tbody');
+            tbody.innerHTML = '';
+
+            if(!clients || clients.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Sin datos de clientes</td></tr>';
+                return;
+            }
+
+            clients.forEach((c, idx) => {
                 const tr = document.createElement('tr');
-                const lastDate = c.last_purchase_date ? c.last_purchase_date.split('T')[0] : '';
                 tr.innerHTML = `
+                    <td>#${idx+1}</td>
                     <td style="font-weight:700;">${c.name}</td>
-                    <td style="color:var(--success); font-weight:700;">${fmtMoney.format(c.lifetime_value)}</td>
-                    <td style="color:var(--text-muted);">${lastDate}</td>
+                    <td><span style="display:inline-block; width:10px; height:10px; border-radius:50%; background-color:${c.seller_color || '#3b82f6'}; margin-right:6px;"></span>${c.seller_name ? c.seller_name.split(' ')[0] : 'Sin Vendedor'}</td>
+                    <td style="color:var(--success); font-weight:700;">${fmtMoney.format(c.period_total_cents || c.lifetime_value || 0)}</td>
+                    <td><span class="status-badge status-active">Cliente Activo</span></td>
                 `;
                 tbody.appendChild(tr);
             });

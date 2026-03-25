@@ -37,8 +37,8 @@ async function loadGlobalClientDetailRows(clientName) {
 		);
 	}
 
-	// Use optimized endpoint to get all sales for this client across all sellers
-	for (const seller of sellersToSearch) {
+	// Use optimized endpoint to get all sales for this client across all sellers in parallel
+	await Promise.all(sellersToSearch.map(async (seller) => {
 		try {
 			const params = new URLSearchParams({
 				client_name: clientName,
@@ -65,7 +65,7 @@ async function loadGlobalClientDetailRows(clientName) {
 		} catch (e) {
 			console.error('Error loading client details for seller:', seller.name, e);
 		}
-	}
+	}));
 
 	// Sort by date descending
 	allRows.sort((a, b) => (a.dayIso < b.dayIso ? 1 : a.dayIso > b.dayIso ? -1 : 0));
@@ -894,20 +894,36 @@ async function api(method, url, body) {
 }
 
 async function loadSellers() {
-	state.sellers = await api('GET', API.Sellers);
+	// Try loading from localStorage first for instant feel
+	try {
+		const cached = localStorage.getItem('sellers_cache');
+		if (cached) {
+			state.sellers = JSON.parse(cached);
+			renderSellerButtons();
+			applyAuthVisibility();
+		}
+	} catch (e) { }
+
+	try {
+		state.sellers = await api('GET', API.Sellers);
+		try {
+			localStorage.setItem('sellers_cache', JSON.stringify(state.sellers));
+		} catch (e) { }
+	} catch (err) {
+		console.error('Error loading sellers:', err);
+	}
+
 	// Update dynamic seller icon for current seller if available
 	if (state.currentSeller) {
 		const fresh = (state.sellers || []).find(s => s.id === state.currentSeller.id);
 		if (fresh) {
 			state.currentSeller = fresh;
-			const letter = (fresh.name || '').trim().charAt(0).toUpperCase();
-			// seller-specific icon removed
 		}
 	}
 	renderSellerButtons();
-	// Removed syncColumnsBarWidths();
 	applyAuthVisibility();
-	// Load global client suggestions for search bar in background (non-blocking)
+
+	// Load global client suggestions in background (non-blocking)
 	loadGlobalClientSuggestions().catch(e => console.error('Error loading global suggestions:', e));
 }
 
@@ -919,96 +935,73 @@ async function loadGlobalClientSuggestions() {
 			return;
 		}
 
-		// Check if already loaded and still fresh (cache for 5 minutes)
-		if (state._globalSuggestionsLoadedAt && (Date.now() - state._globalSuggestionsLoadedAt) < 300000) {
-			return; // Use cached data
-		}
+		// Try loading from localStorage first for instant feel
+		try {
+			const cached = localStorage.getItem('global_clients_cache');
+			if (cached) {
+				const { data, timestamp } = JSON.parse(cached);
+				// Use cache if it's less than 1 hour old
+				if (data && Array.isArray(data)) {
+					state.globalClientSuggestions = data;
+					if (Date.now() - timestamp < 3600000) {
+						state._globalSuggestionsLoadedAt = timestamp;
+						return; // Data is fresh enough
+					}
+				}
+			}
+		} catch (e) { }
 
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 		const isAdmin = !!state.currentUser?.isAdmin;
 
-		const counts = new Map();
-		const namesByKey = new Map();
-
-		// Determine which sellers to load clients from
-		let sellersToLoad = [];
+		let resultArr = [];
 
 		if (isSuper || isAdmin) {
-			// Admin/SuperAdmin: load from all sellers
-			sellersToLoad = state.sellers || [];
+			// Optimized: One single call to get ALL global clients including historical ones from sales table
+			const clients = await api('GET', '/api/clients?global=1');
+			resultArr = (clients || []).map(c => ({
+				key: normalizeClientName(c.name),
+				name: c.name,
+				count: Number(c.records_count || 1) // Using fallback as single global call might not have counts
+			}));
 		} else {
 			// Regular user: load only their own clients
-			sellersToLoad = (state.sellers || []).filter(s =>
+			const seller = (state.sellers || []).find(s =>
 				String(s.name).toLowerCase() === String(state.currentUser.name || '').toLowerCase()
 			);
-		}
-
-		// Load clients from all authorized sellers IN PARALLEL
-		const sellerPromises = sellersToLoad.map(async (seller) => {
-			try {
-				const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(seller.id)}`);
-
-				// Limit to last 180 days for faster loading (about 6 months)
-				const recentDays = (days || []).slice(0, 180);
-
-				// Load all sales for this seller in parallel
-				const salesPromises = recentDays.map(async (d) => {
-					const p = new URLSearchParams({ seller_id: String(seller.id), sale_day_id: String(d.id) });
-					try {
-						return await api('GET', `${API.Sales}?${p.toString()}`);
-					} catch {
-						return [];
-					}
-				});
-
-				const salesArrays = await Promise.all(salesPromises);
-
-				// Process all sales
-				const sellerClients = new Map();
-				const sellerNames = new Map();
-
-				for (const sales of salesArrays) {
-					for (const s of (sales || [])) {
-						const raw = (s?.client_name || '').trim();
-						if (!raw) continue;
-						const key = normalizeClientName(raw);
-						sellerClients.set(key, (sellerClients.get(key) || 0) + 1);
-						if (!sellerNames.has(key)) sellerNames.set(key, raw);
-					}
-				}
-
-				return { clients: sellerClients, names: sellerNames };
-			} catch (e) {
-				console.error('Error loading clients for seller:', seller.name, e);
-				return { clients: new Map(), names: new Map() };
-			}
-		});
-
-		// Wait for all sellers to complete
-		const sellerResults = await Promise.all(sellerPromises);
-
-		// Merge all results
-		for (const result of sellerResults) {
-			for (const [key, count] of result.clients) {
-				counts.set(key, (counts.get(key) || 0) + count);
-				if (!namesByKey.has(key)) namesByKey.set(key, result.names.get(key) || '');
+			if (seller) {
+				const clients = await api('GET', `/api/clients?seller_id=${encodeURIComponent(seller.id)}`);
+				resultArr = (clients || []).map(c => ({
+					key: normalizeClientName(c.name),
+					name: c.name,
+					count: 1
+				}));
 			}
 		}
 
-		// Prepare suggestion list (all clients, including those with count = 1)
-		const arr = Array.from(counts.entries())
-			.map(([key, count]) => ({ key, name: namesByKey.get(key) || '', count: Number(count) || 0 }))
-			.filter(it => it.name && it.name.trim() !== '');
-		arr.sort((a, b) => {
+		// Sort by count (if available) and then name
+		resultArr.sort((a, b) => {
 			if (b.count !== a.count) return b.count - a.count;
 			return (a.name || '').localeCompare(b.name || '', 'es');
 		});
 
-		state.globalClientSuggestions = arr;
-		state._globalSuggestionsLoadedAt = Date.now(); // Cache timestamp
+		state.globalClientSuggestions = resultArr;
+		state._globalSuggestionsLoadedAt = Date.now();
+
+		// Save to cache
+		try {
+			localStorage.setItem('global_clients_cache', JSON.stringify({
+				data: resultArr,
+				timestamp: state._globalSuggestionsLoadedAt
+			}));
+		} catch (e) { }
+
 	} catch (e) {
 		console.error('Error loading global client suggestions:', e);
-		state.globalClientSuggestions = [];
+		// Don't clear if we have cached data
+		if (!state.globalClientSuggestions || state.globalClientSuggestions.length === 0) {
+			state.globalClientSuggestions = [];
+		}
 	}
 }
 
@@ -1078,20 +1071,15 @@ async function enterSeller(id) {
 	state.saleDays = [];
 	state.selectedDayId = null;
 	state.clientCounts = new Map();
-	$('#current-seller').textContent = seller.name;
-	switchView('#view-sales');
+	// Show dates section, hide table until a date is selected
+	document.getElementById('dates-section')?.classList.remove('hidden');
+	document.getElementById('sales-wrapper')?.classList.add('hidden');
 
-	// Load desserts and render columns
-	await loadDesserts();
-	renderDessertColumns();
-
-	// Show dates section, hide table until a date is selected, then load real dates
-	const datesSection = document.getElementById('dates-section');
-	const datesList = document.querySelector('#dates-section .dates-list');
-	const salesWrapper = document.getElementById('sales-wrapper');
-	if (datesSection) datesSection.classList.remove('hidden');
-	if (salesWrapper) salesWrapper.classList.add('hidden');
-	await loadDaysForSeller();
+	// Load desserts and days in parallel
+	await Promise.all([
+		loadDesserts().then(() => renderDessertColumns()),
+		loadDaysForSeller()
+	]);
 }
 
 function switchView(id) {
@@ -1134,9 +1122,9 @@ function applyAuthVisibility() {
 	const canTransfers = isSuper || feats.has('reports.transfers');
 	const canMaterials = isSuper || feats.has('nav.materials');
 	const canInventory = isSuper || feats.has('nav.inventory');
-	const canUsers = isSuper || feats.has('nav.users');
+	const canUsers = isSuper || isAdminUser || feats.has('nav.users');
 	const canAccounting = isSuper || feats.has('nav.accounting');
-	const canDesserts = isSuper || feats.has('nav.desserts');
+	const canDesserts = isSuper || isAdminUser || feats.has('nav.desserts');
 	if (usersBtn) usersBtn.style.display = canUsers ? 'inline-block' : 'none';
 	if (reportBtn) reportBtn.style.display = canSales ? 'inline-block' : 'none';
 	if (carteraBtn) carteraBtn.style.display = canCartera ? 'inline-block' : 'none';
@@ -1150,26 +1138,37 @@ function applyAuthVisibility() {
 	if (deliveriesBtn) deliveriesBtn.style.display = canDeliveries ? 'inline-block' : 'none';
 
 	const globalDbBtn = document.getElementById('global-clients-button');
-	if (globalDbBtn) globalDbBtn.style.display = isSuper ? 'inline-block' : 'none';
+	if (globalDbBtn) globalDbBtn.style.display = (isSuper || isAdminUser) ? 'inline-block' : 'none';
 }
 
 // Load desserts from API (runs once per session)
 async function loadDesserts() {
 	if (state.dessertsLoaded && state.desserts.length > 0) return state.desserts;
+
+	// Try loading from localStorage first
+	try {
+		const cached = localStorage.getItem('desserts_cache');
+		if (cached) {
+			state.desserts = JSON.parse(cached);
+			updateDessertPriceMaps();
+			state.dessertsLoaded = true;
+			// Don't return yet, update from server in background
+		}
+	} catch (e) { }
+
 	try {
 		state.desserts = await api('GET', API.Desserts);
+		try {
+			localStorage.setItem('desserts_cache', JSON.stringify(state.desserts));
+		} catch (e) { }
+		updateDessertPriceMaps();
 		state.dessertsLoaded = true;
-		// Update PRICES map
-		for (const key of Object.keys(PRICES)) delete PRICES[key];
-		for (const key of Object.keys(COST_PRICES)) delete COST_PRICES[key];
-		for (const d of state.desserts) {
-			PRICES[d.short_code] = d.sale_price;
-			COST_PRICES[d.short_code] = getCostPriceForDessert(d);
-		}
 		return state.desserts;
 	} catch (err) {
-		console.error('Error loading desserts:', err);
-		// Fallback to defaults
+		console.error('Error loading desserts from API:', err);
+		if (state.desserts && state.desserts.length > 0) return state.desserts;
+
+		// Fallback to defaults only if no cache and no API
 		state.desserts = [
 			{ id: 1, name: 'Arco', short_code: 'arco', sale_price: 8500, cost_price: 4675, promo_qty: null, promo_price: null, position: 1 },
 			{ id: 2, name: 'Melo', short_code: 'melo', sale_price: 9500, cost_price: 5225, promo_qty: null, promo_price: null, position: 2 },
@@ -1177,14 +1176,19 @@ async function loadDesserts() {
 			{ id: 4, name: 'Oreo', short_code: 'oreo', sale_price: 10500, cost_price: 5775, promo_qty: null, promo_price: null, position: 4 },
 			{ id: 5, name: 'Nute', short_code: 'nute', sale_price: 13000, cost_price: 7150, promo_qty: null, promo_price: null, position: 5 }
 		];
-		for (const key of Object.keys(PRICES)) delete PRICES[key];
-		for (const key of Object.keys(COST_PRICES)) delete COST_PRICES[key];
-		for (const d of state.desserts) {
-			PRICES[d.short_code] = d.sale_price;
-			COST_PRICES[d.short_code] = getCostPriceForDessert(d);
-		}
+		updateDessertPriceMaps();
 		state.dessertsLoaded = true;
 		return state.desserts;
+	}
+}
+
+function updateDessertPriceMaps() {
+	if (!state.desserts) return;
+	for (const key of Object.keys(PRICES)) delete PRICES[key];
+	for (const key of Object.keys(COST_PRICES)) delete COST_PRICES[key];
+	for (const d of state.desserts) {
+		PRICES[d.short_code] = d.sale_price;
+		COST_PRICES[d.short_code] = getCostPriceForDessert(d);
 	}
 }
 
@@ -1793,32 +1797,8 @@ async function checkAndUpdateMainSelectorToJorgebank(saleId) {
 
 // Check receipts for each sale and update main selector to jorgebank if all receipts are verified
 async function enrichSalesWithReceiptStatus() {
-	if (!Array.isArray(state.sales) || state.sales.length === 0) return;
-
-	console.log('📸 Checking receipt status for all sales...');
-
-	// Check each sale
-	for (const sale of state.sales) {
-		if (!sale || !sale.id) continue;
-
-		try {
-			// Fetch receipts metadata ONLY (exclude large images)
-			const receipts = await api('GET', `${API.Sales}?receipt_for=${encodeURIComponent(sale.id)}&exclude_images=true`);
-
-			if (!Array.isArray(receipts) || receipts.length === 0) continue;
-
-			// Check if ALL receipts have jorgebank
-			const allJorgebank = receipts.every(r => (r.pay_method || '').trim().toLowerCase() === 'jorgebank');
-			if (allJorgebank) {
-				sale.pay_method = 'jorgebank';
-				console.log(`✅ Sale ${sale.id} -> jorgebank (all ${receipts.length} receipts verified)`);
-			}
-		} catch (err) {
-			console.error(`Error checking receipts for sale ${sale.id}:`, err);
-		}
-	}
-
-	console.log('📸 Receipt status enrichment complete');
+	// Obsolete: server syncs pay_method automatically
+	return;
 }
 
 async function loadSales() {
@@ -1851,8 +1831,46 @@ async function loadSales() {
 		const params = new URLSearchParams({ seller_id: String(sellerId) });
 		if (state.selectedDayId) params.set('sale_day_id', String(state.selectedDayId));
 
-		if (loadingTextEl) loadingTextEl.textContent = messages[0];
-		state.sales = await api('GET', `${API.Sales}?${params.toString()}`);
+		const cacheKey = `sales_cache_${sellerId}_${state.selectedDayId || 'all'}`;
+		
+		try {
+			const cached = localStorage.getItem(cacheKey);
+			if (cached) {
+				const parsed = JSON.parse(cached);
+				if (Array.isArray(parsed)) {
+					state.sales = parsed;
+					// Re-hydrate quick props
+					for (const sale of state.sales) {
+						if (sale && sale.payment_date && sale.payment_source) {
+							sale._paymentInfo = { date: sale.payment_date, source: sale.payment_source, sourceValue: (sale.payment_source || '').toLowerCase() };
+						}
+					}
+					// Load cached counts
+					const ccCached = localStorage.getItem(`counts_cache_${sellerId}`);
+					if (ccCached) {
+						try { state.clientCounts = new Map(JSON.parse(ccCached)); } catch(e){}
+					}
+					
+					// Pre-render optimistic table, hide loader
+					await loadDesserts();
+					renderDessertColumns();
+					renderTable();
+					if (loadingEl) loadingEl.classList.add('hidden');
+				}
+			}
+		} catch(e) { console.warn('Cache read error', e); }
+
+		if (loadingTextEl) loadingTextEl.textContent = 'Cargando datos...';
+		const [sales, countsData] = await Promise.all([
+			api('GET', `${API.Sales}?${params.toString()}`),
+			api('GET', `${API.Sales}?action=client_counts&seller_id=${encodeURIComponent(sellerId)}`)
+		]);
+		state.sales = sales;
+		
+		try {
+			localStorage.setItem(cacheKey, JSON.stringify(state.sales));
+		} catch(e) {}
+
 
 		// Initialize _paymentInfo from database fields (payment_date and payment_source)
 		if (Array.isArray(state.sales)) {
@@ -1867,43 +1885,38 @@ async function loadSales() {
 			}
 		}
 
-		// Check if all receipts for each sale have jorgebank - if so, update sale.pay_method
-		if (loadingTextEl) loadingTextEl.textContent = 'Verificando pagos...';
-		await enrichSalesWithReceiptStatus();
+		// (Obsolete network loop for receipts removed)
 
 		// Build recurrence counts efficiently using the new optimized endpoint
-		if (loadingTextEl) loadingTextEl.textContent = 'Procesando clientes...';
-		try {
-			const countsData = await api('GET', `${API.Sales}?action=client_counts&seller_id=${encodeURIComponent(sellerId)}`);
-			const counts = new Map();
-			const namesByKey = new Map();
-			
-			for (const item of (countsData || [])) {
-				const raw = (item.client_name || '').trim();
-				if (!raw) continue;
-				const key = normalizeClientName(raw);
-				const currentCount = counts.get(key) || 0;
-				counts.set(key, currentCount + Number(item.count || 0));
-				if (!namesByKey.has(key)) namesByKey.set(key, raw);
-			}
-			
-			state.clientCounts = counts;
-			// Prepare suggestion list of regular clients (count > 1)
-			try {
-				const arr = Array.from(counts.entries())
-					.filter(([, count]) => Number(count) > 1)
-					.map(([key, count]) => ({ key, name: namesByKey.get(key) || '', count: Number(count) || 0 }))
-					.filter(it => it.name && it.name.trim() !== '');
-				arr.sort((a, b) => {
-					if (b.count !== a.count) return b.count - a.count;
-					return (a.name || '').localeCompare(b.name || '', 'es');
-				});
-				state.clientSuggestions = arr;
-			} catch { state.clientSuggestions = []; }
-		} catch (err) {
-			console.error('Error loading optimized client counts:', err);
-			state.clientCounts = new Map();
+		const counts = new Map();
+		const namesByKey = new Map();
+		
+		for (const item of (countsData || [])) {
+			const raw = (item.client_name || '').trim();
+			if (!raw) continue;
+			const key = normalizeClientName(raw);
+			const currentCount = counts.get(key) || 0;
+			counts.set(key, currentCount + Number(item.count || 0));
+			if (!namesByKey.has(key)) namesByKey.set(key, raw);
 		}
+		
+		state.clientCounts = counts;
+		try {
+			localStorage.setItem(`counts_cache_${sellerId}`, JSON.stringify(Array.from(counts.entries())));
+		} catch(e) {}
+
+		// Prepare suggestion list of regular clients (count > 1)
+		try {
+			const arr = Array.from(counts.entries())
+				.filter(([, count]) => Number(count) > 1)
+				.map(([key, count]) => ({ key, name: namesByKey.get(key) || '', count: Number(count) || 0 }))
+				.filter(it => it.name && it.name.trim() !== '');
+			arr.sort((a, b) => {
+				if (b.count !== a.count) return b.count - a.count;
+				return (a.name || '').localeCompare(b.name || '', 'es');
+			});
+			state.clientSuggestions = arr;
+		} catch { state.clientSuggestions = []; }
 
 		// Ensure desserts are loaded before rendering table
 		if (loadingTextEl) loadingTextEl.textContent = 'Preparando la tabla...';
@@ -10645,9 +10658,18 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 				__handledEmbedded = true;
 				await enterSeller(activeSeller.id);
 
+				// Auto-select the latest day and show sales table immediately
 				const urlParams = new URLSearchParams(window.location.search);
 				if (urlParams.get('view') === 'clients') {
 					await openClientsView();
+				} else if (state.saleDays && state.saleDays.length > 0) {
+					const latest = [...state.saleDays].sort((a, b) => new Date(b.day) - new Date(a.day))[0];
+					if (latest) {
+						state.selectedDayId = latest.id;
+						document.getElementById('sales-wrapper')?.classList.remove('hidden');
+						switchView('#view-sales');
+						await loadSales();
+					}
 				}
 			}
 		} catch (err) {

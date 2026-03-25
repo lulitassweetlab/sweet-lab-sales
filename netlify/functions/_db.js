@@ -3,1256 +3,216 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 30; // Bumped to 30: add crm_tags and crm_client_tags
+const SCHEMA_VERSION = 30; // Bumped to 30: CRM and Items consolidation
 
 export async function ensureSchema() {
-	// If already ensured in this instance, skip immediately
 	if (schemaEnsured) return;
-
-	// If another request is currently checking schema, wait for it
 	if (schemaCheckPromise) return schemaCheckPromise;
 
-	// Start schema check
 	schemaCheckPromise = (async () => {
 		try {
-			// CRITICAL: Always ensure these tables exist first (before any version checks)
-			// This runs on EVERY cold start to ensure new tables are created
-
-			// --- CRM STAGE TABLES (always-create, added here after v26 missed them) ---
-			await sql`CREATE TABLE IF NOT EXISTS crm_stages (
-				id SERIAL PRIMARY KEY,
-				name VARCHAR(100) NOT NULL,
-				color VARCHAR(20) DEFAULT '#808080',
-				order_index INTEGER DEFAULT 0,
-				is_active BOOLEAN DEFAULT true,
-				created_at TIMESTAMPTZ DEFAULT now()
-			)`;
-			// Auto-seed default stages if empty
-			const _stageCount = await sql`SELECT count(*) FROM crm_stages`;
-			if (parseInt(_stageCount[0].count) === 0) {
-				await sql`INSERT INTO crm_stages (name, color, order_index) VALUES
-					('Prospecto', '#9E9E9E', 1),
-					('Visitado', '#2196F3', 2),
-					('Muestra entregada', '#9C27B0', 3),
-					('Negociación', '#FF9800', 4),
-					('Cliente nuevo', '#4CAF50', 5),
-					('Cliente activo', '#8BC34A', 6),
-					('Cliente frecuente', '#009688', 7),
-					('Cliente VIP', '#FFD700', 8),
-					('En riesgo', '#FF5722', 9),
-					('Intentando recuperar', '#F44336', 10),
-					('Recuperado', '#03A9F4', 11),
-					('Perdido', '#607D8B', 12)`;
-			}
-
-			await sql`CREATE TABLE IF NOT EXISTS crm_client_stage (
-				id SERIAL PRIMARY KEY,
-				client_id INTEGER UNIQUE REFERENCES clients(id) ON DELETE CASCADE,
-				stage_id INTEGER REFERENCES crm_stages(id) ON DELETE SET NULL,
-				updated_by INTEGER REFERENCES sellers(id) ON DELETE SET NULL,
-				updated_at TIMESTAMPTZ DEFAULT now()
-			)`;
-
-			await sql`CREATE TABLE IF NOT EXISTS crm_stage_history (
-				id SERIAL PRIMARY KEY,
-				client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE,
-				old_stage_id INTEGER REFERENCES crm_stages(id) ON DELETE SET NULL,
-				new_stage_id INTEGER REFERENCES crm_stages(id) ON DELETE SET NULL,
-				note TEXT,
-				changed_by INTEGER REFERENCES sellers(id) ON DELETE SET NULL,
-				changed_at TIMESTAMPTZ DEFAULT now()
-			)`;
-
-			await sql`CREATE TABLE IF NOT EXISTS crm_stage_actions (
-				id SERIAL PRIMARY KEY,
-				client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE,
-				action_type VARCHAR(50) NOT NULL,
-				note TEXT,
-				seller_id INTEGER REFERENCES sellers(id) ON DELETE SET NULL,
-				created_at TIMESTAMPTZ DEFAULT now()
-			)`;
-			// End CRM stage tables
-			await sql`CREATE TABLE IF NOT EXISTS users (
-				id SERIAL PRIMARY KEY,
-				username TEXT UNIQUE NOT NULL,
-				password_hash TEXT NOT NULL,
-				role TEXT NOT NULL DEFAULT 'user',
-				created_at TIMESTAMPTZ DEFAULT now()
-			)`;
-
-			await sql`CREATE TABLE IF NOT EXISTS deliveries (
-				id SERIAL PRIMARY KEY,
-				day DATE NOT NULL,
-				note TEXT DEFAULT '',
-				actor_name TEXT,
-				created_at TIMESTAMPTZ DEFAULT now()
-			)`;
-
-			await sql`CREATE TABLE IF NOT EXISTS desserts (
-			id SERIAL PRIMARY KEY,
-			name TEXT UNIQUE NOT NULL,
-			short_code TEXT UNIQUE NOT NULL,
-			sale_price INTEGER NOT NULL DEFAULT 0,
-			cost_price INTEGER,
-			promo_qty INTEGER,
-			promo_price INTEGER,
-			is_active BOOLEAN NOT NULL DEFAULT true,
-			position INTEGER NOT NULL DEFAULT 0,
-			created_at TIMESTAMPTZ DEFAULT now(),
-			updated_at TIMESTAMPTZ DEFAULT now()
-		)`;
-			// Ensure configurable cost price and promotion columns exist
-			await sql`DO $$ BEGIN
-				IF NOT EXISTS (
-					SELECT 1 FROM information_schema.columns
-					WHERE table_name = 'desserts' AND column_name = 'cost_price'
-				) THEN
-					ALTER TABLE desserts ADD COLUMN cost_price INTEGER;
-				END IF;
-				IF NOT EXISTS (
-					SELECT 1 FROM information_schema.columns
-					WHERE table_name = 'desserts' AND column_name = 'promo_qty'
-				) THEN
-					ALTER TABLE desserts ADD COLUMN promo_qty INTEGER;
-				END IF;
-				IF NOT EXISTS (
-					SELECT 1 FROM information_schema.columns
-					WHERE table_name = 'desserts' AND column_name = 'promo_price'
-				) THEN
-					ALTER TABLE desserts ADD COLUMN promo_price INTEGER;
-				END IF;
-				IF NOT EXISTS (
-					SELECT 1 FROM information_schema.columns
-					WHERE table_name = 'desserts' AND column_name = 'store_name'
-				) THEN
-					ALTER TABLE desserts ADD COLUMN store_name TEXT;
-				END IF;
-				IF NOT EXISTS (
-					SELECT 1 FROM information_schema.columns
-					WHERE table_name = 'desserts' AND column_name = 'store_product_id'
-				) THEN
-					-- We create this column but cannot add the foreign key constraint directly here 
-					-- if store_products doesn't exist yet in the flow. We'll add it, but it's just an INTEGER.
-					ALTER TABLE desserts ADD COLUMN store_product_id INTEGER;
-				END IF;
-				UPDATE desserts
-				SET cost_price = ROUND(sale_price * 0.55)::int
-				WHERE cost_price IS NULL;
-				UPDATE desserts SET promo_qty = NULL WHERE promo_qty IS NOT NULL AND promo_qty < 2;
-				UPDATE desserts SET promo_price = NULL WHERE promo_price IS NOT NULL AND promo_price < 0;
-			END $$;`;
-
-			// Recipe sessions: complete saved records with quantities, times, and participants
-			await sql`CREATE TABLE IF NOT EXISTS recipe_sessions (
-			id SERIAL PRIMARY KEY,
-			session_date DATE NOT NULL,
-			actor_name TEXT,
-			desserts_data JSONB NOT NULL,
-			created_at TIMESTAMPTZ DEFAULT now()
-		)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_recipe_sessions_date ON recipe_sessions(session_date DESC)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_recipe_sessions_created ON recipe_sessions(created_at DESC)`;
-
-			await sql`CREATE TABLE IF NOT EXISTS recipe_production_users (
-				id SERIAL PRIMARY KEY,
-				dessert TEXT NOT NULL,
-				user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-				session_date DATE NOT NULL DEFAULT CURRENT_DATE,
-				created_at TIMESTAMPTZ DEFAULT now(),
-				UNIQUE (dessert, user_id, session_date)
-			)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_recipe_production_users_dessert ON recipe_production_users(dessert)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_recipe_production_users_user ON recipe_production_users(user_id)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_recipe_production_users_date ON recipe_production_users(session_date DESC)`;
-
-			await sql`CREATE TABLE IF NOT EXISTS delivery_production_users (
-				id SERIAL PRIMARY KEY,
-				delivery_id INTEGER NOT NULL REFERENCES deliveries(id) ON DELETE CASCADE,
-				dessert_id INTEGER NOT NULL REFERENCES desserts(id) ON DELETE CASCADE,
-				user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-				created_at TIMESTAMPTZ DEFAULT now(),
-				UNIQUE (delivery_id, dessert_id, user_id)
-			)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_delivery_production_users_delivery ON delivery_production_users(delivery_id)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_delivery_production_users_dessert ON delivery_production_users(dessert_id)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_delivery_production_users_user ON delivery_production_users(user_id)`;
-
-			// Game plays table (used by game register/play/report)
-			await sql`CREATE TABLE IF NOT EXISTS game_plays (
-				id SERIAL PRIMARY KEY,
-				customer_name VARCHAR(255) NOT NULL,
-				whatsapp VARCHAR(20) NOT NULL UNIQUE,
-				birth_date DATE,
-				seller_name VARCHAR(100) NOT NULL,
-				prize_type VARCHAR(50) NOT NULL,
-				prize_value VARCHAR(20) NOT NULL,
-				played_at TIMESTAMPTZ DEFAULT now(),
-				ip_address VARCHAR(45)
-			)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_game_plays_whatsapp ON game_plays(whatsapp)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_game_plays_played_at ON game_plays(played_at DESC)`;
-			await sql`DO $$ BEGIN
-				IF NOT EXISTS (
-					SELECT 1 FROM information_schema.columns
-					WHERE table_name = 'game_plays' AND column_name = 'birth_date'
-				) THEN
-					ALTER TABLE game_plays ADD COLUMN birth_date DATE;
-				END IF;
-			END $$;`;
-
-			// Clients table for the seller client database
-			await sql`CREATE TABLE IF NOT EXISTS clients (
-				id SERIAL PRIMARY KEY,
-				name VARCHAR(255) NOT NULL,
-				short_name VARCHAR(100),
-				whatsapp VARCHAR(20),
-				birth_date DATE,
-				seller_id INTEGER NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
-				created_at TIMESTAMPTZ DEFAULT now(),
-				UNIQUE (name, seller_id)
-			)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_clients_seller ON clients(seller_id)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_clients_name ON clients(name)`;
-
-			await sql`DO $$ BEGIN
-				IF NOT EXISTS (
-					SELECT 1 FROM information_schema.columns 
-					WHERE table_name = 'clients' AND column_name = 'short_name'
-				) THEN
-					ALTER TABLE clients ADD COLUMN short_name VARCHAR(100);
-				END IF;
-				IF NOT EXISTS (
-					SELECT 1 FROM information_schema.columns 
-					WHERE table_name = 'clients' AND column_name = 'description'
-				) THEN
-					ALTER TABLE clients ADD COLUMN description TEXT;
-				END IF;
-				IF NOT EXISTS (
-					SELECT 1 FROM information_schema.columns 
-					WHERE table_name = 'clients' AND column_name = 'address'
-				) THEN
-					ALTER TABLE clients ADD COLUMN address TEXT;
-				END IF;
-				IF NOT EXISTS (
-					SELECT 1 FROM information_schema.columns 
-					WHERE table_name = 'clients' AND column_name = 'latitude'
-				) THEN
-					ALTER TABLE clients ADD COLUMN latitude DECIMAL(12, 9);
-				END IF;
-				IF NOT EXISTS (
-					SELECT 1 FROM information_schema.columns 
-					WHERE table_name = 'clients' AND column_name = 'longitude'
-				) THEN
-					ALTER TABLE clients ADD COLUMN longitude DECIMAL(12, 9);
-				END IF;
-			END $$;`;
-
-			// Seller personalized WhatsApp automated messages settings
-			await sql`CREATE TABLE IF NOT EXISTS seller_messages (
-				id SERIAL PRIMARY KEY,
-				seller_id INTEGER NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
-				event_type VARCHAR(50) NOT NULL,
-				message_text TEXT NOT NULL,
-				is_active BOOLEAN DEFAULT false,
-				created_at TIMESTAMPTZ DEFAULT now(),
-				UNIQUE (seller_id, event_type)
-			)`;
-
-			// Seller WhatsApp Broadcast templates
-			await sql`CREATE TABLE IF NOT EXISTS broadcast_templates (
-				id SERIAL PRIMARY KEY,
-				seller_id INTEGER NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
-				title VARCHAR(100) NOT NULL,
-				message_text TEXT NOT NULL,
-				created_at TIMESTAMPTZ DEFAULT now()
-			)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_seller_messages_seller ON seller_messages(seller_id)`;
-
-			// Ensure clients table references sellers instead of users (fix for earlier schema bug)
-			await sql`DO $$ BEGIN
-				IF EXISTS (
-					SELECT 1 FROM information_schema.key_column_usage
-					WHERE table_name = 'clients' AND constraint_name = 'clients_seller_id_fkey'
-				) THEN
-					-- Verify what it refers to
-					IF NOT EXISTS (
-						SELECT 1 FROM information_schema.constraint_column_usage 
-						WHERE constraint_name = 'clients_seller_id_fkey' AND table_name = 'sellers'
-					) THEN
-						ALTER TABLE clients DROP CONSTRAINT clients_seller_id_fkey;
-						ALTER TABLE clients ADD CONSTRAINT clients_seller_id_fkey FOREIGN KEY (seller_id) REFERENCES sellers(id) ON DELETE CASCADE;
-					END IF;
-				END IF;
-			END $$;`;
-			// FAST PATH: Just check if schema_meta exists and has correct version
+			// 1) FAST PATH: Version Check
 			try {
-				const cur = await sql`SELECT version FROM schema_meta LIMIT 1`;
-				const currentVersion = Number(cur?.[0]?.version || 0);
-
-				if (currentVersion >= SCHEMA_VERSION) {
+				const meta = await sql`SELECT version FROM schema_meta LIMIT 1`;
+				if (meta.length > 0 && Number(meta[0].version) >= SCHEMA_VERSION) {
 					schemaEnsured = true;
-					return; // Schema is up to date, skip all DDL
+					return;
 				}
-			} catch (err) {
-				// Table doesn't exist yet, continue with full schema setup
-			}
+			} catch (err) { /* schema_meta may not exist, proceed */ }
 
-			// SLOW PATH: Only run if schema needs initialization/upgrade
-			// 1) Ensure schema_meta table exists (very cheap, only on cold start)
-			await sql`CREATE TABLE IF NOT EXISTS schema_meta (
-				version INTEGER NOT NULL DEFAULT 0,
-				updated_at TIMESTAMPTZ DEFAULT now()
-			)`;
-			// 2) Ensure a single row exists
-			await sql`INSERT INTO schema_meta (version)
-				SELECT 0
-				WHERE NOT EXISTS (SELECT 1 FROM schema_meta)`;
-			// 3) Read current version
-			const cur = await sql`SELECT version FROM schema_meta LIMIT 1`;
-			const currentVersion = Number(cur?.[0]?.version || 0);
+			// 2) SLOW PATH: Full Migration
+			await sql`
+				CREATE TABLE IF NOT EXISTS schema_meta (
+					version INTEGER NOT NULL DEFAULT 0,
+					updated_at TIMESTAMPTZ DEFAULT now()
+				);
+				INSERT INTO schema_meta (version) SELECT 0 WHERE NOT EXISTS (SELECT 1 FROM schema_meta);
 
-			// Always ensure these critical tables exist (even if version is up to date)
-			// This handles the case where version was bumped but tables weren't created
-			await sql`CREATE TABLE IF NOT EXISTS desserts (
-		id SERIAL PRIMARY KEY,
-		name TEXT UNIQUE NOT NULL,
-		short_code TEXT UNIQUE NOT NULL,
-		sale_price INTEGER NOT NULL DEFAULT 0,
-		cost_price INTEGER,
-		promo_qty INTEGER,
-		promo_price INTEGER,
-		is_active BOOLEAN NOT NULL DEFAULT true,
-		position INTEGER NOT NULL DEFAULT 0,
-		created_at TIMESTAMPTZ DEFAULT now(),
-		updated_at TIMESTAMPTZ DEFAULT now()
-	)`;
+				CREATE TABLE IF NOT EXISTS users (
+					id SERIAL PRIMARY KEY,
+					username TEXT UNIQUE NOT NULL,
+					password_hash TEXT NOT NULL,
+					role TEXT NOT NULL DEFAULT 'user',
+					created_at TIMESTAMPTZ DEFAULT now()
+				);
 
-			// Store Products table for the customer-facing online store
-			await sql`CREATE TABLE IF NOT EXISTS store_products (
-				id SERIAL PRIMARY KEY,
-				name TEXT NOT NULL,
-				description TEXT DEFAULT '',
-				price INTEGER NOT NULL DEFAULT 0,
-				promo_qty INTEGER,
-				promo_price INTEGER,
-				image_base64 TEXT,
-				media JSONB DEFAULT '[]'::jsonb,
-				is_promo BOOLEAN NOT NULL DEFAULT false,
-				is_new BOOLEAN NOT NULL DEFAULT false,
-				is_active BOOLEAN NOT NULL DEFAULT true,
-				position INTEGER NOT NULL DEFAULT 0,
-				created_at TIMESTAMPTZ DEFAULT now(),
-				updated_at TIMESTAMPTZ DEFAULT now()
-			)`;
+				CREATE TABLE IF NOT EXISTS sellers (
+					id SERIAL PRIMARY KEY,
+					name TEXT UNIQUE NOT NULL,
+					bill_color TEXT,
+					archived_at TIMESTAMPTZ,
+					commission_rate_low INTEGER NOT NULL DEFAULT 1000,
+					commission_rate_mid INTEGER NOT NULL DEFAULT 1300,
+					commission_rate_high INTEGER NOT NULL DEFAULT 1500,
+					created_at TIMESTAMPTZ DEFAULT now()
+				);
 
-			await sql`DO $$ BEGIN
-				IF NOT EXISTS (
-					SELECT 1 FROM information_schema.columns
-					WHERE table_name = 'store_products' AND column_name = 'media'
-				) THEN
-					ALTER TABLE store_products ADD COLUMN media JSONB DEFAULT '[]'::jsonb;
-				END IF;
-				IF NOT EXISTS (
-					SELECT 1 FROM information_schema.columns
-					WHERE table_name = 'store_products' AND column_name = 'is_promo'
-				) THEN
-					ALTER TABLE store_products ADD COLUMN is_promo BOOLEAN NOT NULL DEFAULT false;
-				END IF;
-				IF NOT EXISTS (
-					SELECT 1 FROM information_schema.columns
-					WHERE table_name = 'store_products' AND column_name = 'is_new'
-				) THEN
-					ALTER TABLE store_products ADD COLUMN is_new BOOLEAN NOT NULL DEFAULT false;
-				END IF;
-			END $$;`;
+				CREATE TABLE IF NOT EXISTS sale_days (
+					id SERIAL PRIMARY KEY,
+					seller_id INTEGER NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
+					day DATE NOT NULL,
+					is_archived BOOLEAN NOT NULL DEFAULT false,
+					delivered_arco INTEGER NOT NULL DEFAULT 0,
+					delivered_melo INTEGER NOT NULL DEFAULT 0,
+					delivered_mara INTEGER NOT NULL DEFAULT 0,
+					delivered_oreo INTEGER NOT NULL DEFAULT 0,
+					delivered_nute INTEGER NOT NULL DEFAULT 0,
+					commissions_paid INTEGER NOT NULL DEFAULT 0,
+					UNIQUE (seller_id, day)
+				);
 
-			// Now we can safely add the FK from desserts to store_products if it doesn't exist, since both tables exist
-			await sql`DO $$ BEGIN
-				IF NOT EXISTS (
-					SELECT 1 FROM information_schema.table_constraints
-					WHERE constraint_name = 'desserts_store_product_id_fkey'
-				) THEN
-					-- Ensure the column exists first (handled earlier) then safely add constraint
-					BEGIN
-						ALTER TABLE desserts ADD CONSTRAINT desserts_store_product_id_fkey FOREIGN KEY (store_product_id) REFERENCES store_products(id) ON DELETE SET NULL;
-					EXCEPTION WHEN duplicate_object THEN
-						-- Constraint might exist under a different name, ignore if it fails due to existing
-					END;
-				END IF;
-			END $$;`;
-			await sql`CREATE TABLE IF NOT EXISTS sale_items (
-		id SERIAL PRIMARY KEY,
-		sale_id INTEGER NOT NULL REFERENCES sales(id) ON DELETE CASCADE,
-		dessert_id INTEGER NOT NULL REFERENCES desserts(id) ON DELETE CASCADE,
-		quantity INTEGER NOT NULL DEFAULT 0,
-		unit_price INTEGER NOT NULL DEFAULT 0,
-		created_at TIMESTAMPTZ DEFAULT now(),
-		updated_at TIMESTAMPTZ DEFAULT now()
-	)`;
+				CREATE TABLE IF NOT EXISTS sales (
+					id SERIAL PRIMARY KEY,
+					seller_id INTEGER NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
+					sale_day_id INTEGER REFERENCES sale_days(id) ON DELETE CASCADE,
+					client_name TEXT DEFAULT '',
+					qty_arco INTEGER NOT NULL DEFAULT 0,
+					qty_melo INTEGER NOT NULL DEFAULT 0,
+					qty_mara INTEGER NOT NULL DEFAULT 0,
+					qty_oreo INTEGER NOT NULL DEFAULT 0,
+					qty_nute INTEGER NOT NULL DEFAULT 0,
+					is_paid BOOLEAN NOT NULL DEFAULT false,
+					pay_method TEXT,
+					payment_date DATE,
+					payment_source TEXT,
+					comment_text TEXT DEFAULT '',
+					special_pricing_type TEXT,
+					total_cents INTEGER NOT NULL DEFAULT 0,
+					created_at TIMESTAMPTZ DEFAULT now()
+				);
 
-			// Seed default desserts if table is empty (always run this)
-			try {
-				const dessertCount = await sql`SELECT COUNT(*)::int AS c FROM desserts`;
-				if ((dessertCount[0]?.c || 0) === 0) {
-					const defaultDesserts = [
-						{ name: 'Arco', short_code: 'arco', sale_price: 8500, cost_price: 4675, position: 1 },
-						{ name: 'Melo', short_code: 'melo', sale_price: 9500, cost_price: 5225, position: 2 },
-						{ name: 'Mara', short_code: 'mara', sale_price: 10500, cost_price: 5775, position: 3 },
-						{ name: 'Oreo', short_code: 'oreo', sale_price: 10500, cost_price: 5775, position: 4 },
-						{ name: 'Nute', short_code: 'nute', sale_price: 13000, cost_price: 7150, position: 5 }
-					];
-					for (const d of defaultDesserts) {
-						await sql`INSERT INTO desserts (name, short_code, sale_price, cost_price, position) VALUES (${d.name}, ${d.short_code}, ${d.sale_price}, ${d.cost_price}, ${d.position}) ON CONFLICT (name) DO NOTHING`;
-					}
+				CREATE TABLE IF NOT EXISTS desserts (
+					id SERIAL PRIMARY KEY,
+					name TEXT UNIQUE NOT NULL,
+					short_code TEXT UNIQUE NOT NULL,
+					sale_price INTEGER NOT NULL DEFAULT 0,
+					cost_price INTEGER,
+					promo_qty INTEGER,
+					promo_price INTEGER,
+					store_name TEXT,
+					store_product_id INTEGER,
+					is_active BOOLEAN NOT NULL DEFAULT true,
+					position INTEGER NOT NULL DEFAULT 0,
+					created_at TIMESTAMPTZ DEFAULT now(),
+					updated_at TIMESTAMPTZ DEFAULT now()
+				);
+
+				CREATE TABLE IF NOT EXISTS sale_items (
+					id SERIAL PRIMARY KEY,
+					sale_id INTEGER NOT NULL REFERENCES sales(id) ON DELETE CASCADE,
+					dessert_id INTEGER NOT NULL REFERENCES desserts(id) ON DELETE CASCADE,
+					quantity INTEGER NOT NULL DEFAULT 0,
+					unit_price INTEGER NOT NULL DEFAULT 0,
+					created_at TIMESTAMPTZ DEFAULT now(),
+					updated_at TIMESTAMPTZ DEFAULT now()
+				);
+
+				CREATE TABLE IF NOT EXISTS notifications (
+					id SERIAL PRIMARY KEY,
+					type VARCHAR(50) NOT NULL,
+					seller_id INTEGER REFERENCES sellers(id) ON DELETE SET NULL,
+					sale_id INTEGER REFERENCES sales(id) ON DELETE SET NULL,
+					sale_day_id INTEGER REFERENCES sale_days(id) ON DELETE SET NULL,
+					message TEXT NOT NULL,
+					actor_name TEXT,
+					icon_url TEXT,
+					pay_method TEXT,
+					is_read BOOLEAN DEFAULT false,
+					created_at TIMESTAMPTZ DEFAULT now()
+				);
+
+				CREATE TABLE IF NOT EXISTS clients (
+					id SERIAL PRIMARY KEY,
+					name VARCHAR(255) NOT NULL,
+					short_name VARCHAR(100),
+					whatsapp VARCHAR(20),
+					birth_date DATE,
+					description TEXT,
+					address TEXT,
+					latitude DECIMAL(12, 9),
+					longitude DECIMAL(12, 9),
+					seller_id INTEGER NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
+					created_at TIMESTAMPTZ DEFAULT now(),
+					UNIQUE (name, seller_id)
+				);
+
+				CREATE TABLE IF NOT EXISTS store_products (
+					id SERIAL PRIMARY KEY,
+					name TEXT NOT NULL,
+					description TEXT DEFAULT '',
+					price INTEGER NOT NULL DEFAULT 0,
+					promo_qty INTEGER,
+					promo_price INTEGER,
+					image_base64 TEXT,
+					media JSONB DEFAULT '[]'::jsonb,
+					is_promo BOOLEAN NOT NULL DEFAULT false,
+					is_new BOOLEAN NOT NULL DEFAULT false,
+					is_active BOOLEAN NOT NULL DEFAULT true,
+					position INTEGER NOT NULL DEFAULT 0,
+					created_at TIMESTAMPTZ DEFAULT now(),
+					updated_at TIMESTAMPTZ DEFAULT now()
+				);
+
+				CREATE TABLE IF NOT EXISTS store_settings (
+					key TEXT PRIMARY KEY,
+					value TEXT NOT NULL,
+					updated_at TIMESTAMPTZ DEFAULT now()
+				);
+
+				CREATE INDEX IF NOT EXISTS idx_sales_day ON sales(sale_day_id);
+				CREATE INDEX IF NOT EXISTS idx_sales_seller ON sales(seller_id);
+				CREATE INDEX IF NOT EXISTS idx_sale_items_sale ON sale_items(sale_id);
+				CREATE INDEX IF NOT EXISTS idx_clients_seller ON clients(seller_id);
+			`;
+
+			// Seed default desserts if empty
+			const dessertCount = await sql`SELECT COUNT(*)::int AS c FROM desserts`;
+			if ((dessertCount[0]?.c || 0) === 0) {
+				const ds = [
+					{ name: 'Arco', short_code: 'arco', sale_price: 8500, cost_price: 4675, position: 1 },
+					{ name: 'Melo', short_code: 'melo', sale_price: 9500, cost_price: 5225, position: 2 },
+					{ name: 'Mara', short_code: 'mara', sale_price: 10500, cost_price: 5775, position: 3 },
+					{ name: 'Oreo', short_code: 'oreo', sale_price: 10500, cost_price: 5775, position: 4 },
+					{ name: 'Nute', short_code: 'nute', sale_price: 13000, cost_price: 7150, position: 5 }
+				];
+				for (const d of ds) {
+					await sql`INSERT INTO desserts (name, short_code, sale_price, cost_price, position) VALUES (${d.name}, ${d.short_code}, ${d.sale_price}, ${d.cost_price}, ${d.position}) ON CONFLICT (name) DO NOTHING`;
 				}
-			} catch (err) {
-				console.error('Error seeding desserts:', err);
 			}
 
-			// CRITICAL: Users table (needed for recipe_production_users FK)
-			await sql`CREATE TABLE IF NOT EXISTS users (
-		id SERIAL PRIMARY KEY,
-		username TEXT UNIQUE NOT NULL,
-		password_hash TEXT NOT NULL,
-		role TEXT NOT NULL DEFAULT 'user',
-		created_at TIMESTAMPTZ DEFAULT now()
-	)`;
-
-			// CRITICAL: Deliveries table (needed for delivery_production_users FK)
-			await sql`CREATE TABLE IF NOT EXISTS deliveries (
-		id SERIAL PRIMARY KEY,
-		day DATE NOT NULL,
-		note TEXT DEFAULT '',
-		actor_name TEXT,
-		created_at TIMESTAMPTZ DEFAULT now()
-	)`;
-
-			// CRITICAL: Recipe production users table (must be created before version check)
-			await sql`CREATE TABLE IF NOT EXISTS recipe_production_users (
-		id SERIAL PRIMARY KEY,
-		dessert TEXT NOT NULL,
-		user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-		session_date DATE NOT NULL DEFAULT CURRENT_DATE,
-		created_at TIMESTAMPTZ DEFAULT now(),
-		UNIQUE (dessert, user_id, session_date)
-	)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_recipe_production_users_dessert ON recipe_production_users(dessert)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_recipe_production_users_user ON recipe_production_users(user_id)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_recipe_production_users_date ON recipe_production_users(session_date DESC)`;
-
-			// CRITICAL: Delivery production users table (must be created before version check)
-			await sql`CREATE TABLE IF NOT EXISTS delivery_production_users (
-		id SERIAL PRIMARY KEY,
-		delivery_id INTEGER NOT NULL REFERENCES deliveries(id) ON DELETE CASCADE,
-		dessert_id INTEGER NOT NULL REFERENCES desserts(id) ON DELETE CASCADE,
-		user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-		created_at TIMESTAMPTZ DEFAULT now(),
-		UNIQUE (delivery_id, dessert_id, user_id)
-	)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_delivery_production_users_delivery ON delivery_production_users(delivery_id)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_delivery_production_users_dessert ON delivery_production_users(dessert_id)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_delivery_production_users_user ON delivery_production_users(user_id)`;
-
-			// CRITICAL: Game plays table (customer game tracking)
-			await sql`CREATE TABLE IF NOT EXISTS game_plays (
-				id SERIAL PRIMARY KEY,
-				customer_name VARCHAR(255) NOT NULL,
-				whatsapp VARCHAR(20) NOT NULL UNIQUE,
-				birth_date DATE,
-				seller_name VARCHAR(100) NOT NULL,
-				prize_type VARCHAR(50) NOT NULL,
-				prize_value VARCHAR(20) NOT NULL,
-				played_at TIMESTAMPTZ DEFAULT now(),
-				ip_address VARCHAR(45)
-			)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_game_plays_whatsapp ON game_plays(whatsapp)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_game_plays_played_at ON game_plays(played_at DESC)`;
-
-
-
-			// CRITICAL: Store Settings table
-			await sql`CREATE TABLE IF NOT EXISTS store_settings (
-				key TEXT PRIMARY KEY,
-				value TEXT NOT NULL,
-				updated_at TIMESTAMPTZ DEFAULT now()
-			)`;
-
-			// --- CRM MODULE PHASE 1 ---
-			// Bridge table: Connect sales to clients cleanly
-			await sql`CREATE TABLE IF NOT EXISTS crm_client_sales (
-				client_id INTEGER NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
-				sale_id INTEGER NOT NULL REFERENCES sales(id) ON DELETE CASCADE,
-				seller_id INTEGER NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
-				created_by TEXT,
-				notes TEXT,
-				created_at TIMESTAMPTZ DEFAULT now(),
-				UNIQUE(sale_id)
-			)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_crm_client_sales_client ON crm_client_sales(client_id)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_crm_client_sales_seller ON crm_client_sales(seller_id)`;
-
-			// CRM Activities
-			await sql`CREATE TABLE IF NOT EXISTS crm_activities (
-				id SERIAL PRIMARY KEY,
-				seller_id INTEGER NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
-				client_id INTEGER NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
-				related_sale_id INTEGER REFERENCES sales(id) ON DELETE SET NULL,
-				activity_type VARCHAR(50) NOT NULL,
-				description TEXT DEFAULT '',
-				metadata JSONB DEFAULT '{}'::jsonb,
-				created_by TEXT,
-				created_at TIMESTAMPTZ DEFAULT now()
-			)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_crm_activities_client ON crm_activities(client_id)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_crm_activities_seller ON crm_activities(seller_id)`;
-
-			// CRM Prospects
-			await sql`CREATE TABLE IF NOT EXISTS crm_prospects (
-				id SERIAL PRIMARY KEY,
-				seller_id INTEGER NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
-				name VARCHAR(255) NOT NULL,
-				whatsapp VARCHAR(20),
-				status VARCHAR(50) NOT NULL DEFAULT 'new',
-				source TEXT,
-				priority INTEGER DEFAULT 0,
-				notes TEXT DEFAULT '',
-				last_contact_at TIMESTAMPTZ,
-				created_at TIMESTAMPTZ DEFAULT now(),
-				updated_at TIMESTAMPTZ DEFAULT now()
-			)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_crm_prospects_seller ON crm_prospects(seller_id)`;
-
-			// CRM Reminders
-			await sql`CREATE TABLE IF NOT EXISTS crm_reminders (
-				id SERIAL PRIMARY KEY,
-				seller_id INTEGER NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
-				client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE,
-				prospect_id INTEGER REFERENCES crm_prospects(id) ON DELETE CASCADE,
-				reminder_type VARCHAR(50) NOT NULL DEFAULT 'general',
-				title VARCHAR(255) NOT NULL,
-				description TEXT DEFAULT '',
-				priority INTEGER DEFAULT 0,
-				due_date TIMESTAMPTZ NOT NULL,
-				completed BOOLEAN NOT NULL DEFAULT false,
-				created_at TIMESTAMPTZ DEFAULT now(),
-				completed_at TIMESTAMPTZ
-			)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_crm_reminders_seller ON crm_reminders(seller_id)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_crm_reminders_due_date ON crm_reminders(due_date)`;
-
-			// CRM WhatsApp Logs
-			await sql`CREATE TABLE IF NOT EXISTS crm_whatsapp_logs (
-				id SERIAL PRIMARY KEY,
-				client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE,
-				phone VARCHAR(20),
-				message TEXT NOT NULL,
-				segment VARCHAR(50) NOT NULL,
-				sent_by INTEGER REFERENCES sellers(id) ON DELETE SET NULL,
-				sent_at TIMESTAMPTZ DEFAULT now()
-			)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_crm_wa_logs_client ON crm_whatsapp_logs(client_id)`;
-
-			// --- PHASE 9: CRM STAGES & PIPELINE ---
-			
-			// 1. Stages Definition
-			await sql`CREATE TABLE IF NOT EXISTS crm_stages (
-				id SERIAL PRIMARY KEY,
-				name VARCHAR(100) NOT NULL,
-				color VARCHAR(20) DEFAULT '#808080',
-				order_index INTEGER DEFAULT 0,
-				is_active BOOLEAN DEFAULT true,
-				created_at TIMESTAMPTZ DEFAULT now()
-			)`;
-			
-			// Auto-insert default stages if empty
-			const stageCount = await sql`SELECT count(*) FROM crm_stages`;
-			if (parseInt(stageCount[0].count) === 0) {
-				await sql`
-					INSERT INTO crm_stages (name, color, order_index) VALUES
-					('Prospecto', '#9E9E9E', 1),
-					('Visitado', '#2196F3', 2),
-					('Muestra entregada', '#9C27B0', 3),
-					('Negociación', '#FF9800', 4),
-					('Cliente nuevo', '#4CAF50', 5),
-					('Cliente activo', '#8BC34A', 6),
-					('Cliente frecuente', '#009688', 7),
-					('Cliente VIP', '#FFD700', 8),
-					('En riesgo', '#FF5722', 9),
-					('Intentando recuperar', '#F44336', 10),
-					('Recuperado', '#03A9F4', 11),
-					('Perdido', '#607D8B', 12)
-				`;
+			// Seed default users if empty
+			const userCount = await sql`SELECT COUNT(*)::int AS c FROM users`;
+			if ((userCount[0]?.c || 0) === 0) {
+				await sql`INSERT INTO users (username, password_hash, role) VALUES ('jorge', 'Jorge123', 'superadmin'), ('marcela', 'marcelasweet', 'admin'), ('aleja', 'alejasweet', 'admin')`;
 			}
 
-			// 2. Client Current Stage (1-to-1 relation ideally, but keeping history separate)
-			await sql`CREATE TABLE IF NOT EXISTS crm_client_stage (
-				id SERIAL PRIMARY KEY,
-				client_id INTEGER UNIQUE REFERENCES clients(id) ON DELETE CASCADE,
-				stage_id INTEGER REFERENCES crm_stages(id) ON DELETE SET NULL,
-				updated_by INTEGER REFERENCES sellers(id) ON DELETE SET NULL,
-				updated_at TIMESTAMPTZ DEFAULT now()
-			)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_crm_client_stage_sid ON crm_client_stage(stage_id)`;
-
-			// 3. Stage History (Append-only log)
-			await sql`CREATE TABLE IF NOT EXISTS crm_stage_history (
-				id SERIAL PRIMARY KEY,
-				client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE,
-				old_stage_id INTEGER REFERENCES crm_stages(id) ON DELETE SET NULL,
-				new_stage_id INTEGER REFERENCES crm_stages(id) ON DELETE SET NULL,
-				note TEXT,
-				changed_by INTEGER REFERENCES sellers(id) ON DELETE SET NULL,
-				changed_at TIMESTAMPTZ DEFAULT now()
-			)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_crm_stage_history_client ON crm_stage_history(client_id)`;
-
-			// 4. Independent Actions
-			await sql`CREATE TABLE IF NOT EXISTS crm_stage_actions (
-				id SERIAL PRIMARY KEY,
-				client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE,
-				action_type VARCHAR(50) NOT NULL,
-				note TEXT,
-				seller_id INTEGER REFERENCES sellers(id) ON DELETE SET NULL,
-				created_at TIMESTAMPTZ DEFAULT now()
-			)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_crm_stage_act_client ON crm_stage_actions(client_id)`;
-
-			// CRM Product Commissions (Phase 5: Scalable time/seller based)
-			await sql`CREATE TABLE IF NOT EXISTS crm_product_commissions (
-				id SERIAL PRIMARY KEY,
-				product_name VARCHAR(50) NOT NULL,
-				commission_cents INTEGER NOT NULL DEFAULT 0,
-				seller_id INTEGER REFERENCES sellers(id) ON DELETE CASCADE,
-				valid_from DATE NOT NULL DEFAULT CURRENT_DATE,
-				valid_to DATE,
-				updated_at TIMESTAMPTZ DEFAULT now()
-			)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_crm_comm_product ON crm_product_commissions(product_name)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_crm_comm_seller ON crm_product_commissions(seller_id)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_crm_comm_dates ON crm_product_commissions(valid_from, valid_to)`;
-			
-			// Custom Client Tags
-			await sql`CREATE TABLE IF NOT EXISTS crm_tags (
-				id SERIAL PRIMARY KEY,
-				seller_id INTEGER NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
-				name VARCHAR(100) NOT NULL,
-				color VARCHAR(20) DEFAULT '#818cf8',
-				created_at TIMESTAMPTZ DEFAULT now(),
-				UNIQUE(seller_id, name)
-			)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_crm_tags_seller ON crm_tags(seller_id)`;
-
-			await sql`CREATE TABLE IF NOT EXISTS crm_client_tags (
-				client_id INTEGER NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
-				tag_id INTEGER NOT NULL REFERENCES crm_tags(id) ON DELETE CASCADE,
-				assigned_at TIMESTAMPTZ DEFAULT now(),
-				PRIMARY KEY (client_id, tag_id)
-			)`;
-
-			if (currentVersion >= SCHEMA_VERSION) { schemaEnsured = true; return; }
-			// Basic users table for authentication
-			await sql`CREATE TABLE IF NOT EXISTS users (
-		id SERIAL PRIMARY KEY,
-		username TEXT UNIQUE NOT NULL,
-		password_hash TEXT NOT NULL,
-		role TEXT NOT NULL DEFAULT 'user',
-		created_at TIMESTAMPTZ DEFAULT now()
-	)`;
-			await sql`CREATE TABLE IF NOT EXISTS sellers (
-		id SERIAL PRIMARY KEY,
-		name TEXT UNIQUE NOT NULL,
-		bill_color TEXT,
-		archived_at TIMESTAMPTZ,
-		created_at TIMESTAMPTZ DEFAULT now()
-	)`;
-			// Ensure bill_color, archived_at, and commission rates exist for older deployments
-			await sql`DO $$ BEGIN
-		IF NOT EXISTS (
-			SELECT 1 FROM information_schema.columns
-			WHERE table_name = 'sellers' AND column_name = 'bill_color'
-		) THEN
-			ALTER TABLE sellers ADD COLUMN bill_color TEXT;
-		END IF;
-		IF NOT EXISTS (
-			SELECT 1 FROM information_schema.columns
-			WHERE table_name = 'sellers' AND column_name = 'archived_at'
-		) THEN
-			ALTER TABLE sellers ADD COLUMN archived_at TIMESTAMPTZ;
-		END IF;
-		IF NOT EXISTS (
-			SELECT 1 FROM information_schema.columns
-			WHERE table_name = 'sellers' AND column_name = 'commission_rate_low'
-		) THEN
-			ALTER TABLE sellers ADD COLUMN commission_rate_low INTEGER NOT NULL DEFAULT 1000;
-		END IF;
-		IF NOT EXISTS (
-			SELECT 1 FROM information_schema.columns
-			WHERE table_name = 'sellers' AND column_name = 'commission_rate_mid'
-		) THEN
-			ALTER TABLE sellers ADD COLUMN commission_rate_mid INTEGER NOT NULL DEFAULT 1300;
-		END IF;
-		IF NOT EXISTS (
-			SELECT 1 FROM information_schema.columns
-			WHERE table_name = 'sellers' AND column_name = 'commission_rate_high'
-		) THEN
-			ALTER TABLE sellers ADD COLUMN commission_rate_high INTEGER NOT NULL DEFAULT 1500;
-		END IF;
-	END $$;`;
-			// Delegated view permissions: which users can view which sellers
-			await sql`CREATE TABLE IF NOT EXISTS user_view_permissions (
-		id SERIAL PRIMARY KEY,
-		viewer_username TEXT NOT NULL,
-		seller_id INTEGER NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
-		created_at TIMESTAMPTZ DEFAULT now(),
-		UNIQUE (viewer_username, seller_id)
-	)`;
-			// Feature permissions: grant specific features to users (e.g., 'reports')
-			await sql`CREATE TABLE IF NOT EXISTS user_feature_permissions (
-		id SERIAL PRIMARY KEY,
-		username TEXT NOT NULL,
-		feature TEXT NOT NULL,
-		created_at TIMESTAMPTZ DEFAULT now(),
-		UNIQUE (username, feature)
-	)`;
-			await sql`CREATE TABLE IF NOT EXISTS sale_days (
-		id SERIAL PRIMARY KEY,
-		seller_id INTEGER NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
-		day DATE NOT NULL,
-		is_archived BOOLEAN NOT NULL DEFAULT false,
-		UNIQUE (seller_id, day)
-	)`;
-			// Ensure delivered columns, commissions_paid, and is_archived exist for older deployments
-			await sql`DO $$ BEGIN
-		IF NOT EXISTS (
-			SELECT 1 FROM information_schema.columns
-			WHERE table_name = 'sale_days' AND column_name = 'delivered_arco'
-		) THEN
-			ALTER TABLE sale_days ADD COLUMN delivered_arco INTEGER NOT NULL DEFAULT 0;
-		END IF;
-		IF NOT EXISTS (
-			SELECT 1 FROM information_schema.columns
-			WHERE table_name = 'sale_days' AND column_name = 'delivered_melo'
-		) THEN
-			ALTER TABLE sale_days ADD COLUMN delivered_melo INTEGER NOT NULL DEFAULT 0;
-		END IF;
-		IF NOT EXISTS (
-			SELECT 1 FROM information_schema.columns
-			WHERE table_name = 'sale_days' AND column_name = 'delivered_mara'
-		) THEN
-			ALTER TABLE sale_days ADD COLUMN delivered_mara INTEGER NOT NULL DEFAULT 0;
-		END IF;
-		IF NOT EXISTS (
-			SELECT 1 FROM information_schema.columns
-			WHERE table_name = 'sale_days' AND column_name = 'delivered_oreo'
-		) THEN
-			ALTER TABLE sale_days ADD COLUMN delivered_oreo INTEGER NOT NULL DEFAULT 0;
-		END IF;
-		IF NOT EXISTS (
-			SELECT 1 FROM information_schema.columns
-			WHERE table_name = 'sale_days' AND column_name = 'delivered_nute'
-		) THEN
-			ALTER TABLE sale_days ADD COLUMN delivered_nute INTEGER NOT NULL DEFAULT 0;
-		END IF;
-		IF NOT EXISTS (
-			SELECT 1 FROM information_schema.columns
-			WHERE table_name = 'sale_days' AND column_name = 'commissions_paid'
-		) THEN
-			ALTER TABLE sale_days ADD COLUMN commissions_paid INTEGER NOT NULL DEFAULT 0;
-		END IF;
-		IF NOT EXISTS (
-			SELECT 1 FROM information_schema.columns
-			WHERE table_name = 'sale_days' AND column_name = 'is_archived'
-		) THEN
-			ALTER TABLE sale_days ADD COLUMN is_archived BOOLEAN NOT NULL DEFAULT false;
-		END IF;
-	END $$;`;
-			await sql`CREATE TABLE IF NOT EXISTS sales (
-		id SERIAL PRIMARY KEY,
-		seller_id INTEGER NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
-		sale_day_id INTEGER REFERENCES sale_days(id) ON DELETE CASCADE,
-		client_name TEXT DEFAULT '',
-		qty_arco INTEGER NOT NULL DEFAULT 0,
-		qty_melo INTEGER NOT NULL DEFAULT 0,
-		qty_mara INTEGER NOT NULL DEFAULT 0,
-		qty_oreo INTEGER NOT NULL DEFAULT 0,
-		qty_nute INTEGER NOT NULL DEFAULT 0,
-		is_paid BOOLEAN NOT NULL DEFAULT false,
-		pay_method TEXT,
-		payment_date DATE,
-		payment_source TEXT,
-		comment_text TEXT DEFAULT '',
-		special_pricing_type TEXT,
-		total_cents INTEGER NOT NULL DEFAULT 0,
-		created_at TIMESTAMPTZ DEFAULT now()
-	)`;
-			// Ensure columns exist for older deployments
-			await sql`DO $$ BEGIN
-		IF NOT EXISTS (
-			SELECT 1 FROM information_schema.columns
-			WHERE table_name = 'sales' AND column_name = 'sale_day_id'
-		) THEN
-			ALTER TABLE sales ADD COLUMN sale_day_id INTEGER REFERENCES sale_days(id) ON DELETE CASCADE;
-		END IF;
-		IF NOT EXISTS (
-			SELECT 1 FROM information_schema.columns
-			WHERE table_name = 'sales' AND column_name = 'is_paid'
-		) THEN
-			ALTER TABLE sales ADD COLUMN is_paid BOOLEAN NOT NULL DEFAULT false;
-		END IF;
-		IF NOT EXISTS (
-			SELECT 1 FROM information_schema.columns
-			WHERE table_name = 'sales' AND column_name = 'pay_method'
-		) THEN
-			ALTER TABLE sales ADD COLUMN pay_method TEXT;
-		END IF;
-		IF NOT EXISTS (
-			SELECT 1 FROM information_schema.columns
-			WHERE table_name = 'sales' AND column_name = 'payment_source'
-		) THEN
-			ALTER TABLE sales ADD COLUMN payment_source TEXT;
-		END IF;
-		IF NOT EXISTS (
-			SELECT 1 FROM information_schema.columns
-			WHERE table_name = 'sales' AND column_name = 'comment_text'
-		) THEN
-			ALTER TABLE sales ADD COLUMN comment_text TEXT DEFAULT '';
-		END IF;
-		IF NOT EXISTS (
-			SELECT 1 FROM information_schema.columns
-			WHERE table_name = 'sales' AND column_name = 'qty_nute'
-		) THEN
-			ALTER TABLE sales ADD COLUMN qty_nute INTEGER NOT NULL DEFAULT 0;
-		END IF;
-		IF NOT EXISTS (
-			SELECT 1 FROM information_schema.columns
-			WHERE table_name = 'sales' AND column_name = 'payment_date'
-		) THEN
-			ALTER TABLE sales ADD COLUMN payment_date DATE;
-		END IF;
-		IF NOT EXISTS (
-			SELECT 1 FROM information_schema.columns
-			WHERE table_name = 'sales' AND column_name = 'special_pricing_type'
-		) THEN
-			ALTER TABLE sales ADD COLUMN special_pricing_type TEXT;
-		END IF;
-	END $$;`;
-			await sql`CREATE TABLE IF NOT EXISTS change_logs (
-		id SERIAL PRIMARY KEY,
-		sale_id INTEGER NOT NULL REFERENCES sales(id) ON DELETE CASCADE,
-		field TEXT NOT NULL,
-		old_value TEXT,
-		new_value TEXT,
-		user_name TEXT,
-		created_at TIMESTAMPTZ DEFAULT now()
-	)`;
-			// Optional receipt storage (base64) per sale
-			await sql`CREATE TABLE IF NOT EXISTS sale_receipts (
-		id SERIAL PRIMARY KEY,
-		sale_id INTEGER NOT NULL REFERENCES sales(id) ON DELETE CASCADE,
-		image_base64 TEXT NOT NULL,
-		note_text TEXT DEFAULT '',
-		pay_method TEXT,
-		payment_source TEXT,
-		payment_date DATE,
-		created_at TIMESTAMPTZ DEFAULT now()
-	)`;
-			// Ensure note_text, pay_method, payment_source, and payment_date columns exist on older deployments
-			await sql`DO $$ BEGIN
-		IF NOT EXISTS (
-			SELECT 1 FROM information_schema.columns
-			WHERE table_name = 'sale_receipts' AND column_name = 'note_text'
-		) THEN
-			ALTER TABLE sale_receipts ADD COLUMN note_text TEXT DEFAULT '';
-		END IF;
-		IF NOT EXISTS (
-			SELECT 1 FROM information_schema.columns
-			WHERE table_name = 'sale_receipts' AND column_name = 'pay_method'
-		) THEN
-			ALTER TABLE sale_receipts ADD COLUMN pay_method TEXT;
-		END IF;
-		IF NOT EXISTS (
-			SELECT 1 FROM information_schema.columns
-			WHERE table_name = 'sale_receipts' AND column_name = 'payment_source'
-		) THEN
-			ALTER TABLE sale_receipts ADD COLUMN payment_source TEXT;
-		END IF;
-		IF NOT EXISTS (
-			SELECT 1 FROM information_schema.columns
-			WHERE table_name = 'sale_receipts' AND column_name = 'payment_date'
-		) THEN
-			ALTER TABLE sale_receipts ADD COLUMN payment_date DATE;
-		END IF;
-	END $$;`;
-			// Deliveries: record production by day and assignments to sellers
-			await sql`CREATE TABLE IF NOT EXISTS deliveries (
-		id SERIAL PRIMARY KEY,
-		day DATE NOT NULL,
-		note TEXT DEFAULT '',
-		actor_name TEXT,
-		created_at TIMESTAMPTZ DEFAULT now()
-	)`;
-			await sql`CREATE TABLE IF NOT EXISTS delivery_items (
-		id SERIAL PRIMARY KEY,
-		delivery_id INTEGER NOT NULL REFERENCES deliveries(id) ON DELETE CASCADE,
-		dessert_id INTEGER NOT NULL REFERENCES desserts(id) ON DELETE CASCADE,
-		quantity INTEGER NOT NULL DEFAULT 0,
-		UNIQUE (delivery_id, dessert_id)
-	)`;
-			await sql`CREATE TABLE IF NOT EXISTS delivery_seller_items (
-		id SERIAL PRIMARY KEY,
-		delivery_id INTEGER NOT NULL REFERENCES deliveries(id) ON DELETE CASCADE,
-		seller_id INTEGER NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
-		dessert_id INTEGER NOT NULL REFERENCES desserts(id) ON DELETE CASCADE,
-		quantity INTEGER NOT NULL DEFAULT 0,
-		UNIQUE (delivery_id, seller_id, dessert_id)
-	)`;
-			// Note: delivery_production_users table is now created earlier (before version check)
-			await sql`CREATE TABLE IF NOT EXISTS notifications (
-		id SERIAL PRIMARY KEY,
-		type TEXT NOT NULL,
-		seller_id INTEGER REFERENCES sellers(id) ON DELETE SET NULL,
-		sale_id INTEGER REFERENCES sales(id) ON DELETE SET NULL,
-		sale_day_id INTEGER REFERENCES sale_days(id) ON DELETE SET NULL,
-		message TEXT NOT NULL,
-		actor_name TEXT,
-		icon_url TEXT,
-		pay_method TEXT,
-		created_at TIMESTAMPTZ DEFAULT now(),
-		read_at TIMESTAMPTZ
-	)`;
-			// Ensure optional columns exist for older deployments
-			await sql`DO $$ BEGIN
-		IF NOT EXISTS (
-			SELECT 1 FROM information_schema.columns
-			WHERE table_name = 'notifications' AND column_name = 'icon_url'
-		) THEN
-			ALTER TABLE notifications ADD COLUMN icon_url TEXT;
-		END IF;
-		IF NOT EXISTS (
-			SELECT 1 FROM information_schema.columns
-			WHERE table_name = 'notifications' AND column_name = 'pay_method'
-		) THEN
-			ALTER TABLE notifications ADD COLUMN pay_method TEXT;
-		END IF;
-	END $$;`;
-			// Notification checks: track which notifications have been checked by superadmin
-			await sql`CREATE TABLE IF NOT EXISTS notification_checks (
-		id SERIAL PRIMARY KEY,
-		notification_id INTEGER NOT NULL REFERENCES notifications(id) ON DELETE CASCADE,
-		checked_by TEXT NOT NULL,
-		created_at TIMESTAMPTZ DEFAULT now(),
-		UNIQUE (notification_id, checked_by)
-	)`;
-			// Notification center visits: track when superadmin last visited the notification center
-			await sql`CREATE TABLE IF NOT EXISTS notification_center_visits (
-		id SERIAL PRIMARY KEY,
-		username TEXT NOT NULL,
-		visited_at TIMESTAMPTZ DEFAULT now(),
-		UNIQUE (username)
-	)`;
-			// Create indexes for notification queries
-			await sql`CREATE INDEX IF NOT EXISTS idx_notifications_created ON notifications(created_at DESC)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_notification_checks_notification ON notification_checks(notification_id)`;
-			// Accounting: ingresos/gastos ledger
-			await sql`CREATE TABLE IF NOT EXISTS accounting_entries (
-		id SERIAL PRIMARY KEY,
-		kind TEXT NOT NULL, -- 'gasto' | 'ingreso'
-		entry_date DATE NOT NULL,
-		description TEXT NOT NULL DEFAULT '',
-		amount_cents INTEGER NOT NULL DEFAULT 0,
-		actor_name TEXT,
-		created_at TIMESTAMPTZ DEFAULT now()
-	)`;
-			// Optional: attachments per accounting entry (image or file as base64)
-			await sql`CREATE TABLE IF NOT EXISTS accounting_attachments (
-		id SERIAL PRIMARY KEY,
-		entry_id INTEGER NOT NULL REFERENCES accounting_entries(id) ON DELETE CASCADE,
-		file_base64 TEXT NOT NULL,
-		mime_type TEXT,
-		file_name TEXT,
-		created_at TIMESTAMPTZ DEFAULT now()
-	)`;
-			// Ensure columns exist for older deployments
-			await sql`DO $$ BEGIN
-		IF NOT EXISTS (
-			SELECT 1 FROM information_schema.columns
-			WHERE table_name = 'accounting_entries' AND column_name = 'actor_name'
-		) THEN
-			ALTER TABLE accounting_entries ADD COLUMN actor_name TEXT;
-		END IF;
-		IF NOT EXISTS (
-			SELECT 1 FROM information_schema.columns
-			WHERE table_name = 'accounting_entries' AND column_name = 'kind'
-		) THEN
-			ALTER TABLE accounting_entries ADD COLUMN kind TEXT NOT NULL DEFAULT 'gasto';
-		END IF;
-		IF NOT EXISTS (
-			SELECT 1 FROM information_schema.columns
-			WHERE table_name = 'accounting_entries' AND column_name = 'entry_date'
-		) THEN
-			ALTER TABLE accounting_entries ADD COLUMN entry_date DATE NOT NULL DEFAULT now();
-		END IF;
-		IF NOT EXISTS (
-			SELECT 1 FROM information_schema.columns
-			WHERE table_name = 'accounting_entries' AND column_name = 'description'
-		) THEN
-			ALTER TABLE accounting_entries ADD COLUMN description TEXT NOT NULL DEFAULT '';
-		END IF;
-		IF NOT EXISTS (
-			SELECT 1 FROM information_schema.columns
-			WHERE table_name = 'accounting_entries' AND column_name = 'amount_cents'
-		) THEN
-			ALTER TABLE accounting_entries ADD COLUMN amount_cents INTEGER NOT NULL DEFAULT 0;
-		END IF;
-	END $$;`;
-			// Materials: per-flavor ingredient formulas
-			await sql`CREATE TABLE IF NOT EXISTS ingredient_formulas (
-		id SERIAL PRIMARY KEY,
-		ingredient TEXT UNIQUE NOT NULL,
-		unit TEXT NOT NULL DEFAULT 'g',
-		per_arco NUMERIC NOT NULL DEFAULT 0,
-		per_melo NUMERIC NOT NULL DEFAULT 0,
-		per_mara NUMERIC NOT NULL DEFAULT 0,
-		per_oreo NUMERIC NOT NULL DEFAULT 0,
-		per_nute NUMERIC NOT NULL DEFAULT 0,
-		created_at TIMESTAMPTZ DEFAULT now(),
-		updated_at TIMESTAMPTZ DEFAULT now()
-	)`;
-			// Ensure all per_* columns exist for older deployments
-			await sql`DO $$ BEGIN
-		IF NOT EXISTS (
-			SELECT 1 FROM information_schema.columns
-			WHERE table_name = 'ingredient_formulas' AND column_name = 'per_nute'
-		) THEN
-			ALTER TABLE ingredient_formulas ADD COLUMN per_nute NUMERIC NOT NULL DEFAULT 0;
-		END IF;
-		IF NOT EXISTS (
-			SELECT 1 FROM information_schema.columns
-			WHERE table_name = 'ingredient_formulas' AND column_name = 'unit'
-		) THEN
-			ALTER TABLE ingredient_formulas ADD COLUMN unit TEXT NOT NULL DEFAULT 'g';
-		END IF;
-	END $$;`;
-
-			// Recipes schema: steps and items per dessert + global extras
-			await sql`CREATE TABLE IF NOT EXISTS dessert_recipes (
-		id SERIAL PRIMARY KEY,
-		dessert TEXT NOT NULL,
-		step_name TEXT,
-		position INTEGER NOT NULL DEFAULT 0,
-		created_at TIMESTAMPTZ DEFAULT now(),
-		updated_at TIMESTAMPTZ DEFAULT now()
-	)`;
-			// Optional: explicit dessert ordering table
-			await sql`CREATE TABLE IF NOT EXISTS dessert_order (
-		dessert TEXT PRIMARY KEY,
-		position INTEGER NOT NULL DEFAULT 0,
-		updated_at TIMESTAMPTZ DEFAULT now()
-	)`;
-			await sql`CREATE TABLE IF NOT EXISTS dessert_recipe_items (
-		id SERIAL PRIMARY KEY,
-		recipe_id INTEGER NOT NULL REFERENCES dessert_recipes(id) ON DELETE CASCADE,
-		ingredient TEXT NOT NULL,
-		unit TEXT NOT NULL DEFAULT 'g',
-		qty_per_unit NUMERIC NOT NULL DEFAULT 0,
-		adjustment NUMERIC NOT NULL DEFAULT 0,
-		price NUMERIC NOT NULL DEFAULT 0,
-	pack_size NUMERIC NOT NULL DEFAULT 0,
-		position INTEGER NOT NULL DEFAULT 0,
-		created_at TIMESTAMPTZ DEFAULT now(),
-		updated_at TIMESTAMPTZ DEFAULT now()
-	)`;
-			// Ensure new numeric columns exist for older deployments
-			await sql`DO $$ BEGIN
-		IF NOT EXISTS (
-			SELECT 1 FROM information_schema.columns
-			WHERE table_name = 'dessert_recipe_items' AND column_name = 'adjustment'
-		) THEN
-			ALTER TABLE dessert_recipe_items ADD COLUMN adjustment NUMERIC NOT NULL DEFAULT 0;
-		END IF;
-		IF NOT EXISTS (
-			SELECT 1 FROM information_schema.columns
-			WHERE table_name = 'dessert_recipe_items' AND column_name = 'price'
-		) THEN
-			ALTER TABLE dessert_recipe_items ADD COLUMN price NUMERIC NOT NULL DEFAULT 0;
-		END IF;
-	IF NOT EXISTS (
-		SELECT 1 FROM information_schema.columns
-		WHERE table_name = 'dessert_recipe_items' AND column_name = 'pack_size'
-	) THEN
-		ALTER TABLE dessert_recipe_items ADD COLUMN pack_size NUMERIC NOT NULL DEFAULT 0;
-	END IF;
-	END $$;`;
-			await sql`CREATE TABLE IF NOT EXISTS extras_items (
-		id SERIAL PRIMARY KEY,
-		ingredient TEXT NOT NULL,
-		unit TEXT NOT NULL DEFAULT 'g',
-		qty_per_unit NUMERIC NOT NULL DEFAULT 0,
-	price NUMERIC NOT NULL DEFAULT 0,
-	pack_size NUMERIC NOT NULL DEFAULT 0,
-		position INTEGER NOT NULL DEFAULT 0,
-		created_at TIMESTAMPTZ DEFAULT now(),
-		updated_at TIMESTAMPTZ DEFAULT now()
-	)`;
-			// Ensure new numeric columns exist for older deployments (extras price)
-			await sql`DO $$ BEGIN
-	IF NOT EXISTS (
-		SELECT 1 FROM information_schema.columns
-		WHERE table_name = 'extras_items' AND column_name = 'price'
-	) THEN
-		ALTER TABLE extras_items ADD COLUMN price NUMERIC NOT NULL DEFAULT 0;
-	END IF;
-END $$;`;
-			// Ensure extras pack_size
-			await sql`DO $$ BEGIN
-	IF NOT EXISTS (
-		SELECT 1 FROM information_schema.columns
-		WHERE table_name = 'extras_items' AND column_name = 'pack_size'
-	) THEN
-		ALTER TABLE extras_items ADD COLUMN pack_size NUMERIC NOT NULL DEFAULT 0;
-	END IF;
-END $$;`;
-			// Inventory: master items and movements ledger
-			await sql`CREATE TABLE IF NOT EXISTS inventory_items (
-		id SERIAL PRIMARY KEY,
-		ingredient TEXT UNIQUE NOT NULL,
-		unit TEXT NOT NULL DEFAULT 'g',
-		created_at TIMESTAMPTZ DEFAULT now(),
-		updated_at TIMESTAMPTZ DEFAULT now()
-	)`;
-			await sql`DO $$ BEGIN
-		IF NOT EXISTS (
-			SELECT 1 FROM information_schema.columns
-			WHERE table_name = 'inventory_items' AND column_name = 'unit'
-		) THEN
-			ALTER TABLE inventory_items ADD COLUMN unit TEXT NOT NULL DEFAULT 'g';
-		END IF;
-	END $$;`;
-			await sql`CREATE TABLE IF NOT EXISTS inventory_movements (
-		id SERIAL PRIMARY KEY,
-		ingredient TEXT NOT NULL,
-		kind TEXT NOT NULL,
-		qty NUMERIC NOT NULL,
-		note TEXT DEFAULT '',
-		actor_name TEXT,
-		metadata JSONB DEFAULT '{}'::jsonb,
-		created_at TIMESTAMPTZ DEFAULT now()
-	)`;
-			// Time sessions for production timings per dessert
-			await sql`CREATE TABLE IF NOT EXISTS time_sessions (
-		id SERIAL PRIMARY KEY,
-		dessert TEXT NOT NULL,
-		steps JSONB NOT NULL,
-		total_elapsed_ms INTEGER NOT NULL DEFAULT 0,
-		actor_name TEXT,
-		created_at TIMESTAMPTZ DEFAULT now()
-	)`;
-			// Tables created at top of function before version check
-			// Seed default users if table is empty
-			const existing = await sql`SELECT COUNT(*)::int AS c FROM users`;
-			if ((existing[0]?.c || 0) === 0) {
-				// Default simple passwords; in production you'd hash. Here we store as plain for simplicity in this demo.
-				await sql`INSERT INTO users (username, password_hash, role) VALUES ('jorge', 'Jorge123', 'superadmin') ON CONFLICT (username) DO NOTHING`;
-				await sql`INSERT INTO users (username, password_hash, role) VALUES ('marcela', 'marcelasweet', 'admin') ON CONFLICT (username) DO NOTHING`;
-				await sql`INSERT INTO users (username, password_hash, role) VALUES ('aleja', 'alejasweet', 'admin') ON CONFLICT (username) DO NOTHING`;
-			}
-			// Ensure Marcela has a default yellow bill color if seller exists and not set
-			await sql`UPDATE sellers SET bill_color=${'#fdd835'} WHERE lower(name)='marcela' AND (bill_color IS NULL OR bill_color='')`;
-
-			// Migration: Migrate existing sales to sale_items if needed
-			// This only runs once - checks if there are sales with old qty columns but no sale_items
+			// Migration: Migrate old sales columns to sale_items
 			try {
-				const needsMigration = await sql`
-			SELECT COUNT(*)::int AS c FROM sales s
-			WHERE (s.qty_arco > 0 OR s.qty_melo > 0 OR s.qty_mara > 0 OR s.qty_oreo > 0 OR s.qty_nute > 0)
-			AND NOT EXISTS (SELECT 1 FROM sale_items si WHERE si.sale_id = s.id)
-			LIMIT 1
-		`;
-				if ((needsMigration[0]?.c || 0) > 0) {
-					// Get dessert IDs
-					const dessertMap = {};
-					const desserts = await sql`SELECT id, short_code FROM desserts WHERE short_code IN ('arco', 'melo', 'mara', 'oreo', 'nute')`;
-					for (const d of desserts) {
-						dessertMap[d.short_code] = d.id;
-					}
-
-					// Only migrate if we have the desserts
-					if (Object.keys(dessertMap).length > 0) {
-						// Migrate all existing sales
-						const salesToMigrate = await sql`
-					SELECT id, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute FROM sales
-					WHERE (qty_arco > 0 OR qty_melo > 0 OR qty_mara > 0 OR qty_oreo > 0 OR qty_nute > 0)
-					AND NOT EXISTS (SELECT 1 FROM sale_items si WHERE si.sale_id = sales.id)
-				`;
-
-						const prices = { arco: 8500, melo: 9500, mara: 10500, oreo: 10500, nute: 13000 };
-
-						for (const sale of salesToMigrate) {
-							const items = [];
-							if (sale.qty_arco > 0 && dessertMap.arco) {
-								items.push({ dessert_id: dessertMap.arco, quantity: sale.qty_arco, unit_price: prices.arco });
-							}
-							if (sale.qty_melo > 0 && dessertMap.melo) {
-								items.push({ dessert_id: dessertMap.melo, quantity: sale.qty_melo, unit_price: prices.melo });
-							}
-							if (sale.qty_mara > 0 && dessertMap.mara) {
-								items.push({ dessert_id: dessertMap.mara, quantity: sale.qty_mara, unit_price: prices.mara });
-							}
-							if (sale.qty_oreo > 0 && dessertMap.oreo) {
-								items.push({ dessert_id: dessertMap.oreo, quantity: sale.qty_oreo, unit_price: prices.oreo });
-							}
-							if (sale.qty_nute > 0 && dessertMap.nute) {
-								items.push({ dessert_id: dessertMap.nute, quantity: sale.qty_nute, unit_price: prices.nute });
-							}
-
-							for (const item of items) {
-								await sql`INSERT INTO sale_items (sale_id, dessert_id, quantity, unit_price) 
-							VALUES (${sale.id}, ${item.dessert_id}, ${item.quantity}, ${item.unit_price})`;
+				const needsMigration = await sql`SELECT id FROM sales s WHERE (s.qty_arco > 0 OR s.qty_melo > 0 OR s.qty_mara > 0 OR s.qty_oreo > 0 OR s.qty_nute > 0) AND NOT EXISTS (SELECT 1 FROM sale_items si WHERE si.sale_id = s.id) LIMIT 50`;
+				if (needsMigration.length > 0) {
+					const dessertsList = await sql`SELECT id, short_code FROM desserts` || [];
+					const dMap = {}; dessertsList.forEach(d => dMap[d.short_code] = d.id);
+					const pricesMap = { arco: 8500, melo: 9500, mara: 10500, oreo: 10500, nute: 13000 };
+					for (const s of needsMigration) {
+						const [sale] = await sql`SELECT * FROM sales WHERE id = ${s.id}`;
+						for (const k of ['arco', 'melo', 'mara', 'oreo', 'nute']) {
+							const q = sale[`qty_${k}`];
+							if (q > 0 && dMap[k]) {
+								await sql`INSERT INTO sale_items (sale_id, dessert_id, quantity, unit_price) VALUES (${s.id}, ${dMap[k]}, ${q}, ${pricesMap[k]})`;
 							}
 						}
 					}
 				}
-			} catch (err) {
-				console.error('Error migrating sales to sale_items:', err);
-				// Continue anyway - migration will retry on next cold start
-			}
+			} catch (mErr) { console.error('Migration error:', mErr); }
 
-			// Create critical indexes for performance
-			await sql`CREATE INDEX IF NOT EXISTS idx_sales_seller_day ON sales(seller_id, sale_day_id)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_sales_created ON sales(created_at DESC)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_sale_days_seller_day ON sale_days(seller_id, day)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_sale_days_day ON sale_days(day)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_sale_items_sale ON sale_items(sale_id)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_sellers_name ON sellers(lower(name))`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_user_view_permissions_lookup ON user_view_permissions(lower(viewer_username), seller_id)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_deliveries_day ON deliveries(day DESC)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_delivery_items_delivery ON delivery_items(delivery_id)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_delivery_seller_items_delivery ON delivery_seller_items(delivery_id)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_delivery_seller_items_delivery_seller ON delivery_seller_items(delivery_id, seller_id)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_delivery_production_users_delivery ON delivery_production_users(delivery_id)`;
-			await sql`CREATE INDEX IF NOT EXISTS idx_delivery_production_users_user ON delivery_production_users(user_id)`;
-
-			// Note: recipe_production_users table is now created earlier (before version check)
-			// But ensure recipe_session_id column exists if table was created before
-			await sql`DO $$ BEGIN
-		IF NOT EXISTS (
-			SELECT 1 FROM information_schema.columns
-			WHERE table_name = 'recipe_production_users' AND column_name = 'recipe_session_id'
-		) THEN
-			ALTER TABLE recipe_production_users ADD COLUMN recipe_session_id INTEGER REFERENCES recipe_sessions(id) ON DELETE SET NULL;
-			CREATE INDEX IF NOT EXISTS idx_recipe_production_users_session ON recipe_production_users(recipe_session_id);
-		END IF;
-	END $$;`;
-
-			// 4) Persist target schema version so future requests short-circuit
-			await sql`UPDATE schema_meta SET version=${SCHEMA_VERSION}, updated_at=now()`;
+			// Final Version Bump
+			await sql`UPDATE schema_meta SET version = ${SCHEMA_VERSION}, updated_at = now()`;
 			schemaEnsured = true;
 		} catch (err) {
-			console.error('❌ Error during schema migration:', err);
-			// Don't set schemaEnsured = true so it will retry
-			throw err; // Propagate error to fail fast and alert
+			console.error('CRITICAL: ensureSchema failed', err);
+			throw err;
 		} finally {
-			schemaCheckPromise = null; // Reset for potential retries
+			schemaCheckPromise = null;
 		}
 	})();
 
@@ -1323,7 +283,6 @@ export async function getDesserts() {
 		return await sql`SELECT id, name, short_code, sale_price, cost_price, promo_qty, promo_price, is_active, position FROM desserts WHERE is_active = true ORDER BY position ASC, id ASC`;
 	} catch (err) {
 		console.error('Error getting desserts:', err);
-		// Return empty array if table doesn't exist yet
 		return [];
 	}
 }
@@ -1331,23 +290,18 @@ export async function getDesserts() {
 export async function recalcTotalForId(id) {
 	await ensureSchema();
 	const [sale] = await sql`SELECT * FROM sales WHERE id = ${id}`;
-	if (!sale) {
-		throw new Error(`Sale ${id} not found`);
-	}
-	const specialPricing = sale.special_pricing_type || null;
-	const desserts = await getDesserts();
-	const dessertsById = {};
-	for (const d of desserts) dessertsById[d.id] = d;
+	if (!sale) throw new Error(`Sale ${id} not found`);
 
-	// First check if sale has items (new system)
-	const allItems = await sql`
-		SELECT id, dessert_id, quantity FROM sale_items WHERE sale_id = ${id}
-	`;
+	const specialPricing = sale.special_pricing_type || null;
+	const dessertsList = await getDesserts();
+	const dessertsById = {};
+	for (const d of dessertsList) dessertsById[d.id] = d;
+
+	const allItems = await sql`SELECT id, dessert_id, quantity FROM sale_items WHERE sale_id = ${id}`;
 	const hasItems = Array.isArray(allItems) && allItems.length > 0;
 
 	let row;
 	if (hasItems) {
-		// Keep unit prices in sync for special pricing rows
 		if (specialPricing) {
 			for (const item of allItems) {
 				const dessert = dessertsById[item.dessert_id];
@@ -1358,97 +312,61 @@ export async function recalcTotalForId(id) {
 
 		const qtyByDessertId = {};
 		for (const item of allItems) {
-			const did = Number(item.dessert_id || 0) || 0;
-			if (!did) continue;
-			qtyByDessertId[did] = (qtyByDessertId[did] || 0) + (Number(item.quantity || 0) || 0);
+			const did = Number(item.dessert_id || 0);
+			if (did) qtyByDessertId[did] = (qtyByDessertId[did] || 0) + (Number(item.quantity || 0));
 		}
 		let total = 0;
-		for (const [didRaw, qty] of Object.entries(qtyByDessertId)) {
-			const did = Number(didRaw || 0) || 0;
-			const dessert = dessertsById[did];
-			if (!dessert) continue;
-			total += getDessertLineTotalForPricing(dessert, qty, specialPricing);
+		for (const [didRaw, qt] of Object.entries(qtyByDessertId)) {
+			const d = dessertsById[didRaw];
+			if (d) total += getDessertLineTotalForPricing(d, qt, specialPricing);
 		}
 
-		console.log(`🔄 recalcTotalForId(${id}): Using items format, special_pricing=${specialPricing}, calculated total=${total}`);
-
-		[row] = await sql`
-			UPDATE sales SET total_cents = ${total}
-			WHERE id = ${id}
-			RETURNING *
-		`;
+		[row] = await sql`UPDATE sales SET total_cents = ${total} WHERE id = ${id} RETURNING *`;
 	} else {
-		// Fallback to old system for backward compatibility
-		console.log(`🔄 recalcTotalForId(${id}): Using old format, special_pricing_type=${specialPricing}`);
-
-		// Calculate total dynamically for all desserts
 		let total = 0;
-		for (const d of desserts) {
-			const qtyKey = `qty_${d.short_code}`;
-			const qty = Number(sale[qtyKey] || 0) || 0;
-			if (qty > 0) {
-				total += getDessertLineTotalForPricing(d, qty, specialPricing);
-			}
+		for (const d of dessertsList) {
+			const q = Number(sale[`qty_${d.short_code}`] || 0);
+			if (q > 0) total += getDessertLineTotalForPricing(d, q, specialPricing);
 		}
-
-		console.log(`🔄 recalcTotalForId(${id}): Calculated total=${total} with special_pricing=${specialPricing}`);
-
-		[row] = await sql`
-			UPDATE sales SET total_cents = ${total}
-			WHERE id = ${id}
-			RETURNING *
-		`;
+		[row] = await sql`UPDATE sales SET total_cents = ${total} WHERE id = ${id} RETURNING *`;
 	}
 
-	// Load sale_items to include in response
 	try {
-		const items = await sql`
+		row.items = await sql`
 			SELECT si.id, si.dessert_id, si.quantity, si.unit_price, d.name, d.short_code
 			FROM sale_items si
 			JOIN desserts d ON d.id = si.dessert_id
 			WHERE si.sale_id = ${id}
-			ORDER BY d.position ASC, d.id ASC
+			ORDER BY d.position ASC
 		`;
-		row.items = items || [];
-	} catch (err) {
-		row.items = [];
-	}
+	} catch (e) { row.items = []; }
 
 	return row;
 }
 
 export async function getOrCreateDayId(sellerId, day) {
-	const d = day; // ISO date string 'YYYY-MM-DD'
-	const rows = await sql`SELECT id FROM sale_days WHERE seller_id=${sellerId} AND day=${d}`;
+	const rows = await sql`SELECT id FROM sale_days WHERE seller_id=${sellerId} AND day=${day}`;
 	if (rows.length) return rows[0].id;
-	const [created] = await sql`INSERT INTO sale_days (seller_id, day) VALUES (${sellerId}, ${d}) RETURNING id`;
+	const [created] = await sql`INSERT INTO sale_days (seller_id, day) VALUES (${sellerId}, ${day}) RETURNING id`;
 	return created.id;
 }
 
 export async function notify({ type, sellerId = null, saleId = null, saleDayId = null, message = '', actorName = '', iconUrl = null, payMethod = null }) {
 	await ensureSchema();
-	// Suppress all notifications generated by superadmin actions
 	try {
-		const actor = (actorName || '').toString().trim();
-		if (actor) {
-			const r = await sql`SELECT role FROM users WHERE lower(username)=lower(${actor}) LIMIT 1`;
-			const role = (r && r[0] && r[0].role) ? String(r[0].role) : 'user';
-			if (role === 'superadmin') return; // Do not create notification for superadmin actions
-		}
+		const r = await sql`SELECT role FROM users WHERE lower(username)=lower(${actorName || ''}) LIMIT 1`;
+		if (r?.[0]?.role === 'superadmin') return;
 	} catch { }
 	await sql`INSERT INTO notifications (type, seller_id, sale_id, sale_day_id, message, actor_name, icon_url, pay_method) VALUES (${type}, ${sellerId}, ${saleId}, ${saleDayId}, ${message}, ${actorName}, ${iconUrl}, ${payMethod})`;
 }
 
 export function canonicalizeIngredientName(name) {
-	const raw = (name || '').toString().trim();
+	const raw = (name || '').trim();
 	const low = raw.toLowerCase();
-	if (!raw) return raw;
 	if (low.includes('nutella')) return 'Nutella';
 	if (low.startsWith('agua')) return 'Agua';
 	if (low.includes('oreo')) return 'Oreo';
-	// Extras common aliases
 	if (low.includes('bolsa') && low.includes('cuchara')) return 'Bolsa para cuchara';
-	if (low.includes('contenedor') && (low.includes('8 oz') || low.includes('8oz') || low.includes('8 onz') || low.includes('8onz'))) return 'Contenedor 8 onz';
 	return raw;
 }
 
@@ -1456,13 +374,9 @@ export async function ensureInventoryItem(ingredient, unit = 'g') {
 	await ensureSchema();
 	const name = canonicalizeIngredientName(ingredient);
 	if (!name) return null;
-	const u = (unit || 'g').toString();
 	const [row] = await sql`
-		INSERT INTO inventory_items (ingredient, unit)
-		VALUES (${name}, ${u})
-		ON CONFLICT (ingredient) DO UPDATE SET
-			unit = CASE WHEN EXCLUDED.unit IS NOT NULL AND EXCLUDED.unit <> '' THEN EXCLUDED.unit ELSE inventory_items.unit END,
-			updated_at = now()
+		INSERT INTO inventory_items (ingredient, unit) VALUES (${name}, ${unit})
+		ON CONFLICT (ingredient) DO UPDATE SET unit = EXCLUDED.unit, updated_at = now()
 		RETURNING id, ingredient, unit
 	`;
 	return row;

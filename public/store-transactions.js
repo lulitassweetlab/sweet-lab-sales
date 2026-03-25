@@ -83,6 +83,19 @@ function updateAuthUI() {
             iframe.title = 'Registro de Ventas';
             embedContainer.appendChild(iframe);
         }
+    } else if (storeAuthUser && storeAuthUser.username) {
+        // Logged in but no seller selected yet
+        storeAuthBtn.textContent = 'Seleccionar Vendedor';
+        storeAuthBtn.style.color = 'var(--primary)';
+        storeAuthBtn.style.borderColor = 'var(--primary)';
+        storeAuthBtn.style.background = 'transparent';
+        storeAuthBtn.style.boxShadow = 'none';
+        storeClientsBtn.style.display = 'none';
+        storeCrmBtn.style.display = 'none';
+        document.body.classList.remove('is-seller-active');
+
+        const embedContainer = document.getElementById('seller-embedded-sales-container');
+        if (embedContainer) { embedContainer.innerHTML = ''; embedContainer.style.display = 'none'; }
     } else {
         storeAuthBtn.textContent = 'Ingresar';
         storeAuthBtn.style.color = 'var(--primary)';
@@ -391,31 +404,54 @@ async function processSingleSale(sale) {
         }
         const actorName = sale.user ? (sale.user.name || sale.user.username) : 'Tienda Online';
 
-        // 1. Determine Target Day (Always attempt to find the latest table)
-        let targetDayId = null;
-        try {
-            const daysRes = await fetch(`/api/days?seller_id=${sale.seller.id}`, { headers: authHeaders });
-            if (daysRes.ok) {
-                const days = await daysRes.json();
-                const targetDay = days[0];
-                if (targetDay) targetDayId = targetDay.id;
-            }
-        } catch (err) {
-            console.warn('Could not fetch days, will let backend handle it:', err);
-        }
-        // If targetDayId is still null, the backend POST /api/sales will handle it (creating for "today")
+        // 1. Parallelize Initial Lookups (Days and Desserts)
+        const [daysRes, dessertsRes] = await Promise.all([
+            fetch(`/api/days?seller_id=${sale.seller.id}`, { headers: authHeaders }).catch(e => ({ ok: false })),
+            fetch('/api/desserts', { headers: authHeaders }).catch(e => ({ ok: false }))
+        ]);
 
-        // 2. Get Desserts to map
-        const dessertsRes = await fetch('/api/desserts', { headers: authHeaders });
+        let targetDayId = null;
+        if (daysRes.ok) {
+            const days = await daysRes.json();
+            const targetDay = days[0];
+            if (targetDay) targetDayId = targetDay.id;
+        }
+
         if (!dessertsRes.ok) return false;
         const adminDesserts = await dessertsRes.json();
 
         let qty_arco = 0, qty_melo = 0, qty_mara = 0, qty_oreo = 0, qty_nute = 0;
         const dynamicItems = [];
 
+        console.log(`🔍 [Sync] Processing ${sale.items.length} items for client: ${sale.customerName}`);
         for (const item of sale.items) {
-            const name = (item.name || '').toLowerCase();
+            const name = (item.name || '').toLowerCase().trim();
+            console.log(`   🔸 Item: "${item.name}" (ID: ${item.id})`);
+            
+            // 1. Match by store_product_id
             let matchedDessert = adminDesserts.find(d => d.store_product_id === item.id);
+            if (matchedDessert) console.log(`      ✅ Matched by store_product_id: ${matchedDessert.name}`);
+            
+            // 2. Match by store_name or exact name (case-insensitive)
+            if (!matchedDessert) {
+                matchedDessert = adminDesserts.find(d => 
+                    (d.store_name || '').toLowerCase().trim() === name || 
+                    (d.name || '').toLowerCase().trim() === name
+                );
+                if (matchedDessert) console.log(`      ✅ Matched by name/store_name: ${matchedDessert.name}`);
+            }
+
+            // 3. Match by partial name (fuzzy)
+            if (!matchedDessert) {
+                matchedDessert = adminDesserts.find(d => {
+                    const dName = (d.name || '').toLowerCase().trim();
+                    const sName = (d.store_name || '').toLowerCase().trim();
+                    return (dName.length > 2 && name.includes(dName)) || (sName.length > 2 && name.includes(sName));
+                });
+                if (matchedDessert) console.log(`      ✅ Matched by partial name: ${matchedDessert.name}`);
+            }
+
+            // 4. Fallback: hardcoded mapping logic for short codes
             if (!matchedDessert) {
                 let sc = '';
                 if (name.includes('arcoiris') || name.includes('arco')) sc = 'arco';
@@ -425,22 +461,28 @@ async function processSingleSale(sale) {
                 else if (name.includes('nutella') || name.includes('nute')) sc = 'nute';
                 else if (name.includes('leches') || name.includes('3lec')) { sc = '3lec'; }
                 else if (name.includes('brigadeiro') || name.includes('brig')) {
-                    // Specific matching for box sizes
                     if (name.includes('x 5') || name.includes('x5')) sc = 'bx5';
                     else if (name.includes('x 10') || name.includes('x10')) sc = 'bx10';
                     else if (name.includes('x 12') || name.includes('x12')) sc = 'bx12';
                     else sc = 'brig'; 
                 }
-                if (sc) matchedDessert = adminDesserts.find(d => (d.short_code || '').toLowerCase() === sc);
+
+                if (sc) {
+                    matchedDessert = adminDesserts.find(d => (d.short_code || '').toLowerCase() === sc);
+                    if (matchedDessert) console.log(`      ✅ Matched by short_code fallback (${sc}): ${matchedDessert.name}`);
+                }
             }
+
             if (matchedDessert) {
                 dynamicItems.push({ dessert_id: matchedDessert.id, quantity: item.qty, unit_price: item.price });
                 const sc = (matchedDessert.short_code || '').toLowerCase();
                 if (sc === 'arco') qty_arco += item.qty;
-                if (sc === 'melo') qty_melo += item.qty;
-                if (sc === 'mara') qty_mara += item.qty;
-                if (sc === 'oreo') qty_oreo += item.qty;
-                if (sc === 'nute') qty_nute += item.qty;
+                else if (sc === 'melo') qty_melo += item.qty;
+                else if (sc === 'mara') qty_mara += item.qty;
+                else if (sc === 'oreo') qty_oreo += item.qty;
+                else if (sc === 'nute') qty_nute += item.qty;
+            } else {
+                console.warn(`      ❌ Could not map store product "${item.name}" to any dessert.`);
             }
         }
 
