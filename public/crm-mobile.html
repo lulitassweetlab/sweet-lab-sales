@@ -767,17 +767,17 @@
             let badges = '';
             // Basic Stage Badge
             if(c.stage_name) {
-                badges += `<span class="badge" style="background:${c.stage_color || '#808080'}; color:#fff; font-weight:800; text-transform:uppercase; font-size:0.7rem; padding:3px 8px; border-radius:6px; margin-right:4px; margin-bottom:4px;">${c.stage_name}</span>`;
+                badges += `<span class="badge badge-stage" style="background:${c.stage_color || '#808080'}; color:#fff; font-weight:800; text-transform:uppercase; font-size:0.7rem; padding:3px 8px; border-radius:6px; margin-right:4px; margin-bottom:4px;">${c.stage_name}</span>`;
             }
 
             // Custom Tags from API
             if(Array.isArray(c.custom_tags)) {
                 c.custom_tags.forEach(t => {
-                    badges += `<span class="badge" style="background:${t.color}; color:#fff; font-weight:800; text-transform:uppercase; font-size:0.7rem; padding:3px 8px; border-radius:6px; margin-right:4px; margin-bottom:4px;">${t.name}</span>`;
+                    badges += `<span class="badge badge-custom" data-tag-id="${t.id}" style="background:${t.color}; color:#fff; font-weight:800; text-transform:uppercase; font-size:0.7rem; padding:3px 8px; border-radius:6px; margin-right:4px; margin-bottom:4px;">${t.name}</span>`;
                 });
             }
 
-            if(debt > 0) badges += `<span class="badge bg-danger" style="color:#fff; font-weight:800; text-transform:uppercase; font-size:0.7rem; padding:3px 8px; border-radius:6px; margin-right:4px; margin-bottom:4px;">DEUDA ${formatMoney(debt)}</span>`;
+            if(debt > 0) badges += `<span class="badge badge-debt" style="background:var(--danger); color:#fff; font-weight:800; text-transform:uppercase; font-size:0.7rem; padding:3px 8px; border-radius:6px; margin-right:4px; margin-bottom:4px;">DEUDA ${formatMoney(debt)}</span>`;
             
             const metricsHtml = ltv > 0 ? `<div style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">Histórico: ${formatMoney(ltv)} | Compras: ${freq}</div>` : '';
 
@@ -791,9 +791,9 @@
 
             const clickAction = isBulk ? `toggleBulkAction(${c.id}, this)` : `loadProfile(${c.id})`;
             
-            // Visual Styles for Bulk Mode
-            const bulkBg = hasTag ? 'rgba(16, 185, 129, 0.1)' : 'transparent';
-            const bulkBorder = hasTag ? '2px solid rgba(16, 185, 129, 0.4)' : (isBulk ? '2px solid transparent' : '2px solid transparent');
+            // Visual Styles for Bulk Mode (User requested transparent background)
+            const bulkBg = 'transparent';
+            const bulkBorder = 'transparent';
 
             return `
                 <div class="card client-card-bulk-target" data-client-id="${c.id}" 
@@ -802,7 +802,7 @@
                     onmouseover="if(!window.isBulkMode) this.style.transform='translateX(4px)'" onmouseout="this.style.transform='none'">
                     <div style="flex:1;">
                         <div style="font-weight:700; font-size:1.05rem; margin-bottom:6px;">${c.name}</div>
-                        <div style="display:flex; flex-wrap:wrap; gap:4px; align-items:center;">${badges}</div>
+                        <div class="client-badges-container" style="display:flex; flex-wrap:wrap; gap:4px; align-items:center;">${badges}</div>
                         ${metricsHtml}
                     </div>
                     <div style="display:flex; gap:8px;">
@@ -2360,13 +2360,35 @@
                     showToast(hasTag ? 'Etiqueta quitada' : 'Etiqueta asignada');
                 }
                 
-                // Real-time Visual Update
-                const updatedHasTag = window.bulkTagType === 'stage' 
-                    ? true // Stages migration is always one-way in this toggle for now
-                    : window.bulkModeActiveClients.has(clientId);
-                
-                cardEl.style.background = updatedHasTag ? 'rgba(16, 185, 129, 0.1)' : 'transparent';
-                cardEl.style.borderColor = updatedHasTag ? 'rgba(16, 185, 129, 0.4)' : 'transparent';
+                // Real-time Visual Update (Immediate badge feedback)
+                const badgesContainer = cardEl.querySelector('.client-badges-container');
+                if (badgesContainer) {
+                    if (window.bulkTagType === 'stage') {
+                        let stageBadge = badgesContainer.querySelector('.badge-stage');
+                        if (!stageBadge) {
+                            stageBadge = document.createElement('span');
+                            stageBadge.className = 'badge badge-stage';
+                            stageBadge.style.cssText = 'color:#fff; font-weight:800; text-transform:uppercase; font-size:0.7rem; padding:3px 8px; border-radius:6px; margin-right:4px; margin-bottom:4px;';
+                            badgesContainer.prepend(stageBadge);
+                        }
+                        stageBadge.innerText = window.bulkTagName;
+                        stageBadge.style.background = window.bulkTagColor;
+                    } else {
+                        const existingTag = badgesContainer.querySelector(`.badge-custom[data-tag-id="${window.bulkTagId}"]`);
+                        if (window.bulkModeActiveClients.has(clientId)) {
+                            if (!existingTag) {
+                                const newBadge = document.createElement('span');
+                                newBadge.className = 'badge badge-custom';
+                                newBadge.dataset.tagId = window.bulkTagId;
+                                newBadge.innerText = window.bulkTagName;
+                                newBadge.style.cssText = `background:${window.bulkTagColor}; color:#fff; font-weight:800; text-transform:uppercase; font-size:0.7rem; padding:3px 8px; border-radius:6px; margin-right:4px; margin-bottom:4px;`;
+                                badgesContainer.appendChild(newBadge);
+                            }
+                        } else {
+                            if (existingTag) existingTag.remove();
+                        }
+                    }
+                }
                 
             } catch(e) {
                 console.error('Bulk toggle failed', e);
