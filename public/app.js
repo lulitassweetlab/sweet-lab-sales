@@ -894,20 +894,36 @@ async function api(method, url, body) {
 }
 
 async function loadSellers() {
-	state.sellers = await api('GET', API.Sellers);
+	// Try loading from localStorage first for instant feel
+	try {
+		const cached = localStorage.getItem('sellers_cache');
+		if (cached) {
+			state.sellers = JSON.parse(cached);
+			renderSellerButtons();
+			applyAuthVisibility();
+		}
+	} catch (e) { }
+
+	try {
+		state.sellers = await api('GET', API.Sellers);
+		try {
+			localStorage.setItem('sellers_cache', JSON.stringify(state.sellers));
+		} catch (e) { }
+	} catch (err) {
+		console.error('Error loading sellers:', err);
+	}
+
 	// Update dynamic seller icon for current seller if available
 	if (state.currentSeller) {
 		const fresh = (state.sellers || []).find(s => s.id === state.currentSeller.id);
 		if (fresh) {
 			state.currentSeller = fresh;
-			const letter = (fresh.name || '').trim().charAt(0).toUpperCase();
-			// seller-specific icon removed
 		}
 	}
 	renderSellerButtons();
-	// Removed syncColumnsBarWidths();
 	applyAuthVisibility();
-	// Load global client suggestions for search bar in background (non-blocking)
+
+	// Load global client suggestions in background (non-blocking)
 	loadGlobalClientSuggestions().catch(e => console.error('Error loading global suggestions:', e));
 }
 
@@ -919,96 +935,73 @@ async function loadGlobalClientSuggestions() {
 			return;
 		}
 
-		// Check if already loaded and still fresh (cache for 5 minutes)
-		if (state._globalSuggestionsLoadedAt && (Date.now() - state._globalSuggestionsLoadedAt) < 300000) {
-			return; // Use cached data
-		}
+		// Try loading from localStorage first for instant feel
+		try {
+			const cached = localStorage.getItem('global_clients_cache');
+			if (cached) {
+				const { data, timestamp } = JSON.parse(cached);
+				// Use cache if it's less than 1 hour old
+				if (data && Array.isArray(data)) {
+					state.globalClientSuggestions = data;
+					if (Date.now() - timestamp < 3600000) {
+						state._globalSuggestionsLoadedAt = timestamp;
+						return; // Data is fresh enough
+					}
+				}
+			}
+		} catch (e) { }
 
 		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
 		const isAdmin = !!state.currentUser?.isAdmin;
 
-		const counts = new Map();
-		const namesByKey = new Map();
-
-		// Determine which sellers to load clients from
-		let sellersToLoad = [];
+		let resultArr = [];
 
 		if (isSuper || isAdmin) {
-			// Admin/SuperAdmin: load from all sellers
-			sellersToLoad = state.sellers || [];
+			// Optimized: One single call to get ALL global clients including historical ones from sales table
+			const clients = await api('GET', '/api/clients?global=1');
+			resultArr = (clients || []).map(c => ({
+				key: normalizeClientName(c.name),
+				name: c.name,
+				count: Number(c.records_count || 1) // Using fallback as single global call might not have counts
+			}));
 		} else {
 			// Regular user: load only their own clients
-			sellersToLoad = (state.sellers || []).filter(s =>
+			const seller = (state.sellers || []).find(s =>
 				String(s.name).toLowerCase() === String(state.currentUser.name || '').toLowerCase()
 			);
-		}
-
-		// Load clients from all authorized sellers IN PARALLEL
-		const sellerPromises = sellersToLoad.map(async (seller) => {
-			try {
-				const days = await api('GET', `/api/days?seller_id=${encodeURIComponent(seller.id)}`);
-
-				// Limit to last 180 days for faster loading (about 6 months)
-				const recentDays = (days || []).slice(0, 180);
-
-				// Load all sales for this seller in parallel
-				const salesPromises = recentDays.map(async (d) => {
-					const p = new URLSearchParams({ seller_id: String(seller.id), sale_day_id: String(d.id) });
-					try {
-						return await api('GET', `${API.Sales}?${p.toString()}`);
-					} catch {
-						return [];
-					}
-				});
-
-				const salesArrays = await Promise.all(salesPromises);
-
-				// Process all sales
-				const sellerClients = new Map();
-				const sellerNames = new Map();
-
-				for (const sales of salesArrays) {
-					for (const s of (sales || [])) {
-						const raw = (s?.client_name || '').trim();
-						if (!raw) continue;
-						const key = normalizeClientName(raw);
-						sellerClients.set(key, (sellerClients.get(key) || 0) + 1);
-						if (!sellerNames.has(key)) sellerNames.set(key, raw);
-					}
-				}
-
-				return { clients: sellerClients, names: sellerNames };
-			} catch (e) {
-				console.error('Error loading clients for seller:', seller.name, e);
-				return { clients: new Map(), names: new Map() };
-			}
-		});
-
-		// Wait for all sellers to complete
-		const sellerResults = await Promise.all(sellerPromises);
-
-		// Merge all results
-		for (const result of sellerResults) {
-			for (const [key, count] of result.clients) {
-				counts.set(key, (counts.get(key) || 0) + count);
-				if (!namesByKey.has(key)) namesByKey.set(key, result.names.get(key) || '');
+			if (seller) {
+				const clients = await api('GET', `/api/clients?seller_id=${encodeURIComponent(seller.id)}`);
+				resultArr = (clients || []).map(c => ({
+					key: normalizeClientName(c.name),
+					name: c.name,
+					count: 1
+				}));
 			}
 		}
 
-		// Prepare suggestion list (all clients, including those with count = 1)
-		const arr = Array.from(counts.entries())
-			.map(([key, count]) => ({ key, name: namesByKey.get(key) || '', count: Number(count) || 0 }))
-			.filter(it => it.name && it.name.trim() !== '');
-		arr.sort((a, b) => {
+		// Sort by count (if available) and then name
+		resultArr.sort((a, b) => {
 			if (b.count !== a.count) return b.count - a.count;
 			return (a.name || '').localeCompare(b.name || '', 'es');
 		});
 
-		state.globalClientSuggestions = arr;
-		state._globalSuggestionsLoadedAt = Date.now(); // Cache timestamp
+		state.globalClientSuggestions = resultArr;
+		state._globalSuggestionsLoadedAt = Date.now();
+
+		// Save to cache
+		try {
+			localStorage.setItem('global_clients_cache', JSON.stringify({
+				data: resultArr,
+				timestamp: state._globalSuggestionsLoadedAt
+			}));
+		} catch (e) { }
+
 	} catch (e) {
 		console.error('Error loading global client suggestions:', e);
-		state.globalClientSuggestions = [];
+		// Don't clear if we have cached data
+		if (!state.globalClientSuggestions || state.globalClientSuggestions.length === 0) {
+			state.globalClientSuggestions = [];
+		}
 	}
 }
 
@@ -1156,20 +1149,31 @@ function applyAuthVisibility() {
 // Load desserts from API (runs once per session)
 async function loadDesserts() {
 	if (state.dessertsLoaded && state.desserts.length > 0) return state.desserts;
+
+	// Try loading from localStorage first
+	try {
+		const cached = localStorage.getItem('desserts_cache');
+		if (cached) {
+			state.desserts = JSON.parse(cached);
+			updateDessertPriceMaps();
+			state.dessertsLoaded = true;
+			// Don't return yet, update from server in background
+		}
+	} catch (e) { }
+
 	try {
 		state.desserts = await api('GET', API.Desserts);
+		try {
+			localStorage.setItem('desserts_cache', JSON.stringify(state.desserts));
+		} catch (e) { }
+		updateDessertPriceMaps();
 		state.dessertsLoaded = true;
-		// Update PRICES map
-		for (const key of Object.keys(PRICES)) delete PRICES[key];
-		for (const key of Object.keys(COST_PRICES)) delete COST_PRICES[key];
-		for (const d of state.desserts) {
-			PRICES[d.short_code] = d.sale_price;
-			COST_PRICES[d.short_code] = getCostPriceForDessert(d);
-		}
 		return state.desserts;
 	} catch (err) {
-		console.error('Error loading desserts:', err);
-		// Fallback to defaults
+		console.error('Error loading desserts from API:', err);
+		if (state.desserts && state.desserts.length > 0) return state.desserts;
+
+		// Fallback to defaults only if no cache and no API
 		state.desserts = [
 			{ id: 1, name: 'Arco', short_code: 'arco', sale_price: 8500, cost_price: 4675, promo_qty: null, promo_price: null, position: 1 },
 			{ id: 2, name: 'Melo', short_code: 'melo', sale_price: 9500, cost_price: 5225, promo_qty: null, promo_price: null, position: 2 },
@@ -1177,14 +1181,19 @@ async function loadDesserts() {
 			{ id: 4, name: 'Oreo', short_code: 'oreo', sale_price: 10500, cost_price: 5775, promo_qty: null, promo_price: null, position: 4 },
 			{ id: 5, name: 'Nute', short_code: 'nute', sale_price: 13000, cost_price: 7150, promo_qty: null, promo_price: null, position: 5 }
 		];
-		for (const key of Object.keys(PRICES)) delete PRICES[key];
-		for (const key of Object.keys(COST_PRICES)) delete COST_PRICES[key];
-		for (const d of state.desserts) {
-			PRICES[d.short_code] = d.sale_price;
-			COST_PRICES[d.short_code] = getCostPriceForDessert(d);
-		}
+		updateDessertPriceMaps();
 		state.dessertsLoaded = true;
 		return state.desserts;
+	}
+}
+
+function updateDessertPriceMaps() {
+	if (!state.desserts) return;
+	for (const key of Object.keys(PRICES)) delete PRICES[key];
+	for (const key of Object.keys(COST_PRICES)) delete COST_PRICES[key];
+	for (const d of state.desserts) {
+		PRICES[d.short_code] = d.sale_price;
+		COST_PRICES[d.short_code] = getCostPriceForDessert(d);
 	}
 }
 
@@ -1833,7 +1842,7 @@ async function loadSales() {
 			const cached = localStorage.getItem(cacheKey);
 			if (cached) {
 				const parsed = JSON.parse(cached);
-				if (Array.isArray(parsed) && parsed.length > 0) {
+				if (Array.isArray(parsed)) {
 					state.sales = parsed;
 					// Re-hydrate quick props
 					for (const sale of state.sales) {
