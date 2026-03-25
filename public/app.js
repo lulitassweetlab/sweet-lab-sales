@@ -1122,9 +1122,9 @@ function applyAuthVisibility() {
 	const canTransfers = isSuper || feats.has('reports.transfers');
 	const canMaterials = isSuper || feats.has('nav.materials');
 	const canInventory = isSuper || feats.has('nav.inventory');
-	const canUsers = isSuper || feats.has('nav.users');
+	const canUsers = isSuper || isAdminUser || feats.has('nav.users');
 	const canAccounting = isSuper || feats.has('nav.accounting');
-	const canDesserts = isSuper || feats.has('nav.desserts');
+	const canDesserts = isSuper || isAdminUser || feats.has('nav.desserts');
 	if (usersBtn) usersBtn.style.display = canUsers ? 'inline-block' : 'none';
 	if (reportBtn) reportBtn.style.display = canSales ? 'inline-block' : 'none';
 	if (carteraBtn) carteraBtn.style.display = canCartera ? 'inline-block' : 'none';
@@ -1138,7 +1138,7 @@ function applyAuthVisibility() {
 	if (deliveriesBtn) deliveriesBtn.style.display = canDeliveries ? 'inline-block' : 'none';
 
 	const globalDbBtn = document.getElementById('global-clients-button');
-	if (globalDbBtn) globalDbBtn.style.display = isSuper ? 'inline-block' : 'none';
+	if (globalDbBtn) globalDbBtn.style.display = (isSuper || isAdminUser) ? 'inline-block' : 'none';
 }
 
 // Load desserts from API (runs once per session)
