@@ -2401,10 +2401,16 @@
 
                 if(window.bulkTagType === 'stage') {
                     // Move to Stage
-                    await fetch(`/.netlify/functions/crm-stages`, {
+                    await fetch(`/api/crm-stages`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ action: 'update_stage', client_id: clientId, stage_id: window.bulkTagId, seller_id: currentSellerId })
+                        body: JSON.stringify({ 
+                            action: 'set_stage', 
+                            client_id: clientId, 
+                            stage_id: window.bulkTagId, 
+                            user_id: currentSellerId,
+                            note: 'Cambio masivo'
+                        })
                     });
                     showToast(`Cliente movido a ${window.bulkTagName}`);
                 } else {
