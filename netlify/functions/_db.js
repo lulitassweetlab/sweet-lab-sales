@@ -393,16 +393,26 @@ export async function ensureSchema() {
 			// Seed default desserts if table is empty (always run this)
 			try {
 				const dessertCount = await sql`SELECT COUNT(*)::int AS c FROM desserts`;
+				const defaultDesserts = [
+					{ name: 'Arco', short_code: 'arco', sale_price: 8500, cost_price: 4675, position: 1 },
+					{ name: 'Melo', short_code: 'melo', sale_price: 9500, cost_price: 5225, position: 2 },
+					{ name: 'Mara', short_code: 'mara', sale_price: 10500, cost_price: 5775, position: 3 },
+					{ name: 'Oreo', short_code: 'oreo', sale_price: 10500, cost_price: 5775, position: 4 },
+					{ name: 'Nute', short_code: 'nute', sale_price: 13000, cost_price: 7150, position: 5 },
+					{ name: 'Brig', short_code: 'brig', sale_price: 3500, cost_price: 1925, position: 6 },
+					{ name: 'Bx5', short_code: 'bx5', sale_price: 15000, cost_price: 8250, position: 7 },
+					{ name: 'Bx10', short_code: 'bx10', sale_price: 28000, cost_price: 15400, position: 8 },
+					{ name: 'Bx12', short_code: 'bx12', sale_price: 32000, cost_price: 17600, position: 9 }
+				];
+
 				if ((dessertCount[0]?.c || 0) === 0) {
-					const defaultDesserts = [
-						{ name: 'Arco', short_code: 'arco', sale_price: 8500, cost_price: 4675, position: 1 },
-						{ name: 'Melo', short_code: 'melo', sale_price: 9500, cost_price: 5225, position: 2 },
-						{ name: 'Mara', short_code: 'mara', sale_price: 10500, cost_price: 5775, position: 3 },
-						{ name: 'Oreo', short_code: 'oreo', sale_price: 10500, cost_price: 5775, position: 4 },
-						{ name: 'Nute', short_code: 'nute', sale_price: 13000, cost_price: 7150, position: 5 }
-					];
 					for (const d of defaultDesserts) {
 						await sql`INSERT INTO desserts (name, short_code, sale_price, cost_price, position) VALUES (${d.name}, ${d.short_code}, ${d.sale_price}, ${d.cost_price}, ${d.position}) ON CONFLICT (name) DO NOTHING`;
+					}
+				} else {
+					// Migration: Ensure Brigadeiro products exist even if table is not empty
+					for (const d of defaultDesserts.slice(5)) { // Check only the new ones
+						await sql`INSERT INTO desserts (name, short_code, sale_price, cost_price, position) VALUES (${d.name}, ${d.short_code}, ${d.sale_price}, ${d.cost_price}, ${d.position}) ON CONFLICT (short_code) DO NOTHING`;
 					}
 				}
 			} catch (err) {

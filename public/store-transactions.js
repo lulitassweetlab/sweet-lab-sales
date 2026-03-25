@@ -431,16 +431,47 @@ async function processSingleSale(sale) {
                     else if (name.includes('x 12') || name.includes('x12')) sc = 'bx12';
                     else sc = 'brig'; 
                 }
-                if (sc) matchedDessert = adminDesserts.find(d => (d.short_code || '').toLowerCase() === sc);
+
+                if (sc) {
+                    matchedDessert = adminDesserts.find(d => (d.short_code || '').toLowerCase() === sc);
+                    
+                    // SELF-HEALING: If mapping found but dessert doesn't exist in DB, create it
+                    if (!matchedDessert) {
+                        console.log(`🛠️ Self-healing: Creating missing dessert for short_code: ${sc}`);
+                        try {
+                            const newDessertPayload = {
+                                name: item.name.charAt(0).toUpperCase() + item.name.slice(1),
+                                short_code: sc,
+                                sale_price: item.price,
+                                store_name: item.name,
+                                store_product_id: item.id
+                            };
+                            const createRes = await fetch('/api/desserts', {
+                                method: 'POST',
+                                headers: authHeaders,
+                                body: JSON.stringify(newDessertPayload)
+                            });
+                            if (createRes.ok) {
+                                matchedDessert = await createRes.json();
+                                adminDesserts.push(matchedDessert); // Update local list for next items
+                            }
+                        } catch (err) {
+                            console.error('Failed to auto-create dessert:', err);
+                        }
+                    }
+                }
             }
+
             if (matchedDessert) {
                 dynamicItems.push({ dessert_id: matchedDessert.id, quantity: item.qty, unit_price: item.price });
                 const sc = (matchedDessert.short_code || '').toLowerCase();
                 if (sc === 'arco') qty_arco += item.qty;
-                if (sc === 'melo') qty_melo += item.qty;
-                if (sc === 'mara') qty_mara += item.qty;
-                if (sc === 'oreo') qty_oreo += item.qty;
-                if (sc === 'nute') qty_nute += item.qty;
+                else if (sc === 'melo') qty_melo += item.qty;
+                else if (sc === 'mara') qty_mara += item.qty;
+                else if (sc === 'oreo') qty_oreo += item.qty;
+                else if (sc === 'nute') qty_nute += item.qty;
+            } else {
+                console.warn(`⚠️ Could not map store product "${item.name}" to any dessert. It will be skipped.`);
             }
         }
 
