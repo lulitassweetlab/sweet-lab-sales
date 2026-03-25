@@ -413,21 +413,35 @@ async function processSingleSale(sale) {
         let qty_arco = 0, qty_melo = 0, qty_mara = 0, qty_oreo = 0, qty_nute = 0;
         const dynamicItems = [];
 
+        console.log(`🔍 [Sync] Processing ${sale.items.length} items for client: ${sale.customerName}`);
         for (const item of sale.items) {
-            const name = (item.name || '').toLowerCase();
+            const name = (item.name || '').toLowerCase().trim();
+            console.log(`   🔸 Item: "${item.name}" (ID: ${item.id})`);
             
             // 1. Match by store_product_id
             let matchedDessert = adminDesserts.find(d => d.store_product_id === item.id);
+            if (matchedDessert) console.log(`      ✅ Matched by store_product_id: ${matchedDessert.name}`);
             
-            // 2. Match by store_name (case-insensitive)
+            // 2. Match by store_name or exact name (case-insensitive)
             if (!matchedDessert) {
                 matchedDessert = adminDesserts.find(d => 
-                    (d.store_name || '').toLowerCase() === name || 
-                    (d.name || '').toLowerCase() === name
+                    (d.store_name || '').toLowerCase().trim() === name || 
+                    (d.name || '').toLowerCase().trim() === name
                 );
+                if (matchedDessert) console.log(`      ✅ Matched by name/store_name: ${matchedDessert.name}`);
             }
 
-            // 3. Fallback: hardcoded mapping logic for short codes
+            // 3. Match by partial name (fuzzy)
+            if (!matchedDessert) {
+                matchedDessert = adminDesserts.find(d => {
+                    const dName = (d.name || '').toLowerCase().trim();
+                    const sName = (d.store_name || '').toLowerCase().trim();
+                    return (dName.length > 2 && name.includes(dName)) || (sName.length > 2 && name.includes(sName));
+                });
+                if (matchedDessert) console.log(`      ✅ Matched by partial name: ${matchedDessert.name}`);
+            }
+
+            // 4. Fallback: hardcoded mapping logic for short codes
             if (!matchedDessert) {
                 let sc = '';
                 if (name.includes('arcoiris') || name.includes('arco')) sc = 'arco';
@@ -445,6 +459,7 @@ async function processSingleSale(sale) {
 
                 if (sc) {
                     matchedDessert = adminDesserts.find(d => (d.short_code || '').toLowerCase() === sc);
+                    if (matchedDessert) console.log(`      ✅ Matched by short_code fallback (${sc}): ${matchedDessert.name}`);
                 }
             }
 
@@ -457,7 +472,7 @@ async function processSingleSale(sale) {
                 else if (sc === 'oreo') qty_oreo += item.qty;
                 else if (sc === 'nute') qty_nute += item.qty;
             } else {
-                console.warn(`⚠️ Could not map store product "${item.name}" (ID: ${item.id}) to any dessert. It will be skipped.`);
+                console.warn(`      ❌ Could not map store product "${item.name}" to any dessert.`);
             }
         }
 
