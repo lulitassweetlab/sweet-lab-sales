@@ -10658,9 +10658,18 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 				__handledEmbedded = true;
 				await enterSeller(activeSeller.id);
 
+				// Auto-select the latest day and show sales table immediately
 				const urlParams = new URLSearchParams(window.location.search);
 				if (urlParams.get('view') === 'clients') {
 					await openClientsView();
+				} else if (state.saleDays && state.saleDays.length > 0) {
+					const latest = [...state.saleDays].sort((a, b) => new Date(b.day) - new Date(a.day))[0];
+					if (latest) {
+						state.selectedDayId = latest.id;
+						document.getElementById('sales-wrapper')?.classList.remove('hidden');
+						switchView('#view-sales');
+						await loadSales();
+					}
 				}
 			}
 		} catch (err) {
