@@ -275,6 +275,7 @@ async function loadSettings() {
     if (cached) {
         try {
             renderSettings(JSON.parse(cached));
+            if (logoImg) logoImg.style.opacity = '1';
         } catch (e) {
             console.error('Error parsing settings cache', e);
         }
