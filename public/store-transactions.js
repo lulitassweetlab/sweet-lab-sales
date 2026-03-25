@@ -415,7 +415,19 @@ async function processSingleSale(sale) {
 
         for (const item of sale.items) {
             const name = (item.name || '').toLowerCase();
+            
+            // 1. Match by store_product_id
             let matchedDessert = adminDesserts.find(d => d.store_product_id === item.id);
+            
+            // 2. Match by store_name (case-insensitive)
+            if (!matchedDessert) {
+                matchedDessert = adminDesserts.find(d => 
+                    (d.store_name || '').toLowerCase() === name || 
+                    (d.name || '').toLowerCase() === name
+                );
+            }
+
+            // 3. Fallback: hardcoded mapping logic for short codes
             if (!matchedDessert) {
                 let sc = '';
                 if (name.includes('arcoiris') || name.includes('arco')) sc = 'arco';
@@ -425,7 +437,6 @@ async function processSingleSale(sale) {
                 else if (name.includes('nutella') || name.includes('nute')) sc = 'nute';
                 else if (name.includes('leches') || name.includes('3lec')) { sc = '3lec'; }
                 else if (name.includes('brigadeiro') || name.includes('brig')) {
-                    // Specific matching for box sizes
                     if (name.includes('x 5') || name.includes('x5')) sc = 'bx5';
                     else if (name.includes('x 10') || name.includes('x10')) sc = 'bx10';
                     else if (name.includes('x 12') || name.includes('x12')) sc = 'bx12';
@@ -434,31 +445,6 @@ async function processSingleSale(sale) {
 
                 if (sc) {
                     matchedDessert = adminDesserts.find(d => (d.short_code || '').toLowerCase() === sc);
-                    
-                    // SELF-HEALING: If mapping found but dessert doesn't exist in DB, create it
-                    if (!matchedDessert) {
-                        console.log(`🛠️ Self-healing: Creating missing dessert for short_code: ${sc}`);
-                        try {
-                            const newDessertPayload = {
-                                name: item.name.charAt(0).toUpperCase() + item.name.slice(1),
-                                short_code: sc,
-                                sale_price: item.price,
-                                store_name: item.name,
-                                store_product_id: item.id
-                            };
-                            const createRes = await fetch('/api/desserts', {
-                                method: 'POST',
-                                headers: authHeaders,
-                                body: JSON.stringify(newDessertPayload)
-                            });
-                            if (createRes.ok) {
-                                matchedDessert = await createRes.json();
-                                adminDesserts.push(matchedDessert); // Update local list for next items
-                            }
-                        } catch (err) {
-                            console.error('Failed to auto-create dessert:', err);
-                        }
-                    }
                 }
             }
 
@@ -471,7 +457,7 @@ async function processSingleSale(sale) {
                 else if (sc === 'oreo') qty_oreo += item.qty;
                 else if (sc === 'nute') qty_nute += item.qty;
             } else {
-                console.warn(`⚠️ Could not map store product "${item.name}" to any dessert. It will be skipped.`);
+                console.warn(`⚠️ Could not map store product "${item.name}" (ID: ${item.id}) to any dessert. It will be skipped.`);
             }
         }
 
