@@ -538,6 +538,8 @@
         .pipeline-watermark { font-size:1.125rem; letter-spacing:0.45em; display: inline-block; }
         @media (max-width: 420px) { .pipeline-watermark { font-size:0.75rem; letter-spacing:0.12em; } }
         @media (max-width: 340px) { .pipeline-watermark { font-size:0.6rem; letter-spacing:0.02em; } }
+        @keyframes blink { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.97); } }
+        .is-blinking { animation: blink 0.8s infinite ease-in-out; position: relative; z-index: 10; box-shadow: 0 0 12px rgba(255,255,255,0.6) !important; }
     </style>
 
     <!-- SortableJS library for touch-friendly drag and drop -->
@@ -2279,8 +2281,9 @@
 
         // ── BULK MODE LOGIC ───────────────────────────────────────────────────
         function startTagLongPress(e, id, name, type, color) {
+            const btn = e.currentTarget;
             window.longPressTimer = setTimeout(() => {
-                enterBulkMode(id, name, type, color);
+                enterBulkMode(id, name, type, color, btn);
             }, 2000); // 2 seconds as requested
         }
 
@@ -2291,7 +2294,7 @@
             }
         }
 
-        async function enterBulkMode(id, name, type, color) {
+        async function enterBulkMode(id, name, type, color, btnElement = null) {
             window.isBulkMode = true;
             window.bulkTagId = id;
             window.bulkTagName = name;
@@ -2299,30 +2302,74 @@
             window.bulkTagColor = color;
             window.bulkModeActiveClients.clear();
 
+            // Blinking Effect
+            if(btnElement) {
+                btnElement.classList.add('is-blinking');
+                window.bulkActiveBtn = btnElement;
+
+                // Targeted activation message
+                const msg = document.createElement('div');
+                msg.innerText = 'Modo masivo activado';
+                msg.style.cssText = 'position:fixed; background:var(--primary); color:white; padding:6px 12px; border-radius:8px; font-size:0.75rem; font-weight:800; z-index:1000; pointer-events:none; box-shadow:0 4px 12px rgba(0,0,0,0.2); transition:opacity 0.3s;';
+                
+                const rect = btnElement.getBoundingClientRect();
+                msg.style.left = (rect.left + rect.width/2) + 'px';
+                msg.style.top = (rect.top - 30) + 'px';
+                msg.style.transform = 'translateX(-50%)';
+                
+                document.body.appendChild(msg);
+                setTimeout(() => { msg.style.opacity = '0'; setTimeout(() => msg.remove(), 300); }, 1000);
+            }
+
             // Perform active client lookup for highlighting
             if(type === 'custom') {
                 try {
-                    const res = await fetch(`/.netlify/functions/crm-tags?action=get_tag_clients&tag_id=${id}`);
+                    const res = await fetch(`/.netlify/functions/crm-tags?action=get_clients_by_tag&tag_id=${id}`);
                     const ids = await res.json();
                     if(Array.isArray(ids)) ids.forEach(cid => window.bulkModeActiveClients.add(Number(cid)));
                 } catch(e) { console.error('Error fetching bulk targets', e); }
             }
-            
-            document.getElementById('bulkModeBanner').style.display = 'flex';
-            document.getElementById('bulkModeTagName').innerText = name;
-            document.getElementById('bulkModeTagName').style.color = 'white';
             
             // Show ALL clients for bulk tagging
             loadFullDirectoryInline();
             
             // Visual feedback - vibrate if supported
             if(navigator.vibrate) navigator.vibrate(100);
+
+            // Global click listener for deactivation
+            setTimeout(() => {
+                document.addEventListener('click', handleGlobalBulkClick, true);
+            }, 100);
+        }
+
+        function handleGlobalBulkClick(e) {
+            if (!window.isBulkMode) return;
+            // If click is NOT on a client card and NOT on a tag button
+            if (!e.target.closest('.client-card-bulk-target') && !e.target.closest('button[onmousedown*="startTagLongPress"]')) {
+                e.stopPropagation();
+                exitBulkMode();
+            }
         }
 
         function exitBulkMode() {
             window.isBulkMode = false;
+            document.removeEventListener('click', handleGlobalBulkClick, true);
+            
+            if(window.bulkActiveBtn) {
+                window.bulkActiveBtn.classList.remove('is-blinking');
+                window.bulkActiveBtn = null;
+            }
+
             document.getElementById('bulkModeBanner').style.display = 'none';
-            loadDashboard(); // Return to standard dashboard
+
+            // Central deactivation message
+            const msg = document.createElement('div');
+            msg.innerText = 'Modo masivo desactivado';
+            msg.style.cssText = 'position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:rgba(0,0,0,0.85); color:white; padding:18px 28px; border-radius:18px; font-weight:800; z-index:10000; pointer-events:none; animation: popIn 0.3s ease; box-shadow: 0 10px 40px rgba(0,0,0,0.4);';
+            document.body.appendChild(msg);
+            setTimeout(() => { msg.style.opacity = '0'; setTimeout(() => msg.remove(), 300); }, 1200);
+
+            resetDashboardView();
         }
 
         async function toggleBulkAction(clientIdParam, cardEl) {
