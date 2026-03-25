@@ -451,6 +451,16 @@ async function processSingleSale(sale) {
                 if (matchedDessert) console.log(`      ✅ Matched by partial name: ${matchedDessert.name}`);
             }
 
+            // 3.5 Match by short_code directly (item.id may be the product id from store, but let's also try item.name vs short_code)
+            if (!matchedDessert) {
+                const normalizedItemName = name.replace(/[.\s]/g, '');
+                matchedDessert = adminDesserts.find(d => {
+                    const sc = (d.short_code || '').toLowerCase().replace(/[.\s]/g, '');
+                    return sc === normalizedItemName || sc === (item.id || '').toString().toLowerCase().replace(/[.\s]/g, '');
+                });
+                if (matchedDessert) console.log(`      ✅ Matched by short_code direct: ${matchedDessert.name}`);
+            }
+
             // 4. Fallback: hardcoded mapping logic for short codes
             if (!matchedDessert) {
                 let sc = '';
@@ -468,7 +478,8 @@ async function processSingleSale(sale) {
                 }
 
                 if (sc) {
-                    matchedDessert = adminDesserts.find(d => (d.short_code || '').toLowerCase() === sc);
+                    // Normalize stored short_code (strip trailing dots/spaces) before comparing
+                    matchedDessert = adminDesserts.find(d => (d.short_code || '').toLowerCase().replace(/[.\s]+$/, '') === sc);
                     if (matchedDessert) console.log(`      ✅ Matched by short_code fallback (${sc}): ${matchedDessert.name}`);
                 }
             }
