@@ -37,8 +37,8 @@ async function loadGlobalClientDetailRows(clientName) {
 		);
 	}
 
-	// Use optimized endpoint to get all sales for this client across all sellers
-	for (const seller of sellersToSearch) {
+	// Use optimized endpoint to get all sales for this client across all sellers in parallel
+	await Promise.all(sellersToSearch.map(async (seller) => {
 		try {
 			const params = new URLSearchParams({
 				client_name: clientName,
@@ -65,7 +65,7 @@ async function loadGlobalClientDetailRows(clientName) {
 		} catch (e) {
 			console.error('Error loading client details for seller:', seller.name, e);
 		}
-	}
+	}));
 
 	// Sort by date descending
 	allRows.sort((a, b) => (a.dayIso < b.dayIso ? 1 : a.dayIso > b.dayIso ? -1 : 0));
@@ -1071,20 +1071,15 @@ async function enterSeller(id) {
 	state.saleDays = [];
 	state.selectedDayId = null;
 	state.clientCounts = new Map();
-	$('#current-seller').textContent = seller.name;
-	switchView('#view-sales');
+	// Show dates section, hide table until a date is selected
+	document.getElementById('dates-section')?.classList.remove('hidden');
+	document.getElementById('sales-wrapper')?.classList.add('hidden');
 
-	// Load desserts and render columns
-	await loadDesserts();
-	renderDessertColumns();
-
-	// Show dates section, hide table until a date is selected, then load real dates
-	const datesSection = document.getElementById('dates-section');
-	const datesList = document.querySelector('#dates-section .dates-list');
-	const salesWrapper = document.getElementById('sales-wrapper');
-	if (datesSection) datesSection.classList.remove('hidden');
-	if (salesWrapper) salesWrapper.classList.add('hidden');
-	await loadDaysForSeller();
+	// Load desserts and days in parallel
+	await Promise.all([
+		loadDesserts().then(() => renderDessertColumns()),
+		loadDaysForSeller()
+	]);
 }
 
 function switchView(id) {
@@ -1865,8 +1860,12 @@ async function loadSales() {
 			}
 		} catch(e) { console.warn('Cache read error', e); }
 
-		if (loadingTextEl) loadingTextEl.textContent = messages[0];
-		state.sales = await api('GET', `${API.Sales}?${params.toString()}`);
+		if (loadingTextEl) loadingTextEl.textContent = 'Cargando datos...';
+		const [sales, countsData] = await Promise.all([
+			api('GET', `${API.Sales}?${params.toString()}`),
+			api('GET', `${API.Sales}?action=client_counts&seller_id=${encodeURIComponent(sellerId)}`)
+		]);
+		state.sales = sales;
 		
 		try {
 			localStorage.setItem(cacheKey, JSON.stringify(state.sales));
@@ -1889,41 +1888,35 @@ async function loadSales() {
 		// (Obsolete network loop for receipts removed)
 
 		// Build recurrence counts efficiently using the new optimized endpoint
-		if (loadingTextEl) loadingTextEl.textContent = 'Procesando clientes...';
-		try {
-			const countsData = await api('GET', `${API.Sales}?action=client_counts&seller_id=${encodeURIComponent(sellerId)}`);
-			const counts = new Map();
-			const namesByKey = new Map();
-			
-			for (const item of (countsData || [])) {
-				const raw = (item.client_name || '').trim();
-				if (!raw) continue;
-				const key = normalizeClientName(raw);
-				const currentCount = counts.get(key) || 0;
-				counts.set(key, currentCount + Number(item.count || 0));
-				if (!namesByKey.has(key)) namesByKey.set(key, raw);
-			}
-			
-			state.clientCounts = counts;
-			try {
-				localStorage.setItem(`counts_cache_${sellerId}`, JSON.stringify(Array.from(counts.entries())));
-			} catch(e) {}
-			// Prepare suggestion list of regular clients (count > 1)
-			try {
-				const arr = Array.from(counts.entries())
-					.filter(([, count]) => Number(count) > 1)
-					.map(([key, count]) => ({ key, name: namesByKey.get(key) || '', count: Number(count) || 0 }))
-					.filter(it => it.name && it.name.trim() !== '');
-				arr.sort((a, b) => {
-					if (b.count !== a.count) return b.count - a.count;
-					return (a.name || '').localeCompare(b.name || '', 'es');
-				});
-				state.clientSuggestions = arr;
-			} catch { state.clientSuggestions = []; }
-		} catch (err) {
-			console.error('Error loading optimized client counts:', err);
-			state.clientCounts = new Map();
+		const counts = new Map();
+		const namesByKey = new Map();
+		
+		for (const item of (countsData || [])) {
+			const raw = (item.client_name || '').trim();
+			if (!raw) continue;
+			const key = normalizeClientName(raw);
+			const currentCount = counts.get(key) || 0;
+			counts.set(key, currentCount + Number(item.count || 0));
+			if (!namesByKey.has(key)) namesByKey.set(key, raw);
 		}
+		
+		state.clientCounts = counts;
+		try {
+			localStorage.setItem(`counts_cache_${sellerId}`, JSON.stringify(Array.from(counts.entries())));
+		} catch(e) {}
+
+		// Prepare suggestion list of regular clients (count > 1)
+		try {
+			const arr = Array.from(counts.entries())
+				.filter(([, count]) => Number(count) > 1)
+				.map(([key, count]) => ({ key, name: namesByKey.get(key) || '', count: Number(count) || 0 }))
+				.filter(it => it.name && it.name.trim() !== '');
+			arr.sort((a, b) => {
+				if (b.count !== a.count) return b.count - a.count;
+				return (a.name || '').localeCompare(b.name || '', 'es');
+			});
+			state.clientSuggestions = arr;
+		} catch { state.clientSuggestions = []; }
 
 		// Ensure desserts are loaded before rendering table
 		if (loadingTextEl) loadingTextEl.textContent = 'Preparando la tabla...';

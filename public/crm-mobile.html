@@ -592,11 +592,6 @@
                 });
             }
 
-            // Load stages right away
-            try {
-                const sRes = await fetch('/api/crm-stages?action=get_stages');
-            } catch(e) { console.error('Error fetching stages', e); }
-
             // ── BULK MODE STATE ──────────────────────────────────────────────────
             window.isBulkMode = false;
             window.bulkTagId = null;
@@ -614,7 +609,15 @@
                 currentSellerId = parsed.id;
                 currentSellerName = parsed.name;
                 document.getElementById('sellerNameLabel').innerText = currentSellerName;
-                loadDashboard();
+                
+                // Parallelize initial loading
+                Promise.all([
+                    fetch('/api/crm-stages?action=get_stages')
+                        .then(r => r.json())
+                        .then(data => { crmStages = data; })
+                        .catch(() => {}),
+                    loadDashboard()
+                ]);
             } else {
                 // If no context is found, redirect back to store login
                 window.location.replace('/store.html');
@@ -824,7 +827,11 @@
         // LOAD DASHBOARD
         async function loadDashboard(shouldRestore = false) {
             const url = `/.netlify/functions/crm-dashboard?seller_id=${currentSellerId}`;
-            loadSellerTags(); // Background load of seller custom tags
+            
+            // Background load tags and stage summary right away
+            loadSellerTags(); 
+            loadStageSummary();
+
             fetchWithCache('dashboard', url, (data, isFromCache) => {
                 document.getElementById('dashTotalClients').innerText = data.stats.total_clients;
                 document.getElementById('dashTotalDebt').innerText = formatMoney(data.stats.total_debt_cents);

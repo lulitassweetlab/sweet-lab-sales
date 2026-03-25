@@ -391,22 +391,19 @@ async function processSingleSale(sale) {
         }
         const actorName = sale.user ? (sale.user.name || sale.user.username) : 'Tienda Online';
 
-        // 1. Determine Target Day (Always attempt to find the latest table)
-        let targetDayId = null;
-        try {
-            const daysRes = await fetch(`/api/days?seller_id=${sale.seller.id}`, { headers: authHeaders });
-            if (daysRes.ok) {
-                const days = await daysRes.json();
-                const targetDay = days[0];
-                if (targetDay) targetDayId = targetDay.id;
-            }
-        } catch (err) {
-            console.warn('Could not fetch days, will let backend handle it:', err);
-        }
-        // If targetDayId is still null, the backend POST /api/sales will handle it (creating for "today")
+        // 1. Parallelize Initial Lookups (Days and Desserts)
+        const [daysRes, dessertsRes] = await Promise.all([
+            fetch(`/api/days?seller_id=${sale.seller.id}`, { headers: authHeaders }).catch(e => ({ ok: false })),
+            fetch('/api/desserts', { headers: authHeaders }).catch(e => ({ ok: false }))
+        ]);
 
-        // 2. Get Desserts to map
-        const dessertsRes = await fetch('/api/desserts', { headers: authHeaders });
+        let targetDayId = null;
+        if (daysRes.ok) {
+            const days = await daysRes.json();
+            const targetDay = days[0];
+            if (targetDay) targetDayId = targetDay.id;
+        }
+
         if (!dessertsRes.ok) return false;
         const adminDesserts = await dessertsRes.json();
 
