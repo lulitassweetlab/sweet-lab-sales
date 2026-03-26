@@ -10689,6 +10689,14 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 		}
 	}
 	window.addEventListener('resize', debounce(updateSummary, 150));
+
+	// 🔄 Message listener for parent-to-iframe communication (e.g. from store.html)
+	window.addEventListener('message', async (event) => {
+		if (event.data === 'refreshSales' && typeof loadSales === 'function') {
+			console.log('[Iframe] Refresh request received from parent.');
+			await loadSales();
+		}
+	});
 })();
 
 (function enforceDesktopHeaderHorizontal() {

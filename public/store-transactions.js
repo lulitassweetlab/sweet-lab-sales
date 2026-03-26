@@ -395,6 +395,21 @@ async function syncPendingSales() {
     }
 }
 
+/**
+ * Sends a pulse to the embedded sales table iframe to trigger a data refresh.
+ */
+function refreshSalesTable() {
+    try {
+        const iframe = document.querySelector('.embedded-sales-iframe');
+        if (iframe && iframe.contentWindow) {
+            console.log('[Store] Sending refresh request to embedded sales table.');
+            iframe.contentWindow.postMessage('refreshSales', '*');
+        }
+    } catch (e) {
+        console.error('[Store] Could not refresh sales table:', e);
+    }
+}
+
 async function processSingleSale(sale) {
     try {
         const authHeaders = { 'Content-Type': 'application/json' };
@@ -619,6 +634,9 @@ async function processSingleSale(sale) {
             // WhatsApp is optional — don't fail the sale if it errors
             console.error('Error sending WhatsApp on new order:', waErr);
         }
+
+        // 6. Refresh the sales table instantly if successful
+        refreshSalesTable();
 
         return true;
     } catch (err) {
