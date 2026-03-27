@@ -2364,7 +2364,8 @@
             if (!window.isBulkMode) return;
             // If click is NOT on a client card and NOT on a tag button
             if (!e.target.closest('.client-card-bulk-target') && !e.target.closest('button[onmousedown*="startTagLongPress"]')) {
-                e.stopPropagation();
+                // 🛠️ FIX: Removed e.stopPropagation() to allow the original click to reach its target 
+                // while still exiting bulk mode.
                 exitBulkMode();
             }
         }
