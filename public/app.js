@@ -1080,6 +1080,9 @@ async function enterSeller(id) {
 		loadDesserts().then(() => renderDessertColumns()),
 		loadDaysForSeller()
 	]);
+
+	// 🛠️ FIX: Ensure UI transitions to the sales view when a seller is selected
+	switchView('#view-sales');
 }
 
 function switchView(id) {
