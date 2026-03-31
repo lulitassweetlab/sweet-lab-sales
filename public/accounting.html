@@ -245,6 +245,39 @@
 		const addEntryBtn = document.getElementById('add-entry-btn');
 		let currentKind = 'ingreso';
 		let formPopover = null;
+		let currentFileBase64 = null;
+		let currentFileName = null;
+		let currentFileType = null;
+
+		// Utility to compress images before upload
+		async function compressImage(file, options = { maxWidth: 800, maxHeight: 800, quality: 0.75 }) {
+			return new Promise((resolve) => {
+				const reader = new FileReader();
+				reader.onload = (e) => {
+					const img = new Image();
+					img.onload = () => {
+						const canvas = document.createElement('canvas');
+						let width = img.width;
+						let height = img.height;
+						if (width > options.maxWidth) {
+							height *= options.maxWidth / width;
+							width = options.maxWidth;
+						}
+						if (height > options.maxHeight) {
+							width *= options.maxHeight / height;
+							height = options.maxHeight;
+						}
+						canvas.width = width;
+						canvas.height = height;
+						const ctx = canvas.getContext('2d');
+						ctx.drawImage(img, 0, 0, width, height);
+						resolve(canvas.toDataURL('image/jpeg', options.quality));
+					};
+					img.src = e.target.result;
+				};
+				reader.readAsDataURL(file);
+			});
+		}
 
 		function setKind(kind, btnIngreso, btnSalida){
 			currentKind = kind === 'salida' ? 'gasto' : 'ingreso';
@@ -384,22 +417,19 @@
 					}
 					// Else upload new
 					try {
-						const input = document.createElement('input'); input.type = 'file'; input.accept = '*/*';
+						const input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*';
 						input.addEventListener('change', async () => {
 							if (!input.files || !input.files[0]) return;
 							const file = input.files[0];
-							const reader = new FileReader();
-							reader.onload = async () => {
-								const dataUrl = String(reader.result || '');
-								try {
-									attBtn.disabled = true;
-									const res = await fetch('/api/accounting', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Actor-Name': currentUser?.name || '' }, body: JSON.stringify({ _upload_attachment_for: r.id, file_base64: dataUrl, file_name: file.name, mime_type: file.type }) });
-									if (!res.ok) { alert('Error al subir archivo'); attBtn.disabled = false; return; }
-									attBtn.disabled = false;
-									attBtn.classList.add('has'); attBtn.textContent = '●';
-								} catch (e) { console.error(e); alert('Error al subir archivo'); attBtn.disabled = false; }
-							};
-							reader.readAsDataURL(file);
+							try {
+								attBtn.disabled = true;
+								attBtn.textContent = '...';
+								const dataUrl = await compressImage(file);
+								const res = await fetch('/api/accounting', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Actor-Name': currentUser?.name || '' }, body: JSON.stringify({ _upload_attachment_for: r.id, file_base64: dataUrl, file_name: file.name, mime_type: 'image/jpeg' }) });
+								if (!res.ok) { alert('Error al subir archivo'); attBtn.disabled = false; attBtn.textContent = '-'; return; }
+								attBtn.disabled = false;
+								attBtn.classList.add('has'); attBtn.textContent = '●';
+							} catch (e) { console.error(e); alert('Error al subir archivo'); attBtn.disabled = false; attBtn.textContent = '-'; }
 						});
 						input.click();
 					} catch {}
@@ -543,6 +573,11 @@
 						<span style="min-width:92px;">Valor</span>
 						<input id="acc-value" type="number" inputmode="numeric" class="input-cell" placeholder="0" required style="flex:1;" />
 					</label>
+					<div style="display:flex; gap:12px; align-items:center; border: 1px dashed var(--border); border-radius:8px; padding:12px; background:rgba(0,0,0,0.02);">
+						<button id="acc-photo-trigger" type="button" class="press-btn" style="padding:8px; display:flex; align-items:center; gap:6px; font-size:14px; white-space:nowrap;">📷 Foto Recibo/Factura</button>
+						<span id="acc-photo-status" style="font-size:12px; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Sin archivo</span>
+						<input id="acc-file" type="file" accept="image/*" style="display:none" />
+					</div>
 					<div style="display:flex; gap:8px; justify-content:flex-end; margin-top:8px;">
 						<button id="acc-cancel" type="button" class="press-btn">Cancelar</button>
 						<button id="acc-save" type="submit" class="press-btn btn-primary">Guardar</button>
@@ -567,10 +602,41 @@
 			const iso = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())).toISOString().slice(0,10);
 			dateInput.value = iso;
 
-			// Initialize kind buttons
-			setKind('ingreso', btnIngreso, btnSalida);
 			btnIngreso.addEventListener('click', () => setKind('ingreso', btnIngreso, btnSalida));
 			btnSalida.addEventListener('click', () => setKind('salida', btnIngreso, btnSalida));
+
+			// File upload logic for new record
+			const photoTrigger = popover.querySelector('#acc-photo-trigger');
+			const photoStatus = popover.querySelector('#acc-photo-status');
+			const fileInput = popover.querySelector('#acc-file');
+			
+			currentFileBase64 = null;
+			currentFileName = null;
+			currentFileType = null;
+
+			photoTrigger.addEventListener('click', () => fileInput.click());
+			fileInput.addEventListener('change', async () => {
+				if (!fileInput.files || !fileInput.files[0]) return;
+				const file = fileInput.files[0];
+				photoStatus.textContent = "Comprimiendo...";
+				photoTrigger.disabled = true;
+				try {
+					currentFileBase64 = await compressImage(file);
+					currentFileName = file.name;
+					currentFileType = 'image/jpeg';
+					photoStatus.textContent = `✅ ${file.name}`;
+					photoStatus.style.color = "var(--success)";
+				} catch (e) {
+					console.error(e);
+					photoStatus.textContent = "Error al procesar foto";
+					photoStatus.style.color = "var(--danger)";
+				} finally {
+					photoTrigger.disabled = false;
+				}
+			});
+
+			// Initialization: Default to Salida as requested
+			setKind('salida', btnIngreso, btnSalida);
 
 			// Date picker
 			dateIconBtn.addEventListener('click', (ev) => {
@@ -598,6 +664,24 @@
 						alert(msg);
 						return;
 					}
+					const newEntry = await res.json();
+					
+					// Upload attachment if present
+					if (currentFileBase64 && newEntry && newEntry.id) {
+						photoStatus.textContent = "Subiendo foto...";
+						const attRes = await fetch('/api/accounting', { 
+							method: 'POST', 
+							headers: { 'Content-Type': 'application/json', 'X-Actor-Name': currentUser?.name || '' }, 
+							body: JSON.stringify({ 
+								_upload_attachment_for: newEntry.id, 
+								file_base64: currentFileBase64, 
+								file_name: currentFileName, 
+								mime_type: currentFileType 
+							}) 
+						});
+						if (!attRes.ok) console.warn("Entry created but photo upload failed");
+					}
+
 					closeFormPopover();
 					await load();
 				} catch (err) {
