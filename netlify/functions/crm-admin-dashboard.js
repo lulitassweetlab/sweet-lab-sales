@@ -223,12 +223,19 @@ export async function handler(event) {
         });
 
         // 6. Expenses for the period (Accounting Integration)
-        const [expensesData] = await sql`
+        const [expensesSumData] = await sql`
             SELECT COALESCE(SUM(amount_cents), 0) as expense_period_cents
             FROM accounting_entries
             WHERE kind = 'gasto' AND entry_date >= ${dtStart} AND entry_date <= ${dtEnd}
         `;
-        const expense_period_cents = Number(expensesData?.expense_period_cents || 0);
+        const expense_period_cents = Number(expensesSumData?.expense_period_cents || 0);
+
+        const periodExpenses = await sql`
+            SELECT id, amount_cents, description, entry_date
+            FROM accounting_entries
+            WHERE kind = 'gasto' AND entry_date >= ${dtStart} AND entry_date <= ${dtEnd}
+            ORDER BY entry_date DESC, id DESC
+        `;
 
         let period_desserts_total = 0;
         sellerStats.forEach(s => {
@@ -256,7 +263,8 @@ export async function handler(event) {
             products: productMetrics,
             crmActivity: crmActivity,
             periodClients: periodClients,
-            periodDebts: periodDebts
+            periodDebts: periodDebts,
+            periodExpenses: periodExpenses
         });
 
     } catch (err) {
