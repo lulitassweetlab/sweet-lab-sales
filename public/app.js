@@ -1970,13 +1970,11 @@ async function performRedo() {
 // Superadmin-only editors for delivered counts per day (inline editable)
 function wireDeliveredRowEditors() {
 	const isSuper = state?.currentUser?.role === 'superadmin' || !!state?.currentUser?.isSuperAdmin;
-	const cells = [
-		{ key: 'arco', el: document.getElementById('deliv-arco') },
-		{ key: 'melo', el: document.getElementById('deliv-melo') },
-		{ key: 'mara', el: document.getElementById('deliv-mara') },
-		{ key: 'oreo', el: document.getElementById('deliv-oreo') },
-		{ key: 'nute', el: document.getElementById('deliv-nute') },
-	];
+	const cells = [];
+	for (const d of (window.visibleDesserts || [])) {
+		const el = document.getElementById(`deliv-${d.short_code}`);
+		if (el) cells.push({ key: d.short_code, el });
+	}
 	function selectAllContent(el) {
 		try {
 			const range = document.createRange();
