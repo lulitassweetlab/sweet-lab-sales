@@ -2381,12 +2381,10 @@ function openNewSalePopover(anchorX, anchorY) {
 		waWrap.append(waLbl, waInput);
 		
 		extraRow.append(snWrap, waWrap);
-		pop.insertBefore(extraRow, grid); // Put it between title and grid
 
 		// TAG SELECTION (Stages)
 		const tagWrapper = document.createElement('div');
 		tagWrapper.className = 'tag-selection-wrapper';
-		pop.insertBefore(tagWrapper, grid); // Also between title and grid
 
 		let selectedStageId = null;
 		async function loadTagButtons() {
@@ -2439,7 +2437,6 @@ function openNewSalePopover(anchorX, anchorY) {
 			} catch (err) { console.error('Error loading tags:', err); }
 		}
 		loadTagButtons();
-
 
 		// Dessert rows (dynamic from state.desserts)
 		const qtyInputs = {};
@@ -2512,7 +2509,7 @@ function openNewSalePopover(anchorX, anchorY) {
 		saveBtn.textContent = 'Guardar';
 		actions.append(cancelBtn, saveBtn);
 
-		pop.append(title, grid, specialPricingContainer, actions);
+		pop.append(title, extraRow, tagWrapper, grid, specialPricingContainer, actions);
 		// Prepare hidden mount to avoid visible jump before clamping
 		pop.style.visibility = 'hidden';
 		pop.style.opacity = '0';
