@@ -1223,9 +1223,9 @@ function renderDessertColumns() {
 	// Insert new th columns before col-total
 	const totalTh = headerRow.querySelector('th.col-total');
 	if (totalTh) {
-		for (const d of visibleDesserts) {
+		visibleDesserts.forEach((d, i) => {
 			const th = document.createElement('th');
-			th.className = `col-dessert col-${d.short_code}`;
+			th.className = `col-dessert col-${d.short_code}${i % 2 === 1 ? ' col-alt' : ''}`;
 			th.dataset.label = d.name;
 			th.dataset.shortCode = d.short_code;
 			const span = document.createElement('span');
@@ -1233,7 +1233,7 @@ function renderDessertColumns() {
 			span.textContent = d.name;
 			th.appendChild(span);
 			headerRow.insertBefore(th, totalTh);
-		}
+		});
 	}
 
 	// Also update footer rows
@@ -1321,12 +1321,15 @@ function renderFooterDessertColumns(visibleDesserts = state.visibleDesserts || [
 	});
 
 	// Insert new columns before col-total
-	for (const d of visibleDesserts) {
+	visibleDesserts.forEach((d, i) => {
+		const isAlt = (i % 2 === 1);
+		const altClass = isAlt ? ' col-alt' : '';
+
 		// Qty row
 		if (qtyRow) {
 			const totalTd = qtyRow.querySelector('td.col-total');
 			const td = document.createElement('td');
-			td.className = `col-dessert col-${d.short_code}`;
+			td.className = `col-dessert col-${d.short_code}${altClass}`;
 			const span = document.createElement('span');
 			span.id = `sum-${d.short_code}-qty`;
 			span.textContent = '0';
@@ -1338,7 +1341,7 @@ function renderFooterDessertColumns(visibleDesserts = state.visibleDesserts || [
 		if (amtRow) {
 			const totalTd = amtRow.querySelector('td.col-total');
 			const td = document.createElement('td');
-			td.className = `col-dessert col-${d.short_code}`;
+			td.className = `col-dessert col-${d.short_code}${altClass}`;
 			const span = document.createElement('span');
 			span.id = `sum-${d.short_code}-amt`;
 			span.textContent = '0';
@@ -1350,7 +1353,7 @@ function renderFooterDessertColumns(visibleDesserts = state.visibleDesserts || [
 		if (delivRow) {
 			const totalTd = delivRow.querySelector('td.col-total');
 			const td = document.createElement('td');
-			td.className = `col-dessert col-${d.short_code}`;
+			td.className = `col-dessert col-${d.short_code}${altClass}`;
 			const span = document.createElement('span');
 			span.id = `deliv-${d.short_code}`;
 			span.style.outline = 'none';
@@ -1363,7 +1366,7 @@ function renderFooterDessertColumns(visibleDesserts = state.visibleDesserts || [
 		if (commRow) {
 			const totalTd = commRow.querySelector('td.col-total');
 			const td = document.createElement('td');
-			td.className = `col-dessert col-${d.short_code}`;
+			td.className = `col-dessert col-${d.short_code}${altClass}`;
 			if (totalTd) commRow.insertBefore(td, totalTd);
 		}
 
@@ -1371,10 +1374,10 @@ function renderFooterDessertColumns(visibleDesserts = state.visibleDesserts || [
 		if (commPaidRow) {
 			const totalTd = commPaidRow.querySelector('td.col-total');
 			const td = document.createElement('td');
-			td.className = `col-dessert col-${d.short_code}`;
+			td.className = `col-dessert col-${d.short_code}${altClass}`;
 			if (totalTd) commPaidRow.insertBefore(td, totalTd);
 		}
-	}
+	});
 
 	// Add stacked summary rows
 	const footer = document.getElementById('sales-table-footer');
@@ -1450,8 +1453,12 @@ function formatSaleSummary(sale) {
 
 // Helper to create dessert qty cell for a sale row
 function createDessertQtyCell(sale, dessert, tr) {
+	const visibleDesserts = state.visibleDesserts || [];
+	const vIdx = visibleDesserts.findIndex(d => d.id === dessert.id);
+	const isAlt = (vIdx !== -1 && vIdx % 2 === 1);
+
 	const td = document.createElement('td');
-	td.className = `col-dessert col-${dessert.short_code}`;
+	td.className = `col-dessert col-${dessert.short_code}${isAlt ? ' col-alt' : ''}`;
 	const input = document.createElement('input');
 	input.className = 'input-cell input-qty';
 	input.type = 'number';

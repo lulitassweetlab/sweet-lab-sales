@@ -5991,10 +5991,8 @@ button.secondary.press-btn:active {
 		content: none !important;
 	}
 }
-
 /* Desktop ULTIMATE RESET: force horizontal dessert names (last rule) */
 @media (min-width: 601px) {
-
 	#sales-table thead th.col-arco .v-label,
 	#sales-table thead th.col-melo .v-label,
 	#sales-table thead th.col-mara .v-label,
@@ -6014,6 +6012,15 @@ button.secondary.press-btn:active {
 	#sales-table thead th.col-nute::after {
 		content: none !important;
 	}
+}
+
+/* Zebra striping for columns (Generic) */
+.col-dessert.col-alt {
+	background-color: var(--surface) !important;
+}
+
+[data-theme="dark"] .col-dessert.col-alt {
+	background-color: #1a1a1a !important;
 }
 
 /* Mobile: raise dessert names slightly */
@@ -7172,35 +7179,21 @@ button.secondary.press-btn:active {
 	}
 }
 
-/* Alternating gray background for dessert columns (every other one) */
-/* Light theme - match existing columns (Arco, Mara, Nute) */
-#sales-table thead th.col-dessert:nth-child(odd),
-#sales-table tbody td.col-dessert:nth-child(odd),
-#sales-table tfoot td.col-dessert:nth-child(odd) {
-	background-color: rgba(0, 0, 0, 0.10) !important;
+/* Zebra striping for columns (Unified) */
+.col-dessert.col-alt {
+	background-color: rgba(0, 0, 0, 0.08) !important;
 }
 
-#sales-table tbody tr:hover td.col-dessert:nth-child(odd) {
-	background-color: rgba(0, 0, 0, 0.14) !important;
+#sales-table tbody tr:hover td.col-dessert.col-alt {
+	background-color: rgba(0, 0, 0, 0.12) !important;
 }
 
-#sales-table tbody tr:hover td.col-dessert:nth-child(even) {
-	background-color: rgba(255, 228, 196, 0.15);
+[data-theme="dark"] .col-dessert.col-alt {
+	background-color: #1a1a1a !important;
 }
 
-/* Dark theme */
-[data-theme="dark"] #sales-table thead th.col-dessert:nth-child(odd),
-[data-theme="dark"] #sales-table tbody td.col-dessert:nth-child(odd),
-[data-theme="dark"] #sales-table tfoot td.col-dessert:nth-child(odd) {
-	background-color: #191b1f !important;
-}
-
-[data-theme="dark"] #sales-table tbody tr:hover td.col-dessert:nth-child(odd) {
-	background-color: #202327 !important;
-}
-
-[data-theme="dark"] #sales-table tbody tr:hover td.col-dessert:nth-child(even) {
-	background-color: rgba(255, 228, 196, 0.05) !important;
+[data-theme="dark"] #sales-table tbody tr:hover td.col-dessert.col-alt {
+	background-color: #242424 !important;
 }
 
 /* ===== CENTER DESSERT QUANTITIES IN COLUMNS ===== */

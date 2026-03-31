@@ -399,24 +399,27 @@
 			totalPostresRow.querySelectorAll('td.col-qty').forEach(td => td.remove());
 			
 			// Insert new columns
-			for (const d of desserts) {
+			desserts.forEach((d, i) => {
+				const isAlt = (i % 2 === 1);
+				const altClass = isAlt ? ' col-alt' : '';
+				
 				// Header
 				const th = document.createElement('th');
-				th.className = 'col-qty';
+				th.className = 'col-qty' + altClass;
 				th.textContent = d.name;
 				theadRow.insertBefore(th, totalTh);
 				
 				// Totals row
 				const tdTot = document.createElement('td');
-				tdTot.className = 'col-qty';
+				tdTot.className = 'col-qty' + altClass;
 				tdTot.id = `t-q-${d.short_code}`;
 				totalsRow.insertBefore(tdTot, totalsRow.querySelector('td.col-total'));
 				
 				// Total postres row (empty cells)
 				const tdEmpty = document.createElement('td');
-				tdEmpty.className = 'col-qty';
+				tdEmpty.className = 'col-qty' + altClass;
 				totalPostresRow.insertBefore(tdEmpty, totalPostresRow.querySelector('td.col-total'));
-			}
+			});
 			
 			// Update colspan for spacer row
 			const spacerTd = document.getElementById('spacer-td');
@@ -558,10 +561,11 @@
 						<td>${clientNameHtml}</td>`;
 					
 					// Add dessert quantities dynamically
-					for (const d of desserts) {
+					desserts.forEach((d, i) => {
 						const qty = r[`q_${d.short_code}`] || 0;
-						html += `<td>${qty || ''}</td>`;
-					}
+						const isAlt = (i % 2 === 1);
+						html += `<td class="${isAlt ? 'col-alt' : ''}">${qty || ''}</td>`;
+					});
 					
 					html += `<td class="col-total">${r.tot !== undefined && r.tot !== null ? r.tot : ''}</td>`;
 					row.innerHTML = html;
