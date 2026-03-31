@@ -1284,9 +1284,21 @@ function getVisibleDessertsForSalesTable() {
 		}
 	}
 
+	// Only return desserts that have sold at least one or already have a delivered amount set
 	state.visibleDesserts = state.desserts.filter(d => {
 		const shortCode = String(d?.short_code || '').trim().toLowerCase();
-		return shortCode && soldShortCodes.has(shortCode);
+		if (!shortCode) return false;
+		
+		// If it has sales
+		if (soldShortCodes.has(shortCode)) return true;
+		
+		// If it has delivered units already set in the current day record
+		const day = (state && Array.isArray(state.saleDays) && state.selectedDayId)
+			? (state.saleDays || []).find(d => d && d.id === state.selectedDayId)
+			: null;
+		
+		const delivered = Number(day?.[`delivered_${shortCode}`] || 0) || 0;
+		return delivered > 0;
 	});
 
 	return state.visibleDesserts;
@@ -1969,12 +1981,14 @@ async function performRedo() {
 
 // Superadmin-only editors for delivered counts per day (inline editable)
 function wireDeliveredRowEditors() {
-	const isSuper = state?.currentUser?.role === 'superadmin' || !!state?.currentUser?.isSuperAdmin;
+	const user = state?.currentUser;
+	const isSuper = user?.role === 'superadmin' || !!user?.isSuperAdmin || String(user?.name).toLowerCase() === 'jorge';
 	const cells = [];
-	const spans = document.querySelectorAll('#footer-delivered-row td.col-dessert span[id^="deliv-"]');
+	// Look only for spans belonging to flavor columns (exclude "total" span)
+	const spans = document.querySelectorAll('#footer-delivered-row td.col-dessert span[id^="deliv-"]:not(#deliv-total)');
 	for (const el of spans) {
 		const key = el.id.replace('deliv-', '');
-		cells.push({ key, el });
+		if (key && key !== 'total') cells.push({ key, el });
 	}
 	function selectAllContent(el) {
 		try {
@@ -3968,9 +3982,11 @@ function updateSummary() {
 		if (amt2El) amt2El.textContent = fmtNo.format(amt);
 	}
 
-	$('#sum-total-qty').textContent = String(totalQty);
+	const elTotalQty = document.getElementById('sum-total-qty');
+	if (elTotalQty) elTotalQty.textContent = String(totalQty);
 	const grandStr = fmtNo.format(grand);
-	$('#sum-grand').textContent = grandStr;
+	const elGrand = document.getElementById('sum-grand');
+	if (elGrand) elGrand.textContent = grandStr;
 
 	// Commissions: tiered rates based on paid desserts quantity
 	let paidTotalQty = 0;
