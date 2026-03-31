@@ -181,13 +181,8 @@ function renderClientDetailTable() {
 	}
 	const query = (searchInput?.value || '').toLowerCase().trim();
 
-	const filteredRows = rows.filter(row => {
-		// 1. Tag filter
-		if (state.currentTagIdFilter) {
-			const hasTag = (row.client_tags || []).some(t => t.id === state.currentTagIdFilter);
-			if (!hasTag) return false;
-		}
-		// 2. Search query filter (search in date, products, comment)
+	let filteredRows = rows.filter(row => {
+		// 1. Search query filter (search in date, products, comment)
 		if (query) {
 			const date = String(row.dayIso).toLowerCase();
 			const products = (row.items || []).map(i => (i.name || '').toLowerCase()).join(' ');
@@ -196,6 +191,18 @@ function renderClientDetailTable() {
 		}
 		return true;
 	});
+
+	// 2. Tag Sort ("Mostrar Primero")
+	if (state.currentTagIdFilter) {
+		const filterKey = state.currentTagIdFilter;
+		filteredRows.sort((a, b) => {
+			const hasA = (a.client_tags || []).some(t => (t.id || t.name) === filterKey);
+			const hasB = (b.client_tags || []).some(t => (t.id || t.name) === filterKey);
+			if (hasA && !hasB) return -1;
+			if (!hasA && hasB) return 1;
+			return 0;
+		});
+	}
 
 	tbody.innerHTML = '';
 
@@ -1599,19 +1606,26 @@ function renderTable() {
 	const searchInput = document.getElementById('active-table-client-search');
 	const query = (searchInput?.value || '').toLowerCase().trim();
 	
-	const filteredSales = (state.sales || []).filter(sale => {
-		// 1. Tag filter
-		if (state.currentTagIdFilter) {
-			const hasTag = (sale.client_tags || []).some(t => t.id === state.currentTagIdFilter);
-			if (!hasTag) return false;
-		}
-		// 2. Search query filter
+	let filteredSales = (state.sales || []).filter(sale => {
+		// 1. Search query filter (Always filter/hide non-matches)
 		if (query) {
 			const name = (sale.client_name || '').toLowerCase();
 			if (!name.includes(query)) return false;
 		}
 		return true;
 	});
+
+	// 2. Tag Sort ("Mostrar Primero")
+	if (state.currentTagIdFilter) {
+		const filterKey = state.currentTagIdFilter;
+		filteredSales.sort((a, b) => {
+			const hasA = (a.client_tags || []).some(t => (t.id || t.name) === filterKey);
+			const hasB = (b.client_tags || []).some(t => (t.id || t.name) === filterKey);
+			if (hasA && !hasB) return -1;
+			if (!hasA && hasB) return 1;
+			return 0;
+		});
+	}
 
 	// Update caption with selected date label
 	try {
@@ -11505,9 +11519,10 @@ function renderTagFilters(sales, containerId, onFilterChange) {
 	// Render
 	container.innerHTML = '';
 	allTags.forEach(tag => {
+		const tagKey = tag.id || tag.name; // Use ID or name as key consistently
 		const chip = document.createElement('div');
 		chip.className = 'tag-filter-chip';
-		const isActive = state.currentTagIdFilter === tag.id;
+		const isActive = state.currentTagIdFilter === tagKey;
 		if (isActive) chip.classList.add('active');
 		
 		const tagColor = tag.color || '#818cf8';
@@ -11523,10 +11538,10 @@ function renderTagFilters(sales, containerId, onFilterChange) {
 
 		chip.textContent = tag.name;
 		chip.addEventListener('click', () => {
-			if (state.currentTagIdFilter === tag.id) {
+			if (state.currentTagIdFilter === tagKey) {
 				state.currentTagIdFilter = null;
 			} else {
-				state.currentTagIdFilter = tag.id;
+				state.currentTagIdFilter = tagKey;
 			}
 			onFilterChange();
 		});
