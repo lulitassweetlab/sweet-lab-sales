@@ -222,6 +222,14 @@ export async function handler(event) {
             debt_period_count += Number(d.period_orders);
         });
 
+        // 6. Expenses for the period (Accounting Integration)
+        const [expensesData] = await sql`
+            SELECT COALESCE(SUM(amount_cents), 0) as expense_period_cents
+            FROM accounting_entries
+            WHERE kind = 'gasto' AND entry_date >= ${dtStart} AND entry_date <= ${dtEnd}
+        `;
+        const expense_period_cents = Number(expensesData?.expense_period_cents || 0);
+
         let period_desserts_total = 0;
         sellerStats.forEach(s => {
             period_desserts_total += Number(s.period_desserts_count) || 0;
@@ -231,6 +239,8 @@ export async function handler(event) {
         generalData.debt_period_cents = debt_period_cents;
         generalData.debt_period_count = debt_period_count;
         generalData.period_desserts_total = period_desserts_total;
+        generalData.expense_period_cents = expense_period_cents;
+        generalData.results_period_cents = Number(generalData.sales_period_cents || 0) - debt_period_cents - expense_period_cents;
 
         return json({
             general: generalData,

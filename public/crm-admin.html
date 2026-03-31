@@ -77,11 +77,14 @@
         .col-span-8 { grid-column: span 8; }
         .col-span-12 { grid-column: span 12; }
 
-        @media (max-width: 1024px) {
-            .col-span-3, .col-span-4 { grid-column: span 6; }
+        @media (min-width: 1025px) {
+            .col-metric { grid-column: span 4; }
         }
-        @media (max-width: 768px) {
-            .col-span-3, .col-span-4, .col-span-6, .col-span-8 { grid-column: span 12; }
+        @media (max-width: 1024px) {
+            .col-metric { grid-column: span 6; }
+        }
+        @media (max-width: 640px) {
+            .col-metric { grid-column: span 12; }
             body { padding: 15px; }
         }
 
@@ -219,27 +222,37 @@
         <!-- ROW 1: General Stats -->
         <h2 style="font-size: 1.1rem; margin-bottom: 16px; color: var(--text-main);">1. Rendimiento de Ventas</h2>
         <div class="dashboard-grid">
-            <div class="card col-span-3" style="cursor: pointer; position: relative; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="openPeriodClientsModal()" title="Ver clientes del periodo">
+            <div class="card col-metric" style="cursor: pointer; position: relative; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="openPeriodClientsModal()" title="Ver clientes del periodo">
                 <div class="card-title" id="titleSalesPeriod">💵 Vendido Hoy</div>
                 <div class="metric-value metric-color-primary" id="valSalesPeriod">-</div>
                 <div class="metric-label" id="valSalesCountPeriod">- tickets emitidos</div>
             </div>
-            <div class="card col-span-3" style="cursor: pointer; position: relative; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="openDessertChartModal()" title="Ver detalle">
+            <div class="card col-metric" style="cursor: pointer; position: relative; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="openDessertChartModal()" title="Ver detalle">
                 <div class="card-title" id="titleDessertsPeriod">🍰 Postres del Periodo</div>
                 <div id="miniDessertChart" style="height: 90px; display: flex; align-items: flex-end; justify-content: space-around; gap: 4px; overflow: hidden; opacity: 0.9;">
                     <!-- Mini bars -->
                 </div>
             </div>
-            <div class="card col-span-3" style="cursor: pointer; position: relative; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="openSellerChartModal()" title="Ver detalle">
+            <div class="card col-metric" style="cursor: pointer; position: relative; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="openSellerChartModal()" title="Ver detalle">
                 <div class="card-title">📊 Ventas por Vendedor</div>
                 <div id="miniSellerChart" style="height: 90px; display: flex; align-items: flex-end; justify-content: center; gap: 8px; overflow: hidden; opacity: 0.9;">
                     <!-- Mini seller bars -->
                 </div>
             </div>
-            <div class="card col-span-3" style="cursor: pointer; position: relative; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="openPeriodDebtsModal()" title="Ver deudas">
+            <div class="card col-metric" style="cursor: pointer; position: relative; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="openPeriodDebtsModal()" title="Ver deudas">
                 <div class="card-title" id="titleDebtPeriod">⚠️ Deuda Actual</div>
                 <div class="metric-value metric-color-danger" id="valDebtPeriod">-</div>
                 <div class="metric-label" id="valDebtCountPeriod">- pedidos sin pagar</div>
+            </div>
+            <div class="card col-metric" style="cursor: default; position: relative; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" title="Gastos de Contabilidad">
+                <div class="card-title" id="titleExpensePeriod">📉 Gastos del Periodo</div>
+                <div class="metric-value metric-color-warning" id="valExpensePeriod">-</div>
+                <div class="metric-label">Registrados en Contabilidad</div>
+            </div>
+            <div class="card col-metric" style="cursor: default; position: relative; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" id="cardResults" title="Ventas - Deuda - Gastos">
+                <div class="card-title" id="titleResultsPeriod">💰 Resultado Neto</div>
+                <div class="metric-value" id="valResultsPeriod">-</div>
+                <div class="metric-label">Ventas - Deuda - Gastos</div>
             </div>
         </div>
 
@@ -791,6 +804,15 @@
             
             document.getElementById('valDebtPeriod').innerText = fmtMoney.format(gen.debt_period_cents);
             document.getElementById('valDebtCountPeriod').innerText = `${gen.debt_period_count} pedidos sin pagar`;
+
+            document.getElementById('titleExpensePeriod').innerHTML = `📉 Gastos (${getPeriodText()})`;
+            document.getElementById('valExpensePeriod').innerText = fmtMoney.format(gen.expense_period_cents || 0);
+
+            const resCents = gen.results_period_cents || 0;
+            const resEl = document.getElementById('valResultsPeriod');
+            resEl.innerText = fmtMoney.format(resCents);
+            resEl.classList.remove('metric-color-success', 'metric-color-danger');
+            resEl.classList.add(resCents >= 0 ? 'metric-color-success' : 'metric-color-danger');
         }
 
         function populateAlerts(alerts) {
