@@ -557,15 +557,42 @@ export async function handler(event) {
 				if (clientNamePost && row && row.id) {
 					try {
 						let [crmClient] = await sql`SELECT id FROM clients WHERE seller_id = ${sellerId} AND lower(name) = lower(${clientNamePost})`;
+						const shortNameInput = (data.short_name ?? '').toString().trim();
+						const whatsappInput = (data.whatsapp ?? '').toString().trim();
+						const stageIdInput = data.funnel_stage_id ? Number(data.funnel_stage_id) : null;
+
 						if (!crmClient) {
-							const shortName = clientNamePost.split(' ')[0] || clientNamePost;
-							[crmClient] = await sql`INSERT INTO clients (seller_id, name, short_name) VALUES (${sellerId}, ${clientNamePost}, ${shortName}) RETURNING id`;
+							const shortName = shortNameInput || clientNamePost.split(' ')[0] || clientNamePost;
+							[crmClient] = await sql`INSERT INTO clients (seller_id, name, short_name, whatsapp) VALUES (${sellerId}, ${clientNamePost}, ${shortName}, ${whatsappInput || null}) RETURNING id`;
+						} else {
+							// Update existing client if new info provided
+							if (whatsappInput || shortNameInput) {
+								if (whatsappInput && shortNameInput) await sql`UPDATE clients SET whatsapp=${whatsappInput}, short_name=${shortNameInput} WHERE id=${crmClient.id}`;
+								else if (whatsappInput) await sql`UPDATE clients SET whatsapp=${whatsappInput} WHERE id=${crmClient.id}`;
+								else if (shortNameInput) await sql`UPDATE clients SET short_name=${shortNameInput} WHERE id=${crmClient.id}`;
+							}
 						}
+
 						if (crmClient && crmClient.id) {
 							const [existingLink] = await sql`SELECT 1 FROM crm_client_sales WHERE client_id = ${crmClient.id} AND sale_id = ${row.id} LIMIT 1`;
 							if (!existingLink) {
 								await sql`INSERT INTO crm_client_sales (client_id, sale_id, seller_id) VALUES (${crmClient.id}, ${row.id}, ${sellerId})`;
-								// Automated pipeline update
+							}
+							
+							// Explicit stage assignment if provided via New Sale form
+							if (stageIdInput) {
+								await sql`
+									INSERT INTO crm_client_stage (client_id, stage_id, updated_by, updated_at)
+									VALUES (${crmClient.id}, ${stageIdInput}, ${sellerId}, now())
+									ON CONFLICT (client_id) DO UPDATE SET stage_id = EXCLUDED.stage_id, updated_by = EXCLUDED.updated_by, updated_at = now()
+								`;
+								// Log stage change in history
+								await sql`
+									INSERT INTO crm_stage_history (client_id, old_stage_id, new_stage_id, note, changed_by, changed_at)
+									VALUES (${crmClient.id}, NULL, ${stageIdInput}, 'Asignado desde Tienda (Nuevo Pedido)', ${sellerId}, now())
+								`;
+							} else {
+								// Fallback to automation if no explicit stage was chosen
 								await autoUpdateClientStage(crmClient.id, sellerId);
 							}
 						}

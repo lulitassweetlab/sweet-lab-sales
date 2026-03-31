@@ -2364,6 +2364,83 @@ function openNewSalePopover(anchorX, anchorY) {
 		attachClientSuggestionsPopover(clientInput);
 		appendRow('Cliente', clientInput);
 
+		// EXTRA CLIENT INFO (Short Name, WhatsApp)
+		const extraRow = document.createElement('div');
+		extraRow.className = 'client-info-extra';
+		
+		const snWrap = document.createElement('div'); snWrap.className = 'client-info-row';
+		const snLbl = document.createElement('div'); snLbl.className = 'client-info-label'; snLbl.textContent = 'Apodo / Corto';
+		const snInput = document.createElement('input');
+		snInput.type = 'text'; snInput.placeholder = 'Ej: Marce'; snInput.className = 'input-cell';
+		snWrap.append(snLbl, snInput);
+		
+		const waWrap = document.createElement('div'); waWrap.className = 'client-info-row';
+		const waLbl = document.createElement('div'); waLbl.className = 'client-info-label'; waLbl.textContent = 'WhatsApp';
+		const waInput = document.createElement('input');
+		waInput.type = 'tel'; waInput.placeholder = '300...'; waInput.className = 'input-cell';
+		waWrap.append(waLbl, waInput);
+		
+		extraRow.append(snWrap, waWrap);
+		pop.insertBefore(extraRow, grid); // Put it between title and grid
+
+		// TAG SELECTION (Stages)
+		const tagWrapper = document.createElement('div');
+		tagWrapper.className = 'tag-selection-wrapper';
+		pop.insertBefore(tagWrapper, grid); // Also between title and grid
+
+		let selectedStageId = null;
+		async function loadTagButtons() {
+			try {
+				const sellerId = state?.currentSeller?.id;
+				if (!sellerId) return;
+				const summary = await api('GET', `/api/crm-stages?action=get_stage_summary&seller_id=${sellerId}`);
+				if (!Array.isArray(summary)) return;
+				
+				// Sort by frequency (client_count)
+				const sorted = [...summary].sort((a,b) => (b.client_count || 0) - (a.client_count || 0));
+				
+				const renderBtn = (s) => {
+					const btn = document.createElement('button');
+					btn.type = 'button';
+					btn.className = 'tag-button';
+					btn.style.backgroundColor = s.color || '#9E9E9E';
+					btn.textContent = s.name;
+					btn.onclick = () => {
+						const alreadyActive = btn.classList.contains('active');
+						tagWrapper.querySelectorAll('.tag-button').forEach(b => b.classList.remove('active'));
+						if (alreadyActive) {
+							selectedStageId = null;
+						} else {
+							btn.classList.add('active');
+							selectedStageId = s.id;
+						}
+					};
+					return btn;
+				};
+
+				// Show top 3 by default
+				const top = sorted.slice(0, 3);
+				const others = sorted.slice(3);
+				
+				top.forEach(s => tagWrapper.appendChild(renderBtn(s)));
+				
+				if (others.length > 0) {
+					const expand = document.createElement('button');
+					expand.type = 'button';
+					expand.className = 'tag-expand-btn';
+					expand.textContent = '+';
+					expand.onclick = (e) => {
+						e.stopPropagation();
+						expand.remove();
+						others.forEach(s => tagWrapper.appendChild(renderBtn(s)));
+					};
+					tagWrapper.appendChild(expand);
+				}
+			} catch (err) { console.error('Error loading tags:', err); }
+		}
+		loadTagButtons();
+
+
 		// Dessert rows (dynamic from state.desserts)
 		const qtyInputs = {};
 		for (const d of state.desserts) {
@@ -2495,7 +2572,15 @@ function openNewSalePopover(anchorX, anchorY) {
 				saveBtn.disabled = true; cancelBtn.disabled = true;
 				const sellerId = state?.currentSeller?.id;
 				if (!sellerId) { try { notify.error('Selecciona un vendedor'); } catch { } return; }
-				const payload = { seller_id: sellerId };
+				
+				// Prepare payload with CRM fields
+				const payload = { 
+					seller_id: sellerId,
+					client_name: clientInput.value.trim(),
+					short_name: snInput.value.trim(),
+					whatsapp: waInput.value.trim(),
+					funnel_stage_id: selectedStageId
+				};
 				if (state?.selectedDayId) payload.sale_day_id = state.selectedDayId;
 				const created = await api('POST', API.Sales, payload);
 

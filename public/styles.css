@@ -3221,6 +3221,93 @@ tfoot td {
 	text-align: center;
 }
 
+/* CRM Integrated Tag Buttons (Visual selection) */
+.tag-selection-wrapper {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	padding: 10px 0;
+	align-items: center;
+	border-top: 1px solid rgba(0, 122, 255, 0.1);
+	margin-top: 4px;
+}
+
+.tag-button {
+	border: none;
+	border-radius: 100px;
+	padding: 5px 12px;
+	font-size: 11px;
+	font-weight: 700;
+	color: white;
+	cursor: pointer;
+	transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+	opacity: 0.7;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+	white-space: nowrap;
+}
+
+.tag-button:hover {
+	opacity: 1;
+	transform: translateY(-1px);
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.tag-button.active {
+	opacity: 1;
+	transform: scale(1.08);
+	box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+	outline: 2px solid #2196F3;
+	outline-offset: 1px;
+}
+
+.tag-expand-btn {
+	width: 26px;
+	height: 26px;
+	border-radius: 50%;
+	border: 1px dashed var(--border);
+	background: transparent;
+	color: var(--text-muted);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	font-size: 18px;
+	transition: all 0.2s;
+	padding: 0;
+}
+
+.tag-expand-btn:hover {
+	background: rgba(0, 122, 255, 0.1);
+	border-color: #2196F3;
+	color: #2196F3;
+}
+
+[data-theme="dark"] .tag-expand-btn:hover {
+	background: rgba(255, 255, 255, 0.05);
+}
+
+/* Custom Grid for New Fields */
+.client-info-extra {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 10px;
+	margin: 8px 0;
+}
+
+.client-info-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.client-info-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    font-weight: 700;
+    opacity: 0.6;
+    margin-left: 4px;
+}
+
 /* Make each date item feel clickable as a whole */
 .date-item {
 	display: inline-flex;
