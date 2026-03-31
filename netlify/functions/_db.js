@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 31; // Bumped backwards compatible to 31: require_whatsapp support
+const SCHEMA_VERSION = 32; // 32: support for dynamic delivered columns in sale_days
 
 export async function ensureSchema() {
 	if (schemaEnsured) return;
@@ -66,6 +66,7 @@ export async function ensureSchema() {
 					delivered_oreo INTEGER NOT NULL DEFAULT 0,
 					delivered_nute INTEGER NOT NULL DEFAULT 0,
 					commissions_paid INTEGER NOT NULL DEFAULT 0,
+					delivered_counts JSONB NOT NULL DEFAULT '{}'::jsonb,
 					UNIQUE (seller_id, day)
 				)
 			`;
@@ -231,7 +232,8 @@ export async function ensureSchema() {
 			// Final Version Bump and Dynamic Migrations
 			try {
 				await sql`ALTER TABLE sellers ADD COLUMN IF NOT EXISTS require_whatsapp BOOLEAN NOT NULL DEFAULT false`;
-			} catch (mErr) { console.error('Migration error for require_whatsapp:', mErr); }
+				await sql`ALTER TABLE sale_days ADD COLUMN IF NOT EXISTS delivered_counts JSONB NOT NULL DEFAULT '{}'::jsonb`;
+			} catch (mErr) { console.error('Migration error for dynamic columns:', mErr); }
 
 			await sql`UPDATE schema_meta SET version = ${SCHEMA_VERSION}, updated_at = now()`;
 			schemaEnsured = true;

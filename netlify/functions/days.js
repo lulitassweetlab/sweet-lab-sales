@@ -26,12 +26,17 @@ export async function handler(event) {
 				let rows;
 				try {
 					if (archivedParam === 'true' || archivedParam === '1') {
-						rows = await sql`SELECT id, day, delivered_arco, delivered_melo, delivered_mara, delivered_oreo, delivered_nute, COALESCE(commissions_paid, 0) as commissions_paid, is_archived FROM sale_days WHERE seller_id=${sellerId} AND is_archived=true ORDER BY day DESC`;
+						rows = await sql`SELECT id, day, delivered_arco, delivered_melo, delivered_mara, delivered_oreo, delivered_nute, COALESCE(delivered_counts || '{}'::jsonb, '{}'::jsonb) as dc, COALESCE(commissions_paid, 0) as commissions_paid, is_archived FROM sale_days WHERE seller_id=${sellerId} AND is_archived=true ORDER BY day DESC`;
 					} else if (includeArchivedParam === 'true' || includeArchivedParam === '1') {
-						rows = await sql`SELECT id, day, delivered_arco, delivered_melo, delivered_mara, delivered_oreo, delivered_nute, COALESCE(commissions_paid, 0) as commissions_paid, is_archived FROM sale_days WHERE seller_id=${sellerId} ORDER BY day DESC`;
+						rows = await sql`SELECT id, day, delivered_arco, delivered_melo, delivered_mara, delivered_oreo, delivered_nute, COALESCE(delivered_counts || '{}'::jsonb, '{}'::jsonb) as dc, COALESCE(commissions_paid, 0) as commissions_paid, is_archived FROM sale_days WHERE seller_id=${sellerId} ORDER BY day DESC`;
 					} else {
-						rows = await sql`SELECT id, day, delivered_arco, delivered_melo, delivered_mara, delivered_oreo, delivered_nute, COALESCE(commissions_paid, 0) as commissions_paid, is_archived FROM sale_days WHERE seller_id=${sellerId} AND is_archived=false ORDER BY day DESC`;
+						rows = await sql`SELECT id, day, delivered_arco, delivered_melo, delivered_mara, delivered_oreo, delivered_nute, COALESCE(delivered_counts || '{}'::jsonb, '{}'::jsonb) as dc, COALESCE(commissions_paid, 0) as commissions_paid, is_archived FROM sale_days WHERE seller_id=${sellerId} AND is_archived=false ORDER BY day DESC`;
 					}
+					// Merge dynamic delivered_counts into the main row object
+					rows = rows.map(r => {
+						const { dc, ...rest } = r;
+						return { ...rest, ...(dc || {}) };
+					});
 				} catch (e) {
 					// Fallback: If commissions_paid column doesn't exist yet, select without it
 					console.error('Error selecting with commissions_paid, falling back:', e);
@@ -95,11 +100,23 @@ export async function handler(event) {
 				const dorVal = (isSuperAdmin && !Number.isNaN(dor)) ? Math.max(0, dor|0) : null;
 				const dnuVal = (isSuperAdmin && !Number.isNaN(dnu)) ? Math.max(0, dnu|0) : null;
 				const cpVal = (isSuperAdmin && !Number.isNaN(cp)) ? Math.max(0, cp|0) : null;
+				
+				// Collect all dynamic delivered fields to store in JSONB
+				const deliveredData = {};
+				if (isSuperAdmin) {
+					for (const key of Object.keys(data)) {
+						if (key.startsWith('delivered_') && key !== 'delivered_counts') {
+							const val = Number(data[key]);
+							if (!Number.isNaN(val)) deliveredData[key] = Math.max(0, val|0);
+						}
+					}
+				}
+
 				let row;
 				try {
 					// Debug: Log what we're about to save
-					if (cpVal !== null && cpVal !== undefined) {
-						console.error(`[DEBUG] Saving commissions_paid: ${cpVal} for day ${id} by ${actor} (isSuperAdmin: ${isSuperAdmin})`);
+					if (Object.keys(deliveredData).length > 0) {
+						console.error(`[DEBUG] Saving delivered_counts: ${JSON.stringify(deliveredData)} for day ${id}`);
 					}
 					
 					[row] = await sql`
@@ -110,10 +127,16 @@ export async function handler(event) {
 							delivered_mara = COALESCE(${dmaVal}, delivered_mara),
 							delivered_oreo = COALESCE(${dorVal}, delivered_oreo),
 							delivered_nute = COALESCE(${dnuVal}, delivered_nute),
-							commissions_paid = COALESCE(${cpVal}, commissions_paid)
+							commissions_paid = COALESCE(${cpVal}, commissions_paid),
+							delivered_counts = delivered_counts || ${JSON.stringify(deliveredData)}::jsonb
 						WHERE id=${id}
-						RETURNING id, day, delivered_arco, delivered_melo, delivered_mara, delivered_oreo, delivered_nute, commissions_paid
+						RETURNING id, day, delivered_arco, delivered_melo, delivered_mara, delivered_oreo, delivered_nute, commissions_paid, delivered_counts
 					`;
+					
+					if (row) {
+						const { delivered_counts, ...rest } = row;
+						row = { ...rest, ...(delivered_counts || {}) };
+					}
 					
 					// Debug: Log what was returned
 					if (row) {

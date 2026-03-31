@@ -1992,6 +1992,7 @@ function wireDeliveredRowEditors() {
 	}
 	function selectAllContent(el) {
 		try {
+			if (!el || !el.isContentEditable) return;
 			const range = document.createRange();
 			range.selectNodeContents(el);
 			const sel = window.getSelection();
@@ -2014,9 +2015,8 @@ function wireDeliveredRowEditors() {
 		}
 		if (el.dataset.bound === '1') continue;
 		el.dataset.bound = '1';
-		// Al enfocar/clic, seleccionar todo para reemplazar con la nueva cifra
-		el.addEventListener('focus', () => { selectAllContent(el); });
-		el.addEventListener('mouseup', (ev) => { ev.preventDefault(); selectAllContent(el); });
+		// Al enfocarse o hacer clic, seleccionar todo para reemplazar con la nueva cifra
+		el.addEventListener('focus', () => { setTimeout(() => selectAllContent(el), 10); });
 		el.addEventListener('click', () => { selectAllContent(el); });
 		// Sanitize input to numbers only while typing
 		el.addEventListener('input', () => {
@@ -2057,6 +2057,7 @@ function wireCommissionsPaidEditor() {
 
 	function selectAllContent(el) {
 		try {
+			if (!el || !el.isContentEditable) return;
 			const range = document.createRange();
 			range.selectNodeContents(el);
 			const sel = window.getSelection();
@@ -2098,8 +2099,7 @@ function wireCommissionsPaidEditor() {
 
 	el.addEventListener('mouseup', (ev) => {
 		if (isEditing) {
-			ev.preventDefault();
-			setTimeout(() => selectAllContent(el), 0);
+			selectAllContent(el);
 		}
 	});
 
