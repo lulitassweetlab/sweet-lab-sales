@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 30; // Bumped to 30: CRM and Items consolidation
+const SCHEMA_VERSION = 31; // Bumped backwards compatible to 31: require_whatsapp support
 
 export async function ensureSchema() {
 	if (schemaEnsured) return;
@@ -44,6 +44,7 @@ export async function ensureSchema() {
 					commission_rate_low INTEGER NOT NULL DEFAULT 1000,
 					commission_rate_mid INTEGER NOT NULL DEFAULT 1300,
 					commission_rate_high INTEGER NOT NULL DEFAULT 1500,
+					require_whatsapp BOOLEAN NOT NULL DEFAULT false,
 					created_at TIMESTAMPTZ DEFAULT now()
 				);
 
@@ -205,7 +206,11 @@ export async function ensureSchema() {
 				}
 			} catch (mErr) { console.error('Migration error:', mErr); }
 
-			// Final Version Bump
+			// Final Version Bump and Dynamic Migrations
+			try {
+				await sql`ALTER TABLE sellers ADD COLUMN IF NOT EXISTS require_whatsapp BOOLEAN NOT NULL DEFAULT false`;
+			} catch (mErr) { console.error('Migration error for require_whatsapp:', mErr); }
+
 			await sql`UPDATE schema_meta SET version = ${SCHEMA_VERSION}, updated_at = now()`;
 			schemaEnsured = true;
 		} catch (err) {

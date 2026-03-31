@@ -1588,6 +1588,16 @@
             const btn = document.getElementById('submit-new-client-btn');
 
             errDiv.style.display = 'none';
+
+            if (storeActiveSeller && storeActiveSeller.require_whatsapp) {
+                if (!whatsapp) {
+                    errDiv.textContent = 'El número de WhatsApp es obligatorio para este vendedor.';
+                    errDiv.style.display = 'block';
+                    document.getElementById('new-client-whatsapp').focus();
+                    return;
+                }
+            }
+
             btn.disabled = true;
             btn.textContent = 'Guardando...';
 

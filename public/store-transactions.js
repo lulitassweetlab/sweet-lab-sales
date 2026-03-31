@@ -251,7 +251,15 @@ function openNewClientModal(name) {
     const firstName = (name || '').trim().split(' ')[0];
     document.getElementById('new-client-shortname').value = firstName;
     
-    document.getElementById('new-client-whatsapp').value = '';
+    const waInput = document.getElementById('new-client-whatsapp');
+    waInput.value = '';
+    
+    if (storeActiveSeller && storeActiveSeller.require_whatsapp) {
+        waInput.placeholder = 'WhatsApp * (Obligatorio)';
+    } else {
+        waInput.placeholder = 'WhatsApp (Opcional)';
+    }
+
     document.getElementById('new-client-error').style.display = 'none';
     document.getElementById('store-new-client-modal').style.display = 'flex';
 }

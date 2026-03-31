@@ -248,6 +248,26 @@
         </div>
     </main>
 
+    <main class="sales-panel" style="margin-top: 24px;">
+        <div class="panel-header">
+            <h3>Reglas de Vendedores (WhatsApp Obligatorio)</h3>
+        </div>
+        <div class="panel-body">
+            <p style="font-size: 0.9em; color: var(--text-muted); margin-bottom: 12px; margin-top: 0;">Desactiva el botón si deseas que el cliente pueda enviar su pedido sin escribir un número de WhatsApp. Por defecto es <b>Opcional</b>.</p>
+            <div class="table-wrapper">
+                <table id="sellers-rules-table" style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr>
+                            <th style="text-align: left; padding: 12px; border-bottom: 1px solid var(--border);">Vendedor</th>
+                            <th style="text-align: center; padding: 12px; border-bottom: 1px solid var(--border);">¿WhatsApp Obligatorio?</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sellers-rules-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
     <!-- Toast container -->
     <div id="toast-container" aria-live="polite" aria-atomic="true"></div>
 
@@ -999,10 +1019,86 @@
                 }
             });
 
+            const sellersRulesTbody = document.getElementById('sellers-rules-tbody');
+            
+            async function loadSellersRules() {
+                try {
+                    const response = await fetch('/api/sellers?include_archived=0');
+                    if (!response.ok) throw new Error('Failed to load sellers');
+                    const sellers = await response.json();
+                    renderSellersRules(sellers);
+                } catch (err) {
+                    console.error('Error loading sellers:', err);
+                }
+            }
+
+            function renderSellersRules(sellers) {
+                if (!sellersRulesTbody) return;
+                sellersRulesTbody.innerHTML = '';
+                for (const s of sellers) {
+                    const tr = document.createElement('tr');
+                    
+                    const tdName = document.createElement('td');
+                    tdName.textContent = s.name;
+                    tdName.style.fontWeight = 'bold';
+                    tdName.style.padding = '12px';
+                    tdName.style.borderBottom = '1px solid var(--border)';
+
+                    const tdCheckbox = document.createElement('td');
+                    tdCheckbox.style.textAlign = 'center';
+                    tdCheckbox.style.padding = '12px';
+                    tdCheckbox.style.borderBottom = '1px solid var(--border)';
+
+                    const toggleWrap = document.createElement('label');
+                    toggleWrap.style.display = 'inline-flex';
+                    toggleWrap.style.alignItems = 'center';
+                    toggleWrap.style.cursor = 'pointer';
+                    
+                    const toggleInput = document.createElement('input');
+                    toggleInput.type = 'checkbox';
+                    toggleInput.style.width = '18px';
+                    toggleInput.style.height = '18px';
+                    toggleInput.style.accentColor = 'var(--primary)';
+                    toggleInput.checked = !!s.require_whatsapp;
+                    
+                    const toggleLabel = document.createElement('span');
+                    toggleLabel.style.marginLeft = '8px';
+                    toggleLabel.textContent = s.require_whatsapp ? 'Obligatorio' : 'Opcional';
+                    toggleLabel.style.color = s.require_whatsapp ? 'var(--primary)' : 'var(--text-muted)';
+                    
+                    toggleInput.addEventListener('change', async (e) => {
+                        toggleInput.disabled = true;
+                        try {
+                            const res = await fetch('/api/sellers', {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ id: s.id, require_whatsapp: toggleInput.checked })
+                            });
+                            if (!res.ok) throw new Error('Failed');
+                            
+                            const updatedVal = toggleInput.checked;
+                            toggleLabel.textContent = updatedVal ? 'Obligatorio' : 'Opcional';
+                            toggleLabel.style.color = updatedVal ? 'var(--primary)' : 'var(--text-muted)';
+                        } catch (err) {
+                            alert('No se pudo actualizar la configuración del vendedor');
+                            toggleInput.checked = !toggleInput.checked; // revert
+                        } finally {
+                            toggleInput.disabled = false;
+                        }
+                    });
+
+                    toggleWrap.append(toggleInput, toggleLabel);
+                    tdCheckbox.appendChild(toggleWrap);
+
+                    tr.append(tdName, tdCheckbox);
+                    sellersRulesTbody.appendChild(tr);
+                }
+            }
+
             loadSettings();
             loadProducts();
+            loadSellersRules();
         })();
     </script>
-
 </body>
 </html>
