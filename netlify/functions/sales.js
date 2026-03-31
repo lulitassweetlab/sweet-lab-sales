@@ -757,6 +757,7 @@ export async function handler(event) {
 						// 1. Check if this specific sale is already linked to a client
 						const [existingLink] = await sql`SELECT client_id FROM crm_client_sales WHERE sale_id = ${id} LIMIT 1`;
 						
+						let clientId = null;
 						if (existingLink) {
 							const oldClientId = existingLink.client_id;
 							// Find if a client already exists with the NEW name
@@ -764,19 +765,18 @@ export async function handler(event) {
 							
 							if (targetClient) {
 								if (targetClient.id !== oldClientId) {
-									// RELINK: The new name belongs to a DIFFERENT existing client. Point the sale to them.
 									await sql`UPDATE crm_client_sales SET client_id = ${targetClient.id} WHERE sale_id = ${id}`;
-									// Automated pipeline update
+									clientId = targetClient.id;
 									await autoUpdateClientStage(targetClient.id, activeSellerId);
 								} else {
-									// SAME CLIENT: Name matches (might be a case correction). Update the formal name if needed.
 									if (targetClient.name !== client.trim()) {
 										await sql`UPDATE clients SET name = ${client.trim()} WHERE id = ${oldClientId}`;
 									}
+									clientId = oldClientId;
 								}
 							} else {
-								// RENAME: No client exists with the new name. Rename the currently linked client.
 								await sql`UPDATE clients SET name = ${client.trim()} WHERE id = ${oldClientId}`;
+								clientId = oldClientId;
 							}
 						} else {
 							// 2. No existing link: Standard find-or-create and link logic
@@ -787,13 +787,25 @@ export async function handler(event) {
 							}
 							if (crmClient && crmClient.id) {
 								await sql`INSERT INTO crm_client_sales (client_id, sale_id, seller_id) VALUES (${crmClient.id}, ${id}, ${activeSellerId}) ON CONFLICT (sale_id) DO UPDATE SET client_id = EXCLUDED.client_id`;
-								// Automated pipeline update
+								clientId = crmClient.id;
 								await autoUpdateClientStage(crmClient.id, activeSellerId);
+							}
+						}
+
+						// 3. SYNC NOTE TO CRM TIMELINE (Update last or insert)
+						if (clientId && comment.trim() !== '' && comment !== current.comment_text) {
+							const actorNameSync = (data._actor_name || '').toString();
+							const [existingActivity] = await sql`SELECT id FROM crm_activities WHERE client_id = ${clientId} AND related_sale_id = ${id} AND activity_type = 'note' LIMIT 1`;
+							
+							if (existingActivity) {
+								await sql`UPDATE crm_activities SET description = ${comment}, created_at = now(), created_by = ${actorNameSync} WHERE id = ${existingActivity.id}`;
+							} else {
+								await sql`INSERT INTO crm_activities (seller_id, client_id, related_sale_id, activity_type, description, created_by) VALUES (${activeSellerId}, ${clientId}, ${id}, 'note', ${comment}, ${actorNameSync})`;
 							}
 						}
 					}
 				} catch (err) {
-					console.error('Error auto-linking sale to CRM:', err);
+					console.error('Error auto-linking sale to CRM or syncing note:', err);
 				}
 			}
 
