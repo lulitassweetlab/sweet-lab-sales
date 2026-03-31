@@ -1598,6 +1598,13 @@
                 }
             }
 
+            if (whatsapp && whatsapp.replace(/\D/g, '').length < 10) {
+                errDiv.textContent = 'El número de WhatsApp debe tener al menos 10 dígitos.';
+                errDiv.style.display = 'block';
+                document.getElementById('new-client-whatsapp').focus();
+                return;
+            }
+
             btn.disabled = true;
             btn.textContent = 'Guardando...';
 
