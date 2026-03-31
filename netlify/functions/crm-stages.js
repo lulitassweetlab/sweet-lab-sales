@@ -120,11 +120,11 @@ export async function handler(event) {
                 if (!clientId) return json({ error: 'Missing client_id' }, 400);
 
                 const actions = await sql`
-                    SELECT a.*, sel.name as seller_name
-                    FROM crm_stage_actions a
-                    LEFT JOIN sellers sel ON a.seller_id = sel.id
-                    WHERE a.client_id = ${clientId}
-                    ORDER BY a.created_at DESC
+                    SELECT 
+                        id, client_id, seller_id, activity_type as action_type, description as note, created_at, created_by as person_name
+                    FROM crm_activities
+                    WHERE client_id = ${clientId}
+                    ORDER BY created_at DESC
                 `;
                 return json(actions);
             }
@@ -170,9 +170,9 @@ export async function handler(event) {
                 if (!client_id || !action_type) return json({ error: 'Missing client_id or action_type' }, 400);
 
                 const insert = await sql`
-                    INSERT INTO crm_stage_actions (client_id, action_type, note, seller_id)
+                    INSERT INTO crm_activities (client_id, activity_type, description, seller_id)
                     VALUES (${client_id}, ${action_type}, ${note || ''}, ${seller_id || null})
-                    RETURNING *
+                    RETURNING id, client_id, activity_type as action_type, description as note, created_at, seller_id
                 `;
                 return json({ success: true, action: insert[0] });
             }
@@ -249,7 +249,7 @@ export async function handler(event) {
             if (action === 'delete_action') {
                 const { id } = body;
                 if (!id) return json({ error: 'Falta id' }, 400);
-                await sql`DELETE FROM crm_stage_actions WHERE id = ${id}`;
+                await sql`DELETE FROM crm_activities WHERE id = ${id}`;
                 return json({ success: true });
             }
 

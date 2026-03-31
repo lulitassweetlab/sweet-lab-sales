@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 34; // 34: Added crm_activities, crm_stages, crm_client_sales for Sales->CRM sync
+const SCHEMA_VERSION = 35; // 35: Added is_reviewed to sale_days for Admin workflow
 
 export async function ensureSchema() {
 	if (schemaEnsured) return;
@@ -60,6 +60,7 @@ export async function ensureSchema() {
 					seller_id INTEGER NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
 					day DATE NOT NULL,
 					is_archived BOOLEAN NOT NULL DEFAULT false,
+					is_reviewed BOOLEAN NOT NULL DEFAULT false,
 					delivered_arco INTEGER NOT NULL DEFAULT 0,
 					delivered_melo INTEGER NOT NULL DEFAULT 0,
 					delivered_mara INTEGER NOT NULL DEFAULT 0,

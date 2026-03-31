@@ -112,6 +112,32 @@ async function autoUpdateClientStage(clientId, sellerId) {
     }
 }
 
+// Auto-archive sales days if all orders are paid/verified
+async function checkAndAutoArchiveDay(saleDayId) {
+    if (!saleDayId) return;
+    try {
+        // Count sales that are NOT "fully paid/verified"
+        // Non-verified methods: empty/null, '-', 'efectivo', 'entregado'
+        const [pending] = await sql`
+            SELECT COUNT(*) FROM sales 
+            WHERE sale_day_id = ${saleDayId} 
+              AND (pay_method IS NULL OR pay_method = '' OR pay_method = '-' OR pay_method = 'efectivo' OR pay_method = 'entregado')
+              AND total_cents > 0
+        `;
+        
+        if (parseInt(pending.count) === 0) {
+            // Also ensure there is at least ONE sale to avoid archiving empty inadvertently (though mostly safe)
+            const [total] = await sql`SELECT COUNT(*) FROM sales WHERE sale_day_id = ${saleDayId}`;
+            if (parseInt(total.count) > 0) {
+                await sql`UPDATE sale_days SET is_archived = true WHERE id = ${saleDayId}`;
+                console.log(`📦 Auto-archived sale_day ${saleDayId}`);
+            }
+        }
+    } catch (err) {
+        console.error('Error in checkAndAutoArchiveDay:', err);
+    }
+}
+
 export async function handler(event) {
 	try {
 		// Always ensure schema to allow migrations (payment_date column)
@@ -1043,6 +1069,12 @@ export async function handler(event) {
 					}
 				} catch {}
 				const row = await recalcTotalForId(id);
+				
+				// After any update to a sale, check if the day should be automatically archived
+				if (current.sale_day_id) {
+					checkAndAutoArchiveDay(current.sale_day_id);
+				}
+				
 				return json(row);
 			}
 			case 'DELETE': {

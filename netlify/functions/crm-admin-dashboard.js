@@ -249,6 +249,18 @@ export async function handler(event) {
         generalData.expense_period_cents = expense_period_cents;
         generalData.results_period_cents = Number(generalData.sales_period_cents || 0) - debt_period_cents - expense_period_cents;
 
+        // 7. Pending Reviews (Por Hacer)
+        const todoTasks = await sql`
+            SELECT 
+                sd.id, sd.day, sd.seller_id, se.name as seller_name, se.bill_color as seller_color,
+                (SELECT COUNT(*) FROM sales s WHERE s.sale_day_id = sd.id) as sale_count,
+                (SELECT SUM(total_cents) FROM sales s WHERE s.sale_day_id = sd.id) as total_cents
+            FROM sale_days sd
+            JOIN sellers se ON sd.seller_id = se.id
+            WHERE sd.is_archived = true AND sd.is_reviewed = false
+            ORDER BY sd.day DESC
+        `;
+
         return json({
             general: generalData,
             sellers: sellerStats,
@@ -264,7 +276,8 @@ export async function handler(event) {
             crmActivity: crmActivity,
             periodClients: periodClients,
             periodDebts: periodDebts,
-            periodExpenses: periodExpenses
+            periodExpenses: periodExpenses,
+            todoTasks: todoTasks
         });
 
     } catch (err) {

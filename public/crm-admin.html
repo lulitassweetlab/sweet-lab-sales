@@ -165,6 +165,23 @@
             animation: aladdinIn 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
         }
 
+        /* Todo section styles */
+        .todo-card {
+            background: #fff;
+            border-left: 4px solid var(--primary);
+            padding: 16px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            transition: transform 0.2s;
+        }
+        .todo-card:hover { transform: translateX(5px); }
+        .todo-info { display: flex; align-items: center; gap: 12px; }
+        .todo-status { width: 10px; height: 10px; border-radius: 50%; background: var(--primary); }
+
     </style>
 </head>
 <body>
@@ -256,8 +273,16 @@
             </div>
         </div>
 
+        <!-- NEW ROW: Por Hacer (Review Pending Tables) -->
+        <div id="todo-container" style="display: none; margin-bottom: 30px;">
+            <h2 style="font-size: 1.1rem; margin-bottom: 16px; color: var(--text-main);">2. Por Hacer (Revisión de Tablas Cerradas)</h2>
+            <div id="todo-list">
+                <!-- Todo items injected here -->
+            </div>
+        </div>
+
         <!-- ROW 2: Alerts & Activity -->
-        <h2 style="font-size: 1.1rem; margin-bottom: 16px; color: var(--text-main);">2. Estado de la Cartera & Alertas CRM</h2>
+        <h2 style="font-size: 1.1rem; margin-bottom: 16px; color: var(--text-main);">3. Estado de la Cartera & Alertas CRM</h2>
         <div class="dashboard-grid">
             <div class="card col-span-8">
                 <div class="card-title">🔴 Alertas de Negocio (Atención Requerida)</div>
@@ -300,7 +325,7 @@
             </div>
         </div>
         <!-- ROW 3: Sellers and Products -->
-        <h2 style="font-size: 1.1rem; margin-bottom: 16px; color: var(--text-main);">3. Rendimiento de Vendedores y Productos</h2>
+        <h2 style="font-size: 1.1rem; margin-bottom: 16px; color: var(--text-main);">4. Rendimiento de Vendedores y Productos</h2>
         <!-- ROW 5: Sellers Table -->
         <div class="dashboard-grid">
             <div class="card" style="grid-column: span 12;">
@@ -413,7 +438,7 @@
         </div>
         
         <!-- ROW 5: Embudo de Ventas (CRM Pipeline) -->
-        <h2 style="font-size: 1.1rem; margin-top: 30px; margin-bottom: 16px; color: var(--text-main);">4. Embudo de Ventas (Pipeline)</h2>
+        <h2 style="font-size: 1.1rem; margin-top: 30px; margin-bottom: 16px; color: var(--text-main);">5. Embudo de Ventas (Pipeline)</h2>
         <div class="dashboard-grid">
             <div class="card col-span-12">
                 <div style="display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap;" id="adminPipelineCounters">
@@ -445,7 +470,7 @@
         </div>
 
         <!-- ROW 6: CRM Stages Manager -->
-        <h2 style="font-size: 1.1rem; margin-top: 30px; margin-bottom: 16px; color: var(--text-main);">5. Gestión de Etapas CRM</h2>
+        <h2 style="font-size: 1.1rem; margin-top: 30px; margin-bottom: 16px; color: var(--text-main);">6. Gestión de Etapas CRM</h2>
         <div class="dashboard-grid">
             <div class="card col-span-12">
                 <div class="flex-between" style="margin-bottom: 16px;">
@@ -498,7 +523,7 @@
         </div>
 
         <!-- ROW 7: Product Commissions Manager -->
-        <h2 style="font-size: 1.1rem; margin-top: 30px; margin-bottom: 16px; color: var(--text-main);">6. Gestor de Tarifas y Comisiones</h2>
+        <h2 style="font-size: 1.1rem; margin-top: 30px; margin-bottom: 16px; color: var(--text-main);">7. Gestor de Tarifas y Comisiones</h2>
 
         <div class="dashboard-grid">
             <div class="card col-span-12">
@@ -677,6 +702,8 @@
                 if(data.periodClients) populatePeriodClients(data.periodClients);
                 if(data.periodDebts) populatePeriodDebts(data.periodDebts);
                 if(data.periodExpenses) populatePeriodExpenses(data.periodExpenses);
+                if(data.todoTasks) populateTodoTasks(data.todoTasks);
+                else document.getElementById('todo-container').style.display = 'none';
 
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('dashboard-content').style.display = 'block';
@@ -1754,6 +1781,72 @@
             } catch(e) {
                 alert('No se pudo actualizar la etapa.');
                 selectEl.disabled = false;
+            }
+        }
+
+        function populateTodoTasks(tasks) {
+            const container = document.getElementById('todo-container');
+            const list = document.getElementById('todo-list');
+            list.innerHTML = '';
+            
+            if (!tasks || tasks.length === 0) {
+                container.style.display = 'none';
+                return;
+            }
+            
+            container.style.display = 'block';
+            tasks.forEach(t => {
+                const total = fmtMoney.format(t.total_cents || 0);
+                const dayStr = new Date(t.day).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' });
+                const actorName = urlParams.get('actor') || 'admin';
+                
+                list.innerHTML += `
+                    <div class="todo-card" id="todo-item-${t.id}">
+                        <div class="todo-info">
+                            <div class="todo-status" style="background: ${t.seller_color || 'var(--primary)'}"></div>
+                            <div>
+                                <div style="font-weight: 700; font-size: 1rem;">${t.seller_name} - ${dayStr}</div>
+                                <div style="font-size: 0.85rem; color: var(--text-muted);">${t.sale_count} ventas • <b>${total}</b></div>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn" style="font-size: 0.8rem; padding: 6px 12px;" onclick="window.open('/app.html?day_id=${t.id}&seller_id=${t.seller_id}&actor=${actorName}', '_blank')">🔍 Ver Tabla</button>
+                            <button class="btn btn-primary" style="font-size: 0.8rem; padding: 6px 12px; background: var(--success);" onclick="markTableAsReviewed(${t.id})">✅ Marcar Revisado</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        async function markTableAsReviewed(id) {
+            if (!confirm('¿Confirmas que has revisado esta tabla y el dinero está cuadrado?')) return;
+            
+            try {
+                const actor = urlParams.get('actor') || 'admin';
+                const res = await fetch('/.netlify/functions/days', {
+                    method: 'PATCH',
+                    body: JSON.stringify({ id, is_reviewed: true, actor_name: actor })
+                });
+                const result = await res.json();
+                if (result.ok) {
+                    const item = document.getElementById(`todo-item-${id}`);
+                    if (item) {
+                        item.style.opacity = '0';
+                        item.style.transform = 'scale(0.8)';
+                        setTimeout(() => {
+                            item.remove();
+                            // If no more items, hide container
+                            if (document.getElementById('todo-list').children.length === 0) {
+                                document.getElementById('todo-container').style.display = 'none';
+                            }
+                        }, 300);
+                    }
+                } else {
+                    alert('Error: ' + (result.error || 'No se pudo actualizar'));
+                }
+            } catch (err) {
+                console.error('Error marking as reviewed:', err);
+                alert('Error de conexión');
             }
         }
     </script>

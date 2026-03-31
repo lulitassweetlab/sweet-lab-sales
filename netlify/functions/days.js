@@ -185,16 +185,30 @@ export async function handler(event) {
 				return json(row || { id, day });
 			}
 			case 'PATCH': {
-				// Update archive state for one or many days
-				// Body: { id?, ids?, is_archived }
+				// Update archive/review state for one or many days
+				// Body: { id?, ids?, is_archived?, is_reviewed? }
 				const data = JSON.parse(event.body || '{}');
-				const isArchived = !!data.is_archived;
 				const id = Number(data.id || 0) || null;
 				let ids = Array.isArray(data.ids) ? data.ids.map(n => Number(n)).filter(n => Number.isInteger(n) && n > 0) : [];
 				if (!id && (!ids || ids.length === 0)) return json({ error: 'id o ids requerido' }, 400);
 				if (id && !ids.length) ids = [id];
-				await sql`UPDATE sale_days SET is_archived=${isArchived} WHERE id = ANY(${ids})`;
-				return json({ ok: true, updated: ids.length, is_archived: isArchived });
+
+				const updates = [];
+				if (Object.prototype.hasOwnProperty.call(data, 'is_archived')) updates.push(sql`is_archived = ${!!data.is_archived}`);
+				if (Object.prototype.hasOwnProperty.call(data, 'is_reviewed')) updates.push(sql`is_reviewed = ${!!data.is_reviewed}`);
+
+				if (updates.length === 0) return json({ error: 'Nada que actualizar' }, 400);
+
+				// Build dynamic update query
+				if (updates.length === 2) {
+					await sql`UPDATE sale_days SET is_archived = ${!!data.is_archived}, is_reviewed = ${!!data.is_reviewed} WHERE id = ANY(${ids})`;
+				} else if (Object.prototype.hasOwnProperty.call(data, 'is_archived')) {
+					await sql`UPDATE sale_days SET is_archived = ${!!data.is_archived} WHERE id = ANY(${ids})`;
+				} else {
+					await sql`UPDATE sale_days SET is_reviewed = ${!!data.is_reviewed} WHERE id = ANY(${ids})`;
+				}
+
+				return json({ ok: true, updated: ids.length, is_archived: data.is_archived, is_reviewed: data.is_reviewed });
 			}
 			case 'DELETE': {
 				const params = new URLSearchParams(event.rawQuery || event.queryStringParameters ? event.rawQuery || '' : '');
