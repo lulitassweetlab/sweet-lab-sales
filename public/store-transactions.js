@@ -255,9 +255,9 @@ function openNewClientModal(name) {
     waInput.value = '';
     
     if (storeActiveSeller && storeActiveSeller.require_whatsapp) {
-        waInput.placeholder = 'WhatsApp * (Obligatorio)';
+        waInput.placeholder = 'WhatsApp *';
     } else {
-        waInput.placeholder = 'WhatsApp (Opcional)';
+        waInput.placeholder = 'WhatsApp';
     }
 
     document.getElementById('new-client-error').style.display = 'none';
