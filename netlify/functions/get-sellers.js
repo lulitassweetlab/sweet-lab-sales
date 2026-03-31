@@ -16,7 +16,7 @@ export async function handler(event) {
 
 		// Get all active (non-archived) sellers
 		const rows = await sql`
-			SELECT id, name 
+			SELECT id, name, require_whatsapp 
 			FROM sellers 
 			WHERE archived_at IS NULL 
 			ORDER BY name
