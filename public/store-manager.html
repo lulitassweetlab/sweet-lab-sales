@@ -275,6 +275,8 @@
         import '/app.js'; // To inherit themes and basic toast if needed, but we'll re-implement simple UI here
 
         (function () {
+            let actor = '';
+            try { const saved = JSON.parse(localStorage.getItem('authUser')||'null'); actor = (saved?.name||saved?.username||'').toString(); } catch {}
             const tbody = document.getElementById('products-tbody');
             const backBtn = document.getElementById('back-btn');
             const addBtn = document.getElementById('add-product-btn');
@@ -1028,7 +1030,8 @@
             
             async function loadSellersRules() {
                 try {
-                    const response = await fetch('/api/sellers?include_archived=0');
+                    const url = '/api/sellers?include_archived=0' + (actor ? '&actor=' + encodeURIComponent(actor) : '');
+                    const response = await fetch(url);
                     if (!response.ok) {
                         try {
                             const errData = await response.json();
@@ -1079,7 +1082,8 @@
                     toggleInput.addEventListener('change', async (e) => {
                         toggleInput.disabled = true;
                         try {
-                            const res = await fetch('/api/sellers', {
+                            const url = '/api/sellers' + (actor ? '?actor=' + encodeURIComponent(actor) : '');
+                            const res = await fetch(url, {
                                 method: 'PATCH',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ id: s.id, require_whatsapp: toggleInput.checked })
