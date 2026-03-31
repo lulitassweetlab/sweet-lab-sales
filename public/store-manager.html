@@ -1029,11 +1029,18 @@
             async function loadSellersRules() {
                 try {
                     const response = await fetch('/api/sellers?include_archived=0');
-                    if (!response.ok) throw new Error('Failed to load sellers');
+                    if (!response.ok) {
+                        try {
+                            const errData = await response.json();
+                            throw new Error(errData.error || 'HTTP ' + response.status);
+                        } catch(e) { throw new Error('HTTP ' + response.status); }
+                    }
                     const sellers = await response.json();
+                    alert('Debug: ' + sellers.length + ' vendedores cargados correctamente desde la base de datos.');
                     renderSellersRules(sellers);
                 } catch (err) {
                     console.error('Error loading sellers:', err);
+                    alert('Error Debug: No se pudieron cargar las reglas (' + err.message + ')');
                 }
             }
 
