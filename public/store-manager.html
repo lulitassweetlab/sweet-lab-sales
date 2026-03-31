@@ -296,12 +296,17 @@
             async function loadProducts() {
                 try {
                     const response = await fetch('/api/store-products');
-                    if (!response.ok) throw new Error('Failed to load products');
+                    if (!response.ok) {
+                        try {
+                            const errData = await response.json();
+                            throw new Error(errData.error || 'HTTP ' + response.status);
+                        } catch(e) { throw new Error('HTTP ' + response.status); }
+                    }
                     const products = await response.json();
                     renderProducts(products);
                 } catch (err) {
                     console.error('Error loading products:', err);
-                    alert('Error al cargar los productos');
+                    alert('Error al cargar los productos: ' + err.message);
                 }
             }
 

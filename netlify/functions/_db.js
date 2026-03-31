@@ -22,20 +22,25 @@ export async function ensureSchema() {
 
 			// 2) SLOW PATH: Full Migration
 			await sql`
+
 				CREATE TABLE IF NOT EXISTS schema_meta (
 					version INTEGER NOT NULL DEFAULT 0,
 					updated_at TIMESTAMPTZ DEFAULT now()
-				);
-				INSERT INTO schema_meta (version) SELECT 0 WHERE NOT EXISTS (SELECT 1 FROM schema_meta);
+				)
+			`;
+			await sql`INSERT INTO schema_meta (version) SELECT 0 WHERE NOT EXISTS (SELECT 1 FROM schema_meta)`;
 
+			await sql`
 				CREATE TABLE IF NOT EXISTS users (
 					id SERIAL PRIMARY KEY,
 					username TEXT UNIQUE NOT NULL,
 					password_hash TEXT NOT NULL,
 					role TEXT NOT NULL DEFAULT 'user',
 					created_at TIMESTAMPTZ DEFAULT now()
-				);
+				)
+			`;
 
+			await sql`
 				CREATE TABLE IF NOT EXISTS sellers (
 					id SERIAL PRIMARY KEY,
 					name TEXT UNIQUE NOT NULL,
@@ -46,8 +51,10 @@ export async function ensureSchema() {
 					commission_rate_high INTEGER NOT NULL DEFAULT 1500,
 					require_whatsapp BOOLEAN NOT NULL DEFAULT false,
 					created_at TIMESTAMPTZ DEFAULT now()
-				);
+				)
+			`;
 
+			await sql`
 				CREATE TABLE IF NOT EXISTS sale_days (
 					id SERIAL PRIMARY KEY,
 					seller_id INTEGER NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
@@ -60,8 +67,10 @@ export async function ensureSchema() {
 					delivered_nute INTEGER NOT NULL DEFAULT 0,
 					commissions_paid INTEGER NOT NULL DEFAULT 0,
 					UNIQUE (seller_id, day)
-				);
+				)
+			`;
 
+			await sql`
 				CREATE TABLE IF NOT EXISTS sales (
 					id SERIAL PRIMARY KEY,
 					seller_id INTEGER NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
@@ -80,8 +89,10 @@ export async function ensureSchema() {
 					special_pricing_type TEXT,
 					total_cents INTEGER NOT NULL DEFAULT 0,
 					created_at TIMESTAMPTZ DEFAULT now()
-				);
+				)
+			`;
 
+			await sql`
 				CREATE TABLE IF NOT EXISTS desserts (
 					id SERIAL PRIMARY KEY,
 					name TEXT UNIQUE NOT NULL,
@@ -96,8 +107,10 @@ export async function ensureSchema() {
 					position INTEGER NOT NULL DEFAULT 0,
 					created_at TIMESTAMPTZ DEFAULT now(),
 					updated_at TIMESTAMPTZ DEFAULT now()
-				);
+				)
+			`;
 
+			await sql`
 				CREATE TABLE IF NOT EXISTS sale_items (
 					id SERIAL PRIMARY KEY,
 					sale_id INTEGER NOT NULL REFERENCES sales(id) ON DELETE CASCADE,
@@ -106,8 +119,10 @@ export async function ensureSchema() {
 					unit_price INTEGER NOT NULL DEFAULT 0,
 					created_at TIMESTAMPTZ DEFAULT now(),
 					updated_at TIMESTAMPTZ DEFAULT now()
-				);
+				)
+			`;
 
+			await sql`
 				CREATE TABLE IF NOT EXISTS notifications (
 					id SERIAL PRIMARY KEY,
 					type VARCHAR(50) NOT NULL,
@@ -120,8 +135,10 @@ export async function ensureSchema() {
 					pay_method TEXT,
 					is_read BOOLEAN DEFAULT false,
 					created_at TIMESTAMPTZ DEFAULT now()
-				);
+				)
+			`;
 
+			await sql`
 				CREATE TABLE IF NOT EXISTS clients (
 					id SERIAL PRIMARY KEY,
 					name VARCHAR(255) NOT NULL,
@@ -135,8 +152,10 @@ export async function ensureSchema() {
 					seller_id INTEGER NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
 					created_at TIMESTAMPTZ DEFAULT now(),
 					UNIQUE (name, seller_id)
-				);
+				)
+			`;
 
+			await sql`
 				CREATE TABLE IF NOT EXISTS store_products (
 					id SERIAL PRIMARY KEY,
 					name TEXT NOT NULL,
@@ -152,19 +171,22 @@ export async function ensureSchema() {
 					position INTEGER NOT NULL DEFAULT 0,
 					created_at TIMESTAMPTZ DEFAULT now(),
 					updated_at TIMESTAMPTZ DEFAULT now()
-				);
+				)
+			`;
 
+			await sql`
 				CREATE TABLE IF NOT EXISTS store_settings (
 					key TEXT PRIMARY KEY,
 					value TEXT NOT NULL,
 					updated_at TIMESTAMPTZ DEFAULT now()
-				);
-
-				CREATE INDEX IF NOT EXISTS idx_sales_day ON sales(sale_day_id);
-				CREATE INDEX IF NOT EXISTS idx_sales_seller ON sales(seller_id);
-				CREATE INDEX IF NOT EXISTS idx_sale_items_sale ON sale_items(sale_id);
-				CREATE INDEX IF NOT EXISTS idx_clients_seller ON clients(seller_id);
+				)
 			`;
+
+			await sql`CREATE INDEX IF NOT EXISTS idx_sales_day ON sales(sale_day_id)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_sales_seller ON sales(seller_id)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_sale_items_sale ON sale_items(sale_id)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_clients_seller ON clients(seller_id)`;
+
 
 			// Seed default desserts if empty
 			const dessertCount = await sql`SELECT COUNT(*)::int AS c FROM desserts`;
