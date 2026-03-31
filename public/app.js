@@ -77,7 +77,8 @@ async function loadGlobalClientDetailRows(clientName) {
 		state._clientDetailSellerId = allRows[0].sellerId;
 	}
 
-	renderClientDetailTable(allRows);
+	state._clientDetailRows = allRows;
+	renderClientDetailTable();
 }
 
 async function loadClientDetailRows(clientName) {
@@ -112,11 +113,12 @@ async function loadClientDetailRows(clientName) {
 	}
 
 	// Data already sorted by backend (day DESC)
+	state._clientDetailRows = allRows;
 
 	// Save the seller ID for this client
 	state._clientDetailSellerId = sellerId;
 
-	renderClientDetailTable(allRows);
+	renderClientDetailTable();
 }
 
 // Attempt to restore sales that were overwritten to zeros by re-applying last non-zero values from change logs
@@ -163,9 +165,38 @@ async function restoreBuggedSalesForSeller() {
 	return restored;
 }
 
-function renderClientDetailTable(rows) {
+function renderClientDetailTable() {
+	const rows = state._clientDetailRows || [];
 	const tbody = document.getElementById('client-detail-tbody');
 	if (!tbody) return;
+
+	// Update Tag Filters for History
+	renderTagFilters(rows, 'client-detail-tags-filter', () => renderClientDetailTable());
+
+	// Filter by search and tag
+	const searchInput = document.getElementById('client-detail-search-input');
+	if (searchInput && !searchInput.dataset.bound) {
+		searchInput.dataset.bound = '1';
+		searchInput.addEventListener('input', () => renderClientDetailTable());
+	}
+	const query = (searchInput?.value || '').toLowerCase().trim();
+
+	const filteredRows = rows.filter(row => {
+		// 1. Tag filter
+		if (state.currentTagIdFilter) {
+			const hasTag = (row.client_tags || []).some(t => t.id === state.currentTagIdFilter);
+			if (!hasTag) return false;
+		}
+		// 2. Search query filter (search in date, products, comment)
+		if (query) {
+			const date = String(row.dayIso).toLowerCase();
+			const products = (row.items || []).map(i => (i.name || '').toLowerCase()).join(' ');
+			const comment = (row.comment_text || '').toLowerCase();
+			if (!date.includes(query) && !products.includes(query) && !comment.includes(query)) return false;
+		}
+		return true;
+	});
+
 	tbody.innerHTML = '';
 
 	// Helper function to get quantity for a dessert from a sale row (supports both items array and legacy qty_* columns)
@@ -661,6 +692,8 @@ const state = {
 	dessertsLoaded: false,
 	visibleDesserts: [], // Desserts currently visible in sales table (sold in selected day)
 	globalClientSuggestions: [], // Global client suggestions for header search
+	currentTagIdFilter: null, // Active tag filter ID for sales tables
+	_clientDetailRows: [],   // Raw rows for current client detail view
 };
 
 // Toasts (simple notifications)
@@ -1558,6 +1591,28 @@ function renderTable() {
 	renderDessertColumns();
 	const visibleDesserts = state.visibleDesserts || [];
 	const tbody = $('#sales-tbody');
+	
+	// Update Tag Filters
+	renderTagFilters(state.sales, 'active-table-tags-filter', () => renderTable());
+
+	// Filter sales by search and tag
+	const searchInput = document.getElementById('active-table-client-search');
+	const query = (searchInput?.value || '').toLowerCase().trim();
+	
+	const filteredSales = (state.sales || []).filter(sale => {
+		// 1. Tag filter
+		if (state.currentTagIdFilter) {
+			const hasTag = (sale.client_tags || []).some(t => t.id === state.currentTagIdFilter);
+			if (!hasTag) return false;
+		}
+		// 2. Search query filter
+		if (query) {
+			const name = (sale.client_name || '').toLowerCase();
+			if (!name.includes(query)) return false;
+		}
+		return true;
+	});
+
 	// Update caption with selected date label
 	try {
 		const cap = document.getElementById('sales-caption');
@@ -1573,7 +1628,7 @@ function renderTable() {
 		}
 	} catch { }
 	tbody.innerHTML = '';
-	for (const sale of state.sales) {
+	for (const sale of filteredSales) {
 		const total = calcRowTotal(sale);
 		const isPaid = !!sale.is_paid;
 		const tr = el('tr', { 'data-sale-id': sale.id },
@@ -11388,6 +11443,8 @@ function bindActiveTableSearch() {
 
 	searchInput.addEventListener('input', () => {
 		renderSuggestions(searchInput.value.trim());
+		// Also filter the table in real-time
+		renderTable();
 	});
 
 	searchInput.addEventListener('focus', () => {
@@ -11414,3 +11471,53 @@ if (document.readyState === 'loading') {
 		NotificationCenter.init();
 	}
 }
+
+/**
+ * Renders tag filter chips based on available tags in the provided sales data
+ */
+function renderTagFilters(sales, containerId, onFilterChange) {
+	const container = document.getElementById(containerId);
+	if (!container) return;
+
+	// Extract unique tags from the provided sales data
+	const allTags = [];
+	const tagIds = new Set();
+	
+	(sales || []).forEach(s => {
+		(s.client_tags || []).forEach(t => {
+			if (!tagIds.has(t.id)) {
+				tagIds.add(t.id);
+				allTags.push(t);
+			}
+		});
+	});
+
+	// If no tags, clear and hide or keep empty
+	if (allTags.length === 0) {
+		container.innerHTML = '';
+		return;
+	}
+
+	// Sort tags alphabetically
+	allTags.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es'));
+
+	// Render
+	container.innerHTML = '';
+	allTags.forEach(tag => {
+		const chip = document.createElement('div');
+		chip.className = 'tag-filter-chip';
+		if (state.currentTagIdFilter === tag.id) chip.classList.add('active');
+		
+		chip.textContent = tag.name;
+		chip.addEventListener('click', () => {
+			if (state.currentTagIdFilter === tag.id) {
+				state.currentTagIdFilter = null;
+			} else {
+				state.currentTagIdFilter = tag.id;
+			}
+			onFilterChange();
+		});
+		container.appendChild(chip);
+	});
+}
+

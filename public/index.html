@@ -8,7 +8,7 @@
 	<link rel="preconnect" href="https://fonts.googleapis.com" />
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 	<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
-	<link rel="stylesheet" href="/styles.css?v=2026-03-31-09" />
+	<link rel="stylesheet" href="/styles.css?v=2026-03-31-10" />
 	<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 	<style>
 		/* Estilos para el modo incrustado (iframe) */
@@ -152,10 +152,16 @@
 					<div class="panel-header-toolbar">
 						<h3 id="sales-title" style="display: none;">Registro de Ventas de Postres</h3>
 
-						<!-- Active Table Search -->
+						<!-- Active Table Search & Filter -->
 						<div id="active-table-search-container" class="active-table-search">
-							<input type="text" id="active-table-client-search" placeholder="🔍 Buscar"
-								style="width: 100%; padding: 8px 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface); color: var(--text); outline: none; font-size: 0.95rem; text-align: center;">
+							<div style="position:relative; display: flex; align-items: center;">
+								<span style="position:absolute; left:12px; top:50%; transform:translateY(-50%); font-size:0.9rem; pointer-events:none; z-index:1;">🔍</span>
+								<input type="text" id="active-table-client-search" placeholder="Buscar"
+									autocomplete="off"
+									style="padding: 8px 12px 8px 32px; border-radius: 20px; border: 1.5px solid var(--border); background: var(--surface); color: var(--text); outline: none; font-size: 0.9rem; text-align: left;">
+							</div>
+							<div id="active-table-tags-filter" class="tag-filters-wrapper"></div>
+							
 							<ul id="active-table-client-suggestions" class="client-suggest-popover"
 								style="display: none; position: absolute; top: calc(100% + 4px); left: 0; width: 100%; border-radius: 12px; overflow: hidden; max-height: 250px; overflow-y: auto; z-index: 9999; box-shadow: 0 4px 15px rgba(0,0,0,0.15); background: var(--surface);">
 							</ul>
@@ -537,8 +543,20 @@
 				</div>
 			</div>
 			<div class="sales-panel">
-				<div class="panel-header">
-					<h3 id="client-detail-subtitle">Historial de compras</h3>
+				<div class="panel-header" style="flex-wrap: wrap; gap: 10px;">
+					<h3 id="client-detail-subtitle" style="margin:0;">Historial de compras</h3>
+					
+					<!-- Search & Filter for History -->
+					<div id="client-detail-search-container" class="active-table-search" style="margin: 0 auto; flex: 1; justify-content: center;">
+						<div style="position:relative; display: flex; align-items: center;">
+							<span style="position:absolute; left:12px; top:50%; transform:translateY(-50%); font-size:0.9rem; pointer-events:none; z-index:1;">🔍</span>
+							<input type="text" id="client-detail-search-input" placeholder="Buscar en historial"
+								autocomplete="off"
+								style="padding: 8px 12px 8px 32px; border-radius: 20px; border: 1.5px solid var(--border); background: var(--surface); color: var(--text); outline: none; font-size: 0.9rem; text-align: left;">
+						</div>
+						<div id="client-detail-tags-filter" class="tag-filters-wrapper"></div>
+					</div>
+
 					<div class="panel-actions">
 						<button id="client-detail-add-order" class="press-btn btn-primary">Nuevo pedido</button>
 					</div>
@@ -753,7 +771,70 @@
 			}
 		});
 	</script>
-	<script src="/app.js?v=2026-03-31-09" type="module"></script>
+	<script src="/app.js?v=2026-03-31-10" type="module"></script>
+	<style>
+		/* Buscador expansible */
+		.active-table-search {
+			display: flex !important;
+			align-items: center;
+			gap: 12px;
+			flex: 1;
+			max-width: 600px;
+			transition: all 0.3s ease;
+		}
+
+		#active-table-client-search {
+			width: 150px !important; /* Start small */
+			transition: width 0.3s ease, border-color 0.2s;
+			flex: none !important;
+		}
+
+		#active-table-client-search:focus {
+			width: 250px !important; /* Grow on focus */
+			border-color: var(--primary) !important;
+			text-align: left !important;
+			padding-left: 35px !important;
+		}
+
+		/* Contenedor de etiquetas de filtro */
+		.tag-filters-wrapper {
+			display: flex;
+			gap: 6px;
+			overflow-x: auto;
+			padding: 4px 0;
+			white-space: nowrap;
+			-webkit-overflow-scrolling: touch;
+			scrollbar-width: none; /* Hide scrollbar */
+		}
+		.tag-filters-wrapper::-webkit-scrollbar { display: none; }
+
+		.tag-filter-chip {
+			display: inline-flex;
+			align-items: center;
+			padding: 4px 10px;
+			border-radius: 16px;
+			background: var(--surface);
+			border: 1.5px solid var(--border);
+			font-size: 11px;
+			font-weight: 500;
+			color: var(--muted);
+			cursor: pointer;
+			transition: all 0.2s ease;
+			user-select: none;
+		}
+
+		.tag-filter-chip:hover {
+			border-color: var(--primary);
+			color: var(--text);
+		}
+
+		.tag-filter-chip.active {
+			background: var(--primary);
+			border-color: var(--primary);
+			color: #fff;
+			box-shadow: 0 2px 6px rgba(99, 102, 241, 0.3);
+		}
+	</style>
 </body>
 
 </html>
