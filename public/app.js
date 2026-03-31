@@ -229,15 +229,25 @@ function renderClientDetailTable(rows) {
 			line2.appendChild(tagsWrap);
 		}
 
-		const inlineComment = document.createElement('input');
+		const inlineComment = document.createElement('textarea');
 		inlineComment.className = 'inline-comment-input';
 		inlineComment.value = sampleSale.comment_text || '';
 		inlineComment.placeholder = 'Nota...';
 		inlineComment.style.textAlign = 'center';
 		inlineComment.style.width = '120px';
+		inlineComment.style.display = 'block';
+		inlineComment.style.margin = '0 auto';
+		inlineComment.rows = 1;
+
+		function autoResize() {
+			inlineComment.style.height = 'auto';
+			inlineComment.style.height = (inlineComment.scrollHeight) + 'px';
+		}
+		inlineComment.addEventListener('input', autoResize);
+		setTimeout(autoResize, 0);
+
 		inlineComment.addEventListener('change', async () => {
 			const newText = inlineComment.value.trim();
-			// Applying to last sale id (sampleSale.id) isn't ideal but fits the flow
 			if (sampleSale.id) {
 				await saveComment(sampleSale.id, newText);
 				sampleSale.comment_text = newText;
@@ -1743,13 +1753,6 @@ function renderTable() {
 					}
 				}
 				
-				if (sale.comment_text && sale.comment_text.trim()) {
-					const commentMarker = document.createElement('span');
-					commentMarker.textContent = '💬';
-					commentMarker.style.fontSize = '10px';
-					indicators.appendChild(commentMarker);
-				}
-				
 				row1.appendChild(indicators);
 				container.appendChild(row1);
 
@@ -1770,16 +1773,25 @@ function renderTable() {
 					row2.appendChild(tagsWrap);
 				}
 
-				const inlineComment = document.createElement('input');
+				const inlineComment = document.createElement('textarea');
 				inlineComment.className = 'inline-comment-input';
 				inlineComment.value = sale.comment_text || '';
 				inlineComment.placeholder = 'Escribir nota...';
+				inlineComment.rows = 1;
+				
+				function autoResize() {
+					inlineComment.style.height = 'auto';
+					inlineComment.style.height = (inlineComment.scrollHeight) + 'px';
+				}
+				
+				inlineComment.addEventListener('input', autoResize);
+				setTimeout(autoResize, 0); // Initial resize after mounting
+
 				inlineComment.addEventListener('change', async () => {
 					const newText = inlineComment.value.trim();
 					if (newText !== (sale.comment_text || '').trim()) {
 						await saveComment(sale.id, newText);
 						sale.comment_text = newText;
-						// Update visual indicators if necessary (though simplified for now)
 					}
 				});
 				inlineComment.addEventListener('click', (e) => e.stopPropagation());

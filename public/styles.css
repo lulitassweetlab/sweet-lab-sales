@@ -3345,10 +3345,15 @@ tfoot td {
 	font-style: italic !important;
 	padding: 0 !important;
 	margin: 0 !important;
-	height: 14px !important;
+	height: auto;
+	min-height: 14px !important;
 	flex: 1;
 	min-width: 40px;
 	outline: none !important;
+	resize: none !important;
+	overflow: hidden !important;
+	font-family: inherit !important;
+	display: block;
 }
 
 .inline-comment-input:focus {
