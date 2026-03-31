@@ -1971,9 +1971,10 @@ async function performRedo() {
 function wireDeliveredRowEditors() {
 	const isSuper = state?.currentUser?.role === 'superadmin' || !!state?.currentUser?.isSuperAdmin;
 	const cells = [];
-	for (const d of (window.visibleDesserts || [])) {
-		const el = document.getElementById(`deliv-${d.short_code}`);
-		if (el) cells.push({ key: d.short_code, el });
+	const spans = document.querySelectorAll('#footer-delivered-row td.col-dessert span[id^="deliv-"]');
+	for (const el of spans) {
+		const key = el.id.replace('deliv-', '');
+		cells.push({ key, el });
 	}
 	function selectAllContent(el) {
 		try {
