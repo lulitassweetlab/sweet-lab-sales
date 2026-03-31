@@ -185,7 +185,14 @@ export async function handler(event) {
 							       s.qty_mara, s.qty_oreo, s.qty_nute, s.is_paid, s.pay_method, s.payment_date, s.payment_source,
 							       s.special_pricing_type, s.total_cents,
 							       sd.day AS sale_day,
-							       se.name AS seller_name
+							       se.name AS seller_name,
+							       (
+							           SELECT json_agg(json_build_object('name', t.name, 'color', t.color))
+							           FROM crm_client_tags ct
+							           JOIN crm_tags t ON ct.tag_id = t.id
+							           JOIN crm_client_sales ccs ON ct.client_id = ccs.client_id
+							           WHERE ccs.sale_id = s.id
+							       ) AS client_tags
 							FROM sales s
 							INNER JOIN sale_days sd ON sd.id = s.sale_day_id
 							INNER JOIN sellers se ON se.id = s.seller_id
@@ -199,7 +206,14 @@ export async function handler(event) {
 							       s.qty_mara, s.qty_oreo, s.qty_nute, s.is_paid, s.pay_method, s.payment_date, s.payment_source,
 							       s.special_pricing_type, s.total_cents,
 							       sd.day AS sale_day,
-							       se.name AS seller_name
+							       se.name AS seller_name,
+							       (
+							           SELECT json_agg(json_build_object('name', t.name, 'color', t.color))
+							           FROM crm_client_tags ct
+							           JOIN crm_tags t ON ct.tag_id = t.id
+							           JOIN crm_client_sales ccs ON ct.client_id = ccs.client_id
+							           WHERE ccs.sale_id = s.id
+							       ) AS client_tags
 							FROM sales s
 							INNER JOIN sale_days sd ON sd.id = s.sale_day_id
 							INNER JOIN sellers se ON se.id = s.seller_id

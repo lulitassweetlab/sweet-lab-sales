@@ -1678,6 +1678,22 @@ function renderTable() {
 				});
 				td.appendChild(input);
 
+				// Render CRM Tags next to the name
+				if (Array.isArray(sale.client_tags) && sale.client_tags.length > 0) {
+					const tagsWrap = document.createElement('div');
+					tagsWrap.className = 'tag-badges-container';
+					tagsWrap.style.marginLeft = '8px';
+					
+					sale.client_tags.forEach(t => {
+						const span = document.createElement('span');
+						span.className = 'tag-badge-small';
+						span.style.backgroundColor = t.color || '#818cf8';
+						span.textContent = t.name;
+						tagsWrap.appendChild(span);
+					});
+					td.appendChild(tagsWrap);
+				}
+
 				const name = (sale.client_name || '').trim();
 				if (name) {
 					const key = normalizeClientName(name);
