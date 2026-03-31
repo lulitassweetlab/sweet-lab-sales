@@ -414,8 +414,17 @@
 
 				// Setup Select All on focus/click
 				[tdDesc, tdIng, tdSal].forEach(el => {
-					el.addEventListener('focus', () => setTimeout(() => selectAllContent(el), 10));
-					el.addEventListener('click', () => selectAllContent(el));
+					el.addEventListener('focus', () => setTimeout(() => {
+						if (!el._isClicked) selectAllContent(el);
+					}, 10));
+					el.addEventListener('mousedown', () => {
+						el._alreadyFocused = (document.activeElement === el);
+					});
+					el.addEventListener('click', () => {
+						if (!el._alreadyFocused) selectAllContent(el);
+						el._isClicked = true;
+						setTimeout(() => el._isClicked = false, 200);
+					});
 					el.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); el.blur(); } });
 				});
 
