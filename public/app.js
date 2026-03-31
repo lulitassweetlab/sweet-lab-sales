@@ -2021,10 +2021,28 @@ function wireDeliveredRowEditors() {
 		// Sanitize input to numbers only while typing
 		el.addEventListener('input', () => {
 			if (!el.isContentEditable) return;
-			let raw = (el.textContent || '').replace(/[^0-9]/g, '');
-			// Remove leading zeros
-			raw = raw.replace(/^0+(\d)/, '$1');
-			el.textContent = raw;
+			const selection = window.getSelection();
+			const cursorPos = selection.anchorOffset;
+			const current = el.textContent || '';
+			let sanitized = current.replace(/[^0-9]/g, '');
+			
+			// Remove leading zeros only if there are other digits
+			if (sanitized.length > 1) {
+				sanitized = sanitized.replace(/^0+/, '');
+			}
+			
+			if (current !== sanitized) {
+				el.textContent = sanitized;
+				// Restore cursor position
+				try {
+					const range = document.createRange();
+					const newPos = Math.min(cursorPos, el.textContent.length);
+					range.setStart(el.firstChild || el, newPos);
+					range.collapse(true);
+					selection.removeAllRanges();
+					selection.addRange(range);
+				} catch { }
+			}
 		});
 		// Save on Enter or blur
 		el.addEventListener('keydown', (ev) => {
