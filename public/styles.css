@@ -3354,6 +3354,8 @@ tfoot td {
 	overflow: hidden !important;
 	font-family: inherit !important;
 	display: block;
+	box-sizing: border-box !important;
+	line-height: 1.2 !important;
 }
 
 .inline-comment-input:focus {

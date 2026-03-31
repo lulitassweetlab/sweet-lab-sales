@@ -240,11 +240,13 @@ function renderClientDetailTable(rows) {
 		inlineComment.rows = 1;
 
 		function autoResize() {
-			inlineComment.style.height = 'auto';
+			inlineComment.style.height = '0px';
 			inlineComment.style.height = (inlineComment.scrollHeight) + 'px';
 		}
 		inlineComment.addEventListener('input', autoResize);
-		setTimeout(autoResize, 0);
+		inlineComment.addEventListener('focus', autoResize);
+		setTimeout(autoResize, 50); // Small buffer for DOM rendering
+		setTimeout(autoResize, 300); // Secondary buffer for mobile keyboards
 
 		inlineComment.addEventListener('change', async () => {
 			const newText = inlineComment.value.trim();
@@ -1780,12 +1782,14 @@ function renderTable() {
 				inlineComment.rows = 1;
 				
 				function autoResize() {
-					inlineComment.style.height = 'auto';
+					inlineComment.style.height = '0px';
 					inlineComment.style.height = (inlineComment.scrollHeight) + 'px';
 				}
 				
 				inlineComment.addEventListener('input', autoResize);
-				setTimeout(autoResize, 0); // Initial resize after mounting
+				inlineComment.addEventListener('focus', autoResize);
+				setTimeout(autoResize, 50); 
+				setTimeout(autoResize, 300);
 
 				inlineComment.addEventListener('change', async () => {
 					const newText = inlineComment.value.trim();
