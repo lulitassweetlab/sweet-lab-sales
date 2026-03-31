@@ -1599,7 +1599,7 @@
             }
 
             if (whatsapp && whatsapp.replace(/\D/g, '').length < 10) {
-                errDiv.textContent = 'El número de WhatsApp debe tener al menos 10 dígitos.';
+                errDiv.textContent = 'Número de WhatsApp inválido.';
                 errDiv.style.display = 'block';
                 document.getElementById('new-client-whatsapp').focus();
                 return;
