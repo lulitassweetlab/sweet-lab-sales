@@ -623,14 +623,19 @@
                 window.location.replace('/store.html');
             }
 
+            // ── UNIFIED FILTERING STATE ──────────────────────────────────────────────────
+            window.activeDirectoryData = []; // The current BASE set of clients being searched
+            
             // Search Bar filter logic (Unificado en Dashboard)
             document.getElementById('dashSearchInput').addEventListener('input', (e) => {
                 const term = e.target.value.toLowerCase();
+                const source = window.activeDirectoryData.length > 0 ? window.activeDirectoryData : directoryData;
+                
                 if(!term) {
-                    renderFullDirectoryInline(directoryData);
+                    renderFullDirectoryInline(source);
                     return;
                 }
-                const filtered = directoryData.filter(c => 
+                const filtered = source.filter(c => 
                     (c.name && c.name.toLowerCase().includes(term)) || 
                     (c.whatsapp && c.whatsapp.toLowerCase().includes(term))
                 );
@@ -909,7 +914,11 @@
         async function openStageClients(stageId, stageName, stageColor, shouldRestore = false) {
             const title = document.getElementById('dashContentTitle');
             const listEl = document.getElementById('dashContactList');
-            document.getElementById('dashSearchContainer').style.display = 'none';
+            const searchInput = document.getElementById('dashSearchInput');
+            
+            // Keep search bar visible and clear it
+            document.getElementById('dashSearchContainer').style.display = 'block';
+            if (searchInput) searchInput.value = '';
 
             title.innerHTML = `<span style="display:inline-block; width:12px; height:12px; border-radius:3px; background:${stageColor}; margin-right:8px;"></span> ${stageName}`;
             listEl.innerHTML = '<div class="spinner">Cargando clientes...</div>';
@@ -919,8 +928,10 @@
                 const clients = await res.json();
                 if (!Array.isArray(clients) || clients.length === 0) {
                     listEl.innerHTML = '<p style="text-align:center; padding:24px; color:var(--text-muted);">No hay clientes en esta etapa.</p>';
+                    window.activeDirectoryData = [];
                     return;
                 }
+                window.activeDirectoryData = clients;
                 listEl.innerHTML = clients.map(c => renderClientCardHtml(c)).join('');
                 if (shouldRestore) restoreScroll('dashStage');
             } catch(e) {
@@ -941,13 +952,21 @@
             fetchWithCache('debt', url, (allClients, isCache) => {
                 const title = document.getElementById('dashContentTitle');
                 const listEl = document.getElementById('dashContactList');
+                const search = document.getElementById('dashSearchContainer');
+                const searchInput = document.getElementById('dashSearchInput');
+                
+                if (search) search.style.display = 'block';
+                if (searchInput) searchInput.value = '';
+                
                 title.innerHTML = `💸 Clientes con saldo`;
                 
                 const debtClients = allClients.filter(c => Number(c.total_debt_cents) > 0);
                 if (!Array.isArray(debtClients) || debtClients.length === 0) {
                     listEl.innerHTML = '<p style="text-align:center; padding:24px; color:var(--text-muted);">No hay clientes con deuda pendiente.</p>';
+                    window.activeDirectoryData = [];
                     return;
                 }
+                window.activeDirectoryData = debtClients;
                 listEl.innerHTML = debtClients.map(c => renderClientCardHtml(c)).join('');
                 if (shouldRestore) restoreScroll('dashDebt');
             }, shouldRestore);
@@ -957,7 +976,11 @@
         async function openTagClients(tagId, tagName, tagColor, shouldRestore = false) {
             const title = document.getElementById('dashContentTitle');
             const listEl = document.getElementById('dashContactList');
-            document.getElementById('dashSearchContainer').style.display = 'none';
+            const searchInput = document.getElementById('dashSearchInput');
+            
+            // Keep search bar visible and clear it
+            document.getElementById('dashSearchContainer').style.display = 'block';
+            if (searchInput) searchInput.value = '';
 
             title.innerHTML = `<span style="display:inline-block; width:12px; height:12px; border-radius:3px; background:${tagColor}; margin-right:8px;"></span> ${tagName}`;
             listEl.innerHTML = '<div class="spinner">Cargando clientes...</div>';
@@ -967,8 +990,10 @@
                 const clients = await res.json();
                 if (!Array.isArray(clients) || clients.length === 0) {
                     listEl.innerHTML = '<p style="text-align:center; padding:24px; color:var(--text-muted);">No hay clientes con esta etiqueta.</p>';
+                    window.activeDirectoryData = [];
                     return;
                 }
+                window.activeDirectoryData = clients;
                 listEl.innerHTML = clients.map(c => renderClientCardHtml(c)).join('');
                 if (shouldRestore) restoreScroll('dashTag');
             } catch(e) {
@@ -1002,9 +1027,13 @@
                 const search = document.getElementById('dashSearchContainer');
 
                 search.style.display = 'block';
+                const searchInput = document.getElementById('dashSearchInput');
+                if (searchInput) searchInput.value = '';
+                
                 title.innerHTML = `👥 Directorio de Clientes`;
                 
                 directoryData = data;
+                window.activeDirectoryData = data;
                 renderFullDirectoryInline(data);
                 if (shouldRestore || currentScreen === 'dashSearch') restoreScroll('dashSearch');
             }, shouldRestore);
