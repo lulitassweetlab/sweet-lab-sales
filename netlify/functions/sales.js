@@ -560,6 +560,7 @@ export async function handler(event) {
 						const shortNameInput = (data.short_name ?? '').toString().trim();
 						const whatsappInput = (data.whatsapp ?? '').toString().trim();
 						const stageIdInput = data.funnel_stage_id ? Number(data.funnel_stage_id) : null;
+						const tagIds = Array.isArray(data.tag_ids) ? data.tag_ids : [];
 
 						if (!crmClient) {
 							const shortName = shortNameInput || clientNamePost.split(' ')[0] || clientNamePost;
@@ -579,21 +580,27 @@ export async function handler(event) {
 								await sql`INSERT INTO crm_client_sales (client_id, sale_id, seller_id) VALUES (${crmClient.id}, ${row.id}, ${sellerId})`;
 							}
 							
-							// Explicit stage assignment if provided via New Sale form
+							// Explicit stage assignment
 							if (stageIdInput) {
 								await sql`
 									INSERT INTO crm_client_stage (client_id, stage_id, updated_by, updated_at)
 									VALUES (${crmClient.id}, ${stageIdInput}, ${sellerId}, now())
 									ON CONFLICT (client_id) DO UPDATE SET stage_id = EXCLUDED.stage_id, updated_by = EXCLUDED.updated_by, updated_at = now()
 								`;
-								// Log stage change in history
-								await sql`
-									INSERT INTO crm_stage_history (client_id, old_stage_id, new_stage_id, note, changed_by, changed_at)
-									VALUES (${crmClient.id}, NULL, ${stageIdInput}, 'Asignado desde Tienda (Nuevo Pedido)', ${sellerId}, now())
-								`;
-							} else {
-								// Fallback to automation if no explicit stage was chosen
+							} else if (!data.funnel_stage_id) {
+								// Automated pipeline update only if no explicit stage was provided
 								await autoUpdateClientStage(crmClient.id, sellerId);
+							}
+
+							// Assignment of Custom Tags (crm_tags)
+							if (tagIds.length > 0) {
+								for (const tagId of tagIds) {
+									await sql`
+										INSERT INTO crm_client_tags (client_id, tag_id)
+										VALUES (${crmClient.id}, ${tagId})
+										ON CONFLICT DO NOTHING
+									`;
+								}
 							}
 						}
 					} catch (crmErr) {

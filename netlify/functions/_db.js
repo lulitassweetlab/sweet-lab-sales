@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 32; // 32: support for dynamic delivered columns in sale_days
+const SCHEMA_VERSION = 33; // 33: CRM Tags tables (crm_tags, crm_client_tags)
 
 export async function ensureSchema() {
 	if (schemaEnsured) return;
@@ -187,6 +187,26 @@ export async function ensureSchema() {
 			await sql`CREATE INDEX IF NOT EXISTS idx_sales_seller ON sales(seller_id)`;
 			await sql`CREATE INDEX IF NOT EXISTS idx_sale_items_sale ON sale_items(sale_id)`;
 			await sql`CREATE INDEX IF NOT EXISTS idx_clients_seller ON clients(seller_id)`;
+ 
+			await sql`
+				CREATE TABLE IF NOT EXISTS crm_tags (
+					id SERIAL PRIMARY KEY,
+					seller_id INTEGER NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
+					name TEXT NOT NULL,
+					color TEXT DEFAULT '#818cf8',
+					created_at TIMESTAMPTZ DEFAULT now(),
+					UNIQUE (seller_id, name)
+				)
+			`;
+			await sql`
+				CREATE TABLE IF NOT EXISTS crm_client_tags (
+					client_id INTEGER NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+					tag_id INTEGER NOT NULL REFERENCES crm_tags(id) ON DELETE CASCADE,
+					PRIMARY KEY (client_id, tag_id)
+				)
+			`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_crm_client_tags_client ON crm_client_tags(client_id)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_crm_client_tags_tag ON crm_client_tags(tag_id)`;
 
 
 			// Seed default desserts if empty

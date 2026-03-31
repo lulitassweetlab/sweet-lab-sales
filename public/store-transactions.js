@@ -244,25 +244,7 @@ function findSimilarClients(name) {
     return matches.map(m => m.name);
 }
 
-function openNewClientModal(name) {
-    document.getElementById('new-client-name-display').textContent = name;
-    
-    // Extract first name for short name suggestion
-    const firstName = (name || '').trim().split(' ')[0];
-    document.getElementById('new-client-shortname').value = firstName;
-    
-    const waInput = document.getElementById('new-client-whatsapp');
-    waInput.value = '';
-    
-    if (storeActiveSeller && storeActiveSeller.require_whatsapp) {
-        waInput.placeholder = 'WhatsApp *';
-    } else {
-        waInput.placeholder = 'WhatsApp';
-    }
-
-    document.getElementById('new-client-error').style.display = 'none';
-    document.getElementById('store-new-client-modal').style.display = 'flex';
-}
+/* openNewClientModal moved to store.html inline script to ensure tag loading coordination */
 
 async function executeCheckout(customerName) {
     // Collect all data BEFORE clearing the UI

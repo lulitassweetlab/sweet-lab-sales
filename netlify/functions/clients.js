@@ -321,6 +321,18 @@ export default async (req) => {
                 result = inserted;
             }
 
+            // ASSIGN TAGS (CRM Tags)
+            const tagIds = body.tag_ids;
+            if (result && result.id && Array.isArray(tagIds) && tagIds.length > 0) {
+                for (const tagId of tagIds) {
+                    await sql`
+                        INSERT INTO crm_client_tags (client_id, tag_id)
+                        VALUES (${result.id}, ${tagId})
+                        ON CONFLICT DO NOTHING
+                    `;
+                }
+            }
+
             return new Response(JSON.stringify(result), {
                 status: 200,
                 headers: { 'Content-Type': 'application/json' }

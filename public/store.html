@@ -1095,6 +1095,67 @@
                 right: 15px;
             }
         }
+
+        /* CRM Tags Styles */
+        .tag-selection-wrapper {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            padding: 10px 0;
+            justify-content: center;
+            align-items: center;
+            min-height: 36px;
+            margin-bottom: 8px;
+        }
+
+        .tag-button {
+            border: none;
+            border-radius: 100px;
+            padding: 4px 10px;
+            font-size: 10px;
+            font-weight: 700;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            opacity: 0.65;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+            white-space: nowrap;
+        }
+
+        .tag-button:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        .tag-button.active {
+            opacity: 1;
+            transform: scale(1.08);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            outline: 2px solid var(--primary);
+            outline-offset: 1.5px;
+        }
+
+        .tag-expand-btn {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 1px dashed var(--border);
+            background: transparent;
+            color: var(--muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.2s;
+            padding: 0;
+        }
+
+        .tag-expand-btn:hover {
+            background: var(--secondary);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
     </style>
 </head>
 
@@ -1230,7 +1291,9 @@
                 class="internal-checkout-input" style="margin-bottom: 12px;" />
 
             <input id="new-client-whatsapp" type="tel" placeholder="WhatsApp" class="internal-checkout-input"
-                style="margin-bottom: 20px;" />
+                style="margin-bottom: 8px;" />
+
+            <div id="new-client-tags" class="tag-selection-wrapper"></div>
 
             <div style="display: flex; gap: 10px; justify-content: space-between;">
                 <button id="close-new-client-modal" class="internal-checkout-btn"
@@ -1339,6 +1402,96 @@
         let storeClientList = [];
         let currentGalleryItems = [];
         let loginStep = 1;
+        
+        // CRM Tags state
+        let selectedTagIds = new Set();
+        async function loadStoreTags() {
+            const container = document.getElementById('new-client-tags');
+            if (!container) return;
+            container.innerHTML = '<p style="font-size:0.7rem; color:var(--muted); opacity:0.5;">Cargando etiquetas...</p>';
+            selectedTagIds.clear();
+            
+            if (!storeActiveSeller) {
+                console.warn('[CRM Tags] No hay vendedor activo para cargar etiquetas.');
+                container.innerHTML = '';
+                return;
+            }
+
+            try {
+                const headers = { 'Content-Type': 'application/json' };
+                if (storeAuthUser && storeAuthUser.token) headers['Authorization'] = 'Bearer ' + storeAuthUser.token;
+                
+                const res = await fetch(`/api/crm-tags?action=get_tag_summary&seller_id=${storeActiveSeller.id}`, { headers });
+                if (!res.ok) throw new Error('Error en API');
+                
+                const tags = await res.json();
+                container.innerHTML = '';
+                
+                if (!Array.isArray(tags) || tags.length === 0) {
+                    container.innerHTML = '<p style="font-size:0.8rem; color:var(--muted); opacity:0.6; padding: 4px;">Sin etiquetas en el CRM</p>';
+                    return;
+                }
+
+                const renderBtn = (t) => {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'tag-button';
+                    btn.style.backgroundColor = t.color || '#818cf8';
+                    btn.style.color = '#fff';
+                    btn.textContent = t.name;
+                    btn.onclick = (e) => {
+                        e.preventDefault();
+                        if (selectedTagIds.has(t.id)) {
+                            selectedTagIds.delete(t.id);
+                            btn.classList.remove('active');
+                        } else {
+                            selectedTagIds.add(t.id);
+                            btn.classList.add('active');
+                        }
+                    };
+                    return btn;
+                };
+
+                // Show top 6 sorted by frequency
+                const top = tags.slice(0, 6);
+                const others = tags.slice(6);
+                top.forEach(t => container.appendChild(renderBtn(t)));
+
+                if (others.length > 0) {
+                    const expand = document.createElement('button');
+                    expand.type = 'button';
+                    expand.className = 'tag-expand-btn';
+                    expand.textContent = '+';
+                    expand.onclick = (e) => {
+                        e.stopPropagation();
+                        expand.remove();
+                        others.forEach(t => container.appendChild(renderBtn(t)));
+                    };
+                    container.appendChild(expand);
+                }
+            } catch (err) { 
+                console.error('[CRM Tags] Error:', err);
+                container.innerHTML = '<p style="font-size:0.7rem; color:var(--danger);">Error al cargar etiquetas</p>';
+            }
+        }
+
+        // Overwrite openNewClientModal to ensure it exists and works even if cached externals
+        window.openNewClientModal = function(name) {
+            console.log('[Store] Abriendo modal de nuevo cliente para:', name);
+            document.getElementById('new-client-name-display').textContent = name;
+            
+            const firstName = (name || '').trim().split(' ')[0];
+            document.getElementById('new-client-shortname').value = firstName;
+            
+            const waInput = document.getElementById('new-client-whatsapp');
+            waInput.value = '';
+            waInput.placeholder = (storeActiveSeller && storeActiveSeller.require_whatsapp) ? 'WhatsApp *' : 'WhatsApp';
+
+            document.getElementById('new-client-error').style.display = 'none';
+            document.getElementById('store-new-client-modal').style.display = 'flex';
+            
+            loadStoreTags();
+        };
 
         // Initialize state from localStorage
         try {
@@ -1616,7 +1769,13 @@
                 const res = await fetch('/api/clients', {
                     method: 'POST',
                     headers,
-                    body: JSON.stringify({ seller_id: storeActiveSeller.id, name, short_name: short_name || null, whatsapp: whatsapp || null })
+                    body: JSON.stringify({ 
+                        seller_id: storeActiveSeller.id, 
+                        name, 
+                        short_name: short_name || null, 
+                        whatsapp: whatsapp || null,
+                        tag_ids: typeof selectedTagIds !== 'undefined' ? Array.from(selectedTagIds) : []
+                    })
                 });
                 if (!res.ok) throw new Error((await res.json()).error || 'Error al guardar cliente');
                 storeClientList.push(name);

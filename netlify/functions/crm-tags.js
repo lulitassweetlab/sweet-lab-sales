@@ -52,6 +52,21 @@ export async function handler(event) {
                 return json(clients.map(c => c.client_id));
             }
 
+            if (action === 'get_tag_summary') {
+                if (!sellerId) return json({ error: 'Faltante seller_id' }, 400);
+                const summary = await sql`
+                    SELECT 
+                        t.id, t.name, t.color,
+                        COUNT(ct.client_id) as client_count
+                    FROM crm_tags t
+                    LEFT JOIN crm_client_tags ct ON t.id = ct.tag_id
+                    WHERE t.seller_id = ${sellerId}
+                    GROUP BY t.id, t.name, t.color
+                    ORDER BY client_count DESC, t.name ASC
+                `;
+                return json(summary);
+            }
+
             if (action === 'get_clients_by_tag') {
                 const tagId = Number(params.get('tag_id'));
                 if (!tagId) return json({ error: 'Falta tag_id' }, 400);

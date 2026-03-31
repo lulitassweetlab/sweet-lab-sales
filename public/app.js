@@ -2382,62 +2382,6 @@ function openNewSalePopover(anchorX, anchorY) {
 		
 		extraRow.append(snWrap, waWrap);
 
-		// TAG SELECTION (Stages)
-		const tagWrapper = document.createElement('div');
-		tagWrapper.className = 'tag-selection-wrapper';
-
-		let selectedStageId = null;
-		async function loadTagButtons() {
-			try {
-				const sellerId = state?.currentSeller?.id;
-				if (!sellerId) return;
-				const summary = await api('GET', `/api/crm-stages?action=get_stage_summary&seller_id=${sellerId}`);
-				if (!Array.isArray(summary)) return;
-				
-				// Sort by frequency (client_count)
-				const sorted = [...summary].sort((a,b) => (b.client_count || 0) - (a.client_count || 0));
-				
-				const renderBtn = (s) => {
-					const btn = document.createElement('button');
-					btn.type = 'button';
-					btn.className = 'tag-button';
-					btn.style.backgroundColor = s.color || '#9E9E9E';
-					btn.textContent = s.name;
-					btn.onclick = () => {
-						const alreadyActive = btn.classList.contains('active');
-						tagWrapper.querySelectorAll('.tag-button').forEach(b => b.classList.remove('active'));
-						if (alreadyActive) {
-							selectedStageId = null;
-						} else {
-							btn.classList.add('active');
-							selectedStageId = s.id;
-						}
-					};
-					return btn;
-				};
-
-				// Show top 3 by default
-				const top = sorted.slice(0, 3);
-				const others = sorted.slice(3);
-				
-				top.forEach(s => tagWrapper.appendChild(renderBtn(s)));
-				
-				if (others.length > 0) {
-					const expand = document.createElement('button');
-					expand.type = 'button';
-					expand.className = 'tag-expand-btn';
-					expand.textContent = '+';
-					expand.onclick = (e) => {
-						e.stopPropagation();
-						expand.remove();
-						others.forEach(s => tagWrapper.appendChild(renderBtn(s)));
-					};
-					tagWrapper.appendChild(expand);
-				}
-			} catch (err) { console.error('Error loading tags:', err); }
-		}
-		loadTagButtons();
-
 		// Dessert rows (dynamic from state.desserts)
 		const qtyInputs = {};
 		for (const d of state.desserts) {
@@ -2509,7 +2453,7 @@ function openNewSalePopover(anchorX, anchorY) {
 		saveBtn.textContent = 'Guardar';
 		actions.append(cancelBtn, saveBtn);
 
-		pop.append(title, extraRow, tagWrapper, grid, specialPricingContainer, actions);
+		pop.append(title, extraRow, grid, specialPricingContainer, actions);
 		// Prepare hidden mount to avoid visible jump before clamping
 		pop.style.visibility = 'hidden';
 		pop.style.opacity = '0';
@@ -2575,8 +2519,7 @@ function openNewSalePopover(anchorX, anchorY) {
 					seller_id: sellerId,
 					client_name: clientInput.value.trim(),
 					short_name: snInput.value.trim(),
-					whatsapp: waInput.value.trim(),
-					funnel_stage_id: selectedStageId
+					whatsapp: waInput.value.trim()
 				};
 				if (state?.selectedDayId) payload.sale_day_id = state.selectedDayId;
 				const created = await api('POST', API.Sales, payload);
