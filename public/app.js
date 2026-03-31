@@ -240,13 +240,13 @@ function renderClientDetailTable(rows) {
 		inlineComment.rows = 1;
 
 		function autoResize() {
-			inlineComment.style.height = '0px';
+			inlineComment.style.height = 'auto'; // Use auto first for better scrollHeight recalc
 			inlineComment.style.height = (inlineComment.scrollHeight) + 'px';
 		}
 		inlineComment.addEventListener('input', autoResize);
 		inlineComment.addEventListener('focus', autoResize);
-		setTimeout(autoResize, 50); // Small buffer for DOM rendering
-		setTimeout(autoResize, 300); // Secondary buffer for mobile keyboards
+		// Multiple attempts to account for font loading and rendering
+		[50, 150, 450, 1000].forEach(ms => setTimeout(autoResize, ms));
 
 		inlineComment.addEventListener('change', async () => {
 			const newText = inlineComment.value.trim();
@@ -1782,14 +1782,13 @@ function renderTable() {
 				inlineComment.rows = 1;
 				
 				function autoResize() {
-					inlineComment.style.height = '0px';
+					inlineComment.style.height = 'auto';
 					inlineComment.style.height = (inlineComment.scrollHeight) + 'px';
 				}
 				
 				inlineComment.addEventListener('input', autoResize);
 				inlineComment.addEventListener('focus', autoResize);
-				setTimeout(autoResize, 50); 
-				setTimeout(autoResize, 300);
+				[50, 150, 450, 1000].forEach(ms => setTimeout(autoResize, ms));
 
 				inlineComment.addEventListener('change', async () => {
 					const newText = inlineComment.value.trim();

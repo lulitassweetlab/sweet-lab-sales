@@ -1438,6 +1438,8 @@ td {
 	border-bottom: 1px solid var(--border);
 	padding: 6px 6px;
 	text-align: center;
+	white-space: normal !important;
+	vertical-align: top;
 }
 
 /* Column widths base */
@@ -1506,6 +1508,8 @@ td {
 	th,
 	td {
 		padding: 3px 2px;
+		white-space: normal !important;
+		vertical-align: top;
 	}
 
 	th {
@@ -3320,6 +3324,7 @@ tfoot td {
 	align-items: flex-start;
 	gap: 2px;
 	width: 100%;
+	overflow: visible !important;
 }
 
 .client-row-1 {
