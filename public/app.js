@@ -59,7 +59,9 @@ async function loadGlobalClientDetailRows(clientName) {
 					qty_nute: Number(s.qty_nute || 0),
 					pay_method: s.pay_method || '',
 					is_paid: !!s.is_paid,
-					items: s.items || []
+					items: s.items || [],
+					client_tags: s.client_tags || [],
+					comment_text: s.comment_text || ''
 				});
 			}
 		} catch (e) {
@@ -103,7 +105,9 @@ async function loadClientDetailRows(clientName) {
 			qty_nute: Number(s.qty_nute || 0),
 			pay_method: s.pay_method || '',
 			is_paid: !!s.is_paid,
-			items: s.items || []
+			items: s.items || [],
+			client_tags: s.client_tags || [],
+			comment_text: s.comment_text || ''
 		});
 	}
 
@@ -178,29 +182,69 @@ function renderClientDetailTable(rows) {
 	// Update title with client name and seller name
 	const title = document.getElementById('client-detail-title');
 	if (title) {
-		// Clear existing content and create editable structure
 		title.innerHTML = '';
-		title.style.position = 'absolute';
-		title.style.left = '50%';
-		title.style.transform = 'translateX(-50%)';
-		title.style.margin = '0';
+		title.style.display = 'flex';
+		title.style.flexDirection = 'column';
+		title.style.alignItems = 'center';
+		title.style.gap = '4px';
+
+		// Line 1: Name and Seller
+		const line1 = document.createElement('div');
+		line1.style.display = 'flex';
+		line1.style.alignItems = 'center';
+		line1.style.gap = '8px';
+
 		const clientNameSpan = document.createElement('span');
 		clientNameSpan.textContent = state._clientDetailName || 'Cliente';
 		clientNameSpan.style.cursor = 'pointer';
-		clientNameSpan.title = 'Haz clic para editar';
 		clientNameSpan.addEventListener('click', () => {
 			openEditClientNameDialog(state._clientDetailName);
 		});
+		line1.appendChild(clientNameSpan);
 
-		const sellerNameSpan = document.createElement('span');
 		if (rows && rows.length > 0 && rows[0].sellerName) {
-			sellerNameSpan.textContent = '  -  ' + rows[0].sellerName;
-			sellerNameSpan.style.opacity = '0.7';
-			sellerNameSpan.style.marginRight = '5px';
+			const s = document.createElement('span');
+			s.textContent = '  -  ' + rows[0].sellerName;
+			s.style.opacity = '0.7';
+			line1.appendChild(s);
+		}
+		title.appendChild(line1);
+
+		// Line 2: Tags and Note (from primary/latest sale)
+		const line2 = document.createElement('div');
+		line2.className = 'client-row-2';
+		line2.style.justifyContent = 'center';
+		
+		const sampleSale = rows[0] || {};
+		if (Array.isArray(sampleSale.client_tags) && sampleSale.client_tags.length > 0) {
+			const tagsWrap = document.createElement('div');
+			tagsWrap.className = 'tag-badges-container';
+			sampleSale.client_tags.forEach(t => {
+				const span = document.createElement('span');
+				span.className = 'tag-badge-small';
+				span.style.backgroundColor = t.color || '#818cf8';
+				span.textContent = t.name;
+				tagsWrap.appendChild(span);
+			});
+			line2.appendChild(tagsWrap);
 		}
 
-		title.appendChild(clientNameSpan);
-		title.appendChild(sellerNameSpan);
+		const inlineComment = document.createElement('input');
+		inlineComment.className = 'inline-comment-input';
+		inlineComment.value = sampleSale.comment_text || '';
+		inlineComment.placeholder = 'Nota...';
+		inlineComment.style.textAlign = 'center';
+		inlineComment.style.width = '120px';
+		inlineComment.addEventListener('change', async () => {
+			const newText = inlineComment.value.trim();
+			// Applying to last sale id (sampleSale.id) isn't ideal but fits the flow
+			if (sampleSale.id) {
+				await saveComment(sampleSale.id, newText);
+				sampleSale.comment_text = newText;
+			}
+		});
+		line2.appendChild(inlineComment);
+		title.appendChild(line2);
 	}
 
 	if (!rows || rows.length === 0) {
@@ -1636,14 +1680,19 @@ function renderTable() {
 			(function () {
 				const td = document.createElement('td');
 				td.className = 'col-client';
+				
+				const container = document.createElement('div');
+				container.className = 'col-client-container';
+
+				const row1 = document.createElement('div');
+				row1.className = 'client-row-1';
+
 				const input = document.createElement('input');
 				input.className = 'input-cell client-input';
 				input.value = sale.client_name || '';
 				input.placeholder = '';
-				input.readOnly = true; // Make readonly - only editable via edit button
-				input.style.flexShrink = '1'; // Allow input to shrink if needed
-				input.style.minWidth = '0'; // Allow input to shrink below its content width
-				// Lock edit action for non-admins if pay_method chosen
+				input.readOnly = true;
+				
 				const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
 				const saleLocked = String(sale.pay_method || '').trim() !== '';
 				if (!isAdminUser && saleLocked) {
@@ -1652,38 +1701,65 @@ function renderTable() {
 				} else {
 					input.style.cursor = 'pointer';
 				}
-				// Add background color based on special pricing
+
 				if (sale.special_pricing_type === 'muestra') {
 					input.style.background = 'rgba(255, 165, 0, 0.5)';
 					input.style.color = 'white';
-					input.style.fontWeight = '600';
-					input.style.borderRadius = '6px';
-					input.style.padding = '3px 8px';
-					input.style.width = 'auto';
-					input.style.display = 'inline-block';
 				} else if (sale.special_pricing_type === 'a_costo') {
 					input.style.background = 'rgba(240, 98, 146, 0.5)';
 					input.style.color = 'white';
-					input.style.fontWeight = '600';
-					input.style.borderRadius = '6px';
-					input.style.padding = '3px 8px';
-					input.style.width = 'auto';
-					input.style.display = 'inline-block';
 				}
-				// Add click listener to show action bar
+
 				input.addEventListener('click', (e) => {
 					e.stopPropagation();
 					const currentName = input.value || '';
 					openClientActionBar(td, sale.id, currentName, e.clientX, e.clientY);
 				});
-				td.appendChild(input);
+				
+				row1.appendChild(input);
+				
+				// Recurrence and Comment Indicators
+				const indicators = document.createElement('div');
+				indicators.style.display = 'flex';
+				indicators.style.alignItems = 'center';
+				indicators.style.position = 'absolute';
+				indicators.style.right = '4px';
+				indicators.style.top = '50%';
+				indicators.style.transform = 'translateY(-50%)';
+				indicators.style.gap = '2px';
+				indicators.style.pointerEvents = 'none';
 
-				// Render CRM Tags next to the name
+				const name = (sale.client_name || '').trim();
+				if (name) {
+					const key = normalizeClientName(name);
+					const count = (state.clientCounts && typeof state.clientCounts.get === 'function') ? (state.clientCounts.get(key) || 0) : 0;
+					if (count > 1) {
+						const reg = document.createElement('span');
+						reg.className = 'client-reg-large';
+						reg.textContent = '®';
+						reg.style.fontSize = '10px';
+						reg.style.opacity = '0.6';
+						indicators.appendChild(reg);
+					}
+				}
+				
+				if (sale.comment_text && sale.comment_text.trim()) {
+					const commentMarker = document.createElement('span');
+					commentMarker.textContent = '💬';
+					commentMarker.style.fontSize = '10px';
+					indicators.appendChild(commentMarker);
+				}
+				
+				row1.appendChild(indicators);
+				container.appendChild(row1);
+
+				// Row 2: Tags and Inline Note
+				const row2 = document.createElement('div');
+				row2.className = 'client-row-2';
+
 				if (Array.isArray(sale.client_tags) && sale.client_tags.length > 0) {
 					const tagsWrap = document.createElement('div');
 					tagsWrap.className = 'tag-badges-container';
-					tagsWrap.style.marginLeft = '8px';
-					
 					sale.client_tags.forEach(t => {
 						const span = document.createElement('span');
 						span.className = 'tag-badge-small';
@@ -1691,48 +1767,27 @@ function renderTable() {
 						span.textContent = t.name;
 						tagsWrap.appendChild(span);
 					});
-					td.appendChild(tagsWrap);
+					row2.appendChild(tagsWrap);
 				}
 
-				const name = (sale.client_name || '').trim();
-				if (name) {
-					const key = normalizeClientName(name);
-					const count = (state.clientCounts && typeof state.clientCounts.get === 'function') ? (state.clientCounts.get(key) || 0) : 0;
-					if (count > 1) {
-						td.classList.add('has-reg');
-						const reg = document.createElement('span');
-						reg.className = 'client-reg-large';
-						reg.textContent = '®';
-						reg.title = 'Cliente recurrente';
-						reg.addEventListener('click', async (ev) => { ev.stopPropagation(); await openClientDetailView(name); });
-						td.appendChild(reg);
+				const inlineComment = document.createElement('input');
+				inlineComment.className = 'inline-comment-input';
+				inlineComment.value = sale.comment_text || '';
+				inlineComment.placeholder = 'Escribir nota...';
+				inlineComment.addEventListener('change', async () => {
+					const newText = inlineComment.value.trim();
+					if (newText !== (sale.comment_text || '').trim()) {
+						await saveComment(sale.id, newText);
+						sale.comment_text = newText;
+						// Update visual indicators if necessary (though simplified for now)
 					}
-				}
-				// Add comment marker if comment exists
-				if (sale.comment_text && sale.comment_text.trim()) {
-					td.classList.add('has-comment');
-					const commentMarker = document.createElement('span');
-					commentMarker.className = 'comment-marker';
-					commentMarker.textContent = '💬';
-					commentMarker.title = 'Ver/editar comentario';
-					commentMarker.addEventListener('click', async (ev) => {
-						ev.stopPropagation();
-						await openCommentDialog(input, sale.comment_text, ev.clientX, ev.clientY, sale.id);
-						// After closing (click outside), check if we need to update marker
-						const updatedSale = state.sales.find(s => s.id === sale.id);
-						if (updatedSale && !updatedSale.comment_text?.trim()) {
-							// Remove marker if comment was deleted
-							commentMarker.remove();
-							td.classList.remove('has-comment');
-						}
-					});
-					td.appendChild(commentMarker);
-					// Position comment marker dynamically based on text width
-					updateCommentMarkerPosition(input, commentMarker);
-					// Update position on input changes
-					input.addEventListener('input', () => updateCommentMarkerPosition(input, commentMarker));
-					input.addEventListener('blur', () => updateCommentMarkerPosition(input, commentMarker));
-				}
+				});
+				inlineComment.addEventListener('click', (e) => e.stopPropagation());
+				
+				row2.appendChild(inlineComment);
+				container.appendChild(row2);
+
+				td.appendChild(container);
 				return td;
 			})()
 		);

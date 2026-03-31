@@ -3314,6 +3314,52 @@ tfoot td {
 	vertical-align: middle;
 }
 
+.col-client-container {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 2px;
+	width: 100%;
+}
+
+.client-row-1 {
+	display: flex;
+	align-items: center;
+	width: 100%;
+	position: relative;
+}
+
+.client-row-2 {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	width: 100%;
+	padding-left: 2px;
+}
+
+.inline-comment-input {
+	border: none !important;
+	background: transparent !important;
+	font-size: 10px !important;
+	color: var(--muted) !important;
+	padding: 0 !important;
+	margin: 0 !important;
+	height: 14px !important;
+	flex: 1;
+	min-width: 40px;
+	outline: none !important;
+}
+
+.inline-comment-input:focus {
+	color: var(--text) !important;
+	border-bottom: 1px dotted var(--border) !important;
+}
+
+.inline-comment-input::placeholder {
+	opacity: 0.4;
+	font-style: italic;
+}
+
 .client-info-row {
     display: flex;
     flex-direction: column;
