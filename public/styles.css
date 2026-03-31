@@ -1492,7 +1492,7 @@ td {
 	table {
 		width: 100%;
 		min-width: 0;
-		table-layout: fixed;
+		table-layout: auto;
 	}
 
 	#sales-table thead {
@@ -3350,17 +3350,21 @@ tfoot td {
 	font-style: italic !important;
 	padding: 0 !important;
 	margin: 0 !important;
-	height: auto;
-	min-height: 14px !important;
+	min-height: 14px;
 	flex: 1;
 	min-width: 40px;
 	outline: none !important;
-	resize: none !important;
-	overflow: hidden !important;
+	word-break: break-word !important;
+	white-space: pre-wrap !important;
 	font-family: inherit !important;
 	display: block;
-	box-sizing: border-box !important;
-	line-height: 1.2 !important;
+	cursor: text;
+}
+
+.inline-comment-input[data-placeholder]:empty:before {
+	content: attr(data-placeholder);
+	color: #999;
+	opacity: 0.5;
 }
 
 .inline-comment-input:focus {

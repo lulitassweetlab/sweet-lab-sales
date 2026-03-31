@@ -229,27 +229,25 @@ function renderClientDetailTable(rows) {
 			line2.appendChild(tagsWrap);
 		}
 
-		const inlineComment = document.createElement('textarea');
+		const inlineComment = document.createElement('div');
 		inlineComment.className = 'inline-comment-input';
-		inlineComment.value = sampleSale.comment_text || '';
-		inlineComment.placeholder = 'Nota...';
+		inlineComment.contentEditable = 'true';
+		inlineComment.textContent = sampleSale.comment_text || '';
+		if (!inlineComment.textContent) inlineComment.setAttribute('data-placeholder', 'Nota...');
+		
 		inlineComment.style.textAlign = 'center';
 		inlineComment.style.width = '120px';
 		inlineComment.style.display = 'block';
 		inlineComment.style.margin = '0 auto';
-		inlineComment.rows = 1;
+		inlineComment.style.minHeight = '14px';
 
-		function autoResize() {
-			inlineComment.style.height = 'auto'; // Use auto first for better scrollHeight recalc
-			inlineComment.style.height = (inlineComment.scrollHeight) + 'px';
-		}
-		inlineComment.addEventListener('input', autoResize);
-		inlineComment.addEventListener('focus', autoResize);
-		// Multiple attempts to account for font loading and rendering
-		[50, 150, 450, 1000].forEach(ms => setTimeout(autoResize, ms));
+		inlineComment.addEventListener('input', () => {
+			if (inlineComment.textContent) inlineComment.removeAttribute('data-placeholder');
+			else inlineComment.setAttribute('data-placeholder', 'Nota...');
+		});
 
-		inlineComment.addEventListener('change', async () => {
-			const newText = inlineComment.value.trim();
+		inlineComment.addEventListener('blur', async () => {
+			const newText = inlineComment.textContent.trim();
 			if (sampleSale.id) {
 				await saveComment(sampleSale.id, newText);
 				sampleSale.comment_text = newText;
@@ -1775,23 +1773,19 @@ function renderTable() {
 					row2.appendChild(tagsWrap);
 				}
 
-				const inlineComment = document.createElement('textarea');
+				const inlineComment = document.createElement('div');
 				inlineComment.className = 'inline-comment-input';
-				inlineComment.value = sale.comment_text || '';
-				inlineComment.placeholder = 'Escribir nota...';
-				inlineComment.rows = 1;
+				inlineComment.contentEditable = 'true';
+				inlineComment.textContent = sale.comment_text || '';
+				if (!inlineComment.textContent) inlineComment.setAttribute('data-placeholder', 'Escribir nota...');
 				
-				function autoResize() {
-					inlineComment.style.height = 'auto';
-					inlineComment.style.height = (inlineComment.scrollHeight) + 'px';
-				}
-				
-				inlineComment.addEventListener('input', autoResize);
-				inlineComment.addEventListener('focus', autoResize);
-				[50, 150, 450, 1000].forEach(ms => setTimeout(autoResize, ms));
+				inlineComment.addEventListener('input', () => {
+					if (inlineComment.textContent) inlineComment.removeAttribute('data-placeholder');
+					else inlineComment.setAttribute('data-placeholder', 'Escribir nota...');
+				});
 
-				inlineComment.addEventListener('change', async () => {
-					const newText = inlineComment.value.trim();
+				inlineComment.addEventListener('blur', async () => {
+					const newText = inlineComment.textContent.trim();
 					if (newText !== (sale.comment_text || '').trim()) {
 						await saveComment(sale.id, newText);
 						sale.comment_text = newText;
