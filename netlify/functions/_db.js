@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 33; // 33: CRM Tags tables (crm_tags, crm_client_tags)
+const SCHEMA_VERSION = 34; // 34: Added crm_activities, crm_stages, crm_client_sales for Sales->CRM sync
 
 export async function ensureSchema() {
 	if (schemaEnsured) return;
@@ -208,6 +208,60 @@ export async function ensureSchema() {
 			await sql`CREATE INDEX IF NOT EXISTS idx_crm_client_tags_client ON crm_client_tags(client_id)`;
 			await sql`CREATE INDEX IF NOT EXISTS idx_crm_client_tags_tag ON crm_client_tags(tag_id)`;
 
+			// 34: CRM Activities (Timeline), Stages and Sales Link
+			await sql`
+				CREATE TABLE IF NOT EXISTS crm_stages (
+					id SERIAL PRIMARY KEY,
+					name VARCHAR(50) UNIQUE NOT NULL,
+					color VARCHAR(20) DEFAULT '#818cf8',
+					position INTEGER DEFAULT 0
+				)
+			`;
+			await sql`
+				CREATE TABLE IF NOT EXISTS crm_client_stage (
+					client_id INTEGER PRIMARY KEY REFERENCES clients(id) ON DELETE CASCADE,
+					stage_id INTEGER REFERENCES crm_stages(id) ON DELETE SET NULL,
+					updated_by INTEGER,
+					updated_at TIMESTAMPTZ DEFAULT now()
+				)
+			`;
+			await sql`
+				CREATE TABLE IF NOT EXISTS crm_stage_history (
+					id SERIAL PRIMARY KEY,
+					client_id INTEGER NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+					old_stage_id INTEGER,
+					new_stage_id INTEGER,
+					note TEXT,
+					changed_by INTEGER,
+					changed_at TIMESTAMPTZ DEFAULT now()
+				)
+			`;
+			await sql`
+				CREATE TABLE IF NOT EXISTS crm_activities (
+					id SERIAL PRIMARY KEY,
+					seller_id INTEGER REFERENCES sellers(id) ON DELETE CASCADE,
+					client_id INTEGER NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+					related_sale_id INTEGER REFERENCES sales(id) ON DELETE SET NULL,
+					activity_type VARCHAR(50) DEFAULT 'note', -- 'note', 'call', 'order', etc.
+					description TEXT,
+					created_by TEXT,
+					created_at TIMESTAMPTZ DEFAULT now()
+				)
+			`;
+			await sql`
+				CREATE TABLE IF NOT EXISTS crm_client_sales (
+					id SERIAL PRIMARY KEY,
+					client_id INTEGER NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+					sale_id INTEGER UNIQUE NOT NULL REFERENCES sales(id) ON DELETE CASCADE,
+					seller_id INTEGER NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
+					linked_at TIMESTAMPTZ DEFAULT now()
+				)
+			`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_crm_activities_client ON crm_activities(client_id)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_crm_activities_sale ON crm_activities(related_sale_id)`;
+			await sql`CREATE INDEX IF NOT EXISTS idx_crm_client_sales_client ON crm_client_sales(client_id)`;
+
+
 
 			// Seed default desserts if empty
 			const dessertCount = await sql`SELECT COUNT(*)::int AS c FROM desserts`;
@@ -228,6 +282,19 @@ export async function ensureSchema() {
 			const userCount = await sql`SELECT COUNT(*)::int AS c FROM users`;
 			if ((userCount[0]?.c || 0) === 0) {
 				await sql`INSERT INTO users (username, password_hash, role) VALUES ('jorge', 'Jorge123', 'superadmin'), ('marcela', 'marcelasweet', 'admin'), ('aleja', 'alejasweet', 'admin')`;
+			}
+
+			// Seed default CRM stages
+			const stageCount = await sql`SELECT COUNT(*)::int AS c FROM crm_stages`;
+			if ((stageCount[0]?.c || 0) === 0) {
+				await sql`
+					INSERT INTO crm_stages (name, color, position) VALUES 
+					('Prospecto', '#94a3b8', 1),
+					('Cliente nuevo', '#22c55e', 2),
+					('Cliente recurrente', '#3b82f6', 3),
+					('Cliente VIP', '#eab308', 4),
+					('Perdido', '#f43f5e', 5)
+				`;
 			}
 
 			// Migration: Migrate old sales columns to sale_items
