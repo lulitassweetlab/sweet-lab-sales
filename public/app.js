@@ -11481,18 +11481,19 @@ function renderTagFilters(sales, containerId, onFilterChange) {
 
 	// Extract unique tags from the provided sales data
 	const allTags = [];
-	const tagIds = new Set();
+	const seenKeys = new Set();
 	
 	(sales || []).forEach(s => {
 		(s.client_tags || []).forEach(t => {
-			if (!tagIds.has(t.id)) {
-				tagIds.add(t.id);
+			const key = t.id || t.name; // Use ID or name as key
+			if (!seenKeys.has(key)) {
+				seenKeys.add(key);
 				allTags.push(t);
 			}
 		});
 	});
 
-	// If no tags, clear and hide or keep empty
+	// If no tags, clear and hide
 	if (allTags.length === 0) {
 		container.innerHTML = '';
 		return;
@@ -11506,8 +11507,20 @@ function renderTagFilters(sales, containerId, onFilterChange) {
 	allTags.forEach(tag => {
 		const chip = document.createElement('div');
 		chip.className = 'tag-filter-chip';
-		if (state.currentTagIdFilter === tag.id) chip.classList.add('active');
+		const isActive = state.currentTagIdFilter === tag.id;
+		if (isActive) chip.classList.add('active');
 		
+		const tagColor = tag.color || '#818cf8';
+		chip.style.borderColor = tagColor;
+		
+		if (isActive) {
+			chip.style.backgroundColor = tagColor;
+			chip.style.color = '#fff';
+		} else {
+			chip.style.color = tagColor;
+			chip.style.backgroundColor = 'transparent';
+		}
+
 		chip.textContent = tag.name;
 		chip.addEventListener('click', () => {
 			if (state.currentTagIdFilter === tag.id) {
