@@ -1036,11 +1036,9 @@
                         } catch(e) { throw new Error('HTTP ' + response.status); }
                     }
                     const sellers = await response.json();
-                    alert('Debug: ' + sellers.length + ' vendedores cargados correctamente desde la base de datos.');
                     renderSellersRules(sellers);
                 } catch (err) {
                     console.error('Error loading sellers:', err);
-                    alert('Error Debug: No se pudieron cargar las reglas (' + err.message + ')');
                 }
             }
 
