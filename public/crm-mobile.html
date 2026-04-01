@@ -625,10 +625,13 @@
 
             // ── UNIFIED FILTERING STATE ──────────────────────────────────────────────────
             window.activeDirectoryData = []; // The current BASE set of clients being searched
+            window.crmSearchTerm = ''; // Global state to persist search term
             
             // Search Bar filter logic (Unificado en Dashboard)
             document.getElementById('dashSearchInput').addEventListener('input', (e) => {
                 const term = e.target.value.toLowerCase();
+                window.crmSearchTerm = term; // Save term globally
+                
                 const source = window.activeDirectoryData.length > 0 ? window.activeDirectoryData : directoryData;
                 
                 if(!term) {
@@ -943,6 +946,10 @@
             const title = document.getElementById('dashContentTitle');
             const search = document.getElementById('dashSearchContainer');
             search.style.display = 'none';
+            window.crmSearchTerm = ''; // Clear search when going back to dashboard main
+            const searchInput = document.getElementById('dashSearchInput');
+            if(searchInput) searchInput.value = '';
+            
             title.innerHTML = `💡 Contactar Hoy`;
             loadDashboard();
         }
@@ -956,7 +963,10 @@
                 const searchInput = document.getElementById('dashSearchInput');
                 
                 if (search) search.style.display = 'block';
-                if (searchInput) searchInput.value = '';
+                
+                // Restaura búsqueda si existe
+                const term = window.crmSearchTerm || '';
+                if (searchInput) searchInput.value = term;
                 
                 title.innerHTML = `💸 Clientes con saldo`;
                 
@@ -966,8 +976,19 @@
                     window.activeDirectoryData = [];
                     return;
                 }
+                
                 window.activeDirectoryData = debtClients;
-                listEl.innerHTML = debtClients.map(c => renderClientCardHtml(c)).join('');
+                
+                if (term) {
+                    const filtered = debtClients.filter(c => 
+                        (c.name && c.name.toLowerCase().includes(term)) || 
+                        (c.whatsapp && c.whatsapp.toLowerCase().includes(term))
+                    );
+                    renderFullDirectoryInline(filtered);
+                } else {
+                    renderFullDirectoryInline(debtClients);
+                }
+
                 if (shouldRestore) restoreScroll('dashDebt');
             }, shouldRestore);
         }
@@ -1028,13 +1049,25 @@
 
                 search.style.display = 'block';
                 const searchInput = document.getElementById('dashSearchInput');
-                if (searchInput) searchInput.value = '';
+                
+                // Restaura búsqueda si existe
+                const term = window.crmSearchTerm || '';
+                if (searchInput) searchInput.value = term;
                 
                 title.innerHTML = `👥 Directorio de Clientes`;
                 
                 directoryData = data;
                 window.activeDirectoryData = data;
-                renderFullDirectoryInline(data);
+                
+                if (term) {
+                    const filtered = data.filter(c => 
+                        (c.name && c.name.toLowerCase().includes(term)) || 
+                        (c.whatsapp && c.whatsapp.toLowerCase().includes(term))
+                    );
+                    renderFullDirectoryInline(filtered);
+                } else {
+                    renderFullDirectoryInline(data);
+                }
                 if (shouldRestore || currentScreen === 'dashSearch') restoreScroll('dashSearch');
             }, shouldRestore);
         }
