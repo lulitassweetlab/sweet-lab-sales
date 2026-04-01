@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 35; // 35: Added is_reviewed to sale_days for Admin workflow
+const SCHEMA_VERSION = 36; // 36: Added is_reviewed column to sale_days (migration fix)
 
 export async function ensureSchema() {
 	if (schemaEnsured) return;
@@ -321,6 +321,7 @@ export async function ensureSchema() {
 			try {
 				await sql`ALTER TABLE sellers ADD COLUMN IF NOT EXISTS require_whatsapp BOOLEAN NOT NULL DEFAULT false`;
 				await sql`ALTER TABLE sale_days ADD COLUMN IF NOT EXISTS delivered_counts JSONB NOT NULL DEFAULT '{}'::jsonb`;
+				await sql`ALTER TABLE sale_days ADD COLUMN IF NOT EXISTS is_reviewed BOOLEAN NOT NULL DEFAULT false`;
 			} catch (mErr) { console.error('Migration error for dynamic columns:', mErr); }
 
 			await sql`UPDATE schema_meta SET version = ${SCHEMA_VERSION}, updated_at = now()`;
