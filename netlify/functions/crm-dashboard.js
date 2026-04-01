@@ -85,7 +85,7 @@ export async function handler(event) {
         // 4. Clientes para Reactivar con etapa y deuda
         const inactiveClientsRaw = await sql`
             WITH ClientSales AS (
-                SELECT c.id, c.name, c.whatsapp, MAX(sd.day) as last_date
+                SELECT c.id, c.name, c.whatsapp, MAX(sd.day)::text as last_date
                 FROM clients c
                 JOIN crm_client_sales cs ON c.id = cs.client_id
                 JOIN sales s ON cs.sale_id = s.id
@@ -105,7 +105,7 @@ export async function handler(event) {
             FROM ClientSales cs
             LEFT JOIN crm_client_stage cst ON cs.id = cst.client_id
             LEFT JOIN crm_stages st ON cst.stage_id = st.id
-            WHERE cs.last_date < CURRENT_DATE - INTERVAL '30 days'
+            WHERE cs.last_date::date < CURRENT_DATE - INTERVAL '30 days'
             ORDER BY cs.last_date ASC
             LIMIT 20
         `;

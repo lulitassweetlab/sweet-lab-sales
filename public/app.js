@@ -11037,11 +11037,11 @@ async function openHistoryPopover(saleId, field, anchorX, anchorY) {
 			if (lower === 'client_name') label = 'Cliente';
 			if (lower === 'pay_method') {
 				const fmt = (v) => v === 'efectivo' ? 'Efectivo' : v === 'transf' ? 'Transferencia' : '-';
-				item.textContent = `[${when.toLocaleString()}] Pago: ${fmt(oldV)} → ${fmt(newV)}`;
+				item.textContent = `[${when.toLocaleDateString()}] Pago: ${fmt(oldV)} → ${fmt(newV)}`;
 			} else if (label) {
-				item.textContent = `[${when.toLocaleString()}] ${label}: ${oldV} → ${newV}`;
+				item.textContent = `[${when.toLocaleDateString()}] ${label}: ${oldV} → ${newV}`;
 			} else {
-				item.textContent = `[${when.toLocaleString()}] ${oldV} → ${newV}`;
+				item.textContent = `[${when.toLocaleDateString()}] ${oldV} → ${newV}`;
 			}
 			list.appendChild(item);
 		}

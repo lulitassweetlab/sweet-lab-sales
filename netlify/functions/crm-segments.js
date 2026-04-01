@@ -32,7 +32,7 @@ export async function handler(event) {
             SELECT 
                 c.id, c.name, c.short_name, c.whatsapp, c.created_at,
                 COALESCE(SUM(s.total_cents), 0) as lifetime_value,
-                MAX(sd.day) as last_purchase_date,
+                MAX(sd.day)::text as last_purchase_date,
                 COALESCE(SUM(CASE WHEN s.is_paid = false THEN s.total_cents ELSE 0 END), 0) as total_debt
             FROM clients c
             LEFT JOIN crm_client_sales cs ON c.id = cs.client_id

@@ -35,7 +35,7 @@ export async function handler(event) {
                         c.address, c.latitude, c.longitude,
                         COUNT(s.id) as total_orders,
                         COALESCE(SUM(s.total_cents), 0) as lifetime_value_cents,
-                        MAX(sd.day) as last_purchase_date,
+                        MAX(sd.day)::text as last_purchase_date,
                         COALESCE(SUM(CASE WHEN s.pay_method IS NULL OR s.pay_method = '' OR s.pay_method = '-' OR s.pay_method = 'entregado' THEN s.total_cents ELSE 0 END), 0) as total_debt_cents,
                         (
                             SELECT json_agg(json_build_object('id', t.id, 'name', t.name, 'color', t.color))
@@ -55,13 +55,13 @@ export async function handler(event) {
 
                 // 2. Sales History (Read-only directly from sales table via bridge)
                 const sales = await sql`
-                    SELECT s.id, sd.day as created_at, s.total_cents, s.is_paid, s.pay_method,
+                    SELECT s.id, sd.day::text as created_at, s.total_cents, s.is_paid, s.pay_method,
                            s.qty_arco, s.qty_melo, s.qty_mara, s.qty_oreo, s.qty_nute,
                            (
-                               SELECT json_agg(json_build_object('name', d.short_code, 'name_full', d.name, 'qty', si.quantity))
-                               FROM sale_items si
-                               JOIN desserts d ON d.id = si.dessert_id
-                               WHERE si.sale_id = s.id
+                               SELECT json_agg(json_build_object('name', d.short_code, 'name_full', d.name, 'qty', i.quantity))
+                               FROM sale_items i
+                               JOIN desserts d ON d.id = i.dessert_id
+                               WHERE i.sale_id = s.id
                            ) as dynamic_items
                     FROM sales s
                     JOIN crm_client_sales cs ON s.id = cs.sale_id
@@ -101,7 +101,7 @@ export async function handler(event) {
                     st.name as stage_name, st.color as stage_color,
                     COUNT(s.id) as total_orders,
                     COALESCE(SUM(s.total_cents), 0) as lifetime_value_cents,
-                    MAX(sd.day) as last_purchase_date,
+                    MAX(sd.day)::text as last_purchase_date,
                     COALESCE(SUM(CASE WHEN s.pay_method IS NULL OR s.pay_method = '' OR s.pay_method = '-' OR s.pay_method = 'entregado' THEN s.total_cents ELSE 0 END), 0) as total_debt_cents,
                     (
                         SELECT json_agg(json_build_object('id', t.id, 'name', t.name, 'color', t.color))
@@ -119,6 +119,8 @@ export async function handler(event) {
                 GROUP BY c.id, c.name, c.whatsapp, st.name, st.color, st.id
                 ORDER BY MAX(sd.day) DESC NULLS LAST, c.name ASC
             `;
+            return json(directory);
+
             return json(directory);
 
         }
