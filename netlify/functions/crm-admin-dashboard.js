@@ -20,35 +20,43 @@ export async function handler(event) {
         }
         let filterSellers = sellerIds.length > 0;
         
-        let dtStart = new Date();
-        let dtEnd = new Date();
+        const toISODate = (d) => d.toISOString().split('T')[0];
+        
+        let now = new Date();
+        // Adjust "now" to Colombia time (-5h) for a more accurate "today" based on user location
+        // Actually, we can just use the server's now and let the comparison be robust.
+        // But for "Today", we want the user's today.
+        let todayStr = toISODate(new Date(new Date().getTime() - (5 * 60 * 60 * 1000)));
+
+        let dtStartStr, dtEndStr;
         
         if (timeRange === 'custom' && event.queryStringParameters?.start && event.queryStringParameters?.end) {
-            dtStart = new Date(event.queryStringParameters.start + 'T00:00:00');
-            dtEnd = new Date(event.queryStringParameters.end + 'T23:59:59');
+            dtStartStr = event.queryStringParameters.start;
+            dtEndStr = event.queryStringParameters.end;
         } else if (timeRange === 'today') {
-            dtStart.setHours(0, 0, 0, 0);
-            dtEnd.setHours(23, 59, 59, 999);
+            dtStartStr = todayStr;
+            dtEndStr = todayStr;
         } else if (timeRange === 'week') {
-            const day = dtStart.getDay() || 7; // Monday is 1, Sunday is 7
-            dtStart.setDate(dtStart.getDate() - (day - 1));
-            dtStart.setHours(0, 0, 0, 0);
-            dtEnd.setDate(dtStart.getDate() + 6);
-            dtEnd.setHours(23, 59, 59, 999);
+            let d0 = new Date(new Date().getTime() - (5 * 60 * 60 * 1000));
+            const day = d0.getDay() || 7; 
+            d0.setDate(d0.getDate() - (day - 1));
+            dtStartStr = toISODate(d0);
+            d0.setDate(d0.getDate() + 6);
+            dtEndStr = toISODate(d0);
         } else {
             // month (default)
-            dtStart = new Date(dtStart.getFullYear(), dtStart.getMonth(), 1);
-            dtStart.setHours(0, 0, 0, 0);
-            dtEnd.setHours(23, 59, 59, 999);
+            let d0 = new Date(new Date().getTime() - (5 * 60 * 60 * 1000));
+            dtStartStr = toISODate(new Date(d0.getFullYear(), d0.getMonth(), 1));
+            dtEndStr = todayStr; // Or end of month? Usually today is fine for current month view.
         }
 
         // 1. General Stats (Total Selected Period and Total Today)
         const [generalStats] = await sql`
             SELECT 
-                COUNT(s.id) FILTER (WHERE sd.day = CURRENT_DATE AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))) as sales_today_count,
-                COALESCE(SUM(s.total_cents) FILTER (WHERE sd.day = CURRENT_DATE AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))), 0) as sales_today_cents,
-                COALESCE(SUM(s.total_cents) FILTER (WHERE sd.day >= ${dtStart} AND sd.day <= ${dtEnd} AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))), 0) as sales_period_cents,
-                COUNT(s.id) FILTER (WHERE sd.day >= ${dtStart} AND sd.day <= ${dtEnd} AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))) as sales_period_count,
+                COUNT(s.id) FILTER (WHERE sd.day = ${todayStr}::date AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))) as sales_today_count,
+                COALESCE(SUM(s.total_cents) FILTER (WHERE sd.day = ${todayStr}::date AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))), 0) as sales_today_cents,
+                COALESCE(SUM(s.total_cents) FILTER (WHERE sd.day >= ${dtStartStr}::date AND sd.day <= ${dtEndStr}::date AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))), 0) as sales_period_cents,
+                COUNT(s.id) FILTER (WHERE sd.day >= ${dtStartStr}::date AND sd.day <= ${dtEndStr}::date AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))) as sales_period_count,
                 (SELECT COUNT(DISTINCT client_id) FROM crm_client_sales WHERE ${!filterSellers}::boolean OR seller_id = ANY(${sellerIds}::int[])) as active_clients_count
             FROM sales s
             LEFT JOIN sale_days sd ON sd.id = s.sale_day_id;
@@ -58,12 +66,12 @@ export async function handler(event) {
         // Combine sales joined with sellers, plus subqueries for activities
         const sellerStats = await sql`
             WITH unpivoted_sales AS (
-                SELECT s.id as sale_id, s.seller_id, sd.day as sale_date, 'arco' as product_name, s.qty_arco as qty FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_arco > 0 AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd} AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))
-                UNION ALL SELECT s.id, s.seller_id, sd.day, 'melo', s.qty_melo FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_melo > 0 AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd} AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))
-                UNION ALL SELECT s.id, s.seller_id, sd.day, 'mara', s.qty_mara FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_mara > 0 AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd} AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))
-                UNION ALL SELECT s.id, s.seller_id, sd.day, 'oreo', s.qty_oreo FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_oreo > 0 AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd} AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))
-                UNION ALL SELECT s.id, s.seller_id, sd.day, 'nute', s.qty_nute FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_nute > 0 AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd} AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))
-                UNION ALL SELECT s.id, s.seller_id, sd.day, d.short_code, si.quantity FROM sales s JOIN sale_items si ON s.id = si.sale_id JOIN desserts d ON si.dessert_id = d.id JOIN sale_days sd ON s.sale_day_id = sd.id WHERE si.quantity > 0 AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd} AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))
+                SELECT s.id as sale_id, s.seller_id, sd.day as sale_date, 'arco' as product_name, s.qty_arco as qty FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_arco > 0 AND sd.day >= ${dtStartStr}::date AND sd.day <= ${dtEndStr}::date AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))
+                UNION ALL SELECT s.id, s.seller_id, sd.day, 'melo', s.qty_melo FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_melo > 0 AND sd.day >= ${dtStartStr}::date AND sd.day <= ${dtEndStr}::date AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))
+                UNION ALL SELECT s.id, s.seller_id, sd.day, 'mara', s.qty_mara FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_mara > 0 AND sd.day >= ${dtStartStr}::date AND sd.day <= ${dtEndStr}::date AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))
+                UNION ALL SELECT s.id, s.seller_id, sd.day, 'oreo', s.qty_oreo FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_oreo > 0 AND sd.day >= ${dtStartStr}::date AND sd.day <= ${dtEndStr}::date AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))
+                UNION ALL SELECT s.id, s.seller_id, sd.day, 'nute', s.qty_nute FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_nute > 0 AND sd.day >= ${dtStartStr}::date AND sd.day <= ${dtEndStr}::date AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))
+                UNION ALL SELECT s.id, s.seller_id, sd.day, d.short_code, si.quantity FROM sales s JOIN sale_items si ON s.id = si.sale_id JOIN desserts d ON si.dessert_id = d.id JOIN sale_days sd ON s.sale_day_id = sd.id WHERE si.quantity > 0 AND sd.day >= ${dtStartStr}::date AND sd.day <= ${dtEndStr}::date AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))
             ),
             sales_with_commissions AS (
                 SELECT 
@@ -84,21 +92,21 @@ export async function handler(event) {
             )
             SELECT 
                 sl.id, sl.name, sl.bill_color,
-                COALESCE(SUM(s.total_cents), 0) as total_cents,
-                COUNT(s.id) as total_sales,
+                COALESCE(SUM(s.total_cents) FILTER (WHERE sd.id IS NOT NULL), 0) as total_cents,
+                COUNT(s.id) FILTER (WHERE sd.id IS NOT NULL) as total_sales,
                 COALESCE(SUM(s.total_cents) FILTER (WHERE sd.id IS NOT NULL), 0) as period_total_cents,
                 COUNT(s.id) FILTER (WHERE sd.id IS NOT NULL) as period_sales_count,
                 COALESCE(sc.total_desserts, 0) as period_desserts_count,
-                COALESCE(SUM(s.total_cents) / NULLIF(COUNT(s.id), 0), 0) as avg_ticket,
+                COALESCE(SUM(s.total_cents) FILTER (WHERE sd.id IS NOT NULL) / NULLIF(COUNT(s.id) FILTER (WHERE sd.id IS NOT NULL), 0), 0) as avg_ticket,
                 COALESCE(sc.total_commission, 0) as total_commission,
-                COALESCE(sc.total_commission / NULLIF(COUNT(s.id), 0), 0) as avg_commission,
-                MAX(s.created_at) as last_sale,
-                COUNT(s.id) FILTER (WHERE sd.day = CURRENT_DATE) as sales_today,
-                (SELECT COUNT(*) FROM crm_reminders r WHERE r.seller_id = sl.id AND r.created_at >= ${dtStart} AND r.created_at <= ${dtEnd}) as reminders_created,
-                (SELECT COUNT(*) FROM crm_activities a WHERE a.seller_id = sl.id AND a.created_at >= ${dtStart} AND a.created_at <= ${dtEnd}) as notes_created
+                COALESCE(sc.total_commission / NULLIF(COUNT(s.id) FILTER (WHERE sd.id IS NOT NULL), 0), 0) as avg_commission,
+                MAX(s.created_at) FILTER (WHERE sd.id IS NOT NULL) as last_sale,
+                COUNT(s.id) FILTER (WHERE sd.day = ${todayStr}::date) as sales_today,
+                (SELECT COUNT(*) FROM crm_reminders r WHERE r.seller_id = sl.id AND r.created_at::date >= ${dtStartStr}::date AND r.created_at::date <= ${dtEndStr}::date) as reminders_created,
+                (SELECT COUNT(*) FROM crm_activities a WHERE a.seller_id = sl.id AND a.created_at::date >= ${dtStartStr}::date AND a.created_at::date <= ${dtEndStr}::date) as notes_created
             FROM sellers sl
             LEFT JOIN sales s ON s.seller_id = sl.id AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))
-            LEFT JOIN sale_days sd ON s.sale_day_id = sd.id AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd}
+            LEFT JOIN sale_days sd ON s.sale_day_id = sd.id AND sd.day >= ${dtStartStr}::date AND sd.day <= ${dtEndStr}::date
             LEFT JOIN seller_commissions sc ON sc.seller_id = sl.id
             WHERE (${!filterSellers}::boolean OR sl.id = ANY(${sellerIds}::int[]))
             GROUP BY sl.id, sl.name, sc.total_commission, sc.total_desserts
@@ -120,9 +128,9 @@ export async function handler(event) {
         `;
 
         // Process Client Alerts in JS for simplicity
-        const now = new Date();
-        const thirtyDaysAgo = new Date(now.setDate(now.getDate() - 30));
-        const sixtyDaysAgo = new Date(now.setDate(now.getDate() - 30)); // -30 again = -60
+        const alertDateRef = new Date();
+        const thirtyDaysAgo = new Date(alertDateRef.setDate(alertDateRef.getDate() - 30));
+        const sixtyDaysAgo = new Date(alertDateRef.setDate(alertDateRef.getDate() - 30)); // -30 again = -60
         const sevenDaysAgo = new Date(new Date().setDate(new Date().getDate() - 7));
 
         let clientsWithDebt = 0;
@@ -154,17 +162,17 @@ export async function handler(event) {
         // 4. Product Metrics (from legacy columns + dynamic sale_items)
         const productMetrics = await sql`
             WITH all_products AS (
-                SELECT 'arco' as name, s.qty_arco as qty, sd.day as date FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_arco > 0 AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd} AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))
-                UNION ALL SELECT 'melo', s.qty_melo, sd.day FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_melo > 0 AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd} AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))
-                UNION ALL SELECT 'mara', s.qty_mara, sd.day FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_mara > 0 AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd} AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))
-                UNION ALL SELECT 'oreo', s.qty_oreo, sd.day FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_oreo > 0 AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd} AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))
-                UNION ALL SELECT 'nute', s.qty_nute, sd.day FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_nute > 0 AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd} AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))
-                UNION ALL SELECT d.short_code, si.quantity, sd.day FROM sales s JOIN sale_items si ON s.id = si.sale_id JOIN desserts d ON si.dessert_id = d.id JOIN sale_days sd ON s.sale_day_id = sd.id WHERE si.quantity > 0 AND sd.day >= ${dtStart} AND sd.day <= ${dtEnd} AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))
+                SELECT 'arco' as name, s.qty_arco as qty, sd.day as date FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_arco > 0 AND sd.day >= ${dtStartStr}::date AND sd.day <= ${dtEndStr}::date AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))
+                UNION ALL SELECT 'melo', s.qty_melo, sd.day FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_melo > 0 AND sd.day >= ${dtStartStr}::date AND sd.day <= ${dtEndStr}::date AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))
+                UNION ALL SELECT 'mara', s.qty_mara, sd.day FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_mara > 0 AND sd.day >= ${dtStartStr}::date AND sd.day <= ${dtEndStr}::date AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))
+                UNION ALL SELECT 'oreo', s.qty_oreo, sd.day FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_oreo > 0 AND sd.day >= ${dtStartStr}::date AND sd.day <= ${dtEndStr}::date AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))
+                UNION ALL SELECT 'nute', s.qty_nute, sd.day FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_nute > 0 AND sd.day >= ${dtStartStr}::date AND sd.day <= ${dtEndStr}::date AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))
+                UNION ALL SELECT d.short_code, si.quantity, sd.day FROM sales s JOIN sale_items si ON s.id = si.sale_id JOIN desserts d ON si.dessert_id = d.id JOIN sale_days sd ON s.sale_day_id = sd.id WHERE si.quantity > 0 AND sd.day >= ${dtStartStr}::date AND sd.day <= ${dtEndStr}::date AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))
             )
             SELECT
                 name as short_code,
                 COALESCE(SUM(qty), 0) as total_qty,
-                COALESCE(SUM(qty) FILTER (WHERE date = CURRENT_DATE), 0) as qty_today
+                COALESCE(SUM(qty) FILTER (WHERE date = ${todayStr}::date), 0) as qty_today
             FROM all_products
             GROUP BY name
             ORDER BY total_qty DESC;
@@ -173,9 +181,9 @@ export async function handler(event) {
         // 5. CRM Activity
         const [crmActivity] = await sql`
             SELECT 
-                (SELECT COUNT(DISTINCT client_id) FROM crm_activities WHERE created_at >= CURRENT_DATE AND (${!filterSellers}::boolean OR seller_id = ANY(${sellerIds}::int[]))) as contacted_today,
+                (SELECT COUNT(DISTINCT client_id) FROM crm_activities WHERE created_at::date = ${todayStr}::date AND (${!filterSellers}::boolean OR seller_id = ANY(${sellerIds}::int[]))) as contacted_today,
                 (SELECT COUNT(*) FROM crm_reminders WHERE completed = false AND (${!filterSellers}::boolean OR seller_id = ANY(${sellerIds}::int[]))) as pending_reminders,
-                (SELECT COUNT(*) FROM crm_activities WHERE created_at >= CURRENT_DATE AND (${!filterSellers}::boolean OR seller_id = ANY(${sellerIds}::int[]))) as notes_today,
+                (SELECT COUNT(*) FROM crm_activities WHERE created_at::date = ${todayStr}::date AND (${!filterSellers}::boolean OR seller_id = ANY(${sellerIds}::int[]))) as notes_today,
                 (SELECT COUNT(*) FROM crm_prospects WHERE status = 'won' AND (${!filterSellers}::boolean OR seller_id = ANY(${sellerIds}::int[]))) as won_prospects
         `;
 
@@ -191,7 +199,7 @@ export async function handler(event) {
             JOIN sales s ON cs.sale_id = s.id
             LEFT JOIN sellers sl ON c.seller_id = sl.id
             JOIN sale_days sd ON s.sale_day_id = sd.id
-            WHERE sd.day >= ${dtStart} AND sd.day <= ${dtEnd}
+            WHERE sd.day >= ${dtStartStr}::date AND sd.day <= ${dtEndStr}::date
             AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))
             GROUP BY c.id, c.name, c.whatsapp
             ORDER BY period_total_cents DESC;
@@ -226,14 +234,14 @@ export async function handler(event) {
         const [expensesSumData] = await sql`
             SELECT COALESCE(SUM(amount_cents), 0) as expense_period_cents
             FROM accounting_entries
-            WHERE kind = 'gasto' AND entry_date >= ${dtStart} AND entry_date <= ${dtEnd}
+            WHERE kind = 'gasto' AND entry_date >= ${dtStartStr}::date AND entry_date <= ${dtEndStr}::date
         `;
         const expense_period_cents = Number(expensesSumData?.expense_period_cents || 0);
 
         const periodExpenses = await sql`
             SELECT id, amount_cents, description, entry_date
             FROM accounting_entries
-            WHERE kind = 'gasto' AND entry_date >= ${dtStart} AND entry_date <= ${dtEnd}
+            WHERE kind = 'gasto' AND entry_date >= ${dtStartStr}::date AND entry_date <= ${dtEndStr}::date
             ORDER BY entry_date DESC, id DESC
         `;
 
