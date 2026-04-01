@@ -118,17 +118,19 @@ export async function handler(event) {
             SELECT 
                 c.id, c.name, c.created_at,
                 COALESCE(SUM(s.total_cents), 0) as lifetime_value,
-                MAX(s.created_at) as last_purchase_date,
+                MAX(sd.day) as last_purchase_date,
                 COALESCE(SUM(CASE WHEN (s.pay_method IS NULL OR s.pay_method = '' OR s.pay_method = '-' OR s.pay_method = 'entregado') AND s.total_cents > 0 THEN s.total_cents ELSE 0 END), 0) as total_debt
             FROM clients c
             LEFT JOIN crm_client_sales cs ON c.id = cs.client_id
             LEFT JOIN sales s ON cs.sale_id = s.id
+            LEFT JOIN sale_days sd ON s.sale_day_id = sd.id
             WHERE (${!filterSellers}::boolean OR c.seller_id = ANY(${sellerIds}::int[]))
             GROUP BY c.id, c.name, c.created_at
         `;
 
         // Process Client Alerts in JS for simplicity
         const alertDateRef = new Date();
+
         const thirtyDaysAgo = new Date(alertDateRef.setDate(alertDateRef.getDate() - 30));
         const sixtyDaysAgo = new Date(alertDateRef.setDate(alertDateRef.getDate() - 30)); // -30 again = -60
         const sevenDaysAgo = new Date(new Date().setDate(new Date().getDate() - 7));
@@ -216,12 +218,15 @@ export async function handler(event) {
             JOIN crm_client_sales cs ON c.id = cs.client_id
             JOIN sales s ON cs.sale_id = s.id
             LEFT JOIN sellers sl ON c.seller_id = sl.id
-            WHERE (${!filterSellers}::boolean OR c.seller_id = ANY(${sellerIds}::int[]))
+            JOIN sale_days sd ON s.sale_day_id = sd.id
+            WHERE sd.day >= ${dtStartStr}::date AND sd.day <= ${dtEndStr}::date
+            AND (${!filterSellers}::boolean OR s.seller_id = ANY(${sellerIds}::int[]))
             AND (s.pay_method IS NULL OR s.pay_method = '' OR s.pay_method = '-' OR s.pay_method = 'entregado') 
             AND s.total_cents > 0
             GROUP BY c.id, c.name, c.whatsapp
             ORDER BY period_total_cents DESC;
         `;
+
 
         let debt_period_cents = 0;
         let debt_period_count = 0;
