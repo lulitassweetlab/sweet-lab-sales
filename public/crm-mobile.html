@@ -405,7 +405,7 @@
                     <input type="text" id="npShortName" placeholder="Ej: Juan" style="width:100%; padding:12px; border:1px solid var(--border); border-radius:8px;">
                 </div>
                 <div style="margin-bottom:15px;">
-                    <label style="display:block; font-size:0.8rem; color:var(--text-muted); margin-bottom:5px;">Teléfono / WhatsApp</label>
+                    <label style="display:block; font-size:0.8rem; color:var(--text-muted); margin-bottom:5px;">Teléfono / WhatsApp (Opcional)</label>
                     <input type="tel" id="npWhatsApp" placeholder="Ej: 3001234567" style="width:100%; padding:12px; border:1px solid var(--border); border-radius:8px;">
                 </div>
                 <div style="margin-bottom:20px;">
@@ -2108,8 +2108,8 @@
             const whatsapp = document.getElementById('npWhatsApp').value.trim();
             const birthday = document.getElementById('npBirthday').value;
 
-            if (!name || !whatsapp) {
-                alert('Nombre y WhatsApp son obligatorios.');
+            if (!name) {
+                alert('El nombre es obligatorio.');
                 return;
             }
 
