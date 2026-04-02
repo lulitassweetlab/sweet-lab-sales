@@ -57,7 +57,7 @@ export async function handler(event) {
             ORDER BY priority DESC, due_date ASC
         `;
 
-        // 3. Cumpleañeros (Próximos 7 días) con etapa y deuda
+        // 3. Cumpleañeros (Próximos 5 días)
         const upcomingBirthdays = await sql`
             SELECT 
                 c.id, c.name, c.whatsapp, c.birth_date,
@@ -67,16 +67,25 @@ export async function handler(event) {
                     FROM sales s2
                     JOIN crm_client_sales cs2 ON s2.id = cs2.sale_id
                     WHERE cs2.client_id = c.id
-                ), 0) as total_debt_cents
+                ), 0) as total_debt_cents,
+                -- Countdown calculation
+                EXTRACT(DAY FROM (
+                  CASE 
+                    WHEN (EXTRACT(MONTH FROM birth_date) < EXTRACT(MONTH FROM CURRENT_DATE)) 
+                         OR (EXTRACT(MONTH FROM birth_date) = EXTRACT(MONTH FROM CURRENT_DATE) AND EXTRACT(DAY FROM birth_date) < EXTRACT(DAY FROM CURRENT_DATE))
+                    THEN (EXTRACT(YEAR FROM CURRENT_DATE) + 1 || '-' || EXTRACT(MONTH FROM birth_date) || '-' || EXTRACT(DAY FROM birth_date))::DATE
+                    ELSE (EXTRACT(YEAR FROM CURRENT_DATE) || '-' || EXTRACT(MONTH FROM birth_date) || '-' || EXTRACT(DAY FROM birth_date))::DATE
+                  END - CURRENT_DATE
+                )) as days_to_birthday
             FROM clients c
             LEFT JOIN crm_client_stage cst ON c.id = cst.client_id
             LEFT JOIN crm_stages st ON cst.stage_id = st.id
             WHERE c.seller_id = ${sellerId}
             AND c.birth_date IS NOT NULL
             AND (
-                (EXTRACT(MONTH FROM birth_date) = EXTRACT(MONTH FROM CURRENT_DATE) AND EXTRACT(DAY FROM birth_date) >= EXTRACT(DAY FROM CURRENT_DATE))
+                (EXTRACT(MONTH FROM birth_date) = EXTRACT(MONTH FROM CURRENT_DATE) AND EXTRACT(DAY FROM birth_date) BETWEEN EXTRACT(DAY FROM CURRENT_DATE) AND EXTRACT(DAY FROM CURRENT_DATE + INTERVAL '5 days'))
                 OR
-                (EXTRACT(MONTH FROM birth_date) = EXTRACT(MONTH FROM CURRENT_DATE + INTERVAL '7 days') AND EXTRACT(DAY FROM birth_date) <= EXTRACT(DAY FROM CURRENT_DATE + INTERVAL '7 days'))
+                (EXTRACT(MONTH FROM birth_date) = EXTRACT(MONTH FROM CURRENT_DATE + INTERVAL '5 days') AND EXTRACT(DAY FROM birth_date) <= EXTRACT(DAY FROM CURRENT_DATE + INTERVAL '5 days'))
             )
             ORDER BY EXTRACT(MONTH FROM birth_date), EXTRACT(DAY FROM birth_date)
             LIMIT 15

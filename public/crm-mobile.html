@@ -807,6 +807,21 @@
 
             if(debt > 0) badges += `<span class="badge badge-debt" style="background:var(--danger); color:#fff; font-weight:800; text-transform:uppercase; font-size:0.7rem; padding:3px 8px; border-radius:6px; margin-right:4px; margin-bottom:4px;">DEUDA ${formatMoney(debt)}</span>`;
             
+            // Birthday Badge for Dashboard
+            if (c.days_to_birthday !== undefined && c.days_to_birthday !== null) {
+                const days = Number(c.days_to_birthday);
+                const bDate = new Date(c.birth_date);
+                const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+                const dateStr = `${monthNames[bDate.getUTCMonth()]} ${bDate.getUTCDate()}`;
+                
+                let bLabel = '';
+                if (days === 0) bLabel = `🥳 ¡Es su cumple hoy! (${dateStr})`;
+                else if (days === 1) bLabel = `🎂 Cumple mañana (${dateStr})`;
+                else bLabel = `🎂 Cumple en ${days} días (${dateStr})`;
+                
+                badges += `<span class="badge badge-birthday" style="background:linear-gradient(135deg, #FFD700, #FFA500); color:#000; font-weight:800; text-transform:uppercase; font-size:0.7rem; padding:3px 8px; border-radius:6px; margin-right:4px; margin-bottom:4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">${bLabel}</span>`;
+            }
+
             const metricsHtml = ltv > 0 ? `<div style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">Histórico: ${formatMoney(ltv)} | Compras: ${freq}</div>` : '';
 
             // Handle Bulk Mode Logic
