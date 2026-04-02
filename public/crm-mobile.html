@@ -480,9 +480,9 @@
             <div id="locWaze" style="display:flex; align-items:center; gap:10px; padding:12px 16px; cursor:pointer; color:var(--text-main); font-weight:700; font-size: 0.9rem; border-bottom: 1px solid var(--border); transition:background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
                 <span style="font-size: 1.2rem;">🚙</span> Waze
             </div>
-            <!-- Copiar -->
-            <div id="locCopy" onclick="copyProfileAddress(event)" style="display:flex; align-items:center; gap:10px; padding:12px 16px; cursor:pointer; color:var(--text-main); font-weight:700; font-size: 0.9rem; transition:background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
-                <span style="font-size: 1.2rem;">📋</span> Copiar
+            <!-- Editar -->
+            <div id="locEdit" onclick="startAddressEdit()" style="display:flex; align-items:center; gap:10px; padding:12px 16px; cursor:pointer; color:var(--text-main); font-weight:700; font-size: 0.9rem; transition:background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
+                <span style="font-size: 1.2rem;">✏️</span> Editar
             </div>
         </div>
     </div>
@@ -1448,10 +1448,9 @@
             const address = el.innerText === '📍 Ubicación...' ? '' : el.innerText;
             const lat = el.dataset.lat;
             const lng = el.dataset.lng;
-            
             const popover = document.getElementById('locationPopover');
             
-            // Google Maps (Ruta desde ubicación actual)
+            // Google Maps
             document.getElementById('locGoogle').onclick = () => {
                 let url = 'https://www.google.com/maps/dir/?api=1&origin=Current+Location&destination=';
                 if (lat && lng) url += `${lat},${lng}`;
@@ -1461,7 +1460,7 @@
                 popover.style.display = 'none';
             };
 
-            // Waze (Ruta)
+            // Waze
             document.getElementById('locWaze').onclick = () => {
                 let url = 'https://waze.com/ul?navigate=yes&';
                 if (lat && lng) url += `ll=${lat},${lng}`;
@@ -1471,10 +1470,13 @@
                 popover.style.display = 'none';
             };
 
-            // Position
+            // Position (Robust centered or relative to click)
             const rect = event.currentTarget.getBoundingClientRect();
-            popover.style.top = (rect.bottom + 8) + 'px';
-            popover.style.left = Math.min(rect.left, window.innerWidth - 220) + 'px'; 
+            const top = (rect.bottom + window.scrollY + 8);
+            const left = Math.min(rect.left, window.innerWidth - 200);
+            
+            popover.style.top = top + 'px';
+            popover.style.left = Math.max(10, left) + 'px';
             popover.style.display = 'block';
 
             // Dismissal
@@ -1482,7 +1484,7 @@
                 popover.style.display = 'none';
                 window.removeEventListener('click', closePop);
             };
-            setTimeout(() => window.addEventListener('click', closePop), 20);
+            setTimeout(() => window.addEventListener('click', closePop), 50);
         }
 
         function startAddressEdit() {
@@ -1704,8 +1706,9 @@
 
         function showContactMenu(event) {
             event.stopPropagation();
-            const phone = document.getElementById('profPhone').innerText;
-            if(!phone || phone === 'Sin número' || phone === '-') return;
+            const phoneEl = document.getElementById('profPhone');
+            const phone = phoneEl.innerText.trim();
+            if(!phone || phone === 'Sin número' || phone === '-' || phone === '') return;
             
             const popover = document.getElementById('contactPopover');
             const linkCall = document.getElementById('linkCall');
@@ -1713,7 +1716,7 @@
             
             // Format phone for tel: link
             let cleanPhone = phone.replace(/\D/g, '');
-            if (cleanPhone.length > 0 && !cleanPhone.startsWith('57')) {
+            if (cleanPhone.length > 0 && !cleanPhone.startsWith('57') && cleanPhone.length === 10) {
                 cleanPhone = '57' + cleanPhone;
             }
             
@@ -1722,8 +1725,11 @@
             
             // Position
             const rect = event.currentTarget.getBoundingClientRect();
-            popover.style.top = (rect.bottom + 8) + 'px';
-            popover.style.left = rect.left + 'px';
+            const top = (rect.bottom + window.scrollY + 8);
+            const left = Math.min(rect.left, window.innerWidth - 160);
+            
+            popover.style.top = top + 'px';
+            popover.style.left = Math.max(10, left) + 'px';
             popover.style.display = 'block';
             
             // Dismissal
@@ -1731,7 +1737,9 @@
                 popover.style.display = 'none';
                 window.removeEventListener('click', closePop);
             };
-            setTimeout(() => window.addEventListener('click', closePop), 20);
+            setTimeout(() => {
+                window.addEventListener('click', closePop);
+            }, 100);
         }
 
         function startPhoneEdit() {
