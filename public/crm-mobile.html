@@ -887,6 +887,18 @@
                 if (data.upcomingBirthdays && data.upcomingBirthdays.length > 0) {
                     list.innerHTML += `<h4 style="margin:24px 0 10px; font-size:0.9rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;">Cumpleaños</h4>`;
                     data.upcomingBirthdays.forEach(c => {
+                        // Calculate days_to_birthday in JS if not present
+                        if (c.days_to_birthday === undefined) {
+                            const bDate = new Date(c.birth_date);
+                            const now = new Date();
+                            now.setHours(0,0,0,0);
+                            
+                            // Target date for this year
+                            const target = new Date(now.getFullYear(), bDate.getUTCMonth(), bDate.getUTCDate());
+                            if (target < now) target.setFullYear(now.getFullYear() + 1);
+                            
+                            c.days_to_birthday = Math.round((target - now) / (1000 * 60 * 60 * 24));
+                        }
                         list.innerHTML += renderClientCardHtml(c);
                     });
                 }
