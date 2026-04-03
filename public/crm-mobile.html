@@ -148,7 +148,7 @@
                 onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">+</button>
         </div>
         <div style="display: flex; align-items: center; gap: 12px;">
-            <button onclick="navTo('history')" style="background:none; border:none; color:var(--text-muted); font-weight:700; padding:4px 8px; border-radius:12px; font-size: 0.8rem; cursor:pointer;">Historial</button>
+            <button onclick="navTo('history')" style="background:none; border:none; color:var(--primary-dark); font-weight:700; padding:4px 8px; border-radius:12px; font-size: 0.8rem; cursor:pointer;">Historial</button>
             <button onclick="window.location.href='/store.html'" style="background:var(--secondary); color:var(--primary-dark); font-weight:700; border:none; padding:4px 10px; border-radius:12px; font-size: 0.8rem; cursor:pointer;" title="Volver a Tienda">Volver</button>
             <div id="sellerNameLabel" style="font-weight: 500; color: var(--primary-dark); font-size: 0.9rem;"></div>
         </div>
@@ -2438,7 +2438,8 @@
                     onmouseleave="endTagLongPress()"
                     ontouchstart="startTagLongPress(event, ${t.id}, '${escapedName}', 'custom', '${t.color}')" 
                     ontouchend="endTagLongPress()"
-                    style="background:${t.color}; color:#fff; border:none; opacity:1; padding:6px 2px; height:auto; min-height:24px; font-size:0.6rem; margin-bottom:2px; font-weight:800; text-transform:uppercase; cursor:pointer; width:100%; border-radius:8px; user-select:none; -webkit-user-select:none;">
+                    style="background:${t.color}; color:#fff; border:none; opacity:1; padding:6px 12px; height:auto; min-height:32px; font-size:0.65rem; margin-bottom:4px; font-weight:800; text-transform:uppercase; cursor:pointer; width:100%; border-radius:8px; user-select:none; -webkit-user-select:none; transition:all 0.1s; text-align:left;"
+                    onmouseover="this.style.filter='brightness(1.1)'; this.style.transform='translateX(3px)'" onmouseout="this.style.filter='none'; this.style.transform='none'">
                     ${t.name}
                 </button>
             `;}).join('');
