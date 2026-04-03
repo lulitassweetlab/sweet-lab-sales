@@ -1,7 +1,4 @@
-import { neon } from '@netlify/neon';
-import { ensureSchema } from './_db.js';
-
-const sql = neon();
+import { ensureSchema, sql, normalizeClientName } from './_db.js';
 
 export default async (req) => {
     try {
@@ -86,7 +83,7 @@ export default async (req) => {
         if (method === 'POST' || method === 'PUT') {
             const body = await req.json();
             const sellerId = parseInt(body.seller_id, 10);
-            const name = (body.name || '').trim();
+            const name = normalizeClientName(body.name || '');
             const shortName = (body.short_name || '').trim() || null;
             const whatsapp = (body.whatsapp || '').trim() || null;
             const birthDate = body.birth_date || null;
@@ -107,7 +104,7 @@ export default async (req) => {
             // Handle Merge Action
             // ========================
             if (url.searchParams.get('action') === 'merge') {
-                const sourceNames = body.source_names || [];
+                const sourceNames = (body.source_names || []).map(n => normalizeClientName(n));
                 if (!Array.isArray(sourceNames) || sourceNames.length === 0) {
                     return new Response(JSON.stringify({ error: 'Se requiere una lista de nombres para fusionar' }), { status: 400 });
                 }
@@ -185,7 +182,7 @@ export default async (req) => {
             // Handle Rename Action
             // ========================
             if (url.searchParams.get('action') === 'rename') {
-                const oldName = (body.old_name || '').trim();
+                const oldName = normalizeClientName(body.old_name || '');
                 if (!oldName) return new Response(JSON.stringify({ error: 'Falta old_name' }), { status: 400 });
 
                 // Find old client profile (if it exists)

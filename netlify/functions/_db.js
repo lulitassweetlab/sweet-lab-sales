@@ -530,6 +530,12 @@ export function canonicalizeIngredientName(name) {
 	return raw;
 }
 
+export function normalizeClientName(name) {
+	if (!name) return '';
+	// Replace NBSP (\u00A0) and all other whitespace with standard space, collapse multiple spaces, and trim
+	return name.toString().replace(/\s+/g, ' ').trim();
+}
+
 export async function ensureInventoryItem(ingredient, unit = 'g') {
 	await ensureSchema();
 	const name = canonicalizeIngredientName(ingredient);

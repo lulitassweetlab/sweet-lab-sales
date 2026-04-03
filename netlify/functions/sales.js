@@ -1,4 +1,4 @@
-import { ensureSchema, sql, recalcTotalForId, getOrCreateDayId, notify as notifyDb } from './_db.js';
+import { ensureSchema, sql, recalcTotalForId, getOrCreateDayId, notify as notifyDb, normalizeClientName } from './_db.js';
 import { evaluateClientStage } from './crm-automation.js';
 
 function json(body, status = 200) {
@@ -569,7 +569,7 @@ export async function handler(event) {
 					saleDayId = await getOrCreateDayId(sellerId, iso);
 				}
 				// Include client_name in the initial INSERT so it is stored even if PUT is never called
-				const clientNamePost = (data.client_name ?? '').toString().trim();
+				const clientNamePost = normalizeClientName(data.client_name ?? '');
 				const [row] = await sql`INSERT INTO sales (seller_id, sale_day_id, client_name) VALUES (${sellerId}, ${saleDayId}, ${clientNamePost || null}) RETURNING id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, payment_date, payment_source, comment_text, special_pricing_type, total_cents, created_at`;
 				// Auto-Link to CRM immediately on POST so sales appear in CRM timeline right away
 				if (clientNamePost && row && row.id) {
@@ -725,7 +725,7 @@ export async function handler(event) {
 			} catch {}
 				const createdAt = current.created_at ? new Date(current.created_at) : null;
 				const withinGrace = createdAt ? ((new Date()) - createdAt) < 120000 : false; // 2 minutes
-				const client = (data.client_name ?? '').toString();
+				const client = normalizeClientName(data.client_name ?? '');
 				const comment = (Object.prototype.hasOwnProperty.call(data, 'comment_text')) ? (data.comment_text ?? '') : current.comment_text;
 				
 				// Support for new dynamic items structure

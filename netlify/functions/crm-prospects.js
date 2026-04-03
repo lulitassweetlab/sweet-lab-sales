@@ -1,4 +1,4 @@
-import { ensureSchema, sql } from './_db.js';
+import { ensureSchema, sql, normalizeClientName } from './_db.js';
 
 function json(body, status = 200) {
     return { statusCode: status, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
@@ -23,7 +23,7 @@ export async function handler(event) {
         if (event.httpMethod === 'POST') {
             const data = JSON.parse(event.body || '{}');
             const sellerId = Number(data.seller_id);
-            const name = data.name;
+            const name = normalizeClientName(data.name);
 
             if (!sellerId || !name) {
                 return json({ error: 'Faltan campos obligatorios' }, 400);
@@ -53,7 +53,7 @@ export async function handler(event) {
             const [existing] = await sql`SELECT * FROM crm_prospects WHERE id = ${id}`;
             if (!existing) return json({ error: 'Prospecto no encontrado' }, 404);
 
-            const name = data.name !== undefined ? data.name : existing.name;
+            const name = data.name !== undefined ? normalizeClientName(data.name) : existing.name;
             const whatsapp = data.whatsapp !== undefined ? data.whatsapp : existing.whatsapp;
             const status = data.status !== undefined ? data.status : existing.status;
             const source = data.source !== undefined ? data.source : existing.source;
