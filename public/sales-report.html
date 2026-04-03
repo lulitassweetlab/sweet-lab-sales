@@ -143,18 +143,23 @@
 				border-radius: 0;
 				touch-action: pan-x pan-y;
 			}
-			table th, table td { min-width: 60px; padding: 4px 3px; font-size: 0.7rem; }
-			#th-date, table td:first-child { 
-				min-width: 70px; 
+			table th, table td { min-width: 45px; padding: 4px 2px; font-size: 0.68rem; }
+			#th-date { min-width: 55px; }
+			table td:first-child { 
+				min-width: 55px; 
 				border-right: 1px solid var(--border); 
 				position: static; 
 				background: transparent; 
+				line-height: 1.1;
 			}
-			#th-seller, table td:nth-child(2) { min-width: 75px; }
+			#th-seller, table td:nth-child(2) { min-width: 65px; }
+			
+			/* Hide verification column on mobile as requested */
+			.col-paid { display: none !important; }
 			
 			/* Truncate client name on mobile to leave space for desserts */
 			.client-cell {
-				max-width: 90px;
+				max-width: 70px;
 				overflow: hidden;
 				text-overflow: ellipsis;
 				white-space: nowrap;
@@ -162,11 +167,13 @@
 				vertical-align: middle;
 			}
 			
-			.col-total { font-weight: 800; min-width: 80px; text-align: right !important; }
-			.col-paid { min-width: 30px; text-align: center !important; }
+			.col-total { font-weight: 800; min-width: 60px; text-align: right !important; }
 			
 			.filters-row { padding: 8px 0; gap: 12px; }
 			.seller-filter-group { max-width: 100%; }
+
+			/* Support for dynamic hiding of zero columns */
+			.hidden-column { display: none !important; }
 		}
 	</style>
 </head>
@@ -436,6 +443,14 @@
 			return pm === 'efectivo' ? 'Efectivo' : pm === 'transf' ? 'Transf' : pm === 'marce' ? 'Marce' : pm === 'jorge' ? 'Jorge' : pm === 'jorgebank' ? 'JorgeBank' : pm === 'entregado' ? 'Entregado' : '-';
 		}
 
+		function formatDayVertical(iso, isMobile) {
+			if (!iso) return '';
+			if (!isMobile) return iso.slice(0, 10);
+			const year = iso.slice(0, 4);
+			const monthDay = iso.slice(5, 10).replace('-', '/'); // 04/03
+			return `<div style="font-size: 0.55rem; opacity: 0.7; margin-bottom: 1px;">${year}</div><div style="font-weight: 500;">${monthDay}</div>`;
+		}
+
 		async function fetchJSON(u, timeoutMs = 60000){ 
 			const controller = new AbortController();
 			const id = setTimeout(() => controller.abort(), timeoutMs);
@@ -477,18 +492,21 @@
 				// Header
 				const th = document.createElement('th');
 				th.className = 'col-qty' + altClass;
+				th.dataset.shortCode = d.short_code;
 				th.textContent = d.name;
 				theadRow.insertBefore(th, totalTh);
 				
 				// Totals row
 				const tdTot = document.createElement('td');
 				tdTot.className = 'col-qty' + altClass;
+				tdTot.dataset.shortCode = d.short_code;
 				tdTot.id = `t-q-${d.short_code}`;
 				totalsRow.insertBefore(tdTot, totalsRow.querySelector('td.col-total'));
 				
 				// Total postres row (empty cells)
 				const tdEmpty = document.createElement('td');
 				tdEmpty.className = 'col-qty' + altClass;
+				tdEmpty.dataset.shortCode = d.short_code;
 				totalPostresRow.insertBefore(tdEmpty, totalPostresRow.querySelector('td.col-total'));
 			});
 			
@@ -630,6 +648,24 @@
 			tSumAllEl.textContent = totalQty || '';
 			countLabel.textContent = `Filas: ${rows.length}`;
 			
+			// DYNAMIC: Hide columns in mobile if total is 0
+			const isMobile = window.innerWidth <= 768;
+			const hiddenDesserts = new Set();
+			if (isMobile) {
+				for (const d of desserts) {
+					if ((qtys[d.short_code] || 0) === 0) {
+						hiddenDesserts.add(d.short_code);
+					}
+				}
+			}
+			
+			// Toggle visibility for headers and footers
+			document.querySelectorAll('.col-qty[data-short-code]').forEach(el => {
+				const sc = el.dataset.shortCode;
+				if (hiddenDesserts.has(sc)) el.classList.add('hidden-column');
+				else el.classList.remove('hidden-column');
+			});
+			
 			// Render rows in batches for better performance
 			tbody.innerHTML = '';
 			const fragment = document.createDocumentFragment();
@@ -637,7 +673,6 @@
 			let currentBatch = 0;
 			
 			function renderBatch() {
-				const isMobile = window.innerWidth <= 768;
 				const start = currentBatch * batchSize;
 				const end = Math.min(start + batchSize, rows.length);
 				
@@ -656,7 +691,7 @@
 						: `<span class="client-cell">${clientName}</span>`;
 					
 					let html = `
-						<td>${r.date}</td>
+						<td>${formatDayVertical(r.date, isMobile)}</td>
 						<td>${r.sellerName}</td>
 						<td class="col-paid">${r.is_paid ? '✓' : ''}</td>
 						<td>${payLabel(r.pay_method||'')}</td>
@@ -666,7 +701,8 @@
 					desserts.forEach((d, i) => {
 						const qty = r[`q_${d.short_code}`] || 0;
 						const isAlt = (i % 2 === 1);
-						html += `<td class="${isAlt ? 'col-alt' : ''}">${qty || ''}</td>`;
+						const hiddenClass = hiddenDesserts.has(d.short_code) ? ' hidden-column' : '';
+						html += `<td class="${(isAlt ? 'col-alt' : '') + hiddenClass}">${qty || ''}</td>`;
 					});
 					
 					html += `<td class="col-total">${r.tot !== undefined && r.tot !== null ? r.tot : ''}</td>`;
