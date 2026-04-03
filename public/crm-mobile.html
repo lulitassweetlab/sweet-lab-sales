@@ -142,17 +142,16 @@
     <!-- Main Header -->
     <header>
         <div style="display: flex; align-items: center; gap: 10px;">
-            <div class="header-title">Mi CRM</div>
+            <div class="header-title" onclick="navTo('dashboard')" style="cursor:pointer;">Mi CRM</div>
             <button onclick="openNewProspectModal()" title="Agregar Prospecto"
                 style="width:30px; height:30px; border-radius:50%; border:none; background:var(--primary); color:#fff; font-size:1.2rem; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; line-height:1; box-shadow: 0 2px 8px rgba(99,102,241,0.3); transition: transform 0.2s;"
                 onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">+</button>
         </div>
         <div style="display: flex; align-items: center; gap: 12px;">
+            <button onclick="navTo('history')" style="background:none; border:none; color:var(--text-muted); font-weight:700; padding:4px 8px; border-radius:12px; font-size: 0.8rem; cursor:pointer;">Historial</button>
             <button onclick="window.location.href='/store.html'" style="background:var(--secondary); color:var(--primary-dark); font-weight:700; border:none; padding:4px 10px; border-radius:12px; font-size: 0.8rem; cursor:pointer;" title="Volver a Tienda">Volver</button>
             <div id="sellerNameLabel" style="font-weight: 500; color: var(--primary-dark); font-size: 0.9rem;"></div>
-            <button onclick="navTo('history')" style="background:var(--primary); color:white; font-weight:700; border:none; padding:4px 10px; border-radius:12px; font-size: 0.8rem; cursor:pointer; margin-left: auto;">Historial</button>
         </div>
-    </header>
 
     <!-- Main Screens Container -->
     <main>
