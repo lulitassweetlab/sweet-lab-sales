@@ -3837,7 +3837,7 @@ tfoot td {
 
 	#sales-table tfoot .tfoot-comm {
 		display: flex !important;
-		justify-content: flex-start !important;
+		justify-content: space-between !important; /* Force items to both ends */
 		align-items: center !important;
 		width: 100%;
 		padding: 10px 0;
@@ -3851,21 +3851,21 @@ tfoot td {
 
 	#sales-table tfoot .tfoot-comm td.col-paid {
 		display: block !important;
-		width: 20px !important; /* Matches start of Client column */
+		width: 20px !important; /* Fixed start offset */
 		flex: 0 0 auto !important;
 	}
 
 	#sales-table tfoot .tfoot-comm .col-client.label {
-		flex: 0 0 73% !important; /* Covers name + dessert area */
+		flex: 1 !important; /* Take up all middle space to push totals to the right */
 		display: block !important;
 		text-align: left !important;
 		padding-left: 8px !important;
-		font-size: 1rem !important; /* Larger as requested */
+		font-size: 1rem !important;
 		font-weight: 700 !important;
 	}
 
 	#sales-table tfoot .tfoot-comm .col-total {
-		flex: 0 0 17% !important; /* Exact column match */
+		flex: 0 0 17% !important; /* Exact match with total column above */
 		display: block !important;
 		text-align: right !important;
 		padding-right: 8px !important;
