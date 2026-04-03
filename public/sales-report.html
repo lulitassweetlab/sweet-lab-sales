@@ -117,6 +117,54 @@
 			border-top-color: transparent;
 			animation: spin 0.6s linear infinite;
 		}
+
+		/* MOBILE RESPONSIVENESS */
+		@media (max-width: 768px) {
+			.app-header { padding: 10px 16px; }
+			.header-row { flex-direction: column; gap: 10px; align-items: stretch; }
+			.header-left { justify-content: center; }
+			.header-actions { justify-content: center; }
+			
+			.panel-header { flex-direction: column; align-items: stretch; gap: 12px; }
+			.panel-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+			.panel-actions button { width: 100%; margin: 0; padding: 12px 6px; font-size: 0.8rem; }
+			#ingredients-btn { grid-column: span 2; }
+
+			.table-wrapper { 
+				overflow-x: auto; 
+				-webkit-overflow-scrolling: touch; 
+				margin: 10px -16px; 
+				padding: 0 16px;
+				width: calc(100% + 32px);
+				border-radius: 0;
+			}
+			table th, table td { min-width: 80px; padding: 10px 6px; font-size: 0.8rem; }
+			#th-date, table td:first-child { 
+				min-width: 85px; 
+				position: sticky; 
+				left: 0; 
+				background: var(--card); 
+				z-index: 2; 
+				border-right: 1px solid var(--border); 
+			}
+			#th-seller, table td:nth-child(2) { min-width: 90px; }
+			
+			/* Truncate client name on mobile to leave space for desserts */
+			.client-cell {
+				max-width: 90px;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+				display: inline-block;
+				vertical-align: middle;
+			}
+			
+			.col-total { font-weight: 800; min-width: 80px; text-align: right !important; }
+			.col-paid { min-width: 30px; text-align: center !important; }
+			
+			.filters-row { padding: 8px 0; gap: 12px; }
+			.seller-filter-group { max-width: 100%; }
+		}
 	</style>
 </head>
 <body>
@@ -377,11 +425,23 @@
 			return pm === 'efectivo' ? 'Efectivo' : pm === 'transf' ? 'Transf' : pm === 'marce' ? 'Marce' : pm === 'jorge' ? 'Jorge' : pm === 'jorgebank' ? 'JorgeBank' : pm === 'entregado' ? 'Entregado' : '-';
 		}
 
-		async function fetchJSON(u){ const r = await fetch(u); if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }
+		async function fetchJSON(u, timeoutMs = 15000){ 
+			const controller = new AbortController();
+			const id = setTimeout(() => controller.abort(), timeoutMs);
+			try {
+				const r = await fetch(u, { signal: controller.signal });
+				clearTimeout(id);
+				if (!r.ok) throw new Error(`HTTP ${r.status}`);
+				return await r.json();
+			} catch (err) {
+				clearTimeout(id);
+				throw err;
+			}
+		}
 
 		function withActor(url){
 			try {
-				const u = new URL(url, location.origin);
+				const u = new URL(url, window.location.origin || location.origin);
 				if (actor) u.searchParams.set('actor', actor);
 				return u.pathname + (u.search || '');
 			} catch { return url + (url.includes('?') ? `&actor=${encodeURIComponent(actor)}` : `?actor=${encodeURIComponent(actor)}`); }
@@ -539,6 +599,7 @@
 			let currentBatch = 0;
 			
 			function renderBatch() {
+				const isMobile = window.innerWidth <= 768;
 				const start = currentBatch * batchSize;
 				const end = Math.min(start + batchSize, rows.length);
 				
@@ -549,14 +610,17 @@
 					// Add background color to client name based on special pricing (only around text)
 					const clientBgColor = r.special_pricing_type === 'muestra' ? 'rgba(255, 165, 0, 0.5)' : 
 					                      r.special_pricing_type === 'a_costo' ? 'rgba(240, 98, 146, 0.5)' : '';
+					
+					// MOBILE optimization: Wrap client name in a span to allow truncation
+					const clientName = r.client_name || '';
 					const clientNameHtml = clientBgColor 
-						? `<span style="background: ${clientBgColor}; color: white; font-weight: 600; padding: 3px 8px; border-radius: 6px; display: inline-block;">${r.client_name||''}</span>`
-						: (r.client_name||'');
+						? `<span class="client-cell" style="background: ${clientBgColor}; color: white; font-weight: 600; padding: 3px 8px; border-radius: 6px;">${clientName}</span>`
+						: `<span class="client-cell">${clientName}</span>`;
 					
 					let html = `
 						<td>${r.date}</td>
 						<td>${r.sellerName}</td>
-						<td>${r.is_paid ? '✓' : ''}</td>
+						<td class="col-paid">${r.is_paid ? '✓' : ''}</td>
 						<td>${payLabel(r.pay_method||'')}</td>
 						<td>${clientNameHtml}</td>`;
 					
