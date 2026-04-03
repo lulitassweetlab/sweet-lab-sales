@@ -2182,9 +2182,11 @@ function wireDeliveredRowEditors() {
 		}
 		if (el.dataset.bound === '1') continue;
 		el.dataset.bound = '1';
-		// Al enfocarse o hacer clic, seleccionar todo para reemplazar con la nueva cifra
-		el.addEventListener('focus', () => { setTimeout(() => selectAllContent(el), 10); });
-		el.addEventListener('click', () => { selectAllContent(el); });
+		// Al enfocarse, seleccionar todo para reemplazar con la nueva cifra. 
+		// Evitamos listener de 'click' porque compite con el foco en móviles.
+		el.addEventListener('focus', () => { 
+			setTimeout(() => selectAllContent(el), 50); 
+		});
 		// Sanitize input to numbers only while typing
 		el.addEventListener('input', () => {
 			if (!el.isContentEditable) return;

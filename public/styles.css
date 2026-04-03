@@ -3826,6 +3826,23 @@ tfoot td {
 		font-weight: 600;
 	}
 
+	#sales-table tfoot .tfoot-delivered .col-total {
+		display: table-cell;
+		text-align: right;
+		padding-right: 8px;
+	}
+
+	#sales-table tfoot .tfoot-delivered td.col-dessert {
+		font-size: 0.65rem;
+	}
+
+	#sales-table tfoot .tfoot-delivered td.col-dessert span {
+		display: inline-block;
+		min-width: 100%;
+		padding: 0;
+		margin: 0;
+	}
+
 	#sales-table tfoot .t-am-grand {
 		display: table-row !important;
 	}
