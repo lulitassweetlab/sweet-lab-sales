@@ -1387,20 +1387,21 @@
                 document.getElementById('profileName').innerHTML = nameHtml;
                 const phoneEl = document.getElementById('profPhone');
                 const waNumber = pf.whatsapp || '';
-                phoneEl.innerText = waNumber || '📱 Agregar WhatsApp...';
+                phoneEl.innerText = waNumber || 'WhatsApp';
                 phoneEl.style.color = waNumber ? 'var(--text-main)' : 'var(--text-muted)';
                 phoneEl.style.fontWeight = waNumber ? '700' : '500';
 
                 const bdayEl = document.getElementById('profBirthday');
                 const bDateStr = pf.birth_date ? pf.birth_date.split('T')[0] : '';
-                bdayEl.innerText = bDateStr || '🎂 Agregar cumpleaños...';
-                bdayEl.style.color = bDateStr ? 'var(--text-muted)' : 'var(--text-muted)';
+                bdayEl.innerText = bDateStr || 'Cumpleaños';
+                bdayEl.style.color = 'var(--text-muted)';
                 bdayEl.style.fontWeight = bDateStr ? '700' : '500';
                 
                 // Address
                 const addEl = document.getElementById('profAddress');
                 if (addEl) {
-                    addEl.innerText = pf.address || '📍 Ubicación...';
+                    addEl.innerText = pf.address || 'Ubicación';
+                    addEl.style.color = 'var(--text-muted)';
                     addEl.dataset.lat = pf.latitude || '';
                     addEl.dataset.lng = pf.longitude || '';
                 }
@@ -1901,7 +1902,7 @@
             const phone = phoneEl.innerText.trim();
             
             // If empty or placeholder, trigger inline edit
-            if(!phone || phone === 'Sin número' || phone === '-' || phone.includes('Agregar WhatsApp')) {
+            if(!phone || phone === 'Sin número' || phone === '-' || phone === 'WhatsApp') {
                 startPhoneEdit();
                 return;
             }
@@ -1944,8 +1945,8 @@
             el.contentEditable = "true";
             el.focus();
             
-            // Clear placeholder if it's the "Agregar..." text
-            if (el.innerText.includes('Agregar WhatsApp')) {
+            // Clear placeholder if it's the "WhatsApp" text
+            if (el.innerText === 'WhatsApp') {
                 el.innerText = '';
             }
             
@@ -2003,10 +2004,12 @@
             el.contentEditable = "true";
             el.focus();
 
-            if (el.innerText.includes('Agregar cumpleaños')) {
-                el.innerText = '';
-                // Show format hint placeholder using a title or just letting them type
-                el.setAttribute('placeholder', 'AAAA-MM-DD');
+            if (el.innerText === 'Cumpleaños' || el.innerText === '') {
+                el.innerText = 'AAAA-MM-DD';
+                // Select the text for easy replacement
+                setTimeout(() => {
+                    document.execCommand('selectAll', false, null);
+                }, 10);
             }
             
             el.style.background = 'rgba(99,102,241,0.1)';
@@ -2040,7 +2043,7 @@
             if(!currentProfileId) return;
             
             // Silent validation: if empty or placeholder-like, don't save, just reset UI
-            if (!newDate || newDate.trim() === '' || newDate.includes('Agregar cumpleaños')) {
+            if (!newDate || newDate.trim() === '' || newDate === 'Cumpleaños' || newDate === 'AAAA-MM-DD') {
                 loadProfile(currentProfileId);
                 return;
             }
