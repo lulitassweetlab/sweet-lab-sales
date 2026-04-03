@@ -147,20 +147,21 @@
         }
         .clear-search-btn {
             position: absolute;
-            right: 8px;
-            width: 20px;
-            height: 20px;
-            background: var(--border);
-            color: var(--text-muted);
+            right: 10px;
+            width: 22px;
+            height: 22px;
+            background: #cbd5e1; /* More contrast */
+            color: #475569;
             border-radius: 50%;
             display: none; /* Hidden by default */
             align-items: center;
             justify-content: center;
-            font-size: 12px;
-            font-weight: 800;
+            font-size: 11px;
+            font-weight: 900;
             cursor: pointer;
-            z-index: 2;
+            z-index: 10;
             transition: all 0.2s;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.1);
         }
         .clear-search-btn:active {
             transform: scale(0.9);
@@ -254,7 +255,7 @@
                     <div id="dashSearchContainer" style="display:none; margin-bottom:16px;">
                         <div class="search-wrapper">
                             <input type="text" id="dashSearchInput" placeholder="Buscar por nombre o celular..." 
-                                style="width: 100%; padding: 14px; border-radius: 12px; border: 1.5px solid var(--border); font-size: 1rem; background: var(--surface); outline:none; transition: border-color 0.2s;"
+                                style="width: 100%; height: 50px; border-radius: 12px; border: 1.5px solid var(--border); font-size: 1rem; background: var(--surface); outline:none; transition: border-color 0.2s; padding-left: 14px;"
                                 onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'"
                                 oninput="filterDashboard(); toggleClearSearch('dashSearchInput')">
                             <div id="dashSearchInputClear" class="clear-search-btn" onclick="clearSearchInput('dashSearchInput', filterDashboard)">✕</div>
@@ -1087,7 +1088,10 @@
             
             // Keep search bar visible and clear it
             document.getElementById('dashSearchContainer').style.display = 'block';
-            if (searchInput) searchInput.value = '';
+            if (searchInput) {
+                searchInput.value = '';
+                toggleClearSearch('dashSearchInput');
+            }
 
             title.innerHTML = `<span style="display:inline-block; width:12px; height:12px; border-radius:3px; background:${stageColor}; margin-right:8px;"></span> ${stageName}`;
             listEl.innerHTML = '<div class="spinner">Cargando clientes...</div>';
@@ -1114,7 +1118,10 @@
             search.style.display = 'none';
             window.crmSearchTerm = ''; // Clear search when going back to dashboard main
             const searchInput = document.getElementById('dashSearchInput');
-            if(searchInput) searchInput.value = '';
+            if(searchInput) {
+                searchInput.value = '';
+                toggleClearSearch('dashSearchInput');
+            }
             
             title.innerHTML = `💡 Contactar Hoy`;
             loadDashboard();
@@ -1132,7 +1139,10 @@
                 
                 // Restaura búsqueda si existe
                 const term = window.crmSearchTerm || '';
-                if (searchInput) searchInput.value = term;
+                if (searchInput) {
+                    searchInput.value = term;
+                    toggleClearSearch('dashSearchInput');
+                }
                 
                 title.innerHTML = `💸 Clientes con saldo`;
                 
@@ -1167,7 +1177,10 @@
             
             // Keep search bar visible and clear it
             document.getElementById('dashSearchContainer').style.display = 'block';
-            if (searchInput) searchInput.value = '';
+            if (searchInput) {
+                searchInput.value = '';
+                toggleClearSearch('dashSearchInput');
+            }
 
             title.innerHTML = `<span style="display:inline-block; width:12px; height:12px; border-radius:3px; background:${tagColor}; margin-right:8px;"></span> ${tagName}`;
             listEl.innerHTML = '<div class="spinner">Cargando clientes...</div>';
@@ -1330,7 +1343,10 @@
                 
                 // Restaura búsqueda si existe
                 const term = window.crmSearchTerm || '';
-                if (searchInput) searchInput.value = term;
+                if (searchInput) {
+                    searchInput.value = term;
+                    toggleClearSearch('dashSearchInput');
+                }
                 
                 title.innerHTML = `👥 Directorio de Clientes`;
                 
