@@ -262,7 +262,15 @@
 
 	<script type="module">
 	(function(){
-		// Desserts will be loaded from API (no hardcoded list)
+		// Polyfill for older iOS/Safari compatibility
+		window.requestIdleCallback = window.requestIdleCallback || function(cb) {
+			const start = Date.now();
+			return setTimeout(() => {
+				cb({ didTimeout: false, timeRemaining: () => Math.max(0, 50 - (Date.now() - start)) });
+			}, 1);
+		};
+
+		// Desserts will be loaded from API
 		let PRELOADED_DESSERTS = [];
 		
 		// Clear old caches on page load to ensure fresh desserts data
@@ -430,7 +438,7 @@
 			return pm === 'efectivo' ? 'Efectivo' : pm === 'transf' ? 'Transf' : pm === 'marce' ? 'Marce' : pm === 'jorge' ? 'Jorge' : pm === 'jorgebank' ? 'JorgeBank' : pm === 'entregado' ? 'Entregado' : '-';
 		}
 
-		async function fetchJSON(u, timeoutMs = 15000){ 
+		async function fetchJSON(u, timeoutMs = 60000){ 
 			const controller = new AbortController();
 			const id = setTimeout(() => controller.abort(), timeoutMs);
 			try {
@@ -564,6 +572,33 @@
 			};
 			rows.sort(cmp);
 			return rows;
+		}
+
+		function mapSalesToDataset(salesArray) {
+			if (!Array.isArray(salesArray)) return [];
+			return salesArray.map(r => {
+				const tot = Number(r.total_cents) || 0;
+				const row = {
+					date: String(r.sale_day || '').slice(0, 10),
+					sellerName: r.seller_name || '',
+					is_paid: !!r.is_paid,
+					pay_method: r.pay_method || '',
+					client_name: r.client_name || '',
+					tot: tot,
+					special_pricing_type: r.special_pricing_type || null
+				};
+				for (const d of desserts) {
+					let qty = 0;
+					if (Array.isArray(r.items) && r.items.length > 0) {
+						const item = r.items.find(i => i.short_code === d.short_code);
+						qty = item ? (Number(item.quantity || 0) || 0) : 0;
+					} else {
+						qty = Number(r[`qty_${d.short_code}`] || 0) || 0;
+					}
+					row[`q_${d.short_code}`] = qty;
+				}
+				return row;
+			});
 		}
 
 		function render(){
@@ -753,32 +788,7 @@
 							dessertMap[d.short_code] = d.short_code;
 						}
 						
-                        dataset = parsed.sales.map(r => {
-							// Calculate total - use total_cents from DB if available
-							let tot = Number(r.total_cents) || 0;
-							
-							const row = {
-								date: String(r.sale_day || '').slice(0,10),
-								sellerName: r.seller_name || '',
-								is_paid: !!r.is_paid,
-								pay_method: r.pay_method || '',
-								client_name: r.client_name || '',
-                                tot: tot,
-								special_pricing_type: r.special_pricing_type || null
-							};
-							
-							for (const d of desserts) {
-								let qty = 0;
-								if (Array.isArray(r.items) && r.items.length > 0) {
-									const item = r.items.find(i => i.short_code === d.short_code);
-                                    qty = item ? (Number(item.quantity || 0) || 0) : 0;
-								} else {
-                                    qty = Number(r[`qty_${d.short_code}`] || 0) || 0;
-								}
-								row[`q_${d.short_code}`] = qty;
-							}
-							return row;
-						});
+						dataset = mapSalesToDataset(parsed.sales);
 						
 						render();
 						usedCache = true;
@@ -809,32 +819,7 @@
 									dessertMap[d.short_code] = d.short_code;
 								}
 								
-                                dataset = freshSales.map(r => {
-									// Calculate total - use total_cents from DB if available
-									let tot = Number(r.total_cents) || 0;
-									
-									const row = {
-										date: String(r.sale_day || '').slice(0,10),
-										sellerName: r.seller_name || '',
-										is_paid: !!r.is_paid,
-										pay_method: r.pay_method || '',
-										client_name: r.client_name || '',
-                                        tot: tot,
-										special_pricing_type: r.special_pricing_type || null
-									};
-									
-									for (const d of desserts) {
-										let qty = 0;
-										if (Array.isArray(r.items) && r.items.length > 0) {
-											const item = r.items.find(i => i.short_code === d.short_code);
-                                            qty = item ? (Number(item.quantity || 0) || 0) : 0;
-										} else {
-                                            qty = Number(r[`qty_${d.short_code}`] || 0) || 0;
-										}
-										row[`q_${d.short_code}`] = qty;
-									}
-									return row;
-								});
+								dataset = mapSalesToDataset(freshSales);
 								
 								render();
 							}
@@ -881,36 +866,7 @@
 			}
 			
 			// Process all sales in one pass
-            dataset = salesData.map(r => {
-				// Calculate total - use total_cents from DB if available
-				let tot = Number(r.total_cents) || 0;
-				
-				const row = {
-					date: String(r.sale_day || '').slice(0,10),
-					sellerName: r.seller_name || '',
-					is_paid: !!r.is_paid,
-					pay_method: r.pay_method || '',
-					client_name: r.client_name || '',
-                    tot: tot,
-					special_pricing_type: r.special_pricing_type || null
-				};
-				
-				// Process dessert quantities dynamically
-				for (const d of desserts) {
-					let qty = 0;
-					if (Array.isArray(r.items) && r.items.length > 0) {
-						// New format: use items (optimized lookup)
-                        const item = r.items.find(i => i.short_code === d.short_code);
-                        qty = item ? (Number(item.quantity || 0) || 0) : 0;
-					} else {
-						// Old format: use qty_* columns
-                        qty = Number(r[`qty_${d.short_code}`] || 0) || 0;
-					}
-					row[`q_${d.short_code}`] = qty;
-				}
-				
-				return row;
-			});
+			dataset = mapSalesToDataset(salesData);
 				
 				updateLoadingProgress(95, 'Finalizando...');
 				render();
