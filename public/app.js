@@ -5209,7 +5209,7 @@ function sendBroadcastToClient(client, activeIndex) {
 	const encodedMsg = encodeURIComponent(text);
 	const isAndroid = /Android/i.test(navigator.userAgent);
 	
-	let waUrl = `https://wa.me/${cleanNum}?text=${encodedMsg}`;
+	let waUrl = `whatsapp://send?phone=${cleanNum}&text=${encodedMsg}`;
 	if (isAndroid) {
 		waUrl = `intent://send?phone=${cleanNum}&text=${encodedMsg}#Intent;package=com.whatsapp.w4b;scheme=whatsapp;end`;
 	}

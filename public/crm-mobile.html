@@ -801,8 +801,9 @@
                 // Force WhatsApp Business on Android via Intent
                 return `intent://send?phone=${c}&text=${encodedMsg}#Intent;package=com.whatsapp.w4b;scheme=whatsapp;end`;
             }
-            // Standard fallback (wa.me is the most reliable for iOS contact links)
-            return `https://wa.me/${c}?text=${encodedMsg}`;
+            // For iOS and others, use the app scheme - cleaner redirect to active app
+            // Including text= helps trigger the app handler more reliably on iOS
+            return `whatsapp://send?phone=${c}&text=${encodedMsg}`;
         }
 
         function renderClientCardHtml(c, context = 'list') {

@@ -1619,7 +1619,7 @@
             const isAndroid = /Android/i.test(navigator.userAgent);
             const encodedMsg = encodeURIComponent(message);
             
-            let waUrl = `https://wa.me/${waNumber}?text=${encodedMsg}`;
+            let waUrl = `whatsapp://send?phone=${waNumber}&text=${encodedMsg}`;
             if (isAndroid) {
                 waUrl = `intent://send?phone=${waNumber}&text=${encodedMsg}#Intent;package=com.whatsapp.w4b;scheme=whatsapp;end`;
             }

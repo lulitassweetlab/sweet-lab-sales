@@ -618,7 +618,7 @@ async function processSingleSale(sale) {
                         const isAndroid = /Android/i.test(navigator.userAgent);
                         const encodedMsg = encodeURIComponent(text);
                         
-                        let waUrl = `https://wa.me/${cleanNum}?text=${encodedMsg}`;
+                        let waUrl = `whatsapp://send?phone=${cleanNum}&text=${encodedMsg}`;
                         if (isAndroid) {
                             waUrl = `intent://send?phone=${cleanNum}&text=${encodedMsg}#Intent;package=com.whatsapp.w4b;scheme=whatsapp;end`;
                         }
