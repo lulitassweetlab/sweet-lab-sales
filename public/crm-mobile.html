@@ -147,26 +147,25 @@
         }
         .clear-search-btn {
             position: absolute;
-            right: 0;
-            width: 44px; /* Larger click area */
+            right: 2px;
+            width: 44px; /* Tap area standard */
             height: 44px;
             background: transparent;
-            color: #64748b; /* Stronger gray */
+            border: none;
+            color: #cbd5e1; /* Light gray */
             display: none; /* Hidden by default */
             align-items: center;
             justify-content: center;
-            font-size: 1.4rem;
-            font-weight: 800; /* THICKER X */
+            font-size: 1.1rem; /* Smaller */
+            font-weight: 900; /* Robust/Thick */
             cursor: pointer;
-            z-index: 20; /* High z-index */
-            transition: all 0.2s;
+            z-index: 1000; /* Over everything */
             -webkit-tap-highlight-color: transparent;
-        }
-        .clear-search-btn:hover {
-            color: var(--text-main);
+            outline: none;
         }
         .clear-search-btn:active {
             transform: scale(0.9);
+            color: #94a3b8;
         }
 
     </style>
@@ -258,7 +257,7 @@
                                 style="width: 100%; height: 50px; border-radius: 12px; border: 1.5px solid var(--border); font-size: 1rem; background: var(--surface); outline:none; transition: border-color 0.2s; padding-left: 14px;"
                                 onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'"
                                 oninput="toggleClearSearch('dashSearchInput'); filterDashboard()">
-                            <div id="dashSearchInputClear" class="clear-search-btn" onclick="clearSearchInput('dashSearchInput', filterDashboard)">✕</div>
+                            <button id="dashSearchInputClear" class="clear-search-btn" onclick="clearSearchInput('dashSearchInput', filterDashboard)" type="button">✕</button>
                         </div>
                     </div>
 
