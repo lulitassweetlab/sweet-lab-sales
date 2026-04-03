@@ -3837,36 +3837,47 @@ tfoot td {
 
 	#sales-table tfoot .tfoot-comm {
 		display: flex !important;
-		justify-content: space-between !important;
+		justify-content: flex-start !important;
 		align-items: center !important;
 		width: 100%;
 		padding: 10px 0;
 		border-bottom: 1.2px solid rgba(243, 234, 222, 0.5);
 	}
 
-	#sales-table tfoot .tfoot-comm td.col-dessert,
-	#sales-table tfoot .tfoot-comm td.col-paid,
-	#sales-table tfoot .tfoot-comm td.col-actions {
+	/* Restore structure for alignment */
+	#sales-table tfoot .tfoot-comm td.col-dessert {
 		display: none !important;
 	}
 
+	#sales-table tfoot .tfoot-comm td.col-paid {
+		display: block !important;
+		width: 20px !important; /* Matches start of Client column */
+		flex: 0 0 auto !important;
+	}
+
 	#sales-table tfoot .tfoot-comm .col-client.label {
-		flex: 1 !important;
+		flex: 0 0 73% !important; /* Covers name + dessert area */
 		display: block !important;
 		text-align: left !important;
 		padding-left: 8px !important;
-		font-size: 0.85rem !important; /* Increased to match Totales/Entregados */
+		font-size: 1rem !important; /* Larger as requested */
+		font-weight: 700 !important;
 	}
 
 	#sales-table tfoot .tfoot-comm .col-total {
-		flex: 0 0 auto !important;
+		flex: 0 0 17% !important; /* Exact column match */
 		display: block !important;
 		text-align: right !important;
-		margin-right: 5%; /* Pushes total to align with columns above */
 		padding-right: 8px !important;
 		color: var(--accent);
 		font-weight: 700;
 		font-size: 1.15rem;
+	}
+
+	#sales-table tfoot .tfoot-comm td.col-actions {
+		display: block !important;
+		width: 5% !important;
+		flex: 0 0 auto !important;
 	}
 
 	#sales-table tfoot .tfoot-delivered td.col-dessert {
