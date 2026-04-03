@@ -125,7 +125,10 @@ async function loadSellerClients() {
         if (storeAuthUser.token) headers['Authorization'] = 'Bearer ' + storeAuthUser.token;
         if (storeAuthUser.username) headers['x-actor-name'] = storeAuthUser.username;
 
-        const clientsRes = await fetch(`/api/clients?seller_id=${storeActiveSeller.id}`, { headers });
+        const clientsRes = await fetch(`/api/clients?seller_id=${storeActiveSeller.id}`, { 
+            headers,
+            cache: 'no-cache' // Force refresh to avoid seeing stale "Prospecto" tags
+        });
         if (!clientsRes.ok) return;
 
         const clientData = await clientsRes.json();
@@ -176,15 +179,18 @@ function setupClientAutocomplete() {
             tagContainer.className = 'autocomplete-tag-container';
             
             // 1. Stage Tag OR Prospecto Fallback
-            // Only show PROSPECTO if there's truly NO stage and NO orders
-            if (client.stage_name && client.stage_name !== '') {
+            // Only show PROSPECTO if there's truly NO stage and NO orders and NO custom tags
+            if (client.stage_name && client.stage_name.length > 0) {
                 const sTag = document.createElement('span');
                 sTag.className = 'autocomplete-tag';
                 sTag.textContent = client.stage_name;
                 sTag.style.background = client.stage_color;
                 tagContainer.appendChild(sTag);
-            } else if (client.total_orders === 0 && client.custom_tags.length === 0) {
-                // Only show Prospecto if it's a completely empty new profile
+            } else if (client.total_orders > 0) {
+                // If they HAVE orders but no stage name, don't show PROSPECTO
+                // Optionally show a generic "CLIENTE" or nothing
+            } else if (client.custom_tags.length === 0) {
+                // Truly a prospect (no stage, no orders, no tags)
                 const pTag = document.createElement('span');
                 pTag.className = 'autocomplete-tag';
                 pTag.textContent = 'PROSPECTO';
