@@ -155,14 +155,19 @@
 			.panel-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 			.panel-actions button { width: 100%; margin: 0; padding: 12px 8px; font-size: 0.8rem; }
 
+			.sales-panel { overflow: visible !important; }
+			main { overflow-x: hidden; touch-action: pan-y; }
+
 			#add-entry-btn-table { display: none; } /* Use floating button on mobile */
 			.table-wrapper { 
 				overflow-x: auto; 
-				-webkit-overflow-scrolling: touch; 
+				-webkit-overflow-scrolling: touch;
+				overflow-y: hidden;
 				margin: 12px -16px; /* Bleed to edges */
 				padding: 0 16px;
 				width: calc(100% + 32px);
 				border-radius: 0;
+				touch-action: pan-x pan-y;
 			}
 			table th, table td { min-width: 100px; padding: 12px 8px; font-size: 0.85rem; }
 			table th:first-child, table td:first-child { min-width: 40px; position: sticky; left: 0; background: var(--card); z-index: 2; border-right: 1px solid var(--border); }
