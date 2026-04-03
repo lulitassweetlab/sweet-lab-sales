@@ -29,6 +29,11 @@ export async function handler(event) {
                 const sellerName = data.seller_name || 'Vendedor';
                 if (!clientId) return json({ error: 'Falta client_id' }, 400);
 
+                // Fetch seller_id from the client record
+                const clientRes = await sql`SELECT seller_id FROM clients WHERE id = ${clientId}`;
+                const sellerId = clientRes[0]?.seller_id;
+                if (!sellerId) return json({ error: 'Vendedor no encontrado para este cliente' }, 404);
+
                 await sql`UPDATE clients SET last_dashboard_check = now() WHERE id = ${clientId}`;
                 
                 let note = 'Dashboard task completada';
@@ -36,8 +41,8 @@ export async function handler(event) {
                 else if (type === 'inactive') note = '✅ Se contactó al cliente inactivo para reactivación';
 
                 await sql`
-                    INSERT INTO crm_activities (client_id, activity_type, description, created_by)
-                    VALUES (${clientId}, 'note', ${note}, ${sellerName})
+                    INSERT INTO crm_activities (client_id, seller_id, activity_type, description, created_by)
+                    VALUES (${clientId}, ${sellerId}, 'note', ${note}, ${sellerName})
                 `;
                 return json({ ok: true });
             }
