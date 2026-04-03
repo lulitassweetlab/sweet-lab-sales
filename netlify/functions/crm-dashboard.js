@@ -54,7 +54,9 @@ export async function handler(event) {
                 r.due_date, r.reminder_type, r.priority, r.completed, r.client_id, r.prospect_id,
                 COALESCE(c.name, p.name) as name, 
                 COALESCE(c.whatsapp, p.whatsapp) as whatsapp,
-                c.total_orders, c.total_debt_cents, c.lifetime_value_cents,
+                (SELECT COUNT(cs1.sale_id) FROM crm_client_sales cs1 WHERE cs1.client_id = c.id) as total_orders,
+                (SELECT SUM(s1.total_cents) FROM sales s1 JOIN crm_client_sales cs2 ON s1.id = cs2.sale_id WHERE cs2.client_id = c.id) as lifetime_value_cents,
+                (SELECT COALESCE(SUM(CASE WHEN s2.pay_method IS NULL OR s2.pay_method = '' OR s2.pay_method = '-' OR s2.pay_method = 'entregado' THEN s2.total_cents ELSE 0 END), 0) FROM sales s2 JOIN crm_client_sales cs3 ON s2.id = cs3.sale_id WHERE cs3.client_id = c.id) as total_debt_cents,
                 st.name as stage_name, st.color as stage_color
             FROM crm_reminders r
             LEFT JOIN clients c ON r.client_id = c.id
