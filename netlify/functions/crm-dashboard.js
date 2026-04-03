@@ -47,14 +47,24 @@ export async function handler(event) {
             total_debt_cents: Number(statsQuery[0]?.total_debt_cents || 0)
         };
 
-        // 2. Recordatorios para hoy o vencidos
+        // 2. Recordatorios para hoy o vencidos (con data de cliente completa)
         const remindersToday = await sql`
-            SELECT id, title, description, due_date, reminder_type, priority, completed, client_id, prospect_id 
-            FROM crm_reminders 
-            WHERE seller_id = ${sellerId} 
-            AND completed = false 
-            AND due_date <= (CURRENT_DATE + INTERVAL '1 day')
-            ORDER BY priority DESC, due_date ASC
+            SELECT 
+                r.id as reminder_id, r.title as reminder_title, r.description as reminder_description, 
+                r.due_date, r.reminder_type, r.priority, r.completed, r.client_id, r.prospect_id,
+                COALESCE(c.name, p.name) as name, 
+                COALESCE(c.whatsapp, p.whatsapp) as whatsapp,
+                c.total_orders, c.total_debt_cents, c.lifetime_value_cents,
+                st.name as stage_name, st.color as stage_color
+            FROM crm_reminders r
+            LEFT JOIN clients c ON r.client_id = c.id
+            LEFT JOIN crm_prospects p ON r.prospect_id = p.id
+            LEFT JOIN crm_client_stage cst ON c.id = cst.client_id
+            LEFT JOIN crm_stages st ON cst.stage_id = st.id
+            WHERE r.seller_id = ${sellerId} 
+            AND r.completed = false 
+            AND r.due_date <= (CURRENT_DATE + INTERVAL '1 day')
+            ORDER BY r.priority DESC, r.due_date ASC
         `;
 
         // 3. Cumpleañeros (Próximos 5 días)
