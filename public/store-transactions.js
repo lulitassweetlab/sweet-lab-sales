@@ -184,24 +184,32 @@ function setupClientAutocomplete() {
             const tagContainer = document.createElement('div');
             tagContainer.className = 'autocomplete-tag-container';
             
-            // 1. Stage Tag OR Prospecto Fallback
-            if (client.stage_name && client.stage_name.length > 0) {
-                const sTag = document.createElement('span');
-                sTag.className = 'autocomplete-tag';
-                sTag.textContent = client.stage_name;
-                sTag.style.background = client.stage_color;
-                tagContainer.appendChild(sTag);
-            } 
-            
             // 2. Custom Tags (Should show even if Stage is missing)
             if (client.custom_tags && client.custom_tags.length > 0) {
                 client.custom_tags.forEach(t => {
                     const cTag = document.createElement('span');
                     cTag.className = 'autocomplete-tag';
                     cTag.textContent = t.name || t.NAME || '';
-                    cTag.style.background = t.color || t.COLOR || '#F4A6B7';
+                    cTag.style.background = t.color || t.COLOR || '#818cf8';
                     tagContainer.appendChild(cTag);
                 });
+            }
+
+            // 1. Stage Tag OR Prospecto Fallback
+            // Don't show generic Prospecto if we already have custom tags or real orders
+            if (client.stage_name && client.stage_name.length > 0) {
+                const sTag = document.createElement('span');
+                sTag.className = 'autocomplete-tag';
+                sTag.textContent = client.stage_name;
+                sTag.style.background = client.stage_color;
+                tagContainer.appendChild(sTag);
+            } else if (tagContainer.childNodes.length === 0 && client.total_orders === 0) {
+                // Truly a prospect (no stage, no orders, no tags)
+                const pTag = document.createElement('span');
+                pTag.className = 'autocomplete-tag';
+                pTag.textContent = 'PROSPECTO';
+                pTag.style.background = '#94a3b8'; // Match CRM "Prospecto" color
+                tagContainer.appendChild(pTag);
             }
 
             // 3. Debt Tag
@@ -211,15 +219,6 @@ function setupClientAutocomplete() {
                 dTag.textContent = 'DEUDA';
                 dTag.style.background = 'var(--danger)';
                 tagContainer.appendChild(dTag);
-            }
-
-            // 4. Prospecto Fallback (ONLY if NO stage AND NO orders AND NO custom tags)
-            if (tagContainer.childNodes.length === 0 && client.total_orders === 0) {
-                const pTag = document.createElement('span');
-                pTag.className = 'autocomplete-tag';
-                pTag.textContent = 'PROSPECTO';
-                pTag.style.background = '#9E9E9E';
-                tagContainer.appendChild(pTag);
             }
 
             // 2. Custom Tags (Same colors as CRM)
