@@ -62,12 +62,30 @@ export default async (req) => {
                     return new Response(JSON.stringify({ error: 'seller_id inválido' }), { status: 400 });
                 }
 
-                // Return all clients, ordered by name alphabetically
+                // Return all clients with rich CRM metadata (Stages, Tags, Debt, Orders)
                 clients = await sql`
-                    SELECT * 
-                    FROM clients 
-                    WHERE seller_id = ${sellerId}
-                    ORDER BY name ASC
+                    SELECT 
+                        c.id, c.name, c.whatsapp,
+                        st.name as stage_name, st.color as stage_color,
+                        COUNT(s.id)::int as total_orders,
+                        COALESCE(SUM(s.total_cents), 0)::int as lifetime_value_cents,
+                        MAX(sd.day)::text as last_purchase_date,
+                        COALESCE(SUM(CASE WHEN s.pay_method IS NULL OR s.pay_method = '' OR s.pay_method = '-' OR s.pay_method = 'entregado' THEN s.total_cents ELSE 0 END), 0)::int as total_debt_cents,
+                        COALESCE((
+                            SELECT json_agg(json_build_object('id', t.id, 'name', t.name, 'color', t.color))
+                            FROM crm_client_tags ct
+                            JOIN crm_tags t ON ct.tag_id = t.id
+                            WHERE ct.client_id = c.id
+                        ), '[]'::json) as custom_tags
+                    FROM clients c
+                    LEFT JOIN crm_client_sales cs ON c.id = cs.client_id
+                    LEFT JOIN sales s ON cs.sale_id = s.id
+                    LEFT JOIN sale_days sd ON s.sale_day_id = sd.id
+                    LEFT JOIN crm_client_stage cst ON c.id = cst.client_id
+                    LEFT JOIN crm_stages st ON cst.stage_id = st.id
+                    WHERE c.seller_id = ${sellerId}
+                    GROUP BY c.id, c.name, c.whatsapp, st.name, st.color, st.id
+                    ORDER BY c.name ASC
                 `;
             }
 
