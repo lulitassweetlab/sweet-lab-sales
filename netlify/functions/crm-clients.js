@@ -19,6 +19,31 @@ export async function handler(event) {
         await ensureSchema();
         if (event.httpMethod === 'OPTIONS') return json({ ok: true });
 
+        if (event.httpMethod === 'POST') {
+            const data = JSON.parse(event.body || '{}');
+            const action = data.action;
+
+            if (action === 'mark_dashboard_check') {
+                const clientId = Number(data.client_id);
+                const type = data.type; // 'birthday', 'inactive'
+                const sellerName = data.seller_name || 'Vendedor';
+                if (!clientId) return json({ error: 'Falta client_id' }, 400);
+
+                await sql`UPDATE clients SET last_dashboard_check = now() WHERE id = ${clientId}`;
+                
+                let note = 'Dashboard task completada';
+                if (type === 'birthday') note = '✅ Se felicitó al cliente por su cumpleaños';
+                else if (type === 'inactive') note = '✅ Se contactó al cliente inactivo para reactivación';
+
+                await sql`
+                    INSERT INTO crm_activities (client_id, activity_type, description, created_by)
+                    VALUES (${clientId}, 'note', ${note}, ${sellerName})
+                `;
+                return json({ ok: true });
+            }
+            return json({ error: 'Acción no válida' }, 400);
+        }
+
         const params = getQueryParams(event);
         const sellerId = Number(params.get('seller_id'));
         if (!sellerId) return json({ error: 'Falta seller_id' }, 400);

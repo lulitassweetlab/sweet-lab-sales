@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 36; // 36: Added is_reviewed column to sale_days (migration fix)
+const SCHEMA_VERSION = 40; // 40: Added last_dashboard_check column to clients
 
 export async function ensureSchema() {
 	if (schemaEnsured) return;
@@ -215,7 +215,12 @@ export async function ensureSchema() {
 					id SERIAL PRIMARY KEY,
 					name VARCHAR(50) UNIQUE NOT NULL,
 					color VARCHAR(20) DEFAULT '#818cf8',
-					position INTEGER DEFAULT 0
+					order_index INTEGER DEFAULT 0,
+					days_threshold INTEGER DEFAULT 0,
+					count_threshold INTEGER DEFAULT 0,
+					threshold_type VARCHAR(20) DEFAULT 'orders', -- 'orders' or 'items'
+					is_automatic BOOLEAN DEFAULT false,
+					is_active BOOLEAN DEFAULT true
 				)
 			`;
 			await sql`
@@ -289,12 +294,15 @@ export async function ensureSchema() {
 			const stageCount = await sql`SELECT COUNT(*)::int AS c FROM crm_stages`;
 			if ((stageCount[0]?.c || 0) === 0) {
 				await sql`
-					INSERT INTO crm_stages (name, color, position) VALUES 
-					('Prospecto', '#94a3b8', 1),
-					('Cliente nuevo', '#22c55e', 2),
-					('Cliente recurrente', '#3b82f6', 3),
-					('Cliente VIP', '#eab308', 4),
-					('Perdido', '#f43f5e', 5)
+					INSERT INTO crm_stages (name, color, order_index, is_automatic, days_threshold, count_threshold, threshold_type) VALUES 
+					('Prospecto', '#94a3b8', 1, false, 0, 0, 'orders'),
+					('Cliente nuevo', '#10b981', 2, true, 0, 1, 'orders'),
+					('Cliente activo', '#3b82f6', 3, true, 30, 1, 'orders'),
+					('Cliente frecuente', '#8b5cf6', 4, true, 30, 2, 'orders'),
+					('VIP', '#eab308', 5, true, 30, 5, 'items'),
+					('Inactivo', '#64748b', 6, true, 31, 0, 'orders'),
+					('Riesgo', '#f59e0b', 7, true, 61, 0, 'orders'),
+					('Perdido', '#ef4444', 8, true, 91, 0, 'orders')
 				`;
 			}
 
@@ -322,6 +330,38 @@ export async function ensureSchema() {
 				await sql`ALTER TABLE sellers ADD COLUMN IF NOT EXISTS require_whatsapp BOOLEAN NOT NULL DEFAULT false`;
 				await sql`ALTER TABLE sale_days ADD COLUMN IF NOT EXISTS delivered_counts JSONB NOT NULL DEFAULT '{}'::jsonb`;
 				await sql`ALTER TABLE sale_days ADD COLUMN IF NOT EXISTS is_reviewed BOOLEAN NOT NULL DEFAULT false`;
+				
+				// CRM Stages new columns migration
+				await sql`ALTER TABLE crm_stages ADD COLUMN IF NOT EXISTS order_index INTEGER DEFAULT 0`;
+				await sql`ALTER TABLE crm_stages ADD COLUMN IF NOT EXISTS days_threshold INTEGER DEFAULT 0`;
+				await sql`ALTER TABLE crm_stages ADD COLUMN IF NOT EXISTS count_threshold INTEGER DEFAULT 0`;
+				await sql`ALTER TABLE crm_stages ADD COLUMN IF NOT EXISTS threshold_type VARCHAR(20) DEFAULT 'orders'`;
+				await sql`ALTER TABLE crm_stages ADD COLUMN IF NOT EXISTS is_automatic BOOLEAN DEFAULT false`;
+				await sql`ALTER TABLE crm_stages ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true`;
+				await sql`ALTER TABLE clients ADD COLUMN IF NOT EXISTS last_dashboard_check TIMESTAMPTZ`;
+
+				// Migration 39: Activate automation for existing stages by name
+				const autoStages = [
+					{ name: 'VIP', color: '#eab308', order_index: 1, is_automatic: true, days_threshold: 30, count_threshold: 5, threshold_type: 'items' },
+					{ name: 'Cliente frecuente', color: '#8b5cf6', order_index: 2, is_automatic: true, days_threshold: 30, count_threshold: 2, threshold_type: 'orders' },
+					{ name: 'Cliente activo', color: '#3b82f6', order_index: 3, is_automatic: true, days_threshold: 30, count_threshold: 1, threshold_type: 'orders' },
+					{ name: 'Cliente nuevo', color: '#10b981', order_index: 4, is_automatic: true, days_threshold: 0, count_threshold: 1, threshold_type: 'orders' },
+					{ name: 'Inactivo', color: '#64748b', order_index: 5, is_automatic: true, days_threshold: 31, count_threshold: 0, threshold_type: 'orders' },
+					{ name: 'Riesgo', color: '#f59e0b', order_index: 6, is_automatic: true, days_threshold: 61, count_threshold: 0, threshold_type: 'orders' },
+					{ name: 'Perdido', color: '#ef4444', order_index: 7, is_automatic: true, days_threshold: 91, count_threshold: 0, threshold_type: 'orders' },
+					{ name: 'Prospecto', color: '#94a3b8', order_index: 8, is_automatic: false, days_threshold: 0, count_threshold: 0, threshold_type: 'orders' }
+				];
+				for (const s of autoStages) {
+					await sql`
+						UPDATE crm_stages SET 
+							is_automatic = ${s.is_automatic},
+							days_threshold = ${s.days_threshold},
+							count_threshold = ${s.count_threshold},
+							threshold_type = ${s.threshold_type},
+							order_index = ${s.order_index}
+						WHERE name ILIKE ${s.name} OR name ILIKE ${s.name + '%'}
+					`;
+				}
 			} catch (mErr) { console.error('Migration error for dynamic columns:', mErr); }
 
 			await sql`UPDATE schema_meta SET version = ${SCHEMA_VERSION}, updated_at = now()`;

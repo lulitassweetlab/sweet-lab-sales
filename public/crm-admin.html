@@ -505,13 +505,39 @@
                                 <span onclick="document.getElementById('stage-color-input').value='#9C27B0'" style="width:24px;height:24px;border-radius:50%;background:#9C27B0;cursor:pointer;" title="Morado"></span>
                                 <span onclick="document.getElementById('stage-color-input').value='#FF9800'" style="width:24px;height:24px;border-radius:50%;background:#FF9800;cursor:pointer;" title="Naranja"></span>
                                 <span onclick="document.getElementById('stage-color-input').value='#4CAF50'" style="width:24px;height:24px;border-radius:50%;background:#4CAF50;cursor:pointer;" title="Verde"></span>
-                                <span onclick="document.getElementById('stage-color-input').value='#009688'" style="width:24px;height:24px;border-radius:50%;background:#009688;cursor:pointer;" title="Teal"></span>
                                 <span onclick="document.getElementById('stage-color-input').value='#FFD700'" style="width:24px;height:24px;border-radius:50%;background:#FFD700;cursor:pointer;" title="Oro"></span>
-                                <span onclick="document.getElementById('stage-color-input').value='#FF5722'" style="width:24px;height:24px;border-radius:50%;background:#FF5722;cursor:pointer;" title="Rojo-naranja"></span>
                                 <span onclick="document.getElementById('stage-color-input').value='#F44336'" style="width:24px;height:24px;border-radius:50%;background:#F44336;cursor:pointer;" title="Rojo"></span>
-                                <span onclick="document.getElementById('stage-color-input').value='#03A9F4'" style="width:24px;height:24px;border-radius:50%;background:#03A9F4;cursor:pointer;" title="Celeste"></span>
-                                <span onclick="document.getElementById('stage-color-input').value='#E91E63'" style="width:24px;height:24px;border-radius:50%;background:#E91E63;cursor:pointer;" title="Rosa"></span>
                             </div>
+                        </div>
+                    </div>
+
+                    <div style="background:var(--bg); padding:16px; border:1px solid var(--border); border-radius:12px; margin-top:8px;">
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+                            <input id="stage-is-auto-input" type="checkbox" style="width:18px; height:18px; cursor:pointer;" onchange="document.getElementById('auto-options').style.display = this.checked ? 'block' : 'none'" />
+                            <label for="stage-is-auto-input" style="font-weight:700; font-size:0.9rem; cursor:pointer;">Etapa Automática</label>
+                        </div>
+                        
+                        <div id="auto-options" style="display:none; flex-direction:column; gap:12px;">
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                                <div>
+                                    <label style="display:block; font-size:0.8rem; color:var(--text-muted); margin-bottom:4px;">Días (Tiempo)</label>
+                                    <input id="stage-days-input" type="number" placeholder="Ej: 30" style="width:100%; padding:8px 12px; border:1px solid var(--border); border-radius:8px; font-size:0.9rem;" />
+                                </div>
+                                <div>
+                                    <label style="display:block; font-size:0.8rem; color:var(--text-muted); margin-bottom:4px;">Cantidad Mínima</label>
+                                    <input id="stage-count-input" type="number" placeholder="Ej: 1" style="width:100%; padding:8px 12px; border:1px solid var(--border); border-radius:8px; font-size:0.9rem;" />
+                                </div>
+                            </div>
+                            <div>
+                                <label style="display:block; font-size:0.8rem; color:var(--text-muted); margin-bottom:4px;">Basado en:</label>
+                                <select id="stage-type-input" style="width:100%; padding:8px 12px; border:1px solid var(--border); border-radius:8px; font-size:0.9rem;">
+                                    <option value="orders">Pedidos Realizados</option>
+                                    <option value="items">Postres Vendidos (Unidades)</option>
+                                </select>
+                            </div>
+                            <p style="font-size:0.75rem; color:var(--text-muted); line-height:1.4; margin:0;">
+                                * Automática: Si el cliente cumple con la cantidad en el tiempo definido, se asignará esta etapa.
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -1264,15 +1290,43 @@
                 row.dataset.id = s.id;
                 row.style.cssText = `display:flex; align-items:center; gap:12px; padding:12px 16px; background:var(--bg); border:1px solid var(--border); border-radius:10px; opacity:${s.is_active ? '1' : '0.5'};`;
                 row.setAttribute('draggable', 'true');
+
+                let autoSection = '';
+                if (s.is_automatic) {
+                    const typeLabel = s.threshold_type === 'items' ? 'postres' : 'pedidos';
+                    let ruleText = '';
+                    if (Number(s.count_threshold) > 0) {
+                        if (Number(s.days_threshold) === 0) {
+                            ruleText = `Condición: <strong>${s.count_threshold} ${typeLabel} total</strong>`;
+                        } else {
+                            ruleText = `Condición: <strong>${s.count_threshold} ${typeLabel}</strong> en <strong>${s.days_threshold} días</strong>`;
+                        }
+                    } else {
+                        ruleText = `Condición: Inactividad de <strong>${s.days_threshold} días</strong>`;
+                    }
+                    autoSection = `
+                        <div style="font-size:0.72rem; color:var(--text-muted); margin-top:2px; display:flex; align-items:center; gap:6px;">
+                            <span style="background:var(--success-light); color:var(--success-dark); padding:1px 6px; border-radius:4px; font-weight:800; font-size:0.65rem;">AUTO</span>
+                            ${ruleText}
+                        </div>
+                    `;
+                } else {
+                    autoSection = `<div style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;">Etiqueta manual (sin automatización)</div>`;
+                }
+
                 row.innerHTML = `
-                    <span style="cursor:grab;color:var(--text-muted);font-size:1.1rem;user-select:none;" title="Arrastrar para reordenar">⠿</span>
-                    <span style="width:16px;height:16px;border-radius:50%;background:${s.color};flex-shrink:0;"></span>
-                    <span style="flex:1;font-weight:700;">${s.name}</span>
-                    <span style="font-size:0.78rem;color:var(--text-muted);min-width:55px;text-align:right;">orden ${s.order_index}</span>
-                    ${!s.is_active ? '<span style="font-size:0.75rem;background:#f3f4f6;color:#888;border-radius:6px;padding:2px 8px;">Inactiva</span>' : ''}
-                    <button class="btn" style="padding:5px 12px;font-size:0.8rem;" onclick="openEditStage(${s.id})">✏️ Editar</button>
-                    <button class="btn" style="padding:5px 12px;font-size:0.8rem;" onclick="toggleStageActive(${s.id},${s.is_active})">${s.is_active ? '🙈 Ocultar' : '👁 Activar'}</button>
-                    <button class="btn" style="padding:5px 10px;font-size:0.8rem;color:var(--danger);" onclick="deleteStageAdmin(${s.id},'${s.name.replace(/'/g,"\\'")}')">🗑️</button>
+                    <span style="cursor:grab;color:var(--text-muted);font-size:1.1rem;user-select:none;margin-right:4px;" title="Arrastrar para reordenar">⠿</span>
+                    <span style="width:14px;height:14px;border-radius:50%;background:${s.color};flex-shrink:0;box-shadow:0 0 0 2px var(--bg), 0 0 0 3px ${s.color}66;"></span>
+                    <div style="flex:1; display:flex; flex-direction:column; padding-left:4px;">
+                        <span style="font-weight:700; font-size:0.95rem; color:var(--text-main);">${s.name}</span>
+                        ${autoSection}
+                    </div>
+                    <div style="text-align:right; display:flex; align-items:center; gap:8px;">
+                        <span style="font-size:0.75rem; color:var(--text-muted); background:var(--bg); border:1px solid var(--border); padding:2px 8px; border-radius:6px; font-weight:600;">#${s.order_index}</span>
+                        ${!s.is_active ? '<span style="font-size:0.7rem; background:#fee2e2; color:#ef4444; border-radius:6px; padding:2px 8px; font-weight:700;">OCULTA</span>' : ''}
+                        <button class="btn" style="padding:6px 12px; font-size:0.8rem; font-weight:700; background:var(--bg); border:1.5px solid var(--border);" onclick="openEditStage(${s.id})">⚙️ Configurar</button>
+                        <button class="btn" style="padding:6px 10px; font-size:0.8rem; background:transparent; border:none; color:var(--danger);" onclick="deleteStageAdmin(${s.id},'${s.name.replace(/'/g,"\\'")}')">🗑️</button>
+                    </div>
                 `;
                 container.appendChild(row);
             });
@@ -1306,6 +1360,12 @@
             document.getElementById('stage-modal-title').textContent = 'Nueva Etapa';
             document.getElementById('stage-name-input').value = '';
             document.getElementById('stage-color-input').value = '#6366f1';
+            document.getElementById('stage-is-auto-input').checked = false;
+            document.getElementById('stage-days-input').value = '';
+            document.getElementById('stage-count-input').value = '';
+            document.getElementById('stage-type-input').value = 'orders';
+            document.getElementById('auto-options').style.display = 'none';
+
             const backdrop = document.getElementById('stage-modal-backdrop');
             backdrop.style.display = 'flex';
             setTimeout(() => document.getElementById('stage-name-input').focus(), 100);
@@ -1318,6 +1378,14 @@
             document.getElementById('stage-modal-title').textContent = 'Editar Etapa';
             document.getElementById('stage-name-input').value = s.name;
             document.getElementById('stage-color-input').value = s.color;
+
+            // Automation fields
+            document.getElementById('stage-is-auto-input').checked = !!s.is_automatic;
+            document.getElementById('stage-days-input').value = s.days_threshold || '';
+            document.getElementById('stage-count-input').value = s.count_threshold || '';
+            document.getElementById('stage-type-input').value = s.threshold_type || 'orders';
+            document.getElementById('auto-options').style.display = s.is_automatic ? 'block' : 'none';
+
             document.getElementById('stage-modal-backdrop').style.display = 'flex';
             setTimeout(() => document.getElementById('stage-name-input').focus(), 100);
         }
@@ -1329,13 +1397,26 @@
         window.saveStage = async function() {
             const name = document.getElementById('stage-name-input').value.trim();
             const color = document.getElementById('stage-color-input').value;
+            const is_automatic = document.getElementById('stage-is-auto-input').checked;
+            const days_threshold = document.getElementById('stage-days-input').value || 0;
+            const count_threshold = document.getElementById('stage-count-input').value || 0;
+            const threshold_type = document.getElementById('stage-type-input').value;
+
             if (!name) { alert('El nombre es requerido'); return; }
             const btn = document.getElementById('stage-modal-save-btn');
             btn.disabled = true; btn.textContent = 'Guardando...';
             try {
                 const body = editingStageId
-                    ? { action:'update_stage', id:editingStageId, name, color, order_index: stagesData.find(s=>s.id===editingStageId)?.order_index||99, is_active:true }
-                    : { action:'create_stage', name, color };
+                    ? { 
+                        action:'update_stage', id:editingStageId, name, color, 
+                        order_index: stagesData.find(s=>s.id===editingStageId)?.order_index||99, 
+                        is_active:true, 
+                        is_automatic, days_threshold, count_threshold, threshold_type
+                      }
+                    : { 
+                        action:'create_stage', name, color, 
+                        is_automatic, days_threshold, count_threshold, threshold_type
+                      };
                 const res = await fetch('/api/crm-stages', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
                 const data = await res.json();
                 if (data.error) { alert('Error: '+data.error); return; }

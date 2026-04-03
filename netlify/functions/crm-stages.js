@@ -1,4 +1,5 @@
 import { ensureSchema, sql } from './_db.js';
+import { evaluateClientStage, syncSellerStages } from './crm-automation.js';
 
 function json(body, status = 200) {
     return { statusCode: status, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
@@ -165,6 +166,20 @@ export async function handler(event) {
                 return json({ success: true, client_stage: upsert[0] });
             }
 
+            if (action === 'evaluate_client') {
+                const { client_id, user_id } = body;
+                if (!client_id) return json({ error: 'Missing client_id' }, 400);
+                const newStageId = await evaluateClientStage(client_id, user_id);
+                return json({ success: true, changed: !!newStageId, stage_id: newStageId });
+            }
+
+            if (action === 'sync_seller') {
+                const { seller_id } = body;
+                if (!seller_id) return json({ error: 'Missing seller_id' }, 400);
+                await syncSellerStages(seller_id);
+                return json({ success: true });
+            }
+
             if (action === 'add_action') {
                 const { client_id, action_type, note, seller_id } = body;
                 if (!client_id || !action_type) return json({ error: 'Missing client_id or action_type' }, 400);
@@ -178,7 +193,7 @@ export async function handler(event) {
             }
 
             if (action === 'create_stage') {
-                const { name, color, order_index } = body;
+                const { name, color, order_index, days_threshold, count_threshold, threshold_type, is_automatic } = body;
                 if (!name) return json({ error: 'Falta el nombre de la etapa' }, 400);
 
                 // Auto-assign highest order if not provided
@@ -189,15 +204,15 @@ export async function handler(event) {
                 }
 
                 const inserted = await sql`
-                    INSERT INTO crm_stages (name, color, order_index, is_active)
-                    VALUES (${name.trim()}, ${color || '#808080'}, ${orderIdx}, true)
+                    INSERT INTO crm_stages (name, color, order_index, is_active, days_threshold, count_threshold, threshold_type, is_automatic)
+                    VALUES (${name.trim()}, ${color || '#808080'}, ${orderIdx}, true, ${Number(days_threshold) || 0}, ${Number(count_threshold) || 0}, ${threshold_type || 'orders'}, ${!!is_automatic})
                     RETURNING *
                 `;
                 return json({ success: true, stage: inserted[0] });
             }
 
             if (action === 'update_stage') {
-                const { id, name, color, order_index, is_active } = body;
+                const { id, name, color, order_index, is_active, days_threshold, count_threshold, threshold_type, is_automatic } = body;
                 if (!id) return json({ error: 'Falta id de etapa' }, 400);
 
                 const updated = await sql`
@@ -205,7 +220,11 @@ export async function handler(event) {
                         name = ${name},
                         color = ${color || '#808080'},
                         order_index = ${order_index},
-                        is_active = ${is_active !== false}
+                        is_active = ${is_active !== false},
+                        days_threshold = ${Number(days_threshold) || 0},
+                        count_threshold = ${Number(count_threshold) || 0},
+                        threshold_type = ${threshold_type || 'orders'},
+                        is_automatic = ${!!is_automatic}
                     WHERE id = ${id}
                     RETURNING *
                 `;

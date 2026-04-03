@@ -1,4 +1,5 @@
 import { ensureSchema, sql, recalcTotalForId, getOrCreateDayId, notify as notifyDb } from './_db.js';
+import { evaluateClientStage } from './crm-automation.js';
 
 function json(body, status = 200) {
 	return { statusCode: status, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
@@ -72,43 +73,13 @@ async function syncReceiptPaymentsToSales() {
 }
 
 // Auto-update CRM stage to 'Cliente nuevo' if it's the first order
+// Auto-update CRM stage based on buyer behavior
 async function autoUpdateClientStage(clientId, sellerId) {
-    if (!clientId || !sellerId) return;
+    if (!clientId) return;
     try {
-        // 1. Count sales for this client
-        const [countRow] = await sql`SELECT count(*) FROM crm_client_sales WHERE client_id = ${clientId}`;
-        const totalSales = parseInt(countRow.count);
-
-        if (totalSales === 1) {
-            // 2. Get stage IDs for 'Prospecto' and 'Cliente nuevo'
-            const stages = await sql`SELECT id, name FROM crm_stages WHERE name IN ('Prospecto', 'Cliente nuevo')`;
-            const prospectStage = stages.find(s => s.name === 'Prospecto');
-            const newClientStage = stages.find(s => s.name === 'Cliente nuevo');
-
-            if (newClientStage) {
-                // 3. Check current stage
-                const [current] = await sql`SELECT stage_id FROM crm_client_stage WHERE client_id = ${clientId}`;
-                const currentStageId = current ? current.stage_id : null;
-
-                // Only upgrade if current is null or 'Prospecto'
-                if (!currentStageId || (prospectStage && currentStageId === prospectStage.id)) {
-                    // Move to 'Cliente nuevo'
-                    await sql`
-                        INSERT INTO crm_client_stage (client_id, stage_id, updated_by, updated_at)
-                        VALUES (${clientId}, ${newClientStage.id}, ${sellerId}, now())
-                        ON CONFLICT (client_id) DO UPDATE SET stage_id = EXCLUDED.stage_id, updated_by = EXCLUDED.updated_by, updated_at = now()
-                    `;
-
-                    // Log in history
-                    await sql`
-                        INSERT INTO crm_stage_history (client_id, old_stage_id, new_stage_id, note, changed_by, changed_at)
-                        VALUES (${clientId}, ${currentStageId}, ${newClientStage.id}, 'Automatización: Primer pedido registrado', ${sellerId}, now())
-                    `;
-                }
-            }
-        }
+        await evaluateClientStage(clientId, sellerId);
     } catch (err) {
-        console.error('Error in autoUpdateClientStage:', err);
+        console.error('Error auto-updating client stage:', err);
     }
 }
 

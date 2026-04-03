@@ -72,6 +72,7 @@ export async function handler(event) {
             LEFT JOIN crm_client_stage cst ON c.id = cst.client_id
             LEFT JOIN crm_stages st ON cst.stage_id = st.id
             WHERE c.seller_id = ${sellerId}
+            AND (c.last_dashboard_check IS NULL OR c.last_dashboard_check::date < CURRENT_DATE)
             AND c.birth_date IS NOT NULL
             AND (
                 -- Robust check using to_char (MMDD) for the next 5 days
@@ -111,7 +112,9 @@ export async function handler(event) {
             FROM ClientSales cs
             LEFT JOIN crm_client_stage cst ON cs.id = cst.client_id
             LEFT JOIN crm_stages st ON cst.stage_id = st.id
+            JOIN clients c ON cs.id = c.id
             WHERE cs.last_date::date < CURRENT_DATE - INTERVAL '30 days'
+            AND (c.last_dashboard_check IS NULL OR c.last_dashboard_check::date < CURRENT_DATE)
             ORDER BY cs.last_date ASC
             LIMIT 20
         `;
