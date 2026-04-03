@@ -29,7 +29,7 @@ export async function handler(event) {
 
             if (action === 'get_seller_tags') {
                 if (!sellerId) return json({ error: 'Falta seller_id' }, 400);
-                const tags = await sql`SELECT * FROM crm_tags WHERE seller_id = ${sellerId} ORDER BY name ASC`;
+                const tags = await sql`SELECT * FROM crm_tags WHERE seller_id = ${sellerId} ORDER BY display_order ASC, name ASC`;
                 return json(tags);
             }
 
@@ -40,7 +40,7 @@ export async function handler(event) {
                     FROM crm_tags t
                     JOIN crm_client_tags ct ON t.id = ct.tag_id
                     WHERE ct.client_id = ${clientId}
-                    ORDER BY t.name ASC
+                    ORDER BY t.display_order ASC, t.name ASC
                 `;
                 return json(tags);
             }
@@ -62,7 +62,7 @@ export async function handler(event) {
                     LEFT JOIN crm_client_tags ct ON t.id = ct.tag_id
                     WHERE t.seller_id = ${sellerId}
                     GROUP BY t.id, t.name, t.color
-                    ORDER BY client_count DESC, t.name ASC
+                    ORDER BY t.display_order ASC, t.name ASC
                 `;
                 return json(summary);
             }
@@ -91,7 +91,7 @@ export async function handler(event) {
                     LEFT JOIN crm_stages st ON cst.stage_id = st.id
                     WHERE ct.tag_id = ${tagId}
                     GROUP BY c.id, c.name, c.whatsapp, st.name, st.color, st.id
-                    ORDER BY c.name ASC
+                    ORDER BY t.display_order ASC, t.name ASC
                 `;
                 return json(clients);
             }
@@ -153,6 +153,17 @@ export async function handler(event) {
                     SET name = ${name.trim()}, color = ${color} 
                     WHERE id = ${tag_id} AND seller_id = ${seller_id}
                 `;
+                return json({ success: true });
+            }
+
+            if (action === 'reorder_tags') {
+                const { seller_id, tag_ids } = body;
+                if (!seller_id || !Array.isArray(tag_ids)) return json({ error: 'Faltan datos' }, 400);
+
+                // Perform sequential updates for order
+                for (let i = 0; i < tag_ids.length; i++) {
+                    await sql`UPDATE crm_tags SET display_order = ${i} WHERE id = ${tag_ids[i]} AND seller_id = ${seller_id}`;
+                }
                 return json({ success: true });
             }
 

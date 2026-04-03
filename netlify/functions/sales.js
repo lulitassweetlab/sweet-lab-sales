@@ -188,7 +188,7 @@ export async function handler(event) {
 							           FROM crm_client_tags ct
 							           JOIN crm_tags t ON ct.tag_id = t.id
 							           JOIN crm_client_sales ccs ON ct.client_id = ccs.client_id
-							           WHERE ccs.sale_id = s.id
+							           WHERE ccs.sale_id = s.id ORDER BY t.display_order ASC, t.name ASC
 							       ) AS client_tags
 							FROM sales s
 							INNER JOIN sale_days sd ON sd.id = s.sale_day_id
@@ -209,7 +209,7 @@ export async function handler(event) {
 							           FROM crm_client_tags ct
 							           JOIN crm_tags t ON ct.tag_id = t.id
 							           JOIN crm_client_sales ccs ON ct.client_id = ccs.client_id
-							           WHERE ccs.sale_id = s.id
+							           WHERE ccs.sale_id = s.id ORDER BY t.display_order ASC, t.name ASC
 							       ) AS client_tags
 							FROM sales s
 							INNER JOIN sale_days sd ON sd.id = s.sale_day_id
@@ -377,6 +377,7 @@ export async function handler(event) {
 						           JOIN crm_tags t ON ct.tag_id = t.id
 						           JOIN crm_client_sales ccs ON ct.client_id = ccs.client_id
 						           WHERE ccs.sale_id = s.id
+						           ORDER BY t.display_order ASC, t.name ASC
 						       ) AS client_tags
 						FROM sales s
 						INNER JOIN sale_days sd ON sd.id = s.sale_day_id
@@ -449,9 +450,9 @@ export async function handler(event) {
 				} catch {}
 			let rows;
 			if (saleDayId) {
-				rows = await sql`SELECT id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, payment_date, payment_source, comment_text, special_pricing_type, total_cents, created_at, (SELECT json_agg(json_build_object('name', t.name, 'color', t.color)) FROM crm_client_tags ct JOIN crm_tags t ON ct.tag_id = t.id JOIN crm_client_sales ccs ON ct.client_id = ccs.client_id WHERE ccs.sale_id = sales.id) AS client_tags FROM sales WHERE seller_id = ${sellerId} AND sale_day_id=${saleDayId} ORDER BY created_at DESC, id DESC`;
+				rows = await sql`SELECT id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, payment_date, payment_source, comment_text, special_pricing_type, total_cents, created_at, (SELECT json_agg(json_build_object('name', t.name, 'color', t.color)) FROM crm_client_tags ct JOIN crm_tags t ON ct.tag_id = t.id JOIN crm_client_sales ccs ON ct.client_id = ccs.client_id WHERE ccs.sale_id = sales.id ORDER BY t.display_order ASC, t.name ASC) AS client_tags FROM sales WHERE seller_id = ${sellerId} AND sale_day_id=${saleDayId} ORDER BY created_at DESC, id DESC`;
 			} else {
-				rows = await sql`SELECT id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, payment_date, payment_source, comment_text, special_pricing_type, total_cents, created_at, (SELECT json_agg(json_build_object('name', t.name, 'color', t.color)) FROM crm_client_tags ct JOIN crm_tags t ON ct.tag_id = t.id JOIN crm_client_sales ccs ON ct.client_id = ccs.client_id WHERE ccs.sale_id = sales.id) AS client_tags FROM sales WHERE seller_id = ${sellerId} ORDER BY created_at DESC, id DESC`;
+				rows = await sql`SELECT id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, payment_date, payment_source, comment_text, special_pricing_type, total_cents, created_at, (SELECT json_agg(json_build_object('name', t.name, 'color', t.color)) FROM crm_client_tags ct JOIN crm_tags t ON ct.tag_id = t.id JOIN crm_client_sales ccs ON ct.client_id = ccs.client_id WHERE ccs.sale_id = sales.id ORDER BY t.display_order ASC, t.name ASC) AS client_tags FROM sales WHERE seller_id = ${sellerId} ORDER BY created_at DESC, id DESC`;
 			}
 				
 				// Enhance with sale_items data for each sale (OPTIMIZED BATCH FETCH)

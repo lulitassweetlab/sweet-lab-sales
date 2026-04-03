@@ -2577,6 +2577,45 @@
             const modal = document.getElementById('modalManageTags');
             modal.style.display = 'flex';
             renderManageTagsList();
+            initManageTagsSortable();
+        }
+
+        function initManageTagsSortable() {
+            const list = document.getElementById('manageTagsList');
+            if (!list || typeof Sortable === 'undefined') return;
+            
+            // Destroy previous instance if exists
+            if (window.manageTagsSortable) window.manageTagsSortable.destroy();
+            
+            window.manageTagsSortable = Sortable.create(list, {
+                animation: 150,
+                handle: '.drag-handle',
+                ghostClass: 'nav-ghost',
+                onEnd: async function() {
+                    const ids = Array.from(list.children).map(el => el.getAttribute('data-id'));
+                    await saveTagOrder(ids);
+                }
+            });
+        }
+
+        async function saveTagOrder(tagIds) {
+            try {
+                const res = await fetch('/.netlify/functions/crm-tags', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'reorder_tags', seller_id: currentSellerId, tag_ids: tagIds })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    // Update local sellerTags array to match new order to avoid flickering
+                    const tagMap = {};
+                    sellerTags.forEach(t => tagMap[t.id] = t);
+                    sellerTags = tagIds.map(id => tagMap[id]).filter(Boolean);
+                    
+                    // Refresh dashboard tags if visible
+                    renderDashboard(directoryData, true);
+                }
+            } catch(e) { console.error('Error saving tag order', e); }
         }
 
         function closeManageTagsModal() {
@@ -2600,14 +2639,15 @@
                 `).join('');
 
                 return `
-                    <div class="card" style="padding:16px; display:flex; flex-direction:column; gap:12px; border:1px solid var(--border);">
+                    <div class="card" data-id="${t.id}" style="padding:16px; display:flex; flex-direction:column; gap:12px; border:1px solid var(--border); position:relative;">
                         <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+                            <div class="drag-handle" style="cursor:grab; color:var(--text-muted); font-size:1.2rem; padding:4px;">☰</div>
                             <input type="text" value="${t.name}" id="editTagName-${t.id}" 
                                 style="flex:1; background:var(--bg); border:1.5px solid var(--border); border-radius:10px; padding:8px 12px; font-size:0.95rem; font-weight:700; color:var(--text-main); outline:none;"
                                 onchange="saveTagChange(${t.id})">
                             <button onclick="deleteTag(${t.id})" style="background:none; border:none; color:var(--danger); font-size:1.2rem; cursor:pointer; padding:4px; opacity:0.6;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'">🗑️</button>
                         </div>
-                        <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
+                        <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding-left:32px;">
                             <span style="font-size:0.7rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-right:4px;">Color:</span>
                             ${colorOptions}
                         </div>
