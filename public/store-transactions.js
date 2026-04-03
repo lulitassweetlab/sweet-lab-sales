@@ -130,7 +130,12 @@ async function loadSellerClients() {
 
         const clientNames = await clientsRes.json();
         if (Array.isArray(clientNames)) {
-            storeClientList = clientNames.map(c => c.name).filter(n => typeof n === 'string' && n.trim() !== '');
+            storeClientList = clientNames
+                .filter(c => typeof c.name === 'string' && c.name.trim() !== '')
+                .map(c => ({
+                    name: c.name,
+                    tags: c.tags || ''
+                }));
         }
     } catch (err) {
         console.error('Error fetching clients for autocomplete:', err);
@@ -144,18 +149,38 @@ function setupClientAutocomplete() {
 
     function renderDropdown(filterValue = '') {
         const lowerVal = filterValue.toLowerCase();
-        const matches = storeClientList.filter(name => name.toLowerCase().includes(lowerVal));
+        const matches = storeClientList.filter(c => c.name.toLowerCase().includes(lowerVal));
         dropdown.innerHTML = '';
         if (matches.length === 0 || !storeAuthUser || !storeActiveSeller) {
             dropdown.classList.remove('show');
             return;
         }
-        matches.slice(0, 30).forEach(name => {
+        matches.slice(0, 30).forEach(client => {
             const li = document.createElement('li');
-            li.textContent = name;
+            
+            // Name container
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = client.name;
+            li.appendChild(nameSpan);
+
+            // Tags container
+            if (client.tags && client.tags.trim() !== '') {
+                const tagContainer = document.createElement('div');
+                tagContainer.className = 'autocomplete-tag-container';
+                
+                const tagsArr = client.tags.split(',').map(t => t.trim()).filter(t => t !== '');
+                tagsArr.forEach(tag => {
+                    const tagSpan = document.createElement('span');
+                    tagSpan.className = 'autocomplete-tag';
+                    tagSpan.textContent = tag;
+                    tagContainer.appendChild(tagSpan);
+                });
+                li.appendChild(tagContainer);
+            }
+
             li.addEventListener('mousedown', (e) => {
                 e.preventDefault();
-                input.value = name;
+                input.value = client.name;
                 dropdown.classList.remove('show');
             });
             dropdown.appendChild(li);
@@ -235,13 +260,13 @@ function findSimilarClients(name) {
     const lowerName = name.toLowerCase().trim();
     const threshold = 3;
     const matches = storeClientList.map(c => {
-        const lowerC = c.toLowerCase();
+        const lowerC = c.name.toLowerCase();
         const dist = levenshteinDistance(lowerName, lowerC);
-        return { name: c, dist, includes: lowerC.includes(lowerName) || lowerName.includes(lowerC) };
-    }).filter(c => c.dist <= threshold || c.includes)
+        return { client: c, dist, includes: lowerC.includes(lowerName) || lowerName.includes(lowerC) };
+    }).filter(m => m.dist <= threshold || m.includes)
         .sort((a, b) => a.dist - b.dist)
         .slice(0, 3);
-    return matches.map(m => m.name);
+    return matches.map(m => m.client.name);
 }
 
 /* openNewClientModal moved to store.html inline script to ensure tag loading coordination */
