@@ -134,16 +134,22 @@ async function loadSellerClients() {
         const clientData = await clientsRes.json();
         if (Array.isArray(clientData)) {
             storeClientList = clientData
-                .filter(c => typeof c.name === 'string' && c.name.trim() !== '')
+                .filter(c => c && (c.name || c.NAME))
                 .map(c => {
-                    // Critical: SQL COUNT() often comes back as a string, must parse carefully
-                    const orders = c.total_orders !== undefined && c.total_orders !== null ? parseInt(c.total_orders) : 0;
+                    // Handle potential case-sensitivity from different DB environments/drivers
+                    const name = c.name || c.NAME || '';
+                    const stage_name = c.stage_name || c.STAGE_NAME || c.stage || '';
+                    const stage_color = c.stage_color || c.STAGE_COLOR || c.color || '#808080';
+                    const custom_tags = Array.isArray(c.custom_tags || c.CUSTOM_TAGS) ? (c.custom_tags || c.CUSTOM_TAGS) : [];
+                    const debt_cents = Number(c.total_debt_cents || c.TOTAL_DEBT_CENTS || 0);
+                    const orders = parseInt(c.total_orders || c.TOTAL_ORDERS || 0);
+
                     return {
-                        name: c.name,
-                        stage_name: (c.stage_name || '').trim(),
-                        stage_color: c.stage_color || '#808080',
-                        custom_tags: Array.isArray(c.custom_tags) ? c.custom_tags : [],
-                        debt_cents: Number(c.total_debt_cents || 0),
+                        name: name.trim(),
+                        stage_name: (stage_name || '').toString().trim(),
+                        stage_color: stage_color,
+                        custom_tags: custom_tags,
+                        debt_cents: debt_cents,
                         total_orders: orders
                     };
                 });
@@ -179,18 +185,36 @@ function setupClientAutocomplete() {
             tagContainer.className = 'autocomplete-tag-container';
             
             // 1. Stage Tag OR Prospecto Fallback
-            // Only show PROSPECTO if there's truly NO stage and NO orders and NO custom tags
             if (client.stage_name && client.stage_name.length > 0) {
                 const sTag = document.createElement('span');
                 sTag.className = 'autocomplete-tag';
                 sTag.textContent = client.stage_name;
                 sTag.style.background = client.stage_color;
                 tagContainer.appendChild(sTag);
-            } else if (client.total_orders > 0) {
-                // If they HAVE orders but no stage name, don't show PROSPECTO
-                // Optionally show a generic "CLIENTE" or nothing
-            } else if (client.custom_tags.length === 0) {
-                // Truly a prospect (no stage, no orders, no tags)
+            } 
+            
+            // 2. Custom Tags (Should show even if Stage is missing)
+            if (client.custom_tags && client.custom_tags.length > 0) {
+                client.custom_tags.forEach(t => {
+                    const cTag = document.createElement('span');
+                    cTag.className = 'autocomplete-tag';
+                    cTag.textContent = t.name || t.NAME || '';
+                    cTag.style.background = t.color || t.COLOR || '#F4A6B7';
+                    tagContainer.appendChild(cTag);
+                });
+            }
+
+            // 3. Debt Tag
+            if (client.debt_cents > 0) {
+                const dTag = document.createElement('span');
+                dTag.className = 'autocomplete-tag';
+                dTag.textContent = 'DEUDA';
+                dTag.style.background = 'var(--danger)';
+                tagContainer.appendChild(dTag);
+            }
+
+            // 4. Prospecto Fallback (ONLY if NO stage AND NO orders AND NO custom tags)
+            if (tagContainer.childNodes.length === 0 && client.total_orders === 0) {
                 const pTag = document.createElement('span');
                 pTag.className = 'autocomplete-tag';
                 pTag.textContent = 'PROSPECTO';
