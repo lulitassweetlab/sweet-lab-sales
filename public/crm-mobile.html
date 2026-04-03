@@ -147,25 +147,26 @@
         }
         .clear-search-btn {
             position: absolute;
-            right: 2px;
-            width: 44px; /* Tap area standard */
+            right: 0;
+            width: 44px; /* Standard tap area */
             height: 44px;
             background: transparent;
             border: none;
-            color: #cbd5e1; /* Light gray */
+            color: #e2e8f0; /* LIGHT GRAY */
             display: none; /* Hidden by default */
             align-items: center;
             justify-content: center;
-            font-size: 1.1rem; /* Smaller */
-            font-weight: 900; /* Robust/Thick */
+            font-size: 0.9rem; /* SMALLER */
+            font-weight: 900; /* ROBUST/THICK */
             cursor: pointer;
-            z-index: 1000; /* Over everything */
+            z-index: 1000; /* Priority layer */
             -webkit-tap-highlight-color: transparent;
             outline: none;
+            transition: color 0.1s;
         }
         .clear-search-btn:active {
             transform: scale(0.9);
-            color: #94a3b8;
+            color: #cbd5e1;
         }
 
     </style>
@@ -257,7 +258,7 @@
                                 style="width: 100%; height: 50px; border-radius: 12px; border: 1.5px solid var(--border); font-size: 1rem; background: var(--surface); outline:none; transition: border-color 0.2s; padding-left: 14px;"
                                 onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'"
                                 oninput="toggleClearSearch('dashSearchInput'); filterDashboard()">
-                            <button id="dashSearchInputClear" class="clear-search-btn" onclick="clearSearchInput('dashSearchInput', filterDashboard)" type="button">✕</button>
+                            <button id="dashSearchInputClear" class="clear-search-btn" onclick="clearSearchInput('dashSearchInput', typeof filterDashboard === 'function' ? filterDashboard : null)" type="button">✕</button>
                         </div>
                     </div>
 
@@ -636,7 +637,8 @@
             const input = document.getElementById(id);
             const btn = document.getElementById(id + 'Clear');
             if (input && btn) {
-                btn.style.display = input.value.length > 0 ? 'flex' : 'none';
+                // Ensure it appears since the first letter
+                btn.style.display = input.value.trim().length > 0 ? 'flex' : 'none';
             }
         }
         function clearSearchInput(id, searchFunc) {
@@ -645,10 +647,24 @@
                 input.value = '';
                 toggleClearSearch(id);
                 try {
+                    // Update global term if needed
+                    if (id === 'dashSearchInput') window.crmSearchTerm = '';
                     if (typeof searchFunc === 'function') searchFunc();
                 } catch(e) { console.warn('Search clear error', e); }
                 input.focus();
             }
+        }
+        
+        // Dashboard Filtering Logic
+        function filterDashboard() {
+            const input = document.getElementById('dashSearchInput');
+            if (!input) return;
+            const term = input.value.trim().toLowerCase();
+            window.crmSearchTerm = term;
+            
+            // Re-trigger the directory view with the current filter
+            // This is the common pattern in crm-mobile.html
+            loadFullDirectoryInline();
         }
 
         // GLOBALS
