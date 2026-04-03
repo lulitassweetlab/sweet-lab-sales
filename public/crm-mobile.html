@@ -1385,7 +1385,11 @@
                 const nameHtml = `<span>${firstName}</span>${restOfName ? ' <span style="color: var(--text-muted); font-weight: 500; margin-left:1px;">' + restOfName + '</span>' : ''}`;
                 
                 document.getElementById('profileName').innerHTML = nameHtml;
-                document.getElementById('profPhone').innerText = pf.whatsapp || 'Sin número';
+                const phoneEl = document.getElementById('profPhone');
+                const waNumber = pf.whatsapp || '';
+                phoneEl.innerText = waNumber || '📱 Agregar WhatsApp...';
+                phoneEl.style.color = waNumber ? 'var(--text-main)' : 'var(--primary)';
+                phoneEl.style.fontWeight = waNumber ? '700' : '500';
                 document.getElementById('profBirthday').innerText = pf.birth_date ? pf.birth_date.split('T')[0] : 'Sin fecha';
                 
                 // Address
@@ -1890,7 +1894,12 @@
             event.stopPropagation();
             const phoneEl = document.getElementById('profPhone');
             const phone = phoneEl.innerText.trim();
-            if(!phone || phone === 'Sin número' || phone === '-' || phone === '') return;
+            
+            // If empty or placeholder, trigger inline edit
+            if(!phone || phone === 'Sin número' || phone === '-' || phone.includes('Agregar WhatsApp')) {
+                startPhoneEdit();
+                return;
+            }
             
             const popover = document.getElementById('contactPopover');
             const linkCall = document.getElementById('linkCall');
@@ -1929,6 +1938,11 @@
             const el = document.getElementById('profPhone');
             el.contentEditable = "true";
             el.focus();
+            
+            // Clear placeholder if it's the "Agregar..." text
+            if (el.innerText.includes('Agregar WhatsApp')) {
+                el.innerText = '';
+            }
             
             // Temporary style to show it's editable
             el.style.background = 'rgba(99,102,241,0.1)';
