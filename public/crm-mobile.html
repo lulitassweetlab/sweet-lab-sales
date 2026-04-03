@@ -794,11 +794,14 @@
             if(!phone) return "#";
             let c = phone.replace(/\\D/g, '');
             if(!c.startsWith('57')) c = '57' + c;
-            const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
             const isAndroid = /Android/i.test(navigator.userAgent);
             const encodedMsg = encodeURIComponent(msg);
-            if (isIOS) return `whatsapp-business://send?phone=${c}&text=${encodedMsg}`;
-            if (isAndroid) return `intent://send?phone=${c}&text=${encodedMsg}#Intent;package=com.whatsapp.w4b;scheme=whatsapp;end`;
+            
+            if (isAndroid) {
+                // Force WhatsApp Business on Android via Intent
+                return `intent://send?phone=${c}&text=${encodedMsg}#Intent;package=com.whatsapp.w4b;scheme=whatsapp;end`;
+            }
+            // Standard fallback (wa.me is the most reliable for iOS contact links)
             return `https://wa.me/${c}?text=${encodedMsg}`;
         }
 

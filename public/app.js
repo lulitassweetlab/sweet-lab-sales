@@ -5207,13 +5207,10 @@ function sendBroadcastToClient(client, activeIndex) {
 	if (cleanNum.length === 10) cleanNum = '57' + cleanNum;
 
 	const encodedMsg = encodeURIComponent(text);
-	const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
 	const isAndroid = /Android/i.test(navigator.userAgent);
 	
 	let waUrl = `https://wa.me/${cleanNum}?text=${encodedMsg}`;
-	if (isIOS) {
-		waUrl = `whatsapp-business://send?phone=${cleanNum}&text=${encodedMsg}`;
-	} else if (isAndroid) {
+	if (isAndroid) {
 		waUrl = `intent://send?phone=${cleanNum}&text=${encodedMsg}#Intent;package=com.whatsapp.w4b;scheme=whatsapp;end`;
 	}
 	window.open(waUrl, '_blank');
