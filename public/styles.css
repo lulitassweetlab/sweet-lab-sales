@@ -3469,8 +3469,16 @@ tfoot td {
 
 /* Inline add row at end of table */
 .add-row-line td {
-	padding: 8px 6px;
+	padding: 12px 10px;
 	text-align: left;
+}
+
+.add-row-inline-container {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	width: 100%;
+	gap: 12px;
 }
 
 .inline-add-btn {
@@ -3489,6 +3497,26 @@ tfoot td {
 .inline-add-btn:active {
 	transform: translateY(1px);
 	box-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
+}
+
+.inline-total-mobile {
+	display: none;
+	font-family: inherit;
+}
+
+@media (max-width: 600px) {
+	.inline-total-mobile {
+		display: inline-block;
+		font-weight: 700;
+		color: var(--accent);
+		font-size: 1.15rem;
+		text-align: right;
+		margin-left: auto;
+	}
+
+	.add-row-line td {
+		padding: 10px 8px;
+	}
 }
 
 /* Brighter hover for date buttons */

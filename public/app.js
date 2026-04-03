@@ -1901,6 +1901,10 @@ function renderTable() {
 	addTr.className = 'add-row-line';
 	const td = document.createElement('td');
 	td.colSpan = colCount;
+	
+	const container = document.createElement('div');
+	container.className = 'add-row-inline-container';
+	
 	const btn = document.createElement('button');
 	btn.className = 'inline-add-btn btn-primary';
 	btn.textContent = 'Nuevo pedido';
@@ -1908,7 +1912,14 @@ function renderTable() {
 		const rect = ev.currentTarget.getBoundingClientRect();
 		openNewSalePopover(rect.left + rect.width / 2, rect.top - 8);
 	});
-	td.appendChild(btn);
+	
+	const inlineTotal = document.createElement('span');
+	inlineTotal.id = 'inline-grand-total';
+	inlineTotal.className = 'inline-total-mobile';
+	
+	container.appendChild(btn);
+	container.appendChild(inlineTotal);
+	td.appendChild(container);
 	addTr.appendChild(td);
 	tbody.appendChild(addTr);
 
@@ -4186,6 +4197,9 @@ function updateSummary() {
 	const grandStr = fmtNo.format(grand);
 	const elGrand = document.getElementById('sum-grand');
 	if (elGrand) elGrand.textContent = grandStr;
+	
+	const elInlineGrand = document.getElementById('inline-grand-total');
+	if (elInlineGrand) elInlineGrand.textContent = grandStr;
 
 	// Commissions: tiered rates based on paid desserts quantity
 	let paidTotalQty = 0;
