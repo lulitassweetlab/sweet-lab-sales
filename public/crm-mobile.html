@@ -1394,14 +1394,16 @@
                 const bdayEl = document.getElementById('profBirthday');
                 const bDateStr = pf.birth_date ? pf.birth_date.split('T')[0] : '';
                 bdayEl.innerText = bDateStr || 'Cumpleaños';
-                bdayEl.style.color = 'var(--text-muted)';
+                bdayEl.style.color = bDateStr ? 'var(--text-main)' : 'var(--text-muted)';
                 bdayEl.style.fontWeight = bDateStr ? '700' : '500';
                 
                 // Address
                 const addEl = document.getElementById('profAddress');
                 if (addEl) {
-                    addEl.innerText = pf.address || 'Ubicación';
-                    addEl.style.color = 'var(--text-muted)';
+                    const addressStr = pf.address || '';
+                    addEl.innerText = addressStr || 'Ubicación';
+                    addEl.style.color = addressStr ? 'var(--text-main)' : 'var(--text-muted)';
+                    addEl.style.fontWeight = addressStr ? '700' : '500';
                     addEl.dataset.lat = pf.latitude || '';
                     addEl.dataset.lng = pf.longitude || '';
                 }
