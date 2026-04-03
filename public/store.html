@@ -1393,9 +1393,7 @@
         </div>
     </div>
 
-    <!-- Optimization: Split logic and defer execution -->
-    <script src="/store-core.js" defer></script>
-    <script src="/store-transactions.js?v=2026-04-03" defer></script>
+    <script src="/store-transactions.js?v=2026-04-03-v3" defer></script>
 
     <script>
         // Global constants and utilities
@@ -1730,8 +1728,9 @@
             if (!customerName) { alert('Por favor, ingresa el nombre del cliente.'); customerNameInput.focus(); return; }
             if (!storeActiveSeller || !storeAuthUser) { alert('No hay un vendedor activo seleccionado o no has ingresado.'); return; }
 
-            const exactMatch = storeClientList.find(c => c.trim().toLowerCase() === customerName.toLowerCase());
-            if (exactMatch) { await executeCheckout(exactMatch); return; }
+            // Robust find in the new object-oriented storeClientList
+            const exactMatch = storeClientList.find(c => (c.name || '').trim().toLowerCase() === customerName.toLowerCase());
+            if (exactMatch) { await executeCheckout(exactMatch.name); return; }
 
             const similar = findSimilarClients(customerName);
             if (similar.length > 0) {

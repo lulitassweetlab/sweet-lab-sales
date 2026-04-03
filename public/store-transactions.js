@@ -127,7 +127,7 @@ async function loadSellerClients() {
 
         const clientsRes = await fetch(`/api/clients?seller_id=${storeActiveSeller.id}`, { 
             headers,
-            cache: 'no-cache' // Force refresh to avoid seeing stale "Prospecto" tags
+            cache: 'no-store' // Critical: ensure we always get fresh CRM tags
         });
         if (!clientsRes.ok) return;
 
@@ -136,10 +136,9 @@ async function loadSellerClients() {
             storeClientList = clientData
                 .filter(c => c && (c.name || c.NAME))
                 .map(c => {
-                    // Handle potential case-sensitivity from different DB environments/drivers
                     const name = c.name || c.NAME || '';
                     const stage_name = c.stage_name || c.STAGE_NAME || c.stage || '';
-                    const stage_color = c.stage_color || c.STAGE_COLOR || c.color || '#808080';
+                    const stage_color = c.stage_color || c.STAGE_COLOR || c.color || '#94a3b8';
                     const custom_tags = Array.isArray(c.custom_tags || c.CUSTOM_TAGS) ? (c.custom_tags || c.CUSTOM_TAGS) : [];
                     const debt_cents = Number(c.total_debt_cents || c.TOTAL_DEBT_CENTS || 0);
                     const orders = parseInt(c.total_orders || c.TOTAL_ORDERS || 0);
@@ -155,7 +154,7 @@ async function loadSellerClients() {
                 });
         }
     } catch (err) {
-        console.error('Error fetching clients for autocomplete:', err);
+        console.error('[Autocomplete] Error loading clients:', err);
     }
 }
 
