@@ -2397,9 +2397,7 @@ function wireCommissionsPaidEditor() {
 			const formatted = fmtNo.format(value);
 			el.textContent = formatted;
 
-			// Also update the mobile stacked version
-			const elMobile = document.getElementById('comm-paid-total-2');
-			if (elMobile) elMobile.textContent = formatted;
+
 
 			console.log('Formatted value displayed:', formatted);
 
