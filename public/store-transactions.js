@@ -139,17 +139,20 @@ async function loadSellerClients() {
                     const name = c.name || c.NAME || '';
                     const stage_name = c.stage_name || c.STAGE_NAME || c.stage || '';
                     const stage_color = c.stage_color || c.STAGE_COLOR || c.color || '#94a3b8';
-                    const custom_tags = Array.isArray(c.custom_tags || c.CUSTOM_TAGS) ? (c.custom_tags || c.CUSTOM_TAGS) : [];
-                    const debt_cents = Number(c.total_debt_cents || c.TOTAL_DEBT_CENTS || 0);
-                    const orders = parseInt(c.total_orders || c.TOTAL_ORDERS || 0);
+                    let custom_tags = c.custom_tags || c.CUSTOM_TAGS || [];
+                    // Defensive: If it's a string (common with some SQL drivers), parse it
+                    if (typeof custom_tags === 'string' && custom_tags.startsWith('[')) {
+                        try { custom_tags = JSON.parse(custom_tags); } catch (e) { custom_tags = []; }
+                    }
+                    if (!Array.isArray(custom_tags)) custom_tags = [];
 
                     return {
                         name: name.trim(),
                         stage_name: (stage_name || '').toString().trim(),
                         stage_color: stage_color,
                         custom_tags: custom_tags,
-                        debt_cents: debt_cents,
-                        total_orders: orders
+                        debt_cents: Number(c.total_debt_cents || c.TOTAL_DEBT_CENTS || 0),
+                        total_orders: parseInt(c.total_orders || c.TOTAL_ORDERS || 0)
                     };
                 });
         }
