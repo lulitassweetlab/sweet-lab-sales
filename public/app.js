@@ -1899,8 +1899,11 @@ function renderTable() {
 	const colCount = document.querySelectorAll('#sales-table thead th').length || 8;
 	const addTr = document.createElement('tr');
 	addTr.className = 'add-row-line';
+	
+	// Split into two cells to align correctly on mobile: 
+	// 1st cell covers all but actions, 2nd cell is empty for actions column.
 	const td = document.createElement('td');
-	td.colSpan = colCount;
+	td.colSpan = colCount - 1;
 	
 	const container = document.createElement('div');
 	container.className = 'add-row-inline-container';
@@ -1921,6 +1924,12 @@ function renderTable() {
 	container.appendChild(inlineTotal);
 	td.appendChild(container);
 	addTr.appendChild(td);
+	
+	// Add the actions column cell (empty) to push the content to the left of it
+	const tdActions = document.createElement('td');
+	tdActions.className = 'col-actions';
+	addTr.appendChild(tdActions);
+	
 	tbody.appendChild(addTr);
 
 	updateSummary();

@@ -3829,11 +3829,19 @@ tfoot td {
 		font-weight: 600;
 	}
 
-	#sales-table tfoot .tfoot-delivered .col-total,
+	#sales-table tfoot .tfoot-delivered .col-total {
+		display: table-cell;
+		text-align: right;
+		padding-right: 8px;
+	}
+
 	#sales-table tfoot .tfoot-comm .col-total {
 		display: table-cell;
 		text-align: right;
 		padding-right: 8px;
+		color: var(--accent);
+		font-weight: 700;
+		font-size: 1.15rem;
 	}
 
 	#sales-table tfoot .tfoot-delivered td.col-dessert {
