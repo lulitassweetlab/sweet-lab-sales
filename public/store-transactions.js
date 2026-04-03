@@ -132,14 +132,18 @@ async function loadSellerClients() {
         if (Array.isArray(clientData)) {
             storeClientList = clientData
                 .filter(c => typeof c.name === 'string' && c.name.trim() !== '')
-                .map(c => ({
-                    name: c.name,
-                    stage_name: c.stage_name || '',
-                    stage_color: c.stage_color || '#808080',
-                    custom_tags: Array.isArray(c.custom_tags) ? c.custom_tags : [],
-                    debt_cents: Number(c.total_debt_cents || 0),
-                    total_orders: Number(c.total_orders || 0)
-                }));
+                .map(c => {
+                    // Critical: SQL COUNT() often comes back as a string, must parse carefully
+                    const orders = c.total_orders !== undefined && c.total_orders !== null ? parseInt(c.total_orders) : 0;
+                    return {
+                        name: c.name,
+                        stage_name: (c.stage_name || '').trim(),
+                        stage_color: c.stage_color || '#808080',
+                        custom_tags: Array.isArray(c.custom_tags) ? c.custom_tags : [],
+                        debt_cents: Number(c.total_debt_cents || 0),
+                        total_orders: orders
+                    };
+                });
         }
     } catch (err) {
         console.error('Error fetching clients for autocomplete:', err);
@@ -171,18 +175,20 @@ function setupClientAutocomplete() {
             const tagContainer = document.createElement('div');
             tagContainer.className = 'autocomplete-tag-container';
             
-            // 1. Stage Tag (Like in CRM)
-            if (client.stage_name) {
+            // 1. Stage Tag OR Prospecto Fallback
+            // Only show PROSPECTO if there's truly NO stage and NO orders
+            if (client.stage_name && client.stage_name !== '') {
                 const sTag = document.createElement('span');
                 sTag.className = 'autocomplete-tag';
                 sTag.textContent = client.stage_name;
                 sTag.style.background = client.stage_color;
                 tagContainer.appendChild(sTag);
-            } else if (client.total_orders === 0) {
+            } else if (client.total_orders === 0 && client.custom_tags.length === 0) {
+                // Only show Prospecto if it's a completely empty new profile
                 const pTag = document.createElement('span');
                 pTag.className = 'autocomplete-tag';
                 pTag.textContent = 'PROSPECTO';
-                pTag.style.background = '#9E9E9E'; // Same as CRM fallback
+                pTag.style.background = '#9E9E9E';
                 tagContainer.appendChild(pTag);
             }
 
