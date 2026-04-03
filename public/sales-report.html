@@ -143,16 +143,14 @@
 				border-radius: 0;
 				touch-action: pan-x pan-y;
 			}
-			table th, table td { min-width: 80px; padding: 10px 6px; font-size: 0.8rem; }
+			table th, table td { min-width: 60px; padding: 4px 3px; font-size: 0.7rem; }
 			#th-date, table td:first-child { 
-				min-width: 85px; 
-				position: sticky; 
-				left: 0; 
-				background: var(--card); 
-				z-index: 2; 
+				min-width: 70px; 
 				border-right: 1px solid var(--border); 
+				position: static; 
+				background: transparent; 
 			}
-			#th-seller, table td:nth-child(2) { min-width: 90px; }
+			#th-seller, table td:nth-child(2) { min-width: 75px; }
 			
 			/* Truncate client name on mobile to leave space for desserts */
 			.client-cell {
