@@ -128,13 +128,17 @@ async function loadSellerClients() {
         const clientsRes = await fetch(`/api/clients?seller_id=${storeActiveSeller.id}`, { headers });
         if (!clientsRes.ok) return;
 
-        const clientNames = await clientsRes.json();
-        if (Array.isArray(clientNames)) {
-            storeClientList = clientNames
+        const clientData = await clientsRes.json();
+        if (Array.isArray(clientData)) {
+            storeClientList = clientData
                 .filter(c => typeof c.name === 'string' && c.name.trim() !== '')
                 .map(c => ({
                     name: c.name,
-                    tags: c.tags || ''
+                    stage_name: c.stage_name || '',
+                    stage_color: c.stage_color || '#808080',
+                    custom_tags: Array.isArray(c.custom_tags) ? c.custom_tags : [],
+                    debt_cents: Number(c.total_debt_cents || 0),
+                    total_orders: Number(c.total_orders || 0)
                 }));
         }
     } catch (err) {
@@ -164,17 +168,45 @@ function setupClientAutocomplete() {
             li.appendChild(nameSpan);
 
             // Tags container
-            if (client.tags && client.tags.trim() !== '') {
-                const tagContainer = document.createElement('div');
-                tagContainer.className = 'autocomplete-tag-container';
-                
-                const tagsArr = client.tags.split(',').map(t => t.trim()).filter(t => t !== '');
-                tagsArr.forEach(tag => {
-                    const tagSpan = document.createElement('span');
-                    tagSpan.className = 'autocomplete-tag';
-                    tagSpan.textContent = tag;
-                    tagContainer.appendChild(tagSpan);
+            const tagContainer = document.createElement('div');
+            tagContainer.className = 'autocomplete-tag-container';
+            
+            // 1. Stage Tag (Like in CRM)
+            if (client.stage_name) {
+                const sTag = document.createElement('span');
+                sTag.className = 'autocomplete-tag';
+                sTag.textContent = client.stage_name;
+                sTag.style.background = client.stage_color;
+                tagContainer.appendChild(sTag);
+            } else if (client.total_orders === 0) {
+                const pTag = document.createElement('span');
+                pTag.className = 'autocomplete-tag';
+                pTag.textContent = 'PROSPECTO';
+                pTag.style.background = '#9E9E9E'; // Same as CRM fallback
+                tagContainer.appendChild(pTag);
+            }
+
+            // 2. Custom Tags (Same colors as CRM)
+            if (client.custom_tags.length > 0) {
+                client.custom_tags.forEach(t => {
+                    const cTag = document.createElement('span');
+                    cTag.className = 'autocomplete-tag';
+                    cTag.textContent = t.name;
+                    cTag.style.background = t.color || '#F4A6B7';
+                    tagContainer.appendChild(cTag);
                 });
+            }
+
+            // 3. Debt Tag (Same as CRM)
+            if (client.debt_cents > 0) {
+                const dTag = document.createElement('span');
+                dTag.className = 'autocomplete-tag';
+                dTag.textContent = 'DEUDA';
+                dTag.style.background = 'var(--danger)'; // Solid red
+                tagContainer.appendChild(dTag);
+            }
+
+            if (tagContainer.hasChildNodes()) {
                 li.appendChild(tagContainer);
             }
 
