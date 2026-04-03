@@ -3855,7 +3855,7 @@ tfoot td {
 		display: block !important;
 		text-align: left !important;
 		padding-left: 8px !important;
-		font-size: 0.75rem !important;
+		font-size: 0.85rem !important; /* Increased to match Totales/Entregados */
 	}
 
 	#sales-table tfoot .tfoot-comm .col-total {

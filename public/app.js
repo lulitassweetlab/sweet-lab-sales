@@ -4246,7 +4246,7 @@ function updateSummary() {
 
 	// Update commission label to show rate
 	const commLabelEl = document.querySelector('#footer-comm-row td.label');
-	if (commLabelEl) commLabelEl.textContent = `Comisiones generadas ${commRateLabel}`;
+	if (commLabelEl) commLabelEl.textContent = `Comisión ${commRateLabel}`;
 
 	// Comisiones pagadas (per day, editable solo por superadmin)
 	try {
