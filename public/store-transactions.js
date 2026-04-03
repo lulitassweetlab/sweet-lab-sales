@@ -184,7 +184,7 @@ function setupClientAutocomplete() {
             const tagContainer = document.createElement('div');
             tagContainer.className = 'autocomplete-tag-container';
             
-            // 2. Custom Tags (Should show even if Stage is missing)
+            // 1. Custom Tags (CRM Personal tags always first)
             if (client.custom_tags && client.custom_tags.length > 0) {
                 client.custom_tags.forEach(t => {
                     const cTag = document.createElement('span');
@@ -195,8 +195,7 @@ function setupClientAutocomplete() {
                 });
             }
 
-            // 1. Stage Tag OR Prospecto Fallback
-            // Don't show generic Prospecto if we already have custom tags or real orders
+            // 2. Stage Tag OR Prospecto Fallback
             if (client.stage_name && client.stage_name.length > 0) {
                 const sTag = document.createElement('span');
                 sTag.className = 'autocomplete-tag';
@@ -204,11 +203,11 @@ function setupClientAutocomplete() {
                 sTag.style.background = client.stage_color;
                 tagContainer.appendChild(sTag);
             } else if (tagContainer.childNodes.length === 0 && client.total_orders === 0) {
-                // Truly a prospect (no stage, no orders, no tags)
+                // If NO custom tags AND NO stage AND 0 orders -> Real prospecto
                 const pTag = document.createElement('span');
                 pTag.className = 'autocomplete-tag';
                 pTag.textContent = 'PROSPECTO';
-                pTag.style.background = '#94a3b8'; // Match CRM "Prospecto" color
+                pTag.style.background = '#94a3b8'; // CRM Gray
                 tagContainer.appendChild(pTag);
             }
 
@@ -218,26 +217,6 @@ function setupClientAutocomplete() {
                 dTag.className = 'autocomplete-tag';
                 dTag.textContent = 'DEUDA';
                 dTag.style.background = 'var(--danger)';
-                tagContainer.appendChild(dTag);
-            }
-
-            // 2. Custom Tags (Same colors as CRM)
-            if (client.custom_tags.length > 0) {
-                client.custom_tags.forEach(t => {
-                    const cTag = document.createElement('span');
-                    cTag.className = 'autocomplete-tag';
-                    cTag.textContent = t.name;
-                    cTag.style.background = t.color || '#F4A6B7';
-                    tagContainer.appendChild(cTag);
-                });
-            }
-
-            // 3. Debt Tag (Same as CRM)
-            if (client.debt_cents > 0) {
-                const dTag = document.createElement('span');
-                dTag.className = 'autocomplete-tag';
-                dTag.textContent = 'DEUDA';
-                dTag.style.background = 'var(--danger)'; // Solid red
                 tagContainer.appendChild(dTag);
             }
 
