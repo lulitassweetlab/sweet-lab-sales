@@ -200,7 +200,11 @@
                         <div class="spinner" style="padding:10px 0; font-size:0.8rem;">...</div>
                     </div>
 
-                    <div style="font-size:0.65rem; font-weight:700; color:var(--text-muted); margin-bottom:10px; text-transform:uppercase; letter-spacing:0.05em; border-top:1px solid var(--border); padding-top:12px;">Etiquetas</div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border); padding-top:12px; margin-bottom:10px;">
+                        <div style="font-size:0.65rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em;">Etiquetas</div>
+                        <button onclick="openManageTagsModal()" style="background:none; border:none; padding:4px; margin-right:-4px; color:var(--text-muted); cursor:pointer; font-size:0.8rem; transition:all 0.2s;" 
+                            onmouseover="this.style.color='var(--primary)'" onmouseout="this.style.color='var(--text-muted)'">✏️</button>
+                    </div>
                     <div id="dashCustomTags" style="display:flex; flex-direction:column; gap:4px; margin-bottom:8px;"></div>
                     <button onclick="openCreateTagPopover(event)" 
                         style="width:100%; padding:8px; border-radius:8px; border:1px dashed var(--border); background:var(--surface); color:var(--text-muted); font-size:0.7rem; font-weight:600; cursor:pointer; transition:all 0.2s;"
@@ -503,12 +507,17 @@
     <div id="popoverCreateTag" style="display:none; position:fixed; z-index:300; background:var(--surface); border-radius:20px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); border: 1px solid var(--border); overflow: hidden; width: 260px; padding:20px; animation: popIn 0.2s ease; left: 50%; top: 50%; transform: translate(-50%, -50%);">
         <div style="font-size:0.85rem; font-weight:800; color:var(--text-muted); text-transform:uppercase; margin-bottom:15px; text-align:center;">Nueva Etiqueta</div>
         <input type="text" id="newTagName" placeholder="ingresa la nueva etiqueta" style="width:100%; padding:14px; border-radius:12px; border:1.5px solid var(--border); font-size:1rem; margin-bottom:15px; background:var(--bg); color:var(--text-main); outline:none; box-sizing:border-box;">
-        <div style="display:flex; justify-content:space-around; margin-bottom:20px;">
+        <div style="display:flex; flex-wrap:wrap; justify-content:center; gap:10px; margin-bottom:20px;">
             <div onclick="setNewTagColor('#818cf8', this)" style="width:28px; height:28px; border-radius:50%; background:#818cf8; cursor:pointer; border:3px solid #fff; box-shadow:0 0 0 1px #818cf8;"></div>
             <div onclick="setNewTagColor('#f43f5e', this)" style="width:28px; height:28px; border-radius:50%; background:#f43f5e; cursor:pointer; border:3px solid transparent;"></div>
             <div onclick="setNewTagColor('#fbbf24', this)" style="width:28px; height:28px; border-radius:50%; background:#fbbf24; cursor:pointer; border:3px solid transparent;"></div>
             <div onclick="setNewTagColor('#10b981', this)" style="width:28px; height:28px; border-radius:50%; background:#10b981; cursor:pointer; border:3px solid transparent;"></div>
-            <div onclick="setNewTagColor('#a855f7', this)" style="width:28px; height:28px; border-radius:50%; background:#a855f7; cursor:pointer; border:2px solid transparent;"></div>
+            <div onclick="setNewTagColor('#a855f7', this)" style="width:28px; height:28px; border-radius:50%; background:#a855f7; cursor:pointer; border:3px solid transparent;"></div>
+            <div onclick="setNewTagColor('#ec4899', this)" style="width:28px; height:28px; border-radius:50%; background:#ec4899; cursor:pointer; border:3px solid transparent;"></div>
+            <div onclick="setNewTagColor('#f97316', this)" style="width:28px; height:28px; border-radius:50%; background:#f97316; cursor:pointer; border:3px solid transparent;"></div>
+            <div onclick="setNewTagColor('#06b6d4', this)" style="width:28px; height:28px; border-radius:50%; background:#06b6d4; cursor:pointer; border:3px solid transparent;"></div>
+            <div onclick="setNewTagColor('#475569', this)" style="width:28px; height:28px; border-radius:50%; background:#475569; cursor:pointer; border:3px solid transparent;"></div>
+            <div onclick="setNewTagColor('#1d4ed8', this)" style="width:28px; height:28px; border-radius:50%; background:#1d4ed8; cursor:pointer; border:3px solid transparent;"></div>
         </div>
         <button onclick="saveNewTag()" style="width:100%; padding:16px; border-radius:14px; border:none; background:var(--primary); color:#fff; font-weight:800; font-size:1rem; cursor:pointer;">Crear Etiqueta</button>
     </div>
@@ -518,6 +527,20 @@
         <div id="assignTagList" style="display:flex; flex-direction:column; gap:8px; max-height:250px; overflow-y:auto; margin-bottom:10px;"></div>
         <div id="assignTagEmpty" style="display:none; font-size:0.8rem; color:var(--text-muted); text-align:center; padding:20px 0;">No tienes etiquetas creadas. Cr éalas en el Dashboard.</div>
         <button onclick="closePopovers()" style="width:100%; padding:12px; border-radius:12px; border:none; background:var(--bg); color:var(--text-muted); font-weight:700; font-size:0.9rem; cursor:pointer;">Cerrar</button>
+    </div>
+
+    <!-- MANAGE TAGS MODAL (New) -->
+    <div id="modalManageTags" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:1000; background:rgba(0,0,0,0.6); backdrop-filter:blur(6px); align-items:center; justify-content:center;">
+        <div style="background:var(--surface); border-radius:24px; padding:24px; width:calc(100% - 40px); max-width:480px; max-height:85vh; overflow-y:auto; box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h3 style="margin:0; font-size:1.4rem; font-weight:800; color:var(--text-main);">🏷️ Gestionar Etiquetas</h3>
+                <button onclick="closeManageTagsModal()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted);">✕</button>
+            </div>
+            <div id="manageTagsList" style="display:flex; flex-direction:column; gap:12px;"></div>
+            <div style="margin-top:24px;">
+                <button onclick="closeManageTagsModal()" style="width:100%; padding:16px; border-radius:14px; border:none; background:var(--bg); color:var(--text-muted); font-weight:800; font-size:1rem; cursor:pointer;">Listo</button>
+            </div>
+        </div>
     </div>
 
     <!-- MAP PICKER MODAL (Solid Background Fix) -->
@@ -2548,6 +2571,106 @@
                     await loadSellerTags();
                 }
             } catch(e) { console.error('Error al crear etiqueta', e); }
+        }
+
+        async function openManageTagsModal() {
+            const modal = document.getElementById('modalManageTags');
+            modal.style.display = 'flex';
+            renderManageTagsList();
+        }
+
+        function closeManageTagsModal() {
+            document.getElementById('modalManageTags').style.display = 'none';
+        }
+
+        function renderManageTagsList() {
+            const list = document.getElementById('manageTagsList');
+            if (!sellerTags || sellerTags.length === 0) {
+                list.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-muted);">No tienes etiquetas para gestionar.</div>';
+                return;
+            }
+
+            const palette = ['#818cf8', '#f43f5e', '#fbbf24', '#10b981', '#a855f7', '#ec4899', '#f97316', '#06b6d4', '#475569', '#1d4ed8'];
+
+            list.innerHTML = sellerTags.map(t => {
+                const colorOptions = palette.map(c => `
+                    <div onclick="updateTagDraft(${t.id}, '${c}')" 
+                        style="width:20px; height:20px; border-radius:50%; background:${c}; cursor:pointer; border:2px solid ${t.color === c ? '#fff' : 'transparent'}; box-shadow:${t.color === c ? '0 0 0 1px '+c : 'none'};">
+                    </div>
+                `).join('');
+
+                return `
+                    <div class="card" style="padding:16px; display:flex; flex-direction:column; gap:12px; border:1px solid var(--border);">
+                        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+                            <input type="text" value="${t.name}" id="editTagName-${t.id}" 
+                                style="flex:1; background:var(--bg); border:1.5px solid var(--border); border-radius:10px; padding:8px 12px; font-size:0.95rem; font-weight:700; color:var(--text-main); outline:none;"
+                                onchange="saveTagChange(${t.id})">
+                            <button onclick="deleteTag(${t.id})" style="background:none; border:none; color:var(--danger); font-size:1.2rem; cursor:pointer; padding:4px; opacity:0.6;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'">🗑️</button>
+                        </div>
+                        <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
+                            <span style="font-size:0.7rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-right:4px;">Color:</span>
+                            ${colorOptions}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function saveTagChange(tagId) {
+            const name = document.getElementById(`editTagName-${tagId}`).value.trim();
+            const tag = sellerTags.find(t => t.id === tagId);
+            if (!name || !tag) return;
+            
+            try {
+                const res = await fetch('/.netlify/functions/crm-tags', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'update_tag', tag_id: tagId, seller_id: currentSellerId, name, color: tag.color })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    await loadSellerTags();
+                    renderManageTagsList();
+                }
+            } catch (e) { console.error('Error updating tag', e); }
+        }
+
+        async function updateTagDraft(tagId, newColor) {
+            const tag = sellerTags.find(t => t.id === tagId);
+            if (!tag) return;
+            tag.color = newColor; // Temporary local update
+            
+            const name = document.getElementById(`editTagName-${tagId}`).value.trim();
+            
+            try {
+                const res = await fetch('/.netlify/functions/crm-tags', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'update_tag', tag_id: tagId, seller_id: currentSellerId, name, color: newColor })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    await loadSellerTags();
+                    renderManageTagsList();
+                }
+            } catch (e) { console.error('Error updating tag color', e); }
+        }
+
+        async function deleteTag(tagId) {
+            if (!confirm('¿Estás seguro de que quieres eliminar esta etiqueta? Se quitará de todos los clientes.')) return;
+            try {
+                const res = await fetch('/.netlify/functions/crm-tags', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'delete_tag', tag_id: tagId, seller_id: currentSellerId })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    await loadSellerTags();
+                    renderManageTagsList();
+                    if (currentProfileId) loadProfile(currentProfileId); // Refresh profile if open
+                }
+            } catch (e) { console.error('Error deleting tag', e); }
         }
 
         async function loadClientTags(clientId) {

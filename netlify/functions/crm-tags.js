@@ -144,6 +144,18 @@ export async function handler(event) {
                 return json({ success: true });
             }
 
+            if (action === 'update_tag') {
+                const { tag_id, seller_id, name, color } = body;
+                if (!tag_id || !seller_id || !name) return json({ error: 'Faltan datos' }, 400);
+
+                await sql`
+                    UPDATE crm_tags 
+                    SET name = ${name.trim()}, color = ${color} 
+                    WHERE id = ${tag_id} AND seller_id = ${seller_id}
+                `;
+                return json({ success: true });
+            }
+
             return json({ error: 'Acción POST no válida' }, 400);
         }
 
