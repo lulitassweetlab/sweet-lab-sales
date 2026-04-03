@@ -4289,8 +4289,7 @@ function updateSummary() {
 			}
 		}
 		if (isSmall && overlap) table.classList.add('totals-stacked'); else table.classList.remove('totals-stacked');
-		const grandLine = document.getElementById('sum-grand-2');
-		if (grandLine) grandLine.textContent = grandStr;
+
 		const commLine = document.getElementById('sum-comm-2');
 		if (commLine) commLine.textContent = commStr;
 
@@ -4302,24 +4301,6 @@ function updateSummary() {
 			console.error('Error updating stacked commission label:', e);
 		}
 
-		// Update stacked commission paid row (mobile)
-		try {
-			const day = (state && Array.isArray(state.saleDays) && state.selectedDayId)
-				? (state.saleDays || []).find(d => d && d.id === state.selectedDayId)
-				: null;
-			const commPaid = Number(day?.commissions_paid || 0) || 0;
-			const commPaidLine = document.getElementById('comm-paid-total-2');
-			if (commPaidLine) commPaidLine.textContent = fmtNo.format(commPaid);
-		} catch (e) {
-			console.error('Error updating stacked commission paid:', e);
-		}
-		// Update stacked delivered total (mobile)
-		try {
-			const delivLine = document.getElementById('deliv-total-2');
-			if (delivLine) delivLine.textContent = String(totalDelivered);
-		} catch (e) {
-			console.error('Error updating stacked delivered:', e);
-		}
 	});
 }
 
