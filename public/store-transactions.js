@@ -615,7 +615,18 @@ async function processSingleSale(sale) {
                     if (clientWhatsapp) {
                         let cleanNum = clientWhatsapp.replace(/\D/g, '');
                         if (cleanNum.length === 10) cleanNum = '57' + cleanNum;
-                        const waUrl = `https://wa.me/${cleanNum}?text=${encodeURIComponent(text)}`;
+                        
+                        const encodedMsg = encodeURIComponent(text);
+                        const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+                        const isAndroid = /Android/i.test(navigator.userAgent);
+                        
+                        let waUrl = `https://wa.me/${cleanNum}?text=${encodedMsg}`;
+                        if (isIOS) {
+                            waUrl = `whatsapp-business://send?phone=${cleanNum}&text=${encodedMsg}`;
+                        } else if (isAndroid) {
+                            waUrl = `intent://send?phone=${cleanNum}&text=${encodedMsg}#Intent;package=com.whatsapp.w4b;scheme=whatsapp;end`;
+                        }
+                        
                         window.open(waUrl, '_blank');
                     }
                 }

@@ -1616,7 +1616,17 @@
             }
             message += `\n * Total a pagar: ${fmtMoney.format(grandTotal)}`;
             const waNumber = window.storeWhatsappNumber || '573004147471';
-            window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(message)}`, '_blank');
+            const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+            const isAndroid = /Android/i.test(navigator.userAgent);
+            const encodedMsg = encodeURIComponent(message);
+            
+            let waUrl = `https://wa.me/${waNumber}?text=${encodedMsg}`;
+            if (isIOS) {
+                waUrl = `whatsapp-business://send?phone=${waNumber}&text=${encodedMsg}`;
+            } else if (isAndroid) {
+                waUrl = `intent://send?phone=${waNumber}&text=${encodedMsg}#Intent;package=com.whatsapp.w4b;scheme=whatsapp;end`;
+            }
+            window.open(waUrl, '_blank');
         });
 
         on('store-upload-order-btn', 'click', () => {
