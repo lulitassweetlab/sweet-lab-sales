@@ -150,6 +150,7 @@
         <div style="display: flex; align-items: center; gap: 12px;">
             <button onclick="window.location.href='/store.html'" style="background:var(--secondary); color:var(--primary-dark); font-weight:700; border:none; padding:4px 10px; border-radius:12px; font-size: 0.8rem; cursor:pointer;" title="Volver a Tienda">Volver</button>
             <div id="sellerNameLabel" style="font-weight: 500; color: var(--primary-dark); font-size: 0.9rem;"></div>
+            <button onclick="navTo('history')" style="background:var(--primary); color:white; font-weight:700; border:none; padding:4px 10px; border-radius:12px; font-size: 0.8rem; cursor:pointer; margin-left: auto;">Historial</button>
         </div>
     </header>
 
@@ -236,6 +237,14 @@
         </div>
 
 
+
+        <!-- SCREEN: History -->
+        <div id="screen-history" class="screen">
+            <h2 id="dashHistoryTitle" style="font-size:1.6rem; font-weight:800; margin-bottom:16px;">📜 Historial (7 d)</h2>
+            <div id="dashHistoryList" style="padding-bottom:100px;">
+                <div class="spinner">Cargando actividades...</div>
+            </div>
+        </div>
 
         <!-- SCREEN 3: Profile (Modal Style over Screen) -->
         <div id="screen-profile" class="screen" style="background:var(--surface); position:absolute; top:0; left:0; width:100%; min-height:100%; z-index:50;">
@@ -752,6 +761,7 @@
             if (screenId === 'dashTag' && dashTagParams) {
                 openTagClients(dashTagParams.id, dashTagParams.name, dashTagParams.color, true);
             }
+            if (screenId === 'history') loadHistory();
         }
 
         // Deep Link/Back Button Sync
@@ -828,7 +838,7 @@
 
             // Reminder Badge for Dashboard
             if (context === 'reminder' && c.reminder_title) {
-                badges += `<span class="badge" style="background:var(--info); color:#fff; font-weight:800; text-transform:uppercase; font-size:0.7rem; padding:3px 8px; border-radius:6px; margin-right:4px; margin-bottom:4px;">📌 ${c.reminder_title}</span>`;
+                badges += `<span class="badge" style="background:#60A5FA; color:#fff; font-weight:800; text-transform:uppercase; font-size:0.7rem; padding:3px 8px; border-radius:6px; margin-right:4px; margin-bottom:4px;">${c.reminder_title}</span>`;
             }
 
             const metricsHtml = ltv > 0 ? `<div style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">Histórico: ${formatMoney(ltv)} | Compras: ${freq}</div>` : '';
@@ -1160,6 +1170,64 @@
                 card.style.pointerEvents = 'auto';
                 card.style.transform = 'none';
             }
+        }
+
+        // --- HISTORY ---
+        async function loadHistory() {
+            const list = document.getElementById('dashHistoryList');
+            list.innerHTML = '<div class="spinner">Cargando actividades...</div>';
+            try {
+                const res = await fetch(`/.netlify/functions/crm-history?seller_id=${currentSellerId}`);
+                const data = await res.json();
+                if (!Array.isArray(data) || data.length === 0) {
+                    list.innerHTML = '<div style="text-align:center; padding:32px; color:var(--text-muted);">No hay actividades registradas en los últimos 7 días.</div>';
+                    return;
+                }
+
+                list.innerHTML = data.map(h => {
+                    const date = new Date(h.created_at).toLocaleString('es-CO', { day:'numeric', month:'short', hour:'numeric', minute:'2-digit' });
+                    return `
+                    <div class="card" style="margin-bottom:10px; padding:12px;">
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
+                            <div>
+                                <div style="font-weight:800; font-size:0.9rem; color:var(--primary-dark);">${h.client_name}</div>
+                                <div style="font-size:0.75rem; color:var(--text-muted);">${date}</div>
+                            </div>
+                            <div style="display:flex; gap:6px;">
+                                <button onclick="editHistory(${h.id}, '${h.description.replace(/'/g,"\\'")}')" style="background:var(--secondary); border:none; color:var(--primary-dark); font-weight:800; padding:4px 8px; border-radius:6px; font-size:0.7rem; cursor:pointer;">Editar</button>
+                                <button onclick="deleteHistory(${h.id}, this)" style="background:#FEE2E2; border:none; color:#DC2626; font-weight:800; padding:4px 8px; border-radius:6px; font-size:0.7rem; cursor:pointer;">Borrar</button>
+                            </div>
+                        </div>
+                        <div style="font-size:0.85rem; border-left:2px solid var(--border); padding-left:8px; margin-top:4px;">${h.description}</div>
+                    </div>
+                    `;
+                }).join('');
+            } catch(e) {
+                list.innerHTML = `<div style="color:var(--danger); text-align:center;">Error cargando historial: ${e.message}</div>`;
+            }
+        }
+
+        async function editHistory(id, oldText) {
+            const newText = prompt('Editar descripción de la actividad:', oldText);
+            if (newText === null || newText === oldText) return;
+            try {
+                const res = await fetch('/api/crm-history', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id, description: newText, seller_id: currentSellerId })
+                });
+                if (!res.ok) throw new Error('Error al editar');
+                loadHistory(); // Refresh
+            } catch(e) { alert(e.message); }
+        }
+
+        async function deleteHistory(id, btn) {
+            if (!confirm('¿Seguro que quieres borrar este registro del historial?')) return;
+            try {
+                const res = await fetch(`/.netlify/functions/crm-history?id=${id}&seller_id=${currentSellerId}`, { method: 'DELETE' });
+                if (!res.ok) throw new Error('Error al borrar');
+                btn.closest('.card').remove();
+            } catch(e) { alert(e.message); }
         }
 
         // LOAD DIRECTORY (Inline Dashboard)
