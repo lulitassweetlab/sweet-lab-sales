@@ -4283,7 +4283,7 @@ function updateSummary() {
 		// Update stacked commission label
 		try {
 			const commLabelStacked = document.querySelector('#footer-comm-row-2 .st-label');
-			if (commLabelStacked) commLabelStacked.textContent = `Comisiones generadas ${commRateLabel}`;
+			if (commLabelStacked) commLabelStacked.textContent = `Comisión`;
 		} catch (e) {
 			console.error('Error updating stacked commission label:', e);
 		}
@@ -4298,6 +4298,13 @@ function updateSummary() {
 			if (commPaidLine) commPaidLine.textContent = fmtNo.format(commPaid);
 		} catch (e) {
 			console.error('Error updating stacked commission paid:', e);
+		}
+		// Update stacked delivered total (mobile)
+		try {
+			const delivLine = document.getElementById('deliv-total-2');
+			if (delivLine) delivLine.textContent = String(totalDelivered);
+		} catch (e) {
+			console.error('Error updating stacked delivered:', e);
 		}
 	});
 }
