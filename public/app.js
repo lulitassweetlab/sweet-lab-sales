@@ -1414,6 +1414,15 @@ function renderFooterDessertColumns(visibleDesserts = state.visibleDesserts || [
 		existing.forEach(td => td.remove());
 	});
 
+	// Mobile structural adjustment for commission rows
+	const isMobile = (window.innerWidth <= 600);
+	[commRow, commPaidRow].forEach(row => {
+		if (row) {
+			const labelTd = row.querySelector('td.col-client');
+			if (labelTd) labelTd.colSpan = isMobile ? (visibleDesserts.length + 1) : 1;
+		}
+	});
+
 	// Insert new columns before col-total
 	visibleDesserts.forEach((d, i) => {
 		const isAlt = (i % 2 === 1);
@@ -1456,16 +1465,16 @@ function renderFooterDessertColumns(visibleDesserts = state.visibleDesserts || [
 			if (totalTd) delivRow.insertBefore(td, totalTd);
 		}
 
-		// Comm row (empty cells)
-		if (commRow) {
+		// Comm row (empty cells) - only on desktop
+		if (commRow && !isMobile) {
 			const totalTd = commRow.querySelector('td.col-total');
 			const td = document.createElement('td');
 			td.className = `col-dessert col-${d.short_code}${altClass}`;
 			if (totalTd) commRow.insertBefore(td, totalTd);
 		}
-
-		// Comm Paid row (empty cells)
-		if (commPaidRow) {
+		
+		// Comm Paid row (empty cells) - only on desktop
+		if (commPaidRow && !isMobile) {
 			const totalTd = commPaidRow.querySelector('td.col-total');
 			const td = document.createElement('td');
 			td.className = `col-dessert col-${d.short_code}${altClass}`;
