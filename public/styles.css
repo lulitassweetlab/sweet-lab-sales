@@ -3802,31 +3802,35 @@ tfoot td {
 
 @media (max-width: 600px) {
 
-	/* Hide amount totals and commission rows on mobile (using inline total and stacked rows instead) */
+	/* Hide amount totals on mobile (using inline total instead) */
 	#sales-table tfoot .tfoot-amt,
-	#sales-table tfoot .tfoot-comm,
 	#sales-table tfoot .tfoot-comm-paid {
 		display: none !important;
 	}
 
-	/* Show original delivered row on mobile as requested */
-	#sales-table tfoot .tfoot-delivered {
+	/* Show delivered and commission rows as standard rows on mobile */
+	#sales-table tfoot .tfoot-delivered,
+	#sales-table tfoot .tfoot-comm {
 		display: table-row !important;
 	}
 
-	#sales-table tfoot .tfoot-delivered td {
+	#sales-table tfoot .tfoot-delivered td,
+	#sales-table tfoot .tfoot-comm td {
 		vertical-align: middle;
 		padding-top: 8px;
 		padding-bottom: 8px;
+		font-size: 0.65rem;
 	}
 
-	#sales-table tfoot .tfoot-delivered .col-client.label {
+	#sales-table tfoot .tfoot-delivered .col-client.label,
+	#sales-table tfoot .tfoot-comm .col-client.label {
 		display: table-cell;
 		white-space: nowrap;
 		font-weight: 600;
 	}
 
-	#sales-table tfoot .tfoot-delivered .col-total {
+	#sales-table tfoot .tfoot-delivered .col-total,
+	#sales-table tfoot .tfoot-comm .col-total {
 		display: table-cell;
 		text-align: right;
 		padding-right: 8px;
@@ -3894,7 +3898,6 @@ tfoot td {
 	}
 
 	/* Force bottom alignment within each stacked row */
-	#sales-table tfoot .tfoot-comm-stack,
 	#sales-table tfoot .tfoot-comm-paid-stack {
 		height: 40px;
 	}

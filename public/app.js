@@ -2165,6 +2165,11 @@ function wireDeliveredRowEditors() {
 			const sel = window.getSelection();
 			sel.removeAllRanges();
 			sel.addRange(range);
+			
+			// Fallback: if selection appears empty, force it
+			if (!sel.toString().trim()) {
+				document.execCommand('selectAll', false, null);
+			}
 		} catch { }
 	}
 	for (const item of cells) {
@@ -2183,9 +2188,9 @@ function wireDeliveredRowEditors() {
 		if (el.dataset.bound === '1') continue;
 		el.dataset.bound = '1';
 		// Al enfocarse, seleccionar todo para reemplazar con la nueva cifra. 
-		// Evitamos listener de 'click' porque compite con el foco en móviles.
+		// Usamos un delay un poco mayor para asegurar que el teclado y foco móvil terminen.
 		el.addEventListener('focus', () => { 
-			setTimeout(() => selectAllContent(el), 50); 
+			setTimeout(() => selectAllContent(el), 150); 
 		});
 		// Sanitize input to numbers only while typing
 		el.addEventListener('input', () => {
@@ -4291,17 +4296,6 @@ function updateSummary() {
 			}
 		}
 		if (isSmall && overlap) table.classList.add('totals-stacked'); else table.classList.remove('totals-stacked');
-
-		const commLine = document.getElementById('sum-comm-2');
-		if (commLine) commLine.textContent = commStr;
-
-		// Update stacked commission label
-		try {
-			const commLabelStacked = document.querySelector('#footer-comm-row-2 .st-label');
-			if (commLabelStacked) commLabelStacked.textContent = `Comisión`;
-		} catch (e) {
-			console.error('Error updating stacked commission label:', e);
-		}
 
 	});
 }
