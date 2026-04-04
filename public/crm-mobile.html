@@ -659,7 +659,7 @@
         function filterDashboard() {
             const input = document.getElementById('dashSearchInput');
             if (!input) return;
-            const term = input.value.trim().toLowerCase();
+            const term = input.value.toLowerCase();
             window.crmSearchTerm = term;
             
             // Re-trigger the directory view with the current filter

@@ -11485,7 +11485,7 @@ function bindActiveTableSearch() {
 	}
 
 	searchInput.addEventListener('input', () => {
-		renderSuggestions(searchInput.value.trim());
+		renderSuggestions(searchInput.value);
 		// Also filter the table in real-time
 		renderTable();
 	});
