@@ -182,6 +182,34 @@
         .todo-info { display: flex; align-items: center; gap: 12px; }
         .todo-status { width: 10px; height: 10px; border-radius: 50%; background: var(--primary); }
 
+        .search-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        .search-wrapper input {
+            padding-right: 30px !important;
+        }
+        .clear-search-btn {
+            position: absolute;
+            right: 10px;
+            width: 18px;
+            height: 18px;
+            background: #cbd5e1;
+            color: white;
+            border-radius: 50%;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 800;
+            cursor: pointer;
+            z-index: 2;
+        }
+        .clear-search-btn:active {
+            transform: scale(0.9);
+            background: var(--text-muted);
+        }
     </style>
 </head>
 <body>
