@@ -369,6 +369,9 @@ function renderClientDetailTable() {
 		wrap.tabIndex = 0;
 		wrap.addEventListener('keydown', async (e) => {
 			if (e.key === 'Enter' || e.key === ' ') {
+				// Don't intercept if focus is actually in an input/textarea
+				if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+				
 				e.preventDefault();
 				const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
 				const pm = String(r.pay_method || '').trim().replace(/\.$/, '').toLowerCase();
@@ -1737,6 +1740,9 @@ function renderTable() {
 				wrap.tabIndex = 0;
 				wrap.addEventListener('keydown', async (e) => {
 					if (e.key === 'Enter' || e.key === ' ') {
+						// Don't intercept if focus is actually in an input/textarea
+						if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+						
 						e.preventDefault();
 						const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
 						const pm = String(sale.pay_method || '').trim().replace(/\.$/, '').toLowerCase();
@@ -10376,6 +10382,9 @@ async function openReceiptsGalleryPopover(saleId, anchorX, anchorY) {
 				wrap.tabIndex = 0;
 				wrap.addEventListener('keydown', (e) => {
 					if (e.key === 'Enter' || e.key === ' ') {
+						// Don't intercept if focus is actually in an input/textarea
+						if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+						
 						e.preventDefault();
 						const rect = wrap.getBoundingClientRect();
 						openPayMenuForReceipt(wrap, sel, receipt, rect.left + rect.width / 2, rect.bottom, applyPayClass);
