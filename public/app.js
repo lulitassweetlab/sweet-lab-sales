@@ -7,6 +7,134 @@ async function openClientDetailView(clientName) {
 	switchView('#view-client-detail');
 }
 
+/**
+ * Helper to detect 2-second long press on an element
+ */
+function attachLongPress(el, callback) {
+	let timer;
+	const delay = 2000; // 2 seconds
+
+	const start = (e) => {
+		// Only trigger on main click or touch
+		if (e.type === 'mousedown' && e.button !== 0) return;
+		
+		timer = setTimeout(() => {
+			timer = null;
+			if (typeof callback === 'function') callback(e);
+		}, delay);
+	};
+
+	const cancel = () => {
+		if (timer) {
+			clearTimeout(timer);
+			timer = null;
+		}
+	};
+
+	el.addEventListener('mousedown', start);
+	el.addEventListener('touchstart', start, { passive: true });
+
+	el.addEventListener('mouseup', cancel);
+	el.addEventListener('mouseleave', cancel);
+	el.addEventListener('touchend', cancel);
+	el.addEventListener('touchmove', cancel);
+}
+
+/**
+ * Opens a full-screen (mobile) or centered (desktop) popover to edit client CRM description
+ */
+async function openClientDescriptionPopover(clientName) {
+	if (!clientName) return;
+	
+	// Create Overlay
+	const overlay = document.createElement('div');
+	overlay.className = 'desc-popover-overlay';
+	
+	// Create Content
+	const content = document.createElement('div');
+	content.className = 'desc-popover-content';
+	content.onclick = (e) => e.stopPropagation(); // Prevent closing when clicking inside
+	
+	// Header
+	const header = document.createElement('div');
+	header.className = 'desc-popover-header';
+	header.innerHTML = `<h3><span>📝</span> ${clientName}</h3>`;
+	const closeX = document.createElement('button');
+	closeX.innerHTML = '✕';
+	closeX.style = 'background:none; border:none; font-size:18px; cursor:pointer; color:var(--muted);';
+	closeX.onclick = () => closeAndSave();
+	header.appendChild(closeX);
+	
+	// Body
+	const body = document.createElement('div');
+	body.className = 'desc-popover-body';
+	
+	const textarea = document.createElement('textarea');
+	textarea.className = 'desc-popover-textarea';
+	textarea.placeholder = 'Escribe aquí la descripción del cliente para el CRM...';
+	textarea.value = 'Cargando...';
+	textarea.disabled = true;
+	body.appendChild(textarea);
+	
+	// Footer
+	const footer = document.createElement('div');
+	footer.className = 'desc-popover-footer';
+	footer.textContent = 'Se guardará automáticamente al cerrar';
+	
+	content.appendChild(header);
+	content.appendChild(body);
+	content.appendChild(footer);
+	overlay.appendChild(content);
+	document.body.appendChild(overlay);
+	
+	// Fetch Client Info
+	let clientInfo = null;
+	try {
+		const sellerId = state.currentSeller?.id || state._clientDetailSellerId;
+		if (!sellerId) throw new Error('No se pudo identificar al vendedor encargado');
+		
+		const clients = await api('GET', `${API.Clients}?seller_id=${sellerId}`);
+		clientInfo = (clients || []).find(c => String(c.name).trim().toLowerCase() === String(clientName).trim().toLowerCase());
+		textarea.value = clientInfo?.description || '';
+		textarea.disabled = false;
+		textarea.focus();
+	} catch (e) {
+		console.error('Error fetching client description:', e);
+		textarea.value = '';
+		textarea.placeholder = 'Error al cargar. Puedes escribir una nueva descripción.';
+		textarea.disabled = false;
+	}
+	
+	const closeAndSave = async () => {
+		const newDesc = textarea.value.trim();
+		const oldDesc = (clientInfo?.description || '').trim();
+		
+		// Remove from DOM immediately for snappy feel
+		overlay.style.opacity = '0';
+		overlay.style.transition = 'opacity 0.2s';
+		setTimeout(() => overlay.remove(), 200);
+		
+		if (newDesc !== oldDesc) {
+			try {
+				const sellerId = state.currentSeller?.id || state._clientDetailSellerId;
+				if (!sellerId) throw new Error('No se pudo identificar al vendedor encargado');
+				
+				await api('POST', API.Clients, {
+					seller_id: sellerId,
+					name: clientName,
+					description: newDesc
+				});
+				showToast('Descripción guardada', 'success');
+			} catch (e) {
+				console.error('Error saving description:', e);
+				showToast('Error al guardar descripción: ' + e.message, 'error');
+			}
+		}
+	};
+	
+	overlay.onclick = closeAndSave;
+}
+
 // Global client detail view - works without needing a current seller selected
 async function openGlobalClientDetailView(clientName) {
 	const name = String(clientName || '').trim();
@@ -307,6 +435,7 @@ function renderClientDetailTable() {
 	for (const r of rows) {
 		const tr = document.createElement('tr');
 		tr.dataset.id = String(r.id);
+		attachLongPress(tr, () => openClientDescriptionPopover(state._clientDetailName));
 		const tdPay = document.createElement('td'); tdPay.className = 'col-paid';
 		const wrap = document.createElement('span'); wrap.className = 'pay-wrap';
 		const sel = document.createElement('select'); sel.className = 'input-cell pay-select';
@@ -612,7 +741,8 @@ const API = {
 	Recipes: '/api/recipes',
 	Inventory: '/api/inventory',
 	Desserts: '/api/desserts',
-	Notifications: '/api/notifications'
+	Notifications: '/api/notifications',
+	Clients: '/api/clients'
 };
 
 const PRICES = {
@@ -1907,6 +2037,7 @@ function renderTable() {
 		})()));
 
 		tr.dataset.id = String(sale.id);
+		attachLongPress(tr, () => openClientDescriptionPopover(sale.client_name));
 		tbody.appendChild(tr);
 		// Comment trigger removed per request
 	}
