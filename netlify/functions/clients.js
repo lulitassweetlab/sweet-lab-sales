@@ -36,6 +36,7 @@ export default async (req) => {
                             c.name, 
                             c.short_name,
                             c.whatsapp, 
+                            c.description,
                             CAST(c.birth_date AS VARCHAR) AS birth_date,
                             s.name as seller_name
                         FROM clients c
@@ -47,6 +48,7 @@ export default async (req) => {
                             sa.client_name as name,
                             NULL::VARCHAR as short_name,
                             NULL::VARCHAR as whatsapp,
+                            ''::TEXT as description,
                             NULL::VARCHAR as birth_date,
                             s.name as seller_name
                         FROM sales sa
@@ -65,7 +67,7 @@ export default async (req) => {
                 // Return all clients with rich CRM metadata (Stages, Tags, Debt, Orders)
                 clients = await sql`
                     SELECT 
-                        c.id, c.name, c.whatsapp,
+                        c.id, c.name, c.whatsapp, c.description,
                         st.name as stage_name, st.color as stage_color,
                         COUNT(s.id)::int as total_orders,
                         COALESCE(SUM(s.total_cents), 0)::int as lifetime_value_cents,
@@ -84,7 +86,7 @@ export default async (req) => {
                     LEFT JOIN crm_client_stage cst ON c.id = cst.client_id
                     LEFT JOIN crm_stages st ON cst.stage_id = st.id
                     WHERE c.seller_id = ${sellerId}
-                    GROUP BY c.id, c.name, c.whatsapp, st.name, st.color, st.id
+                    GROUP BY c.id, c.name, c.whatsapp, c.description, st.name, st.color, st.id
                     ORDER BY c.name ASC
                 `;
             }
