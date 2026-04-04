@@ -43,7 +43,7 @@ function attachLongPress(el, callback) {
 /**
  * Opens a full-screen (mobile) or centered (desktop) popover to edit client CRM description
  */
-async function openClientDescriptionPopover(clientName) {
+async function openClientDescriptionPopover(clientName, e) {
 	if (!clientName) return;
 	
 	// Create Overlay
@@ -54,35 +54,39 @@ async function openClientDescriptionPopover(clientName) {
 	const content = document.createElement('div');
 	content.className = 'desc-popover-content';
 	
-	// Header
-	const header = document.createElement('div');
-	header.className = 'desc-popover-header';
-	header.innerHTML = `<h3><span>📝</span> ${clientName}</h3>`;
-	const closeX = document.createElement('button');
-	closeX.innerHTML = '✕';
-	closeX.style = 'background:none; border:none; font-size:18px; cursor:pointer; color:var(--muted);';
-	closeX.onclick = () => closeAndSave();
-	header.appendChild(closeX);
+	// Calculate Position (Contextual)
+	let x = 20;
+	let y = 100;
+	if (e) {
+		const touch = e.touches ? e.touches[0] : e;
+		x = touch.clientX || 20;
+		y = touch.clientY || 100;
+	}
 	
-	// Body
+	// Adjust to be roughly centered around press bit shifted up to avoid finger cover
+	const viewportW = window.innerWidth;
+	const viewportH = window.innerHeight;
+	
+	if (viewportW > 600) {
+		content.style.left = Math.min(viewportW - 480, Math.max(20, x - 230)) + 'px';
+		content.style.top = Math.min(viewportH - 200, Math.max(20, y - 60)) + 'px';
+	} else {
+		// Mobile: roughly top region near press
+		content.style.top = Math.min(viewportH - 300, Math.max(20, y - 100)) + 'px';
+	}
+	
+	// Body only (no header/footer)
 	const body = document.createElement('div');
 	body.className = 'desc-popover-body';
 	
 	const textarea = document.createElement('textarea');
 	textarea.className = 'desc-popover-textarea';
-	textarea.placeholder = 'Escribe aquí la descripción del cliente para el CRM...';
+	textarea.placeholder = 'Descripción...';
 	textarea.value = 'Cargando...';
 	textarea.disabled = true;
 	body.appendChild(textarea);
 	
-	// Footer
-	const footer = document.createElement('div');
-	footer.className = 'desc-popover-footer';
-	footer.textContent = 'Se guardará automáticamente al cerrar';
-	
-	content.appendChild(header);
 	content.appendChild(body);
-	content.appendChild(footer);
 	overlay.appendChild(content);
 	document.body.appendChild(overlay);
 	
@@ -441,7 +445,7 @@ function renderClientDetailTable() {
 	for (const r of rows) {
 		const tr = document.createElement('tr');
 		tr.dataset.id = String(r.id);
-		attachLongPress(tr, () => openClientDescriptionPopover(state._clientDetailName));
+		attachLongPress(tr, (ev) => openClientDescriptionPopover(state._clientDetailName, ev));
 		const tdPay = document.createElement('td'); tdPay.className = 'col-paid';
 		const wrap = document.createElement('span'); wrap.className = 'pay-wrap';
 		const sel = document.createElement('select'); sel.className = 'input-cell pay-select';
@@ -2043,7 +2047,7 @@ function renderTable() {
 		})()));
 
 		tr.dataset.id = String(sale.id);
-		attachLongPress(tr, () => openClientDescriptionPopover(sale.client_name));
+		attachLongPress(tr, (ev) => openClientDescriptionPopover(sale.client_name, ev));
 		tbody.appendChild(tr);
 		// Comment trigger removed per request
 	}
