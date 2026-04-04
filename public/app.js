@@ -53,7 +53,6 @@ async function openClientDescriptionPopover(clientName) {
 	// Create Content
 	const content = document.createElement('div');
 	content.className = 'desc-popover-content';
-	content.onclick = (e) => e.stopPropagation(); // Prevent closing when clicking inside
 	
 	// Header
 	const header = document.createElement('div');
@@ -132,7 +131,14 @@ async function openClientDescriptionPopover(clientName) {
 		}
 	};
 	
-	overlay.onclick = closeAndSave;
+	overlay.addEventListener('click', (e) => {
+		if (e.target === overlay) closeAndSave();
+	});
+	
+	// Pre-emptively close on touchstart outside content for extreme snappiness on mobile
+	overlay.addEventListener('touchstart', (e) => {
+		if (e.target === overlay) closeAndSave();
+	}, { passive: true });
 }
 
 // Global client detail view - works without needing a current seller selected
