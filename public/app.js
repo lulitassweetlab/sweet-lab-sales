@@ -12,7 +12,7 @@ async function openClientDetailView(clientName) {
  */
 function attachLongPress(el, callback) {
 	let timer;
-	const delay = 2000; // 2 seconds
+	const delay = 1000; // 1 second
 
 	const start = (e) => {
 		// Only trigger on main click or touch
