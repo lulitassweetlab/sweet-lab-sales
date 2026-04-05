@@ -574,11 +574,31 @@ export async function handler(event) {
 				// Auto-Link to CRM immediately on POST so sales appear in CRM timeline right away
 				if (clientNamePost && row && row.id) {
 					try {
-						let [crmClient] = await sql`SELECT id FROM clients WHERE seller_id = ${sellerId} AND lower(name) = lower(${clientNamePost})`;
+						const tagIds = Array.isArray(data.tag_ids) ? data.tag_ids : [];
+						const targetTags = Array.from(new Set(tagIds)).map(Number).sort((a, b) => a - b);
+						
+						// Find matching client by name AND tags
+						const nameMatches = await sql`
+							SELECT c.id, 
+								COALESCE(JSON_AGG(ct.tag_id ORDER BY ct.tag_id) FILTER (WHERE ct.tag_id IS NOT NULL), '[]') as tags
+							FROM clients c
+							LEFT JOIN crm_client_tags ct ON c.id = ct.client_id
+							WHERE c.seller_id = ${sellerId} AND LOWER(c.name) = LOWER(${clientNamePost})
+							GROUP BY c.id
+						`;
+						
+						let crmClient = null;
+						for (const m of nameMatches) {
+							const mTags = (Array.isArray(m.tags) ? m.tags : JSON.parse(m.tags || '[]')).map(Number).sort((a, b) => a - b);
+							if (JSON.stringify(mTags) === JSON.stringify(targetTags)) {
+								crmClient = m;
+								break;
+							}
+						}
+
 						const shortNameInput = (data.short_name ?? '').toString().trim();
 						const whatsappInput = (data.whatsapp ?? '').toString().trim();
 						const stageIdInput = data.funnel_stage_id ? Number(data.funnel_stage_id) : null;
-						const tagIds = Array.isArray(data.tag_ids) ? data.tag_ids : [];
 
 						if (!crmClient) {
 							const shortName = shortNameInput || clientNamePost.split(' ')[0] || clientNamePost;
@@ -754,11 +774,30 @@ export async function handler(event) {
 						// 1. Check if this specific sale is already linked to a client
 						const [existingLink] = await sql`SELECT client_id FROM crm_client_sales WHERE sale_id = ${id} LIMIT 1`;
 						
-						let clientId = null;
+						const tagIds = Array.isArray(data.tag_ids) ? data.tag_ids : [];
+						const targetTags = Array.from(new Set(tagIds)).map(Number).sort((a, b) => a - b);
+
 						if (existingLink) {
 							const oldClientId = existingLink.client_id;
-							// Find if a client already exists with the NEW name
-							let [targetClient] = await sql`SELECT id, name FROM clients WHERE seller_id = ${activeSellerId} AND lower(name) = lower(${client.trim()})`;
+							
+							// Find if a client already exists with the NEW name AND SAME TAGS
+							const nameMatches = await sql`
+								SELECT c.id, c.name,
+									COALESCE(JSON_AGG(ct.tag_id ORDER BY ct.tag_id) FILTER (WHERE ct.tag_id IS NOT NULL), '[]') as tags
+								FROM clients c
+								LEFT JOIN crm_client_tags ct ON c.id = ct.client_id
+								WHERE c.seller_id = ${activeSellerId} AND LOWER(c.name) = LOWER(${client.trim()})
+								GROUP BY c.id
+							`;
+							
+							let targetClient = null;
+							for (const m of nameMatches) {
+								const mTags = (Array.isArray(m.tags) ? m.tags : JSON.parse(m.tags || '[]')).map(Number).sort((a, b) => a - b);
+								if (JSON.stringify(mTags) === JSON.stringify(targetTags)) {
+									targetClient = m;
+									break;
+								}
+							}
 							
 							if (targetClient) {
 								if (targetClient.id !== oldClientId) {
@@ -772,12 +811,34 @@ export async function handler(event) {
 									clientId = oldClientId;
 								}
 							} else {
-								await sql`UPDATE clients SET name = ${client.trim()} WHERE id = ${oldClientId}`;
-								clientId = oldClientId;
+								// No exact match for Name+Tags, so we either create a new one or update current IF current has no tags/same tags
+								// To be safe and respect "no fusion", we just create a new one if it's a rename to a common name but different tags
+								const shortName = client.trim().split(' ')[0] || client.trim();
+								const [newC] = await sql`INSERT INTO clients (seller_id, name, short_name) VALUES (${activeSellerId}, ${client.trim()}, ${shortName}) RETURNING id`;
+								await sql`UPDATE crm_client_sales SET client_id = ${newC.id} WHERE sale_id = ${id}`;
+								clientId = newC.id;
+								await autoUpdateClientStage(newC.id, activeSellerId);
 							}
 						} else {
-							// 2. No existing link: Standard find-or-create and link logic
-							let [crmClient] = await sql`SELECT id FROM clients WHERE seller_id = ${activeSellerId} AND lower(name) = lower(${client.trim()})`;
+							// 2. No existing link: Standard find-or-create by name+tags
+							const nameMatches = await sql`
+								SELECT c.id, 
+									COALESCE(JSON_AGG(ct.tag_id ORDER BY ct.tag_id) FILTER (WHERE ct.tag_id IS NOT NULL), '[]') as tags
+							FROM clients c
+							LEFT JOIN crm_client_tags ct ON c.id = ct.client_id
+							WHERE c.seller_id = ${activeSellerId} AND LOWER(c.name) = LOWER(${client.trim()})
+							GROUP BY c.id
+							`;
+							
+							let crmClient = null;
+							for (const m of nameMatches) {
+								const mTags = (Array.isArray(m.tags) ? m.tags : JSON.parse(m.tags || '[]')).map(Number).sort((a, b) => a - b);
+								if (JSON.stringify(mTags) === JSON.stringify(targetTags)) {
+									crmClient = m;
+									break;
+								}
+							}
+
 							if (!crmClient) {
 								let shortName = client.trim().split(' ')[0] || client.trim();
 								[crmClient] = await sql`INSERT INTO clients (seller_id, name, short_name) VALUES (${activeSellerId}, ${client.trim()}, ${shortName}) RETURNING id`;
@@ -786,6 +847,14 @@ export async function handler(event) {
 								await sql`INSERT INTO crm_client_sales (client_id, sale_id, seller_id) VALUES (${crmClient.id}, ${id}, ${activeSellerId}) ON CONFLICT (sale_id) DO UPDATE SET client_id = EXCLUDED.client_id`;
 								clientId = crmClient.id;
 								await autoUpdateClientStage(crmClient.id, activeSellerId);
+
+								// Sync tags if provided in PUT
+								if (tagIds.length > 0) {
+									await sql`DELETE FROM crm_client_tags WHERE client_id = ${crmClient.id}`;
+									for (const tagId of tagIds) {
+										await sql`INSERT INTO crm_client_tags (client_id, tag_id) VALUES (${crmClient.id}, ${tagId}) ON CONFLICT DO NOTHING`;
+									}
+								}
 							}
 						}
 

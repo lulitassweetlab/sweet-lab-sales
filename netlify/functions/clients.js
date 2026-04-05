@@ -129,20 +129,32 @@ export default async (req) => {
                     return new Response(JSON.stringify({ error: 'Se requiere una lista de nombres para fusionar' }), { status: 400 });
                 }
 
-                // Ensure the target name exists in the database
-                const [targetClient] = await sql`
-                    INSERT INTO clients (seller_id, name, short_name, whatsapp, birth_date, description, address, latitude, longitude)
-                    VALUES (${sellerId}, ${name}, ${shortName}, ${whatsapp}, ${birthDate}, ${description}, ${address}, ${latitude}, ${longitude})
-                    ON CONFLICT (name, seller_id) DO UPDATE SET
-                        short_name = COALESCE(EXCLUDED.short_name, clients.short_name),
-                        whatsapp = COALESCE(EXCLUDED.whatsapp, clients.whatsapp),
-                        birth_date = COALESCE(EXCLUDED.birth_date, clients.birth_date),
-                        description = COALESCE(EXCLUDED.description, clients.description),
-                        address = EXCLUDED.address,
-                        latitude = EXCLUDED.latitude,
-                        longitude = EXCLUDED.longitude
-                    RETURNING *
+                // Ensure the target client profile exists
+                let [targetClient] = await sql`
+                    SELECT * FROM clients WHERE seller_id = ${sellerId} AND LOWER(name) = LOWER(${name})
+                    LIMIT 1
                 `;
+
+                if (targetClient) {
+                    [targetClient] = await sql`
+                        UPDATE clients SET
+                            short_name = COALESCE(clients.short_name, ${shortName}),
+                            whatsapp = COALESCE(clients.whatsapp, ${whatsapp}),
+                            birth_date = COALESCE(clients.birth_date, ${birthDate}),
+                            description = COALESCE(clients.description, ${description}),
+                            address = EXCLUDED.address,
+                            latitude = EXCLUDED.latitude,
+                            longitude = EXCLUDED.longitude
+                        WHERE id = ${targetClient.id}
+                        RETURNING *
+                    `;
+                } else {
+                    [targetClient] = await sql`
+                        INSERT INTO clients (seller_id, name, short_name, whatsapp, birth_date, description, address, latitude, longitude)
+                        VALUES (${sellerId}, ${name}, ${shortName}, ${whatsapp}, ${birthDate}, ${description}, ${address}, ${latitude}, ${longitude})
+                        RETURNING *
+                    `;
+                }
 
                 // Update all sales history for this seller that match the source names
                 // Using `= ANY(...)` to match the array of old names
@@ -205,15 +217,34 @@ export default async (req) => {
                 const oldName = normalizeClientName(body.old_name || '');
                 if (!oldName) return new Response(JSON.stringify({ error: 'Falta old_name' }), { status: 400 });
 
-                // Find old client profile (if it exists)
+                // Find old client profile
                 const [oldClient] = await sql`
                     SELECT * FROM clients WHERE seller_id = ${sellerId} AND LOWER(name) = LOWER(${oldName})
                 `;
+                if (!oldClient) return new Response(JSON.stringify({ error: 'Cliente no encontrado' }), { status: 404 });
 
-                // Check if the NEW name already exists as a client profile
-                let [targetClient] = await sql`
-                    SELECT * FROM clients WHERE seller_id = ${sellerId} AND LOWER(name) = LOWER(${name})
+                // Fetch tags for oldClient to determine partitioning
+                const oldTagsRes = await sql`SELECT tag_id FROM crm_client_tags WHERE client_id = ${oldClient.id}`;
+                const oldTags = oldTagsRes.map(t => t.tag_id).sort((a, b) => a - b);
+
+                // Find potential target clients with the NEW name
+                const nameMatches = await sql`
+                    SELECT c.id, c.name, c.short_name, c.whatsapp, c.birth_date, c.description, c.address, c.latitude, c.longitude,
+                           COALESCE(JSON_AGG(ct.tag_id ORDER BY ct.tag_id) FILTER (WHERE ct.tag_id IS NOT NULL), '[]') as tags
+                    FROM clients c
+                    LEFT JOIN crm_client_tags ct ON c.id = ct.client_id
+                    WHERE c.seller_id = ${sellerId} AND LOWER(c.name) = LOWER(${name})
+                    GROUP BY c.id
                 `;
+
+                let targetClient = null;
+                for (const m of nameMatches) {
+                    const mTags = (Array.isArray(m.tags) ? m.tags : JSON.parse(m.tags || '[]')).map(Number).sort((a, b) => a - b);
+                    if (JSON.stringify(mTags) === JSON.stringify(oldTags)) {
+                        targetClient = m;
+                        break;
+                    }
+                }
 
                 if (targetClient && oldClient && targetClient.id !== oldClient.id) {
                     // MERGE SCENARIO

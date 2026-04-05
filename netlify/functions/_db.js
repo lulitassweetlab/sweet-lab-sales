@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 41; // 41: Added display_order column to crm_tags
+const SCHEMA_VERSION = 42; // 42: Removed unique constraint on (name, seller_id) in clients table
 
 export async function ensureSchema() {
 	if (schemaEnsured) return;
@@ -152,8 +152,7 @@ export async function ensureSchema() {
 					latitude DECIMAL(12, 9),
 					longitude DECIMAL(12, 9),
 					seller_id INTEGER NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
-					created_at TIMESTAMPTZ DEFAULT now(),
-					UNIQUE (name, seller_id)
+					created_at TIMESTAMPTZ DEFAULT now()
 				)
 			`;
 
@@ -341,6 +340,15 @@ export async function ensureSchema() {
 				await sql`ALTER TABLE crm_stages ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true`;
 				await sql`ALTER TABLE clients ADD COLUMN IF NOT EXISTS last_dashboard_check TIMESTAMPTZ`;
 				await sql`ALTER TABLE crm_tags ADD COLUMN IF NOT EXISTS display_order INTEGER DEFAULT 0`;
+
+				// Migration 42: Allow multiple clients with same name (remove unique constraint)
+				try {
+					await sql`ALTER TABLE clients DROP CONSTRAINT IF EXISTS clients_name_key`;
+					await sql`ALTER TABLE clients DROP CONSTRAINT IF EXISTS clients_name_seller_id_key`;
+					await sql`CREATE INDEX IF NOT EXISTS idx_clients_name_seller ON clients(name, seller_id)`;
+				} catch (err) {
+					console.warn('Migration 42 warning:', err.message);
+				}
 
 				// Migration 39: Activate automation for existing stages by name
 				const autoStages = [
