@@ -304,7 +304,7 @@
                             <h2 id="profileName" 
                                 contenteditable="true" 
                                 spellcheck="false"
-                                style="font-size: 1.85rem; font-weight: 800; margin: 0; word-break: break-all; outline: none; padding: 0 4px; border-radius: 6px; transition: background 0.2s; line-height: 1.2;"
+                                style="font-size: 1.85rem; font-weight: 800; margin: 0; word-break: normal; overflow-wrap: break-word; outline: none; padding: 0 4px; border-radius: 6px; transition: background 0.2s; line-height: 1.2;"
                                 onfocus="this.style.background='rgba(99,102,241,0.1)'"
                                 onblur="this.style.background='transparent'; editProfileName(this.innerText)"
                                 onkeydown="if(event.key==='Enter'){ event.preventDefault(); this.blur(); }">
@@ -967,8 +967,8 @@
                     onclick="${clickAction}" 
                     style="padding:14px; margin-bottom:10px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; transition: all 0.2s; border: ${bulkBorder}; background: ${bulkBg};"
                     onmouseover="if(!window.isBulkMode) this.style.transform='translateX(4px)'" onmouseout="this.style.transform='none'">
-                    <div style="flex:1;">
-                        <div style="font-weight:700; font-size:1.05rem; margin-bottom:6px;">${c.name}</div>
+                    <div style="flex:1; min-width:0;">
+                        <div style="font-weight:700; font-size:1.05rem; margin-bottom:6px; word-break: normal; overflow-wrap: break-word;">${c.name}</div>
                         <div class="client-badges-container" style="display:flex; flex-wrap:wrap; gap:4px; align-items:center;">${badges}</div>
                         ${metricsHtml}
                     </div>
@@ -1225,9 +1225,9 @@
             const cardClick = clientId ? `onclick="loadProfile(${clientId})" ` : ``;
             return `
             <div class="card" ${cardClick} style="display:flex; justify-content:space-between; align-items:center; padding: 14px; margin-bottom:10px; cursor:pointer;">
-                <div style="flex:1;">
+                <div style="flex:1; min-width:0;">
                     <span class="badge ${badgeClass}" style="margin-bottom:6px;">${badgeText}</span>
-                    <div style="font-weight:700; margin-top:4px; font-size:1rem;">${mainText}</div>
+                    <div style="font-weight:700; margin-top:4px; font-size:1rem; word-break: normal; overflow-wrap: break-word;">${mainText}</div>
                 </div>
                 <div style="display:flex; gap:8px; align-items:center;">
                     ${actionHtml || ''}
@@ -1307,7 +1307,7 @@
                     <div class="card" style="margin-bottom:10px; padding:12px;">
                         <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
                             <div>
-                                <div style="font-weight:800; font-size:0.9rem; color:var(--primary-dark);">${h.client_name}</div>
+                                <div style="font-weight:800; font-size:0.9rem; color:var(--primary-dark); word-break: normal; overflow-wrap: break-word;">${h.client_name}</div>
                                 <div style="font-size:0.75rem; color:var(--text-muted);">${date}</div>
                             </div>
                             <div style="display:flex; gap:6px;">
