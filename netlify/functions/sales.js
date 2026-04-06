@@ -197,11 +197,12 @@ export async function handler(event) {
 							       sd.day AS sale_day,
 							       se.name AS seller_name,
 							       (
-							           SELECT json_agg(json_build_object('name', t.name, 'color', t.color) ORDER BY t.display_order ASC, t.name ASC)
-							           FROM crm_client_sales ccs
-							           JOIN crm_client_tags ct ON ccs.client_id = ct.client_id
-							           WHERE ccs.sale_id = s.id
-							       ) AS client_tags
+           SELECT COALESCE(json_agg(json_build_object('name', t.name, 'color', t.color) ORDER BY t.display_order ASC, t.name ASC), '[]'::json)
+           FROM crm_client_sales ccs
+           JOIN crm_client_tags ct ON ccs.client_id = ct.client_id
+           JOIN crm_tags t ON ct.tag_id = t.id
+           WHERE ccs.sale_id = s.id
+       ) AS client_tags
 							FROM sales s
 							INNER JOIN sale_days sd ON sd.id = s.sale_day_id
 							INNER JOIN sellers se ON se.id = s.seller_id
@@ -217,11 +218,12 @@ export async function handler(event) {
 							       sd.day AS sale_day,
 							       se.name AS seller_name,
 							       (
-							           SELECT json_agg(json_build_object('name', t.name, 'color', t.color) ORDER BY t.display_order ASC, t.name ASC)
-							           FROM crm_client_sales ccs
-							           JOIN crm_client_tags ct ON ccs.client_id = ct.client_id
-							           WHERE ccs.sale_id = s.id
-							       ) AS client_tags
+           SELECT COALESCE(json_agg(json_build_object('name', t.name, 'color', t.color) ORDER BY t.display_order ASC, t.name ASC), '[]'::json)
+           FROM crm_client_sales ccs
+           JOIN crm_client_tags ct ON ccs.client_id = ct.client_id
+           JOIN crm_tags t ON ct.tag_id = t.id
+           WHERE ccs.sale_id = s.id
+       ) AS client_tags
 							FROM sales s
 							INNER JOIN sale_days sd ON sd.id = s.sale_day_id
 							INNER JOIN sellers se ON se.id = s.seller_id
@@ -383,7 +385,7 @@ export async function handler(event) {
 						       s.payment_source, s.comment_text, s.special_pricing_type, s.total_cents, s.created_at,
 						       sd.day,
 						       (
-						           SELECT json_agg(json_build_object('name', t.name, 'color', t.color) ORDER BY t.display_order ASC, t.name ASC)
+						           SELECT COALESCE(json_agg(json_build_object('name', t.name, 'color', t.color) ORDER BY t.display_order ASC, t.name ASC), '[]'::json)
 						           FROM crm_client_sales ccs
 						           JOIN crm_client_tags ct ON ccs.client_id = ct.client_id
 						           JOIN crm_tags t ON ct.tag_id = t.id
@@ -465,10 +467,10 @@ export async function handler(event) {
 					       s.qty_mara, s.qty_oreo, s.qty_nute, s.is_paid, s.pay_method, s.payment_date, s.payment_source, 
 					       s.comment_text, s.special_pricing_type, s.total_cents, s.created_at,
 					       (
-					           SELECT json_agg(json_build_object('name', t.name, 'color', t.color) ORDER BY t.display_order ASC, t.name ASC)
+					           SELECT COALESCE(json_agg(json_build_object('name', t.name, 'color', t.color) ORDER BY t.display_order ASC, t.name ASC), '[]'::json)
 					           FROM crm_client_sales ccs
-					           LEFT JOIN crm_client_tags ct ON ccs.client_id = ct.client_id
-					           LEFT JOIN crm_tags t ON ct.tag_id = t.id
+					           JOIN crm_client_tags ct ON ccs.client_id = ct.client_id
+					           JOIN crm_tags t ON ct.tag_id = t.id
 					           WHERE ccs.sale_id = s.id
 					       ) AS client_tags
 					FROM sales s
@@ -481,10 +483,10 @@ export async function handler(event) {
 					       s.qty_mara, s.qty_oreo, s.qty_nute, s.is_paid, s.pay_method, s.payment_date, s.payment_source, 
 					       s.comment_text, s.special_pricing_type, s.total_cents, s.created_at,
 					       (
-					           SELECT json_agg(json_build_object('name', t.name, 'color', t.color) ORDER BY t.display_order ASC, t.name ASC)
+					           SELECT COALESCE(json_agg(json_build_object('name', t.name, 'color', t.color) ORDER BY t.display_order ASC, t.name ASC), '[]'::json)
 					           FROM crm_client_sales ccs
-					           LEFT JOIN crm_client_tags ct ON ccs.client_id = ct.client_id
-					           LEFT JOIN crm_tags t ON ct.tag_id = t.id
+					           JOIN crm_client_tags ct ON ccs.client_id = ct.client_id
+					           JOIN crm_tags t ON ct.tag_id = t.id
 					           WHERE ccs.sale_id = s.id
 					       ) AS client_tags
 					FROM sales s
@@ -625,13 +627,11 @@ export async function handler(event) {
 							// Filter: Only include tags that are custom-created by the seller (ignore stages/debt)
 							// We now use s.tag_id = t.id which is much more precise
 							const validTagsRes = await sql`
-								SELECT t.id 
-								FROM crm_tags t
-								LEFT JOIN crm_stages s ON s.tag_id = t.id
-								WHERE t.seller_id = ${sellerId}
-								  AND s.id IS NULL
-								  AND LOWER(t.name) NOT IN ('debe', 'deuda', 'deudas', 'deudor', 'deudores', 'pagado')
-							`;
+SELECT t.id 
+FROM crm_tags t
+WHERE t.seller_id = ${sellerId}
+  AND LOWER(t.name) NOT IN ('debe', 'deuda', 'deudas', 'deudor', 'deudores', 'pagado')
+`;
 							const validTagIds = new Set(validTagsRes.map(t => t.id));
 							const targetTags = Array.from(new Set(incomingTagIds.map(Number)))
 								.filter(id => validTagIds.has(id))

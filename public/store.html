@@ -1658,8 +1658,14 @@
                 const customerName = customerNameInput.value.trim();
                 if (!customerName) { alert('Por favor, ingresa el nombre del cliente.'); customerNameInput.focus(); return; }
                 
-                const exactMatch = storeClientList.find(c => c.trim().toLowerCase() === customerName.toLowerCase());
-                if (exactMatch) { executeCheckout(exactMatch); return; }
+                const exactMatch = storeClientList.find(c => {
+                    const cName = (typeof c === 'object' ? c.name : c) || '';
+                    return cName.trim().toLowerCase() === customerName.toLowerCase();
+                });
+                if (exactMatch) { 
+                    executeCheckout(typeof exactMatch === 'object' ? exactMatch.name : exactMatch); 
+                    return; 
+                }
 
                 const similar = findSimilarClients(customerName);
                 if (similar.length > 0) {
@@ -1731,8 +1737,14 @@
             if (!storeActiveSeller || !storeAuthUser) { alert('No hay un vendedor activo seleccionado o no has ingresado.'); return; }
 
             // Robust find in the new object-oriented storeClientList
-            const exactMatch = storeClientList.find(c => (c.name || '').trim().toLowerCase() === customerName.toLowerCase());
-            if (exactMatch) { await executeCheckout(exactMatch.name); return; }
+            const exactMatch = storeClientList.find(c => {
+                const cName = (typeof c === 'object' ? c.name : c) || '';
+                return cName.trim().toLowerCase() === customerName.toLowerCase();
+            });
+            if (exactMatch) { 
+                await executeCheckout(typeof exactMatch === 'object' ? exactMatch.name : exactMatch); 
+                return; 
+            }
 
             const similar = findSimilarClients(customerName);
             if (similar.length > 0) {
