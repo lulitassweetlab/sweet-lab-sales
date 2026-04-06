@@ -8,7 +8,7 @@
 	<link rel="preconnect" href="https://fonts.googleapis.com" />
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 	<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
-	<link rel="stylesheet" href="/styles.css?v=2026-02-23-1" />
+	<link rel="stylesheet" href="/styles.css?v=2026-03-31-13" />
 	<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 	<style>
 		/* Estilos para el modo incrustado (iframe) */
@@ -152,10 +152,16 @@
 					<div class="panel-header-toolbar">
 						<h3 id="sales-title" style="display: none;">Registro de Ventas de Postres</h3>
 
-						<!-- Active Table Search -->
+						<!-- Active Table Search & Filter -->
 						<div id="active-table-search-container" class="active-table-search">
-							<input type="text" id="active-table-client-search" placeholder="🔍 Buscar"
-								style="width: 100%; padding: 8px 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface); color: var(--text); outline: none; font-size: 0.95rem; text-align: center;">
+							<div style="position:relative; display: flex; align-items: center;">
+								<span style="position:absolute; left:12px; top:50%; transform:translateY(-50%); font-size:0.9rem; pointer-events:none; z-index:1;">🔍</span>
+								<input type="text" id="active-table-client-search" placeholder="Buscar"
+									autocomplete="off"
+									style="padding: 8px 12px 8px 32px; border-radius: 20px; border: 1.5px solid var(--border); background: var(--surface); color: var(--text); outline: none; font-size: 0.9rem; text-align: left;">
+							</div>
+							<div id="active-table-tags-filter" class="tag-filters-wrapper"></div>
+							
 							<ul id="active-table-client-suggestions" class="client-suggest-popover"
 								style="display: none; position: absolute; top: calc(100% + 4px); left: 0; width: 100%; border-radius: 12px; overflow: hidden; max-height: 250px; overflow-y: auto; z-index: 9999; box-shadow: 0 4px 15px rgba(0,0,0,0.15); background: var(--surface);">
 							</ul>
@@ -203,45 +209,34 @@
 									<td class="col-total"><span id="sum-grand">0</span></td>
 									<td class="col-actions"></td>
 								</tr>
-								<tr class="tfoot-amt-stack t-am-grand">
-									<td class="col-paid"></td>
-									<td class="col-client" colspan="7"></td>
-									<td class="col-total"><span class="st-amt st-grand" id="sum-grand-2"></span></td>
-									<td class="col-actions"></td>
-								</tr>
+
 								<tr class="tfoot-delivered" id="footer-delivered-row">
 									<td class="col-paid"></td>
-									<td class="col-client label">Postres entregados</td>
+									<td class="col-client label">Entregados</td>
 									<!-- Dessert delivered columns will be inserted dynamically here -->
 									<td class="col-total"><span id="deliv-total">0</span></td>
 									<td class="col-actions"></td>
 								</tr>
+
 								<tr class="tfoot-comm" id="footer-comm-row">
 									<td class="col-paid"></td>
-									<td class="col-client label">Comisiones generadas x 1000</td>
+									<td class="col-client label">Comisiones generadas</td>
 									<!-- Dessert comm columns will be inserted dynamically here -->
 									<td class="col-total"><span id="sum-comm">0</span></td>
 									<td class="col-actions"></td>
 								</tr>
-								<tr class="tfoot-comm-stack" id="footer-comm-row-2">
-									<td class="col-paid"></td>
-									<td class="col-client" colspan="10"><span class="st-label">Comisiones generadas x
-											1000</span></td>
-									<td class="col-total"><span class="st-amt" id="sum-comm-2">0</span></td>
-									<td class="col-actions"></td>
-								</tr>
+
 								<tr class="tfoot-comm-paid" id="footer-comm-paid-row">
 									<td class="col-paid"></td>
-									<td class="col-client label">Comisiones pagadas</td>
+									<td class="col-client label">Comisión pagada</td>
 									<!-- Dessert comm paid columns will be inserted dynamically here -->
 									<td class="col-total"><span id="comm-paid-total">0</span></td>
 									<td class="col-actions"></td>
 								</tr>
 								<tr class="tfoot-comm-paid-stack" id="footer-comm-paid-row-2">
 									<td class="col-paid"></td>
-									<td class="col-client" colspan="10"><span class="st-label">Comisiones pagadas</span>
-									</td>
-									<td class="col-total"><span class="st-amt" id="comm-paid-total-2">0</span></td>
+									<td class="col-client" colspan="10">&nbsp;</td>
+									<td class="col-total">&nbsp;</td>
 									<td class="col-actions"></td>
 								</tr>
 								<!-- Stacked rows will be inserted dynamically here -->
@@ -537,8 +532,20 @@
 				</div>
 			</div>
 			<div class="sales-panel">
-				<div class="panel-header">
-					<h3 id="client-detail-subtitle">Historial de compras</h3>
+				<div class="panel-header" style="flex-wrap: wrap; gap: 10px;">
+					<h3 id="client-detail-subtitle" style="margin:0;">Historial de compras</h3>
+					
+					<!-- Search & Filter for History -->
+					<div id="client-detail-search-container" class="active-table-search" style="margin: 0 auto; flex: 1; justify-content: center;">
+						<div style="position:relative; display: flex; align-items: center;">
+							<span style="position:absolute; left:12px; top:50%; transform:translateY(-50%); font-size:0.9rem; pointer-events:none; z-index:1;">🔍</span>
+							<input type="text" id="client-detail-search-input" placeholder="Buscar en historial"
+								autocomplete="off"
+								style="padding: 8px 12px 8px 32px; border-radius: 20px; border: 1.5px solid var(--border); background: var(--surface); color: var(--text); outline: none; font-size: 0.9rem; text-align: left;">
+						</div>
+						<div id="client-detail-tags-filter" class="tag-filters-wrapper"></div>
+					</div>
+
 					<div class="panel-actions">
 						<button id="client-detail-add-order" class="press-btn btn-primary">Nuevo pedido</button>
 					</div>
@@ -753,7 +760,70 @@
 			}
 		});
 	</script>
-	<script src="/app.js?v=2025-11-04-1" type="module"></script>
+	<script src="/app.js?v=2026-03-31-13" type="module"></script>
+	<style>
+		/* Buscador expansible */
+		.active-table-search {
+			display: flex !important;
+			align-items: center;
+			gap: 12px;
+			flex: 1;
+			max-width: 600px;
+			transition: all 0.3s ease;
+		}
+
+		#active-table-client-search {
+			width: 150px !important; /* Start small */
+			transition: width 0.3s ease, border-color 0.2s;
+			flex: none !important;
+		}
+
+		#active-table-client-search:focus {
+			width: 250px !important; /* Grow on focus */
+			border-color: var(--primary) !important;
+			text-align: left !important;
+			padding-left: 35px !important;
+		}
+
+		/* Contenedor de etiquetas de filtro */
+		.tag-filters-wrapper {
+			display: flex;
+			gap: 6px;
+			overflow-x: auto;
+			padding: 4px 0;
+			white-space: nowrap;
+			-webkit-overflow-scrolling: touch;
+			scrollbar-width: none; /* Hide scrollbar */
+		}
+		.tag-filters-wrapper::-webkit-scrollbar { display: none; }
+
+		.tag-filter-chip {
+			display: inline-flex;
+			align-items: center;
+			padding: 4px 10px;
+			border-radius: 16px;
+			background: transparent;
+			border: 1.5px solid var(--border);
+			font-size: 11px;
+			font-weight: 600;
+			cursor: pointer;
+			transition: all 0.2s ease;
+			user-select: none;
+			opacity: 0.8;
+		}
+
+		.tag-filter-chip:hover {
+			opacity: 1;
+			transform: translateY(-1px);
+		}
+
+		.tag-filter-chip.active {
+			border-color: transparent !important;
+			color: #fff !important;
+			opacity: 1;
+			box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+		}
+	</style>
 </body>
 
 </html>

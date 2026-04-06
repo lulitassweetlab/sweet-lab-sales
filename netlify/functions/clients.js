@@ -1,7 +1,4 @@
-import { neon } from '@netlify/neon';
-import { ensureSchema } from './_db.js';
-
-const sql = neon();
+import { ensureSchema, sql, normalizeClientName } from './_db.js';
 
 export default async (req) => {
     try {
@@ -39,6 +36,7 @@ export default async (req) => {
                             c.name, 
                             c.short_name,
                             c.whatsapp, 
+                            c.description,
                             CAST(c.birth_date AS VARCHAR) AS birth_date,
                             s.name as seller_name
                         FROM clients c
@@ -50,6 +48,7 @@ export default async (req) => {
                             sa.client_name as name,
                             NULL::VARCHAR as short_name,
                             NULL::VARCHAR as whatsapp,
+                            ''::TEXT as description,
                             NULL::VARCHAR as birth_date,
                             s.name as seller_name
                         FROM sales sa
@@ -65,12 +64,30 @@ export default async (req) => {
                     return new Response(JSON.stringify({ error: 'seller_id inválido' }), { status: 400 });
                 }
 
-                // Return all clients, ordered by name alphabetically
+                // Return all clients with rich CRM metadata (Stages, Tags, Debt, Orders)
                 clients = await sql`
-                    SELECT * 
-                    FROM clients 
-                    WHERE seller_id = ${sellerId}
-                    ORDER BY name ASC
+                    SELECT 
+                        c.id, c.name, c.whatsapp, c.description,
+                        st.name as stage_name, st.color as stage_color,
+                        COUNT(s.id)::int as total_orders,
+                        COALESCE(SUM(s.total_cents), 0)::int as lifetime_value_cents,
+                        MAX(sd.day)::text as last_purchase_date,
+                        COALESCE(SUM(CASE WHEN s.pay_method IS NULL OR s.pay_method = '' OR s.pay_method = '-' OR s.pay_method = 'entregado' THEN s.total_cents ELSE 0 END), 0)::int as total_debt_cents,
+                        COALESCE((
+                            SELECT json_agg(json_build_object('id', t.id, 'name', t.name, 'color', t.color))
+                            FROM crm_client_tags ct
+                            JOIN crm_tags t ON ct.tag_id = t.id
+                            WHERE ct.client_id = c.id
+                        ), '[]'::json) as custom_tags
+                    FROM clients c
+                    LEFT JOIN crm_client_sales cs ON c.id = cs.client_id
+                    LEFT JOIN sales s ON cs.sale_id = s.id
+                    LEFT JOIN sale_days sd ON s.sale_day_id = sd.id
+                    LEFT JOIN crm_client_stage cst ON c.id = cst.client_id
+                    LEFT JOIN crm_stages st ON cst.stage_id = st.id
+                    WHERE c.seller_id = ${sellerId}
+                    GROUP BY c.id, c.name, c.whatsapp, c.description, st.name, st.color, st.id
+                    ORDER BY c.name ASC
                 `;
             }
 
@@ -86,7 +103,7 @@ export default async (req) => {
         if (method === 'POST' || method === 'PUT') {
             const body = await req.json();
             const sellerId = parseInt(body.seller_id, 10);
-            const name = (body.name || '').trim();
+            const name = normalizeClientName(body.name || '');
             const shortName = (body.short_name || '').trim() || null;
             const whatsapp = (body.whatsapp || '').trim() || null;
             const birthDate = body.birth_date || null;
@@ -107,7 +124,7 @@ export default async (req) => {
             // Handle Merge Action
             // ========================
             if (url.searchParams.get('action') === 'merge') {
-                const sourceNames = body.source_names || [];
+                const sourceNames = (body.source_names || []).map(n => normalizeClientName(n));
                 if (!Array.isArray(sourceNames) || sourceNames.length === 0) {
                     return new Response(JSON.stringify({ error: 'Se requiere una lista de nombres para fusionar' }), { status: 400 });
                 }
@@ -185,7 +202,7 @@ export default async (req) => {
             // Handle Rename Action
             // ========================
             if (url.searchParams.get('action') === 'rename') {
-                const oldName = (body.old_name || '').trim();
+                const oldName = normalizeClientName(body.old_name || '');
                 if (!oldName) return new Response(JSON.stringify({ error: 'Falta old_name' }), { status: 400 });
 
                 // Find old client profile (if it exists)
@@ -319,6 +336,18 @@ export default async (req) => {
 					RETURNING *
 				`;
                 result = inserted;
+            }
+
+            // ASSIGN TAGS (CRM Tags)
+            const tagIds = body.tag_ids;
+            if (result && result.id && Array.isArray(tagIds) && tagIds.length > 0) {
+                for (const tagId of tagIds) {
+                    await sql`
+                        INSERT INTO crm_client_tags (client_id, tag_id)
+                        VALUES (${result.id}, ${tagId})
+                        ON CONFLICT DO NOTHING
+                    `;
+                }
             }
 
             return new Response(JSON.stringify(result), {

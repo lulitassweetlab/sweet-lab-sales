@@ -135,6 +135,40 @@
             border-color: var(--primary);
         }
 
+        /* Search input with clear button */
+        .search-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+            width: 100%;
+        }
+        .search-wrapper input {
+            padding-right: 44px !important; /* Make room for the larger X button */
+        }
+        .clear-search-btn {
+            position: absolute;
+            right: 0;
+            width: 44px; /* Standard tap area */
+            height: 44px;
+            background: transparent;
+            border: none;
+            color: #e2e8f0; /* LIGHT GRAY */
+            display: none; /* Hidden by default */
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem; /* SMALLER */
+            font-weight: 900; /* ROBUST/THICK */
+            cursor: pointer;
+            z-index: 1000; /* Priority layer */
+            -webkit-tap-highlight-color: transparent;
+            outline: none;
+            transition: color 0.1s;
+        }
+        .clear-search-btn:active {
+            transform: scale(0.9);
+            color: #cbd5e1;
+        }
+
     </style>
 </head>
 <body>
@@ -142,12 +176,13 @@
     <!-- Main Header -->
     <header>
         <div style="display: flex; align-items: center; gap: 10px;">
-            <div class="header-title">Mi CRM</div>
+            <div class="header-title" onclick="navTo('dashboard')" style="cursor:pointer;">Mi CRM</div>
             <button onclick="openNewProspectModal()" title="Agregar Prospecto"
                 style="width:30px; height:30px; border-radius:50%; border:none; background:var(--primary); color:#fff; font-size:1.2rem; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; line-height:1; box-shadow: 0 2px 8px rgba(99,102,241,0.3); transition: transform 0.2s;"
                 onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">+</button>
         </div>
         <div style="display: flex; align-items: center; gap: 12px;">
+            <button onclick="navTo('history')" style="background:none; border:none; color:var(--primary-dark); font-weight:700; padding:4px 8px; border-radius:12px; font-size: 0.8rem; cursor:pointer;">Historial</button>
             <button onclick="window.location.href='/store.html'" style="background:var(--secondary); color:var(--primary-dark); font-weight:700; border:none; padding:4px 10px; border-radius:12px; font-size: 0.8rem; cursor:pointer;" title="Volver a Tienda">Volver</button>
             <div id="sellerNameLabel" style="font-weight: 500; color: var(--primary-dark); font-size: 0.9rem;"></div>
         </div>
@@ -199,7 +234,11 @@
                         <div class="spinner" style="padding:10px 0; font-size:0.8rem;">...</div>
                     </div>
 
-                    <div style="font-size:0.65rem; font-weight:700; color:var(--text-muted); margin-bottom:10px; text-transform:uppercase; letter-spacing:0.05em; border-top:1px solid var(--border); padding-top:12px;">Etiquetas</div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border); padding-top:12px; margin-bottom:10px;">
+                        <div style="font-size:0.65rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em;">Etiquetas</div>
+                        <button onclick="openManageTagsModal()" style="background:none; border:none; padding:4px; margin-right:-4px; color:var(--text-muted); cursor:pointer; font-size:0.8rem; transition:all 0.2s;" 
+                            onmouseover="this.style.color='var(--primary)'" onmouseout="this.style.color='var(--text-muted)'">✏️</button>
+                    </div>
                     <div id="dashCustomTags" style="display:flex; flex-direction:column; gap:4px; margin-bottom:8px;"></div>
                     <button onclick="openCreateTagPopover(event)" 
                         style="width:100%; padding:8px; border-radius:8px; border:1px dashed var(--border); background:var(--surface); color:var(--text-muted); font-size:0.7rem; font-weight:600; cursor:pointer; transition:all 0.2s;"
@@ -214,9 +253,13 @@
                     
                     <!-- Inline Search (Hidden by default) -->
                     <div id="dashSearchContainer" style="display:none; margin-bottom:16px;">
-                        <input type="text" id="dashSearchInput" placeholder="Buscar por nombre o celular..." 
-                            style="width: 100%; padding: 14px; border-radius: 12px; border: 1.5px solid var(--border); font-size: 1rem; background: var(--surface); outline:none; transition: border-color 0.2s;"
-                            onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
+                        <div class="search-wrapper">
+                            <input type="text" id="dashSearchInput" placeholder="Buscar por nombre o celular..." 
+                                style="width: 100%; height: 50px; border-radius: 12px; border: 1.5px solid var(--border); font-size: 1rem; background: var(--surface); outline:none; transition: border-color 0.2s; padding-left: 14px;"
+                                onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'"
+                                oninput="toggleClearSearch('dashSearchInput'); filterDashboard()">
+                            <button id="dashSearchInputClear" class="clear-search-btn" onclick="clearSearchInput('dashSearchInput', typeof filterDashboard === 'function' ? filterDashboard : null)" type="button">✕</button>
+                        </div>
                     </div>
 
                     <div id="dashContactList">
@@ -236,6 +279,14 @@
         </div>
 
 
+
+        <!-- SCREEN: History -->
+        <div id="screen-history" class="screen">
+            <h2 id="dashHistoryTitle" style="font-size:1.6rem; font-weight:800; margin-bottom:16px;">📜 Historial (7 d)</h2>
+            <div id="dashHistoryList" style="padding-bottom:100px;">
+                <div class="spinner">Cargando actividades...</div>
+            </div>
+        </div>
 
         <!-- SCREEN 3: Profile (Modal Style over Screen) -->
         <div id="screen-profile" class="screen" style="background:var(--surface); position:absolute; top:0; left:0; width:100%; min-height:100%; z-index:50;">
@@ -397,24 +448,20 @@
             </div>
             <div class="card" style="padding:20px;">
                 <div style="margin-bottom:15px;">
-                    <label style="display:block; font-size:0.8rem; color:var(--text-muted); margin-bottom:5px;">Nombre Completo</label>
-                    <input type="text" id="npFullName" placeholder="Ej: Juan Perez" style="width:100%; padding:12px; border:1px solid var(--border); border-radius:8px;">
+                    <input type="text" id="npFullName" placeholder="Nombre Completo" style="width:100%; padding:15px; border:1px solid var(--border); border-radius:12px; font-size:1rem; box-sizing:border-box;">
                 </div>
                 <div style="margin-bottom:15px;">
-                    <label style="display:block; font-size:0.8rem; color:var(--text-muted); margin-bottom:5px;">Nombre Corto (Apodo)</label>
-                    <input type="text" id="npShortName" placeholder="Ej: Juan" style="width:100%; padding:12px; border:1px solid var(--border); border-radius:8px;">
+                    <input type="text" id="npShortName" placeholder="Nombre Corto" style="width:100%; padding:15px; border:1px solid var(--border); border-radius:12px; font-size:1rem; box-sizing:border-box;">
                 </div>
                 <div style="margin-bottom:15px;">
-                    <label style="display:block; font-size:0.8rem; color:var(--text-muted); margin-bottom:5px;">Teléfono / WhatsApp</label>
-                    <input type="tel" id="npWhatsApp" placeholder="Ej: 3001234567" style="width:100%; padding:12px; border:1px solid var(--border); border-radius:8px;">
+                    <input type="tel" id="npWhatsApp" placeholder="Teléfono / WhatsApp" style="width:100%; padding:15px; border:1px solid var(--border); border-radius:12px; font-size:1rem; box-sizing:border-box;">
                 </div>
                 <div style="margin-bottom:20px;">
-                    <label style="display:block; font-size:0.8rem; color:var(--text-muted); margin-bottom:8px;">🎂 Cumpleaños (Opcional)</label>
+                    <label style="display:block; font-size:0.8rem; color:var(--text-muted); margin-bottom:8px;">🎂 Cumpleaños</label>
                     <!-- Hidden input stores the final value as 1900-MM-DD -->
                     <input type="hidden" id="npBirthday" />
                     <!-- Step 1: Month picker -->
                     <div id="bdaMonthPicker">
-                        <div style="font-size:0.78rem; color:var(--text-muted); margin-bottom:8px;">Selecciona el mes:</div>
                         <div style="display:grid; grid-template-columns: repeat(4,1fr); gap:6px;">
                             <button type="button" onclick="bdaSelectMonth(1,'Enero')"    class="bda-month-btn">Ene</button>
                             <button type="button" onclick="bdaSelectMonth(2,'Febrero')"  class="bda-month-btn">Feb</button>
@@ -472,6 +519,21 @@
             <div id="locCapture" onclick="captureGPSCoords(event)" style="display:flex; align-items:center; gap:10px; padding:12px 16px; cursor:pointer; color:var(--text-main); font-weight:700; font-size: 0.9rem; border-bottom: 1px solid var(--border); transition:background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
                 <span style="font-size: 1.2rem;">🛰️</span> Capturar
             </div>
+            <!-- Google Maps -->
+            <div id="locGoogle" style="display:flex; align-items:center; gap:10px; padding:12px 16px; cursor:pointer; color:var(--text-main); font-weight:700; font-size: 0.9rem; border-bottom: 1px solid var(--border); transition:background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
+                <span style="font-size: 1.2rem;">🗺️</span> Google Maps
+            </div>
+            <!-- Waze -->
+            <div id="locWaze" style="display:flex; align-items:center; gap:10px; padding:12px 16px; cursor:pointer; color:var(--text-main); font-weight:700; font-size: 0.9rem; border-bottom: 1px solid var(--border); transition:background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
+                <span style="font-size: 1.2rem;">🚙</span> Waze
+            </div>
+            <!-- Ubicar -->
+            <div id="locPick" onclick="openMapPicker()" style="display:flex; align-items:center; gap:10px; padding:12px 16px; cursor:pointer; color:var(--text-main); font-weight:700; font-size: 0.9rem; border-bottom: 1px solid var(--border); transition:background-color 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
+                <span style="font-size: 1.2rem;">📍</span> Ubicar en mapa
+            </div>
+            <!-- Editar -->
+            <div id="locEdit" onclick="startAddressEdit()" style="display:flex; align-items:center; gap:10px; padding:12px 16px; cursor:pointer; color:var(--text-main); font-weight:700; font-size: 0.9rem; transition:background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
+                <span style="font-size: 1.2rem;">✏️</span> Editar
             </div>
         </div>
     </div>
@@ -483,12 +545,17 @@
     <div id="popoverCreateTag" style="display:none; position:fixed; z-index:300; background:var(--surface); border-radius:20px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); border: 1px solid var(--border); overflow: hidden; width: 260px; padding:20px; animation: popIn 0.2s ease; left: 50%; top: 50%; transform: translate(-50%, -50%);">
         <div style="font-size:0.85rem; font-weight:800; color:var(--text-muted); text-transform:uppercase; margin-bottom:15px; text-align:center;">Nueva Etiqueta</div>
         <input type="text" id="newTagName" placeholder="ingresa la nueva etiqueta" style="width:100%; padding:14px; border-radius:12px; border:1.5px solid var(--border); font-size:1rem; margin-bottom:15px; background:var(--bg); color:var(--text-main); outline:none; box-sizing:border-box;">
-        <div style="display:flex; justify-content:space-around; margin-bottom:20px;">
+        <div style="display:flex; flex-wrap:wrap; justify-content:center; gap:10px; margin-bottom:20px;">
             <div onclick="setNewTagColor('#818cf8', this)" style="width:28px; height:28px; border-radius:50%; background:#818cf8; cursor:pointer; border:3px solid #fff; box-shadow:0 0 0 1px #818cf8;"></div>
             <div onclick="setNewTagColor('#f43f5e', this)" style="width:28px; height:28px; border-radius:50%; background:#f43f5e; cursor:pointer; border:3px solid transparent;"></div>
             <div onclick="setNewTagColor('#fbbf24', this)" style="width:28px; height:28px; border-radius:50%; background:#fbbf24; cursor:pointer; border:3px solid transparent;"></div>
             <div onclick="setNewTagColor('#10b981', this)" style="width:28px; height:28px; border-radius:50%; background:#10b981; cursor:pointer; border:3px solid transparent;"></div>
-            <div onclick="setNewTagColor('#a855f7', this)" style="width:28px; height:28px; border-radius:50%; background:#a855f7; cursor:pointer; border:2px solid transparent;"></div>
+            <div onclick="setNewTagColor('#a855f7', this)" style="width:28px; height:28px; border-radius:50%; background:#a855f7; cursor:pointer; border:3px solid transparent;"></div>
+            <div onclick="setNewTagColor('#ec4899', this)" style="width:28px; height:28px; border-radius:50%; background:#ec4899; cursor:pointer; border:3px solid transparent;"></div>
+            <div onclick="setNewTagColor('#f97316', this)" style="width:28px; height:28px; border-radius:50%; background:#f97316; cursor:pointer; border:3px solid transparent;"></div>
+            <div onclick="setNewTagColor('#06b6d4', this)" style="width:28px; height:28px; border-radius:50%; background:#06b6d4; cursor:pointer; border:3px solid transparent;"></div>
+            <div onclick="setNewTagColor('#475569', this)" style="width:28px; height:28px; border-radius:50%; background:#475569; cursor:pointer; border:3px solid transparent;"></div>
+            <div onclick="setNewTagColor('#1d4ed8', this)" style="width:28px; height:28px; border-radius:50%; background:#1d4ed8; cursor:pointer; border:3px solid transparent;"></div>
         </div>
         <button onclick="saveNewTag()" style="width:100%; padding:16px; border-radius:14px; border:none; background:var(--primary); color:#fff; font-weight:800; font-size:1rem; cursor:pointer;">Crear Etiqueta</button>
     </div>
@@ -498,6 +565,20 @@
         <div id="assignTagList" style="display:flex; flex-direction:column; gap:8px; max-height:250px; overflow-y:auto; margin-bottom:10px;"></div>
         <div id="assignTagEmpty" style="display:none; font-size:0.8rem; color:var(--text-muted); text-align:center; padding:20px 0;">No tienes etiquetas creadas. Cr éalas en el Dashboard.</div>
         <button onclick="closePopovers()" style="width:100%; padding:12px; border-radius:12px; border:none; background:var(--bg); color:var(--text-muted); font-weight:700; font-size:0.9rem; cursor:pointer;">Cerrar</button>
+    </div>
+
+    <!-- MANAGE TAGS MODAL (New) -->
+    <div id="modalManageTags" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:1000; background:rgba(0,0,0,0.6); backdrop-filter:blur(6px); align-items:center; justify-content:center;">
+        <div style="background:var(--surface); border-radius:24px; padding:24px; width:calc(100% - 40px); max-width:480px; max-height:85vh; overflow-y:auto; box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h3 style="margin:0; font-size:1.4rem; font-weight:800; color:var(--text-main);">🏷️ Gestionar Etiquetas</h3>
+                <button onclick="closeManageTagsModal()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted);">✕</button>
+            </div>
+            <div id="manageTagsList" style="display:flex; flex-direction:column; gap:12px;"></div>
+            <div style="margin-top:24px;">
+                <button onclick="closeManageTagsModal()" style="width:100%; padding:16px; border-radius:14px; border:none; background:var(--bg); color:var(--text-muted); font-weight:800; font-size:1rem; cursor:pointer;">Listo</button>
+            </div>
+        </div>
     </div>
 
     <!-- MAP PICKER MODAL (Solid Background Fix) -->
@@ -551,6 +632,41 @@
     <!-- SortableJS library for touch-friendly drag and drop -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <script>
+        // Search Helpers
+        function toggleClearSearch(id) {
+            const input = document.getElementById(id);
+            const btn = document.getElementById(id + 'Clear');
+            if (input && btn) {
+                // Ensure it appears since the first letter
+                btn.style.display = input.value.trim().length > 0 ? 'flex' : 'none';
+            }
+        }
+        function clearSearchInput(id, searchFunc) {
+            const input = document.getElementById(id);
+            if (input) {
+                input.value = '';
+                toggleClearSearch(id);
+                try {
+                    // Update global term if needed
+                    if (id === 'dashSearchInput') window.crmSearchTerm = '';
+                    if (typeof searchFunc === 'function') searchFunc();
+                } catch(e) { console.warn('Search clear error', e); }
+                input.focus();
+            }
+        }
+        
+        // Dashboard Filtering Logic
+        function filterDashboard() {
+            const input = document.getElementById('dashSearchInput');
+            if (!input) return;
+            const term = input.value.toLowerCase();
+            window.crmSearchTerm = term;
+            
+            // Re-trigger the directory view with the current filter
+            // This is the common pattern in crm-mobile.html
+            loadFullDirectoryInline();
+        }
+
         // GLOBALS
         let currentSellerId = null;
         let currentSellerName = '';
@@ -623,14 +739,22 @@
                 window.location.replace('/store.html');
             }
 
+            // ── UNIFIED FILTERING STATE ──────────────────────────────────────────────────
+            window.activeDirectoryData = []; // The current BASE set of clients being searched
+            window.crmSearchTerm = ''; // Global state to persist search term
+            
             // Search Bar filter logic (Unificado en Dashboard)
             document.getElementById('dashSearchInput').addEventListener('input', (e) => {
                 const term = e.target.value.toLowerCase();
+                window.crmSearchTerm = term; // Save term globally
+                
+                const source = window.activeDirectoryData.length > 0 ? window.activeDirectoryData : directoryData;
+                
                 if(!term) {
-                    renderFullDirectoryInline(directoryData);
+                    renderFullDirectoryInline(source);
                     return;
                 }
-                const filtered = directoryData.filter(c => 
+                const filtered = source.filter(c => 
                     (c.name && c.name.toLowerCase().includes(term)) || 
                     (c.whatsapp && c.whatsapp.toLowerCase().includes(term))
                 );
@@ -733,6 +857,7 @@
             if (screenId === 'dashTag' && dashTagParams) {
                 openTagClients(dashTagParams.id, dashTagParams.name, dashTagParams.color, true);
             }
+            if (screenId === 'history') loadHistory();
         }
 
         // Deep Link/Back Button Sync
@@ -765,10 +890,20 @@
             if(!phone) return "#";
             let c = phone.replace(/\\D/g, '');
             if(!c.startsWith('57')) c = '57' + c;
-            return `https://wa.me/${c}?text=${encodeURIComponent(msg)}`;
+            const isAndroid = /Android/i.test(navigator.userAgent);
+            const encodedMsg = encodeURIComponent(msg);
+            
+            if (isAndroid) {
+                // Force WhatsApp Business on Android via Intent
+                return `intent://send?phone=${c}&text=${encodedMsg}#Intent;package=com.whatsapp.w4b;scheme=whatsapp;end`;
+            }
+            // For iOS and others, use the app scheme - cleaner redirect to active app
+            // Including text= helps trigger the app handler more reliably on iOS
+            return `whatsapp://send?phone=${c}&text=${encodedMsg}`;
         }
 
-        function renderClientCardHtml(c) {
+        function renderClientCardHtml(c, context = 'list') {
+            const showCheck = context === 'dashboard';
             const debt = Number(c.total_debt_cents || 0);
             const ltv = Number(c.lifetime_value_cents || 0);
             const freq = Number(c.total_orders || 0);
@@ -777,6 +912,9 @@
             // Basic Stage Badge
             if(c.stage_name) {
                 badges += `<span class="badge badge-stage" style="background:${c.stage_color || '#808080'}; color:#fff; font-weight:800; text-transform:uppercase; font-size:0.7rem; padding:3px 8px; border-radius:6px; margin-right:4px; margin-bottom:4px;">${c.stage_name}</span>`;
+            } else if (freq === 0) {
+                // Default to Prospecto for zero-order clients with no assigned stage
+                badges += `<span class="badge badge-stage" style="background:#9E9E9E; color:#fff; font-weight:800; text-transform:uppercase; font-size:0.7rem; padding:3px 8px; border-radius:6px; margin-right:4px; margin-bottom:4px;">PROSPECTO</span>`;
             }
 
             // Custom Tags from API
@@ -788,6 +926,26 @@
 
             if(debt > 0) badges += `<span class="badge badge-debt" style="background:var(--danger); color:#fff; font-weight:800; text-transform:uppercase; font-size:0.7rem; padding:3px 8px; border-radius:6px; margin-right:4px; margin-bottom:4px;">DEUDA ${formatMoney(debt)}</span>`;
             
+            // Birthday Badge for Dashboard
+            if (c.days_to_birthday !== undefined && c.days_to_birthday !== null) {
+                const days = Number(c.days_to_birthday);
+                const bDate = new Date(c.birth_date);
+                const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+                const dateStr = `${monthNames[bDate.getUTCMonth()]} ${bDate.getUTCDate()}`;
+                
+                let bLabel = '';
+                if (days === 0) bLabel = `🥳 ¡Es su cumple hoy! (${dateStr})`;
+                else if (days === 1) bLabel = `🎂 Cumple mañana (${dateStr})`;
+                else bLabel = `🎂 Cumple en ${days} días (${dateStr})`;
+                
+                badges += `<span class="badge badge-birthday" style="background:linear-gradient(135deg, #FFD700, #FFA500); color:#000; font-weight:800; text-transform:uppercase; font-size:0.7rem; padding:3px 8px; border-radius:6px; margin-right:4px; margin-bottom:4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">${bLabel}</span>`;
+            }
+
+            // Reminder Badge for Dashboard
+            if (context === 'reminder' && c.reminder_title) {
+                badges += `<span class="badge" style="background:#60A5FA; color:#fff; font-weight:800; text-transform:uppercase; font-size:0.7rem; padding:3px 8px; border-radius:6px; margin-right:4px; margin-bottom:4px;">${c.reminder_title}</span>`;
+            }
+
             const metricsHtml = ltv > 0 ? `<div style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">Histórico: ${formatMoney(ltv)} | Compras: ${freq}</div>` : '';
 
             // Handle Bulk Mode Logic
@@ -820,12 +978,29 @@
                             onmouseover="this.style.filter='brightness(1.1)'" onmouseout="this.style.filter='none'">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.571-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
                         </button>
+                        </button>
+                        ${context === 'dashboard' || context === 'reminder' ? `
+                        <button onclick="event.stopPropagation(); completeDashboardTask(${c.id}, '${context === 'reminder' ? 'reminder' : (c.days_to_birthday !== undefined ? 'birthday' : 'inactive')}', this, ${c.reminder_id || 'null'})" 
+                            style="background:#f3f4f6; border:1.5px solid #d1d5db; color:#10b981; padding:10px; border-radius:12px; cursor:pointer; font-weight:800; font-size:1.1rem; display:flex; align-items:center; justify-content:center; width:44px; height:44px; transition: all 0.1s;"
+                            onmouseover="this.style.background='#ecfdf5'; this.style.borderColor='#10b981';" onmouseout="this.style.background='#f3f4f6'; this.style.borderColor='#d1d5db';">
+                            <span style="transform:translateY(-1px);">✓</span>
+                        </button>
+                        ` : ''}
                     </div>
                 </div>`;
         }
 
         // LOAD DASHBOARD
         async function loadDashboard(shouldRestore = false) {
+            // Trigger automatic stage sync for this seller (background)
+            if (window.currentSellerId) {
+                fetch('/api/crm-stages', { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'sync_seller', seller_id: window.currentSellerId }) 
+                }).catch(e => console.error('Error syncing stages:', e));
+            }
+
             const url = `/.netlify/functions/crm-dashboard?seller_id=${currentSellerId}`;
             
             // Background load tags and stage summary right away
@@ -843,9 +1018,17 @@
                 if (data.remindersToday && data.remindersToday.length > 0) {
                     list.innerHTML += `<h4 style="margin:16px 0 10px; font-size:0.9rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;">Recordatorios</h4>`;
                     data.remindersToday.forEach(r => {
-                        list.innerHTML += buildDashCard('📌 Recordatorio', r.title, 'bg-info', r.client_id,
-                            `<button class="btn-primary" style="padding:8px; font-size:0.8rem; border-radius:8px; width:auto;" onclick="event.stopPropagation(); loadProfile(${r.client_id})">Ver →</button>`
-                        );
+                        // Map reminder fields to look like a client for renderClientCardHtml
+                        const fakeClient = {
+                            ...r,
+                            id: r.client_id || r.prospect_id, // For navigation
+                            name: r.name,
+                            whatsapp: r.whatsapp,
+                            total_orders: r.total_orders,
+                            total_debt_cents: r.total_debt_cents,
+                            lifetime_value_cents: r.lifetime_value_cents,
+                        };
+                        list.innerHTML += renderClientCardHtml(fakeClient, 'reminder');
                     });
                 }
 
@@ -853,7 +1036,16 @@
                 if (data.upcomingBirthdays && data.upcomingBirthdays.length > 0) {
                     list.innerHTML += `<h4 style="margin:24px 0 10px; font-size:0.9rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;">Cumpleaños</h4>`;
                     data.upcomingBirthdays.forEach(c => {
-                        list.innerHTML += renderClientCardHtml(c);
+                        // Calculate days_to_birthday in JS if not present
+                        if (c.days_to_birthday === undefined) {
+                            const bDate = new Date(c.birth_date);
+                            const now = new Date();
+                            now.setHours(0,0,0,0);
+                            const target = new Date(now.getFullYear(), bDate.getUTCMonth(), bDate.getUTCDate());
+                            if (target < now) target.setFullYear(now.getFullYear() + 1);
+                            c.days_to_birthday = Math.round((target - now) / (1000 * 60 * 60 * 24));
+                        }
+                        list.innerHTML += renderClientCardHtml(c, 'dashboard');
                     });
                 }
 
@@ -861,7 +1053,7 @@
                 if (data.inactiveClients && data.inactiveClients.length > 0) {
                     list.innerHTML += `<h4 style="margin:24px 0 10px; font-size:0.9rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;">Reactivar (Inactivos > 30 días)</h4>`;
                     data.inactiveClients.forEach(c => {
-                        list.innerHTML += renderClientCardHtml(c);
+                        list.innerHTML += renderClientCardHtml(c, 'dashboard');
                     });
                 }
 
@@ -909,7 +1101,14 @@
         async function openStageClients(stageId, stageName, stageColor, shouldRestore = false) {
             const title = document.getElementById('dashContentTitle');
             const listEl = document.getElementById('dashContactList');
-            document.getElementById('dashSearchContainer').style.display = 'none';
+            const searchInput = document.getElementById('dashSearchInput');
+            
+            // Keep search bar visible and clear it
+            document.getElementById('dashSearchContainer').style.display = 'block';
+            if (searchInput) {
+                searchInput.value = '';
+                toggleClearSearch('dashSearchInput');
+            }
 
             title.innerHTML = `<span style="display:inline-block; width:12px; height:12px; border-radius:3px; background:${stageColor}; margin-right:8px;"></span> ${stageName}`;
             listEl.innerHTML = '<div class="spinner">Cargando clientes...</div>';
@@ -919,8 +1118,10 @@
                 const clients = await res.json();
                 if (!Array.isArray(clients) || clients.length === 0) {
                     listEl.innerHTML = '<p style="text-align:center; padding:24px; color:var(--text-muted);">No hay clientes en esta etapa.</p>';
+                    window.activeDirectoryData = [];
                     return;
                 }
+                window.activeDirectoryData = clients;
                 listEl.innerHTML = clients.map(c => renderClientCardHtml(c)).join('');
                 if (shouldRestore) restoreScroll('dashStage');
             } catch(e) {
@@ -932,6 +1133,13 @@
             const title = document.getElementById('dashContentTitle');
             const search = document.getElementById('dashSearchContainer');
             search.style.display = 'none';
+            window.crmSearchTerm = ''; // Clear search when going back to dashboard main
+            const searchInput = document.getElementById('dashSearchInput');
+            if(searchInput) {
+                searchInput.value = '';
+                toggleClearSearch('dashSearchInput');
+            }
+            
             title.innerHTML = `💡 Contactar Hoy`;
             loadDashboard();
         }
@@ -941,14 +1149,39 @@
             fetchWithCache('debt', url, (allClients, isCache) => {
                 const title = document.getElementById('dashContentTitle');
                 const listEl = document.getElementById('dashContactList');
+                const search = document.getElementById('dashSearchContainer');
+                const searchInput = document.getElementById('dashSearchInput');
+                
+                if (search) search.style.display = 'block';
+                
+                // Restaura búsqueda si existe
+                const term = window.crmSearchTerm || '';
+                if (searchInput) {
+                    searchInput.value = term;
+                    toggleClearSearch('dashSearchInput');
+                }
+                
                 title.innerHTML = `💸 Clientes con saldo`;
                 
                 const debtClients = allClients.filter(c => Number(c.total_debt_cents) > 0);
                 if (!Array.isArray(debtClients) || debtClients.length === 0) {
                     listEl.innerHTML = '<p style="text-align:center; padding:24px; color:var(--text-muted);">No hay clientes con deuda pendiente.</p>';
+                    window.activeDirectoryData = [];
                     return;
                 }
-                listEl.innerHTML = debtClients.map(c => renderClientCardHtml(c)).join('');
+                
+                window.activeDirectoryData = debtClients;
+                
+                if (term) {
+                    const filtered = debtClients.filter(c => 
+                        (c.name && c.name.toLowerCase().includes(term)) || 
+                        (c.whatsapp && c.whatsapp.toLowerCase().includes(term))
+                    );
+                    renderFullDirectoryInline(filtered);
+                } else {
+                    renderFullDirectoryInline(debtClients);
+                }
+
                 if (shouldRestore) restoreScroll('dashDebt');
             }, shouldRestore);
         }
@@ -957,7 +1190,14 @@
         async function openTagClients(tagId, tagName, tagColor, shouldRestore = false) {
             const title = document.getElementById('dashContentTitle');
             const listEl = document.getElementById('dashContactList');
-            document.getElementById('dashSearchContainer').style.display = 'none';
+            const searchInput = document.getElementById('dashSearchInput');
+            
+            // Keep search bar visible and clear it
+            document.getElementById('dashSearchContainer').style.display = 'block';
+            if (searchInput) {
+                searchInput.value = '';
+                toggleClearSearch('dashSearchInput');
+            }
 
             title.innerHTML = `<span style="display:inline-block; width:12px; height:12px; border-radius:3px; background:${tagColor}; margin-right:8px;"></span> ${tagName}`;
             listEl.innerHTML = '<div class="spinner">Cargando clientes...</div>';
@@ -967,8 +1207,10 @@
                 const clients = await res.json();
                 if (!Array.isArray(clients) || clients.length === 0) {
                     listEl.innerHTML = '<p style="text-align:center; padding:24px; color:var(--text-muted);">No hay clientes con esta etiqueta.</p>';
+                    window.activeDirectoryData = [];
                     return;
                 }
+                window.activeDirectoryData = clients;
                 listEl.innerHTML = clients.map(c => renderClientCardHtml(c)).join('');
                 if (shouldRestore) restoreScroll('dashTag');
             } catch(e) {
@@ -979,18 +1221,130 @@
         function filterByTag(id, name, color) {
             navTo('dashTag', {id, name, color});
         }
-        function buildDashCard(badgeText, mainText, badgeClass, clientId, actionHtml) {
-            // If clientId is provided, the whole card is clickable and shows a pointer cursor
-            const cardClick = clientId ? `onclick="loadProfile(${clientId})" style="display:flex; justify-content:space-between; align-items:center; padding: 14px; margin-bottom:10px; cursor:pointer;" ` 
-                                      : `style="display:flex; justify-content:space-between; align-items:center; padding: 14px; margin-bottom:10px;"`;
+        function buildDashCard(badgeText, mainText, badgeClass, clientId, actionHtml, reminderId = null) {
+            const cardClick = clientId ? `onclick="loadProfile(${clientId})" ` : ``;
             return `
-            <div class="card" ${cardClick}>
-                <div>
+            <div class="card" ${cardClick} style="display:flex; justify-content:space-between; align-items:center; padding: 14px; margin-bottom:10px; cursor:pointer;">
+                <div style="flex:1;">
                     <span class="badge ${badgeClass}" style="margin-bottom:6px;">${badgeText}</span>
-                    <div style="font-weight:700; margin-top:4px;">${mainText}</div>
+                    <div style="font-weight:700; margin-top:4px; font-size:1rem;">${mainText}</div>
                 </div>
-                <div>${actionHtml || ''}</div>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    ${actionHtml || ''}
+                    ${reminderId ? `
+                    <button onclick="event.stopPropagation(); completeDashboardTask(null, 'reminder', this, ${reminderId})" 
+                        style="background:#f3f4f6; border:1.5px solid #d1d5db; color:#10b981; padding:10px; border-radius:12px; cursor:pointer; font-weight:800; font-size:1.1rem; display:flex; align-items:center; justify-content:center; width:44px; height:44px;">
+                        <span style="transform:translateY(-1px);">✓</span>
+                    </button>` : ''}
+                </div>
             </div>`;
+        }
+
+        async function completeDashboardTask(clientId, type, btn, reminderId = null) {
+            const card = btn.closest('.card');
+            card.style.opacity = '0.5';
+            card.style.pointerEvents = 'none';
+            card.style.transform = 'scale(0.97)';
+            card.style.transition = 'all 0.3s ease';
+
+            try {
+                let res;
+                if (type === 'reminder' && reminderId) {
+                    res = await fetch('/api/crm-reminders', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ id: reminderId, completed: true })
+                    });
+                } else {
+                    res = await fetch('/api/crm-clients', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            action: 'mark_dashboard_check', 
+                            client_id: clientId, 
+                            type, 
+                            seller_name: currentSellerName 
+                        })
+                    });
+                }
+
+                if (!res.ok) throw new Error('Error al completar tarea');
+                
+                // Success animation
+                card.style.opacity = '0';
+                card.style.transform = 'translateX(50px)';
+                setTimeout(() => {
+                    card.remove();
+                    const list = document.getElementById('dashContactList');
+                    if (list && list.querySelectorAll('.card').length === 0) {
+                        list.innerHTML = '<div style="text-align:center; padding:32px; color:var(--text-muted);">Todo al día. No hay pendientes por contactar.</div>';
+                    }
+                }, 300);
+
+            } catch(e) {
+                alert(e.message);
+                card.style.opacity = '1';
+                card.style.pointerEvents = 'auto';
+                card.style.transform = 'none';
+            }
+        }
+
+        // --- HISTORY ---
+        async function loadHistory() {
+            const list = document.getElementById('dashHistoryList');
+            list.innerHTML = '<div class="spinner">Cargando actividades...</div>';
+            try {
+                const res = await fetch(`/.netlify/functions/crm-history?seller_id=${currentSellerId}`);
+                const data = await res.json();
+                if (!Array.isArray(data) || data.length === 0) {
+                    list.innerHTML = '<div style="text-align:center; padding:32px; color:var(--text-muted);">No hay actividades registradas en los últimos 7 días.</div>';
+                    return;
+                }
+
+                list.innerHTML = data.map(h => {
+                    const date = new Date(h.created_at).toLocaleString('es-CO', { day:'numeric', month:'short', hour:'numeric', minute:'2-digit' });
+                    return `
+                    <div class="card" style="margin-bottom:10px; padding:12px;">
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
+                            <div>
+                                <div style="font-weight:800; font-size:0.9rem; color:var(--primary-dark);">${h.client_name}</div>
+                                <div style="font-size:0.75rem; color:var(--text-muted);">${date}</div>
+                            </div>
+                            <div style="display:flex; gap:6px;">
+                                <button onclick="editHistory(${h.id}, '${h.description.replace(/'/g,"\\'")}')" style="background:var(--secondary); border:none; color:var(--primary-dark); font-weight:800; padding:4px 8px; border-radius:6px; font-size:0.7rem; cursor:pointer;">Editar</button>
+                                <button onclick="deleteHistory(${h.id}, this)" style="background:#FEE2E2; border:none; color:#DC2626; font-weight:800; padding:4px 8px; border-radius:6px; font-size:0.7rem; cursor:pointer;">Borrar</button>
+                            </div>
+                        </div>
+                        <div style="font-size:0.85rem; border-left:2px solid var(--border); padding-left:8px; margin-top:4px;">${h.description}</div>
+                    </div>
+                    `;
+                }).join('');
+            } catch(e) {
+                list.innerHTML = `<div style="color:var(--danger); text-align:center;">Error cargando historial: ${e.message}</div>`;
+            }
+        }
+
+        async function editHistory(id, oldText) {
+            const newText = prompt('Editar descripción de la actividad:', oldText);
+            if (newText === null || newText === oldText) return;
+            try {
+                const res = await fetch('/api/crm-history', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id, description: newText, seller_id: currentSellerId })
+                });
+                if (!res.ok) throw new Error('Error al editar');
+                loadHistory(); // Refresh
+            } catch(e) { alert(e.message); }
+        }
+
+        async function deleteHistory(id, btn) {
+            if (!confirm('¿Seguro que quieres borrar este registro del historial?')) return;
+            try {
+                const res = await fetch(`/.netlify/functions/crm-history?id=${id}&seller_id=${currentSellerId}`, { method: 'DELETE' });
+                if (!res.ok) throw new Error('Error al borrar');
+                btn.closest('.card').remove();
+            } catch(e) { alert(e.message); }
         }
 
         // LOAD DIRECTORY (Inline Dashboard)
@@ -1002,10 +1356,29 @@
                 const search = document.getElementById('dashSearchContainer');
 
                 search.style.display = 'block';
+                const searchInput = document.getElementById('dashSearchInput');
+                
+                // Restaura búsqueda si existe
+                const term = window.crmSearchTerm || '';
+                if (searchInput) {
+                    searchInput.value = term;
+                    toggleClearSearch('dashSearchInput');
+                }
+                
                 title.innerHTML = `👥 Directorio de Clientes`;
                 
                 directoryData = data;
-                renderFullDirectoryInline(data);
+                window.activeDirectoryData = data;
+                
+                if (term) {
+                    const filtered = data.filter(c => 
+                        (c.name && c.name.toLowerCase().includes(term)) || 
+                        (c.whatsapp && c.whatsapp.toLowerCase().includes(term))
+                    );
+                    renderFullDirectoryInline(filtered);
+                } else {
+                    renderFullDirectoryInline(data);
+                }
                 if (shouldRestore || currentScreen === 'dashSearch') restoreScroll('dashSearch');
             }, shouldRestore);
         }
@@ -1132,13 +1505,25 @@
                 const nameHtml = `<span>${firstName}</span>${restOfName ? ' <span style="color: var(--text-muted); font-weight: 500; margin-left:1px;">' + restOfName + '</span>' : ''}`;
                 
                 document.getElementById('profileName').innerHTML = nameHtml;
-                document.getElementById('profPhone').innerText = pf.whatsapp || 'Sin número';
-                document.getElementById('profBirthday').innerText = pf.birth_date ? pf.birth_date.split('T')[0] : 'Sin fecha';
+                const phoneEl = document.getElementById('profPhone');
+                const waNumber = pf.whatsapp || '';
+                phoneEl.innerText = waNumber || 'WhatsApp';
+                phoneEl.style.color = waNumber ? 'var(--text-main)' : 'var(--text-muted)';
+                phoneEl.style.fontWeight = waNumber ? '700' : '500';
+
+                const bdayEl = document.getElementById('profBirthday');
+                const bDateStr = pf.birth_date ? pf.birth_date.split('T')[0] : '';
+                bdayEl.innerText = bDateStr || 'Cumpleaños';
+                bdayEl.style.color = bDateStr ? 'var(--text-main)' : 'var(--text-muted)';
+                bdayEl.style.fontWeight = bDateStr ? '700' : '500';
                 
                 // Address
                 const addEl = document.getElementById('profAddress');
                 if (addEl) {
-                    addEl.innerText = pf.address || '📍 Ubicación...';
+                    const addressStr = pf.address || '';
+                    addEl.innerText = addressStr || 'Ubicación';
+                    addEl.style.color = addressStr ? 'var(--text-main)' : 'var(--text-muted)';
+                    addEl.style.fontWeight = addressStr ? '700' : '500';
                     addEl.dataset.lat = pf.latitude || '';
                     addEl.dataset.lng = pf.longitude || '';
                 }
@@ -1175,10 +1560,12 @@
                 
                 // --- CURRENT STAGE TAG (Now in header row) ---
                 if (currentStage) {
-                    const st = stagesList.find(s => Number(s.id) === currentId);
-                    if (st) {
-                        badgesHtml += `<span class="badge" style="background:${st.color}; color:#fff; font-size:0.7rem; padding: 3px 8px; border-radius: 6px; font-weight: 800; text-transform: uppercase; margin-bottom:4px; margin-right:4px;">${st.name}</span>`;
-                    }
+                    const stName = currentStage.stage_name || 'Sin Etapa';
+                    const stColor = currentStage.color || '#808080';
+                    badgesHtml += `<span class="badge" style="background:${stColor}; color:#fff; font-size:0.7rem; padding: 3px 8px; border-radius: 6px; font-weight: 800; text-transform: uppercase; margin-bottom:4px; margin-right:4px;">${stName}</span>`;
+                } else if (Number(pf.total_orders) === 0) {
+                    // Fallback visually to Prospecto if no stage set and 0 orders
+                    badgesHtml += `<span class="badge" style="background:#9E9E9E; color:#fff; font-size:0.7rem; padding: 3px 8px; border-radius: 6px; font-weight: 800; text-transform: uppercase; margin-bottom:4px; margin-right:4px;">PROSPECTO</span>`;
                 }
                 
                 if(debt > 0) badgesHtml += `<span class="badge" style="background:var(--danger); color:#fff; font-size:0.7rem; padding: 3px 8px; border-radius: 6px; font-weight: 800; text-transform: uppercase; margin-bottom:4px; margin-right:4px;">DEUDA ${formatMoney(debt)}</span>`;
@@ -1241,12 +1628,16 @@
                             if(s.qty_nute > 0) items.push(`${s.qty_nute} Nute`);
                         }
 
+                        // Use a robust date parser for the "YYYY-MM-DD" string we now get from backend
+                        // to avoid timezone shifts.
+                        const dateObj = s.created_at ? new Date(s.created_at + 'T00:00:00') : new Date();
+
                         timeline.push({
                             id: s.id,
                             table: 'sales',
-                            date: new Date(s.created_at),
+                            date: dateObj,
                             type: 'venta',
-                            title: new Date(s.created_at).toLocaleString(),
+                            title: dateObj.toLocaleDateString(),
                             body: `<span style="font-weight:700;">Venta:</span> ${items.join(', ')}`,
                             footer: `${formatMoney(s.total_cents)} ${isDebt ? '<span style="display:inline-block; padding:1px 6px; border-radius:4px; background:var(--danger); color:#fff; font-size:0.6rem; font-weight:800; vertical-align:middle; margin-left:4px;">DEBE</span>' : ''}`,
                             color: isDebt ? 'var(--danger)' : 'var(--success)'
@@ -1257,12 +1648,13 @@
                 // 2. WhatsApp Logs
                 if(Array.isArray(waLogs)) {
                     waLogs.forEach(log => {
+                        const dateObj = new Date(log.sent_at);
                         timeline.push({
                             id: log.id,
                             table: 'whatsapp',
-                            date: new Date(log.sent_at),
+                            date: dateObj,
                             type: 'whatsapp',
-                            title: `${new Date(log.sent_at).toLocaleString()} - WhatsApp (${log.segment})`,
+                            title: `${dateObj.toLocaleDateString()} - WhatsApp (${log.segment})`,
                             body: log.message,
                             color: '#25D366'
                         });
@@ -1272,12 +1664,13 @@
                 // 3. Actions / Notes
                 if(Array.isArray(actions)) {
                     actions.forEach(a => {
+                        const dateObj = new Date(a.created_at);
                         timeline.push({
                             id: a.id,
                             table: 'action',
-                            date: new Date(a.created_at),
+                            date: dateObj,
                             type: 'accion',
-                            title: `${new Date(a.created_at).toLocaleString()} - ${a.action_type.toUpperCase()}`,
+                            title: `${dateObj.toLocaleDateString()} - ${a.action_type.toUpperCase()}`,
                             body: a.note || 'Sin detalles.',
                             footer: `Por: ${a.seller_name || 'Vendedor'}`,
                             color: 'var(--primary)'
@@ -1288,14 +1681,15 @@
                 // 4. Stage History
                 if(Array.isArray(stageHistory)) {
                     stageHistory.forEach(h => {
+                        const dateObj = new Date(h.changed_at);
                         timeline.push({
                             id: h.id,
                             table: 'history',
-                            date: new Date(h.changed_at),
+                            date: dateObj,
                             type: 'etapa',
-                            title: `${new Date(h.changed_at).toLocaleString()} - Cambio de Etapa`,
+                            title: `${dateObj.toLocaleDateString()} - Cambio de Etapa`,
                             body: `De <b>${h.old_stage_name || 'Inicio'}</b> a <b>${h.new_stage_name}</b>`,
-                            footer: h.note ? `"${h.note}"` : `Por: ${h.changed_by_name || 'Admin'}`,
+                            footer: h.note ? `"${h.note.replace('por comportamiento de compra', '')}"` : `Por: ${h.changed_by_name || 'Admin'}`,
                             color: h.new_stage_color || '#ccc'
                         });
                     });
@@ -1304,16 +1698,29 @@
                 // Sort Descending
                 timeline.sort((a,b) => b.date - a.date);
 
+                // Dedup "Actualización automática" (Keep only latest)
+                let foundAuto = false;
+                timeline = timeline.filter(ev => {
+                    const isAuto = ev.footer && ev.footer.includes("Actualización automática");
+                    if (isAuto) {
+                        if (foundAuto) return false;
+                        foundAuto = true;
+                    }
+                    return true;
+                });
+
                 // Render
                 if(timeline.length === 0) {
                     timelineContainer.innerHTML = '<p style="text-align:center; padding:40px; color:var(--text-muted);">Sin actividad registrada.</p>';
                 } else {
                     timelineContainer.innerHTML = timeline.map(ev => `
-                        <div class="card" style="padding:8px 12px; margin-bottom:8px; border-left:3px solid ${ev.color || 'var(--border)'}; background:var(--surface); display:flex; flex-wrap:wrap; align-items:center; gap:6px; font-size:0.85rem; line-height:1.3; position:relative;">
-                            <div style="flex:1; display:flex; flex-wrap:wrap; align-items:baseline; gap:6px; min-width:0;">
-                                <span style="font-size:0.65rem; color:var(--text-muted); font-weight:700; white-space:nowrap; text-transform:uppercase;">${ev.date.toLocaleString()}</span>
-                                <span style="flex:1; min-width:160px; color:var(--text-main); font-size: 1rem;">${ev.body}</span>
-                                ${ev.footer ? `<span style="font-weight:700; color:var(--text-main); white-space:nowrap;">${ev.footer}</span>` : ''}
+                        <div class="card" style="padding:10px 14px; margin-bottom:8px; border-left:4px solid ${ev.color || 'var(--border)'}; background:var(--surface); display:flex; flex-wrap:nowrap; align-items:flex-start; gap:10px; font-size:0.9rem; line-height:1.4; position:relative; overflow:hidden;">
+                            <div style="flex:1; display:flex; flex-direction:column; gap:4px; min-width:0;">
+                                <div style="display:flex; align-items:center; justify-content:space-between; width:100%; gap:8px;">
+                                    <span style="font-size:0.65rem; color:var(--text-muted); font-weight:700; white-space:nowrap; text-transform:uppercase;">${ev.date.toLocaleDateString('es-CO', {day:'numeric', month:'short'})}</span>
+                                    ${ev.footer ? `<span style="font-weight:700; color:var(--text-main); white-space:nowrap; font-size:0.7rem; text-overflow:ellipsis; overflow:hidden; max-width:120px;">${ev.footer}</span>` : ''}
+                                </div>
+                                <div style="color:var(--text-main); font-size: 0.95rem; overflow-wrap: anywhere; word-break: break-word;">${ev.body}</div>
                             </div>
                             <button onclick="deleteTimelineEntry('${ev.table}', ${ev.id})" style="background:none; border:none; width:28px; height:28px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:rgba(239, 68, 68, 0.35); transition:all 0.2s; flex-shrink:0;" onmouseover="this.style.color='rgba(239, 68, 68, 1)'; this.style.transform='scale(1.2)';" onmouseout="this.style.color='rgba(239, 68, 68, 0.35)'; this.style.transform='scale(1)';">
                                 <span style="font-family: 'Inter', 'Outfit', sans-serif; font-weight:300; font-size:1.4rem; line-height:1;">&times;</span>
@@ -1368,10 +1775,9 @@
             const address = el.innerText === '📍 Ubicación...' ? '' : el.innerText;
             const lat = el.dataset.lat;
             const lng = el.dataset.lng;
-            
             const popover = document.getElementById('locationPopover');
             
-            // Google Maps (Ruta desde ubicación actual)
+            // Google Maps
             document.getElementById('locGoogle').onclick = () => {
                 let url = 'https://www.google.com/maps/dir/?api=1&origin=Current+Location&destination=';
                 if (lat && lng) url += `${lat},${lng}`;
@@ -1381,7 +1787,7 @@
                 popover.style.display = 'none';
             };
 
-            // Waze (Ruta)
+            // Waze
             document.getElementById('locWaze').onclick = () => {
                 let url = 'https://waze.com/ul?navigate=yes&';
                 if (lat && lng) url += `ll=${lat},${lng}`;
@@ -1391,10 +1797,13 @@
                 popover.style.display = 'none';
             };
 
-            // Position
+            // Position (Robust centered or relative to click)
             const rect = event.currentTarget.getBoundingClientRect();
-            popover.style.top = (rect.bottom + 8) + 'px';
-            popover.style.left = Math.min(rect.left, window.innerWidth - 220) + 'px'; 
+            const top = (rect.bottom + window.scrollY + 8);
+            const left = Math.min(rect.left, window.innerWidth - 200);
+            
+            popover.style.top = top + 'px';
+            popover.style.left = Math.max(10, left) + 'px';
             popover.style.display = 'block';
 
             // Dismissal
@@ -1402,7 +1811,7 @@
                 popover.style.display = 'none';
                 window.removeEventListener('click', closePop);
             };
-            setTimeout(() => window.addEventListener('click', closePop), 20);
+            setTimeout(() => window.addEventListener('click', closePop), 50);
         }
 
         function startAddressEdit() {
@@ -1624,8 +2033,14 @@
 
         function showContactMenu(event) {
             event.stopPropagation();
-            const phone = document.getElementById('profPhone').innerText;
-            if(!phone || phone === 'Sin número' || phone === '-') return;
+            const phoneEl = document.getElementById('profPhone');
+            const phone = phoneEl.innerText.trim();
+            
+            // If empty or placeholder, trigger inline edit
+            if(!phone || phone === 'Sin número' || phone === '-' || phone === 'WhatsApp') {
+                startPhoneEdit();
+                return;
+            }
             
             const popover = document.getElementById('contactPopover');
             const linkCall = document.getElementById('linkCall');
@@ -1633,7 +2048,7 @@
             
             // Format phone for tel: link
             let cleanPhone = phone.replace(/\D/g, '');
-            if (cleanPhone.length > 0 && !cleanPhone.startsWith('57')) {
+            if (cleanPhone.length > 0 && !cleanPhone.startsWith('57') && cleanPhone.length === 10) {
                 cleanPhone = '57' + cleanPhone;
             }
             
@@ -1642,8 +2057,11 @@
             
             // Position
             const rect = event.currentTarget.getBoundingClientRect();
-            popover.style.top = (rect.bottom + 8) + 'px';
-            popover.style.left = rect.left + 'px';
+            const top = (rect.bottom + window.scrollY + 8);
+            const left = Math.min(rect.left, window.innerWidth - 160);
+            
+            popover.style.top = top + 'px';
+            popover.style.left = Math.max(10, left) + 'px';
             popover.style.display = 'block';
             
             // Dismissal
@@ -1651,7 +2069,9 @@
                 popover.style.display = 'none';
                 window.removeEventListener('click', closePop);
             };
-            setTimeout(() => window.addEventListener('click', closePop), 20);
+            setTimeout(() => {
+                window.addEventListener('click', closePop);
+            }, 100);
         }
 
         function startPhoneEdit() {
@@ -1659,6 +2079,11 @@
             const el = document.getElementById('profPhone');
             el.contentEditable = "true";
             el.focus();
+            
+            // Clear placeholder if it's the "WhatsApp" text
+            if (el.innerText === 'WhatsApp') {
+                el.innerText = '';
+            }
             
             // Temporary style to show it's editable
             el.style.background = 'rgba(99,102,241,0.1)';
@@ -1713,6 +2138,14 @@
             const el = document.getElementById('profBirthday');
             el.contentEditable = "true";
             el.focus();
+
+            if (el.innerText === 'Cumpleaños' || el.innerText === '') {
+                el.innerText = 'AAAA-MM-DD';
+                // Select the text for easy replacement
+                setTimeout(() => {
+                    document.execCommand('selectAll', false, null);
+                }, 10);
+            }
             
             el.style.background = 'rgba(99,102,241,0.1)';
             el.style.padding = '0 6px';
@@ -1743,6 +2176,19 @@
 
         async function saveClientBirthday(newDate) {
             if(!currentProfileId) return;
+            
+            // Silent validation: if empty or placeholder-like, don't save, just reset UI
+            if (!newDate || newDate.trim() === '' || newDate === 'Cumpleaños' || newDate === 'AAAA-MM-DD') {
+                loadProfile(currentProfileId);
+                return;
+            }
+
+            // Basic format check YYYY-MM-DD
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(newDate)) {
+                loadProfile(currentProfileId); // Restore original/placeholder if invalid
+                return;
+            }
+
             try {
                 const response = await fetch('/api/clients', {
                     method: 'POST',
@@ -1754,8 +2200,9 @@
                     })
                 });
                 if(!response.ok) throw new Error();
+                loadProfile(currentProfileId); // Refresh to clear styles
             } catch(e) {
-                alert("Error actualizando cumpleaños. Use formato AAAA-MM-DD");
+                // Silently fail but restore
                 loadProfile(currentProfileId);
             }
         }
@@ -2016,8 +2463,8 @@
             const whatsapp = document.getElementById('npWhatsApp').value.trim();
             const birthday = document.getElementById('npBirthday').value;
 
-            if (!name || !whatsapp) {
-                alert('Nombre y WhatsApp son obligatorios.');
+            if (!name) {
+                alert('El nombre es obligatorio.');
                 return;
             }
 
@@ -2168,7 +2615,8 @@
                     onmouseleave="endTagLongPress()"
                     ontouchstart="startTagLongPress(event, ${t.id}, '${escapedName}', 'custom', '${t.color}')" 
                     ontouchend="endTagLongPress()"
-                    style="background:${t.color}; color:#fff; border:none; opacity:1; padding:6px 2px; height:auto; min-height:24px; font-size:0.6rem; margin-bottom:2px; font-weight:800; text-transform:uppercase; cursor:pointer; width:100%; border-radius:8px; user-select:none; -webkit-user-select:none;">
+                    style="background:${t.color}; color:#fff; border:none; opacity:1; padding:6px 12px; height:auto; min-height:32px; font-size:0.65rem; margin-bottom:4px; font-weight:800; text-transform:uppercase; cursor:pointer; width:100%; border-radius:8px; user-select:none; -webkit-user-select:none; transition:all 0.1s; text-align:left;"
+                    onmouseover="this.style.filter='brightness(1.1)'; this.style.transform='translateX(3px)'" onmouseout="this.style.filter='none'; this.style.transform='none'">
                     ${t.name}
                 </button>
             `;}).join('');
@@ -2224,6 +2672,146 @@
                     await loadSellerTags();
                 }
             } catch(e) { console.error('Error al crear etiqueta', e); }
+        }
+
+        async function openManageTagsModal() {
+            const modal = document.getElementById('modalManageTags');
+            modal.style.display = 'flex';
+            renderManageTagsList();
+            initManageTagsSortable();
+        }
+
+        function initManageTagsSortable() {
+            const list = document.getElementById('manageTagsList');
+            if (!list || typeof Sortable === 'undefined') return;
+            
+            // Destroy previous instance if exists
+            if (window.manageTagsSortable) window.manageTagsSortable.destroy();
+            
+            window.manageTagsSortable = Sortable.create(list, {
+                animation: 150,
+                handle: '.drag-handle',
+                ghostClass: 'nav-ghost',
+                onEnd: async function() {
+                    const ids = Array.from(list.children).map(el => el.getAttribute('data-id'));
+                    await saveTagOrder(ids);
+                }
+            });
+        }
+
+        async function saveTagOrder(tagIds) {
+            try {
+                const res = await fetch('/.netlify/functions/crm-tags', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'reorder_tags', seller_id: currentSellerId, tag_ids: tagIds })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    // Update local sellerTags array to match new order to avoid flickering
+                    const tagMap = {};
+                    sellerTags.forEach(t => tagMap[t.id] = t);
+                    sellerTags = tagIds.map(id => tagMap[id]).filter(Boolean);
+                    
+                    // Refresh dashboard tags if visible
+                    renderDashboard(directoryData, true);
+                }
+            } catch(e) { console.error('Error saving tag order', e); }
+        }
+
+        function closeManageTagsModal() {
+            document.getElementById('modalManageTags').style.display = 'none';
+        }
+
+        function renderManageTagsList() {
+            const list = document.getElementById('manageTagsList');
+            if (!sellerTags || sellerTags.length === 0) {
+                list.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-muted);">No tienes etiquetas para gestionar.</div>';
+                return;
+            }
+
+            const palette = ['#818cf8', '#f43f5e', '#fbbf24', '#10b981', '#a855f7', '#ec4899', '#f97316', '#06b6d4', '#475569', '#1d4ed8'];
+
+            list.innerHTML = sellerTags.map(t => {
+                const colorOptions = palette.map(c => `
+                    <div onclick="updateTagDraft(${t.id}, '${c}')" 
+                        style="width:20px; height:20px; border-radius:50%; background:${c}; cursor:pointer; border:2px solid ${t.color === c ? '#fff' : 'transparent'}; box-shadow:${t.color === c ? '0 0 0 1px '+c : 'none'};">
+                    </div>
+                `).join('');
+
+                return `
+                    <div class="card" data-id="${t.id}" style="padding:16px; display:flex; flex-direction:column; gap:12px; border:1px solid var(--border); position:relative;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+                            <div class="drag-handle" style="cursor:grab; color:var(--text-muted); font-size:1.2rem; padding:4px;">☰</div>
+                            <input type="text" value="${t.name}" id="editTagName-${t.id}" 
+                                style="flex:1; background:var(--bg); border:1.5px solid var(--border); border-radius:10px; padding:8px 12px; font-size:0.95rem; font-weight:700; color:var(--text-main); outline:none;"
+                                onchange="saveTagChange(${t.id})">
+                            <button onclick="deleteTag(${t.id})" style="background:none; border:none; color:var(--danger); font-size:1.2rem; cursor:pointer; padding:4px; opacity:0.6;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'">🗑️</button>
+                        </div>
+                        <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding-left:32px;">
+                            <span style="font-size:0.7rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-right:4px;">Color:</span>
+                            ${colorOptions}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function saveTagChange(tagId) {
+            const name = document.getElementById(`editTagName-${tagId}`).value.trim();
+            const tag = sellerTags.find(t => t.id === tagId);
+            if (!name || !tag) return;
+            
+            try {
+                const res = await fetch('/.netlify/functions/crm-tags', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'update_tag', tag_id: tagId, seller_id: currentSellerId, name, color: tag.color })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    await loadSellerTags();
+                    renderManageTagsList();
+                }
+            } catch (e) { console.error('Error updating tag', e); }
+        }
+
+        async function updateTagDraft(tagId, newColor) {
+            const tag = sellerTags.find(t => t.id === tagId);
+            if (!tag) return;
+            tag.color = newColor; // Temporary local update
+            
+            const name = document.getElementById(`editTagName-${tagId}`).value.trim();
+            
+            try {
+                const res = await fetch('/.netlify/functions/crm-tags', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'update_tag', tag_id: tagId, seller_id: currentSellerId, name, color: newColor })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    await loadSellerTags();
+                    renderManageTagsList();
+                }
+            } catch (e) { console.error('Error updating tag color', e); }
+        }
+
+        async function deleteTag(tagId) {
+            if (!confirm('¿Estás seguro de que quieres eliminar esta etiqueta? Se quitará de todos los clientes.')) return;
+            try {
+                const res = await fetch('/.netlify/functions/crm-tags', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'delete_tag', tag_id: tagId, seller_id: currentSellerId })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    await loadSellerTags();
+                    renderManageTagsList();
+                    if (currentProfileId) loadProfile(currentProfileId); // Refresh profile if open
+                }
+            } catch (e) { console.error('Error deleting tag', e); }
         }
 
         async function loadClientTags(clientId) {
@@ -2364,7 +2952,8 @@
             if (!window.isBulkMode) return;
             // If click is NOT on a client card and NOT on a tag button
             if (!e.target.closest('.client-card-bulk-target') && !e.target.closest('button[onmousedown*="startTagLongPress"]')) {
-                e.stopPropagation();
+                // 🛠️ FIX: Removed e.stopPropagation() to allow the original click to reach its target 
+                // while still exiting bulk mode.
                 exitBulkMode();
             }
         }

@@ -125,15 +125,39 @@ async function loadSellerClients() {
         if (storeAuthUser.token) headers['Authorization'] = 'Bearer ' + storeAuthUser.token;
         if (storeAuthUser.username) headers['x-actor-name'] = storeAuthUser.username;
 
-        const clientsRes = await fetch(`/api/clients?seller_id=${storeActiveSeller.id}`, { headers });
+        const clientsRes = await fetch(`/api/clients?seller_id=${storeActiveSeller.id}`, { 
+            headers,
+            cache: 'no-store' // Critical: ensure we always get fresh CRM tags
+        });
         if (!clientsRes.ok) return;
 
-        const clientNames = await clientsRes.json();
-        if (Array.isArray(clientNames)) {
-            storeClientList = clientNames.map(c => c.name).filter(n => typeof n === 'string' && n.trim() !== '');
+        const clientData = await clientsRes.json();
+        if (Array.isArray(clientData)) {
+            storeClientList = clientData
+                .filter(c => c && (c.name || c.NAME))
+                .map(c => {
+                    const name = c.name || c.NAME || '';
+                    const stage_name = c.stage_name || c.STAGE_NAME || c.stage || '';
+                    const stage_color = c.stage_color || c.STAGE_COLOR || c.color || '#94a3b8';
+                    let custom_tags = c.custom_tags || c.CUSTOM_TAGS || [];
+                    // Defensive: If it's a string (common with some SQL drivers), parse it
+                    if (typeof custom_tags === 'string' && custom_tags.startsWith('[')) {
+                        try { custom_tags = JSON.parse(custom_tags); } catch (e) { custom_tags = []; }
+                    }
+                    if (!Array.isArray(custom_tags)) custom_tags = [];
+
+                    return {
+                        name: name.trim(),
+                        stage_name: (stage_name || '').toString().trim(),
+                        stage_color: stage_color,
+                        custom_tags: custom_tags,
+                        debt_cents: Number(c.total_debt_cents || c.TOTAL_DEBT_CENTS || 0),
+                        total_orders: parseInt(c.total_orders || c.TOTAL_ORDERS || 0)
+                    };
+                });
         }
     } catch (err) {
-        console.error('Error fetching clients for autocomplete:', err);
+        console.error('[Autocomplete] Error loading clients:', err);
     }
 }
 
@@ -144,18 +168,67 @@ function setupClientAutocomplete() {
 
     function renderDropdown(filterValue = '') {
         const lowerVal = filterValue.toLowerCase();
-        const matches = storeClientList.filter(name => name.toLowerCase().includes(lowerVal));
+        const matches = storeClientList.filter(c => c.name.toLowerCase().includes(lowerVal));
         dropdown.innerHTML = '';
         if (matches.length === 0 || !storeAuthUser || !storeActiveSeller) {
             dropdown.classList.remove('show');
             return;
         }
-        matches.slice(0, 30).forEach(name => {
+        matches.slice(0, 30).forEach(client => {
             const li = document.createElement('li');
-            li.textContent = name;
+            
+            // Name container
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = client.name;
+            li.appendChild(nameSpan);
+
+            // Tags container
+            const tagContainer = document.createElement('div');
+            tagContainer.className = 'autocomplete-tag-container';
+            
+            // 1. Custom Tags (CRM Personal tags always first)
+            if (client.custom_tags && client.custom_tags.length > 0) {
+                client.custom_tags.forEach(t => {
+                    const cTag = document.createElement('span');
+                    cTag.className = 'autocomplete-tag';
+                    cTag.textContent = t.name || t.NAME || '';
+                    cTag.style.background = t.color || t.COLOR || '#818cf8';
+                    tagContainer.appendChild(cTag);
+                });
+            }
+
+            // 2. Stage Tag OR Prospecto Fallback
+            if (client.stage_name && client.stage_name.length > 0) {
+                const sTag = document.createElement('span');
+                sTag.className = 'autocomplete-tag';
+                sTag.textContent = client.stage_name;
+                sTag.style.background = client.stage_color;
+                tagContainer.appendChild(sTag);
+            } else if (tagContainer.childNodes.length === 0 && client.total_orders === 0) {
+                // If NO custom tags AND NO stage AND 0 orders -> Real prospecto
+                const pTag = document.createElement('span');
+                pTag.className = 'autocomplete-tag';
+                pTag.textContent = 'PROSPECTO';
+                pTag.style.background = '#94a3b8'; // CRM Gray
+                tagContainer.appendChild(pTag);
+            }
+
+            // 3. Debt Tag
+            if (client.debt_cents > 0) {
+                const dTag = document.createElement('span');
+                dTag.className = 'autocomplete-tag';
+                dTag.textContent = 'DEUDA';
+                dTag.style.background = 'var(--danger)';
+                tagContainer.appendChild(dTag);
+            }
+
+            if (tagContainer.hasChildNodes()) {
+                li.appendChild(tagContainer);
+            }
+
             li.addEventListener('mousedown', (e) => {
                 e.preventDefault();
-                input.value = name;
+                input.value = client.name;
                 dropdown.classList.remove('show');
             });
             dropdown.appendChild(li);
@@ -235,26 +308,16 @@ function findSimilarClients(name) {
     const lowerName = name.toLowerCase().trim();
     const threshold = 3;
     const matches = storeClientList.map(c => {
-        const lowerC = c.toLowerCase();
+        const lowerC = c.name.toLowerCase();
         const dist = levenshteinDistance(lowerName, lowerC);
-        return { name: c, dist, includes: lowerC.includes(lowerName) || lowerName.includes(lowerC) };
-    }).filter(c => c.dist <= threshold || c.includes)
+        return { client: c, dist, includes: lowerC.includes(lowerName) || lowerName.includes(lowerC) };
+    }).filter(m => m.dist <= threshold || m.includes)
         .sort((a, b) => a.dist - b.dist)
         .slice(0, 3);
-    return matches.map(m => m.name);
+    return matches.map(m => m.client.name);
 }
 
-function openNewClientModal(name) {
-    document.getElementById('new-client-name-display').textContent = name;
-    
-    // Extract first name for short name suggestion
-    const firstName = (name || '').trim().split(' ')[0];
-    document.getElementById('new-client-shortname').value = firstName;
-    
-    document.getElementById('new-client-whatsapp').value = '';
-    document.getElementById('new-client-error').style.display = 'none';
-    document.getElementById('store-new-client-modal').style.display = 'flex';
-}
+/* openNewClientModal moved to store.html inline script to ensure tag loading coordination */
 
 async function executeCheckout(customerName) {
     // Collect all data BEFORE clearing the UI
@@ -625,7 +688,14 @@ async function processSingleSale(sale) {
                     if (clientWhatsapp) {
                         let cleanNum = clientWhatsapp.replace(/\D/g, '');
                         if (cleanNum.length === 10) cleanNum = '57' + cleanNum;
-                        const waUrl = `https://wa.me/${cleanNum}?text=${encodeURIComponent(text)}`;
+                        const isAndroid = /Android/i.test(navigator.userAgent);
+                        const encodedMsg = encodeURIComponent(text);
+                        
+                        let waUrl = `whatsapp://send?phone=${cleanNum}&text=${encodedMsg}`;
+                        if (isAndroid) {
+                            waUrl = `intent://send?phone=${cleanNum}&text=${encodedMsg}#Intent;package=com.whatsapp.w4b;scheme=whatsapp;end`;
+                        }
+                        
                         window.open(waUrl, '_blank');
                     }
                 }

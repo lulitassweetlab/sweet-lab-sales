@@ -1,4 +1,5 @@
-import { ensureSchema, sql, recalcTotalForId, getOrCreateDayId, notify as notifyDb } from './_db.js';
+import { ensureSchema, sql, recalcTotalForId, getOrCreateDayId, notify as notifyDb, normalizeClientName } from './_db.js';
+import { evaluateClientStage } from './crm-automation.js';
 
 function json(body, status = 200) {
 	return { statusCode: status, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
@@ -72,43 +73,39 @@ async function syncReceiptPaymentsToSales() {
 }
 
 // Auto-update CRM stage to 'Cliente nuevo' if it's the first order
+// Auto-update CRM stage based on buyer behavior
 async function autoUpdateClientStage(clientId, sellerId) {
-    if (!clientId || !sellerId) return;
+    if (!clientId) return;
     try {
-        // 1. Count sales for this client
-        const [countRow] = await sql`SELECT count(*) FROM crm_client_sales WHERE client_id = ${clientId}`;
-        const totalSales = parseInt(countRow.count);
+        await evaluateClientStage(clientId, sellerId);
+    } catch (err) {
+        console.error('Error auto-updating client stage:', err);
+    }
+}
 
-        if (totalSales === 1) {
-            // 2. Get stage IDs for 'Prospecto' and 'Cliente nuevo'
-            const stages = await sql`SELECT id, name FROM crm_stages WHERE name IN ('Prospecto', 'Cliente nuevo')`;
-            const prospectStage = stages.find(s => s.name === 'Prospecto');
-            const newClientStage = stages.find(s => s.name === 'Cliente nuevo');
-
-            if (newClientStage) {
-                // 3. Check current stage
-                const [current] = await sql`SELECT stage_id FROM crm_client_stage WHERE client_id = ${clientId}`;
-                const currentStageId = current ? current.stage_id : null;
-
-                // Only upgrade if current is null or 'Prospecto'
-                if (!currentStageId || (prospectStage && currentStageId === prospectStage.id)) {
-                    // Move to 'Cliente nuevo'
-                    await sql`
-                        INSERT INTO crm_client_stage (client_id, stage_id, updated_by, updated_at)
-                        VALUES (${clientId}, ${newClientStage.id}, ${sellerId}, now())
-                        ON CONFLICT (client_id) DO UPDATE SET stage_id = EXCLUDED.stage_id, updated_by = EXCLUDED.updated_by, updated_at = now()
-                    `;
-
-                    // Log in history
-                    await sql`
-                        INSERT INTO crm_stage_history (client_id, old_stage_id, new_stage_id, note, changed_by, changed_at)
-                        VALUES (${clientId}, ${currentStageId}, ${newClientStage.id}, 'Automatización: Primer pedido registrado', ${sellerId}, now())
-                    `;
-                }
+// Auto-archive sales days if all orders are paid/verified
+async function checkAndAutoArchiveDay(saleDayId) {
+    if (!saleDayId) return;
+    try {
+        // Count sales that are NOT "fully paid/verified"
+        // Non-verified methods: empty/null, '-', 'efectivo', 'entregado'
+        const [pending] = await sql`
+            SELECT COUNT(*) FROM sales 
+            WHERE sale_day_id = ${saleDayId} 
+              AND (pay_method IS NULL OR pay_method = '' OR pay_method = '-' OR pay_method = 'efectivo' OR pay_method = 'entregado')
+              AND total_cents > 0
+        `;
+        
+        if (parseInt(pending.count) === 0) {
+            // Also ensure there is at least ONE sale to avoid archiving empty inadvertently (though mostly safe)
+            const [total] = await sql`SELECT COUNT(*) FROM sales WHERE sale_day_id = ${saleDayId}`;
+            if (parseInt(total.count) > 0) {
+                await sql`UPDATE sale_days SET is_archived = true WHERE id = ${saleDayId}`;
+                console.log(`📦 Auto-archived sale_day ${saleDayId}`);
             }
         }
     } catch (err) {
-        console.error('Error in autoUpdateClientStage:', err);
+        console.error('Error in checkAndAutoArchiveDay:', err);
     }
 }
 
@@ -185,7 +182,14 @@ export async function handler(event) {
 							       s.qty_mara, s.qty_oreo, s.qty_nute, s.is_paid, s.pay_method, s.payment_date, s.payment_source,
 							       s.special_pricing_type, s.total_cents,
 							       sd.day AS sale_day,
-							       se.name AS seller_name
+							       se.name AS seller_name,
+							       (
+							           SELECT json_agg(json_build_object('name', t.name, 'color', t.color) ORDER BY t.display_order ASC, t.name ASC)
+							           FROM crm_client_tags ct
+							           JOIN crm_tags t ON ct.tag_id = t.id
+							           JOIN crm_client_sales ccs ON ct.client_id = ccs.client_id
+							           WHERE ccs.sale_id = s.id
+							       ) AS client_tags
 							FROM sales s
 							INNER JOIN sale_days sd ON sd.id = s.sale_day_id
 							INNER JOIN sellers se ON se.id = s.seller_id
@@ -199,7 +203,14 @@ export async function handler(event) {
 							       s.qty_mara, s.qty_oreo, s.qty_nute, s.is_paid, s.pay_method, s.payment_date, s.payment_source,
 							       s.special_pricing_type, s.total_cents,
 							       sd.day AS sale_day,
-							       se.name AS seller_name
+							       se.name AS seller_name,
+							       (
+							           SELECT json_agg(json_build_object('name', t.name, 'color', t.color) ORDER BY t.display_order ASC, t.name ASC)
+							           FROM crm_client_tags ct
+							           JOIN crm_tags t ON ct.tag_id = t.id
+							           JOIN crm_client_sales ccs ON ct.client_id = ccs.client_id
+							           WHERE ccs.sale_id = s.id
+							       ) AS client_tags
 							FROM sales s
 							INNER JOIN sale_days sd ON sd.id = s.sale_day_id
 							INNER JOIN sellers se ON se.id = s.seller_id
@@ -359,7 +370,14 @@ export async function handler(event) {
 						SELECT s.id, s.seller_id, s.sale_day_id, s.client_name, s.qty_arco, s.qty_melo, 
 						       s.qty_mara, s.qty_oreo, s.qty_nute, s.is_paid, s.pay_method, s.payment_date, 
 						       s.payment_source, s.comment_text, s.special_pricing_type, s.total_cents, s.created_at,
-						       sd.day
+						       sd.day,
+						       (
+						           SELECT json_agg(json_build_object('name', t.name, 'color', t.color) ORDER BY t.display_order ASC, t.name ASC)
+						           FROM crm_client_tags ct
+						           JOIN crm_tags t ON ct.tag_id = t.id
+						           JOIN crm_client_sales ccs ON ct.client_id = ccs.client_id
+						           WHERE ccs.sale_id = s.id
+						       ) AS client_tags
 						FROM sales s
 						INNER JOIN sale_days sd ON sd.id = s.sale_day_id
 						WHERE s.seller_id = ${sellerId} 
@@ -431,9 +449,9 @@ export async function handler(event) {
 				} catch {}
 			let rows;
 			if (saleDayId) {
-				rows = await sql`SELECT id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, payment_date, payment_source, comment_text, special_pricing_type, total_cents, created_at FROM sales WHERE seller_id = ${sellerId} AND sale_day_id=${saleDayId} ORDER BY created_at DESC, id DESC`;
+				rows = await sql`SELECT id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, payment_date, payment_source, comment_text, special_pricing_type, total_cents, created_at, (SELECT json_agg(json_build_object('name', t.name, 'color', t.color) ORDER BY t.display_order ASC, t.name ASC) FROM crm_client_tags ct JOIN crm_tags t ON ct.tag_id = t.id JOIN crm_client_sales ccs ON ct.client_id = ccs.client_id WHERE ccs.sale_id = sales.id) AS client_tags FROM sales WHERE seller_id = ${sellerId} AND sale_day_id=${saleDayId} ORDER BY created_at DESC, id DESC`;
 			} else {
-				rows = await sql`SELECT id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, payment_date, payment_source, comment_text, special_pricing_type, total_cents, created_at FROM sales WHERE seller_id = ${sellerId} ORDER BY created_at DESC, id DESC`;
+				rows = await sql`SELECT id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, payment_date, payment_source, comment_text, special_pricing_type, total_cents, created_at, (SELECT json_agg(json_build_object('name', t.name, 'color', t.color) ORDER BY t.display_order ASC, t.name ASC) FROM crm_client_tags ct JOIN crm_tags t ON ct.tag_id = t.id JOIN crm_client_sales ccs ON ct.client_id = ccs.client_id WHERE ccs.sale_id = sales.id) AS client_tags FROM sales WHERE seller_id = ${sellerId} ORDER BY created_at DESC, id DESC`;
 			}
 				
 				// Enhance with sale_items data for each sale (OPTIMIZED BATCH FETCH)
@@ -551,22 +569,56 @@ export async function handler(event) {
 					saleDayId = await getOrCreateDayId(sellerId, iso);
 				}
 				// Include client_name in the initial INSERT so it is stored even if PUT is never called
-				const clientNamePost = (data.client_name ?? '').toString().trim();
+				const clientNamePost = normalizeClientName(data.client_name ?? '');
 				const [row] = await sql`INSERT INTO sales (seller_id, sale_day_id, client_name) VALUES (${sellerId}, ${saleDayId}, ${clientNamePost || null}) RETURNING id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, payment_date, payment_source, comment_text, special_pricing_type, total_cents, created_at`;
 				// Auto-Link to CRM immediately on POST so sales appear in CRM timeline right away
 				if (clientNamePost && row && row.id) {
 					try {
 						let [crmClient] = await sql`SELECT id FROM clients WHERE seller_id = ${sellerId} AND lower(name) = lower(${clientNamePost})`;
+						const shortNameInput = (data.short_name ?? '').toString().trim();
+						const whatsappInput = (data.whatsapp ?? '').toString().trim();
+						const stageIdInput = data.funnel_stage_id ? Number(data.funnel_stage_id) : null;
+						const tagIds = Array.isArray(data.tag_ids) ? data.tag_ids : [];
+
 						if (!crmClient) {
-							const shortName = clientNamePost.split(' ')[0] || clientNamePost;
-							[crmClient] = await sql`INSERT INTO clients (seller_id, name, short_name) VALUES (${sellerId}, ${clientNamePost}, ${shortName}) RETURNING id`;
+							const shortName = shortNameInput || clientNamePost.split(' ')[0] || clientNamePost;
+							[crmClient] = await sql`INSERT INTO clients (seller_id, name, short_name, whatsapp) VALUES (${sellerId}, ${clientNamePost}, ${shortName}, ${whatsappInput || null}) RETURNING id`;
+						} else {
+							// Update existing client if new info provided
+							if (whatsappInput || shortNameInput) {
+								if (whatsappInput && shortNameInput) await sql`UPDATE clients SET whatsapp=${whatsappInput}, short_name=${shortNameInput} WHERE id=${crmClient.id}`;
+								else if (whatsappInput) await sql`UPDATE clients SET whatsapp=${whatsappInput} WHERE id=${crmClient.id}`;
+								else if (shortNameInput) await sql`UPDATE clients SET short_name=${shortNameInput} WHERE id=${crmClient.id}`;
+							}
 						}
+
 						if (crmClient && crmClient.id) {
 							const [existingLink] = await sql`SELECT 1 FROM crm_client_sales WHERE client_id = ${crmClient.id} AND sale_id = ${row.id} LIMIT 1`;
 							if (!existingLink) {
 								await sql`INSERT INTO crm_client_sales (client_id, sale_id, seller_id) VALUES (${crmClient.id}, ${row.id}, ${sellerId})`;
-								// Automated pipeline update
+							}
+							
+							// Explicit stage assignment
+							if (stageIdInput) {
+								await sql`
+									INSERT INTO crm_client_stage (client_id, stage_id, updated_by, updated_at)
+									VALUES (${crmClient.id}, ${stageIdInput}, ${sellerId}, now())
+									ON CONFLICT (client_id) DO UPDATE SET stage_id = EXCLUDED.stage_id, updated_by = EXCLUDED.updated_by, updated_at = now()
+								`;
+							} else if (!data.funnel_stage_id) {
+								// Automated pipeline update only if no explicit stage was provided
 								await autoUpdateClientStage(crmClient.id, sellerId);
+							}
+
+							// Assignment of Custom Tags (crm_tags)
+							if (tagIds.length > 0) {
+								for (const tagId of tagIds) {
+									await sql`
+										INSERT INTO crm_client_tags (client_id, tag_id)
+										VALUES (${crmClient.id}, ${tagId})
+										ON CONFLICT DO NOTHING
+									`;
+								}
 							}
 						}
 					} catch (crmErr) {
@@ -673,7 +725,7 @@ export async function handler(event) {
 			} catch {}
 				const createdAt = current.created_at ? new Date(current.created_at) : null;
 				const withinGrace = createdAt ? ((new Date()) - createdAt) < 120000 : false; // 2 minutes
-				const client = (data.client_name ?? '').toString();
+				const client = normalizeClientName(data.client_name ?? '');
 				const comment = (Object.prototype.hasOwnProperty.call(data, 'comment_text')) ? (data.comment_text ?? '') : current.comment_text;
 				
 				// Support for new dynamic items structure
@@ -702,6 +754,7 @@ export async function handler(event) {
 						// 1. Check if this specific sale is already linked to a client
 						const [existingLink] = await sql`SELECT client_id FROM crm_client_sales WHERE sale_id = ${id} LIMIT 1`;
 						
+						let clientId = null;
 						if (existingLink) {
 							const oldClientId = existingLink.client_id;
 							// Find if a client already exists with the NEW name
@@ -709,19 +762,18 @@ export async function handler(event) {
 							
 							if (targetClient) {
 								if (targetClient.id !== oldClientId) {
-									// RELINK: The new name belongs to a DIFFERENT existing client. Point the sale to them.
 									await sql`UPDATE crm_client_sales SET client_id = ${targetClient.id} WHERE sale_id = ${id}`;
-									// Automated pipeline update
+									clientId = targetClient.id;
 									await autoUpdateClientStage(targetClient.id, activeSellerId);
 								} else {
-									// SAME CLIENT: Name matches (might be a case correction). Update the formal name if needed.
 									if (targetClient.name !== client.trim()) {
 										await sql`UPDATE clients SET name = ${client.trim()} WHERE id = ${oldClientId}`;
 									}
+									clientId = oldClientId;
 								}
 							} else {
-								// RENAME: No client exists with the new name. Rename the currently linked client.
 								await sql`UPDATE clients SET name = ${client.trim()} WHERE id = ${oldClientId}`;
+								clientId = oldClientId;
 							}
 						} else {
 							// 2. No existing link: Standard find-or-create and link logic
@@ -732,13 +784,25 @@ export async function handler(event) {
 							}
 							if (crmClient && crmClient.id) {
 								await sql`INSERT INTO crm_client_sales (client_id, sale_id, seller_id) VALUES (${crmClient.id}, ${id}, ${activeSellerId}) ON CONFLICT (sale_id) DO UPDATE SET client_id = EXCLUDED.client_id`;
-								// Automated pipeline update
+								clientId = crmClient.id;
 								await autoUpdateClientStage(crmClient.id, activeSellerId);
+							}
+						}
+
+						// 3. SYNC NOTE TO CRM TIMELINE (Update last or insert)
+						if (clientId && comment.trim() !== '' && comment !== current.comment_text) {
+							const actorNameSync = (data._actor_name || '').toString();
+							const [existingActivity] = await sql`SELECT id FROM crm_activities WHERE client_id = ${clientId} AND related_sale_id = ${id} AND activity_type = 'note' LIMIT 1`;
+							
+							if (existingActivity) {
+								await sql`UPDATE crm_activities SET description = ${comment}, created_at = now(), created_by = ${actorNameSync} WHERE id = ${existingActivity.id}`;
+							} else {
+								await sql`INSERT INTO crm_activities (seller_id, client_id, related_sale_id, activity_type, description, created_by) VALUES (${activeSellerId}, ${clientId}, ${id}, 'note', ${comment}, ${actorNameSync})`;
 							}
 						}
 					}
 				} catch (err) {
-					console.error('Error auto-linking sale to CRM:', err);
+					console.error('Error auto-linking sale to CRM or syncing note:', err);
 				}
 			}
 
@@ -976,6 +1040,12 @@ export async function handler(event) {
 					}
 				} catch {}
 				const row = await recalcTotalForId(id);
+				
+				// After any update to a sale, check if the day should be automatically archived
+				if (current.sale_day_id) {
+					checkAndAutoArchiveDay(current.sale_day_id);
+				}
+				
 				return json(row);
 			}
 			case 'DELETE': {

@@ -47,17 +47,29 @@ export async function handler(event) {
             total_debt_cents: Number(statsQuery[0]?.total_debt_cents || 0)
         };
 
-        // 2. Recordatorios para hoy o vencidos
+        // 2. Recordatorios para hoy o vencidos (con data de cliente completa)
         const remindersToday = await sql`
-            SELECT id, title, description, due_date, reminder_type, priority, completed, client_id, prospect_id 
-            FROM crm_reminders 
-            WHERE seller_id = ${sellerId} 
-            AND completed = false 
-            AND due_date <= (CURRENT_DATE + INTERVAL '1 day')
-            ORDER BY priority DESC, due_date ASC
+            SELECT 
+                r.id as reminder_id, r.title as reminder_title, r.description as reminder_description, 
+                r.due_date, r.reminder_type, r.priority, r.completed, r.client_id, r.prospect_id,
+                COALESCE(c.name, p.name) as name, 
+                COALESCE(c.whatsapp, p.whatsapp) as whatsapp,
+                (SELECT COUNT(cs1.sale_id) FROM crm_client_sales cs1 WHERE cs1.client_id = c.id) as total_orders,
+                (SELECT SUM(s1.total_cents) FROM sales s1 JOIN crm_client_sales cs2 ON s1.id = cs2.sale_id WHERE cs2.client_id = c.id) as lifetime_value_cents,
+                (SELECT COALESCE(SUM(CASE WHEN s2.pay_method IS NULL OR s2.pay_method = '' OR s2.pay_method = '-' OR s2.pay_method = 'entregado' THEN s2.total_cents ELSE 0 END), 0) FROM sales s2 JOIN crm_client_sales cs3 ON s2.id = cs3.sale_id WHERE cs3.client_id = c.id) as total_debt_cents,
+                st.name as stage_name, st.color as stage_color
+            FROM crm_reminders r
+            LEFT JOIN clients c ON r.client_id = c.id
+            LEFT JOIN crm_prospects p ON r.prospect_id = p.id
+            LEFT JOIN crm_client_stage cst ON c.id = cst.client_id
+            LEFT JOIN crm_stages st ON cst.stage_id = st.id
+            WHERE r.seller_id = ${sellerId} 
+            AND r.completed = false 
+            AND r.due_date <= (CURRENT_DATE + INTERVAL '1 day')
+            ORDER BY r.priority DESC, r.due_date ASC
         `;
 
-        // 3. Cumpleañeros (Próximos 7 días) con etapa y deuda
+        // 3. Cumpleañeros (Próximos 5 días)
         const upcomingBirthdays = await sql`
             SELECT 
                 c.id, c.name, c.whatsapp, c.birth_date,
@@ -72,23 +84,31 @@ export async function handler(event) {
             LEFT JOIN crm_client_stage cst ON c.id = cst.client_id
             LEFT JOIN crm_stages st ON cst.stage_id = st.id
             WHERE c.seller_id = ${sellerId}
+            AND (c.last_dashboard_check IS NULL OR c.last_dashboard_check::date < CURRENT_DATE)
             AND c.birth_date IS NOT NULL
             AND (
-                (EXTRACT(MONTH FROM birth_date) = EXTRACT(MONTH FROM CURRENT_DATE) AND EXTRACT(DAY FROM birth_date) >= EXTRACT(DAY FROM CURRENT_DATE))
-                OR
-                (EXTRACT(MONTH FROM birth_date) = EXTRACT(MONTH FROM CURRENT_DATE + INTERVAL '7 days') AND EXTRACT(DAY FROM birth_date) <= EXTRACT(DAY FROM CURRENT_DATE + INTERVAL '7 days'))
+                -- Robust check using to_char (MMDD) for the next 5 days
+                to_char(birth_date, 'MMDD') IN (
+                    to_char(CURRENT_DATE, 'MMDD'),
+                    to_char(CURRENT_DATE + INTERVAL '1 day', 'MMDD'),
+                    to_char(CURRENT_DATE + INTERVAL '2 days', 'MMDD'),
+                    to_char(CURRENT_DATE + INTERVAL '3 days', 'MMDD'),
+                    to_char(CURRENT_DATE + INTERVAL '4 days', 'MMDD'),
+                    to_char(CURRENT_DATE + INTERVAL '5 days', 'MMDD')
+                )
             )
-            ORDER BY EXTRACT(MONTH FROM birth_date), EXTRACT(DAY FROM birth_date)
+            ORDER BY to_char(birth_date, 'MMDD') ASC
             LIMIT 15
         `;
 
         // 4. Clientes para Reactivar con etapa y deuda
         const inactiveClientsRaw = await sql`
             WITH ClientSales AS (
-                SELECT c.id, c.name, c.whatsapp, MAX(s.created_at) as last_date
+                SELECT c.id, c.name, c.whatsapp, MAX(sd.day)::text as last_date
                 FROM clients c
                 JOIN crm_client_sales cs ON c.id = cs.client_id
                 JOIN sales s ON cs.sale_id = s.id
+                JOIN sale_days sd ON s.sale_day_id = sd.id
                 WHERE c.seller_id = ${sellerId}
                 GROUP BY c.id, c.name, c.whatsapp
             )
@@ -104,10 +124,13 @@ export async function handler(event) {
             FROM ClientSales cs
             LEFT JOIN crm_client_stage cst ON cs.id = cst.client_id
             LEFT JOIN crm_stages st ON cst.stage_id = st.id
-            WHERE cs.last_date < NOW() - INTERVAL '30 days'
+            JOIN clients c ON cs.id = c.id
+            WHERE cs.last_date::date < CURRENT_DATE - INTERVAL '30 days'
+            AND (c.last_dashboard_check IS NULL OR c.last_dashboard_check::date < CURRENT_DATE)
             ORDER BY cs.last_date ASC
             LIMIT 20
         `;
+
 
         return json({
             stats,

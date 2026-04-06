@@ -7,6 +7,144 @@ async function openClientDetailView(clientName) {
 	switchView('#view-client-detail');
 }
 
+/**
+ * Helper to detect 2-second long press on an element
+ */
+function attachLongPress(el, callback) {
+	let timer;
+	const delay = 1000; // 1 second
+
+	const start = (e) => {
+		// Only trigger on main click or touch
+		if (e.type === 'mousedown' && e.button !== 0) return;
+		
+		timer = setTimeout(() => {
+			timer = null;
+			if (typeof callback === 'function') callback(e);
+		}, delay);
+	};
+
+	const cancel = () => {
+		if (timer) {
+			clearTimeout(timer);
+			timer = null;
+		}
+	};
+
+	el.addEventListener('mousedown', start);
+	el.addEventListener('touchstart', start, { passive: true });
+
+	el.addEventListener('mouseup', cancel);
+	el.addEventListener('mouseleave', cancel);
+	el.addEventListener('touchend', cancel);
+	el.addEventListener('touchmove', cancel);
+}
+
+/**
+ * Opens a full-screen (mobile) or centered (desktop) popover to edit client CRM description
+ */
+async function openClientDescriptionPopover(clientName, e) {
+	if (!clientName) return;
+	
+	// Create Overlay
+	const overlay = document.createElement('div');
+	overlay.className = 'desc-popover-overlay';
+	
+	// Create Content
+	const content = document.createElement('div');
+	content.className = 'desc-popover-content';
+	
+	// Calculate Position (Contextual)
+	let x = 20;
+	let y = 100;
+	if (e) {
+		const touch = e.touches ? e.touches[0] : e;
+		x = touch.clientX || 20;
+		y = touch.clientY || 100;
+	}
+	
+	// Adjust to be roughly centered around press bit shifted up to avoid finger cover
+	const viewportW = window.innerWidth;
+	const viewportH = window.innerHeight;
+	
+	if (viewportW > 600) {
+		content.style.left = Math.min(viewportW - 480, Math.max(20, x - 230)) + 'px';
+		content.style.top = Math.min(viewportH - 200, Math.max(20, y - 60)) + 'px';
+	} else {
+		// Mobile: roughly top region near press
+		content.style.top = Math.min(viewportH - 300, Math.max(20, y - 100)) + 'px';
+	}
+	
+	// Body only (no header/footer)
+	const body = document.createElement('div');
+	body.className = 'desc-popover-body';
+	
+	const textarea = document.createElement('textarea');
+	textarea.className = 'desc-popover-textarea';
+	textarea.placeholder = 'Descripción...';
+	textarea.value = 'Cargando...';
+	textarea.disabled = true;
+	body.appendChild(textarea);
+	
+	content.appendChild(body);
+	overlay.appendChild(content);
+	document.body.appendChild(overlay);
+	
+	// Fetch Client Info
+	let clientInfo = null;
+	try {
+		const sellerId = state.currentSeller?.id || state._clientDetailSellerId;
+		if (!sellerId) throw new Error('No se pudo identificar al vendedor encargado');
+		
+		const clients = await api('GET', `${API.Clients}?seller_id=${sellerId}`);
+		clientInfo = (clients || []).find(c => String(c.name).trim().toLowerCase() === String(clientName).trim().toLowerCase());
+		textarea.value = clientInfo?.description || '';
+		textarea.disabled = false;
+		textarea.focus();
+	} catch (e) {
+		console.error('Error fetching client description:', e);
+		textarea.value = '';
+		textarea.placeholder = 'Error al cargar. Puedes escribir una nueva descripción.';
+		textarea.disabled = false;
+	}
+	
+	const closeAndSave = async () => {
+		const newDesc = textarea.value.trim();
+		const oldDesc = (clientInfo?.description || '').trim();
+		
+		// Remove from DOM immediately for snappy feel
+		overlay.style.opacity = '0';
+		overlay.style.transition = 'opacity 0.2s';
+		setTimeout(() => overlay.remove(), 200);
+		
+		if (newDesc !== oldDesc) {
+			try {
+				const sellerId = state.currentSeller?.id || state._clientDetailSellerId;
+				if (!sellerId) throw new Error('No se pudo identificar al vendedor encargado');
+				
+				await api('POST', API.Clients, {
+					seller_id: sellerId,
+					name: clientName,
+					description: newDesc
+				});
+				showToast('Descripción guardada', 'success');
+			} catch (e) {
+				console.error('Error saving description:', e);
+				showToast('Error al guardar descripción: ' + e.message, 'error');
+			}
+		}
+	};
+	
+	overlay.addEventListener('click', (e) => {
+		if (e.target === overlay) closeAndSave();
+	});
+	
+	// Pre-emptively close on touchstart outside content for extreme snappiness on mobile
+	overlay.addEventListener('touchstart', (e) => {
+		if (e.target === overlay) closeAndSave();
+	}, { passive: true });
+}
+
 // Global client detail view - works without needing a current seller selected
 async function openGlobalClientDetailView(clientName) {
 	const name = String(clientName || '').trim();
@@ -59,7 +197,9 @@ async function loadGlobalClientDetailRows(clientName) {
 					qty_nute: Number(s.qty_nute || 0),
 					pay_method: s.pay_method || '',
 					is_paid: !!s.is_paid,
-					items: s.items || []
+					items: s.items || [],
+					client_tags: s.client_tags || [],
+					comment_text: s.comment_text || ''
 				});
 			}
 		} catch (e) {
@@ -75,7 +215,8 @@ async function loadGlobalClientDetailRows(clientName) {
 		state._clientDetailSellerId = allRows[0].sellerId;
 	}
 
-	renderClientDetailTable(allRows);
+	state._clientDetailRows = allRows;
+	renderClientDetailTable();
 }
 
 async function loadClientDetailRows(clientName) {
@@ -103,16 +244,19 @@ async function loadClientDetailRows(clientName) {
 			qty_nute: Number(s.qty_nute || 0),
 			pay_method: s.pay_method || '',
 			is_paid: !!s.is_paid,
-			items: s.items || []
+			items: s.items || [],
+			client_tags: s.client_tags || [],
+			comment_text: s.comment_text || ''
 		});
 	}
 
 	// Data already sorted by backend (day DESC)
+	state._clientDetailRows = allRows;
 
 	// Save the seller ID for this client
 	state._clientDetailSellerId = sellerId;
 
-	renderClientDetailTable(allRows);
+	renderClientDetailTable();
 }
 
 // Attempt to restore sales that were overwritten to zeros by re-applying last non-zero values from change logs
@@ -159,9 +303,45 @@ async function restoreBuggedSalesForSeller() {
 	return restored;
 }
 
-function renderClientDetailTable(rows) {
+function renderClientDetailTable() {
+	const rows = state._clientDetailRows || [];
 	const tbody = document.getElementById('client-detail-tbody');
 	if (!tbody) return;
+
+	// Update Tag Filters for History
+	renderTagFilters(rows, 'client-detail-tags-filter', () => renderClientDetailTable());
+
+	// Filter by search and tag
+	const searchInput = document.getElementById('client-detail-search-input');
+	if (searchInput && !searchInput.dataset.bound) {
+		searchInput.dataset.bound = '1';
+		searchInput.addEventListener('input', () => renderClientDetailTable());
+	}
+	const query = (searchInput?.value || '').toLowerCase().trim();
+
+	let filteredRows = rows.filter(row => {
+		// 1. Search query filter (search in date, products, comment)
+		if (query) {
+			const date = String(row.dayIso).toLowerCase();
+			const products = (row.items || []).map(i => (i.name || '').toLowerCase()).join(' ');
+			const comment = (row.comment_text || '').toLowerCase();
+			if (!date.includes(query) && !products.includes(query) && !comment.includes(query)) return false;
+		}
+		return true;
+	});
+
+	// 2. Tag Sort ("Mostrar Primero")
+	if (state.currentTagIdFilter) {
+		const filterKey = state.currentTagIdFilter;
+		filteredRows.sort((a, b) => {
+			const hasA = (a.client_tags || []).some(t => (t.id || t.name) === filterKey);
+			const hasB = (b.client_tags || []).some(t => (t.id || t.name) === filterKey);
+			if (hasA && !hasB) return -1;
+			if (!hasA && hasB) return 1;
+			return 0;
+		});
+	}
+
 	tbody.innerHTML = '';
 
 	// Helper function to get quantity for a dessert from a sale row (supports both items array and legacy qty_* columns)
@@ -178,29 +358,79 @@ function renderClientDetailTable(rows) {
 	// Update title with client name and seller name
 	const title = document.getElementById('client-detail-title');
 	if (title) {
-		// Clear existing content and create editable structure
 		title.innerHTML = '';
-		title.style.position = 'absolute';
-		title.style.left = '50%';
-		title.style.transform = 'translateX(-50%)';
-		title.style.margin = '0';
+		title.style.display = 'flex';
+		title.style.flexDirection = 'column';
+		title.style.alignItems = 'center';
+		title.style.gap = '4px';
+
+		// Line 1: Name and Seller
+		const line1 = document.createElement('div');
+		line1.style.display = 'flex';
+		line1.style.alignItems = 'center';
+		line1.style.gap = '8px';
+
 		const clientNameSpan = document.createElement('span');
 		clientNameSpan.textContent = state._clientDetailName || 'Cliente';
 		clientNameSpan.style.cursor = 'pointer';
-		clientNameSpan.title = 'Haz clic para editar';
 		clientNameSpan.addEventListener('click', () => {
 			openEditClientNameDialog(state._clientDetailName);
 		});
+		line1.appendChild(clientNameSpan);
 
-		const sellerNameSpan = document.createElement('span');
 		if (rows && rows.length > 0 && rows[0].sellerName) {
-			sellerNameSpan.textContent = '  -  ' + rows[0].sellerName;
-			sellerNameSpan.style.opacity = '0.7';
-			sellerNameSpan.style.marginRight = '5px';
+			const s = document.createElement('span');
+			s.textContent = '  -  ' + rows[0].sellerName;
+			s.style.opacity = '0.7';
+			line1.appendChild(s);
+		}
+		title.appendChild(line1);
+
+		// Line 2: Tags and Note (from primary/latest sale)
+		const line2 = document.createElement('div');
+		line2.className = 'client-row-2';
+		line2.style.justifyContent = 'center';
+		
+		const sampleSale = rows[0] || {};
+		if (Array.isArray(sampleSale.client_tags) && sampleSale.client_tags.length > 0) {
+			const tagsWrap = document.createElement('div');
+			tagsWrap.className = 'tag-badges-container';
+			sampleSale.client_tags.forEach(t => {
+				const span = document.createElement('span');
+				span.className = 'tag-badge-small';
+				span.style.backgroundColor = t.color || '#818cf8';
+				span.textContent = t.name;
+				tagsWrap.appendChild(span);
+			});
+			line2.appendChild(tagsWrap);
 		}
 
-		title.appendChild(clientNameSpan);
-		title.appendChild(sellerNameSpan);
+		const inlineComment = document.createElement('div');
+		inlineComment.className = 'inline-comment-input';
+		inlineComment.contentEditable = 'true';
+		inlineComment.textContent = sampleSale.comment_text || '';
+		if (!inlineComment.textContent) inlineComment.setAttribute('data-placeholder', 'Nota...');
+		
+		inlineComment.style.textAlign = 'center';
+		inlineComment.style.width = '120px';
+		inlineComment.style.display = 'block';
+		inlineComment.style.margin = '0 auto';
+		inlineComment.style.minHeight = '14px';
+
+		inlineComment.addEventListener('input', () => {
+			if (inlineComment.textContent) inlineComment.removeAttribute('data-placeholder');
+			else inlineComment.setAttribute('data-placeholder', 'Nota...');
+		});
+
+		inlineComment.addEventListener('blur', async () => {
+			const newText = inlineComment.textContent.trim();
+			if (sampleSale.id) {
+				await saveComment(sampleSale.id, newText);
+				sampleSale.comment_text = newText;
+			}
+		});
+		line2.appendChild(inlineComment);
+		title.appendChild(line2);
 	}
 
 	if (!rows || rows.length === 0) {
@@ -215,6 +445,7 @@ function renderClientDetailTable(rows) {
 	for (const r of rows) {
 		const tr = document.createElement('tr');
 		tr.dataset.id = String(r.id);
+		attachLongPress(tr, (ev) => openClientDescriptionPopover(state._clientDetailName, ev));
 		const tdPay = document.createElement('td'); tdPay.className = 'col-paid';
 		const wrap = document.createElement('span'); wrap.className = 'pay-wrap';
 		const sel = document.createElement('select'); sel.className = 'input-cell pay-select';
@@ -277,6 +508,9 @@ function renderClientDetailTable(rows) {
 		wrap.tabIndex = 0;
 		wrap.addEventListener('keydown', async (e) => {
 			if (e.key === 'Enter' || e.key === ' ') {
+				// Don't intercept if focus is actually in an input/textarea
+				if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+				
 				e.preventDefault();
 				const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
 				const pm = String(r.pay_method || '').trim().replace(/\.$/, '').toLowerCase();
@@ -517,7 +751,8 @@ const API = {
 	Recipes: '/api/recipes',
 	Inventory: '/api/inventory',
 	Desserts: '/api/desserts',
-	Notifications: '/api/notifications'
+	Notifications: '/api/notifications',
+	Clients: '/api/clients'
 };
 
 const PRICES = {
@@ -607,6 +842,8 @@ const state = {
 	dessertsLoaded: false,
 	visibleDesserts: [], // Desserts currently visible in sales table (sold in selected day)
 	globalClientSuggestions: [], // Global client suggestions for header search
+	currentTagIdFilter: null, // Active tag filter ID for sales tables
+	_clientDetailRows: [],   // Raw rows for current client detail view
 };
 
 // Toasts (simple notifications)
@@ -1080,6 +1317,9 @@ async function enterSeller(id) {
 		loadDesserts().then(() => renderDessertColumns()),
 		loadDaysForSeller()
 	]);
+
+	// 🛠️ FIX: Ensure UI transitions to the sales view when a seller is selected
+	switchView('#view-sales');
 }
 
 function switchView(id) {
@@ -1220,9 +1460,9 @@ function renderDessertColumns() {
 	// Insert new th columns before col-total
 	const totalTh = headerRow.querySelector('th.col-total');
 	if (totalTh) {
-		for (const d of visibleDesserts) {
+		visibleDesserts.forEach((d, i) => {
 			const th = document.createElement('th');
-			th.className = `col-dessert col-${d.short_code}`;
+			th.className = `col-dessert col-${d.short_code}${i % 2 === 1 ? ' col-alt' : ''}`;
 			th.dataset.label = d.name;
 			th.dataset.shortCode = d.short_code;
 			const span = document.createElement('span');
@@ -1230,7 +1470,7 @@ function renderDessertColumns() {
 			span.textContent = d.name;
 			th.appendChild(span);
 			headerRow.insertBefore(th, totalTh);
-		}
+		});
 	}
 
 	// Also update footer rows
@@ -1281,9 +1521,21 @@ function getVisibleDessertsForSalesTable() {
 		}
 	}
 
+	// Only return desserts that have sold at least one or already have a delivered amount set
 	state.visibleDesserts = state.desserts.filter(d => {
 		const shortCode = String(d?.short_code || '').trim().toLowerCase();
-		return shortCode && soldShortCodes.has(shortCode);
+		if (!shortCode) return false;
+		
+		// If it has sales
+		if (soldShortCodes.has(shortCode)) return true;
+		
+		// If it has delivered units already set in the current day record
+		const day = (state && Array.isArray(state.saleDays) && state.selectedDayId)
+			? (state.saleDays || []).find(d => d && d.id === state.selectedDayId)
+			: null;
+		
+		const delivered = Number(day?.[`delivered_${shortCode}`] || 0) || 0;
+		return delivered > 0;
 	});
 
 	return state.visibleDesserts;
@@ -1305,13 +1557,25 @@ function renderFooterDessertColumns(visibleDesserts = state.visibleDesserts || [
 		existing.forEach(td => td.remove());
 	});
 
+	// Mobile structural adjustment for commission rows
+	const isMobile = (window.innerWidth <= 600);
+	[commRow, commPaidRow].forEach(row => {
+		if (row) {
+			const labelTd = row.querySelector('td.col-client');
+			if (labelTd) labelTd.colSpan = isMobile ? (visibleDesserts.length + 1) : 1;
+		}
+	});
+
 	// Insert new columns before col-total
-	for (const d of visibleDesserts) {
+	visibleDesserts.forEach((d, i) => {
+		const isAlt = (i % 2 === 1);
+		const altClass = isAlt ? ' col-alt' : '';
+
 		// Qty row
 		if (qtyRow) {
 			const totalTd = qtyRow.querySelector('td.col-total');
 			const td = document.createElement('td');
-			td.className = `col-dessert col-${d.short_code}`;
+			td.className = `col-dessert col-${d.short_code}${altClass}`;
 			const span = document.createElement('span');
 			span.id = `sum-${d.short_code}-qty`;
 			span.textContent = '0';
@@ -1323,7 +1587,7 @@ function renderFooterDessertColumns(visibleDesserts = state.visibleDesserts || [
 		if (amtRow) {
 			const totalTd = amtRow.querySelector('td.col-total');
 			const td = document.createElement('td');
-			td.className = `col-dessert col-${d.short_code}`;
+			td.className = `col-dessert col-${d.short_code}${altClass}`;
 			const span = document.createElement('span');
 			span.id = `sum-${d.short_code}-amt`;
 			span.textContent = '0';
@@ -1335,7 +1599,7 @@ function renderFooterDessertColumns(visibleDesserts = state.visibleDesserts || [
 		if (delivRow) {
 			const totalTd = delivRow.querySelector('td.col-total');
 			const td = document.createElement('td');
-			td.className = `col-dessert col-${d.short_code}`;
+			td.className = `col-dessert col-${d.short_code}${altClass}`;
 			const span = document.createElement('span');
 			span.id = `deliv-${d.short_code}`;
 			span.style.outline = 'none';
@@ -1344,22 +1608,22 @@ function renderFooterDessertColumns(visibleDesserts = state.visibleDesserts || [
 			if (totalTd) delivRow.insertBefore(td, totalTd);
 		}
 
-		// Comm row (empty cells)
-		if (commRow) {
+		// Comm row (empty cells) - only on desktop
+		if (commRow && !isMobile) {
 			const totalTd = commRow.querySelector('td.col-total');
 			const td = document.createElement('td');
-			td.className = `col-dessert col-${d.short_code}`;
+			td.className = `col-dessert col-${d.short_code}${altClass}`;
 			if (totalTd) commRow.insertBefore(td, totalTd);
 		}
-
-		// Comm Paid row (empty cells)
-		if (commPaidRow) {
+		
+		// Comm Paid row (empty cells) - only on desktop
+		if (commPaidRow && !isMobile) {
 			const totalTd = commPaidRow.querySelector('td.col-total');
 			const td = document.createElement('td');
-			td.className = `col-dessert col-${d.short_code}`;
+			td.className = `col-dessert col-${d.short_code}${altClass}`;
 			if (totalTd) commPaidRow.insertBefore(td, totalTd);
 		}
-	}
+	});
 
 	// Add stacked summary rows
 	const footer = document.getElementById('sales-table-footer');
@@ -1435,8 +1699,12 @@ function formatSaleSummary(sale) {
 
 // Helper to create dessert qty cell for a sale row
 function createDessertQtyCell(sale, dessert, tr) {
+	const visibleDesserts = state.visibleDesserts || [];
+	const vIdx = visibleDesserts.findIndex(d => d.id === dessert.id);
+	const isAlt = (vIdx !== -1 && vIdx % 2 === 1);
+
 	const td = document.createElement('td');
-	td.className = `col-dessert col-${dessert.short_code}`;
+	td.className = `col-dessert col-${dessert.short_code}${isAlt ? ' col-alt' : ''}`;
 	const input = document.createElement('input');
 	input.className = 'input-cell input-qty';
 	input.type = 'number';
@@ -1482,6 +1750,35 @@ function renderTable() {
 	renderDessertColumns();
 	const visibleDesserts = state.visibleDesserts || [];
 	const tbody = $('#sales-tbody');
+	
+	// Update Tag Filters
+	renderTagFilters(state.sales, 'active-table-tags-filter', () => renderTable());
+
+	// Filter sales by search and tag
+	const searchInput = document.getElementById('active-table-client-search');
+	const query = (searchInput?.value || '').toLowerCase().trim();
+	
+	let filteredSales = (state.sales || []).filter(sale => {
+		// 1. Search query filter (Always filter/hide non-matches)
+		if (query) {
+			const name = (sale.client_name || '').toLowerCase();
+			if (!name.includes(query)) return false;
+		}
+		return true;
+	});
+
+	// 2. Tag Sort ("Mostrar Primero")
+	if (state.currentTagIdFilter) {
+		const filterKey = state.currentTagIdFilter;
+		filteredSales.sort((a, b) => {
+			const hasA = (a.client_tags || []).some(t => (t.id || t.name) === filterKey);
+			const hasB = (b.client_tags || []).some(t => (t.id || t.name) === filterKey);
+			if (hasA && !hasB) return -1;
+			if (!hasA && hasB) return 1;
+			return 0;
+		});
+	}
+
 	// Update caption with selected date label
 	try {
 		const cap = document.getElementById('sales-caption');
@@ -1497,7 +1794,7 @@ function renderTable() {
 		}
 	} catch { }
 	tbody.innerHTML = '';
-	for (const sale of state.sales) {
+	for (const sale of filteredSales) {
 		const total = calcRowTotal(sale);
 		const isPaid = !!sale.is_paid;
 		const tr = el('tr', { 'data-sale-id': sale.id },
@@ -1583,6 +1880,9 @@ function renderTable() {
 				wrap.tabIndex = 0;
 				wrap.addEventListener('keydown', async (e) => {
 					if (e.key === 'Enter' || e.key === ' ') {
+						// Don't intercept if focus is actually in an input/textarea
+						if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+						
 						e.preventDefault();
 						const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
 						const pm = String(sale.pay_method || '').trim().replace(/\.$/, '').toLowerCase();
@@ -1614,14 +1914,19 @@ function renderTable() {
 			(function () {
 				const td = document.createElement('td');
 				td.className = 'col-client';
+				
+				const container = document.createElement('div');
+				container.className = 'col-client-container';
+
+				const row1 = document.createElement('div');
+				row1.className = 'client-row-1';
+
 				const input = document.createElement('input');
 				input.className = 'input-cell client-input';
 				input.value = sale.client_name || '';
 				input.placeholder = '';
-				input.readOnly = true; // Make readonly - only editable via edit button
-				input.style.flexShrink = '1'; // Allow input to shrink if needed
-				input.style.minWidth = '0'; // Allow input to shrink below its content width
-				// Lock edit action for non-admins if pay_method chosen
+				input.readOnly = true;
+				
 				const isAdminUser = !!state.currentUser?.isAdmin || state.currentUser?.role === 'superadmin';
 				const saleLocked = String(sale.pay_method || '').trim() !== '';
 				if (!isAdminUser && saleLocked) {
@@ -1630,71 +1935,92 @@ function renderTable() {
 				} else {
 					input.style.cursor = 'pointer';
 				}
-				// Add background color based on special pricing
+
 				if (sale.special_pricing_type === 'muestra') {
 					input.style.background = 'rgba(255, 165, 0, 0.5)';
 					input.style.color = 'white';
-					input.style.fontWeight = '600';
-					input.style.borderRadius = '6px';
-					input.style.padding = '3px 8px';
-					input.style.width = 'auto';
-					input.style.display = 'inline-block';
 				} else if (sale.special_pricing_type === 'a_costo') {
 					input.style.background = 'rgba(240, 98, 146, 0.5)';
 					input.style.color = 'white';
-					input.style.fontWeight = '600';
-					input.style.borderRadius = '6px';
-					input.style.padding = '3px 8px';
-					input.style.width = 'auto';
-					input.style.display = 'inline-block';
 				}
-				// Add click listener to show action bar
+
 				input.addEventListener('click', (e) => {
 					e.stopPropagation();
 					const currentName = input.value || '';
 					openClientActionBar(td, sale.id, currentName, e.clientX, e.clientY);
 				});
-				td.appendChild(input);
+				
+				row1.appendChild(input);
+				
+				// Recurrence and Comment Indicators
+				const indicators = document.createElement('div');
+				indicators.style.display = 'flex';
+				indicators.style.alignItems = 'center';
+				indicators.style.position = 'absolute';
+				indicators.style.right = '4px';
+				indicators.style.top = '50%';
+				indicators.style.transform = 'translateY(-50%)';
+				indicators.style.gap = '2px';
+				indicators.style.pointerEvents = 'none';
 
 				const name = (sale.client_name || '').trim();
 				if (name) {
 					const key = normalizeClientName(name);
 					const count = (state.clientCounts && typeof state.clientCounts.get === 'function') ? (state.clientCounts.get(key) || 0) : 0;
 					if (count > 1) {
-						td.classList.add('has-reg');
 						const reg = document.createElement('span');
 						reg.className = 'client-reg-large';
 						reg.textContent = '®';
-						reg.title = 'Cliente recurrente';
-						reg.addEventListener('click', async (ev) => { ev.stopPropagation(); await openClientDetailView(name); });
-						td.appendChild(reg);
+						reg.style.fontSize = '10px';
+						reg.style.opacity = '0.6';
+						indicators.appendChild(reg);
 					}
 				}
-				// Add comment marker if comment exists
-				if (sale.comment_text && sale.comment_text.trim()) {
-					td.classList.add('has-comment');
-					const commentMarker = document.createElement('span');
-					commentMarker.className = 'comment-marker';
-					commentMarker.textContent = '💬';
-					commentMarker.title = 'Ver/editar comentario';
-					commentMarker.addEventListener('click', async (ev) => {
-						ev.stopPropagation();
-						await openCommentDialog(input, sale.comment_text, ev.clientX, ev.clientY, sale.id);
-						// After closing (click outside), check if we need to update marker
-						const updatedSale = state.sales.find(s => s.id === sale.id);
-						if (updatedSale && !updatedSale.comment_text?.trim()) {
-							// Remove marker if comment was deleted
-							commentMarker.remove();
-							td.classList.remove('has-comment');
-						}
+				
+				row1.appendChild(indicators);
+				container.appendChild(row1);
+
+				// Row 2: Tags and Inline Note
+				const row2 = document.createElement('div');
+				row2.className = 'client-row-2';
+
+				if (Array.isArray(sale.client_tags) && sale.client_tags.length > 0) {
+					const tagsWrap = document.createElement('div');
+					tagsWrap.className = 'tag-badges-container';
+					sale.client_tags.forEach(t => {
+						const span = document.createElement('span');
+						span.className = 'tag-badge-small';
+						span.style.backgroundColor = t.color || '#818cf8';
+						span.textContent = t.name;
+						tagsWrap.appendChild(span);
 					});
-					td.appendChild(commentMarker);
-					// Position comment marker dynamically based on text width
-					updateCommentMarkerPosition(input, commentMarker);
-					// Update position on input changes
-					input.addEventListener('input', () => updateCommentMarkerPosition(input, commentMarker));
-					input.addEventListener('blur', () => updateCommentMarkerPosition(input, commentMarker));
+					row2.appendChild(tagsWrap);
 				}
+
+				const inlineComment = document.createElement('div');
+				inlineComment.className = 'inline-comment-input';
+				inlineComment.contentEditable = 'true';
+				inlineComment.textContent = sale.comment_text || '';
+				if (!inlineComment.textContent) inlineComment.setAttribute('data-placeholder', 'Escribir nota...');
+				
+				inlineComment.addEventListener('input', () => {
+					if (inlineComment.textContent) inlineComment.removeAttribute('data-placeholder');
+					else inlineComment.setAttribute('data-placeholder', 'Escribir nota...');
+				});
+
+				inlineComment.addEventListener('blur', async () => {
+					const newText = inlineComment.textContent.trim();
+					if (newText !== (sale.comment_text || '').trim()) {
+						await saveComment(sale.id, newText);
+						sale.comment_text = newText;
+					}
+				});
+				inlineComment.addEventListener('click', (e) => e.stopPropagation());
+				
+				row2.appendChild(inlineComment);
+				container.appendChild(row2);
+
+				td.appendChild(container);
 				return td;
 			})()
 		);
@@ -1721,6 +2047,7 @@ function renderTable() {
 		})()));
 
 		tr.dataset.id = String(sale.id);
+		attachLongPress(tr, (ev) => openClientDescriptionPopover(sale.client_name, ev));
 		tbody.appendChild(tr);
 		// Comment trigger removed per request
 	}
@@ -1728,8 +2055,15 @@ function renderTable() {
 	const colCount = document.querySelectorAll('#sales-table thead th').length || 8;
 	const addTr = document.createElement('tr');
 	addTr.className = 'add-row-line';
+	
+	// Split into two cells to align correctly on mobile: 
+	// 1st cell covers all but actions, 2nd cell is empty for actions column.
 	const td = document.createElement('td');
-	td.colSpan = colCount;
+	td.colSpan = colCount - 1;
+	
+	const container = document.createElement('div');
+	container.className = 'add-row-inline-container';
+	
 	const btn = document.createElement('button');
 	btn.className = 'inline-add-btn btn-primary';
 	btn.textContent = 'Nuevo pedido';
@@ -1737,8 +2071,21 @@ function renderTable() {
 		const rect = ev.currentTarget.getBoundingClientRect();
 		openNewSalePopover(rect.left + rect.width / 2, rect.top - 8);
 	});
-	td.appendChild(btn);
+	
+	const inlineTotal = document.createElement('span');
+	inlineTotal.id = 'inline-grand-total';
+	inlineTotal.className = 'inline-total-mobile';
+	
+	container.appendChild(btn);
+	container.appendChild(inlineTotal);
+	td.appendChild(container);
 	addTr.appendChild(td);
+	
+	// Add the actions column cell (empty) to push the content to the left of it
+	const tdActions = document.createElement('td');
+	tdActions.className = 'col-actions';
+	addTr.appendChild(tdActions);
+	
 	tbody.appendChild(addTr);
 
 	updateSummary();
@@ -1966,21 +2313,28 @@ async function performRedo() {
 
 // Superadmin-only editors for delivered counts per day (inline editable)
 function wireDeliveredRowEditors() {
-	const isSuper = state?.currentUser?.role === 'superadmin' || !!state?.currentUser?.isSuperAdmin;
-	const cells = [
-		{ key: 'arco', el: document.getElementById('deliv-arco') },
-		{ key: 'melo', el: document.getElementById('deliv-melo') },
-		{ key: 'mara', el: document.getElementById('deliv-mara') },
-		{ key: 'oreo', el: document.getElementById('deliv-oreo') },
-		{ key: 'nute', el: document.getElementById('deliv-nute') },
-	];
+	const user = state?.currentUser;
+	const isSuper = user?.role === 'superadmin' || !!user?.isSuperAdmin || String(user?.name).toLowerCase() === 'jorge';
+	const cells = [];
+	// Look only for spans belonging to flavor columns (exclude "total" span)
+	const spans = document.querySelectorAll('#footer-delivered-row td.col-dessert span[id^="deliv-"]:not(#deliv-total)');
+	for (const el of spans) {
+		const key = el.id.replace('deliv-', '');
+		if (key && key !== 'total') cells.push({ key, el });
+	}
 	function selectAllContent(el) {
 		try {
+			if (!el || !el.isContentEditable) return;
 			const range = document.createRange();
 			range.selectNodeContents(el);
 			const sel = window.getSelection();
 			sel.removeAllRanges();
 			sel.addRange(range);
+			
+			// Fallback: if selection appears empty, force it
+			if (!sel.toString().trim()) {
+				document.execCommand('selectAll', false, null);
+			}
 		} catch { }
 	}
 	for (const item of cells) {
@@ -1998,17 +2352,36 @@ function wireDeliveredRowEditors() {
 		}
 		if (el.dataset.bound === '1') continue;
 		el.dataset.bound = '1';
-		// Al enfocar/clic, seleccionar todo para reemplazar con la nueva cifra
-		el.addEventListener('focus', () => { selectAllContent(el); });
-		el.addEventListener('mouseup', (ev) => { ev.preventDefault(); selectAllContent(el); });
-		el.addEventListener('click', () => { selectAllContent(el); });
+		// Al enfocarse, seleccionar todo para reemplazar con la nueva cifra. 
+		// Usamos un delay un poco mayor para asegurar que el teclado y foco móvil terminen.
+		el.addEventListener('focus', () => { 
+			setTimeout(() => selectAllContent(el), 150); 
+		});
 		// Sanitize input to numbers only while typing
 		el.addEventListener('input', () => {
 			if (!el.isContentEditable) return;
-			let raw = (el.textContent || '').replace(/[^0-9]/g, '');
-			// Remove leading zeros
-			raw = raw.replace(/^0+(\d)/, '$1');
-			el.textContent = raw;
+			const selection = window.getSelection();
+			const cursorPos = selection.anchorOffset;
+			const current = el.textContent || '';
+			let sanitized = current.replace(/[^0-9]/g, '');
+			
+			// Remove leading zeros only if there are other digits
+			if (sanitized.length > 1) {
+				sanitized = sanitized.replace(/^0+/, '');
+			}
+			
+			if (current !== sanitized) {
+				el.textContent = sanitized;
+				// Restore cursor position
+				try {
+					const range = document.createRange();
+					const newPos = Math.min(cursorPos, el.textContent.length);
+					range.setStart(el.firstChild || el, newPos);
+					range.collapse(true);
+					selection.removeAllRanges();
+					selection.addRange(range);
+				} catch { }
+			}
 		});
 		// Save on Enter or blur
 		el.addEventListener('keydown', (ev) => {
@@ -2041,6 +2414,7 @@ function wireCommissionsPaidEditor() {
 
 	function selectAllContent(el) {
 		try {
+			if (!el || !el.isContentEditable) return;
 			const range = document.createRange();
 			range.selectNodeContents(el);
 			const sel = window.getSelection();
@@ -2082,8 +2456,7 @@ function wireCommissionsPaidEditor() {
 
 	el.addEventListener('mouseup', (ev) => {
 		if (isEditing) {
-			ev.preventDefault();
-			setTimeout(() => selectAllContent(el), 0);
+			selectAllContent(el);
 		}
 	});
 
@@ -2171,9 +2544,7 @@ function wireCommissionsPaidEditor() {
 			const formatted = fmtNo.format(value);
 			el.textContent = formatted;
 
-			// Also update the mobile stacked version
-			const elMobile = document.getElementById('comm-paid-total-2');
-			if (elMobile) elMobile.textContent = formatted;
+
 
 			console.log('Formatted value displayed:', formatted);
 
@@ -2323,6 +2694,24 @@ function openNewSalePopover(anchorX, anchorY) {
 		attachClientSuggestionsPopover(clientInput);
 		appendRow('Cliente', clientInput);
 
+		// EXTRA CLIENT INFO (Short Name, WhatsApp)
+		const extraRow = document.createElement('div');
+		extraRow.className = 'client-info-extra';
+		
+		const snWrap = document.createElement('div'); snWrap.className = 'client-info-row';
+		const snLbl = document.createElement('div'); snLbl.className = 'client-info-label'; snLbl.textContent = 'Apodo / Corto';
+		const snInput = document.createElement('input');
+		snInput.type = 'text'; snInput.placeholder = 'Ej: Marce'; snInput.className = 'input-cell';
+		snWrap.append(snLbl, snInput);
+		
+		const waWrap = document.createElement('div'); waWrap.className = 'client-info-row';
+		const waLbl = document.createElement('div'); waLbl.className = 'client-info-label'; waLbl.textContent = 'WhatsApp';
+		const waInput = document.createElement('input');
+		waInput.type = 'tel'; waInput.placeholder = '300...'; waInput.className = 'input-cell';
+		waWrap.append(waLbl, waInput);
+		
+		extraRow.append(snWrap, waWrap);
+
 		// Dessert rows (dynamic from state.desserts)
 		const qtyInputs = {};
 		for (const d of state.desserts) {
@@ -2394,7 +2783,7 @@ function openNewSalePopover(anchorX, anchorY) {
 		saveBtn.textContent = 'Guardar';
 		actions.append(cancelBtn, saveBtn);
 
-		pop.append(title, grid, specialPricingContainer, actions);
+		pop.append(title, extraRow, grid, specialPricingContainer, actions);
 		// Prepare hidden mount to avoid visible jump before clamping
 		pop.style.visibility = 'hidden';
 		pop.style.opacity = '0';
@@ -2454,7 +2843,14 @@ function openNewSalePopover(anchorX, anchorY) {
 				saveBtn.disabled = true; cancelBtn.disabled = true;
 				const sellerId = state?.currentSeller?.id;
 				if (!sellerId) { try { notify.error('Selecciona un vendedor'); } catch { } return; }
-				const payload = { seller_id: sellerId };
+				
+				// Prepare payload with CRM fields
+				const payload = { 
+					seller_id: sellerId,
+					client_name: clientInput.value.trim(),
+					short_name: snInput.value.trim(),
+					whatsapp: waInput.value.trim()
+				};
 				if (state?.selectedDayId) payload.sale_day_id = state.selectedDayId;
 				const created = await api('POST', API.Sales, payload);
 
@@ -3966,9 +4362,14 @@ function updateSummary() {
 		if (amt2El) amt2El.textContent = fmtNo.format(amt);
 	}
 
-	$('#sum-total-qty').textContent = String(totalQty);
+	const elTotalQty = document.getElementById('sum-total-qty');
+	if (elTotalQty) elTotalQty.textContent = String(totalQty);
 	const grandStr = fmtNo.format(grand);
-	$('#sum-grand').textContent = grandStr;
+	const elGrand = document.getElementById('sum-grand');
+	if (elGrand) elGrand.textContent = grandStr;
+	
+	const elInlineGrand = document.getElementById('inline-grand-total');
+	if (elInlineGrand) elInlineGrand.textContent = grandStr;
 
 	// Commissions: tiered rates based on paid desserts quantity
 	let paidTotalQty = 0;
@@ -3999,7 +4400,7 @@ function updateSummary() {
 
 	// Update commission label to show rate
 	const commLabelEl = document.querySelector('#footer-comm-row td.label');
-	if (commLabelEl) commLabelEl.textContent = `Comisiones generadas ${commRateLabel}`;
+	if (commLabelEl) commLabelEl.textContent = `Comisión ${commRateLabel}`;
 
 	// Comisiones pagadas (per day, editable solo por superadmin)
 	try {
@@ -4058,30 +4459,7 @@ function updateSummary() {
 			}
 		}
 		if (isSmall && overlap) table.classList.add('totals-stacked'); else table.classList.remove('totals-stacked');
-		const grandLine = document.getElementById('sum-grand-2');
-		if (grandLine) grandLine.textContent = grandStr;
-		const commLine = document.getElementById('sum-comm-2');
-		if (commLine) commLine.textContent = commStr;
 
-		// Update stacked commission label
-		try {
-			const commLabelStacked = document.querySelector('#footer-comm-row-2 .st-label');
-			if (commLabelStacked) commLabelStacked.textContent = `Comisiones generadas ${commRateLabel}`;
-		} catch (e) {
-			console.error('Error updating stacked commission label:', e);
-		}
-
-		// Update stacked commission paid row (mobile)
-		try {
-			const day = (state && Array.isArray(state.saleDays) && state.selectedDayId)
-				? (state.saleDays || []).find(d => d && d.id === state.selectedDayId)
-				: null;
-			const commPaid = Number(day?.commissions_paid || 0) || 0;
-			const commPaidLine = document.getElementById('comm-paid-total-2');
-			if (commPaidLine) commPaidLine.textContent = fmtNo.format(commPaid);
-		} catch (e) {
-			console.error('Error updating stacked commission paid:', e);
-		}
 	});
 }
 
@@ -4989,7 +5367,13 @@ function sendBroadcastToClient(client, activeIndex) {
 	let cleanNum = (client.whatsapp || '').replace(/\D/g, '');
 	if (cleanNum.length === 10) cleanNum = '57' + cleanNum;
 
-	const waUrl = `https://wa.me/${cleanNum}?text=${encodeURIComponent(text)}`;
+	const encodedMsg = encodeURIComponent(text);
+	const isAndroid = /Android/i.test(navigator.userAgent);
+	
+	let waUrl = `whatsapp://send?phone=${cleanNum}&text=${encodedMsg}`;
+	if (isAndroid) {
+		waUrl = `intent://send?phone=${cleanNum}&text=${encodedMsg}#Intent;package=com.whatsapp.w4b;scheme=whatsapp;end`;
+	}
 	window.open(waUrl, '_blank');
 
 	// Mark as sent
@@ -10139,6 +10523,9 @@ async function openReceiptsGalleryPopover(saleId, anchorX, anchorY) {
 				wrap.tabIndex = 0;
 				wrap.addEventListener('keydown', (e) => {
 					if (e.key === 'Enter' || e.key === ' ') {
+						// Don't intercept if focus is actually in an input/textarea
+						if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+						
 						e.preventDefault();
 						const rect = wrap.getBoundingClientRect();
 						openPayMenuForReceipt(wrap, sel, receipt, rect.left + rect.width / 2, rect.bottom, applyPayClass);
@@ -10820,11 +11207,11 @@ async function openHistoryPopover(saleId, field, anchorX, anchorY) {
 			if (lower === 'client_name') label = 'Cliente';
 			if (lower === 'pay_method') {
 				const fmt = (v) => v === 'efectivo' ? 'Efectivo' : v === 'transf' ? 'Transferencia' : '-';
-				item.textContent = `[${when.toLocaleString()}] Pago: ${fmt(oldV)} → ${fmt(newV)}`;
+				item.textContent = `[${when.toLocaleDateString()}] Pago: ${fmt(oldV)} → ${fmt(newV)}`;
 			} else if (label) {
-				item.textContent = `[${when.toLocaleString()}] ${label}: ${oldV} → ${newV}`;
+				item.textContent = `[${when.toLocaleDateString()}] ${label}: ${oldV} → ${newV}`;
 			} else {
-				item.textContent = `[${when.toLocaleString()}] ${oldV} → ${newV}`;
+				item.textContent = `[${when.toLocaleDateString()}] ${oldV} → ${newV}`;
 			}
 			list.appendChild(item);
 		}
@@ -11239,7 +11626,9 @@ function bindActiveTableSearch() {
 	}
 
 	searchInput.addEventListener('input', () => {
-		renderSuggestions(searchInput.value.trim());
+		renderSuggestions(searchInput.value);
+		// Also filter the table in real-time
+		renderTable();
 	});
 
 	searchInput.addEventListener('focus', () => {
@@ -11266,3 +11655,67 @@ if (document.readyState === 'loading') {
 		NotificationCenter.init();
 	}
 }
+
+/**
+ * Renders tag filter chips based on available tags in the provided sales data
+ */
+function renderTagFilters(sales, containerId, onFilterChange) {
+	const container = document.getElementById(containerId);
+	if (!container) return;
+
+	// Extract unique tags from the provided sales data
+	const allTags = [];
+	const seenKeys = new Set();
+	
+	(sales || []).forEach(s => {
+		(s.client_tags || []).forEach(t => {
+			const key = t.id || t.name; // Use ID or name as key
+			if (!seenKeys.has(key)) {
+				seenKeys.add(key);
+				allTags.push(t);
+			}
+		});
+	});
+
+	// If no tags, clear and hide
+	if (allTags.length === 0) {
+		container.innerHTML = '';
+		return;
+	}
+
+	// Sort tags alphabetically
+	allTags.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es'));
+
+	// Render
+	container.innerHTML = '';
+	allTags.forEach(tag => {
+		const tagKey = tag.id || tag.name; // Use ID or name as key consistently
+		const chip = document.createElement('div');
+		chip.className = 'tag-filter-chip';
+		const isActive = state.currentTagIdFilter === tagKey;
+		if (isActive) chip.classList.add('active');
+		
+		const tagColor = tag.color || '#818cf8';
+		chip.style.borderColor = tagColor;
+		
+		if (isActive) {
+			chip.style.backgroundColor = tagColor;
+			chip.style.color = '#fff';
+		} else {
+			chip.style.color = tagColor;
+			chip.style.backgroundColor = 'transparent';
+		}
+
+		chip.textContent = tag.name;
+		chip.addEventListener('click', () => {
+			if (state.currentTagIdFilter === tagKey) {
+				state.currentTagIdFilter = null;
+			} else {
+				state.currentTagIdFilter = tagKey;
+			}
+			onFilterChange();
+		});
+		container.appendChild(chip);
+	});
+}
+

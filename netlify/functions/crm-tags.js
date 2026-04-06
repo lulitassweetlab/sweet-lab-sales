@@ -29,7 +29,7 @@ export async function handler(event) {
 
             if (action === 'get_seller_tags') {
                 if (!sellerId) return json({ error: 'Falta seller_id' }, 400);
-                const tags = await sql`SELECT * FROM crm_tags WHERE seller_id = ${sellerId} ORDER BY name ASC`;
+                const tags = await sql`SELECT * FROM crm_tags WHERE seller_id = ${sellerId} ORDER BY display_order ASC, name ASC`;
                 return json(tags);
             }
 
@@ -40,7 +40,7 @@ export async function handler(event) {
                     FROM crm_tags t
                     JOIN crm_client_tags ct ON t.id = ct.tag_id
                     WHERE ct.client_id = ${clientId}
-                    ORDER BY t.name ASC
+                    ORDER BY t.display_order ASC, t.name ASC
                 `;
                 return json(tags);
             }
@@ -50,6 +50,21 @@ export async function handler(event) {
                 if (!tagId) return json({ error: 'Falta tag_id' }, 400);
                 const clients = await sql`SELECT client_id FROM crm_client_tags WHERE tag_id = ${tagId}`;
                 return json(clients.map(c => c.client_id));
+            }
+
+            if (action === 'get_tag_summary') {
+                if (!sellerId) return json({ error: 'Faltante seller_id' }, 400);
+                const summary = await sql`
+                    SELECT 
+                        t.id, t.name, t.color,
+                        COUNT(ct.client_id) as client_count
+                    FROM crm_tags t
+                    LEFT JOIN crm_client_tags ct ON t.id = ct.tag_id
+                    WHERE t.seller_id = ${sellerId}
+                    GROUP BY t.id, t.name, t.color
+                    ORDER BY t.display_order ASC, t.name ASC
+                `;
+                return json(summary);
             }
 
             if (action === 'get_clients_by_tag') {
@@ -76,7 +91,7 @@ export async function handler(event) {
                     LEFT JOIN crm_stages st ON cst.stage_id = st.id
                     WHERE ct.tag_id = ${tagId}
                     GROUP BY c.id, c.name, c.whatsapp, st.name, st.color, st.id
-                    ORDER BY c.name ASC
+                    ORDER BY t.display_order ASC, t.name ASC
                 `;
                 return json(clients);
             }
@@ -126,6 +141,29 @@ export async function handler(event) {
                 if (!tag_id || !seller_id) return json({ error: 'Falta tag_id o seller_id' }, 400);
 
                 await sql`DELETE FROM crm_tags WHERE id = ${tag_id} AND seller_id = ${seller_id}`;
+                return json({ success: true });
+            }
+
+            if (action === 'update_tag') {
+                const { tag_id, seller_id, name, color } = body;
+                if (!tag_id || !seller_id || !name) return json({ error: 'Faltan datos' }, 400);
+
+                await sql`
+                    UPDATE crm_tags 
+                    SET name = ${name.trim()}, color = ${color} 
+                    WHERE id = ${tag_id} AND seller_id = ${seller_id}
+                `;
+                return json({ success: true });
+            }
+
+            if (action === 'reorder_tags') {
+                const { seller_id, tag_ids } = body;
+                if (!seller_id || !Array.isArray(tag_ids)) return json({ error: 'Faltan datos' }, 400);
+
+                // Perform sequential updates for order
+                for (let i = 0; i < tag_ids.length; i++) {
+                    await sql`UPDATE crm_tags SET display_order = ${i} WHERE id = ${tag_ids[i]} AND seller_id = ${seller_id}`;
+                }
                 return json({ success: true });
             }
 

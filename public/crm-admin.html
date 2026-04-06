@@ -77,11 +77,14 @@
         .col-span-8 { grid-column: span 8; }
         .col-span-12 { grid-column: span 12; }
 
-        @media (max-width: 1024px) {
-            .col-span-3, .col-span-4 { grid-column: span 6; }
+        @media (min-width: 1025px) {
+            .col-metric { grid-column: span 4; }
         }
-        @media (max-width: 768px) {
-            .col-span-3, .col-span-4, .col-span-6, .col-span-8 { grid-column: span 12; }
+        @media (max-width: 1024px) {
+            .col-metric { grid-column: span 6; }
+        }
+        @media (max-width: 640px) {
+            .col-metric { grid-column: span 12; }
             body { padding: 15px; }
         }
 
@@ -162,6 +165,51 @@
             animation: aladdinIn 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
         }
 
+        /* Todo section styles */
+        .todo-card {
+            background: #fff;
+            border-left: 4px solid var(--primary);
+            padding: 16px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            transition: transform 0.2s;
+        }
+        .todo-card:hover { transform: translateX(5px); }
+        .todo-info { display: flex; align-items: center; gap: 12px; }
+        .todo-status { width: 10px; height: 10px; border-radius: 50%; background: var(--primary); }
+
+        .search-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        .search-wrapper input {
+            padding-right: 30px !important;
+        }
+        .clear-search-btn {
+            position: absolute;
+            right: 10px;
+            width: 18px;
+            height: 18px;
+            background: #cbd5e1;
+            color: white;
+            border-radius: 50%;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 800;
+            cursor: pointer;
+            z-index: 2;
+        }
+        .clear-search-btn:active {
+            transform: scale(0.9);
+            background: var(--text-muted);
+        }
     </style>
 </head>
 <body>
@@ -219,32 +267,50 @@
         <!-- ROW 1: General Stats -->
         <h2 style="font-size: 1.1rem; margin-bottom: 16px; color: var(--text-main);">1. Rendimiento de Ventas</h2>
         <div class="dashboard-grid">
-            <div class="card col-span-3" style="cursor: pointer; position: relative; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="openPeriodClientsModal()" title="Ver clientes del periodo">
+            <div class="card col-metric" style="cursor: pointer; position: relative; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="openPeriodClientsModal()" title="Ver clientes del periodo">
                 <div class="card-title" id="titleSalesPeriod">💵 Vendido Hoy</div>
                 <div class="metric-value metric-color-primary" id="valSalesPeriod">-</div>
                 <div class="metric-label" id="valSalesCountPeriod">- tickets emitidos</div>
             </div>
-            <div class="card col-span-3" style="cursor: pointer; position: relative; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="openDessertChartModal()" title="Ver detalle">
+            <div class="card col-metric" style="cursor: pointer; position: relative; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="openDessertChartModal()" title="Ver detalle">
                 <div class="card-title" id="titleDessertsPeriod">🍰 Postres del Periodo</div>
                 <div id="miniDessertChart" style="height: 90px; display: flex; align-items: flex-end; justify-content: space-around; gap: 4px; overflow: hidden; opacity: 0.9;">
                     <!-- Mini bars -->
                 </div>
             </div>
-            <div class="card col-span-3" style="cursor: pointer; position: relative; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="openSellerChartModal()" title="Ver detalle">
+            <div class="card col-metric" style="cursor: pointer; position: relative; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="openSellerChartModal()" title="Ver detalle">
                 <div class="card-title">📊 Ventas por Vendedor</div>
                 <div id="miniSellerChart" style="height: 90px; display: flex; align-items: flex-end; justify-content: center; gap: 8px; overflow: hidden; opacity: 0.9;">
                     <!-- Mini seller bars -->
                 </div>
             </div>
-            <div class="card col-span-3" style="cursor: pointer; position: relative; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="openPeriodDebtsModal()" title="Ver deudas">
+            <div class="card col-metric" style="cursor: pointer; position: relative; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="openPeriodDebtsModal()" title="Ver deudas">
                 <div class="card-title" id="titleDebtPeriod">⚠️ Deuda Actual</div>
                 <div class="metric-value metric-color-danger" id="valDebtPeriod">-</div>
                 <div class="metric-label" id="valDebtCountPeriod">- pedidos sin pagar</div>
             </div>
+            <div class="card col-metric" style="cursor: pointer; position: relative; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onclick="openPeriodExpensesModal()" title="Ver lista de gastos">
+                <div class="card-title" id="titleExpensePeriod">📉 Gastos del Periodo</div>
+                <div class="metric-value metric-color-warning" id="valExpensePeriod">-</div>
+                <div class="metric-label">Registrados en Contabilidad</div>
+            </div>
+            <div class="card col-metric" style="cursor: default; position: relative; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" id="cardResults" title="Ventas - Deuda - Gastos">
+                <div class="card-title" id="titleResultsPeriod">💰 Resultado Neto</div>
+                <div class="metric-value" id="valResultsPeriod">-</div>
+                <div class="metric-label">Ventas - Deuda - Gastos</div>
+            </div>
+        </div>
+
+        <!-- NEW ROW: Por Hacer (Review Pending Tables) -->
+        <div id="todo-container" style="display: none; margin-bottom: 30px;">
+            <h2 style="font-size: 1.1rem; margin-bottom: 16px; color: var(--text-main);">2. Por Hacer (Revisión de Tablas Cerradas)</h2>
+            <div id="todo-list">
+                <!-- Todo items injected here -->
+            </div>
         </div>
 
         <!-- ROW 2: Alerts & Activity -->
-        <h2 style="font-size: 1.1rem; margin-bottom: 16px; color: var(--text-main);">2. Estado de la Cartera & Alertas CRM</h2>
+        <h2 style="font-size: 1.1rem; margin-bottom: 16px; color: var(--text-main);">3. Estado de la Cartera & Alertas CRM</h2>
         <div class="dashboard-grid">
             <div class="card col-span-8">
                 <div class="card-title">🔴 Alertas de Negocio (Atención Requerida)</div>
@@ -287,7 +353,7 @@
             </div>
         </div>
         <!-- ROW 3: Sellers and Products -->
-        <h2 style="font-size: 1.1rem; margin-bottom: 16px; color: var(--text-main);">3. Rendimiento de Vendedores y Productos</h2>
+        <h2 style="font-size: 1.1rem; margin-bottom: 16px; color: var(--text-main);">4. Rendimiento de Vendedores y Productos</h2>
         <!-- ROW 5: Sellers Table -->
         <div class="dashboard-grid">
             <div class="card" style="grid-column: span 12;">
@@ -350,6 +416,19 @@
             </div>
         </div>
 
+        <!-- Period Expenses Modal -->
+        <div id="period-expenses-modal-backdrop" onclick="if(event.target===this)closePeriodExpensesModal()" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:1100; align-items:center; justify-content:center;">
+            <div class="modal-aladdin" style="background:var(--bg); border-radius:16px; padding:28px; width:80vw; max-width: 1000px; max-height: 85vh; box-shadow:0 20px 60px rgba(0,0,0,0.2); display: flex; flex-direction: column;">
+                <div class="flex-between">
+                    <h4 style="margin:0 0 20px; font-size:1.3rem; font-weight:700; color: var(--warning);">📉 Gastos del Periodo (<span id="modal-expenses-period-text"></span>)</h4>
+                    <button class="btn" onclick="closePeriodExpensesModal()" style="border:none; font-size:1.2rem; cursor:pointer;" title="Cerrar">✖</button>
+                </div>
+                <div id="expandedPeriodExpenses" style="flex:1; display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; overflow-y: auto; padding: 10px;">
+                    <!-- Expense cards go here -->
+                </div>
+            </div>
+        </div>
+
         <!-- Seller Chart Modal -->
         <div id="seller-chart-modal-backdrop" onclick="if(event.target===this)closeSellerChartModal()" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:1100; align-items:center; justify-content:center;">
             <div class="modal-aladdin" style="background:var(--surface); border-radius:16px; padding:28px; width:70vw; max-width: 900px; min-height: 400px; box-shadow:0 20px 60px rgba(0,0,0,0.2); display: flex; flex-direction: column;">
@@ -387,7 +466,7 @@
         </div>
         
         <!-- ROW 5: Embudo de Ventas (CRM Pipeline) -->
-        <h2 style="font-size: 1.1rem; margin-top: 30px; margin-bottom: 16px; color: var(--text-main);">4. Embudo de Ventas (Pipeline)</h2>
+        <h2 style="font-size: 1.1rem; margin-top: 30px; margin-bottom: 16px; color: var(--text-main);">5. Embudo de Ventas (Pipeline)</h2>
         <div class="dashboard-grid">
             <div class="card col-span-12">
                 <div style="display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap;" id="adminPipelineCounters">
@@ -419,7 +498,7 @@
         </div>
 
         <!-- ROW 6: CRM Stages Manager -->
-        <h2 style="font-size: 1.1rem; margin-top: 30px; margin-bottom: 16px; color: var(--text-main);">5. Gestión de Etapas CRM</h2>
+        <h2 style="font-size: 1.1rem; margin-top: 30px; margin-bottom: 16px; color: var(--text-main);">6. Gestión de Etapas CRM</h2>
         <div class="dashboard-grid">
             <div class="card col-span-12">
                 <div class="flex-between" style="margin-bottom: 16px;">
@@ -454,13 +533,39 @@
                                 <span onclick="document.getElementById('stage-color-input').value='#9C27B0'" style="width:24px;height:24px;border-radius:50%;background:#9C27B0;cursor:pointer;" title="Morado"></span>
                                 <span onclick="document.getElementById('stage-color-input').value='#FF9800'" style="width:24px;height:24px;border-radius:50%;background:#FF9800;cursor:pointer;" title="Naranja"></span>
                                 <span onclick="document.getElementById('stage-color-input').value='#4CAF50'" style="width:24px;height:24px;border-radius:50%;background:#4CAF50;cursor:pointer;" title="Verde"></span>
-                                <span onclick="document.getElementById('stage-color-input').value='#009688'" style="width:24px;height:24px;border-radius:50%;background:#009688;cursor:pointer;" title="Teal"></span>
                                 <span onclick="document.getElementById('stage-color-input').value='#FFD700'" style="width:24px;height:24px;border-radius:50%;background:#FFD700;cursor:pointer;" title="Oro"></span>
-                                <span onclick="document.getElementById('stage-color-input').value='#FF5722'" style="width:24px;height:24px;border-radius:50%;background:#FF5722;cursor:pointer;" title="Rojo-naranja"></span>
                                 <span onclick="document.getElementById('stage-color-input').value='#F44336'" style="width:24px;height:24px;border-radius:50%;background:#F44336;cursor:pointer;" title="Rojo"></span>
-                                <span onclick="document.getElementById('stage-color-input').value='#03A9F4'" style="width:24px;height:24px;border-radius:50%;background:#03A9F4;cursor:pointer;" title="Celeste"></span>
-                                <span onclick="document.getElementById('stage-color-input').value='#E91E63'" style="width:24px;height:24px;border-radius:50%;background:#E91E63;cursor:pointer;" title="Rosa"></span>
                             </div>
+                        </div>
+                    </div>
+
+                    <div style="background:var(--bg); padding:16px; border:1px solid var(--border); border-radius:12px; margin-top:8px;">
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+                            <input id="stage-is-auto-input" type="checkbox" style="width:18px; height:18px; cursor:pointer;" onchange="document.getElementById('auto-options').style.display = this.checked ? 'block' : 'none'" />
+                            <label for="stage-is-auto-input" style="font-weight:700; font-size:0.9rem; cursor:pointer;">Etapa Automática</label>
+                        </div>
+                        
+                        <div id="auto-options" style="display:none; flex-direction:column; gap:12px;">
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                                <div>
+                                    <label style="display:block; font-size:0.8rem; color:var(--text-muted); margin-bottom:4px;">Días (Tiempo)</label>
+                                    <input id="stage-days-input" type="number" placeholder="Ej: 30" style="width:100%; padding:8px 12px; border:1px solid var(--border); border-radius:8px; font-size:0.9rem;" />
+                                </div>
+                                <div>
+                                    <label style="display:block; font-size:0.8rem; color:var(--text-muted); margin-bottom:4px;">Cantidad Mínima</label>
+                                    <input id="stage-count-input" type="number" placeholder="Ej: 1" style="width:100%; padding:8px 12px; border:1px solid var(--border); border-radius:8px; font-size:0.9rem;" />
+                                </div>
+                            </div>
+                            <div>
+                                <label style="display:block; font-size:0.8rem; color:var(--text-muted); margin-bottom:4px;">Basado en:</label>
+                                <select id="stage-type-input" style="width:100%; padding:8px 12px; border:1px solid var(--border); border-radius:8px; font-size:0.9rem;">
+                                    <option value="orders">Pedidos Realizados</option>
+                                    <option value="items">Postres Vendidos (Unidades)</option>
+                                </select>
+                            </div>
+                            <p style="font-size:0.75rem; color:var(--text-muted); line-height:1.4; margin:0;">
+                                * Automática: Si el cliente cumple con la cantidad en el tiempo definido, se asignará esta etapa.
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -472,7 +577,7 @@
         </div>
 
         <!-- ROW 7: Product Commissions Manager -->
-        <h2 style="font-size: 1.1rem; margin-top: 30px; margin-bottom: 16px; color: var(--text-main);">6. Gestor de Tarifas y Comisiones</h2>
+        <h2 style="font-size: 1.1rem; margin-top: 30px; margin-bottom: 16px; color: var(--text-main);">7. Gestor de Tarifas y Comisiones</h2>
 
         <div class="dashboard-grid">
             <div class="card col-span-12">
@@ -650,6 +755,9 @@
                 populateTopClients(data.periodClients ? data.periodClients.slice(0, 10) : []);
                 if(data.periodClients) populatePeriodClients(data.periodClients);
                 if(data.periodDebts) populatePeriodDebts(data.periodDebts);
+                if(data.periodExpenses) populatePeriodExpenses(data.periodExpenses);
+                if(data.todoTasks) populateTodoTasks(data.todoTasks);
+                else document.getElementById('todo-container').style.display = 'none';
 
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('dashboard-content').style.display = 'block';
@@ -704,7 +812,7 @@
                             <span style="font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; background: ${badgeColor}20; color: ${badgeColor}; font-weight: bold; border: 1px solid ${badgeColor}50;">${fStage}</span>
                         </div>
                         <div style="font-size: 0.85rem; color: var(--text-muted); display: flex; align-items: center; gap: 6px;">
-                            📞 <a href="https://wa.me/${c.phone}" target="_blank" style="color:var(--primary); text-decoration:none;">${c.phone || 'Desconocido'}</a>
+                            📞 <a href="javascript:void(0)" onclick="const cNum='${c.phone}'.replace(/[^0-9]/g,''); const isAndroid=/Android/i.test(navigator.userAgent); let url='whatsapp://send?phone='+cNum+'&text='; if(isAndroid) url='intent://send?phone='+cNum+'#Intent;package=com.whatsapp.w4b;scheme=whatsapp;end'; window.open(url,'_blank');" style="color:var(--primary); text-decoration:none;">${c.phone || 'Desconocido'}</a>
                         </div>
                         <div style="margin-top: auto; padding-top: 12px; border-top: 1px dashed var(--border); display: flex; justify-content: space-between; align-items: flex-end;">
                             <div style="display: flex; flex-direction: column; gap: 4px;">
@@ -753,7 +861,7 @@
                             <span style="font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; background: var(--danger)20; color: var(--danger); font-weight: bold; border: 1px solid var(--danger)50;">DEUDA PENDIENTE</span>
                         </div>
                         <div style="font-size: 0.85rem; color: var(--text-muted); display: flex; align-items: center; gap: 6px;">
-                            📞 <a href="https://wa.me/${c.phone}" target="_blank" style="color:var(--primary); text-decoration:none;">${c.phone || 'Desconocido'}</a>
+                            📞 <a href="javascript:void(0)" onclick="const cNum='${c.phone}'.replace(/[^0-9]/g,''); const isAndroid=/Android/i.test(navigator.userAgent); let url='whatsapp://send?phone='+cNum+'&text='; if(isAndroid) url='intent://send?phone='+cNum+'#Intent;package=com.whatsapp.w4b;scheme=whatsapp;end'; window.open(url,'_blank');" style="color:var(--primary); text-decoration:none;">${c.phone || 'Desconocido'}</a>
                         </div>
                         <div style="margin-top: auto; padding-top: 12px; border-top: 1px dashed var(--border); display: flex; justify-content: space-between; align-items: flex-end;">
                             <div style="display: flex; flex-direction: column; gap: 4px;">
@@ -771,6 +879,56 @@
 
         function closePeriodDebtsModal() {
             document.getElementById('period-debts-modal-backdrop').style.display = 'none';
+        }
+
+        let lastPeriodExpenses = [];
+        function populatePeriodExpenses(expenses) {
+            lastPeriodExpenses = expenses;
+        }
+
+        function openPeriodExpensesModal() {
+            document.getElementById('modal-expenses-period-text').innerText = getPeriodText();
+            document.getElementById('period-expenses-modal-backdrop').style.display = 'flex';
+            const container = document.getElementById('expandedPeriodExpenses');
+            container.innerHTML = '';
+            
+            // Remove grid style and make it a clean list
+            container.style.display = 'flex';
+            container.style.flexDirection = 'column';
+            container.style.gap = '0';
+            container.style.background = 'var(--surface)';
+            container.style.borderRadius = '12px';
+            container.style.border = '1px solid var(--border)';
+            container.style.padding = '0';
+
+            if(!lastPeriodExpenses || lastPeriodExpenses.length === 0) {
+                container.innerHTML = '<div style="text-align:center; padding: 40px; color:var(--text-muted); width:100%;">No hay gastos registrados en este periodo.</div>';
+                return;
+            }
+
+            // Header for the list
+            container.innerHTML = `
+                <div style="display:grid; grid-template-columns: 100px 1fr 120px; padding: 14px 20px; background: var(--bg); border-bottom: 2px solid var(--border); font-weight: 700; font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; border-top-left-radius: 12px; border-top-right-radius: 12px;">
+                    <div>Fecha</div>
+                    <div>Descripción</div>
+                    <div style="text-align:right;">Monto</div>
+                </div>
+            `;
+
+            lastPeriodExpenses.forEach((e, idx) => {
+                const isLast = idx === lastPeriodExpenses.length - 1;
+                container.innerHTML += `
+                    <div style="display:grid; grid-column:1/-1; grid-template-columns: 100px 1fr 120px; padding: 14px 20px; border-bottom: ${isLast ? 'none' : '1px solid var(--border)'}; align-items: center; transition: background 0.1s;" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background='transparent'">
+                        <div style="font-size: 0.85rem; color: var(--text-muted); font-family: monospace;">${new Date(e.entry_date).toLocaleDateString('es-CO')}</div>
+                        <div style="font-weight: 500; color: var(--text-main);">${e.description}</div>
+                        <div style="text-align:right; font-weight: 700; color: var(--danger); font-size: 1.05rem;">${fmtMoney.format(e.amount_cents)}</div>
+                    </div>
+                `;
+            });
+        }
+
+        function closePeriodExpensesModal() {
+            document.getElementById('period-expenses-modal-backdrop').style.display = 'none';
         }
 
         function populateGeneral(gen) {
@@ -791,6 +949,15 @@
             
             document.getElementById('valDebtPeriod').innerText = fmtMoney.format(gen.debt_period_cents);
             document.getElementById('valDebtCountPeriod').innerText = `${gen.debt_period_count} pedidos sin pagar`;
+
+            document.getElementById('titleExpensePeriod').innerHTML = `📉 Gastos (${getPeriodText()})`;
+            document.getElementById('valExpensePeriod').innerText = fmtMoney.format(gen.expense_period_cents || 0);
+
+            const resCents = gen.results_period_cents || 0;
+            const resEl = document.getElementById('valResultsPeriod');
+            resEl.innerText = fmtMoney.format(resCents);
+            resEl.classList.remove('metric-color-success', 'metric-color-danger');
+            resEl.classList.add(resCents >= 0 ? 'metric-color-success' : 'metric-color-danger');
         }
 
         function populateAlerts(alerts) {
@@ -1151,15 +1318,43 @@
                 row.dataset.id = s.id;
                 row.style.cssText = `display:flex; align-items:center; gap:12px; padding:12px 16px; background:var(--bg); border:1px solid var(--border); border-radius:10px; opacity:${s.is_active ? '1' : '0.5'};`;
                 row.setAttribute('draggable', 'true');
+
+                let autoSection = '';
+                if (s.is_automatic) {
+                    const typeLabel = s.threshold_type === 'items' ? 'postres' : 'pedidos';
+                    let ruleText = '';
+                    if (Number(s.count_threshold) > 0) {
+                        if (Number(s.days_threshold) === 0) {
+                            ruleText = `Condición: <strong>${s.count_threshold} ${typeLabel} total</strong>`;
+                        } else {
+                            ruleText = `Condición: <strong>${s.count_threshold} ${typeLabel}</strong> en <strong>${s.days_threshold} días</strong>`;
+                        }
+                    } else {
+                        ruleText = `Condición: Inactividad de <strong>${s.days_threshold} días</strong>`;
+                    }
+                    autoSection = `
+                        <div style="font-size:0.72rem; color:var(--text-muted); margin-top:2px; display:flex; align-items:center; gap:6px;">
+                            <span style="background:var(--success-light); color:var(--success-dark); padding:1px 6px; border-radius:4px; font-weight:800; font-size:0.65rem;">AUTO</span>
+                            ${ruleText}
+                        </div>
+                    `;
+                } else {
+                    autoSection = `<div style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;">Etiqueta manual (sin automatización)</div>`;
+                }
+
                 row.innerHTML = `
-                    <span style="cursor:grab;color:var(--text-muted);font-size:1.1rem;user-select:none;" title="Arrastrar para reordenar">⠿</span>
-                    <span style="width:16px;height:16px;border-radius:50%;background:${s.color};flex-shrink:0;"></span>
-                    <span style="flex:1;font-weight:700;">${s.name}</span>
-                    <span style="font-size:0.78rem;color:var(--text-muted);min-width:55px;text-align:right;">orden ${s.order_index}</span>
-                    ${!s.is_active ? '<span style="font-size:0.75rem;background:#f3f4f6;color:#888;border-radius:6px;padding:2px 8px;">Inactiva</span>' : ''}
-                    <button class="btn" style="padding:5px 12px;font-size:0.8rem;" onclick="openEditStage(${s.id})">✏️ Editar</button>
-                    <button class="btn" style="padding:5px 12px;font-size:0.8rem;" onclick="toggleStageActive(${s.id},${s.is_active})">${s.is_active ? '🙈 Ocultar' : '👁 Activar'}</button>
-                    <button class="btn" style="padding:5px 10px;font-size:0.8rem;color:var(--danger);" onclick="deleteStageAdmin(${s.id},'${s.name.replace(/'/g,"\\'")}')">🗑️</button>
+                    <span style="cursor:grab;color:var(--text-muted);font-size:1.1rem;user-select:none;margin-right:4px;" title="Arrastrar para reordenar">⠿</span>
+                    <span style="width:14px;height:14px;border-radius:50%;background:${s.color};flex-shrink:0;box-shadow:0 0 0 2px var(--bg), 0 0 0 3px ${s.color}66;"></span>
+                    <div style="flex:1; display:flex; flex-direction:column; padding-left:4px;">
+                        <span style="font-weight:700; font-size:0.95rem; color:var(--text-main);">${s.name}</span>
+                        ${autoSection}
+                    </div>
+                    <div style="text-align:right; display:flex; align-items:center; gap:8px;">
+                        <span style="font-size:0.75rem; color:var(--text-muted); background:var(--bg); border:1px solid var(--border); padding:2px 8px; border-radius:6px; font-weight:600;">#${s.order_index}</span>
+                        ${!s.is_active ? '<span style="font-size:0.7rem; background:#fee2e2; color:#ef4444; border-radius:6px; padding:2px 8px; font-weight:700;">OCULTA</span>' : ''}
+                        <button class="btn" style="padding:6px 12px; font-size:0.8rem; font-weight:700; background:var(--bg); border:1.5px solid var(--border);" onclick="openEditStage(${s.id})">⚙️ Configurar</button>
+                        <button class="btn" style="padding:6px 10px; font-size:0.8rem; background:transparent; border:none; color:var(--danger);" onclick="deleteStageAdmin(${s.id},'${s.name.replace(/'/g,"\\'")}')">🗑️</button>
+                    </div>
                 `;
                 container.appendChild(row);
             });
@@ -1193,6 +1388,12 @@
             document.getElementById('stage-modal-title').textContent = 'Nueva Etapa';
             document.getElementById('stage-name-input').value = '';
             document.getElementById('stage-color-input').value = '#6366f1';
+            document.getElementById('stage-is-auto-input').checked = false;
+            document.getElementById('stage-days-input').value = '';
+            document.getElementById('stage-count-input').value = '';
+            document.getElementById('stage-type-input').value = 'orders';
+            document.getElementById('auto-options').style.display = 'none';
+
             const backdrop = document.getElementById('stage-modal-backdrop');
             backdrop.style.display = 'flex';
             setTimeout(() => document.getElementById('stage-name-input').focus(), 100);
@@ -1205,6 +1406,14 @@
             document.getElementById('stage-modal-title').textContent = 'Editar Etapa';
             document.getElementById('stage-name-input').value = s.name;
             document.getElementById('stage-color-input').value = s.color;
+
+            // Automation fields
+            document.getElementById('stage-is-auto-input').checked = !!s.is_automatic;
+            document.getElementById('stage-days-input').value = s.days_threshold || '';
+            document.getElementById('stage-count-input').value = s.count_threshold || '';
+            document.getElementById('stage-type-input').value = s.threshold_type || 'orders';
+            document.getElementById('auto-options').style.display = s.is_automatic ? 'block' : 'none';
+
             document.getElementById('stage-modal-backdrop').style.display = 'flex';
             setTimeout(() => document.getElementById('stage-name-input').focus(), 100);
         }
@@ -1216,13 +1425,26 @@
         window.saveStage = async function() {
             const name = document.getElementById('stage-name-input').value.trim();
             const color = document.getElementById('stage-color-input').value;
+            const is_automatic = document.getElementById('stage-is-auto-input').checked;
+            const days_threshold = document.getElementById('stage-days-input').value || 0;
+            const count_threshold = document.getElementById('stage-count-input').value || 0;
+            const threshold_type = document.getElementById('stage-type-input').value;
+
             if (!name) { alert('El nombre es requerido'); return; }
             const btn = document.getElementById('stage-modal-save-btn');
             btn.disabled = true; btn.textContent = 'Guardando...';
             try {
                 const body = editingStageId
-                    ? { action:'update_stage', id:editingStageId, name, color, order_index: stagesData.find(s=>s.id===editingStageId)?.order_index||99, is_active:true }
-                    : { action:'create_stage', name, color };
+                    ? { 
+                        action:'update_stage', id:editingStageId, name, color, 
+                        order_index: stagesData.find(s=>s.id===editingStageId)?.order_index||99, 
+                        is_active:true, 
+                        is_automatic, days_threshold, count_threshold, threshold_type
+                      }
+                    : { 
+                        action:'create_stage', name, color, 
+                        is_automatic, days_threshold, count_threshold, threshold_type
+                      };
                 const res = await fetch('/api/crm-stages', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
                 const data = await res.json();
                 if (data.error) { alert('Error: '+data.error); return; }
@@ -1514,10 +1736,13 @@
                 })
             }).catch(e => console.error("Error logging whatsapp event", e));
 
-            // OPEN WA.ME NATIVELY
-            let cleanNum = client.whatsapp.replace(/\D/g, '');
-            if (cleanNum.length === 10) cleanNum = '57' + cleanNum;
-            const waUrl = `https://wa.me/${cleanNum}?text=${encodeURIComponent(parsedMsg)}`;
+            const isAndroid = /Android/i.test(navigator.userAgent);
+            const encodedMsg = encodeURIComponent(parsedMsg);
+            
+            let waUrl = `whatsapp://send?phone=${cleanNum}&text=${encodedMsg}`;
+            if (isAndroid) {
+                waUrl = `intent://send?phone=${cleanNum}&text=${encodedMsg}#Intent;package=com.whatsapp.w4b;scheme=whatsapp;end`;
+            }
             window.open(waUrl, '_blank');
 
             // UPDATE UI
@@ -1618,7 +1843,7 @@
                     <td>${c.lifetime_value ? (c.lifetime_value/1000).toFixed(0) + 'k' : '0'} comprados</td>
                     <td style="font-weight:700; color:var(--success);">${formatMoney(c.lifetime_value)}</td>
                     <td>
-                        <a href="https://wa.me/${c.whatsapp.replace(/\D/g, '')}" target="_blank" class="btn" style="background:#25D366; color:white; padding:4px 8px; font-size:0.8rem; border:none;">WA</a>
+                        <a href="javascript:void(0)" onclick="const cNum='${c.whatsapp.replace(/[^0-9]/g, '')}'; const isAndroid=/Android/i.test(navigator.userAgent); let url='whatsapp://send?phone='+cNum+'&text='; if(isAndroid) url='intent://send?phone='+cNum+'#Intent;package=com.whatsapp.w4b;scheme=whatsapp;end'; window.open(url,'_blank');" class="btn" style="background:#25D366; color:white; padding:4px 8px; font-size:0.8rem; border:none;">WA</a>
                     </td>
                 `;
                 
@@ -1668,6 +1893,72 @@
             } catch(e) {
                 alert('No se pudo actualizar la etapa.');
                 selectEl.disabled = false;
+            }
+        }
+
+        function populateTodoTasks(tasks) {
+            const container = document.getElementById('todo-container');
+            const list = document.getElementById('todo-list');
+            list.innerHTML = '';
+            
+            if (!tasks || tasks.length === 0) {
+                container.style.display = 'none';
+                return;
+            }
+            
+            container.style.display = 'block';
+            tasks.forEach(t => {
+                const total = fmtMoney.format(t.total_cents || 0);
+                const dayStr = new Date(t.day).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' });
+                const actorName = urlParams.get('actor') || 'admin';
+                
+                list.innerHTML += `
+                    <div class="todo-card" id="todo-item-${t.id}">
+                        <div class="todo-info">
+                            <div class="todo-status" style="background: ${t.seller_color || 'var(--primary)'}"></div>
+                            <div>
+                                <div style="font-weight: 700; font-size: 1rem;">${t.seller_name} - ${dayStr}</div>
+                                <div style="font-size: 0.85rem; color: var(--text-muted);">${t.sale_count} ventas • <b>${total}</b></div>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn" style="font-size: 0.8rem; padding: 6px 12px;" onclick="window.open('/app.html?day_id=${t.id}&seller_id=${t.seller_id}&actor=${actorName}', '_blank')">🔍 Ver Tabla</button>
+                            <button class="btn btn-primary" style="font-size: 0.8rem; padding: 6px 12px; background: var(--success);" onclick="markTableAsReviewed(${t.id})">✅ Marcar Revisado</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        async function markTableAsReviewed(id) {
+            if (!confirm('¿Confirmas que has revisado esta tabla y el dinero está cuadrado?')) return;
+            
+            try {
+                const actor = urlParams.get('actor') || 'admin';
+                const res = await fetch('/.netlify/functions/days', {
+                    method: 'PATCH',
+                    body: JSON.stringify({ id, is_reviewed: true, actor_name: actor })
+                });
+                const result = await res.json();
+                if (result.ok) {
+                    const item = document.getElementById(`todo-item-${id}`);
+                    if (item) {
+                        item.style.opacity = '0';
+                        item.style.transform = 'scale(0.8)';
+                        setTimeout(() => {
+                            item.remove();
+                            // If no more items, hide container
+                            if (document.getElementById('todo-list').children.length === 0) {
+                                document.getElementById('todo-container').style.display = 'none';
+                            }
+                        }, 300);
+                    }
+                } else {
+                    alert('Error: ' + (result.error || 'No se pudo actualizar'));
+                }
+            } catch (err) {
+                console.error('Error marking as reviewed:', err);
+                alert('Error de conexión');
             }
         }
     </script>

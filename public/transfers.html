@@ -107,6 +107,9 @@
 			wrap.tabIndex = 0;
             wrap.addEventListener('keydown', (e) => {
 				if (e.key === 'Enter' || e.key === ' ') {
+					// Don't intercept if focus is actually in an input/textarea
+					if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+					
 					e.preventDefault();
 					const rect = wrap.getBoundingClientRect();
                     openPayMenu(wrap, sel, rect.left + rect.width/2, rect.bottom, sale);
