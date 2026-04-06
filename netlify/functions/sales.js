@@ -197,12 +197,13 @@ export async function handler(event) {
 							       sd.day AS sale_day,
 							       se.name AS seller_name,
 							       (
-           SELECT COALESCE(json_agg(json_build_object('name', t.name, 'color', t.color) ORDER BY t.display_order ASC, t.name ASC), '[]'::json)
-           FROM crm_client_sales ccs
-           JOIN crm_client_tags ct ON ccs.client_id = ct.client_id
-           JOIN crm_tags t ON ct.tag_id = t.id
-           WHERE ccs.sale_id = s.id
-       ) AS client_tags
+					           SELECT COALESCE(json_agg(json_build_object('name', t.name, 'color', t.color) ORDER BY t.display_order ASC, t.name ASC), '[]'::json)
+					           FROM crm_client_sales ccs
+					           JOIN crm_client_tags ct ON ccs.client_id = ct.client_id
+					           JOIN crm_tags t ON ct.tag_id = t.id
+					           LEFT JOIN crm_stages st ON st.tag_id = t.id
+					           WHERE ccs.sale_id = s.id AND st.id IS NULL
+					       ) AS client_tags
 							FROM sales s
 							INNER JOIN sale_days sd ON sd.id = s.sale_day_id
 							INNER JOIN sellers se ON se.id = s.seller_id
@@ -218,12 +219,13 @@ export async function handler(event) {
 							       sd.day AS sale_day,
 							       se.name AS seller_name,
 							       (
-           SELECT COALESCE(json_agg(json_build_object('name', t.name, 'color', t.color) ORDER BY t.display_order ASC, t.name ASC), '[]'::json)
-           FROM crm_client_sales ccs
-           JOIN crm_client_tags ct ON ccs.client_id = ct.client_id
-           JOIN crm_tags t ON ct.tag_id = t.id
-           WHERE ccs.sale_id = s.id
-       ) AS client_tags
+					           SELECT COALESCE(json_agg(json_build_object('name', t.name, 'color', t.color) ORDER BY t.display_order ASC, t.name ASC), '[]'::json)
+					           FROM crm_client_sales ccs
+					           JOIN crm_client_tags ct ON ccs.client_id = ct.client_id
+					           JOIN crm_tags t ON ct.tag_id = t.id
+					           LEFT JOIN crm_stages st ON st.tag_id = t.id
+					           WHERE ccs.sale_id = s.id AND st.id IS NULL
+					       ) AS client_tags
 							FROM sales s
 							INNER JOIN sale_days sd ON sd.id = s.sale_day_id
 							INNER JOIN sellers se ON se.id = s.seller_id
@@ -385,12 +387,13 @@ export async function handler(event) {
 						       s.payment_source, s.comment_text, s.special_pricing_type, s.total_cents, s.created_at,
 						       sd.day,
 						       (
-						           SELECT COALESCE(json_agg(json_build_object('name', t.name, 'color', t.color) ORDER BY t.display_order ASC, t.name ASC), '[]'::json)
-						           FROM crm_client_sales ccs
-						           JOIN crm_client_tags ct ON ccs.client_id = ct.client_id
-						           JOIN crm_tags t ON ct.tag_id = t.id
-						           WHERE ccs.sale_id = s.id
-						       ) AS client_tags
+					           SELECT COALESCE(json_agg(json_build_object('name', t.name, 'color', t.color) ORDER BY t.display_order ASC, t.name ASC), '[]'::json)
+					           FROM crm_client_sales ccs
+					           JOIN crm_client_tags ct ON ccs.client_id = ct.client_id
+					           JOIN crm_tags t ON ct.tag_id = t.id
+					           LEFT JOIN crm_stages st ON st.tag_id = t.id
+					           WHERE ccs.sale_id = s.id AND st.id IS NULL
+					       ) AS client_tags
 						FROM sales s
 						INNER JOIN sale_days sd ON sd.id = s.sale_day_id
 						WHERE s.seller_id = ${sellerId} 
@@ -471,7 +474,8 @@ export async function handler(event) {
 					           FROM crm_client_sales ccs
 					           JOIN crm_client_tags ct ON ccs.client_id = ct.client_id
 					           JOIN crm_tags t ON ct.tag_id = t.id
-					           WHERE ccs.sale_id = s.id
+					           LEFT JOIN crm_stages st ON st.tag_id = t.id
+					           WHERE ccs.sale_id = s.id AND st.id IS NULL
 					       ) AS client_tags
 					FROM sales s
 					WHERE s.seller_id = ${sellerId} AND s.sale_day_id = ${saleDayId}
@@ -487,7 +491,8 @@ export async function handler(event) {
 					           FROM crm_client_sales ccs
 					           JOIN crm_client_tags ct ON ccs.client_id = ct.client_id
 					           JOIN crm_tags t ON ct.tag_id = t.id
-					           WHERE ccs.sale_id = s.id
+					           LEFT JOIN crm_stages st ON st.tag_id = t.id
+					           WHERE ccs.sale_id = s.id AND st.id IS NULL
 					       ) AS client_tags
 					FROM sales s
 					WHERE s.seller_id = ${sellerId}
