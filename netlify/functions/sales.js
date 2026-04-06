@@ -573,42 +573,52 @@ export async function handler(event) {
 				const [row] = await sql`INSERT INTO sales (seller_id, sale_day_id, client_name) VALUES (${sellerId}, ${saleDayId}, ${clientNamePost || null}) RETURNING id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, payment_date, payment_source, comment_text, special_pricing_type, total_cents, created_at`;
 				// Auto-Link to CRM immediately on POST so sales appear in CRM timeline right away
 				if (clientNamePost && row && row.id) {
-					try {
-						let incomingTagIds = Array.isArray(data.tag_ids) ? data.tag_ids : [];
-						
-						// Filter: Only include tags that are custom-created by the seller (ignore stages/debt)
-						// We also explicitly exclude tags that are named like "DEBE" or match Stage names to be extra safe
-						const validTagsRes = await sql`
-							SELECT t.id 
-							FROM crm_tags t
-							LEFT JOIN crm_stages s ON LOWER(t.name) = LOWER(s.name)
-							WHERE t.seller_id = ${sellerId}
-							  AND s.id IS NULL
-							  AND LOWER(t.name) NOT IN ('debe', 'deuda', 'deudas', 'deudor', 'deudores', 'pagado')
-						`;
-						const validTagIds = new Set(validTagsRes.map(t => t.id));
-						const targetTags = Array.from(new Set(incomingTagIds.map(Number)))
-							.filter(id => validTagIds.has(id))
-							.sort((a, b) => a - b);
-						
-						// Find matching client by name AND tags
-						const nameMatches = await sql`
-							SELECT c.id, 
-								COALESCE(JSON_AGG(ct.tag_id ORDER BY ct.tag_id) FILTER (WHERE ct.tag_id IS NOT NULL AND ct.tag_id = ANY(${Array.from(validTagIds)})), '[]') as tags
-							FROM clients c
-							LEFT JOIN crm_client_tags ct ON c.id = ct.client_id
-							WHERE c.seller_id = ${sellerId} AND LOWER(c.name) = LOWER(${clientNamePost})
-							GROUP BY c.id
-						`;
-						
-						let crmClient = null;
-						for (const m of nameMatches) {
-							const mTags = (Array.isArray(m.tags) ? m.tags : JSON.parse(m.tags || '[]')).map(Number).sort((a, b) => a - b);
-							if (JSON.stringify(mTags) === JSON.stringify(targetTags)) {
-								crmClient = m;
-								break;
+						try {
+							const incomingTagIds = Array.isArray(data.tag_ids) ? data.tag_ids : [];
+							const requestedClientId = data.crm_client_id ? Number(data.crm_client_id) : null;
+							
+							// Filter: Only include tags that are custom-created by the seller (ignore stages/debt)
+							// We now use s.tag_id = t.id which is much more precise
+							const validTagsRes = await sql`
+								SELECT t.id 
+								FROM crm_tags t
+								LEFT JOIN crm_stages s ON s.tag_id = t.id
+								WHERE t.seller_id = ${sellerId}
+								  AND s.id IS NULL
+								  AND LOWER(t.name) NOT IN ('debe', 'deuda', 'deudas', 'deudor', 'deudores', 'pagado')
+							`;
+							const validTagIds = new Set(validTagsRes.map(t => t.id));
+							const targetTags = Array.from(new Set(incomingTagIds.map(Number)))
+								.filter(id => validTagIds.has(id))
+								.sort((a, b) => a - b);
+							
+							let crmClient = null;
+
+							if (requestedClientId) {
+								// Priority 1: Direct link by ID
+								const [match] = await sql`SELECT id FROM clients WHERE id = ${requestedClientId} AND seller_id = ${sellerId}`;
+								if (match) crmClient = match;
 							}
-						}
+
+							if (!crmClient) {
+								// Priority 2: Fallback to match by name AND tags
+								const nameMatches = await sql`
+									SELECT c.id, 
+										COALESCE(JSON_AGG(ct.tag_id ORDER BY ct.tag_id) FILTER (WHERE ct.tag_id IS NOT NULL AND ct.tag_id = ANY(${Array.from(validTagIds)})), '[]') as tags
+									FROM clients c
+									LEFT JOIN crm_client_tags ct ON c.id = ct.client_id
+									WHERE c.seller_id = ${sellerId} AND LOWER(REGEXP_REPLACE(c.name, '\\s+', ' ', 'g')) = LOWER(${clientNamePost})
+									GROUP BY c.id
+								`;
+								
+								for (const m of nameMatches) {
+									const mTags = (Array.isArray(m.tags) ? m.tags : JSON.parse(m.tags || '[]')).map(Number).sort((a, b) => a - b);
+									if (JSON.stringify(mTags) === JSON.stringify(targetTags)) {
+										crmClient = m;
+										break;
+									}
+								}
+							}
 
 						const shortNameInput = (data.short_name ?? '').toString().trim();
 						const whatsappInput = (data.whatsapp ?? '').toString().trim();
@@ -785,14 +795,14 @@ export async function handler(event) {
 				try {
 						const activeSellerId = Number(data.seller_id || 0) || Number(current.seller_id || 0);
 						if (activeSellerId) {
-							// 1. Check if this specific sale is already linked to a client
-							let incomingTagIds = Array.isArray(data.tag_ids) ? data.tag_ids : [];
+							const incomingTagIds = Array.isArray(data.tag_ids) ? data.tag_ids : [];
+							const requestedClientId = data.crm_client_id ? Number(data.crm_client_id) : null;
 							
 							// Filter: Only include tags that are custom-created by the seller (ignore stages/debt)
 							const validTagsRes = await sql`
 								SELECT t.id 
 								FROM crm_tags t
-								LEFT JOIN crm_stages s ON LOWER(t.name) = LOWER(s.name)
+								LEFT JOIN crm_stages s ON s.tag_id = t.id
 								WHERE t.seller_id = ${activeSellerId}
 								  AND s.id IS NULL
 								  AND LOWER(t.name) NOT IN ('debe', 'deuda', 'deudas', 'deudor', 'deudores', 'pagado')
@@ -802,99 +812,69 @@ export async function handler(event) {
 								.filter(id => validTagIds.has(id))
 								.sort((a, b) => a - b);
 
-							if (existingLink) {
-								const oldClientId = existingLink.client_id;
-								
-								// Find if a client already exists with the NEW name AND SAME TAGS
+							let targetClient = null;
+
+							if (requestedClientId) {
+								const [match] = await sql`SELECT id, name FROM clients WHERE id = ${requestedClientId} AND seller_id = ${activeSellerId}`;
+								if (match) targetClient = match;
+							}
+
+							if (!targetClient) {
 								const nameMatches = await sql`
 									SELECT c.id, c.name,
 										COALESCE(JSON_AGG(ct.tag_id ORDER BY ct.tag_id) FILTER (WHERE ct.tag_id IS NOT NULL AND ct.tag_id = ANY(${Array.from(validTagIds)})), '[]') as tags
 									FROM clients c
 									LEFT JOIN crm_client_tags ct ON c.id = ct.client_id
-									WHERE c.seller_id = ${activeSellerId} AND LOWER(c.name) = LOWER(${client.trim()})
+									WHERE c.seller_id = ${activeSellerId} AND LOWER(REGEXP_REPLACE(c.name, '\\s+', ' ', 'g')) = LOWER(${client.trim()})
 									GROUP BY c.id
 								`;
 							
-							let targetClient = null;
-							for (const m of nameMatches) {
-								const mTags = (Array.isArray(m.tags) ? m.tags : JSON.parse(m.tags || '[]')).map(Number).sort((a, b) => a - b);
-								if (JSON.stringify(mTags) === JSON.stringify(targetTags)) {
-									targetClient = m;
-									break;
+								for (const m of nameMatches) {
+									const mTags = (Array.isArray(m.tags) ? m.tags : JSON.parse(m.tags || '[]')).map(Number).sort((a, b) => a - b);
+									if (JSON.stringify(mTags) === JSON.stringify(targetTags)) {
+										targetClient = m;
+										break;
+									}
 								}
 							}
-							
+
+							let clientId = null;
 							if (targetClient) {
-								if (targetClient.id !== oldClientId) {
-									await sql`UPDATE crm_client_sales SET client_id = ${targetClient.id} WHERE sale_id = ${id}`;
-									clientId = targetClient.id;
-									await autoUpdateClientStage(targetClient.id, activeSellerId);
-								} else {
-									if (targetClient.name !== client.trim()) {
-										await sql`UPDATE clients SET name = ${client.trim()} WHERE id = ${oldClientId}`;
-									}
-									clientId = oldClientId;
-								}
+								clientId = targetClient.id;
+								// Link sale to this client (UPSERT link)
+								await sql`INSERT INTO crm_client_sales (client_id, sale_id, seller_id) VALUES (${clientId}, ${id}, ${activeSellerId}) ON CONFLICT (sale_id) DO UPDATE SET client_id = EXCLUDED.client_id`;
+								
+								// Optional: if name in sale is slightly different but we matched, don't rename client unless requested
 							} else {
-								// No exact match for Name+Tags, so we either create a new one or update current IF current has no tags/same tags
-								// To be safe and respect "no fusion", we just create a new one if it's a rename to a common name but different tags
+								// No match: Create new client
 								const shortName = client.trim().split(' ')[0] || client.trim();
 								const [newC] = await sql`INSERT INTO clients (seller_id, name, short_name) VALUES (${activeSellerId}, ${client.trim()}, ${shortName}) RETURNING id`;
-								await sql`UPDATE crm_client_sales SET client_id = ${newC.id} WHERE sale_id = ${id}`;
 								clientId = newC.id;
-								await autoUpdateClientStage(newC.id, activeSellerId);
-							}
-						} else {
-							// 2. No existing link: Standard find-or-create by name+tags
-							const nameMatches = await sql`
-								SELECT c.id, 
-									COALESCE(JSON_AGG(ct.tag_id ORDER BY ct.tag_id) FILTER (WHERE ct.tag_id IS NOT NULL), '[]') as tags
-							FROM clients c
-							LEFT JOIN crm_client_tags ct ON c.id = ct.client_id
-							WHERE c.seller_id = ${activeSellerId} AND LOWER(c.name) = LOWER(${client.trim()})
-							GROUP BY c.id
-							`;
-							
-							let crmClient = null;
-							for (const m of nameMatches) {
-								const mTags = (Array.isArray(m.tags) ? m.tags : JSON.parse(m.tags || '[]')).map(Number).sort((a, b) => a - b);
-								if (JSON.stringify(mTags) === JSON.stringify(targetTags)) {
-									crmClient = m;
-									break;
-								}
+								await sql`INSERT INTO crm_client_sales (client_id, sale_id, seller_id) VALUES (${clientId}, ${id}, ${activeSellerId}) ON CONFLICT (sale_id) DO UPDATE SET client_id = EXCLUDED.client_id`;
 							}
 
-							if (!crmClient) {
-								let shortName = client.trim().split(' ')[0] || client.trim();
-								[crmClient] = await sql`INSERT INTO clients (seller_id, name, short_name) VALUES (${activeSellerId}, ${client.trim()}, ${shortName}) RETURNING id`;
-							}
-							if (crmClient && crmClient.id) {
-								await sql`INSERT INTO crm_client_sales (client_id, sale_id, seller_id) VALUES (${crmClient.id}, ${id}, ${activeSellerId}) ON CONFLICT (sale_id) DO UPDATE SET client_id = EXCLUDED.client_id`;
-								clientId = crmClient.id;
-								await autoUpdateClientStage(crmClient.id, activeSellerId);
-
-								// Sync tags if provided in PUT
-								if (tagIds.length > 0) {
-									await sql`DELETE FROM crm_client_tags WHERE client_id = ${crmClient.id}`;
-									for (const tagId of tagIds) {
-										await sql`INSERT INTO crm_client_tags (client_id, tag_id) VALUES (${crmClient.id}, ${tagId}) ON CONFLICT DO NOTHING`;
+							if (clientId) {
+								await autoUpdateClientStage(clientId, activeSellerId);
+								// Sync tags if provided
+								if (incomingTagIds.length > 0) {
+									await sql`DELETE FROM crm_client_tags WHERE client_id = ${clientId} AND tag_id = ANY(${Array.from(validTagIds)})`;
+									for (const tId of targetTags) {
+										await sql`INSERT INTO crm_client_tags (client_id, tag_id) VALUES (${clientId}, ${tId}) ON CONFLICT DO NOTHING`;
 									}
 								}
 							}
-						}
 
-						// 3. SYNC NOTE TO CRM TIMELINE (Update last or insert)
-						if (clientId && comment.trim() !== '' && comment !== current.comment_text) {
-							const actorNameSync = (data._actor_name || '').toString();
-							const [existingActivity] = await sql`SELECT id FROM crm_activities WHERE client_id = ${clientId} AND related_sale_id = ${id} AND activity_type = 'note' LIMIT 1`;
-							
-							if (existingActivity) {
-								await sql`UPDATE crm_activities SET description = ${comment}, created_at = now(), created_by = ${actorNameSync} WHERE id = ${existingActivity.id}`;
-							} else {
-								await sql`INSERT INTO crm_activities (seller_id, client_id, related_sale_id, activity_type, description, created_by) VALUES (${activeSellerId}, ${clientId}, ${id}, 'note', ${comment}, ${actorNameSync})`;
+							// 3. SYNC NOTE TO CRM TIMELINE
+							if (clientId && comment.trim() !== '' && comment !== current.comment_text) {
+								const actorNameSync = (data._actor_name || '').toString();
+								const [existingActivity] = await sql`SELECT id FROM crm_activities WHERE client_id = ${clientId} AND related_sale_id = ${id} AND activity_type = 'note' LIMIT 1`;
+								if (existingActivity) {
+									await sql`UPDATE crm_activities SET description = ${comment}, created_at = now(), created_by = ${actorNameSync} WHERE id = ${existingActivity.id}`;
+								} else {
+									await sql`INSERT INTO crm_activities (seller_id, client_id, related_sale_id, activity_type, description, created_by) VALUES (${activeSellerId}, ${clientId}, ${id}, 'note', ${comment}, ${actorNameSync})`;
+								}
 							}
 						}
-					}
 				} catch (err) {
 					console.error('Error auto-linking sale to CRM or syncing note:', err);
 				}

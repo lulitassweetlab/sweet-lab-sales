@@ -161,6 +161,10 @@ async function loadSellerClients() {
     }
 }
 
+// Track selected client metadata to ensure correct CRM linking during checkout
+let selectedClientTags = [];
+let selectedClientId = null;
+
 function setupClientAutocomplete() {
     const input = document.getElementById('store-customer-name');
     const dropdown = document.getElementById('store-client-dropdown');
@@ -229,6 +233,9 @@ function setupClientAutocomplete() {
             li.addEventListener('mousedown', (e) => {
                 e.preventDefault();
                 input.value = client.name;
+                // Capture the exact ID and tags to ensure the backend links uniquely to this client
+                selectedClientId = client.id;
+                selectedClientTags = (client.custom_tags || []).map(t => Number(t.id || t.ID));
                 dropdown.classList.remove('show');
             });
             dropdown.appendChild(li);
@@ -340,6 +347,8 @@ async function executeCheckout(customerName) {
         customerName: customerName,
         whatsapp: whatsappValue,
         items: saleItems,
+        tag_ids: [...selectedClientTags], // Include captured tags from autocomplete
+        crm_client_id: selectedClientId,  // Explicit ID for definitive backend linking
         seller: storeActiveSeller,
         user: storeAuthUser,
         timestamp: new Date().toISOString()
@@ -349,9 +358,11 @@ async function executeCheckout(customerName) {
     pendingSales.push(saleData);
     safeLS.setItem('pending_sales', JSON.stringify(pendingSales));
 
-    // 2. Clear UI instantly for "Fast" experience
+    // 2. Clear UI and selection state instantly for "Fast" experience
     for (const id in cart) delete cart[id];
     customerNameInput.value = '';
+    selectedClientTags = []; // Reset selection state for next order
+    selectedClientId = null;
     updateCartUI();
     loadStore();
 
@@ -580,6 +591,8 @@ async function processSingleSale(sale) {
             seller_id: sale.seller.id, 
             sale_day_id: targetDayId, 
             client_name: sale.customerName, 
+            tag_ids: sale.tag_ids || [], // Ensure tags are passed for correct CRM matching
+            crm_client_id: sale.crm_client_id || null, // Priority ID for vinculation
             _actor_name: actorName, 
             qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute 
         };
@@ -592,7 +605,16 @@ async function processSingleSale(sale) {
             const updateRes = await fetch('/api/sales', {
                 method: 'PUT',
                 headers: authHeaders,
-                body: JSON.stringify({ id: createdSale.id, seller_id: sale.seller.id, sale_day_id: createdSale.sale_day_id, client_name: sale.customerName, items: dynamicItems, _actor_name: actorName })
+                body: JSON.stringify({ 
+                    id: createdSale.id, 
+                    seller_id: sale.seller.id, 
+                    sale_day_id: createdSale.sale_day_id, 
+                    client_name: sale.customerName, 
+                    tag_ids: sale.tag_ids || [], // Re-pass tags on update to maintain consistency
+                    crm_client_id: sale.crm_client_id || null, // Re-pass ID on update
+                    items: dynamicItems, 
+                    _actor_name: actorName 
+                })
             });
             if (!updateRes.ok) return false;
         }
