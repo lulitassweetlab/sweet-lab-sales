@@ -574,13 +574,27 @@ export async function handler(event) {
 				// Auto-Link to CRM immediately on POST so sales appear in CRM timeline right away
 				if (clientNamePost && row && row.id) {
 					try {
-						const tagIds = Array.isArray(data.tag_ids) ? data.tag_ids : [];
-						const targetTags = Array.from(new Set(tagIds)).map(Number).sort((a, b) => a - b);
+						let incomingTagIds = Array.isArray(data.tag_ids) ? data.tag_ids : [];
+						
+						// Filter: Only include tags that are custom-created by the seller (ignore stages/debt)
+						// We also explicitly exclude tags that are named like "DEBE" or match Stage names to be extra safe
+						const validTagsRes = await sql`
+							SELECT t.id 
+							FROM crm_tags t
+							LEFT JOIN crm_stages s ON LOWER(t.name) = LOWER(s.name)
+							WHERE t.seller_id = ${sellerId}
+							  AND s.id IS NULL
+							  AND LOWER(t.name) NOT IN ('debe', 'deuda', 'deudas', 'deudor', 'deudores', 'pagado')
+						`;
+						const validTagIds = new Set(validTagsRes.map(t => t.id));
+						const targetTags = Array.from(new Set(incomingTagIds.map(Number)))
+							.filter(id => validTagIds.has(id))
+							.sort((a, b) => a - b);
 						
 						// Find matching client by name AND tags
 						const nameMatches = await sql`
 							SELECT c.id, 
-								COALESCE(JSON_AGG(ct.tag_id ORDER BY ct.tag_id) FILTER (WHERE ct.tag_id IS NOT NULL), '[]') as tags
+								COALESCE(JSON_AGG(ct.tag_id ORDER BY ct.tag_id) FILTER (WHERE ct.tag_id IS NOT NULL AND ct.tag_id = ANY(${Array.from(validTagIds)})), '[]') as tags
 							FROM clients c
 							LEFT JOIN crm_client_tags ct ON c.id = ct.client_id
 							WHERE c.seller_id = ${sellerId} AND LOWER(c.name) = LOWER(${clientNamePost})
@@ -769,26 +783,37 @@ export async function handler(event) {
 			// Auto-Link to CRM: Create, Update or Relink CRM client
 			if (client.trim() !== '') {
 				try {
-					const activeSellerId = Number(data.seller_id || 0) || Number(current.seller_id || 0);
-					if (activeSellerId) {
-						// 1. Check if this specific sale is already linked to a client
-						const [existingLink] = await sql`SELECT client_id FROM crm_client_sales WHERE sale_id = ${id} LIMIT 1`;
-						
-						const tagIds = Array.isArray(data.tag_ids) ? data.tag_ids : [];
-						const targetTags = Array.from(new Set(tagIds)).map(Number).sort((a, b) => a - b);
-
-						if (existingLink) {
-							const oldClientId = existingLink.client_id;
+						const activeSellerId = Number(data.seller_id || 0) || Number(current.seller_id || 0);
+						if (activeSellerId) {
+							// 1. Check if this specific sale is already linked to a client
+							let incomingTagIds = Array.isArray(data.tag_ids) ? data.tag_ids : [];
 							
-							// Find if a client already exists with the NEW name AND SAME TAGS
-							const nameMatches = await sql`
-								SELECT c.id, c.name,
-									COALESCE(JSON_AGG(ct.tag_id ORDER BY ct.tag_id) FILTER (WHERE ct.tag_id IS NOT NULL), '[]') as tags
-								FROM clients c
-								LEFT JOIN crm_client_tags ct ON c.id = ct.client_id
-								WHERE c.seller_id = ${activeSellerId} AND LOWER(c.name) = LOWER(${client.trim()})
-								GROUP BY c.id
+							// Filter: Only include tags that are custom-created by the seller (ignore stages/debt)
+							const validTagsRes = await sql`
+								SELECT t.id 
+								FROM crm_tags t
+								LEFT JOIN crm_stages s ON LOWER(t.name) = LOWER(s.name)
+								WHERE t.seller_id = ${activeSellerId}
+								  AND s.id IS NULL
+								  AND LOWER(t.name) NOT IN ('debe', 'deuda', 'deudas', 'deudor', 'deudores', 'pagado')
 							`;
+							const validTagIds = new Set(validTagsRes.map(t => t.id));
+							const targetTags = Array.from(new Set(incomingTagIds.map(Number)))
+								.filter(id => validTagIds.has(id))
+								.sort((a, b) => a - b);
+
+							if (existingLink) {
+								const oldClientId = existingLink.client_id;
+								
+								// Find if a client already exists with the NEW name AND SAME TAGS
+								const nameMatches = await sql`
+									SELECT c.id, c.name,
+										COALESCE(JSON_AGG(ct.tag_id ORDER BY ct.tag_id) FILTER (WHERE ct.tag_id IS NOT NULL AND ct.tag_id = ANY(${Array.from(validTagIds)})), '[]') as tags
+									FROM clients c
+									LEFT JOIN crm_client_tags ct ON c.id = ct.client_id
+									WHERE c.seller_id = ${activeSellerId} AND LOWER(c.name) = LOWER(${client.trim()})
+									GROUP BY c.id
+								`;
 							
 							let targetClient = null;
 							for (const m of nameMatches) {
@@ -1180,6 +1205,10 @@ export async function handler(event) {
 					}
 				}
 				
+				// Find if there's a CRM client linked to this sale
+				const [existingLink] = await sql`SELECT client_id FROM crm_client_sales WHERE sale_id = ${id} LIMIT 1`;
+				const clientIdForReeval = existingLink ? existingLink.client_id : null;
+				
 				await sql`DELETE FROM sales WHERE id=${id}`;
 				// emit deletion notification with client, quantities, and seller name
 				if (prev) {
@@ -1190,6 +1219,15 @@ export async function handler(event) {
 				const iconUrl = pm === 'efectivo' ? '/icons/bill.svg' : pm === 'entregado' ? '/icons/delivered-pink.svg' : pm === 'transf' ? '/icons/bank.svg' : pm === 'jorgebank' ? '/icons/bank-yellow.svg' : pm === 'marce' ? '/icons/marce7.svg?v=1' : pm === 'jorge' ? '/icons/jorge7.svg?v=1' : null;
 					// Do not reference deleted sale_id to avoid FK violation
 					await notifyDb({ type: 'delete', sellerId: Number(prev.seller_id||0)||null, saleId: null, saleDayId: Number(prev.sale_day_id||0)||null, message: msg, actorName: actor, iconUrl, payMethod: pm });
+				}
+
+				// Re-evaluate client stage after deletion (e.g. if they moved back to 0 orders, they should be 'Prospecto')
+				if (clientIdForReeval) {
+					try {
+						await evaluateClientStage(clientIdForReeval);
+					} catch (e) {
+						console.error('Error re-evaluating client stage after deletion:', e);
+					}
 				}
 				return json({ ok: true });
 			}

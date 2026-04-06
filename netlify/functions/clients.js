@@ -223,14 +223,27 @@ export default async (req) => {
                 `;
                 if (!oldClient) return new Response(JSON.stringify({ error: 'Cliente no encontrado' }), { status: 404 });
 
+                // Fetch valid custom tags (excluding stages and status names like DEBE)
+                const validTagsRes = await sql`
+                    SELECT t.id 
+                    FROM crm_tags t
+                    LEFT JOIN crm_stages s ON LOWER(t.name) = LOWER(s.name)
+                    WHERE t.seller_id = ${sellerId}
+                      AND s.id IS NULL
+                      AND LOWER(t.name) NOT IN ('debe', 'deuda', 'deudas', 'deudor', 'deudores', 'pagado')
+                `;
+                const validTagIds = new Set(validTagsRes.map(t => t.id));
+
                 // Fetch tags for oldClient to determine partitioning
                 const oldTagsRes = await sql`SELECT tag_id FROM crm_client_tags WHERE client_id = ${oldClient.id}`;
-                const oldTags = oldTagsRes.map(t => t.tag_id).sort((a, b) => a - b);
+                const oldTags = oldTagsRes.map(t => t.tag_id)
+                    .filter(id => validTagIds.has(id))
+                    .sort((a, b) => a - b);
 
                 // Find potential target clients with the NEW name
                 const nameMatches = await sql`
                     SELECT c.id, c.name, c.short_name, c.whatsapp, c.birth_date, c.description, c.address, c.latitude, c.longitude,
-                           COALESCE(JSON_AGG(ct.tag_id ORDER BY ct.tag_id) FILTER (WHERE ct.tag_id IS NOT NULL), '[]') as tags
+                           COALESCE(JSON_AGG(ct.tag_id ORDER BY ct.tag_id) FILTER (WHERE ct.tag_id IS NOT NULL AND ct.tag_id = ANY(${Array.from(validTagIds)})), '[]') as tags
                     FROM clients c
                     LEFT JOIN crm_client_tags ct ON c.id = ct.client_id
                     WHERE c.seller_id = ${sellerId} AND LOWER(c.name) = LOWER(${name})

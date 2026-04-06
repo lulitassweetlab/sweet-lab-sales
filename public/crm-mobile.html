@@ -2583,8 +2583,15 @@
                 });
                 const data = await res.json();
                 if (data.error) { alert('Error: ' + data.error); return; }
-                navTo('dashboard');
-                loadFullDirectoryInline();
+                
+                // Intelligently return to the dashboard or search results
+                if (window.crmSearchTerm && window.crmSearchTerm.trim() !== '') {
+                    navTo('dashSearch');
+                } else if (window.lastScreen && ['dashSearch', 'dashDebt', 'dashStage', 'dashTag'].includes(window.lastScreen)) {
+                    navTo(window.lastScreen);
+                } else {
+                    navTo('dashboard');
+                }
             } catch(e) {
                 console.error('Error al eliminar el cliente.');
             }
