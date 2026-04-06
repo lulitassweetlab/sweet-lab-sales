@@ -455,6 +455,7 @@ async function syncPendingSales() {
                 pendingSales.shift();
                 safeLS.setItem('pending_sales', JSON.stringify(pendingSales));
                 console.log(`[Sync] Successfully processed sale for ${sale.customerName}.`);
+                refreshSalesTable(); // Notify sales table to update
             } else {
                 console.warn(`[Sync] Failed to process sale for ${sale.customerName}. Will retry later.`);
                 break;

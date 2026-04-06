@@ -202,7 +202,7 @@ export async function handler(event) {
 					           JOIN crm_client_tags ct ON ccs.client_id = ct.client_id
 					           JOIN crm_tags t ON ct.tag_id = t.id
 					           LEFT JOIN crm_stages st ON st.tag_id = t.id
-					           WHERE ccs.sale_id = s.id AND st.id IS NULL
+					           WHERE ccs.sale_id = s.id AND st.id IS NULL AND LOWER(t.name) NOT IN ('debe', 'deuda', 'deudor', 'deudores', 'pagado')
 					       ) AS client_tags
 							FROM sales s
 							INNER JOIN sale_days sd ON sd.id = s.sale_day_id
@@ -224,7 +224,7 @@ export async function handler(event) {
 					           JOIN crm_client_tags ct ON ccs.client_id = ct.client_id
 					           JOIN crm_tags t ON ct.tag_id = t.id
 					           LEFT JOIN crm_stages st ON st.tag_id = t.id
-					           WHERE ccs.sale_id = s.id AND st.id IS NULL
+					           WHERE ccs.sale_id = s.id AND st.id IS NULL AND LOWER(t.name) NOT IN ('debe', 'deuda', 'deudor', 'deudores', 'pagado')
 					       ) AS client_tags
 							FROM sales s
 							INNER JOIN sale_days sd ON sd.id = s.sale_day_id
@@ -392,7 +392,7 @@ export async function handler(event) {
 					           JOIN crm_client_tags ct ON ccs.client_id = ct.client_id
 					           JOIN crm_tags t ON ct.tag_id = t.id
 					           LEFT JOIN crm_stages st ON st.tag_id = t.id
-					           WHERE ccs.sale_id = s.id AND st.id IS NULL
+					           WHERE ccs.sale_id = s.id AND st.id IS NULL AND LOWER(t.name) NOT IN ('debe', 'deuda', 'deudor', 'deudores', 'pagado')
 					       ) AS client_tags
 						FROM sales s
 						INNER JOIN sale_days sd ON sd.id = s.sale_day_id
@@ -475,7 +475,7 @@ export async function handler(event) {
 					           JOIN crm_client_tags ct ON ccs.client_id = ct.client_id
 					           JOIN crm_tags t ON ct.tag_id = t.id
 					           LEFT JOIN crm_stages st ON st.tag_id = t.id
-					           WHERE ccs.sale_id = s.id AND st.id IS NULL
+					           WHERE ccs.sale_id = s.id AND st.id IS NULL AND LOWER(t.name) NOT IN ('debe', 'deuda', 'deudor', 'deudores', 'pagado')
 					       ) AS client_tags
 					FROM sales s
 					WHERE s.seller_id = ${sellerId} AND s.sale_day_id = ${saleDayId}
@@ -492,7 +492,7 @@ export async function handler(event) {
 					           JOIN crm_client_tags ct ON ccs.client_id = ct.client_id
 					           JOIN crm_tags t ON ct.tag_id = t.id
 					           LEFT JOIN crm_stages st ON st.tag_id = t.id
-					           WHERE ccs.sale_id = s.id AND st.id IS NULL
+					           WHERE ccs.sale_id = s.id AND st.id IS NULL AND LOWER(t.name) NOT IN ('debe', 'deuda', 'deudor', 'deudores', 'pagado')
 					       ) AS client_tags
 					FROM sales s
 					WHERE s.seller_id = ${sellerId}
