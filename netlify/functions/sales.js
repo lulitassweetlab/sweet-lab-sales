@@ -570,7 +570,13 @@ export async function handler(event) {
 				}
 				// Include client_name in the initial INSERT so it is stored even if PUT is never called
 				const clientNamePost = normalizeClientName(data.client_name ?? '');
-				const [row] = await sql`INSERT INTO sales (seller_id, sale_day_id, client_name) VALUES (${sellerId}, ${saleDayId}, ${clientNamePost || null}) RETURNING id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, payment_date, payment_source, comment_text, special_pricing_type, total_cents, created_at`;
+				const qa = Number(data.qty_arco || 0) || 0;
+				const qm = Number(data.qty_melo || 0) || 0;
+				const qma = Number(data.qty_mara || 0) || 0;
+				const qo = Number(data.qty_oreo || 0) || 0;
+				const qn = Number(data.qty_nute || 0) || 0;
+				const comment = (data.comment_text || '').toString().trim();
+				const [row] = await sql`INSERT INTO sales (seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, comment_text) VALUES (${sellerId}, ${saleDayId}, ${clientNamePost || null}, ${qa}, ${qm}, ${qma}, ${qo}, ${qn}, ${comment}) RETURNING id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, payment_date, payment_source, comment_text, special_pricing_type, total_cents, created_at`;
 				// Auto-Link to CRM immediately on POST so sales appear in CRM timeline right away
 				if (clientNamePost && row && row.id) {
 						try {
@@ -649,9 +655,6 @@ export async function handler(event) {
 									VALUES (${crmClient.id}, ${stageIdInput}, ${sellerId}, now())
 									ON CONFLICT (client_id) DO UPDATE SET stage_id = EXCLUDED.stage_id, updated_by = EXCLUDED.updated_by, updated_at = now()
 								`;
-							} else if (!data.funnel_stage_id) {
-								// Automated pipeline update only if no explicit stage was provided
-								await autoUpdateClientStage(crmClient.id, sellerId);
 							}
 
 							// Assignment of Custom Tags (crm_tags)
@@ -663,6 +666,14 @@ export async function handler(event) {
 										ON CONFLICT DO NOTHING
 									`;
 								}
+							}
+
+							// Ensure Lifetime Value is updated immediately
+							await recalcTotalForId(row.id);
+							
+							// Automated pipeline update (if no explicit stage was provided)
+							if (!data.funnel_stage_id) {
+								await autoUpdateClientStage(crmClient.id, sellerId);
 							}
 						}
 					} catch (crmErr) {
