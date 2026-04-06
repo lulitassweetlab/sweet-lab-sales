@@ -83,6 +83,19 @@ async function autoUpdateClientStage(clientId, sellerId) {
     }
 }
 
+async function linkSaleToClient(saleId, clientId, sellerId) {
+    if (!saleId || !clientId || !sellerId) return;
+    try {
+        await sql`
+            INSERT INTO crm_client_sales (client_id, sale_id, seller_id) 
+            VALUES (${clientId}, ${saleId}, ${sellerId})
+            ON CONFLICT (sale_id) DO UPDATE SET client_id = EXCLUDED.client_id, seller_id = EXCLUDED.seller_id
+        `;
+    } catch (err) {
+        console.error(`Error linking sale ${saleId} to client ${clientId}:`, err);
+    }
+}
+
 // Auto-archive sales days if all orders are paid/verified
 async function checkAndAutoArchiveDay(saleDayId) {
     if (!saleDayId) return;
@@ -185,9 +198,8 @@ export async function handler(event) {
 							       se.name AS seller_name,
 							       (
 							           SELECT json_agg(json_build_object('name', t.name, 'color', t.color) ORDER BY t.display_order ASC, t.name ASC)
-							           FROM crm_client_tags ct
-							           JOIN crm_tags t ON ct.tag_id = t.id
-							           JOIN crm_client_sales ccs ON ct.client_id = ccs.client_id
+							           FROM crm_client_sales ccs
+							           JOIN crm_client_tags ct ON ccs.client_id = ct.client_id
 							           WHERE ccs.sale_id = s.id
 							       ) AS client_tags
 							FROM sales s
@@ -206,9 +218,8 @@ export async function handler(event) {
 							       se.name AS seller_name,
 							       (
 							           SELECT json_agg(json_build_object('name', t.name, 'color', t.color) ORDER BY t.display_order ASC, t.name ASC)
-							           FROM crm_client_tags ct
-							           JOIN crm_tags t ON ct.tag_id = t.id
-							           JOIN crm_client_sales ccs ON ct.client_id = ccs.client_id
+							           FROM crm_client_sales ccs
+							           JOIN crm_client_tags ct ON ccs.client_id = ct.client_id
 							           WHERE ccs.sale_id = s.id
 							       ) AS client_tags
 							FROM sales s
@@ -373,9 +384,9 @@ export async function handler(event) {
 						       sd.day,
 						       (
 						           SELECT json_agg(json_build_object('name', t.name, 'color', t.color) ORDER BY t.display_order ASC, t.name ASC)
-						           FROM crm_client_tags ct
+						           FROM crm_client_sales ccs
+						           JOIN crm_client_tags ct ON ccs.client_id = ct.client_id
 						           JOIN crm_tags t ON ct.tag_id = t.id
-						           JOIN crm_client_sales ccs ON ct.client_id = ccs.client_id
 						           WHERE ccs.sale_id = s.id
 						       ) AS client_tags
 						FROM sales s
@@ -449,9 +460,37 @@ export async function handler(event) {
 				} catch {}
 			let rows;
 			if (saleDayId) {
-				rows = await sql`SELECT id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, payment_date, payment_source, comment_text, special_pricing_type, total_cents, created_at, (SELECT json_agg(json_build_object('name', t.name, 'color', t.color) ORDER BY t.display_order ASC, t.name ASC) FROM crm_client_tags ct JOIN crm_tags t ON ct.tag_id = t.id JOIN crm_client_sales ccs ON ct.client_id = ccs.client_id WHERE ccs.sale_id = sales.id) AS client_tags FROM sales WHERE seller_id = ${sellerId} AND sale_day_id=${saleDayId} ORDER BY created_at DESC, id DESC`;
+				rows = await sql`
+					SELECT s.id, s.seller_id, s.sale_day_id, s.client_name, s.qty_arco, s.qty_melo, 
+					       s.qty_mara, s.qty_oreo, s.qty_nute, s.is_paid, s.pay_method, s.payment_date, s.payment_source, 
+					       s.comment_text, s.special_pricing_type, s.total_cents, s.created_at,
+					       (
+					           SELECT json_agg(json_build_object('name', t.name, 'color', t.color) ORDER BY t.display_order ASC, t.name ASC)
+					           FROM crm_client_sales ccs
+					           JOIN crm_client_tags ct ON ccs.client_id = ct.client_id
+					           JOIN crm_tags t ON ct.tag_id = t.id
+					           WHERE ccs.sale_id = s.id
+					       ) AS client_tags
+					FROM sales s
+					WHERE s.seller_id = ${sellerId} AND s.sale_day_id = ${saleDayId}
+					ORDER BY s.created_at DESC, s.id DESC
+				`;
 			} else {
-				rows = await sql`SELECT id, seller_id, sale_day_id, client_name, qty_arco, qty_melo, qty_mara, qty_oreo, qty_nute, is_paid, pay_method, payment_date, payment_source, comment_text, special_pricing_type, total_cents, created_at, (SELECT json_agg(json_build_object('name', t.name, 'color', t.color) ORDER BY t.display_order ASC, t.name ASC) FROM crm_client_tags ct JOIN crm_tags t ON ct.tag_id = t.id JOIN crm_client_sales ccs ON ct.client_id = ccs.client_id WHERE ccs.sale_id = sales.id) AS client_tags FROM sales WHERE seller_id = ${sellerId} ORDER BY created_at DESC, id DESC`;
+				rows = await sql`
+					SELECT s.id, s.seller_id, s.sale_day_id, s.client_name, s.qty_arco, s.qty_melo, 
+					       s.qty_mara, s.qty_oreo, s.qty_nute, s.is_paid, s.pay_method, s.payment_date, s.payment_source, 
+					       s.comment_text, s.special_pricing_type, s.total_cents, s.created_at,
+					       (
+					           SELECT json_agg(json_build_object('name', t.name, 'color', t.color) ORDER BY t.display_order ASC, t.name ASC)
+					           FROM crm_client_sales ccs
+					           JOIN crm_client_tags ct ON ccs.client_id = ct.client_id
+					           JOIN crm_tags t ON ct.tag_id = t.id
+					           WHERE ccs.sale_id = s.id
+					       ) AS client_tags
+					FROM sales s
+					WHERE s.seller_id = ${sellerId}
+					ORDER BY s.created_at DESC, s.id DESC
+				`;
 			}
 				
 				// Enhance with sale_items data for each sale (OPTIMIZED BATCH FETCH)
@@ -643,10 +682,8 @@ export async function handler(event) {
 						}
 
 						if (crmClient && crmClient.id) {
-							const [existingLink] = await sql`SELECT 1 FROM crm_client_sales WHERE client_id = ${crmClient.id} AND sale_id = ${row.id} LIMIT 1`;
-							if (!existingLink) {
-								await sql`INSERT INTO crm_client_sales (client_id, sale_id, seller_id) VALUES (${crmClient.id}, ${row.id}, ${sellerId})`;
-							}
+							// DEFINITIVE LINK
+							await linkSaleToClient(row.id, crmClient.id, sellerId);
 							
 							// Explicit stage assignment
 							if (stageIdInput) {
@@ -858,16 +895,13 @@ export async function handler(event) {
 							let clientId = null;
 							if (targetClient) {
 								clientId = targetClient.id;
-								// Link sale to this client (UPSERT link)
-								await sql`INSERT INTO crm_client_sales (client_id, sale_id, seller_id) VALUES (${clientId}, ${id}, ${activeSellerId}) ON CONFLICT (sale_id) DO UPDATE SET client_id = EXCLUDED.client_id`;
-								
-								// Optional: if name in sale is slightly different but we matched, don't rename client unless requested
+								await linkSaleToClient(id, clientId, activeSellerId);
 							} else {
 								// No match: Create new client
 								const shortName = client.trim().split(' ')[0] || client.trim();
 								const [newC] = await sql`INSERT INTO clients (seller_id, name, short_name) VALUES (${activeSellerId}, ${client.trim()}, ${shortName}) RETURNING id`;
 								clientId = newC.id;
-								await sql`INSERT INTO crm_client_sales (client_id, sale_id, seller_id) VALUES (${clientId}, ${id}, ${activeSellerId}) ON CONFLICT (sale_id) DO UPDATE SET client_id = EXCLUDED.client_id`;
+								await linkSaleToClient(id, clientId, activeSellerId);
 							}
 							
 							// Stash these for the final evaluation after items are inserted
