@@ -202,7 +202,7 @@ export async function handler(event) {
 					           JOIN crm_client_tags ct ON ccs.client_id = ct.client_id
 					           JOIN crm_tags t ON ct.tag_id = t.id
 					           LEFT JOIN crm_stages st ON st.tag_id = t.id
-					           WHERE ccs.sale_id = s.id AND st.id IS NULL AND LOWER(t.name) NOT IN ('debe', 'deuda', 'deudor', 'deudores', 'pagado')
+					           WHERE ccs.sale_id = s.id AND st.id IS NULL
 					       ) AS client_tags
 							FROM sales s
 							INNER JOIN sale_days sd ON sd.id = s.sale_day_id
@@ -224,7 +224,7 @@ export async function handler(event) {
 					           JOIN crm_client_tags ct ON ccs.client_id = ct.client_id
 					           JOIN crm_tags t ON ct.tag_id = t.id
 					           LEFT JOIN crm_stages st ON st.tag_id = t.id
-					           WHERE ccs.sale_id = s.id AND st.id IS NULL AND LOWER(t.name) NOT IN ('debe', 'deuda', 'deudor', 'deudores', 'pagado')
+					           WHERE ccs.sale_id = s.id AND st.id IS NULL
 					       ) AS client_tags
 							FROM sales s
 							INNER JOIN sale_days sd ON sd.id = s.sale_day_id
@@ -392,7 +392,7 @@ export async function handler(event) {
 					           JOIN crm_client_tags ct ON ccs.client_id = ct.client_id
 					           JOIN crm_tags t ON ct.tag_id = t.id
 					           LEFT JOIN crm_stages st ON st.tag_id = t.id
-					           WHERE ccs.sale_id = s.id AND st.id IS NULL AND LOWER(t.name) NOT IN ('debe', 'deuda', 'deudor', 'deudores', 'pagado')
+					           WHERE ccs.sale_id = s.id AND st.id IS NULL
 					       ) AS client_tags
 						FROM sales s
 						INNER JOIN sale_days sd ON sd.id = s.sale_day_id
@@ -475,7 +475,7 @@ export async function handler(event) {
 					           JOIN crm_client_tags ct ON ccs.client_id = ct.client_id
 					           JOIN crm_tags t ON ct.tag_id = t.id
 					           LEFT JOIN crm_stages st ON st.tag_id = t.id
-					           WHERE ccs.sale_id = s.id AND st.id IS NULL AND LOWER(t.name) NOT IN ('debe', 'deuda', 'deudor', 'deudores', 'pagado')
+					           WHERE ccs.sale_id = s.id AND st.id IS NULL
 					       ) AS client_tags
 					FROM sales s
 					WHERE s.seller_id = ${sellerId} AND s.sale_day_id = ${saleDayId}
@@ -492,7 +492,7 @@ export async function handler(event) {
 					           JOIN crm_client_tags ct ON ccs.client_id = ct.client_id
 					           JOIN crm_tags t ON ct.tag_id = t.id
 					           LEFT JOIN crm_stages st ON st.tag_id = t.id
-					           WHERE ccs.sale_id = s.id AND st.id IS NULL AND LOWER(t.name) NOT IN ('debe', 'deuda', 'deudor', 'deudores', 'pagado')
+					           WHERE ccs.sale_id = s.id AND st.id IS NULL
 					       ) AS client_tags
 					FROM sales s
 					WHERE s.seller_id = ${sellerId}
@@ -634,8 +634,9 @@ export async function handler(event) {
 							const validTagsRes = await sql`
 SELECT t.id 
 FROM crm_tags t
+LEFT JOIN crm_stages s ON s.tag_id = t.id
 WHERE t.seller_id = ${sellerId}
-  AND LOWER(t.name) NOT IN ('debe', 'deuda', 'deudas', 'deudor', 'deudores', 'pagado')
+  AND s.id IS NULL
 `;
 							const validTagIds = new Set(validTagsRes.map(t => t.id));
 							const targetTags = Array.from(new Set(incomingTagIds.map(Number)))
@@ -857,14 +858,12 @@ WHERE t.seller_id = ${sellerId}
 							const incomingTagIds = Array.isArray(data.tag_ids) ? data.tag_ids : [];
 							const requestedClientId = data.crm_client_id ? Number(data.crm_client_id) : null;
 							
-							// Filter: Only include tags that are custom-created by the seller (ignore stages/debt)
+							// Filter: Only include tags that are custom-created by the seller (ignore stages)
 							const validTagsRes = await sql`
 								SELECT t.id 
 								FROM crm_tags t
 								LEFT JOIN crm_stages s ON s.tag_id = t.id
-								WHERE t.seller_id = ${activeSellerId}
-								  AND s.id IS NULL
-								  AND LOWER(t.name) NOT IN ('debe', 'deuda', 'deudas', 'deudor', 'deudores', 'pagado')
+								WHERE t.seller_id = ${activeSellerId} AND s.id IS NULL
 							`;
 							const validTagIds = new Set(validTagsRes.map(t => t.id));
 							const targetTags = Array.from(new Set(incomingTagIds.map(Number)))

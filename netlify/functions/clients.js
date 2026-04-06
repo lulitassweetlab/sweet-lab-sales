@@ -77,7 +77,8 @@ export default async (req) => {
                             SELECT json_agg(json_build_object('id', t.id, 'name', t.name, 'color', t.color))
                             FROM crm_client_tags ct
                             JOIN crm_tags t ON ct.tag_id = t.id
-                            WHERE ct.client_id = c.id
+                            LEFT JOIN crm_stages st ON st.tag_id = t.id
+                            WHERE ct.client_id = c.id AND st.id IS NULL
                         ), '[]'::json) as custom_tags
                     FROM clients c
                     LEFT JOIN crm_client_sales cs ON c.id = cs.client_id
@@ -223,14 +224,13 @@ export default async (req) => {
                 `;
                 if (!oldClient) return new Response(JSON.stringify({ error: 'Cliente no encontrado' }), { status: 404 });
 
-                // Fetch valid custom tags (excluding stages and status names like DEBE)
+                // Fetch valid custom tags (excluding stages)
                 const validTagsRes = await sql`
                     SELECT t.id 
                     FROM crm_tags t
                     LEFT JOIN crm_stages s ON LOWER(t.name) = LOWER(s.name)
                     WHERE t.seller_id = ${sellerId}
                       AND s.id IS NULL
-                      AND LOWER(t.name) NOT IN ('debe', 'deuda', 'deudas', 'deudor', 'deudores', 'pagado')
                 `;
                 const validTagIds = new Set(validTagsRes.map(t => t.id));
 
