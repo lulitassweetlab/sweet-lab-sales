@@ -467,8 +467,8 @@ export async function handler(event) {
 					       (
 					           SELECT json_agg(json_build_object('name', t.name, 'color', t.color) ORDER BY t.display_order ASC, t.name ASC)
 					           FROM crm_client_sales ccs
-					           JOIN crm_client_tags ct ON ccs.client_id = ct.client_id
-					           JOIN crm_tags t ON ct.tag_id = t.id
+					           LEFT JOIN crm_client_tags ct ON ccs.client_id = ct.client_id
+					           LEFT JOIN crm_tags t ON ct.tag_id = t.id
 					           WHERE ccs.sale_id = s.id
 					       ) AS client_tags
 					FROM sales s
@@ -483,8 +483,8 @@ export async function handler(event) {
 					       (
 					           SELECT json_agg(json_build_object('name', t.name, 'color', t.color) ORDER BY t.display_order ASC, t.name ASC)
 					           FROM crm_client_sales ccs
-					           JOIN crm_client_tags ct ON ccs.client_id = ct.client_id
-					           JOIN crm_tags t ON ct.tag_id = t.id
+					           LEFT JOIN crm_client_tags ct ON ccs.client_id = ct.client_id
+					           LEFT JOIN crm_tags t ON ct.tag_id = t.id
 					           WHERE ccs.sale_id = s.id
 					       ) AS client_tags
 					FROM sales s
@@ -682,7 +682,7 @@ export async function handler(event) {
 						}
 
 						if (crmClient && crmClient.id) {
-							// DEFINITIVE LINK
+							// DEFINITIVE LINK (Priority: do this first before any fragile tag processing)
 							await linkSaleToClient(row.id, crmClient.id, sellerId);
 							
 							// Explicit stage assignment

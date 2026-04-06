@@ -1811,8 +1811,15 @@
                         tag_ids: typeof selectedTagIds !== 'undefined' ? Array.from(selectedTagIds) : []
                     })
                 });
-                if (!res.ok) throw new Error((await res.json()).error || 'Error al guardar cliente');
-                storeClientList.push(name);
+                const createdClient = await res.json();
+                storeClientList.push({ id: createdClient.id, name: name }); // Update local list with object
+                
+                // Synchronize tags for the immediate checkout
+                if (typeof selectedTagIds !== 'undefined') {
+                    selectedClientTags = Array.from(selectedTagIds);
+                    selectedClientId = createdClient.id;
+                }
+                
                 document.getElementById('store-new-client-modal').style.display = 'none';
                 await executeCheckout(name);
             } catch (err) {

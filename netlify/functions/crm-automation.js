@@ -11,6 +11,13 @@ import { sql } from './_db.js';
 export async function evaluateClientStage(clientId, userId = null) {
     if (!clientId) return null;
 
+    // A. Sync Debt Tag (Automatic "DEUDOR" tag based on unpaid sales)
+    try {
+        await syncDebtTag(clientId);
+    } catch (e) {
+        console.error('[CRM Automation] Error syncing debt tag:', e);
+    }
+
     // 1. Get Metrics (Last 30 days and Totals)
     const metricsRes = await sql`
         SELECT 
@@ -136,5 +143,45 @@ export async function syncSellerStages(sellerId) {
     const clients = await sql`SELECT id FROM clients WHERE seller_id = ${sellerId}`;
     for (const c of clients) {
         await evaluateClientStage(c.id);
+    }
+}
+
+/**
+ * Ensures the "DEUDOR" tag is correctly applied/removed based on unpaid sales.
+ */
+export async function syncDebtTag(clientId) {
+    // 1. Get seller_id
+    const [client] = await sql`SELECT seller_id FROM clients WHERE id = ${clientId}`;
+    if (!client) return;
+    const sellerId = client.seller_id;
+
+    // 2. Check for unpaid sales (is_paid = false)
+    const unpaidRes = await sql`
+        SELECT COUNT(s.id) as unpaid_count
+        FROM sales s
+        JOIN crm_client_sales ccs ON s.id = ccs.sale_id
+        WHERE ccs.client_id = ${clientId} 
+          AND s.is_paid = false
+    `;
+    const hasDebt = Number(unpaidRes[0].unpaid_count) > 0;
+
+    // 3. Find or Create "DEUDOR" tag for this seller (Red color #ef4444)
+    let tagId;
+    const existingTag = await sql`SELECT id FROM crm_tags WHERE seller_id = ${sellerId} AND name ILIKE 'DEUDOR' LIMIT 1`;
+    if (existingTag.length) {
+        tagId = existingTag[0].id;
+    } else if (hasDebt) {
+        const [newTag] = await sql`INSERT INTO crm_tags (seller_id, name, color) VALUES (${sellerId}, 'DEUDOR', '#ef4444') RETURNING id`;
+        tagId = newTag.id;
+    }
+
+    if (!tagId) return;
+
+    if (hasDebt) {
+        // Link it
+        await sql`INSERT INTO crm_client_tags (client_id, tag_id) VALUES (${clientId}, ${tagId}) ON CONFLICT DO NOTHING`;
+    } else {
+        // Unlink it
+        await sql`DELETE FROM crm_client_tags WHERE client_id = ${clientId} AND tag_id = ${tagId}`;
     }
 }
