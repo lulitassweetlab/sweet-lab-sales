@@ -655,8 +655,8 @@ export async function handler(event) {
 							}
 
 							// Assignment of Custom Tags (crm_tags)
-							if (tagIds.length > 0) {
-								for (const tagId of tagIds) {
+							if (targetTags.length > 0) {
+								for (const tagId of targetTags) {
 									await sql`
 										INSERT INTO crm_client_tags (client_id, tag_id)
 										VALUES (${crmClient.id}, ${tagId})
@@ -787,6 +787,12 @@ export async function handler(event) {
 			const paymentSource = (Object.prototype.hasOwnProperty.call(data, 'payment_source')) ? (data.payment_source ?? null) : current.payment_source;
 			const specialPricingType = (Object.prototype.hasOwnProperty.call(data, 'special_pricing_type')) ? (data.special_pricing_type ?? null) : current.special_pricing_type;
 			
+			// Context for CRM re-evaluation after PUT update
+			let processedClientId = null;
+			let processedSellerId = null;
+			let processedTargetTags = [];
+			let processedValidTagIds = [];
+			
 			// Update sale basic info
 			await sql`UPDATE sales SET client_name=${client}, comment_text=${comment}, qty_arco=${qa}, qty_melo=${qm}, qty_mara=${qma}, qty_oreo=${qo}, qty_nute=${qn}, is_paid=${paid}, pay_method=${payMethod}, payment_date=${paymentDate}, payment_source=${paymentSource}, special_pricing_type=${specialPricingType} WHERE id=${id}`;
 				
@@ -852,17 +858,12 @@ export async function handler(event) {
 								clientId = newC.id;
 								await sql`INSERT INTO crm_client_sales (client_id, sale_id, seller_id) VALUES (${clientId}, ${id}, ${activeSellerId}) ON CONFLICT (sale_id) DO UPDATE SET client_id = EXCLUDED.client_id`;
 							}
-
-							if (clientId) {
-								await autoUpdateClientStage(clientId, activeSellerId);
-								// Sync tags if provided
-								if (incomingTagIds.length > 0) {
-									await sql`DELETE FROM crm_client_tags WHERE client_id = ${clientId} AND tag_id = ANY(${Array.from(validTagIds)})`;
-									for (const tId of targetTags) {
-										await sql`INSERT INTO crm_client_tags (client_id, tag_id) VALUES (${clientId}, ${tId}) ON CONFLICT DO NOTHING`;
-									}
-								}
-							}
+							
+							// Stash these for the final evaluation after items are inserted
+							processedClientId = clientId;
+							processedSellerId = activeSellerId;
+							processedTargetTags = targetTags;
+							processedValidTagIds = Array.from(validTagIds);
 
 							// 3. SYNC NOTE TO CRM TIMELINE
 							if (clientId && comment.trim() !== '' && comment !== current.comment_text) {
@@ -906,6 +907,22 @@ export async function handler(event) {
 						
 						if (dessertId > 0 && quantity > 0) {
 							await sql`INSERT INTO sale_items (sale_id, dessert_id, quantity, unit_price) VALUES (${id}, ${dessertId}, ${quantity}, ${unitPrice})`;
+						}
+					}
+					
+					// FINAL STEP: CRM sync/eval AFTER items are in place
+					if (processedClientId) {
+						try {
+							await autoUpdateClientStage(processedClientId, processedSellerId);
+							// Sync tags if provided (re-sync inside PUT handler is safer once items are confirmed)
+							if (processedTargetTags.length > 0) {
+								await sql`DELETE FROM crm_client_tags WHERE client_id = ${processedClientId} AND tag_id = ANY(${processedValidTagIds})`;
+								for (const tId of processedTargetTags) {
+									await sql`INSERT INTO crm_client_tags (client_id, tag_id) VALUES (${processedClientId}, ${tId}) ON CONFLICT DO NOTHING`;
+								}
+							}
+						} catch (crmEvalErr) {
+							console.error('Error in final CRM stage evaluation during PUT:', crmEvalErr);
 						}
 					}
 				}
