@@ -735,12 +735,24 @@
             setSellerSaveStatus('Guardando...');
 
             try {
+                let actor = '';
+                try {
+                    const auth = JSON.parse(localStorage.getItem('authUser') || '{}');
+                    actor = auth.name || '';
+                } catch(e) {}
+
                 const res = await fetch('/api/sellers', {
                     method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-Actor-Name': actor
+                    },
                     body: JSON.stringify({ id: sid, whatsapp: val || null })
                 });
-                if (!res.ok) throw new Error('Failed to save');
+                if (!res.ok) {
+                    const errData = await res.json().catch(() => ({}));
+                    throw new Error(errData.error || `Error ${res.status}`);
+                }
                 sellerState.whatsappBySellerId[sid] = val;
                 setSellerSaveStatus('Guardado', 'success');
             } catch (err) {
