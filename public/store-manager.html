@@ -437,74 +437,6 @@
                 }
             }
 
-            async function compressVideo(file) {
-                return new Promise((resolve, reject) => {
-                    const url = URL.createObjectURL(file);
-                    const video = document.createElement('video');
-                    video.src = url;
-                    video.muted = true;
-                    video.playsInline = true;
-                    video.style.position = 'fixed';
-                    video.style.left = '-9999px';
-                    document.body.appendChild(video);
-
-                    video.onloadedmetadata = () => {
-                        const duration = video.duration;
-                        // Target 3MB binary (~4MB Base64) to allow for some padding under 5.5MB total
-                        const targetBits = 3 * 1024 * 1024 * 8;
-                        const bps = Math.floor(targetBits / duration);
-                        const finalBps = Math.max(300000, Math.min(6000000, bps));
-
-                        let stream;
-                        if (video.captureStream) {
-                            stream = video.captureStream();
-                        } else if (video.mozCaptureStream) {
-                            stream = video.mozCaptureStream();
-                        } else {
-                            URL.revokeObjectURL(url);
-                            video.remove();
-                            return reject(new Error('Navegador no soporta compresión de video.'));
-                        }
-
-                        const recorder = new MediaRecorder(stream, {
-                            mimeType: 'video/webm;codecs=vp8',
-                            bitsPerSecond: finalBps
-                        });
-
-                        const chunks = [];
-                        recorder.ondataavailable = e => chunks.push(e.data);
-                        recorder.onstop = () => {
-                            const blob = new Blob(chunks, { type: 'video/webm' });
-                            const reader = new FileReader();
-                            reader.onload = e => {
-                                URL.revokeObjectURL(url);
-                                video.remove();
-                                resolve(e.target.result);
-                            };
-                            reader.readAsDataURL(blob);
-                        };
-
-                        video.play();
-                        recorder.start();
-
-                        video.onended = () => {
-                            recorder.stop();
-                        };
-
-                        // Fallback safety for ended event
-                        setTimeout(() => {
-                            if (recorder.state === 'recording') recorder.stop();
-                        }, (duration * 1000) + 1000);
-                    };
-
-                    video.onerror = () => {
-                        URL.revokeObjectURL(url);
-                        video.remove();
-                        reject(new Error('Error al cargar archivo de video.'));
-                    };
-                });
-            }
-
             function openEditProduct(product) {
                 const pop = document.createElement('div');
                 pop.className = 'confirm-popover';
@@ -542,7 +474,7 @@
 
                 const fileInput = document.createElement('input');
                 fileInput.type = 'file';
-                fileInput.accept = 'image/*,video/mp4,video/webm';
+                fileInput.accept = 'image/*';
                 fileInput.multiple = true;
                 fileInput.style.display = 'none';
                 fileInput.id = 'product-media-upload';
@@ -551,7 +483,49 @@
                 uploadLbl.className = 'upload-lbl';
                 uploadLbl.htmlFor = 'product-media-upload';
                 uploadLbl.style.alignSelf = 'flex-start';
-                uploadLbl.textContent = 'Añadir Fotos / Videos';
+                uploadLbl.textContent = 'Añadir Fotos';
+
+                const ytWrap = document.createElement('div');
+                ytWrap.style.display = 'flex';
+                ytWrap.style.gap = '8px';
+                ytWrap.style.marginTop = '8px';
+                
+                const ytInput = document.createElement('input');
+                ytInput.className = 'input-cell';
+                ytInput.placeholder = 'Enlace de YouTube (Opcional)';
+                ytInput.style.flex = '1';
+                ytInput.style.fontSize = '0.85rem';
+
+                const ytAddBtn = document.createElement('button');
+                ytAddBtn.textContent = 'Añadir Video';
+                ytAddBtn.className = 'press-btn';
+                ytAddBtn.style.padding = '4px 12px';
+                ytAddBtn.style.fontSize = '0.8rem';
+                
+                ytWrap.append(ytInput, ytAddBtn);
+
+                function extractYoutubeId(url) {
+                    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+                    const match = url.match(regExp);
+                    return (match && match[2].length === 11) ? match[2] : null;
+                }
+
+                ytAddBtn.onclick = () => {
+                    const url = ytInput.value.trim();
+                    if (!url) return;
+                    const id = extractYoutubeId(url);
+                    if (!id) { alert('URL de YouTube no válida'); return; }
+                    
+                    // Allow only 1 video (could be native or YT)
+                    if (currentMedia.some(m => m.type === 'video' || m.type === 'youtube')) {
+                        alert('Solo se permite 1 video por postre. Elimina el anterior para cambiarlo.');
+                        return;
+                    }
+
+                    currentMedia.push({ type: 'youtube', id });
+                    ytInput.value = '';
+                    renderGallery();
+                };
 
                 // We'll store an array of objects: { type: 'image'|'video', base64: '...' }
                 let currentMedia = [];
@@ -580,6 +554,9 @@
                             visual.muted = true;
                             visual.loop = true;
                             visual.autoplay = true;
+                        } else if (m.type === 'youtube') {
+                            visual = document.createElement('img');
+                            visual.src = `https://img.youtube.com/vi/${m.id}/hqdefault.jpg`;
                         } else {
                             visual = document.createElement('img');
                             visual.src = m.base64;
@@ -621,36 +598,12 @@
                     if (!files.length) return;
 
                     let imgCount = currentMedia.filter(m => m.type === 'image').length;
-                    let vidCount = currentMedia.filter(m => m.type === 'video').length;
+                    let hasVideo = currentMedia.some(m => m.type === 'video' || m.type === 'youtube');
 
                     for (const file of files) {
-                        const isVideo = file.type.startsWith('video/');
                         const isImage = file.type.startsWith('image/');
 
-                        if (isVideo) {
-                            if (vidCount >= 1) {
-                                alert('Solo se permite 1 video por postre.');
-                                continue;
-                            }
-                            
-                            uploadLbl.textContent = '⏳ Comprimiendo video...';
-                            uploadLbl.style.color = 'var(--text)';
-                            uploadLbl.style.opacity = '0.5';
-
-                            try {
-                                const base64 = await compressVideo(file);
-                                currentMedia.push({ type: 'video', base64 });
-                                vidCount++;
-                                renderGallery();
-                            } catch (err) {
-                                console.error('Video compression error:', err);
-                                alert('No se pudo procesar el video: ' + err.message);
-                            } finally {
-                                uploadLbl.textContent = 'Añadir Fotos / Videos';
-                                uploadLbl.style.color = 'var(--primary)';
-                                uploadLbl.style.opacity = '1';
-                            }
-                        } else if (isImage) {
+                        if (isImage) {
                             if (imgCount >= 6) {
                                 alert('Solo se permiten hasta 6 imágenes por postre.');
                                 continue;
@@ -697,7 +650,7 @@
                     renderGallery();
                 });
 
-                mediaWrap.append(mediaGallery, uploadLbl, fileInput);
+                mediaWrap.append(mediaGallery, uploadLbl, fileInput, ytWrap);
 
                 const nameLabel = document.createElement('label');
                 nameLabel.textContent = 'Nombre:';

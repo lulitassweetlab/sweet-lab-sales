@@ -79,7 +79,27 @@ function storeRenderProduct(product) {
         const slide = document.createElement('div');
         slide.className = 'carousel-slide';
 
-        if (m.type === 'video') {
+        if (m.type === 'youtube') {
+            const img = document.createElement('img');
+            img.src = `https://img.youtube.com/vi/${m.id}/hqdefault.jpg`;
+            img.alt = product.name;
+            img.loading = idx === 0 ? 'eager' : 'lazy';
+            img.style.cursor = 'zoom-in';
+            img.addEventListener('click', () => openFullscreenGallery(mediaItems, idx));
+            slide.appendChild(img);
+
+            const playIcon = document.createElement('div');
+            playIcon.innerHTML = '▶';
+            playIcon.style.position = 'absolute';
+            playIcon.style.top = '50%';
+            playIcon.style.left = '50%';
+            playIcon.style.transform = 'translate(-50%, -50%)';
+            playIcon.style.fontSize = '32px';
+            playIcon.style.color = 'white';
+            playIcon.style.textShadow = '0 0 10px rgba(0,0,0,0.5)';
+            playIcon.style.pointerEvents = 'none';
+            slide.appendChild(playIcon);
+        } else if (m.type === 'video') {
             const vid = document.createElement('video');
             vid.src = m.base64;
             vid.muted = true;
@@ -365,7 +385,17 @@ function openFullscreenGallery(mediaItems, startIndex) {
             if (e.target === slide) closeGallery();
         });
 
-        if (m.type === 'video') {
+        if (m.type === 'youtube') {
+            const ifr = document.createElement('iframe');
+            ifr.src = `https://www.youtube.com/embed/${m.id}?rel=0`;
+            ifr.style.width = '100%';
+            ifr.style.height = '100%';
+            ifr.style.border = 'none';
+            ifr.style.borderRadius = '12px';
+            ifr.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share');
+            ifr.setAttribute('allowfullscreen', 'true');
+            slide.appendChild(ifr);
+        } else if (m.type === 'video') {
             const vid = document.createElement('video');
             vid.src = m.base64;
             vid.controls = true;
