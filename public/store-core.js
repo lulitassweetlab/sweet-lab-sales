@@ -386,15 +386,47 @@ function openFullscreenGallery(mediaItems, startIndex) {
         });
 
         if (m.type === 'youtube') {
-            const ifr = document.createElement('iframe');
-            ifr.src = `https://www.youtube.com/embed/${m.id}?rel=0`;
-            ifr.style.width = '100%';
-            ifr.style.height = '100%';
-            ifr.style.border = 'none';
-            ifr.style.borderRadius = '12px';
-            ifr.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share');
-            ifr.setAttribute('allowfullscreen', 'true');
-            slide.appendChild(ifr);
+            const thumbWrap = document.createElement('div');
+            thumbWrap.className = 'yt-lazy-wrap';
+            thumbWrap.style.width = '100%';
+            thumbWrap.style.height = '100%';
+            thumbWrap.style.position = 'relative';
+            thumbWrap.style.cursor = 'pointer';
+
+            const thumb = document.createElement('img');
+            thumb.src = `https://img.youtube.com/vi/${m.id}/hqdefault.jpg`;
+            thumb.style.width = '100%';
+            thumb.style.height = '100%';
+            thumb.style.objectFit = 'contain';
+            thumb.style.borderRadius = '12px';
+
+            const playBtn = document.createElement('div');
+            playBtn.innerHTML = '▶';
+            playBtn.style.position = 'absolute';
+            playBtn.style.top = '50%';
+            playBtn.style.left = '50%';
+            playBtn.style.transform = 'translate(-50%, -50%)';
+            playBtn.style.fontSize = '64px';
+            playBtn.style.color = 'white';
+            playBtn.style.textShadow = '0 0 20px rgba(0,0,0,0.5)';
+
+            thumbWrap.append(thumb, playBtn);
+
+            thumbWrap.onclick = (e) => {
+                e.stopPropagation();
+                thumbWrap.innerHTML = '';
+                const ifr = document.createElement('iframe');
+                ifr.src = `https://www.youtube.com/embed/${m.id}?autoplay=1&rel=0`;
+                ifr.style.width = '100%';
+                ifr.style.height = '100%';
+                ifr.style.border = 'none';
+                ifr.style.borderRadius = '12px';
+                ifr.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share');
+                ifr.setAttribute('allowfullscreen', 'true');
+                thumbWrap.appendChild(ifr);
+            };
+
+            slide.appendChild(thumbWrap);
         } else if (m.type === 'video') {
             const vid = document.createElement('video');
             vid.src = m.base64;
