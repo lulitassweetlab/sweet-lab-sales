@@ -259,28 +259,8 @@
 			color: #9ca3af;
 		}
 
-		.day-trigger {
-			display: flex;
-			max-width: 0;
-			opacity: 0;
-			overflow: hidden;
-			padding: 0;
-			border-width: 0;
-			transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-			white-space: nowrap;
-		}
-
-		.day-trigger.show {
-			flex: 1;
-			max-width: 50%;
-			opacity: 1;
-			padding: 0 18px;
-			border-width: 2px;
-			margin-left: 10px;
-		}
-
 		.day-trigger:disabled {
-			pointer-events: none;
+			display: none;
 		}
 
 		.month-grid, .day-grid {
@@ -288,26 +268,21 @@
 			grid-template-columns: repeat(3, 1fr);
 			gap: 10px;
 			margin-top: 15px;
-			transform-origin: top center;
+		}
+
+		.day-grid {
+			grid-template-columns: repeat(7, 1fr);
+			gap: 6px;
 		}
 
 		.month-grid.show, .day-grid.show {
 			display: grid;
-			animation: premiumPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+			animation: fadeInSoft 0.8s ease-out forwards;
 		}
 
-		@keyframes premiumPop {
-			from { opacity: 0; transform: translateY(-10px) scale(0.95); }
-			to { opacity: 1; transform: translateY(0) scale(1); }
-		}
-
-		@keyframes premiumFadeOut {
-			from { opacity: 1; transform: translateY(0) scale(1); }
-			to { opacity: 0; transform: translateY(-10px) scale(0.95); }
-		}
-
-		.grid-leaving {
-			animation: premiumFadeOut 0.3s ease forwards !important;
+		@keyframes fadeInSoft {
+			from { opacity: 0; transform: translateY(5px); }
+			to { opacity: 1; transform: translateY(0); }
 		}
 
 		.month-btn, .day-btn {
@@ -1036,19 +1011,16 @@ Envíalo a tu asesor y activa tu descuento ✨`
 					
 					// Enable Day logic but keep trigger hidden until a day is picked
 					dayTrigger.disabled = false;
-					dayTrigger.classList.remove('show'); // Keep hidden until day is picked
+					dayTrigger.style.display = 'none'; 
 					dayTrigger.textContent = 'Día';
 					dayTrigger.style.color = '#9ca3af';
 					selectedDayNum = '';
 					
 					generateDays(monthDaysMap[selectedMonthNum]);
 					
-					// Smooth transition between grids
-					monthGrid.classList.add('grid-leaving');
-					setTimeout(() => {
-						monthGrid.classList.remove('show', 'grid-leaving');
-						dayGrid.classList.add('show');
-					}, 300);
+					// Change grids instantly with internal fade
+					monthGrid.classList.remove('show');
+					dayGrid.classList.add('show');
 					
 					updateBirthDate();
 				});
@@ -1067,16 +1039,14 @@ Envíalo a tu asesor y activa tu descuento ✨`
 						btn.classList.add('active');
 						selectedDayNum = dayStr;
 						
-						// Show the day trigger with smooth animation
-						dayTrigger.classList.add('show');
+						// Show the day trigger
+						dayTrigger.disabled = false;
+						dayTrigger.style.display = 'flex';
 						dayTrigger.textContent = i;
 						dayTrigger.style.borderColor = '#f4a6b7';
 						dayTrigger.style.color = '#2a2a2a';
 						
-						dayGrid.classList.add('grid-leaving');
-						setTimeout(() => {
-							dayGrid.classList.remove('show', 'grid-leaving');
-						}, 300);
+						dayGrid.classList.remove('show');
 						
 						updateBirthDate();
 						hideError('birthdate-error');
