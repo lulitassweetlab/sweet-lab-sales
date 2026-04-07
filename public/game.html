@@ -276,7 +276,7 @@
 			z-index: 3000;
 			overflow: hidden;
 			animation: fadeInSoft 0.8s ease-out forwards;
-			transition: opacity 2s ease-out; /* Regla de salida de 2 segundos */
+			transition: opacity 1.5s ease-in-out; /* Desvanecimiento progresivo de 1.5s */
 		}
 
 		.birthdate-modal.show {
@@ -1098,13 +1098,13 @@ Envíalo a tu asesor y activa tu descuento ✨`
 						dayTrigger.style.borderColor = '#f4a6b7';
 						dayTrigger.style.color = '#2a2a2a';
 						
-						// Very smooth and slow exit
+						// Desvanecimiento suave y progresivo hacia la pantalla normal
 						const modal = document.getElementById('birthdate-modal');
 						modal.classList.add('closing');
 						setTimeout(() => {
 							modal.classList.remove('show', 'closing');
 							document.getElementById('day-view').classList.remove('active');
-						}, 2000); // 2 seconds
+						}, 1500); // 1.5 segundos para una salida equilibrada
 						
 						updateBirthDate();
 						hideError('birthdate-error');
