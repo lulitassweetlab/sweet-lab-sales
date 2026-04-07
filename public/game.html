@@ -3,7 +3,7 @@
 
 <head>
 	<meta charset="UTF-8" />
-	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 	<title>Sweet Lab - Juego de Premios</title>
 	<link rel="preconnect" href="https://fonts.googleapis.com" />
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -576,15 +576,17 @@
 		}
 
 		@keyframes spin {
-			to {
-				transform: rotate(360deg);
-			}
 		}
 
 		/* Mobile responsive */
 		@media (max-width: 600px) {
+			body {
+				padding: 10px;
+			}
+
 			.glass-card {
-				padding: 24px;
+				padding: 24px 18px;
+				border-radius: 12px;
 			}
 
 			.game-title {
@@ -593,14 +595,20 @@
 
 			.game-subtitle {
 				font-size: 14px;
+				padding: 0 10px;
 			}
 
 			.wheel-container {
-				max-width: 300px;
+				max-width: 320px;
 			}
 
 			.prize-value {
-				font-size: 36px;
+				font-size: 32px;
+			}
+
+			.btn-primary {
+				padding: 12px;
+				font-size: 16px;
 			}
 		}
 	</style>
