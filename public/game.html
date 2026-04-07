@@ -593,6 +593,89 @@
 			animation: pulse-green 2s infinite;
 		}
 
+		/* Winners Section */
+		.winners-section {
+			margin-top: 40px;
+			padding-bottom: 40px;
+		}
+
+		.winners-title {
+			font-size: 20px;
+			font-weight: 700;
+			color: #2a2a2a;
+			margin-bottom: 15px;
+			text-align: center;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			gap: 8px;
+		}
+
+		.winners-list {
+			display: grid;
+			grid-template-columns: 1fr;
+			gap: 12px;
+		}
+
+		.winner-card {
+			background: rgba(255, 255, 255, 0.7);
+			backdrop-filter: blur(5px);
+			padding: 12px 18px;
+			border-radius: 12px;
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+			animation: fadeIn 0.4s ease forwards;
+		}
+
+		.winner-info {
+			display: flex;
+			flex-direction: column;
+			gap: 2px;
+		}
+
+		.winner-name {
+			font-weight: 600;
+			color: #2a2a2a;
+			font-size: 14px;
+		}
+
+		.winner-date {
+			font-size: 11px;
+			color: #9ca3af;
+		}
+
+		.winner-prize {
+			font-weight: 700;
+			color: #f4a6b7;
+			font-size: 15px;
+			background: #fff5f7;
+			padding: 4px 10px;
+			border-radius: 20px;
+		}
+
+		.btn-load-more {
+			margin-top: 20px;
+			background: white;
+			color: #f4a6b7;
+			border: 2px solid #f4a6b7;
+			padding: 10px 20px;
+			border-radius: 25px;
+			font-weight: 600;
+			cursor: pointer;
+			width: 100%;
+			transition: all 0.2s ease;
+		}
+
+		.btn-load-more:hover {
+			background: #fff5f7;
+		}
+
+		.btn-load-more:disabled {
+			display: none;
+		}
+
 		/* Mobile responsive */
 		@media (max-width: 600px) {
 			body {
@@ -733,6 +816,15 @@
 				Reclamar con mi Asesor
 			</a>
 		</div>
+
+		<!-- Winners Section -->
+		<div class="winners-section" id="winners-section">
+			<h2 class="winners-title">Últimos Ganadores ✨</h2>
+			<div class="winners-list" id="winners-list">
+				<!-- Winners populated by JS -->
+			</div>
+			<button class="btn-load-more" id="load-more-winners">Ver más ganadores</button>
+		</div>
 	</div>
 
 	<!-- Confetti container -->
@@ -838,10 +930,70 @@ Envíalo a tu asesor y activa tu descuento ✨`
 
 			await loadConfiguredPrizes();
 			await loadSellers();
+			loadWinners();
 			drawWheel();
 			setupEventListeners();
 			setupMonthSelection();
 		});
+
+		// Winners logic
+		let currentWinnersOffset = 0;
+		const winnersLimit = 20;
+		let loadingWinners = false;
+
+		async function loadWinners(refresh = false) {
+			if (loadingWinners) return;
+			if (refresh) currentWinnersOffset = 0;
+			
+			loadingWinners = true;
+			const winnersList = document.getElementById('winners-list');
+			const loadMoreBtn = document.getElementById('load-more-winners');
+			
+			try {
+				const response = await fetch(`/api/game-plays?limit=${winnersLimit}&offset=${currentWinnersOffset}`);
+				const winners = await response.json();
+				
+				if (refresh) winnersList.innerHTML = '';
+				
+				if (winners.length === 0 && !refresh) {
+					loadMoreBtn.disabled = true;
+				} else {
+					winners.forEach(winner => {
+						const card = document.createElement('div');
+						card.className = 'winner-card';
+						
+						// Format date: Hace X tiempo
+						const dateObj = new Date(winner.played_at);
+						const timeStr = dateObj.toLocaleDateString() + ' ' + dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+						
+						const prizeLabel = winner.prize_type === 'free' ? 'Postre Gratis' : winner.prize_value;
+
+						card.innerHTML = `
+							<div class="winner-info">
+								<span class="winner-name">${winner.customer_name}</span>
+								<span class="winner-date">${timeStr}</span>
+							</div>
+							<div class="winner-prize">${prizeLabel}</div>
+						`;
+						winnersList.appendChild(card);
+					});
+					
+					currentWinnersOffset += winners.length;
+					
+					if (winners.length < winnersLimit || currentWinnersOffset >= 200) {
+						loadMoreBtn.disabled = true;
+					} else {
+						loadMoreBtn.disabled = false;
+					}
+				}
+			} catch (error) {
+				console.error('Error loading winners:', error);
+			} finally {
+				loadingWinners = false;
+			}
+		}
+
+		document.getElementById('load-more-winners').addEventListener('click', () => loadWinners());
 
 		function setupMonthSelection() {
 			const monthTrigger = document.getElementById('month-trigger');
@@ -1286,6 +1438,13 @@ Envíalo a tu asesor y activa tu descuento ✨`
 				gameState.prize = data.prize;
 				gameState.hasPlayed = true;
 				const spinStarted = spinWheelToPrize(data.prize, spinBtn);
+				if (response.ok) {
+					localStorage.setItem('hasPlayed', 'true');
+					gameState.hasPlayed = true;
+					
+					// Refresh winners list to show the new winner!
+					setTimeout(() => loadWinners(true), 1500);
+				}
 				if (!spinStarted) {
 					gameState.hasPlayed = false;
 				}
