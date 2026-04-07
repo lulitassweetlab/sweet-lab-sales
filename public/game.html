@@ -597,6 +597,7 @@
 		.winners-section {
 			margin-top: 40px;
 			padding-bottom: 40px;
+			display: none; /* Oculto inicialmente */
 		}
 
 		.winners-title {
@@ -1359,6 +1360,7 @@ Envíalo a tu asesor y activa tu descuento ✨`
 
 				document.getElementById('registration-section').classList.add('hidden');
 				document.getElementById('game-section').classList.add('active');
+				document.getElementById('winners-section').style.display = 'block';
 
 			} catch (error) {
 				console.error('Registration error:', error);
@@ -1413,9 +1415,6 @@ Envíalo a tu asesor y activa tu descuento ✨`
 				if (response.ok) {
 					localStorage.setItem('hasPlayed', 'true');
 					gameState.hasPlayed = true;
-					
-					// Refresh winners list to show the new winner!
-					setTimeout(() => loadWinners(true), 1500);
 				}
 				if (!spinStarted) {
 					gameState.hasPlayed = false;
@@ -1432,6 +1431,9 @@ Envíalo a tu asesor y activa tu descuento ✨`
 		function showPrize(prize) {
 			document.getElementById('game-section').classList.remove('active');
 			document.getElementById('prize-section').classList.add('active');
+			
+			// Actualizar lista de ganadores 1 segundo después de mostrar el mensaje
+			setTimeout(() => loadWinners(true), 1000);
 
 			// Update prize display
 			if (prize.type === 'free') {
