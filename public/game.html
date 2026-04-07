@@ -652,28 +652,7 @@
 			font-size: 15px;
 			background: #fff5f7;
 			padding: 4px 10px;
-			border-radius: 20px;
-		}
-
-		.btn-load-more {
-			margin-top: 20px;
-			background: white;
-			color: #f4a6b7;
-			border: 2px solid #f4a6b7;
-			padding: 10px 20px;
-			border-radius: 25px;
-			font-weight: 600;
-			cursor: pointer;
-			width: 100%;
-			transition: all 0.2s ease;
-		}
-
-		.btn-load-more:hover {
-			background: #fff5f7;
-		}
-
-		.btn-load-more:disabled {
-			display: none;
+			border-radius: 200px;
 		}
 
 		/* Mobile responsive */
@@ -817,13 +796,11 @@
 			</a>
 		</div>
 
-		<!-- Winners Section -->
 		<div class="winners-section" id="winners-section">
 			<h2 class="winners-title">Últimos Ganadores ✨</h2>
 			<div class="winners-list" id="winners-list">
 				<!-- Winners populated by JS -->
 			</div>
-			<button class="btn-load-more" id="load-more-winners">Ver más ganadores</button>
 		</div>
 	</div>
 
@@ -947,7 +924,6 @@ Envíalo a tu asesor y activa tu descuento ✨`
 			
 			loadingWinners = true;
 			const winnersList = document.getElementById('winners-list');
-			const loadMoreBtn = document.getElementById('load-more-winners');
 			
 			try {
 				const response = await fetch(`/api/game-plays?limit=${winnersLimit}&offset=${currentWinnersOffset}`);
@@ -955,17 +931,13 @@ Envíalo a tu asesor y activa tu descuento ✨`
 				
 				if (refresh) winnersList.innerHTML = '';
 				
-				if (winners.length === 0 && !refresh) {
-					loadMoreBtn.disabled = true;
-				} else {
+				if (winners.length > 0) {
 					winners.forEach(winner => {
 						const card = document.createElement('div');
 						card.className = 'winner-card';
 						
-						// Format date: Hace X tiempo
 						const dateObj = new Date(winner.played_at);
 						const timeStr = dateObj.toLocaleDateString() + ' ' + dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-						
 						const prizeLabel = winner.prize_type === 'free' ? 'Postre Gratis' : winner.prize_value;
 
 						card.innerHTML = `
@@ -980,10 +952,12 @@ Envíalo a tu asesor y activa tu descuento ✨`
 					
 					currentWinnersOffset += winners.length;
 					
-					if (winners.length < winnersLimit || currentWinnersOffset >= 200) {
-						loadMoreBtn.disabled = true;
-					} else {
-						loadMoreBtn.disabled = false;
+					// Auto-load next batch after a short delay if under 200
+					if (winners.length === winnersLimit && currentWinnersOffset < 200) {
+						setTimeout(() => {
+							loadingWinners = false; // Allow next load
+							loadWinners();
+						}, 1000); // 1s delay between batches for performance
 					}
 				}
 			} catch (error) {
@@ -992,8 +966,6 @@ Envíalo a tu asesor y activa tu descuento ✨`
 				loadingWinners = false;
 			}
 		}
-
-		document.getElementById('load-more-winners').addEventListener('click', () => loadWinners());
 
 		function setupMonthSelection() {
 			const monthTrigger = document.getElementById('month-trigger');
