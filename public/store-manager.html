@@ -139,28 +139,6 @@
                         placeholder="Ej: 573004147471"
                         style="width: 100%;" />
                 </div>
-                <div>
-                    <label style="font-weight: bold; display: block; margin-bottom: 8px;">Mensaje de Confirmación (Subir Pedido):</label>
-                    <textarea id="store-confirm-msg-input" class="input-light"
-                        placeholder="Ej: Hemos recibido tu pedido, te contactaremos pronto"
-                        style="width: 100%; min-height: 60px; font-family: inherit;"></textarea>
-                </div>
-                <div style="margin-top: 10px; padding-top: 15px; border-top: 1px solid var(--border);">
-                    <h4 style="margin-top: 0; margin-bottom: 12px;">Mensajes del Juego (Gira y Gana)</h4>
-                    <div style="margin-bottom: 15px;">
-                        <label style="font-weight: bold; display: block; margin-bottom: 8px;">Mensaje Postre Gratis:</label>
-                        <textarea id="game-msg-free-input" class="input-light"
-                            placeholder="Ej: Has ganado un POSTRE GRATIS..."
-                            style="width: 100%; min-height: 80px; font-family: inherit; font-size: 0.9em;"></textarea>
-                    </div>
-                    <div>
-                        <label style="font-weight: bold; display: block; margin-bottom: 8px;">Mensaje Descuento:</label>
-                        <textarea id="game-msg-discount-input" class="input-light"
-                            placeholder="Ej: Has ganado un {premio} de descuento..."
-                            style="width: 100%; min-height: 80px; font-family: inherit; font-size: 0.9em;"></textarea>
-                        <p style="font-size: 0.75em; color: var(--text-muted); margin-top: 4px;">Usa {premio} para insertar automáticamente el valor ganado (ej: 20% DESC).</p>
-                    </div>
-                </div>
                 <div style="display: flex; gap: 16px;">
                     <div style="flex: 1;">
                         <label style="font-weight: bold; display: block; margin-bottom: 8px;">Separación Horizontal
@@ -989,12 +967,6 @@
                         if (settings.upload_confirmation_message !== undefined) {
                             storeConfirmMsgInput.value = settings.upload_confirmation_message;
                         }
-                        if (settings.game_msg_free !== undefined) {
-                            document.getElementById('game-msg-free-input').value = settings.game_msg_free;
-                        }
-                        if (settings.game_msg_discount !== undefined) {
-                            document.getElementById('game-msg-discount-input').value = settings.game_msg_discount;
-                        }
                         if (settings.promo_banner_1) {
                             currentBanner1Base64 = settings.promo_banner_1;
                             banner1Preview.src = settings.promo_banner_1;
@@ -1021,9 +993,7 @@
                         store_title: storeTitleInput.value.trim() || null,
                         store_subtitle: storeSubtitleInput.value.trim() || null,
                         whatsapp_number: storeWhatsappInput.value.trim() || null,
-                        upload_confirmation_message: storeConfirmMsgInput.value.trim() || null,
-                        game_msg_free: document.getElementById('game-msg-free-input').value.trim() || null,
-                        game_msg_discount: document.getElementById('game-msg-discount-input').value.trim() || null
+                        upload_confirmation_message: storeConfirmMsgInput.value.trim() || null
                     };
                     if (currentLogoBase64) {
                         body.logo_base64 = currentLogoBase64;

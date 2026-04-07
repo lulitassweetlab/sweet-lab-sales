@@ -423,6 +423,17 @@
             <div class="loading">Cargando probabilidades...</div>
         </div>
         <div id="probabilities-total" class="probabilities-total"></div>
+    <!-- Seller Management Configuration -->
+    <div class="table-container probabilities-card" id="seller-mgmt-section" style="margin-top: 20px;">
+        <div class="probabilities-header">
+            <h2>📞 WhatsApp de Vendedores</h2>
+            <span id="seller-save-status" class="probabilities-save-status"></span>
+        </div>
+        <p class="probabilities-help">Configura el número de WhatsApp para cada vendedor para que los clientes puedan
+            contactarlos.</p>
+        <div id="sellers-mgmt-grid" class="probabilities-grid">
+            <div class="loading">Cargando vendedores...</div>
+        </div>
     </div>
 
     <div class="table-container">
@@ -463,6 +474,10 @@
         const probabilityState = {
             valuesByLabel: {},
             timersByLabel: new Map()
+        };
+        const sellerState = {
+            whatsappBySellerId: {},
+            timersBySellerId: new Map()
         };
         let gamePlaysData = [];
         let loadingGamePlays = false;
@@ -668,6 +683,109 @@
                 const grid = document.getElementById('probabilities-grid');
                 grid.innerHTML = '<div class="loading">Error al cargar probabilidades</div>';
                 setProbabilitySaveStatus('No se pudieron cargar las probabilidades.', 'error');
+            }
+        }
+
+        // --- Seller Management ---
+        function setSellerSaveStatus(message, tone = 'default') {
+            const statusEl = document.getElementById('seller-save-status');
+            if (!statusEl) return;
+            statusEl.textContent = message || '';
+            statusEl.classList.remove('success', 'error');
+            if (tone === 'success') statusEl.classList.add('success');
+            if (tone === 'error') statusEl.classList.add('error');
+        }
+
+        function scheduleSellerSave(inputEl) {
+            const sid = inputEl?.dataset?.sellerId;
+            if (!sid) return;
+
+            const existingTimer = sellerState.timersBySellerId.get(sid);
+            if (existingTimer) clearTimeout(existingTimer);
+
+            const timer = setTimeout(() => {
+                saveSellerWhatsapp(inputEl);
+            }, 600);
+            sellerState.timersBySellerId.set(sid, timer);
+        }
+
+        async function saveSellerWhatsapp(inputEl) {
+            const sid = inputEl?.dataset?.sellerId;
+            if (!sid || inputEl?.dataset?.saving === '1') return;
+
+            const val = String(inputEl.value || '').trim();
+            if (sellerState.whatsappBySellerId[sid] === val) return;
+
+            inputEl.dataset.saving = '1';
+            inputEl.classList.add('saving');
+            setSellerSaveStatus('Guardando...');
+
+            try {
+                const res = await fetch('/api/sellers', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: sid, whatsapp: val || null })
+                });
+                if (!res.ok) throw new Error('Failed to save');
+                sellerState.whatsappBySellerId[sid] = val;
+                setSellerSaveStatus('Guardado', 'success');
+            } catch (err) {
+                console.error('Error saving seller whatsapp:', err);
+                setSellerSaveStatus('Error al guardar', 'error');
+                inputEl.classList.add('error');
+            } finally {
+                inputEl.classList.remove('saving');
+                delete inputEl.dataset.saving;
+            }
+        }
+
+        function renderSellersManagement(sellers) {
+            const grid = document.getElementById('sellers-mgmt-grid');
+            if (!grid) return;
+            grid.innerHTML = '';
+            sellerState.whatsappBySellerId = {};
+
+            sellers.forEach(s => {
+                sellerState.whatsappBySellerId[s.id] = s.whatsapp || '';
+                const card = document.createElement('div');
+                card.className = 'probability-item';
+
+                const label = document.createElement('div');
+                label.className = 'probability-label';
+                label.textContent = s.name;
+
+                const wrap = document.createElement('div');
+                wrap.className = 'probability-input-wrap';
+
+                const input = document.createElement('input');
+                input.className = 'probability-input';
+                input.style.width = '140px';
+                input.style.fontSize = '14px';
+                input.placeholder = 'Ej: 57...';
+                input.value = s.whatsapp || '';
+                input.dataset.sellerId = s.id;
+
+                input.addEventListener('input', () => scheduleSellerSave(input));
+                input.addEventListener('blur', () => saveSellerWhatsapp(input));
+
+                wrap.appendChild(input);
+                card.appendChild(label);
+                card.appendChild(wrap);
+                grid.appendChild(card);
+            });
+        }
+
+        async function loadSellersManagement() {
+            try {
+                setSellerSaveStatus('Cargando...');
+                const res = await fetch('/api/sellers?include_archived=0');
+                if (!res.ok) throw new Error('Failed to load');
+                const sellers = await res.json();
+                renderSellersManagement(sellers);
+                setSellerSaveStatus('');
+            } catch (err) {
+                console.error('Error loading sellers for management:', err);
+                document.getElementById('sellers-mgmt-grid').innerHTML = '<div class="loading">Error al cargar</div>';
             }
         }
 
@@ -1031,6 +1149,7 @@
             setupSortingControls();
             loadGamePlays();
             loadGameProbabilities();
+            loadSellersManagement();
         });
 
         // Modal handlers
@@ -1063,8 +1182,8 @@
                 const res = await fetch('/api/store-settings');
                 if (res.ok) {
                     const settings = await res.json();
-                    msgFreeInput.value = settings.game_msg_free || '¡Increíble! Has ganado un postre completamente gratis. Muestra este resultado a tu vendedor.';
-                    msgDiscountInput.value = settings.game_msg_discount || '¡Felicitaciones! Has ganado un descuento del {premio}. Muestra este resultado a tu vendedor para aplicarlo en tu próxima compra.';
+                    msgFreeInput.value = settings.game_msg_free || 'Has ganado un POSTRE GRATIS en tu próximo pedido.\n\nEnvíalo a tu asesor y activa tu descuento ✨';
+                    msgDiscountInput.value = settings.game_msg_discount || 'Has ganado un {premio} de descuento en tu próximo pedido.\n\nEnvíalo a tu asesor y activa tu descuento ✨';
                 }
             } catch (e) {
                 console.error(e);
