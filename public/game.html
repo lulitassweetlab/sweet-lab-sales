@@ -215,6 +215,49 @@
 			margin-top: 6px;
 		}
 
+		/* Month Selection Grid */
+		.month-grid {
+			display: grid;
+			grid-template-columns: repeat(3, 1fr);
+			gap: 10px;
+			margin-top: 10px;
+		}
+
+		.month-btn {
+			padding: 10px 5px;
+			border: 2px solid #e5e7eb;
+			border-radius: 10px;
+			background: white;
+			font-size: 13px;
+			font-weight: 600;
+			color: #4b5563;
+			cursor: pointer;
+			transition: all 0.2s ease;
+			text-align: center;
+		}
+
+		.month-btn:hover {
+			border-color: #f4a6b7;
+			background: #fff5f7;
+		}
+
+		.month-btn.active {
+			background: #f4a6b7;
+			border-color: #f4a6b7;
+			color: white;
+			box-shadow: 0 2px 8px rgba(244, 166, 183, 0.3);
+		}
+
+		@media (max-width: 400px) {
+			.month-grid {
+				grid-template-columns: repeat(3, 1fr);
+			}
+			.month-btn {
+				font-size: 12px;
+				padding: 8px 4px;
+			}
+		}
+
 		.error-message {
 			display: none;
 			color: #ef4444;
@@ -535,11 +578,24 @@
 				</div>
 
 				<div class="form-group">
-					<label class="form-label" for="customer-birthdate">Cumpleaños</label>
-					<input type="date" id="customer-birthdate" class="form-input" required />
-					<div class="error-message" id="birthdate-error">Por favor selecciona una fecha de cumpleaños válida
+					<label class="form-label">Mes de Cumpleaños</label>
+					<div class="month-grid" id="month-grid">
+						<button type="button" class="month-btn" data-month="01">Ene</button>
+						<button type="button" class="month-btn" data-month="02">Feb</button>
+						<button type="button" class="month-btn" data-month="03">Mar</button>
+						<button type="button" class="month-btn" data-month="04">Abr</button>
+						<button type="button" class="month-btn" data-month="05">May</button>
+						<button type="button" class="month-btn" data-month="06">Jun</button>
+						<button type="button" class="month-btn" data-month="07">Jul</button>
+						<button type="button" class="month-btn" data-month="08">Ago</button>
+						<button type="button" class="month-btn" data-month="09">Sep</button>
+						<button type="button" class="month-btn" data-month="10">Oct</button>
+						<button type="button" class="month-btn" data-month="11">Nov</button>
+						<button type="button" class="month-btn" data-month="12">Dic</button>
 					</div>
-					<div class="form-hint">Toca el campo para abrir el calendario.</div>
+					<input type="hidden" id="customer-birthdate" value="" />
+					<div class="error-message" id="birthdate-error">Por favor selecciona tu mes de cumpleaños</div>
+					<div class="form-hint">Selecciona el mes en el que cumples años.</div>
 				</div>
 
 				<div class="form-group">
@@ -675,7 +731,26 @@ Tu premio ya fue registrado y acabamos de enviar la información a tu vendedor p
 			await loadSellers();
 			drawWheel();
 			setupEventListeners();
+			setupMonthSelection();
 		});
+
+		function setupMonthSelection() {
+			const monthBtns = document.querySelectorAll('.month-btn');
+			const birthDateInput = document.getElementById('customer-birthdate');
+
+			monthBtns.forEach(btn => {
+				btn.addEventListener('click', () => {
+					// Remove active from all
+					monthBtns.forEach(b => b.classList.remove('active'));
+					// Add active to current
+					btn.classList.add('active');
+					// Update hidden input with a valid date format YYYY-MM-DD
+					const month = btn.getAttribute('data-month');
+					birthDateInput.value = `2000-${month}-01`;
+					hideError('birthdate-error');
+				});
+			});
+		}
 
 		function todayIsoDate() {
 			return new Date().toISOString().slice(0, 10);
@@ -694,10 +769,7 @@ Tu premio ya fue registrado y acabamos de enviar la información a tu vendedor p
 		}
 
 		function setBirthDateFieldConfig() {
-			const birthDateInput = document.getElementById('customer-birthdate');
-			if (!birthDateInput) return;
-			birthDateInput.min = '1900-01-01';
-			birthDateInput.max = todayIsoDate();
+			// No longer needed for buttons but left to avoid errors if called
 		}
 
 		function normalizeProbability(value) {
@@ -794,18 +866,8 @@ Tu premio ya fue registrado y acabamos de enviar la información a tu vendedor p
 		function setupEventListeners() {
 			document.getElementById('registration-form').addEventListener('submit', handleRegistration);
 			document.getElementById('spin-btn').addEventListener('click', handleSpin);
-			document.getElementById('share-btn')?.addEventListener('click', handleShare);
-
-			const birthDateInput = document.getElementById('customer-birthdate');
-			const openDatePicker = () => {
-				if (typeof birthDateInput?.showPicker === 'function') {
-					try {
-						birthDateInput.showPicker();
-					} catch { }
-				}
-			};
-			birthDateInput?.addEventListener('click', openDatePicker);
-			birthDateInput?.addEventListener('focus', openDatePicker);
+			const shareBtn = document.getElementById('share-btn');
+			if (shareBtn) shareBtn.addEventListener('click', handleShare);
 		}
 
 		function hideRegistrationErrors() {
