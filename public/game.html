@@ -275,8 +275,8 @@
 			-webkit-backdrop-filter: blur(15px);
 			z-index: 3000;
 			overflow: hidden;
-			animation: fadeInSoft 0.8s ease-out forwards;
-			transition: opacity 1.5s ease-in-out; /* Desvanecimiento progresivo de 1.5s */
+			animation: fadeInSoft 0.8s ease-out; /* Sin forwards para no bloquear el canal de opacidad */
+			transition: opacity 1.5s ease-in-out, transform 1.5s ease-in-out;
 		}
 
 		.birthdate-modal.show {
@@ -284,10 +284,13 @@
 			flex-direction: column;
 			align-items: center;
 			justify-content: center;
+			opacity: 1;
 		}
 
 		.birthdate-modal.closing {
+			animation: none; /* Desactivar animación para permitir que la transición funcione */
 			opacity: 0;
+			transform: scale(0.98);
 			pointer-events: none;
 		}
 
