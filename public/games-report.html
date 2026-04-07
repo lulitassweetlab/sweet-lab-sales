@@ -431,8 +431,20 @@
         </div>
         <p class="probabilities-help">Configura el número de WhatsApp para cada vendedor para que los clientes puedan
             contactarlos.</p>
-        <div id="sellers-mgmt-grid" class="probabilities-grid">
-            <div class="loading">Cargando vendedores...</div>
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                <thead style="background: #f3f4f6; color: #374151;">
+                    <tr>
+                        <th style="text-align: left; padding: 12px; border-bottom: 2px solid #e5e7eb;">Vendedor</th>
+                        <th style="text-align: left; padding: 12px; border-bottom: 2px solid #e5e7eb;">WhatsApp (Ej: 573...)</th>
+                    </tr>
+                </thead>
+                <tbody id="sellers-mgmt-tbody">
+                    <tr>
+                        <td colspan="2" class="loading">Cargando vendedores...</td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
     </div>
 
@@ -740,38 +752,42 @@
         }
 
         function renderSellersManagement(sellers) {
-            const grid = document.getElementById('sellers-mgmt-grid');
-            if (!grid) return;
-            grid.innerHTML = '';
+            const tbody = document.getElementById('sellers-mgmt-tbody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
             sellerState.whatsappBySellerId = {};
 
             sellers.forEach(s => {
                 sellerState.whatsappBySellerId[s.id] = s.whatsapp || '';
-                const card = document.createElement('div');
-                card.className = 'probability-item';
+                const tr = document.createElement('tr');
 
-                const label = document.createElement('div');
-                label.className = 'probability-label';
-                label.textContent = s.name;
+                const tdName = document.createElement('td');
+                tdName.style.padding = '12px';
+                tdName.style.borderBottom = '1px solid #eee';
+                tdName.style.fontWeight = '600';
+                tdName.textContent = s.name;
 
-                const wrap = document.createElement('div');
-                wrap.className = 'probability-input-wrap';
+                const tdInput = document.createElement('td');
+                tdInput.style.padding = '12px';
+                tdInput.style.borderBottom = '1px solid #eee';
 
                 const input = document.createElement('input');
                 input.className = 'probability-input';
-                input.style.width = '140px';
-                input.style.fontSize = '14px';
-                input.placeholder = 'Ej: 57...';
+                input.style.width = '100%';
+                input.style.maxWidth = '250px';
+                input.style.textAlign = 'left';
+                input.style.fontSize = '15px';
+                input.placeholder = 'Número de WhatsApp...';
                 input.value = s.whatsapp || '';
                 input.dataset.sellerId = s.id;
 
                 input.addEventListener('input', () => scheduleSellerSave(input));
                 input.addEventListener('blur', () => saveSellerWhatsapp(input));
 
-                wrap.appendChild(input);
-                card.appendChild(label);
-                card.appendChild(wrap);
-                grid.appendChild(card);
+                tdInput.appendChild(input);
+                tr.appendChild(tdName);
+                tr.appendChild(tdInput);
+                tbody.appendChild(tr);
             });
         }
 
@@ -785,7 +801,8 @@
                 setSellerSaveStatus('');
             } catch (err) {
                 console.error('Error loading sellers for management:', err);
-                document.getElementById('sellers-mgmt-grid').innerHTML = '<div class="loading">Error al cargar</div>';
+                const tbody = document.getElementById('sellers-mgmt-tbody');
+                if (tbody) tbody.innerHTML = '<tr><td colspan="2" class="loading">Error al cargar vendedores</td></tr>';
             }
         }
 
