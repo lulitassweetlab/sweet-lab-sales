@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 43; // 43: Force migration for whatsapp column
+const SCHEMA_VERSION = 44; // 44: Add game_enabled column to sellers
 
 export async function ensureSchema() {
 	if (schemaEnsured) return;
