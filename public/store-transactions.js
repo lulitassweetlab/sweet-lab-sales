@@ -59,6 +59,7 @@ function updateAuthUI() {
     const storeAuthBtn = document.getElementById('store-auth-btn');
     const storeClientsBtn = document.getElementById('store-clients-btn');
     const storeCrmBtn = document.getElementById('store-crm-btn');
+    const storeQrBtn = document.getElementById('store-qr-btn');
 
     if (storeAuthUser && storeAuthUser.username && storeActiveSeller) {
         storeAuthBtn.textContent = storeActiveSeller.name;
@@ -68,6 +69,7 @@ function updateAuthUI() {
         storeAuthBtn.style.boxShadow = 'none';
         storeClientsBtn.style.display = 'block';
         storeCrmBtn.style.display = 'block';
+        if (storeQrBtn) storeQrBtn.style.display = 'block';
         document.body.classList.add('is-seller-active');
 
         document.querySelectorAll('.buy-btn').forEach(b => b.style.display = 'none');
@@ -92,6 +94,7 @@ function updateAuthUI() {
         storeAuthBtn.style.boxShadow = 'none';
         storeClientsBtn.style.display = 'none';
         storeCrmBtn.style.display = 'none';
+        if (storeQrBtn) storeQrBtn.style.display = 'none';
         document.body.classList.remove('is-seller-active');
 
         const embedContainer = document.getElementById('seller-embedded-sales-container');
@@ -104,6 +107,7 @@ function updateAuthUI() {
         storeAuthBtn.style.boxShadow = 'none';
         storeClientsBtn.style.display = 'none';
         storeCrmBtn.style.display = 'none';
+        if (storeQrBtn) storeQrBtn.style.display = 'none';
         document.body.classList.remove('is-seller-active');
 
         document.querySelectorAll('.buy-btn').forEach(b => b.style.display = 'block');

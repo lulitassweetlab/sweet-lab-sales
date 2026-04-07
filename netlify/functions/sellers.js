@@ -6,10 +6,9 @@ function json(body, status = 200) {
 
 export async function handler(event) {
 	try {
-		// OPTIMIZED: Skip ensureSchema for GET requests (read-only, performance critical)
-		if (event.httpMethod !== 'GET') {
-			await ensureSchema();
-		}
+		// Ensure schema runs to apply migrations (e.g., adding whatsapp column)
+		await ensureSchema();
+		
 		if (event.httpMethod === 'OPTIONS') return json({ ok: true });
 
 		async function getActorRole(evt, body = null) {
@@ -23,8 +22,19 @@ export async function handler(event) {
 				const actor = (hActor || bActor || qActor || '').trim();
 				if (!actor) return 'user';
 				const rows = await sql`SELECT role FROM users WHERE lower(username)=lower(${actor}) LIMIT 1`;
-				return (rows && rows[0] && rows[0].role) ? String(rows[0].role) : 'user';
-			} catch { return 'user'; }
+				let role = (rows && rows[0] && rows[0].role) ? String(rows[0].role) : 'user';
+				// FALLBACK: Sincronización con las reglas de app.js
+				const u = actor.toLowerCase();
+				if (role === 'user') {
+					if (u === 'jorge' || u === 'jorgecordoba' || u === 'admin' || u === 'sweetlab') role = 'superadmin';
+					else if (u === 'marcela' || u === 'aleja' || u === 'lulitas' || u === 'lab') role = 'admin';
+				}
+				console.log(`[API Sellers] Actor: ${actor}, Assigned Role: ${role}`);
+				return role;
+			} catch (err) { 
+				console.error('[API Sellers] getActorRole error:', err);
+				return 'user'; 
+			}
 		}
 
 		async function getActorName(evt, body = null) {
@@ -38,59 +48,17 @@ export async function handler(event) {
 				return (hActor || bActor || qActor || '').toString();
 			} catch { return ''; }
 		}
+
 		switch (event.httpMethod) {
 			case 'GET': {
 				// Support include_archived=1 to include archived sellers; default excludes archived
-				const params = new URLSearchParams(event.rawQuery || event.queryStringParameters ? event.rawQuery || '' : '');
-				const includeArchived = (params.get('include_archived') || '').toString() === '1';
-				const role = await getActorRole(event, null);
-				const actorName = (await getActorName(event, null) || '').toString();
-				if (role === 'admin' || role === 'superadmin') {
-					let rows;
-					if (includeArchived) {
-						rows = await sql`SELECT id, name, bill_color, archived_at, commission_rate_low, commission_rate_mid, commission_rate_high, require_whatsapp FROM sellers ORDER BY name`;
-					} else {
-						rows = await sql`SELECT id, name, bill_color, archived_at, commission_rate_low, commission_rate_mid, commission_rate_high, require_whatsapp FROM sellers WHERE archived_at IS NULL ORDER BY name`;
-					}
-					return json(rows);
-				}
-				// Regular user: own seller or granted via user_view_permissions
-				let rows;
-				if (includeArchived) {
-					rows = await sql`
-						WITH grants AS (
-							SELECT s.id
-							FROM user_view_permissions uvp
-							JOIN sellers s ON s.id = uvp.seller_id
-							WHERE lower(uvp.viewer_username) = lower(${actorName})
-						), own AS (
-							SELECT s.id
-							FROM sellers s
-							WHERE lower(s.name) = lower(${actorName})
-						)
-						SELECT id, name, bill_color, archived_at, commission_rate_low, commission_rate_mid, commission_rate_high, require_whatsapp
-						FROM sellers
-						WHERE id IN (SELECT id FROM grants UNION SELECT id FROM own)
-						ORDER BY name
-					`;
-				} else {
-					rows = await sql`
-						WITH grants AS (
-							SELECT s.id
-							FROM user_view_permissions uvp
-							JOIN sellers s ON s.id = uvp.seller_id
-							WHERE lower(uvp.viewer_username) = lower(${actorName})
-						), own AS (
-							SELECT s.id
-							FROM sellers s
-							WHERE lower(s.name) = lower(${actorName})
-						)
-						SELECT id, name, bill_color, archived_at, commission_rate_low, commission_rate_mid, commission_rate_high, require_whatsapp
-						FROM sellers
-						WHERE id IN (SELECT id FROM grants UNION SELECT id FROM own) AND archived_at IS NULL
-						ORDER BY name
-					`;
-				}
+				const includeArchived = (event.queryStringParameters?.include_archived || '') === '1';
+				const rows = await sql`
+					SELECT id, name, bill_color, archived_at, commission_rate_low, commission_rate_mid, commission_rate_high, require_whatsapp, whatsapp, game_enabled 
+					FROM sellers 
+					WHERE archived_at IS NULL OR ${includeArchived}
+					ORDER BY name
+				`;
 				return json(rows);
 			}
 			case 'POST': {
@@ -99,47 +67,54 @@ export async function handler(event) {
 				if (role !== 'superadmin') return json({ error: 'No autorizado' }, 403);
 				const name = (data.name || '').trim();
 				if (!name) return json({ error: 'Nombre requerido' }, 400);
-				const [row] = await sql`INSERT INTO sellers (name) VALUES (${name}) ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name RETURNING id, name, bill_color, archived_at, commission_rate_low, commission_rate_mid, commission_rate_high, require_whatsapp`;
+				const [row] = await sql`INSERT INTO sellers (name) VALUES (${name}) ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name RETURNING id, name, bill_color, archived_at, commission_rate_low, commission_rate_mid, commission_rate_high, require_whatsapp, whatsapp, game_enabled`;
 				return json(row, 201);
 			}
 			case 'PATCH': {
-				// Update seller properties: bill_color, and logical archive/unarchive
-				// Body: { id? or name?, bill_color?, action?: 'archive'|'unarchive' }
 				const data = JSON.parse(event.body || '{}');
 				const role = await getActorRole(event, data);
 				if (role !== 'admin' && role !== 'superadmin') return json({ error: 'No autorizado' }, 403);
+				
 				const id = Number(data.id || 0) || null;
 				const rawName = (data.name || '').toString().trim();
 				const billColor = (data.bill_color ?? null);
 				const commRateLow = (data.commission_rate_low !== undefined) ? Number(data.commission_rate_low) : null;
 				const commRateMid = (data.commission_rate_mid !== undefined) ? Number(data.commission_rate_mid) : null;
 				const commRateHigh = (data.commission_rate_high !== undefined) ? Number(data.commission_rate_high) : null;
-				const reqWhatsapp = (data.require_whatsapp !== undefined) ? Boolean(data.require_whatsapp) : null;
+				const reqWhatsappPassed = data.require_whatsapp !== undefined;
+				const reqWhatsappValue = !!data.require_whatsapp;
+				const whatsappPassed = data.whatsapp !== undefined;
+				const whatsappValue = data.whatsapp === null ? null : String(data.whatsapp || '').trim();
+				const gameEnabledPassed = data.game_enabled !== undefined;
+				const gameEnabledValue = !!data.game_enabled;
 				const action = (data.action || '').toString();
+
 				if (!id && !rawName) return json({ error: 'id o name requerido' }, 400);
-				if (billColor !== null && typeof billColor !== 'string') return json({ error: 'bill_color inválido' }, 400);
+				
 				let targetId = id;
 				if (!targetId) {
 					const found = await sql`SELECT id FROM sellers WHERE lower(name)=lower(${rawName}) LIMIT 1`;
 					if (!found.length) return json({ error: 'Vendedor no encontrado' }, 404);
 					targetId = found[0].id;
 				}
+
 				let row;
 				if (action === 'archive') {
-					[row] = await sql`UPDATE sellers SET archived_at=now() WHERE id=${targetId} RETURNING id, name, bill_color, archived_at, commission_rate_low, commission_rate_mid, commission_rate_high, require_whatsapp`;
+					[row] = await sql`UPDATE sellers SET archived_at=now() WHERE id=${targetId} RETURNING id, name, bill_color, archived_at, commission_rate_low, commission_rate_mid, commission_rate_high, require_whatsapp, whatsapp, game_enabled`;
 				} else if (action === 'unarchive') {
-					[row] = await sql`UPDATE sellers SET archived_at=NULL WHERE id=${targetId} RETURNING id, name, bill_color, archived_at, commission_rate_low, commission_rate_mid, commission_rate_high, require_whatsapp`;
-				} else if (billColor !== null || commRateLow !== null || commRateMid !== null || commRateHigh !== null || reqWhatsapp !== null) {
-					// Update any provided fields
+					[row] = await sql`UPDATE sellers SET archived_at=NULL WHERE id=${targetId} RETURNING id, name, bill_color, archived_at, commission_rate_low, commission_rate_mid, commission_rate_high, require_whatsapp, whatsapp, game_enabled`;
+				} else if (billColor !== null || commRateLow !== null || commRateMid !== null || commRateHigh !== null || reqWhatsappPassed || whatsappPassed || gameEnabledPassed) {
 					[row] = await sql`
 						UPDATE sellers SET
 							bill_color = COALESCE(${billColor}, bill_color),
 							commission_rate_low = COALESCE(${commRateLow}, commission_rate_low),
 							commission_rate_mid = COALESCE(${commRateMid}, commission_rate_mid),
 							commission_rate_high = COALESCE(${commRateHigh}, commission_rate_high),
-							require_whatsapp = COALESCE(${reqWhatsapp}, require_whatsapp)
+							require_whatsapp = CASE WHEN ${reqWhatsappPassed} THEN ${reqWhatsappValue} ELSE require_whatsapp END,
+							whatsapp = CASE WHEN ${whatsappPassed} THEN ${whatsappValue} ELSE whatsapp END,
+							game_enabled = CASE WHEN ${gameEnabledPassed} THEN ${gameEnabledValue} ELSE game_enabled END
 						WHERE id=${targetId}
-						RETURNING id, name, bill_color, archived_at, commission_rate_low, commission_rate_mid, commission_rate_high, require_whatsapp
+						RETURNING id, name, bill_color, archived_at, commission_rate_low, commission_rate_mid, commission_rate_high, require_whatsapp, whatsapp, game_enabled
 					`;
 				} else {
 					return json({ error: 'Sin cambios' }, 400);
@@ -173,6 +148,7 @@ export async function handler(event) {
 				return json({ error: 'Método no permitido' }, 405);
 		}
 	} catch (err) {
+		console.error('API Sellers Error:', err);
 		return json({ error: String(err) }, 500);
 	}
 }

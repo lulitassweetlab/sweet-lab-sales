@@ -201,6 +201,66 @@
             color: #666;
         }
 
+        /* Custom Checkbox */
+        .custom-checkbox {
+            position: relative;
+            display: inline-block;
+            width: 22px;
+            height: 22px;
+        }
+
+        .custom-checkbox input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .checkmark {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 22px;
+            width: 22px;
+            background-color: #fff;
+            border: 2px solid #f4a6b7;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .custom-checkbox:hover input ~ .checkmark {
+            background-color: #fdf2f4;
+        }
+
+        .custom-checkbox input:checked ~ .checkmark {
+            background-color: #f4a6b7;
+        }
+
+        .checkmark:after {
+            content: "";
+            position: absolute;
+            display: none;
+        }
+
+        .custom-checkbox input:checked ~ .checkmark:after {
+            display: block;
+        }
+
+        .custom-checkbox .checkmark:after {
+            left: 7px;
+            top: 3px;
+            width: 5px;
+            height: 10px;
+            border: solid white;
+            border-width: 0 3px 3px 0;
+            transform: rotate(45deg);
+        }
+
+        .custom-checkbox input:disabled ~ .checkmark {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
         .probabilities-card {
             padding: 20px;
             margin-bottom: 20px;
@@ -381,11 +441,24 @@
             </div>
 
             <div style="margin-bottom: 20px;">
-                <label style="display: block; font-weight: bold; margin-bottom: 8px;">Mensaje de Descuento</label>
-                <textarea id="msg-discount-input" rows="5"
+                <label style="display: block; font-weight: bold; margin-bottom: 8px;">Mensaje de Descuento (Pantalla)</label>
+                <textarea id="msg-discount-input" rows="3"
                     style="width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-family: 'DM Sans', sans-serif; resize: vertical; box-sizing: border-box;"></textarea>
-                <p style="font-size: 13px; color: #666; margin-top: 8px;">Usa <strong>{premio}</strong> en el texto para
-                    que sea reemplazado automáticamente por el porcentaje ganado (ej: 10% DESC).</p>
+                <p style="font-size: 13px; color: #666; margin-top: 8px;">Usa <strong>{premio}</strong> para el porcentaje (ej: 10% DESC).</p>
+            </div>
+
+            <div style="margin-bottom: 20px; padding-top: 15px; border-top: 1px solid #eee;">
+                <label style="display: block; font-weight: bold; margin-bottom: 8px; color: #25D366;">📲 WhatsApp: Postre Gratis</label>
+                <textarea id="wa-msg-free-input" rows="3"
+                    style="width: 100%; padding: 12px; border: 2px solid #25D366; border-radius: 8px; font-family: 'DM Sans', sans-serif; resize: vertical; box-sizing: border-box;"></textarea>
+                <p style="font-size: 13px; color: #666; margin-top: 8px;">Usa <strong>{nombre}</strong> y <strong>{vendedor}</strong>.</p>
+            </div>
+
+            <div style="margin-bottom: 10px;">
+                <label style="display: block; font-weight: bold; margin-bottom: 8px; color: #25D366;">📲 WhatsApp: Descuento</label>
+                <textarea id="wa-msg-discount-input" rows="3"
+                    style="width: 100%; padding: 12px; border: 2px solid #25D366; border-radius: 8px; font-family: 'DM Sans', sans-serif; resize: vertical; box-sizing: border-box;"></textarea>
+                <p style="font-size: 13px; color: #666; margin-top: 8px;">Usa <strong>{premio}</strong>, <strong>{nombre}</strong> y <strong>{vendedor}</strong>.</p>
             </div>
 
             <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 30px;">
@@ -423,6 +496,32 @@
             <div class="loading">Cargando probabilidades...</div>
         </div>
         <div id="probabilities-total" class="probabilities-total"></div>
+    </div>
+
+    <!-- Seller Management Configuration -->
+    <div class="table-container probabilities-card" id="seller-mgmt-section" style="margin-top: 20px;">
+        <div class="probabilities-header">
+            <h2>📞 WhatsApp de Vendedores</h2>
+            <span id="seller-save-status" class="probabilities-save-status"></span>
+        </div>
+        <p class="probabilities-help">Configura el número de WhatsApp para cada vendedor para que los clientes puedan
+            contactarlos.</p>
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                <thead style="background: #f3f4f6; color: #374151;">
+                    <tr>
+                        <th style="text-align: center; padding: 12px; border-bottom: 2px solid #e5e7eb; width: 60px;">Juego</th>
+                        <th style="text-align: left; padding: 12px; border-bottom: 2px solid #e5e7eb;">Vendedor</th>
+                        <th style="text-align: left; padding: 12px; border-bottom: 2px solid #e5e7eb;">WhatsApp (Ej: 573...)</th>
+                    </tr>
+                </thead>
+                <tbody id="sellers-mgmt-tbody">
+                    <tr>
+                        <td colspan="2" class="loading">Cargando vendedores...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
     </div>
 
     <div class="table-container">
@@ -463,6 +562,10 @@
         const probabilityState = {
             valuesByLabel: {},
             timersByLabel: new Map()
+        };
+        const sellerState = {
+            whatsappBySellerId: {},
+            timersBySellerId: new Map()
         };
         let gamePlaysData = [];
         let loadingGamePlays = false;
@@ -668,6 +771,218 @@
                 const grid = document.getElementById('probabilities-grid');
                 grid.innerHTML = '<div class="loading">Error al cargar probabilidades</div>';
                 setProbabilitySaveStatus('No se pudieron cargar las probabilidades.', 'error');
+            }
+        }
+
+        // --- Seller Management ---
+        function setSellerSaveStatus(message, tone = 'default') {
+            const statusEl = document.getElementById('seller-save-status');
+            if (!statusEl) return;
+            statusEl.textContent = message || '';
+            statusEl.classList.remove('success', 'error');
+            if (tone === 'success') statusEl.classList.add('success');
+            if (tone === 'error') statusEl.classList.add('error');
+        }
+
+        function scheduleSellerSave(inputEl) {
+            const sid = inputEl?.dataset?.sellerId;
+            if (!sid) return;
+
+            const existingTimer = sellerState.timersBySellerId.get(sid);
+            if (existingTimer) clearTimeout(existingTimer);
+
+            const timer = setTimeout(() => {
+                saveSellerWhatsapp(inputEl);
+            }, 600);
+            sellerState.timersBySellerId.set(sid, timer);
+        }
+
+        async function saveSellerWhatsapp(inputEl) {
+            const sid = inputEl?.dataset?.sellerId;
+            if (!sid || inputEl?.dataset?.saving === '1') return;
+
+            const val = String(inputEl.value || '').trim();
+            if (sellerState.whatsappBySellerId[sid] === val) return;
+
+            inputEl.dataset.saving = '1';
+            inputEl.classList.add('saving');
+            setSellerSaveStatus('Guardando...');
+
+            try {
+                let actor = '';
+                try {
+                    const auth = JSON.parse(localStorage.getItem('authUser') || '{}');
+                    actor = auth.name || '';
+                } catch(e) {}
+
+                const res = await fetch('/api/sellers', {
+                    method: 'PATCH',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-Actor-Name': actor
+                    },
+                    body: JSON.stringify({ id: sid, whatsapp: val || null })
+                });
+                if (!res.ok) {
+                    const errData = await res.json().catch(() => ({}));
+                    throw new Error(errData.error || `Error ${res.status}`);
+                }
+                sellerState.whatsappBySellerId[sid] = val;
+                setSellerSaveStatus('Guardado', 'success');
+            } catch (err) {
+                console.error('Error saving seller whatsapp:', err);
+                setSellerSaveStatus('Error al guardar', 'error');
+                if (inputEl) inputEl.classList.add('error');
+            } finally {
+                if (inputEl) {
+                    inputEl.classList.remove('saving');
+                    delete inputEl.dataset.saving;
+                }
+            }
+        }
+
+        async function toggleSellerGameEnabled(sellerId, isEnabled, checkboxEl) {
+            setSellerSaveStatus('Guardando...');
+            checkboxEl.disabled = true;
+
+            try {
+                let actor = '';
+                try {
+                    const auth = JSON.parse(localStorage.getItem('authUser') || '{}');
+                    actor = auth.name || '';
+                } catch(e) {}
+
+                const res = await fetch('/api/sellers', {
+                    method: 'PATCH',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-Actor-Name': actor
+                    },
+                    body: JSON.stringify({ id: sellerId, game_enabled: isEnabled })
+                });
+
+                if (!res.ok) {
+                    const errData = await res.json().catch(() => ({}));
+                    throw new Error(errData.error || `Error ${res.status}`);
+                }
+                
+                setSellerSaveStatus('Estado actualizado', 'success');
+            } catch (err) {
+                console.error('Error toggling seller game enabled:', err);
+                setSellerSaveStatus('Error al actualizar', 'error');
+                checkboxEl.checked = !isEnabled; // Revert
+            } finally {
+                checkboxEl.disabled = false;
+            }
+        }
+
+        function renderSellersManagement(sellers) {
+            const tbody = document.getElementById('sellers-mgmt-tbody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            sellerState.whatsappBySellerId = {};
+
+            sellers.forEach(s => {
+                sellerState.whatsappBySellerId[s.id] = s.whatsapp || '';
+                const tr = document.createElement('tr');
+
+                // Checkbox column with custom style
+                const tdCheck = document.createElement('td');
+                tdCheck.style.padding = '12px';
+                tdCheck.style.borderBottom = '1px solid #eee';
+                tdCheck.style.textAlign = 'center';
+                
+                const label = document.createElement('label');
+                label.className = 'custom-checkbox';
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.checked = s.game_enabled !== false;
+                checkbox.addEventListener('change', () => toggleSellerGameEnabled(s.id, checkbox.checked, checkbox));
+                
+                const span = document.createElement('span');
+                span.className = 'checkmark';
+                
+                label.appendChild(checkbox);
+                label.appendChild(span);
+                tdCheck.appendChild(label);
+                tr.appendChild(tdCheck);
+
+                const tdName = document.createElement('td');
+                tdName.style.padding = '12px';
+                tdName.style.borderBottom = '1px solid #eee';
+                tdName.style.fontWeight = '600';
+                tdName.textContent = s.name;
+                tr.appendChild(tdName);
+
+                const tdInput = document.createElement('td');
+                tdInput.style.padding = '12px';
+                tdInput.style.borderBottom = '1px solid #eee';
+
+                const input = document.createElement('input');
+                input.className = 'probability-input';
+                input.style.width = '100%';
+                input.style.maxWidth = '250px';
+                input.style.textAlign = 'left';
+                input.style.fontSize = '15px';
+                input.placeholder = 'Número de WhatsApp...';
+                input.value = s.whatsapp || '';
+                input.dataset.sellerId = s.id;
+
+                input.addEventListener('input', () => scheduleSellerSave(input));
+                input.addEventListener('blur', () => saveSellerWhatsapp(input));
+
+                tdInput.appendChild(input);
+                tr.appendChild(tdName);
+                tr.appendChild(tdInput);
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function loadSellersManagement() {
+            try {
+                setSellerSaveStatus('Cargando...');
+                
+                let actor = '';
+                try {
+                    const auth = JSON.parse(localStorage.getItem('authUser') || '{}');
+                    actor = auth.name || '';
+                } catch(e) {}
+
+                if (!actor) {
+                    const tbody = document.getElementById('sellers-mgmt-tbody');
+                    if (tbody) tbody.innerHTML = '<tr><td colspan="2" class="loading">⚠️ Por favor, inicia sesión en la página principal para ver esta lista.</td></tr>';
+                    setSellerSaveStatus('');
+                    return;
+                }
+
+                console.log(`[Debug] Cargando vendedores para actor: ${actor}`);
+
+                const res = await fetch('/api/sellers?include_archived=0', {
+                    headers: {
+                        'X-Actor-Name': actor
+                    }
+                });
+                
+                if (!res.ok) {
+                    const errData = await res.json().catch(() => ({}));
+                    throw new Error(errData.error || `Error ${res.status}`);
+                }
+                const sellers = await res.json();
+                
+                if (sellers.length === 0) {
+                    const tbody = document.getElementById('sellers-mgmt-tbody');
+                    if (tbody) tbody.innerHTML = '<tr><td colspan="2" class="loading">No tienes permisos para ver vendedores o la lista está vacía.</td></tr>';
+                } else {
+                    renderSellersManagement(sellers);
+                }
+                
+                setSellerSaveStatus('');
+            } catch (err) {
+                console.error('Error loading sellers for management:', err);
+                const tbody = document.getElementById('sellers-mgmt-tbody');
+                if (tbody) tbody.innerHTML = `<tr><td colspan="2" class="loading">Error al cargar vendedores: ${err.message}</td></tr>`;
+                setSellerSaveStatus('');
             }
         }
 
@@ -1031,6 +1346,7 @@
             setupSortingControls();
             loadGamePlays();
             loadGameProbabilities();
+            loadSellersManagement();
         });
 
         // Modal handlers
@@ -1045,6 +1361,8 @@
         const saveMsgsBtn = document.getElementById('save-msgs-btn');
         const msgFreeInput = document.getElementById('msg-free-input');
         const msgDiscountInput = document.getElementById('msg-discount-input');
+        const waMsgFreeInput = document.getElementById('wa-msg-free-input');
+        const waMsgDiscountInput = document.getElementById('wa-msg-discount-input');
 
         showQrBtn.addEventListener('click', () => {
             qrModal.classList.add('active');
@@ -1057,14 +1375,18 @@
         editMsgsBtn.addEventListener('click', async () => {
             msgFreeInput.value = 'Cargando...';
             msgDiscountInput.value = 'Cargando...';
+            waMsgFreeInput.value = 'Cargando...';
+            waMsgDiscountInput.value = 'Cargando...';
             editMsgsModal.classList.add('active');
 
             try {
                 const res = await fetch('/api/store-settings');
                 if (res.ok) {
                     const settings = await res.json();
-                    msgFreeInput.value = settings.game_msg_free || '¡Increíble! Has ganado un postre completamente gratis. Muestra este resultado a tu vendedor.';
-                    msgDiscountInput.value = settings.game_msg_discount || '¡Felicitaciones! Has ganado un descuento del {premio}. Muestra este resultado a tu vendedor para aplicarlo en tu próxima compra.';
+                    msgFreeInput.value = settings.game_msg_free || 'Has ganado un POSTRE GRATIS en tu próximo pedido.\n\nEnvíalo a tu asesor y activa tu descuento ✨';
+                    msgDiscountInput.value = settings.game_msg_discount || 'Has ganado un {premio} de descuento en tu próximo pedido.\n\nEnvíalo a tu asesor y activa tu descuento ✨';
+                    waMsgFreeInput.value = settings.game_wa_msg_free || '¡Hola! Acabo de ganar un POSTRE GRATIS en el Gira y Gana. Mi nombre es {nombre}. ✨';
+                    waMsgDiscountInput.value = settings.game_wa_msg_discount || '¡Hola! Acabo de ganar un {premio} en el Gira y Gana. Mi nombre es {nombre}. ✨';
                 }
             } catch (e) {
                 console.error(e);
@@ -1081,7 +1403,9 @@
             try {
                 const body = {
                     game_msg_free: msgFreeInput.value.trim(),
-                    game_msg_discount: msgDiscountInput.value.trim()
+                    game_msg_discount: msgDiscountInput.value.trim(),
+                    game_wa_msg_free: waMsgFreeInput.value.trim(),
+                    game_wa_msg_discount: waMsgDiscountInput.value.trim()
                 };
                 const res = await fetch('/api/store-settings', {
                     method: 'POST',

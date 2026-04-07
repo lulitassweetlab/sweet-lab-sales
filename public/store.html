@@ -139,6 +139,87 @@
             width: 100%;
         }
 
+        /* QR Modal Styles */
+        .qr-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 4000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(5px);
+        }
+
+        .qr-modal.active {
+            display: flex;
+        }
+
+        .qr-content {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            max-width: 90vw;
+            width: 400px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+        }
+
+        .qr-content h2 {
+            margin-bottom: 8px;
+            color: var(--text);
+            font-size: 1.5rem;
+        }
+
+        .qr-content p {
+            color: var(--muted);
+            margin-bottom: 20px;
+        }
+
+        .qr-content img {
+            width: 250px;
+            height: 250px;
+            margin: 0 auto 20px;
+            display: block;
+            border-radius: 12px;
+        }
+
+        .btn-qr-close {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 100px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-qr-close:hover {
+            background: var(--primary-hover);
+        }
+
+        .store-qr-btn {
+            background: #fff;
+            color: var(--primary);
+            border: 2px solid var(--primary);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-right: 8px;
+        }
+
+        .store-qr-btn:hover {
+            background: var(--primary);
+            color: white;
+        }
+
         .store-title {
             text-align: center;
             font-size: 2rem;
@@ -1197,6 +1278,7 @@
                 💕</p>
         </div>
         <div class="header-right" style="display: flex; gap: 8px; align-items: center;">
+            <button id="store-qr-btn" class="store-qr-btn" style="display: none;">Ver QR</button>
             <button id="store-crm-btn" class="store-crm-btn" style="display: none;">CRM</button>
             <button id="store-clients-btn" class="store-clients-btn" style="display: none;">Clientes</button>
             <div id="sync-indicator" class="sync-indicator" style="display: none;">
@@ -1394,6 +1476,16 @@
         </div>
     </div>
 
+    <!-- QR Modal -->
+    <div class="qr-modal" id="store-qr-modal">
+        <div class="qr-content">
+            <h2>Gira y Gana ✨</h2>
+            <img src="/game-qr.png" alt="QR Code" />
+            <p style="font-size: 11px; color: #999; margin-top: 10px; word-break: break-all;">https://sweetlabsales.netlify.app/game.html</p>
+            <button class="btn-qr-close" id="close-qr-modal-btn">Cerrar</button>
+        </div>
+    </div>
+
     <!-- Optimization: Split logic and defer execution -->
     <script src="/store-core.js" defer></script>
     <script src="/store-transactions.js?v=2026-04-03-v5" defer></script>
@@ -1429,6 +1521,22 @@
         let storeClientList = [];
         let currentGalleryItems = [];
         let loginStep = 1;
+
+        // QR Modal Logic
+        const storeQrModal = document.getElementById('store-qr-modal');
+        const showQrBtn = document.getElementById('store-qr-btn');
+        const closeQrBtn = document.getElementById('close-qr-modal-btn');
+
+        if (showQrBtn) {
+            showQrBtn.addEventListener('click', () => {
+                storeQrModal.classList.add('active');
+            });
+        }
+        if (closeQrBtn) {
+            closeQrBtn.addEventListener('click', () => {
+                storeQrModal.classList.remove('active');
+            });
+        }
         
         // CRM Tags state
         let selectedTagIds = new Set();

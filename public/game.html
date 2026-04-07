@@ -3,7 +3,7 @@
 
 <head>
 	<meta charset="UTF-8" />
-	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
 	<title>Sweet Lab - Juego de Premios</title>
 	<link rel="preconnect" href="https://fonts.googleapis.com" />
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -11,14 +11,19 @@
 	<link rel="stylesheet" href="/styles.css" />
 	<style>
 		/* Game-specific styles */
-		body {
+		html, body {
+			width: 100%;
+			overflow-x: hidden;
 			background: linear-gradient(135deg, #fdf7f8 0%, #f4a6b7 100%);
 			min-height: 100vh;
+		}
+
+		body {
 			display: flex;
 			flex-direction: column;
 			align-items: center;
-			justify-content: center;
-			padding: 20px;
+			justify-content: flex-start;
+			padding: 15px 20px 120px;
 			position: relative;
 			overflow-x: hidden;
 		}
@@ -121,21 +126,23 @@
 
 		.game-header {
 			text-align: center;
-			margin-bottom: 30px;
+			margin-bottom: 15px;
 		}
 
 		.game-logo {
-			width: 120px;
+			max-width: 120px;
 			height: auto;
-			margin-bottom: 20px;
+			margin-bottom: 5px;
 			filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.1));
+			opacity: 0;
+			transition: opacity 0.5s ease;
 		}
 
 		.game-title {
 			font-size: 32px;
 			font-weight: 700;
 			color: #2a2a2a;
-			margin: 0 0 10px 0;
+			margin: 0 0 5px 0;
 			text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 		}
 
@@ -165,7 +172,7 @@
 		}
 
 		.form-group {
-			margin-bottom: 20px;
+			margin-bottom: 15px;
 		}
 
 		.form-label {
@@ -173,20 +180,33 @@
 			font-size: 14px;
 			font-weight: 600;
 			color: #2a2a2a;
-			margin-bottom: 8px;
+			margin-bottom: 15px;
 		}
 
 		.form-input,
 		.form-select {
 			width: 100%;
-			padding: 14px 18px;
+			height: 46px;
+			padding: 0 18px !important;
 			border: 2px solid #e5e7eb;
 			border-radius: 12px;
-			font-size: 16px;
+			font-size: 16px; /* Mínimo 16px para evitar zoom en iOS */
 			font-family: 'DM Sans', sans-serif;
 			background: white;
 			color: #2a2a2a;
 			transition: all 0.3s ease;
+			box-sizing: border-box;
+			text-align: left;
+		}
+
+		.form-select {
+			color: #9ca3af;
+			appearance: none;
+			background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23f4a6b7' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 18px center;
+		}
+
+		.form-select:valid {
+			color: #2a2a2a;
 		}
 
 		.form-input:focus,
@@ -215,6 +235,155 @@
 			margin-top: 6px;
 		}
 
+		/* Month & Day Selection Group */
+		.month-day-row {
+			display: flex;
+			gap: 10px;
+			margin-bottom: 5px;
+		}
+
+		.month-trigger, .day-trigger {
+			flex: 1;
+			height: 46px;
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			cursor: pointer;
+			background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23f4a6b7' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 18px center;
+			text-align: left;
+			padding: 0 18px;
+			font-size: 16px; /* Mínimo 16px para evitar zoom en iOS */
+			border: 2px solid #e5e7eb;
+			border-radius: 12px;
+			box-sizing: border-box;
+			color: #9ca3af;
+		}
+
+		.day-trigger:disabled {
+			display: none;
+		}
+
+		.birthdate-modal {
+			display: none;
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background: rgba(255, 255, 255, 0.2);
+			backdrop-filter: blur(15px);
+			-webkit-backdrop-filter: blur(15px);
+			z-index: 3000;
+			overflow: hidden;
+			animation: fadeInSoft 0.8s ease-out; /* Sin forwards para no bloquear el canal de opacidad */
+			transition: opacity 1.5s ease-in-out, transform 1.5s ease-in-out;
+		}
+
+		.birthdate-modal.show {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			opacity: 1;
+		}
+
+		.birthdate-modal.closing {
+			animation: none; /* Desactivar animación para permitir que la transición funcione */
+			opacity: 0;
+			transform: scale(0.98);
+			pointer-events: none;
+		}
+
+		.modal-view {
+			display: none;
+			padding: 40px 20px;
+			box-sizing: border-box;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			width: 100%;
+			animation: fadeInSoft 0.8s ease-out forwards;
+		}
+
+		.modal-view.active {
+			display: flex;
+		}
+
+		.month-grid-content, .day-grid-content {
+			display: grid;
+			grid-template-columns: repeat(3, 1fr);
+			gap: 15px;
+			width: 100%;
+			max-width: 400px;
+		}
+
+		.day-grid-content {
+			grid-template-columns: repeat(7, 1fr);
+			gap: 8px;
+		}
+
+		.grid-header {
+			margin-bottom: 30px;
+			text-align: center;
+		}
+
+		.grid-header h3 {
+			font-size: 24px;
+			color: #2a2a2a;
+			margin: 0;
+		}
+
+		.grid-header p {
+			color: #6b7280;
+			margin-top: 5px;
+		}
+
+		@keyframes fadeInSoft {
+			from { opacity: 0; transform: scale(1.05); }
+			to { opacity: 1; transform: scale(1); }
+		}
+
+		.month-btn, .day-btn {
+			padding: 15px 5px;
+			border: 2px solid #e5e7eb;
+			border-radius: 12px;
+			background: white;
+			font-size: 16px;
+			font-weight: 600;
+			color: #4b5563;
+			cursor: pointer;
+			transition: all 0.3s ease;
+			text-align: center;
+			min-height: 50px;
+		}
+
+		.day-btn {
+			padding: 12px 0;
+			font-size: 14px;
+		}
+
+		.month-btn:hover, .day-btn:hover {
+			border-color: #f4a6b7;
+			background: #fff5f7;
+		}
+
+		.month-btn.active, .day-btn.active {
+			background: #f4a6b7;
+			border-color: #f4a6b7;
+			color: white;
+			box-shadow: 0 2px 8px rgba(244, 166, 183, 0.3);
+		}
+
+		@media (max-width: 400px) {
+			.month-grid {
+				grid-template-columns: repeat(3, 1fr);
+			}
+			.month-btn, .day-btn {
+				font-size: 11px;
+				padding: 7px 3px;
+			}
+		}
+
 		.error-message {
 			display: none;
 			color: #ef4444;
@@ -228,7 +397,10 @@
 
 		.btn-primary {
 			width: 100%;
-			padding: 16px;
+			height: 46px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
 			background: linear-gradient(135deg, #f4a6b7 0%, #e27a90 100%);
 			color: white;
 			border: none;
@@ -240,6 +412,7 @@
 			box-shadow: 0 4px 16px rgba(244, 166, 183, 0.4);
 			text-transform: uppercase;
 			letter-spacing: 1px;
+			box-sizing: border-box;
 		}
 
 		.btn-primary:hover {
@@ -386,7 +559,7 @@
 
 		.prize-icon {
 			font-size: 80px;
-			margin-bottom: 20px;
+			margin-bottom: 5px;
 			animation: bounce 1s ease infinite;
 		}
 
@@ -416,7 +589,7 @@
 			-webkit-background-clip: text;
 			-webkit-text-fill-color: transparent;
 			background-clip: text;
-			margin: 10px 0 20px 0;
+			margin: 0 0 20px 0;
 		}
 
 		.prize-message {
@@ -464,15 +637,97 @@
 		}
 
 		@keyframes spin {
-			to {
-				transform: rotate(360deg);
-			}
+			from { transform: rotate(0deg); }
+			to { transform: rotate(360deg); }
+		}
+
+		@keyframes pulse-green {
+			0% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.7); transform: scale(1); }
+			70% { box-shadow: 0 0 0 15px rgba(37, 211, 102, 0); transform: scale(1.05); }
+			100% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0); transform: scale(1); }
+		}
+
+		.pulse-btn {
+			animation: pulse-green 2s infinite;
+		}
+
+		/* Winners Section */
+		.winners-section {
+			margin-top: 40px;
+			padding-bottom: 40px;
+			display: none; /* Oculto inicialmente */
+			width: 60%;
+			max-width: 350px;
+			margin-left: auto;
+			margin-right: auto;
+		}
+
+		.winners-title {
+			font-size: 20px;
+			font-weight: 700;
+			color: #2a2a2a;
+			margin-bottom: 15px;
+			text-align: center;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			gap: 8px;
+		}
+
+		.winners-list {
+			display: grid;
+			grid-template-columns: 1fr;
+			gap: 12px;
+		}
+
+		.winner-card {
+			background: rgba(255, 255, 255, 0.55);
+			backdrop-filter: blur(5px);
+			padding: 10px 15px;
+			border-radius: 12px;
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+			transition: all 0.3s ease;
+			animation: fadeIn 0.4s ease forwards;
+		}
+
+		.winner-card:hover {
+			background: rgba(255, 255, 255, 0.95);
+			transform: translateY(-2px);
+			box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+		}
+
+		.winner-info {
+			display: flex;
+			flex-direction: column;
+		}
+
+		.winner-name {
+			font-weight: 600;
+			color: #2a2a2a;
+			font-size: 13px;
+		}
+
+		.winner-prize {
+			font-weight: 700;
+			color: #f4a6b7;
+			font-size: 15px;
+			background: #fff5f7;
+			padding: 4px 10px;
+			border-radius: 200px;
 		}
 
 		/* Mobile responsive */
 		@media (max-width: 600px) {
+			body {
+				padding: 10px 10px 120px;
+			}
+
 			.glass-card {
-				padding: 24px;
+				padding: 24px 18px;
+				border-radius: 12px;
 			}
 
 			.game-title {
@@ -481,14 +736,20 @@
 
 			.game-subtitle {
 				font-size: 14px;
+				padding: 0 10px;
 			}
 
 			.wheel-container {
-				max-width: 300px;
+				max-width: 320px;
 			}
 
 			.prize-value {
-				font-size: 36px;
+				font-size: 32px;
+			}
+
+			.btn-primary {
+				padding: 12px;
+				font-size: 16px;
 			}
 		}
 	</style>
@@ -521,37 +782,35 @@
 		<div class="registration-section glass-card" id="registration-section">
 			<form id="registration-form" novalidate>
 				<div class="form-group">
-					<label class="form-label" for="customer-name">Nombre Completo</label>
-					<input type="text" id="customer-name" class="form-input" placeholder="Ej: María García" required />
+					<input type="text" id="customer-name" class="form-input" placeholder="Nombre completo" required />
 					<div class="error-message" id="name-error">Por favor ingresa tu nombre completo</div>
-					<div class="form-hint">Tip de ensayo: escribe <strong>1</strong> para probar sin llenar más datos y
-						sin guardar registro.</div>
+
 				</div>
 
 				<div class="form-group">
-					<label class="form-label" for="customer-whatsapp">WhatsApp</label>
-					<input type="tel" id="customer-whatsapp" class="form-input" placeholder="Ej: 3001234567" required />
+					<input type="tel" id="customer-whatsapp" class="form-input" placeholder="WhatsApp" required />
 					<div class="error-message" id="whatsapp-error">Por favor ingresa un número válido</div>
 				</div>
 
 				<div class="form-group">
-					<label class="form-label" for="customer-birthdate">Fecha de Nacimiento</label>
-					<input type="date" id="customer-birthdate" class="form-input" required />
-					<div class="error-message" id="birthdate-error">Por favor selecciona una fecha de nacimiento válida
+					<div class="month-day-row">
+						<button type="button" class="form-input month-trigger" id="month-trigger">Cumpleaños</button>
+						<button type="button" class="form-input day-trigger" id="day-trigger" disabled>Día</button>
 					</div>
-					<div class="form-hint">Toca el campo para abrir el calendario.</div>
+					
+					<input type="hidden" id="customer-birthdate" value="" />
+					<div class="error-message" id="birthdate-error" style="text-align: center;">Por favor selecciona tu mes y día de cumpleaños</div>
 				</div>
 
 				<div class="form-group">
-					<label class="form-label" for="seller-name">¿Quién te atendió?</label>
 					<select id="seller-name" class="form-select" required>
-						<option value="">Selecciona un vendedor</option>
+						<option value="">Vendedor</option>
 					</select>
 					<div class="error-message" id="seller-error">Por favor selecciona un vendedor</div>
 				</div>
 
 				<button type="submit" class="btn-primary" id="submit-btn">
-					Comenzar a Jugar
+					JUGAR
 				</button>
 			</form>
 		</div>
@@ -570,11 +829,22 @@
 		<!-- Prize Section -->
 		<div class="prize-section glass-card" id="prize-section">
 			<div class="prize-icon" id="prize-icon">🎁</div>
-			<h2 class="prize-title">¡Felicitaciones!</h2>
 			<div class="prize-value" id="prize-value">50% DESC</div>
 			<p class="prize-message" id="prize-message">
-				Has ganado un descuento increíble. Vamos aplicarlo en tu próxima compra.
+				Has ganado un premio increíble. Envíalo a tu asesor y activa tu descuento ✨
 			</p>
+			<button id="share-btn" class="prize-btn press-btn" style="background: #fbbf24; display: none;">Compartir con un Amigo 🎁</button>
+			<a id="whatsapp-seller-btn" class="prize-btn press-btn pulse-btn" style="background: #25D366; text-decoration: none; display: none; align-items: center; justify-content: center; gap: 10px; margin-top: 15px; font-weight: 700; box-shadow: 0 4px 15px rgba(37, 211, 102, 0.3);">
+				<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.72.937 3.659 1.43 5.623 1.43h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+				Reclamar con mi Asesor
+			</a>
+		</div>
+
+		<div class="winners-section" id="winners-section">
+			<h2 class="winners-title">Últimos Ganadores ✨</h2>
+			<div class="winners-list" id="winners-list">
+				<!-- Winners populated by JS -->
+			</div>
 		</div>
 	</div>
 
@@ -590,26 +860,17 @@
 			sellerName: '',
 			hasPlayed: false,
 			prize: null,
-			isPracticeMode: false
+			isPracticeMode: false,
+			sellerWhatsapp: null
 		};
 
 		let customMessages = {
-			free: `¡Felicidades! 🎉
-Has ganado un POSTRE GRATIS en tu próximo pedido.
+			free: `Has ganado un POSTRE GRATIS en tu próximo pedido.
 
-Tu premio ya fue registrado y acabamos de enviar la información a tu vendedor para que lo aplique automáticamente. Además, en breve recibirás en tu WhatsApp todos los detalles de tu regalo.
+Envíalo a tu asesor y activa tu descuento ✨`,
+			discount: `Has ganado un {premio} de descuento en tu próximo pedido.
 
-⏳ Este beneficio estará vigente durante los próximos 20 días, así que no dejes pasar la oportunidad.
-
-¡Prepárate para disfrutarlo! ✨`,
-			discount: `¡Felicidades! 🎉
-Has ganado un {premio} de descuento en tu próximo pedido.
-
-Tu premio ya fue registrado y acabamos de enviar la información a tu vendedor para que lo aplique automáticamente. Además, en breve recibirás en tu WhatsApp todos los detalles de tu descuento.
-
-⏳ Este beneficio estará vigente durante los próximos 20 días, así que no dejes pasar la oportunidad.
-
-¡Prepárate para disfrutarlo! ✨`
+Envíalo a tu asesor y activa tu descuento ✨`
 		};
 
 		const PRACTICE_SHORTCUT_NAME = '1';
@@ -667,15 +928,209 @@ Tu premio ya fue registrado y acabamos de enviar la información a tu vendedor p
 
 			// Load messages concurrently with other requests
 			fetch('/api/store-settings').then(res => res.json()).then(settings => {
+				const logoImg = document.querySelector('.game-logo');
 				if (settings.game_msg_free) customMessages.free = settings.game_msg_free;
 				if (settings.game_msg_discount) customMessages.discount = settings.game_msg_discount;
-			}).catch(err => console.error('Error loading custom messages', err));
+				if (settings.game_wa_msg_free) customMessages.wa_free = settings.game_wa_msg_free;
+				if (settings.game_wa_msg_discount) customMessages.wa_discount = settings.game_wa_msg_discount;
+
+				if (settings.logo_base64) {
+					logoImg.src = settings.logo_base64;
+				}
+				if (settings.logo_height) {
+					logoImg.style.height = settings.logo_height + 'px';
+					logoImg.style.maxHeight = 'none';
+					logoImg.style.maxWidth = '100vw';
+					logoImg.style.width = 'auto';
+				}
+				logoImg.style.opacity = '1';
+			}).catch(err => {
+				console.error('Error loading custom settings', err);
+				document.querySelector('.game-logo').style.opacity = '1';
+			});
 
 			await loadConfiguredPrizes();
 			await loadSellers();
+			loadWinners();
 			drawWheel();
 			setupEventListeners();
+			setupMonthSelection();
 		});
+
+		// Winners logic
+		let currentWinnersOffset = 0;
+		const winnersLimit = 20;
+		let loadingWinners = false;
+
+		async function loadWinners(refresh = false) {
+			if (loadingWinners) return;
+			if (refresh) currentWinnersOffset = 0;
+			
+			loadingWinners = true;
+			const winnersList = document.getElementById('winners-list');
+			
+			try {
+				const response = await fetch(`/api/game-plays?limit=${winnersLimit}&offset=${currentWinnersOffset}`);
+				const winners = await response.json();
+				
+				if (refresh) winnersList.innerHTML = '';
+				
+				if (winners.length > 0) {
+					winners.forEach(winner => {
+						const card = document.createElement('div');
+						card.className = 'winner-card';
+						
+						const prizeLabel = winner.prize_type === 'free' ? 'Postre Gratis' : winner.prize_value;
+
+						card.innerHTML = `
+							<div class="winner-info">
+								<span class="winner-name">${winner.customer_name}</span>
+							</div>
+							<div class="winner-prize">${prizeLabel}</div>
+						`;
+						winnersList.appendChild(card);
+					});
+					
+					currentWinnersOffset += winners.length;
+					
+					// Auto-load next batch after a short delay if under 200
+					if (winners.length === winnersLimit && currentWinnersOffset < 200) {
+						setTimeout(() => {
+							loadingWinners = false; // Allow next load
+							loadWinners();
+						}, 1000); // 1s delay between batches for performance
+					}
+				}
+			} catch (error) {
+				console.error('Error loading winners:', error);
+			} finally {
+				loadingWinners = false;
+			}
+		}
+
+		function setupMonthSelection() {
+			const monthTrigger = document.getElementById('month-trigger');
+			const dayTrigger = document.getElementById('day-trigger');
+			const monthGrid = document.getElementById('month-grid');
+			const dayGrid = document.getElementById('day-grid');
+			const monthBtns = document.querySelectorAll('.month-btn');
+			const birthDateInput = document.getElementById('customer-birthdate');
+
+			let selectedMonthNum = '';
+			let selectedDayNum = '';
+
+			const monthDaysMap = {
+				'01': 31, '02': 29, '03': 31, '04': 30, '05': 31, '06': 30,
+				'07': 31, '08': 31, '09': 30, '10': 31, '11': 30, '12': 31
+			};
+
+			monthTrigger.addEventListener('click', () => {
+				const modal = document.getElementById('birthdate-modal');
+				const monthView = document.getElementById('month-view');
+				const dayView = document.getElementById('day-view');
+				
+				monthView.classList.add('active');
+				dayView.classList.remove('active');
+				modal.classList.remove('closing');
+				modal.classList.add('show');
+			});
+
+			dayTrigger.addEventListener('click', () => {
+				if (dayTrigger.disabled) return;
+				const modal = document.getElementById('birthdate-modal');
+				const monthView = document.getElementById('month-view');
+				const dayView = document.getElementById('day-view');
+				
+				monthView.classList.remove('active');
+				dayView.classList.add('active');
+				modal.classList.remove('closing');
+				modal.classList.add('show');
+			});
+
+			monthBtns.forEach(btn => {
+				btn.addEventListener('click', (e) => {
+					e.stopPropagation();
+					monthBtns.forEach(b => b.classList.remove('active'));
+					btn.classList.add('active');
+					
+					selectedMonthNum = btn.getAttribute('data-month');
+					const monthName = btn.getAttribute('data-name');
+					
+					monthTrigger.textContent = monthName;
+					monthTrigger.style.color = '#2a2a2a';
+					
+					// Enable Day logic but keep trigger hidden until a day is picked
+					dayTrigger.disabled = false;
+					dayTrigger.style.display = 'none'; 
+					dayTrigger.textContent = 'Día';
+					dayTrigger.style.color = '#9ca3af';
+					selectedDayNum = '';
+					
+					generateDays(monthDaysMap[selectedMonthNum]);
+					
+					// Smooth transition between views inside the same modal
+					const monthView = document.getElementById('month-view');
+					const dayView = document.getElementById('day-view');
+					monthView.classList.remove('active');
+					dayView.classList.add('active');
+					
+					updateBirthDate();
+				});
+			});
+
+			function generateDays(count) {
+				const container = document.getElementById('day-grid-content');
+				container.innerHTML = '';
+				for (let i = 1; i <= count; i++) {
+					const dayStr = i.toString().padStart(2, '0');
+					const btn = document.createElement('button');
+					btn.type = 'button';
+					btn.className = 'day-btn';
+					btn.textContent = i;
+					btn.addEventListener('click', (e) => {
+						e.stopPropagation();
+						document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('active'));
+						btn.classList.add('active');
+						selectedDayNum = dayStr;
+						
+						// Show the day trigger
+						dayTrigger.disabled = false;
+						dayTrigger.style.display = 'flex';
+						dayTrigger.textContent = i;
+						dayTrigger.style.color = '#2a2a2a';
+						
+						// Desvanecimiento suave y progresivo hacia la pantalla normal
+						const modal = document.getElementById('birthdate-modal');
+						modal.classList.add('closing');
+						setTimeout(() => {
+							modal.classList.remove('show', 'closing');
+							document.getElementById('day-view').classList.remove('active');
+						}, 1500); // 1.5 segundos para una salida equilibrada
+						
+						updateBirthDate();
+						hideError('birthdate-error');
+					});
+					container.appendChild(btn);
+				}
+			}
+
+			function updateBirthDate() {
+				if (selectedMonthNum && selectedDayNum) {
+					birthDateInput.value = `2000-${selectedMonthNum}-${selectedDayNum}`;
+				} else {
+					birthDateInput.value = '';
+				}
+			}
+
+			// Close grids when clicking outside
+			document.addEventListener('click', (e) => {
+				if (!monthGrid.contains(e.target) && !monthTrigger.contains(e.target) && 
+					!dayGrid.contains(e.target) && !dayTrigger.contains(e.target)) {
+					monthGrid.classList.remove('show');
+					dayGrid.classList.remove('show');
+				}
+			});
+		}
 
 		function todayIsoDate() {
 			return new Date().toISOString().slice(0, 10);
@@ -694,10 +1149,7 @@ Tu premio ya fue registrado y acabamos de enviar la información a tu vendedor p
 		}
 
 		function setBirthDateFieldConfig() {
-			const birthDateInput = document.getElementById('customer-birthdate');
-			if (!birthDateInput) return;
-			birthDateInput.min = '1900-01-01';
-			birthDateInput.max = todayIsoDate();
+			// No longer needed for buttons but left to avoid errors if called
 		}
 
 		function normalizeProbability(value) {
@@ -726,6 +1178,7 @@ Tu premio ya fue registrado y acabamos de enviar la información a tu vendedor p
 		}
 
 		// Load sellers from API
+		let sellersMap = {};
 		async function loadSellers() {
 			try {
 				const response = await fetch('/.netlify/functions/get-sellers');
@@ -733,6 +1186,7 @@ Tu premio ya fue registrado y acabamos de enviar la información a tu vendedor p
 
 				const select = document.getElementById('seller-name');
 				sellers.forEach(seller => {
+					sellersMap[seller.name] = seller.whatsapp || null;
 					const option = document.createElement('option');
 					option.value = seller.name;
 					option.textContent = seller.name;
@@ -794,18 +1248,8 @@ Tu premio ya fue registrado y acabamos de enviar la información a tu vendedor p
 		function setupEventListeners() {
 			document.getElementById('registration-form').addEventListener('submit', handleRegistration);
 			document.getElementById('spin-btn').addEventListener('click', handleSpin);
-			document.getElementById('share-btn')?.addEventListener('click', handleShare);
-
-			const birthDateInput = document.getElementById('customer-birthdate');
-			const openDatePicker = () => {
-				if (typeof birthDateInput?.showPicker === 'function') {
-					try {
-						birthDateInput.showPicker();
-					} catch { }
-				}
-			};
-			birthDateInput?.addEventListener('click', openDatePicker);
-			birthDateInput?.addEventListener('focus', openDatePicker);
+			const shareBtn = document.getElementById('share-btn');
+			if (shareBtn) shareBtn.addEventListener('click', handleShare);
 		}
 
 		function hideRegistrationErrors() {
@@ -814,20 +1258,21 @@ Tu premio ya fue registrado y acabamos de enviar la información a tu vendedor p
 
 		function enterPracticeMode() {
 			hideRegistrationErrors();
+			const seller = document.getElementById('seller-name').value;
+			
 			gameState.customerName = PRACTICE_SHORTCUT_NAME;
 			gameState.whatsapp = '';
 			gameState.birthDate = '';
-			gameState.sellerName = '';
+			gameState.sellerName = seller || 'Asesor de Prueba';
 			gameState.prize = null;
 			gameState.hasPlayed = false;
 			gameState.isPracticeMode = true;
+			gameState.sellerWhatsapp = sellersMap[seller] || null;
 
 			document.getElementById('registration-section').classList.add('hidden');
 			document.getElementById('game-section').classList.add('active');
 			document.getElementById('prize-section').classList.remove('active');
 			document.getElementById('spin-btn').disabled = false;
-
-			alert('Modo ensayo activado. Esta partida no se guardará.');
 		}
 
 		function pickWeightedPrize(prizeList) {
@@ -907,6 +1352,8 @@ Tu premio ya fue registrado y acabamos de enviar la información a tu vendedor p
 				return;
 			}
 
+			gameState.sellerWhatsapp = sellersMap[seller] || null;
+
 			// Validate
 			let isValid = true;
 
@@ -975,6 +1422,7 @@ Tu premio ya fue registrado y acabamos de enviar la información a tu vendedor p
 
 				document.getElementById('registration-section').classList.add('hidden');
 				document.getElementById('game-section').classList.add('active');
+				document.getElementById('winners-section').style.display = 'block';
 
 			} catch (error) {
 				console.error('Registration error:', error);
@@ -1026,6 +1474,10 @@ Tu premio ya fue registrado y acabamos de enviar la información a tu vendedor p
 				gameState.prize = data.prize;
 				gameState.hasPlayed = true;
 				const spinStarted = spinWheelToPrize(data.prize, spinBtn);
+				if (response.ok) {
+					localStorage.setItem('hasPlayed', 'true');
+					gameState.hasPlayed = true;
+				}
 				if (!spinStarted) {
 					gameState.hasPlayed = false;
 				}
@@ -1041,6 +1493,9 @@ Tu premio ya fue registrado y acabamos de enviar la información a tu vendedor p
 		function showPrize(prize) {
 			document.getElementById('game-section').classList.remove('active');
 			document.getElementById('prize-section').classList.add('active');
+			
+			// Actualizar lista de ganadores 1 segundo después de mostrar el mensaje
+			setTimeout(() => loadWinners(true), 1000);
 
 			// Update prize display
 			if (prize.type === 'free') {
@@ -1051,6 +1506,36 @@ Tu premio ya fue registrado y acabamos de enviar la información a tu vendedor p
 				document.getElementById('prize-icon').textContent = '🎁';
 				document.getElementById('prize-value').textContent = prize.value;
 				document.getElementById('prize-message').innerText = customMessages.discount.replace(/\{premio\}/g, prize.value);
+			}
+
+			// Update WhatsApp seller button
+			const waBtn = document.getElementById('whatsapp-seller-btn');
+			if (gameState.sellerWhatsapp) {
+				const prizeName = prize.type === 'free' ? 'POSTRE GRATIS' : prize.value;
+				const btnLabel = prize.type === 'free' ? 'Activa tu premio' : 'Activa tu descuento';
+				
+				// Template substitution
+				let message = '';
+				if (prize.type === 'free') {
+					message = customMessages.wa_free || `¡Hola! Acabo de ganar un POSTRE GRATIS en el Gira y Gana. Mi nombre es {nombre}. ✨`;
+				} else {
+					message = customMessages.wa_discount || `¡Hola! Acabo de ganar un {premio} en el Gira y Gana. Mi nombre es {nombre}. ✨`;
+				}
+				
+				// Replace placeholders
+				message = message.replace(/\{premio\}/g, prizeName);
+				message = message.replace(/\{nombre\}/g, gameState.customerName || '');
+				message = message.replace(/\{vendedor\}/g, gameState.sellerName || '');
+				
+				// Update button
+				waBtn.href = `https://wa.me/${gameState.sellerWhatsapp}?text=${encodeURIComponent(message)}`;
+				waBtn.innerHTML = `
+					<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.72.937 3.659 1.43 5.623 1.43h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+					${btnLabel}
+				`;
+				waBtn.style.display = 'flex';
+			} else {
+				waBtn.style.display = 'none';
 			}
 
 			// Show confetti
@@ -1096,6 +1581,42 @@ Tu premio ya fue registrado y acabamos de enviar la información a tu vendedor p
 			document.getElementById(id).classList.remove('show');
 		}
 	</script>
+
+	<!-- Birthdate Modal (Unified for true fullscreen and smooth transitions) -->
+	<div class="birthdate-modal" id="birthdate-modal">
+		<!-- Month View -->
+		<div class="modal-view" id="month-view">
+			<div class="grid-header">
+				<h3>Selecciona el mes</h3>
+				<p>de tu cumpleaños</p>
+			</div>
+			<div class="month-grid-content">
+				<button type="button" class="month-btn" data-month="01" data-name="Enero">Ene</button>
+				<button type="button" class="month-btn" data-month="02" data-name="Febrero">Feb</button>
+				<button type="button" class="month-btn" data-month="03" data-name="Marzo">Mar</button>
+				<button type="button" class="month-btn" data-month="04" data-name="Abril">Abr</button>
+				<button type="button" class="month-btn" data-month="05" data-name="Mayo">May</button>
+				<button type="button" class="month-btn" data-month="06" data-name="Junio">Jun</button>
+				<button type="button" class="month-btn" data-month="07" data-name="Julio">Jul</button>
+				<button type="button" class="month-btn" data-month="08" data-name="Agosto">Ago</button>
+				<button type="button" class="month-btn" data-month="09" data-name="Septiembre">Sep</button>
+				<button type="button" class="month-btn" data-month="10" data-name="Octubre">Oct</button>
+				<button type="button" class="month-btn" data-month="11" data-name="Noviembre">Nov</button>
+				<button type="button" class="month-btn" data-month="12" data-name="Diciembre">Dic</button>
+			</div>
+		</div>
+		
+		<!-- Day View -->
+		<div class="modal-view" id="day-view">
+			<div class="grid-header">
+				<h3>Selecciona el día</h3>
+				<p>de tu cumpleaños</p>
+			</div>
+			<div class="day-grid-content" id="day-grid-content">
+				<!-- Days populated by JS -->
+			</div>
+		</div>
+	</div>
 </body>
 
 </html>
