@@ -22,7 +22,14 @@ export async function handler(event) {
 				const actor = (hActor || bActor || qActor || '').trim();
 				if (!actor) return 'user';
 				const rows = await sql`SELECT role FROM users WHERE lower(username)=lower(${actor}) LIMIT 1`;
-				return (rows && rows[0] && rows[0].role) ? String(rows[0].role) : 'user';
+				let role = (rows && rows[0] && rows[0].role) ? String(rows[0].role) : 'user';
+				// FALLBACK: Sincronización con las reglas de app.js
+				const u = actor.toLowerCase();
+				if (role === 'user') {
+					if (u === 'jorge') role = 'superadmin';
+					else if (u === 'marcela' || u === 'aleja') role = 'admin';
+				}
+				return role;
 			} catch { return 'user'; }
 		}
 
