@@ -260,9 +260,7 @@
 		}
 
 		.day-trigger:disabled {
-			opacity: 0.6;
-			cursor: not-allowed;
-			background-color: #f9fafb;
+			display: none;
 		}
 
 		.month-grid, .day-grid {
@@ -884,8 +882,9 @@ Envíalo a tu asesor y activa tu descuento ✨`
 					monthTrigger.style.borderColor = '#f4a6b7';
 					monthTrigger.style.color = '#2a2a2a';
 					
-					// Enable and reset Day
+					// Enable and show Day
 					dayTrigger.disabled = false;
+					dayTrigger.style.display = 'flex';
 					dayTrigger.textContent = 'Día';
 					dayTrigger.style.color = '#9ca3af';
 					selectedDayNum = '';
