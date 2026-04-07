@@ -450,10 +450,10 @@
 
                     video.onloadedmetadata = () => {
                         const duration = video.duration;
-                        // Target 1.5MB binary (~2MB Base64)
-                        const targetBits = 1.5 * 1024 * 1024 * 8;
+                        // Target 3MB binary (~4MB Base64) to allow for some padding under 5.5MB total
+                        const targetBits = 3 * 1024 * 1024 * 8;
                         const bps = Math.floor(targetBits / duration);
-                        const finalBps = Math.max(150000, Math.min(2500000, bps));
+                        const finalBps = Math.max(300000, Math.min(6000000, bps));
 
                         let stream;
                         if (video.captureStream) {

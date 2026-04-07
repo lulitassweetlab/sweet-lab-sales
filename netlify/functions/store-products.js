@@ -31,8 +31,8 @@ export async function handler(event) {
                 // EMERGENCY RESCUE: AWS API Gateway drops connections (502) if response > 6MB.
                 // If a user uploaded a massive video, the DB stores it, but reading it crashes the API.
                 // We purge oversized media directly from the DB before querying to guarantee recovery.
-                await sql`UPDATE store_products SET media = '[]'::jsonb WHERE length(media::text) > 4500000`;
-                await sql`UPDATE store_products SET image_base64 = null WHERE length(image_base64::text) > 4500000`;
+                await sql`UPDATE store_products SET media = '[]'::jsonb WHERE length(media::text) > 5500000`;
+                await sql`UPDATE store_products SET image_base64 = null WHERE length(image_base64::text) > 5500000`;
 
                 const products = await sql`
 					SELECT id, name, description, price, promo_qty, promo_price, image_base64, media, is_promo, is_new, is_active, position
@@ -62,8 +62,8 @@ export async function handler(event) {
                 if (!name) return json({ error: 'name requerido' }, 400);
                 if (price <= 0) return json({ error: 'price debe ser mayor a 0' }, 400);
                 if (promotion.error) return json({ error: promotion.error }, 400);
-                if (mediaJson.length > 4500000) return json({ error: 'Los archivos multimedia son demasiado pesados (Máximo 4.5MB en total). Por favor, reduce la duración del video o el número de imágenes.' }, 413);
-                if (image_base64 && image_base64.length > 4500000) return json({ error: 'La imagen principal es demasiado pesada (Máximo 4.5MB).' }, 413);
+                if (mediaJson.length > 5500000) return json({ error: 'Los archivos multimedia son demasiado pesados (Máximo 5.5MB en total). Por favor, reduce la duración del video o el número de imágenes.' }, 413);
+                if (image_base64 && image_base64.length > 5500000) return json({ error: 'La imagen principal es demasiado pesada (Máximo 5.5MB).' }, 413);
 
                 const [row] = await sql`
 					INSERT INTO store_products (name, description, price, promo_qty, promo_price, image_base64, media, is_promo, is_new, position)
@@ -98,12 +98,12 @@ export async function handler(event) {
                 if (!name) return json({ error: 'name requerido' }, 400);
                 if (price <= 0) return json({ error: 'price debe ser mayor a 0' }, 400);
                 if (promotion.error) return json({ error: promotion.error }, 400);
-                if (image_base64 && image_base64.length > 4500000) return json({ error: 'La imagen principal es demasiado pesada (Máximo 4.5MB).' }, 413);
+                if (image_base64 && image_base64.length > 5500000) return json({ error: 'La imagen principal es demasiado pesada (Máximo 5.5MB).' }, 413);
 
                 let row;
                 if (rawMedia !== null) {
                     const mediaJson = JSON.stringify(rawMedia);
-                    if (mediaJson.length > 4500000) return json({ error: 'Los archivos multimedia son demasiado pesados (Máximo 4.5MB en total). Por favor, reduce la duración del video o el número de imágenes.' }, 413);
+                    if (mediaJson.length > 5500000) return json({ error: 'Los archivos multimedia son demasiado pesados (Máximo 5.5MB en total). Por favor, reduce la duración del video o el número de imágenes.' }, 413);
                     [row] = await sql`
                         UPDATE store_products
                         SET name = ${name}, description = ${description}, price = ${price}, promo_qty = ${promotion.promoQty}, promo_price = ${promotion.promoPrice}, image_base64 = ${image_base64}, media = ${mediaJson}::jsonb, is_promo = ${isPromo}, is_new = ${isNew}, position = ${position}, is_active = ${isActive}, updated_at = now()
