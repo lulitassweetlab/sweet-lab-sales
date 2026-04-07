@@ -6,10 +6,9 @@ function json(body, status = 200) {
 
 export async function handler(event) {
 	try {
-		// OPTIMIZED: Skip ensureSchema for GET requests (read-only, performance critical)
-		if (event.httpMethod !== 'GET') {
-			await ensureSchema();
-		}
+		// Ensure schema runs to apply migrations (e.g., adding whatsapp column)
+		await ensureSchema();
+		
 		if (event.httpMethod === 'OPTIONS') return json({ ok: true });
 
 		async function getActorRole(evt, body = null) {
@@ -103,8 +102,6 @@ export async function handler(event) {
 				return json(row, 201);
 			}
 			case 'PATCH': {
-				// Update seller properties: bill_color, and logical archive/unarchive
-				// Body: { id? or name?, bill_color?, action?: 'archive'|'unarchive' }
 				const data = JSON.parse(event.body || '{}');
 				const role = await getActorRole(event, data);
 				if (role !== 'admin' && role !== 'superadmin') return json({ error: 'No autorizado' }, 403);
@@ -118,13 +115,23 @@ export async function handler(event) {
 				const reqWhatsappValue = !!data.require_whatsapp;
 				const whatsappPassed = data.whatsapp !== undefined;
 				const whatsappValue = data.whatsapp === null ? null : String(data.whatsapp || '').trim();
+				const action = (data.action || '').toString();
 
+				if (!id && !rawName) return json({ error: 'id o name requerido' }, 400);
+				
+				let targetId = id;
+				if (!targetId) {
+					const found = await sql`SELECT id FROM sellers WHERE lower(name)=lower(${rawName}) LIMIT 1`;
+					if (!found.length) return json({ error: 'Vendedor no encontrado' }, 404);
+					targetId = found[0].id;
+				}
+
+				let row;
 				if (action === 'archive') {
 					[row] = await sql`UPDATE sellers SET archived_at=now() WHERE id=${targetId} RETURNING id, name, bill_color, archived_at, commission_rate_low, commission_rate_mid, commission_rate_high, require_whatsapp, whatsapp`;
 				} else if (action === 'unarchive') {
 					[row] = await sql`UPDATE sellers SET archived_at=NULL WHERE id=${targetId} RETURNING id, name, bill_color, archived_at, commission_rate_low, commission_rate_mid, commission_rate_high, require_whatsapp, whatsapp`;
 				} else if (billColor !== null || commRateLow !== null || commRateMid !== null || commRateHigh !== null || reqWhatsappPassed || whatsappPassed) {
-					// Update any provided fields
 					[row] = await sql`
 						UPDATE sellers SET
 							bill_color = COALESCE(${billColor}, bill_color),
