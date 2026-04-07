@@ -1007,9 +1007,9 @@ Envíalo a tu asesor y activa tu descuento ✨`
 					monthTrigger.style.borderColor = '#f4a6b7';
 					monthTrigger.style.color = '#2a2a2a';
 					
-					// Enable and show Day
+					// Enable Day logic but keep trigger hidden until a day is picked
 					dayTrigger.disabled = false;
-					dayTrigger.style.display = 'flex';
+					dayTrigger.style.display = 'none'; // Keep hidden until day is picked
 					dayTrigger.textContent = 'Día';
 					dayTrigger.style.color = '#9ca3af';
 					selectedDayNum = '';
@@ -1037,6 +1037,9 @@ Envíalo a tu asesor y activa tu descuento ✨`
 						document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('active'));
 						btn.classList.add('active');
 						selectedDayNum = dayStr;
+						
+						// Show the day trigger now that a day is selected
+						dayTrigger.style.display = 'flex';
 						dayTrigger.textContent = i;
 						dayTrigger.style.borderColor = '#f4a6b7';
 						dayTrigger.style.color = '#2a2a2a';
