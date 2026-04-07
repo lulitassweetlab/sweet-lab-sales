@@ -770,9 +770,8 @@
 				</div>
 
 				<div class="form-group">
-					<label class="form-label" style="text-align: center; color: #6b7280; font-weight: 500;">Cumpleaños</label>
 					<div class="month-day-row">
-						<button type="button" class="form-input month-trigger" id="month-trigger">Mes</button>
+						<button type="button" class="form-input month-trigger" id="month-trigger">Cumpleaños</button>
 						<button type="button" class="form-input day-trigger" id="day-trigger" disabled>Día</button>
 					</div>
 					
@@ -1541,6 +1540,38 @@ Envíalo a tu asesor y activa tu descuento ✨`
 			document.getElementById(id).classList.remove('show');
 		}
 	</script>
+
+	<!-- Birthdate Modals (Outside game-container for true fullscreen) -->
+	<div class="month-grid" id="month-grid">
+		<div class="grid-header">
+			<h3>Selecciona el mes</h3>
+			<p>de tu cumpleaños</p>
+		</div>
+		<div class="month-grid-content">
+			<button type="button" class="month-btn" data-month="01" data-name="Enero">Ene</button>
+			<button type="button" class="month-btn" data-month="02" data-name="Febrero">Feb</button>
+			<button type="button" class="month-btn" data-month="03" data-name="Marzo">Mar</button>
+			<button type="button" class="month-btn" data-month="04" data-name="Abril">Abr</button>
+			<button type="button" class="month-btn" data-month="05" data-name="Mayo">May</button>
+			<button type="button" class="month-btn" data-month="06" data-name="Junio">Jun</button>
+			<button type="button" class="month-btn" data-month="07" data-name="Julio">Jul</button>
+			<button type="button" class="month-btn" data-month="08" data-name="Agosto">Ago</button>
+			<button type="button" class="month-btn" data-month="09" data-name="Septiembre">Sep</button>
+			<button type="button" class="month-btn" data-month="10" data-name="Octubre">Oct</button>
+			<button type="button" class="month-btn" data-month="11" data-name="Noviembre">Nov</button>
+			<button type="button" class="month-btn" data-month="12" data-name="Diciembre">Dic</button>
+		</div>
+	</div>
+	
+	<div class="day-grid" id="day-grid">
+		<div class="grid-header">
+			<h3>Selecciona el día</h3>
+			<p>de tu cumpleaños</p>
+		</div>
+		<div class="day-grid-content" id="day-grid-content">
+			<!-- Days populated by JS -->
+		</div>
+	</div>
 </body>
 
 </html>
