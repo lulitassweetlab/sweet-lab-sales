@@ -263,7 +263,7 @@
 			display: none;
 		}
 
-		.month-grid, .day-grid {
+		.birthdate-modal {
 			display: none;
 			position: fixed;
 			top: 0;
@@ -274,15 +274,35 @@
 			backdrop-filter: blur(15px);
 			-webkit-backdrop-filter: blur(15px);
 			z-index: 3000;
+			overflow: hidden;
+			animation: fadeInSoft 0.8s ease-out forwards;
+			transition: opacity 2s ease-out; /* Regla de salida de 2 segundos */
+		}
+
+		.birthdate-modal.show {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+		}
+
+		.birthdate-modal.closing {
+			opacity: 0;
+			pointer-events: none;
+		}
+
+		.modal-view {
+			display: none;
 			padding: 40px 20px;
 			box-sizing: border-box;
 			flex-direction: column;
 			align-items: center;
 			justify-content: center;
+			width: 100%;
 			animation: fadeInSoft 0.8s ease-out forwards;
 		}
 
-		.month-grid.show, .day-grid.show {
+		.modal-view.active {
 			display: flex;
 		}
 
@@ -1002,14 +1022,26 @@ Envíalo a tu asesor y activa tu descuento ✨`
 			};
 
 			monthTrigger.addEventListener('click', () => {
-				dayGrid.classList.remove('show');
-				monthGrid.classList.toggle('show');
+				const modal = document.getElementById('birthdate-modal');
+				const monthView = document.getElementById('month-view');
+				const dayView = document.getElementById('day-view');
+				
+				monthView.classList.add('active');
+				dayView.classList.remove('active');
+				modal.classList.remove('closing');
+				modal.classList.add('show');
 			});
 
 			dayTrigger.addEventListener('click', () => {
 				if (dayTrigger.disabled) return;
-				monthGrid.classList.remove('show');
-				dayGrid.classList.toggle('show');
+				const modal = document.getElementById('birthdate-modal');
+				const monthView = document.getElementById('month-view');
+				const dayView = document.getElementById('day-view');
+				
+				monthView.classList.remove('active');
+				dayView.classList.add('active');
+				modal.classList.remove('closing');
+				modal.classList.add('show');
 			});
 
 			monthBtns.forEach(btn => {
@@ -1034,9 +1066,11 @@ Envíalo a tu asesor y activa tu descuento ✨`
 					
 					generateDays(monthDaysMap[selectedMonthNum]);
 					
-					// Change grids instantly with internal fade
-					monthGrid.classList.remove('show');
-					dayGrid.classList.add('show');
+					// Smooth transition between views inside the same modal
+					const monthView = document.getElementById('month-view');
+					const dayView = document.getElementById('day-view');
+					monthView.classList.remove('active');
+					dayView.classList.add('active');
 					
 					updateBirthDate();
 				});
@@ -1064,7 +1098,13 @@ Envíalo a tu asesor y activa tu descuento ✨`
 						dayTrigger.style.borderColor = '#f4a6b7';
 						dayTrigger.style.color = '#2a2a2a';
 						
-						dayGrid.classList.remove('show');
+						// Very smooth and slow exit
+						const modal = document.getElementById('birthdate-modal');
+						modal.classList.add('closing');
+						setTimeout(() => {
+							modal.classList.remove('show', 'closing');
+							document.getElementById('day-view').classList.remove('active');
+						}, 2000); // 2 seconds
 						
 						updateBirthDate();
 						hideError('birthdate-error');
@@ -1541,35 +1581,39 @@ Envíalo a tu asesor y activa tu descuento ✨`
 		}
 	</script>
 
-	<!-- Birthdate Modals (Outside game-container for true fullscreen) -->
-	<div class="month-grid" id="month-grid">
-		<div class="grid-header">
-			<h3>Selecciona el mes</h3>
-			<p>de tu cumpleaños</p>
+	<!-- Birthdate Modal (Unified for true fullscreen and smooth transitions) -->
+	<div class="birthdate-modal" id="birthdate-modal">
+		<!-- Month View -->
+		<div class="modal-view" id="month-view">
+			<div class="grid-header">
+				<h3>Selecciona el mes</h3>
+				<p>de tu cumpleaños</p>
+			</div>
+			<div class="month-grid-content">
+				<button type="button" class="month-btn" data-month="01" data-name="Enero">Ene</button>
+				<button type="button" class="month-btn" data-month="02" data-name="Febrero">Feb</button>
+				<button type="button" class="month-btn" data-month="03" data-name="Marzo">Mar</button>
+				<button type="button" class="month-btn" data-month="04" data-name="Abril">Abr</button>
+				<button type="button" class="month-btn" data-month="05" data-name="Mayo">May</button>
+				<button type="button" class="month-btn" data-month="06" data-name="Junio">Jun</button>
+				<button type="button" class="month-btn" data-month="07" data-name="Julio">Jul</button>
+				<button type="button" class="month-btn" data-month="08" data-name="Agosto">Ago</button>
+				<button type="button" class="month-btn" data-month="09" data-name="Septiembre">Sep</button>
+				<button type="button" class="month-btn" data-month="10" data-name="Octubre">Oct</button>
+				<button type="button" class="month-btn" data-month="11" data-name="Noviembre">Nov</button>
+				<button type="button" class="month-btn" data-month="12" data-name="Diciembre">Dic</button>
+			</div>
 		</div>
-		<div class="month-grid-content">
-			<button type="button" class="month-btn" data-month="01" data-name="Enero">Ene</button>
-			<button type="button" class="month-btn" data-month="02" data-name="Febrero">Feb</button>
-			<button type="button" class="month-btn" data-month="03" data-name="Marzo">Mar</button>
-			<button type="button" class="month-btn" data-month="04" data-name="Abril">Abr</button>
-			<button type="button" class="month-btn" data-month="05" data-name="Mayo">May</button>
-			<button type="button" class="month-btn" data-month="06" data-name="Junio">Jun</button>
-			<button type="button" class="month-btn" data-month="07" data-name="Julio">Jul</button>
-			<button type="button" class="month-btn" data-month="08" data-name="Agosto">Ago</button>
-			<button type="button" class="month-btn" data-month="09" data-name="Septiembre">Sep</button>
-			<button type="button" class="month-btn" data-month="10" data-name="Octubre">Oct</button>
-			<button type="button" class="month-btn" data-month="11" data-name="Noviembre">Nov</button>
-			<button type="button" class="month-btn" data-month="12" data-name="Diciembre">Dic</button>
-		</div>
-	</div>
-	
-	<div class="day-grid" id="day-grid">
-		<div class="grid-header">
-			<h3>Selecciona el día</h3>
-			<p>de tu cumpleaños</p>
-		</div>
-		<div class="day-grid-content" id="day-grid-content">
-			<!-- Days populated by JS -->
+		
+		<!-- Day View -->
+		<div class="modal-view" id="day-view">
+			<div class="grid-header">
+				<h3>Selecciona el día</h3>
+				<p>de tu cumpleaños</p>
+			</div>
+			<div class="day-grid-content" id="day-grid-content">
+				<!-- Days populated by JS -->
+			</div>
 		</div>
 	</div>
 </body>
