@@ -215,8 +215,32 @@
 			margin-top: 6px;
 		}
 
-		/* Month Selection Grid */
-		.month-grid {
+		/* Month & Day Selection Group */
+		.month-day-row {
+			display: flex;
+			gap: 10px;
+			margin-bottom: 5px;
+		}
+
+		.month-trigger, .day-trigger {
+			flex: 1;
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			cursor: pointer;
+			background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23f4a6b7' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 12px center;
+			text-align: left;
+			padding: 14px 12px;
+			font-size: 15px;
+		}
+
+		.day-trigger:disabled {
+			opacity: 0.6;
+			cursor: not-allowed;
+			background-color: #f9fafb;
+		}
+
+		.month-grid, .day-grid {
 			display: none;
 			grid-template-columns: repeat(3, 1fr);
 			gap: 10px;
@@ -224,7 +248,12 @@
 			animation: fadeIn 0.3s ease;
 		}
 
-		.month-grid.show {
+		.day-grid {
+			grid-template-columns: repeat(7, 1fr);
+			gap: 6px;
+		}
+
+		.month-grid.show, .day-grid.show {
 			display: grid;
 		}
 
@@ -233,16 +262,7 @@
 			to { opacity: 1; transform: translateY(0); }
 		}
 
-		.month-trigger {
-			display: flex;
-			align-items: center;
-			justify-content: space-between;
-			cursor: pointer;
-			background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23f4a6b7' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 18px center;
-			text-align: left;
-		}
-
-		.month-btn {
+		.month-btn, .day-btn {
 			padding: 10px 5px;
 			border: 2px solid #e5e7eb;
 			border-radius: 10px;
@@ -255,12 +275,18 @@
 			text-align: center;
 		}
 
-		.month-btn:hover {
+		.day-btn {
+			padding: 8px 0;
+			font-size: 12px;
+			border-radius: 8px;
+		}
+
+		.month-btn:hover, .day-btn:hover {
 			border-color: #f4a6b7;
 			background: #fff5f7;
 		}
 
-		.month-btn.active {
+		.month-btn.active, .day-btn.active {
 			background: #f4a6b7;
 			border-color: #f4a6b7;
 			color: white;
@@ -271,9 +297,9 @@
 			.month-grid {
 				grid-template-columns: repeat(3, 1fr);
 			}
-			.month-btn {
-				font-size: 12px;
-				padding: 8px 4px;
+			.month-btn, .day-btn {
+				font-size: 11px;
+				padding: 7px 3px;
 			}
 		}
 
@@ -597,8 +623,12 @@
 				</div>
 
 				<div class="form-group">
-					<label class="form-label">Mes de Cumpleaños</label>
-					<button type="button" class="form-input month-trigger" id="month-trigger">Seleccionar Mes</button>
+					<label class="form-label">Fecha de Cumpleaños</label>
+					<div class="month-day-row">
+						<button type="button" class="form-input month-trigger" id="month-trigger">Mes</button>
+						<button type="button" class="form-input day-trigger" id="day-trigger" disabled>Día</button>
+					</div>
+					
 					<div class="month-grid" id="month-grid">
 						<button type="button" class="month-btn" data-month="01" data-name="Enero">Ene</button>
 						<button type="button" class="month-btn" data-month="02" data-name="Febrero">Feb</button>
@@ -613,9 +643,14 @@
 						<button type="button" class="month-btn" data-month="11" data-name="Noviembre">Nov</button>
 						<button type="button" class="month-btn" data-month="12" data-name="Diciembre">Dic</button>
 					</div>
+
+					<div class="day-grid" id="day-grid">
+						<!-- Days populated by JS -->
+					</div>
+
 					<input type="hidden" id="customer-birthdate" value="" />
-					<div class="error-message" id="birthdate-error">Por favor selecciona tu mes de cumpleaños</div>
-					<div class="form-hint">Haz clic en el botón para elegir tu mes de cumpleaños.</div>
+					<div class="error-message" id="birthdate-error">Por favor selecciona tu mes y día de cumpleaños</div>
+					<div class="form-hint">Selecciona el mes y luego el día de tu cumpleaños.</div>
 				</div>
 
 				<div class="form-group">
@@ -756,42 +791,98 @@ Tu premio ya fue registrado y acabamos de enviar la información a tu vendedor p
 
 		function setupMonthSelection() {
 			const monthTrigger = document.getElementById('month-trigger');
+			const dayTrigger = document.getElementById('day-trigger');
 			const monthGrid = document.getElementById('month-grid');
+			const dayGrid = document.getElementById('day-grid');
 			const monthBtns = document.querySelectorAll('.month-btn');
 			const birthDateInput = document.getElementById('customer-birthdate');
 
+			let selectedMonthNum = '';
+			let selectedDayNum = '';
+
+			const monthDaysMap = {
+				'01': 31, '02': 29, '03': 31, '04': 30, '05': 31, '06': 30,
+				'07': 31, '08': 31, '09': 30, '10': 31, '11': 30, '12': 31
+			};
+
 			monthTrigger.addEventListener('click', () => {
+				dayGrid.classList.remove('show');
 				monthGrid.classList.toggle('show');
+			});
+
+			dayTrigger.addEventListener('click', () => {
+				if (dayTrigger.disabled) return;
+				monthGrid.classList.remove('show');
+				dayGrid.classList.toggle('show');
 			});
 
 			monthBtns.forEach(btn => {
 				btn.addEventListener('click', () => {
-					// Remove active from all
 					monthBtns.forEach(b => b.classList.remove('active'));
-					// Add active to current
 					btn.classList.add('active');
 					
-					// Update hidden input with a valid date format YYYY-MM-DD
-					const month = btn.getAttribute('data-month');
+					selectedMonthNum = btn.getAttribute('data-month');
 					const monthName = btn.getAttribute('data-name');
 					
-					birthDateInput.value = `2000-${month}-01`;
-					monthTrigger.textContent = `Mes: ${monthName}`;
+					monthTrigger.textContent = monthName;
 					monthTrigger.style.borderColor = '#f4a6b7';
 					
-					// Hide grid with small delay for visual feedback
+					// Enable and reset Day
+					dayTrigger.disabled = false;
+					dayTrigger.textContent = 'Día';
+					selectedDayNum = '';
+					
+					generateDays(monthDaysMap[selectedMonthNum]);
+					
 					setTimeout(() => {
 						monthGrid.classList.remove('show');
-					}, 150);
+						dayGrid.classList.add('show');
+					}, 200);
 					
-					hideError('birthdate-error');
+					updateBirthDate();
 				});
 			});
 
-			// Close grid when clicking outside
+			function generateDays(count) {
+				dayGrid.innerHTML = '';
+				for (let i = 1; i <= count; i++) {
+					const dayStr = i.toString().padStart(2, '0');
+					const btn = document.createElement('button');
+					btn.type = 'button';
+					btn.className = 'day-btn';
+					btn.textContent = i;
+					btn.addEventListener('click', () => {
+						document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('active'));
+						btn.classList.add('active');
+						selectedDayNum = dayStr;
+						dayTrigger.textContent = `Día: ${i}`;
+						dayTrigger.style.borderColor = '#f4a6b7';
+						
+						setTimeout(() => {
+							dayGrid.classList.remove('show');
+						}, 200);
+						
+						updateBirthDate();
+						hideError('birthdate-error');
+					});
+					dayGrid.appendChild(btn);
+				}
+			}
+
+			function updateBirthDate() {
+				if (selectedMonthNum && selectedDayNum) {
+					birthDateInput.value = `2000-${selectedMonthNum}-${selectedDayNum}`;
+				} else {
+					birthDateInput.value = '';
+				}
+			}
+
+			// Close grids when clicking outside
 			document.addEventListener('click', (e) => {
-				if (!monthGrid.contains(e.target) && !monthTrigger.contains(e.target)) {
+				if (!monthGrid.contains(e.target) && !monthTrigger.contains(e.target) && 
+					!dayGrid.contains(e.target) && !dayTrigger.contains(e.target)) {
 					monthGrid.classList.remove('show');
+					dayGrid.classList.remove('show');
 				}
 			});
 		}
