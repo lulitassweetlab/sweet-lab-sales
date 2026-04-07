@@ -3,7 +3,7 @@
 
 <head>
 	<meta charset="UTF-8" />
-	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
 	<title>Sweet Lab - Juego de Premios</title>
 	<link rel="preconnect" href="https://fonts.googleapis.com" />
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -11,9 +11,14 @@
 	<link rel="stylesheet" href="/styles.css" />
 	<style>
 		/* Game-specific styles */
-		body {
+		html, body {
+			width: 100%;
+			overflow-x: hidden;
 			background: linear-gradient(135deg, #fdf7f8 0%, #f4a6b7 100%);
 			min-height: 100vh;
+		}
+
+		body {
 			display: flex;
 			flex-direction: column;
 			align-items: center;
