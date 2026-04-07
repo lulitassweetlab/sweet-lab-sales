@@ -217,10 +217,29 @@
 
 		/* Month Selection Grid */
 		.month-grid {
-			display: grid;
+			display: none;
 			grid-template-columns: repeat(3, 1fr);
 			gap: 10px;
 			margin-top: 10px;
+			animation: fadeIn 0.3s ease;
+		}
+
+		.month-grid.show {
+			display: grid;
+		}
+
+		@keyframes fadeIn {
+			from { opacity: 0; transform: translateY(-10px); }
+			to { opacity: 1; transform: translateY(0); }
+		}
+
+		.month-trigger {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			cursor: pointer;
+			background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23f4a6b7' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 18px center;
+			text-align: left;
 		}
 
 		.month-btn {
@@ -579,23 +598,24 @@
 
 				<div class="form-group">
 					<label class="form-label">Mes de Cumpleaños</label>
+					<button type="button" class="form-input month-trigger" id="month-trigger">Seleccionar Mes</button>
 					<div class="month-grid" id="month-grid">
-						<button type="button" class="month-btn" data-month="01">Ene</button>
-						<button type="button" class="month-btn" data-month="02">Feb</button>
-						<button type="button" class="month-btn" data-month="03">Mar</button>
-						<button type="button" class="month-btn" data-month="04">Abr</button>
-						<button type="button" class="month-btn" data-month="05">May</button>
-						<button type="button" class="month-btn" data-month="06">Jun</button>
-						<button type="button" class="month-btn" data-month="07">Jul</button>
-						<button type="button" class="month-btn" data-month="08">Ago</button>
-						<button type="button" class="month-btn" data-month="09">Sep</button>
-						<button type="button" class="month-btn" data-month="10">Oct</button>
-						<button type="button" class="month-btn" data-month="11">Nov</button>
-						<button type="button" class="month-btn" data-month="12">Dic</button>
+						<button type="button" class="month-btn" data-month="01" data-name="Enero">Ene</button>
+						<button type="button" class="month-btn" data-month="02" data-name="Febrero">Feb</button>
+						<button type="button" class="month-btn" data-month="03" data-name="Marzo">Mar</button>
+						<button type="button" class="month-btn" data-month="04" data-name="Abril">Abr</button>
+						<button type="button" class="month-btn" data-month="05" data-name="Mayo">May</button>
+						<button type="button" class="month-btn" data-month="06" data-name="Junio">Jun</button>
+						<button type="button" class="month-btn" data-month="07" data-name="Julio">Jul</button>
+						<button type="button" class="month-btn" data-month="08" data-name="Agosto">Ago</button>
+						<button type="button" class="month-btn" data-month="09" data-name="Septiembre">Sep</button>
+						<button type="button" class="month-btn" data-month="10" data-name="Octubre">Oct</button>
+						<button type="button" class="month-btn" data-month="11" data-name="Noviembre">Nov</button>
+						<button type="button" class="month-btn" data-month="12" data-name="Diciembre">Dic</button>
 					</div>
 					<input type="hidden" id="customer-birthdate" value="" />
 					<div class="error-message" id="birthdate-error">Por favor selecciona tu mes de cumpleaños</div>
-					<div class="form-hint">Selecciona el mes en el que cumples años.</div>
+					<div class="form-hint">Haz clic en el botón para elegir tu mes de cumpleaños.</div>
 				</div>
 
 				<div class="form-group">
@@ -735,8 +755,14 @@ Tu premio ya fue registrado y acabamos de enviar la información a tu vendedor p
 		});
 
 		function setupMonthSelection() {
+			const monthTrigger = document.getElementById('month-trigger');
+			const monthGrid = document.getElementById('month-grid');
 			const monthBtns = document.querySelectorAll('.month-btn');
 			const birthDateInput = document.getElementById('customer-birthdate');
+
+			monthTrigger.addEventListener('click', () => {
+				monthGrid.classList.toggle('show');
+			});
 
 			monthBtns.forEach(btn => {
 				btn.addEventListener('click', () => {
@@ -744,11 +770,29 @@ Tu premio ya fue registrado y acabamos de enviar la información a tu vendedor p
 					monthBtns.forEach(b => b.classList.remove('active'));
 					// Add active to current
 					btn.classList.add('active');
+					
 					// Update hidden input with a valid date format YYYY-MM-DD
 					const month = btn.getAttribute('data-month');
+					const monthName = btn.getAttribute('data-name');
+					
 					birthDateInput.value = `2000-${month}-01`;
+					monthTrigger.textContent = `Mes: ${monthName}`;
+					monthTrigger.style.borderColor = '#f4a6b7';
+					
+					// Hide grid with small delay for visual feedback
+					setTimeout(() => {
+						monthGrid.classList.remove('show');
+					}, 150);
+					
 					hideError('birthdate-error');
 				});
+			});
+
+			// Close grid when clicking outside
+			document.addEventListener('click', (e) => {
+				if (!monthGrid.contains(e.target) && !monthTrigger.contains(e.target)) {
+					monthGrid.classList.remove('show');
+				}
 			});
 		}
 
