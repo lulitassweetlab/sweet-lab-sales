@@ -201,6 +201,66 @@
             color: #666;
         }
 
+        /* Custom Checkbox */
+        .custom-checkbox {
+            position: relative;
+            display: inline-block;
+            width: 22px;
+            height: 22px;
+        }
+
+        .custom-checkbox input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .checkmark {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 22px;
+            width: 22px;
+            background-color: #fff;
+            border: 2px solid #f4a6b7;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .custom-checkbox:hover input ~ .checkmark {
+            background-color: #fdf2f4;
+        }
+
+        .custom-checkbox input:checked ~ .checkmark {
+            background-color: #f4a6b7;
+        }
+
+        .checkmark:after {
+            content: "";
+            position: absolute;
+            display: none;
+        }
+
+        .custom-checkbox input:checked ~ .checkmark:after {
+            display: block;
+        }
+
+        .custom-checkbox .checkmark:after {
+            left: 7px;
+            top: 3px;
+            width: 5px;
+            height: 10px;
+            border: solid white;
+            border-width: 0 3px 3px 0;
+            transform: rotate(45deg);
+        }
+
+        .custom-checkbox input:disabled ~ .checkmark {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
         .probabilities-card {
             padding: 20px;
             margin-bottom: 20px;
@@ -826,20 +886,26 @@
                 sellerState.whatsappBySellerId[s.id] = s.whatsapp || '';
                 const tr = document.createElement('tr');
 
-                // Checkbox column
+                // Checkbox column with custom style
                 const tdCheck = document.createElement('td');
                 tdCheck.style.padding = '12px';
                 tdCheck.style.borderBottom = '1px solid #eee';
                 tdCheck.style.textAlign = 'center';
                 
+                const label = document.createElement('label');
+                label.className = 'custom-checkbox';
+                
                 const checkbox = document.createElement('input');
                 checkbox.type = 'checkbox';
-                checkbox.checked = s.game_enabled !== false; // Active by default or if true
-                checkbox.style.cursor = 'pointer';
-                checkbox.style.width = '18px';
-                checkbox.style.height = '18px';
+                checkbox.checked = s.game_enabled !== false;
                 checkbox.addEventListener('change', () => toggleSellerGameEnabled(s.id, checkbox.checked, checkbox));
-                tdCheck.appendChild(checkbox);
+                
+                const span = document.createElement('span');
+                span.className = 'checkmark';
+                
+                label.appendChild(checkbox);
+                label.appendChild(span);
+                tdCheck.appendChild(label);
                 tr.appendChild(tdCheck);
 
                 const tdName = document.createElement('td');
