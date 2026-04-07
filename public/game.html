@@ -179,7 +179,8 @@
 		.form-input,
 		.form-select {
 			width: 100%;
-			padding: 14px 18px;
+			height: 56px;
+			padding: 0 18px;
 			border: 2px solid #e5e7eb;
 			border-radius: 12px;
 			font-size: 16px;
@@ -187,6 +188,7 @@
 			background: white;
 			color: #2a2a2a;
 			transition: all 0.3s ease;
+			box-sizing: border-box;
 		}
 
 		.form-input:focus,
@@ -224,14 +226,18 @@
 
 		.month-trigger, .day-trigger {
 			flex: 1;
+			height: 56px;
 			display: flex;
 			align-items: center;
 			justify-content: space-between;
 			cursor: pointer;
 			background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23f4a6b7' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 12px center;
 			text-align: left;
-			padding: 14px 12px;
+			padding: 0 12px;
 			font-size: 15px;
+			border: 2px solid #e5e7eb;
+			border-radius: 12px;
+			box-sizing: border-box;
 		}
 
 		.day-trigger:disabled {
@@ -316,7 +322,10 @@
 
 		.btn-primary {
 			width: 100%;
-			padding: 16px;
+			height: 56px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
 			background: linear-gradient(135deg, #f4a6b7 0%, #e27a90 100%);
 			color: white;
 			border: none;
@@ -328,6 +337,7 @@
 			box-shadow: 0 4px 16px rgba(244, 166, 183, 0.4);
 			text-transform: uppercase;
 			letter-spacing: 1px;
+			box-sizing: border-box;
 		}
 
 		.btn-primary:hover {
@@ -658,7 +668,7 @@
 				</div>
 
 				<button type="submit" class="btn-primary" id="submit-btn">
-					Comenzar a Jugar
+					JUGAR
 				</button>
 			</form>
 		</div>
