@@ -179,7 +179,7 @@
 		.form-input,
 		.form-select {
 			width: 100%;
-			height: 56px;
+			height: 46px;
 			padding: 0 18px;
 			border: 2px solid #e5e7eb;
 			border-radius: 12px;
@@ -189,6 +189,14 @@
 			color: #2a2a2a;
 			transition: all 0.3s ease;
 			box-sizing: border-box;
+		}
+
+		.form-select {
+			color: #9ca3af;
+		}
+
+		.form-select:valid {
+			color: #2a2a2a;
 		}
 
 		.form-input:focus,
@@ -226,7 +234,7 @@
 
 		.month-trigger, .day-trigger {
 			flex: 1;
-			height: 56px;
+			height: 46px;
 			display: flex;
 			align-items: center;
 			justify-content: space-between;
@@ -238,6 +246,7 @@
 			border: 2px solid #e5e7eb;
 			border-radius: 12px;
 			box-sizing: border-box;
+			color: #9ca3af;
 		}
 
 		.day-trigger:disabled {
@@ -322,7 +331,7 @@
 
 		.btn-primary {
 			width: 100%;
-			height: 56px;
+			height: 46px;
 			display: flex;
 			align-items: center;
 			justify-content: center;
@@ -831,10 +840,12 @@ Tu premio ya fue registrado y acabamos de enviar la información a tu vendedor p
 					
 					monthTrigger.textContent = monthName;
 					monthTrigger.style.borderColor = '#f4a6b7';
+					monthTrigger.style.color = '#2a2a2a';
 					
 					// Enable and reset Day
 					dayTrigger.disabled = false;
 					dayTrigger.textContent = 'Día';
+					dayTrigger.style.color = '#9ca3af';
 					selectedDayNum = '';
 					
 					generateDays(monthDaysMap[selectedMonthNum]);
@@ -862,6 +873,7 @@ Tu premio ya fue registrado y acabamos de enviar la información a tu vendedor p
 						selectedDayNum = dayStr;
 						dayTrigger.textContent = i;
 						dayTrigger.style.borderColor = '#f4a6b7';
+						dayTrigger.style.color = '#2a2a2a';
 						
 						setTimeout(() => {
 							dayGrid.classList.remove('show');
