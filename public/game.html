@@ -125,10 +125,12 @@
 		}
 
 		.game-logo {
-			width: 120px;
+			max-width: 120px;
 			height: auto;
 			margin-bottom: 20px;
 			filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.1));
+			opacity: 0;
+			transition: opacity 0.5s ease;
 		}
 
 		.game-title {
@@ -795,9 +797,24 @@ Tu premio ya fue registrado y acabamos de enviar la información a tu vendedor p
 
 			// Load messages concurrently with other requests
 			fetch('/api/store-settings').then(res => res.json()).then(settings => {
+				const logoImg = document.querySelector('.game-logo');
 				if (settings.game_msg_free) customMessages.free = settings.game_msg_free;
 				if (settings.game_msg_discount) customMessages.discount = settings.game_msg_discount;
-			}).catch(err => console.error('Error loading custom messages', err));
+
+				if (settings.logo_base64) {
+					logoImg.src = settings.logo_base64;
+				}
+				if (settings.logo_height) {
+					logoImg.style.height = settings.logo_height + 'px';
+					logoImg.style.maxHeight = 'none';
+					logoImg.style.maxWidth = '100vw';
+					logoImg.style.width = 'auto';
+				}
+				logoImg.style.opacity = '1';
+			}).catch(err => {
+				console.error('Error loading custom settings', err);
+				document.querySelector('.game-logo').style.opacity = '1';
+			});
 
 			await loadConfiguredPrizes();
 			await loadSellers();
