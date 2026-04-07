@@ -423,6 +423,8 @@
             <div class="loading">Cargando probabilidades...</div>
         </div>
         <div id="probabilities-total" class="probabilities-total"></div>
+    </div>
+
     <!-- Seller Management Configuration -->
     <div class="table-container probabilities-card" id="seller-mgmt-section" style="margin-top: 20px;">
         <div class="probabilities-header">
@@ -794,15 +796,47 @@
         async function loadSellersManagement() {
             try {
                 setSellerSaveStatus('Cargando...');
-                const res = await fetch('/api/sellers?include_archived=0');
-                if (!res.ok) throw new Error('Failed to load');
+                
+                let actor = '';
+                try {
+                    const auth = JSON.parse(localStorage.getItem('authUser') || '{}');
+                    actor = auth.name || '';
+                } catch(e) {}
+
+                if (!actor) {
+                    const tbody = document.getElementById('sellers-mgmt-tbody');
+                    if (tbody) tbody.innerHTML = '<tr><td colspan="2" class="loading">⚠️ Por favor, inicia sesión en la página principal para ver esta lista.</td></tr>';
+                    setSellerSaveStatus('');
+                    return;
+                }
+
+                console.log(`[Debug] Cargando vendedores para actor: ${actor}`);
+
+                const res = await fetch('/api/sellers?include_archived=0', {
+                    headers: {
+                        'X-Actor-Name': actor
+                    }
+                });
+                
+                if (!res.ok) {
+                    const errData = await res.json().catch(() => ({}));
+                    throw new Error(errData.error || `Error ${res.status}`);
+                }
                 const sellers = await res.json();
-                renderSellersManagement(sellers);
+                
+                if (sellers.length === 0) {
+                    const tbody = document.getElementById('sellers-mgmt-tbody');
+                    if (tbody) tbody.innerHTML = '<tr><td colspan="2" class="loading">No tienes permisos para ver vendedores o la lista está vacía.</td></tr>';
+                } else {
+                    renderSellersManagement(sellers);
+                }
+                
                 setSellerSaveStatus('');
             } catch (err) {
                 console.error('Error loading sellers for management:', err);
                 const tbody = document.getElementById('sellers-mgmt-tbody');
-                if (tbody) tbody.innerHTML = '<tr><td colspan="2" class="loading">Error al cargar vendedores</td></tr>';
+                if (tbody) tbody.innerHTML = `<tr><td colspan="2" class="loading">Error al cargar vendedores: ${err.message}</td></tr>`;
+                setSellerSaveStatus('');
             }
         }
 

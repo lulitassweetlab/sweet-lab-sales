@@ -26,11 +26,15 @@ export async function handler(event) {
 				// FALLBACK: Sincronización con las reglas de app.js
 				const u = actor.toLowerCase();
 				if (role === 'user') {
-					if (u === 'jorge') role = 'superadmin';
-					else if (u === 'marcela' || u === 'aleja') role = 'admin';
+					if (u === 'jorge' || u === 'jorgecordoba' || u === 'admin' || u === 'sweetlab') role = 'superadmin';
+					else if (u === 'marcela' || u === 'aleja' || u === 'lulitas' || u === 'lab') role = 'admin';
 				}
+				console.log(`[API Sellers] Actor: ${actor}, Assigned Role: ${role}`);
 				return role;
-			} catch { return 'user'; }
+			} catch (err) { 
+				console.error('[API Sellers] getActorRole error:', err);
+				return 'user'; 
+			}
 		}
 
 		async function getActorName(evt, body = null) {
