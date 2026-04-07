@@ -1331,6 +1331,7 @@ Envíalo a tu asesor y activa tu descuento ✨`
 				// Replace placeholders
 				message = message.replace(/\{premio\}/g, prizeName);
 				message = message.replace(/\{nombre\}/g, gameState.customerName || '');
+				message = message.replace(/\{vendedor\}/g, gameState.sellerName || '');
 				
 				// Update button
 				waBtn.href = `https://wa.me/${gameState.sellerWhatsapp}?text=${encodeURIComponent(message)}`;
