@@ -18,7 +18,7 @@ export async function handler(event) {
 		const rows = await sql`
 			SELECT id, name, require_whatsapp, whatsapp 
 			FROM sellers 
-			WHERE archived_at IS NULL 
+			WHERE archived_at IS NULL AND game_enabled IS TRUE
 			ORDER BY name
 		`;
 

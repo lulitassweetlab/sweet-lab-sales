@@ -450,6 +450,7 @@
             <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
                 <thead style="background: #f3f4f6; color: #374151;">
                     <tr>
+                        <th style="text-align: center; padding: 12px; border-bottom: 2px solid #e5e7eb; width: 60px;">Juego</th>
                         <th style="text-align: left; padding: 12px; border-bottom: 2px solid #e5e7eb;">Vendedor</th>
                         <th style="text-align: left; padding: 12px; border-bottom: 2px solid #e5e7eb;">WhatsApp (Ej: 573...)</th>
                     </tr>
@@ -771,10 +772,47 @@
             } catch (err) {
                 console.error('Error saving seller whatsapp:', err);
                 setSellerSaveStatus('Error al guardar', 'error');
-                inputEl.classList.add('error');
+                if (inputEl) inputEl.classList.add('error');
             } finally {
-                inputEl.classList.remove('saving');
-                delete inputEl.dataset.saving;
+                if (inputEl) {
+                    inputEl.classList.remove('saving');
+                    delete inputEl.dataset.saving;
+                }
+            }
+        }
+
+        async function toggleSellerGameEnabled(sellerId, isEnabled, checkboxEl) {
+            setSellerSaveStatus('Guardando...');
+            checkboxEl.disabled = true;
+
+            try {
+                let actor = '';
+                try {
+                    const auth = JSON.parse(localStorage.getItem('authUser') || '{}');
+                    actor = auth.name || '';
+                } catch(e) {}
+
+                const res = await fetch('/api/sellers', {
+                    method: 'PATCH',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-Actor-Name': actor
+                    },
+                    body: JSON.stringify({ id: sellerId, game_enabled: isEnabled })
+                });
+
+                if (!res.ok) {
+                    const errData = await res.json().catch(() => ({}));
+                    throw new Error(errData.error || `Error ${res.status}`);
+                }
+                
+                setSellerSaveStatus('Estado actualizado', 'success');
+            } catch (err) {
+                console.error('Error toggling seller game enabled:', err);
+                setSellerSaveStatus('Error al actualizar', 'error');
+                checkboxEl.checked = !isEnabled; // Revert
+            } finally {
+                checkboxEl.disabled = false;
             }
         }
 
@@ -788,11 +826,28 @@
                 sellerState.whatsappBySellerId[s.id] = s.whatsapp || '';
                 const tr = document.createElement('tr');
 
+                // Checkbox column
+                const tdCheck = document.createElement('td');
+                tdCheck.style.padding = '12px';
+                tdCheck.style.borderBottom = '1px solid #eee';
+                tdCheck.style.textAlign = 'center';
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.checked = s.game_enabled !== false; // Active by default or if true
+                checkbox.style.cursor = 'pointer';
+                checkbox.style.width = '18px';
+                checkbox.style.height = '18px';
+                checkbox.addEventListener('change', () => toggleSellerGameEnabled(s.id, checkbox.checked, checkbox));
+                tdCheck.appendChild(checkbox);
+                tr.appendChild(tdCheck);
+
                 const tdName = document.createElement('td');
                 tdName.style.padding = '12px';
                 tdName.style.borderBottom = '1px solid #eee';
                 tdName.style.fontWeight = '600';
                 tdName.textContent = s.name;
+                tr.appendChild(tdName);
 
                 const tdInput = document.createElement('td');
                 tdInput.style.padding = '12px';
