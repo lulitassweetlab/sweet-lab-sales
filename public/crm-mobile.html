@@ -183,6 +183,7 @@
         </div>
         <div style="display: flex; align-items: center; gap: 12px;">
             <button onclick="navTo('history')" style="background:none; border:none; color:var(--primary-dark); font-weight:700; padding:4px 8px; border-radius:12px; font-size: 0.8rem; cursor:pointer;">Historial</button>
+            <button onclick="enterRouteMode()" style="background:none; border:none; color:var(--primary-dark); font-weight:700; padding:4px 8px; border-radius:12px; font-size: 0.8rem; cursor:pointer;">Ruta</button>
             <button onclick="window.location.href='/store.html'" style="background:var(--secondary); color:var(--primary-dark); font-weight:700; border:none; padding:4px 10px; border-radius:12px; font-size: 0.8rem; cursor:pointer;" title="Volver a Tienda">Volver</button>
             <div id="sellerNameLabel" style="font-weight: 500; color: var(--primary-dark); font-size: 0.9rem;"></div>
         </div>
@@ -192,6 +193,21 @@
     <main>
         <!-- SCREEN 1: Dashboard -->
         <div id="screen-dashboard" class="screen active">
+            <!-- ROUTE MODE BANNER -->
+            <div id="routeModeBanner" style="display:none; background:#10b981; color:white; padding:12px 20px; border-radius:16px; margin-bottom:16px; align-items:center; justify-content:space-between; animation: slideDown 0.3s ease; box-shadow: 0 8px 24px rgba(16,185,129,0.3);">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <div style="font-size:1.6rem;">🗺️</div>
+                    <div>
+                        <div style="font-size:0.7rem; font-weight:700; opacity:0.9; text-transform:uppercase; letter-spacing:0.05em;">Modo Ruta: Selecciona Paradas</div>
+                        <div id="routeModeCount" style="font-weight:800; font-size:1.1rem; line-height:1.2;">0 seleccionados</div>
+                    </div>
+                </div>
+                <div style="display:flex; gap:8px;">
+                    <button id="btnGenerateRoute" onclick="generateRoute()" style="background:white; border:none; color:#10b981; padding:10px 18px; border-radius:12px; font-weight:800; font-size:0.9rem; cursor:pointer; transition:all 0.2s; opacity:0.5;" disabled>Crear Ruta</button>
+                    <button onclick="exitRouteMode()" style="background:rgba(255,255,255,0.2); border:none; color:white; padding:10px 18px; border-radius:12px; font-weight:800; font-size:0.9rem; cursor:pointer; transition:all 0.2s;">✕</button>
+                </div>
+            </div>
+
             <!-- BULK MODE BANNER (Centered and fixed-ish on dashboard) -->
             <div id="bulkModeBanner" style="display:none; background:var(--primary); color:white; padding:12px 20px; border-radius:16px; margin-bottom:16px; align-items:center; justify-content:space-between; animation: slideDown 0.3s ease; box-shadow: 0 8px 24px rgba(99,102,241,0.3);">
                 <div style="display:flex; align-items:center; gap:12px;">
@@ -719,6 +735,10 @@
             window.dashStageParams = null;
             window.dashTagParams = null;
 
+            // ── ROUTE MODE STATE ──────────────────────────────────────────────────
+            window.isRouteMode = false;
+            window.routeSelectedClients = new Set();
+
             const savedSeller = localStorage.getItem('storeActiveSeller');
             if (savedSeller) {
                 const parsed = JSON.parse(savedSeller);
@@ -948,27 +968,34 @@
 
             const metricsHtml = ltv > 0 ? `<div style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">Histórico: ${formatMoney(ltv)} | Compras: ${freq}</div>` : '';
 
-            // Handle Bulk Mode Logic
+            // Handle Selection Logic
             const isBulk = window.isBulkMode;
+            const isRoute = window.isRouteMode;
+            
             const hasTag = isBulk && (
                 window.bulkTagType === 'stage' 
                 ? Number(c.stage_id) === Number(window.bulkTagId)
                 : window.bulkModeActiveClients.has(Number(c.id))
             );
+            const isSelected = isRoute && window.routeSelectedClients.has(Number(c.id));
 
-            const clickAction = isBulk ? `toggleBulkAction(${c.id}, this)` : `loadProfile(${c.id})`;
+            let clickAction = isBulk ? `toggleBulkAction(${c.id}, this)` : `loadProfile(${c.id})`;
+            if (isRoute) clickAction = `toggleRouteSelection(${c.id}, this)`;
             
-            // Visual Styles for Bulk Mode (User requested transparent background)
-            const bulkBg = 'transparent';
-            const bulkBorder = 'transparent';
+            // Visual Styles
+            const cardBg = isSelected ? 'rgba(16,185,129,0.05)' : (hasTag ? 'rgba(0,0,0,0.02)' : 'var(--surface)');
+            const cardBorder = isSelected ? '1.5px solid #10b981' : (hasTag ? '1.5px solid var(--primary)' : '1px solid var(--border)');
 
             return `
                 <div class="card client-card-bulk-target" data-client-id="${c.id}" 
                     onclick="${clickAction}" 
-                    style="padding:14px; margin-bottom:10px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; transition: all 0.2s; border: ${bulkBorder}; background: ${bulkBg};"
-                    onmouseover="if(!window.isBulkMode) this.style.transform='translateX(4px)'" onmouseout="this.style.transform='none'">
+                    style="padding:14px; margin-bottom:10px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; transition: all 0.2s; border: ${cardBorder}; background: ${cardBg};"
+                    onmouseover="if(!window.isBulkMode && !window.isRouteMode) this.style.transform='translateX(4px)'" onmouseout="this.style.transform='none'">
                     <div style="flex:1;">
-                        <div style="font-weight:700; font-size:1.05rem; margin-bottom:6px;">${c.name}</div>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            ${isSelected ? '<div style="color:#10b981; font-size:1.2rem;">✅</div>' : ''}
+                            <div style="font-weight:700; font-size:1.05rem; margin-bottom:2px;">${c.name}</div>
+                        </div>
                         <div class="client-badges-container" style="display:flex; flex-wrap:wrap; gap:4px; align-items:center;">${badges}</div>
                         ${metricsHtml}
                     </div>
@@ -3077,6 +3104,117 @@
             toast.style.fontSize = '0.9rem';
             document.body.appendChild(toast);
             setTimeout(() => toast.remove(), 2000);
+        }
+
+        // ── ROUTE MODE FUNCTIONS ──────────────────────────────────────────────────
+        function enterRouteMode() {
+            if (window.isBulkMode) exitBulkMode();
+            
+            window.isRouteMode = true;
+            window.routeSelectedClients.clear();
+            
+            const banner = document.getElementById('routeModeBanner');
+            if (banner) banner.style.display = 'flex';
+            
+            const countLabel = document.getElementById('routeModeCount');
+            if (countLabel) countLabel.innerText = '0 seleccionados';
+            
+            const btn = document.getElementById('btnGenerateRoute');
+            if (btn) {
+                btn.disabled = true;
+                btn.style.opacity = '0.5';
+            }
+            
+            // Re-render dashboard to show selection potential
+            loadFullDirectoryInline();
+            
+            if(navigator.vibrate) navigator.vibrate(50);
+        }
+
+        function exitRouteMode() {
+            window.isRouteMode = false;
+            window.routeSelectedClients.clear();
+            
+            const banner = document.getElementById('routeModeBanner');
+            if (banner) banner.style.display = 'none';
+            
+            resetDashboardView();
+        }
+
+        function toggleRouteSelection(clientIdParam, cardEl) {
+            if (!window.isRouteMode) return;
+            
+            const clientId = Number(clientIdParam);
+            const isSelected = window.routeSelectedClients.has(clientId);
+            
+            if (isSelected) {
+                window.routeSelectedClients.delete(clientId);
+                cardEl.classList.remove('route-selected');
+                cardEl.style.border = '1px solid var(--border)';
+                cardEl.style.background = 'var(--surface)';
+                // Remove checkmark if possible or just re-render row?
+                // For simplicity, re-rendering this row if it was a complex UI, 
+                // but here we just update styles for performance.
+                const check = cardEl.querySelector('div[style*="font-size:1.2rem"]');
+                if (check) check.remove();
+            } else {
+                window.routeSelectedClients.add(clientId);
+                cardEl.classList.add('route-selected');
+                cardEl.style.border = '1.5px solid #10b981';
+                cardEl.style.background = 'rgba(16,185,129,0.05)';
+                
+                // Add checkmark visually
+                const titleContainer = cardEl.querySelector('div[style*="font-weight:700"]')?.parentElement;
+                if (titleContainer && !titleContainer.querySelector('div[style*="font-size:1.2rem"]')) {
+                    const check = document.createElement('div');
+                    check.style.cssText = 'color:#10b981; font-size:1.2rem;';
+                    check.innerText = '✅';
+                    titleContainer.prepend(check);
+                }
+            }
+
+            const count = window.routeSelectedClients.size;
+            const countLabel = document.getElementById('routeModeCount');
+            if (countLabel) countLabel.innerText = `${count} seleccionados`;
+            
+            const btn = document.getElementById('btnGenerateRoute');
+            if (btn) {
+                if (count >= 2) {
+                    btn.disabled = false;
+                    btn.style.opacity = '1';
+                } else {
+                    btn.disabled = true;
+                    btn.style.opacity = '0.5';
+                }
+            }
+            
+            if(navigator.vibrate) navigator.vibrate(10);
+        }
+
+        function generateRoute() {
+            const selectedIds = Array.from(window.routeSelectedClients);
+            if (selectedIds.length < 2) {
+                alert('Selecciona al menos 2 clientes para crear una ruta.');
+                return;
+            }
+
+            // Collect coordinates from currently loaded directoryData
+            const points = [];
+            selectedIds.forEach(id => {
+                const client = directoryData.find(c => Number(c.id) === id);
+                if (client && client.latitude && client.longitude) {
+                    points.push(`${client.latitude},${client.longitude}`);
+                }
+            });
+
+            if (points.length < 2) {
+                alert('Algunos clientes seleccionados no tienen ubicación guardada o se necesitan al menos 2 ubicaciones válidas.');
+                return;
+            }
+
+            // Google Maps URL: https://www.google.com/maps/dir/lat1,lng1/lat2,lng2/...
+            const url = `https://www.google.com/maps/dir/${points.join('/')}`;
+            window.open(url, '_blank');
         }
 
     </script>

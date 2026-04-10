@@ -128,6 +128,7 @@ export async function handler(event) {
             const directory = await sql`
                 SELECT 
                     c.id, c.name, c.whatsapp,
+                    c.latitude, c.longitude,
                     st.name as stage_name, st.color as stage_color,
                     COUNT(s.id)::int as total_orders,
                     COALESCE(SUM(s.total_cents), 0)::int as lifetime_value_cents,
@@ -146,7 +147,7 @@ export async function handler(event) {
                 LEFT JOIN crm_client_stage cst ON c.id = cst.client_id
                 LEFT JOIN crm_stages st ON cst.stage_id = st.id
                 WHERE c.seller_id = ${sellerId}
-                GROUP BY c.id, c.name, c.whatsapp, st.name, st.color, st.id
+                GROUP BY c.id, c.name, c.whatsapp, c.latitude, c.longitude, st.name, st.color, st.id
                 ORDER BY MAX(sd.day) DESC NULLS LAST, c.name ASC
             `;
             return json(directory);
