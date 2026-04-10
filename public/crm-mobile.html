@@ -3179,7 +3179,7 @@
             
             const btn = document.getElementById('btnGenerateRoute');
             if (btn) {
-                if (count >= 2) {
+                if (count >= 1) {
                     btn.disabled = false;
                     btn.style.opacity = '1';
                 } else {
@@ -3193,28 +3193,42 @@
 
         function generateRoute() {
             const selectedIds = Array.from(window.routeSelectedClients);
-            if (selectedIds.length < 2) {
-                alert('Selecciona al menos 2 clientes para crear una ruta.');
+            if (selectedIds.length === 0) {
+                alert('Selecciona al menos un cliente.');
                 return;
             }
 
             // Collect coordinates from currently loaded directoryData
             const points = [];
+            let missingCount = 0;
             selectedIds.forEach(id => {
                 const client = directoryData.find(c => Number(c.id) === id);
-                if (client && client.latitude && client.longitude) {
+                if (client && client.latitude && client.longitude && client.latitude !== 0) {
                     points.push(`${client.latitude},${client.longitude}`);
+                } else {
+                    missingCount++;
                 }
             });
 
-            if (points.length < 2) {
-                alert('Algunos clientes seleccionados no tienen ubicación guardada o se necesitan al menos 2 ubicaciones válidas.');
+            if (points.length === 0) {
+                alert('Los clientes seleccionados no tienen ubicación guardada.');
                 return;
             }
 
-            // Google Maps URL: https://www.google.com/maps/dir/lat1,lng1/lat2,lng2/...
-            const url = `https://www.google.com/maps/dir/${points.join('/')}`;
+            let url = '';
+            if (points.length === 1) {
+                // Just search/pin the one location
+                url = `https://www.google.com/maps/search/?api=1&query=${points[0]}`;
+            } else {
+                // Multi-stop route
+                url = `https://www.google.com/maps/dir/${points.join('/')}`;
+            }
+            
             window.open(url, '_blank');
+            
+            if (missingCount > 0) {
+                showToast(`Ruta creada con ${points.length} puntos (${missingCount} omitidos por falta de ubicación)`);
+            }
         }
 
     </script>
