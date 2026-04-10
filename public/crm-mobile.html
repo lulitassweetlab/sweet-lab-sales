@@ -987,7 +987,10 @@
             const cardBorder = isSelected ? '1.5px solid #10b981' : (hasTag ? '1.5px solid var(--primary)' : '1px solid var(--border)');
 
             return `
-                <div class="card client-card-bulk-target" data-client-id="${c.id}" 
+                <div class="card client-card-bulk-target" 
+                    data-client-id="${c.id}" 
+                    data-lat="${c.latitude || ''}" 
+                    data-lng="${c.longitude || ''}"
                     onclick="${clickAction}" 
                     style="padding:14px; margin-bottom:10px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; transition: all 0.2s; border: ${cardBorder}; background: ${cardBg};"
                     onmouseover="if(!window.isBulkMode && !window.isRouteMode) this.style.transform='translateX(4px)'" onmouseout="this.style.transform='none'">
@@ -3134,7 +3137,8 @@
                 btn.style.opacity = '0.5';
             }
             
-            // Re-render dashboard to show selection potential
+            // Re-render both Dashboard (reminders/etc) and Directory to ensure all lists have coords
+            loadDashboard();
             loadFullDirectoryInline();
             
             if(navigator.vibrate) navigator.vibrate(50);
@@ -3209,30 +3213,41 @@
 
             const points = [];
             let missingCount = 0;
+            let missingNames = [];
             
             selectedIds.forEach(id => {
                 const numericId = Number(id);
-                // Look up in both full directory and active filtered view
-                let client = directoryData.find(c => Number(c.id) === numericId);
-                if (!client && window.activeDirectoryData) {
-                    client = window.activeDirectoryData.find(c => Number(c.id) === numericId);
-                }
+                // 1. Primary Lookup: Try to read from the card element in the DOM
+                const cardEl = document.querySelector(`.client-card-bulk-target[data-client-id="${numericId}"]`);
+                let latRaw = cardEl?.getAttribute('data-lat');
+                let lngRaw = cardEl?.getAttribute('data-lng');
                 
-                // Final check: if still not found, it might be in dashboard state
-                // But normally activeDirectoryData or directoryData covers it.
+                let lat = parseFloat(latRaw);
+                let lng = parseFloat(lngRaw);
 
-                const lat = parseFloat(client?.latitude);
-                const lng = parseFloat(client?.longitude);
+                // 2. Secondary Lookup: Fallback to global data if element is missing or empty
+                if (isNaN(lat) || isNaN(lng) || lat === 0) {
+                    let client = directoryData.find(c => Number(c.id) === numericId);
+                    if (!client && window.activeDirectoryData) {
+                        client = window.activeDirectoryData.find(c => Number(c.id) === numericId);
+                    }
+                    if (client) {
+                        lat = parseFloat(client.latitude);
+                        lng = parseFloat(client.longitude);
+                    }
+                }
 
                 if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
                     points.push(`${lat},${lng}`);
                 } else {
                     missingCount++;
+                    const clientName = cardEl?.querySelector('div[style*="font-weight:700"]')?.innerText || `ID: ${id}`;
+                    missingNames.push(clientName);
                 }
             });
 
             if (points.length === 0) {
-                alert('Los clientes seleccionados no tienen ubicación guardada.');
+                alert('Lo sentimos, ninguno de los clienes seleccionados tiene ubicación guardada o válida.\n\nClientes sin datos:\n- ' + missingNames.join('\n- '));
                 return;
             }
 
@@ -3246,7 +3261,7 @@
             window.open(url, '_blank');
             
             if (missingCount > 0) {
-                showToast(`Ruta creada con ${points.length} puntos (${missingCount} omitidos)`);
+                alert(`Nota: Se omitieron ${missingCount} clientes por falta de ubicación (${missingNames.join(', ')}).`);
             }
         }
 
