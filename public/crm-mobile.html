@@ -3110,9 +3110,14 @@
         function enterRouteMode() {
             if (window.isBulkMode) exitBulkMode();
             
-            // Force refresh coordinates from server by clearing cache
-            const cacheKey = CACHE_PREFIX + 'directory_' + (currentSellerId || 'default');
-            localStorage.removeItem(cacheKey);
+            // Force refresh ALL CRM data from server by clearing all related caches
+            const sid = currentSellerId || 'default';
+            [
+                'directory_' + sid,
+                'dashboard_' + sid,
+                'tags_' + sid,
+                'stage_summary_' + sid
+            ].forEach(k => localStorage.removeItem(CACHE_PREFIX + k));
             
             window.isRouteMode = true;
             window.routeSelectedClients.clear();
@@ -3202,13 +3207,20 @@
                 return;
             }
 
-            // Collect coordinates from currently loaded directoryData
             const points = [];
             let missingCount = 0;
+            
             selectedIds.forEach(id => {
-                const client = directoryData.find(c => Number(c.id) === id);
+                const numericId = Number(id);
+                // Look up in both full directory and active filtered view
+                let client = directoryData.find(c => Number(c.id) === numericId);
+                if (!client && window.activeDirectoryData) {
+                    client = window.activeDirectoryData.find(c => Number(c.id) === numericId);
+                }
                 
-                // Robust numeric check for coordinates
+                // Final check: if still not found, it might be in dashboard state
+                // But normally activeDirectoryData or directoryData covers it.
+
                 const lat = parseFloat(client?.latitude);
                 const lng = parseFloat(client?.longitude);
 
@@ -3226,17 +3238,15 @@
 
             let url = '';
             if (points.length === 1) {
-                // Just search/pin the one location
                 url = `https://www.google.com/maps/search/?api=1&query=${points[0]}`;
             } else {
-                // Multi-stop route
                 url = `https://www.google.com/maps/dir/${points.join('/')}`;
             }
             
             window.open(url, '_blank');
             
             if (missingCount > 0) {
-                showToast(`Ruta creada con ${points.length} puntos (${missingCount} omitidos por falta de ubicación)`);
+                showToast(`Ruta creada con ${points.length} puntos (${missingCount} omitidos)`);
             }
         }
 
