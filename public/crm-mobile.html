@@ -1031,7 +1031,7 @@
                 }).catch(e => console.error('Error syncing stages:', e));
             }
 
-            const url = `/.netlify/functions/crm-dashboard?seller_id=${currentSellerId}`;
+            const url = `/.netlify/functions/crm-dashboard?seller_id=${currentSellerId}&v=${Date.now()}`;
             
             // Background load tags and stage summary right away
             loadSellerTags(); 
@@ -1379,7 +1379,7 @@
 
         // LOAD DIRECTORY (Inline Dashboard)
         async function loadFullDirectoryInline(shouldRestore = false) {
-            const url = `/.netlify/functions/crm-clients?seller_id=${currentSellerId}`;
+            const url = `/.netlify/functions/crm-clients?seller_id=${currentSellerId}&v=${Date.now()}`;
             fetchWithCache('directory', url, (data, isCache) => {
                 const title = document.getElementById('dashContentTitle');
                 const listEl = document.getElementById('dashContactList');
@@ -3227,14 +3227,15 @@
 
                 // 2. Secondary Lookup: Fallback to global data if element is missing or empty
                 let source = 'DOM';
+                let clientData = null;
                 if (isNaN(lat) || isNaN(lng) || lat === 0) {
-                    let client = directoryData.find(c => Number(c.id) === numericId);
-                    if (!client && window.activeDirectoryData) {
-                        client = window.activeDirectoryData.find(c => Number(c.id) === numericId);
+                    clientData = directoryData.find(c => Number(c.id) === numericId);
+                    if (!clientData && window.activeDirectoryData) {
+                        clientData = window.activeDirectoryData.find(c => Number(c.id) === numericId);
                     }
-                    if (client) {
-                        lat = parseFloat(client.latitude);
-                        lng = parseFloat(client.longitude);
+                    if (clientData) {
+                        lat = parseFloat(clientData.latitude);
+                        lng = parseFloat(clientData.longitude);
                         source = 'Global';
                     } else {
                         source = 'NoneFound';
@@ -3246,7 +3247,8 @@
                 } else {
                     missingCount++;
                     const clientName = cardEl?.querySelector('div[style*="font-weight:700"]')?.innerText || `ID: ${id}`;
-                    missingNames.push(`${clientName} (Fuente: ${source}, Lat: ${latRaw || '?'}, Lng: ${lngRaw || '?'})`);
+                    const keys = clientData ? Object.keys(clientData).filter(k => !k.includes('total')).join(', ') : 'No data';
+                    missingNames.push(`${clientName} [F: ${source}, Lat: ${latRaw || '?'}, Lng: ${lngRaw || '?'}, Keys: ${keys}]`);
                 }
             });
 
