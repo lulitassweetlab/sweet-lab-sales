@@ -3110,6 +3110,10 @@
         function enterRouteMode() {
             if (window.isBulkMode) exitBulkMode();
             
+            // Force refresh coordinates from server by clearing cache
+            const cacheKey = CACHE_PREFIX + 'directory_' + (currentSellerId || 'default');
+            localStorage.removeItem(cacheKey);
+            
             window.isRouteMode = true;
             window.routeSelectedClients.clear();
             
@@ -3203,8 +3207,13 @@
             let missingCount = 0;
             selectedIds.forEach(id => {
                 const client = directoryData.find(c => Number(c.id) === id);
-                if (client && client.latitude && client.longitude && client.latitude !== 0) {
-                    points.push(`${client.latitude},${client.longitude}`);
+                
+                // Robust numeric check for coordinates
+                const lat = parseFloat(client?.latitude);
+                const lng = parseFloat(client?.longitude);
+
+                if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
+                    points.push(`${lat},${lng}`);
                 } else {
                     missingCount++;
                 }
