@@ -991,6 +991,7 @@
                     data-client-id="${c.id}" 
                     data-lat="${c.latitude || ''}" 
                     data-lng="${c.longitude || ''}"
+                    data-address="${c.address || ''}"
                     onclick="${clickAction}" 
                     style="padding:14px; margin-bottom:10px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; transition: all 0.2s; border: ${cardBorder}; background: ${cardBg};"
                     onmouseover="if(!window.isBulkMode && !window.isRouteMode) this.style.transform='translateX(4px)'" onmouseout="this.style.transform='none'">
@@ -3221,6 +3222,7 @@
                 const cardEl = document.querySelector(`.client-card-bulk-target[data-client-id="${numericId}"]`);
                 let latRaw = cardEl?.getAttribute('data-lat');
                 let lngRaw = cardEl?.getAttribute('data-lng');
+                let addrRaw = cardEl?.getAttribute('data-address');
                 
                 let lat = parseFloat(latRaw);
                 let lng = parseFloat(lngRaw);
@@ -3228,7 +3230,7 @@
                 // 2. Secondary Lookup: Fallback to global data if element is missing or empty
                 let source = 'DOM';
                 let clientData = null;
-                if (isNaN(lat) || isNaN(lng) || lat === 0) {
+                if ((isNaN(lat) || isNaN(lng) || lat === 0) && !addrRaw) {
                     clientData = directoryData.find(c => Number(c.id) === numericId);
                     if (!clientData && window.activeDirectoryData) {
                         clientData = window.activeDirectoryData.find(c => Number(c.id) === numericId);
@@ -3236,6 +3238,7 @@
                     if (clientData) {
                         lat = parseFloat(clientData.latitude);
                         lng = parseFloat(clientData.longitude);
+                        addrRaw = clientData.address;
                         source = 'Global';
                     } else {
                         source = 'NoneFound';
@@ -3244,16 +3247,18 @@
 
                 if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
                     points.push(`${lat},${lng}`);
+                } else if (addrRaw && addrRaw.trim().length > 0) {
+                    points.push(encodeURIComponent(addrRaw.trim()));
                 } else {
                     missingCount++;
                     const clientName = cardEl?.querySelector('div[style*="font-weight:700"]')?.innerText || `ID: ${id}`;
                     const keys = clientData ? Object.keys(clientData).filter(k => !k.includes('total')).join(', ') : 'No data';
-                    missingNames.push(`${clientName} [F: ${source}, Lat: ${latRaw || '?'}, Lng: ${lngRaw || '?'}, Keys: ${keys}]`);
+                    missingNames.push(`${clientName} [F: ${source}, Lat: ${latRaw || '?'}, Addr: ${addrRaw ? 'OK' : 'EMPTY'}]`);
                 }
             });
 
             if (points.length === 0) {
-                alert('⚠️ ERROR RUTA v2.0: Ninguno de los clientes seleccionados tiene ubicación válida.\n\nDetalle técnico:\n- ' + missingNames.join('\n- '));
+                alert('⚠️ ERROR RUTA v2.1: Ningún cliente seleccionado tiene ubicación válida (ni coordenadas ni dirección).\n\nDetalle técnico:\n- ' + missingNames.join('\n- '));
                 return;
             }
 

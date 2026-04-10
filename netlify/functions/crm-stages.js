@@ -65,7 +65,7 @@ export async function handler(event) {
                 const clients = await sql`
                     SELECT 
                         c.id, c.name, c.whatsapp, c.birth_date,
-                        c.latitude, c.longitude,
+                        c.latitude, c.longitude, c.address,
                         st.name as stage_name, st.color as stage_color,
                         cs.updated_at as stage_assigned_at,
                         sh.changed_at as last_stage_change,
