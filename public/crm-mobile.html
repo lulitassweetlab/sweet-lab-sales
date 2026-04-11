@@ -169,6 +169,15 @@
             color: #cbd5e1;
         }
 
+        @keyframes blink {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.1); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        .is-blinking {
+            animation: blink 1.5s infinite ease-in-out;
+        }
+
     </style>
 </head>
 <body>
@@ -193,12 +202,12 @@
     <main>
         <!-- SCREEN 1: Dashboard -->
         <div id="screen-dashboard" class="screen active">
-            <!-- ROUTE MODE BANNER (v2.8 DEBUG - VIOLET) -->
-            <div id="routeModeBanner" style="display:none; background:#8b5cf6; color:white; padding:12px 20px; border-radius:16px; margin-bottom:16px; align-items:center; justify-content:space-between; animation: slideDown 0.3s ease; box-shadow: 0 8px 24px rgba(139,92,246,0.3);">
+            <!-- ROUTE MODE BANNER (v2.9 DEBUG - ORANGE) -->
+            <div id="routeModeBanner" style="display:none; background:#f97316; color:white; padding:12px 20px; border-radius:16px; margin-bottom:16px; align-items:center; justify-content:space-between; animation: slideDown 0.3s ease; box-shadow: 0 8px 24px rgba(249,115,22,0.3);">
                 <div style="display:flex; align-items:center; gap:12px;">
                     <div style="font-size:1.6rem;">🗺️</div>
                     <div>
-                        <div style="font-size:0.7rem; font-weight:700; opacity:0.9; text-transform:uppercase; letter-spacing:0.05em;">Modo Ruta v2.8 (SYNC)</div>
+                        <div style="font-size:0.7rem; font-weight:700; opacity:0.9; text-transform:uppercase; letter-spacing:0.05em;">Modo Ruta v2.9 (GEO)</div>
                         <div id="routeModeCount" style="font-weight:800; font-size:1.1rem; line-height:1.2;">0 seleccionados</div>
                     </div>
                 </div>
@@ -218,6 +227,18 @@
                     </div>
                 </div>
                 <button onclick="exitBulkMode()" style="background:rgba(255,255,255,0.2); border:none; color:white; padding:10px 18px; border-radius:12px; font-weight:800; font-size:0.9rem; cursor:pointer; transition:all 0.2s;" onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='none'">Finalizar</button>
+            </div>
+            
+            <!-- BATCH GEOCODE BANNER (ORANGE) -->
+            <div id="batchGeocodeBanner" style="display:none; background:#f97316; color:white; padding:16px 20px; border-radius:16px; margin-bottom:16px; align-items:center; justify-content:space-between; animation: slideDown 0.3s ease; box-shadow: 0 8px 24px rgba(249,115,22,0.3);">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <div id="batchGeoIcon" style="font-size:1.6rem;">🛰️</div>
+                    <div>
+                        <div id="batchGeoTitle" style="font-size:0.7rem; font-weight:700; opacity:0.9; text-transform:uppercase; letter-spacing:0.05em;">Geocodificación Masiva</div>
+                        <div id="batchGeoStatus" style="font-weight:800; font-size:1rem; line-height:1.2;">Hay clientes sin GPS.</div>
+                    </div>
+                </div>
+                <button id="btnStartBatchGeo" onclick="startBatchGeocoding()" style="background:white; border:none; color:#f97316; padding:10px 18px; border-radius:12px; font-weight:800; font-size:0.85rem; cursor:pointer; transition:all 0.2s;">📍 Procesar Todos</button>
             </div>
 
             <!-- Header row with stats + new prospect button -->
@@ -473,6 +494,9 @@
                 <div style="margin-bottom:15px;">
                     <input type="tel" id="npWhatsApp" placeholder="Teléfono / WhatsApp" style="width:100%; padding:15px; border:1px solid var(--border); border-radius:12px; font-size:1rem; box-sizing:border-box;">
                 </div>
+                <div style="margin-bottom:15px;">
+                    <input type="text" id="npAddress" placeholder="Dirección (Ej: Cl 66C #40-46, Medellín)" style="width:100%; padding:15px; border:1px solid var(--border); border-radius:12px; font-size:1rem; box-sizing:border-box;">
+                </div>
                 <div style="margin-bottom:20px;">
                     <label style="display:block; font-size:0.8rem; color:var(--text-muted); margin-bottom:8px;">🎂 Cumpleaños</label>
                     <!-- Hidden input stores the final value as 1900-MM-DD -->
@@ -547,6 +571,10 @@
             <!-- Ubicar -->
             <div id="locPick" onclick="openMapPicker()" style="display:flex; align-items:center; gap:10px; padding:12px 16px; cursor:pointer; color:var(--text-main); font-weight:700; font-size: 0.9rem; border-bottom: 1px solid var(--border); transition:background-color 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
                 <span style="font-size: 1.2rem;">📍</span> Ubicar en mapa
+            </div>
+            <!-- Resolver -->
+            <div onclick="manualSilentGeocode(event)" style="display:flex; align-items:center; gap:10px; padding:12px 16px; cursor:pointer; color:#6366f1; font-weight:700; font-size: 0.9rem; border-bottom: 1px solid var(--border); transition:background 0.2s;" onmouseover="this.style.background='rgba(99,102,241,0.05)'" onmouseout="this.style.background='transparent'">
+                <span style="font-size: 1.2rem;">🪄</span> Resolver Dirección
             </div>
             <!-- Editar -->
             <div id="locEdit" onclick="startAddressEdit()" style="display:flex; align-items:center; gap:10px; padding:12px 16px; cursor:pointer; color:var(--text-main); font-weight:700; font-size: 0.9rem; transition:background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
@@ -1103,6 +1131,12 @@
 
                 if(list.innerHTML === '') {
                     list.innerHTML = '<div style="text-align:center; padding:32px; color:var(--text-muted);">Todo al día. No hay pendientes por contactar.</div>';
+                }
+
+                // Check if batch geocoding is needed
+                const pending = directoryData.filter(c => (!c.latitude || c.latitude == 0) && c.address && c.address.length > 5);
+                if (pending.length > 0) {
+                    document.getElementById('batchGeocodeBanner').style.display = 'flex';
                 }
 
                 if (shouldRestore) restoreScroll('dashboard');
@@ -1921,8 +1955,9 @@
             }
         }
 
-        async function silentGeocode(query) {
+        async function silentGeocode(query, specificId = null) {
             if (!query || query.length < 5 || query === '📍 Ubicación...') return;
+            const targetId = specificId || currentProfileId;
             try {
                 // Search with city context to improve results
                 const searchUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query + ', Medellín, Colombia')}&limit=1`;
@@ -1932,13 +1967,28 @@
                 const data = await res.json();
                 if (data && data.length > 0) {
                     const result = data[0];
-                    await updateClientLocation({
-                        latitude: parseFloat(result.lat),
-                        longitude: parseFloat(result.lon),
-                        address: query
+                    await fetch(`/.netlify/functions/clients`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            seller_id: currentSellerId,
+                            client_id: targetId,
+                            latitude: parseFloat(result.lat),
+                            longitude: parseFloat(result.lon)
+                        })
                     });
+
+                    invalidateCrmCache();
+                    
+                    // Update local directoryData
+                    const localC = directoryData.find(c => Number(c.id) == Number(targetId));
+                    if(localC) {
+                        localC.latitude = result.lat;
+                        localC.longitude = result.lon;
+                    }
+
                     // Visible feedback: show the checkmark if we are still on that profile
-                    if (document.getElementById('profGpsCheck')) {
+                    if (targetId == currentProfileId && document.getElementById('profGpsCheck')) {
                         document.getElementById('profGpsCheck').style.display = 'inline';
                         const addrEl = document.getElementById('profAddress');
                         addrEl.dataset.lat = result.lat;
@@ -2161,7 +2211,7 @@
                         localC.longitude = data.longitude;
                         if (data.address) localC.address = data.address;
                     }
-                    await loadProfile(currentProfileId);
+                    loadProfile(currentProfileId);
                 } else {
                     const err = await res.json();
                     alert('Error: ' + (err.error || 'No se pudo guardar.'));
@@ -2170,6 +2220,81 @@
                 console.error(e);
                 alert('Error de conexión al guardar ubicación.');
             }
+        }
+
+        async function manualSilentGeocode(event) {
+            const addr = document.getElementById('profAddress').innerText.trim();
+            if (!addr || addr === '📍 Ubicación...') return;
+            event.target.innerText = '⌛ Buscando...';
+            event.target.style.opacity = '0.5';
+            event.target.disabled = true;
+            await silentGeocode(addr);
+            closePopovers();
+        }
+
+        async function startBatchGeocoding() {
+            const pending = directoryData.filter(c => (!c.latitude || c.latitude == 0) && c.address && c.address.length > 5);
+            if (pending.length === 0) {
+                alert('Todos los clientes con dirección ya tienen coordenadas GPS.');
+                document.getElementById('batchGeocodeBanner').style.display = 'none';
+                return;
+            }
+
+            if (!confirm(`Se procesarán ${pending.length} clientes. Esto tomará aproximadamente ${Math.round(pending.length * 1.5)} segundos.\n\nPor favor, mantén la pestaña abierta.`)) return;
+
+            const btn = document.getElementById('btnStartBatchGeo');
+            const status = document.getElementById('batchGeoStatus');
+            const icon = document.getElementById('batchGeoIcon');
+            
+            btn.disabled = true;
+            btn.style.display = 'none';
+            icon.classList.add('is-blinking');
+            
+            let processed = 0;
+            let found = 0;
+
+            for (const client of pending) {
+                processed++;
+                status.innerText = `Procesando ${processed} de ${pending.length}... (${found} encontrados)`;
+                
+                try {
+                    const searchUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(client.address + ', Medellín, Colombia')}&limit=1`;
+                    const res = await fetch(searchUrl, { headers: { 'User-Agent': 'LulitasSweetLabCRM/1.0' } });
+                    const data = await res.json();
+                    
+                    if (data && data.length > 0) {
+                        const result = data[0];
+                        found++;
+                        // Use a quiet update for batch
+                        await fetch(`/.netlify/functions/clients`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                seller_id: currentSellerId,
+                                client_id: client.id,
+                                name: client.name,
+                                latitude: parseFloat(result.lat),
+                                longitude: parseFloat(result.lon)
+                            })
+                        });
+                        // Update locally
+                        client.latitude = result.lat;
+                        client.longitude = result.lon;
+                    }
+                } catch (e) { console.error('Batch item error:', e); }
+
+                // Wait 1.5s to respect Rate Limit
+                await new Promise(r => setTimeout(r, 1500));
+            }
+
+            icon.classList.remove('is-blinking');
+            status.innerText = `¡Listo! Se actualizaron ${found} clientes.`;
+            invalidateCrmCache();
+            renderFullDirectoryInline(directoryData);
+            
+            setTimeout(() => {
+                document.getElementById('batchGeocodeBanner').style.display = 'none';
+            }, 5000);
         }
 
         function showContactMenu(event) {
@@ -2602,6 +2727,7 @@
             const name = document.getElementById('npFullName').value.trim();
             const shortName = document.getElementById('npShortName').value.trim();
             const whatsapp = document.getElementById('npWhatsApp').value.trim();
+            const address = document.getElementById('npAddress').value.trim();
             const birthday = document.getElementById('npBirthday').value;
 
             if (!name) {
@@ -2619,6 +2745,7 @@
                         name: name,
                         short_name: shortName || null,
                         whatsapp: whatsapp,
+                        address: address || null,
                         birth_date: birthday || null
                     })
                 });
@@ -2656,6 +2783,11 @@
                         })
                     });
                 } catch(stErr) { console.warn('Stage not set, continuing.', stErr); }
+
+                // 3. Trigger Silent Geocoding if address set
+                if (address) {
+                    setTimeout(() => silentGeocode(address, clientId), 500);
+                }
 
                 closeNewProspectModal();
                 loadDashboard(); // Refresh stats
