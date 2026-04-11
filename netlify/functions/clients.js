@@ -68,6 +68,7 @@ export default async (req) => {
                 clients = await sql`
                     SELECT 
                         c.id, c.name, c.whatsapp, c.description,
+                        c.latitude, c.longitude, c.address,
                         st.name as stage_name, st.color as stage_color,
                         COUNT(s.id)::int as total_orders,
                         COALESCE(SUM(s.total_cents), 0)::int as lifetime_value_cents,
@@ -86,7 +87,7 @@ export default async (req) => {
                     LEFT JOIN crm_client_stage cst ON c.id = cst.client_id
                     LEFT JOIN crm_stages st ON cst.stage_id = st.id
                     WHERE c.seller_id = ${sellerId}
-                    GROUP BY c.id, c.name, c.whatsapp, c.description, st.name, st.color, st.id
+                    GROUP BY c.id, c.name, c.whatsapp, c.description, c.latitude, c.longitude, c.address, st.name, st.color, st.id
                     ORDER BY c.name ASC
                 `;
             }

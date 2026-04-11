@@ -169,6 +169,15 @@
             color: #cbd5e1;
         }
 
+        @keyframes blink {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.1); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        .is-blinking {
+            animation: blink 1.5s infinite ease-in-out;
+        }
+
     </style>
 </head>
 <body>
@@ -183,6 +192,7 @@
         </div>
         <div style="display: flex; align-items: center; gap: 12px;">
             <button onclick="navTo('history')" style="background:none; border:none; color:var(--primary-dark); font-weight:700; padding:4px 8px; border-radius:12px; font-size: 0.8rem; cursor:pointer;">Historial</button>
+            <button onclick="enterRouteMode()" style="background:none; border:none; color:var(--primary-dark); font-weight:700; padding:4px 8px; border-radius:12px; font-size: 0.8rem; cursor:pointer;">Ruta</button>
             <button onclick="window.location.href='/store.html'" style="background:var(--secondary); color:var(--primary-dark); font-weight:700; border:none; padding:4px 10px; border-radius:12px; font-size: 0.8rem; cursor:pointer;" title="Volver a Tienda">Volver</button>
             <div id="sellerNameLabel" style="font-weight: 500; color: var(--primary-dark); font-size: 0.9rem;"></div>
         </div>
@@ -192,6 +202,21 @@
     <main>
         <!-- SCREEN 1: Dashboard -->
         <div id="screen-dashboard" class="screen active">
+            <!-- ROUTE MODE BANNER (v2.9 DEBUG - ORANGE) -->
+            <div id="routeModeBanner" style="display:none; background:#f97316; color:white; padding:12px 20px; border-radius:16px; margin-bottom:16px; align-items:center; justify-content:space-between; animation: slideDown 0.3s ease; box-shadow: 0 8px 24px rgba(249,115,22,0.3);">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <div style="font-size:1.6rem;">🗺️</div>
+                    <div>
+                        <div style="font-size:0.7rem; font-weight:700; opacity:0.9; text-transform:uppercase; letter-spacing:0.05em;">Modo Ruta v2.9 (GEO)</div>
+                        <div id="routeModeCount" style="font-weight:800; font-size:1.1rem; line-height:1.2;">0 seleccionados</div>
+                    </div>
+                </div>
+                <div style="display:flex; gap:8px;">
+                    <button id="btnGenerateRoute" onclick="generateRoute()" style="background:white; border:none; color:#10b981; padding:10px 18px; border-radius:12px; font-weight:800; font-size:0.9rem; cursor:pointer; transition:all 0.2s; opacity:0.5;" disabled>Crear Ruta</button>
+                    <button onclick="exitRouteMode()" style="background:rgba(255,255,255,0.2); border:none; color:white; padding:10px 18px; border-radius:12px; font-weight:800; font-size:0.9rem; cursor:pointer; transition:all 0.2s;">✕</button>
+                </div>
+            </div>
+
             <!-- BULK MODE BANNER (Centered and fixed-ish on dashboard) -->
             <div id="bulkModeBanner" style="display:none; background:var(--primary); color:white; padding:12px 20px; border-radius:16px; margin-bottom:16px; align-items:center; justify-content:space-between; animation: slideDown 0.3s ease; box-shadow: 0 8px 24px rgba(99,102,241,0.3);">
                 <div style="display:flex; align-items:center; gap:12px;">
@@ -202,6 +227,18 @@
                     </div>
                 </div>
                 <button onclick="exitBulkMode()" style="background:rgba(255,255,255,0.2); border:none; color:white; padding:10px 18px; border-radius:12px; font-weight:800; font-size:0.9rem; cursor:pointer; transition:all 0.2s;" onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='none'">Finalizar</button>
+            </div>
+            
+            <!-- BATCH GEOCODE BANNER (ORANGE) -->
+            <div id="batchGeocodeBanner" style="display:none; background:#f97316; color:white; padding:16px 20px; border-radius:16px; margin-bottom:16px; align-items:center; justify-content:space-between; animation: slideDown 0.3s ease; box-shadow: 0 8px 24px rgba(249,115,22,0.3);">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <div id="batchGeoIcon" style="font-size:1.6rem;">🛰️</div>
+                    <div>
+                        <div id="batchGeoTitle" style="font-size:0.7rem; font-weight:700; opacity:0.9; text-transform:uppercase; letter-spacing:0.05em;">Geocodificación Masiva</div>
+                        <div id="batchGeoStatus" style="font-weight:800; font-size:1rem; line-height:1.2;">Hay clientes sin GPS.</div>
+                    </div>
+                </div>
+                <button id="btnStartBatchGeo" onclick="startBatchGeocoding()" style="background:white; border:none; color:#f97316; padding:10px 18px; border-radius:12px; font-weight:800; font-size:0.85rem; cursor:pointer; transition:all 0.2s;">📍 Procesar Todos</button>
             </div>
 
             <!-- Header row with stats + new prospect button -->
@@ -335,6 +372,7 @@
                                 onblur="saveAddressInline(event)"
                                 onkeydown="handleAddressKey(event)"
                                 spellcheck="false">📍 Ubicación...</span>
+                             <span id="profGpsCheck" style="display:none; color:#10b981; margin-left:4px; font-size:0.9rem;" title="Ubicación GPS guardada">✅</span>
                         </div>
                         
                         <!-- ROW 3: Description -->
@@ -456,6 +494,9 @@
                 <div style="margin-bottom:15px;">
                     <input type="tel" id="npWhatsApp" placeholder="Teléfono / WhatsApp" style="width:100%; padding:15px; border:1px solid var(--border); border-radius:12px; font-size:1rem; box-sizing:border-box;">
                 </div>
+                <div style="margin-bottom:15px;">
+                    <input type="text" id="npAddress" placeholder="Dirección (Ej: Cl 66C #40-46, Medellín)" style="width:100%; padding:15px; border:1px solid var(--border); border-radius:12px; font-size:1rem; box-sizing:border-box;">
+                </div>
                 <div style="margin-bottom:20px;">
                     <label style="display:block; font-size:0.8rem; color:var(--text-muted); margin-bottom:8px;">🎂 Cumpleaños</label>
                     <!-- Hidden input stores the final value as 1900-MM-DD -->
@@ -531,6 +572,10 @@
             <div id="locPick" onclick="openMapPicker()" style="display:flex; align-items:center; gap:10px; padding:12px 16px; cursor:pointer; color:var(--text-main); font-weight:700; font-size: 0.9rem; border-bottom: 1px solid var(--border); transition:background-color 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
                 <span style="font-size: 1.2rem;">📍</span> Ubicar en mapa
             </div>
+            <!-- Resolver -->
+            <div onclick="manualSilentGeocode(event)" style="display:flex; align-items:center; gap:10px; padding:12px 16px; cursor:pointer; color:#6366f1; font-weight:700; font-size: 0.9rem; border-bottom: 1px solid var(--border); transition:background 0.2s;" onmouseover="this.style.background='rgba(99,102,241,0.05)'" onmouseout="this.style.background='transparent'">
+                <span style="font-size: 1.2rem;">🪄</span> Resolver Dirección
+            </div>
             <!-- Editar -->
             <div id="locEdit" onclick="startAddressEdit()" style="display:flex; align-items:center; gap:10px; padding:12px 16px; cursor:pointer; color:var(--text-main); font-weight:700; font-size: 0.9rem; transition:background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
                 <span style="font-size: 1.2rem;">✏️</span> Editar
@@ -590,6 +635,15 @@
         </header>
         <div style="flex:1; position:relative; background:white;">
             <div id="mapPickerContainer" style="width:100%; height:100%; opacity: 1 !important;"></div>
+            
+            <!-- Search bar overlay -->
+            <div style="position:absolute; top:12px; left:12px; right:12px; z-index:1000; display:flex; gap:8px;">
+                <input type="text" id="mapPickerSearch" placeholder="Escribe una dirección..." style="flex:1; padding:12px 16px; border-radius:12px; border:none; box-shadow:0 4px 12px rgba(0,0,0,0.15); font-size:0.95rem; font-family:inherit;">
+                <button onclick="searchAddressInMap()" style="background:var(--primary); color:white; border:none; padding:12px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.15); cursor:pointer;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                </button>
+            </div>
+
             <!-- Crosshair overlay -->
             <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -100%); z-index:500; pointer-events:none; font-size:2rem;">
                 📍
@@ -718,6 +772,10 @@
             window.bulkModeActiveClients = new Set();
             window.dashStageParams = null;
             window.dashTagParams = null;
+
+            // ── ROUTE MODE STATE ──────────────────────────────────────────────────
+            window.isRouteMode = false;
+            window.routeSelectedClients = new Set();
 
             const savedSeller = localStorage.getItem('storeActiveSeller');
             if (savedSeller) {
@@ -948,27 +1006,41 @@
 
             const metricsHtml = ltv > 0 ? `<div style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">Histórico: ${formatMoney(ltv)} | Compras: ${freq}</div>` : '';
 
-            // Handle Bulk Mode Logic
+            // Handle Selection Logic
             const isBulk = window.isBulkMode;
+            const isRoute = window.isRouteMode;
+            
             const hasTag = isBulk && (
                 window.bulkTagType === 'stage' 
                 ? Number(c.stage_id) === Number(window.bulkTagId)
                 : window.bulkModeActiveClients.has(Number(c.id))
             );
+            const isSelected = isRoute && window.routeSelectedClients.has(Number(c.id));
 
-            const clickAction = isBulk ? `toggleBulkAction(${c.id}, this)` : `loadProfile(${c.id})`;
+            let clickAction = isBulk ? `toggleBulkAction(${c.id}, this)` : `loadProfile(${c.id})`;
+            if (isRoute) clickAction = `toggleRouteSelection(${c.id}, this)`;
             
-            // Visual Styles for Bulk Mode (User requested transparent background)
-            const bulkBg = 'transparent';
-            const bulkBorder = 'transparent';
+            // Visual Styles
+            const cardBg = isSelected ? 'rgba(16,185,129,0.05)' : (hasTag ? 'rgba(0,0,0,0.02)' : 'var(--surface)');
+            const cardBorder = isSelected ? '1.5px solid #10b981' : (hasTag ? '1.5px solid var(--primary)' : '1px solid var(--border)');
 
             return `
-                <div class="card client-card-bulk-target" data-client-id="${c.id}" 
+                <div class="card client-card-bulk-target" 
+                    data-client-id="${c.id}" 
+                    data-lat="${c.latitude || ''}" 
+                    data-lng="${c.longitude || ''}"
+                    data-address="${c.address || ''}"
                     onclick="${clickAction}" 
-                    style="padding:14px; margin-bottom:10px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; transition: all 0.2s; border: ${bulkBorder}; background: ${bulkBg};"
-                    onmouseover="if(!window.isBulkMode) this.style.transform='translateX(4px)'" onmouseout="this.style.transform='none'">
+                    style="padding:14px; margin-bottom:10px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; transition: all 0.2s; border: ${cardBorder}; background: ${cardBg};"
+                    onmouseover="if(!window.isBulkMode && !window.isRouteMode) this.style.transform='translateX(4px)'" onmouseout="this.style.transform='none'">
                     <div style="flex:1;">
-                        <div style="font-weight:700; font-size:1.05rem; margin-bottom:6px;">${c.name}</div>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            ${isSelected ? '<div style="color:#10b981; font-size:1.2rem;">✅</div>' : ''}
+                            <div style="font-weight:700; font-size:1.05rem; margin-bottom:2px;">
+                                ${c.name}
+                                ${ (parseFloat(c.latitude) && parseFloat(c.longitude)) ? '<span style="color:#10b981; font-size:0.8rem; margin-left:4px;" title="GPS OK">✅</span>' : '' }
+                            </div>
+                        </div>
                         <div class="client-badges-container" style="display:flex; flex-wrap:wrap; gap:4px; align-items:center;">${badges}</div>
                         ${metricsHtml}
                     </div>
@@ -1001,7 +1073,7 @@
                 }).catch(e => console.error('Error syncing stages:', e));
             }
 
-            const url = `/.netlify/functions/crm-dashboard?seller_id=${currentSellerId}`;
+            const url = `/.netlify/functions/crm-dashboard?seller_id=${currentSellerId}&v=${Date.now()}`;
             
             // Background load tags and stage summary right away
             loadSellerTags(); 
@@ -1059,6 +1131,12 @@
 
                 if(list.innerHTML === '') {
                     list.innerHTML = '<div style="text-align:center; padding:32px; color:var(--text-muted);">Todo al día. No hay pendientes por contactar.</div>';
+                }
+
+                // Check if batch geocoding is needed
+                const pending = directoryData.filter(c => (!c.latitude || c.latitude == 0) && c.address && c.address.length > 5);
+                if (pending.length > 0) {
+                    document.getElementById('batchGeocodeBanner').style.display = 'flex';
                 }
 
                 if (shouldRestore) restoreScroll('dashboard');
@@ -1349,7 +1427,7 @@
 
         // LOAD DIRECTORY (Inline Dashboard)
         async function loadFullDirectoryInline(shouldRestore = false) {
-            const url = `/.netlify/functions/crm-clients?seller_id=${currentSellerId}`;
+            const url = `/.netlify/functions/crm-clients?seller_id=${currentSellerId}&v=${Date.now()}`;
             fetchWithCache('directory', url, (data, isCache) => {
                 const title = document.getElementById('dashContentTitle');
                 const listEl = document.getElementById('dashContactList');
@@ -1526,6 +1604,16 @@
                     addEl.style.fontWeight = addressStr ? '700' : '500';
                     addEl.dataset.lat = pf.latitude || '';
                     addEl.dataset.lng = pf.longitude || '';
+
+                    // Show/Hide subtle GPS check
+                    const gpsCheck = document.getElementById('profGpsCheck');
+                    if (gpsCheck) {
+                        if (parseFloat(pf.latitude) && parseFloat(pf.longitude)) {
+                            gpsCheck.style.display = 'inline';
+                        } else {
+                            gpsCheck.style.display = 'none';
+                        }
+                    }
                 }
                 
                 // Description
@@ -1860,7 +1948,54 @@
                 await updateClientLocation({ latitude: lat, longitude: lng, address: human });
             } else {
                 await updateClientLocation({ address: text });
+                // AUTO-GEOCODE Fallback: if no coords, try to get them in background
+                if (!el.dataset.lat || el.dataset.lat === '' || el.dataset.lat === '0') {
+                    silentGeocode(text);
+                }
             }
+        }
+
+        async function silentGeocode(query, specificId = null) {
+            if (!query || query.length < 5 || query === '📍 Ubicación...') return;
+            const targetId = specificId || currentProfileId;
+            try {
+                // Search with city context to improve results
+                const searchUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query + ', Medellín, Colombia')}&limit=1`;
+                const res = await fetch(searchUrl, {
+                    headers: { 'User-Agent': 'LulitasSweetLabCRM/1.0' }
+                });
+                const data = await res.json();
+                if (data && data.length > 0) {
+                    const result = data[0];
+                    await fetch(`/.netlify/functions/clients`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            seller_id: currentSellerId,
+                            client_id: targetId,
+                            latitude: parseFloat(result.lat),
+                            longitude: parseFloat(result.lon)
+                        })
+                    });
+
+                    invalidateCrmCache();
+                    
+                    // Update local directoryData
+                    const localC = directoryData.find(c => Number(c.id) == Number(targetId));
+                    if(localC) {
+                        localC.latitude = result.lat;
+                        localC.longitude = result.lon;
+                    }
+
+                    // Visible feedback: show the checkmark if we are still on that profile
+                    if (targetId == currentProfileId && document.getElementById('profGpsCheck')) {
+                        document.getElementById('profGpsCheck').style.display = 'inline';
+                        const addrEl = document.getElementById('profAddress');
+                        addrEl.dataset.lat = result.lat;
+                        addrEl.dataset.lng = result.lon;
+                    }
+                }
+            } catch (e) { console.error('Silent geocode error:', e); }
         }
 
         async function reverseGeocodeHuman(lat, lng) {
@@ -1962,11 +2097,13 @@
             document.getElementById('locationPopover').style.display = 'none';
             const modal = document.getElementById('mapPickerModal');
             modal.style.display = 'flex';
+            document.getElementById('mapPickerSearch').value = '';
             
             // Start at client location or default Medellín
             const el = document.getElementById('profAddress');
             let lat = parseFloat(el.dataset.lat) || 6.2442;
             let lng = parseFloat(el.dataset.lng) || -75.5812;
+            const existingAddress = el.innerText.trim();
 
             if (!mapPicker) {
                 mapPicker = L.map('mapPickerContainer').setView([lat, lng], 15);
@@ -1985,6 +2122,45 @@
             
             // Trigger moveend to update initial address
             mapPicker.fire('moveend');
+
+            // AUTO-GEOCODE: If coords are missing but address exists, try to find it
+            if ((lat === 6.2442 && lng === -75.5812) && existingAddress && existingAddress !== 'Sin dirección' && existingAddress !== '-') {
+                document.getElementById('mapPickerSearch').value = existingAddress;
+                searchAddressInMap(existingAddress);
+            }
+        }
+
+        async function searchAddressInMap(query) {
+            const searchInput = document.getElementById('mapPickerSearch');
+            const q = query || searchInput.value.trim();
+            if (!q) return;
+
+            const btn = document.querySelector('[onclick="searchAddressInMap()"]');
+            const originalOpacity = btn.style.opacity;
+            btn.style.opacity = '0.5';
+            btn.disabled = true;
+
+            try {
+                // Search with city context to improve results
+                const searchUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q + ', Medellín, Colombia')}&limit=1`;
+                const res = await fetch(searchUrl, {
+                    headers: { 'User-Agent': 'LulitasSweetLabCRM/1.0' }
+                });
+                const data = await res.json();
+
+                if (data && data.length > 0) {
+                    const result = data[0];
+                    mapPicker.setView([result.lat, result.lon], 17);
+                    // moveend will naturally trigger address update display
+                } else {
+                    if (!query) alert('No se encontró la dirección.');
+                }
+            } catch (e) {
+                console.error('Geocode error:', e);
+            } finally {
+                btn.style.opacity = originalOpacity;
+                btn.disabled = false;
+            }
         }
 
         function closeMapPicker() {
@@ -2005,6 +2181,12 @@
             }
         }
 
+        function invalidateCrmCache() {
+            Object.keys(localStorage).forEach(key => {
+                if (key.startsWith('crm_cache_')) localStorage.removeItem(key);
+            });
+        }
+
         async function updateClientLocation(data) {
             if (!currentProfileId) return;
 
@@ -2014,13 +2196,22 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         seller_id: currentSellerId,
+                        client_id: currentProfileId,
                         name: lastLoadedProfileName,
                         ...data
                     })
                 });
                 
                 if (res.ok) {
-                    await loadProfile(currentProfileId);
+                    invalidateCrmCache();
+                    // Update local directoryData if we are on dashboard/list screens
+                    const localC = directoryData.find(c => Number(c.id) === Number(currentProfileId));
+                    if (localC) {
+                        localC.latitude = data.latitude;
+                        localC.longitude = data.longitude;
+                        if (data.address) localC.address = data.address;
+                    }
+                    loadProfile(currentProfileId);
                 } else {
                     const err = await res.json();
                     alert('Error: ' + (err.error || 'No se pudo guardar.'));
@@ -2029,6 +2220,81 @@
                 console.error(e);
                 alert('Error de conexión al guardar ubicación.');
             }
+        }
+
+        async function manualSilentGeocode(event) {
+            const addr = document.getElementById('profAddress').innerText.trim();
+            if (!addr || addr === '📍 Ubicación...') return;
+            event.target.innerText = '⌛ Buscando...';
+            event.target.style.opacity = '0.5';
+            event.target.disabled = true;
+            await silentGeocode(addr);
+            closePopovers();
+        }
+
+        async function startBatchGeocoding() {
+            const pending = directoryData.filter(c => (!c.latitude || c.latitude == 0) && c.address && c.address.length > 5);
+            if (pending.length === 0) {
+                alert('Todos los clientes con dirección ya tienen coordenadas GPS.');
+                document.getElementById('batchGeocodeBanner').style.display = 'none';
+                return;
+            }
+
+            if (!confirm(`Se procesarán ${pending.length} clientes. Esto tomará aproximadamente ${Math.round(pending.length * 1.5)} segundos.\n\nPor favor, mantén la pestaña abierta.`)) return;
+
+            const btn = document.getElementById('btnStartBatchGeo');
+            const status = document.getElementById('batchGeoStatus');
+            const icon = document.getElementById('batchGeoIcon');
+            
+            btn.disabled = true;
+            btn.style.display = 'none';
+            icon.classList.add('is-blinking');
+            
+            let processed = 0;
+            let found = 0;
+
+            for (const client of pending) {
+                processed++;
+                status.innerText = `Procesando ${processed} de ${pending.length}... (${found} encontrados)`;
+                
+                try {
+                    const searchUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(client.address + ', Medellín, Colombia')}&limit=1`;
+                    const res = await fetch(searchUrl, { headers: { 'User-Agent': 'LulitasSweetLabCRM/1.0' } });
+                    const data = await res.json();
+                    
+                    if (data && data.length > 0) {
+                        const result = data[0];
+                        found++;
+                        // Use a quiet update for batch
+                        await fetch(`/.netlify/functions/clients`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                seller_id: currentSellerId,
+                                client_id: client.id,
+                                name: client.name,
+                                latitude: parseFloat(result.lat),
+                                longitude: parseFloat(result.lon)
+                            })
+                        });
+                        // Update locally
+                        client.latitude = result.lat;
+                        client.longitude = result.lon;
+                    }
+                } catch (e) { console.error('Batch item error:', e); }
+
+                // Wait 1.5s to respect Rate Limit
+                await new Promise(r => setTimeout(r, 1500));
+            }
+
+            icon.classList.remove('is-blinking');
+            status.innerText = `¡Listo! Se actualizaron ${found} clientes.`;
+            invalidateCrmCache();
+            renderFullDirectoryInline(directoryData);
+            
+            setTimeout(() => {
+                document.getElementById('batchGeocodeBanner').style.display = 'none';
+            }, 5000);
         }
 
         function showContactMenu(event) {
@@ -2461,6 +2727,7 @@
             const name = document.getElementById('npFullName').value.trim();
             const shortName = document.getElementById('npShortName').value.trim();
             const whatsapp = document.getElementById('npWhatsApp').value.trim();
+            const address = document.getElementById('npAddress').value.trim();
             const birthday = document.getElementById('npBirthday').value;
 
             if (!name) {
@@ -2478,6 +2745,7 @@
                         name: name,
                         short_name: shortName || null,
                         whatsapp: whatsapp,
+                        address: address || null,
                         birth_date: birthday || null
                     })
                 });
@@ -2515,6 +2783,11 @@
                         })
                     });
                 } catch(stErr) { console.warn('Stage not set, continuing.', stErr); }
+
+                // 3. Trigger Silent Geocoding if address set
+                if (address) {
+                    setTimeout(() => silentGeocode(address, clientId), 500);
+                }
 
                 closeNewProspectModal();
                 loadDashboard(); // Refresh stats
@@ -3077,6 +3350,270 @@
             toast.style.fontSize = '0.9rem';
             document.body.appendChild(toast);
             setTimeout(() => toast.remove(), 2000);
+        }
+
+        // ── ROUTE MODE FUNCTIONS ──────────────────────────────────────────────────
+        function enterRouteMode() {
+            if (window.isBulkMode) exitBulkMode();
+            
+            // Force refresh ALL CRM data from server by clearing all related caches
+            const sid = currentSellerId || 'default';
+            [
+                'directory_' + sid,
+                'dashboard_' + sid,
+                'tags_' + sid,
+                'stage_summary_' + sid
+            ].forEach(k => localStorage.removeItem(CACHE_PREFIX + k));
+            
+            window.isRouteMode = true;
+            window.routeSelectedClients.clear();
+            
+            const banner = document.getElementById('routeModeBanner');
+            if (banner) banner.style.display = 'flex';
+            
+            const countLabel = document.getElementById('routeModeCount');
+            if (countLabel) countLabel.innerText = '0 seleccionados';
+            
+            const btn = document.getElementById('btnGenerateRoute');
+            if (btn) {
+                btn.disabled = true;
+                btn.style.opacity = '0.5';
+            }
+            
+            // Re-render both Dashboard (reminders/etc) and Directory to ensure all lists have coords
+            loadDashboard();
+            loadFullDirectoryInline();
+            
+            if(navigator.vibrate) navigator.vibrate(50);
+        }
+
+        function exitRouteMode() {
+            window.isRouteMode = false;
+            window.routeSelectedClients.clear();
+            
+            const banner = document.getElementById('routeModeBanner');
+            if (banner) banner.style.display = 'none';
+            
+            resetDashboardView();
+        }
+
+        function toggleRouteSelection(clientIdParam, cardEl) {
+            if (!window.isRouteMode) return;
+            
+            const clientId = Number(clientIdParam);
+            const isSelected = window.routeSelectedClients.has(clientId);
+            
+            if (isSelected) {
+                window.routeSelectedClients.delete(clientId);
+                cardEl.classList.remove('route-selected');
+                cardEl.style.border = '1px solid var(--border)';
+                cardEl.style.background = 'var(--surface)';
+                // Remove checkmark if possible or just re-render row?
+                // For simplicity, re-rendering this row if it was a complex UI, 
+                // but here we just update styles for performance.
+                const check = cardEl.querySelector('div[style*="font-size:1.2rem"]');
+                if (check) check.remove();
+            } else {
+                window.routeSelectedClients.add(clientId);
+                cardEl.classList.add('route-selected');
+                cardEl.style.border = '1.5px solid #10b981';
+                cardEl.style.background = 'rgba(16,185,129,0.05)';
+                
+                // Add checkmark visually
+                const titleContainer = cardEl.querySelector('div[style*="font-weight:700"]')?.parentElement;
+                if (titleContainer && !titleContainer.querySelector('div[style*="font-size:1.2rem"]')) {
+                    const check = document.createElement('div');
+                    check.style.cssText = 'color:#10b981; font-size:1.2rem;';
+                    check.innerText = '✅';
+                    titleContainer.prepend(check);
+                }
+            }
+
+            const count = window.routeSelectedClients.size;
+            const countLabel = document.getElementById('routeModeCount');
+            if (countLabel) countLabel.innerText = `${count} seleccionados`;
+            
+            const btn = document.getElementById('btnGenerateRoute');
+            if (btn) {
+                if (count >= 1) {
+                    btn.disabled = false;
+                    btn.style.opacity = '1';
+                } else {
+                    btn.disabled = true;
+                    btn.style.opacity = '0.5';
+                }
+            }
+            
+            if(navigator.vibrate) navigator.vibrate(10);
+        }
+
+        async function generateRoute() {
+            const selectedIds = Array.from(window.routeSelectedClients);
+            if (selectedIds.length === 0) {
+                alert('Selecciona al menos un cliente.');
+                return;
+            }
+
+            const btn = document.getElementById('btnGenerateRoute');
+            const originalText = btn.innerText;
+            btn.innerText = 'Optimizando...';
+            btn.disabled = true;
+
+            try {
+                const pos = await new Promise((resolve) => {
+                    navigator.geolocation.getCurrentPosition(
+                        (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude }),
+                        (err) => {
+                            console.warn('Geolocation failed:', err);
+                            let msg = 'Error GPS: ';
+                            if (err.code === 1) msg += 'Permiso denegado.';
+                            else if (err.code === 2) msg += 'Posición no disponible.';
+                            else if (err.code === 3) msg += 'Tiempo de espera agotado.';
+                            else msg += err.message;
+                            window.gpsError = msg;
+                            resolve(null);
+                        },
+                        { timeout: 10000, enableHighAccuracy: true }
+                    );
+                });
+
+                const clientsToProcess = [];
+                let missingCount = 0;
+                let missingNames = [];
+
+                selectedIds.forEach(id => {
+                    const numericId = Number(id);
+                    const cardEl = document.querySelector(`.client-card-bulk-target[data-client-id="${numericId}"]`);
+                    let latRaw = cardEl?.getAttribute('data-lat');
+                    let lngRaw = cardEl?.getAttribute('data-lng');
+                    let addrRaw = cardEl?.getAttribute('data-address');
+                    const clientName = cardEl?.querySelector('div[style*="font-weight:700"]')?.innerText || `ID: ${id}`;
+
+                    let lat = parseFloat(latRaw);
+                    let lng = parseFloat(lngRaw);
+
+                    let source = 'DOM';
+                    let clientData = null;
+                    if ((isNaN(lat) || isNaN(lng) || lat === 0) && !addrRaw) {
+                        clientData = directoryData.find(c => Number(c.id) === numericId);
+                        if (!clientData && window.activeDirectoryData) {
+                            clientData = window.activeDirectoryData.find(c => Number(c.id) === numericId);
+                        }
+                        if (clientData) {
+                            lat = parseFloat(clientData.latitude);
+                            lng = parseFloat(clientData.longitude);
+                            addrRaw = clientData.address;
+                            source = 'Global';
+                        } else {
+                            source = 'NoneFound';
+                        }
+                    }
+
+                    if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
+                        clientsToProcess.push({ name: clientName, lat, lng, type: 'coord' });
+                    } else if (addrRaw && addrRaw.trim().length > 0) {
+                        clientsToProcess.push({ name: clientName, address: addrRaw.trim(), type: 'address' });
+                    } else {
+                        missingCount++;
+                        const keys = clientData ? Object.keys(clientData).filter(k => !k.includes('total')).join(', ') : 'No data';
+                        missingNames.push(`${clientName} [F: ${source}, Lat: ${latRaw || '?'}, Addr: ${addrRaw ? 'OK' : 'EMPTY'}]`);
+                    }
+                });
+
+                if (clientsToProcess.length === 0) {
+                    alert('⚠️ ERROR RUTA v2.5: Ningún cliente seleccionado tiene ubicación válida (ni coordenadas ni dirección).\n\nDetalle técnico:\n- ' + missingNames.join('\n- '));
+                    return;
+                }
+
+                // Optimize order by proximity
+                const hasCoords = clientsToProcess.filter(c => c.type === 'coord');
+                let sortedClients = [];
+                let startPoint = pos;
+
+                // FALLBACK: If GPS fails, use the first client with coords as the origin
+                if (!startPoint && hasCoords.length > 0) {
+                    console.log('GPS Fallback: Using first client as origin');
+                    startPoint = { lat: hasCoords[0].lat, lng: hasCoords[0].lng };
+                }
+
+                if (startPoint && hasCoords.length > 0) {
+                    sortedClients = optimizeRoutePoints(startPoint, clientsToProcess);
+                } else {
+                    sortedClients = clientsToProcess; // No GPS fallback possible or no coord-clients, use original order
+                }
+
+                const points = sortedClients.map(c => {
+                    if (c.type === 'coord') return `${c.lat},${c.lng}`;
+                    return encodeURIComponent(c.address);
+                });
+
+                const coordCount = clientsToProcess.filter(c => c.type === 'coord').length;
+                const addrCount = clientsToProcess.filter(c => c.type === 'address').length;
+                
+                let diagnosticMsg = `RESUMEN RUTA v2.8:\n`;
+                diagnosticMsg += `- GPS Celular: ${pos ? '✅ OK' : '❌ SIN ACCESO (Usando Plan B)'}\n`;
+                if (!pos && hasCoords.length > 0) diagnosticMsg += `- Optimizada desde: ${hasCoords[0].name}\n`;
+                diagnosticMsg += `- Clientes con GPS: ${coordCount}\n`;
+                diagnosticMsg += `- Clientes solo Texto: ${addrCount}\n`;
+                diagnosticMsg += `- Resultado: ${ (startPoint && coordCount > 0) ? '✅ ORDENADA POR CERCANÍA' : '❌ ORDEN SELECCIÓN (Sin GPS)' }\n`;
+                
+                alert(diagnosticMsg);
+
+                let url = '';
+                if (points.length === 1) {
+                    url = `https://www.google.com/maps/search/?api=1&query=${points[0]}`;
+                } else {
+                    url = `https://www.google.com/maps/dir/${points.join('/')}`;
+                }
+                
+                window.open(url, '_blank');
+                
+                if (missingCount > 0) {
+                    alert(`Nota: Se omitieron ${missingCount} clientes por falta de ubicación (${missingNames.map(n => n.split(' [')[0]).join(', ')}).`);
+                }
+            } catch (err) {
+                console.error('Route generation error:', err);
+                alert('Ocurrió un error al generar la ruta.');
+            } finally {
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        /**
+         * Nearest Neighbor Heuristic for TSP
+         * Sorts clients by proximity starting from a given origin.
+         * Note: Address-only clients are appended at the end.
+         */
+        function optimizeRoutePoints(origin, clients) {
+            const withCoords = clients.filter(c => c.type === 'coord');
+            const onlyAddress = clients.filter(c => c.type === 'address');
+            
+            const sorted = [];
+            let currentPos = origin;
+            let remaining = [...withCoords];
+
+            while (remaining.length > 0) {
+                let closestIndex = -1;
+                let minDist = Infinity;
+
+                for (let i = 0; i < remaining.length; i++) {
+                    const dist = Math.sqrt(
+                        Math.pow(currentPos.lat - remaining[i].lat, 2) + 
+                        Math.pow(currentPos.lng - remaining[i].lng, 2)
+                    );
+                    if (dist < minDist) {
+                        minDist = dist;
+                        closestIndex = i;
+                    }
+                }
+
+                const nextClient = remaining.splice(closestIndex, 1)[0];
+                sorted.push(nextClient);
+                currentPos = { lat: nextClient.lat, lng: nextClient.lng };
+            }
+
+            return [...sorted, ...onlyAddress];
         }
 
     </script>

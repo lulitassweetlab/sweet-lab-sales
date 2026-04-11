@@ -54,6 +54,7 @@ export async function handler(event) {
                 r.due_date, r.reminder_type, r.priority, r.completed, r.client_id, r.prospect_id,
                 COALESCE(c.name, p.name) as name, 
                 COALESCE(c.whatsapp, p.whatsapp) as whatsapp,
+                c.latitude, c.longitude, c.address,
                 (SELECT COUNT(cs1.sale_id) FROM crm_client_sales cs1 WHERE cs1.client_id = c.id) as total_orders,
                 (SELECT SUM(s1.total_cents) FROM sales s1 JOIN crm_client_sales cs2 ON s1.id = cs2.sale_id WHERE cs2.client_id = c.id) as lifetime_value_cents,
                 (SELECT COALESCE(SUM(CASE WHEN s2.pay_method IS NULL OR s2.pay_method = '' OR s2.pay_method = '-' OR s2.pay_method = 'entregado' THEN s2.total_cents ELSE 0 END), 0) FROM sales s2 JOIN crm_client_sales cs3 ON s2.id = cs3.sale_id WHERE cs3.client_id = c.id) as total_debt_cents,
@@ -73,6 +74,7 @@ export async function handler(event) {
         const upcomingBirthdays = await sql`
             SELECT 
                 c.id, c.name, c.whatsapp, c.birth_date,
+                c.latitude, c.longitude, c.address,
                 st.name as stage_name, st.color as stage_color,
                 COALESCE((
                     SELECT SUM(CASE WHEN s2.pay_method IS NULL OR s2.pay_method = '' OR s2.pay_method = '-' OR s2.pay_method = 'entregado' THEN s2.total_cents ELSE 0 END)
@@ -104,16 +106,16 @@ export async function handler(event) {
         // 4. Clientes para Reactivar con etapa y deuda
         const inactiveClientsRaw = await sql`
             WITH ClientSales AS (
-                SELECT c.id, c.name, c.whatsapp, MAX(sd.day)::text as last_date
+                SELECT c.id, c.name, c.whatsapp, c.latitude, c.longitude, c.address, MAX(sd.day)::text as last_date
                 FROM clients c
                 JOIN crm_client_sales cs ON c.id = cs.client_id
                 JOIN sales s ON cs.sale_id = s.id
                 JOIN sale_days sd ON s.sale_day_id = sd.id
                 WHERE c.seller_id = ${sellerId}
-                GROUP BY c.id, c.name, c.whatsapp
+                GROUP BY c.id, c.name, c.whatsapp, c.latitude, c.longitude, c.address
             )
             SELECT 
-                cs.id, cs.name, cs.whatsapp, cs.last_date as last_purchase_date,
+                cs.id, cs.name, cs.whatsapp, cs.latitude, cs.longitude, cs.address, cs.last_date as last_purchase_date,
                 st.name as stage_name, st.color as stage_color,
                 COALESCE((
                     SELECT SUM(CASE WHEN s2.pay_method IS NULL OR s2.pay_method = '' OR s2.pay_method = '-' OR s2.pay_method = 'entregado' THEN s2.total_cents ELSE 0 END)
