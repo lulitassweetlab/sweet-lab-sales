@@ -193,12 +193,12 @@
     <main>
         <!-- SCREEN 1: Dashboard -->
         <div id="screen-dashboard" class="screen active">
-            <!-- ROUTE MODE BANNER (v2.7 DEBUG - EMERALD) -->
-            <div id="routeModeBanner" style="display:none; background:#10b981; color:white; padding:12px 20px; border-radius:16px; margin-bottom:16px; align-items:center; justify-content:space-between; animation: slideDown 0.3s ease; box-shadow: 0 8px 24px rgba(16,185,129,0.3);">
+            <!-- ROUTE MODE BANNER (v2.8 DEBUG - VIOLET) -->
+            <div id="routeModeBanner" style="display:none; background:#8b5cf6; color:white; padding:12px 20px; border-radius:16px; margin-bottom:16px; align-items:center; justify-content:space-between; animation: slideDown 0.3s ease; box-shadow: 0 8px 24px rgba(139,92,246,0.3);">
                 <div style="display:flex; align-items:center; gap:12px;">
                     <div style="font-size:1.6rem;">🗺️</div>
                     <div>
-                        <div style="font-size:0.7rem; font-weight:700; opacity:0.9; text-transform:uppercase; letter-spacing:0.05em;">Modo Ruta v2.7 (ROBUST)</div>
+                        <div style="font-size:0.7rem; font-weight:700; opacity:0.9; text-transform:uppercase; letter-spacing:0.05em;">Modo Ruta v2.8 (SYNC)</div>
                         <div id="routeModeCount" style="font-weight:800; font-size:1.1rem; line-height:1.2;">0 seleccionados</div>
                     </div>
                 </div>
@@ -1008,7 +1008,10 @@
                     <div style="flex:1;">
                         <div style="display:flex; align-items:center; gap:8px;">
                             ${isSelected ? '<div style="color:#10b981; font-size:1.2rem;">✅</div>' : ''}
-                            <div style="font-weight:700; font-size:1.05rem; margin-bottom:2px;">${c.name}</div>
+                            <div style="font-weight:700; font-size:1.05rem; margin-bottom:2px;">
+                                ${c.name}
+                                ${ (parseFloat(c.latitude) && parseFloat(c.longitude)) ? '<span style="color:#10b981; font-size:0.8rem; margin-left:4px;" title="GPS OK">✅</span>' : '' }
+                            </div>
                         </div>
                         <div class="client-badges-container" style="display:flex; flex-wrap:wrap; gap:4px; align-items:center;">${badges}</div>
                         ${metricsHtml}
@@ -2128,6 +2131,12 @@
             }
         }
 
+        function invalidateCrmCache() {
+            Object.keys(localStorage).forEach(key => {
+                if (key.startsWith('crm_cache_')) localStorage.removeItem(key);
+            });
+        }
+
         async function updateClientLocation(data) {
             if (!currentProfileId) return;
 
@@ -2137,12 +2146,21 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         seller_id: currentSellerId,
+                        client_id: currentProfileId,
                         name: lastLoadedProfileName,
                         ...data
                     })
                 });
                 
                 if (res.ok) {
+                    invalidateCrmCache();
+                    // Update local directoryData if we are on dashboard/list screens
+                    const localC = directoryData.find(c => Number(c.id) === Number(currentProfileId));
+                    if (localC) {
+                        localC.latitude = data.latitude;
+                        localC.longitude = data.longitude;
+                        if (data.address) localC.address = data.address;
+                    }
                     await loadProfile(currentProfileId);
                 } else {
                     const err = await res.json();
@@ -3400,7 +3418,7 @@
                 const coordCount = clientsToProcess.filter(c => c.type === 'coord').length;
                 const addrCount = clientsToProcess.filter(c => c.type === 'address').length;
                 
-                let diagnosticMsg = `RESUMEN RUTA v2.7:\n`;
+                let diagnosticMsg = `RESUMEN RUTA v2.8:\n`;
                 diagnosticMsg += `- GPS Celular: ${pos ? '✅ OK' : '❌ SIN ACCESO (Usando Plan B)'}\n`;
                 if (!pos && hasCoords.length > 0) diagnosticMsg += `- Optimizada desde: ${hasCoords[0].name}\n`;
                 diagnosticMsg += `- Clientes con GPS: ${coordCount}\n`;
