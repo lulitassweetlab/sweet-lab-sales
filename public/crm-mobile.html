@@ -193,12 +193,12 @@
     <main>
         <!-- SCREEN 1: Dashboard -->
         <div id="screen-dashboard" class="screen active">
-            <!-- ROUTE MODE BANNER (v2.6 DEBUG - INDIGO) -->
-            <div id="routeModeBanner" style="display:none; background:#4f46e5; color:white; padding:12px 20px; border-radius:16px; margin-bottom:16px; align-items:center; justify-content:space-between; animation: slideDown 0.3s ease; box-shadow: 0 8px 24px rgba(79,70,229,0.3);">
+            <!-- ROUTE MODE BANNER (v2.7 DEBUG - EMERALD) -->
+            <div id="routeModeBanner" style="display:none; background:#10b981; color:white; padding:12px 20px; border-radius:16px; margin-bottom:16px; align-items:center; justify-content:space-between; animation: slideDown 0.3s ease; box-shadow: 0 8px 24px rgba(16,185,129,0.3);">
                 <div style="display:flex; align-items:center; gap:12px;">
                     <div style="font-size:1.6rem;">🗺️</div>
                     <div>
-                        <div style="font-size:0.7rem; font-weight:700; opacity:0.9; text-transform:uppercase; letter-spacing:0.05em;">Modo Ruta v2.6 (DIAGNOSTIC)</div>
+                        <div style="font-size:0.7rem; font-weight:700; opacity:0.9; text-transform:uppercase; letter-spacing:0.05em;">Modo Ruta v2.7 (ROBUST)</div>
                         <div id="routeModeCount" style="font-weight:800; font-size:1.1rem; line-height:1.2;">0 seleccionados</div>
                     </div>
                 </div>
@@ -351,6 +351,7 @@
                                 onblur="saveAddressInline(event)"
                                 onkeydown="handleAddressKey(event)"
                                 spellcheck="false">📍 Ubicación...</span>
+                             <span id="profGpsCheck" style="display:none; color:#10b981; margin-left:4px; font-size:0.9rem;" title="Ubicación GPS guardada">✅</span>
                         </div>
                         
                         <!-- ROW 3: Description -->
@@ -1566,6 +1567,16 @@
                     addEl.style.fontWeight = addressStr ? '700' : '500';
                     addEl.dataset.lat = pf.latitude || '';
                     addEl.dataset.lng = pf.longitude || '';
+
+                    // Show/Hide subtle GPS check
+                    const gpsCheck = document.getElementById('profGpsCheck');
+                    if (gpsCheck) {
+                        if (parseFloat(pf.latitude) && parseFloat(pf.longitude)) {
+                            gpsCheck.style.display = 'inline';
+                        } else {
+                            gpsCheck.style.display = 'none';
+                        }
+                    }
                 }
                 
                 // Description
@@ -1900,7 +1911,38 @@
                 await updateClientLocation({ latitude: lat, longitude: lng, address: human });
             } else {
                 await updateClientLocation({ address: text });
+                // AUTO-GEOCODE Fallback: if no coords, try to get them in background
+                if (!el.dataset.lat || el.dataset.lat === '' || el.dataset.lat === '0') {
+                    silentGeocode(text);
+                }
             }
+        }
+
+        async function silentGeocode(query) {
+            if (!query || query.length < 5 || query === '📍 Ubicación...') return;
+            try {
+                // Search with city context to improve results
+                const searchUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query + ', Medellín, Colombia')}&limit=1`;
+                const res = await fetch(searchUrl, {
+                    headers: { 'User-Agent': 'LulitasSweetLabCRM/1.0' }
+                });
+                const data = await res.json();
+                if (data && data.length > 0) {
+                    const result = data[0];
+                    await updateClientLocation({
+                        latitude: parseFloat(result.lat),
+                        longitude: parseFloat(result.lon),
+                        address: query
+                    });
+                    // Visible feedback: show the checkmark if we are still on that profile
+                    if (document.getElementById('profGpsCheck')) {
+                        document.getElementById('profGpsCheck').style.display = 'inline';
+                        const addrEl = document.getElementById('profAddress');
+                        addrEl.dataset.lat = result.lat;
+                        addrEl.dataset.lng = result.lon;
+                    }
+                }
+            } catch (e) { console.error('Silent geocode error:', e); }
         }
 
         async function reverseGeocodeHuman(lat, lng) {
@@ -3334,11 +3376,20 @@
                 }
 
                 // Optimize order by proximity
+                const hasCoords = clientsToProcess.filter(c => c.type === 'coord');
                 let sortedClients = [];
-                if (pos && clientsToProcess.some(c => c.type === 'coord')) {
-                    sortedClients = optimizeRoutePoints(pos, clientsToProcess);
+                let startPoint = pos;
+
+                // FALLBACK: If GPS fails, use the first client with coords as the origin
+                if (!startPoint && hasCoords.length > 0) {
+                    console.log('GPS Fallback: Using first client as origin');
+                    startPoint = { lat: hasCoords[0].lat, lng: hasCoords[0].lng };
+                }
+
+                if (startPoint && hasCoords.length > 0) {
+                    sortedClients = optimizeRoutePoints(startPoint, clientsToProcess);
                 } else {
-                    sortedClients = clientsToProcess; // No GPS or no coord-clients, use original order
+                    sortedClients = clientsToProcess; // No GPS fallback possible or no coord-clients, use original order
                 }
 
                 const points = sortedClients.map(c => {
@@ -3349,11 +3400,12 @@
                 const coordCount = clientsToProcess.filter(c => c.type === 'coord').length;
                 const addrCount = clientsToProcess.filter(c => c.type === 'address').length;
                 
-                let diagnosticMsg = `DIAGNÓSTICO RUTA v2.6:\n`;
-                diagnosticMsg += `- GPS: ${pos ? '✅ OK' : '❌ FALLÓ (' + (window.gpsError || 'Desconocido') + ')'}\n`;
-                diagnosticMsg += `- Clientes con Coordenadas: ${coordCount}\n`;
-                diagnosticMsg += `- Clientes con solo Dirección: ${addrCount}\n`;
-                diagnosticMsg += `- Optimizada: ${ (pos && coordCount > 0) ? '✅ SÍ' : '❌ NO' }\n`;
+                let diagnosticMsg = `RESUMEN RUTA v2.7:\n`;
+                diagnosticMsg += `- GPS Celular: ${pos ? '✅ OK' : '❌ SIN ACCESO (Usando Plan B)'}\n`;
+                if (!pos && hasCoords.length > 0) diagnosticMsg += `- Optimizada desde: ${hasCoords[0].name}\n`;
+                diagnosticMsg += `- Clientes con GPS: ${coordCount}\n`;
+                diagnosticMsg += `- Clientes solo Texto: ${addrCount}\n`;
+                diagnosticMsg += `- Resultado: ${ (startPoint && coordCount > 0) ? '✅ ORDENADA POR CERCANÍA' : '❌ ORDEN SELECCIÓN (Sin GPS)' }\n`;
                 
                 alert(diagnosticMsg);
 
