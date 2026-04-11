@@ -606,6 +606,15 @@
         </header>
         <div style="flex:1; position:relative; background:white;">
             <div id="mapPickerContainer" style="width:100%; height:100%; opacity: 1 !important;"></div>
+            
+            <!-- Search bar overlay -->
+            <div style="position:absolute; top:12px; left:12px; right:12px; z-index:1000; display:flex; gap:8px;">
+                <input type="text" id="mapPickerSearch" placeholder="Escribe una dirección..." style="flex:1; padding:12px 16px; border-radius:12px; border:none; box-shadow:0 4px 12px rgba(0,0,0,0.15); font-size:0.95rem; font-family:inherit;">
+                <button onclick="searchAddressInMap()" style="background:var(--primary); color:white; border:none; padding:12px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.15); cursor:pointer;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                </button>
+            </div>
+
             <!-- Crosshair overlay -->
             <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -100%); z-index:500; pointer-events:none; font-size:2rem;">
                 📍
@@ -1993,11 +2002,13 @@
             document.getElementById('locationPopover').style.display = 'none';
             const modal = document.getElementById('mapPickerModal');
             modal.style.display = 'flex';
+            document.getElementById('mapPickerSearch').value = '';
             
             // Start at client location or default Medellín
             const el = document.getElementById('profAddress');
             let lat = parseFloat(el.dataset.lat) || 6.2442;
             let lng = parseFloat(el.dataset.lng) || -75.5812;
+            const existingAddress = el.innerText.trim();
 
             if (!mapPicker) {
                 mapPicker = L.map('mapPickerContainer').setView([lat, lng], 15);
@@ -2016,6 +2027,45 @@
             
             // Trigger moveend to update initial address
             mapPicker.fire('moveend');
+
+            // AUTO-GEOCODE: If coords are missing but address exists, try to find it
+            if ((lat === 6.2442 && lng === -75.5812) && existingAddress && existingAddress !== 'Sin dirección' && existingAddress !== '-') {
+                document.getElementById('mapPickerSearch').value = existingAddress;
+                searchAddressInMap(existingAddress);
+            }
+        }
+
+        async function searchAddressInMap(query) {
+            const searchInput = document.getElementById('mapPickerSearch');
+            const q = query || searchInput.value.trim();
+            if (!q) return;
+
+            const btn = document.querySelector('[onclick="searchAddressInMap()"]');
+            const originalOpacity = btn.style.opacity;
+            btn.style.opacity = '0.5';
+            btn.disabled = true;
+
+            try {
+                // Search with city context to improve results
+                const searchUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q + ', Medellín, Colombia')}&limit=1`;
+                const res = await fetch(searchUrl, {
+                    headers: { 'User-Agent': 'LulitasSweetLabCRM/1.0' }
+                });
+                const data = await res.json();
+
+                if (data && data.length > 0) {
+                    const result = data[0];
+                    mapPicker.setView([result.lat, result.lon], 17);
+                    // moveend will naturally trigger address update display
+                } else {
+                    if (!query) alert('No se encontró la dirección.');
+                }
+            } catch (e) {
+                console.error('Geocode error:', e);
+            } finally {
+                btn.style.opacity = originalOpacity;
+                btn.disabled = false;
+            }
         }
 
         function closeMapPicker() {
