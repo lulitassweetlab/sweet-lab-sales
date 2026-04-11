@@ -13,6 +13,11 @@
     Cache-Control = "no-cache, no-store, must-revalidate"
 
 [[headers]]
+  for = "/crm-mobile.html"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
+[[headers]]
   for = "/app.js"
   [headers.values]
     Cache-Control = "no-cache, no-store, must-revalidate"

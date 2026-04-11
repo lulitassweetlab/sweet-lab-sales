@@ -193,12 +193,12 @@
     <main>
         <!-- SCREEN 1: Dashboard -->
         <div id="screen-dashboard" class="screen active">
-            <!-- ROUTE MODE BANNER (v2.0 DEBUG - ORANGE) -->
-            <div id="routeModeBanner" style="display:none; background:#f97316; color:white; padding:12px 20px; border-radius:16px; margin-bottom:16px; align-items:center; justify-content:space-between; animation: slideDown 0.3s ease; box-shadow: 0 8px 24px rgba(249,115,22,0.3);">
+            <!-- ROUTE MODE BANNER (v2.5 DEBUG - FUCHSIA) -->
+            <div id="routeModeBanner" style="display:none; background:#d946ef; color:white; padding:12px 20px; border-radius:16px; margin-bottom:16px; align-items:center; justify-content:space-between; animation: slideDown 0.3s ease; box-shadow: 0 8px 24px rgba(217,70,239,0.3);">
                 <div style="display:flex; align-items:center; gap:12px;">
                     <div style="font-size:1.6rem;">🗺️</div>
                     <div>
-                        <div style="font-size:0.7rem; font-weight:700; opacity:0.9; text-transform:uppercase; letter-spacing:0.05em;">Modo Ruta v2.0 (DEBUG)</div>
+                        <div style="font-size:0.7rem; font-weight:700; opacity:0.9; text-transform:uppercase; letter-spacing:0.05em;">Modo Ruta v2.5 (PROXIMITY)</div>
                         <div id="routeModeCount" style="font-weight:800; font-size:1.1rem; line-height:1.2;">0 seleccionados</div>
                     </div>
                 </div>
@@ -3274,7 +3274,7 @@
                 });
 
                 if (clientsToProcess.length === 0) {
-                    alert('⚠️ ERROR RUTA v2.2: Ningún cliente seleccionado tiene ubicación válida (ni coordenadas ni dirección).\n\nDetalle técnico:\n- ' + missingNames.join('\n- '));
+                    alert('⚠️ ERROR RUTA v2.5: Ningún cliente seleccionado tiene ubicación válida (ni coordenadas ni dirección).\n\nDetalle técnico:\n- ' + missingNames.join('\n- '));
                     return;
                 }
 
