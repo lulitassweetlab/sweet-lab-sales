@@ -31,23 +31,19 @@
             color: var(--text-main);
             display: flex;
             flex-direction: column;
-            min-height: 100vh;
-            min-height: 100dvh; /* Dynamic viewport for mobile */
             height: 100vh;
             overflow: hidden; /* Prevent body scroll, handle scroll in screens */
         }
 
         /* App Bar Header */
         header {
-            position: sticky;
-            top: 0;
             background: var(--surface);
             padding: 16px 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             border-bottom: 1px solid var(--border);
-            z-index: 100;
+            z-index: 100; /* Stays above screens but below modals */
         }
         .header-title { font-size: 1.2rem; font-weight: 700; }
 
@@ -208,9 +204,10 @@
                 <button onclick="exitBulkMode()" style="background:rgba(255,255,255,0.2); border:none; color:white; padding:10px 18px; border-radius:12px; font-weight:800; font-size:0.9rem; cursor:pointer; transition:all 0.2s;" onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='none'">Finalizar</button>
             </div>
 
+            <!-- Header row with stats + new prospect button -->
             <div style="margin-bottom:16px;">
                 <div class="card" style="display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; gap: 0; flex:1; margin-bottom:0; padding:12px 0; align-items: center; justify-content: center;">
-                    <div style="display: flex; align-items: center; justify-content: center; cursor:pointer; height:100%; padding:0 4px;" onclick="navTo('dashboard')" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
+                    <div style="display: flex; align-items: center; justify-content: center; cursor:pointer; height:100%;" onclick="navTo('dashboard')" onmouseover="this.style.background='rgba(0,0,0,0.03)'" onmouseout="this.style.background='transparent'">
                         <svg width="24" height="24" viewBox="0 0 24 24" style="fill:#86868b;"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
                     </div>
                     <div style="width:1px; background:var(--border); height:30px;"></div>
