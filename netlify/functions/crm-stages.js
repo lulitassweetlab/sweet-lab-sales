@@ -192,6 +192,15 @@ export async function handler(event) {
                 return json({ success: true, action: insert[0] });
             }
 
+            if (action === 'update_action') {
+                const { id, note } = body;
+                if (!id) return json({ error: 'Missing activity id' }, 400);
+                await sql`
+                    UPDATE crm_activities SET description = ${note || ''} WHERE id = ${id}
+                `;
+                return json({ success: true });
+            }
+
             if (action === 'create_stage') {
                 const { name, color, order_index, days_threshold, count_threshold, threshold_type, is_automatic } = body;
                 if (!name) return json({ error: 'Falta el nombre de la etapa' }, 400);
