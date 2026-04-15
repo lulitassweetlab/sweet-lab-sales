@@ -1259,6 +1259,9 @@
 
                 if (!res.ok) throw new Error('Error al completar tarea');
                 
+                // Clear dashboard cache
+                localStorage.removeItem(CACHE_PREFIX + 'dashboard_' + currentSellerId);
+                
                 // Success animation
                 card.style.opacity = '0';
                 card.style.transform = 'translateX(50px)';
@@ -2263,6 +2266,10 @@
                 });
                 
                 if(!response.ok) throw new Error();
+                
+                // Clear dashboard cache so it reflects the completion
+                localStorage.removeItem(CACHE_PREFIX + 'dashboard_' + currentSellerId);
+
                 loadProfile(currentProfileId);
             } catch(e) {
                 alert("Error eliminando registro");
@@ -2623,7 +2630,8 @@
                 const data = await res.json();
                 if (data.error) throw new Error(data.error);
                 
-                // Clear and reload
+                // Clear cache and reload
+                localStorage.removeItem(CACHE_PREFIX + 'dashboard_' + currentSellerId);
                 document.getElementById('inlineTaskTitle').value = '';
                 await loadProfile(currentProfileId);
             } catch(e) {
@@ -2639,6 +2647,10 @@
                     body: JSON.stringify({ id: id, completed: true })
                 });
                 if (!res.ok) throw new Error('Error al completar tarea');
+                
+                // Clear dashboard cache
+                localStorage.removeItem(CACHE_PREFIX + 'dashboard_' + currentSellerId);
+                
                 await loadProfile(currentProfileId);
             } catch(e) {
                 alert(e.message);

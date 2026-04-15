@@ -66,7 +66,7 @@ export async function handler(event) {
             WHERE r.seller_id = ${sellerId} 
             AND r.completed = false 
             AND r.due_date <= (CURRENT_DATE + INTERVAL '1 day')
-            ORDER BY r.priority DESC, r.due_date ASC
+            ORDER BY r.priority DESC, r.created_at DESC
         `;
 
         // 3. Cumpleañeros (Próximos 5 días)
