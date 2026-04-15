@@ -1225,7 +1225,7 @@
             listEl.innerHTML = '<div class="spinner">Cargando clientes...</div>';
 
             try {
-                const res = await fetch(`/.netlify/functions/crm-tags?action=get_clients_by_tag&tag_id=${tagId}`);
+                const res = await fetch(`/.netlify/functions/crm-tags?action=get_clients_by_tag&tag_id=${tagId}&seller_id=${currentSellerId}`);
                 const clients = await res.json();
                 if (!Array.isArray(clients) || clients.length === 0) {
                     listEl.innerHTML = '<p style="text-align:center; padding:24px; color:var(--text-muted);">No hay clientes con esta etiqueta.</p>';

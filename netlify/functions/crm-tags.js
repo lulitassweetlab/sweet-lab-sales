@@ -91,7 +91,7 @@ export async function handler(event) {
                     LEFT JOIN crm_stages st ON cst.stage_id = st.id
                     WHERE ct.tag_id = ${tagId}
                     GROUP BY c.id, c.name, c.whatsapp, st.name, st.color, st.id
-                    ORDER BY t.display_order ASC, t.name ASC
+                    ORDER BY c.name ASC
                 `;
                 return json(clients);
             }
