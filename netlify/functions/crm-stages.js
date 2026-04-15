@@ -145,11 +145,13 @@ export async function handler(event) {
                 const oldStageRes = await sql`SELECT stage_id FROM crm_client_stage WHERE client_id = ${client_id}`;
                 const oldStageId = oldStageRes.length > 0 ? oldStageRes[0].stage_id : null;
 
+                /* 
                 // Insert into history
                 await sql`
                     INSERT INTO crm_stage_history (client_id, old_stage_id, new_stage_id, note, changed_by)
                     VALUES (${client_id}, ${oldStageId}, ${stage_id}, ${note || ''}, ${user_id || null})
                 `;
+                */
 
                 // Upsert current stage
                 const upsert = await sql`

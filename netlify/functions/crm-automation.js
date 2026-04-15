@@ -94,11 +94,13 @@ export async function evaluateClientStage(clientId, userId = null) {
     const oldStageId = currentRes.length > 0 ? currentRes[0].stage_id : null;
 
     if (oldStageId != targetStageId) {
+         /* 
          // Insert into history
          await sql`
             INSERT INTO crm_stage_history (client_id, old_stage_id, new_stage_id, note, changed_by)
             VALUES (${clientId}, ${oldStageId}, ${targetStageId}, 'Actualización automática por comportamiento de compra', ${userId})
          `;
+         */
 
          // --- AUTOMATION: POST-SALE REMIDER ---
          // If they became "Nuevo" (usually 1st purchase), create a reminder for 2 days from now

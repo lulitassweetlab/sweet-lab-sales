@@ -1709,22 +1709,6 @@
                     });
                 }
 
-                // 4. Stage History
-                if(Array.isArray(stageHistory)) {
-                    stageHistory.forEach(h => {
-                        const dateObj = new Date(h.changed_at);
-                        timeline.push({
-                            id: h.id,
-                            table: 'history',
-                            date: dateObj,
-                            type: 'etapa',
-                            title: `${dateObj.toLocaleDateString()} - Cambio de Etapa`,
-                            body: `De <b>${h.old_stage_name || 'Inicio'}</b> a <b>${h.new_stage_name}</b>`,
-                            footer: h.note ? `"${h.note.replace('por comportamiento de compra', '')}"` : `Por: ${h.changed_by_name || 'Admin'}`,
-                            color: h.new_stage_color || '#ccc'
-                        });
-                    });
-                }
 
                 // 5. Tasks (Reminders)
                 if(clientData.reminders && Array.isArray(clientData.reminders)) {
