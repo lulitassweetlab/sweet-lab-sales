@@ -31,25 +31,34 @@
             color: var(--text-main);
             display: flex;
             flex-direction: column;
+            min-height: 100vh;
+            min-height: 100dvh; /* Dynamic viewport for mobile */
             height: 100vh;
+            height: 100dvh;
             overflow: hidden; /* Prevent body scroll, handle scroll in screens */
         }
 
         /* App Bar Header */
         header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
             background: var(--surface);
             padding: 16px 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             border-bottom: 1px solid var(--border);
-            z-index: 10;
+            z-index: 100; /* Stays above screens */
+            height: 60px; /* Fixed height for consistent layout */
         }
         .header-title { font-size: 1.2rem; font-weight: 700; }
 
         /* Screens Area */
         main {
             flex: 1;
+            margin-top: 60px; /* Space for fixed header */
             overflow-y: auto;
             position: relative;
             padding-bottom: 100px; /* Space for browser UI and sidebar buttons */
