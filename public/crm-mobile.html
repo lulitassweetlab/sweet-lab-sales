@@ -920,19 +920,29 @@
             }
 
             // 2. Build Badges
+            const badgeBaseStyle = isDash 
+                ? 'font-weight:700; text-transform:uppercase; font-size:0.6rem; padding:1px 5px; border-radius:4px; margin-right:4px; margin-bottom:4px;' 
+                : 'color:#fff; font-weight:800; text-transform:uppercase; font-size:0.65rem; padding:2px 6px; border-radius:4px; margin-right:4px; margin-bottom:4px;';
+
+            const getBadgeStyle = (color) => {
+                if (!isDash) return `background:${color}; ${badgeBaseStyle}`;
+                // Soft style for Dashboard: 15% opacity background, full color text
+                return `background:${color}1A; color:${color}; border:1px solid ${color}33; ${badgeBaseStyle}`;
+            };
+
             if(c.stage_name) {
-                badges += `<span class="badge" style="background:${c.stage_color || '#808080'}; color:#fff; font-weight:800; text-transform:uppercase; font-size:0.65rem; padding:2px 6px; border-radius:4px; margin-right:4px; margin-bottom:4px;">${c.stage_name}</span>`;
+                badges += `<span class="badge" style="${getBadgeStyle(c.stage_color || '#808080')}">${c.stage_name}</span>`;
             } else if (freq === 0) {
-                badges += `<span class="badge" style="background:#9E9E9E; color:#fff; font-weight:800; text-transform:uppercase; font-size:0.65rem; padding:2px 6px; border-radius:4px; margin-right:4px; margin-bottom:4px;">PROSPECTO</span>`;
+                badges += `<span class="badge" style="${getBadgeStyle('#9E9E9E')}">PROSPECTO</span>`;
             }
 
             if(Array.isArray(c.custom_tags)) {
                 c.custom_tags.forEach(t => {
-                    badges += `<span class="badge" style="background:${t.color}; color:#fff; font-weight:800; text-transform:uppercase; font-size:0.65rem; padding:2px 6px; border-radius:4px; margin-right:4px; margin-bottom:4px;">${t.name}</span>`;
+                    badges += `<span class="badge" style="${getBadgeStyle(t.color)}">${t.name}</span>`;
                 });
             }
 
-            if(debt > 0) badges += `<span class="badge" style="background:var(--danger); color:#fff; font-weight:800; text-transform:uppercase; font-size:0.65rem; padding:2px 6px; border-radius:4px; margin-right:4px; margin-bottom:4px;">DEUDA ${formatMoney(debt)}</span>`;
+            if(debt > 0) badges += `<span class="badge" style="${getBadgeStyle('#ef4444')}">DEUDA ${formatMoney(debt)}</span>`;
             
             const metricsHtml = (!isDash && ltv > 0) ? `<div style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">Histórico: ${formatMoney(ltv)} | Compras: ${freq}</div>` : '';
 
@@ -961,9 +971,9 @@
 
                     <!-- Main Content -->
                     <div style="">
-                        <div style="font-weight:800; font-size:1.05rem; color:var(--text-main); line-height:1.2; padding-right:70px;">${c.name}</div>
-                        ${taskDescription ? `<div style="margin-top:2px; font-size:0.92rem; color:var(--text-main); font-weight:500; opacity:0.8;">${taskDescription}</div>` : ''}
-                        <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:8px;">${badges}</div>
+                        <div style="font-weight:600; font-size:0.82rem; color:#71717a; line-height:1.2; padding-right:70px; margin-bottom:2px;">${c.name}</div>
+                        ${taskDescription ? `<div style="font-size:1.05rem; color:var(--text-main); font-weight:800; line-height:1.2;">${taskDescription}</div>` : ''}
+                        <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:10px;">${badges}</div>
                     </div>
                 </div>`;
             }
