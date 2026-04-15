@@ -2612,10 +2612,11 @@
             if(!currentProfileId) return;
             const pop = document.getElementById('popoverNote');
             const overlay = document.getElementById('popoverOverlay');
-            document.getElementById('noteContentPopover').value = '';
+            const textarea = document.getElementById('noteContentPopover');
+            textarea.value = '';
             overlay.style.display = 'block';
             pop.style.display = 'block';
-            setTimeout(() => document.getElementById('noteContentPopover').focus(), 100);
+            textarea.focus();
         }
 
         async function saveNoteFromPopover() {
