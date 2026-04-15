@@ -1740,7 +1740,7 @@
                                     <span style="font-size:0.65rem; color:var(--text-muted); font-weight:700; white-space:nowrap; text-transform:uppercase;">${ev.date.toLocaleDateString('es-CO', {day:'numeric', month:'short'})}</span>
                                     ${ev.footer ? `<span style="font-weight:700; color:var(--text-main); white-space:nowrap; font-size:0.7rem; text-overflow:ellipsis; overflow:hidden; max-width:120px;">${ev.footer}</span>` : ''}
                                 </div>
-                                <div style="color:var(--text-main); font-size: 0.95rem; overflow-wrap: anywhere; word-break: break-word; ${ev.isCompleted ? 'text-decoration:line-through;' : ''}">${ev.body}</div>
+                                <div style="color:${ev.isCompleted ? 'var(--text-muted)' : 'var(--text-main)'}; font-size: 0.95rem; overflow-wrap: anywhere; word-break: break-word;">${ev.body}</div>
                             </div>
                             <div style="display:flex; align-items:center; gap:4px; flex-shrink:0;">
                                 ${showCheck ? `
