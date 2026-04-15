@@ -110,9 +110,9 @@ export async function handler(event) {
 
                 // 4. Pending Reminders specifically for this client
                 const reminders = await sql`
-                    SELECT id, title, description, due_date, reminder_type, priority, completed
+                    SELECT id, title, description, due_date, reminder_type, priority, completed, completed_at
                     FROM crm_reminders
-                    WHERE client_id = ${id} AND completed = false
+                    WHERE client_id = ${id}
                     ORDER BY priority DESC, due_date ASC
                 `;
 

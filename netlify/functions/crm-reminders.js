@@ -24,10 +24,10 @@ export async function handler(event) {
             const data = JSON.parse(event.body || '{}');
             const sellerId = Number(data.seller_id);
             const title = data.title;
-            const dueDate = data.due_date; // Expected ISO string
+            const dueDate = data.due_date || new Date().toISOString(); // Default to now if not provided
 
-            if (!sellerId || !title || !dueDate) {
-                return json({ error: 'Faltan campos obligatorios' }, 400);
+            if (!sellerId || !title) {
+                return json({ error: 'Faltan campos obligatorios (seller_id, título)' }, 400);
             }
 
             const clientId = data.client_id ? Number(data.client_id) : null;
@@ -86,6 +86,16 @@ export async function handler(event) {
                 ORDER BY r.completed ASC, r.due_date ASC
             `;
             return json(reminders || []);
+        }
+
+        // Handle DELETE Reminder
+        if (event.httpMethod === 'DELETE') {
+            const params = getQueryParams(event);
+            const id = Number(params.get('id'));
+            if (!id) return json({ error: 'Falta ID' }, 400);
+
+            await sql`DELETE FROM crm_reminders WHERE id = ${id}`;
+            return json({ ok: true });
         }
 
         return json({ error: 'Método no permitido' }, 405);
