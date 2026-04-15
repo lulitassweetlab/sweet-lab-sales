@@ -901,19 +901,22 @@
             let taskDescription = '';
             // 1. Determine Task Description (for Dashboard)
             if (isDash) {
+                let rawText = '';
                 if (context === 'reminder' && c.reminder_title) {
-                    taskDescription = c.reminder_title;
+                    rawText = c.reminder_title;
                 } else if (c.days_to_birthday !== undefined && c.days_to_birthday !== null) {
                     const days = Number(c.days_to_birthday);
                     const bDate = new Date(c.birth_date);
                     const months = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
                     const dateStr = `${months[bDate.getUTCMonth()]} ${bDate.getUTCDate()}`;
-                    if (days === 0) taskDescription = `Cumpleaños hoy (${dateStr})`;
-                    else if (days === 1) taskDescription = `Cumpleaños mañana (${dateStr})`;
-                    else taskDescription = `Cumpleaños en ${days} días (${dateStr})`;
+                    if (days === 0) rawText = `Cumpleaños hoy (${dateStr})`;
+                    else if (days === 1) rawText = `Cumpleaños mañana (${dateStr})`;
+                    else rawText = `Cumpleaños en ${days} días (${dateStr})`;
                 } else if (c.last_purchase_date) {
-                    taskDescription = `Inactivo desde ${new Date(c.last_purchase_date).toLocaleDateString('es-CO', {day:'numeric', month:'short'})}`;
+                    rawText = `Inactivo desde ${new Date(c.last_purchase_date).toLocaleDateString('es-CO', {day:'numeric', month:'short'})}`;
                 }
+                // Strip emojis/icons from the text
+                taskDescription = rawText.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '').trim();
             }
 
             // 2. Build Badges
@@ -957,8 +960,8 @@
                     </div>
 
                     <!-- Main Content -->
-                    <div style="padding-right:70px;">
-                        <div style="font-weight:800; font-size:1.05rem; color:var(--text-main); line-height:1.2;">${c.name}</div>
+                    <div style="">
+                        <div style="font-weight:800; font-size:1.05rem; color:var(--text-main); line-height:1.2; padding-right:70px;">${c.name}</div>
                         ${taskDescription ? `<div style="margin-top:2px; font-size:0.92rem; color:var(--text-main); font-weight:500; opacity:0.8;">${taskDescription}</div>` : ''}
                         <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:8px;">${badges}</div>
                     </div>
