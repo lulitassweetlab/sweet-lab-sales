@@ -381,7 +381,7 @@
                     onmouseout="this.style.transform='none'; this.style.boxShadow='none'; this.style.filter='none'">
                     <span style="font-size:1.5rem;">🟢</span> WhatsApp
                 </button>
-                <button class="btn-primary" onclick="openNoteModal()" 
+                <button class="btn-primary" onclick="openNotePopover(event)" 
                     style="height: 75px; padding: 0; background:#2196F3; border:none; border-radius:18px; color:#fff; font-weight:800; transition:all 0.2s; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; font-size:1.1rem;"
                     onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 10px 25px rgba(33,150,243,0.4)'; this.style.filter='brightness(1.05)'"
                     onmouseout="this.style.transform='none'; this.style.boxShadow='none'; this.style.filter='none'">
@@ -554,6 +554,12 @@
         <div id="assignTagList" style="display:flex; flex-direction:column; gap:8px; max-height:250px; overflow-y:auto; margin-bottom:10px;"></div>
         <div id="assignTagEmpty" style="display:none; font-size:0.8rem; color:var(--text-muted); text-align:center; padding:20px 0;">No tienes etiquetas creadas. Cr éalas en el Dashboard.</div>
         <button onclick="closePopovers()" style="width:100%; padding:12px; border-radius:12px; border:none; background:var(--bg); color:var(--text-muted); font-weight:700; font-size:0.9rem; cursor:pointer;">Cerrar</button>
+    </div>
+
+    <!-- MINIMALIST NOTES POPOVER -->
+    <div id="popoverNote" style="display:none; position:fixed; z-index:300; background:var(--surface); border-radius:30px; box-shadow: 0 15px 50px rgba(0,0,0,0.3); border: 1px solid var(--border); overflow: hidden; width: calc(100% - 40px); max-width: 400px; padding:25px; animation: popIn 0.2s ease; left: 50%; top: 50%; transform: translate(-50%, -50%);">
+        <textarea id="noteContentPopover" placeholder="Escribe una nota rápida..." 
+            style="width:100%; height:200px; border:none; background:transparent; font-size:1.1rem; color:var(--text-main); outline:none; font-family:inherit; resize:none; line-height:1.5;"></textarea>
     </div>
 
     <!-- MANAGE TAGS MODAL (New) -->
@@ -2596,27 +2602,23 @@
             }
         }
 
-        function openNoteModal() {
+        function openNotePopover(e) {
+            if(e) e.stopPropagation();
             if(!currentProfileId) return;
-            document.getElementById('noteContent').value = '';
-            const modal = document.getElementById('modalNote');
-            modal.style.display = 'flex';
-            setTimeout(() => document.getElementById('noteContent').focus(), 100);
+            const pop = document.getElementById('popoverNote');
+            const overlay = document.getElementById('popoverOverlay');
+            document.getElementById('noteContentPopover').value = '';
+            overlay.style.display = 'block';
+            pop.style.display = 'block';
+            setTimeout(() => document.getElementById('noteContentPopover').focus(), 100);
         }
 
-        function closeNoteModal() {
-            document.getElementById('modalNote').style.display = 'none';
-        }
-
-        async function saveNote() {
-            const note = document.getElementById('noteContent').value.trim();
-            if (!note) { alert('La nota no puede estar vacía.'); return; }
-
-            const btn = document.querySelector('#modalNote button[onclick="saveNote()"]');
-            if (btn) { btn.disabled = true; btn.innerText = '...'; }
+        async function saveNoteFromPopover() {
+            const note = document.getElementById('noteContentPopover').value.trim();
+            if (!note) return; // Silent return if empty
 
             try {
-                const noteRes = await fetch('/api/crm-stages', {
+                await fetch('/api/crm-stages', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
@@ -2627,17 +2629,9 @@
                         seller_id: currentSellerId
                     })
                 });
-                const noteData = await noteRes.json();
-                if (noteData.error) {
-                    alert('Error guardando nota: ' + noteData.error);
-                    return;
-                }
-                closeNoteModal();
                 await loadProfile(currentProfileId);
             } catch(e) {
-                alert('Error al guardar la nota.');
-            } finally {
-                if (btn) { btn.disabled = false; btn.innerText = 'Guardar Nota'; }
+                console.error('Error saving note:', e);
             }
         }
 
@@ -2756,7 +2750,12 @@
         }
 
         function closePopovers() {
-            const pops = ['popoverCreateTag', 'popoverTagAssign', 'popoverOverlay', 'locationPopover', 'contactPopover', 'copyPopover', 'statusPopover'];
+            const notePop = document.getElementById('popoverNote');
+            if (notePop && notePop.style.display === 'block') {
+                saveNoteFromPopover();
+            }
+
+            const pops = ['popoverCreateTag', 'popoverTagAssign', 'popoverNote', 'popoverOverlay', 'locationPopover', 'contactPopover', 'copyPopover', 'statusPopover'];
             pops.forEach(id => {
                 const el = document.getElementById(id);
                 if(el) el.style.display = 'none';
