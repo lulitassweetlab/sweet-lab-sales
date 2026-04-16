@@ -593,7 +593,7 @@
         </div>
     </div>
 
-    <!-- MERGE CLIENT MODAL -->
+    <!-- MERGE CLIENT MODAL (Step 1: Search) -->
     <div id="modalMergeClient" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:1100; background:rgba(0,0,0,0.7); backdrop-filter:blur(8px); align-items:center; justify-content:center;">
         <div style="background:var(--surface); border-radius:28px; padding:28px; width:calc(100% - 30px); max-width:440px; max-height:90vh; overflow-y:auto; box-shadow:0 30px 60px -12px rgba(0,0,0,0.5); border:1px solid var(--border);">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
@@ -610,26 +610,35 @@
             </div>
 
             <!-- Suggestions / Results Container -->
-            <div id="mergeSearchResults" style="display:flex; flex-direction:column; gap:10px; margin-bottom:24px; max-height:280px; overflow-y:auto;">
+            <div id="mergeSearchResults" style="display:flex; flex-direction:column; gap:10px; margin-bottom:10px; max-height:350px; overflow-y:auto;">
                 <div style="text-align:center; padding:20px; color:var(--text-muted); font-size:0.85rem;">Escribe para buscar o elige una sugerencia...</div>
             </div>
+        </div>
+    </div>
 
-            <!-- Selection/Confirmation Area (Hidden until a target is picked) -->
-            <div id="mergeConfirmationArea" style="display:none; padding-top:20px; border-top:1px solid var(--border);">
-                <div style="font-size:0.85rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:15px;">¿Qué nombre deseas conservar?</div>
-                
-                <div id="mergeNameOptions" style="display:flex; flex-direction:column; gap:10px; margin-bottom:25px;">
-                    <!-- Options injected here -->
-                </div>
-
-                <div style="background:rgba(239, 68, 68, 0.05); padding:15px; border-radius:12px; border:1px solid rgba(239, 68, 68, 0.2); margin-bottom:25px;">
-                    <p style="margin:0; font-size:0.8rem; color:#ef4444; line-height:1.4;"><b>⚠️ Acción Permanente:</b> Se unificarán ventas, notas y mensajes. El otro perfil será eliminado para siempre.</p>
-                </div>
-
-                <button id="btnConfirmMerge" onclick="executeClientMerge()" style="width:100%; padding:18px; border-radius:16px; border:none; background:var(--text-main); color:var(--surface); font-weight:800; font-size:1.1rem; cursor:pointer; transition:all 0.2s;">
-                    Confirmar y Fusionar
-                </button>
+    <!-- MERGE CONFIRMATION MODAL (Step 2) -->
+    <div id="modalMergeConfirm" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:1200; background:rgba(0,0,0,0.7); backdrop-filter:blur(8px); align-items:center; justify-content:center;">
+        <div style="background:var(--surface); border-radius:28px; padding:28px; width:calc(100% - 30px); max-width:400px; max-height:90vh; overflow-y:auto; box-shadow:0 30px 60px -12px rgba(0,0,0,0.5); border:1px solid var(--border);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h3 style="margin:0; font-size:1.2rem; font-weight:800; color:var(--text-main);">Confirmar Fusión</h3>
+                <button onclick="closeMergeConfirmModal()" style="background:none; border:none; font-size:1.6rem; cursor:pointer; color:var(--text-muted);">✕</button>
             </div>
+
+            <div style="font-size:0.85rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:15px;">¿Qué nombre deseas conservar?</div>
+            
+            <div id="mergeNameOptions" style="display:flex; flex-direction:column; gap:10px; margin-bottom:25px;">
+                <!-- Options injected here -->
+            </div>
+
+            <div style="background:rgba(239, 68, 68, 0.05); padding:15px; border-radius:12px; border:1px solid rgba(239, 68, 68, 0.2); margin-bottom:25px;">
+                <p style="margin:0; font-size:0.8rem; color:#ef4444; line-height:1.4;"><b>⚠️ Acción Permanente:</b> Se unificarán ventas, notas y mensajes. El otro perfil será eliminado para siempre.</p>
+            </div>
+
+            <button id="btnConfirmMerge" onclick="executeClientMerge()" style="width:100%; padding:18px; border-radius:16px; border:none; background:var(--text-main); color:var(--surface); font-weight:800; font-size:1.1rem; cursor:pointer; transition:all 0.2s;">
+                Confirmar y Fusionar
+            </button>
+            
+            <button onclick="closeMergeConfirmModal()" style="width:100%; margin-top:10px; padding:12px; background:none; border:none; color:var(--text-muted); font-size:0.9rem; font-weight:600; cursor:pointer;">Cancelar</button>
         </div>
     </div>
 
@@ -1859,12 +1868,12 @@
 
         function openMergeModal() {
             if(!currentProfileId) return;
-            const sourceName = document.getElementById('profileName').innerText;
+            // FIX: Use lastLoadedProfileName which is clean text, not innerText from HTML
+            const sourceName = lastLoadedProfileName || '';
             mergeContext = { sourceId: currentProfileId, sourceName: sourceName, targetId: null, targetName: '', survivorName: '' };
             
             document.getElementById('mergeSourceNameDisplay').innerText = sourceName;
             document.getElementById('mergeSearchInput').value = '';
-            document.getElementById('mergeConfirmationArea').style.display = 'none';
             document.getElementById('modalMergeClient').style.display = 'flex';
             
             // Initial Suggestions: find 5 most similar from directoryData
@@ -1934,34 +1943,37 @@
         }
 
         function selectMergeTarget(id, name) {
+            // STEP 2: Open Confirmation Modal
             mergeContext.targetId = id;
             mergeContext.targetName = name;
             mergeContext.survivorName = name; // Default to target name
 
-            const confirmArea = document.getElementById('mergeConfirmationArea');
+            // Close Step 1, Open Step 2
+            closeMergeModal();
+            
             const optionsContainer = document.getElementById('mergeNameOptions');
-            
-            confirmArea.style.display = 'block';
-            
             optionsContainer.innerHTML = `
-                <label style="display:flex; align-items:center; gap:12px; padding:14px; background:rgba(0,0,0,0.02); border:1px solid var(--border); border-radius:14px; cursor:pointer;">
-                    <input type="radio" name="survivorOption" value="${mergeContext.targetName}" checked onchange="mergeContext.survivorName = this.value">
+                <label style="display:flex; align-items:center; gap:12px; padding:16px; background:rgba(0,0,0,0.02); border:1px solid var(--border); border-radius:14px; cursor:pointer; transition: 0.2s;">
+                    <input type="radio" name="survivorOption" value="${mergeContext.targetName.replace(/"/g, '&quot;')}" checked onchange="mergeContext.survivorName = this.value">
                     <div style="flex:1;">
-                        <div style="font-weight:700; font-size:0.95rem;">${mergeContext.targetName}</div>
-                        <div style="font-size:0.7rem; color:var(--text-muted);">Mantenener nombre elegido</div>
+                        <div style="font-weight:700; font-size:1rem;">${mergeContext.targetName}</div>
+                        <div style="font-size:0.75rem; color:var(--text-muted);">Conservar este nombre</div>
                     </div>
                 </label>
-                <label style="display:flex; align-items:center; gap:12px; padding:14px; background:rgba(0,0,0,0.02); border:1px solid var(--border); border-radius:14px; cursor:pointer;">
-                    <input type="radio" name="survivorOption" value="${mergeContext.sourceName}" onchange="mergeContext.survivorName = this.value">
+                <label style="display:flex; align-items:center; gap:12px; padding:16px; background:rgba(0,0,0,0.02); border:1px solid var(--border); border-radius:14px; cursor:pointer; transition: 0.2s;">
+                    <input type="radio" name="survivorOption" value="${mergeContext.sourceName.replace(/"/g, '&quot;')}" onchange="mergeContext.survivorName = this.value">
                     <div style="flex:1;">
-                        <div style="font-weight:700; font-size:0.95rem;">${mergeContext.sourceName}</div>
-                        <div style="font-size:0.7rem; color:var(--text-muted);">Mantener nombre actual (${mergeContext.sourceName})</div>
+                        <div style="font-weight:700; font-size:1rem;">${mergeContext.sourceName}</div>
+                        <div style="font-size:0.75rem; color:var(--text-muted);">Conservar nombre actual (${mergeContext.sourceName})</div>
                     </div>
                 </label>
             `;
             
-            // Scroll to confirmation
-            confirmArea.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            document.getElementById('modalMergeConfirm').style.display = 'flex';
+        }
+
+        function closeMergeConfirmModal() {
+            document.getElementById('modalMergeConfirm').style.display = 'none';
         }
 
         async function executeClientMerge() {
@@ -1973,14 +1985,10 @@
             btn.innerText = 'Fusionando...';
 
             try {
-                // Determine source and target details
-                // The API action=merge combines everything into 'name' and deletes 'source_names'
                 const sourceName = mergeContext.sourceName;
                 const otherClientName = mergeContext.targetName;
                 const survivorName = mergeContext.survivorName;
                 
-                // If survivorName is Current, we merge Other into Current
-                // If survivorName is Other, we merge Current into Other
                 const namesToMerge = (survivorName === sourceName) ? [otherClientName] : [sourceName];
                 const finalTargetName = survivorName;
 
@@ -1996,10 +2004,10 @@
 
                 const resData = await response.json();
                 if (resData.success) {
-                    closeMergeModal();
+                    closeMergeConfirmModal();
                     alert('Fusión completada con éxito.');
-                    loadDashboard(); // Refresh lists
-                    loadProfile(resData.target_client.id); // Reload the unified profile
+                    loadDashboard(); 
+                    loadProfile(resData.target_client.id); 
                 } else {
                     alert('Error: ' + (resData.error || 'No se pudo completar la fusión.'));
                     btn.disabled = false;
