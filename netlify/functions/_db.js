@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 46; // 46: Comprehensive fix for Nutella historical prices (April 13th)
+const SCHEMA_VERSION = 47; // 47: Final sweep for Nutella historical prices and legacy migration cleanup
 
 export async function ensureSchema() {
 	if (schemaEnsured) return;
@@ -368,63 +368,59 @@ export async function ensureSchema() {
 				}
 			} catch (mErr) { console.error('Migration error for dynamic columns:', mErr); }
 
-			// Migration 45: Fix historical Nutella prices for April 13th and earlier
+			// Migration 47: Definitive sweep for historical prices (April 13th and earlier)
 			try {
-				// 1. Force-migrate any remaining legacy sales for the affected period (on or before April 13th)
-				// to ensure their prices are locked in and don't calculate on-the-fly with current prices.
-				const legacySales = await sql`
-					SELECT s.id, s.seller_id, s.qty_arco, s.qty_melo, s.qty_mara, s.qty_oreo, s.qty_nute 
-					FROM sales s
-					JOIN sale_days sd ON sd.id = s.sale_day_id
-					WHERE sd.day <= '2026-04-13'
-					  AND (s.qty_arco > 0 OR s.qty_melo > 0 OR s.qty_mara > 0 OR s.qty_oreo > 0 OR s.qty_nute > 0)
-					  AND NOT EXISTS (SELECT 1 FROM sale_items si WHERE si.sale_id = s.id)
-				`;
+				const dList = await sql`SELECT id, short_code FROM desserts`;
+				const dMap = {}; dList.forEach(d => dMap[d.short_code] = d.id);
+				const histMap = { arco: 8500, melo: 9500, mara: 10500, oreo: 10500, nute: 13000 };
+				const nuteId = dMap['nute'];
 
-				if (legacySales.length > 0) {
-					console.log(`DATABASE FIX: Migrating ${legacySales.length} legacy sales from April 13th and earlier to lock in historical prices.`);
-					const dList = await sql`SELECT id, short_code FROM desserts`;
-					const dMap = {}; dList.forEach(d => dMap[d.short_code] = d.id);
-					// Price map valid for April 13th and earlier
-					const histMap = { arco: 8500, melo: 9500, mara: 10500, oreo: 10500, nute: 13000 };
+				if (nuteId) {
+					// 1. Force-migrate legacy column sales on or before April 13th
+					const legacyToMigrate = await sql`
+						SELECT s.id, s.qty_arco, s.qty_melo, s.qty_mara, s.qty_oreo, s.qty_nute 
+						FROM sales s
+						JOIN sale_days sd ON sd.id = s.sale_day_id
+						WHERE sd.day <= '2026-04-13'
+						  AND (s.qty_arco > 0 OR s.qty_melo > 0 OR s.qty_mara > 0 OR s.qty_oreo > 0 OR s.qty_nute > 0)
+						  AND NOT EXISTS (SELECT 1 FROM sale_items si WHERE si.sale_id = s.id)
+					`;
 
-					for (const s of legacySales) {
-						for (const k of ['arco', 'melo', 'mara', 'oreo', 'nute']) {
-							const q = Number(s[`qty_${k}`] || 0);
-							if (q > 0 && dMap[k]) {
-								await sql`INSERT INTO sale_items (sale_id, dessert_id, quantity, unit_price) VALUES (${s.id}, ${dMap[k]}, ${q}, ${histMap[k]})`;
+					if (legacyToMigrate.length > 0) {
+						console.log(`DATABASE FIX 47: Migrating ${legacyToMigrate.length} legacy rows with historical $13k Nute price.`);
+						for (const s of legacyToMigrate) {
+							for (const k of ['arco', 'melo', 'mara', 'oreo', 'nute']) {
+								const q = Number(s[`qty_${k}`] || 0);
+								if (q > 0 && dMap[k]) {
+									await sql`INSERT INTO sale_items (sale_id, dessert_id, quantity, unit_price) VALUES (${s.id}, ${dMap[k]}, ${q}, ${histMap[k]})`;
+								}
 							}
+							await sql`UPDATE sales SET qty_arco=0, qty_melo=0, qty_mara=0, qty_oreo=0, qty_nute=0 WHERE id=${s.id}`;
+							await recalcTotalForId(s.id);
 						}
-						// Mark legacy columns to 0 so they don't count twice, and recalc total
-                        await sql`UPDATE sales SET qty_arco=0, qty_melo=0, qty_mara=0, qty_oreo=0, qty_nute=0 WHERE id=${s.id}`;
-						await recalcTotalForId(s.id);
 					}
-				}
 
-				// 2. Fix items already in sale_items that have the wrong price (14000) for those dates
-				const nute = await sql`SELECT id FROM desserts WHERE short_code = 'nute' LIMIT 1`;
-				if (nute.length > 0) {
-					const nid = nute[0].id;
-					const affectedItems = await sql`
-						SELECT si.sale_id, si.id 
+					// 2. Correct any sale_items already created with 14000 on or before April 13th
+					const wrongPriceItems = await sql`
+						SELECT si.id, si.sale_id 
 						FROM sale_items si
 						JOIN sales s ON s.id = si.sale_id
 						JOIN sale_days sd ON sd.id = s.sale_day_id
-						WHERE si.dessert_id = ${nid} 
+						WHERE si.dessert_id = ${nuteId} 
 						  AND si.unit_price = 14000 
 						  AND sd.day <= '2026-04-13'
 					`;
 					
-					if (affectedItems.length > 0) {
-						console.log(`DATABASE FIX: Correcting ${affectedItems.length} Nutella items already migrated with wrong price.`);
-						const saleIdsToRecalc = [...new Set(affectedItems.map(i => i.sale_id))];
-						await sql`UPDATE sale_items SET unit_price = 13000 WHERE id = ANY(${affectedItems.map(i => i.id)})`;
-						for (const sid of saleIdsToRecalc) {
+					if (wrongPriceItems.length > 0) {
+						console.log(`DATABASE FIX 47: Correcting ${wrongPriceItems.length} items from $14k to $13k.`);
+						const sids = [...new Set(wrongPriceItems.map(i => i.sale_id))];
+						await sql`UPDATE sale_items SET unit_price = 13000 WHERE id = ANY(${wrongPriceItems.map(i => i.id)})`;
+						for (const sid of sids) {
 							await recalcTotalForId(sid);
 						}
 					}
 				}
-			} catch (err) { console.error('Migration 45 error:', err); }
+			} catch (err) { console.error('Migration 47 error:', err); }
 
 			await sql`UPDATE schema_meta SET version = ${SCHEMA_VERSION}, updated_at = now()`;
 			schemaEnsured = true;
