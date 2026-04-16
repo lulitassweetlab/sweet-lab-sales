@@ -235,6 +235,9 @@ export async function handler(event) {
                 });
             }
 
+            const saleDayId = Number(params.get('sale_day_id'));
+            const showAll = params.get('all') === 'true';
+
             // Otherwise, return the specific directory of clients for list views
             const directory = await sql`
                 SELECT 
@@ -258,6 +261,7 @@ export async function handler(event) {
                 LEFT JOIN crm_client_stage cst ON c.id = cst.client_id
                 LEFT JOIN crm_stages st ON cst.stage_id = st.id
                 WHERE c.seller_id = ${sellerId}
+                ${saleDayId ? sql`AND c.id IN (SELECT client_id FROM crm_client_sales WHERE sale_id IN (SELECT id FROM sales WHERE sale_day_id = ${saleDayId}))` : sql``}
                 GROUP BY c.id, c.name, c.short_name, c.whatsapp, c.address, c.latitude, c.longitude, st.name, st.color, st.id
                 ORDER BY MAX(sd.day) DESC NULLS LAST, c.name ASC
             `;
