@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 44; // 44: Add game_enabled column to sellers
+const SCHEMA_VERSION = 45; // 45: Fix historical Nutella prices for April 13th and earlier
 
 export async function ensureSchema() {
 	if (schemaEnsured) return;
@@ -367,6 +367,40 @@ export async function ensureSchema() {
 					`;
 				}
 			} catch (mErr) { console.error('Migration error for dynamic columns:', mErr); }
+
+			// Migration 45: Fix historical Nutella prices for April 13th and earlier
+			try {
+				const nute = await sql`SELECT id FROM desserts WHERE short_code = 'nute' LIMIT 1`;
+				if (nute.length > 0) {
+					const nid = nute[0].id;
+					const affectedItems = await sql`
+						SELECT si.sale_id, si.id 
+						FROM sale_items si
+						JOIN sales s ON s.id = si.sale_id
+						JOIN sale_days sd ON sd.id = s.sale_day_id
+						WHERE si.dessert_id = ${nid} 
+						  AND si.unit_price = 14000 
+						  AND sd.day <= '2026-04-13'
+					`;
+					
+					if (affectedItems.length > 0) {
+						console.log(`DATABASE FIX: Reverting ${affectedItems.length} Nutella prices to $13,000 for historical records.`);
+						const saleIdsToRecalc = [...new Set(affectedItems.map(i => i.sale_id))];
+						
+						// Update items
+						await sql`
+							UPDATE sale_items 
+							SET unit_price = 13000 
+							WHERE id = ANY(${affectedItems.map(i => i.id)})
+						`;
+						
+						// Recalculate totals for affected sales
+						for (const sid of saleIdsToRecalc) {
+							await recalcTotalForId(sid);
+						}
+					}
+				}
+			} catch (err) { console.error('Migration 45 error:', err); }
 
 			await sql`UPDATE schema_meta SET version = ${SCHEMA_VERSION}, updated_at = now()`;
 			schemaEnsured = true;
