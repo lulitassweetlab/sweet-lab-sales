@@ -593,6 +593,46 @@
         </div>
     </div>
 
+    <!-- MERGE CLIENT MODAL -->
+    <div id="modalMergeClient" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:1100; background:rgba(0,0,0,0.7); backdrop-filter:blur(8px); align-items:center; justify-content:center;">
+        <div style="background:var(--surface); border-radius:28px; padding:28px; width:calc(100% - 30px); max-width:440px; max-height:90vh; overflow-y:auto; box-shadow:0 30px 60px -12px rgba(0,0,0,0.5); border:1px solid var(--border);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
+                <h3 style="margin:0; font-size:1.3rem; font-weight:800; color:var(--text-main);">🧬 Fusionar Cliente</h3>
+                <button onclick="closeMergeModal()" style="background:none; border:none; font-size:1.6rem; cursor:pointer; color:var(--text-muted);">✕</button>
+            </div>
+            
+            <p style="font-size:0.9rem; color:var(--text-muted); margin-bottom:20px; line-height:1.5;">Selecciona con qué otro cliente deseas unificar toda la información de <b><span id="mergeSourceNameDisplay"></span></b>.</p>
+
+            <!-- Search -->
+            <div style="position:relative; margin-bottom:20px;">
+                <input type="text" id="mergeSearchInput" placeholder="Buscar por nombre..." oninput="handleMergeSearchInput(this.value)"
+                    style="width:100%; padding:14px 16px; border-radius:14px; border:1px solid var(--border); background:rgba(0,0,0,0.03); font-size:1rem; outline:none; font-family:inherit; box-sizing:border-box;">
+            </div>
+
+            <!-- Suggestions / Results Container -->
+            <div id="mergeSearchResults" style="display:flex; flex-direction:column; gap:10px; margin-bottom:24px; max-height:280px; overflow-y:auto;">
+                <div style="text-align:center; padding:20px; color:var(--text-muted); font-size:0.85rem;">Escribe para buscar o elige una sugerencia...</div>
+            </div>
+
+            <!-- Selection/Confirmation Area (Hidden until a target is picked) -->
+            <div id="mergeConfirmationArea" style="display:none; padding-top:20px; border-top:1px solid var(--border);">
+                <div style="font-size:0.85rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:15px;">¿Qué nombre deseas conservar?</div>
+                
+                <div id="mergeNameOptions" style="display:flex; flex-direction:column; gap:10px; margin-bottom:25px;">
+                    <!-- Options injected here -->
+                </div>
+
+                <div style="background:rgba(239, 68, 68, 0.05); padding:15px; border-radius:12px; border:1px solid rgba(239, 68, 68, 0.2); margin-bottom:25px;">
+                    <p style="margin:0; font-size:0.8rem; color:#ef4444; line-height:1.4;"><b>⚠️ Acción Permanente:</b> Se unificarán ventas, notas y mensajes. El otro perfil será eliminado para siempre.</p>
+                </div>
+
+                <button id="btnConfirmMerge" onclick="executeClientMerge()" style="width:100%; padding:18px; border-radius:16px; border:none; background:var(--text-main); color:var(--surface); font-weight:800; font-size:1.1rem; cursor:pointer; transition:all 0.2s;">
+                    Confirmar y Fusionar
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- MAP PICKER MODAL (Solid Background Fix) -->
     <div id="mapPickerModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:1000; background:var(--bg) !important; opacity: 1 !important; flex-direction:column; -webkit-tap-highlight-color: transparent;">
         <header style="padding:12px 20px; background:var(--bg);">
@@ -1800,7 +1840,177 @@
                             </div>
                         </div>
                     `}).join('');
+                    
+                    // Add "Fusionar" button at the end of the timeline
+                    timelineContainer.innerHTML += `
+                        <div style="margin-top:30px; text-align:center; padding-bottom:20px;">
+                            <button onclick="openMergeModal()" style="background:transparent; border:1px solid var(--border); color:var(--text-muted); padding:10px 20px; border-radius:14px; font-size:0.85rem; font-weight:600; cursor:pointer; transition:all 0.2s;"
+                                onmouseover="this.style.background='rgba(0,0,0,0.03)'; this.style.color='var(--text-main)'; this.style.borderColor='var(--text-muted)'"
+                                onmouseout="this.style.background='transparent'; this.style.color='var(--text-muted)'; this.style.borderColor='var(--border)'">
+                                🧬 Fusionar este cliente
+                            </button>
+                        </div>
+                    `;
                 }
+        }
+
+        // --- MANUAL CLIENT MERGE LOGIC ---
+        let mergeContext = { sourceId: null, sourceName: '', targetId: null, targetName: '', survivorName: '' };
+
+        function openMergeModal() {
+            if(!currentProfileId) return;
+            const sourceName = document.getElementById('profileName').innerText;
+            mergeContext = { sourceId: currentProfileId, sourceName: sourceName, targetId: null, targetName: '', survivorName: '' };
+            
+            document.getElementById('mergeSourceNameDisplay').innerText = sourceName;
+            document.getElementById('mergeSearchInput').value = '';
+            document.getElementById('mergeConfirmationArea').style.display = 'none';
+            document.getElementById('modalMergeClient').style.display = 'flex';
+            
+            // Initial Suggestions: find 5 most similar from directoryData
+            const suggestions = findSimilarClients(sourceName);
+            renderMergeResults(suggestions, true);
+        }
+
+        function closeMergeModal() {
+            document.getElementById('modalMergeClient').style.display = 'none';
+        }
+
+        function findSimilarClients(name) {
+            if(!Array.isArray(directoryData)) return [];
+            const normalizedSource = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            const words = normalizedSource.split(' ').filter(w => w.length > 2);
+
+            return directoryData
+                .filter(c => c.id != currentProfileId)
+                .map(c => {
+                    const normalizedC = c.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                    let score = 0;
+                    // Score based on word matches
+                    words.forEach(w => { if(normalizedC.includes(w)) score += 5; });
+                    // Score based on partial string match
+                    if(normalizedC.includes(normalizedSource) || normalizedSource.includes(normalizedC)) score += 10;
+                    return { ...c, score };
+                })
+                .filter(c => c.score > 0)
+                .sort((a,b) => b.score - a.score)
+                .slice(0, 5);
+        }
+
+        function handleMergeSearchInput(term) {
+            if(!term || term.length < 2) {
+                const suggestions = findSimilarClients(mergeContext.sourceName);
+                renderMergeResults(suggestions, true);
+                return;
+            }
+            const normalized = term.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            const filtered = directoryData.filter(c => 
+                c.id != currentProfileId && 
+                c.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(normalized)
+            ).slice(0, 10);
+            renderMergeResults(filtered, false);
+        }
+
+        function renderMergeResults(arr, isSponsorship) {
+            const container = document.getElementById('mergeSearchResults');
+            if(arr.length === 0) {
+                container.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-muted); font-size:0.85rem;">No se encontraron otros clientes similares.</div>';
+                return;
+            }
+
+            container.innerHTML = (isSponsorship ? '<div style="font-size:0.75rem; font-weight:700; color:var(--primary); margin-bottom:5px;">Sugerencias de similitud:</div>' : '') + 
+                arr.map(c => `
+                <div onclick="selectMergeTarget(${c.id}, '${c.name.replace(/'/g, "\\'")}')" 
+                     style="padding:12px 16px; background:rgba(0,0,0,0.03); border:1px solid var(--border); border-radius:14px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; transition:all 0.2s;"
+                     onmouseover="this.style.background='var(--surface)'; this.style.borderColor='var(--text-muted)'"
+                     onmouseout="this.style.background='rgba(0,0,0,0.03)'; this.style.borderColor='var(--border)'">
+                    <div>
+                        <div style="font-weight:700; font-size:0.95rem;">${c.name}</div>
+                        <div style="font-size:0.75rem; color:var(--text-muted);">${c.whatsapp || 'Sin WhatsApp'}</div>
+                    </div>
+                    <span style="font-size:1.2rem; opacity:0.3;">👉</span>
+                </div>
+            `).join('');
+        }
+
+        function selectMergeTarget(id, name) {
+            mergeContext.targetId = id;
+            mergeContext.targetName = name;
+            mergeContext.survivorName = name; // Default to target name
+
+            const confirmArea = document.getElementById('mergeConfirmationArea');
+            const optionsContainer = document.getElementById('mergeNameOptions');
+            
+            confirmArea.style.display = 'block';
+            
+            optionsContainer.innerHTML = `
+                <label style="display:flex; align-items:center; gap:12px; padding:14px; background:rgba(0,0,0,0.02); border:1px solid var(--border); border-radius:14px; cursor:pointer;">
+                    <input type="radio" name="survivorOption" value="${mergeContext.targetName}" checked onchange="mergeContext.survivorName = this.value">
+                    <div style="flex:1;">
+                        <div style="font-weight:700; font-size:0.95rem;">${mergeContext.targetName}</div>
+                        <div style="font-size:0.7rem; color:var(--text-muted);">Mantenener nombre elegido</div>
+                    </div>
+                </label>
+                <label style="display:flex; align-items:center; gap:12px; padding:14px; background:rgba(0,0,0,0.02); border:1px solid var(--border); border-radius:14px; cursor:pointer;">
+                    <input type="radio" name="survivorOption" value="${mergeContext.sourceName}" onchange="mergeContext.survivorName = this.value">
+                    <div style="flex:1;">
+                        <div style="font-weight:700; font-size:0.95rem;">${mergeContext.sourceName}</div>
+                        <div style="font-size:0.7rem; color:var(--text-muted);">Mantener nombre actual (${mergeContext.sourceName})</div>
+                    </div>
+                </label>
+            `;
+            
+            // Scroll to confirmation
+            confirmArea.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        }
+
+        async function executeClientMerge() {
+            if(!mergeContext.targetId || !mergeContext.survivorName) return;
+            
+            const btn = document.getElementById('btnConfirmMerge');
+            const originalText = btn.innerText;
+            btn.disabled = true;
+            btn.innerText = 'Fusionando...';
+
+            try {
+                // Determine source and target details
+                // The API action=merge combines everything into 'name' and deletes 'source_names'
+                const sourceName = mergeContext.sourceName;
+                const otherClientName = mergeContext.targetName;
+                const survivorName = mergeContext.survivorName;
+                
+                // If survivorName is Current, we merge Other into Current
+                // If survivorName is Other, we merge Current into Other
+                const namesToMerge = (survivorName === sourceName) ? [otherClientName] : [sourceName];
+                const finalTargetName = survivorName;
+
+                const response = await fetch('/api/crm-clients?action=merge', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        seller_id: currentSellerId,
+                        name: finalTargetName,
+                        source_names: namesToMerge
+                    })
+                });
+
+                const resData = await response.json();
+                if (resData.success) {
+                    closeMergeModal();
+                    alert('Fusión completada con éxito.');
+                    loadDashboard(); // Refresh lists
+                    loadProfile(resData.target_client.id); // Reload the unified profile
+                } else {
+                    alert('Error: ' + (resData.error || 'No se pudo completar la fusión.'));
+                    btn.disabled = false;
+                    btn.innerText = originalText;
+                }
+            } catch(e) {
+                console.error(e);
+                alert('Error de conexión al fusionar.');
+                btn.disabled = false;
+                btn.innerText = originalText;
+            }
         }
 
         async function changeProfileStage(newStageId) {
