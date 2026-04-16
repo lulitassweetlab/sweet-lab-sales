@@ -1010,7 +1010,7 @@
                 taskDescription = rawText.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '').trim();
             }
 
-            const distanceLabel = c.distance_km ? `<div style="font-size:0.85rem; color:var(--info); font-weight:800; margin-top:4px;">📍 a ${c.distance_km} km</div>` : '';
+            const distanceLabel = c.distance_km ? `<div style="font-size:0.85rem; color:var(--info); font-weight:800; margin-top:4px;">a ${c.distance_km} km</div>` : '';
 
             // 2. Build Badges
             const badgeBaseStyle = isDash 
@@ -3608,7 +3608,7 @@
                 });
 
                 // Render
-                document.getElementById('dashContentTitle').innerHTML = '📍 Cercanos a ti';
+                document.getElementById('dashContentTitle').innerHTML = 'Cercanos a ti';
                 renderFullDirectoryInline(withDist);
                 
                 if (btn) {
