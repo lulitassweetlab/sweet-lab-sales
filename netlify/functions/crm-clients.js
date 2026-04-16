@@ -42,20 +42,33 @@ export async function handler(event) {
                 const latitude = data.latitude;
                 const longitude = data.longitude;
 
-                // 1. Ensure/Update the target client profile
-                const [targetClient] = await sql`
-                    INSERT INTO clients (seller_id, name, short_name, whatsapp, birth_date, description, address, latitude, longitude)
-                    VALUES (${sellerId}, ${name}, ${shortName}, ${whatsapp}, ${birthDate}, ${description}, ${address}, ${latitude}, ${longitude})
-                    ON CONFLICT (name, seller_id) DO UPDATE SET
-                        short_name = COALESCE(clients.short_name, EXCLUDED.short_name),
-                        whatsapp = COALESCE(clients.whatsapp, EXCLUDED.whatsapp),
-                        birth_date = COALESCE(clients.birth_date, EXCLUDED.birth_date),
-                        description = COALESCE(clients.description, EXCLUDED.description),
-                        address = COALESCE(clients.address, EXCLUDED.address),
-                        latitude = COALESCE(clients.latitude, EXCLUDED.latitude),
-                        longitude = COALESCE(clients.longitude, EXCLUDED.longitude)
-                    RETURNING *
-                `;
+                // 1. Ensure/Update the target client profile (Manual Upsert to avoid ON CONFLICT errors)
+                let targetClient;
+                const existingTargetRes = await sql`SELECT * FROM clients WHERE name = ${name} AND seller_id = ${sellerId} LIMIT 1`;
+                
+                if (existingTargetRes.length > 0) {
+                    const row = existingTargetRes[0];
+                    const [updated] = await sql`
+                        UPDATE clients SET
+                            short_name = COALESCE(clients.short_name, ${shortName}),
+                            whatsapp = COALESCE(clients.whatsapp, ${whatsapp}),
+                            birth_date = COALESCE(clients.birth_date, ${birthDate}),
+                            description = COALESCE(clients.description, ${description}),
+                            address = COALESCE(clients.address, ${address}),
+                            latitude = COALESCE(clients.latitude, ${latitude}),
+                            longitude = COALESCE(clients.longitude, ${longitude})
+                        WHERE id = ${row.id}
+                        RETURNING *
+                    `;
+                    targetClient = updated;
+                } else {
+                    const [inserted] = await sql`
+                        INSERT INTO clients (seller_id, name, short_name, whatsapp, birth_date, description, address, latitude, longitude)
+                        VALUES (${sellerId}, ${name}, ${shortName}, ${whatsapp}, ${birthDate}, ${description}, ${address}, ${latitude}, ${longitude})
+                        RETURNING *
+                    `;
+                    targetClient = inserted;
+                }
 
                 // 2. Identify all Source IDs
                 const lowerNames = sourceNames.map(n => n.toLowerCase());
@@ -89,7 +102,7 @@ export async function handler(event) {
                         INSERT INTO crm_client_tags (client_id, tag_id)
                         SELECT ${targetClient.id}, tag_id FROM crm_client_tags
                         WHERE client_id = ANY(${sourceIds})
-                        ON CONFLICT (client_id, tag_id) DO NOTHING
+                        ON CONFLICT DO NOTHING
                     `;
                     await sql`DELETE FROM crm_client_tags WHERE client_id = ANY(${sourceIds})`;
 
@@ -103,7 +116,7 @@ export async function handler(event) {
                             await sql`DELETE FROM crm_client_stage WHERE client_id = ANY(${sourceIds})`;
                             await sql`INSERT INTO crm_client_stage (client_id, stage_id, updated_by, updated_at) 
                                      VALUES (${targetClient.id}, ${srcStage.stage_id}, ${srcStage.updated_by}, ${srcStage.updated_at}) 
-                                     ON CONFLICT (client_id) DO NOTHING`;
+                                     ON CONFLICT DO NOTHING`;
                         }
                     }
 
