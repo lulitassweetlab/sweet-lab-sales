@@ -564,9 +564,16 @@
 
     <!-- WHATSAPP MESSAGE POPOVER -->
     <div id="popoverWhatsApp" style="display:none; position:fixed; z-index:400; background:var(--surface); border-radius:30px; box-shadow: 0 15px 50px rgba(0,0,0,0.3); border: 1px solid var(--border); overflow: hidden; width: calc(100% - 40px); max-width: 400px; padding:25px; animation: popInTopCenter 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); left: 50%; top: 60px; transform: translateX(-50%);">
-        <div style="font-size:0.85rem; font-weight:800; color:var(--text-muted); text-transform:uppercase; margin-bottom:15px; text-align:center;">Enviar WhatsApp</div>
+        <div style="font-size:0.85rem; font-weight:800; color:var(--text-muted); text-transform:uppercase; margin-bottom:12px; text-align:center;">Enviar WhatsApp</div>
         <textarea id="waMessageContent" placeholder="Escribe tu mensaje aquí..." 
-            style="width:100%; height:180px; border:none; background:rgba(0,0,0,0.03); border-radius:15px; padding:15px; font-size:1.1rem; color:var(--text-main); outline:none; font-family:inherit; resize:none; line-height:1.5; margin-bottom:20px; box-sizing:border-box;"></textarea>
+            style="width:100%; height:140px; border:none; background:rgba(0,0,0,0.03); border-radius:15px; padding:15px; font-size:1.05rem; color:var(--text-main); outline:none; font-family:inherit; resize:none; line-height:1.4; margin-bottom:12px; box-sizing:border-box;"></textarea>
+        
+        <!-- Templates Scrollable Area (Bottom) -->
+        <div id="waTemplatesContainer" style="display:flex; overflow-x:auto; gap:8px; margin-bottom:18px; padding-bottom:5px; scrollbar-width: none; -ms-overflow-style: none;">
+            <div style="font-size:0.7rem; color:var(--text-muted); padding: 8px 0;">Cargando plantillas...</div>
+        </div>
+        <style>#waTemplatesContainer::-webkit-scrollbar { display: none; }</style>
+
         <button onclick="confirmSendWhatsApp()" style="width:100%; padding:18px; border-radius:16px; border:none; background:var(--success); color:#fff; font-weight:800; font-size:1.1rem; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);">
             <span style="font-size:1.3rem;">💬</span> Enviar WhatsApp
         </button>
@@ -2440,11 +2447,59 @@
             document.getElementById('popoverWhatsApp').style.display = 'block';
             const textarea = document.getElementById('waMessageContent');
             textarea.value = defaultMsg;
+
+            // Load Templates
+            loadWATemplates();
             
             setTimeout(() => {
                 textarea.focus();
                 textarea.setSelectionRange(textarea.value.length, textarea.value.length);
             }, 100);
+        }
+
+        async function loadWATemplates() {
+            const container = document.getElementById('waTemplatesContainer');
+            if(!currentSellerId) return;
+            
+            try {
+                const res = await fetch(`/api/broadcast-templates?seller_id=${currentSellerId}`);
+                if (res.ok) {
+                    const templates = await res.json();
+                    if(templates.length === 0) {
+                        container.innerHTML = '<div style="font-size:0.7rem; color:var(--text-muted); padding: 8px 0;">No tienes plantillas creadas.</div>';
+                        return;
+                    }
+                    container.innerHTML = templates.map(t => {
+                        // Use button style: small, rounded, light background
+                        return `
+                            <button onclick="applyWATemplate(\`${t.message_text.replace(/`/g, '\\`').replace(/\${/g, '\\${')}\`)" 
+                                style="flex-shrink:0; background:rgba(0,0,0,0.05); border:1px solid var(--border); border-radius:10px; padding:4px 10px; font-size:0.75rem; font-weight:700; color:var(--text-main); cursor:pointer; white-space:nowrap; transition:all 0.2s;"
+                                onmouseover="this.style.background='var(--primary)22'; this.style.borderColor='var(--primary)'" 
+                                onmouseout="this.style.background='rgba(0,0,0,0.05)'; this.style.borderColor='var(--border)'">
+                                ${t.title}
+                            </button>
+                        `;
+                    }).join('');
+                }
+            } catch(e) {
+                container.innerHTML = '<div style="font-size:0.7rem; color:var(--text-muted); padding: 8px 0;">Error cargando plantillas.</div>';
+            }
+        }
+
+        function applyWATemplate(text) {
+            if(!text) return;
+            const textarea = document.getElementById('waMessageContent');
+            
+            const shortName = (waContext.name || '').split(' ')[0] || waContext.name || 'cliente';
+            const fullName = waContext.name || 'cliente';
+            const sellerManual = currentSellerName || 'nosotros';
+
+            let finalMsg = text
+                .replace(/{cliente}/g, shortName)
+                .replace(/{vendedor}/g, sellerManual);
+            
+            textarea.value = finalMsg;
+            textarea.focus();
         }
 
         async function confirmSendWhatsApp() {
