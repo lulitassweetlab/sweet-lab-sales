@@ -248,9 +248,9 @@ export default async (req) => {
 						whatsapp = COALESCE(${whatsapp}, whatsapp),
 						birth_date = COALESCE(${birthDate}, birth_date),
                         description = COALESCE(${description}, description),
-                        address = ${address},
-                        latitude = ${latitude},
-                        longitude = ${longitude}
+                        address = COALESCE(${address}, address),
+                        latitude = COALESCE(${latitude}, latitude),
+                        longitude = COALESCE(${longitude}, longitude)
 					WHERE id = ${existing.id}
 					RETURNING *
 				`;
