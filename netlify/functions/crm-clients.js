@@ -89,7 +89,7 @@ export async function handler(event) {
                         INSERT INTO crm_client_tags (client_id, tag_id)
                         SELECT ${targetClient.id}, tag_id FROM crm_client_tags
                         WHERE client_id = ANY(${sourceIds})
-                        ON CONFLICT DO NOTHING
+                        ON CONFLICT (client_id, tag_id) DO NOTHING
                     `;
                     await sql`DELETE FROM crm_client_tags WHERE client_id = ANY(${sourceIds})`;
 
@@ -101,7 +101,9 @@ export async function handler(event) {
                         const [srcStage] = await sql`SELECT * FROM crm_client_stage WHERE client_id = ANY(${sourceIds}) ORDER BY updated_at DESC LIMIT 1`;
                         if (srcStage) {
                             await sql`DELETE FROM crm_client_stage WHERE client_id = ANY(${sourceIds})`;
-                            await sql`INSERT INTO crm_client_stage (client_id, stage_id, updated_by, updated_at) VALUES (${targetClient.id}, ${srcStage.stage_id}, ${srcStage.updated_by}, ${srcStage.updated_at}) ON CONFLICT DO NOTHING`;
+                            await sql`INSERT INTO crm_client_stage (client_id, stage_id, updated_by, updated_at) 
+                                     VALUES (${targetClient.id}, ${srcStage.stage_id}, ${srcStage.updated_by}, ${srcStage.updated_at}) 
+                                     ON CONFLICT (client_id) DO NOTHING`;
                         }
                     }
 
