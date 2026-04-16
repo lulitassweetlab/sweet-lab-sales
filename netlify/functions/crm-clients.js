@@ -1,4 +1,4 @@
-import { ensureSchema, sql } from './_db.js';
+import { ensureSchema, sql, normalizeClientName } from './_db.js';
 
 function json(body, status = 200) {
     return { statusCode: status, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
@@ -22,6 +22,101 @@ export async function handler(event) {
         if (event.httpMethod === 'POST') {
             const data = JSON.parse(event.body || '{}');
             const action = data.action;
+
+            if (action === 'merge') {
+                const sellerId = Number(data.seller_id);
+                if (!sellerId) return json({ error: 'Falta seller_id' }, 400);
+
+                const sourceNames = (data.source_names || []).map(n => normalizeClientName(n));
+                if (!Array.isArray(sourceNames) || sourceNames.length === 0) {
+                    return json({ error: 'Se requiere una lista de nombres para fusionar' }, 400);
+                }
+
+                const name = normalizeClientName(data.name);
+                const shortName = data.short_name;
+                const whatsapp = data.whatsapp;
+                const birthDate = data.birth_date;
+                const description = data.description;
+                const address = data.address;
+                const latitude = data.latitude;
+                const longitude = data.longitude;
+
+                // 1. Ensure/Update the target client profile
+                const [targetClient] = await sql`
+                    INSERT INTO clients (seller_id, name, short_name, whatsapp, birth_date, description, address, latitude, longitude)
+                    VALUES (${sellerId}, ${name}, ${shortName}, ${whatsapp}, ${birthDate}, ${description}, ${address}, ${latitude}, ${longitude})
+                    ON CONFLICT (name, seller_id) DO UPDATE SET
+                        short_name = COALESCE(clients.short_name, EXCLUDED.short_name),
+                        whatsapp = COALESCE(clients.whatsapp, EXCLUDED.whatsapp),
+                        birth_date = COALESCE(clients.birth_date, EXCLUDED.birth_date),
+                        description = COALESCE(clients.description, EXCLUDED.description),
+                        address = COALESCE(clients.address, EXCLUDED.address),
+                        latitude = COALESCE(clients.latitude, EXCLUDED.latitude),
+                        longitude = COALESCE(clients.longitude, EXCLUDED.longitude)
+                    RETURNING *
+                `;
+
+                // 2. Identify all Source IDs
+                const lowerNames = sourceNames.map(n => n.toLowerCase());
+                const sourceClients = await sql`
+                    SELECT id FROM clients 
+                    WHERE seller_id = ${sellerId} AND LOWER(name) = ANY(${lowerNames})
+                      AND id != ${targetClient.id}
+                `;
+                const sourceIds = sourceClients.map(c => c.id);
+
+                if (sourceIds.length > 0) {
+                    // Update Sales records (String-based link)
+                    await sql`
+                        UPDATE sales 
+                        SET client_name = ${targetClient.name}
+                        WHERE seller_id = ${sellerId} AND LOWER(client_name) = ANY(${lowerNames})
+                    `;
+
+                    // REBIND ALL RELATED TABLES
+                    // A) Sales Bridge (crm_client_sales) - Handle unique sale_id
+                    await sql`
+                        UPDATE crm_client_sales 
+                        SET client_id = ${targetClient.id}
+                        WHERE client_id = ANY(${sourceIds})
+                          AND sale_id NOT IN (SELECT sale_id FROM crm_client_sales WHERE client_id = ${targetClient.id})
+                    `;
+                    await sql`DELETE FROM crm_client_sales WHERE client_id = ANY(${sourceIds})`;
+
+                    // B) Tags (crm_client_tags) - Handle unique (client_id, tag_id)
+                    await sql`
+                        INSERT INTO crm_client_tags (client_id, tag_id)
+                        SELECT ${targetClient.id}, tag_id FROM crm_client_tags
+                        WHERE client_id = ANY(${sourceIds})
+                        ON CONFLICT DO NOTHING
+                    `;
+                    await sql`DELETE FROM crm_client_tags WHERE client_id = ANY(${sourceIds})`;
+
+                    // C) Stages (crm_client_stage) - Handle unique client_id
+                    const [targetStage] = await sql`SELECT 1 FROM crm_client_stage WHERE client_id = ${targetClient.id}`;
+                    if (targetStage) {
+                        await sql`DELETE FROM crm_client_stage WHERE client_id = ANY(${sourceIds})`;
+                    } else {
+                        const [srcStage] = await sql`SELECT * FROM crm_client_stage WHERE client_id = ANY(${sourceIds}) ORDER BY updated_at DESC LIMIT 1`;
+                        if (srcStage) {
+                            await sql`DELETE FROM crm_client_stage WHERE client_id = ANY(${sourceIds})`;
+                            await sql`INSERT INTO crm_client_stage (client_id, stage_id, updated_by, updated_at) VALUES (${targetClient.id}, ${srcStage.stage_id}, ${srcStage.updated_by}, ${srcStage.updated_at}) ON CONFLICT DO NOTHING`;
+                        }
+                    }
+
+                    // D) Simple Move
+                    await sql`UPDATE crm_activities SET client_id = ${targetClient.id} WHERE client_id = ANY(${sourceIds})`;
+                    await sql`UPDATE crm_reminders SET client_id = ${targetClient.id} WHERE client_id = ANY(${sourceIds})`;
+                    await sql`UPDATE crm_whatsapp_logs SET client_id = ${targetClient.id} WHERE client_id = ANY(${sourceIds})`;
+                    await sql`UPDATE crm_stage_history SET client_id = ${targetClient.id} WHERE client_id = ANY(${sourceIds})`;
+                    await sql`UPDATE crm_stage_actions SET client_id = ${targetClient.id} WHERE client_id = ANY(${sourceIds})`;
+
+                    // E) Final Cleanup
+                    await sql`DELETE FROM clients WHERE id = ANY(${sourceIds})`;
+                }
+
+                return json({ success: true, target_client: targetClient });
+            }
 
             if (action === 'mark_dashboard_check') {
                 const clientId = Number(data.client_id);
