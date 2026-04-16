@@ -245,6 +245,14 @@
                         onmouseover="this.style.borderColor='var(--primary)'; this.style.color='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'; this.style.color='var(--text-muted)'">
                         + Añadir
                     </button>
+
+                    <div style="height:20px;"></div>
+                    <div style="font-size:0.65rem; font-weight:700; color:var(--text-muted); margin-bottom:10px; text-transform:uppercase; letter-spacing:0.05em;">Ruta</div>
+                    <button id="btnOrderByProximity" onclick="orderByProximity()" 
+                        style="width:100%; padding:10px 6px; border-radius:12px; border:1px solid var(--primary); background:var(--surface); color:var(--primary-dark); font-size:0.75rem; font-weight:800; cursor:pointer; transition:all 0.2s; display:flex; flex-direction:column; align-items:center; gap:2px;"
+                        onmouseover="this.style.background='var(--primary)'; this.style.color='white'" onmouseout="this.style.background='var(--surface)'; this.style.color='var(--primary-dark)'">
+                        <span style="font-size:1.1rem;">📍</span> Proximidad
+                    </button>
                 </div>
 
                 <!-- RIGHT CONTENT: Contact List -->
@@ -994,6 +1002,8 @@
                 taskDescription = rawText.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '').trim();
             }
 
+            const distanceLabel = c.distance_km ? `<div style="font-size:0.85rem; color:var(--info); font-weight:800; margin-top:4px;">📍 a ${c.distance_km} km</div>` : '';
+
             // 2. Build Badges
             const badgeBaseStyle = isDash 
                 ? 'font-weight:700; text-transform:uppercase; font-size:0.6rem; padding:1px 5px; border-radius:4px; margin-right:4px; margin-bottom:4px;' 
@@ -1034,6 +1044,7 @@
                     <div style="margin-bottom:14px;">
                         <!-- Client Name (Secondary) -->
                         <div style="font-weight:600; font-size:0.82rem; color:#71717a; line-height:1.2; margin-bottom:4px;">${c.name}</div>
+                        ${distanceLabel}
                         <!-- Task Text (Primary) -->
                         ${taskDescription ? `<div style="font-size:1.05rem; color:var(--text-main); font-weight:500; line-height:1.3;">${taskDescription}</div>` : ''}
                     </div>
@@ -1073,8 +1084,9 @@
                     style="padding:14px; margin-bottom:10px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; transition: all 0.2s; border: none; background: var(--surface);"
                     onmouseover="if(!window.isBulkMode) this.style.transform='translateX(4px)'" onmouseout="this.style.transform='none'">
                     <div style="flex:1;">
-                        <div style="font-weight:700; font-size:1.05rem; margin-bottom:6px;">${c.name}</div>
-                        <div class="client-badges-container" style="display:flex; flex-wrap:wrap; gap:4px; align-items:center;">${badges}</div>
+                        <div style="font-weight:700; font-size:1.05rem; margin-bottom:2px;">${c.name}</div>
+                        ${distanceLabel}
+                        <div class="client-badges-container" style="display:flex; flex-wrap:wrap; gap:4px; align-items:center; margin-top:4px;">${badges}</div>
                         ${metricsHtml}
                     </div>
                     <div style="display:flex; gap:8px;">
@@ -3516,6 +3528,75 @@
             toast.style.fontSize = '0.9rem';
             document.body.appendChild(toast);
             setTimeout(() => toast.remove(), 2000);
+        }
+
+        // ── PROXIMITY SORTING ────────────────────────────────────────────────
+        async function orderByProximity() {
+            const btn = document.getElementById('btnOrderByProximity');
+            if (btn) {
+                btn.style.opacity = '0.5';
+                btn.innerText = 'Buscando...';
+            }
+
+            if (!navigator.geolocation) {
+                alert("Tu navegador no soporta geolocalización.");
+                if (btn) {
+                    btn.style.opacity = '1';
+                    btn.innerHTML = '<span style="font-size:1.1rem;">📍</span> Proximidad';
+                }
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(async (pos) => {
+                const userLat = pos.coords.latitude;
+                const userLon = pos.coords.longitude;
+
+                // Use current directory data
+                const source = window.activeDirectoryData.length > 0 ? window.activeDirectoryData : directoryData;
+                
+                // Calculate distances
+                const withDist = source.map(c => {
+                    if (c.latitude && c.longitude) {
+                        const d = haversineDistance(userLat, userLon, Number(c.latitude), Number(c.longitude));
+                        return { ...c, distance_km: d.toFixed(1) };
+                    }
+                    return { ...c, distance_km: null };
+                });
+
+                // Sort: nearest first, clients without coords at the end
+                withDist.sort((a, b) => {
+                    if (a.distance_km === null) return 1;
+                    if (b.distance_km === null) return -1;
+                    return Number(a.distance_km) - Number(b.distance_km);
+                });
+
+                // Render
+                document.getElementById('dashContentTitle').innerHTML = '📍 Cercanos a ti';
+                renderFullDirectoryInline(withDist);
+                
+                if (btn) {
+                    btn.style.opacity = '1';
+                    btn.innerHTML = '<span style="font-size:1.1rem;">📍</span> Proximidad';
+                }
+            }, (err) => {
+                console.error("Geolocation error", err);
+                alert("No se pudo obtener tu ubicación. Asegúrate de dar permisos de GPS.");
+                if (btn) {
+                    btn.style.opacity = '1';
+                    btn.innerHTML = '<span style="font-size:1.1rem;">📍</span> Proximidad';
+                }
+            });
+        }
+
+        function haversineDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371; // Earth radius in km
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
         }
 
     </script>
