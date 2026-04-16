@@ -3535,7 +3535,7 @@
             const btn = document.getElementById('btnOrderByProximity');
             if (btn) {
                 btn.style.opacity = '0.5';
-                btn.innerText = 'Buscando...';
+                btn.innerText = 'Cargando...';
             }
 
             if (!navigator.geolocation) {
@@ -3547,13 +3547,42 @@
                 return;
             }
 
+            // Ensure we have data to sort. If dashboard is fresh, directoryData is empty.
+            if (!directoryData || directoryData.length === 0) {
+                try {
+                    const res = await fetch(`/.netlify/functions/crm-clients?seller_id=${currentSellerId}`);
+                    const data = await res.json();
+                    if (Array.isArray(data)) {
+                        directoryData = data;
+                        if (!window.activeDirectoryData || window.activeDirectoryData.length === 0) {
+                            window.activeDirectoryData = data;
+                        }
+                    }
+                } catch(e) {
+                    console.error("Error loading directory for proximity", e);
+                }
+            }
+
+            if (btn) btn.innerText = 'Ubicando...';
+
             navigator.geolocation.getCurrentPosition(async (pos) => {
                 const userLat = pos.coords.latitude;
                 const userLon = pos.coords.longitude;
 
                 // Use current directory data
-                const source = window.activeDirectoryData.length > 0 ? window.activeDirectoryData : directoryData;
+                const source = (window.activeDirectoryData && window.activeDirectoryData.length > 0) 
+                    ? window.activeDirectoryData 
+                    : directoryData;
                 
+                if (!source || source.length === 0) {
+                    alert("No hay clientes registrados para calcular proximidad.");
+                    if (btn) {
+                        btn.style.opacity = '1';
+                        btn.innerHTML = '<span style="font-size:1.1rem;">📍</span> Proximidad';
+                    }
+                    return;
+                }
+
                 // Calculate distances
                 const withDist = source.map(c => {
                     if (c.latitude && c.longitude) {
@@ -3585,7 +3614,7 @@
                     btn.style.opacity = '1';
                     btn.innerHTML = '<span style="font-size:1.1rem;">📍</span> Proximidad';
                 }
-            });
+            }, { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 });
         }
 
         function haversineDistance(lat1, lon1, lat2, lon2) {
