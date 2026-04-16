@@ -21,7 +21,8 @@ export async function handler(event) {
 
         if (event.httpMethod === 'POST') {
             const data = JSON.parse(event.body || '{}');
-            const action = data.action;
+            const params = getQueryParams(event);
+            const action = data.action || params.get('action');
 
             if (action === 'merge') {
                 const sellerId = Number(data.seller_id);
