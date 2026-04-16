@@ -254,8 +254,8 @@
                         <span style="font-size:0.95rem;">📍</span> Proximidad
                     </button>
 
-                    <button id="btnShowLocations" onclick="showClientsWithLocations()" 
-                        style="width:100%; padding:10px 4px; border-radius:12px; border:1px solid var(--border); background:var(--surface); color:var(--text-main); font-size:0.68rem; font-weight:800; cursor:pointer; transition:all 0.2s; display:flex; align-items:center; justify-content:center; gap:4px; margin-bottom:8px;"
+                    <button id="btnShowLocations" onclick="showClientsWithLocations(event)" 
+                        style="width:100%; padding:10px 6px; border-radius:12px; border:1px solid var(--border); background:var(--surface); color:var(--text-main); font-size:0.75rem; font-weight:800; cursor:pointer; transition:all 0.2s; display:flex; align-items:center; justify-content:center; gap:6px;"
                         onmouseover="this.style.background='var(--secondary)'; this.style.borderColor='var(--primary)'" onmouseout="this.style.background='var(--surface)'; this.style.borderColor='var(--border)'">
                         <span style="font-size:0.95rem;">🗺️</span> Ubicaciones
                     </button>
@@ -600,7 +600,7 @@
     </div>
 
     <!-- LOCATIONS LIST POPOVER -->
-    <div id="popoverLocations" style="display:none; position:fixed; z-index:300; background:var(--surface); border-radius:24px; box-shadow: 0 15px 50px rgba(0,0,0,0.3); border: 1px solid var(--border); overflow: hidden; width: calc(100% - 40px); max-width: 450px; padding:25px; animation: popInCenter 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); left: 50%; top: 50%; transform: translate(-50%, -50%);">
+    <div id="popoverLocations" onclick="event.stopPropagation()" style="display:none; position:fixed; z-index:300; background:var(--surface); border-radius:24px; box-shadow: 0 15px 50px rgba(0,0,0,0.3); border: 1px solid var(--border); overflow: hidden; width: calc(100% - 40px); max-width: 450px; padding:25px; animation: popInCenter 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); left: 50%; top: 50%; transform: translate(-50%, -50%);">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
             <h3 style="margin:0; font-size:1.3rem; font-weight:800; color:var(--text-main);">🗺️ Ubicaciones</h3>
             <button onclick="closePopovers()" style="background:var(--bg); border:none; width:32px; height:32px; border-radius:50%; font-size:1rem; cursor:pointer; color:var(--text-muted);">✕</button>
@@ -3128,7 +3128,7 @@
                 saveNoteFromPopover();
             }
 
-            const pops = ['popoverCreateTag', 'popoverTagAssign', 'popoverNote', 'popoverOverlay', 'locationPopover', 'contactPopover', 'copyPopover', 'statusPopover', 'popoverWhatsApp'];
+            const pops = ['popoverCreateTag', 'popoverTagAssign', 'popoverNote', 'popoverOverlay', 'locationPopover', 'contactPopover', 'copyPopover', 'statusPopover', 'popoverWhatsApp', 'popoverLocations'];
             pops.forEach(id => {
                 const el = document.getElementById(id);
                 if(el) el.style.display = 'none';
@@ -3667,7 +3667,10 @@
             return R * c;
         }
 
-        async function showClientsWithLocations() {
+        async function showClientsWithLocations(event) {
+            if(event) event.stopPropagation();
+            closePopovers();
+
             const btn = document.getElementById('btnShowLocations');
             if (btn) {
                 btn.style.opacity = '0.5';
@@ -3715,6 +3718,7 @@
             // Show UI
             document.getElementById('popoverOverlay').style.display = 'block';
             document.getElementById('popoverLocations').style.display = 'block';
+            document.addEventListener('click', closePopovers);
 
             if (btn) {
                 btn.style.opacity = '1';
