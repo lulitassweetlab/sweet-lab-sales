@@ -139,6 +139,12 @@
                         placeholder="Ej: 573004147471"
                         style="width: 100%;" />
                 </div>
+                <div>
+                    <label style="font-weight: bold; display: block; margin-bottom: 8px;">Mensaje de Éxito al terminar pedido (Opcional):</label>
+                    <textarea id="store-confirm-msg-input" class="input-light"
+                        placeholder="Ej: ¡Tu pedido ha sido enviado! Nos contactaremos contigo pronto."
+                        style="width: 100%; height: 60px; resize: vertical;"></textarea>
+                </div>
                 <div style="display: flex; gap: 16px;">
                     <div style="flex: 1;">
                         <label style="font-weight: bold; display: block; margin-bottom: 8px;">Separación Horizontal
@@ -1038,8 +1044,8 @@
                     if (!res.ok) throw new Error('Error al guardar');
                     alert('Configuración guardada exitosamente');
                 } catch (err) {
-                    console.error(err);
-                    alert('Error al guardar la configuración');
+                    console.error('Error saving settings:', err);
+                    alert('Error al guardar la configuración: ' + (err.message || 'Error desconocido'));
                 } finally {
                     saveSettingsBtn.disabled = false;
                     saveSettingsBtn.textContent = 'Guardar Configuración';

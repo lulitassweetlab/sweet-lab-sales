@@ -1392,7 +1392,7 @@
 
     <div class="modal-overlay" id="store-new-client-modal">
         <div class="modal-content" style="max-width: 320px; text-align: center;">
-            <h3 style="margin-bottom: 10px; color: var(--primary-hover);">Nuevo Cliente</h3>
+            <h3 style="margin-bottom: 10px; color: var(--primary-hover);">Nuevo Cliente <span id="new-client-geo-status" title="Ubicación capturada" style="display:none; cursor: help;">📍</span></h3>
             <p style="font-size: 0.9rem; margin-bottom: 16px;">Registra los datos de <b
                     id="new-client-name-display"></b></p>
 
@@ -1521,6 +1521,7 @@
         let storeClientList = [];
         let currentGalleryItems = [];
         let loginStep = 1;
+        let newClientCoords = null;
 
         // QR Modal Logic
         const storeQrModal = document.getElementById('store-qr-modal');
@@ -1624,6 +1625,21 @@
 
             document.getElementById('new-client-error').style.display = 'none';
             document.getElementById('store-new-client-modal').style.display = 'flex';
+
+            // Automatic Location Capture
+            newClientCoords = null;
+            document.getElementById('new-client-geo-status').style.display = 'none';
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        newClientCoords = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+                        document.getElementById('new-client-geo-status').style.display = 'inline';
+                        console.log('[Geo] Location captured for new client');
+                    },
+                    (err) => console.warn('[Geo] Could not capture location automatically', err),
+                    { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+                );
+            }
             
             loadStoreTags();
         };
@@ -1917,7 +1933,9 @@
                         name, 
                         short_name: short_name || null, 
                         whatsapp: whatsapp || null,
-                        tag_ids: typeof selectedTagIds !== 'undefined' ? Array.from(selectedTagIds) : []
+                        tag_ids: typeof selectedTagIds !== 'undefined' ? Array.from(selectedTagIds) : [],
+                        latitude: newClientCoords ? newClientCoords.latitude : null,
+                        longitude: newClientCoords ? newClientCoords.longitude : null
                     })
                 });
                 if (!res.ok) throw new Error((await res.json()).error || 'Error al guardar cliente');

@@ -755,20 +755,6 @@ const API = {
 	Clients: '/api/clients'
 };
 
-const PRICES = {
-	arco: 8500,
-	melo: 9500,
-	mara: 10500,
-	oreo: 10500,
-	nute: 13000,
-};
-const COST_PRICES = {
-	arco: 4675,
-	melo: 5225,
-	mara: 5775,
-	oreo: 5775,
-	nute: 7150,
-};
 const DEFAULT_A_COSTO_MULTIPLIER = 0.55;
 
 function getDefaultCostPriceFromSalePrice(salePrice) {
@@ -777,18 +763,18 @@ function getDefaultCostPriceFromSalePrice(salePrice) {
 
 function getCostPriceForDessert(dessert) {
 	if (!dessert) return 0;
+	// Use explicit cost_price from DB if available
 	const directCost = Number(dessert.cost_price);
 	if (Number.isFinite(directCost) && directCost >= 0) return Math.round(directCost);
-	const mapCost = Number(COST_PRICES[dessert.short_code]);
-	if (Number.isFinite(mapCost) && mapCost >= 0) return Math.round(mapCost);
-	const salePrice = Number(dessert.sale_price ?? PRICES[dessert.short_code] ?? 0) || 0;
+	// Otherwise fallback to 55% of current sale price
+	const salePrice = Number(dessert.sale_price ?? 0) || 0;
 	return getDefaultCostPriceFromSalePrice(salePrice);
 }
 
 function getUnitPriceForDessertByPricingType(dessert, specialPricingType) {
 	if (specialPricingType === 'muestra') return 0;
 	if (specialPricingType === 'a_costo') return getCostPriceForDessert(dessert);
-	return Number(dessert?.sale_price ?? PRICES[dessert?.short_code] ?? 0) || 0;
+	return Number(dessert?.sale_price ?? 0) || 0;
 }
 
 function getPromotionForDessert(dessert) {
@@ -1401,36 +1387,17 @@ async function loadDesserts() {
 		try {
 			localStorage.setItem('desserts_cache', JSON.stringify(state.desserts));
 		} catch (e) { }
-		updateDessertPriceMaps();
 		state.dessertsLoaded = true;
 		return state.desserts;
 	} catch (err) {
 		console.error('Error loading desserts from API:', err);
 		if (state.desserts && state.desserts.length > 0) return state.desserts;
-
-		// Fallback to defaults only if no cache and no API
-		state.desserts = [
-			{ id: 1, name: 'Arco', short_code: 'arco', sale_price: 8500, cost_price: 4675, promo_qty: null, promo_price: null, position: 1 },
-			{ id: 2, name: 'Melo', short_code: 'melo', sale_price: 9500, cost_price: 5225, promo_qty: null, promo_price: null, position: 2 },
-			{ id: 3, name: 'Mara', short_code: 'mara', sale_price: 10500, cost_price: 5775, promo_qty: null, promo_price: null, position: 3 },
-			{ id: 4, name: 'Oreo', short_code: 'oreo', sale_price: 10500, cost_price: 5775, promo_qty: null, promo_price: null, position: 4 },
-			{ id: 5, name: 'Nute', short_code: 'nute', sale_price: 13000, cost_price: 7150, promo_qty: null, promo_price: null, position: 5 }
-		];
-		updateDessertPriceMaps();
+		state.desserts = [];
 		state.dessertsLoaded = true;
-		return state.desserts;
+		return [];
 	}
 }
 
-function updateDessertPriceMaps() {
-	if (!state.desserts) return;
-	for (const key of Object.keys(PRICES)) delete PRICES[key];
-	for (const key of Object.keys(COST_PRICES)) delete COST_PRICES[key];
-	for (const d of state.desserts) {
-		PRICES[d.short_code] = d.sale_price;
-		COST_PRICES[d.short_code] = getCostPriceForDessert(d);
-	}
-}
 
 // Render dynamic dessert columns in table header
 function renderDessertColumns() {
@@ -1654,16 +1621,21 @@ function calcRowTotal(q) {
 	// If total_cents exists from database, use it directly (already accounts for special pricing)
 	if (q.hasOwnProperty('total_cents') && q.total_cents !== null && q.total_cents !== undefined) {
 		const total = Number(q.total_cents) || 0;
-		console.log(`💰 calcRowTotal(sale ${q.id}): Using total_cents=${q.total_cents}, special_pricing=${q.special_pricing_type}, returning ${total}`);
 		return total;
 	}
 
-	console.log(`⚠️ calcRowTotal(sale ${q.id}): total_cents not found, calculating... special_pricing=${q.special_pricing_type}`);
-
 	let total = 0;
-	for (const d of state.desserts) {
-		const qty = getSaleDessertQty(q, d);
-		total += getDessertAmountForSale(d, qty, q.special_pricing_type);
+	if (Array.isArray(q.items) && q.items.length > 0) {
+		// Calculate from items (historical prices)
+		for (const item of q.items) {
+			total += Number(item.quantity || 0) * Number(item.unit_price || 0);
+		}
+	} else {
+		// Legacy fallback
+		for (const d of state.desserts) {
+			const qty = Number(q[`qty_${d.short_code}`] || 0);
+			total += getDessertAmountForSale(d, qty, q.special_pricing_type);
+		}
 	}
 
 	return total;
@@ -4321,15 +4293,27 @@ function updateSummary() {
 	let grand = 0;
 
 	for (const s of state.sales) {
-		// Support both formats; align with visible per-flavor qty (first occurrence per dessert)
 		const pm = (s.pay_method || '').toString();
-		// Check if this sale has special pricing (muestra or a_costo)
 		const hasSpecialPricing = (s.special_pricing_type === 'muestra' || s.special_pricing_type === 'a_costo');
+		
 		for (const d of visibleDesserts) {
-			const qty = getSaleDessertQty(s, d);
-			const amount = getDessertAmountForSale(d, qty, s.special_pricing_type);
+			let qty = 0;
+			let amount = 0;
+
+			// Check for historical item first to get correct price
+			const item = (s.items || []).find(it => Number(it.dessert_id) === Number(d.id));
+			if (item) {
+				qty = Number(item.quantity || 0);
+				amount = qty * Number(item.unit_price || 0);
+			} else {
+				// Legacy fallback (should be rare)
+				qty = Number(s[`qty_${d.short_code}`] || 0);
+				amount = getDessertAmountForSale(d, qty, s.special_pricing_type);
+			}
+
 			qtys[d.short_code] += qty;
 			amts[d.short_code] += amount;
+			
 			// Exclude special pricing from commission calculations
 			if ((pm === 'transf' || pm === 'jorgebank' || pm === 'marce' || pm === 'jorge') && !hasSpecialPricing) {
 				paidQtys[d.short_code] += qty;

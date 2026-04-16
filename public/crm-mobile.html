@@ -251,13 +251,13 @@
                     <button id="btnOrderByProximity" onclick="orderByProximity()" 
                         style="width:100%; padding:10px 6px; border-radius:12px; border:1px solid var(--primary); background:var(--surface); color:var(--primary-dark); font-size:0.75rem; font-weight:800; cursor:pointer; transition:all 0.2s; display:flex; align-items:center; justify-content:center; gap:6px; margin-bottom:8px;"
                         onmouseover="this.style.background='var(--primary)'; this.style.color='white'" onmouseout="this.style.background='var(--surface)'; this.style.color='var(--primary-dark)'">
-                        <span style="font-size:1.1rem;">📍</span> Proximidad
+                        Proximidad
                     </button>
 
                     <button id="btnShowLocations" onclick="showClientsWithLocations(event)" 
                         style="width:100%; padding:10px 6px; border-radius:12px; border:1px solid var(--border); background:var(--surface); color:var(--text-main); font-size:0.75rem; font-weight:800; cursor:pointer; transition:all 0.2s; display:flex; align-items:center; justify-content:center; gap:6px;"
                         onmouseover="this.style.background='var(--secondary)'; this.style.borderColor='var(--primary)'" onmouseout="this.style.background='var(--surface)'; this.style.borderColor='var(--border)'">
-                        <span style="font-size:1.1rem;">🗺️</span> Ubicaciones
+                        Ubicaciones
                     </button>
                 </div>
 
@@ -596,7 +596,7 @@
     <!-- LOCATIONS LIST POPOVER -->
     <div id="popoverLocations" onclick="event.stopPropagation()" style="display:none; position:fixed; z-index:300; background:var(--surface); border-radius:24px; box-shadow: 0 15px 50px rgba(0,0,0,0.3); border: 1px solid var(--border); overflow: hidden; width: calc(100% - 40px); max-width: 450px; padding:25px; animation: popInCenter 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); left: 50%; top: 50%; transform: translate(-50%, -50%);">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-            <h3 style="margin:0; font-size:1.3rem; font-weight:800; color:var(--text-main);">🗺️ Ubicaciones</h3>
+            <h3 style="margin:0; font-size:1.3rem; font-weight:800; color:var(--text-main);">Ubicaciones</h3>
             <button onclick="closePopovers()" style="background:var(--bg); border:none; width:32px; height:32px; border-radius:50%; font-size:1rem; cursor:pointer; color:var(--text-muted);">✕</button>
         </div>
         <div id="locationsContainer" style="max-height:60vh; overflow-y:auto; display:flex; flex-direction:column; gap:12px; padding-right:5px;">
@@ -751,9 +751,17 @@
             const term = input.value.toLowerCase();
             window.crmSearchTerm = term;
             
-            // Re-trigger the directory view with the current filter
-            // This is the common pattern in crm-mobile.html
-            loadFullDirectoryInline();
+            // Re-trigger the appropriate view based on the current screen
+            if (currentScreen === 'dashDebt') {
+                loadDebtClients();
+            } else if (currentScreen === 'dashStage' && dashStageParams) {
+                openStageClients(dashStageParams.id, dashStageParams.name, dashStageParams.color);
+            } else if (currentScreen === 'dashTag' && dashTagParams) {
+                openTagClients(dashTagParams.id, dashTagParams.name, dashTagParams.color);
+            } else {
+                // Default to full directory
+                loadFullDirectoryInline();
+            }
         }
 
         // GLOBALS
@@ -832,24 +840,6 @@
             // ── UNIFIED FILTERING STATE ──────────────────────────────────────────────────
             window.activeDirectoryData = []; // The current BASE set of clients being searched
             window.crmSearchTerm = ''; // Global state to persist search term
-            
-            // Search Bar filter logic (Unificado en Dashboard)
-            document.getElementById('dashSearchInput').addEventListener('input', (e) => {
-                const term = e.target.value.toLowerCase();
-                window.crmSearchTerm = term; // Save term globally
-                
-                const source = window.activeDirectoryData.length > 0 ? window.activeDirectoryData : directoryData;
-                
-                if(!term) {
-                    renderFullDirectoryInline(source);
-                    return;
-                }
-                const filtered = source.filter(c => 
-                    (c.name && c.name.toLowerCase().includes(term)) || 
-                    (c.whatsapp && c.whatsapp.toLowerCase().includes(term))
-                );
-                renderFullDirectoryInline(filtered);
-            });
         });
 
         // CACHING ENGINE (SWR: Stale-While-Revalidate)
@@ -1020,7 +1010,7 @@
                 taskDescription = rawText.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '').trim();
             }
 
-            const distanceLabel = c.distance_km ? `<div style="font-size:0.85rem; color:var(--info); font-weight:800; margin-top:4px;">📍 a ${c.distance_km} km</div>` : '';
+            const distanceLabel = c.distance_km ? `<div style="position:absolute; top:12px; right:12px; font-size:0.75rem; color:var(--info); font-weight:800; background:var(--bg); padding:2px 6px; border-radius:6px; box-shadow:0 2px 5px rgba(0,0,0,0.05); z-index:1;">a ${c.distance_km} km</div>` : '';
 
             // 2. Build Badges
             const badgeBaseStyle = isDash 
@@ -1055,16 +1045,15 @@
             if (isDash) {
                 return `
                 <div class="card" onclick="${clickAction}" 
-                    style="padding:18px; margin-bottom:12px; display:block; border:none; background:var(--surface); border-radius:20px; box-shadow:0 2px 10px rgba(0,0,0,0.03); transition:transform 0.25s ease;"
+                    style="position:relative; padding:18px; margin-bottom:12px; display:block; border:none; background:var(--surface); border-radius:20px; box-shadow:0 2px 10px rgba(0,0,0,0.03); transition:transform 0.25s ease;"
                     onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
                     
                     <!-- Content Area -->
                     <div style="margin-bottom:14px;">
                         <!-- Client Name (Secondary) -->
-                        <div style="font-weight:600; font-size:0.82rem; color:#71717a; line-height:1.2; margin-bottom:4px;">${c.name}</div>
-                        ${distanceLabel}
+                        <div style="font-weight:600; font-size:0.82rem; color:#71717a; line-height:1.2; margin-bottom:4px; padding-right:60px;">${c.name}</div>
                         <!-- Task Text (Primary) -->
-                        ${taskDescription ? `<div style="font-size:1.05rem; color:var(--text-main); font-weight:500; line-height:1.3;">${taskDescription}</div>` : ''}
+                        ${taskDescription ? `<div style="font-size:1.05rem; color:var(--text-main); font-weight:500; line-height:1.3; padding-right:60px;">${taskDescription}</div>` : ''}
                     </div>
 
                     <!-- Bottom Row: Badges + Actions -->
@@ -1099,10 +1088,10 @@
             return `
                 <div class="card client-card-bulk-target" data-client-id="${c.id}" 
                     onclick="${clickAction}" 
-                    style="padding:14px; margin-bottom:10px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; transition: all 0.2s; border: none; background: var(--surface);"
+                    style="position:relative; padding:14px; margin-bottom:10px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; transition: all 0.2s; border: none; background: var(--surface);"
                     onmouseover="if(!window.isBulkMode) this.style.transform='translateX(4px)'" onmouseout="this.style.transform='none'">
                     <div style="flex:1;">
-                        <div style="font-weight:700; font-size:1.05rem; margin-bottom:2px;">${c.name}</div>
+                        <div style="font-weight:700; font-size:1.05rem; margin-bottom:2px; padding-right:60px;">${c.name}</div>
                         ${distanceLabel}
                         <div class="client-badges-container" style="display:flex; flex-wrap:wrap; gap:4px; align-items:center; margin-top:4px;">${badges}</div>
                         ${metricsHtml}
@@ -1651,11 +1640,29 @@
                 const addEl = document.getElementById('profAddress');
                 if (addEl) {
                     const addressStr = pf.address || '';
-                    addEl.innerText = addressStr || 'Ubicación';
-                    addEl.style.color = addressStr ? 'var(--text-main)' : 'var(--text-muted)';
-                    addEl.style.fontWeight = addressStr ? '700' : '500';
+                    const hasGeo = pf.latitude && pf.longitude;
+                    addEl.innerText = addressStr || (hasGeo ? `GPS: ${Number(pf.latitude).toFixed(4)}, ${Number(pf.longitude).toFixed(4)}` : 'Ubicación');
+                    addEl.style.color = (addressStr || hasGeo) ? 'var(--text-main)' : 'var(--text-muted)';
+                    addEl.style.fontWeight = (addressStr || hasGeo) ? '700' : '500';
                     addEl.dataset.lat = pf.latitude || '';
                     addEl.dataset.lng = pf.longitude || '';
+
+                    // Trigger Auto Reverse Geocode if address is missing but GPS is present
+                    if (!addressStr && hasGeo) {
+                        addEl.innerHTML = '<span class="status-dot status-active" style="display:inline-block; width:8px; height:8px; margin-right:6px;"></span> Buscando dirección...';
+                        setTimeout(async () => {
+                            try {
+                                const human = await reverseGeocodeHuman(pf.latitude, pf.longitude);
+                                if (human && human !== 'Ubicación desconocida') {
+                                    console.log('[Geo] Auto-saved discovered address:', human);
+                                    updateClientLocation({ address: human });
+                                } else {
+                                    // Fallback if not found, show coords as fallback instead of just "GPS capturado"
+                                    addEl.innerText = `GPS: ${Number(pf.latitude).toFixed(4)}, ${Number(pf.longitude).toFixed(4)}`;
+                                }
+                            } catch(e) { console.error("Auto-geo fail", e); }
+                        }, 500); 
+                    }
                 }
                 
                 // Description
@@ -3560,7 +3567,7 @@
                 alert("Tu navegador no soporta geolocalización.");
                 if (btn) {
                     btn.style.opacity = '1';
-                    btn.innerHTML = '<span style="font-size:1.1rem;">📍</span> Proximidad';
+                    btn.innerHTML = 'Proximidad';
                 }
                 return;
             }
@@ -3596,7 +3603,7 @@
                     alert("No hay clientes registrados para calcular proximidad.");
                     if (btn) {
                         btn.style.opacity = '1';
-                        btn.innerHTML = '<span style="font-size:1.1rem;">📍</span> Proximidad';
+                        btn.innerHTML = 'Proximidad';
                     }
                     return;
                 }
@@ -3618,19 +3625,19 @@
                 });
 
                 // Render
-                document.getElementById('dashContentTitle').innerHTML = '📍 Cercanos a ti';
+                document.getElementById('dashContentTitle').innerHTML = 'Cercanos a ti';
                 renderFullDirectoryInline(withDist);
                 
                 if (btn) {
                     btn.style.opacity = '1';
-                    btn.innerHTML = '<span style="font-size:1.1rem;">📍</span> Proximidad';
+                    btn.innerHTML = 'Proximidad';
                 }
             }, (err) => {
                 console.error("Geolocation error", err);
                 alert("No se pudo obtener tu ubicación. Asegúrate de dar permisos de GPS.");
                 if (btn) {
                     btn.style.opacity = '1';
-                    btn.innerHTML = '<span style="font-size:1.1rem;">📍</span> Proximidad';
+                    btn.innerHTML = 'Proximidad';
                 }
             }, { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 });
         }
@@ -3670,7 +3677,7 @@
                 } catch(e) { console.error("Error loading directory", e); }
             }
 
-            // Filter: Only include clients with a real textual address
+            // Filter: Only include clients with a real textual address (as requested)
             const source = directoryData || [];
             const withLoc = source.filter(c => c.address && c.address.trim() !== '' && c.address !== 'Sin dirección');
 
@@ -3701,7 +3708,7 @@
 
             if (btn) {
                 btn.style.opacity = '1';
-                btn.innerHTML = '<span style="font-size:1.1rem;">🗺️</span> Ubicaciones';
+                btn.innerHTML = 'Ubicaciones';
             }
         }
 
