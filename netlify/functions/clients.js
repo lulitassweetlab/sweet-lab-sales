@@ -129,67 +129,80 @@ export default async (req) => {
                     return new Response(JSON.stringify({ error: 'Se requiere una lista de nombres para fusionar' }), { status: 400 });
                 }
 
-                // Ensure the target name exists in the database
+                // 1. Ensure/Update the target client profile
                 const [targetClient] = await sql`
                     INSERT INTO clients (seller_id, name, short_name, whatsapp, birth_date, description, address, latitude, longitude)
                     VALUES (${sellerId}, ${name}, ${shortName}, ${whatsapp}, ${birthDate}, ${description}, ${address}, ${latitude}, ${longitude})
                     ON CONFLICT (name, seller_id) DO UPDATE SET
-                        short_name = COALESCE(EXCLUDED.short_name, clients.short_name),
-                        whatsapp = COALESCE(EXCLUDED.whatsapp, clients.whatsapp),
-                        birth_date = COALESCE(EXCLUDED.birth_date, clients.birth_date),
-                        description = COALESCE(EXCLUDED.description, clients.description),
-                        address = EXCLUDED.address,
-                        latitude = EXCLUDED.latitude,
-                        longitude = EXCLUDED.longitude
+                        short_name = COALESCE(clients.short_name, EXCLUDED.short_name),
+                        whatsapp = COALESCE(clients.whatsapp, EXCLUDED.whatsapp),
+                        birth_date = COALESCE(clients.birth_date, EXCLUDED.birth_date),
+                        description = COALESCE(clients.description, EXCLUDED.description),
+                        address = COALESCE(clients.address, EXCLUDED.address),
+                        latitude = COALESCE(clients.latitude, EXCLUDED.latitude),
+                        longitude = COALESCE(clients.longitude, EXCLUDED.longitude)
                     RETURNING *
                 `;
 
-                // Update all sales history for this seller that match the source names
-                // Using `= ANY(...)` to match the array of old names
-                await sql`
-                    UPDATE sales 
-                    SET client_name = ${name}
-                    WHERE seller_id = ${sellerId} AND LOWER(client_name) = ANY(${sourceNames.map(n => n.toLowerCase())})
+                // 2. Identify all Source IDs
+                const lowerNames = sourceNames.map(n => n.toLowerCase());
+                const sourceClients = await sql`
+                    SELECT id FROM clients 
+                    WHERE seller_id = ${sellerId} AND LOWER(name) = ANY(${lowerNames})
+                      AND id != ${targetClient.id}
                 `;
+                const sourceIds = sourceClients.map(c => c.id);
 
-                // Delete the old clients from the clients table, but first transfer CRM data to the combined profile
-                const lowerNamesToDelete = sourceNames.map(n => n.toLowerCase()).filter(n => n !== name.toLowerCase());
-                if (lowerNamesToDelete.length > 0) {
-                    
-                    // 1. Rebind CRM bridge so we don't lose links when we delete clients matching sourceNames
+                if (sourceIds.length > 0) {
+                    // Update Sales records (String-based link)
                     await sql`
-                        UPDATE crm_client_sales cs
-                        SET client_id = ${targetClient.id}
-                        FROM clients c
-                        WHERE cs.client_id = c.id
-                          AND c.seller_id = ${sellerId}
-                          AND LOWER(c.name) = ANY(${lowerNamesToDelete})
-                    `;
-                    
-                    // 2. Rebind Activities & Reminders
-                    await sql`
-                        UPDATE crm_activities ca
-                        SET client_id = ${targetClient.id}
-                        FROM clients c
-                        WHERE ca.client_id = c.id
-                          AND c.seller_id = ${sellerId}
-                          AND LOWER(c.name) = ANY(${lowerNamesToDelete})
-                    `;
-                    
-                    await sql`
-                        UPDATE crm_reminders cr
-                        SET client_id = ${targetClient.id}
-                        FROM clients c
-                        WHERE cr.client_id = c.id
-                          AND c.seller_id = ${sellerId}
-                          AND LOWER(c.name) = ANY(${lowerNamesToDelete})
+                        UPDATE sales 
+                        SET client_name = ${targetClient.name}
+                        WHERE seller_id = ${sellerId} AND LOWER(client_name) = ANY(${lowerNames})
                     `;
 
-                    // 3. Delete old implicit profiles safely
+                    // REBIND ALL RELATED TABLES
+                    // A) Sales Bridge (crm_client_sales) - Handle unique sale_id
                     await sql`
-                        DELETE FROM clients
-                        WHERE seller_id = ${sellerId} AND LOWER(name) = ANY(${lowerNamesToDelete})
+                        UPDATE crm_client_sales 
+                        SET client_id = ${targetClient.id}
+                        WHERE client_id = ANY(${sourceIds})
+                          AND sale_id NOT IN (SELECT sale_id FROM crm_client_sales WHERE client_id = ${targetClient.id})
                     `;
+                    await sql`DELETE FROM crm_client_sales WHERE client_id = ANY(${sourceIds})`;
+
+                    // B) Tags (crm_client_tags) - Handle unique (client_id, tag_id)
+                    await sql`
+                        INSERT INTO crm_client_tags (client_id, tag_id)
+                        SELECT ${targetClient.id}, tag_id FROM crm_client_tags
+                        WHERE client_id = ANY(${sourceIds})
+                        ON CONFLICT DO NOTHING
+                    `;
+                    await sql`DELETE FROM crm_client_tags WHERE client_id = ANY(${sourceIds})`;
+
+                    // C) Stages (crm_client_stage) - Handle unique client_id
+                    // If target already has a stage, we just delete sources' stages.
+                    const [targetStage] = await sql`SELECT 1 FROM crm_client_stage WHERE client_id = ${targetClient.id}`;
+                    if (targetStage) {
+                        await sql`DELETE FROM crm_client_stage WHERE client_id = ANY(${sourceIds})`;
+                    } else {
+                        // Move one of the source's stages if they exist (ordered by newest update)
+                        const [srcStage] = await sql`SELECT * FROM crm_client_stage WHERE client_id = ANY(${sourceIds}) ORDER BY updated_at DESC LIMIT 1`;
+                        if (srcStage) {
+                            await sql`DELETE FROM crm_client_stage WHERE client_id = ANY(${sourceIds})`; // Pre-emptively clean
+                            await sql`INSERT INTO crm_client_stage (client_id, stage_id, updated_by, updated_at) VALUES (${targetClient.id}, ${srcStage.stage_id}, ${srcStage.updated_by}, ${srcStage.updated_at}) ON CONFLICT DO NOTHING`;
+                        }
+                    }
+
+                    // D) Simple Move: Activities, Reminders, Logs, History, Actions
+                    await sql`UPDATE crm_activities SET client_id = ${targetClient.id} WHERE client_id = ANY(${sourceIds})`;
+                    await sql`UPDATE crm_reminders SET client_id = ${targetClient.id} WHERE client_id = ANY(${sourceIds})`;
+                    await sql`UPDATE crm_whatsapp_logs SET client_id = ${targetClient.id} WHERE client_id = ANY(${sourceIds})`;
+                    await sql`UPDATE crm_stage_history SET client_id = ${targetClient.id} WHERE client_id = ANY(${sourceIds})`;
+                    await sql`UPDATE crm_stage_actions SET client_id = ${targetClient.id} WHERE client_id = ANY(${sourceIds})`;
+
+                    // E) Final Cleanup
+                    await sql`DELETE FROM clients WHERE id = ANY(${sourceIds})`;
                 }
 
                 return new Response(JSON.stringify({ success: true, target_client: targetClient }), {
