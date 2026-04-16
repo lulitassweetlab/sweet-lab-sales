@@ -125,6 +125,7 @@ export async function handler(event) {
             }
 
             // Otherwise, return the specific directory of clients for list views
+            const directory = await sql`
                 SELECT 
                     c.id, c.name, c.short_name, c.whatsapp,
                     st.name as stage_name, st.color as stage_color,
