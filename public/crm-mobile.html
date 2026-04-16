@@ -751,9 +751,17 @@
             const term = input.value.toLowerCase();
             window.crmSearchTerm = term;
             
-            // Re-trigger the directory view with the current filter
-            // This is the common pattern in crm-mobile.html
-            loadFullDirectoryInline();
+            // Re-trigger the appropriate view based on the current screen
+            if (currentScreen === 'dashDebt') {
+                loadDebtClients();
+            } else if (currentScreen === 'dashStage' && dashStageParams) {
+                openStageClients(dashStageParams.id, dashStageParams.name, dashStageParams.color);
+            } else if (currentScreen === 'dashTag' && dashTagParams) {
+                openTagClients(dashTagParams.id, dashTagParams.name, dashTagParams.color);
+            } else {
+                // Default to full directory
+                loadFullDirectoryInline();
+            }
         }
 
         // GLOBALS
@@ -832,24 +840,6 @@
             // ── UNIFIED FILTERING STATE ──────────────────────────────────────────────────
             window.activeDirectoryData = []; // The current BASE set of clients being searched
             window.crmSearchTerm = ''; // Global state to persist search term
-            
-            // Search Bar filter logic (Unificado en Dashboard)
-            document.getElementById('dashSearchInput').addEventListener('input', (e) => {
-                const term = e.target.value.toLowerCase();
-                window.crmSearchTerm = term; // Save term globally
-                
-                const source = window.activeDirectoryData.length > 0 ? window.activeDirectoryData : directoryData;
-                
-                if(!term) {
-                    renderFullDirectoryInline(source);
-                    return;
-                }
-                const filtered = source.filter(c => 
-                    (c.name && c.name.toLowerCase().includes(term)) || 
-                    (c.whatsapp && c.whatsapp.toLowerCase().includes(term))
-                );
-                renderFullDirectoryInline(filtered);
-            });
         });
 
         // CACHING ENGINE (SWR: Stale-While-Revalidate)
