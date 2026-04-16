@@ -1641,7 +1641,7 @@
                 if (addEl) {
                     const addressStr = pf.address || '';
                     const hasGeo = pf.latitude && pf.longitude;
-                    addEl.innerText = addressStr || (hasGeo ? '📍 Ubicación capturada' : 'Ubicación');
+                    addEl.innerText = addressStr || (hasGeo ? `GPS: ${Number(pf.latitude).toFixed(4)}, ${Number(pf.longitude).toFixed(4)}` : 'Ubicación');
                     addEl.style.color = (addressStr || hasGeo) ? 'var(--text-main)' : 'var(--text-muted)';
                     addEl.style.fontWeight = (addressStr || hasGeo) ? '700' : '500';
                     addEl.dataset.lat = pf.latitude || '';
@@ -3660,9 +3660,9 @@
                 } catch(e) { console.error("Error loading directory", e); }
             }
 
-            // Filter: Include clients with a real textual address OR coordinates
+            // Filter: Only include clients with a real textual address (as requested)
             const source = directoryData || [];
-            const withLoc = source.filter(c => (c.address && c.address.trim() !== '' && c.address !== 'Sin dirección') || (c.latitude && c.longitude));
+            const withLoc = source.filter(c => c.address && c.address.trim() !== '' && c.address !== 'Sin dirección');
 
             // Sort Alpha
             withLoc.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
@@ -3678,7 +3678,7 @@
                         onmouseout="this.style.borderColor='var(--border)'; this.style.background='var(--bg)'; this.style.transform='none'">
                         <div style="font-weight:800; font-size:1.05rem; color:var(--text-main); margin-bottom:4px;">${c.name}</div>
                         <div style="font-size:0.85rem; color:var(--text-muted); line-height:1.4; display:flex; align-items:center; gap:6px;">
-                            <span>📍</span> ${c.address && c.address.trim() !== '' && c.address !== 'Sin dirección' ? c.address : 'Ubicación capturada (GPS)'}
+                            <span>📍</span> ${c.address}
                         </div>
                     </div>
                 `).join('');
