@@ -658,23 +658,30 @@ async function processSingleSale(sale) {
                     const vendedorName = (sale.seller && sale.seller.name) ? sale.seller.name : '';
 
                     // Fetch client to get short name and WhatsApp number
-                    let clientShortName = clientDisplayName;
-                    let clientWhatsapp = sale.whatsapp;
+                    const clientNameClean = (sale.customerName || '').trim();
+                    let clientShortName = clientNameClean;
+                    let clientWhatsapp = (sale.whatsapp || '').trim();
 
                     try {
                         const clientsRes = await fetch(`/api/clients?seller_id=${sale.seller.id}`, { headers: authHeaders });
                         if (clientsRes.ok) {
                             const clientsArr = await clientsRes.json();
                             const clientRecord = Array.isArray(clientsArr)
-                                ? clientsArr.find(c => (c.name || '').toLowerCase().trim() === clientDisplayName.toLowerCase().trim())
+                                ? clientsArr.find(c => (c.name || c.NAME || '').toLowerCase().trim() === clientNameClean.toLowerCase())
                                 : null;
 
                             if (clientRecord) {
-                                if (clientRecord.short_name) {
-                                    clientShortName = clientRecord.short_name;
+                                const sn = clientRecord.short_name || clientRecord.SHORT_NAME;
+                                if (sn) {
+                                    clientShortName = sn;
+                                } else {
+                                    // Fallback to first name if short_name is truly empty
+                                    clientShortName = clientNameClean.split(' ')[0] || clientNameClean;
                                 }
-                                if (clientRecord.whatsapp) {
-                                    clientWhatsapp = clientRecord.whatsapp;
+
+                                const wa = clientRecord.whatsapp || clientRecord.WHATSAPP;
+                                if (wa) {
+                                    clientWhatsapp = wa;
                                 }
                             }
                         }
