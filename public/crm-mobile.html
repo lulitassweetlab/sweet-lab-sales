@@ -1646,6 +1646,23 @@
                     addEl.style.fontWeight = (addressStr || hasGeo) ? '700' : '500';
                     addEl.dataset.lat = pf.latitude || '';
                     addEl.dataset.lng = pf.longitude || '';
+
+                    // Trigger Auto Reverse Geocode if address is missing but GPS is present
+                    if (!addressStr && hasGeo) {
+                        addEl.innerHTML = '<span class="status-dot status-active" style="display:inline-block; width:8px; height:8px; margin-right:6px;"></span> Buscando dirección...';
+                        setTimeout(async () => {
+                            try {
+                                const human = await reverseGeocodeHuman(pf.latitude, pf.longitude);
+                                if (human && human !== 'Ubicación desconocida') {
+                                    console.log('[Geo] Auto-saved discovered address:', human);
+                                    updateClientLocation({ address: human });
+                                } else {
+                                    // Fallback if not found, show coords as fallback instead of just "GPS capturado"
+                                    addEl.innerText = `GPS: ${Number(pf.latitude).toFixed(4)}, ${Number(pf.longitude).toFixed(4)}`;
+                                }
+                            } catch(e) { console.error("Auto-geo fail", e); }
+                        }, 500); 
+                    }
                 }
                 
                 // Description
