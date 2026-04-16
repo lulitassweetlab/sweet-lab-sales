@@ -3667,9 +3667,9 @@
                 } catch(e) { console.error("Error loading directory", e); }
             }
 
-            // Filter
+            // Filter: Only include clients with a real textual address
             const source = directoryData || [];
-            const withLoc = source.filter(c => c.address || c.latitude || c.longitude);
+            const withLoc = source.filter(c => c.address && c.address.trim() !== '' && c.address !== 'Sin dirección');
 
             // Sort Alpha
             withLoc.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
@@ -3677,7 +3677,7 @@
             // Render in Popover
             const container = document.getElementById('locationsContainer');
             if (withLoc.length === 0) {
-                container.innerHTML = `<div style="text-align:center; padding:30px; color:var(--text-muted);">No hay clientes con ubicación guardada.</div>`;
+                container.innerHTML = `<div style="text-align:center; padding:30px; color:var(--text-muted);">No hay clientes con dirección guardada.</div>`;
             } else {
                 container.innerHTML = withLoc.map(c => `
                     <div onclick="loadProfile(${c.id}); closePopovers();" style="padding:15px; border-radius:16px; background:var(--bg); border:1px solid var(--border); cursor:pointer; transition:all 0.2s;" 
@@ -3685,7 +3685,7 @@
                         onmouseout="this.style.borderColor='var(--border)'; this.style.background='var(--bg)'; this.style.transform='none'">
                         <div style="font-weight:800; font-size:1.05rem; color:var(--text-main); margin-bottom:4px;">${c.name}</div>
                         <div style="font-size:0.85rem; color:var(--text-muted); line-height:1.4; display:flex; align-items:center; gap:6px;">
-                            <span>📍</span> ${c.address || (c.latitude ? 'GPS Capturado' : 'Sin dirección')}
+                            <span>📍</span> ${c.address}
                         </div>
                     </div>
                 `).join('');
