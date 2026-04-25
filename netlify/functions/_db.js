@@ -268,6 +268,68 @@ export async function ensureSchema() {
 			await sql`CREATE INDEX IF NOT EXISTS idx_crm_activities_sale ON crm_activities(related_sale_id)`;
 			await sql`CREATE INDEX IF NOT EXISTS idx_crm_client_sales_client ON crm_client_sales(client_id)`;
 
+			// 40: Inventory Master and Movements
+			await sql`
+				CREATE TABLE IF NOT EXISTS inventory_items (
+					id SERIAL PRIMARY KEY,
+					ingredient TEXT UNIQUE NOT NULL,
+					unit TEXT NOT NULL DEFAULT 'g',
+					category VARCHAR(20) DEFAULT 'ingrediente',
+					price INTEGER DEFAULT 0,
+					pack_size INTEGER DEFAULT 0,
+					updated_at TIMESTAMPTZ DEFAULT now()
+				)
+			`;
+			await sql`
+				CREATE TABLE IF NOT EXISTS inventory_movements (
+					id SERIAL PRIMARY KEY,
+					ingredient TEXT NOT NULL,
+					kind TEXT NOT NULL, -- ingreso, ajuste, produccion
+					qty NUMERIC NOT NULL,
+					note TEXT,
+					actor_name TEXT,
+					metadata JSONB DEFAULT '{}'::jsonb,
+					created_at TIMESTAMPTZ DEFAULT now()
+				)
+			`;
+
+			// 41: Recipes System
+			await sql`
+				CREATE TABLE IF NOT EXISTS dessert_recipes (
+					id SERIAL PRIMARY KEY,
+					dessert TEXT NOT NULL,
+					step_name TEXT,
+					position INTEGER DEFAULT 0,
+					created_at TIMESTAMPTZ DEFAULT now()
+				)
+			`;
+			await sql`
+				CREATE TABLE IF NOT EXISTS dessert_recipe_items (
+					id SERIAL PRIMARY KEY,
+					recipe_id INTEGER REFERENCES dessert_recipes(id) ON DELETE CASCADE,
+					ingredient TEXT NOT NULL,
+					unit TEXT NOT NULL DEFAULT 'g',
+					qty_per_unit NUMERIC NOT NULL DEFAULT 0,
+					price INTEGER DEFAULT 0,
+					pack_size INTEGER DEFAULT 0,
+					adjustment NUMERIC DEFAULT 0,
+					position INTEGER DEFAULT 0
+				)
+			`;
+			await sql`
+				CREATE TABLE IF NOT EXISTS extras_items (
+					id SERIAL PRIMARY KEY,
+					ingredient TEXT NOT NULL,
+					unit TEXT NOT NULL DEFAULT 'g',
+					qty_per_unit NUMERIC NOT NULL DEFAULT 0,
+					price INTEGER DEFAULT 0,
+					pack_size INTEGER DEFAULT 0,
+					position INTEGER DEFAULT 0
+				)
+			`;
+			await sql`CREATE TABLE IF NOT EXISTS dessert_order (dessert TEXT PRIMARY KEY, position INTEGER)`;
+
+
 
 
 			// Seed default desserts if empty
