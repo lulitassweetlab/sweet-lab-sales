@@ -7,18 +7,13 @@ function json(body, status = 200) {
 export async function handler(event) {
     let currentProcessMonth = 'init';
     try {
-        console.log('[Partners Report] Starting Snapshot System...');
         await ensureSchema();
         const params = event.queryStringParameters || {};
         const forceSync = params.force_sync === '1';
 
-        // Ensure table exists (extra safety)
         await sql`CREATE TABLE IF NOT EXISTS financial_snapshots (month TEXT PRIMARY KEY, data JSONB NOT NULL, calculated_at TIMESTAMPTZ DEFAULT now())`;
 
-        if (forceSync) {
-            console.log('[Partners Report] Force Sync: Clearing snapshots...');
-            await sql`DELETE FROM financial_snapshots`;
-        }
+        if (forceSync) await sql`DELETE FROM financial_snapshots`;
 
         // 1. Get Settings
         const settingsRows = await sql`SELECT key, value FROM store_settings WHERE key IN ('partner_seller_ids', 'provision_default_perc')`;
@@ -33,23 +28,43 @@ export async function handler(event) {
 
         const partnerIds = Array.isArray(settings.partner_seller_ids) ? settings.partner_seller_ids.map(Number) : [];
 
-        // 2. Get SELLERS maps (include archived for historical context)
-        const sellers = await sql`SELECT id, name, parent_id FROM sellers`;
+        // 2. Get ALL sellers to build the recursive tree
+        const allSellersRows = await sql`SELECT id, name, parent_id FROM sellers`;
         const sellerMap = {};
-        const hierarchy = {};
-        sellers.forEach(s => {
+        const sellersById = {};
+        allSellersRows.forEach(s => {
             sellerMap[s.id] = s.name;
-            const pid = Number(s.parent_id);
-            if (pid && partnerIds.includes(pid)) hierarchy[s.id] = pid;
-            else hierarchy[s.id] = s.id;
+            sellersById[s.id] = s;
         });
 
-        // 3. Get Existing Snapshots
+        // RECURSIVE HIERARCHY LOGIC
+        // For each seller, find the first ancestor that is a Socio (Partner)
+        const leadPartnerMap = {};
+        allSellersRows.forEach(s => {
+            let current = s;
+            let visited = new Set();
+            let foundPartner = null;
+
+            // Traverse up the tree
+            while (current && !visited.has(current.id)) {
+                visited.add(current.id);
+                // If the CURRENT person in the chain is a partner, they are the lead
+                if (partnerIds.includes(Number(current.id))) {
+                    foundPartner = Number(current.id);
+                    break;
+                }
+                // Otherwise, move to the parent
+                if (!current.parent_id) break;
+                current = sellersById[current.parent_id];
+            }
+            leadPartnerMap[s.id] = foundPartner || s.id;
+        });
+
+        // 3. Snapshots and Months
         const snapshotsRows = await sql`SELECT month, data FROM financial_snapshots ORDER BY month ASC`;
         const snapshotsMap = {};
         snapshotsRows.forEach(r => snapshotsMap[r.month] = r.data);
 
-        // 4. Get All Activity Months
         const monthRows = await sql`
             SELECT DISTINCT to_char(sd.day, 'YYYY-MM') as month FROM sale_days sd
             UNION
@@ -68,7 +83,6 @@ export async function handler(event) {
             currentProcessMonth = m;
             let monthData;
 
-            // USE CACHE
             if (snapshotsMap[m] && m !== currentMonth && !forceSync) {
                 monthData = snapshotsMap[m];
                 if (monthData.cumulative_sales) {
@@ -77,8 +91,6 @@ export async function handler(event) {
                     });
                 }
             } else {
-                console.log(`[Partners Report] Processing: ${m}`);
-                
                 const [mSales, mAcc, mComm] = await Promise.all([
                     sql`
                         SELECT s.seller_id, SUM(s.total_cents) as revenue, SUM(si.quantity * d.cost_price) as cogs
@@ -102,9 +114,9 @@ export async function handler(event) {
 
                 const opProfit = revenue - cogs - expenses - losses - commissions;
 
-                // Update cumulative
+                // RECURSIVE ATTRIBUTION
                 mSales.forEach(s => {
-                    const leadId = hierarchy[s.seller_id] || s.seller_id;
+                    const leadId = leadPartnerMap[s.seller_id];
                     if (partnerIds.includes(Number(leadId))) {
                         lastCumulativeSales[leadId] = (lastCumulativeSales[leadId] || 0) + Number(s.revenue || 0);
                     }
@@ -134,11 +146,7 @@ export async function handler(event) {
                 };
 
                 if (m < currentMonth) {
-                    await sql`
-                        INSERT INTO financial_snapshots (month, data) 
-                        VALUES (${m}, ${JSON.stringify(monthData)})
-                        ON CONFLICT (month) DO UPDATE SET data = EXCLUDED.data, calculated_at = now()
-                    `;
+                    await sql`INSERT INTO financial_snapshots (month, data) VALUES (${m}, ${JSON.stringify(monthData)}) ON CONFLICT (month) DO UPDATE SET data = EXCLUDED.data, calculated_at = now()`;
                 }
             }
             history.push(monthData);
@@ -147,7 +155,7 @@ export async function handler(event) {
         return json({ settings, history: history.reverse() });
 
     } catch (err) {
-        console.error(`[Partners Report] Internal Error at month ${currentProcessMonth}:`, err);
-        return json({ error: 'Fallo interno en el cálculo histórico', month: currentProcessMonth, details: String(err) }, 500);
+        console.error(`[Partners Report] Fatal Error:`, err);
+        return json({ error: 'Fallo histórico', details: String(err) }, 500);
     }
 }
