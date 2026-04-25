@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 49; // 49: Add financial_snapshots for faster partner reports
+const SCHEMA_VERSION = 50; // 50: Unified Inventory (category, price, pack_size)
 
 export async function ensureSchema() {
 	if (schemaEnsured) return;
@@ -441,7 +441,63 @@ export async function ensureSchema() {
 				}
 			} catch (err) { console.error('Migration 47 error:', err); }
 
-			await sql`UPDATE schema_meta SET version = ${SCHEMA_VERSION}, updated_at = now()`;
+				if (Number(meta[0].version) < 50) {
+					console.log('Migrating to v50: Unified Inventory schema...');
+					
+					// 1. Ensure inventory_items columns
+					await sql`ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS category VARCHAR(20) DEFAULT 'ingrediente'`;
+					await sql`ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS price INTEGER DEFAULT 0`;
+					await sql`ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS pack_size INTEGER DEFAULT 0`;
+					await sql`ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now()`;
+
+					// 2. Populate from recipes (Max price found)
+					await sql`
+						WITH recipe_prices AS (
+							SELECT lower(trim(ingredient)) as ing, MAX(price) as max_p, MAX(pack_size) as max_pk
+							FROM dessert_recipe_items
+							GROUP BY lower(trim(ingredient))
+						)
+						UPDATE inventory_items ii
+						SET price = COALESCE(rp.max_p, ii.price),
+							pack_size = COALESCE(rp.max_pk, ii.pack_size),
+							category = 'ingrediente'
+						FROM recipe_prices rp
+						WHERE lower(trim(ii.ingredient)) = rp.ing
+					`;
+
+					// 3. Populate from extras (Categorize as 'empaque' by default for extras, as they usually are)
+					await sql`
+						WITH extra_prices AS (
+							SELECT lower(trim(ingredient)) as ing, MAX(price) as max_p, MAX(pack_size) as max_pk
+							FROM extras_items
+							GROUP BY lower(trim(ingredient))
+						)
+						UPDATE inventory_items ii
+						SET price = COALESCE(ep.max_p, ii.price),
+							pack_size = COALESCE(ep.max_pk, ii.pack_size),
+							category = 'empaque'
+						FROM extra_prices ep
+						WHERE lower(trim(ii.ingredient)) = ep.ing
+					`;
+
+					// 4. Upsert any missing ingredients that are in recipes but not in inventory_items
+					await sql`
+						INSERT INTO inventory_items (ingredient, unit, price, pack_size, category)
+						SELECT DISTINCT ON (lower(trim(ingredient))) ingredient, unit, price, pack_size, 'ingrediente'
+						FROM dessert_recipe_items
+						ON CONFLICT (ingredient) DO NOTHING
+					`;
+					await sql`
+						INSERT INTO inventory_items (ingredient, unit, price, pack_size, category)
+						SELECT DISTINCT ON (lower(trim(ingredient))) ingredient, unit, price, pack_size, 'empaque'
+						FROM extras_items
+						ON CONFLICT (ingredient) DO NOTHING
+					`;
+
+					await sql`UPDATE schema_meta SET version = 50`;
+				}
+
+				await sql`UPDATE schema_meta SET version = ${SCHEMA_VERSION}, updated_at = now()`;
 			schemaEnsured = true;
 		} catch (err) {
 			console.error('CRITICAL: ensureSchema failed', err);
@@ -618,9 +674,40 @@ export async function ensureInventoryItem(ingredient, unit = 'g') {
 	const [row] = await sql`
 		INSERT INTO inventory_items (ingredient, unit) VALUES (${name}, ${unit})
 		ON CONFLICT (ingredient) DO UPDATE SET unit = EXCLUDED.unit, updated_at = now()
-		RETURNING id, ingredient, unit
+		RETURNING id, ingredient, unit, category, price, pack_size
 	`;
 	return row;
+}
+
+export async function recalculateAllDessertCosts() {
+	await ensureSchema();
+	const materials = await sql`SELECT lower(trim(ingredient)) as ing, price FROM inventory_items`;
+	const prices = new Map();
+	materials.forEach(m => prices.set(m.ing, Number(m.price || 0)));
+
+	const extrasRows = await sql`SELECT lower(trim(ingredient)) as ing, qty_per_unit FROM extras_items`;
+	let extrasTotal = 0;
+	extrasRows.forEach(e => {
+		const p = prices.get(e.ing) || 0;
+		extrasTotal += (p * Number(e.qty_per_unit || 0));
+	});
+
+	const dessertsList = await sql`SELECT id, name, short_code FROM desserts`;
+	const recipes = await sql`SELECT id, dessert FROM dessert_recipes`;
+	const items = await sql`SELECT recipe_id, lower(trim(ingredient)) as ing, qty_per_unit FROM dessert_recipe_items`;
+
+	for (const d of dessertsList) {
+		let total = extrasTotal;
+		const dSteps = recipes.filter(r => r.dessert.toLowerCase() === d.name.toLowerCase() || r.dessert.toLowerCase() === d.short_code.toLowerCase());
+		const stepIds = dSteps.map(s => s.id);
+		const dItems = items.filter(i => stepIds.includes(i.recipe_id));
+		for (const it of dItems) {
+			const p = prices.get(it.ing) || 0;
+			total += (p * Number(it.qty_per_unit || 0));
+		}
+		await sql`UPDATE desserts SET cost_price = ${Math.round(total)}, updated_at = now() WHERE id = ${d.id}`;
+	}
+	console.log('All dessert cost_prices recalculated.');
 }
 
 export { sql };
