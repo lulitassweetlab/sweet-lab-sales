@@ -142,7 +142,10 @@
                     <span style="flex:1; font-weight:500">${s.name}</span>
                     <select class="lead-s" data-id="${s.id}" style="width:130px; padding:5px; border-radius:8px; border:1px solid #ddd">
                         <option value="">(Sin Líder)</option>
-                        ${SELLERS.filter(x => pIds.includes(Number(x.id))).map(partner => `<option value="${partner.id}" ${Number(s.parent_id) === Number(partner.id) ? 'selected' : ''}>${partner.name}</option>`).join('')}
+                        ${SELLERS.map(p => {
+                            if (Number(p.id) === Number(s.id)) return '';
+                            return `<option value="${p.id}" ${Number(s.parent_id) === Number(p.id) ? 'selected' : ''}>${p.name}</option>`;
+                        }).join('')}
                     </select>
                 `;
                 list.appendChild(d);
@@ -159,15 +162,17 @@
             try {
                 const pIds = Array.from(document.querySelectorAll('.is-p:checked')).map(c => Number(c.dataset.id));
                 
-                // Save Store Settings (Partner list)
-                await fetch('/api/store-settings', { 
+                // 1. Save Partner List (Store Settings)
+                const resSettings = await fetch('/api/store-settings', { 
                     method: 'POST', 
                     headers: {'Content-Type':'application/json'}, 
                     body: JSON.stringify({ partner_seller_ids: JSON.stringify(pIds)}) 
                 });
+                if (!resSettings.ok) throw new Error('Error guardando lista de socios');
 
-                // Parallel update for all hierarchy changes
-                const updatePromises = Array.from(document.querySelectorAll('.lead-s')).map(sel => {
+                // 2. Save Hierarchy changes
+                const selects = document.querySelectorAll('.lead-s');
+                const updatePromises = Array.from(selects).map(sel => {
                     const pId = sel.value || null;
                     return fetch('/api/sellers', { 
                         method: 'PATCH', 
@@ -176,10 +181,18 @@
                     });
                 });
 
-                await Promise.all(updatePromises);
-                location.href = '?auth=admin&force_sync=1'; // Force sync after hierarchy change
+                const results = await Promise.all(updatePromises);
+                const failed = results.filter(r => !r.ok && r.status !== 400); // 400 is "no changes", which is fine
+                
+                if (failed.length > 0) {
+                    console.error('Some updates failed:', failed);
+                    alert('Se guardaron los socios, pero algunos líderes no pudieron actualizarse. Reintente.');
+                }
+                
+                location.href = '?auth=admin&force_sync=1'; 
             } catch (e) {
                 alert('Error al guardar: ' + e.message);
+                console.error(e);
                 btn.disabled = false;
                 btn.innerText = 'Guardar';
             }
