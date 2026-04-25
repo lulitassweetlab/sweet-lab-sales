@@ -22,12 +22,25 @@ export async function handler(event) {
             }
         }
 
-        // 2. Get All Sellers (to map names and identify partners)
-        const allSellers = await sql`SELECT id, name FROM sellers WHERE archived_at IS NULL`;
+        // 2. Get All Sellers (to map names and identify partners and hierarchies)
+        const allSellers = await sql`SELECT id, name, parent_id FROM sellers WHERE archived_at IS NULL`;
         const sellerMap = {};
-        allSellers.forEach(s => sellerMap[s.id] = s.name);
+        const hierarchy = {}; // seller_id -> lead_partner_id
         
+        allSellers.forEach(s => {
+            sellerMap[s.id] = s.name;
+        });
+
         const partnerIds = Array.isArray(settings.partner_seller_ids) ? settings.partner_seller_ids.map(Number) : [];
+
+        // Build hierarchy map: Each seller points to their lead partner if they are part of a team
+        allSellers.forEach(s => {
+            if (s.parent_id && partnerIds.includes(Number(s.parent_id))) {
+                hierarchy[s.id] = Number(s.parent_id);
+            } else {
+                hierarchy[s.id] = s.id; // Self
+            }
+        });
 
         // 3. Get All Sales grouped by Month and Seller
         // We need this to calculate "Monthly Revenue" and "Cumulative Merit"
@@ -86,11 +99,13 @@ export async function handler(event) {
             const grossProfit = revenue - cogs - commissions;
             const operatingProfit = grossProfit - expenses - losses;
 
-            // Update cumulative sales for partners up to this month
-            for (const pid of partnerIds) {
-                const partnerSalesThisMonth = mSales.filter(s => Number(s.seller_id) === pid).reduce((acc, curr) => acc + Number(curr.revenue_cents || 0), 0);
-                cumulativeSalesByPartner[pid] += partnerSalesThisMonth;
-            }
+            // Update cumulative sales for partners up to this month (including their teams)
+            mSales.forEach(s => {
+                const leadId = hierarchy[s.seller_id];
+                if (partnerIds.includes(leadId)) {
+                    cumulativeSalesByPartner[leadId] += Number(s.revenue_cents || 0);
+                }
+            });
 
             const totalCumulativeSalesOfPartners = partnerIds.reduce((acc, pid) => acc + (cumulativeSalesByPartner[pid] || 0), 0);
 

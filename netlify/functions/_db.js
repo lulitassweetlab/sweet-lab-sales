@@ -343,6 +343,7 @@ export async function ensureSchema() {
 				await sql`ALTER TABLE crm_tags ADD COLUMN IF NOT EXISTS display_order INTEGER DEFAULT 0`;
 				await sql`ALTER TABLE sellers ADD COLUMN IF NOT EXISTS whatsapp TEXT`;
 				await sql`ALTER TABLE sellers ADD COLUMN IF NOT EXISTS game_enabled BOOLEAN DEFAULT TRUE`;
+				await sql`ALTER TABLE sellers ADD COLUMN IF NOT EXISTS parent_id INTEGER REFERENCES sellers(id) ON DELETE SET NULL`;
 
 				// Migration 39: Activate automation for existing stages by name
 				const autoStages = [

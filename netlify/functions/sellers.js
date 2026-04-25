@@ -54,7 +54,7 @@ export async function handler(event) {
 				// Support include_archived=1 to include archived sellers; default excludes archived
 				const includeArchived = (event.queryStringParameters?.include_archived || '') === '1';
 				const rows = await sql`
-					SELECT id, name, bill_color, archived_at, commission_rate_low, commission_rate_mid, commission_rate_high, require_whatsapp, whatsapp, game_enabled 
+					SELECT id, name, bill_color, archived_at, commission_rate_low, commission_rate_mid, commission_rate_high, require_whatsapp, whatsapp, game_enabled, parent_id 
 					FROM sellers 
 					WHERE archived_at IS NULL OR ${includeArchived}
 					ORDER BY name
@@ -67,7 +67,7 @@ export async function handler(event) {
 				if (role !== 'superadmin') return json({ error: 'No autorizado' }, 403);
 				const name = (data.name || '').trim();
 				if (!name) return json({ error: 'Nombre requerido' }, 400);
-				const [row] = await sql`INSERT INTO sellers (name) VALUES (${name}) ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name RETURNING id, name, bill_color, archived_at, commission_rate_low, commission_rate_mid, commission_rate_high, require_whatsapp, whatsapp, game_enabled`;
+				const [row] = await sql`INSERT INTO sellers (name) VALUES (${name}) ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name RETURNING id, name, bill_color, archived_at, commission_rate_low, commission_rate_mid, commission_rate_high, require_whatsapp, whatsapp, game_enabled, parent_id`;
 				return json(row, 201);
 			}
 			case 'PATCH': {
@@ -87,6 +87,8 @@ export async function handler(event) {
 				const whatsappValue = data.whatsapp === null ? null : String(data.whatsapp || '').trim();
 				const gameEnabledPassed = data.game_enabled !== undefined;
 				const gameEnabledValue = !!data.game_enabled;
+				const parentIdPassed = data.parent_id !== undefined;
+				const parentIdValue = data.parent_id === null ? null : Number(data.parent_id);
 				const action = (data.action || '').toString();
 
 				if (!id && !rawName) return json({ error: 'id o name requerido' }, 400);
@@ -100,10 +102,10 @@ export async function handler(event) {
 
 				let row;
 				if (action === 'archive') {
-					[row] = await sql`UPDATE sellers SET archived_at=now() WHERE id=${targetId} RETURNING id, name, bill_color, archived_at, commission_rate_low, commission_rate_mid, commission_rate_high, require_whatsapp, whatsapp, game_enabled`;
+					[row] = await sql`UPDATE sellers SET archived_at=now() WHERE id=${targetId} RETURNING id, name, bill_color, archived_at, commission_rate_low, commission_rate_mid, commission_rate_high, require_whatsapp, whatsapp, game_enabled, parent_id`;
 				} else if (action === 'unarchive') {
-					[row] = await sql`UPDATE sellers SET archived_at=NULL WHERE id=${targetId} RETURNING id, name, bill_color, archived_at, commission_rate_low, commission_rate_mid, commission_rate_high, require_whatsapp, whatsapp, game_enabled`;
-				} else if (billColor !== null || commRateLow !== null || commRateMid !== null || commRateHigh !== null || reqWhatsappPassed || whatsappPassed || gameEnabledPassed) {
+					[row] = await sql`UPDATE sellers SET archived_at=NULL WHERE id=${targetId} RETURNING id, name, bill_color, archived_at, commission_rate_low, commission_rate_mid, commission_rate_high, require_whatsapp, whatsapp, game_enabled, parent_id`;
+				} else if (billColor !== null || commRateLow !== null || commRateMid !== null || commRateHigh !== null || reqWhatsappPassed || whatsappPassed || gameEnabledPassed || parentIdPassed) {
 					[row] = await sql`
 						UPDATE sellers SET
 							bill_color = COALESCE(${billColor}, bill_color),
@@ -112,9 +114,10 @@ export async function handler(event) {
 							commission_rate_high = COALESCE(${commRateHigh}, commission_rate_high),
 							require_whatsapp = CASE WHEN ${reqWhatsappPassed} THEN ${reqWhatsappValue} ELSE require_whatsapp END,
 							whatsapp = CASE WHEN ${whatsappPassed} THEN ${whatsappValue} ELSE whatsapp END,
-							game_enabled = CASE WHEN ${gameEnabledPassed} THEN ${gameEnabledValue} ELSE game_enabled END
+							game_enabled = CASE WHEN ${gameEnabledPassed} THEN ${gameEnabledValue} ELSE game_enabled END,
+							parent_id = CASE WHEN ${parentIdPassed} THEN ${parentIdValue} ELSE parent_id END
 						WHERE id=${targetId}
-						RETURNING id, name, bill_color, archived_at, commission_rate_low, commission_rate_mid, commission_rate_high, require_whatsapp, whatsapp, game_enabled
+						RETURNING id, name, bill_color, archived_at, commission_rate_low, commission_rate_mid, commission_rate_high, require_whatsapp, whatsapp, game_enabled, parent_id
 					`;
 				} else {
 					return json({ error: 'Sin cambios' }, 400);
