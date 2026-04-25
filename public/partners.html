@@ -180,20 +180,6 @@
             });
         }
 
-        document.getElementById('btn-open-settings').onclick = () => {
-            if (!DATA) return alert('Espere a que carguen los datos');
-            renderConfig();
-            document.getElementById('modal-settings').classList.add('active');
-        };
-
-        document.getElementById('btn-save-settings').onclick = async () => {
-            const btn = document.getElementById('btn-save-settings');
-            btn.disabled = true;
-            btn.innerHTML = 'Guardando...';
-
-            const pIds = Array.from(document.querySelectorAll('.is-partner:checked')).map(c => Number(c.dataset.id));
-            const prov = document.getElementById('prov-input').value;
-
             // Save Global
             await fetch('/api/store-settings', {
                 method: 'POST',
