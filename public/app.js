@@ -6620,6 +6620,7 @@ async function renderIngredientsView() {
 	root.innerHTML = '';
 	// Create or update global ingredients datalist
 	let inv = []; try { inv = await api('GET', API.Inventory); } catch {}
+	if (!Array.isArray(inv)) inv = [];
 	let dl = document.getElementById('dl-inventory-items');
 	if (!dl) { dl = document.createElement('datalist'); dl.id = 'dl-inventory-items'; document.body.appendChild(dl); }
 	dl.innerHTML = inv.map(it => `<option value="${it.ingredient}">`).join('');

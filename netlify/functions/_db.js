@@ -485,12 +485,14 @@ export async function ensureSchema() {
 						INSERT INTO inventory_items (ingredient, unit, price, pack_size, category)
 						SELECT DISTINCT ON (lower(trim(ingredient))) ingredient, unit, price, pack_size, 'ingrediente'
 						FROM dessert_recipe_items
+						ORDER BY lower(trim(ingredient))
 						ON CONFLICT (ingredient) DO NOTHING
 					`;
 					await sql`
 						INSERT INTO inventory_items (ingredient, unit, price, pack_size, category)
 						SELECT DISTINCT ON (lower(trim(ingredient))) ingredient, unit, price, pack_size, 'empaque'
 						FROM extras_items
+						ORDER BY lower(trim(ingredient))
 						ON CONFLICT (ingredient) DO NOTHING
 					`;
 
@@ -698,7 +700,10 @@ export async function recalculateAllDessertCosts() {
 
 	for (const d of dessertsList) {
 		let total = extrasTotal;
-		const dSteps = recipes.filter(r => r.dessert.toLowerCase() === d.name.toLowerCase() || r.dessert.toLowerCase() === d.short_code.toLowerCase());
+		const dSteps = recipes.filter(r => {
+			if (!r.dessert) return false;
+			return r.dessert.toLowerCase() === d.name.toLowerCase() || r.dessert.toLowerCase() === d.short_code.toLowerCase();
+		});
 		const stepIds = dSteps.map(s => s.id);
 		const dItems = items.filter(i => stepIds.includes(i.recipe_id));
 		for (const it of dItems) {
