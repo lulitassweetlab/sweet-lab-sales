@@ -47,7 +47,22 @@
     <div id="modal-cfg" class="modal">
         <div class="modal-c">
             <h2>Configuración</h2>
-            <div id="cfg-sellers" style="max-height: 350px; overflow-y: auto;"></div>
+            <div id="cfg-sellers" style="max-height: 250px; overflow-y: auto;"></div>
+            
+            <div style="margin-top: 15px; padding: 15px; background: #f8fafc; border-radius: 15px; border: 1px solid #e2e8f0;">
+                <h4 style="margin:0 0 10px 0; font-size: 0.85rem; color: #64748b; text-transform: uppercase;">Ajustes de Fundador</h4>
+                <div style="display:flex; flex-direction:column; gap:10px;">
+                    <select id="founder-id" style="width:100%; padding:8px; border-radius:8px; border:1px solid #ddd; font-size:0.9rem;">
+                        <option value="">(Sin Socio Fundador)</option>
+                    </select>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <span style="font-size:0.9rem; flex:1">Porcentaje garantizado:</span>
+                        <input type="number" id="founder-perc" value="25" style="width:60px; padding:8px; border-radius:8px; border:1px solid #ddd; text-align:center;">
+                        <span style="font-size:0.9rem">%</span>
+                    </div>
+                </div>
+            </div>
+
             <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #eee;">
                 <button onclick="location.href='?auth=admin&force_sync=1'" style="width:100%; padding:10px; background:#f8fafc; border:1px solid #ddd; border-radius:10px; cursor:pointer; font-size:0.8rem; color:#666;">🔄 Recalcular Todo el Historial</button>
             </div>
@@ -153,6 +168,11 @@
                 list.appendChild(d);
             });
 
+            // Founder Setup
+            const fSel = document.getElementById('founder-id');
+            fSel.innerHTML = '<option value="">(Sin Socio Fundador)</option>' + SELLERS.filter(s => pIds.includes(Number(s.id))).map(s => `<option value="${s.id}" ${Number(DATA.settings.partner_founder_id) === Number(s.id) ? 'selected' : ''}>${s.name}</option>`).join('');
+            document.getElementById('founder-perc').value = DATA.settings.partner_founder_perc || 25;
+
             document.getElementById('modal-cfg').style.display = 'flex';
         };
 
@@ -163,14 +183,20 @@
             
             try {
                 const pIds = Array.from(document.querySelectorAll('.is-p:checked')).map(c => Number(c.dataset.id));
+                const fId = document.getElementById('founder-id').value;
+                const fPerc = document.getElementById('founder-perc').value;
                 
-                // 1. Save Partner List (Store Settings)
+                // 1. Save All Settings
                 const resSettings = await fetch('/api/store-settings', { 
                     method: 'POST', 
                     headers: {'Content-Type':'application/json'}, 
-                    body: JSON.stringify({ partner_seller_ids: JSON.stringify(pIds)}) 
+                    body: JSON.stringify({ 
+                        partner_seller_ids: JSON.stringify(pIds),
+                        partner_founder_id: fId,
+                        partner_founder_perc: fPerc
+                    }) 
                 });
-                if (!resSettings.ok) throw new Error('Error guardando lista de socios');
+                if (!resSettings.ok) throw new Error('Error guardando configuración');
 
                 // 2. Save Hierarchy changes
                 const selects = document.querySelectorAll('.lead-s');

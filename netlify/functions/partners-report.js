@@ -14,16 +14,23 @@ export async function handler(event) {
         await sql`CREATE TABLE IF NOT EXISTS financial_snapshots (month TEXT PRIMARY KEY, data JSONB NOT NULL, calculated_at TIMESTAMPTZ DEFAULT now())`;
         if (forceSync) await sql`DELETE FROM financial_snapshots`;
 
-        const settingsRows = await sql`SELECT key, value FROM store_settings WHERE key IN ('partner_seller_ids', 'provision_default_perc')`;
-        const settings = { partner_seller_ids: [], provision_default_perc: 3 };
+        // 1. Get Settings (Added Founder settings)
+        const settingsRows = await sql`SELECT key, value FROM store_settings WHERE key IN ('partner_seller_ids', 'provision_default_perc', 'partner_founder_id', 'partner_founder_perc')`;
+        const settings = { partner_seller_ids: [], provision_default_perc: 3, partner_founder_id: null, partner_founder_perc: 25 };
         for (const r of settingsRows) {
             if (r.key === 'partner_seller_ids') {
                 try { settings.partner_seller_ids = JSON.parse(r.value); } catch { settings.partner_seller_ids = []; }
             } else if (r.key === 'provision_default_perc') {
                 settings.provision_default_perc = Number(r.value) || 3;
+            } else if (r.key === 'partner_founder_id') {
+                settings.partner_founder_id = r.value;
+            } else if (r.key === 'partner_founder_perc') {
+                settings.partner_founder_perc = Number(r.value) || 0;
             }
         }
         const partnerIds = Array.isArray(settings.partner_seller_ids) ? settings.partner_seller_ids.map(Number) : [];
+        const founderId = Number(settings.partner_founder_id);
+        const founderPerc = Number(settings.partner_founder_perc);
 
         const allSellersRows = await sql`SELECT id, name, parent_id FROM sellers`;
         const sellerMap = {};
@@ -72,27 +79,12 @@ export async function handler(event) {
                 }
             } else {
                 const [revenueRows, cogsRows, accRows, commRows] = await Promise.all([
-                    sql`
-                        SELECT s.seller_id, SUM(s.total_cents) as revenue
-                        FROM sales s
-                        JOIN sale_days sd ON sd.id = s.sale_day_id
-                        WHERE to_char(sd.day, 'YYYY-MM') = ${m}
-                        GROUP BY s.seller_id
-                    `,
-                    sql`
-                        SELECT s.seller_id, SUM(si.quantity * d.cost_price) as cogs
-                        FROM sale_items si
-                        JOIN sales s ON s.id = si.sale_id
-                        JOIN sale_days sd ON sd.id = s.sale_day_id
-                        JOIN desserts d ON d.id = si.dessert_id
-                        WHERE to_char(sd.day, 'YYYY-MM') = ${m}
-                        GROUP BY s.seller_id
-                    `,
+                    sql`SELECT s.seller_id, SUM(s.total_cents) as revenue FROM sales s JOIN sale_days sd ON sd.id = s.sale_day_id WHERE to_char(sd.day, 'YYYY-MM') = ${m} GROUP BY s.seller_id`,
+                    sql`SELECT s.seller_id, SUM(si.quantity * d.cost_price) as cogs FROM sale_items si JOIN sales s ON s.id = si.sale_id JOIN sale_days sd ON sd.id = s.sale_day_id JOIN desserts d ON d.id = si.dessert_id WHERE to_char(sd.day, 'YYYY-MM') = ${m} GROUP BY s.seller_id`,
                     sql`SELECT kind, SUM(amount_cents) as total FROM accounting_entries WHERE to_char(entry_date, 'YYYY-MM') = ${m} GROUP BY kind`,
                     sql`SELECT SUM(commissions_paid) as total FROM sale_days WHERE to_char(day, 'YYYY-MM') = ${m}`
                 ]);
 
-                // NO DIVISION BY 100 - Use raw integer values as COP Pesos
                 const revenue = Math.round(revenueRows.reduce((a, b) => a + Number(b.revenue || 0), 0));
                 const cogs = Math.round(cogsRows.reduce((a, b) => a + Number(b.cogs || 0), 0));
                 const expenses = Math.round(Number(accRows.find(a => a.kind === 'gasto')?.total || 0));
@@ -114,12 +106,23 @@ export async function handler(event) {
                 if (provManual === 0) provision = Math.round(Math.max(0, opProfit) * (settings.provision_default_perc / 100));
                 const netToShare = opProfit - provision;
 
+                // TWO-LAYER CALCULATION: Founder Fixed + Merit Distribution
+                const founderFixedAmount = founderId && founderPerc > 0 ? Math.round(Math.max(0, netToShare) * (founderPerc / 100)) : 0;
+                const meritPool = netToShare - founderFixedAmount;
+
                 const partnerShares = partnerIds.map(pid => {
                     const cum = lastCumulativeSales[pid] || 0;
-                    const perc = totalPartnerCumulative > 0 ? (cum / totalPartnerCumulative) * 100 : 0;
+                    const meritPerc = totalPartnerCumulative > 0 ? (cum / totalPartnerCumulative) : 0;
+                    
+                    let shareAmount = Math.round(meritPool * meritPerc);
+                    if (pid === founderId) shareAmount += founderFixedAmount;
+                    
+                    const finalPerc = netToShare > 0 ? (shareAmount / netToShare) * 100 : 0;
+
                     return {
-                        id: pid, name: sellerMap[pid] || `Socio ${pid}`, share_perc: Number(perc.toFixed(2)),
-                        share_amount: netToShare > 0 ? Math.round(netToShare * (perc / 100)) : 0
+                        id: pid, name: sellerMap[pid] || `Socio ${pid}`, 
+                        share_perc: Number(finalPerc.toFixed(2)),
+                        share_amount: Math.round(shareAmount)
                     };
                 });
 
