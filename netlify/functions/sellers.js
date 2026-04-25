@@ -12,7 +12,8 @@ export async function handler(event) {
         // Force actor role to admin for these operations or default to user
         async function getRole(evt) {
             const h = evt.headers || {};
-            const actor = (h['x-actor-name'] || h['X-Actor-Name'] || '').toLowerCase();
+            const actorHeader = h['X-Actor-Name'] || h['x-actor-name'] || '';
+            const actor = actorHeader.toLowerCase();
             if (['jorge', 'jorgecordoba', 'admin', 'marcela', 'aleja', 'lulitas'].includes(actor)) return 'admin';
             return 'user';
         }
