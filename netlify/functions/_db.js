@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 47; // 47: Final sweep for Nutella historical prices and legacy migration cleanup
+const SCHEMA_VERSION = 48; // 48: Add parent_id to sellers for partner hierarchy
 
 export async function ensureSchema() {
 	if (schemaEnsured) return;
