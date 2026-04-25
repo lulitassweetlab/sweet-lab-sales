@@ -180,6 +180,10 @@
                     fetch('/api/partners-report'),
                     fetch('/api/sellers')
                 ]);
+                
+                if (!resp.ok) throw new Error('Error en Reporte: ' + resp.status);
+                if (!respSell.ok) throw new Error('Error en Vendedores: ' + respSell.status);
+
                 DATA = await resp.json();
                 SELLERS = await respSell.json();
                 SETTINGS = DATA.settings;
