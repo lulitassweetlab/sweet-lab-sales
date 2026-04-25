@@ -6,14 +6,12 @@ function json(body, status = 200) {
 
 export async function handler(event) {
     try {
+        console.log('[Partners Report] Starting...');
         await ensureSchema();
 
         // 1. Get Settings
         const settingsRows = await sql`SELECT key, value FROM store_settings WHERE key IN ('partner_seller_ids', 'provision_default_perc')`;
-        const settings = {
-            partner_seller_ids: [],
-            provision_default_perc: 3
-        };
+        const settings = { partner_seller_ids: [], provision_default_perc: 3 };
         for (const r of settingsRows) {
             if (r.key === 'partner_seller_ids') {
                 try { settings.partner_seller_ids = JSON.parse(r.value); } catch { settings.partner_seller_ids = []; }
@@ -22,28 +20,23 @@ export async function handler(event) {
             }
         }
 
-        // 2. Get All Sellers (to map names and identify partners and hierarchies)
+        // 2. Get Sellers
         const allSellers = await sql`SELECT id, name, parent_id FROM sellers WHERE archived_at IS NULL`;
         const sellerMap = {};
-        const hierarchy = {}; // seller_id -> lead_partner_id
-        
-        allSellers.forEach(s => {
-            sellerMap[s.id] = s.name;
-        });
-
+        allSellers.forEach(s => sellerMap[s.id] = s.name);
         const partnerIds = Array.isArray(settings.partner_seller_ids) ? settings.partner_seller_ids.map(Number) : [];
 
-        // Build hierarchy map: Each seller points to their lead partner if they are part of a team
+        const hierarchy = {}; // seller_id -> lead_partner_id
         allSellers.forEach(s => {
             if (s.parent_id && partnerIds.includes(Number(s.parent_id))) {
                 hierarchy[s.id] = Number(s.parent_id);
             } else {
-                hierarchy[s.id] = s.id; // Self
+                hierarchy[s.id] = s.id;
             }
         });
 
-        // 3. Get All Sales grouped by Month and Seller
-        // We need this to calculate "Monthly Revenue" and "Cumulative Merit"
+        // 3. Consolidated Financial Data in FEWER queries to avoid overhead
+        console.log('[Partners Report] Querying Sales...');
         const salesData = await sql`
             SELECT 
                 to_char(sd.day, 'YYYY-MM') as month,
@@ -54,32 +47,26 @@ export async function handler(event) {
             JOIN sale_days sd ON sd.id = s.sale_day_id
             LEFT JOIN sale_items si ON si.sale_id = s.id
             LEFT JOIN desserts d ON d.id = si.dessert_id
-            GROUP BY month, s.seller_id
-            ORDER BY month ASC
+            GROUP BY 1, 2
         `;
 
-        // 4. Get Expenses, Losses and Provisions from accounting_entries
+        console.log('[Partners Report] Querying Accounting...');
         const accountingData = await sql`
-            SELECT 
-                to_char(entry_date, 'YYYY-MM') as month,
-                kind,
-                SUM(amount_cents) as total_cents
-            FROM accounting_entries
-            GROUP BY month, kind
+            SELECT to_char(entry_date, 'YYYY-MM') as month, kind, SUM(amount_cents) as total_cents
+            FROM accounting_entries GROUP BY 1, 2
         `;
 
-        // 5. Get Commissions (approximated for now as a percentage or from historical logic if needed)
-        // For simplicity and accuracy, if there isn't a commissions table, we can estimate or query sale_days
         const commissionsData = await sql`
-            SELECT 
-                to_char(day, 'YYYY-MM') as month,
-                SUM(commissions_paid) as commissions_cents
-            FROM sale_days
-            GROUP BY month
+            SELECT to_char(day, 'YYYY-MM') as month, SUM(commissions_paid) as comm_cents
+            FROM sale_days GROUP BY 1
         `;
 
-        // Process Timeline
-        const months = [...new Set([...salesData.map(d => d.month), ...accountingData.map(d => d.month)])].sort();
+        // Process Months
+        const monthSet = new Set();
+        salesData.forEach(d => monthSet.add(d.month));
+        accountingData.forEach(d => monthSet.add(d.month));
+        const months = [...monthSet].sort();
+
         const history = [];
         const cumulativeSalesByPartner = {};
         partnerIds.forEach(pid => cumulativeSalesByPartner[pid] = 0);
@@ -93,13 +80,12 @@ export async function handler(event) {
             const cogs = mSales.reduce((acc, curr) => acc + Number(curr.cogs_cents || 0), 0);
             const expenses = Number(mAcc.find(a => a.kind === 'gasto')?.total_cents || 0);
             const losses = Number(mAcc.find(a => a.kind === 'perdida')?.total_cents || 0);
-            const manualProvision = Number(mAcc.find(a => a.kind === 'provision')?.total_cents || 0);
-            const commissions = Number(mComm?.commissions_cents || 0);
+            const provManual = Number(mAcc.find(a => a.kind === 'provision')?.total_cents || 0);
+            const commissions = Number(mComm?.comm_cents || 0);
 
-            const grossProfit = revenue - cogs - commissions;
-            const operatingProfit = grossProfit - expenses - losses;
+            const opProfit = revenue - cogs - expenses - losses - commissions;
 
-            // Update cumulative sales for partners up to this month (including their teams)
+            // Update cumulative INCLUDING hierarchical teams
             mSales.forEach(s => {
                 const leadId = hierarchy[s.seller_id];
                 if (partnerIds.includes(leadId)) {
@@ -107,52 +93,32 @@ export async function handler(event) {
                 }
             });
 
-            const totalCumulativeSalesOfPartners = partnerIds.reduce((acc, pid) => acc + (cumulativeSalesByPartner[pid] || 0), 0);
+            const totalPartnerCumulative = partnerIds.reduce((a, pid) => a + cumulativeSalesByPartner[pid], 0);
 
-            // Provision logic
-            let provision = manualProvision;
-            if (manualProvision === 0) {
-                provision = Math.round(Math.max(0, operatingProfit) * (settings.provision_default_perc / 100));
-            }
+            let provision = provManual;
+            if (provManual === 0) provision = Math.round(Math.max(0, opProfit) * (settings.provision_default_perc / 100));
 
-            const netToShare = operatingProfit - provision;
+            const netToShare = opProfit - provision;
 
-            // Generate partner list with their share for THIS month based on cumulative performance
             const partners = partnerIds.map(pid => {
-                const cum = cumulativeSalesByPartner[pid] || 0;
-                const perc = totalCumulativeSalesOfPartners > 0 ? (cum / totalCumulativeSalesOfPartners) * 100 : 0;
-                const shareAmount = netToShare > 0 ? Math.round(netToShare * (perc / 100)) : 0;
-
+                const cum = cumulativeSalesByPartner[pid];
+                const perc = totalPartnerCumulative > 0 ? (cum / totalPartnerCumulative) * 100 : 0;
                 return {
                     id: pid,
-                    name: sellerMap[pid] || `Socio ${pid}`,
-                    cumulative_sales: cum,
+                    name: sellerMap[pid],
                     share_perc: Number(perc.toFixed(2)),
-                    share_amount: shareAmount
+                    share_amount: netToShare > 0 ? Math.round(netToShare * (perc / 100)) : 0
                 };
             });
 
-            history.push({
-                month: m,
-                revenue,
-                cogs,
-                expenses,
-                losses,
-                commissions,
-                profit: operatingProfit,
-                provision,
-                net_to_share: netToShare,
-                partners
-            });
+            history.push({ month: m, revenue, cogs, expenses, losses, commissions, profit: opProfit, provision, net_to_share: netToShare, partners });
         }
 
-        return json({
-            settings,
-            history: history.reverse() // Newest month first
-        });
+        console.log('[Partners Report] Done.');
+        return json({ settings, history: history.reverse() });
 
     } catch (err) {
-        console.error('Error in partners-report:', err);
+        console.error('[Partners Report] Error:', err);
         return json({ error: String(err) }, 500);
     }
 }
