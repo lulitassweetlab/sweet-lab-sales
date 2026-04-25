@@ -5,11 +5,15 @@ function json(body, status = 200) {
 }
 
 export async function handler(event) {
+    let currentProcessMonth = 'init';
     try {
         console.log('[Partners Report] Starting Snapshot System...');
         await ensureSchema();
         const params = event.queryStringParameters || {};
         const forceSync = params.force_sync === '1';
+
+        // Ensure table exists (extra safety)
+        await sql`CREATE TABLE IF NOT EXISTS financial_snapshots (month TEXT PRIMARY KEY, data JSONB NOT NULL, calculated_at TIMESTAMPTZ DEFAULT now())`;
 
         if (forceSync) {
             console.log('[Partners Report] Force Sync: Clearing snapshots...');
@@ -29,8 +33,8 @@ export async function handler(event) {
 
         const partnerIds = Array.isArray(settings.partner_seller_ids) ? settings.partner_seller_ids.map(Number) : [];
 
-        // 2. Get All Sellers for hierarchy
-        const sellers = await sql`SELECT id, name, parent_id FROM sellers WHERE archived_at IS NULL`;
+        // 2. Get SELLERS maps (include archived for historical context)
+        const sellers = await sql`SELECT id, name, parent_id FROM sellers`;
         const sellerMap = {};
         const hierarchy = {};
         sellers.forEach(s => {
@@ -45,7 +49,7 @@ export async function handler(event) {
         const snapshotsMap = {};
         snapshotsRows.forEach(r => snapshotsMap[r.month] = r.data);
 
-        // 4. Get All Months
+        // 4. Get All Activity Months
         const monthRows = await sql`
             SELECT DISTINCT to_char(sd.day, 'YYYY-MM') as month FROM sale_days sd
             UNION
@@ -61,21 +65,20 @@ export async function handler(event) {
         const history = [];
 
         for (const m of allMonths) {
+            currentProcessMonth = m;
             let monthData;
 
             // USE CACHE
             if (snapshotsMap[m] && m !== currentMonth && !forceSync) {
                 monthData = snapshotsMap[m];
                 if (monthData.cumulative_sales) {
-                    // Update current cumulative from cache to maintain integrity
                     Object.keys(monthData.cumulative_sales).forEach(pid => {
                         lastCumulativeSales[pid] = Number(monthData.cumulative_sales[pid] || 0);
                     });
                 }
             } else {
-                console.log(`[Partners Report] Calculating: ${m}`);
+                console.log(`[Partners Report] Processing: ${m}`);
                 
-                // Optimized Month Queries
                 const [mSales, mAcc, mComm] = await Promise.all([
                     sql`
                         SELECT s.seller_id, SUM(s.total_cents) as revenue, SUM(si.quantity * d.cost_price) as cogs
@@ -99,10 +102,10 @@ export async function handler(event) {
 
                 const opProfit = revenue - cogs - expenses - losses - commissions;
 
-                // Hierarchical accumulation
+                // Update cumulative
                 mSales.forEach(s => {
-                    const leadId = hierarchy[s.seller_id];
-                    if (partnerIds.includes(leadId)) {
+                    const leadId = hierarchy[s.seller_id] || s.seller_id;
+                    if (partnerIds.includes(Number(leadId))) {
                         lastCumulativeSales[leadId] = (lastCumulativeSales[leadId] || 0) + Number(s.revenue || 0);
                     }
                 });
@@ -130,7 +133,6 @@ export async function handler(event) {
                     cumulative_sales: { ...lastCumulativeSales }
                 };
 
-                // Finalize Cache for past months
                 if (m < currentMonth) {
                     await sql`
                         INSERT INTO financial_snapshots (month, data) 
@@ -142,11 +144,10 @@ export async function handler(event) {
             history.push(monthData);
         }
 
-        console.log('[Partners Report] Successfully compiled history.');
         return json({ settings, history: history.reverse() });
 
     } catch (err) {
-        console.error('[Partners Report] Fatal Error:', err);
-        return json({ error: 'Fallo al procesar historia', details: String(err) }, 500);
+        console.error(`[Partners Report] Internal Error at month ${currentProcessMonth}:`, err);
+        return json({ error: 'Fallo interno en el cálculo histórico', month: currentProcessMonth, details: String(err) }, 500);
     }
 }
