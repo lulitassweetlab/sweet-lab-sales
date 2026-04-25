@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Socios | Sweet Lab</title>
+    <link rel="stylesheet" href="/styles.css">
+    <style>
+        :root {
+            --partner-primary: #4f46e5;
+            --partner-bg: #f8fafc;
+            --card-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        body {
+            background-color: var(--partner-bg);
+            color: #1e293b;
+        }
+        .partners-container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header-premium {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            padding: 40px;
+            border-radius: 24px;
+            margin-bottom: 30px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        .header-premium::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -10%;
+            width: 300px;
+            height: 300px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+        }
+        .header-premium h1 {
+            font-size: 2.5rem;
+            margin: 0;
+            font-weight: 800;
+        }
+        .header-premium p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+            margin-top: 10px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+        .stat-card {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .stat-card .label { font-size: 0.85rem; opacity: 0.8; }
+        .stat-card .value { font-size: 1.5rem; font-weight: 700; margin-top: 5px; }
+
+        .month-card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 25px;
+            box-shadow: var(--card-shadow);
+            border: 1px solid #e2e8f0;
+            transition: transform 0.2s;
+        }
+        .month-card:hover {
+            transform: translateY(-2px);
+        }
+        .month-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #f1f5f9;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+        .month-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #0f172a;
+        }
+        .month-utility {
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: #10b981;
+            background: #ecfdf5;
+            padding: 8px 16px;
+            border-radius: 12px;
+        }
+        .month-utility.negative {
+            color: #ef4444;
+            background: #fef2f2;
+        }
+
+        .financial-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+        @media (max-width: 768px) {
+            .financial-grid { grid-template-columns: 1fr; }
+        }
+
+        .breakdown-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .breakdown-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 0.95rem;
+        }
+        .breakdown-item:last-child { border-bottom: none; font-weight: 700; padding-top: 12px; }
+
+        .partner-shares {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 16px;
+        }
+        .partner-share-item {
+            margin-bottom: 15px;
+        }
+        .partner-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            font-size: 0.9rem;
+        }
+        .partner-info .name { font-weight: 600; }
+        .partner-info .percent { color: var(--partner-primary); font-weight: 700; }
+        
+        .progress-bar-bg {
+            height: 10px;
+            background: #e2e8f0;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background: var(--partner-primary);
+            border-radius: 5px;
+            transition: width 0.5s ease;
+        }
+        .partner-amount {
+            text-align: right;
+            font-weight: 700;
+            color: #334155;
+            margin-top: 4px;
+        }
+
+        .actions-bar {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            justify-content: flex-end;
+        }
+        .btn-action {
+            padding: 8px 16px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid #cbd5e1;
+            background: white;
+            transition: all 0.2s;
+        }
+        .btn-action:hover { background: #f1f5f9; }
+        .btn-settings {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        /* Modals */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal.active { display: flex; }
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+        .modal-header { margin-bottom: 20px; font-weight: 700; font-size: 1.2rem; }
+        
+        .seller-selector {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 10px;
+            margin-bottom: 20px;
+        }
+        .seller-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px;
+            cursor: pointer;
+        }
+        .seller-option:hover { background: #f8fafc; }
+        
+        .loading-shimmer {
+            background: #f1f5f9;
+            background-image: linear-gradient(90deg, #f1f5f9 0px, #e2e8f0 40px, #f1f5f9 80px);
+            background-size: 200px 100%;
+            animation: shimmer 1.5s infinite linear;
+        }
+        @keyframes shimmer {
+            0% { background-position: -200px 0; }
+            100% { background-position: 200px 0; }
+        }
+
+        #back-btn {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-bottom: 20px;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <div class="partners-container">
+        <button id="back-btn" onclick="location.href='/'">← Volver al inicio</button>
+        
+        <header class="header-premium">
+            <button class="btn-settings" onclick="openSettings()" title="Configuración">⚙️</button>
+            <h1>Reporte de Socios</h1>
+            <p id="global-subtitle">Resumen ejecutivo y reparto de utilidades</p>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="label">Ventas Totales Historicas</div>
+                    <div class="value" id="total-revenue-value">$ 0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Utilidad Neta Acumulada</div>
+                    <div class="value" id="total-profit-value">$ 0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Mes Corriente</div>
+                    <div class="value" id="current-month-name">...</div>
+                </div>
+            </div>
+        </header>
+
+        <div id="history-list">
+            <!-- Cargando... -->
+            <div class="month-card loading-shimmer" style="height: 300px;"></div>
+            <div class="month-card loading-shimmer" style="height: 300px;"></div>
+        </div>
+    </div>
+
+    <!-- Modal Configuración -->
+    <div id="modal-settings" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">Configuración de Socios</div>
+            <p style="font-size: 0.9rem; margin-bottom: 15px;">Selecciona cuáles vendedores son socios activos:</p>
+            <div id="seller-list-config" class="seller-selector">
+                <!-- Vendedores cargados dinámicamente -->
+            </div>
+            
+            <label style="display: block; margin-bottom: 20px;">
+                <span style="font-size: 0.9rem; display: block; margin-bottom: 5px;">Provisión Default (%)</span>
+                <input type="number" id="default-provision-input" class="input-cell" style="width: 100%" placeholder="Ej: 3">
+            </label>
+
+            <div style="display: flex; gap: 10px;">
+                <button onclick="saveSettings()" class="press-btn btn-primary" style="flex: 1">Guardar</button>
+                <button onclick="closeModals()" class="press-btn secondary">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Ajustes Mensuales -->
+    <div id="modal-monthly" class="modal">
+        <div class="modal-content">
+            <div class="modal-header" id="monthly-modal-title">Ajustar Mes</div>
+            
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px;">Tipo de Registro</label>
+                <select id="monthly-kind" class="input-cell" style="width: 100%">
+                    <option value="perdida">⚠️ Pérdida (Mermas/Daños)</option>
+                    <option value="provision">💰 Provisión (Reserva Manual)</option>
+                </select>
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px;">Descripción</label>
+                <input type="text" id="monthly-desc" class="input-cell" style="width: 100%" placeholder="Ej: Fresa dañada o Reserva legal">
+            </div>
+
+            <div style="margin-bottom: 25px;">
+                <label style="display: block; margin-bottom: 5px;">Monto ($)</label>
+                <input type="number" id="monthly-amount" class="input-cell" style="width: 100%" placeholder="Ej: 50000">
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <button id="save-monthly-btn" class="press-btn btn-primary" style="flex: 1">Registrar</button>
+                <button onclick="closeModals()" class="press-btn secondary">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let DATA = null;
+        let SELLERS = [];
+        let SETTINGS = { partner_seller_ids: [], provision_default_perc: 3 };
+
+        const fmt = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
+
+        async function init() {
+            const auth = new URLSearchParams(window.location.search).get('auth');
+            if (auth !== 'admin') {
+                const pass = prompt('Acceso Restringido. Digite clave de administrador:');
+                if (pass !== 'admin') return location.href = '/';
+            }
+
+            try {
+                const [resp, respSell] = await Promise.all([
+                    fetch('/api/partners-report'),
+                    fetch('/api/get-sellers')
+                ]);
+                DATA = await resp.json();
+                SELLERS = await respSell.json();
+                SETTINGS = DATA.settings;
+
+                renderHeader();
+                renderHistory();
+                renderConfigSellers();
+            } catch (err) {
+                console.error(err);
+                alert('Error al cargar datos');
+            }
+        }
+
+        function renderHeader() {
+            const totalRev = DATA.history.reduce((a, b) => a + b.revenue, 0);
+            const totalProf = DATA.history.reduce((a, b) => a + b.profit, 0);
+            document.getElementById('total-revenue-value').textContent = fmt.format(totalRev / 100);
+            document.getElementById('total-profit-value').textContent = fmt.format(totalProf / 100);
+            
+            if (DATA.history.length) {
+                const [y, m] = DATA.history[0].month.split('-');
+                const date = new Date(y, m-1);
+                document.getElementById('current-month-name').textContent = date.toLocaleDateString('es-CO', { month: 'long', year: 'numeric' });
+            }
+        }
+
+        function renderHistory() {
+            const list = document.getElementById('history-list');
+            list.innerHTML = '';
+
+            DATA.history.forEach(m => {
+                const card = document.createElement('div');
+                card.className = 'month-card';
+                
+                const date = new Date(m.month + '-02'); // -02 to avoid TZ issues
+                const monthName = date.toLocaleDateString('es-CO', { month: 'long', year: 'numeric' });
+
+                card.innerHTML = `
+                    <div class="month-header">
+                        <div class="month-title">${monthName.toUpperCase()}</div>
+                        <div class="month-utility ${m.profit < 0 ? 'negative' : ''}">
+                            Utilidad: ${fmt.format(m.profit / 100)}
+                        </div>
+                    </div>
+                    
+                    <div class="financial-grid">
+                        <div class="breakdown">
+                            <h4 style="margin-bottom: 10px; opacity: 0.7;">Balance Financiero</h4>
+                            <ul class="breakdown-list">
+                                <li class="breakdown-item"><span>Ingresos Totales</span> <span>${fmt.format(m.revenue / 100)}</span></li>
+                                <li class="breakdown-item"><span>Costos (Masa/Ingr)</span> <span>-${fmt.format(m.cogs / 100)}</span></li>
+                                <li class="breakdown-item"><span>Gastos Operativos</span> <span>-${fmt.format(m.expenses / 100)}</span></li>
+                                <li class="breakdown-item"><span>Comisiones</span> <span>-${fmt.format(m.commissions / 100)}</span></li>
+                                <li class="breakdown-item" style="color: #ef4444"><span>Pérdidas/Mermas</span> <span>-${fmt.format(m.losses / 100)}</span></li>
+                                <li class="breakdown-item" style="color: #4f46e5"><span>Reserva/Provisión</span> <span>-${fmt.format(m.provision / 100)}</span></li>
+                                <li class="breakdown-item"><span>Neto a Repartir</span> <span>${fmt.format(m.net_to_share / 100)}</span></li>
+                            </ul>
+                            <div class="actions-bar">
+                                <button class="btn-action" onclick="openMonthlyAdjust('${m.month}')">+ Ajuste</button>
+                            </div>
+                        </div>
+                        
+                        <div class="partner-shares">
+                            <h4 style="margin-bottom: 15px; opacity: 0.7;">Reparto por Mérito Histórico</h4>
+                            ${m.partners.length ? m.partners.map(p => `
+                                <div class="partner-share-item">
+                                    <div class="partner-info">
+                                        <span class="name">${p.name}</span>
+                                        <span class="percent">${p.share_perc}%</span>
+                                    </div>
+                                    <div class="progress-bar-bg">
+                                        <div class="progress-bar-fill" style="width: ${p.share_perc}%"></div>
+                                    </div>
+                                    <div class="partner-amount">${fmt.format(p.share_amount / 100)}</div>
+                                </div>
+                            `).join('') : '<p style="text-align:center; opacity:0.5; margin-top:20px;">No hay socios configurados</p>'}
+                        </div>
+                    </div>
+                `;
+                list.appendChild(card);
+            });
+        }
+
+        // --- Settings Logic ---
+        function renderConfigSellers() {
+            const container = document.getElementById('seller-list-config');
+            container.innerHTML = '';
+            SELLERS.forEach(s => {
+                const label = document.createElement('label');
+                label.className = 'seller-option';
+                const checked = SETTINGS.partner_seller_ids.includes(s.id) || SETTINGS.partner_seller_ids.includes(String(s.id));
+                label.innerHTML = `
+                    <input type="checkbox" value="${s.id}" ${checked ? 'checked' : ''}>
+                    <span>${s.name}</span>
+                `;
+                container.appendChild(label);
+            });
+            document.getElementById('default-provision-input').value = SETTINGS.provision_default_perc;
+        }
+
+        async function saveSettings() {
+            const selectedIds = Array.from(document.querySelectorAll('#seller-list-config input:checked')).map(i => Number(i.value));
+            const perc = Number(document.getElementById('default-provision-input').value);
+            
+            const body = {
+                partner_seller_ids: JSON.stringify(selectedIds),
+                provision_default_perc: String(perc)
+            };
+
+            await fetch('/api/store-settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            
+            closeModals();
+            init(); // Recargar todo
+        }
+
+        // --- Monthly Adjustments ---
+        let activeMonth = null;
+        function openMonthlyAdjust(month) {
+            activeMonth = month;
+            document.getElementById('monthly-modal-title').textContent = `Ajustar Balace: ${month}`;
+            document.getElementById('modal-monthly').classList.add('active');
+        }
+
+        document.getElementById('save-monthly-btn').onclick = async () => {
+            const kind = document.getElementById('monthly-kind').value;
+            const desc = document.getElementById('monthly-desc').value;
+            const amount = Number(document.getElementById('monthly-amount').value);
+            
+            if (!desc || !amount) return alert('Complete los datos');
+
+            const body = {
+                kind,
+                entry_date: activeMonth + '-01',
+                description: `[${activeMonth}] ${desc}`,
+                amount_cents: Math.round(amount * 100),
+                actor_name: 'admin'
+            };
+
+            const btn = document.getElementById('save-monthly-btn');
+            btn.disabled = true;
+            btn.textContent = 'Guardando...';
+
+            await fetch('/api/accounting', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Actor-Name': 'admin' },
+                body: JSON.stringify(body)
+            });
+
+            btn.disabled = false;
+            btn.textContent = 'Registrar';
+            closeModals();
+            init();
+        };
+
+        function openSettings() {
+            document.getElementById('modal-settings').classList.add('active');
+        }
+
+        function closeModals() {
+            document.querySelectorAll('.modal').forEach(m => m.classList.remove('active'));
+        }
+
+        init();
+    </script>
+</body>
+</html>
