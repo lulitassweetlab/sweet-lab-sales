@@ -117,7 +117,6 @@ export async function handler(event) {
 				}
 				if (allItems) {
 					// Single payload with all items grouped by dessert + extras to reduce roundtrips
-					await recalculateAllDessertCosts();
 					const desserts = (await sql`SELECT DISTINCT dessert FROM dessert_recipes ORDER BY dessert ASC`).map(r => r.dessert);
 					const items = await sql`
 						SELECT dr.dessert, i.ingredient, i.unit, i.qty_per_unit, i.adjustment, 
