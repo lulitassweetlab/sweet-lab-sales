@@ -11,14 +11,15 @@ export async function ensureSchema() {
 
 	schemaCheckPromise = (async () => {
 		try {
-			// 1) FAST PATH: Version Check
+			let meta = [];
 			try {
-				const meta = await sql`SELECT version FROM schema_meta LIMIT 1`;
+				meta = await sql`SELECT version FROM schema_meta LIMIT 1`;
 				if (meta.length > 0 && Number(meta[0].version) >= SCHEMA_VERSION) {
 					schemaEnsured = true;
 					return;
 				}
-			} catch (err) { /* schema_meta may not exist, proceed */ }
+			} catch (err) { /* proceed */ }
+			if (!meta.length) meta = [{ version: 0 }];
 
 			// 2) SLOW PATH: Full Migration
 			await sql`
