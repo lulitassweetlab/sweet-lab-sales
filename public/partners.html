@@ -266,26 +266,31 @@
         }
 
         function renderConfigSellers() {
+            console.log('Rendering config modal...');
             const container = document.getElementById('seller-list-config');
+            if (!container) return;
             container.innerHTML = '';
             
+            const partnerIds = Array.isArray(SETTINGS.partner_seller_ids) ? SETTINGS.partner_seller_ids.map(Number) : [];
+            console.log('Active Partner IDs:', partnerIds);
+
             // Only partners can be leaders
-            const potentialLeaders = SELLERS.filter(s => SETTINGS.partner_seller_ids.includes(Number(s.id)) || SETTINGS.partner_seller_ids.includes(String(s.id)));
+            const potentialLeaders = SELLERS.filter(s => partnerIds.includes(Number(s.id)));
 
             SELLERS.forEach(s => {
-                const isPartner = SETTINGS.partner_seller_ids.includes(Number(s.id)) || SETTINGS.partner_seller_ids.includes(String(s.id));
+                const isPartner = partnerIds.includes(Number(s.id));
                 const row = document.createElement('div');
                 row.className = 'config-row';
                 
                 let leadersOptions = `<option value="">(Ninguno)</option>`;
                 potentialLeaders.forEach(l => {
-                    if (l.id === s.id) return; // Can't be own leader in this simple UI
+                    if (Number(l.id) === Number(s.id)) return;
                     leadersOptions += `<option value="${l.id}" ${Number(s.parent_id) === Number(l.id) ? 'selected' : ''}>${l.name}</option>`;
                 });
 
                 row.innerHTML = `
                     <div>👤</div>
-                    <div style="font-weight:600">${s.name}</div>
+                    <div style="font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${s.name}</div>
                     <div><input type="checkbox" class="partner-check" data-id="${s.id}" ${isPartner ? 'checked' : ''}></div>
                     <div>
                         <select class="leader-select input-mini" data-id="${s.id}" ${isPartner ? 'disabled' : ''}>
@@ -296,15 +301,25 @@
                 container.appendChild(row);
             });
 
-            // Re-render leaders list when a partner is checked/unchecked
+            // Re-render only when checking/unchecking partners to update global leaders list
             container.querySelectorAll('.partner-check').forEach(check => {
                 check.onchange = () => {
                     const ids = Array.from(container.querySelectorAll('.partner-check:checked')).map(c => Number(c.dataset.id));
                     SETTINGS.partner_seller_ids = ids;
-                    renderConfigSellers(); // Refresh to update leader selects
+                    renderConfigSellers();
                 };
             });
         }
+
+        document.getElementById('settings-trigger').onclick = () => {
+            try {
+                renderConfigSellers();
+                document.getElementById('modal-settings').classList.add('active');
+            } catch (err) {
+                console.error('Error opening settings:', err);
+                alert('Error al abrir configuración: ' + err.message);
+            }
+        };
 
         document.getElementById('save-settings-btn').onclick = async () => {
             const btn = document.getElementById('save-settings-btn');
