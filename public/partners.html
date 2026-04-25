@@ -182,16 +182,24 @@
                 });
 
                 const results = await Promise.all(updatePromises);
-                const failed = results.filter(r => !r.ok && r.status !== 400); // 400 is "no changes", which is fine
-                
-                if (failed.length > 0) {
-                    console.error('Some updates failed:', failed);
-                    alert('Se guardaron los socios, pero algunos líderes no pudieron actualizarse. Reintente.');
+                const errors = [];
+                for (let i = 0; i < results.length; i++) {
+                    const r = results[i];
+                    if (!r.ok && r.status !== 400) {
+                        const errData = await r.json().catch(() => ({}));
+                        errors.push(errData.error || `Error ${r.status}`);
+                    }
                 }
                 
-                location.href = '?auth=admin&force_sync=1'; 
+                if (errors.length > 0) {
+                    alert('Atención: Se guardaron los socios, pero ' + errors.length + ' líderes fallaron al actualizarse. Errores: ' + errors.slice(0,3).join(', '));
+                    btn.disabled = false;
+                    btn.innerText = 'Reintentar Guardar';
+                } else {
+                    location.href = '?auth=admin&force_sync=1'; 
+                }
             } catch (e) {
-                alert('Error al guardar: ' + e.message);
+                alert('Error crítico: ' + e.message);
                 console.error(e);
                 btn.disabled = false;
                 btn.innerText = 'Guardar';
