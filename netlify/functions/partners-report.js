@@ -12,10 +12,8 @@ export async function handler(event) {
         const forceSync = params.force_sync === '1';
 
         await sql`CREATE TABLE IF NOT EXISTS financial_snapshots (month TEXT PRIMARY KEY, data JSONB NOT NULL, calculated_at TIMESTAMPTZ DEFAULT now())`;
-
         if (forceSync) await sql`DELETE FROM financial_snapshots`;
 
-        // 1. Get Settings
         const settingsRows = await sql`SELECT key, value FROM store_settings WHERE key IN ('partner_seller_ids', 'provision_default_perc')`;
         const settings = { partner_seller_ids: [], provision_default_perc: 3 };
         for (const r of settingsRows) {
@@ -25,44 +23,29 @@ export async function handler(event) {
                 settings.provision_default_perc = Number(r.value) || 3;
             }
         }
-
         const partnerIds = Array.isArray(settings.partner_seller_ids) ? settings.partner_seller_ids.map(Number) : [];
 
-        // 2. Get ALL sellers to build the recursive tree
         const allSellersRows = await sql`SELECT id, name, parent_id FROM sellers`;
         const sellerMap = {};
         const sellersById = {};
-        allSellersRows.forEach(s => {
-            sellerMap[s.id] = s.name;
-            sellersById[s.id] = s;
-        });
+        allSellersRows.forEach(s => { sellerMap[s.id] = s.name; sellersById[s.id] = s; });
 
-        // RECURSIVE HIERARCHY LOGIC
-        // For each seller, find the first ancestor that is a Socio (Partner)
         const leadPartnerMap = {};
         allSellersRows.forEach(s => {
             let current = s;
             let visited = new Set();
             let foundPartner = null;
-
-            // Traverse up the tree
             while (current && !visited.has(current.id)) {
                 visited.add(current.id);
-                // If the CURRENT person in the chain is a partner, they are the lead
-                if (partnerIds.includes(Number(current.id))) {
-                    foundPartner = Number(current.id);
-                    break;
-                }
-                // Otherwise, move to the parent
+                if (partnerIds.includes(Number(current.id))) { foundPartner = Number(current.id); break; }
                 if (!current.parent_id) break;
                 current = sellersById[current.parent_id];
             }
             leadPartnerMap[s.id] = foundPartner || s.id;
         });
 
-        // 3. Snapshots and Months
-        const snapshotsRows = await sql`SELECT month, data FROM financial_snapshots ORDER BY month ASC`;
         const snapshotsMap = {};
+        const snapshotsRows = await sql`SELECT month, data FROM financial_snapshots ORDER BY month ASC`;
         snapshotsRows.forEach(r => snapshotsMap[r.month] = r.data);
 
         const monthRows = await sql`
@@ -76,7 +59,6 @@ export async function handler(event) {
 
         let lastCumulativeSales = {};
         partnerIds.forEach(pid => lastCumulativeSales[pid] = 0);
-
         const history = [];
 
         for (const m of allMonths) {
@@ -86,18 +68,24 @@ export async function handler(event) {
             if (snapshotsMap[m] && m !== currentMonth && !forceSync) {
                 monthData = snapshotsMap[m];
                 if (monthData.cumulative_sales) {
-                    Object.keys(monthData.cumulative_sales).forEach(pid => {
-                        lastCumulativeSales[pid] = Number(monthData.cumulative_sales[pid] || 0);
-                    });
+                    Object.keys(monthData.cumulative_sales).forEach(pid => { lastCumulativeSales[pid] = Number(monthData.cumulative_sales[pid] || 0); });
                 }
             } else {
-                const [mSales, mAcc, mComm] = await Promise.all([
+                // FIXED REVENUE & COGS QUERIES to avoid double counting
+                const [revenueRows, cogsRows, accRows, commRows] = await Promise.all([
                     sql`
-                        SELECT s.seller_id, SUM(s.total_cents) as revenue, SUM(si.quantity * d.cost_price) as cogs
+                        SELECT s.seller_id, SUM(s.total_cents) as revenue
                         FROM sales s
                         JOIN sale_days sd ON sd.id = s.sale_day_id
-                        LEFT JOIN sale_items si ON si.sale_id = s.id
-                        LEFT JOIN desserts d ON d.id = si.dessert_id
+                        WHERE to_char(sd.day, 'YYYY-MM') = ${m}
+                        GROUP BY s.seller_id
+                    `,
+                    sql`
+                        SELECT s.seller_id, SUM(si.quantity * d.cost_price) as cogs
+                        FROM sale_items si
+                        JOIN sales s ON s.id = si.sale_id
+                        JOIN sale_days sd ON sd.id = s.sale_day_id
+                        JOIN desserts d ON d.id = si.dessert_id
                         WHERE to_char(sd.day, 'YYYY-MM') = ${m}
                         GROUP BY s.seller_id
                     `,
@@ -105,25 +93,24 @@ export async function handler(event) {
                     sql`SELECT SUM(commissions_paid) as total FROM sale_days WHERE to_char(day, 'YYYY-MM') = ${m}`
                 ]);
 
-                const revenue = mSales.reduce((a, b) => a + Number(b.revenue || 0), 0);
-                const cogs = mSales.reduce((a, b) => a + Number(b.cogs || 0), 0);
-                const expenses = Number(mAcc.find(a => a.kind === 'gasto')?.total || 0);
-                const losses = Number(mAcc.find(a => a.kind === 'perdida')?.total || 0);
-                const provManual = Number(mAcc.find(a => a.kind === 'provision')?.total || 0);
-                const commissions = Number(mComm[0]?.total || 0);
+                const revenue = revenueRows.reduce((a, b) => a + Number(b.revenue || 0), 0);
+                const cogs = cogsRows.reduce((a, b) => a + Number(b.cogs || 0), 0);
+                const expenses = Number(accRows.find(a => a.kind === 'gasto')?.total || 0);
+                const losses = Number(accRows.find(a => a.kind === 'perdida')?.total || 0);
+                const provManual = Number(accRows.find(a => a.kind === 'provision')?.total || 0);
+                const commissions = Number(commRows[0]?.total || 0);
 
                 const opProfit = revenue - cogs - expenses - losses - commissions;
 
-                // RECURSIVE ATTRIBUTION
-                mSales.forEach(s => {
-                    const leadId = leadPartnerMap[s.seller_id];
+                // Important: Use revenueRows (single count) for merit attribution
+                revenueRows.forEach(s => {
+                    const leadId = leadPartnerMap[s.seller_id] || s.seller_id;
                     if (partnerIds.includes(Number(leadId))) {
                         lastCumulativeSales[leadId] = (lastCumulativeSales[leadId] || 0) + Number(s.revenue || 0);
                     }
                 });
 
                 const totalPartnerCumulative = partnerIds.reduce((a, pid) => a + (lastCumulativeSales[pid] || 0), 0);
-
                 let provision = provManual;
                 if (provManual === 0) provision = Math.round(Math.max(0, opProfit) * (settings.provision_default_perc / 100));
                 const netToShare = opProfit - provision;
@@ -132,17 +119,14 @@ export async function handler(event) {
                     const cum = lastCumulativeSales[pid] || 0;
                     const perc = totalPartnerCumulative > 0 ? (cum / totalPartnerCumulative) * 100 : 0;
                     return {
-                        id: pid,
-                        name: sellerMap[pid] || `Socio ${pid}`,
-                        share_perc: Number(perc.toFixed(2)),
+                        id: pid, name: sellerMap[pid] || `Socio ${pid}`, share_perc: Number(perc.toFixed(2)),
                         share_amount: netToShare > 0 ? Math.round(netToShare * (perc / 100)) : 0
                     };
                 });
 
                 monthData = {
                     month: m, revenue, cogs, expenses, losses, commissions, profit: opProfit, provision, net_to_share: netToShare,
-                    partners: partnerShares,
-                    cumulative_sales: { ...lastCumulativeSales }
+                    partners: partnerShares, cumulative_sales: { ...lastCumulativeSales }
                 };
 
                 if (m < currentMonth) {
@@ -151,11 +135,9 @@ export async function handler(event) {
             }
             history.push(monthData);
         }
-
         return json({ settings, history: history.reverse() });
-
     } catch (err) {
         console.error(`[Partners Report] Fatal Error:`, err);
-        return json({ error: 'Fallo histórico', details: String(err) }, 500);
+        return json({ error: 'Fallo histórico', month: currentProcessMonth, details: String(err) }, 500);
     }
 }
