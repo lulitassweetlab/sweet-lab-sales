@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 48; // 48: Add parent_id to sellers for partner hierarchy
+const SCHEMA_VERSION = 49; // 49: Add financial_snapshots for faster partner reports
 
 export async function ensureSchema() {
 	if (schemaEnsured) return;
@@ -345,6 +345,18 @@ export async function ensureSchema() {
 					console.log('Migrating to v48: parent_id...');
 					await sql`ALTER TABLE sellers ADD COLUMN IF NOT EXISTS parent_id INTEGER`;
 					await sql`UPDATE schema_meta SET version = 48`;
+				}
+
+				if (Number(meta[0].version) < 49) {
+					console.log('Migrating to v49: financial_snapshots...');
+					await sql`
+						CREATE TABLE IF NOT EXISTS financial_snapshots (
+							month TEXT PRIMARY KEY,
+							data JSONB NOT NULL,
+							calculated_at TIMESTAMPTZ DEFAULT now()
+						)
+					`;
+					await sql`UPDATE schema_meta SET version = 49`;
 				}
 
 				// Dynamic columns (keep them fast)
