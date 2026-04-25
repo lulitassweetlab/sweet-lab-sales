@@ -103,19 +103,21 @@
                 div.innerHTML = `
                     <div class="flex">
                         <strong style="font-size:1.3rem">${m.month}</strong>
-                        <span style="color:#10b981; font-weight:800">${fmt.format(m.profit/100)}</span>
+                        <span style="color:#10b981; font-weight:800">${fmt.format(m.profit)}</span>
                     </div>
                     <div class="grid" style="margin-top:15px">
                         <div style="font-size:0.9rem">
-                            <div>Ingresos: ${fmt.format(m.revenue/100)}</div>
-                            <div>Costo Producción: -${fmt.format(m.cogs/100)}</div>
-                            <div>Gastos: -${fmt.format(m.expenses/100)}</div>
+                            <div>Ingresos: ${fmt.format(m.revenue)}</div>
+                            <div>Costo Producción: -${fmt.format(m.cogs)}</div>
+                            <div>Gastos: -${fmt.format(m.expenses)}</div>
+                            <div>Pérdidas: -${fmt.format(m.losses)}</div>
+                            <div style="margin-top:5px; padding-top:5px; border-top:1px dashed #ddd">Utilidad Neta: ${fmt.format(m.net_to_share)}</div>
                         </div>
                         <div style="background:#f8fafc; padding:15px; border-radius:15px">
                             ${m.partners.map(p => `
                                 <div class="flex" style="font-size:0.85rem"><span>${p.name}</span><strong>${p.share_perc}%</strong></div>
                                 <div class="prog-bar"><div class="prog-fill" style="width:${p.share_perc}%"></div></div>
-                                <div style="text-align:right; font-weight:bold; margin-bottom:10px">${fmt.format(p.share_amount/100)}</div>
+                                <div style="text-align:right; font-weight:bold; margin-bottom:10px">${fmt.format(p.share_amount)}</div>
                             `).join('')}
                         </div>
                     </div>
@@ -123,8 +125,8 @@
                 cont.appendChild(div);
             });
 
-            document.getElementById('stat-rev').innerText = `Ventas: ${fmt.format(totalR/100)}`;
-            document.getElementById('stat-prof').innerText = `Utilidad: ${fmt.format(totalP/100)}`;
+            document.getElementById('stat-rev').innerText = `Ventas: ${fmt.format(totalR)}`;
+            document.getElementById('stat-prof').innerText = `Utilidad: ${fmt.format(totalP)}`;
         }
 
         document.getElementById('cfg-btn').onclick = () => {

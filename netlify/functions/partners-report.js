@@ -71,7 +71,6 @@ export async function handler(event) {
                     Object.keys(monthData.cumulative_sales).forEach(pid => { lastCumulativeSales[pid] = Number(monthData.cumulative_sales[pid] || 0); });
                 }
             } else {
-                // FIXED REVENUE & COGS QUERIES to avoid double counting
                 const [revenueRows, cogsRows, accRows, commRows] = await Promise.all([
                     sql`
                         SELECT s.seller_id, SUM(s.total_cents) as revenue
@@ -93,16 +92,16 @@ export async function handler(event) {
                     sql`SELECT SUM(commissions_paid) as total FROM sale_days WHERE to_char(day, 'YYYY-MM') = ${m}`
                 ]);
 
-                const revenue = revenueRows.reduce((a, b) => a + Number(b.revenue || 0), 0);
-                const cogs = cogsRows.reduce((a, b) => a + Number(b.cogs || 0), 0);
-                const expenses = Number(accRows.find(a => a.kind === 'gasto')?.total || 0);
-                const losses = Number(accRows.find(a => a.kind === 'perdida')?.total || 0);
-                const provManual = Number(accRows.find(a => a.kind === 'provision')?.total || 0);
-                const commissions = Number(commRows[0]?.total || 0);
+                // NO DIVISION BY 100 - Use raw integer values as COP Pesos
+                const revenue = Math.round(revenueRows.reduce((a, b) => a + Number(b.revenue || 0), 0));
+                const cogs = Math.round(cogsRows.reduce((a, b) => a + Number(b.cogs || 0), 0));
+                const expenses = Math.round(Number(accRows.find(a => a.kind === 'gasto')?.total || 0));
+                const losses = Math.round(Number(accRows.find(a => a.kind === 'perdida')?.total || 0));
+                const provManual = Math.round(Number(accRows.find(a => a.kind === 'provision')?.total || 0));
+                const commissions = Math.round(Number(commRows[0]?.total || 0));
 
                 const opProfit = revenue - cogs - expenses - losses - commissions;
 
-                // Important: Use revenueRows (single count) for merit attribution
                 revenueRows.forEach(s => {
                     const leadId = leadPartnerMap[s.seller_id] || s.seller_id;
                     if (partnerIds.includes(Number(leadId))) {
