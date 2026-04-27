@@ -226,19 +226,20 @@
         function calculateCosts(dessertName) {
             // Filter recipe items for this dessert
             const items = recipeData.items.filter(it => it.dessert === dessertName) || [];
-            const extras = recipeData.extras || [];
-
+            
             let ingredientCost = 0;
-            items.forEach(it => {
-                ingredientCost += (Number(it.qty_per_unit || 0) + Number(it.adjustment || 0)) * Number(it.price || 0);
-            });
-
             let packagingCost = 0;
-            extras.forEach(it => {
-                packagingCost += Number(it.qty_per_unit || 0) * Number(it.price || 0);
+
+            items.forEach(it => {
+                const cost = (Number(it.qty_per_unit || 0) + Number(it.adjustment || 0)) * Number(it.price || 0);
+                if ((it.step_name || '').toLowerCase() === 'empaque') {
+                    packagingCost += cost;
+                } else {
+                    ingredientCost += cost;
+                }
             });
 
-            return { ingredientCost, packagingCost, totalCost: ingredientCost + packagingCost, items, extras };
+            return { ingredientCost, packagingCost, totalCost: ingredientCost + packagingCost, items };
         }
 
         function renderProfitability() {
@@ -300,7 +301,7 @@
             title.textContent = name;
             overlay.style.display = 'flex';
 
-            const { items, extras } = calculateCosts(name);
+            const { items } = calculateCosts(name);
             const marginAbs = salePrice - totalCost;
             const marginRel = salePrice > 0 ? (marginAbs / salePrice) : 0;
 
@@ -323,7 +324,7 @@
                 <div class="cost-group-title">🍎 Ingredientes (${fmtMoney.format(ingCost)})</div>
             `;
 
-            items.forEach(it => {
+            items.filter(it => (it.step_name || '').toLowerCase() !== 'empaque').forEach(it => {
                 const itemQty = Number(it.qty_per_unit || 0) + Number(it.adjustment || 0);
                 const itemCost = itemQty * Number(it.price || 0);
                 if (itemCost > 0) {
@@ -337,12 +338,13 @@
             });
 
             html += `<div class="cost-group-title">📦 Empaque (${fmtMoney.format(packCost)})</div>`;
-            extras.forEach(it => {
-                const itemCost = Number(it.qty_per_unit || 0) * Number(it.price || 0);
+            items.filter(it => (it.step_name || '').toLowerCase() === 'empaque').forEach(it => {
+                const itemQty = Number(it.qty_per_unit || 0) + Number(it.adjustment || 0);
+                const itemCost = itemQty * Number(it.price || 0);
                 if (itemCost > 0) {
                     html += `
                         <div class="cost-item">
-                            <span>${it.ingredient} <small>(x${it.qty_per_unit})</small></span>
+                            <span>${it.ingredient} <small>(x${itemQty})</small></span>
                             <span>${fmtMoney.format(itemCost)}</span>
                         </div>
                     `;

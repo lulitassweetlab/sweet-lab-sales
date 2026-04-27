@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 51; // 51: Numerics for inventory prices
+const SCHEMA_VERSION = 52; // 52: Extras moved to individual recipes
 
 export async function ensureSchema() {
 	if (schemaEnsured) return;
@@ -574,6 +574,30 @@ export async function ensureSchema() {
 					await sql`UPDATE schema_meta SET version = 51`;
 				}
 
+				if (Number(meta[0].version) < 52) {
+					console.log('Migrating to v52: Moving global extras to per-dessert recipes...');
+					const desserts = await sql`SELECT DISTINCT name FROM desserts`;
+					const extras = await sql`SELECT * FROM extras_items`;
+					
+					for (const d of desserts) {
+						if (!d.name) continue;
+						// Create 'Empaque' step for this dessert 
+						const [step] = await sql`
+							INSERT INTO dessert_recipes (dessert, step_name, position)
+							VALUES (${d.name}, 'Empaque', 99)
+							RETURNING id
+						`;
+						// Copy all extras to this step
+						for (const ex of extras) {
+							await sql`
+								INSERT INTO dessert_recipe_items (recipe_id, ingredient, unit, qty_per_unit, position)
+								VALUES (${step.id}, ${ex.ingredient}, ${ex.unit}, ${ex.qty_per_unit}, ${ex.position})
+							`;
+						}
+					}
+					await sql`UPDATE schema_meta SET version = 52`;
+				}
+
 				await sql`UPDATE schema_meta SET version = ${SCHEMA_VERSION}, updated_at = now()`;
 			schemaEnsured = true;
 		} catch (err) {
@@ -762,19 +786,12 @@ export async function recalculateAllDessertCosts() {
 	const prices = new Map();
 	materials.forEach(m => prices.set(m.ing, Number(m.price || 0)));
 
-	const extrasRows = await sql`SELECT lower(trim(ingredient)) as ing, qty_per_unit FROM extras_items`;
-	let extrasTotal = 0;
-	extrasRows.forEach(e => {
-		const p = prices.get(e.ing) || 0;
-		extrasTotal += (p * Number(e.qty_per_unit || 0));
-	});
-
 	const dessertsList = await sql`SELECT id, name, short_code FROM desserts`;
 	const recipes = await sql`SELECT id, dessert FROM dessert_recipes`;
 	const items = await sql`SELECT recipe_id, lower(trim(ingredient)) as ing, qty_per_unit FROM dessert_recipe_items`;
 
 	for (const d of dessertsList) {
-		let total = extrasTotal;
+		let total = 0;
 		const dSteps = recipes.filter(r => {
 			if (!r.dessert) return false;
 			return r.dessert.toLowerCase() === d.name.toLowerCase() || r.dessert.toLowerCase() === d.short_code.toLowerCase();

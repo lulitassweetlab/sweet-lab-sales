@@ -6743,8 +6743,6 @@ async function renderIngredientsView() {
 		await renderIngredientsView();
 		try { document.dispatchEvent(new CustomEvent('recipes:changed', { detail: { action: 'addDessert', dessert: name } })); } catch { }
 	};
-	const extrasBtn = document.getElementById('ingredients-add-extras');
-	if (extrasBtn) extrasBtn.onclick = () => { openExtrasEditor(); };
 }
 
 // ====== Local-only TIEMPOS ======
