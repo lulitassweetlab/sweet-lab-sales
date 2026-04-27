@@ -14,8 +14,8 @@ export async function handler(event) {
         await sql`CREATE TABLE IF NOT EXISTS financial_snapshots (month TEXT PRIMARY KEY, data JSONB NOT NULL, calculated_at TIMESTAMPTZ DEFAULT now())`;
         if (forceSync) await sql`DELETE FROM financial_snapshots`;
 
-        // 1. Get Settings (Added Founder settings)
-        const settingsRows = await sql`SELECT key, value FROM store_settings WHERE key IN ('partner_seller_ids', 'provision_default_perc', 'partner_founder_id', 'partner_founder_perc')`;
+        // 1. Get Settings (Added Founder settings and Generic historic overrides)
+        const settingsRows = await sql`SELECT key, value FROM store_settings WHERE key IN ('partner_seller_ids', 'provision_default_perc', 'partner_founder_id', 'partner_founder_perc') OR key LIKE 'historic_%'`;
         const settings = { partner_seller_ids: [], provision_default_perc: 3, partner_founder_id: null, partner_founder_perc: 25 };
         for (const r of settingsRows) {
             if (r.key === 'partner_seller_ids') {
@@ -26,6 +26,8 @@ export async function handler(event) {
                 settings.partner_founder_id = r.value;
             } else if (r.key === 'partner_founder_perc') {
                 settings.partner_founder_perc = Number(r.value) || 0;
+            } else {
+                settings[r.key] = r.value;
             }
         }
         const partnerIds = Array.isArray(settings.partner_seller_ids) ? settings.partner_seller_ids.map(Number) : [];
@@ -149,19 +151,59 @@ export async function handler(event) {
                 ...commissionsMap[sid]
             }));
 
-            const totalMonthDesserts = commissionDetail.reduce((a, b) => a + Number(b.desserts || 0), 0);
-            const totalMonthBrigs = commissionDetail.reduce((a, b) => a + Number(b.brigs || 0), 0);
-            const modCents = totalMonthDesserts * 2000;
-            const calculatedCommissionsTotal = Math.round(commissionDetail.reduce((a, b) => a + Number(b.total_comm || 0), 0));
+            let totalMonthDesserts = commissionDetail.reduce((a, b) => a + Number(b.desserts || 0), 0);
+            let totalMonthBrigs = commissionDetail.reduce((a, b) => a + Number(b.brigs || 0), 0);
+            let modCents = totalMonthDesserts * 2000;
+            let calculatedCommissionsTotal = Math.round(commissionDetail.reduce((a, b) => a + Number(b.total_comm || 0), 0));
 
-            // Update cumulative tracking for the next iteration (full calc path)
+            // ----> CUSTOM INLINE MANUAL OVERRIDES <----
+            const overrideStr = settings[`historic_${m.replace('-', '_')}`];
+            if (overrideStr) {
+                try {
+                    const hData = JSON.parse(overrideStr);
+                    if (hData.revenue !== undefined) revenue = Number(hData.revenue);
+                    if (hData.cogs !== undefined) cogs = Number(hData.cogs);
+                    if (hData.expenses !== undefined) expenses = Number(hData.expenses);
+                    if (hData.losses !== undefined) losses = Number(hData.losses);
+                    if (hData.mod !== undefined) modCents = Number(hData.mod);
+                    if (hData.commissions !== undefined) calculatedCommissionsTotal = Number(hData.commissions);
+                    
+                    // Override desserts if provided
+                    commissionDetail.forEach(c => {
+                        const n = c.seller_name.toLowerCase();
+                        if (n.includes('marcela') && hData.marcela !== undefined) c.desserts = Number(hData.marcela);
+                        if (n.includes('janeth') && hData.janeth !== undefined) c.desserts = Number(hData.janeth);
+                        if (n.includes('aleja') && hData.aleja !== undefined) c.desserts = Number(hData.aleja);
+                    });
+                    
+                    totalMonthDesserts = commissionDetail.reduce((a, b) => a + Number(b.desserts || 0), 0);
+                    
+                    // Recalculate cumulative tracking based on overridden desserts
+                    commissionDetail.forEach(c => {
+                        const sid = Number(c.seller_id);
+                        const leadId = leadPartnerMap[sid] || sid;
+                        if (partnerIds.includes(Number(leadId))) {
+                            // First, subtract what we added automatically based on DB loop to prevent doubling
+                            // Actually wait, lastCumulativeDesserts ALREADY got these added in lines 157-164!
+                        }
+                    });
+                } catch(e) {}
+            }
+
+            // Clean up: Recalculate cumulatives explicitly from scratch using commissionDetail
+            // We'll revert the `lastCumulativeDesserts` to its state before this month first.
+            let monthCumulToAdd = {};
             commissionDetail.forEach(c => {
                 const sid = Number(c.seller_id);
                 const leadId = leadPartnerMap[sid] || sid;
                 if (partnerIds.includes(Number(leadId))) {
-                    lastCumulativeDesserts[leadId] = (lastCumulativeDesserts[leadId] || 0) + Number(c.desserts || 0);
+                    monthCumulToAdd[leadId] = (monthCumulToAdd[leadId] || 0) + Number(c.desserts || 0);
                 }
             });
+            Object.keys(monthCumulToAdd).forEach(pid => {
+                lastCumulativeDesserts[pid] = (lastCumulativeDesserts[pid] || 0) + monthCumulToAdd[pid];
+            });
+
 
             // 3. Final Profit Formula
             const opProfit = revenue - cogs - expenses - losses - calculatedCommissionsTotal - modCents;
