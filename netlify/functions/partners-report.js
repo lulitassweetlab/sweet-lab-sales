@@ -196,8 +196,10 @@ export async function handler(event) {
                 }
             }
 
-            // Always add the detail (whether it was cached without it or just calculated)
+            // Always add the dynamic detail (whether it was cached without it or just calculated)
             monthData.commission_detail = commissionDetail;
+            monthData.total_desserts = totalMonthDesserts;
+            monthData.mod = modCents;
             history.push(monthData);
         }
         return json({ settings, history: history.reverse() });
