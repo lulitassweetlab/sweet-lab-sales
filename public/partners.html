@@ -122,6 +122,11 @@
                     </div>
                     <div class="grid" style="margin-top:15px">
                         <div style="font-size:0.9rem">
+                            <div style="display:flex; gap:15px; margin-bottom:12px; background:#f8fafc; border:1px solid #e2e8f0; padding:10px 15px; border-radius:12px; font-weight:800; color:#1e293b; font-size:0.85rem">
+                                <span>Total Postres: ${m.total_desserts || 0}</span>
+                                <span style="color:#cbd5e1">|</span>
+                                <span>Total Brigs: ${m.total_brigs || 0}</span>
+                            </div>
                             <div>Ingresos: ${fmt.format(m.revenue)}</div>
                             <div>Costo Producción: -${fmt.format(m.cogs)}</div>
                             <div>Mano de Obra (MOD): -${fmt.format(m.mod || 0)} <span style="font-size:0.75rem; color:#94a3b8">(${m.total_desserts || 0} Postres)</span></div>

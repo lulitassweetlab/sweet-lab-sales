@@ -151,6 +151,7 @@ export async function handler(event) {
             }));
 
             const totalMonthDesserts = commissionDetail.reduce((a, b) => a + Number(b.desserts || 0), 0);
+            const totalMonthBrigs = commissionDetail.reduce((a, b) => a + Number(b.brigs || 0), 0);
             const modCents = totalMonthDesserts * 2000;
             const calculatedCommissionsTotal = Math.round(commissionDetail.reduce((a, b) => a + Number(b.total_comm || 0), 0));
 
@@ -181,7 +182,7 @@ export async function handler(event) {
             // 5. Finalize monthData
             monthData = {
                 month: m, revenue, cogs, expenses, losses, commissions: calculatedCommissionsTotal, 
-                total_desserts: totalMonthDesserts, mod: modCents,
+                total_desserts: totalMonthDesserts, total_brigs: totalMonthBrigs, mod: modCents,
                 profit: opProfit, provision, net_to_share: netToShare,
                 partners: partnerShares, commission_detail: commissionDetail,
                 cumulative_sales: { ...lastCumulativeSales }
