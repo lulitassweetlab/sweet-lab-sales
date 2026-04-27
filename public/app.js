@@ -6356,7 +6356,7 @@ async function renderInventoryView() {
 		if (list.length === 0) { root.innerHTML = '<p style="opacity:0.6; padding:10px;">No hay ítems en esta categoría.</p>'; return; }
 		const table = document.createElement('table'); table.className = 'clients-table';
 		const thead = document.createElement('thead'); const hr = document.createElement('tr');
-		['Material', 'Saldo', 'Unidad', 'Cos. Unit.', 'V. Total', 'Acc.'].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
+		['Material', 'Saldo', 'Cos. Unit.', 'V. Total', 'Acc.'].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
 		thead.appendChild(hr); const tbody = document.createElement('tbody');
 		for (const it of list) {
 			const tr = document.createElement('tr');
@@ -6378,9 +6378,6 @@ async function renderInventoryView() {
 			const inSaldo = document.createElement('input'); inSaldo.type = 'number'; inSaldo.step = '0.1'; inSaldo.className = 'input-cell'; inSaldo.style.width = '80px'; inSaldo.style.textAlign = 'right'; inSaldo.value = (Number(it.saldo || 0) || 0).toFixed(1);
 			tdSaldo.appendChild(inSaldo);
 
-			const tdUnit = document.createElement('td'); 
-			const inUnit = document.createElement('input'); inUnit.type = 'text'; inUnit.className = 'input-cell'; inUnit.style.width = '60px'; inUnit.value = it.unit || 'g';
-			tdUnit.appendChild(inUnit);
 
 			const tdPrice = document.createElement('td');
 			const inPrice = document.createElement('input'); inPrice.type = 'number'; inPrice.className = 'input-cell'; inPrice.style.width = '100px'; inPrice.style.textAlign = 'right'; inPrice.value = it.price || 0;
@@ -6393,7 +6390,7 @@ async function renderInventoryView() {
 			const delBtn = document.createElement('button'); delBtn.className = 'press-btn'; delBtn.textContent = '🗑️'; delBtn.title = 'Eliminar'; delBtn.style.color = 'var(--danger)';
 			tdActions.append(histBtn, delBtn);
 
-			tr.append(tdName, tdSaldo, tdUnit, tdPrice, tdTotal, tdActions);
+			tr.append(tdName, tdSaldo, tdPrice, tdTotal, tdActions);
 			tbody.appendChild(tr);
 
 			histBtn.onclick = () => openInventoryHistoryDialog(it.ingredient);
@@ -6410,7 +6407,7 @@ async function renderInventoryView() {
 			const save = async () => {
 				const n = inName.value.trim();
 				const p = Number(inPrice.value || 0);
-				const u = inUnit.value.trim();
+				const u = it.unit || 'g';
 				const nextSaldo = Number(inSaldo.value || 0);
 
 				if (n !== it.ingredient || p !== it.price || u !== it.unit) {
@@ -6440,12 +6437,8 @@ async function renderInventoryView() {
 			const handleEnter = (ev) => { if (ev.key === 'Enter') ev.target.blur(); };
 			inName.onkeydown = handleEnter;
 			inPrice.onkeydown = handleEnter;
-			inUnit.onkeydown = handleEnter;
-			inSaldo.onkeydown = handleEnter;
-
 			inName.onblur = save;
 			inPrice.onblur = save;
-			inUnit.onblur = save;
 			inSaldo.onblur = save;
 		}
 		table.append(thead, tbody);
@@ -6489,7 +6482,7 @@ async function renderInventoryView() {
 async function openNewMaterialDialog() {
 	const name = (prompt('Nombre del material:') || '').trim(); if (!name) return;
 	const cat = confirm(`¿Es un ingrediente? (Aceptar para Ingrediente, Cancelar para Empaque/Otro)`) ? 'ingrediente' : 'empaque';
-	const unit = prompt('Unidad (g, ml, unidad):', 'g') || 'g';
+	const unit = 'g';
 	const price = Number(prompt('Costo unitario actual:', '0') || '0') || 0;
 	try {
 		await api('POST', API.Inventory, { action: 'add_item', ingredient: name, unit, category: cat, price });
