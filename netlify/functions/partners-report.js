@@ -15,7 +15,7 @@ export async function handler(event) {
         if (forceSync) await sql`DELETE FROM financial_snapshots`;
 
         // 1. Get Settings (Added Founder settings)
-        const settingsRows = await sql`SELECT key, value FROM store_settings WHERE key IN ('partner_seller_ids', 'provision_default_perc', 'partner_founder_id', 'partner_founder_perc')`;
+        const settingsRows = await sql`SELECT key, value FROM store_settings WHERE key IN ('partner_seller_ids', 'provision_default_perc', 'partner_founder_id', 'partner_founder_perc', 'historic_2025_07', 'historic_2025_08')`;
         const settings = { partner_seller_ids: [], provision_default_perc: 3, partner_founder_id: null, partner_founder_perc: 25 };
         for (const r of settingsRows) {
             if (r.key === 'partner_seller_ids') {
@@ -26,6 +26,8 @@ export async function handler(event) {
                 settings.partner_founder_id = r.value;
             } else if (r.key === 'partner_founder_perc') {
                 settings.partner_founder_perc = Number(r.value) || 0;
+            } else {
+                settings[r.key] = r.value;
             }
         }
         const partnerIds = Array.isArray(settings.partner_seller_ids) ? settings.partner_seller_ids.map(Number) : [];
@@ -86,11 +88,16 @@ export async function handler(event) {
             // 1. Historical Hardcoded Override for Jul/Aug 2025 (PRIORITY)
             const isHistorical = m === '2025-07' || m === '2025-08';
             if (isHistorical) {
-                const hData = m === '2025-07' 
-                    ? { marcela: 174, janeth: 99, aleja: 100 } 
-                    : { marcela: 243, janeth: 40, aleja: 32 };
+                let hData;
+                if (m === '2025-07') {
+                    hData = { marcela: 174, janeth: 99, aleja: 100 };
+                    try { if (settings['historic_2025_07']) hData = JSON.parse(settings['historic_2025_07']); } catch(e){}
+                } else {
+                    hData = { marcela: 243, janeth: 40, aleja: 32 };
+                    try { if (settings['historic_2025_08']) hData = JSON.parse(settings['historic_2025_08']); } catch(e){}
+                }
                 
-                const totalDesserts = Object.values(hData).reduce((a,b)=>a+b, 0);
+                const totalDesserts = Object.values(hData).reduce((a,b)=>a+Number(b), 0);
                 const revenue = totalDesserts * 10000;
                 const cogs = Math.round(revenue * 0.55);
                 const commissions = totalDesserts * 1000;
@@ -100,11 +107,12 @@ export async function handler(event) {
                 const netToShare = profit - provision;
 
                 const commDetail = Object.entries(hData).map(([name, qty]) => {
+                    const parsedQty = Number(qty) || 0;
                     const seller = allSellersRows.find(s => s.name.toLowerCase().includes(name.toLowerCase()));
                     return { 
                         seller_id: seller ? seller.id : 0, 
                         seller_name: seller ? seller.name : (name.charAt(0).toUpperCase() + name.slice(1)), 
-                        desserts: qty, brigs: 0, total_comm: qty * 1000 
+                        desserts: parsedQty, brigs: 0, total_comm: parsedQty * 1000 
                     };
                 });
 

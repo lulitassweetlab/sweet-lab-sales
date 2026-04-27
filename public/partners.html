@@ -155,6 +155,7 @@
                             <div>
                                 <strong style="font-size:1.4rem; display:block; letter-spacing:-0.01em">${monthLabel}</strong>
                                 <span class="pill">Cierre Mensual</span>
+                                ${m.month === '2025-07' || m.month === '2025-08' ? `<button onclick="editHistoric('${m.month}')" style="margin-left:8px; background:#fff; border:1px solid #cbd5e1; padding:2px 8px; border-radius:12px; font-size:0.7rem; color:#64748b; cursor:pointer;">✏️ Modificar</button>` : ''}
                             </div>
                         </div>
                         <div style="text-align:right">
@@ -315,6 +316,54 @@
         };
 
         function closeMsg() { document.getElementById('modal-cfg').style.display = 'none'; }
+        
+        window.editHistoric = async (month) => {
+            const mData = DATA.history.find(x => x.month === month);
+            if (!mData) return;
+
+            // Extract current numbers from detail
+            let marcela = 0, janeth = 0, aleja = 0;
+            if (mData.commission_detail) {
+                mData.commission_detail.forEach(c => {
+                    const n = c.seller_name.toLowerCase();
+                    if (n.includes('marcela')) marcela = c.desserts;
+                    else if (n.includes('janeth')) janeth = c.desserts;
+                    else if (n.includes('aleja')) aleja = c.desserts;
+                });
+            }
+
+            const r1 = prompt(`[${month}] Cantidad de postres vendidos por Marcela:`, marcela);
+            if (r1 === null) return;
+            const r2 = prompt(`[${month}] Cantidad de postres vendidos por Janeth:`, janeth);
+            if (r2 === null) return;
+            const r3 = prompt(`[${month}] Cantidad de postres vendidos por Aleja:`, aleja);
+            if (r3 === null) return;
+
+            const payload = {
+                marcela: Number(r1) || 0,
+                janeth: Number(r2) || 0,
+                aleja: Number(r3) || 0
+            };
+
+            const keyName = month === '2025-07' ? 'historic_2025_07' : 'historic_2025_08';
+            
+            document.getElementById('status-msg').innerHTML = `<div style="color:#0ea5e9"><h3>Actualizando Histórico...</h3><p>Recalculando acumulados...</p></div>`;
+            document.getElementById('status-msg').style.display = 'flex';
+            document.getElementById('report-content').style.display = 'none';
+
+            try {
+                const res = await fetch('/api/store-settings', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ [keyName]: JSON.stringify(payload) })
+                });
+                if (!res.ok) throw new Error('Error al guardar datos históricos');
+                location.href = '?auth=admin&force_sync=1';
+            } catch (e) {
+                alert(e.message);
+                location.reload();
+            }
+        };
 
         start();
     </script>
