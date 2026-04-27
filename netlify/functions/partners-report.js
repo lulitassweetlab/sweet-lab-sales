@@ -15,7 +15,7 @@ export async function handler(event) {
         if (forceSync) await sql`DELETE FROM financial_snapshots`;
 
         // 1. Get Settings (Added Founder settings)
-        const settingsRows = await sql`SELECT key, value FROM store_settings WHERE key IN ('partner_seller_ids', 'provision_default_perc', 'partner_founder_id', 'partner_founder_perc', 'historic_2025_07', 'historic_2025_08')`;
+        const settingsRows = await sql`SELECT key, value FROM store_settings WHERE key IN ('partner_seller_ids', 'provision_default_perc', 'partner_founder_id', 'partner_founder_perc')`;
         const settings = { partner_seller_ids: [], provision_default_perc: 3, partner_founder_id: null, partner_founder_perc: 25 };
         for (const r of settingsRows) {
             if (r.key === 'partner_seller_ids') {
@@ -26,8 +26,6 @@ export async function handler(event) {
                 settings.partner_founder_id = r.value;
             } else if (r.key === 'partner_founder_perc') {
                 settings.partner_founder_perc = Number(r.value) || 0;
-            } else {
-                settings[r.key] = r.value;
             }
         }
         const partnerIds = Array.isArray(settings.partner_seller_ids) ? settings.partner_seller_ids.map(Number) : [];
@@ -64,15 +62,6 @@ export async function handler(event) {
             ORDER BY month ASC
         `;
         let allMonths = monthRows.map(r => r.month);
-        
-        // Inject July and August 2025 if missing
-        if (!allMonths.includes('2025-07')) allMonths.unshift('2025-07');
-        if (!allMonths.includes('2025-08')) {
-            const idx = allMonths.indexOf('2025-07');
-            if (allMonths.indexOf('2025-08') === -1) {
-                allMonths.splice(idx + 1, 0, '2025-08');
-            }
-        }
         allMonths = [...new Set(allMonths)].sort();
 
         const currentMonth = new Date().toISOString().slice(0, 7);
@@ -84,86 +73,6 @@ export async function handler(event) {
         for (const m of allMonths) {
             currentProcessMonth = m;
             let monthData = null;
-
-            // 1. Historical Hardcoded Override for Jul/Aug 2025 (PRIORITY)
-            const isHistorical = m === '2025-07' || m === '2025-08';
-            if (isHistorical) {
-                let hData;
-                if (m === '2025-07') {
-                    hData = { marcela: 174, janeth: 99, aleja: 100 };
-                    try { if (settings['historic_2025_07']) hData = JSON.parse(settings['historic_2025_07']); } catch(e){}
-                } else {
-                    hData = { marcela: 243, janeth: 40, aleja: 32 };
-                    try { if (settings['historic_2025_08']) hData = JSON.parse(settings['historic_2025_08']); } catch(e){}
-                }
-                
-                const sellerEntries = Object.entries(hData).filter(([k]) => !['revenue','cogs','expenses','losses','mod','commissions'].includes(k));
-                const totalDesserts = sellerEntries.reduce((a, [_, qty]) => a + Number(qty||0), 0);
-                
-                let revenue = totalDesserts * 10000;
-                let cogs = Math.round(revenue * 0.55);
-                let commissions = totalDesserts * 1000;
-                let mod = totalDesserts * 2000;
-                let expenses = 0;
-                let losses = 0;
-
-                if (hData.revenue !== undefined) revenue = Number(hData.revenue);
-                if (hData.cogs !== undefined) cogs = Number(hData.cogs);
-                if (hData.expenses !== undefined) expenses = Number(hData.expenses);
-                if (hData.losses !== undefined) losses = Number(hData.losses);
-                if (hData.mod !== undefined) mod = Number(hData.mod);
-                if (hData.commissions !== undefined) commissions = Number(hData.commissions);
-
-                const profit = revenue - cogs - commissions - mod - expenses - losses;
-                const provision = Math.round(Math.max(0, profit) * (settings.provision_default_perc / 100));
-                const netToShare = profit - provision;
-
-                const commDetail = sellerEntries.map(([name, qty]) => {
-                    const parsedQty = Number(qty) || 0;
-                    const seller = allSellersRows.find(s => s.name.toLowerCase().includes(name.toLowerCase()));
-                    return { 
-                        seller_id: seller ? seller.id : 0, 
-                        seller_name: seller ? seller.name : (name.charAt(0).toUpperCase() + name.slice(1)), 
-                        desserts: parsedQty, brigs: 0, total_comm: parsedQty * 1000 
-                    };
-                });
-
-                // Update cumulative tracking for potential partners in this months sales
-                commDetail.forEach(c => {
-                    const sid = Number(c.seller_id);
-                    const leadId = leadPartnerMap[sid] || sid;
-                    if (partnerIds.includes(Number(leadId))) {
-                        lastCumulativeDesserts[leadId] = (lastCumulativeDesserts[leadId] || 0) + Number(c.desserts || 0);
-                    }
-                });
-
-                const totalPartnerCum = partnerIds.reduce((a, pid) => a + (lastCumulativeDesserts[pid] || 0), 0);
-                const founderAmt = founderId && founderPerc > 0 ? Math.round(Math.max(0, netToShare) * (founderPerc / 100)) : 0;
-                const pool = netToShare - founderAmt;
-                const shares = partnerIds.map(pid => {
-                    const cum = lastCumulativeDesserts[pid] || 0;
-                    const mp = totalPartnerCum > 0 ? (cum / totalPartnerCum) : 0;
-                    let amt = Math.round(pool * mp);
-                    if (pid === founderId) amt += founderAmt;
-                    const sp = netToShare > 0 ? Number(((amt/netToShare)*100).toFixed(2)) : 0;
-                    return { id: pid, name: sellerMap[pid] || `Socio ${pid}`, share_perc: sp, share_amount: amt };
-                });
-
-                monthData = { 
-                    month: m, revenue, cogs, expenses, losses, commissions, 
-                    total_desserts: totalDesserts, total_brigs: 0, mod, profit, provision, 
-                    net_to_share: netToShare, partners: shares, commission_detail: commDetail, 
-                    cumulative_desserts: { ...lastCumulativeDesserts } 
-                };
-                
-                // Ensure snapshot is saved if not there, to speed up next runs (but prioritize logic above)
-                if (!snapshotsMap[m]) {
-                    await sql`INSERT INTO financial_snapshots (month, data) VALUES (${m}, ${JSON.stringify(monthData)}) ON CONFLICT (month) DO UPDATE SET data = EXCLUDED.data`;
-                }
-
-                history.push(monthData);
-                continue; 
-            }
 
             if (snapshotsMap[m] && m !== currentMonth && !forceSync) {
                 monthData = snapshotsMap[m];
