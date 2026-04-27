@@ -136,6 +136,35 @@
                             `).join('')}
                         </div>
                     </div>
+
+                    ${m.commission_detail?.length ? `
+                        <div style="margin-top:20px; border-top:1px solid #eee; padding-top:15px">
+                            <h4 style="margin:0 0 12px 0; font-size:0.75rem; color:#64748b; text-transform:uppercase; letter-spacing:0.05em">Detalle de Comisiones Pagadas</h4>
+                            <div style="display:flex; flex-direction:column; gap:12px">
+                                ${m.commission_detail.map(c => `
+                                    <div style="background:#fff; border:1px solid #f1f5f9; padding:10px; border-radius:12px">
+                                        <div class="flex" style="margin-bottom:8px">
+                                            <strong style="color:var(--p-mod)">${c.seller_name}</strong>
+                                            <span style="font-weight:800; color:#1e293b">${fmt.format(c.total_comm)}</span>
+                                        </div>
+                                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; font-size:0.8rem">
+                                            <div style="background:#f8fafc; padding:8px; border-radius:8px">
+                                                <div style="color:#64748b; font-size:0.7rem; text-transform:uppercase">Postres</div>
+                                                <div style="font-weight:bold">${c.desserts} uds</div>
+                                            </div>
+                                            <div style="background:#f8fafc; padding:8px; border-radius:8px">
+                                                <div style="color:#64748b; font-size:0.7rem; text-transform:uppercase">Brigs</div>
+                                                <div style="font-weight:bold">${c.brigs} uds</div>
+                                            </div>
+                                        </div>
+                                        <div style="margin-top:8px; padding-top:8px; border-top:1px solid #f1f5f9; font-size:0.75rem; color:#94a3b8">
+                                            ${c.items.map(it => `${it.qty} ${it.name} (${fmt.format(it.unit_comm)})`).join(' • ')}
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
                 `;
                 cont.appendChild(div);
             });
