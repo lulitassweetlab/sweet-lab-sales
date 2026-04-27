@@ -67,25 +67,24 @@ export async function handler(event) {
 					const { id, price, category, unit, pack_size, ingredient } = data;
 					if (!id) return json({ error: 'id requerido' }, 400);
 
-					const [old] = await sql`SELECT ingredient FROM inventory_items WHERE id = ${id}`;
-					const newName = (ingredient || old?.ingredient || '').trim();
+					const [old] = await sql`SELECT * FROM inventory_items WHERE id = ${id}`;
+					if (!old) return json({ error: 'ítem no encontrado' }, 404);
 
-					if (old && newName && newName !== old.ingredient) {
+					const newName = (ingredient || old.ingredient || '').trim();
+
+					if (newName !== old.ingredient) {
 						// ⚠️ Check if new name already exists (Auto-Merge Logic)
 						const [existing] = await sql`SELECT id FROM inventory_items WHERE lower(trim(ingredient)) = lower(trim(${newName})) AND id != ${id}`;
 						
 						if (existing) {
-							// Combine movements and recipes into the existing item
 							await sql`UPDATE inventory_movements SET ingredient = ${newName} WHERE lower(trim(ingredient)) = lower(trim(${old.ingredient}))`;
 							await sql`UPDATE dessert_recipe_items SET ingredient = ${newName} WHERE lower(trim(ingredient)) = lower(trim(${old.ingredient}))`;
 							await sql`UPDATE extras_items SET ingredient = ${newName} WHERE lower(trim(ingredient)) = lower(trim(${old.ingredient}))`;
-							// Delete the duplicate master record
 							await sql`DELETE FROM inventory_items WHERE id = ${id}`;
 							await recalculateAllDessertCosts();
 							return json({ status: 'merged', target_id: existing.id });
 						}
 
-						// Standard rename across all tables
 						await sql`UPDATE inventory_movements SET ingredient = ${newName} WHERE lower(trim(ingredient)) = lower(trim(${old.ingredient}))`;
 						await sql`UPDATE dessert_recipe_items SET ingredient = ${newName} WHERE lower(trim(ingredient)) = lower(trim(${old.ingredient}))`;
 						await sql`UPDATE extras_items SET ingredient = ${newName} WHERE lower(trim(ingredient)) = lower(trim(${old.ingredient}))`;
@@ -93,7 +92,13 @@ export async function handler(event) {
 
 					const [row] = await sql`
 						UPDATE inventory_items 
-						SET ingredient = ${newName}, price = ${Number(price || 0)}, category = ${category}, unit = ${unit}, pack_size = ${Number(pack_size || 0)}, updated_at = now()
+						SET 
+							ingredient = ${newName}, 
+							price = ${price !== undefined ? Number(price) : old.price}, 
+							category = ${category || old.category}, 
+							unit = ${unit || old.unit}, 
+							pack_size = ${pack_size !== undefined ? Number(pack_size) : old.pack_size}, 
+							updated_at = now()
 						WHERE id = ${id}
 						RETURNING *
 					`;
