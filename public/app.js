@@ -6342,8 +6342,10 @@ async function renderInventoryView() {
 	// Global actions setup (done once)
 	const newMatBtn = document.getElementById('inventory-new-material');
 	const confirmProdBtn = document.getElementById('inventory-confirm-prod');
+	const detectDupesBtn = document.getElementById('inventory-detect-dupes');
 	if (newMatBtn) newMatBtn.onclick = () => openNewMaterialDialog();
 	if (confirmProdBtn) confirmProdBtn.onclick = () => openConfirmProductionDialog();
+	if (detectDupesBtn) detectDupesBtn.onclick = () => showInventoryQualityReport(items);
 
 	const fmtMoney = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
 	let items = [];
@@ -6454,6 +6456,52 @@ async function openConfirmProductionDialog() {
 		notify.success('Producción confirmada y descontada');
 		renderInventoryView();
 	} catch { notify.error('Error en el proceso de producción'); }
+}
+
+function showInventoryQualityReport(items) {
+	const normalized = items.map(it => ({
+		orig: it.ingredient,
+		canon: it.ingredient.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+	}));
+
+	const exact = [];
+	const seen = new Map();
+	normalized.forEach(it => {
+		if (seen.has(it.canon)) {
+			exact.push([seen.get(it.canon), it.orig]);
+		} else {
+			seen.set(it.canon, it.orig);
+		}
+	});
+
+	let report = "";
+	if (exact.length > 0) {
+		report += "⚠️ **Duplicados sugeridos (nombres casi idénticos):**\n\n";
+		exact.forEach(pair => report += `- "${pair[0]}" y "${pair[1]}"\n`);
+	} else {
+		report += "✅ No se encontraron duplicados exactos.\n";
+	}
+
+	report += "\n**Consejo:** Puedes consolidarlos editando el nombre en la tabla para que coincidan exactamente.";
+	
+	const overlay = document.createElement('div');
+	overlay.style.position = 'fixed'; overlay.style.inset = '0'; overlay.style.background = 'rgba(0,0,0,0.5)';
+	overlay.style.display = 'flex'; overlay.style.alignItems = 'center'; overlay.style.justifyContent = 'center'; overlay.style.zIndex = '10000';
+	
+	const box = document.createElement('div');
+	box.style.background = 'white'; box.style.padding = '30px'; box.style.borderRadius = '16px'; box.style.maxWidth = '500px'; box.style.width = '90%'; box.style.boxShadow = '0 20px 25px -5px rgba(0,0,0,0.1)';
+	box.innerHTML = `<h3 style="margin-top:0; color:#374151;">Limpieza de Inventario</h3><div style="font-size:14px; white-space:pre-wrap; color:#4b5563; line-height:1.5;">${report}</div>`;
+	
+	const close = document.createElement('button'); 
+	close.className = 'press-btn btn-primary'; 
+	close.textContent = 'Entendido'; 
+	close.style.marginTop = '24px';
+	close.style.width = '100%';
+	close.onclick = () => overlay.remove();
+	
+	box.appendChild(close);
+	overlay.appendChild(box);
+	document.body.appendChild(overlay);
 }
 
 async function openInventoryAdjustView() {
