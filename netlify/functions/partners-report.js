@@ -61,7 +61,18 @@ export async function handler(event) {
             SELECT DISTINCT to_char(entry_date, 'YYYY-MM') as month FROM accounting_entries
             ORDER BY month ASC
         `;
-        const allMonths = monthRows.map(r => r.month);
+        let allMonths = monthRows.map(r => r.month);
+        
+        // Inject July and August 2025 if missing
+        if (!allMonths.includes('2025-07')) allMonths.unshift('2025-07');
+        if (!allMonths.includes('2025-08')) {
+            const idx = allMonths.indexOf('2025-07');
+            if (allMonths.indexOf('2025-08') === -1) {
+                allMonths.splice(idx + 1, 0, '2025-08');
+            }
+        }
+        allMonths = [...new Set(allMonths)].sort();
+
         const currentMonth = new Date().toISOString().slice(0, 7);
 
         let lastCumulativeSales = {};
@@ -71,6 +82,52 @@ export async function handler(event) {
         for (const m of allMonths) {
             currentProcessMonth = m;
             let monthData = null;
+
+            // Historical Hardcoded Override for Jul/Aug 2025
+            const isHistorical = m === '2025-07' || m === '2025-08';
+            if (isHistorical && !forceSync) {
+                const hData = m === '2025-07' 
+                    ? { marcela: 174, janeth: 99, aleja: 100 } 
+                    : { marcela: 243, janeth: 40, aleja: 32 };
+                
+                const revenue = Object.values(hData).reduce((a,b)=>a+b, 0) * 10000;
+                const cogs = Math.round(revenue * 0.55);
+                const commissions = Object.values(hData).reduce((a,b)=>a+b, 0) * 1000;
+                const totalDesserts = Object.values(hData).reduce((a,b)=>a+b, 0);
+                const mod = totalDesserts * 2000;
+                const profit = revenue - cogs - commissions - mod;
+                const provision = Math.round(Math.max(0, profit) * (settings.provision_default_perc / 100));
+                const netToShare = profit - provision;
+
+                const commDetail = Object.entries(hData).map(([name, qty]) => {
+                    const seller = allSellersRows.find(s => s.name.toLowerCase().includes(name.toLowerCase()));
+                    const sid = seller ? seller.id : 0;
+                    return { seller_id: sid, seller_name: seller ? seller.name : name, desserts: qty, brigs: 0, total_comm: qty * 1000 };
+                });
+
+                // Update cumulative for partners
+                commDetail.forEach(c => {
+                    const leadId = leadPartnerMap[c.seller_id] || c.seller_id;
+                    if (partnerIds.includes(Number(leadId))) {
+                        lastCumulativeSales[leadId] = (lastCumulativeSales[leadId] || 0) + (c.desserts * 10000);
+                    }
+                });
+
+                const totalPartnerCum = partnerIds.reduce((a, pid) => a + (lastCumulativeSales[pid] || 0), 0);
+                const founderAmt = founderId && founderPerc > 0 ? Math.round(Math.max(0, netToShare) * (founderPerc / 100)) : 0;
+                const pool = netToShare - founderAmt;
+                const shares = partnerIds.map(pid => {
+                    const cum = lastCumulativeSales[pid] || 0;
+                    const mp = totalPartnerCum > 0 ? (cum / totalPartnerCum) : 0;
+                    let amt = Math.round(pool * mp);
+                    if (pid === founderId) amt += founderAmt;
+                    return { id: pid, name: sellerMap[pid] || `Socio ${pid}`, share_perc: netToShare > 0 ? Number(((amt/netToShare)*100).toFixed(2)) : 0, share_amount: amt };
+                });
+
+                monthData = { month: m, revenue, cogs, expenses: 0, losses: 0, commissions, total_desserts: totalDesserts, total_brigs: 0, mod, profit, provision, net_to_share: netToShare, partners: shares, commission_detail: commDetail, cumulative_sales: { ...lastCumulativeSales } };
+                history.push(monthData);
+                continue; 
+            }
 
             if (snapshotsMap[m] && m !== currentMonth && !forceSync) {
                 monthData = snapshotsMap[m];
