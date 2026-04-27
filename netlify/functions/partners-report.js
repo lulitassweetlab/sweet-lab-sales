@@ -108,14 +108,23 @@ export async function handler(event) {
 
             const commissionsMap = {};
             (commCalculatedRows || []).forEach(c => {
-                if (!commissionsMap[c.seller_id]) commissionsMap[c.seller_id] = { desserts: 0, brigs: 0, total_comm: 0 };
+                const sid = c.seller_id;
+                if (!commissionsMap[sid]) commissionsMap[sid] = { desserts: 0, brigs: 0, total_comm: 0 };
                 const qty = Number(c.total_qty || 0);
-                const unitComm = Number(c.unit_comm || 0);
-                const totalComm = qty * unitComm;
                 const isBrig = (c.product_name || '').toLowerCase().includes('brig') || (c.product_name || '').toLowerCase().includes('bt');
-                if (isBrig) commissionsMap[c.seller_id].brigs += qty;
-                else commissionsMap[c.seller_id].desserts += qty;
-                commissionsMap[c.seller_id].total_comm += totalComm;
+                if (isBrig) commissionsMap[sid].brigs += qty;
+                else commissionsMap[sid].desserts += qty;
+            });
+
+            // Apply tiered logic per seller
+            Object.keys(commissionsMap).forEach(sid => {
+                const s = commissionsMap[sid];
+                let unitPricePostre = 0;
+                if (s.desserts >= 60) unitPricePostre = 1500;
+                else if (s.desserts >= 30) unitPricePostre = 1300;
+                else if (s.desserts >= 1) unitPricePostre = 1000;
+                
+                s.total_comm = (s.desserts * unitPricePostre) + (s.brigs * 200);
             });
 
             const commissionDetail = Object.keys(commissionsMap).map(sid => ({
@@ -137,9 +146,8 @@ export async function handler(event) {
                 const expenses = Math.round(Number(accRows.find(a => a.kind === 'gasto')?.total || 0));
                 const losses = Math.round(Number(accRows.find(a => a.kind === 'perdida')?.total || 0));
                 const provManual = Math.round(Number(accRows.find(a => a.kind === 'provision')?.total || 0));
-                const commissions = Math.round(Number(commRows[0]?.total || 0));
-
-                const opProfit = revenue - cogs - expenses - losses - commissions;
+                const calculatedCommissionsTotal = Math.round(commissionDetail.reduce((a, b) => a + Number(b.total_comm || 0), 0));
+                const opProfit = revenue - cogs - expenses - losses - calculatedCommissionsTotal;
 
                 revenueRows.forEach(s => {
                     const leadId = leadPartnerMap[s.seller_id] || s.seller_id;
@@ -174,7 +182,7 @@ export async function handler(event) {
                 });
 
                 monthData = {
-                    month: m, revenue, cogs, expenses, losses, commissions, profit: opProfit, provision, net_to_share: netToShare,
+                    month: m, revenue, cogs, expenses, losses, commissions: calculatedCommissionsTotal, profit: opProfit, provision, net_to_share: netToShare,
                     partners: partnerShares, cumulative_sales: { ...lastCumulativeSales }
                 };
 
