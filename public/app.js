@@ -6353,7 +6353,7 @@ async function renderInventoryView() {
 		if (list.length === 0) { root.innerHTML = '<p style="opacity:0.6; padding:10px;">No hay ítems en esta categoría.</p>'; return; }
 		const table = document.createElement('table'); table.className = 'clients-table';
 		const thead = document.createElement('thead'); const hr = document.createElement('tr');
-		['Material', 'Saldo', 'Unidad', 'Cos. Unit.', 'V. Total', 'Hist'].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
+		['Material', 'Saldo', 'Unidad', 'Cos. Unit.', 'V. Total', 'Acc.'].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
 		thead.appendChild(hr); const tbody = document.createElement('tbody');
 		
 		for (const it of list) {
@@ -6376,14 +6376,23 @@ async function renderInventoryView() {
 
 			const tdTotal = document.createElement('td'); tdTotal.textContent = fmtMoney.format((it.saldo || 0) * (it.price || 0)); tdTotal.style.textAlign = 'right';
 			
-			const tdHist = document.createElement('td');
-			const histBtn = document.createElement('button'); histBtn.className = 'press-btn'; histBtn.textContent = '📜';
-			tdHist.append(histBtn);
+			const tdActions = document.createElement('td');
+			const histBtn = document.createElement('button'); histBtn.className = 'press-btn'; histBtn.textContent = '📜'; histBtn.title = 'Ver Historial';
+			const delBtn = document.createElement('button'); delBtn.className = 'press-btn'; delBtn.textContent = '🗑️'; delBtn.title = 'Eliminar'; delBtn.style.color = 'var(--danger)';
+			tdActions.append(histBtn, delBtn);
 
-			tr.append(tdName, tdSaldo, tdUnit, tdPrice, tdTotal, tdHist);
+			tr.append(tdName, tdSaldo, tdUnit, tdPrice, tdTotal, tdActions);
 			tbody.appendChild(tr);
 
 			histBtn.onclick = () => openInventoryHistoryDialog(it.ingredient);
+			delBtn.onclick = async () => {
+				if (!confirm(`¿Estás seguro de eliminar "${it.ingredient}"? Se borrará del maestro de inventario.`)) return;
+				try {
+					await api('POST', API.Inventory, { action: 'delete_item', id: it.id });
+					notify.success('Eliminado');
+					renderInventoryView();
+				} catch { notify.error('Error al eliminar'); }
+			};
 
 			// Autosave logic
 			const save = async () => {

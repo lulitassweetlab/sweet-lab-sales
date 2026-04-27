@@ -101,6 +101,13 @@ export async function handler(event) {
 					return json(row);
 				}
 
+				if (action === 'delete_item') {
+					const { id } = data;
+					if (!id) return json({ error: 'id requerido' }, 400);
+					await sql`DELETE FROM inventory_items WHERE id = ${id}`;
+					return json({ ok: true });
+				}
+
 				if (action === 'ingreso' || action === 'ajuste') {
 					const ingredient = canonicalizeIngredientName((data.ingredient || '').toString().trim());
 					const unit = (data.unit || 'g').toString();
