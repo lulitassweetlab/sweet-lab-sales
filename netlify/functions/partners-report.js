@@ -113,7 +113,7 @@ export async function handler(event) {
             }
 
             // 2. Calculate Real Commissions and MOD (ALWAYS)
-            const [commCalculatedRows] = await sql`
+            const commCalculatedRows = await sql`
                 WITH unpivoted AS (
                     SELECT s.id as sale_id, s.seller_id, sd.day as sale_date, 'arco' as product_name, s.qty_arco as qty FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_arco > 0 AND to_char(sd.day, 'YYYY-MM') = ${m}
                     UNION ALL SELECT s.id, s.seller_id, sd.day, 'melo', s.qty_melo FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_melo > 0 AND to_char(sd.day, 'YYYY-MM') = ${m}
