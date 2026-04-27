@@ -305,26 +305,14 @@
             const marginAbs = salePrice - totalCost;
             const marginRel = salePrice > 0 ? (marginAbs / salePrice) : 0;
 
-            let html = `
-                <div style="background:var(--secondary); padding:15px; border-radius:8px; margin-bottom:20px;">
-                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-                        <span>Precio Venta:</span> <strong>${fmtMoney.format(salePrice)}</strong>
-                    </div>
-                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-                        <span>Costo Total:</span> <strong>${fmtMoney.format(totalCost)}</strong>
-                    </div>
-                    <div style="display:flex; justify-content:space-between; border-top:1px solid var(--border); padding-top:5px; margin-top:5px;">
-                        <span>Utilidad ($):</span> <strong>${fmtMoney.format(marginAbs)}</strong>
-                    </div>
-                    <div style="display:flex; justify-content:space-between;">
-                        <span>Margen (%):</span> <strong>${fmtPct.format(marginRel)}</strong>
-                    </div>
-                </div>
+            // Alphabetical Sort
+            const sortedItems = [...items].sort((a, b) => (a.ingredient || '').localeCompare(b.ingredient || '', 'es'));
 
+            let html = `
                 <div class="cost-group-title">🍎 Ingredientes (${fmtMoney.format(ingCost)})</div>
             `;
 
-            items.filter(it => (it.step_name || '').toLowerCase() !== 'empaque').forEach(it => {
+            sortedItems.filter(it => (it.step_name || '').toLowerCase() !== 'empaque').forEach(it => {
                 const itemQty = Number(it.qty_per_unit || 0) + Number(it.adjustment || 0);
                 const itemCost = itemQty * Number(it.price || 0);
                 if (itemCost > 0) {
@@ -338,7 +326,7 @@
             });
 
             html += `<div class="cost-group-title">📦 Empaque (${fmtMoney.format(packCost)})</div>`;
-            items.filter(it => (it.step_name || '').toLowerCase() === 'empaque').forEach(it => {
+            sortedItems.filter(it => (it.step_name || '').toLowerCase() === 'empaque').forEach(it => {
                 const itemQty = Number(it.qty_per_unit || 0) + Number(it.adjustment || 0);
                 const itemCost = itemQty * Number(it.price || 0);
                 if (itemCost > 0) {
@@ -350,6 +338,41 @@
                     `;
                 }
             });
+
+            // Summary at the bottom
+            let marginClass = 'margin-good';
+            if (marginRel < 0.3) marginClass = 'margin-bad';
+            else if (marginRel < 0.45) marginClass = 'margin-warn';
+
+            html += `
+                <div style="margin-top:40px; padding:20px; background:var(--secondary); border-radius:12px; border:1px solid var(--border); box-shadow: var(--shadow)">
+                    <h3 style="margin-top:0; font-size:1rem; border-bottom:1px solid var(--border); padding-bottom:10px; margin-bottom:15px">Resumen Financiero</h3>
+                    
+                    <div style="display:flex; justify-content:space-between; margin-bottom:8px">
+                        <span style="color:var(--muted)">Precio de Venta</span>
+                        <strong style="font-size:1.1rem">${fmtMoney.format(salePrice)}</strong>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:12px">
+                        <span style="color:var(--muted)">Costo de Producción</span>
+                        <span style="color:var(--danger)">- ${fmtMoney.format(totalCost)}</span>
+                    </div>
+                    
+                    <div style="display:flex; justify-content:space-between; border-top:2px solid white; padding-top:12px; margin-top:10px">
+                        <span style="font-weight:bold">Ganancia Bruta</span>
+                        <strong style="font-size:1.2rem; color:var(--primary)">${fmtMoney.format(marginAbs)}</strong>
+                    </div>
+                    
+                    <div style="margin-top:15px">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:5px">
+                            <span style="font-size:0.85rem; font-weight:600">Margen de Rentabilidad</span>
+                            <span class="margin-badge ${marginClass}">${fmtPct.format(marginRel)}</span>
+                        </div>
+                        <div style="width:100%; height:8px; background:white; border-radius:4px; overflow:hidden">
+                            <div style="width:${Math.min(100, marginRel * 100)}%; height:100%; background:${marginRel < 0.3 ? '#ef4444' : (marginRel < 0.45 ? '#eab308' : '#22c55e')}"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
 
             content.innerHTML = html;
         }
