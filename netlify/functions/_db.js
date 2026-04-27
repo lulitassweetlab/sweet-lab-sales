@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 50; // 50: Unified Inventory (category, price, pack_size)
+const SCHEMA_VERSION = 51; // 51: Numerics for inventory prices
 
 export async function ensureSchema() {
 	if (schemaEnsured) return;
@@ -560,6 +560,18 @@ export async function ensureSchema() {
 					`;
 
 					await sql`UPDATE schema_meta SET version = 50`;
+				}
+
+				if (Number(meta[0].version) < 51) {
+					console.log('Migrating to v51: Allowing decimals in inventory prices...');
+					await sql`ALTER TABLE inventory_items ALTER COLUMN price TYPE NUMERIC(12,2)`;
+					await sql`ALTER TABLE inventory_items ALTER COLUMN pack_size TYPE NUMERIC(12,2)`;
+					await sql`ALTER TABLE dessert_recipe_items ALTER COLUMN price TYPE NUMERIC(12,2)`;
+					await sql`ALTER TABLE dessert_recipe_items ALTER COLUMN pack_size TYPE NUMERIC(12,2)`;
+					await sql`ALTER TABLE extras_items ALTER COLUMN price TYPE NUMERIC(12,2)`;
+					await sql`ALTER TABLE extras_items ALTER COLUMN pack_size TYPE NUMERIC(12,2)`;
+					await sql`ALTER TABLE desserts ALTER COLUMN cost_price TYPE NUMERIC(12,2)`;
+					await sql`UPDATE schema_meta SET version = 51`;
 				}
 
 				await sql`UPDATE schema_meta SET version = ${SCHEMA_VERSION}, updated_at = now()`;

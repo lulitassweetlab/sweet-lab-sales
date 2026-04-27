@@ -6340,6 +6340,7 @@ async function renderInventoryView() {
 	if (!ingredsRoot || !packsRoot || !othersRoot) return;
 	
 	const fmtMoney = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
+	const fmtUnit = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 2, minimumFractionDigits: 0 });
 	let items = [];
 	try { items = await api('GET', API.Inventory); } catch { items = []; }
 
@@ -6380,10 +6381,10 @@ async function renderInventoryView() {
 
 
 			const tdPrice = document.createElement('td');
-			const inPrice = document.createElement('input'); inPrice.type = 'number'; inPrice.className = 'input-cell'; inPrice.style.width = '100px'; inPrice.style.textAlign = 'right'; inPrice.value = it.price || 0;
+			const inPrice = document.createElement('input'); inPrice.type = 'number'; inPrice.step = 'any'; inPrice.className = 'input-cell'; inPrice.style.width = '100px'; inPrice.style.textAlign = 'right'; inPrice.value = it.price || 0;
 			tdPrice.appendChild(inPrice);
 
-			const tdTotal = document.createElement('td'); tdTotal.textContent = fmtMoney.format((it.saldo || 0) * (it.price || 0)); tdTotal.style.textAlign = 'right';
+			const tdTotal = document.createElement('td'); tdTotal.textContent = fmtUnit.format((it.saldo || 0) * (it.price || 0)); tdTotal.style.textAlign = 'right';
 			
 			const tdActions = document.createElement('td');
 			const histBtn = document.createElement('button'); histBtn.className = 'press-btn'; histBtn.textContent = '📜'; histBtn.title = 'Ver Historial';
@@ -6418,7 +6419,7 @@ async function renderInventoryView() {
 							renderInventoryView();
 						} else {
 							it.ingredient = n; it.price = p; it.unit = u;
-							tdTotal.textContent = fmtMoney.format((it.saldo || 0) * (it.price || 0));
+							tdTotal.textContent = fmtUnit.format((it.saldo || 0) * (it.price || 0));
 						}
 					} catch { notify.error('Error al guardar'); }
 				}
@@ -6429,7 +6430,7 @@ async function renderInventoryView() {
 						await api('POST', API.Inventory, { action: 'ajuste', ingredient: it.ingredient, unit: u, qty: delta, note: 'Ajuste auto', actor_name: state.currentUser?.username || null });
 						notify.success('Saldo ajustado');
 						it.saldo = nextSaldo;
-						tdTotal.textContent = fmtMoney.format((it.saldo || 0) * (it.price || 0));
+						tdTotal.textContent = fmtUnit.format((it.saldo || 0) * (it.price || 0));
 					} catch { notify.error('Error al ajustar saldo'); }
 				}
 			};
