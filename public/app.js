@@ -6356,7 +6356,7 @@ async function renderInventoryView() {
 		if (list.length === 0) { root.innerHTML = '<p style="opacity:0.6; padding:10px;">No hay ítems en esta categoría.</p>'; return; }
 		const table = document.createElement('table'); table.className = 'clients-table';
 		const thead = document.createElement('thead'); const hr = document.createElement('tr');
-		['Material', 'Saldo', 'Unidad', 'Costo Unitario', 'Valor Total', 'Acciones'].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
+		['Material', 'Saldo', 'Unidad', 'Cos. Unit.', 'V. Total', 'Hist'].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
 		thead.appendChild(hr); const tbody = document.createElement('tbody');
 		
 		for (const it of list) {
@@ -6379,34 +6379,50 @@ async function renderInventoryView() {
 
 			const tdTotal = document.createElement('td'); tdTotal.textContent = fmtMoney.format((it.saldo || 0) * (it.price || 0)); tdTotal.style.textAlign = 'right';
 			
-			const tdActions = document.createElement('td');
-			const saveBtn = document.createElement('button'); saveBtn.className = 'press-btn'; saveBtn.textContent = 'Guardar';
-			const histBtn = document.createElement('button'); histBtn.className = 'press-btn'; histBtn.textContent = 'Hist';
-			tdActions.append(saveBtn, histBtn);
+			const tdHist = document.createElement('td');
+			const histBtn = document.createElement('button'); histBtn.className = 'press-btn'; histBtn.textContent = '📜';
+			tdHist.append(histBtn);
 
-			tr.append(tdName, tdSaldo, tdUnit, tdPrice, tdTotal, tdActions);
+			tr.append(tdName, tdSaldo, tdUnit, tdPrice, tdTotal, tdHist);
 			tbody.appendChild(tr);
 
 			histBtn.onclick = () => openInventoryHistoryDialog(it.ingredient);
-			saveBtn.onclick = async () => {
-				try {
-					// 1. Update master definition if changed (including name)
-					const p = Number(inPrice.value || 0);
-					const u = (inUnit.value || '').trim();
-					const n = (inName.value || '').trim();
-					if (p !== it.price || u !== it.unit || n !== it.ingredient) {
-						await api('POST', API.Inventory, { action: 'update_item', id: it.id, ingredient: n, price: p, unit: u, category: it.category, pack_size: it.pack_size });
-					}
-					// 2. Adjust balance if changed
-					const nextSaldo = Number(inSaldo.value || 0);
-					const delta = Math.round((nextSaldo - it.saldo) * 10) / 10;
-					if (Math.abs(delta) > 0.01) {
-						await api('POST', API.Inventory, { action: 'ajuste', ingredient: it.ingredient, unit: u, qty: delta, note: 'Ajuste manual', actor_name: state.currentUser?.username || state.currentUser?.name || null });
-					}
-					notify.success('Ítem actualizado');
-					renderInventoryView();
-				} catch { notify.error('No se pudo guardar'); }
+
+			// Autosave logic
+			const save = async () => {
+				const n = inName.value.trim();
+				const p = Number(inPrice.value || 0);
+				const u = inUnit.value.trim();
+				const nextSaldo = Number(inSaldo.value || 0);
+
+				if (n !== it.ingredient || p !== it.price || u !== it.unit) {
+					try {
+						const res = await api('POST', API.Inventory, { action: 'update_item', id: it.id, ingredient: n, price: p, unit: u, category: it.category, pack_size: it.pack_size });
+						notify.success(res.status === 'merged' ? 'Fusionado' : 'Cambiado');
+						if (res.status === 'merged') {
+							renderInventoryView();
+						} else {
+							it.ingredient = n; it.price = p; it.unit = u;
+							tdTotal.textContent = fmtMoney.format((it.saldo || 0) * (it.price || 0));
+						}
+					} catch { notify.error('Error al guardar'); }
+				}
+				
+				const delta = Math.round((nextSaldo - it.saldo) * 10) / 10;
+				if (Math.abs(delta) > 0.01) {
+					try {
+						await api('POST', API.Inventory, { action: 'ajuste', ingredient: it.ingredient, unit: u, qty: delta, note: 'Ajuste auto', actor_name: state.currentUser?.username || null });
+						notify.success('Saldo ajustado');
+						it.saldo = nextSaldo;
+						tdTotal.textContent = fmtMoney.format((it.saldo || 0) * (it.price || 0));
+					} catch { notify.error('Error al ajustar saldo'); }
+				}
 			};
+
+			inName.onblur = save;
+			inPrice.onblur = save;
+			inUnit.onblur = save;
+			inSaldo.onblur = save;
 		}
 		table.append(thead, tbody);
 		root.appendChild(table);

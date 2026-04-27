@@ -71,7 +71,21 @@ export async function handler(event) {
 					const newName = (ingredient || old?.ingredient || '').trim();
 
 					if (old && newName && newName !== old.ingredient) {
-						// Sync name change to other related tables
+						// ⚠️ Check if new name already exists (Auto-Merge Logic)
+						const [existing] = await sql`SELECT id FROM inventory_items WHERE lower(trim(ingredient)) = lower(trim(${newName})) AND id != ${id}`;
+						
+						if (existing) {
+							// Combine movements and recipes into the existing item
+							await sql`UPDATE inventory_movements SET ingredient = ${newName} WHERE lower(trim(ingredient)) = lower(trim(${old.ingredient}))`;
+							await sql`UPDATE dessert_recipe_items SET ingredient = ${newName} WHERE lower(trim(ingredient)) = lower(trim(${old.ingredient}))`;
+							await sql`UPDATE extras_items SET ingredient = ${newName} WHERE lower(trim(ingredient)) = lower(trim(${old.ingredient}))`;
+							// Delete the duplicate master record
+							await sql`DELETE FROM inventory_items WHERE id = ${id}`;
+							await recalculateAllDessertCosts();
+							return json({ status: 'merged', target_id: existing.id });
+						}
+
+						// Standard rename across all tables
 						await sql`UPDATE inventory_movements SET ingredient = ${newName} WHERE lower(trim(ingredient)) = lower(trim(${old.ingredient}))`;
 						await sql`UPDATE dessert_recipe_items SET ingredient = ${newName} WHERE lower(trim(ingredient)) = lower(trim(${old.ingredient}))`;
 						await sql`UPDATE extras_items SET ingredient = ${newName} WHERE lower(trim(ingredient)) = lower(trim(${old.ingredient}))`;
