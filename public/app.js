@@ -6333,21 +6333,18 @@ async function openInventoryView() {
 }
 
 async function renderInventoryView() {
+	const scrollPos = window.scrollY;
 	const ingredsRoot = document.getElementById('inventory-ingredients-content');
 	const packsRoot = document.getElementById('inventory-packaging-content');
 	if (!ingredsRoot || !packsRoot) return;
-	ingredsRoot.innerHTML = '';
-	packsRoot.innerHTML = '';
-
-	// Global actions setup (done once)
-	const newMatBtn = document.getElementById('inventory-new-material');
-	const confirmProdBtn = document.getElementById('inventory-confirm-prod');
-	if (newMatBtn) newMatBtn.onclick = () => openNewMaterialDialog();
-	if (confirmProdBtn) confirmProdBtn.onclick = () => openConfirmProductionDialog();
-
+	
 	const fmtMoney = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
 	let items = [];
 	try { items = await api('GET', API.Inventory); } catch { items = []; }
+
+	// Don't clear immediately to reduce flicker
+	const tempIngreds = document.createElement('div');
+	const tempPacks = document.createElement('div');
 
 	const ingreds = items.filter(it => (it.category || 'ingrediente') === 'ingrediente');
 	const packs = items.filter(it => it.category === 'empaque');
@@ -6428,8 +6425,17 @@ async function renderInventoryView() {
 		root.appendChild(table);
 	}
 
-	buildTable(ingreds, ingredsRoot);
-	buildTable(packs, packsRoot);
+	buildTable(ingreds, tempIngreds);
+	buildTable(packs, tempPacks);
+	
+	ingredsRoot.innerHTML = ''; ingredsRoot.appendChild(tempIngreds);
+	packsRoot.innerHTML = ''; packsRoot.appendChild(tempPacks);
+
+	// Setup toolbar listeners (need to re-bind since they might have been lost if we replaced toolbar? No, toolbar is separate)
+	document.getElementById('inventory-new-material').onclick = openNewMaterialDialog;
+	document.getElementById('inventory-confirm-prod').onclick = openConfirmProductionDialog;
+
+	if (scrollPos > 0) window.scrollTo(0, scrollPos);
 }
 
 async function openNewMaterialDialog() {
