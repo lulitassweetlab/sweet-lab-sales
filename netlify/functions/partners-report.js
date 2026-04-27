@@ -168,17 +168,30 @@ export async function handler(event) {
                     if (hData.mod !== undefined) modCents = Number(hData.mod);
                     if (hData.commissions !== undefined) calculatedCommissionsTotal = Number(hData.commissions);
                     
-                    // Override desserts if provided
+                    // Override desserts and individual commissions if provided
+                    let newCommSum = null;
+                    let hasCommOverrides = false;
+
                     commissionDetail.forEach(c => {
                         const n = c.seller_name.toLowerCase();
                         if (n.includes('marcela') && hData.marcela !== undefined) c.desserts = Number(hData.marcela);
                         if (n.includes('janeth') && hData.janeth !== undefined) c.desserts = Number(hData.janeth);
                         if (n.includes('aleja') && hData.aleja !== undefined) c.desserts = Number(hData.aleja);
+
+                        if (n.includes('marcela') && hData.comm_marcela !== undefined) { c.total_comm = Number(hData.comm_marcela); hasCommOverrides = true; }
+                        if (n.includes('janeth') && hData.comm_janeth !== undefined) { c.total_comm = Number(hData.comm_janeth); hasCommOverrides = true; }
+                        if (n.includes('aleja') && hData.comm_aleja !== undefined) { c.total_comm = Number(hData.comm_aleja); hasCommOverrides = true; }
                     });
+                    
+                    if (hasCommOverrides) {
+                        newCommSum = Math.round(commissionDetail.reduce((a, b) => a + Number(b.total_comm || 0), 0));
+                    }
                     
                     totalMonthDesserts = commissionDetail.reduce((a, b) => a + Number(b.desserts || 0), 0);
                     
-                    // Recalculate cumulative tracking based on overridden desserts
+                    // Prioritize generic global commission override over sum of individuals if explicitly set
+                    if (hData.commissions !== undefined) calculatedCommissionsTotal = Number(hData.commissions);
+                    else if (hasCommOverrides) calculatedCommissionsTotal = newCommSum;
                     commissionDetail.forEach(c => {
                         const sid = Number(c.seller_id);
                         const leadId = leadPartnerMap[sid] || sid;
