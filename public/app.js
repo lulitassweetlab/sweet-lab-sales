@@ -7291,12 +7291,13 @@ function buildStepCard(dessertName, step) {
 		if (!stepIds.length) return;
 		try { await api('POST', API.Recipes, { kind: 'step.reorder', ids: stepIds }); } catch { }
 	});
-	add.addEventListener('click', async () => {
-		const ing = (prompt('Ingrediente:') || '').trim(); if (!ing) return;
-		const qty = Number(prompt('Cantidad por unidad:') || '0') || 0;
-		const row = await api('POST', API.Recipes, { kind: 'item.upsert', recipe_id: step.id, ingredient: ing, unit: 'g', qty_per_unit: qty, adjustment: 0, price: 0, position: (step.items?.length || 0) + 1 });
-		removePlaceholder();
-		tbody.appendChild(buildItemRow(step.id, row));
+	add.addEventListener('click', () => {
+		openAddIngredientModal(step.id, (step.items?.length || 0), (row) => {
+			removePlaceholder();
+			tbody.appendChild(buildItemRow(step.id, row));
+			if (!step.items) step.items = [];
+			step.items.push(row);
+		});
 	});
 	del.addEventListener('click', async () => {
 		const ok = confirm('¿Eliminar este paso y sus ingredientes?'); if (!ok) return;
@@ -7394,6 +7395,103 @@ function buildStepCard(dessertName, step) {
 		} catch { notify.error('No se pudo mover el ingrediente'); }
 	});
 	return box;
+}
+
+async function openAddIngredientModal(recipeId, currentItemsCount, onAdded) {
+	// Fetch ingredients from inventory for suggestions
+	const inventory = await api('GET', '/api/inventory');
+	const existingIngredients = (inventory || []).map(it => it.ingredient);
+
+	const overlay = document.createElement('div');
+	overlay.style.position = 'fixed';
+	overlay.style.top = '0'; overlay.style.left = '0';
+	overlay.style.width = '100%'; overlay.style.height = '100%';
+	overlay.style.backgroundColor = 'rgba(0,0,0,0.5)';
+	overlay.style.display = 'flex';
+	overlay.style.alignItems = 'center'; overlay.style.justifyContent = 'center';
+	overlay.style.zIndex = '10000';
+	overlay.style.backdropFilter = 'blur(4px)';
+
+	const modal = document.createElement('div');
+	modal.className = 'confirm-popover';
+	modal.style.position = 'relative';
+	modal.style.width = '90%';
+	modal.style.maxWidth = '400px';
+	modal.style.padding = '24px';
+	modal.style.borderRadius = '20px';
+	modal.style.background = 'white';
+	modal.style.boxShadow = '0 20px 50px rgba(0,0,0,0.15)';
+
+	modal.innerHTML = `
+		<h3 style="margin:0 0 8px 0; color:var(--primary); font-size:1.4rem">Añadir Ingrediente</h3>
+		<p style="margin:0 0 20px 0; color:var(--muted); font-size:0.9rem">Busca un material existente o escribe uno nuevo.</p>
+		
+		<div style="margin-bottom:16px">
+			<label style="display:block; margin-bottom:6px; font-weight:600; font-size:0.9rem">Nombre del Material</label>
+			<input type="text" id="modal-ing-name" list="modal-ing-list" class="input-cell" style="width:100%; border:1px solid var(--border); padding:10px" placeholder="Ej: Crema de leche...">
+			<datalist id="modal-ing-list">
+				${existingIngredients.map(name => `<option value="${name}">`).join('')}
+			</datalist>
+		</div>
+
+		<div style="margin-bottom:24px">
+			<label style="display:block; margin-bottom:6px; font-weight:600; font-size:0.9rem">Cantidad por Unidad</label>
+			<input type="number" id="modal-ing-qty" step="any" class="input-cell" style="width:100%; border:1px solid var(--border); padding:10px" value="0">
+			<small style="color:var(--muted); display:block; margin-top:4px">Gramos, mililitros o unidades.</small>
+		</div>
+
+		<div style="display:flex; gap:12px">
+			<button id="modal-cancel" class="press-btn" style="flex:1; background:#f3f4f6; color:#4b5563">Cancelar</button>
+			<button id="modal-submit" class="press-btn btn-primary" style="flex:2">Agregar a Receta</button>
+		</div>
+	`;
+
+	overlay.appendChild(modal);
+	document.body.appendChild(overlay);
+	modal.classList.add('aladdin-pop');
+
+	const nameIn = modal.querySelector('#modal-ing-name');
+	const qtyIn = modal.querySelector('#modal-ing-qty');
+	const submitBtn = modal.querySelector('#modal-submit');
+	const cancelBtn = modal.querySelector('#modal-cancel');
+
+	nameIn.focus();
+
+	const close = () => { document.body.removeChild(overlay); };
+	
+	cancelBtn.onclick = close;
+	overlay.onclick = (e) => { if (e.target === overlay) close(); };
+
+	submitBtn.onclick = async () => {
+		const name = nameIn.value.trim();
+		const qty = Number(qtyIn.value || 0) || 0;
+		if (!name) { notify.error('Nombre requerido'); return; }
+		
+		submitBtn.disabled = true;
+		submitBtn.textContent = 'Agregando...';
+		
+		try {
+			const row = await api('POST', API.Recipes, { 
+				kind: 'item.upsert', 
+				recipe_id: recipeId, 
+				ingredient: name, 
+				unit: 'g', 
+				qty_per_unit: qty, 
+				adjustment: 0, 
+				price: 0, 
+				position: currentItemsCount + 1 
+			});
+			onAdded(row);
+			close();
+		} catch (err) {
+			notify.error('Error al guardar ingrediente');
+			submitBtn.disabled = false;
+			submitBtn.textContent = 'Agregar a Receta';
+		}
+	};
+
+	nameIn.onkeydown = (e) => { if (e.key === 'Enter') qtyIn.focus(); };
+	qtyIn.onkeydown = (e) => { if (e.key === 'Enter') submitBtn.click(); };
 }
 
 function buildItemRow(stepId, item) {
