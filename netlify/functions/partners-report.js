@@ -77,64 +77,61 @@ export async function handler(event) {
                 if (monthData.cumulative_sales) {
                     Object.keys(monthData.cumulative_sales).forEach(pid => { lastCumulativeSales[pid] = Number(monthData.cumulative_sales[pid] || 0); });
                 }
-            } else {
-                const [revenueRows, cogsRows, accRows, commRows, commCalculatedRows] = await Promise.all([
+            }
+            
+            // Calculate commissions for every month (even if cached, to ensure detail is always there)
+            const [commCalculatedRows] = await Promise.all([
+                sql`
+                    WITH unpivoted AS (
+                        SELECT s.id as sale_id, s.seller_id, sd.day as sale_date, 'arco' as product_name, s.qty_arco as qty FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_arco > 0 AND to_char(sd.day, 'YYYY-MM') = ${m}
+                        UNION ALL SELECT s.id, s.seller_id, sd.day, 'melo', s.qty_melo FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_melo > 0 AND to_char(sd.day, 'YYYY-MM') = ${m}
+                        UNION ALL SELECT s.id, s.seller_id, sd.day, 'mara', s.qty_mara FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_mara > 0 AND to_char(sd.day, 'YYYY-MM') = ${m}
+                        UNION ALL SELECT s.id, s.seller_id, sd.day, 'oreo', s.qty_oreo FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_oreo > 0 AND to_char(sd.day, 'YYYY-MM') = ${m}
+                        UNION ALL SELECT s.id, s.seller_id, sd.day, 'nute', s.qty_nute FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_nute > 0 AND to_char(sd.day, 'YYYY-MM') = ${m}
+                        UNION ALL SELECT s.id, s.seller_id, sd.day, d.short_code, si.quantity FROM sales s JOIN sale_items si ON s.id = si.sale_id JOIN desserts d ON si.dessert_id = d.id JOIN sale_days sd ON s.sale_day_id = sd.id WHERE si.quantity > 0 AND to_char(sd.day, 'YYYY-MM') = ${m}
+                    )
+                    SELECT 
+                        u.seller_id, u.product_name, SUM(u.qty) as total_qty,
+                        (
+                            SELECT c.commission_cents 
+                            FROM crm_product_commissions c 
+                            WHERE c.product_name = u.product_name 
+                              AND (c.seller_id IS NULL OR c.seller_id = u.seller_id)
+                              AND to_date(${m}, 'YYYY-MM') >= c.valid_from 
+                              AND (c.valid_to IS NULL OR to_date(${m}, 'YYYY-MM') <= c.valid_to)
+                            ORDER BY c.seller_id NULLS LAST, c.valid_from DESC LIMIT 1
+                        ) as unit_comm
+                    FROM unpivoted u
+                    GROUP BY u.seller_id, u.product_name
+                `
+            ]);
+
+            const commissionsMap = {};
+            (commCalculatedRows || []).forEach(c => {
+                if (!commissionsMap[c.seller_id]) commissionsMap[c.seller_id] = { desserts: 0, brigs: 0, total_comm: 0, items: [] };
+                const qty = Number(c.total_qty || 0);
+                const unitComm = Number(c.unit_comm || 0);
+                const totalComm = qty * unitComm;
+                const isBrig = (c.product_name || '').toLowerCase().includes('brig') || (c.product_name || '').toLowerCase().includes('bt');
+                if (isBrig) commissionsMap[c.seller_id].brigs += qty;
+                else commissionsMap[c.seller_id].desserts += qty;
+                commissionsMap[c.seller_id].total_comm += totalComm;
+                commissionsMap[c.seller_id].items.push({ name: c.product_name, qty, unit_comm: unitComm, total_comm: totalComm });
+            });
+
+            const commissionDetail = Object.keys(commissionsMap).map(sid => ({
+                seller_id: Number(sid),
+                seller_name: sellerMap[sid] || `Vendedor ${sid}`,
+                ...commissionsMap[sid]
+            }));
+
+            if (!monthData) {
+                const [revenueRows, cogsRows, accRows, commRows] = await Promise.all([
                     sql`SELECT s.seller_id, SUM(s.total_cents) as revenue FROM sales s JOIN sale_days sd ON sd.id = s.sale_day_id WHERE to_char(sd.day, 'YYYY-MM') = ${m} GROUP BY s.seller_id`,
                     sql`SELECT s.seller_id, SUM(si.quantity * d.cost_price) as cogs FROM sale_items si JOIN sales s ON s.id = si.sale_id JOIN sale_days sd ON sd.id = s.sale_day_id JOIN desserts d ON d.id = si.dessert_id WHERE to_char(sd.day, 'YYYY-MM') = ${m} GROUP BY s.seller_id`,
                     sql`SELECT kind, SUM(amount_cents) as total FROM accounting_entries WHERE to_char(entry_date, 'YYYY-MM') = ${m} GROUP BY kind`,
-                    sql`SELECT SUM(commissions_paid) as total FROM sale_days WHERE to_char(day, 'YYYY-MM') = ${m}`,
-                    sql`
-                        WITH unpivoted AS (
-                            SELECT s.id as sale_id, s.seller_id, sd.day as sale_date, 'arco' as product_name, s.qty_arco as qty FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_arco > 0 AND to_char(sd.day, 'YYYY-MM') = ${m}
-                            UNION ALL SELECT s.id, s.seller_id, sd.day, 'melo', s.qty_melo FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_melo > 0 AND to_char(sd.day, 'YYYY-MM') = ${m}
-                            UNION ALL SELECT s.id, s.seller_id, sd.day, 'mara', s.qty_mara FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_mara > 0 AND to_char(sd.day, 'YYYY-MM') = ${m}
-                            UNION ALL SELECT s.id, s.seller_id, sd.day, 'oreo', s.qty_oreo FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_oreo > 0 AND to_char(sd.day, 'YYYY-MM') = ${m}
-                            UNION ALL SELECT s.id, s.seller_id, sd.day, 'nute', s.qty_nute FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_nute > 0 AND to_char(sd.day, 'YYYY-MM') = ${m}
-                            UNION ALL SELECT s.id, s.seller_id, sd.day, d.short_code, si.quantity FROM sales s JOIN sale_items si ON s.id = si.sale_id JOIN desserts d ON si.dessert_id = d.id JOIN sale_days sd ON s.sale_day_id = sd.id WHERE si.quantity > 0 AND to_char(sd.day, 'YYYY-MM') = ${m}
-                        )
-                        SELECT 
-                            u.seller_id, u.product_name, SUM(u.qty) as total_qty,
-                            (
-                                SELECT c.commission_cents 
-                                FROM crm_product_commissions c 
-                                WHERE c.product_name = u.product_name 
-                                  AND (c.seller_id IS NULL OR c.seller_id = u.seller_id)
-                                  AND to_date(${m}, 'YYYY-MM') >= c.valid_from 
-                                  AND (c.valid_to IS NULL OR to_date(${m}, 'YYYY-MM') <= c.valid_to)
-                                ORDER BY c.seller_id NULLS LAST, c.valid_from DESC LIMIT 1
-                            ) as unit_comm
-                        FROM unpivoted u
-                        GROUP BY u.seller_id, u.product_name
-                    `
+                    sql`SELECT SUM(commissions_paid) as total FROM sale_days WHERE to_char(day, 'YYYY-MM') = ${m}`
                 ]);
-
-                const commissionRows = commCalculatedRows || [];
-                const commissionsMap = {};
-                
-                commissionRows.forEach(c => {
-                    if (!commissionsMap[c.seller_id]) commissionsMap[c.seller_id] = { desserts: 0, brigs: 0, total_comm: 0, items: [] };
-                    const qty = Number(c.total_qty || 0);
-                    const unitComm = Number(c.unit_comm || 0);
-                    const totalComm = qty * unitComm;
-                    
-                    const isBrig = (c.product_name || '').toLowerCase().includes('brig') || (c.product_name || '').toLowerCase().includes('bt');
-                    if (isBrig) commissionsMap[c.seller_id].brigs += qty;
-                    else commissionsMap[c.seller_id].desserts += qty;
-                    
-                    commissionsMap[c.seller_id].total_comm += totalComm;
-                    commissionsMap[c.seller_id].items.push({
-                        name: c.product_name,
-                        qty,
-                        unit_comm: unitComm,
-                        total_comm: totalComm
-                    });
-                });
-
-                const commissionDetail = Object.keys(commissionsMap).map(sid => ({
-                    seller_id: Number(sid),
-                    seller_name: sellerMap[sid] || `Vendedor ${sid}`,
-                    ...commissionsMap[sid]
-                }));
 
                 const revenue = Math.round(revenueRows.reduce((a, b) => a + Number(b.revenue || 0), 0));
                 const cogs = Math.round(cogsRows.reduce((a, b) => a + Number(b.cogs || 0), 0));
@@ -179,14 +176,16 @@ export async function handler(event) {
 
                 monthData = {
                     month: m, revenue, cogs, expenses, losses, commissions, profit: opProfit, provision, net_to_share: netToShare,
-                    partners: partnerShares, cumulative_sales: { ...lastCumulativeSales },
-                    commission_detail: commissionDetail
+                    partners: partnerShares, cumulative_sales: { ...lastCumulativeSales }
                 };
 
                 if (m < currentMonth) {
                     await sql`INSERT INTO financial_snapshots (month, data) VALUES (${m}, ${JSON.stringify(monthData)}) ON CONFLICT (month) DO UPDATE SET data = EXCLUDED.data, calculated_at = now()`;
                 }
             }
+
+            // Always add the detail (whether it was cached without it or just calculated)
+            monthData.commission_detail = commissionDetail;
             history.push(monthData);
         }
         return json({ settings, history: history.reverse() });
