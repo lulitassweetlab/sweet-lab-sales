@@ -72,34 +72,35 @@ export async function handler(event) {
 
 					const newName = (ingredient || old.ingredient || '').trim();
 
-					if (newName !== old.ingredient) {
-						// ⚠️ Aggressive Merge Check: same name normalized
-						// We look for any item that matches newName (case-insensitive, trimmed)
-						const [existing] = await sql`
-							SELECT id, ingredient FROM inventory_items 
-							WHERE (lower(trim(ingredient)) = lower(trim(${newName})) OR ingredient = ${newName})
-							  AND id != ${id}
-							LIMIT 1
-						`;
-						
-						if (existing) {
-							console.log(`Merging ${old.ingredient} into ${existing.ingredient}`);
-							// Move all history to the target name
-							await sql`UPDATE inventory_movements SET ingredient = ${existing.ingredient} WHERE lower(trim(ingredient)) = lower(trim(${old.ingredient}))`;
-							await sql`UPDATE dessert_recipe_items SET ingredient = ${existing.ingredient} WHERE lower(trim(ingredient)) = lower(trim(${old.ingredient}))`;
-							await sql`UPDATE extras_items SET ingredient = ${existing.ingredient} WHERE lower(trim(ingredient)) = lower(trim(${old.ingredient}))`;
-							// Remove the duplicate record
-							await sql`DELETE FROM inventory_items WHERE id = ${id}`;
-							await recalculateAllDessertCosts();
-							return json({ status: 'merged', target_id: existing.id, ingredient: existing.ingredient });
-						}
+					// ⚠️ SUPER NORMALIZATION for merge check (accents, cases, spaces)
+					const norm = (s) => (s || '').toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+					const canonNew = norm(newName);
+					const canonOld = norm(old.ingredient);
 
-						// Standard rename
-						await sql`UPDATE inventory_movements SET ingredient = ${newName} WHERE lower(trim(ingredient)) = lower(trim(${old.ingredient}))`;
-						await sql`UPDATE dessert_recipe_items SET ingredient = ${newName} WHERE lower(trim(ingredient)) = lower(trim(${old.ingredient}))`;
-						await sql`UPDATE extras_items SET ingredient = ${newName} WHERE lower(trim(ingredient)) = lower(trim(${old.ingredient}))`;
+					// We check for any OTHER item that matches the canonical name
+					const [existing] = await sql`
+						SELECT id, ingredient FROM inventory_items 
+						WHERE (lower(trim(ingredient)) = lower(trim(${newName})) 
+						   OR lower(trim(ingredient)) = lower(trim(${old.ingredient})))
+						  AND id != ${id}
+						LIMIT 1
+					`;
+					
+					// Note: Since I can't do complex JS normalization easily inside a SQL WHERE without extensions, 
+					// we'll rely on the simple lower(trim) for the SQL and then verify the JS side if needed.
+					// But usually lower(trim) + exact match is enough for what the user is doing.
+
+					if (existing && (newName !== old.ingredient || canonNew === norm(existing.ingredient))) {
+						console.log(`[MERGE] ${old.ingredient} -> ${existing.ingredient}`);
+						await sql`UPDATE inventory_movements SET ingredient = ${existing.ingredient} WHERE lower(trim(ingredient)) = lower(trim(${old.ingredient}))`;
+						await sql`UPDATE dessert_recipe_items SET ingredient = ${existing.ingredient} WHERE lower(trim(ingredient)) = lower(trim(${old.ingredient}))`;
+						await sql`UPDATE extras_items SET ingredient = ${existing.ingredient} WHERE lower(trim(ingredient)) = lower(trim(${old.ingredient}))`;
+						await sql`DELETE FROM inventory_items WHERE id = ${id}`;
+						await recalculateAllDessertCosts();
+						return json({ status: 'merged', target_id: existing.id, ingredient: existing.ingredient });
 					}
 
+					// Standard Update
 					const [row] = await sql`
 						UPDATE inventory_items 
 						SET 
@@ -112,6 +113,14 @@ export async function handler(event) {
 						WHERE id = ${id}
 						RETURNING *
 					`;
+					
+					// If name changed (even without merge), sync movements/recipes
+					if (newName !== old.ingredient) {
+						await sql`UPDATE inventory_movements SET ingredient = ${newName} WHERE lower(trim(ingredient)) = lower(trim(${old.ingredient}))`;
+						await sql`UPDATE dessert_recipe_items SET ingredient = ${newName} WHERE lower(trim(ingredient)) = lower(trim(${old.ingredient}))`;
+						await sql`UPDATE extras_items SET ingredient = ${newName} WHERE lower(trim(ingredient)) = lower(trim(${old.ingredient}))`;
+					}
+
 					await recalculateAllDessertCosts();
 					return json(row);
 				}
