@@ -124,6 +124,7 @@
                         <div style="font-size:0.9rem">
                             <div>Ingresos: ${fmt.format(m.revenue)}</div>
                             <div>Costo Producción: -${fmt.format(m.cogs)}</div>
+                            <div>Mano de Obra (MOD): -${fmt.format(m.mod || 0)} <span style="font-size:0.75rem; color:#94a3b8">(${m.total_desserts || 0} Postres)</span></div>
                             <div>Gastos: -${fmt.format(m.expenses)}</div>
                             <div>Pérdidas: -${fmt.format(m.losses)}</div>
                             <div style="margin-top:5px; padding-top:5px; border-top:1px dashed #ddd; font-size:0.85rem">

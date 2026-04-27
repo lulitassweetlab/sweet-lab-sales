@@ -133,6 +133,9 @@ export async function handler(event) {
                 ...commissionsMap[sid]
             }));
 
+            const totalMonthDesserts = commissionDetail.reduce((a, b) => a + Number(b.desserts || 0), 0);
+            const modCents = totalMonthDesserts * 2000;
+
             if (!monthData) {
                 const [revenueRows, cogsRows, accRows, commRows] = await Promise.all([
                     sql`SELECT s.seller_id, SUM(s.total_cents) as revenue FROM sales s JOIN sale_days sd ON sd.id = s.sale_day_id WHERE to_char(sd.day, 'YYYY-MM') = ${m} GROUP BY s.seller_id`,
@@ -147,7 +150,7 @@ export async function handler(event) {
                 const losses = Math.round(Number(accRows.find(a => a.kind === 'perdida')?.total || 0));
                 const provManual = Math.round(Number(accRows.find(a => a.kind === 'provision')?.total || 0));
                 const calculatedCommissionsTotal = Math.round(commissionDetail.reduce((a, b) => a + Number(b.total_comm || 0), 0));
-                const opProfit = revenue - cogs - expenses - losses - calculatedCommissionsTotal;
+                const opProfit = revenue - cogs - expenses - losses - calculatedCommissionsTotal - modCents;
 
                 revenueRows.forEach(s => {
                     const leadId = leadPartnerMap[s.seller_id] || s.seller_id;
@@ -182,7 +185,9 @@ export async function handler(event) {
                 });
 
                 monthData = {
-                    month: m, revenue, cogs, expenses, losses, commissions: calculatedCommissionsTotal, profit: opProfit, provision, net_to_share: netToShare,
+                    month: m, revenue, cogs, expenses, losses, commissions: calculatedCommissionsTotal, 
+                    total_desserts: totalMonthDesserts, mod: modCents,
+                    profit: opProfit, provision, net_to_share: netToShare,
                     partners: partnerShares, cumulative_sales: { ...lastCumulativeSales }
                 };
 
