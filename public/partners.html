@@ -132,8 +132,7 @@
                                     ${(m.commission_detail || []).map(c => `
                                         <div style="padding:4px 0; border-bottom:1px solid #f8fafc">
                                             <span style="color:#4f46e5; font-weight:600">${c.seller_name}:</span> 
-                                            ${c.desserts}P / ${c.brigs}B 
-                                            <span style="color:#94a3b8">(${c.items.map(it => `${fmt.format(it.unit_comm)}/u`).join(', ')})</span>
+                                            ${c.desserts} Postres / ${c.brigs} Brigs 
                                             <span style="float:right; font-weight:700; color:#1e293b">${fmt.format(c.total_comm)}</span>
                                         </div>
                                     `).join('')}

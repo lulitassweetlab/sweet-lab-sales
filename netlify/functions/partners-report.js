@@ -108,7 +108,7 @@ export async function handler(event) {
 
             const commissionsMap = {};
             (commCalculatedRows || []).forEach(c => {
-                if (!commissionsMap[c.seller_id]) commissionsMap[c.seller_id] = { desserts: 0, brigs: 0, total_comm: 0, items: [] };
+                if (!commissionsMap[c.seller_id]) commissionsMap[c.seller_id] = { desserts: 0, brigs: 0, total_comm: 0 };
                 const qty = Number(c.total_qty || 0);
                 const unitComm = Number(c.unit_comm || 0);
                 const totalComm = qty * unitComm;
@@ -116,7 +116,6 @@ export async function handler(event) {
                 if (isBrig) commissionsMap[c.seller_id].brigs += qty;
                 else commissionsMap[c.seller_id].desserts += qty;
                 commissionsMap[c.seller_id].total_comm += totalComm;
-                commissionsMap[c.seller_id].items.push({ name: c.product_name, qty, unit_comm: unitComm, total_comm: totalComm });
             });
 
             const commissionDetail = Object.keys(commissionsMap).map(sid => ({
