@@ -64,11 +64,22 @@ export async function handler(event) {
 				}
 
 				if (action === 'update_item') {
-					const { id, price, category, unit, pack_size } = data;
+					const { id, price, category, unit, pack_size, ingredient } = data;
 					if (!id) return json({ error: 'id requerido' }, 400);
+
+					const [old] = await sql`SELECT ingredient FROM inventory_items WHERE id = ${id}`;
+					const newName = (ingredient || old?.ingredient || '').trim();
+
+					if (old && newName && newName !== old.ingredient) {
+						// Sync name change to other related tables
+						await sql`UPDATE inventory_movements SET ingredient = ${newName} WHERE lower(trim(ingredient)) = lower(trim(${old.ingredient}))`;
+						await sql`UPDATE dessert_recipe_items SET ingredient = ${newName} WHERE lower(trim(ingredient)) = lower(trim(${old.ingredient}))`;
+						await sql`UPDATE extras_items SET ingredient = ${newName} WHERE lower(trim(ingredient)) = lower(trim(${old.ingredient}))`;
+					}
+
 					const [row] = await sql`
 						UPDATE inventory_items 
-						SET price = ${Number(price || 0)}, category = ${category}, unit = ${unit}, pack_size = ${Number(pack_size || 0)}, updated_at = now()
+						SET ingredient = ${newName}, price = ${Number(price || 0)}, category = ${category}, unit = ${unit}, pack_size = ${Number(pack_size || 0)}, updated_at = now()
 						WHERE id = ${id}
 						RETURNING *
 					`;
