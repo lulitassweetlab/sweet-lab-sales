@@ -6438,6 +6438,12 @@ async function renderInventoryView() {
 				}
 			};
 
+			const handleEnter = (ev) => { if (ev.key === 'Enter') ev.target.blur(); };
+			inName.onkeydown = handleEnter;
+			inPrice.onkeydown = handleEnter;
+			inUnit.onkeydown = handleEnter;
+			inSaldo.onkeydown = handleEnter;
+
 			inName.onblur = save;
 			inPrice.onblur = save;
 			inUnit.onblur = save;

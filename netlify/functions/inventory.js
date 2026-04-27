@@ -73,18 +73,28 @@ export async function handler(event) {
 					const newName = (ingredient || old.ingredient || '').trim();
 
 					if (newName !== old.ingredient) {
-						// ⚠️ Check if new name already exists (Auto-Merge Logic)
-						const [existing] = await sql`SELECT id FROM inventory_items WHERE lower(trim(ingredient)) = lower(trim(${newName})) AND id != ${id}`;
+						// ⚠️ Aggressive Merge Check: same name normalized
+						// We look for any item that matches newName (case-insensitive, trimmed)
+						const [existing] = await sql`
+							SELECT id, ingredient FROM inventory_items 
+							WHERE (lower(trim(ingredient)) = lower(trim(${newName})) OR ingredient = ${newName})
+							  AND id != ${id}
+							LIMIT 1
+						`;
 						
 						if (existing) {
-							await sql`UPDATE inventory_movements SET ingredient = ${newName} WHERE lower(trim(ingredient)) = lower(trim(${old.ingredient}))`;
-							await sql`UPDATE dessert_recipe_items SET ingredient = ${newName} WHERE lower(trim(ingredient)) = lower(trim(${old.ingredient}))`;
-							await sql`UPDATE extras_items SET ingredient = ${newName} WHERE lower(trim(ingredient)) = lower(trim(${old.ingredient}))`;
+							console.log(`Merging ${old.ingredient} into ${existing.ingredient}`);
+							// Move all history to the target name
+							await sql`UPDATE inventory_movements SET ingredient = ${existing.ingredient} WHERE lower(trim(ingredient)) = lower(trim(${old.ingredient}))`;
+							await sql`UPDATE dessert_recipe_items SET ingredient = ${existing.ingredient} WHERE lower(trim(ingredient)) = lower(trim(${old.ingredient}))`;
+							await sql`UPDATE extras_items SET ingredient = ${existing.ingredient} WHERE lower(trim(ingredient)) = lower(trim(${old.ingredient}))`;
+							// Remove the duplicate record
 							await sql`DELETE FROM inventory_items WHERE id = ${id}`;
 							await recalculateAllDessertCosts();
-							return json({ status: 'merged', target_id: existing.id });
+							return json({ status: 'merged', target_id: existing.id, ingredient: existing.ingredient });
 						}
 
+						// Standard rename
 						await sql`UPDATE inventory_movements SET ingredient = ${newName} WHERE lower(trim(ingredient)) = lower(trim(${old.ingredient}))`;
 						await sql`UPDATE dessert_recipe_items SET ingredient = ${newName} WHERE lower(trim(ingredient)) = lower(trim(${old.ingredient}))`;
 						await sql`UPDATE extras_items SET ingredient = ${newName} WHERE lower(trim(ingredient)) = lower(trim(${old.ingredient}))`;
