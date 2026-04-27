@@ -75,8 +75,8 @@ export async function handler(event) {
 
         const currentMonth = new Date().toISOString().slice(0, 7);
 
-        let lastCumulativeSales = {};
-        partnerIds.forEach(pid => lastCumulativeSales[pid] = 0);
+        let lastCumulativeDesserts = {};
+        partnerIds.forEach(pid => lastCumulativeDesserts[pid] = 0);
         const history = [];
 
         for (const m of allMonths) {
@@ -113,15 +113,15 @@ export async function handler(event) {
                     const sid = Number(c.seller_id);
                     const leadId = leadPartnerMap[sid] || sid;
                     if (partnerIds.includes(Number(leadId))) {
-                        lastCumulativeSales[leadId] = (lastCumulativeSales[leadId] || 0) + (c.desserts * 10000);
+                        lastCumulativeDesserts[leadId] = (lastCumulativeDesserts[leadId] || 0) + Number(c.desserts || 0);
                     }
                 });
 
-                const totalPartnerCum = partnerIds.reduce((a, pid) => a + (lastCumulativeSales[pid] || 0), 0);
+                const totalPartnerCum = partnerIds.reduce((a, pid) => a + (lastCumulativeDesserts[pid] || 0), 0);
                 const founderAmt = founderId && founderPerc > 0 ? Math.round(Math.max(0, netToShare) * (founderPerc / 100)) : 0;
                 const pool = netToShare - founderAmt;
                 const shares = partnerIds.map(pid => {
-                    const cum = lastCumulativeSales[pid] || 0;
+                    const cum = lastCumulativeDesserts[pid] || 0;
                     const mp = totalPartnerCum > 0 ? (cum / totalPartnerCum) : 0;
                     let amt = Math.round(pool * mp);
                     if (pid === founderId) amt += founderAmt;
@@ -133,7 +133,7 @@ export async function handler(event) {
                     month: m, revenue, cogs, expenses: 0, losses: 0, commissions, 
                     total_desserts: totalDesserts, total_brigs: 0, mod, profit, provision, 
                     net_to_share: netToShare, partners: shares, commission_detail: commDetail, 
-                    cumulative_sales: { ...lastCumulativeSales } 
+                    cumulative_desserts: { ...lastCumulativeDesserts } 
                 };
                 
                 // Ensure snapshot is saved if not there, to speed up next runs (but prioritize logic above)
@@ -168,19 +168,16 @@ export async function handler(event) {
                 expenses = Math.round(Number(accRows.find(a => a.kind === 'gasto')?.total || 0));
                 losses = Math.round(Number(accRows.find(a => a.kind === 'perdida')?.total || 0));
                 provManual = Math.round(Number(accRows.find(a => a.kind === 'provision')?.total || 0));
-
-                // Helper for cumulative sales during full calc
-                revenueRows.forEach(s => {
-                    const leadId = leadPartnerMap[s.seller_id] || s.seller_id;
-                    if (partnerIds.includes(Number(leadId))) {
-                        lastCumulativeSales[leadId] = (lastCumulativeSales[leadId] || 0) + Number(s.revenue || 0);
-                    }
-                });
             } else {
-                // If cached, we still need to update cumulative sales state for the next month
-                if (monthData.cumulative_sales) {
+                // If cached, we still need to update cumulative tracking state for the next month
+                if (monthData.cumulative_desserts) {
+                    Object.keys(monthData.cumulative_desserts).forEach(pid => { 
+                        lastCumulativeDesserts[pid] = Number(monthData.cumulative_desserts[pid] || 0); 
+                    });
+                } else if (monthData.cumulative_sales) {
+                    // Fallback for old snapshots (approx based on revenue if needed, but better to recalculate)
                     Object.keys(monthData.cumulative_sales).forEach(pid => { 
-                        lastCumulativeSales[pid] = Number(monthData.cumulative_sales[pid] || 0); 
+                        lastCumulativeDesserts[pid] = (lastCumulativeDesserts[pid] || 0) + Math.round(Number(monthData.cumulative_sales[pid] || 0) / 10000); 
                     });
                 }
             }
@@ -228,6 +225,15 @@ export async function handler(event) {
             const modCents = totalMonthDesserts * 2000;
             const calculatedCommissionsTotal = Math.round(commissionDetail.reduce((a, b) => a + Number(b.total_comm || 0), 0));
 
+            // Update cumulative tracking for the next iteration (full calc path)
+            commissionDetail.forEach(c => {
+                const sid = Number(c.seller_id);
+                const leadId = leadPartnerMap[sid] || sid;
+                if (partnerIds.includes(Number(leadId))) {
+                    lastCumulativeDesserts[leadId] = (lastCumulativeDesserts[leadId] || 0) + Number(c.desserts || 0);
+                }
+            });
+
             // 3. Final Profit Formula
             const opProfit = revenue - cogs - expenses - losses - calculatedCommissionsTotal - modCents;
             let provision = provManual;
@@ -235,12 +241,12 @@ export async function handler(event) {
             const netToShare = opProfit - provision;
 
             // 4. Partner Shares Distribution
-            const totalPartnerCumulative = partnerIds.reduce((a, pid) => a + (lastCumulativeSales[pid] || 0), 0);
+            const totalPartnerCumulative = partnerIds.reduce((a, pid) => a + (lastCumulativeDesserts[pid] || 0), 0);
             const founderFixedAmount = founderId && founderPerc > 0 ? Math.round(Math.max(0, netToShare) * (founderPerc / 100)) : 0;
             const meritPool = netToShare - founderFixedAmount;
 
             const partnerShares = partnerIds.map(pid => {
-                const cum = lastCumulativeSales[pid] || 0;
+                const cum = lastCumulativeDesserts[pid] || 0;
                 const meritPerc = totalPartnerCumulative > 0 ? (cum / totalPartnerCumulative) : 0;
                 let shareAmount = Math.round(meritPool * meritPerc);
                 if (pid === founderId) shareAmount += founderFixedAmount;
@@ -258,7 +264,7 @@ export async function handler(event) {
                 total_desserts: totalMonthDesserts, total_brigs: totalMonthBrigs, mod: modCents,
                 profit: opProfit, provision, net_to_share: netToShare,
                 partners: partnerShares, commission_detail: commissionDetail,
-                cumulative_sales: { ...lastCumulativeSales }
+                cumulative_desserts: { ...lastCumulativeDesserts }
             };
 
             if (m < currentMonth && (!snapshotsMap[m] || forceSync)) {
