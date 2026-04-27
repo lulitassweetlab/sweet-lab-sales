@@ -6411,7 +6411,6 @@ async function renderInventoryView() {
 				const n = inName.value.trim();
 				const p = Number(inPrice.value || 0);
 				const u = inUnit.value.trim();
-				const c = selCat.value;
 				const nextSaldo = Number(inSaldo.value || 0);
 
 				if (n !== it.ingredient || p !== it.price || u !== it.unit) {

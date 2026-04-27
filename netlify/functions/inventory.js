@@ -51,9 +51,34 @@ export async function handler(event) {
 				const actor = (data.actor_name || '').toString() || null;
 
 				if (action === 'add_item') {
-					const ingredient = canonicalizeIngredientName((data.ingredient || '').toString().trim());
+					const ingredient = (data.ingredient || '').toString().trim();
 					if (!ingredient) return json({ error: 'ingredient requerido' }, 400);
 					const { unit = 'g', category = 'ingrediente', price = 0, pack_size = 0 } = data;
+
+					// ⚠️ SUPER NORMALIZATION check
+					const norm = (s) => (s || '').toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+					const canonNew = norm(ingredient);
+
+					const all = await sql`SELECT id, ingredient, category FROM inventory_items`;
+					const existing = all.find(it => norm(it.ingredient) === canonNew);
+
+					if (existing) {
+						// Item already exists (deep normalization), just update it
+						const [row] = await sql`
+							UPDATE inventory_items 
+							SET 
+								unit = ${unit}, 
+								category = ${category || existing.category}, 
+								price = ${Number(price) || 0}, 
+								pack_size = ${Number(pack_size) || 0}, 
+								updated_at = now()
+							WHERE id = ${existing.id}
+							RETURNING *
+						`;
+						await recalculateAllDessertCosts();
+						return json({ ...row, status: 'updated_existing' });
+					}
+
 					const [row] = await sql`
 						INSERT INTO inventory_items (ingredient, unit, category, price, pack_size)
 						VALUES (${ingredient}, ${unit}, ${category}, ${price}, ${pack_size})
@@ -75,29 +100,36 @@ export async function handler(event) {
 					// ⚠️ SUPER NORMALIZATION for merge check (accents, cases, spaces)
 					const norm = (s) => (s || '').toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 					const canonNew = norm(newName);
-					const canonOld = norm(old.ingredient);
 
-					// We check for any OTHER item that matches the canonical name
-					const [existing] = await sql`
-						SELECT id, ingredient FROM inventory_items 
-						WHERE (lower(trim(ingredient)) = lower(trim(${newName})) 
-						   OR lower(trim(ingredient)) = lower(trim(${old.ingredient})))
-						  AND id != ${id}
-						LIMIT 1
-					`;
+					// We check for any OTHER item that matches the canonical name using deep normalization
+					const all = await sql`SELECT id, ingredient FROM inventory_items WHERE id != ${id}`;
+					const existing = all.find(it => norm(it.ingredient) === canonNew);
 					
-					// Note: Since I can't do complex JS normalization easily inside a SQL WHERE without extensions, 
-					// we'll rely on the simple lower(trim) for the SQL and then verify the JS side if needed.
-					// But usually lower(trim) + exact match is enough for what the user is doing.
-
-					if (existing && (newName !== old.ingredient || canonNew === norm(existing.ingredient))) {
+					if (existing) {
 						console.log(`[MERGE] ${old.ingredient} -> ${existing.ingredient}`);
-						await sql`UPDATE inventory_movements SET ingredient = ${existing.ingredient} WHERE lower(trim(ingredient)) = lower(trim(${old.ingredient}))`;
-						await sql`UPDATE dessert_recipe_items SET ingredient = ${existing.ingredient} WHERE lower(trim(ingredient)) = lower(trim(${old.ingredient}))`;
-						await sql`UPDATE extras_items SET ingredient = ${existing.ingredient} WHERE lower(trim(ingredient)) = lower(trim(${old.ingredient}))`;
+						// Update ALL references in other tables
+						const oldName = old.ingredient;
+						const targetName = existing.ingredient;
+
+						await sql`UPDATE inventory_movements SET ingredient = ${targetName} WHERE lower(trim(ingredient)) = lower(trim(${oldName}))`;
+						await sql`UPDATE dessert_recipe_items SET ingredient = ${targetName} WHERE lower(trim(ingredient)) = lower(trim(${oldName}))`;
+						await sql`UPDATE extras_items SET ingredient = ${targetName} WHERE lower(trim(ingredient)) = lower(trim(${oldName}))`;
+						
+						// Update the existing item with new data if provided (price, etc)
+						await sql`
+							UPDATE inventory_items 
+							SET 
+								price = ${price !== undefined ? Number(price) : existing.price},
+								category = ${category || existing.category},
+								unit = ${unit || existing.unit},
+								pack_size = ${pack_size !== undefined ? Number(pack_size) : existing.pack_size},
+								updated_at = now()
+							WHERE id = ${existing.id}
+						`;
+
 						await sql`DELETE FROM inventory_items WHERE id = ${id}`;
 						await recalculateAllDessertCosts();
-						return json({ status: 'merged', target_id: existing.id, ingredient: existing.ingredient });
+						return json({ status: 'merged', target_id: existing.id, ingredient: targetName });
 					}
 
 					// Standard Update
