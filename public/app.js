@@ -6336,7 +6336,8 @@ async function renderInventoryView() {
 	const scrollPos = window.scrollY;
 	const ingredsRoot = document.getElementById('inventory-ingredients-content');
 	const packsRoot = document.getElementById('inventory-packaging-content');
-	if (!ingredsRoot || !packsRoot) return;
+	const othersRoot = document.getElementById('inventory-others-content');
+	if (!ingredsRoot || !packsRoot || !othersRoot) return;
 	
 	const fmtMoney = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
 	let items = [];
@@ -6345,22 +6346,32 @@ async function renderInventoryView() {
 	// Don't clear immediately to reduce flicker
 	const tempIngreds = document.createElement('div');
 	const tempPacks = document.createElement('div');
+	const tempOthers = document.createElement('div');
 
 	const ingreds = items.filter(it => (it.category || 'ingrediente') === 'ingrediente');
 	const packs = items.filter(it => it.category === 'empaque');
+	const others = items.filter(it => it.category === 'otros');
 
 	function buildTable(list, root) {
 		if (list.length === 0) { root.innerHTML = '<p style="opacity:0.6; padding:10px;">No hay ítems en esta categoría.</p>'; return; }
 		const table = document.createElement('table'); table.className = 'clients-table';
 		const thead = document.createElement('thead'); const hr = document.createElement('tr');
-		['Material', 'Saldo', 'Unidad', 'Cos. Unit.', 'V. Total', 'Acc.'].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
+		['Material', 'Categoría', 'Saldo', 'Unidad', 'Cos. Unit.', 'V. Total', 'Acc.'].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
 		thead.appendChild(hr); const tbody = document.createElement('tbody');
-		
 		for (const it of list) {
 			const tr = document.createElement('tr');
 			const tdName = document.createElement('td');
-			const inName = document.createElement('input'); inName.type = 'text'; inName.className = 'input-cell'; inName.style.width = '160px'; inName.value = it.ingredient;
+			const inName = document.createElement('input'); inName.type = 'text'; inName.className = 'input-cell'; inName.style.width = '140px'; inName.value = it.ingredient;
 			tdName.appendChild(inName);
+
+			const tdCat = document.createElement('td');
+			const selCat = document.createElement('select'); selCat.className = 'input-cell'; selCat.style.width = '80px';
+			[{ v: 'ingrediente', t: 'Ingred' }, { v: 'empaque', t: 'Empaq' }, { v: 'otros', t: 'Otros' }].forEach(opt => {
+				const o = document.createElement('option'); o.value = opt.v; o.textContent = opt.t;
+				if (it.category === opt.v) o.selected = true;
+				selCat.appendChild(o);
+			});
+			tdCat.appendChild(selCat);
 			
 			const tdSaldo = document.createElement('td');
 			const inSaldo = document.createElement('input'); inSaldo.type = 'number'; inSaldo.step = '0.1'; inSaldo.className = 'input-cell'; inSaldo.style.width = '80px'; inSaldo.style.textAlign = 'right'; inSaldo.value = (Number(it.saldo || 0) || 0).toFixed(1);
@@ -6399,16 +6410,17 @@ async function renderInventoryView() {
 				const n = inName.value.trim();
 				const p = Number(inPrice.value || 0);
 				const u = inUnit.value.trim();
+				const c = selCat.value;
 				const nextSaldo = Number(inSaldo.value || 0);
 
-				if (n !== it.ingredient || p !== it.price || u !== it.unit) {
+				if (n !== it.ingredient || p !== it.price || u !== it.unit || c !== it.category) {
 					try {
-						const res = await api('POST', API.Inventory, { action: 'update_item', id: it.id, ingredient: n, price: p, unit: u, category: it.category, pack_size: it.pack_size });
+						const res = await api('POST', API.Inventory, { action: 'update_item', id: it.id, ingredient: n, price: p, unit: u, category: c, pack_size: it.pack_size });
 						notify.success(res.status === 'merged' ? 'Fusionado' : 'Cambiado');
-						if (res.status === 'merged') {
+						if (res.status === 'merged' || c !== it.category) {
 							renderInventoryView();
 						} else {
-							it.ingredient = n; it.price = p; it.unit = u;
+							it.ingredient = n; it.price = p; it.unit = u; it.category = c;
 							tdTotal.textContent = fmtMoney.format((it.saldo || 0) * (it.price || 0));
 						}
 					} catch { notify.error('Error al guardar'); }
@@ -6429,6 +6441,7 @@ async function renderInventoryView() {
 			inPrice.onblur = save;
 			inUnit.onblur = save;
 			inSaldo.onblur = save;
+			selCat.onchange = save;
 		}
 		table.append(thead, tbody);
 		root.appendChild(table);
@@ -6436,9 +6449,11 @@ async function renderInventoryView() {
 
 	buildTable(ingreds, tempIngreds);
 	buildTable(packs, tempPacks);
+	buildTable(others, tempOthers);
 	
 	ingredsRoot.innerHTML = ''; ingredsRoot.appendChild(tempIngreds);
 	packsRoot.innerHTML = ''; packsRoot.appendChild(tempPacks);
+	othersRoot.innerHTML = ''; othersRoot.appendChild(tempOthers);
 
 	// Setup toolbar listeners (need to re-bind since they might have been lost if we replaced toolbar? No, toolbar is separate)
 	document.getElementById('inventory-new-material').onclick = openNewMaterialDialog;
