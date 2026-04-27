@@ -97,16 +97,28 @@ export async function handler(event) {
                     try { if (settings['historic_2025_08']) hData = JSON.parse(settings['historic_2025_08']); } catch(e){}
                 }
                 
-                const totalDesserts = Object.values(hData).reduce((a,b)=>a+Number(b), 0);
-                const revenue = totalDesserts * 10000;
-                const cogs = Math.round(revenue * 0.55);
-                const commissions = totalDesserts * 1000;
-                const mod = totalDesserts * 2000;
-                const profit = revenue - cogs - commissions - mod;
+                const sellerEntries = Object.entries(hData).filter(([k]) => !['revenue','cogs','expenses','losses','mod','commissions'].includes(k));
+                const totalDesserts = sellerEntries.reduce((a, [_, qty]) => a + Number(qty||0), 0);
+                
+                let revenue = totalDesserts * 10000;
+                let cogs = Math.round(revenue * 0.55);
+                let commissions = totalDesserts * 1000;
+                let mod = totalDesserts * 2000;
+                let expenses = 0;
+                let losses = 0;
+
+                if (hData.revenue !== undefined) revenue = Number(hData.revenue);
+                if (hData.cogs !== undefined) cogs = Number(hData.cogs);
+                if (hData.expenses !== undefined) expenses = Number(hData.expenses);
+                if (hData.losses !== undefined) losses = Number(hData.losses);
+                if (hData.mod !== undefined) mod = Number(hData.mod);
+                if (hData.commissions !== undefined) commissions = Number(hData.commissions);
+
+                const profit = revenue - cogs - commissions - mod - expenses - losses;
                 const provision = Math.round(Math.max(0, profit) * (settings.provision_default_perc / 100));
                 const netToShare = profit - provision;
 
-                const commDetail = Object.entries(hData).map(([name, qty]) => {
+                const commDetail = sellerEntries.map(([name, qty]) => {
                     const parsedQty = Number(qty) || 0;
                     const seller = allSellersRows.find(s => s.name.toLowerCase().includes(name.toLowerCase()));
                     return { 
@@ -138,7 +150,7 @@ export async function handler(event) {
                 });
 
                 monthData = { 
-                    month: m, revenue, cogs, expenses: 0, losses: 0, commissions, 
+                    month: m, revenue, cogs, expenses, losses, commissions, 
                     total_desserts: totalDesserts, total_brigs: 0, mod, profit, provision, 
                     net_to_share: netToShare, partners: shares, commission_detail: commDetail, 
                     cumulative_desserts: { ...lastCumulativeDesserts } 

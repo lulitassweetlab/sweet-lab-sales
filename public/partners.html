@@ -155,7 +155,7 @@
                             <div>
                                 <strong style="font-size:1.4rem; display:block; letter-spacing:-0.01em">${monthLabel}</strong>
                                 <span class="pill">Cierre Mensual</span>
-                                ${m.month === '2025-07' || m.month === '2025-08' ? `<button onclick="editHistoric('${m.month}')" style="margin-left:8px; background:#fff; border:1px solid #cbd5e1; padding:2px 8px; border-radius:12px; font-size:0.7rem; color:#64748b; cursor:pointer;">✏️ Modificar</button>` : ''}
+                                ${m.month === '2025-07' || m.month === '2025-08' ? `<button onclick="toggleEditHistoric('${m.month}', this)" style="margin-left:8px; background:#fff; border:1px solid #cbd5e1; padding:2px 10px; border-radius:12px; font-size:0.75rem; font-weight:600; color:#64748b; cursor:pointer; transition:all 0.2s;">✏️ Modificar</button>` : ''}
                             </div>
                         </div>
                         <div style="text-align:right">
@@ -185,12 +185,20 @@
                                         <span style="font-weight:900; color:#4c1d95">${fmt.format(m.commission_detail?.reduce((a,b)=>a+b.total_comm, 0) || 0)}</span>
                                     </div>
                                     <div style="font-size:0.75rem; color:#6d28d9; line-height:1.6">
-                                        ${(m.commission_detail || []).sort((a,b)=>b.total_comm - a.total_comm).map(c => `
-                                            <div style="display:flex; justify-content:space-between; opacity:0.8">
-                                                <span>• ${c.seller_name} (${c.desserts} Postres / ${c.brigs} Brigs)</span>
+                                        ${(m.commission_detail || []).sort((a,b)=>b.total_comm - a.total_comm).map(c => {
+                                            const isHist = m.month === '2025-07' || m.month === '2025-08';
+                                            return `
+                                            <div style="display:flex; justify-content:space-between; opacity:0.8; margin-bottom:4px; align-items:center">
+                                                <span>
+                                                    • ${c.seller_name} 
+                                                    (<span class="hist-text-${m.month}">${c.desserts}</span>
+                                                    ${isHist ? `<input type="number" class="hist-input-${m.month}" data-seller="${c.seller_name}" value="${c.desserts}" style="display:none; width:50px; font-size:0.75rem; font-weight:700; padding:2px 4px; border:1px solid #c4b5fd; border-radius:6px; color:#4c1d95; text-align:center; outline:none">` : ''} 
+                                                    Postres / ${c.brigs} Brigs)
+                                                </span>
                                                 <strong>${fmt.format(c.total_comm)}</strong>
                                             </div>
-                                        `).join('')}
+                                            `;
+                                        }).join('')}
                                     </div>
                                 </div>
                             </div>
@@ -317,51 +325,59 @@
 
         function closeMsg() { document.getElementById('modal-cfg').style.display = 'none'; }
         
-        window.editHistoric = async (month) => {
-            const mData = DATA.history.find(x => x.month === month);
-            if (!mData) return;
-
-            // Extract current numbers from detail
-            let marcela = 0, janeth = 0, aleja = 0;
-            if (mData.commission_detail) {
-                mData.commission_detail.forEach(c => {
-                    const n = c.seller_name.toLowerCase();
-                    if (n.includes('marcela')) marcela = c.desserts;
-                    else if (n.includes('janeth')) janeth = c.desserts;
-                    else if (n.includes('aleja')) aleja = c.desserts;
-                });
-            }
-
-            const r1 = prompt(`[${month}] Cantidad de postres vendidos por Marcela:`, marcela);
-            if (r1 === null) return;
-            const r2 = prompt(`[${month}] Cantidad de postres vendidos por Janeth:`, janeth);
-            if (r2 === null) return;
-            const r3 = prompt(`[${month}] Cantidad de postres vendidos por Aleja:`, aleja);
-            if (r3 === null) return;
-
-            const payload = {
-                marcela: Number(r1) || 0,
-                janeth: Number(r2) || 0,
-                aleja: Number(r3) || 0
-            };
-
-            const keyName = month === '2025-07' ? 'historic_2025_07' : 'historic_2025_08';
+        window.toggleEditHistoric = (month, btn) => {
+            const isEditing = btn.innerText.includes('Guardar');
             
-            document.getElementById('status-msg').innerHTML = `<div style="color:#0ea5e9"><h3>Actualizando Histórico...</h3><p>Recalculando acumulados...</p></div>`;
-            document.getElementById('status-msg').style.display = 'flex';
-            document.getElementById('report-content').style.display = 'none';
+            if (!isEditing) {
+                // Switch to edit mode
+                document.querySelectorAll(`.hist-text-${month}`).forEach(el => el.style.display = 'none');
+                document.querySelectorAll(`.hist-input-${month}`).forEach(el => el.style.display = 'inline-block');
+                btn.innerHTML = '💾 Guardar';
+                btn.style.background = '#8b5cf6';
+                btn.style.color = '#fff';
+                btn.style.borderColor = '#8b5cf6';
+            } else {
+                // Save mode
+                const inputs = document.querySelectorAll(`.hist-input-${month}`);
+                const payload = {};
+                
+                // Fallback to existing data if input is missing for some reason
+                const mData = DATA.history.find(x => x.month === month);
+                if (mData && mData.commission_detail) {
+                    mData.commission_detail.forEach(c => {
+                        const n = c.seller_name.toLowerCase();
+                        if (n.includes('marcela')) payload.marcela = c.desserts;
+                        else if (n.includes('janeth')) payload.janeth = c.desserts;
+                        else if (n.includes('aleja')) payload.aleja = c.desserts;
+                    });
+                }
 
-            try {
-                const res = await fetch('/api/store-settings', {
+                // Override with input values
+                inputs.forEach(inp => {
+                    const val = Number(inp.value) || 0;
+                    const sName = inp.getAttribute('data-seller').toLowerCase();
+                    if (sName.includes('marcela')) payload.marcela = val;
+                    else if (sName.includes('janeth')) payload.janeth = val;
+                    else if (sName.includes('aleja')) payload.aleja = val;
+                });
+
+                const keyName = month === '2025-07' ? 'historic_2025_07' : 'historic_2025_08';
+                
+                document.getElementById('status-msg').innerHTML = `<div style="color:#8b5cf6"><h3>Guardando y Recalculando...</h3><p>Actualizando modelo matemático.</p></div>`;
+                document.getElementById('status-msg').style.display = 'flex';
+                document.getElementById('report-content').style.display = 'none';
+
+                fetch('/api/store-settings', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ [keyName]: JSON.stringify(payload) })
+                }).then(res => {
+                    if (!res.ok) throw new Error('Error al guardar datos históricos');
+                    location.href = '?auth=admin&force_sync=1';
+                }).catch(e => {
+                    alert(e.message);
+                    location.reload();
                 });
-                if (!res.ok) throw new Error('Error al guardar datos históricos');
-                location.href = '?auth=admin&force_sync=1';
-            } catch (e) {
-                alert(e.message);
-                location.reload();
             }
         };
 
