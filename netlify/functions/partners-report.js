@@ -83,17 +83,17 @@ export async function handler(event) {
             currentProcessMonth = m;
             let monthData = null;
 
-            // Historical Hardcoded Override for Jul/Aug 2025
+            // 1. Historical Hardcoded Override for Jul/Aug 2025 (PRIORITY)
             const isHistorical = m === '2025-07' || m === '2025-08';
-            if (isHistorical && !forceSync) {
+            if (isHistorical) {
                 const hData = m === '2025-07' 
                     ? { marcela: 174, janeth: 99, aleja: 100 } 
                     : { marcela: 243, janeth: 40, aleja: 32 };
                 
-                const revenue = Object.values(hData).reduce((a,b)=>a+b, 0) * 10000;
-                const cogs = Math.round(revenue * 0.55);
-                const commissions = Object.values(hData).reduce((a,b)=>a+b, 0) * 1000;
                 const totalDesserts = Object.values(hData).reduce((a,b)=>a+b, 0);
+                const revenue = totalDesserts * 10000;
+                const cogs = Math.round(revenue * 0.55);
+                const commissions = totalDesserts * 1000;
                 const mod = totalDesserts * 2000;
                 const profit = revenue - cogs - commissions - mod;
                 const provision = Math.round(Math.max(0, profit) * (settings.provision_default_perc / 100));
@@ -101,13 +101,17 @@ export async function handler(event) {
 
                 const commDetail = Object.entries(hData).map(([name, qty]) => {
                     const seller = allSellersRows.find(s => s.name.toLowerCase().includes(name.toLowerCase()));
-                    const sid = seller ? seller.id : 0;
-                    return { seller_id: sid, seller_name: seller ? seller.name : name, desserts: qty, brigs: 0, total_comm: qty * 1000 };
+                    return { 
+                        seller_id: seller ? seller.id : 0, 
+                        seller_name: seller ? seller.name : (name.charAt(0).toUpperCase() + name.slice(1)), 
+                        desserts: qty, brigs: 0, total_comm: qty * 1000 
+                    };
                 });
 
-                // Update cumulative for partners
+                // Update cumulative tracking for potential partners in this months sales
                 commDetail.forEach(c => {
-                    const leadId = leadPartnerMap[c.seller_id] || c.seller_id;
+                    const sid = Number(c.seller_id);
+                    const leadId = leadPartnerMap[sid] || sid;
                     if (partnerIds.includes(Number(leadId))) {
                         lastCumulativeSales[leadId] = (lastCumulativeSales[leadId] || 0) + (c.desserts * 10000);
                     }
@@ -121,10 +125,22 @@ export async function handler(event) {
                     const mp = totalPartnerCum > 0 ? (cum / totalPartnerCum) : 0;
                     let amt = Math.round(pool * mp);
                     if (pid === founderId) amt += founderAmt;
-                    return { id: pid, name: sellerMap[pid] || `Socio ${pid}`, share_perc: netToShare > 0 ? Number(((amt/netToShare)*100).toFixed(2)) : 0, share_amount: amt };
+                    const sp = netToShare > 0 ? Number(((amt/netToShare)*100).toFixed(2)) : 0;
+                    return { id: pid, name: sellerMap[pid] || `Socio ${pid}`, share_perc: sp, share_amount: amt };
                 });
 
-                monthData = { month: m, revenue, cogs, expenses: 0, losses: 0, commissions, total_desserts: totalDesserts, total_brigs: 0, mod, profit, provision, net_to_share: netToShare, partners: shares, commission_detail: commDetail, cumulative_sales: { ...lastCumulativeSales } };
+                monthData = { 
+                    month: m, revenue, cogs, expenses: 0, losses: 0, commissions, 
+                    total_desserts: totalDesserts, total_brigs: 0, mod, profit, provision, 
+                    net_to_share: netToShare, partners: shares, commission_detail: commDetail, 
+                    cumulative_sales: { ...lastCumulativeSales } 
+                };
+                
+                // Ensure snapshot is saved if not there, to speed up next runs (but prioritize logic above)
+                if (!snapshotsMap[m]) {
+                    await sql`INSERT INTO financial_snapshots (month, data) VALUES (${m}, ${JSON.stringify(monthData)}) ON CONFLICT (month) DO UPDATE SET data = EXCLUDED.data`;
+                }
+
                 history.push(monthData);
                 continue; 
             }
