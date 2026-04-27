@@ -6356,22 +6356,23 @@ async function renderInventoryView() {
 		if (list.length === 0) { root.innerHTML = '<p style="opacity:0.6; padding:10px;">No hay ítems en esta categoría.</p>'; return; }
 		const table = document.createElement('table'); table.className = 'clients-table';
 		const thead = document.createElement('thead'); const hr = document.createElement('tr');
-		['Material', 'Categoría', 'Saldo', 'Unidad', 'Cos. Unit.', 'V. Total', 'Acc.'].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
+		['Material', 'Saldo', 'Unidad', 'Cos. Unit.', 'V. Total', 'Acc.'].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
 		thead.appendChild(hr); const tbody = document.createElement('tbody');
 		for (const it of list) {
 			const tr = document.createElement('tr');
+			tr.draggable = true;
+			tr.dataset.id = it.id;
+			tr.dataset.ingredient = it.ingredient;
+			tr.addEventListener('dragstart', (ev) => {
+				ev.dataTransfer.setData('text/plain', it.id);
+				ev.target.style.opacity = '0.5';
+			});
+			tr.addEventListener('dragend', (ev) => { ev.target.style.opacity = '1'; });
+
 			const tdName = document.createElement('td');
 			const inName = document.createElement('input'); inName.type = 'text'; inName.className = 'input-cell'; inName.style.width = '140px'; inName.value = it.ingredient;
 			tdName.appendChild(inName);
 
-			const tdCat = document.createElement('td');
-			const selCat = document.createElement('select'); selCat.className = 'input-cell'; selCat.style.width = '80px';
-			[{ v: 'ingrediente', t: 'Ingred' }, { v: 'empaque', t: 'Empaq' }, { v: 'otros', t: 'Otros' }].forEach(opt => {
-				const o = document.createElement('option'); o.value = opt.v; o.textContent = opt.t;
-				if (it.category === opt.v) o.selected = true;
-				selCat.appendChild(o);
-			});
-			tdCat.appendChild(selCat);
 			
 			const tdSaldo = document.createElement('td');
 			const inSaldo = document.createElement('input'); inSaldo.type = 'number'; inSaldo.step = '0.1'; inSaldo.className = 'input-cell'; inSaldo.style.width = '80px'; inSaldo.style.textAlign = 'right'; inSaldo.value = (Number(it.saldo || 0) || 0).toFixed(1);
@@ -6413,14 +6414,14 @@ async function renderInventoryView() {
 				const c = selCat.value;
 				const nextSaldo = Number(inSaldo.value || 0);
 
-				if (n !== it.ingredient || p !== it.price || u !== it.unit || c !== it.category) {
+				if (n !== it.ingredient || p !== it.price || u !== it.unit) {
 					try {
-						const res = await api('POST', API.Inventory, { action: 'update_item', id: it.id, ingredient: n, price: p, unit: u, category: c, pack_size: it.pack_size });
+						const res = await api('POST', API.Inventory, { action: 'update_item', id: it.id, ingredient: n, price: p, unit: u, category: it.category, pack_size: it.pack_size });
 						notify.success(res.status === 'merged' ? 'Fusionado' : 'Cambiado');
-						if (res.status === 'merged' || c !== it.category) {
+						if (res.status === 'merged') {
 							renderInventoryView();
 						} else {
-							it.ingredient = n; it.price = p; it.unit = u; it.category = c;
+							it.ingredient = n; it.price = p; it.unit = u;
 							tdTotal.textContent = fmtMoney.format((it.saldo || 0) * (it.price || 0));
 						}
 					} catch { notify.error('Error al guardar'); }
@@ -6441,7 +6442,6 @@ async function renderInventoryView() {
 			inPrice.onblur = save;
 			inUnit.onblur = save;
 			inSaldo.onblur = save;
-			selCat.onchange = save;
 		}
 		table.append(thead, tbody);
 		root.appendChild(table);
@@ -6454,6 +6454,25 @@ async function renderInventoryView() {
 	ingredsRoot.innerHTML = ''; ingredsRoot.appendChild(tempIngreds);
 	packsRoot.innerHTML = ''; packsRoot.appendChild(tempPacks);
 	othersRoot.innerHTML = ''; othersRoot.appendChild(tempOthers);
+
+	function setupDrop(root, cat) {
+		root.ondragover = (ev) => { ev.preventDefault(); root.style.outline = '2px dashed var(--primary)'; root.style.borderRadius = '8px'; };
+		root.ondragleave = () => { root.style.outline = 'none'; };
+		root.ondrop = async (ev) => {
+			ev.preventDefault();
+			root.style.outline = 'none';
+			const id = ev.dataTransfer.getData('text/plain');
+			if (!id) return;
+			try {
+				await api('POST', API.Inventory, { action: 'update_item', id, category: cat });
+				notify.success('Movido');
+				renderInventoryView();
+			} catch { notify.error('Error al mover'); }
+		};
+	}
+	setupDrop(ingredsRoot.parentElement, 'ingrediente');
+	setupDrop(packsRoot.parentElement, 'empaque');
+	setupDrop(othersRoot.parentElement, 'otros');
 
 	// Setup toolbar listeners (need to re-bind since they might have been lost if we replaced toolbar? No, toolbar is separate)
 	document.getElementById('inventory-new-material').onclick = openNewMaterialDialog;
