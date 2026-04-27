@@ -115,9 +115,13 @@
                 totalR += m.revenue; totalP += m.profit;
                 const div = document.createElement('div');
                 div.className = 'box';
+                const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+                const [y, mm] = m.month.split('-');
+                const monthLabel = `${monthNames[parseInt(mm) - 1]} ${y}`;
+
                 div.innerHTML = `
                     <div class="flex">
-                        <strong style="font-size:1.3rem">${m.month}</strong>
+                        <strong style="font-size:1.3rem">${monthLabel}</strong>
                         <span style="color:#10b981; font-weight:800">${fmt.format(m.profit)}</span>
                     </div>
                     <div class="grid" style="margin-top:15px">
