@@ -188,9 +188,9 @@
 
         window.showSellerHistoryChart = (sellerName, ev) => {
             if (ev) ev.stopPropagation();
-            if (!window.DATA || !window.DATA.history) return;
+            if (!DATA || !DATA.history) return;
 
-            const months = [...window.DATA.history].sort((a, b) => a.month.localeCompare(b.month)).slice(-24);
+            const months = [...DATA.history].sort((a, b) => a.month.localeCompare(b.month)).slice(-24);
             const chartData = [];
             let maxRev = 0;
 
@@ -346,10 +346,10 @@
                             </div>
                             
                             ${m.partners.sort((a,b)=>b.share_amount - a.share_amount).map(p => `
-                                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:16px; padding:16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); display:flex; flex-direction:column; gap:12px">
+                                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:16px; padding:16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); display:flex; flex-direction:column; gap:12px; cursor:pointer; transition:transform 0.2s, box-shadow 0.2s" onclick="showSellerHistoryChart('${p.name}', event)" title="Ver historial de ventas (Últimos 24 meses)" onmouseover="this.style.transform='scale(1.02)'; this.style.boxShadow='0 10px 15px -3px rgba(0,0,0,0.1)';" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 4px 6px -1px rgba(0,0,0,0.02)';">
                                     <div style="display:flex; justify-content:space-between; align-items:flex-start">
                                         <div>
-                                            <div style="font-weight:800; font-size:1.05rem; color:#1e293b; letter-spacing:-0.01em; cursor:pointer; display:inline-flex; align-items:center; gap:4px" onclick="showSellerHistoryChart('${p.name}', event)" title="Ver historial de ventas (Últimos 24 meses)" onmouseover="this.style.color='#4f46e5'" onmouseout="this.style.color='#1e293b'">${p.name} <span style="font-size:0.8rem; filter:grayscale(1); opacity:0.6; transition:0.2s" onmouseover="this.style.filter='none'; this.style.opacity=1" onmouseout="this.style.filter='grayscale(1)'; this.style.opacity=0.6">📊</span></div>
+                                            <div style="font-weight:800; font-size:1.05rem; color:#1e293b; letter-spacing:-0.01em; display:inline-flex; align-items:center; gap:4px">${p.name} <span style="font-size:0.8rem; filter:grayscale(1); opacity:0.6;">📊</span></div>
                                             <div style="font-size:0.75rem; color:#64748b; margin-top:2px; font-weight:600; display:flex; align-items:center; gap:4px">
                                                 🍰 ${m.cumulative_desserts ? (m.cumulative_desserts[p.id] || 0) : '?'} postres históricos
                                             </div>
