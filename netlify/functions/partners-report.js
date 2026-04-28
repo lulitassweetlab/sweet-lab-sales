@@ -87,14 +87,15 @@ export async function handler(event) {
             let losses = monthData?.losses || 0;
             let provManual = monthData?.provision || 0;
             let inventory = monthData?.inventory || 0;
-            let revenue_detail = monthData?.revenue_detail || [];
-            let cogs_detail = monthData?.cogs_detail || [];
+            let inventory = monthData?.inventory || 0;
+            let product_detail = monthData?.product_detail || [];
 
             if (!monthData || forceSync || m === currentMonth) {
-                const [revenueRows, cogsRows, accRows] = await Promise.all([
-                    sql`SELECT s.seller_id, sd.day as date, SUM(s.total_cents) as revenue FROM sales s JOIN sale_days sd ON sd.id = s.sale_day_id WHERE to_char(sd.day, 'YYYY-MM') = ${m} GROUP BY s.seller_id, sd.day ORDER BY sd.day ASC`,
-                    sql`SELECT s.seller_id, sd.day as date, SUM(si.quantity * d.cost_price) as cogs FROM sale_items si JOIN sales s ON s.id = si.sale_id JOIN sale_days sd ON sd.id = s.sale_day_id JOIN desserts d ON d.id = si.dessert_id WHERE to_char(sd.day, 'YYYY-MM') = ${m} GROUP BY s.seller_id, sd.day ORDER BY sd.day ASC`,
-                    sql`SELECT kind, SUM(amount_cents) as total FROM accounting_entries WHERE to_char(entry_date, 'YYYY-MM') = ${m} GROUP BY kind`
+                const [revenueRows, cogsRows, accRows, productRows] = await Promise.all([
+                    sql`SELECT s.seller_id, SUM(s.total_cents) as revenue FROM sales s JOIN sale_days sd ON sd.id = s.sale_day_id WHERE to_char(sd.day, 'YYYY-MM') = ${m} GROUP BY s.seller_id`,
+                    sql`SELECT s.seller_id, SUM(si.quantity * d.cost_price) as cogs FROM sale_items si JOIN sales s ON s.id = si.sale_id JOIN sale_days sd ON sd.id = s.sale_day_id JOIN desserts d ON d.id = si.dessert_id WHERE to_char(sd.day, 'YYYY-MM') = ${m} GROUP BY s.seller_id`,
+                    sql`SELECT kind, SUM(amount_cents) as total FROM accounting_entries WHERE to_char(entry_date, 'YYYY-MM') = ${m} GROUP BY kind`,
+                    sql`SELECT s.seller_id, CASE WHEN si.id IS NULL THEN 'Registros Antiguos' ELSE COALESCE(d.name, 'Otro') END as product_name, SUM(COALESCE(si.quantity, 0)) as quantity, SUM(COALESCE(si.quantity * si.unit_price, s.total_cents)) as revenue, SUM(COALESCE(si.quantity * d.cost_price, 0)) as cogs FROM sales s JOIN sale_days sd ON sd.id = s.sale_day_id LEFT JOIN sale_items si ON s.id = si.sale_id LEFT JOIN desserts d ON d.id = si.dessert_id WHERE to_char(sd.day, 'YYYY-MM') = ${m} GROUP BY s.seller_id, 2 ORDER BY revenue DESC`
                 ]);
                 
                 revenue = Math.round(revenueRows.reduce((a, b) => a + Number(b.revenue || 0), 0));
@@ -103,39 +104,29 @@ export async function handler(event) {
                 losses = Math.round(Number(accRows.find(a => a.kind === 'perdida')?.total || 0));
                 provManual = Math.round(Number(accRows.find(a => a.kind === 'provision')?.total || 0));
                 
-                let groupedRevenues = {};
-                revenueRows.forEach(r => {
+                let groupedProducts = {};
+                productRows.forEach(r => {
                     const sid = r.seller_id;
-                    if (!groupedRevenues[sid]) {
-                        groupedRevenues[sid] = {
+                    if (!groupedProducts[sid]) {
+                        groupedProducts[sid] = {
                             seller_name: sellerMap[sid] || `Vendedor ${sid}`,
-                            amount: 0,
-                            days: []
+                            total_revenue: 0,
+                            total_cogs: 0,
+                            products: []
                         };
                     }
-                    let amt = Math.round(Number(r.revenue || 0));
-                    groupedRevenues[sid].amount += amt;
-                    let dateStr = r.date instanceof Date ? r.date.toISOString().split('T')[0] : String(r.date).split('T')[0];
-                    groupedRevenues[sid].days.push({ date: dateStr, amount: amt });
+                    let rev = Math.round(Number(r.revenue || 0));
+                    let cg = Math.round(Number(r.cogs || 0));
+                    groupedProducts[sid].total_revenue += rev;
+                    groupedProducts[sid].total_cogs += cg;
+                    groupedProducts[sid].products.push({
+                        name: r.product_name,
+                        quantity: Number(r.quantity || 0),
+                        revenue: rev,
+                        cogs: cg
+                    });
                 });
-                revenue_detail = Object.values(groupedRevenues).filter(r => r.amount > 0).sort((a,b) => b.amount - a.amount);
-                
-                let groupedCogs = {};
-                cogsRows.forEach(r => {
-                    const sid = r.seller_id;
-                    if (!groupedCogs[sid]) {
-                        groupedCogs[sid] = {
-                            seller_name: sellerMap[sid] || `Vendedor ${sid}`,
-                            amount: 0,
-                            days: []
-                        };
-                    }
-                    let amt = Math.round(Number(r.cogs || 0));
-                    groupedCogs[sid].amount += amt;
-                    let dateStr = r.date instanceof Date ? r.date.toISOString().split('T')[0] : String(r.date).split('T')[0];
-                    groupedCogs[sid].days.push({ date: dateStr, amount: amt });
-                });
-                cogs_detail = Object.values(groupedCogs).filter(r => r.amount > 0).sort((a,b) => b.amount - a.amount);
+                product_detail = Object.values(groupedProducts).filter(r => r.total_revenue > 0).sort((a,b) => b.total_revenue - a.total_revenue);
             } else {
                 // If cached, we still need to update cumulative tracking state for the next month
                 if (monthData.cumulative_desserts) {
@@ -286,7 +277,7 @@ export async function handler(event) {
                 total_desserts: totalMonthDesserts, total_brigs: totalMonthBrigs, mod: modCents,
                 profit: opProfit, provision, net_to_share: netToShare,
                 partners: partnerShares, commission_detail: commissionDetail,
-                revenue_detail, cogs_detail,
+                product_detail,
                 cumulative_desserts: { ...lastCumulativeDesserts }
             };
 
