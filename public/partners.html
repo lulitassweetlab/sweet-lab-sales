@@ -178,7 +178,6 @@
                                 <div class="fin-item"><span class="fin-label">Mano de Obra (MOD)</span><span class="fin-val neg"><span class="hist-text-${m.month}">-${fmt.format(m.mod || 0)}</span><input type="number" class="hist-g-input-${m.month}" data-key="mod" value="${m.mod||0}" style="display:none; width:80px; text-align:right; border-radius:4px; border:1px solid #c4b5fd; font-weight:700"></span></div>
                                 <div class="fin-item"><span class="fin-label">Gastos Administrativos</span><span class="fin-val neg"><span class="hist-text-${m.month}">-${fmt.format(m.expenses)}</span><input type="number" class="hist-g-input-${m.month}" data-key="expenses" value="${m.expenses}" style="display:none; width:80px; text-align:right; border-radius:4px; border:1px solid #c4b5fd; font-weight:700"></span></div>
                                 <div class="fin-item"><span class="fin-label">Pérdidas/Ajustes</span><span class="fin-val neg"><span class="hist-text-${m.month}">-${fmt.format(m.losses)}</span><input type="number" class="hist-g-input-${m.month}" data-key="losses" value="${m.losses}" style="display:none; width:80px; text-align:right; border-radius:4px; border:1px solid #c4b5fd; font-weight:700"></span></div>
-                                <div class="fin-item" style="border-top:1px dashed #e2e8f0; padding-top:8px; margin-top:4px"><span class="fin-label" style="color:#0ea5e9; font-weight:700">📦 Inventario (Cierre)</span><span class="fin-val" style="color:#0ea5e9"><span class="hist-text-${m.month}">${fmt.format(m.inventory || 0)}</span><input type="number" class="hist-g-input-${m.month}" data-key="inventory" value="${m.inventory || 0}" style="display:none; width:80px; text-align:right; border-radius:4px; border:1px solid #7dd3fc; font-weight:700; color:#0369a1"></span></div>
                                 
                                 <div style="margin-top:12px; padding:16px; background:#f5f3ff; border-radius:18px; border:1px solid #ddd6fe">
                                     <div class="flex" style="margin-bottom:8px">
@@ -198,6 +197,8 @@
                                         `).join('')}
                                     </div>
                                 </div>
+
+                                <div class="fin-item" style="border-top:1px dashed #e2e8f0; padding-top:12px; margin-top:4px"><span class="fin-label" style="color:#0ea5e9; font-weight:700">📦 Inventario (Cierre)</span><span class="fin-val" style="color:#0ea5e9"><span class="hist-text-${m.month}">${fmt.format(m.inventory || 0)}</span><input type="number" class="hist-g-input-${m.month}" data-key="inventory" value="${m.inventory || 0}" style="display:none; width:80px; text-align:right; border-radius:4px; border:1px solid #7dd3fc; font-weight:700; color:#0369a1"></span></div>
                             </div>
                         </div>
 
