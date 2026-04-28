@@ -221,16 +221,22 @@
 
             const barsHtml = chartData.map(d => {
                 const heightPct = Math.max(2, Math.round((d.revenue / maxRev) * 100));
-                const fmtRev = d.revenue > 0 ? fmt.format(d.revenue) : '0';
+                
+                let revStr = fmt.format(d.revenue);
+                if (d.revenue >= 1000000) revStr = "$" + (d.revenue / 1000000).toFixed(1).replace('.0', '') + "M";
+                else if (d.revenue >= 1000) revStr = "$" + Math.round(d.revenue / 1000) + "k";
+                else if (d.revenue === 0) revStr = "";
+                
                 return `
-                    <div style="display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; width:36px; gap:4px; flex-shrink:0;">
-                        <div style="font-size:0.65rem; color:#64748b; transform:translateY(-10px); white-space:nowrap; opacity:0; transition:all 0.2s; position:absolute; pointer-events:none; text-align:center; background:#fff; padding:6px; border-radius:8px; box-shadow:0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1); z-index:10; border:1px solid #e2e8f0;">
-                            <strong style="color:#4f46e5; font-size:0.75rem">${fmtRev}</strong><br>
-                            🍰 <span style="font-weight:700; color:#334155">${d.desserts}</span> | 🍫 <span style="font-weight:700; color:#334155">${d.brigs}</span>
+                    <div style="display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; width:38px; gap:2px; flex-shrink:0;">
+                        <div style="font-size:0.55rem; color:#4f46e5; font-weight:800; white-space:nowrap; margin-bottom:2px; height:10px; display:flex; align-items:flex-end;">
+                            ${revStr}
                         </div>
-                        <div style="width:100%; height:${heightPct}%; background:linear-gradient(180deg, #6366f1, #4f46e5); border-radius:6px 6px 0 0; transition:background 0.2s, transform 0.2s; cursor:pointer;" onmouseover="this.style.background='#4338ca'; this.style.transform='scaleY(1.02)'; this.previousElementSibling.style.opacity=1; this.previousElementSibling.style.transform='translateY(-15px)';" onmouseout="this.style.background='linear-gradient(180deg, #6366f1, #4f46e5)'; this.style.transform='scaleY(1)'; this.previousElementSibling.style.opacity=0; this.previousElementSibling.style.transform='translateY(-10px)';"></div>
-                        <div style="height:28px; display:flex; justify-content:center; align-items:flex-start; width:100%; border-top:1px solid #e2e8f0; margin-top:2px; padding-top:4px;">
-                            <span style="font-size:0.65rem; font-weight:700; color:#64748b; text-align:center; line-height:1.2">${d.formatted}</span>
+                        <div style="width:100%; height:${heightPct}%; background:linear-gradient(180deg, #6366f1, #4f46e5); border-radius:6px 6px 0 0; transition:background 0.2s, transform 0.2s; cursor:pointer;" onmouseover="this.style.background='#4338ca';" onmouseout="this.style.background='linear-gradient(180deg, #6366f1, #4f46e5)';"></div>
+                        <div style="height:48px; display:flex; flex-direction:column; justify-content:flex-start; align-items:center; width:100%; border-top:1px solid #e2e8f0; margin-top:2px; padding-top:4px; gap:1px;">
+                            <span style="font-size:0.65rem; font-weight:700; color:#64748b; text-align:center; line-height:1.1; margin-bottom:2px">${d.formatted}</span>
+                            <span style="font-size:0.55rem; color:#334155; font-weight:600; white-space:nowrap;" title="Postres">🍰 ${d.desserts}</span>
+                            <span style="font-size:0.55rem; color:#334155; font-weight:600; white-space:nowrap;" title="Brigadeiros">🍫 ${d.brigs}</span>
                         </div>
                     </div>
                 `;
@@ -247,7 +253,7 @@
                     </h3>
                     <div style="font-size:0.95rem; font-weight:700; color:#6366f1; margin-bottom:24px;">${sellerName} • Últimos ${chartData.length} Meses</div>
                     
-                    <div style="height:250px; display:flex; align-items:flex-end; gap:8px; padding:20px 10px 10px 10px; border-bottom:2px solid #e2e8f0; overflow-x:auto; margin-bottom:16px;">
+                    <div style="height:290px; display:flex; align-items:flex-end; gap:8px; padding:20px 10px 10px 10px; border-bottom:2px solid #e2e8f0; overflow-x:auto; margin-bottom:16px;">
                         ${barsHtml}
                     </div>
 
