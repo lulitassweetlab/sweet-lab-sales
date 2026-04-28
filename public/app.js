@@ -11239,8 +11239,22 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 			if (linkSeller && linkDate) {
 				const targetSeller = (state.sellers || []).find(s => s.name.toLowerCase() === linkSeller.toLowerCase());
 				if (targetSeller) {
-					enterSeller(targetSeller.id).then(() => {
-						const matchingDay = (state.saleDays || []).find(d => String(d.day).startsWith(linkDate));
+					enterSeller(targetSeller.id).then(async () => {
+						let matchingDay = (state.saleDays || []).find(d => String(d.day).startsWith(linkDate));
+						
+						if (!matchingDay) {
+							// Check if it's an archived day
+							try {
+								const archivedDays = await api('GET', `/api/days?seller_id=${targetSeller.id}&archived=1`);
+								matchingDay = archivedDays.find(d => String(d.day).startsWith(linkDate));
+								if (matchingDay) {
+									state.showArchivedOnly = true;
+									await loadDaysForSeller(); // refresh the sidebar UI to show archived queue
+									matchingDay = (state.saleDays || []).find(d => String(d.day).startsWith(linkDate)) || matchingDay;
+								}
+							} catch (e) { console.error('Fallback archive error:', e); }
+                        }
+
 						if (matchingDay) {
 							state.selectedDayId = matchingDay.id;
 							switchView('#view-sales');
