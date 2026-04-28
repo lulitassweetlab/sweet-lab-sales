@@ -249,41 +249,67 @@
             if (partnerMeta && partnerMeta.metrics_debug) {
                 const md = partnerMeta.metrics_debug;
                 const fmtP = n => (n * 100).toFixed(1);
+                const totalDesserts = targetData.partners.reduce((sum, p) => sum + (p.metrics_debug && p.metrics_debug.desserts ? p.metrics_debug.desserts : 0), 0);
+                const oldH = (md.H * 2) - md.P;
+
                 explainHtml = `
-                    <div style="background: #f8fafc; padding: 18px; border-radius: 16px; margin-bottom: 24px; border:1px solid #e2e8f0;">
-                        <h4 style="margin: 0 0 8px 0; color: #1e293b; font-size:1.05rem">💡 ¿Cómo calculamos tu ${partnerMeta.share_perc}% este mes?</h4>
-                        <div style="font-size:0.85rem; color:#475569; margin-bottom:16px;">Para premiar tanto el esfuerzo de hoy como tu lealtad a lo largo de los años, Lulita's divide la participación en dos partes iguales (50/50):</div>
-                        <div style="display: flex; gap: 8px; font-size: 0.8rem; color: #475569; align-items:stretch;">
-                            
-                            <div style="flex:1; background:#fff; padding:12px; border-radius:12px; border:1px solid #e2e8f0; text-align:center; display:flex; flex-direction:column; justify-content:center;">
-                                <span style="font-size:1.6rem; margin-bottom:4px">🏃‍♀️</span>
-                                <strong style="color:#0f172a; font-size:0.85rem;">Mes Actual</strong>
-                                <span style="font-size:1.3rem; font-weight:800; color:#6366f1; margin:2px 0;">${fmtP(md.M)}%</span>
-                                <span style="font-size:0.7rem; color:#64748b; line-height:1.2;">Tajada de ventas reales de tu equipo hoy</span>
-                            </div>
-                            
-                            <div style="display:flex; align-items:center; font-weight:900; color:#cbd5e1; font-size:1.8rem">+</div>
-                            
-                            <div style="flex:1; background:#fff; padding:12px; border-radius:12px; border:1px solid #e2e8f0; text-align:center; display:flex; flex-direction:column; justify-content:center;">
-                                <span style="font-size:1.6rem; margin-bottom:4px">🛡️</span>
-                                <strong style="color:#0f172a; font-size:0.85rem;">Tu Historial</strong>
-                                <span style="font-size:1.3rem; font-weight:800; color:#6366f1; margin:2px 0;">${fmtP(md.H)}%</span>
-                                <span style="font-size:0.7rem; color:#64748b; line-height:1.2;">Reputación y ventas pasadas acumuladas</span>
-                            </div>
-
-                            <div style="display:flex; align-items:center; font-weight:900; color:#cbd5e1; font-size:1.8rem">=</div>
-
-                            <div style="flex:1.2; background:linear-gradient(135deg, #6366f1, #8b5cf6); padding:12px; border-radius:12px; text-align:center; box-shadow:0 10px 15px -3px rgba(99,102,241,0.3); color:white; display:flex; flex-direction:column; justify-content:center;">
-                                <span style="font-size:1.6rem; margin-bottom:4px">💰</span>
-                                <strong style="color:#e0e7ff; font-size:0.9rem;">Pago Final</strong>
-                                <span style="font-size:1.5rem; font-weight:900; color:#ffffff; margin:2px 0;">${partnerMeta.share_perc}%</span>
-                                <span style="font-size:0.75rem; color:#e0e7ff; line-height:1.2;">El promedio exacto entre los dos</span>
-                            </div>
-
+                    <div style="background: #f8fafc; padding: 18px; border-radius: 16px; margin-bottom: 24px; border:1px solid #e2e8f0; font-family: ui-sans-serif, system-ui, sans-serif;">
+                        <h4 style="margin: 0 0 16px 0; color: #1e293b; font-size:1.1rem; display:flex; align-items:center; gap:6px;"><span>💡</span> Auditoría Matemática de tu ${partnerMeta.share_perc}%</h4>
+                        <div style="font-size:0.85rem; color:#475569; margin-bottom:16px;">
+                            Sigue las operaciones paso a paso y comprueba con calculadora cómo la empresa obtuvo tu pago dividiendo tu Mes Actual (esfuerzo de hoy) con tu Historial (esfuerzo del pasado).
                         </div>
-                        <div style="margin-top: 16px; padding:12px; background:#f1f5f9; border-radius:10px; font-size: 0.8rem; color: #334155; line-height: 1.5; border-left:4px solid #94a3b8;">
-                            <strong>¿Por qué lo hacemos así?</strong> Si un mes tienes una baja en ventas de tu equipo, tu famoso <strong>Historial 🛡️</strong> te evitará caer al vacío económicamente. Por otro lado, un mes extraordinario hoy enriquecerá tu Historial para mantener tus ingresos firmes en el futuro.
+
+                        <!-- Paso 1 -->
+                        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:12px 16px; margin-bottom:12px; box-shadow:0 1px 2px rgba(0,0,0,0.02)">
+                            <div style="color:#6366f1; font-weight:800; font-size:0.75rem; letter-spacing:0.05em; margin-bottom:6px">PASO 1: Calcular "Tu Mes Actual" (M)</div>
+                            <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:0.85rem; color:#475569">
+                                <span>Volumen total vendido por la empresa:</span>
+                                <strong>${totalDesserts} uds</strong>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:0.85rem; color:#475569">
+                                <span>Postres aportados por tu equipo:</span>
+                                <strong style="color:#0f172a">${md.desserts} uds</strong>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; border-top:1px dashed #cbd5e1; padding-top:8px; align-items:center;">
+                                <span style="font-size:0.75rem; color:#64748b">🧮 <em>Operación de regla de 3: (${md.desserts} ÷ ${totalDesserts}) × 100</em></span>
+                                <strong style="font-size:1rem; color:#0f172a">${fmtP(md.M)}%</strong>
+                            </div>
                         </div>
+
+                        <!-- Paso 2 -->
+                        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:12px 16px; margin-bottom:12px; box-shadow:0 1px 2px rgba(0,0,0,0.02)">
+                            <div style="color:#6366f1; font-weight:800; font-size:0.75rem; letter-spacing:0.05em; margin-bottom:6px">PASO 2: Construir "Tu Historial Protegido" (H)</div>
+                            <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:0.85rem; color:#475569">
+                                <span>Promedio estable de tus últimos 4 meses:</span>
+                                <strong>${fmtP(md.P)}%</strong>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:0.85rem; color:#475569">
+                                <span>Historial viejo (atravesando del mes pasado):</span>
+                                <strong>${fmtP(oldH)}%</strong>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; border-top:1px dashed #cbd5e1; padding-top:8px; align-items:center;">
+                                <span style="font-size:0.75rem; color:#64748b">🧮 <em>Operación: (Mitad de Promedio) + (Mitad Viejo)</em></span>
+                                <strong style="font-size:1rem; color:#0f172a">${fmtP(md.H)}%</strong>
+                            </div>
+                        </div>
+
+                        <!-- Paso 3 -->
+                        <div style="background:linear-gradient(180deg, #f8fafc, #f1f5f9); border:1px solid #cbd5e1; border-radius:10px; padding:12px 16px;">
+                            <div style="color:#4f46e5; font-weight:900; font-size:0.75rem; letter-spacing:0.05em; margin-bottom:6px">PASO 3: Participación Final a Pagar</div>
+                            <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:0.85rem; color:#334155">
+                                <span>Esfuerzo de Hoy (Tu Mes Actual calculado en Paso 1):</span>
+                                <strong>${fmtP(md.M)}%</strong>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:0.85rem; color:#334155">
+                                <span>Reputación del Pasado (Historial calculado en Paso 2):</span>
+                                <strong>${fmtP(md.H)}%</strong>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; border-top:2px solid #94a3b8; margin-top:4px; padding-top:8px; align-items:center;">
+                                <span style="font-size:0.75rem; color:#64748b">💰 <em>Promedio de Ambos: (${fmtP(md.M)}% + ${fmtP(md.H)}%) ÷ 2</em></span>
+                                <strong style="font-size:1.3rem; color:#4f46e5; font-weight:900">${partnerMeta.share_perc}%</strong>
+                            </div>
+                        </div>
+
                     </div>
                 `;
             }
