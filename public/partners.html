@@ -211,7 +211,7 @@
                 }
                 
                 const [yyyy, mm] = m.month.split('-');
-                const fmtM = `${shortMonths[parseInt(mm, 10)-1]}<br>${yyyy.substring(2)}`;
+                const fmtM = shortMonths[parseInt(mm, 10)-1];
 
                 chartData.push({ month: m.month, formatted: fmtM, revenue: rev, desserts: qtyD, brigs: qtyB });
                 if (rev > maxRev) maxRev = rev;
@@ -251,7 +251,10 @@
                     <h3 style="margin:0 0 8px 0; color:#0f172a; font-size:1.3rem; display:flex; align-items:center; gap:8px">
                         📈 Historial de Ventas
                     </h3>
-                    <div style="font-size:0.95rem; font-weight:700; color:#6366f1; margin-bottom:24px;">${sellerName} • Últimos ${chartData.length} Meses</div>
+                    <div style="font-size:0.95rem; font-weight:700; color:#6366f1; margin-bottom:24px;">
+                        ${sellerName} • Últimos ${chartData.length} Meses
+                        <span style="color:#94a3b8; font-weight:600; margin-left:4px">(${months[0] ? months[0].month.split('-')[0] : ''} - ${months[months.length-1] ? months[months.length-1].month.split('-')[0] : ''})</span>
+                    </div>
                     
                     <div style="height:290px; display:flex; align-items:flex-end; gap:8px; padding:20px 10px 10px 10px; border-bottom:2px solid #e2e8f0; overflow-x:auto; margin-bottom:16px;">
                         ${barsHtml}
