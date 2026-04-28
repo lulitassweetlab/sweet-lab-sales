@@ -209,16 +209,25 @@
                             </div>
                             
                             ${m.partners.sort((a,b)=>b.share_amount - a.share_amount).map(p => `
-                                <div>
-                                    <div class="flex" style="font-size:0.9rem; margin-bottom:4px">
-                                        <span style="font-weight:600; color:var(--txt)">
-                                            ${p.name} 
-                                            <span style="font-weight:400; color:#94a3b8; font-size:0.75rem; margin-left:4px">(${m.cumulative_desserts ? (m.cumulative_desserts[p.id] || 0) : '?'} u.)</span>
-                                        </span>
-                                        <strong style="color:var(--p-mod)">${p.share_perc}%</strong>
+                                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:16px; padding:16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); display:flex; flex-direction:column; gap:12px">
+                                    <div style="display:flex; justify-content:space-between; align-items:flex-start">
+                                        <div>
+                                            <div style="font-weight:800; font-size:1.05rem; color:#1e293b; letter-spacing:-0.01em">${p.name}</div>
+                                            <div style="font-size:0.75rem; color:#64748b; margin-top:2px; font-weight:600; display:flex; align-items:center; gap:4px">
+                                                🍰 ${m.cumulative_desserts ? (m.cumulative_desserts[p.id] || 0) : '?'} postres históricos
+                                            </div>
+                                        </div>
+                                        <div style="text-align:right">
+                                            <div style="font-size:0.65rem; text-transform:uppercase; color:#94a3b8; font-weight:800; letter-spacing:0.05em; margin-bottom:2px">Utilidad a Recibir</div>
+                                            <div style="font-weight:900; font-size:1.2rem; color:#10b981; letter-spacing:-0.03em; line-height:1">${fmt.format(p.share_amount)}</div>
+                                        </div>
                                     </div>
-                                    <div class="prog-bar"><div class="prog-fill" style="width:${p.share_perc}%"></div></div>
-                                    <div style="text-align:right; font-weight:900; font-size:1.1rem; color:var(--txt)">${fmt.format(p.share_amount)}</div>
+                                    <div style="display:flex; align-items:center; gap:12px">
+                                        <div style="flex:1; height:8px; background:#f1f5f9; border-radius:8px; overflow:hidden">
+                                            <div style="width:${p.share_perc}%; height:100%; background:linear-gradient(90deg, #8b5cf6, #c084fc); border-radius:8px; transition:width 0.5s ease"></div>
+                                        </div>
+                                        <strong style="color:#7c3aed; font-size:0.85rem; min-width:45px; text-align:right">${p.share_perc}%</strong>
+                                    </div>
                                 </div>
                             `).join('')}
                         </div>
