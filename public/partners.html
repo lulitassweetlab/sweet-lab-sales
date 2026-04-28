@@ -250,27 +250,39 @@
                 const md = partnerMeta.metrics_debug;
                 const fmtP = n => (n * 100).toFixed(1);
                 explainHtml = `
-                    <div style="background: #f8fafc; padding: 16px; border-radius: 12px; margin-bottom: 20px; border:1px solid #e2e8f0;">
-                        <h4 style="margin: 0 0 12px 0; color: #334155; font-size:0.9rem">💡 ¿Cómo se calculó tu ${partnerMeta.share_perc}% en ${targetMonth}?</h4>
-                        <div style="display: flex; gap: 12px; font-size: 0.8rem; color: #475569;">
-                            <div style="flex:1; background:#fff; padding:10px; border-radius:8px; border:1px solid #e2e8f0; text-align:center;">
-                                <strong style="color:#6366f1">1. Ventas de tu Equipo (M)</strong><br>
-                                <span style="font-size:1.1rem; font-weight:800; color:#1e293b">${fmtP(md.M)}%</span><br>
-                                <span style="font-size:0.7rem">Esfuerzo actual</span>
+                    <div style="background: #f8fafc; padding: 18px; border-radius: 16px; margin-bottom: 24px; border:1px solid #e2e8f0;">
+                        <h4 style="margin: 0 0 8px 0; color: #1e293b; font-size:1.05rem">💡 ¿Cómo calculamos tu ${partnerMeta.share_perc}% este mes?</h4>
+                        <div style="font-size:0.85rem; color:#475569; margin-bottom:16px;">Para premiar tanto el esfuerzo de hoy como tu lealtad a lo largo de los años, Lulita's divide la participación en dos partes iguales (50/50):</div>
+                        <div style="display: flex; gap: 8px; font-size: 0.8rem; color: #475569; align-items:stretch;">
+                            
+                            <div style="flex:1; background:#fff; padding:12px; border-radius:12px; border:1px solid #e2e8f0; text-align:center; display:flex; flex-direction:column; justify-content:center;">
+                                <span style="font-size:1.6rem; margin-bottom:4px">🏃‍♀️</span>
+                                <strong style="color:#0f172a; font-size:0.85rem;">Mes Actual</strong>
+                                <span style="font-size:1.3rem; font-weight:800; color:#6366f1; margin:2px 0;">${fmtP(md.M)}%</span>
+                                <span style="font-size:0.7rem; color:#64748b; line-height:1.2;">Tajada de ventas reales de tu equipo hoy</span>
                             </div>
-                            <div style="flex:1; background:#fff; padding:10px; border-radius:8px; border:1px solid #e2e8f0; text-align:center;">
-                                <strong style="color:#6366f1">2. Promedio Móvil (P)</strong><br>
-                                <span style="font-size:1.1rem; font-weight:800; color:#1e293b">${fmtP(md.P)}%</span><br>
-                                <span style="font-size:0.7rem">Últimos 4 meses</span>
+                            
+                            <div style="display:flex; align-items:center; font-weight:900; color:#cbd5e1; font-size:1.8rem">+</div>
+                            
+                            <div style="flex:1; background:#fff; padding:12px; border-radius:12px; border:1px solid #e2e8f0; text-align:center; display:flex; flex-direction:column; justify-content:center;">
+                                <span style="font-size:1.6rem; margin-bottom:4px">🛡️</span>
+                                <strong style="color:#0f172a; font-size:0.85rem;">Tu Historial</strong>
+                                <span style="font-size:1.3rem; font-weight:800; color:#6366f1; margin:2px 0;">${fmtP(md.H)}%</span>
+                                <span style="font-size:0.7rem; color:#64748b; line-height:1.2;">Reputación y ventas pasadas acumuladas</span>
                             </div>
-                            <div style="flex:1; background:#fff; padding:10px; border-radius:8px; border:1px solid #e2e8f0; text-align:center;">
-                                <strong style="color:#6366f1">3. Inercia Acumulada (H)</strong><br>
-                                <span style="font-size:1.1rem; font-weight:800; color:#1e293b">${fmtP(md.H)}%</span><br>
-                                <span style="font-size:0.7rem">Mitad histórica + Mitad promedio</span>
+
+                            <div style="display:flex; align-items:center; font-weight:900; color:#cbd5e1; font-size:1.8rem">=</div>
+
+                            <div style="flex:1.2; background:linear-gradient(135deg, #6366f1, #8b5cf6); padding:12px; border-radius:12px; text-align:center; box-shadow:0 10px 15px -3px rgba(99,102,241,0.3); color:white; display:flex; flex-direction:column; justify-content:center;">
+                                <span style="font-size:1.6rem; margin-bottom:4px">💰</span>
+                                <strong style="color:#e0e7ff; font-size:0.9rem;">Pago Final</strong>
+                                <span style="font-size:1.5rem; font-weight:900; color:#ffffff; margin:2px 0;">${partnerMeta.share_perc}%</span>
+                                <span style="font-size:0.75rem; color:#e0e7ff; line-height:1.2;">El promedio exacto entre los dos</span>
                             </div>
+
                         </div>
-                        <div style="margin-top: 12px; font-size: 0.75rem; color: #64748b; line-height: 1.4;">
-                            * <strong>Vesting Logarítmico (Modelo PRO):</strong> La inercia protege tu legado pasado. Tu porcentaje final siempre será la suma exacta de Mitad Inercia (H) + Mitad Esfuerzo (M).
+                        <div style="margin-top: 16px; padding:12px; background:#f1f5f9; border-radius:10px; font-size: 0.8rem; color: #334155; line-height: 1.5; border-left:4px solid #94a3b8;">
+                            <strong>¿Por qué lo hacemos así?</strong> Si un mes tienes una baja en ventas de tu equipo, tu famoso <strong>Historial 🛡️</strong> te evitará caer al vacío económicamente. Por otro lado, un mes extraordinario hoy enriquecerá tu Historial para mantener tus ingresos firmes en el futuro.
                         </div>
                     </div>
                 `;
