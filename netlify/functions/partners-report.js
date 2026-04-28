@@ -86,6 +86,7 @@ export async function handler(event) {
             let expenses = monthData?.expenses || 0;
             let losses = monthData?.losses || 0;
             let provManual = monthData?.provision || 0;
+            let inventory = monthData?.inventory || 0;
 
             if (!monthData || forceSync || m === currentMonth) {
                 const [revenueRows, cogsRows, accRows] = await Promise.all([
@@ -166,6 +167,7 @@ export async function handler(event) {
                     if (hData.expenses !== undefined) expenses = Number(hData.expenses);
                     if (hData.losses !== undefined) losses = Number(hData.losses);
                     if (hData.mod !== undefined) modCents = Number(hData.mod);
+                    if (hData.inventory !== undefined) inventory = Number(hData.inventory);
                     if (hData.commissions !== undefined) calculatedCommissionsTotal = Number(hData.commissions);
                     
                     // Override desserts and individual commissions if provided
@@ -244,7 +246,7 @@ export async function handler(event) {
 
             // 5. Finalize monthData
             monthData = {
-                month: m, revenue, cogs, expenses, losses, commissions: calculatedCommissionsTotal, 
+                month: m, revenue, cogs, expenses, losses, inventory, commissions: calculatedCommissionsTotal, 
                 total_desserts: totalMonthDesserts, total_brigs: totalMonthBrigs, mod: modCents,
                 profit: opProfit, provision, net_to_share: netToShare,
                 partners: partnerShares, commission_detail: commissionDetail,
