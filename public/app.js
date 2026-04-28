@@ -11233,7 +11233,27 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 		if (!state.currentUser) {
 			switchView('#view-login');
 		} else if (state.currentUser.isAdmin) {
-			switchView('#view-select-seller');
+			const urlParams = new URLSearchParams(window.location.search);
+			const linkSeller = urlParams.get('seller');
+			const linkDate = urlParams.get('date');
+			if (linkSeller && linkDate) {
+				const targetSeller = (state.sellers || []).find(s => s.name.toLowerCase() === linkSeller.toLowerCase());
+				if (targetSeller) {
+					enterSeller(targetSeller.id).then(() => {
+						const matchingDay = (state.saleDays || []).find(d => String(d.day).startsWith(linkDate));
+						if (matchingDay) {
+							state.selectedDayId = matchingDay.id;
+							switchView('#view-sales');
+							document.getElementById('sales-wrapper')?.classList.remove('hidden');
+							loadSales();
+						}
+					});
+				} else {
+					switchView('#view-select-seller');
+				}
+			} else {
+				switchView('#view-select-seller');
+			}
 		} else {
 			const me = (state.sellers || []).find(s => String(s.name).toLowerCase() === String(state.currentUser.name || '').toLowerCase());
 			if (me) enterSeller(me.id); else switchView('#view-select-seller');
