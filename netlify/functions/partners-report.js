@@ -87,7 +87,6 @@ export async function handler(event) {
             let losses = monthData?.losses || 0;
             let provManual = monthData?.provision || 0;
             let inventory = monthData?.inventory || 0;
-            let inventory = monthData?.inventory || 0;
             let product_detail = monthData?.product_detail || [];
 
             if (!monthData || forceSync || m === currentMonth) {
