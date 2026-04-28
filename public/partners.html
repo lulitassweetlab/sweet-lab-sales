@@ -186,7 +186,7 @@
             document.body.appendChild(pop);
         };
 
-        window.showSellerHistoryChart = (sellerName, ev) => {
+        window.showSellerHistoryChart = (sellerName, targetMonth, ev) => {
             if (ev) ev.stopPropagation();
             if (!DATA || !DATA.history) return;
 
@@ -242,6 +242,40 @@
                 `;
             }).join('');
 
+            const targetData = DATA.history.find(h => h.month === targetMonth);
+            const partnerMeta = targetData && targetData.partners ? targetData.partners.find(p => p.name.toLowerCase() === sellerName.toLowerCase()) : null;
+            let explainHtml = '';
+            
+            if (partnerMeta && partnerMeta.metrics_debug) {
+                const md = partnerMeta.metrics_debug;
+                const fmtP = n => (n * 100).toFixed(1);
+                explainHtml = `
+                    <div style="background: #f8fafc; padding: 16px; border-radius: 12px; margin-bottom: 20px; border:1px solid #e2e8f0;">
+                        <h4 style="margin: 0 0 12px 0; color: #334155; font-size:0.9rem">💡 ¿Cómo se calculó tu ${partnerMeta.share_perc}% en ${targetMonth}?</h4>
+                        <div style="display: flex; gap: 12px; font-size: 0.8rem; color: #475569;">
+                            <div style="flex:1; background:#fff; padding:10px; border-radius:8px; border:1px solid #e2e8f0; text-align:center;">
+                                <strong style="color:#6366f1">1. Ventas de tu Equipo (M)</strong><br>
+                                <span style="font-size:1.1rem; font-weight:800; color:#1e293b">${fmtP(md.M)}%</span><br>
+                                <span style="font-size:0.7rem">Esfuerzo actual</span>
+                            </div>
+                            <div style="flex:1; background:#fff; padding:10px; border-radius:8px; border:1px solid #e2e8f0; text-align:center;">
+                                <strong style="color:#6366f1">2. Promedio Móvil (P)</strong><br>
+                                <span style="font-size:1.1rem; font-weight:800; color:#1e293b">${fmtP(md.P)}%</span><br>
+                                <span style="font-size:0.7rem">Últimos 4 meses</span>
+                            </div>
+                            <div style="flex:1; background:#fff; padding:10px; border-radius:8px; border:1px solid #e2e8f0; text-align:center;">
+                                <strong style="color:#6366f1">3. Inercia Acumulada (H)</strong><br>
+                                <span style="font-size:1.1rem; font-weight:800; color:#1e293b">${fmtP(md.H)}%</span><br>
+                                <span style="font-size:0.7rem">Mitad histórica + Mitad promedio</span>
+                            </div>
+                        </div>
+                        <div style="margin-top: 12px; font-size: 0.75rem; color: #64748b; line-height: 1.4;">
+                            * <strong>Vesting Logarítmico (Modelo PRO):</strong> La inercia protege tu legado pasado. Tu porcentaje final siempre será la suma exacta de Mitad Inercia (H) + Mitad Esfuerzo (M).
+                        </div>
+                    </div>
+                `;
+            }
+
             const pop = document.createElement('div');
             pop.style.position = 'fixed'; pop.style.top = '0'; pop.style.left = '0'; pop.style.width = '100vw'; pop.style.height = '100vh';
             pop.style.background = 'rgba(0,0,0,0.7)'; pop.style.display = 'flex'; pop.style.alignItems = 'center'; pop.style.justifyContent = 'center'; pop.style.zIndex = '9999';
@@ -255,6 +289,8 @@
                         ${sellerName} • Últimos ${chartData.length} Meses
                         <span style="color:#94a3b8; font-weight:600; margin-left:4px">(${months[0] ? months[0].month.split('-')[0] : ''} - ${months[months.length-1] ? months[months.length-1].month.split('-')[0] : ''})</span>
                     </div>
+
+                    ${explainHtml}
                     
                     <div style="height:290px; display:flex; align-items:flex-end; gap:8px; padding:20px 10px 10px 10px; border-bottom:2px solid #e2e8f0; overflow-x:auto; margin-bottom:16px;">
                         ${barsHtml}
@@ -375,7 +411,7 @@
                             </div>
                             
                             ${m.partners.sort((a,b)=>b.share_amount - a.share_amount).map(p => `
-                                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:16px; padding:16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); display:flex; flex-direction:column; gap:12px; cursor:pointer; transition:transform 0.2s, box-shadow 0.2s" onclick="showSellerHistoryChart('${p.name}', event)" title="Ver historial de ventas (Últimos 24 meses)" onmouseover="this.style.transform='scale(1.02)'; this.style.boxShadow='0 10px 15px -3px rgba(0,0,0,0.1)';" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 4px 6px -1px rgba(0,0,0,0.02)';">
+                                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:16px; padding:16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); display:flex; flex-direction:column; gap:12px; cursor:pointer; transition:transform 0.2s, box-shadow 0.2s" onclick="showSellerHistoryChart('${p.name}', '${m.month}', event)" title="Ver historial de ventas (Últimos 24 meses)" onmouseover="this.style.transform='scale(1.02)'; this.style.boxShadow='0 10px 15px -3px rgba(0,0,0,0.1)';" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 4px 6px -1px rgba(0,0,0,0.02)';">
                                     <div style="display:flex; justify-content:space-between; align-items:flex-start">
                                         <div>
                                             <div style="font-weight:800; font-size:1.05rem; color:#1e293b; letter-spacing:-0.01em; display:inline-flex; align-items:center; gap:4px">${p.name} <span style="font-size:0.8rem; filter:grayscale(1); opacity:0.6;">📊</span></div>
