@@ -91,7 +91,7 @@ export async function handler(event) {
 
             if (!monthData || forceSync || m === currentMonth) {
                 const [revenueRows, cogsRows, accRows] = await Promise.all([
-                    sql`SELECT s.seller_id, SUM(s.total_cents) as revenue FROM sales s JOIN sale_days sd ON sd.id = s.sale_day_id WHERE to_char(sd.day, 'YYYY-MM') = ${m} GROUP BY s.seller_id`,
+                    sql`SELECT s.seller_id, sd.day as date, SUM(s.total_cents) as revenue FROM sales s JOIN sale_days sd ON sd.id = s.sale_day_id WHERE to_char(sd.day, 'YYYY-MM') = ${m} GROUP BY s.seller_id, sd.day ORDER BY sd.day ASC`,
                     sql`SELECT s.seller_id, SUM(si.quantity * d.cost_price) as cogs FROM sale_items si JOIN sales s ON s.id = si.sale_id JOIN sale_days sd ON sd.id = s.sale_day_id JOIN desserts d ON d.id = si.dessert_id WHERE to_char(sd.day, 'YYYY-MM') = ${m} GROUP BY s.seller_id`,
                     sql`SELECT kind, SUM(amount_cents) as total FROM accounting_entries WHERE to_char(entry_date, 'YYYY-MM') = ${m} GROUP BY kind`
                 ]);
@@ -102,10 +102,22 @@ export async function handler(event) {
                 losses = Math.round(Number(accRows.find(a => a.kind === 'perdida')?.total || 0));
                 provManual = Math.round(Number(accRows.find(a => a.kind === 'provision')?.total || 0));
                 
-                revenue_detail = revenueRows.map(r => ({
-                    seller_name: sellerMap[r.seller_id] || `Vendedor ${r.seller_id}`,
-                    amount: Math.round(Number(r.revenue || 0))
-                })).filter(r => r.amount > 0).sort((a,b) => b.amount - a.amount);
+                let groupedRevenues = {};
+                revenueRows.forEach(r => {
+                    const sid = r.seller_id;
+                    if (!groupedRevenues[sid]) {
+                        groupedRevenues[sid] = {
+                            seller_name: sellerMap[sid] || `Vendedor ${sid}`,
+                            amount: 0,
+                            days: []
+                        };
+                    }
+                    let amt = Math.round(Number(r.revenue || 0));
+                    groupedRevenues[sid].amount += amt;
+                    let dateStr = r.date instanceof Date ? r.date.toISOString().split('T')[0] : String(r.date).split('T')[0];
+                    groupedRevenues[sid].days.push({ date: dateStr, amount: amt });
+                });
+                revenue_detail = Object.values(groupedRevenues).filter(r => r.amount > 0).sort((a,b) => b.amount - a.amount);
             } else {
                 // If cached, we still need to update cumulative tracking state for the next month
                 if (monthData.cumulative_desserts) {
