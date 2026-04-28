@@ -105,6 +105,139 @@
     <script>
         let DATA = null; let SELLERS = [];
         const fmt = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
+        
+        window.showProductDetails = (month, ev) => {
+            if (ev.target.tagName.toLowerCase() === 'input' || ev.target.tagName.toLowerCase() === 'button') return;
+            
+            const details = window.productDetailsMap[month] || [];
+            if (!details.length) {
+                alert("No hay desglose por productos disponible en la base de datos para este mes.");
+                return;
+            }
+            
+            const html = details.map(d => {
+                let prodsHtml = '';
+                if (d.products && d.products.length) {
+                    prodsHtml = '<table style="width:100%; border-collapse:collapse; margin-top:12px; font-size:0.8rem">';
+                    prodsHtml += '<tr style="border-bottom:1px solid #cbd5e1; color:#64748b"><th style="text-align:left; padding-bottom:4px">Postre</th><th style="text-align:right; padding-bottom:4px">Cant.</th><th style="text-align:right; padding-bottom:4px">Ingresos</th><th style="text-align:right; padding-bottom:4px">Costo</th><th style="text-align:right; padding-bottom:4px">Margen</th></tr>';
+                    d.products.forEach(p => {
+                        let margin = p.revenue > 0 ? Math.round(((p.revenue - p.cogs) / p.revenue) * 100) : 0;
+                        let marginColor = margin >= 50 ? '#10b981' : margin >= 30 ? '#f59e0b' : '#ef4444';
+                        prodsHtml += `<tr style="border-bottom:1px solid #f1f5f9; color:#475569">
+                            <td style="padding:6px 0">${p.name}</td>
+                            <td style="text-align:right; padding:6px 0">${p.quantity || '-'}</td>
+                            <td style="text-align:right; padding:6px 0">${fmt.format(p.revenue)}</td>
+                            <td style="text-align:right; padding:6px 0; color:#ef4444">-${fmt.format(p.cogs)}</td>
+                            <td style="text-align:right; padding:6px 0; color:${marginColor}; font-weight:600">${margin}%</td>
+                        </tr>`;
+                    });
+                    prodsHtml += '</table>';
+                }
+                
+                return `<div style="margin-bottom:16px; background:#f8fafc; padding:16px; border-radius:12px; border:1px solid #f1f5f9">
+                    <div style="display:flex; justify-content:space-between; border-bottom:2px solid #e2e8f0; padding-bottom:8px; margin-bottom:4px; font-size:1.1rem">
+                        <span style="font-weight:800; color:#334155">${d.seller_name}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:#64748b; margin-top:8px; padding:0 4px">
+                        <span>Ingresos Totales:</span>
+                        <strong style="color:#10b981">${fmt.format(d.total_revenue)}</strong>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:#64748b; margin-top:2px; padding:0 4px">
+                        <span>Costos Totales:</span>
+                        <strong style="color:#ef4444">${fmt.format(d.total_cogs)}</strong>
+                    </div>
+                    ${prodsHtml}
+                </div>`;
+            }).join('');
+            
+            const pop = document.createElement('div');
+            pop.style.position = 'fixed'; pop.style.top = '0'; pop.style.left = '0'; pop.style.width = '100vw'; pop.style.height = '100vh';
+            pop.style.background = 'rgba(0,0,0,0.6)'; pop.style.display = 'flex'; pop.style.alignItems = 'center'; pop.style.justifyContent = 'center'; pop.style.zIndex = '9999';
+            pop.style.backdropFilter = 'blur(4px)';
+            pop.innerHTML = `
+                <div style="background:#fff; padding:24px; border-radius:24px; min-width:380px; max-width:500px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04); transform: translateY(-20px)">
+                    <h3 style="margin:0 0 16px 0; color:#0f172a; border-bottom:1px solid #e2e8f0; padding-bottom:12px; font-size:1.2rem; display:flex; align-items:center; gap:8px">
+                        📊 Desempeño Operativo
+                    </h3>
+                    <div style="font-size:0.8rem; font-weight:600; color:#64748b; margin-bottom:16px; text-transform:uppercase; letter-spacing:0.05em">${month}</div>
+                    <div style="max-height:60vh; overflow-y:auto; color:#334155; display:flex; flex-direction:column; gap:8px; padding-right:8px">
+                        ${html}
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-top:20px; padding-top:16px; border-top:2px dashed #cbd5e1; font-weight:900; font-size:1.2rem; color:#1e293b">
+                        <div style="display:flex; flex-direction:column; gap:4px; flex:1">
+                            <div style="display:flex; justify-content:space-between; font-size:0.9rem; color:#64748b">
+                                <span>Sumatoria Ingresos</span>
+                                <span style="color:#10b981">${fmt.format(details.reduce((a,b)=>a+b.total_revenue,0))}</span>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; font-size:0.9rem; color:#64748b">
+                                <span>Sumatoria Costos</span>
+                                <span style="color:#ef4444">-${fmt.format(details.reduce((a,b)=>a+b.total_cogs,0))}</span>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; margin-top:8px; border-top:1px solid #e2e8f0; padding-top:8px">
+                                <span>SALDO NETO</span>
+                                <span style="color:#4f46e5">${fmt.format(details.reduce((a,b)=>a+b.total_revenue - b.total_cogs,0))}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <button onclick="this.closest('.popover-wrap').remove()" style="margin-top:24px; width:100%; padding:14px; border-radius:12px; border:none; background:#f1f5f9; cursor:pointer; font-weight:800; color:#475569; font-size:1.05rem; transition:background 0.2s">Cerrar Dashboard</button>
+                </div>
+            `;
+            pop.className = 'popover-wrap';
+            document.body.appendChild(pop);
+        };
+
+        window.showSellerHistoryChart = (sellerName, ev) => {
+            if (ev) ev.stopPropagation();
+            if (!window.DATA || !window.DATA.history) return;
+
+            const months = [...window.DATA.history].sort((a, b) => a.month.localeCompare(b.month)).slice(-24);
+            const chartData = [];
+            let maxRev = 0;
+
+            months.forEach(m => {
+                const revDetails = window.revenueDetailsMap[m.month] || [];
+                const sellerEntry = revDetails.find(d => d.seller_name.toLowerCase() === sellerName.toLowerCase());
+                const rev = sellerEntry ? sellerEntry.amount : 0;
+                chartData.push({ month: m.month, revenue: rev });
+                if (rev > maxRev) maxRev = rev;
+            });
+
+            if (maxRev === 0) maxRev = 1;
+
+            const barsHtml = chartData.map(d => {
+                const heightPct = Math.max(2, Math.round((d.revenue / maxRev) * 100));
+                const fmtRev = d.revenue > 0 ? fmt.format(d.revenue) : '0';
+                return `
+                    <div style="display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; width:32px; gap:6px; flex-shrink:0;">
+                        <span style="font-size:0.6rem; color:#64748b; transform:rotate(-45deg) translateY(-10px); white-space:nowrap; opacity:0; transition:opacity 0.2s; position:absolute; pointer-events:none">${fmtRev}</span>
+                        <div style="width:100%; height:${heightPct}%; background:linear-gradient(180deg, #6366f1, #4f46e5); border-radius:6px 6px 0 0; transition:background 0.2s, transform 0.2s; cursor:pointer; position:relative" onmouseover="this.style.background='#4338ca'; this.style.transform='scaleY(1.02)'; this.previousElementSibling.style.opacity=1;" onmouseout="this.style.background='linear-gradient(180deg, #6366f1, #4f46e5)'; this.style.transform='scaleY(1)'; this.previousElementSibling.style.opacity=0;"></div>
+                        <span style="font-size:0.7rem; font-weight:700; color:#475569; writing-mode:vertical-rl; transform:rotate(180deg); margin-top:4px">${d.month}</span>
+                    </div>
+                `;
+            }).join('');
+
+            const pop = document.createElement('div');
+            pop.style.position = 'fixed'; pop.style.top = '0'; pop.style.left = '0'; pop.style.width = '100vw'; pop.style.height = '100vh';
+            pop.style.background = 'rgba(0,0,0,0.7)'; pop.style.display = 'flex'; pop.style.alignItems = 'center'; pop.style.justifyContent = 'center'; pop.style.zIndex = '9999';
+            pop.style.backdropFilter = 'blur(6px)';
+            pop.innerHTML = `
+                <div style="background:#fff; padding:28px; border-radius:24px; min-width:80vw; max-width:900px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.2), 0 10px 10px -5px rgba(0,0,0,0.1); transform: translateY(-20px)">
+                    <h3 style="margin:0 0 8px 0; color:#0f172a; font-size:1.3rem; display:flex; align-items:center; gap:8px">
+                        📈 Historial de Ventas
+                    </h3>
+                    <div style="font-size:0.95rem; font-weight:700; color:#6366f1; margin-bottom:24px;">${sellerName} • Últimos ${chartData.length} Meses</div>
+                    
+                    <div style="height:250px; display:flex; align-items:flex-end; gap:8px; padding:20px 10px 10px 10px; border-bottom:2px solid #e2e8f0; overflow-x:auto; margin-bottom:16px;">
+                        ${barsHtml}
+                    </div>
+
+                    <button onclick="this.closest('.popover-wrap').remove()" style="margin-top:24px; width:100%; padding:14px; border-radius:12px; border:none; background:#f1f5f9; cursor:pointer; font-weight:800; color:#475569; font-size:1.05rem; transition:background 0.2s">Cerrar Gráfico</button>
+                </div>
+            `;
+            pop.className = 'popover-wrap';
+            document.body.appendChild(pop);
+        };
+
         const updateStatus = (t) => document.getElementById('status-text').innerText = t;
 
         async function start() {
@@ -216,7 +349,7 @@
                                 <div style="background:#fff; border:1px solid #e2e8f0; border-radius:16px; padding:16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); display:flex; flex-direction:column; gap:12px">
                                     <div style="display:flex; justify-content:space-between; align-items:flex-start">
                                         <div>
-                                            <div style="font-weight:800; font-size:1.05rem; color:#1e293b; letter-spacing:-0.01em">${p.name}</div>
+                                            <div style="font-weight:800; font-size:1.05rem; color:#1e293b; letter-spacing:-0.01em; cursor:pointer; display:inline-flex; align-items:center; gap:4px" onclick="showSellerHistoryChart('${p.name}', event)" title="Ver historial de ventas (Últimos 24 meses)" onmouseover="this.style.color='#4f46e5'" onmouseout="this.style.color='#1e293b'">${p.name} <span style="font-size:0.8rem; filter:grayscale(1); opacity:0.6; transition:0.2s" onmouseover="this.style.filter='none'; this.style.opacity=1" onmouseout="this.style.filter='grayscale(1)'; this.style.opacity=0.6">📊</span></div>
                                             <div style="font-size:0.75rem; color:#64748b; margin-top:2px; font-weight:600; display:flex; align-items:center; gap:4px">
                                                 🍰 ${m.cumulative_desserts ? (m.cumulative_desserts[p.id] || 0) : '?'} postres históricos
                                             </div>
