@@ -87,6 +87,7 @@ export async function handler(event) {
             let losses = monthData?.losses || 0;
             let provManual = monthData?.provision || 0;
             let inventory = monthData?.inventory || 0;
+            let revenue_detail = monthData?.revenue_detail || [];
 
             if (!monthData || forceSync || m === currentMonth) {
                 const [revenueRows, cogsRows, accRows] = await Promise.all([
@@ -100,6 +101,11 @@ export async function handler(event) {
                 expenses = Math.round(Number(accRows.find(a => a.kind === 'gasto')?.total || 0));
                 losses = Math.round(Number(accRows.find(a => a.kind === 'perdida')?.total || 0));
                 provManual = Math.round(Number(accRows.find(a => a.kind === 'provision')?.total || 0));
+                
+                revenue_detail = revenueRows.map(r => ({
+                    seller_name: sellerMap[r.seller_id] || `Vendedor ${r.seller_id}`,
+                    amount: Math.round(Number(r.revenue || 0))
+                })).filter(r => r.amount > 0).sort((a,b) => b.amount - a.amount);
             } else {
                 // If cached, we still need to update cumulative tracking state for the next month
                 if (monthData.cumulative_desserts) {
@@ -250,6 +256,7 @@ export async function handler(event) {
                 total_desserts: totalMonthDesserts, total_brigs: totalMonthBrigs, mod: modCents,
                 profit: opProfit, provision, net_to_share: netToShare,
                 partners: partnerShares, commission_detail: commissionDetail,
+                revenue_detail,
                 cumulative_desserts: { ...lastCumulativeDesserts }
             };
 
