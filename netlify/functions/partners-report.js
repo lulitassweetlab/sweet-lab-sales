@@ -70,6 +70,8 @@ export async function handler(event) {
 
         let lastCumulativeDesserts = {};
         partnerIds.forEach(pid => lastCumulativeDesserts[pid] = 0);
+        let partnerRollingM = {};
+        let partnerHistoryH = {};
         const history = [];
 
         for (const m of allMonths) {
@@ -275,14 +277,48 @@ export async function handler(event) {
             if (provision === 0) provision = Math.round(Math.max(0, opProfit) * (settings.provision_default_perc / 100));
             const netToShare = opProfit - provision;
 
-            // 4. Partner Shares Distribution
-            const totalPartnerCumulative = partnerIds.reduce((a, pid) => a + (lastCumulativeDesserts[pid] || 0), 0);
+            // 4. Partner Shares Distribution (PRO MODEL EMA)
+            let totalMonthPartnerSales = 0;
+            partnerIds.forEach(pid => {
+                totalMonthPartnerSales += (monthCumulToAdd[pid] || 0);
+            });
+            
+            let curM = {};
+            partnerIds.forEach(pid => {
+                curM[pid] = totalMonthPartnerSales > 0 ? (monthCumulToAdd[pid] || 0) / totalMonthPartnerSales : 0;
+                if (!partnerRollingM[pid]) partnerRollingM[pid] = [];
+                partnerRollingM[pid].push(curM[pid]);
+                if (partnerRollingM[pid].length > 4) partnerRollingM[pid].shift();
+            });
+
+            let avgP = {};
+            partnerIds.forEach(pid => {
+                let w = partnerRollingM[pid];
+                let sum = w.reduce((a, b) => a + b, 0);
+                avgP[pid] = w.length > 0 ? sum / w.length : 0;
+            });
+
+            let rawF = {};
+            let sumF = 0;
+            partnerIds.forEach(pid => {
+                if (partnerHistoryH[pid] === undefined) partnerHistoryH[pid] = curM[pid]; // Day 0 Fix
+                let newH = (partnerHistoryH[pid] * 0.5) + (avgP[pid] * 0.5);
+                partnerHistoryH[pid] = newH;
+                let finalP = (newH * 0.5) + (curM[pid] * 0.5);
+                rawF[pid] = finalP;
+                sumF += finalP;
+            });
+
+            let normalizedF = {};
+            partnerIds.forEach(pid => {
+                normalizedF[pid] = sumF > 0 ? rawF[pid] / sumF : (1 / partnerIds.length);
+            });
+
             const founderFixedAmount = founderId && founderPerc > 0 ? Math.round(Math.max(0, netToShare) * (founderPerc / 100)) : 0;
             const meritPool = netToShare - founderFixedAmount;
 
             const partnerShares = partnerIds.map(pid => {
-                const cum = lastCumulativeDesserts[pid] || 0;
-                const meritPerc = totalPartnerCumulative > 0 ? (cum / totalPartnerCumulative) : 0;
+                const meritPerc = normalizedF[pid];
                 let shareAmount = Math.round(meritPool * meritPerc);
                 if (pid === founderId) shareAmount += founderFixedAmount;
                 const finalPerc = netToShare > 0 ? (shareAmount / netToShare) * 100 : 0;
