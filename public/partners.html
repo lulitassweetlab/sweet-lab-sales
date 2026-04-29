@@ -79,6 +79,15 @@
             <div id="cfg-sellers" style="max-height: 250px; overflow-y: auto;"></div>
             
             <div style="margin-top: 15px; padding: 15px; background: #f8fafc; border-radius: 15px; border: 1px solid #e2e8f0;">
+                <h4 style="margin:0 0 10px 0; font-size: 0.85rem; color: #64748b; text-transform: uppercase;">Modelo de Distribución</h4>
+                <select id="dist-model" style="width:100%; padding:8px; border-radius:8px; border:1px solid #ddd; font-size:0.9rem;">
+                    <option value="pro">Modelo PRO (Recomendado - 4 meses EMA)</option>
+                    <option value="historic">Modelo Histórico (Acumulado Total)</option>
+                </select>
+                <p id="model-desc" style="font-size:0.7rem; color:#94a3b8; margin-top:6px; line-height:1.3; margin-bottom:0;"></p>
+            </div>
+
+            <div style="margin-top: 15px; padding: 15px; background: #f8fafc; border-radius: 15px; border: 1px solid #e2e8f0;">
                 <h4 style="margin:0 0 10px 0; font-size: 0.85rem; color: #64748b; text-transform: uppercase;">Ajustes de Fundador (Fijo %)</h4>
                 <div id="founder-config-list" style="display:flex; flex-direction:column; gap:8px;">
                     <!-- Multiple founders will go here -->
@@ -481,6 +490,17 @@
             }).join('');
             if (!fList.innerHTML) fList.innerHTML = '<p style="font-size:0.8rem; color:#94a3b8; text-align:center; margin:0">Selecciona socios primero</p>';
 
+            // Model Setup
+            const modelSel = document.getElementById('dist-model');
+            modelSel.value = DATA.settings.partner_distribution_model || 'pro';
+            const updateDesc = () => {
+                const desc = document.getElementById('model-desc');
+                if (modelSel.value === 'pro') desc.innerText = 'Precia el historial y el presente (4 meses EMA). Evita fluctuaciones fuertes si un mes es malo.';
+                else desc.innerText = 'Reparte únicamente por el volumen total acumulado de postres vendidos históricamente por cada equipo.';
+            };
+            modelSel.onchange = updateDesc;
+            updateDesc();
+
             document.getElementById('modal-cfg').style.display = 'flex';
         };
 
@@ -497,13 +517,16 @@
                     if (val > 0) fFounders[inp.dataset.id] = val;
                 });
                 
+                const dModel = document.getElementById('dist-model').value;
+                
                 // 1. Save All Settings
                 const resSettings = await fetch('/api/store-settings', { 
                     method: 'POST', 
                     headers: {'Content-Type':'application/json'}, 
                     body: JSON.stringify({ 
                         partner_seller_ids: JSON.stringify(pIds),
-                        partner_founders: JSON.stringify(fFounders)
+                        partner_founders: JSON.stringify(fFounders),
+                        partner_distribution_model: dModel
                     }) 
                 });
                 if (!resSettings.ok) throw new Error('Error guardando configuración');

@@ -15,8 +15,8 @@ export async function handler(event) {
         if (forceSync) await sql`DELETE FROM financial_snapshots`;
 
         // 1. Get Settings (Added Founder settings and Generic historic overrides)
-        const settingsRows = await sql`SELECT key, value FROM store_settings WHERE key IN ('partner_seller_ids', 'provision_default_perc', 'partner_founders') OR key LIKE 'historic_%'`;
-        const settings = { partner_seller_ids: [], provision_default_perc: 3, partner_founder_id: null, partner_founder_perc: 25 };
+        const settingsRows = await sql`SELECT key, value FROM store_settings WHERE key IN ('partner_seller_ids', 'provision_default_perc', 'partner_founders', 'partner_distribution_model') OR key LIKE 'historic_%'`;
+        const settings = { partner_seller_ids: [], provision_default_perc: 3, partner_founders: {}, partner_distribution_model: 'pro' };
         for (const r of settingsRows) {
             if (r.key === 'partner_seller_ids') {
                 try { settings.partner_seller_ids = JSON.parse(r.value); } catch { settings.partner_seller_ids = []; }
@@ -24,6 +24,8 @@ export async function handler(event) {
                 settings.provision_default_perc = Number(r.value) || 3;
             } else if (r.key === 'partner_founders') {
                 try { settings.partner_founders = JSON.parse(r.value); } catch { settings.partner_founders = {}; }
+            } else if (r.key === 'partner_distribution_model') {
+                settings.partner_distribution_model = r.value || 'pro';
             } else {
                 settings[r.key] = r.value;
             }
@@ -297,14 +299,27 @@ export async function handler(event) {
 
             let rawF = {};
             let sumF = 0;
-            partnerIds.forEach(pid => {
-                if (partnerHistoryH[pid] === undefined) partnerHistoryH[pid] = curM[pid]; // Day 0 Fix
-                let newH = (partnerHistoryH[pid] * 0.5) + (avgP[pid] * 0.5);
-                partnerHistoryH[pid] = newH;
-                let finalP = (newH * 0.5) + (curM[pid] * 0.5);
-                rawF[pid] = finalP;
-                sumF += finalP;
-            });
+
+            if (settings.partner_distribution_model === 'historic') {
+                // MODELO HISTORICO SIMPLE (Acumulado Total)
+                let totalCumul = 0;
+                partnerIds.forEach(pid => totalCumul += (lastCumulativeDesserts[pid] || 0));
+                partnerIds.forEach(pid => {
+                    let finalP = totalCumul > 0 ? (lastCumulativeDesserts[pid] || 0) / totalCumul : (1 / partnerIds.length);
+                    rawF[pid] = finalP;
+                    sumF += finalP;
+                });
+            } else {
+                // MODELO PRO (EMA - Exponential Moving Average)
+                partnerIds.forEach(pid => {
+                    if (partnerHistoryH[pid] === undefined) partnerHistoryH[pid] = curM[pid]; // Day 0 Fix
+                    let newH = (partnerHistoryH[pid] * 0.5) + (avgP[pid] * 0.5);
+                    partnerHistoryH[pid] = newH;
+                    let finalP = (newH * 0.5) + (curM[pid] * 0.5);
+                    rawF[pid] = finalP;
+                    sumF += finalP;
+                });
+            }
 
             let normalizedF = {};
             partnerIds.forEach(pid => {
