@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Socios | Sweet Lab</title>
     <link rel="stylesheet" href="/styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         :root { 
             --p-mod: #6366f1; 
@@ -367,6 +368,7 @@
                                 <strong style="font-size:1.4rem; display:block; letter-spacing:-0.01em">${monthLabel}</strong>
                                 <span class="pill">Cierre Mensual</span>
                                 <button onclick="toggleEditHistoric('${m.month}', this)" style="margin-left:8px; background:#fff; border:1px solid #cbd5e1; padding:2px 10px; border-radius:12px; font-size:0.75rem; font-weight:600; color:#64748b; cursor:pointer; transition:all 0.2s;">✏️ Modificar</button>
+                                <button onclick="downloadCard(this, '${m.month}')" style="margin-left:4px; background:#fff; border:1px solid #cbd5e1; padding:2px 10px; border-radius:12px; font-size:0.75rem; font-weight:600; color:#64748b; cursor:pointer; transition:all 0.2s;">📸 Foto</button>
                             </div>
                         </div>
                         <div style="text-align:right">
@@ -565,6 +567,33 @@
                 btn.disabled = false;
                 btn.innerText = 'Guardar';
             }
+        };
+
+        window.downloadCard = (btn, month) => {
+            const card = btn.closest('.box');
+            
+            // Ocultar botones y elementos de edición temporalmente
+            const controls = card.querySelectorAll('button');
+            controls.forEach(b => b.style.opacity = '0');
+            
+            const originalShadow = card.style.boxShadow;
+            card.style.boxShadow = 'none';
+
+            html2canvas(card, {
+                scale: 2,
+                backgroundColor: '#f8fafc',
+                logging: false,
+                useCORS: true
+            }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = `Cierre_${month}_SweetLab.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+                
+                // Restaurar
+                controls.forEach(b => b.style.opacity = '1');
+                card.style.boxShadow = originalShadow;
+            });
         };
 
         function closeMsg() { document.getElementById('modal-cfg').style.display = 'none'; }
