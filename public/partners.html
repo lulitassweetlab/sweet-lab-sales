@@ -79,16 +79,9 @@
             <div id="cfg-sellers" style="max-height: 250px; overflow-y: auto;"></div>
             
             <div style="margin-top: 15px; padding: 15px; background: #f8fafc; border-radius: 15px; border: 1px solid #e2e8f0;">
-                <h4 style="margin:0 0 10px 0; font-size: 0.85rem; color: #64748b; text-transform: uppercase;">Ajustes de Fundador</h4>
-                <div style="display:flex; flex-direction:column; gap:10px;">
-                    <select id="founder-id" style="width:100%; padding:8px; border-radius:8px; border:1px solid #ddd; font-size:0.9rem;">
-                        <option value="">(Sin Socio Fundador)</option>
-                    </select>
-                    <div style="display:flex; align-items:center; gap:10px;">
-                        <span style="font-size:0.9rem; flex:1">Porcentaje garantizado:</span>
-                        <input type="number" id="founder-perc" value="25" style="width:60px; padding:8px; border-radius:8px; border:1px solid #ddd; text-align:center;">
-                        <span style="font-size:0.9rem">%</span>
-                    </div>
+                <h4 style="margin:0 0 10px 0; font-size: 0.85rem; color: #64748b; text-transform: uppercase;">Ajustes de Fundador (Fijo %)</h4>
+                <div id="founder-config-list" style="display:flex; flex-direction:column; gap:8px;">
+                    <!-- Multiple founders will go here -->
                 </div>
             </div>
 
@@ -474,9 +467,19 @@
             });
 
             // Founder Setup
-            const fSel = document.getElementById('founder-id');
-            fSel.innerHTML = '<option value="">(Sin Socio Fundador)</option>' + SELLERS.filter(s => pIds.includes(Number(s.id))).map(s => `<option value="${s.id}" ${Number(DATA.settings.partner_founder_id) === Number(s.id) ? 'selected' : ''}>${s.name}</option>`).join('');
-            document.getElementById('founder-perc').value = DATA.settings.partner_founder_perc || 25;
+            const fList = document.getElementById('founder-config-list');
+            const foundersObj = DATA.settings.partner_founders || {};
+            fList.innerHTML = SELLERS.filter(s => pIds.includes(Number(s.id))).map(s => {
+                const fPerc = foundersObj[s.id] || 0;
+                return `
+                    <div style="display:flex; align-items:center; gap:10px; font-size:0.9rem">
+                        <span style="flex:1">${s.name}:</span>
+                        <input type="number" class="f-perc-input" data-id="${s.id}" value="${fPerc}" style="width:55px; padding:6px; border-radius:8px; border:1px solid #ddd; text-align:center;">
+                        <span style="font-weight:600; color:#64748b">%</span>
+                    </div>
+                `;
+            }).join('');
+            if (!fList.innerHTML) fList.innerHTML = '<p style="font-size:0.8rem; color:#94a3b8; text-align:center; margin:0">Selecciona socios primero</p>';
 
             document.getElementById('modal-cfg').style.display = 'flex';
         };
@@ -488,8 +491,11 @@
             
             try {
                 const pIds = Array.from(document.querySelectorAll('.is-p:checked')).map(c => Number(c.dataset.id));
-                const fId = document.getElementById('founder-id').value;
-                const fPerc = document.getElementById('founder-perc').value;
+                const fFounders = {};
+                document.querySelectorAll('.f-perc-input').forEach(inp => {
+                    const val = Number(inp.value) || 0;
+                    if (val > 0) fFounders[inp.dataset.id] = val;
+                });
                 
                 // 1. Save All Settings
                 const resSettings = await fetch('/api/store-settings', { 
@@ -497,8 +503,7 @@
                     headers: {'Content-Type':'application/json'}, 
                     body: JSON.stringify({ 
                         partner_seller_ids: JSON.stringify(pIds),
-                        partner_founder_id: fId,
-                        partner_founder_perc: fPerc
+                        partner_founders: JSON.stringify(fFounders)
                     }) 
                 });
                 if (!resSettings.ok) throw new Error('Error guardando configuración');
