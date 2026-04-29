@@ -326,7 +326,7 @@ export async function handler(event) {
                     id: pid, name: sellerMap[pid] || `Socio ${pid}`, 
                     share_perc: Number(finalPerc.toFixed(2)),
                     share_amount: Math.round(shareAmount),
-                    metrics_debug: { M: curM[pid] || 0, P: avgP[pid] || 0, H: partnerHistoryH[pid] || 0, F: normalizedF[pid] || 0 }
+                    metrics_debug: { M: curM[pid] || 0, P: avgP[pid] || 0, H: partnerHistoryH[pid] || 0, F: normalizedF[pid] || 0, desserts: monthCumulToAdd[pid] || 0 }
                 };
             });
 
