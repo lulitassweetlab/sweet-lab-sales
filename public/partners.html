@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Socios | Sweet Lab</title>
+    <link rel="stylesheet" href="/styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        :root { 
+            --p-mod: #6366f1; 
+            --accent: #8b5cf6;
+            --bg: #f8fafc;
+            --txt: #0f172a;
+            --txt-mute: #64748b;
+            --card-sh: 0 10px 25px -5px rgba(0,0,0,0.05), 0 8px 10px -6px rgba(0,0,0,0.05);
+        }
+        body { background: var(--bg); color: var(--txt); font-family: 'Inter', -apple-system, system-ui, sans-serif; padding: 20px; line-height: 1.5; }
+        .box { background: white; border-radius: 24px; padding: 32px; margin-bottom: 30px; box-shadow: var(--card-sh); border: 1px solid rgba(226,232,240,0.5); }
+        .hdr { background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; padding: 48px; border-radius: 32px; margin-bottom: 40px; position: relative; overflow: hidden; box-shadow: 0 20px 40px -15px rgba(99,102,241,0.4); }
+        .hdr::after { content:''; position:absolute; top:-50%; right:-10%; width:300px; height:300px; background: rgba(255,255,255,0.1); border-radius: 50%; }
+        .btn-set { position: fixed; bottom: 30px; right: 30px; z-index: 5000; background: var(--p-mod); color: white; border: none; width: 60px; height: 60px; border-radius: 20px; cursor: pointer; font-size: 1.8rem; box-shadow: 0 10px 20px rgba(99,102,241,0.3); display: flex; align-items: center; justify-content: center; transition: transform 0.2s; }
+        .btn-set:hover { transform: scale(1.05); }
+        .flex { display: flex; justify-content: space-between; align-items: center; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+        @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+        .fin-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f1f5f9; font-size: 0.95rem; }
+        .fin-item:last-child { border-bottom: none; }
+        .fin-label { color: var(--txt-mute); font-weight: 500; }
+        .fin-val { font-weight: 700; color: var(--txt); }
+        .fin-val.neg { color: #e11d48; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15,23,42,0.6); backdrop-filter: blur(8px); z-index: 6000; align-items: center; justify-content: center; }
+        .modal-c { background: white; padding: 40px; border-radius: 32px; width: 95%; max-width: 500px; color: var(--txt); box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); }
+        .prog-bar { height: 10px; background: #f1f5f9; border-radius: 6px; overflow: hidden; margin: 12px 0; }
+        .prog-fill { height: 100%; background: linear-gradient(90deg, var(--p-mod), var(--accent)); }
+        .pill { background: #f1f5f9; padding: 4px 12px; border-radius: 100px; font-size: 0.75rem; font-weight: 700; color: var(--txt-mute); }
+        .back-btn { background: white; border: 1px solid #e2e8f0; padding: 10px 20px; border-radius: 14px; cursor: pointer; font-weight: 600; color: var(--txt-mute); display: flex; align-items: center; gap: 8px; margin-bottom: 24px; transition: all 0.2s; }
+        .back-btn:hover { background: #f8fafc; border-color: #cbd5e1; color: var(--txt); }
+        .stat-card { background: rgba(255,255,255,0.15); padding: 15px 25px; border-radius: 20px; backdrop-filter: blur(10px); }
+        .stat-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.8; margin-bottom: 4px; }
+        .stat-val { font-size: 1.2rem; font-weight: 800; }
+    </style>
+</head>
+<body>
+    <button class="btn-set" id="cfg-btn">✨</button>
+    
+    <div style="max-width: 1000px; margin: 0 auto; padding-bottom: 100px;">
+        <button onclick="location.href='/'" class="back-btn">← Volver al inicio</button>
+        
+        <header class="hdr">
+            <div style="z-index: 2; position: relative;">
+                <h1 style="margin:0; font-size: 2.5rem; letter-spacing: -0.02em;">Portal de Socios</h1>
+                <p style="opacity:0.9; font-size: 1.1rem; margin-top: 8px; font-weight: 500;">Reporte Financiero y de Valorización</p>
+                
+                <div id="quick-stats" style="display:flex; gap:20px; margin-top:32px; flex-wrap: wrap;">
+                    <div class="stat-card">
+                        <div class="stat-label">Ventas Totales (Historico)</div>
+                        <div class="stat-val" id="stat-rev">$0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Utilidad Neta Acumulada</div>
+                        <div class="stat-val" id="stat-prof">$0</div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <div id="status-msg" style="text-align:center; padding: 40px; background: white; border-radius: 20px;">
+            <div class="spinner"></div>
+            <p id="status-text">Iniciando conexión segura...</p>
+        </div>
+
+        <div id="report-content" style="display:none"></div>
+    </div>
+
+    <!-- Modal -->
+    <div id="modal-cfg" class="modal">
+        <div class="modal-c">
+            <h2>Configuración</h2>
+            <div id="cfg-sellers" style="max-height: 250px; overflow-y: auto;"></div>
+            
+            <div style="margin-top: 15px; padding: 15px; background: #f8fafc; border-radius: 15px; border: 1px solid #e2e8f0;">
+                <h4 style="margin:0 0 10px 0; font-size: 0.85rem; color: #64748b; text-transform: uppercase;">Modelo de Distribución</h4>
+                <select id="dist-model" style="width:100%; padding:8px; border-radius:8px; border:1px solid #ddd; font-size:0.9rem;">
+                    <option value="pro">Modelo PRO (Recomendado - 4 meses EMA)</option>
+                    <option value="historic">Modelo Histórico (Acumulado Total)</option>
+                </select>
+                <p id="model-desc" style="font-size:0.7rem; color:#94a3b8; margin-top:6px; line-height:1.3; margin-bottom:0;"></p>
+            </div>
+
+            <div style="margin-top: 15px; padding: 15px; background: #f8fafc; border-radius: 15px; border: 1px solid #e2e8f0;">
+                <h4 style="margin:0 0 10px 0; font-size: 0.85rem; color: #64748b; text-transform: uppercase;">Ajustes de Fundador (Fijo %)</h4>
+                <div id="founder-config-list" style="display:flex; flex-direction:column; gap:8px;">
+                    <!-- Multiple founders will go here -->
+                </div>
+            </div>
+
+            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #eee;">
+                <button onclick="location.href='?auth=admin&force_sync=1'" style="width:100%; padding:10px; background:#f8fafc; border:1px solid #ddd; border-radius:10px; cursor:pointer; font-size:0.8rem; color:#666;">🔄 Recalcular Todo el Historial</button>
+            </div>
+            <div style="display:flex; gap:10px; margin-top:20px;">
+                <button id="save-cfg" style="flex:1; padding:12px; background:#4f46e5; color:white; border:none; border-radius:12px; cursor:pointer">Guardar</button>
+                <button onclick="closeMsg()" style="flex:1; padding:12px; border-radius:12px; cursor:pointer">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let DATA = null; let SELLERS = [];
+        const fmt = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
+        
+        window.showProductDetails = (month, ev) => {
+            if (ev.target.tagName.toLowerCase() === 'input' || ev.target.tagName.toLowerCase() === 'button') return;
+            
+            const details = window.productDetailsMap[month] || [];
+            if (!details.length) {
+                alert("No hay desglose por productos disponible en la base de datos para este mes.");
+                return;
+            }
+            
+            const html = details.map(d => {
+                let prodsHtml = '';
+                if (d.products && d.products.length) {
+                    prodsHtml = '<table style="width:100%; border-collapse:collapse; margin-top:12px; font-size:0.8rem">';
+                    prodsHtml += '<tr style="border-bottom:1px solid #cbd5e1; color:#64748b"><th style="text-align:left; padding-bottom:4px">Postre</th><th style="text-align:right; padding-bottom:4px">Cant.</th><th style="text-align:right; padding-bottom:4px">Ingresos</th><th style="text-align:right; padding-bottom:4px">Costo</th><th style="text-align:right; padding-bottom:4px">Margen</th></tr>';
+                    d.products.forEach(p => {
+                        let margin = p.revenue > 0 ? Math.round(((p.revenue - p.cogs) / p.revenue) * 100) : 0;
+                        let marginColor = margin >= 50 ? '#10b981' : margin >= 30 ? '#f59e0b' : '#ef4444';
+                        prodsHtml += `<tr style="border-bottom:1px solid #f1f5f9; color:#475569">
+                            <td style="padding:6px 0">${p.name}</td>
+                            <td style="text-align:right; padding:6px 0">${p.quantity || '-'}</td>
+                            <td style="text-align:right; padding:6px 0">${fmt.format(p.revenue)}</td>
+                            <td style="text-align:right; padding:6px 0; color:#ef4444">-${fmt.format(p.cogs)}</td>
+                            <td style="text-align:right; padding:6px 0; color:${marginColor}; font-weight:600">${margin}%</td>
+                        </tr>`;
+                    });
+                    prodsHtml += '</table>';
+                }
+                
+                return `<div style="margin-bottom:16px; background:#f8fafc; padding:16px; border-radius:12px; border:1px solid #f1f5f9">
+                    <div style="display:flex; justify-content:space-between; border-bottom:2px solid #e2e8f0; padding-bottom:8px; margin-bottom:4px; font-size:1.1rem">
+                        <span style="font-weight:800; color:#334155">${d.seller_name}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:#64748b; margin-top:8px; padding:0 4px">
+                        <span>Ingresos Totales:</span>
+                        <strong style="color:#10b981">${fmt.format(d.total_revenue)}</strong>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:#64748b; margin-top:2px; padding:0 4px">
+                        <span>Costos Totales:</span>
+                        <strong style="color:#ef4444">${fmt.format(d.total_cogs)}</strong>
+                    </div>
+                    ${prodsHtml}
+                </div>`;
+            }).join('');
+            
+            const pop = document.createElement('div');
+            pop.style.position = 'fixed'; pop.style.top = '0'; pop.style.left = '0'; pop.style.width = '100vw'; pop.style.height = '100vh';
+            pop.style.background = 'rgba(0,0,0,0.6)'; pop.style.display = 'flex'; pop.style.alignItems = 'center'; pop.style.justifyContent = 'center'; pop.style.zIndex = '9999';
+            pop.style.backdropFilter = 'blur(4px)';
+            pop.innerHTML = `
+                <div style="background:#fff; padding:24px; border-radius:24px; min-width:380px; max-width:500px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04); transform: translateY(-20px)">
+                    <h3 style="margin:0 0 16px 0; color:#0f172a; border-bottom:1px solid #e2e8f0; padding-bottom:12px; font-size:1.2rem; display:flex; align-items:center; gap:8px">
+                        📊 Desempeño Operativo
+                    </h3>
+                    <div style="font-size:0.8rem; font-weight:600; color:#64748b; margin-bottom:16px; text-transform:uppercase; letter-spacing:0.05em">${month}</div>
+                    <div style="max-height:60vh; overflow-y:auto; color:#334155; display:flex; flex-direction:column; gap:8px; padding-right:8px">
+                        ${html}
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-top:20px; padding-top:16px; border-top:2px dashed #cbd5e1; font-weight:900; font-size:1.2rem; color:#1e293b">
+                        <div style="display:flex; flex-direction:column; gap:4px; flex:1">
+                            <div style="display:flex; justify-content:space-between; font-size:0.9rem; color:#64748b">
+                                <span>Sumatoria Ingresos</span>
+                                <span style="color:#10b981">${fmt.format(details.reduce((a,b)=>a+b.total_revenue,0))}</span>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; font-size:0.9rem; color:#64748b">
+                                <span>Sumatoria Costos</span>
+                                <span style="color:#ef4444">-${fmt.format(details.reduce((a,b)=>a+b.total_cogs,0))}</span>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; margin-top:8px; border-top:1px solid #e2e8f0; padding-top:8px">
+                                <span>SALDO NETO</span>
+                                <span style="color:#4f46e5">${fmt.format(details.reduce((a,b)=>a+b.total_revenue - b.total_cogs,0))}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <button onclick="this.closest('.popover-wrap').remove()" style="margin-top:24px; width:100%; padding:14px; border-radius:12px; border:none; background:#f1f5f9; cursor:pointer; font-weight:800; color:#475569; font-size:1.05rem; transition:background 0.2s">Cerrar Dashboard</button>
+                </div>
+            `;
+            pop.className = 'popover-wrap';
+            document.body.appendChild(pop);
+        };
+
+        window.showSellerHistoryChart = (sellerName, targetMonth, ev) => {
+            if (ev) ev.stopPropagation();
+            if (!DATA || !DATA.history) return;
+
+            const shortMonths = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+            const months = [...DATA.history].sort((a, b) => a.month.localeCompare(b.month)).slice(-24);
+            const chartData = [];
+            let maxRev = 0;
+
+            months.forEach(m => {
+                const revDetails = window.revenueDetailsMap[m.month] || [];
+                const sellerEntry = revDetails.find(d => d.seller_name.toLowerCase() === sellerName.toLowerCase());
+                const rev = sellerEntry ? sellerEntry.amount : 0;
+                
+                let qtyD = 0; let qtyB = 0;
+                const prodDetails = window.productDetailsMap[m.month] || [];
+                const pEntry = prodDetails.find(d => d.seller_name.toLowerCase() === sellerName.toLowerCase());
+                if (pEntry && pEntry.products) {
+                    pEntry.products.forEach(p => {
+                        if (p.name.toLowerCase().includes('briga')) qtyB += p.quantity;
+                        else qtyD += p.quantity;
+                    });
+                }
+                
+                const [yyyy, mm] = m.month.split('-');
+                const fmtM = shortMonths[parseInt(mm, 10)-1];
+
+                chartData.push({ month: m.month, formatted: fmtM, revenue: rev, desserts: qtyD, brigs: qtyB });
+                if (rev > maxRev) maxRev = rev;
+            });
+
+            if (maxRev === 0) maxRev = 1;
+
+            const barsHtml = chartData.map(d => {
+                const heightPct = Math.max(2, Math.round((d.revenue / maxRev) * 100));
+                
+                let revStr = fmt.format(d.revenue);
+                if (d.revenue >= 1000000) revStr = "$" + (d.revenue / 1000000).toFixed(1).replace('.0', '') + "M";
+                else if (d.revenue >= 1000) revStr = "$" + Math.round(d.revenue / 1000) + "k";
+                else if (d.revenue === 0) revStr = "";
+                
+                return `
+                    <div style="display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; width:38px; gap:2px; flex-shrink:0;">
+                        <div style="font-size:0.55rem; color:#4f46e5; font-weight:800; white-space:nowrap; margin-bottom:2px; height:10px; display:flex; align-items:flex-end;">
+                            ${revStr}
+                        </div>
+                        <div style="width:100%; height:${heightPct}%; background:linear-gradient(180deg, #6366f1, #4f46e5); border-radius:6px 6px 0 0; transition:background 0.2s, transform 0.2s; cursor:pointer;" onmouseover="this.style.background='#4338ca';" onmouseout="this.style.background='linear-gradient(180deg, #6366f1, #4f46e5)';"></div>
+                        <div style="height:48px; display:flex; flex-direction:column; justify-content:flex-start; align-items:center; width:100%; border-top:1px solid #e2e8f0; margin-top:2px; padding-top:4px; gap:1px;">
+                            <span style="font-size:0.65rem; font-weight:700; color:#64748b; text-align:center; line-height:1.1; margin-bottom:2px">${d.formatted}</span>
+                            <span style="font-size:0.55rem; color:#334155; font-weight:600; white-space:nowrap;" title="Postres">🍰 ${d.desserts}</span>
+                            <span style="font-size:0.55rem; color:#334155; font-weight:600; white-space:nowrap;" title="Brigadeiros">🍫 ${d.brigs}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            const targetData = DATA.history.find(h => h.month === targetMonth);
+            const partnerMeta = targetData && targetData.partners ? targetData.partners.find(p => p.name.toLowerCase() === sellerName.toLowerCase()) : null;
+            let explainHtml = '';
+            
+            if (partnerMeta && partnerMeta.metrics_debug) {
+                const md = partnerMeta.metrics_debug;
+                const fmtP = n => (n * 100).toFixed(1);
+                const totalDesserts = targetData.partners.reduce((sum, p) => sum + (p.metrics_debug && p.metrics_debug.desserts ? p.metrics_debug.desserts : 0), 0);
+                const oldH = (md.H * 2) - md.P;
+
+                explainHtml = `
+                    <div style="background: #f8fafc; padding: 16px; border-radius: 12px; margin-bottom: 24px; border:1px solid #e2e8f0; font-family: ui-sans-serif, system-ui, sans-serif;">
+                        <h4 style="margin: 0 0 12px 0; color: #1e293b; font-size:0.95rem; display:flex; align-items:center; gap:6px;"><span>🧮</span> Cálculo de tu ${partnerMeta.share_perc}%</h4>
+
+                        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
+                            <div>
+                                <div style="color:#6366f1; font-weight:800; font-size:0.7rem;">1. TU MES ACTUAL (M)</div>
+                                <div style="font-size:0.7rem; color:#64748b; margin-top:2px;">Postres Equipo (${md.desserts}) ÷ Total Empresa (${totalDesserts})</div>
+                            </div>
+                            <strong style="font-size:1rem; color:#0f172a">${fmtP(md.M)}%</strong>
+                        </div>
+
+                        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
+                            <div>
+                                <div style="color:#6366f1; font-weight:800; font-size:0.7rem;">2. TU HISTORIAL (H)</div>
+                                <div style="font-size:0.7rem; color:#64748b; margin-top:2px;">Mitad Promedio (${fmtP(md.P)}%) + Mitad Mes Anterior (${fmtP(oldH)}%)</div>
+                            </div>
+                            <strong style="font-size:1rem; color:#0f172a">${fmtP(md.H)}%</strong>
+                        </div>
+
+                        <div style="background:linear-gradient(90deg, #f1f5f9, #e2e8f0); border:1px solid #cbd5e1; border-radius:8px; padding:10px 12px; display:flex; justify-content:space-between; align-items:center;">
+                            <div>
+                                <div style="color:#4f46e5; font-weight:900; font-size:0.75rem;">3. FINAL A PAGAR</div>
+                                <div style="font-size:0.7rem; color:#475569; margin-top:2px;">Promedio de los dos (${fmtP(md.M)}% + ${fmtP(md.H)}%)</div>
+                            </div>
+                            <strong style="font-size:1.2rem; color:#4f46e5; font-weight:900">${partnerMeta.share_perc}%</strong>
+                        </div>
+                    </div>
+                `;
+            }
+
+            const pop = document.createElement('div');
+            pop.style.position = 'fixed'; pop.style.top = '0'; pop.style.left = '0'; pop.style.width = '100vw'; pop.style.height = '100vh';
+            pop.style.background = 'rgba(0,0,0,0.7)'; pop.style.display = 'flex'; pop.style.alignItems = 'center'; pop.style.justifyContent = 'center'; pop.style.zIndex = '9999';
+            pop.style.backdropFilter = 'blur(6px)';
+            pop.innerHTML = `
+                <div style="background:#fff; padding:24px; border-radius:20px; min-width:80vw; max-width:900px; max-height:85vh; overflow-y:auto; box-shadow:0 20px 25px -5px rgba(0,0,0,0.2), 0 10px 10px -5px rgba(0,0,0,0.1); display:flex; flex-direction:column;">
+                    <h3 style="margin:0 0 8px 0; color:#0f172a; font-size:1.3rem; display:flex; align-items:center; gap:8px; flex-shrink:0;">
+                        📈 Historial de Ventas
+                    </h3>
+                    <div style="font-size:0.95rem; font-weight:700; color:#6366f1; margin-bottom:24px; flex-shrink:0;">
+                        ${sellerName} • Últimos ${chartData.length} Meses
+                        <span style="color:#94a3b8; font-weight:600; margin-left:4px">(${months[0] ? months[0].month.split('-')[0] : ''} - ${months[months.length-1] ? months[months.length-1].month.split('-')[0] : ''})</span>
+                    </div>
+
+                    ${explainHtml}
+                    
+                    <div style="flex-shrink:0; height:320px; display:flex; align-items:flex-end; gap:8px; padding:20px 10px 10px 10px; border-bottom:2px solid #e2e8f0; overflow-x:auto; margin-bottom:16px;">
+                        ${barsHtml}
+                    </div>
+
+                    <button onclick="this.closest('.popover-wrap').remove()" style="margin-top:24px; width:100%; padding:14px; border-radius:12px; border:none; background:#f1f5f9; cursor:pointer; font-weight:800; color:#475569; font-size:1.05rem; transition:background 0.2s">Cerrar Gráfico</button>
+                </div>
+            `;
+            pop.className = 'popover-wrap';
+            document.body.appendChild(pop);
+        };
+
+        const updateStatus = (t) => document.getElementById('status-text').innerText = t;
+
+        async function start() {
+            const auth = new URLSearchParams(window.location.search).get('auth');
+            if (auth !== 'admin') {
+                const p = prompt('Clave:');
+                if (p !== 'admin') return location.href = '/';
+            }
+
+            try {
+                updateStatus('Conectando con la base de datos...');
+                const rS = await fetch('/api/sellers');
+                if (!rS.ok) throw new Error('Error Sellers: ' + rS.status);
+                SELLERS = await rS.json();
+
+                updateStatus('Leyendo historia financiera optimizada...');
+                const syncParam = new URLSearchParams(window.location.search).get('force_sync') === '1' ? '?force_sync=1' : '';
+                const rR = await fetch('/api/partners-report' + syncParam);
+                if (!rR.ok) throw new Error('Error Report: ' + rR.status);
+                DATA = await rR.json();
+
+                render();
+            } catch (e) {
+                document.getElementById('status-msg').innerHTML = `<div style="color:red"><h3>Error</h3><p>${e.message}</p><button onclick="location.reload()">Reintentar</button></div>`;
+            }
+        }
+
+        function render() {
+            document.getElementById('status-msg').style.display = 'none';
+            document.getElementById('report-content').style.display = 'block';
+            const cont = document.getElementById('report-content');
+            cont.innerHTML = '';
+
+            let totalR = 0; let totalP = 0;
+            window.productDetailsMap = {};
+            window.revenueDetailsMap = {};
+
+            DATA.history.forEach(m => {
+                window.productDetailsMap[m.month] = m.product_detail || [];
+                window.revenueDetailsMap[m.month] = m.revenue_detail || [];
+                totalR += m.revenue; totalP += m.profit;
+                const div = document.createElement('div');
+                div.className = 'box';
+                const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+                const [y, mm] = m.month.split('-');
+                const monthLabel = `${monthNames[parseInt(mm) - 1]} ${y}`;
+
+                div.innerHTML = `
+                    <div class="flex" style="margin-bottom: 24px">
+                        <div style="display:flex; align-items:center; gap:12px">
+                            <div style="width:48px; height:48px; background: #f1f5f9; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:1.5rem">📅</div>
+                            <div>
+                                <strong style="font-size:1.4rem; display:block; letter-spacing:-0.01em">${monthLabel}</strong>
+                                <span class="pill">Cierre Mensual</span>
+                                <button onclick="toggleEditHistoric('${m.month}', this)" style="margin-left:8px; background:#fff; border:1px solid #cbd5e1; padding:2px 10px; border-radius:12px; font-size:0.75rem; font-weight:600; color:#64748b; cursor:pointer; transition:all 0.2s;">✏️ Modificar</button>
+                                <button onclick="downloadCard(this, '${m.month}')" style="margin-left:4px; background:#fff; border:1px solid #cbd5e1; padding:2px 10px; border-radius:12px; font-size:0.75rem; font-weight:600; color:#64748b; cursor:pointer; transition:all 0.2s;">📸 Foto</button>
+                            </div>
+                        </div>
+                        <div style="text-align:right">
+                            <div style="font-size:0.75rem; text-transform:uppercase; color:var(--txt-mute); font-weight:700">Utilidad Neta</div>
+                            <span style="color:#10b981; font-size:1.6rem; font-weight:900; letter-spacing:-0.03em">${fmt.format(m.profit)}</span>
+                        </div>
+                    </div>
+
+                    <div class="grid">
+                        <div>
+                            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; background:linear-gradient(90deg, #f8fafc, white); border:1px solid #e2e8f0; padding:12px 18px; border-radius:16px; font-weight:800; color:#1e293b; font-size:0.95rem">
+                                <span style="display:flex; align-items:center; gap:8px">🍰 ${m.total_desserts || 0} Postres</span>
+                                <span style="color:#e2e8f0; font-weight:300">|</span>
+                                <span style="display:flex; align-items:center; gap:8px">🍬 ${m.total_brigs || 0} Brigs</span>
+                            </div>
+
+                            <div style="display:flex; flex-direction:column; gap:4px">
+                                <div class="fin-item" style="cursor:pointer" onclick="showRevenueDetails('${m.month}', event)" title="Click para ver detalle mensual"><span class="fin-label" style="text-decoration:underline; text-decoration-style:dashed; text-underline-offset:4px">Ventas (Ingresos)</span><span class="fin-val"><span class="hist-text-${m.month}">${fmt.format(m.revenue)}</span><input type="number" class="hist-g-input-${m.month}" data-key="revenue" value="${m.revenue}" style="display:none; width:80px; text-align:right; border-radius:4px; border:1px solid #c4b5fd; font-weight:700"></span></div>
+                                <div class="fin-item" style="cursor:pointer" onclick="showProductDetails('${m.month}', event)" title="Click para ver detalle mensual por productos"><span class="fin-label" style="text-decoration:underline; text-decoration-style:dashed; text-underline-offset:4px">Costo Materia Prima</span><span class="fin-val neg"><span class="hist-text-${m.month}">-${fmt.format(m.cogs)}</span><input type="number" class="hist-g-input-${m.month}" data-key="cogs" value="${m.cogs}" style="display:none; width:80px; text-align:right; border-radius:4px; border:1px solid #c4b5fd; font-weight:700"></span></div>
+                                <div class="fin-item"><span class="fin-label">Mano de Obra (MOD)</span><span class="fin-val neg"><span class="hist-text-${m.month}">-${fmt.format(m.mod || 0)}</span><input type="number" class="hist-g-input-${m.month}" data-key="mod" value="${m.mod||0}" style="display:none; width:80px; text-align:right; border-radius:4px; border:1px solid #c4b5fd; font-weight:700"></span></div>
+                                <div class="fin-item"><span class="fin-label">Gastos</span><span class="fin-val neg"><span class="hist-text-${m.month}">-${fmt.format(m.expenses)}</span><input type="number" class="hist-g-input-${m.month}" data-key="expenses" value="${m.expenses}" style="display:none; width:80px; text-align:right; border-radius:4px; border:1px solid #c4b5fd; font-weight:700"></span></div>
+                                <div class="fin-item"><span class="fin-label">Ajustes</span><span class="fin-val neg"><span class="hist-text-${m.month}">-${fmt.format(m.losses)}</span><input type="number" class="hist-g-input-${m.month}" data-key="losses" value="${m.losses}" style="display:none; width:80px; text-align:right; border-radius:4px; border:1px solid #c4b5fd; font-weight:700"></span></div>
+                                
+                                <div style="margin-top:12px; padding:16px; background:#f5f3ff; border-radius:18px; border:1px solid #ddd6fe">
+                                    <div class="flex" style="margin-bottom:8px">
+                                        <span style="font-weight:700; color:#5b21b6; font-size:0.85rem; text-transform:uppercase">Comisiones de Venta</span>
+                                        <span style="font-weight:900; color:#4c1d95"><span class="hist-text-${m.month}">${fmt.format(m.commissions || m.commission_detail?.reduce((a,b)=>a+b.total_comm, 0) || 0)}</span><input type="number" class="hist-g-input-${m.month}" data-key="commissions" value="${m.commissions || m.commission_detail?.reduce((a,b)=>a+b.total_comm, 0) || 0}" style="display:none; width:80px; text-align:right; border-radius:4px; border:1px solid #c4b5fd; font-weight:700"></span>
+                                    </div>
+                                    <div style="font-size:0.75rem; color:#6d28d9; line-height:1.6">
+                                        ${(m.commission_detail || []).sort((a,b)=>b.total_comm - a.total_comm).map(c => `
+                                            <div style="display:flex; justify-content:space-between; opacity:0.8; margin-bottom:4px; align-items:center">
+                                                <span>
+                                                    • ${c.seller_name} 
+                                                    (<span class="hist-text-${m.month}">${c.desserts}</span><input type="number" class="hist-input-${m.month}" data-seller="${c.seller_name}" value="${c.desserts}" style="display:none; width:50px; font-size:0.75rem; font-weight:700; padding:2px 4px; border:1px solid #c4b5fd; border-radius:6px; color:#4c1d95; text-align:center; outline:none"> 
+                                                    Postres / ${c.brigs} Brigs)
+                                                </span>
+                                                <strong><span class="hist-text-${m.month}">${fmt.format(c.total_comm)}</span><input type="number" class="hist-c-input-${m.month}" data-seller="${c.seller_name}" value="${c.total_comm}" style="display:none; width:80px; font-size:0.75rem; font-weight:700; padding:2px 4px; border:1px solid #c4b5fd; border-radius:6px; color:#4c1d95; text-align:right; outline:none"></strong>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+
+                                <div class="fin-item" style="border-top:1px dashed #e2e8f0; padding-top:12px; margin-top:4px"><span class="fin-label" style="color:#0ea5e9; font-weight:700">📦 Inventario (Cierre)</span><span class="fin-val" style="color:#0ea5e9"><span class="hist-text-${m.month}">${fmt.format(m.inventory || 0)}</span><input type="number" class="hist-g-input-${m.month}" data-key="inventory" value="${m.inventory || 0}" style="display:none; width:80px; text-align:right; border-radius:4px; border:1px solid #7dd3fc; font-weight:700; color:#0369a1"></span></div>
+                            </div>
+                        </div>
+
+                        <div style="background:#f8fafc; padding:24px; border-radius:24px; border:1px solid #f1f5f9; display:flex; flex-direction:column; gap:16px">
+                            <div class="flex" style="align-items:baseline">
+                                <h4 style="margin:0; font-size:0.8rem; text-transform:uppercase; color:var(--txt-mute); letter-spacing:0.05em">Participación de Socios</h4>
+                                <span style="font-size:0.7rem; color:#94a3b8; font-weight:600">Histórico Total: ${Object.values(m.cumulative_desserts || {}).reduce((a,b)=>a+b, 0)} 🍰</span>
+                            </div>
+                            
+                            ${m.partners.sort((a,b)=>b.share_amount - a.share_amount).map(p => `
+                                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:16px; padding:16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); display:flex; flex-direction:column; gap:12px; cursor:pointer; transition:transform 0.2s, box-shadow 0.2s" onclick="showSellerHistoryChart('${p.name}', '${m.month}', event)" title="Ver historial de ventas (Últimos 24 meses)" onmouseover="this.style.transform='scale(1.02)'; this.style.boxShadow='0 10px 15px -3px rgba(0,0,0,0.1)';" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 4px 6px -1px rgba(0,0,0,0.02)';">
+                                    <div style="display:flex; justify-content:space-between; align-items:flex-start">
+                                        <div>
+                                            <div style="font-weight:800; font-size:1.05rem; color:#1e293b; letter-spacing:-0.01em; display:inline-flex; align-items:center; gap:4px">${p.name} <span style="font-size:0.8rem; filter:grayscale(1); opacity:0.6;">📊</span></div>
+                                            <div style="font-size:0.75rem; color:#64748b; margin-top:2px; font-weight:600; display:flex; align-items:center; gap:4px">
+                                                🍰 ${m.cumulative_desserts ? (m.cumulative_desserts[p.id] || 0) : '?'} postres históricos
+                                            </div>
+                                        </div>
+                                        <div style="text-align:right">
+                                            <div style="font-size:0.65rem; text-transform:uppercase; color:#94a3b8; font-weight:800; letter-spacing:0.05em; margin-bottom:2px">Utilidad a Recibir</div>
+                                            <div style="font-weight:900; font-size:1.2rem; color:#10b981; letter-spacing:-0.03em; line-height:1">${fmt.format(p.share_amount)}</div>
+                                        </div>
+                                    </div>
+                                    <div style="display:flex; align-items:center; gap:12px">
+                                        <div style="flex:1; height:8px; background:#f1f5f9; border-radius:8px; overflow:hidden">
+                                            <div style="width:${p.share_perc}%; height:100%; background:linear-gradient(90deg, #8b5cf6, #c084fc); border-radius:8px; transition:width 0.5s ease"></div>
+                                        </div>
+                                        <strong style="color:#7c3aed; font-size:0.85rem; min-width:45px; text-align:right">${p.share_perc}%</strong>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+                cont.appendChild(div);
+            });
+
+            document.getElementById('stat-rev').innerText = `Ventas: ${fmt.format(totalR)}`;
+            document.getElementById('stat-prof').innerText = `Utilidad: ${fmt.format(totalP)}`;
+        }
+
+        document.getElementById('cfg-btn').onclick = () => {
+            if (!SELLERS.length) return alert('Cargando vendedores...');
+            const list = document.getElementById('cfg-sellers');
+            list.innerHTML = '';
+            const pIds = (DATA?.settings?.partner_seller_ids || []).map(Number);
+            
+            SELLERS.forEach(s => {
+                const isP = pIds.includes(Number(s.id));
+                const d = document.createElement('div');
+                d.style = "padding:10px; border-bottom:1px solid #eee; display:flex; gap:10px; align-items:center";
+                d.innerHTML = `
+                    <input type="checkbox" class="is-p" data-id="${s.id}" ${isP ? 'checked' : ''}>
+                    <span style="flex:1; font-weight:500">${s.name}</span>
+                    <select class="lead-s" data-id="${s.id}" style="width:130px; padding:5px; border-radius:8px; border:1px solid #ddd">
+                        <option value="">(Sin Líder)</option>
+                        ${SELLERS.map(p => {
+                            if (Number(p.id) === Number(s.id)) return '';
+                            return `<option value="${p.id}" ${Number(s.parent_id) === Number(p.id) ? 'selected' : ''}>${p.name}</option>`;
+                        }).join('')}
+                    </select>
+                `;
+                list.appendChild(d);
+            });
+
+            // Founder Setup
+            const fList = document.getElementById('founder-config-list');
+            const foundersObj = DATA.settings.partner_founders || {};
+            fList.innerHTML = SELLERS.filter(s => pIds.includes(Number(s.id))).map(s => {
+                const fPerc = foundersObj[s.id] || 0;
+                return `
+                    <div style="display:flex; align-items:center; gap:10px; font-size:0.9rem">
+                        <span style="flex:1">${s.name}:</span>
+                        <input type="number" class="f-perc-input" data-id="${s.id}" value="${fPerc}" style="width:55px; padding:6px; border-radius:8px; border:1px solid #ddd; text-align:center;">
+                        <span style="font-weight:600; color:#64748b">%</span>
+                    </div>
+                `;
+            }).join('');
+            if (!fList.innerHTML) fList.innerHTML = '<p style="font-size:0.8rem; color:#94a3b8; text-align:center; margin:0">Selecciona socios primero</p>';
+
+            // Model Setup
+            const modelSel = document.getElementById('dist-model');
+            modelSel.value = DATA.settings.partner_distribution_model || 'pro';
+            const updateDesc = () => {
+                const desc = document.getElementById('model-desc');
+                if (modelSel.value === 'pro') desc.innerText = 'Precia el historial y el presente (4 meses EMA). Evita fluctuaciones fuertes si un mes es malo.';
+                else desc.innerText = 'Reparte únicamente por el volumen total acumulado de postres vendidos históricamente por cada equipo.';
+            };
+            modelSel.onchange = updateDesc;
+            updateDesc();
+
+            document.getElementById('modal-cfg').style.display = 'flex';
+        };
+
+        document.getElementById('save-cfg').onclick = async () => {
+            const btn = document.getElementById('save-cfg'); 
+            btn.disabled = true; 
+            btn.innerText = 'Guardando cambios...';
+            
+            try {
+                const pIds = Array.from(document.querySelectorAll('.is-p:checked')).map(c => Number(c.dataset.id));
+                const fFounders = {};
+                document.querySelectorAll('.f-perc-input').forEach(inp => {
+                    const val = Number(inp.value) || 0;
+                    if (val > 0) fFounders[inp.dataset.id] = val;
+                });
+                
+                const dModel = document.getElementById('dist-model').value;
+                
+                // 1. Save All Settings
+                const resSettings = await fetch('/api/store-settings', { 
+                    method: 'POST', 
+                    headers: {'Content-Type':'application/json'}, 
+                    body: JSON.stringify({ 
+                        partner_seller_ids: JSON.stringify(pIds),
+                        partner_founders: JSON.stringify(fFounders),
+                        partner_distribution_model: dModel
+                    }) 
+                });
+                if (!resSettings.ok) throw new Error('Error guardando configuración');
+
+                // 2. Save Hierarchy changes
+                const selects = document.querySelectorAll('.lead-s');
+                const updatePromises = Array.from(selects).map(sel => {
+                    const pId = sel.value || null;
+                    return fetch('/api/sellers', { 
+                        method: 'PATCH', 
+                        headers: {'Content-Type':'application/json','X-Actor-Name':'admin'}, 
+                        body: JSON.stringify({ id: sel.dataset.id, parent_id: pId }) 
+                    });
+                });
+
+                const results = await Promise.all(updatePromises);
+                const errors = [];
+                for (let i = 0; i < results.length; i++) {
+                    const r = results[i];
+                    if (!r.ok && r.status !== 400) {
+                        const errData = await r.json().catch(() => ({}));
+                        errors.push(errData.error || `Error ${r.status}`);
+                    }
+                }
+                
+                if (errors.length > 0) {
+                    alert('Atención: Se guardaron los socios, pero ' + errors.length + ' líderes fallaron al actualizarse. Errores: ' + errors.slice(0,3).join(', '));
+                    btn.disabled = false;
+                    btn.innerText = 'Reintentar Guardar';
+                } else {
+                    location.href = '?auth=admin&force_sync=1'; 
+                }
+            } catch (e) {
+                alert('Error crítico: ' + e.message);
+                console.error(e);
+                btn.disabled = false;
+                btn.innerText = 'Guardar';
+            }
+        };
+
+        window.downloadCard = (btn, month) => {
+            const card = btn.closest('.box');
+            
+            // Ocultar botones y elementos de edición temporalmente
+            const controls = card.querySelectorAll('button');
+            controls.forEach(b => b.style.opacity = '0');
+            
+            const originalShadow = card.style.boxShadow;
+            card.style.boxShadow = 'none';
+
+            html2canvas(card, {
+                scale: 2,
+                backgroundColor: '#f8fafc',
+                logging: false,
+                useCORS: true
+            }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = `Cierre_${month}_SweetLab.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+                
+                // Restaurar
+                controls.forEach(b => b.style.opacity = '1');
+                card.style.boxShadow = originalShadow;
+            });
+        };
+
+        function closeMsg() { document.getElementById('modal-cfg').style.display = 'none'; }
+        
+        window.toggleEditHistoric = (month, btn) => {
+            const isEditing = btn.innerText.includes('Guardar');
+            
+            if (!isEditing) {
+                // Switch to edit mode
+                document.querySelectorAll(`.hist-text-${month}`).forEach(el => el.style.display = 'none');
+                document.querySelectorAll(`.hist-input-${month}`).forEach(el => el.style.display = 'inline-block');
+                document.querySelectorAll(`.hist-g-input-${month}`).forEach(el => el.style.display = 'inline-block');
+                document.querySelectorAll(`.hist-c-input-${month}`).forEach(el => el.style.display = 'inline-block');
+                btn.innerHTML = '💾 Guardar Historico';
+                btn.style.background = '#8b5cf6';
+                btn.style.color = '#fff';
+                btn.style.borderColor = '#8b5cf6';
+            } else {
+                // Save mode
+                const inputs = document.querySelectorAll(`.hist-input-${month}`);
+                const gInputs = document.querySelectorAll(`.hist-g-input-${month}`);
+                const cInputs = document.querySelectorAll(`.hist-c-input-${month}`);
+                const payload = {};
+                
+                // Override with detail inputs (Desserts)
+                inputs.forEach(inp => {
+                    const val = Number(inp.value) || 0;
+                    const sName = inp.getAttribute('data-seller').toLowerCase();
+                    if (sName.includes('marcela')) payload.marcela = val;
+                    else if (sName.includes('janeth')) payload.janeth = val;
+                    else if (sName.includes('aleja')) payload.aleja = val;
+                });
+                
+                // Override with individual commission inputs (Cash)
+                cInputs.forEach(inp => {
+                    const val = Number(inp.value);
+                    if (!isNaN(val)) {
+                        const sName = inp.getAttribute('data-seller').toLowerCase();
+                        if (sName.includes('marcela')) payload.comm_marcela = val;
+                        else if (sName.includes('janeth')) payload.comm_janeth = val;
+                        else if (sName.includes('aleja')) payload.comm_aleja = val;
+                    }
+                });
+
+                // Override with global overrides
+                gInputs.forEach(inp => {
+                    const val = Number(inp.value);
+                    const k = inp.getAttribute('data-key');
+                    if (!isNaN(val)) payload[k] = val;
+                });
+
+                const keyName = `historic_${month.replace('-', '_')}`;
+                
+                document.getElementById('status-msg').innerHTML = `<div style="color:#8b5cf6"><h3>Guardando y Recalculando...</h3><p>Actualizando modelo matemático.</p></div>`;
+                document.getElementById('status-msg').style.display = 'flex';
+                document.getElementById('report-content').style.display = 'none';
+
+                fetch('/api/store-settings', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ [keyName]: JSON.stringify(payload) })
+                }).then(res => {
+                    if (!res.ok) throw new Error('Error al guardar datos históricos');
+                    location.href = '?auth=admin&force_sync=1';
+                }).catch(e => {
+                    alert(e.message);
+                    location.reload();
+                });
+            }
+        };
+
+        window.showRevenueDetails = (month, ev) => {
+            if (ev.target.tagName.toLowerCase() === 'input' || ev.target.tagName.toLowerCase() === 'button') return;
+            const details = window.revenueDetailsMap[month] || [];
+            if (!details.length) {
+                alert("No hay desglose por días en la base de datos para este mes histórico.");
+                return;
+            }
+            
+            const html = details.map(d => {
+                let daysHtml = '';
+                if (d.days && d.days.length) {
+                    daysHtml = '<div style="margin-top:8px; padding-left:12px; border-left:2px solid #e2e8f0; display:flex; flex-direction:column; gap:4px">';
+                    d.days.forEach(day => {
+                        daysHtml += `<a href="/index.html?seller=${encodeURIComponent(d.seller_name)}&date=${day.date}" target="_blank" style="text-decoration:none; display:flex; justify-content:space-between; font-size:0.8rem; color:#4f46e5; font-weight:600; padding:4px 6px; border-radius:6px; transition:background 0.2s" onmouseover="this.style.background='#e0e7ff'" onmouseout="this.style.background='transparent'"><span>🔗 🗓 ${day.date}</span><span style="color:#64748b">${fmt.format(day.amount)}</span></a>`;
+                    });
+                    daysHtml += '</div>';
+                }
+                
+                return `<div style="margin-bottom:12px; background:#f8fafc; padding:12px; border-radius:12px; border:1px solid #f1f5f9">
+                    <div style="display:flex; justify-content:space-between; border-bottom:1px solid #e2e8f0; padding-bottom:6px; margin-bottom:4px">
+                        <span style="font-weight:700">${d.seller_name}</span>
+                        <strong style="color:#10b981">${fmt.format(d.amount)}</strong>
+                    </div>
+                    ${daysHtml}
+                </div>`;
+            }).join('');
+            
+            const pop = document.createElement('div');
+            pop.style.position = 'fixed'; pop.style.top = '0'; pop.style.left = '0'; pop.style.width = '100vw'; pop.style.height = '100vh';
+            pop.style.background = 'rgba(0,0,0,0.6)'; pop.style.display = 'flex'; pop.style.alignItems = 'center'; pop.style.justifyContent = 'center'; pop.style.zIndex = '9999';
+            pop.style.backdropFilter = 'blur(4px)';
+            pop.innerHTML = `
+                <div style="background:#fff; padding:24px; border-radius:24px; min-width:320px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04); transform: translateY(-20px)">
+                    <h3 style="margin:0 0 16px 0; color:#0f172a; border-bottom:1px solid #e2e8f0; padding-bottom:12px; font-size:1.1rem; display:flex; align-items:center; gap:8px">
+                        💵 Detalle de Ventas
+                    </h3>
+                    <div style="font-size:0.8rem; font-weight:600; color:#64748b; margin-bottom:16px; text-transform:uppercase; letter-spacing:0.05em">${month}</div>
+                    <div style="max-height:50vh; overflow-y:auto; font-size:0.95rem; color:#334155; display:flex; flex-direction:column; gap:8px">
+                        ${html}
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-top:16px; padding-top:12px; border-top:2px dashed #cbd5e1; font-weight:900; font-size:1.1rem; color:#1e293b">
+                        <span>TOTAL</span>
+                        <span style="color:#10b981">${fmt.format(details.reduce((a,b)=>a+b.amount,0))}</span>
+                    </div>
+                    <button onclick="this.closest('.popover-wrap').remove()" style="margin-top:24px; width:100%; padding:12px; border-radius:12px; border:none; background:#f1f5f9; cursor:pointer; font-weight:800; color:#475569; font-size:1rem; transition:background 0.2s">Cerrar</button>
+                </div>
+            `;
+            pop.className = 'popover-wrap';
+            document.body.appendChild(pop);
+        };
+
+        window.showProductDetails = (month, ev) => {
+            if (ev.target.tagName.toLowerCase() === 'input' || ev.target.tagName.toLowerCase() === 'button') return;
+            
+            const details = window.productDetailsMap[month] || [];
+            if (!details.length) {
+                alert("No hay desglose por productos disponible en la base de datos para este mes.");
+                return;
+            }
+            
+            const html = details.map(d => {
+                let prodsHtml = '';
+                if (d.products && d.products.length) {
+                    prodsHtml = '<table style="width:100%; border-collapse:collapse; margin-top:12px; font-size:0.8rem">';
+                    prodsHtml += '<tr style="border-bottom:1px solid #cbd5e1; color:#64748b"><th style="text-align:left; padding-bottom:4px">Postre</th><th style="text-align:right; padding-bottom:4px">Cant.</th><th style="text-align:right; padding-bottom:4px">Ingresos</th><th style="text-align:right; padding-bottom:4px">Costo</th><th style="text-align:right; padding-bottom:4px">Margen</th></tr>';
+                    d.products.forEach(p => {
+                        let margin = p.revenue > 0 ? Math.round(((p.revenue - p.cogs) / p.revenue) * 100) : 0;
+                        let marginColor = margin >= 50 ? '#10b981' : margin >= 30 ? '#f59e0b' : '#ef4444';
+                        prodsHtml += `<tr style="border-bottom:1px solid #f1f5f9; color:#475569">
+                            <td style="padding:6px 0">${p.name}</td>
+                            <td style="text-align:right; padding:6px 0">${p.quantity || '-'}</td>
+                            <td style="text-align:right; padding:6px 0">${fmt.format(p.revenue)}</td>
+                            <td style="text-align:right; padding:6px 0; color:#ef4444">-${fmt.format(p.cogs)}</td>
+                            <td style="text-align:right; padding:6px 0; color:${marginColor}; font-weight:600">${margin}%</td>
+                        </tr>`;
+                    });
+                    prodsHtml += '</table>';
+                }
+                
+                return `<div style="margin-bottom:16px; background:#f8fafc; padding:16px; border-radius:12px; border:1px solid #f1f5f9">
+                    <div style="display:flex; justify-content:space-between; border-bottom:2px solid #e2e8f0; padding-bottom:8px; margin-bottom:4px; font-size:1.1rem">
+                        <span style="font-weight:800; color:#334155">${d.seller_name}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:#64748b; margin-top:8px; padding:0 4px">
+                        <span>Ingresos Totales:</span>
+                        <strong style="color:#10b981">${fmt.format(d.total_revenue)}</strong>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:#64748b; margin-top:2px; padding:0 4px">
+                        <span>Costos Totales:</span>
+                        <strong style="color:#ef4444">${fmt.format(d.total_cogs)}</strong>
+                    </div>
+                    ${prodsHtml}
+                </div>`;
+            }).join('');
+            
+            const pop = document.createElement('div');
+            pop.style.position = 'fixed'; pop.style.top = '0'; pop.style.left = '0'; pop.style.width = '100vw'; pop.style.height = '100vh';
+            pop.style.background = 'rgba(0,0,0,0.6)'; pop.style.display = 'flex'; pop.style.alignItems = 'center'; pop.style.justifyContent = 'center'; pop.style.zIndex = '9999';
+            pop.style.backdropFilter = 'blur(4px)';
+            pop.innerHTML = `
+                <div style="background:#fff; padding:24px; border-radius:24px; min-width:380px; max-width:500px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04); transform: translateY(-20px)">
+                    <h3 style="margin:0 0 16px 0; color:#0f172a; border-bottom:1px solid #e2e8f0; padding-bottom:12px; font-size:1.2rem; display:flex; align-items:center; gap:8px">
+                        📊 Desempeño Operativo
+                    </h3>
+                    <div style="font-size:0.8rem; font-weight:600; color:#64748b; margin-bottom:16px; text-transform:uppercase; letter-spacing:0.05em">${month}</div>
+                    <div style="max-height:60vh; overflow-y:auto; color:#334155; display:flex; flex-direction:column; gap:8px; padding-right:8px">
+                        ${html}
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-top:20px; padding-top:16px; border-top:2px dashed #cbd5e1; font-weight:900; font-size:1.2rem; color:#1e293b">
+                        <div style="display:flex; flex-direction:column; gap:4px; flex:1">
+                            <div style="display:flex; justify-content:space-between; font-size:0.9rem; color:#64748b">
+                                <span>Sumatoria Ingresos</span>
+                                <span style="color:#10b981">${fmt.format(details.reduce((a,b)=>a+b.total_revenue,0))}</span>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; font-size:0.9rem; color:#64748b">
+                                <span>Sumatoria Costos</span>
+                                <span style="color:#ef4444">-${fmt.format(details.reduce((a,b)=>a+b.total_cogs,0))}</span>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; margin-top:8px; border-top:1px solid #e2e8f0; padding-top:8px">
+                                <span>SALDO NETO</span>
+                                <span style="color:#4f46e5">${fmt.format(details.reduce((a,b)=>a+b.total_revenue - b.total_cogs,0))}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <button onclick="this.closest('.popover-wrap').remove()" style="margin-top:24px; width:100%; padding:14px; border-radius:12px; border:none; background:#f1f5f9; cursor:pointer; font-weight:800; color:#475569; font-size:1.05rem; transition:background 0.2s">Cerrar Dashboard</button>
+                </div>
+            `;
+            pop.className = 'popover-wrap';
+            document.body.appendChild(pop);
+        };
+
+        start();
+    </script>
+</body>
+</html>

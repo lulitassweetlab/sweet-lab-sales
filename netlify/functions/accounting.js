@@ -135,7 +135,7 @@ export async function handler(event) {
 				const description = (data.description || data.desc || '').toString();
 				const amountCents = Number(data.amount_cents ?? data.value_cents ?? data.amount ?? 0) | 0;
 				const actorName = (data.actor_name || data._actor_name || '').toString();
-				if (!kind || (kind !== 'gasto' && kind !== 'ingreso')) return json({ error: 'kind inválido' }, 400);
+				if (!kind || (kind !== 'gasto' && kind !== 'ingreso' && kind !== 'perdida' && kind !== 'provision')) return json({ error: 'kind inválido' }, 400);
 				if (!entryDate) return json({ error: 'entry_date requerido' }, 400);
 				if (!description) return json({ error: 'description requerido' }, 400);
 				if (!Number.isFinite(amountCents) || amountCents <= 0) return json({ error: 'amount_cents inválido' }, 400);
@@ -151,7 +151,7 @@ export async function handler(event) {
 					
 					// Build update parts dynamically
 					const updates = {};
-					if (data.kind && (data.kind === 'gasto' || data.kind === 'ingreso')) updates.kind = data.kind;
+					if (data.kind && (data.kind === 'gasto' || data.kind === 'ingreso' || data.kind === 'perdida' || data.kind === 'provision')) updates.kind = data.kind;
 					if (data.entry_date) updates.entry_date = String(data.entry_date).slice(0,10);
 					if (typeof data.description === 'string') updates.description = data.description;
 					if (data.amount_cents != null) {

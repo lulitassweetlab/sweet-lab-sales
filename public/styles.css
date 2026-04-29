@@ -5428,6 +5428,24 @@ button.secondary.press-btn:active {
 	gap: 6px;
 }
 
+#inventory-toolbar-actions {
+	display: flex;
+	gap: 12px;
+}
+.input-cell {
+	border: 1px solid transparent;
+	background: transparent;
+	padding: 4px 6px;
+	border-radius: 4px;
+	transition: all 0.2s;
+	font-family: inherit;
+	color: inherit;
+}
+.input-cell:hover, .input-cell:focus {
+	border-color: var(--border);
+	background: var(--card);
+}
+
 .archive-actions {
 	display: flex;
 	gap: 8px;

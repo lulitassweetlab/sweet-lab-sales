@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 47; // 47: Final sweep for Nutella historical prices and legacy migration cleanup
+const SCHEMA_VERSION = 52; // 52: Extras moved to individual recipes
 
 export async function ensureSchema() {
 	if (schemaEnsured) return;
@@ -11,14 +11,15 @@ export async function ensureSchema() {
 
 	schemaCheckPromise = (async () => {
 		try {
-			// 1) FAST PATH: Version Check
+			let meta = [];
 			try {
-				const meta = await sql`SELECT version FROM schema_meta LIMIT 1`;
+				meta = await sql`SELECT version FROM schema_meta LIMIT 1`;
 				if (meta.length > 0 && Number(meta[0].version) >= SCHEMA_VERSION) {
 					schemaEnsured = true;
 					return;
 				}
-			} catch (err) { /* schema_meta may not exist, proceed */ }
+			} catch (err) { /* proceed */ }
+			if (!meta.length) meta = [{ version: 0 }];
 
 			// 2) SLOW PATH: Full Migration
 			await sql`
@@ -268,6 +269,68 @@ export async function ensureSchema() {
 			await sql`CREATE INDEX IF NOT EXISTS idx_crm_activities_sale ON crm_activities(related_sale_id)`;
 			await sql`CREATE INDEX IF NOT EXISTS idx_crm_client_sales_client ON crm_client_sales(client_id)`;
 
+			// 40: Inventory Master and Movements
+			await sql`
+				CREATE TABLE IF NOT EXISTS inventory_items (
+					id SERIAL PRIMARY KEY,
+					ingredient TEXT UNIQUE NOT NULL,
+					unit TEXT NOT NULL DEFAULT 'g',
+					category VARCHAR(20) DEFAULT 'ingrediente',
+					price INTEGER DEFAULT 0,
+					pack_size INTEGER DEFAULT 0,
+					updated_at TIMESTAMPTZ DEFAULT now()
+				)
+			`;
+			await sql`
+				CREATE TABLE IF NOT EXISTS inventory_movements (
+					id SERIAL PRIMARY KEY,
+					ingredient TEXT NOT NULL,
+					kind TEXT NOT NULL, -- ingreso, ajuste, produccion
+					qty NUMERIC NOT NULL,
+					note TEXT,
+					actor_name TEXT,
+					metadata JSONB DEFAULT '{}'::jsonb,
+					created_at TIMESTAMPTZ DEFAULT now()
+				)
+			`;
+
+			// 41: Recipes System
+			await sql`
+				CREATE TABLE IF NOT EXISTS dessert_recipes (
+					id SERIAL PRIMARY KEY,
+					dessert TEXT NOT NULL,
+					step_name TEXT,
+					position INTEGER DEFAULT 0,
+					created_at TIMESTAMPTZ DEFAULT now()
+				)
+			`;
+			await sql`
+				CREATE TABLE IF NOT EXISTS dessert_recipe_items (
+					id SERIAL PRIMARY KEY,
+					recipe_id INTEGER REFERENCES dessert_recipes(id) ON DELETE CASCADE,
+					ingredient TEXT NOT NULL,
+					unit TEXT NOT NULL DEFAULT 'g',
+					qty_per_unit NUMERIC NOT NULL DEFAULT 0,
+					price INTEGER DEFAULT 0,
+					pack_size INTEGER DEFAULT 0,
+					adjustment NUMERIC DEFAULT 0,
+					position INTEGER DEFAULT 0
+				)
+			`;
+			await sql`
+				CREATE TABLE IF NOT EXISTS extras_items (
+					id SERIAL PRIMARY KEY,
+					ingredient TEXT NOT NULL,
+					unit TEXT NOT NULL DEFAULT 'g',
+					qty_per_unit NUMERIC NOT NULL DEFAULT 0,
+					price INTEGER DEFAULT 0,
+					pack_size INTEGER DEFAULT 0,
+					position INTEGER DEFAULT 0
+				)
+			`;
+			await sql`CREATE TABLE IF NOT EXISTS dessert_order (dessert TEXT PRIMARY KEY, position INTEGER)`;
+
+
 
 
 			// Seed default desserts if empty
@@ -341,6 +404,25 @@ export async function ensureSchema() {
 				await sql`ALTER TABLE crm_stages ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true`;
 				await sql`ALTER TABLE clients ADD COLUMN IF NOT EXISTS last_dashboard_check TIMESTAMPTZ`;
 				await sql`ALTER TABLE crm_tags ADD COLUMN IF NOT EXISTS display_order INTEGER DEFAULT 0`;
+				if (Number(meta[0].version) < 48) {
+					console.log('Migrating to v48: parent_id...');
+					await sql`ALTER TABLE sellers ADD COLUMN IF NOT EXISTS parent_id INTEGER`;
+					await sql`UPDATE schema_meta SET version = 48`;
+				}
+
+				if (Number(meta[0].version) < 49) {
+					console.log('Migrating to v49: financial_snapshots...');
+					await sql`
+						CREATE TABLE IF NOT EXISTS financial_snapshots (
+							month TEXT PRIMARY KEY,
+							data JSONB NOT NULL,
+							calculated_at TIMESTAMPTZ DEFAULT now()
+						)
+					`;
+					await sql`UPDATE schema_meta SET version = 49`;
+				}
+
+				// Dynamic columns (keep them fast)
 				await sql`ALTER TABLE sellers ADD COLUMN IF NOT EXISTS whatsapp TEXT`;
 				await sql`ALTER TABLE sellers ADD COLUMN IF NOT EXISTS game_enabled BOOLEAN DEFAULT TRUE`;
 
@@ -422,7 +504,101 @@ export async function ensureSchema() {
 				}
 			} catch (err) { console.error('Migration 47 error:', err); }
 
-			await sql`UPDATE schema_meta SET version = ${SCHEMA_VERSION}, updated_at = now()`;
+				if (Number(meta[0].version) < 50) {
+					console.log('Migrating to v50: Unified Inventory schema...');
+					
+					// 1. Ensure inventory_items columns
+					await sql`ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS category VARCHAR(20) DEFAULT 'ingrediente'`;
+					await sql`ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS price INTEGER DEFAULT 0`;
+					await sql`ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS pack_size INTEGER DEFAULT 0`;
+					await sql`ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now()`;
+
+					// 2. Populate from recipes (Max price found)
+					await sql`
+						WITH recipe_prices AS (
+							SELECT lower(trim(ingredient)) as ing, MAX(price) as max_p, MAX(pack_size) as max_pk
+							FROM dessert_recipe_items
+							GROUP BY lower(trim(ingredient))
+						)
+						UPDATE inventory_items ii
+						SET price = COALESCE(rp.max_p, ii.price),
+							pack_size = COALESCE(rp.max_pk, ii.pack_size),
+							category = 'ingrediente'
+						FROM recipe_prices rp
+						WHERE lower(trim(ii.ingredient)) = rp.ing
+					`;
+
+					// 3. Populate from extras (Categorize as 'empaque' by default for extras, as they usually are)
+					await sql`
+						WITH extra_prices AS (
+							SELECT lower(trim(ingredient)) as ing, MAX(price) as max_p, MAX(pack_size) as max_pk
+							FROM extras_items
+							GROUP BY lower(trim(ingredient))
+						)
+						UPDATE inventory_items ii
+						SET price = COALESCE(ep.max_p, ii.price),
+							pack_size = COALESCE(ep.max_pk, ii.pack_size),
+							category = 'empaque'
+						FROM extra_prices ep
+						WHERE lower(trim(ii.ingredient)) = ep.ing
+					`;
+
+					// 4. Upsert any missing ingredients that are in recipes but not in inventory_items
+					await sql`
+						INSERT INTO inventory_items (ingredient, unit, price, pack_size, category)
+						SELECT DISTINCT ON (lower(trim(ingredient))) ingredient, unit, price, pack_size, 'ingrediente'
+						FROM dessert_recipe_items
+						ORDER BY lower(trim(ingredient))
+						ON CONFLICT (ingredient) DO NOTHING
+					`;
+					await sql`
+						INSERT INTO inventory_items (ingredient, unit, price, pack_size, category)
+						SELECT DISTINCT ON (lower(trim(ingredient))) ingredient, unit, price, pack_size, 'empaque'
+						FROM extras_items
+						ORDER BY lower(trim(ingredient))
+						ON CONFLICT (ingredient) DO NOTHING
+					`;
+
+					await sql`UPDATE schema_meta SET version = 50`;
+				}
+
+				if (Number(meta[0].version) < 51) {
+					console.log('Migrating to v51: Allowing decimals in inventory prices...');
+					await sql`ALTER TABLE inventory_items ALTER COLUMN price TYPE NUMERIC(12,2)`;
+					await sql`ALTER TABLE inventory_items ALTER COLUMN pack_size TYPE NUMERIC(12,2)`;
+					await sql`ALTER TABLE dessert_recipe_items ALTER COLUMN price TYPE NUMERIC(12,2)`;
+					await sql`ALTER TABLE dessert_recipe_items ALTER COLUMN pack_size TYPE NUMERIC(12,2)`;
+					await sql`ALTER TABLE extras_items ALTER COLUMN price TYPE NUMERIC(12,2)`;
+					await sql`ALTER TABLE extras_items ALTER COLUMN pack_size TYPE NUMERIC(12,2)`;
+					await sql`ALTER TABLE desserts ALTER COLUMN cost_price TYPE NUMERIC(12,2)`;
+					await sql`UPDATE schema_meta SET version = 51`;
+				}
+
+				if (Number(meta[0].version) < 52) {
+					console.log('Migrating to v52: Moving global extras to per-dessert recipes...');
+					const desserts = await sql`SELECT DISTINCT name FROM desserts`;
+					const extras = await sql`SELECT * FROM extras_items`;
+					
+					for (const d of desserts) {
+						if (!d.name) continue;
+						// Create 'Empaque' step for this dessert 
+						const [step] = await sql`
+							INSERT INTO dessert_recipes (dessert, step_name, position)
+							VALUES (${d.name}, 'Empaque', 99)
+							RETURNING id
+						`;
+						// Copy all extras to this step
+						for (const ex of extras) {
+							await sql`
+								INSERT INTO dessert_recipe_items (recipe_id, ingredient, unit, qty_per_unit, position)
+								VALUES (${step.id}, ${ex.ingredient}, ${ex.unit}, ${ex.qty_per_unit}, ${ex.position})
+							`;
+						}
+					}
+					await sql`UPDATE schema_meta SET version = 52`;
+				}
+
+				await sql`UPDATE schema_meta SET version = ${SCHEMA_VERSION}, updated_at = now()`;
 			schemaEnsured = true;
 		} catch (err) {
 			console.error('CRITICAL: ensureSchema failed', err);
@@ -599,9 +775,36 @@ export async function ensureInventoryItem(ingredient, unit = 'g') {
 	const [row] = await sql`
 		INSERT INTO inventory_items (ingredient, unit) VALUES (${name}, ${unit})
 		ON CONFLICT (ingredient) DO UPDATE SET unit = EXCLUDED.unit, updated_at = now()
-		RETURNING id, ingredient, unit
+		RETURNING id, ingredient, unit, category, price, pack_size
 	`;
 	return row;
+}
+
+export async function recalculateAllDessertCosts() {
+	await ensureSchema();
+	const materials = await sql`SELECT lower(trim(ingredient)) as ing, price FROM inventory_items`;
+	const prices = new Map();
+	materials.forEach(m => prices.set(m.ing, Number(m.price || 0)));
+
+	const dessertsList = await sql`SELECT id, name, short_code FROM desserts`;
+	const recipes = await sql`SELECT id, dessert FROM dessert_recipes`;
+	const items = await sql`SELECT recipe_id, lower(trim(ingredient)) as ing, qty_per_unit FROM dessert_recipe_items`;
+
+	for (const d of dessertsList) {
+		let total = 0;
+		const dSteps = recipes.filter(r => {
+			if (!r.dessert) return false;
+			return r.dessert.toLowerCase() === d.name.toLowerCase() || r.dessert.toLowerCase() === d.short_code.toLowerCase();
+		});
+		const stepIds = dSteps.map(s => s.id);
+		const dItems = items.filter(i => stepIds.includes(i.recipe_id));
+		for (const it of dItems) {
+			const p = prices.get(it.ing) || 0;
+			total += (p * Number(it.qty_per_unit || 0));
+		}
+		await sql`UPDATE desserts SET cost_price = ${Math.round(total)}, updated_at = now() WHERE id = ${d.id}`;
+	}
+	console.log('All dessert cost_prices recalculated.');
 }
 
 export { sql };

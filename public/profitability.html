@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rentabilidad de Postres - Lulitas</title>
+    <link rel="stylesheet" href="/styles.css?v=2025-09-17-1">
+    <style>
+        .profit-container {
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: var(--shadow);
+        }
+        .stat-card h4 {
+            margin: 0 0 10px 0;
+            color: var(--muted);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+        }
+        .stat-card .value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--primary);
+        }
+        .stat-card .sub-value {
+            font-size: 0.8rem;
+            color: var(--muted);
+            margin-top: 5px;
+        }
+        .profit-table-container {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        th {
+            background: var(--secondary);
+            font-weight: 600;
+            color: var(--text);
+        }
+        tr:hover {
+            background: rgba(var(--primary-rgb), 0.05);
+            cursor: pointer;
+        }
+        .margin-badge {
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 0.85rem;
+        }
+        .margin-good { background: #dcfce7; color: #166534; }
+        .margin-warn { background: #fef9c3; color: #854d0e; }
+        .margin-bad { background: #fee2e2; color: #991b1b; }
+
+        /* Modal / Sidebar for details */
+        .details-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            justify-content: flex-end;
+            z-index: 2000;
+        }
+        .details-panel {
+            width: 100%;
+            max-width: 500px;
+            background: var(--bg);
+            height: 100%;
+            padding: 30px;
+            overflow-y: auto;
+            box-shadow: -5px 0 15px rgba(0,0,0,0.1);
+        }
+        .details-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 10px;
+        }
+        .cost-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px dashed var(--border);
+            font-size: 0.95rem;
+        }
+        .cost-group-title {
+            margin: 20px 0 10px 0;
+            font-weight: bold;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--muted);
+        }
+        @media (max-width: 600px) {
+            .profit-container { padding: 10px; }
+            th, td { padding: 8px 10px; font-size: 0.85rem; }
+            .details-panel { max-width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-row">
+            <div class="header-left">
+                <img src="/logo.png" alt="Lulitas Logo" class="app-logo">
+                <h1>Análisis de Rentabilidad</h1>
+            </div>
+            <div class="header-actions">
+                <button onclick="window.location.href='/manage-desserts.html'" class="press-btn">Volver</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="profit-container">
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h4>Margen Promedio</h4>
+                <div id="avg-margin" class="value">--%</div>
+                <div class="sub-value">De todo el catálogo</div>
+            </div>
+            <div class="stat-card">
+                <h4>Más Rentable (%)</h4>
+                <div id="top-rel-dessert" class="value">--</div>
+                <div id="top-rel-value" class="sub-value">--%</div>
+            </div>
+            <div class="stat-card">
+                <h4>Más Rentable ($)</h4>
+                <div id="top-abs-dessert" class="value">--</div>
+                <div id="top-abs-value" class="sub-value">--</div>
+            </div>
+        </div>
+
+        <div class="profit-table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Postre</th>
+                        <th>Costo Mat.</th>
+                        <th>Costo Emp.</th>
+                        <th>Costo Total</th>
+                        <th>Precio Venta</th>
+                        <th>Rentabilidad</th>
+                    </tr>
+                </thead>
+                <tbody id="profit-tbody">
+                    <!-- Data will be inserted here -->
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <!-- Details Panel Overlay -->
+    <div id="details-overlay" class="details-overlay">
+        <div class="details-panel">
+            <div class="details-header">
+                <h2 id="detail-title">Detalle de Costos</h2>
+                <button class="close-btn" onclick="closeDetails()">✕</button>
+            </div>
+            <div id="detail-content">
+                <!-- Detailed costs breakdown -->
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        const fmtMoney = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
+        const fmtPct = new Intl.NumberFormat('es-CO', { style: 'percent', minimumFractionDigits: 1 });
+
+        let desserts = [];
+        let recipeData = {};
+        
+        async function init() {
+            try {
+                // Fetch data in parallel
+                const [dResponse, rResponse] = await Promise.all([
+                    fetch('/api/desserts'),
+                    fetch('/api/recipes?all_items=1&include_extras=1')
+                ]);
+
+                desserts = await dResponse.json();
+                recipeData = await rResponse.json();
+
+                renderProfitability();
+            } catch (err) {
+                console.error('Error initializing profitability dashboard:', err);
+                alert('No se pudieron cargar los datos de rentabilidad.');
+            }
+        }
+
+        function calculateCosts(dessertName) {
+            // Filter recipe items for this dessert
+            const items = recipeData.items.filter(it => it.dessert === dessertName) || [];
+            
+            let ingredientCost = 0;
+            let packagingCost = 0;
+
+            items.forEach(it => {
+                const cost = (Number(it.qty_per_unit || 0) + Number(it.adjustment || 0)) * Number(it.price || 0);
+                if ((it.step_name || '').toLowerCase() === 'empaque') {
+                    packagingCost += cost;
+                } else {
+                    ingredientCost += cost;
+                }
+            });
+
+            return { ingredientCost, packagingCost, totalCost: ingredientCost + packagingCost, items };
+        }
+
+        function renderProfitability() {
+            const tbody = document.getElementById('profit-tbody');
+            tbody.innerHTML = '';
+
+            let totalMargins = 0;
+            let count = 0;
+            let topRel = { name: '', value: -1 };
+            let topAbs = { name: '', value: -1 };
+
+            // Sort desserts by name
+            const activeDesserts = desserts.filter(d => d.is_active);
+            activeDesserts.forEach(d => {
+                const { ingredientCost, packagingCost, totalCost } = calculateCosts(d.name);
+                const salePrice = Number(d.sale_price || 0);
+                const marginAbs = salePrice - totalCost;
+                const marginRel = salePrice > 0 ? (marginAbs / salePrice) : 0;
+
+                totalMargins += marginRel;
+                count++;
+
+                if (marginRel > topRel.value) topRel = { name: d.name, value: marginRel };
+                if (marginAbs > topAbs.value) topAbs = { name: d.name, value: marginAbs };
+
+                const tr = document.createElement('tr');
+                tr.onclick = () => showDetails(d.name, ingredientCost, packagingCost, totalCost, salePrice);
+                
+                let badgeClass = 'margin-good';
+                if (marginRel < 0.3) badgeClass = 'margin-bad';
+                else if (marginRel < 0.45) badgeClass = 'margin-warn';
+
+                tr.innerHTML = `
+                    <td><strong>${d.name}</strong><br><small style="opacity:0.6">${d.short_code}</small></td>
+                    <td>${fmtMoney.format(ingredientCost)}</td>
+                    <td>${fmtMoney.format(packagingCost)}</td>
+                    <td>${fmtMoney.format(totalCost)}</td>
+                    <td>${fmtMoney.format(salePrice)}</td>
+                    <td><span class="margin-badge ${badgeClass}">${fmtPct.format(marginRel)}</span></td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // Update stats
+            if (count > 0) {
+                document.getElementById('avg-margin').textContent = fmtPct.format(totalMargins / count);
+                document.getElementById('top-rel-dessert').textContent = topRel.name;
+                document.getElementById('top-rel-value').textContent = fmtPct.format(topRel.value);
+                document.getElementById('top-abs-dessert').textContent = topAbs.name;
+                document.getElementById('top-abs-value').textContent = fmtMoney.format(topAbs.value);
+            }
+        }
+
+        function showDetails(name, ingCost, packCost, totalCost, salePrice) {
+            const overlay = document.getElementById('details-overlay');
+            const title = document.getElementById('detail-title');
+            const content = document.getElementById('detail-content');
+
+            title.textContent = name;
+            overlay.style.display = 'flex';
+
+            const { items } = calculateCosts(name);
+            const marginAbs = salePrice - totalCost;
+            const marginRel = salePrice > 0 ? (marginAbs / salePrice) : 0;
+
+            // Alphabetical Sort
+            const sortedItems = [...items].sort((a, b) => (a.ingredient || '').localeCompare(b.ingredient || '', 'es'));
+
+            let html = `
+                <div class="cost-group-title">🍎 Ingredientes (${fmtMoney.format(ingCost)})</div>
+            `;
+
+            sortedItems.filter(it => (it.step_name || '').toLowerCase() !== 'empaque').forEach(it => {
+                const itemQty = Number(it.qty_per_unit || 0) + Number(it.adjustment || 0);
+                const itemCost = itemQty * Number(it.price || 0);
+                if (itemCost > 0) {
+                    html += `
+                        <div class="cost-item">
+                            <span>${it.ingredient} <small>(${itemQty}${it.unit})</small></span>
+                            <span>${fmtMoney.format(itemCost)}</span>
+                        </div>
+                    `;
+                }
+            });
+
+            html += `<div class="cost-group-title">📦 Empaque (${fmtMoney.format(packCost)})</div>`;
+            sortedItems.filter(it => (it.step_name || '').toLowerCase() === 'empaque').forEach(it => {
+                const itemQty = Number(it.qty_per_unit || 0) + Number(it.adjustment || 0);
+                const itemCost = itemQty * Number(it.price || 0);
+                if (itemCost > 0) {
+                    html += `
+                        <div class="cost-item">
+                            <span>${it.ingredient} <small>(x${itemQty})</small></span>
+                            <span>${fmtMoney.format(itemCost)}</span>
+                        </div>
+                    `;
+                }
+            });
+
+            // Summary at the bottom
+            let marginClass = 'margin-good';
+            if (marginRel < 0.3) marginClass = 'margin-bad';
+            else if (marginRel < 0.45) marginClass = 'margin-warn';
+
+            html += `
+                <div style="margin-top:40px; padding:20px; background:var(--secondary); border-radius:12px; border:1px solid var(--border); box-shadow: var(--shadow)">
+                    <h3 style="margin-top:0; font-size:1rem; border-bottom:1px solid var(--border); padding-bottom:10px; margin-bottom:15px">Resumen Financiero</h3>
+                    
+                    <div style="display:flex; justify-content:space-between; margin-bottom:8px">
+                        <span style="color:var(--muted)">Precio de Venta</span>
+                        <strong style="font-size:1.1rem">${fmtMoney.format(salePrice)}</strong>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:12px">
+                        <span style="color:var(--muted)">Costo de Producción</span>
+                        <span style="color:var(--danger)">- ${fmtMoney.format(totalCost)}</span>
+                    </div>
+                    
+                    <div style="display:flex; justify-content:space-between; border-top:2px solid white; padding-top:12px; margin-top:10px">
+                        <span style="font-weight:bold">Ganancia Bruta</span>
+                        <strong style="font-size:1.2rem; color:var(--primary)">${fmtMoney.format(marginAbs)}</strong>
+                    </div>
+                    
+                    <div style="margin-top:15px">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:5px">
+                            <span style="font-size:0.85rem; font-weight:600">Margen de Rentabilidad</span>
+                            <span class="margin-badge ${marginClass}">${fmtPct.format(marginRel)}</span>
+                        </div>
+                        <div style="width:100%; height:8px; background:white; border-radius:4px; overflow:hidden">
+                            <div style="width:${Math.min(100, marginRel * 100)}%; height:100%; background:${marginRel < 0.3 ? '#ef4444' : (marginRel < 0.45 ? '#eab308' : '#22c55e')}"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            content.innerHTML = html;
+        }
+
+        window.closeDetails = function() {
+            document.getElementById('details-overlay').style.display = 'none';
+        }
+
+        // Close on escape
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeDetails();
+        });
+
+        init();
+    </script>
+</body>
+</html>

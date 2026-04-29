@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Actualización de Costos | Sweet Lab</title>
+    <style>
+        :root {
+            --primary: #818cf8;
+            --success: #10b981;
+            --bg: #0f172a;
+            --card: #1e293b;
+            --text: #f8fafc;
+        }
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background: var(--card);
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+        }
+        h1 { font-size: 1.5rem; margin-bottom: 1rem; }
+        p { opacity: 0.8; margin-bottom: 2rem; line-height: 1.5; }
+        button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.8rem 2rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 100%;
+        }
+        button:hover { transform: translateY(-2px); filter: brightness(1.1); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        #status { margin-top: 1.5rem; font-weight: 500; min-height: 1.2em; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Actualizar Costos</h1>
+        <p>Este proceso actualizará los precios de 44 ingredientes y empaques según la tabla proporcionada. También recalculará todos los costos de los postres.</p>
+        <button id="updateBtn">Iniciar Actualización</button>
+        <div id="status"></div>
+    </div>
+
+    <script>
+        const btn = document.getElementById('updateBtn');
+        const status = document.getElementById('status');
+
+        btn.onclick = async () => {
+            if (!confirm('¿Seguro que deseas actualizar todos los costos del inventario?')) return;
+            
+            btn.disabled = true;
+            status.textContent = 'Procesando...';
+            status.style.color = 'var(--primary)';
+
+            try {
+                const res = await fetch('/.netlify/functions/temp-update-costs', { method: 'POST' });
+                const data = await res.json();
+                
+                if (res.ok) {
+                    status.textContent = `✅ ¡Éxito! Actualizados: ${data.updated}, Creados: ${data.created}`;
+                    status.style.color = 'var(--success)';
+                    btn.textContent = 'Actualización Completada';
+                } else {
+                    throw new Error(data.error || 'Error desconocido');
+                }
+            } catch (err) {
+                status.textContent = '❌ Error: ' + err.message;
+                status.style.color = '#ef4444';
+                btn.disabled = false;
+            }
+        };
+    </script>
+</body>
+</html>

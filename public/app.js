@@ -6329,114 +6329,198 @@ async function openTimesView() {
 
 async function openInventoryView() {
 	switchView('#view-inventory');
-	try { await api('POST', API.Inventory, { action: 'sync' }); } catch { }
 	await renderInventoryView();
 }
 
 async function renderInventoryView() {
-	const root = document.getElementById('inventory-content');
-	if (!root) return;
-	root.innerHTML = '';
-	const fmt1 = new Intl.NumberFormat('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+	const scrollPos = window.scrollY;
+	const ingredsRoot = document.getElementById('inventory-ingredients-content');
+	const packsRoot = document.getElementById('inventory-packaging-content');
+	const othersRoot = document.getElementById('inventory-others-content');
+	if (!ingredsRoot || !packsRoot || !othersRoot) return;
+	
 	const fmtMoney = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
+	const fmtUnit = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 2, minimumFractionDigits: 0 });
 	let items = [];
 	try { items = await api('GET', API.Inventory); } catch { items = []; }
-	// Header actions: ingreso and ajuste buttons
-	const actions = document.createElement('div'); actions.className = 'confirm-actions'; actions.style.marginBottom = '8px';
-	const ingresoBtn = document.createElement('button'); ingresoBtn.className = 'press-btn btn-primary'; ingresoBtn.textContent = 'Ingreso';
-	const ajusteBtn = document.createElement('button'); ajusteBtn.className = 'press-btn'; ajusteBtn.textContent = 'Ajustes';
-	const histAllBtn = document.createElement('button'); histAllBtn.className = 'press-btn'; histAllBtn.textContent = 'Historial general';
-	const resetBtn = document.createElement('button'); resetBtn.className = 'press-btn'; resetBtn.textContent = 'Resetear';
-	actions.append(ingresoBtn, ajusteBtn, histAllBtn, resetBtn);
-	root.appendChild(actions);
-	// Table
-	const table = document.createElement('table'); table.className = 'clients-table';
-	const thead = document.createElement('thead'); const hr = document.createElement('tr');
-	['Ingrediente', 'Saldo', 'Valor', 'Ingresar', ''].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
-	thead.appendChild(hr); const tbody = document.createElement('tbody');
-	const rowInputs = [];
-	let totalValor = 0;
-	for (const it of (items || [])) {
-		const tr = document.createElement('tr');
-		const tdN = document.createElement('td'); tdN.textContent = it.ingredient;
-		const tdS = document.createElement('td');
-		const inSaldo = document.createElement('input'); inSaldo.type = 'number'; inSaldo.step = '0.1'; inSaldo.className = 'input-cell'; inSaldo.style.width = '100%'; inSaldo.style.maxWidth = '120px'; inSaldo.style.textAlign = 'right'; inSaldo.value = (Number(it.saldo || 0) || 0).toFixed(1);
-		tdS.append(inSaldo);
-		const tdV = document.createElement('td'); const valor = (Number(it.saldo || 0) || 0) * (Number(it.price || 0) || 0); tdV.textContent = fmtMoney.format(valor); tdV.style.textAlign = 'right';
-		const tdI = document.createElement('td'); const inQty = document.createElement('input'); inQty.type = 'number'; inQty.step = '0.1'; inQty.min = '0'; inQty.placeholder = '0.0'; inQty.className = 'input-cell'; inQty.style.width = '100%'; inQty.style.maxWidth = '120px'; inQty.style.textAlign = 'right'; tdI.appendChild(inQty);
-		const tdA = document.createElement('td'); const saveBtn = document.createElement('button'); saveBtn.className = 'press-btn'; saveBtn.textContent = 'Guardar'; const histBtn = document.createElement('button'); histBtn.className = 'press-btn'; histBtn.textContent = 'Historial'; tdA.append(saveBtn, histBtn);
-		tr.append(tdN, tdS, tdV, tdI, tdA); tbody.appendChild(tr);
-		rowInputs.push({ ingredient: it.ingredient, unit: it.unit || 'g', input: inQty });
-		totalValor += valor;
-		histBtn.addEventListener('click', async () => { openInventoryHistoryDialog(it.ingredient); });
-		async function saveSaldo() {
-			try {
-				const prev = Number(it.saldo || 0) || 0;
-				const next = Number(inSaldo.value || 0) || 0;
-				let delta = next - prev;
-				delta = Math.round(delta * 10) / 10;
-				if (!isFinite(delta) || Math.abs(delta) < 1e-9) { return; }
-				await api('POST', API.Inventory, { action: 'ajuste', ingredient: it.ingredient, unit: it.unit || 'g', qty: delta, note: 'Ajuste de saldo', actor_name: state.currentUser?.username || state.currentUser?.name || null });
-				notify.success('Saldo actualizado');
-				await renderInventoryView();
-			} catch { notify.error('No se pudo actualizar saldo'); }
-		}
-		saveBtn.addEventListener('click', saveSaldo);
-		inSaldo.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') saveSaldo(); });
-	}
-	// Footer: total valor + Ingresar button row
-	const tfoot = document.createElement('tfoot');
-	const frTotal = document.createElement('tr');
-	const ft1 = document.createElement('td'); ft1.className = 'label'; ft1.textContent = 'Total inventario';
-	const ft2 = document.createElement('td');
-	const ft3 = document.createElement('td'); ft3.className = 'col-total'; ft3.textContent = fmtMoney.format(totalValor); ft3.style.textAlign = 'right';
-	const ft4 = document.createElement('td');
-	const ft5 = document.createElement('td');
-	frTotal.append(ft1, ft2, ft3, ft4, ft5); tfoot.appendChild(frTotal);
-	const fr = document.createElement('tr');
-	const fd1 = document.createElement('td'); const fd2 = document.createElement('td'); const fd3 = document.createElement('td');
-	const fd4 = document.createElement('td'); const btnAll = document.createElement('button'); btnAll.className = 'press-btn btn-primary'; btnAll.textContent = 'Ingresar'; fd4.appendChild(btnAll);
-	const fd5 = document.createElement('td');
-	fr.append(fd1, fd2, fd3, fd4, fd5); tfoot.appendChild(fr);
-	btnAll.addEventListener('click', async () => {
-		try {
-			for (const r of rowInputs) {
-				const val = Number(r.input.value || 0) || 0;
-				if (val > 0) {
-					await api('POST', API.Inventory, { action: 'ingreso', ingredient: r.ingredient, unit: r.unit || 'g', qty: val, note: 'Ingreso', actor_name: state.currentUser?.username || state.currentUser?.name || null });
+
+	// Don't clear immediately to reduce flicker
+	const tempIngreds = document.createElement('div');
+	const tempPacks = document.createElement('div');
+	const tempOthers = document.createElement('div');
+
+	const ingreds = items.filter(it => (it.category || 'ingrediente') === 'ingrediente');
+	const packs = items.filter(it => it.category === 'empaque');
+	const others = items.filter(it => it.category === 'otros');
+
+	function buildTable(list, root) {
+		if (list.length === 0) { root.innerHTML = '<p style="opacity:0.6; padding:10px;">No hay ítems en esta categoría.</p>'; return; }
+		const table = document.createElement('table'); table.className = 'clients-table';
+		const thead = document.createElement('thead'); const hr = document.createElement('tr');
+		['Material', 'Saldo', 'Cos. Unit.', 'V. Total', 'Acc.'].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
+		thead.appendChild(hr); const tbody = document.createElement('tbody');
+		for (const it of list) {
+			const tr = document.createElement('tr');
+			tr.draggable = true;
+			tr.dataset.id = it.id;
+			tr.dataset.ingredient = it.ingredient;
+			tr.addEventListener('dragstart', (ev) => {
+				ev.dataTransfer.setData('text/plain', it.id);
+				ev.target.style.opacity = '0.5';
+			});
+			tr.addEventListener('dragend', (ev) => { ev.target.style.opacity = '1'; });
+
+			const tdName = document.createElement('td');
+			const inName = document.createElement('input'); inName.type = 'text'; inName.className = 'input-cell'; inName.style.width = '140px'; inName.value = it.ingredient;
+			tdName.appendChild(inName);
+
+			
+			const tdSaldo = document.createElement('td');
+			const inSaldo = document.createElement('input'); inSaldo.type = 'number'; inSaldo.step = '0.1'; inSaldo.className = 'input-cell'; inSaldo.style.width = '80px'; inSaldo.style.textAlign = 'right'; inSaldo.value = (Number(it.saldo || 0) || 0).toFixed(1);
+			tdSaldo.appendChild(inSaldo);
+
+
+			const tdPrice = document.createElement('td');
+			const inPrice = document.createElement('input'); inPrice.type = 'number'; inPrice.step = 'any'; inPrice.className = 'input-cell'; inPrice.style.width = '100px'; inPrice.style.textAlign = 'right'; inPrice.value = it.price || 0;
+			tdPrice.appendChild(inPrice);
+
+			const tdTotal = document.createElement('td'); tdTotal.textContent = fmtUnit.format((it.saldo || 0) * (it.price || 0)); tdTotal.style.textAlign = 'right';
+			
+			const tdActions = document.createElement('td');
+			const histBtn = document.createElement('button'); histBtn.className = 'press-btn'; histBtn.textContent = '📜'; histBtn.title = 'Ver Historial';
+			const delBtn = document.createElement('button'); delBtn.className = 'press-btn'; delBtn.textContent = '🗑️'; delBtn.title = 'Eliminar'; delBtn.style.color = 'var(--danger)';
+			tdActions.append(histBtn, delBtn);
+
+			tr.append(tdName, tdSaldo, tdPrice, tdTotal, tdActions);
+			tbody.appendChild(tr);
+
+			histBtn.onclick = () => openInventoryHistoryDialog(it.ingredient);
+			delBtn.onclick = async () => {
+				if (!confirm(`¿Estás seguro de eliminar "${it.ingredient}"? Se borrará del maestro de inventario.`)) return;
+				try {
+					await api('POST', API.Inventory, { action: 'delete_item', id: it.id });
+					notify.success('Eliminado');
+					renderInventoryView();
+				} catch { notify.error('Error al eliminar'); }
+			};
+
+			// Autosave logic
+			const save = async () => {
+				const n = inName.value.trim();
+				const p = Number(inPrice.value || 0);
+				const u = it.unit || 'g';
+				const nextSaldo = Number(inSaldo.value || 0);
+
+				if (n !== it.ingredient || p !== it.price || u !== it.unit) {
+					try {
+						const res = await api('POST', API.Inventory, { action: 'update_item', id: it.id, ingredient: n, price: p, unit: u, category: it.category, pack_size: it.pack_size });
+						notify.success(res.status === 'merged' ? 'Fusionado' : 'Cambiado');
+						if (res.status === 'merged') {
+							renderInventoryView();
+						} else {
+							it.ingredient = n; it.price = p; it.unit = u;
+							tdTotal.textContent = fmtUnit.format((it.saldo || 0) * (it.price || 0));
+						}
+					} catch { notify.error('Error al guardar'); }
 				}
-			}
-			notify.success('Ingresos registrados');
-			await renderInventoryView();
-		} catch { notify.error('No se pudo registrar ingresos'); }
-	});
+				
+				const delta = Math.round((nextSaldo - it.saldo) * 10) / 10;
+				if (Math.abs(delta) > 0.01) {
+					try {
+						await api('POST', API.Inventory, { action: 'ajuste', ingredient: it.ingredient, unit: u, qty: delta, note: 'Ajuste auto', actor_name: state.currentUser?.username || null });
+						notify.success('Saldo ajustado');
+						it.saldo = nextSaldo;
+						tdTotal.textContent = fmtUnit.format((it.saldo || 0) * (it.price || 0));
+					} catch { notify.error('Error al ajustar saldo'); }
+				}
+			};
 
-	table.append(thead, tbody, tfoot); root.appendChild(table);
-
-	async function promptMovement(kind) {
-		try {
-			const ingredient = prompt('Ingrediente:'); if (!ingredient) return;
-			const unit = prompt('Unidad (g, ml, unidad):', 'g') || 'g';
-			const qtyStr = prompt(kind === 'ingreso' ? 'Cantidad a ingresar:' : 'Cantidad (use negativo para salida):', '0'); if (qtyStr == null) return;
-			const qty = Number(qtyStr || '0') || 0;
-			const note = prompt('Nota (opcional):', '') || '';
-			await api('POST', API.Inventory, { action: kind, ingredient, unit, qty, note, actor_name: state.currentUser?.username || state.currentUser?.name || null });
-			notify.success('Movimiento registrado');
-			await renderInventoryView();
-		} catch { notify.error('No se pudo registrar'); }
+			const handleEnter = (ev) => { if (ev.key === 'Enter') ev.target.blur(); };
+			inName.onkeydown = handleEnter;
+			inPrice.onkeydown = handleEnter;
+			inName.onblur = save;
+			inPrice.onblur = save;
+			inSaldo.onblur = save;
+		}
+		table.append(thead, tbody);
+		root.appendChild(table);
 	}
 
-	ingresoBtn.addEventListener('click', async () => { await promptMovement('ingreso'); });
-	ajusteBtn.addEventListener('click', async () => { await openInventoryAdjustView(); });
-	histAllBtn.addEventListener('click', async () => { openInventoryHistoryAllPage(); });
-	resetBtn.addEventListener('click', async () => {
-		const isSuper = state.currentUser?.role === 'superadmin' || !!state.currentUser?.isSuperAdmin;
-		if (!isSuper) { notify.error('Solo el superadministrador'); return; }
-		const ok = confirm('Esto borrará TODO el historial y pondrá todos los saldos en 0. ¿Continuar?');
-		if (!ok) return;
-		try { await api('POST', API.Inventory, { action: 'reset' }); notify.success('Inventario reseteado'); await renderInventoryView(); }
-		catch { notify.error('No se pudo resetear'); }
-	});
+	buildTable(ingreds, tempIngreds);
+	buildTable(packs, tempPacks);
+	buildTable(others, tempOthers);
+	
+	ingredsRoot.innerHTML = ''; ingredsRoot.appendChild(tempIngreds);
+	packsRoot.innerHTML = ''; packsRoot.appendChild(tempPacks);
+	othersRoot.innerHTML = ''; othersRoot.appendChild(tempOthers);
+
+	function setupDrop(root, cat) {
+		root.ondragover = (ev) => { ev.preventDefault(); root.style.outline = '2px dashed var(--primary)'; root.style.borderRadius = '8px'; };
+		root.ondragleave = () => { root.style.outline = 'none'; };
+		root.ondrop = async (ev) => {
+			ev.preventDefault();
+			root.style.outline = 'none';
+			const id = ev.dataTransfer.getData('text/plain');
+			if (!id) return;
+			try {
+				await api('POST', API.Inventory, { action: 'update_item', id, category: cat });
+				notify.success('Movido');
+				renderInventoryView();
+			} catch { notify.error('Error al mover'); }
+		};
+	}
+	setupDrop(ingredsRoot.parentElement, 'ingrediente');
+	setupDrop(packsRoot.parentElement, 'empaque');
+	setupDrop(othersRoot.parentElement, 'otros');
+
+	// Setup toolbar listeners (need to re-bind since they might have been lost if we replaced toolbar? No, toolbar is separate)
+	document.getElementById('inventory-new-material').onclick = openNewMaterialDialog;
+	document.getElementById('inventory-confirm-prod').onclick = openConfirmProductionDialog;
+
+	if (scrollPos > 0) window.scrollTo(0, scrollPos);
+}
+
+async function openNewMaterialDialog() {
+	const name = (prompt('Nombre del material:') || '').trim(); if (!name) return;
+	const cat = confirm(`¿Es un ingrediente? (Aceptar para Ingrediente, Cancelar para Empaque/Otro)`) ? 'ingrediente' : 'empaque';
+	const unit = 'g';
+	const price = Number(prompt('Costo unitario actual:', '0') || '0') || 0;
+	try {
+		await api('POST', API.Inventory, { action: 'add_item', ingredient: name, unit, category: cat, price });
+		notify.success('Cargado al maestro');
+		renderInventoryView();
+	} catch { notify.error('Error al guardar'); }
+}
+
+async function openConfirmProductionDialog() {
+	// 1. Fetch pending orders (sales for today not archived)
+	const today = new Date().toISOString().slice(0, 10);
+	let sales = [];
+	try { 
+		const query = `?start=${today}&end=${today}`;
+		const report = await api('GET', `/api/sales-report${query}`);
+		sales = report.sales || [];
+	} catch { notify.error('No se pudieron obtener ventas pendientes'); return; }
+
+	// 2. Aggregate counts
+	const counts = { arco: 0, melo: 0, mara: 0, oreo: 0, nute: 0 };
+	for (const s of sales) {
+		counts.arco += (Number(s.qty_arco || 0));
+		counts.melo += (Number(s.qty_melo || 0));
+		counts.mara += (Number(s.qty_mara || 0));
+		counts.oreo += (Number(s.qty_oreo || 0));
+		counts.nute += (Number(s.qty_nute || 0));
+	}
+
+	// 3. Show dialog
+	const msg = `Confirmar producción sugerida basada en pedidos de hoy:\n\nArco: ${counts.arco}\nMelo: ${counts.melo}\nMara: ${counts.mara}\nOreo: ${counts.oreo}\nNute: ${counts.nute}\n\n¿Deseas descontar estos ingredientes del inventario?`;
+	if (!confirm(msg)) return;
+
+	try {
+		await api('POST', API.Inventory, { action: 'produccion', counts, actor_name: state.currentUser?.username || state.currentUser?.name || null });
+		notify.success('Producción confirmada y descontada');
+		renderInventoryView();
+	} catch { notify.error('Error en el proceso de producción'); }
 }
 
 async function openInventoryAdjustView() {
@@ -6601,6 +6685,12 @@ async function renderIngredientsView() {
 	const root = document.getElementById('ingredients-content');
 	if (!root) return;
 	root.innerHTML = '';
+	// Create or update global ingredients datalist
+	let inv = []; try { inv = await api('GET', API.Inventory); } catch {}
+	if (!Array.isArray(inv)) inv = [];
+	let dl = document.getElementById('dl-inventory-items');
+	if (!dl) { dl = document.createElement('datalist'); dl.id = 'dl-inventory-items'; document.body.appendChild(dl); }
+	dl.innerHTML = inv.map(it => `<option value="${it.ingredient}">`).join('');
 
 	// Get desserts from both sources:
 	// 1. Desserts with recipes (from dessert_recipes)
@@ -6653,8 +6743,6 @@ async function renderIngredientsView() {
 		await renderIngredientsView();
 		try { document.dispatchEvent(new CustomEvent('recipes:changed', { detail: { action: 'addDessert', dessert: name } })); } catch { }
 	};
-	const extrasBtn = document.getElementById('ingredients-add-extras');
-	if (extrasBtn) extrasBtn.onclick = () => { openExtrasEditor(); };
 }
 
 // ====== Local-only TIEMPOS ======
@@ -7166,7 +7254,7 @@ function buildStepCard(dessertName, step) {
 	head.append(label, actions);
 	const table = document.createElement('table'); table.className = 'items-table';
 	const thead = document.createElement('thead'); const hr = document.createElement('tr');
-	['Ingrediente', 'Cantidad por unidad', 'Ajuste', 'Precio', 'Por paquete', ''].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
+	['Ingrediente', 'Cantidad/Unidad', 'Ajuste', ''].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
 	thead.appendChild(hr);
 	const tbody = document.createElement('tbody');
 	for (const it of (step.items || [])) tbody.appendChild(buildItemRow(step.id, it));
@@ -7203,12 +7291,13 @@ function buildStepCard(dessertName, step) {
 		if (!stepIds.length) return;
 		try { await api('POST', API.Recipes, { kind: 'step.reorder', ids: stepIds }); } catch { }
 	});
-	add.addEventListener('click', async () => {
-		const ing = (prompt('Ingrediente:') || '').trim(); if (!ing) return;
-		const qty = Number(prompt('Cantidad por unidad:') || '0') || 0;
-		const row = await api('POST', API.Recipes, { kind: 'item.upsert', recipe_id: step.id, ingredient: ing, unit: 'g', qty_per_unit: qty, adjustment: 0, price: 0, position: (step.items?.length || 0) + 1 });
-		removePlaceholder();
-		tbody.appendChild(buildItemRow(step.id, row));
+	add.addEventListener('click', () => {
+		openAddIngredientModal(step.id, (step.items?.length || 0), (row) => {
+			removePlaceholder();
+			tbody.appendChild(buildItemRow(step.id, row));
+			if (!step.items) step.items = [];
+			step.items.push(row);
+		});
 	});
 	del.addEventListener('click', async () => {
 		const ok = confirm('¿Eliminar este paso y sus ingredientes?'); if (!ok) return;
@@ -7308,15 +7397,110 @@ function buildStepCard(dessertName, step) {
 	return box;
 }
 
+async function openAddIngredientModal(recipeId, currentItemsCount, onAdded) {
+	// Fetch ingredients from inventory for suggestions
+	const inventory = await api('GET', '/api/inventory');
+	const existingIngredients = (inventory || []).map(it => it.ingredient);
+
+	const overlay = document.createElement('div');
+	overlay.style.position = 'fixed';
+	overlay.style.top = '0'; overlay.style.left = '0';
+	overlay.style.width = '100%'; overlay.style.height = '100%';
+	overlay.style.backgroundColor = 'rgba(0,0,0,0.5)';
+	overlay.style.display = 'flex';
+	overlay.style.alignItems = 'center'; overlay.style.justifyContent = 'center';
+	overlay.style.zIndex = '10000';
+	overlay.style.backdropFilter = 'blur(4px)';
+
+	const modal = document.createElement('div');
+	modal.className = 'confirm-popover';
+	modal.style.position = 'relative';
+	modal.style.width = '90%';
+	modal.style.maxWidth = '400px';
+	modal.style.padding = '24px';
+	modal.style.borderRadius = '20px';
+	modal.style.background = 'white';
+	modal.style.boxShadow = '0 20px 50px rgba(0,0,0,0.15)';
+
+	modal.innerHTML = `
+		<h3 style="margin:0 0 8px 0; color:var(--primary); font-size:1.4rem">Añadir Ingrediente</h3>
+		<p style="margin:0 0 20px 0; color:var(--muted); font-size:0.9rem">Busca un material existente o escribe uno nuevo.</p>
+		
+		<div style="margin-bottom:16px">
+			<label style="display:block; margin-bottom:6px; font-weight:600; font-size:0.9rem">Nombre del Material</label>
+			<input type="text" id="modal-ing-name" list="modal-ing-list" class="input-cell" style="width:100%; border:1px solid var(--border); padding:10px" placeholder="Ej: Crema de leche...">
+			<datalist id="modal-ing-list">
+				${existingIngredients.map(name => `<option value="${name}">`).join('')}
+			</datalist>
+		</div>
+
+		<div style="margin-bottom:24px">
+			<label style="display:block; margin-bottom:6px; font-weight:600; font-size:0.9rem">Cantidad por Unidad</label>
+			<input type="number" id="modal-ing-qty" step="any" class="input-cell" style="width:100%; border:1px solid var(--border); padding:10px" value="0">
+			<small style="color:var(--muted); display:block; margin-top:4px">Gramos, mililitros o unidades.</small>
+		</div>
+
+		<div style="display:flex; gap:12px">
+			<button id="modal-cancel" class="press-btn" style="flex:1; background:#f3f4f6; color:#4b5563">Cancelar</button>
+			<button id="modal-submit" class="press-btn btn-primary" style="flex:2">Agregar a Receta</button>
+		</div>
+	`;
+
+	overlay.appendChild(modal);
+	document.body.appendChild(overlay);
+	modal.classList.add('aladdin-pop');
+
+	const nameIn = modal.querySelector('#modal-ing-name');
+	const qtyIn = modal.querySelector('#modal-ing-qty');
+	const submitBtn = modal.querySelector('#modal-submit');
+	const cancelBtn = modal.querySelector('#modal-cancel');
+
+	nameIn.focus();
+
+	const close = () => { document.body.removeChild(overlay); };
+	
+	cancelBtn.onclick = close;
+	overlay.onclick = (e) => { if (e.target === overlay) close(); };
+
+	submitBtn.onclick = async () => {
+		const name = nameIn.value.trim();
+		const qty = Number(qtyIn.value || 0) || 0;
+		if (!name) { notify.error('Nombre requerido'); return; }
+		
+		submitBtn.disabled = true;
+		submitBtn.textContent = 'Agregando...';
+		
+		try {
+			const row = await api('POST', API.Recipes, { 
+				kind: 'item.upsert', 
+				recipe_id: recipeId, 
+				ingredient: name, 
+				unit: 'g', 
+				qty_per_unit: qty, 
+				adjustment: 0, 
+				price: 0, 
+				position: currentItemsCount + 1 
+			});
+			onAdded(row);
+			close();
+		} catch (err) {
+			notify.error('Error al guardar ingrediente');
+			submitBtn.disabled = false;
+			submitBtn.textContent = 'Agregar a Receta';
+		}
+	};
+
+	nameIn.onkeydown = (e) => { if (e.key === 'Enter') qtyIn.focus(); };
+	qtyIn.onkeydown = (e) => { if (e.key === 'Enter') submitBtn.click(); };
+}
+
 function buildItemRow(stepId, item) {
 	const tr = document.createElement('tr');
-	const tdN = document.createElement('td'); const inN = document.createElement('input'); inN.type = 'text'; inN.value = item.ingredient; tdN.appendChild(inN);
+	const tdN = document.createElement('td'); const inN = document.createElement('input'); inN.type = 'text'; inN.value = item.ingredient; inN.setAttribute('list', 'dl-inventory-items'); tdN.appendChild(inN);
 	const tdQ = document.createElement('td'); const inQ = document.createElement('input'); inQ.type = 'number'; inQ.step = '0.01'; inQ.value = String(item.qty_per_unit || 0); tdQ.appendChild(inQ);
 	const tdAdj = document.createElement('td'); const inAdj = document.createElement('input'); inAdj.type = 'number'; inAdj.step = '0.01'; inAdj.value = String(item.adjustment || 0); tdAdj.appendChild(inAdj);
-	const tdP = document.createElement('td'); const inP = document.createElement('input'); inP.type = 'number'; inP.step = '0.01'; inP.value = String(item.price || 0); tdP.appendChild(inP);
-	const tdPack = document.createElement('td'); const inPack = document.createElement('input'); inPack.type = 'number'; inPack.step = '0.01'; inPack.value = String(item.pack_size || 0); tdPack.appendChild(inPack);
 	const tdA = document.createElement('td'); const del = document.createElement('button'); del.className = 'press-btn'; del.textContent = '×'; tdA.appendChild(del);
-	tr.append(tdN, tdQ, tdAdj, tdP, tdPack, tdA);
+	tr.append(tdN, tdQ, tdAdj, tdA);
 	// DnD for ingredient rows
 	tr.draggable = true;
 	tr.addEventListener('dragstart', () => {
@@ -7334,10 +7518,10 @@ function buildItemRow(stepId, item) {
 	});
 	async function save() {
 		try {
-			await api('POST', API.Recipes, { kind: 'item.upsert', id: item.id, recipe_id: stepId, ingredient: inN.value, unit: 'g', qty_per_unit: Number(inQ.value || 0) || 0, adjustment: Number(inAdj.value || 0) || 0, price: Number(inP.value || 0) || 0, pack_size: Number(inPack.value || 0) || 0, position: item.position || 0 });
+			await api('POST', API.Recipes, { kind: 'item.upsert', id: item.id, recipe_id: stepId, ingredient: inN.value, unit: 'g', qty_per_unit: Number(inQ.value || 0) || 0, adjustment: Number(inAdj.value || 0) || 0, position: item.position || 0 });
 		} catch { notify.error('No se pudo guardar'); }
 	}
-	[inN, inQ, inAdj, inP, inPack].forEach(el => { el.addEventListener('change', save); el.addEventListener('blur', save); });
+	[inN, inQ, inAdj].forEach(el => { el.addEventListener('change', save); el.addEventListener('blur', save); });
 	del.addEventListener('click', async () => { await api('DELETE', `${API.Recipes}?kind=item&id=${encodeURIComponent(item.id)}`); tr.remove(); });
 	// persist id on row
 	tr.setAttribute('data-item-id', String(item.id));
@@ -7352,7 +7536,7 @@ async function openExtrasEditor() {
 	const title = document.createElement('h4'); title.textContent = 'Extras por unidad'; title.style.margin = '0 0 8px 0';
 	const table = document.createElement('table'); table.className = 'items-table';
 	const thead = document.createElement('thead'); const hr = document.createElement('tr');
-	['Ingrediente', 'Cantidad', 'Precio', 'Por paquete', ''].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); }); thead.appendChild(hr);
+	['Ingrediente', 'Cantidad', ''].forEach(t => { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); }); thead.appendChild(hr);
 	const tbody = document.createElement('tbody');
 	for (const it of extras) tbody.appendChild(buildExtrasRow(it, tbody));
 	const tfoot = document.createElement('tfoot'); const fr = document.createElement('tr'); const td = document.createElement('td'); td.colSpan = 4; const add = document.createElement('button'); add.className = 'press-btn'; add.textContent = '+ Extra'; td.appendChild(add); fr.appendChild(td); tfoot.appendChild(fr);
@@ -7361,9 +7545,7 @@ async function openExtrasEditor() {
 		const ing = (prompt('Ingrediente:') || '').trim(); if (!ing) return;
 		const unit = 'unidad';
 		const qty = Number(prompt('Cantidad por unidad:') || '1') || 0;
-		const price = Number(prompt('Precio unitario:') || '0') || 0;
-		const pack = Number(prompt('Cantidad por paquete (0 si no aplica):') || '0') || 0;
-		const row = await api('POST', API.Recipes, { kind: 'extras.upsert', ingredient: ing, unit, qty_per_unit: qty, price, pack_size: pack, position: (extras.length || 0) + 1 });
+		const row = await api('POST', API.Recipes, { kind: 'extras.upsert', ingredient: ing, unit, qty_per_unit: qty, position: (extras.length || 0) + 1 });
 		tbody.appendChild(buildExtrasRow(row, tbody));
 	});
 	close.addEventListener('click', () => { if (pop.parentNode) pop.parentNode.removeChild(pop); });
@@ -7372,14 +7554,12 @@ async function openExtrasEditor() {
 
 function buildExtrasRow(item, tbody) {
 	const tr = document.createElement('tr');
-	const tdN = document.createElement('td'); const inN = document.createElement('input'); inN.type = 'text'; inN.value = item.ingredient; tdN.appendChild(inN);
+	const tdN = document.createElement('td'); const inN = document.createElement('input'); inN.type = 'text'; inN.value = item.ingredient; inN.setAttribute('list', 'dl-inventory-items'); tdN.appendChild(inN);
 	const tdQ = document.createElement('td'); const inQ = document.createElement('input'); inQ.type = 'number'; inQ.step = '0.01'; inQ.style.width = '76px'; inQ.value = String(item.qty_per_unit || 0); tdQ.appendChild(inQ);
-	const tdP = document.createElement('td'); const inP = document.createElement('input'); inP.type = 'number'; inP.step = '0.01'; inP.style.width = '88px'; inP.value = String(item.price || 0); tdP.appendChild(inP);
-	const tdPack = document.createElement('td'); const inPack = document.createElement('input'); inPack.type = 'number'; inPack.step = '0.01'; inPack.style.width = '88px'; inPack.value = String(item.pack_size || 0); tdPack.appendChild(inPack);
 	const tdA = document.createElement('td'); const del = document.createElement('button'); del.className = 'press-btn'; del.textContent = '×'; tdA.appendChild(del);
-	tr.append(tdN, tdQ, tdP, tdPack, tdA);
-	async function save() { try { await api('POST', API.Recipes, { kind: 'extras.upsert', id: item.id, ingredient: inN.value, unit: 'unidad', qty_per_unit: Number(inQ.value || 0) || 0, price: Number(inP.value || 0) || 0, pack_size: Number(inPack.value || 0) || 0, position: item.position || 0 }); } catch { notify.error('No se pudo guardar'); } }
-	[inN, inQ, inP, inPack].forEach(el => { el.addEventListener('change', save); el.addEventListener('blur', save); });
+	tr.append(tdN, tdQ, tdA);
+	async function save() { try { await api('POST', API.Recipes, { kind: 'extras.upsert', id: item.id, ingredient: inN.value, unit: 'unidad', qty_per_unit: Number(inQ.value || 0) || 0, position: item.position || 0 }); } catch { notify.error('No se pudo guardar'); } }
+	[inN, inQ].forEach(el => { el.addEventListener('change', save); el.addEventListener('blur', save); });
 	del.addEventListener('click', async () => { await api('DELETE', `${API.Recipes}?kind=extras&id=${encodeURIComponent(item.id)}`); if (tr.parentNode === tbody) tbody.removeChild(tr); });
 	return tr;
 }
@@ -11053,7 +11233,41 @@ function openReceiptViewerPopover(imageBase64, saleId, createdAt, anchorX, ancho
 		if (!state.currentUser) {
 			switchView('#view-login');
 		} else if (state.currentUser.isAdmin) {
-			switchView('#view-select-seller');
+			const urlParams = new URLSearchParams(window.location.search);
+			const linkSeller = urlParams.get('seller');
+			const linkDate = urlParams.get('date');
+			if (linkSeller && linkDate) {
+				const targetSeller = (state.sellers || []).find(s => s.name.toLowerCase() === linkSeller.toLowerCase());
+				if (targetSeller) {
+					enterSeller(targetSeller.id).then(async () => {
+						let matchingDay = (state.saleDays || []).find(d => String(d.day).startsWith(linkDate));
+						
+						if (!matchingDay) {
+							// Check if it's an archived day
+							try {
+								const archivedDays = await api('GET', `/api/days?seller_id=${targetSeller.id}&archived=1`);
+								matchingDay = archivedDays.find(d => String(d.day).startsWith(linkDate));
+								if (matchingDay) {
+									state.showArchivedOnly = true;
+									await loadDaysForSeller(); // refresh the sidebar UI to show archived queue
+									matchingDay = (state.saleDays || []).find(d => String(d.day).startsWith(linkDate)) || matchingDay;
+								}
+							} catch (e) { console.error('Fallback archive error:', e); }
+                        }
+
+						if (matchingDay) {
+							state.selectedDayId = matchingDay.id;
+							switchView('#view-sales');
+							document.getElementById('sales-wrapper')?.classList.remove('hidden');
+							loadSales();
+						}
+					});
+				} else {
+					switchView('#view-select-seller');
+				}
+			} else {
+				switchView('#view-select-seller');
+			}
 		} else {
 			const me = (state.sellers || []).find(s => String(s.name).toLowerCase() === String(state.currentUser.name || '').toLowerCase());
 			if (me) enterSeller(me.id); else switchView('#view-select-seller');

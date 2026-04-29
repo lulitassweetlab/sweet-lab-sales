@@ -108,6 +108,7 @@
 						<button id="store-button" class="press-btn report-btn"
 							style="background:#e91e63;color:white;border-color:#e91e63;">Tienda</button>
 						<button id="crm-admin-button" class="press-btn report-btn">CRM</button>
+						<button id="partners-button" class="press-btn report-btn" style="background:#4f46e5;color:white;border-color:#4f46e5;">Socios</button>
 					</div>
 				</div>
 				<input id="report-date" type="date" class="hidden" />
@@ -244,8 +245,9 @@
 						</table>
 						<div class="table-actions end">
 
-						</div>
 					</div>
+				</div>
+			</div>
 		</section>
 
 		<section id="view-ingredients" class="view hidden">
@@ -258,7 +260,7 @@
 					<h2>Ingredientes</h2>
 					<div class="toolbar-actions">
 						<button id="ingredients-add-dessert" class="press-btn btn-primary">+ Postre</button>
-						<button id="ingredients-add-extras" class="press-btn">Extras</button>
+
 					</div>
 				</div>
 			</div>
@@ -305,11 +307,28 @@
 				</div>
 			</div>
 			<div class="sales-panel">
-				<div class="panel-header">
-					<h3>Ingredientes y saldos</h3>
+				<div class="panel-header" style="justify-content: space-between;">
+					<h3>Maestro de Materiales</h3>
+					<div id="inventory-toolbar-actions">
+						<button id="inventory-new-material" class="press-btn btn-primary">+ Nuevo Material</button>
+						<button id="inventory-confirm-prod" class="press-btn" style="background: #10b981; color: white;">Confirmar Producción</button>
+					</div>
 				</div>
 				<div class="panel-body">
-					<div id="inventory-content"></div>
+					<div class="inventory-sections">
+						<div class="inventory-section">
+							<h3 style="margin: 24px 0 16px 0; border-bottom: 2px solid var(--border); padding-bottom: 8px; color: var(--primary);">🥦 Ingredientes</h3>
+							<div id="inventory-ingredients-content"></div>
+						</div>
+						<div class="inventory-section">
+							<h3 style="margin: 24px 0 16px 0; border-bottom: 2px solid var(--border); padding-bottom: 8px; color: var(--primary);">📦 Empaque</h3>
+							<div id="inventory-packaging-content"></div>
+						</div>
+						<div class="inventory-section">
+							<h3 style="margin: 24px 0 16px 0; border-bottom: 2px solid var(--border); padding-bottom: 8px; color: var(--primary);">➕ Otros</h3>
+							<div id="inventory-others-content"></div>
+						</div>
+					</div>
 				</div>
 			</div>
 		</section>
@@ -753,9 +772,13 @@
 			const crmBtn = document.getElementById('crm-admin-button');
 			if(crmBtn) {
 				crmBtn.addEventListener('click', () => {
-					// Pasa un flag básico por URL u otro método. 
-					// En una app SPA basada en Auth local, el token/auth reside en localStorage. 
 					window.location.href = '/crm-admin.html?auth=admin';
+				});
+			}
+			const partnersBtn = document.getElementById('partners-button');
+			if(partnersBtn) {
+				partnersBtn.addEventListener('click', () => {
+					window.location.href = '/partners.html?auth=admin';
 				});
 			}
 		});
