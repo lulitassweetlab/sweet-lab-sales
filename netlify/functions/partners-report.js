@@ -15,24 +15,21 @@ export async function handler(event) {
         if (forceSync) await sql`DELETE FROM financial_snapshots`;
 
         // 1. Get Settings (Added Founder settings and Generic historic overrides)
-        const settingsRows = await sql`SELECT key, value FROM store_settings WHERE key IN ('partner_seller_ids', 'provision_default_perc', 'partner_founder_id', 'partner_founder_perc') OR key LIKE 'historic_%'`;
+        const settingsRows = await sql`SELECT key, value FROM store_settings WHERE key IN ('partner_seller_ids', 'provision_default_perc', 'partner_founders') OR key LIKE 'historic_%'`;
         const settings = { partner_seller_ids: [], provision_default_perc: 3, partner_founder_id: null, partner_founder_perc: 25 };
         for (const r of settingsRows) {
             if (r.key === 'partner_seller_ids') {
                 try { settings.partner_seller_ids = JSON.parse(r.value); } catch { settings.partner_seller_ids = []; }
             } else if (r.key === 'provision_default_perc') {
                 settings.provision_default_perc = Number(r.value) || 3;
-            } else if (r.key === 'partner_founder_id') {
-                settings.partner_founder_id = r.value;
-            } else if (r.key === 'partner_founder_perc') {
-                settings.partner_founder_perc = Number(r.value) || 0;
+            } else if (r.key === 'partner_founders') {
+                try { settings.partner_founders = JSON.parse(r.value); } catch { settings.partner_founders = {}; }
             } else {
                 settings[r.key] = r.value;
             }
         }
         const partnerIds = Array.isArray(settings.partner_seller_ids) ? settings.partner_seller_ids.map(Number) : [];
-        const founderId = Number(settings.partner_founder_id);
-        const founderPerc = Number(settings.partner_founder_perc);
+        const founders = settings.partner_founders || {};
 
         const allSellersRows = await sql`SELECT id, name, parent_id FROM sellers`;
         const sellerMap = {};
@@ -314,13 +311,20 @@ export async function handler(event) {
                 normalizedF[pid] = sumF > 0 ? rawF[pid] / sumF : (1 / partnerIds.length);
             });
 
-            const founderFixedAmount = founderId && founderPerc > 0 ? Math.round(Math.max(0, netToShare) * (founderPerc / 100)) : 0;
-            const meritPool = netToShare - founderFixedAmount;
+            let totalFoundersFixed = 0;
+            partnerIds.forEach(pid => {
+                if (founders[pid]) {
+                    totalFoundersFixed += Math.round(Math.max(0, netToShare) * (Number(founders[pid]) / 100));
+                }
+            });
+            const meritPool = netToShare - totalFoundersFixed;
 
             const partnerShares = partnerIds.map(pid => {
                 const meritPerc = normalizedF[pid];
                 let shareAmount = Math.round(meritPool * meritPerc);
-                if (pid === founderId) shareAmount += founderFixedAmount;
+                if (founders[pid]) {
+                    shareAmount += Math.round(Math.max(0, netToShare) * (Number(founders[pid]) / 100));
+                }
                 const finalPerc = netToShare > 0 ? (shareAmount / netToShare) * 100 : 0;
                 return {
                     id: pid, name: sellerMap[pid] || `Socio ${pid}`, 
