@@ -396,40 +396,43 @@
 
             const pop = document.createElement('div');
             pop.className = 'popover-wrap';
-            pop.innerHTML = `<div style="background:#fff; padding:32px; border-radius:32px; width:95vw; max-width:1100px; max-height:90vh; overflow-y:auto; display:flex; flex-direction:column; gap:24px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);">
+            pop.innerHTML = `<div style="background:#fff; padding:24px; border-radius:24px; width:95vw; max-width:1100px; max-height:95vh; overflow-y:auto; display:flex; flex-direction:column; gap:20px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.5); -webkit-overflow-scrolling:touch;">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                     <div><h2 style="margin:0; font-size:1.8rem;">Reporte: ${sellerName}</h2></div>
                     <button onclick="closePopover(this)" style="width:40px; height:40px; border-radius:12px; border:none; background:#f1f5f9; cursor:pointer;">✕</button>
                 </div>
-                <div style="display:grid; grid-template-columns: 1fr 480px; gap:32px;">
+                <div id="popover-grid" style="display:flex; flex-direction:column; gap:24px;">
+                    <style>
+                        #popover-grid { display: flex; flex-direction: column; }
+                        @media (min-width: 900px) {
+                            #popover-grid { display: grid; grid-template-columns: 1fr 420px; gap: 32px; }
+                        }
+                    </style>
+
                     <div style="display:flex; flex-direction:column; gap:20px;">
-                        <div style="background:#fff; border:1px solid #e2e8f0; border-radius:24px; padding:24px; height:400px; display:flex; flex-direction:column;">
-                            <h3 style="margin:0 0 20px 0; font-size:1rem;">📈 Tendencia de Ventas</h3>
+                        <div style="background:#fff; border:1px solid #e2e8f0; border-radius:24px; padding:20px; height:350px; display:flex; flex-direction:column;">
+                            <h3 style="margin:0 0 16px 0; font-size:1rem;">📈 Tendencia de Ventas</h3>
                             <div style="flex:1; display:flex; align-items:flex-end; gap:8px; overflow-x:auto; padding-bottom:10px;">${barsHtml}</div>
                         </div>
                         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
-                            <div style="background:#f0f9ff; padding:20px; border-radius:20px;"><div style="font-size:0.7rem; font-weight:800;">TOTAL POSTRES MES</div><div style="font-size:1.5rem; font-weight:900;">🍰 ${md.desserts || 0}</div></div>
-                            <div style="background:#f5f3ff; padding:20px; border-radius:20px;"><div style="font-size:0.7rem; font-weight:800;">PARTICIPACIÓN FINAL</div><div style="font-size:1.5rem; font-weight:900;">${partnerMeta.share_perc}%</div></div>
+                            <div style="background:#f0f9ff; padding:16px; border-radius:20px;"><div style="font-size:0.65rem; font-weight:800; color:#0369a1;">TOTAL POSTRES MES</div><div style="font-size:1.3rem; font-weight:900; color:#075985;">🍰 ${md.desserts || 0}</div></div>
+                            <div style="background:#f5f3ff; padding:16px; border-radius:20px;"><div style="font-size:0.65rem; font-weight:800; color:#6d28d9;">PARTICIPACIÓN FINAL</div><div style="font-size:1.3rem; font-weight:900; color:#4c1d95;">${partnerMeta.share_perc}%</div></div>
                         </div>
                     </div>
-                    <div style="display:flex; flex-direction:column; gap:16px; background:#f8fafc; border-radius:24px; padding:24px; border:1px solid #e2e8f0;">
-                        <h3 style="margin:0 0 8px 0; font-size:1.1rem;">¿Cómo calculamos tu ${partnerMeta.share_perc}%?</h3>
+
+                    <div style="display:flex; flex-direction:column; gap:16px; background:#f8fafc; border-radius:24px; padding:20px; border:1px solid #e2e8f0;">
+                        <h3 style="margin:0 0 8px 0; font-size:1rem; color:#1e293b;">¿Cómo calculamos tu ${partnerMeta.share_perc}%?</h3>
                         
                         ${stepsHtml}
-
                         <div style="background:#4f46e5; padding:16px; border-radius:20px; color:white; display:flex; flex-direction:column; gap:4px;">
-                            <div style="font-weight:900; font-size:0.7rem; letter-spacing:0.05em; opacity:0.8;">PASO FINAL: PARTICIPACIÓN AJUSTADA</div>
-                            <div style="background:rgba(255,255,255,0.1); padding:10px; border-radius:12px; font-family:monospace; font-size:0.85rem; margin-top:4px; line-height:1.4;">
-                                <div>1. Parte Mérito (${(adjustmentRatio * 100).toFixed(1)}% bolsa): <b>${meritPartFinal.toFixed(2)}%</b></div>
-                                ${founderPart > 0 ? `<div style="margin-top:4px;">2. Parte Fija (Fundadora): <b>${founderPart}%</b></div>` : ''}
-                                <div style="margin-top:8px; font-size:1.2rem; background:rgba(0,0,0,0.2); padding:8px; border-radius:8px;">
-                                    TOTAL: ${meritPartFinal.toFixed(2)}% ${founderPart > 0 ? '+ ' + founderPart + '%' : ''} = <b style="font-size:1.4rem;">${partnerMeta.share_perc}%</b>
-                                </div>
+                            <div style="font-size:0.65rem; font-weight:700; text-transform:uppercase; opacity:0.8;">DISTRIBUCIÓN TOTAL (%)</div>
+                            <div style="font-size:1.1rem; font-weight:800;">
+                                ${meritPartFinal.toFixed(2)}% ${founderPart > 0 ? '+ ' + founderPart + '%' : ''} = <span style="font-size:1.5rem;">${partnerMeta.share_perc}%</span>
                             </div>
                         </div>
 
                         <div style="margin-top:auto; padding-top:12px; border-top:2px dashed #cbd5e1; text-align:center;">
-                            <div style="font-size:0.8rem; opacity:0.7; font-weight:700;">UTILIDAD A RECIBIR</div>
+                            <div style="font-size:0.8rem; opacity:0.7; font-weight:700; color:#64748b;">UTILIDAD A RECIBIR</div>
                             <div style="font-size:2rem; font-weight:900; color:#4f46e5;">${fmt.format(partnerMeta.share_amount)}</div>
                         </div>
                     </div>
