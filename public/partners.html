@@ -6,6 +6,7 @@
     <title>Socios | Sweet Lab</title>
     <link rel="stylesheet" href="/styles.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         :root { 
             --p-mod: #6366f1; 
@@ -501,14 +502,168 @@
             }
         };
 
+        window.showDownloadMenu = (btn, month) => {
+            const wrap = document.createElement('div');
+            wrap.className = 'popover-wrap popover-wrap-menu';
+            wrap.style.background = 'rgba(15, 23, 42, 0.4)';
+            wrap.onclick = (e) => { if (e.target === wrap) wrap.remove(); };
+            
+            wrap.innerHTML = `
+                <div style="background:white; padding:32px; border-radius:32px; display:flex; flex-direction:column; gap:20px; min-width:320px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.5); animation: popIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);">
+                    <style>
+                        @keyframes popIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+                        .menu-opt:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+                        .menu-opt:active { transform: scale(0.98); }
+                    </style>
+                    <div style="text-align:center;">
+                        <h3 style="margin:0; font-size:1.2rem; color:#1e293b;">Exportar Reporte</h3>
+                        <p style="margin:4px 0 0 0; font-size:0.8rem; color:#64748b;">Mes: ${month}</p>
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                        <button onclick="downloadCard(this, '${month}')" class="menu-opt" style="background:#f8fafc; border:1px solid #e2e8f0; padding:20px; border-radius:24px; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:12px; transition:all 0.2s;">
+                            <span style="font-size:2rem;">📸</span>
+                            <div style="text-align:center;">
+                                <div style="font-size:0.9rem; font-weight:800; color:#1e293b;">Sencillo</div>
+                                <div style="font-size:0.65rem; color:#64748b;">Imagen PNG</div>
+                            </div>
+                        </button>
+                        <button onclick="downloadIntegralPDF('${month}', this)" class="menu-opt" style="background:#f5f3ff; border:1px solid #ddd6fe; padding:20px; border-radius:24px; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:12px; transition:all 0.2s;">
+                            <span style="font-size:2rem;">📄</span>
+                            <div style="text-align:center;">
+                                <div style="font-size:0.9rem; font-weight:800; color:#4c1d95;">Integral</div>
+                                <div style="font-size:0.65rem; color:#6d28d9;">PDF Detallado</div>
+                            </div>
+                        </button>
+                    </div>
+                    <button onclick="this.closest('.popover-wrap-menu').remove()" style="background:none; border:none; color:#94a3b8; font-size:0.85rem; cursor:pointer; font-weight:600;">Cancelar</button>
+                </div>
+            `;
+            document.body.appendChild(wrap);
+        };
+
         window.downloadCard = (btn, month) => {
-            const card = btn.closest('.box');
+            const card = document.querySelector(`button[onclick*="${month}"]`).closest('.box');
             html2canvas(card, { scale: 2, backgroundColor: '#f8fafc', logging: false, useCORS: true }).then(canvas => {
                 const link = document.createElement('a');
                 link.download = `Cierre_${month}.png`;
                 link.href = canvas.toDataURL('image/png');
                 link.click();
+                const menu = document.querySelector('.popover-wrap-menu');
+                if (menu) menu.remove();
             });
+        };
+
+        window.downloadIntegralPDF = async (month, btn) => {
+            const originalContent = btn.innerHTML;
+            btn.innerHTML = '<span style="font-size:0.8rem; font-weight:700;">Generando...</span>';
+            btn.disabled = true;
+            
+            try {
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                const m = DATA.history.find(h => h.month === month);
+                if (!m) throw new Error("No hay datos para este mes");
+                
+                // PÁGINA 1: Resumen General (Captura)
+                const card = document.querySelector(`button[onclick*="${month}"]`).closest('.box');
+                const canvas = await html2canvas(card, { scale: 2, backgroundColor: '#f8fafc' });
+                const imgData = canvas.toDataURL('image/png');
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+                pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+                
+                // PÁGINA 2: Detalles Financieros
+                pdf.addPage();
+                pdf.setFont("helvetica", "bold");
+                pdf.setFontSize(20);
+                pdf.setTextColor(79, 70, 229); // #4f46e5
+                pdf.text("REPORTE INTEGRAL FINANCIERO", 15, 20);
+                pdf.setFontSize(12);
+                pdf.setTextColor(100, 116, 139);
+                pdf.text(`Periodo: ${month}`, 15, 28);
+                
+                let y = 45;
+                const drawTable = (title, items, columns, color) => {
+                    if (y > 240) { pdf.addPage(); y = 20; }
+                    pdf.setFontSize(14);
+                    pdf.setFont("helvetica", "bold");
+                    pdf.setTextColor(...color);
+                    pdf.text(title, 15, y);
+                    y += 8;
+                    pdf.setFontSize(9);
+                    pdf.setTextColor(100, 116, 139);
+                    
+                    items.forEach(item => {
+                        if (y > 275) { pdf.addPage(); y = 20; }
+                        pdf.setFont("helvetica", "normal");
+                        let x = 15;
+                        columns.forEach(col => {
+                            pdf.text(String(col.val(item)), x, y);
+                            x += col.w;
+                        });
+                        y += 6;
+                    });
+                    y += 12;
+                };
+
+                drawTable("VENTAS POR CANAL", m.revenue_detail || [], [
+                    {w: 80, val: i => i.seller_name},
+                    {w: 40, val: i => fmt.format(i.amount)}
+                ], [16, 185, 129]); // Success color
+
+                drawTable("COSTOS DE MATERIA PRIMA", m.product_detail || [], [
+                    {w: 80, val: i => i.seller_name},
+                    {w: 40, val: i => fmt.format(i.cogs)}
+                ], [225, 29, 72]); // Danger color
+
+                drawTable("GASTOS Y OPERACIÓN", m.expense_detail || [], [
+                    {w: 30, val: i => i.date},
+                    {w: 100, val: i => i.description},
+                    {w: 40, val: i => '-' + fmt.format(i.amount)}
+                ], [100, 116, 139]);
+
+                // PÁGINA 3: Participación Socios
+                pdf.addPage();
+                pdf.setFont("helvetica", "bold");
+                pdf.setFontSize(18);
+                pdf.setTextColor(91, 33, 182);
+                pdf.text("DISTRIBUCIÓN Y MÉRITO DE SOCIOS", 15, 20);
+                y = 40;
+
+                (m.partner_shares || []).forEach(p => {
+                    if (y > 250) { pdf.addPage(); y = 20; }
+                    pdf.setFillColor(248, 250, 252);
+                    pdf.rect(15, y, 180, 25, 'F');
+                    pdf.setDrawColor(226, 232, 240);
+                    pdf.rect(15, y, 180, 25, 'S');
+                    
+                    pdf.setFont("helvetica", "bold");
+                    pdf.setFontSize(12);
+                    pdf.setTextColor(30, 41, 59);
+                    pdf.text(p.seller_name, 20, y + 10);
+                    
+                    pdf.setFontSize(10);
+                    pdf.setTextColor(79, 70, 229);
+                    pdf.text(`Participación: ${p.share_perc}%`, 20, y + 18);
+                    
+                    pdf.setFontSize(14);
+                    pdf.setTextColor(16, 185, 129);
+                    const amtText = fmt.format(p.share_amount);
+                    pdf.text(amtText, 190 - pdf.getTextWidth(amtText), y + 15);
+                    
+                    y += 35;
+                });
+
+                pdf.save(`Reporte_Integral_${month}.pdf`);
+                const menu = document.querySelector('.popover-wrap-menu');
+                if (menu) menu.remove();
+            } catch (e) {
+                console.error(e);
+                alert("Error al generar PDF: " + e.message);
+            } finally {
+                btn.innerHTML = originalContent;
+                btn.disabled = false;
+            }
         };
 
         function render() {
@@ -547,7 +702,7 @@
                                     <strong style="font-size:1.4rem;">${monthLabel}</strong>
                                     <span class="pill">Cierre Mensual</span>
                                     <button onclick="toggleEditHistoric('${m.month}', this)" style="margin-left:8px; background:#fff; border:1px solid #cbd5e1; padding:2px 10px; border-radius:12px; font-size:0.75rem; cursor:pointer;">✏️ Modificar</button>
-                                    <button onclick="downloadCard(this, '${m.month}')" style="margin-left:4px; background:#fff; border:1px solid #cbd5e1; padding:2px 10px; border-radius:12px; font-size:0.75rem; cursor:pointer;">📸 Foto</button>
+                                    <button onclick="showDownloadMenu(this, '${m.month}')" style="margin-left:4px; background:#fff; border:1px solid #cbd5e1; padding:2px 10px; border-radius:12px; font-size:0.75rem; cursor:pointer;">📸 Foto</button>
                                 </div>
                             </div>
                             <div style="text-align:right">
