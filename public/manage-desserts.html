@@ -81,6 +81,7 @@
 		<div class="panel-header">
 			<h3>Postres Disponibles</h3>
 			<div class="panel-actions">
+				<button id="profit-btn" class="press-btn" style="background: #0ea5e9; color: white;">📊 Rentabilidad</button>
 				<button id="add-dessert-btn" class="press-btn btn-primary">+ Nuevo Postre</button>
 			</div>
 		</div>
@@ -608,6 +609,9 @@
 			}
 
 			addBtn.addEventListener('click', () => openEditDessert(null));
+			document.getElementById('profit-btn')?.addEventListener('click', () => {
+				window.location.href = '/profitability.html';
+			});
 
 			backBtn.addEventListener('click', () => {
 				window.location.href = '/index.html';
