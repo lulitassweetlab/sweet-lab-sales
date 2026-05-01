@@ -19,6 +19,30 @@ async function getActorRole(evt, body = null) {
 	} catch { return 'user'; }
 }
 
+async function updateTagKeywords(entryId, tagIds) {
+	if (!tagIds || !tagIds.length) return;
+	try {
+		const [entry] = await sql`SELECT description FROM accounting_entries WHERE id = ${entryId}`;
+		if (!entry || !entry.description) return;
+		
+		const stopWords = new Set(['para', 'con', 'del', 'las', 'los', 'una', 'uno', 'por', 'que', 'los', 'las', 'este', 'esta', 'estos', 'estas', 'sus', 'sus', 'como', 'pero', 'mas', 'muy', 'tan']);
+		const words = entry.description.toLowerCase()
+			.replace(/[^a-z0-9áéíóúñ ]/g, ' ')
+			.split(/\s+/)
+			.filter(w => w.length > 2 && !stopWords.has(w));
+			
+		for (const tid of tagIds) {
+			const [tag] = await sql`SELECT keywords FROM accounting_tags WHERE id = ${tid}`;
+			if (!tag) continue;
+			const keywords = tag.keywords || {};
+			for (const word of words) {
+				keywords[word] = (keywords[word] || 0) + 1;
+			}
+			await sql`UPDATE accounting_tags SET keywords = ${keywords} WHERE id = ${tid}`;
+		}
+	} catch (e) { console.error('Error learning keywords:', e); }
+}
+
 export async function handler(event) {
 	try {
 		await ensureSchema();
@@ -224,6 +248,7 @@ export async function handler(event) {
 					for (const tid of tags) {
 						await sql`INSERT INTO accounting_entry_tags (entry_id, tag_id) VALUES (${row.id}, ${Number(tid)}) ON CONFLICT DO NOTHING`;
 					}
+					await updateTagKeywords(row.id, tags);
 				}
 				
 				return json(row, 201);
@@ -271,6 +296,7 @@ export async function handler(event) {
 						for (const tid of data.tags) {
 							await sql`INSERT INTO accounting_entry_tags (entry_id, tag_id) VALUES (${id}, ${Number(tid)}) ON CONFLICT DO NOTHING`;
 						}
+						await updateTagKeywords(id, data.tags);
 					}
 
 					return json(row);

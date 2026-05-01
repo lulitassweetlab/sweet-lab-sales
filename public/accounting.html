@@ -1045,10 +1045,25 @@
 				try {
 					if (availableTags.length === 0) await loadTags();
 					wrapper.innerHTML = '';
-					
 					if (availableTags.length === 0) { cleanup(); return; }
 
-					availableTags.forEach((t, i) => {
+					// Scoring and Sorting
+					const row = anchor.closest('tr');
+					const descText = row ? (row.querySelector('.desc-text')?.textContent || '').toLowerCase() : '';
+					const words = descText.replace(/[^a-z0-9áéíóúñ ]/g, ' ').split(/\s+/).filter(w => w.length > 2);
+
+					const scoredTags = [...availableTags].map(t => {
+						let score = 0;
+						const kw = t.keywords || {};
+						words.forEach(w => { if (kw[w]) score += kw[w]; });
+						// Boost initial keywords for better cold-start
+						if (t.name === 'Transporte' && /taxi|uber|pasaje|transporte|gasolina/i.test(descText)) score += 100;
+						if (t.name === 'Insumos' && /harina|azucar|materia|mantequilla|chocolate|leche|huevos/i.test(descText)) score += 100;
+						if (t.name === 'Servicios' && /luz|agua|internet|gas|telefono/i.test(descText)) score += 100;
+						return { ...t, _score: score };
+					}).sort((a, b) => b._score - a._score);
+
+					scoredTags.forEach((t, i) => {
 						const btn = document.createElement('button');
 						btn.type = 'button';
 						btn.className = 'tag-option' + (currentTagIds.includes(t.id) ? ' selected' : '');
