@@ -284,12 +284,11 @@
             document.getElementById('save-adj-btn').onclick = function() { saveAdj(this); };
         };
 
-        window.showSellerHistoryChart = (sellerName, targetMonth, ev) => {
-            if (ev) ev.stopPropagation();
-            if (!DATA || !DATA.history) return;
+        window.getPartnerReportHtml = (sellerName, targetMonth) => {
+            if (!DATA || !DATA.history) return "";
             const targetData = DATA.history.find(h => h.month === targetMonth);
             const partnerMeta = targetData?.partners?.find(p => p.name.toLowerCase() === sellerName.toLowerCase());
-            if (!partnerMeta) return;
+            if (!partnerMeta) return "";
 
             const shortMonths = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
             const months = [...DATA.history].sort((a, b) => a.month.localeCompare(b.month)).slice(-24);
@@ -329,11 +328,9 @@
             const md = partnerMeta.metrics_debug || {};
             const fmtP = n => ((n || 0) * 100).toFixed(2);
             const totalDesserts = targetData.partners.reduce((sum, p) => sum + (p.metrics_debug?.desserts || 0), 0);
-            
             const netToShare = targetData.net_to_share || 0;
             const meritPool = targetData.merit_pool || 0;
             const adjustmentRatio = netToShare > 0 ? meritPool / netToShare : 1;
-            
             const model = (DATA.settings && DATA.settings.partner_distribution_model) || 'pro';
             let meritBase = 0;
             let stepsHtml = '';
@@ -342,12 +339,10 @@
                 const w1 = (DATA.settings?.triple_w1 || 33.33) / 100;
                 const w2 = (DATA.settings?.triple_w2 || 33.33) / 100;
                 const w3 = (DATA.settings?.triple_w3 || 33.34) / 100;
-                
                 const p1 = md.M || 0;
                 const p2 = md.P || 0;
                 const p3 = md.H_global || 0;
                 meritBase = (p1 * w1) + (p2 * w2) + (p3 * w3);
-                
                 stepsHtml = `
                     <div style="background:white; padding:14px; border-radius:16px; border:1px solid #e2e8f0; display:flex; flex-direction:column; gap:4px;">
                         <div style="color:#6366f1; font-weight:900; font-size:0.7rem;">PASO 1: ESFUERZO MES ACTUAL (${(w1*100).toFixed(2)}%)</div>
@@ -399,49 +394,52 @@
             const meritPartFinal = meritBase * adjustmentRatio;
             const founderPart = partnerMeta.founder_fixed_perc || 0;
 
+            return `
+                <div style="background:#fff; padding:24px; border-radius:24px; width:100%; display:flex; flex-direction:column; gap:20px; font-family:sans-serif;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div><h2 style="margin:0; font-size:1.8rem; color:#1e293b;">Reporte Socio: ${sellerName}</h2></div>
+                    </div>
+                    <div style="display:grid; grid-template-columns: 1fr 420px; gap:32px;">
+                        <div style="display:flex; flex-direction:column; gap:20px;">
+                            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:24px; padding:20px; height:350px; display:flex; flex-direction:column;">
+                                <h3 style="margin:0 0 16px 0; font-size:1rem; color:#64748b;">📈 Tendencia de Ventas</h3>
+                                <div style="flex:1; display:flex; align-items:flex-end; gap:8px; overflow-x:hidden; padding-bottom:10px;">${barsHtml}</div>
+                            </div>
+                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+                                <div style="background:#f0f9ff; padding:16px; border-radius:20px;"><div style="font-size:0.65rem; font-weight:800; color:#0369a1;">TOTAL POSTRES MES</div><div style="font-size:1.3rem; font-weight:900; color:#075985;">🍰 ${md.desserts || 0}</div></div>
+                                <div style="background:#f5f3ff; padding:16px; border-radius:20px;"><div style="font-size:0.65rem; font-weight:800; color:#6d28d9;">PARTICIPACIÓN FINAL</div><div style="font-size:1.3rem; font-weight:900; color:#4c1d95;">${partnerMeta.share_perc}%</div></div>
+                            </div>
+                        </div>
+                        <div style="display:flex; flex-direction:column; gap:16px; background:#f8fafc; border-radius:24px; padding:20px; border:1px solid #e2e8f0;">
+                            <h3 style="margin:0 0 8px 0; font-size:1rem; color:#1e293b;">¿Cómo calculamos tu ${partnerMeta.share_perc}%?</h3>
+                            ${stepsHtml}
+                            <div style="background:#4f46e5; padding:16px; border-radius:20px; color:white; display:flex; flex-direction:column; gap:4px;">
+                                <div style="font-size:0.65rem; font-weight:700; text-transform:uppercase; opacity:0.8;">DISTRIBUCIÓN TOTAL (%)</div>
+                                <div style="font-size:1.1rem; font-weight:800;">
+                                    ${meritPartFinal.toFixed(2)}% ${founderPart > 0 ? '+ ' + founderPart + '%' : ''} = <span style="font-size:1.5rem;">${partnerMeta.share_perc}%</span>
+                                </div>
+                            </div>
+                            <div style="margin-top:auto; padding-top:12px; border-top:2px dashed #cbd5e1; text-align:center;">
+                                <div style="font-size:0.8rem; opacity:0.7; font-weight:700; color:#64748b;">UTILIDAD A RECIBIR</div>
+                                <div style="font-size:2rem; font-weight:900; color:#4f46e5;">${fmt.format(partnerMeta.share_amount)}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+        };
+
+        window.showSellerHistoryChart = (sellerName, targetMonth, ev) => {
+            if (ev) ev.stopPropagation();
+            const contentHtml = window.getPartnerReportHtml(sellerName, targetMonth);
+            if (!contentHtml) return;
+
             const pop = document.createElement('div');
             pop.className = 'popover-wrap';
             pop.innerHTML = `<div style="background:#fff; padding:24px; border-radius:24px; width:95vw; max-width:1100px; max-height:95vh; overflow-y:auto; display:flex; flex-direction:column; gap:20px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.5); -webkit-overflow-scrolling:touch;">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <div><h2 style="margin:0; font-size:1.8rem;">Reporte: ${sellerName}</h2></div>
+                <div style="display:flex; justify-content:flex-end;">
                     <button onclick="closePopover(this)" style="width:40px; height:40px; border-radius:12px; border:none; background:#f1f5f9; cursor:pointer;">✕</button>
                 </div>
-                <div id="popover-grid" style="display:flex; flex-direction:column; gap:24px;">
-                    <style>
-                        #popover-grid { display: flex; flex-direction: column; }
-                        @media (min-width: 900px) {
-                            #popover-grid { display: grid; grid-template-columns: 1fr 420px; gap: 32px; }
-                        }
-                    </style>
-
-                    <div style="display:flex; flex-direction:column; gap:20px;">
-                        <div style="background:#fff; border:1px solid #e2e8f0; border-radius:24px; padding:20px; height:350px; display:flex; flex-direction:column;">
-                            <h3 style="margin:0 0 16px 0; font-size:1rem;">📈 Tendencia de Ventas</h3>
-                            <div style="flex:1; display:flex; align-items:flex-end; gap:8px; overflow-x:auto; padding-bottom:10px;">${barsHtml}</div>
-                        </div>
-                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
-                            <div style="background:#f0f9ff; padding:16px; border-radius:20px;"><div style="font-size:0.65rem; font-weight:800; color:#0369a1;">TOTAL POSTRES MES</div><div style="font-size:1.3rem; font-weight:900; color:#075985;">🍰 ${md.desserts || 0}</div></div>
-                            <div style="background:#f5f3ff; padding:16px; border-radius:20px;"><div style="font-size:0.65rem; font-weight:800; color:#6d28d9;">PARTICIPACIÓN FINAL</div><div style="font-size:1.3rem; font-weight:900; color:#4c1d95;">${partnerMeta.share_perc}%</div></div>
-                        </div>
-                    </div>
-
-                    <div style="display:flex; flex-direction:column; gap:16px; background:#f8fafc; border-radius:24px; padding:20px; border:1px solid #e2e8f0;">
-                        <h3 style="margin:0 0 8px 0; font-size:1rem; color:#1e293b;">¿Cómo calculamos tu ${partnerMeta.share_perc}%?</h3>
-                        
-                        ${stepsHtml}
-                        <div style="background:#4f46e5; padding:16px; border-radius:20px; color:white; display:flex; flex-direction:column; gap:4px;">
-                            <div style="font-size:0.65rem; font-weight:700; text-transform:uppercase; opacity:0.8;">DISTRIBUCIÓN TOTAL (%)</div>
-                            <div style="font-size:1.1rem; font-weight:800;">
-                                ${meritPartFinal.toFixed(2)}% ${founderPart > 0 ? '+ ' + founderPart + '%' : ''} = <span style="font-size:1.5rem;">${partnerMeta.share_perc}%</span>
-                            </div>
-                        </div>
-
-                        <div style="margin-top:auto; padding-top:12px; border-top:2px dashed #cbd5e1; text-align:center;">
-                            <div style="font-size:0.8rem; opacity:0.7; font-weight:700; color:#64748b;">UTILIDAD A RECIBIR</div>
-                            <div style="font-size:2rem; font-weight:900; color:#4f46e5;">${fmt.format(partnerMeta.share_amount)}</div>
-                        </div>
-                    </div>
-                </div>
+                ${contentHtml}
                 <button onclick="closePopover(this)" style="width:100%; padding:18px; border-radius:16px; border:none; background:#0f172a; color:white; font-weight:700; cursor:pointer;">Cerrar Reporte</button>
             </div>`;
             pop.onclick = (e) => { if (e.target === pop) closePopover(pop.querySelector('button')); };
@@ -620,40 +618,10 @@
 
                 // 5. SOCIOS
                 for (const p of m.partners) {
-                    const md = p.metrics_debug || {};
-                    const shortMonths = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-                    const histMonths = [...DATA.history].sort((a, b) => a.month.localeCompare(b.month)).slice(-12);
-                    let maxRev = 0;
-                    const chartData = histMonths.map(hm => {
-                        const rd = window.revenueDetailsMap[hm.month] || [];
-                        const se = rd.find(d => d.seller_name.toLowerCase() === p.name.toLowerCase());
-                        const rev = se ? se.amount : 0;
-                        if (rev > maxRev) maxRev = rev;
-                        const [yyyy, mm] = hm.month.split('-');
-                        return { formatted: shortMonths[parseInt(mm)-1], revenue: rev };
-                    });
-                    if (maxRev === 0) maxRev = 1;
-                    const barsHtml = chartData.map(d => `<div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:80px;"><div style="width:15px; height:${Math.max(5, Math.round((d.revenue/maxRev)*100))}%; background:#6366f1; border-radius:3px;"></div><span style="font-size:8px; margin-top:2px;">${d.formatted}</span></div>`).join('');
-
                     const partnerDiv = document.createElement('div');
-                    partnerDiv.style = "padding:25px; background:white; border:2px solid #4f46e5; border-radius:20px; margin-bottom:20px;";
-                    partnerDiv.innerHTML = `
-                        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:20px;">
-                            <h2 style="margin:0; color:#1e293b;">Socio: ${p.name}</h2>
-                            <div style="text-align:right;"><span style="font-size:10px; color:#64748b;">PARTICIPACIÓN</span><div style="font-size:24px; font-weight:900; color:#4f46e5;">${p.share_perc}%</div></div>
-                        </div>
-                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
-                            <div><div style="font-size:12px; font-weight:800; margin-bottom:10px;">📈 Tendencia</div><div style="display:flex; align-items:flex-end; gap:3px; height:100px; background:#f8fafc; padding:10px; border-radius:10px;">${barsHtml}</div></div>
-                            <div>
-                                <div style="font-size:12px; font-weight:800; margin-bottom:10px;">⚖️ Cálculo</div>
-                                <div style="background:#f5f3ff; padding:10px; border-radius:10px; font-size:11px;">M: ${((md.M||0)*100).toFixed(2)}% | P: ${((md.P||0)*100).toFixed(2)}% | H: ${((md.H_global||0)*100).toFixed(2)}%</div>
-                                <div style="margin-top:10px; background:#4f46e5; color:white; padding:10px; border-radius:10px; text-align:center;">
-                                    <div style="font-size:18px; font-weight:900;">${fmt.format(p.share_amount)}</div>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                    sections.push({ title: `SOCIO: ${p.name}`, el: partnerDiv });
+                    partnerDiv.style = "background:white; width:100%; min-height:600px;";
+                    partnerDiv.innerHTML = window.getPartnerReportHtml(p.name, month);
+                    sections.push({ title: `REPORTE SOCIO: ${p.name}`, el: partnerDiv });
                 }
 
                 // ENSAMBLAJE MANUAL DEL PDF
@@ -662,8 +630,8 @@
                     renderDiv.innerHTML = '';
                     renderDiv.appendChild(sec.el);
                     
-                    // Pequeña espera para que el navegador pinte el elemento clonado
-                    await new Promise(r => setTimeout(r, 200));
+                    // Pequeña espera para que el navegador pinte el elemento clonado y las gráficas
+                    await new Promise(r => setTimeout(r, 400));
                     
                     const canvas = await html2canvas(sec.el, { scale: 2, useCORS: true, logging: false });
                     const imgData = canvas.toDataURL('image/jpeg', 0.9);
