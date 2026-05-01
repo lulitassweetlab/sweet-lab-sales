@@ -247,15 +247,23 @@ export async function handler(event) {
 						updates.amount_cents = ac;
 					}
 					
-					if (!Object.keys(updates).length) return json({ error: 'Nada para actualizar' }, 400);
+					if (!Object.keys(updates).length && !Array.isArray(data.tags)) return json({ error: 'Nada para actualizar' }, 400);
 					
-					// Build SET clause manually
-					const setClause = Object.keys(updates).map((key, idx) => `${key} = $${idx + 1}`).join(', ');
-					const values = Object.values(updates);
-					
-					// Execute with proper parameter binding
-					const query = `UPDATE accounting_entries SET ${setClause} WHERE id = $${values.length + 1} RETURNING id, kind, entry_date, description, amount_cents, actor_name, created_at`;
-					const [row] = await sql(query, [...values, id]);
+					let row;
+					if (Object.keys(updates).length) {
+						// Build SET clause manually
+						const setClause = Object.keys(updates).map((key, idx) => `${key} = $${idx + 1}`).join(', ');
+						const values = Object.values(updates);
+						
+						// Execute with proper parameter binding
+						const query = `UPDATE accounting_entries SET ${setClause} WHERE id = $${values.length + 1} RETURNING id, kind, entry_date, description, amount_cents, actor_name, created_at`;
+						const [updatedRow] = await sql(query, [...values, id]);
+						row = updatedRow;
+					} else {
+						// If only tags changed, fetch the row to return it
+						const [existingRow] = await sql`SELECT id, kind, entry_date, description, amount_cents, actor_name, created_at FROM accounting_entries WHERE id = ${id}`;
+						row = existingRow;
+					}
 
 					// Handle tags if provided
 					if (Array.isArray(data.tags)) {
