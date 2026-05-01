@@ -77,7 +77,7 @@ export async function handler(event) {
             currentProcessMonth = m;
             let monthData = null;
 
-            if (snapshotsMap[m] && m !== currentMonth && !forceSync) {
+            if (snapshotsMap[m] && m !== currentMonth && !forceSync && snapshotsMap[m].expense_detail) {
                 monthData = snapshotsMap[m];
             }
             
