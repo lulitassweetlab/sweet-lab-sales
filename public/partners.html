@@ -256,31 +256,54 @@
                 const oldH = (md.H * 2) - md.P;
 
                 explainHtml = `
-                    <div style="background: #f8fafc; padding: 16px; border-radius: 12px; margin-bottom: 24px; border:1px solid #e2e8f0; font-family: ui-sans-serif, system-ui, sans-serif;">
-                        <h4 style="margin: 0 0 12px 0; color: #1e293b; font-size:0.95rem; display:flex; align-items:center; gap:6px;"><span>🧮</span> Cálculo de tu ${partnerMeta.share_perc}%</h4>
-
-                        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
-                            <div>
-                                <div style="color:#6366f1; font-weight:800; font-size:0.7rem;">1. TU MES ACTUAL (M)</div>
-                                <div style="font-size:0.7rem; color:#64748b; margin-top:2px;">Postres Equipo (${md.desserts}) ÷ Total Empresa (${totalDesserts})</div>
-                            </div>
-                            <strong style="font-size:1rem; color:#0f172a">${fmtP(md.M)}%</strong>
+                    <div style="flex: 1; display: flex; flex-direction: column; gap: 20px; padding: 10px; background: #f8fafc; border-radius: 20px; border: 1px solid #e2e8f0; font-family: 'Inter', sans-serif;">
+                        <div style="padding-bottom: 12px; border-bottom: 2px solid #e2e8f0;">
+                            <h4 style="margin: 0; color: #1e293b; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">
+                                <span style="background: #4f46e5; color: white; width: 24px; height: 24px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 0.8rem;">?</span> 
+                                ¿Cómo calculamos tu ${partnerMeta.share_perc}%?
+                            </h4>
                         </div>
 
-                        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
-                            <div>
-                                <div style="color:#6366f1; font-weight:800; font-size:0.7rem;">2. TU HISTORIAL (H)</div>
-                                <div style="font-size:0.7rem; color:#64748b; margin-top:2px;">Mitad Promedio (${fmtP(md.P)}%) + Mitad Mes Anterior (${fmtP(oldH)}%)</div>
+                        <!-- PASO 1 -->
+                        <div style="background: white; padding: 16px; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+                            <div style="color: #6366f1; font-weight: 900; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">PASO 1: TU MES ACTUAL (M)</div>
+                            <p style="font-size: 0.8rem; color: #64748b; margin: 0 0 8px 0; line-height: 1.4;">
+                                <strong>¿Cómo se calcula?:</strong> Se toma el total de postres vendidos por tu equipo este mes y se divide por el total de postres vendidos por toda la empresa en el mismo periodo.
+                            </p>
+                            <p style="font-size: 0.8rem; color: #94a3b8; font-style: italic; margin: 0 0 12px 0;">
+                                <strong>Ejemplo:</strong> Si la empresa vendió 1,000 postres y tu equipo vendió 300, tu M es 30%.
+                            </p>
+                            <div style="background: #f5f3ff; padding: 10px; border-radius: 10px; font-family: monospace; font-size: 0.85rem; color: #4338ca; border: 1px dashed #c7d2fe;">
+                                Ventas Socio (${md.desserts}) / Ventas Empresa (${totalDesserts}) = <span style="font-weight: 900;">${fmtP(md.M)}%</span>
                             </div>
-                            <strong style="font-size:1rem; color:#0f172a">${fmtP(md.H)}%</strong>
                         </div>
 
-                        <div style="background:linear-gradient(90deg, #f1f5f9, #e2e8f0); border:1px solid #cbd5e1; border-radius:8px; padding:10px 12px; display:flex; justify-content:space-between; align-items:center;">
-                            <div>
-                                <div style="color:#4f46e5; font-weight:900; font-size:0.75rem;">3. FINAL A PAGAR</div>
-                                <div style="font-size:0.7rem; color:#475569; margin-top:2px;">Promedio de los dos (${fmtP(md.M)}% + ${fmtP(md.H)}%)</div>
+                        <!-- PASO 2 -->
+                        <div style="background: white; padding: 16px; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+                            <div style="color: #6366f1; font-weight: 900; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">PASO 2: TU HISTORIAL (H)</div>
+                            <p style="font-size: 0.8rem; color: #64748b; margin: 0 0 8px 0; line-height: 1.4;">
+                                <strong>¿Cómo se calcula?:</strong> Promediamos tu historial reciente (los últimos 4 meses) con el peso que traías del mes anterior.
+                            </p>
+                            <p style="font-size: 0.8rem; color: #94a3b8; font-style: italic; margin: 0 0 12px 0;">
+                                <strong>Ejemplo:</strong> Si tu promedio era 20% y tu historial venía en 22%, tu nuevo H es 21%.
+                            </p>
+                            <div style="background: #f5f3ff; padding: 10px; border-radius: 10px; font-family: monospace; font-size: 0.85rem; color: #4338ca; border: 1px dashed #c7d2fe;">
+                                (Promedio 4 meses [${fmtP(md.P)}%] + Historial Anterior [${fmtP(oldH)}%]) / 2 = <span style="font-weight: 900;">${fmtP(md.H)}%</span>
                             </div>
-                            <strong style="font-size:1.2rem; color:#4f46e5; font-weight:900">${partnerMeta.share_perc}%</strong>
+                        </div>
+
+                        <!-- PASO 3 -->
+                        <div style="background: #4f46e5; padding: 16px; border-radius: 16px; color: white;">
+                            <div style="font-weight: 900; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; color: rgba(255,255,255,0.8);">PASO 3: FINAL A PAGAR</div>
+                            <p style="font-size: 0.8rem; margin: 0 0 8px 0; line-height: 1.4; color: rgba(255,255,255,0.9);">
+                                <strong>¿Cómo se calcula?:</strong> Sacamos el promedio final entre tu esfuerzo de este mes (M) y tu trayectoria acumulada (H).
+                            </p>
+                            <p style="font-size: 0.8rem; margin: 0 0 12px 0; font-style: italic; color: rgba(255,255,255,0.7);">
+                                <strong>Ejemplo:</strong> Si este mes tuviste 30% (M) y tu historial es 20% (H), recibes un 25%.
+                            </p>
+                            <div style="background: rgba(255,255,255,0.1); padding: 10px; border-radius: 10px; font-family: monospace; font-size: 0.95rem; border: 1px dashed rgba(255,255,255,0.3);">
+                                (Mes Actual [${fmtP(md.M)}%] + Historial [${fmtP(md.H)}%]) / 2 = <span style="font-weight: 900; font-size: 1.2rem;">${partnerMeta.share_perc}%</span>
+                            </div>
                         </div>
                     </div>
                 `;
@@ -288,27 +311,52 @@
 
             const pop = document.createElement('div');
             pop.style.position = 'fixed'; pop.style.top = '0'; pop.style.left = '0'; pop.style.width = '100vw'; pop.style.height = '100vh';
-            pop.style.background = 'rgba(0,0,0,0.7)'; pop.style.display = 'flex'; pop.style.alignItems = 'center'; pop.style.justifyContent = 'center'; pop.style.zIndex = '9999';
-            pop.style.backdropFilter = 'blur(6px)';
+            pop.style.background = 'rgba(15,23,42,0.8)'; pop.style.display = 'flex'; pop.style.alignItems = 'center'; pop.style.justifyContent = 'center'; pop.style.zIndex = '9999';
+            pop.style.backdropFilter = 'blur(10px)';
             pop.innerHTML = `
-                <div style="background:#fff; padding:24px; border-radius:20px; min-width:80vw; max-width:900px; max-height:85vh; overflow-y:auto; box-shadow:0 20px 25px -5px rgba(0,0,0,0.2), 0 10px 10px -5px rgba(0,0,0,0.1); display:flex; flex-direction:column;">
-                    <h3 style="margin:0 0 8px 0; color:#0f172a; font-size:1.3rem; display:flex; align-items:center; gap:8px; flex-shrink:0;">
-                        📈 Historial de Ventas
-                    </h3>
-                    <div style="font-size:0.95rem; font-weight:700; color:#6366f1; margin-bottom:24px; flex-shrink:0;">
-                        ${sellerName} • Últimos ${chartData.length} Meses
-                        <span style="color:#94a3b8; font-weight:600; margin-left:4px">(${months[0] ? months[0].month.split('-')[0] : ''} - ${months[months.length-1] ? months[months.length-1].month.split('-')[0] : ''})</span>
+                <div style="background:#fff; padding:32px; border-radius:32px; width:95vw; max-width:1100px; max-height:90vh; overflow-y:auto; box-shadow:0 25px 50px -12px rgba(0,0,0,0.5); display:flex; flex-direction:column; gap:24px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <h2 style="margin:0; color:#0f172a; font-size:1.8rem; letter-spacing:-0.02em;">Reporte de Desempeño: ${sellerName}</h2>
+                            <p style="margin:8px 0 0 0; color:#64748b; font-weight:500;">Análisis detallado de participación y ventas históricas</p>
+                        </div>
+                        <button onclick="this.closest('.popover-wrap').remove()" style="width:40px; height:40px; border-radius:12px; border:none; background:#f1f5f9; cursor:pointer; font-size:1.2rem; color:#64748b;">✕</button>
                     </div>
 
-                    ${explainHtml}
-                    
-                    <div style="flex-shrink:0; height:320px; display:flex; align-items:flex-end; gap:8px; padding:20px 10px 10px 10px; border-bottom:2px solid #e2e8f0; overflow-x:auto; margin-bottom:16px;">
-                        ${barsHtml}
+                    <div style="display:grid; grid-template-columns: 1fr 420px; gap:32px; align-items: start;">
+                        <!-- IZQUIERDA: GRÁFICO -->
+                        <div style="display:flex; flex-direction:column; gap:20px;">
+                            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:24px; padding:24px; height:450px; display:flex; flex-direction:column;">
+                                <h3 style="margin:0 0 24px 0; color:#0f172a; font-size:1.1rem; display:flex; align-items:center; gap:10px;">
+                                    📈 Tendencia de Ventas (Últimos ${chartData.length} meses)
+                                </h3>
+                                <div style="flex:1; display:flex; align-items:flex-end; gap:8px; padding-bottom:10px; overflow-x:auto;">
+                                    ${barsHtml}
+                                </div>
+                            </div>
+                            
+                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+                                <div style="background:#f0f9ff; padding:20px; border-radius:20px; border:1px solid #bae6fd;">
+                                    <div style="font-size:0.7rem; color:#0369a1; font-weight:800; text-transform:uppercase; margin-bottom:4px;">Total Postres Mes</div>
+                                    <div style="font-size:1.5rem; font-weight:900; color:#0c4a6e;">🍰 ${partnerMeta.metrics_debug?.desserts || 0}</div>
+                                </div>
+                                <div style="background:#f5f3ff; padding:20px; border-radius:20px; border:1px solid #ddd6fe;">
+                                    <div style="font-size:0.7rem; color:#5b21b6; font-weight:800; text-transform:uppercase; margin-bottom:4px;">Participación Final</div>
+                                    <div style="font-size:1.5rem; font-weight:900; color:#4c1d95;">${partnerMeta.share_perc}%</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- DERECHA: EXPLICACIÓN -->
+                        ${explainHtml}
                     </div>
 
-                    <button onclick="this.closest('.popover-wrap').remove()" style="margin-top:24px; width:100%; padding:14px; border-radius:12px; border:none; background:#f1f5f9; cursor:pointer; font-weight:800; color:#475569; font-size:1.05rem; transition:background 0.2s">Cerrar Gráfico</button>
+                    <button onclick="this.closest('.popover-wrap').remove()" style="width:100%; padding:18px; border-radius:16px; border:none; background:#0f172a; color:white; font-weight:700; font-size:1.1rem; cursor:pointer; transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.01)'" onmouseout="this.style.transform='scale(1)'">Entendido, cerrar reporte</button>
                 </div>
             `;
+            pop.className = 'popover-wrap';
+            document.body.appendChild(pop);
+        };
             pop.className = 'popover-wrap';
             document.body.appendChild(pop);
         };
