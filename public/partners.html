@@ -349,10 +349,12 @@
             let totalR = 0; let totalP = 0;
             window.productDetailsMap = {};
             window.revenueDetailsMap = {};
+            window.expenseDetailsMap = {};
 
             DATA.history.forEach(m => {
                 window.productDetailsMap[m.month] = m.product_detail || [];
                 window.revenueDetailsMap[m.month] = m.revenue_detail || [];
+                window.expenseDetailsMap[m.month] = m.expense_detail || [];
                 totalR += m.revenue; totalP += m.profit;
                 const div = document.createElement('div');
                 div.className = 'box';
@@ -389,7 +391,7 @@
                                 <div class="fin-item" style="cursor:pointer" onclick="showRevenueDetails('${m.month}', event)" title="Click para ver detalle mensual"><span class="fin-label" style="text-decoration:underline; text-decoration-style:dashed; text-underline-offset:4px">Ventas (Ingresos)</span><span class="fin-val"><span class="hist-text-${m.month}">${fmt.format(m.revenue)}</span><input type="number" class="hist-g-input-${m.month}" data-key="revenue" value="${m.revenue}" style="display:none; width:80px; text-align:right; border-radius:4px; border:1px solid #c4b5fd; font-weight:700"></span></div>
                                 <div class="fin-item" style="cursor:pointer" onclick="showProductDetails('${m.month}', event)" title="Click para ver detalle mensual por productos"><span class="fin-label" style="text-decoration:underline; text-decoration-style:dashed; text-underline-offset:4px">Costo Materia Prima</span><span class="fin-val neg"><span class="hist-text-${m.month}">-${fmt.format(m.cogs)}</span><input type="number" class="hist-g-input-${m.month}" data-key="cogs" value="${m.cogs}" style="display:none; width:80px; text-align:right; border-radius:4px; border:1px solid #c4b5fd; font-weight:700"></span></div>
                                 <div class="fin-item"><span class="fin-label">Mano de Obra (MOD)</span><span class="fin-val neg"><span class="hist-text-${m.month}">-${fmt.format(m.mod || 0)}</span><input type="number" class="hist-g-input-${m.month}" data-key="mod" value="${m.mod||0}" style="display:none; width:80px; text-align:right; border-radius:4px; border:1px solid #c4b5fd; font-weight:700"></span></div>
-                                <div class="fin-item"><span class="fin-label">Gastos</span><span class="fin-val neg"><span class="hist-text-${m.month}">-${fmt.format(m.expenses)}</span><input type="number" class="hist-g-input-${m.month}" data-key="expenses" value="${m.expenses}" style="display:none; width:80px; text-align:right; border-radius:4px; border:1px solid #c4b5fd; font-weight:700"></span></div>
+                                <div class="fin-item" style="cursor:pointer" onclick="showExpenseDetails('${m.month}', event)" title="Click para ver detalle de gastos"><span class="fin-label" style="text-decoration:underline; text-decoration-style:dashed; text-underline-offset:4px">Gastos</span><span class="fin-val neg"><span class="hist-text-${m.month}">-${fmt.format(m.expenses)}</span><input type="number" class="hist-g-input-${m.month}" data-key="expenses" value="${m.expenses}" style="display:none; width:80px; text-align:right; border-radius:4px; border:1px solid #c4b5fd; font-weight:700"></span></div>
                                 <div class="fin-item"><span class="fin-label">Ajustes</span><span class="fin-val neg"><span class="hist-text-${m.month}">-${fmt.format(m.losses)}</span><input type="number" class="hist-g-input-${m.month}" data-key="losses" value="${m.losses}" style="display:none; width:80px; text-align:right; border-radius:4px; border:1px solid #c4b5fd; font-weight:700"></span></div>
                                 
                                 <div style="margin-top:12px; padding:16px; background:#f5f3ff; border-radius:18px; border:1px solid #ddd6fe">
@@ -795,6 +797,64 @@
             pop.className = 'popover-wrap';
             document.body.appendChild(pop);
         };
+
+        window.showExpenseDetails = (month, ev) => {
+			if (ev.target.tagName.toLowerCase() === 'input' || ev.target.tagName.toLowerCase() === 'button') return;
+			const details = window.expenseDetailsMap[month] || [];
+			const dataForMonth = DATA.history.find(h => h.month === month);
+			const finalTotal = dataForMonth ? dataForMonth.expenses : 0;
+			const realSum = details.reduce((a, b) => a + b.amount, 0);
+			const diff = finalTotal - realSum;
+
+			const html = details.map(d => {
+				const tagsHtml = (d.tags || []).map(t => `<span style="background:${t.color}; color:white; padding:2px 6px; border-radius:10px; font-size:0.65rem; font-weight:700; margin-left:4px; white-space:nowrap;">${t.name}</span>`).join('');
+				return `<div style="margin-bottom:8px; background:#f8fafc; padding:12px; border-radius:14px; border:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;">
+					<div style="flex:1; padding-right:12px">
+						<div style="font-size:0.85rem; font-weight:700; color:#334155; line-height:1.2; margin-bottom:4px">${d.description}</div>
+						<div style="display:flex; align-items:center; gap:8px">
+							<span style="font-size:0.7rem; color:#94a3b8; font-weight:600">${d.date}</span>
+							<div style="display:flex; gap:2px; flex-wrap:wrap">${tagsHtml}</div>
+						</div>
+					</div>
+					<strong style="color:#ef4444; font-size:1rem; white-space:nowrap">-${fmt.format(d.amount)}</strong>
+				</div>`;
+			}).join('');
+
+			let adjustmentHtml = '';
+			if (Math.abs(diff) > 10) {
+				adjustmentHtml = `<div style="margin-bottom:8px; background:#fff7ed; padding:12px; border-radius:14px; border:1px solid #ffedd5; display:flex; justify-content:space-between; align-items:center;">
+					<div style="flex:1">
+						<div style="font-size:0.85rem; font-weight:800; color:#9a3412">⚠️ Ajuste Manual de Auditoría</div>
+						<div style="font-size:0.7rem; color:#c2410c">Corrección de histórico o saldo inicial</div>
+					</div>
+					<strong style="color:#ef4444; font-size:1rem; white-space:nowrap">-${fmt.format(diff)}</strong>
+				</div>`;
+			}
+
+			const pop = document.createElement('div');
+			pop.style.position = 'fixed'; pop.style.top = '0'; pop.style.left = '0'; pop.style.width = '100vw'; pop.style.height = '100vh';
+			pop.style.background = 'rgba(0,0,0,0.6)'; pop.style.display = 'flex'; pop.style.alignItems = 'center'; pop.style.justifyContent = 'center'; pop.style.zIndex = '9999';
+			pop.style.backdropFilter = 'blur(4px)';
+			pop.innerHTML = `
+				<div style="background:#fff; padding:24px; border-radius:24px; min-width:380px; max-width:500px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04); transform: translateY(-20px)">
+					<h3 style="margin:0 0 16px 0; color:#0f172a; border-bottom:1px solid #e2e8f0; padding-bottom:12px; font-size:1.2rem; display:flex; align-items:center; gap:8px">
+						💸 Detalle de Gastos
+					</h3>
+					<div style="font-size:0.8rem; font-weight:600; color:#64748b; margin-bottom:16px; text-transform:uppercase; letter-spacing:0.05em">${month}</div>
+					<div style="max-height:55vh; overflow-y:auto; padding-right:8px; display:flex; flex-direction:column; gap:4px">
+						${html || '<div style="text-align:center; color:#94a3b8; padding:20px">No hay gastos registrados en contabilidad.</div>'}
+						${adjustmentHtml}
+					</div>
+					<div style="display:flex; justify-content:space-between; margin-top:20px; padding:16px; border-top:2px dashed #cbd5e1; background:#fef2f2; border-radius:16px; font-weight:900; font-size:1.2rem; color:#1e293b">
+						<span>TOTAL</span>
+						<span style="color:#ef4444">-${fmt.format(finalTotal)}</span>
+					</div>
+					<button onclick="this.closest('.popover-wrap').remove()" style="margin-top:24px; width:100%; padding:14px; border-radius:12px; border:none; background:#f1f5f9; cursor:pointer; font-weight:800; color:#475569; font-size:1.05rem; transition:background 0.2s">Cerrar</button>
+				</div>
+			`;
+			pop.className = 'popover-wrap';
+			document.body.appendChild(pop);
+		};
 
         start();
     </script>
