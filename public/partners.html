@@ -556,186 +556,180 @@
 
         window.downloadIntegralPDF = async (month, btn) => {
             const originalContent = btn.innerHTML;
-            btn.innerHTML = '<span style="font-size:0.8rem; font-weight:700;">Generando PDF Integral...</span>';
+            btn.innerHTML = '<span style="font-size:0.8rem; font-weight:700;">Generando PDF...</span>';
             btn.disabled = true;
             
             try {
                 const m = DATA.history.find(h => h.month === month);
                 if (!m) throw new Error("No hay datos para este mes");
 
-                // Contenedor temporal para el PDF
+                // Crear un contenedor visible pero fuera de la vista principal
                 const pdfContainer = document.createElement('div');
-                pdfContainer.style.width = '800px';
-                pdfContainer.style.padding = '40px';
-                pdfContainer.style.background = '#f8fafc';
-                pdfContainer.style.position = 'absolute';
-                pdfContainer.style.left = '-9999px';
+                pdfContainer.id = "pdf-render-container";
+                pdfContainer.style.width = '850px';
+                pdfContainer.style.background = 'white';
+                pdfContainer.style.position = 'fixed';
+                pdfContainer.style.top = '0';
+                pdfContainer.style.left = '-2000px'; // Bien lejos a la izquierda
+                pdfContainer.style.zIndex = '-100';
+                pdfContainer.style.fontFamily = "'Inter', sans-serif";
                 document.body.appendChild(pdfContainer);
 
-                const addPageBreak = () => {
+                const addSection = (html) => {
                     const div = document.createElement('div');
-                    div.style.pageBreakAfter = 'always';
+                    div.style.padding = '40px';
+                    div.style.borderBottom = '2px solid #f1f5f9';
+                    div.innerHTML = html;
                     pdfContainer.appendChild(div);
                 };
 
-                const addHeader = (title) => {
-                    const h = document.createElement('h1');
-                    h.style = "font-size:24px; color:#4f46e5; border-bottom:2px solid #e2e8f0; padding-bottom:10px; margin-bottom:20px; font-family:sans-serif;";
-                    h.innerText = title;
-                    pdfContainer.appendChild(h);
-                };
-
-                // 1. FICHA RESUMEN
-                addHeader(`RESUMEN MENSUAL - ${month}`);
+                // 1. PORTADA / RESUMEN
                 const cardClone = document.querySelector(`button[onclick*="${month}"]`).closest('.box').cloneNode(true);
                 cardClone.style.boxShadow = 'none';
-                cardClone.style.border = '1px solid #e2e8f0';
-                cardClone.querySelectorAll('button').forEach(b => b.style.display = 'none');
+                cardClone.style.border = 'none';
+                cardClone.style.width = '100%';
+                cardClone.querySelectorAll('button').forEach(b => b.remove());
+                addSection(`
+                    <div style="text-align:center; margin-bottom:30px;">
+                        <h1 style="color:#4f46e5; margin:0; font-size:28px;">REPORTE INTEGRAL LULITAS</h1>
+                        <p style="color:#64748b; font-size:16px;">Mes de Cierre: ${month}</p>
+                    </div>
+                `);
                 pdfContainer.appendChild(cardClone);
-                addPageBreak();
 
-                // 2. DETALLE DE VENTAS (Misma que el popover)
-                addHeader("DETALLE DE VENTAS");
+                // 2. VENTAS
                 const revDetails = window.revenueDetailsMap[month] || [];
-                const revHtml = revDetails.map(d => {
-                    let daysHtml = '';
-                    if (d.days && d.days.length) {
-                        daysHtml = '<div style="margin-top:8px; padding-left:12px; border-left:2px solid #e2e8f0; display:flex; flex-direction:column; gap:4px">';
-                        d.days.forEach(day => {
-                            daysHtml += `<div style="display:flex; justify-content:space-between; font-size:0.8rem; color:#4f46e5; font-weight:600; padding:4px 6px;"><span>🗓 ${day.date}</span><span style="color:#64748b">${fmt.format(day.amount)}</span></div>`;
-                        });
-                        daysHtml += '</div>';
-                    }
-                    return `<div style="margin-bottom:12px; background:#fff; padding:12px; border-radius:12px; border:1px solid #f1f5f9">
-                        <div style="display:flex; justify-content:space-between; border-bottom:1px solid #e2e8f0; padding-bottom:6px; margin-bottom:4px"><span style="font-weight:700">${d.seller_name}</span><strong style="color:#10b981">${fmt.format(d.amount)}</strong></div>
-                        ${daysHtml}
-                    </div>`;
-                }).join('');
-                const revDiv = document.createElement('div');
-                revDiv.innerHTML = revHtml;
-                pdfContainer.appendChild(revDiv);
-                addPageBreak();
+                const revHtml = revDetails.map(d => `
+                    <div style="margin-bottom:15px; border:1px solid #e2e8f0; border-radius:12px; padding:15px;">
+                        <div style="display:flex; justify-content:space-between; font-weight:800; border-bottom:1px solid #eee; padding-bottom:8px; margin-bottom:8px;">
+                            <span>${d.seller_name}</span>
+                            <span style="color:#10b981;">${fmt.format(d.amount)}</span>
+                        </div>
+                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                            ${(d.days || []).map(day => `<div style="font-size:11px; color:#64748b;">🗓 ${day.date}: <b>${fmt.format(day.amount)}</b></div>`).join('')}
+                        </div>
+                    </div>
+                `).join('');
+                addSection(`<h2 style="color:#4f46e5; font-size:20px; border-left:4px solid #4f46e5; padding-left:15px; margin-bottom:20px;">DETALLE DE VENTAS DIARIAS</h2>${revHtml}`);
 
-                // 3. DESEMPEÑO OPERATIVO (Misma que el popover)
-                addHeader("DESEMPEÑO OPERATIVO Y COSTOS");
+                // 3. PRODUCTOS Y MÁRGENES
                 const prodDetails = window.productDetailsMap[month] || [];
-                const prodHtml = prodDetails.map(d => {
-                    let prodsHtml = '<table style="width:100%; border-collapse:collapse; margin-top:12px; font-size:0.8rem">';
-                    prodsHtml += '<tr style="border-bottom:1px solid #cbd5e1; color:#64748b"><th style="text-align:left;">Postre</th><th style="text-align:right;">Cant.</th><th style="text-align:right;">Margen</th></tr>';
-                    (d.products || []).forEach(p => {
-                        let margin = p.revenue > 0 ? Math.round(((p.revenue - p.cogs) / p.revenue) * 100) : 0;
-                        prodsHtml += `<tr style="border-bottom:1px solid #f1f5f9; color:#475569"><td style="padding:6px 0">${p.name}</td><td style="text-align:right;">${p.quantity || '-'}</td><td style="text-align:right; font-weight:600">${margin}%</td></tr>`;
-                    });
-                    prodsHtml += '</table>';
-                    return `<div style="margin-bottom:16px; background:#fff; padding:16px; border-radius:12px; border:1px solid #f1f5f9"><div style="font-weight:800; color:#334155; font-size:1.1rem; border-bottom:1px solid #eee; padding-bottom:4px;">${d.seller_name}</div>${prodsHtml}</div>`;
-                }).join('');
-                const prodDiv = document.createElement('div');
-                prodDiv.innerHTML = prodHtml;
-                pdfContainer.appendChild(prodDiv);
-                addPageBreak();
+                const prodHtml = prodDetails.map(d => `
+                    <div style="margin-bottom:20px;">
+                        <h3 style="font-size:14px; color:#1e293b; margin-bottom:8px;">Socio: ${d.seller_name}</h3>
+                        <table style="width:100%; border-collapse:collapse; font-size:11px;">
+                            <tr style="background:#f8fafc; color:#64748b; text-align:left;">
+                                <th style="padding:8px; border:1px solid #e2e8f0;">Postre</th>
+                                <th style="padding:8px; border:1px solid #e2e8f0; text-align:center;">Cant.</th>
+                                <th style="padding:8px; border:1px solid #e2e8f0; text-align:right;">Ingreso</th>
+                                <th style="padding:8px; border:1px solid #e2e8f0; text-align:right;">Margen</th>
+                            </tr>
+                            ${(d.products || []).map(p => `
+                                <tr>
+                                    <td style="padding:8px; border:1px solid #e2e8f0;">${p.name}</td>
+                                    <td style="padding:8px; border:1px solid #e2e8f0; text-align:center;">${p.quantity}</td>
+                                    <td style="padding:8px; border:1px solid #e2e8f0; text-align:right;">${fmt.format(p.revenue)}</td>
+                                    <td style="padding:8px; border:1px solid #e2e8f0; text-align:right; font-weight:800;">${p.revenue > 0 ? Math.round(((p.revenue - p.cogs)/p.revenue)*100) : 0}%</td>
+                                </tr>
+                            `).join('')}
+                        </table>
+                    </div>
+                `).join('');
+                addSection(`<h2 style="color:#4f46e5; font-size:20px; border-left:4px solid #4f46e5; padding-left:15px; margin-bottom:20px;">PRODUCTOS, CANTIDADES Y MÁRGENES</h2>${prodHtml}`);
 
-                // 4. DETALLE DE GASTOS
-                addHeader("DETALLE DE GASTOS");
+                // 4. GASTOS
                 const expDetails = window.expenseDetailsMap[month] || [];
-                const expHtml = expDetails.map(d => {
-                    return `<div style="margin-bottom:8px; background:#fff; padding:12px; border-radius:14px; border:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;">
-                        <div style="flex:1;"><div style="font-size:0.85rem; font-weight:700; color:#334155;">${d.description}</div><div style="font-size:0.7rem; color:#94a3b8;">${d.date}</div></div>
-                        <strong style="color:#ef4444;">-${fmt.format(d.amount)}</strong>
-                    </div>`;
-                }).join('');
-                const expDiv = document.createElement('div');
-                expDiv.innerHTML = expHtml;
-                pdfContainer.appendChild(expDiv);
-                addPageBreak();
+                const expHtml = `
+                    <table style="width:100%; border-collapse:collapse; font-size:12px;">
+                        <tr style="background:#fef2f2; color:#991b1b; text-align:left;">
+                            <th style="padding:10px; border:1px solid #fecaca;">Fecha</th>
+                            <th style="padding:10px; border:1px solid #fecaca;">Descripción</th>
+                            <th style="padding:10px; border:1px solid #fecaca; text-align:right;">Monto</th>
+                        </tr>
+                        ${expHtmlDetails = expDetails.map(d => `
+                            <tr>
+                                <td style="padding:10px; border:1px solid #f1f5f9;">${d.date}</td>
+                                <td style="padding:10px; border:1px solid #f1f5f9;">${d.description}</td>
+                                <td style="padding:10px; border:1px solid #f1f5f9; text-align:right; color:#ef4444; font-weight:700;">-${fmt.format(d.amount)}</td>
+                            </tr>
+                        `).join('')}
+                    </table>
+                `;
+                addSection(`<h2 style="color:#ef4444; font-size:20px; border-left:4px solid #ef4444; padding-left:15px; margin-bottom:20px;">RELACIÓN DE GASTOS DEL MES</h2>${expHtml}`);
 
-                // 5. REPORTES DE SOCIOS (Uno por uno)
-                addHeader("REPORTES DETALLADOS POR SOCIO");
-                const partners = m.partners || [];
-                for (const p of partners) {
-                    const sellerName = p.name;
-                    const partnerMeta = p;
+                // 5. REPORTES SOCIOS
+                for (const p of m.partners) {
                     const md = p.metrics_debug || {};
-                    const fmtP = n => ((n || 0) * 100).toFixed(2);
-                    const totalDesserts = m.partners.reduce((sum, sp) => sum + (sp.metrics_debug?.desserts || 0), 0);
-                    
-                    // REPLICAR LÓGICA DE GRÁFICA
                     const shortMonths = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
                     const histMonths = [...DATA.history].sort((a, b) => a.month.localeCompare(b.month)).slice(-12);
                     let maxRev = 0;
                     const chartData = histMonths.map(hm => {
                         const rd = window.revenueDetailsMap[hm.month] || [];
-                        const se = rd.find(d => d.seller_name.toLowerCase() === sellerName.toLowerCase());
+                        const se = rd.find(d => d.seller_name.toLowerCase() === p.name.toLowerCase());
                         const rev = se ? se.amount : 0;
                         if (rev > maxRev) maxRev = rev;
                         const [yyyy, mm] = hm.month.split('-');
                         return { formatted: shortMonths[parseInt(mm)-1], revenue: rev };
                     });
                     if (maxRev === 0) maxRev = 1;
-                    const barsHtml = chartData.map(d => {
-                        const heightPct = Math.max(5, Math.round((d.revenue / maxRev) * 100));
-                        return `<div style="display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100px; width:30px;">
-                            <div style="width:100%; height:${heightPct}%; background:#6366f1; border-radius:4px 4px 0 0;"></div>
-                            <span style="font-size:10px; color:#64748b; margin-top:4px;">${d.formatted}</span>
-                        </div>`;
-                    }).join('');
+                    const barsHtml = chartData.map(d => `
+                        <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:80px;">
+                            <div style="width:15px; height:${Math.max(5, Math.round((d.revenue/maxRev)*100))}%; background:#6366f1; border-radius:3px;"></div>
+                            <span style="font-size:8px; color:#94a3b8; margin-top:2px;">${d.formatted}</span>
+                        </div>
+                    `).join('');
 
-                    const model = (DATA.settings && DATA.settings.partner_distribution_model) || 'pro';
-                    let stepsHtml = '';
-                    if (model === 'triple') {
-                        const w1 = (DATA.settings?.triple_w1 || 33.33) / 100;
-                        const w2 = (DATA.settings?.triple_w2 || 33.33) / 100;
-                        const w3 = (DATA.settings?.triple_w3 || 33.34) / 100;
-                        stepsHtml = `
-                            <div style="background:#f5f3ff; padding:10px; border-radius:10px; margin-bottom:10px;">
-                                <div style="font-weight:800; font-size:10px; color:#4c1d95;">PASO 1: ESFUERZO MES (${(w1*100).toFixed(1)}%)</div>
-                                <div style="font-size:12px;">Participación: <b>${fmtP(md.M)}%</b></div>
+                    const stepsHtml = (DATA.settings?.partner_distribution_model === 'triple') ? `
+                        <div style="display:flex; flex-direction:column; gap:8px;">
+                            <div style="background:#f5f3ff; padding:10px; border-radius:10px; border:1px solid #ddd6fe;">
+                                <div style="font-size:9px; font-weight:800; color:#4c1d95; margin-bottom:2px;">PASO 1: ESFUERZO ACTUAL</div>
+                                <div style="font-size:12px; font-weight:700;">${((md.M || 0)*100).toFixed(2)}%</div>
                             </div>
-                            <div style="background:#f5f3ff; padding:10px; border-radius:10px; margin-bottom:10px;">
-                                <div style="font-weight:800; font-size:10px; color:#4c1d95;">PASO 2: ESTABILIDAD (${(w2*100).toFixed(1)}%)</div>
-                                <div style="font-size:12px;">Promedio meses: <b>${fmtP(md.P)}%</b></div>
+                            <div style="background:#f5f3ff; padding:10px; border-radius:10px; border:1px solid #ddd6fe;">
+                                <div style="font-size:9px; font-weight:800; color:#4c1d95; margin-bottom:2px;">PASO 2: ESTABILIDAD</div>
+                                <div style="font-size:12px; font-weight:700;">${((md.P || 0)*100).toFixed(2)}%</div>
                             </div>
-                            <div style="background:#f5f3ff; padding:10px; border-radius:10px; margin-bottom:10px;">
-                                <div style="font-weight:800; font-size:10px; color:#4c1d95;">PASO 3: HISTÓRICO (${(w3*100).toFixed(1)}%)</div>
-                                <div style="font-size:12px;">Participación de por vida: <b>${fmtP(md.H_global)}%</b></div>
-                            </div>
-                        `;
-                    }
-
-                    const pDiv = document.createElement('div');
-                    pDiv.style = "background:#fff; border:2px solid #e2e8f0; border-radius:24px; padding:24px; margin-bottom:30px; font-family:sans-serif;";
-                    pDiv.innerHTML = `
-                        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:15px;">
-                            <h2 style="margin:0; font-size:20px;">Socio: ${sellerName}</h2>
-                            <div style="text-align:right;">
-                                <div style="font-size:10px; color:#64748b;">PARTICIPACIÓN FINAL</div>
-                                <div style="font-size:18px; font-weight:900; color:#4f46e5;">${partnerMeta.share_perc}%</div>
+                            <div style="background:#f5f3ff; padding:10px; border-radius:10px; border:1px solid #ddd6fe;">
+                                <div style="font-size:9px; font-weight:800; color:#4c1d95; margin-bottom:2px;">PASO 3: HISTÓRICO GLOBAL</div>
+                                <div style="font-size:12px; font-weight:700;">${((md.H_global || 0)*100).toFixed(2)}%</div>
                             </div>
                         </div>
-                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
-                            <div>
-                                <div style="font-size:12px; font-weight:800; color:#1e293b; margin-bottom:10px;">📈 Tendencia (Ventas)</div>
-                                <div style="display:flex; align-items:flex-end; gap:4px; height:120px; background:#f8fafc; padding:10px; border-radius:12px;">${barsHtml}</div>
+                    ` : '';
+
+                    addSection(`
+                        <div style="border:2px solid #4f46e5; border-radius:20px; padding:25px; background:white;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:1px solid #f1f5f9; padding-bottom:10px;">
+                                <h3 style="margin:0; font-size:22px; color:#1e293b;">REPORTE SOCIO: ${p.name}</h3>
+                                <div style="text-align:right;"><span style="font-size:10px; color:#64748b; font-weight:800;">PARTICIPACIÓN</span><div style="font-size:24px; font-weight:900; color:#4f46e5;">${p.share_perc}%</div></div>
                             </div>
-                            <div>
-                                <div style="font-size:12px; font-weight:800; color:#1e293b; margin-bottom:10px;">⚖️ Cálculo de Mérito</div>
-                                ${stepsHtml}
-                                <div style="background:#4f46e5; color:white; padding:12px; border-radius:12px; text-align:center;">
-                                    <div style="font-size:10px; opacity:0.8;">MONTO A RECIBIR</div>
-                                    <div style="font-size:18px; font-weight:900;">${fmt.format(partnerMeta.share_amount)}</div>
+                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:30px;">
+                                <div>
+                                    <h4 style="font-size:12px; color:#64748b; margin-bottom:10px;">📈 Tendencia de Ventas (12 Meses)</h4>
+                                    <div style="display:flex; align-items:flex-end; gap:3px; height:100px; background:#f8fafc; padding:10px; border-radius:10px; border:1px solid #e2e8f0;">${barsHtml}</div>
+                                </div>
+                                <div>
+                                    <h4 style="font-size:12px; color:#64748b; margin-bottom:10px;">⚖️ Desglose Triple Horizonte</h4>
+                                    ${stepsHtml}
+                                    <div style="margin-top:15px; background:#4f46e5; color:white; padding:12px; border-radius:12px; text-align:center;">
+                                        <div style="font-size:10px; opacity:0.8;">DISTRIBUCIÓN FINAL</div>
+                                        <div style="font-size:20px; font-weight:900;">${fmt.format(p.share_amount)}</div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    `;
-                    pdfContainer.appendChild(pDiv);
+                    `);
                 }
 
-                // GENERAR PDF
+                // Esperar un momento para que todo se "dibuje" en el DOM
+                await new Promise(r => setTimeout(r, 800));
+
                 const opt = {
-                    margin: 10,
-                    filename: `Reporte_Integral_Lulitas_${month}.pdf`,
+                    margin: [10, 10],
+                    filename: `Lulitas_Integral_${month}.pdf`,
                     image: { type: 'jpeg', quality: 0.98 },
-                    html2canvas: { scale: 2, useCORS: true },
-                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                    html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
                 };
 
                 await html2pdf().set(opt).from(pdfContainer).save();
@@ -744,8 +738,8 @@
                 const menu = document.querySelector('.popover-wrap-menu');
                 if (menu) menu.remove();
             } catch (e) {
-                console.error(e);
-                alert("Error al generar PDF: " + e.message);
+                console.error("PDF Error:", e);
+                alert("Error al generar el PDF. Por favor intenta de nuevo.");
             } finally {
                 btn.innerHTML = originalContent;
                 btn.disabled = false;
