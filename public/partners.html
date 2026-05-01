@@ -428,16 +428,20 @@
                 const rS = await fetch('/api/sellers');
                 if (!rS.ok) throw new Error('Error cargando vendedores');
                 SELLERS = await rS.json();
+                
                 updateStatus('Analizando finanzas...');
                 const sync = new URLSearchParams(window.location.search).get('force_sync') === '1' ? '?force_sync=1' : '';
                 const rR = await fetch('/api/partners-report' + sync);
-                if (!rR.ok) throw new Error('Error cargando reporte de socios');
+                if (!rR.ok) {
+                    const errData = await rR.json().catch(() => ({}));
+                    throw new Error(errData.details || errData.error || 'Error desconocido en el servidor');
+                }
                 DATA = await rR.json();
                 console.log("DATA loaded:", DATA);
                 render();
             } catch (e) {
                 console.error("LoadData Error:", e);
-                document.getElementById('status-msg').innerHTML = `<div style="color:red"><h3>Error</h3><p>${e.message}</p></div>`;
+                document.getElementById('status-msg').innerHTML = `<div style="color:red; padding:20px; background:#fff; border-radius:16px;"><h3>❌ Error de Sistema</h3><p style="font-size:0.9rem; color:#666;">${e.message}</p><button onclick="location.reload()" style="margin-top:10px; padding:8px 16px; border-radius:8px; border:none; background:#4f46e5; color:white; cursor:pointer;">Reintentar</button></div>`;
             }
         }
 
