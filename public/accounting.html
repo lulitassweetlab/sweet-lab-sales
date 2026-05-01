@@ -583,7 +583,7 @@
 							<div class="desc-text" contenteditable="true" style="font-weight:600; outline:none; min-width:60px;">${r.description||''}</div>
 							<div style="display:inline-flex; flex-wrap:wrap; gap:4px; align-items:center;">
 								${tagsHtml}
-								<span class="add-tag-btn" role="button" title="Gestionar etiquetas" style="display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:50%; background:rgba(0,0,0,0.04); color:rgba(0,0,0,0.2); font-weight:900; cursor:pointer; font-size:14px;">+</span>
+								<span class="add-tag-btn" role="button" onclick="event.stopPropagation(); window.openTagPickerPopover(${r.id}, [${(r.tags || []).map(t => t.id).join(',')}])" title="Gestionar etiquetas" style="display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:50%; background:rgba(0,0,0,0.04); color:rgba(0,0,0,0.2); font-weight:900; cursor:pointer; font-size:14px;">+</span>
 							</div>
 						</div>
 					</td>
@@ -665,16 +665,6 @@
 					}
 				});
 
-				// Wire tag picker
-				const addTagBtn = tr.querySelector('.add-tag-btn');
-				if (addTagBtn) {
-					addTagBtn.addEventListener('click', (ev) => {
-						ev.stopPropagation();
-						ev.preventDefault();
-						console.log('Tag picker requested for row', r.id);
-						openTagPickerPopover(r.id, (r.tags || []).map(t => t.id));
-					});
-				}
 
 				const tds = tr.querySelectorAll('td');
 				const tdDate = tds[1];
@@ -1009,6 +999,7 @@
 			}
 
 			async function openTagPickerPopover(entryId, currentTagIds) {
+				window.openTagPickerPopover = openTagPickerPopover;
 				const backdrop = document.createElement('div');
 				backdrop.className = 'form-popover-backdrop';
 				backdrop.style.zIndex = '2001';
