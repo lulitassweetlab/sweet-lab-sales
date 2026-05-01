@@ -536,9 +536,11 @@
 				tr.innerHTML = `
 					<td style="text-align:center; width:28px"><button class="attach-btn${hasAtt ? ' has' : ''}" data-id="${r.id}" title="Adjuntar archivo" aria-label="Adjuntar">${hasAtt ? '●' : '-'}</button></td>
 					<td class="editable" data-field="entry_date" title="Clic para editar fecha">${String(r.entry_date||'').slice(0,10)}</td>
-					<td class="editable" data-field="description" contenteditable="true" title="Clic para editar descripción">
-						<div style="font-weight:600;">${r.description||''}</div>
-						<div style="margin-top:4px; display:flex; flex-wrap:wrap; gap:2px;">${tagsHtml}</div>
+					<td class="editable" data-field="description" title="Clic para editar descripción">
+						<div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+							<div class="desc-text" contenteditable="true" style="font-weight:600; outline:none; min-width:60px;">${r.description||''}</div>
+							<div style="display:inline-flex; flex-wrap:wrap; gap:2px;">${tagsHtml}</div>
+						</div>
 					</td>
 					<td class="col-total editable" data-field="amount_cents" data-kind="ingreso" contenteditable="true" title="Clic para editar">${colIng}</td>
 					<td class="col-total editable" data-field="amount_cents" data-kind="gasto" contenteditable="true" title="Clic para editar">${colSal}</td>
@@ -625,7 +627,7 @@
 				const tdSal = tds[4];
 
 				// Setup Select All on focus/click
-				[tdDesc, tdIng, tdSal].forEach(el => {
+				[tdIng, tdSal].forEach(el => {
 					el.addEventListener('focus', () => setTimeout(() => {
 						if (!el._isClicked) selectAllContent(el);
 					}, 10));
@@ -651,14 +653,19 @@
 				});
 
 				// Description Auto-save
-				tdDesc.addEventListener('blur', async () => {
-					const newVal = tdDesc.textContent.trim();
-					if (newVal === r.description) return;
-					try {
-						await fetch('/api/accounting', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-Actor-Name': currentUser?.name || '' }, body: JSON.stringify({ id: r.id, description: newVal }) });
-						await load();
-					} catch (e) { }
-				});
+				const descEl = tdDesc.querySelector('.desc-text');
+				if (descEl) {
+					descEl.addEventListener('focus', () => setTimeout(() => selectAllContent(descEl), 10));
+					descEl.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); descEl.blur(); } });
+					descEl.addEventListener('blur', async () => {
+						const newVal = descEl.textContent.trim();
+						if (newVal === r.description) return;
+						try {
+							await fetch('/api/accounting', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-Actor-Name': currentUser?.name || '' }, body: JSON.stringify({ id: r.id, description: newVal }) });
+							await load();
+						} catch (e) { }
+					});
+				}
 
 				// Numeric Logic (Sanitization + Save)
 				[tdIng, tdSal].forEach(el => {
