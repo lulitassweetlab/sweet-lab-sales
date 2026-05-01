@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="/styles.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         :root { 
             --p-mod: #6366f1; 
@@ -555,106 +556,191 @@
 
         window.downloadIntegralPDF = async (month, btn) => {
             const originalContent = btn.innerHTML;
-            btn.innerHTML = '<span style="font-size:0.8rem; font-weight:700;">Generando...</span>';
+            btn.innerHTML = '<span style="font-size:0.8rem; font-weight:700;">Generando PDF Integral...</span>';
             btn.disabled = true;
             
             try {
-                const { jsPDF } = window.jspdf;
-                const pdf = new jsPDF('p', 'mm', 'a4');
                 const m = DATA.history.find(h => h.month === month);
                 if (!m) throw new Error("No hay datos para este mes");
-                
-                // PÁGINA 1: Resumen General (Captura)
-                const card = document.querySelector(`button[onclick*="${month}"]`).closest('.box');
-                const canvas = await html2canvas(card, { scale: 2, backgroundColor: '#f8fafc' });
-                const imgData = canvas.toDataURL('image/png');
-                const pdfWidth = pdf.internal.pageSize.getWidth();
-                const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-                pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-                
-                // PÁGINA 2: Detalles Financieros
-                pdf.addPage();
-                pdf.setFont("helvetica", "bold");
-                pdf.setFontSize(20);
-                pdf.setTextColor(79, 70, 229); // #4f46e5
-                pdf.text("REPORTE INTEGRAL FINANCIERO", 15, 20);
-                pdf.setFontSize(12);
-                pdf.setTextColor(100, 116, 139);
-                pdf.text(`Periodo: ${month}`, 15, 28);
-                
-                let y = 45;
-                const drawTable = (title, items, columns, color) => {
-                    if (y > 240) { pdf.addPage(); y = 20; }
-                    pdf.setFontSize(14);
-                    pdf.setFont("helvetica", "bold");
-                    pdf.setTextColor(...color);
-                    pdf.text(title, 15, y);
-                    y += 8;
-                    pdf.setFontSize(9);
-                    pdf.setTextColor(100, 116, 139);
-                    
-                    items.forEach(item => {
-                        if (y > 275) { pdf.addPage(); y = 20; }
-                        pdf.setFont("helvetica", "normal");
-                        let x = 15;
-                        columns.forEach(col => {
-                            pdf.text(String(col.val(item)), x, y);
-                            x += col.w;
-                        });
-                        y += 6;
-                    });
-                    y += 12;
+
+                // Contenedor temporal para el PDF
+                const pdfContainer = document.createElement('div');
+                pdfContainer.style.width = '800px';
+                pdfContainer.style.padding = '40px';
+                pdfContainer.style.background = '#f8fafc';
+                pdfContainer.style.position = 'absolute';
+                pdfContainer.style.left = '-9999px';
+                document.body.appendChild(pdfContainer);
+
+                const addPageBreak = () => {
+                    const div = document.createElement('div');
+                    div.style.pageBreakAfter = 'always';
+                    pdfContainer.appendChild(div);
                 };
 
-                drawTable("VENTAS POR CANAL", m.revenue_detail || [], [
-                    {w: 80, val: i => i.seller_name},
-                    {w: 40, val: i => fmt.format(i.amount)}
-                ], [16, 185, 129]); // Success color
+                const addHeader = (title) => {
+                    const h = document.createElement('h1');
+                    h.style = "font-size:24px; color:#4f46e5; border-bottom:2px solid #e2e8f0; padding-bottom:10px; margin-bottom:20px; font-family:sans-serif;";
+                    h.innerText = title;
+                    pdfContainer.appendChild(h);
+                };
 
-                drawTable("COSTOS DE MATERIA PRIMA", m.product_detail || [], [
-                    {w: 80, val: i => i.seller_name},
-                    {w: 40, val: i => fmt.format(i.cogs)}
-                ], [225, 29, 72]); // Danger color
+                // 1. FICHA RESUMEN
+                addHeader(`RESUMEN MENSUAL - ${month}`);
+                const cardClone = document.querySelector(`button[onclick*="${month}"]`).closest('.box').cloneNode(true);
+                cardClone.style.boxShadow = 'none';
+                cardClone.style.border = '1px solid #e2e8f0';
+                cardClone.querySelectorAll('button').forEach(b => b.style.display = 'none');
+                pdfContainer.appendChild(cardClone);
+                addPageBreak();
 
-                drawTable("GASTOS Y OPERACIÓN", m.expense_detail || [], [
-                    {w: 30, val: i => i.date},
-                    {w: 100, val: i => i.description},
-                    {w: 40, val: i => '-' + fmt.format(i.amount)}
-                ], [100, 116, 139]);
+                // 2. DETALLE DE VENTAS (Misma que el popover)
+                addHeader("DETALLE DE VENTAS");
+                const revDetails = window.revenueDetailsMap[month] || [];
+                const revHtml = revDetails.map(d => {
+                    let daysHtml = '';
+                    if (d.days && d.days.length) {
+                        daysHtml = '<div style="margin-top:8px; padding-left:12px; border-left:2px solid #e2e8f0; display:flex; flex-direction:column; gap:4px">';
+                        d.days.forEach(day => {
+                            daysHtml += `<div style="display:flex; justify-content:space-between; font-size:0.8rem; color:#4f46e5; font-weight:600; padding:4px 6px;"><span>🗓 ${day.date}</span><span style="color:#64748b">${fmt.format(day.amount)}</span></div>`;
+                        });
+                        daysHtml += '</div>';
+                    }
+                    return `<div style="margin-bottom:12px; background:#fff; padding:12px; border-radius:12px; border:1px solid #f1f5f9">
+                        <div style="display:flex; justify-content:space-between; border-bottom:1px solid #e2e8f0; padding-bottom:6px; margin-bottom:4px"><span style="font-weight:700">${d.seller_name}</span><strong style="color:#10b981">${fmt.format(d.amount)}</strong></div>
+                        ${daysHtml}
+                    </div>`;
+                }).join('');
+                const revDiv = document.createElement('div');
+                revDiv.innerHTML = revHtml;
+                pdfContainer.appendChild(revDiv);
+                addPageBreak();
 
-                // PÁGINA 3: Participación Socios
-                pdf.addPage();
-                pdf.setFont("helvetica", "bold");
-                pdf.setFontSize(18);
-                pdf.setTextColor(91, 33, 182);
-                pdf.text("DISTRIBUCIÓN Y MÉRITO DE SOCIOS", 15, 20);
-                y = 40;
+                // 3. DESEMPEÑO OPERATIVO (Misma que el popover)
+                addHeader("DESEMPEÑO OPERATIVO Y COSTOS");
+                const prodDetails = window.productDetailsMap[month] || [];
+                const prodHtml = prodDetails.map(d => {
+                    let prodsHtml = '<table style="width:100%; border-collapse:collapse; margin-top:12px; font-size:0.8rem">';
+                    prodsHtml += '<tr style="border-bottom:1px solid #cbd5e1; color:#64748b"><th style="text-align:left;">Postre</th><th style="text-align:right;">Cant.</th><th style="text-align:right;">Margen</th></tr>';
+                    (d.products || []).forEach(p => {
+                        let margin = p.revenue > 0 ? Math.round(((p.revenue - p.cogs) / p.revenue) * 100) : 0;
+                        prodsHtml += `<tr style="border-bottom:1px solid #f1f5f9; color:#475569"><td style="padding:6px 0">${p.name}</td><td style="text-align:right;">${p.quantity || '-'}</td><td style="text-align:right; font-weight:600">${margin}%</td></tr>`;
+                    });
+                    prodsHtml += '</table>';
+                    return `<div style="margin-bottom:16px; background:#fff; padding:16px; border-radius:12px; border:1px solid #f1f5f9"><div style="font-weight:800; color:#334155; font-size:1.1rem; border-bottom:1px solid #eee; padding-bottom:4px;">${d.seller_name}</div>${prodsHtml}</div>`;
+                }).join('');
+                const prodDiv = document.createElement('div');
+                prodDiv.innerHTML = prodHtml;
+                pdfContainer.appendChild(prodDiv);
+                addPageBreak();
 
-                (m.partner_shares || []).forEach(p => {
-                    if (y > 250) { pdf.addPage(); y = 20; }
-                    pdf.setFillColor(248, 250, 252);
-                    pdf.rect(15, y, 180, 25, 'F');
-                    pdf.setDrawColor(226, 232, 240);
-                    pdf.rect(15, y, 180, 25, 'S');
+                // 4. DETALLE DE GASTOS
+                addHeader("DETALLE DE GASTOS");
+                const expDetails = window.expenseDetailsMap[month] || [];
+                const expHtml = expDetails.map(d => {
+                    return `<div style="margin-bottom:8px; background:#fff; padding:12px; border-radius:14px; border:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;">
+                        <div style="flex:1;"><div style="font-size:0.85rem; font-weight:700; color:#334155;">${d.description}</div><div style="font-size:0.7rem; color:#94a3b8;">${d.date}</div></div>
+                        <strong style="color:#ef4444;">-${fmt.format(d.amount)}</strong>
+                    </div>`;
+                }).join('');
+                const expDiv = document.createElement('div');
+                expDiv.innerHTML = expHtml;
+                pdfContainer.appendChild(expDiv);
+                addPageBreak();
+
+                // 5. REPORTES DE SOCIOS (Uno por uno)
+                addHeader("REPORTES DETALLADOS POR SOCIO");
+                const partners = m.partners || [];
+                for (const p of partners) {
+                    const sellerName = p.name;
+                    const partnerMeta = p;
+                    const md = p.metrics_debug || {};
+                    const fmtP = n => ((n || 0) * 100).toFixed(2);
+                    const totalDesserts = m.partners.reduce((sum, sp) => sum + (sp.metrics_debug?.desserts || 0), 0);
                     
-                    pdf.setFont("helvetica", "bold");
-                    pdf.setFontSize(12);
-                    pdf.setTextColor(30, 41, 59);
-                    pdf.text(p.seller_name, 20, y + 10);
-                    
-                    pdf.setFontSize(10);
-                    pdf.setTextColor(79, 70, 229);
-                    pdf.text(`Participación: ${p.share_perc}%`, 20, y + 18);
-                    
-                    pdf.setFontSize(14);
-                    pdf.setTextColor(16, 185, 129);
-                    const amtText = fmt.format(p.share_amount);
-                    pdf.text(amtText, 190 - pdf.getTextWidth(amtText), y + 15);
-                    
-                    y += 35;
-                });
+                    // REPLICAR LÓGICA DE GRÁFICA
+                    const shortMonths = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+                    const histMonths = [...DATA.history].sort((a, b) => a.month.localeCompare(b.month)).slice(-12);
+                    let maxRev = 0;
+                    const chartData = histMonths.map(hm => {
+                        const rd = window.revenueDetailsMap[hm.month] || [];
+                        const se = rd.find(d => d.seller_name.toLowerCase() === sellerName.toLowerCase());
+                        const rev = se ? se.amount : 0;
+                        if (rev > maxRev) maxRev = rev;
+                        const [yyyy, mm] = hm.month.split('-');
+                        return { formatted: shortMonths[parseInt(mm)-1], revenue: rev };
+                    });
+                    if (maxRev === 0) maxRev = 1;
+                    const barsHtml = chartData.map(d => {
+                        const heightPct = Math.max(5, Math.round((d.revenue / maxRev) * 100));
+                        return `<div style="display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100px; width:30px;">
+                            <div style="width:100%; height:${heightPct}%; background:#6366f1; border-radius:4px 4px 0 0;"></div>
+                            <span style="font-size:10px; color:#64748b; margin-top:4px;">${d.formatted}</span>
+                        </div>`;
+                    }).join('');
 
-                pdf.save(`Reporte_Integral_${month}.pdf`);
+                    const model = (DATA.settings && DATA.settings.partner_distribution_model) || 'pro';
+                    let stepsHtml = '';
+                    if (model === 'triple') {
+                        const w1 = (DATA.settings?.triple_w1 || 33.33) / 100;
+                        const w2 = (DATA.settings?.triple_w2 || 33.33) / 100;
+                        const w3 = (DATA.settings?.triple_w3 || 33.34) / 100;
+                        stepsHtml = `
+                            <div style="background:#f5f3ff; padding:10px; border-radius:10px; margin-bottom:10px;">
+                                <div style="font-weight:800; font-size:10px; color:#4c1d95;">PASO 1: ESFUERZO MES (${(w1*100).toFixed(1)}%)</div>
+                                <div style="font-size:12px;">Participación: <b>${fmtP(md.M)}%</b></div>
+                            </div>
+                            <div style="background:#f5f3ff; padding:10px; border-radius:10px; margin-bottom:10px;">
+                                <div style="font-weight:800; font-size:10px; color:#4c1d95;">PASO 2: ESTABILIDAD (${(w2*100).toFixed(1)}%)</div>
+                                <div style="font-size:12px;">Promedio meses: <b>${fmtP(md.P)}%</b></div>
+                            </div>
+                            <div style="background:#f5f3ff; padding:10px; border-radius:10px; margin-bottom:10px;">
+                                <div style="font-weight:800; font-size:10px; color:#4c1d95;">PASO 3: HISTÓRICO (${(w3*100).toFixed(1)}%)</div>
+                                <div style="font-size:12px;">Participación de por vida: <b>${fmtP(md.H_global)}%</b></div>
+                            </div>
+                        `;
+                    }
+
+                    const pDiv = document.createElement('div');
+                    pDiv.style = "background:#fff; border:2px solid #e2e8f0; border-radius:24px; padding:24px; margin-bottom:30px; font-family:sans-serif;";
+                    pDiv.innerHTML = `
+                        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:15px;">
+                            <h2 style="margin:0; font-size:20px;">Socio: ${sellerName}</h2>
+                            <div style="text-align:right;">
+                                <div style="font-size:10px; color:#64748b;">PARTICIPACIÓN FINAL</div>
+                                <div style="font-size:18px; font-weight:900; color:#4f46e5;">${partnerMeta.share_perc}%</div>
+                            </div>
+                        </div>
+                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+                            <div>
+                                <div style="font-size:12px; font-weight:800; color:#1e293b; margin-bottom:10px;">📈 Tendencia (Ventas)</div>
+                                <div style="display:flex; align-items:flex-end; gap:4px; height:120px; background:#f8fafc; padding:10px; border-radius:12px;">${barsHtml}</div>
+                            </div>
+                            <div>
+                                <div style="font-size:12px; font-weight:800; color:#1e293b; margin-bottom:10px;">⚖️ Cálculo de Mérito</div>
+                                ${stepsHtml}
+                                <div style="background:#4f46e5; color:white; padding:12px; border-radius:12px; text-align:center;">
+                                    <div style="font-size:10px; opacity:0.8;">MONTO A RECIBIR</div>
+                                    <div style="font-size:18px; font-weight:900;">${fmt.format(partnerMeta.share_amount)}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    pdfContainer.appendChild(pDiv);
+                }
+
+                // GENERAR PDF
+                const opt = {
+                    margin: 10,
+                    filename: `Reporte_Integral_Lulitas_${month}.pdf`,
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 2, useCORS: true },
+                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                };
+
+                await html2pdf().set(opt).from(pdfContainer).save();
+                document.body.removeChild(pdfContainer);
+                
                 const menu = document.querySelector('.popover-wrap-menu');
                 if (menu) menu.remove();
             } catch (e) {
