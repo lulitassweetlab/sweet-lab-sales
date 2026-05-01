@@ -15,8 +15,14 @@ export async function handler(event) {
         if (forceSync) await sql`DELETE FROM financial_snapshots`;
 
         // 1. Get Settings (Added Founder settings and Generic historic overrides)
-        const settingsRows = await sql`SELECT key, value FROM store_settings WHERE key IN ('partner_seller_ids', 'provision_default_perc', 'partner_founders', 'partner_distribution_model') OR key LIKE 'historic_%'`;
-        const settings = { partner_seller_ids: [], provision_default_perc: 3, partner_founders: {}, partner_distribution_model: 'pro' };
+        const settingsRows = await sql`SELECT key, value FROM store_settings WHERE key IN ('partner_seller_ids', 'provision_default_perc', 'partner_founders', 'partner_distribution_model', 'triple_w1', 'triple_w2', 'triple_w3') OR key LIKE 'historic_%'`;
+        const settings = { 
+            partner_seller_ids: [], 
+            provision_default_perc: 3, 
+            partner_founders: {}, 
+            partner_distribution_model: 'pro',
+            triple_w1: 33.33, triple_w2: 33.33, triple_w3: 33.34
+        };
         for (const r of settingsRows) {
             if (r.key === 'partner_seller_ids') {
                 try { settings.partner_seller_ids = JSON.parse(r.value); } catch { settings.partner_seller_ids = []; }
@@ -26,6 +32,8 @@ export async function handler(event) {
                 try { settings.partner_founders = JSON.parse(r.value); } catch { settings.partner_founders = {}; }
             } else if (r.key === 'partner_distribution_model') {
                 settings.partner_distribution_model = r.value || 'pro';
+            } else if (r.key.startsWith('triple_w')) {
+                settings[r.key] = Number(r.value);
             } else {
                 settings[r.key] = r.value;
             }
@@ -314,21 +322,16 @@ export async function handler(event) {
                 
                 if (distModel === 'triple') {
                     // MODELO TRIPLE HORIZONTE
-                    // 1. Mes Actual (33.33%)
                     const p1 = currentM;
-                    
-                    // 2. Promedio 6 Meses (33.33%)
-                    // Note: partnerRollingM has up to 4 months currently. 
-                    // To do 6 months accurately, we'd need to increase the rolling window size.
-                    // For now, we'll use the available rolling window (up to 4) which is our current 'avgP'.
                     const p2 = avgP[pid] || currentM;
-                    
-                    // 3. Global Histórico (33.34%)
                     let totalCumul = 0;
                     partnerIds.forEach(id => totalCumul += (lastCumulativeDesserts[id] || 0));
                     const p3 = totalCumul > 0 ? (lastCumulativeDesserts[pid] || 0) / totalCumul : (1 / partnerIds.length);
-                    
-                    rawF[pid] = (p1 * 0.3333) + (p2 * 0.3333) + (p3 * 0.3334);
+
+                    const w1 = Number(settings.triple_w1 || 33.33) / 100;
+                    const w2 = Number(settings.triple_w2 || 33.33) / 100;
+                    const w3 = Number(settings.triple_w3 || 33.34) / 100;
+                    rawF[pid] = (p1 * w1) + (p2 * w2) + (p3 * w3);
                 } else if (distModel === 'historic') {
                     // MODELO HISTORICO SIMPLE (Acumulado Total)
                     let totalCumul = 0;
