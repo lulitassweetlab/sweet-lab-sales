@@ -1132,6 +1132,124 @@
 		}
 		window.openTagPickerPopover = openTagPickerPopover;
 
+		function openManageTagsModal() {
+			const backdrop = document.createElement('div');
+			backdrop.className = 'form-popover-backdrop';
+			backdrop.style.zIndex = '4000';
+			
+			const pop = document.createElement('div');
+			pop.className = 'form-popover';
+			pop.style.zIndex = '4001';
+			pop.style.width = '350px';
+			pop.style.display = 'block';
+			
+			const title = document.createElement('h3');
+			title.textContent = 'Gestionar Etiquetas';
+			pop.appendChild(title);
+			
+			const list = document.createElement('div');
+			list.style.maxHeight = '300px';
+			list.style.overflowY = 'auto';
+			list.style.marginBottom = '20px';
+			pop.appendChild(list);
+			
+			async function renderList() {
+				list.innerHTML = '';
+				availableTags.forEach(t => {
+					const item = document.createElement('div');
+					item.style.display = 'flex';
+					item.style.alignItems = 'center';
+					item.style.gap = '8px';
+					item.style.padding = '8px 0';
+					item.style.borderBottom = '1px solid var(--border)';
+					
+					const dot = document.createElement('div');
+					dot.style.width = '12px';
+					dot.style.height = '12px';
+					dot.style.borderRadius = '50%';
+					dot.style.backgroundColor = t.color;
+					item.appendChild(dot);
+					
+					const name = document.createElement('span');
+					name.textContent = t.name;
+					name.style.flex = '1';
+					name.style.fontSize = '0.9rem';
+					item.appendChild(name);
+					
+					const delBtn = document.createElement('button');
+					delBtn.textContent = '🗑️';
+					delBtn.style.border = 'none';
+					delBtn.style.background = 'none';
+					delBtn.style.cursor = 'pointer';
+					delBtn.style.fontSize = '1.2rem';
+					delBtn.onclick = async () => {
+						if (confirm(`¿Eliminar "${t.name}"? Se quitará de todos los registros.`)) {
+							await fetch(`/api/accounting?delete_tag_id=${t.id}`, { 
+								method: 'DELETE',
+								headers: { 'X-Actor-Name': currentUser?.name || '' }
+							});
+							await loadTags();
+							renderList();
+							load();
+						}
+					};
+					item.appendChild(delBtn);
+					list.appendChild(item);
+				});
+			}
+			
+			const addBox = document.createElement('div');
+			addBox.style.display = 'flex';
+			addBox.style.gap = '8px';
+			const input = document.createElement('input');
+			input.placeholder = 'Nueva etiqueta...';
+			input.className = 'press-input';
+			input.style.flex = '1';
+			const color = document.createElement('input');
+			color.type = 'color';
+			color.value = '#f4a6b7';
+			color.style.width = '40px';
+			color.style.height = '40px';
+			color.style.padding = '0';
+			color.style.border = 'none';
+			color.style.cursor = 'pointer';
+
+			const addBtn = document.createElement('button');
+			addBtn.textContent = '+';
+			addBtn.className = 'press-btn btn-primary';
+			addBtn.style.width = '40px';
+			addBtn.onclick = async () => {
+				if (!input.value.trim()) return;
+				await fetch('/api/accounting', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json', 'X-Actor-Name': currentUser?.name || '' },
+					body: JSON.stringify({ _create_tag: true, name: input.value.trim(), color: color.value })
+				});
+				input.value = '';
+				await loadTags();
+				renderList();
+			};
+			addBox.appendChild(input);
+			addBox.appendChild(color);
+			addBox.appendChild(addBtn);
+			pop.appendChild(addBox);
+			
+			const closeBtn = document.createElement('button');
+			closeBtn.textContent = 'Cerrar';
+			closeBtn.className = 'press-btn';
+			closeBtn.style.width = '100%';
+			closeBtn.style.marginTop = '20px';
+			closeBtn.onclick = () => {
+				document.body.removeChild(backdrop);
+				document.body.removeChild(pop);
+			};
+			pop.appendChild(closeBtn);
+			
+			document.body.appendChild(backdrop);
+			document.body.appendChild(pop);
+			renderList();
+		}
+
 		async function loadTags() {
 			try {
 				availableTags = await fetchJSON('/api/accounting?get_tags=1');
@@ -1164,6 +1282,14 @@
 				};
 				container.appendChild(btn);
 			});
+
+			// Manage tags button
+			const mngBtn = document.createElement('button');
+			mngBtn.className = 'tag-filter-btn';
+			mngBtn.innerHTML = '⚙️';
+			mngBtn.title = 'Gestionar etiquetas';
+			mngBtn.onclick = openManageTagsModal;
+			container.appendChild(mngBtn);
 		}
 
 		async function load(){
