@@ -330,7 +330,11 @@
                     </div>
                     <div style="background:white; padding:14px; border-radius:16px; border:1px solid #e2e8f0; display:flex; flex-direction:column; gap:4px;">
                         <div style="color:#6366f1; font-weight:900; font-size:0.7rem;">PASO 3: APORTE HISTÓRICO GLOBAL (33.34%)</div>
-                        <div style="background:#f5f3ff; padding:8px; border-radius:10px; font-family:monospace; color:#4338ca; font-size:0.85rem;">Participación de por vida = <b>${fmtP(p3)}%</b></div>
+                        <div style="background:#f5f3ff; padding:8px; border-radius:10px; font-family:monospace; color:#4338ca; font-size:0.85rem;">
+                            <div>Socio: <b>${md.cumulative_total || 0}</b> postres históricos</div>
+                            <div>Empresa: <b>${targetData.total_cumulative_desserts || 0}</b> postres históricos</div>
+                            <div style="margin-top:4px; border-top:1px solid #c7d2fe; padding-top:4px;">Participación de por vida = <b>${fmtP(p3)}%</b></div>
+                        </div>
                     </div>
                     <div style="background:#f8fafc; padding:12px; border-radius:16px; border:1px solid #cbd5e1; font-weight:800; text-align:center;">
                         BASE DE MÉRITO (Promedio Triple): <b>${(meritBase * 100).toFixed(2)}%</b>
