@@ -391,7 +391,8 @@ export async function handler(event) {
                 profit: opProfit, provision, net_to_share: netToShare, merit_pool: meritPool,
                 partners: partnerShares, commission_detail: commissionDetail,
                 product_detail, revenue_detail, expense_detail,
-                cumulative_desserts: { ...lastCumulativeDesserts }
+                cumulative_desserts: { ...lastCumulativeDesserts },
+                total_cumulative_desserts: totalCumulGlobal
             };
 
             if (m < currentMonth && (!snapshotsMap[m] || forceSync)) {
