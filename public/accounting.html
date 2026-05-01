@@ -419,6 +419,9 @@
 		try { const saved = localStorage.getItem('authUser'); if (saved) currentUser = JSON.parse(saved); } catch {}
 		const isSuper = currentUser && (currentUser.role === 'superadmin' || !!currentUser.isSuperAdmin);
 		if (!isSuper) { alert('Solo el superadministrador'); location.href = '/'; return; }
+		
+		let availableTags = [];
+		let currentTagFilter = null;
 
 		const today = new Date();
 		const rangeLabel = document.getElementById('range-label');
@@ -1096,8 +1099,6 @@
 			document.addEventListener('keydown', onKeyDown);
 		}
 
-		let availableTags = [];
-		let currentTagFilter = null;
 
 		async function loadTags() {
 			try {
