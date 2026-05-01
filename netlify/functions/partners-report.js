@@ -296,14 +296,14 @@ export async function handler(event) {
             partnerIds.forEach(pid => {
                 curM[pid] = totalMonthPartnerSales > 0 ? (monthCumulToAdd[pid] || 0) / totalMonthPartnerSales : 0;
                 if (partnerRollingM[pid] === undefined) partnerRollingM[pid] = [];
-                partnerRollingM[pid].push(curM[pid]);
+                partnerRollingM[pid].push({ month: m, val: curM[pid] });
                 if (partnerRollingM[pid].length > 6) partnerRollingM[pid].shift();
             });
 
             let avgP = {};
             partnerIds.forEach(pid => {
                 let w = partnerRollingM[pid];
-                let sum = w.reduce((a, b) => a + b, 0);
+                let sum = w.reduce((a, b) => a + (typeof b === 'number' ? b : b.val), 0);
                 avgP[pid] = w.length > 0 ? sum / w.length : 0;
             });
 

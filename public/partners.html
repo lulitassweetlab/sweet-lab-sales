@@ -323,7 +323,10 @@
                     </div>
                     <div style="background:white; padding:14px; border-radius:16px; border:1px solid #e2e8f0; display:flex; flex-direction:column; gap:4px;">
                         <div style="color:#6366f1; font-weight:900; font-size:0.7rem;">PASO 2: ESTABILIDAD (6 MESES) (33.33%)</div>
-                        <div style="background:#f5f3ff; padding:8px; border-radius:10px; font-family:monospace; color:#4338ca; font-size:0.85rem;">Promedio ult. 6 meses = <b>${fmtP(p2)}%</b></div>
+                        <div style="background:#f5f3ff; padding:8px; border-radius:10px; font-family:monospace; color:#4338ca; font-size:0.75rem; line-height:1.4;">
+                            ${(md.rolling_M || []).map(r => `<div>• ${typeof r === 'object' ? r.month : '?'} = <b>${fmtP(typeof r === 'object' ? r.val : r)}%</b></div>`).join('')}
+                            <div style="margin-top:4px; border-top:1px solid #c7d2fe; padding-top:4px;">Promedio 6 meses = <b>${fmtP(p2)}%</b></div>
+                        </div>
                     </div>
                     <div style="background:white; padding:14px; border-radius:16px; border:1px solid #e2e8f0; display:flex; flex-direction:column; gap:4px;">
                         <div style="color:#6366f1; font-weight:900; font-size:0.7rem;">PASO 3: APORTE HISTÓRICO GLOBAL (33.34%)</div>
