@@ -821,13 +821,15 @@
 			}).join('');
 
 			let adjustmentHtml = '';
-			if (Math.abs(diff) > 10) {
+			if (true) { // Always show adjustment box even if zero to allow adding one
 				adjustmentHtml = `<div style="margin-bottom:8px; background:#fff7ed; padding:12px; border-radius:14px; border:1px solid #ffedd5; display:flex; justify-content:space-between; align-items:center;">
 					<div style="flex:1">
 						<div style="font-size:0.85rem; font-weight:800; color:#9a3412">⚠️ Ajuste Manual de Auditoría</div>
-						<div style="font-size:0.7rem; color:#c2410c">Corrección de histórico o saldo inicial</div>
+						<div style="font-size:0.7rem; color:#c2410c">Edita el ajuste para equilibrar el total</div>
 					</div>
-					<strong style="color:#ef4444; font-size:1rem; white-space:nowrap">-${fmt.format(diff)}</strong>
+					<div style="text-align:right">
+						<input type="number" id="adj-input-${month}" value="${diff}" style="width:100px; padding:6px; border:1px solid #fed7aa; border-radius:8px; font-weight:700; color:#ef4444; text-align:right; font-size:1rem; outline:none; background:white">
+					</div>
 				</div>`;
 			}
 
@@ -835,25 +837,63 @@
 			pop.style.position = 'fixed'; pop.style.top = '0'; pop.style.left = '0'; pop.style.width = '100vw'; pop.style.height = '100vh';
 			pop.style.background = 'rgba(0,0,0,0.6)'; pop.style.display = 'flex'; pop.style.alignItems = 'center'; pop.style.justifyContent = 'center'; pop.style.zIndex = '9999';
 			pop.style.backdropFilter = 'blur(4px)';
+			
+			const saveAdj = async (btn) => {
+				const val = Number(document.getElementById(`adj-input-${month}`).value) || 0;
+				const newTotal = realSum + val;
+				
+				btn.disabled = true; btn.innerText = 'Guardando...';
+				
+				// Same logic as toggleEditHistoric save
+				const keyName = `historic_${month.replace('-', '_')}`;
+				const currentSettings = JSON.parse(settings[`historic_${month.replace('-', '_')}`] || '{}');
+				currentSettings.expenses = newTotal;
+				
+				try {
+					const res = await fetch('/api/store-settings', {
+						method: 'POST',
+						headers: {'Content-Type': 'application/json'},
+						body: JSON.stringify({ [keyName]: JSON.stringify(currentSettings) })
+					});
+					if (!res.ok) throw new Error('Error al guardar ajuste');
+					location.href = '?auth=admin&force_sync=1';
+				} catch (e) {
+					alert(e.message);
+					btn.disabled = false; btn.innerText = 'Guardar Ajuste';
+				}
+			};
+
 			pop.innerHTML = `
-				<div style="background:#fff; padding:24px; border-radius:24px; min-width:380px; max-width:500px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04); transform: translateY(-20px)">
+				<div class="pop-c" style="background:#fff; padding:24px; border-radius:24px; min-width:380px; max-width:500px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04); transform: translateY(-20px)">
 					<h3 style="margin:0 0 16px 0; color:#0f172a; border-bottom:1px solid #e2e8f0; padding-bottom:12px; font-size:1.2rem; display:flex; align-items:center; gap:8px">
 						💸 Detalle de Gastos
 					</h3>
 					<div style="font-size:0.8rem; font-weight:600; color:#64748b; margin-bottom:16px; text-transform:uppercase; letter-spacing:0.05em">${month}</div>
-					<div style="max-height:55vh; overflow-y:auto; padding-right:8px; display:flex; flex-direction:column; gap:4px">
+					<div style="max-height:50vh; overflow-y:auto; padding-right:8px; display:flex; flex-direction:column; gap:4px">
 						${html || '<div style="text-align:center; color:#94a3b8; padding:20px">No hay gastos registrados en contabilidad.</div>'}
 						${adjustmentHtml}
 					</div>
-					<div style="display:flex; justify-content:space-between; margin-top:20px; padding:16px; border-top:2px dashed #cbd5e1; background:#fef2f2; border-radius:16px; font-weight:900; font-size:1.2rem; color:#1e293b">
-						<span>TOTAL</span>
-						<span style="color:#ef4444">-${fmt.format(finalTotal)}</span>
+					<div style="display:flex; justify-content:space-between; margin-top:20px; padding:16px; border-top:2px dashed #cbd5e1; background:#fef2f2; border-radius:16px; font-weight:900; font-size:1.2rem; color:#1e293b; align-items:center;">
+						<div style="font-size:0.8rem; color:#64748b; font-weight:700">TOTAL FINAL</div>
+						<span style="color:#ef4444" id="pop-total-${month}">-${fmt.format(finalTotal)}</span>
 					</div>
-					<button onclick="this.closest('.popover-wrap').remove()" style="margin-top:24px; width:100%; padding:14px; border-radius:12px; border:none; background:#f1f5f9; cursor:pointer; font-weight:800; color:#475569; font-size:1.05rem; transition:background 0.2s">Cerrar</button>
+					<div style="display:flex; gap:10px; margin-top:24px">
+						<button id="save-adj-btn" style="flex:1; padding:14px; border-radius:12px; border:none; background:#8b5cf6; cursor:pointer; font-weight:800; color:white; font-size:1rem;">Guardar Ajuste</button>
+						<button onclick="this.closest('.popover-wrap').remove()" style="flex:1; padding:14px; border-radius:12px; border:none; background:#f1f5f9; cursor:pointer; font-weight:800; color:#475569; font-size:1rem;">Cerrar</button>
+					</div>
 				</div>
 			`;
 			pop.className = 'popover-wrap';
 			document.body.appendChild(pop);
+			
+			const input = document.getElementById(`adj-input-${month}`);
+			const totalDisp = document.getElementById(`pop-total-${month}`);
+			input.oninput = () => {
+				const val = Number(input.value) || 0;
+				totalDisp.innerText = `-${fmt.format(realSum + val)}`;
+			};
+			
+			document.getElementById('save-adj-btn').onclick = function() { saveAdj(this); };
 		};
 
         start();
