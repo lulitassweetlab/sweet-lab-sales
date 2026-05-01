@@ -514,13 +514,13 @@
                                 <span style="color:#10b981; font-size:1.6rem; font-weight:900;">${fmt.format(m.profit || 0)}</span>
                             </div>
                         </div>
-                        <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:12px; font-size:0.9rem; font-weight:700; color:#475569; display:flex; gap:16px; align-items:center; margin-bottom:20px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
-                            <span style="display:flex; align-items:center; gap:6px;">🍰 <span style="color:#4f46e5; font-size:1.1rem;">${m.total_desserts || 0}</span> Postres</span>
-                            <span style="color:#e2e8f0; font-weight:300;">|</span>
-                            <span style="display:flex; align-items:center; gap:6px;">🍬 <span style="color:#4f46e5; font-size:1.1rem;">${m.total_brigs || 0}</span> Brigs</span>
-                        </div>
                         <div class="grid">
                             <div style="display:flex; flex-direction:column; gap:4px">
+                                <div style="padding:12px; font-size:0.9rem; font-weight:700; color:#475569; display:flex; gap:16px; align-items:center; margin-bottom:12px; border-bottom:2px solid #f1f5f9;">
+                                    <span style="display:flex; align-items:center; gap:6px;">🍰 <span style="color:#4f46e5; font-size:1.1rem;">${m.total_desserts || 0}</span> Postres</span>
+                                    <span style="color:#e2e8f0; font-weight:300;">|</span>
+                                    <span style="display:flex; align-items:center; gap:6px;">🍬 <span style="color:#4f46e5; font-size:1.1rem;">${m.total_brigs || 0}</span> Brigs</span>
+                                </div>
                                 <div class="fin-item" onclick="showRevenueDetails('${m.month}', event)" style="cursor:pointer;"><span class="fin-label" style="text-decoration:underline; text-decoration-style:dashed;">Ventas (Ingresos)</span><span class="fin-val"><span class="hist-text-${m.month}">${fmt.format(m.revenue || 0)}</span><input type="number" class="hist-g-input-${m.month}" data-key="revenue" value="${m.revenue}" style="display:none; width:80px; text-align:right;"></span></div>
                                 <div class="fin-item" onclick="showProductDetails('${m.month}', event)" style="cursor:pointer;"><span class="fin-label" style="text-decoration:underline; text-decoration-style:dashed;">Costo Materia Prima</span><span class="fin-val neg"><span class="hist-text-${m.month}">-${fmt.format(m.cogs || 0)}</span><input type="number" class="hist-g-input-${m.month}" data-key="cogs" value="${m.cogs}" style="display:none; width:80px; text-align:right;"></span></div>
                                 <div class="fin-item"><span class="fin-label">Mano de Obra (MOD)</span><span class="fin-val neg"><span class="hist-text-${m.month}">-${fmt.format(m.mod || 0)}</span><input type="number" class="hist-g-input-${m.month}" data-key="mod" value="${m.mod||0}" style="display:none; width:80px; text-align:right;"></span></div>
