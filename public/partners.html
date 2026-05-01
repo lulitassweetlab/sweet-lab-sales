@@ -846,7 +846,7 @@
 				
 				// Same logic as toggleEditHistoric save
 				const keyName = `historic_${month.replace('-', '_')}`;
-				const currentSettings = JSON.parse(settings[`historic_${month.replace('-', '_')}`] || '{}');
+				const currentSettings = JSON.parse(DATA.settings[`historic_${month.replace('-', '_')}`] || '{}');
 				currentSettings.expenses = newTotal;
 				
 				try {
