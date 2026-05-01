@@ -297,7 +297,7 @@ export async function handler(event) {
                 curM[pid] = totalMonthPartnerSales > 0 ? (monthCumulToAdd[pid] || 0) / totalMonthPartnerSales : 0;
                 if (partnerRollingM[pid] === undefined) partnerRollingM[pid] = [];
                 partnerRollingM[pid].push({ month: m, val: curM[pid] });
-                if (partnerRollingM[pid].length > 6) partnerRollingM[pid].shift();
+                if (partnerRollingM[pid].length > 4) partnerRollingM[pid].shift();
             });
 
             let avgP = {};
