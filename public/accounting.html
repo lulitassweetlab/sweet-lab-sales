@@ -422,6 +422,8 @@
 		
 		let availableTags = [];
 		let currentTagFilter = null;
+		
+		// Function definitions...
 
 		const today = new Date();
 		const rangeLabel = document.getElementById('range-label');
@@ -1001,90 +1003,6 @@
 				}
 			}
 
-			async function openTagPickerPopover(entryId, currentTagIds) {
-				const backdrop = document.createElement('div');
-				backdrop.className = 'form-popover-backdrop';
-				backdrop.style.zIndex = '2001';
-				
-				const pop = document.createElement('div');
-				pop.className = 'form-popover';
-				pop.style.zIndex = '2002';
-				pop.style.width = '320px';
-				pop.style.display = 'block';
-
-				const title = document.createElement('h3');
-				title.textContent = 'Etiquetas';
-				title.style.marginBottom = '16px';
-				pop.appendChild(title);
-
-				const container = document.createElement('div');
-				container.className = 'tag-selector';
-				container.style.maxHeight = '300px';
-				container.style.overflowY = 'auto';
-				pop.appendChild(container);
-
-				const footer = document.createElement('div');
-				footer.style.marginTop = '24px';
-				footer.style.textAlign = 'center';
-				const closeBtn = document.createElement('button');
-				closeBtn.className = 'press-btn btn-primary';
-				closeBtn.textContent = 'Listo';
-				closeBtn.style.width = '100%';
-				closeBtn.onclick = cleanup;
-				footer.appendChild(closeBtn);
-				pop.appendChild(footer);
-
-				async function render() {
-					try {
-						if (availableTags.length === 0) {
-							container.innerHTML = '<div style="text-align:center; padding:10px;">Cargando...</div>';
-							await loadTags();
-						}
-						container.innerHTML = '';
-						
-						if (availableTags.length === 0) {
-							container.innerHTML = '<div style="text-align:center; color:var(--text-muted);">No hay etiquetas definidas</div>';
-							return;
-						}
-
-						availableTags.forEach(t => {
-							const opt = document.createElement('div');
-							opt.className = 'tag-option' + (currentTagIds.includes(t.id) ? ' selected' : '');
-							opt.style.backgroundColor = t.color;
-							opt.textContent = t.name;
-							opt.onclick = async () => {
-								let isSelected = currentTagIds.includes(t.id);
-								let newTags = isSelected ? currentTagIds.filter(id => id !== t.id) : [...currentTagIds, t.id];
-								try {
-									const res = await fetch('/api/accounting', {
-										method: 'PUT',
-										headers: { 'Content-Type': 'application/json', 'X-Actor-Name': currentUser?.name || '' },
-										body: JSON.stringify({ id: entryId, tags: newTags })
-									});
-									if (res.ok) {
-										currentTagIds = newTags;
-										render();
-										// Update the row in background
-										load();
-									}
-								} catch (e) { }
-							};
-							container.appendChild(opt);
-						});
-					} catch (e) { alert('Error: ' + e.message); }
-				}
-
-				function cleanup() {
-					if (backdrop.parentNode) document.body.removeChild(backdrop);
-					if (pop.parentNode) document.body.removeChild(pop);
-				}
-				
-				backdrop.onclick = cleanup;
-				document.body.appendChild(backdrop);
-				document.body.appendChild(pop);
-				render();
-			}
-			window.openTagPickerPopover = openTagPickerPopover;
 
 			cancelBtn.addEventListener('click', closeFormPopover);
 			backdrop.addEventListener('click', closeFormPopover);
@@ -1099,6 +1017,92 @@
 			document.addEventListener('keydown', onKeyDown);
 		}
 
+
+
+		async function openTagPickerPopover(entryId, currentTagIds) {
+			const backdrop = document.createElement('div');
+			backdrop.className = 'form-popover-backdrop';
+			backdrop.style.zIndex = '2001';
+			
+			const pop = document.createElement('div');
+			pop.className = 'form-popover';
+			pop.style.zIndex = '2002';
+			pop.style.width = '320px';
+			pop.style.display = 'block';
+
+			const title = document.createElement('h3');
+			title.textContent = 'Etiquetas';
+			title.style.marginBottom = '16px';
+			pop.appendChild(title);
+
+			const container = document.createElement('div');
+			container.className = 'tag-selector';
+			container.style.maxHeight = '300px';
+			container.style.overflowY = 'auto';
+			pop.appendChild(container);
+
+			const footer = document.createElement('div');
+			footer.style.marginTop = '24px';
+			footer.style.textAlign = 'center';
+			const closeBtn = document.createElement('button');
+			closeBtn.className = 'press-btn btn-primary';
+			closeBtn.textContent = 'Listo';
+			closeBtn.style.width = '100%';
+			closeBtn.onclick = cleanup;
+			footer.appendChild(closeBtn);
+			pop.appendChild(footer);
+
+			async function render() {
+				try {
+					if (availableTags.length === 0) {
+						container.innerHTML = '<div style="text-align:center; padding:10px;">Cargando...</div>';
+						await loadTags();
+					}
+					container.innerHTML = '';
+					
+					if (availableTags.length === 0) {
+						container.innerHTML = '<div style="text-align:center; color:var(--text-muted);">No hay etiquetas definidas</div>';
+						return;
+					}
+
+					availableTags.forEach(t => {
+						const opt = document.createElement('div');
+						opt.className = 'tag-option' + (currentTagIds.includes(t.id) ? ' selected' : '');
+						opt.style.backgroundColor = t.color;
+						opt.textContent = t.name;
+						opt.onclick = async () => {
+							let isSelected = currentTagIds.includes(t.id);
+							let newTags = isSelected ? currentTagIds.filter(id => id !== t.id) : [...currentTagIds, t.id];
+							try {
+								const res = await fetch('/api/accounting', {
+									method: 'PUT',
+									headers: { 'Content-Type': 'application/json', 'X-Actor-Name': currentUser?.name || '' },
+									body: JSON.stringify({ id: entryId, tags: newTags })
+								});
+								if (res.ok) {
+									currentTagIds = newTags;
+									render();
+									// Update the row in background
+									load();
+								}
+							} catch (e) { }
+						};
+						container.appendChild(opt);
+					});
+				} catch (e) { alert('Error: ' + e.message); }
+			}
+
+			function cleanup() {
+				if (backdrop.parentNode) document.body.removeChild(backdrop);
+				if (pop.parentNode) document.body.removeChild(pop);
+			}
+			
+			backdrop.onclick = cleanup;
+			document.body.appendChild(backdrop);
+			document.body.appendChild(pop);
+			render();
+		}
+		window.openTagPickerPopover = openTagPickerPopover;
 
 		async function loadTags() {
 			try {
