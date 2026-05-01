@@ -307,6 +307,7 @@ export async function handler(event) {
                 avgP[pid] = w.length > 0 ? sum / w.length : 0;
             });
 
+            let rawF = {};
             const distModel = settings.partner_distribution_model || 'pro';
             partnerIds.forEach(pid => {
                 const currentM = curM[pid] || 0;
@@ -354,6 +355,7 @@ export async function handler(event) {
             });
             const meritPool = netToShare - totalFoundersFixed;
 
+            const totalCumulGlobal = Object.values(lastCumulativeDesserts).reduce((a,b) => a+b, 0);
             const partnerShares = partnerIds.map(pid => {
                 const meritPerc = normalizedF[pid];
                 let shareAmount = Math.round(meritPool * meritPerc);
@@ -362,6 +364,8 @@ export async function handler(event) {
                 }
                 const finalPerc = netToShare > 0 ? (shareAmount / netToShare) * 100 : 0;
                 const founderFixed = founders[pid] ? Number(founders[pid]) : 0;
+                const globalHPerc = totalCumulGlobal > 0 ? (lastCumulativeDesserts[pid] || 0) / totalCumulGlobal : 0;
+                
                 return {
                     id: pid, name: sellerMap[pid] || `Socio ${pid}`, 
                     share_perc: Number(finalPerc.toFixed(2)),
@@ -372,6 +376,7 @@ export async function handler(event) {
                         P: avgP[pid] || 0, 
                         H: partnerHistoryH[pid] || 0, 
                         F: normalizedF[pid] || 0, 
+                        H_global: globalHPerc,
                         desserts: monthCumulToAdd[pid] || 0,
                         rolling_M: [...(partnerRollingM[pid] || [])]
                     }
