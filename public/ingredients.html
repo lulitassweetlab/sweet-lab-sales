@@ -111,46 +111,61 @@
 		<div class="panel-header">
 			<h3 id="title">Requerimientos por pedidos</h3>
 			<div class="panel-actions">
+					<button id="buy-log-btn" class="press-btn btn-primary">Cargar Compra</button>
 					<button id="change-range" class="press-btn">Cambiar fechas</button>
 					<button id="receta-btn" class="press-btn">Receta</button>
 					<button id="whatsapp-request" class="press-btn btn-gold">Solicitar compra por WhatsApp</button>
 			</div>
 		</div>
-		<div class="panel-body">
-			<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px">
-				<strong id="range-label"></strong>
-				<small id="count-label" style="opacity:.8"></small>
+		<div class="panel-body" style="display:grid; grid-template-columns: 1fr 300px; gap:20px">
+			<div class="main-inventory-content">
+				<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px">
+					<strong id="range-label"></strong>
+					<small id="count-label" style="opacity:.8"></small>
+				</div>
+				<div id="counts-summary" style="display:flex; gap:10px; flex-wrap:wrap; margin:6px 0 12px 0"></div>
+				<div class="table-wrapper">
+					<table id="ingredients-table">
+						<thead>
+							<tr>
+								<th style="width: 40px;">✓</th>
+								<th>Ingrediente</th>
+								<th>Por unidad</th>
+								<th>Se necesitan</th>
+								<th>En inventario</th>
+								<th>Compras sugeridas</th>
+								<th>Compras reales</th>
+								<th>Precio compra</th>
+							</tr>
+						</thead>
+						<tbody id="ingredients-tbody"></tbody>
+						<tfoot>
+							<tr class="report-spacer-row"><td colspan="8"></td></tr>
+							<tr>
+								<td></td>
+								<td class="label" colspan="4">Totales</td>
+								<td id="t-buy-sug-total" class="col-total"></td>
+								<td id="t-buy-real-total" class="col-total"></td>
+								<td id="t-buy-cost-total" class="col-total"></td>
+							</tr>
+						</tfoot>
+					</table>
+				</div>
+				<div id="dessert-summary" style="margin-top:50px"></div>
+				<div id="bottom-summary" style="margin-top:50px"></div>
 			</div>
-			<div id="counts-summary" style="display:flex; gap:10px; flex-wrap:wrap; margin:6px 0 12px 0"></div>
-			<div class="table-wrapper">
-				<table id="ingredients-table">
-					<thead>
-						<tr>
-							<th style="width: 40px;">✓</th>
-							<th>Ingrediente</th>
-							<th>Por unidad</th>
-							<th>Se necesitan</th>
-							<th>En inventario</th>
-							<th>Compras sugeridas</th>
-							<th>Compras reales</th>
-							<th>Precio compra</th>
-						</tr>
-					</thead>
-					<tbody id="ingredients-tbody"></tbody>
-					<tfoot>
-						<tr class="report-spacer-row"><td colspan="8"></td></tr>
-						<tr>
-							<td></td>
-							<td class="label" colspan="4">Totales</td>
-							<td id="t-buy-sug-total" class="col-total"></td>
-							<td id="t-buy-real-total" class="col-total"></td>
-							<td id="t-buy-cost-total" class="col-total"></td>
-						</tr>
-					</tfoot>
-				</table>
-			</div>
-			<div id="dessert-summary" style="margin-top:50px"></div>
-			<div id="bottom-summary" style="margin-top:50px"></div>
+
+			<!-- AI Suggestions Sidebar -->
+			<aside id="ai-suggestions-panel" style="background: rgba(255,255,255,0.7); backdrop-filter: blur(10px); border: 1px solid var(--border); border-radius: 16px; padding: 20px; align-self: start;">
+				<div style="display:flex; align-items:center; gap:10px; margin-bottom:16px">
+					<span style="font-size:1.5rem">🧠</span>
+					<h4 style="margin:0; color:var(--primary)">Sugerencias IA</h4>
+				</div>
+				<div id="ai-content-list" style="display:flex; flex-direction:column; gap:12px">
+					<div class="skeleton-text" style="height:60px; background:#f0f0f0; border-radius:8px"></div>
+					<div class="skeleton-text" style="height:60px; background:#f0f0f0; border-radius:8px"></div>
+				</div>
+			</aside>
 		</div>
 	</main>
 
@@ -494,6 +509,78 @@
 			const savedCounts = getSavedCounts();
 			const initialCounts = savedCounts ? savedCounts : { ...baseCounts };
 
+			// --- INTELIGENCIA IA ---
+			async function runAIIntelligence(aggData, inventoryData) {
+				const aiList = document.getElementById('ai-content-list');
+				if (!aiList) return;
+				aiList.innerHTML = '<div style="font-size:0.8rem; color:var(--muted)">Analizando tendencias...</div>';
+				
+				try {
+					const insights = [];
+					
+					// Alerta de Stock Crítico
+					aggData.forEach((v, key) => {
+						const inv = inventoryData.find(i => normKey(i.ingredient) === key);
+						const saldo = inv ? inv.saldo : 0;
+						const needed = v.needed;
+						
+						if (needed > saldo && needed > 0) {
+							const deficitPct = ((needed - saldo) / needed * 100).toFixed(0);
+							insights.push({
+								icon: '⚠️',
+								title: `Escasez de ${v.name}`,
+								desc: `Te falta el ${deficitPct}% para cubrir los pedidos actuales.`,
+								type: 'danger'
+							});
+						}
+					});
+
+					// Optimización de Compra (Basado en pack_size)
+					inventoryData.forEach(it => {
+						if (it.pack_size >= 1000 && it.price > 0) {
+							const key = normKey(it.ingredient);
+							const neededRow = aggData.get(key);
+							if (neededRow && neededRow.needed > 1000) {
+								insights.push({
+									icon: '💡',
+									title: `Ahorro en ${it.ingredient}`,
+									desc: `Consumes mucho este insumo. Comprar bultos grandes reduce tu costo de producción significativamente.`,
+									type: 'success'
+								});
+							}
+						}
+					});
+
+					// Proyección Finde
+					const day = new Date().getDay();
+					if (day >= 4 && day <= 6) {
+						insights.push({
+							icon: '📈',
+							title: 'Proyección Finde',
+							desc: 'Viene el pico de ventas. Históricamente la demanda sube un 40%. Asegura empaques.',
+							type: 'info'
+						});
+					}
+
+					aiList.innerHTML = '';
+					if (insights.length === 0) {
+						aiList.innerHTML = '<div style="font-size:0.8rem; color:var(--muted)">Sin alertas por ahora.</div>';
+					}
+					
+					insights.sort((a,b) => {
+						const order = { danger: 0, success: 1, info: 2 };
+						return order[a.type] - order[b.type];
+					}).slice(0, 4).forEach(ins => {
+						const card = document.createElement('div');
+						const colors = { danger: '#fef2f2', success: '#f0fdf4', info: '#eff6ff' };
+						const borderColors = { danger: '#fee2e2', success: '#dcfce7', info: '#dbeafe' };
+						card.style = `background:${colors[ins.type]}; border:1px solid ${borderColors[ins.type]}; border-radius:12px; padding:12px; display:flex; gap:10px; align-items:start;`;
+						card.innerHTML = `<span style="font-size:1.2rem">${ins.icon}</span><div><div style="font-weight:700; font-size:0.85rem; margin-bottom:2px">${ins.title}</div><div style="font-size:0.75rem; color:#475569; line-height:1.3">${ins.desc}</div></div>`;
+						aiList.appendChild(card);
+					});
+				} catch (err) { console.error(err); }
+			}
+
 			function renderAllForCounts(useCounts){
 				// Editor inline de conteos por postre
 				renderCountsEditor(useCounts);
@@ -590,6 +677,9 @@
 				for (const d of DESSERTS) {
 					perDessertCostNeeded[d.short_code] += useCounts[d.short_code] * extrasUnitCost;
 				}
+
+				// --- INTELIGENCIA IA ---
+				runAIIntelligence(agg, inventory);
 
 				// Render tabla
 				const keys = Array.from(agg.keys()).sort((a,b) => a.localeCompare(b));
@@ -783,8 +873,121 @@
 		}
 
 			// Back to report or home
+		// --- MODAL CARGAR COMPRA ---
+		const buyLogBtn = document.getElementById('buy-log-btn');
+		buyLogBtn.addEventListener('click', async () => {
+			const ingredients = await fetchJSON(withActor('/api/inventory'));
+			
+			const pop = document.createElement('div'); pop.className = 'confirm-popover aladdin-pop'; pop.style.position = 'fixed';
+			pop.style.left = '50%'; pop.style.top = '15%'; pop.style.transform = 'translate(-50%, 0)'; pop.style.width = 'min(90vw, 450px)'; pop.style.padding = '24px';
+			
+			pop.innerHTML = `
+				<h3 style="margin-top:0; color:var(--primary)">Registrar Factura / Compra</h3>
+				<p style="font-size:0.85rem; color:var(--muted); margin-bottom:20px">Registra tus compras para actualizar el stock y recalcular costos reales (PMP).</p>
+				
+				<div style="margin-bottom:15px">
+					<label style="display:block; font-size:0.75rem; font-weight:700; margin-bottom:4px">Ingrediente</label>
+					<select id="modal-ing-select" class="input-cell" style="width:100%; padding:10px">
+						<option value="">Seleccionar ingrediente...</option>
+						${ingredients.map(it => `<option value="${it.ingredient}" data-unit="${it.unit}">${it.ingredient} (${it.unit})</option>`).join('')}
+					</select>
+				</div>
+
+				<div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:15px">
+					<div>
+						<label style="display:block; font-size:0.75rem; font-weight:700; margin-bottom:4px">Presentación</label>
+						<select id="modal-pres-select" class="input-cell" style="width:100%; padding:10px">
+							<option value="1">Unidades / Gramos</option>
+							<option value="395">Lata (395g)</option>
+							<option value="1000">Kilo (1000g)</option>
+							<option value="5000">Caja/Bolsa (5kg)</option>
+							<option value="25000">Bulto (25kg)</option>
+						</select>
+					</div>
+					<div>
+						<label style="display:block; font-size:0.75rem; font-weight:700; margin-bottom:4px">Cantidad Comprada</label>
+						<input id="modal-qty-input" type="number" class="input-cell" style="width:100%; padding:10px" placeholder="Ej: 5" value="1">
+					</div>
+				</div>
+
+				<div style="margin-bottom:20px">
+					<label style="display:block; font-size:0.75rem; font-weight:700; margin-bottom:4px">Precio Total Pagado (COP)</label>
+					<input id="modal-price-input" type="number" class="input-cell" style="width:100%; padding:10px" placeholder="Ej: 50000">
+					<div id="modal-unit-hint" style="font-size:0.7rem; color:var(--primary); margin-top:6px; font-weight:600"></div>
+				</div>
+
+				<div style="display:flex; gap:10px; margin-top:20px">
+					<button id="modal-cancel-btn" class="press-btn" style="flex:1">Cancelar</button>
+					<button id="modal-save-btn" class="press-btn btn-primary" style="flex:2">Guardar Ingreso</button>
+				</div>
+			`;
+			
+			document.body.appendChild(pop);
+			
+			const selIng = pop.querySelector('#modal-ing-select');
+			const selPres = pop.querySelector('#modal-pres-select');
+			const inQty = pop.querySelector('#modal-qty-input');
+			const inPrice = pop.querySelector('#modal-price-input');
+			const hint = pop.querySelector('#modal-unit-hint');
+			
+			const updateHint = () => {
+				const qty = Number(inQty.value || 0);
+				const pres = Number(selPres.value || 1);
+				const totalP = Number(inPrice.value || 0);
+				const totalQty = qty * pres;
+				if (totalQty > 0 && totalP > 0) {
+					const unitP = totalP / totalQty;
+					const unitName = selIng.options[selIng.selectedIndex]?.dataset.unit || 'g';
+					hint.textContent = `Resumen: ${totalQty}${unitName} totales a $${unitP.toFixed(2)}/${unitName}`;
+				} else {
+					hint.textContent = '';
+				}
+			};
+
+			[selIng, selPres, inQty, inPrice].forEach(el => el.addEventListener('input', updateHint));
+			
+			pop.querySelector('#modal-cancel-btn').onclick = () => pop.remove();
+			pop.querySelector('#modal-save-btn').onclick = async () => {
+				const ingredient = selIng.value;
+				const qty = Number(inQty.value || 0);
+				const pres = Number(selPres.value || 1);
+				const total_cost = Number(inPrice.value || 0);
+				
+				if (!ingredient || !qty || !total_cost) return alert('Por favor completa todos los campos.');
+				
+				const btn = pop.querySelector('#modal-save-btn');
+				btn.disabled = true; btn.textContent = 'Guardando...';
+				
+				try {
+					const res = await fetch(withActor('/api/inventory'), {
+						method: 'POST',
+						body: JSON.stringify({
+							action: 'ingreso',
+							ingredient,
+							qty: qty * pres,
+							total_cost,
+							note: `Compra registrada desde panel de ingredientes (${qty} x ${selPres.options[selPres.selectedIndex].text})`,
+							actor_name: actor
+						})
+					});
+					
+					if (res.ok) {
+						pop.remove();
+						load(); // Recargar tabla
+					} else {
+						const err = await res.json();
+						alert('Error: ' + (err.error || 'No se pudo guardar'));
+						btn.disabled = false; btn.textContent = 'Guardar Ingreso';
+					}
+				} catch (e) {
+					alert('Error de conexión');
+					btn.disabled = false; btn.textContent = 'Guardar Ingreso';
+				}
+			};
+		});
+
 		backBtn.addEventListener('click', () => {
-		const url = new URL('/sales-report.html', location.origin);
+			const url = new URL('/sales-report.html', location.origin);
 			if (start) url.searchParams.set('start', start);
 			if (end) url.searchParams.set('end', end);
 			if (actor) url.searchParams.set('actor', actor);

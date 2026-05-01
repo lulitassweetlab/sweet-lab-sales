@@ -1,4 +1,4 @@
-import { ensureSchema, sql, ensureInventoryItem, canonicalizeIngredientName, recalculateAllDessertCosts } from './_db.js';
+import { ensureSchema, sql, ensureInventoryItem, canonicalizeIngredientName, recalculateAllDessertCosts, updateIngredientPMP } from './_db.js';
 
 function json(body, status = 200) {
 	return { statusCode: status, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
@@ -169,11 +169,28 @@ export async function handler(event) {
 					const unit = (data.unit || 'g').toString();
 					let qty = Number(data.qty || 0) || 0;
 					const note = (data.note || '').toString();
+					const totalCost = Number(data.total_cost || 0); // Opcional para PMP
+					const unitPrice = Number(data.unit_price || 0); // Opcional para PMP
+					
 					if (!ingredient) return json({ error: 'ingredient requerido' }, 400);
 					if (!qty) return json({ error: 'qty requerido' }, 400);
+					
 					await ensureInventoryItem(ingredient, unit);
 					const signed = action === 'ingreso' ? Math.abs(qty) : qty;
-					const [row] = await sql`INSERT INTO inventory_movements (ingredient, kind, qty, note, actor_name, metadata) VALUES (${ingredient}, ${action}, ${signed}, ${note}, ${actor}, '{}'::jsonb) RETURNING *`;
+					
+					// Guardar metadata extendida si hay costos
+					const metadata = data.metadata && typeof data.metadata === 'object' ? data.metadata : {};
+					if (totalCost > 0) metadata.total_cost = totalCost;
+					if (unitPrice > 0) metadata.unit_price = unitPrice;
+
+					const [row] = await sql`INSERT INTO inventory_movements (ingredient, kind, qty, note, actor_name, metadata) VALUES (${ingredient}, ${action}, ${signed}, ${note}, ${actor}, ${JSON.stringify(metadata)}::jsonb) RETURNING *`;
+					
+					// Si es un ingreso con precio, actualizar PMP
+					if (action === 'ingreso' && (totalCost > 0 || unitPrice > 0)) {
+						const priceToUse = unitPrice > 0 ? unitPrice : (totalCost / Math.abs(qty));
+						await updateIngredientPMP(ingredient, Math.abs(qty), priceToUse);
+					}
+
 					return json(row, 201);
 				}
 
