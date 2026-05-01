@@ -108,6 +108,10 @@
                         <span style="font-size:0.75rem; color:#475569;">Paso 3 (Trayectoria)</span>
                         <input type="number" id="triple-w3" step="0.01" style="width:70px; padding:4px; border-radius:6px; border:1px solid #ddd; text-align:right;">
                     </div>
+                    <div style="margin-top:10px; padding-top:10px; border-top:1px solid #eee; display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-size:0.75rem; font-weight:700; color:#475569;">Meses Estabilidad (Paso 2)</span>
+                        <input type="number" id="triple-months" style="width:70px; padding:4px; border-radius:6px; border:1px solid #ddd; text-align:right;">
+                    </div>
                     <p style="font-size:0.6rem; color:#94a3b8; margin:0; text-align:right;">Total: <b id="triple-w-sum">0</b>% (Debe ser 100)</p>
                 </div>
             </div>
@@ -345,10 +349,10 @@
                         <div style="background:#f5f3ff; padding:8px; border-radius:10px; font-family:monospace; color:#4338ca; font-size:0.85rem;">Socio (${md.desserts || 0}) / Empresa (${totalDesserts}) = <b>${fmtP(p1)}%</b></div>
                     </div>
                     <div style="background:white; padding:14px; border-radius:16px; border:1px solid #e2e8f0; display:flex; flex-direction:column; gap:4px;">
-                        <div style="color:#6366f1; font-weight:900; font-size:0.7rem;">PASO 2: ESTABILIDAD (4 MESES) (${(w2*100).toFixed(2)}%)</div>
+                        <div style="color:#6366f1; font-weight:900; font-size:0.7rem;">PASO 2: ESTABILIDAD (${DATA.settings?.triple_months || 4} MESES) (${(w2*100).toFixed(2)}%)</div>
                         <div style="background:#f5f3ff; padding:8px; border-radius:10px; font-family:monospace; color:#4338ca; font-size:0.75rem; line-height:1.4;">
                             ${(md.rolling_M || []).map(r => `<div>• ${typeof r === 'object' ? r.month : '?'} = <b>${fmtP(typeof r === 'object' ? r.val : r)}%</b></div>`).join('')}
-                            <div style="margin-top:4px; border-top:1px solid #c7d2fe; padding-top:4px;">Promedio 4 meses = <b>${fmtP(p2)}%</b></div>
+                            <div style="margin-top:4px; border-top:1px solid #c7d2fe; padding-top:4px;">Promedio ${DATA.settings?.triple_months || 4} meses = <b>${fmtP(p2)}%</b></div>
                         </div>
                     </div>
                     <div style="background:white; padding:14px; border-radius:16px; border:1px solid #e2e8f0; display:flex; flex-direction:column; gap:4px;">
@@ -626,6 +630,7 @@
                 document.getElementById('triple-w1').value = DATA.settings?.triple_w1 || 33.33;
                 document.getElementById('triple-w2').value = DATA.settings?.triple_w2 || 33.33;
                 document.getElementById('triple-w3').value = DATA.settings?.triple_w3 || 33.34;
+                document.getElementById('triple-months').value = DATA.settings?.triple_months || 4;
                 
                 const updateSum = () => {
                     const s = Number(document.getElementById('triple-w1').value) + Number(document.getElementById('triple-w2').value) + Number(document.getElementById('triple-w3').value);
@@ -689,7 +694,8 @@
                         partner_founders: JSON.stringify(founders),
                         triple_w1: w1,
                         triple_w2: w2,
-                        triple_w3: w3
+                        triple_w3: w3,
+                        triple_months: Number(document.getElementById('triple-months').value || 4)
                     }) 
                 });
                 location.href = '?auth=admin&force_sync=1';

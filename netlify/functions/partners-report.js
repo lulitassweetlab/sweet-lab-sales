@@ -15,13 +15,14 @@ export async function handler(event) {
         if (forceSync) await sql`DELETE FROM financial_snapshots`;
 
         // 1. Get Settings (Added Founder settings and Generic historic overrides)
-        const settingsRows = await sql`SELECT key, value FROM store_settings WHERE key IN ('partner_seller_ids', 'provision_default_perc', 'partner_founders', 'partner_distribution_model', 'triple_w1', 'triple_w2', 'triple_w3') OR key LIKE 'historic_%'`;
+        const settingsRows = await sql`SELECT key, value FROM store_settings WHERE key IN ('partner_seller_ids', 'provision_default_perc', 'partner_founders', 'partner_distribution_model', 'triple_w1', 'triple_w2', 'triple_w3', 'triple_months') OR key LIKE 'historic_%'`;
         const settings = { 
             partner_seller_ids: [], 
             provision_default_perc: 3, 
             partner_founders: {}, 
             partner_distribution_model: 'pro',
-            triple_w1: 33.33, triple_w2: 33.33, triple_w3: 33.34
+            triple_w1: 33.33, triple_w2: 33.33, triple_w3: 33.34,
+            triple_months: 4
         };
         for (const r of settingsRows) {
             if (r.key === 'partner_seller_ids') {
@@ -32,6 +33,8 @@ export async function handler(event) {
                 try { settings.partner_founders = JSON.parse(r.value); } catch { settings.partner_founders = {}; }
             } else if (r.key === 'partner_distribution_model') {
                 settings.partner_distribution_model = r.value || 'pro';
+            } else if (r.key === 'triple_months') {
+                settings.triple_months = Number(r.value) || 4;
             } else if (r.key.startsWith('triple_w')) {
                 settings[r.key] = Number(r.value);
             } else {
@@ -305,7 +308,7 @@ export async function handler(event) {
                 curM[pid] = totalMonthPartnerSales > 0 ? (monthCumulToAdd[pid] || 0) / totalMonthPartnerSales : 0;
                 if (partnerRollingM[pid] === undefined) partnerRollingM[pid] = [];
                 partnerRollingM[pid].push({ month: m, val: curM[pid] });
-                if (partnerRollingM[pid].length > 4) partnerRollingM[pid].shift();
+                if (partnerRollingM[pid].length > (settings.triple_months || 4)) partnerRollingM[pid].shift();
             });
 
             let avgP = {};
