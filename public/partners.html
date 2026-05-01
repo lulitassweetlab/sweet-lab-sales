@@ -556,108 +556,69 @@
 
         window.downloadIntegralPDF = async (month, btn) => {
             const originalContent = btn.innerHTML;
-            btn.innerHTML = '<span style="font-size:0.8rem; font-weight:700;">Generando PDF...</span>';
+            btn.innerHTML = '<span style="font-size:0.8rem; font-weight:700;">Ensamblando PDF...</span>';
             btn.disabled = true;
             
             try {
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('p', 'mm', 'a4');
                 const m = DATA.history.find(h => h.month === month);
                 if (!m) throw new Error("No hay datos para este mes");
 
-                // Crear un contenedor visible pero fuera de la vista principal
-                const pdfContainer = document.createElement('div');
-                pdfContainer.id = "pdf-render-container";
-                pdfContainer.style.width = '850px';
-                pdfContainer.style.background = 'white';
-                pdfContainer.style.position = 'fixed';
-                pdfContainer.style.top = '0';
-                pdfContainer.style.left = '-2000px'; // Bien lejos a la izquierda
-                pdfContainer.style.zIndex = '-100';
-                pdfContainer.style.fontFamily = "'Inter', sans-serif";
-                document.body.appendChild(pdfContainer);
+                // Contenedor de renderizado
+                const renderDiv = document.createElement('div');
+                renderDiv.style = "position:fixed; top:0; left:0; width:800px; background:white; z-index:-1000; padding:40px;";
+                document.body.appendChild(renderDiv);
 
-                const addSection = (html) => {
-                    const div = document.createElement('div');
-                    div.style.padding = '40px';
-                    div.style.borderBottom = '2px solid #f1f5f9';
-                    div.innerHTML = html;
-                    pdfContainer.appendChild(div);
-                };
+                const sections = [];
 
-                // 1. PORTADA / RESUMEN
-                const cardClone = document.querySelector(`button[onclick*="${month}"]`).closest('.box').cloneNode(true);
-                cardClone.style.boxShadow = 'none';
-                cardClone.style.border = 'none';
-                cardClone.style.width = '100%';
-                cardClone.querySelectorAll('button').forEach(b => b.remove());
-                addSection(`
-                    <div style="text-align:center; margin-bottom:30px;">
-                        <h1 style="color:#4f46e5; margin:0; font-size:28px;">REPORTE INTEGRAL LULITAS</h1>
-                        <p style="color:#64748b; font-size:16px;">Mes de Cierre: ${month}</p>
-                    </div>
-                `);
-                pdfContainer.appendChild(cardClone);
+                // 1. FICHA RESUMEN
+                const card = document.querySelector(`button[onclick*="${month}"]`).closest('.box').cloneNode(true);
+                card.style.boxShadow = 'none'; card.style.border = '2px solid #f1f5f9';
+                card.querySelectorAll('button').forEach(b => b.remove());
+                sections.push({ title: "RESUMEN EJECUTIVO", el: card });
 
                 // 2. VENTAS
+                const revDiv = document.createElement('div');
+                revDiv.style = "padding:20px; background:white; border:1px solid #e2e8f0; border-radius:16px;";
                 const revDetails = window.revenueDetailsMap[month] || [];
-                const revHtml = revDetails.map(d => `
-                    <div style="margin-bottom:15px; border:1px solid #e2e8f0; border-radius:12px; padding:15px;">
-                        <div style="display:flex; justify-content:space-between; font-weight:800; border-bottom:1px solid #eee; padding-bottom:8px; margin-bottom:8px;">
-                            <span>${d.seller_name}</span>
-                            <span style="color:#10b981;">${fmt.format(d.amount)}</span>
-                        </div>
-                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-                            ${(d.days || []).map(day => `<div style="font-size:11px; color:#64748b;">🗓 ${day.date}: <b>${fmt.format(day.amount)}</b></div>`).join('')}
+                revDiv.innerHTML = `<h2 style="color:#4f46e5; margin-bottom:20px;">DETALLE DE VENTAS</h2>` + revDetails.map(d => `
+                    <div style="margin-bottom:15px; border-bottom:1px solid #eee; padding-bottom:10px;">
+                        <div style="display:flex; justify-content:space-between; font-weight:800; margin-bottom:5px;"><span>${d.seller_name}</span><span style="color:#10b981;">${fmt.format(d.amount)}</span></div>
+                        <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:5px;">
+                            ${(d.days || []).map(day => `<div style="font-size:10px; color:#64748b;">${day.date}: <b>${fmt.format(day.amount)}</b></div>`).join('')}
                         </div>
                     </div>
                 `).join('');
-                addSection(`<h2 style="color:#4f46e5; font-size:20px; border-left:4px solid #4f46e5; padding-left:15px; margin-bottom:20px;">DETALLE DE VENTAS DIARIAS</h2>${revHtml}`);
+                sections.push({ title: "VENTAS DETALLADAS", el: revDiv });
 
-                // 3. PRODUCTOS Y MÁRGENES
+                // 3. PRODUCTOS
+                const prodDiv = document.createElement('div');
+                prodDiv.style = "padding:20px; background:white; border:1px solid #e2e8f0; border-radius:16px;";
                 const prodDetails = window.productDetailsMap[month] || [];
-                const prodHtml = prodDetails.map(d => `
+                prodDiv.innerHTML = `<h2 style="color:#4f46e5; margin-bottom:20px;">DESEMPEÑO DE PRODUCTOS</h2>` + prodDetails.map(d => `
                     <div style="margin-bottom:20px;">
-                        <h3 style="font-size:14px; color:#1e293b; margin-bottom:8px;">Socio: ${d.seller_name}</h3>
-                        <table style="width:100%; border-collapse:collapse; font-size:11px;">
-                            <tr style="background:#f8fafc; color:#64748b; text-align:left;">
-                                <th style="padding:8px; border:1px solid #e2e8f0;">Postre</th>
-                                <th style="padding:8px; border:1px solid #e2e8f0; text-align:center;">Cant.</th>
-                                <th style="padding:8px; border:1px solid #e2e8f0; text-align:right;">Ingreso</th>
-                                <th style="padding:8px; border:1px solid #e2e8f0; text-align:right;">Margen</th>
-                            </tr>
-                            ${(d.products || []).map(p => `
-                                <tr>
-                                    <td style="padding:8px; border:1px solid #e2e8f0;">${p.name}</td>
-                                    <td style="padding:8px; border:1px solid #e2e8f0; text-align:center;">${p.quantity}</td>
-                                    <td style="padding:8px; border:1px solid #e2e8f0; text-align:right;">${fmt.format(p.revenue)}</td>
-                                    <td style="padding:8px; border:1px solid #e2e8f0; text-align:right; font-weight:800;">${p.revenue > 0 ? Math.round(((p.revenue - p.cogs)/p.revenue)*100) : 0}%</td>
-                                </tr>
-                            `).join('')}
+                        <h3 style="font-size:14px; margin-bottom:5px;">${d.seller_name}</h3>
+                        <table style="width:100%; font-size:10px; border-collapse:collapse;">
+                            <tr style="background:#f8fafc;"><th>Postre</th><th>Cant.</th><th style="text-align:right;">Ingreso</th><th style="text-align:right;">Margen</th></tr>
+                            ${(d.products || []).map(p => `<tr><td style="border-bottom:1px solid #eee; padding:4px;">${p.name}</td><td style="text-align:center;">${p.quantity}</td><td style="text-align:right;">${fmt.format(p.revenue)}</td><td style="text-align:right; font-weight:700;">${p.revenue > 0 ? Math.round(((p.revenue-p.cogs)/p.revenue)*100):0}%</td></tr>`).join('')}
                         </table>
                     </div>
                 `).join('');
-                addSection(`<h2 style="color:#4f46e5; font-size:20px; border-left:4px solid #4f46e5; padding-left:15px; margin-bottom:20px;">PRODUCTOS, CANTIDADES Y MÁRGENES</h2>${prodHtml}`);
+                sections.push({ title: "MÁRGENES Y CANTIDADES", el: prodDiv });
 
                 // 4. GASTOS
+                const expDiv = document.createElement('div');
+                expDiv.style = "padding:20px; background:white; border:1px solid #e2e8f0; border-radius:16px;";
                 const expDetails = window.expenseDetailsMap[month] || [];
-                const expHtml = `
-                    <table style="width:100%; border-collapse:collapse; font-size:12px;">
-                        <tr style="background:#fef2f2; color:#991b1b; text-align:left;">
-                            <th style="padding:10px; border:1px solid #fecaca;">Fecha</th>
-                            <th style="padding:10px; border:1px solid #fecaca;">Descripción</th>
-                            <th style="padding:10px; border:1px solid #fecaca; text-align:right;">Monto</th>
-                        </tr>
-                        ${expHtmlDetails = expDetails.map(d => `
-                            <tr>
-                                <td style="padding:10px; border:1px solid #f1f5f9;">${d.date}</td>
-                                <td style="padding:10px; border:1px solid #f1f5f9;">${d.description}</td>
-                                <td style="padding:10px; border:1px solid #f1f5f9; text-align:right; color:#ef4444; font-weight:700;">-${fmt.format(d.amount)}</td>
-                            </tr>
-                        `).join('')}
-                    </table>
-                `;
-                addSection(`<h2 style="color:#ef4444; font-size:20px; border-left:4px solid #ef4444; padding-left:15px; margin-bottom:20px;">RELACIÓN DE GASTOS DEL MES</h2>${expHtml}`);
+                expDiv.innerHTML = `<h2 style="color:#ef4444; margin-bottom:20px;">RELACIÓN DE GASTOS</h2>
+                    <table style="width:100%; font-size:11px; border-collapse:collapse;">
+                        <tr style="background:#fef2f2; color:#b91c1c;"><th>Fecha</th><th>Descripción</th><th style="text-align:right;">Monto</th></tr>
+                        ${expDetails.map(d => `<tr><td style="border-bottom:1px solid #eee; padding:8px;">${d.date}</td><td style="border-bottom:1px solid #eee;">${d.description}</td><td style="text-align:right; color:#ef4444; font-weight:700;">-${fmt.format(d.amount)}</td></tr>`).join('')}
+                    </table>`;
+                sections.push({ title: "GASTOS", el: expDiv });
 
-                // 5. REPORTES SOCIOS
+                // 5. SOCIOS
                 for (const p of m.partners) {
                     const md = p.metrics_debug || {};
                     const shortMonths = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
@@ -672,74 +633,61 @@
                         return { formatted: shortMonths[parseInt(mm)-1], revenue: rev };
                     });
                     if (maxRev === 0) maxRev = 1;
-                    const barsHtml = chartData.map(d => `
-                        <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:80px;">
-                            <div style="width:15px; height:${Math.max(5, Math.round((d.revenue/maxRev)*100))}%; background:#6366f1; border-radius:3px;"></div>
-                            <span style="font-size:8px; color:#94a3b8; margin-top:2px;">${d.formatted}</span>
-                        </div>
-                    `).join('');
+                    const barsHtml = chartData.map(d => `<div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:80px;"><div style="width:15px; height:${Math.max(5, Math.round((d.revenue/maxRev)*100))}%; background:#6366f1; border-radius:3px;"></div><span style="font-size:8px; margin-top:2px;">${d.formatted}</span></div>`).join('');
 
-                    const stepsHtml = (DATA.settings?.partner_distribution_model === 'triple') ? `
-                        <div style="display:flex; flex-direction:column; gap:8px;">
-                            <div style="background:#f5f3ff; padding:10px; border-radius:10px; border:1px solid #ddd6fe;">
-                                <div style="font-size:9px; font-weight:800; color:#4c1d95; margin-bottom:2px;">PASO 1: ESFUERZO ACTUAL</div>
-                                <div style="font-size:12px; font-weight:700;">${((md.M || 0)*100).toFixed(2)}%</div>
-                            </div>
-                            <div style="background:#f5f3ff; padding:10px; border-radius:10px; border:1px solid #ddd6fe;">
-                                <div style="font-size:9px; font-weight:800; color:#4c1d95; margin-bottom:2px;">PASO 2: ESTABILIDAD</div>
-                                <div style="font-size:12px; font-weight:700;">${((md.P || 0)*100).toFixed(2)}%</div>
-                            </div>
-                            <div style="background:#f5f3ff; padding:10px; border-radius:10px; border:1px solid #ddd6fe;">
-                                <div style="font-size:9px; font-weight:800; color:#4c1d95; margin-bottom:2px;">PASO 3: HISTÓRICO GLOBAL</div>
-                                <div style="font-size:12px; font-weight:700;">${((md.H_global || 0)*100).toFixed(2)}%</div>
-                            </div>
+                    const partnerDiv = document.createElement('div');
+                    partnerDiv.style = "padding:25px; background:white; border:2px solid #4f46e5; border-radius:20px; margin-bottom:20px;";
+                    partnerDiv.innerHTML = `
+                        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:20px;">
+                            <h2 style="margin:0; color:#1e293b;">Socio: ${p.name}</h2>
+                            <div style="text-align:right;"><span style="font-size:10px; color:#64748b;">PARTICIPACIÓN</span><div style="font-size:24px; font-weight:900; color:#4f46e5;">${p.share_perc}%</div></div>
                         </div>
-                    ` : '';
-
-                    addSection(`
-                        <div style="border:2px solid #4f46e5; border-radius:20px; padding:25px; background:white;">
-                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:1px solid #f1f5f9; padding-bottom:10px;">
-                                <h3 style="margin:0; font-size:22px; color:#1e293b;">REPORTE SOCIO: ${p.name}</h3>
-                                <div style="text-align:right;"><span style="font-size:10px; color:#64748b; font-weight:800;">PARTICIPACIÓN</span><div style="font-size:24px; font-weight:900; color:#4f46e5;">${p.share_perc}%</div></div>
-                            </div>
-                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:30px;">
-                                <div>
-                                    <h4 style="font-size:12px; color:#64748b; margin-bottom:10px;">📈 Tendencia de Ventas (12 Meses)</h4>
-                                    <div style="display:flex; align-items:flex-end; gap:3px; height:100px; background:#f8fafc; padding:10px; border-radius:10px; border:1px solid #e2e8f0;">${barsHtml}</div>
-                                </div>
-                                <div>
-                                    <h4 style="font-size:12px; color:#64748b; margin-bottom:10px;">⚖️ Desglose Triple Horizonte</h4>
-                                    ${stepsHtml}
-                                    <div style="margin-top:15px; background:#4f46e5; color:white; padding:12px; border-radius:12px; text-align:center;">
-                                        <div style="font-size:10px; opacity:0.8;">DISTRIBUCIÓN FINAL</div>
-                                        <div style="font-size:20px; font-weight:900;">${fmt.format(p.share_amount)}</div>
-                                    </div>
+                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+                            <div><div style="font-size:12px; font-weight:800; margin-bottom:10px;">📈 Tendencia</div><div style="display:flex; align-items:flex-end; gap:3px; height:100px; background:#f8fafc; padding:10px; border-radius:10px;">${barsHtml}</div></div>
+                            <div>
+                                <div style="font-size:12px; font-weight:800; margin-bottom:10px;">⚖️ Cálculo</div>
+                                <div style="background:#f5f3ff; padding:10px; border-radius:10px; font-size:11px;">M: ${((md.M||0)*100).toFixed(2)}% | P: ${((md.P||0)*100).toFixed(2)}% | H: ${((md.H_global||0)*100).toFixed(2)}%</div>
+                                <div style="margin-top:10px; background:#4f46e5; color:white; padding:10px; border-radius:10px; text-align:center;">
+                                    <div style="font-size:18px; font-weight:900;">${fmt.format(p.share_amount)}</div>
                                 </div>
                             </div>
                         </div>
-                    `);
+                    `;
+                    sections.push({ title: `SOCIO: ${p.name}`, el: partnerDiv });
                 }
 
-                // Esperar un momento para que todo se "dibuje" en el DOM
-                await new Promise(r => setTimeout(r, 800));
+                // ENSAMBLAJE MANUAL DEL PDF
+                for (let i = 0; i < sections.length; i++) {
+                    const sec = sections[i];
+                    renderDiv.innerHTML = '';
+                    renderDiv.appendChild(sec.el);
+                    
+                    // Pequeña espera para que el navegador pinte el elemento clonado
+                    await new Promise(r => setTimeout(r, 200));
+                    
+                    const canvas = await html2canvas(sec.el, { scale: 2, useCORS: true, logging: false });
+                    const imgData = canvas.toDataURL('image/jpeg', 0.9);
+                    
+                    if (i > 0) pdf.addPage();
+                    
+                    const pdfWidth = pdf.internal.pageSize.getWidth();
+                    const pdfHeight = pdf.internal.pageSize.getHeight();
+                    const imgWidth = pdfWidth - 20;
+                    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                    
+                    pdf.setFontSize(10); pdf.setTextColor(150);
+                    pdf.text(`Lulitas Sweet Lab - ${month} - ${sec.title}`, 10, 8);
+                    pdf.addImage(imgData, 'JPEG', 10, 15, imgWidth, imgHeight);
+                }
 
-                const opt = {
-                    margin: [10, 10],
-                    filename: `Lulitas_Integral_${month}.pdf`,
-                    image: { type: 'jpeg', quality: 0.98 },
-                    html2canvas: { scale: 2, useCORS: true, letterRendering: true },
-                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-                };
-
-                await html2pdf().set(opt).from(pdfContainer).save();
-                document.body.removeChild(pdfContainer);
+                pdf.save(`Reporte_Integral_Lulitas_${month}.pdf`);
+                document.body.removeChild(renderDiv);
                 
                 const menu = document.querySelector('.popover-wrap-menu');
                 if (menu) menu.remove();
             } catch (e) {
-                console.error("PDF Error:", e);
-                alert("Error al generar el PDF. Por favor intenta de nuevo.");
+                console.error("PDF Assembly Error:", e);
+                alert("Error al ensamblar el reporte. Intenta de nuevo.");
             } finally {
                 btn.innerHTML = originalContent;
                 btn.disabled = false;
