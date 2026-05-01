@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Compras e Inventario</title>
+	<link rel="stylesheet" href="/styles.css?v=2025-09-17-1" />
+	<style>
+		:root { 
+			--p-mod: #6366f1; 
+			--accent: #8b5cf6;
+			--bg: #f8fafc;
+			--card: #ffffff;
+			--border: #e2e8f0;
+			--primary: #f4a6b7;
+		}
+		body { background: var(--bg); color: #0f172a; font-family: 'Inter', sans-serif; padding: 20px; }
+		.container { max-width: 1000px; margin: 0 auto; }
+		.box { background: white; border-radius: 24px; padding: 32px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05); border: 1px solid var(--border); margin-bottom: 24px; }
+		.hdr { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; }
+		.back-btn { background: white; border: 1px solid var(--border); padding: 10px 20px; border-radius: 14px; cursor: pointer; font-weight: 600; color: #64748b; }
+		.add-btn { background: var(--p-mod); color: white; border: none; padding: 12px 24px; border-radius: 14px; font-weight: 700; cursor: pointer; }
+		
+		table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+		th { text-align: left; padding: 16px; border-bottom: 2px solid var(--bg); color: #64748b; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; }
+		td { padding: 16px; border-bottom: 1px solid var(--bg); font-size: 0.95rem; }
+		
+		.attach-btn { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--border); background: transparent; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+		.attach-btn.has { background: #10b981; color: white; border-color: #10b981; }
+		
+		.popover-wrap { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15,23,42,0.6); backdrop-filter: blur(8px); z-index: 6000; display: flex; align-items: center; justify-content: center; padding: 20px; }
+		.popover-c { background: white; padding: 32px; border-radius: 28px; width: 100%; max-width: 450px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); }
+		.popover-c h2 { margin: 0 0 24px 0; font-size: 1.5rem; text-align: center; }
+		
+		.field { margin-bottom: 20px; }
+		.field label { display: block; margin-bottom: 8px; font-weight: 700; font-size: 0.85rem; color: #64748b; }
+		.field input, .field select, .field textarea { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border); background: #f8fafc; font-size: 1rem; outline: none; transition: border-color 0.2s; }
+		.field input:focus { border-color: var(--p-mod); }
+		
+		.btn-primary { width: 100%; padding: 14px; background: var(--p-mod); color: white; border: none; border-radius: 14px; font-weight: 700; cursor: pointer; font-size: 1rem; }
+	</style>
+</head>
+<body>
+	<div class="container">
+		<div class="hdr">
+			<button onclick="location.href='/partners.html'" class="back-btn">← Volver a Socios</button>
+			<h1>📦 Gestión de Compras</h1>
+			<button id="new-purchase-btn" class="add-btn">+ Nueva Compra</button>
+		</div>
+
+		<div class="box">
+			<table id="purchases-table">
+				<thead>
+					<tr>
+						<th>Fecha</th>
+						<th>Descripción</th>
+						<th>Producto</th>
+						<th>Cant.</th>
+						<th style="text-align:right;">Total</th>
+						<th style="text-align:center;">Recibo</th>
+					</tr>
+				</thead>
+				<tbody id="purchases-tbody">
+					<tr><td colspan="6" style="text-align:center; padding:40px; color:#94a3b8;">Cargando historial de compras...</td></tr>
+				</tbody>
+			</table>
+		</div>
+	</div>
+
+	<!-- Popover de Nueva Compra -->
+	<div id="purchase-popover" class="popover-wrap" style="display:none;">
+		<div class="popover-c">
+			<h2>Registrar Compra</h2>
+			<form id="purchase-form">
+				<div class="field">
+					<label>Título / Descripción</label>
+					<input type="text" id="p-note" placeholder="Ej: Factura Macro Mayo" required />
+				</div>
+				<div class="field">
+					<label>Fecha</label>
+					<input type="date" id="p-date" required />
+				</div>
+				<div class="field">
+					<label>Producto</label>
+					<select id="p-ingredient" required>
+						<option value="">Seleccione un ingrediente...</option>
+					</select>
+				</div>
+				<div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+					<div class="field">
+						<label>Cantidad (g/ml/u)</label>
+						<input type="number" id="p-qty" step="0.01" required />
+					</div>
+					<div class="field">
+						<label>Total Pagado ($)</label>
+						<input type="number" id="p-total" required />
+					</div>
+				</div>
+				<div class="field">
+					<label>Foto del Recibo (Opcional)</label>
+					<input type="file" id="p-receipt" accept="image/*" />
+				</div>
+				<button type="submit" id="submit-btn" class="btn-primary">Guardar Compra</button>
+				<button type="button" onclick="closePopover()" style="width:100%; margin-top:12px; background:none; border:none; color:#64748b; cursor:pointer; font-weight:600;">Cancelar</button>
+			</form>
+		</div>
+	</div>
+
+	<script type="module">
+		let inventory = [];
+		let currentUser = JSON.parse(localStorage.getItem('authUser') || '{}');
+		const fmt = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
+
+		async function fetchJSON(u, opts){ 
+			const r = await fetch(u, opts); 
+			if (!r.ok) throw new Error(`HTTP ${r.status}`); 
+			return r.json(); 
+		}
+
+		window.closePopover = () => {
+			document.getElementById('purchase-popover').style.display = 'none';
+			document.getElementById('purchase-form').reset();
+		};
+
+		document.getElementById('new-purchase-btn').onclick = () => {
+			document.getElementById('p-date').value = new Date().toISOString().slice(0,10);
+			document.getElementById('purchase-popover').style.display = 'flex';
+		};
+
+		async function load() {
+			try {
+				// 1. Cargar inventario para el select
+				inventory = await fetchJSON('/api/inventory');
+				const select = document.getElementById('p-ingredient');
+				select.innerHTML = '<option value="">Seleccione...</option>' + 
+					inventory.map(it => `<option value="${it.ingredient}">${it.ingredient} (${it.unit})</option>`).join('');
+
+				// 2. Cargar historial
+				const movs = await fetchJSON('/api/inventory?history_all=1');
+				// Filtrar solo ingresos que tengan metadata de costo
+				const purchases = movs.filter(m => m.kind === 'ingreso' && m.metadata?.total_cost);
+				
+				const tbody = document.getElementById('purchases-tbody');
+				if (!purchases.length) {
+					tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:40px; color:#94a3b8;">No hay compras registradas.</td></tr>';
+					return;
+				}
+
+				tbody.innerHTML = purchases.map(p => `
+					<tr>
+						<td style="color:#64748b; font-size:0.85rem;">${p.created_at.slice(0,10)}</td>
+						<td style="font-weight:700;">${p.note || 'Sin título'}</td>
+						<td>${p.ingredient}</td>
+						<td>${p.qty}</td>
+						<td style="text-align:right; font-weight:800; color:#10b981;">${fmt.format(p.metadata.total_cost)}</td>
+						<td style="text-align:center;">
+							<button class="attach-btn ${p.metadata.accounting_id ? 'has' : ''}" onclick="viewReceipt(${p.metadata.accounting_id})">
+								${p.metadata.accounting_id ? '📄' : '-'}
+							</button>
+						</td>
+					</tr>
+				`).join('');
+			} catch (e) {
+				console.error(e);
+			}
+		}
+
+		window.viewReceipt = async (accId) => {
+			if (!accId) return;
+			try {
+				const att = await fetchJSON(`/api/accounting?attachment_for=${accId}`);
+				if (att && att.file_base64) {
+					const win = window.open();
+					win.document.write(`<img src="${att.file_base64}" style="max-width:100%; border-radius:12px;">`);
+				}
+			} catch (e) { alert("No se pudo cargar el recibo"); }
+		};
+
+		// Helper to compress images
+		async function compressImage(file) {
+			return new Promise((resolve) => {
+				const reader = new FileReader();
+				reader.onload = (e) => {
+					const img = new Image();
+					img.onload = () => {
+						const canvas = document.createElement('canvas');
+						let width = img.width, height = img.height;
+						if (width > 800) { height *= 800 / width; width = 800; }
+						canvas.width = width; canvas.height = height;
+						canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+						resolve(canvas.toDataURL('image/jpeg', 0.7));
+					};
+					img.src = e.target.result;
+				};
+				reader.readAsDataURL(file);
+			});
+		}
+
+		document.getElementById('purchase-form').onsubmit = async (e) => {
+			e.preventDefault();
+			const btn = document.getElementById('submit-btn');
+			btn.disabled = true;
+			btn.innerText = 'Guardando...';
+
+			const payload = {
+				action: 'compra',
+				ingredient: document.getElementById('p-ingredient').value,
+				qty: document.getElementById('p-qty').value,
+				total_cost: document.getElementById('p-total').value,
+				note: document.getElementById('p-note').value,
+				date: document.getElementById('p-date').value,
+				actor_name: currentUser.name || 'Admin'
+			};
+
+			const fileInput = document.getElementById('p-receipt');
+			if (fileInput.files[0]) {
+				payload.receipt_base64 = await compressImage(fileInput.files[0]);
+				payload.receipt_name = fileInput.files[0].name;
+			}
+
+			try {
+				const res = await fetch('/api/inventory', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify(payload)
+				});
+				if (res.ok) {
+					closePopover();
+					load();
+				} else {
+					const err = await res.json();
+					alert(err.error || "Error al guardar");
+				}
+			} catch (e) { alert("Error de conexión"); }
+			finally {
+				btn.disabled = false;
+				btn.innerText = 'Guardar Compra';
+			}
+		};
+
+		load();
+	</script>
+</body>
+</html>

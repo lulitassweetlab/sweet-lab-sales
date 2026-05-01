@@ -194,6 +194,34 @@ export async function handler(event) {
 					return json(row, 201);
 				}
 
+				if (action === 'compra') {
+					const { ingredient, qty, total_cost, note, date, receipt_base64, receipt_name } = data;
+					if (!ingredient || !qty || !total_cost || !date) return json({ error: 'Faltan campos requeridos (ingrediente, cantidad, total, fecha)' }, 400);
+
+					const canon = canonicalizeIngredientName(ingredient);
+					await ensureInventoryItem(canon);
+
+					// 1. Movimiento de Inventario y PMP
+					const metadata = { total_cost: Number(total_cost), purchase_date: date };
+					const [invMov] = await sql`INSERT INTO inventory_movements (ingredient, kind, qty, note, actor_name, metadata) VALUES (${canon}, 'ingreso', ${Math.abs(qty)}, ${note}, ${actor}, ${JSON.stringify(metadata)}::jsonb) RETURNING *`;
+					await updateIngredientPMP(canon, Math.abs(qty), Number(total_cost) / Math.abs(qty));
+
+					// 2. Registro Contable (Gasto)
+					const accDesc = `Compra: ${note || canon}`;
+					const [accEntry] = await sql`INSERT INTO accounting_entries (kind, entry_date, description, amount_cents, actor_name) VALUES ('gasto', ${date}, ${accDesc}, ${Number(total_cost)}, ${actor}) RETURNING *`;
+
+					// 3. Adjunto si existe
+					if (receipt_base64) {
+						await sql`INSERT INTO accounting_attachments (entry_id, file_base64, mime_type, file_name) VALUES (${accEntry.id}, ${receipt_base64}, 'image/jpeg', ${receipt_name || 'recibo.jpg'})`;
+					}
+
+					// 4. Vincular contabilidad en el inventario (opcional, en metadata)
+					metadata.accounting_id = accEntry.id;
+					await sql`UPDATE inventory_movements SET metadata = ${JSON.stringify(metadata)}::jsonb WHERE id = ${invMov.id}`;
+
+					return json({ ok: true, inventory_id: invMov.id, accounting_id: accEntry.id }, 201);
+				}
+
 				if (action === 'reset') {
 					await sql`DELETE FROM inventory_movements`;
 					return json({ ok: true, cleared: true });
@@ -238,6 +266,7 @@ export async function handler(event) {
 					}
 					return json({ ok: true, movements: out });
 				}
+
 				return json({ error: 'acción inválida' }, 400);
 			}
 			default:

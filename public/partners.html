@@ -51,10 +51,13 @@
         <button id="login-btn" style="padding:12px 24px; background:#4f46e5; color:white; border:none; border-radius:12px; cursor:pointer; font-weight:700;">Entrar</button>
     </div>
 
-    <div id="main-content" style="max-width: 1000px; margin: 0 auto; padding-bottom: 100px; display:none;">
-        <button onclick="location.href='/'" class="back-btn">← Volver al inicio</button>
-        
-        <header class="hdr">
+        <div id="main-content" style="max-width: 1000px; margin: 0 auto; padding-bottom: 100px; display:none;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
+                <button onclick="location.href='/'" class="back-btn" style="margin-bottom:0;">← Volver al inicio</button>
+                <button onclick="location.href='/purchases.html'" class="back-btn" style="margin-bottom:0; background:var(--p-mod); color:white; border:none;">📦 Compras</button>
+            </div>
+            
+            <header class="hdr">
             <div style="z-index: 2; position: relative;">
                 <h1 style="margin:0; font-size: 2.5rem; letter-spacing: -0.02em;">Portal de Socios</h1>
                 <p style="opacity:0.9; font-size: 1.1rem; margin-top: 8px; font-weight: 500;">Reporte Financiero y de Valorización</p>
