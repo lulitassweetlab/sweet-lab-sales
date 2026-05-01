@@ -682,7 +682,16 @@
 				runAIIntelligence(agg, inventory);
 
 				// Render tabla
-				const keys = Array.from(agg.keys()).sort((a,b) => a.localeCompare(b));
+				// Ordenar según el orden del inventario maestro (categoría y luego nombre)
+				const inventoryOrder = inventory.map(it => normKey(it.ingredient));
+				const keys = Array.from(agg.keys()).sort((a, b) => {
+					const idxA = inventoryOrder.indexOf(a);
+					const idxB = inventoryOrder.indexOf(b);
+					if (idxA === -1 && idxB === -1) return a.localeCompare(b);
+					if (idxA === -1) return 1;
+					if (idxB === -1) return -1;
+					return idxA - idxB;
+				});
 				tbody.innerHTML = '';
 				let buySugTotal = 0; let buyRealTotal = 0; let buyCostTotal = 0; let neededCostTotal = 0;
 				const rowsState = [];
