@@ -67,6 +67,35 @@ export async function handler(event) {
 				ALTER TABLE accounting_entries ADD COLUMN kind TEXT NOT NULL DEFAULT 'gasto';
 			END IF;
 		END $$;`;
+
+		// Ensure tags tables exist
+		await sql`CREATE TABLE IF NOT EXISTS accounting_tags (
+			id SERIAL PRIMARY KEY,
+			name TEXT UNIQUE NOT NULL,
+			color TEXT DEFAULT '#f4a6b7',
+			created_at TIMESTAMPTZ DEFAULT now()
+		)`;
+		await sql`CREATE TABLE IF NOT EXISTS accounting_entry_tags (
+			entry_id INTEGER NOT NULL REFERENCES accounting_entries(id) ON DELETE CASCADE,
+			tag_id INTEGER NOT NULL REFERENCES accounting_tags(id) ON DELETE CASCADE,
+			PRIMARY KEY (entry_id, tag_id)
+		)`;
+
+		// Seed default tags
+		const tagCount = await sql`SELECT COUNT(*)::int as c FROM accounting_tags`;
+		if ((tagCount[0]?.c || 0) === 0) {
+			const defaults = [
+				{ name: 'Transporte', color: '#818cf8' },
+				{ name: 'Servicios', color: '#fbbf24' },
+				{ name: 'Muebles y Equipo', color: '#10b981' },
+				{ name: 'Insumos', color: '#f43f5e' },
+				{ name: 'Publicidad', color: '#a855f7' }
+			];
+			for (const t of defaults) {
+				await sql`INSERT INTO accounting_tags (name, color) VALUES (${t.name}, ${t.color}) ON CONFLICT DO NOTHING`;
+			}
+		}
+
 		if (event.httpMethod === 'OPTIONS') return json({ ok: true });
 			switch (event.httpMethod) {
 			case 'GET': {
@@ -86,9 +115,17 @@ export async function handler(event) {
 						if (!rows.length) return json({ error: 'No encontrado' }, 404);
 						return json(rows[0]);
 					}
+					// Fetch all available tags
+					if (params.has('get_tags')) {
+						const tags = await sql`SELECT * FROM accounting_tags ORDER BY name ASC`;
+						return json(tags);
+					}
+
 					// Range params reused in multiple branches
 					const start = (params.get('start') || '').toString().slice(0,10) || null;
 					const end = (params.get('end') || '').toString().slice(0,10) || null;
+					const tagId = params.get('tag_id') ? Number(params.get('tag_id')) : null;
+
 					// All attachments for a date range
 					if (params.has('attachments_for_range')) {
 						if (!start || !end) return json({ error: 'start y end requeridos' }, 400);
@@ -100,16 +137,31 @@ export async function handler(event) {
 						return json(rows);
 					}
 				let rows;
+					const baseQuery = `
+						SELECT e.id, e.kind, e.entry_date, e.description, e.amount_cents, e.actor_name, e.created_at,
+						EXISTS(SELECT 1 FROM accounting_attachments a WHERE a.entry_id = e.id) AS has_attachment,
+						(
+							SELECT json_agg(t.*) 
+							FROM accounting_tags t 
+							JOIN accounting_entry_tags et ON et.tag_id = t.id 
+							WHERE et.entry_id = e.id
+						) as tags
+						FROM accounting_entries e
+					`;
+
 					if (start && end) {
-						rows = await sql`SELECT e.id, e.kind, e.entry_date, e.description, e.amount_cents, e.actor_name, e.created_at,
-							EXISTS(SELECT 1 FROM accounting_attachments a WHERE a.entry_id = e.id) AS has_attachment
-							FROM accounting_entries e
-							WHERE e.entry_date BETWEEN ${start} AND ${end}
-							ORDER BY e.entry_date DESC, e.id DESC`;
+						if (tagId) {
+							rows = await sql`${sql.unsafe(baseQuery)} 
+								JOIN accounting_entry_tags filter_et ON filter_et.entry_id = e.id
+								WHERE e.entry_date BETWEEN ${start} AND ${end} AND filter_et.tag_id = ${tagId}
+								ORDER BY e.entry_date DESC, e.id DESC`;
+						} else {
+							rows = await sql`${sql.unsafe(baseQuery)} 
+								WHERE e.entry_date BETWEEN ${start} AND ${end}
+								ORDER BY e.entry_date DESC, e.id DESC`;
+						}
 					} else {
-						rows = await sql`SELECT e.id, e.kind, e.entry_date, e.description, e.amount_cents, e.actor_name, e.created_at,
-							EXISTS(SELECT 1 FROM accounting_attachments a WHERE a.entry_id = e.id) AS has_attachment
-							FROM accounting_entries e
+						rows = await sql`${sql.unsafe(baseQuery)} 
 							ORDER BY e.entry_date DESC, e.id DESC LIMIT 200`;
 					}
 				return json(rows);
@@ -128,6 +180,14 @@ export async function handler(event) {
 						await sql`INSERT INTO accounting_attachments (entry_id, file_base64, mime_type, file_name) VALUES (${entryId}, ${base64}, ${mime}, ${fname})`;
 						return json({ ok: true });
 					}
+					// Special case: create a new tag
+					if (data && data._create_tag && data.name) {
+						const role = await getActorRole(event, data);
+						if (role !== 'superadmin') return json({ error: 'No autorizado' }, 403);
+						const [tag] = await sql`INSERT INTO accounting_tags (name, color) VALUES (${data.name}, ${data.color || '#f4a6b7'}) RETURNING *`;
+						return json(tag, 201);
+					}
+
 				const role = await getActorRole(event, data);
 				if (role !== 'superadmin') return json({ error: 'No autorizado' }, 403);
 				const kind = (data.kind || data.type || '').toString();
@@ -135,12 +195,24 @@ export async function handler(event) {
 				const description = (data.description || data.desc || '').toString();
 				const amountCents = Number(data.amount_cents ?? data.value_cents ?? data.amount ?? 0) | 0;
 				const actorName = (data.actor_name || data._actor_name || '').toString();
+				const tags = Array.isArray(data.tags) ? data.tags : [];
+
 				if (!kind || (kind !== 'gasto' && kind !== 'ingreso')) return json({ error: 'kind inválido' }, 400);
 				if (!entryDate) return json({ error: 'entry_date requerido' }, 400);
 				if (!description) return json({ error: 'description requerido' }, 400);
 				if (!Number.isFinite(amountCents) || amountCents <= 0) return json({ error: 'amount_cents inválido' }, 400);
+				
 				const [row] = await sql`INSERT INTO accounting_entries (kind, entry_date, description, amount_cents, actor_name) VALUES (${kind}, ${entryDate}, ${description}, ${amountCents}, ${actorName}) RETURNING id, kind, entry_date, description, amount_cents, actor_name, created_at`;
+				
+				// Handle tags
+				if (tags.length > 0) {
+					for (const tid of tags) {
+						await sql`INSERT INTO accounting_entry_tags (entry_id, tag_id) VALUES (${row.id}, ${Number(tid)}) ON CONFLICT DO NOTHING`;
+					}
+				}
+				
 				return json(row, 201);
+
 			}
 				case 'PUT': {
 					const data = JSON.parse(event.body || '{}');
@@ -169,18 +241,37 @@ export async function handler(event) {
 					// Execute with proper parameter binding
 					const query = `UPDATE accounting_entries SET ${setClause} WHERE id = $${values.length + 1} RETURNING id, kind, entry_date, description, amount_cents, actor_name, created_at`;
 					const [row] = await sql(query, [...values, id]);
+
+					// Handle tags if provided
+					if (Array.isArray(data.tags)) {
+						await sql`DELETE FROM accounting_entry_tags WHERE entry_id = ${id}`;
+						for (const tid of data.tags) {
+							await sql`INSERT INTO accounting_entry_tags (entry_id, tag_id) VALUES (${id}, ${Number(tid)}) ON CONFLICT DO NOTHING`;
+						}
+					}
+
 					return json(row);
+
 				}
 			case 'DELETE': {
 				const params = new URLSearchParams(event.rawQuery || event.queryStringParameters ? event.rawQuery || '' : '');
 				const role = await getActorRole(event, null);
 				if (role !== 'superadmin') return json({ error: 'No autorizado' }, 403);
+				
+				// Special case: delete a tag
+				const delTagId = params.get('delete_tag_id');
+				if (delTagId) {
+					await sql`DELETE FROM accounting_tags WHERE id=${Number(delTagId)}`;
+					return json({ ok: true });
+				}
+
 				const idParam = params.get('id');
 				const id = Number(idParam);
 				if (!id) return json({ error: 'id requerido' }, 400);
 				await sql`DELETE FROM accounting_entries WHERE id=${id}`;
 				return json({ ok: true });
 			}
+
 			default:
 				return json({ error: 'Método no permitido' }, 405);
 		}

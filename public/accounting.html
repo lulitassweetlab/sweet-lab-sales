@@ -185,6 +185,79 @@
 		@media (max-width: 400px) {
 			.month-btn { min-width: 100px; }
 		}
+
+		/* Tag styles */
+		.tag-pill {
+			display: inline-flex;
+			align-items: center;
+			padding: 2px 8px;
+			border-radius: 12px;
+			font-size: 10px;
+			font-weight: 700;
+			color: #fff;
+			margin-right: 4px;
+			margin-bottom: 2px;
+			text-transform: uppercase;
+			letter-spacing: 0.02em;
+			white-space: nowrap;
+		}
+		.tag-selector {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 6px;
+			margin-top: 8px;
+		}
+		.tag-option {
+			padding: 4px 10px;
+			border-radius: 12px;
+			font-size: 11px;
+			font-weight: 700;
+			cursor: pointer;
+			border: 2px solid transparent;
+			transition: all 0.2s;
+			user-select: none;
+			color: #fff;
+			opacity: 0.6;
+		}
+		.tag-option.selected {
+			opacity: 1;
+			border-color: var(--foreground);
+			transform: scale(1.05);
+		}
+		.filter-tags {
+			display: flex;
+			gap: 8px;
+			align-items: center;
+			margin: 0 12px 16px 12px;
+			overflow-x: auto;
+			padding-bottom: 8px;
+			justify-content: center;
+		}
+		.tag-filter-btn {
+			padding: 6px 14px;
+			border-radius: 20px;
+			font-size: 12px;
+			font-weight: 700;
+			cursor: pointer;
+			border: 1px solid var(--border);
+			background: var(--card);
+			white-space: nowrap;
+			transition: all 0.2s;
+			color: var(--text-muted);
+		}
+		.tag-filter-btn.active {
+			background: var(--primary);
+			color: #fff;
+			border-color: var(--primary);
+		}
+		.tag-manage-item {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			padding: 8px 0;
+			border-bottom: 1px solid var(--border);
+		}
+		.tag-manage-item:last-child { border-bottom: none; }
 	</style>
 </head>
 <body>
@@ -204,6 +277,7 @@
 			<div class="panel-header">
 			<h3>Contabilidad</h3>
 			<div class="panel-actions">
+					<button id="manage-tags-btn" class="press-btn">Etiquetas</button>
 					<button id="download-range" class="press-btn">Descargar adjuntos</button>
 					<button id="change-range" class="press-btn">Cambiar fechas</button>
 			</div>
@@ -212,6 +286,9 @@
 			<div style="position:relative; margin:12px 12px 16px 12px;">
 				<div class="month-buttons" id="month-buttons" style="margin:0; padding:12px; justify-content:center;">
 					<!-- Los botones de meses se generarán dinámicamente -->
+				</div>
+				<div class="filter-tags" id="tag-filters">
+					<!-- Los filtros de etiquetas se generarán dinámicamente -->
 				</div>
 				<button id="add-entry-btn-table" class="press-btn btn-primary" style="position:absolute; right:0; top:50%; transform:translateY(-50%); width:50px; height:50px; border-radius:50%; padding:0; font-size:180px; font-weight:900; line-height:0.5; display:flex; align-items:center; justify-content:center; box-shadow: 0 4px 16px rgba(244, 166, 183, 0.4); transition: all 0.3s ease; overflow:hidden;" title="Nueva entrada">+</button>
 			</div>
@@ -275,6 +352,23 @@
 
 	<!-- Botón flotante para agregar entrada -->
 	<button id="add-entry-btn" class="add-entry-btn" title="Nueva entrada">+</button>
+
+	<!-- Modal Gestión Etiquetas -->
+	<div id="tags-backdrop" class="form-popover-backdrop" style="display:none;"></div>
+	<div id="tags-modal" class="form-popover" style="display:none; width:350px;">
+		<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+			<h3 style="margin:0;">Etiquetas</h3>
+			<button id="close-tags-modal" style="background:none; border:none; font-size:1.2rem; cursor:pointer;">✕</button>
+		</div>
+		<div id="tags-list" style="margin-bottom:20px; max-height:250px; overflow-y:auto; display:flex; flex-direction:column; gap:4px;"></div>
+		<div style="border-top:1px solid var(--border); padding-top:20px;">
+			<input type="text" id="new-tag-name" placeholder="Nueva etiqueta..." class="input-cell" style="width:100%; margin-bottom:12px; padding:12px; border-radius:12px;">
+			<div style="display:flex; gap:12px;">
+				<input type="color" id="new-tag-color" value="#f4a6b7" style="width:50px; height:50px; border:none; padding:0; background:none; cursor:pointer; border-radius:12px; overflow:hidden;">
+				<button id="save-new-tag" class="press-btn btn-primary" style="flex:1; border-radius:12px;">Añadir</button>
+			</div>
+		</div>
+	</div>
 
 	<script type="module">
 	(function(){
@@ -438,16 +532,21 @@
 				const colIng = isIng ? String(v) : '';
 				const colSal = !isIng ? String(v) : '';
 				const hasAtt = !!(r.has_attachment);
+				const tagsHtml = (r.tags || []).map(t => `<span class="tag-pill" style="background:${t.color}">${t.name}</span>`).join('');
 				tr.innerHTML = `
 					<td style="text-align:center; width:28px"><button class="attach-btn${hasAtt ? ' has' : ''}" data-id="${r.id}" title="Adjuntar archivo" aria-label="Adjuntar">${hasAtt ? '●' : '-'}</button></td>
 					<td class="editable" data-field="entry_date" title="Clic para editar fecha">${String(r.entry_date||'').slice(0,10)}</td>
-					<td class="editable" data-field="description" contenteditable="true" title="Clic para editar descripción">${r.description||''}</td>
+					<td class="editable" data-field="description" contenteditable="true" title="Clic para editar descripción">
+						<div style="font-weight:600;">${r.description||''}</div>
+						<div style="margin-top:4px; display:flex; flex-wrap:wrap; gap:2px;">${tagsHtml}</div>
+					</td>
 					<td class="col-total editable" data-field="amount_cents" data-kind="ingreso" contenteditable="true" title="Clic para editar">${colIng}</td>
 					<td class="col-total editable" data-field="amount_cents" data-kind="gasto" contenteditable="true" title="Clic para editar">${colSal}</td>
 					<td class="col-total">${fmtMoney(running)}</td>
 				<td style="padding-right:2px;"><button class="row-duplicate" data-dup="${r.id}" title="Duplicar" aria-label="Duplicar"></button></td>
 				<td style="padding-left:2px;"><button class="row-delete" data-del="${r.id}" title="Eliminar" aria-label="Eliminar"></button></td>
 				`;
+
 				tbody.appendChild(tr);
 
 				// Wire attachment upload or view
@@ -684,6 +783,11 @@
 						<span id="acc-photo-status" style="font-size:12px; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Sin archivo</span>
 						<input id="acc-file" type="file" accept="image/*" style="display:none" />
 					</div>
+					<div style="display:flex; flex-direction:column; gap:8px;">
+						<span style="font-size:14px; font-weight:600;">Etiquetas</span>
+						<div id="form-tag-selector" class="tag-selector"></div>
+					</div>
+
 					<div style="display:flex; gap:8px; justify-content:flex-end; margin-top:8px;">
 						<button id="acc-cancel" type="button" class="press-btn">Cancelar</button>
 						<button id="acc-save" type="submit" class="press-btn btn-primary">Guardar</button>
@@ -720,7 +824,35 @@
 			currentFileName = null;
 			currentFileType = null;
 
+			const tagSelector = popover.querySelector('#form-tag-selector');
+
+			let selectedTags = [];
+
+			async function renderFormTags() {
+				if (!tagSelector) return;
+				tagSelector.innerHTML = '';
+				availableTags.forEach(t => {
+					const opt = document.createElement('div');
+					opt.className = 'tag-option' + (selectedTags.includes(t.id) ? ' selected' : '');
+					opt.style.backgroundColor = t.color;
+					opt.textContent = t.name;
+					opt.onclick = () => {
+						if (selectedTags.includes(t.id)) {
+							selectedTags = selectedTags.filter(id => id !== t.id);
+						} else {
+							selectedTags.push(t.id);
+						}
+						renderFormTags();
+					};
+					tagSelector.appendChild(opt);
+				});
+			}
+
+			if (availableTags.length === 0) await loadTags();
+			renderFormTags();
+
 			photoTrigger.addEventListener('click', () => fileInput.click());
+
 			fileInput.addEventListener('change', async () => {
 				if (!fileInput.files || !fileInput.files[0]) return;
 				const file = fileInput.files[0];
@@ -762,8 +894,16 @@
 				const value = Number(popover.querySelector('#acc-value').value || 0);
 				if (!date || !desc || !value) { alert('Completa todos los campos'); return; }
 				try {
-					const payload = { kind: type, entry_date: date, description: desc, amount_cents: Number.isFinite(value) ? Math.round(value) : 0, _actor_name: currentUser?.name || '' };
+					const payload = { 
+						kind: type, 
+						entry_date: date, 
+						description: desc, 
+						amount_cents: Number.isFinite(value) ? Math.round(value) : 0, 
+						_actor_name: currentUser?.name || '',
+						tags: selectedTags
+					};
 					const res = await fetch('/api/accounting', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Actor-Name': currentUser?.name || '' }, body: JSON.stringify(payload) });
+
 					if (!res.ok) {
 						let msg = `Error (${res.status})`;
 						try { const j = await res.json(); if (j && j.error) msg = j.error; } catch {}
@@ -818,16 +958,122 @@
 			document.addEventListener('keydown', onKeyDown);
 		}
 
+		let availableTags = [];
+		let currentTagFilter = null;
+
+		async function loadTags() {
+			try {
+				availableTags = await fetchJSON('/api/accounting?get_tags=1');
+				renderTagFilters();
+			} catch (e) { console.error("Error loading tags", e); }
+		}
+
+		function renderTagFilters() {
+			const container = document.getElementById('tag-filters');
+			if (!container) return;
+			container.innerHTML = '';
+			
+			// "Todas" button
+			const allBtn = document.createElement('button');
+			allBtn.className = 'tag-filter-btn' + (!currentTagFilter ? ' active' : '');
+			allBtn.textContent = 'Todas';
+			allBtn.onclick = () => { currentTagFilter = null; renderTagFilters(); load(); };
+			container.appendChild(allBtn);
+
+			availableTags.forEach(t => {
+				const btn = document.createElement('button');
+				btn.className = 'tag-filter-btn' + (currentTagFilter === t.id ? ' active' : '');
+				btn.style.borderColor = t.color;
+				if (currentTagFilter === t.id) btn.style.backgroundColor = t.color;
+				btn.textContent = t.name;
+				btn.onclick = () => {
+					currentTagFilter = (currentTagFilter === t.id) ? null : t.id;
+					renderTagFilters();
+					load();
+				};
+				container.appendChild(btn);
+			});
+		}
+
 		async function load(){
 			try {
 				rangeLabel.textContent = `${formatDay(start)} — ${formatDay(end)}`;
 				countLabel.textContent = 'Cargando…';
-				const rows = await fetchJSON(`/api/accounting?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`);
+				let url = `/api/accounting?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`;
+				if (currentTagFilter) url += `&tag_id=${currentTagFilter}`;
+				const rows = await fetchJSON(url);
 				renderRows(rows);
 			} catch (e) {
 				countLabel.textContent = 'Error cargando';
 			}
 		}
+
+		// Tag Management Logic
+		const manageTagsBtn = document.getElementById('manage-tags-btn');
+		const tagsModal = document.getElementById('tags-modal');
+		const tagsBackdrop = document.getElementById('tags-backdrop');
+		const tagsList = document.getElementById('tags-list');
+		const closeTagsBtn = document.getElementById('close-tags-modal');
+		const saveTagBtn = document.getElementById('save-new-tag');
+
+		async function openTagsModal() {
+			tagsModal.style.display = 'block';
+			tagsBackdrop.style.display = 'block';
+			await refreshTagsList();
+		}
+
+		function closeTagsModal() {
+			tagsModal.style.display = 'none';
+			tagsBackdrop.style.display = 'none';
+		}
+
+		async function refreshTagsList() {
+			tagsList.innerHTML = 'Cargando...';
+			await loadTags();
+			tagsList.innerHTML = '';
+			availableTags.forEach(t => {
+				const item = document.createElement('div');
+				item.className = 'tag-manage-item';
+				item.innerHTML = `
+					<div style="display:flex; align-items:center; gap:10px;">
+						<div style="width:16px; height:16px; border-radius:50%; background:${t.color}"></div>
+						<span style="font-weight:600;">${t.name}</span>
+					</div>
+					<button class="press-btn" style="padding:4px 8px; font-size:12px; background:var(--danger); color:#fff; border:none;" onclick="deleteTag(${t.id})">Eliminar</button>
+				`;
+				tagsList.appendChild(item);
+			});
+		}
+
+		window.deleteTag = async (id) => {
+			if (!confirm('¿Eliminar esta etiqueta? Los registros existentes la perderán.')) return;
+			try {
+				await fetch(`/api/accounting?delete_tag_id=${id}`, { method: 'DELETE', headers: { 'X-Actor-Name': currentUser?.name || '' } });
+				await refreshTagsList();
+				load();
+			} catch (e) { alert('Error al eliminar'); }
+		};
+
+		saveTagBtn.onclick = async () => {
+			const name = document.getElementById('new-tag-name').value.trim();
+			const color = document.getElementById('new-tag-color').value;
+			if (!name) return;
+			try {
+				await fetch('/api/accounting', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json', 'X-Actor-Name': currentUser?.name || '' },
+					body: JSON.stringify({ _create_tag: 1, name, color })
+				});
+				document.getElementById('new-tag-name').value = '';
+				await refreshTagsList();
+			} catch (e) { alert('Error al crear etiqueta'); }
+		};
+
+		manageTagsBtn.onclick = openTagsModal;
+		closeTagsBtn.onclick = closeTagsModal;
+		tagsBackdrop.onclick = closeTagsModal;
+
+		loadTags();
 
 		document.getElementById('back-btn').addEventListener('click', () => { location.href = '/'; });
 		
