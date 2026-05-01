@@ -571,7 +571,8 @@
                 if (!list) throw new Error("DOM element 'cfg-sellers' not found");
                 list.innerHTML = '';
                 
-                const pIds = (DATA?.settings?.partner_seller_ids || []).map(Number);
+                const rawPids = DATA?.settings?.partner_seller_ids || [];
+                const pIds = (typeof rawPids === 'string' ? JSON.parse(rawPids) : rawPids).map(Number);
                 SELLERS.forEach(s => {
                     const isP = pIds.includes(Number(s.id));
                     const d = document.createElement('div');
@@ -592,7 +593,8 @@
                 const fList = document.getElementById('founder-config-list');
                 if (fList) {
                     fList.innerHTML = '';
-                    const founders = JSON.parse((DATA.settings && DATA.settings.partner_founders) || '{}');
+                    const rawFounders = (DATA.settings && DATA.settings.partner_founders) || {};
+                    const founders = typeof rawFounders === 'string' ? JSON.parse(rawFounders) : rawFounders;
                     pIds.forEach(pid => {
                         const s = SELLERS.find(se => Number(se.id) === Number(pid));
                         const d = document.createElement('div');
