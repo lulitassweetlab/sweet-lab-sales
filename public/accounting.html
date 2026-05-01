@@ -1066,26 +1066,48 @@
 					}
 
 					availableTags.forEach(t => {
-						const opt = document.createElement('div');
+						const opt = document.createElement('button');
+						opt.type = 'button';
 						opt.className = 'tag-option' + (currentTagIds.includes(t.id) ? ' selected' : '');
 						opt.style.backgroundColor = t.color;
+						opt.style.border = 'none';
+						opt.style.padding = '8px 14px';
+						opt.style.margin = '4px';
+						opt.style.color = 'white';
+						opt.style.borderRadius = '20px';
+						opt.style.cursor = 'pointer';
+						opt.style.fontWeight = '700';
 						opt.textContent = t.name;
-						opt.onclick = async () => {
+						
+						opt.onclick = async (e) => {
+							e.preventDefault();
+							e.stopPropagation();
+							
 							let isSelected = currentTagIds.includes(t.id);
 							let newTags = isSelected ? currentTagIds.filter(id => id !== t.id) : [...currentTagIds, t.id];
+							
 							try {
+								opt.style.opacity = '0.3';
+								opt.disabled = true;
+								
 								const res = await fetch('/api/accounting', {
 									method: 'PUT',
 									headers: { 'Content-Type': 'application/json', 'X-Actor-Name': currentUser?.name || '' },
 									body: JSON.stringify({ id: entryId, tags: newTags })
 								});
+								
 								if (res.ok) {
 									currentTagIds = newTags;
 									render();
-									// Update the row in background
 									load();
+								} else {
+									alert('No se pudo actualizar la etiqueta');
+									render();
 								}
-							} catch (e) { }
+							} catch (e) { 
+								alert('Error de conexión');
+								render();
+							}
 						};
 						container.appendChild(opt);
 					});
