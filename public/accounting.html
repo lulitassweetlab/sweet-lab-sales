@@ -670,7 +670,7 @@
 				if (addTagBtn) {
 					addTagBtn.addEventListener('click', (ev) => {
 						ev.stopPropagation();
-						openTagPickerPopover(r.id, (r.tags || []).map(t => t.id), ev.clientX, ev.clientY);
+						openTagPickerPopover(r.id, (r.tags || []).map(t => t.id));
 					});
 				}
 
@@ -1006,76 +1006,76 @@
 				}
 			}
 
-			async function openTagPickerPopover(entryId, currentTagIds, anchorX, anchorY) {
+			async function openTagPickerPopover(entryId, currentTagIds) {
+				const backdrop = document.createElement('div');
+				backdrop.className = 'form-popover-backdrop';
+				
 				const pop = document.createElement('div');
-				pop.className = 'quick-picker';
-				pop.style.left = anchorX + 'px';
-				pop.style.top = (anchorY + 8) + 'px';
-				pop.style.transform = 'translateX(-50%)';
+				pop.className = 'form-popover';
+				pop.style.width = '300px';
 
-				const title = document.createElement('div');
-				title.textContent = 'Etiquetas';
-				title.style.fontWeight = '800';
-				title.style.fontSize = '14px';
-				title.style.marginBottom = '8px';
-				title.style.textAlign = 'center';
+				const title = document.createElement('h3');
+				title.textContent = 'Seleccionar Etiquetas';
 				pop.appendChild(title);
 
 				const container = document.createElement('div');
 				container.className = 'tag-selector';
-				container.style.marginTop = '0';
 				pop.appendChild(container);
 
-				async function render() {
-					container.innerHTML = '';
-					if (availableTags.length === 0) {
-						container.innerHTML = '<div style="font-size:12px; color:var(--text-muted); text-align:center; width:100%;">Cargando...</div>';
-						await loadTags();
-						container.innerHTML = '';
-					}
-					
-					if (availableTags.length === 0) {
-						container.innerHTML = '<div style="font-size:12px; color:var(--danger); text-align:center; width:100%;">No hay etiquetas</div>';
-						return;
-					}
+				const footer = document.createElement('div');
+				footer.style.marginTop = '20px';
+				footer.style.textAlign = 'right';
+				const closeBtn = document.createElement('button');
+				closeBtn.className = 'press-btn';
+				closeBtn.textContent = 'Cerrar';
+				closeBtn.onclick = cleanup;
+				footer.appendChild(closeBtn);
+				pop.appendChild(footer);
 
-					availableTags.forEach(t => {
-						const opt = document.createElement('div');
-						opt.className = 'tag-option' + (currentTagIds.includes(t.id) ? ' selected' : '');
-						opt.style.backgroundColor = t.color;
-						opt.textContent = t.name;
-						opt.onclick = async (e) => {
-							e.stopPropagation();
-							let newTags;
-							if (currentTagIds.includes(t.id)) {
-								newTags = currentTagIds.filter(id => id !== t.id);
-							} else {
-								newTags = [...currentTagIds, t.id];
-							}
-							try {
-								const res = await fetch('/api/accounting', {
-									method: 'PUT',
-									headers: { 'Content-Type': 'application/json', 'X-Actor-Name': currentUser?.name || '' },
-									body: JSON.stringify({ id: entryId, tags: newTags })
-								});
-								if (res.ok) {
-									cleanup();
-									await load();
-								}
-							} catch (e) { }
-						};
-						container.appendChild(opt);
-					});
+				async function render() {
+					try {
+						container.innerHTML = '<div style="text-align:center; padding:20px;">Cargando...</div>';
+						if (availableTags.length === 0) await loadTags();
+						container.innerHTML = '';
+						
+						if (availableTags.length === 0) {
+							container.innerHTML = 'No hay etiquetas disponibles';
+							return;
+						}
+
+						availableTags.forEach(t => {
+							const opt = document.createElement('div');
+							opt.className = 'tag-option' + (currentTagIds.includes(t.id) ? ' selected' : '');
+							opt.style.backgroundColor = t.color;
+							opt.textContent = t.name;
+							opt.onclick = async () => {
+								let newTags = currentTagIds.includes(t.id) ? currentTagIds.filter(id => id !== t.id) : [...currentTagIds, t.id];
+								try {
+									const res = await fetch('/api/accounting', {
+										method: 'PUT',
+										headers: { 'Content-Type': 'application/json', 'X-Actor-Name': currentUser?.name || '' },
+										body: JSON.stringify({ id: entryId, tags: newTags })
+									});
+									if (res.ok) {
+										currentTagIds = newTags;
+										render();
+										load();
+									}
+								} catch (e) { alert('Error al actualizar'); }
+							};
+							container.appendChild(opt);
+						});
+					} catch (e) { alert('Error render: ' + e.message); }
 				}
 
 				function cleanup() {
-					document.removeEventListener('mousedown', outside, true);
-					if (pop.parentNode) pop.parentNode.removeChild(pop);
+					if (backdrop.parentNode) document.body.removeChild(backdrop);
+					if (pop.parentNode) document.body.removeChild(pop);
 				}
-				function outside(ev) { if (!pop.contains(ev.target)) cleanup(); }
-				document.addEventListener('mousedown', outside, true);
-				document.body.appendChild(pop);
 				
+				backdrop.onclick = cleanup;
+				document.body.appendChild(backdrop);
+				document.body.appendChild(pop);
 				render();
 			}
 
