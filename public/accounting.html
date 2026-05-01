@@ -588,7 +588,7 @@
 							<div class="desc-text" contenteditable="true" style="font-weight:600; outline:none; min-width:60px;">${r.description||''}</div>
 							<div style="display:inline-flex; flex-wrap:wrap; gap:4px; align-items:center;">
 								${tagsHtml}
-								<span class="add-tag-btn" role="button" onclick="event.stopPropagation(); window.openTagPickerPopover(${r.id}, [${(r.tags || []).map(t => t.id).join(',')}])" title="Gestionar etiquetas">+</span>
+								<span class="add-tag-btn" role="button" onclick="event.stopPropagation(); window.openTagPickerPopover(this, ${r.id}, [${(r.tags || []).map(t => t.id).join(',')}])" title="Gestionar etiquetas">+</span>
 							</div>
 						</div>
 					</td>
@@ -1019,49 +1019,37 @@
 
 
 
-		async function openTagPickerPopover(entryId, currentTagIds) {
-			const backdrop = document.createElement('div');
-			backdrop.className = 'form-popover-backdrop';
-			backdrop.style.zIndex = '2001';
+		async function openTagPickerPopover(anchor, entryId, currentTagIds) {
+			const rect = anchor.getBoundingClientRect();
 			
 			const pop = document.createElement('div');
-			pop.className = 'form-popover';
-			pop.style.zIndex = '2002';
-			pop.style.width = '320px';
-			pop.style.display = 'block';
-
-			const title = document.createElement('h3');
-			title.textContent = 'Etiquetas';
-			title.style.marginBottom = '16px';
-			pop.appendChild(title);
+			pop.className = 'form-popover'; 
+			pop.style.width = '240px';
+			pop.style.padding = '12px';
+			pop.style.borderRadius = '16px';
+			pop.style.position = 'fixed';
+			pop.style.top = (rect.top + window.scrollY) + 'px';
+			pop.style.left = (rect.right + 10) + 'px';
+			pop.style.transform = 'none'; 
+			pop.style.animation = 'popUp 0.2s ease-out';
+			pop.style.zIndex = '2000';
+			pop.style.boxShadow = '0 10px 30px rgba(0,0,0,0.15)';
 
 			const container = document.createElement('div');
 			container.className = 'tag-selector';
-			container.style.maxHeight = '300px';
-			container.style.overflowY = 'auto';
+			container.style.marginTop = '0';
 			pop.appendChild(container);
-
-			const footer = document.createElement('div');
-			footer.style.marginTop = '24px';
-			footer.style.textAlign = 'center';
-			const closeBtn = document.createElement('button');
-			closeBtn.className = 'press-btn btn-primary';
-			closeBtn.textContent = 'Listo';
-			closeBtn.style.width = '100%';
-			closeBtn.onclick = cleanup;
-			footer.appendChild(closeBtn);
-			pop.appendChild(footer);
 
 			async function render() {
 				try {
 					if (availableTags.length === 0) {
-						container.innerHTML = '<div style="text-align:center; padding:10px;">Cargando...</div>';
+						container.innerHTML = '<div style="text-align:center; padding:10px;">...</div>';
 						await loadTags();
 					}
 					container.innerHTML = '';
 					
 					if (availableTags.length === 0) {
-						container.innerHTML = '<div style="text-align:center; color:var(--text-muted);">No hay etiquetas definidas</div>';
+						container.innerHTML = '<div style="text-align:center; font-size:12px; color:var(--text-muted);">Sin etiquetas</div>';
 						return;
 					}
 
@@ -1071,11 +1059,12 @@
 						opt.className = 'tag-option' + (currentTagIds.includes(t.id) ? ' selected' : '');
 						opt.style.backgroundColor = t.color;
 						opt.style.border = 'none';
-						opt.style.padding = '8px 14px';
-						opt.style.margin = '4px';
+						opt.style.padding = '6px 12px';
+						opt.style.margin = '3px';
 						opt.style.color = 'white';
 						opt.style.borderRadius = '20px';
 						opt.style.cursor = 'pointer';
+						opt.style.fontSize = '10px';
 						opt.style.fontWeight = '700';
 						opt.textContent = t.name;
 						
@@ -1087,9 +1076,6 @@
 							let newTags = isSelected ? currentTagIds.filter(id => id !== t.id) : [...currentTagIds, t.id];
 							
 							try {
-								opt.style.opacity = '0.3';
-								opt.disabled = true;
-								
 								const res = await fetch('/api/accounting', {
 									method: 'PUT',
 									headers: { 'Content-Type': 'application/json', 'X-Actor-Name': currentUser?.name || '' },
@@ -1097,31 +1083,34 @@
 								});
 								
 								if (res.ok) {
-									currentTagIds = newTags;
-									render();
+									cleanup();
 									load();
-								} else {
-									alert('No se pudo actualizar la etiqueta');
-									render();
 								}
-							} catch (e) { 
-								alert('Error de conexión');
-								render();
-							}
+							} catch (e) { }
 						};
 						container.appendChild(opt);
 					});
-				} catch (e) { alert('Error: ' + e.message); }
+				} catch (e) { }
 			}
 
 			function cleanup() {
-				if (backdrop.parentNode) document.body.removeChild(backdrop);
+				document.removeEventListener('mousedown', outside, true);
 				if (pop.parentNode) document.body.removeChild(pop);
 			}
+			function outside(ev) { if (!pop.contains(ev.target)) cleanup(); }
 			
-			backdrop.onclick = cleanup;
-			document.body.appendChild(backdrop);
+			document.addEventListener('mousedown', outside, true);
 			document.body.appendChild(pop);
+			
+			// Adjust if off-screen
+			const popRect = pop.getBoundingClientRect();
+			if (popRect.right > window.innerWidth) {
+				pop.style.left = (rect.left - popRect.width - 10) + 'px';
+			}
+			if (popRect.bottom > window.innerHeight) {
+				pop.style.top = (window.innerHeight - popRect.height - 10) + 'px';
+			}
+
 			render();
 		}
 		window.openTagPickerPopover = openTagPickerPopover;
