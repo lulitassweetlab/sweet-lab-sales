@@ -627,6 +627,10 @@
                 // ENSAMBLAJE MANUAL DEL PDF
                 for (let i = 0; i < sections.length; i++) {
                     const sec = sections[i];
+                    const isPartnerPage = sec.title.includes("SOCIO:");
+                    
+                    // Ajustar ancho del contenedor de renderizado según orientación
+                    renderDiv.style.width = isPartnerPage ? '1120px' : '800px';
                     renderDiv.innerHTML = '';
                     renderDiv.appendChild(sec.el);
                     
@@ -636,16 +640,21 @@
                     const canvas = await html2canvas(sec.el, { scale: 2, useCORS: true, logging: false });
                     const imgData = canvas.toDataURL('image/jpeg', 0.9);
                     
-                    if (i > 0) pdf.addPage();
+                    if (i > 0) {
+                        pdf.addPage('a4', isPartnerPage ? 'l' : 'p');
+                    } else {
+                        // La primera página siempre es resumen (portrait)
+                    }
                     
                     const pdfWidth = pdf.internal.pageSize.getWidth();
                     const pdfHeight = pdf.internal.pageSize.getHeight();
-                    const imgWidth = pdfWidth - 20;
+                    const margin = 10;
+                    const imgWidth = pdfWidth - (margin * 2);
                     const imgHeight = (canvas.height * imgWidth) / canvas.width;
                     
                     pdf.setFontSize(10); pdf.setTextColor(150);
-                    pdf.text(`Lulitas Sweet Lab - ${month} - ${sec.title}`, 10, 8);
-                    pdf.addImage(imgData, 'JPEG', 10, 15, imgWidth, imgHeight);
+                    pdf.text(`Lulitas Sweet Lab - ${month} - ${sec.title}`, margin, 8);
+                    pdf.addImage(imgData, 'JPEG', margin, 15, imgWidth, imgHeight);
                 }
 
                 pdf.save(`Reporte_Integral_Lulitas_${month}.pdf`);
