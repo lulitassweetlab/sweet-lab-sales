@@ -453,8 +453,70 @@
 				// Wire attachment upload or view
 				const attBtn = tr.querySelector('.attach-btn');
 				attBtn.addEventListener('click', async () => {
-					// ... same as before ...
-					if (attBtn.classList.contains('has')) { /* ... view ... */ } else { /* ... upload ... */ }
+					if (attBtn.classList.contains('has')) {
+						// View attachment
+						try {
+							const originalText = attBtn.textContent;
+							attBtn.textContent = '...';
+							const att = await fetchJSON(`/api/accounting?attachment_for=${r.id}`);
+							if (att && att.file_base64) {
+								const win = window.open();
+								if (win) {
+									win.document.write(`
+										<body style="margin:0; background:#f4f4f4; display:flex; justify-content:center; align-items:center; min-height:100vh; font-family:sans-serif;">
+											<div style="max-width:90%; background:white; padding:20px; border-radius:12px; box-shadow:0 10px 40px rgba(0,0,0,0.2);">
+												<img src="${att.file_base64}" style="max-width:100%; border-radius:8px;">
+												<div style="margin-top:15px; text-align:center; color:#666;">${att.file_name || 'Adjunto'}</div>
+											</div>
+										</body>
+									`);
+									win.document.title = `Adjunto - ${att.file_name || r.id}`;
+								} else {
+									alert('El bloqueador de popups impidió abrir la imagen');
+								}
+							} else {
+								alert('No se encontró el archivo');
+							}
+							attBtn.textContent = originalText;
+						} catch (e) {
+							console.error(e);
+							alert('Error al cargar el adjunto');
+							attBtn.textContent = '●';
+						}
+					} else {
+						// Upload attachment
+						const input = document.createElement('input');
+						input.type = 'file';
+						input.accept = 'image/*';
+						input.onchange = async () => {
+							if (!input.files || !input.files[0]) return;
+							const file = input.files[0];
+							try {
+								attBtn.textContent = '⏳';
+								attBtn.disabled = true;
+								const b64 = await compressImage(file);
+								const res = await fetch('/api/accounting', {
+									method: 'POST',
+									headers: { 'Content-Type': 'application/json', 'X-Actor-Name': currentUser?.name || '' },
+									body: JSON.stringify({
+										_upload_attachment_for: r.id,
+										file_base64: b64,
+										file_name: file.name,
+										mime_type: 'image/jpeg'
+									})
+								});
+								if (res.ok) await load();
+								else alert('Error al subir el archivo');
+							} catch (e) {
+								console.error(e);
+								alert('Error al procesar la imagen');
+							} finally {
+								attBtn.disabled = false;
+								if (!attBtn.classList.contains('has')) attBtn.textContent = '-';
+							}
+						};
+						input.click();
+					}
 				});
 
 				const tds = tr.querySelectorAll('td');
