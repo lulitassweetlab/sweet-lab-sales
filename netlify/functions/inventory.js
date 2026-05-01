@@ -195,31 +195,40 @@ export async function handler(event) {
 				}
 
 				if (action === 'compra') {
-					const { ingredient, qty, total_cost, note, date, receipt_base64, receipt_name } = data;
-					if (!ingredient || !qty || !total_cost || !date) return json({ error: 'Faltan campos requeridos (ingrediente, cantidad, total, fecha)' }, 400);
+					const { items, total_cost, note, date, receipt_base64, receipt_name } = data;
+					if (!items || !items.length || !total_cost || !date) return json({ error: 'Faltan campos requeridos (items, total, fecha)' }, 400);
 
-					const canon = canonicalizeIngredientName(ingredient);
-					await ensureInventoryItem(canon);
+					const results = [];
+					const metadata = { total_cost: Number(total_cost), purchase_date: date, items_count: items.length };
 
-					// 1. Movimiento de Inventario y PMP
-					const metadata = { total_cost: Number(total_cost), purchase_date: date };
-					const [invMov] = await sql`INSERT INTO inventory_movements (ingredient, kind, qty, note, actor_name, metadata) VALUES (${canon}, 'ingreso', ${Math.abs(qty)}, ${note}, ${actor}, ${JSON.stringify(metadata)}::jsonb) RETURNING *`;
-					await updateIngredientPMP(canon, Math.abs(qty), Number(total_cost) / Math.abs(qty));
-
-					// 2. Registro Contable (Gasto)
-					const accDesc = `Compra: ${note || canon}`;
+					// 1. Registro Contable único (Gasto total)
+					const accDesc = `Compra Multi: ${note || (items[0].ingredient + '...')}`;
 					const [accEntry] = await sql`INSERT INTO accounting_entries (kind, entry_date, description, amount_cents, actor_name) VALUES ('gasto', ${date}, ${accDesc}, ${Number(total_cost)}, ${actor}) RETURNING *`;
+					metadata.accounting_id = accEntry.id;
+
+					// 2. Procesar cada item
+					for (const it of items) {
+						const canon = canonicalizeIngredientName(it.ingredient);
+						await ensureInventoryItem(canon);
+						
+						// Movimiento individual para trazabilidad
+						const itemMeta = { total_cost: Number(it.price_cents || 0), purchase_date: date, accounting_id: accEntry.id };
+						const [invMov] = await sql`INSERT INTO inventory_movements (ingredient, kind, qty, note, actor_name, metadata) VALUES (${canon}, 'ingreso', ${Math.abs(it.qty)}, ${note || 'Parte de compra multi'}, ${actor}, ${JSON.stringify(itemMeta)}::jsonb) RETURNING id`;
+						
+						// Calcular precio unitario para PMP si se proporcionó precio por item, si no, prorratear o usar 0
+						const unitPrice = it.price_cents ? (Number(it.price_cents) / Math.abs(it.qty)) : 0;
+						if (unitPrice > 0) {
+							await updateIngredientPMP(canon, Math.abs(it.qty), unitPrice);
+						}
+						results.push({ ingredient: canon, movement_id: invMov.id });
+					}
 
 					// 3. Adjunto si existe
 					if (receipt_base64) {
 						await sql`INSERT INTO accounting_attachments (entry_id, file_base64, mime_type, file_name) VALUES (${accEntry.id}, ${receipt_base64}, 'image/jpeg', ${receipt_name || 'recibo.jpg'})`;
 					}
 
-					// 4. Vincular contabilidad en el inventario (opcional, en metadata)
-					metadata.accounting_id = accEntry.id;
-					await sql`UPDATE inventory_movements SET metadata = ${JSON.stringify(metadata)}::jsonb WHERE id = ${invMov.id}`;
-
-					return json({ ok: true, inventory_id: invMov.id, accounting_id: accEntry.id }, 201);
+					return json({ ok: true, accounting_id: accEntry.id, movements: results }, 201);
 				}
 
 				if (action === 'reset') {

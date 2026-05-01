@@ -29,13 +29,16 @@
 		.attach-btn.has { background: #10b981; color: white; border-color: #10b981; }
 		
 		.popover-wrap { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15,23,42,0.6); backdrop-filter: blur(8px); z-index: 6000; display: flex; align-items: center; justify-content: center; padding: 20px; }
-		.popover-c { background: white; padding: 32px; border-radius: 28px; width: 100%; max-width: 450px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); }
+		.popover-c { background: white; padding: 32px; border-radius: 28px; width: 100%; max-width: 550px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); max-height: 90vh; overflow-y: auto; }
 		.popover-c h2 { margin: 0 0 24px 0; font-size: 1.5rem; text-align: center; }
 		
-		.field { margin-bottom: 20px; }
-		.field label { display: block; margin-bottom: 8px; font-weight: 700; font-size: 0.85rem; color: #64748b; }
-		.field input, .field select, .field textarea { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border); background: #f8fafc; font-size: 1rem; outline: none; transition: border-color 0.2s; }
-		.field input:focus { border-color: var(--p-mod); }
+		.field { margin-bottom: 16px; }
+		.field label { display: block; margin-bottom: 6px; font-weight: 700; font-size: 0.8rem; color: #64748b; }
+		.field input, .field select, .field textarea { width: 100%; padding: 10px; border-radius: 12px; border: 1px solid var(--border); background: #f8fafc; font-size: 0.95rem; outline: none; transition: border-color 0.2s; }
+		
+		.item-row { display: grid; grid-template-columns: 2fr 1fr 1fr 40px; gap: 12px; align-items: end; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px dashed var(--border); }
+		.btn-add-item { background: #f1f5f9; border: 1px dashed #cbd5e1; width: 100%; padding: 10px; border-radius: 12px; color: #64748b; font-weight: 600; cursor: pointer; margin-bottom: 20px; }
+		.btn-del-item { background: none; border: none; color: #ef4444; font-size: 1.2rem; cursor: pointer; padding-bottom: 10px; }
 		
 		.btn-primary { width: 100%; padding: 14px; background: var(--p-mod); color: white; border: none; border-radius: 14px; font-weight: 700; cursor: pointer; font-size: 1rem; }
 	</style>
@@ -54,14 +57,13 @@
 					<tr>
 						<th>Fecha</th>
 						<th>Descripción</th>
-						<th>Producto</th>
-						<th>Cant.</th>
+						<th>Items</th>
 						<th style="text-align:right;">Total</th>
 						<th style="text-align:center;">Recibo</th>
 					</tr>
 				</thead>
 				<tbody id="purchases-tbody">
-					<tr><td colspan="6" style="text-align:center; padding:40px; color:#94a3b8;">Cargando historial de compras...</td></tr>
+					<tr><td colspan="5" style="text-align:center; padding:40px; color:#94a3b8;">Cargando historial de compras...</td></tr>
 				</tbody>
 			</table>
 		</div>
@@ -72,35 +74,34 @@
 		<div class="popover-c">
 			<h2>Registrar Compra</h2>
 			<form id="purchase-form">
-				<div class="field">
-					<label>Título / Descripción</label>
-					<input type="text" id="p-note" placeholder="Ej: Factura Macro Mayo" required />
+				<div style="display:grid; grid-template-columns: 2fr 1fr; gap:16px;">
+					<div class="field">
+						<label>Título / Nota</label>
+						<input type="text" id="p-note" placeholder="Ej: Factura Macro Mayo" required />
+					</div>
+					<div class="field">
+						<label>Fecha</label>
+						<input type="date" id="p-date" required />
+					</div>
 				</div>
-				<div class="field">
-					<label>Fecha</label>
-					<input type="date" id="p-date" required />
+
+				<div id="items-container">
+					<!-- Filas de productos se agregan acá -->
 				</div>
-				<div class="field">
-					<label>Producto</label>
-					<select id="p-ingredient" required>
-						<option value="">Seleccione un ingrediente...</option>
-					</select>
-				</div>
+				<button type="button" class="btn-add-item" onclick="addItemRow()">+ Agregar otro producto</button>
+
 				<div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
 					<div class="field">
-						<label>Cantidad (g/ml/u)</label>
-						<input type="number" id="p-qty" step="0.01" required />
+						<label>Foto del Recibo</label>
+						<input type="file" id="p-receipt" accept="image/*" />
 					</div>
 					<div class="field">
-						<label>Total Pagado ($)</label>
-						<input type="number" id="p-total" required />
+						<label>Total de la Compra ($)</label>
+						<input type="number" id="p-total" readonly style="background:#f1f5f9; font-weight:800; color:var(--p-mod);" />
 					</div>
 				</div>
-				<div class="field">
-					<label>Foto del Recibo (Opcional)</label>
-					<input type="file" id="p-receipt" accept="image/*" />
-				</div>
-				<button type="submit" id="submit-btn" class="btn-primary">Guardar Compra</button>
+
+				<button type="submit" id="submit-btn" class="btn-primary">Guardar Todo</button>
 				<button type="button" onclick="closePopover()" style="width:100%; margin-top:12px; background:none; border:none; color:#64748b; cursor:pointer; font-weight:600;">Cancelar</button>
 			</form>
 		</div>
@@ -120,49 +121,86 @@
 		window.closePopover = () => {
 			document.getElementById('purchase-popover').style.display = 'none';
 			document.getElementById('purchase-form').reset();
+			document.getElementById('items-container').innerHTML = '';
+		};
+
+		window.addItemRow = () => {
+			const container = document.getElementById('items-container');
+			const div = document.createElement('div');
+			div.className = 'item-row';
+			div.innerHTML = `
+				<div class="field" style="margin-bottom:0">
+					<label>Producto</label>
+					<select class="item-ingredient" required>
+						<option value="">Seleccione...</option>
+						${inventory.map(it => `<option value="${it.ingredient}">${it.ingredient} (${it.unit})</option>`).join('')}
+					</select>
+				</div>
+				<div class="field" style="margin-bottom:0">
+					<label>Cant.</label>
+					<input type="number" class="item-qty" step="0.01" required oninput="calcTotal()" />
+				</div>
+				<div class="field" style="margin-bottom:0">
+					<label>Costo ($)</label>
+					<input type="number" class="item-cost" required oninput="calcTotal()" />
+				</div>
+				<button type="button" class="btn-del-item" onclick="this.parentElement.remove(); calcTotal();">✕</button>
+			`;
+			container.appendChild(div);
+		};
+
+		window.calcTotal = () => {
+			let sum = 0;
+			document.querySelectorAll('.item-cost').forEach(el => sum += (Number(el.value) || 0));
+			document.getElementById('p-total').value = sum;
 		};
 
 		document.getElementById('new-purchase-btn').onclick = () => {
 			document.getElementById('p-date').value = new Date().toISOString().slice(0,10);
+			document.getElementById('items-container').innerHTML = '';
+			addItemRow();
 			document.getElementById('purchase-popover').style.display = 'flex';
 		};
 
 		async function load() {
 			try {
-				// 1. Cargar inventario para el select
 				inventory = await fetchJSON('/api/inventory');
-				const select = document.getElementById('p-ingredient');
-				select.innerHTML = '<option value="">Seleccione...</option>' + 
-					inventory.map(it => `<option value="${it.ingredient}">${it.ingredient} (${it.unit})</option>`).join('');
-
-				// 2. Cargar historial
+				
+				// Cargar historial
 				const movs = await fetchJSON('/api/inventory?history_all=1');
-				// Filtrar solo ingresos que tengan metadata de costo
-				const purchases = movs.filter(m => m.kind === 'ingreso' && m.metadata?.total_cost);
+				// Agrupar por accounting_id para mostrar la compra "completa"
+				const grouped = new Map();
+				movs.filter(m => m.kind === 'ingreso' && m.metadata?.accounting_id).forEach(m => {
+					const aid = m.metadata.accounting_id;
+					if (!grouped.has(aid)) grouped.set(aid, { date: m.created_at, note: m.note, items: [], total: 0 });
+					const g = grouped.get(aid);
+					g.items.push(`${m.ingredient} (${m.qty})`);
+					g.total += Number(m.metadata.total_cost || 0);
+				});
 				
 				const tbody = document.getElementById('purchases-tbody');
-				if (!purchases.length) {
-					tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:40px; color:#94a3b8;">No hay compras registradas.</td></tr>';
-					return;
+				if (grouped.size === 0) {
+					tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:40px; color:#94a3b8;">No hay compras registradas.</td></tr>';
+				} else {
+					tbody.innerHTML = Array.from(grouped.entries()).sort((a,b)=>b[0]-a[0]).map(([aid, g]) => `
+						<tr>
+							<td style="color:#64748b; font-size:0.85rem;">${g.date.slice(0,10)}</td>
+							<td style="font-weight:700;">${g.note || 'Compra Multi'}</td>
+							<td style="font-size:0.8rem; color:#64748b;">${g.items.join(', ')}</td>
+							<td style="text-align:right; font-weight:800; color:#10b981;">${fmt.format(g.total)}</td>
+							<td style="text-align:center;">
+								<button class="attach-btn has" onclick="viewReceipt(${aid})">📄</button>
+							</td>
+						</tr>
+					`).join('');
 				}
 
-				tbody.innerHTML = purchases.map(p => `
-					<tr>
-						<td style="color:#64748b; font-size:0.85rem;">${p.created_at.slice(0,10)}</td>
-						<td style="font-weight:700;">${p.note || 'Sin título'}</td>
-						<td>${p.ingredient}</td>
-						<td>${p.qty}</td>
-						<td style="text-align:right; font-weight:800; color:#10b981;">${fmt.format(p.metadata.total_cost)}</td>
-						<td style="text-align:center;">
-							<button class="attach-btn ${p.metadata.accounting_id ? 'has' : ''}" onclick="viewReceipt(${p.metadata.accounting_id})">
-								${p.metadata.accounting_id ? '📄' : '-'}
-							</button>
-						</td>
-					</tr>
-				`).join('');
-			} catch (e) {
-				console.error(e);
-			}
+				// AUTO-OPEN si es primera vez o recarga
+				if (document.getElementById('items-container').children.length === 0) {
+					document.getElementById('new-purchase-btn').click();
+				}
+
+			} catch (e) { console.error(e); }
 		}
 
 		window.viewReceipt = async (accId) => {
@@ -171,12 +209,11 @@
 				const att = await fetchJSON(`/api/accounting?attachment_for=${accId}`);
 				if (att && att.file_base64) {
 					const win = window.open();
-					win.document.write(`<img src="${att.file_base64}" style="max-width:100%; border-radius:12px;">`);
+					win.document.write(`<body style="margin:0; background:#000; display:flex; align-items:center; justify-content:center;"><img src="${att.file_base64}" style="max-width:100%; max-height:100vh;"></body>`);
 				}
 			} catch (e) { alert("No se pudo cargar el recibo"); }
 		};
 
-		// Helper to compress images
 		async function compressImage(file) {
 			return new Promise((resolve) => {
 				const reader = new FileReader();
@@ -185,10 +222,10 @@
 					img.onload = () => {
 						const canvas = document.createElement('canvas');
 						let width = img.width, height = img.height;
-						if (width > 800) { height *= 800 / width; width = 800; }
+						if (width > 1200) { height *= 1200 / width; width = 1200; }
 						canvas.width = width; canvas.height = height;
 						canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-						resolve(canvas.toDataURL('image/jpeg', 0.7));
+						resolve(canvas.toDataURL('image/jpeg', 0.8));
 					};
 					img.src = e.target.result;
 				};
@@ -202,10 +239,16 @@
 			btn.disabled = true;
 			btn.innerText = 'Guardando...';
 
+			const rows = document.querySelectorAll('.item-row');
+			const items = Array.from(rows).map(row => ({
+				ingredient: row.querySelector('.item-ingredient').value,
+				qty: Number(row.querySelector('.item-qty').value),
+				price_cents: Number(row.querySelector('.item-cost').value)
+			}));
+
 			const payload = {
 				action: 'compra',
-				ingredient: document.getElementById('p-ingredient').value,
-				qty: document.getElementById('p-qty').value,
+				items,
 				total_cost: document.getElementById('p-total').value,
 				note: document.getElementById('p-note').value,
 				date: document.getElementById('p-date').value,
@@ -234,7 +277,7 @@
 			} catch (e) { alert("Error de conexión"); }
 			finally {
 				btn.disabled = false;
-				btn.innerText = 'Guardar Compra';
+				btn.innerText = 'Guardar Todo';
 			}
 		};
 
