@@ -683,7 +683,7 @@
 
 				// Render tabla
 				// Ordenar según el orden del inventario maestro (categoría y luego nombre)
-				const inventoryOrder = inventory.map(it => normKey(it.ingredient));
+				const inventoryOrder = inventory.map(it => normKey(canonicalizeName(it.ingredient)));
 				const keys = Array.from(agg.keys()).sort((a, b) => {
 					const idxA = inventoryOrder.indexOf(a);
 					const idxB = inventoryOrder.indexOf(b);
