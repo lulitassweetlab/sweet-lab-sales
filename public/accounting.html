@@ -583,7 +583,7 @@
 							<div class="desc-text" contenteditable="true" style="font-weight:600; outline:none; min-width:60px;">${r.description||''}</div>
 							<div style="display:inline-flex; flex-wrap:wrap; gap:4px; align-items:center;">
 								${tagsHtml}
-								<button class="add-tag-btn" title="Gestionar etiquetas">+</button>
+								<span class="add-tag-btn" role="button" title="Gestionar etiquetas" style="display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; background:rgba(0,0,0,0.06); color:rgba(0,0,0,0.3); font-weight:900; cursor:pointer; font-size:16px;">+</span>
 							</div>
 						</div>
 					</td>
@@ -670,6 +670,8 @@
 				if (addTagBtn) {
 					addTagBtn.addEventListener('click', (ev) => {
 						ev.stopPropagation();
+						ev.preventDefault();
+						console.log('Tag picker requested for row', r.id);
 						openTagPickerPopover(r.id, (r.tags || []).map(t => t.id));
 					});
 				}
@@ -1007,6 +1009,7 @@
 			}
 
 			async function openTagPickerPopover(entryId, currentTagIds) {
+				console.log('Opening tag picker for', entryId);
 				const backdrop = document.createElement('div');
 				backdrop.className = 'form-popover-backdrop';
 				
