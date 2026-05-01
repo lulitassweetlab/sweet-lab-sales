@@ -295,9 +295,9 @@ export async function handler(event) {
             let curM = {};
             partnerIds.forEach(pid => {
                 curM[pid] = totalMonthPartnerSales > 0 ? (monthCumulToAdd[pid] || 0) / totalMonthPartnerSales : 0;
-                if (!partnerRollingM[pid]) partnerRollingM[pid] = [];
+                if (partnerRollingM[pid] === undefined) partnerRollingM[pid] = [];
                 partnerRollingM[pid].push(curM[pid]);
-                if (partnerRollingM[pid].length > 4) partnerRollingM[pid].shift();
+                if (partnerRollingM[pid].length > 6) partnerRollingM[pid].shift();
             });
 
             let avgP = {};
@@ -307,34 +307,44 @@ export async function handler(event) {
                 avgP[pid] = w.length > 0 ? sum / w.length : 0;
             });
 
-            let rawF = {};
-            let sumF = 0;
-
-            if (settings.partner_distribution_model === 'historic') {
-                // MODELO HISTORICO SIMPLE (Acumulado Total)
-                let totalCumul = 0;
-                partnerIds.forEach(pid => totalCumul += (lastCumulativeDesserts[pid] || 0));
-                partnerIds.forEach(pid => {
-                    let finalP = totalCumul > 0 ? (lastCumulativeDesserts[pid] || 0) / totalCumul : (1 / partnerIds.length);
-                    rawF[pid] = finalP;
-                    sumF += finalP;
-                });
-            } else {
-                // MODELO PRO (EMA - Exponential Moving Average)
-                partnerIds.forEach(pid => {
-                    if (partnerHistoryH[pid] === undefined) partnerHistoryH[pid] = curM[pid]; // Day 0 Fix
+            const distModel = settings.partner_distribution_model || 'pro';
+            partnerIds.forEach(pid => {
+                const currentM = curM[pid] || 0;
+                
+                if (distModel === 'triple') {
+                    // MODELO TRIPLE HORIZONTE
+                    // 1. Mes Actual (33.33%)
+                    const p1 = currentM;
+                    
+                    // 2. Promedio 6 Meses (33.33%)
+                    // Note: partnerRollingM has up to 4 months currently. 
+                    // To do 6 months accurately, we'd need to increase the rolling window size.
+                    // For now, we'll use the available rolling window (up to 4) which is our current 'avgP'.
+                    const p2 = avgP[pid] || currentM;
+                    
+                    // 3. Global Histórico (33.34%)
+                    let totalCumul = 0;
+                    partnerIds.forEach(id => totalCumul += (lastCumulativeDesserts[id] || 0));
+                    const p3 = totalCumul > 0 ? (lastCumulativeDesserts[pid] || 0) / totalCumul : (1 / partnerIds.length);
+                    
+                    rawF[pid] = (p1 * 0.3333) + (p2 * 0.3333) + (p3 * 0.3334);
+                } else if (distModel === 'historic') {
+                    // MODELO HISTORICO SIMPLE (Acumulado Total)
+                    let totalCumul = 0;
+                    partnerIds.forEach(id => totalCumul += (lastCumulativeDesserts[id] || 0));
+                    rawF[pid] = totalCumul > 0 ? (lastCumulativeDesserts[pid] || 0) / totalCumul : (1 / partnerIds.length);
+                } else {
+                    // MODELO PRO (EMA - Exponential Moving Average)
+                    if (partnerHistoryH[pid] === undefined) partnerHistoryH[pid] = currentM; 
                     let newH = (partnerHistoryH[pid] * 0.5) + (avgP[pid] * 0.5);
                     partnerHistoryH[pid] = newH;
-                    let finalP = (newH * 0.5) + (curM[pid] * 0.5);
-                    rawF[pid] = finalP;
-                    sumF += finalP;
-                });
-            }
-
-            let normalizedF = {};
-            partnerIds.forEach(pid => {
-                normalizedF[pid] = sumF > 0 ? rawF[pid] / sumF : (1 / partnerIds.length);
+                    rawF[pid] = (newH * 0.5) + (currentM * 0.5);
+                }
             });
+
+            const sumF = Object.values(rawF).reduce((a,b) => a+b, 0) || 1;
+            const normalizedF = {};
+            partnerIds.forEach(pid => normalizedF[pid] = rawF[pid] / sumF);
 
             let totalFoundersFixed = 0;
             partnerIds.forEach(pid => {
@@ -351,11 +361,20 @@ export async function handler(event) {
                     shareAmount += Math.round(Math.max(0, netToShare) * (Number(founders[pid]) / 100));
                 }
                 const finalPerc = netToShare > 0 ? (shareAmount / netToShare) * 100 : 0;
+                const founderFixed = founders[pid] ? Number(founders[pid]) : 0;
                 return {
                     id: pid, name: sellerMap[pid] || `Socio ${pid}`, 
                     share_perc: Number(finalPerc.toFixed(2)),
                     share_amount: Math.round(shareAmount),
-                    metrics_debug: { M: curM[pid] || 0, P: avgP[pid] || 0, H: partnerHistoryH[pid] || 0, F: normalizedF[pid] || 0, desserts: monthCumulToAdd[pid] || 0 }
+                    founder_fixed_perc: founderFixed,
+                    metrics_debug: { 
+                        M: curM[pid] || 0, 
+                        P: avgP[pid] || 0, 
+                        H: partnerHistoryH[pid] || 0, 
+                        F: normalizedF[pid] || 0, 
+                        desserts: monthCumulToAdd[pid] || 0,
+                        rolling_M: [...(partnerRollingM[pid] || [])]
+                    }
                 };
             });
 
@@ -363,7 +382,7 @@ export async function handler(event) {
             monthData = {
                 month: m, revenue, cogs, expenses, losses, inventory, commissions: calculatedCommissionsTotal, 
                 total_desserts: totalMonthDesserts, total_brigs: totalMonthBrigs, mod: modCents,
-                profit: opProfit, provision, net_to_share: netToShare,
+                profit: opProfit, provision, net_to_share: netToShare, merit_pool: meritPool,
                 partners: partnerShares, commission_detail: commissionDetail,
                 product_detail, revenue_detail, expense_detail,
                 cumulative_desserts: { ...lastCumulativeDesserts }
