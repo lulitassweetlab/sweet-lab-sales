@@ -290,7 +290,7 @@
 				<div class="filter-tags" id="tag-filters">
 					<!-- Los filtros de etiquetas se generarán dinámicamente -->
 				</div>
-				<button id="add-entry-btn-table" class="press-btn btn-primary" style="position:absolute; right:0; top:50%; transform:translateY(-50%); width:50px; height:50px; border-radius:50%; padding:0; font-size:180px; font-weight:900; line-height:0.5; display:flex; align-items:center; justify-content:center; box-shadow: 0 4px 16px rgba(244, 166, 183, 0.4); transition: all 0.3s ease; overflow:hidden;" title="Nueva entrada">+</button>
+				<button id="add-entry-btn-table" class="press-btn btn-primary" style="position:absolute; right:0; top:50%; transform:translateY(-50%); width:50px; height:50px; border-radius:50%; padding:0; font-size:18px; font-weight:900; line-height:0.5; display:flex; align-items:center; justify-content:center; box-shadow: 0 4px 16px rgba(244, 166, 183, 0.4); transition: all 0.3s ease; overflow:hidden;" title="Nueva entrada">+</button>
 			</div>
 			<div style="display:flex; justify-content:space-between; align-items:center; margin:0 12px 8px 12px">
 				<strong id="range-label"></strong>
@@ -744,7 +744,7 @@
 			});
 		}
 
-		function openFormPopover() {
+		async function openFormPopover() {
 			if (formPopover) return; // Already open
 
 			// Create backdrop

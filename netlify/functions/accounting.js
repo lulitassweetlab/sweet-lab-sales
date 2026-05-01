@@ -125,6 +125,7 @@ export async function handler(event) {
 					const start = (params.get('start') || '').toString().slice(0,10) || null;
 					const end = (params.get('end') || '').toString().slice(0,10) || null;
 					const tagId = params.get('tag_id') ? Number(params.get('tag_id')) : null;
+					let rows;
 
 					// All attachments for a date range
 					if (params.has('attachments_for_range')) {
@@ -136,32 +137,46 @@ export async function handler(event) {
 							ORDER BY e.entry_date ASC, a.id ASC`;
 						return json(rows);
 					}
-				let rows;
-					const baseQuery = `
-						SELECT e.id, e.kind, e.entry_date, e.description, e.amount_cents, e.actor_name, e.created_at,
-						EXISTS(SELECT 1 FROM accounting_attachments a WHERE a.entry_id = e.id) AS has_attachment,
-						(
-							SELECT json_agg(t.*) 
-							FROM accounting_tags t 
-							JOIN accounting_entry_tags et ON et.tag_id = t.id 
-							WHERE et.entry_id = e.id
-						) as tags
-						FROM accounting_entries e
-					`;
-
 					if (start && end) {
 						if (tagId) {
-							rows = await sql`${sql.unsafe(baseQuery)} 
+							rows = await sql`
+								SELECT e.id, e.kind, e.entry_date, e.description, e.amount_cents, e.actor_name, e.created_at,
+								EXISTS(SELECT 1 FROM accounting_attachments a WHERE a.entry_id = e.id) AS has_attachment,
+								(
+									SELECT json_agg(t.*) 
+									FROM accounting_tags t 
+									JOIN accounting_entry_tags et ON et.tag_id = t.id 
+									WHERE et.entry_id = e.id
+								) as tags
+								FROM accounting_entries e
 								JOIN accounting_entry_tags filter_et ON filter_et.entry_id = e.id
 								WHERE e.entry_date BETWEEN ${start} AND ${end} AND filter_et.tag_id = ${tagId}
 								ORDER BY e.entry_date DESC, e.id DESC`;
 						} else {
-							rows = await sql`${sql.unsafe(baseQuery)} 
+							rows = await sql`
+								SELECT e.id, e.kind, e.entry_date, e.description, e.amount_cents, e.actor_name, e.created_at,
+								EXISTS(SELECT 1 FROM accounting_attachments a WHERE a.entry_id = e.id) AS has_attachment,
+								(
+									SELECT json_agg(t.*) 
+									FROM accounting_tags t 
+									JOIN accounting_entry_tags et ON et.tag_id = t.id 
+									WHERE et.entry_id = e.id
+								) as tags
+								FROM accounting_entries e
 								WHERE e.entry_date BETWEEN ${start} AND ${end}
 								ORDER BY e.entry_date DESC, e.id DESC`;
 						}
 					} else {
-						rows = await sql`${sql.unsafe(baseQuery)} 
+						rows = await sql`
+							SELECT e.id, e.kind, e.entry_date, e.description, e.amount_cents, e.actor_name, e.created_at,
+							EXISTS(SELECT 1 FROM accounting_attachments a WHERE a.entry_id = e.id) AS has_attachment,
+							(
+								SELECT json_agg(t.*) 
+								FROM accounting_tags t 
+								JOIN accounting_entry_tags et ON et.tag_id = t.id 
+								WHERE et.entry_id = e.id
+							) as tags
+							FROM accounting_entries e
 							ORDER BY e.entry_date DESC, e.id DESC LIMIT 200`;
 					}
 				return json(rows);
