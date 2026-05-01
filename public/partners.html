@@ -502,28 +502,34 @@
         };
 
         window.showDownloadMenu = (btn, month) => {
-            // Cerrar cualquier menú previo
-            document.querySelectorAll('.quick-download-pill').forEach(el => el.remove());
+            // Si ya están visibles, cerrarlas y salir (Toggle)
+            const existing = document.querySelectorAll('.quick-download-pill');
+            if (existing.length > 0) {
+                existing.forEach(el => el.remove());
+                return;
+            }
 
             const rect = btn.getBoundingClientRect();
             
-            const createPill = (text, icon, onClick, offset) => {
+            const createPill = (text, icon, onClick, yOffset) => {
                 const pill = document.createElement('button');
                 pill.className = 'quick-download-pill';
                 pill.style = `
                     position: fixed;
-                    top: ${rect.top - 50}px;
-                    left: ${rect.left + offset}px;
+                    top: ${rect.top - yOffset}px;
+                    left: ${rect.left}px;
+                    width: ${rect.width}px;
                     background: #fff;
                     border: 1px solid #e2e8f0;
-                    border-radius: 20px;
+                    border-radius: 12px;
                     box-shadow: 0 10px 20px rgba(0,0,0,0.1);
                     z-index: 5000;
-                    padding: 8px 16px;
+                    padding: 10px;
                     display: flex;
                     align-items: center;
+                    justify-content: center;
                     gap: 8px;
-                    font-size: 0.8rem;
+                    font-size: 0.75rem;
                     font-weight: 800;
                     color: #334155;
                     cursor: pointer;
@@ -533,24 +539,31 @@
                 pill.innerHTML = `<span>${icon}</span> ${text}`;
                 pill.onclick = onClick;
                 
-                // Hover effect
-                pill.onmouseenter = () => { pill.style.transform = 'translateY(-3px) scale(1.05)'; pill.style.borderColor = '#4f46e5'; pill.style.color = '#4f46e5'; };
-                pill.onmouseleave = () => { pill.style.transform = 'translateY(0) scale(1)'; pill.style.borderColor = '#e2e8f0'; pill.style.color = '#334155'; };
+                pill.onmouseenter = () => { pill.style.transform = 'scale(1.05)'; pill.style.borderColor = '#4f46e5'; pill.style.color = '#4f46e5'; };
+                pill.onmouseleave = () => { pill.style.transform = 'scale(1)'; pill.style.borderColor = '#e2e8f0'; pill.style.color = '#334155'; };
                 
                 document.body.appendChild(pill);
                 return pill;
             };
 
-            const pill1 = createPill('Sencillo', '📸', (e) => { e.stopPropagation(); downloadCard(btn, month); document.querySelectorAll('.quick-download-pill').forEach(p => p.remove()); }, -10);
-            const pill2 = createPill('Integral', '📄', (e) => { e.stopPropagation(); downloadIntegralPDF(month, btn); document.querySelectorAll('.quick-download-pill').forEach(p => p.remove()); }, 110);
+            // Apilamiento vertical: Integral arriba, Sencillo abajo
+            const pill1 = createPill('Sencillo', '📸', (e) => { e.stopPropagation(); downloadCard(btn, month); document.querySelectorAll('.quick-download-pill').forEach(p => p.remove()); }, 45);
+            const pill2 = createPill('Integral', '📄', (e) => { e.stopPropagation(); downloadIntegralPDF(month, btn); document.querySelectorAll('.quick-download-pill').forEach(p => p.remove()); }, 90);
 
-            const style = document.createElement('style');
-            style.innerHTML = `
-                @keyframes popPill { from { opacity: 0; transform: scale(0.5) translateY(20px); } to { opacity: 1; transform: scale(1) translateY(0); } }
-            `;
-            document.head.appendChild(style);
+            // Estilos de animación
+            if (!document.getElementById('pill-anim-style')) {
+                const style = document.createElement('style');
+                style.id = 'pill-anim-style';
+                style.innerHTML = `
+                    @keyframes popPill { 
+                        from { opacity: 0; transform: translateY(10px) scale(0.9); } 
+                        to { opacity: 1; transform: translateY(0) scale(1); } 
+                    }
+                `;
+                document.head.appendChild(style);
+            }
 
-            // Cerrar al hacer clic fuera
+            // Cerrar al hacer clic fuera (pero no si es el propio botón, que ya tiene el toggle)
             const closePills = (e) => {
                 if (!pill1.contains(e.target) && !pill2.contains(e.target) && e.target !== btn) {
                     pill1.remove(); pill2.remove();
