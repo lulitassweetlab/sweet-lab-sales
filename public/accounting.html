@@ -1021,96 +1021,98 @@
 
 		async function openTagPickerPopover(anchor, entryId, currentTagIds) {
 			const rect = anchor.getBoundingClientRect();
+			const scrollX = window.scrollX || window.pageXOffset;
+			const scrollY = window.scrollY || window.pageYOffset;
 			
-			const pop = document.createElement('div');
-			pop.className = 'form-popover'; 
-			pop.style.width = '240px';
-			pop.style.padding = '12px';
-			pop.style.borderRadius = '16px';
-			pop.style.position = 'fixed';
-			pop.style.top = (rect.top + window.scrollY) + 'px';
-			pop.style.left = (rect.right + 10) + 'px';
-			pop.style.transform = 'none'; 
-			pop.style.animation = 'popUp 0.2s ease-out';
-			pop.style.zIndex = '2000';
-			pop.style.boxShadow = '0 10px 30px rgba(0,0,0,0.15)';
+			// Main container (transparent)
+			const wrapper = document.createElement('div');
+			wrapper.style.position = 'absolute';
+			wrapper.style.top = (rect.top + scrollY) + 'px';
+			wrapper.style.left = (rect.right + scrollX + 8) + 'px';
+			wrapper.style.display = 'flex';
+			wrapper.style.flexDirection = 'column';
+			wrapper.style.gap = '6px';
+			wrapper.style.zIndex = '3000';
+			wrapper.style.pointerEvents = 'none'; // Only children handle clicks
 
-			const container = document.createElement('div');
-			container.className = 'tag-selector';
-			container.style.marginTop = '0';
-			pop.appendChild(container);
-
+			function cleanup() {
+				document.removeEventListener('mousedown', outside, true);
+				if (wrapper.parentNode) document.body.removeChild(wrapper);
+			}
+			function outside(ev) { if (!wrapper.contains(ev.target)) cleanup(); }
+			
 			async function render() {
 				try {
-					if (availableTags.length === 0) {
-						container.innerHTML = '<div style="text-align:center; padding:10px;">...</div>';
-						await loadTags();
-					}
-					container.innerHTML = '';
+					if (availableTags.length === 0) await loadTags();
+					wrapper.innerHTML = '';
 					
-					if (availableTags.length === 0) {
-						container.innerHTML = '<div style="text-align:center; font-size:12px; color:var(--text-muted);">Sin etiquetas</div>';
-						return;
-					}
+					if (availableTags.length === 0) { cleanup(); return; }
 
-					availableTags.forEach(t => {
-						const opt = document.createElement('button');
-						opt.type = 'button';
-						opt.className = 'tag-option' + (currentTagIds.includes(t.id) ? ' selected' : '');
-						opt.style.backgroundColor = t.color;
-						opt.style.border = 'none';
-						opt.style.padding = '6px 12px';
-						opt.style.margin = '3px';
-						opt.style.color = 'white';
-						opt.style.borderRadius = '20px';
-						opt.style.cursor = 'pointer';
-						opt.style.fontSize = '10px';
-						opt.style.fontWeight = '700';
-						opt.textContent = t.name;
+					availableTags.forEach((t, i) => {
+						const btn = document.createElement('button');
+						btn.type = 'button';
+						btn.className = 'tag-option' + (currentTagIds.includes(t.id) ? ' selected' : '');
+						btn.style.backgroundColor = t.color;
+						btn.style.border = 'none';
+						btn.style.padding = '6px 12px';
+						btn.style.color = 'white';
+						btn.style.borderRadius = '16px';
+						btn.style.cursor = 'pointer';
+						btn.style.fontSize = '10px';
+						btn.style.fontWeight = '700';
+						btn.style.whiteSpace = 'nowrap';
+						btn.style.pointerEvents = 'auto';
+						btn.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+						btn.textContent = t.name;
 						
-						opt.onclick = async (e) => {
+						// Staggered Aladin effect
+						btn.style.opacity = '0';
+						btn.style.transform = 'scale(0) translateX(-20px)';
+						btn.style.transition = 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)';
+						btn.style.transitionDelay = (i * 0.05) + 's';
+						
+						btn.onclick = async (e) => {
 							e.preventDefault();
 							e.stopPropagation();
-							
 							let isSelected = currentTagIds.includes(t.id);
 							let newTags = isSelected ? currentTagIds.filter(id => id !== t.id) : [...currentTagIds, t.id];
-							
 							try {
 								const res = await fetch('/api/accounting', {
 									method: 'PUT',
 									headers: { 'Content-Type': 'application/json', 'X-Actor-Name': currentUser?.name || '' },
 									body: JSON.stringify({ id: entryId, tags: newTags })
 								});
-								
 								if (res.ok) {
 									cleanup();
 									load();
 								}
 							} catch (e) { }
 						};
-						container.appendChild(opt);
+						wrapper.appendChild(btn);
+						
+						// Trigger animation
+						setTimeout(() => {
+							btn.style.opacity = '1';
+							btn.style.transform = 'scale(1) translateX(0)';
+						}, 10);
 					});
+
+					// Adjust if off-screen (too high or too low)
+					setTimeout(() => {
+						const wrapRect = wrapper.getBoundingClientRect();
+						if (wrapRect.bottom > window.innerHeight) {
+							wrapper.style.top = (window.innerHeight - wrapRect.height - 10 + scrollY) + 'px';
+						}
+						if (wrapRect.right > window.innerWidth) {
+							wrapper.style.left = (rect.left + scrollX - wrapRect.width - 8) + 'px';
+						}
+					}, 50);
+
 				} catch (e) { }
 			}
 
-			function cleanup() {
-				document.removeEventListener('mousedown', outside, true);
-				if (pop.parentNode) document.body.removeChild(pop);
-			}
-			function outside(ev) { if (!pop.contains(ev.target)) cleanup(); }
-			
 			document.addEventListener('mousedown', outside, true);
-			document.body.appendChild(pop);
-			
-			// Adjust if off-screen
-			const popRect = pop.getBoundingClientRect();
-			if (popRect.right > window.innerWidth) {
-				pop.style.left = (rect.left - popRect.width - 10) + 'px';
-			}
-			if (popRect.bottom > window.innerHeight) {
-				pop.style.top = (window.innerHeight - popRect.height - 10) + 'px';
-			}
-
+			document.body.appendChild(wrapper);
 			render();
 		}
 		window.openTagPickerPopover = openTagPickerPopover;
