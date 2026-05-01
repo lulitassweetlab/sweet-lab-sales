@@ -540,7 +540,7 @@
                                 ${(m.partners || []).sort((a,b)=>b.share_amount - a.share_amount).map(p => `
                                     <div onclick="showSellerHistoryChart('${p.name}', '${m.month}', event)" style="background:#fff; border:1px solid #e2e8f0; border-radius:16px; padding:16px; cursor:pointer;">
                                         <div class="flex">
-                                            <div><div style="font-weight:800; font-size:1.05rem;">${p.name}</div><div style="font-size:0.75rem; color:#64748b;">🍰 ${m.cumulative_desserts ? (m.cumulative_desserts[p.id] || 0) : '?'} postres</div></div>
+                                            <div><div style="font-weight:800; font-size:1.05rem;">${p.name}</div><div style="font-size:0.75rem; color:#64748b;">🍰 ${p.metrics_debug?.cumulative_total || 0} postres hist.</div></div>
                                             <div style="text-align:right;"><div style="font-size:0.65rem; color:#94a3b8;">Utilidad</div><div style="font-weight:900; font-size:1.2rem; color:#10b981;">${fmt.format(p.share_amount)}</div></div>
                                         </div>
                                         <div style="display:flex; align-items:center; gap:12px; margin-top:8px;"><div style="flex:1; height:8px; background:#f1f5f9; border-radius:8px; overflow:hidden;"><div style="width:${p.share_perc}%; height:100%; background:linear-gradient(90deg, #8b5cf6, #c084fc);"></div></div><strong style="color:#7c3aed; font-size:0.85rem;">${p.share_perc}%</strong></div>
@@ -566,8 +566,8 @@
                 const d = document.createElement('div');
                 d.style = "padding:10px; border-bottom:1px solid #eee; display:flex; gap:10px; align-items:center";
                 d.innerHTML = `<input type="checkbox" class="is-p" data-id="${s.id}" ${isP ? 'checked' : ''}>
-                    <span style="flex:1;">${s.name}</span>
-                    <select class="lead-s" data-id="${s.id}" style="padding:4px; border-radius:6px;">
+                    <span style="flex:1; font-size:0.9rem;">${s.name}</span>
+                    <select class="lead-s" data-id="${s.id}" style="padding:4px; border-radius:6px; font-size:0.8rem;">
                         <option value="">(Sin Líder)</option>
                         ${SELLERS.map(p => `<option value="${p.id}" ${Number(s.parent_id) === Number(p.id) ? 'selected' : ''}>${p.name}</option>`).join('')}
                     </select>`;
@@ -581,10 +581,9 @@
             const founders = JSON.parse((DATA.settings && DATA.settings.partner_founders) || '{}');
             pIds.forEach(pid => {
                 const s = SELLERS.find(se => Number(se.id) === Number(pid));
-                if (!s) return;
                 const d = document.createElement('div');
                 d.style = "display:flex; justify-content:space-between; align-items:center; gap:10px;";
-                d.innerHTML = `<span style="font-size:0.8rem; font-weight:600;">${s.name}</span><input type="number" class="founder-perc" data-id="${pid}" value="${founders[pid] || 0}" style="width:60px; padding:4px; border-radius:6px; border:1px solid #ddd; text-align:right;">%`;
+                d.innerHTML = `<span style="font-size:0.8rem; font-weight:600;">${s ? s.name : 'Socio ' + pid}</span><input type="number" class="founder-perc" data-id="${pid}" value="${founders[pid] || 0}" style="width:60px; padding:4px; border-radius:6px; border:1px solid #ddd; text-align:right;">%`;
                 fList.appendChild(d);
             });
             

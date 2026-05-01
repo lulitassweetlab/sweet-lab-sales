@@ -378,6 +378,7 @@ export async function handler(event) {
                         F: normalizedF[pid] || 0, 
                         H_global: globalHPerc,
                         desserts: monthCumulToAdd[pid] || 0,
+                        cumulative_total: lastCumulativeDesserts[pid] || 0,
                         rolling_M: [...(partnerRollingM[pid] || [])]
                     }
                 };
