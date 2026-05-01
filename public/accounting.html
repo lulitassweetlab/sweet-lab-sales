@@ -583,7 +583,7 @@
 							<div class="desc-text" contenteditable="true" style="font-weight:600; outline:none; min-width:60px;">${r.description||''}</div>
 							<div style="display:inline-flex; flex-wrap:wrap; gap:4px; align-items:center;">
 								${tagsHtml}
-								<span class="add-tag-btn" role="button" onclick="alert('CLICK REGISTRADO')" title="Gestionar etiquetas" style="display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:50%; background:rgba(0,0,0,0.1); color:rgba(0,0,0,0.5); font-weight:900; cursor:pointer; font-size:18px; position:relative; z-index:100;">+</span>
+								<span class="add-tag-btn" role="button" title="Gestionar etiquetas" style="display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:50%; background:rgba(0,0,0,0.04); color:rgba(0,0,0,0.2); font-weight:900; cursor:pointer; font-size:14px;">+</span>
 							</div>
 						</div>
 					</td>
@@ -1009,40 +1009,48 @@
 			}
 
 			async function openTagPickerPopover(entryId, currentTagIds) {
-				console.log('Opening tag picker for', entryId);
 				const backdrop = document.createElement('div');
 				backdrop.className = 'form-popover-backdrop';
+				backdrop.style.zIndex = '2001';
 				
 				const pop = document.createElement('div');
 				pop.className = 'form-popover';
-				pop.style.width = '300px';
+				pop.style.zIndex = '2002';
+				pop.style.width = '320px';
+				pop.style.display = 'block';
 
 				const title = document.createElement('h3');
-				title.textContent = 'Seleccionar Etiquetas';
+				title.textContent = 'Etiquetas';
+				title.style.marginBottom = '16px';
 				pop.appendChild(title);
 
 				const container = document.createElement('div');
 				container.className = 'tag-selector';
+				container.style.maxHeight = '300px';
+				container.style.overflowY = 'auto';
 				pop.appendChild(container);
 
 				const footer = document.createElement('div');
-				footer.style.marginTop = '20px';
-				footer.style.textAlign = 'right';
+				footer.style.marginTop = '24px';
+				footer.style.textAlign = 'center';
 				const closeBtn = document.createElement('button');
-				closeBtn.className = 'press-btn';
-				closeBtn.textContent = 'Cerrar';
+				closeBtn.className = 'press-btn btn-primary';
+				closeBtn.textContent = 'Listo';
+				closeBtn.style.width = '100%';
 				closeBtn.onclick = cleanup;
 				footer.appendChild(closeBtn);
 				pop.appendChild(footer);
 
 				async function render() {
 					try {
-						container.innerHTML = '<div style="text-align:center; padding:20px;">Cargando...</div>';
-						if (availableTags.length === 0) await loadTags();
+						if (availableTags.length === 0) {
+							container.innerHTML = '<div style="text-align:center; padding:10px;">Cargando...</div>';
+							await loadTags();
+						}
 						container.innerHTML = '';
 						
 						if (availableTags.length === 0) {
-							container.innerHTML = 'No hay etiquetas disponibles';
+							container.innerHTML = '<div style="text-align:center; color:var(--text-muted);">No hay etiquetas definidas</div>';
 							return;
 						}
 
@@ -1052,7 +1060,8 @@
 							opt.style.backgroundColor = t.color;
 							opt.textContent = t.name;
 							opt.onclick = async () => {
-								let newTags = currentTagIds.includes(t.id) ? currentTagIds.filter(id => id !== t.id) : [...currentTagIds, t.id];
+								let isSelected = currentTagIds.includes(t.id);
+								let newTags = isSelected ? currentTagIds.filter(id => id !== t.id) : [...currentTagIds, t.id];
 								try {
 									const res = await fetch('/api/accounting', {
 										method: 'PUT',
@@ -1062,13 +1071,14 @@
 									if (res.ok) {
 										currentTagIds = newTags;
 										render();
+										// Update the row in background
 										load();
 									}
-								} catch (e) { alert('Error al actualizar'); }
+								} catch (e) { }
 							};
 							container.appendChild(opt);
 						});
-					} catch (e) { alert('Error render: ' + e.message); }
+					} catch (e) { alert('Error: ' + e.message); }
 				}
 
 				function cleanup() {
@@ -1276,6 +1286,7 @@
 		}
 
 		load();
+		loadTags();
 		
 		// Event listener para el botón + de la tabla
 		const addEntryBtnTable = document.getElementById('add-entry-btn-table');
