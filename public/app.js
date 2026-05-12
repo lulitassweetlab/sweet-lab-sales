@@ -1353,9 +1353,9 @@ function applyAuthVisibility() {
 	const canTransfers = isSuper || feats.has('reports.transfers');
 	const canMaterials = isSuper || feats.has('nav.materials');
 	const canInventory = isSuper || feats.has('nav.inventory');
-	const canUsers = isSuper || isAdminUser || feats.has('nav.users');
+	const canUsers = isSuper || feats.has('nav.users');
 	const canAccounting = isSuper || feats.has('nav.accounting');
-	const canDesserts = isSuper || isAdminUser || feats.has('nav.desserts');
+	const canDesserts = isSuper || feats.has('nav.desserts');
 	const canGames = isSuper || feats.has('nav.games');
 	const canPartners = isSuper || feats.has('nav.partners');
 	const canPurchases = isSuper || feats.has('nav.purchases');
@@ -1369,7 +1369,7 @@ function applyAuthVisibility() {
 	if (materialsBtn) materialsBtn.style.display = canMaterials ? 'inline-block' : 'none';
 	if (inventoryBtn) inventoryBtn.style.display = canInventory ? 'inline-block' : 'none';
 	if (accountingBtn) accountingBtn.style.display = canAccounting ? 'inline-block' : 'none';
-	const canDeliveries = isSuper || isAdminUser;
+	const canDeliveries = isSuper || feats.has('nav.deliveries');
 	if (dessertsBtn) dessertsBtn.style.display = canDesserts ? 'inline-block' : 'none';
 	if (deliveriesBtn) deliveriesBtn.style.display = canDeliveries ? 'inline-block' : 'none';
 	if (gamesBtn) gamesBtn.style.display = canGames ? 'inline-block' : 'none';
@@ -1379,7 +1379,7 @@ function applyAuthVisibility() {
 	if (crmAdminBtn) crmAdminBtn.style.display = canCrm ? 'inline-block' : 'none';
 
 	const globalDbBtn = document.getElementById('global-clients-button');
-	if (globalDbBtn) globalDbBtn.style.display = (isSuper || isAdminUser) ? 'inline-block' : 'none';
+	if (globalDbBtn) globalDbBtn.style.display = (isSuper || feats.has('nav.globaldb')) ? 'inline-block' : 'none';
 }
 
 // Load desserts from API (runs once per session)
@@ -5647,8 +5647,11 @@ function openPermissionsManager() {
 	const featPartners = makeFeat('Ver botón Socios', 'nav.partners');
 	const featPurchases = makeFeat('Ver botón Compras', 'nav.purchases');
 	const featStore = makeFeat('Ver botón Tienda', 'nav.store');
+	const featDesserts = makeFeat('Ver botón Postres', 'nav.desserts');
+	const featDeliveries = makeFeat('Ver botón Entregas', 'nav.deliveries');
+	const featGlobalDb = makeFeat('Ver Base de Datos', 'nav.globaldb');
 	right.appendChild(featureLabel);
-	[featSales, featTransfers, featCartera, featProjections, featMaterials, featInventory, featUsers, featAccounting, featGames, featCrm, featPartners, featPurchases, featStore]
+	[featSales, featTransfers, featCartera, featProjections, featMaterials, featInventory, featUsers, featAccounting, featGames, featCrm, featPartners, featPurchases, featStore, featDesserts, featDeliveries, featGlobalDb]
 		.forEach(x => right.appendChild(x.wrap));
 	row.appendChild(left); row.appendChild(right);
 
@@ -5814,7 +5817,7 @@ function openPermissionsManager() {
 			});
 			const feats = await api('GET', API.Users + '?feature_permissions=1&username=' + encodeURIComponent(viewerName));
 			const featuresSet = new Set((feats || []).map(f => String(f.feature)));
-			[featSales.cb, featTransfers.cb, featCartera.cb, featProjections.cb, featMaterials.cb, featInventory.cb, featUsers.cb, featAccounting.cb, featGames.cb, featCrm.cb, featPartners.cb, featPurchases.cb, featStore.cb]
+			[featSales.cb, featTransfers.cb, featCartera.cb, featProjections.cb, featMaterials.cb, featInventory.cb, featUsers.cb, featAccounting.cb, featGames.cb, featCrm.cb, featPartners.cb, featPurchases.cb, featStore.cb, featDesserts.cb, featDeliveries.cb, featGlobalDb.cb]
 				.forEach(cb => { cb.checked = featuresSet.has(cb.dataset.feature); });
 
 			// All users are sellers, so always show commission section
@@ -5856,7 +5859,7 @@ function openPermissionsManager() {
 			// Save feature permissions
 			const feats = await api('GET', API.Users + '?feature_permissions=1&username=' + encodeURIComponent(viewer));
 			const currentFeat = new Set((feats || []).map(f => String(f.feature)));
-			const desiredFeat = new Set([featSales.cb, featTransfers.cb, featCartera.cb, featProjections.cb, featMaterials.cb, featInventory.cb, featUsers.cb, featAccounting.cb, featGames.cb, featCrm.cb, featPartners.cb, featPurchases.cb, featStore.cb]
+			const desiredFeat = new Set([featSales.cb, featTransfers.cb, featCartera.cb, featProjections.cb, featMaterials.cb, featInventory.cb, featUsers.cb, featAccounting.cb, featGames.cb, featCrm.cb, featPartners.cb, featPurchases.cb, featStore.cb, featDesserts.cb, featDeliveries.cb, featGlobalDb.cb]
 				.filter(cb => cb.checked).map(cb => cb.dataset.feature));
 			const toGrantF = [...desiredFeat].filter(f => !currentFeat.has(f));
 			const toRevokeF = [...currentFeat].filter(f => !desiredFeat.has(f));
