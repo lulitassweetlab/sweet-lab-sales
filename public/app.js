@@ -1342,6 +1342,11 @@ function applyAuthVisibility() {
 	const accountingBtn = document.getElementById('accounting-button');
 	const dessertsBtn = document.getElementById('desserts-button');
 	const deliveriesBtn = document.getElementById('deliveries-button');
+	const gamesBtn = document.getElementById('games-button');
+	const partnersBtn = document.getElementById('partners-button');
+	const purchasesBtn = document.getElementById('purchases-button');
+	const storeBtn = document.getElementById('store-button');
+	const crmAdminBtn = document.getElementById('crm-admin-button');
 	const canSales = isSuper || feats.has('reports.sales');
 	const canCartera = isSuper || feats.has('reports.cartera');
 	const canProjections = isSuper || feats.has('reports.projections');
@@ -1351,6 +1356,11 @@ function applyAuthVisibility() {
 	const canUsers = isSuper || isAdminUser || feats.has('nav.users');
 	const canAccounting = isSuper || feats.has('nav.accounting');
 	const canDesserts = isSuper || isAdminUser || feats.has('nav.desserts');
+	const canGames = isSuper || feats.has('nav.games');
+	const canPartners = isSuper || feats.has('nav.partners');
+	const canPurchases = isSuper || feats.has('nav.purchases');
+	const canStore = isSuper || feats.has('nav.store');
+	const canCrm = isSuper || feats.has('nav.crm');
 	if (usersBtn) usersBtn.style.display = canUsers ? 'inline-block' : 'none';
 	if (reportBtn) reportBtn.style.display = canSales ? 'inline-block' : 'none';
 	if (carteraBtn) carteraBtn.style.display = canCartera ? 'inline-block' : 'none';
@@ -1362,6 +1372,11 @@ function applyAuthVisibility() {
 	const canDeliveries = isSuper || isAdminUser;
 	if (dessertsBtn) dessertsBtn.style.display = canDesserts ? 'inline-block' : 'none';
 	if (deliveriesBtn) deliveriesBtn.style.display = canDeliveries ? 'inline-block' : 'none';
+	if (gamesBtn) gamesBtn.style.display = canGames ? 'inline-block' : 'none';
+	if (partnersBtn) partnersBtn.style.display = canPartners ? 'inline-block' : 'none';
+	if (purchasesBtn) purchasesBtn.style.display = canPurchases ? 'inline-block' : 'none';
+	if (storeBtn) storeBtn.style.display = canStore ? 'inline-block' : 'none';
+	if (crmAdminBtn) crmAdminBtn.style.display = canCrm ? 'inline-block' : 'none';
 
 	const globalDbBtn = document.getElementById('global-clients-button');
 	if (globalDbBtn) globalDbBtn.style.display = (isSuper || isAdminUser) ? 'inline-block' : 'none';
@@ -5627,8 +5642,13 @@ function openPermissionsManager() {
 	const featInventory = makeFeat('Ver botón Inventario', 'nav.inventory');
 	const featUsers = makeFeat('Ver botón Usuarios', 'nav.users');
 	const featAccounting = makeFeat('Ver botón Contabilidad', 'nav.accounting');
+	const featGames = makeFeat('Ver botón Juegos', 'nav.games');
+	const featCrm = makeFeat('Ver botón CRM', 'nav.crm');
+	const featPartners = makeFeat('Ver botón Socios', 'nav.partners');
+	const featPurchases = makeFeat('Ver botón Compras', 'nav.purchases');
+	const featStore = makeFeat('Ver botón Tienda', 'nav.store');
 	right.appendChild(featureLabel);
-	[featSales, featTransfers, featCartera, featProjections, featMaterials, featInventory, featUsers, featAccounting]
+	[featSales, featTransfers, featCartera, featProjections, featMaterials, featInventory, featUsers, featAccounting, featGames, featCrm, featPartners, featPurchases, featStore]
 		.forEach(x => right.appendChild(x.wrap));
 	row.appendChild(left); row.appendChild(right);
 
@@ -5794,7 +5814,7 @@ function openPermissionsManager() {
 			});
 			const feats = await api('GET', API.Users + '?feature_permissions=1&username=' + encodeURIComponent(viewerName));
 			const featuresSet = new Set((feats || []).map(f => String(f.feature)));
-			[featSales.cb, featTransfers.cb, featCartera.cb, featProjections.cb, featMaterials.cb, featInventory.cb, featUsers.cb, featAccounting.cb]
+			[featSales.cb, featTransfers.cb, featCartera.cb, featProjections.cb, featMaterials.cb, featInventory.cb, featUsers.cb, featAccounting.cb, featGames.cb, featCrm.cb, featPartners.cb, featPurchases.cb, featStore.cb]
 				.forEach(cb => { cb.checked = featuresSet.has(cb.dataset.feature); });
 
 			// All users are sellers, so always show commission section
@@ -5836,7 +5856,7 @@ function openPermissionsManager() {
 			// Save feature permissions
 			const feats = await api('GET', API.Users + '?feature_permissions=1&username=' + encodeURIComponent(viewer));
 			const currentFeat = new Set((feats || []).map(f => String(f.feature)));
-			const desiredFeat = new Set([featSales.cb, featTransfers.cb, featCartera.cb, featProjections.cb, featMaterials.cb, featInventory.cb, featUsers.cb, featAccounting.cb]
+			const desiredFeat = new Set([featSales.cb, featTransfers.cb, featCartera.cb, featProjections.cb, featMaterials.cb, featInventory.cb, featUsers.cb, featAccounting.cb, featGames.cb, featCrm.cb, featPartners.cb, featPurchases.cb, featStore.cb]
 				.filter(cb => cb.checked).map(cb => cb.dataset.feature));
 			const toGrantF = [...desiredFeat].filter(f => !currentFeat.has(f));
 			const toRevokeF = [...currentFeat].filter(f => !desiredFeat.has(f));
