@@ -247,7 +247,7 @@ function setupClientAutocomplete() {
 
 async function showSellerSelection() {
     try {
-        const res = await fetch('/api/get-sellers');
+        const res = await fetch('/api/sellers');
         if (!res.ok) throw new Error('Error al cargar vendedores');
         const allSellers = await res.json();
 
@@ -371,7 +371,7 @@ async function executeCheckout(customerName) {
 async function uploadStoreOrder(customerName, phone) {
     try {
         // 1. Find "Jorge" seller
-        const res = await fetch('/api/get-sellers');
+        const res = await fetch('/api/sellers');
         if (!res.ok) throw new Error('No se pudo conectar con el servidor.');
         const sellers = await res.json();
         const jorge = sellers.find(s => s.name.trim().toLowerCase() === 'jorge') || 
