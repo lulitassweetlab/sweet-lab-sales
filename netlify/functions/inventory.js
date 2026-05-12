@@ -1,4 +1,4 @@
-import { ensureSchema, sql, ensureInventoryItem, canonicalizeIngredientName, recalculateAllDessertCosts } from './_db.js';
+import { ensureSchema, sql, ensureInventoryItem, canonicalizeIngredientName, recalculateAllDessertCosts, updateIngredientPMP } from './_db.js';
 
 function json(body, status = 200) {
 	return { statusCode: status, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
@@ -27,7 +27,7 @@ export async function handler(event) {
 				}
 
 				// Unified Inventory List
-				const items = await sql`SELECT id, ingredient, category, unit, price, pack_size FROM inventory_items ORDER BY category ASC, ingredient ASC`;
+				const items = await sql`SELECT id, ingredient, category, unit, price, pack_size FROM inventory_items ORDER BY category DESC, ingredient ASC`;
 				const rawMovs = await sql`SELECT ingredient, SUM(qty)::numeric AS qty FROM inventory_movements GROUP BY ingredient`;
 				const movsMap = new Map();
 				for (const r of (rawMovs || [])) {
@@ -169,12 +169,66 @@ export async function handler(event) {
 					const unit = (data.unit || 'g').toString();
 					let qty = Number(data.qty || 0) || 0;
 					const note = (data.note || '').toString();
+					const totalCost = Number(data.total_cost || 0); // Opcional para PMP
+					const unitPrice = Number(data.unit_price || 0); // Opcional para PMP
+					
 					if (!ingredient) return json({ error: 'ingredient requerido' }, 400);
 					if (!qty) return json({ error: 'qty requerido' }, 400);
+					
 					await ensureInventoryItem(ingredient, unit);
 					const signed = action === 'ingreso' ? Math.abs(qty) : qty;
-					const [row] = await sql`INSERT INTO inventory_movements (ingredient, kind, qty, note, actor_name, metadata) VALUES (${ingredient}, ${action}, ${signed}, ${note}, ${actor}, '{}'::jsonb) RETURNING *`;
+					
+					// Guardar metadata extendida si hay costos
+					const metadata = data.metadata && typeof data.metadata === 'object' ? data.metadata : {};
+					if (totalCost > 0) metadata.total_cost = totalCost;
+					if (unitPrice > 0) metadata.unit_price = unitPrice;
+
+					const [row] = await sql`INSERT INTO inventory_movements (ingredient, kind, qty, note, actor_name, metadata) VALUES (${ingredient}, ${action}, ${signed}, ${note}, ${actor}, ${JSON.stringify(metadata)}::jsonb) RETURNING *`;
+					
+					// Si es un ingreso con precio, actualizar PMP
+					if (action === 'ingreso' && (totalCost > 0 || unitPrice > 0)) {
+						const priceToUse = unitPrice > 0 ? unitPrice : (totalCost / Math.abs(qty));
+						await updateIngredientPMP(ingredient, Math.abs(qty), priceToUse);
+					}
+
 					return json(row, 201);
+				}
+
+				if (action === 'compra') {
+					const { items, total_cost, note, date, receipt_base64, receipt_name } = data;
+					if (!items || !items.length || !total_cost || !date) return json({ error: 'Faltan campos requeridos (items, total, fecha)' }, 400);
+
+					const results = [];
+					const metadata = { total_cost: Number(total_cost), purchase_date: date, items_count: items.length };
+
+					// 1. Registro Contable único (Gasto total)
+					const accDesc = `Compra Multi: ${note || (items[0].ingredient + '...')}`;
+					const [accEntry] = await sql`INSERT INTO accounting_entries (kind, entry_date, description, amount_cents, actor_name) VALUES ('gasto', ${date}, ${accDesc}, ${Number(total_cost)}, ${actor}) RETURNING *`;
+					metadata.accounting_id = accEntry.id;
+
+					// 2. Procesar cada item
+					for (const it of items) {
+						const canon = canonicalizeIngredientName(it.ingredient);
+						await ensureInventoryItem(canon);
+						
+						// Movimiento individual para trazabilidad
+						const itemMeta = { total_cost: Number(it.price_cents || 0), purchase_date: date, accounting_id: accEntry.id };
+						const [invMov] = await sql`INSERT INTO inventory_movements (ingredient, kind, qty, note, actor_name, metadata) VALUES (${canon}, 'ingreso', ${Math.abs(it.qty)}, ${note || 'Parte de compra multi'}, ${actor}, ${JSON.stringify(itemMeta)}::jsonb) RETURNING id`;
+						
+						// Calcular precio unitario para PMP si se proporcionó precio por item, si no, prorratear o usar 0
+						const unitPrice = it.price_cents ? (Number(it.price_cents) / Math.abs(it.qty)) : 0;
+						if (unitPrice > 0) {
+							await updateIngredientPMP(canon, Math.abs(it.qty), unitPrice);
+						}
+						results.push({ ingredient: canon, movement_id: invMov.id });
+					}
+
+					// 3. Adjunto si existe
+					if (receipt_base64) {
+						await sql`INSERT INTO accounting_attachments (entry_id, file_base64, mime_type, file_name) VALUES (${accEntry.id}, ${receipt_base64}, 'image/jpeg', ${receipt_name || 'recibo.jpg'})`;
+					}
+
+					return json({ ok: true, accounting_id: accEntry.id, movements: results }, 201);
 				}
 
 				if (action === 'reset') {
@@ -221,6 +275,7 @@ export async function handler(event) {
 					}
 					return json({ ok: true, movements: out });
 				}
+
 				return json({ error: 'acción inválida' }, 400);
 			}
 			default:

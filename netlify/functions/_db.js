@@ -783,8 +783,8 @@ export async function ensureInventoryItem(ingredient, unit = 'g') {
 export async function recalculateAllDessertCosts() {
 	await ensureSchema();
 	const materials = await sql`SELECT lower(trim(ingredient)) as ing, price FROM inventory_items`;
-	const prices = new Map();
-	materials.forEach(m => prices.set(m.ing, Number(m.price || 0)));
+	const pricesMap = new Map();
+	materials.forEach(m => pricesMap.set(m.ing, Number(m.price || 0)));
 
 	const dessertsList = await sql`SELECT id, name, short_code FROM desserts`;
 	const recipes = await sql`SELECT id, dessert FROM dessert_recipes`;
@@ -799,12 +799,42 @@ export async function recalculateAllDessertCosts() {
 		const stepIds = dSteps.map(s => s.id);
 		const dItems = items.filter(i => stepIds.includes(i.recipe_id));
 		for (const it of dItems) {
-			const p = prices.get(it.ing) || 0;
+			const p = pricesMap.get(it.ing) || 0;
 			total += (p * Number(it.qty_per_unit || 0));
 		}
-		await sql`UPDATE desserts SET cost_price = ${Math.round(total)}, updated_at = now() WHERE id = ${d.id}`;
+		await sql`UPDATE desserts SET cost_price = ${total}, updated_at = now() WHERE id = ${d.id}`;
 	}
 	console.log('All dessert cost_prices recalculated.');
+}
+
+/**
+ * Calcula y actualiza el Precio Medio Ponderado (PMP) tras una compra.
+ * Formula: (Saldo Actual * Precio Actual + Cantidad Nueva * Precio Nuevo) / (Saldo Actual + Cantidad Nueva)
+ */
+export async function updateIngredientPMP(ingredientName, newQty, newUnitPrice) {
+	await ensureSchema();
+	const name = canonicalizeIngredientName(ingredientName);
+	if (!name) return null;
+
+	// 1. Obtener precio actual y saldo actual
+	const [item] = await sql`SELECT price FROM inventory_items WHERE lower(trim(ingredient)) = lower(trim(${name}))`;
+	const [movs] = await sql`SELECT SUM(qty)::numeric as balance FROM inventory_movements WHERE lower(trim(ingredient)) = lower(trim(${name}))`;
+	
+	const currentPrice = Number(item?.price || 0);
+	const currentBalance = Math.max(0, Number(movs?.balance || 0)); // No promediamos saldos negativos previos
+
+	const totalValue = (currentBalance * currentPrice) + (newQty * newUnitPrice);
+	const totalQty = currentBalance + newQty;
+
+	const newPMP = totalQty > 0 ? (totalValue / totalQty) : newUnitPrice;
+
+	// 2. Actualizar inventory_items
+	await sql`UPDATE inventory_items SET price = ${newPMP}, updated_at = now() WHERE lower(trim(ingredient)) = lower(trim(${name}))`;
+
+	// 3. Recalcular costos de postres
+	await recalculateAllDessertCosts();
+
+	return newPMP;
 }
 
 export { sql };

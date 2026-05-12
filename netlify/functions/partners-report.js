@@ -15,8 +15,15 @@ export async function handler(event) {
         if (forceSync) await sql`DELETE FROM financial_snapshots`;
 
         // 1. Get Settings (Added Founder settings and Generic historic overrides)
-        const settingsRows = await sql`SELECT key, value FROM store_settings WHERE key IN ('partner_seller_ids', 'provision_default_perc', 'partner_founders', 'partner_distribution_model') OR key LIKE 'historic_%'`;
-        const settings = { partner_seller_ids: [], provision_default_perc: 3, partner_founders: {}, partner_distribution_model: 'pro' };
+        const settingsRows = await sql`SELECT key, value FROM store_settings WHERE key IN ('partner_seller_ids', 'provision_default_perc', 'partner_founders', 'partner_distribution_model', 'triple_w1', 'triple_w2', 'triple_w3', 'triple_months') OR key LIKE 'historic_%'`;
+        const settings = { 
+            partner_seller_ids: [], 
+            provision_default_perc: 3, 
+            partner_founders: {}, 
+            partner_distribution_model: 'pro',
+            triple_w1: 33.33, triple_w2: 33.33, triple_w3: 33.34,
+            triple_months: 4
+        };
         for (const r of settingsRows) {
             if (r.key === 'partner_seller_ids') {
                 try { settings.partner_seller_ids = JSON.parse(r.value); } catch { settings.partner_seller_ids = []; }
@@ -26,6 +33,10 @@ export async function handler(event) {
                 try { settings.partner_founders = JSON.parse(r.value); } catch { settings.partner_founders = {}; }
             } else if (r.key === 'partner_distribution_model') {
                 settings.partner_distribution_model = r.value || 'pro';
+            } else if (r.key === 'triple_months') {
+                settings.triple_months = Number(r.value) || 4;
+            } else if (r.key.startsWith('triple_w')) {
+                settings[r.key] = Number(r.value);
             } else {
                 settings[r.key] = r.value;
             }
@@ -77,7 +88,7 @@ export async function handler(event) {
             currentProcessMonth = m;
             let monthData = null;
 
-            if (snapshotsMap[m] && m !== currentMonth && !forceSync) {
+            if (snapshotsMap[m] && m !== currentMonth && !forceSync && snapshotsMap[m].expense_detail) {
                 monthData = snapshotsMap[m];
             }
             
@@ -90,15 +101,17 @@ export async function handler(event) {
             let inventory = monthData?.inventory || 0;
             let product_detail = monthData?.product_detail || [];
             let revenue_detail = monthData?.revenue_detail || [];
+            let expense_detail = monthData?.expense_detail || [];
 
             if (!monthData || forceSync || m === currentMonth) {
-                let revenueRows, cogsRows, accRows, productRows;
+                let revenueRows, cogsRows, accRows, productRows, expenseRows;
                 try {
-                    [revenueRows, cogsRows, accRows, productRows] = await Promise.all([
+                    [revenueRows, cogsRows, accRows, productRows, expenseRows] = await Promise.all([
                         sql`SELECT s.seller_id, sd.day as date, SUM(s.total_cents) as revenue FROM sales s JOIN sale_days sd ON sd.id = s.sale_day_id WHERE to_char(sd.day, 'YYYY-MM') = ${m} GROUP BY s.seller_id, sd.day ORDER BY sd.day ASC`,
                         sql`SELECT s.seller_id, SUM(si.quantity * d.cost_price) as cogs FROM sale_items si JOIN sales s ON s.id = si.sale_id JOIN sale_days sd ON sd.id = s.sale_day_id JOIN desserts d ON d.id = si.dessert_id WHERE to_char(sd.day, 'YYYY-MM') = ${m} GROUP BY s.seller_id`,
                         sql`SELECT kind, SUM(amount_cents) as total FROM accounting_entries WHERE to_char(entry_date, 'YYYY-MM') = ${m} GROUP BY kind`,
-                        sql`SELECT s.seller_id, CASE WHEN si.id IS NULL THEN 'Registros Antiguos' ELSE COALESCE(d.name, 'Otro') END as product_name, SUM(COALESCE(si.quantity, 0)) as quantity, SUM(COALESCE(si.quantity * si.unit_price, s.total_cents)) as revenue, SUM(COALESCE(si.quantity * d.cost_price, 0)) as cogs FROM sales s JOIN sale_days sd ON sd.id = s.sale_day_id LEFT JOIN sale_items si ON s.id = si.sale_id LEFT JOIN desserts d ON d.id = si.dessert_id WHERE to_char(sd.day, 'YYYY-MM') = ${m} GROUP BY s.seller_id, CASE WHEN si.id IS NULL THEN 'Registros Antiguos' ELSE COALESCE(d.name, 'Otro') END ORDER BY revenue DESC`
+                        sql`SELECT s.seller_id, CASE WHEN si.id IS NULL THEN 'Registros Antiguos' ELSE COALESCE(d.name, 'Otro') END as product_name, SUM(COALESCE(si.quantity, 0)) as quantity, SUM(COALESCE(si.quantity * si.unit_price, s.total_cents)) as revenue, SUM(COALESCE(si.quantity * d.cost_price, 0)) as cogs FROM sales s JOIN sale_days sd ON sd.id = s.sale_day_id LEFT JOIN sale_items si ON s.id = si.sale_id LEFT JOIN desserts d ON d.id = si.dessert_id WHERE to_char(sd.day, 'YYYY-MM') = ${m} GROUP BY s.seller_id, CASE WHEN si.id IS NULL THEN 'Registros Antiguos' ELSE COALESCE(d.name, 'Otro') END ORDER BY revenue DESC`,
+                        sql`SELECT e.id, e.entry_date, e.description, e.amount_cents, (SELECT json_agg(t.*) FROM accounting_tags t JOIN accounting_entry_tags et ON et.tag_id = t.id WHERE et.entry_id = e.id) as tags FROM accounting_entries e WHERE to_char(entry_date, 'YYYY-MM') = ${m} AND kind = 'gasto' ORDER BY entry_date ASC`
                     ]);
                 } catch (sqlErr) {
                     return { statusCode: 500, body: JSON.stringify({ error: "DB Fetch Error", details: sqlErr.message }) };
@@ -150,6 +163,14 @@ export async function handler(event) {
                     });
                 });
                 product_detail = Object.values(groupedProducts).filter(r => r.total_revenue > 0).sort((a,b) => b.total_revenue - a.total_revenue);
+                
+                expense_detail = (expenseRows || []).map(r => ({
+                    id: r.id,
+                    date: r.entry_date instanceof Date ? r.entry_date.toISOString().split('T')[0] : String(r.entry_date).split('T')[0],
+                    description: r.description,
+                    amount: Math.round(Number(r.amount_cents || 0)),
+                    tags: r.tags || []
+                }));
             } else {
                 // If cached, we still need to update cumulative tracking state for the next month
                 if (monthData.cumulative_desserts) {
@@ -285,46 +306,52 @@ export async function handler(event) {
             let curM = {};
             partnerIds.forEach(pid => {
                 curM[pid] = totalMonthPartnerSales > 0 ? (monthCumulToAdd[pid] || 0) / totalMonthPartnerSales : 0;
-                if (!partnerRollingM[pid]) partnerRollingM[pid] = [];
-                partnerRollingM[pid].push(curM[pid]);
-                if (partnerRollingM[pid].length > 4) partnerRollingM[pid].shift();
+                if (partnerRollingM[pid] === undefined) partnerRollingM[pid] = [];
+                partnerRollingM[pid].push({ month: m, val: curM[pid] });
+                if (partnerRollingM[pid].length > (settings.triple_months || 4)) partnerRollingM[pid].shift();
             });
 
             let avgP = {};
             partnerIds.forEach(pid => {
                 let w = partnerRollingM[pid];
-                let sum = w.reduce((a, b) => a + b, 0);
+                let sum = w.reduce((a, b) => a + (typeof b === 'number' ? b : b.val), 0);
                 avgP[pid] = w.length > 0 ? sum / w.length : 0;
             });
 
             let rawF = {};
-            let sumF = 0;
+            const distModel = settings.partner_distribution_model || 'pro';
+            partnerIds.forEach(pid => {
+                const currentM = curM[pid] || 0;
+                
+                if (distModel === 'triple') {
+                    // MODELO TRIPLE HORIZONTE
+                    const p1 = currentM;
+                    const p2 = avgP[pid] || currentM;
+                    let totalCumul = 0;
+                    partnerIds.forEach(id => totalCumul += (lastCumulativeDesserts[id] || 0));
+                    const p3 = totalCumul > 0 ? (lastCumulativeDesserts[pid] || 0) / totalCumul : (1 / partnerIds.length);
 
-            if (settings.partner_distribution_model === 'historic') {
-                // MODELO HISTORICO SIMPLE (Acumulado Total)
-                let totalCumul = 0;
-                partnerIds.forEach(pid => totalCumul += (lastCumulativeDesserts[pid] || 0));
-                partnerIds.forEach(pid => {
-                    let finalP = totalCumul > 0 ? (lastCumulativeDesserts[pid] || 0) / totalCumul : (1 / partnerIds.length);
-                    rawF[pid] = finalP;
-                    sumF += finalP;
-                });
-            } else {
-                // MODELO PRO (EMA - Exponential Moving Average)
-                partnerIds.forEach(pid => {
-                    if (partnerHistoryH[pid] === undefined) partnerHistoryH[pid] = curM[pid]; // Day 0 Fix
+                    const w1 = Number(settings.triple_w1 || 33.33) / 100;
+                    const w2 = Number(settings.triple_w2 || 33.33) / 100;
+                    const w3 = Number(settings.triple_w3 || 33.34) / 100;
+                    rawF[pid] = (p1 * w1) + (p2 * w2) + (p3 * w3);
+                } else if (distModel === 'historic') {
+                    // MODELO HISTORICO SIMPLE (Acumulado Total)
+                    let totalCumul = 0;
+                    partnerIds.forEach(id => totalCumul += (lastCumulativeDesserts[id] || 0));
+                    rawF[pid] = totalCumul > 0 ? (lastCumulativeDesserts[pid] || 0) / totalCumul : (1 / partnerIds.length);
+                } else {
+                    // MODELO PRO (EMA - Exponential Moving Average)
+                    if (partnerHistoryH[pid] === undefined) partnerHistoryH[pid] = currentM; 
                     let newH = (partnerHistoryH[pid] * 0.5) + (avgP[pid] * 0.5);
                     partnerHistoryH[pid] = newH;
-                    let finalP = (newH * 0.5) + (curM[pid] * 0.5);
-                    rawF[pid] = finalP;
-                    sumF += finalP;
-                });
-            }
-
-            let normalizedF = {};
-            partnerIds.forEach(pid => {
-                normalizedF[pid] = sumF > 0 ? rawF[pid] / sumF : (1 / partnerIds.length);
+                    rawF[pid] = (newH * 0.5) + (currentM * 0.5);
+                }
             });
+
+            const sumF = Object.values(rawF).reduce((a,b) => a+b, 0) || 1;
+            const normalizedF = {};
+            partnerIds.forEach(pid => normalizedF[pid] = rawF[pid] / sumF);
 
             let totalFoundersFixed = 0;
             partnerIds.forEach(pid => {
@@ -334,6 +361,7 @@ export async function handler(event) {
             });
             const meritPool = netToShare - totalFoundersFixed;
 
+            const totalCumulGlobal = Object.values(lastCumulativeDesserts).reduce((a,b) => a+b, 0);
             const partnerShares = partnerIds.map(pid => {
                 const meritPerc = normalizedF[pid];
                 let shareAmount = Math.round(meritPool * meritPerc);
@@ -341,11 +369,24 @@ export async function handler(event) {
                     shareAmount += Math.round(Math.max(0, netToShare) * (Number(founders[pid]) / 100));
                 }
                 const finalPerc = netToShare > 0 ? (shareAmount / netToShare) * 100 : 0;
+                const founderFixed = founders[pid] ? Number(founders[pid]) : 0;
+                const globalHPerc = totalCumulGlobal > 0 ? (lastCumulativeDesserts[pid] || 0) / totalCumulGlobal : 0;
+                
                 return {
                     id: pid, name: sellerMap[pid] || `Socio ${pid}`, 
                     share_perc: Number(finalPerc.toFixed(2)),
                     share_amount: Math.round(shareAmount),
-                    metrics_debug: { M: curM[pid] || 0, P: avgP[pid] || 0, H: partnerHistoryH[pid] || 0, F: normalizedF[pid] || 0, desserts: monthCumulToAdd[pid] || 0 }
+                    founder_fixed_perc: founderFixed,
+                    metrics_debug: { 
+                        M: curM[pid] || 0, 
+                        P: avgP[pid] || 0, 
+                        H: partnerHistoryH[pid] || 0, 
+                        F: normalizedF[pid] || 0, 
+                        H_global: globalHPerc,
+                        desserts: monthCumulToAdd[pid] || 0,
+                        cumulative_total: lastCumulativeDesserts[pid] || 0,
+                        rolling_M: [...(partnerRollingM[pid] || [])]
+                    }
                 };
             });
 
@@ -353,10 +394,11 @@ export async function handler(event) {
             monthData = {
                 month: m, revenue, cogs, expenses, losses, inventory, commissions: calculatedCommissionsTotal, 
                 total_desserts: totalMonthDesserts, total_brigs: totalMonthBrigs, mod: modCents,
-                profit: opProfit, provision, net_to_share: netToShare,
+                profit: opProfit, provision, net_to_share: netToShare, merit_pool: meritPool,
                 partners: partnerShares, commission_detail: commissionDetail,
-                product_detail, revenue_detail,
-                cumulative_desserts: { ...lastCumulativeDesserts }
+                product_detail, revenue_detail, expense_detail,
+                cumulative_desserts: { ...lastCumulativeDesserts },
+                total_cumulative_desserts: totalCumulGlobal
             };
 
             if (m < currentMonth && (!snapshotsMap[m] || forceSync)) {
