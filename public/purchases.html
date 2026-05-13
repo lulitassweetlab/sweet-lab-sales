@@ -5,6 +5,9 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
 	<title>Compras e Inventario</title>
 	<link rel="stylesheet" href="/styles.css?v=2025-09-17-1" />
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+	<script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+	<script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
 	<style>
 		:root { 
 			--p-mod: #6366f1; 
@@ -93,7 +96,7 @@
 				<div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
 					<div class="field">
 						<label>Foto del Recibo</label>
-						<input type="file" id="p-receipt" accept="image/*" />
+						<input type="file" id="p-receipt" accept="image/*,application/pdf,.heic" />
 					</div>
 					<div class="field">
 						<label>Total de la Compra ($)</label>
@@ -225,30 +228,63 @@
 		};
 
 		async function compressImage(file) {
-			return new Promise((resolve) => {
-				const reader = new FileReader();
-				reader.onload = (e) => {
-					const img = new Image();
-					img.onload = () => {
-						const canvas = document.createElement('canvas');
-						let width = img.width, height = img.height;
-						if (width > 1200) { height *= 1200 / width; width = 1200; }
-						canvas.width = width; canvas.height = height;
-						canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-						resolve(canvas.toDataURL('image/jpeg', 0.8));
+			try {
+				let fileToProcess = file;
+				
+				// Handle HEIC
+				if (file.type === 'image/heic' || file.name.toLowerCase().endsWith('.heic')) {
+					const convertedBlob = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.8 });
+					fileToProcess = Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob;
+				}
+				
+				// Handle PDF
+				if (fileToProcess.type === 'application/pdf' || fileToProcess.name.toLowerCase().endsWith('.pdf')) {
+					const arrayBuffer = await fileToProcess.arrayBuffer();
+					const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+					const page = await pdf.getPage(1);
+					
+					// Render at scale 1.5 for good quality
+					const viewport = page.getViewport({ scale: 1.5 });
+					const canvas = document.createElement('canvas');
+					canvas.width = viewport.width;
+					canvas.height = viewport.height;
+					
+					await page.render({ canvasContext: canvas.getContext('2d'), viewport: viewport }).promise;
+					
+					// Return scaled JPEG directly from canvas
+					return canvas.toDataURL('image/jpeg', 0.8);
+				}
+				
+				// Handle normal images (JPG/PNG/etc)
+				return new Promise((resolve) => {
+					const reader = new FileReader();
+					reader.onload = (e) => {
+						const img = new Image();
+						img.onload = () => {
+							const canvas = document.createElement('canvas');
+							let width = img.width, height = img.height;
+							if (width > 1200) { height *= 1200 / width; width = 1200; }
+							canvas.width = width; canvas.height = height;
+							canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+							resolve(canvas.toDataURL('image/jpeg', 0.8));
+						};
+						img.onerror = () => {
+							alert("El archivo seleccionado no es una imagen válida o está dañado. Se guardará sin recibo.");
+							resolve(null);
+						};
+						img.src = e.target.result;
 					};
-					img.onerror = () => {
-						alert("El archivo seleccionado no es una imagen válida o está dañado. Se guardará sin recibo.");
+					reader.onerror = () => {
+						alert("No se pudo leer el archivo. Se guardará sin recibo.");
 						resolve(null);
 					};
-					img.src = e.target.result;
-				};
-				reader.onerror = () => {
-					alert("No se pudo leer el archivo. Se guardará sin recibo.");
-					resolve(null);
-				};
-				reader.readAsDataURL(file);
-			});
+					reader.readAsDataURL(fileToProcess);
+				});
+			} catch (err) {
+				console.error("Error comprimiendo archivo:", err);
+				alert("Hubo un problema al procesar el archivo. Se guardará sin recibo.");
+				return null;
+			}
 		}
 
 		document.getElementById('purchase-form').onsubmit = async (e) => {
@@ -275,8 +311,10 @@
 
 			const fileInput = document.getElementById('p-receipt');
 			if (fileInput.files[0]) {
+				btn.innerText = 'Procesando archivo...';
 				payload.receipt_base64 = await compressImage(fileInput.files[0]);
 				payload.receipt_name = fileInput.files[0].name;
+				btn.innerText = 'Guardando...';
 			}
 
 			try {
