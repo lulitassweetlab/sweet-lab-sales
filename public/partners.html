@@ -221,7 +221,10 @@
 
         window.showExpenseDetails = (month, ev) => {
             if (ev.target.tagName.toLowerCase() === 'input' || ev.target.tagName.toLowerCase() === 'button') return;
-            const details = window.expenseDetailsMap[month] || [];
+            let details = window.expenseDetailsMap[month] || [];
+            // Filter out 'Insumos' from the details shown here
+            details = details.filter(d => !(d.tags || []).some(t => t.name.toLowerCase() === 'insumos'));
+            
             const dataForMonth = DATA.history.find(h => h.month === month);
             const finalTotal = dataForMonth ? dataForMonth.expenses : 0;
             const realSum = details.reduce((a, b) => a + b.amount, 0);
@@ -758,7 +761,7 @@
                                 <div class="fin-item" onclick="showRevenueDetails('${m.month}', event)" style="cursor:pointer;"><span class="fin-label" style="text-decoration:underline; text-decoration-style:dashed;">Ventas (Ingresos)</span><span class="fin-val"><span class="hist-text-${m.month}">${fmt.format(m.revenue || 0)}</span><input type="number" class="hist-g-input-${m.month}" data-key="revenue" value="${m.revenue}" style="display:none; width:80px; text-align:right;"></span></div>
                                 <div class="fin-item" onclick="showProductDetails('${m.month}', event)" style="cursor:pointer;"><span class="fin-label" style="text-decoration:underline; text-decoration-style:dashed;">Costo Materia Prima</span><span class="fin-val neg"><span class="hist-text-${m.month}">-${fmt.format(m.cogs || 0)}</span><input type="number" class="hist-g-input-${m.month}" data-key="cogs" value="${m.cogs}" style="display:none; width:80px; text-align:right;"></span></div>
                                 <div class="fin-item"><span class="fin-label">Mano de Obra (MOD)</span><span class="fin-val neg"><span class="hist-text-${m.month}">-${fmt.format(m.mod || 0)}</span><input type="number" class="hist-g-input-${m.month}" data-key="mod" value="${m.mod||0}" style="display:none; width:80px; text-align:right;"></span></div>
-                                <div class="fin-item" onclick="showExpenseDetails('${m.month}', event)" style="cursor:pointer;"><span class="fin-label" style="text-decoration:underline; text-decoration-style:dashed;">Gastos Operativos</span><span class="fin-val neg"><span class="hist-text-${m.month}">-${fmt.format(m.expenses || 0)}</span><input type="number" class="hist-g-input-${m.month}" data-key="expenses" value="${m.expenses}" style="display:none; width:80px; text-align:right;"></span></div>
+                                <div class="fin-item" onclick="showExpenseDetails('${m.month}', event)" style="cursor:pointer;"><span class="fin-label" style="text-decoration:underline; text-decoration-style:dashed;">Gastos</span><span class="fin-val neg"><span class="hist-text-${m.month}">-${fmt.format(m.expenses || 0)}</span><input type="number" class="hist-g-input-${m.month}" data-key="expenses" value="${m.expenses}" style="display:none; width:80px; text-align:right;"></span></div>
                                 <div class="fin-item"><span class="fin-label">Ajustes</span><span class="fin-val neg"><span class="hist-text-${m.month}">-${fmt.format(m.losses || 0)}</span><input type="number" class="hist-g-input-${m.month}" data-key="losses" value="${m.losses}" style="display:none; width:80px; text-align:right;"></span></div>
                                 <div class="fin-item" style="border-top: 1px dashed #cbd5e1; margin-top: 8px; padding-top: 12px;">
                                     <span class="fin-label" style="color:var(--p-mod)">Inversión en Inventario</span>
