@@ -851,11 +851,11 @@
 
                                 <div style="margin-top:12px; padding:16px; background:#f8fafc; border-radius:18px; border:1px solid #e2e8f0">
                                     <div class="fin-item" onclick="showPurchaseDetails('${m.month}', event)" style="cursor:pointer; border:none; padding:4px 0;">
-                                        <span class="fin-label" style="text-decoration:underline; text-decoration-style:dashed; color:#4f46e5;">🛒 Compras del Mes</span>
+                                        <span class="fin-label" style="text-decoration:underline; text-decoration-style:dashed; color:#4f46e5;">Compras del Mes</span>
                                         <span class="fin-val" style="color:#4f46e5">${fmt.format(m.inventory_detail?.reduce((a,b)=>a+b.value,0) || 0)}</span>
                                     </div>
                                     <div class="fin-item" onclick="showInventoryDetails('${m.month}', event)" style="cursor:pointer; border:none; padding:4px 0;">
-                                        <span class="fin-label" style="text-decoration:underline; text-decoration-style:dashed; color:#1e293b;">📦 Inventario (Cierre)</span>
+                                        <span class="fin-label" style="text-decoration:underline; text-decoration-style:dashed; color:#1e293b;">Inventario (Cierre)</span>
                                         <span class="fin-val" style="color:#1e293b">${fmt.format(m.inventory || 0)}</span>
                                     </div>
                                 </div>
