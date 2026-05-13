@@ -14,11 +14,16 @@ export async function handler(event) {
 		if (!file_base64) return json({ error: 'Missing file_base64' }, 400);
 
 		const apiKey = process.env.GEMINI_API_KEY;
-		if (!apiKey) return json({ error: 'GEMINI_API_KEY not configured. Please add it to your environment variables.' }, 500);
+		if (!apiKey) {
+			console.error('ERROR: GEMINI_API_KEY no encontrada en process.env');
+			return json({ error: 'GEMINI_API_KEY no configurada en Netlify.' }, 500);
+		}
 
 		// Extract base64 content
 		const base64Data = file_base64.split(',')[1] || file_base64;
 		const mimeType = file_base64.split(';')[0].split(':')[1] || 'image/jpeg';
+		
+		console.log('Iniciando análisis con Gemini. MIME:', mimeType);
 
 		const prompt = `Analiza este recibo de compra. Extrae una lista de productos en formato JSON. 
 		Para cada producto incluye: "name" (nombre del producto como aparece en el recibo), "qty" (cantidad numérica), "total" (precio total de esa línea de productos).
