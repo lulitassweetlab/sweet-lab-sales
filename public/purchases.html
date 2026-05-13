@@ -28,8 +28,8 @@
 		th { text-align: left; padding: 16px; border-bottom: 2px solid var(--bg); color: #64748b; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; }
 		td { padding: 16px; border-bottom: 1px solid var(--bg); font-size: 0.95rem; }
 		
-		.attach-btn { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--border); background: transparent; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
-		.attach-btn.has { background: #10b981; color: white; border-color: #10b981; }
+		.attach-btn { width: auto; height: auto; border: none; background: transparent; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.2rem; padding: 4px; }
+		.attach-btn.has { background: transparent; color: inherit; }
 		
 		.popover-wrap { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15,23,42,0.6); backdrop-filter: blur(8px); z-index: 6000; display: flex; align-items: center; justify-content: center; padding: 20px; }
 		.popover-c { background: white; padding: 32px; border-radius: 28px; width: 100%; max-width: 550px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); max-height: 90vh; overflow-y: auto; }
@@ -41,7 +41,7 @@
 		
 		.item-row { display: grid; grid-template-columns: 2fr 1fr 1fr 40px; gap: 12px; align-items: end; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px dashed var(--border); }
 		.btn-add-item { background: #f1f5f9; border: 1px dashed #cbd5e1; width: 100%; padding: 10px; border-radius: 12px; color: #64748b; font-weight: 600; cursor: pointer; margin-bottom: 20px; }
-		.btn-del-item { background: none; border: none; color: #ef4444; font-size: 1.2rem; cursor: pointer; padding-bottom: 10px; }
+		.btn-del-item { background: none; border: none; color: #ef4444; font-size: 1.1rem; cursor: pointer; padding: 4px; display: inline-flex; align-items: center; justify-content: center; }
 		
 		/* Custom Suggestions Styling */
 		.suggestions-list {
@@ -380,10 +380,10 @@
 							<td style="font-size:0.8rem; color:#64748b;">${g.items.join(', ')}</td>
 							<td style="text-align:right; font-weight:800; color:#10b981;">${fmt.format(g.total)}</td>
 							<td style="text-align:center;">
-								<div style="display:flex; gap:8px; justify-content:center; align-items:center;">
-									<button class="attach-btn has" onclick="viewReceipt(${aid})" title="Ver Recibo" style="margin:0; padding:6px 10px;">📄</button>
-									<button class="attach-btn" style="background:#fef9c3; color:#a16207; border-color:#fef08a; margin:0; padding:6px 10px;" onclick="editPurchase(${aid})" title="Editar Compra">✏️</button>
-									<button class="btn-del-item" style="padding:6px 10px; font-size:0.8rem; margin:0; display:flex; align-items:center; justify-content:center; width:34px; height:34px;" onclick="deletePurchase(${aid})" title="Eliminar Compra">✕</button>
+								<div style="display:flex; gap:12px; justify-content:center; align-items:center;">
+									<button class="attach-btn has" onclick="viewReceipt(${aid})" title="Ver Recibo">📄</button>
+									<button class="attach-btn" onclick="editPurchase(${aid})" title="Editar Compra">✏️</button>
+									<button class="btn-del-item" onclick="deletePurchase(${aid})" title="Eliminar Compra">✕</button>
 								</div>
 							</td>
 						</tr>
