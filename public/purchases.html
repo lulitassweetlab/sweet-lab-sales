@@ -308,12 +308,22 @@
 		};
 
 		async function load(isInitialLoad = false) {
+			const tbody = document.getElementById('purchases-tbody');
 			try {
-				inventory = await fetchJSON('/api/inventory');
-				window.inventoryConversions = await fetchJSON('/api/inventory?action=get_conversions');
-				window.inventoryAliases = await fetchJSON('/api/inventory?action=get_aliases');
-				
-				// Ordenar inventario: ingredientes -> empaques -> otros
+				// 1. Cargar datos maestros (con fallback por si fallan)
+				try {
+					inventory = await fetchJSON('/api/inventory') || [];
+				} catch(e) { console.warn("Inventory fail", e); inventory = []; }
+
+				try {
+					window.inventoryConversions = await fetchJSON('/api/inventory?action=get_conversions') || [];
+				} catch(e) { console.warn("Conversions fail", e); window.inventoryConversions = []; }
+
+				try {
+					window.inventoryAliases = await fetchJSON('/api/inventory?action=get_aliases') || [];
+				} catch(e) { console.warn("Aliases fail", e); window.inventoryAliases = []; }
+
+				// Ordenar inventario
 				const catOrder = { 'ingrediente': 1, 'empaque': 2, 'otros': 3 };
 				inventory.sort((a, b) => {
 					const oa = catOrder[a.category] || 99;
@@ -322,33 +332,35 @@
 					return (a.ingredient || '').localeCompare(b.ingredient || '');
 				});
 				
-				// Cargar historial
-				const movs = await fetchJSON('/api/inventory?history_all=1');
-				if (!Array.isArray(movs)) throw new Error("El historial no es una lista válida");
-
-				// Agrupar por accounting_id para mostrar la compra "completa"
-				const grouped = new Map();
-				movs.filter(m => m.kind === 'ingreso' && m.metadata && m.metadata.accounting_id).forEach(m => {
-					const aid = m.metadata.accounting_id;
-					if (!grouped.has(aid)) {
-						grouped.set(aid, { 
-							date: m.created_at || new Date().toISOString(), 
-							note: m.note || '', 
-							items: [], 
-							total: 0 
-						});
-					}
-					const g = grouped.get(aid);
-					g.items.push(`${m.ingredient} (${m.qty})`);
-					g.total += Number(m.metadata.total_cost || 0);
-				});
+				// 2. Cargar historial de movimientos
+				const movs = await fetchJSON('/api/inventory?history_all=1') || [];
 				
-				const tbody = document.getElementById('purchases-tbody');
+				// Agrupar por accounting_id
+				const grouped = new Map();
+				if (Array.isArray(movs)) {
+					movs.forEach(m => {
+						if (m.kind === 'ingreso' && m.metadata && m.metadata.accounting_id) {
+							const aid = m.metadata.accounting_id;
+							if (!grouped.has(aid)) {
+								grouped.set(aid, { 
+									date: m.created_at || new Date().toISOString(), 
+									note: m.note || '', 
+									items: [], 
+									total: 0 
+								});
+							}
+							const g = grouped.get(aid);
+							g.items.push(`${m.ingredient} (${m.qty})`);
+							g.total += Number(m.metadata.total_cost || 0);
+						}
+					});
+				}
+				
 				if (grouped.size === 0) {
 					tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:40px; color:#94a3b8;">No hay compras registradas.</td></tr>';
 				} else {
 					tbody.innerHTML = Array.from(grouped.entries())
-						.sort((a,b) => Number(b[0]) - Number(a[0])) // Ordenar por ID contable descendente
+						.sort((a,b) => Number(b[0]) - Number(a[0]))
 						.map(([aid, g]) => `
 						<tr>
 							<td style="color:#64748b; font-size:0.85rem;">${(g.date || '').slice(0,10)}</td>
@@ -365,14 +377,13 @@
 					`).join('');
 				}
 
-				// AUTO-OPEN solo si es primera carga
 				if (isInitialLoad && document.getElementById('items-container').children.length === 0) {
 					document.getElementById('new-purchase-btn').click();
 				}
 
 			} catch (e) { 
-				console.error(e); 
-				document.getElementById('purchases-tbody').innerHTML = `<tr><td colspan="6" style="text-align:center; padding:40px; color:#ef4444;">❌ Error al cargar historial: ${e.message}</td></tr>`;
+				console.error("Critical load error:", e); 
+				tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:40px; color:#ef4444;">❌ Error al cargar historial: ${e.message}</td></tr>`;
 			}
 		}
 
