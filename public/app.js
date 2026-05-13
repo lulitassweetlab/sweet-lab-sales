@@ -6505,10 +6505,13 @@ async function renderInventoryView() {
 		convBtn.onclick = async (ev) => {
 			ev.stopPropagation();
 			const ingredients = await api('GET', API.Inventory);
-			const pop = document.createElement('div'); pop.className = 'confirm-popover aladdin-pop'; pop.style.position = 'fixed';
-			pop.style.left = '50%'; pop.style.top = '10%'; pop.style.transform = 'translate(-50%, 0)'; pop.style.width = 'min(95vw, 550px)'; pop.style.maxHeight = '80vh'; pop.style.overflowY = 'auto'; pop.style.padding = '24px'; pop.style.zIndex = '100000';
+			const pop = document.createElement('div'); pop.className = 'confirm-popover aladdin-pop'; pop.id = 'conversions-manager-pop';
+			pop.style.position = 'fixed'; pop.style.left = '50%'; pop.style.top = '10%'; pop.style.transform = 'translate(-50%, 0)';
+			pop.style.width = 'min(95vw, 550px)'; pop.style.maxHeight = '80vh'; pop.style.overflowY = 'auto'; pop.style.padding = '24px'; pop.style.zIndex = '100000';
 			
-			const renderConvList = async (container) => {
+			const renderConvList = async () => {
+				const container = pop.querySelector('#conv-list');
+				if (!container) return;
 				const convs = await api('GET', '/api/inventory?action=get_conversions');
 				container.innerHTML = `
 					<table style="width:100%; border-collapse:collapse; margin-top:15px">
@@ -6524,7 +6527,7 @@ async function renderInventoryView() {
 								<tr style="border-bottom:1px solid var(--border)">
 									<td style="padding:8px">${c.ingredient_name}</td>
 									<td style="padding:8px; text-align:right">x ${c.factor}</td>
-									<td style="padding:8px"><button class="btn-del-item" onclick="deleteConvMain(${c.id}, event)">✕</button></td>
+									<td style="padding:8px"><button class="btn-del-item" data-id="${c.id}" data-action="delete">✕</button></td>
 								</tr>
 							`).join('')}
 							${convs.length === 0 ? '<tr><td colspan="3" style="text-align:center; padding:20px; color:var(--muted)">No hay reglas creadas</td></tr>' : ''}
@@ -6539,13 +6542,6 @@ async function renderInventoryView() {
 			};
 			const outside = (e) => { if (!pop.contains(e.target)) cleanup(); };
 			setTimeout(() => document.addEventListener('mousedown', outside, true), 10);
-
-			window.deleteConvMain = async (id, e) => {
-				if(e) e.stopPropagation();
-				if(!confirm('¿Eliminar esta regla?')) return;
-				await api('POST', '/api/inventory', { action:'delete_conversion', id });
-				renderConvList(pop.querySelector('#conv-list'));
-			};
 
 			pop.innerHTML = `
 				<h3 style="margin-top:0; color:var(--primary)">Reglas de Conversión</h3>
@@ -6571,25 +6567,40 @@ async function renderInventoryView() {
 				<div id="conv-list"></div>
 
 				<div style="margin-top:20px; text-align:right">
-					<button id="close-conv-btn-main" class="press-btn">Cerrar</button>
+					<button id="close-conv-btn-main" class="press-btn" style="background:var(--border); color:var(--text)">Cerrar</button>
 				</div>
 			`;
 
-			document.body.appendChild(pop);
-			await renderConvList(pop.querySelector('#conv-list'));
-
-			pop.querySelector('#add-conv-btn-main').addEventListener('click', async (e) => {
+			pop.addEventListener('click', async (e) => {
 				e.stopPropagation();
-				const ingredient_name = pop.querySelector('#new-conv-ing').value;
-				const factor = Number(pop.querySelector('#new-conv-factor').value);
-				if(!ingredient_name || !factor) return notify.error('Completa los campos');
-				await api('POST', '/api/inventory', { action:'save_conversion', ingredient_name, factor });
-				pop.querySelector('#new-conv-factor').value = '';
-				renderConvList(pop.querySelector('#conv-list'));
-				notify.success('Regla guardada');
+				const target = e.target;
+
+				if (target.id === 'close-conv-btn-main') {
+					cleanup();
+				} else if (target.id === 'add-conv-btn-main') {
+					const ingredient_name = pop.querySelector('#new-conv-ing').value;
+					const factor = Number(pop.querySelector('#new-conv-factor').value);
+					if(!ingredient_name || !factor) return notify.error('Completa los campos');
+					target.disabled = true; target.textContent = '...';
+					try {
+						await api('POST', '/api/inventory', { action:'save_conversion', ingredient_name, factor });
+						pop.querySelector('#new-conv-factor').value = '';
+						await renderConvList();
+						notify.success('Guardado');
+					} catch(err) { notify.error('Error al guardar'); }
+					target.disabled = false; target.textContent = '+';
+				} else if (target.classList.contains('btn-del-item') && target.dataset.action === 'delete') {
+					if(!confirm('¿Eliminar esta regla?')) return;
+					const id = target.dataset.id;
+					try {
+						await api('POST', '/api/inventory', { action:'delete_conversion', id });
+						await renderConvList();
+					} catch(err) { notify.error('Error al eliminar'); }
+				}
 			});
 
-			pop.querySelector('#close-conv-btn-main').onclick = cleanup;
+			document.body.appendChild(pop);
+			await renderConvList();
 		};
 	}
 
