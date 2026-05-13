@@ -364,7 +364,7 @@
 							const aid = m.metadata.accounting_id;
 							if (!grouped.has(aid)) {
 								grouped.set(aid, { 
-									date: m.created_at || new Date().toISOString(), 
+									date: m.metadata.purchase_date || m.created_at || new Date().toISOString(), 
 									note: m.note || '', 
 									items: [], 
 									rawItems: [],
@@ -390,7 +390,7 @@
 					tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:40px; color:#94a3b8;">No hay compras registradas.</td></tr>';
 				} else {
 					tbody.innerHTML = Array.from(grouped.entries())
-						.sort((a,b) => Number(b[0]) - Number(a[0]))
+						.sort((a,b) => b[1].date.localeCompare(a[1].date))
 						.map(([aid, g]) => `
 						<tr>
 							<td style="color:#64748b; font-size:0.85rem;">${(g.date || '').slice(0,10)}</td>
