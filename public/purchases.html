@@ -111,6 +111,8 @@
 		</div>
 	</div>
 
+	<datalist id="inventory-list"></datalist>
+
 	<script type="module">
 		let inventory = [];
 		let currentUser = JSON.parse(localStorage.getItem('authUser') || '{}');
@@ -135,10 +137,7 @@
 			div.innerHTML = `
 				<div class="field" style="margin-bottom:0">
 					<label>Producto</label>
-					<select class="item-ingredient" required>
-						<option value="">Seleccione...</option>
-						${inventory.map(it => `<option value="${it.ingredient}">${it.ingredient} (${it.unit})</option>`).join('')}
-					</select>
+					<input type="text" class="item-ingredient" list="inventory-list" placeholder="Buscar..." required autocomplete="off">
 				</div>
 				<div class="field" style="margin-bottom:0">
 					<label>Cant.</label>
@@ -173,6 +172,20 @@
 		async function load(isInitialLoad = false) {
 			try {
 				inventory = await fetchJSON('/api/inventory');
+				
+				// Ordenar inventario: ingredientes -> empaques -> otros
+				const catOrder = { 'ingrediente': 1, 'empaque': 2, 'otros': 3 };
+				inventory.sort((a, b) => {
+					const oa = catOrder[a.category] || 99;
+					const ob = catOrder[b.category] || 99;
+					if (oa !== ob) return oa - ob;
+					return (a.ingredient || '').localeCompare(b.ingredient || '');
+				});
+
+				// Poblar datalist para búsqueda inteligente
+				document.getElementById('inventory-list').innerHTML = inventory.map(it => 
+					`<option value="${it.ingredient}">${it.ingredient} (${it.unit})</option>`
+				).join('');
 				
 				// Cargar historial
 				const movs = await fetchJSON('/api/inventory?history_all=1');
