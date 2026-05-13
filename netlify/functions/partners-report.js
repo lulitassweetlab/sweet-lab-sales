@@ -237,6 +237,7 @@ export async function handler(event) {
                     Object.keys(monthData.cumulative_sales).forEach(pid => { 
                         lastCumulativeDesserts[pid] = (lastCumulativeDesserts[pid] || 0) + Math.round(Number(monthData.cumulative_sales[pid] || 0) / 10000); 
                     });
+                }
             }
 
             // Calculate Inventory Investment (Monthly Change)
