@@ -240,9 +240,6 @@ export async function handler(event) {
                 }
             }
 
-            // Calculate Inventory Investment (Monthly Change)
-            const inventory_investment = inventory_value - (prev_inventory_value || 0);
-
             // 2. Calculate Real Commissions and MOD (ALWAYS)
             const commCalculatedRows = await sql`
                 WITH unpivoted AS (
@@ -350,6 +347,7 @@ export async function handler(event) {
 
 
             // 3. Final Profit Formula with Inventory Adjustment
+            const inventory_investment = inventory_value - (prev_inventory_value || 0);
             const opProfitBeforeInv = revenue - cogs - expenses - losses - calculatedCommissionsTotal - modCents;
             const opProfit = opProfitBeforeInv - inventory_investment;
             
