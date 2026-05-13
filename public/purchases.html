@@ -149,6 +149,10 @@
 			container.appendChild(div);
 		};
 
+		document.getElementById('purchase-popover').addEventListener('click', (e) => {
+			if (e.target.id === 'purchase-popover') closePopover();
+		});
+
 		window.calcTotal = () => {
 			let sum = 0;
 			document.querySelectorAll('.item-cost').forEach(el => sum += (Number(el.value) || 0));
@@ -162,7 +166,7 @@
 			document.getElementById('purchase-popover').style.display = 'flex';
 		};
 
-		async function load() {
+		async function load(isInitialLoad = false) {
 			try {
 				inventory = await fetchJSON('/api/inventory');
 				
@@ -195,8 +199,8 @@
 					`).join('');
 				}
 
-				// AUTO-OPEN si es primera vez o recarga
-				if (document.getElementById('items-container').children.length === 0) {
+				// AUTO-OPEN solo si es primera carga
+				if (isInitialLoad && document.getElementById('items-container').children.length === 0) {
 					document.getElementById('new-purchase-btn').click();
 				}
 
@@ -281,7 +285,7 @@
 			}
 		};
 
-		load();
+		load(true);
 	</script>
 </body>
 </html>
