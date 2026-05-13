@@ -86,7 +86,10 @@
 <body>
 	<div class="container">
 		<div class="hdr">
-			<button onclick="location.href='/'" class="back-btn">← Volver al inicio</button>
+			<div class="header-left">
+				<button class="back-btn" onclick="location.href='/'">← Volver</button>
+				<button class="back-btn" style="margin-left:8px; border-color:var(--p-mod); color:var(--p-mod);" onclick="location.href='/accounting.html'">📊 Contabilidad</button>
+			</div>
 			<h1>📦 Gestión de Compras</h1>
 			<button id="new-purchase-btn" class="add-btn">+ Nueva Compra</button>
 		</div>
