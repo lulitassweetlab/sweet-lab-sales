@@ -216,12 +216,16 @@ export async function handler(event) {
 					await ensureInventoryItem(ingredient, unit);
 					const signed = action === 'ingreso' ? Math.abs(qty) : qty;
 					
-					// Guardar metadata extendida si hay costos
 					const metadata = data.metadata && typeof data.metadata === 'object' ? data.metadata : {};
 					if (totalCost > 0) metadata.total_cost = totalCost;
 					if (unitPrice > 0) metadata.unit_price = unitPrice;
 
-					const [row] = await sql`INSERT INTO inventory_movements (ingredient, kind, qty, note, actor_name, metadata) VALUES (${ingredient}, ${action}, ${signed}, ${note}, ${actor}, ${JSON.stringify(metadata)}::jsonb) RETURNING *`;
+					const movementDate = data.date || null;
+					const [row] = await sql`
+						INSERT INTO inventory_movements (ingredient, kind, qty, note, actor_name, metadata, created_at) 
+						VALUES (${ingredient}, ${action}, ${signed}, ${note}, ${actor}, ${JSON.stringify(metadata)}::jsonb, COALESCE(${movementDate}::timestamptz, now())) 
+						RETURNING *
+					`;
 					
 					// Si es un ingreso con precio, actualizar PMP
 					if (action === 'ingreso' && (totalCost > 0 || unitPrice > 0)) {
@@ -251,7 +255,11 @@ export async function handler(event) {
 						
 						// Movimiento individual para trazabilidad
 						const itemMeta = { total_cost: Number(it.price_cents || 0), purchase_date: date, accounting_id: accEntry.id };
-						const [invMov] = await sql`INSERT INTO inventory_movements (ingredient, kind, qty, note, actor_name, metadata) VALUES (${canon}, 'ingreso', ${Math.abs(it.qty)}, ${note || 'Parte de compra multi'}, ${actor}, ${JSON.stringify(itemMeta)}::jsonb) RETURNING id`;
+						const [invMov] = await sql`
+							INSERT INTO inventory_movements (ingredient, kind, qty, note, actor_name, metadata, created_at) 
+							VALUES (${canon}, 'ingreso', ${Math.abs(it.qty)}, ${note || 'Parte de compra multi'}, ${actor}, ${JSON.stringify(itemMeta)}::jsonb, ${date}) 
+							RETURNING id
+						`;
 						
 						// Calcular precio unitario para PMP si se proporcionó precio por item, si no, prorratear o usar 0
 						const unitPrice = it.price_cents ? (Number(it.price_cents) / Math.abs(it.qty)) : 0;
