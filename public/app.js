@@ -6502,7 +6502,8 @@ async function renderInventoryView() {
 	
 	const convBtn = document.getElementById('inventory-conversions-btn');
 	if (convBtn) {
-		convBtn.onclick = async () => {
+		convBtn.onclick = async (ev) => {
+			ev.stopPropagation();
 			const ingredients = await api('GET', API.Inventory);
 			const pop = document.createElement('div'); pop.className = 'confirm-popover aladdin-pop'; pop.style.position = 'fixed';
 			pop.style.left = '50%'; pop.style.top = '10%'; pop.style.transform = 'translate(-50%, 0)'; pop.style.width = 'min(95vw, 550px)'; pop.style.maxHeight = '80vh'; pop.style.overflowY = 'auto'; pop.style.padding = '24px'; pop.style.zIndex = '100000';
@@ -6523,7 +6524,7 @@ async function renderInventoryView() {
 								<tr style="border-bottom:1px solid var(--border)">
 									<td style="padding:8px">${c.ingredient_name}</td>
 									<td style="padding:8px; text-align:right">x ${c.factor}</td>
-									<td style="padding:8px"><button class="btn-del-item" onclick="deleteConvMain(${c.id})">✕</button></td>
+									<td style="padding:8px"><button class="btn-del-item" onclick="deleteConvMain(${c.id}, event)">✕</button></td>
 								</tr>
 							`).join('')}
 							${convs.length === 0 ? '<tr><td colspan="3" style="text-align:center; padding:20px; color:var(--muted)">No hay reglas creadas</td></tr>' : ''}
@@ -6532,7 +6533,15 @@ async function renderInventoryView() {
 				`;
 			};
 
-			window.deleteConvMain = async (id) => {
+			const cleanup = () => {
+				document.removeEventListener('mousedown', outside, true);
+				if (pop.parentNode) pop.parentNode.removeChild(pop);
+			};
+			const outside = (e) => { if (!pop.contains(e.target)) cleanup(); };
+			setTimeout(() => document.addEventListener('mousedown', outside, true), 10);
+
+			window.deleteConvMain = async (id, e) => {
+				if(e) e.stopPropagation();
 				if(!confirm('¿Eliminar esta regla?')) return;
 				await api('POST', '/api/inventory', { action:'delete_conversion', id });
 				renderConvList(pop.querySelector('#conv-list'));
@@ -6569,7 +6578,8 @@ async function renderInventoryView() {
 			document.body.appendChild(pop);
 			await renderConvList(pop.querySelector('#conv-list'));
 
-			pop.querySelector('#add-conv-btn-main').onclick = async () => {
+			pop.querySelector('#add-conv-btn-main').addEventListener('click', async (e) => {
+				e.stopPropagation();
 				const ingredient_name = pop.querySelector('#new-conv-ing').value;
 				const factor = Number(pop.querySelector('#new-conv-factor').value);
 				if(!ingredient_name || !factor) return notify.error('Completa los campos');
@@ -6577,9 +6587,9 @@ async function renderInventoryView() {
 				pop.querySelector('#new-conv-factor').value = '';
 				renderConvList(pop.querySelector('#conv-list'));
 				notify.success('Regla guardada');
-			};
+			});
 
-			pop.querySelector('#close-conv-btn-main').onclick = () => pop.remove();
+			pop.querySelector('#close-conv-btn-main').onclick = cleanup;
 		};
 	}
 
