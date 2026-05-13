@@ -97,6 +97,7 @@
 					<div class="field">
 						<label>Foto del Recibo</label>
 						<input type="file" id="p-receipt" accept="image/*,application/pdf,.heic" />
+						<div id="receipt-size" style="font-size:0.75rem; color:#10b981; margin-top:4px; font-weight:600; display:none;"></div>
 					</div>
 					<div class="field">
 						<label>Total de la Compra ($)</label>
@@ -287,6 +288,42 @@
 			}
 		}
 
+		let processedBase64 = null;
+		let processedFileName = null;
+
+		document.getElementById('p-receipt').addEventListener('change', async (e) => {
+			const sizeLabel = document.getElementById('receipt-size');
+			const submitBtn = document.getElementById('submit-btn');
+			const file = e.target.files[0];
+			
+			if (!file) {
+				sizeLabel.style.display = 'none';
+				processedBase64 = null;
+				processedFileName = null;
+				return;
+			}
+			
+			submitBtn.disabled = true;
+			sizeLabel.style.display = 'block';
+			sizeLabel.style.color = '#64748b';
+			sizeLabel.innerText = 'Procesando archivo...';
+			
+			const b64 = await compressImage(file);
+			
+			if (b64) {
+				processedBase64 = b64;
+				processedFileName = file.name;
+				const kb = Math.round((b64.length * 0.75) / 1024);
+				sizeLabel.style.color = '#10b981';
+				sizeLabel.innerText = `Listo (${kb} KB)`;
+				submitBtn.disabled = false;
+			} else {
+				sizeLabel.style.display = 'none';
+				document.getElementById('p-receipt').value = '';
+				submitBtn.disabled = false;
+			}
+		});
+
 		document.getElementById('purchase-form').onsubmit = async (e) => {
 			e.preventDefault();
 			const btn = document.getElementById('submit-btn');
@@ -309,12 +346,9 @@
 				actor_name: currentUser.name || 'Admin'
 			};
 
-			const fileInput = document.getElementById('p-receipt');
-			if (fileInput.files[0]) {
-				btn.innerText = 'Procesando archivo...';
-				payload.receipt_base64 = await compressImage(fileInput.files[0]);
-				payload.receipt_name = fileInput.files[0].name;
-				btn.innerText = 'Guardando...';
+			if (processedBase64) {
+				payload.receipt_base64 = processedBase64;
+				payload.receipt_name = processedFileName;
 			}
 
 			try {
