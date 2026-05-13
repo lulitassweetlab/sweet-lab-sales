@@ -83,6 +83,7 @@ export async function handler(event) {
         let partnerRollingM = {};
         let partnerHistoryH = {};
         const history = [];
+        let prev_inventory_value = 0;
 
         for (const m of allMonths) {
             currentProcessMonth = m;
@@ -224,6 +225,8 @@ export async function handler(event) {
                     inventory_value = inventory_detail.reduce((a, b) => a + b.value, 0);
                 } catch (invErr) { console.error("Inv Calc Error:", invErr); }
             } else {
+                // If cached, get the inventory_value from cache
+                inventory_value = monthData.inventory_value || 0;
                 // If cached, we still need to update cumulative tracking state for the next month
                 if (monthData.cumulative_desserts) {
                     Object.keys(monthData.cumulative_desserts).forEach(pid => { 
@@ -234,8 +237,10 @@ export async function handler(event) {
                     Object.keys(monthData.cumulative_sales).forEach(pid => { 
                         lastCumulativeDesserts[pid] = (lastCumulativeDesserts[pid] || 0) + Math.round(Number(monthData.cumulative_sales[pid] || 0) / 10000); 
                     });
-                }
             }
+
+            // Calculate Inventory Investment (Monthly Change)
+            const inventory_investment = inventory_value - (prev_inventory_value || 0);
 
             // 2. Calculate Real Commissions and MOD (ALWAYS)
             const commCalculatedRows = await sql`
@@ -343,8 +348,10 @@ export async function handler(event) {
             });
 
 
-            // 3. Final Profit Formula
-            const opProfit = revenue - cogs - expenses - losses - calculatedCommissionsTotal - modCents;
+            // 3. Final Profit Formula with Inventory Adjustment
+            const opProfitBeforeInv = revenue - cogs - expenses - losses - calculatedCommissionsTotal - modCents;
+            const opProfit = opProfitBeforeInv - inventory_investment;
+            
             let provision = provManual;
             if (provision === 0) provision = Math.round(Math.max(0, opProfit) * (settings.provision_default_perc / 100));
             const netToShare = opProfit - provision;
@@ -444,7 +451,7 @@ export async function handler(event) {
 
             // 5. Finalize monthData
             monthData = {
-                month: m, revenue, cogs, expenses, losses, purchases_total, inventory_value, commissions: calculatedCommissionsTotal, 
+                month: m, revenue, cogs, expenses, losses, purchases_total, inventory_value, inventory_investment, commissions: calculatedCommissionsTotal, 
                 total_desserts: totalMonthDesserts, total_brigs: totalMonthBrigs, mod: modCents,
                 profit: opProfit, provision, net_to_share: netToShare, merit_pool: meritPool,
                 partners: partnerShares, commission_detail: commissionDetail,
@@ -452,6 +459,7 @@ export async function handler(event) {
                 cumulative_desserts: { ...lastCumulativeDesserts },
                 total_cumulative_desserts: totalCumulGlobal
             };
+            prev_inventory_value = inventory_value;
 
             if (m < currentMonth && (!snapshotsMap[m] || forceSync)) {
                 await sql`INSERT INTO financial_snapshots (month, data) VALUES (${m}, ${JSON.stringify(monthData)}) ON CONFLICT (month) DO UPDATE SET data = EXCLUDED.data, calculated_at = now()`;
