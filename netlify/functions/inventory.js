@@ -276,6 +276,19 @@ export async function handler(event) {
 
 					return json({ ok: true, accounting_id: accEntry.id, movements: results }, 201);
 				}
+				
+				if (action === 'delete_purchase') {
+					const { accounting_id } = data;
+					if (!accounting_id) return json({ error: 'accounting_id requerido' }, 400);
+					
+					// 1. Borrar movimientos de inventario asociados
+					await sql`DELETE FROM inventory_movements WHERE metadata->>'accounting_id' = ${accounting_id.toString()}`;
+					
+					// 2. Borrar asiento contable (esto borra los adjuntos por CASCADE)
+					await sql`DELETE FROM accounting_entries WHERE id = ${Number(accounting_id)}`;
+					
+					return json({ ok: true });
+				}
 
 				if (action === 'reset') {
 					await sql`DELETE FROM inventory_movements`;
