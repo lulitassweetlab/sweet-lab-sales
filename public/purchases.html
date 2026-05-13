@@ -236,8 +236,20 @@
 				if (res.items && res.items.length > 0) {
 					document.getElementById('items-container').innerHTML = '';
 					res.items.forEach(it => {
+						// Búsqueda inteligente del nombre más parecido en el inventario local
+						const aiName = (it.name || '').toLowerCase().trim();
+						let suggested = it.name;
+						
+						// Intentar encontrar el mejor match en el inventario ya cargado
+						const bestMatch = inventory.find(inv => {
+							const invName = inv.ingredient.toLowerCase();
+							return invName === aiName || invName.includes(aiName) || aiName.includes(invName);
+						});
+						
+						if (bestMatch) suggested = bestMatch.ingredient;
+
 						addItemRow({ 
-							name: it.suggested_name, 
+							name: suggested, 
 							qty: it.qty, 
 							total: it.total,
 							originalName: it.name
