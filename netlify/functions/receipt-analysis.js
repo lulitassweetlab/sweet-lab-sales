@@ -32,18 +32,24 @@ export async function handler(event) {
 
 		const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 		
-		const response = await fetch(geminiUrl, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({
-				contents: [{
-					parts: [
-						{ text: prompt },
-						{ inline_data: { mime_type: mimeType.includes('pdf') ? 'image/jpeg' : mimeType, data: base64Data } }
-					]
-				}]
-			})
-		});
+		let response;
+		try {
+			response = await fetch(geminiUrl, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					contents: [{
+						parts: [
+							{ text: prompt },
+							{ inline_data: { mime_type: 'image/jpeg', data: base64Data } }
+						]
+					}]
+				})
+			});
+		} catch (fetchErr) {
+			console.error('Error de red al llamar a Gemini:', fetchErr);
+			throw new Error('Error de conexión con el servicio de IA. Intenta de nuevo.');
+		}
 
 		if (!response.ok) {
 			const errText = await response.text();
