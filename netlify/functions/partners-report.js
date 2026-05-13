@@ -102,6 +102,8 @@ export async function handler(event) {
             let product_detail = monthData?.product_detail || [];
             let revenue_detail = monthData?.revenue_detail || [];
             let expense_detail = monthData?.expense_detail || [];
+            let purchase_detail = monthData?.purchase_detail || [];
+            let inventory_detail = monthData?.inventory_detail || [];
 
             if (!monthData || forceSync || m === currentMonth) {
                 let revenueRows, cogsRows, accRows, productRows, expenseRows;
@@ -190,6 +192,36 @@ export async function handler(event) {
                     amount: Math.round(Number(r.amount_cents || 0)),
                     tags: r.tags || []
                 }));
+
+                // Group detailed purchases (Insumos)
+                purchase_detail = expense_detail.filter(d => (d.tags || []).some(t => t.name.toLowerCase() === 'insumos'));
+
+                // Calculate Historical Inventory Value at month-end
+                try {
+                    const lastDayOfMonth = new Date(m + '-01');
+                    lastDayOfMonth.setMonth(lastDayOfMonth.getMonth() + 1);
+                    lastDayOfMonth.setDate(0); // Last day of month m
+                    const dateStr = lastDayOfMonth.toISOString().split('T')[0];
+
+                    const stockRows = await sql`
+                        SELECT 
+                            ii.ingredient, 
+                            ii.unit, 
+                            ii.price,
+                            COALESCE(SUM(im.qty), 0) as stock
+                        FROM inventory_items ii
+                        LEFT JOIN inventory_movements im ON ii.ingredient = im.ingredient AND im.created_at <= (${dateStr}::date + '23:59:59'::interval)
+                        GROUP BY ii.ingredient, ii.unit, ii.price
+                        HAVING COALESCE(SUM(im.qty), 0) > 0
+                    `;
+                    inventory_detail = stockRows.map(s => ({
+                        ingredient: s.ingredient,
+                        unit: s.unit,
+                        qty: Number(s.stock || 0),
+                        value: Math.round(Number(s.stock || 0) * Number(s.price || 0))
+                    }));
+                    inventory = inventory_detail.reduce((a, b) => a + b.value, 0);
+                } catch (invErr) { console.error("Inv Calc Error:", invErr); }
             } else {
                 // If cached, we still need to update cumulative tracking state for the next month
                 if (monthData.cumulative_desserts) {
@@ -415,7 +447,7 @@ export async function handler(event) {
                 total_desserts: totalMonthDesserts, total_brigs: totalMonthBrigs, mod: modCents,
                 profit: opProfit, provision, net_to_share: netToShare, merit_pool: meritPool,
                 partners: partnerShares, commission_detail: commissionDetail,
-                product_detail, revenue_detail, expense_detail,
+                product_detail, revenue_detail, expense_detail, purchase_detail, inventory_detail,
                 cumulative_desserts: { ...lastCumulativeDesserts },
                 total_cumulative_desserts: totalCumulGlobal
             };

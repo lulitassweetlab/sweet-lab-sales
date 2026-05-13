@@ -292,6 +292,63 @@
             document.getElementById('save-adj-btn').onclick = function() { saveAdj(this); };
         };
 
+        window.showPurchaseDetails = (month, ev) => {
+            if (ev.target.tagName.toLowerCase() === 'input' || ev.target.tagName.toLowerCase() === 'button') return;
+            const details = window.purchaseDetailsMap[month] || [];
+            const dataForMonth = DATA.history.find(h => h.month === month);
+            const total = dataForMonth ? dataForMonth.inventory : 0; // Using inventory field as total purchases
+
+            const html = details.map(d => `
+                <div style="margin-bottom:8px; background:#f8fafc; padding:12px; border-radius:14px; border:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;">
+                    <div style="flex:1;"><div style="font-size:0.85rem; font-weight:700; color:#334155;">${d.description}</div><div style="font-size:0.7rem; color:#94a3b8;">${d.date}</div></div>
+                    <strong style="color:#6366f1;">${fmt.format(d.amount)}</strong>
+                </div>`).join('');
+
+            const pop = document.createElement('div');
+            pop.className = 'popover-wrap';
+            pop.innerHTML = `<div style="background:#fff; padding:24px; border-radius:24px; min-width:380px; max-width:500px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1);">
+                <h3 style="margin:0 0 16px 0; border-bottom:1px solid #e2e8f0; padding-bottom:12px;">🛒 Detalle de Compras (Mes)</h3>
+                <div style="max-height:50vh; overflow-y:auto; margin-bottom:16px;">
+                    ${html || '<p style="text-align:center; color:#94a3b8;">No hay compras registradas.</p>'}
+                </div>
+                <div style="display:flex; justify-content:space-between; padding:16px; background:#eff6ff; border-radius:16px; font-weight:900;">
+                    <span>TOTAL COMPRADO</span><span style="color:#2563eb">${fmt.format(details.reduce((a,b)=>a+b.amount,0))}</span>
+                </div>
+                <button onclick="closePopover(this)" style="margin-top:24px; width:100%; padding:14px; border-radius:12px; border:none; background:#f1f5f9; cursor:pointer; font-weight:800; color:#475569;">Cerrar</button>
+            </div>`;
+            pop.onclick = (e) => { if (e.target === pop) closePopover(pop.querySelector('button')); };
+            document.body.appendChild(pop);
+        };
+
+        window.showInventoryDetails = (month, ev) => {
+            if (ev.target.tagName.toLowerCase() === 'input' || ev.target.tagName.toLowerCase() === 'button') return;
+            const details = window.inventoryDetailsMap[month] || [];
+            
+            const html = details.sort((a,b)=>b.value - a.value).map(d => `
+                <div style="margin-bottom:8px; background:#f8fafc; padding:10px 14px; border-radius:14px; border:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;">
+                    <div style="flex:1;">
+                        <div style="font-size:0.85rem; font-weight:700; color:#334155;">${d.ingredient}</div>
+                        <div style="font-size:0.7rem; color:#94a3b8;">Stock: ${d.qty} ${d.unit}</div>
+                    </div>
+                    <strong style="color:#0f172a;">${fmt.format(d.value)}</strong>
+                </div>`).join('');
+
+            const pop = document.createElement('div');
+            pop.className = 'popover-wrap';
+            pop.innerHTML = `<div style="background:#fff; padding:24px; border-radius:24px; min-width:380px; max-width:500px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1);">
+                <h3 style="margin:0 0 16px 0; border-bottom:1px solid #e2e8f0; padding-bottom:12px;">📦 Inventario al Cierre</h3>
+                <div style="max-height:50vh; overflow-y:auto; margin-bottom:16px;">
+                    ${html || '<p style="text-align:center; color:#94a3b8;">No hay inventario registrado.</p>'}
+                </div>
+                <div style="display:flex; justify-content:space-between; padding:16px; background:#f1f5f9; border-radius:16px; font-weight:900;">
+                    <span>VALOR TOTAL BODEGA</span><span style="color:#0f172a">${fmt.format(details.reduce((a,b)=>a+b.value,0))}</span>
+                </div>
+                <button onclick="closePopover(this)" style="margin-top:24px; width:100%; padding:14px; border-radius:12px; border:none; background:#f1f5f9; cursor:pointer; font-weight:800; color:#475569;">Cerrar</button>
+            </div>`;
+            pop.onclick = (e) => { if (e.target === pop) closePopover(pop.querySelector('button')); };
+            document.body.appendChild(pop);
+        };
+
         window.getPartnerReportHtml = (sellerName, targetMonth) => {
             if (!DATA || !DATA.history) return "";
             const targetData = DATA.history.find(h => h.month === targetMonth);
@@ -728,11 +785,14 @@
 
                 let totalR = 0, totalP = 0;
                 window.productDetailsMap = {}; window.revenueDetailsMap = {}; window.expenseDetailsMap = {};
+                window.purchaseDetailsMap = {}; window.inventoryDetailsMap = {};
                 
                 DATA.history.forEach(m => {
                     window.productDetailsMap[m.month] = m.product_detail || [];
                     window.revenueDetailsMap[m.month] = m.revenue_detail || [];
                     window.expenseDetailsMap[m.month] = m.expense_detail || [];
+                    window.purchaseDetailsMap[m.month] = m.purchase_detail || [];
+                    window.inventoryDetailsMap[m.month] = m.inventory_detail || [];
                     totalR += (m.revenue || 0); totalP += (m.profit || 0);
                     
                     const [y, mm] = m.month.split('-');
@@ -768,7 +828,7 @@
                                 <div class="fin-item"><span class="fin-label">Mano de Obra (MOD)</span><span class="fin-val neg"><span class="hist-text-${m.month}">-${fmt.format(m.mod || 0)}</span><input type="number" class="hist-g-input-${m.month}" data-key="mod" value="${m.mod||0}" style="display:none; width:80px; text-align:right;"></span></div>
                                 <div class="fin-item" onclick="showExpenseDetails('${m.month}', event)" style="cursor:pointer;"><span class="fin-label" style="text-decoration:underline; text-decoration-style:dashed;">Gastos</span><span class="fin-val neg"><span class="hist-text-${m.month}">-${fmt.format(m.expenses || 0)}</span><input type="number" class="hist-g-input-${m.month}" data-key="expenses" value="${m.expenses}" style="display:none; width:80px; text-align:right;"></span></div>
                                 <div class="fin-item"><span class="fin-label">Ajustes</span><span class="fin-val neg"><span class="hist-text-${m.month}">-${fmt.format(m.losses || 0)}</span><input type="number" class="hist-g-input-${m.month}" data-key="losses" value="${m.losses}" style="display:none; width:80px; text-align:right;"></span></div>
-                                <div class="fin-item" style="border-top: 1px dashed #cbd5e1; margin-top: 8px; padding-top: 12px;">
+                                <div class="fin-item" style="border-top: 1px dashed #cbd5e1; margin-top: 8px; padding-top: 12px; display:none;">
                                     <span class="fin-label" style="color:var(--p-mod)">Inversión en Inventario</span>
                                     <span class="fin-val" style="color:var(--p-mod)">
                                         <span class="hist-text-${m.month}">${fmt.format(m.inventory || 0)}</span>
@@ -786,6 +846,17 @@
                                                 <span>• ${c.seller_name} (${c.desserts} P / ${c.brigs} B)</span>
                                                 <strong>${fmt.format(c.total_comm)}</strong>
                                             </div>`).join('')}
+                                    </div>
+                                </div>
+
+                                <div style="margin-top:12px; padding:16px; background:#f8fafc; border-radius:18px; border:1px solid #e2e8f0">
+                                    <div class="fin-item" onclick="showPurchaseDetails('${m.month}', event)" style="cursor:pointer; border:none; padding:4px 0;">
+                                        <span class="fin-label" style="text-decoration:underline; text-decoration-style:dashed; color:#4f46e5;">🛒 Compras del Mes</span>
+                                        <span class="fin-val" style="color:#4f46e5">${fmt.format(m.inventory_detail?.reduce((a,b)=>a+b.value,0) || 0)}</span>
+                                    </div>
+                                    <div class="fin-item" onclick="showInventoryDetails('${m.month}', event)" style="cursor:pointer; border:none; padding:4px 0;">
+                                        <span class="fin-label" style="text-decoration:underline; text-decoration-style:dashed; color:#1e293b;">📦 Inventario (Cierre)</span>
+                                        <span class="fin-val" style="color:#1e293b">${fmt.format(m.inventory || 0)}</span>
                                     </div>
                                 </div>
                             </div>
