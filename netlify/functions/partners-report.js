@@ -294,6 +294,8 @@ export async function handler(event) {
                     if (hData.losses !== undefined) losses = Number(hData.losses);
                     if (hData.mod !== undefined) modCents = Number(hData.mod);
                     if (hData.inventory_value !== undefined) inventory_value = Number(hData.inventory_value);
+                    else if (hData.inventory !== undefined) inventory_value = Number(hData.inventory);
+                    
                     if (hData.commissions !== undefined) calculatedCommissionsTotal = Number(hData.commissions);
                     
                     // Override desserts and individual commissions if provided
