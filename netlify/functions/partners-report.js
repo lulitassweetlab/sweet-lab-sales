@@ -119,7 +119,21 @@ export async function handler(event) {
                 
                 revenue = Math.round(revenueRows.reduce((a, b) => a + Number(b.revenue || 0), 0));
                 cogs = Math.round(cogsRows.reduce((a, b) => a + Number(b.cogs || 0), 0));
-                expenses = Math.round(Number(accRows.find(a => a.kind === 'gasto')?.total || 0));
+                
+                // Smart Expense Filtering: Exclude 'Insumos' from operating expenses
+                let filteredExpenses = 0;
+                let inventoryTotal = 0;
+                (expenseRows || []).forEach(r => {
+                    const isInsumos = (r.tags || []).some(t => t.name.toLowerCase() === 'insumos');
+                    if (isInsumos) {
+                        inventoryTotal += Number(r.amount_cents || 0);
+                    } else {
+                        filteredExpenses += Number(r.amount_cents || 0);
+                    }
+                });
+
+                expenses = Math.round(filteredExpenses);
+                inventory = Math.round(inventoryTotal);
                 losses = Math.round(Number(accRows.find(a => a.kind === 'perdida')?.total || 0));
                 provManual = Math.round(Number(accRows.find(a => a.kind === 'provision')?.total || 0));
                 
