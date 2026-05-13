@@ -225,7 +225,7 @@
 			btn.style.opacity = '0.5';
 			
 			try {
-				const compressed = await compressImage(file);
+				const compressed = await compressImage(file, 800, 0.6); // Reducido para más velocidad
 				const res = await fetchJSON('/api/receipt-analysis', {
 					method: 'POST',
 					body: JSON.stringify({ file_base64: compressed })

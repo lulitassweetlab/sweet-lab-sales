@@ -38,7 +38,7 @@ export async function handler(event) {
 		Para cada producto incluye: "name" (nombre del producto), "qty" (cantidad), "total" (precio total).
 		Responde ÚNICAMENTE con el objeto JSON puro: {"items": [{"name": "...", "qty": 0, "total": 0}]}`;
 
-		const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+		const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`;
 		
 		const response = await postRequest(geminiUrl, {
 			contents: [{
