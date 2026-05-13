@@ -562,8 +562,30 @@
                 btn.innerHTML = '💾 Guardar Historico';
                 btn.style.background = '#8b5cf6'; btn.style.color = '#fff';
             } else {
-                // ... logic to build payload ...
-                location.href = '?auth=admin&force_sync=1';
+                const payload = {};
+                document.querySelectorAll(`.hist-g-input-${month}`).forEach(inp => {
+                    payload[inp.dataset.key] = Number(inp.value);
+                });
+                document.querySelectorAll(`.hist-c-input-${month}`).forEach(inp => {
+                    payload[inp.dataset.key] = Number(inp.value);
+                });
+                
+                btn.disabled = true; btn.innerText = 'Guardando...';
+                const keyName = `historic_${month.replace('-', '_')}`;
+                
+                fetch('/api/store-settings', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ [keyName]: JSON.stringify(payload) })
+                })
+                .then(res => {
+                    if (!res.ok) throw new Error('Error al guardar');
+                    location.href = '?auth=admin&force_sync=1';
+                })
+                .catch(err => {
+                    alert(err.message);
+                    btn.disabled = false; btn.innerText = '💾 Reintentar';
+                });
             }
         };
 
@@ -857,7 +879,10 @@
                                     </div>
                                     <div class="fin-item" onclick="showInventoryDetails('${m.month}', event)" style="cursor:pointer; border:none; padding:4px 0;">
                                         <span class="fin-label" style="text-decoration:underline; text-decoration-style:dashed; color:#1e293b;">Inventario (Cierre)</span>
-                                        <span class="fin-val" style="color:#1e293b">${fmt.format(m.inventory_value || 0)}</span>
+                                        <span class="fin-val" style="color:#1e293b">
+                                            <span class="hist-text-${m.month}">${fmt.format(m.inventory_value || 0)}</span>
+                                            <input type="number" class="hist-g-input-${m.month}" data-key="inventory_value" value="${m.inventory_value || 0}" style="display:none; width:100px; text-align:right; font-weight:700;">
+                                        </span>
                                     </div>
                                 </div>
                             </div>
