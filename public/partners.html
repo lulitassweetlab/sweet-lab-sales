@@ -222,8 +222,13 @@
         window.showExpenseDetails = (month, ev) => {
             if (ev.target.tagName.toLowerCase() === 'input' || ev.target.tagName.toLowerCase() === 'button') return;
             let details = window.expenseDetailsMap[month] || [];
-            // Filter out 'Insumos' from the details shown here
-            details = details.filter(d => !(d.tags || []).some(t => t.name.toLowerCase() === 'insumos'));
+            // Filter out 'Insumos' and 'Comisiones' from the details shown here
+            details = details.filter(d => {
+                const tags = (d.tags || []).map(t => t.name.toLowerCase());
+                const isInsumos = tags.some(t => t === 'insumos');
+                const isCommission = tags.some(t => t.includes('comision'));
+                return !isInsumos && !isCommission;
+            });
             
             const dataForMonth = DATA.history.find(h => h.month === month);
             const finalTotal = dataForMonth ? dataForMonth.expenses : 0;
