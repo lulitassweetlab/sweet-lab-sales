@@ -31,35 +31,43 @@ export async function handler(event) {
 		if (!apiKey) return json({ error: 'GEMINI_API_KEY no configurada.' }, 500);
 
 		const base64Data = file_base64.split(',')[1] || file_base64;
+		console.log('Análisis iniciado. Tamaño base64:', base64Data.length);
+		
 		const prompt = `Analiza este recibo de compra. Extrae una lista de productos en formato JSON. 
 		Para cada producto incluye: "name" (nombre del producto), "qty" (cantidad), "total" (precio total).
 		Responde ÚNICAMENTE con el objeto JSON puro: {"items": [{"name": "...", "qty": 0, "total": 0}]}`;
 
 		const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 		
-		const response = await postRequest(geminiUrl, {
-			contents: [{
-				parts: [
-					{ text: prompt },
-					{ inline_data: { mime_type: 'image/jpeg', data: base64Data } }
-				]
-			}]
-		});
+		try {
+			const response = await postRequest(geminiUrl, {
+				contents: [{
+					parts: [
+						{ text: prompt },
+						{ inline_data: { mime_type: 'image/jpeg', data: base64Data } }
+					]
+				}]
+			});
 
-		if (!response.ok) throw new Error(`Gemini Error: ${response.status}`);
+			if (!response.ok) {
+				return json({ error: `Google API Error (${response.status}): ${response.text}` }, 200);
+			}
 
-		const result = JSON.parse(response.text);
-		const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
-		const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
-		const extracted = JSON.parse(jsonStr);
+			const result = JSON.parse(response.text);
+			const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
+			const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
+			const extracted = JSON.parse(jsonStr);
 
-		const finalItems = (extracted.items || []).map(it => ({
-			...it, suggested_name: it.name
-		}));
+			const finalItems = (extracted.items || []).map(it => ({
+				...it, suggested_name: it.name
+			}));
 
-		return json({ items: finalItems });
+			return json({ items: finalItems });
+		} catch (apiErr) {
+			return json({ error: `Error de red/API: ${apiErr.message}` }, 200);
+		}
 
 	} catch (e) {
-		return json({ error: e.message }, 500);
+		return json({ error: `Fallo general: ${e.message}` }, 200);
 	}
 }
