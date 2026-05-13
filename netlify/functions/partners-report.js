@@ -120,13 +120,18 @@ export async function handler(event) {
                 revenue = Math.round(revenueRows.reduce((a, b) => a + Number(b.revenue || 0), 0));
                 cogs = Math.round(cogsRows.reduce((a, b) => a + Number(b.cogs || 0), 0));
                 
-                // Smart Expense Filtering: Exclude 'Insumos' from operating expenses
+                // Smart Expense Filtering: Exclude 'Insumos' and 'Comisiones' from operating expenses
                 let filteredExpenses = 0;
                 let inventoryTotal = 0;
                 (expenseRows || []).forEach(r => {
-                    const isInsumos = (r.tags || []).some(t => t.name.toLowerCase() === 'insumos');
+                    const tags = (r.tags || []).map(t => t.name.toLowerCase());
+                    const isInsumos = tags.some(t => t === 'insumos');
+                    const isCommission = tags.some(t => t.includes('comision'));
+                    
                     if (isInsumos) {
                         inventoryTotal += Number(r.amount_cents || 0);
+                    } else if (isCommission) {
+                        // Skip commissions as they are calculated automatically
                     } else {
                         filteredExpenses += Number(r.amount_cents || 0);
                     }
