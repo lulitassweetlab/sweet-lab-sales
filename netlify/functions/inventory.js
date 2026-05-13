@@ -244,7 +244,7 @@ export async function handler(event) {
 					const metadata = { total_cost: Number(total_cost), purchase_date: date, items_count: items.length };
 
 					let accEntry;
-					const accDesc = `Compra Multi: ${note || (items[0].ingredient + '...')}`;
+					const accDesc = note || (items[0].ingredient + (items.length > 1 ? '...' : ''));
 
 					if (accounting_id) {
 						// MODO EDICIÓN
