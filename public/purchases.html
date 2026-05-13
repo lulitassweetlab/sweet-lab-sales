@@ -233,14 +233,16 @@
 				let fileToProcess = file;
 				
 				// Handle HEIC
-				if ((file.type === 'image/heic' || file.name.toLowerCase().endsWith('.heic')) && !file.type.includes('jpeg') && !file.type.includes('png')) {
+				const isHeic = file.type === 'image/heic' || (file.name && file.name.toLowerCase().endsWith('.heic'));
+				const isAlreadyJpegOrPng = file.type && (file.type.includes('jpeg') || file.type.includes('png'));
+				if (isHeic && !isAlreadyJpegOrPng) {
 					if (typeof heic2any === 'undefined') throw new Error("La herramienta para leer HEIC no se cargó correctamente (revisa tu conexión a internet).");
 					const convertedBlob = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.8 });
 					fileToProcess = Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob;
 				}
 				
 				// Handle PDF
-				if (fileToProcess.type === 'application/pdf' || fileToProcess.name.toLowerCase().endsWith('.pdf')) {
+				if (fileToProcess.type === 'application/pdf' || (fileToProcess.name && fileToProcess.name.toLowerCase().endsWith('.pdf'))) {
 					const arrayBuffer = await fileToProcess.arrayBuffer();
 					const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
 					const page = await pdf.getPage(1);
