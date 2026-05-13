@@ -233,7 +233,8 @@
 				let fileToProcess = file;
 				
 				// Handle HEIC
-				if (file.type === 'image/heic' || file.name.toLowerCase().endsWith('.heic')) {
+				if ((file.type === 'image/heic' || file.name.toLowerCase().endsWith('.heic')) && !file.type.includes('jpeg') && !file.type.includes('png')) {
+					if (typeof heic2any === 'undefined') throw new Error("La herramienta para leer HEIC no se cargó correctamente (revisa tu conexión a internet).");
 					const convertedBlob = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.8 });
 					fileToProcess = Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob;
 				}
@@ -283,7 +284,7 @@
 				});
 			} catch (err) {
 				console.error("Error comprimiendo archivo:", err);
-				alert("Hubo un problema al procesar el archivo. Se guardará sin recibo.");
+				alert("Hubo un problema al procesar el archivo: " + (err.message || "Error desconocido") + ". Se guardará sin recibo.");
 				return null;
 			}
 		}
