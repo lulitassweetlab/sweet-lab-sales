@@ -6499,6 +6499,89 @@ async function renderInventoryView() {
 	// Setup toolbar listeners (need to re-bind since they might have been lost if we replaced toolbar? No, toolbar is separate)
 	document.getElementById('inventory-new-material').onclick = openNewMaterialDialog;
 	document.getElementById('inventory-confirm-prod').onclick = openConfirmProductionDialog;
+	
+	const convBtn = document.getElementById('inventory-conversions-btn');
+	if (convBtn) {
+		convBtn.onclick = async () => {
+			const ingredients = await api('GET', API.Inventory);
+			const pop = document.createElement('div'); pop.className = 'confirm-popover aladdin-pop'; pop.style.position = 'fixed';
+			pop.style.left = '50%'; pop.style.top = '10%'; pop.style.transform = 'translate(-50%, 0)'; pop.style.width = 'min(95vw, 550px)'; pop.style.maxHeight = '80vh'; pop.style.overflowY = 'auto'; pop.style.padding = '24px'; pop.style.zIndex = '100000';
+			
+			const renderConvList = async (container) => {
+				const convs = await api('GET', '/api/inventory?action=get_conversions');
+				container.innerHTML = `
+					<table style="width:100%; border-collapse:collapse; margin-top:15px">
+						<thead>
+							<tr style="border-bottom:2px solid var(--border)">
+								<th style="text-align:left; padding:8px">Ingrediente</th>
+								<th style="text-align:right; padding:8px">Factor (x Gramos)</th>
+								<th style="width:40px"></th>
+							</tr>
+						</thead>
+						<tbody>
+							${convs.map(c => `
+								<tr style="border-bottom:1px solid var(--border)">
+									<td style="padding:8px">${c.ingredient_name}</td>
+									<td style="padding:8px; text-align:right">x ${c.factor}</td>
+									<td style="padding:8px"><button class="btn-del-item" onclick="deleteConvMain(${c.id})">✕</button></td>
+								</tr>
+							`).join('')}
+							${convs.length === 0 ? '<tr><td colspan="3" style="text-align:center; padding:20px; color:var(--muted)">No hay reglas creadas</td></tr>' : ''}
+						</tbody>
+					</table>
+				`;
+			};
+
+			window.deleteConvMain = async (id) => {
+				if(!confirm('¿Eliminar esta regla?')) return;
+				await api('POST', '/api/inventory', { action:'delete_conversion', id });
+				renderConvList(pop.querySelector('#conv-list'));
+			};
+
+			pop.innerHTML = `
+				<h3 style="margin-top:0; color:var(--primary)">Reglas de Conversión</h3>
+				<p style="font-size:0.85rem; color:var(--muted); margin-bottom:20px">Define cuánto pesa cada unidad de un ingrediente (ej: 1 Huevo = 52g).</p>
+				
+				<div style="background:var(--surface); padding:15px; border-radius:10px; margin-bottom:20px; border:1px solid var(--border)">
+					<div style="display:grid; grid-template-columns: 1.5fr 1fr 60px; gap:10px; align-items:end">
+						<div>
+							<label style="display:block; font-size:0.7rem; font-weight:700; margin-bottom:4px">Ingrediente</label>
+							<select id="new-conv-ing" class="input-cell" style="width:100%">
+								<option value="">Seleccionar...</option>
+								${ingredients.map(it => `<option value="${it.ingredient}">${it.ingredient}</option>`).join('')}
+							</select>
+						</div>
+						<div>
+							<label style="display:block; font-size:0.7rem; font-weight:700; margin-bottom:4px">Factor (Gramos)</label>
+							<input id="new-conv-factor" type="number" step="0.1" class="input-cell" style="width:100%" placeholder="Ej: 52">
+						</div>
+						<button id="add-conv-btn-main" class="press-btn btn-primary" style="padding:10px">+</button>
+					</div>
+				</div>
+
+				<div id="conv-list"></div>
+
+				<div style="margin-top:20px; text-align:right">
+					<button id="close-conv-btn-main" class="press-btn">Cerrar</button>
+				</div>
+			`;
+
+			document.body.appendChild(pop);
+			await renderConvList(pop.querySelector('#conv-list'));
+
+			pop.querySelector('#add-conv-btn-main').onclick = async () => {
+				const ingredient_name = pop.querySelector('#new-conv-ing').value;
+				const factor = Number(pop.querySelector('#new-conv-factor').value);
+				if(!ingredient_name || !factor) return notify.error('Completa los campos');
+				await api('POST', '/api/inventory', { action:'save_conversion', ingredient_name, factor });
+				pop.querySelector('#new-conv-factor').value = '';
+				renderConvList(pop.querySelector('#conv-list'));
+				notify.success('Regla guardada');
+			};
+
+			pop.querySelector('#close-conv-btn-main').onclick = () => pop.remove();
+		};
+	}
 
 	if (scrollPos > 0) window.scrollTo(0, scrollPos);
 }
