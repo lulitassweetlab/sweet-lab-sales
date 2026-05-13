@@ -6628,6 +6628,7 @@ async function openInventoryHistoryDialog(ingredient) {
 	try { rows = await api('GET', `${API.Inventory}?history_for=${encodeURIComponent(ingredient)}`); } catch { rows = []; }
 	const pop = document.createElement('div'); pop.className = 'confirm-popover'; pop.style.position = 'fixed';
 	pop.style.left = (window.innerWidth / 2) + 'px'; pop.style.top = '12%'; pop.style.transform = 'translate(-50%, 0)';
+	pop.style.maxHeight = '80vh'; pop.style.overflowY = 'auto';
 	const title = document.createElement('h4'); title.textContent = `Historial: ${ingredient}`; title.style.margin = '0 0 8px 0';
 	const table = document.createElement('table'); table.className = 'items-table';
 	const thead = document.createElement('thead'); const hr = document.createElement('tr');
@@ -6658,7 +6659,16 @@ async function openInventoryHistoryDialog(ingredient) {
 		tr.append(tdD, tdK, tdQ, tdProd, tdN, tdA); tbody.appendChild(tr);
 	}
 	const actions = document.createElement('div'); actions.className = 'confirm-actions'; const close = document.createElement('button'); close.className = 'press-btn'; close.textContent = 'Cerrar'; actions.appendChild(close);
-	close.addEventListener('click', () => { if (pop.parentNode) pop.parentNode.removeChild(pop); });
+	
+	const cleanup = () => {
+		document.removeEventListener('mousedown', outside);
+		if (pop.parentNode) pop.parentNode.removeChild(pop);
+	};
+	const outside = (ev) => { if (!pop.contains(ev.target)) cleanup(); };
+	
+	close.addEventListener('click', cleanup);
+	document.addEventListener('mousedown', outside);
+	
 	table.append(thead, tbody); pop.append(title, table, actions); document.body.appendChild(pop); pop.classList.add('aladdin-pop');
 }
 
