@@ -435,7 +435,6 @@
 		let currentUser = null;
 		try { const saved = localStorage.getItem('authUser'); if (saved) currentUser = JSON.parse(saved); } catch {}
 		const isSuper = currentUser && (currentUser.role === 'superadmin' || !!currentUser.isSuperAdmin);
-		const isSuper = currentUser && (currentUser.role === 'superadmin' || !!currentUser.isSuperAdmin);
 		if (!isSuper) { alert('Solo el superadministrador'); location.href = '/'; return; }
 		
 		window.closeViewer = () => {
