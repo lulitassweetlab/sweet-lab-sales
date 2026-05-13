@@ -149,6 +149,7 @@
 	<script type="module">
 		let inventory = [];
 		let currentUser = JSON.parse(localStorage.getItem('authUser') || '{}');
+		let editingAccountingId = null;
 		const fmt = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
 
 		async function fetchJSON(u, opts){ 
@@ -158,6 +159,9 @@
 		}
 
 		window.closePopover = () => {
+			editingAccountingId = null;
+			document.getElementById('submit-btn').innerText = 'Guardar Todo';
+			document.querySelector('.popover-c h2').innerText = 'Registrar Compra';
 			document.getElementById('purchase-popover').style.display = 'none';
 			document.getElementById('purchase-form').reset();
 			document.getElementById('items-container').innerHTML = '';
@@ -335,7 +339,7 @@
 				// 2. Cargar historial de movimientos
 				const movs = await fetchJSON('/api/inventory?history_all=1') || [];
 				
-				// Agrupar por accounting_id
+				// Agrupar por accounting_id para mostrar la compra "completa"
 				const grouped = new Map();
 				if (Array.isArray(movs)) {
 					movs.forEach(m => {
@@ -346,15 +350,24 @@
 									date: m.created_at || new Date().toISOString(), 
 									note: m.note || '', 
 									items: [], 
+									rawItems: [],
 									total: 0 
 								});
 							}
 							const g = grouped.get(aid);
 							g.items.push(`${m.ingredient} (${m.qty})`);
+							g.rawItems.push({
+								ingredient: m.ingredient,
+								qty: m.qty,
+								price_cents: m.metadata.unit_price ? (m.metadata.unit_price * m.qty) : (m.metadata.total_cost || 0)
+							});
 							g.total += Number(m.metadata.total_cost || 0);
 						}
 					});
 				}
+				
+				// Almacenar globalmente para el modo edición
+				window.purchasesHistory = grouped;
 				
 				if (grouped.size === 0) {
 					tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:40px; color:#94a3b8;">No hay compras registradas.</td></tr>';
@@ -370,6 +383,7 @@
 							<td style="text-align:center;">
 								<div style="display:flex; gap:5px; justify-content:center;">
 									<button class="attach-btn has" onclick="viewReceipt(${aid})" title="Ver Recibo">📄</button>
+									<button class="attach-btn" style="background:#fef9c3; color:#a16207; border-color:#fef08a;" onclick="editPurchase(${aid})" title="Editar Compra">✏️</button>
 									<button class="btn-del-item" style="padding:4px 8px; font-size:0.7rem;" onclick="deletePurchase(${aid})" title="Eliminar Compra">✕</button>
 								</div>
 							</td>
@@ -539,7 +553,8 @@
 				total_cost: document.getElementById('p-total').value,
 				note: document.getElementById('p-note').value,
 				date: document.getElementById('p-date').value,
-				actor_name: currentUser.name || 'Admin'
+				actor_name: currentUser.name || 'Admin',
+				accounting_id: editingAccountingId
 			};
 
 			if (processedBase64) {
@@ -582,6 +597,31 @@
 					alert(res.error || "Error al eliminar");
 				}
 			} catch (e) { alert("Error de conexión"); }
+		};
+
+		window.editPurchase = (aid) => {
+			const data = window.purchasesHistory.get(aid);
+			if (!data) return;
+
+			editingAccountingId = aid;
+			document.querySelector('.popover-c h2').innerText = 'Editar Compra';
+			document.getElementById('submit-btn').innerText = 'Actualizar Compra';
+			
+			document.getElementById('p-note').value = data.note;
+			document.getElementById('p-date').value = data.date.slice(0,10);
+			
+			const container = document.getElementById('items-container');
+			container.innerHTML = '';
+			data.rawItems.forEach(it => {
+				addItemRow({
+					name: it.ingredient,
+					qty: it.qty,
+					total: it.price_cents
+				});
+			});
+
+			calcTotal();
+			document.getElementById('purchase-popover').style.display = 'flex';
 		};
 
 		load(true);

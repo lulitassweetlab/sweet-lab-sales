@@ -237,18 +237,33 @@ export async function handler(event) {
 				}
 
 				if (action === 'compra') {
-					const { items, total_cost, note, date, receipt_base64, receipt_name } = data;
+					const { items, total_cost, note, date, receipt_base64, receipt_name, accounting_id } = data;
 					if (!items || !items.length || !total_cost || !date) return json({ error: 'Faltan campos requeridos (items, total, fecha)' }, 400);
 
 					const results = [];
 					const metadata = { total_cost: Number(total_cost), purchase_date: date, items_count: items.length };
 
-					// 1. Registro Contable único (Gasto total)
+					let accEntry;
 					const accDesc = `Compra Multi: ${note || (items[0].ingredient + '...')}`;
-					const [accEntry] = await sql`INSERT INTO accounting_entries (kind, entry_date, description, amount_cents, actor_name) VALUES ('gasto', ${date}, ${accDesc}, ${Number(total_cost)}, ${actor}) RETURNING *`;
+
+					if (accounting_id) {
+						// MODO EDICIÓN
+						[accEntry] = await sql`
+							UPDATE accounting_entries 
+							SET entry_date = ${date}, description = ${accDesc}, amount_cents = ${Number(total_cost)}, actor_name = ${actor} 
+							WHERE id = ${Number(accounting_id)} 
+							RETURNING *
+						`;
+						// Borrar movimientos previos para re-insertar los nuevos
+						await sql`DELETE FROM inventory_movements WHERE metadata->>'accounting_id' = ${accounting_id.toString()}`;
+					} else {
+						// MODO NUEVO
+						[accEntry] = await sql`INSERT INTO accounting_entries (kind, entry_date, description, amount_cents, actor_name) VALUES ('gasto', ${date}, ${accDesc}, ${Number(total_cost)}, ${actor}) RETURNING *`;
+					}
+					
 					metadata.accounting_id = accEntry.id;
 
-					// 2. Procesar cada item
+					// 2. Procesar cada item (Nuevo o Actualizado)
 					for (const it of items) {
 						const canon = canonicalizeIngredientName(it.ingredient);
 						await ensureInventoryItem(canon);
