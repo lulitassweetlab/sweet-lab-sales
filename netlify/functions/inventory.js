@@ -26,6 +26,12 @@ export async function handler(event) {
 					return json(rows);
 				}
 
+				const actionQuery = params.get('action');
+				if (actionQuery === 'get_conversions') {
+					const list = await sql`SELECT * FROM inventory_conversions ORDER BY ingredient_name`;
+					return json(list);
+				}
+
 				// Unified Inventory List
 				const items = await sql`SELECT id, ingredient, category, unit, price, pack_size FROM inventory_items ORDER BY category DESC, ingredient ASC`;
 				const rawMovs = await sql`SELECT ingredient, SUM(qty)::numeric AS qty FROM inventory_movements GROUP BY ingredient`;
@@ -62,10 +68,6 @@ export async function handler(event) {
 					return json({ ok: true });
 				}
 
-				if (action === 'get_conversions') {
-					const list = await sql`SELECT * FROM inventory_conversions ORDER BY ingredient_name`;
-					return json(list);
-				}
 
 				if (action === 'save_conversion') {
 					const { ingredient_name, factor } = data;
