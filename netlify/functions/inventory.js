@@ -62,6 +62,25 @@ export async function handler(event) {
 					return json({ ok: true });
 				}
 
+				if (action === 'get_conversions') {
+					const list = await sql`SELECT * FROM inventory_conversions ORDER BY ingredient_name`;
+					return json(list);
+				}
+
+				if (action === 'save_conversion') {
+					const { ingredient_name, factor } = data;
+					if (!ingredient_name || factor === undefined) return json({ error: 'Missing name or factor' }, 400);
+					await sql`INSERT INTO inventory_conversions (ingredient_name, factor) VALUES (${ingredient_name}, ${factor}) ON CONFLICT (ingredient_name) DO UPDATE SET factor = EXCLUDED.factor`;
+					return json({ ok: true });
+				}
+
+				if (action === 'delete_conversion') {
+					const { id } = data;
+					if (!id) return json({ error: 'Missing id' }, 400);
+					await sql`DELETE FROM inventory_conversions WHERE id = ${id}`;
+					return json({ ok: true });
+				}
+
 				if (action === 'add_item') {
 					const ingredient = (data.ingredient || '').toString().trim();
 					if (!ingredient) return json({ error: 'ingredient requerido' }, 400);

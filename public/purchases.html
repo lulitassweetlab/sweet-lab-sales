@@ -248,9 +248,16 @@
 						
 						if (bestMatch) suggested = bestMatch.ingredient;
 
+						// Aplicar factor de conversión si existe
+						let finalQty = it.qty;
+						const conv = (window.inventoryConversions || []).find(c => c.ingredient_name === suggested);
+						if (conv && conv.factor) {
+							finalQty = it.qty * conv.factor;
+						}
+
 						addItemRow({ 
 							name: suggested, 
-							qty: it.qty, 
+							qty: finalQty, 
 							total: it.total,
 							originalName: it.name
 						});
@@ -298,6 +305,7 @@
 		async function load(isInitialLoad = false) {
 			try {
 				inventory = await fetchJSON('/api/inventory');
+				window.inventoryConversions = await fetchJSON('/api/inventory?action=get_conversions');
 				
 				// Ordenar inventario: ingredientes -> empaques -> otros
 				const catOrder = { 'ingrediente': 1, 'empaque': 2, 'otros': 3 };

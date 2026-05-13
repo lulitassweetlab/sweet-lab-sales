@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test HEIC</title>
+    <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
+</head>
+<body>
+    <input type="file" id="file" />
+    <div id="out"></div>
+    <script>
+        document.getElementById('file').addEventListener('change', async (e) => {
+            try {
+                const file = e.target.files[0];
+                document.getElementById('out').innerText = 'Processing...';
+                const res = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.8 });
+                console.log(res);
+                document.getElementById('out').innerText = 'Done: ' + res.size + ' bytes';
+            } catch (err) {
+                document.getElementById('out').innerText = 'Error: ' + err.message + '\n' + err.stack;
+                console.error(err);
+            }
+        });
+    </script>
+</body>
+</html>
