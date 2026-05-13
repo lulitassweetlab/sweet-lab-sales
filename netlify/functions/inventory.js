@@ -50,6 +50,18 @@ export async function handler(event) {
 				const action = (data.action || '').toString();
 				const actor = (data.actor_name || '').toString() || null;
 
+				if (action === 'save_alias') {
+					const { alias, ingredient_name } = data;
+					if (!alias || !ingredient_name) return json({ error: 'Missing alias or ingredient_name' }, 400);
+					
+					await sql`
+						INSERT INTO inventory_alias (alias, ingredient_name)
+						VALUES (${alias.toLowerCase().trim()}, ${ingredient_name})
+						ON CONFLICT (alias, vendor) DO UPDATE SET ingredient_name = EXCLUDED.ingredient_name
+					`;
+					return json({ ok: true });
+				}
+
 				if (action === 'add_item') {
 					const ingredient = (data.ingredient || '').toString().trim();
 					if (!ingredient) return json({ error: 'ingredient requerido' }, 400);

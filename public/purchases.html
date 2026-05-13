@@ -126,8 +126,12 @@
 				<div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
 					<div class="field">
 						<label>Foto del Recibo</label>
-						<input type="file" id="p-receipt" accept="image/*,application/pdf,.heic" />
+						<div style="display:flex; gap:8px;">
+							<input type="file" id="p-receipt" accept="image/*,application/pdf,.heic" style="flex:1" />
+							<button type="button" id="analyze-btn" style="background:#eff6ff; border:1px solid #dbeafe; color:#2563eb; padding:0 12px; border-radius:12px; font-size:0.75rem; font-weight:700; cursor:pointer; display:none;">Analizar IA 🧠</button>
+						</div>
 						<div id="receipt-size" style="font-size:0.75rem; color:#10b981; margin-top:4px; font-weight:600; display:none;"></div>
+						<div id="analysis-status" style="font-size:0.7rem; color:var(--p-mod); margin-top:4px; font-weight:600; display:none;"></div>
 					</div>
 					<div class="field">
 						<label>Total de la Compra ($)</label>
@@ -158,23 +162,24 @@
 			document.getElementById('items-container').innerHTML = '';
 		};
 
-		window.addItemRow = () => {
+		window.addItemRow = (initialData = {}) => {
 			const container = document.getElementById('items-container');
 			const div = document.createElement('div');
 			div.className = 'item-row';
+			div.dataset.originalAiName = initialData.originalName || '';
 			div.innerHTML = `
 				<div class="field" style="margin-bottom:0">
 					<label>Producto</label>
-					<input type="text" class="item-ingredient" placeholder="Buscar..." required autocomplete="off" oninput="showSuggestions(this)">
+					<input type="text" class="item-ingredient" placeholder="Buscar..." required autocomplete="off" oninput="showSuggestions(this)" value="${initialData.name || ''}">
 					<div class="suggestions-list"></div>
 				</div>
 				<div class="field" style="margin-bottom:0">
 					<label>Cant.</label>
-					<input type="number" class="item-qty" step="0.01" required oninput="calcTotal()" />
+					<input type="number" class="item-qty" step="0.01" required oninput="calcTotal()" value="${initialData.qty || ''}" />
 				</div>
 				<div class="field" style="margin-bottom:0">
 					<label>Costo ($)</label>
-					<input type="number" class="item-cost" required oninput="calcTotal()" />
+					<input type="number" class="item-cost" required oninput="calcTotal()" value="${initialData.total || ''}" />
 				</div>
 				<button type="button" class="btn-del-item" onclick="this.parentElement.remove(); calcTotal();">✕</button>
 			`;
@@ -199,6 +204,57 @@
 			}
 			list.innerHTML = matches.map(it => `<div class="suggestion-item" onclick="pickIngredient(this, '${it.ingredient.replace(/'/g, "\\'")}')">${it.ingredient}</div>`).join('');
 			list.style.display = 'block';
+		};
+
+		document.getElementById('p-receipt').addEventListener('change', (e) => {
+			if (e.target.files.length > 0) {
+				document.getElementById('analyze-btn').style.display = 'block';
+			}
+		});
+
+		document.getElementById('analyze-btn').onclick = async () => {
+			const file = document.getElementById('p-receipt').files[0];
+			if (!file) return;
+			
+			const status = document.getElementById('analysis-status');
+			const btn = document.getElementById('analyze-btn');
+			
+			status.textContent = '🧠 Analizando recibo... espera un momento';
+			status.style.display = 'block';
+			btn.disabled = true;
+			btn.style.opacity = '0.5';
+			
+			try {
+				const compressed = await compressImage(file);
+				const res = await fetchJSON('/api/receipt-analysis', {
+					method: 'POST',
+					body: JSON.stringify({ file_base64: compressed })
+				});
+				
+				if (res.error) throw new Error(res.error);
+				
+				if (res.items && res.items.length > 0) {
+					document.getElementById('items-container').innerHTML = '';
+					res.items.forEach(it => {
+						addItemRow({ 
+							name: it.suggested_name, 
+							qty: it.qty, 
+							total: it.total,
+							originalName: it.name
+						});
+					});
+					calcTotal();
+					status.textContent = '✅ Análisis completado. Por favor verifica los datos.';
+				} else {
+					status.textContent = '❌ No se encontraron productos claros en el recibo.';
+				}
+			} catch (e) {
+				console.error(e);
+				status.textContent = '❌ Error: ' + e.message;
+			} finally {
+				btn.disabled = false;
+				btn.style.opacity = '1';
+			}
 		};
 
 		window.pickIngredient = (item, name) => {
@@ -400,11 +456,28 @@
 			btn.innerText = 'Guardando...';
 
 			const rows = document.querySelectorAll('.item-row');
-			const items = Array.from(rows).map(row => ({
-				ingredient: row.querySelector('.item-ingredient').value,
-				qty: Number(row.querySelector('.item-qty').value),
-				price_cents: Number(row.querySelector('.item-cost').value)
-			}));
+			const items = [];
+			
+			for (const row of rows) {
+				const ingredient = row.querySelector('.item-ingredient').value;
+				const qty = Number(row.querySelector('.item-qty').value);
+				const price_cents = Number(row.querySelector('.item-cost').value);
+				
+				// Aprendizaje de Alias
+				const originalAiName = row.dataset.originalAiName;
+				if (originalAiName && originalAiName !== ingredient) {
+					fetchJSON('/api/inventory', {
+						method: 'POST',
+						body: JSON.stringify({ 
+							action: 'save_alias', 
+							alias: originalAiName, 
+							ingredient_name: ingredient 
+						})
+					}).catch(e => console.error('Error saving alias:', e));
+				}
+				
+				items.push({ ingredient, qty, price_cents });
+			}
 
 			const payload = {
 				action: 'compra',

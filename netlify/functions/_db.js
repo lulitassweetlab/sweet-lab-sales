@@ -349,6 +349,15 @@ export async function ensureSchema() {
 				created_at TIMESTAMPTZ DEFAULT now()
 			)`;
 
+			await sql`CREATE TABLE IF NOT EXISTS inventory_alias (
+				id SERIAL PRIMARY KEY,
+				alias TEXT NOT NULL,
+				ingredient_name TEXT NOT NULL,
+				vendor TEXT,
+				created_at TIMESTAMPTZ DEFAULT now(),
+				UNIQUE(alias, vendor)
+			)`;
+
 			// Seed default desserts if empty
 			const dessertCount = await sql`SELECT COUNT(*)::int AS c FROM desserts`;
 			if ((dessertCount[0]?.c || 0) === 0) {
