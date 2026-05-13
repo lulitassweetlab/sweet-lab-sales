@@ -43,6 +43,7 @@ export async function handler(event) {
 		
 		console.log('Iniciando análisis con Gemini...');
 		
+		/* COMENTADO PARA DIAGNÓSTICO
 		const response = await postRequest(geminiUrl, {
 			contents: [{
 				parts: [
@@ -58,6 +59,10 @@ export async function handler(event) {
 
 		const result = JSON.parse(response.text);
 		const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
+		*/
+		
+		// Respuesta simulada para ver si la función carga
+		const text = '{"items": [{"name": "Producto de Prueba", "qty": 1, "total": 100}]}';
 		const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
 		
 		let extracted = { items: [] };
