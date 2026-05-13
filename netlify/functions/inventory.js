@@ -263,6 +263,14 @@ export async function handler(event) {
 					
 					metadata.accounting_id = accEntry.id;
 
+					// Etiquetado automático: Insumos
+					try {
+						const [tag] = await sql`SELECT id FROM accounting_tags WHERE lower(name) = 'insumos' LIMIT 1`;
+						if (tag) {
+							await sql`INSERT INTO accounting_entry_tags (entry_id, tag_id) VALUES (${accEntry.id}, ${tag.id}) ON CONFLICT DO NOTHING`;
+						}
+					} catch (e) { console.error('Error tagging as Insumos:', e); }
+
 					// 2. Procesar cada item (Nuevo o Actualizado)
 					for (const it of items) {
 						const canon = canonicalizeIngredientName(it.ingredient);
