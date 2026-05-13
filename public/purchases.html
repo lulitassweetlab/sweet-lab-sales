@@ -210,12 +210,18 @@
 		window.viewReceipt = async (accId) => {
 			if (!accId) return;
 			try {
-				const att = await fetchJSON(`/api/accounting?attachment_for=${accId}`);
+				const res = await fetch(`/api/accounting?attachment_for=${accId}`);
+				if (res.status === 404) {
+					alert("Esta compra no tiene recibo adjunto.");
+					return;
+				}
+				if (!res.ok) throw new Error("HTTP " + res.status);
+				const att = await res.json();
 				if (att && att.file_base64) {
 					const win = window.open();
 					win.document.write(`<body style="margin:0; background:#000; display:flex; align-items:center; justify-content:center;"><img src="${att.file_base64}" style="max-width:100%; max-height:100vh;"></body>`);
 				}
-			} catch (e) { alert("No se pudo cargar el recibo"); }
+			} catch (e) { alert("Ocurrió un error al cargar el recibo."); }
 		};
 
 		async function compressImage(file) {

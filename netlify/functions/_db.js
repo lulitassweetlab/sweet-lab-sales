@@ -330,8 +330,24 @@ export async function ensureSchema() {
 			`;
 			await sql`CREATE TABLE IF NOT EXISTS dessert_order (dessert TEXT PRIMARY KEY, position INTEGER)`;
 
-
-
+			// 53: Accounting
+			await sql`CREATE TABLE IF NOT EXISTS accounting_entries (
+				id SERIAL PRIMARY KEY,
+				kind TEXT NOT NULL,
+				entry_date DATE NOT NULL,
+				description TEXT NOT NULL DEFAULT '',
+				amount_cents INTEGER NOT NULL DEFAULT 0,
+				actor_name TEXT,
+				created_at TIMESTAMPTZ DEFAULT now()
+			)`;
+			await sql`CREATE TABLE IF NOT EXISTS accounting_attachments (
+				id SERIAL PRIMARY KEY,
+				entry_id INTEGER NOT NULL REFERENCES accounting_entries(id) ON DELETE CASCADE,
+				file_base64 TEXT NOT NULL,
+				mime_type TEXT,
+				file_name TEXT,
+				created_at TIMESTAMPTZ DEFAULT now()
+			)`;
 
 			// Seed default desserts if empty
 			const dessertCount = await sql`SELECT COUNT(*)::int AS c FROM desserts`;
