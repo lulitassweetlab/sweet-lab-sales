@@ -324,11 +324,20 @@
 				
 				// Cargar historial
 				const movs = await fetchJSON('/api/inventory?history_all=1');
+				if (!Array.isArray(movs)) throw new Error("El historial no es una lista válida");
+
 				// Agrupar por accounting_id para mostrar la compra "completa"
 				const grouped = new Map();
-				movs.filter(m => m.kind === 'ingreso' && m.metadata?.accounting_id).forEach(m => {
+				movs.filter(m => m.kind === 'ingreso' && m.metadata && m.metadata.accounting_id).forEach(m => {
 					const aid = m.metadata.accounting_id;
-					if (!grouped.has(aid)) grouped.set(aid, { date: m.created_at, note: m.note, items: [], total: 0 });
+					if (!grouped.has(aid)) {
+						grouped.set(aid, { 
+							date: m.created_at || new Date().toISOString(), 
+							note: m.note || '', 
+							items: [], 
+							total: 0 
+						});
+					}
 					const g = grouped.get(aid);
 					g.items.push(`${m.ingredient} (${m.qty})`);
 					g.total += Number(m.metadata.total_cost || 0);
@@ -338,9 +347,11 @@
 				if (grouped.size === 0) {
 					tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:40px; color:#94a3b8;">No hay compras registradas.</td></tr>';
 				} else {
-					tbody.innerHTML = Array.from(grouped.entries()).sort((a,b)=>b[0]-a[0]).map(([aid, g]) => `
+					tbody.innerHTML = Array.from(grouped.entries())
+						.sort((a,b) => Number(b[0]) - Number(a[0])) // Ordenar por ID contable descendente
+						.map(([aid, g]) => `
 						<tr>
-							<td style="color:#64748b; font-size:0.85rem;">${g.date.slice(0,10)}</td>
+							<td style="color:#64748b; font-size:0.85rem;">${(g.date || '').slice(0,10)}</td>
 							<td style="font-weight:700;">${g.note || 'Compra Multi'}</td>
 							<td style="font-size:0.8rem; color:#64748b;">${g.items.join(', ')}</td>
 							<td style="text-align:right; font-weight:800; color:#10b981;">${fmt.format(g.total)}</td>
@@ -359,7 +370,10 @@
 					document.getElementById('new-purchase-btn').click();
 				}
 
-			} catch (e) { console.error(e); }
+			} catch (e) { 
+				console.error(e); 
+				document.getElementById('purchases-tbody').innerHTML = `<tr><td colspan="6" style="text-align:center; padding:40px; color:#ef4444;">❌ Error al cargar historial: ${e.message}</td></tr>`;
+			}
 		}
 
 		window.viewReceipt = async (accId) => {
