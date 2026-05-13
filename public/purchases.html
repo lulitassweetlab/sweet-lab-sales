@@ -237,7 +237,15 @@
 						canvas.getContext('2d').drawImage(img, 0, 0, width, height);
 						resolve(canvas.toDataURL('image/jpeg', 0.8));
 					};
+					img.onerror = () => {
+						alert("El archivo seleccionado no es una imagen válida o está dañado. Se guardará sin recibo.");
+						resolve(null);
+					};
 					img.src = e.target.result;
+				};
+				reader.onerror = () => {
+					alert("No se pudo leer el archivo. Se guardará sin recibo.");
+					resolve(null);
 				};
 				reader.readAsDataURL(file);
 			});
