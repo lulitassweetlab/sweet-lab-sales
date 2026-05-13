@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 52; // 52: Extras moved to individual recipes
+const SCHEMA_VERSION = 53; // 53: added inventory_conversions table
 
 export async function ensureSchema() {
 	if (schemaEnsured) return;
@@ -627,6 +627,18 @@ export async function ensureSchema() {
 						}
 					}
 					await sql`UPDATE schema_meta SET version = 52`;
+				}
+
+				if (Number(meta[0].version) < 53) {
+					console.log('Migrating to v53: Creating inventory_conversions table...');
+					await sql`
+						CREATE TABLE IF NOT EXISTS inventory_conversions (
+							id SERIAL PRIMARY KEY,
+							ingredient_name TEXT UNIQUE NOT NULL,
+							factor NUMERIC DEFAULT 1
+						)
+					`;
+					await sql`UPDATE schema_meta SET version = 53`;
 				}
 
 				await sql`UPDATE schema_meta SET version = ${SCHEMA_VERSION}, updated_at = now()`;
