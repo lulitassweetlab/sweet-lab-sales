@@ -32,6 +32,11 @@ export async function handler(event) {
 					return json(list);
 				}
 
+				if (actionQuery === 'get_aliases') {
+					const list = await sql`SELECT * FROM inventory_alias ORDER BY alias ASC`;
+					return json(list);
+				}
+
 				// Unified Inventory List
 				const items = await sql`SELECT id, ingredient, category, unit, price, pack_size FROM inventory_items ORDER BY category DESC, ingredient ASC`;
 				const rawMovs = await sql`SELECT ingredient, SUM(qty)::numeric AS qty FROM inventory_movements GROUP BY ingredient`;

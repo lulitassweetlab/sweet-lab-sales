@@ -236,17 +236,21 @@
 				if (res.items && res.items.length > 0) {
 					document.getElementById('items-container').innerHTML = '';
 					res.items.forEach(it => {
-						// Búsqueda inteligente del nombre más parecido en el inventario local
-						const aiName = (it.name || '').toLowerCase().trim();
+						const originalName = (it.name || '').toLowerCase().trim();
 						let suggested = it.name;
-						
-						// Intentar encontrar el mejor match en el inventario ya cargado
-						const bestMatch = inventory.find(inv => {
-							const invName = inv.ingredient.toLowerCase();
-							return invName === aiName || invName.includes(aiName) || aiName.includes(invName);
-						});
-						
-						if (bestMatch) suggested = bestMatch.ingredient;
+
+						// 1. Intentar por Alias exacto guardado
+						const aliasMatch = (window.inventoryAliases || []).find(a => a.alias === originalName);
+						if (aliasMatch) {
+							suggested = aliasMatch.ingredient_name;
+						} else {
+							// 2. Búsqueda inteligente si no hay alias
+							const bestMatch = inventory.find(inv => {
+								const invName = inv.ingredient.toLowerCase();
+								return invName === originalName || invName.includes(originalName) || originalName.includes(invName);
+							});
+							if (bestMatch) suggested = bestMatch.ingredient;
+						}
 
 						// Aplicar factor de conversión si existe
 						let finalQty = it.qty;
@@ -306,6 +310,7 @@
 			try {
 				inventory = await fetchJSON('/api/inventory');
 				window.inventoryConversions = await fetchJSON('/api/inventory?action=get_conversions');
+				window.inventoryAliases = await fetchJSON('/api/inventory?action=get_aliases');
 				
 				// Ordenar inventario: ingredientes -> empaques -> otros
 				const catOrder = { 'ingrediente': 1, 'empaque': 2, 'otros': 3 };
