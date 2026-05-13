@@ -296,7 +296,7 @@
             if (ev.target.tagName.toLowerCase() === 'input' || ev.target.tagName.toLowerCase() === 'button') return;
             const details = window.purchaseDetailsMap[month] || [];
             const dataForMonth = DATA.history.find(h => h.month === month);
-            const total = dataForMonth ? dataForMonth.inventory : 0; // Using inventory field as total purchases
+            const total = dataForMonth ? dataForMonth.purchases_total : 0;
 
             const html = details.map(d => `
                 <div style="margin-bottom:8px; background:#f8fafc; padding:12px; border-radius:14px; border:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;">
@@ -852,11 +852,11 @@
                                 <div style="margin-top:12px; padding:16px; background:#f8fafc; border-radius:18px; border:1px solid #e2e8f0">
                                     <div class="fin-item" onclick="showPurchaseDetails('${m.month}', event)" style="cursor:pointer; border:none; padding:4px 0;">
                                         <span class="fin-label" style="text-decoration:underline; text-decoration-style:dashed; color:#4f46e5;">Compras del Mes</span>
-                                        <span class="fin-val" style="color:#4f46e5">${fmt.format(m.inventory_detail?.reduce((a,b)=>a+b.value,0) || 0)}</span>
+                                        <span class="fin-val" style="color:#4f46e5">${fmt.format(m.purchases_total || 0)}</span>
                                     </div>
                                     <div class="fin-item" onclick="showInventoryDetails('${m.month}', event)" style="cursor:pointer; border:none; padding:4px 0;">
                                         <span class="fin-label" style="text-decoration:underline; text-decoration-style:dashed; color:#1e293b;">Inventario (Cierre)</span>
-                                        <span class="fin-val" style="color:#1e293b">${fmt.format(m.inventory || 0)}</span>
+                                        <span class="fin-val" style="color:#1e293b">${fmt.format(m.inventory_value || 0)}</span>
                                     </div>
                                 </div>
                             </div>

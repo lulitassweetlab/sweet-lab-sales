@@ -98,7 +98,8 @@ export async function handler(event) {
             let expenses = monthData?.expenses || 0;
             let losses = monthData?.losses || 0;
             let provManual = monthData?.provision || 0;
-            let inventory = monthData?.inventory || 0;
+            let purchases_total = monthData?.purchases_total || 0;
+            let inventory_value = monthData?.inventory_value || 0;
             let product_detail = monthData?.product_detail || [];
             let revenue_detail = monthData?.revenue_detail || [];
             let expense_detail = monthData?.expense_detail || [];
@@ -140,7 +141,7 @@ export async function handler(event) {
                 });
 
                 expenses = Math.round(filteredExpenses);
-                inventory = Math.round(inventoryTotal);
+                purchases_total = Math.round(inventoryTotal);
                 losses = Math.round(Number(accRows.find(a => a.kind === 'perdida')?.total || 0));
                 provManual = Math.round(Number(accRows.find(a => a.kind === 'provision')?.total || 0));
                 
@@ -220,7 +221,7 @@ export async function handler(event) {
                         qty: Number(s.stock || 0),
                         value: Math.round(Number(s.stock || 0) * Number(s.price || 0))
                     }));
-                    inventory = inventory_detail.reduce((a, b) => a + b.value, 0);
+                    inventory_value = inventory_detail.reduce((a, b) => a + b.value, 0);
                 } catch (invErr) { console.error("Inv Calc Error:", invErr); }
             } else {
                 // If cached, we still need to update cumulative tracking state for the next month
@@ -443,7 +444,7 @@ export async function handler(event) {
 
             // 5. Finalize monthData
             monthData = {
-                month: m, revenue, cogs, expenses, losses, inventory, commissions: calculatedCommissionsTotal, 
+                month: m, revenue, cogs, expenses, losses, purchases_total, inventory_value, commissions: calculatedCommissionsTotal, 
                 total_desserts: totalMonthDesserts, total_brigs: totalMonthBrigs, mod: modCents,
                 profit: opProfit, provision, net_to_share: netToShare, merit_pool: meritPool,
                 partners: partnerShares, commission_detail: commissionDetail,
