@@ -156,6 +156,7 @@
 				const body = {
 					id: dessert.id,
 					name: dessert.name,
+					short_code: dessert.short_code,
 					sale_price: dessert.sale_price,
 					cost_price: getEffectiveCostPrice(dessert),
 					promo_qty: promotion.promo_qty,
@@ -501,7 +502,6 @@
 				codeInput.maxLength = 4;
 				codeInput.value = dessert ? dessert.short_code : '';
 				codeInput.placeholder = 'Ej: chee';
-				codeInput.disabled = !!dessert; // Can't change code after creation
 
 				const priceLabel = document.createElement('label');
 				priceLabel.textContent = 'Precio de Venta:';
@@ -573,7 +573,7 @@
 					try {
 						const method = dessert ? 'PUT' : 'POST';
 						const body = dessert
-							? buildDessertPayload(dessert, { name, store_name, sale_price: price, position, is_active: dessert.is_active })
+							? buildDessertPayload(dessert, { name, short_code: code, store_name, sale_price: price, position, is_active: dessert.is_active })
 							: { name, store_name, short_code: code, sale_price: price, cost_price: getDefaultCostPrice(price), position };
 
 						const response = await fetch('/api/desserts', {
