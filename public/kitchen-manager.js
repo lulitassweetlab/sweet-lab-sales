@@ -34,12 +34,14 @@ const KitchenManager = {
         if (grid) grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding:40px;">⏳ Cargando bitácora...</div>';
 
         try {
+            console.log("📥 Loading Kitchen Data...");
             // 1. Load Recipes (including items and step_id)
             const recipeData = await window.api('GET', '/api/recipes?all_items=1');
+            console.log("📋 Raw Recipes:", recipeData);
             this.recipes = this.processRecipes(recipeData);
 
             // 2. Load Inventory (for stock levels)
-            this.inventory = await window.api('GET', '/api/inventory');
+            this.inventory = await window.api('GET', '/api/inventory') || [];
 
             // 3. Load Suggestions (Future orders)
             await this.loadSuggestions();
@@ -50,16 +52,20 @@ const KitchenManager = {
             this.render();
         } catch (err) {
             console.error("Kitchen Load Error:", err);
-            window.showToast("Error al cargar datos de cocina", "error");
+            window.showToast("Error al cargar datos de cocina: " + err.message, "error");
+            if (grid) grid.innerHTML = `<div style="grid-column: 1/-1; text-align:center; padding:40px; color:#ef4444;">❌ Error al cargar la bitácora.<br><small>${err.message}</small></div>`;
         }
     },
 
     processRecipes(data) {
         if (!data || !data.desserts) return [];
+        const items = data.items || [];
+        
         return data.desserts.map(name => {
-            const items = (data.items || []).filter(it => it.dessert === name);
+            const recipeItems = items.filter(it => it.dessert === name);
             const stepsMap = {};
-            items.forEach(it => {
+            
+            recipeItems.forEach(it => {
                 const stepKey = it.step_name || 'General';
                 if (!stepsMap[stepKey]) {
                     stepsMap[stepKey] = { 
@@ -68,8 +74,17 @@ const KitchenManager = {
                         items: [] 
                     };
                 }
-                stepsMap[stepKey].items.push(it);
+                if (it.ingredient) {
+                    stepsMap[stepKey].items.push(it);
+                }
             });
+
+            // Ensure we have at least one step if it's a known recipe
+            if (Object.keys(stepsMap).length === 0) {
+                const anyItem = recipeItems[0];
+                stepsMap['General'] = { id: anyItem?.step_id || null, name: 'General', items: [] };
+            }
+
             return {
                 name,
                 steps: Object.values(stepsMap)
@@ -89,6 +104,7 @@ const KitchenManager = {
             const counts = {};
 
             const findRecipeName = (code) => {
+                if (!code) return null;
                 const match = this.recipes.find(r => 
                     r.name.toLowerCase() === code.toLowerCase() || 
                     r.name.toLowerCase().startsWith(code.toLowerCase())
@@ -97,7 +113,7 @@ const KitchenManager = {
             };
             
             (sales || []).forEach(s => {
-                // 1. Process legacy qty columns (arco, melo, mara, oreo, nute)
+                // 1. Legacy columns
                 const legacyMapping = {
                     qty_arco: findRecipeName('Arco') || 'Arco',
                     qty_melo: findRecipeName('Melo') || 'Melo',
@@ -107,21 +123,16 @@ const KitchenManager = {
                 };
 
                 Object.entries(legacyMapping).forEach(([col, recipeName]) => {
-                    if (s[col]) {
-                        counts[recipeName] = (counts[recipeName] || 0) + Number(s[col]);
-                    }
+                    if (s[col]) counts[recipeName] = (counts[recipeName] || 0) + Number(s[col]);
                 });
 
-                // 2. Process modern items array
+                // 2. Items array
                 const items = s.items || [];
                 items.forEach(it => {
                     const rawName = it.name || it.short_code || '';
                     if (!rawName) return;
 
                     const recipeName = findRecipeName(rawName) || rawName;
-                    
-                    // Avoid double counting if this item was already processed via legacy columns
-                    // We check if the short_code matches any of our legacy keys
                     const isLegacy = it.short_code && ['arco', 'melo', 'mara', 'oreo', 'nute'].includes(it.short_code.toLowerCase());
                     if (isLegacy) return;
 
@@ -138,17 +149,27 @@ const KitchenManager = {
 
     async loadHistory() {
         const today = new Date().toISOString().split('T')[0];
-        const movements = await window.api('GET', `/api/inventory?history_all=1`);
-        this.history = (movements || []).filter(m => 
-            m.kind === 'produccion' && 
-            m.created_at.startsWith(today)
-        );
+        try {
+            const movements = await window.api('GET', `/api/inventory?history_all=1`);
+            this.history = (movements || []).filter(m => 
+                m.kind === 'produccion' && 
+                m.created_at && m.created_at.startsWith(today)
+            );
+        } catch (err) {
+            console.warn("Could not load history:", err);
+            this.history = [];
+        }
     },
 
     render() {
-        this.renderSuggestions();
-        this.renderRecipes();
-        this.renderHistory();
+        try {
+            this.renderSuggestions();
+            this.renderRecipes();
+            this.renderHistory();
+        } catch (err) {
+            console.error("Render Error:", err);
+            window.showToast("Error al renderizar cocina", "error");
+        }
     },
 
     renderSuggestions() {
@@ -177,11 +198,11 @@ const KitchenManager = {
         if (!grid) return;
         grid.innerHTML = '';
         
-        // Merge this.recipes with items from this.suggestions that don't have a recipe
+        // Merge this.recipes with items from suggestions that don't have a recipe
         const recipesToShow = [...this.recipes];
         Object.keys(this.suggestions).forEach(sName => {
-            if (sName === 'null' || !sName) return;
-            const exists = recipesToShow.some(r => r.name.toLowerCase() === sName.toLowerCase());
+            if (!sName || sName === 'null' || sName === 'undefined') return;
+            const exists = recipesToShow.some(r => r.name && r.name.toLowerCase() === sName.toLowerCase());
             if (!exists) {
                 recipesToShow.push({
                     name: sName,
@@ -197,14 +218,15 @@ const KitchenManager = {
         }
 
         // Sort recipes by suggestion count (descending)
-        const sortedRecipes = recipesToShow.sort((a, b) => {
+        recipesToShow.sort((a, b) => {
             const countA = this.suggestions[a.name] || 0;
             const countB = this.suggestions[b.name] || 0;
             if (countB !== countA) return countB - countA;
-            return a.name.localeCompare(b.name);
+            return (a.name || "").localeCompare(b.name || "");
         });
 
-        sortedRecipes.forEach(recipe => {
+        recipesToShow.forEach(recipe => {
+            if (!recipe || !recipe.name) return;
             const card = document.createElement('div');
             card.className = 'box kitchen-card';
             const count = this.suggestions[recipe.name] || 0;
@@ -232,26 +254,23 @@ const KitchenManager = {
                             `<div style="padding:20px; text-align:center; color:#94a3b8; font-size:0.8rem; border:1px dashed #e2e8f0; border-radius:12px;">
                                 ⚠️ No hay una receta configurada para este postre.<br>Ve a la sección de Recetas para configurarla.
                              </div>` :
-                            recipe.steps.map(step => this.renderStepRow(recipe.name, step)).join('')
+                            (recipe.steps || []).map(step => this.renderStepRow(recipe.name, step)).join('')
                         }
                     </div>
                 </div>
             `;
 
             card.onclick = (e) => {
-                // Prevent toggle if clicking inside an input or button
                 if (e.target.closest('input') || e.target.closest('button')) return;
-                
                 const container = card.querySelector('.steps-list-container');
                 const chevron = card.querySelector('.chevron');
                 const isExpanded = container.style.maxHeight !== '0px';
-                
                 if (isExpanded) {
                     container.style.maxHeight = '0px';
                     container.style.opacity = '0';
                     chevron.style.transform = 'rotate(0deg)';
                 } else {
-                    container.style.maxHeight = '2000px'; // Sufficiently large
+                    container.style.maxHeight = '2000px';
                     container.style.opacity = '1';
                     chevron.style.transform = 'rotate(180deg)';
                 }
@@ -262,8 +281,9 @@ const KitchenManager = {
     },
 
     renderStepRow(recipeName, step) {
+        if (!step) return "";
         const suggested = this.suggestions[recipeName] || 0;
-        const inputId = `input-${step.id}`;
+        const inputId = `input-${step.id || Math.random().toString(36).substr(2, 9)}`;
         
         return `
             <div style="background:#f8fafc; border:1px solid #f1f5f9; border-radius:16px; padding:12px; transition: all 0.2s ease;">
@@ -274,14 +294,15 @@ const KitchenManager = {
                     <input type="number" id="${inputId}" value="${suggested || 1}" min="1" 
                         style="width:65px; padding:8px; border-radius:10px; border:1px solid #cbd5e1; font-weight:700; text-align:center; outline:none;"
                         onfocus="this.select()">
-                    <button onclick="window.KitchenManager.produceStep('${step.id}', '${recipeName}', '${step.name}', '${inputId}')" 
-                        class="press-btn" style="flex:1; background:#4f46e5; color:white; border:none; padding:10px; border-radius:10px; font-weight:700; font-size:0.8rem; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2);">
+                    <button onclick="window.KitchenManager.produceStep('${step.id || ''}', '${recipeName}', '${step.name || ''}', '${inputId}')" 
+                        ${!step.id ? 'disabled' : ''}
+                        class="press-btn" style="flex:1; background:#4f46e5; color:white; border:none; padding:10px; border-radius:10px; font-weight:700; font-size:0.8rem; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2); opacity:${!step.id ? 0.5 : 1};">
                         Producir
                     </button>
                 </div>
                 <div style="margin-top:10px; font-size:0.7rem; color:#94a3b8; border-top:1px solid #eef2f6; padding-top:8px;">
-                    ${step.items.map(it => {
-                        const inv = this.inventory.find(i => i.ingredient.toLowerCase() === it.ingredient.toLowerCase());
+                    ${(step.items || []).map(it => {
+                        const inv = (this.inventory || []).find(i => i.ingredient && i.ingredient.toLowerCase() === (it.ingredient || "").toLowerCase());
                         const stock = inv ? inv.saldo : 0;
                         const qtyNeeded = Number(it.qty_per_unit || 0) * (suggested || 1);
                         const isLow = stock < qtyNeeded;
@@ -296,16 +317,19 @@ const KitchenManager = {
     },
 
     async produceStep(stepId, dessertName, stepName, inputId) {
+        if (!stepId) return window.showToast("Esta receta no tiene ID de producción", "warning");
         const input = document.getElementById(inputId);
         const qty = Number(input.value) || 0;
         if (qty <= 0) return window.showToast("Ingresa una cantidad válida", "warning");
 
         const btn = document.querySelector(`button[onclick*="'${inputId}'"]`);
-        const originalText = btn.innerText;
+        const originalText = btn ? btn.innerText : "Producir";
         
         try {
-            btn.innerText = "⏳...";
-            btn.disabled = true;
+            if (btn) {
+                btn.innerText = "⏳...";
+                btn.disabled = true;
+            }
 
             const res = await window.api('POST', '/api/inventory', {
                 action: 'produccion_paso',
@@ -316,16 +340,17 @@ const KitchenManager = {
 
             if (res.ok) {
                 window.showToast(`✅ Producido: ${qty} de ${dessertName} (${stepName || 'General'})`, "success");
-                // Reset input to 0 or something else? Maybe keep it.
-                await this.loadData(); // Refresh stock and history
+                await this.loadData();
             } else {
                 throw new Error(res.error || "Error desconocido");
             }
         } catch (err) {
             console.error("Produce Step Error:", err);
             window.showToast("Error al procesar: " + err.message, "error");
-            btn.innerText = originalText;
-            btn.disabled = false;
+            if (btn) {
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
         }
     },
 
@@ -338,17 +363,17 @@ const KitchenManager = {
             return;
         }
 
-        // Group history by Note
         const grouped = {};
         this.history.forEach(m => {
-            if (!grouped[m.note]) {
-                grouped[m.note] = { 
+            const note = m.note || "Producción";
+            if (!grouped[note]) {
+                grouped[note] = { 
                     time: m.created_at, 
                     actor: m.actor_name,
                     items: []
                 };
             }
-            grouped[m.note].items.push(m);
+            grouped[note].items.push(m);
         });
 
         const sortedNotes = Object.keys(grouped).sort((a,b) => new Date(grouped[b].time) - new Date(grouped[a].time));
