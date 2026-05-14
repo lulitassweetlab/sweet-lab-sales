@@ -299,11 +299,13 @@ export async function ensureSchema() {
 				CREATE TABLE IF NOT EXISTS dessert_recipes (
 					id SERIAL PRIMARY KEY,
 					dessert TEXT NOT NULL,
-					step_name TEXT,
+					step_name TEXT NOT NULL,
 					position INTEGER DEFAULT 0,
 					created_at TIMESTAMPTZ DEFAULT now()
 				)
 			`;
+			await sql`ALTER TABLE dessert_recipes ADD COLUMN IF NOT EXISTS produces_ingredient TEXT`;
+			await sql`ALTER TABLE dessert_recipes ADD COLUMN IF NOT EXISTS produces_unit TEXT`;
 			await sql`
 				CREATE TABLE IF NOT EXISTS dessert_recipe_items (
 					id SERIAL PRIMARY KEY,

@@ -352,9 +352,10 @@ export async function handler(event) {
 				if (action === 'produccion_paso') {
 					const stepId = Number(data.step_id || 0);
 					const multiplier = Number(data.multiplier || 1) || 1;
+					const producedQty = Number(data.produced_qty || 0) || 0;
 					if (!stepId) return json({ error: 'step_id requerido' }, 400);
 
-					const [step] = await sql`SELECT id, dessert, step_name FROM dessert_recipes WHERE id = ${stepId}`;
+					const [step] = await sql`SELECT id, dessert, step_name, produces_ingredient, produces_unit FROM dessert_recipes WHERE id = ${stepId}`;
 					if (!step) return json({ error: 'paso no encontrado' }, 404);
 
 					const items = await sql`SELECT ingredient, unit, qty_per_unit FROM dessert_recipe_items WHERE recipe_id = ${stepId}`;
@@ -365,8 +366,11 @@ export async function handler(event) {
 					
 					const metadata = { step_id: stepId, multiplier: multiplier };
 					if (data.target_date) metadata.target_date = data.target_date;
+					if (producedQty > 0) metadata.produced_qty = producedQty;
 
 					const now = new Date();
+					
+					// 1. Record consumption of ingredients
 					for (const it of items) {
 						const canon = (it.ingredient || '').toString().trim();
 						const qtyToSubtract = -Math.abs(Number(it.qty_per_unit || 0) * multiplier);
@@ -376,10 +380,29 @@ export async function handler(event) {
 							VALUES (${canon}, 'produccion', ${qtyToSubtract}, ${note}, ${actor}, ${JSON.stringify(metadata)}::jsonb, ${now}) 
 							RETURNING *
 						`;
-						results.push({ ingredient: canon, qty: qtyToSubtract, movement_id: row?.id });
+						results.push({ ingredient: canon, qty: qtyToSubtract, movement_id: row?.id, type: 'consumption' });
 					}
 
-					return json({ ok: true, step: step.step_name, dessert: step.dessert, movements: results });
+					// 2. Record production output (if configured and qty > 0)
+					if (producedQty > 0 && step.produces_ingredient) {
+						const canonProduced = (step.produces_ingredient || '').toString().trim();
+						const noteProduced = `Resultado de producción: ${step.dessert}${step.step_name ? ' - ' + step.step_name : ''} (x${multiplier})`;
+						
+						const [rowProduced] = await sql`
+							INSERT INTO inventory_movements (ingredient, kind, qty, note, actor_name, metadata, created_at) 
+							VALUES (${canonProduced}, 'entrada', ${producedQty}, ${noteProduced}, ${actor}, ${JSON.stringify(metadata)}::jsonb, ${now}) 
+							RETURNING *
+						`;
+						results.push({ ingredient: canonProduced, qty: producedQty, movement_id: rowProduced?.id, type: 'output' });
+					}
+
+					return json({ 
+						ok: true, 
+						step: step.step_name, 
+						dessert: step.dessert, 
+						movements: results,
+						produced: producedQty > 0 ? { ingredient: step.produces_ingredient, qty: producedQty } : null
+					});
 				}
 
 				if (action === 'produccion') {

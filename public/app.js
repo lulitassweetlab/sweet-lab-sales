@@ -7436,7 +7436,32 @@ function buildStepCard(dessertName, step) {
 	function removePlaceholder() { const ph = tbody.querySelector('tr.empty-drop'); if (ph) ph.remove(); }
 	ensurePlaceholder();
 	table.append(thead, tbody);
-	box.append(head, table);
+	
+	const producesDiv = document.createElement('div');
+	producesDiv.style.cssText = 'margin-top:12px; padding:10px; background:rgba(14,165,233,0.05); border-radius:8px; border:1px solid rgba(14,165,233,0.1); display:flex; align-items:center; gap:8px; font-size:0.85rem;';
+	producesDiv.innerHTML = `
+		<span style="font-weight:600; color:var(--primary)">Genera Stock:</span>
+		<input type="text" class="input-cell produces-input" list="dl-inventory-items" placeholder="Ej: Galletas champaña" style="flex:1; font-size:0.85rem; padding:4px 8px" value="${step.produces_ingredient || ''}">
+		<small style="color:var(--muted)">Ingresa el nombre del insumo que resulta de este paso.</small>
+	`;
+	const producesIn = producesDiv.querySelector('.produces-input');
+	producesIn.addEventListener('change', async () => {
+		const val = producesIn.value.trim() || null;
+		try {
+			await api('POST', API.Recipes, { 
+				kind: 'step.upsert', 
+				id: step.id, 
+				dessert: dessertName, 
+				step_name: step.step_name, 
+				position: step.position || 0,
+				produces_ingredient: val,
+				produces_unit: 'unidad'
+			});
+			step.produces_ingredient = val;
+		} catch { notify.error('No se pudo guardar la configuración de producción'); }
+	});
+
+	box.append(head, table, producesDiv);
 	// Enable drag & drop for steps using the header as a handle
 	box.draggable = false;
 	head.draggable = true;

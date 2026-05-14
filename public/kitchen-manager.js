@@ -69,31 +69,31 @@ const KitchenManager = {
         
         return data.desserts.map(name => {
             const recipeItems = items.filter(it => it.dessert === name);
-            const stepsMap = {};
+            const steps = [];
+            const stepsById = {};
             
             recipeItems.forEach(it => {
-                const stepKey = it.step_name || 'General';
-                if (!stepsMap[stepKey]) {
-                    stepsMap[stepKey] = { 
-                        id: it.step_id,
-                        name: it.step_name, 
+                const stepId = it.step_id;
+                if (!stepsById[stepId]) {
+                    const newStep = { 
+                        id: stepId,
+                        name: it.step_name || 'General', 
+                        produces_ingredient: it.produces_ingredient,
+                        produces_unit: it.produces_unit,
                         items: [] 
                     };
+                    stepsById[stepId] = newStep;
+                    steps.push(newStep);
                 }
+                
                 if (it.ingredient) {
-                    stepsMap[stepKey].items.push(it);
+                    stepsById[stepId].items.push(it);
                 }
             });
 
-            // Ensure we have at least one step if it's a known recipe
-            if (Object.keys(stepsMap).length === 0) {
-                const anyItem = recipeItems[0];
-                stepsMap['General'] = { id: anyItem?.step_id || null, name: 'General', items: [] };
-            }
-
             return {
                 name,
-                steps: Object.values(stepsMap)
+                steps: steps
             };
         });
     },
@@ -534,14 +534,29 @@ const KitchenManager = {
                     ${producedInWindow > 0 ? `<span style="font-size:0.7rem; color:#16a34a; font-weight:900; background:#dcfce7; padding:2px 8px; border-radius:8px;">✓ Hecho: ${producedInWindow}</span>` : ''}
                 </div>
                 <div style="display:flex; gap:8px; align-items:center;">
-                    <input type="number" id="${inputId}" value="${Math.max(0, totalNeeded - producedInWindow) || totalNeeded || 1}" min="1" 
-                        style="width:65px; padding:8px; border-radius:10px; border:1px solid #cbd5e1; font-weight:700; text-align:center; outline:none;"
-                        onfocus="this.select()">
-                    <button onclick="window.KitchenManager.produceStep('${step.id || ''}', '${recipeName}', '${step.name || ''}', '${inputId}', '${targetDate}')" 
-                        ${!step.id ? 'disabled' : ''}
-                        class="press-btn" style="flex:1; background:${isDone ? '#10b981' : '#4f46e5'}; color:white; border:none; padding:10px; border-radius:10px; font-weight:700; font-size:0.8rem; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2); opacity:${!step.id ? 0.5 : 1};">
-                        ${isDone ? 'Producir Más' : 'Producir'}
-                    </button>
+                    <div style="display:flex; flex-direction:column; gap:4px; flex:1;">
+                        <small style="font-size:0.65rem; color:#64748b; font-weight:600;">Lote (Unidades)</small>
+                        <input type="number" id="${inputId}" value="${Math.max(0, totalNeeded - producedInWindow) || totalNeeded || 1}" min="1" 
+                            style="width:100%; padding:8px; border-radius:10px; border:1px solid #cbd5e1; font-weight:700; text-align:center; outline:none;"
+                            onfocus="this.select()">
+                    </div>
+                    
+                    ${step.produces_ingredient ? `
+                    <div style="display:flex; flex-direction:column; gap:4px; flex:1;">
+                        <small style="font-size:0.65rem; color:#0ea5e9; font-weight:600;">Obtenido (${step.produces_unit || 'u'})</small>
+                        <input type="number" id="${inputId}-produced" placeholder="Manual..."
+                            style="width:100%; padding:8px; border-radius:10px; border:1px solid #0ea5e9; font-weight:700; text-align:center; outline:none; background:rgba(14,165,233,0.02)"
+                            onfocus="this.select()">
+                    </div>
+                    ` : ''}
+
+                    <div style="display:flex; flex-direction:column; gap:4px; flex:1; align-self: flex-end;">
+                        <button onclick="window.KitchenManager.produceStep('${step.id || ''}', '${recipeName}', '${step.name || ''}', '${inputId}', '${targetDate}')" 
+                            ${!step.id ? 'disabled' : ''}
+                            class="press-btn" style="width:100%; background:${isDone ? '#10b981' : '#4f46e5'}; color:white; border:none; padding:10px; border-radius:10px; font-weight:700; font-size:0.8rem; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2); opacity:${!step.id ? 0.5 : 1};">
+                            ${isDone ? 'Producir Más' : 'Producir'}
+                        </button>
+                    </div>
                 </div>
                 <div style="margin-top:10px; font-size:0.7rem; color:#94a3b8; border-top:1px solid #eef2f6; padding-top:8px;">
                     ${(step.items || []).map(it => {
@@ -586,10 +601,14 @@ const KitchenManager = {
                 btn.disabled = true;
             }
 
+            const producedInp = document.getElementById(`${inputId}-produced`);
+            const producedQty = producedInp ? (Number(producedInp.value) || 0) : 0;
+
             const res = await window.api('POST', '/api/inventory', {
                 action: 'produccion_paso',
                 step_id: Number(stepId),
                 multiplier: qty,
+                produced_qty: producedQty,
                 target_date: targetDate,
                 actor_name: window.state?.currentUser?.name || window.state?.currentUser?.username || "Cocinero"
             });
@@ -599,7 +618,11 @@ const KitchenManager = {
                     btn.innerText = "✅ Hecho";
                     btn.style.background = "#10b981";
                 }
-                window.showToast(`✅ Producido: ${qty} de ${dessertName} (${stepName || 'General'})`, "success");
+                let toastMsg = `✅ Producido: ${qty} de ${dessertName} (${stepName || 'General'})`;
+                if (res.produced) {
+                    toastMsg += ` + ${res.produced.qty} ${res.produced.ingredient} al stock.`;
+                }
+                window.showToast(toastMsg, "success");
                 await this.loadData();
             } else {
                 throw new Error(res.error || "Error desconocido");
