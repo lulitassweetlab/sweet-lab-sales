@@ -558,8 +558,8 @@
 						alert('El nombre es requerido');
 						return;
 					}
-					if (!code || code.length !== 4) {
-						alert('El código debe tener exactamente 4 letras');
+					if (!code || code.length > 4) {
+						alert('El código debe tener entre 1 y 4 letras');
 						return;
 					}
 					if (price <= 0) {
