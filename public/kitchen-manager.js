@@ -539,7 +539,7 @@ const KitchenManager = {
                         const isLow = stock < qtyNeeded;
                         return `<div style="display:flex; justify-content:space-between; margin-bottom:2px; ${isLow ? 'color:#ef4444; font-weight:700;' : ''}">
                             <span>• ${it.ingredient}</span>
-                            <span>${stock} / ${qtyNeeded} ${it.unit}</span>
+                            <span>${Number(stock).toFixed(2)} / ${Number(qtyNeeded).toFixed(2)} ${it.unit}</span>
                         </div>`;
                     }).join('')}
                 </div>
