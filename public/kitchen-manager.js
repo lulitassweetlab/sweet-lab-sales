@@ -590,49 +590,52 @@ const KitchenManager = {
         const elapsed = this.getElapsedSeconds(step.id, targetDate);
 
         return `
-            <div style="background:${isDone ? '#f0fdf4' : '#f8fafc'}; border:1px solid ${isDone ? '#bbf7d0' : '#f1f5f9'}; border-radius:16px; padding:12px; transition: all 0.2s ease;">
-                <div class="flex" style="margin-bottom:8px; justify-content:space-between; align-items:center;">
-                    <div style="display:flex; align-items:center; gap:8px;">
+            <div style="background:${isDone ? '#f0fdf4' : '#f8fafc'}; border:1px solid ${isDone ? '#bbf7d0' : '#f1f5f9'}; border-radius:18px; padding:10px; transition: all 0.2s ease;">
+                <div class="flex" style="margin-bottom:8px; justify-content:space-between; align-items:center; gap:8px;">
+                    <div style="display:flex; align-items:center; gap:10px; flex:1; min-width:0;">
                         <button onclick="window.KitchenManager.toggleTimer('${step.id}', '${targetDate}')" 
                             class="press-btn" 
-                            style="width:32px; height:32px; border-radius:50%; border:none; display:flex; align-items:center; justify-content:center; background:${isRunning ? '#ef4444' : '#4f46e5'}; color:white; padding:0;">
+                            style="width:26px; height:26px; border-radius:8px; border:none; display:flex; align-items:center; justify-content:center; background:${isRunning ? '#ef4444' : '#6366f1'}; color:white; padding:0; flex-shrink:0; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
                             ${isRunning ? 
-                                '<svg width="14" height="14" viewBox="0 0 24 24" fill="white"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>' : 
-                                '<svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>'
+                                '<svg width="10" height="10" viewBox="0 0 24 24" fill="white"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>' : 
+                                '<svg width="10" height="10" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>'
                             }
                         </button>
-                        <div style="display:flex; flex-direction:column;">
-                            <strong style="font-size:0.85rem; color:${isDone ? '#16a34a' : '#475569'};">${step.name || 'Proceso General'}</strong>
-                            <span class="timer-display" data-step-id="${step.id}" data-date="${targetDate}" 
-                                style="font-family:monospace; font-size:0.75rem; color:${isRunning ? '#ef4444' : '#94a3b8'}; font-weight:700;">
-                                ${this.formatDuration(elapsed)}
-                            </span>
+                        <div style="display:flex; flex-direction:column; min-width:0;">
+                            <strong style="font-size:0.8rem; color:${isDone ? '#16a34a' : '#334155'}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${step.name || 'Proceso General'}</strong>
+                            <div style="display:flex; align-items:center; gap:4px;">
+                                <span class="timer-display" data-step-id="${step.id}" data-date="${targetDate}" 
+                                    style="font-family:'Courier New', monospace; font-size:0.7rem; color:${isRunning ? '#ef4444' : '#94a3b8'}; font-weight:800; letter-spacing:0.5px;">
+                                    ${this.formatDuration(elapsed)}
+                                </span>
+                                ${isRunning ? '<span style="width:4px; height:4px; background:#ef4444; border-radius:50%; animation: pulse 1.5s infinite;"></span>' : ''}
+                            </div>
                         </div>
                     </div>
-                    ${producedInWindow > 0 ? `<span style="font-size:0.7rem; color:#16a34a; font-weight:900; background:#dcfce7; padding:2px 8px; border-radius:8px;">✓ Hecho: ${producedInWindow}</span>` : ''}
+                    ${producedInWindow > 0 ? `<span style="font-size:0.65rem; color:#16a34a; font-weight:800; background:#dcfce7; padding:2px 8px; border-radius:6px; flex-shrink:0;">✓ Hecho: ${producedInWindow}</span>` : ''}
                 </div>
-                <div style="display:flex; gap:8px; align-items:center;">
-                    <div style="display:flex; flex-direction:column; gap:4px; flex:1;">
-                        <small style="font-size:0.65rem; color:#64748b; font-weight:600;">Lote (Unidades)</small>
+                <div style="display:flex; gap:6px; align-items:center;">
+                    <div style="display:flex; flex-direction:column; gap:2px; flex:1;">
+                        <small style="font-size:0.6rem; color:#64748b; font-weight:700; text-transform:uppercase; margin-left:4px;">Lote</small>
                         <input type="number" id="${inputId}" value="${Math.max(0, totalNeeded - producedInWindow) || totalNeeded || 1}" min="1" 
-                            style="width:100%; padding:8px; border-radius:10px; border:1px solid #cbd5e1; font-weight:700; text-align:center; outline:none;"
+                            style="width:100%; padding:7px; border-radius:12px; border:1px solid #e2e8f0; font-weight:800; text-align:center; font-size:0.85rem; outline:none; background:white;"
                             onfocus="this.select()">
                     </div>
                     
                     ${step.produces_ingredient ? `
-                    <div style="display:flex; flex-direction:column; gap:4px; flex:1;">
-                        <small style="font-size:0.65rem; color:#0ea5e9; font-weight:600;">Obtenido (${step.produces_unit || 'u'})</small>
-                        <input type="number" id="${inputId}-produced" placeholder="Manual..."
-                            style="width:100%; padding:8px; border-radius:10px; border:1px solid #0ea5e9; font-weight:700; text-align:center; outline:none; background:rgba(14,165,233,0.02)"
+                    <div style="display:flex; flex-direction:column; gap:2px; flex:1;">
+                        <small style="font-size:0.6rem; color:#0ea5e9; font-weight:700; text-transform:uppercase; margin-left:4px;">Obtenido</small>
+                        <input type="number" id="${inputId}-produced" placeholder="?"
+                            style="width:100%; padding:7px; border-radius:12px; border:1px solid #bae6fd; font-weight:800; text-align:center; font-size:0.85rem; outline:none; background:#f0f9ff"
                             onfocus="this.select()">
                     </div>
                     ` : ''}
 
-                    <div style="display:flex; flex-direction:column; gap:4px; flex:1; align-self: flex-end;">
+                    <div style="display:flex; flex-direction:column; gap:2px; flex:1.2; align-self: flex-end;">
                         <button onclick="window.KitchenManager.produceStep('${step.id || ''}', '${recipeName}', '${step.name || ''}', '${inputId}', '${targetDate}')" 
                             ${!step.id ? 'disabled' : ''}
-                            class="press-btn" style="width:100%; background:${isDone ? '#10b981' : '#4f46e5'}; color:white; border:none; padding:10px; border-radius:10px; font-weight:700; font-size:0.8rem; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2); opacity:${!step.id ? 0.5 : 1};">
-                            ${isDone ? 'Producir Más' : 'Producir'}
+                            class="press-btn" style="width:100%; background:${isDone ? '#10b981' : '#4f46e5'}; color:white; border:none; padding:9px; border-radius:12px; font-weight:800; font-size:0.75rem; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.15); opacity:${!step.id ? 0.5 : 1};">
+                            ${isDone ? 'MÁS' : 'LISTO'}
                         </button>
                     </div>
                 </div>
