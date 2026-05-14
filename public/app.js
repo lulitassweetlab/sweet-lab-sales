@@ -1308,6 +1308,7 @@ async function enterSeller(id) {
 	switchView('#view-sales');
 }
 
+window.switchView = switchView;
 function switchView(id) {
 	document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
 	$(id).classList.remove('hidden');
@@ -1377,6 +1378,10 @@ function applyAuthVisibility() {
 	if (purchasesBtn) purchasesBtn.style.display = canPurchases ? 'inline-block' : 'none';
 	if (storeBtn) storeBtn.style.display = canStore ? 'inline-block' : 'none';
 	if (crmAdminBtn) crmAdminBtn.style.display = canCrm ? 'inline-block' : 'none';
+	
+	const canKitchen = isSuper || isAdminUser || feats.has('nav.kitchen');
+	const kitchenBtn = document.getElementById('kitchen-button');
+	if (kitchenBtn) kitchenBtn.style.display = canKitchen ? 'inline-block' : 'none';
 
 	const globalDbBtn = document.getElementById('global-clients-button');
 	if (globalDbBtn) globalDbBtn.style.display = (isSuper || feats.has('nav.globaldb')) ? 'inline-block' : 'none';
@@ -4753,6 +4758,7 @@ async function exportCarteraExcel(startIso, endIso) {
 	const accountingBtn = document.getElementById('accounting-button');
 	const dessertsBtn = document.getElementById('desserts-button');
 	const deliveriesBtn = document.getElementById('deliveries-button');
+	const kitchenBtn = document.getElementById('kitchen-button');
 	const input = document.getElementById('report-date');
 	if (!reportBtn || !input) return;
 	reportBtn.addEventListener('click', (ev) => {
@@ -4800,6 +4806,14 @@ async function exportCarteraExcel(startIso, endIso) {
 			const url = `/transfers.html?start=${encodeURIComponent(range.start)}&end=${encodeURIComponent(range.end)}`;
 			window.location.href = url;
 		}, ev.clientX, ev.clientY, { preferUp: true });
+	});
+	
+	kitchenBtn?.addEventListener('click', () => {
+		exitDeleteSellerModeIfActive();
+		window.switchView('#view-kitchen');
+		if (window.KitchenManager) {
+			window.KitchenManager.init();
+		}
 	});
 	usersBtn?.addEventListener('click', async (ev) => {
 		exitDeleteSellerModeIfActive();

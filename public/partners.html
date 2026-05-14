@@ -137,6 +137,12 @@
         let DATA = null; 
         let SELLERS = [];
         const fmt = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
+        const roundToHundreds = (cents) => {
+            if (!cents) return 0;
+            const cop = cents / 100;
+            const roundedCop = Math.round(cop / 100) * 100;
+            return roundedCop * 100; 
+        };
         
         const updateStatus = (t) => {
             const el = document.getElementById('status-text');
@@ -301,7 +307,7 @@
             const html = details.map(d => `
                 <div style="margin-bottom:8px; background:#f8fafc; padding:12px; border-radius:14px; border:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;">
                     <div style="flex:1;"><div style="font-size:0.85rem; font-weight:700; color:#334155;">${d.description}</div><div style="font-size:0.7rem; color:#94a3b8;">${d.date}</div></div>
-                    <strong style="color:#6366f1;">${fmt.format(d.amount)}</strong>
+                    <strong style="color:#6366f1;">${fmt.format(roundToHundreds(d.amount))}</strong>
                 </div>`).join('');
 
             const pop = document.createElement('div');
@@ -313,7 +319,7 @@
                     ${html || '<p style="text-align:center; color:#94a3b8;">No hay movimientos registrados.</p>'}
                 </div>
                 <div style="display:flex; justify-content:space-between; padding:16px; background:#eff6ff; border-radius:16px; font-weight:900;">
-                    <span>INVERSIÓN NETA</span><span style="color:#2563eb">${fmt.format(total)}</span>
+                    <span>INVERSIÓN NETA</span><span style="color:#2563eb">${fmt.format(roundToHundreds(total))}</span>
                 </div>
                 <button onclick="closePopover(this)" style="margin-top:24px; width:100%; padding:14px; border-radius:12px; border:none; background:#f1f5f9; cursor:pointer; font-weight:800; color:#475569;">Cerrar</button>
             </div>`;
@@ -331,7 +337,7 @@
                         <div style="font-size:0.85rem; font-weight:700; color:#334155;">${d.ingredient}</div>
                         <div style="font-size:0.7rem; color:#94a3b8;">Stock: ${d.qty} ${d.unit}</div>
                     </div>
-                    <strong style="color:#0f172a;">${fmt.format(d.value)}</strong>
+                    <strong style="color:#0f172a;">${fmt.format(roundToHundreds(d.value))}</strong>
                 </div>`).join('');
 
             const pop = document.createElement('div');
@@ -342,7 +348,7 @@
                     ${html || '<p style="text-align:center; color:#94a3b8;">No hay inventario registrado.</p>'}
                 </div>
                 <div style="display:flex; justify-content:space-between; padding:16px; background:#f1f5f9; border-radius:16px; font-weight:900;">
-                    <span>VALOR TOTAL BODEGA</span><span style="color:#0f172a">${fmt.format(details.reduce((a,b)=>a+b.value,0))}</span>
+                    <span>VALOR TOTAL BODEGA</span><span style="color:#0f172a">${fmt.format(roundToHundreds(details.reduce((a,b)=>a+b.value,0)))}</span>
                 </div>
                 <button onclick="closePopover(this)" style="margin-top:24px; width:100%; padding:14px; border-radius:12px; border:none; background:#f1f5f9; cursor:pointer; font-weight:800; color:#475569;">Cerrar</button>
             </div>`;
@@ -487,7 +493,7 @@
                             </div>
                             <div style="margin-top:auto; padding-top:12px; border-top:2px dashed #cbd5e1; text-align:center;">
                                 <div style="font-size:0.8rem; opacity:0.7; font-weight:700; color:#64748b;">UTILIDAD A RECIBIR</div>
-                                <div style="font-size:2rem; font-weight:900; color:#4f46e5;">${fmt.format(partnerMeta.share_amount)}</div>
+                                <div style="font-size:2rem; font-weight:900; color:#4f46e5;">${fmt.format(roundToHundreds(partnerMeta.share_amount))}</div>
                             </div>
                         </div>
                     </div>
@@ -837,20 +843,18 @@
                             </div>
                             <div style="text-align:right">
                                 <div style="font-size:0.75rem; color:var(--txt-mute); font-weight:700">Utilidad Neta</div>
-                                <span style="color:#10b981; font-size:1.6rem; font-weight:900;">${fmt.format(m.profit || 0)}</span>
+                                <span style="color:#10b981; font-size:1.6rem; font-weight:900;">${fmt.format(roundToHundreds(m.profit || 0))}</span>
                             </div>
                         </div>
                         <div class="grid">
                             <div style="display:flex; flex-direction:column; gap:4px">
                                 <div style="padding:10px 16px; background:#f5f3ff; border-radius:12px; border:1px solid #ddd6fe; font-size:0.85rem; font-weight:800; color:#4c1d95; display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
                                     <span>🍰 ${m.total_desserts || 0} Postres</span>
-                                    <span>🍬 ${m.total_brigs || 0} Brigs</span>
-                                </div>
-                                <div class="fin-item" onclick="showRevenueDetails('${m.month}', event)" style="cursor:pointer;"><span class="fin-label" style="text-decoration:underline; text-decoration-style:dashed;">Ventas (Ingresos)</span><span class="fin-val"><span class="hist-text-${m.month}">${fmt.format(m.revenue || 0)}</span><input type="number" class="hist-g-input-${m.month}" data-key="revenue" value="${m.revenue}" style="display:none; width:80px; text-align:right;"></span></div>
-                                <div class="fin-item" onclick="showProductDetails('${m.month}', event)" style="cursor:pointer;"><span class="fin-label" style="text-decoration:underline; text-decoration-style:dashed;">Costo Materia Prima</span><span class="fin-val neg"><span class="hist-text-${m.month}">-${fmt.format(m.cogs || 0)}</span><input type="number" class="hist-g-input-${m.month}" data-key="cogs" value="${m.cogs}" style="display:none; width:80px; text-align:right;"></span></div>
-                                <div class="fin-item"><span class="fin-label">Mano de Obra (MOD)</span><span class="fin-val neg"><span class="hist-text-${m.month}">-${fmt.format(m.mod || 0)}</span><input type="number" class="hist-g-input-${m.month}" data-key="mod" value="${m.mod||0}" style="display:none; width:80px; text-align:right;"></span></div>
-                                <div class="fin-item" onclick="showExpenseDetails('${m.month}', event)" style="cursor:pointer;"><span class="fin-label" style="text-decoration:underline; text-decoration-style:dashed;">Gastos</span><span class="fin-val neg"><span class="hist-text-${m.month}">-${fmt.format(m.expenses || 0)}</span><input type="number" class="hist-g-input-${m.month}" data-key="expenses" value="${m.expenses}" style="display:none; width:80px; text-align:right;"></span></div>
-                                <div class="fin-item"><span class="fin-label">Ajustes</span><span class="fin-val neg"><span class="hist-text-${m.month}">-${fmt.format(m.losses || 0)}</span><input type="number" class="hist-g-input-${m.month}" data-key="losses" value="${m.losses}" style="display:none; width:80px; text-align:right;"></span></div>
+                                          <div class="fin-item" onclick="showRevenueDetails('${m.month}', event)" style="cursor:pointer;"><span class="fin-label" style="text-decoration:underline; text-decoration-style:dashed;">Ventas (Ingresos)</span><span class="fin-val"><span class="hist-text-${m.month}">${fmt.format(roundToHundreds(m.revenue || 0))}</span><input type="number" class="hist-g-input-${m.month}" data-key="revenue" value="${m.revenue}" style="display:none; width:80px; text-align:right;"></span></div>
+                                <div class="fin-item" onclick="showProductDetails('${m.month}', event)" style="cursor:pointer;"><span class="fin-label" style="text-decoration:underline; text-decoration-style:dashed;">Costo Materia Prima</span><span class="fin-val neg"><span class="hist-text-${m.month}">-${fmt.format(roundToHundreds(m.cogs || 0))}</span><input type="number" class="hist-g-input-${m.month}" data-key="cogs" value="${m.cogs}" style="display:none; width:80px; text-align:right;"></span></div>
+                                <div class="fin-item"><span class="fin-label">Mano de Obra (MOD)</span><span class="fin-val neg"><span class="hist-text-${m.month}">-${fmt.format(roundToHundreds(m.mod || 0))}</span><input type="number" class="hist-g-input-${m.month}" data-key="mod" value="${m.mod||0}" style="display:none; width:80px; text-align:right;"></span></div>
+                                <div class="fin-item" onclick="showExpenseDetails('${m.month}', event)" style="cursor:pointer;"><span class="fin-label" style="text-decoration:underline; text-decoration-style:dashed;">Gastos</span><span class="fin-val neg"><span class="hist-text-${m.month}">-${fmt.format(roundToHundreds(m.expenses || 0))}</span><input type="number" class="hist-g-input-${m.month}" data-key="expenses" value="${m.expenses}" style="display:none; width:80px; text-align:right;"></span></div>
+                                <div class="fin-item"><span class="fin-label">Ajustes</span><span class="fin-val neg"><span class="hist-text-${m.month}">-${fmt.format(roundToHundreds(m.losses || 0))}</span><input type="number" class="hist-g-input-${m.month}" data-key="losses" value="${m.losses}" style="display:none; width:80px; text-align:right;"></span></div>month}" data-key="losses" value="${m.losses}" style="display:none; width:80px; text-align:right;"></span></div>
                                 <div class="fin-item" style="border-top: 1px dashed #cbd5e1; margin-top: 8px; padding-top: 12px; display:none;">
                                     <span class="fin-label" style="color:var(--p-mod)">Inversión en Inventario</span>
                                     <span class="fin-val" style="color:var(--p-mod)">
@@ -861,13 +865,13 @@
                                 <div style="margin-top:12px; padding:16px; background:#f5f3ff; border-radius:18px; border:1px solid #ddd6fe">
                                     <div class="flex" style="margin-bottom:8px">
                                         <span style="font-weight:700; color:#5b21b6; font-size:0.85rem;">Comisiones de Venta</span>
-                                        <span style="font-weight:900; color:#4c1d95">${fmt.format(m.commissions || 0)}</span>
+                                        <span style="font-weight:900; color:#4c1d95">${fmt.format(roundToHundreds(m.commissions || 0))}</span>
                                     </div>
                                     <div style="font-size:0.75rem; color:#6d28d9; line-height:1.6">
                                         ${(m.commission_detail || []).sort((a,b)=>b.total_comm - a.total_comm).map(c => `
                                             <div style="display:flex; justify-content:space-between; opacity:0.8; margin-bottom:4px; align-items:center">
                                                 <span>• ${c.seller_name} (${c.desserts} P / ${c.brigs} B)</span>
-                                                <strong>${fmt.format(c.total_comm)}</strong>
+                                                <strong>${fmt.format(roundToHundreds(c.total_comm))}</strong>
                                             </div>`).join('')}
                                     </div>
                                 </div>
@@ -875,12 +879,12 @@
                                 <div style="margin-top:12px; padding:16px; background:#f8fafc; border-radius:18px; border:1px solid #e2e8f0">
                                     <div class="fin-item" onclick="showPurchaseDetails('${m.month}', event)" style="cursor:pointer; border:none; padding:4px 0;">
                                         <span class="fin-label" style="text-decoration:underline; text-decoration-style:dashed; color:#4f46e5;">Inversión en Inventario</span>
-                                        <span class="fin-val" style="color:#4f46e5">${fmt.format(m.inventory_investment || 0)}</span>
+                                        <span class="fin-val" style="color:#4f46e5">${fmt.format(roundToHundreds(m.inventory_investment || 0))}</span>
                                     </div>
                                     <div class="fin-item" onclick="showInventoryDetails('${m.month}', event)" style="cursor:pointer; border:none; padding:4px 0;">
                                         <span class="fin-label" style="text-decoration:underline; text-decoration-style:dashed; color:#1e293b;">Inventario (Cierre)</span>
                                         <span class="fin-val" style="color:#1e293b">
-                                            <span class="hist-text-${m.month}">${fmt.format(m.inventory_value || 0)}</span>
+                                            <span class="hist-text-${m.month}">${fmt.format(roundToHundreds(m.inventory_value || 0))}</span>
                                             <input type="number" class="hist-g-input-${m.month}" data-key="inventory_value" value="${m.inventory_value || 0}" style="display:none; width:100px; text-align:right; font-weight:700;">
                                         </span>
                                     </div>
@@ -895,7 +899,7 @@
                                     <div onclick="showSellerHistoryChart('${p.name}', '${m.month}', event)" style="background:#fff; border:1px solid #e2e8f0; border-radius:16px; padding:16px; cursor:pointer;">
                                         <div class="flex">
                                             <div><div style="font-weight:800; font-size:1.05rem;">${p.name}</div><div style="font-size:0.75rem; color:#64748b;">🍰 ${p.metrics_debug?.cumulative_total || 0} postres históricos</div></div>
-                                            <div style="text-align:right;"><div style="font-size:0.65rem; color:#94a3b8;">Utilidad</div><div style="font-weight:900; font-size:1.2rem; color:#10b981;">${fmt.format(p.share_amount)}</div></div>
+                                            <div style="text-align:right;"><div style="font-size:0.65rem; color:#94a3b8;">Utilidad</div><div style="font-weight:900; font-size:1.2rem; color:#10b981;">${fmt.format(roundToHundreds(p.share_amount))}</div></div>
                                         </div>
                                         <div style="display:flex; align-items:center; gap:12px; margin-top:8px;"><div style="flex:1; height:8px; background:#f1f5f9; border-radius:8px; overflow:hidden;"><div style="width:${p.share_perc}%; height:100%; background:linear-gradient(90deg, #8b5cf6, #c084fc);"></div></div><strong style="color:#7c3aed; font-size:0.85rem;">${p.share_perc}%</strong></div>
                                     </div>`).join('')}
@@ -903,8 +907,8 @@
                         </div>`;
                     cont.appendChild(div);
                 });
-                document.getElementById('stat-rev').innerText = fmt.format(totalR);
-                document.getElementById('stat-prof').innerText = fmt.format(totalP);
+                document.getElementById('stat-rev').innerText = fmt.format(roundToHundreds(totalR));
+                document.getElementById('stat-prof').innerText = fmt.format(roundToHundreds(totalP));
             } catch (err) {
                 console.error("Render Error:", err);
                 document.getElementById('report-content').innerHTML = `<div style="color:red; padding:20px; text-align:center;">Error en el renderizado: ${err.message}</div>`;

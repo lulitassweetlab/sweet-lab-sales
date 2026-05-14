@@ -119,7 +119,7 @@ export async function handler(event) {
 					// Single payload with all items grouped by dessert + extras to reduce roundtrips
 					const desserts = (await sql`SELECT DISTINCT dessert FROM dessert_recipes ORDER BY dessert ASC`).map(r => r.dessert);
 					const items = await sql`
-						SELECT dr.dessert, dr.step_name, i.ingredient, i.unit, i.qty_per_unit, i.adjustment, 
+						SELECT dr.id as step_id, dr.dessert, dr.step_name, i.ingredient, i.unit, i.qty_per_unit, i.adjustment, 
 						       COALESCE(ii.price, i.price) as price, COALESCE(ii.pack_size, i.pack_size) as pack_size
 						FROM dessert_recipe_items i
 						LEFT JOIN dessert_recipes dr ON dr.id = i.recipe_id

@@ -318,6 +318,35 @@ export async function handler(event) {
 					return json({ ok: true, cleared: true });
 				}
 
+				if (action === 'produccion_paso') {
+					const stepId = Number(data.step_id || 0);
+					const multiplier = Number(data.multiplier || 1) || 1;
+					if (!stepId) return json({ error: 'step_id requerido' }, 400);
+
+					const [step] = await sql`SELECT id, dessert, step_name FROM dessert_recipes WHERE id = ${stepId}`;
+					if (!step) return json({ error: 'paso no encontrado' }, 404);
+
+					const items = await sql`SELECT ingredient, unit, qty_per_unit FROM dessert_recipe_items WHERE recipe_id = ${stepId}`;
+					if (!items || items.length === 0) return json({ error: 'este paso no tiene ingredientes asociados' }, 400);
+
+					const results = [];
+					const note = `Producción: ${step.dessert}${step.step_name ? ' - ' + step.step_name : ''} (x${multiplier})`;
+					
+					for (const it of items) {
+						const canon = (it.ingredient || '').toString().trim();
+						const qtyToSubtract = -Math.abs(Number(it.qty_per_unit || 0) * multiplier);
+						
+						const [row] = await sql`
+							INSERT INTO inventory_movements (ingredient, kind, qty, note, actor_name, metadata) 
+							VALUES (${canon}, 'produccion', ${qtyToSubtract}, ${note}, ${actor}, ${JSON.stringify({ step_id: stepId, multiplier })}::jsonb) 
+							RETURNING *
+						`;
+						results.push({ ingredient: canon, qty: qtyToSubtract, movement_id: row?.id });
+					}
+
+					return json({ ok: true, step: step.step_name, dessert: step.dessert, movements: results });
+				}
+
 				if (action === 'produccion') {
 					const counts = data.counts && typeof data.counts === 'object' ? data.counts : {};
 					const desserts = await sql`SELECT id, short_code, name FROM desserts WHERE is_active = true`;
