@@ -543,6 +543,36 @@ const KitchenManager = {
                     </div>
                     <div class="steps-list-container" style="max-height:${isExpanded ? '2000px' : '0'}; overflow:hidden; transition: all 0.3s ease; opacity:${isExpanded ? '1' : '0'};">
                         <div style="padding-top:16px; display:flex; flex-direction:column; gap:12px;">
+                            ${batch.recipeName.toLowerCase().includes('oreo') ? (() => {
+                                // Consolidation logic ONLY for Oreo
+                                const consolidated = {};
+                                recipe.steps.forEach(s => {
+                                    (s.items || []).forEach(it => {
+                                        const key = it.ingredient.trim();
+                                        if (!consolidated[key]) consolidated[key] = { qty: 0, unit: it.unit };
+                                        consolidated[key].qty += (Number(it.qty_per_unit) || 0) * totalNeeded;
+                                    });
+                                });
+                                const entries = Object.entries(consolidated);
+                                if (entries.length === 0) return '';
+                                return `
+                                    <div style="background:#f0f9ff; border:1px solid #bae6fd; border-radius:12px; padding:12px; margin-bottom:8px;">
+                                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px; color:#0369a1;">
+                                            <span style="font-size:1.2rem;">💡</span>
+                                            <strong style="font-size:0.85rem; text-transform:uppercase; letter-spacing:0.5px;">Consolidado de Insumos (Oreo)</strong>
+                                        </div>
+                                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+                                            ${entries.map(([name, info]) => `
+                                                <div style="display:flex; flex-direction:column; background:white; padding:6px 10px; border-radius:8px; border:1px solid #e0f2fe;">
+                                                    <span style="font-size:0.65rem; color:#64748b; font-weight:700; text-transform:uppercase;">${name}</span>
+                                                    <strong style="font-size:0.9rem; color:#0369a1;">${info.qty.toLocaleString()} ${info.unit}</strong>
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+                                `;
+                            })() : ''}
+                            
                             ${recipe.isMissing ? 
                                 `<div style="padding:20px; text-align:center; color:#94a3b8; font-size:0.8rem; border:1px dashed #e2e8f0; border-radius:12px;">
                                     ⚠️ No hay una receta configurada para este postre.
