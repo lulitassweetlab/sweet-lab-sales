@@ -55,7 +55,7 @@ const KitchenManager = {
             this.render();
         } catch (err) {
             console.error("Kitchen Load Error:", err);
-            window.showToast("Error al cargar datos de cocina: " + err.message, "error");
+            window.notify.error("Error al cargar datos de cocina: " + err.message);
             if (grid) grid.innerHTML = `<div style="grid-column: 1/-1; text-align:center; padding:40px; color:#ef4444;">❌ Error al cargar la bitácora.<br><small>${err.message}</small></div>`;
         }
     },
@@ -99,7 +99,7 @@ const KitchenManager = {
         const today = new Date();
         const start = today.toISOString().split('T')[0];
         const future = new Date();
-        future.setDate(today.getDate() + 5);
+        future.setDate(today.getDate() + 30); // Expanded to 30 days to see all future sales
         const end = future.toISOString().split('T')[0];
         
         try {
@@ -306,13 +306,13 @@ const KitchenManager = {
                 enterSeller: !!window.enterSeller, 
                 state: !!window.state 
             });
-            return window.showToast("Error: Funciones de navegación no disponibles. Por favor recarga.", "error");
+            return window.notify.error("Error: Funciones de navegación no disponibles. Por favor recarga.");
         }
         
         const existing = document.getElementById('seller-breakdown-pop');
         if (existing) existing.remove();
 
-        window.showToast("Navegando...", "info");
+        window.notify.info("Navegando...");
 
         try {
             console.log('KITCHEN: Calling window.enterSeller(', sellerId, ')');
@@ -323,6 +323,8 @@ const KitchenManager = {
             // 2. Find the day record in the state
             const dayRecord = (window.state.saleDays || []).find(d => String(d.day || '').startsWith(dayIso));
             console.log('KITCHEN: Day record found:', dayRecord);
+            
+            if (dayRecord) {
                 // 3. Select the day and show the wrapper
                 window.state.selectedDayId = dayRecord.id;
                 const wrapper = document.getElementById('sales-wrapper');
@@ -334,12 +336,12 @@ const KitchenManager = {
                 // 5. Scroll to top of table for better visibility
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             } else {
-                window.showToast("Día no encontrado en el archivo de este vendedor.", "warning");
+                window.notify.error("Día no encontrado en el archivo de este vendedor.");
                 // Even if day not found, we already switched to the seller view
             }
         } catch (err) {
             console.error("Error jumping to sales:", err);
-            window.showToast("No se pudo completar la navegación: " + err.message, "error");
+            window.notify.error("No se pudo completar la navegación: " + err.message);
         }
     },
 

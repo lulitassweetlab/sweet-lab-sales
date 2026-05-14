@@ -1121,6 +1121,7 @@ window.API = API;
 window.enterSeller = enterSeller;
 window.loadSales = loadSales;
 window.loadDaysForSeller = loadDaysForSeller;
+window.notify = notify;
 
 async function loadSellers() {
 	// Try loading from localStorage first for instant feel
