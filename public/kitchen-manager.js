@@ -155,47 +155,47 @@ const KitchenManager = {
                 const sellerName = s.seller_name || 'Tienda';
                 const sellerId = s.seller_id;
                 const saleDay = s.sale_day;
-
-                // 1. Legacy columns
-                const legacyMapping = {
-                    qty_arco: findRecipeName('Arco') || 'Arco',
-                    qty_melo: findRecipeName('Melo') || 'Melo',
-                    qty_mara: findRecipeName('Mara') || 'Mara',
-                    qty_oreo: findRecipeName('Oreo') || 'Oreo',
-                    qty_nute: findRecipeName('Nute') || 'Nute'
-                };
-
-                Object.entries(legacyMapping).forEach(([col, recipeName]) => {
-                    const q = Number(s[col] || 0);
-                    if (q > 0) addCount(recipeName, sellerName, sellerId, saleDay, q);
-                });
-
-                // 2. Items array
                 const items = s.items || [];
-                items.forEach(it => {
-                    const sc = (it.short_code || '').toLowerCase().trim();
-                    const rawName = it.name || '';
-                    if (!sc && !rawName) return;
 
-                    let displayName = rawName;
-                    if (sc) {
-                        const masterMatch = (this.allDesserts || []).find(d => (d.short_code || '').toLowerCase().trim() === sc);
-                        if (masterMatch) displayName = masterMatch.name;
-                    }
+                // 💡 Strategy: If items array exists and is not empty, use it as source of truth.
+                // Otherwise, fallback to legacy columns.
+                if (items.length > 0) {
+                    items.forEach(it => {
+                        const sc = (it.short_code || it.code || '').toLowerCase().trim();
+                        const rawName = it.name || '';
+                        if (!sc && !rawName) return;
 
-                    if (!displayName || displayName === sc) {
-                        const recipeMatch = findRecipeName(rawName || sc);
-                        if (recipeMatch) displayName = recipeMatch;
-                    }
+                        let displayName = rawName;
+                        if (sc) {
+                            const masterMatch = (this.allDesserts || []).find(d => (d.short_code || '').toLowerCase().trim() === sc);
+                            if (masterMatch) displayName = masterMatch.name;
+                        }
 
-                    if (!displayName) displayName = sc || rawName;
+                        if (!displayName || displayName.toLowerCase() === sc) {
+                            const recipeMatch = findRecipeName(rawName || sc);
+                            if (recipeMatch) displayName = recipeMatch;
+                        }
 
-                    const isLegacy = sc && ['arco', 'melo', 'mara', 'oreo', 'nute'].includes(sc);
-                    if (isLegacy) return;
+                        if (!displayName) displayName = sc || rawName;
 
-                    const q = Number(it.quantity || 0);
-                    if (q > 0) addCount(displayName, sellerName, sellerId, saleDay, q);
-                });
+                        const q = Number(it.quantity || 0);
+                        if (q > 0) addCount(displayName, sellerName, sellerId, saleDay, q);
+                    });
+                } else {
+                    // Fallback to legacy columns for older records
+                    const legacyMapping = {
+                        qty_arco: findRecipeName('Arco') || 'Arco',
+                        qty_melo: findRecipeName('Melo') || 'Melo',
+                        qty_mara: findRecipeName('Mara') || 'Mara',
+                        qty_oreo: findRecipeName('Oreo') || 'Oreo',
+                        qty_nute: findRecipeName('Nute') || 'Nute'
+                    };
+
+                    Object.entries(legacyMapping).forEach(([col, recipeName]) => {
+                        const q = Number(s[col] || 0);
+                        if (q > 0) addCount(recipeName, sellerName, sellerId, saleDay, q);
+                    });
+                }
             });
             
             console.log('KITCHEN: Final suggestions object:', counts);
