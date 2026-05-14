@@ -177,13 +177,27 @@ const KitchenManager = {
         if (!grid) return;
         grid.innerHTML = '';
         
-        if (this.recipes.length === 0) {
+        // Merge this.recipes with items from this.suggestions that don't have a recipe
+        const recipesToShow = [...this.recipes];
+        Object.keys(this.suggestions).forEach(sName => {
+            if (sName === 'null' || !sName) return;
+            const exists = recipesToShow.some(r => r.name.toLowerCase() === sName.toLowerCase());
+            if (!exists) {
+                recipesToShow.push({
+                    name: sName,
+                    steps: [{ id: null, name: 'Receta no configurada', items: [] }],
+                    isMissing: true
+                });
+            }
+        });
+
+        if (recipesToShow.length === 0) {
             grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding:40px; color:#64748b;">No se encontraron recetas configuradas.</div>';
             return;
         }
 
         // Sort recipes by suggestion count (descending)
-        const sortedRecipes = [...this.recipes].sort((a, b) => {
+        const sortedRecipes = recipesToShow.sort((a, b) => {
             const countA = this.suggestions[a.name] || 0;
             const countB = this.suggestions[b.name] || 0;
             if (countB !== countA) return countB - countA;
@@ -195,13 +209,14 @@ const KitchenManager = {
             card.className = 'box kitchen-card';
             const count = this.suggestions[recipe.name] || 0;
             const isSuggested = count > 0;
+            const isMissing = recipe.isMissing;
             
-            card.style = `margin:0; padding:16px; border-radius:24px; display:flex; flex-direction:column; gap:0; border: 1px solid ${isSuggested ? '#f4a6b7' : '#f1f5f9'}; cursor:pointer; background:${isSuggested ? '#fffdfd' : '#fff'};`;
+            card.style = `margin:0; padding:16px; border-radius:24px; display:flex; flex-direction:column; gap:0; border: 1px solid ${isMissing ? '#f1f5f9' : (isSuggested ? '#f4a6b7' : '#f1f5f9')}; cursor:pointer; background:${isSuggested ? '#fffdfd' : '#fff'}; opacity:${isMissing ? 0.7 : 1};`;
             
             card.innerHTML = `
                 <div class="card-header" style="display:flex; align-items:center; justify-content:space-between; width:100%;">
                     <div style="display:flex; align-items:center; gap:12px;">
-                        <div style="width:36px; height:36px; background:${isSuggested ? '#fce7f3' : '#f8fafc'}; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:1.1rem;">🍰</div>
+                        <div style="width:36px; height:36px; background:${isMissing ? '#f1f5f9' : (isSuggested ? '#fce7f3' : '#f8fafc')}; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:1.1rem;">🍰</div>
                         <div>
                             <h3 style="margin:0; font-size:1rem; font-weight:900; color:#1e293b;">${recipe.name}</h3>
                             ${isSuggested ? `<span style="font-size:0.7rem; color:#db2777; font-weight:700;">Pendiente: ${count}</span>` : '<span style="font-size:0.7rem; color:#94a3b8;">Sin pedidos</span>'}
@@ -213,7 +228,12 @@ const KitchenManager = {
                 </div>
                 <div class="steps-list-container" style="max-height:0; overflow:hidden; transition: all 0.3s ease; opacity:0;">
                     <div style="padding-top:16px; display:flex; flex-direction:column; gap:12px;">
-                        ${recipe.steps.map(step => this.renderStepRow(recipe.name, step)).join('')}
+                        ${isMissing ? 
+                            `<div style="padding:20px; text-align:center; color:#94a3b8; font-size:0.8rem; border:1px dashed #e2e8f0; border-radius:12px;">
+                                ⚠️ No hay una receta configurada para este postre.<br>Ve a la sección de Recetas para configurarla.
+                             </div>` :
+                            recipe.steps.map(step => this.renderStepRow(recipe.name, step)).join('')
+                        }
                     </div>
                 </div>
             `;

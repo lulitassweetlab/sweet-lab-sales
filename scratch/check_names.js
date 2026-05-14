@@ -7,8 +7,8 @@ async function check() {
         console.log("--- DESSERTS TABLE ---");
         console.table(desserts);
 
-        const recipes = await sql`SELECT DISTINCT dessert FROM dessert_recipes ORDER BY dessert`;
-        console.log("\n--- RECIPES TABLE ---");
+        const recipes = await sql`SELECT DISTINCT dessert FROM dessert_recipes WHERE lower(dessert) LIKE '%bx5%' OR lower(dessert) LIKE '%brim%' OR lower(dessert) LIKE '%brownie%' ORDER BY dessert`;
+        console.log("\n--- SEARCH RESULTS ---");
         console.table(recipes);
         
         process.exit(0);

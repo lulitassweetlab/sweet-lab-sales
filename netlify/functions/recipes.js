@@ -121,10 +121,10 @@ export async function handler(event) {
 					const items = await sql`
 						SELECT dr.id as step_id, dr.dessert, dr.step_name, i.ingredient, i.unit, i.qty_per_unit, i.adjustment, 
 						       COALESCE(ii.price, i.price) as price, COALESCE(ii.pack_size, i.pack_size) as pack_size
-						FROM dessert_recipe_items i
-						LEFT JOIN dessert_recipes dr ON dr.id = i.recipe_id
+						FROM dessert_recipes dr
+						LEFT JOIN dessert_recipe_items i ON dr.id = i.recipe_id
 						LEFT JOIN inventory_items ii ON lower(trim(ii.ingredient)) = lower(trim(i.ingredient))
-						ORDER BY dr.dessert ASC, i.position ASC, i.id ASC
+						ORDER BY dr.dessert ASC, dr.step_name ASC
 					`;
 					let extras = [];
 					if (includeExtras) extras = await sql`
