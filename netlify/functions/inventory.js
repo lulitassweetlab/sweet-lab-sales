@@ -94,20 +94,10 @@ export async function handler(event) {
 					return json({ ok: true });
 				}
 
-				if (action === 'delete_conversion') {
-					const { id } = data;
-					if (!id) return json({ error: 'Missing id' }, 400);
-					await sql`DELETE FROM inventory_conversions WHERE id = ${id}`;
-					return json({ ok: true });
-				}
-
 				if (action === 'delete_production') {
-					const { note, created_at } = data;
-					if (!note || !created_at) return json({ error: 'Missing note or created_at' }, 400);
-					const t = new Date(created_at);
-					const tMin = new Date(t.getTime() - 5000);
-					const tMax = new Date(t.getTime() + 5000);
-					await sql`DELETE FROM inventory_movements WHERE note = ${note} AND created_at >= ${tMin} AND created_at <= ${tMax}`;
+					const { ids } = data;
+					if (!ids || !Array.isArray(ids) || ids.length === 0) return json({ error: 'Missing or invalid ids' }, 400);
+					await sql`DELETE FROM inventory_movements WHERE id IN ${sql(ids)}`;
 					return json({ ok: true });
 				}
 

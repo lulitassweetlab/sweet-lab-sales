@@ -1,4 +1,3 @@
-
 const KitchenManager = {
     recipes: [],
     inventory: [],
@@ -608,7 +607,7 @@ const KitchenManager = {
         
         sortedHistory.forEach(m => {
             const t = new Date(m.created_at).getTime();
-            // Find if there's an existing action with the same note and within 10 seconds (safer for slow loops)
+            // Find if there's an existing action with the same note and within 10 seconds
             const existing = actions.find(a => 
                 a.note === m.note && 
                 Math.abs(new Date(a.created_at).getTime() - t) < 10000
@@ -619,8 +618,11 @@ const KitchenManager = {
                     note: m.note,
                     created_at: m.created_at,
                     actor: m.actor_name,
-                    target_date: m.metadata?.target_date
+                    target_date: m.metadata?.target_date,
+                    ids: [m.id]
                 });
+            } else {
+                existing.ids.push(m.id);
             }
         });
 
@@ -642,7 +644,7 @@ const KitchenManager = {
                         </div>
                     </div>
                 </div>
-                <button onclick="window.KitchenManager.deleteProduction('${action.note.replace(/'/g, "\\'")}', '${action.created_at}')" 
+                <button onclick="window.KitchenManager.deleteProduction([${action.ids.join(',')}], '${action.note.replace(/'/g, "\\'")}')" 
                     class="press-btn" style="background:#fee2e2; color:#ef4444; border:none; width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:1rem; transition:all 0.2s;">
                     🗑️
                 </button>
@@ -651,15 +653,14 @@ const KitchenManager = {
         });
     },
 
-    async deleteProduction(note, createdAt) {
+    async deleteProduction(ids, note) {
         if (!confirm(`¿Estás seguro de eliminar este registro?\n"${note}"\n\nEsto devolverá los ingredientes al inventario.`)) return;
 
         try {
             window.showToast("Eliminando...", "info");
             const res = await window.api('POST', '/api/inventory', {
                 action: 'delete_production',
-                note: note,
-                created_at: createdAt
+                ids: ids
             });
 
             if (res.ok) {
