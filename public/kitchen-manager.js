@@ -179,20 +179,61 @@ const KitchenManager = {
             return;
         }
 
-        this.recipes.forEach(recipe => {
+        // Sort recipes by suggestion count (descending)
+        const sortedRecipes = [...this.recipes].sort((a, b) => {
+            const countA = this.suggestions[a.name] || 0;
+            const countB = this.suggestions[b.name] || 0;
+            if (countB !== countA) return countB - countA;
+            return a.name.localeCompare(b.name);
+        });
+
+        sortedRecipes.forEach(recipe => {
             const card = document.createElement('div');
-            card.className = 'box';
-            card.style = "margin:0; padding:20px; border-radius:24px; display:flex; flex-direction:column; gap:16px; border: 1px solid #f1f5f9;";
+            card.className = 'box kitchen-card';
+            const count = this.suggestions[recipe.name] || 0;
+            const isSuggested = count > 0;
+            
+            card.style = `margin:0; padding:16px; border-radius:24px; display:flex; flex-direction:column; gap:0; border: 1px solid ${isSuggested ? '#f4a6b7' : '#f1f5f9'}; cursor:pointer; background:${isSuggested ? '#fffdfd' : '#fff'};`;
             
             card.innerHTML = `
-                <div class="flex" style="align-items:center; gap:12px;">
-                    <div style="width:40px; height:40px; background:#fff7ed; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:1.2rem;">🍰</div>
-                    <h3 style="margin:0; font-size:1.1rem; font-weight:900; color:#1e293b;">${recipe.name}</h3>
+                <div class="card-header" style="display:flex; align-items:center; justify-content:space-between; width:100%;">
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <div style="width:36px; height:36px; background:${isSuggested ? '#fce7f3' : '#f8fafc'}; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:1.1rem;">🍰</div>
+                        <div>
+                            <h3 style="margin:0; font-size:1rem; font-weight:900; color:#1e293b;">${recipe.name}</h3>
+                            ${isSuggested ? `<span style="font-size:0.7rem; color:#db2777; font-weight:700;">Pendiente: ${count}</span>` : '<span style="font-size:0.7rem; color:#94a3b8;">Sin pedidos</span>'}
+                        </div>
+                    </div>
+                    <div class="chevron" style="transition: transform 0.2s ease;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                    </div>
                 </div>
-                <div class="steps-list" style="display:flex; flex-direction:column; gap:12px;">
-                    ${recipe.steps.map(step => this.renderStepRow(recipe.name, step)).join('')}
+                <div class="steps-list-container" style="max-height:0; overflow:hidden; transition: all 0.3s ease; opacity:0;">
+                    <div style="padding-top:16px; display:flex; flex-direction:column; gap:12px;">
+                        ${recipe.steps.map(step => this.renderStepRow(recipe.name, step)).join('')}
+                    </div>
                 </div>
             `;
+
+            card.onclick = (e) => {
+                // Prevent toggle if clicking inside an input or button
+                if (e.target.closest('input') || e.target.closest('button')) return;
+                
+                const container = card.querySelector('.steps-list-container');
+                const chevron = card.querySelector('.chevron');
+                const isExpanded = container.style.maxHeight !== '0px';
+                
+                if (isExpanded) {
+                    container.style.maxHeight = '0px';
+                    container.style.opacity = '0';
+                    chevron.style.transform = 'rotate(0deg)';
+                } else {
+                    container.style.maxHeight = '2000px'; // Sufficiently large
+                    container.style.opacity = '1';
+                    chevron.style.transform = 'rotate(180deg)';
+                }
+            };
+
             grid.appendChild(card);
         });
     },
