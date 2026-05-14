@@ -246,6 +246,15 @@ const KitchenManager = {
     },
 
     render() {
+        // Initialize virtual stock map to project availability across cards
+        this.virtualStockMap = {};
+        (this.inventory || []).forEach(inv => {
+            if (inv.ingredient) {
+                const key = (inv.ingredient || "").toLowerCase().trim();
+                this.virtualStockMap[key] = Number(inv.saldo || 0);
+            }
+        });
+
         try {
             this.renderSuggestions();
             this.renderRecipes();
@@ -536,13 +545,24 @@ const KitchenManager = {
                 </div>
                 <div style="margin-top:10px; font-size:0.7rem; color:#94a3b8; border-top:1px solid #eef2f6; padding-top:8px;">
                     ${(step.items || []).map(it => {
-                        const inv = (this.inventory || []).find(i => i.ingredient && i.ingredient.toLowerCase() === (it.ingredient || "").toLowerCase());
-                        const stock = inv ? inv.saldo : 0;
-                        const qtyNeeded = Number(it.qty_per_unit || 0) * (Math.max(0, totalNeeded - producedInWindow) || totalNeeded || 1);
-                        const isLow = stock < qtyNeeded;
+                        const key = (it.ingredient || "").toLowerCase().trim();
+                        // Get projected stock BEFORE this step
+                        const currentProjected = this.virtualStockMap[key] || 0;
+                        
+                        // Calculate what remains to be produced in this specific step
+                        const qtyRemaining = Math.max(0, totalNeeded - producedInWindow);
+                        const qtyNeeded = Number(it.qty_per_unit || 0) * qtyRemaining;
+                        
+                        // Update virtual stock for SUBSEQUENT cards/steps
+                        if (qtyNeeded > 0) {
+                            this.virtualStockMap[key] = Math.max(0, currentProjected - qtyNeeded);
+                        }
+
+                        const isLow = currentProjected < qtyNeeded && qtyNeeded > 0;
+                        
                         return `<div style="display:flex; justify-content:space-between; margin-bottom:2px; ${isLow ? 'color:#ef4444; font-weight:700;' : ''}">
                             <span>• ${it.ingredient}</span>
-                            <span>${Number(qtyNeeded).toFixed(2)} / ${Number(stock).toFixed(2)} ${it.unit}</span>
+                            <span>${Number(qtyNeeded).toFixed(2)} / ${Number(currentProjected).toFixed(2)} ${it.unit}</span>
                         </div>`;
                     }).join('')}
                 </div>
