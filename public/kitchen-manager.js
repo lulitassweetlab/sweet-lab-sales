@@ -115,15 +115,25 @@ const KitchenManager = {
                 return match ? match.name : null;
             };
 
-            const addCount = (recipeName, sellerName, qty) => {
+            const addCount = (recipeName, sellerName, sellerId, day, qty) => {
                 if (!recipeName || !qty) return;
-                if (!counts[recipeName]) counts[recipeName] = { total: 0, sellers: {} };
+                if (!counts[recipeName]) counts[recipeName] = { total: 0, sellers: [] };
                 counts[recipeName].total += qty;
-                counts[recipeName].sellers[sellerName] = (counts[recipeName].sellers[sellerName] || 0) + qty;
+                
+                // Find if we already have this seller+day for this recipe
+                const isoDay = String(day || '').slice(0, 10);
+                let entry = counts[recipeName].sellers.find(e => e.sellerId === sellerId && e.day === isoDay);
+                if (!entry) {
+                    entry = { sellerName, sellerId, day: isoDay, qty: 0 };
+                    counts[recipeName].sellers.push(entry);
+                }
+                entry.qty += qty;
             };
             
             (sales || []).forEach(s => {
                 const sellerName = s.seller_name || 'Tienda';
+                const sellerId = s.seller_id;
+                const saleDay = s.sale_day;
 
                 // 1. Legacy columns
                 const legacyMapping = {
@@ -136,7 +146,7 @@ const KitchenManager = {
 
                 Object.entries(legacyMapping).forEach(([col, recipeName]) => {
                     const q = Number(s[col] || 0);
-                    if (q > 0) addCount(recipeName, sellerName, q);
+                    if (q > 0) addCount(recipeName, sellerName, sellerId, saleDay, q);
                 });
 
                 // 2. Items array
@@ -146,9 +156,7 @@ const KitchenManager = {
                     const rawName = it.name || '';
                     if (!sc && !rawName) return;
 
-                    // Try to resolve to a full name using allDesserts or recipes
                     let displayName = rawName;
-                    
                     if (sc) {
                         const masterMatch = (this.allDesserts || []).find(d => (d.short_code || '').toLowerCase().trim() === sc);
                         if (masterMatch) displayName = masterMatch.name;
@@ -165,7 +173,7 @@ const KitchenManager = {
                     if (isLegacy) return;
 
                     const q = Number(it.quantity || 0);
-                    if (q > 0) addCount(displayName, sellerName, q);
+                    if (q > 0) addCount(displayName, sellerName, sellerId, saleDay, q);
                 });
             });
             
@@ -238,21 +246,28 @@ const KitchenManager = {
         const pop = document.createElement('div');
         pop.id = 'seller-breakdown-pop';
         pop.className = 'aladdin-pop';
-        pop.style = `position:fixed; z-index:10000; background:white; border-radius:16px; box-shadow:0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1); padding:16px; min-width:200px; border:1px solid #f1f5f9;`;
+        pop.style = `position:fixed; z-index:10000; background:white; border-radius:16px; box-shadow:0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1); padding:16px; min-width:250px; border:1px solid #f1f5f9;`;
         
         const rect = targetEl.getBoundingClientRect();
-        pop.style.left = Math.min(window.innerWidth - 220, Math.max(10, rect.left)) + 'px';
+        pop.style.left = Math.min(window.innerWidth - 270, Math.max(10, rect.left)) + 'px';
         pop.style.top = (rect.bottom + 8) + 'px';
 
-        let html = `<h4 style="margin:0 0 10px 0; font-size:0.85rem; color:#64748b; border-bottom:1px solid #f1f5f9; padding-bottom:8px;">Pedidos por Vendedor:</h4>`;
-        html += `<div style="display:flex; flex-direction:column; gap:6px;">`;
+        let html = `<h4 style="margin:0 0 10px 0; font-size:0.85rem; color:#64748b; border-bottom:1px solid #f1f5f9; padding-bottom:8px;">Pedidos Detallados:</h4>`;
+        html += `<div style="display:flex; flex-direction:column; gap:8px;">`;
         
-        const sellers = Object.entries(data.sellers).sort((a,b) => b[1] - a[1]);
-        sellers.forEach(([seller, qty]) => {
+        // Sort by date then seller
+        const sorted = [...data.sellers].sort((a,b) => b.day.localeCompare(a.day) || a.sellerName.localeCompare(b.sellerName));
+        
+        sorted.forEach(entry => {
+            const dateLabel = entry.day.split('-').slice(1).reverse().join('/'); // MM/DD -> DD/MM
             html += `
-                <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.85rem;">
-                    <span style="color:#1e293b; font-weight:500;">${seller}</span>
-                    <span style="background:#f1f5f9; color:#475569; padding:2px 8px; border-radius:6px; font-weight:700;">${qty}</span>
+                <div class="press-btn" onclick="window.KitchenManager.jumpToSales(${entry.sellerId}, '${entry.day}')" 
+                     style="display:flex; justify-content:space-between; align-items:center; font-size:0.85rem; cursor:pointer; padding:8px; border-radius:10px; background:#f8fafc; border:1px solid #f1f5f9; transition:all 0.2s;">
+                    <div style="display:flex; flex-direction:column;">
+                        <span style="color:#1e293b; font-weight:700;">${entry.sellerName}</span>
+                        <span style="font-size:0.7rem; color:#94a3b8;">${dateLabel}</span>
+                    </div>
+                    <span style="background:#4f46e5; color:white; padding:2px 10px; border-radius:8px; font-weight:900; font-size:0.9rem;">${entry.qty}</span>
                 </div>
             `;
         });
@@ -268,6 +283,39 @@ const KitchenManager = {
             }
         };
         setTimeout(() => document.addEventListener('click', close), 10);
+    },
+
+    async jumpToSales(sellerId, dayIso) {
+        if (!window.enterSeller || !window.state) return;
+        
+        const existing = document.getElementById('seller-breakdown-pop');
+        if (existing) existing.remove();
+
+        window.showToast("Navegando a ventas...", "info");
+
+        try {
+            // 1. Enter the seller view
+            await window.enterSeller(sellerId);
+            
+            // 2. Find the day record
+            const dayRecord = (window.state.saleDays || []).find(d => String(d.day || '').startsWith(dayIso));
+            if (dayRecord) {
+                window.state.selectedDayId = dayRecord.id;
+                const wrapper = document.getElementById('sales-wrapper');
+                if (wrapper) wrapper.classList.remove('hidden');
+                
+                // 3. Load the sales for that day
+                if (window.loadSales) await window.loadSales();
+                
+                // 4. Scroll to top of table
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            } else {
+                window.showToast("Día no encontrado en el archivo de este vendedor", "warning");
+            }
+        } catch (err) {
+            console.error("Error jumping to sales:", err);
+            window.showToast("No se pudo cargar la tabla de ventas", "error");
+        }
     },
 
     renderRecipes() {
