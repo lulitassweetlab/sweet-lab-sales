@@ -529,7 +529,6 @@ const KitchenManager = {
                 const isExpanded = this.expandedRecipes.has(cardId);
                 
                 card.innerHTML = `
-                card.innerHTML = `
                     <div class="card-header" style="display:flex; align-items:center; justify-content:space-between; width:100%;">
                         <div style="display:flex; align-items:center; gap:12px;">
                             <div style="width:36px; height:36px; background:#fce7f3; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:1.1rem;">🍰</div>
