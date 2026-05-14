@@ -1289,8 +1289,12 @@ async function addSeller(name) {
 }
 
 async function enterSeller(id) {
+	console.log('APP: enterSeller starting for ID:', id);
 	const seller = state.sellers.find(s => s.id === id);
-	if (!seller) return;
+	if (!seller) {
+		console.error('APP: Seller not found for ID:', id);
+		return;
+	}
 	state.currentSeller = seller;
 	// Apply seller bill icon CSS var
 	try {
@@ -1305,11 +1309,13 @@ async function enterSeller(id) {
 	document.getElementById('sales-wrapper')?.classList.add('hidden');
 
 	// Load desserts and days in parallel
+	console.log('APP: Loading desserts and days for seller...');
 	await Promise.all([
 		loadDesserts().then(() => renderDessertColumns()),
 		loadDaysForSeller()
 	]);
 
+	console.log('APP: Data loaded. Switching to #view-sales');
 	// 🛠️ FIX: Ensure UI transitions to the sales view when a seller is selected
 	switchView('#view-sales');
 }

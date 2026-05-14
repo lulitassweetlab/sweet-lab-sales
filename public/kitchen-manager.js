@@ -277,8 +277,12 @@ const KitchenManager = {
             `;
             row.addEventListener('click', (e) => {
                 e.stopPropagation();
-                console.log('🚀 Jumping to sales for:', entry);
-                this.jumpToSales(entry.sellerId, entry.day);
+                console.log('KITCHEN: Click detected on row', entry);
+                if (window.KitchenManager && window.KitchenManager.jumpToSales) {
+                    window.KitchenManager.jumpToSales(entry.sellerId, entry.day);
+                } else {
+                    console.error('KITCHEN: KitchenManager.jumpToSales not found!');
+                }
             });
             container.appendChild(row);
         });
@@ -296,24 +300,29 @@ const KitchenManager = {
     },
 
     async jumpToSales(sellerId, dayIso) {
+        console.log('KITCHEN: jumpToSales called with:', { sellerId, dayIso });
         if (!window.enterSeller || !window.state) {
-            console.error("Critical: Global navigation functions not found.");
-            return window.showToast("Error de conexión con el módulo de ventas", "error");
+            console.error("KITCHEN: Global navigation functions NOT found on window.", { 
+                enterSeller: !!window.enterSeller, 
+                state: !!window.state 
+            });
+            return window.showToast("Error: Funciones de navegación no disponibles. Por favor recarga.", "error");
         }
         
         const existing = document.getElementById('seller-breakdown-pop');
         if (existing) existing.remove();
 
-        window.showToast("Navegando a ventas...", "info");
+        window.showToast("Navegando...", "info");
 
         try {
+            console.log('KITCHEN: Calling window.enterSeller(', sellerId, ')');
             // 1. Enter the seller view (this loads days and switches view)
             await window.enterSeller(sellerId);
+            console.log('KITCHEN: enterSeller finished. Current saleDays count:', (window.state.saleDays || []).length);
             
-            // 2. Find the day record in the state (which was updated by enterSeller -> loadDaysForSeller)
+            // 2. Find the day record in the state
             const dayRecord = (window.state.saleDays || []).find(d => String(d.day || '').startsWith(dayIso));
-            
-            if (dayRecord) {
+            console.log('KITCHEN: Day record found:', dayRecord);
                 // 3. Select the day and show the wrapper
                 window.state.selectedDayId = dayRecord.id;
                 const wrapper = document.getElementById('sales-wrapper');
