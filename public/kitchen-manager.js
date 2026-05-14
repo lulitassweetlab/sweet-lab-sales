@@ -214,9 +214,29 @@ const KitchenManager = {
                 m.kind === 'produccion' && 
                 m.created_at && m.created_at.startsWith(today)
             );
+
+            // Aggregate production by step_id to show what's already done today
+            this.producedStepsToday = {}; // { [stepId]: totalProduced }
+            const processedNotes = new Set();
+            
+            this.history.forEach(m => {
+                if (m.metadata && m.metadata.step_id) {
+                    // Use note + created_at as a unique key for the production action 
+                    // (since one action creates multiple movements, one per ingredient)
+                    const actionKey = `${m.note}_${m.created_at}`;
+                    if (!processedNotes.has(actionKey)) {
+                        const sid = m.metadata.step_id;
+                        const qty = Number(m.metadata.multiplier || 0);
+                        this.producedStepsToday[sid] = (this.producedStepsToday[sid] || 0) + qty;
+                        processedNotes.add(actionKey);
+                    }
+                }
+            });
+            console.log("✅ Produced today:", this.producedStepsToday);
         } catch (err) {
             console.warn("Could not load history:", err);
             this.history = [];
+            this.producedStepsToday = {};
         }
     },
 
@@ -464,27 +484,30 @@ const KitchenManager = {
         if (!step) return "";
         const suggested = (this.suggestions[recipeName]?.total || 0);
         const inputId = `input-${step.id || Math.random().toString(36).substr(2, 9)}`;
+        const producedToday = this.producedStepsToday && step.id ? (this.producedStepsToday[step.id] || 0) : 0;
+        const isDone = producedToday >= suggested && suggested > 0;
         
         return `
-            <div style="background:#f8fafc; border:1px solid #f1f5f9; border-radius:16px; padding:12px; transition: all 0.2s ease;">
-                <div class="flex" style="margin-bottom:8px;">
-                    <strong style="font-size:0.85rem; color:#475569;">${step.name || 'Proceso General'}</strong>
+            <div style="background:${isDone ? '#f0fdf4' : '#f8fafc'}; border:1px solid ${isDone ? '#bbf7d0' : '#f1f5f9'}; border-radius:16px; padding:12px; transition: all 0.2s ease;">
+                <div class="flex" style="margin-bottom:8px; justify-content:space-between; align-items:center;">
+                    <strong style="font-size:0.85rem; color:${isDone ? '#16a34a' : '#475569'};">${step.name || 'Proceso General'}</strong>
+                    ${producedToday > 0 ? `<span style="font-size:0.7rem; color:#16a34a; font-weight:900; background:#dcfce7; padding:2px 8px; border-radius:8px;">✓ Hecho: ${producedToday}</span>` : ''}
                 </div>
                 <div style="display:flex; gap:8px; align-items:center;">
-                    <input type="number" id="${inputId}" value="${suggested || 1}" min="1" 
+                    <input type="number" id="${inputId}" value="${Math.max(0, suggested - producedToday) || suggested || 1}" min="1" 
                         style="width:65px; padding:8px; border-radius:10px; border:1px solid #cbd5e1; font-weight:700; text-align:center; outline:none;"
                         onfocus="this.select()">
                     <button onclick="window.KitchenManager.produceStep('${step.id || ''}', '${recipeName}', '${step.name || ''}', '${inputId}')" 
                         ${!step.id ? 'disabled' : ''}
-                        class="press-btn" style="flex:1; background:#4f46e5; color:white; border:none; padding:10px; border-radius:10px; font-weight:700; font-size:0.8rem; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2); opacity:${!step.id ? 0.5 : 1};">
-                        Producir
+                        class="press-btn" style="flex:1; background:${isDone ? '#10b981' : '#4f46e5'}; color:white; border:none; padding:10px; border-radius:10px; font-weight:700; font-size:0.8rem; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2); opacity:${!step.id ? 0.5 : 1};">
+                        ${isDone ? 'Producir Más' : 'Producir'}
                     </button>
                 </div>
                 <div style="margin-top:10px; font-size:0.7rem; color:#94a3b8; border-top:1px solid #eef2f6; padding-top:8px;">
                     ${(step.items || []).map(it => {
                         const inv = (this.inventory || []).find(i => i.ingredient && i.ingredient.toLowerCase() === (it.ingredient || "").toLowerCase());
                         const stock = inv ? inv.saldo : 0;
-                        const qtyNeeded = Number(it.qty_per_unit || 0) * (suggested || 1);
+                        const qtyNeeded = Number(it.qty_per_unit || 0) * (Math.max(0, suggested - producedToday) || suggested || 1);
                         const isLow = stock < qtyNeeded;
                         return `<div style="display:flex; justify-content:space-between; margin-bottom:2px; ${isLow ? 'color:#ef4444; font-weight:700;' : ''}">
                             <span>• ${it.ingredient}</span>
