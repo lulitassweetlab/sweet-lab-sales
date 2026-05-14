@@ -97,9 +97,12 @@ export async function handler(event) {
 				if (action === 'delete_production') {
 					const { ids } = data;
 					if (!ids || !Array.isArray(ids) || ids.length === 0) return json({ error: 'Missing or invalid ids' }, 400);
-					// Use ANY with explicit cast for robustness
-					await sql`DELETE FROM inventory_movements WHERE id = ANY(${ids}::int[])`;
-					return json({ ok: true });
+					const numericIds = ids.map(id => Number(id)).filter(id => !isNaN(id));
+					
+					// Use standard postgres.js syntax for IN
+					const result = await sql`DELETE FROM inventory_movements WHERE id IN ${sql(numericIds)} RETURNING id`;
+					
+					return json({ ok: true, deletedCount: result.length });
 				}
 
 				if (action === 'add_item') {

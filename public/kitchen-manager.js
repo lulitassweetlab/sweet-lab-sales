@@ -209,8 +209,8 @@ const KitchenManager = {
     async loadHistory() {
         const start = this.suggestionStartDate || new Date().toISOString().split('T')[0];
         try {
-            // Fetch movements from the same start date as suggestions (last 3 days)
-            const movements = await window.api('GET', `/api/inventory?history_all=1&date_start=${start}`);
+            // Fetch movements from the same start date as suggestions (last 3 days) + cache buster
+            const movements = await window.api('GET', `/api/inventory?history_all=1&date_start=${start}&_t=${Date.now()}`);
             this.history = (movements || []).filter(m => 
                 m.kind === 'produccion'
             );
@@ -678,8 +678,13 @@ const KitchenManager = {
             console.log("KITCHEN: Delete result:", res);
             
             if (res && res.ok) {
-                window.showToast("✅ Registro eliminado correctamente", "success");
-                await this.loadData();
+                const count = res.deletedCount || ids.length;
+                window.showToast(`✅ Eliminados ${count} registros`, "success");
+                
+                // Small delay to ensure DB consistency before reload
+                setTimeout(async () => {
+                    await this.loadData();
+                }, 500);
             } else {
                 throw new Error((res && res.error) || "La respuesta del servidor no fue exitosa");
             }
