@@ -644,7 +644,10 @@ const KitchenManager = {
                         </div>
                     </div>
                 </div>
-                <button onclick="window.KitchenManager.showDeleteConfirm(event, [${action.ids.join(',')}], '${action.note.replace(/'/g, "\\'")}')" 
+                <button 
+                    data-ids='${JSON.stringify(action.ids)}' 
+                    data-note="${action.note.replace(/"/g, '&quot;')}"
+                    onclick="window.KitchenManager.showDeleteConfirm(event)" 
                     class="press-btn" style="background:#fee2e2; color:#ef4444; border:none; width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:1rem; transition:all 0.2s;">
                     🗑️
                 </button>
@@ -654,27 +657,40 @@ const KitchenManager = {
     },
 
     async deleteProduction(ids, note) {
+        if (!ids || !ids.length) {
+            window.showToast("No se encontraron registros para eliminar", "error");
+            return;
+        }
+
         try {
+            console.log("KITCHEN: Deleting production ids:", ids, "note:", note);
             window.showToast("Eliminando...", "info");
+            
             const res = await window.api('POST', '/api/inventory', {
                 action: 'delete_production',
                 ids: ids
             });
 
-            if (res.ok) {
+            console.log("KITCHEN: Delete result:", res);
+            
+            if (res && res.ok) {
                 window.showToast("✅ Registro eliminado correctamente", "success");
                 await this.loadData();
             } else {
-                throw new Error(res.error || "Error al eliminar");
+                throw new Error((res && res.error) || "La respuesta del servidor no fue exitosa");
             }
         } catch (err) {
-            console.error("Delete Production Error:", err);
-            window.showToast("Error: " + err.message, "error");
+            console.error("KITCHEN: Delete Production Error:", err);
+            window.showToast("Error al eliminar: " + (err.message || "Error desconocido"), "error");
         }
     },
 
-    showDeleteConfirm(ev, ids, note) {
+    showDeleteConfirm(ev) {
         ev.stopPropagation();
+        const btn = ev.currentTarget;
+        const ids = JSON.parse(btn.dataset.ids || '[]');
+        const note = btn.dataset.note || '';
+
         // Remove existing popovers
         const existing = document.querySelectorAll('.delete-popover');
         existing.forEach(p => p.remove());
@@ -695,8 +711,7 @@ const KitchenManager = {
             width: 140px;
         `;
         
-        // Position near click, adjusting for scroll
-        const rect = ev.currentTarget.getBoundingClientRect();
+        const rect = btn.getBoundingClientRect();
         pop.style.left = (rect.left - 150) + 'px';
         pop.style.top = (rect.top - 10) + 'px';
 
@@ -710,13 +725,16 @@ const KitchenManager = {
 
         document.body.appendChild(pop);
 
-        pop.querySelector('#confirm-del-btn').onclick = async () => {
+        pop.querySelector('#confirm-del-btn').onclick = async (e) => {
+            e.stopPropagation();
             pop.remove();
             await this.deleteProduction(ids, note);
         };
-        pop.querySelector('#cancel-del-btn').onclick = () => pop.remove();
+        pop.querySelector('#cancel-del-btn').onclick = (e) => {
+            e.stopPropagation();
+            pop.remove();
+        };
 
-        // Close when clicking outside
         const outside = (e) => {
             if (!pop.contains(e.target)) {
                 pop.remove();
