@@ -80,19 +80,49 @@ const KitchenManager = {
     async loadSuggestions() {
         const today = new Date();
         const start = today.toISOString().split('T')[0];
-        const end = new Date(today.setDate(today.getDate() + 5)).toISOString().split('T')[0];
+        const future = new Date();
+        future.setDate(today.getDate() + 5);
+        const end = future.toISOString().split('T')[0];
         
         try {
-            const sales = await window.api('GET', `/api/sales?start=${start}&end=${end}`);
+            // Fix: Use correct parameter names for sales range query
+            const sales = await window.api('GET', `/api/sales?date_range_start=${start}&date_range_end=${end}`);
             const counts = {};
             
             (sales || []).forEach(s => {
+                // 1. Process legacy qty columns for main 5 desserts
+                if (s.qty_arco) counts['Arco'] = (counts['Arco'] || 0) + Number(s.qty_arco);
+                if (s.qty_melo) counts['Melo'] = (counts['Melo'] || 0) + Number(s.qty_melo);
+                if (s.qty_mara) counts['Mara'] = (counts['Mara'] || 0) + Number(s.qty_mara);
+                if (s.qty_oreo) counts['Oreo'] = (counts['Oreo'] || 0) + Number(s.qty_oreo);
+                if (s.qty_nute) counts['Nute'] = (counts['Nute'] || 0) + Number(s.qty_nute);
+
+                // 2. Process modern items array
                 const items = s.items || [];
                 items.forEach(it => {
-                    const name = it.name || '';
-                    if (name) {
-                        counts[name] = (counts[name] || 0) + (Number(it.quantity) || 0);
+                    // Try to match the name with our recipes
+                    const rawName = it.name || it.short_code || '';
+                    if (!rawName) return;
+
+                    // Find matching recipe name (case insensitive)
+                    const match = this.recipes.find(r => 
+                        r.name.toLowerCase() === rawName.toLowerCase() || 
+                        (it.short_code && r.name.toLowerCase().startsWith(it.short_code.toLowerCase()))
+                    );
+
+                    const finalName = match ? match.name : rawName;
+                    
+                    // If it was already counted by legacy columns, don't double count 
+                    // (though usually items and legacy columns are kept in sync, 
+                    // but some older data might vary)
+                    // Let's assume modern items are more reliable if present
+                    if (match && ['Arco', 'Melo', 'Mara', 'Oreo', 'Nute'].includes(match.name)) {
+                        // For the main 5, we already counted them above from the columns 
+                        // unless items has a different value. Let's just avoid duplication.
+                        return; 
                     }
+                    
+                    counts[finalName] = (counts[finalName] || 0) + (Number(it.quantity) || 0);
                 });
             });
             
