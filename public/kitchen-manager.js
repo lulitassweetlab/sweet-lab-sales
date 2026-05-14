@@ -35,18 +35,21 @@ const KitchenManager = {
 
         try {
             console.log("📥 Loading Kitchen Data...");
-            // 1. Load Recipes (including items and step_id)
+            // 1. Load Master Desserts (for name mapping)
+            this.allDesserts = await window.api('GET', '/api/desserts') || [];
+
+            // 2. Load Recipes (including items and step_id)
             const recipeData = await window.api('GET', '/api/recipes?all_items=1');
             console.log("📋 Raw Recipes:", recipeData);
             this.recipes = this.processRecipes(recipeData);
 
-            // 2. Load Inventory (for stock levels)
+            // 3. Load Inventory (for stock levels)
             this.inventory = await window.api('GET', '/api/inventory') || [];
 
-            // 3. Load Suggestions (Future orders)
+            // 4. Load Suggestions (Future orders)
             await this.loadSuggestions();
 
-            // 4. Load Today's History
+            // 5. Load Today's History
             await this.loadHistory();
 
             this.render();
@@ -129,14 +132,32 @@ const KitchenManager = {
                 // 2. Items array
                 const items = s.items || [];
                 items.forEach(it => {
-                    const rawName = it.name || it.short_code || '';
-                    if (!rawName) return;
+                    const sc = (it.short_code || '').toLowerCase().trim();
+                    const rawName = it.name || '';
+                    if (!sc && !rawName) return;
 
-                    const recipeName = findRecipeName(rawName) || rawName;
-                    const isLegacy = it.short_code && ['arco', 'melo', 'mara', 'oreo', 'nute'].includes(it.short_code.toLowerCase());
+                    // Try to resolve to a full name using allDesserts or recipes
+                    let displayName = rawName;
+                    
+                    // If we have a short_code, try to find the official name in master list
+                    if (sc) {
+                        const masterMatch = (this.allDesserts || []).find(d => (d.short_code || '').toLowerCase().trim() === sc);
+                        if (masterMatch) displayName = masterMatch.name;
+                    }
+
+                    // If still no good name, try to find it in recipes list
+                    if (!displayName || displayName === sc) {
+                        const recipeMatch = findRecipeName(rawName || sc);
+                        if (recipeMatch) displayName = recipeMatch;
+                    }
+
+                    // Fallback to sc if everything else fails
+                    if (!displayName) displayName = sc || rawName;
+
+                    const isLegacy = sc && ['arco', 'melo', 'mara', 'oreo', 'nute'].includes(sc);
                     if (isLegacy) return;
 
-                    counts[recipeName] = (counts[recipeName] || 0) + (Number(it.quantity) || 0);
+                    counts[displayName] = (counts[displayName] || 0) + (Number(it.quantity) || 0);
                 });
             });
             
