@@ -343,8 +343,11 @@ const KitchenManager = {
             if (qty <= 0) return;
             const pill = document.createElement('div');
             pill.className = 'suggest-pill';
-            pill.style = "background:#fff; border:1px solid #e2e8f0; padding:6px 12px; border-radius:12px; font-size:0.85rem; font-weight:700; color:#1e293b; display:flex; gap:8px; align-items:center; box-shadow:0 2px 4px rgba(0,0,0,0.02);";
-            pill.innerHTML = `<span>${name}</span> <span style="background:#ff9800; color:white; padding:2px 6px; border-radius:6px; font-size:0.75rem;">${qty}</span>`;
+            pill.style = "background:#fff; border:1.5px solid #fce7f3; padding:8px 16px; border-radius:16px; display:flex; flex-direction:column; gap:2px; box-shadow: 0 4px 10px rgba(219, 39, 119, 0.05); min-width:100px; cursor:default; transition: all 0.2s;";
+            pill.innerHTML = `
+                <span style="font-size:0.65rem; font-weight:800; color:#db2777; text-transform:uppercase; letter-spacing:0.5px;">${name}</span>
+                <span style="font-size:1.1rem; font-weight:900; color:#1e293b;">${qty} <small style="font-size:0.7rem; color:#94a3b8; font-weight:600;">u</small></span>
+            `;
             cont.appendChild(pill);
         });
     },
@@ -501,10 +504,13 @@ const KitchenManager = {
             let dayLabel = day === todayStr ? "Hoy" : (day === new Date(Date.now() + 86400000).toISOString().split('T')[0] ? "Mañana" : day);
             
             daySection.innerHTML = `
-                <h3 style="margin: 0 0 16px 0; display:flex; align-items:center; gap:10px; color:var(--primary);">
-                    <span style="font-size:1.4rem;">📅</span> ${dayLabel}
-                </h3>
-                <div class="batches-grid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap:20px;"></div>
+                <div class="day-section" style="margin-bottom:32px;">
+                    <h3 style="margin: 0 0 20px 0; display:flex; align-items:center; gap:12px; color:var(--kitchen-primary); font-size:1.6rem; font-weight:900;">
+                        <span style="background:white; width:44px; height:44px; display:flex; align-items:center; justify-content:center; border-radius:14px; box-shadow: 0 4px 10px rgba(219, 39, 119, 0.1);">📅</span> 
+                        ${dayLabel}
+                    </h3>
+                    <div class="batches-grid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap:24px;"></div>
+                </div>
             `;
             
             const batchesGrid = daySection.querySelector('.batches-grid');
@@ -529,16 +535,19 @@ const KitchenManager = {
                 const isExpanded = this.expandedRecipes.has(cardId);
                 
                 card.innerHTML = `
-                    <div class="card-header" style="display:flex; align-items:center; justify-content:space-between; width:100%;">
-                        <div style="display:flex; align-items:center; gap:12px;">
-                            <div style="width:36px; height:36px; background:#fce7f3; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:1.1rem;">🍰</div>
-                            <div>
-                                <h3 style="margin:0; font-size:1rem; font-weight:900; color:#1e293b;">${batch.recipeName}</h3>
-                                <span class="pending-label" style="font-size:0.7rem; color:#db2777; font-weight:700;">Faltan: ${remaining} <small style="font-weight:400; color:#94a3b8;">(de ${totalNeeded})</small></span>
+                    <div class="card-header" style="display:flex; align-items:center; justify-content:space-between; width:100%; padding:4px;">
+                        <div style="display:flex; align-items:center; gap:16px;">
+                            <div style="width:48px; height:48px; background:linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%); border-radius:16px; display:flex; align-items:center; justify-content:center; font-size:1.4rem; box-shadow: inset 0 2px 4px rgba(255,255,255,0.5);">🍰</div>
+                            <div style="display:flex; flex-direction:column; gap:2px;">
+                                <h3 style="margin:0; font-size:1.15rem; font-weight:900; color:#1e293b; letter-spacing:-0.3px;">${batch.recipeName}</h3>
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <span class="pending-label" style="font-size:0.75rem; color:#db2777; font-weight:800; background:#fdf2f8; padding:2px 8px; border-radius:6px; border:1px solid #fce7f3;">Faltan: ${remaining}</span>
+                                    <span style="font-size:0.7rem; color:#94a3b8; font-weight:600;">Meta: ${totalNeeded}</span>
+                                </div>
                             </div>
                         </div>
-                        <div class="chevron" style="transition: transform 0.2s ease; transform:${isExpanded ? 'rotate(180deg)' : 'rotate(0deg)'};">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                        <div class="chevron" style="width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:50%; background:#f8fafc; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); transform:${isExpanded ? 'rotate(180deg)' : 'rotate(0deg)'};">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
                         </div>
                     </div>
                     <div class="steps-list-container" style="max-height:${isExpanded ? '2000px' : '0'}; overflow:hidden; transition: all 0.3s ease; opacity:${isExpanded ? '1' : '0'};">
@@ -590,50 +599,50 @@ const KitchenManager = {
         const elapsed = this.getElapsedSeconds(step.id, targetDate);
 
         return `
-            <div style="background:${isDone ? '#f0fdf4' : '#f8fafc'}; border:1px solid ${isDone ? '#bbf7d0' : '#f1f5f9'}; border-radius:18px; padding:10px; transition: all 0.2s ease;">
-                <div class="flex" style="margin-bottom:8px; justify-content:space-between; align-items:center; gap:8px;">
-                    <div style="display:flex; align-items:center; gap:10px; flex:1; min-width:0;">
+            <div style="background:${isDone ? '#f0fdf4' : '#ffffff'}; border:1.5px solid ${isDone ? '#bbf7d0' : '#f1f5f9'}; border-radius:24px; padding:16px; transition: all 0.2s ease; box-shadow: ${isRunning ? '0 8px 20px -5px rgba(239, 68, 68, 0.15)' : 'none'};">
+                <div class="flex" style="margin-bottom:12px; justify-content:space-between; align-items:center; gap:10px;">
+                    <div style="display:flex; align-items:center; gap:12px; flex:1; min-width:0;">
                         <button onclick="window.KitchenManager.toggleTimer('${step.id}', '${targetDate}')" 
                             class="press-btn" 
-                            style="width:28px; height:28px; border-radius:8px; border:none; display:flex; align-items:center; justify-content:center; background:${isRunning ? '#ef4444' : '#6366f1'}; color:white; padding:0; flex-shrink:0; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+                            style="width:36px; height:36px; border-radius:12px; border:none; display:flex; align-items:center; justify-content:center; background:${isRunning ? 'linear-gradient(135deg, #ef4444, #dc2626)' : 'linear-gradient(135deg, #6366f1, #4f46e5)'}; color:white; padding:0; flex-shrink:0; box-shadow:0 4px 10px rgba(99, 102, 241, 0.2); transition: all 0.2s;">
                             ${isRunning ? 
-                                '<svg width="12" height="12" viewBox="0 0 24 24" fill="white"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>' : 
-                                '<svg width="12" height="12" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>'
+                                '<svg width="14" height="14" viewBox="0 0 24 24" fill="white"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>' : 
+                                '<svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>'
                             }
                         </button>
-                        <div style="display:flex; align-items:baseline; gap:10px; min-width:0; flex:1;">
-                            <strong style="font-size:1.15rem; color:${isDone ? '#16a34a' : '#1e293b'}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:900;">${step.name || 'Proceso General'}</strong>
+                        <div style="display:flex; align-items:baseline; gap:12px; min-width:0; flex:1;">
+                            <strong style="font-size:1.1rem; color:${isDone ? '#16a34a' : '#1e293b'}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:900; letter-spacing:-0.2px;">${step.name || 'Proceso General'}</strong>
                             <span class="timer-display" data-step-id="${step.id}" data-date="${targetDate}" 
-                                style="font-family:'Courier New', monospace; font-size:0.85rem; color:${isRunning ? '#ef4444' : '#94a3b8'}; font-weight:900; letter-spacing:0.5px; background:${isRunning ? 'rgba(239,68,68,0.05)' : 'rgba(148,163,184,0.05)'}; padding:2px 6px; border-radius:6px; min-width:55px; text-align:center;">
+                                style="font-family:'Courier New', monospace; font-size:0.9rem; color:${isRunning ? '#ef4444' : '#64748b'}; font-weight:900; letter-spacing:1px; background:${isRunning ? 'rgba(239,68,68,0.08)' : '#f8fafc'}; padding:4px 10px; border-radius:8px; min-width:65px; text-align:center; border: 1px solid ${isRunning ? '#fecaca' : '#f1f5f9'};">
                                 ${this.formatDuration(elapsed)}
                             </span>
-                            ${isRunning ? '<span style="width:5px; height:5px; background:#ef4444; border-radius:50%; animation: pulse 1.5s infinite; flex-shrink:0;"></span>' : ''}
+                            ${isRunning ? '<span style="width:6px; height:6px; background:#ef4444; border-radius:50%; animation: pulse 1.5s infinite; flex-shrink:0; box-shadow: 0 0 10px #ef4444;"></span>' : ''}
                         </div>
                     </div>
-                    ${producedInWindow > 0 ? `<span style="font-size:0.65rem; color:#16a34a; font-weight:800; background:#dcfce7; padding:2px 8px; border-radius:6px; flex-shrink:0;">✓ Hecho: ${producedInWindow}</span>` : ''}
+                    ${producedInWindow > 0 ? `<span style="font-size:0.7rem; color:#16a34a; font-weight:900; background:#dcfce7; padding:4px 10px; border-radius:10px; border:1px solid #bbf7d0; flex-shrink:0;">✓ ${producedInWindow}</span>` : ''}
                 </div>
-                <div style="display:flex; gap:6px; align-items:center;">
-                    <div style="display:flex; flex-direction:column; gap:2px; flex:1;">
-                        <small style="font-size:0.6rem; color:#64748b; font-weight:700; text-transform:uppercase; margin-left:4px;">Lote</small>
+                <div style="display:flex; gap:10px; align-items:center; margin-top:4px;">
+                    <div style="display:flex; flex-direction:column; gap:4px; flex:1;">
+                        <small style="font-size:0.65rem; color:#94a3b8; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; margin-left:4px;">Lote a preparar</small>
                         <input type="number" id="${inputId}" value="${Math.max(0, totalNeeded - producedInWindow) || totalNeeded || 1}" min="1" 
-                            style="width:100%; padding:7px; border-radius:12px; border:1px solid #e2e8f0; font-weight:800; text-align:center; font-size:0.85rem; outline:none; background:white;"
+                            style="width:100%; padding:10px; border-radius:14px; border:1.5px solid #f1f5f9; font-weight:900; text-align:center; font-size:1rem; outline:none; background:white; color:#1e293b; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);"
                             onfocus="this.select()">
                     </div>
                     
                     ${step.produces_ingredient ? `
-                    <div style="display:flex; flex-direction:column; gap:2px; flex:1;">
-                        <small style="font-size:0.6rem; color:#0ea5e9; font-weight:700; text-transform:uppercase; margin-left:4px;">Obtenido</small>
+                    <div style="display:flex; flex-direction:column; gap:4px; flex:1;">
+                        <small style="font-size:0.65rem; color:#0ea5e9; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; margin-left:4px;">Stock Obtenido</small>
                         <input type="number" id="${inputId}-produced" placeholder="?"
-                            style="width:100%; padding:7px; border-radius:12px; border:1px solid #bae6fd; font-weight:800; text-align:center; font-size:0.85rem; outline:none; background:#f0f9ff"
+                            style="width:100%; padding:10px; border-radius:14px; border:1.5px solid #e0f2fe; font-weight:900; text-align:center; font-size:1rem; outline:none; background:#f0f9ff; color:#0369a1; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);"
                             onfocus="this.select()">
                     </div>
                     ` : ''}
 
-                    <div style="display:flex; flex-direction:column; gap:2px; flex:1.2; align-self: flex-end;">
+                    <div style="display:flex; flex-direction:column; gap:4px; flex:1.2; align-self: flex-end;">
                         <button onclick="window.KitchenManager.produceStep('${step.id || ''}', '${recipeName}', '${step.name || ''}', '${inputId}', '${targetDate}')" 
                             ${!step.id ? 'disabled' : ''}
-                            class="press-btn" style="width:100%; background:${isDone ? '#10b981' : '#4f46e5'}; color:white; border:none; padding:9px; border-radius:12px; font-weight:800; font-size:0.75rem; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.15); opacity:${!step.id ? 0.5 : 1};">
-                            ${isDone ? 'MÁS' : 'LISTO'}
+                            class="press-btn" style="width:100%; background:${isDone ? 'linear-gradient(135deg, #10b981, #059669)' : 'linear-gradient(135deg, #4f46e5, #4338ca)'}; color:white; border:none; padding:12px; border-radius:14px; font-weight:900; font-size:0.85rem; letter-spacing:0.5px; box-shadow: 0 6px 15px rgba(79, 70, 229, 0.2); opacity:${!step.id ? 0.5 : 1}; text-transform:uppercase;">
+                            ${isDone ? 'MÁS' : 'PRODUCIR'}
                         </button>
                     </div>
                 </div>
