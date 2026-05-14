@@ -553,12 +553,13 @@ const KitchenManager = {
                         const qtyRemaining = Math.max(0, totalNeeded - producedInWindow);
                         const qtyNeeded = Number(it.qty_per_unit || 0) * qtyRemaining;
                         
-                        // Update virtual stock for SUBSEQUENT cards/steps
+                        // Update virtual stock for SUBSEQUENT cards/steps (allow negative)
                         if (qtyNeeded > 0) {
-                            this.virtualStockMap[key] = Math.max(0, currentProjected - qtyNeeded);
+                            this.virtualStockMap[key] = currentProjected - qtyNeeded;
                         }
 
-                        const isLow = currentProjected < qtyNeeded && qtyNeeded > 0;
+                        // Highlight if insufficient OR already negative
+                        const isLow = (currentProjected < qtyNeeded && qtyNeeded > 0) || currentProjected < 0;
                         
                         return `<div style="display:flex; justify-content:space-between; margin-bottom:2px; ${isLow ? 'color:#ef4444; font-weight:700;' : ''}">
                             <span>• ${it.ingredient}</span>
