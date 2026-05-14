@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 53; // 53: added inventory_conversions table
+const SCHEMA_VERSION = 54; // 54: added produces_ingredient to dessert_recipes
 
 export async function ensureSchema() {
 	if (schemaEnsured) return;
@@ -301,11 +301,11 @@ export async function ensureSchema() {
 					dessert TEXT NOT NULL,
 					step_name TEXT NOT NULL,
 					position INTEGER DEFAULT 0,
+					produces_ingredient TEXT,
+					produces_unit TEXT,
 					created_at TIMESTAMPTZ DEFAULT now()
 				)
 			`;
-			await sql`ALTER TABLE dessert_recipes ADD COLUMN IF NOT EXISTS produces_ingredient TEXT`;
-			await sql`ALTER TABLE dessert_recipes ADD COLUMN IF NOT EXISTS produces_unit TEXT`;
 			await sql`
 				CREATE TABLE IF NOT EXISTS dessert_recipe_items (
 					id SERIAL PRIMARY KEY,
@@ -641,6 +641,13 @@ export async function ensureSchema() {
 						)
 					`;
 					await sql`UPDATE schema_meta SET version = 53`;
+				}
+				
+				if (Number(meta[0].version) < 54) {
+					console.log('Migrating to v54: Adding production output columns to dessert_recipes...');
+					await sql`ALTER TABLE dessert_recipes ADD COLUMN IF NOT EXISTS produces_ingredient TEXT`;
+					await sql`ALTER TABLE dessert_recipes ADD COLUMN IF NOT EXISTS produces_unit TEXT`;
+					await sql`UPDATE schema_meta SET version = 54`;
 				}
 
 				await sql`UPDATE schema_meta SET version = ${SCHEMA_VERSION}, updated_at = now()`;
