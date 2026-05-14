@@ -97,13 +97,20 @@ const KitchenManager = {
 
     async loadSuggestions() {
         const today = new Date();
-        const start = today.toISOString().split('T')[0];
+        // Go back 3 days and forward 30 days to ensure we don't miss anything recent or upcoming
+        const past = new Date();
+        past.setDate(today.getDate() - 3);
+        const start = past.toISOString().split('T')[0];
+        
         const future = new Date();
-        future.setDate(today.getDate() + 30); // Expanded to 30 days to see all future sales
+        future.setDate(today.getDate() + 30);
         const end = future.toISOString().split('T')[0];
         
+        console.log(`KITCHEN: Suggestion range: ${start} to ${end}`);
+        
         try {
-            const sales = await window.api('GET', `/api/sales?date_range_start=${start}&date_range_end=${end}`);
+            const sales = await window.api('GET', `/api/sales?date_range_start=${start}&date_range_end=${end}&all_sellers=1`);
+            console.log(`KITCHEN: Fetched ${sales?.length || 0} sales rows.`);
             const counts = {}; // { [recipeName]: { total: 0, sellers: { [sellerName]: qty } } }
 
             const findRecipeName = (code) => {
@@ -118,10 +125,24 @@ const KitchenManager = {
             const addCount = (recipeName, sellerName, sellerId, day, qty) => {
                 if (!recipeName || !qty) return;
                 if (!counts[recipeName]) counts[recipeName] = { total: 0, sellers: [] };
+                
+                // Robust date parsing: ensure we have YYYY-MM-DD
+                let isoDay = '';
+                if (day instanceof Date) {
+                    isoDay = day.toISOString().split('T')[0];
+                } else if (typeof day === 'string') {
+                    isoDay = day.split('T')[0];
+                } else if (day) {
+                    isoDay = String(day).slice(0, 10);
+                }
+                
+                if (!isoDay) {
+                    console.warn('KITCHEN: Sale missing day:', { recipeName, sellerName, qty });
+                    isoDay = 'Sin fecha';
+                }
+
                 counts[recipeName].total += qty;
                 
-                // Find if we already have this seller+day for this recipe
-                const isoDay = String(day || '').slice(0, 10);
                 let entry = counts[recipeName].sellers.find(e => e.sellerId === sellerId && e.day === isoDay);
                 if (!entry) {
                     entry = { sellerName, sellerId, day: isoDay, qty: 0 };
@@ -177,6 +198,7 @@ const KitchenManager = {
                 });
             });
             
+            console.log('KITCHEN: Final suggestions object:', counts);
             this.suggestions = counts;
         } catch (err) {
             console.warn("Could not load suggestions:", err);

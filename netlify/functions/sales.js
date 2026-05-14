@@ -173,15 +173,17 @@ export async function handler(event) {
 							role = (r && r[0] && r[0].role) ? String(r[0].role) : 'user';
 						}
 						
+						const allSellers = params.get('all_sellers') === '1';
+						
 						// Build the query based on permissions
 						let rows;
-						if (role === 'admin' || role === 'superadmin') {
-						// Admin can see all sales - optimized query with minimal data
+						if (role === 'admin' || role === 'superadmin' || allSellers) {
+						// Admin or Kitchen view: see all sales within range
 						rows = await sql`
 							SELECT s.id, s.seller_id, s.sale_day_id, s.client_name, s.qty_arco, s.qty_melo, 
 							       s.qty_mara, s.qty_oreo, s.qty_nute, s.is_paid, s.pay_method, s.payment_date, s.payment_source,
 							       s.special_pricing_type, s.total_cents,
-							       sd.day AS sale_day,
+							       COALESCE(sd.day, s.created_at::date) AS sale_day,
 							       se.name AS seller_name,
 							       (
 							           SELECT json_agg(json_build_object('name', t.name, 'color', t.color) ORDER BY t.display_order ASC, t.name ASC)
@@ -191,18 +193,19 @@ export async function handler(event) {
 							           WHERE ccs.sale_id = s.id
 							       ) AS client_tags
 							FROM sales s
-							INNER JOIN sale_days sd ON sd.id = s.sale_day_id
+							LEFT JOIN sale_days sd ON sd.id = s.sale_day_id
 							INNER JOIN sellers se ON se.id = s.seller_id
-							WHERE sd.day >= ${start} AND sd.day <= ${end}
-							ORDER BY sd.day ASC, se.name ASC
+							WHERE (sd.day >= ${start} AND sd.day <= ${end})
+							   OR (sd.day IS NULL AND s.created_at::date >= ${start} AND s.created_at::date <= ${end})
+							ORDER BY COALESCE(sd.day, s.created_at::date) ASC, se.name ASC
 						`;
 						} else {
-						// Non-admin can only see their own sales or sales they have permission to view
+						// Non-admin can only see their own sales
 						rows = await sql`
 							SELECT s.id, s.seller_id, s.sale_day_id, s.client_name, s.qty_arco, s.qty_melo, 
 							       s.qty_mara, s.qty_oreo, s.qty_nute, s.is_paid, s.pay_method, s.payment_date, s.payment_source,
 							       s.special_pricing_type, s.total_cents,
-							       sd.day AS sale_day,
+							       COALESCE(sd.day, s.created_at::date) AS sale_day,
 							       se.name AS seller_name,
 							       (
 							           SELECT json_agg(json_build_object('name', t.name, 'color', t.color) ORDER BY t.display_order ASC, t.name ASC)
@@ -212,13 +215,13 @@ export async function handler(event) {
 							           WHERE ccs.sale_id = s.id
 							       ) AS client_tags
 							FROM sales s
-							INNER JOIN sale_days sd ON sd.id = s.sale_day_id
+							LEFT JOIN sale_days sd ON sd.id = s.sale_day_id
 							INNER JOIN sellers se ON se.id = s.seller_id
 							LEFT JOIN user_view_permissions uvp ON uvp.seller_id = s.seller_id 
 							  AND lower(uvp.viewer_username) = lower(${actorName})
-							WHERE sd.day >= ${start} AND sd.day <= ${end}
+							WHERE ((sd.day >= ${start} AND sd.day <= ${end}) OR (sd.day IS NULL AND s.created_at::date >= ${start} AND s.created_at::date <= ${end}))
 							  AND (lower(se.name) = lower(${actorName}) OR uvp.id IS NOT NULL)
-							ORDER BY sd.day ASC, se.name ASC
+							ORDER BY COALESCE(sd.day, s.created_at::date) ASC, se.name ASC
 						`;
 						}
 						
