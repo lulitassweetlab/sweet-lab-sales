@@ -181,6 +181,20 @@ export async function handler(event) {
 				}
 
 				const [row] = await query;
+
+				// CASCADE: If name changed, update recipes and orders
+				if (existing.name !== name) {
+					console.log(`🔄 Renaming dessert in recipes: ${existing.name} -> ${name}`);
+					try {
+						await sql`UPDATE dessert_recipes SET dessert = ${name} WHERE dessert = ${existing.name}`;
+						await sql`UPDATE dessert_order SET dessert = ${name} WHERE dessert = ${existing.name}`;
+						await sql`UPDATE recipe_production_users SET dessert = ${name} WHERE dessert = ${existing.name}`;
+					} catch (err) {
+						console.error('Error in cascade rename:', err);
+						// We don't fail the whole request because the main dessert update succeeded
+					}
+				}
+
 				dessertsCache = null;
 				cacheTime = 0;
 				return json(row);
