@@ -97,7 +97,8 @@ export async function handler(event) {
 				if (action === 'delete_production') {
 					const { ids } = data;
 					if (!ids || !Array.isArray(ids) || ids.length === 0) return json({ error: 'Missing or invalid ids' }, 400);
-					await sql`DELETE FROM inventory_movements WHERE id IN ${sql(ids)}`;
+					// Use ANY with explicit cast for robustness
+					await sql`DELETE FROM inventory_movements WHERE id = ANY(${ids}::int[])`;
 					return json({ ok: true });
 				}
 

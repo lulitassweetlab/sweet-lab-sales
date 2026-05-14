@@ -644,7 +644,7 @@ const KitchenManager = {
                         </div>
                     </div>
                 </div>
-                <button onclick="window.KitchenManager.deleteProduction([${action.ids.join(',')}], '${action.note.replace(/'/g, "\\'")}')" 
+                <button onclick="window.KitchenManager.showDeleteConfirm(event, [${action.ids.join(',')}], '${action.note.replace(/'/g, "\\'")}')" 
                     class="press-btn" style="background:#fee2e2; color:#ef4444; border:none; width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:1rem; transition:all 0.2s;">
                     🗑️
                 </button>
@@ -654,8 +654,6 @@ const KitchenManager = {
     },
 
     async deleteProduction(ids, note) {
-        if (!confirm(`¿Estás seguro de eliminar este registro?\n"${note}"\n\nEsto devolverá los ingredientes al inventario.`)) return;
-
         try {
             window.showToast("Eliminando...", "info");
             const res = await window.api('POST', '/api/inventory', {
@@ -673,6 +671,59 @@ const KitchenManager = {
             console.error("Delete Production Error:", err);
             window.showToast("Error: " + err.message, "error");
         }
+    },
+
+    showDeleteConfirm(ev, ids, note) {
+        ev.stopPropagation();
+        // Remove existing popovers
+        const existing = document.querySelectorAll('.delete-popover');
+        existing.forEach(p => p.remove());
+
+        const pop = document.createElement('div');
+        pop.className = 'delete-popover';
+        pop.style = `
+            position: fixed;
+            background: white;
+            border: 1px solid #fee2e2;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+            border-radius: 12px;
+            padding: 12px;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            width: 140px;
+        `;
+        
+        // Position near click, adjusting for scroll
+        const rect = ev.currentTarget.getBoundingClientRect();
+        pop.style.left = (rect.left - 150) + 'px';
+        pop.style.top = (rect.top - 10) + 'px';
+
+        pop.innerHTML = `
+            <div style="font-size:0.7rem; font-weight:700; color:#1e293b; text-align:center;">¿Eliminar?</div>
+            <div style="display:flex; gap:6px;">
+                <button id="confirm-del-btn" class="press-btn" style="flex:1; background:#ef4444; color:white; border:none; padding:8px 4px; border-radius:8px; font-size:0.7rem; font-weight:700;">Sí</button>
+                <button id="cancel-del-btn" class="press-btn" style="flex:1; background:#f1f5f9; color:#475569; border:none; padding:8px 4px; border-radius:8px; font-size:0.7rem; font-weight:700;">No</button>
+            </div>
+        `;
+
+        document.body.appendChild(pop);
+
+        pop.querySelector('#confirm-del-btn').onclick = async () => {
+            pop.remove();
+            await this.deleteProduction(ids, note);
+        };
+        pop.querySelector('#cancel-del-btn').onclick = () => pop.remove();
+
+        // Close when clicking outside
+        const outside = (e) => {
+            if (!pop.contains(e.target)) {
+                pop.remove();
+                document.removeEventListener('click', outside);
+            }
+        };
+        setTimeout(() => document.addEventListener('click', outside), 10);
     }
 };
 
