@@ -1115,6 +1115,9 @@ async function api(method, url, body) {
 	}
 	return res.json();
 }
+window.api = api;
+window.state = state;
+window.API = API;
 
 async function loadSellers() {
 	// Try loading from localStorage first for instant feel
@@ -6580,6 +6583,7 @@ async function renderInventoryView() {
 
 				<div id="conv-list"></div>
 
+				<div style="margin-top:20px; text-align:right">
 				<div style="margin-top:20px; text-align:right">
 					<button id="close-conv-btn-main" class="press-btn" style="background:var(--border); color:var(--text)">Cerrar</button>
 				</div>
