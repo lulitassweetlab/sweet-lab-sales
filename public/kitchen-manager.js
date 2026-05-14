@@ -296,7 +296,10 @@ const KitchenManager = {
     },
 
     async jumpToSales(sellerId, dayIso) {
-        if (!window.enterSeller || !window.state) return;
+        if (!window.enterSeller || !window.state) {
+            console.error("Critical: Global navigation functions not found.");
+            return window.showToast("Error de conexión con el módulo de ventas", "error");
+        }
         
         const existing = document.getElementById('seller-breakdown-pop');
         if (existing) existing.remove();
@@ -304,27 +307,30 @@ const KitchenManager = {
         window.showToast("Navegando a ventas...", "info");
 
         try {
-            // 1. Enter the seller view
+            // 1. Enter the seller view (this loads days and switches view)
             await window.enterSeller(sellerId);
             
-            // 2. Find the day record
+            // 2. Find the day record in the state (which was updated by enterSeller -> loadDaysForSeller)
             const dayRecord = (window.state.saleDays || []).find(d => String(d.day || '').startsWith(dayIso));
+            
             if (dayRecord) {
+                // 3. Select the day and show the wrapper
                 window.state.selectedDayId = dayRecord.id;
                 const wrapper = document.getElementById('sales-wrapper');
                 if (wrapper) wrapper.classList.remove('hidden');
                 
-                // 3. Load the sales for that day
+                // 4. Load the sales for that specific day
                 if (window.loadSales) await window.loadSales();
                 
-                // 4. Scroll to top of table
+                // 5. Scroll to top of table for better visibility
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             } else {
-                window.showToast("Día no encontrado en el archivo de este vendedor", "warning");
+                window.showToast("Día no encontrado en el archivo de este vendedor.", "warning");
+                // Even if day not found, we already switched to the seller view
             }
         } catch (err) {
             console.error("Error jumping to sales:", err);
-            window.showToast("No se pudo cargar la tabla de ventas", "error");
+            window.showToast("No se pudo completar la navegación: " + err.message, "error");
         }
     },
 

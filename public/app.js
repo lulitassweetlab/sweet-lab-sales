@@ -1118,6 +1118,9 @@ async function api(method, url, body) {
 window.api = api;
 window.state = state;
 window.API = API;
+window.enterSeller = enterSeller;
+window.loadSales = loadSales;
+window.loadDaysForSeller = loadDaysForSeller;
 
 async function loadSellers() {
 	// Try loading from localStorage first for instant feel
