@@ -55,7 +55,8 @@ export async function handler(event) {
 				}
 
 				const result = items.map(it => {
-					const key = (it.ingredient || '').toString().toLowerCase();
+					const canonName = canonicalizeIngredientName(it.ingredient || '');
+					const key = canonName.toLowerCase();
 					const saldo = Number(movsMap.get(key) || 0) || 0;
 					return { ...it, saldo, valor: saldo * Number(it.price || 0) };
 				});
@@ -144,6 +145,16 @@ export async function handler(event) {
 					`;
 					await recalculateAllDessertCosts();
 					return json(row, 201);
+				}
+
+				if (action === 'merge_ingredients') {
+					const { source, target } = data;
+					if (!source || !target) return json({ error: 'Missing source or target' }, 400);
+					
+					await sql`UPDATE inventory_movements SET ingredient = ${target} WHERE ingredient = ${source}`;
+					await sql`DELETE FROM inventory_items WHERE ingredient = ${source}`;
+					await recalculateAllDessertCosts();
+					return json({ ok: true });
 				}
 
 				if (action === 'update_item') {
