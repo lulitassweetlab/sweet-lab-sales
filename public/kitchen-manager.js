@@ -595,21 +595,19 @@ const KitchenManager = {
                     <div style="display:flex; align-items:center; gap:10px; flex:1; min-width:0;">
                         <button onclick="window.KitchenManager.toggleTimer('${step.id}', '${targetDate}')" 
                             class="press-btn" 
-                            style="width:26px; height:26px; border-radius:8px; border:none; display:flex; align-items:center; justify-content:center; background:${isRunning ? '#ef4444' : '#6366f1'}; color:white; padding:0; flex-shrink:0; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+                            style="width:28px; height:28px; border-radius:8px; border:none; display:flex; align-items:center; justify-content:center; background:${isRunning ? '#ef4444' : '#6366f1'}; color:white; padding:0; flex-shrink:0; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
                             ${isRunning ? 
-                                '<svg width="10" height="10" viewBox="0 0 24 24" fill="white"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>' : 
-                                '<svg width="10" height="10" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>'
+                                '<svg width="12" height="12" viewBox="0 0 24 24" fill="white"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>' : 
+                                '<svg width="12" height="12" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>'
                             }
                         </button>
-                        <div style="display:flex; flex-direction:column; min-width:0;">
-                            <strong style="font-size:1rem; color:${isDone ? '#16a34a' : '#1e293b'}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.2;">${step.name || 'Proceso General'}</strong>
-                            <div style="display:flex; align-items:center; gap:4px;">
-                                <span class="timer-display" data-step-id="${step.id}" data-date="${targetDate}" 
-                                    style="font-family:'Courier New', monospace; font-size:0.7rem; color:${isRunning ? '#ef4444' : '#94a3b8'}; font-weight:800; letter-spacing:0.5px;">
-                                    ${this.formatDuration(elapsed)}
-                                </span>
-                                ${isRunning ? '<span style="width:4px; height:4px; background:#ef4444; border-radius:50%; animation: pulse 1.5s infinite;"></span>' : ''}
-                            </div>
+                        <div style="display:flex; align-items:baseline; gap:10px; min-width:0; flex:1;">
+                            <strong style="font-size:1.15rem; color:${isDone ? '#16a34a' : '#1e293b'}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:900;">${step.name || 'Proceso General'}</strong>
+                            <span class="timer-display" data-step-id="${step.id}" data-date="${targetDate}" 
+                                style="font-family:'Courier New', monospace; font-size:0.85rem; color:${isRunning ? '#ef4444' : '#94a3b8'}; font-weight:900; letter-spacing:0.5px; background:${isRunning ? 'rgba(239,68,68,0.05)' : 'rgba(148,163,184,0.05)'}; padding:2px 6px; border-radius:6px; min-width:55px; text-align:center;">
+                                ${this.formatDuration(elapsed)}
+                            </span>
+                            ${isRunning ? '<span style="width:5px; height:5px; background:#ef4444; border-radius:50%; animation: pulse 1.5s infinite; flex-shrink:0;"></span>' : ''}
                         </div>
                     </div>
                     ${producedInWindow > 0 ? `<span style="font-size:0.65rem; color:#16a34a; font-weight:800; background:#dcfce7; padding:2px 8px; border-radius:6px; flex-shrink:0;">✓ Hecho: ${producedInWindow}</span>` : ''}
