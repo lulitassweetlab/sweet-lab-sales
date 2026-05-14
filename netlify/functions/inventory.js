@@ -99,10 +99,13 @@ export async function handler(event) {
 					if (!ids || !Array.isArray(ids) || ids.length === 0) return json({ error: 'Missing or invalid ids' }, 400);
 					const numericIds = ids.map(id => Number(id)).filter(id => !isNaN(id));
 					
-					// Use ANY syntax which is supported by Neon driver
-					const result = await sql`DELETE FROM inventory_movements WHERE id = ANY(${numericIds}) RETURNING id`;
+					let deletedCount = 0;
+					for (const id of numericIds) {
+						const result = await sql`DELETE FROM inventory_movements WHERE id = ${id} RETURNING id`;
+						if (result.length > 0) deletedCount++;
+					}
 					
-					return json({ ok: true, deletedCount: result.length });
+					return json({ ok: true, deletedCount });
 				}
 
 				if (action === 'add_item') {
