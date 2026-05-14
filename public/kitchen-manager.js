@@ -602,7 +602,7 @@ const KitchenManager = {
                             }
                         </button>
                         <div style="display:flex; flex-direction:column; min-width:0;">
-                            <strong style="font-size:0.8rem; color:${isDone ? '#16a34a' : '#334155'}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${step.name || 'Proceso General'}</strong>
+                            <strong style="font-size:1rem; color:${isDone ? '#16a34a' : '#1e293b'}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.2;">${step.name || 'Proceso General'}</strong>
                             <div style="display:flex; align-items:center; gap:4px;">
                                 <span class="timer-display" data-step-id="${step.id}" data-date="${targetDate}" 
                                     style="font-family:'Courier New', monospace; font-size:0.7rem; color:${isRunning ? '#ef4444' : '#94a3b8'}; font-weight:800; letter-spacing:0.5px;">
