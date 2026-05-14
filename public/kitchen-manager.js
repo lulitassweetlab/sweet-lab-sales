@@ -85,44 +85,47 @@ const KitchenManager = {
         const end = future.toISOString().split('T')[0];
         
         try {
-            // Fix: Use correct parameter names for sales range query
             const sales = await window.api('GET', `/api/sales?date_range_start=${start}&date_range_end=${end}`);
             const counts = {};
+
+            const findRecipeName = (code) => {
+                const match = this.recipes.find(r => 
+                    r.name.toLowerCase() === code.toLowerCase() || 
+                    r.name.toLowerCase().startsWith(code.toLowerCase())
+                );
+                return match ? match.name : null;
+            };
             
             (sales || []).forEach(s => {
-                // 1. Process legacy qty columns for main 5 desserts
-                if (s.qty_arco) counts['Arco'] = (counts['Arco'] || 0) + Number(s.qty_arco);
-                if (s.qty_melo) counts['Melo'] = (counts['Melo'] || 0) + Number(s.qty_melo);
-                if (s.qty_mara) counts['Mara'] = (counts['Mara'] || 0) + Number(s.qty_mara);
-                if (s.qty_oreo) counts['Oreo'] = (counts['Oreo'] || 0) + Number(s.qty_oreo);
-                if (s.qty_nute) counts['Nute'] = (counts['Nute'] || 0) + Number(s.qty_nute);
+                // 1. Process legacy qty columns (arco, melo, mara, oreo, nute)
+                const legacyMapping = {
+                    qty_arco: findRecipeName('Arco') || 'Arco',
+                    qty_melo: findRecipeName('Melo') || 'Melo',
+                    qty_mara: findRecipeName('Mara') || 'Mara',
+                    qty_oreo: findRecipeName('Oreo') || 'Oreo',
+                    qty_nute: findRecipeName('Nute') || 'Nute'
+                };
+
+                Object.entries(legacyMapping).forEach(([col, recipeName]) => {
+                    if (s[col]) {
+                        counts[recipeName] = (counts[recipeName] || 0) + Number(s[col]);
+                    }
+                });
 
                 // 2. Process modern items array
                 const items = s.items || [];
                 items.forEach(it => {
-                    // Try to match the name with our recipes
                     const rawName = it.name || it.short_code || '';
                     if (!rawName) return;
 
-                    // Find matching recipe name (case insensitive)
-                    const match = this.recipes.find(r => 
-                        r.name.toLowerCase() === rawName.toLowerCase() || 
-                        (it.short_code && r.name.toLowerCase().startsWith(it.short_code.toLowerCase()))
-                    );
+                    const recipeName = findRecipeName(rawName) || rawName;
+                    
+                    // Avoid double counting if this item was already processed via legacy columns
+                    // We check if the short_code matches any of our legacy keys
+                    const isLegacy = it.short_code && ['arco', 'melo', 'mara', 'oreo', 'nute'].includes(it.short_code.toLowerCase());
+                    if (isLegacy) return;
 
-                    const finalName = match ? match.name : rawName;
-                    
-                    // If it was already counted by legacy columns, don't double count 
-                    // (though usually items and legacy columns are kept in sync, 
-                    // but some older data might vary)
-                    // Let's assume modern items are more reliable if present
-                    if (match && ['Arco', 'Melo', 'Mara', 'Oreo', 'Nute'].includes(match.name)) {
-                        // For the main 5, we already counted them above from the columns 
-                        // unless items has a different value. Let's just avoid duplication.
-                        return; 
-                    }
-                    
-                    counts[finalName] = (counts[finalName] || 0) + (Number(it.quantity) || 0);
+                    counts[recipeName] = (counts[recipeName] || 0) + (Number(it.quantity) || 0);
                 });
             });
             
