@@ -16,10 +16,22 @@ export async function handler(event) {
 				const includeExtras = params.get('include_extras') === '1' || params.get('include_extras') === 'true';
 				const allItems = params.get('all_items') === '1' || params.get('all_items') === 'true';
 				const seed = params.get('seed') === '1' || params.get('seed') === 'true';
-			const productionUsers = params.get('production_users') === '1' || params.get('production_users') === 'true';
+				const migrateMani = params.get('migrate_mani_to_mx5') === '1';
+				const productionUsers = params.get('production_users') === '1' || params.get('production_users') === 'true';
 			const savedSessions = params.get('saved_sessions') === '1' || params.get('saved_sessions') === 'true';
 			
-			// Get saved recipe sessions
+						// Migration utility: Maní -> Mx5
+				if (migrateMani) {
+					console.log('🚀 Migrating Maní to Mx5 in recipes...');
+					await sql`UPDATE dessert_recipes SET dessert = 'Mx5' WHERE dessert = 'Maní'`;
+					await sql`UPDATE dessert_order SET dessert = 'Mx5' WHERE dessert = 'Maní'`;
+					try {
+						await sql`UPDATE recipe_production_users SET dessert = 'Mx5' WHERE dessert = 'Maní'`;
+					} catch (e) { /* table might not exist */ }
+					return json({ ok: true, message: 'Migración de Maní a Mx5 completada.' });
+				}
+
+				// Get saved recipe sessions
 			if (savedSessions) {
 				const sessions = await sql`
 					SELECT 

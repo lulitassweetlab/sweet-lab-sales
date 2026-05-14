@@ -6841,6 +6841,8 @@ async function renderIngredientsView() {
 	if (!root) return;
 	root.innerHTML = '';
 	// Create or update global ingredients datalist
+	// Auto-trigger migration if needed
+	try { await api('GET', '/api/recipes?migrate_mani_to_mx5=1'); } catch {}
 	let inv = []; try { inv = await api('GET', API.Inventory); } catch {}
 	if (!Array.isArray(inv)) inv = [];
 	let dl = document.getElementById('dl-inventory-items');
