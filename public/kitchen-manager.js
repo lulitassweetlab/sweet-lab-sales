@@ -252,28 +252,38 @@ const KitchenManager = {
         pop.style.left = Math.min(window.innerWidth - 270, Math.max(10, rect.left)) + 'px';
         pop.style.top = (rect.bottom + 8) + 'px';
 
-        let html = `<h4 style="margin:0 0 10px 0; font-size:0.85rem; color:#64748b; border-bottom:1px solid #f1f5f9; padding-bottom:8px;">Pedidos Detallados:</h4>`;
-        html += `<div style="display:flex; flex-direction:column; gap:8px;">`;
+        const header = document.createElement('h4');
+        header.style = "margin:0 0 10px 0; font-size:0.85rem; color:#64748b; border-bottom:1px solid #f1f5f9; padding-bottom:8px;";
+        header.textContent = "Pedidos Detallados:";
+        pop.appendChild(header);
+
+        const container = document.createElement('div');
+        container.style = "display:flex; flex-direction:column; gap:8px;";
         
         // Sort by date then seller
         const sorted = [...data.sellers].sort((a,b) => b.day.localeCompare(a.day) || a.sellerName.localeCompare(b.sellerName));
         
         sorted.forEach(entry => {
             const dateLabel = entry.day.split('-').slice(1).reverse().join('/'); // MM/DD -> DD/MM
-            html += `
-                <div class="press-btn" onclick="window.KitchenManager.jumpToSales(${entry.sellerId}, '${entry.day}')" 
-                     style="display:flex; justify-content:space-between; align-items:center; font-size:0.85rem; cursor:pointer; padding:8px; border-radius:10px; background:#f8fafc; border:1px solid #f1f5f9; transition:all 0.2s;">
-                    <div style="display:flex; flex-direction:column;">
-                        <span style="color:#1e293b; font-weight:700;">${entry.sellerName}</span>
-                        <span style="font-size:0.7rem; color:#94a3b8;">${dateLabel}</span>
-                    </div>
-                    <span style="background:#4f46e5; color:white; padding:2px 10px; border-radius:8px; font-weight:900; font-size:0.9rem;">${entry.qty}</span>
+            const row = document.createElement('div');
+            row.className = 'press-btn';
+            row.style = `display:flex; justify-content:space-between; align-items:center; font-size:0.85rem; cursor:pointer; padding:8px; border-radius:10px; background:#f8fafc; border:1px solid #f1f5f9; transition:all 0.2s;`;
+            row.innerHTML = `
+                <div style="display:flex; flex-direction:column;">
+                    <span style="color:#1e293b; font-weight:700;">${entry.sellerName}</span>
+                    <span style="font-size:0.7rem; color:#94a3b8;">${dateLabel}</span>
                 </div>
+                <span style="background:#4f46e5; color:white; padding:2px 10px; border-radius:8px; font-weight:900; font-size:0.9rem;">${entry.qty}</span>
             `;
+            row.addEventListener('click', (e) => {
+                e.stopPropagation();
+                console.log('🚀 Jumping to sales for:', entry);
+                this.jumpToSales(entry.sellerId, entry.day);
+            });
+            container.appendChild(row);
         });
-        html += `</div>`;
         
-        pop.innerHTML = html;
+        pop.appendChild(container);
         document.body.appendChild(pop);
 
         const close = (e) => {
