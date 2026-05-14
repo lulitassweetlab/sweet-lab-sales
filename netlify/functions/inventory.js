@@ -16,7 +16,13 @@ export async function handler(event) {
 				const historyAll = params.get('history_all');
 				
 				if (historyAll) {
-					const rows = await sql`SELECT id, ingredient, kind, qty, note, actor_name, metadata, created_at FROM inventory_movements ORDER BY id DESC LIMIT 1000`;
+					const dateStart = params.get('date_start');
+					let rows;
+					if (dateStart) {
+						rows = await sql`SELECT id, ingredient, kind, qty, note, actor_name, metadata, created_at FROM inventory_movements WHERE created_at >= ${dateStart} ORDER BY id DESC LIMIT 2000`;
+					} else {
+						rows = await sql`SELECT id, ingredient, kind, qty, note, actor_name, metadata, created_at FROM inventory_movements ORDER BY id DESC LIMIT 1000`;
+					}
 					return json(rows);
 				}
 				
@@ -332,13 +338,16 @@ export async function handler(event) {
 					const results = [];
 					const note = `Producción: ${step.dessert}${step.step_name ? ' - ' + step.step_name : ''} (x${multiplier})`;
 					
+					const metadata = { step_id: stepId, multiplier: multiplier };
+					if (data.target_date) metadata.target_date = data.target_date;
+
 					for (const it of items) {
 						const canon = (it.ingredient || '').toString().trim();
 						const qtyToSubtract = -Math.abs(Number(it.qty_per_unit || 0) * multiplier);
 						
 						const [row] = await sql`
 							INSERT INTO inventory_movements (ingredient, kind, qty, note, actor_name, metadata) 
-							VALUES (${canon}, 'produccion', ${qtyToSubtract}, ${note}, ${actor}, ${JSON.stringify({ step_id: stepId, multiplier })}::jsonb) 
+							VALUES (${canon}, 'produccion', ${qtyToSubtract}, ${note}, ${actor}, ${JSON.stringify(metadata)}::jsonb) 
 							RETURNING *
 						`;
 						results.push({ ingredient: canon, qty: qtyToSubtract, movement_id: row?.id });

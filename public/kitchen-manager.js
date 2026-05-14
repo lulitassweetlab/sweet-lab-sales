@@ -2,8 +2,9 @@
 const KitchenManager = {
     recipes: [],
     inventory: [],
-    suggestions: {},
+    batches: [], // Array of { day, recipeName, total, sellers: [] }
     history: [],
+    expandedRecipes: new Set(),
     isInitialized: false,
 
     async init() {
@@ -31,7 +32,10 @@ const KitchenManager = {
 
     async loadData() {
         const grid = document.getElementById('kitchen-recipes-grid');
-        if (grid) grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding:40px;">⏳ Cargando bitácora...</div>';
+        // Only show full loading indicator on first time
+        if (grid && !this.isInitialized) {
+            grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding:40px;">⏳ Cargando bitácora...</div>';
+        }
 
         try {
             console.log("📥 Loading Kitchen Data...");
@@ -100,7 +104,8 @@ const KitchenManager = {
         // Go back 3 days and forward 30 days to ensure we don't miss anything recent or upcoming
         const past = new Date();
         past.setDate(today.getDate() - 3);
-        const start = past.toISOString().split('T')[0];
+        this.suggestionStartDate = past.toISOString().split('T')[0];
+        const start = this.suggestionStartDate;
         
         const future = new Date();
         future.setDate(today.getDate() + 30);
@@ -111,7 +116,8 @@ const KitchenManager = {
         try {
             const sales = await window.api('GET', `/api/sales?date_range_start=${start}&date_range_end=${end}&all_sellers=1`);
             console.log(`KITCHEN: Fetched ${sales?.length || 0} sales rows.`);
-            const counts = {}; // { [recipeName]: { total: 0, sellers: { [sellerName]: qty } } }
+            
+            const batchMap = {}; // { [isoDay + "_" + recipeName]: { day, recipeName, total, sellers: [] } }
 
             const findRecipeName = (code) => {
                 if (!code) return null;
@@ -124,29 +130,29 @@ const KitchenManager = {
 
             const addCount = (recipeName, sellerName, sellerId, day, qty) => {
                 if (!recipeName || !qty) return;
-                if (!counts[recipeName]) counts[recipeName] = { total: 0, sellers: [] };
                 
                 // Robust date parsing: ensure we have YYYY-MM-DD
                 let isoDay = '';
-                if (day instanceof Date) {
-                    isoDay = day.toISOString().split('T')[0];
-                } else if (typeof day === 'string') {
-                    isoDay = day.split('T')[0];
-                } else if (day) {
-                    isoDay = String(day).slice(0, 10);
-                }
+                if (day instanceof Date) isoDay = day.toISOString().split('T')[0];
+                else if (typeof day === 'string') isoDay = day.split('T')[0];
+                else if (day) isoDay = String(day).slice(0, 10);
                 
                 if (!isoDay) {
                     console.warn('KITCHEN: Sale missing day:', { recipeName, sellerName, qty });
                     isoDay = 'Sin fecha';
                 }
 
-                counts[recipeName].total += qty;
+                const key = `${isoDay}_${recipeName}`;
+                if (!batchMap[key]) {
+                    batchMap[key] = { day: isoDay, recipeName, total: 0, sellers: [] };
+                }
+
+                batchMap[key].total += qty;
                 
-                let entry = counts[recipeName].sellers.find(e => e.sellerId === sellerId && e.day === isoDay);
+                let entry = batchMap[key].sellers.find(e => e.sellerId === sellerId);
                 if (!entry) {
-                    entry = { sellerName, sellerId, day: isoDay, qty: 0 };
-                    counts[recipeName].sellers.push(entry);
+                    entry = { sellerName, sellerId, qty: 0 };
+                    batchMap[key].sellers.push(entry);
                 }
                 entry.qty += qty;
             };
@@ -157,8 +163,6 @@ const KitchenManager = {
                 const saleDay = s.sale_day;
                 const items = s.items || [];
 
-                // 💡 Strategy: If items array exists and is not empty, use it as source of truth.
-                // Otherwise, fallback to legacy columns.
                 if (items.length > 0) {
                     items.forEach(it => {
                         const sc = (it.short_code || it.code || '').toLowerCase().trim();
@@ -177,12 +181,10 @@ const KitchenManager = {
                         }
 
                         if (!displayName) displayName = sc || rawName;
-
                         const q = Number(it.quantity || 0);
                         if (q > 0) addCount(displayName, sellerName, sellerId, saleDay, q);
                     });
                 } else {
-                    // Fallback to legacy columns for older records
                     const legacyMapping = {
                         qty_arco: findRecipeName('Arco') || 'Arco',
                         qty_melo: findRecipeName('Melo') || 'Melo',
@@ -190,7 +192,6 @@ const KitchenManager = {
                         qty_oreo: findRecipeName('Oreo') || 'Oreo',
                         qty_nute: findRecipeName('Nute') || 'Nute'
                     };
-
                     Object.entries(legacyMapping).forEach(([col, recipeName]) => {
                         const q = Number(s[col] || 0);
                         if (q > 0) addCount(recipeName, sellerName, sellerId, saleDay, q);
@@ -198,45 +199,46 @@ const KitchenManager = {
                 }
             });
             
-            console.log('KITCHEN: Final suggestions object:', counts);
-            this.suggestions = counts;
+            this.batches = Object.values(batchMap).sort((a,b) => a.day.localeCompare(b.day) || a.recipeName.localeCompare(b.recipeName));
+            console.log('KITCHEN: Final batches list:', this.batches);
         } catch (err) {
             console.warn("Could not load suggestions:", err);
-            this.suggestions = {};
+            this.batches = [];
         }
     },
 
     async loadHistory() {
-        const today = new Date().toISOString().split('T')[0];
+        const start = this.suggestionStartDate || new Date().toISOString().split('T')[0];
         try {
-            const movements = await window.api('GET', `/api/inventory?history_all=1`);
+            // Fetch movements from the same start date as suggestions (last 3 days)
+            const movements = await window.api('GET', `/api/inventory?history_all=1&date_start=${start}`);
             this.history = (movements || []).filter(m => 
-                m.kind === 'produccion' && 
-                m.created_at && m.created_at.startsWith(today)
+                m.kind === 'produccion'
             );
 
-            // Aggregate production by step_id to show what's already done today
-            this.producedStepsToday = {}; // { [stepId]: totalProduced }
+            // Aggregate production by (step_id + target_date)
+            this.producedStepsMap = {}; // { [stepId + "_" + targetDate]: totalProduced }
             const processedNotes = new Set();
             
             this.history.forEach(m => {
                 if (m.metadata && m.metadata.step_id) {
-                    // Use note + created_at as a unique key for the production action 
-                    // (since one action creates multiple movements, one per ingredient)
                     const actionKey = `${m.note}_${m.created_at}`;
                     if (!processedNotes.has(actionKey)) {
                         const sid = m.metadata.step_id;
                         const qty = Number(m.metadata.multiplier || 0);
-                        this.producedStepsToday[sid] = (this.producedStepsToday[sid] || 0) + qty;
+                        const tDate = m.metadata.target_date || m.created_at.split('T')[0]; // Fallback to created_at date
+                        
+                        const key = `${sid}_${tDate}`;
+                        this.producedStepsMap[key] = (this.producedStepsMap[key] || 0) + qty;
                         processedNotes.add(actionKey);
                     }
                 }
             });
-            console.log("✅ Produced today:", this.producedStepsToday);
+            console.log("✅ Produced Map (sid_date):", this.producedStepsMap);
         } catch (err) {
             console.warn("Could not load history:", err);
             this.history = [];
-            this.producedStepsToday = {};
+            this.producedStepsMap = {};
         }
     },
 
@@ -256,23 +258,24 @@ const KitchenManager = {
         if (!cont) return;
         cont.innerHTML = '';
         
-        const sorted = Object.entries(this.suggestions).sort((a,b) => (b[1].total || 0) - (a[1].total || 0));
+        // Sum totals per dessert across all batches
+        const totals = {};
+        this.batches.forEach(b => {
+            totals[b.recipeName] = (totals[b.recipeName] || 0) + b.total;
+        });
+
+        const sorted = Object.entries(totals).sort((a,b) => b[1] - a[1]);
         if (sorted.length === 0) {
-            cont.innerHTML = '<span style="font-size:0.8rem; color:#64748b;">No hay pedidos pendientes para los próximos 5 días.</span>';
+            cont.innerHTML = '<span style="font-size:0.8rem; color:#64748b;">No hay pedidos pendientes para los próximos días.</span>';
             return;
         }
         
-        sorted.forEach(([name, data]) => {
-            const qty = data.total || 0;
+        sorted.forEach(([name, qty]) => {
             if (qty <= 0) return;
             const pill = document.createElement('div');
             pill.className = 'suggest-pill';
-            pill.style = "background:#fff; border:1px solid #e2e8f0; padding:6px 12px; border-radius:12px; font-size:0.85rem; font-weight:700; color:#1e293b; display:flex; gap:8px; align-items:center; box-shadow:0 2px 4px rgba(0,0,0,0.02); cursor:pointer;";
+            pill.style = "background:#fff; border:1px solid #e2e8f0; padding:6px 12px; border-radius:12px; font-size:0.85rem; font-weight:700; color:#1e293b; display:flex; gap:8px; align-items:center; box-shadow:0 2px 4px rgba(0,0,0,0.02);";
             pill.innerHTML = `<span>${name}</span> <span style="background:#ff9800; color:white; padding:2px 6px; border-radius:6px; font-size:0.75rem;">${qty}</span>`;
-            pill.onclick = (e) => {
-                e.stopPropagation();
-                this.showSellerBreakdown(name, pill);
-            };
             cont.appendChild(pill);
         });
     },
@@ -391,113 +394,138 @@ const KitchenManager = {
         const grid = document.getElementById('kitchen-recipes-grid');
         if (!grid) return;
         grid.innerHTML = '';
-        
-        // Merge this.recipes with items from suggestions that don't have a recipe
-        const recipesToShow = [...this.recipes];
-        Object.keys(this.suggestions).forEach(sName => {
-            if (!sName || sName === 'null' || sName === 'undefined') return;
-            const exists = recipesToShow.some(r => r.name && r.name.toLowerCase() === sName.toLowerCase());
-            if (!exists) {
-                recipesToShow.push({
-                    name: sName,
-                    steps: [{ id: null, name: 'Receta no configurada', items: [] }],
-                    isMissing: true
-                });
-            }
-        });
+        grid.style.display = 'flex';
+        grid.style.flexDirection = 'column';
+        grid.style.gap = '40px';
 
-        if (recipesToShow.length === 0) {
-            grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding:40px; color:#64748b;">No se encontraron recetas configuradas.</div>';
+        if (this.batches.length === 0) {
+            grid.innerHTML = '<div style="text-align:center; padding:40px; color:#64748b;">No hay lotes de producción pendientes.</div>';
             return;
         }
 
-        // Sort recipes by suggestion count (descending)
-        recipesToShow.sort((a, b) => {
-            const countA = (this.suggestions[a.name]?.total || 0);
-            const countB = (this.suggestions[b.name]?.total || 0);
-            if (countB !== countA) return countB - countA;
-            return (a.name || "").localeCompare(b.name || "");
+        // Group batches by day
+        const days = {};
+        this.batches.forEach(batch => {
+            if (!days[batch.day]) days[batch.day] = [];
+            days[batch.day].push(batch);
         });
 
-        recipesToShow.forEach(recipe => {
-            if (!recipe || !recipe.name) return;
-            const card = document.createElement('div');
-            card.className = 'box kitchen-card';
-            const data = this.suggestions[recipe.name];
-            const count = data?.total || 0;
-            const isSuggested = count > 0;
-            const isMissing = recipe.isMissing;
+        Object.keys(days).sort().forEach(day => {
+            const dayBatches = days[day];
             
-            card.style = `margin:0; padding:16px; border-radius:24px; display:flex; flex-direction:column; gap:0; border: 1px solid ${isMissing ? '#f1f5f9' : (isSuggested ? '#f4a6b7' : '#f1f5f9')}; cursor:pointer; background:${isSuggested ? '#fffdfd' : '#fff'}; opacity:${isMissing ? 0.7 : 1};`;
+            // Filter out fully completed batches within this day
+            const pendingBatches = dayBatches.filter(batch => {
+                const recipe = this.recipes.find(r => r.name === batch.recipeName);
+                if (!recipe || !recipe.steps || recipe.steps.length === 0) return true;
+                
+                const stepTotals = recipe.steps.map(s => this.producedStepsMap[`${s.id}_${batch.day}`] || 0);
+                const minProduced = Math.min(...stepTotals);
+                return minProduced < batch.total;
+            });
+
+            if (pendingBatches.length === 0) return;
+
+            const daySection = document.createElement('div');
+            daySection.className = 'day-section';
             
-            card.innerHTML = `
-                <div class="card-header" style="display:flex; align-items:center; justify-content:space-between; width:100%;">
-                    <div style="display:flex; align-items:center; gap:12px;">
-                        <div style="width:36px; height:36px; background:${isMissing ? '#f1f5f9' : (isSuggested ? '#fce7f3' : '#f8fafc')}; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:1.1rem;">🍰</div>
-                        <div>
-                            <h3 style="margin:0; font-size:1rem; font-weight:900; color:#1e293b;">${recipe.name}</h3>
-                            ${isSuggested ? `<span class="pending-label" style="font-size:0.7rem; color:#db2777; font-weight:700; cursor:help;">Pendiente: ${count}</span>` : '<span style="font-size:0.7rem; color:#94a3b8;">Sin pedidos</span>'}
+            const todayStr = new Date().toISOString().split('T')[0];
+            let dayLabel = day === todayStr ? "Hoy" : (day === new Date(Date.now() + 86400000).toISOString().split('T')[0] ? "Mañana" : day);
+            
+            daySection.innerHTML = `
+                <h3 style="margin: 0 0 16px 0; display:flex; align-items:center; gap:10px; color:var(--primary);">
+                    <span style="font-size:1.4rem;">📅</span> ${dayLabel}
+                </h3>
+                <div class="batches-grid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap:20px;"></div>
+            `;
+            
+            const batchesGrid = daySection.querySelector('.batches-grid');
+            
+            pendingBatches.forEach(batch => {
+                const recipe = this.recipes.find(r => r.name === batch.recipeName) || {
+                    name: batch.recipeName,
+                    steps: [{ id: null, name: 'Receta no configurada', items: [] }],
+                    isMissing: true
+                };
+
+                const totalNeeded = batch.total;
+                const stepTotals = recipe.steps.map(s => this.producedStepsMap[`${s.id}_${batch.day}`] || 0);
+                const minProduced = Math.min(...stepTotals);
+                const remaining = Math.max(0, totalNeeded - minProduced);
+                
+                const card = document.createElement('div');
+                card.className = 'box kitchen-card';
+                card.style = `margin:0; padding:16px; border-radius:24px; display:flex; flex-direction:column; gap:0; border: 1px solid #f4a6b7; cursor:pointer; background:#fffdfd; transition: all 0.3s ease;`;
+                
+                const cardId = `${batch.day}_${batch.recipeName}`;
+                const isExpanded = this.expandedRecipes.has(cardId);
+                
+                card.innerHTML = `
+                    <div class="card-header" style="display:flex; align-items:center; justify-content:space-between; width:100%;">
+                        <div style="display:flex; align-items:center; gap:12px;">
+                            <div style="width:36px; height:36px; background:#fce7f3; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:1.1rem;">🍰</div>
+                            <div>
+                                <h3 style="margin:0; font-size:1rem; font-weight:900; color:#1e293b;">${batch.recipeName}</h3>
+                                <span class="pending-label" style="font-size:0.7rem; color:#db2777; font-weight:700;">Faltan: ${remaining} <small style="font-weight:400; color:#94a3b8;">(de ${totalNeeded})</small></span>
+                            </div>
+                        </div>
+                        <div class="chevron" style="transition: transform 0.2s ease; transform:${isExpanded ? 'rotate(180deg)' : 'rotate(0deg)'};">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
                         </div>
                     </div>
-                    <div class="chevron" style="transition: transform 0.2s ease;">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                    <div class="steps-list-container" style="max-height:${isExpanded ? '2000px' : '0'}; overflow:hidden; transition: all 0.3s ease; opacity:${isExpanded ? '1' : '0'};">
+                        <div style="padding-top:16px; display:flex; flex-direction:column; gap:12px;">
+                            ${recipe.isMissing ? 
+                                `<div style="padding:20px; text-align:center; color:#94a3b8; font-size:0.8rem; border:1px dashed #e2e8f0; border-radius:12px;">
+                                    ⚠️ No hay una receta configurada para este postre.
+                                 </div>` :
+                                (recipe.steps || []).map(step => this.renderStepRow(batch.recipeName, step, batch.day, totalNeeded)).join('')
+                            }
+                        </div>
                     </div>
-                </div>
-                <div class="steps-list-container" style="max-height:0; overflow:hidden; transition: all 0.3s ease; opacity:0;">
-                    <div style="padding-top:16px; display:flex; flex-direction:column; gap:12px;">
-                        ${isMissing ? 
-                            `<div style="padding:20px; text-align:center; color:#94a3b8; font-size:0.8rem; border:1px dashed #e2e8f0; border-radius:12px;">
-                                ⚠️ No hay una receta configurada para este postre.<br>Ve a la sección de Recetas para configurarla.
-                             </div>` :
-                            (recipe.steps || []).map(step => this.renderStepRow(recipe.name, step)).join('')
-                        }
-                    </div>
-                </div>
-            `;
+                `;
 
-            card.onclick = (e) => {
-                if (e.target.closest('.pending-label')) {
-                    e.stopPropagation();
-                    this.showSellerBreakdown(recipe.name, e.target.closest('.pending-label'));
-                    return;
-                }
-                if (e.target.closest('input') || e.target.closest('button')) return;
-                const container = card.querySelector('.steps-list-container');
-                const chevron = card.querySelector('.chevron');
-                const isExpanded = container.style.maxHeight !== '0px';
-                if (isExpanded) {
-                    container.style.maxHeight = '0px';
-                    container.style.opacity = '0';
-                    chevron.style.transform = 'rotate(0deg)';
-                } else {
-                    container.style.maxHeight = '2000px';
-                    container.style.opacity = '1';
-                    chevron.style.transform = 'rotate(180deg)';
-                }
-            };
+                card.onclick = (e) => {
+                    if (e.target.closest('input') || e.target.closest('button')) return;
+                    const container = card.querySelector('.steps-list-container');
+                    const chevron = card.querySelector('.chevron');
+                    const isNowExpanded = container.style.maxHeight === '0px';
+                    
+                    if (!isNowExpanded) {
+                        container.style.maxHeight = '0px';
+                        container.style.opacity = '0';
+                        chevron.style.transform = 'rotate(0deg)';
+                        this.expandedRecipes.delete(cardId);
+                    } else {
+                        container.style.maxHeight = '2000px';
+                        container.style.opacity = '1';
+                        chevron.style.transform = 'rotate(180deg)';
+                        this.expandedRecipes.add(cardId);
+                    }
+                };
 
-            grid.appendChild(card);
+                batchesGrid.appendChild(card);
+            });
+            grid.appendChild(daySection);
         });
     },
 
-    renderStepRow(recipeName, step) {
+    renderStepRow(recipeName, step, targetDate, totalNeeded) {
         if (!step) return "";
-        const suggested = (this.suggestions[recipeName]?.total || 0);
         const inputId = `input-${step.id || Math.random().toString(36).substr(2, 9)}`;
-        const producedToday = this.producedStepsToday && step.id ? (this.producedStepsToday[step.id] || 0) : 0;
-        const isDone = producedToday >= suggested && suggested > 0;
+        const producedInWindow = this.producedStepsMap && step.id ? (this.producedStepsMap[`${step.id}_${targetDate}`] || 0) : 0;
+        const isDone = producedInWindow >= totalNeeded && totalNeeded > 0;
         
         return `
             <div style="background:${isDone ? '#f0fdf4' : '#f8fafc'}; border:1px solid ${isDone ? '#bbf7d0' : '#f1f5f9'}; border-radius:16px; padding:12px; transition: all 0.2s ease;">
                 <div class="flex" style="margin-bottom:8px; justify-content:space-between; align-items:center;">
                     <strong style="font-size:0.85rem; color:${isDone ? '#16a34a' : '#475569'};">${step.name || 'Proceso General'}</strong>
-                    ${producedToday > 0 ? `<span style="font-size:0.7rem; color:#16a34a; font-weight:900; background:#dcfce7; padding:2px 8px; border-radius:8px;">✓ Hecho: ${producedToday}</span>` : ''}
+                    ${producedInWindow > 0 ? `<span style="font-size:0.7rem; color:#16a34a; font-weight:900; background:#dcfce7; padding:2px 8px; border-radius:8px;">✓ Hecho: ${producedInWindow}</span>` : ''}
                 </div>
                 <div style="display:flex; gap:8px; align-items:center;">
-                    <input type="number" id="${inputId}" value="${Math.max(0, suggested - producedToday) || suggested || 1}" min="1" 
+                    <input type="number" id="${inputId}" value="${Math.max(0, totalNeeded - producedInWindow) || totalNeeded || 1}" min="1" 
                         style="width:65px; padding:8px; border-radius:10px; border:1px solid #cbd5e1; font-weight:700; text-align:center; outline:none;"
                         onfocus="this.select()">
-                    <button onclick="window.KitchenManager.produceStep('${step.id || ''}', '${recipeName}', '${step.name || ''}', '${inputId}')" 
+                    <button onclick="window.KitchenManager.produceStep('${step.id || ''}', '${recipeName}', '${step.name || ''}', '${inputId}', '${targetDate}')" 
                         ${!step.id ? 'disabled' : ''}
                         class="press-btn" style="flex:1; background:${isDone ? '#10b981' : '#4f46e5'}; color:white; border:none; padding:10px; border-radius:10px; font-weight:700; font-size:0.8rem; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2); opacity:${!step.id ? 0.5 : 1};">
                         ${isDone ? 'Producir Más' : 'Producir'}
@@ -507,7 +535,7 @@ const KitchenManager = {
                     ${(step.items || []).map(it => {
                         const inv = (this.inventory || []).find(i => i.ingredient && i.ingredient.toLowerCase() === (it.ingredient || "").toLowerCase());
                         const stock = inv ? inv.saldo : 0;
-                        const qtyNeeded = Number(it.qty_per_unit || 0) * (Math.max(0, suggested - producedToday) || suggested || 1);
+                        const qtyNeeded = Number(it.qty_per_unit || 0) * (Math.max(0, totalNeeded - producedInWindow) || totalNeeded || 1);
                         const isLow = stock < qtyNeeded;
                         return `<div style="display:flex; justify-content:space-between; margin-bottom:2px; ${isLow ? 'color:#ef4444; font-weight:700;' : ''}">
                             <span>• ${it.ingredient}</span>
@@ -519,7 +547,7 @@ const KitchenManager = {
         `;
     },
 
-    async produceStep(stepId, dessertName, stepName, inputId) {
+    async produceStep(stepId, dessertName, stepName, inputId, targetDate) {
         if (!stepId) return window.showToast("Esta receta no tiene ID de producción", "warning");
         const input = document.getElementById(inputId);
         const qty = Number(input.value) || 0;
@@ -538,10 +566,15 @@ const KitchenManager = {
                 action: 'produccion_paso',
                 step_id: Number(stepId),
                 multiplier: qty,
+                target_date: targetDate,
                 actor_name: window.state?.currentUser?.name || window.state?.currentUser?.username || "Cocinero"
             });
 
             if (res.ok) {
+                if (btn) {
+                    btn.innerText = "✅ Hecho";
+                    btn.style.background = "#10b981";
+                }
                 window.showToast(`✅ Producido: ${qty} de ${dessertName} (${stepName || 'General'})`, "success");
                 await this.loadData();
             } else {
