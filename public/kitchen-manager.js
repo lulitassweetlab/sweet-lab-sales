@@ -104,7 +104,7 @@ const KitchenManager = {
         
         try {
             const sales = await window.api('GET', `/api/sales?date_range_start=${start}&date_range_end=${end}`);
-            const counts = {};
+            const counts = {}; // { [recipeName]: { total: 0, sellers: { [sellerName]: qty } } }
 
             const findRecipeName = (code) => {
                 if (!code) return null;
@@ -114,8 +114,17 @@ const KitchenManager = {
                 );
                 return match ? match.name : null;
             };
+
+            const addCount = (recipeName, sellerName, qty) => {
+                if (!recipeName || !qty) return;
+                if (!counts[recipeName]) counts[recipeName] = { total: 0, sellers: {} };
+                counts[recipeName].total += qty;
+                counts[recipeName].sellers[sellerName] = (counts[recipeName].sellers[sellerName] || 0) + qty;
+            };
             
             (sales || []).forEach(s => {
+                const sellerName = s.seller_name || 'Tienda';
+
                 // 1. Legacy columns
                 const legacyMapping = {
                     qty_arco: findRecipeName('Arco') || 'Arco',
@@ -126,7 +135,8 @@ const KitchenManager = {
                 };
 
                 Object.entries(legacyMapping).forEach(([col, recipeName]) => {
-                    if (s[col]) counts[recipeName] = (counts[recipeName] || 0) + Number(s[col]);
+                    const q = Number(s[col] || 0);
+                    if (q > 0) addCount(recipeName, sellerName, q);
                 });
 
                 // 2. Items array
@@ -139,25 +149,23 @@ const KitchenManager = {
                     // Try to resolve to a full name using allDesserts or recipes
                     let displayName = rawName;
                     
-                    // If we have a short_code, try to find the official name in master list
                     if (sc) {
                         const masterMatch = (this.allDesserts || []).find(d => (d.short_code || '').toLowerCase().trim() === sc);
                         if (masterMatch) displayName = masterMatch.name;
                     }
 
-                    // If still no good name, try to find it in recipes list
                     if (!displayName || displayName === sc) {
                         const recipeMatch = findRecipeName(rawName || sc);
                         if (recipeMatch) displayName = recipeMatch;
                     }
 
-                    // Fallback to sc if everything else fails
                     if (!displayName) displayName = sc || rawName;
 
                     const isLegacy = sc && ['arco', 'melo', 'mara', 'oreo', 'nute'].includes(sc);
                     if (isLegacy) return;
 
-                    counts[displayName] = (counts[displayName] || 0) + (Number(it.quantity) || 0);
+                    const q = Number(it.quantity || 0);
+                    if (q > 0) addCount(displayName, sellerName, q);
                 });
             });
             
@@ -198,20 +206,68 @@ const KitchenManager = {
         if (!cont) return;
         cont.innerHTML = '';
         
-        const sorted = Object.entries(this.suggestions).sort((a,b) => b[1] - a[1]);
+        const sorted = Object.entries(this.suggestions).sort((a,b) => (b[1].total || 0) - (a[1].total || 0));
         if (sorted.length === 0) {
             cont.innerHTML = '<span style="font-size:0.8rem; color:#64748b;">No hay pedidos pendientes para los próximos 5 días.</span>';
             return;
         }
         
-        sorted.forEach(([name, qty]) => {
+        sorted.forEach(([name, data]) => {
+            const qty = data.total || 0;
             if (qty <= 0) return;
             const pill = document.createElement('div');
             pill.className = 'suggest-pill';
-            pill.style = "background:#fff; border:1px solid #e2e8f0; padding:6px 12px; border-radius:12px; font-size:0.85rem; font-weight:700; color:#1e293b; display:flex; gap:8px; align-items:center; box-shadow:0 2px 4px rgba(0,0,0,0.02);";
+            pill.style = "background:#fff; border:1px solid #e2e8f0; padding:6px 12px; border-radius:12px; font-size:0.85rem; font-weight:700; color:#1e293b; display:flex; gap:8px; align-items:center; box-shadow:0 2px 4px rgba(0,0,0,0.02); cursor:pointer;";
             pill.innerHTML = `<span>${name}</span> <span style="background:#ff9800; color:white; padding:2px 6px; border-radius:6px; font-size:0.75rem;">${qty}</span>`;
+            pill.onclick = (e) => {
+                e.stopPropagation();
+                this.showSellerBreakdown(name, pill);
+            };
             cont.appendChild(pill);
         });
+    },
+
+    showSellerBreakdown(recipeName, targetEl) {
+        const data = this.suggestions[recipeName];
+        if (!data || !data.sellers) return;
+
+        // Remove any existing breakdown
+        const existing = document.getElementById('seller-breakdown-pop');
+        if (existing) existing.remove();
+
+        const pop = document.createElement('div');
+        pop.id = 'seller-breakdown-pop';
+        pop.className = 'aladdin-pop';
+        pop.style = `position:fixed; z-index:10000; background:white; border-radius:16px; box-shadow:0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1); padding:16px; min-width:200px; border:1px solid #f1f5f9;`;
+        
+        const rect = targetEl.getBoundingClientRect();
+        pop.style.left = Math.min(window.innerWidth - 220, Math.max(10, rect.left)) + 'px';
+        pop.style.top = (rect.bottom + 8) + 'px';
+
+        let html = `<h4 style="margin:0 0 10px 0; font-size:0.85rem; color:#64748b; border-bottom:1px solid #f1f5f9; padding-bottom:8px;">Pedidos por Vendedor:</h4>`;
+        html += `<div style="display:flex; flex-direction:column; gap:6px;">`;
+        
+        const sellers = Object.entries(data.sellers).sort((a,b) => b[1] - a[1]);
+        sellers.forEach(([seller, qty]) => {
+            html += `
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.85rem;">
+                    <span style="color:#1e293b; font-weight:500;">${seller}</span>
+                    <span style="background:#f1f5f9; color:#475569; padding:2px 8px; border-radius:6px; font-weight:700;">${qty}</span>
+                </div>
+            `;
+        });
+        html += `</div>`;
+        
+        pop.innerHTML = html;
+        document.body.appendChild(pop);
+
+        const close = (e) => {
+            if (!pop.contains(e.target) && e.target !== targetEl) {
+                pop.remove();
+                document.removeEventListener('click', close);
+            }
+        };
+        setTimeout(() => document.addEventListener('click', close), 10);
     },
 
     renderRecipes() {
@@ -240,8 +296,8 @@ const KitchenManager = {
 
         // Sort recipes by suggestion count (descending)
         recipesToShow.sort((a, b) => {
-            const countA = this.suggestions[a.name] || 0;
-            const countB = this.suggestions[b.name] || 0;
+            const countA = (this.suggestions[a.name]?.total || 0);
+            const countB = (this.suggestions[b.name]?.total || 0);
             if (countB !== countA) return countB - countA;
             return (a.name || "").localeCompare(b.name || "");
         });
@@ -250,7 +306,8 @@ const KitchenManager = {
             if (!recipe || !recipe.name) return;
             const card = document.createElement('div');
             card.className = 'box kitchen-card';
-            const count = this.suggestions[recipe.name] || 0;
+            const data = this.suggestions[recipe.name];
+            const count = data?.total || 0;
             const isSuggested = count > 0;
             const isMissing = recipe.isMissing;
             
@@ -262,7 +319,7 @@ const KitchenManager = {
                         <div style="width:36px; height:36px; background:${isMissing ? '#f1f5f9' : (isSuggested ? '#fce7f3' : '#f8fafc')}; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:1.1rem;">🍰</div>
                         <div>
                             <h3 style="margin:0; font-size:1rem; font-weight:900; color:#1e293b;">${recipe.name}</h3>
-                            ${isSuggested ? `<span style="font-size:0.7rem; color:#db2777; font-weight:700;">Pendiente: ${count}</span>` : '<span style="font-size:0.7rem; color:#94a3b8;">Sin pedidos</span>'}
+                            ${isSuggested ? `<span class="pending-label" style="font-size:0.7rem; color:#db2777; font-weight:700; cursor:help;">Pendiente: ${count}</span>` : '<span style="font-size:0.7rem; color:#94a3b8;">Sin pedidos</span>'}
                         </div>
                     </div>
                     <div class="chevron" style="transition: transform 0.2s ease;">
@@ -282,6 +339,11 @@ const KitchenManager = {
             `;
 
             card.onclick = (e) => {
+                if (e.target.closest('.pending-label')) {
+                    e.stopPropagation();
+                    this.showSellerBreakdown(recipe.name, e.target.closest('.pending-label'));
+                    return;
+                }
                 if (e.target.closest('input') || e.target.closest('button')) return;
                 const container = card.querySelector('.steps-list-container');
                 const chevron = card.querySelector('.chevron');
@@ -303,7 +365,7 @@ const KitchenManager = {
 
     renderStepRow(recipeName, step) {
         if (!step) return "";
-        const suggested = this.suggestions[recipeName] || 0;
+        const suggested = (this.suggestions[recipeName]?.total || 0);
         const inputId = `input-${step.id || Math.random().toString(36).substr(2, 9)}`;
         
         return `
