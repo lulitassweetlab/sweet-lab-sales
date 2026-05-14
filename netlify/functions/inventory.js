@@ -94,6 +94,20 @@ export async function handler(event) {
 					return json({ ok: true });
 				}
 
+				if (action === 'delete_conversion') {
+					const { id } = data;
+					if (!id) return json({ error: 'Missing id' }, 400);
+					await sql`DELETE FROM inventory_conversions WHERE id = ${id}`;
+					return json({ ok: true });
+				}
+
+				if (action === 'delete_production') {
+					const { note, created_at } = data;
+					if (!note || !created_at) return json({ error: 'Missing note or created_at' }, 400);
+					await sql`DELETE FROM inventory_movements WHERE note = ${note} AND created_at = ${created_at}`;
+					return json({ ok: true });
+				}
+
 				if (action === 'add_item') {
 					const ingredient = (data.ingredient || '').toString().trim();
 					if (!ingredient) return json({ error: 'ingredient requerido' }, 400);

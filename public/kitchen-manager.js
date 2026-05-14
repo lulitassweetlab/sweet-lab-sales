@@ -593,38 +593,81 @@ const KitchenManager = {
     renderHistory() {
         const cont = document.getElementById('kitchen-history-list');
         if (!cont) return;
-        
-        if (this.history.length === 0) {
-            cont.innerHTML = '<div style="text-align:center; padding:20px; color:#64748b; font-size:0.9rem;">No hay producción registrada hoy.</div>';
+        cont.innerHTML = '';
+
+        if (!this.history || this.history.length === 0) {
+            cont.innerHTML = '<div style="text-align:center; padding:20px; color:#94a3b8; font-size:0.9rem; background:#f8fafc; border-radius:16px; border:1px dashed #e2e8f0;">No hay producción registrada en este periodo.</div>';
             return;
         }
 
-        const grouped = {};
-        this.history.forEach(m => {
-            const note = m.note || "Producción";
-            if (!grouped[note]) {
-                grouped[note] = { 
-                    time: m.created_at, 
+        // Group history by action (note + created_at)
+        const actions = [];
+        const processed = new Set();
+        
+        // Sort history by date DESC
+        const sortedHistory = [...this.history].sort((a,b) => b.created_at.localeCompare(a.created_at));
+        
+        sortedHistory.forEach(m => {
+            const key = `${m.note}_${m.created_at}`;
+            if (!processed.has(key)) {
+                actions.push({
+                    note: m.note,
+                    created_at: m.created_at,
                     actor: m.actor_name,
-                    items: []
-                };
+                    target_date: m.metadata?.target_date
+                });
+                processed.add(key);
             }
-            grouped[note].items.push(m);
         });
 
-        const sortedNotes = Object.keys(grouped).sort((a,b) => new Date(grouped[b].time) - new Date(grouped[a].time));
-
-        cont.innerHTML = sortedNotes.map(note => `
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:12px; border-bottom:1px solid #f1f5f9;">
-                <div style="flex:1;">
-                    <div style="font-size:0.9rem; font-weight:700; color:#1e293b;">${note}</div>
-                    <div style="font-size:0.75rem; color:#94a3b8;">
-                        ${new Date(grouped[note].time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} • Por ${grouped[note].actor || 'Desconocido'}
+        actions.slice(0, 20).forEach(action => {
+            const row = document.createElement('div');
+            row.style = "background:white; border:1px solid #f1f5f9; border-radius:16px; padding:12px 16px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 4px rgba(0,0,0,0.02); margin-bottom:8px;";
+            
+            const time = new Date(action.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const date = new Date(action.created_at).toLocaleDateString([], { day: '2-digit', month: 'short' });
+            
+            row.innerHTML = `
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <div style="width:40px; height:40px; background:#f0fdf4; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:1.2rem;">🍳</div>
+                    <div>
+                        <div style="font-weight:700; font-size:0.9rem; color:#1e293b;">${action.note}</div>
+                        <div style="font-size:0.75rem; color:#94a3b8;">
+                            ${date} ${time} • ${action.actor || 'Cocinero'} 
+                            ${action.target_date ? `• <span style="color:var(--primary); font-weight:600;">Para: ${action.target_date}</span>` : ''}
+                        </div>
                     </div>
                 </div>
-                <div style="width:32px; height:32px; background:#f0fdf4; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#16a34a; font-weight:900;">✓</div>
-            </div>
-        `).join('');
+                <button onclick="window.KitchenManager.deleteProduction('${action.note.replace(/'/g, "\\'")}', '${action.created_at}')" 
+                    class="press-btn" style="background:#fee2e2; color:#ef4444; border:none; width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:1rem; transition:all 0.2s;">
+                    🗑️
+                </button>
+            `;
+            cont.appendChild(row);
+        });
+    },
+
+    async deleteProduction(note, createdAt) {
+        if (!confirm(`¿Estás seguro de eliminar este registro?\n"${note}"\n\nEsto devolverá los ingredientes al inventario.`)) return;
+
+        try {
+            window.showToast("Eliminando...", "info");
+            const res = await window.api('POST', '/api/inventory', {
+                action: 'delete_production',
+                note: note,
+                created_at: createdAt
+            });
+
+            if (res.ok) {
+                window.showToast("✅ Registro eliminado correctamente", "success");
+                await this.loadData();
+            } else {
+                throw new Error(res.error || "Error al eliminar");
+            }
+        } catch (err) {
+            console.error("Delete Production Error:", err);
+            window.showToast("Error: " + err.message, "error");
+        }
     }
 };
 
