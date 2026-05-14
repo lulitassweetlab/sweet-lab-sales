@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 52; // 52: Extras moved to individual recipes
+const SCHEMA_VERSION = 53; // 53: added inventory_conversions table
 
 export async function ensureSchema() {
 	if (schemaEnsured) return;
@@ -330,8 +330,39 @@ export async function ensureSchema() {
 			`;
 			await sql`CREATE TABLE IF NOT EXISTS dessert_order (dessert TEXT PRIMARY KEY, position INTEGER)`;
 
+			// 53: Accounting
+			await sql`CREATE TABLE IF NOT EXISTS accounting_entries (
+				id SERIAL PRIMARY KEY,
+				kind TEXT NOT NULL,
+				entry_date DATE NOT NULL,
+				description TEXT NOT NULL DEFAULT '',
+				amount_cents INTEGER NOT NULL DEFAULT 0,
+				actor_name TEXT,
+				created_at TIMESTAMPTZ DEFAULT now()
+			)`;
+			await sql`CREATE TABLE IF NOT EXISTS accounting_attachments (
+				id SERIAL PRIMARY KEY,
+				entry_id INTEGER NOT NULL REFERENCES accounting_entries(id) ON DELETE CASCADE,
+				file_base64 TEXT NOT NULL,
+				mime_type TEXT,
+				file_name TEXT,
+				created_at TIMESTAMPTZ DEFAULT now()
+			)`;
 
+			await sql`CREATE TABLE IF NOT EXISTS inventory_alias (
+				id SERIAL PRIMARY KEY,
+				alias TEXT NOT NULL,
+				ingredient_name TEXT NOT NULL,
+				vendor TEXT,
+				created_at TIMESTAMPTZ DEFAULT now(),
+				UNIQUE(alias, vendor)
+			)`;
 
+			await sql`CREATE TABLE IF NOT EXISTS inventory_conversions (
+				id SERIAL PRIMARY KEY,
+				ingredient_name TEXT UNIQUE NOT NULL,
+				factor NUMERIC DEFAULT 1
+			)`;
 
 			// Seed default desserts if empty
 			const dessertCount = await sql`SELECT COUNT(*)::int AS c FROM desserts`;
@@ -596,6 +627,18 @@ export async function ensureSchema() {
 						}
 					}
 					await sql`UPDATE schema_meta SET version = 52`;
+				}
+
+				if (Number(meta[0].version) < 53) {
+					console.log('Migrating to v53: Creating inventory_conversions table...');
+					await sql`
+						CREATE TABLE IF NOT EXISTS inventory_conversions (
+							id SERIAL PRIMARY KEY,
+							ingredient_name TEXT UNIQUE NOT NULL,
+							factor NUMERIC DEFAULT 1
+						)
+					`;
+					await sql`UPDATE schema_meta SET version = 53`;
 				}
 
 				await sql`UPDATE schema_meta SET version = ${SCHEMA_VERSION}, updated_at = now()`;

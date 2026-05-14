@@ -300,6 +300,13 @@
 			border-bottom: 1px solid var(--border);
 		}
 		.tag-manage-item:last-child { border-bottom: none; }
+
+		/* Receipt Viewer Modal */
+		.viewer-wrap { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15,23,42,0.8); backdrop-filter: blur(10px); z-index: 7000; display: none; align-items: center; justify-content: center; padding: 20px; }
+		.viewer-c { position: relative; background: white; border-radius: 24px; padding: 12px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); max-width: 90%; max-height: 90%; display: flex; flex-direction: column; overflow: hidden; transition: all 0.3s ease; }
+		.viewer-img { max-width: 100%; max-height: 70vh; object-fit: contain; border-radius: 12px; cursor: zoom-in; transition: transform 0.3s ease; }
+		.viewer-img.expanded { cursor: zoom-out; max-height: 95vh; transform: scale(1.1); }
+		.viewer-close { position: absolute; top: -40px; right: 0; color: white; font-size: 1.5rem; cursor: pointer; font-weight: 700; }
 	</style>
 </head>
 <body>
@@ -310,7 +317,8 @@
 				<h1>Contabilidad</h1>
 			</div>
 			<div class="header-actions">
-				<button id="back-btn" class="press-btn">Volver</button>
+				<button id="back-btn" class="press-btn" style="background:#f1f5f9; color:#64748b; border:1px solid #e2e8f0;">Volver</button>
+				<button onclick="location.href='/purchases.html'" class="press-btn" style="background:#6366f1; color:white; border:none; margin-left:8px;">🛒 Compras</button>
 			</div>
 		</div>
 	</header>
@@ -412,6 +420,16 @@
 		</div>
 	</div>
 
+	</div>
+
+	<!-- Visor de Recibos -->
+	<div id="receipt-viewer" class="viewer-wrap" onclick="if(event.target === this) window.closeViewer()">
+		<div class="viewer-c">
+			<span class="viewer-close" onclick="window.closeViewer()">✕ Cerrar</span>
+			<img id="viewer-img" class="viewer-img" onclick="this.classList.toggle('expanded')" src="" alt="Recibo" />
+		</div>
+	</div>
+
 	<script type="module">
 	(function(){
 		// Gate: only superadmin
@@ -420,6 +438,27 @@
 		const isSuper = currentUser && (currentUser.role === 'superadmin' || !!currentUser.isSuperAdmin);
 		if (!isSuper) { alert('Solo el superadministrador'); location.href = '/'; return; }
 		
+		window.closeViewer = () => {
+			document.getElementById('receipt-viewer').style.display = 'none';
+			document.getElementById('viewer-img').classList.remove('expanded');
+		};
+
+		async function openViewer(accId) {
+			try {
+				const res = await fetchJSON(`/api/accounting?attachment_for=${accId}`);
+				if (res && res.file_base64) {
+					const img = document.getElementById('viewer-img');
+					img.src = res.file_base64;
+					document.getElementById('receipt-viewer').style.display = 'flex';
+				} else {
+					alert('No se encontró el archivo');
+				}
+			} catch (e) {
+				console.error(e);
+				alert('Error al cargar el adjunto');
+			}
+		}
+
 		let availableTags = [];
 		let currentTagFilter = null;
 		
@@ -576,8 +615,8 @@
 				const v = Number(r.amount_cents||0);
 				const isIng = (r.kind||'') === 'ingreso';
 				if (isIng) { sumIng += v; running += v; } else { sumGas += v; running -= v; }
-				const colIng = isIng ? String(v) : '';
-				const colSal = !isIng ? String(v) : '';
+				const colIng = isIng ? fmtMoney(v) : '';
+				const colSal = !isIng ? fmtMoney(v) : '';
 				const hasAtt = !!(r.has_attachment);
 				const tagsHtml = (r.tags || []).map(t => `<span class="tag-pill" style="background:${t.color}">${t.name}</span>`).join('');
 				tr.innerHTML = `
@@ -606,34 +645,10 @@
 				attBtn.addEventListener('click', async () => {
 					if (attBtn.classList.contains('has')) {
 						// View attachment
-						try {
-							const originalText = attBtn.textContent;
-							attBtn.textContent = '...';
-							const att = await fetchJSON(`/api/accounting?attachment_for=${r.id}`);
-							if (att && att.file_base64) {
-								const win = window.open();
-								if (win) {
-									win.document.write(`
-										<body style="margin:0; background:#f4f4f4; display:flex; justify-content:center; align-items:center; min-height:100vh; font-family:sans-serif;">
-											<div style="max-width:90%; background:white; padding:20px; border-radius:12px; box-shadow:0 10px 40px rgba(0,0,0,0.2);">
-												<img src="${att.file_base64}" style="max-width:100%; border-radius:8px;">
-												<div style="margin-top:15px; text-align:center; color:#666;">${att.file_name || 'Adjunto'}</div>
-											</div>
-										</body>
-									`);
-									win.document.title = `Adjunto - ${att.file_name || r.id}`;
-								} else {
-									alert('El bloqueador de popups impidió abrir la imagen');
-								}
-							} else {
-								alert('No se encontró el archivo');
-							}
-							attBtn.textContent = originalText;
-						} catch (e) {
-							console.error(e);
-							alert('Error al cargar el adjunto');
-							attBtn.textContent = '●';
-						}
+						const originalText = attBtn.textContent;
+						attBtn.textContent = '...';
+						await openViewer(r.id);
+						attBtn.textContent = originalText;
 					} else {
 						// Upload attachment
 						const input = document.createElement('input');

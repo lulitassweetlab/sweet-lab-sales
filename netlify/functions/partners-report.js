@@ -83,6 +83,7 @@ export async function handler(event) {
         let partnerRollingM = {};
         let partnerHistoryH = {};
         const history = [];
+        let prev_inventory_value = 0;
 
         for (const m of allMonths) {
             currentProcessMonth = m;
@@ -98,10 +99,13 @@ export async function handler(event) {
             let expenses = monthData?.expenses || 0;
             let losses = monthData?.losses || 0;
             let provManual = monthData?.provision || 0;
-            let inventory = monthData?.inventory || 0;
+            let purchases_total = monthData?.purchases_total || 0;
+            let inventory_value = monthData?.inventory_value || 0;
             let product_detail = monthData?.product_detail || [];
             let revenue_detail = monthData?.revenue_detail || [];
             let expense_detail = monthData?.expense_detail || [];
+            let purchase_detail = monthData?.purchase_detail || [];
+            let inventory_detail = monthData?.inventory_detail || [];
 
             if (!monthData || forceSync || m === currentMonth) {
                 let revenueRows, cogsRows, accRows, productRows, expenseRows;
@@ -119,7 +123,26 @@ export async function handler(event) {
                 
                 revenue = Math.round(revenueRows.reduce((a, b) => a + Number(b.revenue || 0), 0));
                 cogs = Math.round(cogsRows.reduce((a, b) => a + Number(b.cogs || 0), 0));
-                expenses = Math.round(Number(accRows.find(a => a.kind === 'gasto')?.total || 0));
+                
+                // Smart Expense Filtering: Exclude 'Insumos' and 'Comisiones' from operating expenses
+                let filteredExpenses = 0;
+                let inventoryTotal = 0;
+                (expenseRows || []).forEach(r => {
+                    const tags = (r.tags || []).map(t => t.name.toLowerCase());
+                    const isInsumos = tags.some(t => t === 'insumos');
+                    const isCommission = tags.some(t => t.includes('comision'));
+                    
+                    if (isInsumos) {
+                        inventoryTotal += Number(r.amount_cents || 0);
+                    } else if (isCommission) {
+                        // Skip commissions as they are calculated automatically
+                    } else {
+                        filteredExpenses += Number(r.amount_cents || 0);
+                    }
+                });
+
+                expenses = Math.round(filteredExpenses);
+                purchases_total = Math.round(inventoryTotal);
                 losses = Math.round(Number(accRows.find(a => a.kind === 'perdida')?.total || 0));
                 provManual = Math.round(Number(accRows.find(a => a.kind === 'provision')?.total || 0));
                 
@@ -171,7 +194,39 @@ export async function handler(event) {
                     amount: Math.round(Number(r.amount_cents || 0)),
                     tags: r.tags || []
                 }));
+
+                // Group detailed purchases (Insumos)
+                purchase_detail = expense_detail.filter(d => (d.tags || []).some(t => t.name.toLowerCase() === 'insumos'));
+
+                // Calculate Historical Inventory Value at month-end
+                try {
+                    const lastDayOfMonth = new Date(m + '-01');
+                    lastDayOfMonth.setMonth(lastDayOfMonth.getMonth() + 1);
+                    lastDayOfMonth.setDate(0); // Last day of month m
+                    const dateStr = lastDayOfMonth.toISOString().split('T')[0];
+
+                    const stockRows = await sql`
+                        SELECT 
+                            ii.ingredient, 
+                            ii.unit, 
+                            ii.price,
+                            COALESCE(SUM(im.qty), 0) as stock
+                        FROM inventory_items ii
+                        LEFT JOIN inventory_movements im ON ii.ingredient = im.ingredient AND im.created_at <= (${dateStr}::date + '23:59:59'::interval)
+                        GROUP BY ii.ingredient, ii.unit, ii.price
+                        HAVING COALESCE(SUM(im.qty), 0) > 0
+                    `;
+                    inventory_detail = stockRows.map(s => ({
+                        ingredient: s.ingredient,
+                        unit: s.unit,
+                        qty: Number(s.stock || 0),
+                        value: Math.round(Number(s.stock || 0) * Number(s.price || 0))
+                    }));
+                    inventory_value = inventory_detail.reduce((a, b) => a + b.value, 0);
+                } catch (invErr) { console.error("Inv Calc Error:", invErr); }
             } else {
+                // If cached, get the inventory_value from cache
+                inventory_value = monthData.inventory_value || 0;
                 // If cached, we still need to update cumulative tracking state for the next month
                 if (monthData.cumulative_desserts) {
                     Object.keys(monthData.cumulative_desserts).forEach(pid => { 
@@ -238,7 +293,9 @@ export async function handler(event) {
                     if (hData.expenses !== undefined) expenses = Number(hData.expenses);
                     if (hData.losses !== undefined) losses = Number(hData.losses);
                     if (hData.mod !== undefined) modCents = Number(hData.mod);
-                    if (hData.inventory !== undefined) inventory = Number(hData.inventory);
+                    if (hData.inventory_value !== undefined) inventory_value = Number(hData.inventory_value);
+                    else if (hData.inventory !== undefined) inventory_value = Number(hData.inventory);
+                    
                     if (hData.commissions !== undefined) calculatedCommissionsTotal = Number(hData.commissions);
                     
                     // Override desserts and individual commissions if provided
@@ -291,8 +348,11 @@ export async function handler(event) {
             });
 
 
-            // 3. Final Profit Formula
-            const opProfit = revenue - cogs - expenses - losses - calculatedCommissionsTotal - modCents;
+            // 3. Final Profit Formula with Inventory Adjustment
+            const inventory_investment = inventory_value - (prev_inventory_value || 0);
+            const opProfitBeforeInv = revenue - cogs - expenses - losses - calculatedCommissionsTotal - modCents;
+            const opProfit = opProfitBeforeInv - inventory_investment;
+            
             let provision = provManual;
             if (provision === 0) provision = Math.round(Math.max(0, opProfit) * (settings.provision_default_perc / 100));
             const netToShare = opProfit - provision;
@@ -392,14 +452,15 @@ export async function handler(event) {
 
             // 5. Finalize monthData
             monthData = {
-                month: m, revenue, cogs, expenses, losses, inventory, commissions: calculatedCommissionsTotal, 
+                month: m, revenue, cogs, expenses, losses, purchases_total, inventory_value, inventory_investment, commissions: calculatedCommissionsTotal, 
                 total_desserts: totalMonthDesserts, total_brigs: totalMonthBrigs, mod: modCents,
                 profit: opProfit, provision, net_to_share: netToShare, merit_pool: meritPool,
                 partners: partnerShares, commission_detail: commissionDetail,
-                product_detail, revenue_detail, expense_detail,
+                product_detail, revenue_detail, expense_detail, purchase_detail, inventory_detail,
                 cumulative_desserts: { ...lastCumulativeDesserts },
                 total_cumulative_desserts: totalCumulGlobal
             };
+            prev_inventory_value = inventory_value;
 
             if (m < currentMonth && (!snapshotsMap[m] || forceSync)) {
                 await sql`INSERT INTO financial_snapshots (month, data) VALUES (${m}, ${JSON.stringify(monthData)}) ON CONFLICT (month) DO UPDATE SET data = EXCLUDED.data, calculated_at = now()`;

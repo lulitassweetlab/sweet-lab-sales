@@ -10,7 +10,7 @@
     "diag": "node scratch/detect_duplicates.js"
   },
   "dependencies": {
-    "@netlify/neon": "^0.1.0"
-  },
-  "devDependencies": {}
+    "@netlify/neon": "^0.1.0",
+    "jsdom": "^29.1.1"
+  }
 }

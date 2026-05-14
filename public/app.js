@@ -1342,15 +1342,25 @@ function applyAuthVisibility() {
 	const accountingBtn = document.getElementById('accounting-button');
 	const dessertsBtn = document.getElementById('desserts-button');
 	const deliveriesBtn = document.getElementById('deliveries-button');
+	const gamesBtn = document.getElementById('games-button');
+	const partnersBtn = document.getElementById('partners-button');
+	const purchasesBtn = document.getElementById('purchases-button');
+	const storeBtn = document.getElementById('store-button');
+	const crmAdminBtn = document.getElementById('crm-admin-button');
 	const canSales = isSuper || feats.has('reports.sales');
 	const canCartera = isSuper || feats.has('reports.cartera');
 	const canProjections = isSuper || feats.has('reports.projections');
 	const canTransfers = isSuper || feats.has('reports.transfers');
 	const canMaterials = isSuper || feats.has('nav.materials');
 	const canInventory = isSuper || feats.has('nav.inventory');
-	const canUsers = isSuper || isAdminUser || feats.has('nav.users');
+	const canUsers = isSuper || feats.has('nav.users');
 	const canAccounting = isSuper || feats.has('nav.accounting');
-	const canDesserts = isSuper || isAdminUser || feats.has('nav.desserts');
+	const canDesserts = isSuper || feats.has('nav.desserts');
+	const canGames = isSuper || feats.has('nav.games');
+	const canPartners = isSuper || feats.has('nav.partners');
+	const canPurchases = isSuper || feats.has('nav.purchases');
+	const canStore = isSuper || feats.has('nav.store');
+	const canCrm = isSuper || feats.has('nav.crm');
 	if (usersBtn) usersBtn.style.display = canUsers ? 'inline-block' : 'none';
 	if (reportBtn) reportBtn.style.display = canSales ? 'inline-block' : 'none';
 	if (carteraBtn) carteraBtn.style.display = canCartera ? 'inline-block' : 'none';
@@ -1359,12 +1369,17 @@ function applyAuthVisibility() {
 	if (materialsBtn) materialsBtn.style.display = canMaterials ? 'inline-block' : 'none';
 	if (inventoryBtn) inventoryBtn.style.display = canInventory ? 'inline-block' : 'none';
 	if (accountingBtn) accountingBtn.style.display = canAccounting ? 'inline-block' : 'none';
-	const canDeliveries = isSuper || isAdminUser;
+	const canDeliveries = isSuper || feats.has('nav.deliveries');
 	if (dessertsBtn) dessertsBtn.style.display = canDesserts ? 'inline-block' : 'none';
 	if (deliveriesBtn) deliveriesBtn.style.display = canDeliveries ? 'inline-block' : 'none';
+	if (gamesBtn) gamesBtn.style.display = canGames ? 'inline-block' : 'none';
+	if (partnersBtn) partnersBtn.style.display = canPartners ? 'inline-block' : 'none';
+	if (purchasesBtn) purchasesBtn.style.display = canPurchases ? 'inline-block' : 'none';
+	if (storeBtn) storeBtn.style.display = canStore ? 'inline-block' : 'none';
+	if (crmAdminBtn) crmAdminBtn.style.display = canCrm ? 'inline-block' : 'none';
 
 	const globalDbBtn = document.getElementById('global-clients-button');
-	if (globalDbBtn) globalDbBtn.style.display = (isSuper || isAdminUser) ? 'inline-block' : 'none';
+	if (globalDbBtn) globalDbBtn.style.display = (isSuper || feats.has('nav.globaldb')) ? 'inline-block' : 'none';
 }
 
 // Load desserts from API (runs once per session)
@@ -5627,8 +5642,16 @@ function openPermissionsManager() {
 	const featInventory = makeFeat('Ver botón Inventario', 'nav.inventory');
 	const featUsers = makeFeat('Ver botón Usuarios', 'nav.users');
 	const featAccounting = makeFeat('Ver botón Contabilidad', 'nav.accounting');
+	const featGames = makeFeat('Ver botón Juegos', 'nav.games');
+	const featCrm = makeFeat('Ver botón CRM', 'nav.crm');
+	const featPartners = makeFeat('Ver botón Socios', 'nav.partners');
+	const featPurchases = makeFeat('Ver botón Compras', 'nav.purchases');
+	const featStore = makeFeat('Ver botón Tienda', 'nav.store');
+	const featDesserts = makeFeat('Ver botón Postres', 'nav.desserts');
+	const featDeliveries = makeFeat('Ver botón Entregas', 'nav.deliveries');
+	const featGlobalDb = makeFeat('Ver Base de Datos', 'nav.globaldb');
 	right.appendChild(featureLabel);
-	[featSales, featTransfers, featCartera, featProjections, featMaterials, featInventory, featUsers, featAccounting]
+	[featSales, featTransfers, featCartera, featProjections, featMaterials, featInventory, featUsers, featAccounting, featGames, featCrm, featPartners, featPurchases, featStore, featDesserts, featDeliveries, featGlobalDb]
 		.forEach(x => right.appendChild(x.wrap));
 	row.appendChild(left); row.appendChild(right);
 
@@ -5794,7 +5817,7 @@ function openPermissionsManager() {
 			});
 			const feats = await api('GET', API.Users + '?feature_permissions=1&username=' + encodeURIComponent(viewerName));
 			const featuresSet = new Set((feats || []).map(f => String(f.feature)));
-			[featSales.cb, featTransfers.cb, featCartera.cb, featProjections.cb, featMaterials.cb, featInventory.cb, featUsers.cb, featAccounting.cb]
+			[featSales.cb, featTransfers.cb, featCartera.cb, featProjections.cb, featMaterials.cb, featInventory.cb, featUsers.cb, featAccounting.cb, featGames.cb, featCrm.cb, featPartners.cb, featPurchases.cb, featStore.cb, featDesserts.cb, featDeliveries.cb, featGlobalDb.cb]
 				.forEach(cb => { cb.checked = featuresSet.has(cb.dataset.feature); });
 
 			// All users are sellers, so always show commission section
@@ -5836,7 +5859,7 @@ function openPermissionsManager() {
 			// Save feature permissions
 			const feats = await api('GET', API.Users + '?feature_permissions=1&username=' + encodeURIComponent(viewer));
 			const currentFeat = new Set((feats || []).map(f => String(f.feature)));
-			const desiredFeat = new Set([featSales.cb, featTransfers.cb, featCartera.cb, featProjections.cb, featMaterials.cb, featInventory.cb, featUsers.cb, featAccounting.cb]
+			const desiredFeat = new Set([featSales.cb, featTransfers.cb, featCartera.cb, featProjections.cb, featMaterials.cb, featInventory.cb, featUsers.cb, featAccounting.cb, featGames.cb, featCrm.cb, featPartners.cb, featPurchases.cb, featStore.cb, featDesserts.cb, featDeliveries.cb, featGlobalDb.cb]
 				.filter(cb => cb.checked).map(cb => cb.dataset.feature));
 			const toGrantF = [...desiredFeat].filter(f => !currentFeat.has(f));
 			const toRevokeF = [...currentFeat].filter(f => !desiredFeat.has(f));
@@ -6476,6 +6499,110 @@ async function renderInventoryView() {
 	// Setup toolbar listeners (need to re-bind since they might have been lost if we replaced toolbar? No, toolbar is separate)
 	document.getElementById('inventory-new-material').onclick = openNewMaterialDialog;
 	document.getElementById('inventory-confirm-prod').onclick = openConfirmProductionDialog;
+	
+	const convBtn = document.getElementById('inventory-conversions-btn');
+	if (convBtn) {
+		convBtn.onclick = async (ev) => {
+			ev.stopPropagation();
+			const ingredients = await api('GET', API.Inventory);
+			const pop = document.createElement('div'); pop.className = 'confirm-popover aladdin-pop'; pop.id = 'conversions-manager-pop';
+			pop.style.position = 'fixed'; pop.style.left = '50%'; pop.style.top = '10%'; pop.style.transform = 'translate(-50%, 0)';
+			pop.style.width = 'min(95vw, 550px)'; pop.style.maxHeight = '80vh'; pop.style.overflowY = 'auto'; pop.style.padding = '24px'; pop.style.zIndex = '100000';
+			
+			const renderConvList = async () => {
+				const container = pop.querySelector('#conv-list');
+				if (!container) return;
+				const convs = await api('GET', '/api/inventory?action=get_conversions');
+				container.innerHTML = `
+					<table style="width:100%; border-collapse:collapse; margin-top:15px">
+						<thead>
+							<tr style="border-bottom:2px solid var(--border)">
+								<th style="text-align:left; padding:8px">Ingrediente</th>
+								<th style="text-align:right; padding:8px">Factor (x Gramos)</th>
+								<th style="width:40px"></th>
+							</tr>
+						</thead>
+						<tbody>
+							${convs.map(c => `
+								<tr style="border-bottom:1px solid var(--border)">
+									<td style="padding:8px">${c.ingredient_name}</td>
+									<td style="padding:8px; text-align:right">x ${c.factor}</td>
+									<td style="padding:8px"><button class="btn-del-item" data-id="${c.id}" data-action="delete">✕</button></td>
+								</tr>
+							`).join('')}
+							${convs.length === 0 ? '<tr><td colspan="3" style="text-align:center; padding:20px; color:var(--muted)">No hay reglas creadas</td></tr>' : ''}
+						</tbody>
+					</table>
+				`;
+			};
+
+			const cleanup = () => {
+				document.removeEventListener('mousedown', outside, true);
+				if (pop.parentNode) pop.parentNode.removeChild(pop);
+			};
+			const outside = (e) => { if (!pop.contains(e.target)) cleanup(); };
+			setTimeout(() => document.addEventListener('mousedown', outside, true), 10);
+
+			pop.innerHTML = `
+				<h3 style="margin-top:0; color:var(--primary)">Reglas de Conversión</h3>
+				<p style="font-size:0.85rem; color:var(--muted); margin-bottom:20px">Define cuánto pesa cada unidad de un ingrediente (ej: 1 Huevo = 52g).</p>
+				
+				<div style="background:var(--surface); padding:15px; border-radius:10px; margin-bottom:20px; border:1px solid var(--border)">
+					<div style="display:grid; grid-template-columns: 1.5fr 1fr 60px; gap:10px; align-items:end">
+						<div>
+							<label style="display:block; font-size:0.7rem; font-weight:700; margin-bottom:4px">Ingrediente</label>
+							<select id="new-conv-ing" class="input-cell" style="width:100%">
+								<option value="">Seleccionar...</option>
+								${ingredients.map(it => `<option value="${it.ingredient}">${it.ingredient}</option>`).join('')}
+							</select>
+						</div>
+						<div>
+							<label style="display:block; font-size:0.7rem; font-weight:700; margin-bottom:4px">Factor (Gramos)</label>
+							<input id="new-conv-factor" type="number" step="0.1" class="input-cell" style="width:100%" placeholder="Ej: 52">
+						</div>
+						<button id="add-conv-btn-main" class="press-btn btn-primary" style="padding:10px">+</button>
+					</div>
+				</div>
+
+				<div id="conv-list"></div>
+
+				<div style="margin-top:20px; text-align:right">
+					<button id="close-conv-btn-main" class="press-btn" style="background:var(--border); color:var(--text)">Cerrar</button>
+				</div>
+			`;
+
+			pop.addEventListener('click', async (e) => {
+				e.stopPropagation();
+				const target = e.target;
+
+				if (target.id === 'close-conv-btn-main') {
+					cleanup();
+				} else if (target.id === 'add-conv-btn-main') {
+					const ingredient_name = pop.querySelector('#new-conv-ing').value;
+					const factor = Number(pop.querySelector('#new-conv-factor').value);
+					if(!ingredient_name || !factor) return notify.error('Completa los campos');
+					target.disabled = true; target.textContent = '...';
+					try {
+						await api('POST', '/api/inventory', { action:'save_conversion', ingredient_name, factor });
+						pop.querySelector('#new-conv-factor').value = '';
+						await renderConvList();
+						notify.success('Guardado');
+					} catch(err) { notify.error('Error al guardar'); }
+					target.disabled = false; target.textContent = '+';
+				} else if (target.classList.contains('btn-del-item') && target.dataset.action === 'delete') {
+					if(!confirm('¿Eliminar esta regla?')) return;
+					const id = target.dataset.id;
+					try {
+						await api('POST', '/api/inventory', { action:'delete_conversion', id });
+						await renderConvList();
+					} catch(err) { notify.error('Error al eliminar'); }
+				}
+			});
+
+			document.body.appendChild(pop);
+			await renderConvList();
+		};
+	}
 
 	if (scrollPos > 0) window.scrollTo(0, scrollPos);
 }
@@ -6605,6 +6732,7 @@ async function openInventoryHistoryDialog(ingredient) {
 	try { rows = await api('GET', `${API.Inventory}?history_for=${encodeURIComponent(ingredient)}`); } catch { rows = []; }
 	const pop = document.createElement('div'); pop.className = 'confirm-popover'; pop.style.position = 'fixed';
 	pop.style.left = (window.innerWidth / 2) + 'px'; pop.style.top = '12%'; pop.style.transform = 'translate(-50%, 0)';
+	pop.style.maxHeight = '80vh'; pop.style.overflowY = 'auto';
 	const title = document.createElement('h4'); title.textContent = `Historial: ${ingredient}`; title.style.margin = '0 0 8px 0';
 	const table = document.createElement('table'); table.className = 'items-table';
 	const thead = document.createElement('thead'); const hr = document.createElement('tr');
@@ -6635,7 +6763,16 @@ async function openInventoryHistoryDialog(ingredient) {
 		tr.append(tdD, tdK, tdQ, tdProd, tdN, tdA); tbody.appendChild(tr);
 	}
 	const actions = document.createElement('div'); actions.className = 'confirm-actions'; const close = document.createElement('button'); close.className = 'press-btn'; close.textContent = 'Cerrar'; actions.appendChild(close);
-	close.addEventListener('click', () => { if (pop.parentNode) pop.parentNode.removeChild(pop); });
+	
+	const cleanup = () => {
+		document.removeEventListener('mousedown', outside);
+		if (pop.parentNode) pop.parentNode.removeChild(pop);
+	};
+	const outside = (ev) => { if (!pop.contains(ev.target)) cleanup(); };
+	
+	close.addEventListener('click', cleanup);
+	document.addEventListener('mousedown', outside);
+	
 	table.append(thead, tbody); pop.append(title, table, actions); document.body.appendChild(pop); pop.classList.add('aladdin-pop');
 }
 

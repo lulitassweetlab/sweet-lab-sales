@@ -26,6 +26,17 @@ export async function handler(event) {
 					return json(rows);
 				}
 
+				const actionQuery = params.get('action');
+				if (actionQuery === 'get_conversions') {
+					const list = await sql`SELECT * FROM inventory_conversions ORDER BY ingredient_name`;
+					return json(list);
+				}
+
+				if (actionQuery === 'get_aliases') {
+					const list = await sql`SELECT * FROM inventory_alias ORDER BY alias ASC`;
+					return json(list);
+				}
+
 				// Unified Inventory List
 				const items = await sql`SELECT id, ingredient, category, unit, price, pack_size FROM inventory_items ORDER BY category DESC, ingredient ASC`;
 				const rawMovs = await sql`SELECT ingredient, SUM(qty)::numeric AS qty FROM inventory_movements GROUP BY ingredient`;
@@ -49,6 +60,33 @@ export async function handler(event) {
 				const data = JSON.parse(event.body || '{}');
 				const action = (data.action || '').toString();
 				const actor = (data.actor_name || '').toString() || null;
+
+				if (action === 'save_alias') {
+					const { alias, ingredient_name } = data;
+					if (!alias || !ingredient_name) return json({ error: 'Missing alias or ingredient_name' }, 400);
+					
+					await sql`
+						INSERT INTO inventory_alias (alias, ingredient_name)
+						VALUES (${alias.toLowerCase().trim()}, ${ingredient_name})
+						ON CONFLICT (alias, vendor) DO UPDATE SET ingredient_name = EXCLUDED.ingredient_name
+					`;
+					return json({ ok: true });
+				}
+
+
+				if (action === 'save_conversion') {
+					const { ingredient_name, factor } = data;
+					if (!ingredient_name || factor === undefined) return json({ error: 'Missing name or factor' }, 400);
+					await sql`INSERT INTO inventory_conversions (ingredient_name, factor) VALUES (${ingredient_name}, ${factor}) ON CONFLICT (ingredient_name) DO UPDATE SET factor = EXCLUDED.factor`;
+					return json({ ok: true });
+				}
+
+				if (action === 'delete_conversion') {
+					const { id } = data;
+					if (!id) return json({ error: 'Missing id' }, 400);
+					await sql`DELETE FROM inventory_conversions WHERE id = ${id}`;
+					return json({ ok: true });
+				}
 
 				if (action === 'add_item') {
 					const ingredient = (data.ingredient || '').toString().trim();
@@ -178,12 +216,16 @@ export async function handler(event) {
 					await ensureInventoryItem(ingredient, unit);
 					const signed = action === 'ingreso' ? Math.abs(qty) : qty;
 					
-					// Guardar metadata extendida si hay costos
 					const metadata = data.metadata && typeof data.metadata === 'object' ? data.metadata : {};
 					if (totalCost > 0) metadata.total_cost = totalCost;
 					if (unitPrice > 0) metadata.unit_price = unitPrice;
 
-					const [row] = await sql`INSERT INTO inventory_movements (ingredient, kind, qty, note, actor_name, metadata) VALUES (${ingredient}, ${action}, ${signed}, ${note}, ${actor}, ${JSON.stringify(metadata)}::jsonb) RETURNING *`;
+					const movementDate = data.date || null;
+					const [row] = await sql`
+						INSERT INTO inventory_movements (ingredient, kind, qty, note, actor_name, metadata, created_at) 
+						VALUES (${ingredient}, ${action}, ${signed}, ${note}, ${actor}, ${JSON.stringify(metadata)}::jsonb, COALESCE(${movementDate}::timestamptz, now())) 
+						RETURNING *
+					`;
 					
 					// Si es un ingreso con precio, actualizar PMP
 					if (action === 'ingreso' && (totalCost > 0 || unitPrice > 0)) {
@@ -195,25 +237,52 @@ export async function handler(event) {
 				}
 
 				if (action === 'compra') {
-					const { items, total_cost, note, date, receipt_base64, receipt_name } = data;
+					const { items, total_cost, note, date, receipt_base64, receipt_name, accounting_id } = data;
 					if (!items || !items.length || !total_cost || !date) return json({ error: 'Faltan campos requeridos (items, total, fecha)' }, 400);
 
 					const results = [];
 					const metadata = { total_cost: Number(total_cost), purchase_date: date, items_count: items.length };
 
-					// 1. Registro Contable único (Gasto total)
-					const accDesc = `Compra Multi: ${note || (items[0].ingredient + '...')}`;
-					const [accEntry] = await sql`INSERT INTO accounting_entries (kind, entry_date, description, amount_cents, actor_name) VALUES ('gasto', ${date}, ${accDesc}, ${Number(total_cost)}, ${actor}) RETURNING *`;
+					let accEntry;
+					const accDesc = note || (items[0].ingredient + (items.length > 1 ? '...' : ''));
+
+					if (accounting_id) {
+						// MODO EDICIÓN
+						[accEntry] = await sql`
+							UPDATE accounting_entries 
+							SET entry_date = ${date}, description = ${accDesc}, amount_cents = ${Number(total_cost)}, actor_name = ${actor} 
+							WHERE id = ${Number(accounting_id)} 
+							RETURNING *
+						`;
+						// Borrar movimientos previos para re-insertar los nuevos
+						await sql`DELETE FROM inventory_movements WHERE metadata->>'accounting_id' = ${accounting_id.toString()}`;
+					} else {
+						// MODO NUEVO
+						[accEntry] = await sql`INSERT INTO accounting_entries (kind, entry_date, description, amount_cents, actor_name) VALUES ('gasto', ${date}, ${accDesc}, ${Number(total_cost)}, ${actor}) RETURNING *`;
+					}
+					
 					metadata.accounting_id = accEntry.id;
 
-					// 2. Procesar cada item
+					// Etiquetado automático: Insumos
+					try {
+						const [tag] = await sql`SELECT id FROM accounting_tags WHERE lower(name) = 'insumos' LIMIT 1`;
+						if (tag) {
+							await sql`INSERT INTO accounting_entry_tags (entry_id, tag_id) VALUES (${accEntry.id}, ${tag.id}) ON CONFLICT DO NOTHING`;
+						}
+					} catch (e) { console.error('Error tagging as Insumos:', e); }
+
+					// 2. Procesar cada item (Nuevo o Actualizado)
 					for (const it of items) {
 						const canon = canonicalizeIngredientName(it.ingredient);
 						await ensureInventoryItem(canon);
 						
 						// Movimiento individual para trazabilidad
 						const itemMeta = { total_cost: Number(it.price_cents || 0), purchase_date: date, accounting_id: accEntry.id };
-						const [invMov] = await sql`INSERT INTO inventory_movements (ingredient, kind, qty, note, actor_name, metadata) VALUES (${canon}, 'ingreso', ${Math.abs(it.qty)}, ${note || 'Parte de compra multi'}, ${actor}, ${JSON.stringify(itemMeta)}::jsonb) RETURNING id`;
+						const [invMov] = await sql`
+							INSERT INTO inventory_movements (ingredient, kind, qty, note, actor_name, metadata, created_at) 
+							VALUES (${canon}, 'ingreso', ${Math.abs(it.qty)}, ${note || 'Parte de compra multi'}, ${actor}, ${JSON.stringify(itemMeta)}::jsonb, ${date}) 
+							RETURNING id
+						`;
 						
 						// Calcular precio unitario para PMP si se proporcionó precio por item, si no, prorratear o usar 0
 						const unitPrice = it.price_cents ? (Number(it.price_cents) / Math.abs(it.qty)) : 0;
@@ -229,6 +298,19 @@ export async function handler(event) {
 					}
 
 					return json({ ok: true, accounting_id: accEntry.id, movements: results }, 201);
+				}
+				
+				if (action === 'delete_purchase') {
+					const { accounting_id } = data;
+					if (!accounting_id) return json({ error: 'accounting_id requerido' }, 400);
+					
+					// 1. Borrar movimientos de inventario asociados
+					await sql`DELETE FROM inventory_movements WHERE metadata->>'accounting_id' = ${accounting_id.toString()}`;
+					
+					// 2. Borrar asiento contable (esto borra los adjuntos por CASCADE)
+					await sql`DELETE FROM accounting_entries WHERE id = ${Number(accounting_id)}`;
+					
+					return json({ ok: true });
 				}
 
 				if (action === 'reset') {

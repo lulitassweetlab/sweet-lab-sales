@@ -5,6 +5,9 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
 	<title>Compras e Inventario</title>
 	<link rel="stylesheet" href="/styles.css?v=2025-09-17-1" />
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+	<script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+	<script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
 	<style>
 		:root { 
 			--p-mod: #6366f1; 
@@ -25,28 +28,68 @@
 		th { text-align: left; padding: 16px; border-bottom: 2px solid var(--bg); color: #64748b; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; }
 		td { padding: 16px; border-bottom: 1px solid var(--bg); font-size: 0.95rem; }
 		
-		.attach-btn { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--border); background: transparent; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
-		.attach-btn.has { background: #10b981; color: white; border-color: #10b981; }
+		.attach-btn { width: auto; height: auto; border: none; background: transparent; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.2rem; padding: 4px; }
+		.attach-btn.has { background: transparent; color: inherit; }
 		
 		.popover-wrap { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15,23,42,0.6); backdrop-filter: blur(8px); z-index: 6000; display: flex; align-items: center; justify-content: center; padding: 20px; }
 		.popover-c { background: white; padding: 32px; border-radius: 28px; width: 100%; max-width: 550px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); max-height: 90vh; overflow-y: auto; }
 		.popover-c h2 { margin: 0 0 24px 0; font-size: 1.5rem; text-align: center; }
 		
-		.field { margin-bottom: 16px; }
+		.field { margin-bottom: 16px; position: relative; }
 		.field label { display: block; margin-bottom: 6px; font-weight: 700; font-size: 0.8rem; color: #64748b; }
 		.field input, .field select, .field textarea { width: 100%; padding: 10px; border-radius: 12px; border: 1px solid var(--border); background: #f8fafc; font-size: 0.95rem; outline: none; transition: border-color 0.2s; }
 		
 		.item-row { display: grid; grid-template-columns: 2fr 1fr 1fr 40px; gap: 12px; align-items: end; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px dashed var(--border); }
 		.btn-add-item { background: #f1f5f9; border: 1px dashed #cbd5e1; width: 100%; padding: 10px; border-radius: 12px; color: #64748b; font-weight: 600; cursor: pointer; margin-bottom: 20px; }
-		.btn-del-item { background: none; border: none; color: #ef4444; font-size: 1.2rem; cursor: pointer; padding-bottom: 10px; }
+		.btn-del-item { background: none; border: none; color: #ef4444; font-size: 1.1rem; cursor: pointer; padding: 4px; display: inline-flex; align-items: center; justify-content: center; }
+		
+		/* Custom Suggestions Styling */
+		.suggestions-list {
+			position: absolute;
+			top: 100%;
+			left: 0;
+			right: 0;
+			background: white;
+			border: 1px solid #e2e8f0;
+			border-radius: 12px;
+			box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);
+			z-index: 1000;
+			max-height: 220px;
+			overflow-y: auto;
+			margin-top: 4px;
+			display: none;
+		}
+		.suggestion-item {
+			padding: 12px 16px;
+			cursor: pointer;
+			font-size: 0.9rem;
+			color: #475569;
+			border-bottom: 1px solid #f1f5f9;
+		}
+		.suggestion-item:last-child { border-bottom: none; }
+		.suggestion-item:hover {
+			background: #f1f5f9;
+			color: var(--p-mod);
+			font-weight: 600;
+		}
 		
 		.btn-primary { width: 100%; padding: 14px; background: var(--p-mod); color: white; border: none; border-radius: 14px; font-weight: 700; cursor: pointer; font-size: 1rem; }
+		
+		/* Receipt Viewer Modal */
+		.viewer-wrap { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15,23,42,0.8); backdrop-filter: blur(10px); z-index: 7000; display: none; align-items: center; justify-content: center; padding: 20px; }
+		.viewer-c { position: relative; background: white; border-radius: 24px; padding: 12px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); max-width: 90%; max-height: 90%; display: flex; flex-direction: column; overflow: hidden; transition: all 0.3s ease; }
+		.viewer-img { max-width: 100%; max-height: 70vh; object-fit: contain; border-radius: 12px; cursor: zoom-in; transition: transform 0.3s ease; }
+		.viewer-img.expanded { cursor: zoom-out; max-height: 95vh; transform: scale(1.1); }
+		.viewer-close { position: absolute; top: -40px; right: 0; color: white; font-size: 1.5rem; cursor: pointer; font-weight: 700; }
 	</style>
 </head>
 <body>
 	<div class="container">
 		<div class="hdr">
-			<button onclick="location.href='/'" class="back-btn">← Volver al inicio</button>
+			<div class="header-left">
+				<button class="back-btn" onclick="location.href='/'">← Volver</button>
+				<button class="back-btn" style="margin-left:8px; border-color:var(--p-mod); color:var(--p-mod);" onclick="location.href='/accounting.html'">📊 Contabilidad</button>
+			</div>
 			<h1>📦 Gestión de Compras</h1>
 			<button id="new-purchase-btn" class="add-btn">+ Nueva Compra</button>
 		</div>
@@ -59,7 +102,7 @@
 						<th>Descripción</th>
 						<th>Items</th>
 						<th style="text-align:right;">Total</th>
-						<th style="text-align:center;">Recibo</th>
+						<th style="text-align:center; width:120px;">Acciones</th>
 					</tr>
 				</thead>
 				<tbody id="purchases-tbody">
@@ -93,7 +136,12 @@
 				<div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
 					<div class="field">
 						<label>Foto del Recibo</label>
-						<input type="file" id="p-receipt" accept="image/*" />
+						<div style="display:flex; gap:8px;">
+							<input type="file" id="p-receipt" accept="image/*,application/pdf,.heic" style="flex:1" />
+							<button type="button" id="analyze-btn" style="background:#eff6ff; border:1px solid #dbeafe; color:#2563eb; padding:0 12px; border-radius:12px; font-size:0.75rem; font-weight:700; cursor:pointer; display:none;">ia</button>
+						</div>
+						<div id="receipt-size" style="font-size:0.75rem; color:#10b981; margin-top:4px; font-weight:600; display:none;"></div>
+						<div id="analysis-status" style="font-size:0.7rem; color:var(--p-mod); margin-top:4px; font-weight:600; display:none;"></div>
 					</div>
 					<div class="field">
 						<label>Total de la Compra ($)</label>
@@ -107,9 +155,18 @@
 		</div>
 	</div>
 
+	<!-- Visor de Recibos -->
+	<div id="receipt-viewer" class="viewer-wrap" onclick="if(event.target === this) closeViewer()">
+		<div class="viewer-c">
+			<span class="viewer-close" onclick="closeViewer()">✕ Cerrar</span>
+			<img id="viewer-img" class="viewer-img" onclick="this.classList.toggle('expanded')" src="" alt="Recibo" />
+		</div>
+	</div>
+
 	<script type="module">
 		let inventory = [];
 		let currentUser = JSON.parse(localStorage.getItem('authUser') || '{}');
+		let editingAccountingId = null;
 		const fmt = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
 
 		async function fetchJSON(u, opts){ 
@@ -119,35 +176,144 @@
 		}
 
 		window.closePopover = () => {
+			editingAccountingId = null;
+			document.getElementById('submit-btn').innerText = 'Guardar Todo';
+			document.querySelector('.popover-c h2').innerText = 'Registrar Compra';
 			document.getElementById('purchase-popover').style.display = 'none';
 			document.getElementById('purchase-form').reset();
 			document.getElementById('items-container').innerHTML = '';
 		};
 
-		window.addItemRow = () => {
+		window.addItemRow = (initialData = {}) => {
 			const container = document.getElementById('items-container');
 			const div = document.createElement('div');
 			div.className = 'item-row';
+			div.dataset.originalAiName = initialData.originalName || '';
 			div.innerHTML = `
 				<div class="field" style="margin-bottom:0">
 					<label>Producto</label>
-					<select class="item-ingredient" required>
-						<option value="">Seleccione...</option>
-						${inventory.map(it => `<option value="${it.ingredient}">${it.ingredient} (${it.unit})</option>`).join('')}
-					</select>
+					<input type="text" class="item-ingredient" placeholder="Buscar..." required autocomplete="off" oninput="showSuggestions(this)" value="${initialData.name || ''}">
+					<div class="suggestions-list"></div>
 				</div>
 				<div class="field" style="margin-bottom:0">
 					<label>Cant.</label>
-					<input type="number" class="item-qty" step="0.01" required oninput="calcTotal()" />
+					<input type="number" class="item-qty" step="0.01" required oninput="calcTotal()" value="${initialData.qty || ''}" />
 				</div>
 				<div class="field" style="margin-bottom:0">
 					<label>Costo ($)</label>
-					<input type="number" class="item-cost" required oninput="calcTotal()" />
+					<input type="number" class="item-cost" required oninput="calcTotal()" value="${initialData.total || ''}" />
 				</div>
 				<button type="button" class="btn-del-item" onclick="this.parentElement.remove(); calcTotal();">✕</button>
 			`;
 			container.appendChild(div);
 		};
+
+		document.getElementById('purchase-popover').addEventListener('click', (e) => {
+			if (e.target.id === 'purchase-popover') closePopover();
+		});
+
+		window.showSuggestions = (input) => {
+			const query = input.value.toLowerCase().trim();
+			const list = input.nextElementSibling;
+			if (!query) {
+				list.style.display = 'none';
+				return;
+			}
+			const matches = inventory.filter(it => it.ingredient.toLowerCase().includes(query));
+			if (matches.length === 0) {
+				list.style.display = 'none';
+				return;
+			}
+			list.innerHTML = matches.map(it => `<div class="suggestion-item" onclick="pickIngredient(this, '${it.ingredient.replace(/'/g, "\\'")}')">${it.ingredient}</div>`).join('');
+			list.style.display = 'block';
+		};
+
+		document.getElementById('p-receipt').addEventListener('change', (e) => {
+			if (e.target.files.length > 0) {
+				document.getElementById('analyze-btn').style.display = 'block';
+			}
+		});
+
+		document.getElementById('analyze-btn').onclick = async () => {
+			const file = document.getElementById('p-receipt').files[0];
+			if (!file) return;
+			
+			const status = document.getElementById('analysis-status');
+			const btn = document.getElementById('analyze-btn');
+			
+			status.textContent = '🧠 Analizando recibo... espera un momento';
+			status.style.display = 'block';
+			btn.disabled = true;
+			btn.style.opacity = '0.5';
+			
+			try {
+				const compressed = await compressImage(file, 800, 0.6); // Reducido para más velocidad
+				const res = await fetchJSON('/api/receipt-analysis', {
+					method: 'POST',
+					body: JSON.stringify({ file_base64: compressed })
+				});
+				
+				if (res.error) throw new Error(res.error);
+				
+				if (res.items && res.items.length > 0) {
+					document.getElementById('items-container').innerHTML = '';
+					res.items.forEach(it => {
+						const originalName = (it.name || '').toLowerCase().trim();
+						let suggested = it.name;
+
+						// 1. Intentar por Alias exacto guardado
+						const aliasMatch = (window.inventoryAliases || []).find(a => a.alias === originalName);
+						if (aliasMatch) {
+							suggested = aliasMatch.ingredient_name;
+						} else {
+							// 2. Búsqueda inteligente si no hay alias
+							const bestMatch = inventory.find(inv => {
+								const invName = inv.ingredient.toLowerCase();
+								return invName === originalName || invName.includes(originalName) || originalName.includes(invName);
+							});
+							if (bestMatch) suggested = bestMatch.ingredient;
+						}
+
+						// Aplicar factor de conversión si existe
+						let finalQty = it.qty;
+						const conv = (window.inventoryConversions || []).find(c => c.ingredient_name === suggested);
+						if (conv && conv.factor) {
+							finalQty = it.qty * conv.factor;
+						}
+
+						addItemRow({ 
+							name: suggested, 
+							qty: finalQty, 
+							total: it.total,
+							originalName: it.name
+						});
+					});
+					calcTotal();
+					status.textContent = '✅ Análisis completado. Por favor verifica los datos.';
+				} else {
+					status.textContent = '❌ No se encontraron productos claros en el recibo.';
+				}
+			} catch (e) {
+				console.error(e);
+				status.textContent = '❌ Error: ' + e.message;
+			} finally {
+				btn.disabled = false;
+				btn.style.opacity = '1';
+			}
+		};
+
+		window.pickIngredient = (item, name) => {
+			const list = item.parentElement;
+			const input = list.previousElementSibling;
+			input.value = name;
+			list.style.display = 'none';
+		};
+
+		document.addEventListener('click', (e) => {
+			if (!e.target.classList.contains('item-ingredient')) {
+				document.querySelectorAll('.suggestions-list').forEach(l => l.style.display = 'none');
+			}
+		});
 
 		window.calcTotal = () => {
 			let sum = 0;
@@ -162,76 +328,217 @@
 			document.getElementById('purchase-popover').style.display = 'flex';
 		};
 
-		async function load() {
+		async function load(isInitialLoad = false) {
+			const tbody = document.getElementById('purchases-tbody');
 			try {
-				inventory = await fetchJSON('/api/inventory');
-				
-				// Cargar historial
-				const movs = await fetchJSON('/api/inventory?history_all=1');
-				// Agrupar por accounting_id para mostrar la compra "completa"
-				const grouped = new Map();
-				movs.filter(m => m.kind === 'ingreso' && m.metadata?.accounting_id).forEach(m => {
-					const aid = m.metadata.accounting_id;
-					if (!grouped.has(aid)) grouped.set(aid, { date: m.created_at, note: m.note, items: [], total: 0 });
-					const g = grouped.get(aid);
-					g.items.push(`${m.ingredient} (${m.qty})`);
-					g.total += Number(m.metadata.total_cost || 0);
+				// 1. Cargar datos maestros (con fallback por si fallan)
+				try {
+					inventory = await fetchJSON('/api/inventory') || [];
+				} catch(e) { console.warn("Inventory fail", e); inventory = []; }
+
+				try {
+					window.inventoryConversions = await fetchJSON('/api/inventory?action=get_conversions') || [];
+				} catch(e) { console.warn("Conversions fail", e); window.inventoryConversions = []; }
+
+				try {
+					window.inventoryAliases = await fetchJSON('/api/inventory?action=get_aliases') || [];
+				} catch(e) { console.warn("Aliases fail", e); window.inventoryAliases = []; }
+
+				// Ordenar inventario
+				const catOrder = { 'ingrediente': 1, 'empaque': 2, 'otros': 3 };
+				inventory.sort((a, b) => {
+					const oa = catOrder[a.category] || 99;
+					const ob = catOrder[b.category] || 99;
+					if (oa !== ob) return oa - ob;
+					return (a.ingredient || '').localeCompare(b.ingredient || '');
 				});
 				
-				const tbody = document.getElementById('purchases-tbody');
+				// 2. Cargar historial de movimientos
+				const movs = await fetchJSON('/api/inventory?history_all=1') || [];
+				
+				// Agrupar por accounting_id para mostrar la compra "completa"
+				const grouped = new Map();
+				if (Array.isArray(movs)) {
+					movs.forEach(m => {
+						if (m.kind === 'ingreso' && m.metadata && m.metadata.accounting_id) {
+							const aid = m.metadata.accounting_id;
+							if (!grouped.has(aid)) {
+								grouped.set(aid, { 
+									date: m.metadata.purchase_date || m.created_at || new Date().toISOString(), 
+									note: m.note || '', 
+									items: [], 
+									rawItems: [],
+									total: 0 
+								});
+							}
+							const g = grouped.get(aid);
+							g.items.push(`${m.ingredient} (${m.qty})`);
+							g.rawItems.push({
+								ingredient: m.ingredient,
+								qty: m.qty,
+								price_cents: m.metadata.unit_price ? (m.metadata.unit_price * m.qty) : (m.metadata.total_cost || 0)
+							});
+							g.total += Number(m.metadata.total_cost || 0);
+						}
+					});
+				}
+				
+				// Almacenar globalmente para el modo edición
+				window.purchasesHistory = grouped;
+				
 				if (grouped.size === 0) {
 					tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:40px; color:#94a3b8;">No hay compras registradas.</td></tr>';
 				} else {
-					tbody.innerHTML = Array.from(grouped.entries()).sort((a,b)=>b[0]-a[0]).map(([aid, g]) => `
+					tbody.innerHTML = Array.from(grouped.entries())
+						.sort((a,b) => b[1].date.localeCompare(a[1].date))
+						.map(([aid, g]) => `
 						<tr>
-							<td style="color:#64748b; font-size:0.85rem;">${g.date.slice(0,10)}</td>
+							<td style="color:#64748b; font-size:0.85rem;">${(g.date || '').slice(0,10)}</td>
 							<td style="font-weight:700;">${g.note || 'Compra Multi'}</td>
 							<td style="font-size:0.8rem; color:#64748b;">${g.items.join(', ')}</td>
 							<td style="text-align:right; font-weight:800; color:#10b981;">${fmt.format(g.total)}</td>
 							<td style="text-align:center;">
-								<button class="attach-btn has" onclick="viewReceipt(${aid})">📄</button>
+								<div style="display:flex; gap:12px; justify-content:center; align-items:center;">
+									<button class="attach-btn has" onclick="viewReceipt(${aid})" title="Ver Recibo">📄</button>
+									<button class="attach-btn" onclick="editPurchase(${aid})" title="Editar Compra">✏️</button>
+									<button class="btn-del-item" onclick="deletePurchase(${aid})" title="Eliminar Compra">✕</button>
+								</div>
 							</td>
 						</tr>
 					`).join('');
 				}
 
-				// AUTO-OPEN si es primera vez o recarga
-				if (document.getElementById('items-container').children.length === 0) {
+				if (isInitialLoad && document.getElementById('items-container').children.length === 0) {
 					document.getElementById('new-purchase-btn').click();
 				}
 
-			} catch (e) { console.error(e); }
+			} catch (e) { 
+				console.error("Critical load error:", e); 
+				tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:40px; color:#ef4444;">❌ Error al cargar historial: ${e.message}</td></tr>`;
+			}
 		}
+
+		window.closeViewer = () => {
+			document.getElementById('receipt-viewer').style.display = 'none';
+			document.getElementById('viewer-img').classList.remove('expanded');
+		};
 
 		window.viewReceipt = async (accId) => {
 			if (!accId) return;
 			try {
-				const att = await fetchJSON(`/api/accounting?attachment_for=${accId}`);
-				if (att && att.file_base64) {
-					const win = window.open();
-					win.document.write(`<body style="margin:0; background:#000; display:flex; align-items:center; justify-content:center;"><img src="${att.file_base64}" style="max-width:100%; max-height:100vh;"></body>`);
+				const res = await fetch(`/api/accounting?attachment_for=${accId}`);
+				if (res.status === 404) {
+					alert("Esta compra no tiene recibo adjunto.");
+					return;
 				}
-			} catch (e) { alert("No se pudo cargar el recibo"); }
+				if (!res.ok) throw new Error("HTTP " + res.status);
+				const att = await res.json();
+				if (att && att.file_base64) {
+					const img = document.getElementById('viewer-img');
+					img.src = att.file_base64;
+					document.getElementById('receipt-viewer').style.display = 'flex';
+				}
+			} catch (e) { alert("Ocurrió un error al cargar el recibo."); }
 		};
 
 		async function compressImage(file) {
-			return new Promise((resolve) => {
-				const reader = new FileReader();
-				reader.onload = (e) => {
-					const img = new Image();
-					img.onload = () => {
-						const canvas = document.createElement('canvas');
-						let width = img.width, height = img.height;
-						if (width > 1200) { height *= 1200 / width; width = 1200; }
-						canvas.width = width; canvas.height = height;
-						canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-						resolve(canvas.toDataURL('image/jpeg', 0.8));
+			try {
+				let fileToProcess = file;
+				
+				// Handle HEIC
+				const isHeic = file.type === 'image/heic' || (file.name && file.name.toLowerCase().endsWith('.heic'));
+				const isAlreadyJpegOrPng = file.type && (file.type.includes('jpeg') || file.type.includes('png'));
+				if (isHeic && !isAlreadyJpegOrPng) {
+					if (typeof heic2any === 'undefined') throw new Error("La herramienta para leer HEIC no se cargó correctamente (revisa tu conexión a internet).");
+					const convertedBlob = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.8 });
+					fileToProcess = Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob;
+				}
+				
+				// Handle PDF
+				if (fileToProcess.type === 'application/pdf' || (fileToProcess.name && fileToProcess.name.toLowerCase().endsWith('.pdf'))) {
+					const arrayBuffer = await fileToProcess.arrayBuffer();
+					const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+					const page = await pdf.getPage(1);
+					
+					// Render at scale 1.5 for good quality
+					const viewport = page.getViewport({ scale: 1.5 });
+					const canvas = document.createElement('canvas');
+					canvas.width = viewport.width;
+					canvas.height = viewport.height;
+					
+					await page.render({ canvasContext: canvas.getContext('2d'), viewport: viewport }).promise;
+					
+					// Return scaled JPEG directly from canvas
+					return canvas.toDataURL('image/jpeg', 0.8);
+				}
+				
+				// Handle normal images (JPG/PNG/etc)
+				return new Promise((resolve) => {
+					const reader = new FileReader();
+					reader.onload = (e) => {
+						const img = new Image();
+						img.onload = () => {
+							const canvas = document.createElement('canvas');
+							let width = img.width, height = img.height;
+							if (width > 1200) { height *= 1200 / width; width = 1200; }
+							canvas.width = width; canvas.height = height;
+							canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+							resolve(canvas.toDataURL('image/jpeg', 0.8));
+						};
+						img.onerror = () => {
+							alert("El archivo seleccionado no es una imagen válida o está dañado. Se guardará sin recibo.");
+							resolve(null);
+						};
+						img.src = e.target.result;
 					};
-					img.src = e.target.result;
-				};
-				reader.readAsDataURL(file);
-			});
+					reader.onerror = () => {
+						alert("No se pudo leer el archivo. Se guardará sin recibo.");
+						resolve(null);
+					};
+					reader.readAsDataURL(fileToProcess);
+				});
+			} catch (err) {
+				console.error("Error comprimiendo archivo:", err);
+				alert("Hubo un problema al procesar el archivo: " + (err.message || "Error desconocido") + ". Se guardará sin recibo.");
+				return null;
+			}
 		}
+
+		let processedBase64 = null;
+		let processedFileName = null;
+
+		document.getElementById('p-receipt').addEventListener('change', async (e) => {
+			const sizeLabel = document.getElementById('receipt-size');
+			const submitBtn = document.getElementById('submit-btn');
+			const file = e.target.files[0];
+			
+			if (!file) {
+				sizeLabel.style.display = 'none';
+				processedBase64 = null;
+				processedFileName = null;
+				return;
+			}
+			
+			submitBtn.disabled = true;
+			sizeLabel.style.display = 'block';
+			sizeLabel.style.color = '#64748b';
+			sizeLabel.innerText = 'Procesando archivo...';
+			
+			const b64 = await compressImage(file);
+			
+			if (b64) {
+				processedBase64 = b64;
+				processedFileName = file.name;
+				const kb = Math.round((b64.length * 0.75) / 1024);
+				sizeLabel.style.color = '#10b981';
+				sizeLabel.innerText = `Listo (${kb} KB)`;
+				submitBtn.disabled = false;
+			} else {
+				sizeLabel.style.display = 'none';
+				document.getElementById('p-receipt').value = '';
+				submitBtn.disabled = false;
+			}
+		});
 
 		document.getElementById('purchase-form').onsubmit = async (e) => {
 			e.preventDefault();
@@ -240,11 +547,28 @@
 			btn.innerText = 'Guardando...';
 
 			const rows = document.querySelectorAll('.item-row');
-			const items = Array.from(rows).map(row => ({
-				ingredient: row.querySelector('.item-ingredient').value,
-				qty: Number(row.querySelector('.item-qty').value),
-				price_cents: Number(row.querySelector('.item-cost').value)
-			}));
+			const items = [];
+			
+			for (const row of rows) {
+				const ingredient = row.querySelector('.item-ingredient').value;
+				const qty = Number(row.querySelector('.item-qty').value);
+				const price_cents = Number(row.querySelector('.item-cost').value);
+				
+				// Aprendizaje de Alias
+				const originalAiName = row.dataset.originalAiName;
+				if (originalAiName && originalAiName !== ingredient) {
+					fetchJSON('/api/inventory', {
+						method: 'POST',
+						body: JSON.stringify({ 
+							action: 'save_alias', 
+							alias: originalAiName, 
+							ingredient_name: ingredient 
+						})
+					}).catch(e => console.error('Error saving alias:', e));
+				}
+				
+				items.push({ ingredient, qty, price_cents });
+			}
 
 			const payload = {
 				action: 'compra',
@@ -252,13 +576,13 @@
 				total_cost: document.getElementById('p-total').value,
 				note: document.getElementById('p-note').value,
 				date: document.getElementById('p-date').value,
-				actor_name: currentUser.name || 'Admin'
+				actor_name: currentUser.name || 'Admin',
+				accounting_id: editingAccountingId
 			};
 
-			const fileInput = document.getElementById('p-receipt');
-			if (fileInput.files[0]) {
-				payload.receipt_base64 = await compressImage(fileInput.files[0]);
-				payload.receipt_name = fileInput.files[0].name;
+			if (processedBase64) {
+				payload.receipt_base64 = processedBase64;
+				payload.receipt_name = processedFileName;
 			}
 
 			try {
@@ -281,7 +605,49 @@
 			}
 		};
 
-		load();
+		window.deletePurchase = async (accId) => {
+			if (!accId) return;
+			if (!confirm('⚠️ ¿Estás seguro de eliminar esta compra?\n\nEsto borrará:\n1. El gasto en contabilidad.\n2. La foto del recibo.\n3. Los productos ingresados al inventario (restará el stock).')) return;
+			
+			try {
+				const res = await fetchJSON('/api/inventory', {
+					method: 'POST',
+					body: JSON.stringify({ action: 'delete_purchase', accounting_id: accId })
+				});
+				if (res.ok) {
+					load();
+				} else {
+					alert(res.error || "Error al eliminar");
+				}
+			} catch (e) { alert("Error de conexión"); }
+		};
+
+		window.editPurchase = (aid) => {
+			const data = window.purchasesHistory.get(aid);
+			if (!data) return;
+
+			editingAccountingId = aid;
+			document.querySelector('.popover-c h2').innerText = 'Editar Compra';
+			document.getElementById('submit-btn').innerText = 'Actualizar Compra';
+			
+			document.getElementById('p-note').value = data.note;
+			document.getElementById('p-date').value = data.date.slice(0,10);
+			
+			const container = document.getElementById('items-container');
+			container.innerHTML = '';
+			data.rawItems.forEach(it => {
+				addItemRow({
+					name: it.ingredient,
+					qty: it.qty,
+					total: it.price_cents
+				});
+			});
+
+			calcTotal();
+			document.getElementById('purchase-popover').style.display = 'flex';
+		};
+
+		load(true);
 	</script>
 </body>
 </html>
