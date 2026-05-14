@@ -600,23 +600,27 @@ const KitchenManager = {
             return;
         }
 
-        // Group history by action (note + created_at)
+        // Group history by action (note + created_at window)
         const actions = [];
-        const processed = new Set();
         
         // Sort history by date DESC
         const sortedHistory = [...this.history].sort((a,b) => b.created_at.localeCompare(a.created_at));
         
         sortedHistory.forEach(m => {
-            const key = `${m.note}_${m.created_at}`;
-            if (!processed.has(key)) {
+            const t = new Date(m.created_at).getTime();
+            // Find if there's an existing action with the same note and within 10 seconds (safer for slow loops)
+            const existing = actions.find(a => 
+                a.note === m.note && 
+                Math.abs(new Date(a.created_at).getTime() - t) < 10000
+            );
+            
+            if (!existing) {
                 actions.push({
                     note: m.note,
                     created_at: m.created_at,
                     actor: m.actor_name,
                     target_date: m.metadata?.target_date
                 });
-                processed.add(key);
             }
         });
 

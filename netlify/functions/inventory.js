@@ -104,7 +104,10 @@ export async function handler(event) {
 				if (action === 'delete_production') {
 					const { note, created_at } = data;
 					if (!note || !created_at) return json({ error: 'Missing note or created_at' }, 400);
-					await sql`DELETE FROM inventory_movements WHERE note = ${note} AND created_at = ${created_at}`;
+					const t = new Date(created_at);
+					const tMin = new Date(t.getTime() - 5000);
+					const tMax = new Date(t.getTime() + 5000);
+					await sql`DELETE FROM inventory_movements WHERE note = ${note} AND created_at >= ${tMin} AND created_at <= ${tMax}`;
 					return json({ ok: true });
 				}
 
@@ -355,13 +358,14 @@ export async function handler(event) {
 					const metadata = { step_id: stepId, multiplier: multiplier };
 					if (data.target_date) metadata.target_date = data.target_date;
 
+					const now = new Date();
 					for (const it of items) {
 						const canon = (it.ingredient || '').toString().trim();
 						const qtyToSubtract = -Math.abs(Number(it.qty_per_unit || 0) * multiplier);
 						
 						const [row] = await sql`
-							INSERT INTO inventory_movements (ingredient, kind, qty, note, actor_name, metadata) 
-							VALUES (${canon}, 'produccion', ${qtyToSubtract}, ${note}, ${actor}, ${JSON.stringify(metadata)}::jsonb) 
+							INSERT INTO inventory_movements (ingredient, kind, qty, note, actor_name, metadata, created_at) 
+							VALUES (${canon}, 'produccion', ${qtyToSubtract}, ${note}, ${actor}, ${JSON.stringify(metadata)}::jsonb, ${now}) 
 							RETURNING *
 						`;
 						results.push({ ingredient: canon, qty: qtyToSubtract, movement_id: row?.id });
