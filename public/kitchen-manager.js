@@ -215,21 +215,25 @@ const KitchenManager = {
                 m.kind === 'produccion'
             );
 
-            // Aggregate production by (step_id + target_date)
-            this.producedStepsMap = {}; // { [stepId + "_" + targetDate]: totalProduced }
-            const processedNotes = new Set();
+            // Aggregate production by (note + timestamp window)
+            this.producedStepsMap = {}; 
+            const actionGroups = [];
             
             this.history.forEach(m => {
-                if (m.metadata && m.metadata.step_id) {
-                    const actionKey = `${m.note}_${m.created_at}`;
-                    if (!processedNotes.has(actionKey)) {
+                const t = new Date(m.created_at).getTime();
+                const existing = actionGroups.find(a => 
+                    a.note === m.note && 
+                    Math.abs(new Date(a.created_at).getTime() - t) < 10000
+                );
+                
+                if (!existing) {
+                    actionGroups.push(m);
+                    if (m.metadata && m.metadata.step_id) {
                         const sid = m.metadata.step_id;
                         const qty = Number(m.metadata.multiplier || 0);
-                        const tDate = m.metadata.target_date || m.created_at.split('T')[0]; // Fallback to created_at date
-                        
+                        const tDate = m.metadata.target_date || m.created_at.split('T')[0];
                         const key = `${sid}_${tDate}`;
                         this.producedStepsMap[key] = (this.producedStepsMap[key] || 0) + qty;
-                        processedNotes.add(actionKey);
                     }
                 }
             });
@@ -711,24 +715,33 @@ const KitchenManager = {
             width: 140px;
         `;
         
+        // Position popover relative to the button
         const rect = btn.getBoundingClientRect();
-        pop.style.left = (rect.left - 150) + 'px';
+        // If there's enough space on the left, show it there, otherwise on the right
+        if (rect.left > 160) {
+            pop.style.left = (rect.left - 150) + 'px';
+        } else {
+            pop.style.left = (rect.right + 10) + 'px';
+        }
         pop.style.top = (rect.top - 10) + 'px';
 
         pop.innerHTML = `
-            <div style="font-size:0.7rem; font-weight:700; color:#1e293b; text-align:center;">¿Eliminar?</div>
-            <div style="display:flex; gap:6px;">
-                <button id="confirm-del-btn" class="press-btn" style="flex:1; background:#ef4444; color:white; border:none; padding:8px 4px; border-radius:8px; font-size:0.7rem; font-weight:700;">Sí</button>
-                <button id="cancel-del-btn" class="press-btn" style="flex:1; background:#f1f5f9; color:#475569; border:none; padding:8px 4px; border-radius:8px; font-size:0.7rem; font-weight:700;">No</button>
+            <div style="font-size:0.75rem; font-weight:700; color:#1e293b; text-align:center; margin-bottom:4px;">¿Eliminar registro?</div>
+            <div style="display:flex; gap:8px;">
+                <button id="confirm-del-btn" class="press-btn" style="flex:1; background:#ef4444; color:white; border:none; padding:10px 4px; border-radius:10px; font-size:0.75rem; font-weight:700;">Sí</button>
+                <button id="cancel-del-btn" class="press-btn" style="flex:1; background:#f1f5f9; color:#475569; border:none; padding:10px 4px; border-radius:10px; font-size:0.75rem; font-weight:700;">No</button>
             </div>
         `;
 
         document.body.appendChild(pop);
 
-        pop.querySelector('#confirm-del-btn').onclick = async (e) => {
+        const confirmBtn = pop.querySelector('#confirm-del-btn');
+        confirmBtn.onclick = async (e) => {
             e.stopPropagation();
-            pop.remove();
+            confirmBtn.disabled = true;
+            confirmBtn.textContent = '...';
             await this.deleteProduction(ids, note);
+            pop.remove();
         };
         pop.querySelector('#cancel-del-btn').onclick = (e) => {
             e.stopPropagation();
