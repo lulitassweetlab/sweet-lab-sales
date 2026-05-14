@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 54; // 54: added produces_ingredient to dessert_recipes
+const SCHEMA_VERSION = 55; // 55: added production_logs table
 
 export async function ensureSchema() {
 	if (schemaEnsured) return;
@@ -365,6 +365,16 @@ export async function ensureSchema() {
 				ingredient_name TEXT UNIQUE NOT NULL,
 				factor NUMERIC DEFAULT 1
 			)`;
+			
+			await sql`CREATE TABLE IF NOT EXISTS production_logs (
+				id SERIAL PRIMARY KEY,
+				step_id INTEGER REFERENCES dessert_recipes(id) ON DELETE CASCADE,
+				qty NUMERIC NOT NULL,
+				duration_seconds INTEGER NOT NULL,
+				actor_name TEXT,
+				metadata JSONB DEFAULT '{}'::jsonb,
+				created_at TIMESTAMPTZ DEFAULT now()
+			)`;
 
 			// Seed default desserts if empty
 			const dessertCount = await sql`SELECT COUNT(*)::int AS c FROM desserts`;
@@ -648,6 +658,22 @@ export async function ensureSchema() {
 					await sql`ALTER TABLE dessert_recipes ADD COLUMN IF NOT EXISTS produces_ingredient TEXT`;
 					await sql`ALTER TABLE dessert_recipes ADD COLUMN IF NOT EXISTS produces_unit TEXT`;
 					await sql`UPDATE schema_meta SET version = 54`;
+				}
+
+				if (Number(meta[0].version) < 55) {
+					console.log('Migrating to v55: Creating production_logs table...');
+					await sql`
+						CREATE TABLE IF NOT EXISTS production_logs (
+							id SERIAL PRIMARY KEY,
+							step_id INTEGER REFERENCES dessert_recipes(id) ON DELETE CASCADE,
+							qty NUMERIC NOT NULL,
+							duration_seconds INTEGER NOT NULL,
+							actor_name TEXT,
+							metadata JSONB DEFAULT '{}'::jsonb,
+							created_at TIMESTAMPTZ DEFAULT now()
+						)
+					`;
+					await sql`UPDATE schema_meta SET version = 55`;
 				}
 
 				await sql`UPDATE schema_meta SET version = ${SCHEMA_VERSION}, updated_at = now()`;

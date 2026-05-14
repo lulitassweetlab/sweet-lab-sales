@@ -4,6 +4,7 @@ const KitchenManager = {
     batches: [], // Array of { day, recipeName, total, sellers: [] }
     history: [],
     expandedRecipes: new Set(),
+    timers: {}, // { "stepId_targetDate": { startTime: Date, elapsedBefore: seconds } }
     isInitialized: false,
 
     async init() {
@@ -14,7 +15,13 @@ const KitchenManager = {
         console.log("👨‍🍳 Initializing Kitchen Manager...");
         this.bindEvents();
         await this.loadData();
+        this.startIntervals();
         this.isInitialized = true;
+    },
+
+    startIntervals() {
+        if (this._timerInterval) clearInterval(this._timerInterval);
+        this._timerInterval = setInterval(() => this.updateTimerDisplays(), 1000);
     },
 
     bindEvents() {
@@ -61,6 +68,56 @@ const KitchenManager = {
             window.notify.error("Error al cargar datos de cocina: " + err.message);
             if (grid) grid.innerHTML = `<div style="grid-column: 1/-1; text-align:center; padding:40px; color:#ef4444;">❌ Error al cargar la bitácora.<br><small>${err.message}</small></div>`;
         }
+    },
+
+    toggleTimer(stepId, targetDate) {
+        const key = `${stepId}_${targetDate}`;
+        const t = this.timers[key];
+        if (t && t.startTime) {
+            // Stop timer
+            const elapsed = Math.floor((Date.now() - t.startTime) / 1000);
+            t.elapsedBefore = (t.elapsedBefore || 0) + elapsed;
+            t.startTime = null;
+        } else {
+            // Start timer
+            if (!this.timers[key]) this.timers[key] = { elapsedBefore: 0 };
+            this.timers[key].startTime = Date.now();
+        }
+        this.render(); 
+    },
+
+    getElapsedSeconds(stepId, targetDate) {
+        const key = `${stepId}_${targetDate}`;
+        const t = this.timers[key];
+        if (!t) return 0;
+        let total = t.elapsedBefore || 0;
+        if (t.startTime) {
+            total += Math.floor((Date.now() - t.startTime) / 1000);
+        }
+        return total;
+    },
+
+    formatDuration(seconds) {
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        const s = seconds % 60;
+        return `${h > 0 ? h + ':' : ''}${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    },
+
+    updateTimerDisplays() {
+        document.querySelectorAll('.timer-display').forEach(el => {
+            const stepId = el.getAttribute('data-step-id');
+            const targetDate = el.getAttribute('data-date');
+            if (stepId && targetDate) {
+                const elapsed = this.getElapsedSeconds(stepId, targetDate);
+                el.textContent = this.formatDuration(elapsed);
+                if (this.timers[`${stepId}_${targetDate}`]?.startTime) {
+                    el.style.color = '#ef4444';
+                } else {
+                    el.style.color = '#94a3b8';
+                }
+            }
+        });
     },
 
     processRecipes(data) {
@@ -527,10 +584,31 @@ const KitchenManager = {
         const producedInWindow = this.producedStepsMap && step.id ? (this.producedStepsMap[`${step.id}_${targetDate}`] || 0) : 0;
         const isDone = producedInWindow >= totalNeeded && totalNeeded > 0;
         
+        const timerKey = `${step.id}_${targetDate}`;
+        const activeTimer = this.timers[timerKey];
+        const isRunning = activeTimer && activeTimer.startTime;
+        const elapsed = this.getElapsedSeconds(step.id, targetDate);
+
         return `
             <div style="background:${isDone ? '#f0fdf4' : '#f8fafc'}; border:1px solid ${isDone ? '#bbf7d0' : '#f1f5f9'}; border-radius:16px; padding:12px; transition: all 0.2s ease;">
                 <div class="flex" style="margin-bottom:8px; justify-content:space-between; align-items:center;">
-                    <strong style="font-size:0.85rem; color:${isDone ? '#16a34a' : '#475569'};">${step.name || 'Proceso General'}</strong>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <button onclick="window.KitchenManager.toggleTimer('${step.id}', '${targetDate}')" 
+                            class="press-btn" 
+                            style="width:32px; height:32px; border-radius:50%; border:none; display:flex; align-items:center; justify-content:center; background:${isRunning ? '#ef4444' : '#4f46e5'}; color:white; padding:0;">
+                            ${isRunning ? 
+                                '<svg width="14" height="14" viewBox="0 0 24 24" fill="white"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>' : 
+                                '<svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>'
+                            }
+                        </button>
+                        <div style="display:flex; flex-direction:column;">
+                            <strong style="font-size:0.85rem; color:${isDone ? '#16a34a' : '#475569'};">${step.name || 'Proceso General'}</strong>
+                            <span class="timer-display" data-step-id="${step.id}" data-date="${targetDate}" 
+                                style="font-family:monospace; font-size:0.75rem; color:${isRunning ? '#ef4444' : '#94a3b8'}; font-weight:700;">
+                                ${this.formatDuration(elapsed)}
+                            </span>
+                        </div>
+                    </div>
                     ${producedInWindow > 0 ? `<span style="font-size:0.7rem; color:#16a34a; font-weight:900; background:#dcfce7; padding:2px 8px; border-radius:8px;">✓ Hecho: ${producedInWindow}</span>` : ''}
                 </div>
                 <div style="display:flex; gap:8px; align-items:center;">
@@ -609,11 +687,15 @@ const KitchenManager = {
                 step_id: Number(stepId),
                 multiplier: qty,
                 produced_qty: producedQty,
+                duration_seconds: this.getElapsedSeconds(stepId, targetDate),
                 target_date: targetDate,
                 actor_name: window.state?.currentUser?.name || window.state?.currentUser?.username || "Cocinero"
             });
 
             if (res.ok) {
+                // Reset timer
+                delete this.timers[`${stepId}_${targetDate}`];
+                
                 if (btn) {
                     btn.innerText = "✅ Hecho";
                     btn.style.background = "#10b981";

@@ -370,6 +370,15 @@ export async function handler(event) {
 
 					const now = new Date();
 					
+					// 0. Log duration if provided
+					const durationSeconds = Number(data.duration_seconds || 0) || 0;
+					if (durationSeconds > 0) {
+						await sql`
+							INSERT INTO production_logs (step_id, qty, duration_seconds, actor_name, created_at)
+							VALUES (${stepId}, ${multiplier}, ${durationSeconds}, ${actor}, ${now})
+						`;
+					}
+
 					// 1. Record consumption of ingredients
 					for (const it of items) {
 						const canon = (it.ingredient || '').toString().trim();
