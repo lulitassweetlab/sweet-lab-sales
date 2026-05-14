@@ -501,12 +501,10 @@ const KitchenManager = {
             let dayLabel = day === todayStr ? "Hoy" : (day === new Date(Date.now() + 86400000).toISOString().split('T')[0] ? "Mañana" : day);
             
             daySection.innerHTML = `
-            daySection.innerHTML = `
                 <h3 style="margin: 0 0 16px 0; display:flex; align-items:center; gap:10px; color:var(--primary);">
                     <span style="font-size:1.4rem;">📅</span> ${dayLabel}
                 </h3>
                 <div class="batches-grid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap:20px;"></div>
-            `;
             `;
             
             const batchesGrid = daySection.querySelector('.batches-grid');
