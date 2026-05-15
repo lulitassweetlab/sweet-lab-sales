@@ -432,7 +432,24 @@
     <!-- Edit Messages Modal -->
     <div class="qr-modal" id="edit-msgs-modal">
         <div class="qr-content" style="max-width: 600px; text-align: left;">
-            <h2 style="text-align: center;">Editar Mensajes de Premio</h2>
+            <h2 style="text-align: center;">Editar Textos del Juego</h2>
+
+            <div style="margin-bottom: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div>
+                    <label style="display: block; font-weight: bold; margin-bottom: 8px;">Título Principal</label>
+                    <input type="text" id="game-title-input" 
+                        style="width: 100%; padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px; font-family: 'DM Sans', sans-serif; box-sizing: border-box;" />
+                </div>
+                <div>
+                    <label style="display: block; font-weight: bold; margin-bottom: 8px;">Subtítulo</label>
+                    <input type="text" id="game-subtitle-input" 
+                        style="width: 100%; padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px; font-family: 'DM Sans', sans-serif; box-sizing: border-box;" />
+                </div>
+            </div>
+
+            <div style="border-top: 1px solid #eee; margin: 15px 0; padding-top: 15px;">
+                <h3 style="font-size: 1rem; margin-bottom: 15px;">Mensajes de Premio (Pantalla)</h3>
+            </div>
 
             <div style="margin-bottom: 20px;">
                 <label style="display: block; font-weight: bold; margin-bottom: 8px;">Mensaje de Postre Gratis</label>
@@ -1363,6 +1380,8 @@
         const msgDiscountInput = document.getElementById('msg-discount-input');
         const waMsgFreeInput = document.getElementById('wa-msg-free-input');
         const waMsgDiscountInput = document.getElementById('wa-msg-discount-input');
+        const gameTitleInput = document.getElementById('game-title-input');
+        const gameSubtitleInput = document.getElementById('game-subtitle-input');
 
         showQrBtn.addEventListener('click', () => {
             qrModal.classList.add('active');
@@ -1377,6 +1396,8 @@
             msgDiscountInput.value = 'Cargando...';
             waMsgFreeInput.value = 'Cargando...';
             waMsgDiscountInput.value = 'Cargando...';
+            gameTitleInput.value = 'Cargando...';
+            gameSubtitleInput.value = 'Cargando...';
             editMsgsModal.classList.add('active');
 
             try {
@@ -1387,6 +1408,8 @@
                     msgDiscountInput.value = settings.game_msg_discount || 'Has ganado un {premio} de descuento en tu próximo pedido.\n\nEnvíalo a tu asesor y activa tu descuento ✨';
                     waMsgFreeInput.value = settings.game_wa_msg_free || '¡Hola! Acabo de ganar un POSTRE GRATIS en el Gira y Gana. Mi nombre es {nombre}. ✨';
                     waMsgDiscountInput.value = settings.game_wa_msg_discount || '¡Hola! Acabo de ganar un {premio} en el Gira y Gana. Mi nombre es {nombre}. ✨';
+                    gameTitleInput.value = settings.game_title || '🎉 Gira y Gana 🎉';
+                    gameSubtitleInput.value = settings.game_subtitle || '¡Participa y gana descuentos increíbles o un postre gratis!';
                 }
             } catch (e) {
                 console.error(e);
@@ -1405,7 +1428,9 @@
                     game_msg_free: msgFreeInput.value.trim(),
                     game_msg_discount: msgDiscountInput.value.trim(),
                     game_wa_msg_free: waMsgFreeInput.value.trim(),
-                    game_wa_msg_discount: waMsgDiscountInput.value.trim()
+                    game_wa_msg_discount: waMsgDiscountInput.value.trim(),
+                    game_title: gameTitleInput.value.trim(),
+                    game_subtitle: gameSubtitleInput.value.trim()
                 };
                 const res = await fetch('/api/store-settings', {
                     method: 'POST',

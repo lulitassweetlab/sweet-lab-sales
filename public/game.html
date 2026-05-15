@@ -961,6 +961,12 @@ Envíalo a tu asesor y activa tu descuento ✨`
 			// Load messages concurrently with other requests
 			fetch('/api/store-settings').then(res => res.json()).then(settings => {
 				const logoImg = document.querySelector('.game-logo');
+				const titleEl = document.querySelector('.game-title');
+				const subtitleEl = document.querySelector('.game-subtitle');
+
+				if (settings.game_title) titleEl.textContent = settings.game_title;
+				if (settings.game_subtitle) subtitleEl.textContent = settings.game_subtitle;
+
 				if (settings.game_msg_free) customMessages.free = settings.game_msg_free;
 				if (settings.game_msg_discount) customMessages.discount = settings.game_msg_discount;
 				if (settings.game_wa_msg_free) customMessages.wa_free = settings.game_wa_msg_free;
