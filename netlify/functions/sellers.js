@@ -30,6 +30,16 @@ export async function handler(event) {
                 const id = Number(data.id);
                 if (!id) return json({ error: 'ID requerido' }, 400);
 
+                if (data.whatsapp !== undefined) {
+                    const [row] = await sql`UPDATE sellers SET whatsapp = ${data.whatsapp || null} WHERE id = ${id} RETURNING id, name, whatsapp`;
+                    return json(row);
+                }
+
+                if (data.game_enabled !== undefined) {
+                    const [row] = await sql`UPDATE sellers SET game_enabled = ${!!data.game_enabled} WHERE id = ${id} RETURNING id, name, game_enabled`;
+                    return json(row);
+                }
+
                 if (data.parent_id !== undefined) {
                     const pIdValue = (data.parent_id === null || data.parent_id === "" || data.parent_id === undefined) ? null : Number(data.parent_id);
                     const [row] = await sql`UPDATE sellers SET parent_id = ${pIdValue} WHERE id = ${id} RETURNING id, name, parent_id`;
