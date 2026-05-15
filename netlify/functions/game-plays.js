@@ -33,6 +33,9 @@ export async function handler(event) {
                     SELECT 
                         id,
                         customer_name,
+                        whatsapp,
+                        seller_name,
+                        birth_date,
                         prize_type,
                         prize_value,
                         played_at
@@ -41,11 +44,14 @@ export async function handler(event) {
                     LIMIT ${limit} OFFSET ${offset}
                 `;
             } else {
-                // Return all but only essential columns for privacy/speed
+                // Return all columns needed for the report
                 plays = await sql`
                     SELECT 
                         id,
                         customer_name,
+                        whatsapp,
+                        seller_name,
+                        birth_date,
                         prize_type,
                         prize_value,
                         played_at
