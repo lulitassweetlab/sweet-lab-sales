@@ -9,6 +9,7 @@
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 	<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
 	<link rel="stylesheet" href="/styles.css" />
+	<link rel="preload" href="/api/store-settings" as="fetch" crossorigin />
 	<style>
 		/* Game-specific styles */
 		html, body {
@@ -134,7 +135,7 @@
 			height: auto;
 			margin-bottom: 5px;
 			filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.1));
-			opacity: 1;
+			opacity: 0;
 			transition: opacity 0.3s ease;
 		}
 
@@ -810,7 +811,7 @@
 	<div class="game-container">
 		<!-- Header -->
 		<div class="game-header">
-			<img src="/logo.png" alt="Sweet Lab Logo" class="game-logo" />
+			<img id="game-logo" alt="Sweet Lab Logo" class="game-logo" />
 			<h1 class="game-title">🎉 Gira y Gana 🎉</h1>
 			<p class="game-subtitle">¡Participa y gana descuentos increíbles o un postre gratis!</p>
 		</div>
@@ -884,6 +885,28 @@
 	<div class="confetti-container" id="confetti-container"></div>
 
 	<script>
+		// Start fetching settings as early as possible
+		const settingsPromise = fetch('/api/store-settings').then(res => res.json()).catch(err => {
+			console.error('Error early-fetching settings:', err);
+			return {};
+		});
+
+		// Try to load logo from cache immediately
+		(function() {
+			try {
+				const cachedLogo = localStorage.getItem('sweet_lab_logo_cache');
+				const cachedHeight = localStorage.getItem('sweet_lab_logo_height');
+				if (cachedLogo) {
+					const logoImg = document.getElementById('game-logo');
+					if (logoImg) {
+						logoImg.src = cachedLogo;
+						if (cachedHeight) logoImg.style.height = cachedHeight + 'px';
+						logoImg.style.opacity = '1';
+					}
+				}
+			} catch (e) {}
+		})();
+
 		// Game state
 		let gameState = {
 			customerName: '',
@@ -958,9 +981,9 @@ Envíalo a tu asesor y activa tu descuento ✨`
 		document.addEventListener('DOMContentLoaded', async () => {
 			setBirthDateFieldConfig();
 
-			// Load messages concurrently with other requests
-			fetch('/api/store-settings').then(res => res.json()).then(settings => {
-				const logoImg = document.querySelector('.game-logo');
+			// Use the early-fetched settings
+			settingsPromise.then(settings => {
+				const logoImg = document.getElementById('game-logo');
 				const titleEl = document.querySelector('.game-title');
 				const subtitleEl = document.querySelector('.game-subtitle');
 
@@ -974,7 +997,13 @@ Envíalo a tu asesor y activa tu descuento ✨`
 
 				if (settings.logo_base64) {
 					logoImg.src = settings.logo_base64;
+					// Cache it
+					localStorage.setItem('sweet_lab_logo_cache', settings.logo_base64);
+					if (settings.logo_height) localStorage.setItem('sweet_lab_logo_height', settings.logo_height);
+				} else if (!logoImg.src) {
+					logoImg.src = '/logo.png'; // Fallback only if no logo in settings AND not in cache
 				}
+
 				if (settings.logo_height) {
 					logoImg.style.height = settings.logo_height + 'px';
 					logoImg.style.maxHeight = 'none';
@@ -982,8 +1011,6 @@ Envíalo a tu asesor y activa tu descuento ✨`
 					logoImg.style.width = 'auto';
 				}
 				logoImg.style.opacity = '1';
-			}).catch(err => {
-				console.error('Error loading custom settings', err);
 			});
 
 			await loadConfiguredPrizes();
