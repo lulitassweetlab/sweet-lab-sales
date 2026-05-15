@@ -10,6 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/styles.css" />
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <style>
         body {
             font-family: 'DM Sans', sans-serif;
@@ -413,6 +414,38 @@
         .sortable-header.is-active .sort-indicator {
             opacity: 1;
         }
+
+        /* Drag & Drop Styles */
+        .drag-handle {
+            cursor: grab;
+            color: #9ca3af;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 5px;
+            transition: color 0.2s ease;
+        }
+
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+
+        .winner-card:hover .drag-handle, 
+        tr:hover .drag-handle {
+            color: #f4a6b7;
+        }
+
+        .sortable-ghost {
+            opacity: 0.4;
+            background: #fff5f7 !important;
+            border: 2px dashed #f4a6b7 !important;
+        }
+
+        .sortable-chosen {
+            background: #fff;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
     </style>
 </head>
 
@@ -535,8 +568,8 @@
             <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
                 <thead style="background: #f3f4f6; color: #374151;">
                     <tr>
+                        <th style="text-align: center; padding: 12px; border-bottom: 2px solid #e5e7eb; width: 50px;"></th>
                         <th style="text-align: center; padding: 12px; border-bottom: 2px solid #e5e7eb; width: 60px;">Juego</th>
-                        <th style="text-align: center; padding: 12px; border-bottom: 2px solid #e5e7eb; width: 60px;">Pos</th>
                         <th style="text-align: left; padding: 12px; border-bottom: 2px solid #e5e7eb;">Vendedor</th>
                         <th style="text-align: left; padding: 12px; border-bottom: 2px solid #e5e7eb;">WhatsApp (Ej: 573...)</th>
                     </tr>
@@ -823,37 +856,6 @@
             sellerState.timersBySellerId.set(sid, timer);
         }
 
-        async function saveSellerPosition(sellerId, position, inputEl) {
-            setSellerSaveStatus('Guardando...');
-            inputEl.classList.add('saving');
-
-            try {
-                let actor = '';
-                try {
-                    const auth = JSON.parse(localStorage.getItem('authUser') || '{}');
-                    actor = auth.name || '';
-                } catch(e) {}
-
-                const res = await fetch('/api/sellers', {
-                    method: 'PATCH',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'X-Actor-Name': actor
-                    },
-                    body: JSON.stringify({ id: sellerId, position: parseInt(position) || 0 })
-                });
-                if (!res.ok) throw new Error('Error al guardar posición');
-                setSellerSaveStatus('Guardado', 'success');
-                // Optional: refresh the list to show new order after a short delay
-                setTimeout(() => loadSellersManagement(), 2000);
-            } catch (err) {
-                console.error('Error saving position:', err);
-                setSellerSaveStatus('Error al guardar', 'error');
-                inputEl.classList.add('error');
-            } finally {
-                inputEl.classList.remove('saving');
-            }
-        }
 
         async function saveSellerWhatsapp(inputEl) {
             const sid = inputEl?.dataset?.sellerId;
@@ -943,6 +945,15 @@
             sellers.forEach(s => {
                 sellerState.whatsappBySellerId[s.id] = s.whatsapp || '';
                 const tr = document.createElement('tr');
+                tr.dataset.id = s.id;
+
+                // Drag handle column
+                const tdDrag = document.createElement('td');
+                tdDrag.style.padding = '12px';
+                tdDrag.style.borderBottom = '1px solid #eee';
+                tdDrag.style.textAlign = 'center';
+                tdDrag.innerHTML = `<div class="drag-handle" title="Arrastra para reordenar">☰</div>`;
+                tr.appendChild(tdDrag);
 
                 // Checkbox column with custom style
                 const tdCheck = document.createElement('td');
@@ -965,19 +976,6 @@
                 label.appendChild(span);
                 tdCheck.appendChild(label);
                 tr.appendChild(tdCheck);
-
-                const tdPos = document.createElement('td');
-                tdPos.style.padding = '12px';
-                tdPos.style.borderBottom = '1px solid #eee';
-                tdPos.style.textAlign = 'center';
-                const posInput = document.createElement('input');
-                posInput.className = 'probability-input';
-                posInput.style.width = '45px';
-                posInput.type = 'number';
-                posInput.value = s.position || 0;
-                posInput.addEventListener('change', () => saveSellerPosition(s.id, posInput.value, posInput));
-                tdPos.appendChild(posInput);
-                tr.appendChild(tdPos);
 
                 const tdName = document.createElement('td');
                 tdName.style.padding = '12px';
@@ -1007,6 +1005,50 @@
                 tr.appendChild(tdInput);
                 tbody.appendChild(tr);
             });
+
+            // Initialize Sortable
+            if (window.Sortable) {
+                new Sortable(tbody, {
+                    handle: '.drag-handle',
+                    animation: 150,
+                    ghostClass: 'sortable-ghost',
+                    chosenClass: 'sortable-chosen',
+                    onEnd: async function() {
+                        const rows = Array.from(tbody.querySelectorAll('tr'));
+                        const newOrder = rows.map((tr, index) => ({
+                            id: tr.dataset.id,
+                            position: index + 1
+                        }));
+                        await saveNewSellersOrder(newOrder);
+                    }
+                });
+            }
+        }
+
+        async function saveNewSellersOrder(order) {
+            setSellerSaveStatus('Guardando orden...');
+            try {
+                let actor = '';
+                try {
+                    const auth = JSON.parse(localStorage.getItem('authUser') || '{}');
+                    actor = auth.name || '';
+                } catch(e) {}
+
+                const res = await fetch('/api/sellers', {
+                    method: 'PATCH',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-Actor-Name': actor
+                    },
+                    body: JSON.stringify(order)
+                });
+                
+                if (!res.ok) throw new Error('Error al guardar el orden');
+                setSellerSaveStatus('Orden guardado', 'success');
+            } catch (err) {
+                console.error('Error saving new sellers order:', err);
+                setSellerSaveStatus('Error al guardar orden', 'error');
+            }
         }
 
         async function loadSellersManagement() {
