@@ -27,6 +27,21 @@ export async function handler(event) {
                 const role = await getRole(event);
                 if (role !== 'admin') return json({ error: 'No autorizado' }, 403);
                 
+                // Bulk update support
+                if (Array.isArray(data)) {
+                    const results = [];
+                    for (const item of data) {
+                        const id = Number(item.id);
+                        if (!id) continue;
+                        
+                        if (item.position !== undefined) {
+                            const [row] = await sql`UPDATE sellers SET position = ${Number(item.position) || 0} WHERE id = ${id} RETURNING id, name, position`;
+                            if (row) results.push(row);
+                        }
+                    }
+                    return json({ ok: true, count: results.length, items: results });
+                }
+                
                 const id = Number(data.id);
                 if (!id) return json({ error: 'ID requerido' }, 400);
 
