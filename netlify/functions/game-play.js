@@ -57,8 +57,8 @@ export async function handler(event) {
         const birthDate = normalizeBirthDate(data.birthDate || data.birth_date || '');
         const seller = (data.seller || '').trim();
 
-        // Validate input
-        if (!name || !whatsapp || !seller || !birthDate) {
+        // Validate input (birthDate is now optional)
+        if (!name || !whatsapp || !seller) {
             return json({ error: 'Datos incompletos' }, 400);
         }
 
