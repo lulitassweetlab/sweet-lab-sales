@@ -103,6 +103,7 @@ export async function handler(event) {
 				if (!existing) return json({ error: 'dessert no encontrado' }, 404);
 
 				const name = (data.name || '').toString().trim();
+				const shortCode = (data.short_code || '').toString().trim().toLowerCase();
 				const salePrice = Number(data.sale_price || 0) || 0;
 				const hasCostPrice = Object.prototype.hasOwnProperty.call(data, 'cost_price');
 				let costPrice = existing.cost_price;
@@ -128,6 +129,7 @@ export async function handler(event) {
 				let storeProductId = existing.store_product_id;
 
 				if (!name) return json({ error: 'name requerido' }, 400);
+				if (!shortCode) return json({ error: 'short_code requerido' }, 400);
 				if (salePrice <= 0) return json({ error: 'sale_price debe ser mayor a 0' }, 400);
 				if (costPrice < 0) return json({ error: 'cost_price no puede ser negativo' }, 400);
 				if (promotion.error) return json({ error: promotion.error }, 400);
@@ -165,20 +167,34 @@ export async function handler(event) {
 				if (hasStoreName) {
 					query = sql`
 						UPDATE desserts
-						SET name = ${name}, sale_price = ${salePrice}, cost_price = ${costPrice}, promo_qty = ${promotion.promoQty}, promo_price = ${promotion.promoPrice}, position = ${position}, is_active = ${isActive}, store_name = ${storeName || null}, store_product_id = ${storeProductId}, updated_at = now()
+						SET name = ${name}, short_code = ${shortCode}, sale_price = ${salePrice}, cost_price = ${costPrice}, promo_qty = ${promotion.promoQty}, promo_price = ${promotion.promoPrice}, position = ${position}, is_active = ${isActive}, store_name = ${storeName || null}, store_product_id = ${storeProductId}, updated_at = now()
 						WHERE id = ${id}
 						RETURNING id, name, short_code, sale_price, cost_price, promo_qty, promo_price, store_name, store_product_id, is_active, position
 					`;
 				} else {
 					query = sql`
 						UPDATE desserts
-						SET name = ${name}, sale_price = ${salePrice}, cost_price = ${costPrice}, promo_qty = ${promotion.promoQty}, promo_price = ${promotion.promoPrice}, position = ${position}, is_active = ${isActive}, updated_at = now()
+						SET name = ${name}, short_code = ${shortCode}, sale_price = ${salePrice}, cost_price = ${costPrice}, promo_qty = ${promotion.promoQty}, promo_price = ${promotion.promoPrice}, position = ${position}, is_active = ${isActive}, updated_at = now()
 						WHERE id = ${id}
 						RETURNING id, name, short_code, sale_price, cost_price, promo_qty, promo_price, store_name, store_product_id, is_active, position
 					`;
 				}
 
 				const [row] = await query;
+
+				// CASCADE: If name changed, update recipes and orders
+				if (existing.name !== name) {
+					console.log(`🔄 Renaming dessert in recipes: ${existing.name} -> ${name}`);
+					try {
+						await sql`UPDATE dessert_recipes SET dessert = ${name} WHERE dessert = ${existing.name}`;
+						await sql`UPDATE dessert_order SET dessert = ${name} WHERE dessert = ${existing.name}`;
+						await sql`UPDATE recipe_production_users SET dessert = ${name} WHERE dessert = ${existing.name}`;
+					} catch (err) {
+						console.error('Error in cascade rename:', err);
+						// We don't fail the whole request because the main dessert update succeeded
+					}
+				}
+
 				dessertsCache = null;
 				cacheTime = 0;
 				return json(row);

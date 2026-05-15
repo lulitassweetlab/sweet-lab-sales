@@ -16,10 +16,10 @@ export async function handler(event) {
 				const includeExtras = params.get('include_extras') === '1' || params.get('include_extras') === 'true';
 				const allItems = params.get('all_items') === '1' || params.get('all_items') === 'true';
 				const seed = params.get('seed') === '1' || params.get('seed') === 'true';
-			const productionUsers = params.get('production_users') === '1' || params.get('production_users') === 'true';
+				const productionUsers = params.get('production_users') === '1' || params.get('production_users') === 'true';
 			const savedSessions = params.get('saved_sessions') === '1' || params.get('saved_sessions') === 'true';
 			
-			// Get saved recipe sessions
+				// Get saved recipe sessions
 			if (savedSessions) {
 				const sessions = await sql`
 					SELECT 
@@ -119,12 +119,12 @@ export async function handler(event) {
 					// Single payload with all items grouped by dessert + extras to reduce roundtrips
 					const desserts = (await sql`SELECT DISTINCT dessert FROM dessert_recipes ORDER BY dessert ASC`).map(r => r.dessert);
 					const items = await sql`
-						SELECT dr.dessert, dr.step_name, i.ingredient, i.unit, i.qty_per_unit, i.adjustment, 
+						SELECT dr.id as step_id, dr.dessert, dr.step_name, dr.produces_ingredient, dr.produces_unit, i.ingredient, i.unit, i.qty_per_unit, i.adjustment, 
 						       COALESCE(ii.price, i.price) as price, COALESCE(ii.pack_size, i.pack_size) as pack_size
-						FROM dessert_recipe_items i
-						LEFT JOIN dessert_recipes dr ON dr.id = i.recipe_id
+						FROM dessert_recipes dr
+						LEFT JOIN dessert_recipe_items i ON dr.id = i.recipe_id
 						LEFT JOIN inventory_items ii ON lower(trim(ii.ingredient)) = lower(trim(i.ingredient))
-						ORDER BY dr.dessert ASC, i.position ASC, i.id ASC
+						ORDER BY dr.dessert ASC, dr.position ASC, dr.id ASC
 					`;
 					let extras = [];
 					if (includeExtras) extras = await sql`
@@ -136,7 +136,7 @@ export async function handler(event) {
 					return json({ desserts, items, extras });
 				}
 				if (dessert) {
-					const steps = await sql`SELECT id, dessert, step_name, position FROM dessert_recipes WHERE lower(dessert)=lower(${dessert}) ORDER BY position ASC, id ASC`;
+					const steps = await sql`SELECT id, dessert, step_name, position, produces_ingredient, produces_unit FROM dessert_recipes WHERE lower(dessert)=lower(${dessert}) ORDER BY position ASC, id ASC`;
 					const stepIds = steps.map(s => s.id);
 					let items = [];
 					if (stepIds.length) items = await sql`
@@ -434,6 +434,8 @@ export async function handler(event) {
 					const stepName = (data.step_name || null);
 					let position = Number(data.position || 0) || 0;
 					const id = Number(data.id || 0) || 0;
+					const producesIngredient = data.produces_ingredient || null;
+					const producesUnit = data.produces_unit || null;
 					const salePrice = data.sale_price !== undefined ? Number(data.sale_price || 0) : null;
 					
 					// If sale_price is provided, upsert into desserts table
@@ -449,13 +451,13 @@ export async function handler(event) {
 					
 					let row;
 					if (id) {
-						[row] = await sql`UPDATE dessert_recipes SET dessert=${dessert}, step_name=${stepName}, position=${position}, updated_at=now() WHERE id=${id} RETURNING id, dessert, step_name, position`; 
+						[row] = await sql`UPDATE dessert_recipes SET dessert=${dessert}, step_name=${stepName}, position=${position}, produces_ingredient=${producesIngredient}, produces_unit=${producesUnit}, updated_at=now() WHERE id=${id} RETURNING id, dessert, step_name, position, produces_ingredient, produces_unit`; 
 					} else {
 						if (!position || position <= 0) {
 							const [p] = await sql`SELECT COALESCE(MAX(position), 0)::int + 1 AS next_pos FROM dessert_recipes WHERE lower(dessert)=lower(${dessert})`;
 							position = Number(p?.next_pos || 1) || 1;
 						}
-						[row] = await sql`INSERT INTO dessert_recipes (dessert, step_name, position) VALUES (${dessert}, ${stepName}, ${position}) RETURNING id, dessert, step_name, position`;
+						[row] = await sql`INSERT INTO dessert_recipes (dessert, step_name, position, produces_ingredient, produces_unit) VALUES (${dessert}, ${stepName}, ${position}, ${producesIngredient}, ${producesUnit}) RETURNING id, dessert, step_name, position, produces_ingredient, produces_unit`;
 					}
 					return json(row, id ? 200 : 201);
 				}

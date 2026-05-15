@@ -3,7 +3,7 @@ import { neon } from '@netlify/neon';
 const sql = neon(); // uses NETLIFY_DATABASE_URL
 let schemaEnsured = false;
 let schemaCheckPromise = null; // Deduplicate concurrent schema checks
-const SCHEMA_VERSION = 53; // 53: added inventory_conversions table
+const SCHEMA_VERSION = 56; // 56: added position to sellers
 
 export async function ensureSchema() {
 	if (schemaEnsured) return;
@@ -299,8 +299,10 @@ export async function ensureSchema() {
 				CREATE TABLE IF NOT EXISTS dessert_recipes (
 					id SERIAL PRIMARY KEY,
 					dessert TEXT NOT NULL,
-					step_name TEXT,
+					step_name TEXT NOT NULL,
 					position INTEGER DEFAULT 0,
+					produces_ingredient TEXT,
+					produces_unit TEXT,
 					created_at TIMESTAMPTZ DEFAULT now()
 				)
 			`;
@@ -362,6 +364,16 @@ export async function ensureSchema() {
 				id SERIAL PRIMARY KEY,
 				ingredient_name TEXT UNIQUE NOT NULL,
 				factor NUMERIC DEFAULT 1
+			)`;
+			
+			await sql`CREATE TABLE IF NOT EXISTS production_logs (
+				id SERIAL PRIMARY KEY,
+				step_id INTEGER REFERENCES dessert_recipes(id) ON DELETE CASCADE,
+				qty NUMERIC NOT NULL,
+				duration_seconds INTEGER NOT NULL,
+				actor_name TEXT,
+				metadata JSONB DEFAULT '{}'::jsonb,
+				created_at TIMESTAMPTZ DEFAULT now()
 			)`;
 
 			// Seed default desserts if empty
@@ -640,6 +652,35 @@ export async function ensureSchema() {
 					`;
 					await sql`UPDATE schema_meta SET version = 53`;
 				}
+				
+				if (Number(meta[0].version) < 54) {
+					console.log('Migrating to v54: Adding production output columns to dessert_recipes...');
+					await sql`ALTER TABLE dessert_recipes ADD COLUMN IF NOT EXISTS produces_ingredient TEXT`;
+					await sql`ALTER TABLE dessert_recipes ADD COLUMN IF NOT EXISTS produces_unit TEXT`;
+					await sql`UPDATE schema_meta SET version = 54`;
+				}
+
+				if (Number(meta[0].version) < 55) {
+					console.log('Migrating to v55: Creating production_logs table...');
+					await sql`
+						CREATE TABLE IF NOT EXISTS production_logs (
+							id SERIAL PRIMARY KEY,
+							step_id INTEGER REFERENCES dessert_recipes(id) ON DELETE CASCADE,
+							qty NUMERIC NOT NULL,
+							duration_seconds INTEGER NOT NULL,
+							actor_name TEXT,
+							metadata JSONB DEFAULT '{}'::jsonb,
+							created_at TIMESTAMPTZ DEFAULT now()
+						)
+					`;
+					await sql`UPDATE schema_meta SET version = 55`;
+				}
+
+				if (Number(meta[0].version) < 56) {
+					console.log('Migrating to v56: Adding position to sellers...');
+					await sql`ALTER TABLE sellers ADD COLUMN IF NOT EXISTS position INTEGER DEFAULT 0`;
+					await sql`UPDATE schema_meta SET version = 56`;
+				}
 
 				await sql`UPDATE schema_meta SET version = ${SCHEMA_VERSION}, updated_at = now()`;
 			schemaEnsured = true;
@@ -801,7 +842,7 @@ export function canonicalizeIngredientName(name) {
 	if (low.includes('nutella')) return 'Nutella';
 	if (low.startsWith('agua')) return 'Agua';
 	if (low.includes('oreo')) return 'Oreo';
-	if (low.includes('bolsa') && low.includes('cuchara')) return 'Bolsa para cuchara';
+	if (low.includes('bolsa') && low.includes('cuchara')) return 'Bolsa cuchara';
 	return raw;
 }
 

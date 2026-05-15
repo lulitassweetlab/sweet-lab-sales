@@ -16,7 +16,13 @@ export async function handler(event) {
 				const historyAll = params.get('history_all');
 				
 				if (historyAll) {
-					const rows = await sql`SELECT id, ingredient, kind, qty, note, actor_name, metadata, created_at FROM inventory_movements ORDER BY id DESC LIMIT 1000`;
+					const dateStart = params.get('date_start');
+					let rows;
+					if (dateStart) {
+						rows = await sql`SELECT id, ingredient, kind, qty, note, actor_name, metadata, created_at FROM inventory_movements WHERE created_at >= ${dateStart} ORDER BY id DESC LIMIT 2000`;
+					} else {
+						rows = await sql`SELECT id, ingredient, kind, qty, note, actor_name, metadata, created_at FROM inventory_movements ORDER BY id DESC LIMIT 1000`;
+					}
 					return json(rows);
 				}
 				
@@ -49,7 +55,8 @@ export async function handler(event) {
 				}
 
 				const result = items.map(it => {
-					const key = (it.ingredient || '').toString().toLowerCase();
+					const canonName = canonicalizeIngredientName(it.ingredient || '');
+					const key = canonName.toLowerCase();
 					const saldo = Number(movsMap.get(key) || 0) || 0;
 					return { ...it, saldo, valor: saldo * Number(it.price || 0) };
 				});
@@ -88,6 +95,20 @@ export async function handler(event) {
 					return json({ ok: true });
 				}
 
+				if (action === 'delete_production') {
+					const { ids } = data;
+					if (!ids || !Array.isArray(ids) || ids.length === 0) return json({ error: 'Missing or invalid ids' }, 400);
+					const numericIds = ids.map(id => Number(id)).filter(id => !isNaN(id));
+					
+					let deletedCount = 0;
+					for (const id of numericIds) {
+						const result = await sql`DELETE FROM inventory_movements WHERE id = ${id} RETURNING id`;
+						if (result.length > 0) deletedCount++;
+					}
+					
+					return json({ ok: true, deletedCount });
+				}
+
 				if (action === 'add_item') {
 					const ingredient = (data.ingredient || '').toString().trim();
 					if (!ingredient) return json({ error: 'ingredient requerido' }, 400);
@@ -124,6 +145,16 @@ export async function handler(event) {
 					`;
 					await recalculateAllDessertCosts();
 					return json(row, 201);
+				}
+
+				if (action === 'merge_ingredients') {
+					const { source, target } = data;
+					if (!source || !target) return json({ error: 'Missing source or target' }, 400);
+					
+					await sql`UPDATE inventory_movements SET ingredient = ${target} WHERE ingredient = ${source}`;
+					await sql`DELETE FROM inventory_items WHERE ingredient = ${source}`;
+					await recalculateAllDessertCosts();
+					return json({ ok: true });
 				}
 
 				if (action === 'update_item') {
@@ -316,6 +347,71 @@ export async function handler(event) {
 				if (action === 'reset') {
 					await sql`DELETE FROM inventory_movements`;
 					return json({ ok: true, cleared: true });
+				}
+
+				if (action === 'produccion_paso') {
+					const stepId = Number(data.step_id || 0);
+					const multiplier = Number(data.multiplier || 1) || 1;
+					const producedQty = Number(data.produced_qty || 0) || 0;
+					if (!stepId) return json({ error: 'step_id requerido' }, 400);
+
+					const [step] = await sql`SELECT id, dessert, step_name, produces_ingredient, produces_unit FROM dessert_recipes WHERE id = ${stepId}`;
+					if (!step) return json({ error: 'paso no encontrado' }, 404);
+
+					const items = await sql`SELECT ingredient, unit, qty_per_unit FROM dessert_recipe_items WHERE recipe_id = ${stepId}`;
+					if (!items || items.length === 0) return json({ error: 'este paso no tiene ingredientes asociados' }, 400);
+
+					const results = [];
+					const note = `Producción: ${step.dessert}${step.step_name ? ' - ' + step.step_name : ''} (x${multiplier})`;
+					
+					const metadata = { step_id: stepId, multiplier: multiplier };
+					if (data.target_date) metadata.target_date = data.target_date;
+					if (producedQty > 0) metadata.produced_qty = producedQty;
+
+					const now = new Date();
+					
+					// 0. Log duration if provided
+					const durationSeconds = Number(data.duration_seconds || 0) || 0;
+					if (durationSeconds > 0) {
+						await sql`
+							INSERT INTO production_logs (step_id, qty, duration_seconds, actor_name, created_at)
+							VALUES (${stepId}, ${multiplier}, ${durationSeconds}, ${actor}, ${now})
+						`;
+					}
+
+					// 1. Record consumption of ingredients
+					for (const it of items) {
+						const canon = (it.ingredient || '').toString().trim();
+						const qtyToSubtract = -Math.abs(Number(it.qty_per_unit || 0) * multiplier);
+						
+						const [row] = await sql`
+							INSERT INTO inventory_movements (ingredient, kind, qty, note, actor_name, metadata, created_at) 
+							VALUES (${canon}, 'produccion', ${qtyToSubtract}, ${note}, ${actor}, ${JSON.stringify(metadata)}::jsonb, ${now}) 
+							RETURNING *
+						`;
+						results.push({ ingredient: canon, qty: qtyToSubtract, movement_id: row?.id, type: 'consumption' });
+					}
+
+					// 2. Record production output (if configured and qty > 0)
+					if (producedQty > 0 && step.produces_ingredient) {
+						const canonProduced = (step.produces_ingredient || '').toString().trim();
+						const noteProduced = `Resultado de producción: ${step.dessert}${step.step_name ? ' - ' + step.step_name : ''} (x${multiplier})`;
+						
+						const [rowProduced] = await sql`
+							INSERT INTO inventory_movements (ingredient, kind, qty, note, actor_name, metadata, created_at) 
+							VALUES (${canonProduced}, 'entrada', ${producedQty}, ${noteProduced}, ${actor}, ${JSON.stringify(metadata)}::jsonb, ${now}) 
+							RETURNING *
+						`;
+						results.push({ ingredient: canonProduced, qty: producedQty, movement_id: rowProduced?.id, type: 'output' });
+					}
+
+					return json({ 
+						ok: true, 
+						step: step.step_name, 
+						dessert: step.dessert, 
+						movements: results,
+						produced: producedQty > 0 ? { ingredient: step.produces_ingredient, qty: producedQty } : null
+					});
 				}
 
 				if (action === 'produccion') {

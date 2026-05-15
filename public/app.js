@@ -1115,6 +1115,13 @@ async function api(method, url, body) {
 	}
 	return res.json();
 }
+window.api = api;
+window.state = state;
+window.API = API;
+window.enterSeller = enterSeller;
+window.loadSales = loadSales;
+window.loadDaysForSeller = loadDaysForSeller;
+window.notify = notify;
 
 async function loadSellers() {
 	// Try loading from localStorage first for instant feel
@@ -1283,8 +1290,12 @@ async function addSeller(name) {
 }
 
 async function enterSeller(id) {
+	console.log('APP: enterSeller starting for ID:', id);
 	const seller = state.sellers.find(s => s.id === id);
-	if (!seller) return;
+	if (!seller) {
+		console.error('APP: Seller not found for ID:', id);
+		return;
+	}
 	state.currentSeller = seller;
 	// Apply seller bill icon CSS var
 	try {
@@ -1299,15 +1310,18 @@ async function enterSeller(id) {
 	document.getElementById('sales-wrapper')?.classList.add('hidden');
 
 	// Load desserts and days in parallel
+	console.log('APP: Loading desserts and days for seller...');
 	await Promise.all([
 		loadDesserts().then(() => renderDessertColumns()),
 		loadDaysForSeller()
 	]);
 
+	console.log('APP: Data loaded. Switching to #view-sales');
 	// 🛠️ FIX: Ensure UI transitions to the sales view when a seller is selected
 	switchView('#view-sales');
 }
 
+window.switchView = switchView;
 function switchView(id) {
 	document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
 	$(id).classList.remove('hidden');
@@ -1377,6 +1391,10 @@ function applyAuthVisibility() {
 	if (purchasesBtn) purchasesBtn.style.display = canPurchases ? 'inline-block' : 'none';
 	if (storeBtn) storeBtn.style.display = canStore ? 'inline-block' : 'none';
 	if (crmAdminBtn) crmAdminBtn.style.display = canCrm ? 'inline-block' : 'none';
+	
+	const canKitchen = isSuper || isAdminUser || feats.has('nav.kitchen');
+	const kitchenBtn = document.getElementById('kitchen-button');
+	if (kitchenBtn) kitchenBtn.style.display = canKitchen ? 'inline-block' : 'none';
 
 	const globalDbBtn = document.getElementById('global-clients-button');
 	if (globalDbBtn) globalDbBtn.style.display = (isSuper || feats.has('nav.globaldb')) ? 'inline-block' : 'none';
@@ -4753,6 +4771,7 @@ async function exportCarteraExcel(startIso, endIso) {
 	const accountingBtn = document.getElementById('accounting-button');
 	const dessertsBtn = document.getElementById('desserts-button');
 	const deliveriesBtn = document.getElementById('deliveries-button');
+	const kitchenBtn = document.getElementById('kitchen-button');
 	const input = document.getElementById('report-date');
 	if (!reportBtn || !input) return;
 	reportBtn.addEventListener('click', (ev) => {
@@ -4800,6 +4819,14 @@ async function exportCarteraExcel(startIso, endIso) {
 			const url = `/transfers.html?start=${encodeURIComponent(range.start)}&end=${encodeURIComponent(range.end)}`;
 			window.location.href = url;
 		}, ev.clientX, ev.clientY, { preferUp: true });
+	});
+	
+	kitchenBtn?.addEventListener('click', () => {
+		exitDeleteSellerModeIfActive();
+		window.switchView('#view-kitchen');
+		if (window.KitchenManager) {
+			window.KitchenManager.init();
+		}
 	});
 	usersBtn?.addEventListener('click', async (ev) => {
 		exitDeleteSellerModeIfActive();
@@ -6567,6 +6594,7 @@ async function renderInventoryView() {
 				<div id="conv-list"></div>
 
 				<div style="margin-top:20px; text-align:right">
+				<div style="margin-top:20px; text-align:right">
 					<button id="close-conv-btn-main" class="press-btn" style="background:var(--border); color:var(--text)">Cerrar</button>
 				</div>
 			`;
@@ -7408,7 +7436,32 @@ function buildStepCard(dessertName, step) {
 	function removePlaceholder() { const ph = tbody.querySelector('tr.empty-drop'); if (ph) ph.remove(); }
 	ensurePlaceholder();
 	table.append(thead, tbody);
-	box.append(head, table);
+	
+	const producesDiv = document.createElement('div');
+	producesDiv.style.cssText = 'margin-top:12px; padding:10px; background:rgba(14,165,233,0.05); border-radius:8px; border:1px solid rgba(14,165,233,0.1); display:flex; align-items:center; gap:8px; font-size:0.85rem;';
+	producesDiv.innerHTML = `
+		<span style="font-weight:600; color:var(--primary)">Genera Stock:</span>
+		<input type="text" class="input-cell produces-input" list="dl-inventory-items" placeholder="Ej: Galletas champaña" style="flex:1; font-size:0.85rem; padding:4px 8px" value="${step.produces_ingredient || ''}">
+		<small style="color:var(--muted)">Ingresa el nombre del insumo que resulta de este paso.</small>
+	`;
+	const producesIn = producesDiv.querySelector('.produces-input');
+	producesIn.addEventListener('change', async () => {
+		const val = producesIn.value.trim() || null;
+		try {
+			await api('POST', API.Recipes, { 
+				kind: 'step.upsert', 
+				id: step.id, 
+				dessert: dessertName, 
+				step_name: step.step_name, 
+				position: step.position || 0,
+				produces_ingredient: val,
+				produces_unit: 'unidad'
+			});
+			step.produces_ingredient = val;
+		} catch { notify.error('No se pudo guardar la configuración de producción'); }
+	});
+
+	box.append(head, table, producesDiv);
 	// Enable drag & drop for steps using the header as a handle
 	box.draggable = false;
 	head.draggable = true;

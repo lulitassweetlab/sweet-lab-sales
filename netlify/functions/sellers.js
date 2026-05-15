@@ -19,7 +19,7 @@ export async function handler(event) {
 
         switch (event.httpMethod) {
             case 'GET': {
-                const rows = await sql`SELECT id, name, bill_color, archived_at, whatsapp, game_enabled, parent_id FROM sellers WHERE archived_at IS NULL ORDER BY name`;
+                const rows = await sql`SELECT id, name, bill_color, archived_at, whatsapp, game_enabled, position, parent_id FROM sellers WHERE archived_at IS NULL ORDER BY position ASC, name ASC`;
                 return json(rows);
             }
             case 'PATCH': {
@@ -29,6 +29,21 @@ export async function handler(event) {
                 
                 const id = Number(data.id);
                 if (!id) return json({ error: 'ID requerido' }, 400);
+
+                if (data.whatsapp !== undefined) {
+                    const [row] = await sql`UPDATE sellers SET whatsapp = ${data.whatsapp || null} WHERE id = ${id} RETURNING id, name, whatsapp`;
+                    return json(row);
+                }
+
+                if (data.game_enabled !== undefined) {
+                    const [row] = await sql`UPDATE sellers SET game_enabled = ${!!data.game_enabled} WHERE id = ${id} RETURNING id, name, game_enabled`;
+                    return json(row);
+                }
+
+                if (data.position !== undefined) {
+                    const [row] = await sql`UPDATE sellers SET position = ${Number(data.position) || 0} WHERE id = ${id} RETURNING id, name, position`;
+                    return json(row);
+                }
 
                 if (data.parent_id !== undefined) {
                     const pIdValue = (data.parent_id === null || data.parent_id === "" || data.parent_id === undefined) ? null : Number(data.parent_id);
