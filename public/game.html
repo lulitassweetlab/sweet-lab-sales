@@ -134,8 +134,8 @@
 			height: auto;
 			margin-bottom: 5px;
 			filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.1));
-			opacity: 0;
-			transition: opacity 0.5s ease;
+			opacity: 1;
+			transition: opacity 0.3s ease;
 		}
 
 		.game-title {
@@ -938,7 +938,6 @@ Envíalo a tu asesor y activa tu descuento ✨`
 				logoImg.style.opacity = '1';
 			}).catch(err => {
 				console.error('Error loading custom settings', err);
-				document.querySelector('.game-logo').style.opacity = '1';
 			});
 
 			await loadConfiguredPrizes();
