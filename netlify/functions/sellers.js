@@ -19,7 +19,7 @@ export async function handler(event) {
 
         switch (event.httpMethod) {
             case 'GET': {
-                const rows = await sql`SELECT id, name, bill_color, archived_at, whatsapp, game_enabled, parent_id FROM sellers WHERE archived_at IS NULL ORDER BY name`;
+                const rows = await sql`SELECT id, name, bill_color, archived_at, whatsapp, game_enabled, position, parent_id FROM sellers WHERE archived_at IS NULL ORDER BY position ASC, name ASC`;
                 return json(rows);
             }
             case 'PATCH': {
@@ -37,6 +37,11 @@ export async function handler(event) {
 
                 if (data.game_enabled !== undefined) {
                     const [row] = await sql`UPDATE sellers SET game_enabled = ${!!data.game_enabled} WHERE id = ${id} RETURNING id, name, game_enabled`;
+                    return json(row);
+                }
+
+                if (data.position !== undefined) {
+                    const [row] = await sql`UPDATE sellers SET position = ${Number(data.position) || 0} WHERE id = ${id} RETURNING id, name, position`;
                     return json(row);
                 }
 

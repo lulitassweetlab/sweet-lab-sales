@@ -538,6 +538,7 @@
                 <thead style="background: #f3f4f6; color: #374151;">
                     <tr>
                         <th style="text-align: center; padding: 12px; border-bottom: 2px solid #e5e7eb; width: 60px;">Juego</th>
+                        <th style="text-align: center; padding: 12px; border-bottom: 2px solid #e5e7eb; width: 60px;">Pos</th>
                         <th style="text-align: left; padding: 12px; border-bottom: 2px solid #e5e7eb;">Vendedor</th>
                         <th style="text-align: left; padding: 12px; border-bottom: 2px solid #e5e7eb;">WhatsApp (Ej: 573...)</th>
                     </tr>
@@ -824,6 +825,38 @@
             sellerState.timersBySellerId.set(sid, timer);
         }
 
+        async function saveSellerPosition(sellerId, position, inputEl) {
+            setSellerSaveStatus('Guardando...');
+            inputEl.classList.add('saving');
+
+            try {
+                let actor = '';
+                try {
+                    const auth = JSON.parse(localStorage.getItem('authUser') || '{}');
+                    actor = auth.name || '';
+                } catch(e) {}
+
+                const res = await fetch('/api/sellers', {
+                    method: 'PATCH',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-Actor-Name': actor
+                    },
+                    body: JSON.stringify({ id: sellerId, position: parseInt(position) || 0 })
+                });
+                if (!res.ok) throw new Error('Error al guardar posición');
+                setSellerSaveStatus('Guardado', 'success');
+                // Optional: refresh the list to show new order after a short delay
+                setTimeout(() => loadSellersManagement(), 2000);
+            } catch (err) {
+                console.error('Error saving position:', err);
+                setSellerSaveStatus('Error al guardar', 'error');
+                inputEl.classList.add('error');
+            } finally {
+                inputEl.classList.remove('saving');
+            }
+        }
+
         async function saveSellerWhatsapp(inputEl) {
             const sid = inputEl?.dataset?.sellerId;
             if (!sid || inputEl?.dataset?.saving === '1') return;
@@ -935,6 +968,19 @@
                 tdCheck.appendChild(label);
                 tr.appendChild(tdCheck);
 
+                const tdPos = document.createElement('td');
+                tdPos.style.padding = '12px';
+                tdPos.style.borderBottom = '1px solid #eee';
+                tdPos.style.textAlign = 'center';
+                const posInput = document.createElement('input');
+                posInput.className = 'probability-input';
+                posInput.style.width = '45px';
+                posInput.type = 'number';
+                posInput.value = s.position || 0;
+                posInput.addEventListener('change', () => saveSellerPosition(s.id, posInput.value, posInput));
+                tdPos.appendChild(posInput);
+                tr.appendChild(tdPos);
+
                 const tdName = document.createElement('td');
                 tdName.style.padding = '12px';
                 tdName.style.borderBottom = '1px solid #eee';
@@ -960,7 +1006,6 @@
                 input.addEventListener('blur', () => saveSellerWhatsapp(input));
 
                 tdInput.appendChild(input);
-                tr.appendChild(tdName);
                 tr.appendChild(tdInput);
                 tbody.appendChild(tr);
             });
