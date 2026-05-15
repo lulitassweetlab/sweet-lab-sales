@@ -151,6 +151,7 @@
 			font-size: 16px;
 			color: #5a5a5a;
 			margin: 0;
+			white-space: pre-line;
 		}
 
 		/* Glass card effect */
@@ -988,7 +989,7 @@ Envíalo a tu asesor y activa tu descuento ✨`
 				const subtitleEl = document.querySelector('.game-subtitle');
 
 				if (settings.game_title) titleEl.textContent = settings.game_title;
-				if (settings.game_subtitle) subtitleEl.textContent = settings.game_subtitle;
+				if (settings.game_subtitle) subtitleEl.innerText = settings.game_subtitle;
 
 				if (settings.game_msg_free) customMessages.free = settings.game_msg_free;
 				if (settings.game_msg_discount) customMessages.discount = settings.game_msg_discount;

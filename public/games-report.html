@@ -444,17 +444,15 @@
         <div class="qr-content" style="max-width: 750px; text-align: left;">
             <h2 style="text-align: center;">Editar Textos del Juego</h2>
 
-            <div style="margin-bottom: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                <div>
-                    <label style="display: block; font-weight: bold; margin-bottom: 8px;">Título Principal</label>
-                    <input type="text" id="game-title-input" 
-                        style="width: 100%; padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px; font-family: 'DM Sans', sans-serif; box-sizing: border-box;" />
-                </div>
-                <div>
-                    <label style="display: block; font-weight: bold; margin-bottom: 8px;">Subtítulo</label>
-                    <input type="text" id="game-subtitle-input" 
-                        style="width: 100%; padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px; font-family: 'DM Sans', sans-serif; box-sizing: border-box;" />
-                </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; font-weight: bold; margin-bottom: 8px;">Título Principal</label>
+                <input type="text" id="game-title-input" 
+                    style="width: 100%; padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px; font-family: 'DM Sans', sans-serif; box-sizing: border-box;" />
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; font-weight: bold; margin-bottom: 8px;">Subtítulo (Soporta múltiples líneas)</label>
+                <textarea id="game-subtitle-input" rows="3"
+                    style="width: 100%; padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px; font-family: 'DM Sans', sans-serif; resize: vertical; box-sizing: border-box;"></textarea>
             </div>
 
             <div style="border-top: 1px solid #eee; margin: 15px 0; padding-top: 15px;">
