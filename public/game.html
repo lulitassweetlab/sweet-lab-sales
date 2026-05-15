@@ -719,6 +719,43 @@
 			border-radius: 200px;
 		}
 
+		/* Seller Selection Buttons */
+		.seller-buttons-grid {
+			display: grid;
+			grid-template-columns: repeat(2, 1fr);
+			gap: 12px;
+			margin-bottom: 15px;
+		}
+
+		.seller-btn {
+			padding: 12px 10px;
+			background: white;
+			border: 2px solid #e5e7eb;
+			border-radius: 12px;
+			font-size: 14px;
+			font-weight: 600;
+			color: #4b5563;
+			cursor: pointer;
+			transition: all 0.2s ease;
+			text-align: center;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			min-height: 50px;
+		}
+
+		.seller-btn:hover {
+			border-color: #f4a6b7;
+			background: #fff5f7;
+		}
+
+		.seller-btn.active {
+			background: #f4a6b7;
+			border-color: #f4a6b7;
+			color: white;
+			box-shadow: 0 4px 12px rgba(244, 166, 183, 0.3);
+		}
+
 		/* Mobile responsive */
 		@media (max-width: 600px) {
 			body {
@@ -795,10 +832,13 @@
 				<input type="hidden" id="customer-birthdate" value="1900-01-01" />
 
 				<div class="form-group">
-					<select id="seller-name" class="form-select" required>
-						<option value="">Vendedor</option>
-					</select>
-					<div class="error-message" id="seller-error">Por favor selecciona un vendedor</div>
+					<label class="form-label" style="text-align: center; margin-bottom: 12px; font-weight: 700;">Selecciona tu vendedor:</label>
+					<div id="seller-buttons-container" class="seller-buttons-grid">
+						<!-- Buttons populated by JS -->
+						<div class="loading" style="grid-column: 1/-1; text-align: center; padding: 10px; font-size: 0.8rem; color: #94a3b8;">Cargando vendedores...</div>
+					</div>
+					<input type="hidden" id="seller-name" value="" required />
+					<div class="error-message" id="seller-error" style="text-align: center;">Por favor selecciona un vendedor</div>
 				</div>
 
 				<button type="submit" class="btn-primary" id="submit-btn">
@@ -1047,27 +1087,46 @@ Envíalo a tu asesor y activa tu descuento ✨`
 		// Load sellers from API
 		let sellersMap = {};
 		async function loadSellers() {
+			const container = document.getElementById('seller-buttons-container');
+			const hiddenInput = document.getElementById('seller-name');
+
 			try {
 				const response = await fetch('/.netlify/functions/get-sellers');
 				const sellers = await response.json();
 
-				const select = document.getElementById('seller-name');
+				container.innerHTML = '';
 				sellers.forEach(seller => {
 					sellersMap[seller.name] = seller.whatsapp || null;
-					const option = document.createElement('option');
-					option.value = seller.name;
-					option.textContent = seller.name;
-					select.appendChild(option);
+					
+					const btn = document.createElement('button');
+					btn.type = 'button';
+					btn.className = 'seller-btn';
+					btn.textContent = seller.name;
+					btn.addEventListener('click', () => {
+						// Toggle active class
+						document.querySelectorAll('.seller-btn').forEach(b => b.classList.remove('active'));
+						btn.classList.add('active');
+						hiddenInput.value = seller.name;
+						hideError('seller-error');
+					});
+					container.appendChild(btn);
 				});
 			} catch (error) {
 				console.error('Error loading sellers:', error);
 				// Fallback sellers
-				const select = document.getElementById('seller-name');
+				container.innerHTML = '';
 				['Vendedor 1', 'Vendedor 2', 'Vendedor 3'].forEach(name => {
-					const option = document.createElement('option');
-					option.value = name;
-					option.textContent = name;
-					select.appendChild(option);
+					const btn = document.createElement('button');
+					btn.type = 'button';
+					btn.className = 'seller-btn';
+					btn.textContent = name;
+					btn.addEventListener('click', () => {
+						document.querySelectorAll('.seller-btn').forEach(b => b.classList.remove('active'));
+						btn.classList.add('active');
+						hiddenInput.value = name;
+						hideError('seller-error');
+					});
+					container.appendChild(btn);
 				});
 			}
 		}
