@@ -886,11 +886,10 @@
 	<div class="confetti-container" id="confetti-container"></div>
 
 	<script>
-		// Start fetching settings as early as possible
-		const settingsPromise = fetch('/api/store-settings').then(res => res.json()).catch(err => {
-			console.error('Error early-fetching settings:', err);
-			return {};
-		});
+		// Start fetching everything in parallel as early as possible
+		const settingsPromise = fetch('/api/store-settings').then(res => res.json()).catch(err => ({}));
+		const prizesPromise = fetch('/.netlify/functions/game-probabilities').then(res => res.json()).catch(err => ({}));
+		const sellersPromise = fetch('/.netlify/functions/get-sellers').then(res => res.json()).catch(err => []);
 
 		// Try to load logo from cache immediately
 		(function() {
@@ -979,10 +978,11 @@ Envíalo a tu asesor y activa tu descuento ✨`
 		];
 
 		// Initialize
-		document.addEventListener('DOMContentLoaded', async () => {
+		document.addEventListener('DOMContentLoaded', () => {
 			setBirthDateFieldConfig();
+			setupEventListeners();
 
-			// Use the early-fetched settings
+			// 1. High Priority: Apply settings (Logo, Title, Subtitle) ASAP
 			settingsPromise.then(settings => {
 				const logoImg = document.getElementById('game-logo');
 				const titleEl = document.querySelector('.game-title');
@@ -998,11 +998,10 @@ Envíalo a tu asesor y activa tu descuento ✨`
 
 				if (settings.logo_base64) {
 					logoImg.src = settings.logo_base64;
-					// Cache it
 					localStorage.setItem('sweet_lab_logo_cache', settings.logo_base64);
 					if (settings.logo_height) localStorage.setItem('sweet_lab_logo_height', settings.logo_height);
 				} else if (!logoImg.src) {
-					logoImg.src = '/logo.png'; // Fallback only if no logo in settings AND not in cache
+					logoImg.src = '/logo.png';
 				}
 
 				if (settings.logo_height) {
@@ -1014,11 +1013,17 @@ Envíalo a tu asesor y activa tu descuento ✨`
 				logoImg.style.opacity = '1';
 			});
 
-			await loadConfiguredPrizes();
-			await loadSellers();
-			loadWinners();
-			drawWheel();
-			setupEventListeners();
+			// 2. High Priority: Load sellers for the registration form
+			loadSellers();
+
+			// 3. Background: Load prizes, winners and draw wheel
+			// These are not needed until the user submits the form
+			setTimeout(() => {
+				loadConfiguredPrizes().then(() => {
+					drawWheel();
+				});
+				loadWinners();
+			}, 500);
 		});
 
 		// Winners logic
@@ -1101,9 +1106,8 @@ Envíalo a tu asesor y activa tu descuento ✨`
 
 		async function loadConfiguredPrizes() {
 			try {
-				const response = await fetch('/.netlify/functions/game-probabilities');
-				const data = await response.json();
-				if (!response.ok || !data?.ok || !Array.isArray(data.prizes) || data.prizes.length === 0) {
+				const data = await prizesPromise;
+				if (!data?.ok || !Array.isArray(data.prizes) || data.prizes.length === 0) {
 					return;
 				}
 
@@ -1126,8 +1130,7 @@ Envíalo a tu asesor y activa tu descuento ✨`
 			const hiddenInput = document.getElementById('seller-name');
 
 			try {
-				const response = await fetch('/.netlify/functions/get-sellers');
-				const sellers = await response.json();
+				const sellers = await sellersPromise;
 
 				container.innerHTML = '';
 				sellers.forEach(seller => {
