@@ -69,10 +69,17 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            z-index: 1000;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 2000;
+            overflow-y: auto;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .qr-modal.active {
+            display: flex;
             justify-content: center;
-            align-items: center;
+            align-items: flex-start;
         }
 
         .qr-modal.active {
@@ -81,10 +88,13 @@
 
         .qr-content {
             background: white;
-            padding: 40px;
+            padding: 30px;
             border-radius: 16px;
             text-align: center;
+            width: 100%;
             max-width: 500px;
+            margin: 40px auto;
+            position: relative;
         }
 
         .qr-content h2 {
@@ -431,7 +441,7 @@
 
     <!-- Edit Messages Modal -->
     <div class="qr-modal" id="edit-msgs-modal">
-        <div class="qr-content" style="max-width: 600px; text-align: left;">
+        <div class="qr-content" style="max-width: 750px; text-align: left;">
             <h2 style="text-align: center;">Editar Textos del Juego</h2>
 
             <div style="margin-bottom: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
