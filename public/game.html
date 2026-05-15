@@ -145,6 +145,7 @@
 			color: #2a2a2a;
 			margin: 0 0 5px 0;
 			text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+			transition: opacity 0.5s ease, transform 0.5s ease;
 		}
 
 		.game-subtitle {
@@ -152,6 +153,7 @@
 			color: #5a5a5a;
 			margin: 0;
 			white-space: pre-line;
+			transition: opacity 0.5s ease;
 		}
 
 		/* Glass card effect */
@@ -813,8 +815,8 @@
 		<!-- Header -->
 		<div class="game-header">
 			<img id="game-logo" alt="Sweet Lab Logo" class="game-logo" />
-			<h1 class="game-title">🎉 Gira y Gana 🎉</h1>
-			<p class="game-subtitle">¡Participa y gana descuentos increíbles o un postre gratis!</p>
+			<h1 class="game-title" style="opacity: 0;"></h1>
+			<p class="game-subtitle" style="opacity: 0;"></p>
 		</div>
 
 		<!-- Registration Section -->
@@ -891,18 +893,30 @@
 		const prizesPromise = fetch('/.netlify/functions/game-probabilities').then(res => res.json()).catch(err => ({}));
 		const sellersPromise = fetch('/.netlify/functions/get-sellers').then(res => res.json()).catch(err => []);
 
-		// Try to load logo from cache immediately
+		// Try to load logo and texts from cache immediately
 		(function() {
 			try {
 				const cachedLogo = localStorage.getItem('sweet_lab_logo_cache');
 				const cachedHeight = localStorage.getItem('sweet_lab_logo_height');
-				if (cachedLogo) {
-					const logoImg = document.getElementById('game-logo');
-					if (logoImg) {
-						logoImg.src = cachedLogo;
-						if (cachedHeight) logoImg.style.height = cachedHeight + 'px';
-						logoImg.style.opacity = '1';
-					}
+				const cachedTitle = localStorage.getItem('sweet_lab_game_title');
+				const cachedSubtitle = localStorage.getItem('sweet_lab_game_subtitle');
+
+				const logoImg = document.getElementById('game-logo');
+				const titleEl = document.querySelector('.game-title');
+				const subtitleEl = document.querySelector('.game-subtitle');
+
+				if (cachedLogo && logoImg) {
+					logoImg.src = cachedLogo;
+					if (cachedHeight) logoImg.style.height = cachedHeight + 'px';
+					logoImg.style.opacity = '1';
+				}
+				if (cachedTitle && titleEl) {
+					titleEl.textContent = cachedTitle;
+					titleEl.style.opacity = '1';
+				}
+				if (cachedSubtitle && subtitleEl) {
+					subtitleEl.innerText = cachedSubtitle;
+					subtitleEl.style.opacity = '1';
 				}
 			} catch (e) {}
 		})();
@@ -988,8 +1002,17 @@ Envíalo a tu asesor y activa tu descuento ✨`
 				const titleEl = document.querySelector('.game-title');
 				const subtitleEl = document.querySelector('.game-subtitle');
 
-				if (settings.game_title) titleEl.textContent = settings.game_title;
-				if (settings.game_subtitle) subtitleEl.innerText = settings.game_subtitle;
+				if (settings.game_title) {
+					titleEl.textContent = settings.game_title;
+					localStorage.setItem('sweet_lab_game_title', settings.game_title);
+				}
+				if (settings.game_subtitle) {
+					subtitleEl.innerText = settings.game_subtitle;
+					localStorage.setItem('sweet_lab_game_subtitle', settings.game_subtitle);
+				}
+
+				titleEl.style.opacity = '1';
+				subtitleEl.style.opacity = '1';
 
 				if (settings.game_msg_free) customMessages.free = settings.game_msg_free;
 				if (settings.game_msg_discount) customMessages.discount = settings.game_msg_discount;
