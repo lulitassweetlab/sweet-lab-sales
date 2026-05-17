@@ -359,7 +359,6 @@ export async function handler(event) {
 					if (!step) return json({ error: 'paso no encontrado' }, 404);
 
 					const items = await sql`SELECT ingredient, unit, qty_per_unit FROM dessert_recipe_items WHERE recipe_id = ${stepId}`;
-					if (!items || items.length === 0) return json({ error: 'este paso no tiene ingredientes asociados' }, 400);
 
 					const results = [];
 					const note = `Producción: ${step.dessert}${step.step_name ? ' - ' + step.step_name : ''} (x${multiplier})`;
@@ -380,6 +379,7 @@ export async function handler(event) {
 					}
 
 					// 1. Record consumption of ingredients
+					let insertedProduccion = false;
 					for (const it of items) {
 						const canon = (it.ingredient || '').toString().trim();
 						const qtyToSubtract = -Math.abs(Number(it.qty_per_unit || 0) * multiplier);
@@ -390,6 +390,17 @@ export async function handler(event) {
 							RETURNING *
 						`;
 						results.push({ ingredient: canon, qty: qtyToSubtract, movement_id: row?.id, type: 'consumption' });
+						insertedProduccion = true;
+					}
+
+					// Si no hubo ingredientes (es solo una actividad), insertamos un movimiento en cero para que el historial lo cuente
+					if (!insertedProduccion) {
+						const [row] = await sql`
+							INSERT INTO inventory_movements (ingredient, kind, qty, note, actor_name, metadata, created_at) 
+							VALUES ('- Actividad -', 'produccion', 0, ${note}, ${actor}, ${JSON.stringify(metadata)}::jsonb, ${now}) 
+							RETURNING *
+						`;
+						results.push({ ingredient: '- Actividad -', qty: 0, movement_id: row?.id, type: 'activity' });
 					}
 
 					// 2. Record production output (if configured and qty > 0)

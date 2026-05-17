@@ -619,6 +619,10 @@ const KitchenManager = {
         const isRunning = activeTimer && activeTimer.startTime;
         const elapsed = this.getElapsedSeconds(step.id, targetDate);
 
+        const hasIngredients = step.items && step.items.length > 0;
+        const btnTextDone = hasIngredients ? 'Producir Más' : 'Completar Más';
+        const btnTextPending = hasIngredients ? 'Producir' : 'Completar';
+
         return `
             <div style="background:${isDone ? '#f0fdf4' : '#f8fafc'}; border:1px solid ${isDone ? '#bbf7d0' : '#e2e8f0'}; border-radius:16px; padding:12px; transition: all 0.2s ease;">
                 <div class="flex" style="margin-bottom:10px; justify-content:space-between; align-items:center; gap:10px;">
@@ -663,7 +667,7 @@ const KitchenManager = {
                         <button onclick="window.KitchenManager.produceStep('${step.id || ''}', '${recipeName}', '${step.name || ''}', '${inputId}', '${targetDate}')" 
                             ${!step.id ? 'disabled' : ''}
                             class="press-btn" style="width:100%; background:${isDone ? '#10b981' : '#4f46e5'}; color:white; border:none; padding:10px; border-radius:10px; font-weight:700; font-size:0.8rem; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2); opacity:${!step.id ? 0.5 : 1};">
-                            ${isDone ? 'Producir Más' : 'Producir'}
+                            ${isDone ? btnTextDone : btnTextPending}
                         </button>
                     </div>
                 </div>
