@@ -327,10 +327,24 @@ const KitchenManager = {
         if (!cont) return;
         cont.innerHTML = '';
         
-        // Sum totals per dessert across all batches
+        // Sum totals per dessert across all batches, accounting for already produced quantities
         const totals = {};
-        this.batches.forEach(b => {
-            totals[b.recipeName] = (totals[b.recipeName] || 0) + b.total;
+        this.batches.forEach(batch => {
+            const recipe = this.recipes.find(r => r.name === batch.recipeName);
+            let minProduced = 0;
+            
+            // If the recipe has steps, check how many have been produced for this specific batch date
+            if (recipe && recipe.steps && recipe.steps.length > 0) {
+                const stepTotals = recipe.steps.map(s => this.producedStepsMap[`${s.id}_${batch.day}`] || 0);
+                minProduced = Math.min(...stepTotals);
+            }
+            
+            // Calculate what is truly remaining to produce for this batch
+            const remaining = Math.max(0, batch.total - minProduced);
+            
+            if (remaining > 0) {
+                totals[batch.recipeName] = (totals[batch.recipeName] || 0) + remaining;
+            }
         });
 
         const sorted = Object.entries(totals).sort((a,b) => b[1] - a[1]);
