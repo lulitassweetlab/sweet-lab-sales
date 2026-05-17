@@ -380,17 +380,37 @@ export async function handler(event) {
 
 					// 1. Record consumption of ingredients
 					let insertedProduccion = false;
-					for (const it of items) {
-						const canon = (it.ingredient || '').toString().trim();
-						const qtyToSubtract = -Math.abs(Number(it.qty_per_unit || 0) * multiplier);
-						
-						const [row] = await sql`
-							INSERT INTO inventory_movements (ingredient, kind, qty, note, actor_name, metadata, created_at) 
-							VALUES (${canon}, 'produccion', ${qtyToSubtract}, ${note}, ${actor}, ${JSON.stringify(metadata)}::jsonb, ${now}) 
-							RETURNING *
-						`;
-						results.push({ ingredient: canon, qty: qtyToSubtract, movement_id: row?.id, type: 'consumption' });
-						insertedProduccion = true;
+					
+					if (data.custom_ingredients && Array.isArray(data.custom_ingredients)) {
+						for (const customIt of data.custom_ingredients) {
+							const canon = (customIt.ingredient || '').toString().trim();
+							const qtyToSubtract = -Math.abs(Number(customIt.qty || 0));
+							
+							if (qtyToSubtract === 0) continue;
+
+							const [row] = await sql`
+								INSERT INTO inventory_movements (ingredient, kind, qty, note, actor_name, metadata, created_at) 
+								VALUES (${canon}, 'produccion', ${qtyToSubtract}, ${note + ' (Ajuste manual)'}, ${actor}, ${JSON.stringify(metadata)}::jsonb, ${now}) 
+								RETURNING *
+							`;
+							results.push({ ingredient: canon, qty: qtyToSubtract, movement_id: row?.id, type: 'consumption' });
+							insertedProduccion = true;
+						}
+					} else {
+						for (const it of items) {
+							const canon = (it.ingredient || '').toString().trim();
+							const qtyToSubtract = -Math.abs(Number(it.qty_per_unit || 0) * multiplier);
+							
+							if (qtyToSubtract === 0) continue;
+
+							const [row] = await sql`
+								INSERT INTO inventory_movements (ingredient, kind, qty, note, actor_name, metadata, created_at) 
+								VALUES (${canon}, 'produccion', ${qtyToSubtract}, ${note}, ${actor}, ${JSON.stringify(metadata)}::jsonb, ${now}) 
+								RETURNING *
+							`;
+							results.push({ ingredient: canon, qty: qtyToSubtract, movement_id: row?.id, type: 'consumption' });
+							insertedProduccion = true;
+						}
 					}
 
 					// Si no hubo ingredientes (es solo una actividad), insertamos un movimiento en cero para que el historial lo cuente
