@@ -455,7 +455,7 @@ export async function handler(event) {
 
             partnerShares.push({
                 id: 'dios',
-                name: 'Dios (Aporte Social)',
+                name: 'Aporte Social',
                 share_perc: netToShare > 0 ? 10.00 : 0.00,
                 share_amount: socialContribution,
                 founder_fixed_perc: 10,
