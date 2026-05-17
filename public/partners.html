@@ -362,6 +362,24 @@
             const partnerMeta = targetData?.partners?.find(p => p.name.toLowerCase() === sellerName.toLowerCase());
             if (!partnerMeta) return "";
 
+            if (partnerMeta.is_social) {
+                return `
+                    <div style="background:#fff; padding:40px 32px; border-radius:24px; width:100%; display:flex; flex-direction:column; gap:20px; font-family:sans-serif; text-align:center; border: 1px solid #ddd6fe;">
+                        <div style="font-size:4.5rem; margin-bottom:10px;">❤️🕊️</div>
+                        <h2 style="margin:0; font-size:2.2rem; color:#4f46e5; font-weight:900;">Aporte Social - Dios</h2>
+                        <p style="color:#475569; font-size:1.15rem; max-width:600px; margin: 0 auto; line-height:1.6; font-weight:500;">
+                            Este fondo representa el **10% de las utilidades netas** de Sweet Lab, reservado con profunda gratitud y destinado exclusivamente a obras de ayuda social, donaciones y apoyo a personas vulnerables.
+                        </p>
+                        <div style="background:linear-gradient(135deg, #f5f3ff, #ede9fe); border:1px solid #c7d2fe; border-radius:24px; padding:32px; margin-top:20px; display:inline-block; align-self:center; min-width:320px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05);">
+                            <span style="font-size:0.85rem; font-weight:800; color:#6d28d9; text-transform:uppercase; display:block; margin-bottom:8px; letter-spacing:0.05em;">Fondo Destinado este Mes</span>
+                            <strong style="font-size:2.8rem; font-weight:900; color:#4f46e5;">${fmt.format(roundToHundreds(partnerMeta.share_amount))}</strong>
+                            <span style="font-size:0.95rem; color:#7c3aed; font-weight:700; display:block; margin-top:8px;">Equivalente al ${partnerMeta.share_perc}% del total</span>
+                        </div>
+                        <p style="font-size:0.85rem; color:#94a3b8; margin-top:30px; font-style:italic;">"El que es generoso prosperará; el que reanima a otros será reanimado."</p>
+                    </div>
+                `;
+            }
+
             const shortMonths = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
             const months = [...DATA.history].sort((a, b) => a.month.localeCompare(b.month)).slice(-24);
             const chartData = [];
@@ -897,12 +915,27 @@
                                 <span style="font-size:0.65rem; font-weight:700; color:#64748b;">Total Global: ${m.total_cumulative_desserts || '?'}</span>
                             </div>
                                 ${(m.partners || []).sort((a,b)=>b.share_amount - a.share_amount).map(p => `
-                                    <div onclick="showSellerHistoryChart('${p.name}', '${m.month}', event)" style="background:#fff; border:1px solid #e2e8f0; border-radius:16px; padding:16px; cursor:pointer;">
+                                    <div onclick="showSellerHistoryChart('${p.name}', '${m.month}', event)" style="background:#fff; border:1px solid #e2e8f0; border-radius:16px; padding:16px; cursor:pointer; transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);" onmouseenter="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 10px 15px -3px rgba(0,0,0,0.1)';" onmouseleave="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px -1px rgba(0, 0, 0, 0.05)';">
                                         <div class="flex">
-                                            <div><div style="font-weight:800; font-size:1.05rem;">${p.name}</div><div style="font-size:0.75rem; color:#64748b;">🍰 ${p.metrics_debug?.cumulative_total || 0} postres históricos</div></div>
-                                            <div style="text-align:right;"><div style="font-size:0.65rem; color:#94a3b8;">Utilidad</div><div style="font-weight:900; font-size:1.2rem; color:#10b981;">${fmt.format(roundToHundreds(p.share_amount))}</div></div>
+                                            <div>
+                                                <div style="font-weight:800; font-size:1.05rem; display:flex; align-items:center; gap:6px;">
+                                                    ${p.is_social ? '🕊️' : ''} ${p.name}
+                                                </div>
+                                                <div style="font-size:0.75rem; color:#64748b;">
+                                                    ${p.is_social ? '✨ Fondo Social Compartido' : `🍰 ${p.metrics_debug?.cumulative_total || 0} postres históricos`}
+                                                </div>
+                                            </div>
+                                            <div style="text-align:right;">
+                                                <div style="font-size:0.65rem; color:#94a3b8;">Utilidad</div>
+                                                <div style="font-weight:900; font-size:1.2rem; color:${p.is_social ? '#db2777' : '#10b981'};">${fmt.format(roundToHundreds(p.share_amount))}</div>
+                                            </div>
                                         </div>
-                                        <div style="display:flex; align-items:center; gap:12px; margin-top:8px;"><div style="flex:1; height:8px; background:#f1f5f9; border-radius:8px; overflow:hidden;"><div style="width:${p.share_perc}%; height:100%; background:linear-gradient(90deg, #8b5cf6, #c084fc);"></div></div><strong style="color:#7c3aed; font-size:0.85rem;">${p.share_perc}%</strong></div>
+                                        <div style="display:flex; align-items:center; gap:12px; margin-top:8px;">
+                                            <div style="flex:1; height:8px; background:#f1f5f9; border-radius:8px; overflow:hidden;">
+                                                <div style="width:${p.share_perc}%; height:100%; background:linear-gradient(90deg, ${p.is_social ? '#ec4899, #f43f5e' : '#8b5cf6, #c084fc'});"></div>
+                                            </div>
+                                            <strong style="color:${p.is_social ? '#db2777' : '#7c3aed'}; font-size:0.85rem;">${p.share_perc}%</strong>
+                                        </div>
                                     </div>`).join('')}
                             </div>
                         </div>`;

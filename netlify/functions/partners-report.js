@@ -413,20 +413,23 @@ export async function handler(event) {
             const normalizedF = {};
             partnerIds.forEach(pid => normalizedF[pid] = rawF[pid] / sumF);
 
+            const socialContribution = Math.round(Math.max(0, netToShare) * 0.10);
+            const netForPartners = netToShare - socialContribution;
+
             let totalFoundersFixed = 0;
             partnerIds.forEach(pid => {
                 if (founders[pid]) {
-                    totalFoundersFixed += Math.round(Math.max(0, netToShare) * (Number(founders[pid]) / 100));
+                    totalFoundersFixed += Math.round(Math.max(0, netForPartners) * (Number(founders[pid]) / 100));
                 }
             });
-            const meritPool = netToShare - totalFoundersFixed;
+            const meritPool = netForPartners - totalFoundersFixed;
 
             const totalCumulGlobal = Object.values(lastCumulativeDesserts).reduce((a,b) => a+b, 0);
             const partnerShares = partnerIds.map(pid => {
                 const meritPerc = normalizedF[pid];
                 let shareAmount = Math.round(meritPool * meritPerc);
                 if (founders[pid]) {
-                    shareAmount += Math.round(Math.max(0, netToShare) * (Number(founders[pid]) / 100));
+                    shareAmount += Math.round(Math.max(0, netForPartners) * (Number(founders[pid]) / 100));
                 }
                 const finalPerc = netToShare > 0 ? (shareAmount / netToShare) * 100 : 0;
                 const founderFixed = founders[pid] ? Number(founders[pid]) : 0;
@@ -448,6 +451,21 @@ export async function handler(event) {
                         rolling_M: [...(partnerRollingM[pid] || [])]
                     }
                 };
+            });
+
+            partnerShares.push({
+                id: 'dios',
+                name: 'Dios (Aporte Social)',
+                share_perc: netToShare > 0 ? 10.00 : 0.00,
+                share_amount: socialContribution,
+                founder_fixed_perc: 10,
+                is_social: true,
+                metrics_debug: {
+                    desserts: 0,
+                    cumulative_total: 0,
+                    M: 0, P: 0, H: 0, F: 0, H_global: 0,
+                    rolling_M: []
+                }
             });
 
             // 5. Finalize monthData
