@@ -768,7 +768,7 @@ const KitchenManager = {
                         ${hasIngredients ? `<button type="button" class="press-btn" onclick="window.KitchenManager.toggleIngredientEdit('${inputId}')" style="padding:2px 8px; font-size:10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; color:var(--text);">✏️ Ajustar</button>` : ''}
                     </div>
                     
-                    <div class="ingredients-readonly">
+                    <div class="ingredients-readonly" style="font-size:0.82rem; line-height:1.4; color:#334155; margin-top:4px;">
                         ${(step.items || []).map(it => {
                             const key = (it.ingredient || "").toLowerCase().trim();
                             const currentProjected = this.virtualStockMap[key] || 0;
@@ -781,9 +781,9 @@ const KitchenManager = {
 
                             const isLow = (currentProjected < qtyNeeded && qtyNeeded > 0) || currentProjected < 0;
                             
-                            return `<div style="display:flex; justify-content:space-between; margin-bottom:2px; ${isLow ? 'color:#ef4444; font-weight:700;' : ''}">
-                                <span>• ${it.ingredient}</span>
-                                <span><span class="qty-calc" data-base="${it.qty_per_unit}">${Number(qtyNeeded).toFixed(2)}</span> / ${Number(currentProjected).toFixed(2)} ${it.unit}</span>
+                            return `<div style="display:flex; justify-content:space-between; margin-bottom:6px; ${isLow ? 'color:#ef4444; font-weight:700;' : ''}">
+                                <span style="font-weight:500;">• ${it.ingredient}</span>
+                                <span><span class="qty-calc" data-base="${it.qty_per_unit}" style="font-weight:700; color:#1e293b;">${Number(qtyNeeded).toFixed(2)}</span> / ${Number(currentProjected).toFixed(2)} ${it.unit}</span>
                             </div>`;
                         }).join('')}
                     </div>
