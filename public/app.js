@@ -2689,6 +2689,41 @@ function openNewSalePopover(anchorX, anchorY) {
 			grid.appendChild(right);
 		}
 
+		function appendDessertRow(d, qtyInput, priceInput) {
+			const left = document.createElement('div'); left.className = 'new-sale-cell new-sale-left';
+			const right = document.createElement('div'); right.className = 'new-sale-cell new-sale-right';
+			const lbl = document.createElement('div'); lbl.className = 'new-sale-label-text'; lbl.textContent = d.name;
+			left.appendChild(lbl);
+
+			const container = document.createElement('div');
+			container.className = 'qty-price-container';
+
+			const divider = document.createElement('span');
+			divider.className = 'promo-price-divider';
+			divider.textContent = '|';
+
+			container.appendChild(qtyInput);
+			container.appendChild(divider);
+			container.appendChild(priceInput);
+			right.appendChild(container);
+
+			right.addEventListener('mousedown', (ev) => {
+				if (ev.target !== qtyInput && ev.target !== priceInput) {
+					ev.preventDefault();
+					try { qtyInput.focus(); qtyInput.select(); } catch { }
+				}
+			});
+			right.addEventListener('click', (ev) => {
+				if (ev.target !== qtyInput && ev.target !== priceInput) {
+					ev.preventDefault();
+					try { qtyInput.focus(); qtyInput.select(); } catch { }
+				}
+			});
+
+			grid.appendChild(left);
+			grid.appendChild(right);
+		}
+
 		// Client row
 		const clientInput = document.createElement('input');
 		clientInput.type = 'text';
@@ -2719,6 +2754,7 @@ function openNewSalePopover(anchorX, anchorY) {
 
 		// Dessert rows (dynamic from state.desserts)
 		const qtyInputs = {};
+		const priceInputs = {};
 		for (const d of state.desserts) {
 			const input = document.createElement('input');
 			input.type = 'number';
@@ -2729,7 +2765,19 @@ function openNewSalePopover(anchorX, anchorY) {
 			input.className = 'input-cell input-qty';
 			input.dataset.dessertId = d.id;
 			qtyInputs[d.short_code] = input;
-			appendRow(d.name, input);
+
+			const priceInput = document.createElement('input');
+			priceInput.type = 'number';
+			priceInput.min = '0';
+			priceInput.step = '100';
+			priceInput.inputMode = 'numeric';
+			const normalPrice = Number(d.sale_price || 0);
+			priceInput.placeholder = String(normalPrice || 0);
+			priceInput.className = 'input-cell input-promo-price';
+			priceInput.title = 'Precio unitario promocional manual (vacío para usar normal)';
+			priceInputs[d.short_code] = priceInput;
+
+			appendDessertRow(d, input, priceInput);
 		}
 
 		// Special pricing checkboxes
@@ -2887,10 +2935,16 @@ function openNewSalePopover(anchorX, anchorY) {
 
 					// New format - items array with adjusted price
 					if (qty > 0) {
+						const priceInput = priceInputs[d.short_code];
+						const manualPrice = parseInt(priceInput?.value || '', 10);
+						const finalPrice = (!isNaN(manualPrice) && manualPrice >= 0)
+							? manualPrice
+							: getUnitPriceForDessertByPricingType(d, specialPricingType);
+
 						items.push({
 							dessert_id: d.id,
 							quantity: qty,
-							unit_price: getUnitPriceForDessertByPricingType(d, specialPricingType)
+							unit_price: finalPrice
 						});
 					}
 				}
@@ -2910,7 +2964,7 @@ function openNewSalePopover(anchorX, anchorY) {
 
 		saveBtn.addEventListener('click', doSave);
 		// Submit on Enter in any input
-		const allInputs = [clientInput, ...Object.values(qtyInputs)];
+		const allInputs = [clientInput, ...Object.values(qtyInputs), ...Object.values(priceInputs)];
 		allInputs.forEach((el) => {
 			el.addEventListener('keydown', (ev) => {
 				if (ev.key === 'Enter') { ev.preventDefault(); doSave(); }
@@ -2968,6 +3022,41 @@ function openEditSalePopover(saleId, anchorX, anchorY, onCloseCallback) {
 			grid.appendChild(right);
 		}
 
+		function appendDessertRow(d, qtyInput, priceInput) {
+			const left = document.createElement('div'); left.className = 'new-sale-cell new-sale-left';
+			const right = document.createElement('div'); right.className = 'new-sale-cell new-sale-right';
+			const lbl = document.createElement('div'); lbl.className = 'new-sale-label-text'; lbl.textContent = d.name;
+			left.appendChild(lbl);
+
+			const container = document.createElement('div');
+			container.className = 'qty-price-container';
+
+			const divider = document.createElement('span');
+			divider.className = 'promo-price-divider';
+			divider.textContent = '|';
+
+			container.appendChild(qtyInput);
+			container.appendChild(divider);
+			container.appendChild(priceInput);
+			right.appendChild(container);
+
+			right.addEventListener('mousedown', (ev) => {
+				if (ev.target !== qtyInput && ev.target !== priceInput) {
+					ev.preventDefault();
+					try { qtyInput.focus(); qtyInput.select(); } catch { }
+				}
+			});
+			right.addEventListener('click', (ev) => {
+				if (ev.target !== qtyInput && ev.target !== priceInput) {
+					ev.preventDefault();
+					try { qtyInput.focus(); qtyInput.select(); } catch { }
+				}
+			});
+
+			grid.appendChild(left);
+			grid.appendChild(right);
+		}
+
 		// Client row - prefilled
 		const clientInput = document.createElement('input');
 		clientInput.type = 'text';
@@ -2980,6 +3069,7 @@ function openEditSalePopover(saleId, anchorX, anchorY, onCloseCallback) {
 
 		// Dessert rows (dynamic from state.desserts) - prefilled
 		const qtyInputs = {};
+		const priceInputs = {};
 		for (const d of state.desserts) {
 			const input = document.createElement('input');
 			input.type = 'number';
@@ -2990,18 +3080,41 @@ function openEditSalePopover(saleId, anchorX, anchorY, onCloseCallback) {
 			input.className = 'input-cell input-qty';
 			input.dataset.dessertId = d.id;
 
-			// Get current quantity from sale
+			const priceInput = document.createElement('input');
+			priceInput.type = 'number';
+			priceInput.min = '0';
+			priceInput.step = '100';
+			priceInput.inputMode = 'numeric';
+			const normalPrice = Number(d.sale_price || 0);
+			priceInput.placeholder = String(normalPrice || 0);
+			priceInput.className = 'input-cell input-promo-price';
+			priceInput.title = 'Precio unitario promocional manual (vacío para usar normal)';
+
+			// Get current quantity and unit price from sale
 			let qty = 0;
+			let currentPrice = normalPrice;
 			if (Array.isArray(sale.items) && sale.items.length > 0) {
 				const item = sale.items.find(i => i.dessert_id === d.id || i.short_code === d.short_code);
 				qty = item ? Number(item.quantity || 0) : 0;
+				if (item && item.unit_price !== undefined) {
+					currentPrice = Number(item.unit_price);
+				}
 			} else {
 				qty = Number(sale[`qty_${d.short_code}`] || 0);
 			}
 
 			input.value = qty > 0 ? String(qty) : '';
 			qtyInputs[d.short_code] = input;
-			appendRow(d.name, input);
+
+			// Prefill manual price if it's different from the default regular sale_price
+			if (qty > 0 && currentPrice !== normalPrice) {
+				priceInput.value = String(currentPrice);
+			} else {
+				priceInput.value = '';
+			}
+			priceInputs[d.short_code] = priceInput;
+
+			appendDessertRow(d, input, priceInput);
 		}
 
 		// Special pricing checkboxes
@@ -3147,10 +3260,16 @@ function openEditSalePopover(saleId, anchorX, anchorY, onCloseCallback) {
 
 					// New format with adjusted price
 					if (qty > 0) {
+						const priceInput = priceInputs[d.short_code];
+						const manualPrice = parseInt(priceInput?.value || '', 10);
+						const finalPrice = (!isNaN(manualPrice) && manualPrice >= 0)
+							? manualPrice
+							: getUnitPriceForDessertByPricingType(d, specialPricingType);
+
 						items.push({
 							dessert_id: d.id,
 							quantity: qty,
-							unit_price: getUnitPriceForDessertByPricingType(d, specialPricingType)
+							unit_price: finalPrice
 						});
 					}
 				}
@@ -3171,7 +3290,7 @@ function openEditSalePopover(saleId, anchorX, anchorY, onCloseCallback) {
 		}
 
 		saveBtn.addEventListener('click', doSave);
-		const allInputs = [clientInput, ...Object.values(qtyInputs)];
+		const allInputs = [clientInput, ...Object.values(qtyInputs), ...Object.values(priceInputs)];
 		allInputs.forEach((el) => {
 			el.addEventListener('keydown', (ev) => {
 				if (ev.key === 'Enter') { ev.preventDefault(); doSave(); }

@@ -3225,6 +3225,36 @@ tfoot td {
 	text-align: center;
 }
 
+.new-sale-popover .qty-price-container {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	width: 100%;
+}
+
+.new-sale-popover .input-promo-price {
+	flex: 1;
+	text-align: right;
+	border: none !important;
+	background: transparent;
+	font-size: 13px;
+	color: var(--text);
+	width: 100%;
+}
+
+.new-sale-popover .input-promo-price::placeholder {
+	color: rgba(120, 120, 120, 0.4);
+	font-style: italic;
+}
+
+.new-sale-popover .promo-price-divider {
+	color: var(--border);
+	font-weight: 300;
+	user-select: none;
+	opacity: 0.6;
+}
+
+
 /* CRM Integrated Tag Buttons (Visual selection) */
 .tag-selection-wrapper {
 	display: flex;
