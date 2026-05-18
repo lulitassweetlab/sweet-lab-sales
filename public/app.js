@@ -2785,6 +2785,14 @@ function openNewSalePopover(anchorX, anchorY) {
 			return { chipM, chipC };
 		}
 
+		const clientInput = document.createElement('input');
+		clientInput.type = 'text';
+		clientInput.placeholder = 'Nombre del cliente';
+		clientInput.className = 'input-cell client-input';
+		clientInput.autocomplete = 'off';
+		attachClientSuggestionsPopover(clientInput);
+		appendRow('Cliente', clientInput);
+
 		// Dessert rows (dynamic from state.desserts)
 		const qtyInputs = {};
 		const priceInputs = {};
