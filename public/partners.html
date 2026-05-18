@@ -137,11 +137,9 @@
         let DATA = null; 
         let SELLERS = [];
         const fmt = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
-        const roundToHundreds = (cents) => {
-            if (!cents) return 0;
-            const cop = cents / 100;
-            const roundedCop = Math.round(cop / 100) * 100;
-            return roundedCop * 100; 
+        const roundToHundreds = (cop) => {
+            if (!cop) return 0;
+            return Math.round(cop / 100) * 100;
         };
         
         const updateStatus = (t) => {

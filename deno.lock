@@ -11,7 +11,8 @@
   "workspace": {
     "packageJson": {
       "dependencies": [
-        "npm:@netlify/neon@0.1"
+        "npm:@netlify/neon@0.1",
+        "npm:jsdom@^29.1.1"
       ]
     }
   }
