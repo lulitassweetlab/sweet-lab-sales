@@ -3119,6 +3119,9 @@ tfoot td {
 	padding: 14px;
 	min-width: 312px;
 	max-width: 95vw;
+	max-height: 85vh;
+	overflow-y: auto;
+	-webkit-overflow-scrolling: touch;
 	z-index: 1000;
 }
 
