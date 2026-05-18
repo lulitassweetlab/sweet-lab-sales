@@ -353,9 +353,8 @@ export async function handler(event) {
             const opProfitBeforeInv = revenue - cogs - expenses - losses - calculatedCommissionsTotal - modCents;
             const opProfit = opProfitBeforeInv - inventory_investment;
             
-            let provision = provManual;
-            if (provision === 0) provision = Math.round(Math.max(0, opProfit) * (settings.provision_default_perc / 100));
-            const netToShare = opProfit - provision;
+            const provision = 0;
+            const netToShare = opProfit;
 
             // 4. Partner Shares Distribution (PRO MODEL EMA)
             let totalMonthPartnerSales = 0;
