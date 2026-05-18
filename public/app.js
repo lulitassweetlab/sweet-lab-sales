@@ -2702,19 +2702,79 @@ function openNewSalePopover(anchorX, anchorY) {
 			divider.className = 'promo-price-divider';
 			divider.textContent = '|';
 
+			const chipM = document.createElement('button');
+			chipM.type = 'button';
+			chipM.className = 'pricing-chip';
+			chipM.innerHTML = '<span class="chip-text-desktop">Muestra</span><span class="chip-text-mobile">M</span>';
+			chipM.title = 'Marcar como Muestra (Precio 0)';
+
+			const chipC = document.createElement('button');
+			chipC.type = 'button';
+			chipC.className = 'pricing-chip';
+			chipC.innerHTML = '<span class="chip-text-desktop">Costo</span><span class="chip-text-mobile">C</span>';
+			chipC.title = `Marcar A Costo (Costo: $${getCostPriceForDessert(d)})`;
+
+			chipM.addEventListener('click', (ev) => {
+				ev.stopPropagation();
+				ev.preventDefault();
+				const isActive = chipM.classList.contains('active-muestra');
+				if (isActive) {
+					chipM.classList.remove('active-muestra');
+					priceInput.disabled = false;
+					priceInput.placeholder = String(d.sale_price || 0);
+					priceInput.dataset.specialPricingType = '';
+				} else {
+					chipM.classList.add('active-muestra');
+					chipC.classList.remove('active-costo');
+					priceInput.value = '';
+					priceInput.disabled = true;
+					priceInput.placeholder = '0';
+					priceInput.dataset.specialPricingType = 'muestra';
+				}
+			});
+
+			chipC.addEventListener('click', (ev) => {
+				ev.stopPropagation();
+				ev.preventDefault();
+				const isActive = chipC.classList.contains('active-costo');
+				if (isActive) {
+					chipC.classList.remove('active-costo');
+					priceInput.disabled = false;
+					priceInput.placeholder = String(d.sale_price || 0);
+					priceInput.dataset.specialPricingType = '';
+				} else {
+					chipC.classList.add('active-costo');
+					chipM.classList.remove('active-muestra');
+					priceInput.value = '';
+					priceInput.disabled = true;
+					priceInput.placeholder = String(getCostPriceForDessert(d));
+					priceInput.dataset.specialPricingType = 'a_costo';
+				}
+			});
+
+			priceInput.addEventListener('input', () => {
+				if (priceInput.value) {
+					chipM.classList.remove('active-muestra');
+					chipC.classList.remove('active-costo');
+					priceInput.dataset.specialPricingType = '';
+				}
+			});
+
 			container.appendChild(qtyInput);
 			container.appendChild(divider);
 			container.appendChild(priceInput);
+			container.appendChild(chipM);
+			container.appendChild(chipC);
 			right.appendChild(container);
 
 			right.addEventListener('mousedown', (ev) => {
-				if (ev.target !== qtyInput && ev.target !== priceInput) {
+				if (ev.target !== qtyInput && ev.target !== priceInput && ev.target !== chipM && ev.target !== chipC && !chipM.contains(ev.target) && !chipC.contains(ev.target)) {
 					ev.preventDefault();
 					try { qtyInput.focus(); qtyInput.select(); } catch { }
 				}
 			});
 			right.addEventListener('click', (ev) => {
-				if (ev.target !== qtyInput && ev.target !== priceInput) {
+				if (ev.target !== qtyInput && ev.target !== priceInput && ev.target !== chipM && ev.target !== chipC && !chipM.contains(ev.target) && !chipC.contains(ev.target)) {
 					ev.preventDefault();
 					try { qtyInput.focus(); qtyInput.select(); } catch { }
 				}
@@ -2722,19 +2782,8 @@ function openNewSalePopover(anchorX, anchorY) {
 
 			grid.appendChild(left);
 			grid.appendChild(right);
+			return { chipM, chipC };
 		}
-
-		// Client row
-		const clientInput = document.createElement('input');
-		clientInput.type = 'text';
-		clientInput.placeholder = 'Nombre del cliente';
-		clientInput.className = 'input-cell client-input';
-		clientInput.autocomplete = 'off';
-		// Custom inline suggestions below the first character (left-aligned)
-		attachClientSuggestionsPopover(clientInput);
-		appendRow('Cliente', clientInput);
-
-
 
 		// Dessert rows (dynamic from state.desserts)
 		const qtyInputs = {};
@@ -2764,50 +2813,6 @@ function openNewSalePopover(anchorX, anchorY) {
 			appendDessertRow(d, input, priceInput);
 		}
 
-		// Special pricing checkboxes
-		const specialPricingContainer = document.createElement('div');
-		specialPricingContainer.style.display = 'flex';
-		specialPricingContainer.style.gap = '16px';
-		specialPricingContainer.style.padding = '12px 0';
-		specialPricingContainer.style.borderTop = '1px solid rgba(0,0,0,0.1)';
-		specialPricingContainer.style.marginTop = '8px';
-
-		const muestraCheckbox = document.createElement('label');
-		muestraCheckbox.style.display = 'flex';
-		muestraCheckbox.style.alignItems = 'center';
-		muestraCheckbox.style.gap = '6px';
-		muestraCheckbox.style.cursor = 'pointer';
-		muestraCheckbox.style.fontSize = '14px';
-		const muestraInput = document.createElement('input');
-		muestraInput.type = 'checkbox';
-		muestraInput.style.cursor = 'pointer';
-		const muestraLabel = document.createElement('span');
-		muestraLabel.textContent = 'Muestra';
-		muestraCheckbox.append(muestraInput, muestraLabel);
-
-		const costoCheckbox = document.createElement('label');
-		costoCheckbox.style.display = 'flex';
-		costoCheckbox.style.alignItems = 'center';
-		costoCheckbox.style.gap = '6px';
-		costoCheckbox.style.cursor = 'pointer';
-		costoCheckbox.style.fontSize = '14px';
-		const costoInput = document.createElement('input');
-		costoInput.type = 'checkbox';
-		costoInput.style.cursor = 'pointer';
-		const costoLabel = document.createElement('span');
-		costoLabel.textContent = 'A costo';
-		costoCheckbox.append(costoInput, costoLabel);
-
-		specialPricingContainer.append(muestraCheckbox, costoCheckbox);
-
-		// Make checkboxes mutually exclusive
-		muestraInput.addEventListener('change', () => {
-			if (muestraInput.checked) costoInput.checked = false;
-		});
-		costoInput.addEventListener('change', () => {
-			if (costoInput.checked) muestraInput.checked = false;
-		});
-
 		const actions = document.createElement('div');
 		actions.className = 'confirm-actions';
 		const cancelBtn = document.createElement('button');
@@ -2820,7 +2825,7 @@ function openNewSalePopover(anchorX, anchorY) {
 		saveBtn.textContent = 'Guardar';
 		actions.append(cancelBtn, saveBtn);
 
-		pop.append(title, grid, specialPricingContainer, actions);
+		pop.append(title, grid, actions);
 		// Prepare hidden mount to avoid visible jump before clamping
 		pop.style.visibility = 'hidden';
 		pop.style.opacity = '0';
@@ -2891,14 +2896,6 @@ function openNewSalePopover(anchorX, anchorY) {
 				if (state?.selectedDayId) payload.sale_day_id = state.selectedDayId;
 				const created = await api('POST', API.Sales, payload);
 
-				// Determine special pricing type
-				let specialPricingType = null;
-				if (muestraInput.checked) {
-					specialPricingType = 'muestra';
-				} else if (costoInput.checked) {
-					specialPricingType = 'a_costo';
-				}
-
 				// Build items array and legacy qty_* properties dynamically
 				const items = [];
 				const body = {
@@ -2906,7 +2903,7 @@ function openNewSalePopover(anchorX, anchorY) {
 					client_name: (clientInput.value || '').trim(),
 					is_paid: false,
 					pay_method: null,
-					special_pricing_type: specialPricingType,
+					special_pricing_type: null,
 					_actor_name: state.currentUser?.name || ''
 				};
 
@@ -2920,10 +2917,19 @@ function openNewSalePopover(anchorX, anchorY) {
 					// New format - items array with adjusted price
 					if (qty > 0) {
 						const priceInput = priceInputs[d.short_code];
-						const manualPrice = parseInt(priceInput?.value || '', 10);
-						const finalPrice = (!isNaN(manualPrice) && manualPrice >= 0)
-							? manualPrice
-							: getUnitPriceForDessertByPricingType(d, specialPricingType);
+						const itemSpecialType = priceInput?.dataset.specialPricingType || null;
+						
+						let finalPrice;
+						if (itemSpecialType === 'muestra') {
+							finalPrice = 0;
+						} else if (itemSpecialType === 'a_costo') {
+							finalPrice = getCostPriceForDessert(d);
+						} else {
+							const manualPrice = parseInt(priceInput?.value || '', 10);
+							finalPrice = (!isNaN(manualPrice) && manualPrice >= 0)
+								? manualPrice
+								: Number(d.sale_price || 0);
+						}
 
 						items.push({
 							dessert_id: d.id,
@@ -3019,19 +3025,79 @@ function openEditSalePopover(saleId, anchorX, anchorY, onCloseCallback) {
 			divider.className = 'promo-price-divider';
 			divider.textContent = '|';
 
+			const chipM = document.createElement('button');
+			chipM.type = 'button';
+			chipM.className = 'pricing-chip';
+			chipM.innerHTML = '<span class="chip-text-desktop">Muestra</span><span class="chip-text-mobile">M</span>';
+			chipM.title = 'Marcar como Muestra (Precio 0)';
+
+			const chipC = document.createElement('button');
+			chipC.type = 'button';
+			chipC.className = 'pricing-chip';
+			chipC.innerHTML = '<span class="chip-text-desktop">Costo</span><span class="chip-text-mobile">C</span>';
+			chipC.title = `Marcar A Costo (Costo: $${getCostPriceForDessert(d)})`;
+
+			chipM.addEventListener('click', (ev) => {
+				ev.stopPropagation();
+				ev.preventDefault();
+				const isActive = chipM.classList.contains('active-muestra');
+				if (isActive) {
+					chipM.classList.remove('active-muestra');
+					priceInput.disabled = false;
+					priceInput.placeholder = String(d.sale_price || 0);
+					priceInput.dataset.specialPricingType = '';
+				} else {
+					chipM.classList.add('active-muestra');
+					chipC.classList.remove('active-costo');
+					priceInput.value = '';
+					priceInput.disabled = true;
+					priceInput.placeholder = '0';
+					priceInput.dataset.specialPricingType = 'muestra';
+				}
+			});
+
+			chipC.addEventListener('click', (ev) => {
+				ev.stopPropagation();
+				ev.preventDefault();
+				const isActive = chipC.classList.contains('active-costo');
+				if (isActive) {
+					chipC.classList.remove('active-costo');
+					priceInput.disabled = false;
+					priceInput.placeholder = String(d.sale_price || 0);
+					priceInput.dataset.specialPricingType = '';
+				} else {
+					chipC.classList.add('active-costo');
+					chipM.classList.remove('active-muestra');
+					priceInput.value = '';
+					priceInput.disabled = true;
+					priceInput.placeholder = String(getCostPriceForDessert(d));
+					priceInput.dataset.specialPricingType = 'a_costo';
+				}
+			});
+
+			priceInput.addEventListener('input', () => {
+				if (priceInput.value) {
+					chipM.classList.remove('active-muestra');
+					chipC.classList.remove('active-costo');
+					priceInput.dataset.specialPricingType = '';
+				}
+			});
+
 			container.appendChild(qtyInput);
 			container.appendChild(divider);
 			container.appendChild(priceInput);
+			container.appendChild(chipM);
+			container.appendChild(chipC);
 			right.appendChild(container);
 
 			right.addEventListener('mousedown', (ev) => {
-				if (ev.target !== qtyInput && ev.target !== priceInput) {
+				if (ev.target !== qtyInput && ev.target !== priceInput && ev.target !== chipM && ev.target !== chipC && !chipM.contains(ev.target) && !chipC.contains(ev.target)) {
 					ev.preventDefault();
 					try { qtyInput.focus(); qtyInput.select(); } catch { }
 				}
 			});
 			right.addEventListener('click', (ev) => {
-				if (ev.target !== qtyInput && ev.target !== priceInput) {
+				if (ev.target !== qtyInput && ev.target !== priceInput && ev.target !== chipM && ev.target !== chipC && !chipM.contains(ev.target) && !chipC.contains(ev.target)) {
 					ev.preventDefault();
 					try { qtyInput.focus(); qtyInput.select(); } catch { }
 				}
@@ -3039,6 +3105,7 @@ function openEditSalePopover(saleId, anchorX, anchorY, onCloseCallback) {
 
 			grid.appendChild(left);
 			grid.appendChild(right);
+			return { chipM, chipC };
 		}
 
 		// Client row - prefilled
@@ -3089,63 +3156,28 @@ function openEditSalePopover(saleId, anchorX, anchorY, onCloseCallback) {
 
 			input.value = qty > 0 ? String(qty) : '';
 			qtyInputs[d.short_code] = input;
-
-			// Prefill manual price if it's different from the default regular sale_price
-			if (qty > 0 && currentPrice !== normalPrice) {
-				priceInput.value = String(currentPrice);
-			} else {
-				priceInput.value = '';
-			}
 			priceInputs[d.short_code] = priceInput;
 
-			appendDessertRow(d, input, priceInput);
+			const chips = appendDessertRow(d, input, priceInput);
+
+			// Prefill manual price if it's different from the default regular sale_price
+			if (qty > 0) {
+				if (currentPrice === 0) {
+					chips.chipM.classList.add('active-muestra');
+					priceInput.disabled = true;
+					priceInput.placeholder = '0';
+					priceInput.dataset.specialPricingType = 'muestra';
+				} else if (currentPrice === getCostPriceForDessert(d)) {
+					chips.chipC.classList.add('active-costo');
+					priceInput.disabled = true;
+					priceInput.placeholder = String(getCostPriceForDessert(d));
+					priceInput.dataset.specialPricingType = 'a_costo';
+				} else if (currentPrice !== normalPrice) {
+					priceInput.value = String(currentPrice);
+					priceInput.dataset.specialPricingType = '';
+				}
+			}
 		}
-
-		// Special pricing checkboxes
-		const specialPricingContainer = document.createElement('div');
-		specialPricingContainer.style.display = 'flex';
-		specialPricingContainer.style.gap = '16px';
-		specialPricingContainer.style.padding = '12px 0';
-		specialPricingContainer.style.borderTop = '1px solid rgba(0,0,0,0.1)';
-		specialPricingContainer.style.marginTop = '8px';
-
-		const muestraCheckbox = document.createElement('label');
-		muestraCheckbox.style.display = 'flex';
-		muestraCheckbox.style.alignItems = 'center';
-		muestraCheckbox.style.gap = '6px';
-		muestraCheckbox.style.cursor = 'pointer';
-		muestraCheckbox.style.fontSize = '14px';
-		const muestraInput = document.createElement('input');
-		muestraInput.type = 'checkbox';
-		muestraInput.style.cursor = 'pointer';
-		muestraInput.checked = (sale.special_pricing_type === 'muestra');
-		const muestraLabel = document.createElement('span');
-		muestraLabel.textContent = 'Muestra (precio 0)';
-		muestraCheckbox.append(muestraInput, muestraLabel);
-
-		const costoCheckbox = document.createElement('label');
-		costoCheckbox.style.display = 'flex';
-		costoCheckbox.style.alignItems = 'center';
-		costoCheckbox.style.gap = '6px';
-		costoCheckbox.style.cursor = 'pointer';
-		costoCheckbox.style.fontSize = '14px';
-		const costoInput = document.createElement('input');
-		costoInput.type = 'checkbox';
-		costoInput.style.cursor = 'pointer';
-		costoInput.checked = (sale.special_pricing_type === 'a_costo');
-		const costoLabel = document.createElement('span');
-		costoLabel.textContent = 'A costo';
-		costoCheckbox.append(costoInput, costoLabel);
-
-		specialPricingContainer.append(muestraCheckbox, costoCheckbox);
-
-		// Make checkboxes mutually exclusive
-		muestraInput.addEventListener('change', () => {
-			if (muestraInput.checked) costoInput.checked = false;
-		});
-		costoInput.addEventListener('change', () => {
-			if (costoInput.checked) muestraInput.checked = false;
-		});
 
 		const actions = document.createElement('div');
 		actions.className = 'confirm-actions';
@@ -3159,7 +3191,7 @@ function openEditSalePopover(saleId, anchorX, anchorY, onCloseCallback) {
 		saveBtn.textContent = 'Guardar';
 		actions.append(cancelBtn, saveBtn);
 
-		pop.append(title, grid, specialPricingContainer, actions);
+		pop.append(title, grid, actions);
 		pop.style.visibility = 'hidden';
 		pop.style.opacity = '0';
 		pop.style.transition = 'opacity 160ms ease-out';
@@ -3215,14 +3247,6 @@ function openEditSalePopover(saleId, anchorX, anchorY, onCloseCallback) {
 			try {
 				saveBtn.disabled = true; cancelBtn.disabled = true;
 
-				// Determine special pricing type
-				let specialPricingType = null;
-				if (muestraInput.checked) {
-					specialPricingType = 'muestra';
-				} else if (costoInput.checked) {
-					specialPricingType = 'a_costo';
-				}
-
 				// Build items array and legacy qty_* properties
 				const items = [];
 				const body = {
@@ -3231,7 +3255,7 @@ function openEditSalePopover(saleId, anchorX, anchorY, onCloseCallback) {
 					is_paid: sale.is_paid || false,
 					pay_method: sale.pay_method || null,
 					comment_text: sale.comment_text || '',
-					special_pricing_type: specialPricingType,
+					special_pricing_type: null,
 					_actor_name: state.currentUser?.name || ''
 				};
 
@@ -3245,10 +3269,19 @@ function openEditSalePopover(saleId, anchorX, anchorY, onCloseCallback) {
 					// New format with adjusted price
 					if (qty > 0) {
 						const priceInput = priceInputs[d.short_code];
-						const manualPrice = parseInt(priceInput?.value || '', 10);
-						const finalPrice = (!isNaN(manualPrice) && manualPrice >= 0)
-							? manualPrice
-							: getUnitPriceForDessertByPricingType(d, specialPricingType);
+						const itemSpecialType = priceInput?.dataset.specialPricingType || null;
+						
+						let finalPrice;
+						if (itemSpecialType === 'muestra') {
+							finalPrice = 0;
+						} else if (itemSpecialType === 'a_costo') {
+							finalPrice = getCostPriceForDessert(d);
+						} else {
+							const manualPrice = parseInt(priceInput?.value || '', 10);
+							finalPrice = (!isNaN(manualPrice) && manualPrice >= 0)
+								? manualPrice
+								: Number(d.sale_price || 0);
+						}
 
 						items.push({
 							dessert_id: d.id,
@@ -4451,8 +4484,18 @@ function updateSummary() {
 			amts[d.short_code] += amount;
 			
 			// Exclude special pricing from commission calculations
-			if ((pm === 'transf' || pm === 'jorgebank' || pm === 'marce' || pm === 'jorge') && !hasSpecialPricing) {
-				paidQtys[d.short_code] += qty;
+			const isPaidMethod = (pm === 'transf' || pm === 'jorgebank' || pm === 'marce' || pm === 'jorge');
+			if (isPaidMethod) {
+				if (item) {
+					const isSpecialItem = Number(item.unit_price || 0) === 0 || Number(item.unit_price || 0) === getCostPriceForDessert(d);
+					if (!isSpecialItem) {
+						paidQtys[d.short_code] += qty;
+					}
+				} else {
+					if (!hasSpecialPricing) {
+						paidQtys[d.short_code] += qty;
+					}
+				}
 			}
 		}
 

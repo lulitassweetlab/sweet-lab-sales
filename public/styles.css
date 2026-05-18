@@ -3257,6 +3257,95 @@ tfoot td {
 	opacity: 0.6;
 }
 
+/* Pricing Chips (Muestra / Costo) */
+.new-sale-popover .pricing-chip {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 4px 8px;
+	font-size: 11px;
+	font-weight: 600;
+	border-radius: 20px;
+	border: 1px solid var(--border);
+	background: var(--card);
+	color: var(--text);
+	cursor: pointer;
+	user-select: none;
+	transition: all 180ms cubic-bezier(0.4, 0, 0.2, 1);
+	opacity: 0.75;
+}
+
+.new-sale-popover .pricing-chip:hover {
+	opacity: 1;
+	transform: translateY(-1px);
+	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.new-sale-popover .pricing-chip:active {
+	transform: translateY(0);
+}
+
+/* Active State Muestra (Green Theme) */
+.new-sale-popover .pricing-chip.active-muestra {
+	background: rgba(46, 204, 113, 0.12);
+	border-color: #2ecc71;
+	color: #27ae60;
+	opacity: 1;
+	box-shadow: 0 0 0 1px #2ecc71;
+}
+
+[data-theme="dark"] .new-sale-popover .pricing-chip.active-muestra {
+	background: rgba(46, 204, 113, 0.2);
+	color: #2ecc71;
+}
+
+/* Active State Costo (Purple Theme) */
+.new-sale-popover .pricing-chip.active-costo {
+	background: rgba(155, 89, 182, 0.12);
+	border-color: #9b59b6;
+	color: #8e44ad;
+	opacity: 1;
+	box-shadow: 0 0 0 1px #9b59b6;
+}
+
+[data-theme="dark"] .new-sale-popover .pricing-chip.active-costo {
+	background: rgba(155, 89, 182, 0.2);
+	color: #b370cf;
+}
+
+/* Disabled input promo price state */
+.new-sale-popover .input-promo-price:disabled {
+	background: transparent;
+	color: rgba(120, 120, 120, 0.3);
+	cursor: not-allowed;
+	pointer-events: none;
+	opacity: 0.5;
+}
+
+/* Responsive chip text helpers */
+.new-sale-popover .chip-text-desktop {
+	display: inline;
+}
+
+.new-sale-popover .chip-text-mobile {
+	display: none;
+}
+
+@media (max-width: 480px) {
+	.new-sale-popover .chip-text-desktop {
+		display: none;
+	}
+	.new-sale-popover .chip-text-mobile {
+		display: inline;
+	}
+	
+	.new-sale-popover .pricing-chip {
+		padding: 4px 6px;
+		font-size: 10px;
+	}
+}
+
+
 
 /* CRM Integrated Tag Buttons (Visual selection) */
 .tag-selection-wrapper {

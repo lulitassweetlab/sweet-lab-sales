@@ -4,14 +4,14 @@ import { recalcTotalForId, getDesserts } from '../netlify/functions/_db.js';
 const sql = neon();
 
 async function runTest() {
-	console.log('🧪 Iniciando prueba de integración de precios promocionales manuales...');
+	console.log('🧪 Iniciando prueba de integración de precios mixtos por postre (Manual, Regular, Muestra, Costo)...');
 
 	let testSaleId = null;
 	try {
 		// 1. Obtener lista de postres activos y un vendedor
 		const desserts = await getDesserts();
-		if (!desserts || desserts.length < 2) {
-			throw new Error('No hay suficientes postres activos en la base de datos para realizar la prueba.');
+		if (!desserts || desserts.length < 4) {
+			throw new Error('No hay suficientes postres activos en la base de datos (se necesitan mínimo 4) para realizar la prueba.');
 		}
 
 		const [seller] = await sql`SELECT id FROM sellers LIMIT 1`;
@@ -24,32 +24,53 @@ async function runTest() {
 		const dayId = day ? day.id : null;
 
 		const dessertA = desserts[0]; // Ej: Arcoíris
-		const dessertB = desserts[1]; // Ej: Tres Leches o Chocolate
+		const dessertB = desserts[1]; // Ej: Melo
+		const dessertC = desserts[2]; // Ej: Mara
+		const dessertD = desserts[3]; // Ej: Oreo
 
-		console.log(`🍦 Postre A (Custom Override): ${dessertA.name} - Precio regular: $${dessertA.sale_price}`);
-		console.log(`🍦 Postre B (Precio Regular): ${dessertB.name} - Precio regular: $${dessertB.sale_price}`);
+		const costPriceD = Number(dessertD.cost_price) >= 0 
+			? Math.round(Number(dessertD.cost_price)) 
+			: Math.round(Number(dessertD.sale_price) * 0.55);
+
+		console.log(`🍦 Postre A (Custom Override): ${dessertA.name} - Reg: $${dessertA.sale_price} -> Manual: $7.000`);
+		console.log(`🍦 Postre B (Precio Regular): ${dessertB.name} - Reg: $${dessertB.sale_price}`);
+		console.log(`🍦 Postre C (Muestra): ${dessertC.name} - Reg: $${dessertC.sale_price} -> Muestra: $0`);
+		console.log(`🍦 Postre D (A Costo): ${dessertD.name} - Reg: $${dessertD.sale_price} -> Costo: $${costPriceD}`);
 
 		// 2. Crear una venta de prueba
 		const [sale] = await sql`
 			INSERT INTO sales (seller_id, client_name, total_cents, special_pricing_type, sale_day_id, is_paid)
-			VALUES (${seller.id}, 'PROMO PRICE TEST CLIENT', 0, NULL, ${dayId}, false)
+			VALUES (${seller.id}, 'MIXED PRICING TEST CLIENT', 0, NULL, ${dayId}, false)
 			RETURNING *
 		`;
 		testSaleId = sale.id;
 		console.log(`📝 Venta de prueba creada con ID: ${testSaleId}`);
 
 		// 3. Insertar items de prueba en sale_items
-		// Item A: 2 unidades con precio unitario personalizado de $7.000 COP (Override manual)
 		const customPriceA = 7000;
+		
+		// Item A: 2 unidades a $7.000 COP (Manual Override)
 		await sql`
 			INSERT INTO sale_items (sale_id, dessert_id, quantity, unit_price)
 			VALUES (${testSaleId}, ${dessertA.id}, 2, ${customPriceA})
 		`;
 
-		// Item B: 1 unidad con precio regular del postre
+		// Item B: 1 unidad a precio regular
 		await sql`
 			INSERT INTO sale_items (sale_id, dessert_id, quantity, unit_price)
 			VALUES (${testSaleId}, ${dessertB.id}, 1, ${dessertB.sale_price})
+		`;
+
+		// Item C: 1 unidad marcada como Muestra ($0 COP)
+		await sql`
+			INSERT INTO sale_items (sale_id, dessert_id, quantity, unit_price)
+			VALUES (${testSaleId}, ${dessertC.id}, 1, 0)
+		`;
+
+		// Item D: 1 unidad a Costo de producción
+		await sql`
+			INSERT INTO sale_items (sale_id, dessert_id, quantity, unit_price)
+			VALUES (${testSaleId}, ${dessertD.id}, 1, ${costPriceD})
 		`;
 
 		console.log('✅ Items insertados con éxito.');
@@ -58,36 +79,21 @@ async function runTest() {
 		console.log('⚙️ Ejecutando recalcTotalForId...');
 		const updatedSale = await recalcTotalForId(testSaleId);
 		const calculatedTotal = Number(updatedSale.total_cents);
-		const expectedTotal = (2 * customPriceA) + (1 * Number(dessertB.sale_price));
+		const expectedTotal = (2 * customPriceA) + (1 * Number(dessertB.sale_price)) + (1 * 0) + (1 * costPriceD);
 
-		console.log(`📊 Total esperado: $${expectedTotal} COP (${2} * ${customPriceA} + ${1} * ${dessertB.sale_price})`);
+		console.log(`📊 Total esperado: $${expectedTotal} COP (${2} * ${customPriceA} + ${1} * ${dessertB.sale_price} + ${1} * 0 + ${1} * ${costPriceD})`);
 		console.log(`📊 Total calculado por el backend: $${calculatedTotal} COP`);
 
 		if (calculatedTotal !== expectedTotal) {
 			throw new Error(`¡Error de cálculo! Esperado: ${expectedTotal}, pero se obtuvo: ${calculatedTotal}`);
 		}
-		console.log('🎉 ¡Cálculo con precio promocional manual verificado exitosamente!');
-
-		// 5. Test de Reset: Limpiar el override manual de Postre A volviéndolo al precio regular
-		console.log('🔄 Probando reset: volviendo Postre A al precio regular para reactivar promociones dinámicas...');
-		await sql`
-			UPDATE sale_items 
-			SET unit_price = ${dessertA.sale_price} 
-			WHERE sale_id = ${testSaleId} AND dessert_id = ${dessertA.id}
-		`;
-
-		const resetSale = await recalcTotalForId(testSaleId);
-		const resetTotal = Number(resetSale.total_cents);
-
-		// Cuando ambos usan el precio regular, el cálculo debe aplicar promociones automáticas de lote si existen
-		console.log(`📊 Total recalculado post-reset: $${resetTotal} COP`);
-		console.log('🎉 ¡Prueba de reset verificada con éxito!');
+		console.log('🎉 ¡Cálculo mixto por postre verificado exitosamente!');
 
 	} catch (e) {
 		console.error('❌ ERROR EN LA PRUEBA:', e.message);
 		process.exit(1);
 	} finally {
-		// 6. Limpieza absoluta
+		// 5. Limpieza absoluta
 		if (testSaleId) {
 			console.log('🧹 Limpiando base de datos (eliminando registros de prueba)...');
 			await sql`DELETE FROM sale_items WHERE sale_id = ${testSaleId}`;
