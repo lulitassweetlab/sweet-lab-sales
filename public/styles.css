@@ -3263,7 +3263,7 @@ tfoot td {
 	align-items: center;
 	justify-content: center;
 	padding: 1px 3px;
-	font-size: 6.5px;
+	font-size: 9px;
 	font-weight: 500;
 	border: none !important;
 	background: transparent !important;
@@ -3271,16 +3271,18 @@ tfoot td {
 	cursor: pointer;
 	user-select: none;
 	transition: all 180ms ease;
-	margin: 0 1px;
+	margin: 0 -2px;
+	transform: scale(0.72);
+	transform-origin: center;
 }
 
 .new-sale-popover .pricing-chip:hover {
 	color: var(--text);
-	transform: scale(1.06);
+	transform: scale(0.78);
 }
 
 .new-sale-popover .pricing-chip:active {
-	transform: scale(0.98);
+	transform: scale(0.68);
 }
 
 /* Active State Muestra (Placeholder green) */
@@ -3340,8 +3342,9 @@ tfoot td {
 	}
 	
 	.new-sale-popover .pricing-chip {
-		padding: 0px 2px;
-		font-size: 5.2px;
+		padding: 0px 1px;
+		font-size: 9px;
+		transform: scale(0.6) !important;
 	}
 }
 
