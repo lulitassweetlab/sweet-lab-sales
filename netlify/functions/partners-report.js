@@ -253,6 +253,32 @@ export async function handler(event) {
                 SELECT u.seller_id, u.product_name, SUM(u.qty) as total_qty FROM unpivoted u GROUP BY u.seller_id, u.product_name
             `;
 
+            // Daily sales query for daily breakdown click detail
+            const dailySalesRows = await sql`
+                WITH unpivoted AS (
+                    SELECT s.seller_id, sd.day::text as sale_date, 'arco' as product_name, s.qty_arco as qty FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_arco > 0 AND to_char(sd.day, 'YYYY-MM') = ${m} AND s.id NOT IN (SELECT sale_id FROM sale_items)
+                    UNION ALL SELECT s.seller_id, sd.day::text, 'melo', s.qty_melo FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_melo > 0 AND to_char(sd.day, 'YYYY-MM') = ${m} AND s.id NOT IN (SELECT sale_id FROM sale_items)
+                    UNION ALL SELECT s.seller_id, sd.day::text, 'mara', s.qty_mara FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_mara > 0 AND to_char(sd.day, 'YYYY-MM') = ${m} AND s.id NOT IN (SELECT sale_id FROM sale_items)
+                    UNION ALL SELECT s.seller_id, sd.day::text, 'oreo', s.qty_oreo FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_oreo > 0 AND to_char(sd.day, 'YYYY-MM') = ${m} AND s.id NOT IN (SELECT sale_id FROM sale_items)
+                    UNION ALL SELECT s.seller_id, sd.day::text, 'nute', s.qty_nute FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_nute > 0 AND to_char(sd.day, 'YYYY-MM') = ${m} AND s.id NOT IN (SELECT sale_id FROM sale_items)
+                    UNION ALL SELECT s.seller_id, sd.day::text, d.short_code, si.quantity FROM sales s JOIN sale_items si ON s.id = si.sale_id JOIN desserts d ON si.dessert_id = d.id JOIN sale_days sd ON s.sale_day_id = sd.id WHERE si.quantity > 0 AND to_char(sd.day, 'YYYY-MM') = ${m}
+                )
+                SELECT u.seller_id, u.sale_date, u.product_name, SUM(u.qty) as total_qty FROM unpivoted u GROUP BY u.seller_id, u.sale_date, u.product_name ORDER BY u.sale_date ASC
+            `;
+
+            const dailyMap = {};
+            (dailySalesRows || []).forEach(r => {
+                const sid = Number(r.seller_id);
+                const dateStr = String(r.sale_date).split(' ')[0];
+                if (!dailyMap[sid]) dailyMap[sid] = {};
+                if (!dailyMap[sid][dateStr]) dailyMap[sid][dateStr] = { desserts: 0, brigs: 0 };
+                
+                const qty = Number(r.total_qty || 0);
+                const isBrig = (r.product_name || '').toLowerCase().includes('brig') || (r.product_name || '').toLowerCase().includes('bt');
+                if (isBrig) dailyMap[sid][dateStr].brigs += qty;
+                else dailyMap[sid][dateStr].desserts += qty;
+            });
+
             const commissionsMap = {};
             (commCalculatedRows || []).forEach(c => {
                 const sid = c.seller_id;
@@ -272,11 +298,36 @@ export async function handler(event) {
                 s.total_comm = (s.desserts * unitPricePostre) + (s.brigs * 200);
             });
 
-            const commissionDetail = Object.keys(commissionsMap).map(sid => ({
-                seller_id: Number(sid),
-                seller_name: sellerMap[sid] || `Vendedor ${sid}`,
-                ...commissionsMap[sid]
-            }));
+            const commissionDetail = Object.keys(commissionsMap).map(sid => {
+                const s = commissionsMap[sid];
+                let unitPricePostre = 0;
+                if (s.desserts >= 60) unitPricePostre = 1500;
+                else if (s.desserts >= 30) unitPricePostre = 1300;
+                else if (s.desserts >= 1) unitPricePostre = 1000;
+
+                const rawDays = dailyMap[Number(sid)] || {};
+                const daysList = Object.keys(rawDays).sort().map(dateStr => {
+                    const dQty = rawDays[dateStr].desserts;
+                    const bQty = rawDays[dateStr].brigs;
+                    const comm = (dQty * unitPricePostre) + (bQty * 200);
+                    return {
+                        date: dateStr,
+                        desserts: dQty,
+                        brigs: bQty,
+                        commission: Math.round(comm)
+                    };
+                });
+
+                return {
+                    seller_id: Number(sid),
+                    seller_name: sellerMap[sid] || `Vendedor ${sid}`,
+                    desserts: s.desserts,
+                    brigs: s.brigs,
+                    total_comm: s.total_comm,
+                    rate_applied: unitPricePostre,
+                    days: daysList
+                };
+            });
 
             let totalMonthDesserts = commissionDetail.reduce((a, b) => a + Number(b.desserts || 0), 0);
             let totalMonthBrigs = commissionDetail.reduce((a, b) => a + Number(b.brigs || 0), 0);

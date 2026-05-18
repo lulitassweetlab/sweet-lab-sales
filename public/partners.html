@@ -296,6 +296,51 @@
             document.getElementById('save-adj-btn').onclick = function() { saveAdj(this); };
         };
 
+        window.showSellerCommissionDays = (month, sellerId, sellerName, ev) => {
+            if (ev) ev.stopPropagation();
+            const monthData = DATA.history.find(h => h.month === month);
+            const detail = monthData?.commission_detail?.find(c => Number(c.seller_id) === Number(sellerId));
+            if (!detail) return;
+
+            const days = detail.days || [];
+            const rate = detail.rate_applied || 1000;
+
+            const html = days.map(d => `
+                <div style="margin-bottom:8px; background:#f8fafc; padding:12px; border-radius:14px; border:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;">
+                    <div style="flex:1;">
+                        <div style="font-size:0.85rem; font-weight:700; color:#334155;">${d.date}</div>
+                        <div style="font-size:0.75rem; color:#64748b; margin-top:2px;">
+                            🍰 ${d.desserts} postres (${fmt.format(rate)}) ${d.brigs > 0 ? ` + 🍬 ${d.brigs} brig ($200)` : ''}
+                        </div>
+                    </div>
+                    <strong style="color:#6d28d9; font-size:0.95rem;">${fmt.format(roundToHundreds(d.commission))}</strong>
+                </div>`).join('');
+
+            const pop = document.createElement('div');
+            pop.className = 'popover-wrap';
+            pop.innerHTML = `<div style="background:#fff; padding:24px; border-radius:24px; min-width:380px; max-width:480px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1); border:1px solid #ddd6fe;">
+                <h3 style="margin:0 0 8px 0; color:#4c1d95;">📊 Comisiones Diarias</h3>
+                <p style="margin:0 0 16px 0; font-size:0.8rem; color:#64748b; font-weight:600;">Vendedor: ${sellerName} - ${month}</p>
+                <div style="max-height:50vh; overflow-y:auto; margin-bottom:16px;">
+                    ${html || '<p style="text-align:center; color:#94a3b8; padding:20px;">No hay ventas registradas este mes.</p>'}
+                </div>
+                <div style="display:flex; flex-direction:column; gap:6px; padding:16px; background:#f5f3ff; border-radius:16px; font-weight:800; border:1px solid #ddd6fe;">
+                    <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:#6d28d9; opacity:0.8;">
+                        <span>Tarifa de Postre Aplicada:</span><span>${fmt.format(rate)} c/u</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:#6d28d9; opacity:0.8; margin-bottom:4px; padding-bottom:6px; border-bottom:1px dashed #cbd5e1;">
+                        <span>Unidades Totales:</span><span>🍰 ${detail.desserts} P / 🍬 ${detail.brigs} B</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; font-size:1.05rem; color:#4c1d95;">
+                        <span>TOTAL A PAGAR</span><span>${fmt.format(roundToHundreds(detail.total_comm))}</span>
+                    </div>
+                </div>
+                <button onclick="closePopover(this)" style="margin-top:20px; width:100%; padding:14px; border-radius:12px; border:none; background:#f1f5f9; cursor:pointer; font-weight:800; color:#475569;">Cerrar</button>
+            </div>`;
+            pop.onclick = (e) => { if (e.target === pop) closePopover(pop.querySelector('button')); };
+            document.body.appendChild(pop);
+        };
+
         window.showPurchaseDetails = (month, ev) => {
             if (ev.target.tagName.toLowerCase() === 'input' || ev.target.tagName.toLowerCase() === 'button') return;
             const details = window.purchaseDetailsMap[month] || [];
@@ -886,7 +931,7 @@
                                     </div>
                                     <div style="font-size:0.75rem; color:#6d28d9; line-height:1.6">
                                         ${(m.commission_detail || []).sort((a,b)=>b.total_comm - a.total_comm).map(c => `
-                                            <div style="display:flex; justify-content:space-between; opacity:0.8; margin-bottom:4px; align-items:center">
+                                            <div onclick="showSellerCommissionDays('${m.month}', ${c.seller_id}, '${c.seller_name.replace(/'/g, "\\'")}', event)" style="display:flex; justify-content:space-between; opacity:0.8; margin-bottom:4px; align-items:center; cursor:pointer; padding:4px 8px; border-radius:8px; transition:background 0.2s;" onmouseover="this.style.background='rgba(109,40,217,0.1)'" onmouseout="this.style.background='transparent'">
                                                 <span>• ${c.seller_name} (${c.desserts} P / ${c.brigs} B)</span>
                                                 <strong>${fmt.format(roundToHundreds(c.total_comm))}</strong>
                                             </div>`).join('')}
