@@ -3236,8 +3236,8 @@ tfoot td {
 }
 
 .new-sale-popover .input-promo-price {
-	width: 7.5ch;
-	min-width: 7.5ch;
+	width: 9.5ch;
+	min-width: 9.5ch;
 	text-align: center;
 	border: none !important;
 	background: transparent;
