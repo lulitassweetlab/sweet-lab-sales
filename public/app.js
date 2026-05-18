@@ -2882,6 +2882,17 @@ function openNewSalePopover(anchorX, anchorY) {
 
 		async function doSave() {
 			try {
+				// Silent validation: if no desserts have a quantity greater than zero, close silently and don't save
+				let totalQty = 0;
+				for (const d of state.desserts) {
+					const qty = Math.max(0, parseInt(qtyInputs[d.short_code]?.value || '0', 10) || 0);
+					totalQty += qty;
+				}
+				if (totalQty === 0) {
+					cleanup();
+					return;
+				}
+
 				saveBtn.disabled = true; cancelBtn.disabled = true;
 				const sellerId = state?.currentSeller?.id;
 				if (!sellerId) { try { notify.error('Selecciona un vendedor'); } catch { } return; }
@@ -3956,6 +3967,18 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
 		let isSaving = false;
 		async function doSave() {
 			if (isSaving) return;
+
+			// Silent validation: if no desserts have a quantity greater than zero, close silently and don't save
+			let totalQty = 0;
+			for (const d of state.desserts) {
+				const qty = Math.max(0, parseInt(qtyInputs[d.short_code]?.value || '0', 10) || 0);
+				totalQty += qty;
+			}
+			if (totalQty === 0) {
+				cleanup();
+				return;
+			}
+
 			isSaving = true;
 
 			try {
