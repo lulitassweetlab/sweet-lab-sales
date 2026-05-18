@@ -303,13 +303,31 @@
             if (!detail) return;
 
             const days = detail.days || [];
-            const html = days.map(d => `
+            const html = days.map(d => {
+                const hasReferral = d.referral_commission > 0;
+                const refText = hasReferral 
+                    ? `<div style="font-size:0.7rem; color:#8b5cf6; font-weight:700; margin-top:2px;">👥 +${(d.referral_details || []).map(r => `${r.desserts} (${r.seller_name})`).join(', ')}</div>` 
+                    : '';
+                const ownText = hasReferral 
+                    ? `<div style="font-size:0.7rem; color:#64748b; font-weight:500; margin-top:2px;">(Propia: ${fmt.format(roundToHundreds(d.commission))})</div>` 
+                    : '';
+
+                return `
                 <div style="margin-bottom:8px; background:#f8fafc; padding:10px 14px; border-radius:14px; border:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center; font-size:0.8rem; font-weight:700;">
                     <div style="color:#334155; width:22%; font-weight:800;">${d.date}</div>
-                    <div style="color:#64748b; width:28%; font-weight:600; text-align:center;">🍰 ${d.desserts} P ${d.brigs > 0 ? `+ 🍬 ${d.brigs} B` : ''}</div>
-                    <div style="color:#6d28d9; width:25%; text-align:right;">${fmt.format(roundToHundreds(d.commission))}</div>
-                    <div style="color:${d.paid >= d.commission ? '#16a34a' : '#ea580c'}; width:25%; text-align:right;">${fmt.format(roundToHundreds(d.paid))}</div>
-                </div>`).join('');
+                    <div style="color:#64748b; width:28%; font-weight:600; text-align:center;">
+                        🍰 ${d.desserts} P ${d.brigs > 0 ? `+ 🍬 ${d.brigs} B` : ''}
+                        ${refText}
+                    </div>
+                    <div style="color:#6d28d9; width:25%; text-align:right;">
+                        ${fmt.format(roundToHundreds(d.total_commission))}
+                        ${ownText}
+                    </div>
+                    <div style="color:${d.paid >= d.total_commission ? '#16a34a' : '#ea580c'}; width:25%; text-align:right;">
+                        ${fmt.format(roundToHundreds(d.paid))}
+                    </div>
+                </div>`;
+            }).join('');
 
             const totalPaid = detail.commissions_paid || 0;
             const diff = detail.total_comm - totalPaid;
@@ -321,6 +339,24 @@
                 statusBadgeHtml = `<span style="background:#ffe4e6; color:#be123c; padding:6px 12px; border-radius:99px; font-size:0.75rem; font-weight:800;">FALTA PAGAR: ${fmt.format(roundToHundreds(diff))} ⏳</span>`;
             } else {
                 statusBadgeHtml = `<span style="background:#eff6ff; color:#1d4ed8; padding:6px 12px; border-radius:99px; font-size:0.75rem; font-weight:800;">SALDO A FAVOR: ${fmt.format(roundToHundreds(Math.abs(diff)))} 💸</span>`;
+            }
+
+            let breakdownHtml = '';
+            if (detail.referral_comm_total > 0) {
+                breakdownHtml = `
+                    <div style="display:flex; justify-content:space-between; font-size:0.8rem; color:#6b7280; font-weight:700; align-items:center; margin-bottom:2px;">
+                        <span>COMISIÓN PROPIA</span><span style="color:#1e293b;">${fmt.format(roundToHundreds(detail.direct_comm))}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; font-size:0.8rem; color:#8b5cf6; font-weight:800; align-items:center; margin-bottom:2px;">
+                        <span>POR INVITADOS</span><span>+${fmt.format(roundToHundreds(detail.referral_comm_total))}</span>
+                    </div>
+                    ${(detail.referral_detail || []).map(r => `
+                        <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:#8b5cf6; font-weight:600; padding-left:10px; opacity:0.85; margin-bottom:1px;">
+                            <span>• ${r.seller_name} (${r.desserts} postres)</span><span>+${fmt.format(roundToHundreds(r.commission))}</span>
+                        </div>
+                    `).join('')}
+                    <div style="margin:6px 0; border-bottom:1px dashed #cbd5e1;"></div>
+                `;
             }
 
             const pop = document.createElement('div');
@@ -340,6 +376,7 @@
                     ${html || '<p style="text-align:center; color:#94a3b8; padding:20px;">No hay ventas registradas este mes.</p>'}
                 </div>
                 <div style="display:flex; flex-direction:column; gap:8px; padding:16px; background:#f5f3ff; border-radius:18px; font-weight:800; border:1px solid #ddd6fe;">
+                    ${breakdownHtml}
                     <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:#6b7280; font-weight:700; align-items:center;">
                         <span>TOTAL GENERADO</span><span style="color:#6d28d9; font-size:1rem; font-weight:900;">${fmt.format(roundToHundreds(detail.total_comm))}</span>
                     </div>

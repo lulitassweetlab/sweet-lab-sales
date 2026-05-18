@@ -294,9 +294,15 @@ export async function handler(event) {
             });
 
             const commissionsMap = {};
+            allSellersRows.forEach(s => {
+                commissionsMap[s.id] = { desserts: 0, brigs: 0, total_comm: 0, direct_comm: 0, referral_comm_total: 0, referral_detail: [] };
+            });
+
             (commCalculatedRows || []).forEach(c => {
                 const sid = c.seller_id;
-                if (!commissionsMap[sid]) commissionsMap[sid] = { desserts: 0, brigs: 0, total_comm: 0 };
+                if (!commissionsMap[sid]) {
+                    commissionsMap[sid] = { desserts: 0, brigs: 0, total_comm: 0, direct_comm: 0, referral_comm_total: 0, referral_detail: [] };
+                }
                 const qty = Number(c.total_qty || 0);
                 const isBrig = (c.product_name || '').toLowerCase().includes('brig') || (c.product_name || '').toLowerCase().includes('bt');
                 if (isBrig) commissionsMap[sid].brigs += qty;
@@ -309,35 +315,91 @@ export async function handler(event) {
                 if (s.desserts >= 60) unitPricePostre = 1500;
                 else if (s.desserts >= 30) unitPricePostre = 1300;
                 else if (s.desserts >= 1) unitPricePostre = 1000;
-                s.total_comm = (s.desserts * unitPricePostre) + (s.brigs * 200);
+                s.direct_comm = (s.desserts * unitPricePostre) + (s.brigs * 200);
+                s.rate_applied = unitPricePostre;
             });
 
-            const commissionDetail = Object.keys(commissionsMap).map(sid => {
-                const s = commissionsMap[sid];
-                let unitPricePostre = 0;
-                if (s.desserts >= 60) unitPricePostre = 1500;
-                else if (s.desserts >= 30) unitPricePostre = 1300;
-                else if (s.desserts >= 1) unitPricePostre = 1000;
+            // Calculate Referral Commissions ($500 per dessert sold by invitees)
+            allSellersRows.forEach(s => {
+                if (s.parent_id) {
+                    const pid = Number(s.parent_id);
+                    const inviteeSales = commissionsMap[s.id]?.desserts || 0;
+                    if (inviteeSales > 0 && commissionsMap[pid]) {
+                        const refComm = inviteeSales * 500;
+                        commissionsMap[pid].referral_comm_total += refComm;
+                        commissionsMap[pid].referral_detail.push({
+                            seller_id: s.id,
+                            seller_name: s.name,
+                            desserts: inviteeSales,
+                            commission: refComm
+                        });
+                    }
+                }
+            });
 
+            Object.keys(commissionsMap).forEach(sid => {
+                const s = commissionsMap[sid];
+                s.total_comm = s.direct_comm + s.referral_comm_total;
+            });
+
+            const activeSellerIds = Object.keys(commissionsMap).filter(sid => {
+                const s = commissionsMap[sid];
+                const hasSales = s.desserts > 0 || s.brigs > 0;
+                const hasReferrals = s.referral_comm_total > 0;
+                const hasPaid = dailyPaidMap[Number(sid)] && Object.values(dailyPaidMap[Number(sid)]).some(v => v > 0);
+                return hasSales || hasReferrals || hasPaid;
+            });
+
+            const commissionDetail = activeSellerIds.map(sid => {
+                const s = commissionsMap[sid];
                 const rawDays = dailyMap[Number(sid)] || {};
                 const rawPaid = dailyPaidMap[Number(sid)] || {};
 
-                // Get union of all unique dates with sales or payments
+                // Find daily referral sales from invitees
+                const inviteeDatesMap = {}; // date -> array of { seller_id, seller_name, desserts, commission }
+                allSellersRows.forEach(inv => {
+                    if (Number(inv.parent_id) === Number(sid)) {
+                        const invDays = dailyMap[inv.id] || {};
+                        Object.keys(invDays).forEach(dateStr => {
+                            const dQty = invDays[dateStr].desserts || 0;
+                            if (dQty > 0) {
+                                const refComm = dQty * 500;
+                                if (!inviteeDatesMap[dateStr]) inviteeDatesMap[dateStr] = [];
+                                inviteeDatesMap[dateStr].push({
+                                    seller_id: inv.id,
+                                    seller_name: inv.name,
+                                    desserts: dQty,
+                                    commission: refComm
+                                });
+                            }
+                        });
+                    }
+                });
+
+                // Get union of all unique dates with sales, referral sales or payments
                 const allDates = [...new Set([
                     ...Object.keys(rawDays),
-                    ...Object.keys(rawPaid)
+                    ...Object.keys(rawPaid),
+                    ...Object.keys(inviteeDatesMap)
                 ])].sort();
 
                 const daysList = allDates.map(dateStr => {
                     const dQty = rawDays[dateStr]?.desserts || 0;
                     const bQty = rawDays[dateStr]?.brigs || 0;
-                    const comm = (dQty * unitPricePostre) + (bQty * 200);
+                    const directComm = (dQty * s.rate_applied) + (bQty * 200);
+
+                    const refDetails = inviteeDatesMap[dateStr] || [];
+                    const refComm = refDetails.reduce((sum, item) => sum + item.commission, 0);
+
                     const paid = rawPaid[dateStr] || 0;
                     return {
                         date: dateStr,
                         desserts: dQty,
                         brigs: bQty,
-                        commission: Math.round(comm),
+                        commission: Math.round(directComm),
+                        referral_commission: Math.round(refComm),
+                        referral_details: refDetails,
+                        total_commission: Math.round(directComm + refComm),
                         paid: Math.round(paid)
                     };
                 });
@@ -349,9 +411,12 @@ export async function handler(event) {
                     seller_name: sellerMap[sid] || `Vendedor ${sid}`,
                     desserts: s.desserts,
                     brigs: s.brigs,
+                    direct_comm: s.direct_comm,
+                    referral_comm_total: s.referral_comm_total,
+                    referral_detail: s.referral_detail,
                     total_comm: s.total_comm,
                     commissions_paid: totalCommPaid,
-                    rate_applied: unitPricePostre,
+                    rate_applied: s.rate_applied,
                     days: daysList
                 };
             });
