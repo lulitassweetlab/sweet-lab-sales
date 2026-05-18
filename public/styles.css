@@ -3241,7 +3241,7 @@ tfoot td {
 	text-align: center;
 	border: none !important;
 	background: transparent;
-	font-size: 13px;
+	font-size: 11px;
 	color: var(--text);
 }
 
@@ -3263,7 +3263,7 @@ tfoot td {
 	align-items: center;
 	justify-content: center;
 	padding: 1px 3px;
-	font-size: 9.5px;
+	font-size: 8.5px;
 	font-weight: 500;
 	border: none !important;
 	background: transparent !important;
@@ -3335,9 +3335,13 @@ tfoot td {
 		display: inline;
 	}
 	
+	.new-sale-popover .input-promo-price {
+		font-size: 10px;
+	}
+	
 	.new-sale-popover .pricing-chip {
 		padding: 0px 2px;
-		font-size: 8px;
+		font-size: 7.2px;
 	}
 }
 
