@@ -303,20 +303,12 @@
             if (!detail) return;
 
             const days = detail.days || [];
-            const rate = detail.rate_applied || 1000;
-
             const html = days.map(d => `
-                <div style="margin-bottom:12px; background:#f8fafc; padding:14px; border-radius:18px; border:1px solid #f1f5f9;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; border-bottom:1px dashed #cbd5e1; padding-bottom:6px;">
-                        <span style="font-size:0.85rem; font-weight:800; color:#334155;">${d.date}</span>
-                        <span style="font-size:0.75rem; color:#64748b; font-weight:600;">
-                            🍰 ${d.desserts} P ${d.brigs > 0 ? `+ 🍬 ${d.brigs} B` : ''}
-                        </span>
-                    </div>
-                    <div style="display:flex; justify-content:space-between; font-size:0.8rem; font-weight:700;">
-                        <span style="color:#64748b;">Generado: <strong style="color:#6d28d9;">${fmt.format(roundToHundreds(d.commission))}</strong></span>
-                        <span style="color:#64748b;">Pagado: <strong style="color:${d.paid >= d.commission ? '#16a34a' : '#ea580c'};">${fmt.format(roundToHundreds(d.paid))}</strong></span>
-                    </div>
+                <div style="margin-bottom:8px; background:#f8fafc; padding:10px 14px; border-radius:14px; border:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center; font-size:0.8rem; font-weight:700;">
+                    <div style="color:#334155; width:22%; font-weight:800;">${d.date}</div>
+                    <div style="color:#64748b; width:28%; font-weight:600; text-align:center;">🍰 ${d.desserts} P ${d.brigs > 0 ? `+ 🍬 ${d.brigs} B` : ''}</div>
+                    <div style="color:#6d28d9; width:25%; text-align:right;">${fmt.format(roundToHundreds(d.commission))}</div>
+                    <div style="color:${d.paid >= d.commission ? '#16a34a' : '#ea580c'}; width:25%; text-align:right;">${fmt.format(roundToHundreds(d.paid))}</div>
                 </div>`).join('');
 
             const totalPaid = detail.commissions_paid || 0;
@@ -333,26 +325,28 @@
 
             const pop = document.createElement('div');
             pop.className = 'popover-wrap';
-            pop.innerHTML = `<div style="background:#fff; padding:24px; border-radius:24px; min-width:390px; max-width:480px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1); border:1px solid #ddd6fe;">
-                <h3 style="margin:0 0 8px 0; color:#4c1d95;">📊 Conciliación de Comisiones</h3>
+            pop.innerHTML = `<div style="background:#fff; padding:24px; border-radius:24px; min-width:420px; max-width:480px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1); border:1px solid #ddd6fe;">
+                <h3 style="margin:0 0 4px 0; color:#4c1d95;">📊 Conciliación de Comisiones</h3>
                 <p style="margin:0 0 16px 0; font-size:0.8rem; color:#64748b; font-weight:600;">Vendedor: ${sellerName} - ${month}</p>
-                <div style="max-height:48vh; overflow-y:auto; margin-bottom:16px; padding-right:4px;">
+                
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 14px; font-size:0.75rem; font-weight:800; color:#64748b; margin-bottom:6px; border-bottom:2px solid #cbd5e1;">
+                    <div style="width:22%;">Fecha</div>
+                    <div style="width:28%; text-align:center;">Postres</div>
+                    <div style="width:25%; text-align:right;">Generado</div>
+                    <div style="width:25%; text-align:right;">Pagado</div>
+                </div>
+
+                <div style="max-height:42vh; overflow-y:auto; margin-bottom:16px; padding-right:4px;">
                     ${html || '<p style="text-align:center; color:#94a3b8; padding:20px;">No hay ventas registradas este mes.</p>'}
                 </div>
-                <div style="display:flex; flex-direction:column; gap:8px; padding:18px; background:#f5f3ff; border-radius:20px; font-weight:800; border:1px solid #ddd6fe;">
-                    <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:#6d28d9; opacity:0.8;">
-                        <span>Tarifa de Postre Aplicada:</span><span>${fmt.format(rate)} c/u</span>
-                    </div>
-                    <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:#6d28d9; opacity:0.8; margin-bottom:4px; padding-bottom:6px; border-bottom:1px dashed #cbd5e1;">
-                        <span>Unidades Totales:</span><span>🍰 ${detail.desserts} P / 🍬 ${detail.brigs} B</span>
-                    </div>
+                <div style="display:flex; flex-direction:column; gap:8px; padding:16px; background:#f5f3ff; border-radius:18px; font-weight:800; border:1px solid #ddd6fe;">
                     <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:#6b7280; font-weight:700; align-items:center;">
-                        <span>TOTAL GENERADO</span><span style="color:#6d28d9; font-size:0.95rem; font-weight:900;">${fmt.format(roundToHundreds(detail.total_comm))}</span>
+                        <span>TOTAL GENERADO</span><span style="color:#6d28d9; font-size:1rem; font-weight:900;">${fmt.format(roundToHundreds(detail.total_comm))}</span>
                     </div>
-                    <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:#6b7280; font-weight:700; align-items:center; margin-bottom:6px; padding-bottom:8px; border-bottom:1px dashed #cbd5e1;">
-                        <span>TOTAL PAGADO</span><span style="color:#1e293b; font-size:0.95rem; font-weight:900;">${fmt.format(roundToHundreds(totalPaid))}</span>
+                    <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:#6b7280; font-weight:700; align-items:center; margin-bottom:4px; padding-bottom:6px; border-bottom:1px dashed #cbd5e1;">
+                        <span>TOTAL PAGADO</span><span style="color:#1e293b; font-size:1rem; font-weight:900;">${fmt.format(roundToHundreds(totalPaid))}</span>
                     </div>
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:2px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
                         <span style="font-size:0.8rem; color:#4c1d95;">ESTADO:</span>
                         ${statusBadgeHtml}
                     </div>
