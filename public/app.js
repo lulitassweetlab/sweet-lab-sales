@@ -2734,23 +2734,7 @@ function openNewSalePopover(anchorX, anchorY) {
 		attachClientSuggestionsPopover(clientInput);
 		appendRow('Cliente', clientInput);
 
-		// EXTRA CLIENT INFO (Short Name, WhatsApp)
-		const extraRow = document.createElement('div');
-		extraRow.className = 'client-info-extra';
-		
-		const snWrap = document.createElement('div'); snWrap.className = 'client-info-row';
-		const snLbl = document.createElement('div'); snLbl.className = 'client-info-label'; snLbl.textContent = 'Apodo / Corto';
-		const snInput = document.createElement('input');
-		snInput.type = 'text'; snInput.placeholder = 'Ej: Marce'; snInput.className = 'input-cell';
-		snWrap.append(snLbl, snInput);
-		
-		const waWrap = document.createElement('div'); waWrap.className = 'client-info-row';
-		const waLbl = document.createElement('div'); waLbl.className = 'client-info-label'; waLbl.textContent = 'WhatsApp';
-		const waInput = document.createElement('input');
-		waInput.type = 'tel'; waInput.placeholder = '300...'; waInput.className = 'input-cell';
-		waWrap.append(waLbl, waInput);
-		
-		extraRow.append(snWrap, waWrap);
+
 
 		// Dessert rows (dynamic from state.desserts)
 		const qtyInputs = {};
@@ -2836,7 +2820,7 @@ function openNewSalePopover(anchorX, anchorY) {
 		saveBtn.textContent = 'Guardar';
 		actions.append(cancelBtn, saveBtn);
 
-		pop.append(title, extraRow, grid, specialPricingContainer, actions);
+		pop.append(title, grid, specialPricingContainer, actions);
 		// Prepare hidden mount to avoid visible jump before clamping
 		pop.style.visibility = 'hidden';
 		pop.style.opacity = '0';
@@ -2901,8 +2885,8 @@ function openNewSalePopover(anchorX, anchorY) {
 				const payload = { 
 					seller_id: sellerId,
 					client_name: clientInput.value.trim(),
-					short_name: snInput.value.trim(),
-					whatsapp: waInput.value.trim()
+					short_name: "",
+					whatsapp: ""
 				};
 				if (state?.selectedDayId) payload.sale_day_id = state.selectedDayId;
 				const created = await api('POST', API.Sales, payload);
