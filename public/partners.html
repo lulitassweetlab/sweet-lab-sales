@@ -306,33 +306,55 @@
             const rate = detail.rate_applied || 1000;
 
             const html = days.map(d => `
-                <div style="margin-bottom:8px; background:#f8fafc; padding:12px; border-radius:14px; border:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;">
-                    <div style="flex:1;">
-                        <div style="font-size:0.85rem; font-weight:700; color:#334155;">${d.date}</div>
-                        <div style="font-size:0.75rem; color:#64748b; margin-top:2px;">
-                            🍰 ${d.desserts} postres (${fmt.format(rate)}) ${d.brigs > 0 ? ` + 🍬 ${d.brigs} brig ($200)` : ''}
-                        </div>
+                <div style="margin-bottom:12px; background:#f8fafc; padding:14px; border-radius:18px; border:1px solid #f1f5f9;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; border-bottom:1px dashed #cbd5e1; padding-bottom:6px;">
+                        <span style="font-size:0.85rem; font-weight:800; color:#334155;">${d.date}</span>
+                        <span style="font-size:0.75rem; color:#64748b; font-weight:600;">
+                            🍰 ${d.desserts} P ${d.brigs > 0 ? `+ 🍬 ${d.brigs} B` : ''}
+                        </span>
                     </div>
-                    <strong style="color:#6d28d9; font-size:0.95rem;">${fmt.format(roundToHundreds(d.commission))}</strong>
+                    <div style="display:flex; justify-content:space-between; font-size:0.8rem; font-weight:700;">
+                        <span style="color:#64748b;">Generado: <strong style="color:#6d28d9;">${fmt.format(roundToHundreds(d.commission))}</strong></span>
+                        <span style="color:#64748b;">Pagado: <strong style="color:${d.paid >= d.commission ? '#16a34a' : '#ea580c'};">${fmt.format(roundToHundreds(d.paid))}</strong></span>
+                    </div>
                 </div>`).join('');
+
+            const totalPaid = detail.commissions_paid || 0;
+            const diff = detail.total_comm - totalPaid;
+            let statusBadgeHtml = '';
+
+            if (Math.abs(diff) < 10) {
+                statusBadgeHtml = `<span style="background:#dcfce7; color:#15803d; padding:6px 12px; border-radius:99px; font-size:0.75rem; font-weight:800;">PAGO COMPLETO ✅</span>`;
+            } else if (diff > 0) {
+                statusBadgeHtml = `<span style="background:#ffe4e6; color:#be123c; padding:6px 12px; border-radius:99px; font-size:0.75rem; font-weight:800;">FALTA PAGAR: ${fmt.format(roundToHundreds(diff))} ⏳</span>`;
+            } else {
+                statusBadgeHtml = `<span style="background:#eff6ff; color:#1d4ed8; padding:6px 12px; border-radius:99px; font-size:0.75rem; font-weight:800;">SALDO A FAVOR: ${fmt.format(roundToHundreds(Math.abs(diff)))} 💸</span>`;
+            }
 
             const pop = document.createElement('div');
             pop.className = 'popover-wrap';
-            pop.innerHTML = `<div style="background:#fff; padding:24px; border-radius:24px; min-width:380px; max-width:480px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1); border:1px solid #ddd6fe;">
-                <h3 style="margin:0 0 8px 0; color:#4c1d95;">📊 Comisiones Diarias</h3>
+            pop.innerHTML = `<div style="background:#fff; padding:24px; border-radius:24px; min-width:390px; max-width:480px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1); border:1px solid #ddd6fe;">
+                <h3 style="margin:0 0 8px 0; color:#4c1d95;">📊 Conciliación de Comisiones</h3>
                 <p style="margin:0 0 16px 0; font-size:0.8rem; color:#64748b; font-weight:600;">Vendedor: ${sellerName} - ${month}</p>
-                <div style="max-height:50vh; overflow-y:auto; margin-bottom:16px;">
+                <div style="max-height:48vh; overflow-y:auto; margin-bottom:16px; padding-right:4px;">
                     ${html || '<p style="text-align:center; color:#94a3b8; padding:20px;">No hay ventas registradas este mes.</p>'}
                 </div>
-                <div style="display:flex; flex-direction:column; gap:6px; padding:16px; background:#f5f3ff; border-radius:16px; font-weight:800; border:1px solid #ddd6fe;">
+                <div style="display:flex; flex-direction:column; gap:8px; padding:18px; background:#f5f3ff; border-radius:20px; font-weight:800; border:1px solid #ddd6fe;">
                     <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:#6d28d9; opacity:0.8;">
                         <span>Tarifa de Postre Aplicada:</span><span>${fmt.format(rate)} c/u</span>
                     </div>
                     <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:#6d28d9; opacity:0.8; margin-bottom:4px; padding-bottom:6px; border-bottom:1px dashed #cbd5e1;">
                         <span>Unidades Totales:</span><span>🍰 ${detail.desserts} P / 🍬 ${detail.brigs} B</span>
                     </div>
-                    <div style="display:flex; justify-content:space-between; font-size:1.05rem; color:#4c1d95;">
-                        <span>TOTAL A PAGAR</span><span>${fmt.format(roundToHundreds(detail.total_comm))}</span>
+                    <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:#6b7280; font-weight:700; align-items:center;">
+                        <span>TOTAL GENERADO</span><span style="color:#6d28d9; font-size:0.95rem; font-weight:900;">${fmt.format(roundToHundreds(detail.total_comm))}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:#6b7280; font-weight:700; align-items:center; margin-bottom:6px; padding-bottom:8px; border-bottom:1px dashed #cbd5e1;">
+                        <span>TOTAL PAGADO</span><span style="color:#1e293b; font-size:0.95rem; font-weight:900;">${fmt.format(roundToHundreds(totalPaid))}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:2px;">
+                        <span style="font-size:0.8rem; color:#4c1d95;">ESTADO:</span>
+                        ${statusBadgeHtml}
                     </div>
                 </div>
                 <button onclick="closePopover(this)" style="margin-top:20px; width:100%; padding:14px; border-radius:12px; border:none; background:#f1f5f9; cursor:pointer; font-weight:800; color:#475569;">Cerrar</button>

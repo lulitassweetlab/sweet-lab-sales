@@ -279,6 +279,20 @@ export async function handler(event) {
                 else dailyMap[sid][dateStr].desserts += qty;
             });
 
+            // Query commissions paid from sale_days
+            const dailyPaidRows = await sql`
+                SELECT day::text as sale_date, seller_id, COALESCE(commissions_paid, 0) as commissions_paid 
+                FROM sale_days 
+                WHERE to_char(day, 'YYYY-MM') = ${m}
+            `;
+            const dailyPaidMap = {};
+            (dailyPaidRows || []).forEach(r => {
+                const sid = Number(r.seller_id);
+                const dateStr = String(r.sale_date).split(' ')[0];
+                if (!dailyPaidMap[sid]) dailyPaidMap[sid] = {};
+                dailyPaidMap[sid][dateStr] = Number(r.commissions_paid || 0);
+            });
+
             const commissionsMap = {};
             (commCalculatedRows || []).forEach(c => {
                 const sid = c.seller_id;
@@ -306,17 +320,29 @@ export async function handler(event) {
                 else if (s.desserts >= 1) unitPricePostre = 1000;
 
                 const rawDays = dailyMap[Number(sid)] || {};
-                const daysList = Object.keys(rawDays).sort().map(dateStr => {
-                    const dQty = rawDays[dateStr].desserts;
-                    const bQty = rawDays[dateStr].brigs;
+                const rawPaid = dailyPaidMap[Number(sid)] || {};
+
+                // Get union of all unique dates with sales or payments
+                const allDates = [...new Set([
+                    ...Object.keys(rawDays),
+                    ...Object.keys(rawPaid)
+                ])].sort();
+
+                const daysList = allDates.map(dateStr => {
+                    const dQty = rawDays[dateStr]?.desserts || 0;
+                    const bQty = rawDays[dateStr]?.brigs || 0;
                     const comm = (dQty * unitPricePostre) + (bQty * 200);
+                    const paid = rawPaid[dateStr] || 0;
                     return {
                         date: dateStr,
                         desserts: dQty,
                         brigs: bQty,
-                        commission: Math.round(comm)
+                        commission: Math.round(comm),
+                        paid: Math.round(paid)
                     };
                 });
+
+                const totalCommPaid = Math.round(daysList.reduce((a, b) => a + Number(b.paid || 0), 0));
 
                 return {
                     seller_id: Number(sid),
@@ -324,6 +350,7 @@ export async function handler(event) {
                     desserts: s.desserts,
                     brigs: s.brigs,
                     total_comm: s.total_comm,
+                    commissions_paid: totalCommPaid,
                     rate_applied: unitPricePostre,
                     days: daysList
                 };
