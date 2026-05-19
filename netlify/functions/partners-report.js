@@ -248,7 +248,22 @@ export async function handler(event) {
                     UNION ALL SELECT s.id, s.seller_id, sd.day, 'mara', s.qty_mara, s.special_pricing_type FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_mara > 0 AND to_char(sd.day, 'YYYY-MM') = ${m} AND s.id NOT IN (SELECT sale_id FROM sale_items)
                     UNION ALL SELECT s.id, s.seller_id, sd.day, 'oreo', s.qty_oreo, s.special_pricing_type FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_oreo > 0 AND to_char(sd.day, 'YYYY-MM') = ${m} AND s.id NOT IN (SELECT sale_id FROM sale_items)
                     UNION ALL SELECT s.id, s.seller_id, sd.day, 'nute', s.qty_nute, s.special_pricing_type FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_nute > 0 AND to_char(sd.day, 'YYYY-MM') = ${m} AND s.id NOT IN (SELECT sale_id FROM sale_items)
-                    UNION ALL SELECT s.id, s.seller_id, sd.day, d.short_code, si.quantity, s.special_pricing_type FROM sales s JOIN sale_items si ON s.id = si.sale_id JOIN desserts d ON si.dessert_id = d.id JOIN sale_days sd ON s.sale_day_id = sd.id WHERE si.quantity > 0 AND to_char(sd.day, 'YYYY-MM') = ${m}
+                    UNION ALL SELECT 
+                        s.id, 
+                        s.seller_id, 
+                        sd.day, 
+                        d.short_code, 
+                        si.quantity, 
+                        CASE 
+                            WHEN s.special_pricing_type = 'muestra' OR si.unit_price = 0 THEN 'muestra'
+                            WHEN s.special_pricing_type = 'a_costo' OR si.unit_price = d.cost_price THEN 'a_costo'
+                            ELSE NULL
+                        END as special_pricing_type
+                    FROM sales s 
+                    JOIN sale_items si ON s.id = si.sale_id 
+                    JOIN desserts d ON si.dessert_id = d.id 
+                    JOIN sale_days sd ON s.sale_day_id = sd.id 
+                    WHERE si.quantity > 0 AND to_char(sd.day, 'YYYY-MM') = ${m}
                 )
                 SELECT u.seller_id, u.product_name, u.special_pricing_type, SUM(u.qty) as total_qty FROM unpivoted u GROUP BY u.seller_id, u.product_name, u.special_pricing_type
             `;
@@ -261,7 +276,21 @@ export async function handler(event) {
                     UNION ALL SELECT s.seller_id, sd.day::text, 'mara', s.qty_mara, s.special_pricing_type FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_mara > 0 AND to_char(sd.day, 'YYYY-MM') = ${m} AND s.id NOT IN (SELECT sale_id FROM sale_items)
                     UNION ALL SELECT s.seller_id, sd.day::text, 'oreo', s.qty_oreo, s.special_pricing_type FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_oreo > 0 AND to_char(sd.day, 'YYYY-MM') = ${m} AND s.id NOT IN (SELECT sale_id FROM sale_items)
                     UNION ALL SELECT s.seller_id, sd.day::text, 'nute', s.qty_nute, s.special_pricing_type FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_nute > 0 AND to_char(sd.day, 'YYYY-MM') = ${m} AND s.id NOT IN (SELECT sale_id FROM sale_items)
-                    UNION ALL SELECT s.seller_id, sd.day::text, d.short_code, si.quantity, s.special_pricing_type FROM sales s JOIN sale_items si ON s.id = si.sale_id JOIN desserts d ON si.dessert_id = d.id JOIN sale_days sd ON s.sale_day_id = sd.id WHERE si.quantity > 0 AND to_char(sd.day, 'YYYY-MM') = ${m}
+                    UNION ALL SELECT 
+                        s.seller_id, 
+                        sd.day::text as sale_date, 
+                        d.short_code, 
+                        si.quantity, 
+                        CASE 
+                            WHEN s.special_pricing_type = 'muestra' OR si.unit_price = 0 THEN 'muestra'
+                            WHEN s.special_pricing_type = 'a_costo' OR si.unit_price = d.cost_price THEN 'a_costo'
+                            ELSE NULL
+                        END as special_pricing_type
+                    FROM sales s 
+                    JOIN sale_items si ON s.id = si.sale_id 
+                    JOIN desserts d ON si.dessert_id = d.id 
+                    JOIN sale_days sd ON s.sale_day_id = sd.id 
+                    WHERE si.quantity > 0 AND to_char(sd.day, 'YYYY-MM') = ${m}
                 )
                 SELECT u.seller_id, u.sale_date, u.product_name, u.special_pricing_type, SUM(u.qty) as total_qty FROM unpivoted u GROUP BY u.seller_id, u.sale_date, u.product_name, u.special_pricing_type ORDER BY u.sale_date ASC
             `;
