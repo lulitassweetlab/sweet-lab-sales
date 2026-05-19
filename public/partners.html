@@ -305,9 +305,19 @@
             const days = detail.days || [];
             
             // 1. Own Commissions Section
-            const ownDays = days.filter(d => d.desserts > 0 || d.brigs > 0 || d.commission > 0);
+            const ownDays = days.filter(d => d.desserts > 0 || d.brigs > 0 || d.commission > 0 || d.costo_desserts > 0 || d.muestra_desserts > 0);
             let ownHtml = '';
             if (ownDays.length > 0) {
+                let ownSpecialNote = '';
+                const ownCosto = detail.costo_desserts || 0;
+                const ownMuestra = detail.muestra_desserts || 0;
+                if (ownCosto > 0 || ownMuestra > 0) {
+                    const parts = [];
+                    if (ownCosto > 0) parts.push(`🏷️ ${ownCosto} a costo`);
+                    if (ownMuestra > 0) parts.push(`🎁 ${ownMuestra} de muestra`);
+                    ownSpecialNote = `<div style="font-size:0.65rem; color:#d97706; font-weight:700; margin-top:4px; text-align:left;">⚠️ No comisionan: ${parts.join(' y ')}</div>`;
+                }
+
                 ownHtml = `
                 <div style="margin-bottom:20px;">
                     <h4 style="margin:0 0 8px 0; color:#6d28d9; font-size:0.85rem; font-weight:800; border-bottom:2px solid #ddd6fe; padding-bottom:4px; display:flex; align-items:center; gap:6px;">🙋‍♀️ Comisiones Propias</h4>
@@ -317,16 +327,29 @@
                         <div style="width:30%; text-align:right;">Comisión</div>
                     </div>
                     <div>
-                        ${ownDays.map(d => `
+                        ${ownDays.map(d => {
+                            const badges = [];
+                            if (d.costo_desserts > 0) badges.push(`<span style="background:#fef3c7; color:#d97706; padding:2px 6px; border-radius:6px; font-size:0.65rem; font-weight:700; white-space:nowrap;">🏷️ ${d.costo_desserts} Costo</span>`);
+                            if (d.muestra_desserts > 0) badges.push(`<span style="background:#dbeafe; color:#2563eb; padding:2px 6px; border-radius:6px; font-size:0.65rem; font-weight:700; white-space:nowrap;">🎁 ${d.muestra_desserts} Muestra</span>`);
+                            const badgesHtml = badges.length > 0 
+                                ? `<div style="display:flex; justify-content:center; gap:4px; margin-top:4px; flex-wrap:wrap; width:100%;">${badges.join('')}</div>`
+                                : '';
+                            return `
                             <div style="margin-bottom:6px; background:#f8fafc; padding:8px 12px; border-radius:12px; border:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center; font-size:0.8rem; font-weight:700;">
                                 <div style="color:#334155; width:30%; font-weight:800;">${d.date}</div>
-                                <div style="color:#64748b; width:40%; font-weight:600; text-align:center;">🍰 ${d.desserts} P ${d.brigs > 0 ? `+ 🍬 ${d.brigs} B` : ''}</div>
+                                <div style="color:#64748b; width:40%; font-weight:600; text-align:center; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+                                    <span>🍰 ${d.desserts} P ${d.brigs > 0 ? `+ 🍬 ${d.brigs} B` : ''}</span>
+                                    ${badgesHtml}
+                                </div>
                                 <div style="color:#6d28d9; width:30%; text-align:right;">${fmt.format(roundToHundreds(d.commission))}</div>
-                            </div>
-                        `).join('')}
+                            </div>`;
+                        }).join('')}
                     </div>
-                    <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:#475569; font-weight:800; padding:8px 12px; background:#f1f5f9; border-radius:10px; margin-top:6px; border:1px dashed #cbd5e1;">
-                        <span>TOTAL PROPIO</span><span style="color:#6d28d9; font-size:0.8rem;">${fmt.format(roundToHundreds(detail.direct_comm))}</span>
+                    <div style="display:flex; flex-direction:column; font-size:0.75rem; color:#475569; font-weight:800; padding:8px 12px; background:#f1f5f9; border-radius:10px; margin-top:6px; border:1px dashed #cbd5e1;">
+                        <div style="display:flex; justify-content:space-between; width:100%;">
+                            <span>TOTAL PROPIO</span><span style="color:#6d28d9; font-size:0.8rem;">${fmt.format(roundToHundreds(detail.direct_comm))}</span>
+                        </div>
+                        ${ownSpecialNote}
                     </div>
                 </div>`;
             }
@@ -340,6 +363,8 @@
                             date: d.date,
                             seller_name: ref.seller_name,
                             desserts: ref.desserts,
+                            costo_desserts: ref.costo_desserts || 0,
+                            muestra_desserts: ref.muestra_desserts || 0,
                             commission: ref.commission
                         });
                     });
@@ -348,6 +373,16 @@
 
             let refHtml = '';
             if (referralRows.length > 0) {
+                let refSpecialNote = '';
+                const refCosto = (detail.referral_detail || []).reduce((a, b) => a + (b.costo_desserts || 0), 0);
+                const refMuestra = (detail.referral_detail || []).reduce((a, b) => a + (b.muestra_desserts || 0), 0);
+                if (refCosto > 0 || refMuestra > 0) {
+                    const parts = [];
+                    if (refCosto > 0) parts.push(`🏷️ ${refCosto} a costo`);
+                    if (refMuestra > 0) parts.push(`🎁 ${refMuestra} de muestra`);
+                    refSpecialNote = `<div style="font-size:0.65rem; color:#d97706; font-weight:700; margin-top:4px; text-align:left;">⚠️ No comisionan al patrocinador: ${parts.join(' y ')}</div>`;
+                }
+
                 refHtml = `
                 <div style="margin-bottom:20px;">
                     <h4 style="margin:0 0 8px 0; color:#8b5cf6; font-size:0.85rem; font-weight:800; border-bottom:2px solid #ddd6fe; padding-bottom:4px; display:flex; align-items:center; gap:6px;">👥 Recibidas por Invitados</h4>
@@ -358,17 +393,30 @@
                         <div style="width:25%; text-align:right;">Comisión</div>
                     </div>
                     <div>
-                        ${referralRows.map(r => `
+                        ${referralRows.map(r => {
+                            const badges = [];
+                            if (r.costo_desserts > 0) badges.push(`<span style="background:#fef3c7; color:#d97706; padding:2px 6px; border-radius:6px; font-size:0.65rem; font-weight:700; white-space:nowrap;">🏷️ ${r.costo_desserts} Costo</span>`);
+                            if (r.muestra_desserts > 0) badges.push(`<span style="background:#dbeafe; color:#2563eb; padding:2px 6px; border-radius:6px; font-size:0.65rem; font-weight:700; white-space:nowrap;">🎁 ${r.muestra_desserts} Muestra</span>`);
+                            const badgesHtml = badges.length > 0 
+                                ? `<div style="display:flex; justify-content:center; gap:4px; margin-top:4px; flex-wrap:wrap; width:100%;">${badges.join('')}</div>`
+                                : '';
+                            return `
                             <div style="margin-bottom:6px; background:#f5f3ff; padding:8px 12px; border-radius:12px; border:1px solid #ddd6fe; display:flex; justify-content:space-between; align-items:center; font-size:0.8rem; font-weight:700;">
                                 <div style="color:#334155; width:25%; font-weight:800;">${r.date}</div>
                                 <div style="color:#8b5cf6; width:25%; font-weight:800; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${r.seller_name}</div>
-                                <div style="color:#64748b; width:25%; font-weight:600; text-align:center;">🍰 ${r.desserts} P</div>
+                                <div style="color:#64748b; width:25%; font-weight:600; text-align:center; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+                                    <span>🍰 ${r.desserts} P</span>
+                                    ${badgesHtml}
+                                </div>
                                 <div style="color:#6d28d9; width:25%; text-align:right;">${fmt.format(roundToHundreds(r.commission))}</div>
-                            </div>
-                        `).join('')}
+                            </div>`;
+                        }).join('')}
                     </div>
-                    <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:#475569; font-weight:800; padding:8px 12px; background:#f5f3ff; border-radius:10px; margin-top:6px; border:1px dashed #ddd6fe;">
-                        <span>TOTAL INVITADOS</span><span style="color:#8b5cf6; font-size:0.8rem;">${fmt.format(roundToHundreds(detail.referral_comm_total))}</span>
+                    <div style="display:flex; flex-direction:column; font-size:0.75rem; color:#475569; font-weight:800; padding:8px 12px; background:#f5f3ff; border-radius:10px; margin-top:6px; border:1px dashed #ddd6fe;">
+                        <div style="display:flex; justify-content:space-between; width:100%;">
+                            <span>TOTAL INVITADOS</span><span style="color:#8b5cf6; font-size:0.8rem;">${fmt.format(roundToHundreds(detail.referral_comm_total))}</span>
+                        </div>
+                        ${refSpecialNote}
                     </div>
                 </div>`;
             }
