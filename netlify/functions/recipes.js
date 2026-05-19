@@ -124,7 +124,7 @@ export async function handler(event) {
 						FROM dessert_recipes dr
 						LEFT JOIN dessert_recipe_items i ON dr.id = i.recipe_id
 						LEFT JOIN inventory_items ii ON lower(trim(ii.ingredient)) = lower(trim(i.ingredient))
-						ORDER BY dr.dessert ASC, dr.position ASC, dr.id ASC
+						ORDER BY dr.dessert ASC, dr.position ASC, dr.id ASC, i.position ASC, i.id ASC
 					`;
 					let extras = [];
 					if (includeExtras) extras = await sql`
