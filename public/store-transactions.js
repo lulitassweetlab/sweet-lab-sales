@@ -42,7 +42,7 @@ function updateCartUI() {
             if (separator) separator.style.display = 'none';
             internalCheckoutContainer.style.display = 'flex';
             document.getElementById('internal-checkout-btn').style.display = 'block';
-            loadSellerClients();
+            updateDateSelectorUI();
         } else {
             if (waBtn) waBtn.style.display = 'block';
             if (uploadBtn) uploadBtn.style.display = 'block';
@@ -85,6 +85,8 @@ function updateAuthUI() {
             iframe.title = 'Registro de Ventas';
             embedContainer.appendChild(iframe);
         }
+        loadSellerClients();
+        loadSellerDays();
     } else if (storeAuthUser && storeAuthUser.username) {
         // Logged in but no seller selected yet
         storeAuthBtn.textContent = 'Seleccionar Vendedor';
@@ -163,6 +165,110 @@ async function loadSellerClients() {
     } catch (err) {
         console.error('[Autocomplete] Error loading clients:', err);
     }
+}
+
+let storeSellerDays = [];
+let storeSelectedDayId = null;
+
+function formatStoreDayCardParts(input) {
+    if (!input) return { weekday: 'Fecha', dateString: '' };
+    let iso = String(input);
+    if (/^\d{4}-\d{2}-\d{2}T/.test(iso)) iso = iso.slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return { weekday: String(input), dateString: '' };
+    const d = new Date(iso + 'T00:00:00Z');
+    if (isNaN(d.getTime())) return { weekday: iso, dateString: '' };
+    const weekdays = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    
+    return {
+        weekday: weekdays[d.getUTCDay()],
+        dateString: `${d.getUTCDate()} de ${months[d.getUTCMonth()]}`
+    };
+}
+
+async function loadSellerDays() {
+    if (!storeAuthUser || !storeActiveSeller) return;
+    try {
+        const headers = getAuthHeaders();
+        const daysRes = await fetch(`/api/days?seller_id=${storeActiveSeller.id}`, { headers });
+        if (!daysRes.ok) return;
+        const days = await daysRes.json();
+        if (Array.isArray(days)) {
+            // Sort by date ascending (closest date first on the left, furthest on the right)
+            storeSellerDays = days.sort((a, b) => new Date(a.day) - new Date(b.day));
+            updateDateSelectorUI();
+        }
+    } catch (err) {
+        console.error('[Store] Error loading seller days:', err);
+    }
+}
+
+function updateDateSelectorUI() {
+    const container = document.getElementById('store-order-date-container');
+    if (!container) return;
+    
+    if (storeSellerDays.length <= 1) {
+        container.style.display = 'none';
+        container.innerHTML = '';
+        storeSelectedDayId = storeSellerDays[0] ? storeSellerDays[0].id : null;
+        return;
+    }
+
+    // Optimization: If the cards are already rendered for the current list of days, do not rebuild.
+    // This preserves selection state and prevents layout flicker.
+    const existingCards = container.querySelectorAll('.store-date-card');
+    if (existingCards.length === storeSellerDays.length) {
+        let matchesAll = true;
+        existingCards.forEach((card, idx) => {
+            if (card.dataset.dayId !== String(storeSellerDays[idx].id)) {
+                matchesAll = false;
+            }
+        });
+        if (matchesAll) {
+            container.style.display = 'flex';
+            return;
+        }
+    }
+
+    container.innerHTML = '';
+    
+    // Set first day as default selected
+    storeSelectedDayId = storeSellerDays[0].id;
+
+    storeSellerDays.forEach((d, idx) => {
+        const card = document.createElement('div');
+        card.className = `store-date-card ${idx === 0 ? 'active' : ''}`;
+        card.dataset.dayId = d.id;
+
+        const parts = formatStoreDayCardParts(d.day);
+
+        const weekdayEl = document.createElement('span');
+        weekdayEl.className = 'store-date-card-day';
+        weekdayEl.textContent = parts.weekday;
+
+        const dateEl = document.createElement('span');
+        dateEl.className = 'store-date-card-date';
+        dateEl.textContent = parts.dateString;
+
+        card.appendChild(weekdayEl);
+        if (parts.dateString) card.appendChild(dateEl);
+
+        card.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Update selected ID
+            storeSelectedDayId = d.id;
+            
+            // Toggle active classes
+            container.querySelectorAll('.store-date-card').forEach(c => c.classList.remove('active'));
+            card.classList.add('active');
+        });
+
+        container.appendChild(card);
+    });
+    
+    container.style.display = 'flex';
 }
 
 function setupClientAutocomplete() {
@@ -288,6 +394,8 @@ function setSeller(seller) {
     safeLS.setItem('storeActiveSeller', JSON.stringify(seller));
     document.getElementById('store-seller-modal').style.display = 'none';
     updateAuthUI();
+    loadSellerClients();
+    loadSellerDays();
     updateCartUI();
 }
 
@@ -346,7 +454,8 @@ async function executeCheckout(customerName) {
         items: saleItems,
         seller: storeActiveSeller,
         user: storeAuthUser,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        sale_day_id: storeSelectedDayId
     };
 
     // 1. Queue immediately
@@ -487,13 +596,20 @@ async function processSingleSale(sale) {
         const actorName = sale.user ? (sale.user.name || sale.user.username) : 'Tienda Online';
 
         // 1. Parallelize Initial Lookups (Days and Desserts)
+        let targetDayId = sale.sale_day_id || null;
+        let daysPromise;
+        if (!targetDayId) {
+            daysPromise = fetch(`/api/days?seller_id=${sale.seller.id}`, { headers: authHeaders }).catch(e => ({ ok: false }));
+        } else {
+            daysPromise = Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+        }
+
         const [daysRes, dessertsRes] = await Promise.all([
-            fetch(`/api/days?seller_id=${sale.seller.id}`, { headers: authHeaders }).catch(e => ({ ok: false })),
+            daysPromise,
             fetch('/api/desserts', { headers: authHeaders }).catch(e => ({ ok: false }))
         ]);
 
-        let targetDayId = null;
-        if (daysRes.ok) {
+        if (!targetDayId && daysRes.ok) {
             const days = await daysRes.json();
             const targetDay = days[0];
             if (targetDay) targetDayId = targetDay.id;
