@@ -3170,13 +3170,13 @@ tfoot td {
 @media (max-width: 640px) {
 	.new-sale-popover {
 		min-width: 0;
-		width: 53vw;
-		max-width: 240px;
+		width: 90vw !important;
+		max-width: 460px !important;
 		max-height: 85vh;
 		overflow-y: auto;
 		left: 50% !important;
-		transform: translateX(-50%) !important;
-		top: 8vh !important;
+		top: 50% !important;
+		transform: translate(-50%, -50%) !important;
 		padding: 12px;
 	}
 

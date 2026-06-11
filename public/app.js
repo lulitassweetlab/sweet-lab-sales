@@ -2915,7 +2915,7 @@ function openNewSalePopover(anchorX, anchorY) {
 		}
 		function outside(ev) {
 			const t = ev.target;
-			if (!pop.contains(t) && !t.closest?.('.client-suggest-popover')) cleanup();
+			if (!pop.contains(t) && !t.closest?.('.client-suggest-popover')) doSave();
 		}
 		setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
 		cancelBtn.addEventListener('click', cleanup);
@@ -2924,6 +2924,7 @@ function openNewSalePopover(anchorX, anchorY) {
 		setTimeout(() => { try { clientInput.focus(); clientInput.select(); } catch { } }, 0);
 
 		async function doSave() {
+			if (saveBtn.disabled) return;
 			try {
 				// Silent validation: if no desserts have a quantity greater than zero, close silently and don't save
 				let totalQty = 0;
@@ -3341,7 +3342,7 @@ function openEditSalePopover(saleId, anchorX, anchorY, onCloseCallback) {
 		}
 		function outside(ev) {
 			const t = ev.target;
-			if (!pop.contains(t) && !t.closest?.('.client-suggest-popover')) cleanup();
+			if (!pop.contains(t) && !t.closest?.('.client-suggest-popover')) doSave();
 		}
 		setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
 		cancelBtn.addEventListener('click', cleanup);
@@ -3350,6 +3351,7 @@ function openEditSalePopover(saleId, anchorX, anchorY, onCloseCallback) {
 		setTimeout(() => { try { clientInput.focus(); clientInput.select(); } catch { } }, 0);
 
 		async function doSave() {
+			if (saveBtn.disabled) return;
 			try {
 				saveBtn.disabled = true; cancelBtn.disabled = true;
 
@@ -4047,7 +4049,7 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
 		}
 		function outside(ev) {
 			const t = ev.target;
-			if (!pop.contains(t) && !t.closest?.('.client-suggest-popover')) cleanup();
+			if (!pop.contains(t) && !t.closest?.('.client-suggest-popover')) doSave();
 		}
 		setTimeout(() => { document.addEventListener('mousedown', outside, true); document.addEventListener('touchstart', outside, true); }, 0);
 		cancelBtn.addEventListener('click', cleanup);
