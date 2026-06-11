@@ -62,6 +62,9 @@ const KitchenManager = {
             // 5. Load Today's History
             await this.loadHistory();
 
+            // 6. Load Production Logs
+            await this.loadProductionLogs();
+
             this.render();
         } catch (err) {
             console.error("Kitchen Load Error:", err);
@@ -307,6 +310,172 @@ const KitchenManager = {
             this.history = [];
             this.producedStepsMap = {};
         }
+    },
+
+    async loadProductionLogs() {
+        try {
+            const logs = await window.api('GET', `/api/inventory?action=get_production_logs&_t=${Date.now()}`) || [];
+            this.productionLogsByStep = {};
+            this.productionLogsRaw = logs;
+            logs.forEach(log => {
+                const sid = log.step_id;
+                if (!this.productionLogsByStep[sid]) {
+                    this.productionLogsByStep[sid] = [];
+                }
+                this.productionLogsByStep[sid].push(log);
+            });
+            console.log("📊 Loaded production logs:", logs.length);
+        } catch (err) {
+            console.warn("Could not load production logs:", err);
+            this.productionLogsByStep = {};
+            this.productionLogsRaw = [];
+        }
+    },
+
+    getAverageTimePerUnit(stepId) {
+        if (!stepId || !this.productionLogsByStep) return null;
+        const logs = this.productionLogsByStep[stepId] || [];
+        if (logs.length === 0) return null;
+        let totalSeconds = 0;
+        let totalQty = 0;
+        logs.forEach(log => {
+            totalSeconds += Number(log.duration_seconds || 0);
+            totalQty += Number(log.qty || 0);
+        });
+        return totalQty > 0 ? (totalSeconds / totalQty) : null;
+    },
+
+    getAverageTimeForQty(stepId, qty) {
+        const avgPerUnit = this.getAverageTimePerUnit(stepId);
+        if (avgPerUnit === null) return null;
+        return Math.round(avgPerUnit * qty);
+    },
+
+    showProductionLogsPopover(stepId, titleName) {
+        const existing = document.getElementById('production-logs-modal');
+        if (existing) existing.remove();
+
+        const logs = (this.productionLogsRaw || []).filter(l => l.step_id === Number(stepId));
+
+        const backdrop = document.createElement('div');
+        backdrop.id = 'production-logs-modal';
+        backdrop.style = `
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(15, 23, 42, 0.4);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            z-index: 100000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            animation: fadeIn 0.2s ease-out;
+        `;
+
+        const modal = document.createElement('div');
+        modal.style = `
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04), inset 0 1px 1px 0 rgba(255, 255, 255, 0.8);
+            border-radius: 24px;
+            max-width: 500px;
+            width: 100%;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            animation: scaleUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            color: #1e293b;
+        `;
+
+        if (!document.getElementById('kitchen-modal-styles')) {
+            const style = document.createElement('style');
+            style.id = 'kitchen-modal-styles';
+            style.textContent = `
+                @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+                @keyframes scaleUp { from { transform: scale(0.9) translateY(10px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
+            `;
+            document.head.appendChild(style);
+        }
+
+        const header = document.createElement('div');
+        header.style = "display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid rgba(226, 232, 240, 0.8); padding-bottom: 12px;";
+        header.innerHTML = `
+            <div style="display:flex; flex-direction:column; gap:4px;">
+                <h3 style="margin:0; font-size:1.1rem; font-weight:900; color:#0f172a;">Historial de Producción</h3>
+                <span style="font-size:0.75rem; color:#64748b; font-weight:600;">${titleName}</span>
+            </div>
+            <button onclick="document.getElementById('production-logs-modal').remove()" 
+                class="press-btn" style="border:none; background:rgba(241,245,249,0.8); color:#64748b; font-size:14px; font-weight:700; width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer;">
+                ✕
+            </button>
+        `;
+        modal.appendChild(header);
+
+        const listContainer = document.createElement('div');
+        listContainer.style = "max-height: 300px; overflow-y: auto; display:flex; flex-direction:column; gap:10px; padding-right: 4px;";
+
+        if (logs.length === 0) {
+            listContainer.innerHTML = `
+                <div style="text-align:center; padding:32px 16px; color:#94a3b8; font-size:0.85rem; display:flex; flex-direction:column; gap:8px;">
+                    <span>🥞</span>
+                    <span>No hay registros anteriores de producción para este paso.</span>
+                </div>
+            `;
+        } else {
+            logs.forEach(log => {
+                const date = new Date(log.created_at);
+                const dateStr = date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                const duration = this.formatDuration(log.duration_seconds);
+                const perUnit = log.qty > 0 ? this.formatDuration(Math.round(log.duration_seconds / log.qty)) : 'N/D';
+
+                const card = document.createElement('div');
+                card.style = `
+                    background: rgba(255, 255, 255, 0.6);
+                    border: 1px solid rgba(226, 232, 240, 0.8);
+                    border-radius: 14px;
+                    padding: 12px 16px;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 6px;
+                `;
+                card.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-size:0.7rem; color:#94a3b8; font-weight:600;">${dateStr}</span>
+                        <span style="font-size:0.75rem; color:#64748b; font-weight:700; background:rgba(241,245,249,0.8); padding:2px 8px; border-radius:6px;">👨‍🍳 ${log.actor_name || 'Cocinero'}</span>
+                    </div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr 1.2fr; gap:10px; margin-top:4px;">
+                        <div style="display:flex; flex-direction:column;">
+                            <span style="font-size:0.6rem; color:#94a3b8; text-transform:uppercase; font-weight:700;">Lote</span>
+                            <span style="font-size:0.85rem; font-weight:800; color:#1e293b;">${log.qty} uds</span>
+                        </div>
+                        <div style="display:flex; flex-direction:column;">
+                            <span style="font-size:0.6rem; color:#94a3b8; text-transform:uppercase; font-weight:700;">Tiempo</span>
+                            <span style="font-size:0.85rem; font-weight:800; color:#4f46e5;">${duration}</span>
+                        </div>
+                        <div style="display:flex; flex-direction:column;">
+                            <span style="font-size:0.6rem; color:#94a3b8; text-transform:uppercase; font-weight:700;">Tiempo / U.</span>
+                            <span style="font-size:0.85rem; font-weight:800; color:#10b981;">${perUnit}</span>
+                        </div>
+                    </div>
+                `;
+                listContainer.appendChild(card);
+            });
+        }
+        modal.appendChild(listContainer);
+
+        backdrop.appendChild(modal);
+
+        backdrop.onclick = (e) => {
+            if (e.target === backdrop) {
+                backdrop.remove();
+            }
+        };
+
+        document.body.appendChild(backdrop);
     },
 
     render() {
@@ -672,6 +841,17 @@ const KitchenManager = {
             const base = Number(inp.getAttribute('data-base')) || 0;
             inp.value = (base * multiplier).toFixed(2);
         });
+
+        // Update average time dynamically if the badge exists
+        const stepBlock = loteInput.closest('div').parentElement.parentElement;
+        if (stepBlock) {
+            const avgValSpan = stepBlock.querySelector('.avg-val');
+            if (avgValSpan) {
+                const baseAvg = Number(avgValSpan.getAttribute('data-base-avg')) || 0;
+                const newSeconds = Math.round(baseAvg * multiplier);
+                avgValSpan.textContent = this.formatDuration(newSeconds);
+            }
+        }
     },
 
     addExtraIngredientRow(inputId) {
@@ -738,6 +918,22 @@ const KitchenManager = {
         const btnTextDone = hasIngredients ? 'Producir Más' : 'Completar Más';
         const btnTextPending = hasIngredients ? 'Producir' : 'Completar';
 
+        const avgSeconds = this.getAverageTimeForQty(step.id, defaultQty);
+        let averageTimeHtml = "";
+        if (avgSeconds !== null) {
+            averageTimeHtml = `
+                <span class="average-time-badge" 
+                    onclick="window.KitchenManager.showProductionLogsPopover(${step.id}, '${recipeName} - ${step.name || 'General'}')"
+                    style="font-size:0.65rem; color:#64748b; font-weight:700; background:#f1f5f9; padding:3px 8px; border-radius:6px; cursor:pointer; transition:all 0.2s; display:inline-flex; align-items:center; gap:4px; border:1px solid #e2e8f0; pointer-events:auto;"
+                    onmouseover="this.style.background='#e2e8f0'; this.style.color='#1e293b';"
+                    onmouseout="this.style.background='#f1f5f9'; this.style.color='#64748b';"
+                    title="Ver historial de producción"
+                    data-step-id="${step.id}">
+                    ⏱️ Promedio: <span class="avg-val" data-base-avg="${this.getAverageTimePerUnit(step.id)}">${this.formatDuration(avgSeconds)}</span>
+                </span>
+            `;
+        }
+
         let actionButtonsHtml = "";
         if (isDone) {
             actionButtonsHtml = `
@@ -797,7 +993,10 @@ const KitchenManager = {
                             ${isRunning ? '<span style="width:5px; height:5px; background:#ef4444; border-radius:50%; animation: pulse 1.5s infinite; flex-shrink:0;"></span>' : ''}
                         </div>
                     </div>
-                    ${producedInWindow > 0 ? `<span style="font-size:0.7rem; color:#16a34a; font-weight:900; background:#dcfce7; padding:2px 8px; border-radius:8px;">✓ ${producedInWindow}</span>` : ''}
+                    <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
+                        ${averageTimeHtml}
+                        ${producedInWindow > 0 ? `<span style="font-size:0.7rem; color:#16a34a; font-weight:900; background:#dcfce7; padding:2px 8px; border-radius:8px;">✓ ${producedInWindow}</span>` : ''}
+                    </div>
                 </div>
                 <div style="display:flex; gap:8px; align-items:center;">
                     <div style="display:flex; flex-direction:column; gap:4px; flex:1;">

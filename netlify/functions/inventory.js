@@ -33,6 +33,17 @@ export async function handler(event) {
 				}
 
 				const actionQuery = params.get('action');
+				if (actionQuery === 'get_production_logs') {
+					const stepId = params.get('step_id');
+					let list;
+					if (stepId) {
+						list = await sql`SELECT id, step_id, qty, duration_seconds, actor_name, created_at FROM production_logs WHERE step_id = ${Number(stepId)} ORDER BY created_at DESC LIMIT 100`;
+					} else {
+						list = await sql`SELECT id, step_id, qty, duration_seconds, actor_name, created_at FROM production_logs ORDER BY created_at DESC LIMIT 1000`;
+					}
+					return json(list);
+				}
+
 				if (actionQuery === 'get_conversions') {
 					const list = await sql`SELECT * FROM inventory_conversions ORDER BY ingredient_name`;
 					return json(list);
