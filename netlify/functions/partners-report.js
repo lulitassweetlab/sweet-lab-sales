@@ -243,24 +243,133 @@ export async function handler(event) {
             // 2. Calculate Real Commissions and MOD (ALWAYS)
             const commCalculatedRows = await sql`
                 WITH unpivoted AS (
-                    SELECT s.id as sale_id, s.seller_id, sd.day as sale_date, 'arco' as product_name, s.qty_arco as qty FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_arco > 0 AND to_char(sd.day, 'YYYY-MM') = ${m} AND s.id NOT IN (SELECT sale_id FROM sale_items)
-                    UNION ALL SELECT s.id, s.seller_id, sd.day, 'melo', s.qty_melo FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_melo > 0 AND to_char(sd.day, 'YYYY-MM') = ${m} AND s.id NOT IN (SELECT sale_id FROM sale_items)
-                    UNION ALL SELECT s.id, s.seller_id, sd.day, 'mara', s.qty_mara FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_mara > 0 AND to_char(sd.day, 'YYYY-MM') = ${m} AND s.id NOT IN (SELECT sale_id FROM sale_items)
-                    UNION ALL SELECT s.id, s.seller_id, sd.day, 'oreo', s.qty_oreo FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_oreo > 0 AND to_char(sd.day, 'YYYY-MM') = ${m} AND s.id NOT IN (SELECT sale_id FROM sale_items)
-                    UNION ALL SELECT s.id, s.seller_id, sd.day, 'nute', s.qty_nute FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_nute > 0 AND to_char(sd.day, 'YYYY-MM') = ${m} AND s.id NOT IN (SELECT sale_id FROM sale_items)
-                    UNION ALL SELECT s.id, s.seller_id, sd.day, d.short_code, si.quantity FROM sales s JOIN sale_items si ON s.id = si.sale_id JOIN desserts d ON si.dessert_id = d.id JOIN sale_days sd ON s.sale_day_id = sd.id WHERE si.quantity > 0 AND to_char(sd.day, 'YYYY-MM') = ${m}
+                    SELECT s.id as sale_id, s.seller_id, sd.day as sale_date, 'arco' as product_name, s.qty_arco as qty, s.special_pricing_type FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_arco > 0 AND to_char(sd.day, 'YYYY-MM') = ${m} AND s.id NOT IN (SELECT sale_id FROM sale_items)
+                    UNION ALL SELECT s.id, s.seller_id, sd.day, 'melo', s.qty_melo, s.special_pricing_type FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_melo > 0 AND to_char(sd.day, 'YYYY-MM') = ${m} AND s.id NOT IN (SELECT sale_id FROM sale_items)
+                    UNION ALL SELECT s.id, s.seller_id, sd.day, 'mara', s.qty_mara, s.special_pricing_type FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_mara > 0 AND to_char(sd.day, 'YYYY-MM') = ${m} AND s.id NOT IN (SELECT sale_id FROM sale_items)
+                    UNION ALL SELECT s.id, s.seller_id, sd.day, 'oreo', s.qty_oreo, s.special_pricing_type FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_oreo > 0 AND to_char(sd.day, 'YYYY-MM') = ${m} AND s.id NOT IN (SELECT sale_id FROM sale_items)
+                    UNION ALL SELECT s.id, s.seller_id, sd.day, 'nute', s.qty_nute, s.special_pricing_type FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_nute > 0 AND to_char(sd.day, 'YYYY-MM') = ${m} AND s.id NOT IN (SELECT sale_id FROM sale_items)
+                    UNION ALL SELECT 
+                        s.id, 
+                        s.seller_id, 
+                        sd.day, 
+                        d.short_code, 
+                        si.quantity, 
+                        CASE 
+                            WHEN s.special_pricing_type = 'muestra' OR si.unit_price = 0 THEN 'muestra'
+                            WHEN s.special_pricing_type = 'a_costo' OR si.unit_price = d.cost_price THEN 'a_costo'
+                            ELSE NULL
+                        END as special_pricing_type
+                    FROM sales s 
+                    JOIN sale_items si ON s.id = si.sale_id 
+                    JOIN desserts d ON si.dessert_id = d.id 
+                    JOIN sale_days sd ON s.sale_day_id = sd.id 
+                    WHERE si.quantity > 0 AND to_char(sd.day, 'YYYY-MM') = ${m}
                 )
-                SELECT u.seller_id, u.product_name, SUM(u.qty) as total_qty FROM unpivoted u GROUP BY u.seller_id, u.product_name
+                SELECT u.seller_id, u.product_name, u.special_pricing_type, SUM(u.qty) as total_qty FROM unpivoted u GROUP BY u.seller_id, u.product_name, u.special_pricing_type
             `;
 
+            // Daily sales query for daily breakdown click detail
+            const dailySalesRows = await sql`
+                WITH unpivoted AS (
+                    SELECT s.seller_id, sd.day::text as sale_date, 'arco' as product_name, s.qty_arco as qty, s.special_pricing_type FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_arco > 0 AND to_char(sd.day, 'YYYY-MM') = ${m} AND s.id NOT IN (SELECT sale_id FROM sale_items)
+                    UNION ALL SELECT s.seller_id, sd.day::text, 'melo', s.qty_melo, s.special_pricing_type FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_melo > 0 AND to_char(sd.day, 'YYYY-MM') = ${m} AND s.id NOT IN (SELECT sale_id FROM sale_items)
+                    UNION ALL SELECT s.seller_id, sd.day::text, 'mara', s.qty_mara, s.special_pricing_type FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_mara > 0 AND to_char(sd.day, 'YYYY-MM') = ${m} AND s.id NOT IN (SELECT sale_id FROM sale_items)
+                    UNION ALL SELECT s.seller_id, sd.day::text, 'oreo', s.qty_oreo, s.special_pricing_type FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_oreo > 0 AND to_char(sd.day, 'YYYY-MM') = ${m} AND s.id NOT IN (SELECT sale_id FROM sale_items)
+                    UNION ALL SELECT s.seller_id, sd.day::text, 'nute', s.qty_nute, s.special_pricing_type FROM sales s JOIN sale_days sd ON s.sale_day_id = sd.id WHERE s.qty_nute > 0 AND to_char(sd.day, 'YYYY-MM') = ${m} AND s.id NOT IN (SELECT sale_id FROM sale_items)
+                    UNION ALL SELECT 
+                        s.seller_id, 
+                        sd.day::text as sale_date, 
+                        d.short_code, 
+                        si.quantity, 
+                        CASE 
+                            WHEN s.special_pricing_type = 'muestra' OR si.unit_price = 0 THEN 'muestra'
+                            WHEN s.special_pricing_type = 'a_costo' OR si.unit_price = d.cost_price THEN 'a_costo'
+                            ELSE NULL
+                        END as special_pricing_type
+                    FROM sales s 
+                    JOIN sale_items si ON s.id = si.sale_id 
+                    JOIN desserts d ON si.dessert_id = d.id 
+                    JOIN sale_days sd ON s.sale_day_id = sd.id 
+                    WHERE si.quantity > 0 AND to_char(sd.day, 'YYYY-MM') = ${m}
+                )
+                SELECT u.seller_id, u.sale_date, u.product_name, u.special_pricing_type, SUM(u.qty) as total_qty FROM unpivoted u GROUP BY u.seller_id, u.sale_date, u.product_name, u.special_pricing_type ORDER BY u.sale_date ASC
+            `;
+
+            const dailyMap = {};
+            (dailySalesRows || []).forEach(r => {
+                const sid = Number(r.seller_id);
+                const dateStr = String(r.sale_date).split(' ')[0];
+                if (!dailyMap[sid]) dailyMap[sid] = {};
+                if (!dailyMap[sid][dateStr]) dailyMap[sid][dateStr] = { desserts: 0, brigs: 0, costo_desserts: 0, muestra_desserts: 0 };
+                
+                const qty = Number(r.total_qty || 0);
+                const isBrig = (r.product_name || '').toLowerCase().includes('brig') || (r.product_name || '').toLowerCase().includes('bt');
+                const isCosto = r.special_pricing_type === 'a_costo';
+                const isMuestra = r.special_pricing_type === 'muestra';
+
+                if (isBrig) {
+                    dailyMap[sid][dateStr].brigs += qty;
+                } else {
+                    if (isCosto) dailyMap[sid][dateStr].costo_desserts += qty;
+                    else if (isMuestra) dailyMap[sid][dateStr].muestra_desserts += qty;
+                    else dailyMap[sid][dateStr].desserts += qty;
+                }
+            });
+
+            // Query commissions paid from sale_days
+            const dailyPaidRows = await sql`
+                SELECT day::text as sale_date, seller_id, COALESCE(commissions_paid, 0) as commissions_paid 
+                FROM sale_days 
+                WHERE to_char(day, 'YYYY-MM') = ${m}
+            `;
+            const dailyPaidMap = {};
+            (dailyPaidRows || []).forEach(r => {
+                const sid = Number(r.seller_id);
+                const dateStr = String(r.sale_date).split(' ')[0];
+                if (!dailyPaidMap[sid]) dailyPaidMap[sid] = {};
+                dailyPaidMap[sid][dateStr] = Number(r.commissions_paid || 0);
+            });
+
             const commissionsMap = {};
+            allSellersRows.forEach(s => {
+                commissionsMap[s.id] = { 
+                    desserts: 0, 
+                    brigs: 0, 
+                    total_comm: 0, 
+                    direct_comm: 0, 
+                    referral_comm_total: 0, 
+                    referral_detail: [],
+                    costo_desserts: 0,
+                    muestra_desserts: 0
+                };
+            });
+
             (commCalculatedRows || []).forEach(c => {
                 const sid = c.seller_id;
-                if (!commissionsMap[sid]) commissionsMap[sid] = { desserts: 0, brigs: 0, total_comm: 0 };
+                if (!commissionsMap[sid]) {
+                    commissionsMap[sid] = { 
+                        desserts: 0, 
+                        brigs: 0, 
+                        total_comm: 0, 
+                        direct_comm: 0, 
+                        referral_comm_total: 0, 
+                        referral_detail: [],
+                        costo_desserts: 0,
+                        muestra_desserts: 0
+                    };
+                }
                 const qty = Number(c.total_qty || 0);
                 const isBrig = (c.product_name || '').toLowerCase().includes('brig') || (c.product_name || '').toLowerCase().includes('bt');
-                if (isBrig) commissionsMap[sid].brigs += qty;
-                else commissionsMap[sid].desserts += qty;
+                const isCosto = c.special_pricing_type === 'a_costo';
+                const isMuestra = c.special_pricing_type === 'muestra';
+
+                if (isBrig) {
+                    commissionsMap[sid].brigs += qty;
+                } else {
+                    if (isCosto) commissionsMap[sid].costo_desserts += qty;
+                    else if (isMuestra) commissionsMap[sid].muestra_desserts += qty;
+                    else commissionsMap[sid].desserts += qty;
+                }
             });
 
             Object.keys(commissionsMap).forEach(sid => {
@@ -269,14 +378,125 @@ export async function handler(event) {
                 if (s.desserts >= 60) unitPricePostre = 1500;
                 else if (s.desserts >= 30) unitPricePostre = 1300;
                 else if (s.desserts >= 1) unitPricePostre = 1000;
-                s.total_comm = (s.desserts * unitPricePostre) + (s.brigs * 200);
+                s.direct_comm = (s.desserts * unitPricePostre) + (s.brigs * 200);
+                s.rate_applied = unitPricePostre;
             });
 
-            const commissionDetail = Object.keys(commissionsMap).map(sid => ({
-                seller_id: Number(sid),
-                seller_name: sellerMap[sid] || `Vendedor ${sid}`,
-                ...commissionsMap[sid]
-            }));
+            // Calculate Referral Commissions ($500 per dessert sold by invitees)
+            allSellersRows.forEach(s => {
+                if (s.parent_id) {
+                    const pid = Number(s.parent_id);
+                    const inviteeSales = commissionsMap[s.id]?.desserts || 0;
+                    const inviteeCosto = commissionsMap[s.id]?.costo_desserts || 0;
+                    const inviteeMuestra = commissionsMap[s.id]?.muestra_desserts || 0;
+                    if ((inviteeSales > 0 || inviteeCosto > 0 || inviteeMuestra > 0) && commissionsMap[pid]) {
+                        const refComm = inviteeSales * 500;
+                        commissionsMap[pid].referral_comm_total += refComm;
+                        commissionsMap[pid].referral_detail.push({
+                            seller_id: s.id,
+                            seller_name: s.name,
+                            desserts: inviteeSales,
+                            costo_desserts: inviteeCosto,
+                            muestra_desserts: inviteeMuestra,
+                            commission: refComm
+                        });
+                    }
+                }
+            });
+
+            Object.keys(commissionsMap).forEach(sid => {
+                const s = commissionsMap[sid];
+                s.total_comm = s.direct_comm + s.referral_comm_total;
+            });
+
+            const activeSellerIds = Object.keys(commissionsMap).filter(sid => {
+                const s = commissionsMap[sid];
+                const hasSales = s.desserts > 0 || s.brigs > 0 || s.costo_desserts > 0 || s.muestra_desserts > 0;
+                const hasReferrals = s.referral_comm_total > 0;
+                const hasPaid = dailyPaidMap[Number(sid)] && Object.values(dailyPaidMap[Number(sid)]).some(v => v > 0);
+                return hasSales || hasReferrals || hasPaid;
+            });
+
+            const commissionDetail = activeSellerIds.map(sid => {
+                const s = commissionsMap[sid];
+                const rawDays = dailyMap[Number(sid)] || {};
+                const rawPaid = dailyPaidMap[Number(sid)] || {};
+
+                // Find daily referral sales from invitees
+                const inviteeDatesMap = {}; // date -> array of { seller_id, seller_name, desserts, costo_desserts, muestra_desserts, commission }
+                allSellersRows.forEach(inv => {
+                    if (Number(inv.parent_id) === Number(sid)) {
+                        const invDays = dailyMap[inv.id] || {};
+                        Object.keys(invDays).forEach(dateStr => {
+                            const dQty = invDays[dateStr].desserts || 0;
+                            const dCosto = invDays[dateStr].costo_desserts || 0;
+                            const dMuestra = invDays[dateStr].muestra_desserts || 0;
+                            if (dQty > 0 || dCosto > 0 || dMuestra > 0) {
+                                const refComm = dQty * 500;
+                                if (!inviteeDatesMap[dateStr]) inviteeDatesMap[dateStr] = [];
+                                inviteeDatesMap[dateStr].push({
+                                    seller_id: inv.id,
+                                    seller_name: inv.name,
+                                    desserts: dQty,
+                                    costo_desserts: dCosto,
+                                    muestra_desserts: dMuestra,
+                                    commission: refComm
+                                });
+                            }
+                        });
+                    }
+                });
+
+                // Get union of all unique dates with sales, referral sales or payments
+                const allDates = [...new Set([
+                    ...Object.keys(rawDays),
+                    ...Object.keys(rawPaid),
+                    ...Object.keys(inviteeDatesMap)
+                ])].sort();
+
+                const daysList = allDates.map(dateStr => {
+                    const dQty = rawDays[dateStr]?.desserts || 0;
+                    const dCosto = rawDays[dateStr]?.costo_desserts || 0;
+                    const dMuestra = rawDays[dateStr]?.muestra_desserts || 0;
+                    const bQty = rawDays[dateStr]?.brigs || 0;
+                    const directComm = (dQty * s.rate_applied) + (bQty * 200);
+
+                    const refDetails = inviteeDatesMap[dateStr] || [];
+                    const refComm = refDetails.reduce((sum, item) => sum + item.commission, 0);
+
+                    const paid = rawPaid[dateStr] || 0;
+                    return {
+                        date: dateStr,
+                        desserts: dQty,
+                        costo_desserts: dCosto,
+                        muestra_desserts: dMuestra,
+                        brigs: bQty,
+                        commission: Math.round(directComm),
+                        referral_commission: Math.round(refComm),
+                        referral_details: refDetails,
+                        total_commission: Math.round(directComm + refComm),
+                        paid: Math.round(paid)
+                    };
+                });
+
+                const totalCommPaid = Math.round(daysList.reduce((a, b) => a + Number(b.paid || 0), 0));
+
+                return {
+                    seller_id: Number(sid),
+                    seller_name: sellerMap[sid] || `Vendedor ${sid}`,
+                    desserts: s.desserts,
+                    costo_desserts: s.costo_desserts,
+                    muestra_desserts: s.muestra_desserts,
+                    brigs: s.brigs,
+                    direct_comm: s.direct_comm,
+                    referral_comm_total: s.referral_comm_total,
+                    referral_detail: s.referral_detail,
+                    total_comm: s.total_comm,
+                    commissions_paid: totalCommPaid,
+                    rate_applied: s.rate_applied,
+                    days: daysList
+                };
+            });
 
             let totalMonthDesserts = commissionDetail.reduce((a, b) => a + Number(b.desserts || 0), 0);
             let totalMonthBrigs = commissionDetail.reduce((a, b) => a + Number(b.brigs || 0), 0);
@@ -353,9 +573,8 @@ export async function handler(event) {
             const opProfitBeforeInv = revenue - cogs - expenses - losses - calculatedCommissionsTotal - modCents;
             const opProfit = opProfitBeforeInv - inventory_investment;
             
-            let provision = provManual;
-            if (provision === 0) provision = Math.round(Math.max(0, opProfit) * (settings.provision_default_perc / 100));
-            const netToShare = opProfit - provision;
+            const provision = 0;
+            const netToShare = opProfit;
 
             // 4. Partner Shares Distribution (PRO MODEL EMA)
             let totalMonthPartnerSales = 0;
@@ -413,20 +632,23 @@ export async function handler(event) {
             const normalizedF = {};
             partnerIds.forEach(pid => normalizedF[pid] = rawF[pid] / sumF);
 
+            const socialContribution = Math.round(Math.max(0, netToShare) * 0.10);
+            const netForPartners = netToShare - socialContribution;
+
             let totalFoundersFixed = 0;
             partnerIds.forEach(pid => {
                 if (founders[pid]) {
-                    totalFoundersFixed += Math.round(Math.max(0, netToShare) * (Number(founders[pid]) / 100));
+                    totalFoundersFixed += Math.round(Math.max(0, netForPartners) * (Number(founders[pid]) / 100));
                 }
             });
-            const meritPool = netToShare - totalFoundersFixed;
+            const meritPool = netForPartners - totalFoundersFixed;
 
             const totalCumulGlobal = Object.values(lastCumulativeDesserts).reduce((a,b) => a+b, 0);
             const partnerShares = partnerIds.map(pid => {
                 const meritPerc = normalizedF[pid];
                 let shareAmount = Math.round(meritPool * meritPerc);
                 if (founders[pid]) {
-                    shareAmount += Math.round(Math.max(0, netToShare) * (Number(founders[pid]) / 100));
+                    shareAmount += Math.round(Math.max(0, netForPartners) * (Number(founders[pid]) / 100));
                 }
                 const finalPerc = netToShare > 0 ? (shareAmount / netToShare) * 100 : 0;
                 const founderFixed = founders[pid] ? Number(founders[pid]) : 0;
@@ -448,6 +670,21 @@ export async function handler(event) {
                         rolling_M: [...(partnerRollingM[pid] || [])]
                     }
                 };
+            });
+
+            partnerShares.push({
+                id: 'dios',
+                name: 'Aporte Social',
+                share_perc: netToShare > 0 ? 10.00 : 0.00,
+                share_amount: socialContribution,
+                founder_fixed_perc: 10,
+                is_social: true,
+                metrics_debug: {
+                    desserts: 0,
+                    cumulative_total: 0,
+                    M: 0, P: 0, H: 0, F: 0, H_global: 0,
+                    rolling_M: []
+                }
             });
 
             // 5. Finalize monthData

@@ -327,10 +327,24 @@ const KitchenManager = {
         if (!cont) return;
         cont.innerHTML = '';
         
-        // Sum totals per dessert across all batches
+        // Sum totals per dessert across all batches, accounting for already produced quantities
         const totals = {};
-        this.batches.forEach(b => {
-            totals[b.recipeName] = (totals[b.recipeName] || 0) + b.total;
+        this.batches.forEach(batch => {
+            const recipe = this.recipes.find(r => r.name === batch.recipeName);
+            let minProduced = 0;
+            
+            // If the recipe has steps, check how many have been produced for this specific batch date
+            if (recipe && recipe.steps && recipe.steps.length > 0) {
+                const stepTotals = recipe.steps.map(s => this.producedStepsMap[`${s.id}_${batch.day}`] || 0);
+                minProduced = Math.min(...stepTotals);
+            }
+            
+            // Calculate what is truly remaining to produce for this batch
+            const remaining = Math.max(0, batch.total - minProduced);
+            
+            if (remaining > 0) {
+                totals[batch.recipeName] = (totals[batch.recipeName] || 0) + remaining;
+            }
         });
 
         const sorted = Object.entries(totals).sort((a,b) => b[1] - a[1]);
@@ -608,6 +622,82 @@ const KitchenManager = {
         });
     },
 
+    toggleIngredientEdit(inputId) {
+        const cont = document.getElementById(`ingredients-container-${inputId}`);
+        if (!cont) return;
+        const readOnly = cont.querySelector('.ingredients-readonly');
+        const edit = cont.querySelector('.ingredients-edit');
+        
+        if (readOnly.style.display !== 'none') {
+            readOnly.style.display = 'none';
+            edit.style.display = 'flex';
+            cont.classList.add('is-editing');
+        } else {
+            readOnly.style.display = 'block';
+            edit.style.display = 'none';
+            cont.classList.remove('is-editing');
+        }
+    },
+
+    recalculateIngredients(inputId) {
+        const loteInput = document.getElementById(inputId);
+        if (!loteInput) return;
+        const multiplier = Number(loteInput.value) || 0;
+        
+        const cont = document.getElementById(`ingredients-container-${inputId}`);
+        if (!cont) return;
+        
+        // Update readonly
+        cont.querySelectorAll('.ingredients-readonly .qty-calc').forEach(span => {
+            const base = Number(span.getAttribute('data-base')) || 0;
+            span.textContent = (base * multiplier).toFixed(2);
+        });
+        
+        // Update edit mode
+        cont.querySelectorAll('.ingredients-edit .ing-qty[data-base]').forEach(inp => {
+            const base = Number(inp.getAttribute('data-base')) || 0;
+            inp.value = (base * multiplier).toFixed(2);
+        });
+    },
+
+    addExtraIngredientRow(inputId) {
+        const cont = document.getElementById(`extra-ing-container-${inputId}`);
+        if (!cont) return;
+        
+        // Build a select with all inventory items
+        let optionsHtml = '<option value="">Selecciona...</option>';
+        const uniqueItems = new Map();
+        (this.inventory || []).forEach(inv => {
+            if (inv.ingredient) {
+                const name = inv.ingredient.trim();
+                const key = name.toLowerCase();
+                if (!uniqueItems.has(key)) {
+                    uniqueItems.set(key, { name: name, unit: inv.unit || 'g' });
+                }
+            }
+        });
+        
+        const sortedItems = Array.from(uniqueItems.values()).sort((a,b) => a.name.localeCompare(b.name));
+        sortedItems.forEach(it => {
+            optionsHtml += `<option value="${it.name}" data-unit="${it.unit}">${it.name} (${it.unit})</option>`;
+        });
+        
+        const row = document.createElement('div');
+        row.className = 'custom-ing-row extra-ing-row';
+        row.style = "display:flex; align-items:center; gap:8px; justify-content:space-between;";
+        row.innerHTML = `
+            <select class="ing-name-select" style="flex:1; padding:4px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; width:100px; text-overflow:ellipsis;" onchange="this.parentElement.querySelector('.ing-name').value = this.value; this.parentElement.querySelector('.ing-unit').value = this.options[this.selectedIndex].getAttribute('data-unit') || 'u'; this.parentElement.querySelector('.unit-display').textContent = this.options[this.selectedIndex].getAttribute('data-unit') || 'u';">
+                ${optionsHtml}
+            </select>
+            <input type="hidden" class="ing-name" value="">
+            <input type="hidden" class="ing-unit" value="u">
+            <input type="number" class="ing-qty" placeholder="0" style="width:70px; padding:4px; border:1px solid #cbd5e1; border-radius:6px; text-align:right;">
+            <span class="unit-display" style="width:20px; font-size:12px;">u</span>
+            <button type="button" class="press-btn" onclick="this.parentElement.remove()" style="padding:4px 8px; font-size:10px; background:#f1f5f9; color:#ef4444; border:none; border-radius:6px;">❌</button>
+        `;
+        cont.appendChild(row);
+    },
+
     renderStepRow(recipeName, step, targetDate, totalNeeded) {
         if (!step) return "";
         const inputId = `input-${step.id || Math.random().toString(36).substr(2, 9)}`;
@@ -618,6 +708,10 @@ const KitchenManager = {
         const activeTimer = this.timers[timerKey];
         const isRunning = activeTimer && activeTimer.startTime;
         const elapsed = this.getElapsedSeconds(step.id, targetDate);
+
+        const hasIngredients = step.items && step.items.length > 0;
+        const btnTextDone = hasIngredients ? 'Producir Más' : 'Completar Más';
+        const btnTextPending = hasIngredients ? 'Producir' : 'Completar';
 
         return `
             <div style="background:${isDone ? '#f0fdf4' : '#f8fafc'}; border:1px solid ${isDone ? '#bbf7d0' : '#e2e8f0'}; border-radius:16px; padding:12px; transition: all 0.2s ease;">
@@ -647,7 +741,8 @@ const KitchenManager = {
                         <small style="font-size:0.65rem; color:#64748b; font-weight:600;">Lote</small>
                         <input type="number" id="${inputId}" value="${Math.max(0, totalNeeded - producedInWindow) || totalNeeded || 1}" min="1" 
                             style="width:100%; padding:8px; border-radius:10px; border:1px solid #cbd5e1; font-weight:700; text-align:center; outline:none;"
-                            onfocus="this.select()">
+                            onfocus="this.select()"
+                            oninput="window.KitchenManager.recalculateIngredients('${inputId}')">
                     </div>
                     
                     ${step.produces_ingredient ? `
@@ -663,33 +758,54 @@ const KitchenManager = {
                         <button onclick="window.KitchenManager.produceStep('${step.id || ''}', '${recipeName}', '${step.name || ''}', '${inputId}', '${targetDate}')" 
                             ${!step.id ? 'disabled' : ''}
                             class="press-btn" style="width:100%; background:${isDone ? '#10b981' : '#4f46e5'}; color:white; border:none; padding:10px; border-radius:10px; font-weight:700; font-size:0.8rem; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2); opacity:${!step.id ? 0.5 : 1};">
-                            ${isDone ? 'Producir Más' : 'Producir'}
+                            ${isDone ? btnTextDone : btnTextPending}
                         </button>
                     </div>
                 </div>
-                <div style="margin-top:10px; font-size:0.7rem; color:#94a3b8; border-top:1px solid #eef2f6; padding-top:8px;">
-                    ${(step.items || []).map(it => {
-                        const key = (it.ingredient || "").toLowerCase().trim();
-                        // Get projected stock BEFORE this step
-                        const currentProjected = this.virtualStockMap[key] || 0;
-                        
-                        // Calculate what remains to be produced in this specific step
-                        const qtyRemaining = Math.max(0, totalNeeded - producedInWindow);
-                        const qtyNeeded = Number(it.qty_per_unit || 0) * qtyRemaining;
-                        
-                        // Update virtual stock for SUBSEQUENT cards/steps (allow negative)
-                        if (qtyNeeded > 0) {
-                            this.virtualStockMap[key] = currentProjected - qtyNeeded;
-                        }
+                <div id="ingredients-container-${inputId}" style="margin-top:10px; font-size:0.7rem; color:#94a3b8; border-top:1px solid #eef2f6; padding-top:8px;">
+                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 8px;">
+                        <span style="font-size:0.75rem; font-weight:700; color:#64748b; text-transform:uppercase;">Insumos a descontar</span>
+                        ${hasIngredients ? `<button type="button" class="press-btn" onclick="window.KitchenManager.toggleIngredientEdit('${inputId}')" style="padding:2px 8px; font-size:10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; color:var(--text);">✏️ Ajustar</button>` : ''}
+                    </div>
+                    
+                    <div class="ingredients-readonly" style="font-size:0.82rem; line-height:1.4; color:#334155; margin-top:4px;">
+                        ${(step.items || []).map(it => {
+                            const key = (it.ingredient || "").toLowerCase().trim();
+                            const currentProjected = this.virtualStockMap[key] || 0;
+                            const qtyRemaining = Math.max(0, totalNeeded - producedInWindow);
+                            const qtyNeeded = Number(it.qty_per_unit || 0) * qtyRemaining;
+                            
+                            if (qtyNeeded > 0) {
+                                this.virtualStockMap[key] = currentProjected - qtyNeeded;
+                            }
 
-                        // Highlight if insufficient OR already negative
-                        const isLow = (currentProjected < qtyNeeded && qtyNeeded > 0) || currentProjected < 0;
-                        
-                        return `<div style="display:flex; justify-content:space-between; margin-bottom:2px; ${isLow ? 'color:#ef4444; font-weight:700;' : ''}">
-                            <span>• ${it.ingredient}</span>
-                            <span>${Number(qtyNeeded).toFixed(2)} / ${Number(currentProjected).toFixed(2)} ${it.unit}</span>
-                        </div>`;
-                    }).join('')}
+                            const isLow = (currentProjected < qtyNeeded && qtyNeeded > 0) || currentProjected < 0;
+                            
+                            return `<div style="display:flex; justify-content:space-between; margin-bottom:6px; ${isLow ? 'color:#ef4444; font-weight:700;' : ''}">
+                                <span style="font-weight:500;">• ${it.ingredient}</span>
+                                <span><span class="qty-calc" data-base="${it.qty_per_unit}" style="font-weight:700; color:#1e293b;">${Number(qtyNeeded).toFixed(2)}</span> / ${Number(currentProjected).toFixed(2)} ${it.unit}</span>
+                            </div>`;
+                        }).join('')}
+                    </div>
+                    
+                    <div class="ingredients-edit" style="display:none; flex-direction:column; gap:8px;">
+                        ${(step.items || []).map(it => {
+                            const qtyRemaining = Math.max(0, totalNeeded - producedInWindow);
+                            const qtyNeeded = Number(it.qty_per_unit || 0) * qtyRemaining;
+                            return `
+                            <div style="display:flex; align-items:center; gap:8px; justify-content:space-between;" class="custom-ing-row">
+                                <strong style="color:var(--text); flex:1; overflow:hidden; text-overflow:ellipsis;">${it.ingredient}</strong>
+                                <input type="hidden" class="ing-name" value="${it.ingredient}">
+                                <input type="hidden" class="ing-unit" value="${it.unit}">
+                                <input type="number" class="ing-qty" data-base="${it.qty_per_unit}" value="${Number(qtyNeeded).toFixed(2)}" style="width:70px; padding:4px; border:1px solid #cbd5e1; border-radius:6px; text-align:right;">
+                                <span>${it.unit}</span>
+                                <button type="button" class="press-btn" onclick="this.parentElement.remove()" style="padding:4px 8px; font-size:10px; background:#f1f5f9; color:#ef4444; border:none; border-radius:6px;">❌</button>
+                            </div>
+                            `;
+                        }).join('')}
+                        <div id="extra-ing-container-${inputId}" style="display:flex; flex-direction:column; gap:8px;"></div>
+                        <button type="button" class="press-btn" onclick="window.KitchenManager.addExtraIngredientRow('${inputId}')" style="padding:6px; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:6px; font-size:11px; text-align:center; width:100%; color:var(--text); font-weight:600;">+ Añadir ingrediente</button>
+                    </div>
                 </div>
             </div>
         `;
@@ -703,6 +819,20 @@ const KitchenManager = {
 
         const btn = document.querySelector(`button[onclick*="'${inputId}'"]`);
         const originalText = btn ? btn.innerText : "Producir";
+        
+        const cont = document.getElementById(`ingredients-container-${inputId}`);
+        let customIngredients = null;
+        if (cont && cont.classList.contains('is-editing')) {
+            customIngredients = [];
+            cont.querySelectorAll('.custom-ing-row').forEach(row => {
+                const name = row.querySelector('.ing-name').value;
+                const unit = row.querySelector('.ing-unit').value;
+                const ingQty = Number(row.querySelector('.ing-qty').value) || 0;
+                if (name && ingQty > 0) {
+                    customIngredients.push({ ingredient: name, unit: unit, qty: ingQty });
+                }
+            });
+        }
         
         try {
             if (btn) {
@@ -720,6 +850,7 @@ const KitchenManager = {
                 produced_qty: producedQty,
                 duration_seconds: this.getElapsedSeconds(stepId, targetDate),
                 target_date: targetDate,
+                custom_ingredients: customIngredients,
                 actor_name: window.state?.currentUser?.name || window.state?.currentUser?.username || "Cocinero"
             });
 

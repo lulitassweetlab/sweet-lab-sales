@@ -3119,6 +3119,9 @@ tfoot td {
 	padding: 14px;
 	min-width: 312px;
 	max-width: 95vw;
+	max-height: 85vh;
+	overflow-y: auto;
+	-webkit-overflow-scrolling: touch;
 	z-index: 1000;
 }
 
@@ -3224,6 +3227,128 @@ tfoot td {
 	min-width: 5.5ch;
 	text-align: center;
 }
+
+.new-sale-popover .qty-price-container {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	width: 100%;
+}
+
+.new-sale-popover .input-promo-price {
+	width: 9.5ch;
+	min-width: 9.5ch;
+	text-align: center;
+	border: none !important;
+	background: transparent;
+	font-size: 11px;
+	color: var(--text);
+}
+
+.new-sale-popover .input-promo-price::placeholder {
+	color: rgba(120, 120, 120, 0.4);
+	font-style: italic;
+}
+
+.new-sale-popover .promo-price-divider {
+	color: var(--border);
+	font-weight: 300;
+	user-select: none;
+	opacity: 0.6;
+}
+
+/* Pricing Chips (Placeholder Style) */
+.new-sale-popover .pricing-chip {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 1px 3px;
+	font-size: 9px;
+	font-weight: 500;
+	border: none !important;
+	background: transparent !important;
+	color: rgba(120, 120, 120, 0.45);
+	cursor: pointer;
+	user-select: none;
+	transition: all 180ms ease;
+	margin: 0 -2px;
+	transform: scale(0.72);
+	transform-origin: center;
+}
+
+.new-sale-popover .pricing-chip:hover {
+	color: var(--text);
+	transform: scale(0.78);
+}
+
+.new-sale-popover .pricing-chip:active {
+	transform: scale(0.68);
+}
+
+/* Active State Muestra (Placeholder green) */
+.new-sale-popover .pricing-chip.active-muestra {
+	background: rgba(46, 204, 113, 0.12) !important;
+	color: #27ae60 !important;
+	font-weight: 700;
+	border-radius: 4px;
+}
+
+[data-theme="dark"] .new-sale-popover .pricing-chip.active-muestra {
+	background: rgba(46, 204, 113, 0.2) !important;
+	color: #2ecc71 !important;
+}
+
+/* Active State Costo (Placeholder purple) */
+.new-sale-popover .pricing-chip.active-costo {
+	background: rgba(155, 89, 182, 0.12) !important;
+	color: #8e44ad !important;
+	font-weight: 700;
+	border-radius: 4px;
+}
+
+[data-theme="dark"] .new-sale-popover .pricing-chip.active-costo {
+	background: rgba(155, 89, 182, 0.2) !important;
+	color: #b370cf !important;
+}
+
+/* Disabled input promo price state */
+.new-sale-popover .input-promo-price:disabled {
+	background: transparent;
+	color: rgba(120, 120, 120, 0.3);
+	cursor: not-allowed;
+	pointer-events: none;
+	opacity: 0.5;
+}
+
+/* Responsive chip text helpers */
+.new-sale-popover .chip-text-desktop {
+	display: inline;
+}
+
+.new-sale-popover .chip-text-mobile {
+	display: none;
+}
+
+@media (max-width: 480px) {
+	.new-sale-popover .chip-text-desktop {
+		display: none;
+	}
+	.new-sale-popover .chip-text-mobile {
+		display: inline;
+	}
+	
+	.new-sale-popover .input-promo-price {
+		font-size: 10px;
+	}
+	
+	.new-sale-popover .pricing-chip {
+		padding: 0px 1px;
+		font-size: 9px;
+		transform: scale(0.6) !important;
+	}
+}
+
+
 
 /* CRM Integrated Tag Buttons (Visual selection) */
 .tag-selection-wrapper {

@@ -773,7 +773,7 @@ export async function recalcTotalForId(id) {
 	const dessertsById = {};
 	for (const d of dessertsList) dessertsById[d.id] = d;
 
-	const allItems = await sql`SELECT id, dessert_id, quantity FROM sale_items WHERE sale_id = ${id}`;
+	const allItems = await sql`SELECT id, dessert_id, quantity, unit_price FROM sale_items WHERE sale_id = ${id}`;
 	const hasItems = Array.isArray(allItems) && allItems.length > 0;
 
 	let row;
@@ -783,18 +783,29 @@ export async function recalcTotalForId(id) {
 				const dessert = dessertsById[item.dessert_id];
 				const newPrice = dessert ? getDessertUnitPriceForSpecialPricing(dessert, specialPricing) : 0;
 				await sql`UPDATE sale_items SET unit_price = ${newPrice} WHERE id = ${item.id}`;
+				item.unit_price = newPrice;
 			}
 		}
 
-		const qtyByDessertId = {};
-		for (const item of allItems) {
-			const did = Number(item.dessert_id || 0);
-			if (did) qtyByDessertId[did] = (qtyByDessertId[did] || 0) + (Number(item.quantity || 0));
-		}
 		let total = 0;
-		for (const [didRaw, qt] of Object.entries(qtyByDessertId)) {
-			const d = dessertsById[didRaw];
-			if (d) total += getDessertLineTotalForPricing(d, qt, specialPricing);
+		for (const item of allItems) {
+			const d = dessertsById[item.dessert_id];
+			if (!d) continue;
+
+			const qty = Number(item.quantity || 0);
+			if (qty <= 0) continue;
+
+			if (specialPricing) {
+				total += qty * Number(item.unit_price || 0);
+			} else {
+				// Si no hay precio especial, verificar si el unit_price en BD es personalizado (manual)
+				const isCustomPrice = Number(item.unit_price || 0) !== Number(d.sale_price || 0);
+				if (isCustomPrice) {
+					total += qty * Number(item.unit_price || 0);
+				} else {
+					total += getDessertLineTotalForPricing(d, qty, specialPricing);
+				}
+			}
 		}
 
 		[row] = await sql`UPDATE sales SET total_cents = ${total} WHERE id = ${id} RETURNING *`;

@@ -137,11 +137,9 @@
         let DATA = null; 
         let SELLERS = [];
         const fmt = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
-        const roundToHundreds = (cents) => {
-            if (!cents) return 0;
-            const cop = cents / 100;
-            const roundedCop = Math.round(cop / 100) * 100;
-            return roundedCop * 100; 
+        const roundToHundreds = (cop) => {
+            if (!cop) return 0;
+            return Math.round(cop / 100) * 100;
         };
         
         const updateStatus = (t) => {
@@ -298,6 +296,172 @@
             document.getElementById('save-adj-btn').onclick = function() { saveAdj(this); };
         };
 
+        window.showSellerCommissionDays = (month, sellerId, sellerName, ev) => {
+            if (ev) ev.stopPropagation();
+            const monthData = DATA.history.find(h => h.month === month);
+            const detail = monthData?.commission_detail?.find(c => Number(c.seller_id) === Number(sellerId));
+            if (!detail) return;
+
+            const days = detail.days || [];
+            
+            // 1. Own Commissions Section
+            const ownDays = days.filter(d => d.desserts > 0 || d.brigs > 0 || d.commission > 0 || d.costo_desserts > 0 || d.muestra_desserts > 0);
+            let ownHtml = '';
+            if (ownDays.length > 0) {
+                let ownSpecialNote = '';
+                const ownCosto = detail.costo_desserts || 0;
+                const ownMuestra = detail.muestra_desserts || 0;
+                if (ownCosto > 0 || ownMuestra > 0) {
+                    const parts = [];
+                    if (ownCosto > 0) parts.push(`🏷️ ${ownCosto} a costo`);
+                    if (ownMuestra > 0) parts.push(`🎁 ${ownMuestra} de muestra`);
+                    ownSpecialNote = `<div style="font-size:0.65rem; color:#d97706; font-weight:700; margin-top:4px; text-align:left;">⚠️ No comisionan: ${parts.join(' y ')}</div>`;
+                }
+
+                ownHtml = `
+                <div style="margin-bottom:20px;">
+                    <h4 style="margin:0 0 8px 0; color:#6d28d9; font-size:0.85rem; font-weight:800; border-bottom:2px solid #ddd6fe; padding-bottom:4px; display:flex; align-items:center; gap:6px;">🙋‍♀️ Comisiones Propias</h4>
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:4px 12px; font-size:0.7rem; font-weight:800; color:#64748b; margin-bottom:4px; border-bottom:1px solid #e2e8f0;">
+                        <div style="width:30%;">Fecha</div>
+                        <div style="width:40%; text-align:center;">Postres</div>
+                        <div style="width:30%; text-align:right;">Comisión</div>
+                    </div>
+                    <div>
+                        ${ownDays.map(d => {
+                            const badges = [];
+                            if (d.costo_desserts > 0) badges.push(`<span style="background:#fef3c7; color:#d97706; padding:2px 6px; border-radius:6px; font-size:0.65rem; font-weight:700; white-space:nowrap;">🏷️ ${d.costo_desserts} Costo</span>`);
+                            if (d.muestra_desserts > 0) badges.push(`<span style="background:#dbeafe; color:#2563eb; padding:2px 6px; border-radius:6px; font-size:0.65rem; font-weight:700; white-space:nowrap;">🎁 ${d.muestra_desserts} Muestra</span>`);
+                            const badgesHtml = badges.length > 0 
+                                ? `<div style="display:flex; justify-content:center; gap:4px; margin-top:4px; flex-wrap:wrap; width:100%;">${badges.join('')}</div>`
+                                : '';
+                            return `
+                            <div style="margin-bottom:6px; background:#f8fafc; padding:8px 12px; border-radius:12px; border:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center; font-size:0.8rem; font-weight:700;">
+                                <div style="color:#334155; width:30%; font-weight:800;">${d.date}</div>
+                                <div style="color:#64748b; width:40%; font-weight:600; text-align:center; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+                                    <span>🍰 ${d.desserts} P ${d.brigs > 0 ? `+ 🍬 ${d.brigs} B` : ''}</span>
+                                    ${badgesHtml}
+                                </div>
+                                <div style="color:#6d28d9; width:30%; text-align:right;">${fmt.format(roundToHundreds(d.commission))}</div>
+                            </div>`;
+                        }).join('')}
+                    </div>
+                    <div style="display:flex; flex-direction:column; font-size:0.75rem; color:#475569; font-weight:800; padding:8px 12px; background:#f1f5f9; border-radius:10px; margin-top:6px; border:1px dashed #cbd5e1;">
+                        <div style="display:flex; justify-content:space-between; width:100%;">
+                            <span>TOTAL PROPIO</span><span style="color:#6d28d9; font-size:0.8rem;">${fmt.format(roundToHundreds(detail.direct_comm))}</span>
+                        </div>
+                        ${ownSpecialNote}
+                    </div>
+                </div>`;
+            }
+
+            // 2. Invited Referral Commissions Section
+            const referralRows = [];
+            days.forEach(d => {
+                if (d.referral_details && d.referral_details.length > 0) {
+                    d.referral_details.forEach(ref => {
+                        referralRows.push({
+                            date: d.date,
+                            seller_name: ref.seller_name,
+                            desserts: ref.desserts,
+                            costo_desserts: ref.costo_desserts || 0,
+                            muestra_desserts: ref.muestra_desserts || 0,
+                            commission: ref.commission
+                        });
+                    });
+                }
+            });
+
+            let refHtml = '';
+            if (referralRows.length > 0) {
+                let refSpecialNote = '';
+                const refCosto = (detail.referral_detail || []).reduce((a, b) => a + (b.costo_desserts || 0), 0);
+                const refMuestra = (detail.referral_detail || []).reduce((a, b) => a + (b.muestra_desserts || 0), 0);
+                if (refCosto > 0 || refMuestra > 0) {
+                    const parts = [];
+                    if (refCosto > 0) parts.push(`🏷️ ${refCosto} a costo`);
+                    if (refMuestra > 0) parts.push(`🎁 ${refMuestra} de muestra`);
+                    refSpecialNote = `<div style="font-size:0.65rem; color:#d97706; font-weight:700; margin-top:4px; text-align:left;">⚠️ No comisionan al patrocinador: ${parts.join(' y ')}</div>`;
+                }
+
+                refHtml = `
+                <div style="margin-bottom:20px;">
+                    <h4 style="margin:0 0 8px 0; color:#8b5cf6; font-size:0.85rem; font-weight:800; border-bottom:2px solid #ddd6fe; padding-bottom:4px; display:flex; align-items:center; gap:6px;">👥 Recibidas por Invitados</h4>
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:4px 12px; font-size:0.7rem; font-weight:800; color:#64748b; margin-bottom:4px; border-bottom:1px solid #e2e8f0;">
+                        <div style="width:25%;">Fecha</div>
+                        <div style="width:25%;">Invitado</div>
+                        <div style="width:25%; text-align:center;">Postres</div>
+                        <div style="width:25%; text-align:right;">Comisión</div>
+                    </div>
+                    <div>
+                        ${referralRows.map(r => {
+                            const badges = [];
+                            if (r.costo_desserts > 0) badges.push(`<span style="background:#fef3c7; color:#d97706; padding:2px 6px; border-radius:6px; font-size:0.65rem; font-weight:700; white-space:nowrap;">🏷️ ${r.costo_desserts} Costo</span>`);
+                            if (r.muestra_desserts > 0) badges.push(`<span style="background:#dbeafe; color:#2563eb; padding:2px 6px; border-radius:6px; font-size:0.65rem; font-weight:700; white-space:nowrap;">🎁 ${r.muestra_desserts} Muestra</span>`);
+                            const badgesHtml = badges.length > 0 
+                                ? `<div style="display:flex; justify-content:center; gap:4px; margin-top:4px; flex-wrap:wrap; width:100%;">${badges.join('')}</div>`
+                                : '';
+                            return `
+                            <div style="margin-bottom:6px; background:#f5f3ff; padding:8px 12px; border-radius:12px; border:1px solid #ddd6fe; display:flex; justify-content:space-between; align-items:center; font-size:0.8rem; font-weight:700;">
+                                <div style="color:#334155; width:25%; font-weight:800;">${r.date}</div>
+                                <div style="color:#8b5cf6; width:25%; font-weight:800; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${r.seller_name}</div>
+                                <div style="color:#64748b; width:25%; font-weight:600; text-align:center; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+                                    <span>🍰 ${r.desserts} P</span>
+                                    ${badgesHtml}
+                                </div>
+                                <div style="color:#6d28d9; width:25%; text-align:right;">${fmt.format(roundToHundreds(r.commission))}</div>
+                            </div>`;
+                        }).join('')}
+                    </div>
+                    <div style="display:flex; flex-direction:column; font-size:0.75rem; color:#475569; font-weight:800; padding:8px 12px; background:#f5f3ff; border-radius:10px; margin-top:6px; border:1px dashed #ddd6fe;">
+                        <div style="display:flex; justify-content:space-between; width:100%;">
+                            <span>TOTAL INVITADOS</span><span style="color:#8b5cf6; font-size:0.8rem;">${fmt.format(roundToHundreds(detail.referral_comm_total))}</span>
+                        </div>
+                        ${refSpecialNote}
+                    </div>
+                </div>`;
+            }
+
+            const totalPaid = detail.commissions_paid || 0;
+            const diff = detail.total_comm - totalPaid;
+            let statusBadgeHtml = '';
+
+            if (Math.abs(diff) < 10) {
+                statusBadgeHtml = `<span style="background:#dcfce7; color:#15803d; padding:6px 12px; border-radius:99px; font-size:0.75rem; font-weight:800;">PAGO COMPLETO ✅</span>`;
+            } else if (diff > 0) {
+                statusBadgeHtml = `<span style="background:#ffe4e6; color:#be123c; padding:6px 12px; border-radius:99px; font-size:0.75rem; font-weight:800;">FALTA PAGAR: ${fmt.format(roundToHundreds(diff))} ⏳</span>`;
+            } else {
+                statusBadgeHtml = `<span style="background:#eff6ff; color:#1d4ed8; padding:6px 12px; border-radius:99px; font-size:0.75rem; font-weight:800;">SALDO A FAVOR: ${fmt.format(roundToHundreds(Math.abs(diff)))} 💸</span>`;
+            }
+
+            const pop = document.createElement('div');
+            pop.className = 'popover-wrap';
+            pop.innerHTML = `<div style="background:#fff; padding:24px; border-radius:24px; min-width:440px; max-width:480px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1); border:1px solid #ddd6fe;">
+                <h3 style="margin:0 0 4px 0; color:#4c1d95;">📊 Conciliación de Comisiones</h3>
+                <p style="margin:0 0 16px 0; font-size:0.8rem; color:#64748b; font-weight:600;">Vendedor: ${sellerName} - ${month}</p>
+                
+                <div style="max-height:45vh; overflow-y:auto; margin-bottom:16px; padding-right:6px;">
+                    ${ownHtml || '<p style="text-align:center; color:#94a3b8; padding:10px; font-size:0.8rem;">No hay comisiones propias este mes.</p>'}
+                    ${refHtml}
+                </div>
+
+                <div style="display:flex; flex-direction:column; gap:8px; padding:16px; background:#faf5ff; border-radius:18px; font-weight:800; border:1px solid #ddd6fe;">
+                    <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:#6b7280; font-weight:700; align-items:center;">
+                        <span>TOTAL GENERADO</span><span style="color:#6d28d9; font-size:1rem; font-weight:900;">${fmt.format(roundToHundreds(detail.total_comm))}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:#6b7280; font-weight:700; align-items:center; margin-bottom:4px; padding-bottom:6px; border-bottom:1px dashed #cbd5e1;">
+                        <span>TOTAL PAGADO</span><span style="color:#1e293b; font-size:1rem; font-weight:900;">${fmt.format(roundToHundreds(totalPaid))}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-size:0.8rem; color:#4c1d95;">ESTADO:</span>
+                        ${statusBadgeHtml}
+                    </div>
+                </div>
+                <button onclick="closePopover(this)" style="margin-top:20px; width:100%; padding:14px; border-radius:12px; border:none; background:#f1f5f9; cursor:pointer; font-weight:800; color:#475569;">Cerrar</button>
+            </div>`;
+            pop.onclick = (e) => { if (e.target === pop) closePopover(pop.querySelector('button')); };
+            document.body.appendChild(pop);
+        };
+
         window.showPurchaseDetails = (month, ev) => {
             if (ev.target.tagName.toLowerCase() === 'input' || ev.target.tagName.toLowerCase() === 'button') return;
             const details = window.purchaseDetailsMap[month] || [];
@@ -361,6 +525,24 @@
             const targetData = DATA.history.find(h => h.month === targetMonth);
             const partnerMeta = targetData?.partners?.find(p => p.name.toLowerCase() === sellerName.toLowerCase());
             if (!partnerMeta) return "";
+
+            if (partnerMeta.is_social) {
+                return `
+                    <div style="background:#fff; padding:40px 32px; border-radius:24px; width:100%; display:flex; flex-direction:column; gap:20px; font-family:sans-serif; text-align:center; border: 1px solid #ddd6fe;">
+                        <div style="font-size:4.5rem; margin-bottom:10px;">❤️🕊️</div>
+                        <h2 style="margin:0; font-size:2.2rem; color:#4f46e5; font-weight:900;">Aporte Social</h2>
+                        <p style="color:#475569; font-size:1.15rem; max-width:600px; margin: 0 auto; line-height:1.6; font-weight:500;">
+                            Este fondo representa el **10% de las utilidades netas** de Sweet Lab, reservado con profunda gratitud y destinado exclusivamente a obras de ayuda social, donaciones y apoyo a personas vulnerables.
+                        </p>
+                        <div style="background:linear-gradient(135deg, #f5f3ff, #ede9fe); border:1px solid #c7d2fe; border-radius:24px; padding:32px; margin-top:20px; display:inline-block; align-self:center; min-width:320px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05);">
+                            <span style="font-size:0.85rem; font-weight:800; color:#6d28d9; text-transform:uppercase; display:block; margin-bottom:8px; letter-spacing:0.05em;">Fondo Destinado este Mes</span>
+                            <strong style="font-size:2.8rem; font-weight:900; color:#4f46e5;">${fmt.format(roundToHundreds(partnerMeta.share_amount))}</strong>
+                            <span style="font-size:0.95rem; color:#7c3aed; font-weight:700; display:block; margin-top:8px;">Equivalente al ${partnerMeta.share_perc}% del total</span>
+                        </div>
+                        <p style="font-size:0.85rem; color:#94a3b8; margin-top:30px; font-style:italic;">"El que es generoso prosperará; el que reanima a otros será reanimado."</p>
+                    </div>
+                `;
+            }
 
             const shortMonths = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
             const months = [...DATA.history].sort((a, b) => a.month.localeCompare(b.month)).slice(-24);
@@ -850,11 +1032,12 @@
                             <div style="display:flex; flex-direction:column; gap:4px">
                                 <div style="padding:10px 16px; background:#f5f3ff; border-radius:12px; border:1px solid #ddd6fe; font-size:0.85rem; font-weight:800; color:#4c1d95; display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
                                     <span>🍰 ${m.total_desserts || 0} Postres</span>
-                                          <div class="fin-item" onclick="showRevenueDetails('${m.month}', event)" style="cursor:pointer;"><span class="fin-label" style="text-decoration:underline; text-decoration-style:dashed;">Ventas (Ingresos)</span><span class="fin-val"><span class="hist-text-${m.month}">${fmt.format(roundToHundreds(m.revenue || 0))}</span><input type="number" class="hist-g-input-${m.month}" data-key="revenue" value="${m.revenue}" style="display:none; width:80px; text-align:right;"></span></div>
+                                </div>
+                                <div class="fin-item" onclick="showRevenueDetails('${m.month}', event)" style="cursor:pointer;"><span class="fin-label" style="text-decoration:underline; text-decoration-style:dashed;">Ventas (Ingresos)</span><span class="fin-val"><span class="hist-text-${m.month}">${fmt.format(roundToHundreds(m.revenue || 0))}</span><input type="number" class="hist-g-input-${m.month}" data-key="revenue" value="${m.revenue}" style="display:none; width:80px; text-align:right;"></span></div>
                                 <div class="fin-item" onclick="showProductDetails('${m.month}', event)" style="cursor:pointer;"><span class="fin-label" style="text-decoration:underline; text-decoration-style:dashed;">Costo Materia Prima</span><span class="fin-val neg"><span class="hist-text-${m.month}">-${fmt.format(roundToHundreds(m.cogs || 0))}</span><input type="number" class="hist-g-input-${m.month}" data-key="cogs" value="${m.cogs}" style="display:none; width:80px; text-align:right;"></span></div>
                                 <div class="fin-item"><span class="fin-label">Mano de Obra (MOD)</span><span class="fin-val neg"><span class="hist-text-${m.month}">-${fmt.format(roundToHundreds(m.mod || 0))}</span><input type="number" class="hist-g-input-${m.month}" data-key="mod" value="${m.mod||0}" style="display:none; width:80px; text-align:right;"></span></div>
                                 <div class="fin-item" onclick="showExpenseDetails('${m.month}', event)" style="cursor:pointer;"><span class="fin-label" style="text-decoration:underline; text-decoration-style:dashed;">Gastos</span><span class="fin-val neg"><span class="hist-text-${m.month}">-${fmt.format(roundToHundreds(m.expenses || 0))}</span><input type="number" class="hist-g-input-${m.month}" data-key="expenses" value="${m.expenses}" style="display:none; width:80px; text-align:right;"></span></div>
-                                <div class="fin-item"><span class="fin-label">Ajustes</span><span class="fin-val neg"><span class="hist-text-${m.month}">-${fmt.format(roundToHundreds(m.losses || 0))}</span><input type="number" class="hist-g-input-${m.month}" data-key="losses" value="${m.losses}" style="display:none; width:80px; text-align:right;"></span></div>month}" data-key="losses" value="${m.losses}" style="display:none; width:80px; text-align:right;"></span></div>
+                                <div class="fin-item"><span class="fin-label">Ajustes</span><span class="fin-val neg"><span class="hist-text-${m.month}">-${fmt.format(roundToHundreds(m.losses || 0))}</span><input type="number" class="hist-g-input-${m.month}" data-key="losses" value="${m.losses}" style="display:none; width:80px; text-align:right;"></span></div>
                                 <div class="fin-item" style="border-top: 1px dashed #cbd5e1; margin-top: 8px; padding-top: 12px; display:none;">
                                     <span class="fin-label" style="color:var(--p-mod)">Inversión en Inventario</span>
                                     <span class="fin-val" style="color:var(--p-mod)">
@@ -869,7 +1052,7 @@
                                     </div>
                                     <div style="font-size:0.75rem; color:#6d28d9; line-height:1.6">
                                         ${(m.commission_detail || []).sort((a,b)=>b.total_comm - a.total_comm).map(c => `
-                                            <div style="display:flex; justify-content:space-between; opacity:0.8; margin-bottom:4px; align-items:center">
+                                            <div onclick="showSellerCommissionDays('${m.month}', ${c.seller_id}, '${c.seller_name.replace(/'/g, "\\'")}', event)" style="display:flex; justify-content:space-between; opacity:0.8; margin-bottom:4px; align-items:center; cursor:pointer; padding:4px 8px; border-radius:8px; transition:background 0.2s;" onmouseover="this.style.background='rgba(109,40,217,0.1)'" onmouseout="this.style.background='transparent'">
                                                 <span>• ${c.seller_name} (${c.desserts} P / ${c.brigs} B)</span>
                                                 <strong>${fmt.format(roundToHundreds(c.total_comm))}</strong>
                                             </div>`).join('')}
@@ -891,17 +1074,54 @@
                                 </div>
                             </div>
                             <div style="background:#f8fafc; padding:24px; border-radius:24px; border:1px solid #f1f5f9; display:flex; flex-direction:column; gap:16px">
-                            <div class="flex" style="align-items:baseline">
-                                <h4 style="margin:0; font-size:0.8rem; color:var(--txt-mute);">Participación de Socios</h4>
-                                <span style="font-size:0.65rem; font-weight:700; color:#64748b;">Total Global: ${m.total_cumulative_desserts || '?'}</span>
-                            </div>
-                                ${(m.partners || []).sort((a,b)=>b.share_amount - a.share_amount).map(p => `
-                                    <div onclick="showSellerHistoryChart('${p.name}', '${m.month}', event)" style="background:#fff; border:1px solid #e2e8f0; border-radius:16px; padding:16px; cursor:pointer;">
-                                        <div class="flex">
-                                            <div><div style="font-weight:800; font-size:1.05rem;">${p.name}</div><div style="font-size:0.75rem; color:#64748b;">🍰 ${p.metrics_debug?.cumulative_total || 0} postres históricos</div></div>
-                                            <div style="text-align:right;"><div style="font-size:0.65rem; color:#94a3b8;">Utilidad</div><div style="font-weight:900; font-size:1.2rem; color:#10b981;">${fmt.format(roundToHundreds(p.share_amount))}</div></div>
+                                ${(() => {
+                                    const socialP = (m.partners || []).find(p => p.is_social);
+                                    return socialP ? `
+                                        <div onclick="showSellerHistoryChart('${socialP.name}', '${m.month}', event)" style="background: linear-gradient(135deg, #ffffff, #faf8f8); border: 1px solid #e8dfdf; border-radius: 20px; padding: 18px; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);" onmouseenter="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 10px 15px -3px rgba(219,39,119,0.08)';" onmouseleave="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px -1px rgba(0, 0, 0, 0.05)';">
+                                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                                <div>
+                                                    <div style="font-weight:900; font-size:1.1rem; color:#db2777; display:flex; align-items:center; gap:8px;">
+                                                        🕊️ Aporte Social (10%)
+                                                    </div>
+                                                    <div style="font-size:0.75rem; color:#9d174d; font-weight:600; opacity:0.8; margin-top:2px;">
+                                                        Fondo de ayuda social y donaciones
+                                                    </div>
+                                                </div>
+                                                <div style="text-align:right;">
+                                                    <div style="font-size:0.65rem; color:#9d174d; font-weight:700;">Reservado</div>
+                                                    <div style="font-weight:900; font-size:1.35rem; color:#db2777;">${fmt.format(roundToHundreds(socialP.share_amount))}</div>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div style="display:flex; align-items:center; gap:12px; margin-top:8px;"><div style="flex:1; height:8px; background:#f1f5f9; border-radius:8px; overflow:hidden;"><div style="width:${p.share_perc}%; height:100%; background:linear-gradient(90deg, #8b5cf6, #c084fc);"></div></div><strong style="color:#7c3aed; font-size:0.85rem;">${p.share_perc}%</strong></div>
+                                        <div style="height: 1px; background: #e2e8f0; margin: 4px 0;"></div>
+                                    ` : '';
+                                })()}
+                                <div class="flex" style="align-items:baseline">
+                                    <h4 style="margin:0; font-size:0.8rem; color:var(--txt-mute);">Participación de Socios (90%)</h4>
+                                    <span style="font-size:0.65rem; font-weight:700; color:#64748b;">Total Global: ${m.total_cumulative_desserts || '?'}</span>
+                                </div>
+                                ${(m.partners || []).filter(p => !p.is_social).sort((a,b)=>b.share_amount - a.share_amount).map(p => `
+                                    <div onclick="showSellerHistoryChart('${p.name}', '${m.month}', event)" style="background:#fff; border:1px solid #e2e8f0; border-radius:16px; padding:16px; cursor:pointer; transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);" onmouseenter="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 10px 15px -3px rgba(0,0,0,0.1)';" onmouseleave="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px -1px rgba(0, 0, 0, 0.05)';">
+                                        <div class="flex">
+                                            <div>
+                                                <div style="font-weight:800; font-size:1.05rem; display:flex; align-items:center; gap:6px;">
+                                                    ${p.name}
+                                                </div>
+                                                <div style="font-size:0.75rem; color:#64748b;">
+                                                    🍰 ${p.metrics_debug?.cumulative_total || 0} postres históricos
+                                                </div>
+                                            </div>
+                                            <div style="text-align:right;">
+                                                <div style="font-size:0.65rem; color:#94a3b8;">Utilidad</div>
+                                                <div style="font-weight:900; font-size:1.2rem; color:#10b981;">${fmt.format(roundToHundreds(p.share_amount))}</div>
+                                            </div>
+                                        </div>
+                                        <div style="display:flex; align-items:center; gap:12px; margin-top:8px;">
+                                            <div style="flex:1; height:8px; background:#f1f5f9; border-radius:8px; overflow:hidden;">
+                                                <div style="width:${p.share_perc}%; height:100%; background:linear-gradient(90deg, #8b5cf6, #c084fc);"></div>
+                                            </div>
+                                            <strong style="color:#7c3aed; font-size:0.85rem;">${p.share_perc}%</strong>
+                                        </div>
                                     </div>`).join('')}
                             </div>
                         </div>`;
