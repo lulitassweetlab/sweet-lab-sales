@@ -43,6 +43,7 @@ function updateCartUI() {
             internalCheckoutContainer.style.display = 'flex';
             document.getElementById('internal-checkout-btn').style.display = 'block';
             loadSellerClients();
+            loadSellerDays();
         } else {
             if (waBtn) waBtn.style.display = 'block';
             if (uploadBtn) uploadBtn.style.display = 'block';
@@ -163,6 +164,56 @@ async function loadSellerClients() {
     } catch (err) {
         console.error('[Autocomplete] Error loading clients:', err);
     }
+}
+
+let storeSellerDays = [];
+
+function formatStoreDayLabel(input) {
+    if (!input) return 'Fecha';
+    let iso = String(input);
+    if (/^\d{4}-\d{2}-\d{2}T/.test(iso)) iso = iso.slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return String(input);
+    const d = new Date(iso + 'T00:00:00Z');
+    if (isNaN(d.getTime())) return iso;
+    const weekdays = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    return `${weekdays[d.getUTCDay()]} ${months[d.getUTCMonth()]} ${d.getUTCDate()}`;
+}
+
+async function loadSellerDays() {
+    if (!storeAuthUser || !storeActiveSeller) return;
+    try {
+        const headers = getAuthHeaders();
+        const daysRes = await fetch(`/api/days?seller_id=${storeActiveSeller.id}`, { headers });
+        if (!daysRes.ok) return;
+        const days = await daysRes.json();
+        if (Array.isArray(days)) {
+            // Sort by date descending (most recent first)
+            storeSellerDays = days.sort((a, b) => new Date(b.day) - new Date(a.day));
+            updateDateSelectorUI();
+        }
+    } catch (err) {
+        console.error('[Store] Error loading seller days:', err);
+    }
+}
+
+function updateDateSelectorUI() {
+    const select = document.getElementById('store-order-date-select');
+    if (!select) return;
+    select.innerHTML = '';
+    
+    if (storeSellerDays.length <= 1) {
+        select.style.display = 'none';
+        return;
+    }
+
+    storeSellerDays.forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d.id;
+        opt.textContent = formatStoreDayLabel(d.day);
+        select.appendChild(opt);
+    });
+    select.style.display = 'block';
 }
 
 function setupClientAutocomplete() {
@@ -329,6 +380,9 @@ async function executeCheckout(customerName) {
     const newClientWhatsApp = document.getElementById('new-client-whatsapp');
     const whatsappValue = (newClientWhatsApp ? newClientWhatsApp.value : '') || customerNameInput.dataset.whatsapp || '';
     
+    const dateSelect = document.getElementById('store-order-date-select');
+    const selectedDayId = (dateSelect && dateSelect.style.display !== 'none') ? dateSelect.value : null;
+
     const saleItems = [];
     for (const productId in cart) {
         saleItems.push({ 
@@ -346,7 +400,8 @@ async function executeCheckout(customerName) {
         items: saleItems,
         seller: storeActiveSeller,
         user: storeAuthUser,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        sale_day_id: selectedDayId
     };
 
     // 1. Queue immediately
@@ -487,13 +542,20 @@ async function processSingleSale(sale) {
         const actorName = sale.user ? (sale.user.name || sale.user.username) : 'Tienda Online';
 
         // 1. Parallelize Initial Lookups (Days and Desserts)
+        let targetDayId = sale.sale_day_id || null;
+        let daysPromise;
+        if (!targetDayId) {
+            daysPromise = fetch(`/api/days?seller_id=${sale.seller.id}`, { headers: authHeaders }).catch(e => ({ ok: false }));
+        } else {
+            daysPromise = Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+        }
+
         const [daysRes, dessertsRes] = await Promise.all([
-            fetch(`/api/days?seller_id=${sale.seller.id}`, { headers: authHeaders }).catch(e => ({ ok: false })),
+            daysPromise,
             fetch('/api/desserts', { headers: authHeaders }).catch(e => ({ ok: false }))
         ]);
 
-        let targetDayId = null;
-        if (daysRes.ok) {
+        if (!targetDayId && daysRes.ok) {
             const days = await daysRes.json();
             const targetDay = days[0];
             if (targetDay) targetDayId = targetDay.id;
