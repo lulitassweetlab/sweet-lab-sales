@@ -4152,8 +4152,8 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
 					if (val > 0) {
 						items.push({
 							dessert_id: d.id,
-							qty: val,
-							amount: val * d.price
+							quantity: val,
+							unit_price: Number(d.sale_price || 0)
 						});
 					}
 				}
@@ -4166,6 +4166,11 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
 
 				// Show success notification
 				try { notify.success('Pedido guardado exitosamente'); } catch { }
+
+				// Reload sales table if we are currently viewing the selected day
+				if (state.selectedDayId && Number(state.selectedDayId) === Number(selectedDayId)) {
+					loadSales().catch(e => console.error('Error reloading sales:', e));
+				}
 
 				// Reload client detail in background to show the new order
 				if (state._clientDetailName) {
