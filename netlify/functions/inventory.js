@@ -19,7 +19,7 @@ export async function handler(event) {
 					const dateStart = params.get('date_start');
 					let rows;
 					if (dateStart) {
-						rows = await sql`SELECT id, ingredient, kind, qty, note, actor_name, metadata, created_at FROM inventory_movements WHERE created_at >= ${dateStart} ORDER BY id DESC LIMIT 2000`;
+						rows = await sql`SELECT id, ingredient, kind, qty, note, actor_name, metadata, created_at FROM inventory_movements WHERE created_at >= ${dateStart} OR (metadata->>'target_date') >= ${dateStart} ORDER BY id DESC LIMIT 2000`;
 					} else {
 						rows = await sql`SELECT id, ingredient, kind, qty, note, actor_name, metadata, created_at FROM inventory_movements ORDER BY id DESC LIMIT 1000`;
 					}
