@@ -28,7 +28,7 @@ function updateCartUI() {
     }
 
     if (hasItems) {
-        cartItemsCount.textContent = totalQty === 1 ? '1 artículo' : `${totalQty} artículos`;
+        cartItemsCount.textContent = totalQty === 1 ? '1 postre' : `${totalQty} postres`;
         cartTotalPrice.textContent = fmtMoney.format(grandTotal);
         floatingCart.classList.add('visible');
 

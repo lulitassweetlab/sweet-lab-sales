@@ -778,6 +778,30 @@
             .internal-checkout-input {
                 font-size: 0.85rem;
             }
+            .floating-cart {
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 8px 12px;
+                padding: 12px 16px;
+                border-radius: 20px;
+                width: calc(100vw - 32px);
+                max-width: 380px;
+            }
+            .cart-info {
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+                width: 100%;
+                border-bottom: 1px solid var(--border);
+                padding-bottom: 6px;
+                margin-bottom: 2px;
+            }
+            .cart-checkout-btn {
+                flex: 1;
+                text-align: center;
+                padding: 8px;
+                font-size: 0.85rem;
+            }
         }
 
         .internal-checkout-btn,
@@ -1511,7 +1535,7 @@
         </div>
 
         <div class="cart-info">
-            <span class="cart-items" id="cart-items-count">0 artículos</span>
+            <span class="cart-items" id="cart-items-count">0 postres</span>
             <span class="cart-total" id="cart-total-price">$ 0</span>
         </div>
 
