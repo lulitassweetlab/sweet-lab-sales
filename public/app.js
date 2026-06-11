@@ -2782,7 +2782,7 @@ function openNewSalePopover(anchorX, anchorY) {
 
 			grid.appendChild(left);
 			grid.appendChild(right);
-			return { chipM, chipC };
+			return { left, right, chipM, chipC };
 		}
 
 		const clientInput = document.createElement('input');
@@ -2793,9 +2793,22 @@ function openNewSalePopover(anchorX, anchorY) {
 		attachClientSuggestionsPopover(clientInput);
 		appendRow('Cliente', clientInput);
 
+		// Compute active dessert IDs (based on visibleDesserts, fallback to active store desserts)
+		let defaultActiveIds = new Set((state.visibleDesserts || []).map(d => d.id));
+		if (defaultActiveIds.size === 0) {
+			defaultActiveIds = new Set(
+				(state.desserts || [])
+					.filter(d => d.is_active)
+					.map(d => d.id)
+			);
+		}
+
 		// Dessert rows (dynamic from state.desserts)
 		const qtyInputs = {};
 		const priceInputs = {};
+		let hiddenCount = 0;
+		const hiddenRows = [];
+
 		for (const d of state.desserts) {
 			const input = document.createElement('input');
 			input.type = 'number';
@@ -2818,7 +2831,29 @@ function openNewSalePopover(anchorX, anchorY) {
 			priceInput.title = 'Precio unitario promocional manual (vacío para usar normal)';
 			priceInputs[d.short_code] = priceInput;
 
-			appendDessertRow(d, input, priceInput);
+			const rowCells = appendDessertRow(d, input, priceInput);
+
+			if (!defaultActiveIds.has(d.id)) {
+				rowCells.left.classList.add('hidden-dessert-cell');
+				rowCells.right.classList.add('hidden-dessert-cell');
+				hiddenRows.push(rowCells.left, rowCells.right);
+				hiddenCount++;
+			}
+		}
+
+		if (hiddenCount > 0) {
+			const showMoreBtn = document.createElement('button');
+			showMoreBtn.type = 'button';
+			showMoreBtn.className = 'show-more-desserts-btn';
+			showMoreBtn.textContent = '✨ Mostrar más postres';
+			showMoreBtn.addEventListener('click', (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				hiddenRows.forEach(cell => cell.classList.remove('hidden-dessert-cell'));
+				showMoreBtn.remove();
+				clampWithinViewport();
+			});
+			grid.appendChild(showMoreBtn);
 		}
 
 		const actions = document.createElement('div');
@@ -3124,7 +3159,7 @@ function openEditSalePopover(saleId, anchorX, anchorY, onCloseCallback) {
 
 			grid.appendChild(left);
 			grid.appendChild(right);
-			return { chipM, chipC };
+			return { left, right, chipM, chipC };
 		}
 
 		// Client row - prefilled
@@ -3137,9 +3172,39 @@ function openEditSalePopover(saleId, anchorX, anchorY, onCloseCallback) {
 		attachClientSuggestionsPopover(clientInput);
 		appendRow('Cliente', clientInput);
 
+		// Compute active dessert IDs (based on visibleDesserts, fallback to active store desserts)
+		let defaultActiveIds = new Set((state.visibleDesserts || []).map(d => d.id));
+		if (defaultActiveIds.size === 0) {
+			defaultActiveIds = new Set(
+				(state.desserts || [])
+					.filter(d => d.is_active)
+					.map(d => d.id)
+			);
+		}
+		// Always show any dessert that has a positive quantity in this sale
+		if (sale) {
+			if (Array.isArray(sale.items) && sale.items.length > 0) {
+				sale.items.forEach(item => {
+					if (Number(item.quantity || 0) > 0) {
+						defaultActiveIds.add(item.dessert_id);
+					}
+				});
+			} else {
+				for (const d of state.desserts) {
+					const qty = Number(sale[`qty_${d.short_code}`] || 0);
+					if (qty > 0) {
+						defaultActiveIds.add(d.id);
+					}
+				}
+			}
+		}
+
 		// Dessert rows (dynamic from state.desserts) - prefilled
 		const qtyInputs = {};
 		const priceInputs = {};
+		let hiddenCount = 0;
+		const hiddenRows = [];
+
 		for (const d of state.desserts) {
 			const input = document.createElement('input');
 			input.type = 'number';
@@ -3196,6 +3261,28 @@ function openEditSalePopover(saleId, anchorX, anchorY, onCloseCallback) {
 					priceInput.dataset.specialPricingType = '';
 				}
 			}
+
+			if (!defaultActiveIds.has(d.id)) {
+				chips.left.classList.add('hidden-dessert-cell');
+				chips.right.classList.add('hidden-dessert-cell');
+				hiddenRows.push(chips.left, chips.right);
+				hiddenCount++;
+			}
+		}
+
+		if (hiddenCount > 0) {
+			const showMoreBtn = document.createElement('button');
+			showMoreBtn.type = 'button';
+			showMoreBtn.className = 'show-more-desserts-btn';
+			showMoreBtn.textContent = '✨ Mostrar más postres';
+			showMoreBtn.addEventListener('click', (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				hiddenRows.forEach(cell => cell.classList.remove('hidden-dessert-cell'));
+				showMoreBtn.remove();
+				clampWithinViewport();
+			});
+			grid.appendChild(showMoreBtn);
 		}
 
 		const actions = document.createElement('div');
@@ -3387,6 +3474,7 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
 			});
 			grid.appendChild(left);
 			grid.appendChild(right);
+			return { left, right };
 		}
 
 		// Date selection row
@@ -3850,8 +3938,21 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
 		attachClientSuggestionsPopover(clientInput);
 		appendRow('Cliente', clientInput);
 
+		// Compute active dessert IDs (based on visibleDesserts, fallback to active store desserts)
+		let defaultActiveIds = new Set((state.visibleDesserts || []).map(d => d.id));
+		if (defaultActiveIds.size === 0) {
+			defaultActiveIds = new Set(
+				(state.desserts || [])
+					.filter(d => d.is_active)
+					.map(d => d.id)
+			);
+		}
+
 		// Dessert rows (dynamic from state.desserts)
 		const qtyInputs = {};
+		let hiddenCount = 0;
+		const hiddenRows = [];
+
 		for (const d of state.desserts) {
 			const input = document.createElement('input');
 			input.type = 'number';
@@ -3862,7 +3963,29 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
 			input.className = 'input-cell input-qty';
 			input.dataset.dessertId = d.id;
 			qtyInputs[d.short_code] = input;
-			appendRow(d.name, input);
+			const rowCells = appendRow(d.name, input);
+
+			if (!defaultActiveIds.has(d.id)) {
+				rowCells.left.classList.add('hidden-dessert-cell');
+				rowCells.right.classList.add('hidden-dessert-cell');
+				hiddenRows.push(rowCells.left, rowCells.right);
+				hiddenCount++;
+			}
+		}
+
+		if (hiddenCount > 0) {
+			const showMoreBtn = document.createElement('button');
+			showMoreBtn.type = 'button';
+			showMoreBtn.className = 'show-more-desserts-btn';
+			showMoreBtn.textContent = '✨ Mostrar más postres';
+			showMoreBtn.addEventListener('click', (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				hiddenRows.forEach(cell => cell.classList.remove('hidden-dessert-cell'));
+				showMoreBtn.remove();
+				clampWithinViewport();
+			});
+			grid.appendChild(showMoreBtn);
 		}
 
 		const actions = document.createElement('div');
