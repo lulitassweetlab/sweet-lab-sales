@@ -42,8 +42,7 @@ function updateCartUI() {
             if (separator) separator.style.display = 'none';
             internalCheckoutContainer.style.display = 'flex';
             document.getElementById('internal-checkout-btn').style.display = 'block';
-            loadSellerClients();
-            loadSellerDays();
+            updateDateSelectorUI();
         } else {
             if (waBtn) waBtn.style.display = 'block';
             if (uploadBtn) uploadBtn.style.display = 'block';
@@ -86,6 +85,8 @@ function updateAuthUI() {
             iframe.title = 'Registro de Ventas';
             embedContainer.appendChild(iframe);
         }
+        loadSellerClients();
+        loadSellerDays();
     } else if (storeAuthUser && storeAuthUser.username) {
         // Logged in but no seller selected yet
         storeAuthBtn.textContent = 'Seleccionar Vendedor';
@@ -205,14 +206,32 @@ async function loadSellerDays() {
 function updateDateSelectorUI() {
     const container = document.getElementById('store-order-date-container');
     if (!container) return;
-    container.innerHTML = '';
     
     if (storeSellerDays.length <= 1) {
         container.style.display = 'none';
+        container.innerHTML = '';
         storeSelectedDayId = storeSellerDays[0] ? storeSellerDays[0].id : null;
         return;
     }
 
+    // Optimization: If the cards are already rendered for the current list of days, do not rebuild.
+    // This preserves selection state and prevents layout flicker.
+    const existingCards = container.querySelectorAll('.store-date-card');
+    if (existingCards.length === storeSellerDays.length) {
+        let matchesAll = true;
+        existingCards.forEach((card, idx) => {
+            if (card.dataset.dayId !== String(storeSellerDays[idx].id)) {
+                matchesAll = false;
+            }
+        });
+        if (matchesAll) {
+            container.style.display = 'flex';
+            return;
+        }
+    }
+
+    container.innerHTML = '';
+    
     // Set first day as default selected
     storeSelectedDayId = storeSellerDays[0].id;
 
@@ -375,6 +394,8 @@ function setSeller(seller) {
     safeLS.setItem('storeActiveSeller', JSON.stringify(seller));
     document.getElementById('store-seller-modal').style.display = 'none';
     updateAuthUI();
+    loadSellerClients();
+    loadSellerDays();
     updateCartUI();
 }
 
