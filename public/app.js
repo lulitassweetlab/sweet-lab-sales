@@ -2793,14 +2793,17 @@ function openNewSalePopover(anchorX, anchorY) {
 		attachClientSuggestionsPopover(clientInput);
 		appendRow('Cliente', clientInput);
 
-		// Compute active dessert IDs (based on visibleDesserts, fallback to active store desserts)
-		let defaultActiveIds = new Set((state.visibleDesserts || []).map(d => d.id));
-		if (defaultActiveIds.size === 0) {
-			defaultActiveIds = new Set(
-				(state.desserts || [])
-					.filter(d => d.is_active)
-					.map(d => d.id)
-			);
+		// Compute active dessert IDs (union of active store desserts and desserts with sales on this date)
+		let defaultActiveIds = new Set();
+		for (const d of (state.desserts || [])) {
+			if (d && d.is_active) {
+				defaultActiveIds.add(d.id);
+			}
+		}
+		for (const d of (state.visibleDesserts || [])) {
+			if (d && d.id) {
+				defaultActiveIds.add(d.id);
+			}
 		}
 
 		// Dessert rows (dynamic from state.desserts)
@@ -3173,14 +3176,17 @@ function openEditSalePopover(saleId, anchorX, anchorY, onCloseCallback) {
 		attachClientSuggestionsPopover(clientInput);
 		appendRow('Cliente', clientInput);
 
-		// Compute active dessert IDs (based on visibleDesserts, fallback to active store desserts)
-		let defaultActiveIds = new Set((state.visibleDesserts || []).map(d => d.id));
-		if (defaultActiveIds.size === 0) {
-			defaultActiveIds = new Set(
-				(state.desserts || [])
-					.filter(d => d.is_active)
-					.map(d => d.id)
-			);
+		// Compute active dessert IDs (union of active store desserts and desserts with sales on this date)
+		let defaultActiveIds = new Set();
+		for (const d of (state.desserts || [])) {
+			if (d && d.is_active) {
+				defaultActiveIds.add(d.id);
+			}
+		}
+		for (const d of (state.visibleDesserts || [])) {
+			if (d && d.id) {
+				defaultActiveIds.add(d.id);
+			}
 		}
 		// Always show any dessert that has a positive quantity in this sale
 		if (sale) {
@@ -3940,14 +3946,17 @@ async function openNewSalePopoverWithDate(anchorX, anchorY, prefilledClientName)
 		attachClientSuggestionsPopover(clientInput);
 		appendRow('Cliente', clientInput);
 
-		// Compute active dessert IDs (based on visibleDesserts, fallback to active store desserts)
-		let defaultActiveIds = new Set((state.visibleDesserts || []).map(d => d.id));
-		if (defaultActiveIds.size === 0) {
-			defaultActiveIds = new Set(
-				(state.desserts || [])
-					.filter(d => d.is_active)
-					.map(d => d.id)
-			);
+		// Compute active dessert IDs (union of active store desserts and desserts with sales on this date)
+		let defaultActiveIds = new Set();
+		for (const d of (state.desserts || [])) {
+			if (d && d.is_active) {
+				defaultActiveIds.add(d.id);
+			}
+		}
+		for (const d of (state.visibleDesserts || [])) {
+			if (d && d.id) {
+				defaultActiveIds.add(d.id);
+			}
 		}
 
 		// Dessert rows (dynamic from state.desserts)
