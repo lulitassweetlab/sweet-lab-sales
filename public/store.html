@@ -7,7 +7,8 @@
     <title>Tienda Lulitas Sweet Lab</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet" />
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'" />
+    <noscript><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet" /></noscript>
     <style>
         :root {
             --bg: #fdf7f8;
@@ -125,10 +126,7 @@
             /* Default height to prevent flash of huge image */
             width: auto;
             object-fit: contain;
-            opacity: 0;
-            /* Hidden initially until settings load */
-            transition: opacity 0.5s ease;
-			margin-top: 40px;
+            margin-top: 40px;
         }
 
         main {
@@ -1349,7 +1347,20 @@
 <body>
     <header>
         <div class="header-left">
-            <img src="/logo.png" alt="Lulitas Sweet Lab" class="logo" />
+            <img src="/logo.png" alt="Lulitas Sweet Lab" class="logo" id="store-logo" />
+            <script>
+                (function() {
+                    try {
+                        const cached = localStorage.getItem('store_settings_cache');
+                        if (cached) {
+                            const settings = JSON.parse(cached);
+                            const logo = document.getElementById('store-logo');
+                            if (settings.logo_base64) logo.src = settings.logo_base64;
+                            if (settings.logo_height) logo.style.height = settings.logo_height + 'px';
+                        }
+                    } catch (e) {}
+                })();
+            </script>
         </div>
         <div class="header-center">
             <h1 id="store-title-display" class="store-title">Menú de Postres</h1>
@@ -1370,44 +1381,6 @@
 
     <main>
         <div class="product-grid" id="product-grid">
-            <!-- Loading Skeletons -->
-            <!-- Detailed Skeletons -->
-            <div class="product-card skeleton-card">
-                <div class="skeleton-image"></div>
-                <div class="skeleton-content">
-                    <div class="skeleton-line title"></div>
-                    <div class="skeleton-line desc"></div>
-                    <div class="skeleton-line price"></div>
-                    <div class="skeleton-line button"></div>
-                </div>
-            </div>
-            <div class="product-card skeleton-card">
-                <div class="skeleton-image"></div>
-                <div class="skeleton-content">
-                    <div class="skeleton-line title"></div>
-                    <div class="skeleton-line desc"></div>
-                    <div class="skeleton-line price"></div>
-                    <div class="skeleton-line button"></div>
-                </div>
-            </div>
-            <div class="product-card skeleton-card">
-                <div class="skeleton-image"></div>
-                <div class="skeleton-content">
-                    <div class="skeleton-line title"></div>
-                    <div class="skeleton-line desc"></div>
-                    <div class="skeleton-line price"></div>
-                    <div class="skeleton-line button"></div>
-                </div>
-            </div>
-            <div class="product-card skeleton-card">
-                <div class="skeleton-image"></div>
-                <div class="skeleton-content">
-                    <div class="skeleton-line title"></div>
-                    <div class="skeleton-line desc"></div>
-                    <div class="skeleton-line price"></div>
-                    <div class="skeleton-line button"></div>
-                </div>
-            </div>
         </div>
         <!-- Contenedor Banners Publicitarios -->
         <div id="promo-banners-container"></div>
@@ -1740,10 +1713,14 @@
 
         // Core Event Listeners (Some remain here for direct DOM interaction)
         document.addEventListener('DOMContentLoaded', async () => {
-            // Initial UI Sync
-            if (typeof updateAuthUI === 'function') updateAuthUI();
+            // Initial UI Sync (Critical cart UI first)
             if (typeof updateCartUI === 'function') updateCartUI();
-            if (typeof setupClientAutocomplete === 'function') setupClientAutocomplete();
+
+            // Defer non-critical setup to idle time or next tick
+            setTimeout(() => {
+                if (typeof updateAuthUI === 'function') updateAuthUI();
+                if (typeof setupClientAutocomplete === 'function') setupClientAutocomplete();
+            }, 100);
 
             // Parallel Data Fetching
             try {
