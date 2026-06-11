@@ -193,8 +193,8 @@ async function loadSellerDays() {
         if (!daysRes.ok) return;
         const days = await daysRes.json();
         if (Array.isArray(days)) {
-            // Sort by date descending (most recent first)
-            storeSellerDays = days.sort((a, b) => new Date(b.day) - new Date(a.day));
+            // Sort by date ascending (closest date first on the left, furthest on the right)
+            storeSellerDays = days.sort((a, b) => new Date(a.day) - new Date(b.day));
             updateDateSelectorUI();
         }
     } catch (err) {
