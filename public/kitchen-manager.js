@@ -651,6 +651,13 @@ const KitchenManager = {
         if (!loteInput) return;
         const multiplier = Number(loteInput.value) || 0;
         
+        const stepId = loteInput.getAttribute('data-step-id');
+        const targetDate = loteInput.getAttribute('data-date');
+        if (stepId && targetDate) {
+            this.customQuantities = this.customQuantities || {};
+            this.customQuantities[`${stepId}_${targetDate}`] = multiplier;
+        }
+        
         const cont = document.getElementById(`ingredients-container-${inputId}`);
         if (!cont) return;
         
@@ -709,12 +716,23 @@ const KitchenManager = {
         if (!step) return "";
         const inputId = `input-${step.id || Math.random().toString(36).substr(2, 9)}`;
         const producedInWindow = this.producedStepsMap && step.id ? (this.producedStepsMap[`${step.id}_${targetDate}`] || 0) : 0;
-        const isDone = producedInWindow >= totalNeeded && totalNeeded > 0;
         
         const timerKey = `${step.id}_${targetDate}`;
         const activeTimer = this.timers[timerKey];
         const isRunning = activeTimer && activeTimer.startTime;
         const elapsed = this.getElapsedSeconds(step.id, targetDate);
+        const isStepActive = isRunning || elapsed > 0;
+
+        const isDone = producedInWindow >= totalNeeded && totalNeeded > 0 && !isStepActive;
+
+        this.customQuantities = this.customQuantities || {};
+        const savedQty = this.customQuantities[timerKey];
+        let defaultQty;
+        if (savedQty !== undefined) {
+            defaultQty = savedQty;
+        } else {
+            defaultQty = Math.max(0, totalNeeded - producedInWindow) || totalNeeded || 1;
+        }
 
         const hasIngredients = step.items && step.items.length > 0;
         const btnTextDone = hasIngredients ? 'Producir Más' : 'Completar Más';
@@ -784,7 +802,10 @@ const KitchenManager = {
                 <div style="display:flex; gap:8px; align-items:center;">
                     <div style="display:flex; flex-direction:column; gap:4px; flex:1;">
                         <small style="font-size:0.65rem; color:#64748b; font-weight:600;">Lote</small>
-                        <input type="number" id="${inputId}" value="${Math.max(0, totalNeeded - producedInWindow) || totalNeeded || 1}" min="1" 
+                        <input type="number" id="${inputId}" 
+                            data-step-id="${step.id || ''}" 
+                            data-date="${targetDate}"
+                            value="${defaultQty}" min="1" 
                             style="width:100%; padding:8px; border-radius:10px; border:1px solid #cbd5e1; font-weight:700; text-align:center; outline:none;"
                             onfocus="this.select()"
                             oninput="window.KitchenManager.recalculateIngredients('${inputId}')">
@@ -813,14 +834,13 @@ const KitchenManager = {
                         ${(step.items || []).map(it => {
                             const key = (it.ingredient || "").toLowerCase().trim();
                             const currentProjected = this.virtualStockMap[key] || 0;
-                            const qtyRemaining = Math.max(0, totalNeeded - producedInWindow);
-                            const qtyNeeded = Number(it.qty_per_unit || 0) * qtyRemaining;
+                            const qtyNeeded = Number(it.qty_per_unit || 0) * defaultQty;
                             
-                            if (qtyNeeded > 0) {
+                            if (qtyNeeded > 0 && !isDone) {
                                 this.virtualStockMap[key] = currentProjected - qtyNeeded;
                             }
 
-                            const isLow = (currentProjected < qtyNeeded && qtyNeeded > 0) || currentProjected < 0;
+                            const isLow = (currentProjected < qtyNeeded && qtyNeeded > 0 && !isDone) || currentProjected < 0;
                             
                             return `<div style="display:flex; justify-content:space-between; margin-bottom:6px; ${isLow ? 'color:#ef4444; font-weight:700;' : ''}">
                                 <span style="font-weight:500;">• ${it.ingredient}</span>
@@ -831,8 +851,7 @@ const KitchenManager = {
                     
                     <div class="ingredients-edit" style="display:none; flex-direction:column; gap:8px;">
                         ${(step.items || []).map(it => {
-                            const qtyRemaining = Math.max(0, totalNeeded - producedInWindow);
-                            const qtyNeeded = Number(it.qty_per_unit || 0) * qtyRemaining;
+                            const qtyNeeded = Number(it.qty_per_unit || 0) * defaultQty;
                             return `
                             <div style="display:flex; align-items:center; gap:8px; justify-content:space-between;" class="custom-ing-row">
                                 <strong style="color:var(--text); flex:1; overflow:hidden; text-overflow:ellipsis;">${it.ingredient}</strong>
@@ -898,6 +917,9 @@ const KitchenManager = {
             if (res.ok) {
                 // Reset timer
                 delete this.timers[`${stepId}_${targetDate}`];
+                if (this.customQuantities) {
+                    delete this.customQuantities[`${stepId}_${targetDate}`];
+                }
                 
                 if (btn) {
                     btn.innerText = "✅ Hecho";
